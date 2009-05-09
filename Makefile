@@ -64,18 +64,18 @@ recurse-all: $(SUBDIR_RULES)
 # BLOCK_OBJS is code used by both qemu system emulation and qemu-img
 
 BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o module.o
-BLOCK_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
-BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
-BLOCK_OBJS+=block-qcow2.o block-parallels.o block-nbd.o
+BLOCK_OBJS+=block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
+BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
+BLOCK_OBJS+=block/qcow2.o block/parallels.o block/nbd.o
 BLOCK_OBJS+=nbd.o block.o aio.o
 
 ifdef CONFIG_WIN32
-BLOCK_OBJS += block-raw-win32.o
+BLOCK_OBJS += block/raw-win32.o
 else
 ifdef CONFIG_AIO
 BLOCK_OBJS += posix-aio-compat.o
 endif
-BLOCK_OBJS += block-raw-posix.o
+BLOCK_OBJS += block/raw-posix.o
 endif
 
 ######################################################################
@@ -234,7 +234,7 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
-	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d
+	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
@@ -408,4 +408,4 @@ tarbin:
 	$(mandir)/man8/qemu-nbd.8
 
 # Include automatically generated dependency files
--include $(wildcard *.d audio/*.d slirp/*.d)
+-include $(wildcard *.d audio/*.d slirp/*.d block/*.d)

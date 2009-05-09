@@ -388,6 +388,7 @@ static void bdrv_raw_init(void)
 {
     bdrv_register(&bdrv_raw);
     bdrv_register(&bdrv_host_device);
+    return 0;
 }
 
 block_init(bdrv_raw_init);
