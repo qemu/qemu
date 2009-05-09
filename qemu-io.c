@@ -210,7 +210,9 @@ read_f(int argc, char **argv)
 	int c, cnt;
 	char *buf;
 	int64_t offset;
-	int count, total;
+	int count;
+        /* Some compilers get confused and warn if this is not initialized.  */
+        int total = 0;
 	int pattern = 0, pattern_offset = 0, pattern_count = 0;
 
 	while ((c = getopt(argc, argv, "Cl:pP:qs:v")) != EOF) {
@@ -527,7 +529,9 @@ write_f(int argc, char **argv)
 	int c, cnt;
 	char *buf;
 	int64_t offset;
-	int count, total;
+	int count;
+        /* Some compilers get confused and warn if this is not initialized.  */
+        int total = 0;
 	int pattern = 0xcd;
 
 	while ((c = getopt(argc, argv, "CpP:q")) != EOF) {
