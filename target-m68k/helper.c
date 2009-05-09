@@ -54,6 +54,15 @@ static m68k_def_t m68k_cpu_defs[] = {
     {NULL, 0},
 };
 
+void m68k_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+{
+    unsigned int i;
+
+    for (i = 0; m68k_cpu_defs[i].name; i++) {
+        (*cpu_fprintf)(f, "%s\n", m68k_cpu_defs[i].name);
+    }
+}
+
 static int fpu_gdb_get_reg(CPUState *env, uint8_t *mem_buf, int n)
 {
     if (n < 8) {
