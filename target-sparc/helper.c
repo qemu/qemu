@@ -660,6 +660,7 @@ void cpu_reset(CPUSPARCState *env)
     env->psret = 0;
     env->psrs = 1;
     env->psrps = 1;
+    CC_OP = CC_OP_FLAGS;
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
     env->hpstate = HS_PRIV;

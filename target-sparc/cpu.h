@@ -92,6 +92,27 @@
 #define PSR_ET    (1<<5)
 #define PSR_CWP   0x1f
 
+#define CC_SRC (env->cc_src)
+#define CC_SRC2 (env->cc_src2)
+#define CC_DST (env->cc_dst)
+#define CC_OP  (env->cc_op)
+
+enum {
+    CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
+    CC_OP_FLAGS,   /* all cc are back in status register */
+    CC_OP_DIV,     /* modify N, Z and V, C = 0*/
+    CC_OP_ADD,     /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_ADDX,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_TADD,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_TADDTV,  /* modify all flags except V, CC_DST = res, CC_SRC = src1 */
+    CC_OP_SUB,     /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_SUBX,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_TSUB,    /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_TSUBTV,  /* modify all flags except V, CC_DST = res, CC_SRC = src1 */
+    CC_OP_LOGIC,   /* modify N and Z, C = V = 0, CC_DST = res */
+    CC_OP_NB,
+};
+
 /* Trap base register */
 #define TBR_BASE_MASK 0xfffff000
 
@@ -261,6 +282,7 @@ typedef struct CPUSPARCState {
     /* emulator internal flags handling */
     target_ulong cc_src, cc_src2;
     target_ulong cc_dst;
+    uint32_t cc_op;
 
     target_ulong t0, t1; /* temporaries live across basic blocks */
     target_ulong cond; /* conditional branch result (XXX: save it in a
@@ -413,6 +435,7 @@ static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
         env->psrps = (_tmp & PSR_PS)? 1 : 0;                            \
         env->psret = (_tmp & PSR_ET)? 1 : 0;                            \
         cpu_set_cwp(env, _tmp & PSR_CWP);                               \
+        CC_OP = CC_OP_FLAGS;                                            \
     } while (0)
 
 #ifdef TARGET_SPARC64
@@ -420,6 +443,7 @@ static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
 #define PUT_CCR(env, val) do { int _tmp = val;                          \
         env->xcc = (_tmp >> 4) << 20;                                   \
         env->psr = (_tmp & 0xf) << 20;                                  \
+        CC_OP = CC_OP_FLAGS;                                            \
     } while (0)
 #define GET_CWP64(env) (env->nwindows - 1 - (env)->cwp)
 

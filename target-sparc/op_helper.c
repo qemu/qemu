@@ -746,6 +746,67 @@ GEN_FCMP(fcmped, float64, DT0, DT1, 0, 1);
 GEN_FCMP(fcmpq, float128, QT0, QT1, 0, 0);
 GEN_FCMP(fcmpeq, float128, QT0, QT1, 0, 1);
 
+static uint32_t compute_all_flags(void)
+{
+    return env->psr & PSR_ICC;
+}
+
+static uint32_t compute_C_flags(void)
+{
+    return env->psr & PSR_CARRY;
+}
+
+#ifdef TARGET_SPARC64
+static uint32_t compute_all_flags_xcc(void)
+{
+    return env->xcc & PSR_ICC;
+}
+
+static uint32_t compute_C_flags_xcc(void)
+{
+    return env->xcc & PSR_CARRY;
+}
+
+#endif
+
+typedef struct CCTable {
+    uint32_t (*compute_all)(void); /* return all the flags */
+    uint32_t (*compute_c)(void);  /* return the C flag */
+} CCTable;
+
+static const CCTable icc_table[CC_OP_NB] = {
+    /* CC_OP_DYNAMIC should never happen */
+    [CC_OP_FLAGS] = { compute_all_flags, compute_C_flags },
+};
+
+#ifdef TARGET_SPARC64
+static const CCTable xcc_table[CC_OP_NB] = {
+    /* CC_OP_DYNAMIC should never happen */
+    [CC_OP_FLAGS] = { compute_all_flags_xcc, compute_C_flags_xcc },
+};
+#endif
+
+void helper_compute_psr(void)
+{
+    uint32_t new_psr;
+
+    new_psr = icc_table[CC_OP].compute_all();
+    env->psr = new_psr;
+#ifdef TARGET_SPARC64
+    new_psr = xcc_table[CC_OP].compute_all();
+    env->xcc = new_psr;
+#endif
+    CC_OP = CC_OP_FLAGS;
+}
+
+uint32_t helper_compute_C_icc(void)
+{
+    uint32_t ret;
+
+    ret = icc_table[CC_OP].compute_c() >> PSR_CARRY_SHIFT;
+    return ret;
+}
+
 #ifdef TARGET_SPARC64
 GEN_FCMPS(fcmps_fcc1, float32, 22, 0);
 GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22, 0);
