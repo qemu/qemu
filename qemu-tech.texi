@@ -363,7 +363,9 @@ look at @code{tcg/README}.
 Lazy evaluation of CPU condition codes (@code{EFLAGS} register on x86)
 is important for CPUs where every instruction sets the condition
 codes. It tends to be less important on conventional RISC systems
-where condition codes are only updated when explicitly requested.
+where condition codes are only updated when explicitly requested. On
+Sparc64, costly update of both 32 and 64 bit condition codes can be
+avoided with lazy evaluation.
 
 Instead of computing the condition codes after each x86 instruction,
 QEMU just stores one operand (called @code{CC_SRC}), the result
@@ -376,8 +378,8 @@ conditional branches.
 @code{CC_OP} is almost never explicitly set in the generated code
 because it is known at translation time.
 
-The lazy condition code evaluation is used on x86, m68k and cris. ARM
-uses a simplified variant for the N and Z flags.
+The lazy condition code evaluation is used on x86, m68k, cris and
+Sparc. ARM uses a simplified variant for the N and Z flags.
 
 @node CPU state optimisations
 @section CPU state optimisations
