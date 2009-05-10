@@ -860,6 +860,48 @@ static uint32_t compute_C_add_xcc(void)
 }
 #endif
 
+static uint32_t compute_all_addx(void)
+{
+    uint32_t ret;
+
+    ret = get_NZ_icc(CC_DST);
+    ret |= get_C_add_icc(CC_DST - CC_SRC2, CC_SRC);
+    ret |= get_C_add_icc(CC_DST, CC_SRC);
+    ret |= get_V_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
+
+static uint32_t compute_C_addx(void)
+{
+    uint32_t ret;
+
+    ret = get_C_add_icc(CC_DST - CC_SRC2, CC_SRC);
+    ret |= get_C_add_icc(CC_DST, CC_SRC);
+    return ret;
+}
+
+#ifdef TARGET_SPARC64
+static uint32_t compute_all_addx_xcc(void)
+{
+    uint32_t ret;
+
+    ret = get_NZ_xcc(CC_DST);
+    ret |= get_C_add_xcc(CC_DST - CC_SRC2, CC_SRC);
+    ret |= get_C_add_xcc(CC_DST, CC_SRC);
+    ret |= get_V_add_xcc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
+
+static uint32_t compute_C_addx_xcc(void)
+{
+    uint32_t ret;
+
+    ret = get_C_add_xcc(CC_DST - CC_SRC2, CC_SRC);
+    ret |= get_C_add_xcc(CC_DST, CC_SRC);
+    return ret;
+}
+#endif
+
 typedef struct CCTable {
     uint32_t (*compute_all)(void); /* return all the flags */
     uint32_t (*compute_c)(void);  /* return the C flag */
@@ -869,6 +911,7 @@ static const CCTable icc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
     [CC_OP_FLAGS] = { compute_all_flags, compute_C_flags },
     [CC_OP_ADD] = { compute_all_add, compute_C_add },
+    [CC_OP_ADDX] = { compute_all_addx, compute_C_addx },
 };
 
 #ifdef TARGET_SPARC64
@@ -876,6 +919,7 @@ static const CCTable xcc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
     [CC_OP_FLAGS] = { compute_all_flags_xcc, compute_C_flags_xcc },
     [CC_OP_ADD] = { compute_all_add_xcc, compute_C_add_xcc },
+    [CC_OP_ADDX] = { compute_all_addx_xcc, compute_C_addx_xcc },
 };
 #endif
 
