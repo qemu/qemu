@@ -701,19 +701,6 @@ static inline void gen_op_sdivx(TCGv dst, TCGv src1, TCGv src2)
 }
 #endif
 
-static inline void gen_op_div_cc(TCGv dst)
-{
-    int l1;
-
-    tcg_gen_mov_tl(cpu_cc_dst, dst);
-    gen_cc_clear_icc();
-    gen_cc_NZ_icc(cpu_cc_dst);
-    l1 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_cc_src2, 0, l1);
-    tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_OVF);
-    gen_set_label(l1);
-}
-
 // 1
 static inline void gen_op_eval_ba(TCGv dst)
 {
@@ -3151,18 +3138,18 @@ static void disas_sparc_insn(DisasContext * dc)
                         CHECK_IU_FEATURE(dc, DIV);
                         gen_helper_udiv(cpu_dst, cpu_src1, cpu_src2);
                         if (xop & 0x10) {
-                            gen_op_div_cc(cpu_dst);
-                            tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                            dc->cc_op = CC_OP_FLAGS;
+                            tcg_gen_mov_tl(cpu_cc_dst, cpu_dst);
+                            tcg_gen_movi_i32(cpu_cc_op, CC_OP_DIV);
+                            dc->cc_op = CC_OP_DIV;
                         }
                         break;
                     case 0xf: /* sdiv */
                         CHECK_IU_FEATURE(dc, DIV);
                         gen_helper_sdiv(cpu_dst, cpu_src1, cpu_src2);
                         if (xop & 0x10) {
-                            gen_op_div_cc(cpu_dst);
-                            tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                            dc->cc_op = CC_OP_FLAGS;
+                            tcg_gen_mov_tl(cpu_cc_dst, cpu_dst);
+                            tcg_gen_movi_i32(cpu_cc_op, CC_OP_DIV);
+                            dc->cc_op = CC_OP_DIV;
                         }
                         break;
                     default:
