@@ -459,27 +459,12 @@ static inline void gen_tag_tv(TCGv src1, TCGv src2)
     gen_set_label(l1);
 }
 
-static inline void gen_op_add_cc2(TCGv dst)
-{
-    gen_cc_clear_icc();
-    gen_cc_NZ_icc(cpu_cc_dst);
-    gen_cc_C_add_icc(cpu_cc_dst, cpu_cc_src);
-    gen_cc_V_add_icc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-#ifdef TARGET_SPARC64
-    gen_cc_clear_xcc();
-    gen_cc_NZ_xcc(cpu_cc_dst);
-    gen_cc_C_add_xcc(cpu_cc_dst, cpu_cc_src);
-    gen_cc_V_add_xcc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-#endif
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
 static inline void gen_op_addi_cc(TCGv dst, TCGv src1, target_long src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_movi_tl(cpu_cc_src2, src2);
     tcg_gen_addi_tl(cpu_cc_dst, cpu_cc_src, src2);
-    gen_op_add_cc2(dst);
+    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
@@ -487,7 +472,7 @@ static inline void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_mov_tl(cpu_cc_src2, src2);
     tcg_gen_add_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    gen_op_add_cc2(dst);
+    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_addx_cc2(TCGv dst)
@@ -3153,16 +3138,16 @@ static void disas_sparc_insn(DisasContext * dc)
                             simm = GET_FIELDs(insn, 19, 31);
                             if (xop & 0x10) {
                                 gen_op_addi_cc(cpu_dst, cpu_src1, simm);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
+                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
+                                dc->cc_op = CC_OP_ADD;
                             } else {
                                 tcg_gen_addi_tl(cpu_dst, cpu_src1, simm);
                             }
                         } else {
                             if (xop & 0x10) {
                                 gen_op_add_cc(cpu_dst, cpu_src1, cpu_src2);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
+                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
+                                dc->cc_op = CC_OP_ADD;
                             } else {
                                 tcg_gen_add_tl(cpu_dst, cpu_src1, cpu_src2);
                             }

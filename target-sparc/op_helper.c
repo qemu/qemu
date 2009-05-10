@@ -756,6 +756,17 @@ static uint32_t compute_C_flags(void)
     return env->psr & PSR_CARRY;
 }
 
+static inline uint32_t get_NZ_icc(target_ulong dst)
+{
+    uint32_t ret = 0;
+
+    if (!(dst & 0xffffffffULL))
+        ret |= PSR_ZERO;
+    if ((int32_t) (dst & 0xffffffffULL) < 0)
+        ret |= PSR_NEG;
+    return ret;
+}
+
 #ifdef TARGET_SPARC64
 static uint32_t compute_all_flags_xcc(void)
 {
@@ -767,6 +778,86 @@ static uint32_t compute_C_flags_xcc(void)
     return env->xcc & PSR_CARRY;
 }
 
+static inline uint32_t get_NZ_xcc(target_ulong dst)
+{
+    uint32_t ret = 0;
+
+    if (!dst)
+        ret |= PSR_ZERO;
+    if ((int64_t)dst < 0)
+        ret |= PSR_NEG;
+    return ret;
+}
+#endif
+
+static inline uint32_t get_C_add_icc(target_ulong dst, target_ulong src1)
+{
+    uint32_t ret = 0;
+
+    if ((dst & 0xffffffffULL) < (src1 & 0xffffffffULL))
+        ret |= PSR_CARRY;
+    return ret;
+}
+
+static inline uint32_t get_V_add_icc(target_ulong dst, target_ulong src1,
+                                         target_ulong src2)
+{
+    uint32_t ret = 0;
+
+    if (((src1 ^ src2 ^ -1) & (src1 ^ dst)) & (1ULL << 31))
+        ret |= PSR_OVF;
+    return ret;
+}
+
+static uint32_t compute_all_add(void)
+{
+    uint32_t ret;
+
+    ret = get_NZ_icc(CC_DST);
+    ret |= get_C_add_icc(CC_DST, CC_SRC);
+    ret |= get_V_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
+
+static uint32_t compute_C_add(void)
+{
+    return get_C_add_icc(CC_DST, CC_SRC);
+}
+
+#ifdef TARGET_SPARC64
+static inline uint32_t get_C_add_xcc(target_ulong dst, target_ulong src1)
+{
+    uint32_t ret = 0;
+
+    if (dst < src1)
+        ret |= PSR_CARRY;
+    return ret;
+}
+
+static inline uint32_t get_V_add_xcc(target_ulong dst, target_ulong src1,
+                                         target_ulong src2)
+{
+    uint32_t ret = 0;
+
+    if (((src1 ^ src2 ^ -1) & (src1 ^ dst)) & (1ULL << 63))
+        ret |= PSR_OVF;
+    return ret;
+}
+
+static uint32_t compute_all_add_xcc(void)
+{
+    uint32_t ret;
+
+    ret = get_NZ_xcc(CC_DST);
+    ret |= get_C_add_xcc(CC_DST, CC_SRC);
+    ret |= get_V_add_xcc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
+
+static uint32_t compute_C_add_xcc(void)
+{
+    return get_C_add_xcc(CC_DST, CC_SRC);
+}
 #endif
 
 typedef struct CCTable {
@@ -777,12 +868,14 @@ typedef struct CCTable {
 static const CCTable icc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
     [CC_OP_FLAGS] = { compute_all_flags, compute_C_flags },
+    [CC_OP_ADD] = { compute_all_add, compute_C_add },
 };
 
 #ifdef TARGET_SPARC64
 static const CCTable xcc_table[CC_OP_NB] = {
     /* CC_OP_DYNAMIC should never happen */
     [CC_OP_FLAGS] = { compute_all_flags_xcc, compute_C_flags_xcc },
+    [CC_OP_ADD] = { compute_all_add_xcc, compute_C_add_xcc },
 };
 #endif
 
