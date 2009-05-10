@@ -635,33 +635,14 @@ static inline void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
-static inline void gen_op_subx_cc2(TCGv dst)
-{
-    gen_cc_NZ_icc(cpu_cc_dst);
-    gen_cc_C_sub_icc(cpu_cc_dst, cpu_cc_src);
-    gen_cc_V_sub_icc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-#ifdef TARGET_SPARC64
-    gen_cc_NZ_xcc(cpu_cc_dst);
-    gen_cc_C_sub_xcc(cpu_cc_dst, cpu_cc_src);
-    gen_cc_V_sub_xcc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-#endif
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
 static inline void gen_op_subxi_cc(TCGv dst, TCGv src1, target_long src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_movi_tl(cpu_cc_src2, src2);
     gen_mov_reg_C(cpu_tmp0, cpu_psr);
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_tmp0);
-    gen_cc_clear_icc();
-    gen_cc_C_sub_icc(cpu_cc_dst, cpu_cc_src);
-#ifdef TARGET_SPARC64
-    gen_cc_clear_xcc();
-    gen_cc_C_sub_xcc(cpu_cc_dst, cpu_cc_src);
-#endif
     tcg_gen_subi_tl(cpu_cc_dst, cpu_cc_dst, src2);
-    gen_op_subx_cc2(dst);
+    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_subx_cc(TCGv dst, TCGv src1, TCGv src2)
@@ -670,14 +651,8 @@ static inline void gen_op_subx_cc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mov_tl(cpu_cc_src2, src2);
     gen_mov_reg_C(cpu_tmp0, cpu_psr);
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_tmp0);
-    gen_cc_clear_icc();
-    gen_cc_C_sub_icc(cpu_cc_dst, cpu_cc_src);
-#ifdef TARGET_SPARC64
-    gen_cc_clear_xcc();
-    gen_cc_C_sub_xcc(cpu_cc_dst, cpu_cc_src);
-#endif
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_dst, cpu_cc_src2);
-    gen_op_subx_cc2(dst);
+    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_tsub_cc(TCGv dst, TCGv src1, TCGv src2)
@@ -3263,8 +3238,8 @@ static void disas_sparc_insn(DisasContext * dc)
                             if (xop & 0x10) {
                                 gen_helper_compute_psr();
                                 gen_op_subxi_cc(cpu_dst, cpu_src1, simm);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
+                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUBX);
+                                dc->cc_op = CC_OP_SUBX;
                             } else {
                                 gen_helper_compute_psr();
                                 gen_mov_reg_C(cpu_tmp0, cpu_psr);
@@ -3275,8 +3250,8 @@ static void disas_sparc_insn(DisasContext * dc)
                             if (xop & 0x10) {
                                 gen_helper_compute_psr();
                                 gen_op_subx_cc(cpu_dst, cpu_src1, cpu_src2);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
+                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUBX);
+                                dc->cc_op = CC_OP_SUBX;
                             } else {
                                 gen_helper_compute_psr();
                                 gen_mov_reg_C(cpu_tmp0, cpu_psr);
