@@ -4688,6 +4688,11 @@ void helper_debug(void)
     cpu_loop_exit();
 }
 
+void helper_reset_rf(void)
+{
+    env->eflags &= ~RF_MASK;
+}
+
 void helper_raise_interrupt(int intno, int next_eip_addend)
 {
     raise_interrupt(intno, 1, 0, next_eip_addend);

@@ -2704,6 +2704,9 @@ static void gen_eob(DisasContext *s)
     if (s->tb->flags & HF_INHIBIT_IRQ_MASK) {
         gen_helper_reset_inhibit_irq();
     }
+    if (s->tb->flags & HF_RF_MASK) {
+        gen_helper_reset_rf();
+    }
     if (s->singlestep_enabled) {
         gen_helper_debug();
     } else if (s->tf) {
@@ -7687,7 +7690,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     for(;;) {
         if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
             TAILQ_FOREACH(bp, &env->breakpoints, entry) {
-                if (bp->pc == pc_ptr) {
+                if (bp->pc == pc_ptr &&
+                    !((bp->flags & BP_CPU) && (tb->flags & HF_RF_MASK))) {
                     gen_debug(dc, pc_ptr - dc->cs_base);
                     break;
                 }

@@ -145,11 +145,12 @@
 #define HF_IOPL_SHIFT       12 /* must be same as eflags */
 #define HF_LMA_SHIFT        14 /* only used on x86_64: long mode active */
 #define HF_CS64_SHIFT       15 /* only used on x86_64: 64 bit code segment  */
-#define HF_OSFXSR_SHIFT     16 /* CR4.OSFXSR */
+#define HF_RF_SHIFT         16 /* must be same as eflags */
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 #define HF_SMM_SHIFT        19 /* CPU in SMM mode */
 #define HF_SVME_SHIFT       20 /* SVME enabled (copy of EFER.SVME) */
 #define HF_SVMI_SHIFT       21 /* SVM intercepts are active */
+#define HF_OSFXSR_SHIFT     22 /* CR4.OSFXSR */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -165,11 +166,12 @@
 #define HF_IOPL_MASK         (3 << HF_IOPL_SHIFT)
 #define HF_LMA_MASK          (1 << HF_LMA_SHIFT)
 #define HF_CS64_MASK         (1 << HF_CS64_SHIFT)
-#define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
+#define HF_RF_MASK           (1 << HF_RF_SHIFT)
 #define HF_VM_MASK           (1 << HF_VM_SHIFT)
 #define HF_SMM_MASK          (1 << HF_SMM_SHIFT)
 #define HF_SVME_MASK         (1 << HF_SVME_SHIFT)
 #define HF_SVMI_MASK         (1 << HF_SVMI_SHIFT)
+#define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 
 /* hflags2 */
 
@@ -881,7 +883,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 {
     *cs_base = env->segs[R_CS].base;
     *pc = *cs_base + env->eip;
-    *flags = env->hflags | (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
+    *flags = env->hflags |
+        (env->eflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK));
 }
 
 #endif /* CPU_I386_H */
