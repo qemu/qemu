@@ -902,6 +902,23 @@ static uint32_t compute_C_addx_xcc(void)
 }
 #endif
 
+static uint32_t compute_all_logic(void)
+{
+    return get_NZ_icc(CC_DST);
+}
+
+static uint32_t compute_C_logic(void)
+{
+    return 0;
+}
+
+#ifdef TARGET_SPARC64
+static uint32_t compute_all_logic_xcc(void)
+{
+    return get_NZ_xcc(CC_DST);
+}
+#endif
+
 typedef struct CCTable {
     uint32_t (*compute_all)(void); /* return all the flags */
     uint32_t (*compute_c)(void);  /* return the C flag */
@@ -912,6 +929,7 @@ static const CCTable icc_table[CC_OP_NB] = {
     [CC_OP_FLAGS] = { compute_all_flags, compute_C_flags },
     [CC_OP_ADD] = { compute_all_add, compute_C_add },
     [CC_OP_ADDX] = { compute_all_addx, compute_C_addx },
+    [CC_OP_LOGIC] = { compute_all_logic, compute_C_logic },
 };
 
 #ifdef TARGET_SPARC64
@@ -920,6 +938,7 @@ static const CCTable xcc_table[CC_OP_NB] = {
     [CC_OP_FLAGS] = { compute_all_flags_xcc, compute_C_flags_xcc },
     [CC_OP_ADD] = { compute_all_add_xcc, compute_C_add_xcc },
     [CC_OP_ADDX] = { compute_all_addx_xcc, compute_C_addx_xcc },
+    [CC_OP_LOGIC] = { compute_all_logic_xcc, compute_C_logic },
 };
 #endif
 
