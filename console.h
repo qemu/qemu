@@ -35,7 +35,7 @@ void kbd_put_keycode(int keycode);
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
 int kbd_mouse_is_absolute(void);
 
-struct mouse_transform_info_s {
+struct MouseTransformInfo {
     /* Touchscreen resolution */
     int x;
     int y;

@@ -2856,11 +2856,11 @@ void usb_info(Monitor *mon)
 /* PCMCIA/Cardbus */
 
 static struct pcmcia_socket_entry_s {
-    struct pcmcia_socket_s *socket;
+    PCMCIASocket *socket;
     struct pcmcia_socket_entry_s *next;
 } *pcmcia_sockets = 0;
 
-void pcmcia_socket_register(struct pcmcia_socket_s *socket)
+void pcmcia_socket_register(PCMCIASocket *socket)
 {
     struct pcmcia_socket_entry_s *entry;
 
@@ -2870,7 +2870,7 @@ void pcmcia_socket_register(struct pcmcia_socket_s *socket)
     pcmcia_sockets = entry;
 }
 
-void pcmcia_socket_unregister(struct pcmcia_socket_s *socket)
+void pcmcia_socket_unregister(PCMCIASocket *socket)
 {
     struct pcmcia_socket_entry_s *entry, **ptr;
 

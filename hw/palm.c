@@ -84,7 +84,7 @@ static CPUWriteMemoryFunc *static_writefn[] = {
 #define PALMTE_MMC2_GPIO	7
 #define PALMTE_MMC3_GPIO	11
 
-static struct mouse_transform_info_s palmte_pointercal = {
+static MouseTransformInfo palmte_pointercal = {
     .x = 320,
     .y = 320,
     .a = { -5909, 8, 22465308, 104, 7644, -1219972, 65536 },
@@ -92,7 +92,7 @@ static struct mouse_transform_info_s palmte_pointercal = {
 
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
-    struct uwire_slave_s *tsc;
+    uWireSlave *tsc;
     AudioState *audio = 0;
 
 #ifdef HAS_AUDIO

@@ -10,7 +10,7 @@
 #include "hw.h"
 #include "i2c.h"
 
-struct max111x_s {
+struct MAX111xState {
     qemu_irq interrupt;
     uint8_t tb1, rb2, rb3;
     int cycle;
@@ -36,7 +36,7 @@ struct max111x_s {
 
 uint32_t max111x_read(void *opaque)
 {
-    struct max111x_s *s = (struct max111x_s *) opaque;
+    MAX111xState *s = (MAX111xState *) opaque;
 
     if (!s->tb1)
         return 0;
@@ -54,7 +54,7 @@ uint32_t max111x_read(void *opaque)
 /* Interpret a control-byte */
 void max111x_write(void *opaque, uint32_t value)
 {
-    struct max111x_s *s = (struct max111x_s *) opaque;
+    MAX111xState *s = (MAX111xState *) opaque;
     int measure, chan;
 
     /* Ignore the value if START bit is zero */
@@ -92,7 +92,7 @@ void max111x_write(void *opaque, uint32_t value)
 
 static void max111x_save(QEMUFile *f, void *opaque)
 {
-    struct max111x_s *s = (struct max111x_s *) opaque;
+    MAX111xState *s = (MAX111xState *) opaque;
     int i;
 
     qemu_put_8s(f, &s->tb1);
@@ -106,7 +106,7 @@ static void max111x_save(QEMUFile *f, void *opaque)
 
 static int max111x_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct max111x_s *s = (struct max111x_s *) opaque;
+    MAX111xState *s = (MAX111xState *) opaque;
     int i;
 
     qemu_get_8s(f, &s->tb1);
@@ -121,12 +121,12 @@ static int max111x_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static struct max111x_s *max111x_init(qemu_irq cb)
+static MAX111xState *max111x_init(qemu_irq cb)
 {
-    struct max111x_s *s;
-    s = (struct max111x_s *)
-            qemu_mallocz(sizeof(struct max111x_s));
-    memset(s, 0, sizeof(struct max111x_s));
+    MAX111xState *s;
+    s = (MAX111xState *)
+            qemu_mallocz(sizeof(MAX111xState));
+    memset(s, 0, sizeof(MAX111xState));
 
     s->interrupt = cb;
 
@@ -146,21 +146,21 @@ static struct max111x_s *max111x_init(qemu_irq cb)
     return s;
 }
 
-struct max111x_s *max1110_init(qemu_irq cb)
+MAX111xState *max1110_init(qemu_irq cb)
 {
-    struct max111x_s *s = max111x_init(cb);
+    MAX111xState *s = max111x_init(cb);
     s->inputs = 8;
     return s;
 }
 
-struct max111x_s *max1111_init(qemu_irq cb)
+MAX111xState *max1111_init(qemu_irq cb)
 {
-    struct max111x_s *s = max111x_init(cb);
+    MAX111xState *s = max111x_init(cb);
     s->inputs = 4;
     return s;
 }
 
-void max111x_set_input(struct max111x_s *s, int line, uint8_t value)
+void max111x_set_input(MAX111xState *s, int line, uint8_t value)
 {
     if (line >= s->inputs) {
         printf("%s: There's no input %i\n", __FUNCTION__, line);

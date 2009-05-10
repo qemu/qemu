@@ -11,7 +11,7 @@
 #include "devices.h"
 #include "console.h"
 
-struct ads7846_state_s {
+struct ADS7846State {
     qemu_irq interrupt;
 
     int input[8];
@@ -46,7 +46,7 @@ struct ads7846_state_s {
 #define ADS_Z1POS(x, y)	600
 #define ADS_Z2POS(x, y)	(600 + 6000 / ADS_XPOS(x, y))
 
-static void ads7846_int_update(struct ads7846_state_s *s)
+static void ads7846_int_update(ADS7846State *s)
 {
     if (s->interrupt)
         qemu_set_irq(s->interrupt, s->pressure == 0);
@@ -54,14 +54,14 @@ static void ads7846_int_update(struct ads7846_state_s *s)
 
 uint32_t ads7846_read(void *opaque)
 {
-    struct ads7846_state_s *s = (struct ads7846_state_s *) opaque;
+    ADS7846State *s = (ADS7846State *) opaque;
 
     return s->output;
 }
 
 void ads7846_write(void *opaque, uint32_t value)
 {
-    struct ads7846_state_s *s = (struct ads7846_state_s *) opaque;
+    ADS7846State *s = (ADS7846State *) opaque;
 
     switch (s->cycle ++) {
     case 0:
@@ -94,7 +94,7 @@ void ads7846_write(void *opaque, uint32_t value)
 static void ads7846_ts_event(void *opaque,
                 int x, int y, int z, int buttons_state)
 {
-    struct ads7846_state_s *s = opaque;
+    ADS7846State *s = opaque;
 
     if (buttons_state) {
         x = 0x7fff - x;
@@ -113,7 +113,7 @@ static void ads7846_ts_event(void *opaque,
 
 static void ads7846_save(QEMUFile *f, void *opaque)
 {
-    struct ads7846_state_s *s = (struct ads7846_state_s *) opaque;
+    ADS7846State *s = (ADS7846State *) opaque;
     int i;
 
     for (i = 0; i < 8; i ++)
@@ -125,7 +125,7 @@ static void ads7846_save(QEMUFile *f, void *opaque)
 
 static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct ads7846_state_s *s = (struct ads7846_state_s *) opaque;
+    ADS7846State *s = (ADS7846State *) opaque;
     int i;
 
     for (i = 0; i < 8; i ++)
@@ -140,12 +140,12 @@ static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct ads7846_state_s *ads7846_init(qemu_irq penirq)
+ADS7846State *ads7846_init(qemu_irq penirq)
 {
-    struct ads7846_state_s *s;
-    s = (struct ads7846_state_s *)
-            qemu_mallocz(sizeof(struct ads7846_state_s));
-    memset(s, 0, sizeof(struct ads7846_state_s));
+    ADS7846State *s;
+    s = (ADS7846State *)
+            qemu_mallocz(sizeof(ADS7846State));
+    memset(s, 0, sizeof(ADS7846State));
 
     s->interrupt = penirq;
 

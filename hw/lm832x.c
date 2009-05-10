@@ -24,7 +24,7 @@
 #include "qemu-timer.h"
 #include "console.h"
 
-struct lm_kbd_s {
+typedef struct {
     i2c_slave i2c;
     int i2c_dir;
     int i2c_cycle;
@@ -66,7 +66,7 @@ struct lm_kbd_s {
         uint8_t addr[3];
         QEMUTimer *tm[3];
     } pwm;
-};
+} LM823KbdState;
 
 #define INT_KEYPAD		(1 << 0)
 #define INT_ERROR		(1 << 3)
@@ -78,16 +78,16 @@ struct lm_kbd_s {
 #define ERR_KEYOVR		(1 << 2)
 #define ERR_FIFOOVR		(1 << 6)
 
-static void lm_kbd_irq_update(struct lm_kbd_s *s)
+static void lm_kbd_irq_update(LM823KbdState *s)
 {
     qemu_set_irq(s->nirq, !s->status);
 }
 
-static void lm_kbd_gpio_update(struct lm_kbd_s *s)
+static void lm_kbd_gpio_update(LM823KbdState *s)
 {
 }
 
-static void lm_kbd_reset(struct lm_kbd_s *s)
+static void lm_kbd_reset(LM823KbdState *s)
 {
     s->config = 0x80;
     s->status = INT_NOINIT;
@@ -100,18 +100,18 @@ static void lm_kbd_reset(struct lm_kbd_s *s)
     lm_kbd_gpio_update(s);
 }
 
-static void lm_kbd_error(struct lm_kbd_s *s, int err)
+static void lm_kbd_error(LM823KbdState *s, int err)
 {
     s->error |= err;
     s->status |= INT_ERROR;
     lm_kbd_irq_update(s);
 }
 
-static void lm_kbd_pwm_tick(struct lm_kbd_s *s, int line)
+static void lm_kbd_pwm_tick(LM823KbdState *s, int line)
 {
 }
 
-static void lm_kbd_pwm_start(struct lm_kbd_s *s, int line)
+static void lm_kbd_pwm_start(LM823KbdState *s, int line)
 {
     lm_kbd_pwm_tick(s, line);
 }
@@ -158,7 +158,7 @@ enum {
 #define LM832x_MAX_KPX		8
 #define LM832x_MAX_KPY		12
 
-static uint8_t lm_kbd_read(struct lm_kbd_s *s, int reg, int byte)
+static uint8_t lm_kbd_read(LM823KbdState *s, int reg, int byte)
 {
     int ret;
 
@@ -239,7 +239,7 @@ static uint8_t lm_kbd_read(struct lm_kbd_s *s, int reg, int byte)
     return ret >> (byte << 3);
 }
 
-static void lm_kbd_write(struct lm_kbd_s *s, int reg, int byte, uint8_t value)
+static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
 {
     switch (reg) {
     case LM832x_CMD_WRITE_CFG:
@@ -378,7 +378,7 @@ static void lm_kbd_write(struct lm_kbd_s *s, int reg, int byte, uint8_t value)
 
 static void lm_i2c_event(i2c_slave *i2c, enum i2c_event event)
 {
-    struct lm_kbd_s *s = (struct lm_kbd_s *) i2c;
+    LM823KbdState *s = (LM823KbdState *) i2c;
 
     switch (event) {
     case I2C_START_RECV:
@@ -394,14 +394,14 @@ static void lm_i2c_event(i2c_slave *i2c, enum i2c_event event)
 
 static int lm_i2c_rx(i2c_slave *i2c)
 {
-    struct lm_kbd_s *s = (struct lm_kbd_s *) i2c;
+    LM823KbdState *s = (LM823KbdState *) i2c;
 
     return lm_kbd_read(s, s->reg, s->i2c_cycle ++);
 }
 
 static int lm_i2c_tx(i2c_slave *i2c, uint8_t data)
 {
-    struct lm_kbd_s *s = (struct lm_kbd_s *) i2c;
+    LM823KbdState *s = (LM823KbdState *) i2c;
 
     if (!s->i2c_cycle)
         s->reg = data;
@@ -414,7 +414,7 @@ static int lm_i2c_tx(i2c_slave *i2c, uint8_t data)
 
 static void lm_kbd_save(QEMUFile *f, void *opaque)
 {
-    struct lm_kbd_s *s = (struct lm_kbd_s *) opaque;
+    LM823KbdState *s = (LM823KbdState *) opaque;
     int i;
 
     i2c_slave_save(f, &s->i2c);
@@ -450,7 +450,7 @@ static void lm_kbd_save(QEMUFile *f, void *opaque)
 
 static int lm_kbd_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct lm_kbd_s *s = (struct lm_kbd_s *) opaque;
+    LM823KbdState *s = (LM823KbdState *) opaque;
     int i;
 
     i2c_slave_load(f, &s->i2c);
@@ -489,11 +489,11 @@ static int lm_kbd_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct i2c_slave *lm8323_init(i2c_bus *bus, qemu_irq nirq)
+i2c_slave *lm8323_init(i2c_bus *bus, qemu_irq nirq)
 {
-    struct lm_kbd_s *s;
+    LM823KbdState *s;
 
-    s = (struct lm_kbd_s *) i2c_slave_init(bus, 0, sizeof(struct lm_kbd_s));
+    s = (LM823KbdState *) i2c_slave_init(bus, 0, sizeof(LM823KbdState));
     s->model = 0x8323;
     s->pwm.tm[0] = qemu_new_timer(vm_clock, lm_kbd_pwm0_tick, s);
     s->pwm.tm[1] = qemu_new_timer(vm_clock, lm_kbd_pwm1_tick, s);
@@ -514,7 +514,7 @@ struct i2c_slave *lm8323_init(i2c_bus *bus, qemu_irq nirq)
 
 void lm832x_key_event(struct i2c_slave *i2c, int key, int state)
 {
-    struct lm_kbd_s *s = (struct lm_kbd_s *) i2c;
+    LM823KbdState *s = (LM823KbdState *) i2c;
 
     if ((s->status & INT_ERROR) && (s->error & ERR_FIFOOVR))
         return;

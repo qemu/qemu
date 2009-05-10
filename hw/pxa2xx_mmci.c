@@ -11,7 +11,7 @@
 #include "pxa.h"
 #include "sd.h"
 
-struct pxa2xx_mmci_s {
+struct PXA2xxMMCIState {
     qemu_irq irq;
     void *dma;
 
@@ -96,22 +96,22 @@ struct pxa2xx_mmci_s {
 #define PRTBUF_PRT_BUF	(1 << 0)
 
 /* Route internal interrupt lines to the global IC and DMA */
-static void pxa2xx_mmci_int_update(struct pxa2xx_mmci_s *s)
+static void pxa2xx_mmci_int_update(PXA2xxMMCIState *s)
 {
     uint32_t mask = s->intmask;
     if (s->cmdat & CMDAT_DMA_EN) {
         mask |= INT_RXFIFO_REQ | INT_TXFIFO_REQ;
 
-        pxa2xx_dma_request((struct pxa2xx_dma_state_s *) s->dma,
+        pxa2xx_dma_request(s->dma,
                         PXA2XX_RX_RQ_MMCI, !!(s->intreq & INT_RXFIFO_REQ));
-        pxa2xx_dma_request((struct pxa2xx_dma_state_s *) s->dma,
+        pxa2xx_dma_request(s->dma,
                         PXA2XX_TX_RQ_MMCI, !!(s->intreq & INT_TXFIFO_REQ));
     }
 
     qemu_set_irq(s->irq, !!(s->intreq & ~mask));
 }
 
-static void pxa2xx_mmci_fifo_update(struct pxa2xx_mmci_s *s)
+static void pxa2xx_mmci_fifo_update(PXA2xxMMCIState *s)
 {
     if (!s->active)
         return;
@@ -147,10 +147,10 @@ static void pxa2xx_mmci_fifo_update(struct pxa2xx_mmci_s *s)
     pxa2xx_mmci_int_update(s);
 }
 
-static void pxa2xx_mmci_wakequeues(struct pxa2xx_mmci_s *s)
+static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
 {
     int rsplen, i;
-    struct sd_request_s request;
+    SDRequest request;
     uint8_t response[16];
 
     s->active = 1;
@@ -213,7 +213,7 @@ static void pxa2xx_mmci_wakequeues(struct pxa2xx_mmci_s *s)
 
 static uint32_t pxa2xx_mmci_read(void *opaque, target_phys_addr_t offset)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     uint32_t ret;
 
     switch (offset) {
@@ -275,7 +275,7 @@ static uint32_t pxa2xx_mmci_read(void *opaque, target_phys_addr_t offset)
 static void pxa2xx_mmci_write(void *opaque,
                 target_phys_addr_t offset, uint32_t value)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
 
     switch (offset) {
     case MMC_STRPCL:
@@ -384,21 +384,21 @@ static void pxa2xx_mmci_write(void *opaque,
 
 static uint32_t pxa2xx_mmci_readb(void *opaque, target_phys_addr_t offset)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 1;
     return pxa2xx_mmci_read(opaque, offset);
 }
 
 static uint32_t pxa2xx_mmci_readh(void *opaque, target_phys_addr_t offset)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 2;
     return pxa2xx_mmci_read(opaque, offset);
 }
 
 static uint32_t pxa2xx_mmci_readw(void *opaque, target_phys_addr_t offset)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 4;
     return pxa2xx_mmci_read(opaque, offset);
 }
@@ -412,7 +412,7 @@ static CPUReadMemoryFunc *pxa2xx_mmci_readfn[] = {
 static void pxa2xx_mmci_writeb(void *opaque,
                 target_phys_addr_t offset, uint32_t value)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 1;
     pxa2xx_mmci_write(opaque, offset, value);
 }
@@ -420,7 +420,7 @@ static void pxa2xx_mmci_writeb(void *opaque,
 static void pxa2xx_mmci_writeh(void *opaque,
                 target_phys_addr_t offset, uint32_t value)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 2;
     pxa2xx_mmci_write(opaque, offset, value);
 }
@@ -428,7 +428,7 @@ static void pxa2xx_mmci_writeh(void *opaque,
 static void pxa2xx_mmci_writew(void *opaque,
                 target_phys_addr_t offset, uint32_t value)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 4;
     pxa2xx_mmci_write(opaque, offset, value);
 }
@@ -441,7 +441,7 @@ static CPUWriteMemoryFunc *pxa2xx_mmci_writefn[] = {
 
 static void pxa2xx_mmci_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     int i;
 
     qemu_put_be32s(f, &s->status);
@@ -475,7 +475,7 @@ static void pxa2xx_mmci_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_mmci_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     int i;
 
     qemu_get_be32s(f, &s->status);
@@ -517,13 +517,13 @@ static int pxa2xx_mmci_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
+PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
                 BlockDriverState *bd, qemu_irq irq, void *dma)
 {
     int iomemtype;
-    struct pxa2xx_mmci_s *s;
+    PXA2xxMMCIState *s;
 
-    s = (struct pxa2xx_mmci_s *) qemu_mallocz(sizeof(struct pxa2xx_mmci_s));
+    s = (PXA2xxMMCIState *) qemu_mallocz(sizeof(PXA2xxMMCIState));
     s->irq = irq;
     s->dma = dma;
 
@@ -540,7 +540,7 @@ struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
     return s;
 }
 
-void pxa2xx_mmci_handlers(struct pxa2xx_mmci_s *s, qemu_irq readonly,
+void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
                 qemu_irq coverswitch)
 {
     sd_set_cb(s->card, readonly, coverswitch);

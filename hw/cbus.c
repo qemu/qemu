@@ -28,9 +28,14 @@
 
 //#define DEBUG
 
-struct cbus_slave_s;
-struct cbus_priv_s {
-    struct cbus_s cbus;
+typedef struct {
+    void *opaque;
+    void (*io)(void *opaque, int rw, int reg, uint16_t *val);
+    int addr;
+} CBusSlave;
+
+typedef struct {
+    CBus cbus;
 
     int sel;
     int dat;
@@ -48,16 +53,10 @@ struct cbus_priv_s {
         cbus_value,
     } cycle;
 
-    struct cbus_slave_s *slave[8];
-};
+    CBusSlave *slave[8];
+} CBusPriv;
 
-struct cbus_slave_s {
-    void *opaque;
-    void (*io)(void *opaque, int rw, int reg, uint16_t *val);
-    int addr;
-};
-
-static void cbus_io(struct cbus_priv_s *s)
+static void cbus_io(CBusPriv *s)
 {
     if (s->slave[s->addr])
         s->slave[s->addr]->io(s->slave[s->addr]->opaque,
@@ -66,7 +65,7 @@ static void cbus_io(struct cbus_priv_s *s)
         hw_error("%s: bad slave address %i\n", __FUNCTION__, s->addr);
 }
 
-static void cbus_cycle(struct cbus_priv_s *s)
+static void cbus_cycle(CBusPriv *s)
 {
     switch (s->cycle) {
     case cbus_address:
@@ -97,7 +96,7 @@ static void cbus_cycle(struct cbus_priv_s *s)
 
 static void cbus_clk(void *opaque, int line, int level)
 {
-    struct cbus_priv_s *s = (struct cbus_priv_s *) opaque;
+    CBusPriv *s = (CBusPriv *) opaque;
 
     if (!s->sel && level && !s->clk) {
         if (s->dir)
@@ -114,14 +113,14 @@ static void cbus_clk(void *opaque, int line, int level)
 
 static void cbus_dat(void *opaque, int line, int level)
 {
-    struct cbus_priv_s *s = (struct cbus_priv_s *) opaque;
+    CBusPriv *s = (CBusPriv *) opaque;
 
     s->dat = level;
 }
 
 static void cbus_sel(void *opaque, int line, int level)
 {
-    struct cbus_priv_s *s = (struct cbus_priv_s *) opaque;
+    CBusPriv *s = (CBusPriv *) opaque;
 
     if (!level) {
         s->dir = 1;
@@ -132,9 +131,9 @@ static void cbus_sel(void *opaque, int line, int level)
     s->sel = level;
 }
 
-struct cbus_s *cbus_init(qemu_irq dat)
+CBus *cbus_init(qemu_irq dat)
 {
-    struct cbus_priv_s *s = (struct cbus_priv_s *) qemu_mallocz(sizeof(*s));
+    CBusPriv *s = (CBusPriv *) qemu_mallocz(sizeof(*s));
 
     s->dat_out = dat;
     s->cbus.clk = qemu_allocate_irqs(cbus_clk, s, 1)[0];
@@ -148,16 +147,16 @@ struct cbus_s *cbus_init(qemu_irq dat)
     return &s->cbus;
 }
 
-void cbus_attach(struct cbus_s *bus, void *slave_opaque)
+void cbus_attach(CBus *bus, void *slave_opaque)
 {
-    struct cbus_slave_s *slave = (struct cbus_slave_s *) slave_opaque;
-    struct cbus_priv_s *s = (struct cbus_priv_s *) bus;
+    CBusSlave *slave = (CBusSlave *) slave_opaque;
+    CBusPriv *s = (CBusPriv *) bus;
 
     s->slave[slave->addr] = slave;
 }
 
 /* Retu/Vilma */
-struct cbus_retu_s {
+typedef struct {
     uint16_t irqst;
     uint16_t irqen;
     uint16_t cc[2];
@@ -172,10 +171,10 @@ struct cbus_retu_s {
 
     int is_vilma;
     qemu_irq irq;
-    struct cbus_slave_s cbus;
-};
+    CBusSlave cbus;
+} CBusRetu;
 
-static void retu_interrupt_update(struct cbus_retu_s *s)
+static void retu_interrupt_update(CBusRetu *s)
 {
     qemu_set_irq(s->irq, s->irqst & ~s->irqen);
 }
@@ -237,7 +236,7 @@ enum {
     retu_adc_self_temp	= 13,	/* RETU temperature */
 };
 
-static inline uint16_t retu_read(struct cbus_retu_s *s, int reg)
+static inline uint16_t retu_read(CBusRetu *s, int reg)
 {
 #ifdef DEBUG
     printf("RETU read at %02x\n", reg);
@@ -304,7 +303,7 @@ static inline uint16_t retu_read(struct cbus_retu_s *s, int reg)
     }
 }
 
-static inline void retu_write(struct cbus_retu_s *s, int reg, uint16_t val)
+static inline void retu_write(CBusRetu *s, int reg, uint16_t val)
 {
 #ifdef DEBUG
     printf("RETU write of %04x at %02x\n", val, reg);
@@ -379,7 +378,7 @@ static inline void retu_write(struct cbus_retu_s *s, int reg, uint16_t val)
 
 static void retu_io(void *opaque, int rw, int reg, uint16_t *val)
 {
-    struct cbus_retu_s *s = (struct cbus_retu_s *) opaque;
+    CBusRetu *s = (CBusRetu *) opaque;
 
     if (rw)
         *val = retu_read(s, reg);
@@ -389,7 +388,7 @@ static void retu_io(void *opaque, int rw, int reg, uint16_t *val)
 
 void *retu_init(qemu_irq irq, int vilma)
 {
-    struct cbus_retu_s *s = (struct cbus_retu_s *) qemu_mallocz(sizeof(*s));
+    CBusRetu *s = (CBusRetu *) qemu_mallocz(sizeof(*s));
 
     s->irq = irq;
     s->irqen = 0xffff;
@@ -419,8 +418,8 @@ void *retu_init(qemu_irq irq, int vilma)
 
 void retu_key_event(void *retu, int state)
 {
-    struct cbus_slave_s *slave = (struct cbus_slave_s *) retu;
-    struct cbus_retu_s *s = (struct cbus_retu_s *) slave->opaque;
+    CBusSlave *slave = (CBusSlave *) retu;
+    CBusRetu *s = (CBusRetu *) slave->opaque;
 
     s->irqst |= 1 << retu_int_pwr;
     retu_interrupt_update(s);
@@ -434,8 +433,8 @@ void retu_key_event(void *retu, int state)
 #if 0
 static void retu_head_event(void *retu, int state)
 {
-    struct cbus_slave_s *slave = (struct cbus_slave_s *) retu;
-    struct cbus_retu_s *s = (struct cbus_retu_s *) slave->opaque;
+    CBusSlave *slave = (CBusSlave *) retu;
+    CBusRetu *s = (CBusRetu *) slave->opaque;
 
     if ((s->cc[0] & 0x500) == 0x500) {	/* TODO: Which bits? */
         /* TODO: reissue the interrupt every 100ms or so.  */
@@ -451,8 +450,8 @@ static void retu_head_event(void *retu, int state)
 
 static void retu_hook_event(void *retu, int state)
 {
-    struct cbus_slave_s *slave = (struct cbus_slave_s *) retu;
-    struct cbus_retu_s *s = (struct cbus_retu_s *) slave->opaque;
+    CBusSlave *slave = (CBusSlave *) retu;
+    CBusRetu *s = (CBusRetu *) slave->opaque;
 
     if ((s->cc[0] & 0x500) == 0x500) {
         /* TODO: reissue the interrupt every 100ms or so.  */
@@ -468,7 +467,7 @@ static void retu_hook_event(void *retu, int state)
 #endif
 
 /* Tahvo/Betty */
-struct cbus_tahvo_s {
+typedef struct {
     uint16_t irqst;
     uint16_t irqen;
     uint8_t charger;
@@ -478,10 +477,10 @@ struct cbus_tahvo_s {
 
     int is_betty;
     qemu_irq irq;
-    struct cbus_slave_s cbus;
-};
+    CBusSlave cbus;
+} CBusTahvo;
 
-static void tahvo_interrupt_update(struct cbus_tahvo_s *s)
+static void tahvo_interrupt_update(CBusTahvo *s)
 {
     qemu_set_irq(s->irq, s->irqst & ~s->irqen);
 }
@@ -501,7 +500,7 @@ static void tahvo_interrupt_update(struct cbus_tahvo_s *s)
 #define TAHVO_REG_NOPR		0x0c	/* (RW) Number of periods */
 #define TAHVO_REG_FRR		0x0d	/* (RO) FR */
 
-static inline uint16_t tahvo_read(struct cbus_tahvo_s *s, int reg)
+static inline uint16_t tahvo_read(CBusTahvo *s, int reg)
 {
 #ifdef DEBUG
     printf("TAHVO read at %02x\n", reg);
@@ -543,7 +542,7 @@ static inline uint16_t tahvo_read(struct cbus_tahvo_s *s, int reg)
     }
 }
 
-static inline void tahvo_write(struct cbus_tahvo_s *s, int reg, uint16_t val)
+static inline void tahvo_write(CBusTahvo *s, int reg, uint16_t val)
 {
 #ifdef DEBUG
     printf("TAHVO write of %04x at %02x\n", val, reg);
@@ -595,7 +594,7 @@ static inline void tahvo_write(struct cbus_tahvo_s *s, int reg, uint16_t val)
 
 static void tahvo_io(void *opaque, int rw, int reg, uint16_t *val)
 {
-    struct cbus_tahvo_s *s = (struct cbus_tahvo_s *) opaque;
+    CBusTahvo *s = (CBusTahvo *) opaque;
 
     if (rw)
         *val = tahvo_read(s, reg);
@@ -605,7 +604,7 @@ static void tahvo_io(void *opaque, int rw, int reg, uint16_t *val)
 
 void *tahvo_init(qemu_irq irq, int betty)
 {
-    struct cbus_tahvo_s *s = (struct cbus_tahvo_s *) qemu_mallocz(sizeof(*s));
+    CBusTahvo *s = (CBusTahvo *) qemu_mallocz(sizeof(*s));
 
     s->irq = irq;
     s->irqen = 0xffff;

@@ -292,8 +292,8 @@ enum musb_irq_source_e {
     __musb_irq_max,
 };
 
-struct musb_s;
-struct musb_s *musb_init(qemu_irq *irqs);
-uint32_t musb_core_intr_get(struct musb_s *s);
-void musb_core_intr_clear(struct musb_s *s, uint32_t mask);
-void musb_set_size(struct musb_s *s, int epnum, int size, int is_tx);
+typedef struct MUSBState MUSBState;
+MUSBState *musb_init(qemu_irq *irqs);
+uint32_t musb_core_intr_get(MUSBState *s);
+void musb_core_intr_clear(MUSBState *s, uint32_t mask);
+void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);

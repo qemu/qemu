@@ -135,7 +135,7 @@ static uint32_t pl181_fifo_pop(pl181_state *s)
 
 static void pl181_send_command(pl181_state *s)
 {
-    struct sd_request_s request;
+    SDRequest request;
     uint8_t response[16];
     int rlen;
 

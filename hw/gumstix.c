@@ -46,7 +46,7 @@ static void connex_init(ram_addr_t ram_size, int vga_ram_size,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    struct pxa2xx_state_s *cpu;
+    PXA2xxState *cpu;
     int index;
 
     uint32_t connex_rom = 0x01000000;
@@ -80,7 +80,7 @@ static void verdex_init(ram_addr_t ram_size, int vga_ram_size,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    struct pxa2xx_state_s *cpu;
+    PXA2xxState *cpu;
     int index;
 
     uint32_t verdex_rom = 0x02000000;

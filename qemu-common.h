@@ -177,7 +177,10 @@ typedef struct PCIBus PCIBus;
 typedef struct PCIDevice PCIDevice;
 typedef struct SerialState SerialState;
 typedef struct IRQState *qemu_irq;
-struct pcmcia_card_s;
+typedef struct PCMCIACardState PCMCIACardState;
+typedef struct MouseTransformInfo MouseTransformInfo;
+typedef struct uWireSlave uWireSlave;
+typedef struct I2SCodec I2SCodec;
 
 /* CPU save/load.  */
 void cpu_save(QEMUFile *f, void *opaque);

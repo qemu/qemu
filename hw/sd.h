@@ -59,16 +59,16 @@ typedef enum {
     sd_adtc,	/* addressed with data transfer */
 } sd_cmd_type_t;
 
-struct sd_request_s {
+typedef struct {
     uint8_t cmd;
     uint32_t arg;
     uint8_t crc;
-};
+} SDRequest;
 
 typedef struct SDState SDState;
 
 SDState *sd_init(BlockDriverState *bs, int is_spi);
-int sd_do_command(SDState *sd, struct sd_request_s *req,
+int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response);
 void sd_write_data(SDState *sd, uint8_t value);
 uint8_t sd_read_data(SDState *sd);

@@ -82,7 +82,7 @@ int ssi_sd_xfer(void *opaque, int val)
         return 0xff;
     case SSI_SD_CMDARG:
         if (s->arglen == 4) {
-            struct sd_request_s request;
+            SDRequest request;
             uint8_t longresp[16];
             /* FIXME: Check CRC.  */
             request.cmd = s->cmd;

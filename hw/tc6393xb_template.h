@@ -36,7 +36,7 @@
 #endif
 
 
-static void glue(tc6393xb_draw_graphic, BITS)(struct tc6393xb_s *s)
+static void glue(tc6393xb_draw_graphic, BITS)(TC6393xbState *s)
 {
     int i;
     int w_display;

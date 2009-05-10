@@ -2984,13 +2984,13 @@ struct omap_uwire_s {
     uint16_t control;
     uint16_t setup[5];
 
-    struct uwire_slave_s *chip[4];
+    uWireSlave *chip[4];
 };
 
 static void omap_uwire_transfer_start(struct omap_uwire_s *s)
 {
     int chipselect = (s->control >> 10) & 3;		/* INDEX */
-    struct uwire_slave_s *slave = s->chip[chipselect];
+    uWireSlave *slave = s->chip[chipselect];
 
     if ((s->control >> 5) & 0x1f) {			/* NB_BITS_WR */
         if (s->control & (1 << 12))			/* CS_CMD */
@@ -3132,7 +3132,7 @@ struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
 }
 
 void omap_uwire_attach(struct omap_uwire_s *s,
-                struct uwire_slave_s *slave, int chipselect)
+                uWireSlave *slave, int chipselect)
 {
     if (chipselect < 0 || chipselect > 3) {
         fprintf(stderr, "%s: Bad chipselect %i\n", __FUNCTION__, chipselect);
@@ -3770,7 +3770,7 @@ struct omap_mcbsp_s {
     int tx_req;
     int rx_req;
 
-    struct i2s_codec_s *codec;
+    I2SCodec *codec;
     QEMUTimer *source_timer;
     QEMUTimer *sink_timer;
 };
@@ -4290,7 +4290,7 @@ static void omap_mcbsp_i2s_start(void *opaque, int line, int level)
     }
 }
 
-void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
+void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave)
 {
     s->codec = slave;
     slave->rx_swallow = qemu_allocate_irqs(omap_mcbsp_i2s_swallow, s, 1)[0];

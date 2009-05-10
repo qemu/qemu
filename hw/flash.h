@@ -17,14 +17,14 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 uint16_t unlock_addr0, uint16_t unlock_addr1);
 
 /* nand.c */
-struct nand_flash_s;
-struct nand_flash_s *nand_init(int manf_id, int chip_id);
-void nand_done(struct nand_flash_s *s);
-void nand_setpins(struct nand_flash_s *s,
+typedef struct NANDFlashState NANDFlashState;
+NANDFlashState *nand_init(int manf_id, int chip_id);
+void nand_done(NANDFlashState *s);
+void nand_setpins(NANDFlashState *s,
                 int cle, int ale, int ce, int wp, int gnd);
-void nand_getpins(struct nand_flash_s *s, int *rb);
-void nand_setio(struct nand_flash_s *s, uint8_t value);
-uint8_t nand_getio(struct nand_flash_s *s);
+void nand_getpins(NANDFlashState *s, int *rb);
+void nand_setio(NANDFlashState *s, uint8_t value);
+uint8_t nand_getio(NANDFlashState *s);
 
 #define NAND_MFR_TOSHIBA	0x98
 #define NAND_MFR_SAMSUNG	0xec
@@ -42,13 +42,13 @@ void *onenand_init(uint32_t id, int regshift, qemu_irq irq);
 void *onenand_raw_otp(void *opaque);
 
 /* ecc.c */
-struct ecc_state_s {
+typedef struct {
     uint8_t cp;		/* Column parity */
     uint16_t lp[2];	/* Line parity */
     uint16_t count;
-};
+} ECCState;
 
-uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample);
-void ecc_reset(struct ecc_state_s *s);
-void ecc_put(QEMUFile *f, struct ecc_state_s *s);
-void ecc_get(QEMUFile *f, struct ecc_state_s *s);
+uint8_t ecc_digest(ECCState *s, uint8_t sample);
+void ecc_reset(ECCState *s);
+void ecc_put(QEMUFile *f, ECCState *s);
+void ecc_get(QEMUFile *f, ECCState *s);

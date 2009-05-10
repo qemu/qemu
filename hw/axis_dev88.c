@@ -37,7 +37,7 @@
 
 struct nand_state_t
 {
-    struct nand_flash_s *nand;
+    NANDFlashState *nand;
     unsigned int rdy:1;
     unsigned int ale:1;
     unsigned int cle:1;
