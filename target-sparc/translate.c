@@ -432,18 +432,6 @@ static inline void gen_cc_V_tag(TCGv src1, TCGv src2)
     gen_set_label(l1);
 }
 
-static inline void gen_op_logic_cc(TCGv dst)
-{
-    tcg_gen_mov_tl(cpu_cc_dst, dst);
-
-    gen_cc_clear_icc();
-    gen_cc_NZ_icc(cpu_cc_dst);
-#ifdef TARGET_SPARC64
-    gen_cc_clear_xcc();
-    gen_cc_NZ_xcc(cpu_cc_dst);
-#endif
-}
-
 static inline void gen_tag_tv(TCGv src1, TCGv src2)
 {
     int l1;
@@ -623,32 +611,20 @@ static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_temp_free(r_temp);
 }
 
-static inline void gen_op_sub_cc2(TCGv dst)
-{
-    gen_cc_clear_icc();
-    gen_cc_NZ_icc(cpu_cc_dst);
-    gen_cc_C_sub_icc(cpu_cc_src, cpu_cc_src2);
-    gen_cc_V_sub_icc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-#ifdef TARGET_SPARC64
-    gen_cc_clear_xcc();
-    gen_cc_NZ_xcc(cpu_cc_dst);
-    gen_cc_C_sub_xcc(cpu_cc_src, cpu_cc_src2);
-    gen_cc_V_sub_xcc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-#endif
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
-static inline void gen_op_subi_cc(TCGv dst, TCGv src1, target_long src2)
+static inline void gen_op_subi_cc(TCGv dst, TCGv src1, target_long src2, DisasContext *dc)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_movi_tl(cpu_cc_src2, src2);
     if (src2 == 0) {
-        tcg_gen_mov_tl(dst, src1);
-        gen_op_logic_cc(dst);
+        tcg_gen_mov_tl(cpu_cc_dst, src1);
+        tcg_gen_movi_i32(cpu_cc_op, CC_OP_LOGIC);
+        dc->cc_op = CC_OP_LOGIC;
     } else {
         tcg_gen_subi_tl(cpu_cc_dst, cpu_cc_src, src2);
-        gen_op_sub_cc2(dst);
+        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUB);
+        dc->cc_op = CC_OP_SUB;
     }
+    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
@@ -656,7 +632,7 @@ static inline void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_mov_tl(cpu_cc_src2, src2);
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    gen_op_sub_cc2(dst);
+    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_subx_cc2(TCGv dst)
@@ -3171,17 +3147,15 @@ static void disas_sparc_insn(DisasContext * dc)
                         if (IS_IMM) {
                             simm = GET_FIELDs(insn, 19, 31);
                             if (xop & 0x10) {
-                                gen_op_subi_cc(cpu_dst, cpu_src1, simm);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
+                                gen_op_subi_cc(cpu_dst, cpu_src1, simm, dc);
                             } else {
                                 tcg_gen_subi_tl(cpu_dst, cpu_src1, simm);
                             }
                         } else {
                             if (xop & 0x10) {
                                 gen_op_sub_cc(cpu_dst, cpu_src1, cpu_src2);
-                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                                dc->cc_op = CC_OP_FLAGS;
+                                tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUB);
+                                dc->cc_op = CC_OP_SUB;
                             } else {
                                 tcg_gen_sub_tl(cpu_dst, cpu_src1, cpu_src2);
                             }
