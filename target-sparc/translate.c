@@ -274,130 +274,6 @@ static inline void gen_mov_reg_C(TCGv reg, TCGv_i32 src)
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
-static inline void gen_cc_clear_icc(void)
-{
-    tcg_gen_movi_i32(cpu_psr, 0);
-}
-
-#ifdef TARGET_SPARC64
-static inline void gen_cc_clear_xcc(void)
-{
-    tcg_gen_movi_i32(cpu_xcc, 0);
-}
-#endif
-
-/* old op:
-    if (!T0)
-        env->psr |= PSR_ZERO;
-    if ((int32_t) T0 < 0)
-        env->psr |= PSR_NEG;
-*/
-static inline void gen_cc_NZ_icc(TCGv dst)
-{
-    TCGv r_temp;
-    int l1, l2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    r_temp = tcg_temp_new();
-    tcg_gen_andi_tl(r_temp, dst, 0xffffffffULL);
-    tcg_gen_brcondi_tl(TCG_COND_NE, r_temp, 0, l1);
-    tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_ZERO);
-    gen_set_label(l1);
-    tcg_gen_ext32s_tl(r_temp, dst);
-    tcg_gen_brcondi_tl(TCG_COND_GE, r_temp, 0, l2);
-    tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_NEG);
-    gen_set_label(l2);
-    tcg_temp_free(r_temp);
-}
-
-#ifdef TARGET_SPARC64
-static inline void gen_cc_NZ_xcc(TCGv dst)
-{
-    int l1, l2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_NE, dst, 0, l1);
-    tcg_gen_ori_i32(cpu_xcc, cpu_xcc, PSR_ZERO);
-    gen_set_label(l1);
-    tcg_gen_brcondi_tl(TCG_COND_GE, dst, 0, l2);
-    tcg_gen_ori_i32(cpu_xcc, cpu_xcc, PSR_NEG);
-    gen_set_label(l2);
-}
-#endif
-
-/* old op:
-    if (T0 < src1)
-        env->psr |= PSR_CARRY;
-*/
-static inline void gen_cc_C_add_icc(TCGv dst, TCGv src1)
-{
-    TCGv r_temp1, r_temp2;
-    int l1;
-
-    l1 = gen_new_label();
-    r_temp1 = tcg_temp_new();
-    r_temp2 = tcg_temp_new();
-    tcg_gen_andi_tl(r_temp1, dst, 0xffffffffULL);
-    tcg_gen_andi_tl(r_temp2, src1, 0xffffffffULL);
-    tcg_gen_brcond_tl(TCG_COND_GEU, r_temp1, r_temp2, l1);
-    tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_CARRY);
-    gen_set_label(l1);
-    tcg_temp_free(r_temp1);
-    tcg_temp_free(r_temp2);
-}
-
-#ifdef TARGET_SPARC64
-static inline void gen_cc_C_add_xcc(TCGv dst, TCGv src1)
-{
-    int l1;
-
-    l1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_GEU, dst, src1, l1);
-    tcg_gen_ori_i32(cpu_xcc, cpu_xcc, PSR_CARRY);
-    gen_set_label(l1);
-}
-#endif
-
-/* old op:
-    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
-        env->psr |= PSR_OVF;
-*/
-static inline void gen_cc_V_add_icc(TCGv dst, TCGv src1, TCGv src2)
-{
-    TCGv r_temp;
-
-    r_temp = tcg_temp_new();
-    tcg_gen_xor_tl(r_temp, src1, src2);
-    tcg_gen_not_tl(r_temp, r_temp);
-    tcg_gen_xor_tl(cpu_tmp0, src1, dst);
-    tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
-    tcg_gen_shri_tl(r_temp, r_temp, 31 - PSR_OVF_SHIFT);
-    tcg_gen_trunc_tl_i32(cpu_tmp32, r_temp);
-    tcg_temp_free(r_temp);
-    tcg_gen_or_i32(cpu_psr, cpu_psr, cpu_tmp32);
-}
-
-#ifdef TARGET_SPARC64
-static inline void gen_cc_V_add_xcc(TCGv dst, TCGv src1, TCGv src2)
-{
-    TCGv r_temp;
-
-    r_temp = tcg_temp_new();
-    tcg_gen_xor_tl(r_temp, src1, src2);
-    tcg_gen_not_tl(r_temp, r_temp);
-    tcg_gen_xor_tl(cpu_tmp0, src1, dst);
-    tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 63));
-    tcg_gen_shri_tl(r_temp, r_temp, 63 - PSR_OVF_SHIFT);
-    tcg_gen_trunc_tl_i32(cpu_tmp32, r_temp);
-    tcg_temp_free(r_temp);
-    tcg_gen_or_i32(cpu_xcc, cpu_xcc, cpu_tmp32);
-}
-#endif
-
 static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
 {
     TCGv r_temp;
@@ -612,13 +488,8 @@ static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_shri_tl(cpu_cc_src, cpu_cc_src, 1);
     tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_tmp0);
 
-    /* do addition and update flags */
     tcg_gen_add_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
 
-    gen_cc_clear_icc();
-    gen_cc_NZ_icc(cpu_cc_dst);
-    gen_cc_V_add_icc(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    gen_cc_C_add_icc(cpu_cc_dst, cpu_cc_src);
     tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
@@ -3190,8 +3061,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_helper_compute_psr();
                         gen_op_mulscc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
-                        tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
-                        dc->cc_op = CC_OP_FLAGS;
+                        tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
+                        dc->cc_op = CC_OP_ADD;
                         break;
 #ifndef TARGET_SPARC64
                     case 0x25:  /* sll */
