@@ -1,0 +1,20 @@
+Enable power button event generation.
+
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index 81e3bad..9986531 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -1767,8 +1767,8 @@ void acpi_bios_init(void)
+     fadt->plvl3_lat = cpu_to_le16(0xfff); // C3 state not supported
+     fadt->gpe0_blk = cpu_to_le32(0xafe0);
+     fadt->gpe0_blk_len = 4;
+-    /* WBINVD + PROC_C1 + PWR_BUTTON + SLP_BUTTON + FIX_RTC */
+-    fadt->flags = cpu_to_le32((1 << 0) | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6));
++    /* WBINVD + PROC_C1 + SLP_BUTTON + FIX_RTC */
++    fadt->flags = cpu_to_le32((1 << 0) | (1 << 2) | (1 << 5) | (1 << 6));
+     acpi_build_table_header((struct acpi_table_header *)fadt, "FACP",
+                             sizeof(*fadt), 1);
+ 

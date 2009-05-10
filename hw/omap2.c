@@ -4068,7 +4068,7 @@ struct omap_gpmc_s {
     int ecc_cs;
     int ecc_ptr;
     uint32_t ecc_cfg;
-    struct ecc_state_s ecc[9];
+    ECCState ecc[9];
 };
 
 static void omap_gpmc_int_update(struct omap_gpmc_s *s)

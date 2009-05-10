@@ -89,7 +89,7 @@ static PXASSPDef pxa27x_ssp[] = {
 
 static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case PMCR ... PCMD31:
@@ -108,7 +108,7 @@ static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case PMCR:
@@ -147,7 +147,7 @@ static CPUWriteMemoryFunc *pxa2xx_pm_writefn[] = {
 
 static void pxa2xx_pm_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     int i;
 
     for (i = 0; i < 0x40; i ++)
@@ -156,7 +156,7 @@ static void pxa2xx_pm_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_pm_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     int i;
 
     for (i = 0; i < 0x40; i ++)
@@ -172,7 +172,7 @@ static int pxa2xx_pm_load(QEMUFile *f, void *opaque, int version_id)
 
 static uint32_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case CCCR:
@@ -193,7 +193,7 @@ static uint32_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_cm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case CCCR:
@@ -228,7 +228,7 @@ static CPUWriteMemoryFunc *pxa2xx_cm_writefn[] = {
 
 static void pxa2xx_cm_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     int i;
 
     for (i = 0; i < 4; i ++)
@@ -239,7 +239,7 @@ static void pxa2xx_cm_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_cm_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     int i;
 
     for (i = 0; i < 4; i ++)
@@ -252,7 +252,7 @@ static int pxa2xx_cm_load(QEMUFile *f, void *opaque, int version_id)
 
 static uint32_t pxa2xx_clkpwr_read(void *opaque, int op2, int reg, int crm)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (reg) {
     case 6:	/* Clock Configuration register */
@@ -271,7 +271,7 @@ static uint32_t pxa2xx_clkpwr_read(void *opaque, int op2, int reg, int crm)
 static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
                 uint32_t value)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     static const char *pwrmode[8] = {
         "Normal", "Idle", "Deep-idle", "Standby",
         "Sleep", "reserved (!)", "reserved (!)", "Deep-sleep",
@@ -364,7 +364,7 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
 
 static uint32_t pxa2xx_perf_read(void *opaque, int op2, int reg, int crm)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (reg) {
     case CPPMNC:
@@ -389,7 +389,7 @@ static uint32_t pxa2xx_perf_read(void *opaque, int op2, int reg, int crm)
 static void pxa2xx_perf_write(void *opaque, int op2, int reg, int crm,
                 uint32_t value)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (reg) {
     case CPPMNC:
@@ -482,7 +482,7 @@ static void pxa2xx_cp14_write(void *opaque, int op2, int reg, int crm,
 
 static uint32_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case MDCNFG ... SA1110:
@@ -499,7 +499,7 @@ static uint32_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_mm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case MDCNFG ... SA1110:
@@ -528,7 +528,7 @@ static CPUWriteMemoryFunc *pxa2xx_mm_writefn[] = {
 
 static void pxa2xx_mm_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     int i;
 
     for (i = 0; i < 0x1a; i ++)
@@ -537,7 +537,7 @@ static void pxa2xx_mm_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_mm_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     int i;
 
     for (i = 0; i < 0x1a; i ++)
@@ -547,7 +547,7 @@ static int pxa2xx_mm_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /* Synchronous Serial Ports */
-struct pxa2xx_ssp_s {
+struct PXA2xxSSPState {
     qemu_irq irq;
     int enable;
 
@@ -616,7 +616,7 @@ struct pxa2xx_ssp_s {
 #define SSSR_BCE	(1 << 23)
 #define SSSR_RW		0x00bc0080
 
-static void pxa2xx_ssp_int_update(struct pxa2xx_ssp_s *s)
+static void pxa2xx_ssp_int_update(PXA2xxSSPState *s)
 {
     int level = 0;
 
@@ -632,7 +632,7 @@ static void pxa2xx_ssp_int_update(struct pxa2xx_ssp_s *s)
     qemu_set_irq(s->irq, !!level);
 }
 
-static void pxa2xx_ssp_fifo_update(struct pxa2xx_ssp_s *s)
+static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
 {
     s->sssr &= ~(0xf << 12);	/* Clear RFL */
     s->sssr &= ~(0xf << 8);	/* Clear TFL */
@@ -659,7 +659,7 @@ static void pxa2xx_ssp_fifo_update(struct pxa2xx_ssp_s *s)
 
 static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_ssp_s *s = (struct pxa2xx_ssp_s *) opaque;
+    PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
     uint32_t retval;
 
     switch (addr) {
@@ -705,7 +705,7 @@ static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_ssp_s *s = (struct pxa2xx_ssp_s *) opaque;
+    PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
 
     switch (addr) {
     case SSCR0:
@@ -796,7 +796,7 @@ static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-void pxa2xx_ssp_attach(struct pxa2xx_ssp_s *port,
+void pxa2xx_ssp_attach(PXA2xxSSPState *port,
                 uint32_t (*readfn)(void *opaque),
                 void (*writefn)(void *opaque, uint32_t value), void *opaque)
 {
@@ -824,7 +824,7 @@ static CPUWriteMemoryFunc *pxa2xx_ssp_writefn[] = {
 
 static void pxa2xx_ssp_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_ssp_s *s = (struct pxa2xx_ssp_s *) opaque;
+    PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
     int i;
 
     qemu_put_be32(f, s->enable);
@@ -846,7 +846,7 @@ static void pxa2xx_ssp_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_ssp_s *s = (struct pxa2xx_ssp_s *) opaque;
+    PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
     int i;
 
     s->enable = qemu_get_be32(f);
@@ -886,12 +886,12 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
 #define RTCPICR		0x34	/* RTC Periodic Interrupt Counter register */
 #define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
 
-static inline void pxa2xx_rtc_int_update(struct pxa2xx_state_s *s)
+static inline void pxa2xx_rtc_int_update(PXA2xxState *s)
 {
     qemu_set_irq(s->pic[PXA2XX_PIC_RTCALARM], !!(s->rtsr & 0x2553));
 }
 
-static void pxa2xx_rtc_hzupdate(struct pxa2xx_state_s *s)
+static void pxa2xx_rtc_hzupdate(PXA2xxState *s)
 {
     int64_t rt = qemu_get_clock(rt_clock);
     s->last_rcnr += ((rt - s->last_hz) << 15) /
@@ -901,7 +901,7 @@ static void pxa2xx_rtc_hzupdate(struct pxa2xx_state_s *s)
     s->last_hz = rt;
 }
 
-static void pxa2xx_rtc_swupdate(struct pxa2xx_state_s *s)
+static void pxa2xx_rtc_swupdate(PXA2xxState *s)
 {
     int64_t rt = qemu_get_clock(rt_clock);
     if (s->rtsr & (1 << 12))
@@ -909,7 +909,7 @@ static void pxa2xx_rtc_swupdate(struct pxa2xx_state_s *s)
     s->last_sw = rt;
 }
 
-static void pxa2xx_rtc_piupdate(struct pxa2xx_state_s *s)
+static void pxa2xx_rtc_piupdate(PXA2xxState *s)
 {
     int64_t rt = qemu_get_clock(rt_clock);
     if (s->rtsr & (1 << 15))
@@ -917,7 +917,7 @@ static void pxa2xx_rtc_piupdate(struct pxa2xx_state_s *s)
     s->last_pi = rt;
 }
 
-static inline void pxa2xx_rtc_alarm_update(struct pxa2xx_state_s *s,
+static inline void pxa2xx_rtc_alarm_update(PXA2xxState *s,
                 uint32_t rtsr)
 {
     if ((rtsr & (1 << 2)) && !(rtsr & (1 << 0)))
@@ -962,7 +962,7 @@ static inline void pxa2xx_rtc_alarm_update(struct pxa2xx_state_s *s,
 
 static inline void pxa2xx_rtc_hz_tick(void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     s->rtsr |= (1 << 0);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -970,7 +970,7 @@ static inline void pxa2xx_rtc_hz_tick(void *opaque)
 
 static inline void pxa2xx_rtc_rdal1_tick(void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     s->rtsr |= (1 << 4);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -978,7 +978,7 @@ static inline void pxa2xx_rtc_rdal1_tick(void *opaque)
 
 static inline void pxa2xx_rtc_rdal2_tick(void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     s->rtsr |= (1 << 6);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -986,7 +986,7 @@ static inline void pxa2xx_rtc_rdal2_tick(void *opaque)
 
 static inline void pxa2xx_rtc_swal1_tick(void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     s->rtsr |= (1 << 8);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -994,7 +994,7 @@ static inline void pxa2xx_rtc_swal1_tick(void *opaque)
 
 static inline void pxa2xx_rtc_swal2_tick(void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     s->rtsr |= (1 << 10);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -1002,7 +1002,7 @@ static inline void pxa2xx_rtc_swal2_tick(void *opaque)
 
 static inline void pxa2xx_rtc_pi_tick(void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
     s->rtsr |= (1 << 13);
     pxa2xx_rtc_piupdate(s);
     s->last_rtcpicr = 0;
@@ -1012,7 +1012,7 @@ static inline void pxa2xx_rtc_pi_tick(void *opaque)
 
 static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case RTTR:
@@ -1058,7 +1058,7 @@ static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     switch (addr) {
     case RTTR:
@@ -1170,7 +1170,7 @@ static CPUWriteMemoryFunc *pxa2xx_rtc_writefn[] = {
     pxa2xx_rtc_write,
 };
 
-static void pxa2xx_rtc_init(struct pxa2xx_state_s *s)
+static void pxa2xx_rtc_init(PXA2xxState *s)
 {
     struct tm tm;
     int wom;
@@ -1201,7 +1201,7 @@ static void pxa2xx_rtc_init(struct pxa2xx_state_s *s)
 
 static void pxa2xx_rtc_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     pxa2xx_rtc_hzupdate(s);
     pxa2xx_rtc_piupdate(s);
@@ -1229,7 +1229,7 @@ static void pxa2xx_rtc_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_rtc_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     qemu_get_be32s(f, &s->rttr);
     qemu_get_be32s(f, &s->rtsr);
@@ -1256,7 +1256,7 @@ static int pxa2xx_rtc_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /* I2C Interface */
-struct pxa2xx_i2c_s {
+struct PXA2xxI2CState {
     i2c_slave slave;
     i2c_bus *bus;
     qemu_irq irq;
@@ -1274,7 +1274,7 @@ struct pxa2xx_i2c_s {
 #define ISR	0x98	/* I2C Status register */
 #define ISAR	0xa0	/* I2C Slave Address register */
 
-static void pxa2xx_i2c_update(struct pxa2xx_i2c_s *s)
+static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 {
     uint16_t level = 0;
     level |= s->status & s->control & (1 << 10);		/* BED */
@@ -1287,7 +1287,7 @@ static void pxa2xx_i2c_update(struct pxa2xx_i2c_s *s)
 /* These are only stubs now.  */
 static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) i2c;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) i2c;
 
     switch (event) {
     case I2C_START_SEND:
@@ -1310,7 +1310,7 @@ static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
 
 static int pxa2xx_i2c_rx(i2c_slave *i2c)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) i2c;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) i2c;
     if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
         return 0;
 
@@ -1324,7 +1324,7 @@ static int pxa2xx_i2c_rx(i2c_slave *i2c)
 
 static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) i2c;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) i2c;
     if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
         return 1;
 
@@ -1339,7 +1339,7 @@ static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
 
 static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
 
     addr -= s->offset;
     switch (addr) {
@@ -1367,7 +1367,7 @@ static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
     int ack;
 
     addr -= s->offset;
@@ -1448,7 +1448,7 @@ static CPUWriteMemoryFunc *pxa2xx_i2c_writefn[] = {
 
 static void pxa2xx_i2c_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
 
     qemu_put_be16s(f, &s->control);
     qemu_put_be16s(f, &s->status);
@@ -1460,7 +1460,7 @@ static void pxa2xx_i2c_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
+    PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
 
     if (version_id != 1)
         return -EINVAL;
@@ -1474,13 +1474,13 @@ static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
+PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
                 qemu_irq irq, uint32_t region_size)
 {
     int iomemtype;
     /* FIXME: Should the slave device really be on a separate bus?  */
-    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *)
-            i2c_slave_init(i2c_init_bus(), 0, sizeof(struct pxa2xx_i2c_s));
+    PXA2xxI2CState *s = (PXA2xxI2CState *)
+            i2c_slave_init(i2c_init_bus(), 0, sizeof(PXA2xxI2CState));
 
     s->irq = irq;
     s->slave.event = pxa2xx_i2c_event;
@@ -1500,13 +1500,13 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
     return s;
 }
 
-i2c_bus *pxa2xx_i2c_bus(struct pxa2xx_i2c_s *s)
+i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
 {
     return s->bus;
 }
 
 /* PXA Inter-IC Sound Controller */
-static void pxa2xx_i2s_reset(struct pxa2xx_i2s_s *i2s)
+static void pxa2xx_i2s_reset(PXA2xxI2SState *i2s)
 {
     i2s->rx_len = 0;
     i2s->tx_len = 0;
@@ -1523,7 +1523,7 @@ static void pxa2xx_i2s_reset(struct pxa2xx_i2s_s *i2s)
 #define SACR_DREC(val)	(val & (1 << 3))
 #define SACR_DPRL(val)	(val & (1 << 4))
 
-static inline void pxa2xx_i2s_update(struct pxa2xx_i2s_s *i2s)
+static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
 {
     int rfs, tfs;
     rfs = SACR_RFTH(i2s->control[0]) < i2s->rx_len &&
@@ -1562,7 +1562,7 @@ static inline void pxa2xx_i2s_update(struct pxa2xx_i2s_s *i2s)
 
 static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
+    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
 
     switch (addr) {
     case SACR0:
@@ -1594,7 +1594,7 @@ static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
+    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
     uint32_t *sample;
 
     switch (addr) {
@@ -1660,7 +1660,7 @@ static CPUWriteMemoryFunc *pxa2xx_i2s_writefn[] = {
 
 static void pxa2xx_i2s_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
+    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
 
     qemu_put_be32s(f, &s->control[0]);
     qemu_put_be32s(f, &s->control[1]);
@@ -1676,7 +1676,7 @@ static void pxa2xx_i2s_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_i2s_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
+    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
 
     qemu_get_be32s(f, &s->control[0]);
     qemu_get_be32s(f, &s->control[1]);
@@ -1694,7 +1694,7 @@ static int pxa2xx_i2s_load(QEMUFile *f, void *opaque, int version_id)
 
 static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
 {
-    struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
+    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
     uint32_t *sample;
 
     /* Signal FIFO errors */
@@ -1714,12 +1714,12 @@ static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
     pxa2xx_i2s_update(s);
 }
 
-static struct pxa2xx_i2s_s *pxa2xx_i2s_init(target_phys_addr_t base,
-                qemu_irq irq, struct pxa2xx_dma_state_s *dma)
+static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
+                qemu_irq irq, PXA2xxDMAState *dma)
 {
     int iomemtype;
-    struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *)
-            qemu_mallocz(sizeof(struct pxa2xx_i2s_s));
+    PXA2xxI2SState *s = (PXA2xxI2SState *)
+            qemu_mallocz(sizeof(PXA2xxI2SState));
 
     s->irq = irq;
     s->dma = dma;
@@ -1738,9 +1738,9 @@ static struct pxa2xx_i2s_s *pxa2xx_i2s_init(target_phys_addr_t base,
 }
 
 /* PXA Fast Infra-red Communications Port */
-struct pxa2xx_fir_s {
+struct PXA2xxFIrState {
     qemu_irq irq;
-    struct pxa2xx_dma_state_s *dma;
+    PXA2xxDMAState *dma;
     int enable;
     CharDriverState *chr;
 
@@ -1752,7 +1752,7 @@ struct pxa2xx_fir_s {
     uint8_t rx_fifo[64];
 };
 
-static void pxa2xx_fir_reset(struct pxa2xx_fir_s *s)
+static void pxa2xx_fir_reset(PXA2xxFIrState *s)
 {
     s->control[0] = 0x00;
     s->control[1] = 0x00;
@@ -1762,7 +1762,7 @@ static void pxa2xx_fir_reset(struct pxa2xx_fir_s *s)
     s->enable = 0;
 }
 
-static inline void pxa2xx_fir_update(struct pxa2xx_fir_s *s)
+static inline void pxa2xx_fir_update(PXA2xxFIrState *s)
 {
     static const int tresh[4] = { 8, 16, 32, 0 };
     int intr = 0;
@@ -1810,7 +1810,7 @@ static inline void pxa2xx_fir_update(struct pxa2xx_fir_s *s)
 
 static uint32_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr)
 {
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
+    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     uint8_t ret;
 
     switch (addr) {
@@ -1848,7 +1848,7 @@ static uint32_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
+    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     uint8_t ch;
 
     switch (addr) {
@@ -1903,13 +1903,13 @@ static CPUWriteMemoryFunc *pxa2xx_fir_writefn[] = {
 
 static int pxa2xx_fir_is_empty(void *opaque)
 {
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
+    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     return (s->rx_len < 64);
 }
 
 static void pxa2xx_fir_rx(void *opaque, const uint8_t *buf, int size)
 {
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
+    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     if (!(s->control[0] & (1 << 4)))			/* RXE */
         return;
 
@@ -1935,7 +1935,7 @@ static void pxa2xx_fir_event(void *opaque, int event)
 
 static void pxa2xx_fir_save(QEMUFile *f, void *opaque)
 {
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
+    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     int i;
 
     qemu_put_be32(f, s->enable);
@@ -1953,7 +1953,7 @@ static void pxa2xx_fir_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_fir_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
+    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     int i;
 
     s->enable = qemu_get_be32(f);
@@ -1972,13 +1972,13 @@ static int pxa2xx_fir_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static struct pxa2xx_fir_s *pxa2xx_fir_init(target_phys_addr_t base,
-                qemu_irq irq, struct pxa2xx_dma_state_s *dma,
+static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
+                qemu_irq irq, PXA2xxDMAState *dma,
                 CharDriverState *chr)
 {
     int iomemtype;
-    struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *)
-            qemu_mallocz(sizeof(struct pxa2xx_fir_s));
+    PXA2xxFIrState *s = (PXA2xxFIrState *)
+            qemu_mallocz(sizeof(PXA2xxFIrState));
 
     s->irq = irq;
     s->dma = dma;
@@ -2001,7 +2001,7 @@ static struct pxa2xx_fir_s *pxa2xx_fir_init(target_phys_addr_t base,
 
 static void pxa2xx_reset(void *opaque, int line, int level)
 {
-    struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    PXA2xxState *s = (PXA2xxState *) opaque;
 
     if (level && (s->pm_regs[PCFR >> 2] & 0x10)) {	/* GPR_EN */
         cpu_reset(s->env);
@@ -2010,13 +2010,13 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 }
 
 /* Initialise a PXA270 integrated chip (ARM based core).  */
-struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, const char *revision)
+PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 {
-    struct pxa2xx_state_s *s;
-    struct pxa2xx_ssp_s *ssp;
+    PXA2xxState *s;
+    PXA2xxSSPState *ssp;
     int iomemtype, i;
     int index;
-    s = (struct pxa2xx_state_s *) qemu_mallocz(sizeof(struct pxa2xx_state_s));
+    s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
 
     if (revision && strncmp(revision, "pxa27", 5)) {
         fprintf(stderr, "Machine requires a PXA27x processor.\n");
@@ -2094,10 +2094,10 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, const char *revision
     register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
-    s->ssp = (struct pxa2xx_ssp_s **)
-            qemu_mallocz(sizeof(struct pxa2xx_ssp_s *) * i);
-    ssp = (struct pxa2xx_ssp_s *)
-            qemu_mallocz(sizeof(struct pxa2xx_ssp_s) * i);
+    s->ssp = (PXA2xxSSPState **)
+            qemu_mallocz(sizeof(PXA2xxSSPState *) * i);
+    ssp = (PXA2xxSSPState *)
+            qemu_mallocz(sizeof(PXA2xxSSPState) * i);
     for (i = 0; pxa27x_ssp[i].io_base; i ++) {
         target_phys_addr_t ssp_base;
         s->ssp[i] = &ssp[i];
@@ -2139,14 +2139,14 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, const char *revision
 }
 
 /* Initialise a PXA255 integrated chip (ARM based core).  */
-struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size)
+PXA2xxState *pxa255_init(unsigned int sdram_size)
 {
-    struct pxa2xx_state_s *s;
-    struct pxa2xx_ssp_s *ssp;
+    PXA2xxState *s;
+    PXA2xxSSPState *ssp;
     int iomemtype, i;
     int index;
 
-    s = (struct pxa2xx_state_s *) qemu_mallocz(sizeof(struct pxa2xx_state_s));
+    s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
 
     s->env = cpu_init("pxa255");
     if (!s->env) {
@@ -2216,10 +2216,10 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size)
     register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
-    s->ssp = (struct pxa2xx_ssp_s **)
-            qemu_mallocz(sizeof(struct pxa2xx_ssp_s *) * i);
-    ssp = (struct pxa2xx_ssp_s *)
-            qemu_mallocz(sizeof(struct pxa2xx_ssp_s) * i);
+    s->ssp = (PXA2xxSSPState **)
+            qemu_mallocz(sizeof(PXA2xxSSPState *) * i);
+    ssp = (PXA2xxSSPState *)
+            qemu_mallocz(sizeof(PXA2xxSSPState) * i);
     for (i = 0; pxa255_ssp[i].io_base; i ++) {
         target_phys_addr_t ssp_base;
         s->ssp[i] = &ssp[i];

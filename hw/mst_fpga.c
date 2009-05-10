@@ -216,7 +216,7 @@ mst_fpga_load(QEMUFile *f, void *opaque, int version_id)
 	return 0;
 }
 
-qemu_irq *mst_irq_init(struct pxa2xx_state_s *cpu, uint32_t base, int irq)
+qemu_irq *mst_irq_init(PXA2xxState *cpu, uint32_t base, int irq)
 {
 	mst_irq_state *s;
 	int iomemtype;

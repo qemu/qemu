@@ -40,14 +40,14 @@ struct n800_s {
     struct {
         void *opaque;
         uint32_t (*txrx)(void *opaque, uint32_t value, int len);
-        struct uwire_slave_s *chip;
+        uWireSlave *chip;
     } ts;
     i2c_bus *i2c;
 
     int keymap[0x80];
     i2c_slave *kbd;
 
-    struct tusb_s *usb;
+    TUSBState *usb;
     void *retu;
     void *tahvo;
     void *nand;
@@ -195,13 +195,13 @@ static void n8x0_i2c_setup(struct n800_s *s)
 }
 
 /* Touchscreen and keypad controller */
-static struct mouse_transform_info_s n800_pointercal = {
+static MouseTransformInfo n800_pointercal = {
     .x = 800,
     .y = 480,
     .a = { 14560, -68, -3455208, -39, -9621, 35152972, 65536 },
 };
 
-static struct mouse_transform_info_s n810_pointercal = {
+static MouseTransformInfo n810_pointercal = {
     .x = 800,
     .y = 480,
     .a = { 15041, 148, -4731056, 171, -10238, 35933380, 65536 },
@@ -729,7 +729,7 @@ static void n8x0_cbus_setup(struct n800_s *s)
     qemu_irq retu_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_RETU_GPIO)[0];
     qemu_irq tahvo_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_TAHVO_GPIO)[0];
 
-    struct cbus_s *cbus = cbus_init(dat_out);
+    CBus *cbus = cbus_init(dat_out);
 
     omap2_gpio_out_set(s->cpu->gpif, N8X0_CBUS_CLK_GPIO, cbus->clk);
     omap2_gpio_out_set(s->cpu->gpif, N8X0_CBUS_DAT_GPIO, cbus->dat);
@@ -764,7 +764,7 @@ static void n8x0_usb_setup(struct n800_s *s)
 {
     qemu_irq tusb_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_TUSB_INT_GPIO)[0];
     qemu_irq tusb_pwr = qemu_allocate_irqs(n8x0_usb_power_cb, s, 1)[0];
-    struct tusb_s *tusb = tusb6010_init(tusb_irq);
+    TUSBState *tusb = tusb6010_init(tusb_irq);
 
     /* Using the NOR interface */
     omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS,

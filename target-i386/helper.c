@@ -32,61 +32,79 @@
 
 //#define DEBUG_MMU
 
+/* feature flags taken from "Intel Processor Identification and the CPUID
+ * Instruction" and AMD's "CPUID Specification". In cases of disagreement
+ * about feature names, the Linux name is used. */
+static const char *feature_name[] = {
+    "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+    "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
+    "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
+    "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
+};
+static const char *ext_feature_name[] = {
+    "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
+    "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
+    NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+static const char *ext2_feature_name[] = {
+    "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+    "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mtrr", "pge", "mca", "cmov",
+    "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
+    "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
+};
+static const char *ext3_feature_name[] = {
+    "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
+    "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
 static void add_flagname_to_bitmaps(char *flagname, uint32_t *features, 
                                     uint32_t *ext_features, 
                                     uint32_t *ext2_features, 
                                     uint32_t *ext3_features)
 {
     int i;
-    /* feature flags taken from "Intel Processor Identification and the CPUID
-     * Instruction" and AMD's "CPUID Specification". In cases of disagreement 
-     * about feature names, the Linux name is used. */
-    static const char *feature_name[] = {
-        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-        "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
-        "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
-        "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
-    };
-    static const char *ext_feature_name[] = {
-       "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
-       "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
-       NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    };
-    static const char *ext2_feature_name[] = {
-       "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-       "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mtrr", "pge", "mca", "cmov",
-       "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
-       "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
-    };
-    static const char *ext3_feature_name[] = {
-       "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
-       "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    };
+    int found = 0;
 
     for ( i = 0 ; i < 32 ; i++ ) 
         if (feature_name[i] && !strcmp (flagname, feature_name[i])) {
             *features |= 1 << i;
-            return;
+            found = 1;
         }
     for ( i = 0 ; i < 32 ; i++ ) 
         if (ext_feature_name[i] && !strcmp (flagname, ext_feature_name[i])) {
             *ext_features |= 1 << i;
-            return;
+            found = 1;
         }
     for ( i = 0 ; i < 32 ; i++ ) 
         if (ext2_feature_name[i] && !strcmp (flagname, ext2_feature_name[i])) {
             *ext2_features |= 1 << i;
-            return;
+            found = 1;
         }
     for ( i = 0 ; i < 32 ; i++ ) 
         if (ext3_feature_name[i] && !strcmp (flagname, ext3_feature_name[i])) {
             *ext3_features |= 1 << i;
-            return;
+            found = 1;
         }
-    fprintf(stderr, "CPU feature %s not found\n", flagname);
+    if (!found) {
+        fprintf(stderr, "CPU feature %s not found\n", flagname);
+    }
+}
+
+static void kvm_trim_features(uint32_t *features, uint32_t supported,
+                              const char *names[])
+{
+    int i;
+    uint32_t mask;
+
+    for (i = 0; i < 32; ++i) {
+        mask = 1U << i;
+        if ((*features & mask) && !(supported & mask)) {
+            *features &= ~mask;
+        }
+    }
 }
 
 typedef struct x86_def_t {
@@ -1694,6 +1712,21 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 #endif
 
     qemu_init_vcpu(env);
+
+    if (kvm_enabled()) {
+        kvm_trim_features(&env->cpuid_features,
+                          kvm_arch_get_supported_cpuid(env, 1, R_EDX),
+                          feature_name);
+        kvm_trim_features(&env->cpuid_ext_features,
+                          kvm_arch_get_supported_cpuid(env, 1, R_ECX),
+                          ext_feature_name);
+        kvm_trim_features(&env->cpuid_ext2_features,
+                          kvm_arch_get_supported_cpuid(env, 0x80000001, R_EDX),
+                          ext2_feature_name);
+        kvm_trim_features(&env->cpuid_ext3_features,
+                          kvm_arch_get_supported_cpuid(env, 0x80000001, R_ECX),
+                          ext3_feature_name);
+    }
 
     return env;
 }

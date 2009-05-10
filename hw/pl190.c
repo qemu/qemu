@@ -9,7 +9,6 @@
 
 #include "hw.h"
 #include "primecell.h"
-#include "arm-misc.h"
 
 /* The number of virtual priority levels.  16 user vectors plus the
    unvectored IRQ.  Chained interrupts would require an additional level

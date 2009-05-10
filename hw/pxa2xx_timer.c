@@ -59,31 +59,31 @@ static int pxa2xx_timer4_freq[8] = {
     [5 ... 7] = 0,
 };
 
-struct pxa2xx_timer0_s {
+typedef struct {
     uint32_t value;
     int level;
     qemu_irq irq;
     QEMUTimer *qtimer;
     int num;
     void *info;
-};
+} PXA2xxTimer0;
 
-struct pxa2xx_timer4_s {
-    struct pxa2xx_timer0_s tm;
+typedef struct {
+    PXA2xxTimer0 tm;
     int32_t oldclock;
     int32_t clock;
     uint64_t lastload;
     uint32_t freq;
     uint32_t control;
-};
+} PXA2xxTimer4;
 
 typedef struct {
     int32_t clock;
     int32_t oldclock;
     uint64_t lastload;
     uint32_t freq;
-    struct pxa2xx_timer0_s timer[4];
-    struct pxa2xx_timer4_s *tm4;
+    PXA2xxTimer0 timer[4];
+    PXA2xxTimer4 *tm4;
     uint32_t events;
     uint32_t irq_enabled;
     uint32_t reset3;
@@ -332,7 +332,7 @@ static CPUWriteMemoryFunc *pxa2xx_timer_writefn[] = {
 
 static void pxa2xx_timer_tick(void *opaque)
 {
-    struct pxa2xx_timer0_s *t = (struct pxa2xx_timer0_s *) opaque;
+    PXA2xxTimer0 *t = (PXA2xxTimer0 *) opaque;
     pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->info;
 
     if (i->irq_enabled & (1 << t->num)) {
@@ -350,7 +350,7 @@ static void pxa2xx_timer_tick(void *opaque)
 
 static void pxa2xx_timer_tick4(void *opaque)
 {
-    struct pxa2xx_timer4_s *t = (struct pxa2xx_timer4_s *) opaque;
+    PXA2xxTimer4 *t = (PXA2xxTimer4 *) opaque;
     pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->tm.info;
 
     pxa2xx_timer_tick(&t->tm);
@@ -474,8 +474,8 @@ void pxa27x_timer_init(target_phys_addr_t base,
     pxa2xx_timer_info *s = pxa2xx_timer_init(base, irqs);
     int i;
     s->freq = PXA27X_FREQ;
-    s->tm4 = (struct pxa2xx_timer4_s *) qemu_mallocz(8 *
-                    sizeof(struct pxa2xx_timer4_s));
+    s->tm4 = (PXA2xxTimer4 *) qemu_mallocz(8 *
+                    sizeof(PXA2xxTimer4));
     for (i = 0; i < 8; i ++) {
         s->tm4[i].tm.value = 0;
         s->tm4[i].tm.irq = irq4;

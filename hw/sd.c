@@ -301,7 +301,7 @@ static void sd_set_sdstatus(SDState *sd)
     memset(sd->sd_status, 0, 64);
 }
 
-static int sd_req_crc_validate(struct sd_request_s *req)
+static int sd_req_crc_validate(SDRequest *req)
 {
     uint8_t buffer[5];
     buffer[0] = 0x40 | req->cmd;
@@ -580,7 +580,7 @@ static void sd_lock_command(SDState *sd)
 }
 
 static sd_rsp_type_t sd_normal_command(SDState *sd,
-                                       struct sd_request_s req)
+                                       SDRequest req)
 {
     uint32_t rca = 0x0000;
 
@@ -1119,7 +1119,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 }
 
 static sd_rsp_type_t sd_app_command(SDState *sd,
-                                    struct sd_request_s req) {
+                                    SDRequest req) {
     uint32_t rca;
 
     if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc)
@@ -1228,7 +1228,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     return sd_r0;
 }
 
-int sd_do_command(SDState *sd, struct sd_request_s *req,
+int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
     uint32_t last_status = sd->card_status;
     sd_rsp_type_t rtype;

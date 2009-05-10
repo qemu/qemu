@@ -161,21 +161,22 @@ int inet_listen(const char *str, char *ostr, int olen,
 
     /* create socket + bind */
     for (e = res; e != NULL; e = e->ai_next) {
-	getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
-		    uaddr,INET6_ADDRSTRLEN,uport,32,
-		    NI_NUMERICHOST | NI_NUMERICSERV);
+        getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
+		        uaddr,INET6_ADDRSTRLEN,uport,32,
+		        NI_NUMERICHOST | NI_NUMERICSERV);
         slisten = socket(e->ai_family, e->ai_socktype, e->ai_protocol);
-	if (slisten < 0) {
+        if (slisten < 0) {
             fprintf(stderr,"%s: socket(%s): %s\n", __FUNCTION__,
                     inet_strfamily(e->ai_family), strerror(errno));
-	    continue;
-	}
+            continue;
+        }
 
         setsockopt(slisten,SOL_SOCKET,SO_REUSEADDR,(void*)&on,sizeof(on));
 #ifdef IPV6_V6ONLY
         if (e->ai_family == PF_INET6) {
             /* listen on both ipv4 and ipv6 */
-            setsockopt(slisten,IPPROTO_IPV6,IPV6_V6ONLY,(void*)&off,sizeof(off));
+            setsockopt(slisten,IPPROTO_IPV6,IPV6_V6ONLY,(void*)&off,
+                sizeof(off));
         }
 #endif
 
@@ -183,7 +184,7 @@ int inet_listen(const char *str, char *ostr, int olen,
             if (bind(slisten, e->ai_addr, e->ai_addrlen) == 0) {
                 if (sockets_debug)
                     fprintf(stderr,"%s: bind(%s,%s,%d): OK\n", __FUNCTION__,
-                            inet_strfamily(e->ai_family), uaddr, inet_getport(e));
+                        inet_strfamily(e->ai_family), uaddr, inet_getport(e));
                 goto listen;
             }
             try_next = to && (inet_getport(e) <= to + port_offset);
@@ -207,6 +208,7 @@ listen:
     if (listen(slisten,1) != 0) {
         perror("listen");
         closesocket(slisten);
+        freeaddrinfo(res);
         return -1;
     }
     if (ostr) {
@@ -278,35 +280,35 @@ int inet_connect(const char *str, int socktype)
         inet_print_addrinfo(__FUNCTION__, res);
 
     for (e = res; e != NULL; e = e->ai_next) {
-	if (getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
-                        uaddr,INET6_ADDRSTRLEN,uport,32,
-                        NI_NUMERICHOST | NI_NUMERICSERV) != 0) {
+        if (getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
+                            uaddr,INET6_ADDRSTRLEN,uport,32,
+                            NI_NUMERICHOST | NI_NUMERICSERV) != 0) {
             fprintf(stderr,"%s: getnameinfo: oops\n", __FUNCTION__);
-	    continue;
-	}
+            continue;
+        }
         sock = socket(e->ai_family, e->ai_socktype, e->ai_protocol);
-	if (sock < 0) {
+        if (sock < 0) {
             fprintf(stderr,"%s: socket(%s): %s\n", __FUNCTION__,
-                    inet_strfamily(e->ai_family), strerror(errno));
-	    continue;
-	}
+            inet_strfamily(e->ai_family), strerror(errno));
+            continue;
+        }
         setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,(void*)&on,sizeof(on));
 
-	/* connect to peer */
-	if (connect(sock,e->ai_addr,e->ai_addrlen) < 0) {
+        /* connect to peer */
+        if (connect(sock,e->ai_addr,e->ai_addrlen) < 0) {
             if (sockets_debug || NULL == e->ai_next)
                 fprintf(stderr, "%s: connect(%s,%s,%s,%s): %s\n", __FUNCTION__,
                         inet_strfamily(e->ai_family),
                         e->ai_canonname, uaddr, uport, strerror(errno));
             closesocket(sock);
-	    continue;
-	}
+            continue;
+        }
         if (sockets_debug)
             fprintf(stderr, "%s: connect(%s,%s,%s,%s): OK\n", __FUNCTION__,
                     inet_strfamily(e->ai_family),
                     e->ai_canonname, uaddr, uport);
         freeaddrinfo(res);
-	return sock;
+        return sock;
     }
     freeaddrinfo(res);
     return -1;
@@ -322,17 +324,17 @@ int unix_listen(const char *str, char *ostr, int olen)
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
-	perror("socket(unix)");
-	return -1;
+        perror("socket(unix)");
+        return -1;
     }
 
     opts = strchr(str, ',');
     if (opts) {
         len = opts - str;
-        path = malloc(len+1);
+        path = qemu_malloc(len+1);
         snprintf(path, len+1, "%.*s", len, str);
     } else
-        path = strdup(str);
+        path = qemu_strdup(str);
 
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
@@ -365,11 +367,11 @@ int unix_listen(const char *str, char *ostr, int olen)
 
     if (sockets_debug)
         fprintf(stderr, "bind(unix:%s): OK\n", un.sun_path);
-    free(path);
+    qemu_free(path);
     return sock;
 
 err:
-    free(path);
+    qemu_free(path);
     closesocket(sock);
     return -1;
 }
@@ -381,8 +383,8 @@ int unix_connect(const char *path)
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
-	perror("socket(unix)");
-	return -1;
+        perror("socket(unix)");
+        return -1;
     }
 
     memset(&un, 0, sizeof(un));

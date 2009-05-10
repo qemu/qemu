@@ -33,6 +33,6 @@
 #define S1_IRQ        15
 
 extern qemu_irq
-*mst_irq_init(struct pxa2xx_state_s *cpu, uint32_t base, int irq);
+*mst_irq_init(PXA2xxState *cpu, uint32_t base, int irq);
 
 #endif /* __MAINSTONE_H__ */

@@ -50,7 +50,7 @@ static const uint8_t nand_ecc_precalc_table[] = {
 };
 
 /* Update ECC parity count.  */
-uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample)
+uint8_t ecc_digest(ECCState *s, uint8_t sample)
 {
     uint8_t idx = nand_ecc_precalc_table[sample];
 
@@ -65,7 +65,7 @@ uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample)
 }
 
 /* Reinitialise the counters.  */
-void ecc_reset(struct ecc_state_s *s)
+void ecc_reset(ECCState *s)
 {
     s->lp[0] = 0x0000;
     s->lp[1] = 0x0000;
@@ -74,7 +74,7 @@ void ecc_reset(struct ecc_state_s *s)
 }
 
 /* Save/restore */
-void ecc_put(QEMUFile *f, struct ecc_state_s *s)
+void ecc_put(QEMUFile *f, ECCState *s)
 {
     qemu_put_8s(f, &s->cp);
     qemu_put_be16s(f, &s->lp[0]);
@@ -82,7 +82,7 @@ void ecc_put(QEMUFile *f, struct ecc_state_s *s)
     qemu_put_be16s(f, &s->count);
 }
 
-void ecc_get(QEMUFile *f, struct ecc_state_s *s)
+void ecc_get(QEMUFile *f, ECCState *s)
 {
     qemu_get_8s(f, &s->cp);
     qemu_get_be16s(f, &s->lp[0]);

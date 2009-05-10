@@ -199,6 +199,8 @@ static inline int m68k_feature(CPUM68KState *env, int feature)
     return (env->features & (1u << feature)) != 0;
 }
 
+void m68k_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+
 void register_m68k_insns (CPUM68KState *env);
 
 #ifdef CONFIG_USER_ONLY
@@ -213,6 +215,7 @@ void register_m68k_insns (CPUM68KState *env);
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code
 #define cpu_signal_handler cpu_m68k_signal_handler
+#define cpu_list m68k_cpu_list
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

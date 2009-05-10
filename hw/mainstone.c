@@ -75,7 +75,7 @@ static void mainstone_common_init(ram_addr_t ram_size, int vga_ram_size,
 {
     uint32_t sector_len = 256 * 1024;
     target_phys_addr_t mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
-    struct pxa2xx_state_s *cpu;
+    PXA2xxState *cpu;
     qemu_irq *mst_irq;
     int i, index;
 

@@ -44,7 +44,8 @@ static AioHandler *find_aio_handler(int fd)
 
     LIST_FOREACH(node, &aio_handlers, node) {
         if (node->fd == fd)
-            return node;
+            if (!node->deleted)
+                return node;
     }
 
     return NULL;
