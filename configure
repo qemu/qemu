@@ -515,6 +515,7 @@ CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototype
 CFLAGS="$CFLAGS -Wmissing-noreturn"
 CFLAGS="$CFLAGS -Wmissing-prototypes"
 CFLAGS="$CFLAGS -Wstrict-prototypes"
+#~ CFLAGS="$CFLAGS -Wunreachable-code"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
