@@ -1,3 +1,11 @@
+version 0.10.4:
+  - Improve block range checks to remove integer overflow (Kevin Wolf)
+  - e1000: do not re-init PCI config space 0 (Amit Shah)
+  - fix AIO deletion race (Alex Graf)
+  - reset option roms on reboot (Glauber Costa)
+  - fix qcow2 corruption in cluster freeing (Gleb Natapov)
+  - Enable power button event generation (Gleb Natapov)
+
 version 0.10.3:
   - fix AIO cancellations (Avi Kivity)
   - fix live migration error path on incoming
