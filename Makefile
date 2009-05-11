@@ -80,6 +80,10 @@ endif
 BLOCK_OBJS += block/raw-posix.o
 endif
 
+ifdef CONFIG_CURL
+BLOCK_OBJS += block/curl.o
+endif
+
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of
@@ -195,6 +199,8 @@ XEN_OBJS += xen_console.o xenfb.o xen_disk.o xen_nic.o
 ifdef CONFIG_XEN
   OBJS += $(XEN_OBJS)
 endif
+
+LIBS+=$(CURL_LIBS)
 
 cocoa.o: cocoa.m
 

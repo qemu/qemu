@@ -179,6 +179,7 @@ bsd_user="no"
 build_docs="yes"
 uname_release=""
 curses="yes"
+curl="yes"
 pthread="yes"
 aio="yes"
 io_thread="no"
@@ -474,6 +475,8 @@ for opt do
   ;;
   --disable-curses) curses="no"
   ;;
+  --disable-curl) curl="no"
+  ;;
   --disable-nptl) nptl="no"
   ;;
   --enable-mixemu) mixemu="yes"
@@ -599,6 +602,7 @@ echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
+echo "  --disable-curl           disable curl connectivity"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
@@ -1061,6 +1065,21 @@ EOF
 fi # test "$curses"
 
 ##########################################
+# curl probe
+
+if test "$curl" = "yes" ; then
+  curl=no
+  cat > $TMPC << EOF
+#include <curl/curl.h>
+int main(void) { return curl_easy_init(); }
+EOF
+  curl_libs=`curl-config --libs`
+ if $cc $ARCH_CFLAGS $curl_libs -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+    curl=yes
+  fi
+fi # test "$curl"
+
+##########################################
 # bluez support probe
 if test "$bluez" = "yes" ; then
   `pkg-config bluez 2> /dev/null` || bluez="no"
@@ -1309,6 +1328,7 @@ if test "$sdl" != "no" ; then
     echo "SDL static link   $sdl_static"
 fi
 echo "curses support    $curses"
+echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
@@ -1626,6 +1646,11 @@ if test "$atfile" = "yes" ; then
 fi
 if test "$inotify" = "yes" ; then
   echo "#define CONFIG_INOTIFY 1" >> $config_h
+fi
+if test "$curl" = "yes" ; then
+  echo "CONFIG_CURL=yes" >> $config_mak
+  echo "CURL_LIBS=$curl_libs" >> $config_mak
+  echo "#define CONFIG_CURL 1" >> $config_h
 fi
 if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=yes" >> $config_mak
