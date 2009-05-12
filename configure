@@ -1691,6 +1691,29 @@ bsd)
 ;;
 esac
 
+# Determine what linker flags to use to force archive inclusion
+check_linker_flags()
+{
+    $cc $ARCH_CFLAGS -o $TMPE $OS_CFLAGS $TMPC -Wl,$1 -Wl,$2 >/dev/null 2>/dev/null
+}
+
+cat > $TMPC << EOF
+int main(void) { }
+EOF
+if check_linker_flags --whole-archive --no-whole-archive ; then
+    # GNU ld
+    echo "ARLIBS_BEGIN=-Wl,--whole-archive" >> $config_mak
+    echo "ARLIBS_END=-Wl,--no-whole-archive" >> $config_mak
+elif check_linker_flags -z,allextract -z,defaultextract ; then
+    # Solaris ld
+    echo "ARLIBS_BEGIN=-Wl,-z,allextract" >> $config_mak
+    echo "ARLIBS_END=-Wl,-z,defaultextract" >> $config_mak
+else
+    echo "Error: your linker does not support --whole-archive or -z."
+    echo "Please report to qemu-devel@nongnu.org"
+    exit 1
+fi
+
 tools=
 if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   tools="qemu-img\$(EXESUF) $tools"
