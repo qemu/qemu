@@ -472,10 +472,9 @@ static void audio_init (PCIBus *pci_bus)
         AudioState *s;
 
         s = AUD_init ();
-        if (s) {
-            for (c = soundhw; c->name; ++c) {
-                if (c->enabled)
-                    c->init.init_pci (pci_bus, s);
+        for (c = soundhw; c->name; ++c) {
+            if (c->enabled) {
+                c->init.init_pci (pci_bus, s);
             }
         }
     }

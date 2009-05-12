@@ -428,10 +428,6 @@ static i2c_interface *musicpal_audio_init(qemu_irq irq)
     int iomemtype;
 
     audio = AUD_init();
-    if (!audio) {
-        AUD_log(audio_name, "No audio state\n");
-        return NULL;
-    }
 
     s = qemu_mallocz(sizeof(musicpal_audio_state));
     s->irq = irq;

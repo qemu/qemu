@@ -791,16 +791,14 @@ static void audio_init (PCIBus *pci_bus, qemu_irq *pic)
         AudioState *s;
 
         s = AUD_init ();
-        if (s) {
-            for (c = soundhw; c->name; ++c) {
-                if (c->enabled) {
-                    if (c->isa) {
-                        c->init.init_isa (s, pic);
-                    }
-                    else {
-                        if (pci_bus) {
-                            c->init.init_pci (pci_bus, s);
-                        }
+        for (c = soundhw; c->name; ++c) {
+            if (c->enabled) {
+                if (c->isa) {
+                    c->init.init_isa (s, pic);
+                }
+                else {
+                    if (pci_bus) {
+                        c->init.init_pci (pci_bus, s);
                     }
                 }
             }

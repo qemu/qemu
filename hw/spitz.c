@@ -744,8 +744,6 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
     i2c_slave *wm;
 
     audio = AUD_init();
-    if (!audio)
-        return;
     /* Attach a WM8750 to the bus */
     wm = wm8750_init(bus, audio);
 
