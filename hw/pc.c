@@ -706,9 +706,6 @@ static void load_linux(target_phys_addr_t option_rom,
 	initrd_size = get_file_size(fi);
 	initrd_addr = (initrd_max-initrd_size) & ~4095;
 
-        fprintf(stderr, "qemu: loading initrd (%#x bytes) at 0x" TARGET_FMT_plx
-                "\n", initrd_size, initrd_addr);
-
 	if (!fread_targphys_ok(initrd_addr, initrd_size, fi)) {
 	    fprintf(stderr, "qemu: read error on initial ram disk '%s'\n",
 		    initrd_filename);
