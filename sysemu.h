@@ -241,8 +241,8 @@ struct soundhw {
     int enabled;
     int isa;
     union {
-        int (*init_isa) (AudioState *s, qemu_irq *pic);
-        int (*init_pci) (PCIBus *bus, AudioState *s);
+        int (*init_isa) (qemu_irq *pic);
+        int (*init_pci) (PCIBus *bus);
     } init;
 };
 

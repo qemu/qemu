@@ -17,9 +17,8 @@ void ads7846_write(void *opaque, uint32_t value);
 ADS7846State *ads7846_init(qemu_irq penirq);
 
 /* tsc210x.c */
-uWireSlave *tsc2102_init(qemu_irq pint, AudioState *audio);
-uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
-                qemu_irq dav, AudioState *audio);
+uWireSlave *tsc2102_init(qemu_irq pint);
+uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav);
 I2SCodec *tsc210x_codec(uWireSlave *chip);
 uint32_t tsc210x_txrx(void *opaque, uint32_t value, int len);
 void tsc210x_set_transform(uWireSlave *chip,

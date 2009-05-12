@@ -645,8 +645,9 @@ static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-i2c_slave *wm8750_init(i2c_bus *bus, AudioState *audio)
+i2c_slave *wm8750_init(i2c_bus *bus)
 {
+    AudioState *audio = AUD_init();
     WM8750State *s = (WM8750State *)
             i2c_slave_init(bus, 0, sizeof(WM8750State));
     s->i2c.event = wm8750_event;

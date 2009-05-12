@@ -684,8 +684,7 @@ static void tsc2102_audio_register_write(
                             "wrong value written into Audio 1\n");
 #endif
         tsc2102_audio_rate_update(s);
-        if (s->audio)
-            tsc2102_audio_output_update(s);
+        tsc2102_audio_output_update(s);
         return;
 
     case 0x01:
@@ -729,8 +728,7 @@ static void tsc2102_audio_register_write(
                             "wrong value written into Power\n");
 #endif
         tsc2102_audio_rate_update(s);
-        if (s->audio)
-            tsc2102_audio_output_update(s);
+        tsc2102_audio_output_update(s);
         return;
 
     case 0x06:	/* Audio Control 3 */
@@ -741,8 +739,7 @@ static void tsc2102_audio_register_write(
             fprintf(stderr, "tsc2102_audio_register_write: "
                             "wrong value written into Audio 3\n");
 #endif
-        if (s->audio)
-            tsc2102_audio_output_update(s);
+        tsc2102_audio_output_update(s);
         return;
 
     case 0x07:	/* LCH_BASS_BOOST_N0 */
@@ -1105,7 +1102,7 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-uWireSlave *tsc2102_init(qemu_irq pint, AudioState *audio)
+uWireSlave *tsc2102_init(qemu_irq pint)
 {
     TSC210xState *s;
 
@@ -1120,7 +1117,7 @@ uWireSlave *tsc2102_init(qemu_irq pint, AudioState *audio)
     s->pint = pint;
     s->model = 0x2102;
     s->name = "tsc2102";
-    s->audio = audio;
+    s->audio = AUD_init();;
 
     s->tr[0] = 0;
     s->tr[1] = 1;
@@ -1146,8 +1143,7 @@ uWireSlave *tsc2102_init(qemu_irq pint, AudioState *audio)
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1,
                     "QEMU TSC2102-driven Touchscreen");
 
-    if (s->audio)
-        AUD_register_card(s->audio, s->name, &s->card);
+    AUD_register_card(s->audio, s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
     register_savevm(s->name, -1, 0,
@@ -1156,8 +1152,7 @@ uWireSlave *tsc2102_init(qemu_irq pint, AudioState *audio)
     return &s->chip;
 }
 
-uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
-                qemu_irq dav, AudioState *audio)
+uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav)
 {
     TSC210xState *s;
 
@@ -1174,7 +1169,7 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
     s->davint = dav;
     s->model = 0x2301;
     s->name = "tsc2301";
-    s->audio = audio;
+    s->audio = AUD_init();
 
     s->tr[0] = 0;
     s->tr[1] = 1;
@@ -1200,8 +1195,7 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1,
                     "QEMU TSC2301-driven Touchscreen");
 
-    if (s->audio)
-        AUD_register_card(s->audio, s->name, &s->card);
+    AUD_register_card(s->audio, s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
     register_savevm(s->name, -1, 0, tsc210x_save, tsc210x_load, s);

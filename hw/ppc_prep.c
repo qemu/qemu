@@ -696,7 +696,6 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     }
     i8042_init(i8259[1], i8259[12], 0x60);
     DMA_init(1);
-    //    AUD_init();
     //    SB16_init();
 
     for(i = 0; i < MAX_FD; i++) {

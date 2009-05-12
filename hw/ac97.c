@@ -1308,19 +1308,15 @@ static void ac97_on_reset (void *opaque)
     mixer_reset (s);
 }
 
-int ac97_init (PCIBus *bus, AudioState *audio)
+int ac97_init (PCIBus *bus)
 {
+    AudioState *audio = AUD_init();
     PCIAC97LinkState *d;
     AC97LinkState *s;
     uint8_t *c;
 
     if (!bus) {
         AUD_log ("ac97", "No PCI bus\n");
-        return -1;
-    }
-
-    if (!audio) {
-        AUD_log ("ac97", "No audio state\n");
         return -1;
     }
 

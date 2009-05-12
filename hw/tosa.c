@@ -124,15 +124,15 @@ static void tosa_ssp_write(void *opaque, uint32_t value)
     fprintf(stderr, "TG: %d %02x\n", value >> 5, value & 0x1f);
 }
 
-struct tosa_dac_i2c {
+typedef struct {
     i2c_slave i2c;
     int len;
     char buf[3];
-};
+} TosaDACState;
 
 static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
 {
-    struct tosa_dac_i2c *s = (struct tosa_dac_i2c *)i2c;
+    TosaDACState *s = (TosaDACState *)i2c;
     s->buf[s->len] = data;
     if (s->len ++ > 2) {
 #ifdef VERBOSE
@@ -151,7 +151,7 @@ static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
 
 static void tosa_dac_event(i2c_slave *i2c, enum i2c_event event)
 {
-    struct tosa_dac_i2c *s = (struct tosa_dac_i2c *)i2c;
+    TosaDACState *s = (TosaDACState *)i2c;
     s->len = 0;
     switch (event) {
     case I2C_START_SEND:
@@ -180,8 +180,8 @@ static int tosa_dac_recv(i2c_slave *s)
 
 static void tosa_tg_init(PXA2xxState *cpu)
 {
-    struct i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
-    struct i2c_slave *dac = i2c_slave_init(bus, 0, sizeof(struct tosa_dac_i2c));
+    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+    i2c_slave *dac = i2c_slave_init(bus, 0, sizeof(TosaDACState));
     dac->send = tosa_dac_send;
     dac->event = tosa_dac_event;
     dac->recv = tosa_dac_recv;

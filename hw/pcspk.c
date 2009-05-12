@@ -96,15 +96,12 @@ static void pcspk_callback(void *opaque, int free)
     }
 }
 
-int pcspk_audio_init(AudioState *audio, qemu_irq *pic)
+int pcspk_audio_init(qemu_irq *pic)
 {
+    AudioState *audio = AUD_init();
     PCSpkState *s = &pcspk_state;
     struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};
 
-    if (!audio) {
-        AUD_log(s_spk, "No audio state\n");
-        return -1;
-    }
     AUD_register_card(audio, s_spk, &s->card);
 
     s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
