@@ -93,14 +93,8 @@ static MouseTransformInfo palmte_pointercal = {
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
     uWireSlave *tsc;
-    AudioState *audio = 0;
 
-#ifdef HAS_AUDIO
-    audio = AUD_init();
-#endif
-
-    tsc = tsc2102_init(omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO],
-                    audio);
+    tsc = tsc2102_init(omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO]);
 
     omap_uwire_attach(cpu->microwire, tsc, 0);
     omap_mcbsp_i2s_attach(cpu->mcbsp1, tsc210x_codec(tsc));

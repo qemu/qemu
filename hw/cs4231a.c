@@ -636,15 +636,11 @@ static int cs_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-int cs4231a_init (AudioState *audio, qemu_irq *pic)
+int cs4231a_init (qemu_irq *pic)
 {
+    AudioState *audio = AUD_init();
     int i;
     CSState *s;
-
-    if (!audio) {
-        lerr ("No audio state\n");
-        return -1;
-    }
 
     s = qemu_mallocz (sizeof (*s));
 

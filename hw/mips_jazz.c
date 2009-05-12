@@ -104,13 +104,10 @@ static void audio_init(qemu_irq *pic)
     }
 
     if (audio_enabled) {
-        AudioState *s;
-
-        s = AUD_init();
         for (c = soundhw; c->name; ++c) {
             if (c->enabled) {
                 if (c->isa) {
-                    c->init.init_isa(s, pic);
+                    c->init.init_isa(pic);
                 }
             }
         }

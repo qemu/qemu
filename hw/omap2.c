@@ -1973,7 +1973,6 @@ struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
     omap_eac_reset(s);
 
 #ifdef HAS_AUDIO
-    /* TODO: do AUD_init globally for machine */
     AUD_register_card(AUD_init(), "OMAP EAC", &s->codec.card);
 
     iomemtype = cpu_register_io_memory(0, omap_eac_readfn,

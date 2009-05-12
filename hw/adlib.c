@@ -277,15 +277,11 @@ static void Adlib_fini (AdlibState *s)
     AUD_remove_card (&s->card);
 }
 
-int Adlib_init (AudioState *audio, qemu_irq *pic)
+int Adlib_init (qemu_irq *pic)
 {
+    AudioState *audio = AUD_init();
     AdlibState *s = &glob_adlib;
     struct audsettings as;
-
-    if (!audio) {
-        dolog ("No audio state\n");
-        return -1;
-    }
 
 #ifdef HAS_YMF262
     if (YMF262Init (1, 14318180, conf.freq)) {

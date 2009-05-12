@@ -1005,19 +1005,15 @@ static void es1370_on_reset (void *opaque)
     es1370_reset (s);
 }
 
-int es1370_init (PCIBus *bus, AudioState *audio)
+int es1370_init (PCIBus *bus)
 {
+    AudioState *audio = AUD_init();
     PCIES1370State *d;
     ES1370State *s;
     uint8_t *c;
 
     if (!bus) {
         dolog ("No PCI bus\n");
-        return -1;
-    }
-
-    if (!audio) {
-        dolog ("No audio state\n");
         return -1;
     }
 

@@ -250,15 +250,11 @@ static int GUS_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-int GUS_init (AudioState *audio, qemu_irq *pic)
+int GUS_init (qemu_irq *pic)
 {
+    AudioState *audio = AUD_init();
     GUSState *s;
     struct audsettings as;
-
-    if (!audio) {
-        dolog ("No audio state\n");
-        return -1;
-    }
 
     s = qemu_mallocz (sizeof (*s));
 

@@ -252,7 +252,7 @@ static void n800_tsc_kbd_setup(struct n800_s *s)
     qemu_irq kbirq = omap2_gpio_in_get(s->cpu->gpif, N800_TSC_KP_IRQ_GPIO)[0];
     qemu_irq dav = omap2_gpio_in_get(s->cpu->gpif, N800_TSC_TS_GPIO)[0];
 
-    s->ts.chip = tsc2301_init(penirq, kbirq, dav, 0);
+    s->ts.chip = tsc2301_init(penirq, kbirq, dav);
     s->ts.opaque = s->ts.chip->opaque;
     s->ts.txrx = tsc210x_txrx;
 

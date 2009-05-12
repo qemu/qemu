@@ -1398,17 +1398,13 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-int SB16_init (AudioState *audio, qemu_irq *pic)
+int SB16_init (qemu_irq *pic)
 {
+    AudioState *audio = AUD_init();
     SB16State *s;
     int i;
     static const uint8_t dsp_write_ports[] = {0x6, 0xc};
     static const uint8_t dsp_read_ports[] = {0x6, 0xa, 0xc, 0xd, 0xe, 0xf};
-
-    if (!audio) {
-        dolog ("No audio state\n");
-        return -1;
-    }
 
     s = qemu_mallocz (sizeof (*s));
 

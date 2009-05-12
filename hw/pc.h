@@ -119,7 +119,7 @@ extern int no_hpet;
 
 /* pcspk.c */
 void pcspk_init(PITState *);
-int pcspk_audio_init(AudioState *, qemu_irq *pic);
+int pcspk_audio_init(qemu_irq *pic);
 
 /* piix_pci.c */
 PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic);
