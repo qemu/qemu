@@ -9483,6 +9483,7 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     env->mmu_model = def->mmu_model;
     env->excp_model = def->excp_model;
     env->bus_model = def->bus_model;
+    env->insns_flags = def->insns_flags;
     env->flags = def->flags;
     env->bfd_mach = def->bfd_mach;
     env->check_pow = def->check_pow;
