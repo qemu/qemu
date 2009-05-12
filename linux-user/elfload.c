@@ -300,6 +300,64 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #endif
 #define ELF_ARCH	EM_PPC
 
+/* Feature masks for the Aux Vector Hardware Capabilities (AT_HWCAP).
+   See arch/powerpc/include/asm/cputable.h.  */
+enum {
+    PPC_FEATURE_32 = 0x80000000,
+    PPC_FEATURE_64 = 0x40000000,
+    PPC_FEATURE_601_INSTR = 0x20000000,
+    PPC_FEATURE_HAS_ALTIVEC = 0x10000000,
+    PPC_FEATURE_HAS_FPU = 0x08000000,
+    PPC_FEATURE_HAS_MMU = 0x04000000,
+    PPC_FEATURE_HAS_4xxMAC = 0x02000000,
+    PPC_FEATURE_UNIFIED_CACHE = 0x01000000,
+    PPC_FEATURE_HAS_SPE = 0x00800000,
+    PPC_FEATURE_HAS_EFP_SINGLE = 0x00400000,
+    PPC_FEATURE_HAS_EFP_DOUBLE = 0x00200000,
+    PPC_FEATURE_NO_TB = 0x00100000,
+    PPC_FEATURE_POWER4 = 0x00080000,
+    PPC_FEATURE_POWER5 = 0x00040000,
+    PPC_FEATURE_POWER5_PLUS = 0x00020000,
+    PPC_FEATURE_CELL = 0x00010000,
+    PPC_FEATURE_BOOKE = 0x00008000,
+    PPC_FEATURE_SMT = 0x00004000,
+    PPC_FEATURE_ICACHE_SNOOP = 0x00002000,
+    PPC_FEATURE_ARCH_2_05 = 0x00001000,
+    PPC_FEATURE_PA6T = 0x00000800,
+    PPC_FEATURE_HAS_DFP = 0x00000400,
+    PPC_FEATURE_POWER6_EXT = 0x00000200,
+    PPC_FEATURE_ARCH_2_06 = 0x00000100,
+    PPC_FEATURE_HAS_VSX = 0x00000080,
+    PPC_FEATURE_PSERIES_PERFMON_COMPAT = 0x00000040,
+
+    PPC_FEATURE_TRUE_LE = 0x00000002,
+    PPC_FEATURE_PPC_LE = 0x00000001,
+};
+
+#define ELF_HWCAP get_elf_hwcap()
+
+static uint32_t get_elf_hwcap(void)
+{
+    CPUState *e = thread_env;
+    uint32_t features = 0;
+
+    /* We don't have to be terribly complete here; the high points are
+       Altivec/FP/SPE support.  Anything else is just a bonus.  */
+#define GET_FEATURE(flag, feature)              \
+    do {if (e->insns_flags & flag) features |= feature; } while(0)
+    GET_FEATURE(PPC_64B, PPC_FEATURE_64);
+    GET_FEATURE(PPC_FLOAT, PPC_FEATURE_HAS_FPU);
+    GET_FEATURE(PPC_ALTIVEC, PPC_FEATURE_HAS_ALTIVEC);
+    GET_FEATURE(PPC_SPE, PPC_FEATURE_HAS_SPE);
+    GET_FEATURE(PPC_SPE_SINGLE, PPC_FEATURE_HAS_EFP_SINGLE);
+    GET_FEATURE(PPC_SPE_DOUBLE, PPC_FEATURE_HAS_EFP_DOUBLE);
+    GET_FEATURE(PPC_BOOKE, PPC_FEATURE_BOOKE);
+    GET_FEATURE(PPC_405_MAC, PPC_FEATURE_HAS_4xxMAC);
+#undef GET_FEATURE
+
+    return features;
+}
+
 /*
  * We need to put in some extra aux table entries to tell glibc what
  * the cache block size is, so it can use the dcbz instruction safely.
