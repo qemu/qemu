@@ -36,7 +36,6 @@
  * - No emulation of EEPROM timings.
  */
 
-#include <assert.h>
 #include "hw.h"
 #include "eeprom93xx.h"
 

@@ -23,7 +23,6 @@
  */
 
 #include <stdio.h>
-#include <assert.h>
 #include "hw.h"
 #include "pc.h"
 #include "console.h"

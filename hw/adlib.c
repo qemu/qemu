@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"

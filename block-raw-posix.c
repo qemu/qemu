@@ -25,7 +25,6 @@
 #include "qemu-timer.h"
 #include "qemu-char.h"
 #include "block_int.h"
-#include <assert.h>
 #ifdef CONFIG_AIO
 #include "posix-aio-compat.h"
 #endif

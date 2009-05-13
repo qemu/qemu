@@ -23,7 +23,6 @@
  * THE SOFTWARE.
  */
 #include <stdio.h>
-#include <assert.h>
 #include "hw.h"
 #include "sh.h"
 #include "sysemu.h"

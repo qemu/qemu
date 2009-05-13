@@ -23,7 +23,6 @@
  */
 #include "qemu-common.h"
 #include "host-utils.h"
-#include <assert.h>
 
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
