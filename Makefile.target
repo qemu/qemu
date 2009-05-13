@@ -642,7 +642,7 @@ OBJS+= sun4u.o ide.o pckbd.o vga.o apb_pci.o
 OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
 OBJS+= cirrus_vga.o parallel.o
 else
-OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
+OBJS+= sun4m.o tcx.o iommu.o m48t59.o slavio_intctl.o
 OBJS+= slavio_timer.o escc.o slavio_misc.o fdc.o sparc32_dma.o
 OBJS+= cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
