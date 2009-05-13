@@ -1210,7 +1210,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
                     iomemtype);
 }
 
-void pci_vmsvga_init(PCIBus *bus, int vga_ram_size)
+void pci_vmsvga_init(PCIBus *bus)
 {
     struct pci_vmsvga_state_s *s;
 
@@ -1233,10 +1233,10 @@ void pci_vmsvga_init(PCIBus *bus, int vga_ram_size)
 
     pci_register_io_region(&s->card, 0, 0x10,
                     PCI_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
-    pci_register_io_region(&s->card, 1, vga_ram_size,
+    pci_register_io_region(&s->card, 1, VGA_RAM_SIZE,
                     PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_vmsvga_map_mem);
 
-    vmsvga_init(&s->chip, vga_ram_size);
+    vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
     register_savevm("vmware_vga", 0, 0, pci_vmsvga_save, pci_vmsvga_load, s);
 }

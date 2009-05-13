@@ -3239,13 +3239,13 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
  *
  ***************************************/
 
-void isa_cirrus_vga_init(int vga_ram_size)
+void isa_cirrus_vga_init(void)
 {
     CirrusVGAState *s;
 
     s = qemu_mallocz(sizeof(CirrusVGAState));
 
-    vga_common_init(&s->vga, vga_ram_size);
+    vga_common_init(&s->vga, VGA_RAM_SIZE);
     cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0);
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                      s->vga.screen_dump, s->vga.text_update,
@@ -3301,7 +3301,7 @@ static void pci_cirrus_write_config(PCIDevice *d,
     cirrus_update_memory_access(s);
 }
 
-void pci_cirrus_vga_init(PCIBus *bus, int vga_ram_size)
+void pci_cirrus_vga_init(PCIBus *bus)
 {
     PCICirrusVGAState *d;
     uint8_t *pci_conf;
@@ -3323,7 +3323,7 @@ void pci_cirrus_vga_init(PCIBus *bus, int vga_ram_size)
 
     /* setup VGA */
     s = &d->cirrus_vga;
-    vga_common_init(&s->vga, vga_ram_size);
+    vga_common_init(&s->vga, VGA_RAM_SIZE);
     cirrus_init_common(s, device_id, 1);
 
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,

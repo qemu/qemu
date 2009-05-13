@@ -27,7 +27,7 @@ void irq_info(Monitor *mon)
 
 /* Board init.  */
 
-static void an5206_init(ram_addr_t ram_size, int vga_ram_size,
+static void an5206_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)

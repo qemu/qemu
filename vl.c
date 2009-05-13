@@ -199,7 +199,6 @@ static IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
    to store the VM snapshots */
 DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
-static int vga_ram_size;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 int nographic;
@@ -4875,7 +4874,6 @@ int main(int argc, char **argv, char **envp)
     cpu_model = NULL;
     initrd_filename = NULL;
     ram_size = 0;
-    vga_ram_size = VGA_RAM_SIZE;
     snapshot = 0;
     nographic = 0;
     curses = 0;
@@ -5898,7 +5896,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    machine->init(ram_size, vga_ram_size, boot_devices,
+    machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
 

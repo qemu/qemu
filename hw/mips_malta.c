@@ -758,7 +758,7 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
+void mips_malta_init (ram_addr_t ram_size,
                       const char *boot_device,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
@@ -942,11 +942,11 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Optional PCI video card */
     if (cirrus_vga_enabled) {
-        pci_cirrus_vga_init(pci_bus, vga_ram_size);
+        pci_cirrus_vga_init(pci_bus);
     } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus, vga_ram_size);
+        pci_vmsvga_init(pci_bus);
     } else if (std_vga_enabled) {
-        pci_vga_init(pci_bus, vga_ram_size, 0, 0);
+        pci_vga_init(pci_bus, 0, 0);
     }
 }
 

@@ -223,7 +223,7 @@ void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *lsi_scsi_init(PCIBus *bus, int devfn);
 
 /* vmware_vga.c */
-void pci_vmsvga_init(PCIBus *bus, int vga_ram_size);
+void pci_vmsvga_init(PCIBus *bus);
 
 /* usb-uhci.c */
 void usb_uhci_piix3_init(PCIBus *bus, int devfn);
