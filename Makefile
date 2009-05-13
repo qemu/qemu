@@ -222,11 +222,11 @@ libqemu_user.a: $(USER_OBJS)
 
 ######################################################################
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o osdep.o $(BLOCK_OBJS)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
 
-qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o osdep.o $(BLOCK_OBJS)
+qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
 
-qemu-io$(EXESUF):  qemu-io.o qemu-tool.o osdep.o cmd.o $(BLOCK_OBJS)
+qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(BLOCK_OBJS)
 
 qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
 
