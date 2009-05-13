@@ -1461,6 +1461,11 @@ void cpu_loop(CPUPPCState *env)
             ret = do_syscall(env, env->gpr[0], env->gpr[3], env->gpr[4],
                              env->gpr[5], env->gpr[6], env->gpr[7],
                              env->gpr[8]);
+            if (ret == (uint32_t)(-TARGET_QEMU_ESIGRETURN)) {
+                /* Returning from a successful sigreturn syscall.
+                   Avoid corrupting register state.  */
+                break;
+            }
             if (ret > (uint32_t)(-515)) {
                 env->crf[0] |= 0x1;
                 ret = -ret;
