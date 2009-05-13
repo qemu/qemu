@@ -5735,7 +5735,7 @@ int main(int argc, char **argv, char **envp)
     /* FIXME: This is a nasty hack because kqemu can't cope with dynamic
        guest ram allocation.  It needs to go away.  */
     if (kqemu_allowed) {
-        kqemu_phys_ram_size = ram_size + VGA_RAM_SIZE + 4 * 1024 * 1024;
+        kqemu_phys_ram_size = ram_size + 8 * 1024 * 1024 + 4 * 1024 * 1024;
         kqemu_phys_ram_base = qemu_vmalloc(kqemu_phys_ram_size);
         if (!kqemu_phys_ram_base) {
             fprintf(stderr, "Could not allocate physical memory\n");
