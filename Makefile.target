@@ -497,14 +497,6 @@ OBJS+=fw_cfg.o
 ifdef CONFIG_KVM
 OBJS+=kvm.o kvm-all.o
 endif
-ifdef CONFIG_WIN32
-OBJS+=block-raw-win32.o
-else
-ifdef CONFIG_AIO
-OBJS+=posix-aio-compat.o
-endif
-OBJS+=block-raw-posix.o
-endif
 
 LIBS+=-lz
 ifdef CONFIG_ALSA
