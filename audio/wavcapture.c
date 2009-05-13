@@ -145,7 +145,7 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
 
     qemu_put_buffer (wav->f, hdr, sizeof (hdr));
 
-    cap = AUD_add_capture (NULL, &as, &ops, wav);
+    cap = AUD_add_capture (&as, &ops, wav);
     if (!cap) {
         monitor_printf(mon, "Failed to add audio capture\n");
         qemu_free (wav->path);

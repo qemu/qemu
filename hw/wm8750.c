@@ -647,14 +647,13 @@ static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
 
 i2c_slave *wm8750_init(i2c_bus *bus)
 {
-    AudioState *audio = AUD_init();
     WM8750State *s = (WM8750State *)
             i2c_slave_init(bus, 0, sizeof(WM8750State));
     s->i2c.event = wm8750_event;
     s->i2c.recv = wm8750_rx;
     s->i2c.send = wm8750_tx;
 
-    AUD_register_card(audio, CODEC, &s->card);
+    AUD_register_card(CODEC, &s->card);
     wm8750_reset(&s->i2c);
 
     register_savevm(CODEC, -1, 0, wm8750_save, wm8750_load, s);

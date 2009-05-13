@@ -278,7 +278,6 @@ static void Adlib_fini (AdlibState *s)
 
 int Adlib_init (qemu_irq *pic)
 {
-    AudioState *audio = AUD_init();
     AdlibState *s = &glob_adlib;
     struct audsettings as;
 
@@ -308,7 +307,7 @@ int Adlib_init (qemu_irq *pic)
     as.fmt = AUD_FMT_S16;
     as.endianness = AUDIO_HOST_ENDIANNESS;
 
-    AUD_register_card (audio, "adlib", &s->card);
+    AUD_register_card ("adlib", &s->card);
 
     s->voice = AUD_open_out (
         &s->card,
