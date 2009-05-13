@@ -401,8 +401,8 @@ static void eth_update_ma(struct fs_eth *eth, int ma)
 	eth->macaddr[ma][i++] = eth->regs[reg] >> 8;
 	eth->macaddr[ma][i++] = eth->regs[reg] >> 16;
 	eth->macaddr[ma][i++] = eth->regs[reg] >> 24;
-	eth->macaddr[ma][i++] = eth->regs[reg + 4];
-	eth->macaddr[ma][i++] = eth->regs[reg + 4] >> 8;
+	eth->macaddr[ma][i++] = eth->regs[reg + 1];
+	eth->macaddr[ma][i++] = eth->regs[reg + 1] >> 8;
 
 	D(printf("set mac%d=%x.%x.%x.%x.%x.%x\n", ma,
 		 eth->macaddr[ma][0], eth->macaddr[ma][1],
