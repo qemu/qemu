@@ -2563,7 +2563,7 @@ static abi_long do_ipc(unsigned int call, int first,
 /* kernel structure types definitions */
 #define IFNAMSIZ        16
 
-#define STRUCT(name, list...) STRUCT_ ## name,
+#define STRUCT(name, ...) STRUCT_ ## name,
 #define STRUCT_SPECIAL(name) STRUCT_ ## name,
 enum {
 #include "syscall_types.h"
@@ -2571,7 +2571,7 @@ enum {
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-#define STRUCT(name, list...) static const argtype struct_ ## name ## _def[] = { list, TYPE_NULL };
+#define STRUCT(name, ...) static const argtype struct_ ## name ## _def[] = {  __VA_ARGS__, TYPE_NULL };
 #define STRUCT_SPECIAL(name)
 #include "syscall_types.h"
 #undef STRUCT
@@ -2592,8 +2592,8 @@ typedef struct IOCTLEntry {
 #define MAX_STRUCT_SIZE 4096
 
 static IOCTLEntry ioctl_entries[] = {
-#define IOCTL(cmd, access, types...) \
-    { TARGET_ ## cmd, cmd, #cmd, access, { types } },
+#define IOCTL(cmd, access, ...) \
+    { TARGET_ ## cmd, cmd, #cmd, access, {  __VA_ARGS__ } },
 #include "ioctls.h"
     { 0, 0, },
 };
@@ -3497,7 +3497,7 @@ void syscall_init(void)
     int size;
     int i;
 
-#define STRUCT(name, list...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
+#define STRUCT(name, ...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
 #define STRUCT_SPECIAL(name) thunk_register_struct_direct(STRUCT_ ## name, #name, &struct_ ## name ## _def);
 #include "syscall_types.h"
 #undef STRUCT

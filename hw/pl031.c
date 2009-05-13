@@ -16,10 +16,10 @@
 //#define DEBUG_PL031
 
 #ifdef DEBUG_PL031
-#define DPRINTF(fmt, args...) \
-do { printf("pl031: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 #define RTC_DR      0x00    /* Data read register */

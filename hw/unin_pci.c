@@ -29,10 +29,10 @@
 //#define DEBUG_UNIN
 
 #ifdef DEBUG_UNIN
-#define UNIN_DPRINTF(fmt, args...) \
-do { printf("UNIN: " fmt , ##args); } while (0)
+#define UNIN_DPRINTF(fmt, ...)                                  \
+    do { printf("UNIN: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define UNIN_DPRINTF(fmt, args...)
+#define UNIN_DPRINTF(fmt, ...)
 #endif
 
 typedef target_phys_addr_t pci_addr_t;

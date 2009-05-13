@@ -33,7 +33,7 @@ typedef target_phys_addr_t pci_addr_t;
 #ifdef DEBUG
 #define DPRINTF(fmt, ...) do { printf(fmt, ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, ...)
 #endif /* DEBUG */
 
 struct PCIMasterMap {

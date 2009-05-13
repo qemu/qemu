@@ -16,10 +16,10 @@
 //#define DEBUG_MSD
 
 #ifdef DEBUG_MSD
-#define DPRINTF(fmt, args...) \
-do { printf("usb-msd: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("usb-msd: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 /* USB requests.  */

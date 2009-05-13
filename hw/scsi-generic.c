@@ -28,14 +28,14 @@ SCSIDevice *scsi_generic_init(BlockDriverState *bdrv, int tcq,
 //#define DEBUG_SCSI
 
 #ifdef DEBUG_SCSI
-#define DPRINTF(fmt, args...) \
-do { printf("scsi-generic: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "scsi-generic: " fmt , ##args); } while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 
 #include <stdio.h>
 #include <sys/types.h>

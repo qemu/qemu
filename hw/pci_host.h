@@ -29,10 +29,10 @@
 //#define DEBUG_PCI
 
 #ifdef DEBUG_PCI
-#define PCI_DPRINTF(fmt, args...) \
-do { printf("pci_host_data: " fmt , ##args); } while (0)
+#define PCI_DPRINTF(fmt, ...) \
+do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define PCI_DPRINTF(fmt, args...)
+#define PCI_DPRINTF(fmt, ...)
 #endif
 
 typedef struct {

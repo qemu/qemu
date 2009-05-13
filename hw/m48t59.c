@@ -30,9 +30,9 @@
 //#define DEBUG_NVRAM
 
 #if defined(DEBUG_NVRAM)
-#define NVRAM_PRINTF(fmt, args...) do { printf(fmt , ##args); } while (0)
+#define NVRAM_PRINTF(fmt, ...) do { printf(fmt , ## __VA_ARGS__); } while (0)
 #else
-#define NVRAM_PRINTF(fmt, args...) do { } while (0)
+#define NVRAM_PRINTF(fmt, ...) do { } while (0)
 #endif
 
 /*

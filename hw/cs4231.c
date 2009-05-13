@@ -46,10 +46,10 @@ typedef struct CSState {
 #define CS_CDC_VER 0x8a
 
 #ifdef DEBUG_CS
-#define DPRINTF(fmt, args...)                           \
-    do { printf("CS: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("CS: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, ...)
 #endif
 
 static void cs_reset(void *opaque)

@@ -14,10 +14,10 @@
 //#define DEBUG_PL181 1
 
 #ifdef DEBUG_PL181
-#define DPRINTF(fmt, args...) \
-do { printf("pl181: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 #define PL181_FIFO_LEN 16

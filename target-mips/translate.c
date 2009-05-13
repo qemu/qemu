@@ -501,13 +501,13 @@ static const char *fregnames[] =
       "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", };
 
 #ifdef MIPS_DEBUG_DISAS
-#define MIPS_DEBUG(fmt, args...)                         \
+#define MIPS_DEBUG(fmt, ...)                         \
         qemu_log_mask(CPU_LOG_TB_IN_ASM,                \
                        TARGET_FMT_lx ": %08x " fmt "\n", \
-                       ctx->pc, ctx->opcode , ##args)
+                       ctx->pc, ctx->opcode , ## __VA_ARGS__)
 #define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
 #else
-#define MIPS_DEBUG(fmt, args...) do { } while(0)
+#define MIPS_DEBUG(fmt, ...) do { } while(0)
 #define LOG_DISAS(...) do { } while (0)
 #endif
 

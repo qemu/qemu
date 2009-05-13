@@ -114,9 +114,9 @@ static void malta_fpga_update_display(void *opaque)
 //~ #define DEBUG
 
 #if defined(DEBUG)
-#  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
+#  define logout(fmt, ...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ## __VA_ARGS__)
 #else
-#  define logout(fmt, args...) ((void)0)
+#  define logout(fmt, ...) ((void)0)
 #endif
 
 struct _eeprom24c0x_t {

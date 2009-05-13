@@ -36,10 +36,10 @@
 //#define DEBUG_SD 1
 
 #ifdef DEBUG_SD
-#define DPRINTF(fmt, args...) \
-do { fprintf(stderr, "SD: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { fprintf(stderr, "SD: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 typedef enum {

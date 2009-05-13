@@ -44,9 +44,9 @@
 //~ #define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
-#define logout(fmt, args...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ##args)
+#define logout(fmt, ...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ## __VA_ARGS__)
 #else
-#define logout(fmt, args...) ((void)0)
+#define logout(fmt, ...) ((void)0)
 #endif
 
 #define EEPROM_INSTANCE  0

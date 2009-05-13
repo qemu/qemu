@@ -42,7 +42,7 @@
 
 #ifdef TARGET_X86_64
 #define X86_64_ONLY(x) x
-#define X86_64_DEF(x...) x
+#define X86_64_DEF(...)  __VA_ARGS__
 #define CODE64(s) ((s)->code64)
 #define REX_X(s) ((s)->rex_x)
 #define REX_B(s) ((s)->rex_b)
@@ -52,7 +52,7 @@
 #endif
 #else
 #define X86_64_ONLY(x) NULL
-#define X86_64_DEF(x...)
+#define X86_64_DEF(...)
 #define CODE64(s) 0
 #define REX_X(s) 0
 #define REX_B(s) 0

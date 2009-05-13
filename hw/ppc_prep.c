@@ -50,18 +50,18 @@
 #endif
 
 #if defined (HARD_DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, args...)                     \
+#define PPC_IO_DPRINTF(fmt, ...)                         \
 do {                                                     \
     if (qemu_loglevel_mask(CPU_LOG_IOPORT)) {            \
-        qemu_log("%s: " fmt, __func__ , ##args); \
+        qemu_log("%s: " fmt, __func__ , ## __VA_ARGS__); \
     } else {                                             \
-        printf("%s : " fmt, __func__ , ##args);          \
+        printf("%s : " fmt, __func__ , ## __VA_ARGS__);  \
     }                                                    \
 } while (0)
 #elif defined (DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, args...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
+#define PPC_IO_DPRINTF(fmt, ...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
 #else
-#define PPC_IO_DPRINTF(fmt, args...) do { } while (0)
+#define PPC_IO_DPRINTF(fmt, ...) do { } while (0)
 #endif
 
 /* Constants for devices init */

@@ -24,9 +24,9 @@ typedef target_phys_addr_t pci_addr_t;
 #include "qemu-log.h"
 
 #ifdef DEBUG_PCI
-#define pci_debug(fmt, arg...) fprintf(stderr, fmt, ##arg)
+#define pci_debug(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
 #else
-#define pci_debug(fmt, arg...)
+#define pci_debug(fmt, ...)
 #endif
 
 #define PCIE500_CFGADDR       0x0

@@ -29,10 +29,10 @@
 //#define DEBUG_PIC
 
 #ifdef DEBUG_PIC
-#define PIC_DPRINTF(fmt, args...) \
-do { printf("PIC: " fmt , ##args); } while (0)
+#define PIC_DPRINTF(fmt, ...)                                   \
+    do { printf("PIC: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define PIC_DPRINTF(fmt, args...)
+#define PIC_DPRINTF(fmt, ...)
 #endif
 
 typedef struct HeathrowPIC {

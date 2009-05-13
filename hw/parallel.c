@@ -30,9 +30,9 @@
 //#define DEBUG_PARALLEL
 
 #ifdef DEBUG_PARALLEL
-#define pdebug(fmt, arg...) printf("pp: " fmt, ##arg)
+#define pdebug(fmt, ...) printf("pp: " fmt, ## __VA_ARGS__)
 #else
-#define pdebug(fmt, arg...) ((void)0)
+#define pdebug(fmt, ...) ((void)0)
 #endif
 
 #define PARA_REG_DATA 0

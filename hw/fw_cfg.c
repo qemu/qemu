@@ -30,10 +30,10 @@
 //#define DEBUG_FW_CFG
 
 #ifdef DEBUG_FW_CFG
-#define FW_CFG_DPRINTF(fmt, args...)                     \
-    do { printf("FW_CFG: " fmt , ##args); } while (0)
+#define FW_CFG_DPRINTF(fmt, ...)                        \
+    do { printf("FW_CFG: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define FW_CFG_DPRINTF(fmt, args...)
+#define FW_CFG_DPRINTF(fmt, ...)
 #endif
 
 #define FW_CFG_SIZE 2

@@ -73,10 +73,10 @@
 
 //#define DEBUG_BLOCK
 #if defined(DEBUG_BLOCK)
-#define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (qemu_log_enabled())	\
-    { qemu_log(formatCstr, ##args); qemu_log_flush(); } } while (0)
+#define DEBUG_BLOCK_PRINT(formatCstr, ...) do { if (qemu_log_enabled()) \
+    { qemu_log(formatCstr, ## __VA_ARGS__); qemu_log_flush(); } } while (0)
 #else
-#define DEBUG_BLOCK_PRINT(formatCstr, args...)
+#define DEBUG_BLOCK_PRINT(formatCstr, ...)
 #endif
 
 /* OS X does not have O_DSYNC */

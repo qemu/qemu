@@ -47,9 +47,9 @@
 //#define DEBUG_BITBLT
 
 #ifdef DEBUG_SM501
-#define SM501_DPRINTF(fmt...) printf(fmt)
+#define SM501_DPRINTF(fmt, ...) printf(fmt, ## __VA_ARGS__)
 #else
-#define SM501_DPRINTF(fmt...) do {} while(0)
+#define SM501_DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 

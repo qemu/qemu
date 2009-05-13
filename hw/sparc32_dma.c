@@ -37,10 +37,10 @@
  */
 
 #ifdef DEBUG_DMA
-#define DPRINTF(fmt, args...) \
-do { printf("DMA: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...)                               \
+    do { printf("DMA: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, ...)
 #endif
 
 #define DMA_REGS 4

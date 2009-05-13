@@ -26,13 +26,13 @@
 //#define DEBUG_G364
 
 #ifdef DEBUG_G364
-#define DPRINTF(fmt, args...) \
-do { printf("g364: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("g364: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while (0)
+#define DPRINTF(fmt, ...) do {} while (0)
 #endif
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "g364 ERROR: " fmt , ##args);} while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "g364 ERROR: " fmt , ## __VA_ARGS__);} while (0)
 
 typedef struct G364State {
     /* hardware */

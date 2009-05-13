@@ -42,20 +42,20 @@
 #include "block.h"
 #include "qemu-timer.h"
 
-#define PFLASH_BUG(fmt, args...) \
+#define PFLASH_BUG(fmt, ...) \
 do { \
-    printf("PFLASH: Possible BUG - " fmt, ##args); \
+    printf("PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
     exit(1); \
 } while(0)
 
 /* #define PFLASH_DEBUG */
 #ifdef PFLASH_DEBUG
-#define DPRINTF(fmt, args...)                      \
+#define DPRINTF(fmt, ...)                          \
 do {                                               \
-        printf("PFLASH: " fmt , ##args);           \
+    printf("PFLASH: " fmt , ## __VA_ARGS__);       \
 } while (0)
 #else
-#define DPRINTF(fmt, args...) do { } while (0)
+#define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
 struct pflash_t {
