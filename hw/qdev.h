@@ -44,6 +44,8 @@ void *qdev_get_child_bus(DeviceState *dev, const char *name);
 /*** Device API.  ***/
 
 typedef void (*qdev_initfn)(DeviceState *dev, void *opaque);
+typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
+              int unit);
 
 DeviceType *qdev_register(const char *name, int size, qdev_initfn init,
                           void *opaque);
@@ -53,6 +55,8 @@ void qdev_init_irq_sink(DeviceState *dev, qemu_irq_handler handler, int nirq);
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
 void qdev_attach_child_bus(DeviceState *dev, const char *name, void *bus);
+
+void scsi_bus_new(DeviceState *host, SCSIAttachFn attach);
 
 CharDriverState *qdev_init_chardev(DeviceState *dev);
 
