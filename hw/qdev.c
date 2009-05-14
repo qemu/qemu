@@ -46,6 +46,12 @@ struct DeviceType {
     DeviceType *next;
 };
 
+struct ChildBusList {
+    const char *name;
+    void *ptr;
+    ChildBusList *next;
+};
+
 static DeviceType *device_type_list;
 
 /* Register a new device type.  */
@@ -234,4 +240,28 @@ BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type)
         return NULL;
     }
     return drives_table[index].bdrv;
+}
+
+void *qdev_get_child_bus(DeviceState *dev, const char *name)
+{
+    ChildBusList *bus;
+
+    for (bus = dev->child_bus; bus; bus = bus->next) {
+        if (strcmp(name, bus->name) == 0) {
+            return bus->ptr;
+        }
+    }
+    return NULL;
+}
+
+void qdev_attach_child_bus(DeviceState *dev, const char *name, void *bus)
+{
+    ChildBusList *p;
+
+    assert(!qdev_get_child_bus(dev, name));
+    p = qemu_mallocz(sizeof(*p));
+    p->name = qemu_strdup(name);
+    p->ptr = bus;
+    p->next = dev->child_bus;
+    dev->child_bus = p;
 }

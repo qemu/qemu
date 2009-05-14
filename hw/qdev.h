@@ -7,6 +7,8 @@ typedef struct DeviceType DeviceType;
 
 typedef struct DeviceProperty DeviceProperty;
 
+typedef struct ChildBusList ChildBusList;
+
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState
@@ -21,6 +23,7 @@ struct DeviceState
     qemu_irq *gpio_out;
     int num_gpio_in;
     qemu_irq *gpio_in;
+    ChildBusList *child_bus;
 };
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
@@ -36,6 +39,8 @@ qemu_irq qdev_get_irq_sink(DeviceState *dev, int n);
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
 
+void *qdev_get_child_bus(DeviceState *dev, const char *name);
+
 /*** Device API.  ***/
 
 typedef void (*qdev_initfn)(DeviceState *dev, void *opaque);
@@ -47,6 +52,7 @@ DeviceType *qdev_register(const char *name, int size, qdev_initfn init,
 void qdev_init_irq_sink(DeviceState *dev, qemu_irq_handler handler, int nirq);
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
+void qdev_attach_child_bus(DeviceState *dev, const char *name, void *bus);
 
 CharDriverState *qdev_init_chardev(DeviceState *dev);
 
