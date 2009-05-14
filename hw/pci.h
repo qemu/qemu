@@ -3,6 +3,8 @@
 
 #include "qemu-common.h"
 
+#include "qdev.h"
+
 /* PCI includes legacy ISA access.  */
 #include "isa.h"
 
@@ -138,6 +140,7 @@ typedef struct PCIIORegion {
 #define PCI_COMMAND_RESERVED_MASK_HI (PCI_COMMAND_RESERVED >> 8)
 
 struct PCIDevice {
+    DeviceState qdev;
     /* PCI config space */
     uint8_t config[256];
 
@@ -216,6 +219,11 @@ pci_config_set_class(uint8_t *pci_config, uint16_t val)
 {
     cpu_to_le16wu((uint16_t *)&pci_config[PCI_CLASS_DEVICE], val);
 }
+
+typedef void (*pci_qdev_initfn)(PCIDevice *dev);
+void pci_qdev_register(const char *name, int size, pci_qdev_initfn init);
+
+PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
 /* lsi53c895a.c */
 #define LSI_MAX_DEVS 7

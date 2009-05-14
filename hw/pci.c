@@ -237,13 +237,11 @@ int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
 }
 
 /* -1 for devfn means auto assign */
-PCIDevice *pci_register_device(PCIBus *bus, const char *name,
-                               int instance_size, int devfn,
-                               PCIConfigReadFunc *config_read,
-                               PCIConfigWriteFunc *config_write)
+static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
+                                         const char *name, int devfn,
+                                         PCIConfigReadFunc *config_read,
+                                         PCIConfigWriteFunc *config_write)
 {
-    PCIDevice *pci_dev;
-
     if (pci_irq_index >= PCI_DEVICES_MAX)
         return NULL;
 
@@ -255,7 +253,6 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
         return NULL;
     found: ;
     }
-    pci_dev = qemu_mallocz(instance_size);
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
@@ -274,6 +271,18 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     return pci_dev;
 }
 
+PCIDevice *pci_register_device(PCIBus *bus, const char *name,
+                               int instance_size, int devfn,
+                               PCIConfigReadFunc *config_read,
+                               PCIConfigWriteFunc *config_write)
+{
+    PCIDevice *pci_dev;
+
+    pci_dev = qemu_mallocz(instance_size);
+    pci_dev = do_pci_register_device(pci_dev, bus, name, devfn,
+                                     config_read, config_write);
+    return pci_dev;
+}
 static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
 {
     return addr + pci_mem_base;
@@ -890,4 +899,36 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
 
     s->bus = pci_register_secondary_bus(&s->dev, map_irq);
     return s->bus;
+}
+
+static void pci_qdev_init(DeviceState *qdev, void *opaque)
+{
+    PCIDevice *pci_dev = (PCIDevice *)qdev;
+    pci_qdev_initfn init;
+    PCIBus *bus;
+    int devfn;
+
+    init = opaque;
+    bus = qdev_get_bus(qdev);
+    devfn = qdev_get_prop_int(qdev, "devfn", -1);
+    pci_dev = do_pci_register_device(pci_dev, bus, "FIXME", devfn,
+                                     NULL, NULL);//FIXME:config_read, config_write);
+    assert(pci_dev);
+    init(pci_dev);
+}
+
+void pci_qdev_register(const char *name, int size, pci_qdev_initfn init)
+{
+    qdev_register(name, size, pci_qdev_init, init);
+}
+
+PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(bus, name);
+    qdev_set_prop_int(dev, "devfn", devfn);
+    qdev_init(dev);
+
+    return (PCIDevice *)dev;
 }
