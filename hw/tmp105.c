@@ -214,7 +214,7 @@ static int tmp105_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void tmp105_reset(i2c_slave *i2c)
+static void tmp105_reset(i2c_slave *i2c)
 {
     TMP105State *s = (TMP105State *) i2c;
 
@@ -227,19 +227,27 @@ void tmp105_reset(i2c_slave *i2c)
     tmp105_interrupt_update(s);
 }
 
-struct i2c_slave *tmp105_init(i2c_bus *bus, qemu_irq alarm)
+static void tmp105_init(i2c_slave *i2c)
 {
-    TMP105State *s = (TMP105State *)
-            i2c_slave_init(bus, 0, sizeof(TMP105State));
+    TMP105State *s = FROM_I2C_SLAVE(TMP105State, i2c);
 
-    s->i2c.event = tmp105_event;
-    s->i2c.recv = tmp105_rx;
-    s->i2c.send = tmp105_tx;
-    s->pin = alarm;
+    qdev_init_gpio_out(&i2c->qdev, &s->pin, 1);
 
     tmp105_reset(&s->i2c);
 
     register_savevm("TMP105", -1, 0, tmp105_save, tmp105_load, s);
-
-    return &s->i2c;
 }
+
+static I2CSlaveInfo tmp105_info = {
+    .init = tmp105_init,
+    .event = tmp105_event,
+    .recv = tmp105_rx,
+    .send = tmp105_tx
+};
+
+static void tmp105_register_devices(void)
+{
+    i2c_register_slave("tmp105", sizeof(TMP105State), &tmp105_info);
+}
+
+device_init(tmp105_register_devices)

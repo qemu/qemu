@@ -179,6 +179,7 @@ static void n8x0_nand_setup(struct n800_s *s)
 
 static void n8x0_i2c_setup(struct n800_s *s)
 {
+    DeviceState *dev;
     qemu_irq tmp_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_TMP105_GPIO)[0];
 
     /* Attach the CPU on one end of our I2C bus.  */
@@ -191,7 +192,8 @@ static void n8x0_i2c_setup(struct n800_s *s)
                     N8X0_MENELAUS_ADDR);
 
     /* Attach a TMP105 PM chip (A0 wired to ground) */
-    i2c_set_slave_address(tmp105_init(s->i2c, tmp_irq), N8X0_TMP105_ADDR);
+    dev = i2c_create_slave(s->i2c, "tmp105", N8X0_TMP105_ADDR);
+    qdev_connect_gpio_out(dev, 0, tmp_irq);
 }
 
 /* Touchscreen and keypad controller */
