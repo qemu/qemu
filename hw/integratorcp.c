@@ -485,8 +485,8 @@ static void integratorcp_init(ram_addr_t ram_size,
     sysbus_create_simple("pl011", 0x16000000, pic[1]);
     sysbus_create_simple("pl011", 0x17000000, pic[2]);
     icp_control_init(0xcb000000);
-    pl050_init(0x18000000, pic[3], 0);
-    pl050_init(0x19000000, pic[4], 1);
+    sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
+    sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
     sd = drive_get_index(IF_SD, 0, 0);
     if (sd == -1) {
         fprintf(stderr, "qemu: missing SecureDigital card\n");

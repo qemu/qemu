@@ -82,8 +82,8 @@ static void realview_init(ram_addr_t ram_size,
         pic = mpcore_irq_init(cpu_irq);
     }
 
-    pl050_init(0x10006000, pic[20], 0);
-    pl050_init(0x10007000, pic[21], 1);
+    sysbus_create_simple("pl050_keyboard", 0x10006000, pic[20]);
+    sysbus_create_simple("pl050_mouse", 0x10007000, pic[21]);
 
     sysbus_create_simple("pl011", 0x10009000, pic[12]);
     sysbus_create_simple("pl011", 0x1000a000, pic[13]);

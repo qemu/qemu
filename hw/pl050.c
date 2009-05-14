@@ -7,11 +7,11 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 #include "ps2.h"
 
 typedef struct {
+    SysBusDevice busdev;
     void *dev;
     uint32_t cr;
     uint32_t clk;
@@ -122,20 +122,39 @@ static CPUWriteMemoryFunc *pl050_writefn[] = {
    pl050_write
 };
 
-void pl050_init(uint32_t base, qemu_irq irq, int is_mouse)
+static void pl050_init(SysBusDevice *dev, int is_mouse)
 {
+    pl050_state *s = FROM_SYSBUS(pl050_state, dev);
     int iomemtype;
-    pl050_state *s;
 
-    s = (pl050_state *)qemu_mallocz(sizeof(pl050_state));
     iomemtype = cpu_register_io_memory(0, pl050_readfn,
                                        pl050_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->irq = irq;
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_irq(dev, &s->irq);
     s->is_mouse = is_mouse;
-    if (is_mouse)
+    if (s->is_mouse)
         s->dev = ps2_mouse_init(pl050_update, s);
     else
         s->dev = ps2_kbd_init(pl050_update, s);
     /* ??? Save/restore.  */
 }
+
+static void pl050_init_keyboard(SysBusDevice *dev)
+{
+    pl050_init(dev, 0);
+}
+
+static void pl050_init_mouse(SysBusDevice *dev)
+{
+    pl050_init(dev, 1);
+}
+
+static void pl050_register_devices(void)
+{
+    sysbus_register_dev("pl050_keyboard", sizeof(pl050_state),
+                        pl050_init_keyboard);
+    sysbus_register_dev("pl050_mouse", sizeof(pl050_state),
+                        pl050_init_mouse);
+}
+
+device_init(pl050_register_devices)

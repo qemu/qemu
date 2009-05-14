@@ -186,8 +186,9 @@ static void versatile_init(ram_addr_t ram_size,
     pic = arm_pic_init_cpu(env);
     pic = pl190_init(0x10140000, pic[0], pic[1]);
     sic = vpb_sic_init(0x10003000, pic, 31);
-    pl050_init(0x10006000, sic[3], 0);
-    pl050_init(0x10007000, sic[4], 1);
+
+    sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
+    sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
     pci_bus = pci_vpb_init(sic, 27, 0);
     /* The Versatile PCI bridge does not provide access to PCI IO space,
