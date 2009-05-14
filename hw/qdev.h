@@ -24,6 +24,7 @@ struct DeviceState
     int num_gpio_in;
     qemu_irq *gpio_in;
     ChildBusList *child_bus;
+    NICInfo *nd;
 };
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
@@ -34,6 +35,7 @@ void qdev_init(DeviceState *dev);
 /* Set properties between creation and init.  */
 void qdev_set_prop_int(DeviceState *dev, const char *name, int value);
 void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value);
+void qdev_set_netdev(DeviceState *dev, NICInfo *nd);
 
 qemu_irq qdev_get_irq_sink(DeviceState *dev, int n);
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);

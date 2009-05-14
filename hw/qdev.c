@@ -26,6 +26,7 @@
    inherit from a particular bus (e.g. PCI or I2C) rather than
    this API directly.  */
 
+#include "net.h"
 #include "qdev.h"
 #include "sysemu.h"
 
@@ -135,6 +136,12 @@ void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value)
     prop->value.ptr = value;
 }
 
+void qdev_set_netdev(DeviceState *dev, NICInfo *nd)
+{
+    assert(!dev->nd);
+    dev->nd = nd;
+}
+
 
 qemu_irq qdev_get_irq_sink(DeviceState *dev, int n)
 {
@@ -223,6 +230,24 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 {
     assert(n >= 0 && n < dev->num_gpio_out);
     dev->gpio_out[n] = pin;
+}
+
+VLANClientState *qdev_get_vlan_client(DeviceState *dev,
+                                      IOReadHandler *fd_read,
+                                      IOCanRWHandler *fd_can_read,
+                                      NetCleanup *cleanup,
+                                      void *opaque)
+{
+    NICInfo *nd = dev->nd;
+    assert(nd);
+    return qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                fd_read, fd_can_read, cleanup, opaque);
+}
+
+
+void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr)
+{
+    memcpy(macaddr, dev->nd->macaddr, 6);
 }
 
 static int next_block_unit[IF_COUNT];

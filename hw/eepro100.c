@@ -1728,18 +1728,12 @@ static int pci_nic_uninit(PCIDevice *dev)
     return 0;
 }
 
-static PCIDevice *nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
+static void nic_init(PCIDevice *pci_dev, uint32_t device)
 {
-    PCIEEPRO100State *d;
+    PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
     EEPRO100State *s;
 
     logout("\n");
-
-    d = (PCIEEPRO100State *) pci_register_device(bus, nd->model,
-                                                 sizeof(PCIEEPRO100State), -1,
-                                                 NULL, NULL);
-    if (!d)
-        return NULL;
 
     d->dev.unregister = pci_nic_uninit;
 
@@ -1765,13 +1759,13 @@ static PCIDevice *nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
     pci_register_io_region(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
                            pci_mmio_map);
 
-    memcpy(s->macaddr, nd->macaddr, 6);
+    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
     assert(s->region[1] == 0);
 
     nic_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = qdev_get_vlan_client(&d->dev.qdev,
                                  nic_receive, nic_can_receive,
                                  nic_cleanup, s);
 
@@ -1780,22 +1774,31 @@ static PCIDevice *nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
     qemu_register_reset(nic_reset, s);
 
     register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
-    return (PCIDevice *)d;
 }
 
-PCIDevice *pci_i82551_init(PCIBus * bus, NICInfo * nd, int devfn)
+static void pci_i82551_init(PCIDevice *dev)
 {
-    return nic_init(bus, nd, i82551);
+    nic_init(dev, i82551);
 }
 
-PCIDevice *pci_i82557b_init(PCIBus * bus, NICInfo * nd, int devfn)
+static void pci_i82557b_init(PCIDevice *dev)
 {
-    return nic_init(bus, nd, i82557B);
+    nic_init(dev, i82557B);
 }
 
-PCIDevice *pci_i82559er_init(PCIBus * bus, NICInfo * nd, int devfn)
+static void pci_i82559er_init(PCIDevice *dev)
 {
-    return nic_init(bus, nd, i82559ER);
+    nic_init(dev, i82559ER);
 }
 
-/* eof */
+static void eepro100_register_devices(void)
+{
+    pci_qdev_register("i82551", sizeof(PCIEEPRO100State),
+                      pci_i82551_init);
+    pci_qdev_register("i82557b", sizeof(PCIEEPRO100State),
+                      pci_i82557b_init);
+    pci_qdev_register("i82559er", sizeof(PCIEEPRO100State),
+                      pci_i82559er_init);
+}
+
+device_init(eepro100_register_devices)

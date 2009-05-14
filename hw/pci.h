@@ -239,26 +239,6 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn);
 /* usb-ohci.c */
 void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn);
 
-/* eepro100.c */
-
-PCIDevice *pci_i82551_init(PCIBus *bus, NICInfo *nd, int devfn);
-PCIDevice *pci_i82557b_init(PCIBus *bus, NICInfo *nd, int devfn);
-PCIDevice *pci_i82559er_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* ne2000.c */
-
-PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* rtl8139.c */
-
-PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* e1000.c */
-PCIDevice *pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* pcnet.c */
-PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
-
 /* prep_pci.c */
 PCIBus *pci_prep_init(qemu_irq *pic);
 

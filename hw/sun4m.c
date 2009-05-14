@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "sysbus.h"
 #include "qemu-timer.h"
 #include "sun4m.h"
 #include "nvram.h"
@@ -362,6 +362,24 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
         }
     }
     return kernel_size;
+}
+
+static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
+                       void *dma_opaque, qemu_irq irq, qemu_irq *reset)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    qemu_check_nic_model(&nd_table[0], "lance");
+
+    dev = qdev_create(NULL, "lance");
+    qdev_set_netdev(dev, nd);
+    qdev_set_prop_ptr(dev, "dma", dma_opaque);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_mmio_map(s, 0, leaddr);
+    sysbus_connect_irq(s, 0, irq);
+    *reset = qdev_get_irq_sink(dev, 0);
 }
 
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,

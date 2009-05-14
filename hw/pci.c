@@ -799,17 +799,15 @@ static const char * const pci_nic_models[] = {
     NULL
 };
 
-typedef PCIDevice *(*PCINICInitFn)(PCIBus *, NICInfo *, int);
-
-static PCINICInitFn pci_nic_init_fns[] = {
-    pci_ne2000_init,
-    pci_i82551_init,
-    pci_i82557b_init,
-    pci_i82559er_init,
-    pci_rtl8139_init,
-    pci_e1000_init,
-    pci_pcnet_init,
-    virtio_net_init,
+static const char * const pci_nic_names[] = {
+    "ne2k_pci",
+    "i82551",
+    "i82557b",
+    "i82559er",
+    "rtl8139",
+    "e1000",
+    "pcnet",
+    "virtio_net",
     NULL
 };
 
@@ -817,18 +815,21 @@ static PCINICInitFn pci_nic_init_fns[] = {
 PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
                   const char *default_model)
 {
-    PCIDevice *pci_dev;
+    DeviceState *dev;
     int i;
 
     qemu_check_nic_model_list(nd, pci_nic_models, default_model);
 
-    for (i = 0; pci_nic_models[i]; i++)
+    for (i = 0; pci_nic_models[i]; i++) {
         if (strcmp(nd->model, pci_nic_models[i]) == 0) {
-            pci_dev = pci_nic_init_fns[i](bus, nd, devfn);
-            if (pci_dev)
-                nd->private = pci_dev;
-            return pci_dev;
+            dev = qdev_create(bus, pci_nic_names[i]);
+            qdev_set_prop_int(dev, "devfn", devfn);
+            qdev_set_netdev(dev, nd);
+            qdev_init(dev);
+            nd->private = dev;
+            return (PCIDevice *)dev;
         }
+    }
 
     return NULL;
 }
