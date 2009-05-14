@@ -26,7 +26,4 @@ extern qemu_irq *mpcore_irq_init(qemu_irq *cpu_irq);
 /* arm_sysctl.c */
 void arm_sysctl_init(uint32_t base, uint32_t sys_id);
 
-/* versatile_pci.c */
-PCIBus *pci_vpb_init(qemu_irq *pic, int realview);
-
 #endif

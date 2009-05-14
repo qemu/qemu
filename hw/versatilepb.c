@@ -199,7 +199,10 @@ static void versatile_init(ram_addr_t ram_size,
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
-    pci_bus = pci_vpb_init(sic + 27, 0);
+    dev = sysbus_create_varargs("versatile_pci", 0x40000000,
+                                sic[27], sic[28], sic[29], sic[30], NULL);
+    pci_bus = qdev_get_child_bus(dev, "pci");
+
     /* The Versatile PCI bridge does not provide access to PCI IO space,
        so many of the qemu PCI devices are not useable.  */
     for(n = 0; n < nb_nics; n++) {

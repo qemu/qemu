@@ -32,6 +32,7 @@ static void realview_init(ram_addr_t ram_size,
     CPUState *env;
     ram_addr_t ram_offset;
     qemu_irq *pic;
+    DeviceState *dev;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -100,7 +101,9 @@ static void realview_init(ram_addr_t ram_size,
 
     sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
-    pci_bus = pci_vpb_init(pic + 48, 1);
+    dev = sysbus_create_varargs("realview_pci", 0x60000000,
+                                pic[48], pic[49], pic[50], pic[51], NULL);
+    pci_bus = qdev_get_child_bus(dev, "pci");
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
