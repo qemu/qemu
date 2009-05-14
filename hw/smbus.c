@@ -37,33 +37,38 @@ enum {
 
 static void smbus_do_quick_cmd(SMBusDevice *dev, int recv)
 {
+    SMBusDeviceInfo *t = container_of(dev->i2c.info, SMBusDeviceInfo, i2c);
+
     DPRINTF("Quick Command %d\n", recv);
-    if (dev->quick_cmd)
-        dev->quick_cmd(dev, recv);
+    if (t->quick_cmd)
+        t->quick_cmd(dev, recv);
 }
 
 static void smbus_do_write(SMBusDevice *dev)
 {
+    SMBusDeviceInfo *t = container_of(dev->i2c.info, SMBusDeviceInfo, i2c);
+
     if (dev->data_len == 0) {
         smbus_do_quick_cmd(dev, 0);
     } else if (dev->data_len == 1) {
         DPRINTF("Send Byte\n");
-        if (dev->send_byte) {
-            dev->send_byte(dev, dev->data_buf[0]);
+        if (t->send_byte) {
+            t->send_byte(dev, dev->data_buf[0]);
         }
     } else {
         dev->command = dev->data_buf[0];
         DPRINTF("Command %d len %d\n", dev->command, dev->data_len - 1);
-        if (dev->write_data) {
-            dev->write_data(dev, dev->command, dev->data_buf + 1,
-                            dev->data_len - 1);
+        if (t->write_data) {
+            t->write_data(dev, dev->command, dev->data_buf + 1,
+                          dev->data_len - 1);
         }
     }
 }
 
 static void smbus_i2c_event(i2c_slave *s, enum i2c_event event)
 {
-    SMBusDevice *dev = (SMBusDevice *)s;
+    SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, s);
+
     switch (event) {
     case I2C_START_SEND:
         switch (dev->mode) {
@@ -145,13 +150,14 @@ static void smbus_i2c_event(i2c_slave *s, enum i2c_event event)
 
 static int smbus_i2c_recv(i2c_slave *s)
 {
-    SMBusDevice *dev = (SMBusDevice *)s;
+    SMBusDeviceInfo *t = container_of(s->info, SMBusDeviceInfo, i2c);
+    SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, s);
     int ret;
 
     switch (dev->mode) {
     case SMBUS_RECV_BYTE:
-        if (dev->receive_byte) {
-            ret = dev->receive_byte(dev);
+        if (t->receive_byte) {
+            ret = t->receive_byte(dev);
         } else {
             ret = 0;
         }
@@ -159,8 +165,8 @@ static int smbus_i2c_recv(i2c_slave *s)
         dev->mode = SMBUS_DONE;
         break;
     case SMBUS_READ_DATA:
-        if (dev->read_data) {
-            ret = dev->read_data(dev, dev->command, dev->data_len);
+        if (t->read_data) {
+            ret = t->read_data(dev, dev->command, dev->data_len);
             dev->data_len++;
         } else {
             ret = 0;
@@ -178,7 +184,8 @@ static int smbus_i2c_recv(i2c_slave *s)
 
 static int smbus_i2c_send(i2c_slave *s, uint8_t data)
 {
-    SMBusDevice *dev = (SMBusDevice *)s;
+    SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, s);
+
     switch (dev->mode) {
     case SMBUS_WRITE_DATA:
         DPRINTF("Write data %02x\n", data);
@@ -191,19 +198,22 @@ static int smbus_i2c_send(i2c_slave *s, uint8_t data)
     return 0;
 }
 
-SMBusDevice *smbus_device_init(i2c_bus *bus, int address, int size)
+static void smbus_device_init(i2c_slave *i2c)
 {
-    SMBusDevice *dev;
+    SMBusDeviceInfo *t = container_of(i2c->info, SMBusDeviceInfo, i2c);
+    SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, i2c);
 
-    if (size < sizeof(SMBusDevice))
-        hw_error("SMBus struct too small");
+    t->init(dev);
+}
 
-    dev = (SMBusDevice *)i2c_slave_init(bus, address, size);
-    dev->i2c.event = smbus_i2c_event;
-    dev->i2c.recv = smbus_i2c_recv;
-    dev->i2c.send = smbus_i2c_send;
-
-    return dev;
+void smbus_register_device(const char *name, int size, SMBusDeviceInfo *info)
+{
+    assert(size >= sizeof(SMBusDevice));
+    info->i2c.init = smbus_device_init;
+    info->i2c.event = smbus_i2c_event;
+    info->i2c.recv = smbus_i2c_recv;
+    info->i2c.send = smbus_i2c_send;
+    i2c_register_slave(name, size, &info->i2c);
 }
 
 /* Master device commands.  */
