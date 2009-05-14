@@ -1,6 +1,8 @@
 #ifndef QEMU_I2C_H
 #define QEMU_I2C_H
 
+#include "qdev.h"
+
 /* The QEMU I2C implementation only supports simple transfers that complete
    immediately.  It does not support slave devices that need to be able to
    defer their response (eg. CPU slave interfaces where the data is supplied
@@ -20,9 +22,21 @@ typedef int (*i2c_recv_cb)(i2c_slave *s);
 /* Notify the slave of a bus state change.  */
 typedef void (*i2c_event_cb)(i2c_slave *s, enum i2c_event event);
 
+typedef void (*i2c_slave_initfn)(i2c_slave *dev);
+
+typedef struct {
+    /* Callbacks provided by the device.  */
+    i2c_slave_initfn init;
+    i2c_event_cb event;
+    i2c_recv_cb recv;
+    i2c_send_cb send;
+} I2CSlaveInfo;
+
 struct i2c_slave
 {
-    /* Callbacks to be set by the device.  */
+    DeviceState qdev;
+    I2CSlaveInfo *info;
+    /* FIXME: These 3 should go away once all devices have been converted.  */
     i2c_event_cb event;
     i2c_recv_cb recv;
     i2c_send_cb send;
@@ -44,6 +58,13 @@ int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
 void i2c_slave_save(QEMUFile *f, i2c_slave *dev);
 void i2c_slave_load(QEMUFile *f, i2c_slave *dev);
+
+#define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(i2c_slave, qdev, dev)
+#define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
+
+void i2c_register_slave(const char *name, int size, I2CSlaveInfo *type);
+
+DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr);
 
 /* max111x.c */
 typedef struct MAX111xState MAX111xState;
