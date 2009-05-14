@@ -128,4 +128,7 @@ extern QEMUMachine musicpal_machine;
 /* tosa.c */
 extern QEMUMachine tosapda_machine;
 
+/* syborg.c */
+extern QEMUMachine syborg_machine;
+
 #endif

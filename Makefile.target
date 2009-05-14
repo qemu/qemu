@@ -655,6 +655,8 @@ OBJS+= nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 OBJS+= mst_fpga.o mainstone.o
 OBJS+= musicpal.o pflash_cfi02.o
 OBJS+= framebuffer.o
+OBJS+= syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
+OBJS+= syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)

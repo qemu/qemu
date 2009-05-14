@@ -91,6 +91,7 @@ For system emulation, the following hardware targets are supported:
 @item MusicPal (MV88W8618 ARM processor)
 @item Gumstix "Connex" and "Verdex" motherboards (PXA255/270).
 @item Siemens SX1 smartphone (OMAP310 processor)
+@item Syborg SVP base model (ARM Cortex-A8).
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
@@ -2170,6 +2171,28 @@ On-chip Real Time Clock
 Secure Digital card connected to OMAP MMC/SD host
 @item
 Three on-chip UARTs
+@end itemize
+
+The "Syborg" Symbian Virtual Platform base model includes the following
+elements:
+
+@itemize @minus
+@item
+ARM Cortex-A8 CPU
+@item
+Interrupt controller
+@item
+Timer
+@item
+Real Time Clock
+@item
+Keyboard
+@item
+Framebuffer
+@item
+Touchscreen
+@item
+UARTs
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More
