@@ -88,11 +88,6 @@ void *wm8750_dac_buffer(void *opaque, int samples);
 void wm8750_dac_commit(void *opaque);
 void wm8750_set_bclk_in(void *opaque, int new_hz);
 
-/* twl92230.c */
-i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq);
-qemu_irq *twl92230_gpio_in_get(i2c_slave *i2c);
-void twl92230_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler);
-
 /* tmp105.c */
 void tmp105_set(i2c_slave *i2c, int temp);
 
