@@ -18,6 +18,7 @@
 #include "block.h"
 #include "boards.h"
 #include "i2c.h"
+#include "ssi.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000
@@ -114,14 +115,15 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
     scoop_gpio_out_set(scp1, TOSA_GPIO_TC6393XB_L3V_ON, tc6393xb_l3v_get(tmio));
 }
 
-static uint32_t tosa_ssp_read(void *opaque)
+static uint32_t tosa_ssp_tansfer(SSISlave *dev, uint32_t value)
 {
+    fprintf(stderr, "TG: %d %02x\n", value >> 5, value & 0x1f);
     return 0;
 }
 
-static void tosa_ssp_write(void *opaque, uint32_t value)
+static void tosa_ssp_init(SSISlave *dev)
 {
-    fprintf(stderr, "TG: %d %02x\n", value >> 5, value & 0x1f);
+    /* Nothing to do.  */
 }
 
 typedef struct {
@@ -187,8 +189,7 @@ static void tosa_tg_init(PXA2xxState *cpu)
 {
     i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
     i2c_create_slave(bus, "tosa_dac", DAC_BASE);
-    pxa2xx_ssp_attach(cpu->ssp[1], tosa_ssp_read,
-                    tosa_ssp_write, cpu);
+    ssi_create_slave(cpu->ssp[1], "tosa-ssp");
 }
 
 
@@ -250,9 +251,15 @@ static I2CSlaveInfo tosa_dac_info = {
     .send = tosa_dac_send
 };
 
+static SSISlaveInfo tosa_ssp_info = {
+    .init = tosa_ssp_init,
+    .transfer = tosa_ssp_tansfer
+};
+
 static void tosa_register_devices(void)
 {
     i2c_register_slave("tosa_dac", sizeof(TosaDACState), &tosa_dac_info);
+    ssi_register_slave("tosa-ssp", sizeof(SSISlave), &tosa_ssp_info);
 }
 
 device_init(tosa_register_devices)

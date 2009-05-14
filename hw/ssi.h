@@ -38,4 +38,7 @@ SSIBus *ssi_create_bus(void);
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
 
+/* max111x.c */
+void max111x_set_input(DeviceState *dev, int line, uint8_t value);
+
 #endif

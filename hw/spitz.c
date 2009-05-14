@@ -13,6 +13,7 @@
 #include "sysemu.h"
 #include "pcmcia.h"
 #include "i2c.h"
+#include "ssi.h"
 #include "flash.h"
 #include "qemu-timer.h"
 #include "devices.h"
@@ -525,40 +526,50 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
 #define LCDTG_PICTRL	0x06
 #define LCDTG_POLCTRL	0x07
 
-static int bl_intensity, bl_power;
+typedef struct {
+    SSISlave ssidev;
+    int bl_intensity;
+    int bl_power;
+} SpitzLCDTG;
 
-static void spitz_bl_update(PXA2xxState *s)
+static void spitz_bl_update(SpitzLCDTG *s)
 {
-    if (bl_power && bl_intensity)
-        zaurus_printf("LCD Backlight now at %i/63\n", bl_intensity);
+    if (s->bl_power && s->bl_intensity)
+        zaurus_printf("LCD Backlight now at %i/63\n", s->bl_intensity);
     else
         zaurus_printf("LCD Backlight now off\n");
 }
 
+/* FIXME: Implement GPIO properly and remove this hack.  */
+static SpitzLCDTG *spitz_lcdtg;
+
 static inline void spitz_bl_bit5(void *opaque, int line, int level)
 {
-    int prev = bl_intensity;
+    SpitzLCDTG *s = spitz_lcdtg;
+    int prev = s->bl_intensity;
 
     if (level)
-        bl_intensity &= ~0x20;
+        s->bl_intensity &= ~0x20;
     else
-        bl_intensity |= 0x20;
+        s->bl_intensity |= 0x20;
 
-    if (bl_power && prev != bl_intensity)
-        spitz_bl_update((PXA2xxState *) opaque);
+    if (s->bl_power && prev != s->bl_intensity)
+        spitz_bl_update(s);
 }
 
 static inline void spitz_bl_power(void *opaque, int line, int level)
 {
-    bl_power = !!level;
-    spitz_bl_update((PXA2xxState *) opaque);
+    SpitzLCDTG *s = spitz_lcdtg;
+    s->bl_power = !!level;
+    spitz_bl_update(s);
 }
 
-static void spitz_lcdtg_dac_put(void *opaque, uint8_t cmd)
+static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
 {
-    int addr, value;
-    addr = cmd >> 5;
-    value = cmd & 0x1f;
+    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
+    int addr;
+    addr = value >> 5;
+    value &= 0x1f;
 
     switch (addr) {
     case LCDTG_RESCTL:
@@ -569,16 +580,44 @@ static void spitz_lcdtg_dac_put(void *opaque, uint8_t cmd)
         break;
 
     case LCDTG_DUTYCTRL:
-        bl_intensity &= ~0x1f;
-        bl_intensity |= value;
-        if (bl_power)
-            spitz_bl_update((PXA2xxState *) opaque);
+        s->bl_intensity &= ~0x1f;
+        s->bl_intensity |= value;
+        if (s->bl_power)
+            spitz_bl_update(s);
         break;
 
     case LCDTG_POWERREG0:
         /* Set common voltage to M62332FP */
         break;
     }
+    return 0;
+}
+
+static void spitz_lcdtg_save(QEMUFile *f, void *opaque)
+{
+    SpitzLCDTG *s = (SpitzLCDTG *)opaque;
+    qemu_put_be32(f, s->bl_intensity);
+    qemu_put_be32(f, s->bl_power);
+}
+
+static int spitz_lcdtg_load(QEMUFile *f, void *opaque, int version_id)
+{
+    SpitzLCDTG *s = (SpitzLCDTG *)opaque;
+    s->bl_intensity = qemu_get_be32(f);
+    s->bl_power = qemu_get_be32(f);
+    return 0;
+}
+
+static void spitz_lcdtg_init(SSISlave *dev)
+{
+    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
+
+    spitz_lcdtg = s;
+    s->bl_power = 0;
+    s->bl_intensity = 0x20;
+
+    register_savevm("spitz-lcdtg", -1, 1,
+                    spitz_lcdtg_save, spitz_lcdtg_load, s);
 }
 
 /* SSP devices */
@@ -590,45 +629,33 @@ static void spitz_lcdtg_dac_put(void *opaque, uint8_t cmd)
 #define SPITZ_GPIO_MAX1111_CS	20
 #define SPITZ_GPIO_TP_INT	11
 
-static int lcd_en, ads_en, max_en;
-static MAX111xState *max1111;
-static ADS7846State *ads7846;
+static DeviceState *max1111;
 
 /* "Demux" the signal based on current chipselect */
-static uint32_t corgi_ssp_read(void *opaque)
-{
-    if (lcd_en)
-        return 0;
-    if (ads_en)
-        return ads7846_read(ads7846);
-    if (max_en)
-        return max111x_read(max1111);
-    return 0;
-}
+typedef struct {
+    SSISlave ssidev;
+    SSIBus *bus[3];
+    int enable[3];
+} CorgiSSPState;
 
-static void corgi_ssp_write(void *opaque, uint32_t value)
+static uint32_t corgi_ssp_transfer(SSISlave *dev, uint32_t value)
 {
-    if (lcd_en)
-        spitz_lcdtg_dac_put(opaque, value);
-    if (ads_en)
-        ads7846_write(ads7846, value);
-    if (max_en)
-        max111x_write(max1111, value);
+    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        if (s->enable[i]) {
+            return ssi_transfer(s->bus[i], value);
+        }
+    }
+    return 0;
 }
 
 static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
 {
-    switch (line) {
-    case 0:
-        lcd_en = !level;
-        break;
-    case 1:
-        ads_en = !level;
-        break;
-    case 2:
-        max_en = !level;
-        break;
-    }
+    CorgiSSPState *s = (CorgiSSPState *)opaque;
+    assert(line >= 0 && line < 3);
+    s->enable[line] = !level;
 }
 
 #define MAX1111_BATT_VOLT	1
@@ -652,49 +679,71 @@ static void spitz_adc_temp_on(void *opaque, int line, int level)
 
 static void spitz_ssp_save(QEMUFile *f, void *opaque)
 {
-    qemu_put_be32(f, lcd_en);
-    qemu_put_be32(f, ads_en);
-    qemu_put_be32(f, max_en);
-    qemu_put_be32(f, bl_intensity);
-    qemu_put_be32(f, bl_power);
+    CorgiSSPState *s = (CorgiSSPState *)opaque;
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        qemu_put_be32(f, s->enable[i]);
+    }
 }
 
 static int spitz_ssp_load(QEMUFile *f, void *opaque, int version_id)
 {
-    lcd_en = qemu_get_be32(f);
-    ads_en = qemu_get_be32(f);
-    max_en = qemu_get_be32(f);
-    bl_intensity = qemu_get_be32(f);
-    bl_power = qemu_get_be32(f);
+    CorgiSSPState *s = (CorgiSSPState *)opaque;
+    int i;
 
+    if (version_id != 1) {
+        return -EINVAL;
+    }
+    for (i = 0; i < 3; i++) {
+        s->enable[i] = qemu_get_be32(f);
+    }
     return 0;
+}
+
+static void corgi_ssp_init(SSISlave *dev)
+{
+    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
+
+    qdev_init_gpio_in(&dev->qdev, corgi_ssp_gpio_cs, 3);
+    s->bus[0] = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi0", s->bus[0]);
+    s->bus[1] = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi1", s->bus[1]);
+    s->bus[2] = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi2", s->bus[2]);
+
+    register_savevm("spitz_ssp", -1, 1, spitz_ssp_save, spitz_ssp_load, s);
 }
 
 static void spitz_ssp_attach(PXA2xxState *cpu)
 {
-    qemu_irq *chipselects;
+    DeviceState *mux;
+    DeviceState *dev;
+    void *bus;
 
-    lcd_en = ads_en = max_en = 0;
+    mux = ssi_create_slave(cpu->ssp[CORGI_SSP_PORT - 1], "corgi-ssp");
 
-    ads7846 = ads7846_init(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_TP_INT]);
+    bus = qdev_get_child_bus(mux, "ssi0");
+    dev = ssi_create_slave(bus, "spitz-lcdtg");
 
-    max1111 = max1111_init(0);
+    bus = qdev_get_child_bus(mux, "ssi1");
+    dev = ssi_create_slave(bus, "ads7846");
+    qdev_connect_gpio_out(dev, 0,
+                          pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_TP_INT]);
+
+    bus = qdev_get_child_bus(mux, "ssi2");
+    max1111 = ssi_create_slave(bus, "max1111");
     max111x_set_input(max1111, MAX1111_BATT_VOLT, SPITZ_BATTERY_VOLT);
     max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
     max111x_set_input(max1111, MAX1111_ACIN_VOLT, SPITZ_CHARGEON_ACIN);
 
-    pxa2xx_ssp_attach(cpu->ssp[CORGI_SSP_PORT - 1], corgi_ssp_read,
-                    corgi_ssp_write, cpu);
-
-    chipselects = qemu_allocate_irqs(corgi_ssp_gpio_cs, cpu, 3);
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_LCDCON_CS,  chipselects[0]);
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_ADS7846_CS, chipselects[1]);
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_MAX1111_CS, chipselects[2]);
-
-    bl_intensity = 0x20;
-    bl_power = 0;
-
-    register_savevm("spitz_ssp", 0, 0, spitz_ssp_save, spitz_ssp_load, cpu);
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_LCDCON_CS,
+                        qdev_get_gpio_in(mux, 0));
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_ADS7846_CS,
+                        qdev_get_gpio_in(mux, 1));
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_MAX1111_CS,
+                        qdev_get_gpio_in(mux, 2));
 }
 
 /* CF Microdrive */
@@ -1018,3 +1067,21 @@ QEMUMachine terrierpda_machine = {
     .desc = "Terrier PDA (PXA270)",
     .init = terrier_init,
 };
+
+static SSISlaveInfo corgi_ssp_info = {
+    .init = corgi_ssp_init,
+    .transfer = corgi_ssp_transfer
+};
+
+static SSISlaveInfo spitz_lcdtg_info = {
+    .init = spitz_lcdtg_init,
+    .transfer = spitz_lcdtg_transfer
+};
+
+static void spitz_register_devices(void)
+{
+    ssi_register_slave("corgi-ssp", sizeof(CorgiSSPState), &corgi_ssp_info);
+    ssi_register_slave("spitz-lcdtg", sizeof(SpitzLCDTG), &spitz_lcdtg_info);
+}
+
+device_init(spitz_register_devices)

@@ -7,11 +7,11 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include "hw.h"
-#include "devices.h"
+#include "ssi.h"
 #include "console.h"
 
-struct ADS7846State {
+typedef struct {
+    SSISlave ssidev;
     qemu_irq interrupt;
 
     int input[8];
@@ -20,7 +20,7 @@ struct ADS7846State {
 
     int cycle;
     int output;
-};
+} ADS7846State;
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)
@@ -52,16 +52,9 @@ static void ads7846_int_update(ADS7846State *s)
         qemu_set_irq(s->interrupt, s->pressure == 0);
 }
 
-uint32_t ads7846_read(void *opaque)
+static uint32_t ads7846_transfer(SSISlave *dev, uint32_t value)
 {
-    ADS7846State *s = (ADS7846State *) opaque;
-
-    return s->output;
-}
-
-void ads7846_write(void *opaque, uint32_t value)
-{
-    ADS7846State *s = (ADS7846State *) opaque;
+    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, dev);
 
     switch (s->cycle ++) {
     case 0:
@@ -89,6 +82,7 @@ void ads7846_write(void *opaque, uint32_t value)
         s->cycle = 0;
         break;
     }
+    return s->output;
 }
 
 static void ads7846_ts_event(void *opaque,
@@ -140,14 +134,11 @@ static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-ADS7846State *ads7846_init(qemu_irq penirq)
+static void ads7846_init(SSISlave *dev)
 {
-    ADS7846State *s;
-    s = (ADS7846State *)
-            qemu_mallocz(sizeof(ADS7846State));
-    memset(s, 0, sizeof(ADS7846State));
+    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, dev);
 
-    s->interrupt = penirq;
+    qdev_init_gpio_out(&dev->qdev, &s->interrupt, 1);
 
     s->input[0] = ADS_TEMP0;	/* TEMP0 */
     s->input[2] = ADS_VBAT;	/* VBAT */
@@ -161,6 +152,16 @@ ADS7846State *ads7846_init(qemu_irq penirq)
     ads7846_int_update(s);
 
     register_savevm("ads7846", -1, 0, ads7846_save, ads7846_load, s);
-
-    return s;
 }
+
+static SSISlaveInfo ads7846_info = {
+    .init = ads7846_init,
+    .transfer = ads7846_transfer
+};
+
+static void ads7846_register_devices(void)
+{
+    ssi_register_slave("ads7846", sizeof(ADS7846State), &ads7846_info);
+}
+
+device_init(ads7846_register_devices)

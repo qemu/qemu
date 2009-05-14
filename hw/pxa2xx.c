@@ -7,11 +7,12 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "pxa.h"
 #include "sysemu.h"
 #include "pc.h"
 #include "i2c.h"
+#include "ssi.h"
 #include "qemu-timer.h"
 #include "qemu-char.h"
 
@@ -547,9 +548,11 @@ static int pxa2xx_mm_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /* Synchronous Serial Ports */
-struct PXA2xxSSPState {
+typedef struct {
+    SysBusDevice busdev;
     qemu_irq irq;
     int enable;
+    SSIBus *bus;
 
     uint32_t sscr[2];
     uint32_t sspsp;
@@ -563,11 +566,7 @@ struct PXA2xxSSPState {
     uint32_t rx_fifo[16];
     int rx_level;
     int rx_start;
-
-    uint32_t (*readfn)(void *opaque);
-    void (*writefn)(void *opaque, uint32_t value);
-    void *opaque;
-};
+} PXA2xxSSPState;
 
 #define SSCR0	0x00	/* SSP Control register 0 */
 #define SSCR1	0x04	/* SSP Control register 1 */
@@ -763,17 +762,13 @@ static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
          * there directly to the slave, no need to buffer it.
          */
         if (s->enable) {
-            if (s->writefn)
-                s->writefn(s->opaque, value);
-
+            uint32_t readval;
+            readval = ssi_transfer(s->bus, value);
             if (s->rx_level < 0x10) {
-                if (s->readfn)
-                    s->rx_fifo[(s->rx_start + s->rx_level ++) & 0xf] =
-                            s->readfn(s->opaque);
-                else
-                    s->rx_fifo[(s->rx_start + s->rx_level ++) & 0xf] = 0x0;
-            } else
+                s->rx_fifo[(s->rx_start + s->rx_level ++) & 0xf] = readval;
+            } else {
                 s->sssr |= SSSR_ROR;
+            }
         }
         pxa2xx_ssp_fifo_update(s);
         break;
@@ -794,20 +789,6 @@ static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
         printf("%s: Bad register " REG_FMT "\n", __FUNCTION__, addr);
         break;
     }
-}
-
-void pxa2xx_ssp_attach(PXA2xxSSPState *port,
-                uint32_t (*readfn)(void *opaque),
-                void (*writefn)(void *opaque, uint32_t value), void *opaque)
-{
-    if (!port) {
-        printf("%s: no such SSP\n", __FUNCTION__);
-        exit(-1);
-    }
-
-    port->opaque = opaque;
-    port->readfn = readfn;
-    port->writefn = writefn;
 }
 
 static CPUReadMemoryFunc *pxa2xx_ssp_readfn[] = {
@@ -867,6 +848,23 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
         s->rx_fifo[i] = qemu_get_byte(f);
 
     return 0;
+}
+
+static void pxa2xx_ssp_init(SysBusDevice *dev)
+{
+    int iomemtype;
+    PXA2xxSSPState *s = FROM_SYSBUS(PXA2xxSSPState, dev);
+
+    sysbus_init_irq(dev, &s->irq);
+
+    iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
+                                       pxa2xx_ssp_writefn, s);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    register_savevm("pxa2xx_ssp", -1, 0,
+                    pxa2xx_ssp_save, pxa2xx_ssp_load, s);
+
+    s->bus = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi", s->bus);
 }
 
 /* Real-Time Clock */
@@ -2034,7 +2032,6 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 {
     PXA2xxState *s;
-    PXA2xxSSPState *ssp;
     int iomemtype, i;
     int index;
     s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
@@ -2115,21 +2112,12 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
-    s->ssp = (PXA2xxSSPState **)
-            qemu_mallocz(sizeof(PXA2xxSSPState *) * i);
-    ssp = (PXA2xxSSPState *)
-            qemu_mallocz(sizeof(PXA2xxSSPState) * i);
+    s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
     for (i = 0; pxa27x_ssp[i].io_base; i ++) {
-        target_phys_addr_t ssp_base;
-        s->ssp[i] = &ssp[i];
-        ssp_base = pxa27x_ssp[i].io_base;
-        ssp[i].irq = s->pic[pxa27x_ssp[i].irqn];
-
-        iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
-                        pxa2xx_ssp_writefn, &ssp[i]);
-        cpu_register_physical_memory(ssp_base, 0x1000, iomemtype);
-        register_savevm("pxa2xx_ssp", i, 0,
-                        pxa2xx_ssp_save, pxa2xx_ssp_load, s);
+        DeviceState *dev;
+        dev = sysbus_create_simple("pxa2xx-ssp", pxa27x_ssp[i].io_base,
+                                   s->pic[pxa27x_ssp[i].irqn]);
+        s->ssp[i] = qdev_get_child_bus(dev, "ssi");
     }
 
     if (usb_enabled) {
@@ -2163,7 +2151,6 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 PXA2xxState *pxa255_init(unsigned int sdram_size)
 {
     PXA2xxState *s;
-    PXA2xxSSPState *ssp;
     int iomemtype, i;
     int index;
 
@@ -2237,21 +2224,12 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
-    s->ssp = (PXA2xxSSPState **)
-            qemu_mallocz(sizeof(PXA2xxSSPState *) * i);
-    ssp = (PXA2xxSSPState *)
-            qemu_mallocz(sizeof(PXA2xxSSPState) * i);
+    s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
     for (i = 0; pxa255_ssp[i].io_base; i ++) {
-        target_phys_addr_t ssp_base;
-        s->ssp[i] = &ssp[i];
-        ssp_base = pxa255_ssp[i].io_base;
-        ssp[i].irq = s->pic[pxa255_ssp[i].irqn];
-
-        iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
-                        pxa2xx_ssp_writefn, &ssp[i]);
-        cpu_register_physical_memory(ssp_base, 0x1000, iomemtype);
-        register_savevm("pxa2xx_ssp", i, 0,
-                        pxa2xx_ssp_save, pxa2xx_ssp_load, s);
+        DeviceState *dev;
+        dev = sysbus_create_simple("pxa2xx-ssp", pxa255_ssp[i].io_base,
+                                   s->pic[pxa255_ssp[i].irqn]);
+        s->ssp[i] = qdev_get_child_bus(dev, "ssi");
     }
 
     if (usb_enabled) {
@@ -2283,6 +2261,7 @@ static void pxa2xx_register_devices(void)
 {
     i2c_register_slave("pxa2xx-i2c-slave", sizeof(PXA2xxI2CSlaveState),
                        &pxa2xx_i2c_slave_info);
+    sysbus_register_dev("pxa2xx-ssp", sizeof(PXA2xxSSPState), pxa2xx_ssp_init);
 }
 
 device_init(pxa2xx_register_devices)

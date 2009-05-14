@@ -61,14 +61,6 @@ void i2c_register_slave(const char *name, int size, I2CSlaveInfo *type);
 
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr);
 
-/* max111x.c */
-typedef struct MAX111xState MAX111xState;
-uint32_t max111x_read(void *opaque);
-void max111x_write(void *opaque, uint32_t value);
-MAX111xState *max1110_init(qemu_irq cb);
-MAX111xState *max1111_init(qemu_irq cb);
-void max111x_set_input(MAX111xState *s, int line, uint8_t value);
-
 /* max7310.c */
 void max7310_reset(i2c_slave *i2c);
 qemu_irq *max7310_gpio_in_get(i2c_slave *i2c);

@@ -6,12 +6,6 @@
 /* smc91c111.c */
 void smc91c111_init(NICInfo *, uint32_t, qemu_irq);
 
-/* ads7846.c */
-typedef struct ADS7846State ADS7846State;
-uint32_t ads7846_read(void *opaque);
-void ads7846_write(void *opaque, uint32_t value);
-ADS7846State *ads7846_init(qemu_irq penirq);
-
 /* tsc210x.c */
 uWireSlave *tsc2102_init(qemu_irq pint);
 uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav);
