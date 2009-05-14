@@ -481,7 +481,7 @@ static void integratorcp_init(ram_addr_t ram_size,
                        cpu_pic[ARM_PIC_CPU_FIQ]);
     icp_pic_init(0xca000000, pic[26], NULL);
     icp_pit_init(0x13000000, pic, 5);
-    pl031_init(0x15000000, pic[8]);
+    sysbus_create_simple("pl031", 0x15000000, pic[8]);
     sysbus_create_simple("pl011", 0x16000000, pic[1]);
     sysbus_create_simple("pl011", 0x17000000, pic[2]);
     icp_control_init(0xcb000000);

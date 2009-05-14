@@ -5,9 +5,6 @@
 /* Also includes some devices that are currently only used by the
    ARM boards.  */
 
-/* pl031.c */
-void pl031_init(uint32_t base, qemu_irq irq);
-
 /* pl022.c */
 typedef int (*ssi_xfer_cb)(void *, int);
 void pl022_init(uint32_t base, qemu_irq irq, ssi_xfer_cb xfer_cb,

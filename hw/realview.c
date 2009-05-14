@@ -104,7 +104,7 @@ static void realview_init(ram_addr_t ram_size,
     }
     pl181_init(0x10005000, drives_table[index].bdrv, pic[17], pic[18]);
 
-    pl031_init(0x10017000, pic[10]);
+    sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
     pci_bus = pci_vpb_init(pic, 48, 1);
     if (usb_enabled) {

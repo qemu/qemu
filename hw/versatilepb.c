@@ -237,7 +237,7 @@ static void versatile_init(ram_addr_t ram_size,
 #endif
 
     /* Add PL031 Real Time Clock. */
-    pl031_init(0x101e8000,pic[10]);
+    sysbus_create_simple("pl031", 0x101e8000, pic[10]);
 
     /* Memory map for Versatile/PB:  */
     /* 0x10000000 System registers.  */
