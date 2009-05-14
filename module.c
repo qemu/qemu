@@ -22,44 +22,36 @@ typedef struct ModuleEntry
     TAILQ_ENTRY(ModuleEntry) node;
 } ModuleEntry;
 
-typedef struct ModuleTypeList
+typedef TAILQ_HEAD(, ModuleEntry) ModuleTypeList;
+
+static ModuleTypeList init_type_list[MODULE_INIT_MAX];
+
+static void init_types(void)
 {
-    module_init_type type;
-    TAILQ_HEAD(, ModuleEntry) entry_list;
-    TAILQ_ENTRY(ModuleTypeList) node;
-} ModuleTypeList;
+    static int inited;
+    int i;
 
-static TAILQ_HEAD(, ModuleTypeList) init_type_list;
-
-static ModuleTypeList *find_type_or_alloc(module_init_type type, int alloc)
-{
-    ModuleTypeList *n;
-
-    TAILQ_FOREACH(n, &init_type_list, node) {
-        if (type >= n->type)
-            break;
+    if (inited) {
+        return;
     }
 
-    if (!n || n->type != type) {
-        ModuleTypeList *o;
-
-        if (!alloc)
-            return NULL;
-
-        o = qemu_mallocz(sizeof(*o));
-        o->type = type;
-        TAILQ_INIT(&o->entry_list);
-
-        if (n) {
-            TAILQ_INSERT_AFTER(&init_type_list, n, o, node);
-        } else {
-            TAILQ_INSERT_HEAD(&init_type_list, o, node);
-        }
-
-        n = o;
+    for (i = 0; i < MODULE_INIT_MAX; i++) {
+        TAILQ_INIT(&init_type_list[i]);
     }
 
-    return n;
+    inited = 1;
+}
+
+
+static ModuleTypeList *find_type(module_init_type type)
+{
+    ModuleTypeList *l;
+
+    init_types();
+
+    l = &init_type_list[type];
+
+    return l;
 }
 
 void register_module_init(void (*fn)(void), module_init_type type)
@@ -70,9 +62,9 @@ void register_module_init(void (*fn)(void), module_init_type type)
     e = qemu_mallocz(sizeof(*e));
     e->init = fn;
 
-    l = find_type_or_alloc(type, 1);
+    l = find_type(type);
 
-    TAILQ_INSERT_TAIL(&l->entry_list, e, node);
+    TAILQ_INSERT_TAIL(l, e, node);
 }
 
 void module_call_init(module_init_type type)
@@ -80,12 +72,9 @@ void module_call_init(module_init_type type)
     ModuleTypeList *l;
     ModuleEntry *e;
 
-    l = find_type_or_alloc(type, 0);
-    if (!l) {
-        return;
-    }
+    l = find_type(type);
 
-    TAILQ_FOREACH(e, &l->entry_list, node) {
+    TAILQ_FOREACH(e, l, node) {
         e->init();
     }
 }
