@@ -163,7 +163,6 @@ static void versatile_init(ram_addr_t ram_size,
     ram_addr_t ram_offset;
     qemu_irq *pic;
     qemu_irq *sic;
-    void *scsi_hba;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -206,16 +205,10 @@ static void versatile_init(ram_addr_t ram_size,
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
-    if (drive_get_max_bus(IF_SCSI) > 0) {
-        fprintf(stderr, "qemu: too many SCSI bus\n");
-        exit(1);
-    }
-    scsi_hba = lsi_scsi_init(pci_bus, -1);
-    for (n = 0; n < LSI_MAX_DEVS; n++) {
-        index = drive_get_index(IF_SCSI, 0, n);
-        if (index == -1)
-            continue;
-        lsi_scsi_attach(scsi_hba, drives_table[index].bdrv, n);
+    n = drive_get_max_bus(IF_SCSI);
+    while (n >= 0) {
+        pci_create_simple(pci_bus, -1, "lsi53c895a");
+        n--;
     }
 
     sysbus_create_simple("pl011", 0x101f1000, pic[12]);

@@ -1122,19 +1122,11 @@ static void pc_init1(ram_addr_t ram_size,
 
     if (pci_enabled) {
 	int max_bus;
-        int bus, unit;
-        void *scsi;
+        int bus;
 
         max_bus = drive_get_max_bus(IF_SCSI);
-
 	for (bus = 0; bus <= max_bus; bus++) {
-            scsi = lsi_scsi_init(pci_bus, -1);
-            for (unit = 0; unit < LSI_MAX_DEVS; unit++) {
-	        index = drive_get_index(IF_SCSI, bus, unit);
-		if (index == -1)
-		    continue;
-		lsi_scsi_attach(scsi, drives_table[index].bdrv, unit);
-	    }
+            pci_create_simple(pci_bus, -1, "lsi53c895a");
         }
     }
 

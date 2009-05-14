@@ -71,8 +71,8 @@ void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
     switch (type) {
     case IF_SCSI:
         success = 1;
-        lsi_scsi_attach (dev, drives_table[drive_idx].bdrv,
-                         drives_table[drive_idx].unit);
+        lsi_scsi_attach(&dev->qdev, drives_table[drive_idx].bdrv,
+                        drives_table[drive_idx].unit);
         break;
     default:
         monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
@@ -117,10 +117,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon, PCIBus *pci_bus,
 
     switch (type) {
     case IF_SCSI:
-        opaque = lsi_scsi_init (pci_bus, -1);
-        if (opaque && drive_idx >= 0)
-            lsi_scsi_attach (opaque, drives_table[drive_idx].bdrv,
-                             drives_table[drive_idx].unit);
+        opaque = pci_create_simple(pci_bus, -1, "lsi53c895a");
         break;
     case IF_VIRTIO:
         opaque = virtio_blk_init (pci_bus, drives_table[drive_idx].bdrv);
