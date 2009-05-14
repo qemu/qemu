@@ -89,7 +89,7 @@ static void realview_init(ram_addr_t ram_size,
     sysbus_create_simple("pl011", 0x1000c000, pic[15]);
 
     /* DMA controller is optional, apparently.  */
-    pl080_init(0x10030000, pic[24], 2);
+    sysbus_create_simple("pl081", 0x10030000, pic[24]);
 
     sysbus_create_simple("sp804", 0x10011000, pic[4]);
     sysbus_create_simple("sp804", 0x10012000, pic[5]);
