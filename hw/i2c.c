@@ -48,23 +48,6 @@ i2c_bus *i2c_init_bus(void)
     return bus;
 }
 
-/* Create a new slave device.  */
-i2c_slave *i2c_slave_init(i2c_bus *bus, int address, int size)
-{
-    i2c_slave *dev;
-
-    if (size < sizeof(i2c_slave))
-        hw_error("I2C struct too small");
-
-    dev = (i2c_slave *)qemu_mallocz(size);
-    dev->address = address;
-    dev->next = bus->dev;
-    bus->dev = dev;
-    dev->qdev.bus = bus;
-
-    return dev;
-}
-
 void i2c_set_slave_address(i2c_slave *dev, int address)
 {
     dev->address = address;
@@ -164,10 +147,6 @@ static void i2c_slave_qdev_init(DeviceState *dev, void *opaque)
     s->address = qdev_get_prop_int(dev, "address", 0);
     s->next = s->bus->dev;
     s->bus->dev = s;
-
-    s->event = info->event;
-    s->recv = info->recv;
-    s->send = info->send;
 
     info->init(s);
 }

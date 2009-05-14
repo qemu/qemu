@@ -36,10 +36,6 @@ struct i2c_slave
 {
     DeviceState qdev;
     I2CSlaveInfo *info;
-    /* FIXME: These 3 should go away once all devices have been converted.  */
-    i2c_event_cb event;
-    i2c_recv_cb recv;
-    i2c_send_cb send;
 
     /* Remaining fields for internal use by the I2C code.  */
     int address;
@@ -48,7 +44,6 @@ struct i2c_slave
 };
 
 i2c_bus *i2c_init_bus(void);
-i2c_slave *i2c_slave_init(i2c_bus *bus, int address, int size);
 void i2c_set_slave_address(i2c_slave *dev, int address);
 int i2c_bus_busy(i2c_bus *bus);
 int i2c_start_transfer(i2c_bus *bus, int address, int recv);
