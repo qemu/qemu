@@ -75,7 +75,6 @@ MAX111xState *max1111_init(qemu_irq cb);
 void max111x_set_input(MAX111xState *s, int line, uint8_t value);
 
 /* max7310.c */
-i2c_slave *max7310_init(i2c_bus *bus);
 void max7310_reset(i2c_slave *i2c);
 qemu_irq *max7310_gpio_in_get(i2c_slave *i2c);
 void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler);

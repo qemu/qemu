@@ -7,7 +7,6 @@
  * This file is licensed under GNU GPL.
  */
 
-#include "hw.h"
 #include "i2c.h"
 
 typedef struct {
@@ -191,21 +190,16 @@ static void max7310_gpio_set(void *opaque, int line, int level)
 
 /* MAX7310 is SMBus-compatible (can be used with only SMBus protocols),
  * but also accepts sequences that are not SMBus so return an I2C device.  */
-i2c_slave *max7310_init(i2c_bus *bus)
+static void max7310_init(i2c_slave *i2c)
 {
-    MAX7310State *s = (MAX7310State *)
-            i2c_slave_init(bus, 0, sizeof(MAX7310State));
-    s->i2c.event = max7310_event;
-    s->i2c.recv = max7310_rx;
-    s->i2c.send = max7310_tx;
+    MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, i2c);
+
     s->gpio_in = qemu_allocate_irqs(max7310_gpio_set, s,
                     ARRAY_SIZE(s->handler));
 
     max7310_reset(&s->i2c);
 
     register_savevm("max7310", -1, 0, max7310_save, max7310_load, s);
-
-    return &s->i2c;
 }
 
 qemu_irq *max7310_gpio_in_get(i2c_slave *i2c)
@@ -222,3 +216,17 @@ void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
 
     s->handler[line] = handler;
 }
+
+static I2CSlaveInfo max7310_info = {
+    .init = max7310_init,
+    .event = max7310_event,
+    .recv = max7310_rx,
+    .send = max7310_tx
+};
+
+static void max7310_register_devices(void)
+{
+    i2c_register_slave("max7310", sizeof(MAX7310State), &max7310_info);
+}
+
+device_init(max7310_register_devices)

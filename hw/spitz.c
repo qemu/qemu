@@ -759,8 +759,8 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
 static void spitz_akita_i2c_setup(PXA2xxState *cpu)
 {
     /* Attach a Max7310 to Akita I2C bus.  */
-    i2c_set_slave_address(max7310_init(pxa2xx_i2c_bus(cpu->i2c[0])),
-                    AKITA_MAX_ADDR);
+    i2c_create_slave(pxa2xx_i2c_bus(cpu->i2c[0]), "max7310",
+                     AKITA_MAX_ADDR);
 }
 
 /* Other peripherals */
