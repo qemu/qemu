@@ -235,7 +235,7 @@ typedef struct musicpal_audio_state {
     unsigned int play_pos;
     unsigned int last_free;
     uint32_t clock_div;
-    i2c_slave *wm;
+    DeviceState *wm;
 } musicpal_audio_state;
 
 static void audio_callback(void *opaque, int free_out, int free_in)
@@ -434,10 +434,7 @@ static i2c_interface *musicpal_audio_init(qemu_irq irq)
     i2c->bus = i2c_init_bus();
     i2c->current_addr = -1;
 
-    s->wm = wm8750_init(i2c->bus);
-    if (!s->wm)
-        return NULL;
-    i2c_set_slave_address(s->wm, MP_WM_ADDR);
+    s->wm = i2c_create_slave(i2c->bus, "wm8750", MP_WM_ADDR);
     wm8750_data_req_set(s->wm, audio_callback, s);
 
     iomemtype = cpu_register_io_memory(0, musicpal_audio_readfn,

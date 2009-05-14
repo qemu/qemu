@@ -740,10 +740,10 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
     i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
 
 #ifdef HAS_AUDIO
-    i2c_slave *wm;
+    DeviceState *wm;
 
     /* Attach a WM8750 to the bus */
-    wm = wm8750_init(bus);
+    wm = i2c_create_slave(bus, "wm8750", 0);
 
     spitz_wm8750_addr(wm, 0, 0);
     pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_WM,
