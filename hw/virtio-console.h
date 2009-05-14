@@ -16,7 +16,4 @@
 /* The ID for virtio console */
 #define VIRTIO_ID_CONSOLE 3
 
-/* Creates a virtio console */
-void *virtio_console_init(PCIBus *bus, CharDriverState *chr);
-
 #endif
