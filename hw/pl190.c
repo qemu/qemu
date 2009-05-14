@@ -7,8 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 
 /* The number of virtual priority levels.  16 user vectors plus the
    unvectored IRQ.  Chained interrupts would require an additional level
@@ -17,6 +16,7 @@
 #define PL190_NUM_PRIO 17
 
 typedef struct {
+    SysBusDevice busdev;
     uint32_t level;
     uint32_t soft_level;
     uint32_t irq_enable;
@@ -227,20 +227,24 @@ static void pl190_reset(pl190_state *s)
   pl190_update_vectors(s);
 }
 
-qemu_irq *pl190_init(uint32_t base, qemu_irq irq, qemu_irq fiq)
+static void pl190_init(SysBusDevice *dev)
 {
-    pl190_state *s;
-    qemu_irq *qi;
+    pl190_state *s = FROM_SYSBUS(pl190_state, dev);
     int iomemtype;
 
-    s = (pl190_state *)qemu_mallocz(sizeof(pl190_state));
     iomemtype = cpu_register_io_memory(0, pl190_readfn,
                                        pl190_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    qi = qemu_allocate_irqs(pl190_set_irq, s, 32);
-    s->irq = irq;
-    s->fiq = fiq;
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    qdev_init_irq_sink(&dev->qdev, pl190_set_irq, 32);
+    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &s->fiq);
     pl190_reset(s);
     /* ??? Save/restore.  */
-    return qi;
 }
+
+static void pl190_register_devices(void)
+{
+    sysbus_register_dev("pl190", sizeof(pl190_state), pl190_init);
+}
+
+device_init(pl190_register_devices)

@@ -100,7 +100,7 @@ static void realview_init(ram_addr_t ram_size,
 
     sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
-    pci_bus = pci_vpb_init(pic, 48, 1);
+    pci_bus = pci_vpb_init(pic + 48, 1);
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }

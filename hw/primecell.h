@@ -17,9 +17,6 @@ qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out);
 /* pl080.c */
 void *pl080_init(uint32_t base, qemu_irq irq, int nchannels);
 
-/* pl190.c */
-qemu_irq *pl190_init(uint32_t base, qemu_irq irq, qemu_irq fiq);
-
 /* realview_gic.c */
 qemu_irq *realview_gic_init(uint32_t base, qemu_irq parent_irq);
 
@@ -30,6 +27,6 @@ extern qemu_irq *mpcore_irq_init(qemu_irq *cpu_irq);
 void arm_sysctl_init(uint32_t base, uint32_t sys_id);
 
 /* versatile_pci.c */
-PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview);
+PCIBus *pci_vpb_init(qemu_irq *pic, int realview);
 
 #endif

@@ -79,8 +79,6 @@ static CPUReadMemoryFunc *pci_vpb_config_read[] = {
     &pci_vpb_config_readl,
 };
 
-static int pci_vpb_irq;
-
 static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
 {
     return irq_num;
@@ -88,18 +86,23 @@ static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
 
 static void pci_vpb_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    qemu_set_irq(pic[pci_vpb_irq + irq_num], level);
+    qemu_set_irq(pic[irq_num], level);
 }
 
-PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview)
+PCIBus *pci_vpb_init(qemu_irq *pic, int realview)
 {
     PCIBus *s;
     PCIDevice *d;
     int mem_config;
     uint32_t base;
     const char * name;
+    qemu_irq *irqs;
+    int i;
 
-    pci_vpb_irq = irq;
+    irqs = qemu_mallocz(sizeof(qemu_irq) * 4);
+    for (i = 0; i < 4; i++) {
+        irqs[i] = pic[i];
+    }
     if (realview) {
         base = 0x60000000;
         name = "RealView EB PCI Controller";
@@ -107,7 +110,7 @@ PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview)
         base = 0x40000000;
         name = "Versatile/PB PCI Controller";
     }
-    s = pci_register_bus(pci_vpb_set_irq, pci_vpb_map_irq, pic, 11 << 3, 4);
+    s = pci_register_bus(pci_vpb_set_irq, pci_vpb_map_irq, irqs, 11 << 3, 4);
     /* ??? Register memory space.  */
 
     mem_config = cpu_register_io_memory(0, pci_vpb_config_read,

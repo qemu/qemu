@@ -23,7 +23,7 @@ typedef struct vpb_sic_state
   uint32_t level;
   uint32_t mask;
   uint32_t pic_enable;
-  qemu_irq *parent;
+  qemu_irq parent[32];
   int irq;
 } vpb_sic_state;
 
@@ -133,10 +133,13 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
     vpb_sic_state *s;
     qemu_irq *qi;
     int iomemtype;
+    int i;
 
     s = (vpb_sic_state *)qemu_mallocz(sizeof(vpb_sic_state));
     qi = qemu_allocate_irqs(vpb_sic_set_irq, s, 32);
-    s->parent = parent;
+    for (i = 0; i < 32; i++) {
+        s->parent[i] = parent[i];
+    }
     s->irq = irq;
     iomemtype = cpu_register_io_memory(0, vpb_sic_readfn,
                                        vpb_sic_writefn, s);
@@ -161,8 +164,10 @@ static void versatile_init(ram_addr_t ram_size,
 {
     CPUState *env;
     ram_addr_t ram_offset;
-    qemu_irq *pic;
+    qemu_irq *cpu_pic;
+    qemu_irq pic[32];
     qemu_irq *sic;
+    DeviceState *dev;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -181,14 +186,18 @@ static void versatile_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     arm_sysctl_init(0x10000000, 0x41007004);
-    pic = arm_pic_init_cpu(env);
-    pic = pl190_init(0x10140000, pic[0], pic[1]);
+    cpu_pic = arm_pic_init_cpu(env);
+    dev = sysbus_create_varargs("pl190", 0x10140000,
+                                cpu_pic[0], cpu_pic[1], NULL);
+    for (n = 0; n < 32; n++) {
+        pic[n] = qdev_get_irq_sink(dev, n);
+    }
     sic = vpb_sic_init(0x10003000, pic, 31);
 
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
-    pci_bus = pci_vpb_init(sic, 27, 0);
+    pci_bus = pci_vpb_init(sic + 27, 0);
     /* The Versatile PCI bridge does not provide access to PCI IO space,
        so many of the qemu PCI devices are not useable.  */
     for(n = 0; n < nb_nics; n++) {
