@@ -680,6 +680,7 @@ static void stellaris_sys_init(uint32_t base, qemu_irq irq,
 /* I2C controller.  */
 
 typedef struct {
+    SysBusDevice busdev;
     i2c_bus *bus;
     qemu_irq irq;
     uint32_t msa;
@@ -870,18 +871,19 @@ static int stellaris_i2c_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_i2c_init(uint32_t base, qemu_irq irq, i2c_bus *bus)
+static void stellaris_i2c_init(SysBusDevice * dev)
 {
-    stellaris_i2c_state *s;
+    stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
+    i2c_bus *bus = i2c_init_bus();
     int iomemtype;
 
-    s = (stellaris_i2c_state *)qemu_mallocz(sizeof(stellaris_i2c_state));
-    s->irq = irq;
+    sysbus_init_irq(dev, &s->irq);
+    qdev_attach_child_bus(&dev->qdev, "i2c", bus);
     s->bus = bus;
 
     iomemtype = cpu_register_io_memory(0, stellaris_i2c_readfn,
                                        stellaris_i2c_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
     register_savevm("stellaris_i2c", -1, 1,
@@ -1321,8 +1323,9 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
 
     if (board->dc2 & (1 << 12)) {
-        i2c = i2c_init_bus();
-        stellaris_i2c_init(0x40020000, pic[8], i2c);
+        DeviceState *dev;
+        dev = sysbus_create_simple("stellaris-i2c", 0x40020000, pic[8]);
+        i2c = qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
             i2c_create_slave(i2c, "ssd0303", 0x3d);
         }
@@ -1409,3 +1412,11 @@ QEMUMachine lm3s6965evb_machine = {
     .desc = "Stellaris LM3S6965EVB",
     .init = lm3s6965evb_init,
 };
+
+static void stellaris_register_devices(void)
+{
+    sysbus_register_dev("stellaris-i2c", sizeof(stellaris_i2c_state),
+                        stellaris_i2c_init);
+}
+
+device_init(stellaris_register_devices)
