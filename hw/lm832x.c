@@ -378,7 +378,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
 
 static void lm_i2c_event(i2c_slave *i2c, enum i2c_event event)
 {
-    LM823KbdState *s = (LM823KbdState *) i2c;
+    LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
     switch (event) {
     case I2C_START_RECV:
@@ -394,7 +394,7 @@ static void lm_i2c_event(i2c_slave *i2c, enum i2c_event event)
 
 static int lm_i2c_rx(i2c_slave *i2c)
 {
-    LM823KbdState *s = (LM823KbdState *) i2c;
+    LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
     return lm_kbd_read(s, s->reg, s->i2c_cycle ++);
 }
@@ -489,27 +489,20 @@ static int lm_kbd_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-i2c_slave *lm8323_init(i2c_bus *bus, qemu_irq nirq)
+static void lm8323_init(i2c_slave *i2c)
 {
-    LM823KbdState *s;
+    LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
-    s = (LM823KbdState *) i2c_slave_init(bus, 0, sizeof(LM823KbdState));
     s->model = 0x8323;
     s->pwm.tm[0] = qemu_new_timer(vm_clock, lm_kbd_pwm0_tick, s);
     s->pwm.tm[1] = qemu_new_timer(vm_clock, lm_kbd_pwm1_tick, s);
     s->pwm.tm[2] = qemu_new_timer(vm_clock, lm_kbd_pwm2_tick, s);
-    s->nirq = nirq;
-
-    s->i2c.event = lm_i2c_event;
-    s->i2c.recv = lm_i2c_rx;
-    s->i2c.send = lm_i2c_tx;
+    qdev_init_gpio_out(&i2c->qdev, &s->nirq, 1);
 
     lm_kbd_reset(s);
 
     qemu_register_reset((void *) lm_kbd_reset, s);
     register_savevm("LM8323", -1, 0, lm_kbd_save, lm_kbd_load, s);
-
-    return &s->i2c;
 }
 
 void lm832x_key_event(struct i2c_slave *i2c, int key, int state)
@@ -531,3 +524,17 @@ void lm832x_key_event(struct i2c_slave *i2c, int key, int state)
     s->status |= INT_KEYPAD;
     lm_kbd_irq_update(s);
 }
+
+static I2CSlaveInfo lm8323_info = {
+    .init = lm8323_init,
+    .event = lm_i2c_event,
+    .recv = lm_i2c_rx,
+    .send = lm_i2c_tx
+};
+
+static void lm832x_register_devices(void)
+{
+    i2c_register_slave("lm8323", sizeof(LM823KbdState), &lm8323_info);
+}
+
+device_init(lm832x_register_devices)
