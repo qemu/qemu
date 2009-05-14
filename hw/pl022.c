@@ -7,7 +7,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
+#include "ssi.h"
 #include "primecell.h"
 
 //#define DEBUG_PL022 1
@@ -40,6 +41,7 @@ do { fprintf(stderr, "pl022: error: " fmt , ## __VA_ARGS__);} while (0)
 #define PL022_INT_TX  0x08
 
 typedef struct {
+    SysBusDevice busdev;
     uint32_t cr0;
     uint32_t cr1;
     uint32_t bitmask;
@@ -55,8 +57,7 @@ typedef struct {
     uint16_t tx_fifo[8];
     uint16_t rx_fifo[8];
     qemu_irq irq;
-    int (*xfer_cb)(void *, int);
-    void *opaque;
+    SSIBus *ssi;
 } pl022_state;
 
 static const unsigned char pl022_id[8] =
@@ -116,10 +117,8 @@ static void pl022_xfer(pl022_state *s)
         val = s->tx_fifo[i];
         if (s->cr1 & PL022_CR1_LBM) {
             /* Loopback mode.  */
-        } else if (s->xfer_cb) {
-            val = s->xfer_cb(s->opaque, val);
         } else {
-            val = 0;
+            val = ssi_transfer(s->ssi, val);
         }
         s->rx_fifo[o] = val & s->bitmask;
         i = (i + 1) & 7;
@@ -289,19 +288,24 @@ static int pl022_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void pl022_init(uint32_t base, qemu_irq irq, int (*xfer_cb)(void *, int),
-                void * opaque)
+static void pl022_init(SysBusDevice *dev)
 {
+    pl022_state *s = FROM_SYSBUS(pl022_state, dev);
     int iomemtype;
-    pl022_state *s;
 
-    s = (pl022_state *)qemu_mallocz(sizeof(pl022_state));
     iomemtype = cpu_register_io_memory(0, pl022_readfn,
                                        pl022_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->irq = irq;
-    s->xfer_cb = xfer_cb;
-    s->opaque = opaque;
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_irq(dev, &s->irq);
+    s->ssi = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi", s->ssi);
     pl022_reset(s);
     register_savevm("pl022_ssp", -1, 1, pl022_save, pl022_load, s);
 }
+
+static void pl022_register_devices(void)
+{
+    sysbus_register_dev("pl022", sizeof(pl022_state), pl022_init);
+}
+
+device_init(pl022_register_devices)

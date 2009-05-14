@@ -1,14 +1,15 @@
 /*
  * SSI to SD card adapter.
  *
- * Copyright (c) 2007 CodeSourcery.
+ * Copyright (c) 2007-2009 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the GPL.
+ * This code is licenced under the GNU GPL v2.
  */
 
-#include "hw.h"
+#include "ssi.h"
 #include "sd.h"
+#include "sysemu.h"
 
 //#define DEBUG_SSI_SD 1
 
@@ -32,6 +33,7 @@ typedef enum {
 } ssi_sd_mode;
 
 typedef struct {
+    SSISlave ssidev;
     ssi_sd_mode mode;
     int cmd;
     uint8_t cmdarg[4];
@@ -59,9 +61,9 @@ typedef struct {
 #define SSI_SDR_ADDRESS_ERROR   0x2000
 #define SSI_SDR_PARAMETER_ERROR 0x4000
 
-int ssi_sd_xfer(void *opaque, int val)
+static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
 {
-    ssi_sd_state *s = (ssi_sd_state *)opaque;
+    ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, dev);
 
     /* Special case: allow CMD12 (STOP TRANSMISSION) while reading data.  */
     if (s->mode == SSI_SD_DATA_READ && val == 0x4d) {
@@ -227,13 +229,25 @@ static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *ssi_sd_init(BlockDriverState *bs)
+static void ssi_sd_init(SSISlave *dev)
 {
-    ssi_sd_state *s;
+    ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, dev);
+    BlockDriverState *bs;
 
-    s = (ssi_sd_state *)qemu_mallocz(sizeof(ssi_sd_state));
     s->mode = SSI_SD_CMD;
+    bs = qdev_init_bdrv(&dev->qdev, IF_SD);
     s->sd = sd_init(bs, 1);
     register_savevm("ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
-    return s;
 }
+
+static SSISlaveInfo ssi_sd_info = {
+    .init = ssi_sd_init,
+    .transfer = ssi_sd_transfer
+};
+
+static void ssi_sd_register_devices(void)
+{
+    ssi_register_slave("ssi-sd", sizeof(ssi_sd_state), &ssi_sd_info);
+}
+
+device_init(ssi_sd_register_devices)

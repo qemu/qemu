@@ -6,10 +6,6 @@
 /* smc91c111.c */
 void smc91c111_init(NICInfo *, uint32_t, qemu_irq);
 
-/* ssd0323.c */
-int ssd0323_xfer_ssi(void *opaque, int data);
-void *ssd0323_init(qemu_irq *cmd_p);
-
 /* ads7846.c */
 typedef struct ADS7846State ADS7846State;
 uint32_t ads7846_read(void *opaque);
