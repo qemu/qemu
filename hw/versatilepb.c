@@ -216,8 +216,8 @@ static void versatile_init(ram_addr_t ram_size,
     sysbus_create_simple("pl011", 0x10009000, sic[6]);
 
     pl080_init(0x10130000, pic[17], 8);
-    sp804_init(0x101e2000, pic[4]);
-    sp804_init(0x101e3000, pic[5]);
+    sysbus_create_simple("sp804", 0x101e2000, pic[4]);
+    sysbus_create_simple("sp804", 0x101e3000, pic[5]);
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */

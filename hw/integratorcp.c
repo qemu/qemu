@@ -486,8 +486,9 @@ static void integratorcp_init(ram_addr_t ram_size,
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_irq_sink(dev, i);
     }
-    dev = sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
-    icp_pit_init(0x13000000, pic, 5);
+    sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
+    sysbus_create_varargs("integrator_pit", 0x13000000,
+                          pic[5], pic[6], pic[7], NULL);
     sysbus_create_simple("pl031", 0x15000000, pic[8]);
     sysbus_create_simple("pl011", 0x16000000, pic[1]);
     sysbus_create_simple("pl011", 0x17000000, pic[2]);

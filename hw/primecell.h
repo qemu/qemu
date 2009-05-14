@@ -26,10 +26,6 @@ qemu_irq *realview_gic_init(uint32_t base, qemu_irq parent_irq);
 /* mpcore.c */
 extern qemu_irq *mpcore_irq_init(qemu_irq *cpu_irq);
 
-/* arm-timer.c */
-void sp804_init(uint32_t base, qemu_irq irq);
-void icp_pit_init(uint32_t base, qemu_irq *pic, int irq);
-
 /* arm_sysctl.c */
 void arm_sysctl_init(uint32_t base, uint32_t sys_id);
 
