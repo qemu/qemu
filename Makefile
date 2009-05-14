@@ -101,7 +101,7 @@ OBJS+=bt-hci-csr.o
 OBJS+=buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 OBJS+=qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
 OBJS+=msmouse.o ps2.o
-OBJS+=qdev.o
+OBJS+=qdev.o ssi.o
 
 ifdef CONFIG_BRLAPI
 OBJS+= baum.o
