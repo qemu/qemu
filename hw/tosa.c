@@ -132,7 +132,7 @@ typedef struct {
 
 static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
 {
-    TosaDACState *s = (TosaDACState *)i2c;
+    TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
     s->buf[s->len] = data;
     if (s->len ++ > 2) {
 #ifdef VERBOSE
@@ -151,7 +151,7 @@ static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
 
 static void tosa_dac_event(i2c_slave *i2c, enum i2c_event event)
 {
-    TosaDACState *s = (TosaDACState *)i2c;
+    TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
     s->len = 0;
     switch (event) {
     case I2C_START_SEND:
@@ -178,14 +178,15 @@ static int tosa_dac_recv(i2c_slave *s)
     return -1;
 }
 
+static void tosa_dac_init(i2c_slave *i2c)
+{
+    /* Nothing to do.  */
+}
+
 static void tosa_tg_init(PXA2xxState *cpu)
 {
     i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
-    i2c_slave *dac = i2c_slave_init(bus, 0, sizeof(TosaDACState));
-    dac->send = tosa_dac_send;
-    dac->event = tosa_dac_event;
-    dac->recv = tosa_dac_recv;
-    i2c_set_slave_address(dac, DAC_BASE);
+    i2c_create_slave(bus, "tosa_dac", DAC_BASE);
     pxa2xx_ssp_attach(cpu->ssp[1], tosa_ssp_read,
                     tosa_ssp_write, cpu);
 }
@@ -241,3 +242,17 @@ QEMUMachine tosapda_machine = {
     .desc = "Tosa PDA (PXA255)",
     .init = tosa_init,
 };
+
+static I2CSlaveInfo tosa_dac_info = {
+    .init = tosa_dac_init,
+    .event = tosa_dac_event,
+    .recv = tosa_dac_recv,
+    .send = tosa_dac_send
+};
+
+static void tosa_register_devices(void)
+{
+    i2c_register_slave("tosa_dac", sizeof(TosaDACState), &tosa_dac_info);
+}
+
+device_init(tosa_register_devices)
