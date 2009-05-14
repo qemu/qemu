@@ -20,6 +20,7 @@
 
 typedef struct vpb_sic_state
 {
+  SysBusDevice busdev;
   uint32_t level;
   uint32_t mask;
   uint32_t pic_enable;
@@ -128,24 +129,21 @@ static CPUWriteMemoryFunc *vpb_sic_writefn[] = {
    vpb_sic_write
 };
 
-static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
+static void vpb_sic_init(SysBusDevice *dev)
 {
-    vpb_sic_state *s;
-    qemu_irq *qi;
+    vpb_sic_state *s = FROM_SYSBUS(vpb_sic_state, dev);
     int iomemtype;
     int i;
 
-    s = (vpb_sic_state *)qemu_mallocz(sizeof(vpb_sic_state));
-    qi = qemu_allocate_irqs(vpb_sic_set_irq, s, 32);
+    qdev_init_irq_sink(&dev->qdev, vpb_sic_set_irq, 32);
     for (i = 0; i < 32; i++) {
-        s->parent[i] = parent[i];
+        sysbus_init_irq(dev, &s->parent[i]);
     }
-    s->irq = irq;
+    s->irq = 31;
     iomemtype = cpu_register_io_memory(0, vpb_sic_readfn,
                                        vpb_sic_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? Save/restore.  */
-    return qi;
 }
 
 /* Board init.  */
@@ -166,7 +164,7 @@ static void versatile_init(ram_addr_t ram_size,
     ram_addr_t ram_offset;
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
-    qemu_irq *sic;
+    qemu_irq sic[32];
     DeviceState *dev;
     PCIBus *pci_bus;
     NICInfo *nd;
@@ -192,7 +190,11 @@ static void versatile_init(ram_addr_t ram_size,
     for (n = 0; n < 32; n++) {
         pic[n] = qdev_get_irq_sink(dev, n);
     }
-    sic = vpb_sic_init(0x10003000, pic, 31);
+    dev = sysbus_create_simple("versatilepb_sic", 0x10003000, NULL);
+    for (n = 0; n < 32; n++) {
+        sysbus_connect_irq(sysbus_from_qdev(dev), n, pic[n]);
+        sic[n] = qdev_get_irq_sink(dev, n);
+    }
 
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
@@ -317,3 +319,11 @@ QEMUMachine versatileab_machine = {
     .init = vab_init,
     .use_scsi = 1,
 };
+
+static void versatilepb_register_devices(void)
+{
+    sysbus_register_dev("versatilepb_sic", sizeof(vpb_sic_state),
+                        vpb_sic_init);
+}
+
+device_init(versatilepb_register_devices)
