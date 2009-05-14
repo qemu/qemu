@@ -31,8 +31,9 @@ static void realview_init(ram_addr_t ram_size,
 {
     CPUState *env;
     ram_addr_t ram_offset;
-    qemu_irq *pic;
     DeviceState *dev;
+    qemu_irq *irqp;
+    qemu_irq pic[64];
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -55,8 +56,8 @@ static void realview_init(ram_addr_t ram_size,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        pic = arm_pic_init_cpu(env);
-        cpu_irq[n] = pic[ARM_PIC_CPU_IRQ];
+        irqp = arm_pic_init_cpu(env);
+        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
         if (n > 0) {
             /* Set entry point for secondary CPUs.  This assumes we're using
                the init code from arm_boot.c.  Real hardware resets all CPUs
@@ -76,9 +77,14 @@ static void realview_init(ram_addr_t ram_size,
         /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
            is nIRQ (there are inconsistencies).  However Linux 2.6.17 expects
            GIC1 to be nIRQ and ignores all the others, so do that for now.  */
-        pic = realview_gic_init(0x10040000, cpu_irq[0]);
+        dev = sysbus_create_simple("realview_gic", 0x10040000, cpu_irq[0]);
     } else {
-        pic = mpcore_irq_init(cpu_irq);
+        dev = sysbus_create_varargs("realview_mpcore", -1,
+                                    cpu_irq[0], cpu_irq[1], cpu_irq[2],
+                                    cpu_irq[3], NULL);
+    }
+    for (n = 0; n < 64; n++) {
+        pic[n] = qdev_get_irq_sink(dev, n);
     }
 
     sysbus_create_simple("pl050_keyboard", 0x10006000, pic[20]);

@@ -17,12 +17,6 @@ qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out);
 /* pl080.c */
 void *pl080_init(uint32_t base, qemu_irq irq, int nchannels);
 
-/* realview_gic.c */
-qemu_irq *realview_gic_init(uint32_t base, qemu_irq parent_irq);
-
-/* mpcore.c */
-extern qemu_irq *mpcore_irq_init(qemu_irq *cpu_irq);
-
 /* arm_sysctl.c */
 void arm_sysctl_init(uint32_t base, uint32_t sys_id);
 

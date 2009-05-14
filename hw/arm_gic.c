@@ -32,6 +32,9 @@ static const uint8_t gic_id[] =
 #define GIC_BASE_IRQ    0
 #endif
 
+#define FROM_SYSBUSGIC(type, dev) \
+    DO_UPCAST(type, gic, FROM_SYSBUS(gic_state, dev))
+
 typedef struct gic_irq_state
 {
     /* ??? The documentation seems to imply the enable bits are global, even
@@ -74,6 +77,7 @@ typedef struct gic_irq_state
 
 typedef struct gic_state
 {
+    SysBusDevice busdev;
     qemu_irq parent_irq[NCPU];
     int enabled;
     int cpu_enabled[NCPU];
@@ -91,10 +95,7 @@ typedef struct gic_state
     int running_priority[NCPU];
     int current_pending[NCPU];
 
-    qemu_irq *in;
-#ifdef NVIC
-    void *nvic;
-#endif
+    int iomemtype;
 } gic_state;
 
 /* TODO: Many places that call this routine could be optimized.  */
@@ -363,7 +364,7 @@ static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
     uint32_t addr;
     addr = offset;
     if (addr < 0x100 || addr > 0xd00)
-        return nvic_readl(s->nvic, addr);
+        return nvic_readl(s, addr);
 #endif
     val = gic_dist_readw(opaque, offset);
     val |= gic_dist_readw(opaque, offset + 2) << 16;
@@ -523,7 +524,7 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
     uint32_t addr;
     addr = offset;
     if (addr < 0x100 || (addr > 0xd00 && addr != 0xf00)) {
-        nvic_writel(s->nvic, addr, value);
+        nvic_writel(s, addr, value);
         return;
     }
 #endif
@@ -716,22 +717,16 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static gic_state *gic_init(uint32_t dist_base, qemu_irq *parent_irq)
+static void gic_init(gic_state *s)
 {
-    gic_state *s;
-    int iomemtype;
     int i;
 
-    s = (gic_state *)qemu_mallocz(sizeof(gic_state));
-    s->in = qemu_allocate_irqs(gic_set_irq, s, GIC_NIRQ);
+    qdev_init_irq_sink(&s->busdev.qdev, gic_set_irq, GIC_NIRQ - 32);
     for (i = 0; i < NCPU; i++) {
-        s->parent_irq[i] = parent_irq[i];
+        sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
-    iomemtype = cpu_register_io_memory(0, gic_dist_readfn,
-                                       gic_dist_writefn, s);
-    cpu_register_physical_memory(dist_base, 0x00001000,
-                                 iomemtype);
+    s->iomemtype = cpu_register_io_memory(0, gic_dist_readfn,
+                                          gic_dist_writefn, s);
     gic_reset(s);
     register_savevm("arm_gic", -1, 1, gic_save, gic_load, s);
-    return s;
 }
