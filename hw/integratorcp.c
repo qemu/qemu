@@ -7,7 +7,7 @@
  * This code is licenced under the GPL
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "primecell.h"
 #include "devices.h"
 #include "sysemu.h"
@@ -495,7 +495,8 @@ static void integratorcp_init(ram_addr_t ram_size,
     pl181_init(0x1c000000, drives_table[sd].bdrv, pic[23], pic[24]);
     if (nd_table[0].vlan)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
-    pl110_init(0xc0000000, pic[22], 0);
+
+    sysbus_create_simple("pl110", 0xc0000000, pic[22]);
 
     integrator_binfo.ram_size = ram_size;
     integrator_binfo.kernel_filename = kernel_filename;

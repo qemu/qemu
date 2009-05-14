@@ -7,7 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
@@ -228,7 +228,7 @@ static void versatile_init(ram_addr_t ram_size,
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */
-    pl110_init(0x10120000, pic[16], 1);
+    sysbus_create_simple("pl110_versatile", 0x10120000, pic[16]);
 
     index = drive_get_index(IF_SD, 0, 0);
     if (index == -1) {

@@ -7,7 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
@@ -96,7 +96,7 @@ static void realview_init(ram_addr_t ram_size,
     sp804_init(0x10011000, pic[4]);
     sp804_init(0x10012000, pic[5]);
 
-    pl110_init(0x10020000, pic[23], 1);
+    sysbus_create_simple("pl110_versatile", 0x10020000, pic[23]);
 
     index = drive_get_index(IF_SD, 0, 0);
     if (index == -1) {
