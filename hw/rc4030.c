@@ -33,16 +33,16 @@
 //#define DEBUG_RC4030_DMA
 
 #ifdef DEBUG_RC4030
-#define DPRINTF(fmt, args...) \
-do { printf("rc4030: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("rc4030: " fmt , ## __VA_ARGS__); } while (0)
 static const char* irq_names[] = { "parallel", "floppy", "sound", "video",
             "network", "scsi", "keyboard", "mouse", "serial0", "serial1" };
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, ...)
 #endif
 
-#define RC4030_ERROR(fmt, args...) \
-do { fprintf(stderr, "rc4030 ERROR: %s: " fmt, __func__ , ##args); } while (0)
+#define RC4030_ERROR(fmt, ...) \
+do { fprintf(stderr, "rc4030 ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 /********************************************************/
 /* rc4030 emulation                                     */

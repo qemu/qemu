@@ -28,10 +28,10 @@
 //#define DEBUG_IOMMU
 
 #ifdef DEBUG_IOMMU
-#define DPRINTF(fmt, args...) \
-do { printf("IOMMU: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, ...)
 #endif
 
 #define IOMMU_NREGS         (4*4096/4)

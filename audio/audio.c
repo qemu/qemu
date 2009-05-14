@@ -707,11 +707,11 @@ static void noop_conv (struct st_sample *dst, const void *src,
 }
 
 static CaptureVoiceOut *audio_pcm_capture_find_specific (
-    AudioState *s,
     struct audsettings *as
     )
 {
     CaptureVoiceOut *cap;
+    AudioState *s = &glob_audio_state;
 
     for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
         if (audio_pcm_info_eq (&cap->hw.info, as)) {
@@ -786,8 +786,9 @@ static void audio_detach_capture (HWVoiceOut *hw)
     }
 }
 
-static int audio_attach_capture (AudioState *s, HWVoiceOut *hw)
+static int audio_attach_capture (HWVoiceOut *hw)
 {
+    AudioState *s = &glob_audio_state;
     CaptureVoiceOut *cap;
 
     audio_detach_capture (hw);
@@ -1295,7 +1296,7 @@ static void audio_run_out (AudioState *s)
     HWVoiceOut *hw = NULL;
     SWVoiceOut *sw;
 
-    while ((hw = audio_pcm_hw_find_any_enabled_out (s, hw))) {
+    while ((hw = audio_pcm_hw_find_any_enabled_out (hw))) {
         int played;
         int live, free, nb_live, cleanup_required, prev_rpos;
 
@@ -1390,7 +1391,7 @@ static void audio_run_out (AudioState *s)
 #ifdef DEBUG_PLIVE
                     dolog ("Finishing with old voice\n");
 #endif
-                    audio_close_out (s, sw);
+                    audio_close_out (sw);
                 }
                 sw = sw1;
             }
@@ -1402,7 +1403,7 @@ static void audio_run_in (AudioState *s)
 {
     HWVoiceIn *hw = NULL;
 
-    while ((hw = audio_pcm_hw_find_any_enabled_in (s, hw))) {
+    while ((hw = audio_pcm_hw_find_any_enabled_in (hw))) {
         SWVoiceIn *sw;
         int captured, min;
 
@@ -1610,8 +1611,8 @@ static int audio_driver_init (AudioState *s, struct audio_driver *drv)
     s->drv_opaque = drv->init ();
 
     if (s->drv_opaque) {
-        audio_init_nb_voices_out (s, drv);
-        audio_init_nb_voices_in (s, drv);
+        audio_init_nb_voices_out (drv);
+        audio_init_nb_voices_in (drv);
         s->drv = drv;
         return 0;
     }
@@ -1630,11 +1631,11 @@ static void audio_vm_change_state_handler (void *opaque, int running,
     int op = running ? VOICE_ENABLE : VOICE_DISABLE;
 
     s->vm_running = running;
-    while ((hwo = audio_pcm_hw_find_any_enabled_out (s, hwo))) {
+    while ((hwo = audio_pcm_hw_find_any_enabled_out (hwo))) {
         hwo->pcm_ops->ctl_out (hwo, op);
     }
 
-    while ((hwi = audio_pcm_hw_find_any_enabled_in (s, hwi))) {
+    while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
         hwi->pcm_ops->ctl_in (hwi, op);
     }
 }
@@ -1645,7 +1646,7 @@ static void audio_atexit (void)
     HWVoiceOut *hwo = NULL;
     HWVoiceIn *hwi = NULL;
 
-    while ((hwo = audio_pcm_hw_find_any_enabled_out (s, hwo))) {
+    while ((hwo = audio_pcm_hw_find_any_enabled_out (hwo))) {
         SWVoiceCap *sc;
 
         hwo->pcm_ops->ctl_out (hwo, VOICE_DISABLE);
@@ -1661,7 +1662,7 @@ static void audio_atexit (void)
         }
     }
 
-    while ((hwi = audio_pcm_hw_find_any_enabled_in (s, hwi))) {
+    while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
         hwi->pcm_ops->ctl_in (hwi, VOICE_DISABLE);
         hwi->pcm_ops->fini_in (hwi);
     }
@@ -1689,22 +1690,7 @@ static int audio_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void AUD_register_card (AudioState *s, const char *name, QEMUSoundCard *card)
-{
-    card->audio = s;
-    card->name = qemu_strdup (name);
-    memset (&card->entries, 0, sizeof (card->entries));
-    LIST_INSERT_HEAD (&s->card_head, card, entries);
-}
-
-void AUD_remove_card (QEMUSoundCard *card)
-{
-    LIST_REMOVE (card, entries);
-    card->audio = NULL;
-    qemu_free (card->name);
-}
-
-AudioState *AUD_init (void)
+static void audio_init (void)
 {
     size_t i;
     int done = 0;
@@ -1712,7 +1698,7 @@ AudioState *AUD_init (void)
     AudioState *s = &glob_audio_state;
 
     if (s->drv) {
-        return s;
+        return;
     }
 
     LIST_INIT (&s->hw_head_out);
@@ -1804,23 +1790,32 @@ AudioState *AUD_init (void)
     LIST_INIT (&s->card_head);
     register_savevm ("audio", 0, 1, audio_save, audio_load, s);
     qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
-    return s;
 }
 
+void AUD_register_card (const char *name, QEMUSoundCard *card)
+{
+    audio_init ();
+    card->name = qemu_strdup (name);
+    memset (&card->entries, 0, sizeof (card->entries));
+    LIST_INSERT_HEAD (&glob_audio_state.card_head, card, entries);
+}
+
+void AUD_remove_card (QEMUSoundCard *card)
+{
+    LIST_REMOVE (card, entries);
+    qemu_free (card->name);
+}
+
+
 CaptureVoiceOut *AUD_add_capture (
-    AudioState *s,
     struct audsettings *as,
     struct audio_capture_ops *ops,
     void *cb_opaque
     )
 {
+    AudioState *s = &glob_audio_state;
     CaptureVoiceOut *cap;
     struct capture_callback *cb;
-
-    if (!s) {
-        /* XXX suppress */
-        s = &glob_audio_state;
-    }
 
     if (audio_validate_settings (as)) {
         dolog ("Invalid settings were passed when trying to add capture\n");
@@ -1837,7 +1832,7 @@ CaptureVoiceOut *AUD_add_capture (
     cb->ops = *ops;
     cb->opaque = cb_opaque;
 
-    cap = audio_pcm_capture_find_specific (s, as);
+    cap = audio_pcm_capture_find_specific (as);
     if (cap) {
         LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
         return cap;
@@ -1887,8 +1882,8 @@ CaptureVoiceOut *AUD_add_capture (
         LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
 
         hw = NULL;
-        while ((hw = audio_pcm_hw_find_any_out (s, hw))) {
-            audio_attach_capture (s, hw);
+        while ((hw = audio_pcm_hw_find_any_out (hw))) {
+            audio_attach_capture (hw);
         }
         return cap;
 

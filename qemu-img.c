@@ -24,7 +24,6 @@
 #include "qemu-common.h"
 #include "osdep.h"
 #include "block_int.h"
-#include <assert.h>
 #include <stdio.h>
 
 #ifdef _WIN32

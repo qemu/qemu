@@ -65,7 +65,7 @@ int __chk_error(const char *filename, int line, int ret)
     return ret;
 }
 
-#define error(fmt, args...) error1(__FILE__, __LINE__, fmt, ##args)
+#define error(fmt, ...) error1(__FILE__, __LINE__, fmt, ## __VA_ARGS__)
 
 #define chk_error(ret) __chk_error(__FILE__, __LINE__, (ret))
 

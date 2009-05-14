@@ -252,13 +252,12 @@ static int GUS_load (QEMUFile *f, void *opaque, int version_id)
 
 int GUS_init (qemu_irq *pic)
 {
-    AudioState *audio = AUD_init();
     GUSState *s;
     struct audsettings as;
 
     s = qemu_mallocz (sizeof (*s));
 
-    AUD_register_card (audio, "gus", &s->card);
+    AUD_register_card ("gus", &s->card);
 
     as.freq = conf.freq;
     as.nchannels = 2;

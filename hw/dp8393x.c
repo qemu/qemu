@@ -34,8 +34,8 @@
 #endif
 
 #ifdef DEBUG_SONIC
-#define DPRINTF(fmt, args...) \
-do { printf("sonic: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("sonic: " fmt , ##  __VA_ARGS__); } while (0)
 static const char* reg_names[] = {
     "CR", "DCR", "RCR", "TCR", "IMR", "ISR", "UTDA", "CTDA",
     "TPS", "TFC", "TSA0", "TSA1", "TFS", "URDA", "CRDA", "CRBA0",
@@ -46,11 +46,11 @@ static const char* reg_names[] = {
     "0x30", "0x31", "0x32", "0x33", "0x34", "0x35", "0x36", "0x37",
     "0x38", "0x39", "0x3a", "0x3b", "0x3c", "0x3d", "0x3e", "DCR2" };
 #else
-#define DPRINTF(fmt, args...) do {} while (0)
+#define DPRINTF(fmt, ...) do {} while (0)
 #endif
 
-#define SONIC_ERROR(fmt, args...) \
-do { printf("sonic ERROR: %s: " fmt, __func__ , ##args); } while (0)
+#define SONIC_ERROR(fmt, ...) \
+do { printf("sonic ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 #define SONIC_CR     0x00
 #define SONIC_DCR    0x01

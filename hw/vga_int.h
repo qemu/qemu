@@ -215,3 +215,6 @@ void vga_draw_cursor_line_32(uint8_t *d1, const uint8_t *src1,
 
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];
+
+#define VGA_RAM_SIZE (8192 * 1024)
+

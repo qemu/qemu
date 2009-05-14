@@ -903,7 +903,7 @@ static struct arm_boot_info spitz_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void spitz_common_init(ram_addr_t ram_size, int vga_ram_size,
+static void spitz_common_init(ram_addr_t ram_size,
                 const char *kernel_filename,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, enum spitz_model_e model, int arm_id)
@@ -959,39 +959,39 @@ static void spitz_common_init(ram_addr_t ram_size, int vga_ram_size,
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static void spitz_init(ram_addr_t ram_size, int vga_ram_size,
+static void spitz_init(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    spitz_common_init(ram_size, vga_ram_size, kernel_filename,
+    spitz_common_init(ram_size, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, spitz, 0x2c9);
 }
 
-static void borzoi_init(ram_addr_t ram_size, int vga_ram_size,
+static void borzoi_init(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    spitz_common_init(ram_size, vga_ram_size, kernel_filename,
+    spitz_common_init(ram_size, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, borzoi, 0x33f);
 }
 
-static void akita_init(ram_addr_t ram_size, int vga_ram_size,
+static void akita_init(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    spitz_common_init(ram_size, vga_ram_size, kernel_filename,
+    spitz_common_init(ram_size, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, akita, 0x2e8);
 }
 
-static void terrier_init(ram_addr_t ram_size, int vga_ram_size,
+static void terrier_init(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    spitz_common_init(ram_size, vga_ram_size, kernel_filename,
+    spitz_common_init(ram_size, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, terrier, 0x33f);
 }
 

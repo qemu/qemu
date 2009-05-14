@@ -14,14 +14,14 @@
 //#define DEBUG_PL061 1
 
 #ifdef DEBUG_PL061
-#define DPRINTF(fmt, args...) \
-do { printf("pl061: " fmt , ##args); } while (0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "pl061: error: " fmt , ##args); exit(1);} while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("pl061: " fmt , ## __VA_ARGS__); } while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "pl061: error: " fmt , ##args);} while (0)
+#define DPRINTF(fmt, ...) do {} while(0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
 static const uint8_t pl061_id[12] =

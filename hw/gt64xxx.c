@@ -231,9 +231,9 @@ typedef target_phys_addr_t pci_addr_t;
 //~ #define DEBUG
 
 #if defined(DEBUG)
-#define logout(fmt, args...) fprintf(stderr, "GT64XXX\t%-24s" fmt, __func__, ##args)
+#define logout(fmt, ...) fprintf(stderr, "GT64XXX\t%-24s" fmt, __func__, ##__VA_ARGS__)
 #else
-#define logout(fmt, args...) ((void)0)
+#define logout(fmt, ...) ((void)0)
 #endif
 
 typedef PCIHostState GT64120PCIState;

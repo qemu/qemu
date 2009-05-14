@@ -627,7 +627,7 @@ static inline void byteswap_winsize(struct winsize *w)
     tswap16s(&w->ws_ypixel);
 }
 
-#define STRUCT(name, list...) STRUCT_ ## name,
+#define STRUCT(name, ...) STRUCT_ ## name,
 #define STRUCT_SPECIAL(name) STRUCT_ ## name,
 enum {
 #include "ioctls_types.h"
@@ -635,7 +635,7 @@ enum {
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-#define STRUCT(name, list...) const argtype struct_ ## name ## _def[] = { list, TYPE_NULL };
+#define STRUCT(name, ...) const argtype struct_ ## name ## _def[] = {  __VA_ARGS__, TYPE_NULL };
 #define STRUCT_SPECIAL(name)
 #include "ioctls_types.h"
 #undef STRUCT
@@ -656,8 +656,8 @@ typedef struct IOCTLEntry {
 #define MAX_STRUCT_SIZE 4096
 
 static IOCTLEntry ioctl_entries[] = {
-#define IOCTL(cmd, access, types...) \
-    { cmd, cmd, #cmd, access, { types } },
+#define IOCTL(cmd, access,  ...)                        \
+    { cmd, cmd, #cmd, access, {  __VA_ARGS__ } },
 #include "ioctls.h"
     { 0, 0, },
 };
@@ -898,10 +898,10 @@ typedef long (*syscall_function_t)(void *cpu_env, int num);
 #define WRAPPER_CALL_DIRECT_6(function, _arg1, _arg2, _arg3, _arg4, _arg5, _arg6) long __qemu_##function(void *cpu_env) { int i = 0;   typeof(_arg1) arg1 = _arg1; typeof(_arg2) arg2 = _arg2; typeof(_arg3) arg3 = _arg3; typeof(_arg4) arg4 = _arg4; typeof(_arg5) arg5 = _arg5; typeof(_arg6) arg6 = _arg6;  return (long)function(arg1, arg2, arg3, arg4, arg5, arg6); }
 #define WRAPPER_CALL_DIRECT_7(function, _arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7) long __qemu_##function(void *cpu_env) { int i = 0;   typeof(_arg1) arg1 = _arg1; typeof(_arg2) arg2 = _arg2; typeof(_arg3) arg3 = _arg3; typeof(_arg4) arg4 = _arg4; typeof(_arg5) arg5 = _arg5; typeof(_arg6) arg6 = _arg6; typeof(_arg7) arg7 = _arg7; return (long)function(arg1, arg2, arg3, arg4, arg5, arg6, arg7); }
 #define WRAPPER_CALL_DIRECT_8(function, _arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8) long __qemu_##function(void *cpu_env) { int i = 0;   typeof(_arg1) arg1 = _arg1; typeof(_arg2) arg2 = _arg2; typeof(_arg3) arg3 = _arg3; typeof(_arg4) arg4 = _arg4; typeof(_arg5) arg5 = _arg5; typeof(_arg6) arg6 = _arg6; typeof(_arg7) arg7 = _arg7; typeof(_arg8) arg8 = _arg8;  return (long)function(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8); }
-#define WRAPPER_CALL_DIRECT(function, nargs, args...) WRAPPER_CALL_DIRECT_##nargs(function, args)
-#define WRAPPER_CALL_NOERRNO(function, nargs, args...)  WRAPPER_CALL_DIRECT(function, nargs, args)
-#define WRAPPER_CALL_INDIRECT(function, nargs, args...)
-#define ENTRY(name, number, function, nargs, call_type, args...)  WRAPPER_##call_type(function, nargs, args)
+#define WRAPPER_CALL_DIRECT(function, nargs, ...) WRAPPER_CALL_DIRECT_##nargs(function, __VA_ARGS__)
+#define WRAPPER_CALL_NOERRNO(function, nargs, ...)  WRAPPER_CALL_DIRECT(function, nargs, __VA_ARGS__)
+#define WRAPPER_CALL_INDIRECT(function, nargs, ...)
+#define ENTRY(name, number, function, nargs, call_type, ...)  WRAPPER_##call_type(function, nargs, __VA_ARGS__)
 
 #include "syscalls.h"
 
@@ -926,7 +926,7 @@ typedef long (*syscall_function_t)(void *cpu_env, int num);
 #define ENTRY_CALL_DIRECT(name, number, function, nargs, call_type)  _ENTRY(name, number, __qemu_##function, nargs, call_type)
 #define ENTRY_CALL_NOERRNO(name, number, function, nargs, call_type) ENTRY_CALL_DIRECT(name, number, function, nargs, call_type)
 #define ENTRY_CALL_INDIRECT(name, number, function, nargs, call_type) _ENTRY(name, number, function, nargs, call_type)
-#define ENTRY(name, number, function, nargs, call_type, args...) ENTRY_##call_type(name, number, function, nargs, call_type)
+#define ENTRY(name, number, function, nargs, call_type, ...) ENTRY_##call_type(name, number, function, nargs, call_type)
 
 #define CALL_DIRECT 1
 #define CALL_INDIRECT 2

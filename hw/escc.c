@@ -62,22 +62,22 @@
  */
 
 #ifdef DEBUG_SERIAL
-#define SER_DPRINTF(fmt, args...) \
-do { printf("SER: " fmt , ##args); } while (0)
+#define SER_DPRINTF(fmt, ...)                                   \
+    do { printf("SER: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define SER_DPRINTF(fmt, args...)
+#define SER_DPRINTF(fmt, ...)
 #endif
 #ifdef DEBUG_KBD
-#define KBD_DPRINTF(fmt, args...) \
-do { printf("KBD: " fmt , ##args); } while (0)
+#define KBD_DPRINTF(fmt, ...)                                   \
+    do { printf("KBD: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define KBD_DPRINTF(fmt, args...)
+#define KBD_DPRINTF(fmt, ...)
 #endif
 #ifdef DEBUG_MOUSE
-#define MS_DPRINTF(fmt, args...) \
-do { printf("MSC: " fmt , ##args); } while (0)
+#define MS_DPRINTF(fmt, ...)                                    \
+    do { printf("MSC: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define MS_DPRINTF(fmt, args...)
+#define MS_DPRINTF(fmt, ...)
 #endif
 
 typedef enum {

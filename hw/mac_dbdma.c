@@ -44,10 +44,10 @@
 //#define DEBUG_DBDMA
 
 #ifdef DEBUG_DBDMA
-#define DBDMA_DPRINTF(fmt, args...) \
-do { printf("DBDMA: " fmt , ##args); } while (0)
+#define DBDMA_DPRINTF(fmt, ...)                                 \
+    do { printf("DBDMA: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DBDMA_DPRINTF(fmt, args...)
+#define DBDMA_DPRINTF(fmt, ...)
 #endif
 
 /*

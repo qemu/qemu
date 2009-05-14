@@ -31,10 +31,10 @@
 //#define DEBUG_GRACKLE
 
 #ifdef DEBUG_GRACKLE
-#define GRACKLE_DPRINTF(fmt, args...) \
-do { printf("GRACKLE: " fmt , ##args); } while (0)
+#define GRACKLE_DPRINTF(fmt, ...)                               \
+    do { printf("GRACKLE: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define GRACKLE_DPRINTF(fmt, args...)
+#define GRACKLE_DPRINTF(fmt, ...)
 #endif
 
 typedef target_phys_addr_t pci_addr_t;

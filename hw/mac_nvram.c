@@ -31,10 +31,10 @@
 //#define DEBUG_NVR
 
 #ifdef DEBUG_NVR
-#define NVR_DPRINTF(fmt, args...) \
-do { printf("NVR: " fmt , ##args); } while (0)
+#define NVR_DPRINTF(fmt, ...)                                   \
+    do { printf("NVR: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define NVR_DPRINTF(fmt, args...)
+#define NVR_DPRINTF(fmt, ...)
 #endif
 
 struct MacIONVRAMState {

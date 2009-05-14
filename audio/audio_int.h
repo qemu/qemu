@@ -104,6 +104,7 @@ typedef struct HWVoiceIn {
 } HWVoiceIn;
 
 struct SWVoiceOut {
+    QEMUSoundCard *card;
     struct audio_pcm_info info;
     t_sample *conv;
     int64_t ratio;
@@ -120,6 +121,7 @@ struct SWVoiceOut {
 };
 
 struct SWVoiceIn {
+    QEMUSoundCard *card;
     int active;
     struct audio_pcm_info info;
     int64_t ratio;

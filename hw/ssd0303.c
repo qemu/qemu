@@ -17,14 +17,14 @@
 //#define DEBUG_SSD0303 1
 
 #ifdef DEBUG_SSD0303
-#define DPRINTF(fmt, args...) \
-do { printf("ssd0303: " fmt , ##args); } while (0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "ssd0303: error: " fmt , ##args); exit(1);} while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("ssd0303: " fmt , ## __VA_ARGS__); } while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "ssd0303: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "ssd0303: error: " fmt , ##args);} while (0)
+#define DPRINTF(fmt, ...) do {} while(0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "ssd0303: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
 /* Scaling factor for pixels.  */

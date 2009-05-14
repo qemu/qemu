@@ -53,9 +53,9 @@
 #define DEBUG_TNETW1130
 
 #if defined(DEBUG_TNETW1130)
-# define logout(fmt, args...) fprintf(stderr, "ACX111\t%-24s" fmt, __func__, ##args)
+# define logout(fmt, ...) fprintf(stderr, "ACX111\t%-24s" fmt, __func__, ##__VA_ARGS__)
 #else
-# define logout(fmt, args...) ((void)0)
+# define logout(fmt, ...) ((void)0)
 #endif
 
 #define missing(text)       assert(!"feature is missing in this emulation: " text)

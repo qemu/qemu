@@ -34,9 +34,9 @@
 //~ #define DEBUG_SERIAL
 
 #if defined(DEBUG_SERIAL)
-# define logout(fmt, args...) fprintf(stderr, "UART\t%-24s" fmt, __func__, ##args)
+# define logout(fmt, ...) fprintf(stderr, "UART\t%-24s" fmt, __func__, ##__VA_ARGS__)
 #else
-# define logout(fmt, args...) ((void)0)
+# define logout(fmt, ...) ((void)0)
 #endif
 
 #define UART_LCR_DLAB	0x80	/* Divisor latch access bit */

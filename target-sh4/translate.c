@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <assert.h>
 
 #define DEBUG_DISAS
 #define SH4_DEBUG_DISAS

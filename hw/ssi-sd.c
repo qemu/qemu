@@ -13,14 +13,14 @@
 //#define DEBUG_SSI_SD 1
 
 #ifdef DEBUG_SSI_SD
-#define DPRINTF(fmt, args...) \
-do { printf("ssi_sd: " fmt , ##args); } while (0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "ssi_sd: error: " fmt , ##args); exit(1);} while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("ssi_sd: " fmt , ## __VA_ARGS__); } while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "ssi_sd: error: " fmt , ##args);} while (0)
+#define DPRINTF(fmt, ...) do {} while(0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
 typedef enum {

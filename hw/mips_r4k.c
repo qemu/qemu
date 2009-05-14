@@ -153,7 +153,7 @@ static void main_cpu_reset(void *opaque)
 }
 
 static const int sector_len = 32 * 1024;
-static void mips_init(ram_addr_t ram_size, int vga_ram_size,
+static void mips_init(ram_addr_t ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -264,7 +264,7 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
         }
     }
 
-    isa_vga_init(vga_ram_size);
+    isa_vga_init();
 
     if (nd_table[0].vlan)
         isa_ne2000_init(0x300, i8259[9], &nd_table[0]);
@@ -291,26 +291,26 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 static
-void mips_r4k_init(ram_addr_t ram_size, int vga_ram_size,
+void mips_r4k_init(ram_addr_t ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
     /* Run MIPS system in big endian mode. */
     bigendian = 1;
-    mips_init(ram_size, vga_ram_size, boot_device,
+    mips_init(ram_size, boot_device,
         kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 }
 
 static
-void mipsel_r4k_init(ram_addr_t ram_size, int vga_ram_size,
+void mipsel_r4k_init(ram_addr_t ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
     /* Run MIPS system in little endian mode. */
     bigendian = 0;
-    mips_init(ram_size, vga_ram_size, boot_device,
+    mips_init(ram_size, boot_device,
         kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 }
 

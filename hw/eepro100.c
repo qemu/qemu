@@ -41,7 +41,6 @@
  * EE100   eepro100_read2          feature is missing in this emulation: unknown word read
  */
 
-#include <assert.h>
 #include <stddef.h>             /* offsetof */
 #include "hw.h"
 #include "pci.h"
@@ -63,9 +62,9 @@
 //~ #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
-#define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
+#define logout(fmt, ...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ## __VA_ARGS__)
 #else
-#define logout(fmt, args...) ((void)0)
+#define logout(fmt, ...) ((void)0)
 #endif
 
 /* Set flags to 0 to disable debug output. */

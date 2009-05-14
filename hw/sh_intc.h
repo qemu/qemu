@@ -18,7 +18,7 @@ struct intc_group {
     intc_enum enum_ids[32];
 };
 
-#define INTC_GROUP(enum_id, ids...) { enum_id, { ids } }
+#define INTC_GROUP(enum_id, ...) { enum_id, {  __VA_ARGS__ } }
 
 struct intc_mask_reg {
     unsigned long set_reg, clr_reg, reg_width;

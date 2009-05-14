@@ -19,14 +19,14 @@
 //#define DEBUG_LSI_REG
 
 #ifdef DEBUG_LSI
-#define DPRINTF(fmt, args...) \
-do { printf("lsi_scsi: " fmt , ##args); } while (0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "lsi_scsi: error: " fmt , ##args); exit(1);} while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("lsi_scsi: " fmt , ## __VA_ARGS__); } while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "lsi_scsi: error: " fmt , ##args);} while (0)
+#define DPRINTF(fmt, ...) do {} while(0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
 #define LSI_SCNTL0_TRG    0x01

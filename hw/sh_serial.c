@@ -27,7 +27,6 @@
 #include "hw.h"
 #include "sh.h"
 #include "qemu-char.h"
-#include <assert.h>
 
 //#define DEBUG_SERIAL
 

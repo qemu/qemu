@@ -33,10 +33,10 @@
 //#define DEBUG_APB
 
 #ifdef DEBUG_APB
-#define APB_DPRINTF(fmt, args...) \
-do { printf("APB: " fmt , ##args); } while (0)
+#define APB_DPRINTF(fmt, ...) \
+do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define APB_DPRINTF(fmt, args...)
+#define APB_DPRINTF(fmt, ...)
 #endif
 
 typedef target_phys_addr_t pci_addr_t;

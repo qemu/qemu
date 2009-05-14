@@ -51,10 +51,10 @@
 static int traceflag;
 #define loglevel 1
 #define logfile  stderr
-#define DPRINTF(fmt, args...) \
-    ((loglevel) ? fprintf(logfile, "PFLASH\t%-24s" fmt , __func__, ##args) : (void)0)
+#define DPRINTF(fmt, ...) \
+    ((loglevel) ? fprintf(logfile, "PFLASH\t%-24s" fmt , __func__, ##__VA_ARGS__) : (void)0)
 #else
-#define DPRINTF(fmt, args...) do { } while (0)
+#define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
 typedef enum {

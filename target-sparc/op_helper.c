@@ -13,22 +13,22 @@
 //#define DEBUG_PCALL
 
 #ifdef DEBUG_MMU
-#define DPRINTF_MMU(fmt, args...) \
-do { printf("MMU: " fmt , ##args); } while (0)
+#define DPRINTF_MMU(fmt, ...)                                   \
+    do { printf("MMU: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF_MMU(fmt, args...) do {} while (0)
+#define DPRINTF_MMU(fmt, ...) do {} while (0)
 #endif
 
 #ifdef DEBUG_MXCC
-#define DPRINTF_MXCC(fmt, args...) \
-do { printf("MXCC: " fmt , ##args); } while (0)
+#define DPRINTF_MXCC(fmt, ...)                                  \
+    do { printf("MXCC: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF_MXCC(fmt, args...) do {} while (0)
+#define DPRINTF_MXCC(fmt, ...) do {} while (0)
 #endif
 
 #ifdef DEBUG_ASI
-#define DPRINTF_ASI(fmt, args...) \
-do { printf("ASI: " fmt , ##args); } while (0)
+#define DPRINTF_ASI(fmt, ...)                                   \
+    do { printf("ASI: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 #ifdef TARGET_SPARC64

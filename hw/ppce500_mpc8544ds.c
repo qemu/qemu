@@ -151,7 +151,7 @@ out:
     return fdt;
 }
 
-static void mpc8544ds_init(ram_addr_t ram_size, int vga_ram_size,
+static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *boot_device,
                          const char *kernel_filename,
                          const char *kernel_cmdline,

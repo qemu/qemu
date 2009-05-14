@@ -8,7 +8,6 @@
  * This code is licenced under the GPL.
  */
 
-#include <assert.h>
 #include "sh_intc.h"
 #include "hw.h"
 #include "sh.h"

@@ -119,7 +119,7 @@ static void audio_init(qemu_irq *pic)
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
 static
-void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
+void mips_jazz_init (ram_addr_t ram_size,
                      const char *cpu_model,
                      enum jazz_model_e jazz_model)
 {
@@ -198,10 +198,10 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(vga_ram_size, 0x40000000, 0x60000000, 0, rc4030[3]);
+        g364fb_mm_init(0x40000000, 0x60000000, 0, rc4030[3]);
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(vga_ram_size, 0x40000000, 0x60000000, 0);
+        isa_vga_mm_init(0x40000000, 0x60000000, 0);
         break;
     default:
         break;
@@ -282,21 +282,21 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 static
-void mips_magnum_init (ram_addr_t ram_size, int vga_ram_size,
+void mips_magnum_init (ram_addr_t ram_size,
                        const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    mips_jazz_init(ram_size, vga_ram_size, cpu_model, JAZZ_MAGNUM);
+    mips_jazz_init(ram_size, cpu_model, JAZZ_MAGNUM);
 }
 
 static
-void mips_pica61_init (ram_addr_t ram_size, int vga_ram_size,
+void mips_pica61_init (ram_addr_t ram_size,
                        const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    mips_jazz_init(ram_size, vga_ram_size, cpu_model, JAZZ_PICA61);
+    mips_jazz_init(ram_size, cpu_model, JAZZ_PICA61);
 }
 
 QEMUMachine mips_magnum_machine = {

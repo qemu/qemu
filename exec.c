@@ -2361,9 +2361,9 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
     end_addr = start_addr + (target_phys_addr_t)size;
 
 #if defined(DEBUG)
-# define logout(fmt, args...) fprintf(stderr, "QEMU\t%-24s" fmt, __func__, ##args)
+# define logout(fmt, ...) fprintf(stderr, "QEMU\t%-24s" fmt, __func__, ##__VA_ARGS__)
 #else
-# define logout(fmt, args...) ((void)0)
+# define logout(fmt, ...) ((void)0)
 #endif
     logout(" 0x%08x...0x%08x, size 0x%08lx, phys_offset 0x%08lx\n",
         start_addr, end_addr, size, phys_offset);

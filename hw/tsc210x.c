@@ -82,7 +82,6 @@ typedef struct {
     SWVoiceOut *dac_voice[1];
     int i2s_rx_rate;
     int i2s_tx_rate;
-    AudioState *audio;
 
     int tr[8];
 
@@ -1117,7 +1116,6 @@ uWireSlave *tsc2102_init(qemu_irq pint)
     s->pint = pint;
     s->model = 0x2102;
     s->name = "tsc2102";
-    s->audio = AUD_init();;
 
     s->tr[0] = 0;
     s->tr[1] = 1;
@@ -1143,7 +1141,7 @@ uWireSlave *tsc2102_init(qemu_irq pint)
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1,
                     "QEMU TSC2102-driven Touchscreen");
 
-    AUD_register_card(s->audio, s->name, &s->card);
+    AUD_register_card(s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
     register_savevm(s->name, -1, 0,
@@ -1169,7 +1167,6 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav)
     s->davint = dav;
     s->model = 0x2301;
     s->name = "tsc2301";
-    s->audio = AUD_init();
 
     s->tr[0] = 0;
     s->tr[1] = 1;
@@ -1195,7 +1192,7 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav)
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1,
                     "QEMU TSC2301-driven Touchscreen");
 
-    AUD_register_card(s->audio, s->name, &s->card);
+    AUD_register_card(s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
     register_savevm(s->name, -1, 0, tsc210x_save, tsc210x_load, s);

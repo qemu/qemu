@@ -1007,7 +1007,6 @@ static void es1370_on_reset (void *opaque)
 
 int es1370_init (PCIBus *bus)
 {
-    AudioState *audio = AUD_init();
     PCIES1370State *d;
     ES1370State *s;
     uint8_t *c;
@@ -1058,7 +1057,7 @@ int es1370_init (PCIBus *bus)
     register_savevm ("es1370", 0, 2, es1370_save, es1370_load, s);
     qemu_register_reset (es1370_on_reset, s);
 
-    AUD_register_card (audio, "es1370", &s->card);
+    AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
     return 0;
 }

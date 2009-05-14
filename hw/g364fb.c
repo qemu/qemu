@@ -26,13 +26,13 @@
 //#define DEBUG_G364
 
 #ifdef DEBUG_G364
-#define DPRINTF(fmt, args...) \
-do { printf("g364: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("g364: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while (0)
+#define DPRINTF(fmt, ...) do {} while (0)
 #endif
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "g364 ERROR: " fmt , ##args);} while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "g364 ERROR: " fmt , ## __VA_ARGS__);} while (0)
 
 typedef struct G364State {
     /* hardware */
@@ -584,7 +584,7 @@ static void g364fb_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->height);
 }
 
-int g364fb_mm_init(int vram_size, target_phys_addr_t vram_base,
+int g364fb_mm_init(target_phys_addr_t vram_base,
                    target_phys_addr_t ctrl_base, int it_shift,
                    qemu_irq irq)
 {
@@ -593,9 +593,9 @@ int g364fb_mm_init(int vram_size, target_phys_addr_t vram_base,
 
     s = qemu_mallocz(sizeof(G364State));
 
-    s->vram_offset = qemu_ram_alloc(vram_size);
+    s->vram_size = 8 * 1024 * 1024;
+    s->vram_offset = qemu_ram_alloc(s->vram_size);
     s->vram = qemu_get_ram_ptr(s->vram_offset);
-    s->vram_size = vram_size;
     s->irq = irq;
 
     qemu_register_reset(g364fb_reset, s);

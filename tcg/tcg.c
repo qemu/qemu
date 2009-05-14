@@ -32,7 +32,6 @@
 #define NDEBUG
 #endif
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>

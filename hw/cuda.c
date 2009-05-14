@@ -36,10 +36,10 @@
 //#define DEBUG_CUDA_PACKET
 
 #ifdef DEBUG_CUDA
-#define CUDA_DPRINTF(fmt, args...) \
-do { printf("CUDA: " fmt , ##args); } while (0)
+#define CUDA_DPRINTF(fmt, ...)                                  \
+    do { printf("CUDA: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define CUDA_DPRINTF(fmt, args...)
+#define CUDA_DPRINTF(fmt, ...)
 #endif
 
 /* Bits in B data register: all active low */

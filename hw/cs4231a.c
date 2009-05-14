@@ -638,7 +638,6 @@ static int cs_load(QEMUFile *f, void *opaque, int version_id)
 
 int cs4231a_init (qemu_irq *pic)
 {
-    AudioState *audio = AUD_init();
     int i;
     CSState *s;
 
@@ -660,6 +659,6 @@ int cs4231a_init (qemu_irq *pic)
     qemu_register_reset (cs_reset, s);
     cs_reset (s);
 
-    AUD_register_card (audio,"cs4231a", &s->card);
+    AUD_register_card ("cs4231a", &s->card);
     return 0;
 }

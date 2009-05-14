@@ -27,7 +27,6 @@
 #include "block_int.h"
 #include <zlib.h>
 #include "aes.h"
-#include <assert.h>
 
 /*
   Differences with QCOW:

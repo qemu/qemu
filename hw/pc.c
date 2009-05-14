@@ -836,7 +836,7 @@ static int load_option_rom(const char *oprom, target_phys_addr_t start,
 }
 
 /* PC hardware initialisation */
-static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
+static void pc_init1(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename,
@@ -999,20 +999,20 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
 
     if (cirrus_vga_enabled) {
         if (pci_enabled) {
-            pci_cirrus_vga_init(pci_bus, vga_ram_size);
+            pci_cirrus_vga_init(pci_bus);
         } else {
-            isa_cirrus_vga_init(vga_ram_size);
+            isa_cirrus_vga_init();
         }
     } else if (vmsvga_enabled) {
         if (pci_enabled)
-            pci_vmsvga_init(pci_bus, vga_ram_size);
+            pci_vmsvga_init(pci_bus);
         else
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else if (std_vga_enabled) {
         if (pci_enabled) {
-            pci_vga_init(pci_bus, vga_ram_size, 0, 0);
+            pci_vga_init(pci_bus, 0, 0);
         } else {
-            isa_vga_init(vga_ram_size);
+            isa_vga_init();
         }
     }
 
@@ -1162,26 +1162,26 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
     }
 }
 
-static void pc_init_pci(ram_addr_t ram_size, int vga_ram_size,
+static void pc_init_pci(ram_addr_t ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
-    pc_init1(ram_size, vga_ram_size, boot_device,
+    pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
              initrd_filename, 1, cpu_model);
 }
 
-static void pc_init_isa(ram_addr_t ram_size, int vga_ram_size,
+static void pc_init_isa(ram_addr_t ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
-    pc_init1(ram_size, vga_ram_size, boot_device,
+    pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
              initrd_filename, 0, cpu_model);
 }

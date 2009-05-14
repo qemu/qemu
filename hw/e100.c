@@ -95,9 +95,9 @@
 
 
 #ifdef DEBUG_E100
-#define logout(fmt, args...) fprintf(stderr, "EE100\t%-28s" fmt, __func__, ##args)
+#define logout(fmt, ...) fprintf(stderr, "EE100\t%-28s" fmt, __func__, ##__VA_ARGS__)
 #else
-#define logout(fmt, args...) ((void)0)
+#define logout(fmt, ...) ((void)0)
 #endif
 
 #define MAX_ETH_FRAME_SIZE 1514

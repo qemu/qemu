@@ -28,10 +28,10 @@
 //#define DEBUG_IRQ
 
 #ifdef DEBUG_IRQ
-#define DPRINTF(fmt, args...) \
-do { printf("IRQ: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("IRQ: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, ...)
 #endif
 
 #define MAX_CPUS 16

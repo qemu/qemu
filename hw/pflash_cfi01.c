@@ -51,10 +51,10 @@
 #define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
 static int traceflag;
-#define DPRINTF(fmt, args...)                      \
-    (traceflag ? fprintf(stderr, "PFLASH\t%-24s" fmt, __func__, ##args) : (void)0)
+#define DPRINTF(fmt, ...) \
+    (traceflag ? fprintf(stderr, "PFLASH\t%-24s" fmt, __func__, ##__VA_ARGS__) : (void)0)
 #else
-#define DPRINTF(fmt, args...) ((void)0)
+#define DPRINTF(fmt, ...) ((void)0)
 #endif
 
 typedef enum {

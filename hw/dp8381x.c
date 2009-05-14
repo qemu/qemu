@@ -65,9 +65,9 @@
 #define DEBUG_DP8381X
 
 #if defined(DEBUG_DP8381X)
-# define logout(fmt, args...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##args)
+# define logout(fmt, ...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##__VA_ARGS__)
 #else
-# define logout(fmt, args...) ((void)0)
+# define logout(fmt, ...) ((void)0)
 #endif
 
 #define missing(text)       assert(!"feature is missing in this emulation: " text)

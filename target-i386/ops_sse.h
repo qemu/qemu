@@ -20,7 +20,7 @@
  */
 #if SHIFT == 0
 #define Reg MMXReg
-#define XMM_ONLY(x...)
+#define XMM_ONLY(...)
 #define B(n) MMX_B(n)
 #define W(n) MMX_W(n)
 #define L(n) MMX_L(n)
@@ -28,7 +28,7 @@
 #define SUFFIX _mmx
 #else
 #define Reg XMMReg
-#define XMM_ONLY(x...) x
+#define XMM_ONLY(...) __VA_ARGS__
 #define B(n) XMM_B(n)
 #define W(n) XMM_W(n)
 #define L(n) XMM_L(n)

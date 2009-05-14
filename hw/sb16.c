@@ -1400,7 +1400,6 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
 
 int SB16_init (qemu_irq *pic)
 {
-    AudioState *audio = AUD_init();
     SB16State *s;
     int i;
     static const uint8_t dsp_write_ports[] = {0x6, 0xc};
@@ -1447,6 +1446,6 @@ int SB16_init (qemu_irq *pic)
     s->can_write = 1;
 
     register_savevm ("sb16", 0, 1, SB_save, SB_load, s);
-    AUD_register_card (audio, "sb16", &s->card);
+    AUD_register_card ("sb16", &s->card);
     return 0;
 }

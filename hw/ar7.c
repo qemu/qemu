@@ -139,13 +139,13 @@ static struct {
 
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
 
-#define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s" fmt, __func__, ##args)
-//~ #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s%-40.40s " fmt, __func__, backtrace(), ##args)
+#define logout(fmt, ...) fprintf(stderr, "AR7\t%-24s" fmt, __func__, ##__VA_ARGS__)
+//~ #define logout(fmt, ...) fprintf(stderr, "AR7\t%-24s%-40.40s " fmt, __func__, backtrace(), ##__VA_ARGS__)
 
 #else /* DEBUG_AR7 */
 
 #define TRACE(flag, command) ((void)0)
-#define logout(fmt, args...) ((void)0)
+#define logout(fmt, ...) ((void)0)
 
 #endif /* DEBUG_AR7 */
 
@@ -3900,7 +3900,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     ar7_init(env);
 }
 
-static void mips_ar7_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void mips_ar7_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3910,7 +3910,7 @@ static void mips_ar7_init(ram_addr_t machine_ram_size, int vga_ram_size,
                          cpu_model);
 }
 
-static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void ar7_amd_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3921,7 +3921,7 @@ static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
                          cpu_model);
 }
 
-static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void mips_tnetd7200_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3932,7 +3932,7 @@ static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
-static void mips_tnetd7300_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void mips_tnetd7300_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3944,7 +3944,7 @@ static void mips_tnetd7300_init(ram_addr_t machine_ram_size, int vga_ram_size,
 
 #if defined(TARGET_WORDS_BIGENDIAN)
 
-static void zyxel_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void zyxel_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3963,7 +3963,7 @@ static void zyxel_init(ram_addr_t machine_ram_size, int vga_ram_size,
 
 #else
 
-static void fbox4_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void fbox4_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3980,7 +3980,7 @@ static void fbox4_init(ram_addr_t machine_ram_size, int vga_ram_size,
                          cpu_model);
 }
 
-static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void fbox8_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3997,7 +3997,7 @@ static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
                          cpu_model);
 }
 
-static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void sinus_basic_3_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -4014,7 +4014,7 @@ static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
                          cpu_model);
 }
 
-static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void sinus_basic_se_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -4031,7 +4031,7 @@ static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
                          cpu_model);
 }
 
-static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void sinus_se_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -4050,7 +4050,7 @@ static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
     ar7.phyaddr = 0;
 }
 
-static void speedport_init(ram_addr_t machine_ram_size, int vga_ram_size,
+static void speedport_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)

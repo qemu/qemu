@@ -50,18 +50,18 @@
 #endif
 
 #if defined (HARD_DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, args...)                     \
+#define PPC_IO_DPRINTF(fmt, ...)                         \
 do {                                                     \
     if (qemu_loglevel_mask(CPU_LOG_IOPORT)) {            \
-        qemu_log("%s: " fmt, __func__ , ##args); \
+        qemu_log("%s: " fmt, __func__ , ## __VA_ARGS__); \
     } else {                                             \
-        printf("%s : " fmt, __func__ , ##args);          \
+        printf("%s : " fmt, __func__ , ## __VA_ARGS__);  \
     }                                                    \
 } while (0)
 #elif defined (DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, args...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
+#define PPC_IO_DPRINTF(fmt, ...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
 #else
-#define PPC_IO_DPRINTF(fmt, args...) do { } while (0)
+#define PPC_IO_DPRINTF(fmt, ...) do { } while (0)
 #endif
 
 /* Constants for devices init */
@@ -530,7 +530,7 @@ static CPUReadMemoryFunc *PPC_prep_io_read[] = {
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
+static void ppc_prep_init (ram_addr_t ram_size,
                            const char *boot_device,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
@@ -656,7 +656,7 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, vga_ram_size, 0, 0);
+    pci_vga_init(pci_bus, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);
     rtc_init(0x70, i8259[8], 2000);

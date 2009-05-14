@@ -18,14 +18,14 @@
 //#define DEBUG_SCSI
 
 #ifdef DEBUG_SCSI
-#define DPRINTF(fmt, args...) \
-do { printf("scsi-disk: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#define BADF(fmt, args...) \
-do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu-common.h"
 #include "block.h"

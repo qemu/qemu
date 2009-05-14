@@ -37,14 +37,14 @@
 //#define DEBUG_FLOPPY
 
 #ifdef DEBUG_FLOPPY
-#define FLOPPY_DPRINTF(fmt, args...) \
-do { printf("FLOPPY: " fmt , ##args); } while (0)
+#define FLOPPY_DPRINTF(fmt, ...)                                \
+    do { printf("FLOPPY: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define FLOPPY_DPRINTF(fmt, args...)
+#define FLOPPY_DPRINTF(fmt, ...)
 #endif
 
-#define FLOPPY_ERROR(fmt, args...) \
-do { printf("FLOPPY ERROR: %s: " fmt, __func__ , ##args); } while (0)
+#define FLOPPY_ERROR(fmt, ...)                                          \
+    do { printf("FLOPPY ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 /********************************************************/
 /* Floppy drive emulation                               */

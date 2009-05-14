@@ -38,14 +38,14 @@
  */
 
 #ifdef DEBUG_ESP
-#define DPRINTF(fmt, args...) \
-do { printf("ESP: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("ESP: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while (0)
+#define DPRINTF(fmt, ...) do {} while (0)
 #endif
 
-#define ESP_ERROR(fmt, args...) \
-do { printf("ESP ERROR: %s: " fmt, __func__ , ##args); } while (0)
+#define ESP_ERROR(fmt, ...)                                             \
+    do { printf("ESP ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 #define ESP_REGS 16
 #define TI_BUFSZ 16

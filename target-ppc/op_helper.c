@@ -2723,7 +2723,7 @@ void helper_vlogefp (ppc_avr_t *r, ppc_avr_t *b)
 #define VSHIFT(suffix, leftp)                                           \
     void helper_vs##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
     {                                                                   \
-        int shift = b->u8[LO_IDX*0x15] & 0x7;                           \
+        int shift = b->u8[LO_IDX*15] & 0x7;                             \
         int doit = 1;                                                   \
         int i;                                                          \
         for (i = 0; i < ARRAY_SIZE(r->u8); i++) {                       \

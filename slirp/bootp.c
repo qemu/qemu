@@ -43,10 +43,10 @@ const char *bootp_filename;
 static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 
 #ifdef DEBUG
-#define dprintf(fmt, args...) \
-if (slirp_debug & DBG_CALL) { fprintf(dfd, fmt, ## args); fflush(dfd); }
+#define dprintf(fmt, ...) \
+if (slirp_debug & DBG_CALL) { fprintf(dfd, fmt, ##  __VA_ARGS__); fflush(dfd); }
 #else
-#define dprintf(fmt, args...)
+#define dprintf(fmt, ...)
 #endif
 
 static BOOTPClient *get_new_addr(struct in_addr *paddr)

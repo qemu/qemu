@@ -47,9 +47,9 @@
 //#define DEBUG
 
 #ifdef DEBUG
-#define	DBG_FLT(a...)	printf(a)
+#define	DBG_FLT(...)	printf(__VA_ARGS__)
 #else
-#define	DBG_FLT(a...)
+#define	DBG_FLT(...)
 #endif
 
 #define flat_reloc_valid(reloc, size)             ((reloc) <= (size))

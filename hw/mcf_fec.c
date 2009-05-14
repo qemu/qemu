@@ -14,10 +14,10 @@
 //#define DEBUG_FEC 1
 
 #ifdef DEBUG_FEC
-#define DPRINTF(fmt, args...) \
-do { printf("mcf_fec: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("mcf_fec: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 #define FEC_MAX_FRAME_SIZE 2032

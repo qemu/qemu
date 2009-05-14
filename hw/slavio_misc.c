@@ -37,10 +37,10 @@
  */
 
 #ifdef DEBUG_MISC
-#define MISC_DPRINTF(fmt, args...) \
-do { printf("MISC: " fmt , ##args); } while (0)
+#define MISC_DPRINTF(fmt, ...)                                  \
+    do { printf("MISC: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define MISC_DPRINTF(fmt, args...)
+#define MISC_DPRINTF(fmt, ...)
 #endif
 
 typedef struct MiscState {

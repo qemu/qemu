@@ -15,10 +15,10 @@
 //#define DEBUG_Serial
 
 #ifdef DEBUG_Serial
-#define DPRINTF(fmt, args...) \
-do { printf("usb-serial: " fmt , ##args); } while (0)
+#define DPRINTF(fmt, ...) \
+do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
 #define RECV_BUF 384
