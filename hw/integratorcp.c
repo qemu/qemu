@@ -458,7 +458,6 @@ static void integratorcp_init(ram_addr_t ram_size,
     ram_addr_t ram_offset;
     qemu_irq *pic;
     qemu_irq *cpu_pic;
-    int sd;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -487,12 +486,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     icp_control_init(0xcb000000);
     sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
     sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
-    sd = drive_get_index(IF_SD, 0, 0);
-    if (sd == -1) {
-        fprintf(stderr, "qemu: missing SecureDigital card\n");
-        exit(1);
-    }
-    pl181_init(0x1c000000, drives_table[sd].bdrv, pic[23], pic[24]);
+    sysbus_create_varargs("pl181", 0x1c000000, pic[23], pic[24], NULL);
     if (nd_table[0].vlan)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
 

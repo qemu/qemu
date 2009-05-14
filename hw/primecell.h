@@ -17,10 +17,6 @@ qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out);
 /* pl080.c */
 void *pl080_init(uint32_t base, qemu_irq irq, int nchannels);
 
-/* pl181.c */
-void pl181_init(uint32_t base, BlockDriverState *bd,
-                qemu_irq irq0, qemu_irq irq1);
-
 /* pl190.c */
 qemu_irq *pl190_init(uint32_t base, qemu_irq irq, qemu_irq fiq);
 

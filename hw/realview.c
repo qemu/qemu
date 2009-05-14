@@ -38,7 +38,6 @@ static void realview_init(ram_addr_t ram_size,
     int done_smc = 0;
     qemu_irq cpu_irq[4];
     int ncpu;
-    int index;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -97,12 +96,7 @@ static void realview_init(ram_addr_t ram_size,
 
     sysbus_create_simple("pl110_versatile", 0x10020000, pic[23]);
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
-        fprintf(stderr, "qemu: missing SecureDigital card\n");
-        exit(1);
-    }
-    pl181_init(0x10005000, drives_table[index].bdrv, pic[17], pic[18]);
+    sysbus_create_varargs("pl181", 0x10005000, pic[17], pic[18], NULL);
 
     sysbus_create_simple("pl031", 0x10017000, pic[10]);
 

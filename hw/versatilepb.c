@@ -167,7 +167,6 @@ static void versatile_init(ram_addr_t ram_size,
     NICInfo *nd;
     int n;
     int done_smc = 0;
-    int index;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -224,17 +223,8 @@ static void versatile_init(ram_addr_t ram_size,
        that includes hardware cursor support from the PL111.  */
     sysbus_create_simple("pl110_versatile", 0x10120000, pic[16]);
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
-        fprintf(stderr, "qemu: missing SecureDigital card\n");
-        exit(1);
-    }
-
-    pl181_init(0x10005000, drives_table[index].bdrv, sic[22], sic[1]);
-#if 0
-    /* Disabled because there's no way of specifying a block device.  */
-    pl181_init(0x1000b000, NULL, sic, 23, 2);
-#endif
+    sysbus_create_varargs("pl181", 0x10005000, sic[22], sic[1], NULL);
+    sysbus_create_varargs("pl181", 0x1000b000, sic[23], sic[2], NULL);
 
     /* Add PL031 Real Time Clock. */
     sysbus_create_simple("pl031", 0x101e8000, pic[10]);
