@@ -33,7 +33,6 @@
 #include "boards.h"
 #include "monitor.h"
 #include "fw_cfg.h"
-#include "virtio-balloon.h"
 #include "virtio-console.h"
 #include "hpet_emul.h"
 #include "watchdog.h"
@@ -1141,8 +1140,9 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     /* Add virtio balloon device */
-    if (pci_enabled)
-        virtio_balloon_init(pci_bus);
+    if (pci_enabled) {
+        pci_create_simple(pci_bus, -1, "virtio-balloon");
+    }
 
     /* Add virtio console devices */
     if (pci_enabled) {

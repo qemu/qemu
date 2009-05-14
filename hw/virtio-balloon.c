@@ -169,17 +169,11 @@ static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *virtio_balloon_init(PCIBus *bus)
+static void virtio_balloon_init(PCIDevice *pci_dev)
 {
     VirtIOBalloon *s;
-    PCIDevice *d;
 
-    d = pci_register_device(bus, "virtio-balloon", sizeof(VirtIOBalloon),
-                            -1, NULL, NULL);
-    if (!d)
-        return NULL;
-
-    s = (VirtIOBalloon *)virtio_init_pci(d, "virtio-balloon",
+    s = (VirtIOBalloon *)virtio_init_pci(pci_dev, "virtio-balloon",
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
                                          PCI_DEVICE_ID_VIRTIO_BALLOON,
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
@@ -197,6 +191,12 @@ void *virtio_balloon_init(PCIBus *bus)
     qemu_add_balloon_handler(virtio_balloon_to_target, s);
 
     register_savevm("virtio-balloon", -1, 1, virtio_balloon_save, virtio_balloon_load, s);
-
-    return &s->vdev;
 }
+
+static void virtio_balloon_register_devices(void)
+{
+    pci_qdev_register("virtio-balloon", sizeof(VirtIOBalloon),
+                      virtio_balloon_init);
+}
+
+device_init(virtio_balloon_register_devices)
