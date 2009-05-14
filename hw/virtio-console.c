@@ -126,14 +126,20 @@ static int virtio_console_load(QEMUFile *f, void *opaque, int version_id)
 void *virtio_console_init(PCIBus *bus, CharDriverState *chr)
 {
     VirtIOConsole *s;
+    PCIDevice *d;
 
-    s = (VirtIOConsole *)virtio_init_pci(bus, "virtio-console",
+    d = pci_register_device(bus, "virtio-console", sizeof(VirtIOConsole),
+                            -1, NULL, NULL);
+    if (!d)
+        return NULL;
+
+    s = (VirtIOConsole *)virtio_init_pci(d, "virtio-console",
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
                                          PCI_DEVICE_ID_VIRTIO_CONSOLE,
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
                                          VIRTIO_ID_CONSOLE,
                                          PCI_CLASS_DISPLAY_OTHER, 0x00,
-                                         0, sizeof(VirtIOConsole));
+                                         0);
     if (s == NULL)
         return NULL;
 

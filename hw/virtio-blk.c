@@ -353,16 +353,20 @@ void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs)
     VirtIOBlock *s;
     int cylinders, heads, secs;
     static int virtio_blk_id;
+    PCIDevice *d;
 
-    s = (VirtIOBlock *)virtio_init_pci(bus, "virtio-blk",
+    d = pci_register_device(bus, "virtio-blk", sizeof(VirtIOBlock),
+                            -1, NULL, NULL);
+    if (!d)
+        return NULL;
+
+    s = (VirtIOBlock *)virtio_init_pci(d, "virtio-blk",
                                        PCI_VENDOR_ID_REDHAT_QUMRANET,
                                        PCI_DEVICE_ID_VIRTIO_BLOCK,
                                        PCI_VENDOR_ID_REDHAT_QUMRANET,
                                        VIRTIO_ID_BLOCK,
                                        PCI_CLASS_STORAGE_OTHER, 0x00,
-                                       sizeof(struct virtio_blk_config), sizeof(VirtIOBlock));
-    if (!s)
-        return NULL;
+                                       sizeof(struct virtio_blk_config));
 
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.get_features = virtio_blk_get_features;

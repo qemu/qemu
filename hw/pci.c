@@ -25,7 +25,6 @@
 #include "pci.h"
 #include "monitor.h"
 #include "net.h"
-#include "virtio-net.h"
 #include "sysemu.h"
 
 //#define DEBUG_PCI

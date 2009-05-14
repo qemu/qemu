@@ -757,21 +757,15 @@ void virtio_cleanup(VirtIODevice *vdev)
     qemu_free(vdev->vq);
 }
 
-VirtIODevice *virtio_init_pci(PCIBus *bus, const char *name,
+VirtIODevice *virtio_init_pci(PCIDevice *pci_dev, const char *name,
                               uint16_t vendor, uint16_t device,
                               uint16_t subvendor, uint16_t subdevice,
                               uint16_t class_code, uint8_t pif,
-                              size_t config_size, size_t struct_size)
+                              size_t config_size)
 {
     VirtIODevice *vdev;
-    PCIDevice *pci_dev;
     uint8_t *config;
     uint32_t size;
-
-    pci_dev = pci_register_device(bus, name, struct_size,
-                                  -1, NULL, NULL);
-    if (!pci_dev)
-        return NULL;
 
     vdev = to_virtio_device(pci_dev);
 
