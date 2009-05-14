@@ -182,6 +182,7 @@ typedef struct PCMCIACardState PCMCIACardState;
 typedef struct MouseTransformInfo MouseTransformInfo;
 typedef struct uWireSlave uWireSlave;
 typedef struct I2SCodec I2SCodec;
+typedef struct DeviceState DeviceState;
 
 /* CPU save/load.  */
 void cpu_save(QEMUFile *f, void *opaque);
