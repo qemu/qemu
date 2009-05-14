@@ -1356,8 +1356,17 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
             pl022_init(0x40008000, pic[7], NULL, NULL);
         }
     }
-    if (board->dc4 & (1 << 28))
-        stellaris_enet_init(&nd_table[0], 0x40048000, pic[42]);
+    if (board->dc4 & (1 << 28)) {
+        DeviceState *enet;
+
+        qemu_check_nic_model(&nd_table[0], "stellaris");
+
+        enet = qdev_create(NULL, "stellaris_enet");
+        qdev_set_netdev(enet, &nd_table[0]);
+        qdev_init(enet);
+        sysbus_mmio_map(sysbus_from_qdev(enet), 0, 0x40048000);
+        sysbus_connect_irq(sysbus_from_qdev(enet), 0, pic[42]);
+    }
     if (board->peripherals & BP_GAMEPAD) {
         qemu_irq gpad_irq[5];
         static const int gpad_keycode[5] = { 0xc8, 0xd0, 0xcb, 0xcd, 0x1d };

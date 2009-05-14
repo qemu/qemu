@@ -41,7 +41,4 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info);
 extern int system_clock_scale;
 qemu_irq *armv7m_nvic_init(CPUState *env);
 
-/* stellaris_enent.c */
-void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq);
-
 #endif /* !ARM_MISC_H */
