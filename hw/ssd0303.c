@@ -10,7 +10,6 @@
 /* The controller can support a variety of different displays, but we only
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
-#include "hw.h"
 #include "i2c.h"
 #include "console.h"
 
@@ -305,17 +304,27 @@ static int ssd0303_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void ssd0303_init(i2c_bus *bus, int address)
+static void ssd0303_init(i2c_slave *i2c)
 {
-    ssd0303_state *s;
+    ssd0303_state *s = FROM_I2C_SLAVE(ssd0303_state, i2c);
 
-    s = (ssd0303_state *)i2c_slave_init(bus, address, sizeof(ssd0303_state));
-    s->i2c.event = ssd0303_event;
-    s->i2c.recv = ssd0303_recv;
-    s->i2c.send = ssd0303_send;
     s->ds = graphic_console_init(ssd0303_update_display,
                                  ssd0303_invalidate_display,
                                  NULL, NULL, s);
     qemu_console_resize(s->ds, 96 * MAGNIFY, 16 * MAGNIFY);
     register_savevm("ssd0303_oled", -1, 1, ssd0303_save, ssd0303_load, s);
 }
+
+static I2CSlaveInfo ssd0303_info = {
+    .init = ssd0303_init,
+    .event = ssd0303_event,
+    .recv = ssd0303_recv,
+    .send = ssd0303_send
+};
+
+static void ssd0303_register_devices(void)
+{
+    i2c_register_slave("ssd0303", sizeof(ssd0303_state), &ssd0303_info);
+}
+
+device_init(ssd0303_register_devices)

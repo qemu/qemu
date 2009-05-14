@@ -1324,7 +1324,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         i2c = i2c_init_bus();
         stellaris_i2c_init(0x40020000, pic[8], i2c);
         if (board->peripherals & BP_OLED_I2C) {
-            ssd0303_init(i2c, 0x3d);
+            i2c_create_slave(i2c, "ssd0303", 0x3d);
         }
     }
 
