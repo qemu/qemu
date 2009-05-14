@@ -7,7 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
@@ -1330,8 +1330,8 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (1 << i)) {
-            pl011_init(0x4000c000 + i * 0x1000, pic[uart_irq[i]],
-                       serial_hds[i], PL011_LUMINARY);
+            sysbus_create_simple("pl011_luminary", 0x4000c000 + i * 0x1000,
+                                 pic[uart_irq[i]]);
         }
     }
     if (board->dc2 & (1 << 4)) {

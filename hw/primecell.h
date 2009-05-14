@@ -8,15 +8,6 @@
 /* pl031.c */
 void pl031_init(uint32_t base, qemu_irq irq);
 
-/* pl011.c */
-enum pl011_type {
-    PL011_ARM,
-    PL011_LUMINARY
-};
-
-void pl011_init(uint32_t base, qemu_irq irq, CharDriverState *chr,
-                enum pl011_type type);
-
 /* pl022.c */
 typedef int (*ssi_xfer_cb)(void *, int);
 void pl022_init(uint32_t base, qemu_irq irq, ssi_xfer_cb xfer_cb,

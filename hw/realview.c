@@ -85,10 +85,10 @@ static void realview_init(ram_addr_t ram_size,
     pl050_init(0x10006000, pic[20], 0);
     pl050_init(0x10007000, pic[21], 1);
 
-    pl011_init(0x10009000, pic[12], serial_hds[0], PL011_ARM);
-    pl011_init(0x1000a000, pic[13], serial_hds[1], PL011_ARM);
-    pl011_init(0x1000b000, pic[14], serial_hds[2], PL011_ARM);
-    pl011_init(0x1000c000, pic[15], serial_hds[3], PL011_ARM);
+    sysbus_create_simple("pl011", 0x10009000, pic[12]);
+    sysbus_create_simple("pl011", 0x1000a000, pic[13]);
+    sysbus_create_simple("pl011", 0x1000b000, pic[14]);
+    sysbus_create_simple("pl011", 0x1000c000, pic[15]);
 
     /* DMA controller is optional, apparently.  */
     pl080_init(0x10030000, pic[24], 2);
