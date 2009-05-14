@@ -33,7 +33,6 @@
 #include "boards.h"
 #include "monitor.h"
 #include "fw_cfg.h"
-#include "virtio-blk.h"
 #include "virtio-balloon.h"
 #include "virtio-console.h"
 #include "hpet_emul.h"
@@ -1136,7 +1135,7 @@ static void pc_init1(ram_addr_t ram_size,
         int unit_id = 0;
 
         while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            virtio_blk_init(pci_bus, drives_table[index].bdrv);
+            pci_create_simple(pci_bus, -1, "virtio-blk");
             unit_id++;
         }
     }

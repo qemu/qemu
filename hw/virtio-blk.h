@@ -82,6 +82,4 @@ struct virtio_scsi_inhdr
     uint32_t residual;
 };
 
-void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs);
-
 #endif

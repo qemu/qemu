@@ -348,19 +348,14 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs)
+static void virtio_blk_init(PCIDevice *pci_dev)
 {
     VirtIOBlock *s;
     int cylinders, heads, secs;
     static int virtio_blk_id;
-    PCIDevice *d;
+    BlockDriverState *bs;
 
-    d = pci_register_device(bus, "virtio-blk", sizeof(VirtIOBlock),
-                            -1, NULL, NULL);
-    if (!d)
-        return NULL;
-
-    s = (VirtIOBlock *)virtio_init_pci(d, "virtio-blk",
+    s = (VirtIOBlock *)virtio_init_pci(pci_dev, "virtio-blk",
                                        PCI_VENDOR_ID_REDHAT_QUMRANET,
                                        PCI_DEVICE_ID_VIRTIO_BLOCK,
                                        PCI_VENDOR_ID_REDHAT_QUMRANET,
@@ -368,6 +363,7 @@ void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs)
                                        PCI_CLASS_STORAGE_OTHER, 0x00,
                                        sizeof(struct virtio_blk_config));
 
+    bs = qdev_init_bdrv(&pci_dev->qdev, IF_VIRTIO);
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
@@ -382,6 +378,11 @@ void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs)
     qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
     register_savevm("virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
-
-    return s;
 }
+
+static void virtio_blk_register_devices(void)
+{
+    pci_qdev_register("virtio-blk", sizeof(VirtIOBlock), virtio_blk_init);
+}
+
+device_init(virtio_blk_register_devices)
