@@ -7,7 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "arm-misc.h"
 #include "sysemu.h"
 
@@ -140,11 +140,15 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
                       const char *kernel_filename, const char *cpu_model)
 {
     CPUState *env;
-    qemu_irq *pic;
+    DeviceState *nvic;
+    /* FIXME: make this local state.  */
+    static qemu_irq pic[64];
+    qemu_irq *cpu_pic;
     uint32_t pc;
     int image_size;
     uint64_t entry;
     uint64_t lowaddr;
+    int i;
 
     flash_size *= 1024;
     sram_size *= 1024;
@@ -176,7 +180,14 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
                                  qemu_ram_alloc(sram_size) | IO_MEM_RAM);
     armv7m_bitband_init();
 
-    pic = armv7m_nvic_init(env);
+    nvic = qdev_create(NULL, "armv7m_nvic");
+    qdev_set_prop_ptr(nvic, "cpu", env);
+    qdev_init(nvic);
+    cpu_pic = arm_pic_init_cpu(env);
+    sysbus_connect_irq(sysbus_from_qdev(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
+    for (i = 0; i < 64; i++) {
+        pic[i] = qdev_get_irq_sink(nvic, i);
+    }
 
     image_size = load_elf(kernel_filename, 0, &entry, &lowaddr, NULL);
     if (image_size < 0) {

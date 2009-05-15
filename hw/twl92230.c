@@ -30,7 +30,6 @@
 
 typedef struct {
     i2c_slave i2c;
-    qemu_irq irq;
 
     int firstbyte;
     uint8_t reg;
@@ -62,7 +61,7 @@ typedef struct {
         int alm_sec;
         int next_comp;
     } rtc;
-    qemu_irq handler[3];
+    qemu_irq out[4];
     qemu_irq *in;
     int pwrbtn_state;
     qemu_irq pwrbtn;
@@ -70,7 +69,7 @@ typedef struct {
 
 static inline void menelaus_update(MenelausState *s)
 {
-    qemu_set_irq(s->irq, s->status & ~s->mask);
+    qemu_set_irq(s->out[3], s->status & ~s->mask);
 }
 
 static inline void menelaus_rtc_start(MenelausState *s)
@@ -540,18 +539,20 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
         break;
 
     case MENELAUS_GPIO_CTRL:
-        for (line = 0; line < 3; line ++)
-            if (((s->dir ^ value) >> line) & 1)
-                if (s->handler[line])
-                    qemu_set_irq(s->handler[line],
-                                    ((s->outputs & ~s->dir) >> line) & 1);
+        for (line = 0; line < 3; line ++) {
+            if (((s->dir ^ value) >> line) & 1) {
+                qemu_set_irq(s->out[line],
+                             ((s->outputs & ~s->dir) >> line) & 1);
+            }
+        }
         s->dir = value & 0x67;
         break;
     case MENELAUS_GPIO_OUT:
-        for (line = 0; line < 3; line ++)
-            if ((((s->outputs ^ value) & ~s->dir) >> line) & 1)
-                if (s->handler[line])
-                    qemu_set_irq(s->handler[line], (s->outputs >> line) & 1);
+        for (line = 0; line < 3; line ++) {
+            if ((((s->outputs ^ value) & ~s->dir) >> line) & 1) {
+                qemu_set_irq(s->out[line], (s->outputs >> line) & 1);
+            }
+        }
         s->outputs = value & 0x07;
         break;
 
@@ -875,41 +876,31 @@ static int menelaus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq)
+static void twl92230_init(i2c_slave *i2c)
 {
-    MenelausState *s = (MenelausState *)
-            i2c_slave_init(bus, 0, sizeof(MenelausState));
+    MenelausState *s = FROM_I2C_SLAVE(MenelausState, i2c);
 
-    s->i2c.event = menelaus_event;
-    s->i2c.recv = menelaus_rx;
-    s->i2c.send = menelaus_tx;
-
-    s->irq = irq;
     s->rtc.hz_tm = qemu_new_timer(rt_clock, menelaus_rtc_hz, s);
-    s->in = qemu_allocate_irqs(menelaus_gpio_set, s, 3);
+    /* Three output pins plus one interrupt pin.  */
+    qdev_init_gpio_out(&i2c->qdev, s->out, 4);
+    qdev_init_gpio_in(&i2c->qdev, menelaus_gpio_set, 3);
     s->pwrbtn = qemu_allocate_irqs(menelaus_pwrbtn_set, s, 1)[0];
 
     menelaus_reset(&s->i2c);
 
     register_savevm("menelaus", -1, 0, menelaus_save, menelaus_load, s);
-
-    return &s->i2c;
 }
 
-qemu_irq *twl92230_gpio_in_get(i2c_slave *i2c)
+static I2CSlaveInfo twl92230_info = {
+    .init = twl92230_init,
+    .event = menelaus_event,
+    .recv = menelaus_rx,
+    .send = menelaus_tx
+};
+
+static void twl92230_register_devices(void)
 {
-    MenelausState *s = (MenelausState *) i2c;
-
-    return s->in;
+    i2c_register_slave("twl92230", sizeof(MenelausState), &twl92230_info);
 }
 
-void twl92230_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
-{
-    MenelausState *s = (MenelausState *) i2c;
-
-    if (line >= 3 || line < 0) {
-        fprintf(stderr, "%s: No GPO line %i\n", __FUNCTION__, line);
-        exit(-1);
-    }
-    s->handler[line] = handler;
-}
+device_init(twl92230_register_devices)

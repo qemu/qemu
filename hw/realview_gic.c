@@ -7,8 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 
 #define GIC_NIRQ 96
 #define NCPU 1
@@ -21,6 +20,11 @@ gic_get_current_cpu(void)
 }
 
 #include "arm_gic.c"
+
+typedef struct {
+    gic_state gic;
+    int iomemtype;
+} RealViewGICState;
 
 static uint32_t realview_gic_cpu_read(void *opaque, target_phys_addr_t offset)
 {
@@ -47,16 +51,27 @@ static CPUWriteMemoryFunc *realview_gic_cpu_writefn[] = {
    realview_gic_cpu_write
 };
 
-qemu_irq *realview_gic_init(uint32_t base, qemu_irq parent_irq)
+static void realview_gic_map(SysBusDevice *dev, target_phys_addr_t base)
 {
-    gic_state *s;
-    int iomemtype;
-
-    s = gic_init(base + 0x1000, &parent_irq);
-    if (!s)
-        return NULL;
-    iomemtype = cpu_register_io_memory(0, realview_gic_cpu_readfn,
-                                       realview_gic_cpu_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    return s->in;
+    RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
+    cpu_register_physical_memory(base, 0x1000, s->iomemtype);
+    cpu_register_physical_memory(base + 0x1000, 0x1000, s->gic.iomemtype);
 }
+
+static void realview_gic_init(SysBusDevice *dev)
+{
+    RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
+
+    gic_init(&s->gic);
+    s->iomemtype = cpu_register_io_memory(0, realview_gic_cpu_readfn,
+                                          realview_gic_cpu_writefn, s);
+    sysbus_init_mmio_cb(dev, 0x2000, realview_gic_map);
+}
+
+static void realview_gic_register_devices(void)
+{
+    sysbus_register_dev("realview_gic", sizeof(RealViewGICState),
+                        realview_gic_init);
+}
+
+device_init(realview_gic_register_devices)

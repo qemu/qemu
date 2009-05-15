@@ -7,14 +7,14 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
+#include "ssi.h"
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
 #include "qemu-timer.h"
 #include "i2c.h"
 #include "net.h"
-#include "sd.h"
 #include "sysemu.h"
 #include "boards.h"
 
@@ -680,6 +680,7 @@ static void stellaris_sys_init(uint32_t base, qemu_irq irq,
 /* I2C controller.  */
 
 typedef struct {
+    SysBusDevice busdev;
     i2c_bus *bus;
     qemu_irq irq;
     uint32_t msa;
@@ -870,18 +871,19 @@ static int stellaris_i2c_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_i2c_init(uint32_t base, qemu_irq irq, i2c_bus *bus)
+static void stellaris_i2c_init(SysBusDevice * dev)
 {
-    stellaris_i2c_state *s;
+    stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
+    i2c_bus *bus = i2c_init_bus();
     int iomemtype;
 
-    s = (stellaris_i2c_state *)qemu_mallocz(sizeof(stellaris_i2c_state));
-    s->irq = irq;
+    sysbus_init_irq(dev, &s->irq);
+    qdev_attach_child_bus(&dev->qdev, "i2c", bus);
     s->bus = bus;
 
     iomemtype = cpu_register_io_memory(0, stellaris_i2c_readfn,
                                        stellaris_i2c_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
     register_savevm("stellaris_i2c", -1, 1,
@@ -1194,10 +1196,10 @@ static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
    0xff commands that occur when deselecting the SD card.  */
 
 typedef struct {
-    ssi_xfer_cb xfer_cb[2];
-    void *opaque[2];
+    SSISlave ssidev;
     qemu_irq irq;
     int current_dev;
+    SSIBus *bus[2];
 } stellaris_ssi_bus_state;
 
 static void stellaris_ssi_bus_select(void *opaque, int irq, int level)
@@ -1207,11 +1209,11 @@ static void stellaris_ssi_bus_select(void *opaque, int irq, int level)
     s->current_dev = level;
 }
 
-static int stellaris_ssi_bus_xfer(void *opaque, int val)
+static uint32_t stellaris_ssi_bus_transfer(SSISlave *dev, uint32_t val)
 {
-    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
+    stellaris_ssi_bus_state *s = FROM_SSI_SLAVE(stellaris_ssi_bus_state, dev);
 
-    return s->xfer_cb[s->current_dev](s->opaque[s->current_dev], val);
+    return ssi_transfer(s->bus[s->current_dev], val);
 }
 
 static void stellaris_ssi_bus_save(QEMUFile *f, void *opaque)
@@ -1233,23 +1235,18 @@ static int stellaris_ssi_bus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void *stellaris_ssi_bus_init(qemu_irq *irqp,
-                                    ssi_xfer_cb cb0, void *opaque0,
-                                    ssi_xfer_cb cb1, void *opaque1)
+static void stellaris_ssi_bus_init(SSISlave *dev)
 {
-    qemu_irq *qi;
-    stellaris_ssi_bus_state *s;
+    stellaris_ssi_bus_state *s = FROM_SSI_SLAVE(stellaris_ssi_bus_state, dev);
 
-    s = (stellaris_ssi_bus_state *)qemu_mallocz(sizeof(stellaris_ssi_bus_state));
-    s->xfer_cb[0] = cb0;
-    s->opaque[0] = opaque0;
-    s->xfer_cb[1] = cb1;
-    s->opaque[1] = opaque1;
-    qi = qemu_allocate_irqs(stellaris_ssi_bus_select, s, 1);
-    *irqp = *qi;
+    s->bus[0] = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi0", s->bus[0]);
+    s->bus[1] = ssi_create_bus();
+    qdev_attach_child_bus(&dev->qdev, "ssi1", s->bus[1]);
+    qdev_init_gpio_in(&dev->qdev, stellaris_ssi_bus_select, 1);
+
     register_savevm("stellaris_ssi_bus", -1, 1,
                     stellaris_ssi_bus_save, stellaris_ssi_bus_load, s);
-    return s;
 }
 
 /* Board init.  */
@@ -1321,43 +1318,53 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
 
     if (board->dc2 & (1 << 12)) {
-        i2c = i2c_init_bus();
-        stellaris_i2c_init(0x40020000, pic[8], i2c);
+        DeviceState *dev;
+        dev = sysbus_create_simple("stellaris-i2c", 0x40020000, pic[8]);
+        i2c = qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
-            ssd0303_init(i2c, 0x3d);
+            i2c_create_slave(i2c, "ssd0303", 0x3d);
         }
     }
 
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (1 << i)) {
-            pl011_init(0x4000c000 + i * 0x1000, pic[uart_irq[i]],
-                       serial_hds[i], PL011_LUMINARY);
+            sysbus_create_simple("pl011_luminary", 0x4000c000 + i * 0x1000,
+                                 pic[uart_irq[i]]);
         }
     }
     if (board->dc2 & (1 << 4)) {
+        DeviceState *dev;
+        dev = sysbus_create_simple("pl022", 0x40008000, pic[7]);
         if (board->peripherals & BP_OLED_SSI) {
-            void * oled;
-            void * sd;
-            void *ssi_bus;
-            int index;
+            DeviceState *mux;
+            void *bus;
 
-            oled = ssd0323_init(&gpio_out[GPIO_C][7]);
-            index = drive_get_index(IF_SD, 0, 0);
-            sd = ssi_sd_init(drives_table[index].bdrv);
+            bus = qdev_get_child_bus(dev, "ssi");
+            mux = ssi_create_slave(bus, "evb6965-ssi");
+            gpio_out[GPIO_D][0] = qdev_get_gpio_in(mux, 0);
 
-            ssi_bus = stellaris_ssi_bus_init(&gpio_out[GPIO_D][0],
-                                             ssi_sd_xfer, sd,
-                                             ssd0323_xfer_ssi, oled);
+            bus = qdev_get_child_bus(mux, "ssi0");
+            dev = ssi_create_slave(bus, "ssi-sd");
 
-            pl022_init(0x40008000, pic[7], stellaris_ssi_bus_xfer, ssi_bus);
+            bus = qdev_get_child_bus(mux, "ssi1");
+            dev = ssi_create_slave(bus, "ssd0323");
+            gpio_out[GPIO_C][7] = qdev_get_gpio_in(dev, 0);
+
             /* Make sure the select pin is high.  */
             qemu_irq_raise(gpio_out[GPIO_D][0]);
-        } else {
-            pl022_init(0x40008000, pic[7], NULL, NULL);
         }
     }
-    if (board->dc4 & (1 << 28))
-        stellaris_enet_init(&nd_table[0], 0x40048000, pic[42]);
+    if (board->dc4 & (1 << 28)) {
+        DeviceState *enet;
+
+        qemu_check_nic_model(&nd_table[0], "stellaris");
+
+        enet = qdev_create(NULL, "stellaris_enet");
+        qdev_set_netdev(enet, &nd_table[0]);
+        qdev_init(enet);
+        sysbus_mmio_map(sysbus_from_qdev(enet), 0, 0x40048000);
+        sysbus_connect_irq(sysbus_from_qdev(enet), 0, pic[42]);
+    }
     if (board->peripherals & BP_GAMEPAD) {
         qemu_irq gpad_irq[5];
         static const int gpad_keycode[5] = { 0xc8, 0xd0, 0xcb, 0xcd, 0x1d };
@@ -1400,3 +1407,18 @@ QEMUMachine lm3s6965evb_machine = {
     .desc = "Stellaris LM3S6965EVB",
     .init = lm3s6965evb_init,
 };
+
+static SSISlaveInfo stellaris_ssi_bus_info = {
+    .init = stellaris_ssi_bus_init,
+    .transfer = stellaris_ssi_bus_transfer
+};
+
+static void stellaris_register_devices(void)
+{
+    sysbus_register_dev("stellaris-i2c", sizeof(stellaris_i2c_state),
+                        stellaris_i2c_init);
+    ssi_register_slave("evb6965-ssi", sizeof(stellaris_ssi_bus_state),
+                       &stellaris_ssi_bus_info);
+}
+
+device_init(stellaris_register_devices)

@@ -10,8 +10,7 @@
 /* The controller can support a variety of different displays, but we only
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
-#include "hw.h"
-#include "devices.h"
+#include "ssi.h"
 #include "console.h"
 
 //#define DEBUG_SSD0323 1
@@ -43,6 +42,7 @@ enum ssd0323_mode
 };
 
 typedef struct {
+    SSISlave ssidev;
     DisplayState *ds;
 
     int cmd_len;
@@ -60,9 +60,10 @@ typedef struct {
     uint8_t framebuffer[128 * 80 / 2];
 } ssd0323_state;
 
-int ssd0323_xfer_ssi(void *opaque, int data)
+static uint32_t ssd0323_transfer(SSISlave *dev, uint32_t data)
 {
-    ssd0323_state *s = (ssd0323_state *)opaque;
+    ssd0323_state *s = FROM_SSI_SLAVE(ssd0323_state, dev);
+
     switch (s->mode) {
     case SSD0323_DATA:
         DPRINTF("data 0x%02x\n", data);
@@ -321,12 +322,10 @@ static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *ssd0323_init(qemu_irq *cmd_p)
+static void ssd0323_init(SSISlave *dev)
 {
-    ssd0323_state *s;
-    qemu_irq *cmd;
+    ssd0323_state *s = FROM_SSI_SLAVE(ssd0323_state, dev);
 
-    s = (ssd0323_state *)qemu_mallocz(sizeof(ssd0323_state));
     s->col_end = 63;
     s->row_end = 79;
     s->ds = graphic_console_init(ssd0323_update_display,
@@ -334,10 +333,19 @@ void *ssd0323_init(qemu_irq *cmd_p)
                                  NULL, NULL, s);
     qemu_console_resize(s->ds, 128 * MAGNIFY, 64 * MAGNIFY);
 
-    cmd = qemu_allocate_irqs(ssd0323_cd, s, 1);
-    *cmd_p = *cmd;
+    qdev_init_gpio_in(&dev->qdev, ssd0323_cd, 1);
 
     register_savevm("ssd0323_oled", -1, 1, ssd0323_save, ssd0323_load, s);
-
-    return s;
 }
+
+static SSISlaveInfo ssd0323_info = {
+    .init = ssd0323_init,
+    .transfer = ssd0323_transfer
+};
+
+static void ssd03232_register_devices(void)
+{
+    ssi_register_slave("ssd0323", sizeof(ssd0323_state), &ssd0323_info);
+}
+
+device_init(ssd03232_register_devices)

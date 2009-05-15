@@ -317,46 +317,46 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 }
 
 
-PCIDevice *pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn)
+static void pci_Atheros_WLAN_init(PCIDevice *pci_dev)
 {
-	PCIAtheros_WLANState *d;
-	Atheros_WLANState *s;
+    PCIAtheros_WLANState *d = (PCIAtheros_WLANState *)pci_dev;
+    Atheros_WLANState *s = &d->Atheros_WLAN;
 
-	/*
-	 * currently, we have to use this mac-address.
-	 * it is hardcoded in the eeprom/io-stuff
-	 */
-	nd->macaddr[0] = 0x00;
-	nd->macaddr[1] = 0x11;
-	nd->macaddr[2] = 0x0a;
-	nd->macaddr[3] = 0x80;
-	nd->macaddr[4] = 0x2e;
-	nd->macaddr[5] = 0x9e;
+#if 0
+    /*
+     * currently, we have to use this mac-address.
+     * it is hardcoded in the eeprom/io-stuff
+     */
+    nd->macaddr[0] = 0x00;
+    nd->macaddr[1] = 0x11;
+    nd->macaddr[2] = 0x0a;
+    nd->macaddr[3] = 0x80;
+    nd->macaddr[4] = 0x2e;
+    nd->macaddr[5] = 0x9e;
+#endif
 
-	d = (PCIAtheros_WLANState *)pci_register_device(bus, "Atheros_WLAN", sizeof(PCIAtheros_WLANState), devfn,  NULL, NULL);
+    // s->irq = 9; /* PCI interrupt */
+    s->irq = d->dev.irq[0];
+    s->pci_dev = (PCIDevice *)d;
+    s->pending_interrupts = NULL;
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
-    if (d == NULL) {
-        return NULL;
-    }
+#define nd 0 // TODO: hack to allow compilation, fix it
+    Atheros_WLAN_setup_type(nd, d);
+    Atheros_WLAN_setup_io(d);
+    Atheros_WLAN_setup_ap(nd, d);
 
-	s = &d->Atheros_WLAN;
+    /* TODO: we don't support multiple instance yet!! */
+    register_savevm("Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
 
-	// s->irq = 9; /* PCI interrupt */
-	s->irq = d->dev.irq[0];
-	s->pci_dev = (PCIDevice *)d;
-	s->pending_interrupts = NULL;
-	memcpy(s->macaddr, nd->macaddr, 6);
-
-	Atheros_WLAN_setup_type(nd, d);
-	Atheros_WLAN_setup_io(d);
-	Atheros_WLAN_setup_ap(nd, d);
-
-	/* TODO: we don't support multiple instance yet!! */
-	register_savevm("Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
-
-	Atheros_WLAN_reset(nd, s);
-
-    return (PCIDevice *)d;
+    Atheros_WLAN_reset(nd, s);
 }
+
+static void Atheros_WLAN_register_devices(void)
+{
+    pci_qdev_register("Atheros_WLAN", sizeof(PCIAtheros_WLANState), pci_Atheros_WLAN_init);
+}
+
+device_init(Atheros_WLAN_register_devices)
 
 #endif /* CONFIG_WIN32 */

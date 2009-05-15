@@ -7,7 +7,7 @@
  * This code is licenced under the GPL
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "primecell.h"
 #include "devices.h"
 #include "sysemu.h"
@@ -16,6 +16,7 @@
 #include "net.h"
 
 typedef struct {
+    SysBusDevice busdev;
     uint32_t flash_offset;
     uint32_t cm_osc;
     uint32_t cm_ctrl;
@@ -225,12 +226,13 @@ static CPUWriteMemoryFunc *integratorcm_writefn[] = {
    integratorcm_write
 };
 
-static void integratorcm_init(int memsz)
+static void integratorcm_init(SysBusDevice *dev)
 {
     int iomemtype;
-    integratorcm_state *s;
+    integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
+    int memsz;
 
-    s = (integratorcm_state *)qemu_mallocz(sizeof(integratorcm_state));
+    memsz = qdev_get_prop_int(&dev->qdev, "memsz", 0);
     s->cm_osc = 0x01000048;
     /* ??? What should the high bits of this value be?  */
     s->cm_auxosc = 0x0007feff;
@@ -256,7 +258,7 @@ static void integratorcm_init(int memsz)
 
     iomemtype = cpu_register_io_memory(0, integratorcm_readfn,
                                        integratorcm_writefn, s);
-    cpu_register_physical_memory(0x10000000, 0x00800000, iomemtype);
+    sysbus_init_mmio(dev, 0x00800000, iomemtype);
     integratorcm_do_remap(s, 1);
     /* ??? Save/restore.  */
 }
@@ -266,6 +268,7 @@ static void integratorcm_init(int memsz)
 
 typedef struct icp_pic_state
 {
+  SysBusDevice busdev;
   uint32_t level;
   uint32_t irq_enabled;
   uint32_t fiq_enabled;
@@ -370,22 +373,17 @@ static CPUWriteMemoryFunc *icp_pic_writefn[] = {
    icp_pic_write
 };
 
-static qemu_irq *icp_pic_init(uint32_t base,
-                              qemu_irq parent_irq, qemu_irq parent_fiq)
+static void icp_pic_init(SysBusDevice *dev)
 {
-    icp_pic_state *s;
+    icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
     int iomemtype;
-    qemu_irq *qi;
 
-    s = (icp_pic_state *)qemu_mallocz(sizeof(icp_pic_state));
-    qi = qemu_allocate_irqs(icp_pic_set_irq, s, 32);
-    s->parent_irq = parent_irq;
-    s->parent_fiq = parent_fiq;
+    qdev_init_irq_sink(&dev->qdev, icp_pic_set_irq, 32);
+    sysbus_init_irq(dev, &s->parent_irq);
+    sysbus_init_irq(dev, &s->parent_fiq);
     iomemtype = cpu_register_io_memory(0, icp_pic_readfn,
                                        icp_pic_writefn, s);
-    cpu_register_physical_memory(base, 0x00800000, iomemtype);
-    /* ??? Save/restore.  */
-    return qi;
+    sysbus_init_mmio(dev, 0x00800000, iomemtype);
 }
 
 /* CP control registers.  */
@@ -456,9 +454,10 @@ static void integratorcp_init(ram_addr_t ram_size,
 {
     CPUState *env;
     ram_addr_t ram_offset;
-    qemu_irq *pic;
+    qemu_irq pic[32];
     qemu_irq *cpu_pic;
-    int sd;
+    DeviceState *dev;
+    int i;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -475,27 +474,32 @@ static void integratorcp_init(ram_addr_t ram_size,
     /* And again at address 0x80000000 */
     cpu_register_physical_memory(0x80000000, ram_size, ram_offset | IO_MEM_RAM);
 
-    integratorcm_init(ram_size >> 20);
+    dev = qdev_create(NULL, "integrator_core");
+    qdev_set_prop_int(dev, "memsz", ram_size >> 20);
+    qdev_init(dev);
+    sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
+
     cpu_pic = arm_pic_init_cpu(env);
-    pic = icp_pic_init(0x14000000, cpu_pic[ARM_PIC_CPU_IRQ],
-                       cpu_pic[ARM_PIC_CPU_FIQ]);
-    icp_pic_init(0xca000000, pic[26], NULL);
-    icp_pit_init(0x13000000, pic, 5);
-    pl031_init(0x15000000, pic[8]);
-    pl011_init(0x16000000, pic[1], serial_hds[0], PL011_ARM);
-    pl011_init(0x17000000, pic[2], serial_hds[1], PL011_ARM);
-    icp_control_init(0xcb000000);
-    pl050_init(0x18000000, pic[3], 0);
-    pl050_init(0x19000000, pic[4], 1);
-    sd = drive_get_index(IF_SD, 0, 0);
-    if (sd == -1) {
-        fprintf(stderr, "qemu: missing SecureDigital card\n");
-        exit(1);
+    dev = sysbus_create_varargs("integrator_pic", 0x14000000,
+                                cpu_pic[ARM_PIC_CPU_IRQ],
+                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
+    for (i = 0; i < 32; i++) {
+        pic[i] = qdev_get_irq_sink(dev, i);
     }
-    pl181_init(0x1c000000, drives_table[sd].bdrv, pic[23], pic[24]);
+    sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
+    sysbus_create_varargs("integrator_pit", 0x13000000,
+                          pic[5], pic[6], pic[7], NULL);
+    sysbus_create_simple("pl031", 0x15000000, pic[8]);
+    sysbus_create_simple("pl011", 0x16000000, pic[1]);
+    sysbus_create_simple("pl011", 0x17000000, pic[2]);
+    icp_control_init(0xcb000000);
+    sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
+    sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
+    sysbus_create_varargs("pl181", 0x1c000000, pic[23], pic[24], NULL);
     if (nd_table[0].vlan)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
-    pl110_init(0xc0000000, pic[22], 0);
+
+    sysbus_create_simple("pl110", 0xc0000000, pic[22]);
 
     integrator_binfo.ram_size = ram_size;
     integrator_binfo.kernel_filename = kernel_filename;
@@ -509,3 +513,12 @@ QEMUMachine integratorcp_machine = {
     .desc = "ARM Integrator/CP (ARM926EJ-S)",
     .init = integratorcp_init,
 };
+
+static void integratorcp_register_devices(void)
+{
+    sysbus_register_dev("integrator_pic", sizeof(icp_pic_state), icp_pic_init);
+    sysbus_register_dev("integrator_core", sizeof(integratorcm_state),
+                        integratorcm_init);
+}
+
+device_init(integratorcp_register_devices)

@@ -24,6 +24,7 @@
 #ifndef _WIN32
 #include "qemu-common.h"
 #include "block_int.h"
+#include "module.h"
 #include <sys/mman.h>
 
 /**************************************************************/
@@ -252,7 +253,7 @@ static void cow_flush(BlockDriverState *bs)
     fsync(s->fd);
 }
 
-BlockDriver bdrv_cow = {
+static BlockDriver bdrv_cow = {
     .format_name	= "cow",
     .instance_size	= sizeof(BDRVCowState),
     .bdrv_probe		= cow_probe,
@@ -264,4 +265,11 @@ BlockDriver bdrv_cow = {
     .bdrv_flush		= cow_flush,
     .bdrv_is_allocated	= cow_is_allocated,
 };
+
+static void bdrv_cow_init(void)
+{
+    bdrv_register(&bdrv_cow);
+}
+
+block_init(bdrv_cow_init);
 #endif

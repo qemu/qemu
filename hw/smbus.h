@@ -28,7 +28,16 @@ struct SMBusDevice {
     /* The SMBus protocol is implemented on top of I2C.  */
     i2c_slave i2c;
 
-    /* Callbacks set by the device.  */
+    /* Remaining fields for internal use only.  */
+    int mode;
+    int data_len;
+    uint8_t data_buf[34]; /* command + len + 32 bytes of data.  */
+    uint8_t command;
+};
+
+typedef struct {
+    I2CSlaveInfo i2c;
+    void (*init)(SMBusDevice *dev);
     void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
     void (*send_byte)(SMBusDevice *dev, uint8_t val);
     uint8_t (*receive_byte)(SMBusDevice *dev);
@@ -42,16 +51,9 @@ struct SMBusDevice {
        byte at a time.  The device is responsible for adding the length
        byte on block reads.  */
     uint8_t (*read_data)(SMBusDevice *dev, uint8_t cmd, int n);
+} SMBusDeviceInfo;
 
-    /* Remaining fields for internal use only.  */
-    int mode;
-    int data_len;
-    uint8_t data_buf[34]; /* command + len + 32 bytes of data.  */
-    uint8_t command;
-};
-
-/* Create a slave device.  */
-SMBusDevice *smbus_device_init(i2c_bus *bus, int address, int size);
+void smbus_register_device(const char *name, int size, SMBusDeviceInfo *info);
 
 /* Master device commands.  */
 void smbus_quick_command(i2c_bus *bus, int addr, int read);
@@ -64,6 +66,3 @@ void smbus_write_word(i2c_bus *bus, int addr, uint8_t command, uint16_t data);
 int smbus_read_block(i2c_bus *bus, int addr, uint8_t command, uint8_t *data);
 void smbus_write_block(i2c_bus *bus, int addr, uint8_t command, uint8_t *data,
                        int len);
-
-/* smbus_eeprom.c */
-void smbus_eeprom_device_init(i2c_bus *bus, uint8_t addr, uint8_t *buf);

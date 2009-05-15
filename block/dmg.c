@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "bswap.h"
+#include "module.h"
 #include <zlib.h>
 
 typedef struct BDRVDMGState {
@@ -92,7 +93,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 dmg_close:
 	close(s->fd);
 	/* open raw instead */
-	bs->drv=&bdrv_raw;
+	bs->drv=bdrv_find_format("raw");
 	return bs->drv->bdrv_open(bs, filename, flags);
     }
     info_begin=read_off(s->fd);
@@ -283,7 +284,7 @@ static void dmg_close(BlockDriverState *bs)
     inflateEnd(&s->zstream);
 }
 
-BlockDriver bdrv_dmg = {
+static BlockDriver bdrv_dmg = {
     .format_name	= "dmg",
     .instance_size	= sizeof(BDRVDMGState),
     .bdrv_probe		= dmg_probe,
@@ -291,3 +292,10 @@ BlockDriver bdrv_dmg = {
     .bdrv_read		= dmg_read,
     .bdrv_close		= dmg_close,
 };
+
+static void bdrv_dmg_init(void)
+{
+    bdrv_register(&bdrv_dmg);
+}
+
+block_init(bdrv_dmg_init);

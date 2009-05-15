@@ -1,14 +1,13 @@
 /*
  * Arm PrimeCell PL110 Color LCD Controller
  *
- * Copyright (c) 2005-2006 CodeSourcery.
+ * Copyright (c) 2005-2009 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GNU LGPL
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 #include "console.h"
 #include "framebuffer.h"
 
@@ -29,6 +28,7 @@ enum pl110_bppmode
 };
 
 typedef struct {
+    SysBusDevice busdev;
     DisplayState *ds;
 
     /* The Versatile/PB uses a slightly modified PL110 controller.  */
@@ -349,20 +349,33 @@ static CPUWriteMemoryFunc *pl110_writefn[] = {
    pl110_write
 };
 
-void *pl110_init(uint32_t base, qemu_irq irq, int versatile)
+static void pl110_init(SysBusDevice *dev)
 {
-    pl110_state *s;
+    pl110_state *s = FROM_SYSBUS(pl110_state, dev);
     int iomemtype;
 
-    s = (pl110_state *)qemu_mallocz(sizeof(pl110_state));
     iomemtype = cpu_register_io_memory(0, pl110_readfn,
                                        pl110_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->versatile = versatile;
-    s->irq = irq;
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_irq(dev, &s->irq);
     s->ds = graphic_console_init(pl110_update_display,
                                  pl110_invalidate_display,
                                  NULL, NULL, s);
     /* ??? Save/restore.  */
-    return s;
 }
+
+static void pl110_versatile_init(SysBusDevice *dev)
+{
+    pl110_state *s = FROM_SYSBUS(pl110_state, dev);
+    s->versatile = 1;
+    pl110_init(dev);
+}
+
+static void pl110_register_devices(void)
+{
+    sysbus_register_dev("pl110", sizeof(pl110_state), pl110_init);
+    sysbus_register_dev("pl110_versatile", sizeof(pl110_state),
+                        pl110_versatile_init);
+}
+
+device_init(pl110_register_devices)

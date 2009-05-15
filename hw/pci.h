@@ -3,6 +3,8 @@
 
 #include "qemu-common.h"
 
+#include "qdev.h"
+
 /* PCI includes legacy ISA access.  */
 #include "isa.h"
 
@@ -139,6 +141,7 @@ typedef struct PCIIORegion {
 #define PCI_COMMAND_RESERVED_MASK_HI (PCI_COMMAND_RESERVED >> 8)
 
 struct PCIDevice {
+    DeviceState qdev;
     /* PCI config space */
     uint8_t config[256];
 
@@ -218,10 +221,14 @@ pci_config_set_class(uint8_t *pci_config, uint16_t val)
     cpu_to_le16wu((uint16_t *)&pci_config[PCI_CLASS_DEVICE], val);
 }
 
+typedef void (*pci_qdev_initfn)(PCIDevice *dev);
+void pci_qdev_register(const char *name, int size, pci_qdev_initfn init);
+
+PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
+
 /* lsi53c895a.c */
 #define LSI_MAX_DEVS 7
-void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
-void *lsi_scsi_init(PCIBus *bus, int devfn);
+void lsi_scsi_attach(DeviceState *host, BlockDriverState *bd, int id);
 
 /* vmware_vga.c */
 void pci_vmsvga_init(PCIBus *bus);
@@ -232,35 +239,6 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn);
 
 /* usb-ohci.c */
 void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn);
-
-/* dp83815.c */
-PCIDevice *pci_dp83816_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* e100.c */
-PCIDevice *pci_e100_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* eepro100.c */
-PCIDevice *pci_eepro100_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* ne2000.c */
-
-PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* rtl8139.c */
-
-PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* atheros_wlan.c */
-PCIDevice *pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* e1000.c */
-PCIDevice *pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* pcnet.c */
-PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* tnetw1130.c */
-PCIDevice *pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* prep_pci.c */
 PCIBus *pci_prep_init(qemu_irq *pic);

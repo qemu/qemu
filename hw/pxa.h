@@ -119,11 +119,6 @@ void pxa27x_register_keypad(PXA2xxKeyPadState *kp, struct keymap *map,
                 int size);
 
 /* pxa2xx.c */
-typedef struct PXA2xxSSPState PXA2xxSSPState;
-void pxa2xx_ssp_attach(PXA2xxSSPState *port,
-                uint32_t (*readfn)(void *opaque),
-                void (*writefn)(void *opaque, uint32_t value), void *opaque);
-
 typedef struct PXA2xxI2CState PXA2xxI2CState;
 PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
                 qemu_irq irq, uint32_t page_size);
@@ -139,7 +134,7 @@ typedef struct {
     PXA2xxDMAState *dma;
     PXA2xxGPIOInfo *gpio;
     PXA2xxLCDState *lcd;
-    PXA2xxSSPState **ssp;
+    SSIBus **ssp;
     PXA2xxI2CState *i2c[2];
     PXA2xxMMCIState *mmc;
     PXA2xxPCMCIAState *pcmcia[2];

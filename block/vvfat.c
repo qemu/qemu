@@ -26,6 +26,7 @@
 #include <dirent.h>
 #include "qemu-common.h"
 #include "block_int.h"
+#include "module.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0
@@ -2776,7 +2777,7 @@ static int enable_write_target(BDRVVVFATState *s)
 
     s->qcow_filename = qemu_malloc(1024);
     get_tmp_filename(s->qcow_filename, 1024);
-    if (bdrv_create(&bdrv_qcow,
+    if (bdrv_create(bdrv_find_format("qcow"),
 		s->qcow_filename, s->sector_count, "fat:", 0) < 0)
 	return -1;
     s->qcow = bdrv_new("");
@@ -2806,7 +2807,7 @@ static void vvfat_close(BlockDriverState *bs)
         free(s->cluster_buffer);
 }
 
-BlockDriver bdrv_vvfat = {
+static BlockDriver bdrv_vvfat = {
     .format_name	= "vvfat",
     .instance_size	= sizeof(BDRVVVFATState),
     .bdrv_open		= vvfat_open,
@@ -2816,6 +2817,13 @@ BlockDriver bdrv_vvfat = {
     .bdrv_is_allocated	= vvfat_is_allocated,
     .protocol_name	= "fat",
 };
+
+static void bdrv_vvfat_init(void)
+{
+    bdrv_register(&bdrv_vvfat);
+}
+
+block_init(bdrv_vvfat_init);
 
 #ifdef DEBUG
 static void checkpoint(void) {

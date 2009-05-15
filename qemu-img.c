@@ -542,11 +542,11 @@ static int img_convert(int argc, char **argv)
     drv = bdrv_find_format(out_fmt);
     if (!drv)
         error("Unknown file format '%s'", out_fmt);
-    if (flags & BLOCK_FLAG_COMPRESS && drv != &bdrv_qcow && drv != &bdrv_qcow2)
+    if (flags & BLOCK_FLAG_COMPRESS && strcmp(drv->format_name, "qcow") && strcmp(drv->format_name, "qcow2"))
         error("Compression not supported for this file format");
-    if (flags & BLOCK_FLAG_ENCRYPT && drv != &bdrv_qcow && drv != &bdrv_qcow2)
+    if (flags & BLOCK_FLAG_ENCRYPT && strcmp(drv->format_name, "qcow") && strcmp(drv->format_name, "qcow2"))
         error("Encryption not supported for this file format");
-    if (flags & BLOCK_FLAG_COMPAT6 && drv != &bdrv_vmdk)
+    if (flags & BLOCK_FLAG_COMPAT6 && strcmp(drv->format_name, "vmdk"))
         error("Alternative compatibility level not supported for this file format");
     if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
         error("Compression and encryption not supported at the same time");
@@ -655,7 +655,7 @@ static int img_convert(int argc, char **argv)
             if (n > bs_offset + bs_sectors - sector_num)
                 n = bs_offset + bs_sectors - sector_num;
 
-            if (drv != &bdrv_host_device) {
+            if (strcmp(drv->format_name, "host_device")) {
                 if (!bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
                                        n, &n1)) {
                     sector_num += n1;
@@ -682,7 +682,7 @@ static int img_convert(int argc, char **argv)
                    If the output is to a host device, we also write out
                    sectors that are entirely 0, since whatever data was
                    already there is garbage, not 0s. */
-                if (drv == &bdrv_host_device || out_baseimg ||
+                if (strcmp(drv->format_name, "host_device") == 0 || out_baseimg ||
                     is_allocated_sectors(buf1, n, &n1)) {
                     if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");

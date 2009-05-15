@@ -2464,28 +2464,17 @@ static void eeprom_init(E100State *s)
 
 }
 
-static PCIDevice *e100_init(PCIBus * bus, NICInfo * nd,
-        const char *name, uint32_t device)
+static void e100_init(PCIDevice *pci_dev, uint32_t device)
 {
-    PCIE100State *d;
-    E100State *s;
+    PCIE100State *d = (PCIE100State *)pci_dev;
+    E100State *s = &d->e100;
 
     logout("\n");
 
-    d = (PCIE100State *) pci_register_device(bus, name,
-            sizeof(PCIE100State), -1,
-            NULL, NULL);
-
-    if (d == NULL) {
-        return NULL;
-    }
-
-    s = &d->e100;
     s->device = device;
     s->pci_dev = &d->dev;
 
     pci_reset(s);
-
 
     /* Handler for memory-mapped I/O */
     d->e100.mmio_index =
@@ -2502,14 +2491,14 @@ static PCIDevice *e100_init(PCIBus * bus, NICInfo * nd,
     pci_register_io_region(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
             pci_mmio_map);
 
-    memcpy(s->macaddr, nd->macaddr, 6);
+    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     e100_dump("MAC ADDR", (uint8_t *)&s->macaddr[0], 6);
 
     eeprom_init(s);
 
     e100_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = qdev_get_vlan_client(&d->dev.qdev,
                                  e100_receive, e100_can_receive,
                                  e100_cleanup, s);
 
@@ -2517,13 +2506,17 @@ static PCIDevice *e100_init(PCIBus * bus, NICInfo * nd,
 
     qemu_register_reset(e100_reset, s);
 
-    register_savevm(name, 0, 3, e100_save, e100_load, s);
-
-    return (PCIDevice *)d;
+    register_savevm(s->vc->model, 0, 3, e100_save, e100_load, s);
 }
 
-PCIDevice *pci_e100_init(PCIBus * bus, NICInfo * nd, int devfn)
+static void pci_e100_init(PCIDevice *pci_dev)
 {
-    return e100_init(bus, nd, "e100", i82557C);
+    e100_init(pci_dev, i82557C);
 }
 
+static void e100_register_devices(void)
+{
+    pci_qdev_register("e100", sizeof(PCIE100State), pci_e100_init);
+}
+
+device_init(e100_register_devices)

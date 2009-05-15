@@ -7,7 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
@@ -20,10 +20,11 @@
 
 typedef struct vpb_sic_state
 {
+  SysBusDevice busdev;
   uint32_t level;
   uint32_t mask;
   uint32_t pic_enable;
-  qemu_irq *parent;
+  qemu_irq parent[32];
   int irq;
 } vpb_sic_state;
 
@@ -128,21 +129,21 @@ static CPUWriteMemoryFunc *vpb_sic_writefn[] = {
    vpb_sic_write
 };
 
-static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
+static void vpb_sic_init(SysBusDevice *dev)
 {
-    vpb_sic_state *s;
-    qemu_irq *qi;
+    vpb_sic_state *s = FROM_SYSBUS(vpb_sic_state, dev);
     int iomemtype;
+    int i;
 
-    s = (vpb_sic_state *)qemu_mallocz(sizeof(vpb_sic_state));
-    qi = qemu_allocate_irqs(vpb_sic_set_irq, s, 32);
-    s->parent = parent;
-    s->irq = irq;
+    qdev_init_irq_sink(&dev->qdev, vpb_sic_set_irq, 32);
+    for (i = 0; i < 32; i++) {
+        sysbus_init_irq(dev, &s->parent[i]);
+    }
+    s->irq = 31;
     iomemtype = cpu_register_io_memory(0, vpb_sic_readfn,
                                        vpb_sic_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? Save/restore.  */
-    return qi;
 }
 
 /* Board init.  */
@@ -161,14 +162,14 @@ static void versatile_init(ram_addr_t ram_size,
 {
     CPUState *env;
     ram_addr_t ram_offset;
-    qemu_irq *pic;
-    qemu_irq *sic;
-    void *scsi_hba;
+    qemu_irq *cpu_pic;
+    qemu_irq pic[32];
+    qemu_irq sic[32];
+    DeviceState *dev;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
     int done_smc = 0;
-    int index;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -183,13 +184,25 @@ static void versatile_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     arm_sysctl_init(0x10000000, 0x41007004);
-    pic = arm_pic_init_cpu(env);
-    pic = pl190_init(0x10140000, pic[0], pic[1]);
-    sic = vpb_sic_init(0x10003000, pic, 31);
-    pl050_init(0x10006000, sic[3], 0);
-    pl050_init(0x10007000, sic[4], 1);
+    cpu_pic = arm_pic_init_cpu(env);
+    dev = sysbus_create_varargs("pl190", 0x10140000,
+                                cpu_pic[0], cpu_pic[1], NULL);
+    for (n = 0; n < 32; n++) {
+        pic[n] = qdev_get_irq_sink(dev, n);
+    }
+    dev = sysbus_create_simple("versatilepb_sic", 0x10003000, NULL);
+    for (n = 0; n < 32; n++) {
+        sysbus_connect_irq(sysbus_from_qdev(dev), n, pic[n]);
+        sic[n] = qdev_get_irq_sink(dev, n);
+    }
 
-    pci_bus = pci_vpb_init(sic, 27, 0);
+    sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
+    sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
+
+    dev = sysbus_create_varargs("versatile_pci", 0x40000000,
+                                sic[27], sic[28], sic[29], sic[30], NULL);
+    pci_bus = qdev_get_child_bus(dev, "pci");
+
     /* The Versatile PCI bridge does not provide access to PCI IO space,
        so many of the qemu PCI devices are not useable.  */
     for(n = 0; n < nb_nics; n++) {
@@ -205,45 +218,30 @@ static void versatile_init(ram_addr_t ram_size,
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
-    if (drive_get_max_bus(IF_SCSI) > 0) {
-        fprintf(stderr, "qemu: too many SCSI bus\n");
-        exit(1);
-    }
-    scsi_hba = lsi_scsi_init(pci_bus, -1);
-    for (n = 0; n < LSI_MAX_DEVS; n++) {
-        index = drive_get_index(IF_SCSI, 0, n);
-        if (index == -1)
-            continue;
-        lsi_scsi_attach(scsi_hba, drives_table[index].bdrv, n);
+    n = drive_get_max_bus(IF_SCSI);
+    while (n >= 0) {
+        pci_create_simple(pci_bus, -1, "lsi53c895a");
+        n--;
     }
 
-    pl011_init(0x101f1000, pic[12], serial_hds[0], PL011_ARM);
-    pl011_init(0x101f2000, pic[13], serial_hds[1], PL011_ARM);
-    pl011_init(0x101f3000, pic[14], serial_hds[2], PL011_ARM);
-    pl011_init(0x10009000, sic[6], serial_hds[3], PL011_ARM);
+    sysbus_create_simple("pl011", 0x101f1000, pic[12]);
+    sysbus_create_simple("pl011", 0x101f2000, pic[13]);
+    sysbus_create_simple("pl011", 0x101f3000, pic[14]);
+    sysbus_create_simple("pl011", 0x10009000, sic[6]);
 
-    pl080_init(0x10130000, pic[17], 8);
-    sp804_init(0x101e2000, pic[4]);
-    sp804_init(0x101e3000, pic[5]);
+    sysbus_create_simple("pl080", 0x10130000, pic[17]);
+    sysbus_create_simple("sp804", 0x101e2000, pic[4]);
+    sysbus_create_simple("sp804", 0x101e3000, pic[5]);
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */
-    pl110_init(0x10120000, pic[16], 1);
+    sysbus_create_simple("pl110_versatile", 0x10120000, pic[16]);
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
-        fprintf(stderr, "qemu: missing SecureDigital card\n");
-        exit(1);
-    }
-
-    pl181_init(0x10005000, drives_table[index].bdrv, sic[22], sic[1]);
-#if 0
-    /* Disabled because there's no way of specifying a block device.  */
-    pl181_init(0x1000b000, NULL, sic, 23, 2);
-#endif
+    sysbus_create_varargs("pl181", 0x10005000, sic[22], sic[1], NULL);
+    sysbus_create_varargs("pl181", 0x1000b000, sic[23], sic[2], NULL);
 
     /* Add PL031 Real Time Clock. */
-    pl031_init(0x101e8000,pic[10]);
+    sysbus_create_simple("pl031", 0x101e8000, pic[10]);
 
     /* Memory map for Versatile/PB:  */
     /* 0x10000000 System registers.  */
@@ -324,3 +322,11 @@ QEMUMachine versatileab_machine = {
     .init = vab_init,
     .use_scsi = 1,
 };
+
+static void versatilepb_register_devices(void)
+{
+    sysbus_register_dev("versatilepb_sic", sizeof(vpb_sic_state),
+                        vpb_sic_init);
+}
+
+device_init(versatilepb_register_devices)

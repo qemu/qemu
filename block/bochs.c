@@ -24,6 +24,7 @@
  */
 #include "qemu-common.h"
 #include "block_int.h"
+#include "module.h"
 
 /**************************************************************/
 
@@ -241,7 +242,7 @@ static void bochs_close(BlockDriverState *bs)
     close(s->fd);
 }
 
-BlockDriver bdrv_bochs = {
+static BlockDriver bdrv_bochs = {
     .format_name	= "bochs",
     .instance_size	= sizeof(BDRVBochsState),
     .bdrv_probe		= bochs_probe,
@@ -249,3 +250,10 @@ BlockDriver bdrv_bochs = {
     .bdrv_read		= bochs_read,
     .bdrv_close		= bochs_close,
 };
+
+static void bdrv_bochs_init(void)
+{
+    bdrv_register(&bdrv_bochs);
+}
+
+block_init(bdrv_bochs_init);

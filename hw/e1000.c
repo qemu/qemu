@@ -1051,20 +1051,14 @@ pci_e1000_uninit(PCIDevice *dev)
     return 0;
 }
 
-PCIDevice *
-pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
+static void pci_e1000_init(PCIDevice *pci_dev)
 {
-    E1000State *d;
+    E1000State *d = (E1000State *)pci_dev;
     uint8_t *pci_conf;
     uint16_t checksum = 0;
     static const char info_str[] = "e1000";
     int i;
-
-    d = (E1000State *)pci_register_device(bus, "e1000",
-                sizeof(E1000State), devfn, NULL, NULL);
-
-    if (!d)
-	return NULL;
+    uint8_t macaddr[6];
 
     pci_conf = d->dev.config;
 
@@ -1089,8 +1083,9 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     memmove(d->eeprom_data, e1000_eeprom_template,
         sizeof e1000_eeprom_template);
+    qdev_get_macaddr(&d->dev.qdev, macaddr);
     for (i = 0; i < 3; i++)
-        d->eeprom_data[i] = (nd->macaddr[2*i+1]<<8) | nd->macaddr[2*i];
+        d->eeprom_data[i] = (macaddr[2*i+1]<<8) | macaddr[2*i];
     for (i = 0; i < EEPROM_CHECKSUM_REG; i++)
         checksum += d->eeprom_data[i];
     checksum = (uint16_t) EEPROM_SUM - checksum;
@@ -1103,15 +1098,20 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
 
-    d->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    d->vc = qdev_get_vlan_client(&d->dev.qdev,
                                  e1000_receive, e1000_can_receive,
                                  e1000_cleanup, d);
     d->vc->link_status_changed = e1000_set_link_status;
 
-    qemu_format_nic_info_str(d->vc, nd->macaddr);
+    qemu_format_nic_info_str(d->vc, macaddr);
 
     register_savevm(info_str, -1, 2, nic_save, nic_load, d);
     d->dev.unregister = pci_e1000_uninit;
-
-    return (PCIDevice *)d;
 }
+
+static void e1000_register_devices(void)
+{
+    pci_qdev_register("e1000", sizeof(E1000State), pci_e1000_init);
+}
+
+device_init(e1000_register_devices)

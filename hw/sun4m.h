@@ -62,10 +62,6 @@ void cs_init(target_phys_addr_t base, int irq, void *intctl);
 /* sparc32_dma.c */
 #include "sparc32_dma.h"
 
-/* pcnet.c */
-void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
-                qemu_irq irq, qemu_irq *reset);
-
 /* eccmemctl.c */
 void *ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version);
 

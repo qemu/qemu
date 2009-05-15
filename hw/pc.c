@@ -33,9 +33,6 @@
 #include "boards.h"
 #include "monitor.h"
 #include "fw_cfg.h"
-#include "virtio-blk.h"
-#include "virtio-balloon.h"
-#include "virtio-console.h"
 #include "hpet_emul.h"
 #include "watchdog.h"
 #include "smbios.h"
@@ -1112,7 +1109,11 @@ static void pc_init1(ram_addr_t ram_size,
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, i8259[9]);
         for (i = 0; i < 8; i++) {
-            smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
+            DeviceState *eeprom;
+            eeprom = qdev_create(smbus, "smbus-eeprom");
+            qdev_set_prop_int(eeprom, "address", 0x50 + i);
+            qdev_set_prop_ptr(eeprom, "data", eeprom_buf + (i * 256));
+            qdev_init(eeprom);
         }
     }
 
@@ -1122,19 +1123,11 @@ static void pc_init1(ram_addr_t ram_size,
 
     if (pci_enabled) {
 	int max_bus;
-        int bus, unit;
-        void *scsi;
+        int bus;
 
         max_bus = drive_get_max_bus(IF_SCSI);
-
 	for (bus = 0; bus <= max_bus; bus++) {
-            scsi = lsi_scsi_init(pci_bus, -1);
-            for (unit = 0; unit < LSI_MAX_DEVS; unit++) {
-	        index = drive_get_index(IF_SCSI, bus, unit);
-		if (index == -1)
-		    continue;
-		lsi_scsi_attach(scsi, drives_table[index].bdrv, unit);
-	    }
+            pci_create_simple(pci_bus, -1, "lsi53c895a");
         }
     }
 
@@ -1144,20 +1137,22 @@ static void pc_init1(ram_addr_t ram_size,
         int unit_id = 0;
 
         while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            virtio_blk_init(pci_bus, drives_table[index].bdrv);
+            pci_create_simple(pci_bus, -1, "virtio-blk");
             unit_id++;
         }
     }
 
     /* Add virtio balloon device */
-    if (pci_enabled)
-        virtio_balloon_init(pci_bus);
+    if (pci_enabled) {
+        pci_create_simple(pci_bus, -1, "virtio-balloon");
+    }
 
     /* Add virtio console devices */
     if (pci_enabled) {
         for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-            if (virtcon_hds[i])
-                virtio_console_init(pci_bus, virtcon_hds[i]);
+            if (virtcon_hds[i]) {
+                pci_create_simple(pci_bus, -1, "virtio-console");
+            }
         }
     }
 }

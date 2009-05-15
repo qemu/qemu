@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "qemu-timer.h"
 #include "block_int.h"
+#include "module.h"
 #include <windows.h>
 #include <winioctl.h>
 
@@ -227,7 +228,7 @@ static int raw_create(const char *filename, int64_t total_size,
     return 0;
 }
 
-BlockDriver bdrv_raw = {
+static BlockDriver bdrv_raw = {
     .format_name	= "raw",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_open		= raw_open,
@@ -371,7 +372,7 @@ static int raw_set_locked(BlockDriverState *bs, int locked)
 }
 #endif
 
-BlockDriver bdrv_host_device = {
+static BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_open		= hdev_open,
@@ -382,3 +383,11 @@ BlockDriver bdrv_host_device = {
     .bdrv_write	        = raw_write,
     .bdrv_getlength	= raw_getlength,
 };
+
+static void bdrv_raw_init(void)
+{
+    bdrv_register(&bdrv_raw);
+    bdrv_register(&bdrv_host_device);
+}
+
+block_init(bdrv_raw_init);

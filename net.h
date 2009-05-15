@@ -127,4 +127,11 @@ void net_host_device_remove(Monitor *mon, int vlan_id, const char *device);
 #define SMBD_COMMAND "/usr/sbin/smbd"
 #endif
 
+void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr);
+VLANClientState *qdev_get_vlan_client(DeviceState *dev,
+                                      IOReadHandler *fd_read,
+                                      IOCanRWHandler *fd_can_read,
+                                      NetCleanup *cleanup,
+                                      void *opaque);
+
 #endif
