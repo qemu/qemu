@@ -29,7 +29,7 @@
 //#define DEBUG
 
 typedef struct SMBusEEPROMDevice {
-    SMBusDevice dev;
+    SMBusDevice smbusdev;
     uint8_t *data;
     uint8_t offset;
 } SMBusEEPROMDevice;
@@ -95,18 +95,28 @@ static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
     return eeprom_receive_byte(dev);
 }
 
-void smbus_eeprom_device_init(i2c_bus *bus, uint8_t addr, uint8_t *buf)
+static void smbus_eeprom_init(SMBusDevice *dev)
 {
-    SMBusEEPROMDevice *eeprom;
+    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
 
-    eeprom = (SMBusEEPROMDevice *)smbus_device_init(bus, addr,
-        sizeof(SMBusEEPROMDevice));
-
-    eeprom->dev.quick_cmd = eeprom_quick_cmd;
-    eeprom->dev.send_byte = eeprom_send_byte;
-    eeprom->dev.receive_byte = eeprom_receive_byte;
-    eeprom->dev.write_data = eeprom_write_data;
-    eeprom->dev.read_data = eeprom_read_data;
-    eeprom->data = buf;
+    /* FIXME: Should be a blob rather than a ptr.  */
+    eeprom->data = qdev_get_prop_ptr(&dev->i2c.qdev, "data");
     eeprom->offset = 0;
 }
+
+static SMBusDeviceInfo smbus_eeprom_info = {
+    .init = smbus_eeprom_init,
+    .quick_cmd = eeprom_quick_cmd,
+    .send_byte = eeprom_send_byte,
+    .receive_byte = eeprom_receive_byte,
+    .write_data = eeprom_write_data,
+    .read_data = eeprom_read_data
+};
+
+static void smbus_eeprom_register_devices(void)
+{
+    smbus_register_device("smbus-eeprom", sizeof(SMBusEEPROMDevice),
+                          &smbus_eeprom_info);
+}
+
+device_init(smbus_eeprom_register_devices)

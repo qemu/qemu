@@ -377,14 +377,13 @@ ifeq ($(TARGET_ARCH), m68k)
 OBJS+= m68k-sim.o m68k-semi.o
 endif
 
-OBJS+= libqemu.a
-
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): $(OBJS) ../libqemu_user.a
-	$(LINK)
+$(QEMU_PROG): ARLIBS=../libqemu_user.a libqemu.a
+$(QEMU_PROG): $(OBJS) ../libqemu_user.a libqemu.a
+	$(call LINK,$(OBJS))
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
 # the address space (31 bit so sign extending doesn't matter)
@@ -409,14 +408,13 @@ LIBS+=-lmx
 OBJS= main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
       gdbstub.o gdbstub-xml.o
 
-OBJS+= libqemu.a
-
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): $(OBJS)
-	$(LINK)
+$(QEMU_PROG): ARLIBS=libqemu.a
+$(QEMU_PROG): $(OBJS) libqemu.a
+	$(call LINK,$(OBJS))
 
 endif #CONFIG_DARWIN_USER
 
@@ -513,14 +511,13 @@ OBJS= main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
       gdbstub.o gdbstub-xml.o
 OBJS+= uaccess.o
 
-OBJS+= libqemu.a
-
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): $(OBJS) ../libqemu_user.a
-	$(LINK)
+$(QEMU_PROG): ARLIBS=libqemu.a ../libqemu_user.a
+$(QEMU_PROG): $(OBJS) libqemu.a ../libqemu_user.a
+	$(call LINK,$(OBJS))
 
 endif #CONFIG_BSD_USER
 
@@ -529,7 +526,7 @@ endif #CONFIG_BSD_USER
 ifndef CONFIG_USER_ONLY
 
 OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o dma-helpers.o \
-     gdbstub.o gdbstub-xml.o
+     gdbstub.o gdbstub-xml.o sysbus.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 OBJS+=virtio.o virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
@@ -671,7 +668,6 @@ OBJS+= piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
 ifeq ($(TARGET_ARCH), mips)
 OBJS += ar7.o
 endif
-OBJS += vmware_vga.o
 OBJS += mipsnet.o
 OBJS += pflash.o
 OBJS += pflash_amd.o
@@ -725,6 +721,8 @@ OBJS+= nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 OBJS+= mst_fpga.o mainstone.o
 OBJS+= musicpal.o pflash_cfi02.o
 OBJS+= framebuffer.o
+OBJS+= syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
+OBJS+= syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
@@ -790,9 +788,9 @@ endif
 vl.o: qemu-options.h
 
 $(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
-
+$(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
-	$(LINK)
+	$(call LINK,$(OBJS))
 
 endif # !CONFIG_USER_ONLY
 

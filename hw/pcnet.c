@@ -35,7 +35,7 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "pci.h"
 #include "net.h"
 #include "qemu-timer.h"
@@ -60,22 +60,20 @@
 typedef struct PCNetState_st PCNetState;
 
 struct PCNetState_st {
-    PCIDevice dev;
     PCIDevice *pci_dev;
     VLANClientState *vc;
-    NICInfo *nd;
+    uint8_t macaddr[6];
     QEMUTimer *poll_timer;
-    int mmio_index, rap, isr, lnkst;
+    int rap, isr, lnkst;
     uint32_t rdra, tdra;
     uint8_t prom[16];
     uint16_t csr[128];
     uint16_t bcr[32];
     uint64_t timer;
-    int xmit_pos, recv_pos;
+    int mmio_index, xmit_pos, recv_pos;
     uint8_t buffer[4096];
     int tx_busy;
     qemu_irq irq;
-    qemu_irq *reset_irq;
     void (*phys_mem_read)(void *dma_opaque, target_phys_addr_t addr,
                          uint8_t *buf, int len, int do_bswap);
     void (*phys_mem_write)(void *dma_opaque, target_phys_addr_t addr,
@@ -83,6 +81,16 @@ struct PCNetState_st {
     void *dma_opaque;
     int looptest;
 };
+
+typedef struct {
+    PCIDevice pci_dev;
+    PCNetState state;
+} PCIPCNetState;
+
+typedef struct {
+    SysBusDevice busdev;
+    PCNetState state;
+} SysBusPCNetState;
 
 struct qemu_ether_header {
     uint8_t ether_dhost[6];
@@ -1593,8 +1601,7 @@ static void pcnet_h_reset(void *opaque)
 
     /* Initialize the PROM */
 
-    if (s->nd)
-        memcpy(s->prom, s->nd->macaddr, 6);
+    memcpy(s->prom, s->macaddr, 6);
     s->prom[12] = s->prom[13] = 0x00;
     s->prom[14] = s->prom[15] = 0x57;
 
@@ -1754,7 +1761,7 @@ static uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
 static void pcnet_ioport_map(PCIDevice *pci_dev, int region_num,
                              uint32_t addr, uint32_t size, int type)
 {
-    PCNetState *d = (PCNetState *)pci_dev;
+    PCNetState *d = &((PCIPCNetState *)pci_dev)->state;
 
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_map addr=0x%04x size=0x%04x\n", addr, size);
@@ -1938,23 +1945,17 @@ static void pcnet_common_cleanup(PCNetState *d)
     qemu_free_timer(d->poll_timer);
 }
 
-static void pcnet_common_init(PCNetState *d, NICInfo *nd, NetCleanup *cleanup)
+static void pcnet_common_init(DeviceState *dev, PCNetState *s,
+                              NetCleanup *cleanup)
 {
-    d->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, d);
+    s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
 
-    d->nd = nd;
-
-    if (nd && nd->vlan) {
-        d->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                     pcnet_receive, pcnet_can_receive,
-                                     cleanup, d);
-
-        qemu_format_nic_info_str(d->vc, d->nd->macaddr);
-    } else {
-        d->vc = NULL;
-    }
-    pcnet_h_reset(d);
-    register_savevm("pcnet", -1, 2, pcnet_save, pcnet_load, d);
+    qdev_get_macaddr(dev, s->macaddr);
+    s->vc = qdev_get_vlan_client(dev,
+                                 pcnet_receive, pcnet_can_receive,
+                                 cleanup, s);
+    pcnet_h_reset(s);
+    register_savevm("pcnet", -1, 2, pcnet_save, pcnet_load, s);
 }
 
 /* PCI interface */
@@ -1974,13 +1975,13 @@ static CPUReadMemoryFunc *pcnet_mmio_read[] = {
 static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
-    PCNetState *d = (PCNetState *)pci_dev;
+    PCIPCNetState *d = (PCIPCNetState *)pci_dev;
 
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_mmio_map addr=0x%08x 0x%08x\n", addr, size);
 #endif
 
-    cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->mmio_index);
+    cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->state.mmio_index);
 }
 
 static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
@@ -2004,16 +2005,17 @@ static void pci_pcnet_cleanup(VLANClientState *vc)
 
 static int pci_pcnet_uninit(PCIDevice *dev)
 {
-    PCNetState *d = (PCNetState *)dev;
+    PCIPCNetState *d = (PCIPCNetState *)dev;
 
-    cpu_unregister_io_memory(d->mmio_index);
+    cpu_unregister_io_memory(d->state.mmio_index);
 
     return 0;
 }
 
-PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
+static void pci_pcnet_init(PCIDevice *pci_dev)
 {
-    PCNetState *d;
+    PCIPCNetState *d = (PCIPCNetState *)pci_dev;
+    PCNetState *s = &d->state;
     uint8_t *pci_conf;
 
 #if 0
@@ -2021,14 +2023,9 @@ PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
         sizeof(struct pcnet_RMD), sizeof(struct pcnet_TMD));
 #endif
 
-    d = (PCNetState *)pci_register_device(bus, "PCNet", sizeof(PCNetState),
-                                          devfn, NULL, NULL);
-    if (!d)
-	return NULL;
+    pci_dev->unregister = pci_pcnet_uninit;
 
-    d->dev.unregister = pci_pcnet_uninit;
-
-    pci_conf = d->dev.config;
+    pci_conf = pci_dev->config;
 
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_AMD);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_AMD_LANCE);
@@ -2047,8 +2044,8 @@ PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_conf[0x3f] = 0xff;
 
     /* Handler for memory-mapped I/O */
-    d->mmio_index =
-      cpu_register_io_memory(0, pcnet_mmio_read, pcnet_mmio_write, d);
+    s->mmio_index =
+      cpu_register_io_memory(0, pcnet_mmio_read, pcnet_mmio_write, &d->state);
 
     pci_register_io_region((PCIDevice *)d, 0, PCNET_IOPORT_SIZE,
                            PCI_ADDRESS_SPACE_IO, pcnet_ioport_map);
@@ -2056,14 +2053,12 @@ PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_register_io_region((PCIDevice *)d, 1, PCNET_PNPMMIO_SIZE,
                            PCI_ADDRESS_SPACE_MEM, pcnet_mmio_map);
 
-    d->irq = d->dev.irq[0];
-    d->phys_mem_read = pci_physical_memory_read;
-    d->phys_mem_write = pci_physical_memory_write;
-    d->pci_dev = &d->dev;
+    s->irq = pci_dev->irq[0];
+    s->phys_mem_read = pci_physical_memory_read;
+    s->phys_mem_write = pci_physical_memory_write;
+    s->pci_dev = pci_dev;
 
-    pcnet_common_init(d, nd, pci_pcnet_cleanup);
-
-    return (PCIDevice *)d;
+    pcnet_common_init(&pci_dev->qdev, s, pci_pcnet_cleanup);
 }
 
 /* SPARC32 interface */
@@ -2117,37 +2112,37 @@ static void lance_cleanup(VLANClientState *vc)
     PCNetState *d = vc->opaque;
 
     pcnet_common_cleanup(d);
-
-    qemu_free_irqs(d->reset_irq);
-
-    cpu_unregister_io_memory(d->mmio_index);
-
-    qemu_free(d);
 }
 
-void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
-                qemu_irq irq, qemu_irq *reset)
+static void lance_init(SysBusDevice *dev)
 {
-    PCNetState *d;
+    SysBusPCNetState *d = FROM_SYSBUS(SysBusPCNetState, dev);
+    PCNetState *s = &d->state;
 
-    qemu_check_nic_model(nd, "lance");
-
-    d = qemu_mallocz(sizeof(PCNetState));
-
-    d->mmio_index =
+    s->mmio_index =
         cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);
 
-    d->dma_opaque = dma_opaque;
+    s->dma_opaque = qdev_get_prop_ptr(&dev->qdev, "dma");
 
-    d->reset_irq = qemu_allocate_irqs(parent_lance_reset, d, 1);
-    *reset = *d->reset_irq;
+    qdev_init_irq_sink(&dev->qdev, parent_lance_reset, 1);
 
-    cpu_register_physical_memory(leaddr, 4, d->mmio_index);
+    sysbus_init_mmio(dev, 4, s->mmio_index);
 
-    d->irq = irq;
-    d->phys_mem_read = ledma_memory_read;
-    d->phys_mem_write = ledma_memory_write;
+    sysbus_init_irq(dev, &s->irq);
 
-    pcnet_common_init(d, nd, lance_cleanup);
+    s->phys_mem_read = ledma_memory_read;
+    s->phys_mem_write = ledma_memory_write;
+
+    pcnet_common_init(&dev->qdev, s, lance_cleanup);
 }
 #endif /* TARGET_SPARC */
+
+static void pcnet_register_devices(void)
+{
+    pci_qdev_register("pcnet", sizeof(PCIPCNetState), pci_pcnet_init);
+#if defined (TARGET_SPARC) && !defined(TARGET_SPARC64)
+    sysbus_register_dev("lance", sizeof(SysBusPCNetState), lance_init);
+#endif
+}
+
+device_init(pcnet_register_devices)

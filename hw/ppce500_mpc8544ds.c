@@ -22,7 +22,6 @@
 #include "hw.h"
 #include "pc.h"
 #include "pci.h"
-#include "virtio-blk.h"
 #include "boards.h"
 #include "sysemu.h"
 #include "kvm.h"
@@ -221,7 +220,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
         /* Add virtio block devices. */
         while ((i = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            virtio_blk_init(pci_bus, drives_table[i].bdrv);
+            pci_create_simple(pci_bus, -1, "virtio-blk");
             unit_id++;
         }
 

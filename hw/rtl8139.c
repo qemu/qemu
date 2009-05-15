@@ -3441,18 +3441,11 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     return 0;
 }
 
-PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
+static void pci_rtl8139_init(PCIDevice *dev)
 {
-    PCIRTL8139State *d;
+    PCIRTL8139State *d = (PCIRTL8139State *)dev;
     RTL8139State *s;
     uint8_t *pci_conf;
-
-    d = (PCIRTL8139State *)pci_register_device(bus,
-                                              "RTL8139", sizeof(PCIRTL8139State),
-                                              devfn,
-                                              NULL, NULL);
-    if (!d)
-	return NULL;
 
     d->dev.unregister = pci_rtl8139_uninit;
 
@@ -3479,9 +3472,9 @@ PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
     s->pci_dev = (PCIDevice *)d;
-    memcpy(s->macaddr, nd->macaddr, 6);
+    qdev_get_macaddr(&dev->qdev, s->macaddr);
     rtl8139_reset(s);
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = qdev_get_vlan_client(&dev->qdev,
                                  rtl8139_receive, rtl8139_can_receive,
                                  rtl8139_cleanup, s);
 
@@ -3499,5 +3492,11 @@ PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     qemu_mod_timer(s->timer,
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
-    return (PCIDevice *)d;
 }
+
+static void rtl8139_register_devices(void)
+{
+    pci_qdev_register("rtl8139", sizeof(PCIRTL8139State), pci_rtl8139_init);
+}
+
+device_init(rtl8139_register_devices)

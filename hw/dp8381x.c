@@ -1496,24 +1496,13 @@ static void eeprom_init(dp8381x_t * s)
 }
 #endif
 
-static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
-                                   uint32_t silicon_revision)
+static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 {
-    pci_dp8381x_t *d;
-    dp8381x_t *s;
-    uint8_t *pci_conf;
+    pci_dp8381x_t *d = (pci_dp8381x_t *)pci_dev;
+    dp8381x_t *s = &d->dp8381x;
+    uint8_t *pci_conf = pci_dev->config;
 
     logout("silicon revision = 0x%08x\n", silicon_revision);
-
-    d = (pci_dp8381x_t *) pci_register_device(bus, "DP8381X",
-                                              sizeof(pci_dp8381x_t),
-                                              -1, NULL, NULL);
-
-    if (d == NULL) {
-        return NULL;
-    }
-
-    pci_conf = d->dev.config;
 
     /* National Semiconductor DP83815, DP83816 */
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x0020100b);
@@ -1532,7 +1521,6 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
     //~ PCI_CONFIG_32(0x44, 0x00000000);
     /* 0x48...0xff reserved, returns 0 */
 
-    s = &d->dp8381x;
     s->silicon_revision = silicon_revision;
 
     /* Handler for memory-mapped I/O */
@@ -1547,7 +1535,7 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
                            PCI_ADDRESS_SPACE_MEM, dp8381x_mem_map);
 
     s->pci_dev = &d->dev;
-    memcpy(s->macaddr, nd->macaddr, 6);
+    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     dp8381x_reset(s);
 
 #if defined(CONFIG_EEPROM)
@@ -1556,7 +1544,7 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
     eeprom_init(s);
 #endif
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = qdev_get_vlan_client(&d->dev.qdev,
                                  dp8381x_receive, dp8381x_can_receive,
                                  dp8381x_cleanup, s);
 
@@ -1564,25 +1552,26 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
 
     qemu_register_reset(nic_reset, d);
 
+    // TODO: use s->vc->model or d->name instead of "dp8381x".
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
                     dp8381x_save, dp8381x_load, d);
-
-    return (PCIDevice *)d;
 }
 
+static void pci_dp8381x_init(PCIDevice *pci_dev)
+{
+    logout("\n");
 #if defined(DP83815)
-PCIDevice *pci_dp83815_init(PCIBus * bus, NICInfo * nd)
-{
-    logout("\n");
-    return pci_dp8381x_init(bus, nd, DP83815DVNG);
-    //~ return pci_dp8381x_init(bus, nd, DP83816AVNG);
-}
+    pci_dp8381x_init(pci_dev, DP83815DVNG);
 #else
-PCIDevice *pci_dp83816_init(PCIBus * bus, NICInfo * nd, int devfn)
-{
-    logout("\n");
-    return pci_dp8381x_init(bus, nd, DP83816AVNG);
-}
+    pci_dp8381x_init(pci_dev, DP83816AVNG);
 #endif
+}
+
+static void dp8381x_register_devices(void)
+{
+    pci_qdev_register("dp83815", sizeof(dp8381x_t), pci_dp8381x_init);
+}
+
+device_init(dp8381x_register_devices)
 
 /* eof */

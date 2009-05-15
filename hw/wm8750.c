@@ -259,7 +259,7 @@ static void wm8750_clk_update(WM8750State *s, int ext)
     }
 }
 
-void wm8750_reset(i2c_slave *i2c)
+static void wm8750_reset(i2c_slave *i2c)
 {
     WM8750State *s = (WM8750State *) i2c;
     s->rate = &wm_rate_table[0];
@@ -645,20 +645,14 @@ static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-i2c_slave *wm8750_init(i2c_bus *bus)
+static void wm8750_init(i2c_slave *i2c)
 {
-    WM8750State *s = (WM8750State *)
-            i2c_slave_init(bus, 0, sizeof(WM8750State));
-    s->i2c.event = wm8750_event;
-    s->i2c.recv = wm8750_rx;
-    s->i2c.send = wm8750_tx;
+    WM8750State *s = FROM_I2C_SLAVE(WM8750State, i2c);
 
     AUD_register_card(CODEC, &s->card);
     wm8750_reset(&s->i2c);
 
     register_savevm(CODEC, -1, 0, wm8750_save, wm8750_load, s);
-
-    return &s->i2c;
 }
 
 #if 0
@@ -671,10 +665,10 @@ static void wm8750_fini(i2c_slave *i2c)
 }
 #endif
 
-void wm8750_data_req_set(i2c_slave *i2c,
+void wm8750_data_req_set(DeviceState *dev,
                 void (*data_req)(void *, int, int), void *opaque)
 {
-    WM8750State *s = (WM8750State *) i2c;
+    WM8750State *s = FROM_I2C_SLAVE(WM8750State, I2C_SLAVE_FROM_QDEV(dev));
     s->data_req = data_req;
     s->opaque = opaque;
 }
@@ -730,3 +724,17 @@ void wm8750_set_bclk_in(void *opaque, int new_hz)
     s->ext_dac_hz = new_hz;
     wm8750_clk_update(s, 1);
 }
+
+static I2CSlaveInfo wm8750_info = {
+    .init = wm8750_init,
+    .event = wm8750_event,
+    .recv = wm8750_rx,
+    .send = wm8750_tx
+};
+
+static void wm8750_register_devices(void)
+{
+    i2c_register_slave("wm8750", sizeof(WM8750State), &wm8750_info);
+}
+
+device_init(wm8750_register_devices)

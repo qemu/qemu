@@ -7,7 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
@@ -31,15 +31,15 @@ static void realview_init(ram_addr_t ram_size,
 {
     CPUState *env;
     ram_addr_t ram_offset;
-    qemu_irq *pic;
-    void *scsi_hba;
+    DeviceState *dev;
+    qemu_irq *irqp;
+    qemu_irq pic[64];
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
     int done_smc = 0;
     qemu_irq cpu_irq[4];
     int ncpu;
-    int index;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -56,8 +56,8 @@ static void realview_init(ram_addr_t ram_size,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        pic = arm_pic_init_cpu(env);
-        cpu_irq[n] = pic[ARM_PIC_CPU_IRQ];
+        irqp = arm_pic_init_cpu(env);
+        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
         if (n > 0) {
             /* Set entry point for secondary CPUs.  This assumes we're using
                the init code from arm_boot.c.  Real hardware resets all CPUs
@@ -77,50 +77,46 @@ static void realview_init(ram_addr_t ram_size,
         /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
            is nIRQ (there are inconsistencies).  However Linux 2.6.17 expects
            GIC1 to be nIRQ and ignores all the others, so do that for now.  */
-        pic = realview_gic_init(0x10040000, cpu_irq[0]);
+        dev = sysbus_create_simple("realview_gic", 0x10040000, cpu_irq[0]);
     } else {
-        pic = mpcore_irq_init(cpu_irq);
+        dev = sysbus_create_varargs("realview_mpcore", -1,
+                                    cpu_irq[0], cpu_irq[1], cpu_irq[2],
+                                    cpu_irq[3], NULL);
+    }
+    for (n = 0; n < 64; n++) {
+        pic[n] = qdev_get_irq_sink(dev, n);
     }
 
-    pl050_init(0x10006000, pic[20], 0);
-    pl050_init(0x10007000, pic[21], 1);
+    sysbus_create_simple("pl050_keyboard", 0x10006000, pic[20]);
+    sysbus_create_simple("pl050_mouse", 0x10007000, pic[21]);
 
-    pl011_init(0x10009000, pic[12], serial_hds[0], PL011_ARM);
-    pl011_init(0x1000a000, pic[13], serial_hds[1], PL011_ARM);
-    pl011_init(0x1000b000, pic[14], serial_hds[2], PL011_ARM);
-    pl011_init(0x1000c000, pic[15], serial_hds[3], PL011_ARM);
+    sysbus_create_simple("pl011", 0x10009000, pic[12]);
+    sysbus_create_simple("pl011", 0x1000a000, pic[13]);
+    sysbus_create_simple("pl011", 0x1000b000, pic[14]);
+    sysbus_create_simple("pl011", 0x1000c000, pic[15]);
 
     /* DMA controller is optional, apparently.  */
-    pl080_init(0x10030000, pic[24], 2);
+    sysbus_create_simple("pl081", 0x10030000, pic[24]);
 
-    sp804_init(0x10011000, pic[4]);
-    sp804_init(0x10012000, pic[5]);
+    sysbus_create_simple("sp804", 0x10011000, pic[4]);
+    sysbus_create_simple("sp804", 0x10012000, pic[5]);
 
-    pl110_init(0x10020000, pic[23], 1);
+    sysbus_create_simple("pl110_versatile", 0x10020000, pic[23]);
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
-        fprintf(stderr, "qemu: missing SecureDigital card\n");
-        exit(1);
-    }
-    pl181_init(0x10005000, drives_table[index].bdrv, pic[17], pic[18]);
+    sysbus_create_varargs("pl181", 0x10005000, pic[17], pic[18], NULL);
 
-    pl031_init(0x10017000, pic[10]);
+    sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
-    pci_bus = pci_vpb_init(pic, 48, 1);
+    dev = sysbus_create_varargs("realview_pci", 0x60000000,
+                                pic[48], pic[49], pic[50], pic[51], NULL);
+    pci_bus = qdev_get_child_bus(dev, "pci");
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
-    if (drive_get_max_bus(IF_SCSI) > 0) {
-        fprintf(stderr, "qemu: too many SCSI bus\n");
-        exit(1);
-    }
-    scsi_hba = lsi_scsi_init(pci_bus, -1);
-    for (n = 0; n < LSI_MAX_DEVS; n++) {
-        index = drive_get_index(IF_SCSI, 0, n);
-        if (index == -1)
-            continue;
-        lsi_scsi_attach(scsi_hba, drives_table[index].bdrv, n);
+    n = drive_get_max_bus(IF_SCSI);
+    while (n >= 0) {
+        pci_create_simple(pci_bus, -1, "lsi53c895a");
+        n--;
     }
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];

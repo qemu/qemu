@@ -92,11 +92,11 @@ struct VirtIODevice
     VirtQueue *vq;
 };
 
-VirtIODevice *virtio_init_pci(PCIBus *bus, const char *name,
+VirtIODevice *virtio_init_pci(PCIDevice *pci_dev, const char *name,
                               uint16_t vendor, uint16_t device,
                               uint16_t subvendor, uint16_t subdevice,
                               uint16_t class_code, uint8_t pif,
-                              size_t config_size, size_t struct_size);
+                              size_t config_size);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,

@@ -7,7 +7,6 @@
  * This code is licenced under the LGPL.
  */
 
-#include "hw.h"
 #include "i2c.h"
 
 struct i2c_bus
@@ -49,23 +48,6 @@ i2c_bus *i2c_init_bus(void)
     return bus;
 }
 
-/* Create a new slave device.  */
-i2c_slave *i2c_slave_init(i2c_bus *bus, int address, int size)
-{
-    i2c_slave *dev;
-
-    if (size < sizeof(i2c_slave))
-        hw_error("I2C struct too small");
-
-    dev = (i2c_slave *)qemu_mallocz(size);
-    dev->address = address;
-    dev->next = bus->dev;
-    bus->dev = dev;
-    dev->bus = bus;
-
-    return dev;
-}
-
 void i2c_set_slave_address(i2c_slave *dev, int address)
 {
     dev->address = address;
@@ -94,7 +76,7 @@ int i2c_start_transfer(i2c_bus *bus, int address, int recv)
     /* If the bus is already busy, assume this is a repeated
        start condition.  */
     bus->current_dev = dev;
-    dev->event(dev, recv ? I2C_START_RECV : I2C_START_SEND);
+    dev->info->event(dev, recv ? I2C_START_RECV : I2C_START_SEND);
     return 0;
 }
 
@@ -105,7 +87,7 @@ void i2c_end_transfer(i2c_bus *bus)
     if (!dev)
         return;
 
-    dev->event(dev, I2C_FINISH);
+    dev->info->event(dev, I2C_FINISH);
 
     bus->current_dev = NULL;
 }
@@ -117,7 +99,7 @@ int i2c_send(i2c_bus *bus, uint8_t data)
     if (!dev)
         return -1;
 
-    return dev->send(dev, data);
+    return dev->info->send(dev, data);
 }
 
 int i2c_recv(i2c_bus *bus)
@@ -127,7 +109,7 @@ int i2c_recv(i2c_bus *bus)
     if (!dev)
         return -1;
 
-    return dev->recv(dev);
+    return dev->info->recv(dev);
 }
 
 void i2c_nack(i2c_bus *bus)
@@ -137,7 +119,7 @@ void i2c_nack(i2c_bus *bus)
     if (!dev)
         return;
 
-    dev->event(dev, I2C_NACK);
+    dev->info->event(dev, I2C_NACK);
 }
 
 void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
@@ -147,7 +129,40 @@ void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
 
 void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
 {
+    i2c_bus *bus;
+    bus = qdev_get_bus(&dev->qdev);
     dev->address = qemu_get_byte(f);
-    if (dev->bus->saved_address == dev->address)
-        dev->bus->current_dev = dev;
+    if (bus->saved_address == dev->address) {
+        bus->current_dev = dev;
+    }
+}
+
+static void i2c_slave_qdev_init(DeviceState *dev, void *opaque)
+{
+    I2CSlaveInfo *info = opaque;
+    i2c_slave *s = I2C_SLAVE_FROM_QDEV(dev);
+
+    s->info = info;
+    s->bus = qdev_get_bus(dev);
+    s->address = qdev_get_prop_int(dev, "address", 0);
+    s->next = s->bus->dev;
+    s->bus->dev = s;
+
+    info->init(s);
+}
+
+void i2c_register_slave(const char *name, int size, I2CSlaveInfo *info)
+{
+    assert(size >= sizeof(i2c_slave));
+    qdev_register(name, size, i2c_slave_qdev_init, info);
+}
+
+DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(bus, name);
+    qdev_set_prop_int(dev, "address", addr);
+    qdev_init(dev);
+    return dev;
 }

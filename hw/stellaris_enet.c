@@ -6,8 +6,7 @@
  *
  * This code is licenced under the GPL.
  */
-#include "hw.h"
-#include "arm-misc.h"
+#include "sysbus.h"
 #include "net.h"
 #include <zlib.h>
 
@@ -44,6 +43,7 @@ do { fprintf(stderr, "stellaris_enet: error: " fmt , ## __VA_ARGS__);} while (0)
 #define SE_TCTL_DUPLEX  0x08
 
 typedef struct {
+    SysBusDevice busdev;
     uint32_t ris;
     uint32_t im;
     uint32_t rctl;
@@ -394,28 +394,31 @@ static void stellaris_enet_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq)
+static void stellaris_enet_init(SysBusDevice *dev)
 {
-    stellaris_enet_state *s;
+    stellaris_enet_state *s = FROM_SYSBUS(stellaris_enet_state, dev);
 
-    qemu_check_nic_model(nd, "stellaris");
-
-    s = (stellaris_enet_state *)qemu_mallocz(sizeof(stellaris_enet_state));
     s->mmio_index = cpu_register_io_memory(0, stellaris_enet_readfn,
                                            stellaris_enet_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, s->mmio_index);
-    s->irq = irq;
-    memcpy(s->macaddr, nd->macaddr, 6);
+    sysbus_init_mmio(dev, 0x1000, s->mmio_index);
+    sysbus_init_irq(dev, &s->irq);
+    qdev_get_macaddr(&dev->qdev, s->macaddr);
 
-    if (nd->vlan) {
-        s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                     stellaris_enet_receive,
-                                     stellaris_enet_can_receive,
-                                     stellaris_enet_cleanup, s);
-        qemu_format_nic_info_str(s->vc, s->macaddr);
-    }
+    s->vc = qdev_get_vlan_client(&dev->qdev,
+                                 stellaris_enet_receive,
+                                 stellaris_enet_can_receive,
+                                 stellaris_enet_cleanup, s);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     stellaris_enet_reset(s);
     register_savevm("stellaris_enet", -1, 1,
                     stellaris_enet_save, stellaris_enet_load, s);
 }
+
+static void stellaris_enet_register_devices(void)
+{
+    sysbus_register_dev("stellaris_enet", sizeof(stellaris_enet_state),
+                        stellaris_enet_init);
+}
+
+device_init(stellaris_enet_register_devices)

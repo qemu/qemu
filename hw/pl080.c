@@ -7,8 +7,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 
 #define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1
@@ -37,6 +36,7 @@ typedef struct {
 } pl080_channel;
 
 typedef struct {
+    SysBusDevice busdev;
     uint8_t tc_int;
     uint8_t tc_mask;
     uint8_t err_int;
@@ -319,19 +319,35 @@ static CPUWriteMemoryFunc *pl080_writefn[] = {
    pl080_write
 };
 
-/* The PL080 and PL081 are the same except for the number of channels
-   they implement (8 and 2 respectively).  */
-void *pl080_init(uint32_t base, qemu_irq irq, int nchannels)
+static void pl08x_init(SysBusDevice *dev, int nchannels)
 {
     int iomemtype;
-    pl080_state *s;
+    pl080_state *s = FROM_SYSBUS(pl080_state, dev);
 
-    s = (pl080_state *)qemu_mallocz(sizeof(pl080_state));
     iomemtype = cpu_register_io_memory(0, pl080_readfn,
                                        pl080_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->irq = irq;
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_irq(dev, &s->irq);
     s->nchannels = nchannels;
     /* ??? Save/restore.  */
-    return s;
 }
+
+static void pl080_init(SysBusDevice *dev)
+{
+    pl08x_init(dev, 8);
+}
+
+static void pl081_init(SysBusDevice *dev)
+{
+    pl08x_init(dev, 2);
+}
+
+/* The PL080 and PL081 are the same except for the number of channels
+   they implement (8 and 2 respectively).  */
+static void pl080_register_devices(void)
+{
+    sysbus_register_dev("pl080", sizeof(pl080_state), pl080_init);
+    sysbus_register_dev("pl081", sizeof(pl080_state), pl081_init);
+}
+
+device_init(pl080_register_devices)

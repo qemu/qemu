@@ -16,8 +16,6 @@
 #include "net.h"
 #include "hw.h"
 #include "pci.h"
-#include "virtio-blk.h"
-#include "virtio-console.h"
 #include "boards.h"
 #include "sysemu.h"
 #include "ppc440.h"
@@ -113,14 +111,15 @@ static void bamboo_init(ram_addr_t ram_size,
 
         /* Add virtio block devices. */
         while ((i = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            virtio_blk_init(pcibus, drives_table[i].bdrv);
+            pci_create_simple(pcibus, -1, "virtio-blk");
             unit_id++;
         }
 
         /* Add virtio console devices */
         for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-            if (virtcon_hds[i])
-                virtio_console_init(pcibus, virtcon_hds[i]);
+            if (virtcon_hds[i]) {
+                pci_create_simple(pcibus, -1, "virtio-console");
+            }
         }
 
         /* Register network interfaces. */

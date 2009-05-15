@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "block_int.h"
+#include "module.h"
 #include <zlib.h>
 
 typedef struct BDRVCloopState {
@@ -153,7 +154,7 @@ static void cloop_close(BlockDriverState *bs)
     inflateEnd(&s->zstream);
 }
 
-BlockDriver bdrv_cloop = {
+static BlockDriver bdrv_cloop = {
     .format_name	= "cloop",
     .instance_size	= sizeof(BDRVCloopState),
     .bdrv_probe		= cloop_probe,
@@ -161,3 +162,10 @@ BlockDriver bdrv_cloop = {
     .bdrv_read		= cloop_read,
     .bdrv_close		= cloop_close,
 };
+
+static void bdrv_cloop_init(void)
+{
+    bdrv_register(&bdrv_cloop);
+}
+
+block_init(bdrv_cloop_init);

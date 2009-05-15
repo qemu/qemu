@@ -8,10 +8,10 @@
 %.o: %.m
 	$(call quiet-command,$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
 
-LINK = $(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^ $(LIBS),"  LINK  $(TARGET_DIR)$@")
+LINK = $(call quiet-command,$(CC) $(LDFLAGS) -o $@ $(1) $(ARLIBS_BEGIN) $(ARLIBS) $(ARLIBS_END) $(LIBS),"  LINK  $(TARGET_DIR)$@")
 
 %$(EXESUF): %.o
-	$(LINK)
+	$(call LINK,$^)
 
 %.a:
 	$(call quiet-command,rm -f $@ && $(AR) rcs $@ $^,"  AR    $(TARGET_DIR)$@")

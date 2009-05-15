@@ -7,9 +7,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "qemu-timer.h"
-#include "primecell.h"
 
 /* Common timer implementation.  */
 
@@ -164,13 +163,12 @@ static int arm_timer_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void *arm_timer_init(uint32_t freq, qemu_irq irq)
+static arm_timer_state *arm_timer_init(uint32_t freq)
 {
     arm_timer_state *s;
     QEMUBH *bh;
 
     s = (arm_timer_state *)qemu_mallocz(sizeof(arm_timer_state));
-    s->irq = irq;
     s->freq = freq;
     s->control = TIMER_CTRL_IE;
 
@@ -186,7 +184,8 @@ static void *arm_timer_init(uint32_t freq, qemu_irq irq)
    Integrator/CP timer modules.  */
 
 typedef struct {
-    void *timer[2];
+    SysBusDevice busdev;
+    arm_timer_state *timer[2];
     int level[2];
     qemu_irq irq;
 } sp804_state;
@@ -255,22 +254,23 @@ static int sp804_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void sp804_init(uint32_t base, qemu_irq irq)
+static void sp804_init(SysBusDevice *dev)
 {
     int iomemtype;
-    sp804_state *s;
+    sp804_state *s = FROM_SYSBUS(sp804_state, dev);
     qemu_irq *qi;
 
-    s = (sp804_state *)qemu_mallocz(sizeof(sp804_state));
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
-    s->irq = irq;
+    sysbus_init_irq(dev, &s->irq);
     /* ??? The timers are actually configurable between 32kHz and 1MHz, but
        we don't implement that.  */
-    s->timer[0] = arm_timer_init(1000000, qi[0]);
-    s->timer[1] = arm_timer_init(1000000, qi[1]);
+    s->timer[0] = arm_timer_init(1000000);
+    s->timer[1] = arm_timer_init(1000000);
+    s->timer[0]->irq = qi[0];
+    s->timer[1]->irq = qi[1];
     iomemtype = cpu_register_io_memory(0, sp804_readfn,
                                        sp804_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     register_savevm("sp804", -1, 1, sp804_save, sp804_load, s);
 }
 
@@ -278,7 +278,8 @@ void sp804_init(uint32_t base, qemu_irq irq)
 /* Integrator/CP timer module.  */
 
 typedef struct {
-    void *timer[3];
+    SysBusDevice busdev;
+    arm_timer_state *timer[3];
 } icp_pit_state;
 
 static uint32_t icp_pit_read(void *opaque, target_phys_addr_t offset)
@@ -322,21 +323,32 @@ static CPUWriteMemoryFunc *icp_pit_writefn[] = {
    icp_pit_write
 };
 
-void icp_pit_init(uint32_t base, qemu_irq *pic, int irq)
+static void icp_pit_init(SysBusDevice *dev)
 {
     int iomemtype;
-    icp_pit_state *s;
+    icp_pit_state *s = FROM_SYSBUS(icp_pit_state, dev);
 
-    s = (icp_pit_state *)qemu_mallocz(sizeof(icp_pit_state));
     /* Timer 0 runs at the system clock speed (40MHz).  */
-    s->timer[0] = arm_timer_init(40000000, pic[irq]);
+    s->timer[0] = arm_timer_init(40000000);
     /* The other two timers run at 1MHz.  */
-    s->timer[1] = arm_timer_init(1000000, pic[irq + 1]);
-    s->timer[2] = arm_timer_init(1000000, pic[irq + 2]);
+    s->timer[1] = arm_timer_init(1000000);
+    s->timer[2] = arm_timer_init(1000000);
+
+    sysbus_init_irq(dev, &s->timer[0]->irq);
+    sysbus_init_irq(dev, &s->timer[1]->irq);
+    sysbus_init_irq(dev, &s->timer[2]->irq);
 
     iomemtype = cpu_register_io_memory(0, icp_pit_readfn,
                                        icp_pit_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
 }
+
+static void arm_timer_register_devices(void)
+{
+    sysbus_register_dev("integrator_pit", sizeof(icp_pit_state), icp_pit_init);
+    sysbus_register_dev("sp804", sizeof(sp804_state), sp804_init);
+}
+
+device_init(arm_timer_register_devices)

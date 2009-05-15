@@ -7,9 +7,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "qemu-timer.h"
-#include "primecell.h"
 
 #define MPCORE_PRIV_BASE  0x10100000
 #define NCPU 4
@@ -41,8 +40,9 @@ typedef struct {
 } mpcore_timer_state;
 
 typedef struct mpcore_priv_state {
-    gic_state *gic;
+    gic_state gic;
     uint32_t scu_control;
+    int iomemtype;
     mpcore_timer_state timer[8];
 } mpcore_priv_state;
 
@@ -51,7 +51,7 @@ typedef struct mpcore_priv_state {
 static inline void mpcore_timer_update_irq(mpcore_timer_state *s)
 {
     if (s->status & ~s->old_status) {
-        gic_set_pending_private(s->mpcore->gic, s->id >> 1, 29 + (s->id & 1));
+        gic_set_pending_private(&s->mpcore->gic, s->id >> 1, 29 + (s->id & 1));
     }
     s->old_status = s->status;
 }
@@ -181,7 +181,7 @@ static uint32_t mpcore_priv_read(void *opaque, target_phys_addr_t offset)
         } else {
             id = (offset - 0x200) >> 8;
         }
-        return gic_cpu_read(s->gic, id, offset & 0xff);
+        return gic_cpu_read(&s->gic, id, offset & 0xff);
     } else if (offset < 0xb00) {
         /* Timers.  */
         if (offset < 0x700) {
@@ -224,7 +224,7 @@ static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
         } else {
             id = (offset - 0x200) >> 8;
         }
-        gic_cpu_write(s->gic, id, offset & 0xff, value);
+        gic_cpu_write(&s->gic, id, offset & 0xff, value);
     } else if (offset < 0xb00) {
         /* Timers.  */
         if (offset < 0x700) {
@@ -255,32 +255,34 @@ static CPUWriteMemoryFunc *mpcore_priv_writefn[] = {
    mpcore_priv_write
 };
 
-
-static qemu_irq *mpcore_priv_init(uint32_t base, qemu_irq *pic_irq)
+static void mpcore_priv_map(SysBusDevice *dev, target_phys_addr_t base)
 {
-    mpcore_priv_state *s;
-    int iomemtype;
+    mpcore_priv_state *s = FROM_SYSBUSGIC(mpcore_priv_state, dev);
+    cpu_register_physical_memory(base, 0x1000, s->iomemtype);
+    cpu_register_physical_memory(base + 0x1000, 0x1000, s->gic.iomemtype);
+}
+
+static void mpcore_priv_init(SysBusDevice *dev)
+{
+    mpcore_priv_state *s = FROM_SYSBUSGIC(mpcore_priv_state, dev);
     int i;
 
-    s = (mpcore_priv_state *)qemu_mallocz(sizeof(mpcore_priv_state));
-    s->gic = gic_init(base + 0x1000, pic_irq);
-    if (!s->gic)
-        return NULL;
-    iomemtype = cpu_register_io_memory(0, mpcore_priv_readfn,
-                                       mpcore_priv_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    gic_init(&s->gic);
+    s->iomemtype = cpu_register_io_memory(0, mpcore_priv_readfn,
+                                          mpcore_priv_writefn, s);
+    sysbus_init_mmio_cb(dev, 0x2000, mpcore_priv_map);
     for (i = 0; i < 8; i++) {
         mpcore_timer_init(s, &s->timer[i], i);
     }
-    return s->gic->in;
 }
 
 /* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
    controllers.  The output of these, plus some of the raw input lines
    are fed into a single SMP-aware interrupt controller on the CPU.  */
 typedef struct {
-    qemu_irq *cpuic;
-    qemu_irq *rvic[4];
+    SysBusDevice busdev;
+    qemu_irq cpuic[32];
+    qemu_irq rvic[4][64];
 } mpcore_rirq_state;
 
 /* Map baseboard IRQs onto CPU IRQ lines.  */
@@ -307,17 +309,36 @@ static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
     }
 }
 
-qemu_irq *mpcore_irq_init(qemu_irq *cpu_irq)
+static void realview_mpcore_init(SysBusDevice *dev)
 {
-    mpcore_rirq_state *s;
+    mpcore_rirq_state *s = FROM_SYSBUS(mpcore_rirq_state, dev);
+    DeviceState *gic;
+    DeviceState *priv;
     int n;
+    int i;
 
-    /* ??? IRQ routing is hardcoded to "normal" mode.  */
-    s = qemu_mallocz(sizeof(mpcore_rirq_state));
-    s->cpuic = mpcore_priv_init(MPCORE_PRIV_BASE, cpu_irq);
-    for (n = 0; n < 4; n++) {
-        s->rvic[n] = realview_gic_init(0x10040000 + n * 0x10000,
-                                       s->cpuic[10 + n]);
+    priv = sysbus_create_simple("arm11mpcore_priv", MPCORE_PRIV_BASE, NULL);
+    sysbus_pass_irq(dev, sysbus_from_qdev(priv));
+    for (i = 0; i < 32; i++) {
+        s->cpuic[i] = qdev_get_irq_sink(priv, i);
     }
-    return qemu_allocate_irqs(mpcore_rirq_set_irq, s, 64);
+    /* ??? IRQ routing is hardcoded to "normal" mode.  */
+    for (n = 0; n < 4; n++) {
+        gic = sysbus_create_simple("realview_gic", 0x10040000 + n * 0x10000,
+                                   s->cpuic[10 + n]);
+        for (i = 0; i < 64; i++) {
+            s->rvic[n][i] = qdev_get_irq_sink(gic, i);
+        }
+    }
+    qdev_init_irq_sink(&dev->qdev, mpcore_rirq_set_irq, 64);
 }
+
+static void mpcore_register_devices(void)
+{
+    sysbus_register_dev("realview_mpcore", sizeof(mpcore_rirq_state),
+                        realview_mpcore_init);
+    sysbus_register_dev("arm11mpcore_priv", sizeof(mpcore_priv_state),
+                        mpcore_priv_init);
+}
+
+device_init(mpcore_register_devices)

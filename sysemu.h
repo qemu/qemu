@@ -132,7 +132,8 @@ extern unsigned int nb_prom_envs;
 #endif
 
 typedef enum {
-    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN
+    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
+    IF_COUNT
 } BlockInterfaceType;
 
 typedef enum {
@@ -164,6 +165,8 @@ extern void drive_uninit(BlockDriverState *bdrv);
 extern void drive_remove(int index);
 extern const char *drive_get_serial(BlockDriverState *bdrv);
 extern BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv);
+
+BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type);
 
 struct drive_opt {
     const char *file;
@@ -258,5 +261,7 @@ const char *get_opt_value(char *buf, int buf_size, const char *p);
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
 int check_params(const char * const *params, const char *str);
+
+void register_devices(void);
 
 #endif

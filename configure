@@ -186,7 +186,7 @@ softmmu="yes"
 linux_user="no"
 darwin_user="no"
 bsd_user="no"
-build_docs="no"
+build_docs="yes"
 uname_release=""
 curses="yes"
 pthread="yes"
@@ -500,6 +500,8 @@ for opt do
   --kerneldir=*) kerneldir="$optarg"
   ;;
   --with-pkgversion=*) pkgversion=" ($optarg)"
+  ;;
+  --disable-docs) build_docs="no"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1256,9 +1258,8 @@ EOF
 fi
 
 # Check if tools are available to build documentation.
-if [ -x "`which texi2html 2>/dev/null`" ] && \
-   [ -x "`which pod2man 2>/dev/null`" ]; then
-  build_docs="yes"
+if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x "`which pod2man 2>/dev/null`" \) ; then
+  build_docs="no"
 fi
 
 ##########################################
@@ -1714,6 +1715,29 @@ bsd)
 ;;
 esac
 
+# Determine what linker flags to use to force archive inclusion
+check_linker_flags()
+{
+    $cc $ARCH_CFLAGS -o $TMPE $OS_CFLAGS $TMPC -Wl,$1 -Wl,$2 >/dev/null 2>/dev/null
+}
+
+cat > $TMPC << EOF
+int main(void) { }
+EOF
+if check_linker_flags --whole-archive --no-whole-archive ; then
+    # GNU ld
+    echo "ARLIBS_BEGIN=-Wl,--whole-archive" >> $config_mak
+    echo "ARLIBS_END=-Wl,--no-whole-archive" >> $config_mak
+elif check_linker_flags -z,allextract -z,defaultextract ; then
+    # Solaris ld
+    echo "ARLIBS_BEGIN=-Wl,-z,allextract" >> $config_mak
+    echo "ARLIBS_END=-Wl,-z,defaultextract" >> $config_mak
+else
+    echo "Error: your linker does not support --whole-archive or -z."
+    echo "Please report to qemu-devel@nongnu.org"
+    exit 1
+fi
+
 tools=
 if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   tools="qemu-img\$(EXESUF) $tools"
@@ -2052,7 +2076,7 @@ done # for target in $targets
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
-    DIRS="tests tests/cris slirp audio"
+    DIRS="tests tests/cris slirp audio block"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     FILES="$FILES tests/test-mmap.c"

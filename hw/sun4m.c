@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "sysbus.h"
 #include "qemu-timer.h"
 #include "sun4m.h"
 #include "nvram.h"
@@ -364,6 +364,24 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
     return kernel_size;
 }
 
+static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
+                       void *dma_opaque, qemu_irq irq, qemu_irq *reset)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    qemu_check_nic_model(&nd_table[0], "lance");
+
+    dev = qdev_create(NULL, "lance");
+    qdev_set_netdev(dev, nd);
+    qdev_set_prop_ptr(dev, "dma", dma_opaque);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_mmio_map(s, 0, leaddr);
+    sysbus_connect_irq(s, 0, irq);
+    *reset = qdev_get_irq_sink(dev, 0);
+}
+
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
@@ -373,7 +391,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 {
     CPUState *env, *envs[MAX_CPUS];
     unsigned int i;
-    void *iommu, *espdma, *ledma, *main_esp, *nvram;
+    void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
@@ -515,16 +533,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         exit(1);
     }
 
-    main_esp = esp_init(hwdef->esp_base, 2,
-                        espdma_memory_read, espdma_memory_write,
-                        espdma, *espdma_irq, esp_reset);
-
-    for (i = 0; i < ESP_MAX_DEVS; i++) {
-        drive_index = drive_get_index(IF_SCSI, 0, i);
-        if (drive_index == -1)
-            continue;
-        esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
-    }
+    esp_init(hwdef->esp_base, 2,
+             espdma_memory_read, espdma_memory_write,
+             espdma, *espdma_irq, esp_reset);
 
     if (hwdef->cs_base)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
@@ -1166,7 +1177,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 {
     CPUState *env, *envs[MAX_CPUS];
     unsigned int i;
-    void *iounits[MAX_IOUNITS], *espdma, *ledma, *main_esp, *nvram, *sbi;
+    void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram, *sbi;
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
@@ -1174,7 +1185,6 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     unsigned long kernel_size;
     int ret;
     char buf[1024];
-    int drive_index;
     void *fw_cfg;
 
     /* init CPUs */
@@ -1274,16 +1284,9 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         exit(1);
     }
 
-    main_esp = esp_init(hwdef->esp_base, 2,
-                        espdma_memory_read, espdma_memory_write,
-                        espdma, *espdma_irq, esp_reset);
-
-    for (i = 0; i < ESP_MAX_DEVS; i++) {
-        drive_index = drive_get_index(IF_SCSI, 0, i);
-        if (drive_index == -1)
-            continue;
-        esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
-    }
+    esp_init(hwdef->esp_base, 2,
+             espdma_memory_read, espdma_memory_write,
+             espdma, *espdma_irq, esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
@@ -1388,8 +1391,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    unsigned int i;
-    void *iommu, *espdma, *ledma, *main_esp, *nvram;
+    void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs, *slavio_irq, *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
@@ -1500,16 +1502,9 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
         exit(1);
     }
 
-    main_esp = esp_init(hwdef->esp_base, 2,
-                        espdma_memory_read, espdma_memory_write,
-                        espdma, *espdma_irq, esp_reset);
-
-    for (i = 0; i < ESP_MAX_DEVS; i++) {
-        drive_index = drive_get_index(IF_SCSI, 0, i);
-        if (drive_index == -1)
-            continue;
-        esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
-    }
+    esp_init(hwdef->esp_base, 2,
+             espdma_memory_read, espdma_memory_write,
+             espdma, *espdma_irq, esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);

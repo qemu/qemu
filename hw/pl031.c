@@ -9,8 +9,7 @@
  *
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 #include "qemu-timer.h"
 
 //#define DEBUG_PL031
@@ -32,6 +31,7 @@ do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
 #define RTC_ICR     0x1c    /* Interrupt clear register */
 
 typedef struct {
+    SysBusDevice busdev;
     QEMUTimer *timer;
     qemu_irq irq;
 
@@ -183,25 +183,30 @@ static CPUReadMemoryFunc * pl031_readfn[] = {
     pl031_read
 };
 
-void pl031_init(uint32_t base, qemu_irq irq)
+static void pl031_init(SysBusDevice *dev)
 {
     int iomemtype;
-    pl031_state *s;
+    pl031_state *s = FROM_SYSBUS(pl031_state, dev);
     struct tm tm;
-
-    s = qemu_mallocz(sizeof(pl031_state));
 
     iomemtype = cpu_register_io_memory(0, pl031_readfn, pl031_writefn, s);
     if (iomemtype == -1) {
         hw_error("pl031_init: Can't register I/O memory\n");
     }
 
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
 
-    s->irq  = irq;
+    sysbus_init_irq(dev, &s->irq);
     /* ??? We assume vm_clock is zero at this point.  */
     qemu_get_timedate(&tm, 0);
     s->tick_offset = mktimegm(&tm);
 
     s->timer = qemu_new_timer(vm_clock, pl031_interrupt, s);
 }
+
+static void pl031_register_devices(void)
+{
+    sysbus_register_dev("pl031", sizeof(pl031_state), pl031_init);
+}
+
+device_init(pl031_register_devices)

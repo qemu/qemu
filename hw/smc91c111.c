@@ -7,7 +7,7 @@
  * This code is licenced under the GPL
  */
 
-#include "hw.h"
+#include "sysbus.h"
 #include "net.h"
 #include "devices.h"
 /* For crc32 */
@@ -17,6 +17,7 @@
 #define NUM_PACKETS 4
 
 typedef struct {
+    SysBusDevice busdev;
     VLANClientState *vc;
     uint16_t tcr;
     uint16_t rcr;
@@ -697,24 +698,44 @@ static void smc91c111_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
+static void smc91c111_init1(SysBusDevice *dev)
 {
-    smc91c111_state *s;
+    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, dev);
 
-    qemu_check_nic_model(nd, "smc91c111");
-
-    s = (smc91c111_state *)qemu_mallocz(sizeof(smc91c111_state));
     s->mmio_index = cpu_register_io_memory(0, smc91c111_readfn,
                                            smc91c111_writefn, s);
-    cpu_register_physical_memory(base, 16, s->mmio_index);
-    s->irq = irq;
-    memcpy(s->macaddr, nd->macaddr, 6);
+    sysbus_init_mmio(dev, 16, s->mmio_index);
+    sysbus_init_irq(dev, &s->irq);
+    qdev_get_macaddr(&dev->qdev, s->macaddr);
 
     smc91c111_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = qdev_get_vlan_client(&dev->qdev,
                                  smc91c111_receive, smc91c111_can_receive,
                                  smc91c111_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->macaddr);
     /* ??? Save/restore.  */
 }
+
+static void smc91c111_register_devices(void)
+{
+    sysbus_register_dev("smc91c111", sizeof(smc91c111_state), smc91c111_init1);
+}
+
+/* Legacy helper function.  Should go away when machine config files are
+   implemented.  */
+void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    qemu_check_nic_model(nd, "smc91c111");
+    dev = qdev_create(NULL, "smc91c111");
+    qdev_set_netdev(dev, nd);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_mmio_map(s, 0, base);
+    sysbus_connect_irq(s, 0, irq);
+}
+
+device_init(smc91c111_register_devices)

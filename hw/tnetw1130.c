@@ -845,7 +845,7 @@ static void tnetw1130_pci_config(uint8_t *pci_conf)
     /* 0x48...0xff reserved, returns 0 */
 }
 
-static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
+static void tnetw1130_init(pci_tnetw1130_t *d)
 {
     tnetw1130_t *s = &d->tnetw1130;
 
@@ -865,14 +865,16 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
     pci_register_io_region(&d->dev, 1, TNETW1130_MEM1_SIZE,
                            PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
 
+#if 0
     static const char macaddr[6] = {
         0x00, 0x60, 0x65, 0x02, 0x4a, 0x8e
     };
     memcpy(s->macaddr, macaddr, 6);
-    //~ memcpy(s->macaddr, nd->macaddr, 6);
+#endif
+    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     tnetw1130_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = qdev_get_vlan_client(&d->dev.qdev,
                                  tnetw1130_receive, tnetw1130_can_receive,
                                  tnetw1130_cleanup, s);
 
@@ -884,20 +886,22 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
                     tnetw1130_save, tnetw1130_load, d);
 }
 
-PCIDevice *pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
+static void pci_tnetw1130_init(PCIDevice* pci_dev)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) pci_register_device(bus, "TNETW1130",
-                                              sizeof(pci_tnetw1130_t),
-                                              -1, NULL, NULL);
+    pci_tnetw1130_t *d = (pci_tnetw1130_t *)pci_dev;
 #if defined(DEBUG_TNETW1130)
     set_traceflags("DEBUG_TNETW1130");
 #endif
     TRACE(TNETW, logout("\n"));
-    if (d != NULL) {
-        tnetw1130_init(d, nd);
-    }
-    return (PCIDevice *)d;
+    tnetw1130_init(d);
 }
+
+static void tnetw1130_register_devices(void)
+{
+    pci_qdev_register("tnetw1130", sizeof(pci_tnetw1130_t), pci_tnetw1130_init);
+}
+
+device_init(tnetw1130_register_devices)
 
 static pci_tnetw1130_t vlynq;
 

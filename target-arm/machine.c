@@ -23,6 +23,7 @@ void register_machines(void)
     qemu_register_machine(&mainstone2_machine);
     qemu_register_machine(&musicpal_machine);
     qemu_register_machine(&tosapda_machine);
+    qemu_register_machine(&syborg_machine);
 }
 
 void cpu_save(QEMUFile *f, void *opaque)

@@ -7,20 +7,6 @@
 /* block.c */
 typedef struct BlockDriver BlockDriver;
 
-extern BlockDriver bdrv_raw;
-extern BlockDriver bdrv_host_device;
-extern BlockDriver bdrv_cow;
-extern BlockDriver bdrv_qcow;
-extern BlockDriver bdrv_vmdk;
-extern BlockDriver bdrv_cloop;
-extern BlockDriver bdrv_dmg;
-extern BlockDriver bdrv_bochs;
-extern BlockDriver bdrv_vpc;
-extern BlockDriver bdrv_vvfat;
-extern BlockDriver bdrv_qcow2;
-extern BlockDriver bdrv_parallels;
-extern BlockDriver bdrv_nbd;
-
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
     int cluster_size;
@@ -87,6 +73,8 @@ int64_t bdrv_getlength(BlockDriverState *bs);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
 void bdrv_guess_geometry(BlockDriverState *bs, int *pcyls, int *pheads, int *psecs);
 int bdrv_commit(BlockDriverState *bs);
+void bdrv_register(BlockDriver *bdrv);
+
 /* async block I/O */
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);

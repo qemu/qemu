@@ -76,8 +76,4 @@ void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert);
 int sd_data_ready(SDState *sd);
 void sd_enable(SDState *sd, int enable);
 
-/* ssi-sd.c */
-int ssi_sd_xfer(void *opaque, int val);
-void *ssi_sd_init(BlockDriverState *bs);
-
 #endif	/* __hw_sd_h */

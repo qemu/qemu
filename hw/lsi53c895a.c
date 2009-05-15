@@ -1939,9 +1939,9 @@ static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
 }
 
-void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id)
+void lsi_scsi_attach(DeviceState *host, BlockDriverState *bd, int id)
 {
-    LSIState *s = (LSIState *)opaque;
+    LSIState *s = (LSIState *)host;
 
     if (id < 0) {
         for (id = 0; id < LSI_MAX_DEVS; id++) {
@@ -1976,17 +1976,10 @@ static int lsi_scsi_uninit(PCIDevice *d)
     return 0;
 }
 
-void *lsi_scsi_init(PCIBus *bus, int devfn)
+static void lsi_scsi_init(PCIDevice *dev)
 {
-    LSIState *s;
+    LSIState *s = (LSIState *)dev;
     uint8_t *pci_conf;
-
-    s = (LSIState *)pci_register_device(bus, "LSI53C895A SCSI HBA",
-                                        sizeof(*s), devfn, NULL, NULL);
-    if (s == NULL) {
-        fprintf(stderr, "lsi-scsi: Failed to register PCI device\n");
-        return NULL;
-    }
 
     pci_conf = s->pci_dev.config;
 
@@ -2022,5 +2015,12 @@ void *lsi_scsi_init(PCIBus *bus, int devfn)
 
     lsi_soft_reset(s);
 
-    return s;
+    scsi_bus_new(&dev->qdev, lsi_scsi_attach);
 }
+
+static void lsi53c895a_register_devices(void)
+{
+    pci_qdev_register("lsi53c895a", sizeof(LSIState), lsi_scsi_init);
+}
+
+device_init(lsi53c895a_register_devices);
