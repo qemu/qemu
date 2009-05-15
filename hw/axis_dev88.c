@@ -349,10 +349,10 @@ void axisdev88_init (ram_addr_t ram_size, int vga_ram_size,
                 fprintf(stderr, "Too long CRIS kernel cmdline (max 256)\n");
                 exit(1);
             }
-            pstrcpy_targphys(high, 256, kernel_cmdline);
             /* Let the kernel know we are modifying the cmdline.  */
             env->regs[10] = 0x87109563;
-            env->regs[11] = high;
+            env->regs[11] = 0x40000000;
+            pstrcpy_targphys(env->regs[11], 256, kernel_cmdline);
         }
     }
     env->pc = bootstrap_pc;
