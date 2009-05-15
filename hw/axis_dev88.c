@@ -21,15 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <time.h>
-#include <sys/time.h>
-#include "hw.h"
+
+#include "sysbus.h"
 #include "net.h"
 #include "flash.h"
-#include "sysemu.h"
-#include "devices.h"
 #include "boards.h"
-
+#include "sysemu.h"
 #include "etraxfs.h"
 
 #define D(x)
@@ -323,10 +320,8 @@ void axisdev88_init (ram_addr_t ram_size,
     etraxfs_timer_init(env, irq + 0x1b, nmi + 1, 0x3005e000);
 
     for (i = 0; i < 4; i++) {
-        if (serial_hds[i]) {
-            etraxfs_ser_init(env, irq + 0x14 + i,
-                             serial_hds[i], 0x30026000 + i * 0x2000);
-        }
+        sysbus_create_simple("etraxfs,serial", 0x30026000 + i * 0x2000,
+                             irq[0x14 + i]); 
     }
 
     if (kernel_filename) {

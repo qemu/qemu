@@ -22,11 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include "hw.h"
+#include "sysbus.h"
 #include "qemu-char.h"
-#include "etraxfs.h"
 
 #define D(x)
 
@@ -48,9 +45,9 @@
 
 struct etrax_serial
 {
-	CPUState *env;
+	SysBusDevice busdev;
 	CharDriverState *chr;
-	qemu_irq *irq;
+	qemu_irq irq;
 
 	/* This pending thing is a hack.  */
 	int pending_tx;
@@ -64,7 +61,7 @@ static void ser_update_irq(struct etrax_serial *s)
 	s->regs[R_INTR] &= ~(s->regs[RW_ACK_INTR]);
 	s->regs[R_MASKED_INTR] = s->regs[R_INTR] & s->regs[RW_INTR_MASK];
 
-	qemu_set_irq(s->irq[0], !!s->regs[R_MASKED_INTR]);
+	qemu_set_irq(s->irq, !!s->regs[R_MASKED_INTR]);
 	s->regs[RW_ACK_INTR] = 0;
 }
 
@@ -164,25 +161,29 @@ static void serial_event(void *opaque, int event)
 
 }
 
-void etraxfs_ser_init(CPUState *env, qemu_irq *irq, CharDriverState *chr,
-		      target_phys_addr_t base)
+static void etraxfs_ser_init(SysBusDevice *dev)
 {
-	struct etrax_serial *s;
+	struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
 	int ser_regs;
-
-	s = qemu_mallocz(sizeof *s);
-
-	s->env = env;
-	s->irq = irq;
-	s->chr = chr;
 
 	/* transmitter begins ready and idle.  */
 	s->regs[RS_STAT_DIN] |= (1 << STAT_TR_RDY);
 	s->regs[RS_STAT_DIN] |= (1 << STAT_TR_IDLE);
 
-	qemu_chr_add_handlers(chr, serial_can_receive, serial_receive,
-			      serial_event, s);
-
+	sysbus_init_irq(dev, &s->irq);
 	ser_regs = cpu_register_io_memory(0, ser_read, ser_write, s);
-	cpu_register_physical_memory (base, R_MAX * 4, ser_regs);
+	sysbus_init_mmio(dev, R_MAX * 4, ser_regs);
+	s->chr = qdev_init_chardev(&dev->qdev);
+	if (s->chr)
+		qemu_chr_add_handlers(s->chr,
+				      serial_can_receive, serial_receive,
+				      serial_event, s);
 }
+
+static void etraxfs_serial_register(void)
+{
+	sysbus_register_dev("etraxfs,serial", sizeof (struct etrax_serial),
+			    etraxfs_ser_init);
+}
+
+device_init(etraxfs_serial_register)
