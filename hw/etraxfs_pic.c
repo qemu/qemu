@@ -118,16 +118,6 @@ void irq_info(Monitor *mon)
 {
 }
 
-static void irq_handler(void *opaque, int irq, int level)
-{	
-	struct fs_pic_state *fs = (void *)opaque;
-	irq -= 1;
-	fs->regs[R_R_VECT] &= ~(1 << irq);
-	fs->regs[R_R_VECT] |= (!!level << irq);
-
-	pic_update(fs);
-}
-
 static void nmi_handler(void *opaque, int irq, int level)
 {	
 	struct fs_pic_state *fs = (void *)opaque;
@@ -146,27 +136,30 @@ static void nmi_handler(void *opaque, int irq, int level)
 		cpu_reset_interrupt(env, CPU_INTERRUPT_NMI);
 }
 
-static void guru_handler(void *opaque, int irq, int level)
+static void irq_handler(void *opaque, int irq, int level)
 {	
-	hw_error("%s unsupported exception\n", __func__);
+	struct fs_pic_state *fs = (void *)opaque;
+
+	if (irq >= 30)
+		return nmi_handler(opaque, irq, level);
+
+	irq -= 1;
+	fs->regs[R_R_VECT] &= ~(1 << irq);
+	fs->regs[R_R_VECT] |= (!!level << irq);
+	pic_update(fs);
 }
 
-struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
+qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 {
 	struct fs_pic_state *fs = NULL;
-	struct etraxfs_pic *pic = NULL;
+	qemu_irq *irq;
 	int intr_vect_regs;
 
-	pic = qemu_mallocz(sizeof *pic);
-	pic->internal = fs = qemu_mallocz(sizeof *fs);
-
+	fs = qemu_mallocz(sizeof *fs);
 	fs->env = env;
-	pic->irq = qemu_allocate_irqs(irq_handler, fs, 30);
-	pic->nmi = qemu_allocate_irqs(nmi_handler, fs, 2);
-	pic->guru = qemu_allocate_irqs(guru_handler, fs, 1);
+	irq = qemu_allocate_irqs(irq_handler, fs, 32);
 
 	intr_vect_regs = cpu_register_io_memory(0, pic_read, pic_write, fs);
 	cpu_register_physical_memory(base, R_MAX * 4, intr_vect_regs);
-
-	return pic;
+	return irq;
 }

@@ -52,7 +52,7 @@ void bareetraxfs_init (ram_addr_t ram_size,
                        const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    struct etraxfs_pic *pic;
+    qemu_irq *irq, *nmi; 
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
@@ -86,18 +86,20 @@ void bareetraxfs_init (ram_addr_t ram_size,
                           FLASH_SIZE >> 16,
                           1, 2, 0x0000, 0x0000, 0x0000, 0x0000,
                           0x555, 0x2aa);
-    pic = etraxfs_pic_init(env, 0x3001c000);
+    irq = etraxfs_pic_init(env, 0x3001c000);
+    nmi = irq + 30;
+
     etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
     for (i = 0; i < 10; i++) {
         /* On ETRAX, odd numbered channels are inputs.  */
-        etraxfs_dmac_connect(etraxfs_dmac, i, pic->irq + 7 + i, i & 1);
+        etraxfs_dmac_connect(etraxfs_dmac, i, irq + 7 + i, i & 1);
     }
 
     /* Add the two ethernet blocks.  */
-    eth[0] = etraxfs_eth_init(&nd_table[0], env, pic->irq + 25, 0x30034000, 1);
+    eth[0] = etraxfs_eth_init(&nd_table[0], env, irq + 25, 0x30034000, 1);
     if (nb_nics > 1)
         eth[1] = etraxfs_eth_init(&nd_table[1], env,
-                                  pic->irq + 26, 0x30036000, 2);
+                                  irq + 26, 0x30036000, 2);
 
     /* The DMA Connector block is missing, hardwire things for now.  */
     etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);
@@ -108,12 +110,12 @@ void bareetraxfs_init (ram_addr_t ram_size,
     }
 
     /* 2 timers.  */
-    etraxfs_timer_init(env, pic->irq + 0x1b, pic->nmi + 1, 0x3001e000);
-    etraxfs_timer_init(env, pic->irq + 0x1b, pic->nmi + 1, 0x3005e000);
+    etraxfs_timer_init(env, irq + 0x1b, nmi + 1, 0x3001e000);
+    etraxfs_timer_init(env, irq + 0x1b, nmi + 1, 0x3005e000);
 
     for (i = 0; i < 4; i++) {
         if (serial_hds[i]) {
-            etraxfs_ser_init(env, pic->irq + 0x14 + i,
+            etraxfs_ser_init(env, irq + 0x14 + i,
                              serial_hds[i], 0x30026000 + i * 0x2000);
         }
     }
