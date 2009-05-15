@@ -45,115 +45,115 @@
 
 struct etrax_serial
 {
-	SysBusDevice busdev;
-	CharDriverState *chr;
-	qemu_irq irq;
+    SysBusDevice busdev;
+    CharDriverState *chr;
+    qemu_irq irq;
 
-	/* This pending thing is a hack.  */
-	int pending_tx;
+    /* This pending thing is a hack.  */
+    int pending_tx;
 
-	/* Control registers.  */
-	uint32_t regs[R_MAX];
+    /* Control registers.  */
+    uint32_t regs[R_MAX];
 };
 
 static void ser_update_irq(struct etrax_serial *s)
 {
-	s->regs[R_INTR] &= ~(s->regs[RW_ACK_INTR]);
-	s->regs[R_MASKED_INTR] = s->regs[R_INTR] & s->regs[RW_INTR_MASK];
+    s->regs[R_INTR] &= ~(s->regs[RW_ACK_INTR]);
+    s->regs[R_MASKED_INTR] = s->regs[R_INTR] & s->regs[RW_INTR_MASK];
 
-	qemu_set_irq(s->irq, !!s->regs[R_MASKED_INTR]);
-	s->regs[RW_ACK_INTR] = 0;
+    qemu_set_irq(s->irq, !!s->regs[R_MASKED_INTR]);
+    s->regs[RW_ACK_INTR] = 0;
 }
 
 static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 {
-	struct etrax_serial *s = opaque;
-	D(CPUState *env = s->env);
-	uint32_t r = 0;
+    struct etrax_serial *s = opaque;
+    D(CPUState *env = s->env);
+    uint32_t r = 0;
 
-	addr >>= 2;
-	switch (addr)
-	{
-		case R_STAT_DIN:
-			r = s->regs[RS_STAT_DIN];
-			break;
-		case RS_STAT_DIN:
-			r = s->regs[addr];
-			/* Read side-effect: clear dav.  */
-			s->regs[addr] &= ~(1 << STAT_DAV);
-			break;
-		default:
-			r = s->regs[addr];
-			D(printf ("%s %x=%x\n", __func__, addr, r));
-			break;
-	}
-	return r;
+    addr >>= 2;
+    switch (addr)
+    {
+        case R_STAT_DIN:
+            r = s->regs[RS_STAT_DIN];
+            break;
+        case RS_STAT_DIN:
+            r = s->regs[addr];
+            /* Read side-effect: clear dav.  */
+            s->regs[addr] &= ~(1 << STAT_DAV);
+            break;
+        default:
+            r = s->regs[addr];
+            D(printf ("%s %x=%x\n", __func__, addr, r));
+            break;
+    }
+    return r;
 }
 
 static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	struct etrax_serial *s = opaque;
-	unsigned char ch = value;
-	D(CPUState *env = s->env);
+    struct etrax_serial *s = opaque;
+    unsigned char ch = value;
+    D(CPUState *env = s->env);
 
-	D(printf ("%s %x %x\n",  __func__, addr, value));
-	addr >>= 2;
-	switch (addr)
-	{
-		case RW_DOUT:
-			qemu_chr_write(s->chr, &ch, 1);
-			s->regs[R_INTR] |= 1;
-			s->pending_tx = 1;
-			s->regs[addr] = value;
-			break;
-		case RW_ACK_INTR:
-			s->regs[addr] = value;
-			if (s->pending_tx && (s->regs[addr] & 1)) {
-				s->regs[R_INTR] |= 1;
-				s->pending_tx = 0;
-				s->regs[addr] &= ~1;
-			}
-			break;
-		default:
-			s->regs[addr] = value;
-			break;
-	}
-	ser_update_irq(s);
+    D(printf ("%s %x %x\n",  __func__, addr, value));
+    addr >>= 2;
+    switch (addr)
+    {
+        case RW_DOUT:
+            qemu_chr_write(s->chr, &ch, 1);
+            s->regs[R_INTR] |= 1;
+            s->pending_tx = 1;
+            s->regs[addr] = value;
+            break;
+        case RW_ACK_INTR:
+            s->regs[addr] = value;
+            if (s->pending_tx && (s->regs[addr] & 1)) {
+                s->regs[R_INTR] |= 1;
+                s->pending_tx = 0;
+                s->regs[addr] &= ~1;
+            }
+            break;
+        default:
+            s->regs[addr] = value;
+            break;
+    }
+    ser_update_irq(s);
 }
 
 static CPUReadMemoryFunc *ser_read[] = {
-	NULL, NULL,
-	&ser_readl,
+    NULL, NULL,
+    &ser_readl,
 };
 
 static CPUWriteMemoryFunc *ser_write[] = {
-	NULL, NULL,
-	&ser_writel,
+    NULL, NULL,
+    &ser_writel,
 };
 
 static void serial_receive(void *opaque, const uint8_t *buf, int size)
 {
-	struct etrax_serial *s = opaque;
+    struct etrax_serial *s = opaque;
 
-	s->regs[R_INTR] |= 8;
-	s->regs[RS_STAT_DIN] &= ~0xff;
-	s->regs[RS_STAT_DIN] |= (buf[0] & 0xff);
-	s->regs[RS_STAT_DIN] |= (1 << STAT_DAV); /* dav.  */
-	ser_update_irq(s);
+    s->regs[R_INTR] |= 8;
+    s->regs[RS_STAT_DIN] &= ~0xff;
+    s->regs[RS_STAT_DIN] |= (buf[0] & 0xff);
+    s->regs[RS_STAT_DIN] |= (1 << STAT_DAV); /* dav.  */
+    ser_update_irq(s);
 }
 
 static int serial_can_receive(void *opaque)
 {
-	struct etrax_serial *s = opaque;
-	int r;
+    struct etrax_serial *s = opaque;
+    int r;
 
-	/* Is the receiver enabled?  */
-	r = s->regs[RW_REC_CTRL] & 1;
+    /* Is the receiver enabled?  */
+    r = s->regs[RW_REC_CTRL] & 1;
 
-	/* Pending rx data?  */
-	r |= !(s->regs[R_INTR] & 8);
-	return r;
+    /* Pending rx data?  */
+    r |= !(s->regs[R_INTR] & 8);
+    return r;
 }
 
 static void serial_event(void *opaque, int event)
@@ -163,27 +163,27 @@ static void serial_event(void *opaque, int event)
 
 static void etraxfs_ser_init(SysBusDevice *dev)
 {
-	struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
-	int ser_regs;
+    struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
+    int ser_regs;
 
-	/* transmitter begins ready and idle.  */
-	s->regs[RS_STAT_DIN] |= (1 << STAT_TR_RDY);
-	s->regs[RS_STAT_DIN] |= (1 << STAT_TR_IDLE);
+    /* transmitter begins ready and idle.  */
+    s->regs[RS_STAT_DIN] |= (1 << STAT_TR_RDY);
+    s->regs[RS_STAT_DIN] |= (1 << STAT_TR_IDLE);
 
-	sysbus_init_irq(dev, &s->irq);
-	ser_regs = cpu_register_io_memory(0, ser_read, ser_write, s);
-	sysbus_init_mmio(dev, R_MAX * 4, ser_regs);
-	s->chr = qdev_init_chardev(&dev->qdev);
-	if (s->chr)
-		qemu_chr_add_handlers(s->chr,
-				      serial_can_receive, serial_receive,
-				      serial_event, s);
+    sysbus_init_irq(dev, &s->irq);
+    ser_regs = cpu_register_io_memory(0, ser_read, ser_write, s);
+    sysbus_init_mmio(dev, R_MAX * 4, ser_regs);
+    s->chr = qdev_init_chardev(&dev->qdev);
+    if (s->chr)
+        qemu_chr_add_handlers(s->chr,
+                      serial_can_receive, serial_receive,
+                      serial_event, s);
 }
 
 static void etraxfs_serial_register(void)
 {
-	sysbus_register_dev("etraxfs,serial", sizeof (struct etrax_serial),
-			    etraxfs_ser_init);
+    sysbus_register_dev("etraxfs,serial", sizeof (struct etrax_serial),
+                etraxfs_ser_init);
 }
 
 device_init(etraxfs_serial_register)
