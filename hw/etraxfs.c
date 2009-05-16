@@ -26,6 +26,7 @@
 #include "boards.h"
 #include "sysemu.h"
 #include "net.h"
+#include "flash.h"
 #include "etraxfs.h"
 
 #define FLASH_SIZE 0x2000000
@@ -106,8 +107,8 @@ void bareetraxfs_init (ram_addr_t ram_size,
     }
 
     /* 2 timers.  */
-    etraxfs_timer_init(env, irq + 0x1b, nmi + 1, 0x3001e000);
-    etraxfs_timer_init(env, irq + 0x1b, nmi + 1, 0x3005e000);
+    sysbus_create_varargs("etraxfs,timer", 0x3001e000, irq[0x1b], nmi[1], NULL);
+    sysbus_create_varargs("etraxfs,timer", 0x3005e000, irq[0x1b], nmi[1], NULL);
 
     for (i = 0; i < 4; i++) {
         sysbus_create_simple("etraxfs,serial", 0x30026000 + i * 0x2000,

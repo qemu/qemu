@@ -21,12 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdio.h>
-#include <sys/time.h>
-#include "hw.h"
+#include "sysbus.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
-#include "etraxfs.h"
 
 #define D(x)
 
@@ -44,10 +41,10 @@
 #define R_INTR        0x50
 #define R_MASKED_INTR 0x54
 
-struct fs_timer_t {
-    CPUState *env;
-    qemu_irq *irq;
-    qemu_irq *nmi;
+struct etrax_timer {
+    SysBusDevice busdev;
+    qemu_irq irq;
+    qemu_irq nmi;
 
     QEMUBH *bh_t0;
     QEMUBH *bh_t1;
@@ -78,7 +75,7 @@ struct fs_timer_t {
 
 static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
 {
-    struct fs_timer_t *t = opaque;
+    struct etrax_timer *t = opaque;
     uint32_t r = 0;
 
     switch (addr) {
@@ -105,7 +102,7 @@ static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
 }
 
 #define TIMER_SLOWDOWN 1
-static void update_ctrl(struct fs_timer_t *t, int tnum)
+static void update_ctrl(struct etrax_timer *t, int tnum)
 {
     unsigned int op;
     unsigned int freq;
@@ -172,38 +169,38 @@ static void update_ctrl(struct fs_timer_t *t, int tnum)
     }
 }
 
-static void timer_update_irq(struct fs_timer_t *t)
+static void timer_update_irq(struct etrax_timer *t)
 {
     t->r_intr &= ~(t->rw_ack_intr);
     t->r_masked_intr = t->r_intr & t->rw_intr_mask;
 
     D(printf("%s: masked_intr=%x\n", __func__, t->r_masked_intr));
-    qemu_set_irq(t->irq[0], !!t->r_masked_intr);
+    qemu_set_irq(t->irq, !!t->r_masked_intr);
 }
 
 static void timer0_hit(void *opaque)
 {
-    struct fs_timer_t *t = opaque;
+    struct etrax_timer *t = opaque;
     t->r_intr |= 1;
     timer_update_irq(t);
 }
 
 static void timer1_hit(void *opaque)
 {
-    struct fs_timer_t *t = opaque;
+    struct etrax_timer *t = opaque;
     t->r_intr |= 2;
     timer_update_irq(t);
 }
 
 static void watchdog_hit(void *opaque)
 {
-    struct fs_timer_t *t = opaque;
+    struct etrax_timer *t = opaque;
     if (t->wd_hits == 0) {
         /* real hw gives a single tick before reseting but we are
            a bit friendlier to compensate for our slower execution.  */
         ptimer_set_count(t->ptimer_wd, 10);
         ptimer_run(t->ptimer_wd, 1);
-        qemu_irq_raise(t->nmi[0]);
+        qemu_irq_raise(t->nmi);
     }
     else
         qemu_system_reset_request();
@@ -211,7 +208,7 @@ static void watchdog_hit(void *opaque)
     t->wd_hits++;
 }
 
-static inline void timer_watchdog_update(struct fs_timer_t *t, uint32_t value)
+static inline void timer_watchdog_update(struct etrax_timer *t, uint32_t value)
 {
     unsigned int wd_en = t->rw_wd_ctrl & (1 << 8);
     unsigned int wd_key = t->rw_wd_ctrl >> 9;
@@ -230,7 +227,7 @@ static inline void timer_watchdog_update(struct fs_timer_t *t, uint32_t value)
          wd_en, new_key, wd_key, new_cmd, wd_cnt));
 
     if (t->wd_hits)
-        qemu_irq_lower(t->nmi[0]);
+        qemu_irq_lower(t->nmi);
 
     t->wd_hits = 0;
 
@@ -249,7 +246,7 @@ static inline void timer_watchdog_update(struct fs_timer_t *t, uint32_t value)
 static void
 timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    struct fs_timer_t *t = opaque;
+    struct etrax_timer *t = opaque;
 
     switch (addr)
     {
@@ -301,7 +298,7 @@ static CPUWriteMemoryFunc *timer_write[] = {
 
 static void etraxfs_timer_reset(void *opaque)
 {
-    struct fs_timer_t *t = opaque;
+    struct etrax_timer *t = opaque;
 
     ptimer_stop(t->ptimer_t0);
     ptimer_stop(t->ptimer_t1);
@@ -309,16 +306,13 @@ static void etraxfs_timer_reset(void *opaque)
     t->rw_wd_ctrl = 0;
     t->r_intr = 0;
     t->rw_intr_mask = 0;
-    qemu_irq_lower(t->irq[0]);
+    qemu_irq_lower(t->irq);
 }
 
-void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, qemu_irq *nmi,
-            target_phys_addr_t base)
+static void etraxfs_timer_init(SysBusDevice *dev)
 {
-    static struct fs_timer_t *t;
+    struct etrax_timer *t = FROM_SYSBUS(typeof (*t), dev);
     int timer_regs;
-
-    t = qemu_mallocz(sizeof *t);
 
     t->bh_t0 = qemu_bh_new(timer0_hit, t);
     t->bh_t1 = qemu_bh_new(timer1_hit, t);
@@ -326,12 +320,20 @@ void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, qemu_irq *nmi,
     t->ptimer_t0 = ptimer_init(t->bh_t0);
     t->ptimer_t1 = ptimer_init(t->bh_t1);
     t->ptimer_wd = ptimer_init(t->bh_wd);
-    t->irq = irqs;
-    t->nmi = nmi;
-    t->env = env;
+
+    sysbus_init_irq(dev, &t->irq);
+    sysbus_init_irq(dev, &t->nmi);
 
     timer_regs = cpu_register_io_memory(0, timer_read, timer_write, t);
-    cpu_register_physical_memory (base, 0x5c, timer_regs);
+    sysbus_init_mmio(dev, 0x5c, timer_regs);
 
     qemu_register_reset(etraxfs_timer_reset, t);
 }
+
+static void etraxfs_timer_register(void)
+{
+    sysbus_register_dev("etraxfs,timer", sizeof (struct etrax_timer),
+                        etraxfs_timer_init);
+}
+
+device_init(etraxfs_timer_register)
