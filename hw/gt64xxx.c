@@ -30,9 +30,6 @@
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
-#define BIT(n) (1 << (n))
-#define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
-
 //#define DEBUG
 
 #ifdef DEBUG
