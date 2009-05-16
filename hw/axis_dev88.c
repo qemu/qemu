@@ -21,15 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <time.h>
-#include <sys/time.h>
-#include "hw.h"
+
+#include "sysbus.h"
 #include "net.h"
 #include "flash.h"
-#include "sysemu.h"
-#include "devices.h"
 #include "boards.h"
-
+#include "sysemu.h"
 #include "etraxfs.h"
 
 #define D(x)
@@ -257,7 +254,7 @@ void axisdev88_init (ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    struct etraxfs_pic *pic;
+    qemu_irq *irq, *nmi;
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
@@ -295,18 +292,20 @@ void axisdev88_init (ram_addr_t ram_size,
     cpu_register_physical_memory(0x3001a000, 0x5c, gpio_regs);
 
 
-    pic = etraxfs_pic_init(env, 0x3001c000);
+    irq = etraxfs_pic_init(env, 0x3001c000);
+    nmi = irq + 30;
+
     etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
     for (i = 0; i < 10; i++) {
         /* On ETRAX, odd numbered channels are inputs.  */
-        etraxfs_dmac_connect(etraxfs_dmac, i, pic->irq + 7 + i, i & 1);
+        etraxfs_dmac_connect(etraxfs_dmac, i, irq + 7 + i, i & 1);
     }
 
     /* Add the two ethernet blocks.  */
-    eth[0] = etraxfs_eth_init(&nd_table[0], env, pic->irq + 25, 0x30034000, 1);
+    eth[0] = etraxfs_eth_init(&nd_table[0], env, irq + 25, 0x30034000, 1);
     if (nb_nics > 1)
         eth[1] = etraxfs_eth_init(&nd_table[1], env,
-                                  pic->irq + 26, 0x30036000, 2);
+                                  irq + 26, 0x30036000, 2);
 
     /* The DMA Connector block is missing, hardwire things for now.  */
     etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);
@@ -317,14 +316,12 @@ void axisdev88_init (ram_addr_t ram_size,
     }
 
     /* 2 timers.  */
-    etraxfs_timer_init(env, pic->irq + 0x1b, pic->nmi + 1, 0x3001e000);
-    etraxfs_timer_init(env, pic->irq + 0x1b, pic->nmi + 1, 0x3005e000);
+    sysbus_create_varargs("etraxfs,timer", 0x3001e000, irq[0x1b], nmi[1], NULL);
+    sysbus_create_varargs("etraxfs,timer", 0x3005e000, irq[0x1b], nmi[1], NULL);
 
     for (i = 0; i < 4; i++) {
-        if (serial_hds[i]) {
-            etraxfs_ser_init(env, pic->irq + 0x14 + i,
-                             serial_hds[i], 0x30026000 + i * 0x2000);
-        }
+        sysbus_create_simple("etraxfs,serial", 0x30026000 + i * 0x2000,
+                             irq[0x14 + i]);
     }
 
     if (kernel_filename) {
