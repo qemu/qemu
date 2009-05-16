@@ -1557,7 +1557,7 @@ static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
                     dp8381x_save, dp8381x_load, d);
 }
 
-static void pci_dp8381x_init(PCIDevice *pci_dev)
+static void dp8381x_init(PCIDevice *pci_dev)
 {
     logout("\n");
 #if defined(DP83815)
