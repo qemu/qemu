@@ -621,17 +621,13 @@ OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 OBJS+= cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
 OBJS+= usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
 OBJS += device-hotplug.o pci-hotplug.o smbios.o
-ifndef CONFIG_USER_ONLY
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
-endif
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
 ifndef CONFIG_WIN32
 CPPFLAGS += -Werror
 endif # CONFIG_WIN32
-ifndef CONFIG_USER_ONLY
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
-endif
 # shared objects
 OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
 # PREP target
@@ -673,10 +669,8 @@ OBJS += pflash.o
 OBJS += pflash_amd.o
 OBJS += pflash_cfi01.o
 OBJS += pflash_cfi02.o
-ifndef CONFIG_USER_ONLY
 OBJS+= vmware_vga.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
-endif
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
 # Boards
