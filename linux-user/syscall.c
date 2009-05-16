@@ -6865,6 +6865,46 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 
+#ifdef CONFIG_SPLICE
+#ifdef TARGET_NR_tee
+    case TARGET_NR_tee:
+        {
+            ret = get_errno(tee(arg1,arg2,arg3,arg4));
+        }
+        break;
+#endif
+#ifdef TARGET_NR_splice
+    case TARGET_NR_splice:
+        {
+            loff_t loff_in, loff_out;
+            loff_t *ploff_in = NULL, *ploff_out = NULL;
+            if(arg2) {
+                get_user_u64(loff_in, arg2);
+                ploff_in = &loff_in;
+            }
+            if(arg4) {
+                get_user_u64(loff_out, arg2);
+                ploff_out = &loff_out;
+            }
+            ret = get_errno(splice(arg1, ploff_in, arg3, ploff_out, arg5, arg6));
+        }
+        break;
+#endif
+#ifdef TARGET_NR_vmsplice
+	case TARGET_NR_vmsplice:
+        {
+            int count = arg3;
+            struct iovec *vec;
+
+            vec = alloca(count * sizeof(struct iovec));
+            if (lock_iovec(VERIFY_READ, vec, arg2, count, 1) < 0)
+                goto efault;
+            ret = get_errno(vmsplice(arg1, vec, count, arg4));
+            unlock_iovec(vec, arg2, count, 0);
+        }
+        break;
+#endif
+#endif /* CONFIG_SPLICE */
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);

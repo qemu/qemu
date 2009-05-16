@@ -1322,6 +1322,26 @@ if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
   pipe2=yes
 fi
 
+# check if tee/splice is there. vmsplice was added same time.
+splice=no
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <fcntl.h>
+#include <limits.h>
+
+int main(void)
+{
+    int len, fd;
+    len = tee(STDIN_FILENO, STDOUT_FILENO, INT_MAX, SPLICE_F_NONBLOCK);
+    splice(STDIN_FILENO, NULL, fd, NULL, len, SPLICE_F_MOVE);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  splice=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x "`which pod2man 2>/dev/null`" \) ; then
   build_docs="no"
@@ -1724,6 +1744,9 @@ if test "$utimens" = "yes" ; then
 fi
 if test "$pipe2" = "yes" ; then
   echo "#define CONFIG_PIPE2 1" >> $config_h
+fi
+if test "$splice" = "yes" ; then
+  echo "#define CONFIG_SPLICE 1" >> $config_h
 fi
 if test "$inotify" = "yes" ; then
   echo "#define CONFIG_INOTIFY 1" >> $config_h
