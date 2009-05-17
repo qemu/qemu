@@ -894,7 +894,7 @@ struct qemu_alarm_timer {
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
-    return t->flags & ALARM_FLAG_DYNTICKS;
+    return t && (t->flags & ALARM_FLAG_DYNTICKS);
 }
 
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
@@ -1338,7 +1338,7 @@ static void host_alarm_handler(int host_signum)
         static const char byte = 0;
         write(alarm_timer_wfd, &byte, sizeof(byte));
 #endif
-        alarm_timer->flags |= ALARM_FLAG_EXPIRED;
+        if (alarm_timer) alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
         if (env) {
             /* stop the currently executing cpu because a timer occured */
