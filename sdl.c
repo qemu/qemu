@@ -753,7 +753,7 @@ static void sdl_cleanup(void)
 {
     if (guest_sprite)
         SDL_FreeCursor(guest_sprite);
-    SDL_Quit();
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
