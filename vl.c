@@ -1542,6 +1542,11 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
 
     sigaction(SIGALRM, &act, NULL);
 
+    /* 
+     * Initialize ev struct to 0 to avoid valgrind complaining
+     * about uninitialized data in timer_create call
+     */
+    memset(&ev, 0, sizeof(ev));
     ev.sigev_value.sival_int = 0;
     ev.sigev_notify = SIGEV_SIGNAL;
     ev.sigev_signo = SIGALRM;
