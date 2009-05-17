@@ -33,7 +33,7 @@
 struct DeviceProperty {
     const char *name;
     union {
-        int i;
+        uint64_t i;
         void *ptr;
     } value;
     DeviceProperty *next;
@@ -120,7 +120,7 @@ static DeviceProperty *create_prop(DeviceState *dev, const char *name)
     return prop;
 }
 
-void qdev_set_prop_int(DeviceState *dev, const char *name, int value)
+void qdev_set_prop_int(DeviceState *dev, const char *name, uint64_t value)
 {
     DeviceProperty *prop;
 
