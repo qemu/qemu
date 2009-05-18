@@ -596,7 +596,8 @@ static long get_file_size(FILE *f)
 static void load_linux(target_phys_addr_t option_rom,
                        const char *kernel_filename,
 		       const char *initrd_filename,
-		       const char *kernel_cmdline)
+		       const char *kernel_cmdline,
+               target_phys_addr_t max_ram_size)
 {
     uint16_t protocol;
     uint32_t gpr[8];
@@ -662,8 +663,8 @@ static void load_linux(target_phys_addr_t option_rom,
     else
 	initrd_max = 0x37ffffff;
 
-    if (initrd_max >= ram_size-ACPI_DATA_SIZE)
-	initrd_max = ram_size-ACPI_DATA_SIZE-1;
+    if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
+    	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
 
     /* kernel command line */
     pstrcpy_targphys(cmdline_addr, 4096, kernel_cmdline);
@@ -960,7 +961,7 @@ static void pc_init1(ram_addr_t ram_size,
 
     if (linux_boot) {
         load_linux(0xc0000 + oprom_area_size,
-                   kernel_filename, initrd_filename, kernel_cmdline);
+                   kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
         oprom_area_size += 2048;
     }
 
