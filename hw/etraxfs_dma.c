@@ -165,7 +165,7 @@ enum dma_ch_state
 
 struct fs_dma_channel
 {
-	qemu_irq *irq;
+	qemu_irq irq;
 	struct etraxfs_dma_client *client;
 
 	/* Internal status.  */
@@ -392,7 +392,7 @@ static void channel_update_irq(struct fs_dma_ctrl *ctrl, int c)
 		 c,
 		 ctrl->channels[c].regs[R_MASKED_INTR]));
 
-        qemu_set_irq(ctrl->channels[c].irq[0],
+        qemu_set_irq(ctrl->channels[c].irq,
 		     !!ctrl->channels[c].regs[R_MASKED_INTR]);
 }
 
@@ -716,7 +716,7 @@ int etraxfs_dmac_input(struct etraxfs_dma_client *client,
 void etraxfs_dmac_connect(void *opaque, int c, qemu_irq *line, int input)
 {
 	struct fs_dma_ctrl *ctrl = opaque;
-	ctrl->channels[c].irq = line;
+	ctrl->channels[c].irq = *line;
 	ctrl->channels[c].input = input;
 }
 
