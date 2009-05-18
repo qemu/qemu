@@ -16,43 +16,6 @@
 #include "virtio.h"
 #include "sysemu.h"
 
-/* from Linux's linux/virtio_pci.h */
-
-/* A 32-bit r/o bitmask of the features supported by the host */
-#define VIRTIO_PCI_HOST_FEATURES        0
-
-/* A 32-bit r/w bitmask of features activated by the guest */
-#define VIRTIO_PCI_GUEST_FEATURES       4
-
-/* A 32-bit r/w PFN for the currently selected queue */
-#define VIRTIO_PCI_QUEUE_PFN            8
-
-/* A 16-bit r/o queue size for the currently selected queue */
-#define VIRTIO_PCI_QUEUE_NUM            12
-
-/* A 16-bit r/w queue selector */
-#define VIRTIO_PCI_QUEUE_SEL            14
-
-/* A 16-bit r/w queue notifier */
-#define VIRTIO_PCI_QUEUE_NOTIFY         16
-
-/* An 8-bit device status register.  */
-#define VIRTIO_PCI_STATUS               18
-
-/* An 8-bit r/o interrupt status register.  Reading the value will return the
- * current contents of the ISR and will also clear it.  This is effectively
- * a read-and-acknowledge. */
-#define VIRTIO_PCI_ISR                  19
-
-#define VIRTIO_PCI_CONFIG               20
-
-/* Virtio ABI version, if we increment this, we break the guest driver. */
-#define VIRTIO_PCI_ABI_VERSION          0
-
-/* How many bits to shift physical queue address written to QUEUE_PFN.
- * 12 is historical, and due to x86 page size. */
-#define VIRTIO_PCI_QUEUE_ADDR_SHIFT    12
-
 /* The alignment to use between consumer and producer parts of vring.
  * x86 pagesize again. */
 #define VIRTIO_PCI_VRING_ALIGN         4096
@@ -102,7 +65,7 @@ typedef struct VRing
 struct VirtQueue
 {
     VRing vring;
-    uint32_t pfn;
+    target_phys_addr_t pa;
     uint16_t last_avail_idx;
     int inuse;
     void (*handle_output)(VirtIODevice *vdev, VirtQueue *vq);
@@ -111,8 +74,10 @@ struct VirtQueue
 #define VIRTIO_PCI_QUEUE_MAX        16
 
 /* virt queue functions */
-static void virtqueue_init(VirtQueue *vq, target_phys_addr_t pa)
+static void virtqueue_init(VirtQueue *vq)
 {
+    target_phys_addr_t pa = vq->pa;
+
     vq->vring.desc = pa;
     vq->vring.avail = pa + vq->vring.num * sizeof(VRingDesc);
     vq->vring.used = vring_align(vq->vring.avail +
@@ -409,17 +374,14 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 
 /* virtio device */
 
-static VirtIODevice *to_virtio_device(PCIDevice *pci_dev)
+void virtio_update_irq(VirtIODevice *vdev)
 {
-    return (VirtIODevice *)pci_dev;
+    if (vdev->binding->update_irq) {
+        vdev->binding->update_irq(vdev->binding_opaque);
+    }
 }
 
-static void virtio_update_irq(VirtIODevice *vdev)
-{
-    qemu_set_irq(vdev->pci_dev.irq[0], vdev->isr & 1);
-}
-
-static void virtio_reset(void *opaque)
+void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
     int i;
@@ -438,103 +400,16 @@ static void virtio_reset(void *opaque)
         vdev->vq[i].vring.avail = 0;
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
-        vdev->vq[i].pfn = 0;
+        vdev->vq[i].pa = 0;
     }
 }
 
-static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtIODevice *vdev = to_virtio_device(opaque);
-    ram_addr_t pa;
-
-    addr -= vdev->addr;
-
-    switch (addr) {
-    case VIRTIO_PCI_GUEST_FEATURES:
-	/* Guest does not negotiate properly?  We have to assume nothing. */
-	if (val & (1 << VIRTIO_F_BAD_FEATURE)) {
-	    if (vdev->bad_features)
-		val = vdev->bad_features(vdev);
-	    else
-		val = 0;
-	}
-        if (vdev->set_features)
-            vdev->set_features(vdev, val);
-        vdev->features = val;
-        break;
-    case VIRTIO_PCI_QUEUE_PFN:
-        pa = (ram_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
-        vdev->vq[vdev->queue_sel].pfn = val;
-        if (pa == 0) {
-            virtio_reset(vdev);
-        } else {
-            virtqueue_init(&vdev->vq[vdev->queue_sel], pa);
-        }
-        break;
-    case VIRTIO_PCI_QUEUE_SEL:
-        if (val < VIRTIO_PCI_QUEUE_MAX)
-            vdev->queue_sel = val;
-        break;
-    case VIRTIO_PCI_QUEUE_NOTIFY:
-        if (val < VIRTIO_PCI_QUEUE_MAX && vdev->vq[val].vring.desc)
-            vdev->vq[val].handle_output(vdev, &vdev->vq[val]);
-        break;
-    case VIRTIO_PCI_STATUS:
-        vdev->status = val & 0xFF;
-        if (vdev->status == 0)
-            virtio_reset(vdev);
-        break;
-    }
-}
-
-static uint32_t virtio_ioport_read(void *opaque, uint32_t addr)
-{
-    VirtIODevice *vdev = to_virtio_device(opaque);
-    uint32_t ret = 0xFFFFFFFF;
-
-    addr -= vdev->addr;
-
-    switch (addr) {
-    case VIRTIO_PCI_HOST_FEATURES:
-        ret = vdev->get_features(vdev);
-        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY) | (1 << VIRTIO_F_BAD_FEATURE);
-        break;
-    case VIRTIO_PCI_GUEST_FEATURES:
-        ret = vdev->features;
-        break;
-    case VIRTIO_PCI_QUEUE_PFN:
-        ret = vdev->vq[vdev->queue_sel].pfn;
-        break;
-    case VIRTIO_PCI_QUEUE_NUM:
-        ret = vdev->vq[vdev->queue_sel].vring.num;
-        break;
-    case VIRTIO_PCI_QUEUE_SEL:
-        ret = vdev->queue_sel;
-        break;
-    case VIRTIO_PCI_STATUS:
-        ret = vdev->status;
-        break;
-    case VIRTIO_PCI_ISR:
-        /* reading from the ISR also clears it. */
-        ret = vdev->isr;
-        vdev->isr = 0;
-        virtio_update_irq(vdev);
-        break;
-    default:
-        break;
-    }
-
-    return ret;
-}
-
-static uint32_t virtio_config_readb(void *opaque, uint32_t addr)
-{
-    VirtIODevice *vdev = opaque;
     uint8_t val;
 
     vdev->get_config(vdev, vdev->config);
 
-    addr -= vdev->addr + VIRTIO_PCI_CONFIG;
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
 
@@ -542,14 +417,12 @@ static uint32_t virtio_config_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint32_t virtio_config_readw(void *opaque, uint32_t addr)
+uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtIODevice *vdev = opaque;
     uint16_t val;
 
     vdev->get_config(vdev, vdev->config);
 
-    addr -= vdev->addr + VIRTIO_PCI_CONFIG;
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
 
@@ -557,14 +430,12 @@ static uint32_t virtio_config_readw(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint32_t virtio_config_readl(void *opaque, uint32_t addr)
+uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtIODevice *vdev = opaque;
     uint32_t val;
 
     vdev->get_config(vdev, vdev->config);
 
-    addr -= vdev->addr + VIRTIO_PCI_CONFIG;
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
 
@@ -572,12 +443,10 @@ static uint32_t virtio_config_readl(void *opaque, uint32_t addr)
     return val;
 }
 
-static void virtio_config_writeb(void *opaque, uint32_t addr, uint32_t data)
+void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
-    VirtIODevice *vdev = opaque;
     uint8_t val = data;
 
-    addr -= vdev->addr + VIRTIO_PCI_CONFIG;
     if (addr > (vdev->config_len - sizeof(val)))
         return;
 
@@ -587,12 +456,10 @@ static void virtio_config_writeb(void *opaque, uint32_t addr, uint32_t data)
         vdev->set_config(vdev, vdev->config);
 }
 
-static void virtio_config_writew(void *opaque, uint32_t addr, uint32_t data)
+void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
-    VirtIODevice *vdev = opaque;
     uint16_t val = data;
 
-    addr -= vdev->addr + VIRTIO_PCI_CONFIG;
     if (addr > (vdev->config_len - sizeof(val)))
         return;
 
@@ -602,12 +469,10 @@ static void virtio_config_writew(void *opaque, uint32_t addr, uint32_t data)
         vdev->set_config(vdev, vdev->config);
 }
 
-static void virtio_config_writel(void *opaque, uint32_t addr, uint32_t data)
+void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
-    VirtIODevice *vdev = opaque;
     uint32_t val = data;
 
-    addr -= vdev->addr + VIRTIO_PCI_CONFIG;
     if (addr > (vdev->config_len - sizeof(val)))
         return;
 
@@ -617,33 +482,30 @@ static void virtio_config_writel(void *opaque, uint32_t addr, uint32_t data)
         vdev->set_config(vdev, vdev->config);
 }
 
-static void virtio_map(PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+void virtio_queue_set_addr(VirtIODevice *vdev, int n, target_phys_addr_t addr)
 {
-    VirtIODevice *vdev = to_virtio_device(pci_dev);
-    int i;
-
-    vdev->addr = addr;
-    for (i = 0; i < 3; i++) {
-        register_ioport_write(addr, 20, 1 << i, virtio_ioport_write, vdev);
-        register_ioport_read(addr, 20, 1 << i, virtio_ioport_read, vdev);
+    if (addr == 0) {
+        virtio_reset(vdev);
+    } else {
+        vdev->vq[n].pa = addr;
+        virtqueue_init(&vdev->vq[n]);
     }
+}
 
-    if (vdev->config_len) {
-        register_ioport_write(addr + 20, vdev->config_len, 1,
-                              virtio_config_writeb, vdev);
-        register_ioport_write(addr + 20, vdev->config_len, 2,
-                              virtio_config_writew, vdev);
-        register_ioport_write(addr + 20, vdev->config_len, 4,
-                              virtio_config_writel, vdev);
-        register_ioport_read(addr + 20, vdev->config_len, 1,
-                             virtio_config_readb, vdev);
-        register_ioport_read(addr + 20, vdev->config_len, 2,
-                             virtio_config_readw, vdev);
-        register_ioport_read(addr + 20, vdev->config_len, 4,
-                             virtio_config_readl, vdev);
+target_phys_addr_t virtio_queue_get_addr(VirtIODevice *vdev, int n)
+{
+    return vdev->vq[n].pa;
+}
 
-        vdev->get_config(vdev, vdev->config);
+int virtio_queue_get_num(VirtIODevice *vdev, int n)
+{
+    return vdev->vq[n].vring.num;
+}
+
+void virtio_queue_notify(VirtIODevice *vdev, int n)
+{
+    if (n < VIRTIO_PCI_QUEUE_MAX && vdev->vq[n].vring.desc) {
+        vdev->vq[n].handle_output(vdev, &vdev->vq[n]);
     }
 }
 
@@ -691,9 +553,9 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
     int i;
 
-    pci_device_save(&vdev->pci_dev, f);
+    /* FIXME: load/save binding.  */
+    //pci_device_save(&vdev->pci_dev, f);
 
-    qemu_put_be32s(f, &vdev->addr);
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
     qemu_put_be16s(f, &vdev->queue_sel);
@@ -713,7 +575,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
             break;
 
         qemu_put_be32(f, vdev->vq[i].vring.num);
-        qemu_put_be32s(f, &vdev->vq[i].pfn);
+        qemu_put_be64(f, vdev->vq[i].pa);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
     }
 }
@@ -722,9 +584,9 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
 {
     int num, i;
 
-    pci_device_load(&vdev->pci_dev, f);
+    /* FIXME: load/save binding.  */
+    //pci_device_load(&vdev->pci_dev, f);
 
-    qemu_get_be32s(f, &vdev->addr);
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
     qemu_get_be16s(f, &vdev->queue_sel);
@@ -736,14 +598,11 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
 
     for (i = 0; i < num; i++) {
         vdev->vq[i].vring.num = qemu_get_be32(f);
-        qemu_get_be32s(f, &vdev->vq[i].pfn);
+        vdev->vq[i].pa = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
 
-        if (vdev->vq[i].pfn) {
-            target_phys_addr_t pa;
-
-            pa = (ram_addr_t)vdev->vq[i].pfn << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
-            virtqueue_init(&vdev->vq[i], pa);
+        if (vdev->vq[i].pa) {
+            virtqueue_init(&vdev->vq[i]);
         }
     }
 
@@ -757,39 +616,18 @@ void virtio_cleanup(VirtIODevice *vdev)
     qemu_free(vdev->vq);
 }
 
-VirtIODevice *virtio_init_pci(PCIDevice *pci_dev, const char *name,
-                              uint16_t vendor, uint16_t device,
-                              uint16_t subvendor, uint16_t subdevice,
-                              uint16_t class_code, uint8_t pif,
-                              size_t config_size)
+VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
+                                 size_t config_size, size_t struct_size)
 {
     VirtIODevice *vdev;
-    uint8_t *config;
-    uint32_t size;
 
-    vdev = to_virtio_device(pci_dev);
+    vdev = qemu_mallocz(struct_size);
 
+    vdev->device_id = device_id;
     vdev->status = 0;
     vdev->isr = 0;
     vdev->queue_sel = 0;
     vdev->vq = qemu_mallocz(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
-
-    config = pci_dev->config;
-    pci_config_set_vendor_id(config, vendor);
-    pci_config_set_device_id(config, device);
-
-    config[0x08] = VIRTIO_PCI_ABI_VERSION;
-
-    config[0x09] = pif;
-    pci_config_set_class(config, class_code);
-    config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
-
-    config[0x2c] = subvendor & 0xFF;
-    config[0x2d] = (subvendor >> 8) & 0xFF;
-    config[0x2e] = subdevice & 0xFF;
-    config[0x2f] = (subdevice >> 8) & 0xFF;
-
-    config[0x3d] = 1;
 
     vdev->name = name;
     vdev->config_len = config_size;
@@ -798,13 +636,13 @@ VirtIODevice *virtio_init_pci(PCIDevice *pci_dev, const char *name,
     else
         vdev->config = NULL;
 
-    size = 20 + config_size;
-    if (size & (size-1))
-        size = 1 << qemu_fls(size);
-
-    pci_register_io_region(pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
-                           virtio_map);
     qemu_register_reset(virtio_reset, vdev);
-
     return vdev;
+}
+
+void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
+                        void *opaque)
+{
+    vdev->binding = binding;
+    vdev->binding_opaque = opaque;
 }

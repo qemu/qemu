@@ -111,14 +111,14 @@ static void bamboo_init(ram_addr_t ram_size,
 
         /* Add virtio block devices. */
         while ((i = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_create_simple(pcibus, -1, "virtio-blk");
+            pci_create_simple(pcibus, -1, "virtio-blk-pci");
             unit_id++;
         }
 
         /* Add virtio console devices */
         for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
             if (virtcon_hds[i]) {
-                pci_create_simple(pcibus, -1, "virtio-console");
+                pci_create_simple(pcibus, -1, "virtio-console-pci");
             }
         }
 

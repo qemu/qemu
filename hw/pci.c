@@ -806,7 +806,7 @@ static const char * const pci_nic_names[] = {
     "rtl8139",
     "e1000",
     "pcnet",
-    "virtio_net",
+    "virtio-net-pci",
     NULL
 };
 
