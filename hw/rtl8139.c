@@ -3475,7 +3475,7 @@ static void pci_rtl8139_init(PCIDevice *dev)
     qdev_get_macaddr(&dev->qdev, s->macaddr);
     rtl8139_reset(s);
     s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 rtl8139_receive, rtl8139_can_receive,
+                                 rtl8139_can_receive, rtl8139_receive, NULL,
                                  rtl8139_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

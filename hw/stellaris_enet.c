@@ -405,8 +405,8 @@ static void stellaris_enet_init(SysBusDevice *dev)
     qdev_get_macaddr(&dev->qdev, s->macaddr);
 
     s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 stellaris_enet_receive,
                                  stellaris_enet_can_receive,
+                                 stellaris_enet_receive, NULL,
                                  stellaris_enet_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->macaddr);
 

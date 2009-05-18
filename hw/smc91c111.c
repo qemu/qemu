@@ -711,7 +711,7 @@ static void smc91c111_init1(SysBusDevice *dev)
     smc91c111_reset(s);
 
     s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 smc91c111_receive, smc91c111_can_receive,
+                                 smc91c111_can_receive, smc91c111_receive, NULL,
                                  smc91c111_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->macaddr);
     /* ??? Save/restore.  */

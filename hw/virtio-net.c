@@ -606,8 +606,8 @@ VirtIODevice *virtio_net_init(DeviceState *dev)
     qdev_get_macaddr(dev, n->mac);
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qdev_get_vlan_client(dev,
-                                 virtio_net_receive,
                                  virtio_net_can_receive,
+                                 virtio_net_receive, NULL,
                                  virtio_net_cleanup, n);
     n->vc->link_status_changed = virtio_net_set_link_status;
 

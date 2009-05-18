@@ -757,7 +757,7 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
     ne2000_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 ne2000_receive, ne2000_can_receive,
+                                 ne2000_can_receive, ne2000_receive, NULL,
                                  isa_ne2000_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
@@ -821,7 +821,7 @@ static void pci_ne2000_init(PCIDevice *pci_dev)
     qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     ne2000_reset(s);
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 ne2000_receive, ne2000_can_receive,
+                                 ne2000_can_receive, ne2000_receive, NULL,
                                  ne2000_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

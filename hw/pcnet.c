@@ -1952,7 +1952,7 @@ static void pcnet_common_init(DeviceState *dev, PCNetState *s,
 
     qdev_get_macaddr(dev, s->macaddr);
     s->vc = qdev_get_vlan_client(dev,
-                                 pcnet_receive, pcnet_can_receive,
+                                 pcnet_can_receive, pcnet_receive, NULL,
                                  cleanup, s);
     pcnet_h_reset(s);
     register_savevm("pcnet", -1, 2, pcnet_save, pcnet_load, s);

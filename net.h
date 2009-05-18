@@ -51,8 +51,9 @@ VLANState *qemu_find_vlan(int id);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
                                       const char *name,
-                                      IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
+                                      IOReadHandler *fd_read,
+                                      IOReadvHandler *fd_readv,
                                       NetCleanup *cleanup,
                                       void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
@@ -129,8 +130,9 @@ void net_host_device_remove(Monitor *mon, int vlan_id, const char *device);
 
 void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr);
 VLANClientState *qdev_get_vlan_client(DeviceState *dev,
-                                      IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
+                                      IOReadHandler *fd_read,
+                                      IOReadvHandler *fd_readv,
                                       NetCleanup *cleanup,
                                       void *opaque);
 

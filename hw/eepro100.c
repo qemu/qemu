@@ -1766,7 +1766,7 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
     nic_reset(s);
 
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 nic_receive, nic_can_receive,
+                                 nic_can_receive, nic_receive, NULL,
                                  nic_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

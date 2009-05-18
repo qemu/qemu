@@ -753,7 +753,7 @@ static void mv88w8618_eth_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 eth_receive, eth_can_receive,
+                                 eth_can_receive, eth_receive, NULL,
                                  eth_cleanup, s);
     s->mmio_index = cpu_register_io_memory(0, mv88w8618_eth_readfn,
                                            mv88w8618_eth_writefn, s);

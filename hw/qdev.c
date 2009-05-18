@@ -258,15 +258,16 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 }
 
 VLANClientState *qdev_get_vlan_client(DeviceState *dev,
-                                      IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
+                                      IOReadHandler *fd_read,
+                                      IOReadvHandler *fd_readv,
                                       NetCleanup *cleanup,
                                       void *opaque)
 {
     NICInfo *nd = dev->nd;
     assert(nd);
-    return qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                fd_read, fd_can_read, cleanup, opaque);
+    return qemu_new_vlan_client(nd->vlan, nd->model, nd->name, fd_can_read,
+                                fd_read, fd_readv, cleanup, opaque);
 }
 
 

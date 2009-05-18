@@ -332,8 +332,9 @@ static char *assign_name(VLANClientState *vc1, const char *model)
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
                                       const char *name,
-                                      IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
+                                      IOReadHandler *fd_read,
+                                      IOReadvHandler *fd_readv,
                                       NetCleanup *cleanup,
                                       void *opaque)
 {
@@ -344,8 +345,9 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
         vc->name = strdup(name);
     else
         vc->name = assign_name(vc, model);
-    vc->fd_read = fd_read;
     vc->fd_can_read = fd_can_read;
+    vc->fd_read = fd_read;
+    vc->fd_readv = fd_readv;
     vc->cleanup = cleanup;
     vc->opaque = opaque;
     vc->vlan = vlan;
@@ -632,7 +634,7 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name,
 #endif
     }
 
-    slirp_vc = qemu_new_vlan_client(vlan, model, name, slirp_receive,
+    slirp_vc = qemu_new_vlan_client(vlan, model, name, NULL, slirp_receive,
                                     NULL, net_slirp_cleanup, NULL);
     slirp_vc->info_str[0] = '\0';
     slirp_in_use = 1;
@@ -1015,9 +1017,8 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
 
     s = qemu_mallocz(sizeof(TAPState));
     s->fd = fd;
-    s->vc = qemu_new_vlan_client(vlan, model, name, tap_receive,
-                                 NULL, tap_cleanup, s);
-    s->vc->fd_readv = tap_receive_iov;
+    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, tap_receive,
+                                 tap_receive_iov, tap_cleanup, s);
     qemu_set_fd_handler2(s->fd, tap_can_send, tap_send, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     return s;
@@ -1351,7 +1352,7 @@ static int net_vde_init(VLANState *vlan, const char *model,
         free(s);
         return -1;
     }
-    s->vc = qemu_new_vlan_client(vlan, model, name, vde_from_qemu,
+    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, vde_from_qemu,
                                  NULL, vde_cleanup, s);
     qemu_set_fd_handler(vde_datafd(s->vde), vde_to_qemu, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "sock=%s,fd=%d",
@@ -1589,7 +1590,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
     s = qemu_mallocz(sizeof(NetSocketState));
     s->fd = fd;
 
-    s->vc = qemu_new_vlan_client(vlan, model, name, net_socket_receive_dgram,
+    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, net_socket_receive_dgram,
                                  NULL, net_socket_cleanup, s);
     qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
 
@@ -1617,7 +1618,7 @@ static NetSocketState *net_socket_fd_init_stream(VLANState *vlan,
     NetSocketState *s;
     s = qemu_mallocz(sizeof(NetSocketState));
     s->fd = fd;
-    s->vc = qemu_new_vlan_client(vlan, model, name, net_socket_receive,
+    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, net_socket_receive,
                                  NULL, net_socket_cleanup, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "socket: fd=%d", fd);
@@ -1896,7 +1897,7 @@ static int net_dump_init(Monitor *mon, VLANState *vlan, const char *device,
         return -1;
     }
 
-    s->pcap_vc = qemu_new_vlan_client(vlan, device, name, dump_receive, NULL,
+    s->pcap_vc = qemu_new_vlan_client(vlan, device, name, NULL, dump_receive, NULL,
                                       net_dump_cleanup, s);
     snprintf(s->pcap_vc->info_str, sizeof(s->pcap_vc->info_str),
              "dump to %s (len=%d)", filename, len);

@@ -1106,8 +1106,8 @@ static void pci_e1000_init(PCIDevice *pci_dev)
     memset(&d->tx, 0, sizeof d->tx);
 
     d->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 e1000_receive, e1000_can_receive,
-                                 e1000_cleanup, d);
+                                 e1000_can_receive, e1000_receive,
+                                 NULL, e1000_cleanup, d);
     d->vc->link_status_changed = e1000_set_link_status;
 
     qemu_format_nic_info_str(d->vc, macaddr);
