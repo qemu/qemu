@@ -65,7 +65,7 @@ recurse-all: $(SUBDIR_RULES)
 #######################################################################
 # BLOCK_OBJS is code used by both qemu system emulation and qemu-img
 
-BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o module.o
+BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 BLOCK_OBJS+=block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
 BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
 BLOCK_OBJS+=block/qcow2.o block/parallels.o block/nbd.o

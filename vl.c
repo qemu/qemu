@@ -156,6 +156,7 @@ int main(int argc, char **argv)
 #include "migration.h"
 #include "kvm.h"
 #include "balloon.h"
+#include "qemu-option.h"
 
 #include "disas.h"
 
@@ -1808,43 +1809,6 @@ static int socket_init(void)
     return 0;
 }
 #endif
-
-const char *get_opt_name(char *buf, int buf_size, const char *p, char delim)
-{
-    char *q;
-
-    q = buf;
-    while (*p != '\0' && *p != delim) {
-        if (q && (q - buf) < buf_size - 1)
-            *q++ = *p;
-        p++;
-    }
-    if (q)
-        *q = '\0';
-
-    return p;
-}
-
-const char *get_opt_value(char *buf, int buf_size, const char *p)
-{
-    char *q;
-
-    q = buf;
-    while (*p != '\0') {
-        if (*p == ',') {
-            if (*(p + 1) != ',')
-                break;
-            p++;
-        }
-        if (q && (q - buf) < buf_size - 1)
-            *q++ = *p;
-        p++;
-    }
-    if (q)
-        *q = '\0';
-
-    return p;
-}
 
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str)
