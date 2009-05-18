@@ -602,7 +602,7 @@ static int smc91c111_can_receive(void *opaque)
     return 1;
 }
 
-static void smc91c111_receive(void *opaque, const uint8_t *buf, int size)
+static void smc91c111_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
     int status;

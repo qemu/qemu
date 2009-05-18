@@ -131,7 +131,7 @@ static void qemu_announce_self_once(void *opaque)
         len = announce_self_create(buf, nd_table[i].macaddr);
         vlan = nd_table[i].vlan;
 	for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-            vc->fd_read(vc->opaque, buf, len);
+            vc->receive(vc->opaque, buf, len);
         }
     }
     if (count--) {

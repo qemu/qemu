@@ -224,7 +224,7 @@ static int ne2000_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
-static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
+static void ne2000_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     NE2000State *s = opaque;
     uint8_t *p;

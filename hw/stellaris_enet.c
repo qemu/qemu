@@ -78,7 +78,7 @@ static void stellaris_enet_update(stellaris_enet_state *s)
 }
 
 /* TODO: Implement MAC address filtering.  */
-static void stellaris_enet_receive(void *opaque, const uint8_t *buf, int size)
+static void stellaris_enet_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
     int n;

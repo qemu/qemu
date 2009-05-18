@@ -243,7 +243,7 @@ static int net_rx_ok(void *opaque)
     return 1;
 }
 
-static void net_rx_packet(void *opaque, const uint8_t *buf, int size)
+static void net_rx_packet(void *opaque, const uint8_t *buf, size_t size)
 {
     struct XenNetDev *netdev = opaque;
     netif_rx_request_t rxreq;
@@ -262,8 +262,8 @@ static void net_rx_packet(void *opaque, const uint8_t *buf, int size)
 	return;
     }
     if (size > XC_PAGE_SIZE - NET_IP_ALIGN) {
-	xen_be_printf(&netdev->xendev, 0, "packet too big (%d > %ld)",
-		      size, XC_PAGE_SIZE - NET_IP_ALIGN);
+	xen_be_printf(&netdev->xendev, 0, "packet too big (%lu > %ld)",
+		      (unsigned long)size, XC_PAGE_SIZE - NET_IP_ALIGN);
 	return;
     }
 

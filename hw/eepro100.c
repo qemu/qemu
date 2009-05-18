@@ -1441,7 +1441,7 @@ static int nic_can_receive(void *opaque)
     //~ return !eepro100_buffer_full(s);
 }
 
-static void nic_receive(void *opaque, const uint8_t * buf, int size)
+static void nic_receive(void *opaque, const uint8_t * buf, size_t size)
 {
     /* TODO:
      * - Magic packets should set bit 30 in power management driver register.

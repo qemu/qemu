@@ -562,7 +562,7 @@ static int eth_can_receive(void *opaque)
     return 1;
 }
 
-static void eth_receive(void *opaque, const uint8_t *buf, int size)
+static void eth_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     mv88w8618_eth_state *s = opaque;
     uint32_t desc_addr;

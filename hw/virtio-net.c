@@ -361,7 +361,7 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static void virtio_net_receive(void *opaque, const uint8_t *buf, int size)
+static void virtio_net_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     VirtIONet *n = opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;

@@ -1076,7 +1076,7 @@ static int pcnet_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
-static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
+static void pcnet_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     PCNetState *s = opaque;
     int is_padr = 0, is_bcast = 0, is_ladr = 0;

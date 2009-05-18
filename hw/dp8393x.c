@@ -409,7 +409,7 @@ static void do_transmit_packets(dp8393xState *s)
             s->regs[SONIC_TCR] |= SONIC_TCR_CRSL;
             if (s->vc->fd_can_read(s)) {
                 s->loopback_packet = 1;
-                s->vc->fd_read(s, s->tx_buffer, tx_len);
+                s->vc->receive(s, s->tx_buffer, tx_len);
             }
         } else {
             /* Transmit packet */
@@ -725,7 +725,7 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
     return -1;
 }
 
-static void nic_receive(void *opaque, const uint8_t * buf, int size)
+static void nic_receive(void *opaque, const uint8_t * buf, size_t size)
 {
     uint16_t data[10];
     dp8393xState *s = opaque;

@@ -600,7 +600,7 @@ e1000_can_receive(void *opaque)
 }
 
 static void
-e1000_receive(void *opaque, const uint8_t *buf, int size)
+e1000_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     E1000State *s = opaque;
     struct e1000_rx_desc desc;
@@ -614,8 +614,8 @@ e1000_receive(void *opaque, const uint8_t *buf, int size)
         return;
 
     if (size > s->rxbuf_size) {
-        DBGOUT(RX, "packet too large for buffers (%d > %d)\n", size,
-               s->rxbuf_size);
+        DBGOUT(RX, "packet too large for buffers (%lu > %d)\n",
+               (unsigned long)size, s->rxbuf_size);
         return;
     }
 

@@ -501,7 +501,7 @@ static int eth_can_receive(void *opaque)
 	return 1;
 }
 
-static void eth_receive(void *opaque, const uint8_t *buf, int size)
+static void eth_receive(void *opaque, const uint8_t *buf, size_t size)
 {
 	unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	struct fs_eth *eth = opaque;

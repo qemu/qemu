@@ -332,9 +332,9 @@ static char *assign_name(VLANClientState *vc1, const char *model)
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
                                       const char *name,
-                                      IOCanRWHandler *fd_can_read,
-                                      IOReadHandler *fd_read,
-                                      IOReadvHandler *fd_readv,
+                                      NetCanReceive *can_receive,
+                                      NetReceive *receive,
+                                      NetReceiveIOV *receive_iov,
                                       NetCleanup *cleanup,
                                       void *opaque)
 {
@@ -345,9 +345,9 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
         vc->name = strdup(name);
     else
         vc->name = assign_name(vc, model);
-    vc->fd_can_read = fd_can_read;
-    vc->fd_read = fd_read;
-    vc->fd_readv = fd_readv;
+    vc->can_receive = can_receive;
+    vc->receive = receive;
+    vc->receive_iov = receive_iov;
     vc->cleanup = cleanup;
     vc->opaque = opaque;
     vc->vlan = vlan;
@@ -401,8 +401,8 @@ int qemu_can_send_packet(VLANClientState *sender)
             continue;
         }
 
-        /* no fd_can_read() handler, they can always receive */
-        if (!vc->fd_can_read || vc->fd_can_read(vc->opaque)) {
+        /* no can_receive() handler, they can always receive */
+        if (!vc->can_receive || vc->can_receive(vc->opaque)) {
             return 1;
         }
     }
@@ -416,7 +416,7 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
 
     for (vc = sender->vlan->first_client; vc != NULL; vc = vc->next) {
         if (vc != sender && !vc->link_down) {
-            vc->fd_read(vc->opaque, buf, size);
+            vc->receive(vc->opaque, buf, size);
         }
     }
 }
@@ -467,7 +467,7 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
         offset += len;
     }
 
-    vc->fd_read(vc->opaque, buffer, offset);
+    vc->receive(vc->opaque, buffer, offset);
 
     return offset;
 }
@@ -519,9 +519,9 @@ ssize_t qemu_sendv_packet(VLANClientState *sender, const struct iovec *iov,
             }
             if (vc->link_down) {
                 len = calc_iov_length(iov, iovcnt);
-            } else if (vc->fd_readv) {
-                len = vc->fd_readv(vc->opaque, iov, iovcnt);
-            } else if (vc->fd_read) {
+            } else if (vc->receive_iov) {
+                len = vc->receive_iov(vc->opaque, iov, iovcnt);
+            } else if (vc->receive) {
                 len = vc_sendv_compat(vc, iov, iovcnt);
             }
             max_len = MAX(max_len, len);
@@ -593,7 +593,7 @@ int slirp_is_inited(void)
     return slirp_inited;
 }
 
-static void slirp_receive(void *opaque, const uint8_t *buf, int size)
+static void slirp_receive(void *opaque, const uint8_t *buf, size_t size)
 {
 #ifdef DEBUG_SLIRP
     printf("slirp input:\n");
@@ -945,7 +945,7 @@ static ssize_t tap_receive_iov(void *opaque, const struct iovec *iov,
     return len;
 }
 
-static void tap_receive(void *opaque, const uint8_t *buf, int size)
+static void tap_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     TAPState *s = opaque;
     int ret;
@@ -1380,7 +1380,7 @@ typedef struct NetSocketListenState {
 } NetSocketListenState;
 
 /* XXX: we consider we can send the whole packet without blocking */
-static void net_socket_receive(void *opaque, const uint8_t *buf, int size)
+static void net_socket_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = opaque;
     uint32_t len;
@@ -1390,7 +1390,7 @@ static void net_socket_receive(void *opaque, const uint8_t *buf, int size)
     send_all(s->fd, buf, size);
 }
 
-static void net_socket_receive_dgram(void *opaque, const uint8_t *buf, int size)
+static void net_socket_receive_dgram(void *opaque, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = opaque;
     sendto(s->fd, buf, size, 0,
@@ -1831,7 +1831,7 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static void dump_receive(void *opaque, const uint8_t *buf, int size)
+static void dump_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     DumpState *s = opaque;
     struct pcap_sf_pkthdr hdr;

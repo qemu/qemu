@@ -75,7 +75,7 @@ static int mipsnet_can_receive(void *opaque)
     return !mipsnet_buffer_full(s);
 }
 
-static void mipsnet_receive(void *opaque, const uint8_t *buf, int size)
+static void mipsnet_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     MIPSnetState *s = opaque;
 

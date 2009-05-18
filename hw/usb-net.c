@@ -1369,7 +1369,7 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static void usbnet_receive(void *opaque, const uint8_t *buf, int size)
+static void usbnet_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     USBNetState *s = opaque;
     struct rndis_packet_msg_type *msg;

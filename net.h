@@ -5,19 +5,20 @@
 
 /* VLANs support */
 
-typedef ssize_t (IOReadvHandler)(void *, const struct iovec *, int);
-
 typedef struct VLANClientState VLANClientState;
 
+typedef int (NetCanReceive)(void *);
+typedef void (NetReceive)(void *, const uint8_t *, size_t);
+typedef ssize_t (NetReceiveIOV)(void *, const struct iovec *, int);
 typedef void (NetCleanup) (VLANClientState *);
 typedef void (LinkStatusChanged)(VLANClientState *);
 
 struct VLANClientState {
-    IOReadHandler *fd_read;
-    IOReadvHandler *fd_readv;
+    NetReceive *receive;
+    NetReceiveIOV *receive_iov;
     /* Packets may still be sent if this returns zero.  It's used to
        rate-limit the slirp code.  */
-    IOCanRWHandler *fd_can_read;
+    NetCanReceive *can_receive;
     NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
     int link_down;
@@ -51,9 +52,9 @@ VLANState *qemu_find_vlan(int id);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
                                       const char *name,
-                                      IOCanRWHandler *fd_can_read,
-                                      IOReadHandler *fd_read,
-                                      IOReadvHandler *fd_readv,
+                                      NetCanReceive *can_receive,
+                                      NetReceive *receive,
+                                      NetReceiveIOV *receive_iov,
                                       NetCleanup *cleanup,
                                       void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
@@ -130,9 +131,9 @@ void net_host_device_remove(Monitor *mon, int vlan_id, const char *device);
 
 void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr);
 VLANClientState *qdev_get_vlan_client(DeviceState *dev,
-                                      IOCanRWHandler *fd_can_read,
-                                      IOReadHandler *fd_read,
-                                      IOReadvHandler *fd_readv,
+                                      NetCanReceive *can_receive,
+                                      NetReceive *receive,
+                                      NetReceiveIOV *receive_iov,
                                       NetCleanup *cleanup,
                                       void *opaque);
 
