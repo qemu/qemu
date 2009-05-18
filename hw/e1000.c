@@ -599,7 +599,7 @@ e1000_can_receive(VLANClientState *vc)
     return (s->mac_reg[RCTL] & E1000_RCTL_EN);
 }
 
-static void
+static ssize_t
 e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     E1000State *s = vc->opaque;
@@ -611,16 +611,16 @@ e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
     uint8_t vlan_status = 0, vlan_offset = 0;
 
     if (!(s->mac_reg[RCTL] & E1000_RCTL_EN))
-        return;
+        return -1;
 
     if (size > s->rxbuf_size) {
         DBGOUT(RX, "packet too large for buffers (%lu > %d)\n",
                (unsigned long)size, s->rxbuf_size);
-        return;
+        return -1;
     }
 
     if (!receive_filter(s, buf, size))
-        return;
+        return size;
 
     if (vlan_enabled(s) && is_vlan_packet(s, buf)) {
         vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(buf + 14)));
@@ -635,7 +635,7 @@ e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
     do {
         if (s->mac_reg[RDH] == s->mac_reg[RDT] && s->check_rxov) {
             set_ics(s, 0, E1000_ICS_RXO);
-            return;
+            return -1;
         }
         base = ((uint64_t)s->mac_reg[RDBAH] << 32) + s->mac_reg[RDBAL] +
                sizeof(desc) * s->mac_reg[RDH];
@@ -659,7 +659,7 @@ e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
             DBGOUT(RXERR, "RDH wraparound @%x, RDT %x, RDLEN %x\n",
                    rdh_start, s->mac_reg[RDT], s->mac_reg[RDLEN]);
             set_ics(s, 0, E1000_ICS_RXO);
-            return;
+            return -1;
         }
     } while (desc.buffer_addr == 0);
 
@@ -677,6 +677,8 @@ e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
         n |= E1000_ICS_RXDMT0;
 
     set_ics(s, 0, n);
+
+    return size;
 }
 
 static uint32_t

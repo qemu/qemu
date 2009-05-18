@@ -361,17 +361,17 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static void virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     VirtIONet *n = vc->opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
     size_t hdr_len, offset, i;
 
     if (!do_virtio_net_can_receive(n, size))
-        return;
+        return -1;
 
     if (!receive_filter(n, buf, size))
-        return;
+        return size;
 
     /* hdr_len refers to the header we supply to the guest */
     hdr_len = n->mergeable_rx_bufs ?
@@ -389,7 +389,7 @@ static void virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_t s
         if ((i != 0 && !n->mergeable_rx_bufs) ||
             virtqueue_pop(n->rx_vq, &elem) == 0) {
             if (i == 0)
-                return;
+                return -1;
             fprintf(stderr, "virtio-net truncating packet\n");
             exit(1);
         }
@@ -431,6 +431,8 @@ static void virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_t s
 
     virtqueue_flush(n->rx_vq, i);
     virtio_notify(&n->vdev, n->rx_vq);
+
+    return size;
 }
 
 /* TX */

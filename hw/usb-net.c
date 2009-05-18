@@ -1369,7 +1369,7 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static void usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     USBNetState *s = vc->opaque;
     struct rndis_packet_msg_type *msg;
@@ -1377,9 +1377,9 @@ static void usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
     if (s->rndis) {
         msg = (struct rndis_packet_msg_type *) s->in_buf;
         if (!s->rndis_state == RNDIS_DATA_INITIALIZED)
-            return;
+            return -1;
         if (size + sizeof(struct rndis_packet_msg_type) > sizeof(s->in_buf))
-            return;
+            return -1;
 
         memset(msg, 0, sizeof(struct rndis_packet_msg_type));
         msg->MessageType = cpu_to_le32(RNDIS_PACKET_MSG);
@@ -1398,11 +1398,12 @@ static void usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
         s->in_len = size + sizeof(struct rndis_packet_msg_type);
     } else {
         if (size > sizeof(s->in_buf))
-            return;
+            return -1;
         memcpy(s->in_buf, buf, size);
         s->in_len = size;
     }
     s->in_ptr = 0;
+    return size;
 }
 
 static int usbnet_can_receive(VLANClientState *vc)

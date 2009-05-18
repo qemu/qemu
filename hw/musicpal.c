@@ -562,7 +562,7 @@ static int eth_can_receive(VLANClientState *vc)
     return 1;
 }
 
-static void eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     mv88w8618_eth_state *s = vc->opaque;
     uint32_t desc_addr;
@@ -586,11 +586,12 @@ static void eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
                 if (s->icr & s->imr)
                     qemu_irq_raise(s->irq);
                 eth_rx_desc_put(desc_addr, &desc);
-                return;
+                return size;
             }
             desc_addr = desc.next;
         } while (desc_addr != s->rx_queue[i]);
     }
+    return size;
 }
 
 static void eth_tx_desc_put(uint32_t addr, mv88w8618_tx_desc *desc)

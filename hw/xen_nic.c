@@ -243,7 +243,7 @@ static int net_rx_ok(VLANClientState *vc)
     return 1;
 }
 
-static void net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     struct XenNetDev *netdev = vc->opaque;
     netif_rx_request_t rxreq;
@@ -251,7 +251,7 @@ static void net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
     void *page;
 
     if (netdev->xendev.be_state != XenbusStateConnected)
-	return;
+	return -1;
 
     rc = netdev->rx_ring.req_cons;
     rp = netdev->rx_ring.sring->req_prod;
@@ -259,12 +259,12 @@ static void net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
 
     if (rc == rp || RING_REQUEST_CONS_OVERFLOW(&netdev->rx_ring, rc)) {
 	xen_be_printf(&netdev->xendev, 2, "no buffer, drop packet\n");
-	return;
+	return -1;
     }
     if (size > XC_PAGE_SIZE - NET_IP_ALIGN) {
 	xen_be_printf(&netdev->xendev, 0, "packet too big (%lu > %ld)",
 		      (unsigned long)size, XC_PAGE_SIZE - NET_IP_ALIGN);
-	return;
+	return -1;
     }
 
     memcpy(&rxreq, RING_GET_REQUEST(&netdev->rx_ring, rc), sizeof(rxreq));
@@ -277,11 +277,13 @@ static void net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
 	xen_be_printf(&netdev->xendev, 0, "error: rx gref dereference failed (%d)\n",
                       rxreq.gref);
 	net_rx_response(netdev, &rxreq, NETIF_RSP_ERROR, 0, 0, 0);
-	return;
+	return -1;
     }
     memcpy(page + NET_IP_ALIGN, buf, size);
     xc_gnttab_munmap(netdev->xendev.gnttabdev, page, 1);
     net_rx_response(netdev, &rxreq, NETIF_RSP_OKAY, NET_IP_ALIGN, size, 0);
+
+    return size;
 }
 
 /* ------------------------------------------------------------- */

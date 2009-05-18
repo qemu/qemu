@@ -602,7 +602,7 @@ static int smc91c111_can_receive(VLANClientState *vc)
     return 1;
 }
 
-static void smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     smc91c111_state *s = vc->opaque;
     int status;
@@ -612,7 +612,7 @@ static void smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t si
     uint8_t *p;
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
-        return;
+        return -1;
     /* Short packets are padded with zeros.  Receiving a packet
        < 64 bytes long is considered an error condition.  */
     if (size < 64)
@@ -625,10 +625,10 @@ static void smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t si
         packetsize += 4;
     /* TODO: Flag overrun and receive errors.  */
     if (packetsize > 2048)
-        return;
+        return -1;
     packetnum = smc91c111_allocate_packet(s);
     if (packetnum == 0x80)
-        return;
+        return -1;
     s->rx_fifo[s->rx_fifo_len++] = packetnum;
 
     p = &s->data[packetnum][0];
@@ -676,6 +676,8 @@ static void smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t si
     /* TODO: Raise early RX interrupt?  */
     s->int_level |= INT_RCV;
     smc91c111_update(s);
+
+    return size;
 }
 
 static CPUReadMemoryFunc *smc91c111_readfn[] = {

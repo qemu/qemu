@@ -650,11 +650,11 @@ static void tap_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-static void tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    TAPState *s = opaque;
+    TAPState *s = vc->opaque;
 
-    tap_win32_write(s->handle, buf, size);
+    return tap_win32_write(s->handle, buf, size);
 }
 
 static void tap_win32_send(void *opaque)

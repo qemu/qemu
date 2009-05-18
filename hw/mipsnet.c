@@ -75,7 +75,7 @@ static int mipsnet_can_receive(VLANClientState *vc)
     return !mipsnet_buffer_full(s);
 }
 
-static void mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     MIPSnetState *s = vc->opaque;
 
@@ -83,7 +83,7 @@ static void mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size
     printf("mipsnet: receiving len=%d\n", size);
 #endif
     if (!mipsnet_can_receive(vc))
-        return;
+        return -1;
 
     s->busy = 1;
 
@@ -98,6 +98,8 @@ static void mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size
     /* Now we can signal we have received something. */
     s->intctl |= MIPSNET_INTCTL_RXDONE;
     mipsnet_update_irq(s);
+
+    return size;
 }
 
 static uint32_t mipsnet_ioport_read(void *opaque, uint32_t addr)

@@ -812,9 +812,10 @@ static int rtl8139_can_receive(VLANClientState *vc)
     }
 }
 
-static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size, int do_interrupt)
+static ssize_t rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, size_t size_, int do_interrupt)
 {
     RTL8139State *s = vc->opaque;
+    int size = size_;
 
     uint32_t packet_header = 0;
 
@@ -828,7 +829,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
     if (!s->clock_enabled)
     {
         DEBUG_PRINT(("RTL8139: stopped ==========================\n"));
-        return;
+        return -1;
     }
 
     /* first check if receiver is enabled */
@@ -836,7 +837,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
     if (!rtl8139_receiver_enabled(s))
     {
         DEBUG_PRINT(("RTL8139: receiver disabled ================\n"));
-        return;
+        return -1;
     }
 
     /* XXX: check this */
@@ -854,7 +855,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
                 /* update tally counter */
                 ++s->tally_counters.RxERR;
 
-                return;
+                return size;
             }
 
             packet_header |= RxBroadcast;
@@ -873,7 +874,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
                 /* update tally counter */
                 ++s->tally_counters.RxERR;
 
-                return;
+                return size;
             }
 
             int mcast_idx = compute_mcast_idx(buf);
@@ -885,7 +886,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
                 /* update tally counter */
                 ++s->tally_counters.RxERR;
 
-                return;
+                return size;
             }
 
             packet_header |= RxMulticast;
@@ -909,7 +910,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
                 /* update tally counter */
                 ++s->tally_counters.RxERR;
 
-                return;
+                return size;
             }
 
             packet_header |= RxPhysical;
@@ -926,7 +927,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
             /* update tally counter */
             ++s->tally_counters.RxERR;
 
-            return;
+            return size;
         }
     }
 
@@ -993,7 +994,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
             ++s->tally_counters.MissPkt;
 
             rtl8139_update_irq(s);
-            return;
+            return size_;
         }
 
         uint32_t rx_space = rxdw0 & CP_RX_BUFFER_SIZE_MASK;
@@ -1013,7 +1014,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
             ++s->tally_counters.MissPkt;
 
             rtl8139_update_irq(s);
-            return;
+            return size_;
         }
 
         target_phys_addr_t rx_addr = rtl8139_addr64(rxbufLO, rxbufHI);
@@ -1118,7 +1119,7 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
             s->IntrStatus |= RxOverflow;
             ++s->RxMissed;
             rtl8139_update_irq(s);
-            return;
+            return size_;
         }
 
         packet_header |= RxStatusOK;
@@ -1156,11 +1157,13 @@ static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size
     {
         rtl8139_update_irq(s);
     }
+
+    return size_;
 }
 
-static void rtl8139_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t rtl8139_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    rtl8139_do_receive(vc, buf, size, 1);
+    return rtl8139_do_receive(vc, buf, size, 1);
 }
 
 static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)

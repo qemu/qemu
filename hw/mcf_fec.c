@@ -353,7 +353,7 @@ static int mcf_fec_can_receive(VLANClientState *vc)
     return s->rx_enabled;
 }
 
-static void mcf_fec_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t mcf_fec_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     mcf_fec_state *s = vc->opaque;
     mcf_fec_bd bd;
@@ -426,6 +426,7 @@ static void mcf_fec_receive(VLANClientState *vc, const uint8_t *buf, size_t size
     s->rx_descriptor = addr;
     mcf_fec_enable_rx(s);
     mcf_fec_update(s);
+    return size;
 }
 
 static CPUReadMemoryFunc *mcf_fec_readfn[] = {

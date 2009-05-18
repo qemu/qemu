@@ -8,7 +8,7 @@
 typedef struct VLANClientState VLANClientState;
 
 typedef int (NetCanReceive)(VLANClientState *);
-typedef void (NetReceive)(VLANClientState *, const uint8_t *, size_t);
+typedef ssize_t (NetReceive)(VLANClientState *, const uint8_t *, size_t);
 typedef ssize_t (NetReceiveIOV)(VLANClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (VLANClientState *);
 typedef void (LinkStatusChanged)(VLANClientState *);

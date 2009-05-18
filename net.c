@@ -593,13 +593,14 @@ int slirp_is_inited(void)
     return slirp_inited;
 }
 
-static void slirp_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t slirp_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
 #ifdef DEBUG_SLIRP
     printf("slirp input:\n");
     hex_dump(stdout, buf, size);
 #endif
     slirp_input(buf, size);
+    return size;
 }
 
 static int slirp_in_use;
@@ -945,17 +946,16 @@ static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
     return len;
 }
 
-static void tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     TAPState *s = vc->opaque;
-    int ret;
-    for(;;) {
-        ret = write(s->fd, buf, size);
-        if (ret < 0 && (errno == EINTR || errno == EAGAIN)) {
-        } else {
-            break;
-        }
-    }
+    ssize_t len;
+
+    do {
+        len = write(s->fd, buf, size);
+    } while (len == -1 && (errno == EINTR || errno == EAGAIN));
+
+    return len;
 }
 
 static int tap_can_send(void *opaque)
@@ -1311,17 +1311,16 @@ static void vde_to_qemu(void *opaque)
     }
 }
 
-static void vde_receive(VLANClientState *vc, const uint8_t *buf, int size)
+static ssize_t vde_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     VDEState *s = vc->opaque;
-    int ret;
-    for(;;) {
-        ret = vde_send(s->vde, (const char *)buf, size, 0);
-        if (ret < 0 && errno == EINTR) {
-        } else {
-            break;
-        }
-    }
+    ssize ret;
+
+    do {
+      ret = vde_send(s->vde, (const char *)buf, size, 0);
+    } while (ret < 0 && errno == EINTR);
+
+    return ret;
 }
 
 static void vde_cleanup(VLANClientState *vc)
@@ -1380,21 +1379,22 @@ typedef struct NetSocketListenState {
 } NetSocketListenState;
 
 /* XXX: we consider we can send the whole packet without blocking */
-static void net_socket_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = vc->opaque;
     uint32_t len;
     len = htonl(size);
 
     send_all(s->fd, (const uint8_t *)&len, sizeof(len));
-    send_all(s->fd, buf, size);
+    return send_all(s->fd, buf, size);
 }
 
-static void net_socket_receive_dgram(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive_dgram(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = vc->opaque;
-    sendto(s->fd, buf, size, 0,
-           (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
+
+    return sendto(s->fd, buf, size, 0,
+                  (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
 }
 
 static void net_socket_send(void *opaque)
@@ -1831,7 +1831,7 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static void dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     DumpState *s = vc->opaque;
     struct pcap_sf_pkthdr hdr;
@@ -1840,7 +1840,7 @@ static void dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 
     /* Early return in case of previous error. */
     if (s->fd < 0) {
-        return;
+        return size;
     }
 
     ts = muldiv64(qemu_get_clock(vm_clock), 1000000, ticks_per_sec);
@@ -1856,6 +1856,8 @@ static void dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
         close(s->fd);
         s->fd = -1;
     }
+
+    return size;
 }
 
 static void net_dump_cleanup(VLANClientState *vc)

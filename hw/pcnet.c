@@ -1076,16 +1076,17 @@ static int pcnet_can_receive(VLANClientState *vc)
 
 #define MIN_BUF_SIZE 60
 
-static void pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size_)
 {
     PCNetState *s = vc->opaque;
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
     uint8_t buf1[60];
     int remaining;
     int crc_err = 0;
+    int size = size_;
 
     if (CSR_DRX(s) || CSR_STOP(s) || CSR_SPND(s) || !size)
-        return;
+        return -1;
 
 #ifdef PCNET_DEBUG
     printf("pcnet_receive size=%d\n", size);
@@ -1252,6 +1253,8 @@ static void pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 
     pcnet_poll(s);
     pcnet_update_irq(s);
+
+    return size_;
 }
 
 static void pcnet_transmit(PCNetState *s)

@@ -725,7 +725,7 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
     return -1;
 }
 
-static void nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
     uint16_t data[10];
     dp8393xState *s = vc->opaque;
@@ -742,7 +742,7 @@ static void nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
     packet_type = receive_filter(s, buf, size);
     if (packet_type < 0) {
         DPRINTF("packet not for netcard\n");
-        return;
+        return -1;
     }
 
     /* XXX: Check byte ordering */
@@ -755,7 +755,7 @@ static void nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
         s->memory_rw(s->mem_opaque, address, (uint8_t*)data, size, 0);
         if (data[0 * width] & 0x1) {
             /* Still EOL ; stop reception */
-            return;
+            return -1;
         } else {
             s->regs[SONIC_CRDA] = s->regs[SONIC_LLFA];
         }
@@ -833,6 +833,8 @@ static void nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 
     /* Done */
     dp8393x_update_irq(s);
+
+    return size;
 }
 
 static void nic_reset(void *opaque)
