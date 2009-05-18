@@ -586,6 +586,8 @@ static int serial_can_receive(SerialState *s)
 static void serial_receive_break(SerialState *s)
 {
     s->rbr = 0;
+    /* When the LSR_DR is set a null byte is pushed into the fifo */
+    fifo_put(s, RECV_FIFO, '\0');
     s->lsr |= UART_LSR_BI | UART_LSR_DR;
     serial_update_irq(s);
 }
