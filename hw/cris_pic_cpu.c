@@ -1,7 +1,7 @@
 /*
- * QEMU ETRAX System Emulator
+ * QEMU CRIS CPU interrupt wrapper logic.
  *
- * Copyright (c) 2008 Edgar E. Iglesias, Axis Communications AB.
+ * Copyright (c) 2009 Edgar E. Iglesias, Axis Communications AB.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,29 @@
  * THE SOFTWARE.
  */
 
-#include "etraxfs_dma.h"
+#include "hw.h"
+#include "pc.h"
+#include "etraxfs.h"
 
-qemu_irq *cris_pic_init_cpu(CPUState *env);
-void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
-                       target_phys_addr_t base, int phyaddr);
+#define D(x)
+
+void pic_info(Monitor *mon)
+{}
+void irq_info(Monitor *mon)
+{}
+
+static void cris_pic_cpu_handler(void *opaque, int irq, int level)
+{
+    CPUState *env = (CPUState *)opaque;
+    int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
+
+    if (level)
+        cpu_interrupt(env, type);
+    else
+        cpu_reset_interrupt(env, type);
+}
+
+qemu_irq *cris_pic_init_cpu(CPUState *env)
+{
+    return qemu_allocate_irqs(cris_pic_cpu_handler, env, 2);
+}
