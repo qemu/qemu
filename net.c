@@ -921,6 +921,7 @@ typedef struct TAPState {
     int fd;
     char down_script[1024];
     char down_script_arg[128];
+    uint8_t buf[4096];
 } TAPState;
 
 static int launch_script(const char *setup_script, const char *ifname, int fd);
@@ -972,12 +973,11 @@ static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 static void tap_send(void *opaque)
 {
     TAPState *s = opaque;
-    uint8_t buf[4096];
     int size;
 
-    size = tap_read_packet(s->fd, buf, sizeof(buf));
+    size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
     if (size > 0) {
-        qemu_send_packet(s->vc, buf, size);
+        qemu_send_packet(s->vc, s->buf, size);
     }
 }
 
