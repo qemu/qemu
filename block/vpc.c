@@ -477,8 +477,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     return 0;
 }
 
-static int vpc_create(const char *filename, int64_t total_sectors,
-    const char *backing_file, int flags)
+static int vpc_create(const char *filename, QEMUOptionParameter *options)
 {
     uint8_t buf[1024];
     struct vhd_footer* footer = (struct vhd_footer*) buf;
@@ -489,10 +488,17 @@ static int vpc_create(const char *filename, int64_t total_sectors,
     uint8_t heads;
     uint8_t secs_per_cyl;
     size_t block_size, num_bat_entries;
+    int64_t total_sectors = 0;
 
-    if (backing_file != NULL)
-        return -ENOTSUP;
+    // Read out options
+    while (options && options->name) {
+        if (!strcmp(options->name, "size")) {
+            total_sectors = options->value.n / 512;
+        }
+        options++;
+    }
 
+    // Create the file
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
     if (fd < 0)
         return -EIO;
@@ -587,6 +593,11 @@ static void vpc_close(BlockDriverState *bs)
     bdrv_delete(s->hd);
 }
 
+static QEMUOptionParameter vpc_create_options[] = {
+    { "size", OPT_SIZE },
+    { NULL }
+};
+
 static BlockDriver bdrv_vpc = {
     .format_name	= "vpc",
     .instance_size	= sizeof(BDRVVPCState),
@@ -596,6 +607,8 @@ static BlockDriver bdrv_vpc = {
     .bdrv_write		= vpc_write,
     .bdrv_close		= vpc_close,
     .bdrv_create	= vpc_create,
+
+    .create_options = vpc_create_options,
 };
 
 static void bdrv_vpc_init(void)

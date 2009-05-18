@@ -687,8 +687,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int vmdk_create(const char *filename, int64_t total_size,
-                       const char *backing_file, int flags)
+static int vmdk_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd, i;
     VMDK4Header header;
@@ -713,6 +712,21 @@ static int vmdk_create(const char *filename, int64_t total_size,
         "ddb.adapterType = \"ide\"\n";
     char desc[1024];
     const char *real_filename, *temp_str;
+    int64_t total_size = 0;
+    const char *backing_file = NULL;
+    int flags = 0;
+
+    // Read out options
+    while (options && options->name) {
+        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
+            total_size = options->value.n / 512;
+        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
+            backing_file = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_COMPAT6)) {
+            flags |= options->value.n ? BLOCK_FLAG_COMPAT6: 0;
+        }
+        options++;
+    }
 
     /* XXX: add support for backing file */
     if (backing_file) {
@@ -812,6 +826,14 @@ static void vmdk_flush(BlockDriverState *bs)
     bdrv_flush(s->hd);
 }
 
+
+static QEMUOptionParameter vmdk_create_options[] = {
+    { BLOCK_OPT_SIZE,           OPT_SIZE },
+    { BLOCK_OPT_BACKING_FILE,   OPT_STRING },
+    { BLOCK_OPT_COMPAT6,        OPT_FLAG },
+    { NULL }
+};
+
 static BlockDriver bdrv_vmdk = {
     .format_name	= "vmdk",
     .instance_size	= sizeof(BDRVVmdkState),
@@ -823,6 +845,8 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_create	= vmdk_create,
     .bdrv_flush		= vmdk_flush,
     .bdrv_is_allocated	= vmdk_is_allocated,
+
+    .create_options = vmdk_create_options,
 };
 
 static void bdrv_vmdk_init(void)

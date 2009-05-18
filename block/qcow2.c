@@ -1696,10 +1696,28 @@ static int qcow_create2(const char *filename, int64_t total_size,
     return 0;
 }
 
-static int qcow_create(const char *filename, int64_t total_size,
-                       const char *backing_file, int flags)
+static int qcow_create(const char *filename, QEMUOptionParameter *options)
 {
-    return qcow_create2(filename, total_size, backing_file, NULL, flags);
+    const char *backing_file = NULL;
+    const char *backing_fmt = NULL;
+    uint64_t sectors = 0;
+    int flags = 0;
+
+    /* Read out options */
+    while (options && options->name) {
+        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
+            sectors = options->value.n / 512;
+        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
+            backing_file = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FMT)) {
+            backing_fmt = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_ENCRYPT)) {
+            flags |= options->value.n ? BLOCK_FLAG_ENCRYPT : 0;
+        }
+        options++;
+    }
+
+    return qcow_create2(filename, sectors, backing_file, backing_fmt, flags);
 }
 
 static int qcow_make_empty(BlockDriverState *bs)
@@ -2897,6 +2915,14 @@ static int qcow_get_buffer(BlockDriverState *bs, uint8_t *buf,
     return ret;
 }
 
+static QEMUOptionParameter qcow_create_options[] = {
+    { BLOCK_OPT_SIZE,           OPT_SIZE },
+    { BLOCK_OPT_BACKING_FILE,   OPT_STRING },
+    { BLOCK_OPT_BACKING_FMT,    OPT_STRING },
+    { BLOCK_OPT_ENCRYPT,        OPT_FLAG },
+    { NULL }
+};
+
 static BlockDriver bdrv_qcow2 = {
     .format_name	= "qcow2",
     .instance_size	= sizeof(BDRVQcowState),
@@ -2924,7 +2950,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_put_buffer    = qcow_put_buffer,
     .bdrv_get_buffer    = qcow_get_buffer,
 
-    .bdrv_create2 = qcow_create2,
+    .create_options = qcow_create_options,
     .bdrv_check = qcow_check,
 };
 

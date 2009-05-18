@@ -551,7 +551,7 @@ static int img_convert(int argc, char **argv)
     if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
         error("Compression and encryption not supported at the same time");
 
-    ret = bdrv_create(drv, out_filename, total_sectors, out_baseimg, flags);
+    ret = bdrv_create2(drv, out_filename, total_sectors, out_baseimg, NULL, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting not supported for file format '%s'", out_fmt);

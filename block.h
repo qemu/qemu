@@ -3,6 +3,7 @@
 
 #include "qemu-aio.h"
 #include "qemu-common.h"
+#include "qemu-option.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -45,9 +46,8 @@ void bdrv_info_stats(Monitor *mon);
 
 void bdrv_init(void);
 BlockDriver *bdrv_find_format(const char *format_name);
-int bdrv_create(BlockDriver *drv,
-                const char *filename, int64_t size_in_sectors,
-                const char *backing_file, int flags);
+int bdrv_create(BlockDriver *drv, const char* filename,
+    QEMUOptionParameter *options);
 int bdrv_create2(BlockDriver *drv,
                  const char *filename, int64_t size_in_sectors,
                  const char *backing_file, const char *backing_format,

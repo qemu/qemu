@@ -25,10 +25,17 @@
 #define BLOCK_INT_H
 
 #include "block.h"
+#include "qemu-option.h"
 
 #define BLOCK_FLAG_ENCRYPT	1
 #define BLOCK_FLAG_COMPRESS	2
 #define BLOCK_FLAG_COMPAT6	4
+
+#define BLOCK_OPT_SIZE          "size"
+#define BLOCK_OPT_ENCRYPT       "encryption"
+#define BLOCK_OPT_COMPAT6       "compat6"
+#define BLOCK_OPT_BACKING_FILE  "backing_file"
+#define BLOCK_OPT_BACKING_FMT   "backing_fmt"
 
 typedef struct AIOPool {
     void (*cancel)(BlockDriverAIOCB *acb);
@@ -46,8 +53,7 @@ struct BlockDriver {
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
-    int (*bdrv_create)(const char *filename, int64_t total_sectors,
-                       const char *backing_file, int flags);
+    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options);
     void (*bdrv_flush)(BlockDriverState *bs);
     int (*bdrv_is_allocated)(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int *pnum);
@@ -97,10 +103,9 @@ struct BlockDriver {
 
     AIOPool aio_pool;
 
-    /* new create with backing file format */
-    int (*bdrv_create2)(const char *filename, int64_t total_sectors,
-                        const char *backing_file, const char *backing_format,
-                        int flags);
+    /* List of options for creating images, terminated by name == NULL */
+    QEMUOptionParameter *create_options;
+
 
     /* Returns number of errors in image, -errno for internal errors */
     int (*bdrv_check)(BlockDriverState* bs);

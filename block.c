@@ -189,22 +189,44 @@ int bdrv_create2(BlockDriver *drv,
                 const char *backing_file, const char *backing_format,
                 int flags)
 {
-    if (drv->bdrv_create2)
-        return drv->bdrv_create2(filename, size_in_sectors, backing_file,
-                                 backing_format, flags);
-    if (drv->bdrv_create)
-        return drv->bdrv_create(filename, size_in_sectors, backing_file,
-                                flags);
-    return -ENOTSUP;
+    QEMUOptionParameter *options;
+
+    options = parse_option_parameters("", drv->create_options, NULL);
+
+    // Process flags
+    if (flags & ~(BLOCK_FLAG_ENCRYPT | BLOCK_FLAG_COMPAT6 | BLOCK_FLAG_COMPRESS)) {
+        return -ENOTSUP;
+    }
+
+    if (flags & BLOCK_FLAG_ENCRYPT) {
+        set_option_parameter_int(options, BLOCK_OPT_ENCRYPT, 1);
+    }
+    if (flags & BLOCK_FLAG_COMPAT6) {
+        set_option_parameter_int(options, BLOCK_OPT_COMPAT6, 1);
+    }
+
+    // Add size to options
+    set_option_parameter_int(options, BLOCK_OPT_SIZE, size_in_sectors * 512);
+
+    // Backing files
+    if ((backing_file != NULL && set_option_parameter(options,
+            BLOCK_OPT_BACKING_FILE, backing_file))
+        || (backing_format != NULL && set_option_parameter(options,
+            BLOCK_OPT_BACKING_FMT, backing_format)))
+    {
+        return -ENOTSUP;
+    }
+
+    return bdrv_create(drv, filename, options);
 }
 
-int bdrv_create(BlockDriver *drv,
-                const char *filename, int64_t size_in_sectors,
-                const char *backing_file, int flags)
+int bdrv_create(BlockDriver *drv, const char* filename,
+    QEMUOptionParameter *options)
 {
     if (!drv->bdrv_create)
         return -ENOTSUP;
-    return drv->bdrv_create(filename, size_in_sectors, backing_file, flags);
+
+    return drv->bdrv_create(filename, options);
 }
 
 #ifdef _WIN32
