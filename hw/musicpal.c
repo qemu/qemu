@@ -557,14 +557,14 @@ static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
     le32_to_cpus(&desc->next);
 }
 
-static int eth_can_receive(void *opaque)
+static int eth_can_receive(VLANClientState *vc)
 {
     return 1;
 }
 
-static void eth_receive(void *opaque, const uint8_t *buf, size_t size)
+static void eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    mv88w8618_eth_state *s = opaque;
+    mv88w8618_eth_state *s = vc->opaque;
     uint32_t desc_addr;
     mv88w8618_rx_desc desc;
     int i;

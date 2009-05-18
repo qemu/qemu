@@ -650,7 +650,7 @@ static void tap_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-static void tap_receive(void *opaque, const uint8_t *buf, size_t size)
+static void tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     TAPState *s = opaque;
 

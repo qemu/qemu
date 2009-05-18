@@ -288,9 +288,9 @@ static int do_virtio_net_can_receive(VirtIONet *n, int bufsize)
     return 1;
 }
 
-static int virtio_net_can_receive(void *opaque)
+static int virtio_net_can_receive(VLANClientState *vc)
 {
-    VirtIONet *n = opaque;
+    VirtIONet *n = vc->opaque;
 
     return do_virtio_net_can_receive(n, VIRTIO_NET_MAX_BUFSIZE);
 }
@@ -361,9 +361,9 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static void virtio_net_receive(void *opaque, const uint8_t *buf, size_t size)
+static void virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    VirtIONet *n = opaque;
+    VirtIONet *n = vc->opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
     size_t hdr_len, offset, i;
 

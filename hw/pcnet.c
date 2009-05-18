@@ -1062,9 +1062,9 @@ static int pcnet_tdte_poll(PCNetState *s)
     return !!(CSR_CXST(s) & 0x8000);
 }
 
-static int pcnet_can_receive(void *opaque)
+static int pcnet_can_receive(VLANClientState *vc)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = vc->opaque;
     if (CSR_STOP(s) || CSR_SPND(s))
         return 0;
 
@@ -1076,9 +1076,9 @@ static int pcnet_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
-static void pcnet_receive(void *opaque, const uint8_t *buf, size_t size)
+static void pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = vc->opaque;
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
     uint8_t buf1[60];
     int remaining;
@@ -1302,7 +1302,7 @@ static void pcnet_transmit(PCNetState *s)
                 if (BCR_SWSTYLE(s) == 1)
                     add_crc = !GET_FIELD(tmd.status, TMDS, NOFCS);
                 s->looptest = add_crc ? PCNET_LOOPTEST_CRC : PCNET_LOOPTEST_NOCRC;
-                pcnet_receive(s, s->buffer, s->xmit_pos);
+                pcnet_receive(s->vc, s->buffer, s->xmit_pos);
                 s->looptest = 0;
             } else
                 if (s->vc)

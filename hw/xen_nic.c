@@ -223,9 +223,9 @@ static void net_rx_response(struct XenNetDev *netdev,
 
 #define NET_IP_ALIGN 2
 
-static int net_rx_ok(void *opaque)
+static int net_rx_ok(VLANClientState *vc)
 {
-    struct XenNetDev *netdev = opaque;
+    struct XenNetDev *netdev = vc->opaque;
     RING_IDX rc, rp;
 
     if (netdev->xendev.be_state != XenbusStateConnected)
@@ -243,9 +243,9 @@ static int net_rx_ok(void *opaque)
     return 1;
 }
 
-static void net_rx_packet(void *opaque, const uint8_t *buf, size_t size)
+static void net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    struct XenNetDev *netdev = opaque;
+    struct XenNetDev *netdev = vc->opaque;
     netif_rx_request_t rxreq;
     RING_IDX rc, rp;
     void *page;

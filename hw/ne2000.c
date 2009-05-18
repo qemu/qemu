@@ -213,9 +213,9 @@ static int ne2000_buffer_full(NE2000State *s)
     return 0;
 }
 
-static int ne2000_can_receive(void *opaque)
+static int ne2000_can_receive(VLANClientState *vc)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = vc->opaque;
 
     if (s->cmd & E8390_STOP)
         return 1;
@@ -224,9 +224,9 @@ static int ne2000_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
-static void ne2000_receive(void *opaque, const uint8_t *buf, size_t size)
+static void ne2000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = vc->opaque;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];

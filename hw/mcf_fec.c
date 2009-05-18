@@ -347,15 +347,15 @@ static void mcf_fec_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     mcf_fec_update(s);
 }
 
-static int mcf_fec_can_receive(void *opaque)
+static int mcf_fec_can_receive(VLANClientState *vc)
 {
-    mcf_fec_state *s = (mcf_fec_state *)opaque;
+    mcf_fec_state *s = vc->opaque;
     return s->rx_enabled;
 }
 
-static void mcf_fec_receive(void *opaque, const uint8_t *buf, size_t size)
+static void mcf_fec_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    mcf_fec_state *s = (mcf_fec_state *)opaque;
+    mcf_fec_state *s = vc->opaque;
     mcf_fec_bd bd;
     uint32_t flags = 0;
     uint32_t addr;

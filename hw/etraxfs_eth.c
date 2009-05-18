@@ -496,15 +496,15 @@ static int eth_match_groupaddr(struct fs_eth *eth, const unsigned char *sa)
 	return match;
 }
 
-static int eth_can_receive(void *opaque)
+static int eth_can_receive(VLANClientState *vc)
 {
 	return 1;
 }
 
-static void eth_receive(void *opaque, const uint8_t *buf, size_t size)
+static void eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
 	unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-	struct fs_eth *eth = opaque;
+	struct fs_eth *eth = vc->opaque;
 	int use_ma0 = eth->regs[RW_REC_CTRL] & 1;
 	int use_ma1 = eth->regs[RW_REC_CTRL] & 2;
 	int r_bcast = eth->regs[RW_REC_CTRL] & 8;

@@ -66,23 +66,23 @@ static int mipsnet_buffer_full(MIPSnetState *s)
     return 0;
 }
 
-static int mipsnet_can_receive(void *opaque)
+static int mipsnet_can_receive(VLANClientState *vc)
 {
-    MIPSnetState *s = opaque;
+    MIPSnetState *s = vc->opaque;
 
     if (s->busy)
         return 0;
     return !mipsnet_buffer_full(s);
 }
 
-static void mipsnet_receive(void *opaque, const uint8_t *buf, size_t size)
+static void mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    MIPSnetState *s = opaque;
+    MIPSnetState *s = vc->opaque;
 
 #ifdef DEBUG_MIPSNET_RECEIVE
     printf("mipsnet: receiving len=%d\n", size);
 #endif
-    if (!mipsnet_can_receive(opaque))
+    if (!mipsnet_can_receive(vc))
         return;
 
     s->busy = 1;

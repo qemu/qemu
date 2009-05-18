@@ -790,9 +790,9 @@ static inline target_phys_addr_t rtl8139_addr64(uint32_t low, uint32_t high)
 #endif
 }
 
-static int rtl8139_can_receive(void *opaque)
+static int rtl8139_can_receive(VLANClientState *vc)
 {
-    RTL8139State *s = opaque;
+    RTL8139State *s = vc->opaque;
     int avail;
 
     /* Receive (drop) packets if card is disabled.  */
@@ -812,9 +812,9 @@ static int rtl8139_can_receive(void *opaque)
     }
 }
 
-static void rtl8139_do_receive(void *opaque, const uint8_t *buf, int size, int do_interrupt)
+static void rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, int size, int do_interrupt)
 {
-    RTL8139State *s = opaque;
+    RTL8139State *s = vc->opaque;
 
     uint32_t packet_header = 0;
 
@@ -1158,9 +1158,9 @@ static void rtl8139_do_receive(void *opaque, const uint8_t *buf, int size, int d
     }
 }
 
-static void rtl8139_receive(void *opaque, const uint8_t *buf, size_t size)
+static void rtl8139_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    rtl8139_do_receive(opaque, buf, size, 1);
+    rtl8139_do_receive(vc, buf, size, 1);
 }
 
 static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
@@ -1757,7 +1757,7 @@ static void rtl8139_transfer_frame(RTL8139State *s, const uint8_t *buf, int size
     if (TxLoopBack == (s->TxConfig & TxLoopBack))
     {
         DEBUG_PRINT(("RTL8139: +++ transmit loopback mode\n"));
-        rtl8139_do_receive(s, buf, size, do_interrupt);
+        rtl8139_do_receive(s->vc, buf, size, do_interrupt);
     }
     else
     {

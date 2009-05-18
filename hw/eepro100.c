@@ -1433,21 +1433,21 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
     }
 }
 
-static int nic_can_receive(void *opaque)
+static int nic_can_receive(VLANClientState *vc)
 {
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = vc->opaque;
     logout("%p\n", s);
     return get_ru_state(s) == ru_ready;
     //~ return !eepro100_buffer_full(s);
 }
 
-static void nic_receive(void *opaque, const uint8_t * buf, size_t size)
+static void nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
     /* TODO:
      * - Magic packets should set bit 30 in power management driver register.
      * - Interesting packets should set bit 29 in power management driver register.
      */
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = vc->opaque;
     uint16_t rfd_status = 0xa000;
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };

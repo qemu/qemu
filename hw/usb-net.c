@@ -1369,9 +1369,9 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static void usbnet_receive(void *opaque, const uint8_t *buf, size_t size)
+static void usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    USBNetState *s = opaque;
+    USBNetState *s = vc->opaque;
     struct rndis_packet_msg_type *msg;
 
     if (s->rndis) {
@@ -1405,9 +1405,9 @@ static void usbnet_receive(void *opaque, const uint8_t *buf, size_t size)
     s->in_ptr = 0;
 }
 
-static int usbnet_can_receive(void *opaque)
+static int usbnet_can_receive(VLANClientState *vc)
 {
-    USBNetState *s = opaque;
+    USBNetState *s = vc->opaque;
 
     if (s->rndis && !s->rndis_state == RNDIS_DATA_INITIALIZED)
         return 1;

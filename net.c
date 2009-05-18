@@ -402,7 +402,7 @@ int qemu_can_send_packet(VLANClientState *sender)
         }
 
         /* no can_receive() handler, they can always receive */
-        if (!vc->can_receive || vc->can_receive(vc->opaque)) {
+        if (!vc->can_receive || vc->can_receive(vc)) {
             return 1;
         }
     }
@@ -416,7 +416,7 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
 
     for (vc = sender->vlan->first_client; vc != NULL; vc = vc->next) {
         if (vc != sender && !vc->link_down) {
-            vc->receive(vc->opaque, buf, size);
+            vc->receive(vc, buf, size);
         }
     }
 }
@@ -467,7 +467,7 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
         offset += len;
     }
 
-    vc->receive(vc->opaque, buffer, offset);
+    vc->receive(vc, buffer, offset);
 
     return offset;
 }
@@ -520,7 +520,7 @@ ssize_t qemu_sendv_packet(VLANClientState *sender, const struct iovec *iov,
             if (vc->link_down) {
                 len = calc_iov_length(iov, iovcnt);
             } else if (vc->receive_iov) {
-                len = vc->receive_iov(vc->opaque, iov, iovcnt);
+                len = vc->receive_iov(vc, iov, iovcnt);
             } else if (vc->receive) {
                 len = vc_sendv_compat(vc, iov, iovcnt);
             }
@@ -593,7 +593,7 @@ int slirp_is_inited(void)
     return slirp_inited;
 }
 
-static void slirp_receive(void *opaque, const uint8_t *buf, size_t size)
+static void slirp_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
 #ifdef DEBUG_SLIRP
     printf("slirp input:\n");
@@ -932,10 +932,10 @@ typedef struct TAPState {
 
 static int launch_script(const char *setup_script, const char *ifname, int fd);
 
-static ssize_t tap_receive_iov(void *opaque, const struct iovec *iov,
+static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
                                int iovcnt)
 {
-    TAPState *s = opaque;
+    TAPState *s = vc->opaque;
     ssize_t len;
 
     do {
@@ -945,9 +945,9 @@ static ssize_t tap_receive_iov(void *opaque, const struct iovec *iov,
     return len;
 }
 
-static void tap_receive(void *opaque, const uint8_t *buf, size_t size)
+static void tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    TAPState *s = opaque;
+    TAPState *s = vc->opaque;
     int ret;
     for(;;) {
         ret = write(s->fd, buf, size);
@@ -1311,9 +1311,9 @@ static void vde_to_qemu(void *opaque)
     }
 }
 
-static void vde_from_qemu(void *opaque, const uint8_t *buf, int size)
+static void vde_receive(VLANClientState *vc, const uint8_t *buf, int size)
 {
-    VDEState *s = opaque;
+    VDEState *s = vc->opaque;
     int ret;
     for(;;) {
         ret = vde_send(s->vde, (const char *)buf, size, 0);
@@ -1352,7 +1352,7 @@ static int net_vde_init(VLANState *vlan, const char *model,
         free(s);
         return -1;
     }
-    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, vde_from_qemu,
+    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, vde_receive,
                                  NULL, vde_cleanup, s);
     qemu_set_fd_handler(vde_datafd(s->vde), vde_to_qemu, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "sock=%s,fd=%d",
@@ -1380,9 +1380,9 @@ typedef struct NetSocketListenState {
 } NetSocketListenState;
 
 /* XXX: we consider we can send the whole packet without blocking */
-static void net_socket_receive(void *opaque, const uint8_t *buf, size_t size)
+static void net_socket_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    NetSocketState *s = opaque;
+    NetSocketState *s = vc->opaque;
     uint32_t len;
     len = htonl(size);
 
@@ -1390,9 +1390,9 @@ static void net_socket_receive(void *opaque, const uint8_t *buf, size_t size)
     send_all(s->fd, buf, size);
 }
 
-static void net_socket_receive_dgram(void *opaque, const uint8_t *buf, size_t size)
+static void net_socket_receive_dgram(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    NetSocketState *s = opaque;
+    NetSocketState *s = vc->opaque;
     sendto(s->fd, buf, size, 0,
            (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
 }
@@ -1831,9 +1831,9 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static void dump_receive(void *opaque, const uint8_t *buf, size_t size)
+static void dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    DumpState *s = opaque;
+    DumpState *s = vc->opaque;
     struct pcap_sf_pkthdr hdr;
     int64_t ts;
     int caplen;

@@ -407,9 +407,9 @@ static void do_transmit_packets(dp8393xState *s)
         if (s->regs[SONIC_RCR] & (SONIC_RCR_LB1 | SONIC_RCR_LB0)) {
             /* Loopback */
             s->regs[SONIC_TCR] |= SONIC_TCR_CRSL;
-            if (s->vc->fd_can_read(s)) {
+            if (s->vc->can_receive(s->vc)) {
                 s->loopback_packet = 1;
-                s->vc->receive(s, s->tx_buffer, tx_len);
+                s->vc->receive(s->vc, s->tx_buffer, tx_len);
             }
         } else {
             /* Transmit packet */
@@ -676,9 +676,9 @@ static CPUWriteMemoryFunc *dp8393x_write[3] = {
     dp8393x_writel,
 };
 
-static int nic_can_receive(void *opaque)
+static int nic_can_receive(VLANClientState *vc)
 {
-    dp8393xState *s = opaque;
+    dp8393xState *s = vc->opaque;
 
     if (!(s->regs[SONIC_CR] & SONIC_CR_RXEN))
         return 0;
@@ -725,10 +725,10 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
     return -1;
 }
 
-static void nic_receive(void *opaque, const uint8_t * buf, size_t size)
+static void nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
     uint16_t data[10];
-    dp8393xState *s = opaque;
+    dp8393xState *s = vc->opaque;
     int packet_type;
     uint32_t available, address;
     int width, rx_len = size;

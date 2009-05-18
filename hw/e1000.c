@@ -592,17 +592,17 @@ e1000_set_link_status(VLANClientState *vc)
 }
 
 static int
-e1000_can_receive(void *opaque)
+e1000_can_receive(VLANClientState *vc)
 {
-    E1000State *s = opaque;
+    E1000State *s = vc->opaque;
 
     return (s->mac_reg[RCTL] & E1000_RCTL_EN);
 }
 
 static void
-e1000_receive(void *opaque, const uint8_t *buf, size_t size)
+e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    E1000State *s = opaque;
+    E1000State *s = vc->opaque;
     struct e1000_rx_desc desc;
     target_phys_addr_t base;
     unsigned int n, rdt;

@@ -591,9 +591,9 @@ static uint32_t smc91c111_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static int smc91c111_can_receive(void *opaque)
+static int smc91c111_can_receive(VLANClientState *vc)
 {
-    smc91c111_state *s = (smc91c111_state *)opaque;
+    smc91c111_state *s = vc->opaque;
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
         return 1;
@@ -602,9 +602,9 @@ static int smc91c111_can_receive(void *opaque)
     return 1;
 }
 
-static void smc91c111_receive(void *opaque, const uint8_t *buf, size_t size)
+static void smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    smc91c111_state *s = (smc91c111_state *)opaque;
+    smc91c111_state *s = vc->opaque;
     int status;
     int packetsize;
     uint32_t crc;
