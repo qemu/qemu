@@ -1569,7 +1569,11 @@ static void dp8381x_init(PCIDevice *pci_dev)
 
 static void dp8381x_register_devices(void)
 {
+#if defined(DP83815)
     pci_qdev_register("dp83815", sizeof(dp8381x_t), dp8381x_init);
+#else
+    pci_qdev_register("dp83816", sizeof(dp8381x_t), dp8381x_init);
+#endif
 }
 
 device_init(dp8381x_register_devices)
