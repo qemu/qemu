@@ -566,7 +566,8 @@ static long get_file_size(FILE *f)
 static void load_linux(target_phys_addr_t option_rom,
                        const char *kernel_filename,
 		       const char *initrd_filename,
-		       const char *kernel_cmdline)
+		       const char *kernel_cmdline,
+               target_phys_addr_t max_ram_size)
 {
     uint16_t protocol;
     uint32_t gpr[8];
@@ -632,8 +633,8 @@ static void load_linux(target_phys_addr_t option_rom,
     else
 	initrd_max = 0x37ffffff;
 
-    if (initrd_max >= ram_size-ACPI_DATA_SIZE)
-	initrd_max = ram_size-ACPI_DATA_SIZE-1;
+    if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
+    	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
 
     /* kernel command line */
     pstrcpy_targphys(cmdline_addr, 4096, kernel_cmdline);
@@ -930,7 +931,7 @@ vga_bios_error:
             cpu_register_physical_memory(0xd0000, TARGET_PAGE_SIZE,
                                          option_rom_offset);
             load_linux(0xd0000,
-                       kernel_filename, initrd_filename, kernel_cmdline);
+                       kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
             offset = TARGET_PAGE_SIZE;
         }
 
