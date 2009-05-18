@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu-option.h"
 #include "osdep.h"
 #include "block_int.h"
 #include <stdio.h>
@@ -221,14 +222,13 @@ static int img_create(int argc, char **argv)
     const char *base_fmt = NULL;
     const char *filename;
     const char *base_filename = NULL;
-    uint64_t size;
-    double sizef;
-    const char *p;
     BlockDriver *drv;
+    QEMUOptionParameter *param = NULL;
+    char *options = NULL;
 
     flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "F:b:f:he6");
+        c = getopt(argc, argv, "F:b:f:he6o:");
         if (c == -1)
             break;
         switch(c) {
@@ -250,59 +250,100 @@ static int img_create(int argc, char **argv)
         case '6':
             flags |= BLOCK_FLAG_COMPAT6;
             break;
+        case 'o':
+            options = optarg;
+            break;
         }
     }
     if (optind >= argc)
         help();
     filename = argv[optind++];
-    size = 0;
-    if (base_filename) {
-        BlockDriverState *bs;
-        BlockDriver *base_drv = NULL;
 
-        if (base_fmt) {
-            base_drv = bdrv_find_format(base_fmt);
-            if (base_drv == NULL)
-                error("Unknown basefile format '%s'", base_fmt);
-        }
-
-        bs = bdrv_new_open(base_filename, base_fmt);
-        bdrv_get_geometry(bs, &size);
-        size *= 512;
-        bdrv_delete(bs);
-    } else {
-        if (optind >= argc)
-            help();
-        p = argv[optind];
-        sizef = strtod(p, (char **)&p);
-        if (*p == 'M') {
-            size = (uint64_t)(sizef * 1024 * 1024);
-        } else if (*p == 'G') {
-            size = (uint64_t)(sizef * 1024 * 1024 * 1024);
-        } else if (*p == 'k' || *p == 'K' || *p == '\0') {
-            size = (uint64_t)(sizef * 1024);
-        } else {
-            help();
-        }
-    }
+    /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
     if (!drv)
         error("Unknown file format '%s'", fmt);
-    printf("Formatting '%s', fmt=%s",
-           filename, fmt);
-    if (flags & BLOCK_FLAG_ENCRYPT)
-        printf(", encrypted");
-    if (flags & BLOCK_FLAG_COMPAT6)
-        printf(", compatibility level=6");
-    if (base_filename) {
-        printf(", backing_file=%s",
-               base_filename);
-         if (base_fmt)
-             printf(", backing_fmt=%s",
-                    base_fmt);
+
+    if (options) {
+        param = parse_option_parameters(options, drv->create_options, param);
+        if (param == NULL) {
+            error("Invalid options for file format '%s'.", fmt);
+        }
+    } else {
+        param = parse_option_parameters("", drv->create_options, param);
     }
-    printf(", size=%" PRIu64 " kB\n", size / 1024);
-    ret = bdrv_create2(drv, filename, size / 512, base_filename, base_fmt, flags);
+
+    /* Add size to parameters */
+    if (optind < argc) {
+        set_option_parameter(param, BLOCK_OPT_SIZE, argv[optind++]);
+    }
+
+    /* Add old-style options to parameters */
+    if (flags & BLOCK_FLAG_ENCRYPT) {
+        if (set_option_parameter(param, BLOCK_OPT_ENCRYPT, "on")) {
+            error("Encryption not supported for file format '%s'", fmt);
+        }
+    }
+    if (flags & BLOCK_FLAG_COMPAT6) {
+        if (set_option_parameter(param, BLOCK_OPT_COMPAT6, "on")) {
+            error("VMDK version 6 not supported for file format '%s'", fmt);
+        }
+    }
+
+    if (base_filename) {
+        if (set_option_parameter(param, BLOCK_OPT_BACKING_FILE, base_filename)) {
+            error("Backing file not supported for file format '%s'", fmt);
+        }
+    }
+    if (base_fmt) {
+        if (set_option_parameter(param, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+            error("Backing file format not supported for file format '%s'", fmt);
+        }
+    }
+
+    // The size for the image must always be specified, with one exception:
+    // If we are using a backing file, we can obtain the size from there
+    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == 0) {
+
+        QEMUOptionParameter *backing_file =
+            get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
+        QEMUOptionParameter *backing_fmt =
+            get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
+
+        if (backing_file && backing_file->value.s) {
+            BlockDriverState *bs;
+            uint64_t size;
+            const char *fmt = NULL;
+            char buf[32];
+
+            if (backing_fmt && backing_fmt->value.s) {
+                 if (bdrv_find_format(backing_fmt->value.s)) {
+                     fmt = backing_fmt->value.s;
+                } else {
+                     error("Unknown backing file format '%s'",
+                        backing_fmt->value.s);
+                }
+            }
+
+            bs = bdrv_new_open(backing_file->value.s, fmt);
+            bdrv_get_geometry(bs, &size);
+            size *= 512;
+            bdrv_delete(bs);
+
+            snprintf(buf, sizeof(buf), "%" PRId64, size);
+            set_option_parameter(param, BLOCK_OPT_SIZE, buf);
+        } else {
+            error("Image creation needs a size parameter");
+        }
+    }
+
+    printf("Formatting '%s', fmt=%s ", filename, fmt);
+    print_option_parameters(param);
+    puts("");
+
+    ret = bdrv_create(drv, filename, param);
+    free_option_parameters(param);
+
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting or formatting option not supported for file format '%s'", fmt);
