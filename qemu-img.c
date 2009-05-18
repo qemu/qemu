@@ -215,6 +215,32 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     return bs;
 }
 
+static void add_old_style_options(const char *fmt, QEMUOptionParameter *list,
+    int flags, const char *base_filename, const char *base_fmt)
+{
+    if (flags & BLOCK_FLAG_ENCRYPT) {
+        if (set_option_parameter(list, BLOCK_OPT_ENCRYPT, "on")) {
+            error("Encryption not supported for file format '%s'", fmt);
+        }
+    }
+    if (flags & BLOCK_FLAG_COMPAT6) {
+        if (set_option_parameter(list, BLOCK_OPT_COMPAT6, "on")) {
+            error("VMDK version 6 not supported for file format '%s'", fmt);
+        }
+    }
+
+    if (base_filename) {
+        if (set_option_parameter(list, BLOCK_OPT_BACKING_FILE, base_filename)) {
+            error("Backing file not supported for file format '%s'", fmt);
+        }
+    }
+    if (base_fmt) {
+        if (set_option_parameter(list, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+            error("Backing file format not supported for file format '%s'", fmt);
+        }
+    }
+}
+
 static int img_create(int argc, char **argv)
 {
     int c, ret, flags;
@@ -279,27 +305,7 @@ static int img_create(int argc, char **argv)
     }
 
     /* Add old-style options to parameters */
-    if (flags & BLOCK_FLAG_ENCRYPT) {
-        if (set_option_parameter(param, BLOCK_OPT_ENCRYPT, "on")) {
-            error("Encryption not supported for file format '%s'", fmt);
-        }
-    }
-    if (flags & BLOCK_FLAG_COMPAT6) {
-        if (set_option_parameter(param, BLOCK_OPT_COMPAT6, "on")) {
-            error("VMDK version 6 not supported for file format '%s'", fmt);
-        }
-    }
-
-    if (base_filename) {
-        if (set_option_parameter(param, BLOCK_OPT_BACKING_FILE, base_filename)) {
-            error("Backing file not supported for file format '%s'", fmt);
-        }
-    }
-    if (base_fmt) {
-        if (set_option_parameter(param, BLOCK_OPT_BACKING_FMT, base_fmt)) {
-            error("Backing file format not supported for file format '%s'", fmt);
-        }
-    }
+    add_old_style_options(fmt, param, flags, base_filename, base_fmt);
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
@@ -525,13 +531,15 @@ static int img_convert(int argc, char **argv)
     uint8_t buf[IO_BUF_SIZE];
     const uint8_t *buf1;
     BlockDriverInfo bdi;
+    QEMUOptionParameter *param = NULL;
+    char *options = NULL;
 
     fmt = NULL;
     out_fmt = "raw";
     out_baseimg = NULL;
     flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:hce6");
+        c = getopt(argc, argv, "f:O:B:hce6o:");
         if (c == -1)
             break;
         switch(c) {
@@ -555,6 +563,9 @@ static int img_convert(int argc, char **argv)
             break;
         case '6':
             flags |= BLOCK_FLAG_COMPAT6;
+            break;
+        case 'o':
+            options = optarg;
             break;
         }
     }
@@ -580,19 +591,41 @@ static int img_convert(int argc, char **argv)
         total_sectors += bs_sectors;
     }
 
+    /* Find driver and parse its options */
     drv = bdrv_find_format(out_fmt);
     if (!drv)
         error("Unknown file format '%s'", out_fmt);
-    if (flags & BLOCK_FLAG_COMPRESS && strcmp(drv->format_name, "qcow") && strcmp(drv->format_name, "qcow2"))
-        error("Compression not supported for this file format");
-    if (flags & BLOCK_FLAG_ENCRYPT && strcmp(drv->format_name, "qcow") && strcmp(drv->format_name, "qcow2"))
-        error("Encryption not supported for this file format");
-    if (flags & BLOCK_FLAG_COMPAT6 && strcmp(drv->format_name, "vmdk"))
-        error("Alternative compatibility level not supported for this file format");
-    if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
-        error("Compression and encryption not supported at the same time");
 
-    ret = bdrv_create2(drv, out_filename, total_sectors, out_baseimg, NULL, flags);
+    if (options) {
+        param = parse_option_parameters(options, drv->create_options, param);
+        if (param == NULL) {
+            error("Invalid options for file format '%s'.", out_fmt);
+        }
+    } else {
+        param = parse_option_parameters("", drv->create_options, param);
+    }
+
+    set_option_parameter_int(param, BLOCK_OPT_SIZE, total_sectors * 512);
+    add_old_style_options(out_fmt, param, flags, out_baseimg, NULL);
+
+    /* Check if compression is supported */
+    if (flags & BLOCK_FLAG_COMPRESS) {
+        QEMUOptionParameter *encryption =
+            get_option_parameter(param, BLOCK_OPT_ENCRYPT);
+
+        if (!drv->bdrv_write_compressed) {
+            error("Compression not supported for this file format");
+        }
+
+        if (encryption && encryption->value.n) {
+            error("Compression and encryption not supported at the same time");
+        }
+    }
+
+    /* Create the new image */
+    ret = bdrv_create(drv, out_filename, param);
+    free_option_parameters(param);
+
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting not supported for file format '%s'", out_fmt);
