@@ -26,4 +26,4 @@
 
 qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base);
 void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
-                       qemu_irq *irq, target_phys_addr_t base, int phyaddr);
+                       target_phys_addr_t base, int phyaddr);
