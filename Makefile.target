@@ -529,7 +529,8 @@ OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o dma-helpers.o \
      gdbstub.o gdbstub-xml.o sysbus.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-OBJS+=virtio.o virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
+OBJS+=virtio.o virtio-pci.o
+OBJS+=virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
 OBJS+=fw_cfg.o
 ifdef CONFIG_KVM
 OBJS+=kvm.o kvm-all.o
@@ -717,6 +718,7 @@ OBJS+= musicpal.o pflash_cfi02.o
 OBJS+= framebuffer.o
 OBJS+= syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
 OBJS+= syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
+OBJS+= syborg_virtio.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)

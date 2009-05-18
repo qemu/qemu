@@ -1137,21 +1137,21 @@ static void pc_init1(ram_addr_t ram_size,
         int unit_id = 0;
 
         while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_create_simple(pci_bus, -1, "virtio-blk");
+            pci_create_simple(pci_bus, -1, "virtio-blk-pci");
             unit_id++;
         }
     }
 
     /* Add virtio balloon device */
     if (pci_enabled) {
-        pci_create_simple(pci_bus, -1, "virtio-balloon");
+        pci_create_simple(pci_bus, -1, "virtio-balloon-pci");
     }
 
     /* Add virtio console devices */
     if (pci_enabled) {
         for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
             if (virtcon_hds[i]) {
-                pci_create_simple(pci_bus, -1, "virtio-console");
+                pci_create_simple(pci_bus, -1, "virtio-console-pci");
             }
         }
     }
