@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
+#include "sysbus.h"
 #include "hw.h"
 #include "pc.h"
 #include "etraxfs.h"
@@ -36,15 +36,17 @@
 #define R_R_GURU    4
 #define R_MAX       5
 
-struct fs_pic_state
+struct etrax_pic
 {
-    CPUState *env;
+    SysBusDevice busdev;
+    uint32_t *interrupt_vector;
+    qemu_irq parent_irq;
+    qemu_irq parent_nmi;
     uint32_t regs[R_MAX];
 };
 
-static void pic_update(struct fs_pic_state *fs)
+static void pic_update(struct etrax_pic *fs)
 {   
-    CPUState *env = fs->env;
     uint32_t vector = 0;
     int i;
 
@@ -66,21 +68,17 @@ static void pic_update(struct fs_pic_state *fs)
             }
             mv >>= 1;
         }
-        if (vector) {
-            env->interrupt_vector = vector;
-            D(printf("%s vector=%x\n", __func__, vector));
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
-        }
-    } else {
-        env->interrupt_vector = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
-        D(printf("%s reset irqs\n", __func__));
     }
+
+    if (fs->interrupt_vector) {
+        *fs->interrupt_vector = vector;
+    }
+    qemu_set_irq(fs->parent_irq, !!vector);
 }
 
 static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 {
-    struct fs_pic_state *fs = opaque;
+    struct etrax_pic *fs = opaque;
     uint32_t rval;
 
     rval = fs->regs[addr >> 2];
@@ -91,7 +89,7 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 static void
 pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    struct fs_pic_state *fs = opaque;
+    struct etrax_pic *fs = opaque;
     D(printf("%s addr=%x val=%x\n", __func__, addr, value));
 
     if (addr == R_RW_MASK) {
@@ -110,18 +108,9 @@ static CPUWriteMemoryFunc *pic_write[] = {
     &pic_writel,
 };
 
-void pic_info(Monitor *mon)
-{
-}
-
-void irq_info(Monitor *mon)
-{
-}
-
 static void nmi_handler(void *opaque, int irq, int level)
 {   
-    struct fs_pic_state *fs = (void *)opaque;
-    CPUState *env = fs->env;
+    struct etrax_pic *fs = (void *)opaque;
     uint32_t mask;
 
     mask = 1 << irq;
@@ -130,15 +119,12 @@ static void nmi_handler(void *opaque, int irq, int level)
     else
         fs->regs[R_R_NMI] &= ~mask;
 
-    if (fs->regs[R_R_NMI])
-        cpu_interrupt(env, CPU_INTERRUPT_NMI);
-    else
-        cpu_reset_interrupt(env, CPU_INTERRUPT_NMI);
+    qemu_set_irq(fs->parent_nmi, !!fs->regs[R_R_NMI]);
 }
 
 static void irq_handler(void *opaque, int irq, int level)
 {   
-    struct fs_pic_state *fs = (void *)opaque;
+    struct etrax_pic *fs = (void *)opaque;
 
     if (irq >= 30)
         return nmi_handler(opaque, irq, level);
@@ -149,17 +135,24 @@ static void irq_handler(void *opaque, int irq, int level)
     pic_update(fs);
 }
 
-qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
+static void etraxfs_pic_init(SysBusDevice *dev)
 {
-    struct fs_pic_state *fs = NULL;
-    qemu_irq *irq;
+    struct etrax_pic *s = FROM_SYSBUS(typeof (*s), dev);
     int intr_vect_regs;
 
-    fs = qemu_mallocz(sizeof *fs);
-    fs->env = env;
-    irq = qemu_allocate_irqs(irq_handler, fs, 32);
+    s->interrupt_vector = qdev_get_prop_ptr(&dev->qdev, "interrupt_vector");
+    qdev_init_irq_sink(&dev->qdev, irq_handler, 32);
+    sysbus_init_irq(dev, &s->parent_irq);
+    sysbus_init_irq(dev, &s->parent_nmi);
 
-    intr_vect_regs = cpu_register_io_memory(0, pic_read, pic_write, fs);
-    cpu_register_physical_memory(base, R_MAX * 4, intr_vect_regs);
-    return irq;
+    intr_vect_regs = cpu_register_io_memory(0, pic_read, pic_write, s);
+    sysbus_init_mmio(dev, R_MAX * 4, intr_vect_regs);
 }
+
+static void etraxfs_pic_register(void)
+{
+    sysbus_register_dev("etraxfs,pic", sizeof (struct etrax_pic),
+                        etraxfs_pic_init);
+}
+
+device_init(etraxfs_pic_register)

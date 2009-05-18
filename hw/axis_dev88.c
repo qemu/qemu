@@ -254,7 +254,9 @@ void axisdev88_init (ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    qemu_irq *irq, *nmi;
+    DeviceState *dev;
+    SysBusDevice *s;
+    qemu_irq irq[30], nmi[2], *cpu_irq;
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
@@ -292,8 +294,20 @@ void axisdev88_init (ram_addr_t ram_size,
     cpu_register_physical_memory(0x3001a000, 0x5c, gpio_regs);
 
 
-    irq = etraxfs_pic_init(env, 0x3001c000);
-    nmi = irq + 30;
+    cpu_irq = cris_pic_init_cpu(env);
+    dev = qdev_create(NULL, "etraxfs,pic");
+    /* FIXME: Is there a proper way to signal vectors to the CPU core?  */
+    qdev_set_prop_ptr(dev, "interrupt_vector", &env->interrupt_vector);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_mmio_map(s, 0, 0x3001c000);
+    sysbus_connect_irq(s, 0, cpu_irq[0]);
+    sysbus_connect_irq(s, 1, cpu_irq[1]);
+    for (i = 0; i < 30; i++) {
+        irq[i] = qdev_get_irq_sink(dev, i);
+    }
+    nmi[0] = qdev_get_irq_sink(dev, 30);
+    nmi[1] = qdev_get_irq_sink(dev, 31);
 
     etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
     for (i = 0; i < 10; i++) {

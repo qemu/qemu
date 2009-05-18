@@ -615,7 +615,7 @@ CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
 # Boards
-OBJS+= etraxfs.o axis_dev88.o
+OBJS+= cris_pic_cpu.o etraxfs.o axis_dev88.o
 
 # IO blocks
 OBJS+= etraxfs_dma.o

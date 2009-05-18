@@ -48,8 +48,9 @@ void bareetraxfs_init (ram_addr_t ram_size,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
+    DeviceState *dev;
     CPUState *env;
-    qemu_irq *irq, *nmi; 
+    qemu_irq irq[30], nmi[2], *cpu_irq; 
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
@@ -83,8 +84,16 @@ void bareetraxfs_init (ram_addr_t ram_size,
                           FLASH_SIZE >> 16,
                           1, 2, 0x0000, 0x0000, 0x0000, 0x0000,
                           0x555, 0x2aa);
-    irq = etraxfs_pic_init(env, 0x3001c000);
-    nmi = irq + 30;
+    cpu_irq = cris_pic_init_cpu(env);
+    dev = sysbus_create_varargs("etraxfs,pic", 0x3001c000,
+                                cpu_irq[0], cpu_irq[1], NULL);
+    /* FIXME: Is there a proper way to signal vectors to the CPU core?  */
+    qdev_set_prop_ptr(dev, "interrupt_vector", &env->interrupt_vector);
+    for (i = 0; i < 30; i++) {
+        irq[i] = qdev_get_irq_sink(dev, i);
+    }
+    nmi[0] = qdev_get_irq_sink(dev, 30);
+    nmi[1] = qdev_get_irq_sink(dev, 31);
 
     etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
     for (i = 0; i < 10; i++) {
