@@ -33,7 +33,7 @@ DeviceState *qdev_create(void *bus, const char *name);
 void qdev_init(DeviceState *dev);
 
 /* Set properties between creation and init.  */
-void qdev_set_prop_int(DeviceState *dev, const char *name, int value);
+void qdev_set_prop_int(DeviceState *dev, const char *name, uint64_t value);
 void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_set_netdev(DeviceState *dev, NICInfo *nd);
 
