@@ -833,8 +833,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 
         ret = ioctl(s->fd, USBDEVFS_CONTROL, &ct);
         if (ret < 0) {
-            perror("usb_linux_update_endp_table");
-            return 1;
+            alt_interface = interface;
         }
 
         /* the current interface descriptor is the active interface
