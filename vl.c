@@ -2227,8 +2227,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
                                            NULL };
 
     if (check_params(params, str) < 0) {
-         fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
-                         buf, str);
+         fprintf(stderr, "qemu: unknown parameter in '%s'\n", str);
          return -1;
     }
 
