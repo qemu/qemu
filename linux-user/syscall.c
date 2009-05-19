@@ -208,7 +208,7 @@ _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count)
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
 _syscall2(int, sys_getpriority, int, which, int, who);
-#if !defined (__x86_64__)
+#if defined(TARGET_NR__llseek) && !defined (__x86_64__)
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 #endif
