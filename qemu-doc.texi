@@ -2619,16 +2619,6 @@ make install
 @end example
 to install QEMU in @file{/usr/local}.
 
-@subsection GCC version
-
-In order to compile QEMU successfully, it is very important that you
-have the right tools. The most important one is gcc. On most hosts and
-in particular on x86 ones, @emph{gcc 4.x is not supported}. If your
-Linux distribution includes a gcc 4.x compiler, you can usually
-install an older version (it is invoked by @code{gcc32} or
-@code{gcc34}). The QEMU configure script automatically probes for
-these older versions so that usually you don't have to do anything.
-
 @node Windows
 @section Windows
 
