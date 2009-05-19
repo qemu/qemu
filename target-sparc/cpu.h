@@ -13,8 +13,6 @@
 #define TARGET_PAGE_BITS 13 /* 8k */
 #endif
 
-#define TARGET_PHYS_ADDR_BITS 64
-
 #define CPUState struct CPUSPARCState
 
 #include "cpu-defs.h"

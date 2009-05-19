@@ -1,6 +1,8 @@
 # Makefile for QEMU.
 
 ifneq ($(wildcard config-host.mak),)
+# Put the all: rule here so that config-host.mak can contain dependencies.
+all: build-all
 include config-host.mak
 include $(SRC_PATH)/rules.mak
 else
@@ -41,7 +43,7 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
-all: $(TOOLS) $(DOCS) recurse-all
+build-all: $(TOOLS) $(DOCS) recurse-all
 
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
@@ -237,14 +239,14 @@ clean:
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	$(MAKE) -C tests clean
-	for d in $(TARGET_DIRS); do \
+	for d in $(TARGET_DIRS) libhw32 libhw64; do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
 distclean: clean
 	rm -f config-host.mak config-host.h $(DOCS) qemu-options.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
-	for d in $(TARGET_DIRS); do \
+	for d in $(TARGET_DIRS) libhw32 libhw64; do \
 	rm -rf $$d || exit 1 ; \
         done
 

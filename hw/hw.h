@@ -3,6 +3,13 @@
 #define QEMU_HW_H
 
 #include "qemu-common.h"
+
+#if defined(TARGET_PHYS_ADDR_BITS) && !defined(NEED_CPU_H)
+#include "targphys.h"
+#include "poison.h"
+#include "cpu-common.h"
+#endif
+
 #include "irq.h"
 
 /* VM Load/Save */

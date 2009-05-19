@@ -14,9 +14,6 @@
 #define TARGET_LONG_BITS 32
 #endif
 
-/* Even MIPS32 can have 36 bits physical address space. */
-#define TARGET_PHYS_ADDR_BITS 64
-
 /* Masks used to mark instructions to indicate which ISA level they
    were introduced in. */
 #define		ISA_MIPS1	0x00000001

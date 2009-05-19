@@ -485,13 +485,11 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifndef CONFIG_USER_ONLY
 
-OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o dma-helpers.o \
-     gdbstub.o gdbstub-xml.o sysbus.o
+OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o \
+     gdbstub.o gdbstub-xml.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-OBJS+=virtio.o virtio-pci.o
 OBJS+=virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
-OBJS+=fw_cfg.o
 ifdef CONFIG_KVM
 OBJS+=kvm.o kvm-all.o
 endif
@@ -564,7 +562,6 @@ OBJS += rtl8139.o
 OBJS += e1000.o
 
 # Generic watchdog support and some watchdog devices
-OBJS += watchdog.o
 OBJS += wdt_ib700.o wdt_i6300esb.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
@@ -581,7 +578,7 @@ CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 # shared objects
 OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
 # PREP target
-OBJS+= pckbd.o serial.o i8259.o i8254.o fdc.o m48t59.o mc146818rtc.o
+OBJS+= pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
 OBJS+= prep_pci.o ppc_prep.o
 # Mac shared devices
 OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o escc.o
@@ -624,15 +621,15 @@ OBJS+= etraxfs_eth.o
 OBJS+= etraxfs_timer.o
 OBJS+= etraxfs_ser.o
 
-OBJS+= pflash_cfi02.o nand.o
+OBJS+= pflash_cfi02.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
 OBJS+= sun4u.o ide.o pckbd.o vga.o apb_pci.o
-OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
+OBJS+= fdc.o mc146818rtc.o serial.o
 OBJS+= cirrus_vga.o parallel.o
 else
-OBJS+= sun4m.o tcx.o iommu.o m48t59.o slavio_intctl.o
+OBJS+= sun4m.o tcx.o iommu.o slavio_intctl.o
 OBJS+= slavio_timer.o escc.o slavio_misc.o fdc.o sparc32_dma.o
 OBJS+= cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
@@ -648,7 +645,7 @@ OBJS+= arm-semi.o
 OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 OBJS+= pflash_cfi01.o gumstix.o
-OBJS+= zaurus.o ide.o serial.o nand.o ecc.o spitz.o tosa.o tc6393xb.o
+OBJS+= zaurus.o ide.o serial.o spitz.o tosa.o tc6393xb.o
 OBJS+= omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 OBJS+= omap2.o omap_dss.o soc_dma.o
 OBJS+= omap_sx1.o palm.o tsc210x.o
@@ -717,8 +714,8 @@ endif
 vl.o: qemu-options.h
 
 $(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
-$(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a
-$(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
+$(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
+$(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a $(HWLIB)
 	$(call LINK,$(OBJS))
 
 endif # !CONFIG_USER_ONLY

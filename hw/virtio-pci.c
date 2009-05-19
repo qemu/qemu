@@ -17,7 +17,7 @@
 
 #include "virtio.h"
 #include "pci.h"
-#include "sysemu.h"
+//#include "sysemu.h"
 
 /* from Linux's linux/virtio_pci.h */
 

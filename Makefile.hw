@@ -1,0 +1,36 @@
+# Makefile for qemu target independent devices.
+
+include config.mak
+include ../config-host.mak
+include $(SRC_PATH)/rules.mak
+
+.PHONY: all
+
+VPATH=$(SRC_PATH):$(SRC_PATH)/hw
+
+CFLAGS += $(OS_CFLAGS) $(ARCH_CFLAGS)
+LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
+
+CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
+CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+CPPFLAGS+=-I$(SRC_PATH)/fpu
+
+OBJS=
+OBJS+= virtio.o virtio-pci.o
+OBJS+= fw_cfg.o
+OBJS+= watchdog.o
+OBJS+= nand.o ecc.o
+
+OBJS+= m48t59.o
+
+OBJS+= dma-helpers.o sysbus.o
+
+all: $(HWLIB)
+
+$(HWLIB): $(OBJS)
+
+clean:
+	rm -f *.o *.d *.a *~
+
+# Include automatically generated dependency files
+-include $(wildcard *.d */*.d)

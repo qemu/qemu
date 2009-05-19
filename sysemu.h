@@ -38,11 +38,13 @@ void qemu_system_powerdown_request(void);
 int qemu_shutdown_requested(void);
 int qemu_reset_requested(void);
 int qemu_powerdown_requested(void);
+#ifdef NEED_CPU_H
 #if !defined(TARGET_SPARC) && !defined(TARGET_I386)
 // Please implement a power failure function to signal the OS
 #define qemu_system_powerdown() do{}while(0)
 #else
 void qemu_system_powerdown(void);
+#endif
 #endif
 void qemu_system_reset(void);
 
@@ -117,10 +119,12 @@ extern uint64_t node_mem[MAX_NODES];
 extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
+#ifdef NEED_CPU_H
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
 #define MAX_PROM_ENVS 128
 extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
+#endif
 #endif
 
 typedef enum {
