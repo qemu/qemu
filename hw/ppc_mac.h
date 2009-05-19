@@ -28,6 +28,7 @@
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
 
+#define BIOS_SIZE     (1024 * 1024)
 #define BIOS_FILENAME "ppc_rom.bin"
 #define VGABIOS_FILENAME "video.x"
 #define NVRAM_SIZE        0x2000

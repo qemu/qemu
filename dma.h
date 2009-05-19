@@ -11,7 +11,8 @@
 #define DMA_H
 
 #include <stdio.h>
-#include "cpu.h"
+//#include "cpu.h"
+#include "hw/hw.h"
 #include "block.h"
 
 typedef struct {

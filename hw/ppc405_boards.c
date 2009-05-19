@@ -32,7 +32,6 @@
 #include "qemu-log.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
-#undef BIOS_SIZE
 #define BIOS_SIZE (2048 * 1024)
 
 #define KERNEL_LOAD_ADDR 0x00000000

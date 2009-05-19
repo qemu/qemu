@@ -262,10 +262,10 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
         *(uint8_t *)(hptr) = (uint8_t)(typeof(*hptr))(x);\
         break;\
     case 2:\
-        *(uint16_t *)(hptr) = tswap16((typeof(*hptr))(x));\
+        *(uint16_t *)(hptr) = tswap16((uint16_t)(typeof(*hptr))(x));\
         break;\
     case 4:\
-        *(uint32_t *)(hptr) = tswap32((typeof(*hptr))(x));\
+        *(uint32_t *)(hptr) = tswap32((uint32_t)(typeof(*hptr))(x));\
         break;\
     case 8:\
         *(uint64_t *)(hptr) = tswap64((typeof(*hptr))(x));\

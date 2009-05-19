@@ -4,6 +4,8 @@ i386
 *-darwin-user
 *-linux-user
 *-bsd-user
+libhw32
+libhw64
 qemu-doc.html
 qemu-tech.html
 qemu-doc.info

@@ -30,17 +30,10 @@
 #include <signal.h>
 #include "osdep.h"
 #include "sys-queue.h"
+#include "targphys.h"
 
 #ifndef TARGET_LONG_BITS
 #error TARGET_LONG_BITS must be defined before including this header
-#endif
-
-#ifndef TARGET_PHYS_ADDR_BITS
-#if TARGET_LONG_BITS >= HOST_LONG_BITS
-#define TARGET_PHYS_ADDR_BITS TARGET_LONG_BITS
-#else
-#define TARGET_PHYS_ADDR_BITS HOST_LONG_BITS
-#endif
 #endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
@@ -60,22 +53,6 @@ typedef uint64_t target_ulong;
 #define TARGET_FMT_lu "%" PRIu64
 #else
 #error TARGET_LONG_SIZE undefined
-#endif
-
-/* target_phys_addr_t is the type of a physical address (its size can
-   be different from 'target_ulong'). We have sizeof(target_phys_addr)
-   = max(sizeof(unsigned long),
-   sizeof(size_of_target_physical_address)) because we must pass a
-   host pointer to memory operations in some cases */
-
-#if TARGET_PHYS_ADDR_BITS == 32
-typedef uint32_t target_phys_addr_t;
-#define TARGET_FMT_plx "%08x"
-#elif TARGET_PHYS_ADDR_BITS == 64
-typedef uint64_t target_phys_addr_t;
-#define TARGET_FMT_plx "%016" PRIx64
-#else
-#error TARGET_PHYS_ADDR_BITS undefined
 #endif
 
 #define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
