@@ -41,6 +41,7 @@
 
 #define MAX_IDE_BUS 2
 
+#define BIOS_SIZE (1024 * 1024)
 #define BIOS_FILENAME "ppc_rom.bin"
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000

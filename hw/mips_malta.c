@@ -37,14 +37,9 @@
 #include "audio/audio.h"
 #include "boards.h"
 #include "qemu-log.h"
+#include "mips-bios.h"
 
 //#define DEBUG_BOARD_INIT
-
-#ifdef TARGET_WORDS_BIGENDIAN
-#define BIOS_FILENAME "mips_bios.bin"
-#else
-#define BIOS_FILENAME "mipsel_bios.bin"
-#endif
 
 #ifdef TARGET_MIPS64
 #define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)

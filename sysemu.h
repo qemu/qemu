@@ -123,14 +123,6 @@ extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 #endif
 
-#if defined (TARGET_PPC)
-#define BIOS_SIZE (1024 * 1024)
-#elif defined (TARGET_SPARC64)
-#define BIOS_SIZE ((512 + 32) * 1024)
-#elif defined(TARGET_MIPS)
-#define BIOS_SIZE (4 * 1024 * 1024)
-#endif
-
 typedef enum {
     IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
     IF_COUNT
