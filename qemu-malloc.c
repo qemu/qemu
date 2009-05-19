@@ -43,6 +43,8 @@ void qemu_free(void *ptr)
 
 void *qemu_malloc(size_t size)
 {
+    if (!size)
+        abort();
     return oom_check(malloc(size));
 }
 
@@ -50,8 +52,11 @@ void *qemu_realloc(void *ptr, size_t size)
 {
     if (size)
         return oom_check(realloc(ptr, size));
-    else
-        return realloc(ptr, size);
+    else {
+        if (ptr)
+            return realloc(ptr, size);
+    }
+    abort();
 }
 
 void *qemu_mallocz(size_t size)
