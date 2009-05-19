@@ -45,6 +45,9 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     cpuid = (struct kvm_cpuid2 *)qemu_mallocz(size);
     cpuid->nent = max;
     r = kvm_ioctl(s, KVM_GET_SUPPORTED_CPUID, cpuid);
+    if (r == 0 && cpuid->nent >= max) {
+        r = -E2BIG;
+    }
     if (r < 0) {
         if (r == -E2BIG) {
             qemu_free(cpuid);
