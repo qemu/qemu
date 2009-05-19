@@ -26,8 +26,9 @@
 
 static void *oom_check(void *ptr)
 {
-    if (ptr == NULL)
+    if (ptr == NULL) {
         abort();
+    }
     return ptr;
 }
 
@@ -43,18 +44,20 @@ void qemu_free(void *ptr)
 
 void *qemu_malloc(size_t size)
 {
-    if (!size)
+    if (!size) {
         abort();
+    }
     return oom_check(malloc(size));
 }
 
 void *qemu_realloc(void *ptr, size_t size)
 {
-    if (size)
+    if (size) {
         return oom_check(realloc(ptr, size));
-    else {
-        if (ptr)
+    } else {
+        if (ptr) {
             return realloc(ptr, size);
+        }
     }
     abort();
 }
@@ -81,8 +84,9 @@ char *qemu_strndup(const char *str, size_t size)
     const char *end = memchr(str, 0, size);
     char *new;
 
-    if (end)
+    if (end) {
         size = end - str;
+    }
 
     new = qemu_malloc(size + 1);
     new[size] = 0;
