@@ -110,9 +110,16 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
     xen_init_display(xen_domid);
 }
 
-QEMUMachine xenpv_machine = {
+static QEMUMachine xenpv_machine = {
     .name = "xenpv",
     .desc = "Xen Para-virtualized PC",
     .init = xen_init_pv,
     .max_cpus = 1,
 };
+
+static void xenpv_machine_init(void)
+{
+    qemu_register_machine(&xenpv_machine);
+}
+
+machine_init(xenpv_machine_init);

@@ -309,19 +309,27 @@ static void vab_init(ram_addr_t ram_size,
                    initrd_filename, cpu_model, 0x25e);
 }
 
-QEMUMachine versatilepb_machine = {
+static QEMUMachine versatilepb_machine = {
     .name = "versatilepb",
     .desc = "ARM Versatile/PB (ARM926EJ-S)",
     .init = vpb_init,
     .use_scsi = 1,
 };
 
-QEMUMachine versatileab_machine = {
+static QEMUMachine versatileab_machine = {
     .name = "versatileab",
     .desc = "ARM Versatile/AB (ARM926EJ-S)",
     .init = vab_init,
     .use_scsi = 1,
 };
+
+static void versatile_machine_init(void)
+{
+    qemu_register_machine(&versatilepb_machine);
+    qemu_register_machine(&versatileab_machine);
+}
+
+machine_init(versatile_machine_init);
 
 static void versatilepb_register_devices(void)
 {

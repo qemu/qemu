@@ -135,8 +135,15 @@ static void mainstone_init(ram_addr_t ram_size,
                 kernel_cmdline, initrd_filename, cpu_model, mainstone, 0x196);
 }
 
-QEMUMachine mainstone2_machine = {
+static QEMUMachine mainstone2_machine = {
     .name = "mainstone",
     .desc = "Mainstone II (PXA27x)",
     .init = mainstone_init,
 };
+
+static void mainstone_machine_init(void)
+{
+    qemu_register_machine(&mainstone2_machine);
+}
+
+machine_init(mainstone_machine_init);

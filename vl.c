@@ -4876,7 +4876,7 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
-    register_machines();
+    module_call_init(MODULE_INIT_MACHINE);
     machine = first_machine;
     cpu_model = NULL;
     initrd_filename = NULL;

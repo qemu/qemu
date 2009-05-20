@@ -286,16 +286,24 @@ void mips_pica61_init (ram_addr_t ram_size,
     mips_jazz_init(ram_size, cpu_model, JAZZ_PICA61);
 }
 
-QEMUMachine mips_magnum_machine = {
+static QEMUMachine mips_magnum_machine = {
     .name = "magnum",
     .desc = "MIPS Magnum",
     .init = mips_magnum_init,
     .use_scsi = 1,
 };
 
-QEMUMachine mips_pica61_machine = {
+static QEMUMachine mips_pica61_machine = {
     .name = "pica61",
     .desc = "Acer Pica 61",
     .init = mips_pica61_init,
     .use_scsi = 1,
 };
+
+static void mips_jazz_machine_init(void)
+{
+    qemu_register_machine(&mips_magnum_machine);
+    qemu_register_machine(&mips_pica61_machine);
+}
+
+machine_init(mips_jazz_machine_init);

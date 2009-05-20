@@ -158,8 +158,15 @@ void bareetraxfs_init (ram_addr_t ram_size,
     printf ("ram size =%ld\n", ram_size);
 }
 
-QEMUMachine bareetraxfs_machine = {
+static QEMUMachine bareetraxfs_machine = {
     .name = "bareetraxfs",
     .desc = "Bare ETRAX FS board",
     .init = bareetraxfs_init,
 };
+
+static void bareetraxfs_machine_init(void)
+{
+    qemu_register_machine(&bareetraxfs_machine);
+}
+
+machine_init(bareetraxfs_machine_init);

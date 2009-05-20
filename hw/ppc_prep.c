@@ -756,9 +756,16 @@ static void ppc_prep_init (ram_addr_t ram_size,
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
 
-QEMUMachine prep_machine = {
+static QEMUMachine prep_machine = {
     .name = "prep",
     .desc = "PowerPC PREP platform",
     .init = ppc_prep_init,
     .max_cpus = MAX_CPUS,
 };
+
+static void prep_machine_init(void)
+{
+    qemu_register_machine(&prep_machine);
+}
+
+machine_init(prep_machine_init);

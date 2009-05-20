@@ -949,8 +949,15 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 }
 
-QEMUMachine mips_malta_machine = {
+static QEMUMachine mips_malta_machine = {
     .name = "malta",
     .desc = "MIPS Malta Core LV",
     .init = mips_malta_init,
 };
+
+static void mips_malta_machine_init(void)
+{
+    qemu_register_machine(&mips_malta_machine);
+}
+
+machine_init(mips_malta_machine_init);

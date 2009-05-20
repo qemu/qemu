@@ -275,8 +275,15 @@ static void palmte_init(ram_addr_t ram_size,
     dpy_resize(ds);
 }
 
-QEMUMachine palmte_machine = {
+static QEMUMachine palmte_machine = {
     .name = "cheetah",
     .desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
     .init = palmte_init,
 };
+
+static void palmte_machine_init(void)
+{
+    qemu_register_machine(&palmte_machine);
+}
+
+machine_init(palmte_machine_init);

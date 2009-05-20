@@ -3,15 +3,6 @@
 
 #include "exec-all.h"
 
-void register_machines(void)
-{
-    qemu_register_machine(&mips_malta_machine);
-    qemu_register_machine(&mips_magnum_machine);
-    qemu_register_machine(&mips_pica61_machine);
-    qemu_register_machine(&mips_mipssim_machine);
-    qemu_register_machine(&mips_machine);
-}
-
 static void save_tc(QEMUFile *f, TCState *tc)
 {
     int i;

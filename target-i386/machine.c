@@ -5,15 +5,6 @@
 
 #include "exec-all.h"
 
-void register_machines(void)
-{
-    qemu_register_machine(&pc_machine);
-    qemu_register_machine(&isapc_machine);
-#ifdef CONFIG_XEN
-    qemu_register_machine(&xenpv_machine);
-#endif
-}
-
 static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 {
     qemu_put_be32(f, dt->selector);

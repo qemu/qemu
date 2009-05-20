@@ -275,8 +275,15 @@ void mips_r4k_init (ram_addr_t ram_size,
     i8042_init(i8259[1], i8259[12], 0x60);
 }
 
-QEMUMachine mips_machine = {
+static QEMUMachine mips_machine = {
     .name = "mips",
     .desc = "mips r4k platform",
     .init = mips_r4k_init,
 };
+
+static void mips_machine_init(void)
+{
+    qemu_register_machine(&mips_machine);
+}
+
+machine_init(mips_machine_init);
