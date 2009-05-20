@@ -78,4 +78,6 @@ int kvm_arch_init(KVMState *s, int smp_cpus);
 
 int kvm_arch_init_vcpu(CPUState *env);
 
+int kvm_check_extension(KVMState *s, unsigned int extension);
+
 #endif
