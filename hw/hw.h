@@ -36,10 +36,17 @@ typedef int (QEMUFileCloseFunc)(void *opaque);
  */
 typedef int (QEMUFileRateLimit)(void *opaque);
 
+/* Called to change the current bandwidth allocation. This function must return
+ * the new actual bandwidth. It should be new_rate if everything goes ok, and
+ * the old rate otherwise
+ */
+typedef size_t (QEMUFileSetRateLimit)(void *opaque, size_t new_rate);
+
 QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
                          QEMUFileGetBufferFunc *get_buffer,
                          QEMUFileCloseFunc *close,
-                         QEMUFileRateLimit *rate_limit);
+                         QEMUFileRateLimit *rate_limit,
+                         QEMUFileSetRateLimit *set_rate_limit);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fopen_socket(int fd);
 QEMUFile *qemu_popen(FILE *popen_file, const char *mode);
@@ -73,6 +80,7 @@ unsigned int qemu_get_be16(QEMUFile *f);
 unsigned int qemu_get_be32(QEMUFile *f);
 uint64_t qemu_get_be64(QEMUFile *f);
 int qemu_file_rate_limit(QEMUFile *f);
+size_t qemu_file_set_rate_limit(QEMUFile *f, size_t new_rate);
 int qemu_file_has_error(QEMUFile *f);
 void qemu_file_set_error(QEMUFile *f);
 
