@@ -1,3 +1,16 @@
+version 0.10.5:
+  - kvm: trim unsupported cpu features from cpuid (Avi Kivity)
+  - kvm: provide a better error message for -smp > 1 (Mark McLoughlin)
+  - Remove initrd printfs (Richard Jones)
+  - Initial variables found by valgrind (Jean-Christophe Dubois)
+  - Fix -initrd with > 4GB guests (Glauber Costa)
+  - Fix busy loop on live migration for certain platforms (Uri Lublin)
+  - Remove GCC 3.x requirements from docs (Hollis Blanchard)
+  - ETRAX: fixes for kernel command line, ethernet address, bmi (Edgar Iglesias)
+  - CRIS: Fix bmi (Edgar Iglesias)
+  - Fix bounce buffer errors (Avi Kivity)
+  - Fix regression in -kernel (Anthony Liguori)
+
 version 0.10.4:
   - Improve block range checks to remove integer overflow (Kevin Wolf)
   - e1000: do not re-init PCI config space 0 (Amit Shah)
