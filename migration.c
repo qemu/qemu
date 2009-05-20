@@ -176,7 +176,7 @@ ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
 
     do {
         ret = s->write(s, data, size);
-    } while (ret == -1 && ((s->get_error(s)) == EINTR || (s->get_error(s)) == EWOULDBLOCK));
+    } while (ret == -1 && ((s->get_error(s)) == EINTR));
 
     if (ret == -1)
         ret = -(s->get_error(s));
