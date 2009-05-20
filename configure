@@ -172,7 +172,6 @@ solaris="no"
 kqemu="no"
 profiler="no"
 cocoa="no"
-check_gfx="yes"
 softmmu="yes"
 linux_user="no"
 darwin_user="no"
@@ -191,6 +190,7 @@ kerneldir=""
 aix="no"
 blobs="yes"
 fdt="yes"
+sdl="yes"
 sdl_x11="no"
 xen="yes"
 pkgversion=""
@@ -437,8 +437,6 @@ for opt do
       cocoa="yes" ;
       sdl="no" ;
       audio_drv_list="coreaudio `echo $audio_drv_list | sed s,coreaudio,,g`"
-  ;;
-  --disable-gfx-check) check_gfx="no"
   ;;
   --disable-system) softmmu="no"
   ;;
@@ -835,7 +833,7 @@ fi
 
 sdl_too_old=no
 
-if test -z "$sdl" ; then
+if test "$sdl" = "yes" ; then
     sdl_config="sdl-config"
     sdl=no
     sdl_static=no
@@ -1346,10 +1344,6 @@ echo "preadv support    $preadv"
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
-if [ -s $TMPSDLLOG ]; then
-  echo "The error log from compiling the libSDL test is: "
-  cat $TMPSDLLOG
-fi
 #if test "$sdl_static" = "no"; then
 #  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
 #fi
@@ -1771,15 +1765,6 @@ case "$target" in
     exit 1
     ;;
 esac
-
-if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
-        -a "$sdl" = "no" -a "$cocoa" = "no" ; then
-    echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
-    echo "To build QEMU without graphical output configure with --disable-gfx-check"
-    echo "Note that this will disable all output from the virtual graphics card"
-    echo "except through VNC or curses."
-    exit 1;
-fi
 
 #echo "Creating $config_mak, $config_h and $target_dir/Makefile"
 
