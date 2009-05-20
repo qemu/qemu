@@ -80,4 +80,6 @@ int kvm_arch_init_vcpu(CPUState *env);
 
 int kvm_check_extension(KVMState *s, unsigned int extension);
 
+uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
+                                      int reg);
 #endif
