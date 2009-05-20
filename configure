@@ -127,6 +127,9 @@ case "$cpu" in
   m68k)
     cpu="m68k"
   ;;
+  microblaze)
+    cpu="microblaze"
+  ;;
   mips)
     cpu="mips"
   ;;
@@ -680,6 +683,7 @@ x86_64-softmmu \
 arm-softmmu \
 cris-softmmu \
 m68k-softmmu \
+microblaze-softmmu \
 mips-softmmu \
 mipsel-softmmu \
 mips64-softmmu \
@@ -702,6 +706,7 @@ arm-linux-user \
 armeb-linux-user \
 cris-linux-user \
 m68k-linux-user \
+microblaze-linux-user \
 mips-linux-user \
 mipsel-linux-user \
 ppc-linux-user \
@@ -1443,6 +1448,10 @@ case "$cpu" in
     echo "ARCH=m68k" >> $config_mak
     echo "#define HOST_M68K 1" >> $config_h
   ;;
+  microblaze)
+    echo "ARCH=microblaze" >> $config_mak
+    echo "#define HOST_MICROBLAZE 1" >> $config_h
+  ;;
   mips)
     echo "ARCH=mips" >> $config_mak
     echo "#define HOST_MIPS 1" >> $config_h
@@ -1765,6 +1774,7 @@ target_cpu=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 [ "$target_cpu" = "armeb" ] && target_bigendian=yes
 [ "$target_cpu" = "m68k" ] && target_bigendian=yes
+[ "$target_cpu" = "microblaze" ] && target_bigendian=yes
 [ "$target_cpu" = "mips" ] && target_bigendian=yes
 [ "$target_cpu" = "mipsn32" ] && target_bigendian=yes
 [ "$target_cpu" = "mips64" ] && target_bigendian=yes
@@ -1921,7 +1931,15 @@ case "$target_cpu" in
     gdb_xml_files="cf-core.xml cf-fp.xml"
     target_phys_bits=32
   ;;
-  mips|mipsel)
+  microblaze)
+    echo "TARGET_ARCH=microblaze" >> $config_mak
+    echo "#define TARGET_ARCH \"microblaze\"" >> $config_h
+    echo "#define TARGET_MICROBLAZE 1" >> $config_h
+    bflt="yes"
+    target_nptl="yes"
+    target_phys_bits=32
+  ;;
+ mips|mipsel)
     echo "TARGET_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mips\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
@@ -2058,6 +2076,7 @@ echo "TARGET_XML_FILES=$list" >> $config_mak
 if test "$target_cpu" = "arm" \
      -o "$target_cpu" = "armeb" \
      -o "$target_cpu" = "m68k" \
+     -o "$target_cpu" = "microblaze" \
      -o "$target_cpu" = "mips" \
      -o "$target_cpu" = "mipsel" \
      -o "$target_cpu" = "mipsn32" \
