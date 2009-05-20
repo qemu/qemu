@@ -32,39 +32,40 @@
 
 //#define DEBUG_MMU
 
+/* feature flags taken from "Intel Processor Identification and the CPUID
+ * Instruction" and AMD's "CPUID Specification". In cases of disagreement
+ * about feature names, the Linux name is used. */
+static const char *feature_name[] = {
+    "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+    "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
+    "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
+    "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
+};
+static const char *ext_feature_name[] = {
+    "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
+    "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
+    NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+static const char *ext2_feature_name[] = {
+    "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+    "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mtrr", "pge", "mca", "cmov",
+    "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
+    "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
+};
+static const char *ext3_feature_name[] = {
+    "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
+    "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
 static void add_flagname_to_bitmaps(char *flagname, uint32_t *features, 
                                     uint32_t *ext_features, 
                                     uint32_t *ext2_features, 
                                     uint32_t *ext3_features)
 {
     int i;
-    /* feature flags taken from "Intel Processor Identification and the CPUID
-     * Instruction" and AMD's "CPUID Specification". In cases of disagreement 
-     * about feature names, the Linux name is used. */
-    static const char *feature_name[] = {
-        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-        "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
-        "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
-        "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
-    };
-    static const char *ext_feature_name[] = {
-       "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
-       "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
-       NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    };
-    static const char *ext2_feature_name[] = {
-       "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-       "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mtrr", "pge", "mca", "cmov",
-       "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
-       "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
-    };
-    static const char *ext3_feature_name[] = {
-       "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
-       "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    };
 
     for ( i = 0 ; i < 32 ; i++ ) 
         if (feature_name[i] && !strcmp (flagname, feature_name[i])) {
