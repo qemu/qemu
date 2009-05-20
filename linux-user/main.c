@@ -2036,6 +2036,66 @@ void cpu_loop (CPUState *env)
 }
 #endif
 
+#ifdef TARGET_MICROBLAZE
+void cpu_loop (CPUState *env)
+{
+    int trapnr, ret;
+    target_siginfo_t info;
+    
+    while (1) {
+        trapnr = cpu_mb_exec (env);
+        switch (trapnr) {
+        case 0xaa:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = 0;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+	case EXCP_INTERRUPT:
+	  /* just indicate that signals should be handled asap */
+	  break;
+        case EXCP_BREAK:
+            /* Return address is 4 bytes after the call.  */
+            env->regs[14] += 4;
+            ret = do_syscall(env, 
+                             env->regs[12], 
+                             env->regs[5], 
+                             env->regs[6], 
+                             env->regs[7], 
+                             env->regs[8], 
+                             env->regs[9], 
+                             env->regs[10]);
+            env->regs[3] = ret;
+            env->sregs[SR_PC] = env->regs[14];
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(env, info.si_signo, &info);
+                  }
+            }
+            break;
+        default:
+            printf ("Unhandled trap: 0x%x\n", trapnr);
+            cpu_dump_state(env, stderr, fprintf, 0);
+            exit (1);
+        }
+        process_pending_signals (env);
+    }
+}
+#endif
+
 #ifdef TARGET_M68K
 
 void cpu_loop(CPUM68KState *env)
@@ -2697,6 +2757,42 @@ int main(int argc, char **argv, char **envp)
         env->aregs[7] = regs->usp;
         env->sr = regs->sr;
         ts->sim_syscalls = 1;
+    }
+#elif defined(TARGET_MICROBLAZE)
+    {
+        env->regs[0] = regs->r0;
+        env->regs[1] = regs->r1;
+        env->regs[2] = regs->r2;
+        env->regs[3] = regs->r3;
+        env->regs[4] = regs->r4;
+        env->regs[5] = regs->r5;
+        env->regs[6] = regs->r6;
+        env->regs[7] = regs->r7;
+        env->regs[8] = regs->r8;
+        env->regs[9] = regs->r9;
+        env->regs[10] = regs->r10;
+        env->regs[11] = regs->r11;
+        env->regs[12] = regs->r12;
+        env->regs[13] = regs->r13;
+        env->regs[14] = regs->r14;
+        env->regs[15] = regs->r15;	    
+        env->regs[16] = regs->r16;	    
+        env->regs[17] = regs->r17;	    
+        env->regs[18] = regs->r18;	    
+        env->regs[19] = regs->r19;	    
+        env->regs[20] = regs->r20;	    
+        env->regs[21] = regs->r21;	    
+        env->regs[22] = regs->r22;	    
+        env->regs[23] = regs->r23;	    
+        env->regs[24] = regs->r24;	    
+        env->regs[25] = regs->r25;	    
+        env->regs[26] = regs->r26;	    
+        env->regs[27] = regs->r27;	    
+        env->regs[28] = regs->r28;	    
+        env->regs[29] = regs->r29;	    
+        env->regs[30] = regs->r30;	    
+        env->regs[31] = regs->r31;	    
+        env->sregs[SR_PC] = regs->pc;
     }
 #elif defined(TARGET_MIPS)
     {

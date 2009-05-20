@@ -3011,6 +3011,222 @@ badframe:
     force_sig(TARGET_SIGSEGV);
     return 0;
 }
+#elif defined(TARGET_MICROBLAZE)
+
+struct target_sigcontext {
+    struct target_pt_regs regs;  /* needs to be first */
+    uint32_t oldmask;
+};
+
+/* Signal frames. */
+struct target_signal_frame {
+    struct target_sigcontext sc;
+    uint32_t extramask[TARGET_NSIG_WORDS - 1];
+    uint32_t tramp[2];
+};
+
+struct rt_signal_frame {
+    struct siginfo info;
+    struct ucontext uc;
+    uint32_t tramp[2];
+};
+
+static void setup_sigcontext(struct target_sigcontext *sc, CPUState *env)
+{
+    __put_user(env->regs[0], &sc->regs.r0);
+    __put_user(env->regs[1], &sc->regs.r1);
+    __put_user(env->regs[2], &sc->regs.r2);
+    __put_user(env->regs[3], &sc->regs.r3);
+    __put_user(env->regs[4], &sc->regs.r4);
+    __put_user(env->regs[5], &sc->regs.r5);
+    __put_user(env->regs[6], &sc->regs.r6);
+    __put_user(env->regs[7], &sc->regs.r7);
+    __put_user(env->regs[8], &sc->regs.r8);
+    __put_user(env->regs[9], &sc->regs.r9);
+    __put_user(env->regs[10], &sc->regs.r10);
+    __put_user(env->regs[11], &sc->regs.r11);
+    __put_user(env->regs[12], &sc->regs.r12);
+    __put_user(env->regs[13], &sc->regs.r13);
+    __put_user(env->regs[14], &sc->regs.r14);
+    __put_user(env->regs[15], &sc->regs.r15);
+    __put_user(env->regs[16], &sc->regs.r16);
+    __put_user(env->regs[17], &sc->regs.r17);
+    __put_user(env->regs[18], &sc->regs.r18);
+    __put_user(env->regs[19], &sc->regs.r19);
+    __put_user(env->regs[20], &sc->regs.r20);
+    __put_user(env->regs[21], &sc->regs.r21);
+    __put_user(env->regs[22], &sc->regs.r22);
+    __put_user(env->regs[23], &sc->regs.r23);
+    __put_user(env->regs[24], &sc->regs.r24);
+    __put_user(env->regs[25], &sc->regs.r25);
+    __put_user(env->regs[26], &sc->regs.r26);
+    __put_user(env->regs[27], &sc->regs.r27);
+    __put_user(env->regs[28], &sc->regs.r28);
+    __put_user(env->regs[29], &sc->regs.r29);
+    __put_user(env->regs[30], &sc->regs.r30);
+    __put_user(env->regs[31], &sc->regs.r31);
+    __put_user(env->sregs[SR_PC], &sc->regs.pc);
+}
+
+static void restore_sigcontext(struct target_sigcontext *sc, CPUState *env)
+{
+    __get_user(env->regs[0], &sc->regs.r0);
+    __get_user(env->regs[1], &sc->regs.r1);
+    __get_user(env->regs[2], &sc->regs.r2);
+    __get_user(env->regs[3], &sc->regs.r3);
+    __get_user(env->regs[4], &sc->regs.r4);
+    __get_user(env->regs[5], &sc->regs.r5);
+    __get_user(env->regs[6], &sc->regs.r6);
+    __get_user(env->regs[7], &sc->regs.r7);
+    __get_user(env->regs[8], &sc->regs.r8);
+    __get_user(env->regs[9], &sc->regs.r9);
+    __get_user(env->regs[10], &sc->regs.r10);
+    __get_user(env->regs[11], &sc->regs.r11);
+    __get_user(env->regs[12], &sc->regs.r12);
+    __get_user(env->regs[13], &sc->regs.r13);
+    __get_user(env->regs[14], &sc->regs.r14);
+    __get_user(env->regs[15], &sc->regs.r15);
+    __get_user(env->regs[16], &sc->regs.r16);
+    __get_user(env->regs[17], &sc->regs.r17);
+    __get_user(env->regs[18], &sc->regs.r18);
+    __get_user(env->regs[19], &sc->regs.r19);
+    __get_user(env->regs[20], &sc->regs.r20);
+    __get_user(env->regs[21], &sc->regs.r21);
+    __get_user(env->regs[22], &sc->regs.r22);
+    __get_user(env->regs[23], &sc->regs.r23);
+    __get_user(env->regs[24], &sc->regs.r24);
+    __get_user(env->regs[25], &sc->regs.r25);
+    __get_user(env->regs[26], &sc->regs.r26);
+    __get_user(env->regs[27], &sc->regs.r27);
+    __get_user(env->regs[28], &sc->regs.r28);
+    __get_user(env->regs[29], &sc->regs.r29);
+    __get_user(env->regs[30], &sc->regs.r30);
+    __get_user(env->regs[31], &sc->regs.r31);
+    __get_user(env->sregs[SR_PC], &sc->regs.pc);
+}
+
+static abi_ulong get_sigframe(struct target_sigaction *ka,
+                              CPUState *env, int frame_size)
+{
+    abi_ulong sp = env->regs[1];
+
+    if ((ka->sa_flags & SA_ONSTACK) != 0 && !on_sig_stack(sp))
+        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+
+    return ((sp - frame_size) & -8UL);
+}
+
+static void setup_frame(int sig, struct target_sigaction *ka,
+			target_sigset_t *set, CPUState *env)
+{
+    struct target_signal_frame *frame;
+    abi_ulong frame_addr;
+    int err = 0;
+    int i;
+
+    frame_addr = get_sigframe(ka, env, sizeof *frame);
+    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+        goto badframe;
+
+    /* Save the mask.  */
+    err |= __put_user(set->sig[0], &frame->sc.oldmask);
+    if (err)
+        goto badframe;
+
+    for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+        if (__put_user(set->sig[i], &frame->extramask[i - 1]))
+            goto badframe;
+    }
+
+    setup_sigcontext(&frame->sc, env);
+
+    /* Set up to return from userspace. If provided, use a stub
+       already in userspace. */
+    /* minus 8 is offset to cater for "rtsd r15,8" offset */
+    if (ka->sa_flags & TARGET_SA_RESTORER) {
+        env->regs[15] = ((unsigned long)ka->sa_restorer)-8;
+    } else {
+        uint32_t t;
+        /* Note, these encodings are _big endian_! */
+        /* addi r12, r0, __NR_sigreturn */
+        t = 0x31800000UL | TARGET_NR_sigreturn;
+        err |= __put_user(t, frame->tramp + 0);
+        /* brki r14, 0x8 */
+        t = 0xb9cc0008UL;
+        err |= __put_user(t, frame->tramp + 1);
+
+        /* Return from sighandler will jump to the tramp.
+           Negative 8 offset because return is rtsd r15, 8 */
+        env->regs[15] = ((unsigned long)frame->tramp) - 8;
+    }
+
+    if (err)
+        goto badframe;
+
+    /* Set up registers for signal handler */
+    env->regs[1] = (unsigned long) frame;
+    /* Signal handler args: */
+    env->regs[5] = sig; /* Arg 0: signum */
+    env->regs[6] = (unsigned long) &frame->sc; /* arg 1: sigcontext */
+
+    /* Offset of 4 to handle microblaze rtid r14, 0 */
+    env->sregs[SR_PC] = (unsigned long)ka->_sa_handler;
+
+    unlock_user_struct(frame, frame_addr, 1);
+    return;
+  badframe:
+    unlock_user_struct(frame, frame_addr, 1);
+    force_sig(TARGET_SIGSEGV);
+}
+
+static void setup_rt_frame(int sig, struct target_sigaction *ka,
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "Microblaze setup_rt_frame: not implemented\n");
+}
+
+long do_sigreturn(CPUState *env)
+{
+    struct target_signal_frame *frame;
+    abi_ulong frame_addr;
+    target_sigset_t target_set;
+    sigset_t set;
+    int i;
+
+    frame_addr = env->regs[R_SP];
+    /* Make sure the guest isn't playing games.  */
+    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 1))
+        goto badframe;
+
+    /* Restore blocked signals */
+    if (__get_user(target_set.sig[0], &frame->sc.oldmask))
+        goto badframe;
+    for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+        if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
+            goto badframe;
+    }
+    target_to_host_sigset_internal(&set, &target_set);
+    sigprocmask(SIG_SETMASK, &set, NULL);
+
+    restore_sigcontext(&frame->sc, env);
+    /* We got here through a sigreturn syscall, our path back is via an
+       rtb insn so setup r14 for that.  */
+    env->regs[14] = env->sregs[SR_PC];
+ 
+    unlock_user_struct(frame, frame_addr, 0);
+    return env->regs[10];
+  badframe:
+    unlock_user_struct(frame, frame_addr, 0);
+    force_sig(TARGET_SIGSEGV);
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "Microblaze do_rt_sigreturn: not implemented\n");
+    return -TARGET_ENOSYS;
+}
+
 #elif defined(TARGET_CRIS)
 
 struct target_sigcontext {
