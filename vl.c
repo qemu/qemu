@@ -212,7 +212,7 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 int nographic;
 static int curses;
-static int sdl;
+static int sdl = 1;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 ram_addr_t ram_size;
@@ -924,7 +924,7 @@ struct qemu_alarm_timer {
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
-    return t->flags & ALARM_FLAG_DYNTICKS;
+    return t && (t->flags & ALARM_FLAG_DYNTICKS);
 }
 
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
@@ -1356,7 +1356,7 @@ static void host_alarm_handler(int host_signum)
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
         qemu_event_increment();
-        alarm_timer->flags |= ALARM_FLAG_EXPIRED;
+        if (alarm_timer) alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
 #ifndef CONFIG_IOTHREAD
         if (next_cpu) {
@@ -1549,6 +1549,11 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
 
     sigaction(SIGALRM, &act, NULL);
 
+    /* 
+     * Initialize ev struct to 0 to avoid valgrind complaining
+     * about uninitialized data in timer_create call
+     */
+    memset(&ev, 0, sizeof(ev));
     ev.sigev_value.sival_int = 0;
     ev.sigev_notify = SIGEV_SIGNAL;
     ev.sigev_signo = SIGALRM;
@@ -3493,6 +3498,15 @@ int qemu_register_machine(QEMUMachine *m)
     return 0;
 }
 
+int qemu_register_machines(QEMUMachine *machine, size_t number)
+{
+    size_t i;
+    for (i = 0; i < number; i++) {
+        qemu_register_machine(&machine[i]);
+    }
+    return 0;
+}
+
 static QEMUMachine *find_machine(const char *name)
 {
     QEMUMachine *m;
@@ -4929,7 +4943,7 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
-    register_machines();
+    module_call_init(MODULE_INIT_MACHINE);
     machine = 0;
     optarg = strrchr(argv[0], '/');
     if (optarg != 0) {
@@ -6016,25 +6030,36 @@ int main(int argc, char **argv, char **envp)
         }
     } else { 
 #if defined(CONFIG_CURSES)
-            if (curses) {
-                /* At the moment curses cannot be used with other displays */
-                curses_display_init(ds, full_screen);
-            } else
+        if (curses) {
+            /* At the moment curses cannot be used with other displays */
+            curses_display_init(ds, full_screen);
+        } else
 #endif
-            {
-                if (vnc_display != NULL) {
-                    vnc_display_init(ds);
-                    if (vnc_display_open(ds, vnc_display) < 0)
-                        exit(1);
-                }
+#if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
+        if (sdl) {
 #if defined(CONFIG_SDL)
-                if (sdl || !vnc_display)
-                    sdl_display_init(ds, full_screen, no_frame);
+            sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
-                if (sdl || !vnc_display)
-                    cocoa_display_init(ds, full_screen);
+            cocoa_display_init(ds, full_screen);
 #endif
+        } else
+#endif
+        {
+            int print_port = 0;
+
+            if (vnc_display == NULL) {
+                vnc_display = "localhost:0,to=99";
+                print_port = 1;
             }
+
+            vnc_display_init(ds);
+            if (vnc_display_open(ds, vnc_display) < 0)
+                exit(1);
+
+            if (print_port) {
+                printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
+            }
+        }
     }
     dpy_resize(ds);
 

@@ -309,25 +309,22 @@ void mipsel_r4k_init(ram_addr_t ram_size,
         kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 }
 
-static QEMUMachine mips_machines[] = {
-  {
+static QEMUMachine mips_machine = {
     .name = "mips",
     .desc = "MIPS r4k platform",
     .init = mips_r4k_init,
-  },
-  {
+};
+
+static QEMUMachine mipsel_machine = {
     .name = "mipsel",
     .desc = "MIPS r4k platform (little endian)",
     .init = mipsel_r4k_init,
-    .max_cpus = 1,
-  },
 };
 
-int qemu_register_mips_machines(void)
+static void mips_machine_init(void)
 {
-    size_t i;
-    for (i = 0; i < sizeof(mips_machines) / sizeof(*mips_machines); i++) {
-        qemu_register_machine(&mips_machines[i]);
-    }
-    return 0;
+    qemu_register_machine(&mips_machine);
+    qemu_register_machine(&mipsel_machine);
 }
+
+machine_init(mips_machine_init);

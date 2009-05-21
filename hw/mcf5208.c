@@ -286,8 +286,15 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     env->pc = entry;
 }
 
-QEMUMachine mcf5208evb_machine = {
+static QEMUMachine mcf5208evb_machine = {
     .name = "mcf5208evb",
     .desc = "MCF5206EVB",
     .init = mcf5208evb_init,
 };
+
+static void mcf5208evb_machine_init(void)
+{
+    qemu_register_machine(&mcf5208evb_machine);
+}
+
+machine_init(mcf5208evb_machine_init);

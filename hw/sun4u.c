@@ -589,23 +589,32 @@ static void niagara_init(ram_addr_t RAM_size,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[2]);
 }
 
-QEMUMachine sun4u_machine = {
+static QEMUMachine sun4u_machine = {
     .name = "sun4u",
     .desc = "Sun4u platform",
     .init = sun4u_init,
     .max_cpus = 1, // XXX for now
 };
 
-QEMUMachine sun4v_machine = {
+static QEMUMachine sun4v_machine = {
     .name = "sun4v",
     .desc = "Sun4v platform",
     .init = sun4v_init,
     .max_cpus = 1, // XXX for now
 };
 
-QEMUMachine niagara_machine = {
+static QEMUMachine niagara_machine = {
     .name = "Niagara",
     .desc = "Sun4v platform, Niagara",
     .init = niagara_init,
     .max_cpus = 1, // XXX for now
 };
+
+static void sun4u_machine_init(void)
+{
+    qemu_register_machine(&sun4u_machine);
+    qemu_register_machine(&sun4v_machine);
+    qemu_register_machine(&niagara_machine);
+}
+
+machine_init(sun4u_machine_init);

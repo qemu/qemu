@@ -351,9 +351,16 @@ static void ppc_core99_init (ram_addr_t ram_size,
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
-QEMUMachine core99_machine = {
+static QEMUMachine core99_machine = {
     .name = "mac99",
     .desc = "Mac99 based PowerMAC",
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
 };
+
+static void core99_machine_init(void)
+{
+    qemu_register_machine(&core99_machine);
+}
+
+machine_init(core99_machine_init);

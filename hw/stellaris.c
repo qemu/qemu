@@ -1396,17 +1396,25 @@ static void lm3s6965evb_init(ram_addr_t ram_size,
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[1]);
 }
 
-QEMUMachine lm3s811evb_machine = {
+static QEMUMachine lm3s811evb_machine = {
     .name = "lm3s811evb",
     .desc = "Stellaris LM3S811EVB",
     .init = lm3s811evb_init,
 };
 
-QEMUMachine lm3s6965evb_machine = {
+static QEMUMachine lm3s6965evb_machine = {
     .name = "lm3s6965evb",
     .desc = "Stellaris LM3S6965EVB",
     .init = lm3s6965evb_init,
 };
+
+static void stellaris_machine_init(void)
+{
+    qemu_register_machine(&lm3s811evb_machine);
+    qemu_register_machine(&lm3s6965evb_machine);
+}
+
+machine_init(stellaris_machine_init);
 
 static SSISlaveInfo stellaris_ssi_bus_info = {
     .init = stellaris_ssi_bus_init,

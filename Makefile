@@ -189,6 +189,13 @@ endif
 
 LIBS+=$(VDE_LIBS)
 
+# xen backend driver support
+XEN_OBJS := xen_backend.o xen_devconfig.o
+XEN_OBJS += xen_console.o xenfb.o xen_disk.o xen_nic.o
+ifdef CONFIG_XEN
+  OBJS += $(XEN_OBJS)
+endif
+
 cocoa.o: cocoa.m
 
 keymaps.o: keymaps.c keymaps.h

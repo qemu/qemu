@@ -258,8 +258,15 @@ static void r2d_init(ram_addr_t ram_size,
     }
 }
 
-QEMUMachine r2d_machine = {
+static QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
 };
+
+static void r2d_machine_init(void)
+{
+    qemu_register_machine(&r2d_machine);
+}
+
+machine_init(r2d_machine_init);

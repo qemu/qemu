@@ -88,8 +88,15 @@ static void shix_init(ram_addr_t ram_size,
     fprintf(stderr, "initialization terminated\n");
 }
 
-QEMUMachine shix_machine = {
+static QEMUMachine shix_machine = {
     .name = "shix",
     .desc = "shix card",
     .init = shix_init,
 };
+
+static void shix_machine_init(void)
+{
+    qemu_register_machine(&shix_machine);
+}
+
+machine_init(shix_machine_init);

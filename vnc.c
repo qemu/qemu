@@ -86,7 +86,6 @@ char *vnc_socket_local_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-
 char *vnc_socket_remote_addr(const char *format, int fd) {
     struct sockaddr_storage sa;
     socklen_t salen;
@@ -2099,6 +2098,13 @@ int vnc_display_password(DisplayState *ds, const char *password)
     }
 
     return 0;
+}
+
+char *vnc_display_local_addr(DisplayState *ds)
+{
+    VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
+    
+    return vnc_socket_local_addr("%s:%s", vs->lsock);
 }
 
 int vnc_display_open(DisplayState *ds, const char *display)

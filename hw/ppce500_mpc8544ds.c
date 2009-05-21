@@ -281,8 +281,15 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     return;
 }
 
-QEMUMachine mpc8544ds_machine = {
+static QEMUMachine mpc8544ds_machine = {
     .name = "mpc8544ds",
     .desc = "mpc8544ds",
     .init = mpc8544ds_init,
 };
+
+static void mpc8544ds_machine_init(void)
+{
+    qemu_register_machine(&mpc8544ds_machine);
+}
+
+machine_init(mpc8544ds_machine_init);

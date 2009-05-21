@@ -1,31 +1,6 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 
-void register_machines(void)
-{
-    qemu_register_machine(&integratorcp_machine);
-    qemu_register_machine(&versatilepb_machine);
-    qemu_register_machine(&versatileab_machine);
-    qemu_register_machine(&realview_machine);
-    qemu_register_machine(&akitapda_machine);
-    qemu_register_machine(&spitzpda_machine);
-    qemu_register_machine(&borzoipda_machine);
-    qemu_register_machine(&terrierpda_machine);
-    qemu_register_machine(&sx1_machine_v1);
-    qemu_register_machine(&sx1_machine_v2);
-    qemu_register_machine(&palmte_machine);
-    qemu_register_machine(&n800_machine);
-    qemu_register_machine(&n810_machine);
-    qemu_register_machine(&lm3s811evb_machine);
-    qemu_register_machine(&lm3s6965evb_machine);
-    qemu_register_machine(&connex_machine);
-    qemu_register_machine(&verdex_machine);
-    qemu_register_machine(&mainstone2_machine);
-    qemu_register_machine(&musicpal_machine);
-    qemu_register_machine(&tosapda_machine);
-    qemu_register_machine(&syborg_machine);
-}
-
 void cpu_save(QEMUFile *f, void *opaque)
 {
     int i;

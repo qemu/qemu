@@ -22,6 +22,29 @@
 #pragma GCC poison TARGET_SPARC64
 
 #pragma GCC poison TARGET_WORDS_BIGENDIAN
+#pragma GCC poison BSWAP_NEEDED
+
+#pragma GCC poison TARGET_LONG_BITS
+#pragma GCC poison TARGET_FMT_lx
+#pragma GCC poison TARGET_FMT_ld
+
+#pragma GCC poison TARGET_PAGE_SIZE
+#pragma GCC poison TARGET_PAGE_MASK
+#pragma GCC poison TARGET_PAGE_BITS
+#pragma GCC poison TARGET_PAGE_ALIGN
+
+#pragma GCC poison CPUState
+#pragma GCC poison env
+
+#pragma GCC poison CPU_INTERRUPT_HARD
+#pragma GCC poison CPU_INTERRUPT_EXITTB
+#pragma GCC poison CPU_INTERRUPT_TIMER
+#pragma GCC poison CPU_INTERRUPT_FIQ
+#pragma GCC poison CPU_INTERRUPT_HALT
+#pragma GCC poison CPU_INTERRUPT_SMI
+#pragma GCC poison CPU_INTERRUPT_DEBUG
+#pragma GCC poison CPU_INTERRUPT_VIRQ
+#pragma GCC poison CPU_INTERRUPT_NMI
 
 #endif
 #endif

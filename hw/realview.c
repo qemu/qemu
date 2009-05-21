@@ -202,3 +202,10 @@ QEMUMachine realview_machine = {
     .init = realview_init,
     .use_scsi = 1,
 };
+
+static void realview_machine_init(void)
+{
+    qemu_register_machine(&realview_machine);
+}
+
+machine_init(realview_machine_init);

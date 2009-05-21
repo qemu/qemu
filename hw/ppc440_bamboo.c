@@ -185,8 +185,15 @@ static void bamboo_init(ram_addr_t ram_size,
         kvmppc_init();
 }
 
-QEMUMachine bamboo_machine = {
+static QEMUMachine bamboo_machine = {
     .name = "bamboo",
     .desc = "bamboo",
     .init = bamboo_init,
 };
+
+static void bamboo_machine_init(void)
+{
+    qemu_register_machine(&bamboo_machine);
+}
+
+machine_init(bamboo_machine_init);

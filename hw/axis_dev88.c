@@ -372,8 +372,15 @@ void axisdev88_init (ram_addr_t ram_size,
     printf ("ram size =%ld\n", ram_size);
 }
 
-QEMUMachine axisdev88_machine = {
+static QEMUMachine axisdev88_machine = {
     .name = "axis-dev88",
     .desc = "AXIS devboard 88",
     .init = axisdev88_init,
 };
+
+static void axisdev88_machine_init(void)
+{
+    qemu_register_machine(&axisdev88_machine);
+}
+
+machine_init(axisdev88_machine_init);

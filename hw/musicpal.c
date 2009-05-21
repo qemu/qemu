@@ -1596,11 +1596,18 @@ static void musicpal_init(ram_addr_t ram_size,
     arm_load_kernel(env, &musicpal_binfo);
 }
 
-QEMUMachine musicpal_machine = {
+static QEMUMachine musicpal_machine = {
     .name = "musicpal",
     .desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)",
     .init = musicpal_init,
 };
+
+static void musicpal_machine_init(void)
+{
+    qemu_register_machine(&musicpal_machine);
+}
+
+machine_init(musicpal_machine_init);
 
 static void musicpal_register_devices(void)
 {

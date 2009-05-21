@@ -98,8 +98,15 @@ static void syborg_init(ram_addr_t ram_size,
     arm_load_kernel(env, &syborg_binfo);
 }
 
-QEMUMachine syborg_machine = {
+static QEMUMachine syborg_machine = {
     .name = "syborg",
     .desc = "Syborg (Symbian Virtual Platform)",
     .init = syborg_init,
 };
+
+static void syborg_machine_init(void)
+{
+    qemu_register_machine(&syborg_machine);
+}
+
+machine_init(syborg_machine_init);

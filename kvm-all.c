@@ -338,8 +338,10 @@ int kvm_init(int smp_cpus)
     int ret;
     int i;
 
-    if (smp_cpus > 1)
+    if (smp_cpus > 1) {
+        fprintf(stderr, "No SMP KVM support, use '-smp 1'\n");
         return -EINVAL;
+    }
 
     s = qemu_mallocz(sizeof(KVMState));
 

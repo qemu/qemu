@@ -1403,14 +1403,22 @@ static void n810_init(ram_addr_t ram_size,
                     cpu_model, &n810_binfo, 810);
 }
 
-QEMUMachine n800_machine = {
+static QEMUMachine n800_machine = {
     .name = "n800",
     .desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)",
     .init = n800_init,
 };
 
-QEMUMachine n810_machine = {
+static QEMUMachine n810_machine = {
     .name = "n810",
     .desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)",
     .init = n810_init,
 };
+
+static void nseries_machine_init(void)
+{
+    qemu_register_machine(&n800_machine);
+    qemu_register_machine(&n810_machine);
+}
+
+machine_init(nseries_machine_init);

@@ -596,7 +596,8 @@ static long get_file_size(FILE *f)
 static void load_linux(target_phys_addr_t option_rom,
                        const char *kernel_filename,
 		       const char *initrd_filename,
-		       const char *kernel_cmdline)
+		       const char *kernel_cmdline,
+               target_phys_addr_t max_ram_size)
 {
     uint16_t protocol;
     uint32_t gpr[8];
@@ -662,8 +663,8 @@ static void load_linux(target_phys_addr_t option_rom,
     else
 	initrd_max = 0x37ffffff;
 
-    if (initrd_max >= ram_size-ACPI_DATA_SIZE)
-	initrd_max = ram_size-ACPI_DATA_SIZE-1;
+    if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
+    	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
 
     /* kernel command line */
     pstrcpy_targphys(cmdline_addr, 4096, kernel_cmdline);
@@ -704,9 +705,6 @@ static void load_linux(target_phys_addr_t option_rom,
 
 	initrd_size = get_file_size(fi);
 	initrd_addr = (initrd_max-initrd_size) & ~4095;
-
-        fprintf(stderr, "qemu: loading initrd (%#x bytes) at 0x" TARGET_FMT_plx
-                "\n", initrd_size, initrd_addr);
 
 	if (!fread_targphys_ok(initrd_addr, initrd_size, fi)) {
 	    fprintf(stderr, "qemu: read error on initial ram disk '%s'\n",
@@ -778,21 +776,14 @@ static int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 static void audio_init (PCIBus *pci_bus, qemu_irq *pic)
 {
     struct soundhw *c;
-    int audio_enabled = 0;
 
-    for (c = soundhw; !audio_enabled && c->name; ++c) {
-        audio_enabled = c->enabled;
-    }
-
-    if (audio_enabled) {
-        for (c = soundhw; c->name; ++c) {
-            if (c->enabled) {
-                if (c->isa) {
-                    c->init.init_isa(pic);
-                } else {
-                    if (pci_bus) {
-                        c->init.init_pci(pci_bus);
-                    }
+    for (c = soundhw; c->name; ++c) {
+        if (c->enabled) {
+            if (c->isa) {
+                c->init.init_isa(pic);
+            } else {
+                if (pci_bus) {
+                    c->init.init_pci(pci_bus);
                 }
             }
         }
@@ -967,7 +958,7 @@ static void pc_init1(ram_addr_t ram_size,
 
     if (linux_boot) {
         load_linux(0xc0000 + oprom_area_size,
-                   kernel_filename, initrd_filename, kernel_cmdline);
+                   kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
         oprom_area_size += 2048;
     }
 
@@ -1193,16 +1184,24 @@ void cmos_set_s3_resume(void)
         rtc_set_memory(rtc_state, 0xF, 0xFE);
 }
 
-QEMUMachine pc_machine = {
+static QEMUMachine pc_machine = {
     .name = "pc",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
 };
 
-QEMUMachine isapc_machine = {
+static QEMUMachine isapc_machine = {
     .name = "isapc",
     .desc = "ISA-only PC",
     .init = pc_init_isa,
     .max_cpus = 1,
 };
+
+static void pc_machine_init(void)
+{
+    qemu_register_machine(&pc_machine);
+    qemu_register_machine(&isapc_machine);
+}
+
+machine_init(pc_machine_init);
