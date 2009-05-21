@@ -2259,6 +2259,11 @@ static int qcow_snapshot_list(BlockDriverState *bs,
     QCowSnapshot *sn;
     int i;
 
+    if (!s->nb_snapshots) {
+        *psn_tab = NULL;
+        return s->nb_snapshots;
+    }
+
     sn_tab = qemu_mallocz(s->nb_snapshots * sizeof(QEMUSnapshotInfo));
     for(i = 0; i < s->nb_snapshots; i++) {
         sn_info = sn_tab + i;
