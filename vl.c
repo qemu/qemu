@@ -201,9 +201,7 @@ DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
-int nographic;
-static int curses;
-static int sdl = 1;
+DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 ram_addr_t ram_size;
@@ -4842,6 +4840,7 @@ int main(int argc, char **argv, char **envp)
     const char *run_as = NULL;
 #endif
     CPUState *env;
+    int show_vnc_port = 0;
 
     qemu_cache_utils_init(envp);
 
@@ -4882,8 +4881,6 @@ int main(int argc, char **argv, char **envp)
     initrd_filename = NULL;
     ram_size = 0;
     snapshot = 0;
-    nographic = 0;
-    curses = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
     cyls = heads = secs = 0;
@@ -5075,11 +5072,11 @@ int main(int argc, char **argv, char **envp)
                 numa_add(optarg);
                 break;
             case QEMU_OPTION_nographic:
-                nographic = 1;
+                display_type = DT_NOGRAPHIC;
                 break;
 #ifdef CONFIG_CURSES
             case QEMU_OPTION_curses:
-                curses = 1;
+                display_type = DT_CURSES;
                 break;
 #endif
             case QEMU_OPTION_portrait:
@@ -5358,7 +5355,7 @@ int main(int argc, char **argv, char **envp)
                 no_quit = 1;
                 break;
             case QEMU_OPTION_sdl:
-                sdl = 1;
+                display_type = DT_SDL;
                 break;
 #endif
             case QEMU_OPTION_pidfile:
@@ -5420,6 +5417,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 	    case QEMU_OPTION_vnc:
+                display_type = DT_VNC;
 		vnc_display = optarg;
 		break;
 #ifdef TARGET_I386
@@ -5578,7 +5576,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (nographic) {
+    if (display_type == DT_NOGRAPHIC) {
        if (serial_device_index == 0)
            serial_devices[0] = "stdio";
        if (parallel_device_index == 0)
@@ -5944,44 +5942,46 @@ int main(int argc, char **argv, char **envp)
         dumb_display_init();
     /* just use the first displaystate for the moment */
     ds = display_state;
-    /* terminal init */
-    if (nographic) {
-        if (curses) {
-            fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
-            exit(1);
-        }
-    } else { 
-#if defined(CONFIG_CURSES)
-        if (curses) {
-            /* At the moment curses cannot be used with other displays */
-            curses_display_init(ds, full_screen);
-        } else
-#endif
+
+    if (display_type == DT_DEFAULT) {
 #if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
-        if (sdl) {
+        display_type = DT_SDL;
+#else
+        display_type = DT_VNC;
+        vnc_display = "localhost:0,to=99";
+        show_vnc_port = 1;
+#endif
+    }
+        
+
+    switch (display_type) {
+    case DT_NOGRAPHIC:
+        break;
+#if defined(CONFIG_CURSES)
+    case DT_CURSES:
+        curses_display_init(ds, full_screen);
+        break;
+#endif
 #if defined(CONFIG_SDL)
-            sdl_display_init(ds, full_screen, no_frame);
+    case DT_SDL:
+        sdl_display_init(ds, full_screen, no_frame);
+        break;
 #elif defined(CONFIG_COCOA)
-            cocoa_display_init(ds, full_screen);
+    case DT_SDL:
+        cocoa_display_init(ds, full_screen);
+        break;
 #endif
-        } else
-#endif
-        {
-            int print_port = 0;
+    case DT_VNC:
+        vnc_display_init(ds);
+        if (vnc_display_open(ds, vnc_display) < 0)
+            exit(1);
 
-            if (vnc_display == NULL) {
-                vnc_display = "localhost:0,to=99";
-                print_port = 1;
-            }
-
-            vnc_display_init(ds);
-            if (vnc_display_open(ds, vnc_display) < 0)
-                exit(1);
-
-            if (print_port) {
-                printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
-            }
+        if (show_vnc_port) {
+            printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
         }
+        break;
+    default:
+        break;
     }
     dpy_resize(ds);
 
@@ -5994,7 +5994,7 @@ int main(int argc, char **argv, char **envp)
         dcl = dcl->next;
     }
 
-    if (nographic || (vnc_display && !sdl)) {
+    if (display_type == DT_NOGRAPHIC || display_type == DT_VNC) {
         nographic_timer = qemu_new_timer(rt_clock, nographic_update, NULL);
         qemu_mod_timer(nographic_timer, qemu_get_clock(rt_clock));
     }

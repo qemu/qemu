@@ -86,6 +86,15 @@ int tap_win32_init(VLANState *vlan, const char *model,
 /* SLIRP */
 void do_info_slirp(Monitor *mon);
 
+typedef enum DisplayType
+{
+    DT_DEFAULT,
+    DT_CURSES,
+    DT_SDL,
+    DT_VNC,
+    DT_NOGRAPHIC,
+} DisplayType;
+
 extern int bios_size;
 extern int cirrus_vga_enabled;
 extern int std_vga_enabled;
@@ -94,7 +103,7 @@ extern int xenfb_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
-extern int nographic;
+extern DisplayType display_type;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int rtc_td_hack;

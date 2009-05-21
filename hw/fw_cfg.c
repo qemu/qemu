@@ -277,7 +277,7 @@ void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     }
     fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (uint8_t *)"QEMU", 4);
     fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
-    fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)nographic);
+    fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)(display_type == DT_NOGRAPHIC));
     fw_cfg_add_i16(s, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
 
     register_savevm("fw_cfg", -1, 1, fw_cfg_save, fw_cfg_load, s);
