@@ -841,14 +841,15 @@ static inline int32_t sxt24(int32_t n)
     return (n << 8) >> 8;
 }
 
+#define LSI_BUF_SIZE 4096
 static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 {
     int n;
-    uint8_t buf[TARGET_PAGE_SIZE];
+    uint8_t buf[LSI_BUF_SIZE];
 
     DPRINTF("memcpy dest 0x%08x src 0x%08x count %d\n", dest, src, count);
     while (count) {
-        n = (count > TARGET_PAGE_SIZE) ? TARGET_PAGE_SIZE : count;
+        n = (count > LSI_BUF_SIZE) ? LSI_BUF_SIZE : count;
         cpu_physical_memory_read(src, buf, n);
         cpu_physical_memory_write(dest, buf, n);
         src += n;

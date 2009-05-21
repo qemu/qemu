@@ -548,9 +548,6 @@ ifeq ($(CONFIG_XEN), yes)
   LIBS += $(XEN_LIBS)
 endif
 
-# SCSI layer
-OBJS+= lsi53c895a.o esp.o
-
 # USB layer
 OBJS+= usb-ohci.o
 
@@ -567,7 +564,7 @@ OBJS += wdt_ib700.o wdt_i6300esb.o
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
 OBJS+= ide.o pckbd.o vga.o $(SOUND_HW) dma.o
-OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
+OBJS+= mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 OBJS+= cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
 OBJS+= usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
 OBJS += device-hotplug.o pci-hotplug.o smbios.o
@@ -578,10 +575,10 @@ CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 # shared objects
 OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
 # PREP target
-OBJS+= pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
+OBJS+= pckbd.o serial.o i8259.o i8254.o mc146818rtc.o
 OBJS+= prep_pci.o ppc_prep.o
 # Mac shared devices
-OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o escc.o
+OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
 # OldWorld PowerMac
 OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
@@ -603,7 +600,7 @@ ifeq ($(TARGET_BASE_ARCH), mips)
 OBJS+= mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 OBJS+= mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 OBJS+= g364fb.o jazz_led.o dp8393x.o
-OBJS+= ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
+OBJS+= ide.o gt64xxx.o pckbd.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 OBJS+= piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
 OBJS+= mipsnet.o
 OBJS+= pflash_cfi01.o
@@ -626,11 +623,11 @@ endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
 OBJS+= sun4u.o ide.o pckbd.o vga.o apb_pci.o
-OBJS+= fdc.o mc146818rtc.o serial.o
+OBJS+= mc146818rtc.o serial.o
 OBJS+= cirrus_vga.o parallel.o
 else
 OBJS+= sun4m.o tcx.o iommu.o slavio_intctl.o
-OBJS+= slavio_timer.o escc.o slavio_misc.o fdc.o sparc32_dma.o
+OBJS+= slavio_timer.o slavio_misc.o sparc32_dma.o
 OBJS+= cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 endif
