@@ -924,7 +924,7 @@ struct qemu_alarm_timer {
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
-    return t->flags & ALARM_FLAG_DYNTICKS;
+    return t && (t->flags & ALARM_FLAG_DYNTICKS);
 }
 
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
@@ -1356,7 +1356,7 @@ static void host_alarm_handler(int host_signum)
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
         qemu_event_increment();
-        alarm_timer->flags |= ALARM_FLAG_EXPIRED;
+        if (alarm_timer) alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
 #ifndef CONFIG_IOTHREAD
         if (next_cpu) {
@@ -1549,6 +1549,11 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
 
     sigaction(SIGALRM, &act, NULL);
 
+    /* 
+     * Initialize ev struct to 0 to avoid valgrind complaining
+     * about uninitialized data in timer_create call
+     */
+    memset(&ev, 0, sizeof(ev));
     ev.sigev_value.sival_int = 0;
     ev.sigev_notify = SIGEV_SIGNAL;
     ev.sigev_signo = SIGALRM;
