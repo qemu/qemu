@@ -1044,7 +1044,7 @@ static void terrier_init(ram_addr_t ram_size,
                 kernel_cmdline, initrd_filename, cpu_model, terrier, 0x33f);
 }
 
-QEMUMachine akitapda_machine = {
+static QEMUMachine akitapda_machine = {
     .name = "akita",
     .desc = "Akita PDA (PXA270)",
     .init = akita_init,
