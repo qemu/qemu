@@ -116,23 +116,37 @@ static int announce_self_create(uint8_t *buf,
     return 64; /* len */
 }
 
-void qemu_announce_self(void)
+static void qemu_announce_self_once(void *opaque)
 {
-    int i, j, len;
+    int i, len;
     VLANState *vlan;
     VLANClientState *vc;
     uint8_t buf[256];
+    static int count = SELF_ANNOUNCE_ROUNDS;
+    QEMUTimer *timer = *(QEMUTimer **)opaque;
 
     for (i = 0; i < MAX_NICS; i++) {
         if (!nd_table[i].used)
             continue;
         len = announce_self_create(buf, nd_table[i].macaddr);
         vlan = nd_table[i].vlan;
-        for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-            for (j=0; j < SELF_ANNOUNCE_ROUNDS; j++)
-                vc->fd_read(vc->opaque, buf, len);
+	for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
+            vc->fd_read(vc->opaque, buf, len);
         }
     }
+    if (count--) {
+	    qemu_mod_timer(timer, qemu_get_clock(rt_clock) + 100);
+    } else {
+	    qemu_del_timer(timer);
+	    qemu_free_timer(timer);
+    }
+}
+
+void qemu_announce_self(void)
+{
+	static QEMUTimer *timer;
+	timer = qemu_new_timer(rt_clock, qemu_announce_self_once, &timer);
+	qemu_announce_self_once(&timer);
 }
 
 /***********************************************************/
