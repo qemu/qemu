@@ -107,12 +107,13 @@ static int announce_self_create(uint8_t *buf,
 
     /* FIXME: should we send a different packet (arp/rarp/ping)? */
 
+    memset(buf, 0, 64);
     memset(buf, 0xff, 6);         /* h_dst */
     memcpy(buf + 6, mac_addr, 6); /* h_src */
     memcpy(buf + 12, &proto, 2);  /* h_proto */
     memcpy(buf + 14, &magic, 4);  /* magic */
 
-    return 18; /* len */
+    return 64; /* len */
 }
 
 void qemu_announce_self(void)
