@@ -3234,6 +3234,7 @@ static int ram_save_block(QEMUFile *f)
 }
 
 static ram_addr_t ram_save_threshold = 10;
+static uint64_t bytes_transferred = 0;
 
 static ram_addr_t ram_save_remaining(void)
 {
@@ -3246,6 +3247,21 @@ static ram_addr_t ram_save_remaining(void)
     }
 
     return count;
+}
+
+uint64_t ram_bytes_remaining(void)
+{
+    return ram_save_remaining() * TARGET_PAGE_SIZE;
+}
+
+uint64_t ram_bytes_transferred(void)
+{
+    return bytes_transferred;
+}
+
+uint64_t ram_bytes_total(void)
+{
+    return last_ram_offset;
 }
 
 static int ram_save_live(QEMUFile *f, int stage, void *opaque)
@@ -3269,6 +3285,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
         int ret;
 
         ret = ram_save_block(f);
+        bytes_transferred += ret * TARGET_PAGE_SIZE;
         if (ret == 0) /* no more blocks */
             break;
     }
@@ -3278,7 +3295,9 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
     if (stage == 3) {
 
         /* flush all remaining blocks regardless of rate limiting */
-        while (ram_save_block(f) != 0);
+        while (ram_save_block(f) != 0) {
+            bytes_transferred += TARGET_PAGE_SIZE;
+        }
         cpu_physical_memory_set_dirty_tracking(0);
     }
 
