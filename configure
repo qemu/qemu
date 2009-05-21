@@ -1708,6 +1708,11 @@ else
     exit 1
 fi
 
+if test "$xen" = "yes" ;
+    then
+    echo "CONFIG_XEN=yes" >> $config_mak
+fi
+
 tools=
 if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   tools="qemu-img\$(EXESUF) $tools"
