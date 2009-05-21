@@ -169,7 +169,8 @@ int tcp_socket_incoming(const char *address, uint16_t port)
     memcpy(&addr.sin_addr.s_addr, &in, sizeof(in));
 
     opt = 1;
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
+                   (const void *) &opt, sizeof(opt)) == -1) {
         goto error;
     }
 

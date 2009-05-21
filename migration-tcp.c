@@ -58,7 +58,7 @@ static void tcp_wait_for_connect(void *opaque)
 
     dprintf("connect completed\n");
     do {
-        ret = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &val, &valsize);
+        ret = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
     } while (ret == -1 && (s->get_error(s)) == EINTR);
 
     if (ret < 0) {
