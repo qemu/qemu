@@ -1044,29 +1044,39 @@ static void terrier_init(ram_addr_t ram_size,
                 kernel_cmdline, initrd_filename, cpu_model, terrier, 0x33f);
 }
 
-QEMUMachine akitapda_machine = {
+static QEMUMachine akitapda_machine = {
     .name = "akita",
     .desc = "Akita PDA (PXA270)",
     .init = akita_init,
 };
 
-QEMUMachine spitzpda_machine = {
+static QEMUMachine spitzpda_machine = {
     .name = "spitz",
     .desc = "Spitz PDA (PXA270)",
     .init = spitz_init,
 };
 
-QEMUMachine borzoipda_machine = {
+static QEMUMachine borzoipda_machine = {
     .name = "borzoi",
     .desc = "Borzoi PDA (PXA270)",
     .init = borzoi_init,
 };
 
-QEMUMachine terrierpda_machine = {
+static QEMUMachine terrierpda_machine = {
     .name = "terrier",
     .desc = "Terrier PDA (PXA270)",
     .init = terrier_init,
 };
+
+static void spitz_machine_init(void)
+{
+    qemu_register_machine(&akitapda_machine);
+    qemu_register_machine(&spitzpda_machine);
+    qemu_register_machine(&borzoipda_machine);
+    qemu_register_machine(&terrierpda_machine);
+}
+
+machine_init(spitz_machine_init);
 
 static SSISlaveInfo corgi_ssp_info = {
     .init = corgi_ssp_init,

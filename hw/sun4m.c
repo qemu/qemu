@@ -1032,14 +1032,14 @@ static void sbook_init(ram_addr_t RAM_size,
                   kernel_cmdline, initrd_filename, cpu_model);
 }
 
-QEMUMachine ss5_machine = {
+static QEMUMachine ss5_machine = {
     .name = "SS-5",
     .desc = "Sun4m platform, SPARCstation 5",
     .init = ss5_init,
     .use_scsi = 1,
 };
 
-QEMUMachine ss10_machine = {
+static QEMUMachine ss10_machine = {
     .name = "SS-10",
     .desc = "Sun4m platform, SPARCstation 10",
     .init = ss10_init,
@@ -1047,7 +1047,7 @@ QEMUMachine ss10_machine = {
     .max_cpus = 4,
 };
 
-QEMUMachine ss600mp_machine = {
+static QEMUMachine ss600mp_machine = {
     .name = "SS-600MP",
     .desc = "Sun4m platform, SPARCserver 600MP",
     .init = ss600mp_init,
@@ -1055,7 +1055,7 @@ QEMUMachine ss600mp_machine = {
     .max_cpus = 4,
 };
 
-QEMUMachine ss20_machine = {
+static QEMUMachine ss20_machine = {
     .name = "SS-20",
     .desc = "Sun4m platform, SPARCstation 20",
     .init = ss20_init,
@@ -1063,35 +1063,35 @@ QEMUMachine ss20_machine = {
     .max_cpus = 4,
 };
 
-QEMUMachine voyager_machine = {
+static QEMUMachine voyager_machine = {
     .name = "Voyager",
     .desc = "Sun4m platform, SPARCstation Voyager",
     .init = vger_init,
     .use_scsi = 1,
 };
 
-QEMUMachine ss_lx_machine = {
+static QEMUMachine ss_lx_machine = {
     .name = "LX",
     .desc = "Sun4m platform, SPARCstation LX",
     .init = ss_lx_init,
     .use_scsi = 1,
 };
 
-QEMUMachine ss4_machine = {
+static QEMUMachine ss4_machine = {
     .name = "SS-4",
     .desc = "Sun4m platform, SPARCstation 4",
     .init = ss4_init,
     .use_scsi = 1,
 };
 
-QEMUMachine scls_machine = {
+static QEMUMachine scls_machine = {
     .name = "SPARCClassic",
     .desc = "Sun4m platform, SPARCClassic",
     .init = scls_init,
     .use_scsi = 1,
 };
 
-QEMUMachine sbook_machine = {
+static QEMUMachine sbook_machine = {
     .name = "SPARCbook",
     .desc = "Sun4m platform, SPARCbook",
     .init = sbook_init,
@@ -1335,7 +1335,7 @@ static void ss2000_init(ram_addr_t RAM_size,
                   kernel_cmdline, initrd_filename, cpu_model);
 }
 
-QEMUMachine ss1000_machine = {
+static QEMUMachine ss1000_machine = {
     .name = "SS-1000",
     .desc = "Sun4d platform, SPARCserver 1000",
     .init = ss1000_init,
@@ -1343,7 +1343,7 @@ QEMUMachine ss1000_machine = {
     .max_cpus = 8,
 };
 
-QEMUMachine ss2000_machine = {
+static QEMUMachine ss2000_machine = {
     .name = "SS-2000",
     .desc = "Sun4d platform, SPARCcenter 2000",
     .init = ss2000_init,
@@ -1543,9 +1543,27 @@ static void ss2_init(ram_addr_t RAM_size,
                   kernel_cmdline, initrd_filename, cpu_model);
 }
 
-QEMUMachine ss2_machine = {
+static QEMUMachine ss2_machine = {
     .name = "SS-2",
     .desc = "Sun4c platform, SPARCstation 2",
     .init = ss2_init,
     .use_scsi = 1,
 };
+
+static void ss2_machine_init(void)
+{
+    qemu_register_machine(&ss5_machine);
+    qemu_register_machine(&ss10_machine);
+    qemu_register_machine(&ss600mp_machine);
+    qemu_register_machine(&ss20_machine);
+    qemu_register_machine(&voyager_machine);
+    qemu_register_machine(&ss_lx_machine);
+    qemu_register_machine(&ss4_machine);
+    qemu_register_machine(&scls_machine);
+    qemu_register_machine(&sbook_machine);
+    qemu_register_machine(&ss1000_machine);
+    qemu_register_machine(&ss2000_machine);
+    qemu_register_machine(&ss2_machine);
+}
+
+machine_init(ss2_machine_init);

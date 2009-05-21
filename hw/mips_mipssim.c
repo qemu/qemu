@@ -178,8 +178,15 @@ mips_mipssim_init (ram_addr_t ram_size,
         mipsnet_init(0x4200, env->irq[2], &nd_table[0]);
 }
 
-QEMUMachine mips_mipssim_machine = {
+static QEMUMachine mips_mipssim_machine = {
     .name = "mipssim",
     .desc = "MIPS MIPSsim platform",
     .init = mips_mipssim_init,
 };
+
+static void mips_mipssim_machine_init(void)
+{
+    qemu_register_machine(&mips_mipssim_machine);
+}
+
+machine_init(mips_mipssim_machine_init);

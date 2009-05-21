@@ -4072,7 +4072,7 @@ static void speedport_init(ram_addr_t machine_ram_size,
 
 #define RAMSIZE (0 * MiB)
 
-static QEMUMachine mips_machines[] = {
+static QEMUMachine ar7_machines[] = {
   {
     .name = "ar7",
     .desc = "MIPS 4KEc / AR7 platform",
@@ -4144,13 +4144,11 @@ static QEMUMachine mips_machines[] = {
 #endif
 };
 
-int qemu_register_ar7_machines(void)
+static void ar7_machine_init(void)
 {
-    size_t i;
-    for (i = 0; i < ARRAY_SIZE(mips_machines); i++) {
-        qemu_register_machine(&mips_machines[i]);
-    }
-    return 0;
+    qemu_register_machines(ar7_machines, ARRAY_SIZE(ar7_machines));
 }
+
+machine_init(ar7_machine_init);
 
 /* eof */

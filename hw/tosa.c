@@ -238,11 +238,18 @@ static void tosa_init(ram_addr_t ram_size,
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-QEMUMachine tosapda_machine = {
+static QEMUMachine tosapda_machine = {
     .name = "tosa",
     .desc = "Tosa PDA (PXA255)",
     .init = tosa_init,
 };
+
+static void tosapda_machine_init(void)
+{
+    qemu_register_machine(&tosapda_machine);
+}
+
+machine_init(tosapda_machine_init);
 
 static I2CSlaveInfo tosa_dac_info = {
     .init = tosa_dac_init,

@@ -4,28 +4,6 @@
 
 #include "exec-all.h"
 
-void register_machines(void)
-{
-#ifdef TARGET_SPARC64
-    qemu_register_machine(&sun4u_machine);
-    qemu_register_machine(&sun4v_machine);
-    qemu_register_machine(&niagara_machine);
-#else
-    qemu_register_machine(&ss5_machine);
-    qemu_register_machine(&ss10_machine);
-    qemu_register_machine(&ss600mp_machine);
-    qemu_register_machine(&ss20_machine);
-    qemu_register_machine(&ss2_machine);
-    qemu_register_machine(&voyager_machine);
-    qemu_register_machine(&ss_lx_machine);
-    qemu_register_machine(&ss4_machine);
-    qemu_register_machine(&scls_machine);
-    qemu_register_machine(&sbook_machine);
-    qemu_register_machine(&ss1000_machine);
-    qemu_register_machine(&ss2000_machine);
-#endif
-}
-
 void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;

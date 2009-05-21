@@ -508,11 +508,18 @@ static void integratorcp_init(ram_addr_t ram_size,
     arm_load_kernel(env, &integrator_binfo);
 }
 
-QEMUMachine integratorcp_machine = {
+static QEMUMachine integratorcp_machine = {
     .name = "integratorcp",
     .desc = "ARM Integrator/CP (ARM926EJ-S)",
     .init = integratorcp_init,
 };
+
+static void integratorcp_machine_init(void)
+{
+    qemu_register_machine(&integratorcp_machine);
+}
+
+machine_init(integratorcp_machine_init);
 
 static void integratorcp_register_devices(void)
 {

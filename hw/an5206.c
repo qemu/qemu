@@ -84,8 +84,15 @@ static void an5206_init(ram_addr_t ram_size,
     env->pc = entry;
 }
 
-QEMUMachine an5206_machine = {
+static QEMUMachine an5206_machine = {
     .name = "an5206",
     .desc = "Arnewsh 5206",
     .init = an5206_init,
 };
+
+static void an5206_machine_init(void)
+{
+    qemu_register_machine(&an5206_machine);
+}
+
+machine_init(an5206_machine_init);

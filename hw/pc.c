@@ -1184,16 +1184,24 @@ void cmos_set_s3_resume(void)
         rtc_set_memory(rtc_state, 0xF, 0xFE);
 }
 
-QEMUMachine pc_machine = {
+static QEMUMachine pc_machine = {
     .name = "pc",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
 };
 
-QEMUMachine isapc_machine = {
+static QEMUMachine isapc_machine = {
     .name = "isapc",
     .desc = "ISA-only PC",
     .init = pc_init_isa,
     .max_cpus = 1,
 };
+
+static void pc_machine_init(void)
+{
+    qemu_register_machine(&pc_machine);
+    qemu_register_machine(&isapc_machine);
+}
+
+machine_init(pc_machine_init);

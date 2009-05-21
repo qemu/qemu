@@ -381,9 +381,16 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
-QEMUMachine heathrow_machine = {
+static QEMUMachine heathrow_machine = {
     .name = "g3beige",
     .desc = "Heathrow based PowerMAC",
     .init = ppc_heathrow_init,
     .max_cpus = MAX_CPUS,
 };
+
+static void heathrow_machine_init(void)
+{
+    qemu_register_machine(&heathrow_machine);
+}
+
+machine_init(heathrow_machine_init);

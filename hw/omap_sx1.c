@@ -223,14 +223,22 @@ static void sx1_init_v2(ram_addr_t ram_size,
                 kernel_cmdline, initrd_filename, cpu_model, 2);
 }
 
-QEMUMachine sx1_machine_v2 = {
+static QEMUMachine sx1_machine_v2 = {
     .name = "sx1",
     .desc = "Siemens SX1 (OMAP310) V2",
     .init = sx1_init_v2,
 };
 
-QEMUMachine sx1_machine_v1 = {
+static QEMUMachine sx1_machine_v1 = {
     .name = "sx1-v1",
     .desc = "Siemens SX1 (OMAP310) V1",
     .init = sx1_init_v1,
 };
+
+static void sx1_machine_init(void)
+{
+    qemu_register_machine(&sx1_machine_v2);
+    qemu_register_machine(&sx1_machine_v1);
+}
+
+machine_init(sx1_machine_init);
