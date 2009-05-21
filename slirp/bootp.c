@@ -49,13 +49,15 @@ if (slirp_debug & DBG_CALL) { fprintf(dfd, fmt, ##  __VA_ARGS__); fflush(dfd); }
 #define dprintf(fmt, ...)
 #endif
 
-static BOOTPClient *get_new_addr(struct in_addr *paddr)
+static BOOTPClient *get_new_addr(struct in_addr *paddr,
+                                 const uint8_t *macaddr)
 {
     BOOTPClient *bc;
     int i;
 
     for(i = 0; i < NB_ADDR; i++) {
-        if (!bootp_clients[i].allocated)
+        bc = &bootp_clients[i];
+        if (!bc->allocated || !memcmp(macaddr, bc->macaddr, 6))
             goto found;
     }
     return NULL;
@@ -192,7 +194,7 @@ static void bootp_reply(const struct bootp_t *bp)
         }
         if (!bc) {
          new_addr:
-            bc = get_new_addr(&daddr.sin_addr);
+            bc = get_new_addr(&daddr.sin_addr, client_ethaddr);
             if (!bc) {
                 dprintf("no address left\n");
                 return;
