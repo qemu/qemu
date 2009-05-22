@@ -1073,7 +1073,7 @@ if test "$curl" = "yes" ; then
 #include <curl/curl.h>
 int main(void) { return curl_easy_init(); }
 EOF
-  curl_libs=`curl-config --libs`
+  curl_libs=`curl-config --libs 2>/dev/null`
  if $cc $ARCH_CFLAGS $curl_libs -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
     curl=yes
   fi
