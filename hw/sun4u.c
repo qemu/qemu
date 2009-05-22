@@ -594,6 +594,7 @@ static QEMUMachine sun4u_machine = {
     .desc = "Sun4u platform",
     .init = sun4u_init,
     .max_cpus = 1, // XXX for now
+    .is_default = 1,
 };
 
 static QEMUMachine sun4v_machine = {

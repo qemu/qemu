@@ -162,6 +162,7 @@ static QEMUMachine bareetraxfs_machine = {
     .name = "bareetraxfs",
     .desc = "Bare ETRAX FS board",
     .init = bareetraxfs_init,
+    .is_default = 1,
 };
 
 static void bareetraxfs_machine_init(void)

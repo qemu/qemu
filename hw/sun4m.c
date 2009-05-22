@@ -1037,6 +1037,7 @@ static QEMUMachine ss5_machine = {
     .desc = "Sun4m platform, SPARCstation 5",
     .init = ss5_init,
     .use_scsi = 1,
+    .is_default = 1,
 };
 
 static QEMUMachine ss10_machine = {

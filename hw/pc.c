@@ -1189,6 +1189,7 @@ static QEMUMachine pc_machine = {
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .is_default = 1,
 };
 
 static QEMUMachine isapc_machine = {

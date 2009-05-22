@@ -3497,6 +3497,18 @@ static QEMUMachine *find_machine(const char *name)
     return NULL;
 }
 
+static QEMUMachine *find_default_machine(void)
+{
+    QEMUMachine *m;
+
+    for(m = first_machine; m != NULL; m = m->next) {
+        if (m->is_default) {
+            return m;
+        }
+    }
+    return NULL;
+}
+
 /***********************************************************/
 /* main execution loop */
 
@@ -4876,7 +4888,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     module_call_init(MODULE_INIT_MACHINE);
-    machine = first_machine;
+    machine = find_default_machine();
     cpu_model = NULL;
     initrd_filename = NULL;
     ram_size = 0;
@@ -4967,7 +4979,7 @@ int main(int argc, char **argv, char **envp)
                     for(m = first_machine; m != NULL; m = m->next) {
                         printf("%-10s %s%s\n",
                                m->name, m->desc,
-                               m == first_machine ? " (default)" : "");
+                               m->is_default ? " (default)" : "");
                     }
                     exit(*optarg != '?');
                 }

@@ -16,11 +16,11 @@ typedef struct QEMUMachine {
     QEMUMachineInitFunc *init;
     int use_scsi;
     int max_cpus;
+    int is_default;
     struct QEMUMachine *next;
 } QEMUMachine;
 
 int qemu_register_machine(QEMUMachine *m);
-void register_machines(void);
 
 extern QEMUMachine *current_machine;
 
