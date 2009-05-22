@@ -25,6 +25,8 @@ typedef void (*i2c_event_cb)(i2c_slave *s, enum i2c_event event);
 typedef void (*i2c_slave_initfn)(i2c_slave *dev);
 
 typedef struct {
+    DeviceInfo qdev;
+
     /* Callbacks provided by the device.  */
     i2c_slave_initfn init;
     i2c_event_cb event;
@@ -39,11 +41,9 @@ struct i2c_slave
 
     /* Remaining fields for internal use by the I2C code.  */
     int address;
-    void *next;
-    i2c_bus *bus;
 };
 
-i2c_bus *i2c_init_bus(void);
+i2c_bus *i2c_init_bus(DeviceState *parent, const char *name);
 void i2c_set_slave_address(i2c_slave *dev, int address);
 int i2c_bus_busy(i2c_bus *bus);
 int i2c_start_transfer(i2c_bus *bus, int address, int recv);

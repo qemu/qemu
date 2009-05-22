@@ -297,8 +297,7 @@ static void pl022_init(SysBusDevice *dev)
                                        pl022_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
-    s->ssi = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi", s->ssi);
+    s->ssi = ssi_create_bus(&dev->qdev, "ssi");
     pl022_reset(s);
     register_savevm("pl022_ssp", -1, 1, pl022_save, pl022_load, s);
 }

@@ -174,7 +174,8 @@ PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     int mem, reg, iop;
 
     p = qemu_mallocz(sizeof(SHPCIC));
-    p->bus = pci_register_bus(set_irq, map_irq, pic, devfn_min, nirq);
+    p->bus = pci_register_bus(NULL, "pci",
+                              set_irq, map_irq, pic, devfn_min, nirq);
 
     p->dev = pci_register_device(p->bus, "SH PCIC", sizeof(PCIDevice),
                                  -1, NULL, NULL);

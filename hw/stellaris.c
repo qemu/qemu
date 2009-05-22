@@ -874,11 +874,11 @@ static int stellaris_i2c_load(QEMUFile *f, void *opaque, int version_id)
 static void stellaris_i2c_init(SysBusDevice * dev)
 {
     stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
-    i2c_bus *bus = i2c_init_bus();
+    i2c_bus *bus;
     int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
-    qdev_attach_child_bus(&dev->qdev, "i2c", bus);
+    bus = i2c_init_bus(&dev->qdev, "i2c");
     s->bus = bus;
 
     iomemtype = cpu_register_io_memory(0, stellaris_i2c_readfn,
@@ -1239,10 +1239,8 @@ static void stellaris_ssi_bus_init(SSISlave *dev)
 {
     stellaris_ssi_bus_state *s = FROM_SSI_SLAVE(stellaris_ssi_bus_state, dev);
 
-    s->bus[0] = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi0", s->bus[0]);
-    s->bus[1] = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi1", s->bus[1]);
+    s->bus[0] = ssi_create_bus(&dev->qdev, "ssi0");
+    s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
     qdev_init_gpio_in(&dev->qdev, stellaris_ssi_bus_select, 1);
 
     register_savevm("stellaris_ssi_bus", -1, 1,
@@ -1320,7 +1318,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     if (board->dc2 & (1 << 12)) {
         DeviceState *dev;
         dev = sysbus_create_simple("stellaris-i2c", 0x40020000, pic[8]);
-        i2c = qdev_get_child_bus(dev, "i2c");
+        i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
             i2c_create_slave(i2c, "ssd0303", 0x3d);
         }

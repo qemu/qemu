@@ -176,7 +176,8 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
     I440FXState *s;
 
     s = qemu_mallocz(sizeof(I440FXState));
-    b = pci_register_bus(piix3_set_irq, pci_slot_get_pirq, pic, 0, 4);
+    b = pci_register_bus(NULL, "pci", 
+                         piix3_set_irq, pci_slot_get_pirq, pic, 0, 4);
     s->bus = b;
 
     register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);

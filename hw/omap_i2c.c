@@ -433,7 +433,7 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
     s->irq = irq;
     s->drq[0] = dma[0];
     s->drq[1] = dma[1];
-    s->bus = i2c_init_bus();
+    s->bus = i2c_init_bus(NULL, "i2c");
     omap_i2c_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_i2c_readfn,
@@ -454,7 +454,7 @@ struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
     s->irq = irq;
     s->drq[0] = dma[0];
     s->drq[1] = dma[1];
-    s->bus = i2c_init_bus();
+    s->bus = i2c_init_bus(NULL, "i2c");
     omap_i2c_reset(s);
 
     iomemtype = l4_register_io_memory(0, omap_i2c_readfn,

@@ -183,7 +183,8 @@ int pci_device_load(PCIDevice *s, QEMUFile *f);
 
 typedef void (*pci_set_irq_fn)(qemu_irq *pic, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
-PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+PCIBus *pci_register_bus(DeviceState *parent, const char *name,
+                         pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq);
 
 PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
