@@ -2068,25 +2068,28 @@ static void pci_pcnet_init(PCIDevice *pci_dev)
 
 static void parent_lance_reset(void *opaque, int irq, int level)
 {
+    SysBusPCNetState *d = opaque;
     if (level)
-        pcnet_h_reset(opaque);
+        pcnet_h_reset(&d->state);
 }
 
 static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
+    SysBusPCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
     printf("lance_mem_writew addr=" TARGET_FMT_plx " val=0x%04x\n", addr,
            val & 0xffff);
 #endif
-    pcnet_ioport_writew(opaque, addr, val & 0xffff);
+    pcnet_ioport_writew(&d->state, addr, val & 0xffff);
 }
 
 static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
 {
+    SysBusPCNetState *d = opaque;
     uint32_t val;
 
-    val = pcnet_ioport_readw(opaque, addr);
+    val = pcnet_ioport_readw(&d->state, addr);
 #ifdef PCNET_DEBUG_IO
     printf("lance_mem_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
            val & 0xffff);
