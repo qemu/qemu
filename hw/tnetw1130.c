@@ -880,7 +880,7 @@ static void tnetw1130_init(pci_tnetw1130_t *d)
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
-    qemu_register_reset(nic_reset, d);
+    qemu_register_reset(nic_reset, 0, d);
 
     register_savevm("tnetw1130", tnetw1130_instance, tnetw1130_version,
                     tnetw1130_save, tnetw1130_load, d);

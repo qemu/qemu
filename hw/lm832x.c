@@ -501,7 +501,7 @@ static void lm8323_init(i2c_slave *i2c)
 
     lm_kbd_reset(s);
 
-    qemu_register_reset((void *) lm_kbd_reset, s);
+    qemu_register_reset((void *) lm_kbd_reset, 0, s);
     register_savevm("LM8323", -1, 0, lm_kbd_save, lm_kbd_load, s);
 }
 

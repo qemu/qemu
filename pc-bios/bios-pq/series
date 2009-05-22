@@ -13,3 +13,4 @@
 0013_fix-non-acpi-timer-interrupt-routing.patch
 0014_add-srat-acpi-table-support.patch
 0015_enable-power-button-even-generation.patch
+0016-use-correct-mask-to-size-pci-option-rom-bar.patch

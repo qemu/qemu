@@ -573,7 +573,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
             /* Set time-base frequency to 100 Mhz */
             cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         }
-        qemu_register_reset(&cpu_ppc_reset, env);
+        qemu_register_reset(&cpu_ppc_reset, 0, env);
         envs[i] = env;
     }
 

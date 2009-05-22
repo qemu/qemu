@@ -403,7 +403,7 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
         goto free;
     cpu_register_physical_memory(registers, PCI_REG_SIZE, index);
 
-    qemu_register_reset(ppc4xx_pci_reset, controller);
+    qemu_register_reset(ppc4xx_pci_reset, 0, controller);
 
     /* XXX load/save code not tested. */
     register_savevm("ppc4xx_pci", ppc4xx_pci_id++, 1,

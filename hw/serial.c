@@ -595,6 +595,8 @@ static int serial_can_receive(SerialState *s)
 static void serial_receive_break(SerialState *s)
 {
     s->rbr = 0;
+    /* When the LSR_DR is set a null byte is pushed into the fifo */
+    fifo_put(s, RECV_FIFO, '\0');
     s->lsr |= UART_LSR_BI | UART_LSR_DR;
     serial_update_irq(s);
 }
@@ -727,7 +729,7 @@ static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
     s->fifo_timeout_timer = qemu_new_timer(vm_clock, (QEMUTimerCB *) fifo_timeout_int, s);
     s->transmit_timer = qemu_new_timer(vm_clock, (QEMUTimerCB *) serial_xmit, s);
 
-    qemu_register_reset(serial_reset, s);
+    qemu_register_reset(serial_reset, 0, s);
     serial_reset(s);
 
     qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,

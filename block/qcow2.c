@@ -64,6 +64,9 @@
 
 #define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
 
+#define MIN_CLUSTER_BITS 9
+#define MAX_CLUSTER_BITS 16
+
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;
@@ -302,8 +305,8 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION)
         goto fail;
     if (header.size <= 1 ||
-        header.cluster_bits < 9 ||
-        header.cluster_bits > 16)
+        header.cluster_bits < MIN_CLUSTER_BITS ||
+        header.cluster_bits > MAX_CLUSTER_BITS)
         goto fail;
     if (header.crypt_method > QCOW_CRYPT_AES)
         goto fail;
@@ -1585,9 +1588,30 @@ static void create_refcount_update(QCowCreateState *s,
     }
 }
 
+static int get_bits_from_size(size_t size)
+{
+    int res = 0;
+
+    if (size == 0) {
+        return -1;
+    }
+
+    while (size != 1) {
+        /* Not a power of two */
+        if (size & 1) {
+            return -1;
+        }
+
+        size >>= 1;
+        res++;
+    }
+
+    return res;
+}
+
 static int qcow_create2(const char *filename, int64_t total_size,
                         const char *backing_file, const char *backing_format,
-                        int flags)
+                        int flags, size_t cluster_size)
 {
 
     int fd, header_size, backing_filename_len, l1_size, i, shift, l2_bits;
@@ -1621,8 +1645,20 @@ static int qcow_create2(const char *filename, int64_t total_size,
         header.backing_file_size = cpu_to_be32(backing_filename_len);
         header_size += backing_filename_len;
     }
-    s->cluster_bits = 12;  /* 4 KB clusters */
+
+    /* Cluster size */
+    s->cluster_bits = get_bits_from_size(cluster_size);
+    if (s->cluster_bits < MIN_CLUSTER_BITS ||
+        s->cluster_bits > MAX_CLUSTER_BITS)
+    {
+        fprintf(stderr, "Cluster size must be a power of two between "
+            "%d and %dk\n",
+            1 << MIN_CLUSTER_BITS,
+            1 << (MAX_CLUSTER_BITS - 10));
+        return -EINVAL;
+    }
     s->cluster_size = 1 << s->cluster_bits;
+
     header.cluster_bits = cpu_to_be32(s->cluster_bits);
     header_size = (header_size + 7) & ~7;
     if (flags & BLOCK_FLAG_ENCRYPT) {
@@ -1698,10 +1734,34 @@ static int qcow_create2(const char *filename, int64_t total_size,
     return 0;
 }
 
-static int qcow_create(const char *filename, int64_t total_size,
-                       const char *backing_file, int flags)
+static int qcow_create(const char *filename, QEMUOptionParameter *options)
 {
-    return qcow_create2(filename, total_size, backing_file, NULL, flags);
+    const char *backing_file = NULL;
+    const char *backing_fmt = NULL;
+    uint64_t sectors = 0;
+    int flags = 0;
+    size_t cluster_size = 4096;
+
+    /* Read out options */
+    while (options && options->name) {
+        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
+            sectors = options->value.n / 512;
+        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
+            backing_file = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FMT)) {
+            backing_fmt = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_ENCRYPT)) {
+            flags |= options->value.n ? BLOCK_FLAG_ENCRYPT : 0;
+        } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
+            if (options->value.n) {
+                cluster_size = options->value.n;
+            }
+        }
+        options++;
+    }
+
+    return qcow_create2(filename, sectors, backing_file, backing_fmt, flags,
+        cluster_size);
 }
 
 static int qcow_make_empty(BlockDriverState *bs)
@@ -2899,6 +2959,15 @@ static int qcow_get_buffer(BlockDriverState *bs, uint8_t *buf,
     return ret;
 }
 
+static QEMUOptionParameter qcow_create_options[] = {
+    { BLOCK_OPT_SIZE,           OPT_SIZE },
+    { BLOCK_OPT_BACKING_FILE,   OPT_STRING },
+    { BLOCK_OPT_BACKING_FMT,    OPT_STRING },
+    { BLOCK_OPT_ENCRYPT,        OPT_FLAG },
+    { BLOCK_OPT_CLUSTER_SIZE,   OPT_SIZE },
+    { NULL }
+};
+
 static BlockDriver bdrv_qcow2 = {
     .format_name	= "qcow2",
     .instance_size	= sizeof(BDRVQcowState),
@@ -2926,7 +2995,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_put_buffer    = qcow_put_buffer,
     .bdrv_get_buffer    = qcow_get_buffer,
 
-    .bdrv_create2 = qcow_create2,
+    .create_options = qcow_create_options,
     .bdrv_check = qcow_check,
 };
 

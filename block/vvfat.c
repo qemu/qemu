@@ -2777,8 +2777,8 @@ static int enable_write_target(BDRVVVFATState *s)
 
     s->qcow_filename = qemu_malloc(1024);
     get_tmp_filename(s->qcow_filename, 1024);
-    if (bdrv_create(bdrv_find_format("qcow"),
-		s->qcow_filename, s->sector_count, "fat:", 0) < 0)
+    if (bdrv_create2(bdrv_find_format("qcow"),
+		s->qcow_filename, s->sector_count, "fat:", NULL, 0) < 0)
 	return -1;
     s->qcow = bdrv_new("");
     if (s->qcow == NULL || bdrv_open(s->qcow, s->qcow_filename, 0) < 0)

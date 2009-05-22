@@ -256,7 +256,7 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
     cpu_register_physical_memory(daddr, DMA_SIZE, dma_io_memory);
 
     register_savevm("sparc32_dma", daddr, 2, dma_save, dma_load, s);
-    qemu_register_reset(dma_reset, s);
+    qemu_register_reset(dma_reset, 0, s);
     *dev_irq = qemu_allocate_irqs(dma_set_irq, s, 1);
 
     *reset = &s->dev_reset;

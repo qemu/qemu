@@ -334,7 +334,7 @@ void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
                                      ecc_io_memory);
     }
     register_savevm("ECC", base, 3, ecc_save, ecc_load, s);
-    qemu_register_reset(ecc_reset, s);
+    qemu_register_reset(ecc_reset, 0, s);
     ecc_reset(s);
     return s;
 }

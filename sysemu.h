@@ -28,6 +28,10 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_start(void);
 void vm_stop(int reason);
 
+uint64_t ram_bytes_remaining(void);
+uint64_t ram_bytes_transferred(void);
+uint64_t ram_bytes_total(void);
+
 int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);
 void cpu_disable_ticks(void);
@@ -86,6 +90,15 @@ int tap_win32_init(VLANState *vlan, const char *model,
 /* SLIRP */
 void do_info_slirp(Monitor *mon);
 
+typedef enum DisplayType
+{
+    DT_DEFAULT,
+    DT_CURSES,
+    DT_SDL,
+    DT_VNC,
+    DT_NOGRAPHIC,
+} DisplayType;
+
 extern int bios_size;
 extern int cirrus_vga_enabled;
 extern int std_vga_enabled;
@@ -94,7 +107,7 @@ extern int xenfb_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
-extern int nographic;
+extern DisplayType display_type;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int rtc_td_hack;
@@ -252,8 +265,6 @@ void do_usb_add(Monitor *mon, const char *devname);
 void do_usb_del(Monitor *mon, const char *devname);
 void usb_info(Monitor *mon);
 
-const char *get_opt_name(char *buf, int buf_size, const char *p, char delim);
-const char *get_opt_value(char *buf, int buf_size, const char *p);
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
 int check_params(const char * const *params, const char *str);

@@ -4797,7 +4797,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     omap_setup_dsp_mapping(omap15xx_dsp_mm);
     omap_setup_mpui_io(s);
 
-    qemu_register_reset(omap1_mpu_reset, s);
+    qemu_register_reset(omap1_mpu_reset, 0, s);
 
     return s;
 }

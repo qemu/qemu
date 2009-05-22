@@ -1249,7 +1249,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     opp->need_swap = 1;
 
     register_savevm("openpic", 0, 2, openpic_save, openpic_load, opp);
-    qemu_register_reset(openpic_reset, opp);
+    qemu_register_reset(openpic_reset, 0, opp);
 
     opp->irq_raise = openpic_irq_raise;
     opp->reset = openpic_reset;
@@ -1709,7 +1709,7 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     mpp->reset = mpic_reset;
 
     register_savevm("mpic", 0, 2, openpic_save, openpic_load, mpp);
-    qemu_register_reset(mpic_reset, mpp);
+    qemu_register_reset(mpic_reset, 0, mpp);
     mpp->reset(mpp);
 
     return qemu_allocate_irqs(openpic_set_irq, mpp, mpp->max_irq);

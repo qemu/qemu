@@ -839,7 +839,7 @@ void* DBDMA_init (int *dbdma_mem_index)
 
     *dbdma_mem_index = cpu_register_io_memory(0, dbdma_read, dbdma_write, s);
     register_savevm("dbdma", -1, 1, dbdma_save, dbdma_load, s);
-    qemu_register_reset(dbdma_reset, s);
+    qemu_register_reset(dbdma_reset, 0, s);
     dbdma_reset(s);
 
     dbdma_bh = qemu_bh_new(DBDMA_run_bh, s);

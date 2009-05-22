@@ -550,7 +550,7 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     s->smbus = i2c_init_bus();
     s->irq = sci_irq;
-    qemu_register_reset(piix4_reset, s);
+    qemu_register_reset(piix4_reset, 0, s);
 
     return s->smbus;
 }

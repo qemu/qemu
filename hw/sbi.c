@@ -155,7 +155,7 @@ void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
     cpu_register_physical_memory(addr, SBI_SIZE, sbi_io_memory);
 
     register_savevm("sbi", addr, 1, sbi_save, sbi_load, s);
-    qemu_register_reset(sbi_reset, s);
+    qemu_register_reset(sbi_reset, 0, s);
     *irq = qemu_allocate_irqs(sbi_set_irq, s, 32);
     *cpu_irq = qemu_allocate_irqs(sbi_set_timer_irq_cpu, s, MAX_CPUS);
     sbi_reset(s);

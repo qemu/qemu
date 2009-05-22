@@ -1,0 +1,33 @@
+Subject: [PATCH] bios: Use the correct mask to size the PCI option ROM BAR
+From:	Alex Williamson <alex.williamson@hp.com>
+
+Bit 0 is the enable bit, which we not only don't want to set, but
+it will stick and make us think it's an I/O port resource.
+
+Signed-off-by: Alex Williamson <alex.williamson@hp.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+---
+
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index d7e18e9..f861f81 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -985,11 +985,13 @@ static void pci_bios_init_device(PCIDevice *d)
+             int ofs;
+             uint32_t val, size ;
+ 
+-            if (i == PCI_ROM_SLOT)
++            if (i == PCI_ROM_SLOT) {
+                 ofs = 0x30;
+-            else
++                pci_config_writel(d, ofs, 0xfffffffe);
++            } else {
+                 ofs = 0x10 + i * 4;
+-            pci_config_writel(d, ofs, 0xffffffff);
++                pci_config_writel(d, ofs, 0xffffffff);
++            }
+             val = pci_config_readl(d, ofs);
+             if (val != 0) {
+                 size = (~(val & ~0xf)) + 1;
+
+

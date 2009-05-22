@@ -1883,7 +1883,7 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
     }
     fdctrl_external_reset(fdctrl);
     register_savevm("fdc", io_base, 2, fdc_save, fdc_load, fdctrl);
-    qemu_register_reset(fdctrl_external_reset, fdctrl);
+    qemu_register_reset(fdctrl_external_reset, 0, fdctrl);
     for (i = 0; i < MAX_FD; i++) {
         fd_revalidate(&fdctrl->drives[i]);
     }

@@ -17,7 +17,6 @@
 #include "hw.h"
 #include "console.h"
 #include "framebuffer.h"
-#include "kvm.h"
 
 /* Render an image from a shared memory framebuffer.  */
    
@@ -50,9 +49,7 @@ void framebuffer_update_display(
     *first_row = -1;
     src_len = src_width * rows;
 
-    if (kvm_enabled()) {
-        kvm_physical_sync_dirty_bitmap(base, src_len);
-    }
+    cpu_physical_sync_dirty_bitmap(base, base + src_len);
     pd = cpu_get_physical_page_desc(base);
     pd2 = cpu_get_physical_page_desc(base + src_len - 1);
     /* We should reall check that this is a continuous ram region.

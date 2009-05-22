@@ -175,6 +175,6 @@ void cs_init(target_phys_addr_t base, int irq, void *intctl)
     cs_io_memory = cpu_register_io_memory(0, cs_mem_read, cs_mem_write, s);
     cpu_register_physical_memory(base, CS_SIZE, cs_io_memory);
     register_savevm("cs4231", base, 1, cs_save, cs_load, s);
-    qemu_register_reset(cs_reset, s);
+    qemu_register_reset(cs_reset, 0, s);
     cs_reset(s);
 }

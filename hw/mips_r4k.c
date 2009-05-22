@@ -181,7 +181,7 @@ static void mips_init(ram_addr_t ram_size,
     fprintf(stderr, "%s: setting %s endian mode\n",
             __func__, bigendian ? "big" : "little");
 
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
 
     /* allocate RAM */
     if (ram_size > (256 << 20)) {
