@@ -3231,7 +3231,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
 
-    if (cpu_physical_sync_dirty_bitmap(0, last_ram_offset) != 0) {
+    if (cpu_physical_sync_dirty_bitmap(0, TARGET_PHYS_ADDR_MAX) != 0) {
         qemu_file_set_error(f);
         return 0;
     }
