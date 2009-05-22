@@ -3617,7 +3617,7 @@ static void ar7_init(CPUState * env)
     //~ }
 #define ar7_instance 0
 #define ar7_version 0
-    qemu_register_reset(ar7_reset, env);
+    qemu_register_reset(ar7_reset, 0, env);
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
@@ -3792,7 +3792,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         exit(1);
     }
 
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
     ar7_mips_init(env);
 
     loaderparams.ram_size = machine_ram_size;

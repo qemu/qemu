@@ -84,6 +84,7 @@ void do_migrate_set_speed(Monitor *mon, const char *value)
 {
     double d;
     char *ptr;
+    FdMigrationState *s;
 
     d = strtod(value, &ptr);
     switch (*ptr) {
@@ -98,6 +99,12 @@ void do_migrate_set_speed(Monitor *mon, const char *value)
     }
 
     max_throttle = (uint32_t)d;
+    s = migrate_to_fms(current_migration);
+
+    if (s) {
+        qemu_file_set_rate_limit(s->file, max_throttle);
+    }
+    
 }
 
 void do_info_migrate(Monitor *mon)
@@ -109,6 +116,9 @@ void do_info_migrate(Monitor *mon)
         switch (s->get_status(s)) {
         case MIG_STATE_ACTIVE:
             monitor_printf(mon, "active\n");
+            monitor_printf(mon, "transferred ram: %" PRIu64 " kbytes\n", ram_bytes_transferred() >> 10);
+            monitor_printf(mon, "remaining ram: %" PRIu64 " kbytes\n", ram_bytes_remaining() >> 10);
+            monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n", ram_bytes_total() >> 10);
             break;
         case MIG_STATE_COMPLETED:
             monitor_printf(mon, "completed\n");

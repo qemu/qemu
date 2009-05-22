@@ -742,7 +742,7 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
         pfl->cfi_table[0x30] = sector_len >> 16;
     }
 
-    qemu_register_reset(flash_reset, pfl);
+    qemu_register_reset(flash_reset, 0, pfl);
 
     return pfl;
 }

@@ -1143,7 +1143,7 @@ uWireSlave *tsc2102_init(qemu_irq pint)
 
     AUD_register_card(s->name, &s->card);
 
-    qemu_register_reset((void *) tsc210x_reset, s);
+    qemu_register_reset((void *) tsc210x_reset, 0, s);
     register_savevm(s->name, -1, 0,
                     tsc210x_save, tsc210x_load, s);
 
@@ -1194,7 +1194,7 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav)
 
     AUD_register_card(s->name, &s->card);
 
-    qemu_register_reset((void *) tsc210x_reset, s);
+    qemu_register_reset((void *) tsc210x_reset, 0, s);
     register_savevm(s->name, -1, 0, tsc210x_save, tsc210x_load, s);
 
     return &s->chip;

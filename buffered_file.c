@@ -198,6 +198,19 @@ static int buffered_rate_limit(void *opaque)
     return 0;
 }
 
+static size_t buffered_set_rate_limit(void *opaque, size_t new_rate)
+{
+    QEMUFileBuffered *s = opaque;
+
+    if (s->has_error)
+        goto out;
+
+    s->xfer_limit = new_rate / 10;
+    
+out:
+    return s->xfer_limit;
+}
+
 static void buffered_rate_tick(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
@@ -237,7 +250,8 @@ QEMUFile *qemu_fopen_ops_buffered(void *opaque,
     s->close = close;
 
     s->file = qemu_fopen_ops(s, buffered_put_buffer, NULL,
-                             buffered_close, buffered_rate_limit);
+                             buffered_close, buffered_rate_limit,
+                             buffered_set_rate_limit);
 
     s->timer = qemu_new_timer(rt_clock, buffered_rate_tick, s);
 

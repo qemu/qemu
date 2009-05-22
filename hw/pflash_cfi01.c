@@ -636,7 +636,7 @@ pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
 
 #define flash_instance 0
 #define flash_version 0
-    qemu_register_reset(flash_reset, pfl);
+    qemu_register_reset(flash_reset, 0, pfl);
     register_savevm("flash", flash_instance, flash_version, flash_save, flash_load, pfl);
 
     return pfl;

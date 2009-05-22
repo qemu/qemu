@@ -3330,7 +3330,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
 
     register_savevm("ide", 0, 2, pci_ide_save, pci_ide_load, d);
-    qemu_register_reset(cmd646_reset, d);
+    qemu_register_reset(cmd646_reset, 0, d);
     cmd646_reset(d);
 }
 
@@ -3373,7 +3373,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
-    qemu_register_reset(piix3_reset, d);
+    qemu_register_reset(piix3_reset, 0, d);
     piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10,
@@ -3413,7 +3413,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
-    qemu_register_reset(piix3_reset, d);
+    qemu_register_reset(piix3_reset, 0, d);
     piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10,
@@ -3754,7 +3754,7 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, d);
     register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, d);
-    qemu_register_reset(pmac_ide_reset, d);
+    qemu_register_reset(pmac_ide_reset, 0, d);
     pmac_ide_reset(d);
 
     return pmac_ide_memory;

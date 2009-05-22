@@ -255,7 +255,7 @@ IOAPICState *ioapic_init(void)
     cpu_register_physical_memory(0xfec00000, 0x1000, io_memory);
 
     register_savevm("ioapic", 0, 1, ioapic_save, ioapic_load, s);
-    qemu_register_reset(ioapic_reset, s);
+    qemu_register_reset(ioapic_reset, 0, s);
 
     return s;
 }

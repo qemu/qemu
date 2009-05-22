@@ -23,9 +23,6 @@ OBJS+= nand.o ecc.o
 
 OBJS+= m48t59.o escc.o
 
-# PC style devices
-OBJS+= fdc.o 
-
 # SCSI layer
 OBJS+= lsi53c895a.o esp.o
 

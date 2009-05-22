@@ -892,7 +892,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
                                  nic_receive, nic_can_receive, nic_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, nd->macaddr);
-    qemu_register_reset(nic_reset, s);
+    qemu_register_reset(nic_reset, 0, s);
     nic_reset(s);
 
     s->mmio_index = cpu_register_io_memory(0, dp8393x_read, dp8393x_write, s);

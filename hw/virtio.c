@@ -636,7 +636,8 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
     else
         vdev->config = NULL;
 
-    qemu_register_reset(virtio_reset, vdev);
+    qemu_register_reset(virtio_reset, 0, vdev);
+
     return vdev;
 }
 

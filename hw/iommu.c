@@ -380,7 +380,7 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
 
     register_savevm("iommu", addr, 2, iommu_save, iommu_load, s);
-    qemu_register_reset(iommu_reset, s);
+    qemu_register_reset(iommu_reset, 0, s);
     iommu_reset(s);
     return s;
 }

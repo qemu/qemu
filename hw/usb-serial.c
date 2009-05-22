@@ -445,7 +445,15 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
         }
         *data++ = usb_get_modem_lines(s) | 1;
         /* We do not have the uart details */
-        *data++ = 0;
+        /* handle serial break */
+        if (s->event_trigger && s->event_trigger & FTDI_BI) {
+            s->event_trigger &= ~FTDI_BI;
+            *data++ = FTDI_BI;
+            ret = 2;
+            break;
+        } else {
+            *data++ = 0;
+        }
         len -= 2;
         if (len > s->recv_used)
             len = s->recv_used;
@@ -505,7 +513,7 @@ static void usb_serial_event(void *opaque, int event)
 
     switch (event) {
         case CHR_EVENT_BREAK:
-            /* TODO: Send Break to USB */
+            s->event_trigger |= FTDI_BI;
             break;
         case CHR_EVENT_FOCUS:
             break;

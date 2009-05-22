@@ -271,7 +271,7 @@ void axisdev88_init (ram_addr_t ram_size,
         cpu_model = "crisv32";
     }
     env = cpu_init(cpu_model);
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
 
     /* allocate RAM */
     phys_ram = qemu_ram_alloc(ram_size);

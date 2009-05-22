@@ -16,6 +16,7 @@ typedef struct QEMUMachine {
     QEMUMachineInitFunc *init;
     int use_scsi;
     int max_cpus;
+    int is_default;
     struct QEMUMachine *next;
 } QEMUMachine;
 

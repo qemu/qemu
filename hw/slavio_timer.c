@@ -391,7 +391,7 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
                                      slavio_timer_io_memory);
     register_savevm("slavio_timer", addr, 3, slavio_timer_save,
                     slavio_timer_load, s);
-    qemu_register_reset(slavio_timer_reset, s);
+    qemu_register_reset(slavio_timer_reset, 0, s);
     slavio_timer_reset(s);
 
     return s;

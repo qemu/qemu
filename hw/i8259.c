@@ -508,7 +508,7 @@ static void pic_init1(int io_addr, int elcr_addr, PicState *s)
         register_ioport_read(elcr_addr, 1, 1, elcr_ioport_read, s);
     }
     register_savevm("i8259", io_addr, 1, pic_save, pic_load, s);
-    qemu_register_reset(pic_reset, s);
+    qemu_register_reset(pic_reset, 0, s);
 }
 
 void pic_info(Monitor *mon)

@@ -1695,7 +1695,7 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
     }
 
     ohci->async_td = 0;
-    qemu_register_reset(ohci_reset, ohci);
+    qemu_register_reset(ohci_reset, 0, ohci);
     ohci_reset(ohci);
 }
 

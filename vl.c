@@ -160,6 +160,7 @@ int main(int argc, char **argv)
 #include "migration.h"
 #include "kvm.h"
 #include "balloon.h"
+#include "qemu-option.h"
 
 #include "disas.h"
 
@@ -210,9 +211,7 @@ DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
-int nographic;
-static int curses;
-static int sdl = 1;
+DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 ram_addr_t ram_size;
@@ -1818,43 +1817,6 @@ static int socket_init(void)
 }
 #endif
 
-const char *get_opt_name(char *buf, int buf_size, const char *p, char delim)
-{
-    char *q;
-
-    q = buf;
-    while (*p != '\0' && *p != delim) {
-        if (q && (q - buf) < buf_size - 1)
-            *q++ = *p;
-        p++;
-    }
-    if (q)
-        *q = '\0';
-
-    return p;
-}
-
-const char *get_opt_value(char *buf, int buf_size, const char *p)
-{
-    char *q;
-
-    q = buf;
-    while (*p != '\0') {
-        if (*p == ',') {
-            if (*(p + 1) != ',')
-                break;
-            p++;
-        }
-        if (q && (q - buf) < buf_size - 1)
-            *q++ = *p;
-        p++;
-    }
-    if (q)
-        *q = '\0';
-
-    return p;
-}
-
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str)
 {
@@ -3246,6 +3208,7 @@ static int ram_save_block(QEMUFile *f)
 }
 
 static ram_addr_t ram_save_threshold = 10;
+static uint64_t bytes_transferred = 0;
 
 static ram_addr_t ram_save_remaining(void)
 {
@@ -3260,9 +3223,29 @@ static ram_addr_t ram_save_remaining(void)
     return count;
 }
 
+uint64_t ram_bytes_remaining(void)
+{
+    return ram_save_remaining() * TARGET_PAGE_SIZE;
+}
+
+uint64_t ram_bytes_transferred(void)
+{
+    return bytes_transferred;
+}
+
+uint64_t ram_bytes_total(void)
+{
+    return last_ram_offset;
+}
+
 static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
+
+    if (cpu_physical_sync_dirty_bitmap(0, last_ram_offset) != 0) {
+        qemu_file_set_error(f);
+        return 0;
+    }
 
     if (stage == 1) {
         /* Make sure all dirty bits are set */
@@ -3270,7 +3253,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
             if (!cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG))
                 cpu_physical_memory_set_dirty(addr);
         }
-        
+
         /* Enable dirty memory tracking */
         cpu_physical_memory_set_dirty_tracking(1);
 
@@ -3281,6 +3264,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
         int ret;
 
         ret = ram_save_block(f);
+        bytes_transferred += ret * TARGET_PAGE_SIZE;
         if (ret == 0) /* no more blocks */
             break;
     }
@@ -3290,7 +3274,9 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
     if (stage == 3) {
 
         /* flush all remaining blocks regardless of rate limiting */
-        while (ram_save_block(f) != 0);
+        while (ram_save_block(f) != 0) {
+            bytes_transferred += TARGET_PAGE_SIZE;
+        }
         cpu_physical_memory_set_dirty_tracking(0);
     }
 
@@ -3518,6 +3504,18 @@ static QEMUMachine *find_machine(const char *name)
     return NULL;
 }
 
+static QEMUMachine *find_default_machine(void)
+{
+    QEMUMachine *m;
+
+    for(m = first_machine; m != NULL; m = m->next) {
+        if (m->is_default) {
+            return m;
+        }
+    }
+    return NULL;
+}
+
 /***********************************************************/
 /* main execution loop */
 
@@ -3600,6 +3598,7 @@ void vm_start(void)
 typedef struct QEMUResetEntry {
     QEMUResetHandler *func;
     void *opaque;
+    int order;
     struct QEMUResetEntry *next;
 } QEMUResetEntry;
 
@@ -3655,16 +3654,18 @@ static void do_vm_stop(int reason)
     }
 }
 
-void qemu_register_reset(QEMUResetHandler *func, void *opaque)
+void qemu_register_reset(QEMUResetHandler *func, int order, void *opaque)
 {
     QEMUResetEntry **pre, *re;
 
     pre = &first_reset_entry;
-    while (*pre != NULL)
+    while (*pre != NULL && (*pre)->order >= order) {
         pre = &(*pre)->next;
+    }
     re = qemu_mallocz(sizeof(QEMUResetEntry));
     re->func = func;
     re->opaque = opaque;
+    re->order = order;
     re->next = NULL;
     *pre = re;
 }
@@ -3677,8 +3678,6 @@ void qemu_system_reset(void)
     for(re = first_reset_entry; re != NULL; re = re->next) {
         re->func(re->opaque);
     }
-    if (kvm_enabled())
-        kvm_sync_vcpus();
 }
 
 void qemu_system_reset_request(void)
@@ -4900,6 +4899,7 @@ int main(int argc, char **argv, char **envp)
     const char *run_as = NULL;
 #endif
     CPUState *env;
+    int show_vnc_port = 0;
 
     qemu_cache_utils_init(envp);
 
@@ -4951,13 +4951,12 @@ int main(int argc, char **argv, char **envp)
     }
     if (!machine) {
         machine = first_machine;
+        machine = find_default_machine();
     }
     cpu_model = NULL;
     initrd_filename = NULL;
     ram_size = 0;
     snapshot = 0;
-    nographic = 0;
-    curses = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
     cyls = heads = secs = 0;
@@ -5044,7 +5043,7 @@ int main(int argc, char **argv, char **envp)
                     for(m = first_machine; m != NULL; m = m->next) {
                         printf("%-10s %s%s\n",
                                m->name, m->desc,
-                               m == first_machine ? " (default)" : "");
+                               m->is_default ? " (default)" : "");
                     }
                     exit(*optarg != '?');
                 }
@@ -5151,11 +5150,11 @@ int main(int argc, char **argv, char **envp)
                 numa_add(optarg);
                 break;
             case QEMU_OPTION_nographic:
-                nographic = 1;
+                display_type = DT_NOGRAPHIC;
                 break;
 #ifdef CONFIG_CURSES
             case QEMU_OPTION_curses:
-                curses = 1;
+                display_type = DT_CURSES;
                 break;
 #endif
             case QEMU_OPTION_portrait:
@@ -5434,7 +5433,7 @@ int main(int argc, char **argv, char **envp)
                 no_quit = 1;
                 break;
             case QEMU_OPTION_sdl:
-                sdl = 1;
+                display_type = DT_SDL;
                 break;
 #endif
             case QEMU_OPTION_pidfile:
@@ -5496,6 +5495,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 	    case QEMU_OPTION_vnc:
+                display_type = DT_VNC;
 		vnc_display = optarg;
 		break;
 #ifdef TARGET_I386
@@ -5654,7 +5654,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (nographic) {
+    if (display_type == DT_NOGRAPHIC) {
        if (serial_device_index == 0)
            serial_devices[0] = "stdio";
        if (parallel_device_index == 0)
@@ -6022,44 +6022,46 @@ int main(int argc, char **argv, char **envp)
         dumb_display_init();
     /* just use the first displaystate for the moment */
     ds = display_state;
-    /* terminal init */
-    if (nographic) {
-        if (curses) {
-            fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
-            exit(1);
-        }
-    } else { 
-#if defined(CONFIG_CURSES)
-        if (curses) {
-            /* At the moment curses cannot be used with other displays */
-            curses_display_init(ds, full_screen);
-        } else
-#endif
+
+    if (display_type == DT_DEFAULT) {
 #if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
-        if (sdl) {
+        display_type = DT_SDL;
+#else
+        display_type = DT_VNC;
+        vnc_display = "localhost:0,to=99";
+        show_vnc_port = 1;
+#endif
+    }
+        
+
+    switch (display_type) {
+    case DT_NOGRAPHIC:
+        break;
+#if defined(CONFIG_CURSES)
+    case DT_CURSES:
+        curses_display_init(ds, full_screen);
+        break;
+#endif
 #if defined(CONFIG_SDL)
-            sdl_display_init(ds, full_screen, no_frame);
+    case DT_SDL:
+        sdl_display_init(ds, full_screen, no_frame);
+        break;
 #elif defined(CONFIG_COCOA)
-            cocoa_display_init(ds, full_screen);
+    case DT_SDL:
+        cocoa_display_init(ds, full_screen);
+        break;
 #endif
-        } else
-#endif
-        {
-            int print_port = 0;
+    case DT_VNC:
+        vnc_display_init(ds);
+        if (vnc_display_open(ds, vnc_display) < 0)
+            exit(1);
 
-            if (vnc_display == NULL) {
-                vnc_display = "localhost:0,to=99";
-                print_port = 1;
-            }
-
-            vnc_display_init(ds);
-            if (vnc_display_open(ds, vnc_display) < 0)
-                exit(1);
-
-            if (print_port) {
-                printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
-            }
+        if (show_vnc_port) {
+            printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
         }
+        break;
+    default:
+        break;
     }
     dpy_resize(ds);
 
@@ -6072,7 +6074,7 @@ int main(int argc, char **argv, char **envp)
         dcl = dcl->next;
     }
 
-    if (nographic || (vnc_display && !sdl)) {
+    if (display_type == DT_NOGRAPHIC || display_type == DT_VNC) {
         nographic_timer = qemu_new_timer(rt_clock, nographic_update, NULL);
         qemu_mod_timer(nographic_timer, qemu_get_clock(rt_clock));
     }

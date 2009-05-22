@@ -4868,7 +4868,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
      * GPMC registers	6800a000   6800afff
      */
 
-    qemu_register_reset(omap2_mpu_reset, s);
+    qemu_register_reset(omap2_mpu_reset, 0, s);
 
     return s;
 }

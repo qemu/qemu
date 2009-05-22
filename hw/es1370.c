@@ -1055,7 +1055,7 @@ int es1370_init (PCIBus *bus)
 
     pci_register_io_region (&d->dev, 0, 256, PCI_ADDRESS_SPACE_IO, es1370_map);
     register_savevm ("es1370", 0, 2, es1370_save, es1370_load, s);
-    qemu_register_reset (es1370_on_reset, s);
+    qemu_register_reset (es1370_on_reset, 0, s);
 
     AUD_register_card ("es1370", &s->card);
     es1370_reset (s);

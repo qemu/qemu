@@ -128,7 +128,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
 #if 0
         env->osi_call = vga_osi_call;
 #endif
-        qemu_register_reset(&cpu_ppc_reset, env);
+        qemu_register_reset(&cpu_ppc_reset, 0, env);
         envs[i] = env;
     }
 

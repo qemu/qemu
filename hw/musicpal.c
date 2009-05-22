@@ -441,7 +441,7 @@ static i2c_interface *musicpal_audio_init(qemu_irq irq)
                        musicpal_audio_writefn, s);
     cpu_register_physical_memory(MP_AUDIO_BASE, MP_AUDIO_SIZE, iomemtype);
 
-    qemu_register_reset(musicpal_audio_reset, s);
+    qemu_register_reset(musicpal_audio_reset, 0, s);
 
     return i2c;
 }
@@ -1046,7 +1046,7 @@ static void mv88w8618_pic_init(SysBusDevice *dev)
                                        mv88w8618_pic_writefn, s);
     sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
 
-    qemu_register_reset(mv88w8618_pic_reset, s);
+    qemu_register_reset(mv88w8618_pic_reset, 0, s);
 }
 
 /* PIT register offsets */

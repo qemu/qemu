@@ -381,7 +381,7 @@ void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base)
 #ifdef TARGET_I386
     vmmouse_init(s->mouse);
 #endif
-    qemu_register_reset(kbd_reset, s);
+    qemu_register_reset(kbd_reset, 0, s);
 }
 
 /* Memory mapped interface */
@@ -438,5 +438,5 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 #ifdef TARGET_I386
     vmmouse_init(s->mouse);
 #endif
-    qemu_register_reset(kbd_reset, s);
+    qemu_register_reset(kbd_reset, 0, s);
 }

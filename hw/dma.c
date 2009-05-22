@@ -493,7 +493,7 @@ static void dma_init2(struct dma_cont *d, int base, int dshift,
         register_ioport_read (base + ((i + 8) << dshift), 1, 1,
                               read_cont, d);
     }
-    qemu_register_reset(dma_reset, d);
+    qemu_register_reset(dma_reset, 0, d);
     dma_reset(d);
     for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
         d->regs[i].transfer_handler = dma_phony_handler;

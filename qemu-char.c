@@ -571,7 +571,7 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in >= 0) {
-        if (nographic && s->fd_in == 0) {
+        if (display_type == DT_NOGRAPHIC && s->fd_in == 0) {
         } else {
             qemu_set_fd_handler2(s->fd_in, fd_chr_read_poll,
                                  fd_chr_read, NULL, chr);
@@ -584,7 +584,7 @@ static void fd_chr_close(struct CharDriverState *chr)
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in >= 0) {
-        if (nographic && s->fd_in == 0) {
+        if (display_type == DT_NOGRAPHIC && s->fd_in == 0) {
         } else {
             qemu_set_fd_handler2(s->fd_in, NULL, NULL, NULL, NULL);
         }
@@ -714,7 +714,7 @@ static void term_init(void)
     tty.c_oflag |= OPOST;
     tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
     /* if graphical mode, we allow Ctrl-C handling */
-    if (nographic)
+    if (display_type == DT_NOGRAPHIC)
         tty.c_lflag &= ~ISIG;
     tty.c_cflag &= ~(CSIZE|PARENB);
     tty.c_cflag |= CS8;
