@@ -709,8 +709,8 @@ endif
 
 vl.o: qemu-options.h
 
-$(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) libqemu.a $(HWLIB)
-$(QEMU_PROG): ARLIBS=../libqemu_common.a
+$(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
+$(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a $(HWLIB)
 	$(call LINK,$(OBJS))
 
