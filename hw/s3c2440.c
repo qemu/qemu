@@ -13,8 +13,13 @@
 #include "s3c2440.h"
 
 /* Integrated peripherals */
+
+/* SRAM */
 #define CPU_S3C2440_SRAM_BASE (CPU_S3C2440_PERIPHERAL + 0x00000000)
 #define CPU_S3C2440_SRAM_SIZE 4096
+
+/* Memory control */
+#define CPU_S3C2440_MEMC_BASE (CPU_S3C2440_PERIPHERAL + 0x8000000)
 
 
 /* Initialise a Samsung S3C2440 SOC ARM core and internal peripherals. */
@@ -38,6 +43,9 @@ s3c2440_init(int sdram_size)
     cpu_register_physical_memory(CPU_S3C2440_SRAM_BASE,
                                  CPU_S3C2440_SRAM_SIZE,
                                  offset | IO_MEM_RAM);
+
+    /* SDRAM memory controller */
+    s->memc = s3c24xx_memc_init(CPU_S3C2440_MEMC_BASE);
 
     return s;
 }

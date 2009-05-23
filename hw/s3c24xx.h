@@ -14,6 +14,14 @@
 /* This structure type encapsulates the state of a S3C24XX SoC. */
 typedef struct S3CState_s {
     CPUState *cpu_env;
+
+    /* Memory controller state */
+    struct s3c24xx_memc_state_s *memc;
+
 } S3CState;
+
+
+/* initialise memory controller peripheral */
+struct s3c24xx_memc_state_s *s3c24xx_memc_init(target_phys_addr_t base_addr);
 
 #endif /* S3C24XX_H */
