@@ -118,7 +118,7 @@ s3c2410x_init(int sdram_size)
     s->nand = s3c24xx_nand_init(CPU_S3C2410X_NAND_BASE);
 
     /* A two port OHCI controller */
-    usb_ohci_init_pxa(CPU_S3C2410X_OHCI_BASE, 2, -1, s3c24xx_get_irq(s->irq, 26));
+    //~ usb_ohci_init_pxa(CPU_S3C2410X_OHCI_BASE, 2, -1, s3c24xx_get_irq(s->irq, 26));
 
     return s;
 }
