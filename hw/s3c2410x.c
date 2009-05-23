@@ -24,6 +24,9 @@
 /* Interrupt controller */
 #define CPU_S3C2410X_IRQ_BASE (CPU_S3C2410X_PERIPHERAL + 0xA000000)
 
+/* Clock control */
+#define CPU_S3C2410X_CLKCON_BASE (CPU_S3C2410X_PERIPHERAL + 0xC000000)
+
 /* Initialise a Samsung S3C2410X SOC ARM core and internal peripherals. */
 S3CState *
 s3c2410x_init(int sdram_size)
@@ -51,6 +54,9 @@ s3c2410x_init(int sdram_size)
 
     /* Interrupt controller */
     s->irq = s3c24xx_irq_init(s, CPU_S3C2410X_IRQ_BASE);
+
+    /* Clock and power control */
+    s->clkcon = s3c24xx_clkcon_init(s, CPU_S3C2410X_CLKCON_BASE, 12000000);
 
     return s;
 }
