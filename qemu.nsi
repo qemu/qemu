@@ -7,7 +7,7 @@
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License as published by
 ; the Free Software Foundation, either version 2 of the License, or
-; (at your option) any later version.
+; (at your option) version 3 or any later version.
 ;
 ; This program is distributed in the hope that it will be useful,
 ; but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,7 +20,7 @@
 ; NSIS_WIN32_MAKENSIS
 
 !define PRODUCT "QEMU"
-!define UNINST_EXE "$INSTDIR\${PRODUCT}-uninstall.exe"
+!define UNINST_EXE "$INSTDIR\qemu-uninstall.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT}"
 
 ; The name of the installer
@@ -57,7 +57,8 @@ Section "${PRODUCT} (required)"
   ; Set output path to the installation directory.
   SetOutPath "$INSTDIR"
 
-  File "i386-softmmu\qemu.exe"
+  ;File "i386-softmmu\qemu.exe"
+  File ${EXE_FILES}
   File "qemu-img.exe"
   ;;;File "SDL.dll"
   File "${SRC_PATH}\Changelog"
@@ -82,7 +83,7 @@ Section "${PRODUCT} (required)"
   WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"${UNINST_EXE}"'
   WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
-  WriteUninstaller "${PRODUCT}-uninstall.exe"
+  WriteUninstaller "qemu-uninstall.exe"
 SectionEnd
 
 ; Section "${PRODUCT} Documentation"

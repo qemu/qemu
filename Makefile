@@ -362,10 +362,75 @@ VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
 
 ifdef CONFIG_WIN32
+arm-softmmu/qemu-system-arm.exe: subdir-arm-softmmu
+cris-softmmu/qemu-system-cris.exe: subdir-cris-softmmu
 i386-softmmu/qemu.exe: subdir-i386-softmmu
+m68k-softmmu/qemu-system-m68k.exe: subdir-m68k-softmmu
+mips64el-softmmu/qemu-system-mips64el.exe: subdir-mips64el-softmmu
+mips64-softmmu/qemu-system-mips64.exe: subdir-mips64-softmmu
+mipsel-softmmu/qemu-system-mipsel.exe: subdir-mipsel-softmmu
+mips-softmmu/qemu-system-mipsel.exe: subdir-mips-softmmu
+ppc64-softmmu/qemu-system-ppc64.exe: subdir-ppc64-softmmu
+ppcemb-softmmu/qemu-system-ppcemb.exe: subdir-ppcemb-softmmu
+ppc-softmmu/qemu-system-ppc.exe: subdir-ppc-softmmu
+sh4eb-softmmu/qemu-system-sh4eb.exe: subdir-sh4eb-softmmu
+sh4-softmmu/qemu-system-sh4.exe: subdir-sh4-softmmu
+sparc-softmmu/qemu-system-sparc.exe: subdir-sparc-softmmu
+x86_64-softmmu/qemu-system-x86_64.exe: subdir-x86_64-softmmu
 
-qemu-setup.exe: $(SRC_PATH)/qemu.nsi i386-softmmu/qemu.exe
-	makensis -NOCD -DSRC_PATH="$(SRC_PATH)" -V2 $(SRC_PATH)/qemu.nsi
+EXE_FILES :=
+
+ifneq (,$(findstring arm-softmmu,$(TARGET_DIRS)))
+EXE_FILES += arm-softmmu/qemu-system-arm.exe
+endif
+ifneq (,$(findstring cris-softmmu,$(TARGET_DIRS)))
+EXE_FILES += cris-softmmu/qemu-system-cris.exe
+endif
+ifneq (,$(findstring i386-softmmu,$(TARGET_DIRS)))
+EXE_FILES += i386-softmmu/qemu.exe
+endif
+ifneq (,$(findstring m68k-softmmu,$(TARGET_DIRS)))
+EXE_FILES += m68k-softmmu/qemu-system-m68k.exe
+endif
+ifneq (,$(findstring mips64el-softmmu,$(TARGET_DIRS)))
+EXE_FILES += mips64el-softmmu/qemu-system-mips64el.exe
+endif
+ifneq (,$(findstring mips64-softmmu,$(TARGET_DIRS)))
+EXE_FILES += mips64-softmmu/qemu-system-mips64.exe
+endif
+ifneq (,$(findstring mipsel-softmmu,$(TARGET_DIRS)))
+EXE_FILES += mipsel-softmmu/qemu-system-mipsel.exe
+endif
+ifneq (,$(findstring mips-softmmu,$(TARGET_DIRS)))
+EXE_FILES += mips-softmmu/qemu-system-mips.exe
+endif
+ifneq (,$(findstring ppc64-softmmu,$(TARGET_DIRS)))
+EXE_FILES += ppc64-softmmu/qemu-system-ppc64.exe
+endif
+ifneq (,$(findstring ppcemb-softmmu,$(TARGET_DIRS)))
+EXE_FILES += ppcemb-softmmu/qemu-system-ppcemb.exe
+endif
+ifneq (,$(findstring ppc-softmmu,$(TARGET_DIRS)))
+EXE_FILES += ppc-softmmu/qemu-system-ppc.exe
+endif
+ifneq (,$(findstring sh4eb-softmmu,$(TARGET_DIRS)))
+EXE_FILES += sh4eb-softmmu/qemu-system-sh4eb.exe
+endif
+ifneq (,$(findstring sh4-softmmu,$(TARGET_DIRS)))
+EXE_FILES += sh4-softmmu/qemu-system-sh4.exe
+endif
+ifneq (,$(findstring sparc-softmmu,$(TARGET_DIRS)))
+EXE_FILES += sparc-softmmu/qemu-system-sparc.exe
+endif
+ifneq (,$(findstring x86_64-softmmu,$(TARGET_DIRS)))
+EXE_FILES += x86_64-softmmu/qemu-system-x86_64.exe
+endif
+
+qemu-setup.exe: $(SRC_PATH)/qemu.nsi qemu-img.exe $(EXE_FILES)
+	makensis -NOCD \
+		-DSRC_PATH="$(SRC_PATH)" \
+		-DEXE_FILES="$(subst /,\\,$(EXE_FILES))" \
+		-V2 $(SRC_PATH)/qemu.nsi
 endif # CONFIG_WIN
 
 # tar release (use 'make -k tar' on a checkouted tree)
