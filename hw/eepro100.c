@@ -1128,7 +1128,7 @@ static const char *reg2name(uint8_t reg)
     if (reg < ARRAY_SIZE(mdi_reg_name)) {
         p = mdi_reg_name[reg];
     } else {
-        snprintf(buffer, sizeof(buf), "reg=0x%02x", reg);
+        snprintf(buffer, sizeof(buffer), "reg=0x%02x", reg);
     }
     return p;
 }
