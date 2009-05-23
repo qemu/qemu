@@ -36,6 +36,9 @@
 /* Timer controller */
 #define CPU_S3C2410X_TIMERS_BASE (CPU_S3C2410X_PERIPHERAL + 0x11000000)
 
+/* Real time clock */
+#define CPU_S3C2410X_RTC_BASE (CPU_S3C2410X_PERIPHERAL + 0x17000000)
+
 /* Initialise a Samsung S3C2410X SOC ARM core and internal peripherals. */
 S3CState *
 s3c2410x_init(int sdram_size)
@@ -74,6 +77,9 @@ s3c2410x_init(int sdram_size)
     s->uart[0] = s3c24xx_serial_init(s, serial_hds[0], CPU_S3C2410X_SERIAL0_BASE, 32);
     s->uart[1] = s3c24xx_serial_init(s, serial_hds[1], CPU_S3C2410X_SERIAL1_BASE, 35);
     s->uart[2] = s3c24xx_serial_init(s, serial_hds[2], CPU_S3C2410X_SERIAL2_BASE, 38);
+
+    /* Real time clcok */
+    s->rtc = s3c24xx_rtc_init(CPU_S3C2410X_RTC_BASE);
 
     return s;
 }

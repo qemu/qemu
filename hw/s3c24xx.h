@@ -30,6 +30,9 @@ typedef struct S3CState_s {
     /* Serial ports */
     struct s3c24xx_serial_dev_s *uart[3];
 
+    /* Real time clock */
+    struct s3c24xx_rtc_state_s *rtc;
+
 } S3CState;
 
 
@@ -50,5 +53,9 @@ struct s3c24xx_timers_state_s *s3c24xx_timers_init(S3CState *soc, target_phys_ad
 
 /* initialise a serial port controller */
 struct s3c24xx_serial_dev_s *s3c24xx_serial_init(S3CState *soc, CharDriverState *chr, target_phys_addr_t base_addr, int irqn);
+
+/* Initialise real time clock */
+struct s3c24xx_rtc_state_s *s3c24xx_rtc_init(target_phys_addr_t base_addr);
+
 
 #endif /* S3C24XX_H */
