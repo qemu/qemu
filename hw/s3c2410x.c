@@ -35,6 +35,9 @@
 /* LCD controller */
 #define CPU_S3C2410X_LCD_BASE (CPU_S3C2410X_PERIPHERAL + 0xD000000)
 
+/* NAND */
+#define CPU_S3C2410X_NAND_BASE (CPU_S3C2410X_PERIPHERAL + 0xE000000)
+
 /* serial port bases */
 #define CPU_S3C2410X_SERIAL0_BASE (CPU_S3C2410X_PERIPHERAL + 0x10000000)
 #define CPU_S3C2410X_SERIAL1_BASE (CPU_S3C2410X_PERIPHERAL + 0x10004000)
@@ -104,6 +107,9 @@ s3c2410x_init(int sdram_size)
     /* LCD controller */
     s->lcd = s3c24xx_lcd_init(CPU_S3C2410X_LCD_BASE,
                               s3c24xx_get_irq(s->irq, 16));
+
+    /* NAND controller */
+    s->nand = s3c24xx_nand_init(CPU_S3C2410X_NAND_BASE);
 
     return s;
 }

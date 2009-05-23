@@ -11,6 +11,8 @@
 #ifndef S3C24XX_H
 #define S3C24XX_H 1
 
+#include "flash.h"
+
 /* This structure type encapsulates the state of a S3C24XX SoC. */
 typedef struct S3CState_s {
     CPUState *cpu_env;
@@ -42,6 +44,8 @@ typedef struct S3CState_s {
     /* LCD controller state */
     struct s3c24xx_lcd_state_s *lcd;
 
+    /* NAND controller */
+    struct s3c24xx_nand_state_s *nand;
 } S3CState;
 
 
@@ -80,5 +84,11 @@ i2c_bus *s3c24xx_i2c_bus(struct s3c24xx_i2c_state_s *s);
 
 /* Initialise LCD controller */
 struct s3c24xx_lcd_state_s *s3c24xx_lcd_init(target_phys_addr_t base, qemu_irq irq);
+
+/* Initialise nand controller */
+struct s3c24xx_nand_state_s *s3c24xx_nand_init(target_phys_addr_t base_addr);
+
+/* set nand controller context */
+void s3c24xx_nand_attach(struct s3c24xx_nand_state_s *s, NANDFlashState *nand);
 
 #endif /* S3C24XX_H */
