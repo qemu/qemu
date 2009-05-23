@@ -190,6 +190,13 @@ rxbufsize(uint32_t v)
 }
 
 static void
+set_ctrl(E1000State *s, int index, uint32_t val)
+{
+    /* RST is self clearing */
+    s->mac_reg[CTRL] = val & ~E1000_CTRL_RST;
+}
+
+static void
 set_rx_control(E1000State *s, int index, uint32_t val)
 {
     s->mac_reg[RCTL] = val;
@@ -783,12 +790,12 @@ enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     putreg(PBA),	putreg(EERD),	putreg(SWSM),	putreg(WUFC),
     putreg(TDBAL),	putreg(TDBAH),	putreg(TXDCTL),	putreg(RDBAH),
-    putreg(RDBAL),	putreg(LEDCTL), putreg(CTRL),	putreg(VET),
+    putreg(RDBAL),	putreg(LEDCTL), putreg(VET),
     [TDLEN] = set_dlen,	[RDLEN] = set_dlen,	[TCTL] = set_tctl,
     [TDT] = set_tctl,	[MDIC] = set_mdic,	[ICS] = set_ics,
     [TDH] = set_16bit,	[RDH] = set_16bit,	[RDT] = set_rdt,
     [IMC] = set_imc,	[IMS] = set_ims,	[ICR] = set_icr,
-    [EECD] = set_eecd,	[RCTL] = set_rx_control,
+    [EECD] = set_eecd,	[RCTL] = set_rx_control, [CTRL] = set_ctrl,
     [RA ... RA+31] = &mac_writereg,
     [MTA ... MTA+127] = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
