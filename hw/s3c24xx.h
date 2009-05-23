@@ -35,6 +35,9 @@ typedef struct S3CState_s {
 
     /* GPIO */
     struct s3c24xx_gpio_state_s *gpio;
+
+    /* I2C */
+    struct s3c24xx_i2c_state_s *iic;
 } S3CState;
 
 
@@ -64,5 +67,11 @@ struct s3c24xx_gpio_state_s *s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t
 
 /* get the qemu interrupt from an eirq number */
 qemu_irq s3c24xx_get_eirq(struct s3c24xx_gpio_state_s *s, int einum);
+
+/* Initialise I2c controller */
+struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq, target_phys_addr_t base_addr);
+
+/* aquire bus from controller state */
+i2c_bus *s3c24xx_i2c_bus(struct s3c24xx_i2c_state_s *s);
 
 #endif /* S3C24XX_H */

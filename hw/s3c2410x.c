@@ -40,6 +40,9 @@
 /* Timer controller */
 #define CPU_S3C2410X_TIMERS_BASE (CPU_S3C2410X_PERIPHERAL + 0x11000000)
 
+/* IIC */
+#define CPU_S3C2410X_IIC_BASE (CPU_S3C2410X_PERIPHERAL + 0x14000000)
+
 /* GPIO */
 #define CPU_S3C2410X_GPIO_BASE (CPU_S3C2410X_PERIPHERAL + 0x16000000)
 
@@ -90,6 +93,10 @@ s3c2410x_init(int sdram_size)
 
     /* GPIO */
     s->gpio = s3c24xx_gpio_init(s, CPU_S3C2410X_GPIO_BASE, CPU_S3C2410X_IDENT_S3C2410A);
+
+    /* I2C */
+    s->iic = s3c24xx_iic_init(s3c24xx_get_irq(s->irq, 27),
+                              CPU_S3C2410X_IIC_BASE);
 
     return s;
 }
