@@ -13,6 +13,9 @@
 
 #include "s3c2440.h"
 
+/* S3C2440 SoC ID */
+#define CPU_S3C2440_IDENT_S3C2440A 0x32440001
+
 /* Integrated peripherals */
 
 /* SRAM */
@@ -35,6 +38,9 @@
 
 /* Timer controller */
 #define CPU_S3C2440_TIMERS_BASE (CPU_S3C2440_PERIPHERAL + 0x11000000)
+
+/* GPIO */
+#define CPU_S3C2440_GPIO_BASE (CPU_S3C2440_PERIPHERAL + 0x16000000)
 
 /* Real time clock */
 #define CPU_S3C2440_RTC_BASE (CPU_S3C2440_PERIPHERAL + 0x17000000)
@@ -80,6 +86,9 @@ s3c2440_init(int sdram_size)
 
     /* Real time clcok */
     s->rtc = s3c24xx_rtc_init(CPU_S3C2440_RTC_BASE);
+
+    /* And some GPIO */
+    s->gpio = s3c24xx_gpio_init(s, CPU_S3C2440_GPIO_BASE, CPU_S3C2440_IDENT_S3C2440A);
 
     return s;
 }

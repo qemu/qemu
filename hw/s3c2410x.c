@@ -13,6 +13,10 @@
 
 #include "s3c2410x.h"
 
+/* S3C2410 SoC IDs */
+#define CPU_S3C2410X_IDENT_S3C2410X 0x32410000
+#define CPU_S3C2410X_IDENT_S3C2410A 0x32410002
+
 /* Integrated peripherals */
 
 /* SRAM */
@@ -35,6 +39,9 @@
 
 /* Timer controller */
 #define CPU_S3C2410X_TIMERS_BASE (CPU_S3C2410X_PERIPHERAL + 0x11000000)
+
+/* GPIO */
+#define CPU_S3C2410X_GPIO_BASE (CPU_S3C2410X_PERIPHERAL + 0x16000000)
 
 /* Real time clock */
 #define CPU_S3C2410X_RTC_BASE (CPU_S3C2410X_PERIPHERAL + 0x17000000)
@@ -80,6 +87,9 @@ s3c2410x_init(int sdram_size)
 
     /* Real time clcok */
     s->rtc = s3c24xx_rtc_init(CPU_S3C2410X_RTC_BASE);
+
+    /* GPIO */
+    s->gpio = s3c24xx_gpio_init(s, CPU_S3C2410X_GPIO_BASE, CPU_S3C2410X_IDENT_S3C2410A);
 
     return s;
 }
