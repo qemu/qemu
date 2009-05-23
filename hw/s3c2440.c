@@ -31,6 +31,9 @@
 /* Clock control */
 #define CPU_S3C2440_CLKCON_BASE (CPU_S3C2440_PERIPHERAL + 0xC000000)
 
+/* LCD controller */
+#define CPU_S3C2440_LCD_BASE (CPU_S3C2440_PERIPHERAL + 0xD000000)
+
 /* serial port bases */
 #define CPU_S3C2440_SERIAL0_BASE (CPU_S3C2440_PERIPHERAL + 0x10000000)
 #define CPU_S3C2440_SERIAL1_BASE (CPU_S3C2440_PERIPHERAL + 0x10004000)
@@ -96,6 +99,10 @@ s3c2440_init(int sdram_size)
     /* I2C */
     s->iic = s3c24xx_iic_init(s3c24xx_get_irq(s->irq, 27),
                               CPU_S3C2440_IIC_BASE);
+
+    /* LCD controller */
+    s->lcd = s3c24xx_lcd_init(CPU_S3C2440_LCD_BASE,
+                              s3c24xx_get_irq(s->irq, 16));
 
     return s;
 }
