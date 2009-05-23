@@ -706,12 +706,9 @@ static void corgi_ssp_init(SSISlave *dev)
     CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
 
     qdev_init_gpio_in(&dev->qdev, corgi_ssp_gpio_cs, 3);
-    s->bus[0] = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi0", s->bus[0]);
-    s->bus[1] = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi1", s->bus[1]);
-    s->bus[2] = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi2", s->bus[2]);
+    s->bus[0] = ssi_create_bus(&dev->qdev, "ssi0");
+    s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
+    s->bus[2] = ssi_create_bus(&dev->qdev, "ssi2");
 
     register_savevm("spitz_ssp", -1, 1, spitz_ssp_save, spitz_ssp_load, s);
 }

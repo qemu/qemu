@@ -431,7 +431,7 @@ static i2c_interface *musicpal_audio_init(qemu_irq irq)
     s->irq = irq;
 
     i2c = qemu_mallocz(sizeof(i2c_interface));
-    i2c->bus = i2c_init_bus();
+    i2c->bus = i2c_init_bus(NULL, "i2c");
     i2c->current_addr = -1;
 
     s->wm = i2c_create_slave(i2c->bus, "wm8750", MP_WM_ADDR);

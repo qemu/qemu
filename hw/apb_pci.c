@@ -231,7 +231,8 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
 
     s = qemu_mallocz(sizeof(APBState));
     /* Ultrasparc PBM main bus */
-    s->bus = pci_register_bus(pci_apb_set_irq, pci_pbm_map_irq, pic, 0, 32);
+    s->bus = pci_register_bus(NULL, "pci",
+                              pci_apb_set_irq, pci_pbm_map_irq, pic, 0, 32);
 
     pci_mem_config = cpu_register_io_memory(0, pci_apb_config_read,
                                             pci_apb_config_write, s);

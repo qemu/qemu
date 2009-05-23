@@ -133,7 +133,8 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     int pci_mem_config, pci_mem_data;
 
     s = qemu_mallocz(sizeof(GrackleState));
-    s->bus = pci_register_bus(pci_grackle_set_irq, pci_grackle_map_irq,
+    s->bus = pci_register_bus(NULL, "pci",
+                              pci_grackle_set_irq, pci_grackle_map_irq,
                               pic, 0, 4);
 
     pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read,

@@ -863,8 +863,7 @@ static void pxa2xx_ssp_init(SysBusDevice *dev)
     register_savevm("pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
-    s->bus = ssi_create_bus();
-    qdev_attach_child_bus(&dev->qdev, "ssi", s->bus);
+    s->bus = ssi_create_bus(&dev->qdev, "ssi");
 }
 
 /* Real-Time Clock */
@@ -1500,12 +1499,12 @@ PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
     PXA2xxI2CState *s = qemu_mallocz(sizeof(PXA2xxI2CState));
 
     /* FIXME: Should the slave device really be on a separate bus?  */
-    dev = i2c_create_slave(i2c_init_bus(), "pxa2xx-i2c-slave", 0);
+    dev = i2c_create_slave(i2c_init_bus(NULL, "dummy"), "pxa2xx-i2c-slave", 0);
     s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE_FROM_QDEV(dev));
     s->slave->host = s;
 
     s->irq = irq;
-    s->bus = i2c_init_bus();
+    s->bus = i2c_init_bus(NULL, "i2c");
     s->offset = base - (base & (~region_size) & TARGET_PAGE_MASK);
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
@@ -2117,7 +2116,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
         DeviceState *dev;
         dev = sysbus_create_simple("pxa2xx-ssp", pxa27x_ssp[i].io_base,
                                    s->pic[pxa27x_ssp[i].irqn]);
-        s->ssp[i] = qdev_get_child_bus(dev, "ssi");
+        s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
     if (usb_enabled) {
@@ -2229,7 +2228,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
         DeviceState *dev;
         dev = sysbus_create_simple("pxa2xx-ssp", pxa255_ssp[i].io_base,
                                    s->pic[pxa255_ssp[i].irqn]);
-        s->ssp[i] = qdev_get_child_bus(dev, "ssi");
+        s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
     if (usb_enabled) {

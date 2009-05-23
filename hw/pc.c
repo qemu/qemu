@@ -1105,7 +1105,7 @@ static void pc_init1(ram_addr_t ram_size,
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, i8259[9]);
         for (i = 0; i < 8; i++) {
             DeviceState *eeprom;
-            eeprom = qdev_create(smbus, "smbus-eeprom");
+            eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
             qdev_set_prop_int(eeprom, "address", 0x50 + i);
             qdev_set_prop_ptr(eeprom, "data", eeprom_buf + (i * 256));
             qdev_init(eeprom);

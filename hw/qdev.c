@@ -41,23 +41,18 @@ struct DeviceProperty {
 
 struct DeviceType {
     const char *name;
-    qdev_initfn init;
-    void *opaque;
+    DeviceInfo *info;
     int size;
     DeviceType *next;
 };
 
-struct ChildBusList {
-    const char *name;
-    void *ptr;
-    ChildBusList *next;
-};
+/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
+BusState *main_system_bus;
 
 static DeviceType *device_type_list;
 
 /* Register a new device type.  */
-DeviceType *qdev_register(const char *name, int size, qdev_initfn init,
-                          void *opaque)
+void qdev_register(const char *name, int size, DeviceInfo *info)
 {
     DeviceType *t;
 
@@ -68,16 +63,13 @@ DeviceType *qdev_register(const char *name, int size, qdev_initfn init,
     device_type_list = t;
     t->name = qemu_strdup(name);
     t->size = size;
-    t->init = init;
-    t->opaque = opaque;
-
-    return t;
+    t->info = info;
 }
 
 /* Create a new device.  This only initializes the device state structure
    and allows properties to be set.  qdev_init should be called to
    initialize the actual device emulation.  */
-DeviceState *qdev_create(void *bus, const char *name)
+DeviceState *qdev_create(BusState *bus, const char *name)
 {
     DeviceType *t;
     DeviceState *dev;
@@ -88,14 +80,28 @@ DeviceState *qdev_create(void *bus, const char *name)
         }
     }
     if (!t) {
-        fprintf(stderr, "Unknown device '%s'\n", name);
-        exit(1);
+        hw_error("Unknown device '%s'\n", name);
     }
 
     dev = qemu_mallocz(t->size);
     dev->name = name;
     dev->type = t;
-    dev->bus = bus;
+
+    if (!bus) {
+        /* ???: This assumes system busses have no additional state.  */
+        if (!main_system_bus) {
+            main_system_bus = qbus_create(BUS_TYPE_SYSTEM, sizeof(BusState),
+                                          NULL, "main-system-bus");
+        }
+        bus = main_system_bus;
+    }
+    if (t->info->bus_type != bus->type) {
+        /* TODO: Print bus type names.  */
+        hw_error("Device '%s' on wrong bus type (%d/%d)", name,
+                 t->info->bus_type, bus->type);
+    }
+    dev->parent_bus = bus;
+    LIST_INSERT_HEAD(&bus->children, dev, sibling);
     return dev;
 }
 
@@ -104,7 +110,14 @@ DeviceState *qdev_create(void *bus, const char *name)
    calling this function.  */
 void qdev_init(DeviceState *dev)
 {
-    dev->type->init(dev, dev->type->opaque);
+    dev->type->info->init(dev, dev->type->info);
+}
+
+/* Unlink device from bus and free the structure.  */
+void qdev_free(DeviceState *dev)
+{
+    LIST_REMOVE(dev, sibling);
+    free(dev);
 }
 
 static DeviceProperty *create_prop(DeviceState *dev, const char *name)
@@ -169,9 +182,9 @@ CharDriverState *qdev_init_chardev(DeviceState *dev)
     }
 }
 
-void *qdev_get_bus(DeviceState *dev)
+BusState *qdev_get_parent_bus(DeviceState *dev)
 {
-    return dev->bus;
+    return dev->parent_bus;
 }
 
 static DeviceProperty *find_prop(DeviceState *dev, const char *name)
@@ -267,28 +280,16 @@ BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type)
     return drives_table[index].bdrv;
 }
 
-void *qdev_get_child_bus(DeviceState *dev, const char *name)
+BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
 {
-    ChildBusList *bus;
+    BusState *bus;
 
-    for (bus = dev->child_bus; bus; bus = bus->next) {
+    LIST_FOREACH(bus, &dev->child_bus, sibling) {
         if (strcmp(name, bus->name) == 0) {
-            return bus->ptr;
+            return bus;
         }
     }
     return NULL;
-}
-
-void qdev_attach_child_bus(DeviceState *dev, const char *name, void *bus)
-{
-    ChildBusList *p;
-
-    assert(!qdev_get_child_bus(dev, name));
-    p = qemu_mallocz(sizeof(*p));
-    p->name = qemu_strdup(name);
-    p->ptr = bus;
-    p->next = dev->child_bus;
-    dev->child_bus = p;
 }
 
 static int next_scsi_bus;
@@ -308,4 +309,20 @@ void scsi_bus_new(DeviceState *host, SCSIAttachFn attach)
        }
        attach(host, drives_table[index].bdrv, unit);
    }
+}
+
+BusState *qbus_create(BusType type, size_t size,
+                      DeviceState *parent, const char *name)
+{
+    BusState *bus;
+
+    bus = qemu_mallocz(size);
+    bus->type = type;
+    bus->parent = parent;
+    bus->name = qemu_strdup(name);
+    LIST_INIT(&bus->children);
+    if (parent) {
+        LIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
+    }
+    return bus;
 }

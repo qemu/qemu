@@ -118,9 +118,9 @@ static void pci_vpb_init(SysBusDevice *dev)
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
-    bus = pci_register_bus(pci_vpb_set_irq, pci_vpb_map_irq, s->irq,
+    bus = pci_register_bus(&dev->qdev, "pci",
+                           pci_vpb_set_irq, pci_vpb_map_irq, s->irq,
                            11 << 3, 4);
-    qdev_attach_child_bus(&dev->qdev, "pci", bus);
 
     /* ??? Register memory space.  */
 

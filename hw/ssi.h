@@ -17,6 +17,7 @@ typedef struct SSISlave SSISlave;
 
 /* Slave devices.  */
 typedef struct {
+    DeviceInfo qdev;
     void (*init)(SSISlave *dev);
     uint32_t (*transfer)(SSISlave *dev, uint32_t val);
 } SSISlaveInfo;
@@ -34,7 +35,7 @@ void ssi_register_slave(const char *name, int size, SSISlaveInfo *info);
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name);
 
 /* Master interface.  */
-SSIBus *ssi_create_bus(void);
+SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
 
