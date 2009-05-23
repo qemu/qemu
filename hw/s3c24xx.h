@@ -24,6 +24,8 @@ typedef struct S3CState_s {
     /* Clock and power control */
     struct s3c24xx_clkcon_state_s *clkcon;
 
+    /* timer controller */
+    struct s3c24xx_timers_state_s *timers;
 } S3CState;
 
 
@@ -39,5 +41,7 @@ qemu_irq s3c24xx_get_irq(struct s3c24xx_irq_state_s *s, int inum);
 /* initialise clock controller */
 struct s3c24xx_clkcon_state_s *s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_freq);
 
+/* initialise timer controller */
+struct s3c24xx_timers_state_s *s3c24xx_timers_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t tclk0, uint32_t tclk1);
 
 #endif /* S3C24XX_H */

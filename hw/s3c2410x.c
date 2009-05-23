@@ -27,6 +27,9 @@
 /* Clock control */
 #define CPU_S3C2410X_CLKCON_BASE (CPU_S3C2410X_PERIPHERAL + 0xC000000)
 
+/* Timer controller */
+#define CPU_S3C2410X_TIMERS_BASE (CPU_S3C2410X_PERIPHERAL + 0x11000000)
+
 /* Initialise a Samsung S3C2410X SOC ARM core and internal peripherals. */
 S3CState *
 s3c2410x_init(int sdram_size)
@@ -57,6 +60,9 @@ s3c2410x_init(int sdram_size)
 
     /* Clock and power control */
     s->clkcon = s3c24xx_clkcon_init(s, CPU_S3C2410X_CLKCON_BASE, 12000000);
+
+    /* Timer controller */
+    s->timers = s3c24xx_timers_init(s, CPU_S3C2410X_TIMERS_BASE, 0, 12000000);
 
     return s;
 }
