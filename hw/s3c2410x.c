@@ -21,6 +21,8 @@
 /* Memory control */
 #define CPU_S3C2410X_MEMC_BASE (CPU_S3C2410X_PERIPHERAL + 0x8000000)
 
+/* Interrupt controller */
+#define CPU_S3C2410X_IRQ_BASE (CPU_S3C2410X_PERIPHERAL + 0xA000000)
 
 /* Initialise a Samsung S3C2410X SOC ARM core and internal peripherals. */
 S3CState *
@@ -46,6 +48,9 @@ s3c2410x_init(int sdram_size)
 
     /* SDRAM memory controller */
     s->memc = s3c24xx_memc_init(CPU_S3C2410X_MEMC_BASE);
+
+    /* Interrupt controller */
+    s->irq = s3c24xx_irq_init(s, CPU_S3C2410X_IRQ_BASE);
 
     return s;
 }

@@ -18,10 +18,20 @@ typedef struct S3CState_s {
     /* Memory controller state */
     struct s3c24xx_memc_state_s *memc;
 
+    /* IRQ controller state */
+    struct s3c24xx_irq_state_s *irq;
+
 } S3CState;
 
 
 /* initialise memory controller peripheral */
 struct s3c24xx_memc_state_s *s3c24xx_memc_init(target_phys_addr_t base_addr);
+
+/* initialise the IRQ controller */
+struct s3c24xx_irq_state_s *s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr);
+
+/* get the qemu interrupt from an irq number */
+qemu_irq s3c24xx_get_irq(struct s3c24xx_irq_state_s *s, int inum);
+
 
 #endif /* S3C24XX_H */
