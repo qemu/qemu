@@ -52,7 +52,6 @@ struct etrax_timer {
     ptimer_state *ptimer_t0;
     ptimer_state *ptimer_t1;
     ptimer_state *ptimer_wd;
-    struct timeval last;
 
     int wd_hits;
 
