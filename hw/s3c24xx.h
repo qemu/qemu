@@ -26,6 +26,10 @@ typedef struct S3CState_s {
 
     /* timer controller */
     struct s3c24xx_timers_state_s *timers;
+
+    /* Serial ports */
+    struct s3c24xx_serial_dev_s *uart[3];
+
 } S3CState;
 
 
@@ -43,5 +47,8 @@ struct s3c24xx_clkcon_state_s *s3c24xx_clkcon_init(S3CState *soc, target_phys_ad
 
 /* initialise timer controller */
 struct s3c24xx_timers_state_s *s3c24xx_timers_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t tclk0, uint32_t tclk1);
+
+/* initialise a serial port controller */
+struct s3c24xx_serial_dev_s *s3c24xx_serial_init(S3CState *soc, CharDriverState *chr, target_phys_addr_t base_addr, int irqn);
 
 #endif /* S3C24XX_H */

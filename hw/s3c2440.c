@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "sysemu.h"
 
 #include "s3c2440.h"
 
@@ -26,6 +27,11 @@
 
 /* Clock control */
 #define CPU_S3C2440_CLKCON_BASE (CPU_S3C2440_PERIPHERAL + 0xC000000)
+
+/* serial port bases */
+#define CPU_S3C2440_SERIAL0_BASE (CPU_S3C2440_PERIPHERAL + 0x10000000)
+#define CPU_S3C2440_SERIAL1_BASE (CPU_S3C2440_PERIPHERAL + 0x10004000)
+#define CPU_S3C2440_SERIAL2_BASE (CPU_S3C2440_PERIPHERAL + 0x10008000)
 
 /* Timer controller */
 #define CPU_S3C2440_TIMERS_BASE (CPU_S3C2440_PERIPHERAL + 0x11000000)
@@ -63,6 +69,11 @@ s3c2440_init(int sdram_size)
 
     /* Timer controller */
     s->timers = s3c24xx_timers_init(s, CPU_S3C2440_TIMERS_BASE, 0, 12000000);
+
+    /* Serial port controllers */
+    s->uart[0] = s3c24xx_serial_init(s, serial_hds[0], CPU_S3C2440_SERIAL0_BASE, 32);
+    s->uart[1] = s3c24xx_serial_init(s, serial_hds[1], CPU_S3C2440_SERIAL1_BASE, 35);
+    s->uart[2] = s3c24xx_serial_init(s, serial_hds[2], CPU_S3C2440_SERIAL2_BASE, 38);
 
     return s;
 }
