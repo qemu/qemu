@@ -29,7 +29,6 @@ void *load_device_tree(const char *filename_path, int *sizep)
 {
     int dt_size;
     int dt_file_load_size;
-    int new_dt_size;
     int ret;
     void *fdt = NULL;
 
