@@ -383,7 +383,7 @@ static void *zalloc(void *x, unsigned items, unsigned size)
     return (p);
 }
 
-static void zfree(void *x, void *addr, unsigned nb)
+static void zfree(void *x, void *addr)
 {
     qemu_free(addr);
 }
@@ -431,7 +431,7 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
     }
 
     s.zalloc = zalloc;
-    s.zfree = (free_func)zfree;
+    s.zfree = zfree;
 
     r = inflateInit2(&s, -MAX_WBITS);
     if (r != Z_OK) {
