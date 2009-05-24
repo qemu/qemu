@@ -1518,6 +1518,7 @@ fi
 echo "#define HOST_LONG_BITS $hostlongbits" >> $config_h
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=yes" >> $config_mak
+  echo "CONFIG_INSTALLER=yes" >> $config_mak
   echo "#define CONFIG_WIN32 1" >> $config_h
 else
   cat > $TMPC << EOF

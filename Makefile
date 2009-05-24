@@ -369,7 +369,7 @@ m68k-softmmu/qemu-system-m68k.exe: subdir-m68k-softmmu
 mips64el-softmmu/qemu-system-mips64el.exe: subdir-mips64el-softmmu
 mips64-softmmu/qemu-system-mips64.exe: subdir-mips64-softmmu
 mipsel-softmmu/qemu-system-mipsel.exe: subdir-mipsel-softmmu
-mips-softmmu/qemu-system-mipsel.exe: subdir-mips-softmmu
+mips-softmmu/qemu-system-mips.exe: subdir-mips-softmmu
 ppc64-softmmu/qemu-system-ppc64.exe: subdir-ppc64-softmmu
 ppcemb-softmmu/qemu-system-ppcemb.exe: subdir-ppcemb-softmmu
 ppc-softmmu/qemu-system-ppc.exe: subdir-ppc-softmmu
@@ -426,11 +426,13 @@ ifneq (,$(findstring x86_64-softmmu,$(TARGET_DIRS)))
 EXE_FILES += x86_64-softmmu/qemu-system-x86_64.exe
 endif
 
+ifdef CONFIG_INSTALLER
 qemu-setup.exe: $(SRC_PATH)/qemu.nsi qemu-img.exe $(EXE_FILES)
 	makensis -NOCD \
 		-DSRC_PATH="$(SRC_PATH)" \
 		-DEXE_FILES="$(subst /,\\,$(EXE_FILES))" \
 		-V2 $(SRC_PATH)/qemu.nsi
+endif # CONFIG_INSTALLER
 endif # CONFIG_WIN
 
 # tar release (use 'make -k tar' on a checkouted tree)
