@@ -2033,9 +2033,8 @@ static void vnc_listen_read(void *opaque)
 
 void vnc_display_init(DisplayState *ds)
 {
-    VncDisplay *vs;
+    VncDisplay *vs = qemu_mallocz(sizeof(*vs));
 
-    vs = qemu_mallocz(sizeof(VncState));
     dcl = qemu_mallocz(sizeof(DisplayChangeListener));
 
     ds->opaque = vs;
