@@ -1155,18 +1155,22 @@ fi
 
 ##########################################
 # pthread probe
+PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 PTHREADLIBS=""
 
 if test "$pthread" = yes; then
   pthread=no
 cat > $TMPC << EOF
 #include <pthread.h>
-int main(void) { pthread_mutex_t lock;  return 0; }
+int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $PTHREADLIBS $TMPC 2> /dev/null > /dev/null ; then
-    pthread=yes
-    PTHREADLIBS="-lpthread"
-  fi
+  for pthread_lib in $PTHREADLIBS_LIST; do
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC $pthread_lib 2> /dev/null > /dev/null ; then
+      pthread=yes
+      PTHREADLIBS="$pthread_lib"
+      break
+    fi
+  done
 fi
 
 if test "$pthread" = no; then
