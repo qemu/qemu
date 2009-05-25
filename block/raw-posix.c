@@ -1376,7 +1376,6 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
 }
 #endif /* !linux && !FreeBSD */
 
-#if defined(__linux__) || defined(__FreeBSD__)
 static int hdev_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd;
@@ -1398,7 +1397,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 
     if (fstat(fd, &stat_buf) < 0)
         ret = -EIO;
-    else if (!S_ISBLK(stat_buf.st_mode))
+    else if (!S_ISBLK(stat_buf.st_mode) && !S_ISCHR(stat_buf.st_mode))
         ret = -EIO;
     else if (lseek(fd, 0, SEEK_END) < total_size * 512)
         ret = -ENOSPC;
@@ -1406,14 +1405,6 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
     close(fd);
     return ret;
 }
-
-#else  /* !(linux || freebsd) */
-
-static int hdev_create(const char *filename, QEMUOptionParameter *options)
-{
-    return -ENOTSUP;
-}
-#endif
 
 static BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
