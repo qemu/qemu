@@ -503,6 +503,32 @@ typedef struct QCowAIOCB {
     BlockDriverAIOCB *hd_aiocb;
 } QCowAIOCB;
 
+
+static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque, int is_write)
+{
+    QCowAIOCB *acb;
+
+    acb = qemu_aio_get(bs, cb, opaque);
+    if (!acb)
+        return NULL;
+    acb->hd_aiocb = NULL;
+    acb->sector_num = sector_num;
+    acb->qiov = qiov;
+    if (qiov->niov > 1) {
+        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
+        if (is_write)
+            qemu_iovec_to_buffer(qiov, acb->buf);
+    } else {
+        acb->buf = (uint8_t *)qiov->iov->iov_base;
+    }
+    acb->nb_sectors = nb_sectors;
+    acb->n = 0;
+    acb->cluster_offset = 0;
+    return acb;
+}
+
 static void qcow_aio_read_cb(void *opaque, int ret)
 {
     QCowAIOCB *acb = opaque;
@@ -600,19 +626,9 @@ static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
 {
     QCowAIOCB *acb;
 
-    acb = qemu_aio_get(bs, cb, opaque);
+    acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
     if (!acb)
         return NULL;
-    acb->hd_aiocb = NULL;
-    acb->sector_num = sector_num;
-    acb->qiov = qiov;
-    if (qiov->niov > 1)
-        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
-    else
-        acb->buf = (uint8_t *)qiov->iov->iov_base;
-    acb->nb_sectors = nb_sectors;
-    acb->n = 0;
-    acb->cluster_offset = 0;
 
     qcow_aio_read_cb(acb, 0);
     return &acb->common;
@@ -695,20 +711,10 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
 
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
-    acb = qemu_aio_get(bs, cb, opaque);
+    acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
     if (!acb)
         return NULL;
-    acb->hd_aiocb = NULL;
-    acb->sector_num = sector_num;
-    acb->qiov = qiov;
-    if (qiov->niov > 1) {
-        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
-        qemu_iovec_to_buffer(qiov, acb->buf);
-    } else {
-        acb->buf = (uint8_t *)qiov->iov->iov_base;
-    }
-    acb->nb_sectors = nb_sectors;
-    acb->n = 0;
+
 
     qcow_aio_write_cb(acb, 0);
     return &acb->common;
