@@ -537,6 +537,21 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
 
 }
 
+#define ZALLOC_ALIGNMENT 16
+
+static void *zalloc(void *x, unsigned items, unsigned size)
+{
+    size *= items;
+    size = (size + ZALLOC_ALIGNMENT - 1) & ~(ZALLOC_ALIGNMENT - 1);
+
+    return qemu_mallocz(size);
+}
+
+static void zfree(void *x, void *addr)
+{
+    qemu_free(addr);
+}
+
 static void vnc_zlib_init(VncState *vs)
 {
     int i;
@@ -571,8 +586,8 @@ static int vnc_zlib_stop(VncState *vs, int stream_id)
 
         VNC_DEBUG("VNC: initializing zlib stream %d\n", stream_id);
         VNC_DEBUG("VNC: opaque = %p | vs = %p\n", zstream->opaque, vs);
-        zstream->zalloc = Z_NULL;
-        zstream->zfree = Z_NULL;
+        zstream->zalloc = zalloc;
+        zstream->zfree = zfree;
 
         err = deflateInit2(zstream, vs->tight_compression, Z_DEFLATED, MAX_WBITS,
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
@@ -917,6 +932,7 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
         qemu_free(vs->server.ds->data);
         qemu_free(vs->server.ds);
         qemu_free(vs->guest.ds);
+        vs->magic = ~VNCSTATE_MAGIC;
         qemu_free(vs);
 
         return 0;
@@ -981,6 +997,8 @@ static long vnc_client_write_plain(VncState *vs)
 {
     long ret;
 
+    assert(vs->magic == VNCSTATE_MAGIC);
+
 #ifdef CONFIG_VNC_SASL
     VNC_DEBUG("Write Plain: Pending output %p size %zd offset %zd. Wait SSF %d\n",
               vs->output.buffer, vs->output.capacity, vs->output.offset,
@@ -1031,6 +1049,7 @@ void vnc_client_write(void *opaque)
 
 void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
 {
+    assert(vs->magic == VNCSTATE_MAGIC);
     vs->read_handler = func;
     vs->read_handler_expect = expecting;
 }
@@ -1104,6 +1123,8 @@ void vnc_client_read(void *opaque)
     VncState *vs = opaque;
     long ret;
 
+    assert(vs->magic == VNCSTATE_MAGIC);
+
 #ifdef CONFIG_VNC_SASL
     if (vs->sasl.conn && vs->sasl.runSSF)
         ret = vnc_client_read_sasl(vs);
@@ -1117,6 +1138,7 @@ void vnc_client_read(void *opaque)
         size_t len = vs->read_handler_expect;
         int ret;
 
+        assert(vs->magic == VNCSTATE_MAGIC);
         ret = vs->read_handler(vs, vs->input.buffer, len);
         if (vs->csock == -1)
             return;
@@ -1132,6 +1154,7 @@ void vnc_client_read(void *opaque)
 
 void vnc_write(VncState *vs, const void *data, size_t len)
 {
+    assert(vs->magic == VNCSTATE_MAGIC);
     buffer_reserve(&vs->output, len);
 
     if (buffer_empty(&vs->output)) {
@@ -1636,6 +1659,8 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     int i;
     uint16_t limit;
 
+    assert(vs->magic == VNCSTATE_MAGIC);
+
     switch (data[0]) {
     case 0:
         if (len == 1)
@@ -1733,34 +1758,34 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 default:
                     printf("Invalid audio format %d\n", read_u8(data, 4));
                     vnc_client_error(vs);
-                    break;
+                    return -1;
                 }
                 vs->as.nchannels = read_u8(data, 5);
                 if (vs->as.nchannels != 1 && vs->as.nchannels != 2) {
                     printf("Invalid audio channel coount %d\n",
                            read_u8(data, 5));
                     vnc_client_error(vs);
-                    break;
+                    return -1;
                 }
                 vs->as.freq = read_u32(data, 6);
                 break;
             default:
                 printf ("Invalid audio message %d\n", read_u8(data, 4));
                 vnc_client_error(vs);
-                break;
+                return -1;
             }
             break;
 
         default:
             printf("Msg: %d\n", read_u16(data, 0));
             vnc_client_error(vs);
-            break;
+            return -1;
         }
         break;
     default:
-        printf("Msg: %d\n", data[0]);
+        fprintf(stderr, "Msg: %d\n", data[0]);
         vnc_client_error(vs);
-        break;
+        return -1;
     }
 
     vnc_read_when(vs, protocol_client_msg, 1);
@@ -1771,6 +1796,8 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
 {
     char buf[1024];
     int size;
+
+    assert(vs->magic == VNCSTATE_MAGIC);
 
     vnc_write_u16(vs, ds_get_width(vs->ds));
     vnc_write_u16(vs, ds_get_height(vs->ds));
@@ -1793,6 +1820,7 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
 
 void start_client_init(VncState *vs)
 {
+    assert(vs->magic == VNCSTATE_MAGIC);
     vnc_read_when(vs, protocol_client_init, 1);
 }
 
@@ -1858,6 +1886,7 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 
 void start_auth_vnc(VncState *vs)
 {
+    assert(vs->magic == VNCSTATE_MAGIC);
     make_challenge(vs);
     /* Send client a 'random' challenge */
     vnc_write(vs, vs->challenge, sizeof(vs->challenge));
@@ -1929,6 +1958,7 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
 {
     char local[13];
 
+    assert(vs->magic == VNCSTATE_MAGIC);
     memcpy(local, version, 12);
     local[12] = 0;
 
@@ -1987,6 +2017,8 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
 static void vnc_connect(VncDisplay *vd, int csock)
 {
     VncState *vs = qemu_mallocz(sizeof(VncState));
+    vs->magic = VNCSTATE_MAGIC;
+
     vs->csock = csock;
 
     VNC_DEBUG("New client on socket %d\n", csock);

@@ -110,8 +110,11 @@ struct VncSurface
     DisplaySurface *ds;
 };
 
+#define VNCSTATE_MAGIC 0x11222211
+
 struct VncState
 {
+    uint32_t magic;
     QEMUTimer *timer;
     int csock;
 
