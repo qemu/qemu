@@ -962,7 +962,7 @@ void vnc_client_error(VncState *vs)
  * the requested 'datalen' if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
+long vnc_client_write_buf(VncState *vs, const void *data, size_t datalen)
 {
     long ret;
 #ifdef CONFIG_VNC_TLS
@@ -1070,7 +1070,7 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
  * the requested 'datalen' if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
+long vnc_client_read_buf(VncState *vs, void *data, size_t datalen)
 {
     long ret;
 #ifdef CONFIG_VNC_TLS

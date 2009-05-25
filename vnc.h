@@ -280,8 +280,8 @@ enum {
 void vnc_client_read(void *opaque);
 void vnc_client_write(void *opaque);
 
-long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
-long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
+long vnc_client_read_buf(VncState *vs, void *data, size_t datalen);
+long vnc_client_write_buf(VncState *vs, const void *data, size_t datalen);
 
 /* Protocol I/O functions */
 void vnc_write(VncState *vs, const void *data, size_t len);
