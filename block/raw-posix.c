@@ -249,7 +249,7 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
 
 label__raw_read__success:
 
-    return ret;
+    return  (ret < 0) ? -errno : ret;
 }
 
 /*
