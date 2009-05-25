@@ -123,12 +123,17 @@ wlan0     Interface doesn't support scanning : Resource temporarily unavailable
   eth0 sinus-heipc84499         1,4 MBit / s
   eth0 sinus-heipc84499         2,1 MBit / s    linux-2.6.27.21 preemptive
   eth0 sinus-heipc84499         2,2 MBit / s    linux-2.6.27.21
+  eth0 fritzbox-heipc84499      2,9 MBit / s    2009-05-10
   eth0 heipc84499-sinus        23,6 MBit / s
   eth0 heipc84499-sinus        32,3 MBit / s    linux-2.6.27.21 preemptive
   eth0 heipc84499-sinus        34,2 MBit / s    linux-2.6.27.21
+  eth0 heipc84499-fritzbox     41,9 MBit / s    2009-05-10
+  lo fritzbox-fritzbox         59,0 MBit / s    2009-05-10
   lo sinus-sinus               49,0 MBit / s
   lo sinus-sinus               51,7 MBit / s    linux-2.6.27.21 preemptive
   lo sinus-sinus               55,2 MBit / s    linux-2.6.27.21
+  wlan0 fritzbox-flocke         0,6 MBit / s    2009-05-10
+  wlan0 flocke-fritzbox        10,7 MBit / s    2009-05-10
   wlan0 heipc84499-flocke       3,6 MBit / s
   wlan0 heipc84499-flocke      14,5 MBit / s    2009-04-29
 
@@ -143,6 +148,8 @@ bytes  bytes   bytes    secs.    10^6bits/sec
    256  16384  16384    10.02       1.40
    256  16384  16384    10.01       2.07        2008-04-26, linux-2.6.27.21
  87380  16384  16384    10.04      32.29
+ 43689  16384  16384    10.01      57.00        Linux version 2.6.13.1-ar7 AVM localhost
+   256  16384  16384    10.06       2.91
 
 2008-07-14
 
