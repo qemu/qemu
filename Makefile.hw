@@ -29,6 +29,8 @@ OBJS+= lsi53c895a.o esp.o
 OBJS+= dma-helpers.o sysbus.o
 
 all: $(HWLIB)
+# Dummy command so that make thinks it has done something
+	@true
 
 $(HWLIB): $(OBJS)
 
