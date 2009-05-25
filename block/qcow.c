@@ -503,6 +503,18 @@ typedef struct QCowAIOCB {
     BlockDriverAIOCB *hd_aiocb;
 } QCowAIOCB;
 
+static void qcow_aio_cancel(BlockDriverAIOCB *blockacb)
+{
+    QCowAIOCB *acb = (QCowAIOCB *)blockacb;
+    if (acb->hd_aiocb)
+        bdrv_aio_cancel(acb->hd_aiocb);
+    qemu_aio_release(acb);
+}
+
+static AIOPool qcow_aio_pool = {
+    .aiocb_size         = sizeof(QCowAIOCB),
+    .cancel             = qcow_aio_cancel,
+};
 
 static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
@@ -510,7 +522,7 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
 {
     QCowAIOCB *acb;
 
-    acb = qemu_aio_get(bs, cb, opaque);
+    acb = qemu_aio_get(&qcow_aio_pool, bs, cb, opaque);
     if (!acb)
         return NULL;
     acb->hd_aiocb = NULL;
@@ -720,14 +732,6 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
     return &acb->common;
 }
 
-static void qcow_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    QCowAIOCB *acb = (QCowAIOCB *)blockacb;
-    if (acb->hd_aiocb)
-        bdrv_aio_cancel(acb->hd_aiocb);
-    qemu_aio_release(acb);
-}
-
 static void qcow_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
@@ -924,8 +928,6 @@ static BlockDriver bdrv_qcow = {
     .bdrv_make_empty	= qcow_make_empty,
     .bdrv_aio_readv	= qcow_aio_readv,
     .bdrv_aio_writev	= qcow_aio_writev,
-    .bdrv_aio_cancel	= qcow_aio_cancel,
-    .aiocb_size		= sizeof(QCowAIOCB),
     .bdrv_write_compressed = qcow_write_compressed,
     .bdrv_get_info	= qcow_get_info,
 
