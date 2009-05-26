@@ -135,7 +135,7 @@ static void vpb_sic_init(SysBusDevice *dev)
     int iomemtype;
     int i;
 
-    qdev_init_irq_sink(&dev->qdev, vpb_sic_set_irq, 32);
+    qdev_init_gpio_in(&dev->qdev, vpb_sic_set_irq, 32);
     for (i = 0; i < 32; i++) {
         sysbus_init_irq(dev, &s->parent[i]);
     }
@@ -188,12 +188,12 @@ static void versatile_init(ram_addr_t ram_size,
     dev = sysbus_create_varargs("pl190", 0x10140000,
                                 cpu_pic[0], cpu_pic[1], NULL);
     for (n = 0; n < 32; n++) {
-        pic[n] = qdev_get_irq_sink(dev, n);
+        pic[n] = qdev_get_gpio_in(dev, n);
     }
     dev = sysbus_create_simple("versatilepb_sic", 0x10003000, NULL);
     for (n = 0; n < 32; n++) {
         sysbus_connect_irq(sysbus_from_qdev(dev), n, pic[n]);
-        sic[n] = qdev_get_irq_sink(dev, n);
+        sic[n] = qdev_get_gpio_in(dev, n);
     }
 
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);

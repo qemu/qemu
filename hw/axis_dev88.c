@@ -304,10 +304,10 @@ void axisdev88_init (ram_addr_t ram_size,
     sysbus_connect_irq(s, 0, cpu_irq[0]);
     sysbus_connect_irq(s, 1, cpu_irq[1]);
     for (i = 0; i < 30; i++) {
-        irq[i] = qdev_get_irq_sink(dev, i);
+        irq[i] = qdev_get_gpio_in(dev, i);
     }
-    nmi[0] = qdev_get_irq_sink(dev, 30);
-    nmi[1] = qdev_get_irq_sink(dev, 31);
+    nmi[0] = qdev_get_gpio_in(dev, 30);
+    nmi[1] = qdev_get_gpio_in(dev, 31);
 
     etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
     for (i = 0; i < 10; i++) {

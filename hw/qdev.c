@@ -156,19 +156,6 @@ void qdev_set_netdev(DeviceState *dev, NICInfo *nd)
 }
 
 
-qemu_irq qdev_get_irq_sink(DeviceState *dev, int n)
-{
-    assert(n >= 0 && n < dev->num_irq_sink);
-    return dev->irq_sink[n];
-}
-
-/* Register device IRQ sinks.  */
-void qdev_init_irq_sink(DeviceState *dev, qemu_irq_handler handler, int nirq)
-{
-    dev->num_irq_sink = nirq;
-    dev->irq_sink = qemu_allocate_irqs(handler, dev, nirq);
-}
-
 /* Get a character (serial) device interface.  */
 CharDriverState *qdev_init_chardev(DeviceState *dev)
 {

@@ -141,7 +141,7 @@ static void etraxfs_pic_init(SysBusDevice *dev)
     int intr_vect_regs;
 
     s->interrupt_vector = qdev_get_prop_ptr(&dev->qdev, "interrupt_vector");
-    qdev_init_irq_sink(&dev->qdev, irq_handler, 32);
+    qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_nmi);
 

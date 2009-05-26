@@ -2127,7 +2127,7 @@ static void lance_init(SysBusDevice *dev)
 
     s->dma_opaque = qdev_get_prop_ptr(&dev->qdev, "dma");
 
-    qdev_init_irq_sink(&dev->qdev, parent_lance_reset, 1);
+    qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
 
     sysbus_init_mmio(dev, 4, s->mmio_index);
 

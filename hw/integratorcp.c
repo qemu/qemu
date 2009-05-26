@@ -378,7 +378,7 @@ static void icp_pic_init(SysBusDevice *dev)
     icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
     int iomemtype;
 
-    qdev_init_irq_sink(&dev->qdev, icp_pic_set_irq, 32);
+    qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
     iomemtype = cpu_register_io_memory(0, icp_pic_readfn,
@@ -484,7 +484,7 @@ static void integratorcp_init(ram_addr_t ram_size,
                                 cpu_pic[ARM_PIC_CPU_IRQ],
                                 cpu_pic[ARM_PIC_CPU_FIQ], NULL);
     for (i = 0; i < 32; i++) {
-        pic[i] = qdev_get_irq_sink(dev, i);
+        pic[i] = qdev_get_gpio_in(dev, i);
     }
     sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
     sysbus_create_varargs("integrator_pit", 0x13000000,

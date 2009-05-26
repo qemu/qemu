@@ -186,7 +186,7 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
     cpu_pic = arm_pic_init_cpu(env);
     sysbus_connect_irq(sysbus_from_qdev(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
     for (i = 0; i < 64; i++) {
-        pic[i] = qdev_get_irq_sink(nvic, i);
+        pic[i] = qdev_get_gpio_in(nvic, i);
     }
 
     image_size = load_elf(kernel_filename, 0, &entry, &lowaddr, NULL);
