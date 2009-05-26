@@ -734,6 +734,30 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
     }
 }
 
+static void _slirp_redir_loop(void (*func)(void *opaque, int is_udp,
+                                           struct in_addr *laddr, u_int lport,
+                                           struct in_addr *faddr, u_int fport),
+                              void *opaque, int is_udp)
+{
+    struct socket *head = (is_udp ? &udb : &tcb);
+    struct socket *so;
+
+    for (so = head->so_next; so != head; so = so->so_next) {
+        func(opaque, is_udp,
+             &so->so_laddr, ntohs(so->so_lport),
+             &so->so_faddr, ntohs(so->so_fport));
+    }
+}
+
+void slirp_redir_loop(void (*func)(void *opaque, int is_udp,
+                                  struct in_addr *laddr, u_int lport,
+                                  struct in_addr *faddr, u_int fport),
+                     void *opaque)
+{
+    _slirp_redir_loop(func, opaque, 0);
+    _slirp_redir_loop(func, opaque, 1);
+}
+
 /* Unlistens a redirection
  *
  * Return value: number of redirs removed */

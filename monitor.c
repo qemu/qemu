@@ -1761,7 +1761,8 @@ static const mon_cmd_t mon_cmds[] = {
 #ifdef CONFIG_SLIRP
     { "host_net_redir", "ss?", net_slirp_redir,
       "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)\n"
-      "host_net_redir remove [tcp:|udp:]host-port -- remove redirection" },
+      "host_net_redir remove [tcp:|udp:]host-port -- remove redirection\n"
+      "host_net_redir list -- show all redirections" },
 #endif
     { "balloon", "i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },

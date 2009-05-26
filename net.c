@@ -568,6 +568,45 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
     return 0;
 }
 
+static void net_slirp_redir_print(void *opaque, int is_udp,
+                                  struct in_addr *laddr, u_int lport,
+                                  struct in_addr *faddr, u_int fport)
+{
+    Monitor *mon = (Monitor *)opaque;
+    uint32_t h_addr;
+    uint32_t g_addr;
+    char buf[16];
+
+    h_addr = ntohl(faddr->s_addr);
+    g_addr = ntohl(laddr->s_addr);
+
+    monitor_printf(mon, "  %s |", is_udp ? "udp" : "tcp" );
+    snprintf(buf, 15, "%d.%d.%d.%d", (h_addr >> 24) & 0xff,
+                                     (h_addr >> 16) & 0xff,
+                                     (h_addr >> 8) & 0xff,
+                                     (h_addr) & 0xff);
+    monitor_printf(mon, " %15s |", buf);
+    monitor_printf(mon, " %5d |", fport);
+
+    snprintf(buf, 15, "%d.%d.%d.%d", (g_addr >> 24) & 0xff,
+                                     (g_addr >> 16) & 0xff,
+                                     (g_addr >> 8) & 0xff,
+                                     (g_addr) & 0xff);
+    monitor_printf(mon, " %15s |", buf);
+    monitor_printf(mon, " %5d\n", lport);
+
+}
+
+static void net_slirp_redir_list(Monitor *mon)
+{
+    if (!mon)
+        return;
+
+    monitor_printf(mon, " Prot |    Host Addr    | HPort |    Guest Addr   | GPort\n");
+    monitor_printf(mon, "      |                 |       |                 |      \n");
+    slirp_redir_loop(net_slirp_redir_print, mon);
+}
+
 static void net_slirp_redir_rm(Monitor *mon, const char *port_str)
 {
     int host_port;
@@ -619,6 +658,11 @@ void net_slirp_redir(Monitor *mon, const char *redir_str, const char *redir_opt2
 
     if (!strcmp(redir_str, "remove")) {
         net_slirp_redir_rm(mon, redir_opt2);
+        return;
+    }
+
+    if (!strcmp(redir_str, "list")) {
+        net_slirp_redir_list(mon);
         return;
     }
 
