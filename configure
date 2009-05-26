@@ -1747,7 +1747,14 @@ if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
 fi
 echo "TOOLS=$tools" >> $config_mak
 
-test -f ${config_h}~ && cmp -s $config_h ${config_h}~ && mv ${config_h}~ $config_h
+if test -f ${config_h}~ ; then
+  if cmp -s $config_h ${config_h}~ ; then
+    mv ${config_h}~ $config_h
+  else
+    rm ${config_h}~
+  fi
+fi
+
 config_host_mak=${config_mak}
 
 for target in $target_list; do
