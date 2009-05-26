@@ -37,7 +37,7 @@ static unsigned int tlb_decode_size(unsigned int f)
     return sizes[f];
 }
 
-static void mmu_flush_idx(CPUState *env, unsigned idx)
+static void mmu_flush_idx(CPUState *env, unsigned int idx)
 {
     struct microblaze_mmu *mmu = &env->mmu;
     unsigned int tlb_size;
