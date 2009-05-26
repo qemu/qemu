@@ -2578,6 +2578,9 @@ static int update_refcount(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     int64_t start, last, cluster_offset;
+    int64_t refcount_block_offset = 0;
+    int64_t table_index = -1, old_table_index;
+    int first_index = -1, last_index = -1;
 
 #ifdef DEBUG_ALLOC2
     printf("update_refcount: offset=%lld size=%lld addend=%d\n",
@@ -2590,9 +2593,24 @@ static int update_refcount(BlockDriverState *bs,
     for(cluster_offset = start; cluster_offset <= last;
         cluster_offset += s->cluster_size)
     {
-        int64_t refcount_block_offset;
         int block_index, refcount;
         int64_t cluster_index = cluster_offset >> s->cluster_bits;
+
+        /* Only write refcount block to disk when we are done with it */
+        old_table_index = table_index;
+        table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
+        if ((old_table_index >= 0) && (table_index != old_table_index)) {
+            size_t size = (last_index - first_index + 1) << REFCOUNT_SHIFT;
+            if (bdrv_pwrite(s->hd,
+                refcount_block_offset + (first_index << REFCOUNT_SHIFT),
+                &s->refcount_block_cache[first_index], size) != size)
+            {
+                return -EIO;
+            }
+
+            first_index = -1;
+            last_index = -1;
+        }
 
         /* Load the refcount block and allocate it if needed */
         refcount_block_offset = alloc_refcount_block(bs, cluster_index);
@@ -2603,6 +2621,13 @@ static int update_refcount(BlockDriverState *bs,
         /* we can update the count and save it */
         block_index = cluster_index &
             ((1 << (s->cluster_bits - REFCOUNT_SHIFT)) - 1);
+        if (first_index == -1 || block_index < first_index) {
+            first_index = block_index;
+        }
+        if (block_index > last_index) {
+            last_index = block_index;
+        }
+
         refcount = be16_to_cpu(s->refcount_block_cache[block_index]);
         refcount += addend;
         if (refcount < 0 || refcount > 0xffff)
@@ -2611,12 +2636,19 @@ static int update_refcount(BlockDriverState *bs,
             s->free_cluster_index = cluster_index;
         }
         s->refcount_block_cache[block_index] = cpu_to_be16(refcount);
-        if (bdrv_pwrite(s->hd,
-                        refcount_block_offset + (block_index << REFCOUNT_SHIFT),
-                        &s->refcount_block_cache[block_index], 2) != 2)
-            return -EIO;
-
     }
+
+    /* Write last changed block to disk */
+    if (refcount_block_offset != 0) {
+        size_t size = (last_index - first_index + 1) << REFCOUNT_SHIFT;
+        if (bdrv_pwrite(s->hd,
+            refcount_block_offset + (first_index << REFCOUNT_SHIFT),
+            &s->refcount_block_cache[first_index], size) != size)
+        {
+            return -EIO;
+        }
+    }
+
     return 0;
 }
 
