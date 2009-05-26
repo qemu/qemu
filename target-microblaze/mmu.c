@@ -220,6 +220,13 @@ void mmu_write(CPUState *env, uint32_t rn, uint32_t v)
             D(qemu_log("%s ram[%d][%d]=%x\n", __func__, rn & 1, i, v));
             break;
         case MMU_R_ZPR:
+            /* Changes to the zone protection reg flush the QEMU TLB.
+               Fortunately, these are very uncommon.  */
+            if (v != env->mmu.regs[rn]) {
+                tlb_flush(env, 1);
+            }
+            env->mmu.regs[rn] = v;
+            break;
         case MMU_R_PID:
             if (v != env->mmu.regs[rn]) {
                 mmu_change_pid(env, v);
