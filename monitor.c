@@ -1759,8 +1759,9 @@ static const mon_cmd_t mon_cmds[] = {
     { "host_net_remove", "is", net_host_device_remove,
       "vlan_id name", "remove host VLAN client" },
 #ifdef CONFIG_SLIRP
-    { "host_net_redir", "s", net_slirp_redir,
-      "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)" },
+    { "host_net_redir", "ss?", net_slirp_redir,
+      "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)\n"
+      "host_net_redir remove [tcp:|udp:]host-port -- remove redirection" },
 #endif
     { "balloon", "i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },

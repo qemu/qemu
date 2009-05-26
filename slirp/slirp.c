@@ -734,6 +734,29 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
     }
 }
 
+/* Unlistens a redirection
+ *
+ * Return value: number of redirs removed */
+int slirp_redir_rm(int is_udp, int host_port)
+{
+    struct socket *so;
+    struct socket *head = (is_udp ? &udb : &tcb);
+    int fport = htons(host_port);
+    int n = 0;
+
+ loop_again:
+    for (so = head->so_next; so != head; so = so->so_next) {
+        if (so->so_fport == fport) {
+            close(so->s);
+            sofree(so);
+            n++;
+            goto loop_again;
+        }
+    }
+
+    return n;
+}
+
 int slirp_redir(int is_udp, int host_port,
                 struct in_addr guest_addr, int guest_port)
 {

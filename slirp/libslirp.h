@@ -18,6 +18,7 @@ void slirp_input(const uint8_t *pkt, int pkt_len);
 int slirp_can_output(void);
 void slirp_output(const uint8_t *pkt, int pkt_len);
 
+int slirp_redir_rm(int is_udp, int host_port);
 int slirp_redir(int is_udp, int host_port,
                 struct in_addr guest_addr, int guest_port);
 int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,

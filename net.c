@@ -568,7 +568,43 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
     return 0;
 }
 
-void net_slirp_redir(Monitor *mon, const char *redir_str)
+static void net_slirp_redir_rm(Monitor *mon, const char *port_str)
+{
+    int host_port;
+    char buf[256] = "";
+    const char *p = port_str;
+    int is_udp = 0;
+    int n;
+
+    if (!mon)
+        return;
+
+    if (!port_str || !port_str[0])
+        goto fail_syntax;
+
+    get_str_sep(buf, sizeof(buf), &p, ':');
+
+    if (!strcmp(buf, "tcp") || buf[0] == '\0') {
+        is_udp = 0;
+    } else if (!strcmp(buf, "udp")) {
+        is_udp = 1;
+    } else {
+        goto fail_syntax;
+    }
+
+    host_port = atoi(p);
+
+    n = slirp_redir_rm(is_udp, host_port);
+
+    monitor_printf(mon, "removed %d redirections to %s port %d\n", n,
+                        is_udp ? "udp" : "tcp", host_port);
+    return;
+
+ fail_syntax:
+    monitor_printf(mon, "invalid format\n");
+}
+
+void net_slirp_redir(Monitor *mon, const char *redir_str, const char *redir_opt2)
 {
     int is_udp;
     char buf[256], *r;
@@ -579,6 +615,11 @@ void net_slirp_redir(Monitor *mon, const char *redir_str)
     if (!slirp_inited) {
         slirp_inited = 1;
         slirp_init(slirp_restrict, slirp_ip);
+    }
+
+    if (!strcmp(redir_str, "remove")) {
+        net_slirp_redir_rm(mon, redir_opt2);
+        return;
     }
 
     p = redir_str;

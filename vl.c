@@ -5152,7 +5152,7 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_redir:
-                net_slirp_redir(NULL, optarg);
+                net_slirp_redir(NULL, optarg, NULL);
                 break;
 #endif
             case QEMU_OPTION_bt:
