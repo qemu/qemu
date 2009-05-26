@@ -90,10 +90,10 @@ void bareetraxfs_init (ram_addr_t ram_size,
     /* FIXME: Is there a proper way to signal vectors to the CPU core?  */
     qdev_set_prop_ptr(dev, "interrupt_vector", &env->interrupt_vector);
     for (i = 0; i < 30; i++) {
-        irq[i] = qdev_get_irq_sink(dev, i);
+        irq[i] = qdev_get_gpio_in(dev, i);
     }
-    nmi[0] = qdev_get_irq_sink(dev, 30);
-    nmi[1] = qdev_get_irq_sink(dev, 31);
+    nmi[0] = qdev_get_gpio_in(dev, 30);
+    nmi[1] = qdev_get_gpio_in(dev, 31);
 
     etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
     for (i = 0; i < 10; i++) {

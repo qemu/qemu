@@ -84,7 +84,7 @@ static void realview_init(ram_addr_t ram_size,
                                     cpu_irq[3], NULL);
     }
     for (n = 0; n < 64; n++) {
-        pic[n] = qdev_get_irq_sink(dev, n);
+        pic[n] = qdev_get_gpio_in(dev, n);
     }
 
     sysbus_create_simple("pl050_keyboard", 0x10006000, pic[20]);

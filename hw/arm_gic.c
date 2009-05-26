@@ -721,7 +721,7 @@ static void gic_init(gic_state *s)
 {
     int i;
 
-    qdev_init_irq_sink(&s->busdev.qdev, gic_set_irq, GIC_NIRQ - 32);
+    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, GIC_NIRQ - 32);
     for (i = 0; i < NCPU; i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }

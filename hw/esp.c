@@ -684,7 +684,7 @@ static void esp_init1(SysBusDevice *dev)
     register_savevm("esp", -1, 3, esp_save, esp_load, s);
     qemu_register_reset(esp_reset, 0, s);
 
-    qdev_init_irq_sink(&dev->qdev, parent_esp_reset, 1);
+    qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
     scsi_bus_new(&dev->qdev, esp_scsi_attach);
 }

@@ -58,7 +58,7 @@ static void syborg_init(ram_addr_t ram_size,
     dev = sysbus_create_simple("syborg,interrupt", 0xC0000000,
                                cpu_pic[ARM_PIC_CPU_IRQ]);
     for (i = 0; i < 64; i++) {
-        pic[i] = qdev_get_irq_sink(dev, i);
+        pic[i] = qdev_get_gpio_in(dev, i);
     }
 
     sysbus_create_simple("syborg,rtc", 0xC0001000, NULL);

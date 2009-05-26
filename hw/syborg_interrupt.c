@@ -209,7 +209,7 @@ static void syborg_int_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->parent_irq);
     s->num_irqs = qdev_get_prop_int(&dev->qdev, "num-interrupts", 64);
-    qdev_init_irq_sink(&dev->qdev, syborg_int_set_irq, s->num_irqs);
+    qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
     iomemtype = cpu_register_io_memory(0, syborg_int_readfn,
                                        syborg_int_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);

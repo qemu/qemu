@@ -320,17 +320,17 @@ static void realview_mpcore_init(SysBusDevice *dev)
     priv = sysbus_create_simple("arm11mpcore_priv", MPCORE_PRIV_BASE, NULL);
     sysbus_pass_irq(dev, sysbus_from_qdev(priv));
     for (i = 0; i < 32; i++) {
-        s->cpuic[i] = qdev_get_irq_sink(priv, i);
+        s->cpuic[i] = qdev_get_gpio_in(priv, i);
     }
     /* ??? IRQ routing is hardcoded to "normal" mode.  */
     for (n = 0; n < 4; n++) {
         gic = sysbus_create_simple("realview_gic", 0x10040000 + n * 0x10000,
                                    s->cpuic[10 + n]);
         for (i = 0; i < 64; i++) {
-            s->rvic[n][i] = qdev_get_irq_sink(gic, i);
+            s->rvic[n][i] = qdev_get_gpio_in(gic, i);
         }
     }
-    qdev_init_irq_sink(&dev->qdev, mpcore_rirq_set_irq, 64);
+    qdev_init_gpio_in(&dev->qdev, mpcore_rirq_set_irq, 64);
 }
 
 static void mpcore_register_devices(void)

@@ -17,8 +17,6 @@ struct DeviceState {
     DeviceType *type;
     BusState *parent_bus;
     DeviceProperty *props;
-    int num_irq_sink;
-    qemu_irq *irq_sink;
     int num_gpio_out;
     qemu_irq *gpio_out;
     int num_gpio_in;
@@ -55,7 +53,6 @@ void qdev_set_prop_int(DeviceState *dev, const char *name, uint64_t value);
 void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_set_netdev(DeviceState *dev, NICInfo *nd);
 
-qemu_irq qdev_get_irq_sink(DeviceState *dev, int n);
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
 
@@ -77,7 +74,7 @@ struct DeviceInfo {
 void qdev_register(const char *name, int size, DeviceInfo *info);
 
 /* Register device properties.  */
-void qdev_init_irq_sink(DeviceState *dev, qemu_irq_handler handler, int nirq);
+/* GPIO inputs also double as IRQ sinks.  */
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
 

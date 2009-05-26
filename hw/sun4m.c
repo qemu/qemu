@@ -379,7 +379,7 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, leaddr);
     sysbus_connect_irq(s, 0, irq);
-    *reset = qdev_get_irq_sink(dev, 0);
+    *reset = qdev_get_gpio_in(dev, 0);
 }
 
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
