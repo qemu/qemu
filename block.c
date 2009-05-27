@@ -184,42 +184,6 @@ BlockDriver *bdrv_find_format(const char *format_name)
     return NULL;
 }
 
-int bdrv_create2(BlockDriver *drv,
-                const char *filename, int64_t size_in_sectors,
-                const char *backing_file, const char *backing_format,
-                int flags)
-{
-    QEMUOptionParameter *options;
-
-    options = parse_option_parameters("", drv->create_options, NULL);
-
-    // Process flags
-    if (flags & ~(BLOCK_FLAG_ENCRYPT | BLOCK_FLAG_COMPAT6 | BLOCK_FLAG_COMPRESS)) {
-        return -ENOTSUP;
-    }
-
-    if (flags & BLOCK_FLAG_ENCRYPT) {
-        set_option_parameter_int(options, BLOCK_OPT_ENCRYPT, 1);
-    }
-    if (flags & BLOCK_FLAG_COMPAT6) {
-        set_option_parameter_int(options, BLOCK_OPT_COMPAT6, 1);
-    }
-
-    // Add size to options
-    set_option_parameter_int(options, BLOCK_OPT_SIZE, size_in_sectors * 512);
-
-    // Backing files
-    if ((backing_file != NULL && set_option_parameter(options,
-            BLOCK_OPT_BACKING_FILE, backing_file))
-        || (backing_format != NULL && set_option_parameter(options,
-            BLOCK_OPT_BACKING_FMT, backing_format)))
-    {
-        return -ENOTSUP;
-    }
-
-    return bdrv_create(drv, filename, options);
-}
-
 int bdrv_create(BlockDriver *drv, const char* filename,
     QEMUOptionParameter *options)
 {
@@ -392,6 +356,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         BlockDriverState *bs1;
         int64_t total_size;
         int is_protocol = 0;
+        BlockDriver *bdrv_qcow2;
+        QEMUOptionParameter *options;
 
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
@@ -419,14 +385,23 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         else
             realpath(filename, backing_filename);
 
-        ret = bdrv_create2(bdrv_find_format("qcow2"), tmp_filename,
-                           total_size, backing_filename, 
-                           (drv ? drv->format_name : NULL), 0);
+        bdrv_qcow2 = bdrv_find_format("qcow2");
+        options = parse_option_parameters("", bdrv_qcow2->create_options, NULL);
+
+        set_option_parameter_int(options, BLOCK_OPT_SIZE, total_size * 512);
+        set_option_parameter(options, BLOCK_OPT_BACKING_FILE, backing_filename);
+        if (drv) {
+            set_option_parameter(options, BLOCK_OPT_BACKING_FMT,
+                drv->format_name);
+        }
+
+        ret = bdrv_create(bdrv_qcow2, tmp_filename, options);
         if (ret < 0) {
             return ret;
         }
+
         filename = tmp_filename;
-        drv = bdrv_find_format("qcow2");
+        drv = bdrv_qcow2;
         bs->is_temporary = 1;
     }
 
