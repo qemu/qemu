@@ -246,6 +246,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ALPHA)
 #elif defined(TARGET_ARM)
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_CRIS)
@@ -299,6 +300,8 @@ int cpu_exec(CPUState *env1)
                     /* successfully delivered */
                     env->old_exception = -1;
 #elif defined(TARGET_PPC)
+                    do_interrupt(env);
+#elif defined(TARGET_MICROBLAZE)
                     do_interrupt(env);
 #elif defined(TARGET_MIPS)
                     do_interrupt(env);
@@ -367,7 +370,8 @@ int cpu_exec(CPUState *env1)
                         cpu_loop_exit();
                     }
 #if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
-    defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS)
+    defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) || \
+    defined(TARGET_MICROBLAZE)
                     if (interrupt_request & CPU_INTERRUPT_HALT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_HALT;
                         env->halted = 1;
@@ -434,6 +438,15 @@ int cpu_exec(CPUState *env1)
                         ppc_hw_interrupt(env);
                         if (env->pending_interrupts == 0)
                             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                        next_tb = 0;
+                    }
+#elif defined(TARGET_MICROBLAZE)
+                    if ((interrupt_request & CPU_INTERRUPT_HARD)
+                        && (env->sregs[SR_MSR] & MSR_IE)
+                        && !(env->sregs[SR_MSR] & (MSR_EIP | MSR_BIP))
+                        && !(env->iflags & (D_FLAG | IMM_FLAG))) {
+                        env->exception_index = EXCP_IRQ;
+                        do_interrupt(env);
                         next_tb = 0;
                     }
 #elif defined(TARGET_MIPS)
@@ -565,6 +578,8 @@ int cpu_exec(CPUState *env1)
                     env->sr = (env->sr & 0xffe0)
                               | env->cc_dest | (env->cc_x << 4);
                     log_cpu_state(env, 0);
+#elif defined(TARGET_MICROBLAZE)
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_MIPS)
                     log_cpu_state(env, 0);
 #elif defined(TARGET_SH4)
@@ -682,6 +697,7 @@ int cpu_exec(CPUState *env1)
     env->cc_op = CC_OP_FLAGS;
     env->sr = (env->sr & 0xffe0)
               | env->cc_dest | (env->cc_x << 4);
+#elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_ALPHA)
@@ -999,6 +1015,56 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
     /* see if it is an MMU fault */
     ret = cpu_mips_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+    if (ret == 1) {
+#if 0
+        printf("PF exception: PC=0x" TARGET_FMT_lx " error=0x%x %p\n",
+               env->PC, env->error_code, tb);
+#endif
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        cpu_loop_exit();
+    } else {
+        /* activate soft MMU for this block */
+        cpu_resume_from_signal(env, puc);
+    }
+    /* never comes here */
+    return 1;
+}
+
+#elif defined (TARGET_MICROBLAZE)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
+{
+    TranslationBlock *tb;
+    int ret;
+
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
+        return 1;
+    }
+
+    /* see if it is an MMU fault */
+    ret = cpu_mb_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)

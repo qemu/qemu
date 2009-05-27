@@ -453,6 +453,28 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif /* TARGET_MIPS */
 
+#ifdef TARGET_MICROBLAZE
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_XILINX_MICROBLAZE )
+
+#define ELF_CLASS   ELFCLASS32
+#define ELF_DATA	ELFDATA2MSB
+#define ELF_ARCH    EM_MIPS
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->pc = infop->entry;
+    regs->r1 = infop->start_stack;
+
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE        4096
+
+#endif /* TARGET_MICROBLAZE */
+
 #ifdef TARGET_SH4
 
 #define ELF_START_MMAP 0x80000000

@@ -92,9 +92,11 @@ For system emulation, the following hardware targets are supported:
 @item Gumstix "Connex" and "Verdex" motherboards (PXA255/270).
 @item Siemens SX1 smartphone (OMAP310 processor)
 @item Syborg SVP base model (ARM Cortex-A8).
+@item AXIS-Devboard88 (CRISv32 ETRAX-FS).
+@item Petalogix Spartan 3aDSP1800 MMU ref design (MicroBlaze).
 @end itemize
 
-For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
+For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64, ColdFire(m68k), CRISv32 and MicroBlaze CPUs are supported.
 
 @node Installation
 @chapter Installation
