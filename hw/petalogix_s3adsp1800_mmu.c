@@ -52,12 +52,15 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
                                       target_phys_addr_t initrd_size,
                                       const char *kernel_cmdline)
 {
+#ifdef HAVE_FDT
     void *fdt;
     char *path = NULL;
-    int fdt_size;
     int pathlen;
     int r;
+#endif
+    int fdt_size;
 
+#ifdef HAVE_FDT
     /* Try the local "mb.dtb" override.  */
     fdt = load_device_tree("mb.dtb", &fdt_size);
     if (!fdt) {
@@ -74,8 +77,20 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
     r = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
-    printf("write fdt to addr=%x fdtsize=%d\n", addr, fdt_size);
     cpu_physical_memory_write (addr, (void *)fdt, fdt_size);
+#else
+    /* We lack libfdt so we cannot manipulate the fdt. Just pass on the blob
+       to the kernel.  */
+    fdt_size = load_image_targphys("mb.dtb", addr, 0x10000);
+    if (fdt_size < 0) {
+        fdt_size = load_image_targphys(BINARY_DEVICE_TREE_FILE, addr, 0x10000);
+    }
+
+    if (kernel_cmdline) {
+        fprintf(stderr,
+                "Warning: missing libfdt, cannot pass cmdline to kernel!\n");
+    }
+#endif
     return fdt_size;
 }
 
