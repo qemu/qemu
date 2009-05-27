@@ -1664,10 +1664,14 @@ int bdrv_media_changed(BlockDriverState *bs)
 /**
  * If eject_flag is TRUE, eject the media. Otherwise, close the tray
  */
-void bdrv_eject(BlockDriverState *bs, int eject_flag)
+int bdrv_eject(BlockDriverState *bs, int eject_flag)
 {
     BlockDriver *drv = bs->drv;
     int ret;
+
+    if (bs->locked) {
+        return -EBUSY;
+    }
 
     if (!drv || !drv->bdrv_eject) {
         ret = -ENOTSUP;
@@ -1677,7 +1681,10 @@ void bdrv_eject(BlockDriverState *bs, int eject_flag)
     if (ret == -ENOTSUP) {
         if (eject_flag)
             bdrv_close(bs);
+        ret = 0;
     }
+
+    return ret;
 }
 
 int bdrv_is_locked(BlockDriverState *bs)

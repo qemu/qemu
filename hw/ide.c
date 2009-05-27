@@ -359,6 +359,7 @@
 #define ASC_INCOMPATIBLE_FORMAT              0x30
 #define ASC_MEDIUM_NOT_PRESENT               0x3a
 #define ASC_SAVING_PARAMETERS_NOT_SUPPORTED  0x39
+#define ASC_MEDIA_REMOVAL_PREVENTED          0x53
 
 #define CFA_NO_ERROR            0x00
 #define CFA_MISC_ERROR          0x09
@@ -1818,18 +1819,27 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_START_STOP_UNIT:
         {
-            int start, eject;
+            int start, eject, err = 0;
             start = packet[4] & 1;
             eject = (packet[4] >> 1) & 1;
 
-            if (eject && !start) {
-                /* eject the disk */
-                bdrv_eject(s->bs, 1);
-            } else if (eject && start) {
-                /* close the tray */
-                bdrv_eject(s->bs, 0);
+            if (eject) {
+                err = bdrv_eject(s->bs, !start);
             }
-            ide_atapi_cmd_ok(s);
+
+            switch (err) {
+            case 0:
+                ide_atapi_cmd_ok(s);
+                break;
+            case -EBUSY:
+                ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                                    ASC_MEDIA_REMOVAL_PREVENTED);
+                break;
+            default:
+                ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                                    ASC_MEDIUM_NOT_PRESENT);
+                break;
+            }
         }
         break;
     case GPCMD_MECHANISM_STATUS:
