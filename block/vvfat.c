@@ -2762,10 +2762,9 @@ static void write_target_close(BlockDriverState *bs) {
 }
 
 static BlockDriver vvfat_write_target = {
-    "vvfat_write_target", 0, NULL, NULL, NULL,
-    write_target_commit,
-    write_target_close,
-    NULL, NULL, NULL
+    .format_name        = "vvfat_write_target",
+    .bdrv_write         = write_target_commit,
+    .bdrv_close         = write_target_close,
 };
 
 static int enable_write_target(BDRVVVFATState *s)
