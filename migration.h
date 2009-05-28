@@ -57,6 +57,8 @@ void do_migrate_set_speed(Monitor *mon, const char *value);
 
 uint64_t migrate_max_downtime(void);
 
+void do_migrate_set_downtime(Monitor *mon, const char *value);
+
 void do_info_migrate(Monitor *mon);
 
 int exec_start_incoming_migration(const char *host_port);
