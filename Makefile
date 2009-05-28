@@ -69,6 +69,7 @@ BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 BLOCK_OBJS+=block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
 BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
 BLOCK_OBJS+=block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
+BLOCK_OBJS+=block/qcow2-snapshot.o
 BLOCK_OBJS+=block/parallels.o block/nbd.o
 BLOCK_OBJS+=nbd.o block.o aio.o
 

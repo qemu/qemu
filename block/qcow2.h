@@ -138,6 +138,13 @@ static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
 }
 
+static inline int64_t align_offset(int64_t offset, int n)
+{
+    offset = (offset + n - 1) & ~(n - 1);
+    return offset;
+}
+
+
 // FIXME Need qcow2_ prefix to global functions
 
 /* qcow2.c functions */
@@ -183,5 +190,14 @@ uint64_t alloc_compressed_cluster_offset(BlockDriverState *bs,
 
 int alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
     QCowL2Meta *m);
+
+/* qcow2-snapshot.c functions */
+int qcow_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);
+int qcow_snapshot_goto(BlockDriverState *bs, const char *snapshot_id);
+int qcow_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
+int qcow_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab);
+
+void qcow_free_snapshots(BlockDriverState *bs);
+int qcow_read_snapshots(BlockDriverState *bs);
 
 #endif
