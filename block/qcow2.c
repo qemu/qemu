@@ -227,7 +227,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
                                   + 512);
     s->cluster_cache_offset = -1;
 
-    if (refcount_init(bs) < 0)
+    if (qcow2_refcount_init(bs) < 0)
         goto fail;
 
     /* read qcow2 extensions */
@@ -247,7 +247,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
             goto fail;
         bs->backing_file[len] = '\0';
     }
-    if (qcow_read_snapshots(bs) < 0)
+    if (qcow2_read_snapshots(bs) < 0)
         goto fail;
 
 #ifdef DEBUG_ALLOC
@@ -256,8 +256,8 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 
  fail:
-    qcow_free_snapshots(bs);
-    refcount_close(bs);
+    qcow2_free_snapshots(bs);
+    qcow2_refcount_close(bs);
     qemu_free(s->l1_table);
     qemu_free(s->l2_cache);
     qemu_free(s->cluster_cache);
@@ -314,13 +314,13 @@ static int qcow_is_allocated(BlockDriverState *bs, int64_t sector_num,
     uint64_t cluster_offset;
 
     *pnum = nb_sectors;
-    cluster_offset = get_cluster_offset(bs, sector_num << 9, pnum);
+    cluster_offset = qcow2_get_cluster_offset(bs, sector_num << 9, pnum);
 
     return (cluster_offset != 0);
 }
 
 /* handle reading after the end of the backing file */
-int backing_read1(BlockDriverState *bs,
+int qcow2_backing_read1(BlockDriverState *bs,
                   int64_t sector_num, uint8_t *buf, int nb_sectors)
 {
     int n1;
@@ -405,7 +405,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         /* nothing to do */
     } else {
         if (s->crypt_method) {
-            encrypt_sectors(s, acb->sector_num, acb->buf, acb->buf,
+            qcow2_encrypt_sectors(s, acb->sector_num, acb->buf, acb->buf,
                             acb->n, 0,
                             &s->aes_decrypt_key);
         }
@@ -423,13 +423,14 @@ static void qcow_aio_read_cb(void *opaque, int ret)
 
     /* prepare next AIO request */
     acb->n = acb->nb_sectors;
-    acb->cluster_offset = get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
+    acb->cluster_offset =
+        qcow2_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
 
     if (!acb->cluster_offset) {
         if (bs->backing_hd) {
             /* read from the base image */
-            n1 = backing_read1(bs->backing_hd, acb->sector_num,
+            n1 = qcow2_backing_read1(bs->backing_hd, acb->sector_num,
                                acb->buf, acb->n);
             if (n1 > 0) {
                 acb->hd_iov.iov_base = (void *)acb->buf;
@@ -454,7 +455,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
-        if (decompress_cluster(s, acb->cluster_offset) < 0)
+        if (qcow2_decompress_cluster(s, acb->cluster_offset) < 0)
             goto done;
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
@@ -541,8 +542,8 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     if (ret < 0)
         goto done;
 
-    if (alloc_cluster_link_l2(bs, acb->cluster_offset, &acb->l2meta) < 0) {
-        free_any_clusters(bs, acb->cluster_offset, acb->l2meta.nb_clusters);
+    if (qcow2_alloc_cluster_link_l2(bs, acb->cluster_offset, &acb->l2meta) < 0) {
+        qcow2_free_any_clusters(bs, acb->cluster_offset, acb->l2meta.nb_clusters);
         goto done;
     }
 
@@ -562,7 +563,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
         n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors)
         n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
 
-    acb->cluster_offset = alloc_cluster_offset(bs, acb->sector_num << 9,
+    acb->cluster_offset = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
                                           index_in_cluster,
                                           n_end, &acb->n, &acb->l2meta);
     if (!acb->cluster_offset || (acb->cluster_offset & 511) != 0) {
@@ -574,7 +575,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
             acb->cluster_data = qemu_mallocz(QCOW_MAX_CRYPT_CLUSTERS *
                                              s->cluster_size);
         }
-        encrypt_sectors(s, acb->sector_num, acb->cluster_data, acb->buf,
+        qcow2_encrypt_sectors(s, acb->sector_num, acb->cluster_data, acb->buf,
                         acb->n, 1, &s->aes_encrypt_key);
         src_buf = acb->cluster_data;
     } else {
@@ -623,7 +624,7 @@ static void qcow_close(BlockDriverState *bs)
     qemu_free(s->l2_cache);
     qemu_free(s->cluster_cache);
     qemu_free(s->cluster_data);
-    refcount_close(bs);
+    qcow2_refcount_close(bs);
     bdrv_delete(s->hd);
 }
 
@@ -733,10 +734,12 @@ static int qcow_create2(const char *filename, int64_t total_size,
     s->refcount_block = qemu_mallocz(ref_clusters * s->cluster_size);
 
     /* update refcounts */
-    create_refcount_update(s, 0, header_size);
-    create_refcount_update(s, s->l1_table_offset, l1_size * sizeof(uint64_t));
-    create_refcount_update(s, s->refcount_table_offset, s->cluster_size);
-    create_refcount_update(s, s->refcount_block_offset, ref_clusters * s->cluster_size);
+    qcow2_create_refcount_update(s, 0, header_size);
+    qcow2_create_refcount_update(s, s->l1_table_offset,
+        l1_size * sizeof(uint64_t));
+    qcow2_create_refcount_update(s, s->refcount_table_offset, s->cluster_size);
+    qcow2_create_refcount_update(s, s->refcount_block_offset,
+        ref_clusters * s->cluster_size);
 
     /* write all the data */
     write(fd, &header, sizeof(header));
@@ -877,8 +880,8 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
         /* could not compress: write normal cluster */
         bdrv_write(bs, sector_num, buf, s->cluster_sectors);
     } else {
-        cluster_offset = alloc_compressed_cluster_offset(bs, sector_num << 9,
-                                              out_len);
+        cluster_offset = qcow2_alloc_compressed_cluster_offset(bs,
+            sector_num << 9, out_len);
         if (!cluster_offset)
             return -1;
         cluster_offset &= s->cluster_offset_mask;
@@ -910,7 +913,7 @@ static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 
 static int qcow_check(BlockDriverState *bs)
 {
-    return check_refcounts(bs);
+    return qcow2_check_refcounts(bs);
 }
 
 #if 0
@@ -1003,10 +1006,10 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_aio_writev	= qcow_aio_writev,
     .bdrv_write_compressed = qcow_write_compressed,
 
-    .bdrv_snapshot_create = qcow_snapshot_create,
-    .bdrv_snapshot_goto	= qcow_snapshot_goto,
-    .bdrv_snapshot_delete = qcow_snapshot_delete,
-    .bdrv_snapshot_list	= qcow_snapshot_list,
+    .bdrv_snapshot_create   = qcow2_snapshot_create,
+    .bdrv_snapshot_goto     = qcow2_snapshot_goto,
+    .bdrv_snapshot_delete   = qcow2_snapshot_delete,
+    .bdrv_snapshot_list     = qcow2_snapshot_list,
     .bdrv_get_info	= qcow_get_info,
 
     .bdrv_put_buffer    = qcow_put_buffer,

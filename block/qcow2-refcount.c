@@ -34,7 +34,7 @@ static int update_refcount(BlockDriverState *bs,
 /*********************************************************/
 /* refcount handling */
 
-int refcount_init(BlockDriverState *bs)
+int qcow2_refcount_init(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret, refcount_table_size2, i;
@@ -55,7 +55,7 @@ int refcount_init(BlockDriverState *bs)
     return -ENOMEM;
 }
 
-void refcount_close(BlockDriverState *bs)
+void qcow2_refcount_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     qemu_free(s->refcount_block_cache);
@@ -154,10 +154,10 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     s->refcount_table_offset = table_offset;
 
     update_refcount(bs, table_offset, new_table_size2, 1);
-    free_clusters(bs, old_table_offset, old_table_size * sizeof(uint64_t));
+    qcow2_free_clusters(bs, old_table_offset, old_table_size * sizeof(uint64_t));
     return 0;
  fail:
-    free_clusters(bs, table_offset, new_table_size2);
+    qcow2_free_clusters(bs, table_offset, new_table_size2);
     qemu_free(new_table);
     return -EIO;
 }
@@ -334,7 +334,7 @@ retry:
     return (s->free_cluster_index - nb_clusters) << s->cluster_bits;
 }
 
-int64_t alloc_clusters(BlockDriverState *bs, int64_t size)
+int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
 {
     int64_t offset;
 
@@ -345,7 +345,7 @@ int64_t alloc_clusters(BlockDriverState *bs, int64_t size)
 
 /* only used to allocate compressed sectors. We try to allocate
    contiguous sectors. size must be <= cluster_size */
-int64_t alloc_bytes(BlockDriverState *bs, int size)
+int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t offset, cluster_offset;
@@ -353,7 +353,7 @@ int64_t alloc_bytes(BlockDriverState *bs, int size)
 
     assert(size > 0 && size <= s->cluster_size);
     if (s->free_byte_offset == 0) {
-        s->free_byte_offset = alloc_clusters(bs, s->cluster_size);
+        s->free_byte_offset = qcow2_alloc_clusters(bs, s->cluster_size);
     }
  redo:
     free_in_cluster = s->cluster_size -
@@ -368,7 +368,7 @@ int64_t alloc_bytes(BlockDriverState *bs, int size)
         if ((offset & (s->cluster_size - 1)) != 0)
             update_cluster_refcount(bs, offset >> s->cluster_bits, 1);
     } else {
-        offset = alloc_clusters(bs, s->cluster_size);
+        offset = qcow2_alloc_clusters(bs, s->cluster_size);
         cluster_offset = s->free_byte_offset & ~(s->cluster_size - 1);
         if ((cluster_offset + s->cluster_size) == offset) {
             /* we are lucky: contiguous data */
@@ -383,7 +383,7 @@ int64_t alloc_bytes(BlockDriverState *bs, int size)
     return offset;
 }
 
-void free_clusters(BlockDriverState *bs,
+void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size)
 {
     update_refcount(bs, offset, size, -1);
@@ -396,7 +396,7 @@ void free_clusters(BlockDriverState *bs,
  *
  */
 
-void free_any_clusters(BlockDriverState *bs,
+void qcow2_free_any_clusters(BlockDriverState *bs,
     uint64_t cluster_offset, int nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
@@ -407,12 +407,13 @@ void free_any_clusters(BlockDriverState *bs,
         int nb_csectors;
         nb_csectors = ((cluster_offset >> s->csize_shift) &
                        s->csize_mask) + 1;
-        free_clusters(bs, (cluster_offset & s->cluster_offset_mask) & ~511,
-                      nb_csectors * 512);
+        qcow2_free_clusters(bs,
+            (cluster_offset & s->cluster_offset_mask) & ~511,
+            nb_csectors * 512);
         return;
     }
 
-    free_clusters(bs, cluster_offset, nb_clusters << s->cluster_bits);
+    qcow2_free_clusters(bs, cluster_offset, nb_clusters << s->cluster_bits);
 
     return;
 }
@@ -424,7 +425,8 @@ void free_any_clusters(BlockDriverState *bs,
 
 
 
-void create_refcount_update(QCowCreateState *s, int64_t offset, int64_t size)
+void qcow2_create_refcount_update(QCowCreateState *s, int64_t offset,
+    int64_t size)
 {
     int refcount;
     int64_t start, last, cluster_offset;
@@ -442,17 +444,15 @@ void create_refcount_update(QCowCreateState *s, int64_t offset, int64_t size)
 }
 
 /* update the refcounts of snapshots and the copied flag */
-int update_snapshot_refcount(BlockDriverState *bs,
-                             int64_t l1_table_offset,
-                             int l1_size,
-                             int addend)
+int qcow2_update_snapshot_refcount(BlockDriverState *bs,
+    int64_t l1_table_offset, int l1_size, int addend)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2, l1_allocated;
     int64_t old_offset, old_l2_offset;
     int l2_size, i, j, l1_modified, l2_modified, nb_csectors, refcount;
 
-    l2_cache_reset(bs);
+    qcow2_l2_cache_reset(bs);
 
     l2_table = NULL;
     l1_table = NULL;
@@ -771,7 +771,7 @@ fail:
  * Returns 0 if no errors are found, the number of errors in case the image is
  * detected as corrupted, and -errno when an internal error occured.
  */
-int check_refcounts(BlockDriverState *bs)
+int qcow2_check_refcounts(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t size;

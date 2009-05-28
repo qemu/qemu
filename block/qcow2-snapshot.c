@@ -46,7 +46,7 @@ typedef struct __attribute__((packed)) QCowSnapshotHeader {
     /* name follows  */
 } QCowSnapshotHeader;
 
-void qcow_free_snapshots(BlockDriverState *bs)
+void qcow2_free_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int i;
@@ -60,7 +60,7 @@ void qcow_free_snapshots(BlockDriverState *bs)
     s->nb_snapshots = 0;
 }
 
-int qcow_read_snapshots(BlockDriverState *bs)
+int qcow2_read_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshotHeader h;
@@ -111,7 +111,7 @@ int qcow_read_snapshots(BlockDriverState *bs)
     s->snapshots_size = offset - s->snapshots_offset;
     return 0;
  fail:
-    qcow_free_snapshots(bs);
+    qcow2_free_snapshots(bs);
     return -1;
 }
 
@@ -137,7 +137,7 @@ static int qcow_write_snapshots(BlockDriverState *bs)
     }
     snapshots_size = offset;
 
-    snapshots_offset = alloc_clusters(bs, snapshots_size);
+    snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
     offset = snapshots_offset;
 
     for(i = 0; i < s->nb_snapshots; i++) {
@@ -177,7 +177,7 @@ static int qcow_write_snapshots(BlockDriverState *bs)
         goto fail;
 
     /* free the old snapshot table */
-    free_clusters(bs, s->snapshots_offset, s->snapshots_size);
+    qcow2_free_clusters(bs, s->snapshots_offset, s->snapshots_size);
     s->snapshots_offset = snapshots_offset;
     s->snapshots_size = snapshots_size;
     return 0;
@@ -229,7 +229,7 @@ static int find_snapshot_by_id_or_name(BlockDriverState *bs, const char *name)
 }
 
 /* if no id is provided, a new one is constructed */
-int qcow_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
+int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *snapshots1, sn1, *sn = &sn1;
@@ -258,12 +258,12 @@ int qcow_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     sn->date_nsec = sn_info->date_nsec;
     sn->vm_clock_nsec = sn_info->vm_clock_nsec;
 
-    ret = update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1);
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1);
     if (ret < 0)
         goto fail;
 
     /* create the L1 table of the snapshot */
-    sn->l1_table_offset = alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
+    sn->l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
     sn->l1_size = s->l1_size;
 
     l1_table = qemu_malloc(s->l1_size * sizeof(uint64_t));
@@ -298,7 +298,7 @@ int qcow_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 }
 
 /* copy the snapshot 'snapshot_name' into the current disk image */
-int qcow_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
+int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
@@ -309,10 +309,10 @@ int qcow_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         return -ENOENT;
     sn = &s->snapshots[snapshot_index];
 
-    if (update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, -1) < 0)
+    if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, -1) < 0)
         goto fail;
 
-    if (grow_l1_table(bs, sn->l1_size) < 0)
+    if (qcow2_grow_l1_table(bs, sn->l1_size) < 0)
         goto fail;
 
     s->l1_size = sn->l1_size;
@@ -328,7 +328,7 @@ int qcow_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         be64_to_cpus(&s->l1_table[i]);
     }
 
-    if (update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1) < 0)
+    if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1) < 0)
         goto fail;
 
 #ifdef DEBUG_ALLOC
@@ -339,7 +339,7 @@ int qcow_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     return -EIO;
 }
 
-int qcow_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
+int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
@@ -350,14 +350,14 @@ int qcow_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
         return -ENOENT;
     sn = &s->snapshots[snapshot_index];
 
-    ret = update_snapshot_refcount(bs, sn->l1_table_offset, sn->l1_size, -1);
+    ret = qcow2_update_snapshot_refcount(bs, sn->l1_table_offset, sn->l1_size, -1);
     if (ret < 0)
         return ret;
     /* must update the copied flag on the current cluster offsets */
-    ret = update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
     if (ret < 0)
         return ret;
-    free_clusters(bs, sn->l1_table_offset, sn->l1_size * sizeof(uint64_t));
+    qcow2_free_clusters(bs, sn->l1_table_offset, sn->l1_size * sizeof(uint64_t));
 
     qemu_free(sn->id_str);
     qemu_free(sn->name);
@@ -374,7 +374,7 @@ int qcow_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
     return 0;
 }
 
-int qcow_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
+int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 {
     BDRVQcowState *s = bs->opaque;
     QEMUSnapshotInfo *sn_tab, *sn_info;
