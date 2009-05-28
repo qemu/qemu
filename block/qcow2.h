@@ -124,7 +124,16 @@ typedef struct QCowCreateState {
     int64_t refcount_block_offset;
 } QCowCreateState;
 
-static int size_to_clusters(BDRVQcowState *s, int64_t size)
+/* XXX This could be private for qcow2-cluster.c */
+typedef struct QCowL2Meta
+{
+    uint64_t offset;
+    int n_start;
+    int nb_available;
+    int nb_clusters;
+} QCowL2Meta;
+
+static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
 {
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
 }
@@ -133,6 +142,8 @@ static int size_to_clusters(BDRVQcowState *s, int64_t size)
 
 /* qcow2.c functions */
 void l2_cache_reset(BlockDriverState *bs);
+int backing_read1(BlockDriverState *bs,
+                  int64_t sector_num, uint8_t *buf, int nb_sectors);
 
 /* qcow2-refcount.c functions */
 int refcount_init(BlockDriverState *bs);
@@ -141,7 +152,9 @@ void refcount_close(BlockDriverState *bs);
 int64_t alloc_clusters(BlockDriverState *bs, int64_t size);
 int64_t alloc_bytes(BlockDriverState *bs, int size);
 void free_clusters(BlockDriverState *bs,
-                          int64_t offset, int64_t size);
+    int64_t offset, int64_t size);
+void free_any_clusters(BlockDriverState *bs,
+    uint64_t cluster_offset, int nb_clusters);
 
 void create_refcount_update(QCowCreateState *s, int64_t offset, int64_t size);
 int update_snapshot_refcount(BlockDriverState *bs,
@@ -150,5 +163,25 @@ int update_snapshot_refcount(BlockDriverState *bs,
                              int addend);
 
 int check_refcounts(BlockDriverState *bs);
+
+/* qcow2-cluster.c functions */
+int grow_l1_table(BlockDriverState *bs, int min_size);
+int decompress_cluster(BDRVQcowState *s, uint64_t cluster_offset);
+void encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
+                     uint8_t *out_buf, const uint8_t *in_buf,
+                     int nb_sectors, int enc,
+                     const AES_KEY *key);
+
+uint64_t get_cluster_offset(BlockDriverState *bs, uint64_t offset, int *num);
+uint64_t alloc_cluster_offset(BlockDriverState *bs,
+                              uint64_t offset,
+                              int n_start, int n_end,
+                              int *num, QCowL2Meta *m);
+uint64_t alloc_compressed_cluster_offset(BlockDriverState *bs,
+                                         uint64_t offset,
+                                         int compressed_size);
+
+int alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
+    QCowL2Meta *m);
 
 #endif

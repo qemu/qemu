@@ -389,6 +389,34 @@ void free_clusters(BlockDriverState *bs,
     update_refcount(bs, offset, size, -1);
 }
 
+/*
+ * free_any_clusters
+ *
+ * free clusters according to its type: compressed or not
+ *
+ */
+
+void free_any_clusters(BlockDriverState *bs,
+    uint64_t cluster_offset, int nb_clusters)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    /* free the cluster */
+
+    if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
+        int nb_csectors;
+        nb_csectors = ((cluster_offset >> s->csize_shift) &
+                       s->csize_mask) + 1;
+        free_clusters(bs, (cluster_offset & s->cluster_offset_mask) & ~511,
+                      nb_csectors * 512);
+        return;
+    }
+
+    free_clusters(bs, cluster_offset, nb_clusters << s->cluster_bits);
+
+    return;
+}
+
 
 
 /*********************************************************/
