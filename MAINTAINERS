@@ -19,6 +19,7 @@ M68K               Paul Brook
 SH4                ?
 CRIS               Edgar E. Iglesias
 Alpha              ?
+MicroBlaze         Edgar E. Iglesias
 
 Machines (sorted by CPU):
 -------------------------
@@ -58,7 +59,10 @@ SH4
   r2d.c                   Magnus Damm
 CRIS
   etraxfs.c               Edgar E. Iglesias
+  axis_dev88.c            Edgar E. Iglesias
 Alpha
+MicroBlaze
+  petalogix_s3adsp1800.c  Edgar E. Iglesias
 
 Generic Subsystems:
 -------------------  
