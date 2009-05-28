@@ -107,6 +107,17 @@ void do_migrate_set_speed(Monitor *mon, const char *value)
     
 }
 
+/* amount of nanoseconds we are willing to wait for migration to be down.
+ * the choice of nanoseconds is because it is the maximum resolution that
+ * get_clock() can achieve. It is an internal measure. All user-visible
+ * units must be in seconds */
+static uint64_t max_downtime = 30000000;
+
+uint64_t migrate_max_downtime(void)
+{
+    return max_downtime;
+}
+
 void do_info_migrate(Monitor *mon)
 {
     MigrationState *s = current_migration;
