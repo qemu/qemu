@@ -349,6 +349,16 @@ out_noclean:
     return -EINVAL;
 }
 
+static void curl_aio_cancel(BlockDriverAIOCB *blockacb)
+{
+    // Do we have to implement canceling? Seems to work without...
+}
+
+static AIOPool curl_aio_pool = {
+    .aiocb_size         = sizeof(CURLAIOCB),
+    .cancel             = curl_aio_cancel,
+};
+
 static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
@@ -359,7 +369,7 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     size_t end;
     CURLState *state;
 
-    acb = qemu_aio_get(bs, cb, opaque);
+    acb = qemu_aio_get(&curl_aio_pool, bs, cb, opaque);
     if (!acb)
         return NULL;
 
@@ -406,11 +416,6 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     return &acb->common;
 }
 
-static void curl_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    // Do we have to implement canceling? Seems to work without...
-}
-
 static void curl_close(BlockDriverState *bs)
 {
     BDRVCURLState *s = bs->opaque;
@@ -450,9 +455,7 @@ static BlockDriver bdrv_http = {
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
-    .aiocb_size      = sizeof(CURLAIOCB),
     .bdrv_aio_readv  = curl_aio_readv,
-    .bdrv_aio_cancel = curl_aio_cancel,
 };
 
 static BlockDriver bdrv_https = {
@@ -464,9 +467,7 @@ static BlockDriver bdrv_https = {
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
-    .aiocb_size      = sizeof(CURLAIOCB),
     .bdrv_aio_readv  = curl_aio_readv,
-    .bdrv_aio_cancel = curl_aio_cancel,
 };
 
 static BlockDriver bdrv_ftp = {
@@ -478,9 +479,7 @@ static BlockDriver bdrv_ftp = {
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
-    .aiocb_size      = sizeof(CURLAIOCB),
     .bdrv_aio_readv  = curl_aio_readv,
-    .bdrv_aio_cancel = curl_aio_cancel,
 };
 
 static BlockDriver bdrv_ftps = {
@@ -492,9 +491,7 @@ static BlockDriver bdrv_ftps = {
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
-    .aiocb_size      = sizeof(CURLAIOCB),
     .bdrv_aio_readv  = curl_aio_readv,
-    .bdrv_aio_cancel = curl_aio_cancel,
 };
 
 static BlockDriver bdrv_tftp = {
@@ -506,9 +503,7 @@ static BlockDriver bdrv_tftp = {
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
-    .aiocb_size      = sizeof(CURLAIOCB),
     .bdrv_aio_readv  = curl_aio_readv,
-    .bdrv_aio_cancel = curl_aio_cancel,
 };
 
 static void curl_block_init(void)

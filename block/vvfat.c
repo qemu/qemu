@@ -2762,14 +2762,15 @@ static void write_target_close(BlockDriverState *bs) {
 }
 
 static BlockDriver vvfat_write_target = {
-    "vvfat_write_target", 0, NULL, NULL, NULL,
-    write_target_commit,
-    write_target_close,
-    NULL, NULL, NULL
+    .format_name        = "vvfat_write_target",
+    .bdrv_write         = write_target_commit,
+    .bdrv_close         = write_target_close,
 };
 
 static int enable_write_target(BDRVVVFATState *s)
 {
+    BlockDriver *bdrv_qcow;
+    QEMUOptionParameter *options;
     int size = sector2cluster(s, s->sector_count);
     s->used_clusters = calloc(size, 1);
 
@@ -2777,8 +2778,13 @@ static int enable_write_target(BDRVVVFATState *s)
 
     s->qcow_filename = qemu_malloc(1024);
     get_tmp_filename(s->qcow_filename, 1024);
-    if (bdrv_create2(bdrv_find_format("qcow"),
-		s->qcow_filename, s->sector_count, "fat:", NULL, 0) < 0)
+
+    bdrv_qcow = bdrv_find_format("qcow");
+    options = parse_option_parameters("", bdrv_qcow->create_options, NULL);
+    set_option_parameter_int(options, BLOCK_OPT_SIZE, s->sector_count * 512);
+    set_option_parameter(options, BLOCK_OPT_BACKING_FILE, "fat:");
+
+    if (bdrv_create(bdrv_qcow, s->qcow_filename, options) < 0)
 	return -1;
     s->qcow = bdrv_new("");
     if (s->qcow == NULL || bdrv_open(s->qcow, s->qcow_filename, 0) < 0)

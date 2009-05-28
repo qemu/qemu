@@ -488,41 +488,6 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
 }
 #endif
 
-static int qcow_write(BlockDriverState *bs, int64_t sector_num,
-                     const uint8_t *buf, int nb_sectors)
-{
-    BDRVQcowState *s = bs->opaque;
-    int ret, index_in_cluster, n;
-    uint64_t cluster_offset;
-
-    while (nb_sectors > 0) {
-        index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        n = s->cluster_sectors - index_in_cluster;
-        if (n > nb_sectors)
-            n = nb_sectors;
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 1, 0,
-                                            index_in_cluster,
-                                            index_in_cluster + n);
-        if (!cluster_offset)
-            return -1;
-        if (s->crypt_method) {
-            encrypt_sectors(s, sector_num, s->cluster_data, buf, n, 1,
-                            &s->aes_encrypt_key);
-            ret = bdrv_pwrite(s->hd, cluster_offset + index_in_cluster * 512,
-                              s->cluster_data, n * 512);
-        } else {
-            ret = bdrv_pwrite(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512);
-        }
-        if (ret != n * 512)
-            return -1;
-        nb_sectors -= n;
-        sector_num += n;
-        buf += n * 512;
-    }
-    s->cluster_cache_offset = -1; /* disable compressed cache */
-    return 0;
-}
-
 typedef struct QCowAIOCB {
     BlockDriverAIOCB common;
     int64_t sector_num;
@@ -537,6 +502,44 @@ typedef struct QCowAIOCB {
     QEMUIOVector hd_qiov;
     BlockDriverAIOCB *hd_aiocb;
 } QCowAIOCB;
+
+static void qcow_aio_cancel(BlockDriverAIOCB *blockacb)
+{
+    QCowAIOCB *acb = (QCowAIOCB *)blockacb;
+    if (acb->hd_aiocb)
+        bdrv_aio_cancel(acb->hd_aiocb);
+    qemu_aio_release(acb);
+}
+
+static AIOPool qcow_aio_pool = {
+    .aiocb_size         = sizeof(QCowAIOCB),
+    .cancel             = qcow_aio_cancel,
+};
+
+static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque, int is_write)
+{
+    QCowAIOCB *acb;
+
+    acb = qemu_aio_get(&qcow_aio_pool, bs, cb, opaque);
+    if (!acb)
+        return NULL;
+    acb->hd_aiocb = NULL;
+    acb->sector_num = sector_num;
+    acb->qiov = qiov;
+    if (qiov->niov > 1) {
+        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
+        if (is_write)
+            qemu_iovec_to_buffer(qiov, acb->buf);
+    } else {
+        acb->buf = (uint8_t *)qiov->iov->iov_base;
+    }
+    acb->nb_sectors = nb_sectors;
+    acb->n = 0;
+    acb->cluster_offset = 0;
+    return acb;
+}
 
 static void qcow_aio_read_cb(void *opaque, int ret)
 {
@@ -635,19 +638,9 @@ static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
 {
     QCowAIOCB *acb;
 
-    acb = qemu_aio_get(bs, cb, opaque);
+    acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
     if (!acb)
         return NULL;
-    acb->hd_aiocb = NULL;
-    acb->sector_num = sector_num;
-    acb->qiov = qiov;
-    if (qiov->niov > 1)
-        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
-    else
-        acb->buf = (uint8_t *)qiov->iov->iov_base;
-    acb->nb_sectors = nb_sectors;
-    acb->n = 0;
-    acb->cluster_offset = 0;
 
     qcow_aio_read_cb(acb, 0);
     return &acb->common;
@@ -730,31 +723,13 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
 
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
-    acb = qemu_aio_get(bs, cb, opaque);
+    acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
     if (!acb)
         return NULL;
-    acb->hd_aiocb = NULL;
-    acb->sector_num = sector_num;
-    acb->qiov = qiov;
-    if (qiov->niov > 1) {
-        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
-        qemu_iovec_to_buffer(qiov, acb->buf);
-    } else {
-        acb->buf = (uint8_t *)qiov->iov->iov_base;
-    }
-    acb->nb_sectors = nb_sectors;
-    acb->n = 0;
+
 
     qcow_aio_write_cb(acb, 0);
     return &acb->common;
-}
-
-static void qcow_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    QCowAIOCB *acb = (QCowAIOCB *)blockacb;
-    if (acb->hd_aiocb)
-        bdrv_aio_cancel(acb->hd_aiocb);
-    qemu_aio_release(acb);
 }
 
 static void qcow_close(BlockDriverState *bs)
@@ -904,7 +879,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        qcow_write(bs, sector_num, buf, s->cluster_sectors);
+        bdrv_write(bs, sector_num, buf, s->cluster_sectors);
     } else {
         cluster_offset = get_cluster_offset(bs, sector_num << 9, 2,
                                             out_len, 0, 0);
@@ -953,8 +928,6 @@ static BlockDriver bdrv_qcow = {
     .bdrv_make_empty	= qcow_make_empty,
     .bdrv_aio_readv	= qcow_aio_readv,
     .bdrv_aio_writev	= qcow_aio_writev,
-    .bdrv_aio_cancel	= qcow_aio_cancel,
-    .aiocb_size		= sizeof(QCowAIOCB),
     .bdrv_write_compressed = qcow_write_compressed,
     .bdrv_get_info	= qcow_get_info,
 

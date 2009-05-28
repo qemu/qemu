@@ -244,7 +244,6 @@ QEMUFile *qemu_popen(FILE *popen_file, const char *mode)
     } else {
         s->file = qemu_fopen_ops(s, popen_put_buffer, NULL, popen_close, NULL, NULL);
     }
-    fprintf(stderr, "qemu_popen: returning result of qemu_fopen_ops\n");
     return s->file;
 }
 
@@ -258,6 +257,17 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
     }
 
     return qemu_popen(popen_file, mode);
+}
+
+int qemu_popen_fd(QEMUFile *f)
+{
+    QEMUFilePopen *p;
+    int fd;
+
+    p = (QEMUFilePopen *)f->opaque;
+    fd = fileno(p->popen_file);
+
+    return fd;
 }
 
 QEMUFile *qemu_fopen_socket(int fd)

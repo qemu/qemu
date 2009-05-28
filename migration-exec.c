@@ -104,17 +104,11 @@ err_after_alloc:
     return NULL;
 }
 
-int exec_start_incoming_migration(const char *command)
+static void exec_accept_incoming_migration(void *opaque)
 {
+    QEMUFile *f = opaque;
     int ret;
-    QEMUFile *f;
 
-    dprintf("Attempting to start an incoming migration\n");
-    f = qemu_popen_cmd(command, "r");
-    if(f == NULL) {
-        dprintf("Unable to apply qemu wrapper to popen file\n");
-        return -errno;
-    }
     vm_stop(0); /* just in case */
     ret = qemu_loadvm_state(f);
     if (ret < 0) {
@@ -123,11 +117,28 @@ int exec_start_incoming_migration(const char *command)
     }
     qemu_announce_self();
     dprintf("successfully loaded vm state\n");
+    /* we've successfully migrated, close the fd */
+    qemu_set_fd_handler2(qemu_popen_fd(f), NULL, NULL, NULL, NULL);
     vm_start();
-    qemu_fclose(f);
-    return 0;
 
 err:
     qemu_fclose(f);
-    return -errno;
+}
+
+int exec_start_incoming_migration(const char *command)
+{
+    QEMUFile *f;
+
+    dprintf("Attempting to start an incoming migration\n");
+    f = qemu_popen_cmd(command, "r");
+    if(f == NULL) {
+        dprintf("Unable to apply qemu wrapper to popen file\n");
+        return -errno;
+    }
+
+    qemu_set_fd_handler2(qemu_popen_fd(f), NULL,
+			 exec_accept_incoming_migration, NULL,
+			 (void *)(unsigned long)f);
+
+    return 0;
 }

@@ -568,7 +568,82 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
     return 0;
 }
 
-void net_slirp_redir(Monitor *mon, const char *redir_str)
+static void net_slirp_redir_print(void *opaque, int is_udp,
+                                  struct in_addr *laddr, u_int lport,
+                                  struct in_addr *faddr, u_int fport)
+{
+    Monitor *mon = (Monitor *)opaque;
+    uint32_t h_addr;
+    uint32_t g_addr;
+    char buf[16];
+
+    h_addr = ntohl(faddr->s_addr);
+    g_addr = ntohl(laddr->s_addr);
+
+    monitor_printf(mon, "  %s |", is_udp ? "udp" : "tcp" );
+    snprintf(buf, 15, "%d.%d.%d.%d", (h_addr >> 24) & 0xff,
+                                     (h_addr >> 16) & 0xff,
+                                     (h_addr >> 8) & 0xff,
+                                     (h_addr) & 0xff);
+    monitor_printf(mon, " %15s |", buf);
+    monitor_printf(mon, " %5d |", fport);
+
+    snprintf(buf, 15, "%d.%d.%d.%d", (g_addr >> 24) & 0xff,
+                                     (g_addr >> 16) & 0xff,
+                                     (g_addr >> 8) & 0xff,
+                                     (g_addr) & 0xff);
+    monitor_printf(mon, " %15s |", buf);
+    monitor_printf(mon, " %5d\n", lport);
+
+}
+
+static void net_slirp_redir_list(Monitor *mon)
+{
+    if (!mon)
+        return;
+
+    monitor_printf(mon, " Prot |    Host Addr    | HPort |    Guest Addr   | GPort\n");
+    monitor_printf(mon, "      |                 |       |                 |      \n");
+    slirp_redir_loop(net_slirp_redir_print, mon);
+}
+
+static void net_slirp_redir_rm(Monitor *mon, const char *port_str)
+{
+    int host_port;
+    char buf[256] = "";
+    const char *p = port_str;
+    int is_udp = 0;
+    int n;
+
+    if (!mon)
+        return;
+
+    if (!port_str || !port_str[0])
+        goto fail_syntax;
+
+    get_str_sep(buf, sizeof(buf), &p, ':');
+
+    if (!strcmp(buf, "tcp") || buf[0] == '\0') {
+        is_udp = 0;
+    } else if (!strcmp(buf, "udp")) {
+        is_udp = 1;
+    } else {
+        goto fail_syntax;
+    }
+
+    host_port = atoi(p);
+
+    n = slirp_redir_rm(is_udp, host_port);
+
+    monitor_printf(mon, "removed %d redirections to %s port %d\n", n,
+                        is_udp ? "udp" : "tcp", host_port);
+    return;
+
+ fail_syntax:
+    monitor_printf(mon, "invalid format\n");
+}
+
+void net_slirp_redir(Monitor *mon, const char *redir_str, const char *redir_opt2)
 {
     int is_udp;
     char buf[256], *r;
@@ -579,6 +654,16 @@ void net_slirp_redir(Monitor *mon, const char *redir_str)
     if (!slirp_inited) {
         slirp_inited = 1;
         slirp_init(slirp_restrict, slirp_ip);
+    }
+
+    if (!strcmp(redir_str, "remove")) {
+        net_slirp_redir_rm(mon, redir_opt2);
+        return;
+    }
+
+    if (!strcmp(redir_str, "list")) {
+        net_slirp_redir_list(mon);
+        return;
     }
 
     p = redir_str;
@@ -1792,8 +1877,7 @@ int net_client_init(const char *device, const char *p)
         int idx = nic_get_free_idx();
 
         if (check_params(nic_params, p) < 0) {
-            fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                    buf, p);
+            fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
             return -1;
         }
         if (idx == -1 || nb_nics >= MAX_NICS) {
@@ -1843,8 +1927,7 @@ int net_client_init(const char *device, const char *p)
             "vlan", "name", "hostname", "restrict", "ip", NULL
         };
         if (check_params(slirp_params, p) < 0) {
-            fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                    buf, p);
+            fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
             return -1;
         }
         if (get_param_value(buf, sizeof(buf), "hostname", p)) {
@@ -1894,8 +1977,7 @@ int net_client_init(const char *device, const char *p)
         char ifname[64];
 
         if (check_params(tap_params, p) < 0) {
-            fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                    buf, p);
+            fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
             return -1;
         }
         if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
@@ -1915,8 +1997,7 @@ int net_client_init(const char *device, const char *p)
         vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             if (check_params(fd_params, p) < 0) {
-                fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
                 return -1;
             }
             fd = strtol(buf, NULL, 0);
@@ -1928,8 +2009,7 @@ int net_client_init(const char *device, const char *p)
                 "vlan", "name", "ifname", "script", "downscript", NULL
             };
             if (check_params(tap_params, p) < 0) {
-                fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
                 return -1;
             }
             if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
@@ -1949,8 +2029,7 @@ int net_client_init(const char *device, const char *p)
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             int fd;
             if (check_params(fd_params, p) < 0) {
-                fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
                 return -1;
             }
             fd = strtol(buf, NULL, 0);
@@ -1962,8 +2041,7 @@ int net_client_init(const char *device, const char *p)
                 "vlan", "name", "listen", NULL
             };
             if (check_params(listen_params, p) < 0) {
-                fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
                 return -1;
             }
             ret = net_socket_listen_init(vlan, device, name, buf);
@@ -1972,8 +2050,7 @@ int net_client_init(const char *device, const char *p)
                 "vlan", "name", "connect", NULL
             };
             if (check_params(connect_params, p) < 0) {
-                fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
                 return -1;
             }
             ret = net_socket_connect_init(vlan, device, name, buf);
@@ -1982,8 +2059,7 @@ int net_client_init(const char *device, const char *p)
                 "vlan", "name", "mcast", NULL
             };
             if (check_params(mcast_params, p) < 0) {
-                fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
                 return -1;
             }
             ret = net_socket_mcast_init(vlan, device, name, buf);
@@ -2003,8 +2079,7 @@ int net_client_init(const char *device, const char *p)
 	int vde_port, vde_mode;
 
         if (check_params(vde_params, p) < 0) {
-            fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                    buf, p);
+            fprintf(stderr, "qemu: invalid parameter in '%s'\n", p);
             return -1;
         }
         vlan->nb_host_devs++;
