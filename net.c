@@ -2036,7 +2036,7 @@ int net_client_init(const char *device, const char *p)
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                        chkbuf, p);
                 return -1;
             }
             fd = strtol(buf, NULL, 0);
@@ -2049,7 +2049,7 @@ int net_client_init(const char *device, const char *p)
             };
             if (check_params(chkbuf, sizeof(chkbuf), tap_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                        chkbuf, p);
                 return -1;
             }
             if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
@@ -2071,7 +2071,7 @@ int net_client_init(const char *device, const char *p)
             int fd;
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                        chkbuf, p);
                 return -1;
             }
             fd = strtol(buf, NULL, 0);
@@ -2084,7 +2084,7 @@ int net_client_init(const char *device, const char *p)
             };
             if (check_params(chkbuf, sizeof(chkbuf), listen_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                        chkbuf, p);
                 return -1;
             }
             ret = net_socket_listen_init(vlan, device, name, buf);
@@ -2094,7 +2094,7 @@ int net_client_init(const char *device, const char *p)
             };
             if (check_params(chkbuf, sizeof(chkbuf), connect_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                        chkbuf, p);
                 return -1;
             }
             ret = net_socket_connect_init(vlan, device, name, buf);
@@ -2104,7 +2104,7 @@ int net_client_init(const char *device, const char *p)
             };
             if (check_params(chkbuf, sizeof(chkbuf), mcast_params, p) < 0) {
                 fprintf(stderr, "qemu: invalid parameter '%s' in '%s'\n",
-                        buf, p);
+                        chkbuf, p);
                 return -1;
             }
             ret = net_socket_mcast_init(vlan, device, name, buf);
