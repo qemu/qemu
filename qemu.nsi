@@ -67,8 +67,7 @@ Section "${PRODUCT} (required)"
   File "${SRC_PATH}\README"
   File "${SRC_PATH}\VERSION"
 
-  SetOutPath "$INSTDIR\keymaps"
-  File /r /x .svn "${SRC_PATH}\keymaps"
+  File /r /x .svn "${SRC_PATH}\pc-bios\keymaps"
 
   SetOutPath "$INSTDIR"
   File "${SRC_PATH}\pc-bios\bios.bin"
