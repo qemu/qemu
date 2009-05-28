@@ -300,7 +300,7 @@ endif
 ifndef CONFIG_WIN32
 	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/keymaps"
 	set -e; for x in $(KEYMAPS); do \
-		$(INSTALL_DATA) $(SRC_PATH)/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
+		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
 	done
 endif
 	for d in $(TARGET_DIRS); do \
