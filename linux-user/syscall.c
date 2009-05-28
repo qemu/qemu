@@ -3942,6 +3942,8 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
                          pts, NULL, 0));
     case FUTEX_WAKE:
         return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+    case FUTEX_WAKE_OP:
+        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, g2h(uaddr2), val3 ));
     case FUTEX_FD:
         return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_REQUEUE:
