@@ -333,7 +333,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
                         const struct hwdef *hwdef)
 {
     CPUState *env;
-    char buf[1024];
+    char *filename;
     m48t59_t *nvram;
     int ret, linux_boot;
     unsigned int i;
@@ -392,17 +392,23 @@ static void sun4uv_init(ram_addr_t RAM_size,
 
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    ret = load_elf(buf, hwdef->prom_addr - PROM_VADDR, NULL, NULL, NULL);
-    if (ret < 0) {
-        ret = load_image_targphys(buf, hwdef->prom_addr,
-                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE) &
-                                  TARGET_PAGE_MASK);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        ret = load_elf(filename, hwdef->prom_addr - PROM_VADDR,
+                       NULL, NULL, NULL);
         if (ret < 0) {
-            fprintf(stderr, "qemu: could not load prom '%s'\n",
-                    buf);
-            exit(1);
+            ret = load_image_targphys(filename, hwdef->prom_addr,
+                                      (PROM_SIZE_MAX + TARGET_PAGE_SIZE) &
+                                  TARGET_PAGE_MASK);
         }
+        qemu_free(filename);
+    } else {
+        ret = -1;
+    }
+    if (ret < 0) {
+        fprintf(stderr, "qemu: could not load prom '%s'\n",
+                bios_name);
+        exit(1);
     }
 
     kernel_size = 0;

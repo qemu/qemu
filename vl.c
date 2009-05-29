@@ -33,6 +33,7 @@
 #include "config-host.h"
 
 #ifndef _WIN32
+#include <libgen.h>
 #include <pwd.h>
 #include <sys/times.h>
 #include <sys/wait.h>
@@ -191,7 +192,7 @@ int main(int argc, char **argv)
 /* XXX: use a two level table to limit memory usage */
 #define MAX_IOPORTS 65536
 
-const char *bios_dir = CONFIG_QEMU_SHAREDIR;
+static const char *data_dir;
 const char *bios_name = NULL;
 static void *ioport_opaque[MAX_IOPORTS];
 static IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
@@ -4795,6 +4796,128 @@ static void termsig_setup(void)
 
 #endif
 
+#ifdef _WIN32
+/* Look for support files in the same directory as the executable.  */
+static char *find_datadir(const char *argv0)
+{
+    char *p;
+    char buf[MAX_PATH];
+    DWORD len;
+
+    len = GetModuleFileName(NULL, buf, sizeof(buf) - 1);
+    if (len == 0) {
+        return len;
+    }
+
+    buf[len] = 0;
+    p = buf + len - 1;
+    while (p != buf && *p != '\\')
+        p--;
+    *p = 0;
+    if (access(buf, R_OK) == 0) {
+        return qemu_strdup(buf);
+    }
+    return NULL;
+}
+#else /* !_WIN32 */
+
+/* Find a likely location for support files using the location of the binary.
+   For installed binaries this will be "$bindir/../share/qemu".  When
+   running from the build tree this will be "$bindir/../pc-bios".  */
+#define SHARE_SUFFIX "/share/qemu"
+#define BUILD_SUFFIX "/pc-bios"
+static char *find_datadir(const char *argv0)
+{
+    char *dir;
+    char *p = NULL;
+    char *res;
+#ifdef PATH_MAX
+    char buf[PATH_MAX];
+#endif
+
+#if defined(__linux__)
+    {
+        int len;
+        len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (len > 0) {
+            buf[len] = 0;
+            p = buf;
+        }
+    }
+#elif defined(__FreeBSD__)
+    {
+        int len;
+        len = readlink("/proc/curproc/file", buf, sizeof(buf) - 1);
+        if (len > 0) {
+            buf[len] = 0;
+            p = buf;
+        }
+    }
+#endif
+    /* If we don't have any way of figuring out the actual executable
+       location then try argv[0].  */
+    if (!p) {
+#ifdef PATH_MAX
+        p = buf;
+#endif
+        p = realpath(argv0, p);
+        if (!p) {
+            return NULL;
+        }
+    }
+    dir = dirname(p);
+    dir = dirname(dir);
+
+    res = qemu_mallocz(strlen(dir) + 
+        MAX(strlen(SHARE_SUFFIX), strlen(BUILD_SUFFIX)) + 1);
+    sprintf(res, "%s%s", dir, SHARE_SUFFIX);
+    if (access(res, R_OK)) {
+        sprintf(res, "%s%s", dir, BUILD_SUFFIX);
+        if (access(res, R_OK)) {
+            qemu_free(res);
+            res = NULL;
+        }
+    }
+#ifndef PATH_MAX
+    free(p);
+#endif
+    return res;
+}
+#undef SHARE_SUFFIX
+#undef BUILD_SUFFIX
+#endif
+
+char *qemu_find_file(int type, const char *name)
+{
+    int len;
+    const char *subdir;
+    char *buf;
+
+    /* If name contains path separators then try it as a straight path.  */
+    if ((strchr(name, '/') || strchr(name, '\\'))
+        && access(name, R_OK) == 0) {
+        return strdup(name);
+    }
+    switch (type) {
+    case QEMU_FILE_TYPE_BIOS:
+        subdir = "";
+        break;
+    case QEMU_FILE_TYPE_KEYMAP:
+        subdir = "keymaps/";
+        break;
+    default:
+        abort();
+    }
+    len = strlen(data_dir) + strlen(name) + strlen(subdir) + 2;
+    buf = qemu_mallocz(len);
+    sprintf(buf, "%s/%s%s", data_dir, subdir, name);
+    if (access(buf, R_OK)) {
+        qemu_free(buf);
+        return NULL;
+    }
+    return buf;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -5234,7 +5357,7 @@ int main(int argc, char **argv, char **envp)
                 gdbstub_dev = optarg;
                 break;
             case QEMU_OPTION_L:
-                bios_dir = optarg;
+                data_dir = optarg;
                 break;
             case QEMU_OPTION_bios:
                 bios_name = optarg;
@@ -5560,6 +5683,16 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    /* If no data_dir is specified then try to find it relative to the
+       executable path.  */
+    if (!data_dir) {
+        data_dir = find_datadir(argv[0]);
+    }
+    /* If all else fails use the install patch specified when building.  */
+    if (!data_dir) {
+        data_dir = CONFIG_QEMU_SHAREDIR;
+    }
+
 #if defined(CONFIG_KVM) && defined(CONFIG_KQEMU)
     if (kvm_allowed && kqemu_allowed) {
         fprintf(stderr,
@@ -5705,18 +5838,23 @@ int main(int argc, char **argv, char **envp)
 	for (i = 0; i < nb_nics && i < 4; i++) {
 	    const char *model = nd_table[i].model;
 	    char buf[1024];
+            char *filename;
             if (net_boot & (1 << i)) {
                 if (model == NULL)
                     model = "ne2k_pci";
-                snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
-                if (get_image_size(buf) > 0) {
+                snprintf(buf, sizeof(buf), "pxe-%s.bin", model);
+                filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, buf);
+                if (filename && get_image_size(filename) > 0) {
                     if (nb_option_roms >= MAX_OPTION_ROMS) {
                         fprintf(stderr, "Too many option ROMs\n");
                         exit(1);
                     }
-                    option_rom[nb_option_roms] = strdup(buf);
+                    option_rom[nb_option_roms] = qemu_strdup(buf);
                     nb_option_roms++;
                     netroms++;
+                }
+                if (filename) {
+                    qemu_free(filename);
                 }
             }
 	}

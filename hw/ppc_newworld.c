@@ -93,7 +93,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                              const char *cpu_model)
 {
     CPUState *env = NULL, *envs[MAX_CPUS];
-    char buf[1024];
+    char *filename;
     qemu_irq *pic, **openpic_irqs;
     int unin_memory;
     int linux_boot, i;
@@ -140,24 +140,35 @@ static void ppc_core99_init (ram_addr_t ram_size,
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     cpu_register_physical_memory(PROM_ADDR, BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* Load OpenBIOS (ELF) */
-    bios_size = load_elf(buf, 0, NULL, NULL, NULL);
+    if (filename) {
+        bios_size = load_elf(filename, 0, NULL, NULL, NULL);
+        qemu_free(filename);
+    } else {
+        bios_size = -1;
+    }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        hw_error("qemu: could not load PowerPC bios '%s'\n", buf);
+        hw_error("qemu: could not load PowerPC bios '%s'\n", bios_name);
         exit(1);
     }
 
     /* allocate and load VGA BIOS */
     vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
     vga_bios_ptr = qemu_get_ram_ptr(vga_bios_offset);
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
-    vga_bios_size = load_image(buf, vga_bios_ptr + 8);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, VGABIOS_FILENAME);
+    if (filename) {
+        vga_bios_size = load_image(filename, vga_bios_ptr + 8);
+        qemu_free(filename);
+    } else {
+        vga_bios_size = -1;
+    }
     if (vga_bios_size < 0) {
         /* if no bios is present, we can still work */
-        fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n", buf);
+        fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n",
+                VGABIOS_FILENAME);
         vga_bios_size = 0;
     } else {
         /* set a specific header (XXX: find real Apple format for NDRV

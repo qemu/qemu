@@ -34,20 +34,19 @@ static void *bamboo_load_device_tree(target_phys_addr_t addr,
     void *fdt = NULL;
 #ifdef HAVE_FDT
     uint32_t mem_reg_property[] = { 0, 0, ramsize };
-    char *path;
+    char *filename;
     int fdt_size;
-    int pathlen;
     int ret;
 
-    pathlen = snprintf(NULL, 0, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE) + 1;
-    path = qemu_malloc(pathlen);
-
-    snprintf(path, pathlen, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE);
-
-    fdt = load_device_tree(path, &fdt_size);
-    free(path);
-    if (fdt == NULL)
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+    if (!filename) {
         goto out;
+    }
+    fdt = load_device_tree(filename, &fdt_size);
+    qemu_free(filename);
+    if (fdt == NULL) {
+        goto out;
+    }
 
     /* Manipulate device tree in memory. */
 

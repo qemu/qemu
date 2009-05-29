@@ -539,7 +539,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
                            const char *cpu_model)
 {
     CPUState *env = NULL, *envs[MAX_CPUS];
-    char buf[1024];
+    char *filename;
     nvram_t nvram;
     m48t59_t *m48t59;
     int PPC_io_memory;
@@ -585,18 +585,25 @@ static void ppc_prep_init (ram_addr_t ram_size,
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = get_image_size(buf);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        bios_size = get_image_size(filename);
+    } else {
+        bios_size = -1;
+    }
     if (bios_size > 0 && bios_size <= BIOS_SIZE) {
         target_phys_addr_t bios_addr;
         bios_size = (bios_size + 0xfff) & ~0xfff;
         bios_addr = (uint32_t)(-bios_size);
         cpu_register_physical_memory(bios_addr, bios_size,
                                      bios_offset | IO_MEM_ROM);
-        bios_size = load_image_targphys(buf, bios_addr, bios_size);
+        bios_size = load_image_targphys(filename, bios_addr, bios_size);
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        hw_error("qemu: could not load PPC PREP bios '%s'\n", buf);
+        hw_error("qemu: could not load PPC PREP bios '%s'\n", bios_name);
+    }
+    if (filename) {
+        qemu_free(filename);
     }
     if (env->nip < 0xFFF80000 && bios_size < 0x00100000) {
         hw_error("PowerPC 601 / 620 / 970 need a 1MB BIOS\n");

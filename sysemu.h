@@ -10,7 +10,10 @@
 
 /* vl.c */
 extern const char *bios_name;
-extern const char *bios_dir;
+
+#define QEMU_FILE_TYPE_BIOS   0
+#define QEMU_FILE_TYPE_KEYMAP 1
+char *qemu_find_file(int type, const char *name);
 
 extern int vm_running;
 extern const char *qemu_name;

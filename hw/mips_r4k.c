@@ -147,7 +147,7 @@ void mips_r4k_init (ram_addr_t ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    char buf[1024];
+    char *filename;
     ram_addr_t ram_offset;
     ram_addr_t bios_offset;
     int bios_size;
@@ -196,14 +196,18 @@ void mips_r4k_init (ram_addr_t ram_size,
        run. */
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = get_image_size(buf);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        bios_size = get_image_size(filename);
+    } else {
+        bios_size = -1;
+    }
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
         bios_offset = qemu_ram_alloc(BIOS_SIZE);
 	cpu_register_physical_memory(0x1fc00000, BIOS_SIZE,
                                      bios_offset | IO_MEM_ROM);
 
-        load_image_targphys(buf, 0x1fc00000, BIOS_SIZE);
+        load_image_targphys(filename, 0x1fc00000, BIOS_SIZE);
     } else if ((index = drive_get_index(IF_PFLASH, 0, 0)) > -1) {
         uint32_t mips_rom = 0x00400000;
         bios_offset = qemu_ram_alloc(mips_rom);
@@ -216,7 +220,10 @@ void mips_r4k_init (ram_addr_t ram_size,
     else {
 	/* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-		buf);
+		bios_name);
+    }
+    if (filename) {
+        qemu_free(filename);
     }
 
     if (kernel_filename) {
