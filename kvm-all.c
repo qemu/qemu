@@ -451,14 +451,13 @@ int kvm_cpu_exec(CPUState *env)
     dprintf("kvm_cpu_exec()\n");
 
     do {
-        kvm_arch_pre_run(env, run);
-
         if (env->exit_request) {
             dprintf("interrupt exit requested\n");
             ret = 0;
             break;
         }
 
+        kvm_arch_pre_run(env, run);
         ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
         kvm_arch_post_run(env, run);
 
