@@ -1373,7 +1373,7 @@ typedef struct BlockDriverAIOCBSync {
 static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
 {
     BlockDriverAIOCBSync *acb = (BlockDriverAIOCBSync *)blockacb;
-    qemu_bh_cancel(acb->bh);
+    qemu_bh_delete(acb->bh);
     qemu_aio_release(acb);
 }
 
@@ -1390,7 +1390,7 @@ static void bdrv_aio_bh_cb(void *opaque)
         qemu_iovec_from_buffer(acb->qiov, acb->bounce, acb->qiov->size);
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
-
+    qemu_bh_delete(acb->bh);
     qemu_aio_release(acb);
 }
 
