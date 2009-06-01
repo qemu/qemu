@@ -1348,7 +1348,6 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
         if (ret < 0)
             return ret;
-        val = tswap32(val);
         if (len > lv)
             len = lv;
         if (len == 4) {
