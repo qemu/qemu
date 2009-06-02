@@ -33,8 +33,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
 
 #include <xs.h>
 #include <xenctrl.h>
