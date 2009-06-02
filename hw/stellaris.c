@@ -921,7 +921,7 @@ typedef struct
     uint32_t ssmux[4];
     uint32_t ssctl[4];
     uint32_t noise;
-    qemu_irq irq;
+    qemu_irq irq[4];
 } stellaris_adc_state;
 
 static uint32_t stellaris_adc_fifo_read(stellaris_adc_state *s, int n)
@@ -945,6 +945,8 @@ static void stellaris_adc_fifo_write(stellaris_adc_state *s, int n,
 {
     int head;
 
+    /* TODO: Real hardware has limited size FIFOs.  We have a full 16 entry 
+       FIFO fir each sequencer.  */
     head = (s->fifo[n].state >> 4) & 0xf;
     if (s->fifo[n].state & STELLARIS_ADC_FIFO_FULL) {
         s->ostat |= 1 << n;
@@ -961,26 +963,36 @@ static void stellaris_adc_fifo_write(stellaris_adc_state *s, int n,
 static void stellaris_adc_update(stellaris_adc_state *s)
 {
     int level;
+    int n;
 
-    level = (s->ris & s->im) != 0;
-    qemu_set_irq(s->irq, level);
+    for (n = 0; n < 4; n++) {
+        level = (s->ris & s->im & (1 << n)) != 0;
+        qemu_set_irq(s->irq[n], level);
+    }
 }
 
 static void stellaris_adc_trigger(void *opaque, int irq, int level)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
+    int n;
 
-    if ((s->actss & 1) == 0) {
-        return;
+    for (n = 0; n < 4; n++) {
+        if ((s->actss & (1 << n)) == 0) {
+            continue;
+        }
+
+        if (((s->emux >> (n * 4)) & 0xff) != 5) {
+            continue;
+        }
+
+        /* Some applications use the ADC as a random number source, so introduce
+           some variation into the signal.  */
+        s->noise = s->noise * 314159 + 1;
+        /* ??? actual inputs not implemented.  Return an arbitrary value.  */
+        stellaris_adc_fifo_write(s, n, 0x200 + ((s->noise >> 16) & 7));
+        s->ris |= (1 << n);
+        stellaris_adc_update(s);
     }
-
-    /* Some applications use the ADC as a random number source, so introduce
-       some variation into the signal.  */
-    s->noise = s->noise * 314159 + 1;
-    /* ??? actual inputs not implemented.  Return an arbitrary value.  */
-    stellaris_adc_fifo_write(s, 0, 0x200 + ((s->noise >> 16) & 7));
-    s->ris |= 1;
-    stellaris_adc_update(s);
 }
 
 static void stellaris_adc_reset(stellaris_adc_state *s)
@@ -1068,9 +1080,6 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
     switch (offset) {
     case 0x00: /* ACTSS */
         s->actss = value & 0xf;
-        if (value & 0xe) {
-            hw_error("Not implemented:  ADC sequencers 1-3\n");
-        }
         break;
     case 0x08: /* IM */
         s->im = value;
@@ -1169,14 +1178,17 @@ static int stellaris_adc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
+static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq *irq)
 {
     stellaris_adc_state *s;
     int iomemtype;
     qemu_irq *qi;
+    int n;
 
     s = (stellaris_adc_state *)qemu_mallocz(sizeof(stellaris_adc_state));
-    s->irq = irq;
+    for (n = 0; n < 4; n++) {
+        s->irq[n] = irq[n];
+    }
 
     iomemtype = cpu_register_io_memory(0, stellaris_adc_readfn,
                                        stellaris_adc_writefn, s);
@@ -1295,7 +1307,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     pic = armv7m_init(flash_size, sram_size, kernel_filename, cpu_model);
 
     if (board->dc1 & (1 << 16)) {
-        adc = stellaris_adc_init(0x40038000, pic[14]);
+        adc = stellaris_adc_init(0x40038000, pic + 14);
     } else {
         adc = NULL;
     }
