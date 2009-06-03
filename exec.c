@@ -553,7 +553,7 @@ void cpu_exec_init(CPUState *env)
     penv = &first_cpu;
     cpu_index = 0;
     while (*penv != NULL) {
-        penv = (CPUState **)&(*penv)->next_cpu;
+        penv = &(*penv)->next_cpu;
         cpu_index++;
     }
     env->cpu_index = cpu_index;
