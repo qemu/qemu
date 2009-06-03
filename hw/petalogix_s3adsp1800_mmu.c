@@ -54,22 +54,20 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
 {
 #ifdef HAVE_FDT
     void *fdt;
-    char *path = NULL;
-    int pathlen;
     int r;
 #endif
+    char *path;
     int fdt_size;
 
 #ifdef HAVE_FDT
     /* Try the local "mb.dtb" override.  */
     fdt = load_device_tree("mb.dtb", &fdt_size);
     if (!fdt) {
-        pathlen = snprintf(NULL, 0, "%s/%s",
-                           bios_dir, BINARY_DEVICE_TREE_FILE) + 1;
-        path = qemu_malloc(pathlen);
-        snprintf(path, pathlen, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE);
-        fdt = load_device_tree(BINARY_DEVICE_TREE_FILE, &fdt_size);
-        free(path);
+        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+        if (path) {
+            fdt = load_device_tree(path, &fdt_size);
+            qemu_free(path);
+        }
         if (!fdt)
             return 0;
     }
@@ -83,7 +81,11 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
        to the kernel.  */
     fdt_size = load_image_targphys("mb.dtb", addr, 0x10000);
     if (fdt_size < 0) {
-        fdt_size = load_image_targphys(BINARY_DEVICE_TREE_FILE, addr, 0x10000);
+        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+        if (path) {
+            fdt_size = load_image_targphys(path, addr, 0x10000);
+	    qemu_free(path);
+        }
     }
 
     if (kernel_cmdline) {
