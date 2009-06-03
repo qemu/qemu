@@ -67,8 +67,6 @@
 #define R_FLAG 0x100
 #define P_FLAG 0x80
 #define U_FLAG 0x40
-#define P_FLAG 0x80
-#define U_FLAG 0x40
 #define I_FLAG 0x20
 #define X_FLAG 0x10
 #define N_FLAG 0x08
