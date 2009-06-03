@@ -1745,6 +1745,12 @@ struct target_statfs64 {
 #define TARGET_F_SETLKW        9
 #define TARGET_F_SETOWN        5       /*  for sockets. */
 #define TARGET_F_GETOWN        6       /*  for sockets. */
+#elif defined(TARGET_MIPS)
+#define TARGET_F_GETLK         14
+#define TARGET_F_SETLK         6
+#define TARGET_F_SETLKW        7
+#define TARGET_F_SETOWN        24       /*  for sockets. */
+#define TARGET_F_GETOWN        25       /*  for sockets. */
 #else
 #define TARGET_F_GETLK         5
 #define TARGET_F_SETLK         6
@@ -1756,10 +1762,15 @@ struct target_statfs64 {
 #define TARGET_F_SETSIG        10      /*  for sockets. */
 #define TARGET_F_GETSIG        11      /*  for sockets. */
 
+#if defined(TARGET_MIPS)
+#define TARGET_F_GETLK64       33      /*  using 'struct flock64' */
+#define TARGET_F_SETLK64       34
+#define TARGET_F_SETLKW64      35
+#else
 #define TARGET_F_GETLK64       12      /*  using 'struct flock64' */
 #define TARGET_F_SETLK64       13
 #define TARGET_F_SETLKW64      14
-
+#endif
 #if defined (TARGET_ARM)
 #define TARGET_O_ACCMODE          0003
 #define TARGET_O_RDONLY             00

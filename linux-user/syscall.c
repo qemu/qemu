@@ -3622,6 +3622,44 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
     return ret;
 }
 
+/* warning : doesn't handle linux specific flags... */
+static int target_to_host_fcntl_cmd(int cmd)
+{
+    switch(cmd) {
+	case TARGET_F_DUPFD:
+	case TARGET_F_GETFD:
+	case TARGET_F_SETFD:
+	case TARGET_F_GETFL:
+	case TARGET_F_SETFL:
+            return cmd;
+        case TARGET_F_GETLK:
+	    return F_GETLK;
+	case TARGET_F_SETLK:
+	    return F_SETLK;
+	case TARGET_F_SETLKW:
+	    return F_SETLKW;
+	case TARGET_F_GETOWN:
+	    return F_GETOWN;
+	case TARGET_F_SETOWN:
+	    return F_SETOWN;
+	case TARGET_F_GETSIG:
+	    return F_GETSIG;
+	case TARGET_F_SETSIG:
+	    return F_SETSIG;
+#if TARGET_ABI_BITS == 32
+        case TARGET_F_GETLK64:
+	    return F_GETLK64;
+	case TARGET_F_SETLK64:
+	    return F_SETLK64;
+	case TARGET_F_SETLKW64:
+	    return F_SETLKW64;
+#endif
+	default:
+            return -TARGET_EINVAL;
+    }
+    return -TARGET_EINVAL;
+}
+
 static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
 {
     struct flock fl;
@@ -3629,6 +3667,10 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     struct flock64 fl64;
     struct target_flock64 *target_fl64;
     abi_long ret;
+    int host_cmd = target_to_host_fcntl_cmd(cmd);
+
+    if (host_cmd == -TARGET_EINVAL)
+	    return host_cmd;
 
     switch(cmd) {
     case TARGET_F_GETLK:
@@ -3640,7 +3682,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl.l_len = tswapl(target_fl->l_len);
         fl.l_pid = tswapl(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
-        ret = get_errno(fcntl(fd, cmd, &fl));
+        ret = get_errno(fcntl(fd, host_cmd, &fl));
         if (ret == 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fl, arg, 0))
                 return -TARGET_EFAULT;
@@ -3663,7 +3705,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl.l_len = tswapl(target_fl->l_len);
         fl.l_pid = tswapl(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
-        ret = get_errno(fcntl(fd, cmd, &fl));
+        ret = get_errno(fcntl(fd, host_cmd, &fl));
         break;
 
     case TARGET_F_GETLK64:
@@ -3675,7 +3717,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl64.l_len = tswapl(target_fl64->l_len);
         fl64.l_pid = tswap16(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
-        ret = get_errno(fcntl(fd, cmd >> 1, &fl64));
+        ret = get_errno(fcntl(fd, host_cmd, &fl64));
         if (ret == 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fl64, arg, 0))
                 return -TARGET_EFAULT;
@@ -3697,18 +3739,25 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl64.l_len = tswapl(target_fl64->l_len);
         fl64.l_pid = tswap16(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
-        ret = get_errno(fcntl(fd, cmd >> 1, &fl64));
+        ret = get_errno(fcntl(fd, host_cmd, &fl64));
         break;
 
-    case F_GETFL:
-        ret = get_errno(fcntl(fd, cmd, arg));
+    case TARGET_F_GETFL:
+        ret = get_errno(fcntl(fd, host_cmd, arg));
         if (ret >= 0) {
             ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
         }
         break;
 
-    case F_SETFL:
-        ret = get_errno(fcntl(fd, cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
+    case TARGET_F_SETFL:
+        ret = get_errno(fcntl(fd, host_cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
+        break;
+
+    case TARGET_F_SETOWN:
+    case TARGET_F_GETOWN:
+    case TARGET_F_SETSIG:
+    case TARGET_F_GETSIG:
+        ret = get_errno(fcntl(fd, host_cmd, arg));
         break;
 
     default:
@@ -6501,20 +6550,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 	struct target_eabi_flock64 *target_efl;
 #endif
 
-        switch(arg2){
-        case TARGET_F_GETLK64:
-            cmd = F_GETLK64;
-            break;
-        case TARGET_F_SETLK64:
-            cmd = F_SETLK64;
-            break;
-        case TARGET_F_SETLKW64:
-            cmd = F_SETLK64;
-            break;
-        default:
-            cmd = arg2;
-            break;
-        }
+	cmd = target_to_host_fcntl_cmd(arg2);
+	if (cmd == -TARGET_EINVAL)
+		return cmd;
 
         switch(arg2) {
         case TARGET_F_GETLK64:
@@ -6594,7 +6632,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(fcntl(arg1, cmd, &fl));
 	    break;
         default:
-            ret = do_fcntl(arg1, cmd, arg3);
+            ret = do_fcntl(arg1, arg2, arg3);
             break;
         }
 	break;
