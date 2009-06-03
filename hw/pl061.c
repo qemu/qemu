@@ -8,8 +8,7 @@
  * This code is licenced under the GPL.
  */
 
-#include "hw.h"
-#include "primecell.h"
+#include "sysbus.h"
 
 //#define DEBUG_PL061 1
 
@@ -28,6 +27,7 @@ static const uint8_t pl061_id[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
 typedef struct {
+    SysBusDevice busdev;
     int locked;
     uint8_t data;
     uint8_t old_data;
@@ -291,21 +291,25 @@ static int pl061_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-/* Returns an array of inputs.  */
-qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out)
+static void pl061_init(SysBusDevice *dev)
 {
     int iomemtype;
-    pl061_state *s;
+    pl061_state *s = FROM_SYSBUS(pl061_state, dev);
 
-    s = (pl061_state *)qemu_mallocz(sizeof(pl061_state));
     iomemtype = cpu_register_io_memory(0, pl061_readfn,
                                        pl061_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->irq = irq;
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_irq(dev, &s->irq);
+    qdev_init_gpio_in(&dev->qdev, pl061_set_irq, 8);
+    qdev_init_gpio_out(&dev->qdev, s->out, 8);
     pl061_reset(s);
-    if (out)
-        *out = s->out;
-
     register_savevm("pl061_gpio", -1, 1, pl061_save, pl061_load, s);
-    return qemu_allocate_irqs(pl061_set_irq, s, 8);
 }
+
+static void pl061_register_devices(void)
+{
+    sysbus_register_dev("pl061", sizeof(pl061_state),
+                        pl061_init);
+}
+
+device_init(pl061_register_devices)
