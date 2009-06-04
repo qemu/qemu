@@ -6908,8 +6908,8 @@ static always_inline void gen_evmergelo (DisasContext *ctx)
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 #else
-    tcg_gen_mov_i32(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     tcg_gen_mov_i32(cpu_gprh[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_mov_i32(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 static always_inline void gen_evmergehilo (DisasContext *ctx)
@@ -6946,8 +6946,16 @@ static always_inline void gen_evmergelohi (DisasContext *ctx)
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 #else
-    tcg_gen_mov_i32(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
-    tcg_gen_mov_i32(cpu_gprh[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    if (rD(ctx->opcode) == rA(ctx->opcode)) {
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_mov_i32(tmp, cpu_gpr[rA(ctx->opcode)]);
+        tcg_gen_mov_i32(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
+        tcg_gen_mov_i32(cpu_gprh[rD(ctx->opcode)], tmp);
+        tcg_temp_free_i32(tmp);
+    } else {
+        tcg_gen_mov_i32(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
+        tcg_gen_mov_i32(cpu_gprh[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    }
 #endif
 }
 static always_inline void gen_evsplati (DisasContext *ctx)
