@@ -36,7 +36,7 @@
 //#define DEBUG_MMAP
 
 #if defined(USE_NPTL)
-pthread_mutex_t mmap_mutex;
+pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int __thread mmap_lock_count;
 
 void mmap_lock(void)
