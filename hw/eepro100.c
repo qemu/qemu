@@ -2045,11 +2045,12 @@ static const key_value_t devicetable[] = {
 static void pci_eepro100_init(PCIDevice *dev)
 {
   size_t i;
+  assert(dev == 0); // TODO: dev->qdev.name was removed, need a replacement.
   for (i = 0; i < ARRAY_SIZE(devicetable); i++) {
-    if (strcmp(devicetable[i].name, dev->qdev.name) == 0) {
+    //~ if (strcmp(devicetable[i].name, dev->qdev.name) == 0) {
       nic_init(dev, devicetable[i].value);
-      break;
-    }
+      //~ break;
+    //~ }
   }
 }
 

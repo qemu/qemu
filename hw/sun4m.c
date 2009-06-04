@@ -400,7 +400,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     ram_addr_t ram_offset, prom_offset, idreg_offset;
     unsigned long kernel_size;
     int ret;
-    char buf[1024];
+    char *filename;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
     void *fw_cfg;
@@ -451,13 +451,20 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
-    if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image_targphys(buf, hwdef->slavio_base, PROM_SIZE_MAX);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        ret = load_elf(filename, hwdef->slavio_base - PROM_VADDR,
+                       NULL, NULL, NULL);
+        if (ret < 0 || ret > PROM_SIZE_MAX)
+            ret = load_image_targphys(filename, hwdef->slavio_base,
+                                      PROM_SIZE_MAX);
+        qemu_free(filename);
+    } else {
+        ret = -1;
+    }
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n",
-                buf);
+                bios_name);
         exit(1);
     }
 
@@ -1185,7 +1192,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
     int ret;
-    char buf[1024];
+    char *filename;
     void *fw_cfg;
 
     /* init CPUs */
@@ -1233,13 +1240,20 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
-    if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image_targphys(buf, hwdef->slavio_base, PROM_SIZE_MAX);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        ret = load_elf(filename, hwdef->slavio_base - PROM_VADDR,
+                       NULL, NULL, NULL);
+        if (ret < 0 || ret > PROM_SIZE_MAX)
+            ret = load_image_targphys(filename, hwdef->slavio_base,
+                                      PROM_SIZE_MAX);
+        qemu_free(filename);
+    } else {
+        ret = -1;
+    }
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n",
-                buf);
+                bios_name);
         exit(1);
     }
 
@@ -1399,7 +1413,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
     int ret;
-    char buf[1024];
+    char *filename;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
     void *fw_cfg;
@@ -1440,13 +1454,20 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
-    if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image_targphys(buf, hwdef->slavio_base, PROM_SIZE_MAX);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        ret = load_elf(filename, hwdef->slavio_base - PROM_VADDR,
+                       NULL, NULL, NULL);
+        if (ret < 0 || ret > PROM_SIZE_MAX)
+            ret = load_image_targphys(filename, hwdef->slavio_base,
+                                      PROM_SIZE_MAX);
+        qemu_free(filename);
+    } else {
+        ret = -1;
+    }
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n",
-                buf);
+                filename);
         exit(1);
     }
 

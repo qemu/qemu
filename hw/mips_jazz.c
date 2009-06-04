@@ -118,7 +118,7 @@ void mips_jazz_init (ram_addr_t ram_size,
                      const char *cpu_model,
                      enum jazz_model_e jazz_model)
 {
-    char buf[1024];
+    char *filename;
     int bios_size, n;
     CPUState *env;
     qemu_irq *rc4030, *i8259;
@@ -161,11 +161,17 @@ void mips_jazz_init (ram_addr_t ram_size,
     /* load the BIOS image. */
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image_targphys(buf, 0xfff00000LL, MAGNUM_BIOS_SIZE);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        bios_size = load_image_targphys(filename, 0xfff00000LL,
+                                        MAGNUM_BIOS_SIZE);
+        qemu_free(filename);
+    } else {
+        bios_size = -1;
+    }
     if (bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) {
         fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n",
-                buf);
+                bios_name);
         exit(1);
     }
 

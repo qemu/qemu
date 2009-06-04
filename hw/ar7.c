@@ -3762,7 +3762,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    char buf[1024];
+    char *filename;
     CPUState *env;
     int drive_index;
     ram_addr_t flash_offset;
@@ -3817,7 +3817,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
        but initialize the hardware ourselves. When a kernel gets
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
     drive_index = drive_get_index(IF_PFLASH, 0, 0);
     if (drive_index != -1) {
         pflash_t *pf;
@@ -3836,23 +3836,25 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
                                         flash_size, 2,
                                         flash_manufacturer, flash_type);
         }
-    } else {
+    } else if (filename) {
         pflash_t *pf;
         flash_offset = qemu_ram_alloc(flash_size);
         pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                     0,
                                     flash_size, 2,
                                     flash_manufacturer, flash_type);
-        flash_size = load_image_targphys(buf, FLASH_ADDR, flash_size);
+        flash_size = load_image_targphys(filename, FLASH_ADDR, flash_size);
+        qemu_free(filename);
     }
-    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
+    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, "flashimage.bin", flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
     rom_offset = qemu_ram_alloc(4 * KiB);
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "mips_bios.bin");
-    rom_size = load_image_targphys(buf, PROM_ADDR, 4 * KiB);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "mips_bios.bin");
+    rom_size = load_image_targphys(filename, PROM_ADDR, 4 * KiB);
+    qemu_free(filename);
     if ((rom_size > 0) && (rom_size <= 4 * KiB)) {
-        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, rom_size);
+        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, "mips_bios.bin", rom_size);
     } else {
         /* Not fatal, write a jump to address 0xb0000000 into memory. */
         static const uint8_t jump[] = {
@@ -3860,7 +3862,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
             0x00, 0xb0, 0x19, 0x3c, 0x08, 0x00, 0x20, 0x03
         };
         fprintf(stderr, "QEMU: Warning, could not load MIPS bios '%s'.\n"
-                "QEMU added a jump instruction to flash start.\n", buf);
+                "QEMU added a jump instruction to flash start.\n", "mips_bios.bin");
         cpu_physical_memory_write_rom(PROM_ADDR, jump, sizeof(jump));
         rom_size = 4 * KiB;
     }

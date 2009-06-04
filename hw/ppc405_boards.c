@@ -175,7 +175,7 @@ static void ref405ep_init (ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    char buf[1024];
+    char *filename;
     ppc4xx_bd_info_t bd;
     CPUPPCState *env;
     qemu_irq *pic;
@@ -236,13 +236,19 @@ static void ref405ep_init (ram_addr_t ram_size,
 #ifdef DEBUG_BOARD_INIT
         printf("Load BIOS from file\n");
 #endif
+        bios_offset = qemu_ram_alloc(BIOS_SIZE);
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-        bios_offset = qemu_ram_alloc(BIOS_SIZE);
-        bios_size = load_image(buf, qemu_get_ram_ptr(bios_offset));
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (filename) {
+            bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
+            qemu_free(filename);
+        } else {
+            bios_size = -1;
+        }
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
-            fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);
+            fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n",
+                    bios_name);
             exit(1);
         }
         bios_size = (bios_size + 0xfff) & ~0xfff;
@@ -493,7 +499,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
                              const char *initrd_filename,
                              const char *cpu_model)
 {
-    char buf[1024];
+    char *filename;
     CPUPPCState *env;
     qemu_irq *pic;
     ram_addr_t bios_offset;
@@ -548,10 +554,15 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
         bios_offset = qemu_ram_alloc(BIOS_SIZE);
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-        bios_size = load_image(buf, qemu_get_ram_ptr(bios_offset));
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (filename) {
+            bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
+        } else {
+            bios_size = -1;
+        }
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
-            fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);
+            fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n",
+                    bios_name);
             exit(1);
         }
         bios_size = (bios_size + 0xfff) & ~0xfff;

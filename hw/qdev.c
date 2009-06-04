@@ -84,7 +84,6 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     }
 
     dev = qemu_mallocz(t->size);
-    dev->name = name;
     dev->type = t;
 
     if (!bus) {
@@ -162,7 +161,7 @@ CharDriverState *qdev_init_chardev(DeviceState *dev)
     static int next_serial;
     static int next_virtconsole;
     /* FIXME: This is a nasty hack that needs to go away.  */
-    if (strncmp(dev->name, "virtio", 6) == 0) {
+    if (strncmp(dev->type->name, "virtio", 6) == 0) {
         return virtcon_hds[next_virtconsole++];
     } else {
         return serial_hds[next_serial++];

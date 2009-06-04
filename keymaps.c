@@ -64,20 +64,20 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 					   kbd_layout_t * k)
 {
     FILE *f;
-    char file_name[1024];
+    char * filename;
     char line[1024];
     int len;
 
-    snprintf(file_name, sizeof(file_name),
-             "%s/keymaps/%s", bios_dir, language);
+    filename = qemu_find_file(QEMU_FILE_TYPE_KEYMAP, language);
 
     if (!k)
 	k = qemu_mallocz(sizeof(kbd_layout_t));
-    if (!(f = fopen(file_name, "r"))) {
+    if (!(filename && (f = fopen(filename, "r")))) {
 	fprintf(stderr,
-		"Could not read keymap file: '%s'\n", file_name);
+		"Could not read keymap file: '%s'\n", language);
 	return 0;
     }
+    qemu_free(filename);
     for(;;) {
 	if (fgets(line, 1024, f) == NULL)
             break;

@@ -1567,11 +1567,34 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 #endif
 }
 
+static inline int gdb_id(CPUState *env)
+{
+#if defined(CONFIG_USER_ONLY) && defined(USE_NPTL)
+    return env->host_tid;
+#else
+    return env->cpu_index + 1;
+#endif
+}
+
+static CPUState *find_cpu(uint32_t thread_id)
+{
+    CPUState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        if (gdb_id(env) == thread_id) {
+            return env;
+        }
+    }
+
+    return NULL;
+}
+
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
 {
     CPUState *env;
     const char *p;
-    int ch, reg_size, type, res, thread;
+    uint32_t thread;
+    int ch, reg_size, type, res;
     char buf[MAX_PACKET_LENGTH];
     uint8_t mem_buf[MAX_PACKET_LENGTH];
     uint8_t *registers;
@@ -1586,7 +1609,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
-                 s->c_cpu->cpu_index+1);
+                 gdb_id(s->c_cpu));
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
          * because gdb is doing and initial connect and the state
@@ -1750,9 +1773,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "OK");
             break;
         }
-        for (env = first_cpu; env != NULL; env = env->next_cpu)
-            if (env->cpu_index + 1 == thread)
-                break;
+        env = find_cpu(thread);
         if (env == NULL) {
             put_packet(s, "E22");
             break;
@@ -1773,14 +1794,13 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         break;
     case 'T':
         thread = strtoull(p, (char **)&p, 16);
-#ifndef CONFIG_USER_ONLY
-        if (thread > 0 && thread < smp_cpus + 1)
-#else
-        if (thread == 1)
-#endif
-             put_packet(s, "OK");
-        else
+        env = find_cpu(thread);
+
+        if (env != NULL) {
+            put_packet(s, "OK");
+        } else {
             put_packet(s, "E22");
+        }
         break;
     case 'q':
     case 'Q':
@@ -1818,7 +1838,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         } else if (strcmp(p,"sThreadInfo") == 0) {
         report_cpuinfo:
             if (s->query_cpu) {
-                snprintf(buf, sizeof(buf), "m%x", s->query_cpu->cpu_index+1);
+                snprintf(buf, sizeof(buf), "m%x", gdb_id(s->query_cpu));
                 put_packet(s, buf);
                 s->query_cpu = s->query_cpu->next_cpu;
             } else
@@ -1826,16 +1846,15 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             break;
         } else if (strncmp(p,"ThreadExtraInfo,", 16) == 0) {
             thread = strtoull(p+16, (char **)&p, 16);
-            for (env = first_cpu; env != NULL; env = env->next_cpu)
-                if (env->cpu_index + 1 == thread) {
-                    cpu_synchronize_state(env, 0);
-                    len = snprintf((char *)mem_buf, sizeof(mem_buf),
-                                   "CPU#%d [%s]", env->cpu_index,
-                                   env->halted ? "halted " : "running");
-                    memtohex(buf, mem_buf, len);
-                    put_packet(s, buf);
-                    break;
-                }
+            env = find_cpu(thread);
+            if (env != NULL) {
+                cpu_synchronize_state(env, 0);
+                len = snprintf((char *)mem_buf, sizeof(mem_buf),
+                               "CPU#%d [%s]", env->cpu_index,
+                               env->halted ? "halted " : "running");
+                memtohex(buf, mem_buf, len);
+                put_packet(s, buf);
+            }
             break;
         }
 #ifdef CONFIG_USER_ONLY
@@ -1965,7 +1984,7 @@ static void gdb_vm_state_change(void *opaque, int running, int reason)
             }
             snprintf(buf, sizeof(buf),
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
-                     GDB_SIGNAL_TRAP, env->cpu_index+1, type,
+                     GDB_SIGNAL_TRAP, gdb_id(env), type,
                      env->watchpoint_hit->vaddr);
             put_packet(s, buf);
             env->watchpoint_hit = NULL;
@@ -1976,7 +1995,7 @@ static void gdb_vm_state_change(void *opaque, int running, int reason)
     } else {
         ret = GDB_SIGNAL_INT;
     }
-    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, env->cpu_index+1);
+    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, gdb_id(env));
     put_packet(s, buf);
 }
 #endif

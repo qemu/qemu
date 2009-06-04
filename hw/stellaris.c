@@ -10,7 +10,6 @@
 #include "sysbus.h"
 #include "ssi.h"
 #include "arm-misc.h"
-#include "primecell.h"
 #include "devices.h"
 #include "qemu-timer.h"
 #include "i2c.h"
@@ -45,6 +44,7 @@ typedef const struct {
 /* General purpose timer module.  */
 
 typedef struct gptm_state {
+    SysBusDevice busdev;
     uint32_t config;
     uint32_t mode[2];
     uint32_t control;
@@ -112,8 +112,7 @@ static void gptm_tick(void *opaque)
         s->state |= 1;
         if ((s->control & 0x20)) {
             /* Output trigger.  */
-	    qemu_irq_raise(s->trigger);
-	    qemu_irq_lower(s->trigger);
+	    qemu_irq_pulse(s->trigger);
         }
         if (s->mode[0] & 1) {
             /* One-shot.  */
@@ -340,19 +339,19 @@ static int gptm_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_gptm_init(uint32_t base, qemu_irq irq, qemu_irq trigger)
+static void stellaris_gptm_init(SysBusDevice *dev)
 {
     int iomemtype;
-    gptm_state *s;
+    gptm_state *s = FROM_SYSBUS(gptm_state, dev);
 
-    s = (gptm_state *)qemu_mallocz(sizeof(gptm_state));
-    s->irq = irq;
-    s->trigger = trigger;
-    s->opaque[0] = s->opaque[1] = s;
+    sysbus_init_irq(dev, &s->irq);
+    qdev_init_gpio_out(&dev->qdev, &s->trigger, 1);
 
     iomemtype = cpu_register_io_memory(0, gptm_readfn,
                                        gptm_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
+
+    s->opaque[0] = s->opaque[1] = s;
     s->timer[0] = qemu_new_timer(vm_clock, gptm_tick, &s->opaque[0]);
     s->timer[1] = qemu_new_timer(vm_clock, gptm_tick, &s->opaque[1]);
     register_savevm("stellaris_gptm", -1, 1, gptm_save, gptm_load, s);
@@ -906,6 +905,7 @@ static void stellaris_i2c_init(SysBusDevice * dev)
 
 typedef struct
 {
+    SysBusDevice busdev;
     uint32_t actss;
     uint32_t ris;
     uint32_t im;
@@ -921,7 +921,7 @@ typedef struct
     uint32_t ssmux[4];
     uint32_t ssctl[4];
     uint32_t noise;
-    qemu_irq irq;
+    qemu_irq irq[4];
 } stellaris_adc_state;
 
 static uint32_t stellaris_adc_fifo_read(stellaris_adc_state *s, int n)
@@ -945,6 +945,8 @@ static void stellaris_adc_fifo_write(stellaris_adc_state *s, int n,
 {
     int head;
 
+    /* TODO: Real hardware has limited size FIFOs.  We have a full 16 entry 
+       FIFO fir each sequencer.  */
     head = (s->fifo[n].state >> 4) & 0xf;
     if (s->fifo[n].state & STELLARIS_ADC_FIFO_FULL) {
         s->ostat |= 1 << n;
@@ -961,26 +963,36 @@ static void stellaris_adc_fifo_write(stellaris_adc_state *s, int n,
 static void stellaris_adc_update(stellaris_adc_state *s)
 {
     int level;
+    int n;
 
-    level = (s->ris & s->im) != 0;
-    qemu_set_irq(s->irq, level);
+    for (n = 0; n < 4; n++) {
+        level = (s->ris & s->im & (1 << n)) != 0;
+        qemu_set_irq(s->irq[n], level);
+    }
 }
 
 static void stellaris_adc_trigger(void *opaque, int irq, int level)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
+    int n;
 
-    if ((s->actss & 1) == 0) {
-        return;
+    for (n = 0; n < 4; n++) {
+        if ((s->actss & (1 << n)) == 0) {
+            continue;
+        }
+
+        if (((s->emux >> (n * 4)) & 0xff) != 5) {
+            continue;
+        }
+
+        /* Some applications use the ADC as a random number source, so introduce
+           some variation into the signal.  */
+        s->noise = s->noise * 314159 + 1;
+        /* ??? actual inputs not implemented.  Return an arbitrary value.  */
+        stellaris_adc_fifo_write(s, n, 0x200 + ((s->noise >> 16) & 7));
+        s->ris |= (1 << n);
+        stellaris_adc_update(s);
     }
-
-    /* Some applications use the ADC as a random number source, so introduce
-       some variation into the signal.  */
-    s->noise = s->noise * 314159 + 1;
-    /* ??? actual inputs not implemented.  Return an arbitrary value.  */
-    stellaris_adc_fifo_write(s, 0, 0x200 + ((s->noise >> 16) & 7));
-    s->ris |= 1;
-    stellaris_adc_update(s);
 }
 
 static void stellaris_adc_reset(stellaris_adc_state *s)
@@ -1068,9 +1080,6 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
     switch (offset) {
     case 0x00: /* ACTSS */
         s->actss = value & 0xf;
-        if (value & 0xe) {
-            hw_error("Not implemented:  ADC sequencers 1-3\n");
-        }
         break;
     case 0x08: /* IM */
         s->im = value;
@@ -1169,23 +1178,23 @@ static int stellaris_adc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
+static void stellaris_adc_init(SysBusDevice *dev)
 {
-    stellaris_adc_state *s;
+    stellaris_adc_state *s = FROM_SYSBUS(stellaris_adc_state, dev);
     int iomemtype;
-    qemu_irq *qi;
+    int n;
 
-    s = (stellaris_adc_state *)qemu_mallocz(sizeof(stellaris_adc_state));
-    s->irq = irq;
+    for (n = 0; n < 4; n++) {
+        sysbus_init_irq(dev, &s->irq[n]);
+    }
 
     iomemtype = cpu_register_io_memory(0, stellaris_adc_readfn,
                                        stellaris_adc_writefn, s);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
     stellaris_adc_reset(s);
-    qi = qemu_allocate_irqs(stellaris_adc_trigger, s, 1);
+    qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
     register_savevm("stellaris_adc", -1, 1,
                     stellaris_adc_save, stellaris_adc_load, s);
-    return qi[0];
 }
 
 /* Some boards have both an OLED controller and SD card connected to
@@ -1282,27 +1291,36 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
 
     qemu_irq *pic;
-    qemu_irq *gpio_in[7];
-    qemu_irq *gpio_out[7];
+    DeviceState *gpio_dev[7];
+    qemu_irq gpio_in[7][8];
+    qemu_irq gpio_out[7][8];
     qemu_irq adc;
     int sram_size;
     int flash_size;
     i2c_bus *i2c;
+    DeviceState *dev;
     int i;
+    int j;
 
     flash_size = ((board->dc0 & 0xffff) + 1) << 1;
     sram_size = (board->dc0 >> 18) + 1;
     pic = armv7m_init(flash_size, sram_size, kernel_filename, cpu_model);
 
     if (board->dc1 & (1 << 16)) {
-        adc = stellaris_adc_init(0x40038000, pic[14]);
+        dev = sysbus_create_varargs("stellaris-adc", 0x40038000,
+                                    pic[14], pic[15], pic[16], pic[17], NULL);
+        adc = qdev_get_gpio_in(dev, 0);
     } else {
         adc = NULL;
     }
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (0x10000 << i)) {
-            stellaris_gptm_init(0x40030000 + i * 0x1000,
-                                pic[timer_irq[i]], adc);
+            dev = sysbus_create_simple("stellaris-gptm",
+                                       0x40030000 + i * 0x1000,
+                                       pic[timer_irq[i]]);
+            /* TODO: This is incorrect, but we get away with it because
+               the ADC output is only ever pulsed.  */
+            qdev_connect_gpio_out(dev, 0, adc);
         }
     }
 
@@ -1310,13 +1328,16 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     for (i = 0; i < 7; i++) {
         if (board->dc4 & (1 << i)) {
-            gpio_in[i] = pl061_init(gpio_addr[i], pic[gpio_irq[i]],
-                                    &gpio_out[i]);
+            gpio_dev[i] = sysbus_create_simple("pl061", gpio_addr[i],
+                                               pic[gpio_irq[i]]);
+            for (j = 0; j < 8; j++) {
+                gpio_in[i][j] = qdev_get_gpio_in(gpio_dev[i], j);
+                gpio_out[i][j] = NULL;
+            }
         }
     }
 
     if (board->dc2 & (1 << 12)) {
-        DeviceState *dev;
         dev = sysbus_create_simple("stellaris-i2c", 0x40020000, pic[8]);
         i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
@@ -1331,7 +1352,6 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         }
     }
     if (board->dc2 & (1 << 4)) {
-        DeviceState *dev;
         dev = sysbus_create_simple("pl022", 0x40008000, pic[7]);
         if (board->peripherals & BP_OLED_SSI) {
             DeviceState *mux;
@@ -1374,6 +1394,15 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         gpad_irq[4] = qemu_irq_invert(gpio_in[GPIO_F][1]); /* select */
 
         stellaris_gamepad_init(5, gpad_irq, gpad_keycode);
+    }
+    for (i = 0; i < 7; i++) {
+        if (board->dc4 & (1 << i)) {
+            for (j = 0; j < 8; j++) {
+                if (gpio_out[i][j]) {
+                    qdev_connect_gpio_out(gpio_dev[i], j, gpio_out[i][j]);
+                }
+            }
+        }
     }
 }
 
@@ -1423,6 +1452,10 @@ static void stellaris_register_devices(void)
 {
     sysbus_register_dev("stellaris-i2c", sizeof(stellaris_i2c_state),
                         stellaris_i2c_init);
+    sysbus_register_dev("stellaris-gptm", sizeof(gptm_state),
+                        stellaris_gptm_init);
+    sysbus_register_dev("stellaris-adc", sizeof(stellaris_adc_state),
+                        stellaris_adc_init);
     ssi_register_slave("evb6965-ssi", sizeof(stellaris_ssi_bus_state),
                        &stellaris_ssi_bus_info);
 }
