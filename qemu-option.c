@@ -347,3 +347,16 @@ void print_option_parameters(QEMUOptionParameter *list)
         list++;
     }
 }
+
+/*
+ * Prints an overview of all available options
+ */
+void print_option_help(QEMUOptionParameter *list)
+{
+    printf("Supported options:\n");
+    while (list && list->name) {
+        printf("%-16s %s\n", list->name,
+            list->help ? list->help : "No description available");
+        list++;
+    }
+}

@@ -262,8 +262,16 @@ static void cow_flush(BlockDriverState *bs)
 }
 
 static QEMUOptionParameter cow_create_options[] = {
-    { BLOCK_OPT_SIZE,           OPT_SIZE },
-    { BLOCK_OPT_BACKING_FILE,   OPT_STRING },
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    {
+        .name = BLOCK_OPT_BACKING_FILE,
+        .type = OPT_STRING,
+        .help = "File name of a base image"
+    },
     { NULL }
 };
 

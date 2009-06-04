@@ -281,14 +281,16 @@ static int img_create(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc)
-        help();
-    filename = argv[optind++];
 
     /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
     if (!drv)
         error("Unknown file format '%s'", fmt);
+
+    if (options && !strcmp(options, "?")) {
+        print_option_help(drv->create_options);
+        return 0;
+    }
 
     if (options) {
         param = parse_option_parameters(options, drv->create_options, param);
@@ -298,6 +300,11 @@ static int img_create(int argc, char **argv)
     } else {
         param = parse_option_parameters("", drv->create_options, param);
     }
+
+    /* Get the filename */
+    if (optind >= argc)
+        help();
+    filename = argv[optind++];
 
     /* Add size to parameters */
     if (optind < argc) {
@@ -595,6 +602,11 @@ static int img_convert(int argc, char **argv)
     drv = bdrv_find_format(out_fmt);
     if (!drv)
         error("Unknown file format '%s'", out_fmt);
+
+    if (options && !strcmp(options, "?")) {
+        print_option_help(drv->create_options);
+        return 0;
+    }
 
     if (options) {
         param = parse_option_parameters(options, drv->create_options, param);

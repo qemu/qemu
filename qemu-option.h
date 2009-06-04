@@ -40,6 +40,7 @@ typedef struct QEMUOptionParameter {
         uint64_t n;
         char* s;
     } value;
+    const char *help;
 } QEMUOptionParameter;
 
 
@@ -63,5 +64,6 @@ QEMUOptionParameter *parse_option_parameters(const char *param,
     QEMUOptionParameter *list, QEMUOptionParameter *dest);
 void free_option_parameters(QEMUOptionParameter *list);
 void print_option_parameters(QEMUOptionParameter *list);
+void print_option_help(QEMUOptionParameter *list);
 
 #endif
