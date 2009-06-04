@@ -157,6 +157,7 @@ case "$cpu" in
 esac
 gprof="no"
 debug_tcg="no"
+debug="no"
 sparse="no"
 strip_opt="yes"
 bigendian="no"
@@ -411,6 +412,12 @@ for opt do
   ;;
   --disable-debug-tcg) debug_tcg="no"
   ;;
+  --enable-debug)
+      # Enable debugging options that aren't excessively noisy
+      debug_tcg="yes"
+      debug="yes"
+      strip_opt="no"
+  ;;
   --enable-sparse) sparse="yes"
   ;;
   --disable-sparse) sparse="no"
@@ -504,7 +511,10 @@ for opt do
 done
 
 # default flags for all hosts
-CFLAGS="$CFLAGS -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -g -fno-strict-aliasing"
+if test "$debug" = "no" ; then
+  CFLAGS="$CFLAGS -O2"
+fi
 CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
@@ -589,6 +599,7 @@ echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
+echo "  --disable-debug          enable common debug build options"
 echo "  --enable-sparse          enable sparse checker"
 echo "  --disable-sparse         disable sparse checker (default)"
 echo "  --disable-strip          disable stripping binaries"
@@ -1491,6 +1502,9 @@ case "$cpu" in
 esac
 if test "$debug_tcg" = "yes" ; then
   echo "#define DEBUG_TCG 1" >> $config_h
+fi
+if test "$debug" = "yes" ; then
+  echo "#define DEBUG_EXEC 1" >> $config_h
 fi
 if test "$sparse" = "yes" ; then
   echo "CC      := REAL_CC=\"\$(CC)\" cgcc"       >> $config_mak
