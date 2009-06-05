@@ -47,6 +47,15 @@
 #include "net.h"
 #include "eeprom93xx.h"
 
+// TODO: DeviceType is normally only known in qdev.c.
+// We need it here because we need the device name.
+struct DeviceType {
+    const char *name;
+    DeviceInfo *info;
+    int size;
+    DeviceType *next;
+};
+
 /* Common declarations for all PCI devices. */
 
 #define PCI_CONFIG_8(offset, value) \
@@ -2045,12 +2054,11 @@ static const key_value_t devicetable[] = {
 static void pci_eepro100_init(PCIDevice *dev)
 {
   size_t i;
-  assert(dev == 0); // TODO: dev->qdev.name was removed, need a replacement.
   for (i = 0; i < ARRAY_SIZE(devicetable); i++) {
-    //~ if (strcmp(devicetable[i].name, dev->qdev.name) == 0) {
+    if (strcmp(devicetable[i].name, dev->qdev.type->name) == 0) {
       nic_init(dev, devicetable[i].value);
-      //~ break;
-    //~ }
+      break;
+    }
   }
 }
 
