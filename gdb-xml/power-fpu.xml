@@ -7,7 +7,7 @@
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.power.fpu">
-  <reg name="f0" bitsize="64" type="ieee_double"/>
+  <reg name="f0" bitsize="64" type="ieee_double" regnum="71"/>
   <reg name="f1" bitsize="64" type="ieee_double"/>
   <reg name="f2" bitsize="64" type="ieee_double"/>
   <reg name="f3" bitsize="64" type="ieee_double"/>
