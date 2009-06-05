@@ -347,14 +347,17 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
             return 0;
     }
 
-    if ((ptr[0] & 1) && n->allmulti)
-        return 1;
-
-    if (!memcmp(ptr, bcast, sizeof(bcast)))
-        return 1;
-
-    if (!memcmp(ptr, n->mac, ETH_ALEN))
-        return 1;
+    if (ptr[0] & 1) { // multicast
+        if (!memcmp(ptr, bcast, sizeof(bcast))) {
+            return 1;
+        } else if (n->allmulti) {
+            return 1;
+        }
+    } else { // unicast
+        if (!memcmp(ptr, n->mac, ETH_ALEN)) {
+            return 1;
+        }
+    }
 
     for (i = 0; i < n->mac_table.in_use; i++) {
         if (!memcmp(ptr, &n->mac_table.macs[i * ETH_ALEN], ETH_ALEN))
