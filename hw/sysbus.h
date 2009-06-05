@@ -31,7 +31,14 @@ typedef void (*sysbus_initfn)(SysBusDevice *dev);
 #define sysbus_from_qdev(dev) ((SysBusDevice *)(dev))
 #define FROM_SYSBUS(type, dev) DO_UPCAST(type, busdev, dev)
 
+typedef struct {
+    DeviceInfo qdev;
+    sysbus_initfn init;
+} SysBusDeviceInfo;
+
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init);
+void sysbus_register_withprop(const char *name, size_t size,
+                              SysBusDeviceInfo *info);
 void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size, int iofunc);
 void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,

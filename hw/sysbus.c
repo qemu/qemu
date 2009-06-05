@@ -21,11 +21,6 @@
 #include "sysbus.h"
 #include "sysemu.h"
 
-typedef struct {
-    DeviceInfo qdev;
-    sysbus_initfn init;
-} SysBusDeviceInfo;
-
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
     assert(n >= 0 && n < dev->num_irq);
@@ -109,17 +104,23 @@ static void sysbus_device_init(DeviceState *dev, DeviceInfo *base)
     info->init(sysbus_from_qdev(dev));
 }
 
+void sysbus_register_withprop(const char *name, size_t size,
+                              SysBusDeviceInfo *info)
+{
+    info->qdev.init = sysbus_device_init;
+    info->qdev.bus_type = BUS_TYPE_SYSTEM;
+
+    assert(size >= sizeof(SysBusDevice));
+    qdev_register(name, size, &info->qdev);
+}
+
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init)
 {
     SysBusDeviceInfo *info;
 
     info = qemu_mallocz(sizeof(*info));
     info->init = init;
-    info->qdev.init = sysbus_device_init;
-    info->qdev.bus_type = BUS_TYPE_SYSTEM;
-
-    assert(size >= sizeof(SysBusDevice));
-    qdev_register(name, size, &info->qdev);
+    sysbus_register_withprop(name, size, info);
 }
 
 DeviceState *sysbus_create_varargs(const char *name,

@@ -49,6 +49,7 @@ void qdev_free(DeviceState *dev);
 
 /* Set properties between creation and init.  */
 void qdev_set_prop_int(DeviceState *dev, const char *name, uint64_t value);
+void qdev_set_prop_dev(DeviceState *dev, const char *name, DeviceState *value);
 void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_set_netdev(DeviceState *dev, NICInfo *nd);
 
@@ -59,6 +60,17 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
 
+typedef enum {
+    PROP_TYPE_INT,
+    PROP_TYPE_PTR,
+    PROP_TYPE_DEV
+} DevicePropType;
+
+typedef struct {
+    const char *name;
+    DevicePropType type;
+} DevicePropList;
+
 typedef struct DeviceInfo DeviceInfo;
 
 typedef void (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
@@ -68,6 +80,7 @@ typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
 struct DeviceInfo {
     qdev_initfn init;
     BusType bus_type;
+    DevicePropList *props;
 };
 
 void qdev_register(const char *name, int size, DeviceInfo *info);
@@ -83,6 +96,8 @@ CharDriverState *qdev_init_chardev(DeviceState *dev);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
 uint64_t qdev_get_prop_int(DeviceState *dev, const char *name, uint64_t def);
+DeviceState *qdev_get_prop_dev(DeviceState *dev, const char *name);
+/* FIXME: Remove opaque pointer properties.  */
 void *qdev_get_prop_ptr(DeviceState *dev, const char *name);
 
 /* Convery from a base type to a parent type, with compile time checking.  */
