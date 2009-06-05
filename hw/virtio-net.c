@@ -16,7 +16,7 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    6
+#define VIRTIO_NET_VM_VERSION    7
 
 #define MAC_TABLE_ENTRIES    32
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
@@ -528,6 +528,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, n->mac_table.in_use);
     qemu_put_buffer(f, n->mac_table.macs, n->mac_table.in_use * ETH_ALEN);
     qemu_put_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
+    qemu_put_be32(f, 0); /* vnet-hdr placeholder */
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -566,6 +567,12 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
  
     if (version_id >= 6)
         qemu_get_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
+
+    if (version_id >= 7 && qemu_get_be32(f)) {
+        fprintf(stderr,
+                "virtio-net: saved image requires vnet header support\n");
+        exit(1);
+    }
 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
