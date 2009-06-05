@@ -16,7 +16,7 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    9
+#define VIRTIO_NET_VM_VERSION    10
 
 #define MAC_TABLE_ENTRIES    32
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
@@ -35,6 +35,10 @@ typedef struct VirtIONet
     int mergeable_rx_bufs;
     uint8_t promisc;
     uint8_t allmulti;
+    uint8_t alluni;
+    uint8_t nomulti;
+    uint8_t nouni;
+    uint8_t nobcast;
     struct {
         int in_use;
         int first_multi;
@@ -98,6 +102,10 @@ static void virtio_net_reset(VirtIODevice *vdev)
     /* Reset back to compatibility mode */
     n->promisc = 1;
     n->allmulti = 0;
+    n->alluni = 0;
+    n->nomulti = 0;
+    n->nouni = 0;
+    n->nobcast = 0;
 
     /* Flush any MAC and VLAN filter table state */
     n->mac_table.in_use = 0;
@@ -114,7 +122,8 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev)
                         (1 << VIRTIO_NET_F_STATUS) |
                         (1 << VIRTIO_NET_F_CTRL_VQ) |
                         (1 << VIRTIO_NET_F_CTRL_RX) |
-                        (1 << VIRTIO_NET_F_CTRL_VLAN);
+                        (1 << VIRTIO_NET_F_CTRL_VLAN) |
+                        (1 << VIRTIO_NET_F_CTRL_RX_EXTRA);
 
     return features;
 }
@@ -157,6 +166,14 @@ static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
         n->promisc = on;
     else if (cmd == VIRTIO_NET_CTRL_RX_MODE_ALLMULTI)
         n->allmulti = on;
+    else if (cmd == VIRTIO_NET_CTRL_RX_MODE_ALLUNI)
+        n->alluni = on;
+    else if (cmd == VIRTIO_NET_CTRL_RX_MODE_NOMULTI)
+        n->nomulti = on;
+    else if (cmd == VIRTIO_NET_CTRL_RX_MODE_NOUNI)
+        n->nouni = on;
+    else if (cmd == VIRTIO_NET_CTRL_RX_MODE_NOBCAST)
+        n->nobcast = on;
     else
         return VIRTIO_NET_ERR;
 
@@ -360,7 +377,9 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
 
     if (ptr[0] & 1) { // multicast
         if (!memcmp(ptr, bcast, sizeof(bcast))) {
-            return 1;
+            return !n->nobcast;
+        } else if (n->nomulti) {
+            return 0;
         } else if (n->allmulti || n->mac_table.multi_overflow) {
             return 1;
         }
@@ -371,7 +390,9 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
             }
         }
     } else { // unicast
-        if (n->mac_table.uni_overflow) {
+        if (n->nouni) {
+            return 0;
+        } else if (n->alluni || n->mac_table.uni_overflow) {
             return 1;
         } else if (!memcmp(ptr, n->mac, ETH_ALEN)) {
             return 1;
@@ -554,6 +575,10 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, 0); /* vnet-hdr placeholder */
     qemu_put_byte(f, n->mac_table.multi_overflow);
     qemu_put_byte(f, n->mac_table.uni_overflow);
+    qemu_put_byte(f, n->alluni);
+    qemu_put_byte(f, n->nomulti);
+    qemu_put_byte(f, n->nouni);
+    qemu_put_byte(f, n->nobcast);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -608,6 +633,13 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id >= 9) {
         n->mac_table.multi_overflow = qemu_get_byte(f);
         n->mac_table.uni_overflow = qemu_get_byte(f);
+    }
+
+    if (version_id >= 10) {
+        n->alluni = qemu_get_byte(f);
+        n->nomulti = qemu_get_byte(f);
+        n->nouni = qemu_get_byte(f);
+        n->nobcast = qemu_get_byte(f);
     }
 
     /* Find the first multicast entry in the saved MAC filter */
