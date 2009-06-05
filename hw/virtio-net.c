@@ -16,7 +16,7 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    7
+#define VIRTIO_NET_VM_VERSION    8
 
 #define MAC_TABLE_ENTRIES    32
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
@@ -33,8 +33,8 @@ typedef struct VirtIONet
     QEMUTimer *tx_timer;
     int tx_timer_active;
     int mergeable_rx_bufs;
-    int promisc;
-    int allmulti;
+    uint8_t promisc;
+    uint8_t allmulti;
     struct {
         int in_use;
         uint8_t *macs;
@@ -523,8 +523,8 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, n->tx_timer_active);
     qemu_put_be32(f, n->mergeable_rx_bufs);
     qemu_put_be16(f, n->status);
-    qemu_put_be32(f, n->promisc);
-    qemu_put_be32(f, n->allmulti);
+    qemu_put_byte(f, n->promisc);
+    qemu_put_byte(f, n->allmulti);
     qemu_put_be32(f, n->mac_table.in_use);
     qemu_put_buffer(f, n->mac_table.macs, n->mac_table.in_use * ETH_ALEN);
     qemu_put_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
@@ -548,8 +548,13 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         n->status = qemu_get_be16(f);
 
     if (version_id >= 4) {
-        n->promisc = qemu_get_be32(f);
-        n->allmulti = qemu_get_be32(f);
+        if (version_id < 8) {
+            n->promisc = qemu_get_be32(f);
+            n->allmulti = qemu_get_be32(f);
+        } else {
+            n->promisc = qemu_get_byte(f);
+            n->allmulti = qemu_get_byte(f);
+        }
     }
 
     if (version_id >= 5) {
