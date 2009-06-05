@@ -18,7 +18,7 @@
 
 #define VIRTIO_NET_VM_VERSION    10
 
-#define MAC_TABLE_ENTRIES    32
+#define MAC_TABLE_ENTRIES    64
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
 
 typedef struct VirtIONet
@@ -690,7 +690,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev)
     n->vdev.reset = virtio_net_reset;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
-    n->ctrl_vq = virtio_add_queue(&n->vdev, 16, virtio_net_handle_ctrl);
+    n->ctrl_vq = virtio_add_queue(&n->vdev, 64, virtio_net_handle_ctrl);
     qdev_get_macaddr(dev, n->mac);
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qdev_get_vlan_client(dev,
