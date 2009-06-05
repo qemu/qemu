@@ -29,6 +29,7 @@
 #include "net.h"
 #include "qdev.h"
 #include "sysemu.h"
+#include "monitor.h"
 
 struct DeviceProperty {
     const char *name;
@@ -336,4 +337,76 @@ BusState *qbus_create(BusType type, size_t size,
         LIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
     }
     return bus;
+}
+
+static const char *bus_type_names[] = {
+    "System",
+    "PCI",
+    "SCSI",
+    "I2C",
+    "SSI"
+};
+
+#define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
+static void qbus_print(Monitor *mon, BusState *bus, int indent);
+
+static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
+{
+    DeviceProperty *prop;
+    BusState *child;
+    qdev_printf("dev: %s\n", dev->type->name);
+    indent += 2;
+    if (dev->num_gpio_in) {
+        qdev_printf("gpio-in %d\n", dev->num_gpio_in);
+    }
+    if (dev->num_gpio_out) {
+        qdev_printf("gpio-out %d\n", dev->num_gpio_out);
+    }
+    for (prop = dev->props; prop; prop = prop->next) {
+        switch (prop->type) {
+        case PROP_TYPE_INT:
+            qdev_printf("prop-int %s 0x%" PRIx64 "\n", prop->name,
+                        prop->value.i);
+            break;
+        case PROP_TYPE_PTR:
+            qdev_printf("prop-ptr %s\n", prop->name);
+            break;
+        case PROP_TYPE_DEV:
+            qdev_printf("prop-dev %s %s\n", prop->name,
+                        ((DeviceState *)prop->value.ptr)->type->name);
+            break;
+        default:
+            qdev_printf("prop-unknown%d %s\n", prop->type, prop->name);
+            break;
+        }
+    }
+    switch (dev->parent_bus->type) {
+    case BUS_TYPE_SYSTEM:
+        sysbus_dev_print(mon, dev, indent);
+        break;
+    default:
+        break;
+    }
+    LIST_FOREACH(child, &dev->child_bus, sibling) {
+        qbus_print(mon, child, indent);
+    }
+}
+
+static void qbus_print(Monitor *mon, BusState *bus, int indent)
+{
+    struct DeviceState *dev;
+
+    qdev_printf("bus: %s\n", bus->name);
+    indent += 2;
+    qdev_printf("type %s\n", bus_type_names[bus->type]);
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        qdev_print(mon, dev, indent);
+    }
+}
+#undef qdev_printf
+
+void do_info_qtree(Monitor *mon)
+{
+    if (main_system_bus)
+        qbus_print(mon, main_system_bus, 0);
 }

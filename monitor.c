@@ -23,6 +23,7 @@
  */
 #include <dirent.h>
 #include "hw/hw.h"
+#include "hw/qdev.h"
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
 #include "hw/pc.h"
@@ -1854,6 +1855,8 @@ static const mon_cmd_t info_cmds[] = {
     { "migrate", "", do_info_migrate, "", "show migration status" },
     { "balloon", "", do_info_balloon,
       "", "show balloon information" },
+    { "qtree", "", do_info_qtree,
+      "", "show device tree" },
     { NULL, NULL, },
 };
 

@@ -117,4 +117,9 @@ BusState *qbus_create(BusType type, size_t size,
 
 #define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)
 
+/*** monitor commands ***/
+
+void do_info_qtree(Monitor *mon);
+void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+
 #endif
