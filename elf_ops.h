@@ -185,7 +185,7 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
     struct elf_phdr *phdr = NULL, *ph;
     int size, i, total_size;
     elf_word mem_size;
-    uint64_t addr, low = 0, high = 0;
+    uint64_t addr, low = (uint64_t)-1, high = 0;
     uint8_t *data = NULL;
 
     if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
@@ -249,9 +249,9 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
             cpu_physical_memory_write_rom(addr, data, mem_size);
 
             total_size += mem_size;
-            if (!low || addr < low)
+            if (addr < low)
                 low = addr;
-            if (!high || (addr + mem_size) > high)
+            if ((addr + mem_size) > high)
                 high = addr + mem_size;
 
             qemu_free(data);

@@ -226,10 +226,20 @@ static void syborg_timer_init(SysBusDevice *dev)
                     syborg_timer_save, syborg_timer_load, s);
 }
 
+static SysBusDeviceInfo syborg_timer_info = {
+    .init = syborg_timer_init,
+    .qdev = {
+        .props = (DevicePropList[]) {
+              {.name = "frequency", .type = PROP_TYPE_INT},
+              {.name = NULL}
+        }
+    }
+};
+
 static void syborg_timer_register_devices(void)
 {
-    sysbus_register_dev("syborg,timer", sizeof(SyborgTimerState),
-                        syborg_timer_init);
+    sysbus_register_withprop("syborg,timer", sizeof(SyborgTimerState),
+                            &syborg_timer_info);
 }
 
 device_init(syborg_timer_register_devices)

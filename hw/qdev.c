@@ -29,9 +29,11 @@
 #include "net.h"
 #include "qdev.h"
 #include "sysemu.h"
+#include "monitor.h"
 
 struct DeviceProperty {
     const char *name;
+    DevicePropType type;
     union {
         uint64_t i;
         void *ptr;
@@ -119,13 +121,15 @@ void qdev_free(DeviceState *dev)
     free(dev);
 }
 
-static DeviceProperty *create_prop(DeviceState *dev, const char *name)
+static DeviceProperty *create_prop(DeviceState *dev, const char *name,
+                                   DevicePropType type)
 {
     DeviceProperty *prop;
 
     /* TODO: Check for duplicate properties.  */
     prop = qemu_mallocz(sizeof(*prop));
     prop->name = qemu_strdup(name);
+    prop->type = type;
     prop->next = dev->props;
     dev->props = prop;
 
@@ -136,15 +140,23 @@ void qdev_set_prop_int(DeviceState *dev, const char *name, uint64_t value)
 {
     DeviceProperty *prop;
 
-    prop = create_prop(dev, name);
+    prop = create_prop(dev, name, PROP_TYPE_INT);
     prop->value.i = value;
+}
+
+void qdev_set_prop_dev(DeviceState *dev, const char *name, DeviceState *value)
+{
+    DeviceProperty *prop;
+
+    prop = create_prop(dev, name, PROP_TYPE_DEV);
+    prop->value.ptr = value;
 }
 
 void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value)
 {
     DeviceProperty *prop;
 
-    prop = create_prop(dev, name);
+    prop = create_prop(dev, name, PROP_TYPE_INT);
     prop->value.ptr = value;
 }
 
@@ -173,12 +185,14 @@ BusState *qdev_get_parent_bus(DeviceState *dev)
     return dev->parent_bus;
 }
 
-static DeviceProperty *find_prop(DeviceState *dev, const char *name)
+static DeviceProperty *find_prop(DeviceState *dev, const char *name,
+                                 DevicePropType type)
 {
     DeviceProperty *prop;
 
     for (prop = dev->props; prop; prop = prop->next) {
         if (strcmp(prop->name, name) == 0) {
+            assert (prop->type == type);
             return prop;
         }
     }
@@ -189,9 +203,10 @@ uint64_t qdev_get_prop_int(DeviceState *dev, const char *name, uint64_t def)
 {
     DeviceProperty *prop;
 
-    prop = find_prop(dev, name);
-    if (!prop)
+    prop = find_prop(dev, name, PROP_TYPE_INT);
+    if (!prop) {
         return def;
+    }
 
     return prop->value.i;
 }
@@ -200,8 +215,19 @@ void *qdev_get_prop_ptr(DeviceState *dev, const char *name)
 {
     DeviceProperty *prop;
 
-    prop = find_prop(dev, name);
+    prop = find_prop(dev, name, PROP_TYPE_PTR);
     assert(prop);
+    return prop->value.ptr;
+}
+
+DeviceState *qdev_get_prop_dev(DeviceState *dev, const char *name)
+{
+    DeviceProperty *prop;
+
+    prop = find_prop(dev, name, PROP_TYPE_DEV);
+    if (!prop) {
+        return NULL;
+    }
     return prop->value.ptr;
 }
 
@@ -311,4 +337,76 @@ BusState *qbus_create(BusType type, size_t size,
         LIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
     }
     return bus;
+}
+
+static const char *bus_type_names[] = {
+    "System",
+    "PCI",
+    "SCSI",
+    "I2C",
+    "SSI"
+};
+
+#define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
+static void qbus_print(Monitor *mon, BusState *bus, int indent);
+
+static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
+{
+    DeviceProperty *prop;
+    BusState *child;
+    qdev_printf("dev: %s\n", dev->type->name);
+    indent += 2;
+    if (dev->num_gpio_in) {
+        qdev_printf("gpio-in %d\n", dev->num_gpio_in);
+    }
+    if (dev->num_gpio_out) {
+        qdev_printf("gpio-out %d\n", dev->num_gpio_out);
+    }
+    for (prop = dev->props; prop; prop = prop->next) {
+        switch (prop->type) {
+        case PROP_TYPE_INT:
+            qdev_printf("prop-int %s 0x%" PRIx64 "\n", prop->name,
+                        prop->value.i);
+            break;
+        case PROP_TYPE_PTR:
+            qdev_printf("prop-ptr %s\n", prop->name);
+            break;
+        case PROP_TYPE_DEV:
+            qdev_printf("prop-dev %s %s\n", prop->name,
+                        ((DeviceState *)prop->value.ptr)->type->name);
+            break;
+        default:
+            qdev_printf("prop-unknown%d %s\n", prop->type, prop->name);
+            break;
+        }
+    }
+    switch (dev->parent_bus->type) {
+    case BUS_TYPE_SYSTEM:
+        sysbus_dev_print(mon, dev, indent);
+        break;
+    default:
+        break;
+    }
+    LIST_FOREACH(child, &dev->child_bus, sibling) {
+        qbus_print(mon, child, indent);
+    }
+}
+
+static void qbus_print(Monitor *mon, BusState *bus, int indent)
+{
+    struct DeviceState *dev;
+
+    qdev_printf("bus: %s\n", bus->name);
+    indent += 2;
+    qdev_printf("type %s\n", bus_type_names[bus->type]);
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        qdev_print(mon, dev, indent);
+    }
+}
+#undef qdev_printf
+
+void do_info_qtree(Monitor *mon)
+{
+    if (main_system_bus)
+        qbus_print(mon, main_system_bus, 0);
 }
