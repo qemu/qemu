@@ -16,7 +16,7 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    8
+#define VIRTIO_NET_VM_VERSION    9
 
 #define MAC_TABLE_ENTRIES    32
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
@@ -37,6 +37,8 @@ typedef struct VirtIONet
     uint8_t allmulti;
     struct {
         int in_use;
+        uint8_t multi_overflow;
+        uint8_t uni_overflow;
         uint8_t *macs;
     } mac_table;
     uint32_t *vlans;
@@ -98,6 +100,8 @@ static void virtio_net_reset(VirtIODevice *vdev)
 
     /* Flush any MAC and VLAN filter table state */
     n->mac_table.in_use = 0;
+    n->mac_table.multi_overflow = 0;
+    n->mac_table.uni_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
     memset(n->vlans, 0, MAX_VLAN >> 3);
 }
@@ -168,6 +172,8 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
 
     n->mac_table.in_use = 0;
+    n->mac_table.uni_overflow = 0;
+    n->mac_table.multi_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
 
     mac_data.entries = ldl_le_p(elem->out_sg[1].iov_base);
@@ -181,8 +187,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
                mac_data.entries * ETH_ALEN);
         n->mac_table.in_use += mac_data.entries;
     } else {
-        n->promisc = 1;
-        return VIRTIO_NET_OK;
+        n->mac_table.uni_overflow = 1;
     }
 
     mac_data.entries = ldl_le_p(elem->out_sg[2].iov_base);
@@ -197,8 +202,9 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
                    elem->out_sg[2].iov_base + sizeof(mac_data),
                    mac_data.entries * ETH_ALEN);
             n->mac_table.in_use += mac_data.entries;
-        } else
-            n->allmulti = 1;
+        } else {
+            n->mac_table.multi_overflow = 1;
+        }
     }
 
     return VIRTIO_NET_OK;
@@ -350,11 +356,13 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     if (ptr[0] & 1) { // multicast
         if (!memcmp(ptr, bcast, sizeof(bcast))) {
             return 1;
-        } else if (n->allmulti) {
+        } else if (n->allmulti || n->mac_table.multi_overflow) {
             return 1;
         }
     } else { // unicast
-        if (!memcmp(ptr, n->mac, ETH_ALEN)) {
+        if (n->mac_table.uni_overflow) {
+            return 1;
+        } else if (!memcmp(ptr, n->mac, ETH_ALEN)) {
             return 1;
         }
     }
@@ -532,6 +540,8 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, n->mac_table.macs, n->mac_table.in_use * ETH_ALEN);
     qemu_put_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
     qemu_put_be32(f, 0); /* vnet-hdr placeholder */
+    qemu_put_byte(f, n->mac_table.multi_overflow);
+    qemu_put_byte(f, n->mac_table.uni_overflow);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -568,7 +578,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
                             n->mac_table.in_use * ETH_ALEN);
         } else if (n->mac_table.in_use) {
             qemu_fseek(f, n->mac_table.in_use * ETH_ALEN, SEEK_CUR);
-            n->promisc = 1;
+            n->mac_table.multi_overflow = n->mac_table.uni_overflow = 1;
             n->mac_table.in_use = 0;
         }
     }
@@ -580,6 +590,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         fprintf(stderr,
                 "virtio-net: saved image requires vnet header support\n");
         exit(1);
+    }
+
+    if (version_id >= 9) {
+        n->mac_table.multi_overflow = qemu_get_byte(f);
+        n->mac_table.uni_overflow = qemu_get_byte(f);
     }
 
     if (n->tx_timer_active) {
