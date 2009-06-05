@@ -37,6 +37,7 @@ typedef struct VirtIONet
     uint8_t allmulti;
     struct {
         int in_use;
+        int first_multi;
         uint8_t multi_overflow;
         uint8_t uni_overflow;
         uint8_t *macs;
@@ -100,6 +101,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
 
     /* Flush any MAC and VLAN filter table state */
     n->mac_table.in_use = 0;
+    n->mac_table.first_multi = 0;
     n->mac_table.multi_overflow = 0;
     n->mac_table.uni_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
@@ -172,6 +174,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
 
     n->mac_table.in_use = 0;
+    n->mac_table.first_multi = 0;
     n->mac_table.uni_overflow = 0;
     n->mac_table.multi_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
@@ -189,6 +192,8 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
     } else {
         n->mac_table.uni_overflow = 1;
     }
+
+    n->mac_table.first_multi = n->mac_table.in_use;
 
     mac_data.entries = ldl_le_p(elem->out_sg[2].iov_base);
 
@@ -359,17 +364,24 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
         } else if (n->allmulti || n->mac_table.multi_overflow) {
             return 1;
         }
+
+        for (i = n->mac_table.first_multi; i < n->mac_table.in_use; i++) {
+            if (!memcmp(ptr, &n->mac_table.macs[i * ETH_ALEN], ETH_ALEN)) {
+                return 1;
+            }
+        }
     } else { // unicast
         if (n->mac_table.uni_overflow) {
             return 1;
         } else if (!memcmp(ptr, n->mac, ETH_ALEN)) {
             return 1;
         }
-    }
 
-    for (i = 0; i < n->mac_table.in_use; i++) {
-        if (!memcmp(ptr, &n->mac_table.macs[i * ETH_ALEN], ETH_ALEN))
-            return 1;
+        for (i = 0; i < n->mac_table.first_multi; i++) {
+            if (!memcmp(ptr, &n->mac_table.macs[i * ETH_ALEN], ETH_ALEN)) {
+                return 1;
+            }
+        }
     }
 
     return 0;
@@ -547,6 +559,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
+    int i;
 
     if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
@@ -596,6 +609,14 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         n->mac_table.multi_overflow = qemu_get_byte(f);
         n->mac_table.uni_overflow = qemu_get_byte(f);
     }
+
+    /* Find the first multicast entry in the saved MAC filter */
+    for (i = 0; i < n->mac_table.in_use; i++) {
+        if (n->mac_table.macs[i * ETH_ALEN] & 1) {
+            break;
+        }
+    }
+    n->mac_table.first_multi = i;
 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
