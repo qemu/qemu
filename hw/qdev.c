@@ -156,7 +156,7 @@ void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value)
 {
     DeviceProperty *prop;
 
-    prop = create_prop(dev, name, PROP_TYPE_INT);
+    prop = create_prop(dev, name, PROP_TYPE_PTR);
     prop->value.ptr = value;
 }
 
