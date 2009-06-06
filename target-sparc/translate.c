@@ -42,7 +42,8 @@
 
 /* global register indexes */
 static TCGv_ptr cpu_env, cpu_regwptr;
-static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst, cpu_cc_op;
+static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
+static TCGv_i32 cpu_cc_op;
 static TCGv_i32 cpu_psr;
 static TCGv cpu_fsr, cpu_pc, cpu_npc, cpu_gregs[8];
 static TCGv cpu_y;
