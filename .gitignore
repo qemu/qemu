@@ -19,6 +19,8 @@ qemu-nbd
 qemu-nbd.8
 qemu-nbd.pod
 qemu-options.texi
+qemu-img-cmds.texi
+qemu-img-cmds.h
 qemu-io
 .gdbinit
 *.a
