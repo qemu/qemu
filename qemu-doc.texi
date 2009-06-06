@@ -166,7 +166,7 @@ PS/2 mouse and keyboard
 @item
 Floppy disk
 @item
-PCI/ISA PCI network adapters
+PCI and ISA network adapters
 @item
 Serial ports
 @item
@@ -1542,7 +1542,7 @@ PIIX4 PCI/USB/SMbus controller
 @item
 The Multi-I/O chip's serial device
 @item
-PCnet32 PCI network card
+PCI network cards (PCnet32 and others)
 @item
 Malta FPGA serial device
 @item
