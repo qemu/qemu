@@ -8,9 +8,9 @@ usage: qemu-img command [command options]
 
 The following commands are supported:
 @table @option
-@item create [-e] [-6] [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
 @item commit [-f @var{fmt}] @var{filename}
-@item convert [-c] [-e] [-6] [-f @var{fmt}] [-O @var{output_fmt}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 @item info [-f @var{fmt}] @var{filename}
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot}] @var{filename}
 @end table
@@ -61,22 +61,23 @@ CD-ROM images present for example in the Knoppix CD-ROMs.
 @end table
 
 @item size
-is the disk image size in kilobytes. Optional suffixes @code{M}
-(megabyte, 1024 * 1024) and @code{G} (gigabyte, 1024 * 1024 * 1024)
-are supported and any @code{k} or @code{K} is ignored.
+is the disk image size in bytes. Optional suffixes @code{k} or @code{K}
+(kilobyte, 1024) @code{M} (megabyte, 1024k) and @code{G} (gigabyte, 1024M)
+and T (terabyte, 1024G) are supported.  @code{b} is ignored.
 
 @item output_filename
 is the destination disk image filename
 
 @item output_fmt
  is the destination format
+@item options
+is a comma separated list of format specific options in a
+name=value format. Use @code{-o ?} for an overview of the options supported
+by the used format
+
 
 @item -c
 indicates that target image must be compressed (qcow format only)
-@item -e
-indicates that the target image must be encrypted (qcow format only)
-@item -6
-indicates that the target image must use compatibility level 6 (vmdk format only)
 @item -h
 with or without a command shows help and lists the supported formats
 @end table
@@ -100,7 +101,7 @@ lists all snapshots in the given image
 Command description:
 
 @table @option
-@item create [-6] [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
 
 Create the new disk image @var{filename} of size @var{size} and format
 @var{fmt}.
@@ -110,17 +111,20 @@ differences from @var{base_image}. No size needs to be specified in
 this case. @var{base_image} will never be modified unless you use the
 @code{commit} monitor command.
 
+The size can also be specified using the @var{size} option with @code{-o},
+it doesn't need to be specified separately in this case.
+
 @item commit [-f @var{fmt}] @var{filename}
 
 Commit the changes recorded in @var{filename} in its base image.
 
-@item convert [-c] [-e] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
+@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} to disk image @var{output_filename}
-using format @var{output_fmt}. It can be optionally encrypted
-(@code{-e} option) or compressed (@code{-c} option).
+using format @var{output_fmt}. It can be optionally compressed (@code{-c}
+option) or use any format specific options like encryption (@code{-o} option).
 
-Only the format @code{qcow} supports encryption or compression. The
+Only the formats @code{qcow} and @code{qcow2} support encryption or compression. The
 compression is read-only. It means that if a compressed sector is
 rewritten, then it is rewritten as uncompressed data.
 

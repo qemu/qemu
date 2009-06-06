@@ -909,9 +909,21 @@ static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 
 
 static QEMUOptionParameter qcow_create_options[] = {
-    { BLOCK_OPT_SIZE,           OPT_SIZE },
-    { BLOCK_OPT_BACKING_FILE,   OPT_STRING },
-    { BLOCK_OPT_ENCRYPT,        OPT_FLAG },
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    {
+        .name = BLOCK_OPT_BACKING_FILE,
+        .type = OPT_STRING,
+        .help = "File name of a base image"
+    },
+    {
+        .name = BLOCK_OPT_ENCRYPT,
+        .type = OPT_FLAG,
+        .help = "Encrypt the image"
+    },
     { NULL }
 };
 

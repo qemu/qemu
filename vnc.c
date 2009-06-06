@@ -65,7 +65,7 @@ static char *addr_to_string(const char *format,
     }
 
     /* Enough for the existing format + the 2 vars we're
-     * subsituting in. */
+     * substituting in. */
     addrlen = strlen(format) + strlen(host) + strlen(serv);
     addr = qemu_malloc(addrlen + 1);
     snprintf(addr, addrlen, format, host, serv);

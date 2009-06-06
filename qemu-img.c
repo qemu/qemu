@@ -59,9 +59,9 @@ static void QEMU_NORETURN help(void)
            "\n"
            "Command syntax:\n"
            "  check [-f fmt] filename\n"
-           "  create [-e] [-6] [-F fmt] [-b base_image] [-f fmt] filename [size]\n"
+           "  create [-F fmt] [-b base_image] [-f fmt] [-o options] filename [size]\n"
            "  commit [-f fmt] filename\n"
-           "  convert [-c] [-e] [-6] [-f fmt] [-O output_fmt] [-B output_base_image] filename [filename2 [...]] output_filename\n"
+           "  convert [-c] [-f fmt] [-O output_fmt] [-o options] [-B output_base_image] filename [filename2 [...]] output_filename\n"
            "  info [-f fmt] filename\n"
            "  snapshot [-l | -a snapshot | -c snapshot | -d snapshot] filename\n"
            "\n"
@@ -79,9 +79,10 @@ static void QEMU_NORETURN help(void)
            "    supported any 'k' or 'K' is ignored\n"
            "  'output_filename' is the destination disk image filename\n"
            "  'output_fmt' is the destination format\n"
+           "  'options' is a comma separated list of format specific options in a\n"
+           "    name=value format. Use -o ? for an overview of the options supported by the\n"
+           "    used format\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
-           "  '-e' indicates that the target image must be encrypted (qcow format only)\n"
-           "  '-6' indicates that the target image must use compatibility level 6 (vmdk format only)\n"
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "\n"
            "Parameters to snapshot subcommand:\n"
@@ -281,14 +282,16 @@ static int img_create(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc)
-        help();
-    filename = argv[optind++];
 
     /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
     if (!drv)
         error("Unknown file format '%s'", fmt);
+
+    if (options && !strcmp(options, "?")) {
+        print_option_help(drv->create_options);
+        return 0;
+    }
 
     if (options) {
         param = parse_option_parameters(options, drv->create_options, param);
@@ -298,6 +301,11 @@ static int img_create(int argc, char **argv)
     } else {
         param = parse_option_parameters("", drv->create_options, param);
     }
+
+    /* Get the filename */
+    if (optind >= argc)
+        help();
+    filename = argv[optind++];
 
     /* Add size to parameters */
     if (optind < argc) {
@@ -595,6 +603,11 @@ static int img_convert(int argc, char **argv)
     drv = bdrv_find_format(out_fmt);
     if (!drv)
         error("Unknown file format '%s'", out_fmt);
+
+    if (options && !strcmp(options, "?")) {
+        print_option_help(drv->create_options);
+        return 0;
+    }
 
     if (options) {
         param = parse_option_parameters(options, drv->create_options, param);

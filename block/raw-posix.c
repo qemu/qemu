@@ -858,7 +858,11 @@ static void raw_flush(BlockDriverState *bs)
 
 
 static QEMUOptionParameter raw_create_options[] = {
-    { BLOCK_OPT_SIZE,           OPT_SIZE },
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
     { NULL }
 };
 

@@ -828,9 +828,21 @@ static void vmdk_flush(BlockDriverState *bs)
 
 
 static QEMUOptionParameter vmdk_create_options[] = {
-    { BLOCK_OPT_SIZE,           OPT_SIZE },
-    { BLOCK_OPT_BACKING_FILE,   OPT_STRING },
-    { BLOCK_OPT_COMPAT6,        OPT_FLAG },
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    {
+        .name = BLOCK_OPT_BACKING_FILE,
+        .type = OPT_STRING,
+        .help = "File name of a base image"
+    },
+    {
+        .name = BLOCK_OPT_COMPAT6,
+        .type = OPT_FLAG,
+        .help = "VMDK version 6 image"
+    },
     { NULL }
 };
 

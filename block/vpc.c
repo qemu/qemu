@@ -594,7 +594,11 @@ static void vpc_close(BlockDriverState *bs)
 }
 
 static QEMUOptionParameter vpc_create_options[] = {
-    { "size", OPT_SIZE },
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
     { NULL }
 };
 
