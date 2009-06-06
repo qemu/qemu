@@ -732,6 +732,8 @@ endif
 
 vl.o: qemu-options.h
 
+monitor.o: qemu-monitor.h
+
 $(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
 $(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a $(HWLIB)
@@ -749,9 +751,13 @@ endif
 qemu-options.h: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
+qemu-monitor.h: $(SRC_PATH)/qemu-monitor.hx
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
+
 clean:
-	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h gdbstub-xml.c
+	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o
+	rm -f qemu-options.h qemu-monitor.h gdbstub-xml.c
 
 install: all
 ifneq ($(PROGS),)
