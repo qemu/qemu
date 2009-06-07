@@ -1158,7 +1158,9 @@ EOF
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
       if test "$kvmerr" != "" ; then
-        kvm="no - (${kvmerr})"
+        kvm="no - (${kvmerr})\n\
+    NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
+recent kvm-kmod from http://sourceforge.net/projects/kvm."
       fi
     fi
   fi
@@ -1377,7 +1379,7 @@ echo "vde support       $vde"
 echo "AIO support       $aio"
 echo "IO thread         $io_thread"
 echo "Install blobs     $blobs"
-echo "KVM support       $kvm"
+echo -e "KVM support       $kvm"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 
