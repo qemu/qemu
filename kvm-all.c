@@ -404,6 +404,9 @@ static void kvm_reset_vcpus(void *opaque)
 
 int kvm_init(int smp_cpus)
 {
+    static const char upgrade_note[] =
+        "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
+        "(see http://sourceforge.net/projects/kvm).\n";
     KVMState *s;
     int ret;
     int i;
@@ -454,7 +457,8 @@ int kvm_init(int smp_cpus)
      */
     if (!kvm_check_extension(s, KVM_CAP_USER_MEMORY)) {
         ret = -EINVAL;
-        fprintf(stderr, "kvm does not support KVM_CAP_USER_MEMORY\n");
+        fprintf(stderr, "kvm does not support KVM_CAP_USER_MEMORY\n%s",
+                upgrade_note);
         goto err;
     }
 
@@ -465,8 +469,8 @@ int kvm_init(int smp_cpus)
         ret = -EINVAL;
 
         fprintf(stderr,
-                "KVM kernel module broken (DESTROY_MEMORY_REGION)\n"
-                "Please upgrade to at least kvm-81.\n");
+                "KVM kernel module broken (DESTROY_MEMORY_REGION).\n%s",
+                upgrade_note);
         goto err;
     }
 

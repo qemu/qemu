@@ -7,13 +7,8 @@ usage: qemu-img command [command options]
 @c man begin OPTIONS
 
 The following commands are supported:
-@table @option
-@item create [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
-@item commit [-f @var{fmt}] @var{filename}
-@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
-@item info [-f @var{fmt}] @var{filename}
-@item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot}] @var{filename}
-@end table
+
+@include qemu-img-cmds.texi
 
 Command parameters:
 @table @var
