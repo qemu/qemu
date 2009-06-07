@@ -5050,15 +5050,6 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
-
-    /* Derive the bios path name from the name of the executable. */
-    {
-        char filename[MAX_PATH];
-        GetModuleFileName(0, filename, sizeof(filename));
-        char *p = strrchr(filename, '\\');
-        if (p) *p = '\0';
-        bios_dir = strdup(filename);
-    }
 #endif
 
     module_call_init(MODULE_INIT_MACHINE);
