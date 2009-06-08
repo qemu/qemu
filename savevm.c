@@ -210,7 +210,14 @@ static int popen_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int s
 static int popen_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
     QEMUFilePopen *s = opaque;
-    return fread(buf, 1, size, s->popen_file);
+    FILE *fp = s->popen_file;
+    int bytes;
+
+    do {
+        clearerr(fp);
+        bytes = fread(buf, 1, size, fp);
+    } while ((bytes == 0) && ferror(fp) && (errno == EINTR));
+    return bytes;
 }
 
 static int popen_close(void *opaque)
