@@ -176,7 +176,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
 	    if (txreq.flags & NETTXF_csum_blank) {
                 /* have read-only mapping -> can't fill checksum in-place */
                 if (!tmpbuf)
-                    tmpbuf = malloc(PAGE_SIZE);
+                    tmpbuf = qemu_malloc(PAGE_SIZE);
                 memcpy(tmpbuf, page + txreq.offset, txreq.size);
 		net_checksum_calculate(tmpbuf, txreq.size);
                 qemu_send_packet(netdev->vs, tmpbuf, txreq.size);
@@ -190,7 +190,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
 	    break;
 	netdev->tx_work = 0;
     }
-    free(tmpbuf);
+    qemu_free(tmpbuf);
 }
 
 /* ------------------------------------------------------------- */
