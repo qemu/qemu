@@ -81,9 +81,11 @@ int i2c_start_transfer(i2c_bus *bus, int address, int recv)
     i2c_slave *slave = NULL;
 
     LIST_FOREACH(qdev, &bus->qbus.children, sibling) {
-        slave = I2C_SLAVE_FROM_QDEV(qdev);
-        if (slave->address == address)
+        i2c_slave *candidate = I2C_SLAVE_FROM_QDEV(qdev);
+        if (candidate->address == address) {
+            slave = candidate;
             break;
+        }
     }
 
     if (!slave)
