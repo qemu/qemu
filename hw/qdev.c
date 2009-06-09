@@ -49,7 +49,7 @@ struct DeviceType {
 };
 
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
-BusState *main_system_bus;
+static BusState *main_system_bus;
 
 static DeviceType *device_type_list;
 

@@ -4856,7 +4856,7 @@ static char *find_datadir(const char *argv0)
 
     len = GetModuleFileName(NULL, buf, sizeof(buf) - 1);
     if (len == 0) {
-        return len;
+        return NULL;
     }
 
     buf[len] = 0;
@@ -4884,6 +4884,7 @@ static char *find_datadir(const char *argv0)
 #ifdef PATH_MAX
     char buf[PATH_MAX];
 #endif
+    size_t max_len;
 
 #if defined(__linux__)
     {
@@ -4918,11 +4919,12 @@ static char *find_datadir(const char *argv0)
     dir = dirname(p);
     dir = dirname(dir);
 
-    res = qemu_mallocz(strlen(dir) + 
-        MAX(strlen(SHARE_SUFFIX), strlen(BUILD_SUFFIX)) + 1);
-    sprintf(res, "%s%s", dir, SHARE_SUFFIX);
+    max_len = strlen(dir) +
+        MAX(strlen(SHARE_SUFFIX), strlen(BUILD_SUFFIX)) + 1;
+    res = qemu_mallocz(max_len);
+    snprintf(res, max_len, "%s%s", dir, SHARE_SUFFIX);
     if (access(res, R_OK)) {
-        sprintf(res, "%s%s", dir, BUILD_SUFFIX);
+        snprintf(res, max_len, "%s%s", dir, BUILD_SUFFIX);
         if (access(res, R_OK)) {
             qemu_free(res);
             res = NULL;
@@ -4960,7 +4962,7 @@ char *qemu_find_file(int type, const char *name)
     }
     len = strlen(data_dir) + strlen(name) + strlen(subdir) + 2;
     buf = qemu_mallocz(len);
-    sprintf(buf, "%s/%s%s", data_dir, subdir, name);
+    snprintf(buf, len, "%s/%s%s", data_dir, subdir, name);
     if (access(buf, R_OK)) {
         qemu_free(buf);
         return NULL;

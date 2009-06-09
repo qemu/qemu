@@ -1170,8 +1170,9 @@ static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
     s->RxBufAddr = 0;
 }
 
-static void rtl8139_reset(RTL8139State *s)
+static void rtl8139_reset(void *opaque)
 {
+    RTL8139State *s = opaque;
     int i;
 
     /* restore MAC address */
@@ -3313,6 +3314,8 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
         s->cplus_enabled = s->CpCmd != 0;
     }
 
+    rtl8139_update_irq(s);
+
     return 0;
 }
 
@@ -3473,6 +3476,7 @@ static void pci_rtl8139_init(PCIDevice *dev)
 
     s->pci_dev = (PCIDevice *)d;
     qdev_get_macaddr(&dev->qdev, s->macaddr);
+    qemu_register_reset(rtl8139_reset, 0, s);
     rtl8139_reset(s);
     s->vc = qdev_get_vlan_client(&dev->qdev,
                                  rtl8139_receive, rtl8139_can_receive,
