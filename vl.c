@@ -4388,6 +4388,7 @@ static int tcg_has_work(void)
 
 static int qemu_calculate_timeout(void)
 {
+#ifndef CONFIG_IOTHREAD
     int timeout;
 
     if (!vm_running)
@@ -4433,6 +4434,9 @@ static int qemu_calculate_timeout(void)
     }
 
     return timeout;
+#else /* CONFIG_IOTHREAD */
+    return 1000;
+#endif
 }
 
 static int vm_can_run(void)
@@ -4468,11 +4472,7 @@ static void main_loop(void)
 #ifdef CONFIG_PROFILER
             ti = profile_getclock();
 #endif
-#ifdef CONFIG_IOTHREAD
-            main_loop_wait(1000);
-#else
             main_loop_wait(qemu_calculate_timeout());
-#endif
 #ifdef CONFIG_PROFILER
             dev_time += profile_getclock() - ti;
 #endif
