@@ -256,6 +256,7 @@ clean:
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
+	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS) libhw32 libhw64; do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
