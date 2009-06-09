@@ -723,7 +723,7 @@ STEXI
 @table @option
 ETEXI
 
-DEF("net", HAS_ARG, QEMU_OPTION_net, \
+DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
