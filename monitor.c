@@ -2389,7 +2389,6 @@ static int default_fmt_size = 4;
 static void monitor_handle_command(Monitor *mon, const char *cmdline)
 {
     const char *p, *pstart, *typestr;
-    char *q;
     int c, nb_args, len, i, has_arg;
     const mon_cmd_t *cmd;
     char cmdname[256];
@@ -2415,7 +2414,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
 
     /* extract the command name */
     p = cmdline;
-    q = cmdname;
     while (qemu_isspace(*p))
         p++;
     if (*p == '\0')
