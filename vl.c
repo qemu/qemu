@@ -4806,7 +4806,7 @@ static char *find_datadir(const char *argv0)
 
     len = GetModuleFileName(NULL, buf, sizeof(buf) - 1);
     if (len == 0) {
-        return len;
+        return NULL;
     }
 
     buf[len] = 0;
