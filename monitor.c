@@ -2432,11 +2432,13 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     /* find the command */
     for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
         if (compare_cmd(cmdname, cmd->name))
-            goto found;
+            break;
     }
-    monitor_printf(mon, "unknown command: '%s'\n", cmdname);
-    return;
- found:
+
+    if (cmd->name == NULL) {
+        monitor_printf(mon, "unknown command: '%s'\n", cmdname);
+        return;
+    }
 
     for(i = 0; i < MAX_ARGS; i++)
         str_allocated[i] = NULL;
