@@ -743,6 +743,7 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 
 void cpu_exec_init_all(unsigned long tb_size);
 CPUState *cpu_copy(CPUState *env);
+CPUState *qemu_get_cpu(int cpu);
 
 void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),

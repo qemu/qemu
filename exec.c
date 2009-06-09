@@ -541,6 +541,19 @@ static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
 }
 #endif
 
+CPUState *qemu_get_cpu(int cpu)
+{
+    CPUState *env = first_cpu;
+
+    while (env) {
+        if (env->cpu_index == cpu)
+            break;
+        env = env->next_cpu;
+    }
+
+    return env;
+}
+
 void cpu_exec_init(CPUState *env)
 {
     CPUState **penv;
