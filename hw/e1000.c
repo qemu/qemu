@@ -150,12 +150,18 @@ ioport_map(PCIDevice *pci_dev, int region_num, uint32_t addr,
 }
 
 static void
+update_irqs(E1000State *s)
+{
+    qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
+}
+
+static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
     if (val)
         val |= E1000_ICR_INT_ASSERTED;
     s->mac_reg[ICR] = val;
-    qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
+    update_irqs(s);
 }
 
 static void
@@ -970,6 +976,7 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
         for (j = 0; j < mac_regarraystosave[i].size; j++)
             qemu_get_be32s(f,
                            s->mac_reg + mac_regarraystosave[i].array0 + j);
+    update_irqs(s);
     return 0;
 }
 
@@ -1068,6 +1075,7 @@ static void e1000_reset(void *opaque)
     memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
+    update_irqs(d);
 }
 
 static void pci_e1000_init(PCIDevice *pci_dev)
