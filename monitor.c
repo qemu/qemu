@@ -2714,7 +2714,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
  fail:
     for(i = 0; i < MAX_ARGS; i++)
         qemu_free(str_allocated[i]);
-    return;
 }
 
 static void cmd_completion(const char *name, const char *list)
