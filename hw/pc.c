@@ -1152,7 +1152,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     /* Add virtio balloon device */
-    if (pci_enabled) {
+    if (pci_enabled && !no_virtio_balloon) {
         pci_create_simple(pci_bus, -1, "virtio-balloon-pci");
     }
 

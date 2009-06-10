@@ -244,6 +244,7 @@ int smp_cpus = 1;
 const char *vnc_display;
 int acpi_enabled = 1;
 int no_hpet = 0;
+int no_virtio_balloon = 0;
 int fd_bootchk = 1;
 int no_reboot = 0;
 int no_shutdown = 0;
@@ -5550,6 +5551,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_hpet:
                 no_hpet = 1;
+                break;
+            case QEMU_OPTION_no_virtio_balloon:
+                no_virtio_balloon = 1;
                 break;
 #endif
             case QEMU_OPTION_no_reboot:
