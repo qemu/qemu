@@ -830,6 +830,11 @@ static int load_option_rom(const char *oprom, target_phys_addr_t start,
         return size;
 }
 
+int cpu_is_bsp(CPUState *env)
+{
+	return env->cpuid_apic_id == 0;
+}
+
 /* PC hardware initialisation */
 static void pc_init1(ram_addr_t ram_size,
                      const char *boot_device,
@@ -877,6 +882,7 @@ static void pc_init1(ram_addr_t ram_size,
             exit(1);
         }
         if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
+            env->cpuid_apic_id = env->cpu_index;
             apic_init(env);
         }
         qemu_register_reset(main_cpu_reset, 0, env);

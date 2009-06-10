@@ -83,12 +83,13 @@ typedef struct APICState {
     int count_shift;
     uint32_t initial_count;
     int64_t initial_count_load_time, next_time;
+    uint32_t idx;
     QEMUTimer *timer;
 } APICState;
 
 static int apic_io_memory;
 static APICState *local_apics[MAX_APICS + 1];
-static int last_apic_id = 0;
+static int last_apic_idx = 0;
 static int apic_irq_delivered;
 
 
@@ -400,6 +401,23 @@ static void apic_eoi(APICState *s)
     apic_update_irq(s);
 }
 
+static int apic_find_dest(uint8_t dest)
+{
+    APICState *apic = local_apics[dest];
+    int i;
+
+    if (apic && apic->id == dest)
+        return dest;  /* shortcut in case apic->id == apic->idx */
+
+    for (i = 0; i < MAX_APICS; i++) {
+        apic = local_apics[i];
+	if (apic && apic->id == dest)
+            return i;
+    }
+
+    return -1;
+}
+
 static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
                                       uint8_t dest, uint8_t dest_mode)
 {
@@ -410,8 +428,10 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
         if (dest == 0xff) {
             memset(deliver_bitmask, 0xff, MAX_APIC_WORDS * sizeof(uint32_t));
         } else {
+            int idx = apic_find_dest(dest);
             memset(deliver_bitmask, 0x00, MAX_APIC_WORDS * sizeof(uint32_t));
-            set_bit(deliver_bitmask, dest);
+            if (idx >= 0)
+                set_bit(deliver_bitmask, idx);
         }
     } else {
         /* XXX: cluster mode */
@@ -457,8 +477,7 @@ static void apic_init_ipi(APICState *s)
 
     cpu_reset(s->cpu_env);
 
-    if (!(s->apicbase & MSR_IA32_APICBASE_BSP))
-        s->cpu_env->halted = 1;
+    s->cpu_env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
 }
 
 /* send a SIPI message to the CPU to start it */
@@ -487,14 +506,14 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
         break;
     case 1:
         memset(deliver_bitmask, 0x00, sizeof(deliver_bitmask));
-        set_bit(deliver_bitmask, s->id);
+        set_bit(deliver_bitmask, s->idx);
         break;
     case 2:
         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
         break;
     case 3:
         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
-        reset_bit(deliver_bitmask, s->id);
+        reset_bit(deliver_bitmask, s->idx);
         break;
     }
 
@@ -870,13 +889,14 @@ static int apic_load(QEMUFile *f, void *opaque, int version_id)
 static void apic_reset(void *opaque)
 {
     APICState *s = opaque;
+    int bsp = cpu_is_bsp(s->cpu_env);
 
     s->apicbase = 0xfee00000 |
-        (s->id ? 0 : MSR_IA32_APICBASE_BSP) | MSR_IA32_APICBASE_ENABLE;
+        (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
     apic_init_ipi(s);
 
-    if (s->id == 0) {
+    if (bsp) {
         /*
          * LINT0 delivery mode on CPU #0 is set to ExtInt at initialization
          * time typically by BIOS, so PIC interrupt can be delivered to the
@@ -902,12 +922,12 @@ int apic_init(CPUState *env)
 {
     APICState *s;
 
-    if (last_apic_id >= MAX_APICS)
+    if (last_apic_idx >= MAX_APICS)
         return -1;
     s = qemu_mallocz(sizeof(APICState));
     env->apic_state = s;
-    s->id = last_apic_id++;
-    env->cpuid_apic_id = s->id;
+    s->idx = last_apic_idx++;
+    s->id = env->cpuid_apic_id;
     s->cpu_env = env;
 
     apic_reset(s);
@@ -923,10 +943,10 @@ int apic_init(CPUState *env)
     }
     s->timer = qemu_new_timer(vm_clock, apic_timer, s);
 
-    register_savevm("apic", s->id, 2, apic_save, apic_load, s);
+    register_savevm("apic", s->idx, 2, apic_save, apic_load, s);
     qemu_register_reset(apic_reset, 0, s);
 
-    local_apics[s->id] = s;
+    local_apics[s->idx] = s;
     return 0;
 }
 
