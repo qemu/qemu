@@ -53,7 +53,7 @@ typedef struct {
     uint8_t (*read_data)(SMBusDevice *dev, uint8_t cmd, int n);
 } SMBusDeviceInfo;
 
-void smbus_register_device(const char *name, int size, SMBusDeviceInfo *info);
+void smbus_register_device(SMBusDeviceInfo *info);
 
 /* Master device commands.  */
 void smbus_quick_command(i2c_bus *bus, int addr, int read);

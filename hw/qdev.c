@@ -42,9 +42,7 @@ struct DeviceProperty {
 };
 
 struct DeviceType {
-    const char *name;
     DeviceInfo *info;
-    int size;
     DeviceType *next;
 };
 
@@ -54,17 +52,15 @@ static BusState *main_system_bus;
 static DeviceType *device_type_list;
 
 /* Register a new device type.  */
-void qdev_register(const char *name, int size, DeviceInfo *info)
+void qdev_register(DeviceInfo *info)
 {
     DeviceType *t;
 
-    assert(size >= sizeof(DeviceState));
+    assert(info->size >= sizeof(DeviceState));
 
     t = qemu_mallocz(sizeof(DeviceType));
     t->next = device_type_list;
     device_type_list = t;
-    t->name = qemu_strdup(name);
-    t->size = size;
     t->info = info;
 }
 
@@ -77,7 +73,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     DeviceState *dev;
 
     for (t = device_type_list; t; t = t->next) {
-        if (strcmp(t->name, name) == 0) {
+        if (strcmp(t->info->name, name) == 0) {
             break;
         }
     }
@@ -85,7 +81,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
         hw_error("Unknown device '%s'\n", name);
     }
 
-    dev = qemu_mallocz(t->size);
+    dev = qemu_mallocz(t->info->size);
     dev->type = t;
 
     if (!bus) {
@@ -173,7 +169,7 @@ CharDriverState *qdev_init_chardev(DeviceState *dev)
     static int next_serial;
     static int next_virtconsole;
     /* FIXME: This is a nasty hack that needs to go away.  */
-    if (strncmp(dev->type->name, "virtio", 6) == 0) {
+    if (strncmp(dev->type->info->name, "virtio", 6) == 0) {
         return virtcon_hds[next_virtconsole++];
     } else {
         return serial_hds[next_serial++];
@@ -355,7 +351,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     DeviceProperty *prop;
     BusState *child;
-    qdev_printf("dev: %s\n", dev->type->name);
+    qdev_printf("dev: %s\n", dev->type->info->name);
     indent += 2;
     if (dev->num_gpio_in) {
         qdev_printf("gpio-in %d\n", dev->num_gpio_in);
@@ -374,7 +370,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
             break;
         case PROP_TYPE_DEV:
             qdev_printf("prop-dev %s %s\n", prop->name,
-                        ((DeviceState *)prop->value.ptr)->type->name);
+                        ((DeviceState *)prop->value.ptr)->type->info->name);
             break;
         default:
             qdev_printf("prop-unknown%d %s\n", prop->type, prop->name);

@@ -924,11 +924,13 @@ void pci_qdev_register(const char *name, int size, pci_qdev_initfn init)
     PCIDeviceInfo *info;
 
     info = qemu_mallocz(sizeof(*info));
+    info->qdev.name = qemu_strdup(name);
+    info->qdev.size = size;
     info->init = init;
     info->qdev.init = pci_qdev_init;
     info->qdev.bus_type = BUS_TYPE_PCI;
 
-    qdev_register(name, size, &info->qdev);
+    qdev_register(&info->qdev);
 }
 
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)

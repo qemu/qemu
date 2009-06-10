@@ -78,12 +78,16 @@ typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
               int unit);
 
 struct DeviceInfo {
+    const char *name;
+    size_t size;
+    DevicePropList *props;
+
+    /* Private to qdev / bus.  */
     qdev_initfn init;
     BusType bus_type;
-    DevicePropList *props;
 };
 
-void qdev_register(const char *name, int size, DeviceInfo *info);
+void qdev_register(DeviceInfo *info);
 
 /* Register device properties.  */
 /* GPIO inputs also double as IRQ sinks.  */

@@ -1076,19 +1076,23 @@ static void spitz_machine_init(void)
 machine_init(spitz_machine_init);
 
 static SSISlaveInfo corgi_ssp_info = {
+    .qdev.name = "corgi-ssp",
+    .qdev.size = sizeof(CorgiSSPState),
     .init = corgi_ssp_init,
     .transfer = corgi_ssp_transfer
 };
 
 static SSISlaveInfo spitz_lcdtg_info = {
+    .qdev.name = "spitz-lcdtg",
+    .qdev.size = sizeof(SpitzLCDTG),
     .init = spitz_lcdtg_init,
     .transfer = spitz_lcdtg_transfer
 };
 
 static void spitz_register_devices(void)
 {
-    ssi_register_slave("corgi-ssp", sizeof(CorgiSSPState), &corgi_ssp_info);
-    ssi_register_slave("spitz-lcdtg", sizeof(SpitzLCDTG), &spitz_lcdtg_info);
+    ssi_register_slave(&corgi_ssp_info);
+    ssi_register_slave(&spitz_lcdtg_info);
 }
 
 device_init(spitz_register_devices)

@@ -526,6 +526,8 @@ void lm832x_key_event(struct i2c_slave *i2c, int key, int state)
 }
 
 static I2CSlaveInfo lm8323_info = {
+    .qdev.name = "lm8323",
+    .qdev.size = sizeof(LM823KbdState),
     .init = lm8323_init,
     .event = lm_i2c_event,
     .recv = lm_i2c_rx,
@@ -534,7 +536,7 @@ static I2CSlaveInfo lm8323_info = {
 
 static void lm832x_register_devices(void)
 {
-    i2c_register_slave("lm8323", sizeof(LM823KbdState), &lm8323_info);
+    i2c_register_slave(&lm8323_info);
 }
 
 device_init(lm832x_register_devices)
