@@ -213,9 +213,9 @@ static int ne2000_buffer_full(NE2000State *s)
     return 0;
 }
 
-static int ne2000_can_receive(void *opaque)
+static int ne2000_can_receive(VLANClientState *vc)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = vc->opaque;
 
     if (s->cmd & E8390_STOP)
         return 1;
@@ -224,9 +224,10 @@ static int ne2000_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
-static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t ne2000_receive(VLANClientState *vc, const uint8_t *buf, size_t size_)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = vc->opaque;
+    int size = size_;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];
@@ -238,7 +239,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
 #endif
 
     if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
-        return;
+        return -1;
 
     /* XXX: check this */
     if (s->rxcr & 0x10) {
@@ -247,14 +248,14 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
         if (!memcmp(buf,  broadcast_macaddr, 6)) {
             /* broadcast address */
             if (!(s->rxcr & 0x04))
-                return;
+                return size;
         } else if (buf[0] & 0x01) {
             /* multicast */
             if (!(s->rxcr & 0x08))
-                return;
+                return size;
             mcast_idx = compute_mcast_idx(buf);
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
-                return;
+                return size;
         } else if (s->mem[0] == buf[0] &&
                    s->mem[2] == buf[1] &&
                    s->mem[4] == buf[2] &&
@@ -263,7 +264,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
                    s->mem[10] == buf[5]) {
             /* match */
         } else {
-            return;
+            return size;
         }
     }
 
@@ -316,6 +317,8 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
     /* now we can signal we have received something */
     s->isr |= ENISR_RX;
     ne2000_update_irq(s);
+
+    return size_;
 }
 
 static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
@@ -757,7 +760,7 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
     ne2000_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 ne2000_receive, ne2000_can_receive,
+                                 ne2000_can_receive, ne2000_receive, NULL,
                                  isa_ne2000_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
@@ -821,7 +824,7 @@ static void pci_ne2000_init(PCIDevice *pci_dev)
     qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     ne2000_reset(s);
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 ne2000_receive, ne2000_can_receive,
+                                 ne2000_can_receive, ne2000_receive, NULL,
                                  ne2000_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

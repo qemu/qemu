@@ -66,24 +66,24 @@ static int mipsnet_buffer_full(MIPSnetState *s)
     return 0;
 }
 
-static int mipsnet_can_receive(void *opaque)
+static int mipsnet_can_receive(VLANClientState *vc)
 {
-    MIPSnetState *s = opaque;
+    MIPSnetState *s = vc->opaque;
 
     if (s->busy)
         return 0;
     return !mipsnet_buffer_full(s);
 }
 
-static void mipsnet_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    MIPSnetState *s = opaque;
+    MIPSnetState *s = vc->opaque;
 
 #ifdef DEBUG_MIPSNET_RECEIVE
     printf("mipsnet: receiving len=%d\n", size);
 #endif
-    if (!mipsnet_can_receive(opaque))
-        return;
+    if (!mipsnet_can_receive(vc))
+        return -1;
 
     s->busy = 1;
 
@@ -98,6 +98,8 @@ static void mipsnet_receive(void *opaque, const uint8_t *buf, int size)
     /* Now we can signal we have received something. */
     s->intctl |= MIPSNET_INTCTL_RXDONE;
     mipsnet_update_irq(s);
+
+    return size;
 }
 
 static uint32_t mipsnet_ioport_read(void *opaque, uint32_t addr)
@@ -262,7 +264,7 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     s->irq = irq;
     if (nd && nd->vlan) {
         s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                     mipsnet_receive, mipsnet_can_receive,
+                                     mipsnet_can_receive, mipsnet_receive, NULL,
                                      mipsnet_cleanup, s);
     } else {
         s->vc = NULL;

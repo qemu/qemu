@@ -1433,21 +1433,21 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
     }
 }
 
-static int nic_can_receive(void *opaque)
+static int nic_can_receive(VLANClientState *vc)
 {
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = vc->opaque;
     logout("%p\n", s);
     return get_ru_state(s) == ru_ready;
     //~ return !eepro100_buffer_full(s);
 }
 
-static void nic_receive(void *opaque, const uint8_t * buf, int size)
+static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
     /* TODO:
      * - Magic packets should set bit 30 in power management driver register.
      * - Interesting packets should set bit 29 in power management driver register.
      */
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = vc->opaque;
     uint16_t rfd_status = 0xa000;
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -1458,18 +1458,18 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     if (s->configuration[8] & 0x80) {
         /* CSMA is disabled. */
         logout("%p received while CSMA is disabled\n", s);
-        return;
+        return -1;
     } else if (size < 64 && (s->configuration[7] & 1)) {
         /* Short frame and configuration byte 7/0 (discard short receive) set:
          * Short frame is discarded */
         logout("%p received short frame (%d byte)\n", s, size);
         s->statistics.rx_short_frame_errors++;
-        //~ return;
+        //~ return -1;
     } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & 8)) {
         /* Long frame and configuration byte 18/3 (long receive ok) not set:
          * Long frames are discarded. */
         logout("%p received long frame (%d byte), ignored\n", s, size);
-        return;
+        return -1;
     } else if (memcmp(buf, s->macaddr, 6) == 0) {       // !!!
         /* Frame matches individual address. */
         /* TODO: check configuration byte 15/4 (ignore U/L). */
@@ -1485,7 +1485,7 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
         assert(!(s->configuration[21] & BIT(3)));
         int mcast_idx = compute_mcast_idx(buf);
         if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
-            return;
+            return size;
         }
         rfd_status |= 0x0002;
     } else if (s->configuration[15] & 1) {
@@ -1495,7 +1495,7 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     } else {
         logout("%p received frame, ignored, len=%d,%s\n", s, size,
                nic_dump(buf, size));
-        return;
+        return size;
     }
 
     if (get_ru_state(s) != ru_ready) {
@@ -1503,7 +1503,7 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
         logout("no ressources, state=%u\n", get_ru_state(s));
         s->statistics.rx_resource_errors++;
         //~ assert(!"no ressources");
-        return;
+        return -1;
     }
     //~ !!!
 //~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
@@ -1540,6 +1540,7 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
         /* S bit is set. */
         set_ru_state(s, ru_suspended);
     }
+    return size;
 }
 
 static int nic_load(QEMUFile * f, void *opaque, int version_id)
@@ -1766,7 +1767,7 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
     nic_reset(s);
 
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 nic_receive, nic_can_receive,
+                                 nic_can_receive, nic_receive, NULL,
                                  nic_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

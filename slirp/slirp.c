@@ -171,7 +171,7 @@ static void slirp_cleanup(void)
 static void slirp_state_save(QEMUFile *f, void *opaque);
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
-void slirp_init(int restricted, char *special_ip)
+void slirp_init(int restricted, const char *special_ip)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 

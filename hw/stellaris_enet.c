@@ -78,18 +78,18 @@ static void stellaris_enet_update(stellaris_enet_state *s)
 }
 
 /* TODO: Implement MAC address filtering.  */
-static void stellaris_enet_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t stellaris_enet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    stellaris_enet_state *s = (stellaris_enet_state *)opaque;
+    stellaris_enet_state *s = vc->opaque;
     int n;
     uint8_t *p;
     uint32_t crc;
 
     if ((s->rctl & SE_RCTL_RXEN) == 0)
-        return;
+        return -1;
     if (s->np >= 31) {
         DPRINTF("Packet dropped\n");
-        return;
+        return -1;
     }
 
     DPRINTF("Received packet len=%d\n", size);
@@ -116,11 +116,13 @@ static void stellaris_enet_receive(void *opaque, const uint8_t *buf, int size)
 
     s->ris |= SE_INT_RX;
     stellaris_enet_update(s);
+
+    return size;
 }
 
-static int stellaris_enet_can_receive(void *opaque)
+static int stellaris_enet_can_receive(VLANClientState *vc)
 {
-    stellaris_enet_state *s = (stellaris_enet_state *)opaque;
+    stellaris_enet_state *s = vc->opaque;
 
     if ((s->rctl & SE_RCTL_RXEN) == 0)
         return 1;
@@ -128,9 +130,9 @@ static int stellaris_enet_can_receive(void *opaque)
     return (s->np < 31);
 }
 
-static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
+static uint32_t stellaris_enet_read(VLANClientState *vc, target_phys_addr_t offset)
 {
-    stellaris_enet_state *s = (stellaris_enet_state *)opaque;
+    stellaris_enet_state *s = vc->opaque;
     uint32_t val;
 
     switch (offset) {
@@ -405,8 +407,8 @@ static void stellaris_enet_init(SysBusDevice *dev)
     qdev_get_macaddr(&dev->qdev, s->macaddr);
 
     s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 stellaris_enet_receive,
                                  stellaris_enet_can_receive,
+                                 stellaris_enet_receive, NULL,
                                  stellaris_enet_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
