@@ -3297,9 +3297,9 @@ static void ar7_serial_init(CPUState * env)
     serial_mm_writeb(ar7.serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20);
 }
 
-static int ar7_nic_can_receive(void *opaque)
+static int ar7_nic_can_receive(VLANClientState *vc)
 {
-    unsigned cpmac_index = ptr2uint(opaque);
+    unsigned cpmac_index = ptr2uint(vc->opaque);
     uint8_t *cpmac = ar7.cpmac[cpmac_index];
     int enabled = (reg_read(cpmac, CPMAC_RXCONTROL) & RXCONTROL_RXEN) != 0;
 
@@ -3308,9 +3308,9 @@ static int ar7_nic_can_receive(void *opaque)
     return enabled;
 }
 
-static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
+static ssize_t ar7_nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
-    unsigned cpmac_index = ptr2uint(opaque);
+    unsigned cpmac_index = ptr2uint(vc->opaque);
     uint8_t *cpmac = ar7.cpmac[cpmac_index];
     uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
     uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);
@@ -3320,15 +3320,15 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
     if (!(reg_read(cpmac, CPMAC_MACCONTROL) & MACCONTROL_GMIIEN)) {
         TRACE(CPMAC, logout("cpmac%u MII is disabled, frame ignored\n",
               cpmac_index));
-        return;
+        return -1;
     } else if (!(reg_read(cpmac, CPMAC_RXCONTROL) & RXCONTROL_RXEN)) {
         TRACE(CPMAC, logout("cpmac%u receiver is disabled, frame ignored\n",
           cpmac_index));
-        return;
+        return -1;
     }
 
     TRACE(RXTX,
-          logout("cpmac%u received %u byte: %s\n", cpmac_index, size,
+          logout("cpmac%u received %u byte: %s\n", cpmac_index, (unsigned)size,
                  dump(buf, size)));
 
     assert(!(rxmbpenable & RXMBPENABLE_RXPASSCRC));
@@ -3361,7 +3361,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
         flags |= RCB_NOMATCH;
     } else {
         TRACE(CPMAC, logout("unknown address, frame ignored\n"));
-        return;
+        return -1;
     }
 
     /* !!! check handling of short and long frames */
@@ -3420,6 +3420,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
             logout("buffer not free, frame ignored\n");
         }
     }
+    return size;
 }
 
 static void ar7_nic_cleanup(VLANClientState *vc)
@@ -3448,7 +3449,9 @@ static void ar7_nic_init(void)
                 TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
                 ar7.nic[n].vc =
                     qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                         ar7_nic_receive, ar7_nic_can_receive,
+                                         ar7_nic_can_receive,
+                                         ar7_nic_receive,
+                                         NULL,
                                          ar7_nic_cleanup, uint2ptr(n));
                 //~ qemu_format_nic_info_str(ar7.nic[n].vc, ar7.nic[n].mac);
                 n++;

@@ -2381,6 +2381,32 @@ static int get_str(char *buf, int buf_size, const char **pp)
     return 0;
 }
 
+/*
+ * Store the command-name in cmdname, and return a pointer to
+ * the remaining of the command string.
+ */
+static const char *get_command_name(const char *cmdline,
+                                    char *cmdname, size_t nlen)
+{
+    size_t len;
+    const char *p, *pstart;
+
+    p = cmdline;
+    while (qemu_isspace(*p))
+        p++;
+    if (*p == '\0')
+        return NULL;
+    pstart = p;
+    while (*p != '\0' && *p != '/' && !qemu_isspace(*p))
+        p++;
+    len = p - pstart;
+    if (len > nlen - 1)
+        len = nlen - 1;
+    memcpy(cmdname, pstart, len);
+    cmdname[len] = '\0';
+    return p;
+}
+
 static int default_fmt_format = 'x';
 static int default_fmt_size = 4;
 
@@ -2388,9 +2414,8 @@ static int default_fmt_size = 4;
 
 static void monitor_handle_command(Monitor *mon, const char *cmdline)
 {
-    const char *p, *pstart, *typestr;
-    char *q;
-    int c, nb_args, len, i, has_arg;
+    const char *p, *typestr;
+    int c, nb_args, i, has_arg;
     const mon_cmd_t *cmd;
     char cmdname[256];
     char buf[1024];
@@ -2414,29 +2439,20 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
 #endif
 
     /* extract the command name */
-    p = cmdline;
-    q = cmdname;
-    while (qemu_isspace(*p))
-        p++;
-    if (*p == '\0')
+    p = get_command_name(cmdline, cmdname, sizeof(cmdname));
+    if (!p)
         return;
-    pstart = p;
-    while (*p != '\0' && *p != '/' && !qemu_isspace(*p))
-        p++;
-    len = p - pstart;
-    if (len > sizeof(cmdname) - 1)
-        len = sizeof(cmdname) - 1;
-    memcpy(cmdname, pstart, len);
-    cmdname[len] = '\0';
 
     /* find the command */
     for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
         if (compare_cmd(cmdname, cmd->name))
-            goto found;
+            break;
     }
-    monitor_printf(mon, "unknown command: '%s'\n", cmdname);
-    return;
- found:
+
+    if (cmd->name == NULL) {
+        monitor_printf(mon, "unknown command: '%s'\n", cmdname);
+        return;
+    }
 
     for(i = 0; i < MAX_ARGS; i++)
         str_allocated[i] = NULL;
@@ -2712,7 +2728,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
  fail:
     for(i = 0; i < MAX_ARGS; i++)
         qemu_free(str_allocated[i]);
-    return;
 }
 
 static void cmd_completion(const char *name, const char *list)

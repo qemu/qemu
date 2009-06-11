@@ -241,13 +241,15 @@ static void ssi_sd_init(SSISlave *dev)
 }
 
 static SSISlaveInfo ssi_sd_info = {
+    .qdev.name = "ssi-sd",
+    .qdev.size = sizeof(ssi_sd_state),
     .init = ssi_sd_init,
     .transfer = ssi_sd_transfer
 };
 
 static void ssi_sd_register_devices(void)
 {
-    ssi_register_slave("ssi-sd", sizeof(ssi_sd_state), &ssi_sd_info);
+    ssi_register_slave(&ssi_sd_info);
 }
 
 device_init(ssi_sd_register_devices)

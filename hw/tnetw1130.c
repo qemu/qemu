@@ -795,9 +795,9 @@ static void tnetw1130_save(QEMUFile * f, void *opaque)
     qemu_put_buffer(f, (uint8_t *) d, sizeof(*d));
 }
 
-static int tnetw1130_can_receive(void *opaque)
+static int tnetw1130_can_receive(VLANClientState *vc)
 {
-    //~ tnetw1130_t *s = opaque;
+    //~ tnetw1130_t *s = vc->opaque;
 
     TRACE(TNETW, logout("\n"));
 
@@ -805,8 +805,11 @@ static int tnetw1130_can_receive(void *opaque)
     return 0;
 }
 
-static void tnetw1130_receive(void *opaque, const uint8_t * buf, int size)
+static ssize_t tnetw1130_receive(VLANClientState *vc,
+                                 const uint8_t * buf, size_t size)
 {
+    TRACE(TNETW, logout("\n"));
+    return size;
 }
 
 static void tnetw1130_cleanup(VLANClientState *vc)
@@ -875,7 +878,9 @@ static void tnetw1130_init(pci_tnetw1130_t *d)
     tnetw1130_reset(s);
 
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 tnetw1130_receive, tnetw1130_can_receive,
+                                 tnetw1130_can_receive,
+                                 tnetw1130_receive,
+                                 NULL,
                                  tnetw1130_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

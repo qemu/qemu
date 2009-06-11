@@ -496,21 +496,21 @@ static int eth_match_groupaddr(struct fs_eth *eth, const unsigned char *sa)
 	return match;
 }
 
-static int eth_can_receive(void *opaque)
+static int eth_can_receive(VLANClientState *vc)
 {
 	return 1;
 }
 
-static void eth_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
 	unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-	struct fs_eth *eth = opaque;
+	struct fs_eth *eth = vc->opaque;
 	int use_ma0 = eth->regs[RW_REC_CTRL] & 1;
 	int use_ma1 = eth->regs[RW_REC_CTRL] & 2;
 	int r_bcast = eth->regs[RW_REC_CTRL] & 8;
 
 	if (size < 12)
-		return;
+		return -1;
 
 	D(printf("%x.%x.%x.%x.%x.%x ma=%d %d bc=%d\n",
 		 buf[0], buf[1], buf[2], buf[3], buf[4], buf[5],
@@ -521,10 +521,12 @@ static void eth_receive(void *opaque, const uint8_t *buf, int size)
 	    && (!use_ma1 || memcmp(buf, eth->macaddr[1], 6))
 	    && (!r_bcast || memcmp(buf, sa_bcast, 6))
 	    && !eth_match_groupaddr(eth, buf))
-		return;
+		return size;
 
 	/* FIXME: Find another way to pass on the fake csum.  */
 	etraxfs_dmac_input(eth->dma_in, (void *)buf, size + 4, 1);
+
+        return size;
 }
 
 static int eth_tx_push(void *opaque, unsigned char *buf, int len)
@@ -593,7 +595,7 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
 
 	eth->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-				       eth_receive, eth_can_receive,
+				       eth_can_receive, eth_receive, NULL,
 				       eth_cleanup, eth);
 	eth->vc->opaque = eth;
 	eth->vc->link_status_changed = eth_set_link;

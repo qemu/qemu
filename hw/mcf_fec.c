@@ -347,15 +347,15 @@ static void mcf_fec_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     mcf_fec_update(s);
 }
 
-static int mcf_fec_can_receive(void *opaque)
+static int mcf_fec_can_receive(VLANClientState *vc)
 {
-    mcf_fec_state *s = (mcf_fec_state *)opaque;
+    mcf_fec_state *s = vc->opaque;
     return s->rx_enabled;
 }
 
-static void mcf_fec_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t mcf_fec_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    mcf_fec_state *s = (mcf_fec_state *)opaque;
+    mcf_fec_state *s = vc->opaque;
     mcf_fec_bd bd;
     uint32_t flags = 0;
     uint32_t addr;
@@ -426,6 +426,7 @@ static void mcf_fec_receive(void *opaque, const uint8_t *buf, int size)
     s->rx_descriptor = addr;
     mcf_fec_enable_rx(s);
     mcf_fec_update(s);
+    return size;
 }
 
 static CPUReadMemoryFunc *mcf_fec_readfn[] = {
@@ -462,7 +463,7 @@ void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
     cpu_register_physical_memory(base, 0x400, s->mmio_index);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 mcf_fec_receive, mcf_fec_can_receive,
+                                 mcf_fec_can_receive, mcf_fec_receive, NULL,
                                  mcf_fec_cleanup, s);
     memcpy(s->macaddr, nd->macaddr, 6);
     qemu_format_nic_info_str(s->vc, s->macaddr);

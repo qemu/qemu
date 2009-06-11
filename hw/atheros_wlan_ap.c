@@ -220,9 +220,9 @@ timer_done:
 }
 
 
-static int Atheros_WLAN_can_receive(void *opaque)
+static int Atheros_WLAN_can_receive(VLANClientState *vc)
 {
-	Atheros_WLANState *s = (Atheros_WLANState *)opaque;
+	Atheros_WLANState *s = (Atheros_WLANState *)vc->opaque;
 
 	if (s->ap_state != Atheros_WLAN__STATE_ASSOCIATED)
 	{
@@ -240,22 +240,23 @@ static int Atheros_WLAN_can_receive(void *opaque)
 	return 1;
 }
 
-static void Atheros_WLAN_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t Atheros_WLAN_receive(VLANClientState *vc,
+                                    const uint8_t *buf, size_t size)
 {
 	struct mac80211_frame *frame;
-	Atheros_WLANState *s = (Atheros_WLANState *)opaque;
+	Atheros_WLANState *s = (Atheros_WLANState *)vc->opaque;
 
-	if (!Atheros_WLAN_can_receive(opaque))
+	if (!Atheros_WLAN_can_receive(vc))
 	{
 		// this should not happen, but in
 		// case it does, let's simply drop
 		// the packet
-		return;
+		return -1;
 	}
 
 	if (!s)
 	{
-		return;
+		return -1;
 	}
 
 	/*
@@ -269,6 +270,7 @@ static void Atheros_WLAN_receive(void *opaque, const uint8_t *buf, int size)
 		Atheros_WLAN_init_frame(s, frame);
 		Atheros_WLAN_insert_frame(s, frame);
 	}
+        return size;
 }
 
 static void Atheros_WLAN_cleanup(VLANClientState *vc)
@@ -312,8 +314,9 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 	s->inject_timer = qemu_new_timer(rt_clock, Atheros_WLAN_inject_timer, s);
 
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 Atheros_WLAN_receive,
                                  Atheros_WLAN_can_receive,
+                                 Atheros_WLAN_receive,
+                                 NULL,
                                  Atheros_WLAN_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

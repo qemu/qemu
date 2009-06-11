@@ -316,6 +316,8 @@ static void ssd0303_init(i2c_slave *i2c)
 }
 
 static I2CSlaveInfo ssd0303_info = {
+    .qdev.name = "ssd0303",
+    .qdev.size = sizeof(ssd0303_state),
     .init = ssd0303_init,
     .event = ssd0303_event,
     .recv = ssd0303_recv,
@@ -324,7 +326,7 @@ static I2CSlaveInfo ssd0303_info = {
 
 static void ssd0303_register_devices(void)
 {
-    i2c_register_slave("ssd0303", sizeof(ssd0303_state), &ssd0303_info);
+    i2c_register_slave(&ssd0303_info);
 }
 
 device_init(ssd0303_register_devices)

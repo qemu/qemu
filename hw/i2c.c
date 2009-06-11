@@ -152,12 +152,12 @@ static void i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
     info->init(s);
 }
 
-void i2c_register_slave(const char *name, int size, I2CSlaveInfo *info)
+void i2c_register_slave(I2CSlaveInfo *info)
 {
-    assert(size >= sizeof(i2c_slave));
+    assert(info->qdev.size >= sizeof(i2c_slave));
     info->qdev.init = i2c_slave_qdev_init;
     info->qdev.bus_type = BUS_TYPE_I2C;
-    qdev_register(name, size, &info->qdev);
+    qdev_register(&info->qdev);
 }
 
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr)

@@ -557,14 +557,14 @@ static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
     le32_to_cpus(&desc->next);
 }
 
-static int eth_can_receive(void *opaque)
+static int eth_can_receive(VLANClientState *vc)
 {
     return 1;
 }
 
-static void eth_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    mv88w8618_eth_state *s = opaque;
+    mv88w8618_eth_state *s = vc->opaque;
     uint32_t desc_addr;
     mv88w8618_rx_desc desc;
     int i;
@@ -586,11 +586,12 @@ static void eth_receive(void *opaque, const uint8_t *buf, int size)
                 if (s->icr & s->imr)
                     qemu_irq_raise(s->irq);
                 eth_rx_desc_put(desc_addr, &desc);
-                return;
+                return size;
             }
             desc_addr = desc.next;
         } while (desc_addr != s->rx_queue[i]);
     }
+    return size;
 }
 
 static void eth_tx_desc_put(uint32_t addr, mv88w8618_tx_desc *desc)
@@ -753,7 +754,7 @@ static void mv88w8618_eth_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 eth_receive, eth_can_receive,
+                                 eth_can_receive, eth_receive, NULL,
                                  eth_cleanup, s);
     s->mmio_index = cpu_register_io_memory(0, mv88w8618_eth_readfn,
                                            mv88w8618_eth_writefn, s);

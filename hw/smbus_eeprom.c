@@ -105,6 +105,8 @@ static void smbus_eeprom_init(SMBusDevice *dev)
 }
 
 static SMBusDeviceInfo smbus_eeprom_info = {
+    .i2c.qdev.name = "smbus-eeprom",
+    .i2c.qdev.size = sizeof(SMBusEEPROMDevice),
     .init = smbus_eeprom_init,
     .quick_cmd = eeprom_quick_cmd,
     .send_byte = eeprom_send_byte,
@@ -115,8 +117,7 @@ static SMBusDeviceInfo smbus_eeprom_info = {
 
 static void smbus_eeprom_register_devices(void)
 {
-    smbus_register_device("smbus-eeprom", sizeof(SMBusEEPROMDevice),
-                          &smbus_eeprom_info);
+    smbus_register_device(&smbus_eeprom_info);
 }
 
 device_init(smbus_eeprom_register_devices)
