@@ -1426,7 +1426,7 @@ static void vde_to_qemu(void *opaque)
 static ssize_t vde_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     VDEState *s = vc->opaque;
-    ssize ret;
+    ssize_t ret;
 
     do {
       ret = vde_send(s->vde, (const char *)buf, size, 0);
