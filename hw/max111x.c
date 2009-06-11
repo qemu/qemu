@@ -164,19 +164,23 @@ void max111x_set_input(DeviceState *dev, int line, uint8_t value)
 }
 
 static SSISlaveInfo max1110_info = {
+    .qdev.name = "max1110",
+    .qdev.size = sizeof(MAX111xState),
     .init = max1110_init,
     .transfer = max111x_transfer
 };
 
 static SSISlaveInfo max1111_info = {
+    .qdev.name = "max1111",
+    .qdev.size = sizeof(MAX111xState),
     .init = max1111_init,
     .transfer = max111x_transfer
 };
 
 static void max111x_register_devices(void)
 {
-    ssi_register_slave("max1110", sizeof(MAX111xState), &max1110_info);
-    ssi_register_slave("max1111", sizeof(MAX111xState), &max1111_info);
+    ssi_register_slave(&max1110_info);
+    ssi_register_slave(&max1111_info);
 }
 
 device_init(max111x_register_devices)

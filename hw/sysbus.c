@@ -105,14 +105,13 @@ static void sysbus_device_init(DeviceState *dev, DeviceInfo *base)
     info->init(sysbus_from_qdev(dev));
 }
 
-void sysbus_register_withprop(const char *name, size_t size,
-                              SysBusDeviceInfo *info)
+void sysbus_register_withprop(SysBusDeviceInfo *info)
 {
     info->qdev.init = sysbus_device_init;
     info->qdev.bus_type = BUS_TYPE_SYSTEM;
 
-    assert(size >= sizeof(SysBusDevice));
-    qdev_register(name, size, &info->qdev);
+    assert(info->qdev.size >= sizeof(SysBusDevice));
+    qdev_register(&info->qdev);
 }
 
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init)
@@ -120,8 +119,10 @@ void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init)
     SysBusDeviceInfo *info;
 
     info = qemu_mallocz(sizeof(*info));
+    info->qdev.name = qemu_strdup(name);
+    info->qdev.size = size;
     info->init = init;
-    sysbus_register_withprop(name, size, info);
+    sysbus_register_withprop(info);
 }
 
 DeviceState *sysbus_create_varargs(const char *name,

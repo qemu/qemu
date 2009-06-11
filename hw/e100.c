@@ -2300,9 +2300,9 @@ static inline int buffer_tcp(E100State *s, const uint8_t *pkt)
 #endif
 
 /* Eerpro100 receive functions */
-static int e100_can_receive(void *opaque)
+static int e100_can_receive(VLANClientState *vc)
 {
-    E100State *s = opaque;
+    E100State *s = vc->opaque;
 
     int is_ready = (GET_RU_STATE == RU_READY);
     logout("%s\n", is_ready ? "EEPro100 receiver is ready"
@@ -2310,17 +2310,16 @@ static int e100_can_receive(void *opaque)
     return is_ready;
 }
 
-static void e100_receive(void *opaque, const uint8_t * buf, int size)
+static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
-    E100State *s = opaque;
+    E100State *s = vc->opaque;
     uint32_t rfd_addr = 0;
     rfd_t rfd = {0};
-
 
     if ( GET_RU_STATE != RU_READY )
     {
         //logout("RU is not ready. Begin discarding frame(state=%x)\n", GET_RU_STATE);
-        return;
+        return -1;
     }
 
     rfd_addr = s->ru_base + s->ru_offset;
@@ -2332,7 +2331,7 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
          * Long frames are discarded. */
         logout("Discard long frame(size=%d)\n", size);
 
-        return;
+        return -1;
     }
     else if ( !memcmp(buf, s->macaddr, sizeof(s->macaddr)) )
     {
@@ -2345,7 +2344,7 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
         if ( s->config.broadcast_dis && !s->config.promiscuous )
         {
             logout("Discard a broadcast frame\n");
-            return;
+            return -1;
         }
 
         /* Broadcast frame */
@@ -2358,7 +2357,7 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
         if ( !(s->mult_list[mcast_idx >> 3] & (1 << (mcast_idx & 7))) )
         {
             logout("Multicast address mismatch, discard\n");
-            return;
+            return -1;
         }
         logout("Receive a multicast frame(size=%d)\n", size);
     }
@@ -2377,7 +2376,7 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
             s->statistics.rx_short_frame_errors ++;
         }
         logout("Receive a short frame(size=%d), discard it\n", size);
-        return;
+        return -1;
     }
     else if ( s->config.promiscuous )
     {
@@ -2388,7 +2387,7 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
     else
     {
         e100_dump("Unknown frame, MAC = ", (uint8_t *)buf, 6);
-        return;
+        return -1;
     }
     e100_dump("Get frame, MAC = ", (uint8_t *)buf, 6);
 
@@ -2423,11 +2422,11 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
         SET_RU_STATE(RU_SUSPENDED);
         e100_interrupt(s, INT_RNR);
         logout("RFD met S or EL bit set, RU go to suspend\n");
-        return;
+        return -1;
     }
 
     logout("Complete a frame receive(size = %d)\n", size);
-    return;
+    return size;
 }
 
 static void e100_cleanup(VLANClientState *vc)
@@ -2499,7 +2498,7 @@ static void e100_init(PCIDevice *pci_dev, uint32_t device)
     e100_reset(s);
 
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 e100_receive, e100_can_receive,
+                                 e100_can_receive, e100_receive, NULL,
                                  e100_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

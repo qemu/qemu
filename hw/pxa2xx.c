@@ -1485,6 +1485,8 @@ static void pxa2xx_i2c_slave_init(i2c_slave *i2c)
 }
 
 static I2CSlaveInfo pxa2xx_i2c_slave_info = {
+    .qdev.name = "pxa2xx-i2c-slave",
+    .qdev.size = sizeof(PXA2xxI2CSlaveState),
     .init = pxa2xx_i2c_slave_init,
     .event = pxa2xx_i2c_event,
     .recv = pxa2xx_i2c_rx,
@@ -2258,8 +2260,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
 static void pxa2xx_register_devices(void)
 {
-    i2c_register_slave("pxa2xx-i2c-slave", sizeof(PXA2xxI2CSlaveState),
-                       &pxa2xx_i2c_slave_info);
+    i2c_register_slave(&pxa2xx_i2c_slave_info);
     sysbus_register_dev("pxa2xx-ssp", sizeof(PXA2xxSSPState), pxa2xx_ssp_init);
 }
 

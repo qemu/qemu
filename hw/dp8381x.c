@@ -451,9 +451,9 @@ typedef struct {
 typedef descriptor_t rx_descriptor_t;
 typedef descriptor_t tx_descriptor_t;
 
-static int dp8381x_can_receive(void *opaque)
+static int dp8381x_can_receive(VLANClientState *vc)
 {
-    dp8381x_t *s = (dp8381x_t *)opaque;
+    dp8381x_t *s = (dp8381x_t *)vc->opaque;
 
     logout("\n");
 
@@ -475,24 +475,24 @@ typedef enum {
     CMDSTS_RUNT = BIT(21),
 } cmdsts_bit_t;
 
-static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
+static ssize_t dp8381x_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    dp8381x_t *s = (dp8381x_t *)opaque;
+    dp8381x_t *s = (dp8381x_t *)vc->opaque;
 #if 0
     uint8_t *p;
     int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];
 #endif
 
-    TRACE(LOG_RX, logout("len=%d\n", size));
+    TRACE(LOG_RX, logout("len=%u\n", (unsigned)size));
 
     /* TODO: handle queued receive data. */
 
     if (s->rx_state != active) {
-        return;
+        return -1;
     }
     //~ missing("");
 
@@ -513,7 +513,7 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     } else {
         /* Frame rejected by filter. */
         TRACE(LOG_RX, logout("unknown mac address\n"));
-        //~ return;
+        //~ return -1;
     }
 
     rx_descriptor_t rx;
@@ -553,6 +553,7 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
         rxdp = rxlink;
         op_reg_write(s, DP8381X_RXDP, rxdp);
     //~ dp8381x_interrupt(s, ISR_RXOVR);
+    return size;
 }
 
 static void dp8381x_transmit(dp8381x_t * s)
@@ -1545,7 +1546,7 @@ static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 #endif
 
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 dp8381x_receive, dp8381x_can_receive,
+                                 dp8381x_can_receive, dp8381x_receive, NULL,
                                  dp8381x_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

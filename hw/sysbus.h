@@ -37,8 +37,7 @@ typedef struct {
 } SysBusDeviceInfo;
 
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init);
-void sysbus_register_withprop(const char *name, size_t size,
-                              SysBusDeviceInfo *info);
+void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size, int iofunc);
 void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,

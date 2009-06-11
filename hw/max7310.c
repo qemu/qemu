@@ -218,6 +218,8 @@ void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
 }
 
 static I2CSlaveInfo max7310_info = {
+    .qdev.name = "max7310",
+    .qdev.size = sizeof(MAX7310State),
     .init = max7310_init,
     .event = max7310_event,
     .recv = max7310_rx,
@@ -226,7 +228,7 @@ static I2CSlaveInfo max7310_info = {
 
 static void max7310_register_devices(void)
 {
-    i2c_register_slave("max7310", sizeof(MAX7310State), &max7310_info);
+    i2c_register_slave(&max7310_info);
 }
 
 device_init(max7310_register_devices)

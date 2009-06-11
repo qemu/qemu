@@ -155,13 +155,15 @@ static void ads7846_init(SSISlave *dev)
 }
 
 static SSISlaveInfo ads7846_info = {
+    .qdev.name ="ads7846",
+    .qdev.size = sizeof(ADS7846State),
     .init = ads7846_init,
     .transfer = ads7846_transfer
 };
 
 static void ads7846_register_devices(void)
 {
-    ssi_register_slave("ads7846", sizeof(ADS7846State), &ads7846_info);
+    ssi_register_slave(&ads7846_info);
 }
 
 device_init(ads7846_register_devices)

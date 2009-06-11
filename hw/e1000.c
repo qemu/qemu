@@ -598,17 +598,17 @@ e1000_set_link_status(VLANClientState *vc)
 }
 
 static int
-e1000_can_receive(void *opaque)
+e1000_can_receive(VLANClientState *vc)
 {
-    E1000State *s = opaque;
+    E1000State *s = vc->opaque;
 
     return (s->mac_reg[RCTL] & E1000_RCTL_EN);
 }
 
-static void
-e1000_receive(void *opaque, const uint8_t *buf, int size)
+static ssize_t
+e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
-    E1000State *s = opaque;
+    E1000State *s = vc->opaque;
     struct e1000_rx_desc desc;
     target_phys_addr_t base;
     unsigned int n, rdt;
@@ -617,16 +617,16 @@ e1000_receive(void *opaque, const uint8_t *buf, int size)
     uint8_t vlan_status = 0, vlan_offset = 0;
 
     if (!(s->mac_reg[RCTL] & E1000_RCTL_EN))
-        return;
+        return -1;
 
     if (size > s->rxbuf_size) {
-        DBGOUT(RX, "packet too large for buffers (%d > %d)\n", size,
-               s->rxbuf_size);
-        return;
+        DBGOUT(RX, "packet too large for buffers (%lu > %d)\n",
+               (unsigned long)size, s->rxbuf_size);
+        return -1;
     }
 
     if (!receive_filter(s, buf, size))
-        return;
+        return size;
 
     if (vlan_enabled(s) && is_vlan_packet(s, buf)) {
         vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(buf + 14)));
@@ -641,7 +641,7 @@ e1000_receive(void *opaque, const uint8_t *buf, int size)
     do {
         if (s->mac_reg[RDH] == s->mac_reg[RDT] && s->check_rxov) {
             set_ics(s, 0, E1000_ICS_RXO);
-            return;
+            return -1;
         }
         base = ((uint64_t)s->mac_reg[RDBAH] << 32) + s->mac_reg[RDBAL] +
                sizeof(desc) * s->mac_reg[RDH];
@@ -665,7 +665,7 @@ e1000_receive(void *opaque, const uint8_t *buf, int size)
             DBGOUT(RXERR, "RDH wraparound @%x, RDT %x, RDLEN %x\n",
                    rdh_start, s->mac_reg[RDT], s->mac_reg[RDLEN]);
             set_ics(s, 0, E1000_ICS_RXO);
-            return;
+            return -1;
         }
     } while (desc.buffer_addr == 0);
 
@@ -683,6 +683,8 @@ e1000_receive(void *opaque, const uint8_t *buf, int size)
         n |= E1000_ICS_RXDMT0;
 
     set_ics(s, 0, n);
+
+    return size;
 }
 
 static uint32_t
@@ -1119,8 +1121,8 @@ static void pci_e1000_init(PCIDevice *pci_dev)
     d->eeprom_data[EEPROM_CHECKSUM_REG] = checksum;
 
     d->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 e1000_receive, e1000_can_receive,
-                                 e1000_cleanup, d);
+                                 e1000_can_receive, e1000_receive,
+                                 NULL, e1000_cleanup, d);
     d->vc->link_status_changed = e1000_set_link_status;
 
     qemu_format_nic_info_str(d->vc, macaddr);

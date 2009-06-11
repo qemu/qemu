@@ -43,6 +43,7 @@
 #define VIRTIO_NET_F_CTRL_VQ    17      /* Control channel available */
 #define VIRTIO_NET_F_CTRL_RX    18      /* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN  19      /* Control channel VLAN filtering */
+#define VIRTIO_NET_F_CTRL_RX_EXTRA 20   /* Extra RX mode control support */
 
 #define VIRTIO_NET_S_LINK_UP    1       /* Link is up */
 
@@ -103,14 +104,19 @@ typedef uint8_t virtio_net_ctrl_ack;
 #define VIRTIO_NET_ERR    1
 
 /*
- * Control the RX mode, ie. promisucous and allmulti.  PROMISC and
- * ALLMULTI commands require an "out" sg entry containing a 1 byte
- * state value, zero = disable, non-zero = enable.  These commands
- * are supported with the VIRTIO_NET_F_CTRL_RX feature.
+ * Control the RX mode, ie. promisucous, allmulti, etc...
+ * All commands require an "out" sg entry containing a 1 byte
+ * state value, zero = disable, non-zero = enable.  Commands
+ * 0 and 1 are supported with the VIRTIO_NET_F_CTRL_RX feature.
+ * Commands 2-5 are added with VIRTIO_NET_F_CTRL_RX_EXTRA.
  */
 #define VIRTIO_NET_CTRL_RX_MODE    0
  #define VIRTIO_NET_CTRL_RX_MODE_PROMISC      0
  #define VIRTIO_NET_CTRL_RX_MODE_ALLMULTI     1
+ #define VIRTIO_NET_CTRL_RX_MODE_ALLUNI       2
+ #define VIRTIO_NET_CTRL_RX_MODE_NOMULTI      3
+ #define VIRTIO_NET_CTRL_RX_MODE_NOUNI        4
+ #define VIRTIO_NET_CTRL_RX_MODE_NOBCAST      5
 
 /*
  * Control the MAC filter table.

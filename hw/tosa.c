@@ -252,6 +252,8 @@ static void tosapda_machine_init(void)
 machine_init(tosapda_machine_init);
 
 static I2CSlaveInfo tosa_dac_info = {
+    .qdev.name = "tosa_dac",
+    .qdev.size = sizeof(TosaDACState),
     .init = tosa_dac_init,
     .event = tosa_dac_event,
     .recv = tosa_dac_recv,
@@ -259,14 +261,16 @@ static I2CSlaveInfo tosa_dac_info = {
 };
 
 static SSISlaveInfo tosa_ssp_info = {
+    .qdev.name = "tosa-ssp",
+    .qdev.size = sizeof(SSISlave),
     .init = tosa_ssp_init,
     .transfer = tosa_ssp_tansfer
 };
 
 static void tosa_register_devices(void)
 {
-    i2c_register_slave("tosa_dac", sizeof(TosaDACState), &tosa_dac_info);
-    ssi_register_slave("tosa-ssp", sizeof(SSISlave), &tosa_ssp_info);
+    i2c_register_slave(&tosa_dac_info);
+    ssi_register_slave(&tosa_ssp_info);
 }
 
 device_init(tosa_register_devices)
