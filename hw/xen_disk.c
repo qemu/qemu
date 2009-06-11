@@ -179,10 +179,6 @@ static int ioreq_parse(struct ioreq *ioreq)
     switch (ioreq->req.operation) {
     case BLKIF_OP_READ:
 	ioreq->prot = PROT_WRITE; /* to memory */
-        if (ioreq->req.operation != BLKIF_OP_READ && blkdev->mode[0] != 'w') {
-	    xen_be_printf(&blkdev->xendev, 0, "error: write req for ro device\n");
-	    goto err;
-	}
 	break;
     case BLKIF_OP_WRITE_BARRIER:
 	if (!syncwrite)
@@ -198,6 +194,11 @@ static int ioreq_parse(struct ioreq *ioreq)
 		      ioreq->req.operation);
 	goto err;
     };
+
+    if (ioreq->req.operation != BLKIF_OP_READ && blkdev->mode[0] != 'w') {
+        xen_be_printf(&blkdev->xendev, 0, "error: write req for ro device\n");
+        goto err;
+    }
 
     ioreq->start = ioreq->req.sector_number * blkdev->file_blk;
     for (i = 0; i < ioreq->req.nr_segments; i++) {
