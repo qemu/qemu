@@ -130,9 +130,9 @@ static int stellaris_enet_can_receive(VLANClientState *vc)
     return (s->np < 31);
 }
 
-static uint32_t stellaris_enet_read(VLANClientState *vc, target_phys_addr_t offset)
+static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
 {
-    stellaris_enet_state *s = vc->opaque;
+    stellaris_enet_state *s = (stellaris_enet_state *)opaque;
     uint32_t val;
 
     switch (offset) {
