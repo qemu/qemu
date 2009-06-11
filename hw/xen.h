@@ -6,6 +6,7 @@
  *   must not depend on any xen headers being present in
  *   /usr/include/xen, so it can be included unconditionally.
  */
+#include <inttypes.h>
 
 /* xen-machine.c */
 enum xen_mode {
