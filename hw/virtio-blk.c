@@ -294,6 +294,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 
     bdrv_get_geometry(s->bs, &capacity);
     bdrv_get_geometry_hint(s->bs, &cylinders, &heads, &secs);
+    memset(&blkcfg, 0, sizeof(blkcfg));
     stq_raw(&blkcfg.capacity, capacity);
     stl_raw(&blkcfg.seg_max, 128 - 2);
     stw_raw(&blkcfg.cylinders, cylinders);
