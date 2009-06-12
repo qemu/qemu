@@ -883,7 +883,7 @@ fi
 sdl_too_old=no
 
 if test "$sdl" = "yes" ; then
-    sdl_config="sdl-config"
+    sdl_config="${cross_prefix}sdl-config"
     sdl=no
     sdl_static=no
 
