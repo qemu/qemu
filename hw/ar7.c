@@ -3853,6 +3853,8 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
     rom_offset = qemu_ram_alloc(4 * KiB);
+    cpu_register_physical_memory(PROM_ADDR,
+                                 4 * KiB, rom_offset | IO_MEM_ROM);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "mips_bios.bin");
     rom_size = load_image_targphys(filename, PROM_ADDR, 4 * KiB);
     qemu_free(filename);
@@ -3869,8 +3871,6 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         cpu_physical_memory_write_rom(PROM_ADDR, jump, sizeof(jump));
         rom_size = 4 * KiB;
     }
-    cpu_register_physical_memory_offset(PROM_ADDR,
-                                 rom_size, rom_offset | IO_MEM_ROM, PROM_ADDR);
 
     if (kernel_filename) {
         load_kernel(env);
