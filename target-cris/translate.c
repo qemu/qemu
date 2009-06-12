@@ -2392,7 +2392,7 @@ static unsigned int dec_test_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("test.%d [$r%u%s] op2=%x\n",
+	LOG_DIS("test.%c [$r%u%s] op2=%x\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2416,7 +2416,7 @@ static unsigned int dec_and_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("and.%d [$r%u%s, $r%u\n",
+	LOG_DIS("and.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2435,7 +2435,7 @@ static unsigned int dec_add_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("add.%d [$r%u%s, $r%u\n",
+	LOG_DIS("add.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2455,7 +2455,7 @@ static unsigned int dec_addo_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("add.%d [$r%u%s, $r%u\n",
+	LOG_DIS("add.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2474,7 +2474,7 @@ static unsigned int dec_bound_m(DisasContext *dc)
 	TCGv l[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("bound.%d [$r%u%s, $r%u\n",
+	LOG_DIS("bound.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2537,7 +2537,7 @@ static unsigned int dec_or_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("or.%d [$r%u%s, $r%u pc=%x\n",
+	LOG_DIS("or.%c [$r%u%s, $r%u pc=%x\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2, dc->pc);
@@ -2692,8 +2692,8 @@ static unsigned int dec_move_rm(DisasContext *dc)
 
 	memsize = memsize_zz(dc);
 
-	LOG_DIS("move.%d $r%u, [$r%u]\n",
-		     memsize, dc->op2, dc->op1);
+	LOG_DIS("move.%c $r%u, [$r%u]\n",
+		     memsize_char(memsize), dc->op2, dc->op1);
 
 	/* prepare store.  */
 	cris_flush_cc_state(dc);
