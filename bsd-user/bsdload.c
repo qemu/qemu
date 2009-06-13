@@ -10,7 +10,7 @@
 
 #include "qemu.h"
 
-#define NGROUPS 32
+#define TARGET_NGROUPS 32
 
 /* ??? This should really be somewhere else.  */
 abi_long memcpy_to_target(abi_ulong dest, const void *src,
@@ -31,9 +31,9 @@ static int in_group_p(gid_t g)
     /* return TRUE if we're in the specified group, FALSE otherwise */
     int         ngroup;
     int         i;
-    gid_t       grouplist[NGROUPS];
+    gid_t       grouplist[TARGET_NGROUPS];
 
-    ngroup = getgroups(NGROUPS, grouplist);
+    ngroup = getgroups(TARGET_NGROUPS, grouplist);
     for(i = 0; i < ngroup; i++) {
         if(grouplist[i] == g) {
             return 1;
