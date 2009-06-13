@@ -21,11 +21,7 @@
 #include "sharpsl.h"
 
 #undef REG_FMT
-#if TARGET_PHYS_ADDR_BITS == 32
-#define REG_FMT			"0x%02x"
-#else
 #define REG_FMT			"0x%02lx"
-#endif
 
 /* SCOOP devices */
 
@@ -98,7 +94,7 @@ static uint32_t scoop_readb(void *opaque, target_phys_addr_t addr)
     case SCOOP_GPRR:
         return s->gpio_level;
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
     }
 
     return 0;
@@ -143,7 +139,7 @@ static void scoop_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
         scoop_gpio_handler_update(s);
         break;
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
     }
 }
 

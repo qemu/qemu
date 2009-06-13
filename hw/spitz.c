@@ -24,11 +24,7 @@
 #include "boards.h"
 
 #undef REG_FMT
-#if TARGET_PHYS_ADDR_BITS == 32
-#define REG_FMT			"0x%02x"
-#else
 #define REG_FMT			"0x%02lx"
-#endif
 
 /* Spitz Flash */
 #define FLASH_BASE		0x0c000000
@@ -87,7 +83,7 @@ static uint32_t sl_readb(void *opaque, target_phys_addr_t addr)
         return ecc_digest(&s->ecc, nand_getio(s->nand));
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
     }
     return 0;
 }
@@ -129,7 +125,7 @@ static void sl_writeb(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
     }
 }
 
