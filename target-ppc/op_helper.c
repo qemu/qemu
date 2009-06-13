@@ -1974,7 +1974,21 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
 SATCVT(sh, sb, int16_t, int8_t, INT8_MIN, INT8_MAX, 1, 1)
 SATCVT(sw, sh, int32_t, int16_t, INT16_MIN, INT16_MAX, 1, 1)
 SATCVT(sd, sw, int64_t, int32_t, INT32_MIN, INT32_MAX, 1, 1)
-SATCVT(uh, ub, uint16_t, uint8_t, 0, UINT8_MAX, 0, 1)
+
+/* Work around gcc problems with the macro version */
+static always_inline uint8_t cvtuhub(uint16_t x, int *sat)
+{
+    uint8_t r;
+
+    if (x > UINT8_MAX) {
+        r = UINT8_MAX;
+        *sat = 1;
+    } else {
+        r = x;
+    }
+    return r;
+}
+//SATCVT(uh, ub, uint16_t, uint8_t, 0, UINT8_MAX, 0, 1)
 SATCVT(uw, uh, uint32_t, uint16_t, 0, UINT16_MAX, 0, 1)
 SATCVT(ud, uw, uint64_t, uint32_t, 0, UINT32_MAX, 0, 1)
 SATCVT(sh, ub, int16_t, uint8_t, 0, UINT8_MAX, 1, 1)
