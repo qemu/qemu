@@ -513,8 +513,21 @@ if test "$debug" = "no" ; then
 fi
 CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
 LDFLAGS="$LDFLAGS -g"
+
+# Consult white-list to determine whether to enable werror
+# by default.  Only enable by default for git builds
+if test -z "$werror" ; then
+    z_version=`cut -f3 -d. $source_path/VERSION`
+    if test "$z_version" = "50" -a \
+        "$linux" = "yes" ; then
+        werror="yes"
+    else
+        werror="no"
+    fi
+fi
+
 if test "$werror" = "yes" ; then
-CFLAGS="$CFLAGS -Werror"
+    CFLAGS="$CFLAGS -Werror"
 fi
 
 if test "$solaris" = "no" ; then
@@ -651,18 +664,6 @@ fi
 
 if test ! -x "$(which cgcc 2>/dev/null)"; then
     sparse="no"
-fi
-
-# Consult white-list to determine whether to enable werror
-# by default.  Only enable by default for git builds
-if test -z "$werror" ; then
-    z_version=`cut -f3 -d. $source_path/VERSION`
-    if test "$z_version" = "50" -a \
-       "$linux" = "yes" ; then
-	werror="yes"
-    else
-	werror="no"
-    fi
 fi
 
 #
