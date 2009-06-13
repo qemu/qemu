@@ -558,10 +558,11 @@ static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 		return 0;
 }
 
-static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
+static uint32_t QEMU_NORETURN
+dma_rinvalid (void *opaque, target_phys_addr_t addr)
 {
         hw_error("Unsupported short raccess. reg=" TARGET_FMT_plx "\n", addr);
-        return 0;
+        //~ return 0;
 }
 
 static uint32_t
@@ -592,7 +593,7 @@ dma_readl (void *opaque, target_phys_addr_t addr)
 	return r;
 }
 
-static void
+static void QEMU_NORETURN
 dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
         hw_error("Unsupported short waccess. reg=" TARGET_FMT_plx "\n", addr);

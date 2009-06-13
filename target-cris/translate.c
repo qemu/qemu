@@ -126,7 +126,7 @@ typedef struct DisasContext {
 	int singlestep_enabled;
 } DisasContext;
 
-static void gen_BUG(DisasContext *dc, const char *file, int line)
+static void QEMU_NORETURN gen_BUG(DisasContext *dc, const char *file, int line)
 {
 	printf ("BUG: pc=%x %s %d\n", dc->pc, file, line);
 	qemu_log("BUG: pc=%x %s %d\n", dc->pc, file, line);
@@ -2912,13 +2912,13 @@ static unsigned int dec_ftag_fidx_i_m(DisasContext *dc)
 	return 2;
 }
 
-static unsigned int dec_null(DisasContext *dc)
+static unsigned int QEMU_NORETURN dec_null(DisasContext *dc)
 {
 	printf ("unknown insn pc=%x opc=%x op1=%x op2=%x\n",
 		dc->pc, dc->opcode, dc->op1, dc->op2);
 	fflush(NULL);
 	BUG();
-	return 2;
+	//~ return 2;
 }
 
 static struct decoder_info {
