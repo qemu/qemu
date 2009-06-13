@@ -1708,7 +1708,7 @@ static int udp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     NetCharDriver *s = chr->opaque;
 
-    return sendto(s->fd, (void *)buf, len, 0,
+    return sendto(s->fd, (const void *)buf, len, 0,
                   (struct sockaddr *)&s->daddr, sizeof(struct sockaddr_in));
 }
 
