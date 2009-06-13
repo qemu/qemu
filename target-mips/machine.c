@@ -67,10 +67,12 @@ void cpu_save(QEMUFile *f, void *opaque)
                           (env->tlb->mmu.r4k.tlb[i].V1 << 2) |
                           (env->tlb->mmu.r4k.tlb[i].D0 << 1) |
                           (env->tlb->mmu.r4k.tlb[i].D1 << 0));
+        uint8_t asid;
 
         qemu_put_betls(f, &env->tlb->mmu.r4k.tlb[i].VPN);
         qemu_put_be32s(f, &env->tlb->mmu.r4k.tlb[i].PageMask);
-        qemu_put_8s(f, &env->tlb->mmu.r4k.tlb[i].ASID);
+        asid = env->tlb->mmu.r4k.tlb[i].ASID;
+        qemu_put_8s(f, &asid);
         qemu_put_be16s(f, &flags);
         qemu_put_betls(f, &env->tlb->mmu.r4k.tlb[i].PFN[0]);
         qemu_put_betls(f, &env->tlb->mmu.r4k.tlb[i].PFN[1]);
@@ -210,10 +212,12 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &env->tlb->tlb_in_use);
     for(i = 0; i < MIPS_TLB_MAX; i++) {
         uint16_t flags;
+        uint8_t asid;
 
         qemu_get_betls(f, &env->tlb->mmu.r4k.tlb[i].VPN);
         qemu_get_be32s(f, &env->tlb->mmu.r4k.tlb[i].PageMask);
-        qemu_get_8s(f, &env->tlb->mmu.r4k.tlb[i].ASID);
+        qemu_get_8s(f, &asid);
+        env->tlb->mmu.r4k.tlb[i].ASID = asid;
         qemu_get_be16s(f, &flags);
         env->tlb->mmu.r4k.tlb[i].G = (flags >> 10) & 1;
         env->tlb->mmu.r4k.tlb[i].C0 = (flags >> 7) & 3;
