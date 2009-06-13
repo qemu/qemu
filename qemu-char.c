@@ -1708,7 +1708,7 @@ static int udp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     NetCharDriver *s = chr->opaque;
 
-    return sendto(s->fd, buf, len, 0,
+    return sendto(s->fd, (const void *)buf, len, 0,
                   (struct sockaddr *)&s->daddr, sizeof(struct sockaddr_in));
 }
 
@@ -1737,7 +1737,7 @@ static void udp_chr_read(void *opaque)
 
     if (s->max_size == 0)
         return;
-    s->bufcnt = recv(s->fd, s->buf, sizeof(s->buf), 0);
+    s->bufcnt = recv(s->fd, (void *)s->buf, sizeof(s->buf), 0);
     s->bufptr = s->bufcnt;
     if (s->bufcnt <= 0)
         return;
@@ -1913,7 +1913,7 @@ static void tcp_chr_read(void *opaque)
     len = sizeof(buf);
     if (len > s->max_size)
         len = s->max_size;
-    size = recv(s->fd, buf, len, 0);
+    size = recv(s->fd, (void *)buf, len, 0);
     if (size == 0) {
         /* connection closed */
         s->connected = 0;

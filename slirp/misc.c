@@ -778,7 +778,7 @@ fd_nonblock(int fd)
 {
 #ifdef FIONBIO
 #ifdef _WIN32
-        long opt = 1;
+        unsigned long opt = 1;
 #else
         int opt = 1;
 #endif
@@ -797,7 +797,11 @@ void
 fd_block(int fd)
 {
 #ifdef FIONBIO
+#ifdef _WIN32
+        unsigned long opt = 0;
+#else
 	int opt = 0;
+#endif
 
 	ioctlsocket(fd, FIONBIO, &opt);
 #else

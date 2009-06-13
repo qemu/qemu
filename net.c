@@ -665,7 +665,9 @@ static const char *slirp_smb_export;
 #endif
 static VLANClientState *slirp_vc;
 
+#ifndef _WIN32
 static void slirp_smb(const char *exported_dir);
+#endif
 static void slirp_redirection(Monitor *mon, const char *redir_str);
 
 int slirp_can_output(void)
@@ -1505,7 +1507,7 @@ static ssize_t net_socket_receive_dgram(VLANClientState *vc, const uint8_t *buf,
 {
     NetSocketState *s = vc->opaque;
 
-    return sendto(s->fd, buf, size, 0,
+    return sendto(s->fd, (const void *)buf, size, 0,
                   (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
 }
 
@@ -1517,7 +1519,7 @@ static void net_socket_send(void *opaque)
     uint8_t buf1[4096];
     const uint8_t *buf;
 
-    size = recv(s->fd, buf1, sizeof(buf1), 0);
+    size = recv(s->fd, (void *)buf1, sizeof(buf1), 0);
     if (size < 0) {
         err = socket_error();
         if (err != EWOULDBLOCK)
@@ -1579,7 +1581,7 @@ static void net_socket_send_dgram(void *opaque)
     NetSocketState *s = opaque;
     int size;
 
-    size = recv(s->fd, s->buf, sizeof(s->buf), 0);
+    size = recv(s->fd, (void *)s->buf, sizeof(s->buf), 0);
     if (size < 0)
         return;
     if (size == 0) {

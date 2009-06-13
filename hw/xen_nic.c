@@ -356,6 +356,8 @@ static int net_connect(struct XenDevice *xendev)
 		  "remote port %d, local port %d\n",
 		  netdev->tx_ring_ref, netdev->rx_ring_ref,
 		  netdev->xendev.remote_port, netdev->xendev.local_port);
+
+    net_tx_packets(netdev);
     return 0;
 }
 
