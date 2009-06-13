@@ -26,16 +26,16 @@
  * - TNETD7300 (best emulation)
  *
  * TODO:
- * - nodisk_ok should be removed everywhere
  * - ldl_phys, stl_phys wrong for big endian AR7
  * - TNETD7100 emulation is missing
  * - TNETD7200 emulation is very incomplete
  * - reboot loops endless reading device config latch (AVALANCHE_DCL_BASE)
- * - uart0, uart1 wrong type (is 16450, should be 16550)
+ * - uart0, uart1 wrong type (is 16450, should be 16550). Fixed in latest QEMU?
  * - vlynq emulation only very rudimentary
- * - ethernet not stable
+ * - Ethernet not stable. Linux kernel problem? Fixed by latest OpenWrt?
  * - much more
  * - ar7.cpu_env is not needed
+ * - Sinus 154 DSL Basic SE raises assertion in pflash_cfi01.c
  *
  * Interrupts:
  *                 CPU0
