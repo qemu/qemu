@@ -262,6 +262,7 @@ typedef struct {
     uint32_t sbc;
     uint32_t csbc;
     uint32_t scratch[18]; /* SCRATCHA-SCRATCHR */
+    uint8_t sbr;
 
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
@@ -330,6 +331,7 @@ static void lsi_soft_reset(LSIState *s)
     s->ia = 0;
     s->sbc = 0;
     s->csbc = 0;
+    s->sbr = 0;
 }
 
 static int lsi_dma_40bit(LSIState *s)
@@ -1408,6 +1410,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->dmode;
     case 0x39: /* DIEN */
         return s->dien;
+    case 0x3a: /* SBR */
+        return s->sbr;
     case 0x3b: /* DCNTL */
         return s->dcntl;
     case 0x40: /* SIEN0 */
@@ -1621,6 +1625,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case 0x39: /* DIEN */
         s->dien = val;
         lsi_update_irq(s);
+        break;
+    case 0x3a: /* SBR */
+        s->sbr = val;
         break;
     case 0x3b: /* DCNTL */
         s->dcntl = val & ~(LSI_DCNTL_PFF | LSI_DCNTL_STD);
