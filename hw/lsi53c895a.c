@@ -1491,6 +1491,11 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
 
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 {
+#define CASE_SET_REG24(name, addr) \
+    case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
+    case addr + 1: s->name &= 0xffff00ff; s->name |= val << 8;  break; \
+    case addr + 2: s->name &= 0xff00ffff; s->name |= val << 16; break;
+
 #define CASE_SET_REG32(name, addr) \
     case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
     case addr + 1: s->name &= 0xffff00ff; s->name |= val << 8;  break; \
@@ -1595,6 +1600,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         }
         s->ctest5 = val;
         break;
+    CASE_SET_REG24(dbc, 0x24)
     CASE_SET_REG32(dnad, 0x28)
     case 0x2c: /* DSP[0:7] */
         s->dsp &= 0xffffff00;
@@ -1709,6 +1715,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             BADF("Unhandled writeb 0x%x = 0x%x\n", offset, val);
         }
     }
+#undef CASE_SET_REG24
 #undef CASE_SET_REG32
 }
 
