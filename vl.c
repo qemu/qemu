@@ -5831,7 +5831,6 @@ int main(int argc, char **argv, char **envp)
         signal(SIGTTIN, SIG_IGN);
     }
 
-#ifndef _WIN32
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
         if (daemonize) {
             uint8_t status = 1;
@@ -6292,7 +6291,6 @@ int main(int argc, char **argv, char **envp)
         }
         chdir("/");
     }
-#endif
 #endif
 
     if (run_as) {
