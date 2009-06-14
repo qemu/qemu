@@ -190,7 +190,7 @@ io_thread="no"
 nptl="yes"
 mixemu="no"
 bluez="yes"
-kvm="yes"
+kvm="no"
 kerneldir=""
 aix="no"
 blobs="yes"
@@ -290,7 +290,6 @@ SunOS)
     make="gmake"
     install="ginstall"
     needs_libsunmath="no"
-    kvm="no"
     solarisrev=`uname -r | cut -f2 -d.`
     # have to select again, because `uname -m` returns i86pc
     # even on an x86_64 box.
@@ -330,6 +329,7 @@ audio_possible_drivers="oss alsa sdl esd pa"
 linux="yes"
 linux_user="yes"
 usb="linux"
+kvm="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
