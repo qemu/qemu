@@ -166,7 +166,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                PCIConfigWriteFunc *config_write);
 int pci_unregister_device(PCIDevice *pci_dev);
 
-void pci_register_io_region(PCIDevice *pci_dev, int region_num,
+void pci_register_bar(PCIDevice *pci_dev, int region_num,
                             uint32_t size, int type,
                             PCIMapIORegionFunc *map_func);
 

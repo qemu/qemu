@@ -816,7 +816,7 @@ static void pci_ne2000_init(PCIDevice *pci_dev)
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     pci_conf[0x3d] = 1; // interrupt pin 0
 
-    pci_register_io_region(&d->dev, 0, 0x100,
+    pci_register_bar(&d->dev, 0, 0x100,
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = d->dev.irq[0];

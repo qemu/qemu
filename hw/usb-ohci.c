@@ -1732,7 +1732,7 @@ void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
     usb_ohci_init(&ohci->state, num_ports, devfn, ohci->pci_dev.irq[0],
                   OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
 
-    pci_register_io_region((struct PCIDevice *)ohci, 0, 256,
+    pci_register_bar((struct PCIDevice *)ohci, 0, 256,
                            PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
 }
 

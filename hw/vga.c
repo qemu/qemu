@@ -2510,7 +2510,7 @@ int pci_vga_init(PCIBus *bus,
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     /* XXX: VGA_RAM_SIZE must be a power of two */
-    pci_register_io_region(&d->dev, 0, VGA_RAM_SIZE,
+    pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
                            PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
     if (vga_bios_size != 0) {
         unsigned int bios_total_size;
@@ -2520,7 +2520,7 @@ int pci_vga_init(PCIBus *bus,
         bios_total_size = 1;
         while (bios_total_size < vga_bios_size)
             bios_total_size <<= 1;
-        pci_register_io_region(&d->dev, PCI_ROM_SLOT, bios_total_size,
+        pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
                                PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
     }
     return 0;

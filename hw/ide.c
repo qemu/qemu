@@ -3309,15 +3309,15 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
         pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
-    pci_register_io_region((PCIDevice *)d, 0, 0x8,
+    pci_register_bar((PCIDevice *)d, 0, 0x8,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 1, 0x4,
+    pci_register_bar((PCIDevice *)d, 1, 0x4,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 2, 0x8,
+    pci_register_bar((PCIDevice *)d, 2, 0x8,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 3, 0x4,
+    pci_register_bar((PCIDevice *)d, 3, 0x4,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+    pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
@@ -3376,7 +3376,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     qemu_register_reset(piix3_reset, 0, d);
     piix3_reset(d);
 
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+    pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], pic[14]);
@@ -3416,7 +3416,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     qemu_register_reset(piix3_reset, 0, d);
     piix3_reset(d);
 
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+    pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], pic[14]);

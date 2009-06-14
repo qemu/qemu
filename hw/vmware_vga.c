@@ -1231,9 +1231,9 @@ void pci_vmsvga_init(PCIBus *bus)
     s->card.config[0x2f]		= SVGA_PCI_DEVICE_ID >> 8;
     s->card.config[0x3c]		= 0xff;		/* End */
 
-    pci_register_io_region(&s->card, 0, 0x10,
+    pci_register_bar(&s->card, 0, 0x10,
                     PCI_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
-    pci_register_io_region(&s->card, 1, VGA_RAM_SIZE,
+    pci_register_bar(&s->card, 1, VGA_RAM_SIZE,
                     PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_vmsvga_map_mem);
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);

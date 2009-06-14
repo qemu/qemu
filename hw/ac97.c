@@ -1366,8 +1366,8 @@ int ac97_init (PCIBus *bus)
     c[0x3c] = 0x00;      /* intr_ln interrupt line rw */
     c[0x3d] = 0x01;      /* intr_pn interrupt pin ro */
 
-    pci_register_io_region (&d->dev, 0, 256 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
-    pci_register_io_region (&d->dev, 1, 64 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
+    pci_register_bar (&d->dev, 0, 256 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
+    pci_register_bar (&d->dev, 1, 64 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
     register_savevm ("ac97", 0, 2, ac97_save, ac97_load, s);
     qemu_register_reset (ac97_on_reset, 0, s);
     AUD_register_card ("ac97", &s->card);

@@ -1212,7 +1212,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
         pci_conf[0x3d] = 0x00; // no interrupt pin
 
         /* Register I/O spaces */
-        pci_register_io_region((PCIDevice *)opp, 0, 0x40000,
+        pci_register_bar((PCIDevice *)opp, 0, 0x40000,
                                PCI_ADDRESS_SPACE_MEM, &openpic_map);
     } else {
         opp = qemu_mallocz(sizeof(openpic_t));

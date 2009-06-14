@@ -3336,10 +3336,10 @@ void pci_cirrus_vga_init(PCIBus *bus)
     /* memory #0 LFB */
     /* memory #1 memory-mapped I/O */
     /* XXX: s->vga.vram_size must be a power of two */
-    pci_register_io_region((PCIDevice *)d, 0, 0x2000000,
+    pci_register_bar((PCIDevice *)d, 0, 0x2000000,
 			   PCI_ADDRESS_SPACE_MEM_PREFETCH, cirrus_pci_lfb_map);
     if (device_id == CIRRUS_ID_CLGD5446) {
-        pci_register_io_region((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
+        pci_register_bar((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
                                PCI_ADDRESS_SPACE_MEM, cirrus_pci_mmio_map);
     }
     /* XXX: ROM BIOS */
