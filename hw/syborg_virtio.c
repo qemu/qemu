@@ -249,7 +249,7 @@ static void syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
     proxy->vdev = vdev;
 
     sysbus_init_irq(&proxy->busdev, &proxy->irq);
-    iomemtype = cpu_register_io_memory(0, syborg_virtio_readfn,
+    iomemtype = cpu_register_io_memory(syborg_virtio_readfn,
                                        syborg_virtio_writefn, proxy);
     sysbus_init_mmio(&proxy->busdev, 0x1000, iomemtype);
 

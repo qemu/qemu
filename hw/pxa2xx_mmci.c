@@ -527,7 +527,7 @@ PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
     s->irq = irq;
     s->dma = dma;
 
-    iomemtype = cpu_register_io_memory(0, pxa2xx_mmci_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_mmci_readfn,
                     pxa2xx_mmci_writefn, s);
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 

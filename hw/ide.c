@@ -3751,7 +3751,7 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
     if (dbdma)
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);
 
-    pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
+    pmac_ide_memory = cpu_register_io_memory(pmac_ide_read,
                                              pmac_ide_write, d);
     register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, d);
     qemu_register_reset(pmac_ide_reset, 0, d);
@@ -3847,8 +3847,8 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
     s->dev = ide;
     s->shift = shift;
 
-    mem1 = cpu_register_io_memory(0, mmio_ide_reads, mmio_ide_writes, s);
-    mem2 = cpu_register_io_memory(0, mmio_ide_status, mmio_ide_cmd, s);
+    mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s);
+    mem2 = cpu_register_io_memory(mmio_ide_status, mmio_ide_cmd, s);
     cpu_register_physical_memory(membase, 16 << shift, mem1);
     cpu_register_physical_memory(membase2, 2 << shift, mem2);
 }

@@ -1750,7 +1750,7 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
 
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
-        cpu_register_io_memory(0, pci_mmio_read, pci_mmio_write, s);
+        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
 
     pci_register_io_region(&d->dev, 0, PCI_MEM_SIZE,
                            PCI_ADDRESS_SPACE_MEM |

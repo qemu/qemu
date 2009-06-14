@@ -1201,7 +1201,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
 
     s->vram_base = addr;
 #ifdef DIRECT_VRAM
-    iomemtype = cpu_register_io_memory(0, vmsvga_vram_read,
+    iomemtype = cpu_register_io_memory(vmsvga_vram_read,
                     vmsvga_vram_write, s);
 #else
     iomemtype = s->vga.vram_offset | IO_MEM_RAM;

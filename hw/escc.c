@@ -728,7 +728,7 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
 
     s = qemu_mallocz(sizeof(SerialState));
 
-    escc_io_memory = cpu_register_io_memory(0, escc_mem_read,
+    escc_io_memory = cpu_register_io_memory(escc_mem_read,
                                             escc_mem_write,
                                             s);
     if (base)
@@ -922,7 +922,7 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
     s->chn[0].disabled = disabled;
     s->chn[1].disabled = disabled;
 
-    slavio_serial_io_memory = cpu_register_io_memory(0, escc_mem_read,
+    slavio_serial_io_memory = cpu_register_io_memory(escc_mem_read,
                                                      escc_mem_write,
                                                      s);
     cpu_register_physical_memory(base, ESCC_SIZE << it_shift,

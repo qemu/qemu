@@ -268,7 +268,7 @@ static void mpcore_priv_init(SysBusDevice *dev)
     int i;
 
     gic_init(&s->gic);
-    s->iomemtype = cpu_register_io_memory(0, mpcore_priv_readfn,
+    s->iomemtype = cpu_register_io_memory(mpcore_priv_readfn,
                                           mpcore_priv_writefn, s);
     sysbus_init_mmio_cb(dev, 0x2000, mpcore_priv_map);
     for (i = 0; i < 8; i++) {

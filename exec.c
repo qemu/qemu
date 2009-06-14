@@ -3004,7 +3004,7 @@ static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     mmio = qemu_mallocz(sizeof(subpage_t));
 
     mmio->base = base;
-    subpage_memory = cpu_register_io_memory(0, subpage_read, subpage_write, mmio);
+    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
@@ -3029,17 +3029,22 @@ static int get_free_io_mem_idx(void)
     return -1;
 }
 
+static int cpu_register_io_memory_fixed(int io_index,
+                                        CPUReadMemoryFunc **mem_read,
+                                        CPUWriteMemoryFunc **mem_write,
+                                        void *opaque);
+
 static void io_mem_init(void)
 {
     int i;
 
-    cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, error_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory(IO_MEM_UNASSIGNED >> IO_MEM_SHIFT, unassigned_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, error_mem_read, notdirty_mem_write, NULL);
+    cpu_register_io_memory_fixed(IO_MEM_ROM, error_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory_fixed(IO_MEM_UNASSIGNED, unassigned_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory_fixed(IO_MEM_NOTDIRTY, error_mem_read, notdirty_mem_write, NULL);
     for (i=0; i<5; i++)
         io_mem_used[i] = 1;
 
-    io_mem_watch = cpu_register_io_memory(0, watch_mem_read,
+    io_mem_watch = cpu_register_io_memory(watch_mem_read,
                                           watch_mem_write, NULL);
 #ifdef CONFIG_KQEMU
     if (kqemu_phys_ram_base) {
@@ -3057,10 +3062,10 @@ static void io_mem_init(void)
    modified. If it is zero, a new io zone is allocated. The return
    value can be used with cpu_register_physical_memory(). (-1) is
    returned if error. */
-int cpu_register_io_memory(int io_index,
-                           CPUReadMemoryFunc **mem_read,
-                           CPUWriteMemoryFunc **mem_write,
-                           void *opaque)
+static int cpu_register_io_memory_fixed(int io_index,
+                                        CPUReadMemoryFunc **mem_read,
+                                        CPUWriteMemoryFunc **mem_write,
+                                        void *opaque)
 {
     int i, subwidth = 0;
 
@@ -3069,6 +3074,7 @@ int cpu_register_io_memory(int io_index,
         if (io_index == -1)
             return io_index;
     } else {
+        io_index >>= IO_MEM_SHIFT;
         if (io_index >= IO_MEM_NB_ENTRIES)
             return -1;
     }
@@ -3081,6 +3087,13 @@ int cpu_register_io_memory(int io_index,
     }
     io_mem_opaque[io_index] = opaque;
     return (io_index << IO_MEM_SHIFT) | subwidth;
+}
+
+int cpu_register_io_memory(CPUReadMemoryFunc **mem_read,
+                           CPUWriteMemoryFunc **mem_write,
+                           void *opaque)
+{
+    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque);
 }
 
 void cpu_unregister_io_memory(int io_table_address)

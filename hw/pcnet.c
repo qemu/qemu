@@ -2048,7 +2048,7 @@ static void pci_pcnet_init(PCIDevice *pci_dev)
 
     /* Handler for memory-mapped I/O */
     s->mmio_index =
-      cpu_register_io_memory(0, pcnet_mmio_read, pcnet_mmio_write, &d->state);
+      cpu_register_io_memory(pcnet_mmio_read, pcnet_mmio_write, &d->state);
 
     pci_register_io_region((PCIDevice *)d, 0, PCNET_IOPORT_SIZE,
                            PCI_ADDRESS_SPACE_IO, pcnet_ioport_map);
@@ -2126,7 +2126,7 @@ static void lance_init(SysBusDevice *dev)
     PCNetState *s = &d->state;
 
     s->mmio_index =
-        cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);
+        cpu_register_io_memory(lance_mem_read, lance_mem_write, d);
 
     s->dma_opaque = qdev_get_prop_ptr(&dev->qdev, "dma");
 

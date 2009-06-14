@@ -247,7 +247,7 @@ ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, target_phys_addr_t base)
 
     mmio = qemu_mallocz(sizeof(ppc4xx_mmio_t));
     mmio->base = base;
-    mmio_memory = cpu_register_io_memory(0, mmio_read, mmio_write, mmio);
+    mmio_memory = cpu_register_io_memory(mmio_read, mmio_write, mmio);
 #if defined(DEBUG_MMIO)
     printf("%s: base " PADDRX " len %08x %d\n", __func__,
            base, TARGET_PAGE_SIZE, mmio_memory);

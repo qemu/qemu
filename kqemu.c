@@ -990,7 +990,7 @@ static CPUWriteMemoryFunc *qpi_mem_write[3] = {
 static void qpi_init(void)
 {
     kqemu_comm_base = 0xff000000 | 1;
-    qpi_io_memory = cpu_register_io_memory(0, 
+    qpi_io_memory = cpu_register_io_memory(
                                            qpi_mem_read, 
                                            qpi_mem_write, NULL);
     cpu_register_physical_memory(kqemu_comm_base & ~0xfff, 

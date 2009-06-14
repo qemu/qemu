@@ -3196,7 +3196,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     register_ioport_read(0x3ba, 1, 1, vga_ioport_read, s);
     register_ioport_read(0x3da, 1, 1, vga_ioport_read, s);
 
-    s->vga.vga_io_memory = cpu_register_io_memory(0, cirrus_vga_mem_read,
+    s->vga.vga_io_memory = cpu_register_io_memory(cirrus_vga_mem_read,
                                                   cirrus_vga_mem_write, s);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
                                  s->vga.vga_io_memory);
@@ -3204,16 +3204,16 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
 
     /* I/O handler for LFB */
     s->cirrus_linear_io_addr =
-        cpu_register_io_memory(0, cirrus_linear_read, cirrus_linear_write, s);
+        cpu_register_io_memory(cirrus_linear_read, cirrus_linear_write, s);
 
     /* I/O handler for LFB */
     s->cirrus_linear_bitblt_io_addr =
-        cpu_register_io_memory(0, cirrus_linear_bitblt_read,
+        cpu_register_io_memory(cirrus_linear_bitblt_read,
                                cirrus_linear_bitblt_write, s);
 
     /* I/O handler for memory-mapped I/O */
     s->cirrus_mmio_io_addr =
-        cpu_register_io_memory(0, cirrus_mmio_read, cirrus_mmio_write, s);
+        cpu_register_io_memory(cirrus_mmio_read, cirrus_mmio_write, s);
 
     s->real_vram_size =
         (s->device_id == CIRRUS_ID_CLGD5446) ? 4096 * 1024 : 2048 * 1024;

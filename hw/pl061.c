@@ -296,7 +296,7 @@ static void pl061_init(SysBusDevice *dev)
     int iomemtype;
     pl061_state *s = FROM_SYSBUS(pl061_state, dev);
 
-    iomemtype = cpu_register_io_memory(0, pl061_readfn,
+    iomemtype = cpu_register_io_memory(pl061_readfn,
                                        pl061_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);

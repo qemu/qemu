@@ -435,7 +435,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_ir
 
     s = (MaltaFPGAState *)qemu_mallocz(sizeof(MaltaFPGAState));
 
-    malta = cpu_register_io_memory(0, malta_fpga_read,
+    malta = cpu_register_io_memory(malta_fpga_read,
                                    malta_fpga_write, s);
 
     cpu_register_physical_memory(base, 0x900, malta);

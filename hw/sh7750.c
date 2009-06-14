@@ -709,8 +709,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     s = qemu_mallocz(sizeof(SH7750State));
     s->cpu = cpu;
     s->periph_freq = 60000000;	/* 60MHz */
-    sh7750_io_memory = cpu_register_io_memory(0,
-					      sh7750_mem_read,
+    sh7750_io_memory = cpu_register_io_memory(sh7750_mem_read,
 					      sh7750_mem_write, s);
     cpu_register_physical_memory_offset(0x1f000000, 0x1000,
                                         sh7750_io_memory, 0x1f000000);
@@ -725,8 +724,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     cpu_register_physical_memory_offset(0xffc00000, 0x1000,
                                         sh7750_io_memory, 0x1fc00000);
 
-    sh7750_mm_cache_and_tlb = cpu_register_io_memory(0,
-						     sh7750_mmct_read,
+    sh7750_mm_cache_and_tlb = cpu_register_io_memory(sh7750_mmct_read,
 						     sh7750_mmct_write, s);
     cpu_register_physical_memory(0xf0000000, 0x08000000,
 				 sh7750_mm_cache_and_tlb);

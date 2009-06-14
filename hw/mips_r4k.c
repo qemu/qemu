@@ -185,7 +185,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     if (!mips_qemu_iomemtype) {
-        mips_qemu_iomemtype = cpu_register_io_memory(0, mips_qemu_read,
+        mips_qemu_iomemtype = cpu_register_io_memory(mips_qemu_read,
                                                      mips_qemu_write, NULL);
     }
     cpu_register_physical_memory(0x1fbf0000, 0x10000, mips_qemu_iomemtype);

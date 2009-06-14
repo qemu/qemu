@@ -308,7 +308,7 @@ PXA2xxGPIOInfo *pxa2xx_gpio_init(target_phys_addr_t base,
     s->cpu_env = env;
     s->in = qemu_allocate_irqs(pxa2xx_gpio_set, s, lines);
 
-    iomemtype = cpu_register_io_memory(0, pxa2xx_gpio_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_gpio_readfn,
                     pxa2xx_gpio_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
 

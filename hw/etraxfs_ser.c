@@ -171,7 +171,7 @@ static void etraxfs_ser_init(SysBusDevice *dev)
     s->regs[RS_STAT_DIN] |= (1 << STAT_TR_IDLE);
 
     sysbus_init_irq(dev, &s->irq);
-    ser_regs = cpu_register_io_memory(0, ser_read, ser_write, s);
+    ser_regs = cpu_register_io_memory(ser_read, ser_write, s);
     sysbus_init_mmio(dev, R_MAX * 4, ser_regs);
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr)

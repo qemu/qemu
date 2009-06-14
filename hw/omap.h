@@ -1116,7 +1116,7 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 static CPUReadMemoryFunc *io_readfn[] = { io_readb, io_readh, io_readw, };
 static CPUWriteMemoryFunc *io_writefn[] = { io_writeb, io_writeh, io_writew, };
 
-inline static int debug_register_io_memory(int io_index,
+inline static int debug_register_io_memory(
                 CPUReadMemoryFunc **mem_read, CPUWriteMemoryFunc **mem_write,
                 void *opaque)
 {
@@ -1126,7 +1126,7 @@ inline static int debug_register_io_memory(int io_index,
     s->mem_write = mem_write;
     s->opaque = opaque;
     s->in = 0;
-    return cpu_register_io_memory(io_index, io_readfn, io_writefn, s);
+    return cpu_register_io_memory(io_readfn, io_writefn, s);
 }
 #  define cpu_register_io_memory	debug_register_io_memory
 # endif
@@ -1136,7 +1136,7 @@ inline static int debug_register_io_memory(int io_index,
 
 # ifdef L4_MUX_HACK
 #  undef l4_register_io_memory
-int l4_register_io_memory(int io_index, CPUReadMemoryFunc **mem_read,
+int l4_register_io_memory(CPUReadMemoryFunc **mem_read,
                 CPUWriteMemoryFunc **mem_write, void *opaque);
 # endif
 

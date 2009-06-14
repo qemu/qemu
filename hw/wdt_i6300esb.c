@@ -368,7 +368,7 @@ static void i6300esb_map(PCIDevice *dev, int region_num,
 
     i6300esb_debug("addr = %x, size = %x, type = %d\n", addr, size, type);
 
-    io_mem = cpu_register_io_memory (0, mem_read, mem_write, d);
+    io_mem = cpu_register_io_memory(mem_read, mem_write, d);
     cpu_register_physical_memory (addr, 0x10, io_mem);
     /* qemu_register_coalesced_mmio (addr, 0x10); ? */
 }

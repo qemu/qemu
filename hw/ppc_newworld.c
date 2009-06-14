@@ -246,7 +246,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     isa_mmio_init(0xf2000000, 0x00800000);
 
     /* UniN init */
-    unin_memory = cpu_register_io_memory(0, unin_read, unin_write, NULL);
+    unin_memory = cpu_register_io_memory(unin_read, unin_write, NULL);
     cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
     openpic_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));

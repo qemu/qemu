@@ -1037,15 +1037,15 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
     s->drq = drq;
     omap_dss_reset(s);
 
-    iomemtype[0] = l4_register_io_memory(0, omap_diss1_readfn,
+    iomemtype[0] = l4_register_io_memory(omap_diss1_readfn,
                     omap_diss1_writefn, s);
-    iomemtype[1] = l4_register_io_memory(0, omap_disc1_readfn,
+    iomemtype[1] = l4_register_io_memory(omap_disc1_readfn,
                     omap_disc1_writefn, s);
-    iomemtype[2] = l4_register_io_memory(0, omap_rfbi1_readfn,
+    iomemtype[2] = l4_register_io_memory(omap_rfbi1_readfn,
                     omap_rfbi1_writefn, s);
-    iomemtype[3] = l4_register_io_memory(0, omap_venc1_readfn,
+    iomemtype[3] = l4_register_io_memory(omap_venc1_readfn,
                     omap_venc1_writefn, s);
-    iomemtype[4] = cpu_register_io_memory(0, omap_im3_readfn,
+    iomemtype[4] = cpu_register_io_memory(omap_im3_readfn,
                     omap_im3_writefn, s);
     omap_l4_attach(ta, 0, iomemtype[0]);
     omap_l4_attach(ta, 1, iomemtype[1]);

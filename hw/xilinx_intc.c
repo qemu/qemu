@@ -154,7 +154,7 @@ static void xilinx_intc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &p->parent_irq);
 
-    pic_regs = cpu_register_io_memory(0, pic_read, pic_write, p);
+    pic_regs = cpu_register_io_memory(pic_read, pic_write, p);
     sysbus_init_mmio(dev, R_MAX * 4, pic_regs);
 }
 

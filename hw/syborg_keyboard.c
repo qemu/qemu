@@ -209,7 +209,7 @@ static void syborg_keyboard_init(SysBusDevice *dev)
     int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(0, syborg_keyboard_readfn,
+    iomemtype = cpu_register_io_memory(syborg_keyboard_readfn,
                                        syborg_keyboard_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     s->fifo_size = qdev_get_prop_int(&dev->qdev, "fifo-size", 16);

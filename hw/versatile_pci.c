@@ -124,7 +124,7 @@ static void pci_vpb_init(SysBusDevice *dev)
 
     /* ??? Register memory space.  */
 
-    s->mem_config = cpu_register_io_memory(0, pci_vpb_config_read,
+    s->mem_config = cpu_register_io_memory(pci_vpb_config_read,
                                            pci_vpb_config_write, bus);
     sysbus_init_mmio_cb(dev, 0x04000000, pci_vpb_map);
 

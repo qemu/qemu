@@ -742,7 +742,7 @@ TUSBState *tusb6010_init(qemu_irq intr)
     s->mask = 0xffffffff;
     s->intr = 0x00000000;
     s->otg_timer_val = 0;
-    s->iomemtype[1] = cpu_register_io_memory(0, tusb_async_readfn,
+    s->iomemtype[1] = cpu_register_io_memory(tusb_async_readfn,
                     tusb_async_writefn, s);
     s->irq = intr;
     s->otg_timer = qemu_new_timer(vm_clock, tusb_otg_tick, s);

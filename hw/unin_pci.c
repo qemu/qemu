@@ -179,9 +179,9 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
                               pci_unin_set_irq, pci_unin_map_irq,
                               pic, 11 << 3, 4);
 
-    pci_mem_config = cpu_register_io_memory(0, pci_unin_main_config_read,
+    pci_mem_config = cpu_register_io_memory(pci_unin_main_config_read,
                                             pci_unin_main_config_write, s);
-    pci_mem_data = cpu_register_io_memory(0, pci_unin_main_read,
+    pci_mem_data = cpu_register_io_memory(pci_unin_main_read,
                                           pci_unin_main_write, s);
     cpu_register_physical_memory(0xf2800000, 0x1000, pci_mem_config);
     cpu_register_physical_memory(0xf2c00000, 0x1000, pci_mem_data);
@@ -226,9 +226,9 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
 #endif
 
     /* Uninorth AGP bus */
-    pci_mem_config = cpu_register_io_memory(0, pci_unin_config_read,
+    pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
                                             pci_unin_config_write, s);
-    pci_mem_data = cpu_register_io_memory(0, pci_unin_main_read,
+    pci_mem_data = cpu_register_io_memory(pci_unin_main_read,
                                           pci_unin_main_write, s);
     cpu_register_physical_memory(0xf0800000, 0x1000, pci_mem_config);
     cpu_register_physical_memory(0xf0c00000, 0x1000, pci_mem_data);
@@ -247,9 +247,9 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
 #if 0 // XXX: not needed for now
     /* Uninorth internal bus */
     s = &pci_bridge[2];
-    pci_mem_config = cpu_register_io_memory(0, pci_unin_config_read,
+    pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
                                             pci_unin_config_write, s);
-    pci_mem_data = cpu_register_io_memory(0, pci_unin_read,
+    pci_mem_data = cpu_register_io_memory(pci_unin_read,
                                           pci_unin_write, s);
     cpu_register_physical_memory(0xf4800000, 0x1000, pci_mem_config);
     cpu_register_physical_memory(0xf4c00000, 0x1000, pci_mem_data);

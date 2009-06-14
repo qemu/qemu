@@ -256,7 +256,7 @@ static void integratorcm_init(SysBusDevice *dev)
     s->cm_init = 0x00000112;
     s->flash_offset = qemu_ram_alloc(0x100000);
 
-    iomemtype = cpu_register_io_memory(0, integratorcm_readfn,
+    iomemtype = cpu_register_io_memory(integratorcm_readfn,
                                        integratorcm_writefn, s);
     sysbus_init_mmio(dev, 0x00800000, iomemtype);
     integratorcm_do_remap(s, 1);
@@ -381,7 +381,7 @@ static void icp_pic_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
-    iomemtype = cpu_register_io_memory(0, icp_pic_readfn,
+    iomemtype = cpu_register_io_memory(icp_pic_readfn,
                                        icp_pic_writefn, s);
     sysbus_init_mmio(dev, 0x00800000, iomemtype);
 }
@@ -433,7 +433,7 @@ static void icp_control_init(uint32_t base)
 {
     int iomemtype;
 
-    iomemtype = cpu_register_io_memory(0, icp_control_readfn,
+    iomemtype = cpu_register_io_memory(icp_control_readfn,
                                        icp_control_writefn, NULL);
     cpu_register_physical_memory(base, 0x00800000, iomemtype);
     /* ??? Save/restore.  */

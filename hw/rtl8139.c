@@ -3469,7 +3469,7 @@ static void pci_rtl8139_init(PCIDevice *dev)
 
     /* I/O handler for memory-mapped I/O */
     s->rtl8139_mmio_io_addr =
-    cpu_register_io_memory(0, rtl8139_mmio_read, rtl8139_mmio_write, s);
+    cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s);
 
     pci_register_io_region(&d->dev, 0, 0x100,
                            PCI_ADDRESS_SPACE_IO,  rtl8139_ioport_map);

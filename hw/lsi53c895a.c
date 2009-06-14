@@ -1998,9 +1998,9 @@ static void lsi_scsi_init(PCIDevice *dev)
     /* Interrupt pin 1 */
     pci_conf[0x3d] = 0x01;
 
-    s->mmio_io_addr = cpu_register_io_memory(0, lsi_mmio_readfn,
+    s->mmio_io_addr = cpu_register_io_memory(lsi_mmio_readfn,
                                              lsi_mmio_writefn, s);
-    s->ram_io_addr = cpu_register_io_memory(0, lsi_ram_readfn,
+    s->ram_io_addr = cpu_register_io_memory(lsi_ram_readfn,
                                             lsi_ram_writefn, s);
 
     pci_register_io_region((struct PCIDevice *)s, 0, 256,

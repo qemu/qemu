@@ -587,7 +587,7 @@ void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
 	tdk_init(&eth->phy);
 	mdio_attach(&eth->mdio_bus, &eth->phy, eth->phyaddr);
 
-	eth->ethregs = cpu_register_io_memory(0, eth_read, eth_write, eth);
+	eth->ethregs = cpu_register_io_memory(eth_read, eth_write, eth);
 	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
 
 	eth->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,

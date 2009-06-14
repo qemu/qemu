@@ -181,7 +181,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Chipset */
     rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas);
-    s_dma_dummy = cpu_register_io_memory(0, dma_dummy_read, dma_dummy_write, NULL);
+    s_dma_dummy = cpu_register_io_memory(dma_dummy_read, dma_dummy_write, NULL);
     cpu_register_physical_memory(0x8000d000, 0x00001000, s_dma_dummy);
 
     /* ISA devices */
@@ -245,7 +245,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Real time clock */
     rtc_init(0x70, i8259[8], 1980);
-    s_rtc = cpu_register_io_memory(0, rtc_read, rtc_write, env);
+    s_rtc = cpu_register_io_memory(rtc_read, rtc_write, env);
     cpu_register_physical_memory(0x80004000, 0x00001000, s_rtc);
 
     /* Keyboard (i8042) */

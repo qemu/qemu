@@ -632,7 +632,7 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
         register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
     }
     if (mem_base != 0) {
-        s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+        s->mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
         cpu_register_physical_memory(mem_base, size, s->mem_index);
     }
     if (type == 59) {

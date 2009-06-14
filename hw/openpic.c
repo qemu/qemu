@@ -1046,7 +1046,7 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
             addr + 0x20000, addr + 0x20000 + 0x1000 * MAX_CPU);
     cpu_register_physical_memory(addr, 0x40000, opp->mem_index);
 #if 0 // Don't implement ISU for now
-    opp_io_memory = cpu_register_io_memory(0, openpic_src_read,
+    opp_io_memory = cpu_register_io_memory(openpic_src_read,
                                            openpic_src_write);
     cpu_register_physical_memory(isu_base, 0x20 * (EXT_IRQ + 2),
                                  opp_io_memory);
@@ -1217,7 +1217,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     } else {
         opp = qemu_mallocz(sizeof(openpic_t));
     }
-    opp->mem_index = cpu_register_io_memory(0, openpic_read,
+    opp->mem_index = cpu_register_io_memory(openpic_read,
                                             openpic_write, opp);
 
     //    isu_base &= 0xFFFC0000;
@@ -1687,7 +1687,7 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     for (i = 0; i < sizeof(list)/sizeof(list[0]); i++) {
         int mem_index;
 
-        mem_index = cpu_register_io_memory(0, list[i].read, list[i].write, mpp);
+        mem_index = cpu_register_io_memory(list[i].read, list[i].write, mpp);
         if (mem_index < 0) {
             goto free;
         }

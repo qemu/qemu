@@ -1101,7 +1101,7 @@ static void pci_e1000_init(PCIDevice *pci_dev)
 
     pci_conf[0x3d] = 1; // interrupt pin 0
 
-    d->mmio_index = cpu_register_io_memory(0, e1000_mmio_read,
+    d->mmio_index = cpu_register_io_memory(e1000_mmio_read,
             e1000_mmio_write, d);
 
     pci_register_io_region((PCIDevice *)d, 0, PNPMMIO_SIZE,

@@ -139,19 +139,19 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base)
             qemu_mallocz(sizeof(PXA2xxPCMCIAState));
 
     /* Socket I/O Memory Space */
-    iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_io_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_pcmcia_io_readfn,
                     pxa2xx_pcmcia_io_writefn, s);
     cpu_register_physical_memory(base | 0x00000000, 0x04000000, iomemtype);
 
     /* Then next 64 MB is reserved */
 
     /* Socket Attribute Memory Space */
-    iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_attr_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_pcmcia_attr_readfn,
                     pxa2xx_pcmcia_attr_writefn, s);
     cpu_register_physical_memory(base | 0x08000000, 0x04000000, iomemtype);
 
     /* Socket Common Memory Space */
-    iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_common_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_pcmcia_common_readfn,
                     pxa2xx_pcmcia_common_writefn, s);
     cpu_register_physical_memory(base | 0x0c000000, 0x04000000, iomemtype);
 

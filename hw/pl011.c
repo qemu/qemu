@@ -291,7 +291,7 @@ static void pl011_init(SysBusDevice *dev, const unsigned char *id)
     int iomemtype;
     pl011_state *s = FROM_SYSBUS(pl011_state, dev);
 
-    iomemtype = cpu_register_io_memory(0, pl011_readfn,
+    iomemtype = cpu_register_io_memory(pl011_readfn,
                                        pl011_writefn, s);
     sysbus_init_mmio(dev, 0x1000,iomemtype);
     sysbus_init_irq(dev, &s->irq);

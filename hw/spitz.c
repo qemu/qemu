@@ -174,7 +174,7 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
     else if (size == FLASH_1024M)
         s->nand = nand_init(NAND_MFR_SAMSUNG, 0xf1);
 
-    iomemtype = cpu_register_io_memory(0, sl_readfn,
+    iomemtype = cpu_register_io_memory(sl_readfn,
                     sl_writefn, s);
     cpu_register_physical_memory(FLASH_BASE, 0x40, iomemtype);
 

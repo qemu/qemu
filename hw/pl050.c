@@ -127,7 +127,7 @@ static void pl050_init(SysBusDevice *dev, int is_mouse)
     pl050_state *s = FROM_SYSBUS(pl050_state, dev);
     int iomemtype;
 
-    iomemtype = cpu_register_io_memory(0, pl050_readfn,
+    iomemtype = cpu_register_io_memory(pl050_readfn,
                                        pl050_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);

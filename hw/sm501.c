@@ -1080,11 +1080,11 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
 
     /* map mmio */
     sm501_system_config_index
-	= cpu_register_io_memory(0, sm501_system_config_readfn,
+	= cpu_register_io_memory(sm501_system_config_readfn,
 				 sm501_system_config_writefn, s);
     cpu_register_physical_memory(base + MMIO_BASE_OFFSET,
 				 0x6c, sm501_system_config_index);
-    sm501_disp_ctrl_index = cpu_register_io_memory(0, sm501_disp_ctrl_readfn,
+    sm501_disp_ctrl_index = cpu_register_io_memory(sm501_disp_ctrl_readfn,
 						   sm501_disp_ctrl_writefn, s);
     cpu_register_physical_memory(base + MMIO_BASE_OFFSET + SM501_DC,
                                  0x1000, sm501_disp_ctrl_index);

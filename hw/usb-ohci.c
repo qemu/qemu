@@ -1682,7 +1682,7 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
                 usb_frame_time, usb_bit_time);
     }
 
-    ohci->mem = cpu_register_io_memory(0, ohci_readfn, ohci_writefn, ohci);
+    ohci->mem = cpu_register_io_memory(ohci_readfn, ohci_writefn, ohci);
     ohci->localmem_base = localmem_base;
     ohci->name = name;
 

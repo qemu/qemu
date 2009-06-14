@@ -286,11 +286,11 @@ void axisdev88_init (ram_addr_t ram_size,
 
       /* Attach a NAND flash to CS1.  */
     nand_state.nand = nand_init(NAND_MFR_STMICRO, 0x39);
-    nand_regs = cpu_register_io_memory(0, nand_read, nand_write, &nand_state);
+    nand_regs = cpu_register_io_memory(nand_read, nand_write, &nand_state);
     cpu_register_physical_memory(0x10000000, 0x05000000, nand_regs);
 
     gpio_state.nand = &nand_state;
-    gpio_regs = cpu_register_io_memory(0, gpio_read, gpio_write, &gpio_state);
+    gpio_regs = cpu_register_io_memory(gpio_read, gpio_write, &gpio_state);
     cpu_register_physical_memory(0x3001a000, 0x5c, gpio_regs);
 
 

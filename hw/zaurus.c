@@ -228,7 +228,7 @@ ScoopInfo *scoop_init(PXA2xxState *cpu,
 
     s->status = 0x02;
     s->in = qemu_allocate_irqs(scoop_gpio_set, s, 16);
-    iomemtype = cpu_register_io_memory(0, scoop_readfn,
+    iomemtype = cpu_register_io_memory(scoop_readfn,
                     scoop_writefn, s);
     cpu_register_physical_memory(target_base, 0x1000, iomemtype);
     register_savevm("scoop", instance, 1, scoop_save, scoop_load, s);

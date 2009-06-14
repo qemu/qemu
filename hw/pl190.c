@@ -232,7 +232,7 @@ static void pl190_init(SysBusDevice *dev)
     pl190_state *s = FROM_SYSBUS(pl190_state, dev);
     int iomemtype;
 
-    iomemtype = cpu_register_io_memory(0, pl190_readfn,
+    iomemtype = cpu_register_io_memory(pl190_readfn,
                                        pl190_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     qdev_init_gpio_in(&dev->qdev, pl190_set_irq, 32);
