@@ -103,16 +103,13 @@ typedef struct BDRVRawState {
     int fd;
     int type;
     unsigned int lseek_err_cnt;
+    int open_flags;
 #if defined(__linux__)
     /* linux floppy specific */
-    int fd_open_flags;
     int64_t fd_open_time;
     int64_t fd_error_time;
     int fd_got_error;
     int fd_media_changed;
-#endif
-#if defined(__FreeBSD__)
-    int cd_open_flags;
 #endif
     uint8_t* aligned_buf;
 } BDRVRawState;
@@ -130,32 +127,32 @@ static int raw_is_inserted(BlockDriverState *bs);
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags, ret;
+    int fd, ret;
 
     posix_aio_init();
 
     s->lseek_err_cnt = 0;
 
-    open_flags = O_BINARY;
+    s->open_flags |= O_BINARY;
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
-        open_flags |= O_RDWR;
+        s->open_flags |= O_RDWR;
     } else {
-        open_flags |= O_RDONLY;
+        s->open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
     if (flags & BDRV_O_CREAT)
-        open_flags |= O_CREAT | O_TRUNC;
+        s->open_flags |= O_CREAT | O_TRUNC;
 
     /* Use O_DSYNC for write-through caching, no flags for write-back caching,
      * and O_DIRECT for no caching. */
     if ((flags & BDRV_O_NOCACHE))
-        open_flags |= O_DIRECT;
+        s->open_flags |= O_DIRECT;
     else if (!(flags & BDRV_O_CACHE_WB))
-        open_flags |= O_DSYNC;
+        s->open_flags |= O_DSYNC;
 
     s->type = FTYPE_FILE;
 
-    fd = open(filename, open_flags, 0644);
+    fd = open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
         if (ret == -EROFS)
@@ -952,7 +949,7 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags, ret;
+    int fd, ret;
 
     posix_aio_init();
 
@@ -982,31 +979,30 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
             IOObjectRelease( mediaIterator );
     }
 #endif
-    open_flags = O_BINARY;
+    s->open_flags |= O_BINARY;
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
-        open_flags |= O_RDWR;
+        s->open_flags |= O_RDWR;
     } else {
-        open_flags |= O_RDONLY;
+        s->open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
     /* Use O_DSYNC for write-through caching, no flags for write-back caching,
      * and O_DIRECT for no caching. */
     if ((flags & BDRV_O_NOCACHE))
-        open_flags |= O_DIRECT;
+        s->open_flags |= O_DIRECT;
     else if (!(flags & BDRV_O_CACHE_WB))
-        open_flags |= O_DSYNC;
+        s->open_flags |= O_DSYNC;
 
     s->type = FTYPE_FILE;
 #if defined(__linux__)
     if (strstart(filename, "/dev/cd", NULL)) {
         /* open will not fail even if no CD is inserted */
-        open_flags |= O_NONBLOCK;
+        s->open_flags |= O_NONBLOCK;
         s->type = FTYPE_CD;
     } else if (strstart(filename, "/dev/fd", NULL)) {
         s->type = FTYPE_FD;
-        s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
-        open_flags |= O_NONBLOCK;
+        s->open_flags |= O_NONBLOCK;
 #ifdef CONFIG_AIO
     } else if (strstart(filename, "/dev/sg", NULL)) {
         bs->sg = 1;
@@ -1017,11 +1013,10 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     if (strstart(filename, "/dev/cd", NULL) ||
         strstart(filename, "/dev/acd", NULL)) {
         s->type = FTYPE_CD;
-        s->cd_open_flags = open_flags;
     }
 #endif
     s->fd = -1;
-    fd = open(filename, open_flags, 0644);
+    fd = open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
         if (ret == -EROFS)
@@ -1073,7 +1068,7 @@ static int fd_open(BlockDriverState *bs)
 #endif
             return -EIO;
         }
-        s->fd = open(bs->filename, s->fd_open_flags);
+        s->fd = open(bs->filename, s->open_flags & ~O_NONBLOCK);
         if (s->fd < 0) {
             s->fd_error_time = qemu_get_clock(rt_clock);
             s->fd_got_error = 1;
@@ -1162,7 +1157,7 @@ static int raw_eject(BlockDriverState *bs, int eject_flag)
                 close(s->fd);
                 s->fd = -1;
             }
-            fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
+            fd = open(bs->filename, s->open_flags | O_NONBLOCK);
             if (fd >= 0) {
                 if (ioctl(fd, FDEJECT, 0) < 0)
                     perror("FDEJECT");
@@ -1258,7 +1253,7 @@ static int cd_open(BlockDriverState *bs)
          * FreeBSD seems to not notice sometimes... */
         if (s->fd >= 0)
             close (s->fd);
-        fd = open(bs->filename, s->cd_open_flags, 0644);
+        fd = open(bs->filename, s->open_flags, 0644);
         if (fd < 0) {
             s->fd = -1;
             return -EIO;
