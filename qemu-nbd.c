@@ -345,8 +345,12 @@ int main(int argc, char **argv)
         pid_t pid;
         int sock;
 
-        if (!verbose)
-            daemon(0, 0);	/* detach client and server */
+        if (!verbose) {
+            /* detach client and server */
+            if (daemon(0, 0) == -1) {
+                errx(errno, "Failed to daemonize");
+            }
+        }
 
         if (socket == NULL) {
             sprintf(sockpath, SOCKET_PATH, basename(device));

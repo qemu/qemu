@@ -568,6 +568,22 @@ static int rtc_load_td(QEMUFile *f, void *opaque, int version_id)
 }
 #endif
 
+static void rtc_reset(void *opaque)
+{
+    RTCState *s = opaque;
+
+    /* clear PIE,AIE,SQWE on reset */
+    s->cmos_data[RTC_REG_B] &= ~((1<<6) | (1<<5) | (1<<3));
+
+    /* clear UF,IRQF,PF,AF on reset */
+    s->cmos_data[RTC_REG_C] &= ~((1<<4) | (1<<7) | (1<<6) | (1<<5));
+
+#ifdef TARGET_I386
+    if (rtc_td_hack)
+	    s->irq_coalesced = 0;
+#endif
+}
+
 RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
 {
     RTCState *s;
@@ -606,6 +622,8 @@ RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
     if (rtc_td_hack)
         register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
 #endif
+    qemu_register_reset(rtc_reset, 0, s);
+
     return s;
 }
 
@@ -721,5 +739,6 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     if (rtc_td_hack)
         register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
 #endif
+    qemu_register_reset(rtc_reset, 0, s);
     return s;
 }

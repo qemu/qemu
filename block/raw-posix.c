@@ -103,16 +103,13 @@ typedef struct BDRVRawState {
     int fd;
     int type;
     unsigned int lseek_err_cnt;
+    int open_flags;
 #if defined(__linux__)
     /* linux floppy specific */
-    int fd_open_flags;
     int64_t fd_open_time;
     int64_t fd_error_time;
     int fd_got_error;
     int fd_media_changed;
-#endif
-#if defined(__FreeBSD__)
-    int cd_open_flags;
 #endif
     uint8_t* aligned_buf;
 } BDRVRawState;
@@ -122,40 +119,36 @@ static int posix_aio_init(void);
 static int fd_open(BlockDriverState *bs);
 
 #if defined(__FreeBSD__)
-static int cd_open(BlockDriverState *bs);
+static int cdrom_reopen(BlockDriverState *bs);
 #endif
 
-static int raw_is_inserted(BlockDriverState *bs);
-
-static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+static int raw_open_common(BlockDriverState *bs, const char *filename,
+        int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags, ret;
+    int fd, ret;
 
     posix_aio_init();
 
     s->lseek_err_cnt = 0;
 
-    open_flags = O_BINARY;
+    s->open_flags |= O_BINARY;
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
-        open_flags |= O_RDWR;
+        s->open_flags |= O_RDWR;
     } else {
-        open_flags |= O_RDONLY;
+        s->open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
-    if (flags & BDRV_O_CREAT)
-        open_flags |= O_CREAT | O_TRUNC;
 
     /* Use O_DSYNC for write-through caching, no flags for write-back caching,
      * and O_DIRECT for no caching. */
     if ((flags & BDRV_O_NOCACHE))
-        open_flags |= O_DIRECT;
+        s->open_flags |= O_DIRECT;
     else if (!(flags & BDRV_O_CACHE_WB))
-        open_flags |= O_DSYNC;
+        s->open_flags |= O_DSYNC;
 
-    s->type = FTYPE_FILE;
-
-    fd = open(filename, open_flags, 0644);
+    s->fd = -1;
+    fd = open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
         if (ret == -EROFS)
@@ -173,6 +166,17 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
     return 0;
+}
+
+static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+
+    s->type = FTYPE_FILE;
+    if (flags & BDRV_O_CREAT)
+        s->open_flags |= O_CREAT | O_TRUNC;
+
+    return raw_open_common(bs, filename, flags);
 }
 
 /* XXX: use host sector size if necessary with:
@@ -802,7 +806,7 @@ again:
             if (size == 2048LL * (unsigned)-1)
                 size = 0;
             /* XXX no disc?  maybe we need to reopen... */
-            if (size <= 0 && !reopened && cd_open(bs) >= 0) {
+            if (size <= 0 && !reopened && cdrom_reopen(bs) >= 0) {
                 reopened = 1;
                 goto again;
             }
@@ -949,12 +953,25 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 
 #endif
 
+static int hdev_probe_device(const char *filename)
+{
+    struct stat st;
+
+    /* allow a dedicated CD-ROM driver to match with a higher priority */
+    if (strstart(filename, "/dev/cdrom", NULL))
+        return 50;
+
+    if (stat(filename, &st) >= 0 &&
+            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
+        return 100;
+    }
+
+    return 0;
+}
+
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags, ret;
-
-    posix_aio_init();
 
 #ifdef CONFIG_COCOA
     if (strstart(filename, "/dev/cdrom", NULL)) {
@@ -982,67 +999,15 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
             IOObjectRelease( mediaIterator );
     }
 #endif
-    open_flags = O_BINARY;
-    if ((flags & BDRV_O_ACCESS) == O_RDWR) {
-        open_flags |= O_RDWR;
-    } else {
-        open_flags |= O_RDONLY;
-        bs->read_only = 1;
-    }
-    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
-     * and O_DIRECT for no caching. */
-    if ((flags & BDRV_O_NOCACHE))
-        open_flags |= O_DIRECT;
-    else if (!(flags & BDRV_O_CACHE_WB))
-        open_flags |= O_DSYNC;
 
     s->type = FTYPE_FILE;
-#if defined(__linux__)
-    if (strstart(filename, "/dev/cd", NULL)) {
-        /* open will not fail even if no CD is inserted */
-        open_flags |= O_NONBLOCK;
-        s->type = FTYPE_CD;
-    } else if (strstart(filename, "/dev/fd", NULL)) {
-        s->type = FTYPE_FD;
-        s->fd_open_flags = open_flags;
-        /* open will not fail even if no floppy is inserted */
-        open_flags |= O_NONBLOCK;
-#ifdef CONFIG_AIO
-    } else if (strstart(filename, "/dev/sg", NULL)) {
+#if defined(__linux__) && defined(CONFIG_AIO)
+    if (strstart(filename, "/dev/sg", NULL)) {
         bs->sg = 1;
-#endif
     }
 #endif
-#if defined(__FreeBSD__)
-    if (strstart(filename, "/dev/cd", NULL) ||
-        strstart(filename, "/dev/acd", NULL)) {
-        s->type = FTYPE_CD;
-        s->cd_open_flags = open_flags;
-    }
-#endif
-    s->fd = -1;
-    fd = open(filename, open_flags, 0644);
-    if (fd < 0) {
-        ret = -errno;
-        if (ret == -EROFS)
-            ret = -EACCES;
-        return ret;
-    }
-    s->fd = fd;
-#if defined(__FreeBSD__)
-    /* make sure the door isnt locked at this time */
-    if (s->type == FTYPE_CD)
-        ioctl (s->fd, CDIOCALLOW);
-#endif
-#if defined(__linux__)
-    /* close fd so that we can reopen it as needed */
-    if (s->type == FTYPE_FD) {
-        close(s->fd);
-        s->fd = -1;
-        s->fd_media_changed = 1;
-    }
-#endif
-    return 0;
+
+    return raw_open_common(bs, filename, flags);
 }
 
 #if defined(__linux__)
@@ -1073,7 +1038,7 @@ static int fd_open(BlockDriverState *bs)
 #endif
             return -EIO;
         }
-        s->fd = open(bs->filename, s->fd_open_flags);
+        s->fd = open(bs->filename, s->open_flags & ~O_NONBLOCK);
         if (s->fd < 0) {
             s->fd_error_time = qemu_get_clock(rt_clock);
             s->fd_got_error = 1;
@@ -1095,106 +1060,7 @@ static int fd_open(BlockDriverState *bs)
     return 0;
 }
 
-static int raw_is_inserted(BlockDriverState *bs)
-{
-    BDRVRawState *s = bs->opaque;
-    int ret;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        ret = ioctl(s->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
-        if (ret == CDS_DISC_OK)
-            return 1;
-        else
-            return 0;
-        break;
-    case FTYPE_FD:
-        ret = fd_open(bs);
-        return (ret >= 0);
-    default:
-        return 1;
-    }
-}
-
-/* currently only used by fdc.c, but a CD version would be good too */
-static int raw_media_changed(BlockDriverState *bs)
-{
-    BDRVRawState *s = bs->opaque;
-
-    switch(s->type) {
-    case FTYPE_FD:
-        {
-            int ret;
-            /* XXX: we do not have a true media changed indication. It
-               does not work if the floppy is changed without trying
-               to read it */
-            fd_open(bs);
-            ret = s->fd_media_changed;
-            s->fd_media_changed = 0;
-#ifdef DEBUG_FLOPPY
-            printf("Floppy changed=%d\n", ret);
-#endif
-            return ret;
-        }
-    default:
-        return -ENOTSUP;
-    }
-}
-
-static int raw_eject(BlockDriverState *bs, int eject_flag)
-{
-    BDRVRawState *s = bs->opaque;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        if (eject_flag) {
-            if (ioctl (s->fd, CDROMEJECT, NULL) < 0)
-                perror("CDROMEJECT");
-        } else {
-            if (ioctl (s->fd, CDROMCLOSETRAY, NULL) < 0)
-                perror("CDROMEJECT");
-        }
-        break;
-    case FTYPE_FD:
-        {
-            int fd;
-            if (s->fd >= 0) {
-                close(s->fd);
-                s->fd = -1;
-            }
-            fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
-            if (fd >= 0) {
-                if (ioctl(fd, FDEJECT, 0) < 0)
-                    perror("FDEJECT");
-                close(fd);
-            }
-        }
-        break;
-    default:
-        return -ENOTSUP;
-    }
-    return 0;
-}
-
-static int raw_set_locked(BlockDriverState *bs, int locked)
-{
-    BDRVRawState *s = bs->opaque;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        if (ioctl (s->fd, CDROM_LOCKDOOR, locked) < 0) {
-            /* Note: an error can happen if the distribution automatically
-               mounts the CD-ROM */
-            //        perror("CDROM_LOCKDOOR");
-        }
-        break;
-    default:
-        return -ENOTSUP;
-    }
-    return 0;
-}
-
-static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+static int hdev_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1202,7 +1068,7 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 }
 
 #ifdef CONFIG_AIO
-static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
+static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1235,7 +1101,6 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
 #endif
 
 #elif defined(__FreeBSD__)
-
 static int fd_open(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -1245,104 +1110,6 @@ static int fd_open(BlockDriverState *bs)
         return 0;
     return -EIO;
 }
-
-static int cd_open(BlockDriverState *bs)
-{
-#if defined(__FreeBSD__)
-    BDRVRawState *s = bs->opaque;
-    int fd;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        /* XXX force reread of possibly changed/newly loaded disc,
-         * FreeBSD seems to not notice sometimes... */
-        if (s->fd >= 0)
-            close (s->fd);
-        fd = open(bs->filename, s->cd_open_flags, 0644);
-        if (fd < 0) {
-            s->fd = -1;
-            return -EIO;
-        }
-        s->fd = fd;
-        /* make sure the door isnt locked at this time */
-        ioctl (s->fd, CDIOCALLOW);
-    }
-#endif
-    return 0;
-}
-
-static int raw_is_inserted(BlockDriverState *bs)
-{
-    BDRVRawState *s = bs->opaque;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        return (raw_getlength(bs) > 0);
-    case FTYPE_FD:
-        /* XXX handle this */
-        /* FALLTHRU */
-    default:
-        return 1;
-    }
-}
-
-static int raw_media_changed(BlockDriverState *bs)
-{
-    return -ENOTSUP;
-}
-
-static int raw_eject(BlockDriverState *bs, int eject_flag)
-{
-    BDRVRawState *s = bs->opaque;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        if (s->fd < 0)
-            return -ENOTSUP;
-        (void) ioctl (s->fd, CDIOCALLOW);
-        if (eject_flag) {
-            if (ioctl (s->fd, CDIOCEJECT) < 0)
-                perror("CDIOCEJECT");
-        } else {
-            if (ioctl (s->fd, CDIOCCLOSE) < 0)
-                perror("CDIOCCLOSE");
-        }
-        if (cd_open(bs) < 0)
-            return -ENOTSUP;
-        break;
-    case FTYPE_FD:
-        /* XXX handle this */
-        /* FALLTHRU */
-    default:
-        return -ENOTSUP;
-    }
-    return 0;
-}
-
-static int raw_set_locked(BlockDriverState *bs, int locked)
-{
-    BDRVRawState *s = bs->opaque;
-
-    switch(s->type) {
-    case FTYPE_CD:
-        if (s->fd < 0)
-            return -ENOTSUP;
-        if (ioctl (s->fd, (locked ? CDIOCPREVENT : CDIOCALLOW)) < 0) {
-            /* Note: an error can happen if the distribution automatically
-               mounts the CD-ROM */
-            //        perror("CDROM_LOCKDOOR");
-        }
-        break;
-    default:
-        return -ENOTSUP;
-    }
-    return 0;
-}
-
-static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    return -ENOTSUP;
-}
 #else /* !linux && !FreeBSD */
 
 static int fd_open(BlockDriverState *bs)
@@ -1350,37 +1117,6 @@ static int fd_open(BlockDriverState *bs)
     return 0;
 }
 
-static int raw_is_inserted(BlockDriverState *bs)
-{
-    return 1;
-}
-
-static int raw_media_changed(BlockDriverState *bs)
-{
-    return -ENOTSUP;
-}
-
-static int raw_eject(BlockDriverState *bs, int eject_flag)
-{
-    return -ENOTSUP;
-}
-
-static int raw_set_locked(BlockDriverState *bs, int locked)
-{
-    return -ENOTSUP;
-}
-
-static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    return -ENOTSUP;
-}
-
-static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
-        unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque)
-{
-    return NULL;
-}
 #endif /* !linux && !FreeBSD */
 
 static int hdev_create(const char *filename, QEMUOptionParameter *options)
@@ -1416,6 +1152,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 static BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
+    .bdrv_probe_device	= hdev_probe_device,
     .bdrv_open		= hdev_open,
     .bdrv_close		= raw_close,
     .bdrv_create        = hdev_create,
@@ -1430,22 +1167,335 @@ static BlockDriver bdrv_host_device = {
     .bdrv_write         = raw_write,
     .bdrv_getlength	= raw_getlength,
 
-    /* removable device support */
-    .bdrv_is_inserted	= raw_is_inserted,
-    .bdrv_media_changed	= raw_media_changed,
-    .bdrv_eject		= raw_eject,
-    .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
-    .bdrv_ioctl		= raw_ioctl,
+#ifdef __linux__
+    .bdrv_ioctl         = hdev_ioctl,
 #ifdef CONFIG_AIO
-    .bdrv_aio_ioctl	= raw_aio_ioctl,
+    .bdrv_aio_ioctl     = hdev_aio_ioctl,
+#endif
 #endif
 };
 
+#ifdef __linux__
+static int floppy_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    posix_aio_init();
+
+    s->type = FTYPE_FD;
+    /* open will not fail even if no floppy is inserted */
+    s->open_flags |= O_NONBLOCK;
+
+    ret = raw_open_common(bs, filename, flags);
+    if (ret)
+        return ret;
+
+    /* close fd so that we can reopen it as needed */
+    close(s->fd);
+    s->fd = -1;
+    s->fd_media_changed = 1;
+
+    return 0;
+}
+
+static int floppy_probe_device(const char *filename)
+{
+    if (strstart(filename, "/dev/fd", NULL))
+        return 100;
+    return 0;
+}
+
+
+static int floppy_is_inserted(BlockDriverState *bs)
+{
+    return fd_open(bs) >= 0;
+}
+
+static int floppy_media_changed(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    /*
+     * XXX: we do not have a true media changed indication.
+     * It does not work if the floppy is changed without trying to read it.
+     */
+    fd_open(bs);
+    ret = s->fd_media_changed;
+    s->fd_media_changed = 0;
+#ifdef DEBUG_FLOPPY
+    printf("Floppy changed=%d\n", ret);
+#endif
+    return ret;
+}
+
+static int floppy_eject(BlockDriverState *bs, int eject_flag)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd;
+
+    if (s->fd >= 0) {
+        close(s->fd);
+        s->fd = -1;
+    }
+    fd = open(bs->filename, s->open_flags | O_NONBLOCK);
+    if (fd >= 0) {
+        if (ioctl(fd, FDEJECT, 0) < 0)
+            perror("FDEJECT");
+        close(fd);
+    }
+
+    return 0;
+}
+
+static BlockDriver bdrv_host_floppy = {
+    .format_name        = "host_floppy",
+    .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device	= floppy_probe_device,
+    .bdrv_open          = floppy_open,
+    .bdrv_close         = raw_close,
+    .bdrv_create        = hdev_create,
+    .bdrv_flush         = raw_flush,
+
+#ifdef CONFIG_AIO
+    .bdrv_aio_readv     = raw_aio_readv,
+    .bdrv_aio_writev    = raw_aio_writev,
+#endif
+
+    .bdrv_read          = raw_read,
+    .bdrv_write         = raw_write,
+    .bdrv_getlength	= raw_getlength,
+
+    /* removable device support */
+    .bdrv_is_inserted   = floppy_is_inserted,
+    .bdrv_media_changed = floppy_media_changed,
+    .bdrv_eject         = floppy_eject,
+};
+
+static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+
+    /* open will not fail even if no CD is inserted */
+    s->open_flags |= O_NONBLOCK;
+    s->type = FTYPE_CD;
+
+    return raw_open_common(bs, filename, flags);
+}
+
+static int cdrom_probe_device(const char *filename)
+{
+    if (strstart(filename, "/dev/cd", NULL))
+        return 100;
+    return 0;
+}
+
+static int cdrom_is_inserted(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    ret = ioctl(s->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
+    if (ret == CDS_DISC_OK)
+        return 1;
+    return 0;
+}
+
+static int cdrom_eject(BlockDriverState *bs, int eject_flag)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (eject_flag) {
+        if (ioctl(s->fd, CDROMEJECT, NULL) < 0)
+            perror("CDROMEJECT");
+    } else {
+        if (ioctl(s->fd, CDROMCLOSETRAY, NULL) < 0)
+            perror("CDROMEJECT");
+    }
+
+    return 0;
+}
+
+static int cdrom_set_locked(BlockDriverState *bs, int locked)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (ioctl(s->fd, CDROM_LOCKDOOR, locked) < 0) {
+        /*
+         * Note: an error can happen if the distribution automatically
+         * mounts the CD-ROM
+         */
+        /* perror("CDROM_LOCKDOOR"); */
+    }
+
+    return 0;
+}
+
+static BlockDriver bdrv_host_cdrom = {
+    .format_name        = "host_cdrom",
+    .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device	= cdrom_probe_device,
+    .bdrv_open          = cdrom_open,
+    .bdrv_close         = raw_close,
+    .bdrv_create        = hdev_create,
+    .bdrv_flush         = raw_flush,
+
+#ifdef CONFIG_AIO
+    .bdrv_aio_readv     = raw_aio_readv,
+    .bdrv_aio_writev    = raw_aio_writev,
+#endif
+
+    .bdrv_read          = raw_read,
+    .bdrv_write         = raw_write,
+    .bdrv_getlength     = raw_getlength,
+
+    /* removable device support */
+    .bdrv_is_inserted   = cdrom_is_inserted,
+    .bdrv_eject         = cdrom_eject,
+    .bdrv_set_locked    = cdrom_set_locked,
+
+    /* generic scsi device */
+    .bdrv_ioctl         = hdev_ioctl,
+#ifdef CONFIG_AIO
+    .bdrv_aio_ioctl     = hdev_aio_ioctl,
+#endif
+};
+#endif /* __linux__ */
+
+#ifdef __FreeBSD__
+static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    s->type = FTYPE_CD;
+
+    ret = raw_open_common(bs, filename, flags);
+    if (ret)
+        return ret;
+
+    /* make sure the door isnt locked at this time */
+    ioctl(s->fd, CDIOCALLOW);
+    return 0;
+}
+
+static int cdrom_probe_device(const char *filename)
+{
+    if (strstart(filename, "/dev/cd", NULL) ||
+            strstart(filename, "/dev/acd", NULL))
+        return 100;
+    return 0;
+}
+
+static int cdrom_reopen(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd;
+
+    /*
+     * Force reread of possibly changed/newly loaded disc,
+     * FreeBSD seems to not notice sometimes...
+     */
+    if (s->fd >= 0)
+        close(s->fd);
+    fd = open(bs->filename, s->open_flags, 0644);
+    if (fd < 0) {
+        s->fd = -1;
+        return -EIO;
+    }
+    s->fd = fd;
+
+    /* make sure the door isnt locked at this time */
+    ioctl(s->fd, CDIOCALLOW);
+    return 0;
+}
+
+static int cdrom_is_inserted(BlockDriverState *bs)
+{
+    return raw_getlength(bs) > 0;
+}
+
+static int cdrom_eject(BlockDriverState *bs, int eject_flag)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->fd < 0)
+        return -ENOTSUP;
+
+    (void) ioctl(s->fd, CDIOCALLOW);
+
+    if (eject_flag) {
+        if (ioctl(s->fd, CDIOCEJECT) < 0)
+            perror("CDIOCEJECT");
+    } else {
+        if (ioctl(s->fd, CDIOCCLOSE) < 0)
+            perror("CDIOCCLOSE");
+    }
+
+    if (cdrom_reopen(bs) < 0)
+        return -ENOTSUP;
+    return 0;
+}
+
+static int cdrom_set_locked(BlockDriverState *bs, int locked)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->fd < 0)
+        return -ENOTSUP;
+    if (ioctl(s->fd, (locked ? CDIOCPREVENT : CDIOCALLOW)) < 0) {
+        /*
+         * Note: an error can happen if the distribution automatically
+         * mounts the CD-ROM
+         */
+        /* perror("CDROM_LOCKDOOR"); */
+    }
+
+    return 0;
+}
+
+static BlockDriver bdrv_host_cdrom = {
+    .format_name        = "host_cdrom",
+    .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device	= cdrom_probe_device,
+    .bdrv_open          = cdrom_open,
+    .bdrv_close         = raw_close,
+    .bdrv_create        = hdev_create,
+    .bdrv_flush         = raw_flush,
+
+#ifdef CONFIG_AIO
+    .bdrv_aio_readv     = raw_aio_readv,
+    .bdrv_aio_writev    = raw_aio_writev,
+#endif
+
+    .bdrv_read          = raw_read,
+    .bdrv_write         = raw_write,
+    .bdrv_getlength     = raw_getlength,
+
+    /* removable device support */
+    .bdrv_is_inserted   = cdrom_is_inserted,
+    .bdrv_eject         = cdrom_eject,
+    .bdrv_set_locked    = cdrom_set_locked,
+};
+#endif /* __FreeBSD__ */
+
 static void bdrv_raw_init(void)
 {
+    /*
+     * Register all the drivers.  Note that order is important, the driver
+     * registered last will get probed first.
+     */
     bdrv_register(&bdrv_raw);
     bdrv_register(&bdrv_host_device);
+#ifdef __linux__
+    bdrv_register(&bdrv_host_floppy);
+    bdrv_register(&bdrv_host_cdrom);
+#endif
+#ifdef __FreeBSD__
+    bdrv_register(&bdrv_host_cdrom);
+#endif
 }
 
 block_init(bdrv_raw_init);
