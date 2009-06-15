@@ -24,9 +24,10 @@ typedef int (AioFlushHandler)(void *opaque);
  * outstanding AIO operations have been completed or cancelled. */
 void qemu_aio_flush(void);
 
-/* Wait for a single AIO completion to occur.  This function will until a
- * single AIO opeartion has completed.  It is intended to be used as a looping
- * primative when simulating synchronous IO based on asynchronous IO. */
+/* Wait for a single AIO completion to occur.  This function will wait
+ * until a single AIO event has completed and it will ensure something
+ * has moved before returning. This can issue new pending aio as
+ * result of executing I/O completion or bh callbacks. */
 void qemu_aio_wait(void);
 
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
