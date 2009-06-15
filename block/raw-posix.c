@@ -124,7 +124,8 @@ static int cd_open(BlockDriverState *bs);
 
 static int raw_is_inserted(BlockDriverState *bs);
 
-static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+static int raw_open_common(BlockDriverState *bs, const char *filename,
+        int flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, ret;
@@ -140,8 +141,6 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         s->open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
-    if (flags & BDRV_O_CREAT)
-        s->open_flags |= O_CREAT | O_TRUNC;
 
     /* Use O_DSYNC for write-through caching, no flags for write-back caching,
      * and O_DIRECT for no caching. */
@@ -150,8 +149,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     else if (!(flags & BDRV_O_CACHE_WB))
         s->open_flags |= O_DSYNC;
 
-    s->type = FTYPE_FILE;
-
+    s->fd = -1;
     fd = open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
@@ -170,6 +168,17 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
     return 0;
+}
+
+static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+
+    s->type = FTYPE_FILE;
+    if (flags & BDRV_O_CREAT)
+        s->open_flags |= O_CREAT | O_TRUNC;
+
+    return raw_open_common(bs, filename, flags);
 }
 
 /* XXX: use host sector size if necessary with:
@@ -949,9 +958,7 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, ret;
-
-    posix_aio_init();
+    int ret;
 
 #ifdef CONFIG_COCOA
     if (strstart(filename, "/dev/cdrom", NULL)) {
@@ -979,19 +986,6 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
             IOObjectRelease( mediaIterator );
     }
 #endif
-    s->open_flags |= O_BINARY;
-    if ((flags & BDRV_O_ACCESS) == O_RDWR) {
-        s->open_flags |= O_RDWR;
-    } else {
-        s->open_flags |= O_RDONLY;
-        bs->read_only = 1;
-    }
-    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
-     * and O_DIRECT for no caching. */
-    if ((flags & BDRV_O_NOCACHE))
-        s->open_flags |= O_DIRECT;
-    else if (!(flags & BDRV_O_CACHE_WB))
-        s->open_flags |= O_DSYNC;
 
     s->type = FTYPE_FILE;
 #if defined(__linux__)
@@ -1015,15 +1009,11 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->type = FTYPE_CD;
     }
 #endif
-    s->fd = -1;
-    fd = open(filename, s->open_flags, 0644);
-    if (fd < 0) {
-        ret = -errno;
-        if (ret == -EROFS)
-            ret = -EACCES;
+
+    ret = raw_open_common(bs, filename, flags);
+    if (ret)
         return ret;
-    }
-    s->fd = fd;
+
 #if defined(__FreeBSD__)
     /* make sure the door isnt locked at this time */
     if (s->type == FTYPE_CD)
