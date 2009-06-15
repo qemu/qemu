@@ -1060,7 +1060,7 @@ static int fd_open(BlockDriverState *bs)
     return 0;
 }
 
-static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+static int hdev_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1068,7 +1068,7 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 }
 
 #ifdef CONFIG_AIO
-static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
+static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1110,11 +1110,6 @@ static int fd_open(BlockDriverState *bs)
         return 0;
     return -EIO;
 }
-
-static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    return -ENOTSUP;
-}
 #else /* !linux && !FreeBSD */
 
 static int fd_open(BlockDriverState *bs)
@@ -1122,17 +1117,6 @@ static int fd_open(BlockDriverState *bs)
     return 0;
 }
 
-static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    return -ENOTSUP;
-}
-
-static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
-        unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque)
-{
-    return NULL;
-}
 #endif /* !linux && !FreeBSD */
 
 static int hdev_create(const char *filename, QEMUOptionParameter *options)
@@ -1184,9 +1168,11 @@ static BlockDriver bdrv_host_device = {
     .bdrv_getlength	= raw_getlength,
 
     /* generic scsi device */
-    .bdrv_ioctl         = raw_ioctl,
+#ifdef __linux__
+    .bdrv_ioctl         = hdev_ioctl,
 #ifdef CONFIG_AIO
-    .bdrv_aio_ioctl     = raw_aio_ioctl,
+    .bdrv_aio_ioctl     = hdev_aio_ioctl,
+#endif
 #endif
 };
 
@@ -1286,12 +1272,6 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_is_inserted   = floppy_is_inserted,
     .bdrv_media_changed = floppy_media_changed,
     .bdrv_eject         = floppy_eject,
-
-    /* generic scsi device */
-    .bdrv_ioctl         = raw_ioctl,
-#ifdef CONFIG_AIO
-    .bdrv_aio_ioctl     = raw_aio_ioctl,
-#endif
 };
 
 static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
@@ -1377,9 +1357,9 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_set_locked    = cdrom_set_locked,
 
     /* generic scsi device */
-    .bdrv_ioctl         = raw_ioctl,
+    .bdrv_ioctl         = hdev_ioctl,
 #ifdef CONFIG_AIO
-    .bdrv_aio_ioctl     = raw_aio_ioctl,
+    .bdrv_aio_ioctl     = hdev_aio_ioctl,
 #endif
 };
 #endif /* __linux__ */
@@ -1498,12 +1478,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_is_inserted   = cdrom_is_inserted,
     .bdrv_eject         = cdrom_eject,
     .bdrv_set_locked    = cdrom_set_locked,
-
-    /* generic scsi device */
-    .bdrv_ioctl         = raw_ioctl,
-#ifdef CONFIG_AIO
-    .bdrv_aio_ioctl     = raw_aio_ioctl,
-#endif
 };
 #endif /* __FreeBSD__ */
 
