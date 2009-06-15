@@ -830,6 +830,11 @@ static int load_option_rom(const char *oprom, target_phys_addr_t start,
         return size;
 }
 
+int cpu_is_bsp(CPUState *env)
+{
+	return env->cpuid_apic_id == 0;
+}
+
 /* PC hardware initialisation */
 static void pc_init1(ram_addr_t ram_size,
                      const char *boot_device,
@@ -876,16 +881,11 @@ static void pc_init1(ram_addr_t ram_size,
             fprintf(stderr, "Unable to find x86 CPU definition\n");
             exit(1);
         }
-        if (i != 0)
-            env->halted = 1;
-        if (smp_cpus > 1) {
-            /* XXX: enable it in all cases */
-            env->cpuid_features |= CPUID_APIC;
-        }
-        qemu_register_reset(main_cpu_reset, 0, env);
-        if (pci_enabled) {
+        if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
+            env->cpuid_apic_id = env->cpu_index;
             apic_init(env);
         }
+        qemu_register_reset(main_cpu_reset, 0, env);
     }
 
     vmport_init();
@@ -1152,7 +1152,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     /* Add virtio balloon device */
-    if (pci_enabled) {
+    if (pci_enabled && !no_virtio_balloon) {
         pci_create_simple(pci_bus, -1, "virtio-balloon-pci");
     }
 
