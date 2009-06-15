@@ -57,6 +57,11 @@
 #define REG_B_SQWE 0x08
 #define REG_B_DM   0x04
 
+#define REG_C_UF   0x10
+#define REG_C_IRQF 0x80
+#define REG_C_PF   0x40
+#define REG_C_AF   0x20
+
 struct RTCState {
     uint8_t cmos_data[128];
     uint8_t cmos_index;
@@ -572,11 +577,10 @@ static void rtc_reset(void *opaque)
 {
     RTCState *s = opaque;
 
-    /* clear PIE,AIE,SQWE on reset */
-    s->cmos_data[RTC_REG_B] &= ~((1<<6) | (1<<5) | (1<<3));
+    s->cmos_data[RTC_REG_B] &= ~(REG_B_PIE | REG_B_AIE | REG_B_SQWE);
+    s->cmos_data[RTC_REG_C] &= ~(REG_C_UF | REG_C_IRQF | REG_C_PF | REG_C_AF);
 
-    /* clear UF,IRQF,PF,AF on reset */
-    s->cmos_data[RTC_REG_C] &= ~((1<<4) | (1<<7) | (1<<6) | (1<<5));
+    qemu_irq_lower(s->irq);
 
 #ifdef TARGET_I386
     if (rtc_td_hack)

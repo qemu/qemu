@@ -186,8 +186,6 @@ struct fs_dma_channel
 struct fs_dma_ctrl
 {
 	int map;
-	CPUState *env;
-
 	int nr_channels;
 	struct fs_dma_channel *channels;
 
@@ -742,8 +740,7 @@ static void DMA_run(void *opaque)
         qemu_bh_schedule_idle(etraxfs_dmac->bh);
 }
 
-void *etraxfs_dmac_init(CPUState *env, 
-			target_phys_addr_t base, int nr_channels)
+void *etraxfs_dmac_init(target_phys_addr_t base, int nr_channels)
 {
 	struct fs_dma_ctrl *ctrl = NULL;
 
@@ -751,7 +748,6 @@ void *etraxfs_dmac_init(CPUState *env,
 
         ctrl->bh = qemu_bh_new(DMA_run, ctrl);
 
-	ctrl->env = env;
 	ctrl->nr_channels = nr_channels;
 	ctrl->channels = qemu_mallocz(sizeof ctrl->channels[0] * nr_channels);
 
