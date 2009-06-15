@@ -238,6 +238,7 @@ typedef struct {
     int prod[MAX_MUX];
     int cons[MAX_MUX];
     int timestamps;
+    int linestart;
     int64_t timestamps_start;
 } MuxDriver;
 
@@ -252,9 +253,8 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
         int i;
 
         ret = 0;
-        for(i = 0; i < len; i++) {
-            ret += d->drv->chr_write(d->drv, buf+i, 1);
-            if (buf[i] == '\n') {
+        for (i = 0; i < len; i++) {
+            if (d->linestart) {
                 char buf1[64];
                 int64_t ti;
                 int secs;
@@ -271,6 +271,11 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                          secs % 60,
                          (int)(ti % 1000));
                 d->drv->chr_write(d->drv, (uint8_t *)buf1, strlen(buf1));
+                d->linestart = 0;
+            }
+            ret += d->drv->chr_write(d->drv, buf+i, 1);
+            if (buf[i] == '\n') {
+                d->linestart = 1;
             }
         }
     }
@@ -360,6 +365,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 't':
             d->timestamps = !d->timestamps;
             d->timestamps_start = -1;
+            d->linestart = 0;
             break;
         }
     } else if (ch == term_escape_char) {
