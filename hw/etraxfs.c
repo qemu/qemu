@@ -100,16 +100,16 @@ void bareetraxfs_init (ram_addr_t ram_size,
     nmi[0] = qdev_get_gpio_in(dev, 30);
     nmi[1] = qdev_get_gpio_in(dev, 31);
 
-    etraxfs_dmac = etraxfs_dmac_init(env, 0x30000000, 10);
+    etraxfs_dmac = etraxfs_dmac_init(0x30000000, 10);
     for (i = 0; i < 10; i++) {
         /* On ETRAX, odd numbered channels are inputs.  */
         etraxfs_dmac_connect(etraxfs_dmac, i, irq + 7 + i, i & 1);
     }
 
     /* Add the two ethernet blocks.  */
-    eth[0] = etraxfs_eth_init(&nd_table[0], env, 0x30034000, 1);
+    eth[0] = etraxfs_eth_init(&nd_table[0], 0x30034000, 1);
     if (nb_nics > 1)
-        eth[1] = etraxfs_eth_init(&nd_table[1], env, 0x30036000, 2);
+        eth[1] = etraxfs_eth_init(&nd_table[1], 0x30036000, 2);
 
     /* The DMA Connector block is missing, hardwire things for now.  */
     etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);

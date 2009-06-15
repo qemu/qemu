@@ -319,7 +319,6 @@ static void mdio_cycle(struct qemu_mdio *bus)
 
 struct fs_eth
 {
-	CPUState *env;
 	VLANClientState *vc;
 	int ethregs;
 
@@ -565,8 +564,7 @@ static void eth_cleanup(VLANClientState *vc)
         qemu_free(eth);
 }
 
-void *etraxfs_eth_init(NICInfo *nd, CPUState *env, 
-		       target_phys_addr_t base, int phyaddr)
+void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
 {
 	struct etraxfs_dma_client *dma = NULL;	
 	struct fs_eth *eth = NULL;
@@ -574,7 +572,6 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	qemu_check_nic_model(nd, "fseth");
 
 	dma = qemu_mallocz(sizeof *dma * 2);
-
 	eth = qemu_mallocz(sizeof *eth);
 
 	dma[0].client.push = eth_tx_push;
@@ -582,7 +579,6 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	dma[1].client.opaque = eth;
 	dma[1].client.pull = NULL;
 
-	eth->env = env;
 	eth->dma_out = dma;
 	eth->dma_in = dma + 1;
 
