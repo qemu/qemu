@@ -953,6 +953,22 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 
 #endif
 
+static int hdev_probe_device(const char *filename)
+{
+    struct stat st;
+
+    /* allow a dedicated CD-ROM driver to match with a higher priority */
+    if (strstart(filename, "/dev/cdrom", NULL))
+        return 50;
+
+    if (stat(filename, &st) >= 0 &&
+            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
+        return 100;
+    }
+
+    return 0;
+}
+
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
@@ -1152,6 +1168,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 static BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
+    .bdrv_probe_device	= hdev_probe_device,
     .bdrv_open		= hdev_open,
     .bdrv_close		= raw_close,
     .bdrv_create        = hdev_create,
@@ -1196,6 +1213,14 @@ static int floppy_open(BlockDriverState *bs, const char *filename, int flags)
 
     return 0;
 }
+
+static int floppy_probe_device(const char *filename)
+{
+    if (strstart(filename, "/dev/fd", NULL))
+        return 100;
+    return 0;
+}
+
 
 static int floppy_is_inserted(BlockDriverState *bs)
 {
@@ -1242,6 +1267,7 @@ static int floppy_eject(BlockDriverState *bs, int eject_flag)
 static BlockDriver bdrv_host_floppy = {
     .format_name        = "host_floppy",
     .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device	= floppy_probe_device,
     .bdrv_open          = floppy_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
@@ -1277,6 +1303,13 @@ static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
     s->type = FTYPE_CD;
 
     return raw_open_common(bs, filename, flags);
+}
+
+static int cdrom_probe_device(const char *filename)
+{
+    if (strstart(filename, "/dev/cd", NULL))
+        return 100;
+    return 0;
 }
 
 static int cdrom_is_inserted(BlockDriverState *bs)
@@ -1323,6 +1356,7 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
 static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_open          = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
@@ -1364,6 +1398,14 @@ static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
 
     /* make sure the door isnt locked at this time */
     ioctl(s->fd, CDIOCALLOW);
+    return 0;
+}
+
+static int cdrom_probe_device(const char *filename)
+{
+    if (strstart(filename, "/dev/cd", NULL) ||
+            strstart(filename, "/dev/acd", NULL))
+        return 100;
     return 0;
 }
 
@@ -1437,6 +1479,7 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
 static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_open          = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
@@ -1466,6 +1509,10 @@ static BlockDriver bdrv_host_cdrom = {
 
 static void bdrv_raw_init(void)
 {
+    /*
+     * Register all the drivers.  Note that order is important, the driver
+     * registered last will get probed first.
+     */
     bdrv_register(&bdrv_raw);
     bdrv_register(&bdrv_host_device);
 #ifdef __linux__

@@ -209,7 +209,7 @@ static int is_windows_drive_prefix(const char *filename)
             filename[1] == ':');
 }
 
-static int is_windows_drive(const char *filename)
+int is_windows_drive(const char *filename)
 {
     if (is_windows_drive_prefix(filename) &&
         filename[2] == '\0')
@@ -253,43 +253,23 @@ static BlockDriver *find_protocol(const char *filename)
  * Detect host devices. By convention, /dev/cdrom[N] is always
  * recognized as a host CDROM.
  */
-#ifdef _WIN32
 static BlockDriver *find_hdev_driver(const char *filename)
 {
-    if (strstart(filename, "/dev/cdrom", NULL))
-        return bdrv_find_format("host_device");
-    if (is_windows_drive(filename))
-        return bdrv_find_format("host_device");
-    return NULL;
-}
-#else
-static BlockDriver *find_hdev_driver(const char *filename)
-{
-    struct stat st;
+    int score_max = 0, score;
+    BlockDriver *drv = NULL, *d;
 
-#ifdef __linux__
-    if (strstart(filename, "/dev/fd", NULL))
-        return bdrv_find_format("host_floppy");
-    if (strstart(filename, "/dev/cd", NULL))
-        return bdrv_find_format("host_cdrom");
-#elif defined(__FreeBSD__)
-    if (strstart(filename, "/dev/cd", NULL) ||
-        strstart(filename, "/dev/acd", NULL)) {
-        return bdrv_find_format("host_cdrom");
-    }
-#else
-    if (strstart(filename, "/dev/cdrom", NULL))
-        return bdrv_find_format("host_device");
-#endif
-
-    if (stat(filename, &st) >= 0 &&
-            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
-        return bdrv_find_format("host_device");
+    for (d = first_drv; d; d = d->next) {
+        if (d->bdrv_probe_device) {
+            score = d->bdrv_probe_device(filename);
+            if (score > score_max) {
+                score_max = score;
+                drv = d;
+            }
+        }
     }
 
-    return NULL;
+    return drv;
 }
-#endif
 
 static BlockDriver *find_image_format(const char *filename)
 {
