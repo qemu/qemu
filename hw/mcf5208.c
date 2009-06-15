@@ -151,7 +151,7 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
+static void QEMU_NORETURN m5208_sys_write(void *opaque, target_phys_addr_t addr,
                             uint32_t value)
 {
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
