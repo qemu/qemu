@@ -219,8 +219,6 @@ static CharDriverState *qemu_chr_open_null(void)
 }
 
 /* MUX driver for serial I/O splitting */
-static int term_timestamps;
-static int64_t term_timestamps_start;
 #define MAX_MUX 4
 #define MUX_BUFFER_SIZE 32	/* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
@@ -239,6 +237,8 @@ typedef struct {
     unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
     int prod[MAX_MUX];
     int cons[MAX_MUX];
+    int timestamps;
+    int64_t timestamps_start;
 } MuxDriver;
 
 
@@ -246,7 +246,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     MuxDriver *d = chr->opaque;
     int ret;
-    if (!term_timestamps) {
+    if (!d->timestamps) {
         ret = d->drv->chr_write(d->drv, buf, len);
     } else {
         int i;
@@ -260,9 +260,9 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                 int secs;
 
                 ti = qemu_get_clock(rt_clock);
-                if (term_timestamps_start == -1)
-                    term_timestamps_start = ti;
-                ti -= term_timestamps_start;
+                if (d->timestamps_start == -1)
+                    d->timestamps_start = ti;
+                ti -= d->timestamps_start;
                 secs = ti / 1000;
                 snprintf(buf1, sizeof(buf1),
                          "[%02d:%02d:%02d.%03d] ",
@@ -357,10 +357,10 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
                 chr->focus = 0;
             mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
             break;
-       case 't':
-           term_timestamps = !term_timestamps;
-           term_timestamps_start = -1;
-           break;
+        case 't':
+            d->timestamps = !d->timestamps;
+            d->timestamps_start = -1;
+            break;
         }
     } else if (ch == term_escape_char) {
         d->term_got_escape = 1;
