@@ -249,31 +249,54 @@ static BlockDriver *find_protocol(const char *filename)
     return NULL;
 }
 
-/* XXX: force raw format if block or character device ? It would
-   simplify the BSD case */
+/*
+ * Detect host devices. By convention, /dev/cdrom[N] is always
+ * recognized as a host CDROM.
+ */
+#ifdef _WIN32
+static BlockDriver *find_hdev_driver(const char *filename)
+{
+    if (strstart(filename, "/dev/cdrom", NULL))
+        return bdrv_find_format("host_device");
+    if (is_windows_drive(filename))
+        return bdrv_find_format("host_device");
+    return NULL;
+}
+#else
+static BlockDriver *find_hdev_driver(const char *filename)
+{
+    struct stat st;
+
+#ifdef __linux__
+    if (strstart(filename, "/dev/fd", NULL))
+        return bdrv_find_format("host_floppy");
+    if (strstart(filename, "/dev/cd", NULL))
+        return bdrv_find_format("host_cdrom");
+#elif defined(__FreeBSD__)
+    if (strstart(filename, "/dev/cd", NULL) ||
+        strstart(filename, "/dev/acd", NULL)) {
+        return bdrv_find_format("host_cdrom");
+    }
+#else
+    if (strstart(filename, "/dev/cdrom", NULL))
+        return bdrv_find_format("host_device");
+#endif
+
+    if (stat(filename, &st) >= 0 &&
+            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
+        return bdrv_find_format("host_device");
+    }
+
+    return NULL;
+}
+#endif
+
 static BlockDriver *find_image_format(const char *filename)
 {
     int ret, score, score_max;
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
     BlockDriverState *bs;
-
-    /* detect host devices. By convention, /dev/cdrom[N] is always
-       recognized as a host CDROM */
-    if (strstart(filename, "/dev/cdrom", NULL))
-        return bdrv_find_format("host_device");
-#ifdef _WIN32
-    if (is_windows_drive(filename))
-        return bdrv_find_format("host_device");
-#else
-    {
-        struct stat st;
-        if (stat(filename, &st) >= 0 &&
-            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
-            return bdrv_find_format("host_device");
-        }
-    }
-#endif
 
     drv = find_protocol(filename);
     /* no need to test disk image formats for vvfat */
@@ -394,7 +417,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (flags & BDRV_O_FILE) {
         drv = find_protocol(filename);
     } else if (!drv) {
-        drv = find_image_format(filename);
+        drv = find_hdev_driver(filename);
+        if (!drv) {
+            drv = find_image_format(filename);
+        }
     }
     if (!drv) {
         ret = -ENOENT;
