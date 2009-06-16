@@ -122,7 +122,6 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon, PCIBus *pci_bus,
         break;
     case IF_VIRTIO:
         opaque = pci_create_simple(pci_bus, -1, "virtio-blk-pci");
-        qdev_init(opaque);
         break;
     }
 
