@@ -208,7 +208,7 @@ keymaps.o: keymaps.c keymaps.h
 
 sdl.o: sdl.c keymaps.h sdl_keysym.h
 
-sdl.o audio/sdlaudio.o: CFLAGS += $(SDL_CFLAGS)
+sdl.o audio/sdlaudio.o baum.o: CFLAGS += $(SDL_CFLAGS)
 
 acl.o: acl.h acl.c
 

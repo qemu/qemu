@@ -730,6 +730,8 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
+vl.o: CFLAGS+=$(SDL_CFLAGS)
+
 vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
