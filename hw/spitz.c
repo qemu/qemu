@@ -24,11 +24,7 @@
 #include "boards.h"
 
 #undef REG_FMT
-#if TARGET_PHYS_ADDR_BITS == 32
-#define REG_FMT			"0x%02x"
-#else
 #define REG_FMT			"0x%02lx"
-#endif
 
 /* Spitz Flash */
 #define FLASH_BASE		0x0c000000
@@ -87,7 +83,7 @@ static uint32_t sl_readb(void *opaque, target_phys_addr_t addr)
         return ecc_digest(&s->ecc, nand_getio(s->nand));
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
     }
     return 0;
 }
@@ -129,7 +125,7 @@ static void sl_writeb(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
     }
 }
 
@@ -1076,19 +1072,23 @@ static void spitz_machine_init(void)
 machine_init(spitz_machine_init);
 
 static SSISlaveInfo corgi_ssp_info = {
+    .qdev.name = "corgi-ssp",
+    .qdev.size = sizeof(CorgiSSPState),
     .init = corgi_ssp_init,
     .transfer = corgi_ssp_transfer
 };
 
 static SSISlaveInfo spitz_lcdtg_info = {
+    .qdev.name = "spitz-lcdtg",
+    .qdev.size = sizeof(SpitzLCDTG),
     .init = spitz_lcdtg_init,
     .transfer = spitz_lcdtg_transfer
 };
 
 static void spitz_register_devices(void)
 {
-    ssi_register_slave("corgi-ssp", sizeof(CorgiSSPState), &corgi_ssp_info);
-    ssi_register_slave("spitz-lcdtg", sizeof(SpitzLCDTG), &spitz_lcdtg_info);
+    ssi_register_slave(&corgi_ssp_info);
+    ssi_register_slave(&spitz_lcdtg_info);
 }
 
 device_init(spitz_register_devices)

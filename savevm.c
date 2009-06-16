@@ -131,7 +131,7 @@ static void qemu_announce_self_once(void *opaque)
         len = announce_self_create(buf, nd_table[i].macaddr);
         vlan = nd_table[i].vlan;
 	for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-            vc->fd_read(vc->opaque, buf, len);
+            vc->receive(vc, buf, len);
         }
     }
     if (count--) {
@@ -190,7 +190,7 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
     ssize_t len;
 
     do {
-        len = recv(s->fd, buf, size, 0);
+        len = recv(s->fd, (void *)buf, size, 0);
     } while (len == -1 && socket_error() == EINTR);
 
     if (len == -1)
@@ -215,7 +215,14 @@ static int popen_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int s
 static int popen_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
     QEMUFilePopen *s = opaque;
-    return fread(buf, 1, size, s->popen_file);
+    FILE *fp = s->popen_file;
+    int bytes;
+
+    do {
+        clearerr(fp);
+        bytes = fread(buf, 1, size, fp);
+    } while ((bytes == 0) && ferror(fp) && (errno == EINTR));
+    return bytes;
 }
 
 static int popen_close(void *opaque)

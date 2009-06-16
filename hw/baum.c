@@ -90,7 +90,7 @@ typedef struct {
 
     brlapi_handle_t *brlapi;
     int brlapi_fd;
-    int x, y;
+    unsigned int x, y;
 
     uint8_t in_buf[BUF_SIZE];
     uint8_t in_buf_used;
@@ -356,12 +356,12 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
             .displayNumber = BRLAPI_DISPLAY_DEFAULT,
             .regionBegin = 1,
             .regionSize = baum->x * baum->y,
-            .text = text,
+            .text = (char *)text,
             .textSize = baum->x * baum->y,
             .andMask = zero,
             .orMask = cells,
             .cursor = cursor,
-            .charset = "ISO-8859-1",
+            .charset = (char *)"ISO-8859-1",
         };
 
         if (brlapi__write(baum->brlapi, &wa) == -1)

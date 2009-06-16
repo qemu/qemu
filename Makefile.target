@@ -91,11 +91,6 @@ endif
 endif
 endif # !CONFIG_WIN32
 endif # !CONFIG_LINUX_USER
-
-# We require -O2 to avoid the stack setup prologue in EXIT_TB
-OP_CFLAGS := -O2 -g -fno-strict-aliasing
-OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
-OP_CFLAGS += -Wshadow
 endif # !CONFIG_MY_EXTENSIONS
 
 # cc-option

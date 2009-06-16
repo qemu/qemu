@@ -681,6 +681,15 @@ Disable HPET support.
 ETEXI
 
 #ifdef TARGET_I386
+DEF("no-virtio-balloon", 0, QEMU_OPTION_no_virtio_balloon,
+    "-no-virtio-balloon disable virtio balloon device\n")
+#endif
+STEXI
+@item -no-virtio-balloon
+Disable virtio-balloon device.
+ETEXI
+
+#ifdef TARGET_I386
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
     "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,data=file1[:file2]...]\n"
     "                ACPI table description\n")
@@ -723,7 +732,7 @@ STEXI
 @table @option
 ETEXI
 
-DEF("net", HAS_ARG, QEMU_OPTION_net, \
+DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP

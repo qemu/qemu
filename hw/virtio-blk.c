@@ -299,6 +299,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     stw_raw(&blkcfg.cylinders, cylinders);
     blkcfg.heads = heads;
     blkcfg.sectors = secs;
+    blkcfg.size_max = 0;
     memcpy(config, &blkcfg, sizeof(blkcfg));
 }
 

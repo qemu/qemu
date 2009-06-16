@@ -57,7 +57,7 @@ void i2c_slave_load(QEMUFile *f, i2c_slave *dev);
 #define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(i2c_slave, qdev, dev)
 #define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
 
-void i2c_register_slave(const char *name, int size, I2CSlaveInfo *type);
+void i2c_register_slave(I2CSlaveInfo *type);
 
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr);
 

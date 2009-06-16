@@ -301,5 +301,7 @@ void migrate_fd_wait_for_unfreeze(void *opaque)
 int migrate_fd_close(void *opaque)
 {
     FdMigrationState *s = opaque;
+
+    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
     return s->close(s);
 }

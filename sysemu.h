@@ -116,6 +116,7 @@ extern int win2k_install_hack;
 extern int rtc_td_hack;
 extern int alt_grab;
 extern int usb_enabled;
+extern int no_virtio_balloon;
 extern int smp_cpus;
 extern int cursor_hide;
 extern int graphic_rotate;
@@ -270,7 +271,8 @@ void usb_info(Monitor *mon);
 
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
-int check_params(const char * const *params, const char *str);
+int check_params(char *buf, int buf_size,
+                 const char * const *params, const char *str);
 
 void register_devices(void);
 

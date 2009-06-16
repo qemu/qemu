@@ -365,11 +365,7 @@ else
 fi
 [ -f "$workdir/vl.c" ] || source_path_used="yes"
 
-werror="no"
-# generate compile errors on warnings for development builds
-#if grep cvs $source_path/VERSION > /dev/null 2>&1 ; then
-#werror="yes";
-#fi
+werror=""
 
 for opt do
   optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
@@ -532,8 +528,21 @@ CFLAGS="$CFLAGS -Wmissing-prototypes"
 CFLAGS="$CFLAGS -Wstrict-prototypes"
 #~ CFLAGS="$CFLAGS -Wunreachable-code"
 LDFLAGS="$LDFLAGS -g"
+
+# Consult white-list to determine whether to enable werror
+# by default.  Only enable by default for git builds
+if test -z "$werror" ; then
+    z_version=`cut -f3 -d. $source_path/VERSION`
+    if test "$z_version" = "50" -a \
+        "$linux" = "yes" ; then
+        werror="yes"
+    else
+        werror="no"
+    fi
+fi
+
 if test "$werror" = "yes" ; then
-CFLAGS="$CFLAGS -Werror"
+    CFLAGS="$CFLAGS -Werror"
 fi
 
 if test "$solaris" = "no" ; then

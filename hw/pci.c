@@ -54,7 +54,6 @@ static void pci_set_irq(void *opaque, int irq_num, int level);
 target_phys_addr_t pci_mem_base;
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
-static int pci_irq_index;
 static PCIBus *first_bus;
 
 static void pcibus_save(QEMUFile *f, void *opaque)
@@ -247,9 +246,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          PCIConfigReadFunc *config_read,
                                          PCIConfigWriteFunc *config_write)
 {
-    if (pci_irq_index >= PCI_DEVICES_MAX)
-        return NULL;
-
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < 256; devfn += 8) {
             if (!bus->devices[devfn])
@@ -270,7 +266,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         config_write = pci_default_write_config;
     pci_dev->config_read = config_read;
     pci_dev->config_write = config_write;
-    pci_dev->irq_index = pci_irq_index++;
     bus->devices[devfn] = pci_dev;
     pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, 4);
     return pci_dev;
@@ -324,7 +319,6 @@ int pci_unregister_device(PCIDevice *pci_dev)
     pci_unregister_io_regions(pci_dev);
 
     qemu_free_irqs(pci_dev->irq);
-    pci_irq_index--;
     pci_dev->bus->devices[pci_dev->devfn] = NULL;
     qdev_free(&pci_dev->qdev);
     return 0;
@@ -952,11 +946,13 @@ void pci_qdev_register(const char *name, int size, pci_qdev_initfn init)
     PCIDeviceInfo *info;
 
     info = qemu_mallocz(sizeof(*info));
+    info->qdev.name = qemu_strdup(name);
+    info->qdev.size = size;
     info->init = init;
     info->qdev.init = pci_qdev_init;
     info->qdev.bus_type = BUS_TYPE_PCI;
 
-    qdev_register(name, size, &info->qdev);
+    qdev_register(&info->qdev);
 }
 
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)

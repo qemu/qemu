@@ -51,7 +51,7 @@
 
 // ------------------------------------------------------------ dma_descr_group
 typedef struct dma_descr_group {
-  struct dma_descr_group       *next;
+  uint32_t                      next;
   unsigned                      eol        : 1;
   unsigned                      tol        : 1;
   unsigned                      bol        : 1;
@@ -71,7 +71,7 @@ typedef struct dma_descr_group {
 
 // ---------------------------------------------------------- dma_descr_context
 typedef struct dma_descr_context {
-  struct dma_descr_context     *next;
+  uint32_t                      next;
   unsigned                      eol        : 1;
   unsigned                                 : 3;
   unsigned                      intr       : 1;
@@ -85,14 +85,14 @@ typedef struct dma_descr_context {
   unsigned                      md2;
   unsigned                      md3;
   unsigned                      md4;
-  struct dma_descr_data        *saved_data;
-  char                         *saved_data_buf;
+  uint32_t                      saved_data;
+  uint32_t                      saved_data_buf;
 } dma_descr_context;
 
 // ------------------------------------------------------------- dma_descr_data
 typedef struct dma_descr_data {
-  struct dma_descr_data        *next;
-  char                         *buf;
+  uint32_t                      next;
+  uint32_t                      buf;
   unsigned                      eol        : 1;
   unsigned                                 : 2;
   unsigned                      out_eop    : 1;
@@ -103,7 +103,7 @@ typedef struct dma_descr_data {
   unsigned                      in_eop     : 1;
   unsigned                                 : 4;
   unsigned                      md         : 16;
-  char                         *after;
+  uint32_t                      after;
 } dma_descr_data;
 
 /* Constants */
@@ -233,18 +233,18 @@ static void channel_load_g(struct fs_dma_ctrl *ctrl, int c)
 static void dump_c(int ch, struct dma_descr_context *c)
 {
 	printf("%s ch=%d\n", __func__, ch);
-	printf("next=%p\n", c->next);
-	printf("saved_data=%p\n", c->saved_data);
-	printf("saved_data_buf=%p\n", c->saved_data_buf);
+	printf("next=%x\n", c->next);
+	printf("saved_data=%x\n", c->saved_data);
+	printf("saved_data_buf=%x\n", c->saved_data_buf);
 	printf("eol=%x\n", (uint32_t) c->eol);
 }
 
 static void dump_d(int ch, struct dma_descr_data *d)
 {
 	printf("%s ch=%d\n", __func__, ch);
-	printf("next=%p\n", d->next);
-	printf("buf=%p\n", d->buf);
-	printf("after=%p\n", d->after);
+	printf("next=%x\n", d->next);
+	printf("buf=%x\n", d->buf);
+	printf("after=%x\n", d->after);
 	printf("intr=%x\n", (uint32_t) d->intr);
 	printf("out_eop=%x\n", (uint32_t) d->out_eop);
 	printf("in_eop=%x\n", (uint32_t) d->in_eop);
@@ -274,7 +274,7 @@ static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
 	target_phys_addr_t addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
 	/* Load and decode. FIXME: handle endianness.  */
-	D(printf("%s ch=%d addr=%x\n", __func__, c, addr));
+	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
 	cpu_physical_memory_read (addr,
 				  (void *) &ctrl->channels[c].current_d, 
 				  sizeof ctrl->channels[c].current_d);
@@ -288,7 +288,7 @@ static void channel_store_c(struct fs_dma_ctrl *ctrl, int c)
 	target_phys_addr_t addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
 
 	/* Encode and store. FIXME: handle endianness.  */
-	D(printf("%s ch=%d addr=%x\n", __func__, c, addr));
+	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
 	D(dump_d(c, &ctrl->channels[c].current_d));
 	cpu_physical_memory_write (addr,
 				  (void *) &ctrl->channels[c].current_c,
@@ -300,7 +300,7 @@ static void channel_store_d(struct fs_dma_ctrl *ctrl, int c)
 	target_phys_addr_t addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
 	/* Encode and store. FIXME: handle endianness.  */
-	D(printf("%s ch=%d addr=%x\n", __func__, c, addr));
+	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
 	cpu_physical_memory_write (addr,
 				  (void *) &ctrl->channels[c].current_d, 
 				  sizeof ctrl->channels[c].current_d);
@@ -347,7 +347,7 @@ static void channel_continue(struct fs_dma_ctrl *ctrl, int c)
 	/* If the current descriptor cleared the eol flag and we had already
 	   reached eol state, do the continue.  */
 	if (!ctrl->channels[c].current_d.eol && ctrl->channels[c].eol) {
-		D(printf("continue %d ok %p\n", c,
+		D(printf("continue %d ok %x\n", c,
 			 ctrl->channels[c].current_d.next));
 		ctrl->channels[c].regs[RW_SAVED_DATA] =
 			(uint32_t)(unsigned long)ctrl->channels[c].current_d.next;
@@ -406,11 +406,10 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 		return 0;
 
 	do {
-		D(printf("ch=%d buf=%x after=%x saved_data_buf=%x\n",
+		D(printf("ch=%d buf=%x after=%x\n",
 			 c,
 			 (uint32_t)ctrl->channels[c].current_d.buf,
-			 (uint32_t)ctrl->channels[c].current_d.after,
-			 saved_data_buf));
+			 (uint32_t)ctrl->channels[c].current_d.after));
 
 		channel_load_d(ctrl, c);
 		saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
@@ -507,8 +506,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 		D(printf("in dscr end len=%d\n", 
 			 ctrl->channels[c].current_d.after
 			 - ctrl->channels[c].current_d.buf));
-		ctrl->channels[c].current_d.after = 
-			(void *)(unsigned long) saved_data_buf;
+		ctrl->channels[c].current_d.after = saved_data_buf;
 
 		/* Done. Step to next.  */
 		if (ctrl->channels[c].current_d.intr) {
@@ -560,10 +558,11 @@ static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 		return 0;
 }
 
-static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
+static uint32_t QEMU_NORETURN
+dma_rinvalid (void *opaque, target_phys_addr_t addr)
 {
-        hw_error("Unsupported short access. reg=" TARGET_FMT_plx "\n", addr);
-        return 0;
+        hw_error("Unsupported short raccess. reg=" TARGET_FMT_plx "\n", addr);
+        //~ return 0;
 }
 
 static uint32_t
@@ -587,17 +586,17 @@ dma_readl (void *opaque, target_phys_addr_t addr)
 
 		default:
 			r = ctrl->channels[c].regs[addr];
-			D(printf ("%s c=%d addr=%x\n",
+			D(printf ("%s c=%d addr=" TARGET_FMT_plx "\n",
 				  __func__, c, addr));
 			break;
 	}
 	return r;
 }
 
-static void
+static void QEMU_NORETURN
 dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-        hw_error("Unsupported short access. reg=" TARGET_FMT_plx "\n", addr);
+        hw_error("Unsupported short waccess. reg=" TARGET_FMT_plx "\n", addr);
 }
 
 static void
@@ -666,7 +665,8 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 			break;
 
 	        default:
-			D(printf ("%s c=%d %x %x\n", __func__, c, addr));
+			D(printf ("%s c=%d " TARGET_FMT_plx "\n",
+				__func__, c, addr));
 			break;
         }
 }

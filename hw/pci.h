@@ -93,8 +93,6 @@ typedef struct PCIIORegion {
 #define PCI_ROM_SLOT 6
 #define PCI_NUM_REGIONS 7
 
-#define PCI_DEVICES_MAX 64
-
 /* Declarations from linux/pci_regs.h */
 #define PCI_VENDOR_ID		0x00	/* 16 bits */
 #define PCI_DEVICE_ID		0x02	/* 16 bits */
@@ -155,8 +153,6 @@ struct PCIDevice {
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
     PCIUnregisterFunc *unregister;
-    /* ??? This is a PC-specific hack, and should be removed.  */
-    int irq_index;
 
     /* IRQ objects for the INTA-INTD pins.  */
     qemu_irq *irq;

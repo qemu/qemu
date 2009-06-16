@@ -1444,6 +1444,8 @@ static void stellaris_machine_init(void)
 machine_init(stellaris_machine_init);
 
 static SSISlaveInfo stellaris_ssi_bus_info = {
+    .qdev.name = "evb6965-ssi",
+    .qdev.size = sizeof(stellaris_ssi_bus_state),
     .init = stellaris_ssi_bus_init,
     .transfer = stellaris_ssi_bus_transfer
 };
@@ -1456,8 +1458,7 @@ static void stellaris_register_devices(void)
                         stellaris_gptm_init);
     sysbus_register_dev("stellaris-adc", sizeof(stellaris_adc_state),
                         stellaris_adc_init);
-    ssi_register_slave("evb6965-ssi", sizeof(stellaris_ssi_bus_state),
-                       &stellaris_ssi_bus_info);
+    ssi_register_slave(&stellaris_ssi_bus_info);
 }
 
 device_init(stellaris_register_devices)

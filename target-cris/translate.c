@@ -126,7 +126,7 @@ typedef struct DisasContext {
 	int singlestep_enabled;
 } DisasContext;
 
-static void gen_BUG(DisasContext *dc, const char *file, int line)
+static void QEMU_NORETURN gen_BUG(DisasContext *dc, const char *file, int line)
 {
 	printf ("BUG: pc=%x %s %d\n", dc->pc, file, line);
 	qemu_log("BUG: pc=%x %s %d\n", dc->pc, file, line);
@@ -2393,7 +2393,7 @@ static unsigned int dec_test_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("test.%d [$r%u%s] op2=%x\n",
+	LOG_DIS("test.%c [$r%u%s] op2=%x\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2417,7 +2417,7 @@ static unsigned int dec_and_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("and.%d [$r%u%s, $r%u\n",
+	LOG_DIS("and.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2436,7 +2436,7 @@ static unsigned int dec_add_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("add.%d [$r%u%s, $r%u\n",
+	LOG_DIS("add.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2456,7 +2456,7 @@ static unsigned int dec_addo_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("add.%d [$r%u%s, $r%u\n",
+	LOG_DIS("add.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2475,7 +2475,7 @@ static unsigned int dec_bound_m(DisasContext *dc)
 	TCGv l[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("bound.%d [$r%u%s, $r%u\n",
+	LOG_DIS("bound.%c [$r%u%s, $r%u\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2);
@@ -2538,7 +2538,7 @@ static unsigned int dec_or_m(DisasContext *dc)
 	TCGv t[2];
 	int memsize = memsize_zz(dc);
 	int insn_len;
-	LOG_DIS("or.%d [$r%u%s, $r%u pc=%x\n",
+	LOG_DIS("or.%c [$r%u%s, $r%u pc=%x\n",
 		    memsize_char(memsize),
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2, dc->pc);
@@ -2693,8 +2693,8 @@ static unsigned int dec_move_rm(DisasContext *dc)
 
 	memsize = memsize_zz(dc);
 
-	LOG_DIS("move.%d $r%u, [$r%u]\n",
-		     memsize, dc->op2, dc->op1);
+	LOG_DIS("move.%c $r%u, [$r%u]\n",
+		     memsize_char(memsize), dc->op2, dc->op1);
 
 	/* prepare store.  */
 	cris_flush_cc_state(dc);
@@ -2912,13 +2912,13 @@ static unsigned int dec_ftag_fidx_i_m(DisasContext *dc)
 	return 2;
 }
 
-static unsigned int dec_null(DisasContext *dc)
+static unsigned int QEMU_NORETURN dec_null(DisasContext *dc)
 {
 	printf ("unknown insn pc=%x opc=%x op1=%x op2=%x\n",
 		dc->pc, dc->opcode, dc->op1, dc->op2);
 	fflush(NULL);
 	BUG();
-	return 2;
+	//~ return 2;
 }
 
 static struct decoder_info {

@@ -166,4 +166,5 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 
 void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd);
 
+int cpu_is_bsp(CPUState *env);
 #endif

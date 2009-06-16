@@ -206,14 +206,14 @@ static void smbus_device_init(i2c_slave *i2c)
     t->init(dev);
 }
 
-void smbus_register_device(const char *name, int size, SMBusDeviceInfo *info)
+void smbus_register_device(SMBusDeviceInfo *info)
 {
-    assert(size >= sizeof(SMBusDevice));
+    assert(info->i2c.qdev.size >= sizeof(SMBusDevice));
     info->i2c.init = smbus_device_init;
     info->i2c.event = smbus_i2c_event;
     info->i2c.recv = smbus_i2c_recv;
     info->i2c.send = smbus_i2c_send;
-    i2c_register_slave(name, size, &info->i2c);
+    i2c_register_slave(&info->i2c);
 }
 
 /* Master device commands.  */
