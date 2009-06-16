@@ -1703,7 +1703,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     const char *backing_fmt = NULL;
     uint64_t sectors = 0;
     int flags = 0;
-    size_t cluster_size = 4096;
+    size_t cluster_size = 65536;
 
     /* Read out options */
     while (options && options->name) {
