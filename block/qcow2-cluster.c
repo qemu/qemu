@@ -578,6 +578,28 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     return cluster_offset;
 }
 
+/*
+ * Write L2 table updates to disk, writing whole sectors to avoid a
+ * read-modify-write in bdrv_pwrite
+ */
+#define L2_ENTRIES_PER_SECTOR (512 / 8)
+static int write_l2_entries(BDRVQcowState *s, uint64_t *l2_table,
+    uint64_t l2_offset, int l2_index, int num)
+{
+    int l2_start_index = l2_index & ~(L1_ENTRIES_PER_SECTOR - 1);
+    int start_offset = (8 * l2_index) & ~511;
+    int end_offset = (8 * (l2_index + num) + 511) & ~511;
+    size_t len = end_offset - start_offset;
+
+    if (bdrv_pwrite(s->hd, l2_offset + start_offset, &l2_table[l2_start_index],
+        len) != len)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
 int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
     QCowL2Meta *m)
 {
@@ -625,10 +647,10 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
                     (i << s->cluster_bits)) | QCOW_OFLAG_COPIED);
      }
 
-    if (bdrv_pwrite(s->hd, l2_offset + l2_index * sizeof(uint64_t),
-                l2_table + l2_index, m->nb_clusters * sizeof(uint64_t)) !=
-            m->nb_clusters * sizeof(uint64_t))
+    if (write_l2_entries(s, l2_table, l2_offset, l2_index, m->nb_clusters) < 0) {
+        ret = -1;
         goto err;
+    }
 
     for (i = 0; i < j; i++)
         qcow2_free_any_clusters(bs,
