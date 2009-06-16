@@ -171,6 +171,31 @@ static uint64_t *l2_load(BlockDriverState *bs, uint64_t l2_offset)
 }
 
 /*
+ * Writes one sector of the L1 table to the disk (can't update single entries
+ * and we really don't want bdrv_pread to perform a read-modify-write)
+ */
+#define L1_ENTRIES_PER_SECTOR (512 / 8)
+static int write_l1_entry(BDRVQcowState *s, int l1_index)
+{
+    uint64_t buf[L1_ENTRIES_PER_SECTOR];
+    int l1_start_index;
+    int i;
+
+    l1_start_index = l1_index & ~(L1_ENTRIES_PER_SECTOR - 1);
+    for (i = 0; i < L1_ENTRIES_PER_SECTOR; i++) {
+        buf[i] = cpu_to_be64(s->l1_table[l1_start_index + i]);
+    }
+
+    if (bdrv_pwrite(s->hd, s->l1_table_offset + 8 * l1_start_index,
+        buf, sizeof(buf)) != sizeof(buf))
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
  * l2_allocate
  *
  * Allocate a new l2 entry in the file. If l1_index points to an already
@@ -184,7 +209,7 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
 {
     BDRVQcowState *s = bs->opaque;
     int min_index;
-    uint64_t old_l2_offset, tmp;
+    uint64_t old_l2_offset;
     uint64_t *l2_table, l2_offset;
 
     old_l2_offset = s->l1_table[l1_index];
@@ -196,11 +221,9 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
     /* update the L1 entry */
 
     s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
-
-    tmp = cpu_to_be64(l2_offset | QCOW_OFLAG_COPIED);
-    if (bdrv_pwrite(s->hd, s->l1_table_offset + l1_index * sizeof(tmp),
-                    &tmp, sizeof(tmp)) != sizeof(tmp))
+    if (write_l1_entry(s, l1_index) < 0) {
         return NULL;
+    }
 
     /* allocate a new entry in the l2 cache */
 
