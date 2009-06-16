@@ -209,6 +209,27 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     return refcount_block_offset;
 }
 
+#define REFCOUNTS_PER_SECTOR (512 >> REFCOUNT_SHIFT)
+static int write_refcount_block_entries(BDRVQcowState *s,
+    int64_t refcount_block_offset, int first_index, int last_index)
+{
+    size_t size;
+
+    first_index &= ~(REFCOUNTS_PER_SECTOR - 1);
+    last_index = (last_index + REFCOUNTS_PER_SECTOR)
+        & ~(REFCOUNTS_PER_SECTOR - 1);
+
+    size = (last_index - first_index) << REFCOUNT_SHIFT;
+    if (bdrv_pwrite(s->hd,
+        refcount_block_offset + (first_index << REFCOUNT_SHIFT),
+        &s->refcount_block_cache[first_index], size) != size)
+    {
+        return -EIO;
+    }
+
+    return 0;
+}
+
 /* XXX: cache several refcount block clusters ? */
 static int update_refcount(BlockDriverState *bs,
                             int64_t offset, int64_t length,
@@ -238,10 +259,9 @@ static int update_refcount(BlockDriverState *bs,
         old_table_index = table_index;
         table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
         if ((old_table_index >= 0) && (table_index != old_table_index)) {
-            size_t size = (last_index - first_index + 1) << REFCOUNT_SHIFT;
-            if (bdrv_pwrite(s->hd,
-                refcount_block_offset + (first_index << REFCOUNT_SHIFT),
-                &s->refcount_block_cache[first_index], size) != size)
+
+            if (write_refcount_block_entries(s, refcount_block_offset,
+                first_index, last_index) < 0)
             {
                 return -EIO;
             }
@@ -278,10 +298,8 @@ static int update_refcount(BlockDriverState *bs,
 
     /* Write last changed block to disk */
     if (refcount_block_offset != 0) {
-        size_t size = (last_index - first_index + 1) << REFCOUNT_SHIFT;
-        if (bdrv_pwrite(s->hd,
-            refcount_block_offset + (first_index << REFCOUNT_SHIFT),
-            &s->refcount_block_cache[first_index], size) != size)
+        if (write_refcount_block_entries(s, refcount_block_offset,
+            first_index, last_index) < 0)
         {
             return -EIO;
         }
