@@ -724,6 +724,8 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
+vl.o: CFLAGS+=$(SDL_CFLAGS)
+
 $(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a

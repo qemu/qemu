@@ -163,7 +163,7 @@ cocoa.o: cocoa.m
 
 sdl.o: sdl.c keymaps.c sdl_keysym.h
 
-sdl.o audio/sdlaudio.o: CFLAGS += $(SDL_CFLAGS)
+sdl.o audio/sdlaudio.o baum.o: CFLAGS += $(SDL_CFLAGS)
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
 
