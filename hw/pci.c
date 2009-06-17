@@ -87,6 +87,21 @@ static int  pcibus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void pci_bus_reset(void *opaque)
+{
+    PCIBus *bus = (PCIBus *)opaque;
+    int i;
+
+    for (i = 0; i < bus->nirq; i++) {
+        bus->irq_count[i] = 0;
+    }
+    for (i = 0; i < 256; i++) {
+        if (bus->devices[i])
+            memset(bus->devices[i]->irq_state, 0,
+                   sizeof(bus->devices[i]->irq_state));
+    }
+}
+
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq)
@@ -105,6 +120,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
+    qemu_register_reset(pci_bus_reset, 0, bus);
     return bus;
 }
 
