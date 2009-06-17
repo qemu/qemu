@@ -313,12 +313,10 @@ static always_inline void gen_sync_exception (DisasContext *ctx)
 }
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
-static void gen_##name (DisasContext *ctx);                                   \
-GEN_OPCODE(name, opc1, opc2, opc3, inval, type);
+GEN_OPCODE(name, opc1, opc2, opc3, inval, type)
 
 #define GEN_HANDLER2(name, onam, opc1, opc2, opc3, inval, type)               \
-static void gen_##name (DisasContext *ctx);                                   \
-GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type);                       \
+GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type)
 
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
@@ -456,23 +454,10 @@ static always_inline target_ulong MASK (uint32_t start, uint32_t end)
 
 /*****************************************************************************/
 /* PowerPC instructions table                                                */
-#if HOST_LONG_BITS == 64
-#define OPC_ALIGN 8
-#else
-#define OPC_ALIGN 4
-#endif
-#if defined(__APPLE__)
-#define OPCODES_SECTION                                                       \
-    __attribute__ ((section("__TEXT,__opcodes"), unused, aligned (OPC_ALIGN) ))
-#else
-#define OPCODES_SECTION                                                       \
-    __attribute__ ((section(".opcodes"), unused, aligned (OPC_ALIGN) ))
-#endif
 
 #if defined(DO_PPC_STATISTICS)
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
-extern opcode_t opc_##name;                                                   \
-OPCODES_SECTION opcode_t opc_##name = {                                       \
+{                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
@@ -486,7 +471,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
     .oname = stringify(name),                                                 \
 }
 #define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
-OPCODES_SECTION opcode_t opc_##name = {                                       \
+{                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
@@ -501,8 +486,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
 }
 #else
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
-extern opcode_t opc_##name;                                                   \
-OPCODES_SECTION opcode_t opc_##name = {                                       \
+{                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
@@ -515,8 +499,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
     .oname = stringify(name),                                                 \
 }
 #define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
-extern opcode_t opc_##name;                                                   \
-OPCODES_SECTION opcode_t opc_##name = {                                       \
+{                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
@@ -530,21 +513,6 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
 }
 #endif
 
-#define GEN_OPCODE_MARK(name)                                                 \
-extern opcode_t opc_##name;                                                   \
-OPCODES_SECTION opcode_t opc_##name = {                                       \
-    .opc1 = 0xFF,                                                             \
-    .opc2 = 0xFF,                                                             \
-    .opc3 = 0xFF,                                                             \
-    .pad  = { 0, },                                                           \
-    .handler = {                                                              \
-        .inval   = 0x00000000,                                                \
-        .type = 0x00,                                                         \
-        .handler = NULL,                                                      \
-    },                                                                        \
-    .oname = stringify(name),                                                 \
-}
-
 /* SPR load/store helpers */
 static always_inline void gen_load_spr(TCGv t, int reg)
 {
@@ -555,857 +523,6 @@ static always_inline void gen_store_spr(int reg, TCGv t)
 {
     tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, spr[reg]));
 }
-
-/* Start opcode list */
-GEN_OPCODE_MARK(start);
-GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE);
-GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER);
-GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER);
-GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400000, PPC_INTEGER);
-GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER);
-GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL);
-GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(mulhw, 0x1F, 0x0B, 0x02, 0x00000400, PPC_INTEGER);
-GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER);
-GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(mullwo, 0x1F, 0x0B, 0x17, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(mulli, 0x07, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(mulld, 0x1F, 0x09, 0x07, 0x00000000, PPC_64B);
-#endif
-GEN_HANDLER(neg, 0x1F, 0x08, 0x03, 0x0000F800, PPC_INTEGER);
-GEN_HANDLER(nego, 0x1F, 0x08, 0x13, 0x0000F800, PPC_INTEGER);
-GEN_HANDLER(subfic, 0x08, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(ori, 0x18, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(oris, 0x19, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(xori, 0x1A, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(xoris, 0x1B, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_POPCNTB);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B);
-#endif
-GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(slw, 0x1F, 0x18, 0x00, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(sraw, 0x1F, 0x18, 0x18, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(srw, 0x1F, 0x18, 0x10, 0x00000000, PPC_INTEGER);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(sld, 0x1F, 0x1B, 0x00, 0x00000000, PPC_64B);
-GEN_HANDLER(srad, 0x1F, 0x1A, 0x18, 0x00000000, PPC_64B);
-GEN_HANDLER2(sradi0, "sradi", 0x1F, 0x1A, 0x19, 0x00000000, PPC_64B);
-GEN_HANDLER2(sradi1, "sradi", 0x1F, 0x1B, 0x19, 0x00000000, PPC_64B);
-GEN_HANDLER(srd, 0x1F, 0x1B, 0x10, 0x00000000, PPC_64B);
-#endif
-GEN_HANDLER(frsqrtes, 0x3B, 0x1A, 0xFF, 0x001F07C0, PPC_FLOAT_FRSQRTES);
-GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT);
-GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT);
-GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT);
-GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT);
-GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT);
-GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT);
-GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT);
-GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT);
-GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT);
-GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x00010000, PPC_FLOAT);
-GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B);
-GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX);
-GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B);
-#endif
-GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER);
-GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING);
-GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING);
-GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING);
-GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING);
-GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FFF801, PPC_MEM_EIEIO);
-GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM);
-GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES);
-GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B);
-GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B);
-#endif
-GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC);
-GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT);
-GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW);
-GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW);
-GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW);
-GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW);
-GEN_HANDLER(mcrf, 0x13, 0x00, 0xFF, 0x00000001, PPC_INTEGER);
-GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B);
-GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H);
-#endif
-GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFF01D, PPC_FLOW);
-GEN_HANDLER(tw, 0x1F, 0x04, 0x00, 0x00000001, PPC_FLOW);
-GEN_HANDLER(twi, 0x03, 0xFF, 0xFF, 0x00000000, PPC_FLOW);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(td, 0x1F, 0x04, 0x02, 0x00000001, PPC_64B);
-GEN_HANDLER(tdi, 0x02, 0xFF, 0xFF, 0x00000000, PPC_64B);
-#endif
-GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC);
-GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC);
-GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC);
-GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC);
-GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB);
-GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B);
-#endif
-GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC);
-GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC);
-GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE);
-GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE);
-GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE);
-GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x02000001, PPC_CACHE);
-GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE);
-GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ);
-GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT);
-GEN_HANDLER(dst, 0x1F, 0x16, 0x0A, 0x01800001, PPC_ALTIVEC);
-GEN_HANDLER(dstst, 0x1F, 0x16, 0x0B, 0x02000001, PPC_ALTIVEC);
-GEN_HANDLER(dss, 0x1F, 0x16, 0x19, 0x019FF801, PPC_ALTIVEC);
-GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI);
-GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_DCBA);
-GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT);
-GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT);
-GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT);
-GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT);
-#if defined(TARGET_PPC64)
-GEN_HANDLER2(mfsr_64b, "mfsr", 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B);
-GEN_HANDLER2(mfsrin_64b, "mfsrin", 0x1F, 0x13, 0x14, 0x001F0001,
-             PPC_SEGMENT_64B);
-GEN_HANDLER2(mtsr_64b, "mtsr", 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B);
-GEN_HANDLER2(mtsrin_64b, "mtsrin", 0x1F, 0x12, 0x07, 0x001F0001,
-             PPC_SEGMENT_64B);
-GEN_HANDLER2(slbmte, "slbmte", 0x1F, 0x12, 0x0C, 0x00000000, PPC_SEGMENT_64B);
-#endif
-GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA);
-GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x03FF0001, PPC_MEM_TLBIE);
-GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM_TLBIE);
-GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC);
-#if defined(TARGET_PPC64)
-GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI);
-GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI);
-#endif
-GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN);
-GEN_HANDLER(ecowx, 0x1F, 0x16, 0x09, 0x00000001, PPC_EXTERN);
-GEN_HANDLER(abs, 0x1F, 0x08, 0x0B, 0x0000F800, PPC_POWER_BR);
-GEN_HANDLER(abso, 0x1F, 0x08, 0x1B, 0x0000F800, PPC_POWER_BR);
-GEN_HANDLER(clcs, 0x1F, 0x10, 0x13, 0x0000F800, PPC_POWER_BR);
-GEN_HANDLER(div, 0x1F, 0x0B, 0x0A, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(divo, 0x1F, 0x0B, 0x1A, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(divs, 0x1F, 0x0B, 0x0B, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(divso, 0x1F, 0x0B, 0x1B, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(doz, 0x1F, 0x08, 0x08, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(dozo, 0x1F, 0x08, 0x18, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(lscbx, 0x1F, 0x15, 0x08, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(maskg, 0x1F, 0x1D, 0x00, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(maskir, 0x1F, 0x1D, 0x10, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(mul, 0x1F, 0x0B, 0x03, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(mulo, 0x1F, 0x0B, 0x13, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(nabs, 0x1F, 0x08, 0x0F, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(nabso, 0x1F, 0x08, 0x1F, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(rlmi, 0x16, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(rrib, 0x1F, 0x19, 0x10, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sle, 0x1F, 0x19, 0x04, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sleq, 0x1F, 0x19, 0x06, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sliq, 0x1F, 0x18, 0x05, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(slliq, 0x1F, 0x18, 0x07, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sllq, 0x1F, 0x18, 0x06, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(slq, 0x1F, 0x18, 0x04, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sraiq, 0x1F, 0x18, 0x1D, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sraq, 0x1F, 0x18, 0x1C, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sre, 0x1F, 0x19, 0x14, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(srea, 0x1F, 0x19, 0x1C, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sreq, 0x1F, 0x19, 0x16, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(sriq, 0x1F, 0x18, 0x15, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(srliq, 0x1F, 0x18, 0x17, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(srlq, 0x1F, 0x18, 0x16, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(srq, 0x1F, 0x18, 0x14, 0x00000000, PPC_POWER_BR);
-GEN_HANDLER(dsa, 0x1F, 0x14, 0x13, 0x03FFF801, PPC_602_SPEC);
-GEN_HANDLER(esa, 0x1F, 0x14, 0x12, 0x03FFF801, PPC_602_SPEC);
-GEN_HANDLER(mfrom, 0x1F, 0x09, 0x08, 0x03E0F801, PPC_602_SPEC);
-GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB);
-GEN_HANDLER2(tlbli_6xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB);
-GEN_HANDLER2(tlbld_74xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB);
-GEN_HANDLER2(tlbli_74xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB);
-GEN_HANDLER(clf, 0x1F, 0x16, 0x03, 0x03E00000, PPC_POWER);
-GEN_HANDLER(cli, 0x1F, 0x16, 0x0F, 0x03E00000, PPC_POWER);
-GEN_HANDLER(dclst, 0x1F, 0x16, 0x13, 0x03E00000, PPC_POWER);
-GEN_HANDLER(mfsri, 0x1F, 0x13, 0x13, 0x00000001, PPC_POWER);
-GEN_HANDLER(rac, 0x1F, 0x12, 0x19, 0x00000001, PPC_POWER);
-GEN_HANDLER(rfsvc, 0x13, 0x12, 0x02, 0x03FFF0001, PPC_POWER);
-GEN_HANDLER(lfq, 0x38, 0xFF, 0xFF, 0x00000003, PPC_POWER2);
-GEN_HANDLER(lfqu, 0x39, 0xFF, 0xFF, 0x00000003, PPC_POWER2);
-GEN_HANDLER(lfqux, 0x1F, 0x17, 0x19, 0x00000001, PPC_POWER2);
-GEN_HANDLER(lfqx, 0x1F, 0x17, 0x18, 0x00000001, PPC_POWER2);
-GEN_HANDLER(stfq, 0x3C, 0xFF, 0xFF, 0x00000003, PPC_POWER2);
-GEN_HANDLER(stfqu, 0x3D, 0xFF, 0xFF, 0x00000003, PPC_POWER2);
-GEN_HANDLER(stfqux, 0x1F, 0x17, 0x1D, 0x00000001, PPC_POWER2);
-GEN_HANDLER(stfqx, 0x1F, 0x17, 0x1C, 0x00000001, PPC_POWER2);
-GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_MFAPIDI);
-GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_TLBIVA);
-GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_DCR);
-GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_DCR);
-GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_DCRX);
-GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_DCRX);
-GEN_HANDLER(mfdcrux, 0x1F, 0x03, 0x09, 0x00000000, PPC_DCRUX);
-GEN_HANDLER(mtdcrux, 0x1F, 0x03, 0x0D, 0x00000000, PPC_DCRUX);
-GEN_HANDLER(dccci, 0x1F, 0x06, 0x0E, 0x03E00001, PPC_4xx_COMMON);
-GEN_HANDLER(dcread, 0x1F, 0x06, 0x0F, 0x00000001, PPC_4xx_COMMON);
-GEN_HANDLER2(icbt_40x, "icbt", 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT);
-GEN_HANDLER(iccci, 0x1F, 0x06, 0x1E, 0x00000001, PPC_4xx_COMMON);
-GEN_HANDLER(icread, 0x1F, 0x06, 0x1F, 0x03E00001, PPC_4xx_COMMON);
-GEN_HANDLER2(rfci_40x, "rfci", 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP);
-GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE);
-GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_RFDI);
-GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI);
-GEN_HANDLER2(tlbre_40x, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB);
-GEN_HANDLER2(tlbsx_40x, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB);
-GEN_HANDLER2(tlbwe_40x, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB);
-GEN_HANDLER2(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE);
-GEN_HANDLER2(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE);
-GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE);
-GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE);
-GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE);
-GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC);
-GEN_HANDLER(mbar, 0x1F, 0x16, 0x1a, 0x001FF801, PPC_BOOKE);
-GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE);
-GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE);
-GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC);
-GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC);
-GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC);
-GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC);
-GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC);
-GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC);
-GEN_HANDLER2(evsel0, "evsel", 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE);
-GEN_HANDLER2(evsel1, "evsel", 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE);
-GEN_HANDLER2(evsel2, "evsel", 0x04, 0x1e, 0x09, 0x00000000, PPC_SPE);
-GEN_HANDLER2(evsel3, "evsel", 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE);
-
-#define GEN_INT_ARITH_ADD(name, opc3, add_ca, compute_ca, compute_ov)         \
-GEN_HANDLER(name, 0x1F, 0x0A, opc3, 0x00000000, PPC_INTEGER);
-#define GEN_INT_ARITH_ADD_CONST(name, opc3, const_val,                        \
-                                add_ca, compute_ca, compute_ov)               \
-GEN_HANDLER(name, 0x1F, 0x0A, opc3, 0x0000F800, PPC_INTEGER);
-GEN_INT_ARITH_ADD(add, 0x08, 0, 0, 0)
-GEN_INT_ARITH_ADD(addo, 0x18, 0, 0, 1)
-GEN_INT_ARITH_ADD(addc, 0x00, 0, 1, 0)
-GEN_INT_ARITH_ADD(addco, 0x10, 0, 1, 1)
-GEN_INT_ARITH_ADD(adde, 0x04, 1, 1, 0)
-GEN_INT_ARITH_ADD(addeo, 0x14, 1, 1, 1)
-GEN_INT_ARITH_ADD_CONST(addme, 0x07, -1LL, 1, 1, 0)
-GEN_INT_ARITH_ADD_CONST(addmeo, 0x17, -1LL, 1, 1, 1)
-GEN_INT_ARITH_ADD_CONST(addze, 0x06, 0, 1, 1, 0)
-GEN_INT_ARITH_ADD_CONST(addzeo, 0x16, 0, 1, 1, 1)
-#undef GEN_INT_ARITH_ADD
-#undef GEN_INT_ARITH_ADD_CONST
-
-#define GEN_INT_ARITH_DIVW(name, opc3, sign, compute_ov)                      \
-GEN_HANDLER(name, 0x1F, 0x0B, opc3, 0x00000000, PPC_INTEGER);
-GEN_INT_ARITH_DIVW(divwu, 0x0E, 0, 0);
-GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1);
-GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0);
-GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1);
-#undef GEN_INT_ARITH_DIVW
-
-#if defined(TARGET_PPC64)
-#define GEN_INT_ARITH_DIVD(name, opc3, sign, compute_ov)                      \
-GEN_HANDLER(name, 0x1F, 0x09, opc3, 0x00000000, PPC_64B);
-GEN_INT_ARITH_DIVD(divdu, 0x0E, 0, 0);
-GEN_INT_ARITH_DIVD(divduo, 0x1E, 0, 1);
-GEN_INT_ARITH_DIVD(divd, 0x0F, 1, 0);
-GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1);
-#undef GEN_INT_ARITH_DIVD
-
-#define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
-GEN_HANDLER(name, 0x1F, 0x09, opc3, 0x00000000, PPC_64B);
-GEN_INT_ARITH_MUL_HELPER(mulhdu, 0x00);
-GEN_INT_ARITH_MUL_HELPER(mulhd, 0x02);
-GEN_INT_ARITH_MUL_HELPER(mulldo, 0x17);
-#undef GEN_INT_ARITH_MUL_HELPER
-#endif
-
-#define GEN_INT_ARITH_SUBF(name, opc3, add_ca, compute_ca, compute_ov)        \
-GEN_HANDLER(name, 0x1F, 0x08, opc3, 0x00000000, PPC_INTEGER);
-#define GEN_INT_ARITH_SUBF_CONST(name, opc3, const_val,                       \
-                                add_ca, compute_ca, compute_ov)               \
-GEN_HANDLER(name, 0x1F, 0x08, opc3, 0x0000F800, PPC_INTEGER);
-GEN_INT_ARITH_SUBF(subf, 0x01, 0, 0, 0)
-GEN_INT_ARITH_SUBF(subfo, 0x11, 0, 0, 1)
-GEN_INT_ARITH_SUBF(subfc, 0x00, 0, 1, 0)
-GEN_INT_ARITH_SUBF(subfco, 0x10, 0, 1, 1)
-GEN_INT_ARITH_SUBF(subfe, 0x04, 1, 1, 0)
-GEN_INT_ARITH_SUBF(subfeo, 0x14, 1, 1, 1)
-GEN_INT_ARITH_SUBF_CONST(subfme, 0x07, -1LL, 1, 1, 0)
-GEN_INT_ARITH_SUBF_CONST(subfmeo, 0x17, -1LL, 1, 1, 1)
-GEN_INT_ARITH_SUBF_CONST(subfze, 0x06, 0, 1, 1, 0)
-GEN_INT_ARITH_SUBF_CONST(subfzeo, 0x16, 0, 1, 1, 1)
-#undef GEN_INT_ARITH_SUBF
-#undef GEN_INT_ARITH_SUBF_CONST
-
-#define GEN_LOGICAL2(name, tcg_op, opc, type)                                 \
-GEN_HANDLER(name, 0x1F, 0x1C, opc, 0x00000000, type);
-#define GEN_LOGICAL1(name, tcg_op, opc, type)                                 \
-GEN_HANDLER(name, 0x1F, 0x1A, opc, 0x00000000, type);
-GEN_LOGICAL2(and, tcg_gen_and_tl, 0x00, PPC_INTEGER);
-GEN_LOGICAL2(andc, tcg_gen_andc_tl, 0x01, PPC_INTEGER);
-GEN_LOGICAL2(eqv, tcg_gen_eqv_tl, 0x08, PPC_INTEGER);
-GEN_LOGICAL1(extsb, tcg_gen_ext8s_tl, 0x1D, PPC_INTEGER);
-GEN_LOGICAL1(extsh, tcg_gen_ext16s_tl, 0x1C, PPC_INTEGER);
-GEN_LOGICAL2(nand, tcg_gen_nand_tl, 0x0E, PPC_INTEGER);
-GEN_LOGICAL2(nor, tcg_gen_nor_tl, 0x03, PPC_INTEGER);
-GEN_LOGICAL2(orc, tcg_gen_orc_tl, 0x0C, PPC_INTEGER);
-#if defined(TARGET_PPC64)
-GEN_LOGICAL1(extsw, tcg_gen_ext32s_tl, 0x1E, PPC_64B);
-#endif
-#undef GEN_LOGICAL1
-#undef GEN_LOGICAL2
-
-#if defined(TARGET_PPC64)
-#define GEN_PPC64_R2(name, opc1, opc2)                                        \
-GEN_HANDLER2(name##0, stringify(name), opc1, opc2, 0xFF, 0x00000000, PPC_64B);\
-GEN_HANDLER2(name##1, stringify(name), opc1, opc2 | 0x10, 0xFF, 0x00000000,   \
-             PPC_64B);
-#define GEN_PPC64_R4(name, opc1, opc2)                                        \
-GEN_HANDLER2(name##0, stringify(name), opc1, opc2, 0xFF, 0x00000000, PPC_64B);\
-GEN_HANDLER2(name##1, stringify(name), opc1, opc2 | 0x01, 0xFF, 0x00000000,   \
-             PPC_64B);                                                        \
-GEN_HANDLER2(name##2, stringify(name), opc1, opc2 | 0x10, 0xFF, 0x00000000,   \
-             PPC_64B);                                                        \
-GEN_HANDLER2(name##3, stringify(name), opc1, opc2 | 0x11, 0xFF, 0x00000000,   \
-             PPC_64B)
-GEN_PPC64_R4(rldicl, 0x1E, 0x00);
-GEN_PPC64_R4(rldicr, 0x1E, 0x02);
-GEN_PPC64_R4(rldic, 0x1E, 0x04);
-GEN_PPC64_R2(rldcl, 0x1E, 0x08);
-GEN_PPC64_R2(rldcr, 0x1E, 0x09);
-GEN_PPC64_R4(rldimi, 0x1E, 0x06);
-#undef GEN_PPC64_R2
-#undef GEN_PPC64_R4
-#endif
-
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type);
-#define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type);                     \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type);
-#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type);
-#define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
-_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
-#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type);
-#define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
-_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
-#define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
-GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type);
-#define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type);
-
-GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT);
-GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT);
-GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT);
-GEN_FLOAT_BS(re, 0x3F, 0x18, 1, PPC_FLOAT_EXT);
-GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES);
-GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE);
-_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL);
-GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT);
-GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT);
-GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT);
-GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT);
-GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT);
-GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT);
-GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT);
-GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
-#if defined(TARGET_PPC64)
-GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B);
-GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B);
-GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC_64B);
-#endif
-GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT);
-GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT);
-GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT);
-GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
-GEN_FLOAT_B(abs, 0x08, 0x08, 0, PPC_FLOAT);
-GEN_FLOAT_B(nabs, 0x08, 0x04, 0, PPC_FLOAT);
-GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT);
-#undef _GEN_FLOAT_ACB
-#undef GEN_FLOAT_ACB
-#undef _GEN_FLOAT_AB
-#undef GEN_FLOAT_AB
-#undef _GEN_FLOAT_AC
-#undef GEN_FLOAT_AC
-#undef GEN_FLOAT_B
-#undef GEN_FLOAT_BS
-
-#define GEN_LD(name, ldop, opc, type)                                         \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_LDU(name, ldop, opc, type)                                        \
-GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_LDUX(name, ldop, opc2, opc3, type)                                \
-GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type);
-#define GEN_LDX(name, ldop, opc2, opc3, type)                                 \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type);
-#define GEN_LDS(name, ldop, op, type)                                         \
-GEN_LD(name, ldop, op | 0x20, type);                                          \
-GEN_LDU(name, ldop, op | 0x21, type);                                         \
-GEN_LDUX(name, ldop, 0x17, op | 0x01, type);                                  \
-GEN_LDX(name, ldop, 0x17, op | 0x00, type)
-
-GEN_LDS(lbz, ld8u, 0x02, PPC_INTEGER);
-GEN_LDS(lha, ld16s, 0x0A, PPC_INTEGER);
-GEN_LDS(lhz, ld16u, 0x08, PPC_INTEGER);
-GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER);
-#if defined(TARGET_PPC64)
-GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B);
-GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B);
-GEN_LDUX(ld, ld64, 0x15, 0x01, PPC_64B);
-GEN_LDX(ld, ld64, 0x15, 0x00, PPC_64B);
-#endif
-GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
-GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
-#undef GEN_LD
-#undef GEN_LDU
-#undef GEN_LDUX
-#undef GEN_LDX
-#undef GEN_LDS
-
-#define GEN_ST(name, stop, opc, type)                                         \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_STU(name, stop, opc, type)                                        \
-GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_STUX(name, stop, opc2, opc3, type)                                \
-GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type);
-#define GEN_STX(name, stop, opc2, opc3, type)                                 \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type);
-#define GEN_STS(name, stop, op, type)                                         \
-GEN_ST(name, stop, op | 0x20, type);                                          \
-GEN_STU(name, stop, op | 0x21, type);                                         \
-GEN_STUX(name, stop, 0x17, op | 0x01, type);                                  \
-GEN_STX(name, stop, 0x17, op | 0x00, type)
-
-GEN_STS(stb, st8, 0x06, PPC_INTEGER);
-GEN_STS(sth, st16, 0x0C, PPC_INTEGER);
-GEN_STS(stw, st32, 0x04, PPC_INTEGER);
-#if defined(TARGET_PPC64)
-GEN_STUX(std, st64, 0x15, 0x05, PPC_64B);
-GEN_STX(std, st64, 0x15, 0x04, PPC_64B);
-#endif
-GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
-GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
-#undef GEN_ST
-#undef GEN_STU
-#undef GEN_STUX
-#undef GEN_STX
-#undef GEN_STS
-
-#define GEN_LDF(name, ldop, opc, type)                                        \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_LDUF(name, ldop, opc, type)                                       \
-GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_LDUXF(name, ldop, opc, type)                                      \
-GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type);
-#define GEN_LDXF(name, ldop, opc2, opc3, type)                                \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type);
-#define GEN_LDFS(name, ldop, op, type)                                        \
-GEN_LDF(name, ldop, op | 0x20, type);                                         \
-GEN_LDUF(name, ldop, op | 0x21, type);                                        \
-GEN_LDUXF(name, ldop, op | 0x01, type);                                       \
-GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
-
-GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT);
-GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT);
-#undef GEN_LDF
-#undef GEN_LDUF
-#undef GEN_LDUXF
-#undef GEN_LDXF
-
-#define GEN_STF(name, stop, opc, type)                                        \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_STUF(name, stop, opc, type)                                       \
-GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type);
-#define GEN_STUXF(name, stop, opc, type)                                      \
-GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type);
-#define GEN_STXF(name, stop, opc2, opc3, type)                                \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type);
-#define GEN_STFS(name, stop, op, type)                                        \
-GEN_STF(name, stop, op | 0x20, type);                                         \
-GEN_STUF(name, stop, op | 0x21, type);                                        \
-GEN_STUXF(name, stop, op | 0x01, type);                                       \
-GEN_STXF(name, stop, 0x17, op | 0x00, type)
-
-GEN_STFS(stfd, st64, 0x16, PPC_FLOAT);
-GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT);
-GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX);
-#undef GEN_STF
-#undef GEN_STUF
-#undef GEN_STUXF
-#undef GEN_STXF
-
-#define GEN_CRLOGIC(name, tcg_op, opc)                                        \
-GEN_HANDLER(name, 0x13, 0x01, opc, 0x00000001, PPC_INTEGER);
-GEN_CRLOGIC(crand, tcg_gen_and_i32, 0x08);
-GEN_CRLOGIC(crandc, tcg_gen_andc_i32, 0x04);
-GEN_CRLOGIC(creqv, tcg_gen_eqv_i32, 0x09);
-GEN_CRLOGIC(crnand, tcg_gen_nand_i32, 0x07);
-GEN_CRLOGIC(crnor, tcg_gen_nor_i32, 0x01);
-GEN_CRLOGIC(cror, tcg_gen_or_i32, 0x0E);
-GEN_CRLOGIC(crorc, tcg_gen_orc_i32, 0x0D);
-GEN_CRLOGIC(crxor, tcg_gen_xor_i32, 0x06);
-#undef GEN_CRLOGIC
-
-#define GEN_MAC_HANDLER(name, opc2, opc3)                                     \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_405_MAC);
-GEN_MAC_HANDLER(macchw, 0x0C, 0x05);
-GEN_MAC_HANDLER(macchwo, 0x0C, 0x15);
-GEN_MAC_HANDLER(macchws, 0x0C, 0x07);
-GEN_MAC_HANDLER(macchwso, 0x0C, 0x17);
-GEN_MAC_HANDLER(macchwsu, 0x0C, 0x06);
-GEN_MAC_HANDLER(macchwsuo, 0x0C, 0x16);
-GEN_MAC_HANDLER(macchwu, 0x0C, 0x04);
-GEN_MAC_HANDLER(macchwuo, 0x0C, 0x14);
-GEN_MAC_HANDLER(machhw, 0x0C, 0x01);
-GEN_MAC_HANDLER(machhwo, 0x0C, 0x11);
-GEN_MAC_HANDLER(machhws, 0x0C, 0x03);
-GEN_MAC_HANDLER(machhwso, 0x0C, 0x13);
-GEN_MAC_HANDLER(machhwsu, 0x0C, 0x02);
-GEN_MAC_HANDLER(machhwsuo, 0x0C, 0x12);
-GEN_MAC_HANDLER(machhwu, 0x0C, 0x00);
-GEN_MAC_HANDLER(machhwuo, 0x0C, 0x10);
-GEN_MAC_HANDLER(maclhw, 0x0C, 0x0D);
-GEN_MAC_HANDLER(maclhwo, 0x0C, 0x1D);
-GEN_MAC_HANDLER(maclhws, 0x0C, 0x0F);
-GEN_MAC_HANDLER(maclhwso, 0x0C, 0x1F);
-GEN_MAC_HANDLER(maclhwu, 0x0C, 0x0C);
-GEN_MAC_HANDLER(maclhwuo, 0x0C, 0x1C);
-GEN_MAC_HANDLER(maclhwsu, 0x0C, 0x0E);
-GEN_MAC_HANDLER(maclhwsuo, 0x0C, 0x1E);
-GEN_MAC_HANDLER(nmacchw, 0x0E, 0x05);
-GEN_MAC_HANDLER(nmacchwo, 0x0E, 0x15);
-GEN_MAC_HANDLER(nmacchws, 0x0E, 0x07);
-GEN_MAC_HANDLER(nmacchwso, 0x0E, 0x17);
-GEN_MAC_HANDLER(nmachhw, 0x0E, 0x01);
-GEN_MAC_HANDLER(nmachhwo, 0x0E, 0x11);
-GEN_MAC_HANDLER(nmachhws, 0x0E, 0x03);
-GEN_MAC_HANDLER(nmachhwso, 0x0E, 0x13);
-GEN_MAC_HANDLER(nmaclhw, 0x0E, 0x0D);
-GEN_MAC_HANDLER(nmaclhwo, 0x0E, 0x1D);
-GEN_MAC_HANDLER(nmaclhws, 0x0E, 0x0F);
-GEN_MAC_HANDLER(nmaclhwso, 0x0E, 0x1F);
-GEN_MAC_HANDLER(mulchw, 0x08, 0x05);
-GEN_MAC_HANDLER(mulchwu, 0x08, 0x04);
-GEN_MAC_HANDLER(mulhhw, 0x08, 0x01);
-GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00);
-GEN_MAC_HANDLER(mullhw, 0x08, 0x0D);
-GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C);
-#undef GEN_MAC_HANDLER
-
-#define GEN_VR_LDX(name, opc2, opc3)                                          \
-GEN_HANDLER(name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC);
-#define GEN_VR_STX(name, opc2, opc3)                                          \
-GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC);
-#define GEN_VR_LVE(name, opc2, opc3)                                    \
-    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC);
-#define GEN_VR_STVE(name, opc2, opc3)                                   \
-    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC);
-GEN_VR_LDX(lvx, 0x07, 0x03);
-GEN_VR_LDX(lvxl, 0x07, 0x0B);
-GEN_VR_LVE(bx, 0x07, 0x00);
-GEN_VR_LVE(hx, 0x07, 0x01);
-GEN_VR_LVE(wx, 0x07, 0x02);
-GEN_VR_STX(svx, 0x07, 0x07);
-GEN_VR_STX(svxl, 0x07, 0x0F);
-GEN_VR_STVE(bx, 0x07, 0x04);
-GEN_VR_STVE(hx, 0x07, 0x05);
-GEN_VR_STVE(wx, 0x07, 0x06);
-#undef GEN_VR_LDX
-#undef GEN_VR_STX
-#undef GEN_VR_LVE
-#undef GEN_VR_STVE
-
-#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC);
-GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16);
-GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17);
-GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
-GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
-GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
-#undef GEN_VX_LOGICAL
-
-#define GEN_VXFORM(name, opc2, opc3)                                    \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC);
-GEN_VXFORM(vaddubm, 0, 0);
-GEN_VXFORM(vadduhm, 0, 1);
-GEN_VXFORM(vadduwm, 0, 2);
-GEN_VXFORM(vsububm, 0, 16);
-GEN_VXFORM(vsubuhm, 0, 17);
-GEN_VXFORM(vsubuwm, 0, 18);
-GEN_VXFORM(vmaxub, 1, 0);
-GEN_VXFORM(vmaxuh, 1, 1);
-GEN_VXFORM(vmaxuw, 1, 2);
-GEN_VXFORM(vmaxsb, 1, 4);
-GEN_VXFORM(vmaxsh, 1, 5);
-GEN_VXFORM(vmaxsw, 1, 6);
-GEN_VXFORM(vminub, 1, 8);
-GEN_VXFORM(vminuh, 1, 9);
-GEN_VXFORM(vminuw, 1, 10);
-GEN_VXFORM(vminsb, 1, 12);
-GEN_VXFORM(vminsh, 1, 13);
-GEN_VXFORM(vminsw, 1, 14);
-GEN_VXFORM(vavgub, 1, 16);
-GEN_VXFORM(vavguh, 1, 17);
-GEN_VXFORM(vavguw, 1, 18);
-GEN_VXFORM(vavgsb, 1, 20);
-GEN_VXFORM(vavgsh, 1, 21);
-GEN_VXFORM(vavgsw, 1, 22);
-GEN_VXFORM(vmrghb, 6, 0);
-GEN_VXFORM(vmrghh, 6, 1);
-GEN_VXFORM(vmrghw, 6, 2);
-GEN_VXFORM(vmrglb, 6, 4);
-GEN_VXFORM(vmrglh, 6, 5);
-GEN_VXFORM(vmrglw, 6, 6);
-GEN_VXFORM(vmuloub, 4, 0);
-GEN_VXFORM(vmulouh, 4, 1);
-GEN_VXFORM(vmulosb, 4, 4);
-GEN_VXFORM(vmulosh, 4, 5);
-GEN_VXFORM(vmuleub, 4, 8);
-GEN_VXFORM(vmuleuh, 4, 9);
-GEN_VXFORM(vmulesb, 4, 12);
-GEN_VXFORM(vmulesh, 4, 13);
-GEN_VXFORM(vslb, 2, 4);
-GEN_VXFORM(vslh, 2, 5);
-GEN_VXFORM(vslw, 2, 6);
-GEN_VXFORM(vsrb, 2, 8);
-GEN_VXFORM(vsrh, 2, 9);
-GEN_VXFORM(vsrw, 2, 10);
-GEN_VXFORM(vsrab, 2, 12);
-GEN_VXFORM(vsrah, 2, 13);
-GEN_VXFORM(vsraw, 2, 14);
-GEN_VXFORM(vslo, 6, 16);
-GEN_VXFORM(vsro, 6, 17);
-GEN_VXFORM(vaddcuw, 0, 6);
-GEN_VXFORM(vsubcuw, 0, 22);
-GEN_VXFORM(vaddubs, 0, 8);
-GEN_VXFORM(vadduhs, 0, 9);
-GEN_VXFORM(vadduws, 0, 10);
-GEN_VXFORM(vaddsbs, 0, 12);
-GEN_VXFORM(vaddshs, 0, 13);
-GEN_VXFORM(vaddsws, 0, 14);
-GEN_VXFORM(vsububs, 0, 24);
-GEN_VXFORM(vsubuhs, 0, 25);
-GEN_VXFORM(vsubuws, 0, 26);
-GEN_VXFORM(vsubsbs, 0, 28);
-GEN_VXFORM(vsubshs, 0, 29);
-GEN_VXFORM(vsubsws, 0, 30);
-GEN_VXFORM(vrlb, 2, 0);
-GEN_VXFORM(vrlh, 2, 1);
-GEN_VXFORM(vrlw, 2, 2);
-GEN_VXFORM(vsl, 2, 7);
-GEN_VXFORM(vsr, 2, 11);
-GEN_VXFORM(vpkuhum, 7, 0);
-GEN_VXFORM(vpkuwum, 7, 1);
-GEN_VXFORM(vpkuhus, 7, 2);
-GEN_VXFORM(vpkuwus, 7, 3);
-GEN_VXFORM(vpkshus, 7, 4);
-GEN_VXFORM(vpkswus, 7, 5);
-GEN_VXFORM(vpkshss, 7, 6);
-GEN_VXFORM(vpkswss, 7, 7);
-GEN_VXFORM(vpkpx, 7, 12);
-GEN_VXFORM(vsum4ubs, 4, 24);
-GEN_VXFORM(vsum4sbs, 4, 28);
-GEN_VXFORM(vsum4shs, 4, 25);
-GEN_VXFORM(vsum2sws, 4, 26);
-GEN_VXFORM(vsumsws, 4, 30);
-GEN_VXFORM(vaddfp, 5, 0);
-GEN_VXFORM(vsubfp, 5, 1);
-GEN_VXFORM(vmaxfp, 5, 16);
-GEN_VXFORM(vminfp, 5, 17);
-#undef GEN_VXFORM
-
-#define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
-    GEN_HANDLER2(name, str, 0x4, opc2, opc3, 0x00000000, PPC_ALTIVEC);
-#define GEN_VXRFORM(name, opc2, opc3)                                \
-    GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
-    GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
-GEN_VXRFORM(vcmpequb, 3, 0)
-GEN_VXRFORM(vcmpequh, 3, 1)
-GEN_VXRFORM(vcmpequw, 3, 2)
-GEN_VXRFORM(vcmpgtsb, 3, 12)
-GEN_VXRFORM(vcmpgtsh, 3, 13)
-GEN_VXRFORM(vcmpgtsw, 3, 14)
-GEN_VXRFORM(vcmpgtub, 3, 8)
-GEN_VXRFORM(vcmpgtuh, 3, 9)
-GEN_VXRFORM(vcmpgtuw, 3, 10)
-GEN_VXRFORM(vcmpeqfp, 3, 3)
-GEN_VXRFORM(vcmpgefp, 3, 7)
-GEN_VXRFORM(vcmpgtfp, 3, 11)
-GEN_VXRFORM(vcmpbfp, 3, 15)
-#undef GEN_VXRFORM1
-#undef GEN_VXRFORM
-
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC);
-GEN_VXFORM_SIMM(vspltisb, 6, 12);
-GEN_VXFORM_SIMM(vspltish, 6, 13);
-GEN_VXFORM_SIMM(vspltisw, 6, 14);
-#undef GEN_VXFORM_SIMM
-
-#define GEN_VXFORM_NOA(name, opc2, opc3)                                \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC);
-
-GEN_VXFORM_NOA(vupkhsb, 7, 8);
-GEN_VXFORM_NOA(vupkhsh, 7, 9);
-GEN_VXFORM_NOA(vupklsb, 7, 10);
-GEN_VXFORM_NOA(vupklsh, 7, 11);
-GEN_VXFORM_NOA(vupkhpx, 7, 13);
-GEN_VXFORM_NOA(vupklpx, 7, 15);
-GEN_VXFORM_NOA(vrefp, 5, 4);
-GEN_VXFORM_NOA(vrsqrtefp, 5, 5);
-GEN_VXFORM_NOA(vlogefp, 5, 7);
-GEN_VXFORM_NOA(vrfim, 5, 8);
-GEN_VXFORM_NOA(vrfin, 5, 9);
-GEN_VXFORM_NOA(vrfip, 5, 10);
-GEN_VXFORM_NOA(vrfiz, 5, 11);
-#undef GEN_VXFORM_NOA
-
-#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
-    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC);
-GEN_VXFORM_UIMM(vspltb, 6, 8);
-GEN_VXFORM_UIMM(vsplth, 6, 9);
-GEN_VXFORM_UIMM(vspltw, 6, 10);
-GEN_VXFORM_UIMM(vcfux, 5, 12);
-GEN_VXFORM_UIMM(vcfsx, 5, 13);
-GEN_VXFORM_UIMM(vctuxs, 5, 14);
-GEN_VXFORM_UIMM(vctsxs, 5, 15);
-#undef GEN_VXFORM_UIMM
-
-#define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
-    GEN_HANDLER(name0##_##name1, 0x04, opc2, 0xFF, 0x00000000, PPC_ALTIVEC);
-GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16)
-GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
-GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
-GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
-GEN_VAFORM_PAIRED(vsel, vperm, 21)
-GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
-#undef GEN_VAFORM_PAIRED
-
-#define GEN_SPE(name0, name1, opc2, opc3, inval, type)                        \
-GEN_HANDLER(name0##_##name1, 0x04, opc2, opc3, inval, type);
-GEN_SPE(evaddw,         speundef,      0x00, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evaddiw,        speundef,      0x01, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evsubfw,        speundef,      0x02, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evsubifw,       speundef,      0x03, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evabs,          evneg,         0x04, 0x08, 0x0000F800, PPC_SPE);
-GEN_SPE(evextsb,        evextsh,       0x05, 0x08, 0x0000F800, PPC_SPE);
-GEN_SPE(evrndw,         evcntlzw,      0x06, 0x08, 0x0000F800, PPC_SPE);
-GEN_SPE(evcntlsw,       brinc,         0x07, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evand,         0x08, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evandc,         speundef,      0x09, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evxor,          evor,          0x0B, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evnor,          eveqv,         0x0C, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(speundef,       evorc,         0x0D, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evnand,         speundef,      0x0F, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evsrwu,         evsrws,        0x10, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evsrwiu,        evsrwis,       0x11, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evslw,          speundef,      0x12, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evslwi,         speundef,      0x13, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evrlw,          evsplati,      0x14, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evrlwi,         evsplatfi,     0x15, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evmergehi,      evmergelo,     0x16, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evmergehilo,    evmergelohi,   0x17, 0x08, 0x00000000, PPC_SPE);
-GEN_SPE(evcmpgtu,       evcmpgts,      0x18, 0x08, 0x00600000, PPC_SPE);
-GEN_SPE(evcmpltu,       evcmplts,      0x19, 0x08, 0x00600000, PPC_SPE);
-GEN_SPE(evcmpeq,        speundef,      0x1A, 0x08, 0x00600000, PPC_SPE);
-
-GEN_SPE(evfsadd,        evfssub,       0x00, 0x0A, 0x00000000, PPC_SPE_SINGLE);
-GEN_SPE(evfsabs,        evfsnabs,      0x02, 0x0A, 0x0000F800, PPC_SPE_SINGLE);
-GEN_SPE(evfsneg,        speundef,      0x03, 0x0A, 0x0000F800, PPC_SPE_SINGLE);
-GEN_SPE(evfsmul,        evfsdiv,       0x04, 0x0A, 0x00000000, PPC_SPE_SINGLE);
-GEN_SPE(evfscmpgt,      evfscmplt,     0x06, 0x0A, 0x00600000, PPC_SPE_SINGLE);
-GEN_SPE(evfscmpeq,      speundef,      0x07, 0x0A, 0x00600000, PPC_SPE_SINGLE);
-GEN_SPE(evfscfui,       evfscfsi,      0x08, 0x0A, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(evfscfuf,       evfscfsf,      0x09, 0x0A, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(evfsctui,       evfsctsi,      0x0A, 0x0A, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(evfsctuf,       evfsctsf,      0x0B, 0x0A, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(evfsctuiz,      speundef,      0x0C, 0x0A, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(evfsctsiz,      speundef,      0x0D, 0x0A, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(evfststgt,      evfststlt,     0x0E, 0x0A, 0x00600000, PPC_SPE_SINGLE);
-GEN_SPE(evfststeq,      speundef,      0x0F, 0x0A, 0x00600000, PPC_SPE_SINGLE);
-
-GEN_SPE(efsadd,         efssub,        0x00, 0x0B, 0x00000000, PPC_SPE_SINGLE);
-GEN_SPE(efsabs,         efsnabs,       0x02, 0x0B, 0x0000F800, PPC_SPE_SINGLE);
-GEN_SPE(efsneg,         speundef,      0x03, 0x0B, 0x0000F800, PPC_SPE_SINGLE);
-GEN_SPE(efsmul,         efsdiv,        0x04, 0x0B, 0x00000000, PPC_SPE_SINGLE);
-GEN_SPE(efscmpgt,       efscmplt,      0x06, 0x0B, 0x00600000, PPC_SPE_SINGLE);
-GEN_SPE(efscmpeq,       efscfd,        0x07, 0x0B, 0x00600000, PPC_SPE_SINGLE);
-GEN_SPE(efscfui,        efscfsi,       0x08, 0x0B, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(efscfuf,        efscfsf,       0x09, 0x0B, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(efsctui,        efsctsi,       0x0A, 0x0B, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(efsctuf,        efsctsf,       0x0B, 0x0B, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(efsctuiz,       speundef,      0x0C, 0x0B, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(efsctsiz,       speundef,      0x0D, 0x0B, 0x00180000, PPC_SPE_SINGLE);
-GEN_SPE(efststgt,       efststlt,      0x0E, 0x0B, 0x00600000, PPC_SPE_SINGLE);
-GEN_SPE(efststeq,       speundef,      0x0F, 0x0B, 0x00600000, PPC_SPE_SINGLE);
-
-GEN_SPE(efdadd,         efdsub,        0x10, 0x0B, 0x00000000, PPC_SPE_DOUBLE);
-GEN_SPE(efdcfuid,       efdcfsid,      0x11, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdabs,         efdnabs,       0x12, 0x0B, 0x0000F800, PPC_SPE_DOUBLE);
-GEN_SPE(efdneg,         speundef,      0x13, 0x0B, 0x0000F800, PPC_SPE_DOUBLE);
-GEN_SPE(efdmul,         efddiv,        0x14, 0x0B, 0x00000000, PPC_SPE_DOUBLE);
-GEN_SPE(efdctuidz,      efdctsidz,     0x15, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdcmpgt,       efdcmplt,      0x16, 0x0B, 0x00600000, PPC_SPE_DOUBLE);
-GEN_SPE(efdcmpeq,       efdcfs,        0x17, 0x0B, 0x00600000, PPC_SPE_DOUBLE);
-GEN_SPE(efdcfui,        efdcfsi,       0x18, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdcfuf,        efdcfsf,       0x19, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdctui,        efdctsi,       0x1A, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdctuf,        efdctsf,       0x1B, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdctuiz,       speundef,      0x1C, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdctsiz,       speundef,      0x1D, 0x0B, 0x00180000, PPC_SPE_DOUBLE);
-GEN_SPE(efdtstgt,       efdtstlt,      0x1E, 0x0B, 0x00600000, PPC_SPE_DOUBLE);
-GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPE_DOUBLE);
-#undef GEN_SPE
-
-#define GEN_SPEOP_LDST(name, opc2, sh)                                        \
-GEN_HANDLER(name, 0x04, opc2, 0x0C, 0x00000000, PPC_SPE);
-GEN_SPEOP_LDST(evldd, 0x00, 3);
-GEN_SPEOP_LDST(evldw, 0x01, 3);
-GEN_SPEOP_LDST(evldh, 0x02, 3);
-GEN_SPEOP_LDST(evlhhesplat, 0x04, 1);
-GEN_SPEOP_LDST(evlhhousplat, 0x06, 1);
-GEN_SPEOP_LDST(evlhhossplat, 0x07, 1);
-GEN_SPEOP_LDST(evlwhe, 0x08, 2);
-GEN_SPEOP_LDST(evlwhou, 0x0A, 2);
-GEN_SPEOP_LDST(evlwhos, 0x0B, 2);
-GEN_SPEOP_LDST(evlwwsplat, 0x0C, 2);
-GEN_SPEOP_LDST(evlwhsplat, 0x0E, 2);
-
-GEN_SPEOP_LDST(evstdd, 0x10, 3);
-GEN_SPEOP_LDST(evstdw, 0x11, 3);
-GEN_SPEOP_LDST(evstdh, 0x12, 3);
-GEN_SPEOP_LDST(evstwhe, 0x18, 2);
-GEN_SPEOP_LDST(evstwho, 0x1A, 2);
-GEN_SPEOP_LDST(evstwwe, 0x1C, 2);
-GEN_SPEOP_LDST(evstwwo, 0x1E, 2);
-#undef GEN_SPEOP_LDST
-/* End opcode list */
-GEN_OPCODE_MARK(end);
 
 /* Invalid instruction */
 static void gen_invalid(DisasContext *ctx)
@@ -8802,6 +7919,856 @@ GEN_SPE(efdctuiz,       speundef,      0x1C, 0x0B, 0x00180000, PPC_SPE_DOUBLE); 
 GEN_SPE(efdctsiz,       speundef,      0x1D, 0x0B, 0x00180000, PPC_SPE_DOUBLE); //
 GEN_SPE(efdtstgt,       efdtstlt,      0x1E, 0x0B, 0x00600000, PPC_SPE_DOUBLE); //
 GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPE_DOUBLE); //
+
+static opcode_t opcodes[] = {
+GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
+GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
+GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
+GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400000, PPC_INTEGER),
+GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
+GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
+GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(mulhw, 0x1F, 0x0B, 0x02, 0x00000400, PPC_INTEGER),
+GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER),
+GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(mullwo, 0x1F, 0x0B, 0x17, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(mulli, 0x07, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(mulld, 0x1F, 0x09, 0x07, 0x00000000, PPC_64B),
+#endif
+GEN_HANDLER(neg, 0x1F, 0x08, 0x03, 0x0000F800, PPC_INTEGER),
+GEN_HANDLER(nego, 0x1F, 0x08, 0x13, 0x0000F800, PPC_INTEGER),
+GEN_HANDLER(subfic, 0x08, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(ori, 0x18, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(oris, 0x19, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(xori, 0x1A, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(xoris, 0x1B, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_POPCNTB),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
+#endif
+GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(slw, 0x1F, 0x18, 0x00, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(sraw, 0x1F, 0x18, 0x18, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(srw, 0x1F, 0x18, 0x10, 0x00000000, PPC_INTEGER),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(sld, 0x1F, 0x1B, 0x00, 0x00000000, PPC_64B),
+GEN_HANDLER(srad, 0x1F, 0x1A, 0x18, 0x00000000, PPC_64B),
+GEN_HANDLER2(sradi0, "sradi", 0x1F, 0x1A, 0x19, 0x00000000, PPC_64B),
+GEN_HANDLER2(sradi1, "sradi", 0x1F, 0x1B, 0x19, 0x00000000, PPC_64B),
+GEN_HANDLER(srd, 0x1F, 0x1B, 0x10, 0x00000000, PPC_64B),
+#endif
+GEN_HANDLER(frsqrtes, 0x3B, 0x1A, 0xFF, 0x001F07C0, PPC_FLOAT_FRSQRTES),
+GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT),
+GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT),
+GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT),
+GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT),
+GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT),
+GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT),
+GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT),
+GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT),
+GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT),
+GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x00010000, PPC_FLOAT),
+GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
+GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
+GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B),
+#endif
+GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING),
+GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING),
+GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING),
+GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING),
+GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FFF801, PPC_MEM_EIEIO),
+GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM),
+GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES),
+GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B),
+GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B),
+#endif
+GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC),
+GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT),
+GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
+GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
+GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW),
+GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW),
+GEN_HANDLER(mcrf, 0x13, 0x00, 0xFF, 0x00000001, PPC_INTEGER),
+GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B),
+GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H),
+#endif
+GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFF01D, PPC_FLOW),
+GEN_HANDLER(tw, 0x1F, 0x04, 0x00, 0x00000001, PPC_FLOW),
+GEN_HANDLER(twi, 0x03, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(td, 0x1F, 0x04, 0x02, 0x00000001, PPC_64B),
+GEN_HANDLER(tdi, 0x02, 0xFF, 0xFF, 0x00000000, PPC_64B),
+#endif
+GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC),
+GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC),
+GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC),
+GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC),
+GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB),
+GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B),
+#endif
+GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC),
+GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC),
+GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE),
+GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE),
+GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE),
+GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x02000001, PPC_CACHE),
+GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE),
+GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ),
+GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT),
+GEN_HANDLER(dst, 0x1F, 0x16, 0x0A, 0x01800001, PPC_ALTIVEC),
+GEN_HANDLER(dstst, 0x1F, 0x16, 0x0B, 0x02000001, PPC_ALTIVEC),
+GEN_HANDLER(dss, 0x1F, 0x16, 0x19, 0x019FF801, PPC_ALTIVEC),
+GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI),
+GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_DCBA),
+GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT),
+GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT),
+GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT),
+GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT),
+#if defined(TARGET_PPC64)
+GEN_HANDLER2(mfsr_64b, "mfsr", 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B),
+GEN_HANDLER2(mfsrin_64b, "mfsrin", 0x1F, 0x13, 0x14, 0x001F0001,
+             PPC_SEGMENT_64B),
+GEN_HANDLER2(mtsr_64b, "mtsr", 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B),
+GEN_HANDLER2(mtsrin_64b, "mtsrin", 0x1F, 0x12, 0x07, 0x001F0001,
+             PPC_SEGMENT_64B),
+GEN_HANDLER2(slbmte, "slbmte", 0x1F, 0x12, 0x0C, 0x00000000, PPC_SEGMENT_64B),
+#endif
+GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA),
+GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x03FF0001, PPC_MEM_TLBIE),
+GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM_TLBIE),
+GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC),
+#if defined(TARGET_PPC64)
+GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI),
+GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI),
+#endif
+GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN),
+GEN_HANDLER(ecowx, 0x1F, 0x16, 0x09, 0x00000001, PPC_EXTERN),
+GEN_HANDLER(abs, 0x1F, 0x08, 0x0B, 0x0000F800, PPC_POWER_BR),
+GEN_HANDLER(abso, 0x1F, 0x08, 0x1B, 0x0000F800, PPC_POWER_BR),
+GEN_HANDLER(clcs, 0x1F, 0x10, 0x13, 0x0000F800, PPC_POWER_BR),
+GEN_HANDLER(div, 0x1F, 0x0B, 0x0A, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(divo, 0x1F, 0x0B, 0x1A, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(divs, 0x1F, 0x0B, 0x0B, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(divso, 0x1F, 0x0B, 0x1B, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(doz, 0x1F, 0x08, 0x08, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(dozo, 0x1F, 0x08, 0x18, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(lscbx, 0x1F, 0x15, 0x08, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(maskg, 0x1F, 0x1D, 0x00, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(maskir, 0x1F, 0x1D, 0x10, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(mul, 0x1F, 0x0B, 0x03, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(mulo, 0x1F, 0x0B, 0x13, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(nabs, 0x1F, 0x08, 0x0F, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(nabso, 0x1F, 0x08, 0x1F, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(rlmi, 0x16, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(rrib, 0x1F, 0x19, 0x10, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sle, 0x1F, 0x19, 0x04, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sleq, 0x1F, 0x19, 0x06, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sliq, 0x1F, 0x18, 0x05, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(slliq, 0x1F, 0x18, 0x07, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sllq, 0x1F, 0x18, 0x06, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(slq, 0x1F, 0x18, 0x04, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sraiq, 0x1F, 0x18, 0x1D, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sraq, 0x1F, 0x18, 0x1C, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sre, 0x1F, 0x19, 0x14, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(srea, 0x1F, 0x19, 0x1C, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sreq, 0x1F, 0x19, 0x16, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(sriq, 0x1F, 0x18, 0x15, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(srliq, 0x1F, 0x18, 0x17, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(srlq, 0x1F, 0x18, 0x16, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(srq, 0x1F, 0x18, 0x14, 0x00000000, PPC_POWER_BR),
+GEN_HANDLER(dsa, 0x1F, 0x14, 0x13, 0x03FFF801, PPC_602_SPEC),
+GEN_HANDLER(esa, 0x1F, 0x14, 0x12, 0x03FFF801, PPC_602_SPEC),
+GEN_HANDLER(mfrom, 0x1F, 0x09, 0x08, 0x03E0F801, PPC_602_SPEC),
+GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB),
+GEN_HANDLER2(tlbli_6xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB),
+GEN_HANDLER2(tlbld_74xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB),
+GEN_HANDLER2(tlbli_74xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB),
+GEN_HANDLER(clf, 0x1F, 0x16, 0x03, 0x03E00000, PPC_POWER),
+GEN_HANDLER(cli, 0x1F, 0x16, 0x0F, 0x03E00000, PPC_POWER),
+GEN_HANDLER(dclst, 0x1F, 0x16, 0x13, 0x03E00000, PPC_POWER),
+GEN_HANDLER(mfsri, 0x1F, 0x13, 0x13, 0x00000001, PPC_POWER),
+GEN_HANDLER(rac, 0x1F, 0x12, 0x19, 0x00000001, PPC_POWER),
+GEN_HANDLER(rfsvc, 0x13, 0x12, 0x02, 0x03FFF0001, PPC_POWER),
+GEN_HANDLER(lfq, 0x38, 0xFF, 0xFF, 0x00000003, PPC_POWER2),
+GEN_HANDLER(lfqu, 0x39, 0xFF, 0xFF, 0x00000003, PPC_POWER2),
+GEN_HANDLER(lfqux, 0x1F, 0x17, 0x19, 0x00000001, PPC_POWER2),
+GEN_HANDLER(lfqx, 0x1F, 0x17, 0x18, 0x00000001, PPC_POWER2),
+GEN_HANDLER(stfq, 0x3C, 0xFF, 0xFF, 0x00000003, PPC_POWER2),
+GEN_HANDLER(stfqu, 0x3D, 0xFF, 0xFF, 0x00000003, PPC_POWER2),
+GEN_HANDLER(stfqux, 0x1F, 0x17, 0x1D, 0x00000001, PPC_POWER2),
+GEN_HANDLER(stfqx, 0x1F, 0x17, 0x1C, 0x00000001, PPC_POWER2),
+GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_MFAPIDI),
+GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_TLBIVA),
+GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_DCR),
+GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_DCR),
+GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_DCRX),
+GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_DCRX),
+GEN_HANDLER(mfdcrux, 0x1F, 0x03, 0x09, 0x00000000, PPC_DCRUX),
+GEN_HANDLER(mtdcrux, 0x1F, 0x03, 0x0D, 0x00000000, PPC_DCRUX),
+GEN_HANDLER(dccci, 0x1F, 0x06, 0x0E, 0x03E00001, PPC_4xx_COMMON),
+GEN_HANDLER(dcread, 0x1F, 0x06, 0x0F, 0x00000001, PPC_4xx_COMMON),
+GEN_HANDLER2(icbt_40x, "icbt", 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT),
+GEN_HANDLER(iccci, 0x1F, 0x06, 0x1E, 0x00000001, PPC_4xx_COMMON),
+GEN_HANDLER(icread, 0x1F, 0x06, 0x1F, 0x03E00001, PPC_4xx_COMMON),
+GEN_HANDLER2(rfci_40x, "rfci", 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP),
+GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE),
+GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_RFDI),
+GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI),
+GEN_HANDLER2(tlbre_40x, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB),
+GEN_HANDLER2(tlbsx_40x, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB),
+GEN_HANDLER2(tlbwe_40x, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB),
+GEN_HANDLER2(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE),
+GEN_HANDLER2(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE),
+GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE),
+GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
+GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE),
+GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
+GEN_HANDLER(mbar, 0x1F, 0x16, 0x1a, 0x001FF801, PPC_BOOKE),
+GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE),
+GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE),
+GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),
+GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
+GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
+GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC),
+GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC),
+GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC),
+GEN_HANDLER2(evsel0, "evsel", 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE),
+GEN_HANDLER2(evsel1, "evsel", 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE),
+GEN_HANDLER2(evsel2, "evsel", 0x04, 0x1e, 0x09, 0x00000000, PPC_SPE),
+GEN_HANDLER2(evsel3, "evsel", 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE),
+
+#undef GEN_INT_ARITH_ADD
+#undef GEN_INT_ARITH_ADD_CONST
+#define GEN_INT_ARITH_ADD(name, opc3, add_ca, compute_ca, compute_ov)         \
+GEN_HANDLER(name, 0x1F, 0x0A, opc3, 0x00000000, PPC_INTEGER),
+#define GEN_INT_ARITH_ADD_CONST(name, opc3, const_val,                        \
+                                add_ca, compute_ca, compute_ov)               \
+GEN_HANDLER(name, 0x1F, 0x0A, opc3, 0x0000F800, PPC_INTEGER),
+GEN_INT_ARITH_ADD(add, 0x08, 0, 0, 0)
+GEN_INT_ARITH_ADD(addo, 0x18, 0, 0, 1)
+GEN_INT_ARITH_ADD(addc, 0x00, 0, 1, 0)
+GEN_INT_ARITH_ADD(addco, 0x10, 0, 1, 1)
+GEN_INT_ARITH_ADD(adde, 0x04, 1, 1, 0)
+GEN_INT_ARITH_ADD(addeo, 0x14, 1, 1, 1)
+GEN_INT_ARITH_ADD_CONST(addme, 0x07, -1LL, 1, 1, 0)
+GEN_INT_ARITH_ADD_CONST(addmeo, 0x17, -1LL, 1, 1, 1)
+GEN_INT_ARITH_ADD_CONST(addze, 0x06, 0, 1, 1, 0)
+GEN_INT_ARITH_ADD_CONST(addzeo, 0x16, 0, 1, 1, 1)
+
+#undef GEN_INT_ARITH_DIVW
+#define GEN_INT_ARITH_DIVW(name, opc3, sign, compute_ov)                      \
+GEN_HANDLER(name, 0x1F, 0x0B, opc3, 0x00000000, PPC_INTEGER)
+GEN_INT_ARITH_DIVW(divwu, 0x0E, 0, 0),
+GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1),
+GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0),
+GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1),
+
+#if defined(TARGET_PPC64)
+#undef GEN_INT_ARITH_DIVD
+#define GEN_INT_ARITH_DIVD(name, opc3, sign, compute_ov)                      \
+GEN_HANDLER(name, 0x1F, 0x09, opc3, 0x00000000, PPC_64B)
+GEN_INT_ARITH_DIVD(divdu, 0x0E, 0, 0),
+GEN_INT_ARITH_DIVD(divduo, 0x1E, 0, 1),
+GEN_INT_ARITH_DIVD(divd, 0x0F, 1, 0),
+GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1),
+
+#undef GEN_INT_ARITH_MUL_HELPER
+#define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
+GEN_HANDLER(name, 0x1F, 0x09, opc3, 0x00000000, PPC_64B)
+GEN_INT_ARITH_MUL_HELPER(mulhdu, 0x00),
+GEN_INT_ARITH_MUL_HELPER(mulhd, 0x02),
+GEN_INT_ARITH_MUL_HELPER(mulldo, 0x17),
+#endif
+
+#undef GEN_INT_ARITH_SUBF
+#undef GEN_INT_ARITH_SUBF_CONST
+#define GEN_INT_ARITH_SUBF(name, opc3, add_ca, compute_ca, compute_ov)        \
+GEN_HANDLER(name, 0x1F, 0x08, opc3, 0x00000000, PPC_INTEGER),
+#define GEN_INT_ARITH_SUBF_CONST(name, opc3, const_val,                       \
+                                add_ca, compute_ca, compute_ov)               \
+GEN_HANDLER(name, 0x1F, 0x08, opc3, 0x0000F800, PPC_INTEGER),
+GEN_INT_ARITH_SUBF(subf, 0x01, 0, 0, 0)
+GEN_INT_ARITH_SUBF(subfo, 0x11, 0, 0, 1)
+GEN_INT_ARITH_SUBF(subfc, 0x00, 0, 1, 0)
+GEN_INT_ARITH_SUBF(subfco, 0x10, 0, 1, 1)
+GEN_INT_ARITH_SUBF(subfe, 0x04, 1, 1, 0)
+GEN_INT_ARITH_SUBF(subfeo, 0x14, 1, 1, 1)
+GEN_INT_ARITH_SUBF_CONST(subfme, 0x07, -1LL, 1, 1, 0)
+GEN_INT_ARITH_SUBF_CONST(subfmeo, 0x17, -1LL, 1, 1, 1)
+GEN_INT_ARITH_SUBF_CONST(subfze, 0x06, 0, 1, 1, 0)
+GEN_INT_ARITH_SUBF_CONST(subfzeo, 0x16, 0, 1, 1, 1)
+
+#undef GEN_LOGICAL1
+#undef GEN_LOGICAL2
+#define GEN_LOGICAL2(name, tcg_op, opc, type)                                 \
+GEN_HANDLER(name, 0x1F, 0x1C, opc, 0x00000000, type)
+#define GEN_LOGICAL1(name, tcg_op, opc, type)                                 \
+GEN_HANDLER(name, 0x1F, 0x1A, opc, 0x00000000, type)
+GEN_LOGICAL2(and, tcg_gen_and_tl, 0x00, PPC_INTEGER),
+GEN_LOGICAL2(andc, tcg_gen_andc_tl, 0x01, PPC_INTEGER),
+GEN_LOGICAL2(eqv, tcg_gen_eqv_tl, 0x08, PPC_INTEGER),
+GEN_LOGICAL1(extsb, tcg_gen_ext8s_tl, 0x1D, PPC_INTEGER),
+GEN_LOGICAL1(extsh, tcg_gen_ext16s_tl, 0x1C, PPC_INTEGER),
+GEN_LOGICAL2(nand, tcg_gen_nand_tl, 0x0E, PPC_INTEGER),
+GEN_LOGICAL2(nor, tcg_gen_nor_tl, 0x03, PPC_INTEGER),
+GEN_LOGICAL2(orc, tcg_gen_orc_tl, 0x0C, PPC_INTEGER),
+#if defined(TARGET_PPC64)
+GEN_LOGICAL1(extsw, tcg_gen_ext32s_tl, 0x1E, PPC_64B),
+#endif
+
+#if defined(TARGET_PPC64)
+#undef GEN_PPC64_R2
+#undef GEN_PPC64_R4
+#define GEN_PPC64_R2(name, opc1, opc2)                                        \
+GEN_HANDLER2(name##0, stringify(name), opc1, opc2, 0xFF, 0x00000000, PPC_64B),\
+GEN_HANDLER2(name##1, stringify(name), opc1, opc2 | 0x10, 0xFF, 0x00000000,   \
+             PPC_64B)
+#define GEN_PPC64_R4(name, opc1, opc2)                                        \
+GEN_HANDLER2(name##0, stringify(name), opc1, opc2, 0xFF, 0x00000000, PPC_64B),\
+GEN_HANDLER2(name##1, stringify(name), opc1, opc2 | 0x01, 0xFF, 0x00000000,   \
+             PPC_64B),                                                        \
+GEN_HANDLER2(name##2, stringify(name), opc1, opc2 | 0x10, 0xFF, 0x00000000,   \
+             PPC_64B),                                                        \
+GEN_HANDLER2(name##3, stringify(name), opc1, opc2 | 0x11, 0xFF, 0x00000000,   \
+             PPC_64B)
+GEN_PPC64_R4(rldicl, 0x1E, 0x00),
+GEN_PPC64_R4(rldicr, 0x1E, 0x02),
+GEN_PPC64_R4(rldic, 0x1E, 0x04),
+GEN_PPC64_R2(rldcl, 0x1E, 0x08),
+GEN_PPC64_R2(rldcr, 0x1E, 0x09),
+GEN_PPC64_R4(rldimi, 0x1E, 0x06),
+#endif
+
+#undef _GEN_FLOAT_ACB
+#undef GEN_FLOAT_ACB
+#undef _GEN_FLOAT_AB
+#undef GEN_FLOAT_AB
+#undef _GEN_FLOAT_AC
+#undef GEN_FLOAT_AC
+#undef GEN_FLOAT_B
+#undef GEN_FLOAT_BS
+#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
+GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type)
+#define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
+_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type),                     \
+_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type)
+#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
+GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)
+#define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
+_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type),               \
+_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type)
+#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
+GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)
+#define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
+_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type),               \
+_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type)
+#define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
+GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type)
+#define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
+GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type)
+
+GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT),
+GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT),
+GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT),
+GEN_FLOAT_BS(re, 0x3F, 0x18, 1, PPC_FLOAT_EXT),
+GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES),
+GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE),
+_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL),
+GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT),
+GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT),
+GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT),
+GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT),
+GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT),
+GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT),
+GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT),
+GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT),
+#if defined(TARGET_PPC64)
+GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B),
+GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B),
+GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC_64B),
+#endif
+GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT),
+GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT),
+GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT),
+GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT),
+GEN_FLOAT_B(abs, 0x08, 0x08, 0, PPC_FLOAT),
+GEN_FLOAT_B(nabs, 0x08, 0x04, 0, PPC_FLOAT),
+GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT),
+
+#undef GEN_LD
+#undef GEN_LDU
+#undef GEN_LDUX
+#undef GEN_LDX
+#undef GEN_LDS
+#define GEN_LD(name, ldop, opc, type)                                         \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_LDU(name, ldop, opc, type)                                        \
+GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_LDUX(name, ldop, opc2, opc3, type)                                \
+GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_LDX(name, ldop, opc2, opc3, type)                                 \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_LDS(name, ldop, op, type)                                         \
+GEN_LD(name, ldop, op | 0x20, type)                                           \
+GEN_LDU(name, ldop, op | 0x21, type)                                          \
+GEN_LDUX(name, ldop, 0x17, op | 0x01, type)                                   \
+GEN_LDX(name, ldop, 0x17, op | 0x00, type)
+
+GEN_LDS(lbz, ld8u, 0x02, PPC_INTEGER)
+GEN_LDS(lha, ld16s, 0x0A, PPC_INTEGER)
+GEN_LDS(lhz, ld16u, 0x08, PPC_INTEGER)
+GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER)
+#if defined(TARGET_PPC64)
+GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B)
+GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B)
+GEN_LDUX(ld, ld64, 0x15, 0x01, PPC_64B)
+GEN_LDX(ld, ld64, 0x15, 0x00, PPC_64B)
+#endif
+GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER)
+GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER)
+
+#undef GEN_ST
+#undef GEN_STU
+#undef GEN_STUX
+#undef GEN_STX
+#undef GEN_STS
+#define GEN_ST(name, stop, opc, type)                                         \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_STU(name, stop, opc, type)                                        \
+GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_STUX(name, stop, opc2, opc3, type)                                \
+GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_STX(name, stop, opc2, opc3, type)                                 \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_STS(name, stop, op, type)                                         \
+GEN_ST(name, stop, op | 0x20, type)                                           \
+GEN_STU(name, stop, op | 0x21, type)                                          \
+GEN_STUX(name, stop, 0x17, op | 0x01, type)                                   \
+GEN_STX(name, stop, 0x17, op | 0x00, type)
+
+GEN_STS(stb, st8, 0x06, PPC_INTEGER)
+GEN_STS(sth, st16, 0x0C, PPC_INTEGER)
+GEN_STS(stw, st32, 0x04, PPC_INTEGER)
+#if defined(TARGET_PPC64)
+GEN_STUX(std, st64, 0x15, 0x05, PPC_64B)
+GEN_STX(std, st64, 0x15, 0x04, PPC_64B)
+#endif
+GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER)
+GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER)
+
+#undef GEN_LDF
+#undef GEN_LDUF
+#undef GEN_LDUXF
+#undef GEN_LDXF
+#undef GEN_LDFS
+#define GEN_LDF(name, ldop, opc, type)                                        \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_LDUF(name, ldop, opc, type)                                       \
+GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_LDUXF(name, ldop, opc, type)                                      \
+GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type),
+#define GEN_LDXF(name, ldop, opc2, opc3, type)                                \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_LDFS(name, ldop, op, type)                                        \
+GEN_LDF(name, ldop, op | 0x20, type)                                          \
+GEN_LDUF(name, ldop, op | 0x21, type)                                         \
+GEN_LDUXF(name, ldop, op | 0x01, type)                                        \
+GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
+
+GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT)
+GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT)
+
+#undef GEN_STF
+#undef GEN_STUF
+#undef GEN_STUXF
+#undef GEN_STXF
+#undef GEN_STFS
+#define GEN_STF(name, stop, opc, type)                                        \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_STUF(name, stop, opc, type)                                       \
+GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
+#define GEN_STUXF(name, stop, opc, type)                                      \
+GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type),
+#define GEN_STXF(name, stop, opc2, opc3, type)                                \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_STFS(name, stop, op, type)                                        \
+GEN_STF(name, stop, op | 0x20, type)                                          \
+GEN_STUF(name, stop, op | 0x21, type)                                         \
+GEN_STUXF(name, stop, op | 0x01, type)                                        \
+GEN_STXF(name, stop, 0x17, op | 0x00, type)
+
+GEN_STFS(stfd, st64, 0x16, PPC_FLOAT)
+GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT)
+GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX)
+
+#undef GEN_CRLOGIC
+#define GEN_CRLOGIC(name, tcg_op, opc)                                        \
+GEN_HANDLER(name, 0x13, 0x01, opc, 0x00000001, PPC_INTEGER)
+GEN_CRLOGIC(crand, tcg_gen_and_i32, 0x08),
+GEN_CRLOGIC(crandc, tcg_gen_andc_i32, 0x04),
+GEN_CRLOGIC(creqv, tcg_gen_eqv_i32, 0x09),
+GEN_CRLOGIC(crnand, tcg_gen_nand_i32, 0x07),
+GEN_CRLOGIC(crnor, tcg_gen_nor_i32, 0x01),
+GEN_CRLOGIC(cror, tcg_gen_or_i32, 0x0E),
+GEN_CRLOGIC(crorc, tcg_gen_orc_i32, 0x0D),
+GEN_CRLOGIC(crxor, tcg_gen_xor_i32, 0x06),
+
+#undef GEN_MAC_HANDLER
+#define GEN_MAC_HANDLER(name, opc2, opc3)                                     \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_405_MAC)
+GEN_MAC_HANDLER(macchw, 0x0C, 0x05),
+GEN_MAC_HANDLER(macchwo, 0x0C, 0x15),
+GEN_MAC_HANDLER(macchws, 0x0C, 0x07),
+GEN_MAC_HANDLER(macchwso, 0x0C, 0x17),
+GEN_MAC_HANDLER(macchwsu, 0x0C, 0x06),
+GEN_MAC_HANDLER(macchwsuo, 0x0C, 0x16),
+GEN_MAC_HANDLER(macchwu, 0x0C, 0x04),
+GEN_MAC_HANDLER(macchwuo, 0x0C, 0x14),
+GEN_MAC_HANDLER(machhw, 0x0C, 0x01),
+GEN_MAC_HANDLER(machhwo, 0x0C, 0x11),
+GEN_MAC_HANDLER(machhws, 0x0C, 0x03),
+GEN_MAC_HANDLER(machhwso, 0x0C, 0x13),
+GEN_MAC_HANDLER(machhwsu, 0x0C, 0x02),
+GEN_MAC_HANDLER(machhwsuo, 0x0C, 0x12),
+GEN_MAC_HANDLER(machhwu, 0x0C, 0x00),
+GEN_MAC_HANDLER(machhwuo, 0x0C, 0x10),
+GEN_MAC_HANDLER(maclhw, 0x0C, 0x0D),
+GEN_MAC_HANDLER(maclhwo, 0x0C, 0x1D),
+GEN_MAC_HANDLER(maclhws, 0x0C, 0x0F),
+GEN_MAC_HANDLER(maclhwso, 0x0C, 0x1F),
+GEN_MAC_HANDLER(maclhwu, 0x0C, 0x0C),
+GEN_MAC_HANDLER(maclhwuo, 0x0C, 0x1C),
+GEN_MAC_HANDLER(maclhwsu, 0x0C, 0x0E),
+GEN_MAC_HANDLER(maclhwsuo, 0x0C, 0x1E),
+GEN_MAC_HANDLER(nmacchw, 0x0E, 0x05),
+GEN_MAC_HANDLER(nmacchwo, 0x0E, 0x15),
+GEN_MAC_HANDLER(nmacchws, 0x0E, 0x07),
+GEN_MAC_HANDLER(nmacchwso, 0x0E, 0x17),
+GEN_MAC_HANDLER(nmachhw, 0x0E, 0x01),
+GEN_MAC_HANDLER(nmachhwo, 0x0E, 0x11),
+GEN_MAC_HANDLER(nmachhws, 0x0E, 0x03),
+GEN_MAC_HANDLER(nmachhwso, 0x0E, 0x13),
+GEN_MAC_HANDLER(nmaclhw, 0x0E, 0x0D),
+GEN_MAC_HANDLER(nmaclhwo, 0x0E, 0x1D),
+GEN_MAC_HANDLER(nmaclhws, 0x0E, 0x0F),
+GEN_MAC_HANDLER(nmaclhwso, 0x0E, 0x1F),
+GEN_MAC_HANDLER(mulchw, 0x08, 0x05),
+GEN_MAC_HANDLER(mulchwu, 0x08, 0x04),
+GEN_MAC_HANDLER(mulhhw, 0x08, 0x01),
+GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00),
+GEN_MAC_HANDLER(mullhw, 0x08, 0x0D),
+GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C),
+
+#undef GEN_VR_LDX
+#undef GEN_VR_STX
+#undef GEN_VR_LVE
+#undef GEN_VR_STVE
+#define GEN_VR_LDX(name, opc2, opc3)                                          \
+GEN_HANDLER(name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
+#define GEN_VR_STX(name, opc2, opc3)                                          \
+GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
+#define GEN_VR_LVE(name, opc2, opc3)                                    \
+    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
+#define GEN_VR_STVE(name, opc2, opc3)                                   \
+    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
+GEN_VR_LDX(lvx, 0x07, 0x03),
+GEN_VR_LDX(lvxl, 0x07, 0x0B),
+GEN_VR_LVE(bx, 0x07, 0x00),
+GEN_VR_LVE(hx, 0x07, 0x01),
+GEN_VR_LVE(wx, 0x07, 0x02),
+GEN_VR_STX(svx, 0x07, 0x07),
+GEN_VR_STX(svxl, 0x07, 0x0F),
+GEN_VR_STVE(bx, 0x07, 0x04),
+GEN_VR_STVE(hx, 0x07, 0x05),
+GEN_VR_STVE(wx, 0x07, 0x06),
+
+#undef GEN_VX_LOGICAL
+#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
+GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16),
+GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17),
+GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18),
+GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19),
+GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20),
+
+#undef GEN_VXFORM
+#define GEN_VXFORM(name, opc2, opc3)                                    \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
+GEN_VXFORM(vaddubm, 0, 0),
+GEN_VXFORM(vadduhm, 0, 1),
+GEN_VXFORM(vadduwm, 0, 2),
+GEN_VXFORM(vsububm, 0, 16),
+GEN_VXFORM(vsubuhm, 0, 17),
+GEN_VXFORM(vsubuwm, 0, 18),
+GEN_VXFORM(vmaxub, 1, 0),
+GEN_VXFORM(vmaxuh, 1, 1),
+GEN_VXFORM(vmaxuw, 1, 2),
+GEN_VXFORM(vmaxsb, 1, 4),
+GEN_VXFORM(vmaxsh, 1, 5),
+GEN_VXFORM(vmaxsw, 1, 6),
+GEN_VXFORM(vminub, 1, 8),
+GEN_VXFORM(vminuh, 1, 9),
+GEN_VXFORM(vminuw, 1, 10),
+GEN_VXFORM(vminsb, 1, 12),
+GEN_VXFORM(vminsh, 1, 13),
+GEN_VXFORM(vminsw, 1, 14),
+GEN_VXFORM(vavgub, 1, 16),
+GEN_VXFORM(vavguh, 1, 17),
+GEN_VXFORM(vavguw, 1, 18),
+GEN_VXFORM(vavgsb, 1, 20),
+GEN_VXFORM(vavgsh, 1, 21),
+GEN_VXFORM(vavgsw, 1, 22),
+GEN_VXFORM(vmrghb, 6, 0),
+GEN_VXFORM(vmrghh, 6, 1),
+GEN_VXFORM(vmrghw, 6, 2),
+GEN_VXFORM(vmrglb, 6, 4),
+GEN_VXFORM(vmrglh, 6, 5),
+GEN_VXFORM(vmrglw, 6, 6),
+GEN_VXFORM(vmuloub, 4, 0),
+GEN_VXFORM(vmulouh, 4, 1),
+GEN_VXFORM(vmulosb, 4, 4),
+GEN_VXFORM(vmulosh, 4, 5),
+GEN_VXFORM(vmuleub, 4, 8),
+GEN_VXFORM(vmuleuh, 4, 9),
+GEN_VXFORM(vmulesb, 4, 12),
+GEN_VXFORM(vmulesh, 4, 13),
+GEN_VXFORM(vslb, 2, 4),
+GEN_VXFORM(vslh, 2, 5),
+GEN_VXFORM(vslw, 2, 6),
+GEN_VXFORM(vsrb, 2, 8),
+GEN_VXFORM(vsrh, 2, 9),
+GEN_VXFORM(vsrw, 2, 10),
+GEN_VXFORM(vsrab, 2, 12),
+GEN_VXFORM(vsrah, 2, 13),
+GEN_VXFORM(vsraw, 2, 14),
+GEN_VXFORM(vslo, 6, 16),
+GEN_VXFORM(vsro, 6, 17),
+GEN_VXFORM(vaddcuw, 0, 6),
+GEN_VXFORM(vsubcuw, 0, 22),
+GEN_VXFORM(vaddubs, 0, 8),
+GEN_VXFORM(vadduhs, 0, 9),
+GEN_VXFORM(vadduws, 0, 10),
+GEN_VXFORM(vaddsbs, 0, 12),
+GEN_VXFORM(vaddshs, 0, 13),
+GEN_VXFORM(vaddsws, 0, 14),
+GEN_VXFORM(vsububs, 0, 24),
+GEN_VXFORM(vsubuhs, 0, 25),
+GEN_VXFORM(vsubuws, 0, 26),
+GEN_VXFORM(vsubsbs, 0, 28),
+GEN_VXFORM(vsubshs, 0, 29),
+GEN_VXFORM(vsubsws, 0, 30),
+GEN_VXFORM(vrlb, 2, 0),
+GEN_VXFORM(vrlh, 2, 1),
+GEN_VXFORM(vrlw, 2, 2),
+GEN_VXFORM(vsl, 2, 7),
+GEN_VXFORM(vsr, 2, 11),
+GEN_VXFORM(vpkuhum, 7, 0),
+GEN_VXFORM(vpkuwum, 7, 1),
+GEN_VXFORM(vpkuhus, 7, 2),
+GEN_VXFORM(vpkuwus, 7, 3),
+GEN_VXFORM(vpkshus, 7, 4),
+GEN_VXFORM(vpkswus, 7, 5),
+GEN_VXFORM(vpkshss, 7, 6),
+GEN_VXFORM(vpkswss, 7, 7),
+GEN_VXFORM(vpkpx, 7, 12),
+GEN_VXFORM(vsum4ubs, 4, 24),
+GEN_VXFORM(vsum4sbs, 4, 28),
+GEN_VXFORM(vsum4shs, 4, 25),
+GEN_VXFORM(vsum2sws, 4, 26),
+GEN_VXFORM(vsumsws, 4, 30),
+GEN_VXFORM(vaddfp, 5, 0),
+GEN_VXFORM(vsubfp, 5, 1),
+GEN_VXFORM(vmaxfp, 5, 16),
+GEN_VXFORM(vminfp, 5, 17),
+
+#undef GEN_VXRFORM1
+#undef GEN_VXRFORM
+#define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
+    GEN_HANDLER2(name, str, 0x4, opc2, opc3, 0x00000000, PPC_ALTIVEC),
+#define GEN_VXRFORM(name, opc2, opc3)                                \
+    GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
+    GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
+GEN_VXRFORM(vcmpequb, 3, 0)
+GEN_VXRFORM(vcmpequh, 3, 1)
+GEN_VXRFORM(vcmpequw, 3, 2)
+GEN_VXRFORM(vcmpgtsb, 3, 12)
+GEN_VXRFORM(vcmpgtsh, 3, 13)
+GEN_VXRFORM(vcmpgtsw, 3, 14)
+GEN_VXRFORM(vcmpgtub, 3, 8)
+GEN_VXRFORM(vcmpgtuh, 3, 9)
+GEN_VXRFORM(vcmpgtuw, 3, 10)
+GEN_VXRFORM(vcmpeqfp, 3, 3)
+GEN_VXRFORM(vcmpgefp, 3, 7)
+GEN_VXRFORM(vcmpgtfp, 3, 11)
+GEN_VXRFORM(vcmpbfp, 3, 15)
+
+#undef GEN_VXFORM_SIMM
+#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
+GEN_VXFORM_SIMM(vspltisb, 6, 12),
+GEN_VXFORM_SIMM(vspltish, 6, 13),
+GEN_VXFORM_SIMM(vspltisw, 6, 14),
+
+#undef GEN_VXFORM_NOA
+#define GEN_VXFORM_NOA(name, opc2, opc3)                                \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)
+GEN_VXFORM_NOA(vupkhsb, 7, 8),
+GEN_VXFORM_NOA(vupkhsh, 7, 9),
+GEN_VXFORM_NOA(vupklsb, 7, 10),
+GEN_VXFORM_NOA(vupklsh, 7, 11),
+GEN_VXFORM_NOA(vupkhpx, 7, 13),
+GEN_VXFORM_NOA(vupklpx, 7, 15),
+GEN_VXFORM_NOA(vrefp, 5, 4),
+GEN_VXFORM_NOA(vrsqrtefp, 5, 5),
+GEN_VXFORM_NOA(vlogefp, 5, 7),
+GEN_VXFORM_NOA(vrfim, 5, 8),
+GEN_VXFORM_NOA(vrfin, 5, 9),
+GEN_VXFORM_NOA(vrfip, 5, 10),
+GEN_VXFORM_NOA(vrfiz, 5, 11),
+
+#undef GEN_VXFORM_UIMM
+#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
+GEN_VXFORM_UIMM(vspltb, 6, 8),
+GEN_VXFORM_UIMM(vsplth, 6, 9),
+GEN_VXFORM_UIMM(vspltw, 6, 10),
+GEN_VXFORM_UIMM(vcfux, 5, 12),
+GEN_VXFORM_UIMM(vcfsx, 5, 13),
+GEN_VXFORM_UIMM(vctuxs, 5, 14),
+GEN_VXFORM_UIMM(vctsxs, 5, 15),
+
+#undef GEN_VAFORM_PAIRED
+#define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
+    GEN_HANDLER(name0##_##name1, 0x04, opc2, 0xFF, 0x00000000, PPC_ALTIVEC)
+GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16),
+GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18),
+GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19),
+GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20),
+GEN_VAFORM_PAIRED(vsel, vperm, 21),
+GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
+
+#undef GEN_SPE
+#define GEN_SPE(name0, name1, opc2, opc3, inval, type)                        \
+GEN_HANDLER(name0##_##name1, 0x04, opc2, opc3, inval, type)
+GEN_SPE(evaddw,         speundef,      0x00, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evaddiw,        speundef,      0x01, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evsubfw,        speundef,      0x02, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evsubifw,       speundef,      0x03, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evabs,          evneg,         0x04, 0x08, 0x0000F800, PPC_SPE),
+GEN_SPE(evextsb,        evextsh,       0x05, 0x08, 0x0000F800, PPC_SPE),
+GEN_SPE(evrndw,         evcntlzw,      0x06, 0x08, 0x0000F800, PPC_SPE),
+GEN_SPE(evcntlsw,       brinc,         0x07, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(speundef,       evand,         0x08, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evandc,         speundef,      0x09, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evxor,          evor,          0x0B, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evnor,          eveqv,         0x0C, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(speundef,       evorc,         0x0D, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evnand,         speundef,      0x0F, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evsrwu,         evsrws,        0x10, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evsrwiu,        evsrwis,       0x11, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evslw,          speundef,      0x12, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evslwi,         speundef,      0x13, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evrlw,          evsplati,      0x14, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evrlwi,         evsplatfi,     0x15, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evmergehi,      evmergelo,     0x16, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evmergehilo,    evmergelohi,   0x17, 0x08, 0x00000000, PPC_SPE),
+GEN_SPE(evcmpgtu,       evcmpgts,      0x18, 0x08, 0x00600000, PPC_SPE),
+GEN_SPE(evcmpltu,       evcmplts,      0x19, 0x08, 0x00600000, PPC_SPE),
+GEN_SPE(evcmpeq,        speundef,      0x1A, 0x08, 0x00600000, PPC_SPE),
+
+GEN_SPE(evfsadd,        evfssub,       0x00, 0x0A, 0x00000000, PPC_SPE_SINGLE),
+GEN_SPE(evfsabs,        evfsnabs,      0x02, 0x0A, 0x0000F800, PPC_SPE_SINGLE),
+GEN_SPE(evfsneg,        speundef,      0x03, 0x0A, 0x0000F800, PPC_SPE_SINGLE),
+GEN_SPE(evfsmul,        evfsdiv,       0x04, 0x0A, 0x00000000, PPC_SPE_SINGLE),
+GEN_SPE(evfscmpgt,      evfscmplt,     0x06, 0x0A, 0x00600000, PPC_SPE_SINGLE),
+GEN_SPE(evfscmpeq,      speundef,      0x07, 0x0A, 0x00600000, PPC_SPE_SINGLE),
+GEN_SPE(evfscfui,       evfscfsi,      0x08, 0x0A, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(evfscfuf,       evfscfsf,      0x09, 0x0A, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(evfsctui,       evfsctsi,      0x0A, 0x0A, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(evfsctuf,       evfsctsf,      0x0B, 0x0A, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(evfsctuiz,      speundef,      0x0C, 0x0A, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(evfsctsiz,      speundef,      0x0D, 0x0A, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(evfststgt,      evfststlt,     0x0E, 0x0A, 0x00600000, PPC_SPE_SINGLE),
+GEN_SPE(evfststeq,      speundef,      0x0F, 0x0A, 0x00600000, PPC_SPE_SINGLE),
+
+GEN_SPE(efsadd,         efssub,        0x00, 0x0B, 0x00000000, PPC_SPE_SINGLE),
+GEN_SPE(efsabs,         efsnabs,       0x02, 0x0B, 0x0000F800, PPC_SPE_SINGLE),
+GEN_SPE(efsneg,         speundef,      0x03, 0x0B, 0x0000F800, PPC_SPE_SINGLE),
+GEN_SPE(efsmul,         efsdiv,        0x04, 0x0B, 0x00000000, PPC_SPE_SINGLE),
+GEN_SPE(efscmpgt,       efscmplt,      0x06, 0x0B, 0x00600000, PPC_SPE_SINGLE),
+GEN_SPE(efscmpeq,       efscfd,        0x07, 0x0B, 0x00600000, PPC_SPE_SINGLE),
+GEN_SPE(efscfui,        efscfsi,       0x08, 0x0B, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(efscfuf,        efscfsf,       0x09, 0x0B, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(efsctui,        efsctsi,       0x0A, 0x0B, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(efsctuf,        efsctsf,       0x0B, 0x0B, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(efsctuiz,       speundef,      0x0C, 0x0B, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(efsctsiz,       speundef,      0x0D, 0x0B, 0x00180000, PPC_SPE_SINGLE),
+GEN_SPE(efststgt,       efststlt,      0x0E, 0x0B, 0x00600000, PPC_SPE_SINGLE),
+GEN_SPE(efststeq,       speundef,      0x0F, 0x0B, 0x00600000, PPC_SPE_SINGLE),
+
+GEN_SPE(efdadd,         efdsub,        0x10, 0x0B, 0x00000000, PPC_SPE_DOUBLE),
+GEN_SPE(efdcfuid,       efdcfsid,      0x11, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdabs,         efdnabs,       0x12, 0x0B, 0x0000F800, PPC_SPE_DOUBLE),
+GEN_SPE(efdneg,         speundef,      0x13, 0x0B, 0x0000F800, PPC_SPE_DOUBLE),
+GEN_SPE(efdmul,         efddiv,        0x14, 0x0B, 0x00000000, PPC_SPE_DOUBLE),
+GEN_SPE(efdctuidz,      efdctsidz,     0x15, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdcmpgt,       efdcmplt,      0x16, 0x0B, 0x00600000, PPC_SPE_DOUBLE),
+GEN_SPE(efdcmpeq,       efdcfs,        0x17, 0x0B, 0x00600000, PPC_SPE_DOUBLE),
+GEN_SPE(efdcfui,        efdcfsi,       0x18, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdcfuf,        efdcfsf,       0x19, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdctui,        efdctsi,       0x1A, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdctuf,        efdctsf,       0x1B, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdctuiz,       speundef,      0x1C, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdctsiz,       speundef,      0x1D, 0x0B, 0x00180000, PPC_SPE_DOUBLE),
+GEN_SPE(efdtstgt,       efdtstlt,      0x1E, 0x0B, 0x00600000, PPC_SPE_DOUBLE),
+GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPE_DOUBLE),
+
+#undef GEN_SPEOP_LDST
+#define GEN_SPEOP_LDST(name, opc2, sh)                                        \
+GEN_HANDLER(name, 0x04, opc2, 0x0C, 0x00000000, PPC_SPE)
+GEN_SPEOP_LDST(evldd, 0x00, 3),
+GEN_SPEOP_LDST(evldw, 0x01, 3),
+GEN_SPEOP_LDST(evldh, 0x02, 3),
+GEN_SPEOP_LDST(evlhhesplat, 0x04, 1),
+GEN_SPEOP_LDST(evlhhousplat, 0x06, 1),
+GEN_SPEOP_LDST(evlhhossplat, 0x07, 1),
+GEN_SPEOP_LDST(evlwhe, 0x08, 2),
+GEN_SPEOP_LDST(evlwhou, 0x0A, 2),
+GEN_SPEOP_LDST(evlwhos, 0x0B, 2),
+GEN_SPEOP_LDST(evlwwsplat, 0x0C, 2),
+GEN_SPEOP_LDST(evlwhsplat, 0x0E, 2),
+
+GEN_SPEOP_LDST(evstdd, 0x10, 3),
+GEN_SPEOP_LDST(evstdw, 0x11, 3),
+GEN_SPEOP_LDST(evstdh, 0x12, 3),
+GEN_SPEOP_LDST(evstwhe, 0x18, 2),
+GEN_SPEOP_LDST(evstwho, 0x1A, 2),
+GEN_SPEOP_LDST(evstwwe, 0x1C, 2),
+GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
+};
 
 #include "translate_init.c"
 #include "helper_regs.h"
