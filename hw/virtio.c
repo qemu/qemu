@@ -293,18 +293,41 @@ static unsigned virtqueue_next_desc(target_phys_addr_t desc_pa,
 
 int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
 {
-    target_phys_addr_t desc_pa = vq->vring.desc;
-    unsigned int idx, max;
-    int num_bufs, in_total, out_total;
+    unsigned int idx;
+    int total_bufs, in_total, out_total;
 
     idx = vq->last_avail_idx;
-    max = vq->vring.num;
 
-    num_bufs = in_total = out_total = 0;
+    total_bufs = in_total = out_total = 0;
     while (virtqueue_num_heads(vq, idx)) {
+        unsigned int max, num_bufs, indirect = 0;
+        target_phys_addr_t desc_pa;
         int i;
 
+        max = vq->vring.num;
+        num_bufs = total_bufs;
         i = virtqueue_get_head(vq, idx++);
+        desc_pa = vq->vring.desc;
+
+        if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_INDIRECT) {
+            if (vring_desc_len(desc_pa, i) % sizeof(VRingDesc)) {
+                fprintf(stderr, "Invalid size for indirect buffer table\n");
+                exit(1);
+            }
+
+            /* If we've got too many, that implies a descriptor loop. */
+            if (num_bufs >= max) {
+                fprintf(stderr, "Looped descriptor");
+                exit(1);
+            }
+
+            /* loop over the indirect descriptor table */
+            indirect = 1;
+            max = vring_desc_len(desc_pa, i) / sizeof(VRingDesc);
+            num_bufs = i = 0;
+            desc_pa = vring_desc_addr(desc_pa, i);
+        }
+
         do {
             /* If we've got too many, that implies a descriptor loop. */
             if (++num_bufs > max) {
@@ -322,6 +345,11 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
                     return 1;
             }
         } while ((i = virtqueue_next_desc(desc_pa, i, max)) != max);
+
+        if (!indirect)
+            total_bufs = num_bufs;
+        else
+            total_bufs++;
     }
 
     return 0;
@@ -342,6 +370,19 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     max = vq->vring.num;
 
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
+
+    if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_INDIRECT) {
+        if (vring_desc_len(desc_pa, i) % sizeof(VRingDesc)) {
+            fprintf(stderr, "Invalid size for indirect buffer table\n");
+            exit(1);
+        }
+
+        /* loop over the indirect descriptor table */
+        max = vring_desc_len(desc_pa, i) / sizeof(VRingDesc);
+        desc_pa = vring_desc_addr(desc_pa, i);
+        i = 0;
+    }
+
     do {
         struct iovec *sg;
         int is_write = 0;
