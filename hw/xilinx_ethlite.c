@@ -218,7 +218,7 @@ static void xilinx_ethlite_init(SysBusDevice *dev)
     s->c_rx_pingpong = qdev_get_prop_int(&dev->qdev, "rxpingpong", 1);
     s->rxbuf = 0;
 
-    regs = cpu_register_io_memory(0, eth_read, eth_write, s);
+    regs = cpu_register_io_memory(eth_read, eth_write, s);
     sysbus_init_mmio(dev, R_MAX * 4, regs);
 
     qdev_get_macaddr(&dev->qdev, s->macaddr);

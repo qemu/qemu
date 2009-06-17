@@ -388,8 +388,7 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
         slave->cpu = i;
         slave->master = s;
 
-        slavio_intctl_io_memory = cpu_register_io_memory(0,
-                                                         slavio_intctl_mem_read,
+        slavio_intctl_io_memory = cpu_register_io_memory(slavio_intctl_mem_read,
                                                          slavio_intctl_mem_write,
                                                          slave);
         cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_SIZE,
@@ -399,8 +398,7 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
         s->cpu_irqs[i] = parent_irq[i];
     }
 
-    slavio_intctlm_io_memory = cpu_register_io_memory(0,
-                                                      slavio_intctlm_mem_read,
+    slavio_intctlm_io_memory = cpu_register_io_memory(slavio_intctlm_mem_read,
                                                       slavio_intctlm_mem_write,
                                                       s);
     cpu_register_physical_memory(addrg, INTCTLM_SIZE, slavio_intctlm_io_memory);

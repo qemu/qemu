@@ -138,7 +138,7 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
     s->size = size;
     s->it_shift = it_shift;
 
-    s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+    s->mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
     *mem_index = s->mem_index;
     register_savevm("macio_nvram", -1, 1, macio_nvram_save, macio_nvram_load,
                     s);

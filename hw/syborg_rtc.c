@@ -129,7 +129,7 @@ static void syborg_rtc_init(SysBusDevice *dev)
     struct tm tm;
     int iomemtype;
 
-    iomemtype = cpu_register_io_memory(0, syborg_rtc_readfn,
+    iomemtype = cpu_register_io_memory(syborg_rtc_readfn,
                                        syborg_rtc_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
 

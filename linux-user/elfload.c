@@ -1,4 +1,6 @@
 /* This is the Linux kernel elf-loading code, ported into user space */
+#include <sys/time.h>
+#include <sys/param.h>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -6,8 +8,10 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "qemu.h"
 #include "disas.h"
@@ -20,6 +24,8 @@
 #undef ELF_DATA
 #undef ELF_ARCH
 #endif
+
+#define ELF_OSABI   ELFOSABI_SYSV
 
 /* from personality.h */
 
@@ -128,6 +134,52 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->rip = infop->entry;
 }
 
+typedef target_ulong    elf_greg_t;
+typedef uint32_t        target_uid_t;
+typedef uint32_t        target_gid_t;
+typedef int32_t         target_pid_t;
+
+#define ELF_NREG    27
+typedef elf_greg_t  elf_gregset_t[ELF_NREG];
+
+/*
+ * Note that ELF_NREG should be 29 as there should be place for
+ * TRAPNO and ERR "registers" as well but linux doesn't dump
+ * those.
+ *
+ * See linux kernel: arch/x86/include/asm/elf.h
+ */
+static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env)
+{
+    (*regs)[0] = env->regs[15];
+    (*regs)[1] = env->regs[14];
+    (*regs)[2] = env->regs[13];
+    (*regs)[3] = env->regs[12];
+    (*regs)[4] = env->regs[R_EBP];
+    (*regs)[5] = env->regs[R_EBX];
+    (*regs)[6] = env->regs[11];
+    (*regs)[7] = env->regs[10];
+    (*regs)[8] = env->regs[9];
+    (*regs)[9] = env->regs[8];
+    (*regs)[10] = env->regs[R_EAX];
+    (*regs)[11] = env->regs[R_ECX];
+    (*regs)[12] = env->regs[R_EDX];
+    (*regs)[13] = env->regs[R_ESI];
+    (*regs)[14] = env->regs[R_EDI];
+    (*regs)[15] = env->regs[R_EAX]; /* XXX */
+    (*regs)[16] = env->eip;
+    (*regs)[17] = env->segs[R_CS].selector & 0xffff;
+    (*regs)[18] = env->eflags;
+    (*regs)[19] = env->regs[R_ESP];
+    (*regs)[20] = env->segs[R_SS].selector & 0xffff;
+    (*regs)[21] = env->segs[R_FS].selector & 0xffff;
+    (*regs)[22] = env->segs[R_GS].selector & 0xffff;
+    (*regs)[23] = env->segs[R_DS].selector & 0xffff;
+    (*regs)[24] = env->segs[R_ES].selector & 0xffff;
+    (*regs)[25] = env->segs[R_FS].selector & 0xffff;
+    (*regs)[26] = env->segs[R_GS].selector & 0xffff;
+}
+
 #else
 
 #define ELF_START_MMAP 0x80000000
@@ -157,6 +209,42 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
        A value of 0 tells we have no such handler.  */
     regs->edx = 0;
+}
+
+typedef target_ulong    elf_greg_t;
+typedef uint16_t        target_uid_t;
+typedef uint16_t        target_gid_t;
+typedef int32_t         target_pid_t;
+
+#define ELF_NREG    17
+typedef elf_greg_t  elf_gregset_t[ELF_NREG];
+
+/*
+ * Note that ELF_NREG should be 19 as there should be place for
+ * TRAPNO and ERR "registers" as well but linux doesn't dump
+ * those.
+ *
+ * See linux kernel: arch/x86/include/asm/elf.h
+ */
+static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env)
+{
+    (*regs)[0] = env->regs[R_EBX];
+    (*regs)[1] = env->regs[R_ECX];
+    (*regs)[2] = env->regs[R_EDX];
+    (*regs)[3] = env->regs[R_ESI];
+    (*regs)[4] = env->regs[R_EDI];
+    (*regs)[5] = env->regs[R_EBP];
+    (*regs)[6] = env->regs[R_EAX];
+    (*regs)[7] = env->segs[R_DS].selector & 0xffff;
+    (*regs)[8] = env->segs[R_ES].selector & 0xffff;
+    (*regs)[9] = env->segs[R_FS].selector & 0xffff;
+    (*regs)[10] = env->segs[R_GS].selector & 0xffff;
+    (*regs)[11] = env->regs[R_EAX]; /* XXX */
+    (*regs)[12] = env->eip;
+    (*regs)[13] = env->segs[R_CS].selector & 0xffff;
+    (*regs)[14] = env->eflags;
+    (*regs)[15] = env->regs[R_ESP];
+    (*regs)[16] = env->segs[R_SS].selector & 0xffff;
 }
 #endif
 
@@ -196,6 +284,37 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     /* For uClinux PIC binaries.  */
     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
     regs->ARM_r10 = infop->start_data;
+}
+
+typedef uint32_t elf_greg_t;
+typedef uint16_t target_uid_t;
+typedef uint16_t target_gid_t;
+typedef int32_t  target_pid_t;
+
+#define ELF_NREG    18
+typedef elf_greg_t  elf_gregset_t[ELF_NREG];
+
+static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env)
+{
+    (*regs)[0] = env->regs[0];
+    (*regs)[1] = env->regs[1];
+    (*regs)[2] = env->regs[2];
+    (*regs)[3] = env->regs[3];
+    (*regs)[4] = env->regs[4];
+    (*regs)[5] = env->regs[5];
+    (*regs)[6] = env->regs[6];
+    (*regs)[7] = env->regs[7];
+    (*regs)[8] = env->regs[8];
+    (*regs)[9] = env->regs[9];
+    (*regs)[10] = env->regs[10];
+    (*regs)[11] = env->regs[11];
+    (*regs)[12] = env->regs[12];
+    (*regs)[13] = env->regs[13];
+    (*regs)[14] = env->regs[14];
+    (*regs)[15] = env->regs[15];
+
+    (*regs)[16] = cpsr_read((CPUState *)env);
+    (*regs)[17] = env->regs[0]; /* XXX */
 }
 
 #define USE_ELF_CORE_DUMP
@@ -418,7 +537,6 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
     _regs->gpr[5] = pos;
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 #endif
@@ -448,7 +566,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->regs[29] = infop->start_stack;
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_MIPS */
@@ -470,7 +587,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_MICROBLAZE */
@@ -492,7 +608,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
   regs->regs[15] = infop->start_stack;
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif
@@ -512,7 +627,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
   regs->erp = infop->entry;
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        8192
 
 #endif
@@ -537,7 +651,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->pc = infop->entry;
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	8192
 
 #endif
@@ -562,7 +675,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
            regs->unique, infop->start_data);
 }
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        8192
 
 #endif /* TARGET_ALPHA */
@@ -679,6 +791,20 @@ static void bswap_sym(struct elf_sym *sym)
     bswap16s(&sym->st_shndx);
 }
 #endif
+
+#ifdef USE_ELF_CORE_DUMP
+static int elf_core_dump(int, const CPUState *);
+
+#ifdef BSWAP_NEEDED
+static void bswap_note(struct elf_note *en)
+{
+    bswaptls(&en->n_namesz);
+    bswaptls(&en->n_descsz);
+    bswaptls(&en->n_type);
+}
+#endif /* BSWAP_NEEDED */
+
+#endif /* USE_ELF_CORE_DUMP */
 
 /*
  * 'copy_elf_strings()' copies argument/envelope strings from user
@@ -903,6 +1029,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         ARCH_DLINFO;
 #endif
 #undef NEW_AUX_ENT
+
+        info->saved_auxv = sp;
 
         sp = loader_build_argptr(envc, argc, sp, p, !ibcs);
         return sp;
@@ -1586,8 +1714,875 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     info->entry = elf_entry;
 
+#ifdef USE_ELF_CORE_DUMP
+    bprm->core_dump = &elf_core_dump;
+#endif
+
     return 0;
 }
+
+#ifdef USE_ELF_CORE_DUMP
+
+/*
+ * Definitions to generate Intel SVR4-like core files.
+ * These mostly have the same names as the SVR4 types with "elf_"
+ * tacked on the front to prevent clashes with linux definitions,
+ * and the typedef forms have been avoided.  This is mostly like
+ * the SVR4 structure, but more Linuxy, with things that Linux does
+ * not support and which gdb doesn't really use excluded.
+ *
+ * Fields we don't dump (their contents is zero) in linux-user qemu
+ * are marked with XXX.
+ *
+ * Core dump code is copied from linux kernel (fs/binfmt_elf.c).
+ *
+ * Porting ELF coredump for target is (quite) simple process.  First you
+ * define ELF_USE_CORE_DUMP in target ELF code (where init_thread() for
+ * the target resides):
+ *
+ * #define USE_ELF_CORE_DUMP
+ *
+ * Next you define type of register set used for dumping.  ELF specification
+ * says that it needs to be array of elf_greg_t that has size of ELF_NREG.
+ *
+ * typedef <target_regtype> elf_greg_t;
+ * #define ELF_NREG <number of registers>
+ * typedef elf_greg_t elf_gregset_t[ELF_NREG];
+ *
+ * Then define following types to match target types.  Actual types can
+ * be found from linux kernel (arch/<ARCH>/include/asm/posix_types.h):
+ *
+ * typedef <target_uid_type> target_uid_t;
+ * typedef <target_gid_type> target_gid_t;
+ * typedef <target_pid_type> target_pid_t;
+ *
+ * Last step is to implement target specific function that copies registers
+ * from given cpu into just specified register set.  Prototype is:
+ *
+ * static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env);
+ *
+ * Parameters:
+ *     regs - copy register values into here (allocated and zeroed by caller)
+ *     env - copy registers from here
+ *
+ * Example for ARM target is provided in this file.
+ */
+
+/* An ELF note in memory */
+struct memelfnote {
+    const char *name;
+    size_t     namesz;
+    size_t     namesz_rounded;
+    int        type;
+    size_t     datasz;
+    void       *data;
+    size_t     notesz;
+};
+
+struct elf_siginfo {
+    int  si_signo; /* signal number */
+    int  si_code;  /* extra code */
+    int  si_errno; /* errno */
+};
+
+struct elf_prstatus {
+    struct elf_siginfo pr_info;      /* Info associated with signal */
+    short              pr_cursig;    /* Current signal */
+    target_ulong       pr_sigpend;   /* XXX */
+    target_ulong       pr_sighold;   /* XXX */
+    target_pid_t       pr_pid;
+    target_pid_t       pr_ppid;
+    target_pid_t       pr_pgrp;
+    target_pid_t       pr_sid;
+    struct target_timeval pr_utime;  /* XXX User time */
+    struct target_timeval pr_stime;  /* XXX System time */
+    struct target_timeval pr_cutime; /* XXX Cumulative user time */
+    struct target_timeval pr_cstime; /* XXX Cumulative system time */
+    elf_gregset_t      pr_reg;       /* GP registers */
+    int                pr_fpvalid;   /* XXX */
+};
+
+#define ELF_PRARGSZ     (80) /* Number of chars for args */
+
+struct elf_prpsinfo {
+    char         pr_state;       /* numeric process state */
+    char         pr_sname;       /* char for pr_state */
+    char         pr_zomb;        /* zombie */
+    char         pr_nice;        /* nice val */
+    target_ulong pr_flag;        /* flags */
+    target_uid_t pr_uid;
+    target_gid_t pr_gid;
+    target_pid_t pr_pid, pr_ppid, pr_pgrp, pr_sid;
+    /* Lots missing */
+    char    pr_fname[16];           /* filename of executable */
+    char    pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */
+};
+
+/* Here is the structure in which status of each thread is captured. */
+struct elf_thread_status {
+    TAILQ_ENTRY(elf_thread_status)  ets_link;
+    struct elf_prstatus prstatus;   /* NT_PRSTATUS */
+#if 0
+    elf_fpregset_t fpu;             /* NT_PRFPREG */
+    struct task_struct *thread;
+    elf_fpxregset_t xfpu;           /* ELF_CORE_XFPREG_TYPE */
+#endif
+    struct memelfnote notes[1];
+    int num_notes;
+};
+
+struct elf_note_info {
+    struct memelfnote   *notes;
+    struct elf_prstatus *prstatus;  /* NT_PRSTATUS */
+    struct elf_prpsinfo *psinfo;    /* NT_PRPSINFO */
+
+    TAILQ_HEAD(thread_list_head, elf_thread_status) thread_list;
+#if 0
+    /*
+     * Current version of ELF coredump doesn't support
+     * dumping fp regs etc.
+     */
+    elf_fpregset_t *fpu;
+    elf_fpxregset_t *xfpu;
+    int thread_status_size;
+#endif
+    int notes_size;
+    int numnote;
+};
+
+struct vm_area_struct {
+    abi_ulong   vma_start;  /* start vaddr of memory region */
+    abi_ulong   vma_end;    /* end vaddr of memory region */
+    abi_ulong   vma_flags;  /* protection etc. flags for the region */
+    TAILQ_ENTRY(vm_area_struct) vma_link;
+};
+
+struct mm_struct {
+    TAILQ_HEAD(, vm_area_struct) mm_mmap;
+    int mm_count;           /* number of mappings */
+};
+
+static struct mm_struct *vma_init(void);
+static void vma_delete(struct mm_struct *);
+static int vma_add_mapping(struct mm_struct *, abi_ulong,
+    abi_ulong, abi_ulong);
+static int vma_get_mapping_count(const struct mm_struct *);
+static struct vm_area_struct *vma_first(const struct mm_struct *);
+static struct vm_area_struct *vma_next(struct vm_area_struct *);
+static abi_ulong vma_dump_size(const struct vm_area_struct *);
+static int vma_walker(void *priv, unsigned long start, unsigned long end,
+    unsigned long flags);
+
+static void fill_elf_header(struct elfhdr *, int, uint16_t, uint32_t);
+static void fill_note(struct memelfnote *, const char *, int,
+    unsigned int, void *);
+static void fill_prstatus(struct elf_prstatus *, const TaskState *, int);
+static int fill_psinfo(struct elf_prpsinfo *, const TaskState *);
+static void fill_auxv_note(struct memelfnote *, const TaskState *);
+static void fill_elf_note_phdr(struct elf_phdr *, int, off_t);
+static size_t note_size(const struct memelfnote *);
+static void free_note_info(struct elf_note_info *);
+static int fill_note_info(struct elf_note_info *, long, const CPUState *);
+static void fill_thread_info(struct elf_note_info *, const CPUState *);
+static int core_dump_filename(const TaskState *, char *, size_t);
+
+static int dump_write(int, const void *, size_t);
+static int write_note(struct memelfnote *, int);
+static int write_note_info(struct elf_note_info *, int);
+
+#ifdef BSWAP_NEEDED
+static void bswap_prstatus(struct elf_prstatus *);
+static void bswap_psinfo(struct elf_prpsinfo *);
+
+static void bswap_prstatus(struct elf_prstatus *prstatus)
+{
+    prstatus->pr_info.si_signo = tswapl(prstatus->pr_info.si_signo);
+    prstatus->pr_info.si_code = tswapl(prstatus->pr_info.si_code);
+    prstatus->pr_info.si_errno = tswapl(prstatus->pr_info.si_errno);
+    prstatus->pr_cursig = tswap16(prstatus->pr_cursig);
+    prstatus->pr_sigpend = tswapl(prstatus->pr_sigpend);
+    prstatus->pr_sighold = tswapl(prstatus->pr_sighold);
+    prstatus->pr_pid = tswap32(prstatus->pr_pid);
+    prstatus->pr_ppid = tswap32(prstatus->pr_ppid);
+    prstatus->pr_pgrp = tswap32(prstatus->pr_pgrp);
+    prstatus->pr_sid = tswap32(prstatus->pr_sid);
+    /* cpu times are not filled, so we skip them */
+    /* regs should be in correct format already */
+    prstatus->pr_fpvalid = tswap32(prstatus->pr_fpvalid);
+}
+
+static void bswap_psinfo(struct elf_prpsinfo *psinfo)
+{
+    psinfo->pr_flag = tswapl(psinfo->pr_flag);
+    psinfo->pr_uid = tswap16(psinfo->pr_uid);
+    psinfo->pr_gid = tswap16(psinfo->pr_gid);
+    psinfo->pr_pid = tswap32(psinfo->pr_pid);
+    psinfo->pr_ppid = tswap32(psinfo->pr_ppid);
+    psinfo->pr_pgrp = tswap32(psinfo->pr_pgrp);
+    psinfo->pr_sid = tswap32(psinfo->pr_sid);
+}
+#endif /* BSWAP_NEEDED */
+
+/*
+ * Minimal support for linux memory regions.  These are needed
+ * when we are finding out what memory exactly belongs to
+ * emulated process.  No locks needed here, as long as
+ * thread that received the signal is stopped.
+ */
+
+static struct mm_struct *vma_init(void)
+{
+    struct mm_struct *mm;
+
+    if ((mm = qemu_malloc(sizeof (*mm))) == NULL)
+        return (NULL);
+
+    mm->mm_count = 0;
+    TAILQ_INIT(&mm->mm_mmap);
+
+    return (mm);
+}
+
+static void vma_delete(struct mm_struct *mm)
+{
+    struct vm_area_struct *vma;
+
+    while ((vma = vma_first(mm)) != NULL) {
+        TAILQ_REMOVE(&mm->mm_mmap, vma, vma_link);
+        qemu_free(vma);
+    }
+    qemu_free(mm);
+}
+
+static int vma_add_mapping(struct mm_struct *mm, abi_ulong start,
+    abi_ulong end, abi_ulong flags)
+{
+    struct vm_area_struct *vma;
+
+    if ((vma = qemu_mallocz(sizeof (*vma))) == NULL)
+        return (-1);
+
+    vma->vma_start = start;
+    vma->vma_end = end;
+    vma->vma_flags = flags;
+
+    TAILQ_INSERT_TAIL(&mm->mm_mmap, vma, vma_link);
+    mm->mm_count++;
+
+    return (0);
+}
+
+static struct vm_area_struct *vma_first(const struct mm_struct *mm)
+{
+    return (TAILQ_FIRST(&mm->mm_mmap));
+}
+
+static struct vm_area_struct *vma_next(struct vm_area_struct *vma)
+{
+    return (TAILQ_NEXT(vma, vma_link));
+}
+
+static int vma_get_mapping_count(const struct mm_struct *mm)
+{
+    return (mm->mm_count);
+}
+
+/*
+ * Calculate file (dump) size of given memory region.
+ */
+static abi_ulong vma_dump_size(const struct vm_area_struct *vma)
+{
+    /* if we cannot even read the first page, skip it */
+    if (!access_ok(VERIFY_READ, vma->vma_start, TARGET_PAGE_SIZE))
+        return (0);
+
+    /*
+     * Usually we don't dump executable pages as they contain
+     * non-writable code that debugger can read directly from
+     * target library etc.  However, thread stacks are marked
+     * also executable so we read in first page of given region
+     * and check whether it contains elf header.  If there is
+     * no elf header, we dump it.
+     */
+    if (vma->vma_flags & PROT_EXEC) {
+        char page[TARGET_PAGE_SIZE];
+
+        copy_from_user(page, vma->vma_start, sizeof (page));
+        if ((page[EI_MAG0] == ELFMAG0) &&
+            (page[EI_MAG1] == ELFMAG1) &&
+            (page[EI_MAG2] == ELFMAG2) &&
+            (page[EI_MAG3] == ELFMAG3)) {
+            /*
+             * Mappings are possibly from ELF binary.  Don't dump
+             * them.
+             */
+            return (0);
+        }
+    }
+
+    return (vma->vma_end - vma->vma_start);
+}
+
+static int vma_walker(void *priv, unsigned long start, unsigned long end,
+    unsigned long flags)
+{
+    struct mm_struct *mm = (struct mm_struct *)priv;
+
+    /*
+     * Don't dump anything that qemu has reserved for internal use.
+     */
+    if (flags & PAGE_RESERVED)
+        return (0);
+
+    vma_add_mapping(mm, start, end, flags);
+    return (0);
+}
+
+static void fill_note(struct memelfnote *note, const char *name, int type,
+    unsigned int sz, void *data)
+{
+    unsigned int namesz;
+
+    namesz = strlen(name) + 1;
+    note->name = name;
+    note->namesz = namesz;
+    note->namesz_rounded = roundup(namesz, sizeof (int32_t));
+    note->type = type;
+    note->datasz = roundup(sz, sizeof (int32_t));;
+    note->data = data;
+
+    /*
+     * We calculate rounded up note size here as specified by
+     * ELF document.
+     */
+    note->notesz = sizeof (struct elf_note) +
+        note->namesz_rounded + note->datasz;
+}
+
+static void fill_elf_header(struct elfhdr *elf, int segs, uint16_t machine,
+    uint32_t flags)
+{
+    (void) memset(elf, 0, sizeof(*elf));
+
+    (void) memcpy(elf->e_ident, ELFMAG, SELFMAG);
+    elf->e_ident[EI_CLASS] = ELF_CLASS;
+    elf->e_ident[EI_DATA] = ELF_DATA;
+    elf->e_ident[EI_VERSION] = EV_CURRENT;
+    elf->e_ident[EI_OSABI] = ELF_OSABI;
+
+    elf->e_type = ET_CORE;
+    elf->e_machine = machine;
+    elf->e_version = EV_CURRENT;
+    elf->e_phoff = sizeof(struct elfhdr);
+    elf->e_flags = flags;
+    elf->e_ehsize = sizeof(struct elfhdr);
+    elf->e_phentsize = sizeof(struct elf_phdr);
+    elf->e_phnum = segs;
+
+#ifdef BSWAP_NEEDED
+    bswap_ehdr(elf);
+#endif
+}
+
+static void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, off_t offset)
+{
+    phdr->p_type = PT_NOTE;
+    phdr->p_offset = offset;
+    phdr->p_vaddr = 0;
+    phdr->p_paddr = 0;
+    phdr->p_filesz = sz;
+    phdr->p_memsz = 0;
+    phdr->p_flags = 0;
+    phdr->p_align = 0;
+
+#ifdef BSWAP_NEEDED
+    bswap_phdr(phdr);
+#endif
+}
+
+static size_t note_size(const struct memelfnote *note)
+{
+    return (note->notesz);
+}
+
+static void fill_prstatus(struct elf_prstatus *prstatus,
+    const TaskState *ts, int signr)
+{
+    (void) memset(prstatus, 0, sizeof (*prstatus));
+    prstatus->pr_info.si_signo = prstatus->pr_cursig = signr;
+    prstatus->pr_pid = ts->ts_tid;
+    prstatus->pr_ppid = getppid();
+    prstatus->pr_pgrp = getpgrp();
+    prstatus->pr_sid = getsid(0);
+
+#ifdef BSWAP_NEEDED
+    bswap_prstatus(prstatus);
+#endif
+}
+
+static int fill_psinfo(struct elf_prpsinfo *psinfo, const TaskState *ts)
+{
+    char *filename, *base_filename;
+    unsigned int i, len;
+
+    (void) memset(psinfo, 0, sizeof (*psinfo));
+
+    len = ts->info->arg_end - ts->info->arg_start;
+    if (len >= ELF_PRARGSZ)
+        len = ELF_PRARGSZ - 1;
+    if (copy_from_user(&psinfo->pr_psargs, ts->info->arg_start, len))
+        return -EFAULT;
+    for (i = 0; i < len; i++)
+        if (psinfo->pr_psargs[i] == 0)
+            psinfo->pr_psargs[i] = ' ';
+    psinfo->pr_psargs[len] = 0;
+
+    psinfo->pr_pid = getpid();
+    psinfo->pr_ppid = getppid();
+    psinfo->pr_pgrp = getpgrp();
+    psinfo->pr_sid = getsid(0);
+    psinfo->pr_uid = getuid();
+    psinfo->pr_gid = getgid();
+
+    filename = strdup(ts->bprm->filename);
+    base_filename = strdup(basename(filename));
+    (void) strncpy(psinfo->pr_fname, base_filename,
+        sizeof(psinfo->pr_fname));
+    free(base_filename);
+    free(filename);
+
+#ifdef BSWAP_NEEDED
+    bswap_psinfo(psinfo);
+#endif
+    return (0);
+}
+
+static void fill_auxv_note(struct memelfnote *note, const TaskState *ts)
+{
+    elf_addr_t auxv = (elf_addr_t)ts->info->saved_auxv;
+    elf_addr_t orig_auxv = auxv;
+    abi_ulong val;
+    void *ptr;
+    int i, len;
+
+    /*
+     * Auxiliary vector is stored in target process stack.  It contains
+     * {type, value} pairs that we need to dump into note.  This is not
+     * strictly necessary but we do it here for sake of completeness.
+     */
+
+    /* find out lenght of the vector, AT_NULL is terminator */
+    i = len = 0;
+    do {
+        get_user_ual(val, auxv);
+        i += 2;
+        auxv += 2 * sizeof (elf_addr_t);
+    } while (val != AT_NULL);
+    len = i * sizeof (elf_addr_t);
+
+    /* read in whole auxv vector and copy it to memelfnote */
+    ptr = lock_user(VERIFY_READ, orig_auxv, len, 0);
+    if (ptr != NULL) {
+        fill_note(note, "CORE", NT_AUXV, len, ptr);
+        unlock_user(ptr, auxv, len);
+    }
+}
+
+/*
+ * Constructs name of coredump file.  We have following convention
+ * for the name:
+ *     qemu_<basename-of-target-binary>_<date>-<time>_<pid>.core
+ *
+ * Returns 0 in case of success, -1 otherwise (errno is set).
+ */
+static int core_dump_filename(const TaskState *ts, char *buf,
+    size_t bufsize)
+{
+    char timestamp[64];
+    char *filename = NULL;
+    char *base_filename = NULL;
+    struct timeval tv;
+    struct tm tm;
+
+    assert(bufsize >= PATH_MAX);
+
+    if (gettimeofday(&tv, NULL) < 0) {
+        (void) fprintf(stderr, "unable to get current timestamp: %s",
+            strerror(errno));
+        return (-1);
+    }
+
+    filename = strdup(ts->bprm->filename);
+    base_filename = strdup(basename(filename));
+    (void) strftime(timestamp, sizeof (timestamp), "%Y%m%d-%H%M%S",
+        localtime_r(&tv.tv_sec, &tm));
+    (void) snprintf(buf, bufsize, "qemu_%s_%s_%d.core",
+        base_filename, timestamp, (int)getpid());
+    free(base_filename);
+    free(filename);
+
+    return (0);
+}
+
+static int dump_write(int fd, const void *ptr, size_t size)
+{
+    const char *bufp = (const char *)ptr;
+    ssize_t bytes_written, bytes_left;
+    struct rlimit dumpsize;
+    off_t pos;
+
+    bytes_written = 0;
+    getrlimit(RLIMIT_CORE, &dumpsize);
+    if ((pos = lseek(fd, 0, SEEK_CUR))==-1) {
+        if (errno == ESPIPE) { /* not a seekable stream */
+            bytes_left = size;
+        } else {
+            return pos;
+        }
+    } else {
+        if (dumpsize.rlim_cur <= pos) {
+            return -1;
+        } else if (dumpsize.rlim_cur == RLIM_INFINITY) {
+            bytes_left = size;
+        } else {
+            size_t limit_left=dumpsize.rlim_cur - pos;
+            bytes_left = limit_left >= size ? size : limit_left ;
+        }
+    }
+
+    /*
+     * In normal conditions, single write(2) should do but
+     * in case of socket etc. this mechanism is more portable.
+     */
+    do {
+        bytes_written = write(fd, bufp, bytes_left);
+        if (bytes_written < 0) {
+            if (errno == EINTR)
+                continue;
+            return (-1);
+        } else if (bytes_written == 0) { /* eof */
+            return (-1);
+        }
+        bufp += bytes_written;
+        bytes_left -= bytes_written;
+    } while (bytes_left > 0);
+
+    return (0);
+}
+
+static int write_note(struct memelfnote *men, int fd)
+{
+    struct elf_note en;
+
+    en.n_namesz = men->namesz;
+    en.n_type = men->type;
+    en.n_descsz = men->datasz;
+
+#ifdef BSWAP_NEEDED
+    bswap_note(&en);
+#endif
+
+    if (dump_write(fd, &en, sizeof(en)) != 0)
+        return (-1);
+    if (dump_write(fd, men->name, men->namesz_rounded) != 0)
+        return (-1);
+    if (dump_write(fd, men->data, men->datasz) != 0)
+        return (-1);
+
+    return (0);
+}
+
+static void fill_thread_info(struct elf_note_info *info, const CPUState *env)
+{
+    TaskState *ts = (TaskState *)env->opaque;
+    struct elf_thread_status *ets;
+
+    ets = qemu_mallocz(sizeof (*ets));
+    ets->num_notes = 1; /* only prstatus is dumped */
+    fill_prstatus(&ets->prstatus, ts, 0);
+    elf_core_copy_regs(&ets->prstatus.pr_reg, env);
+    fill_note(&ets->notes[0], "CORE", NT_PRSTATUS, sizeof (ets->prstatus),
+        &ets->prstatus);
+
+    TAILQ_INSERT_TAIL(&info->thread_list, ets, ets_link);
+
+    info->notes_size += note_size(&ets->notes[0]);
+}
+
+static int fill_note_info(struct elf_note_info *info,
+    long signr, const CPUState *env)
+{
+#define NUMNOTES 3
+    CPUState *cpu = NULL;
+    TaskState *ts = (TaskState *)env->opaque;
+    int i;
+
+    (void) memset(info, 0, sizeof (*info));
+
+    TAILQ_INIT(&info->thread_list);
+
+    info->notes = qemu_mallocz(NUMNOTES * sizeof (struct memelfnote));
+    if (info->notes == NULL)
+        return (-ENOMEM);
+    info->prstatus = qemu_mallocz(sizeof (*info->prstatus));
+    if (info->prstatus == NULL)
+        return (-ENOMEM);
+    info->psinfo = qemu_mallocz(sizeof (*info->psinfo));
+    if (info->prstatus == NULL)
+        return (-ENOMEM);
+
+    /*
+     * First fill in status (and registers) of current thread
+     * including process info & aux vector.
+     */
+    fill_prstatus(info->prstatus, ts, signr);
+    elf_core_copy_regs(&info->prstatus->pr_reg, env);
+    fill_note(&info->notes[0], "CORE", NT_PRSTATUS,
+        sizeof (*info->prstatus), info->prstatus);
+    fill_psinfo(info->psinfo, ts);
+    fill_note(&info->notes[1], "CORE", NT_PRPSINFO,
+        sizeof (*info->psinfo), info->psinfo);
+    fill_auxv_note(&info->notes[2], ts);
+    info->numnote = 3;
+
+    info->notes_size = 0;
+    for (i = 0; i < info->numnote; i++)
+        info->notes_size += note_size(&info->notes[i]);
+
+    /* read and fill status of all threads */
+    cpu_list_lock();
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        if (cpu == thread_env)
+            continue;
+        fill_thread_info(info, cpu);
+    }
+    cpu_list_unlock();
+
+    return (0);
+}
+
+static void free_note_info(struct elf_note_info *info)
+{
+    struct elf_thread_status *ets;
+
+    while (!TAILQ_EMPTY(&info->thread_list)) {
+        ets = TAILQ_FIRST(&info->thread_list);
+        TAILQ_REMOVE(&info->thread_list, ets, ets_link);
+        qemu_free(ets);
+    }
+
+    qemu_free(info->prstatus);
+    qemu_free(info->psinfo);
+    qemu_free(info->notes);
+}
+
+static int write_note_info(struct elf_note_info *info, int fd)
+{
+    struct elf_thread_status *ets;
+    int i, error = 0;
+
+    /* write prstatus, psinfo and auxv for current thread */
+    for (i = 0; i < info->numnote; i++)
+        if ((error = write_note(&info->notes[i], fd)) != 0)
+            return (error);
+
+    /* write prstatus for each thread */
+    for (ets = info->thread_list.tqh_first; ets != NULL;
+        ets = ets->ets_link.tqe_next) {
+        if ((error = write_note(&ets->notes[0], fd)) != 0)
+            return (error);
+    }
+
+    return (0);
+}
+
+/*
+ * Write out ELF coredump.
+ *
+ * See documentation of ELF object file format in:
+ * http://www.caldera.com/developers/devspecs/gabi41.pdf
+ *
+ * Coredump format in linux is following:
+ *
+ * 0   +----------------------+         \
+ *     | ELF header           | ET_CORE  |
+ *     +----------------------+          |
+ *     | ELF program headers  |          |--- headers
+ *     | - NOTE section       |          |
+ *     | - PT_LOAD sections   |          |
+ *     +----------------------+         /
+ *     | NOTEs:               |
+ *     | - NT_PRSTATUS        |
+ *     | - NT_PRSINFO         |
+ *     | - NT_AUXV            |
+ *     +----------------------+ <-- aligned to target page
+ *     | Process memory dump  |
+ *     :                      :
+ *     .                      .
+ *     :                      :
+ *     |                      |
+ *     +----------------------+
+ *
+ * NT_PRSTATUS -> struct elf_prstatus (per thread)
+ * NT_PRSINFO  -> struct elf_prpsinfo
+ * NT_AUXV is array of { type, value } pairs (see fill_auxv_note()).
+ *
+ * Format follows System V format as close as possible.  Current
+ * version limitations are as follows:
+ *     - no floating point registers are dumped
+ *
+ * Function returns 0 in case of success, negative errno otherwise.
+ *
+ * TODO: make this work also during runtime: it should be
+ * possible to force coredump from running process and then
+ * continue processing.  For example qemu could set up SIGUSR2
+ * handler (provided that target process haven't registered
+ * handler for that) that does the dump when signal is received.
+ */
+static int elf_core_dump(int signr, const CPUState *env)
+{
+    const TaskState *ts = (const TaskState *)env->opaque;
+    struct vm_area_struct *vma = NULL;
+    char corefile[PATH_MAX];
+    struct elf_note_info info;
+    struct elfhdr elf;
+    struct elf_phdr phdr;
+    struct rlimit dumpsize;
+    struct mm_struct *mm = NULL;
+    off_t offset = 0, data_offset = 0;
+    int segs = 0;
+    int fd = -1;
+
+    errno = 0;
+    getrlimit(RLIMIT_CORE, &dumpsize);
+    if (dumpsize.rlim_cur == 0)
+       return 0;
+
+    if (core_dump_filename(ts, corefile, sizeof (corefile)) < 0)
+        return (-errno);
+
+    if ((fd = open(corefile, O_WRONLY | O_CREAT,
+        S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0)
+        return (-errno);
+
+    /*
+     * Walk through target process memory mappings and
+     * set up structure containing this information.  After
+     * this point vma_xxx functions can be used.
+     */
+    if ((mm = vma_init()) == NULL)
+        goto out;
+
+    walk_memory_regions(mm, vma_walker);
+    segs = vma_get_mapping_count(mm);
+
+    /*
+     * Construct valid coredump ELF header.  We also
+     * add one more segment for notes.
+     */
+    fill_elf_header(&elf, segs + 1, ELF_MACHINE, 0);
+    if (dump_write(fd, &elf, sizeof (elf)) != 0)
+        goto out;
+
+    /* fill in in-memory version of notes */
+    if (fill_note_info(&info, signr, env) < 0)
+        goto out;
+
+    offset += sizeof (elf);                             /* elf header */
+    offset += (segs + 1) * sizeof (struct elf_phdr);    /* program headers */
+
+    /* write out notes program header */
+    fill_elf_note_phdr(&phdr, info.notes_size, offset);
+
+    offset += info.notes_size;
+    if (dump_write(fd, &phdr, sizeof (phdr)) != 0)
+        goto out;
+
+    /*
+     * ELF specification wants data to start at page boundary so
+     * we align it here.
+     */
+    offset = roundup(offset, ELF_EXEC_PAGESIZE);
+
+    /*
+     * Write program headers for memory regions mapped in
+     * the target process.
+     */
+    for (vma = vma_first(mm); vma != NULL; vma = vma_next(vma)) {
+        (void) memset(&phdr, 0, sizeof (phdr));
+
+        phdr.p_type = PT_LOAD;
+        phdr.p_offset = offset;
+        phdr.p_vaddr = vma->vma_start;
+        phdr.p_paddr = 0;
+        phdr.p_filesz = vma_dump_size(vma);
+        offset += phdr.p_filesz;
+        phdr.p_memsz = vma->vma_end - vma->vma_start;
+        phdr.p_flags = vma->vma_flags & PROT_READ ? PF_R : 0;
+        if (vma->vma_flags & PROT_WRITE)
+            phdr.p_flags |= PF_W;
+        if (vma->vma_flags & PROT_EXEC)
+            phdr.p_flags |= PF_X;
+        phdr.p_align = ELF_EXEC_PAGESIZE;
+
+        dump_write(fd, &phdr, sizeof (phdr));
+    }
+
+    /*
+     * Next we write notes just after program headers.  No
+     * alignment needed here.
+     */
+    if (write_note_info(&info, fd) < 0)
+        goto out;
+
+    /* align data to page boundary */
+    data_offset = lseek(fd, 0, SEEK_CUR);
+    data_offset = TARGET_PAGE_ALIGN(data_offset);
+    if (lseek(fd, data_offset, SEEK_SET) != data_offset)
+        goto out;
+
+    /*
+     * Finally we can dump process memory into corefile as well.
+     */
+    for (vma = vma_first(mm); vma != NULL; vma = vma_next(vma)) {
+        abi_ulong addr;
+        abi_ulong end;
+
+        end = vma->vma_start + vma_dump_size(vma);
+
+        for (addr = vma->vma_start; addr < end;
+            addr += TARGET_PAGE_SIZE) {
+            char page[TARGET_PAGE_SIZE];
+            int error;
+
+            /*
+             *  Read in page from target process memory and
+             *  write it to coredump file.
+             */
+            error = copy_from_user(page, addr, sizeof (page));
+            if (error != 0) {
+                (void) fprintf(stderr, "unable to dump " TARGET_FMT_lx "\n",
+                    addr);
+                errno = -error;
+                goto out;
+            }
+            if (dump_write(fd, page, TARGET_PAGE_SIZE) < 0)
+                goto out;
+        }
+    }
+
+out:
+    free_note_info(&info);
+    if (mm != NULL)
+        vma_delete(mm);
+    (void) close(fd);
+
+    if (errno != 0)
+        return (-errno);
+    return (0);
+}
+
+#endif /* USE_ELF_CORE_DUMP */
 
 static int load_aout_interp(void * exptr, int interp_fd)
 {

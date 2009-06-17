@@ -608,7 +608,7 @@ int g364fb_mm_init(target_phys_addr_t vram_base,
 
     cpu_register_physical_memory(vram_base, s->vram_size, s->vram_offset);
 
-    io_ctrl = cpu_register_io_memory(0, g364fb_ctrl_read, g364fb_ctrl_write, s);
+    io_ctrl = cpu_register_io_memory(g364fb_ctrl_read, g364fb_ctrl_write, s);
     cpu_register_physical_memory(ctrl_base, 0x200000, io_ctrl);
 
     return 0;

@@ -149,7 +149,7 @@ PCIBus *pci_prep_init(qemu_irq *pic)
     register_ioport_read(0xcfc, 4, 2, pci_host_data_readw, s);
     register_ioport_read(0xcfc, 4, 4, pci_host_data_readl, s);
 
-    PPC_io_memory = cpu_register_io_memory(0, PPC_PCIIO_read,
+    PPC_io_memory = cpu_register_io_memory(PPC_PCIIO_read,
                                            PPC_PCIIO_write, s);
     cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);
 

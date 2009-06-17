@@ -735,7 +735,7 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     s->next_second_time = qemu_get_clock(vm_clock) + (ticks_per_sec * 99) / 100;
     qemu_mod_timer(s->second_timer2, s->next_second_time);
 
-    io_memory = cpu_register_io_memory(0, rtc_mm_read, rtc_mm_write, s);
+    io_memory = cpu_register_io_memory(rtc_mm_read, rtc_mm_write, s);
     cpu_register_physical_memory(base, 2 << it_shift, io_memory);
 
     register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);

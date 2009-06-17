@@ -484,6 +484,14 @@ STEXI
 Set maximum speed to @var{value} (in bytes) for migrations.
 ETEXI
 
+    { "migrate_set_downtime", "s", do_migrate_set_downtime,
+      "value", "set maximum tolerated downtime (in seconds) for migrations" },
+
+STEXI
+@item migrate_set_downtime @var{second}
+Set maximum tolerated downtime (in seconds) for migration.
+ETEXI
+
 #if defined(TARGET_I386)
     { "drive_add", "ss", drive_hot_add, "pci_addr=[[<domain>:]<bus>:]<slot>\n"
                                          "[file=file][,if=type][,bus=n]\n"

@@ -451,7 +451,7 @@ static void pl181_init(SysBusDevice *dev)
     pl181_state *s = FROM_SYSBUS(pl181_state, dev);
     BlockDriverState *bd;
 
-    iomemtype = cpu_register_io_memory(0, pl181_readfn,
+    iomemtype = cpu_register_io_memory(pl181_readfn,
                                        pl181_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq[0]);

@@ -36,7 +36,7 @@
 //#define DEBUG_MMAP
 
 #if defined(USE_NPTL)
-pthread_mutex_t mmap_mutex;
+pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int __thread mmap_lock_count;
 
 void mmap_lock(void)
@@ -281,7 +281,7 @@ unsigned long last_brk;
 */
 /* page_init() marks pages used by the host as reserved to be sure not
    to use them. */
-static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
+abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 {
     abi_ulong addr, addr1, addr_start;
     int prot;

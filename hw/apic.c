@@ -936,7 +936,7 @@ int apic_init(CPUState *env)
     if (apic_io_memory == 0) {
         /* NOTE: the APIC is directly connected to the CPU - it is not
            on the global memory bus. */
-        apic_io_memory = cpu_register_io_memory(0, apic_mem_read,
+        apic_io_memory = cpu_register_io_memory(apic_mem_read,
                                                 apic_mem_write, NULL);
         cpu_register_physical_memory(s->apicbase & ~0xfff, 0x1000,
                                      apic_io_memory);

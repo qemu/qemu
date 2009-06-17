@@ -582,7 +582,7 @@ void hpet_init(qemu_irq *irq) {
     register_savevm("hpet", -1, 1, hpet_save, hpet_load, s);
     qemu_register_reset(hpet_reset, 0, s);
     /* HPET Area */
-    iomemtype = cpu_register_io_memory(0, hpet_ram_read,
+    iomemtype = cpu_register_io_memory(hpet_ram_read,
                                        hpet_ram_write, s);
     cpu_register_physical_memory(HPET_BASE, 0x400, iomemtype);
 }

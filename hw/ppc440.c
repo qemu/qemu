@@ -34,7 +34,8 @@ static const unsigned int ppc440ep_sdram_bank_sizes[] = {
 };
 
 CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
-                        const unsigned int pci_irq_nrs[4], int do_init)
+                        const unsigned int pci_irq_nrs[4], int do_init,
+                        const char *cpu_model)
 {
     target_phys_addr_t ram_bases[PPC440EP_SDRAM_NR_BANKS];
     target_phys_addr_t ram_sizes[PPC440EP_SDRAM_NR_BANKS];
@@ -44,13 +45,9 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     qemu_irq *irqs;
     qemu_irq *pci_irqs;
 
-    env = cpu_ppc_init("440EP");
-    if (!env && kvm_enabled()) {
-        /* XXX Since qemu doesn't yet emulate 440, we just say it's a 405.
-         * Since KVM doesn't use qemu's CPU emulation it seems to be working
-         * OK. */
-        env = cpu_ppc_init("405");
-    }
+    if (cpu_model == NULL)
+        cpu_model = "405"; // XXX: should be 440EP
+    env = cpu_init(cpu_model);
     if (!env) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);

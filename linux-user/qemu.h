@@ -18,6 +18,7 @@
 #include "syscall.h"
 #include "target_signal.h"
 #include "gdbstub.h"
+#include "sys-queue.h"
 
 #if defined(USE_NPTL)
 #define THREAD __thread
@@ -44,6 +45,9 @@ struct image_info {
         abi_ulong       entry;
         abi_ulong       code_offset;
         abi_ulong       data_offset;
+        abi_ulong       saved_auxv;
+        abi_ulong       arg_start;
+        abi_ulong       arg_end;
         char            **host_argv;
 	int		personality;
 };
@@ -87,7 +91,7 @@ struct emulated_sigtable {
 /* NOTE: we force a big alignment so that the stack stored after is
    aligned too */
 typedef struct TaskState {
-    struct TaskState *next;
+    pid_t ts_tid;     /* tid (or pid) of this task */
 #ifdef TARGET_ARM
     /* FPA state */
     FPA11 fpa;
@@ -114,6 +118,7 @@ typedef struct TaskState {
 #endif
     int used; /* non zero if used */
     struct image_info *info;
+    struct linux_binprm *bprm;
 
     struct emulated_sigtable sigtab[TARGET_NSIG];
     struct sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
@@ -125,6 +130,8 @@ typedef struct TaskState {
 
 extern char *exec_path;
 void init_task_state(TaskState *ts);
+void task_settid(TaskState *);
+void stop_all_tasks(void);
 extern const char *qemu_uname_release;
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
@@ -149,13 +156,15 @@ struct linux_binprm {
         char **envp;
         char * filename;        /* Name of binary */
         abi_ulong p;
+        int (*core_dump)(int, const CPUState *); /* coredump routine */
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr);
 int loader_exec(const char * filename, char ** argv, char ** envp,
-             struct target_pt_regs * regs, struct image_info *infop);
+             struct target_pt_regs * regs, struct image_info *infop,
+             struct linux_binprm *);
 
 int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                     struct image_info * info);
@@ -229,6 +238,7 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 extern unsigned long last_brk;
 void mmap_lock(void);
 void mmap_unlock(void);
+abi_ulong mmap_find_vma(abi_ulong, abi_ulong);
 void cpu_list_lock(void);
 void cpu_list_unlock(void);
 #if defined(USE_NPTL)

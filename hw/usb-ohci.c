@@ -1682,7 +1682,7 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
                 usb_frame_time, usb_bit_time);
     }
 
-    ohci->mem = cpu_register_io_memory(0, ohci_readfn, ohci_writefn, ohci);
+    ohci->mem = cpu_register_io_memory(ohci_readfn, ohci_writefn, ohci);
     ohci->localmem_base = localmem_base;
     ohci->name = name;
 
@@ -1732,7 +1732,7 @@ void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
     usb_ohci_init(&ohci->state, num_ports, devfn, ohci->pci_dev.irq[0],
                   OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
 
-    pci_register_io_region((struct PCIDevice *)ohci, 0, 256,
+    pci_register_bar((struct PCIDevice *)ohci, 0, 256,
                            PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
 }
 

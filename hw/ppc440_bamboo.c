@@ -103,7 +103,7 @@ static void bamboo_init(ram_addr_t ram_size,
     int i;
 
     /* Setup CPU. */
-    env = ppc440ep_init(&ram_size, &pcibus, pci_irq_nrs, 1);
+    env = ppc440ep_init(&ram_size, &pcibus, pci_irq_nrs, 1, cpu_model);
 
     if (pcibus) {
         int unit_id = 0;

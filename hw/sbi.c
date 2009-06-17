@@ -151,7 +151,7 @@ void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
         s->cpu_irqs[i] = parent_irq[i];
     }
 
-    sbi_io_memory = cpu_register_io_memory(0, sbi_mem_read, sbi_mem_write, s);
+    sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s);
     cpu_register_physical_memory(addr, SBI_SIZE, sbi_io_memory);
 
     register_savevm("sbi", addr, 1, sbi_save, sbi_load, s);

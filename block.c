@@ -1375,7 +1375,7 @@ typedef struct BlockDriverAIOCBSync {
 static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
 {
     BlockDriverAIOCBSync *acb = (BlockDriverAIOCBSync *)blockacb;
-    qemu_bh_cancel(acb->bh);
+    qemu_bh_delete(acb->bh);
     qemu_aio_release(acb);
 }
 
@@ -1392,7 +1392,7 @@ static void bdrv_aio_bh_cb(void *opaque)
         qemu_iovec_from_buffer(acb->qiov, acb->bounce, acb->qiov->size);
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
-
+    qemu_bh_delete(acb->bh);
     qemu_aio_release(acb);
 }
 
@@ -1568,10 +1568,14 @@ int bdrv_media_changed(BlockDriverState *bs)
 /**
  * If eject_flag is TRUE, eject the media. Otherwise, close the tray
  */
-void bdrv_eject(BlockDriverState *bs, int eject_flag)
+int bdrv_eject(BlockDriverState *bs, int eject_flag)
 {
     BlockDriver *drv = bs->drv;
     int ret;
+
+    if (bs->locked) {
+        return -EBUSY;
+    }
 
     if (!drv || !drv->bdrv_eject) {
         ret = -ENOTSUP;
@@ -1581,7 +1585,10 @@ void bdrv_eject(BlockDriverState *bs, int eject_flag)
     if (ret == -ENOTSUP) {
         if (eject_flag)
             bdrv_close(bs);
+        ret = 0;
     }
+
+    return ret;
 }
 
 int bdrv_is_locked(BlockDriverState *bs)

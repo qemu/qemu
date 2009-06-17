@@ -1097,7 +1097,7 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
 
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
-    pci_register_io_region(&s->dev, 4, 0x20,
+    pci_register_bar(&s->dev, 4, 0x20,
                            PCI_ADDRESS_SPACE_IO, uhci_map);
 
     register_savevm("uhci", 0, 1, uhci_save, uhci_load, s);
@@ -1131,7 +1131,7 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn)
 
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
-    pci_register_io_region(&s->dev, 4, 0x20,
+    pci_register_bar(&s->dev, 4, 0x20,
                            PCI_ADDRESS_SPACE_IO, uhci_map);
 
     register_savevm("uhci", 0, 1, uhci_save, uhci_load, s);

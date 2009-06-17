@@ -467,9 +467,6 @@ ReadLineState *readline_init(Monitor *mon,
 {
     ReadLineState *rs = qemu_mallocz(sizeof(*rs));
 
-    if (!rs)
-        return NULL;
-
     rs->hist_entry = -1;
     rs->mon = mon;
     rs->completion_finder = completion_finder;

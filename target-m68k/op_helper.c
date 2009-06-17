@@ -158,13 +158,13 @@ void do_interrupt(int is_hw)
 
 #endif
 
-static void raise_exception(int tt)
+static void QEMU_NORETURN raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit();
 }
 
-void HELPER(raise_exception)(uint32_t tt)
+void QEMU_NORETURN HELPER(raise_exception)(uint32_t tt)
 {
     raise_exception(tt);
 }

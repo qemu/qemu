@@ -655,6 +655,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_ext2_features;
     uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
+    int cpuid_vendor_override;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];

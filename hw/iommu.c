@@ -375,7 +375,7 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     s->version = version;
     s->irq = irq;
 
-    iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read,
+    iommu_io_memory = cpu_register_io_memory(iommu_mem_read,
                                              iommu_mem_write, s);
     cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
 

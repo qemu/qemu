@@ -63,7 +63,7 @@ static void realview_gic_init(SysBusDevice *dev)
     RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
 
     gic_init(&s->gic);
-    s->iomemtype = cpu_register_io_memory(0, realview_gic_cpu_readfn,
+    s->iomemtype = cpu_register_io_memory(realview_gic_cpu_readfn,
                                           realview_gic_cpu_writefn, s);
     sysbus_init_mmio_cb(dev, 0x2000, realview_gic_map);
 }

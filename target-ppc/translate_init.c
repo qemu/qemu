@@ -9260,17 +9260,10 @@ static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
 /*****************************************************************************/
 static int create_ppc_opcodes (CPUPPCState *env, const ppc_def_t *def)
 {
-    opcode_t *opc, *start, *end;
+    opcode_t *opc;
 
     fill_new_table(env->opcodes, 0x40);
-    if (&opc_start < &opc_end) {
-        start = &opc_start;
-        end = &opc_end;
-    } else {
-        start = &opc_end;
-        end = &opc_start;
-    }
-    for (opc = start + 1; opc != end; opc++) {
+    for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
         if ((opc->handler.type & def->insns_flags) != 0) {
             if (register_insn(env->opcodes, opc) < 0) {
                 printf("*** ERROR initializing PowerPC instruction "

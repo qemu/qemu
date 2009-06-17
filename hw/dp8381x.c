@@ -1510,7 +1510,7 @@ static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
     /* ethernet network controller */
     PCI_CONFIG_32(PCI_REVISION, 0x02000000);
-    /* Address registers are set by pci_register_io_region. */
+    /* Address registers are set by pci_register_bar. */
     /* Capabilities Pointer, CLOFS */
     PCI_CONFIG_32(0x34, 0x00000040);
     /* 0x38 reserved, returns 0 */
@@ -1526,14 +1526,14 @@ static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     /* Handler for memory-mapped I/O */
     s->io_memory =
-        cpu_register_io_memory(0, dp8381x_mmio_read, dp8381x_mmio_write, d);
+        cpu_register_io_memory(dp8381x_mmio_read, dp8381x_mmio_write, d);
 
     logout("io_memory = 0x%08x\n", s->io_memory);
 
-    pci_register_io_region(&d->dev, 0, DP8381X_IO_SIZE,
-                           PCI_ADDRESS_SPACE_IO, dp8381x_io_map);
-    pci_register_io_region(&d->dev, 1, DP8381X_MEM_SIZE,
-                           PCI_ADDRESS_SPACE_MEM, dp8381x_mem_map);
+    pci_register_bar(&d->dev, 0, DP8381X_IO_SIZE,
+                     PCI_ADDRESS_SPACE_IO, dp8381x_io_map);
+    pci_register_bar(&d->dev, 1, DP8381X_MEM_SIZE,
+                     PCI_ADDRESS_SPACE_MEM, dp8381x_mem_map);
 
     s->pci_dev = &d->dev;
     qdev_get_macaddr(&d->dev.qdev, s->macaddr);

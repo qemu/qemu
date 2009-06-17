@@ -430,7 +430,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
-    s_io_memory = cpu_register_io_memory(0, kbd_mm_read, kbd_mm_write, s);
+    s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s);
     cpu_register_physical_memory(base, size, s_io_memory);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);

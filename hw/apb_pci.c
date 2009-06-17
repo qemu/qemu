@@ -234,13 +234,13 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     s->bus = pci_register_bus(NULL, "pci",
                               pci_apb_set_irq, pci_pbm_map_irq, pic, 0, 32);
 
-    pci_mem_config = cpu_register_io_memory(0, pci_apb_config_read,
+    pci_mem_config = cpu_register_io_memory(pci_apb_config_read,
                                             pci_apb_config_write, s);
-    apb_config = cpu_register_io_memory(0, apb_config_read,
+    apb_config = cpu_register_io_memory(apb_config_read,
                                         apb_config_write, s);
-    pci_mem_data = cpu_register_io_memory(0, pci_apb_read,
+    pci_mem_data = cpu_register_io_memory(pci_apb_read,
                                           pci_apb_write, s);
-    pci_ioport = cpu_register_io_memory(0, pci_apb_ioread,
+    pci_ioport = cpu_register_io_memory(pci_apb_ioread,
                                           pci_apb_iowrite, s);
 
     cpu_register_physical_memory(special_base + 0x2000ULL, 0x40, apb_config);

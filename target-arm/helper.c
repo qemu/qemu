@@ -527,41 +527,40 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
+void QEMU_NORETURN HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
-    return;
 }
 
-uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
+uint32_t QEMU_NORETURN HELPER(get_cp)(CPUState *env, uint32_t insn)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
-    return 0;
+    //~ return 0;
 }
 
-void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
+void QEMU_NORETURN HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
 }
 
-uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
+uint32_t QEMU_NORETURN HELPER(get_cp15)(CPUState *env, uint32_t insn)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
-    return 0;
+    //~ return 0;
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
+void QEMU_NORETURN HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
 }
 
-uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
+uint32_t QEMU_NORETURN HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
-    return 0;
+    //~ return 0;
 }
 
 void switch_mode(CPUState *env, int mode)
@@ -570,15 +569,15 @@ void switch_mode(CPUState *env, int mode)
         cpu_abort(env, "Tried to switch out of user mode\n");
 }
 
-void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
+void QEMU_NORETURN HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
 {
     cpu_abort(env, "banked r13 write\n");
 }
 
-uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
+uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 {
     cpu_abort(env, "banked r13 read\n");
-    return 0;
+    //~ return 0;
 }
 
 #else

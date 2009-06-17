@@ -128,7 +128,7 @@ static void bitband_init(SysBusDevice *dev)
     int iomemtype;
 
     s->base = qdev_get_prop_int(&dev->qdev, "base", 0);
-    iomemtype = cpu_register_io_memory(0, bitband_readfn, bitband_writefn,
+    iomemtype = cpu_register_io_memory(bitband_readfn, bitband_writefn,
                                        &s->base);
     sysbus_init_mmio(dev, 0x02000000, iomemtype);
 }

@@ -359,6 +359,7 @@
 #define ASC_INCOMPATIBLE_FORMAT              0x30
 #define ASC_MEDIUM_NOT_PRESENT               0x3a
 #define ASC_SAVING_PARAMETERS_NOT_SUPPORTED  0x39
+#define ASC_MEDIA_REMOVAL_PREVENTED          0x53
 
 #define CFA_NO_ERROR            0x00
 #define CFA_MISC_ERROR          0x09
@@ -1822,18 +1823,27 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_START_STOP_UNIT:
         {
-            int start, eject;
+            int start, eject, err = 0;
             start = packet[4] & 1;
             eject = (packet[4] >> 1) & 1;
 
-            if (eject && !start) {
-                /* eject the disk */
-                bdrv_eject(s->bs, 1);
-            } else if (eject && start) {
-                /* close the tray */
-                bdrv_eject(s->bs, 0);
+            if (eject) {
+                err = bdrv_eject(s->bs, !start);
             }
-            ide_atapi_cmd_ok(s);
+
+            switch (err) {
+            case 0:
+                ide_atapi_cmd_ok(s);
+                break;
+            case -EBUSY:
+                ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                                    ASC_MEDIA_REMOVAL_PREVENTED);
+                break;
+            default:
+                ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                                    ASC_MEDIUM_NOT_PRESENT);
+                break;
+            }
         }
         break;
     case GPCMD_MECHANISM_STATUS:
@@ -3309,15 +3319,15 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
         pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
-    pci_register_io_region((PCIDevice *)d, 0, 0x8,
+    pci_register_bar((PCIDevice *)d, 0, 0x8,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 1, 0x4,
+    pci_register_bar((PCIDevice *)d, 1, 0x4,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 2, 0x8,
+    pci_register_bar((PCIDevice *)d, 2, 0x8,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 3, 0x4,
+    pci_register_bar((PCIDevice *)d, 3, 0x4,
                            PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+    pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
@@ -3376,7 +3386,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     qemu_register_reset(piix3_reset, 0, d);
     piix3_reset(d);
 
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+    pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], pic[14]);
@@ -3416,7 +3426,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     qemu_register_reset(piix3_reset, 0, d);
     piix3_reset(d);
 
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+    pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], pic[14]);
@@ -3751,7 +3761,7 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
     if (dbdma)
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);
 
-    pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
+    pmac_ide_memory = cpu_register_io_memory(pmac_ide_read,
                                              pmac_ide_write, d);
     register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, d);
     qemu_register_reset(pmac_ide_reset, 0, d);
@@ -3847,8 +3857,8 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
     s->dev = ide;
     s->shift = shift;
 
-    mem1 = cpu_register_io_memory(0, mmio_ide_reads, mmio_ide_writes, s);
-    mem2 = cpu_register_io_memory(0, mmio_ide_status, mmio_ide_cmd, s);
+    mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s);
+    mem2 = cpu_register_io_memory(mmio_ide_status, mmio_ide_cmd, s);
     cpu_register_physical_memory(membase, 16 << shift, mem1);
     cpu_register_physical_memory(membase2, 2 << shift, mem2);
 }

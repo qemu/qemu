@@ -199,7 +199,7 @@ io_thread="no"
 nptl="yes"
 mixemu="no"
 bluez="yes"
-kvm="yes"
+kvm="no"
 kerneldir=""
 aix="no"
 blobs="yes"
@@ -299,7 +299,6 @@ SunOS)
     make="gmake"
     install="ginstall"
     needs_libsunmath="no"
-    kvm="no"
     solarisrev=`uname -r | cut -f2 -d.`
     # have to select again, because `uname -m` returns i86pc
     # even on an x86_64 box.
@@ -339,6 +338,7 @@ audio_possible_drivers="oss alsa sdl esd pa"
 linux="yes"
 linux_user="yes"
 usb="linux"
+kvm="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
@@ -1305,6 +1305,63 @@ EOF
   fi
 fi
 
+# check if utimensat and futimens are supported
+utimens=no
+cat > $TMPC << EOF
+#define _ATFILE_SOURCE
+#define _GNU_SOURCE
+#include <stddef.h>
+#include <fcntl.h>
+
+int main(void)
+{
+    utimensat(AT_FDCWD, "foo", NULL, 0);
+    futimens(0, NULL);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  utimens=yes
+fi
+
+# check if pipe2 is there
+pipe2=no
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <fcntl.h>
+
+int main(void)
+{
+    int pipefd[2];
+    pipe2(pipefd, O_CLOEXEC);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  pipe2=yes
+fi
+
+# check if tee/splice is there. vmsplice was added same time.
+splice=no
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <fcntl.h>
+#include <limits.h>
+
+int main(void)
+{
+    int len, fd;
+    len = tee(STDIN_FILENO, STDOUT_FILENO, INT_MAX, SPLICE_F_NONBLOCK);
+    splice(STDIN_FILENO, NULL, fd, NULL, len, SPLICE_F_MOVE);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  splice=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x "`which pod2man 2>/dev/null`" \) ; then
   build_docs="no"
@@ -1706,6 +1763,15 @@ if test "$curses" = "yes" ; then
 fi
 if test "$atfile" = "yes" ; then
   echo "#define CONFIG_ATFILE 1" >> $config_h
+fi
+if test "$utimens" = "yes" ; then
+  echo "#define CONFIG_UTIMENSAT 1" >> $config_h
+fi
+if test "$pipe2" = "yes" ; then
+  echo "#define CONFIG_PIPE2 1" >> $config_h
+fi
+if test "$splice" = "yes" ; then
+  echo "#define CONFIG_SPLICE 1" >> $config_h
 fi
 if test "$inotify" = "yes" ; then
   echo "#define CONFIG_INOTIFY 1" >> $config_h

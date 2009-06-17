@@ -262,6 +262,7 @@ typedef struct {
     uint32_t sbc;
     uint32_t csbc;
     uint32_t scratch[18]; /* SCRATCHA-SCRATCHR */
+    uint8_t sbr;
 
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
@@ -330,6 +331,7 @@ static void lsi_soft_reset(LSIState *s)
     s->ia = 0;
     s->sbc = 0;
     s->csbc = 0;
+    s->sbr = 0;
 }
 
 static int lsi_dma_40bit(LSIState *s)
@@ -1401,6 +1403,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     CASE_GET_REG24(dbc, 0x24)
     case 0x27: /* DCMD */
         return s->dcmd;
+    CASE_GET_REG32(dnad, 0x28)
     CASE_GET_REG32(dsp, 0x2c)
     CASE_GET_REG32(dsps, 0x30)
     CASE_GET_REG32(scratch[0], 0x34)
@@ -1408,6 +1411,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->dmode;
     case 0x39: /* DIEN */
         return s->dien;
+    case 0x3a: /* SBR */
+        return s->sbr;
     case 0x3b: /* DCNTL */
         return s->dcntl;
     case 0x40: /* SIEN0 */
@@ -1487,6 +1492,11 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
 
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 {
+#define CASE_SET_REG24(name, addr) \
+    case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
+    case addr + 1: s->name &= 0xffff00ff; s->name |= val << 8;  break; \
+    case addr + 2: s->name &= 0xff00ffff; s->name |= val << 16; break;
+
 #define CASE_SET_REG32(name, addr) \
     case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
     case addr + 1: s->name &= 0xffff00ff; s->name |= val << 8;  break; \
@@ -1591,6 +1601,8 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         }
         s->ctest5 = val;
         break;
+    CASE_SET_REG24(dbc, 0x24)
+    CASE_SET_REG32(dnad, 0x28)
     case 0x2c: /* DSP[0:7] */
         s->dsp &= 0xffffff00;
         s->dsp |= val;
@@ -1621,6 +1633,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case 0x39: /* DIEN */
         s->dien = val;
         lsi_update_irq(s);
+        break;
+    case 0x3a: /* SBR */
+        s->sbr = val;
         break;
     case 0x3b: /* DCNTL */
         s->dcntl = val & ~(LSI_DCNTL_PFF | LSI_DCNTL_STD);
@@ -1701,6 +1716,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             BADF("Unhandled writeb 0x%x = 0x%x\n", offset, val);
         }
     }
+#undef CASE_SET_REG24
 #undef CASE_SET_REG32
 }
 
@@ -1998,16 +2014,16 @@ static void lsi_scsi_init(PCIDevice *dev)
     /* Interrupt pin 1 */
     pci_conf[0x3d] = 0x01;
 
-    s->mmio_io_addr = cpu_register_io_memory(0, lsi_mmio_readfn,
+    s->mmio_io_addr = cpu_register_io_memory(lsi_mmio_readfn,
                                              lsi_mmio_writefn, s);
-    s->ram_io_addr = cpu_register_io_memory(0, lsi_ram_readfn,
+    s->ram_io_addr = cpu_register_io_memory(lsi_ram_readfn,
                                             lsi_ram_writefn, s);
 
-    pci_register_io_region((struct PCIDevice *)s, 0, 256,
+    pci_register_bar((struct PCIDevice *)s, 0, 256,
                            PCI_ADDRESS_SPACE_IO, lsi_io_mapfunc);
-    pci_register_io_region((struct PCIDevice *)s, 1, 0x400,
+    pci_register_bar((struct PCIDevice *)s, 1, 0x400,
                            PCI_ADDRESS_SPACE_MEM, lsi_mmio_mapfunc);
-    pci_register_io_region((struct PCIDevice *)s, 2, 0x2000,
+    pci_register_bar((struct PCIDevice *)s, 2, 0x2000,
                            PCI_ADDRESS_SPACE_MEM, lsi_ram_mapfunc);
     s->queue = qemu_malloc(sizeof(lsi_queue));
     s->queue_len = 1;

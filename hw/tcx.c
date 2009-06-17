@@ -523,11 +523,11 @@ void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
     vram_offset += size;
     vram_base += size;
 
-    io_memory = cpu_register_io_memory(0, tcx_dac_read, tcx_dac_write, s);
+    io_memory = cpu_register_io_memory(tcx_dac_read, tcx_dac_write, s);
     cpu_register_physical_memory(addr + 0x00200000ULL, TCX_DAC_NREGS,
                                  io_memory);
 
-    dummy_memory = cpu_register_io_memory(0, tcx_dummy_read, tcx_dummy_write,
+    dummy_memory = cpu_register_io_memory(tcx_dummy_read, tcx_dummy_write,
                                           s);
     cpu_register_physical_memory(addr + 0x00700000ULL, TCX_TEC_NREGS,
                                  dummy_memory);

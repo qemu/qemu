@@ -145,7 +145,7 @@ static void etraxfs_pic_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_nmi);
 
-    intr_vect_regs = cpu_register_io_memory(0, pic_read, pic_write, s);
+    intr_vect_regs = cpu_register_io_memory(pic_read, pic_write, s);
     sysbus_init_mmio(dev, R_MAX * 4, intr_vect_regs);
 }
 

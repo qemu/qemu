@@ -276,7 +276,7 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     if (size & (size-1))
         size = 1 << qemu_fls(size);
 
-    pci_register_io_region(&proxy->pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
+    pci_register_bar(&proxy->pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
                            virtio_map);
 
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);

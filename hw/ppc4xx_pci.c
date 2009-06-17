@@ -384,14 +384,14 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
 
     /* CFGADDR */
-    index = cpu_register_io_memory(0, pci4xx_cfgaddr_read,
+    index = cpu_register_io_memory(pci4xx_cfgaddr_read,
                                    pci4xx_cfgaddr_write, controller);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(config_space + PCIC0_CFGADDR, 4, index);
 
     /* CFGDATA */
-    index = cpu_register_io_memory(0, pci4xx_cfgdata_read,
+    index = cpu_register_io_memory(pci4xx_cfgdata_read,
                                    pci4xx_cfgdata_write,
                                    &controller->pci_state);
     if (index < 0)
@@ -399,7 +399,7 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     cpu_register_physical_memory(config_space + PCIC0_CFGDATA, 4, index);
 
     /* Internal registers */
-    index = cpu_register_io_memory(0, pci_reg_read, pci_reg_write, controller);
+    index = cpu_register_io_memory(pci_reg_read, pci_reg_write, controller);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers, PCI_REG_SIZE, index);

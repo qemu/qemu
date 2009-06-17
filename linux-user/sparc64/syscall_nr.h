@@ -313,3 +313,12 @@
 #define TARGET_NR_timerfd		312
 #define TARGET_NR_eventfd		313
 #define TARGET_NR_fallocate		314
+#define TARGET_NR_timerfd_settime	315
+#define TARGET_NR_timerfd_gettime	316
+#define TARGET_NR_signalfd4		317
+#define TARGET_NR_eventfd2		318
+#define TARGET_NR_epoll_create1	319
+#define TARGET_NR_dup3			320
+#define TARGET_NR_pipe2		321
+#define TARGET_NR_inotify_init1	322
+#define TARGET_NR_accept4		323

@@ -323,3 +323,12 @@
 #define TARGET_NR_eventfd		307
 #define TARGET_NR_sync_file_range2	308
 #define TARGET_NR_fallocate		309
+#define TARGET_NR_subpage_prot		310
+#define TARGET_NR_timerfd_settime	311
+#define TARGET_NR_timerfd_gettime	312
+#define TARGET_NR_signalfd4		313
+#define TARGET_NR_eventfd2		314
+#define TARGET_NR_epoll_create1	315
+#define TARGET_NR_dup3			316
+#define TARGET_NR_pipe2		317
+#define TARGET_NR_inotify_init1	318

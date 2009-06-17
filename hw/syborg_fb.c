@@ -511,7 +511,7 @@ static void syborg_fb_init(SysBusDevice *dev)
     int height;
 
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(0, syborg_fb_readfn,
+    iomemtype = cpu_register_io_memory(syborg_fb_readfn,
                                        syborg_fb_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
 

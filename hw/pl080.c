@@ -324,7 +324,7 @@ static void pl08x_init(SysBusDevice *dev, int nchannels)
     int iomemtype;
     pl080_state *s = FROM_SYSBUS(pl080_state, dev);
 
-    iomemtype = cpu_register_io_memory(0, pl080_readfn,
+    iomemtype = cpu_register_io_memory(pl080_readfn,
                                        pl080_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
