@@ -1738,3 +1738,25 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 
     return env;
 }
+
+#if !defined(CONFIG_USER_ONLY)
+void do_cpu_init(CPUState *env)
+{
+    int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
+    cpu_reset(env);
+    env->interrupt_request = sipi;
+    apic_init_reset(env);
+}
+
+void do_cpu_sipi(CPUState *env)
+{
+    apic_sipi(env);
+}
+#else
+void do_cpu_init(CPUState *env)
+{
+}
+void do_cpu_sipi(CPUState *env)
+{
+}
+#endif

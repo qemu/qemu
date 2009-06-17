@@ -85,6 +85,8 @@ typedef struct APICState {
     int64_t initial_count_load_time, next_time;
     uint32_t idx;
     QEMUTimer *timer;
+    int sipi_vector;
+    int wait_for_sipi;
 } APICState;
 
 static int apic_io_memory;
@@ -93,7 +95,6 @@ static int last_apic_idx = 0;
 static int apic_irq_delivered;
 
 
-static void apic_init_ipi(APICState *s);
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICState *s);
 static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
@@ -249,7 +250,7 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
         case APIC_DM_INIT:
             /* normal INIT IPI sent to processors */
             foreach_apic(apic_iter, deliver_bitmask,
-                         apic_init_ipi(apic_iter) );
+                         cpu_interrupt(apic_iter->cpu_env, CPU_INTERRUPT_INIT) );
             return;
 
         case APIC_DM_EXTINT:
@@ -454,9 +455,13 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
 }
 
 
-static void apic_init_ipi(APICState *s)
+void apic_init_reset(CPUState *env)
 {
+    APICState *s = env->apic_state;
     int i;
+
+    if (!s)
+        return;
 
     s->tpr = 0;
     s->spurious_vec = 0xff;
@@ -474,22 +479,31 @@ static void apic_init_ipi(APICState *s)
     s->initial_count = 0;
     s->initial_count_load_time = 0;
     s->next_time = 0;
+    s->wait_for_sipi = 1;
 
-    cpu_reset(s->cpu_env);
-
-    s->cpu_env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
+    env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
 }
 
-/* send a SIPI message to the CPU to start it */
 static void apic_startup(APICState *s, int vector_num)
 {
-    CPUState *env = s->cpu_env;
-    if (!env->halted)
+    s->sipi_vector = vector_num;
+    cpu_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
+}
+
+void apic_sipi(CPUState *env)
+{
+    APICState *s = env->apic_state;
+
+    cpu_reset_interrupt(env, CPU_INTERRUPT_SIPI);
+
+    if (!s->wait_for_sipi)
         return;
+
     env->eip = 0;
-    cpu_x86_load_seg_cache(env, R_CS, vector_num << 8, vector_num << 12,
+    cpu_x86_load_seg_cache(env, R_CS, s->sipi_vector << 8, s->sipi_vector << 12,
                            0xffff, 0);
     env->halted = 0;
+    s->wait_for_sipi = 0;
 }
 
 static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
@@ -894,7 +908,8 @@ static void apic_reset(void *opaque)
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
-    apic_init_ipi(s);
+    cpu_reset(s->cpu_env);
+    apic_init_reset(s->cpu_env);
 
     if (bsp) {
         /*

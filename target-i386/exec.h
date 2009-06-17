@@ -345,6 +345,8 @@ static inline int cpu_has_work(CPUState *env)
     work = (env->interrupt_request & CPU_INTERRUPT_HARD) &&
            (env->eflags & IF_MASK);
     work |= env->interrupt_request & CPU_INTERRUPT_NMI;
+    work |= env->interrupt_request & CPU_INTERRUPT_INIT;
+    work |= env->interrupt_request & CPU_INTERRUPT_SIPI;
 
     return work;
 }
