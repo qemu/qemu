@@ -2457,6 +2457,26 @@ int net_client_parse(const char *str)
     return net_client_init(NULL, device, p);
 }
 
+void net_set_boot_mask(int net_boot_mask)
+{
+    int i;
+
+    /* Only the first four NICs may be bootable */
+    net_boot_mask = net_boot_mask & 0xF;
+
+    for (i = 0; i < nb_nics; i++) {
+        if (net_boot_mask & (1 << i)) {
+            nd_table[i].bootable = 1;
+            net_boot_mask &= ~(1 << i);
+        }
+    }
+
+    if (net_boot_mask) {
+        fprintf(stderr, "Cannot boot from non-existent NIC\n");
+        exit(1);
+    }
+}
+
 void do_info_network(Monitor *mon)
 {
     VLANState *vlan;

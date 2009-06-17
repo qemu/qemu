@@ -977,8 +977,23 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     for (i = 0; i < nb_option_roms; i++) {
-        oprom_area_size += load_option_rom(option_rom[i],
-                                           0xc0000 + oprom_area_size, 0xe0000);
+        oprom_area_size += load_option_rom(option_rom[i], 0xc0000 + oprom_area_size,
+                                           0xe0000);
+    }
+
+    for (i = 0; i < nb_nics; i++) {
+        char nic_oprom[1024];
+        const char *model = nd_table[i].model;
+
+        if (!nd_table[i].bootable)
+            continue;
+
+        if (model == NULL)
+            model = "ne2k_pci";
+        snprintf(nic_oprom, sizeof(nic_oprom), "pxe-%s.bin", model);
+
+        oprom_area_size += load_option_rom(nic_oprom, 0xc0000 + oprom_area_size,
+                                           0xe0000);
     }
 
     /* map all the bios at the top of memory */

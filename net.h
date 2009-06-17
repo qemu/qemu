@@ -91,6 +91,7 @@ struct NICInfo {
     VLANState *vlan;
     void *private;
     int used;
+    int bootable;
 };
 
 extern int nb_nics;
@@ -126,6 +127,7 @@ void net_slirp_redir(Monitor *mon, const char *redir_str, const char *redir_opt2
 void net_cleanup(void);
 int slirp_is_inited(void);
 void net_client_check(void);
+void net_set_boot_mask(int boot_mask);
 void net_host_device_add(Monitor *mon, const char *device, const char *opts);
 void net_host_device_remove(Monitor *mon, int vlan_id, const char *device);
 

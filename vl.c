@@ -5801,7 +5801,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     linux_boot = (kernel_filename != NULL);
-    net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
 
     if (!linux_boot && *kernel_cmdline != '\0') {
         fprintf(stderr, "-append only allowed with -kernel option\n");
@@ -5849,41 +5848,11 @@ int main(int argc, char **argv, char **envp)
         if (net_client_parse(net_clients[i]) < 0)
             exit(1);
     }
-    net_client_check();
 
-#ifdef TARGET_I386
-    /* XXX: this should be moved in the PC machine instantiation code */
-    if (net_boot != 0) {
-        int netroms = 0;
-	for (i = 0; i < nb_nics && i < 4; i++) {
-	    const char *model = nd_table[i].model;
-	    char buf[1024];
-            char *filename;
-            if (net_boot & (1 << i)) {
-                if (model == NULL)
-                    model = "ne2k_pci";
-                snprintf(buf, sizeof(buf), "pxe-%s.bin", model);
-                filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, buf);
-                if (filename && get_image_size(filename) > 0) {
-                    if (nb_option_roms >= MAX_OPTION_ROMS) {
-                        fprintf(stderr, "Too many option ROMs\n");
-                        exit(1);
-                    }
-                    option_rom[nb_option_roms] = qemu_strdup(buf);
-                    nb_option_roms++;
-                    netroms++;
-                }
-                if (filename) {
-                    qemu_free(filename);
-                }
-            }
-	}
-	if (netroms == 0) {
-	    fprintf(stderr, "No valid PXE rom found for network device\n");
-	    exit(1);
-	}
-    }
-#endif
+    net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
+    net_set_boot_mask(net_boot);
+
+    net_client_check();
 
     /* init the bluetooth world */
     for (i = 0; i < nb_bt_opts; i++)
