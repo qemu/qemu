@@ -3346,6 +3346,12 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         
         if (flags & RAM_SAVE_FLAG_COMPRESS) {
             uint8_t ch = qemu_get_byte(f);
+#if defined(__linux__)
+            if (ch == 0 &&
+                (!kvm_enabled() || kvm_has_sync_mmu())) {
+                madvise(qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE, MADV_DONTNEED);
+            } else
+#endif
             memset(qemu_get_ram_ptr(addr), ch, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_PAGE)
             qemu_get_buffer(f, qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE);
