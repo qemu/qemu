@@ -362,7 +362,6 @@ static void iommu_reset(void *opaque)
     s->regs[IOMMU_AFSR] = IOMMU_AFSR_RESV;
     s->regs[IOMMU_AER] = IOMMU_AER_EN_P0_ARB | IOMMU_AER_EN_P1_ARB;
     s->regs[IOMMU_MASK_ID] = IOMMU_TS_MASK;
-    qemu_irq_lower(s->irq);
 }
 
 void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)

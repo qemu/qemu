@@ -3317,8 +3317,6 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
         s->cplus_enabled = s->CpCmd != 0;
     }
 
-    rtl8139_update_irq(s);
-
     return 0;
 }
 

@@ -359,7 +359,6 @@ static void slavio_timer_reset(void *opaque)
         ptimer_run(s->timer, 0);
     }
     s->running = 1;
-    qemu_irq_lower(s->irq);
 }
 
 static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,

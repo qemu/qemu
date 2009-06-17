@@ -401,8 +401,6 @@ static void esp_reset(void *opaque)
 {
     ESPState *s = opaque;
 
-    esp_lower_irq(s);
-
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
     s->rregs[ESP_TCHI] = TCHI_FAS100A; // Indicate fas100a
