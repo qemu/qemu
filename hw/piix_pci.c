@@ -272,8 +272,9 @@ static void piix3_reset(void *opaque)
     memset(pci_irq_levels, 0, sizeof(pci_irq_levels));
 }
 
-static void piix4_reset(PCIDevice *d)
+static void piix4_reset(void *opaque)
 {
+    PCIDevice *d = opaque;
     uint8_t *pci_conf = d->config;
 
     pci_conf[0x04] = 0x07; // master, memory and I/O
@@ -307,6 +308,8 @@ static void piix4_reset(PCIDevice *d)
     pci_conf[0xab] = 0x00;
     pci_conf[0xac] = 0x00;
     pci_conf[0xae] = 0x00;
+
+    memset(pci_irq_levels, 0, sizeof(pci_irq_levels));
 }
 
 static void piix_save(QEMUFile* f, void *opaque)
@@ -366,5 +369,6 @@ int piix4_init(PCIBus *bus, int devfn)
 
 
     piix4_reset(d);
+    qemu_register_reset(piix4_reset, 0, d);
     return d->devfn;
 }
