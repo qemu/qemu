@@ -1990,7 +1990,7 @@ static int net_dump_init(Monitor *mon, VLANState *vlan, const char *device,
 
     s = qemu_malloc(sizeof(DumpState));
 
-    s->fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    s->fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
     if (s->fd < 0) {
         config_error(mon, "-net dump: can't open %s\n", filename);
         return -1;
