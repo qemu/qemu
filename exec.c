@@ -544,6 +544,19 @@ static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
 }
 #endif
 
+CPUState *qemu_get_cpu(int cpu)
+{
+    CPUState *env = first_cpu;
+
+    while (env) {
+        if (env->cpu_index == cpu)
+            break;
+        env = env->next_cpu;
+    }
+
+    return env;
+}
+
 void cpu_exec_init(CPUState *env)
 {
     CPUState **penv;
@@ -1752,28 +1765,12 @@ void tlb_flush(CPUState *env, int flush_global)
     env->current_tb = NULL;
 
     for(i = 0; i < CPU_TLB_SIZE; i++) {
-        env->tlb_table[0][i].addr_read = -1;
-        env->tlb_table[0][i].addr_write = -1;
-        env->tlb_table[0][i].addr_code = -1;
-        env->tlb_table[1][i].addr_read = -1;
-        env->tlb_table[1][i].addr_write = -1;
-        env->tlb_table[1][i].addr_code = -1;
-#if (NB_MMU_MODES >= 3)
-        env->tlb_table[2][i].addr_read = -1;
-        env->tlb_table[2][i].addr_write = -1;
-        env->tlb_table[2][i].addr_code = -1;
-#endif
-#if (NB_MMU_MODES >= 4)
-        env->tlb_table[3][i].addr_read = -1;
-        env->tlb_table[3][i].addr_write = -1;
-        env->tlb_table[3][i].addr_code = -1;
-#endif
-#if (NB_MMU_MODES >= 5)
-        env->tlb_table[4][i].addr_read = -1;
-        env->tlb_table[4][i].addr_write = -1;
-        env->tlb_table[4][i].addr_code = -1;
-#endif
-
+        int mmu_idx;
+        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+            env->tlb_table[mmu_idx][i].addr_read = -1;
+            env->tlb_table[mmu_idx][i].addr_write = -1;
+            env->tlb_table[mmu_idx][i].addr_code = -1;
+        }
     }
 
     memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
@@ -1803,6 +1800,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 void tlb_flush_page(CPUState *env, target_ulong addr)
 {
     int i;
+    int mmu_idx;
 
 #if defined(DEBUG_TLB)
     printf("tlb_flush_page: " TARGET_FMT_lx "\n", addr);
@@ -1813,17 +1811,8 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_flush_entry(&env->tlb_table[0][i], addr);
-    tlb_flush_entry(&env->tlb_table[1][i], addr);
-#if (NB_MMU_MODES >= 3)
-    tlb_flush_entry(&env->tlb_table[2][i], addr);
-#endif
-#if (NB_MMU_MODES >= 4)
-    tlb_flush_entry(&env->tlb_table[3][i], addr);
-#endif
-#if (NB_MMU_MODES >= 5)
-    tlb_flush_entry(&env->tlb_table[4][i], addr);
-#endif
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++)
+        tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
 
     tlb_flush_jmp_cache(env, addr);
 
@@ -1907,22 +1896,12 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     }
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_table[0][i], start1, length);
-        for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_table[1][i], start1, length);
-#if (NB_MMU_MODES >= 3)
-        for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_table[2][i], start1, length);
-#endif
-#if (NB_MMU_MODES >= 4)
-        for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_table[3][i], start1, length);
-#endif
-#if (NB_MMU_MODES >= 5)
-        for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_table[4][i], start1, length);
-#endif
+        int mmu_idx;
+        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+            for(i = 0; i < CPU_TLB_SIZE; i++)
+                tlb_reset_dirty_range(&env->tlb_table[mmu_idx][i],
+                                      start1, length);
+        }
     }
 }
 
@@ -1969,22 +1948,11 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
 void cpu_tlb_update_dirty(CPUState *env)
 {
     int i;
-    for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_table[0][i]);
-    for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_table[1][i]);
-#if (NB_MMU_MODES >= 3)
-    for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_table[2][i]);
-#endif
-#if (NB_MMU_MODES >= 4)
-    for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_table[3][i]);
-#endif
-#if (NB_MMU_MODES >= 5)
-    for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_table[4][i]);
-#endif
+    int mmu_idx;
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        for(i = 0; i < CPU_TLB_SIZE; i++)
+            tlb_update_dirty(&env->tlb_table[mmu_idx][i]);
+    }
 }
 
 static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
@@ -1998,20 +1966,12 @@ static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
 static inline void tlb_set_dirty(CPUState *env, target_ulong vaddr)
 {
     int i;
+    int mmu_idx;
 
     vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_set_dirty1(&env->tlb_table[0][i], vaddr);
-    tlb_set_dirty1(&env->tlb_table[1][i], vaddr);
-#if (NB_MMU_MODES >= 3)
-    tlb_set_dirty1(&env->tlb_table[2][i], vaddr);
-#endif
-#if (NB_MMU_MODES >= 4)
-    tlb_set_dirty1(&env->tlb_table[3][i], vaddr);
-#endif
-#if (NB_MMU_MODES >= 5)
-    tlb_set_dirty1(&env->tlb_table[4][i], vaddr);
-#endif
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++)
+        tlb_set_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
 }
 
 /* add a new TLB entry. At most one entry for a given virtual address
@@ -2134,36 +2094,36 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     return 0;
 }
 
-/* dump memory mappings */
-void page_dump(FILE *f)
+/*
+ * Walks guest process memory "regions" one by one
+ * and calls callback function 'fn' for each region.
+ */
+int walk_memory_regions(void *priv,
+    int (*fn)(void *, unsigned long, unsigned long, unsigned long))
 {
     unsigned long start, end;
+    PageDesc *p = NULL;
     int i, j, prot, prot1;
-    PageDesc *p;
+    int rc = 0;
 
-    fprintf(f, "%-8s %-8s %-8s %s\n",
-            "start", "end", "size", "prot");
-    start = -1;
-    end = -1;
+    start = end = -1;
     prot = 0;
-    for(i = 0; i <= L1_SIZE; i++) {
-        if (i < L1_SIZE)
-            p = l1_map[i];
-        else
-            p = NULL;
-        for(j = 0;j < L2_SIZE; j++) {
-            if (!p)
-                prot1 = 0;
-            else
-                prot1 = p[j].flags;
+
+    for (i = 0; i <= L1_SIZE; i++) {
+        p = (i < L1_SIZE) ? l1_map[i] : NULL;
+        for (j = 0; j < L2_SIZE; j++) {
+            prot1 = (p == NULL) ? 0 : p[j].flags;
+            /*
+             * "region" is one continuous chunk of memory
+             * that has same protection flags set.
+             */
             if (prot1 != prot) {
                 end = (i << (32 - L1_BITS)) | (j << TARGET_PAGE_BITS);
                 if (start != -1) {
-                    fprintf(f, "%08lx-%08lx %08lx %c%c%c\n",
-                            start, end, end - start,
-                            prot & PAGE_READ ? 'r' : '-',
-                            prot & PAGE_WRITE ? 'w' : '-',
-                            prot & PAGE_EXEC ? 'x' : '-');
+                    rc = (*fn)(priv, start, end, prot);
+                    /* callback can stop iteration by returning != 0 */
+                    if (rc != 0)
+                        return (rc);
                 }
                 if (prot1 != 0)
                     start = end;
@@ -2171,10 +2131,33 @@ void page_dump(FILE *f)
                     start = -1;
                 prot = prot1;
             }
-            if (!p)
+            if (p == NULL)
                 break;
         }
     }
+    return (rc);
+}
+
+static int dump_region(void *priv, unsigned long start,
+    unsigned long end, unsigned long prot)
+{
+    FILE *f = (FILE *)priv;
+
+    (void) fprintf(f, "%08lx-%08lx %08lx %c%c%c\n",
+        start, end, end - start,
+        ((prot & PAGE_READ) ? 'r' : '-'),
+        ((prot & PAGE_WRITE) ? 'w' : '-'),
+        ((prot & PAGE_EXEC) ? 'x' : '-'));
+
+    return (0);
+}
+
+/* dump memory mappings */
+void page_dump(FILE *f)
+{
+    (void) fprintf(f, "%-8s %-8s %-8s %s\n",
+            "start", "end", "size", "prot");
+    walk_memory_regions(f, dump_region);
 }
 
 int page_get_flags(target_ulong address)
@@ -3036,7 +3019,7 @@ static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     mmio = qemu_mallocz(sizeof(subpage_t));
 
     mmio->base = base;
-    subpage_memory = cpu_register_io_memory(0, subpage_read, subpage_write, mmio);
+    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
@@ -3061,27 +3044,6 @@ static int get_free_io_mem_idx(void)
     return -1;
 }
 
-static void io_mem_init(void)
-{
-    int i;
-
-    cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, error_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory(IO_MEM_UNASSIGNED >> IO_MEM_SHIFT, unassigned_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, error_mem_read, notdirty_mem_write, NULL);
-    for (i=0; i<5; i++)
-        io_mem_used[i] = 1;
-
-    io_mem_watch = cpu_register_io_memory(0, watch_mem_read,
-                                          watch_mem_write, NULL);
-#ifdef CONFIG_KQEMU
-    if (kqemu_phys_ram_base) {
-        /* alloc dirty bits array */
-        phys_ram_dirty = qemu_vmalloc(kqemu_phys_ram_size >> TARGET_PAGE_BITS);
-        memset(phys_ram_dirty, 0xff, kqemu_phys_ram_size >> TARGET_PAGE_BITS);
-    }
-#endif
-}
-
 /* mem_read and mem_write are arrays of functions containing the
    function to access byte (index 0), word (index 1) and dword (index
    2). Functions can be omitted with a NULL function pointer.
@@ -3089,10 +3051,10 @@ static void io_mem_init(void)
    modified. If it is zero, a new io zone is allocated. The return
    value can be used with cpu_register_physical_memory(). (-1) is
    returned if error. */
-int cpu_register_io_memory(int io_index,
-                           CPUReadMemoryFunc * const *mem_read,
-                           CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque)
+static int cpu_register_io_memory_fixed(int io_index,
+                                        CPUReadMemoryFunc * const *mem_read,
+                                        CPUWriteMemoryFunc * const *mem_write,
+                                        void *opaque)
 {
     int i, subwidth = 0;
 
@@ -3101,6 +3063,7 @@ int cpu_register_io_memory(int io_index,
         if (io_index == -1)
             return io_index;
     } else {
+        io_index >>= IO_MEM_SHIFT;
         if (io_index >= IO_MEM_NB_ENTRIES)
             return -1;
     }
@@ -3115,6 +3078,13 @@ int cpu_register_io_memory(int io_index,
     return (io_index << IO_MEM_SHIFT) | subwidth;
 }
 
+int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
+                           CPUWriteMemoryFunc * const *mem_write,
+                           void *opaque)
+{
+    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque);
+}
+
 void cpu_unregister_io_memory(int io_table_address)
 {
     int i;
@@ -3126,6 +3096,27 @@ void cpu_unregister_io_memory(int io_table_address)
     }
     io_mem_opaque[io_index] = NULL;
     io_mem_used[io_index] = 0;
+}
+
+static void io_mem_init(void)
+{
+    int i;
+
+    cpu_register_io_memory_fixed(IO_MEM_ROM, error_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory_fixed(IO_MEM_UNASSIGNED, unassigned_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory_fixed(IO_MEM_NOTDIRTY, error_mem_read, notdirty_mem_write, NULL);
+    for (i=0; i<5; i++)
+        io_mem_used[i] = 1;
+
+    io_mem_watch = cpu_register_io_memory(watch_mem_read,
+                                          watch_mem_write, NULL);
+#ifdef CONFIG_KQEMU
+    if (kqemu_phys_ram_base) {
+        /* alloc dirty bits array */
+        phys_ram_dirty = qemu_vmalloc(kqemu_phys_ram_size >> TARGET_PAGE_BITS);
+        memset(phys_ram_dirty, 0xff, kqemu_phys_ram_size >> TARGET_PAGE_BITS);
+    }
+#endif
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */

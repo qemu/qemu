@@ -219,8 +219,6 @@ static CharDriverState *qemu_chr_open_null(void)
 }
 
 /* MUX driver for serial I/O splitting */
-static int term_timestamps;
-static int64_t term_timestamps_start;
 #define MAX_MUX 4
 #define MUX_BUFFER_SIZE 32	/* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
@@ -239,6 +237,9 @@ typedef struct {
     unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
     int prod[MAX_MUX];
     int cons[MAX_MUX];
+    int timestamps;
+    int linestart;
+    int64_t timestamps_start;
 } MuxDriver;
 
 
@@ -246,23 +247,22 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     MuxDriver *d = chr->opaque;
     int ret;
-    if (!term_timestamps) {
+    if (!d->timestamps) {
         ret = d->drv->chr_write(d->drv, buf, len);
     } else {
         int i;
 
         ret = 0;
-        for(i = 0; i < len; i++) {
-            ret += d->drv->chr_write(d->drv, buf+i, 1);
-            if (buf[i] == '\n') {
+        for (i = 0; i < len; i++) {
+            if (d->linestart) {
                 char buf1[64];
                 int64_t ti;
                 int secs;
 
                 ti = qemu_get_clock(rt_clock);
-                if (term_timestamps_start == -1)
-                    term_timestamps_start = ti;
-                ti -= term_timestamps_start;
+                if (d->timestamps_start == -1)
+                    d->timestamps_start = ti;
+                ti -= d->timestamps_start;
                 secs = ti / 1000;
                 snprintf(buf1, sizeof(buf1),
                          "[%02d:%02d:%02d.%03d] ",
@@ -271,6 +271,11 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                          secs % 60,
                          (int)(ti % 1000));
                 d->drv->chr_write(d->drv, (uint8_t *)buf1, strlen(buf1));
+                d->linestart = 0;
+            }
+            ret += d->drv->chr_write(d->drv, buf+i, 1);
+            if (buf[i] == '\n') {
+                d->linestart = 1;
             }
         }
     }
@@ -357,10 +362,11 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
                 chr->focus = 0;
             mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
             break;
-       case 't':
-           term_timestamps = !term_timestamps;
-           term_timestamps_start = -1;
-           break;
+        case 't':
+            d->timestamps = !d->timestamps;
+            d->timestamps_start = -1;
+            d->linestart = 0;
+            break;
         }
     } else if (ch == term_escape_char) {
         d->term_got_escape = 1;

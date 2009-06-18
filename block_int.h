@@ -48,6 +48,7 @@ struct BlockDriver {
     const char *format_name;
     int instance_size;
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
+    int (*bdrv_probe_device)(const char *filename);
     int (*bdrv_open)(BlockDriverState *bs, const char *filename, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
@@ -176,5 +177,9 @@ void qemu_aio_release(void *p);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 extern BlockDriverState *bdrv_first;
+
+#ifdef _WIN32
+int is_windows_drive(const char *filename);
+#endif
 
 #endif /* BLOCK_INT_H */

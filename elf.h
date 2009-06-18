@@ -1081,7 +1081,23 @@ typedef struct elf64_shdr {
 #define	EI_CLASS	4
 #define	EI_DATA		5
 #define	EI_VERSION	6
-#define	EI_PAD		7
+#define	EI_OSABI	7
+#define	EI_PAD		8
+
+#define ELFOSABI_NONE           0       /* UNIX System V ABI */
+#define ELFOSABI_SYSV           0       /* Alias.  */
+#define ELFOSABI_HPUX           1       /* HP-UX */
+#define ELFOSABI_NETBSD         2       /* NetBSD.  */
+#define ELFOSABI_LINUX          3       /* Linux.  */
+#define ELFOSABI_SOLARIS        6       /* Sun Solaris.  */
+#define ELFOSABI_AIX            7       /* IBM AIX.  */
+#define ELFOSABI_IRIX           8       /* SGI Irix.  */
+#define ELFOSABI_FREEBSD        9       /* FreeBSD.  */
+#define ELFOSABI_TRU64          10      /* Compaq TRU64 UNIX.  */
+#define ELFOSABI_MODESTO        11      /* Novell Modesto.  */
+#define ELFOSABI_OPENBSD        12      /* OpenBSD.  */
+#define ELFOSABI_ARM            97      /* ARM */
+#define ELFOSABI_STANDALONE     255     /* Standalone (embedded) application */
 
 #define	ELFMAG0		0x7f		/* EI_MAG */
 #define	ELFMAG1		'E'
@@ -1108,6 +1124,7 @@ typedef struct elf64_shdr {
 #define NT_PRFPREG	2
 #define NT_PRPSINFO	3
 #define NT_TASKSTRUCT	4
+#define NT_AUXV		6
 #define NT_PRXFPREG     0x46e62b7f      /* copied from gdb5.1/include/elf/common.h */
 
 

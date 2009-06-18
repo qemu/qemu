@@ -401,8 +401,6 @@ static void esp_reset(void *opaque)
 {
     ESPState *s = opaque;
 
-    esp_lower_irq(s);
-
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
     s->rregs[ESP_TCHI] = TCHI_FAS100A; // Indicate fas100a
@@ -676,7 +674,7 @@ static void esp_init1(SysBusDevice *dev)
     s->dma_memory_write = qdev_get_prop_ptr(&dev->qdev, "dma_memory_write");
     s->dma_opaque = qdev_get_prop_ptr(&dev->qdev, "dma_opaque");
 
-    esp_io_memory = cpu_register_io_memory(0, esp_mem_read, esp_mem_write, s);
+    esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s);
     sysbus_init_mmio(dev, ESP_REGS << s->it_shift, esp_io_memory);
 
     esp_reset(s);

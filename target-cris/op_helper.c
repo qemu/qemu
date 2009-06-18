@@ -91,7 +91,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #endif
 
-void helper_raise_exception(uint32_t index)
+void QEMU_NORETURN helper_raise_exception(uint32_t index)
 {
 	env->exception_index = index;
 	cpu_loop_exit();

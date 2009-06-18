@@ -448,28 +448,28 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
         /* 8 bit registers */
 
         // Slavio control
-        io = cpu_register_io_memory(0, slavio_cfg_mem_read,
+        io = cpu_register_io_memory(slavio_cfg_mem_read,
                                     slavio_cfg_mem_write, s);
         cpu_register_physical_memory(base + MISC_CFG, MISC_SIZE, io);
 
         // Diagnostics
-        io = cpu_register_io_memory(0, slavio_diag_mem_read,
+        io = cpu_register_io_memory(slavio_diag_mem_read,
                                     slavio_diag_mem_write, s);
         cpu_register_physical_memory(base + MISC_DIAG, MISC_SIZE, io);
 
         // Modem control
-        io = cpu_register_io_memory(0, slavio_mdm_mem_read,
+        io = cpu_register_io_memory(slavio_mdm_mem_read,
                                     slavio_mdm_mem_write, s);
         cpu_register_physical_memory(base + MISC_MDM, MISC_SIZE, io);
 
         /* 16 bit registers */
-        io = cpu_register_io_memory(0, slavio_led_mem_read,
+        io = cpu_register_io_memory(slavio_led_mem_read,
                                     slavio_led_mem_write, s);
         /* ss600mp diag LEDs */
         cpu_register_physical_memory(base + MISC_LEDS, MISC_SIZE, io);
 
         /* 32 bit registers */
-        io = cpu_register_io_memory(0, slavio_sysctrl_mem_read,
+        io = cpu_register_io_memory(slavio_sysctrl_mem_read,
                                     slavio_sysctrl_mem_write, s);
         // System control
         cpu_register_physical_memory(base + MISC_SYS, SYSCTRL_SIZE, io);
@@ -477,21 +477,21 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
 
     // AUX 1 (Misc System Functions)
     if (aux1_base) {
-        io = cpu_register_io_memory(0, slavio_aux1_mem_read,
+        io = cpu_register_io_memory(slavio_aux1_mem_read,
                                     slavio_aux1_mem_write, s);
         cpu_register_physical_memory(aux1_base, MISC_SIZE, io);
     }
 
     // AUX 2 (Software Powerdown Control)
     if (aux2_base) {
-        io = cpu_register_io_memory(0, slavio_aux2_mem_read,
+        io = cpu_register_io_memory(slavio_aux2_mem_read,
                                     slavio_aux2_mem_write, s);
         cpu_register_physical_memory(aux2_base, MISC_SIZE, io);
     }
 
     // Power management (APC) XXX: not a Slavio device
     if (power_base) {
-        io = cpu_register_io_memory(0, apc_mem_read, apc_mem_write, s);
+        io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
         cpu_register_physical_memory(power_base, MISC_SIZE, io);
     }
 

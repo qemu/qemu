@@ -2477,18 +2477,18 @@ static void e100_init(PCIDevice *pci_dev, uint32_t device)
 
     /* Handler for memory-mapped I/O */
     d->e100.mmio_index =
-        cpu_register_io_memory(0, pci_mmio_read, pci_mmio_write, s);
+        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
 
     //CSR Memory mapped base
-    pci_register_io_region(&d->dev, 0, PCI_MEM_SIZE,
-            PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH,
-            pci_mmio_map);
+    pci_register_bar(&d->dev, 0, PCI_MEM_SIZE,
+                     PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH,
+                     pci_mmio_map);
     //CSR I/O mapped base
-    pci_register_io_region(&d->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
-            pci_ioport_map);
+    pci_register_bar(&d->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
+                     pci_ioport_map);
     //Flash memory mapped base
-    pci_register_io_region(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
-            pci_mmio_map);
+    pci_register_bar(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
+                     pci_mmio_map);
 
     qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     e100_dump("MAC ADDR", (uint8_t *)&s->macaddr[0], 6);

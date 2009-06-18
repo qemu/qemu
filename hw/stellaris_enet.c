@@ -400,7 +400,7 @@ static void stellaris_enet_init(SysBusDevice *dev)
 {
     stellaris_enet_state *s = FROM_SYSBUS(stellaris_enet_state, dev);
 
-    s->mmio_index = cpu_register_io_memory(0, stellaris_enet_readfn,
+    s->mmio_index = cpu_register_io_memory(stellaris_enet_readfn,
                                            stellaris_enet_writefn, s);
     sysbus_init_mmio(dev, 0x1000, s->mmio_index);
     sysbus_init_irq(dev, &s->irq);

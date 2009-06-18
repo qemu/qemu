@@ -407,7 +407,7 @@ static void pxa2xx_dma_write(void *opaque,
 static uint32_t QEMU_NORETURN pxa2xx_dma_readbad(void *opaque, target_phys_addr_t offset)
 {
     hw_error("%s: Bad access width\n", __FUNCTION__);
-    return 5;
+    //~ return 5;
 }
 
 static void QEMU_NORETURN pxa2xx_dma_writebad(void *opaque,
@@ -503,7 +503,7 @@ static PXA2xxDMAState *pxa2xx_dma_init(target_phys_addr_t base,
 
     memset(s->req, 0, sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
 
-    iomemtype = cpu_register_io_memory(0, pxa2xx_dma_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_dma_readfn,
                     pxa2xx_dma_writefn, s);
     cpu_register_physical_memory(base, 0x00010000, iomemtype);
 

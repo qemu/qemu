@@ -216,6 +216,8 @@ static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
 */
 
 static void vnc_update_client(void *opaque);
+static void vnc_disconnect_start(VncState *vs);
+static void vnc_disconnect_finish(VncState *vs);
 
 static void vnc_colordepth(VncState *vs);
 
@@ -667,9 +669,6 @@ static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 
 static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
 {
-    vs->force_update = 1;
-    vnc_update_client(vs);
-
     vnc_write_u8(vs, 0);  /* msg id */
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1); /* number of rects */
@@ -682,13 +681,22 @@ static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, i
 static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
 {
     VncDisplay *vd = ds->opaque;
-    VncState *vs = vd->clients;
-    while (vs != NULL) {
+    VncState *vs, *vn;
+
+    for (vs = vd->clients; vs != NULL; vs = vn) {
+        vn = vs->next;
+        if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
+            vs->force_update = 1;
+            vnc_update_client(vs);
+            /* vs might be free()ed here */
+        }
+    }
+
+    for (vs = vd->clients; vs != NULL; vs = vs->next) {
         if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT))
             vnc_copy(vs, src_x, src_y, dst_x, dst_y, w, h);
         else /* TODO */
             vnc_update(vs, dst_x, dst_y, w, h);
-        vs = vs->next;
     }
 }
 
@@ -813,6 +821,8 @@ static void vnc_update_client(void *opaque)
 
     if (vs->csock != -1) {
         qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
+    } else {
+        vnc_disconnect_finish(vs);
     }
 
 }
@@ -883,6 +893,49 @@ static void audio_del(VncState *vs)
     }
 }
 
+static void vnc_disconnect_start(VncState *vs)
+{
+    if (vs->csock == -1)
+        return;
+    qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
+    closesocket(vs->csock);
+    vs->csock = -1;
+}
+
+static void vnc_disconnect_finish(VncState *vs)
+{
+    qemu_del_timer(vs->timer);
+    qemu_free_timer(vs->timer);
+    if (vs->input.buffer) qemu_free(vs->input.buffer);
+    if (vs->output.buffer) qemu_free(vs->output.buffer);
+#ifdef CONFIG_VNC_TLS
+    vnc_tls_client_cleanup(vs);
+#endif /* CONFIG_VNC_TLS */
+#ifdef CONFIG_VNC_SASL
+    vnc_sasl_client_cleanup(vs);
+#endif /* CONFIG_VNC_SASL */
+    audio_del(vs);
+
+    VncState *p, *parent = NULL;
+    for (p = vs->vd->clients; p != NULL; p = p->next) {
+        if (p == vs) {
+            if (parent)
+                parent->next = p->next;
+            else
+                vs->vd->clients = p->next;
+            break;
+        }
+        parent = p;
+    }
+    if (!vs->vd->clients)
+        dcl->idle = 1;
+
+    qemu_free(vs->server.ds->data);
+    qemu_free(vs->server.ds);
+    qemu_free(vs->guest.ds);
+    vs->magic = ~VNCSTATE_MAGIC;
+    qemu_free(vs);
+}
 
 int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 {
@@ -900,40 +953,9 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
             }
         }
 
-        VNC_DEBUG("Closing down client sock %d %d\n", ret, ret < 0 ? last_errno : 0);
-        qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
-        closesocket(vs->csock);
-        qemu_del_timer(vs->timer);
-        qemu_free_timer(vs->timer);
-        if (vs->input.buffer) qemu_free(vs->input.buffer);
-        if (vs->output.buffer) qemu_free(vs->output.buffer);
-#ifdef CONFIG_VNC_TLS
-        vnc_tls_client_cleanup(vs);
-#endif /* CONFIG_VNC_TLS */
-#ifdef CONFIG_VNC_SASL
-        vnc_sasl_client_cleanup(vs);
-#endif /* CONFIG_VNC_SASL */
-        audio_del(vs);
-
-        VncState *p, *parent = NULL;
-        for (p = vs->vd->clients; p != NULL; p = p->next) {
-            if (p == vs) {
-                if (parent)
-                    parent->next = p->next;
-                else
-                    vs->vd->clients = p->next;
-                break;
-            }
-            parent = p;
-        }
-        if (!vs->vd->clients)
-            dcl->idle = 1;
-
-        qemu_free(vs->server.ds->data);
-        qemu_free(vs->server.ds);
-        qemu_free(vs->guest.ds);
-        vs->magic = ~VNCSTATE_MAGIC;
-        qemu_free(vs);
+        VNC_DEBUG("Closing down client sock: ret %d, errno %d\n",
+                  ret, ret < 0 ? last_errno : 0);
+        vnc_disconnect_start(vs);
 
         return 0;
     }
@@ -943,7 +965,8 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 
 void vnc_client_error(VncState *vs)
 {
-    vnc_client_io_error(vs, -1, EINVAL);
+    VNC_DEBUG("Closing down client sock: protocol error\n");
+    vnc_disconnect_start(vs);
 }
 
 
@@ -1131,8 +1154,11 @@ void vnc_client_read(void *opaque)
     else
 #endif /* CONFIG_VNC_SASL */
         ret = vnc_client_read_plain(vs);
-    if (!ret)
+    if (!ret) {
+        if (vs->csock == -1)
+            vnc_disconnect_finish(vs);
         return;
+    }
 
     while (vs->read_handler && vs->input.offset >= vs->read_handler_expect) {
         size_t len = vs->read_handler_expect;
@@ -1140,8 +1166,10 @@ void vnc_client_read(void *opaque)
 
         assert(vs->magic == VNCSTATE_MAGIC);
         ret = vs->read_handler(vs, vs->input.buffer, len);
-        if (vs->csock == -1)
+        if (vs->csock == -1) {
+            vnc_disconnect_finish(vs);
             return;
+        }
 
         if (!ret) {
             memmove(vs->input.buffer, vs->input.buffer + len, (vs->input.offset - len));
@@ -1157,7 +1185,7 @@ void vnc_write(VncState *vs, const void *data, size_t len)
     assert(vs->magic == VNCSTATE_MAGIC);
     buffer_reserve(&vs->output, len);
 
-    if (buffer_empty(&vs->output)) {
+    if (vs->csock != -1 && buffer_empty(&vs->output)) {
         qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, vnc_client_write, vs);
     }
 
@@ -1198,7 +1226,7 @@ void vnc_write_u8(VncState *vs, uint8_t value)
 
 void vnc_flush(VncState *vs)
 {
-    if (vs->output.offset)
+    if (vs->csock != -1 && vs->output.offset)
         vnc_client_write(vs);
 }
 
@@ -1356,6 +1384,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     } else {
         /* QEMU console emulation */
         if (down) {
+            int numlock = vs->modifiers_state[0x45];
             switch (keycode) {
             case 0x2a:                          /* Left Shift */
             case 0x36:                          /* Right Shift */
@@ -1365,41 +1394,83 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
             case 0xb8:                          /* Right ALT */
                 break;
             case 0xc8:
-            case 0x48:
                 kbd_put_keysym(QEMU_KEY_UP);
                 break;
             case 0xd0:
-            case 0x50:
                 kbd_put_keysym(QEMU_KEY_DOWN);
                 break;
             case 0xcb:
-            case 0x4b:
                 kbd_put_keysym(QEMU_KEY_LEFT);
                 break;
             case 0xcd:
-            case 0x4d:
                 kbd_put_keysym(QEMU_KEY_RIGHT);
                 break;
             case 0xd3:
-            case 0x53:
                 kbd_put_keysym(QEMU_KEY_DELETE);
                 break;
             case 0xc7:
-            case 0x47:
                 kbd_put_keysym(QEMU_KEY_HOME);
                 break;
             case 0xcf:
-            case 0x4f:
                 kbd_put_keysym(QEMU_KEY_END);
                 break;
             case 0xc9:
-            case 0x49:
                 kbd_put_keysym(QEMU_KEY_PAGEUP);
                 break;
             case 0xd1:
-            case 0x51:
                 kbd_put_keysym(QEMU_KEY_PAGEDOWN);
                 break;
+
+            case 0x47:
+                kbd_put_keysym(numlock ? '7' : QEMU_KEY_HOME);
+                break;
+            case 0x48:
+                kbd_put_keysym(numlock ? '8' : QEMU_KEY_UP);
+                break;
+            case 0x49:
+                kbd_put_keysym(numlock ? '9' : QEMU_KEY_PAGEUP);
+                break;
+            case 0x4b:
+                kbd_put_keysym(numlock ? '4' : QEMU_KEY_LEFT);
+                break;
+            case 0x4c:
+                kbd_put_keysym('5');
+                break;
+            case 0x4d:
+                kbd_put_keysym(numlock ? '6' : QEMU_KEY_RIGHT);
+                break;
+            case 0x4f:
+                kbd_put_keysym(numlock ? '1' : QEMU_KEY_END);
+                break;
+            case 0x50:
+                kbd_put_keysym(numlock ? '2' : QEMU_KEY_DOWN);
+                break;
+            case 0x51:
+                kbd_put_keysym(numlock ? '3' : QEMU_KEY_PAGEDOWN);
+                break;
+            case 0x52:
+                kbd_put_keysym('0');
+                break;
+            case 0x53:
+                kbd_put_keysym(numlock ? '.' : QEMU_KEY_DELETE);
+                break;
+
+            case 0xb5:
+                kbd_put_keysym('/');
+                break;
+            case 0x37:
+                kbd_put_keysym('*');
+                break;
+            case 0x4a:
+                kbd_put_keysym('-');
+                break;
+            case 0x4e:
+                kbd_put_keysym('+');
+                break;
+            case 0x9c:
+                kbd_put_keysym('\n');
+                break;
+
             default:
                 kbd_put_keysym(sym);
                 break;
@@ -2041,11 +2112,13 @@ static void vnc_connect(VncDisplay *vd, int csock)
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
-    vnc_update_client(vs);
     reset_keys(vs);
 
     vs->next = vd->clients;
     vd->clients = vs;
+
+    vnc_update_client(vs);
+    /* vs might be free()ed here */
 }
 
 static void vnc_listen_read(void *opaque)

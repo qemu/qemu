@@ -48,6 +48,12 @@
 #define TARGET_IOC_NRBITS	8
 #define TARGET_IOC_TYPEBITS	8
 
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
+    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS)
+    /* 16 bit uid wrappers emulation */
+#define USE_UID16
+#endif
+
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_CRIS)
 
@@ -103,6 +109,28 @@
 struct target_sockaddr {
     uint16_t sa_family;
     uint8_t sa_data[14];
+};
+
+struct target_in_addr {
+    uint32_t s_addr; /* big endian */
+};
+
+struct target_ip_mreq {
+    struct target_in_addr imr_multiaddr;
+    struct target_in_addr imr_address;
+};
+
+struct target_ip_mreqn {
+    struct target_in_addr imr_multiaddr;
+    struct target_in_addr imr_address;
+    abi_long imr_ifindex;
+};
+
+struct target_ip_mreq_source {
+    /* big endian */
+    uint32_t imr_multiaddr;
+    uint32_t imr_interface;
+    uint32_t imr_sourceaddr;
 };
 
 struct target_timeval {
@@ -1717,6 +1745,12 @@ struct target_statfs64 {
 #define TARGET_F_SETLKW        9
 #define TARGET_F_SETOWN        5       /*  for sockets. */
 #define TARGET_F_GETOWN        6       /*  for sockets. */
+#elif defined(TARGET_MIPS)
+#define TARGET_F_GETLK         14
+#define TARGET_F_SETLK         6
+#define TARGET_F_SETLKW        7
+#define TARGET_F_SETOWN        24       /*  for sockets. */
+#define TARGET_F_GETOWN        25       /*  for sockets. */
 #else
 #define TARGET_F_GETLK         5
 #define TARGET_F_SETLK         6
@@ -1728,10 +1762,15 @@ struct target_statfs64 {
 #define TARGET_F_SETSIG        10      /*  for sockets. */
 #define TARGET_F_GETSIG        11      /*  for sockets. */
 
+#if defined(TARGET_MIPS)
+#define TARGET_F_GETLK64       33      /*  using 'struct flock64' */
+#define TARGET_F_SETLK64       34
+#define TARGET_F_SETLKW64      35
+#else
 #define TARGET_F_GETLK64       12      /*  using 'struct flock64' */
 #define TARGET_F_SETLK64       13
 #define TARGET_F_SETLKW64      14
-
+#endif
 #if defined (TARGET_ARM)
 #define TARGET_O_ACCMODE          0003
 #define TARGET_O_RDONLY             00

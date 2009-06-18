@@ -47,10 +47,6 @@ typedef struct SBIState {
 
 #define SBI_SIZE (SBI_NREGS * 4)
 
-static void sbi_check_interrupts(void *opaque)
-{
-}
-
 static void sbi_set_irq(void *opaque, int irq, int level)
 {
 }
@@ -122,7 +118,6 @@ static int sbi_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < MAX_CPUS; i++) {
         qemu_get_be32s(f, &s->intreg_pending[i]);
     }
-    sbi_check_interrupts(s);
 
     return 0;
 }
@@ -135,7 +130,6 @@ static void sbi_reset(void *opaque)
     for (i = 0; i < MAX_CPUS; i++) {
         s->intreg_pending[i] = 0;
     }
-    sbi_check_interrupts(s);
 }
 
 void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
@@ -151,7 +145,7 @@ void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
         s->cpu_irqs[i] = parent_irq[i];
     }
 
-    sbi_io_memory = cpu_register_io_memory(0, sbi_mem_read, sbi_mem_write, s);
+    sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s);
     cpu_register_physical_memory(addr, SBI_SIZE, sbi_io_memory);
 
     register_savevm("sbi", addr, 1, sbi_save, sbi_load, s);

@@ -884,6 +884,7 @@ DISAS_INSN(undef_fpu)
     gen_exception(s, s->pc - 2, EXCP_LINEF);
 }
 
+static void QEMU_NORETURN disas_undef(DisasContext *s, uint16_t insn);
 DISAS_INSN(undef)
 {
     gen_exception(s, s->pc - 2, EXCP_UNSUPPORTED);
@@ -2464,16 +2465,20 @@ DISAS_INSN(fbcc)
     gen_jmp_tb(s, 1, addr + offset);
 }
 
+static void QEMU_NORETURN disas_frestore(DisasContext *s, uint16_t insn);
 DISAS_INSN(frestore)
 {
     /* TODO: Implement frestore.  */
     qemu_assert(0, "FRESTORE not implemented");
+    abort();
 }
 
+static void QEMU_NORETURN disas_fsave(DisasContext *s, uint16_t insn);
 DISAS_INSN(fsave)
 {
     /* TODO: Implement fsave.  */
     qemu_assert(0, "FSAVE not implemented");
+    abort();
 }
 
 static inline TCGv gen_mac_extract_word(DisasContext *s, TCGv val, int upper)

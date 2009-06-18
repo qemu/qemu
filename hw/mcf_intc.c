@@ -148,7 +148,7 @@ qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env)
     s->env = env;
     mcf_intc_reset(s);
 
-    iomemtype = cpu_register_io_memory(0, mcf_intc_readfn,
+    iomemtype = cpu_register_io_memory(mcf_intc_readfn,
                                        mcf_intc_writefn, s);
     cpu_register_physical_memory(base, 0x100, iomemtype);
 

@@ -359,7 +359,6 @@ static void slavio_timer_reset(void *opaque)
         ptimer_run(s->timer, 0);
     }
     s->running = 1;
-    qemu_irq_lower(s->irq);
 }
 
 static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
@@ -381,7 +380,7 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
         ptimer_set_period(s->timer, TIMER_PERIOD);
     }
 
-    slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
+    slavio_timer_io_memory = cpu_register_io_memory(slavio_timer_mem_read,
                                                     slavio_timer_mem_write, s);
     if (master)
         cpu_register_physical_memory(addr, CPU_TIMER_SIZE,

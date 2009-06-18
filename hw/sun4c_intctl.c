@@ -183,7 +183,6 @@ static int sun4c_intctl_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_8s(f, &s->reg);
     qemu_get_8s(f, &s->pending);
-    sun4c_check_interrupts(s);
 
     return 0;
 }
@@ -194,7 +193,6 @@ static void sun4c_intctl_reset(void *opaque)
 
     s->reg = 1;
     s->pending = 0;
-    sun4c_check_interrupts(s);
 }
 
 void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
@@ -205,7 +203,7 @@ void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
 
     s = qemu_mallocz(sizeof(Sun4c_INTCTLState));
 
-    sun4c_intctl_io_memory = cpu_register_io_memory(0, sun4c_intctl_mem_read,
+    sun4c_intctl_io_memory = cpu_register_io_memory(sun4c_intctl_mem_read,
                                                     sun4c_intctl_mem_write, s);
     cpu_register_physical_memory(addr, INTCTL_SIZE, sun4c_intctl_io_memory);
     s->cpu_irqs = parent_irq;

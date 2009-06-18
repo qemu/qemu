@@ -137,9 +137,9 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
                               pci_grackle_set_irq, pci_grackle_map_irq,
                               pic, 0, 4);
 
-    pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read,
+    pci_mem_config = cpu_register_io_memory(pci_grackle_config_read,
                                             pci_grackle_config_write, s);
-    pci_mem_data = cpu_register_io_memory(0, pci_grackle_read,
+    pci_mem_data = cpu_register_io_memory(pci_grackle_read,
                                           pci_grackle_write, s);
     cpu_register_physical_memory(base, 0x1000, pci_mem_config);
     cpu_register_physical_memory(base + 0x00200000, 0x1000, pci_mem_data);

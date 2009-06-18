@@ -117,6 +117,7 @@ typedef struct x86_def_t {
     uint32_t features, ext_features, ext2_features, ext3_features;
     uint32_t xlevel;
     char model_id[48];
+    int vendor_override;
 } x86_def_t;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
@@ -377,6 +378,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                     x86_cpu_def->vendor2 |= ((uint8_t)val[i + 4]) << (8 * i);
                     x86_cpu_def->vendor3 |= ((uint8_t)val[i + 8]) << (8 * i);
                 }
+                x86_cpu_def->vendor_override = 1;
             } else if (!strcmp(featurestr, "model_id")) {
                 pstrcpy(x86_cpu_def->model_id, sizeof(x86_cpu_def->model_id),
                         val);
@@ -429,6 +431,7 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         env->cpuid_vendor2 = CPUID_VENDOR_INTEL_2;
         env->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
     }
+    env->cpuid_vendor_override = def->vendor_override;
     env->cpuid_level = def->level;
     if (def->family > 0x0f)
         env->cpuid_version = 0xf00 | ((def->family - 0x0f) << 20);
@@ -494,17 +497,23 @@ void cpu_reset(CPUX86State *env)
     env->tr.flags = DESC_P_MASK | (11 << DESC_TYPE_SHIFT);
 
     cpu_x86_load_seg_cache(env, R_CS, 0xf000, 0xffff0000, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK | DESC_R_MASK);
+                           DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK |
+                           DESC_R_MASK | DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                           DESC_A_MASK);
 
     env->eip = 0xfff0;
     env->regs[R_EDX] = env->cpuid_version;
@@ -1507,7 +1516,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
          * isn't supported in compatibility mode on Intel.  so advertise the
          * actuall cpu, and say goodbye to migration between different vendors
          * is you use compatibility mode. */
-        if (kvm_enabled())
+        if (kvm_enabled() && !env->cpuid_vendor_override)
             host_cpuid(0, 0, NULL, ebx, ecx, edx);
         break;
     case 1:

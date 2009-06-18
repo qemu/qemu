@@ -140,7 +140,7 @@ static void vpb_sic_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->parent[i]);
     }
     s->irq = 31;
-    iomemtype = cpu_register_io_memory(0, vpb_sic_readfn,
+    iomemtype = cpu_register_io_memory(vpb_sic_readfn,
                                        vpb_sic_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? Save/restore.  */

@@ -760,7 +760,7 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
-    *cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
+    *cuda_mem_index = cpu_register_io_memory(cuda_read, cuda_write, s);
     register_savevm("cuda", -1, 1, cuda_save, cuda_load, s);
     qemu_register_reset(cuda_reset, 0, s);
     cuda_reset(s);

@@ -442,7 +442,7 @@ int sh_intc_init(struct intc_desc *desc,
 
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
  
-    desc->iomemtype = cpu_register_io_memory(0, sh_intc_readfn,
+    desc->iomemtype = cpu_register_io_memory(sh_intc_readfn,
 					     sh_intc_writefn, desc);
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {

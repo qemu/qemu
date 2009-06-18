@@ -451,7 +451,7 @@ static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
                         pxa2xx_timer_tick, &s->timer[i]);
     }
 
-    iomemtype = cpu_register_io_memory(0, pxa2xx_timer_readfn,
+    iomemtype = cpu_register_io_memory(pxa2xx_timer_readfn,
                     pxa2xx_timer_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
 

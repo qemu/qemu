@@ -231,7 +231,7 @@ qemu_irq *mst_irq_init(PXA2xxState *cpu, uint32_t base, int irq)
 	qi  = qemu_allocate_irqs(mst_fpga_set_irq, s, MST_NUM_IRQS);
 	s->pins = qi;
 
-	iomemtype = cpu_register_io_memory(0, mst_fpga_readfn,
+	iomemtype = cpu_register_io_memory(mst_fpga_readfn,
 		mst_fpga_writefn, s);
 	cpu_register_physical_memory(base, 0x00100000, iomemtype);
 	register_savevm("mainstone_fpga", 0, 0, mst_fpga_save, mst_fpga_load, s);

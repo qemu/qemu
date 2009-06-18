@@ -151,7 +151,7 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
+static void QEMU_NORETURN m5208_sys_write(void *opaque, target_phys_addr_t addr,
                             uint32_t value)
 {
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
@@ -176,7 +176,7 @@ static void mcf5208_sys_init(qemu_irq *pic)
     QEMUBH *bh;
     int i;
 
-    iomemtype = cpu_register_io_memory(0, m5208_sys_readfn,
+    iomemtype = cpu_register_io_memory(m5208_sys_readfn,
                                        m5208_sys_writefn, NULL);
     /* SDRAMC.  */
     cpu_register_physical_memory(0xfc0a8000, 0x00004000, iomemtype);
@@ -185,7 +185,7 @@ static void mcf5208_sys_init(qemu_irq *pic)
         s = (m5208_timer_state *)qemu_mallocz(sizeof(m5208_timer_state));
         bh = qemu_bh_new(m5208_timer_trigger, s);
         s->timer = ptimer_init(bh);
-        iomemtype = cpu_register_io_memory(0, m5208_timer_readfn,
+        iomemtype = cpu_register_io_memory(m5208_timer_readfn,
                                            m5208_timer_writefn, s);
         cpu_register_physical_memory(0xfc080000 + 0x4000 * i, 0x00004000,
                                      iomemtype);

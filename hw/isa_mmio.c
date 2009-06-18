@@ -96,7 +96,7 @@ static int isa_mmio_iomemtype = 0;
 void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size)
 {
     if (!isa_mmio_iomemtype) {
-        isa_mmio_iomemtype = cpu_register_io_memory(0, isa_mmio_read,
+        isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read,
                                                     isa_mmio_write, NULL);
     }
     cpu_register_physical_memory(base, size, isa_mmio_iomemtype);

@@ -586,7 +586,7 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
 
     omap_mmc_reset(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_mmc_readfn,
+    iomemtype = cpu_register_io_memory(omap_mmc_readfn,
                     omap_mmc_writefn, s);
     cpu_register_physical_memory(base, 0x800, iomemtype);
 
@@ -612,7 +612,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 
     omap_mmc_reset(s);
 
-    iomemtype = l4_register_io_memory(0, omap_mmc_readfn,
+    iomemtype = l4_register_io_memory(omap_mmc_readfn,
                     omap_mmc_writefn, s);
     omap_l4_attach(ta, 0, iomemtype);
 

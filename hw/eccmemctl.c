@@ -325,10 +325,10 @@ void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     s->regs[0] = version;
     s->irq = irq;
 
-    ecc_io_memory = cpu_register_io_memory(0, ecc_mem_read, ecc_mem_write, s);
+    ecc_io_memory = cpu_register_io_memory(ecc_mem_read, ecc_mem_write, s);
     cpu_register_physical_memory(base, ECC_SIZE, ecc_io_memory);
     if (version == ECC_MCC) { // SS-600MP only
-        ecc_io_memory = cpu_register_io_memory(0, ecc_diag_mem_read,
+        ecc_io_memory = cpu_register_io_memory(ecc_diag_mem_read,
                                                ecc_diag_mem_write, s);
         cpu_register_physical_memory(base + 0x1000, ECC_DIAG_SIZE,
                                      ecc_io_memory);

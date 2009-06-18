@@ -68,7 +68,9 @@ recurse-all: $(SUBDIR_RULES)
 BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 BLOCK_OBJS+=block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
 BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
-BLOCK_OBJS+=block/qcow2.o block/parallels.o block/nbd.o
+BLOCK_OBJS+=block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
+BLOCK_OBJS+=block/qcow2-snapshot.o
+BLOCK_OBJS+=block/parallels.o block/nbd.o
 BLOCK_OBJS+=nbd.o block.o aio.o
 
 ifdef CONFIG_WIN32
@@ -208,7 +210,7 @@ keymaps.o: keymaps.c keymaps.h
 
 sdl.o: sdl.c keymaps.h sdl_keysym.h
 
-sdl.o audio/sdlaudio.o: CFLAGS += $(SDL_CFLAGS)
+sdl.o audio/sdlaudio.o baum.o: CFLAGS += $(SDL_CFLAGS)
 
 acl.o: acl.h acl.c
 

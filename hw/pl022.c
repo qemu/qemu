@@ -293,7 +293,7 @@ static void pl022_init(SysBusDevice *dev)
     pl022_state *s = FROM_SYSBUS(pl022_state, dev);
     int iomemtype;
 
-    iomemtype = cpu_register_io_memory(0, pl022_readfn,
+    iomemtype = cpu_register_io_memory(pl022_readfn,
                                        pl022_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);

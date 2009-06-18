@@ -252,7 +252,7 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
     s->irq = parent_irq;
     s->iommu = iommu;
 
-    dma_io_memory = cpu_register_io_memory(0, dma_mem_read, dma_mem_write, s);
+    dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s);
     cpu_register_physical_memory(daddr, DMA_SIZE, dma_io_memory);
 
     register_savevm("sparc32_dma", daddr, 2, dma_save, dma_load, s);

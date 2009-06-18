@@ -30,7 +30,7 @@ void helper_tb_flush (void)
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
-void helper_excp (int excp, int error)
+void QEMU_NORETURN helper_excp (int excp, int error)
 {
     env->exception_index = excp;
     env->error_code = error;

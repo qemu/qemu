@@ -198,7 +198,7 @@ static void arm_sysctl_init1(SysBusDevice *dev)
     /* The MPcore bootloader uses these flags to start secondary CPUs.
        We don't use a bootloader, so do this here.  */
     s->flags = 3;
-    iomemtype = cpu_register_io_memory(0, arm_sysctl_readfn,
+    iomemtype = cpu_register_io_memory(arm_sysctl_readfn,
                                        arm_sysctl_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? Save/restore.  */

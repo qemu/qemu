@@ -211,7 +211,7 @@ static int is_windows_drive_prefix(const char *filename)
             filename[1] == ':');
 }
 
-static int is_windows_drive(const char *filename)
+int is_windows_drive(const char *filename)
 {
     if (is_windows_drive_prefix(filename) &&
         filename[2] == '\0')
@@ -251,31 +251,34 @@ static BlockDriver *find_protocol(const char *filename)
     return NULL;
 }
 
-/* XXX: force raw format if block or character device ? It would
-   simplify the BSD case */
+/*
+ * Detect host devices. By convention, /dev/cdrom[N] is always
+ * recognized as a host CDROM.
+ */
+static BlockDriver *find_hdev_driver(const char *filename)
+{
+    int score_max = 0, score;
+    BlockDriver *drv = NULL, *d;
+
+    for (d = first_drv; d; d = d->next) {
+        if (d->bdrv_probe_device) {
+            score = d->bdrv_probe_device(filename);
+            if (score > score_max) {
+                score_max = score;
+                drv = d;
+            }
+        }
+    }
+
+    return drv;
+}
+
 static BlockDriver *find_image_format(const char *filename)
 {
     int ret, score, score_max;
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
     BlockDriverState *bs;
-
-    /* detect host devices. By convention, /dev/cdrom[N] is always
-       recognized as a host CDROM */
-    if (strstart(filename, "/dev/cdrom", NULL))
-        return bdrv_find_format("host_device");
-#ifdef _WIN32
-    if (is_windows_drive(filename))
-        return bdrv_find_format("host_device");
-#else
-    {
-        struct stat st;
-        if (stat(filename, &st) >= 0 &&
-            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
-            return bdrv_find_format("host_device");
-        }
-    }
-#endif
 
     drv = find_protocol(filename);
     /* no need to test disk image formats for vvfat */
@@ -396,7 +399,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (flags & BDRV_O_FILE) {
         drv = find_protocol(filename);
     } else if (!drv) {
-        drv = find_image_format(filename);
+        drv = find_hdev_driver(filename);
+        if (!drv) {
+            drv = find_image_format(filename);
+        }
     }
     if (!drv) {
         ret = -ENOENT;
@@ -1369,7 +1375,7 @@ typedef struct BlockDriverAIOCBSync {
 static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
 {
     BlockDriverAIOCBSync *acb = (BlockDriverAIOCBSync *)blockacb;
-    qemu_bh_cancel(acb->bh);
+    qemu_bh_delete(acb->bh);
     qemu_aio_release(acb);
 }
 
@@ -1386,7 +1392,7 @@ static void bdrv_aio_bh_cb(void *opaque)
         qemu_iovec_from_buffer(acb->qiov, acb->bounce, acb->qiov->size);
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
-
+    qemu_bh_delete(acb->bh);
     qemu_aio_release(acb);
 }
 
@@ -1562,10 +1568,14 @@ int bdrv_media_changed(BlockDriverState *bs)
 /**
  * If eject_flag is TRUE, eject the media. Otherwise, close the tray
  */
-void bdrv_eject(BlockDriverState *bs, int eject_flag)
+int bdrv_eject(BlockDriverState *bs, int eject_flag)
 {
     BlockDriver *drv = bs->drv;
     int ret;
+
+    if (bs->locked) {
+        return -EBUSY;
+    }
 
     if (!drv || !drv->bdrv_eject) {
         ret = -ENOTSUP;
@@ -1575,7 +1585,10 @@ void bdrv_eject(BlockDriverState *bs, int eject_flag)
     if (ret == -ENOTSUP) {
         if (eject_flag)
             bdrv_close(bs);
+        ret = 0;
     }
+
+    return ret;
 }
 
 int bdrv_is_locked(BlockDriverState *bs)

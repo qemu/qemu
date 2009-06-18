@@ -856,7 +856,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     register_savevm("serial", base, 3, serial_save, serial_load, s);
 
     if (ioregister) {
-        s_io_memory = cpu_register_io_memory(0, serial_mm_read,
+        s_io_memory = cpu_register_io_memory(serial_mm_read,
                                              serial_mm_write, s);
         cpu_register_physical_memory(base, 8 << it_shift, s_io_memory);
     }

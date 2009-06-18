@@ -2349,7 +2349,7 @@ void vga_init(VGAState *s)
 #endif
 #endif /* CONFIG_BOCHS_VBE */
 
-    vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);
+    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
                                  vga_io_memory);
     qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);
@@ -2419,8 +2419,8 @@ static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
     int s_ioport_ctrl, vga_io_memory;
 
     s->it_shift = it_shift;
-    s_ioport_ctrl = cpu_register_io_memory(0, vga_mm_read_ctrl, vga_mm_write_ctrl, s);
-    vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);
+    s_ioport_ctrl = cpu_register_io_memory(vga_mm_read_ctrl, vga_mm_write_ctrl, s);
+    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s);
 
     register_savevm("vga", 0, 2, vga_save, vga_load, s);
 
@@ -2512,7 +2512,7 @@ int pci_vga_init(PCIBus *bus,
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     /* XXX: VGA_RAM_SIZE must be a power of two */
-    pci_register_io_region(&d->dev, 0, VGA_RAM_SIZE,
+    pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
                            PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
     if (vga_bios_size != 0) {
         unsigned int bios_total_size;
@@ -2522,7 +2522,7 @@ int pci_vga_init(PCIBus *bus,
         bios_total_size = 1;
         while (bios_total_size < vga_bios_size)
             bios_total_size <<= 1;
-        pci_register_io_region(&d->dev, PCI_ROM_SLOT, bios_total_size,
+        pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
                                PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
     }
     return 0;
@@ -2586,8 +2586,9 @@ static void vga_screen_dump_blank(VGAState *s, const char *filename)
 {
     FILE *f;
     unsigned int y, x, w, h;
+    unsigned char blank_sample[3] = { 0, 0, 0 };
 
-    w = s->last_scr_width * sizeof(uint32_t);
+    w = s->last_scr_width;
     h = s->last_scr_height;
 
     f = fopen(filename, "wb");
@@ -2596,7 +2597,7 @@ static void vga_screen_dump_blank(VGAState *s, const char *filename)
     fprintf(f, "P6\n%d %d\n%d\n", w, h, 255);
     for (y = 0; y < h; y++) {
         for (x = 0; x < w; x++) {
-            fputc(0, f);
+            fwrite(blank_sample, 3, 1, f);
         }
     }
     fclose(f);

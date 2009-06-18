@@ -284,3 +284,12 @@
 #define TARGET_NR_timerfd		283
 #define TARGET_NR_eventfd		284
 #define TARGET_NR_fallocate		285
+#define TARGET_NR_timerfd_settime	286
+#define TARGET_NR_timerfd_gettime	287
+#define TARGET_NR_accept4		288
+#define TARGET_NR_signalfd4		289
+#define TARGET_NR_eventfd2		290
+#define TARGET_NR_epoll_create1	291
+#define TARGET_NR_dup3			292
+#define TARGET_NR_pipe2		293
+#define TARGET_NR_inotify_init1	294

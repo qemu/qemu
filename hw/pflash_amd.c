@@ -600,7 +600,7 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
     if (pfl == NULL)
         return NULL;
     pfl->storage = qemu_get_ram_ptr(off);
-    pfl->fl_mem = cpu_register_io_memory(0, pflash_read_ops, pflash_write_ops, pfl);
+    pfl->fl_mem = cpu_register_io_memory(pflash_read_ops, pflash_write_ops, pfl);
     pfl->off = off;
     pfl->base = base;
     pfl->sector_len = sector_len;

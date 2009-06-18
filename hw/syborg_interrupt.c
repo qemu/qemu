@@ -210,7 +210,7 @@ static void syborg_int_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->parent_irq);
     s->num_irqs = qdev_get_prop_int(&dev->qdev, "num-interrupts", 64);
     qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
-    iomemtype = cpu_register_io_memory(0, syborg_int_readfn,
+    iomemtype = cpu_register_io_memory(syborg_int_readfn,
                                        syborg_int_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     s->flags = qemu_mallocz(s->num_irqs * sizeof(syborg_int_flags));

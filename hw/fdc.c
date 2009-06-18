@@ -1902,7 +1902,7 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
 
     fdctrl->sun4m = 0;
     if (mem_mapped) {
-        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write,
+        io_mem = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write,
                                         fdctrl);
         cpu_register_physical_memory(io_base, 0x08, io_mem);
     } else {
@@ -1927,7 +1927,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
 
     fdctrl = fdctrl_init_common(irq, -1, io_base, fds);
     fdctrl->sun4m = 1;
-    io_mem = cpu_register_io_memory(0, fdctrl_mem_read_strict,
+    io_mem = cpu_register_io_memory(fdctrl_mem_read_strict,
                                     fdctrl_mem_write_strict,
                                     fdctrl);
     cpu_register_physical_memory(io_base, 0x08, io_mem);

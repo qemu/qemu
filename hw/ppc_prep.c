@@ -659,7 +659,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     pci_bus = pci_prep_init(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_prep_io_read,
+    PPC_io_memory = cpu_register_io_memory(PPC_prep_io_read,
                                            PPC_prep_io_write, sysctrl);
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
@@ -728,12 +728,12 @@ static void ppc_prep_init (ram_addr_t ram_size,
     register_ioport_read(0x0800, 0x52, 1, &PREP_io_800_readb, sysctrl);
     register_ioport_write(0x0800, 0x52, 1, &PREP_io_800_writeb, sysctrl);
     /* PCI intack location */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_intack_read,
+    PPC_io_memory = cpu_register_io_memory(PPC_intack_read,
                                            PPC_intack_write, NULL);
     cpu_register_physical_memory(0xBFFFFFF0, 0x4, PPC_io_memory);
     /* PowerPC control and status register group */
 #if 0
-    PPC_io_memory = cpu_register_io_memory(0, PPC_XCSR_read, PPC_XCSR_write,
+    PPC_io_memory = cpu_register_io_memory(PPC_XCSR_read, PPC_XCSR_write,
                                            NULL);
     cpu_register_physical_memory(0xFEFF0000, 0x1000, PPC_io_memory);
 #endif
