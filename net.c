@@ -472,7 +472,7 @@ void qemu_flush_queued_packets(VLANClientState *vc)
         }
 
         if (packet->sent_cb)
-            packet->sent_cb(packet->sender);
+            packet->sent_cb(packet->sender, ret);
 
         qemu_free(packet);
     }
@@ -1138,7 +1138,7 @@ static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 }
 #endif
 
-static void tap_send_completed(VLANClientState *vc)
+static void tap_send_completed(VLANClientState *vc, ssize_t len)
 {
     TAPState *s = vc->opaque;
     tap_read_poll(s, 1);
