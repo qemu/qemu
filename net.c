@@ -1128,6 +1128,8 @@ static void tap_cleanup(VLANClientState *vc)
 {
     TAPState *s = vc->opaque;
 
+    qemu_purge_queued_packets(vc);
+
     if (s->down_script[0])
         launch_script(s->down_script, s->down_script_arg, s->fd);
 
