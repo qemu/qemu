@@ -1044,19 +1044,21 @@ typedef struct TAPState {
     char down_script_arg[128];
     uint8_t buf[4096];
     unsigned int read_poll : 1;
+    unsigned int write_poll : 1;
 } TAPState;
 
 static int launch_script(const char *setup_script, const char *ifname, int fd);
 
 static int tap_can_send(void *opaque);
 static void tap_send(void *opaque);
+static void tap_writable(void *opaque);
 
 static void tap_update_fd_handler(TAPState *s)
 {
     qemu_set_fd_handler2(s->fd,
                          s->read_poll  ? tap_can_send : NULL,
                          s->read_poll  ? tap_send     : NULL,
-                         NULL,
+                         s->write_poll ? tap_writable : NULL,
                          s);
 }
 
@@ -1064,6 +1066,21 @@ static void tap_read_poll(TAPState *s, int enable)
 {
     s->read_poll = !!enable;
     tap_update_fd_handler(s);
+}
+
+static void tap_write_poll(TAPState *s, int enable)
+{
+    s->write_poll = !!enable;
+    tap_update_fd_handler(s);
+}
+
+static void tap_writable(void *opaque)
+{
+    TAPState *s = opaque;
+
+    tap_write_poll(s, 0);
+
+    qemu_flush_queued_packets(s->vc);
 }
 
 static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
@@ -1074,7 +1091,12 @@ static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
 
     do {
         len = writev(s->fd, iov, iovcnt);
-    } while (len == -1 && (errno == EINTR || errno == EAGAIN));
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1 && errno == EAGAIN) {
+        tap_write_poll(s, 1);
+        return 0;
+    }
 
     return len;
 }
@@ -1150,6 +1172,7 @@ static void tap_cleanup(VLANClientState *vc)
         launch_script(s->down_script, s->down_script_arg, s->fd);
 
     tap_read_poll(s, 0);
+    tap_write_poll(s, 0);
     close(s->fd);
     qemu_free(s);
 }
