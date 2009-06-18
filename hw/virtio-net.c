@@ -119,6 +119,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
 {
     uint32_t features = (1 << VIRTIO_NET_F_MAC) |
+                        (1 << VIRTIO_NET_F_MRG_RXBUF) |
                         (1 << VIRTIO_NET_F_STATUS) |
                         (1 << VIRTIO_NET_F_CTRL_VQ) |
                         (1 << VIRTIO_NET_F_CTRL_RX) |
