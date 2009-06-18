@@ -237,23 +237,6 @@ int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
     return pci_parse_devaddr(devaddr, domp, busp, slotp);
 }
 
-int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
-{
-    char devaddr[32];
-
-    if (!get_param_value(devaddr, sizeof(devaddr), "pci_addr", addr))
-	return -1;
-
-    if (!strcmp(devaddr, "auto")) {
-        *domp = *busp = 0;
-        *slotp = -1;
-        /* want to support dom/bus auto-assign at some point */
-        return 0;
-    }
-
-    return pci_parse_devaddr(devaddr, domp, busp, slotp);
-}
-
 static PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 {
     int dom, bus;
@@ -820,7 +803,7 @@ void pci_info(Monitor *mon)
     pci_for_each_device(0, pci_info_device);
 }
 
-static PCIDevice *pci_create(const char *name, const char *devaddr)
+PCIDevice *pci_create(const char *name, const char *devaddr)
 {
     PCIBus *bus;
     int devfn;
