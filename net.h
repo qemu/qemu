@@ -70,6 +70,7 @@ ssize_t qemu_sendv_packet_async(VLANClientState *vc, const struct iovec *iov,
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
 ssize_t qemu_send_packet_async(VLANClientState *vc, const uint8_t *buf,
                                int size, NetPacketSent *sent_cb);
+void qemu_purge_queued_packets(VLANClientState *vc);
 void qemu_flush_queued_packets(VLANClientState *vc);
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
 void qemu_check_nic_model(NICInfo *nd, const char *model);

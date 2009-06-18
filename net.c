@@ -439,6 +439,22 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
     return ret;
 }
 
+void qemu_purge_queued_packets(VLANClientState *vc)
+{
+    VLANPacket **pp = &vc->vlan->send_queue;
+
+    while (*pp != NULL) {
+        VLANPacket *packet = *pp;
+
+        if (packet->sender == vc) {
+            *pp = packet->next;
+            qemu_free(packet);
+        } else {
+            pp = &packet->next;
+        }
+    }
+}
+
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
     VLANPacket *packet;
