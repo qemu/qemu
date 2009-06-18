@@ -267,6 +267,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         }
         return NULL;
     found: ;
+    } else if (bus->devices[devfn]) {
+        return NULL;
     }
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
