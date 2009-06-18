@@ -747,12 +747,19 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net tap[,vlan=n][,name=str],ifname=name\n"
     "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-    "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
+    "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile]"
+#ifdef TUNSETSNDBUF
+    "[,sndbuf=nbytes]"
+#endif
+    "\n"
     "                connect the host TAP network interface to VLAN 'n' and use the\n"
     "                network scripts 'file' (default=%s)\n"
     "                and 'dfile' (default=%s);\n"
     "                use '[down]script=no' to disable script execution;\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
+#ifdef TUNSETSNDBUF
+    "                use 'sndbuf=nbytes' to limit the size of the send buffer\n"
+#endif
 #endif
     "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                connect the vlan 'n' to another VLAN using a socket connection\n"
