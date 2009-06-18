@@ -165,7 +165,6 @@ static int eth_can_rx(VLANClientState *vc)
     struct xlx_ethlite *s = vc->opaque;
     int r;
     r = !(s->regs[R_RX_CTRL0] & CTRL_S);
-    qemu_log("%s %d\n", __func__, r);
     return r;
 }
 
