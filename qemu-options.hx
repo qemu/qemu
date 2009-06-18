@@ -92,6 +92,7 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
     "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
     "       [,cache=writethrough|writeback|none][,format=f][,serial=s]\n"
+    "       [,addr=A]\n"
     "                use 'file' as a drive image\n")
 STEXI
 @item -drive @var{option}[,@var{option}[,@var{option}[,...]]]
@@ -126,6 +127,8 @@ the format.  Can be used to specifiy format=raw to avoid interpreting
 an untrusted format header.
 @item serial=@var{serial}
 This option specifies the serial number to assign to the device.
+@item addr=@var{addr}
+Specify the controller's PCI address (if=virtio only).
 @end table
 
 By default, writethrough caching is used for all block device.  This means that

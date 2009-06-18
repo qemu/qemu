@@ -2209,12 +2209,14 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     int index;
     int cache;
     int bdrv_flags, onerror;
+    const char *devaddr;
     int drives_table_idx;
     char *str = arg->opt;
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
                                            "media", "snapshot", "file",
-                                           "cache", "format", "serial", "werror",
+                                           "cache", "format", "serial",
+                                           "werror", "addr",
                                            NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
@@ -2428,6 +2430,15 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         }
     }
 
+    devaddr = NULL;
+    if (get_param_value(buf, sizeof(buf), "addr", str)) {
+        if (type != IF_VIRTIO) {
+            fprintf(stderr, "addr is not supported by in '%s'\n", str);
+            return -1;
+        }
+        devaddr = strdup(buf);
+    }
+
     /* compute bus and unit according index */
 
     if (index != -1) {
@@ -2489,6 +2500,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     bdrv = bdrv_new(buf);
     drives_table_idx = drive_get_free_idx();
     drives_table[drives_table_idx].bdrv = bdrv;
+    drives_table[drives_table_idx].devaddr = devaddr;
     drives_table[drives_table_idx].type = type;
     drives_table[drives_table_idx].bus = bus_id;
     drives_table[drives_table_idx].unit = unit_id;

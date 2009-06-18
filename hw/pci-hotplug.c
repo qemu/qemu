@@ -70,6 +70,10 @@ void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
     drive_idx = add_init_drive(opts);
     if (drive_idx < 0)
         return;
+    if (drives_table[drive_idx].devaddr) {
+        monitor_printf(mon, "Parameter addr not supported\n");
+        return;
+    }
     type = drives_table[drive_idx].type;
     bus = drive_get_max_bus (type);
 
@@ -116,6 +120,10 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         drive_idx = add_init_drive(opts);
         if (drive_idx < 0)
             return NULL;
+        if (drives_table[drive_idx].devaddr) {
+            monitor_printf(mon, "Parameter addr not supported\n");
+            return NULL;
+        }
     } else if (type == IF_VIRTIO) {
         monitor_printf(mon, "virtio requires a backing file/device.\n");
         return NULL;
