@@ -751,12 +751,6 @@ static void load_linux(target_phys_addr_t option_rom,
     generate_bootsect(option_rom, gpr, seg, 0);
 }
 
-static void main_cpu_reset(void *opaque)
-{
-    CPUState *env = opaque;
-    cpu_reset(env);
-}
-
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -884,9 +878,11 @@ static void pc_init1(ram_addr_t ram_size,
         }
         if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
             env->cpuid_apic_id = env->cpu_index;
+            /* APIC reset callback resets cpu */
             apic_init(env);
+        } else {
+            qemu_register_reset((QEMUResetHandler*)cpu_reset, 0, env);
         }
-        qemu_register_reset(main_cpu_reset, 0, env);
     }
 
     vmport_init();
