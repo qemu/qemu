@@ -1081,7 +1081,7 @@ static void pc_init1(ram_addr_t ram_size,
             pci_nic_init(pci_bus, nd, -1, "ne2k_pci");
     }
 
-    qemu_system_hot_add_init();
+    piix4_acpi_system_hot_add_init();
 
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
         fprintf(stderr, "qemu: too many IDE bus\n");
