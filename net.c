@@ -2103,7 +2103,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     }
     if (!strcmp(device, "nic")) {
         static const char * const nic_params[] = {
-            "vlan", "name", "macaddr", "model", NULL
+            "vlan", "name", "macaddr", "model", "addr", NULL
         };
         NICInfo *nd;
         uint8_t *macaddr;
@@ -2137,6 +2137,9 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         }
         if (get_param_value(buf, sizeof(buf), "model", p)) {
             nd->model = strdup(buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "addr", p)) {
+            nd->devaddr = strdup(buf);
         }
         nd->vlan = vlan;
         nd->name = name;

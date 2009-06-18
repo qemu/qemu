@@ -733,7 +733,7 @@ STEXI
 ETEXI
 
 DEF("net", HAS_ARG, QEMU_OPTION_net,
-    "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
+    "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
     "-net user[,vlan=n][,name=str][,hostname=host]\n"
@@ -767,10 +767,11 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
 STEXI
-@item -net nic[,vlan=@var{n}][,macaddr=@var{addr}][,model=@var{type}][,name=@var{name}]
+@item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
 = 0 is the default). The NIC is an ne2k_pci by default on the PC
-target. Optionally, the MAC address can be changed to @var{addr}
+target. Optionally, the MAC address can be changed to @var{mac}, the
+device address set to @var{addr} (PCI cards only),
 and a @var{name} can be assigned for use in monitor commands. If no
 @option{-net} option is specified, a single NIC is created.
 Qemu can emulate several different models of network card.

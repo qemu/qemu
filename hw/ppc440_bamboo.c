@@ -125,7 +125,7 @@ static void bamboo_init(ram_addr_t ram_size,
         for (i = 0; i < nb_nics; i++) {
             /* There are no PCI NICs on the Bamboo board, but there are
              * PCI slots, so we can pick whatever default model we want. */
-            pci_nic_init(pcibus, &nd_table[i], -1, "e1000");
+            pci_nic_init(&nd_table[i], "e1000", NULL);
         }
     }
 

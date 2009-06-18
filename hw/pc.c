@@ -1078,7 +1078,7 @@ static void pc_init1(ram_addr_t ram_size,
         if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
             pc_init_ne2k_isa(nd, i8259);
         else
-            pci_nic_init(pci_bus, nd, -1, "ne2k_pci");
+            pci_nic_init(nd, "ne2k_pci", NULL);
     }
 
     piix4_acpi_system_hot_add_init();
