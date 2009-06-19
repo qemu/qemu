@@ -2241,7 +2241,7 @@ static inline abi_long do_semctl(int semid, int semnum, int cmd,
 {
     union semun arg;
     struct semid_ds dsarg;
-    unsigned short *array;
+    unsigned short *array = NULL;
     struct seminfo seminfo;
     abi_long ret = -TARGET_EINVAL;
     abi_long err;
