@@ -2372,6 +2372,7 @@ int main(int argc, char **argv, char **envp)
     envlist_t *envlist = NULL;
     const char *argv0 = NULL;
     int i;
+    int ret;
 
     if (argc <= 1)
         usage();
@@ -2576,9 +2577,10 @@ int main(int argc, char **argv, char **envp)
     env->opaque = ts;
     task_settid(ts);
 
-    if (loader_exec(filename, target_argv, target_environ, regs,
-        info, &bprm) != 0) {
-        printf("Error loading %s\n", filename);
+    ret = loader_exec(filename, target_argv, target_environ, regs,
+        info, &bprm);
+    if (ret != 0) {
+        printf("Error %d while loading %s\n", ret, filename);
         _exit(1);
     }
 

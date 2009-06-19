@@ -140,7 +140,7 @@ extern const char *qemu_uname_release;
  * and envelope for the new program. 32 should suffice, this gives
  * a maximum env+arg of 128kB w/4KB pages!
  */
-#define MAX_ARG_PAGES 32
+#define MAX_ARG_PAGES 33
 
 /*
  * This structure is used to hold the arguments that are
