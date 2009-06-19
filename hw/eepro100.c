@@ -19,15 +19,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Tested features (i82559):
- *      PXE boot (i386) ok
- *      Linux networking (i386) ok
- *      Linux networking e100 driver (mips, mipsel) ok
- *      Linux networking eepro100 driver (mipsel) not ok
+ * Tested features (i82559c):
+ *      PXE boot (i386 guest, i386 / ppc host) ok
+ *      Linux networking (i386 guest, i386 / ppc / ppc64 host) ok
+ *      Linux networking e100 driver (mips / mipsel guest, i386 host) ok
+ *      Linux networking eepro100 driver (mipsel guest) not ok
  *      Windows networking (Vista) ???
- *
- * Untested:
- *      non-i386 platforms
  *
  * References:
  *
@@ -65,7 +62,7 @@ struct DeviceType {
 
 #define KiB 1024
 
-/* debug EEPRO100 card */
+/* Debug EEPRO100 card. */
 //~ #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
@@ -219,7 +216,7 @@ typedef enum {
 } ru_state_t;
 
 typedef struct {
-#if 1   // überflüssige Einträge entfernen, save / load prüfen!!!
+#if 1   // TODO: remove unused entries, check save / load!!!
     uint8_t cmd;
     uint32_t start;
     uint32_t stop;
@@ -519,10 +516,6 @@ static void pci_reset(EEPRO100State * s)
     PCI_CONFIG_8(0x0d, 0x20);   // latency timer = 32 clocks
     PCI_CONFIG_8(PCI_HEADER_TYPE, 0x00);
     /* BIST (built-in self test) */
-#if defined(TARGET_I386)
-// !!! workaround for buggy bios
-//~ #define PCI_ADDRESS_SPACE_MEM_PREFETCH 0
-#endif
 #if 0
     /* PCI Base Address Registers */
     /* CSR Memory Mapped Base Address */
@@ -602,23 +595,23 @@ static void pci_reset(EEPRO100State * s)
 static void nic_selective_reset(EEPRO100State * s)
 {
 #if EEPROM_SIZE > 0
-    static const uint8_t eeprom_i82559[] = {
-        /* 0x0000 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x02,
-        /* 0x0008 */ 0xff, 0xff, 0x01, 0x02, 0x01, 0x47, 0xff, 0xff,
-        /* 0x0010 */ 0x17, 0x75, 0x04, 0x67, 0xa2, 0x50, 0x40, 0x00,
-        /* 0x0018 */ 0x86, 0x80, 0x64, 0x00, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0020 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0028 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0030 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0038 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0040 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x29, 0x12,
-        /* 0x0048 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0050 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0058 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0060 */ 0x2c, 0x00, 0x00, 0x40, 0x03, 0x30, 0xff, 0xff,
-        /* 0x0068 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0070 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        /* 0x0078 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x58, 0x1f,
+    static const uint16_t eeprom_i82559[] = {
+        /* 0x0000 */ 0x0000, 0x0000, 0x0000, 0x020b,
+        /* 0x0008 */ 0xffff, 0x0201, 0x4701, 0xffff,
+        /* 0x0010 */ 0x7517, 0x6704, 0x50a2, 0x0040,
+        /* 0x0018 */ 0x8086, 0x0064, 0xffff, 0xffff,
+        /* 0x0020 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0028 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0030 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0038 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0040 */ 0xffff, 0xffff, 0xffff, 0x1229,
+        /* 0x0048 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0050 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0058 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0060 */ 0x002c, 0x4000, 0x3003, 0xffff,
+        /* 0x0068 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0070 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0078 */ 0xffff, 0xffff, 0xffff, 0xffff,
     };
     size_t i;
     uint8_t *pci_conf = s->pci_dev->config;
@@ -626,12 +619,27 @@ static void nic_selective_reset(EEPRO100State * s)
     //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, eeprom_i82559, EEPROM_SIZE * 2);
     memcpy(eeprom_contents, s->macaddr, 6);
+#if defined(WORDS_BIGENDIAN)
+    bswap16s(&eeprom_contents[0]);
+    bswap16s(&eeprom_contents[1]);
+    bswap16s(&eeprom_contents[2]);
+#endif
+#if 0
+    /* Only needed to set a different vendor id. */
     memcpy(eeprom_contents + eeprom_vendor_id, pci_conf + PCI_VENDOR_ID, 2);
+#if defined(WORDS_BIGENDIAN)
+    bswap16s(&eeprom_contents[eeprom_vendor_id]);
+#endif
+#endif /* EEPROM_SIZE > 0 */
     memcpy(eeprom_contents + eeprom_device_id, pci_conf + PCI_DEVICE_ID, 2);
-    *(char *)(eeprom_contents + eeprom_phy_id) = 1;
-    for (i = 0; i < EEPROM_SIZE; i++) {
-      eeprom_contents[i] = le16_to_cpu(eeprom_contents[i]);
-    }
+#if defined(WORDS_BIGENDIAN)
+    bswap16s(&eeprom_contents[eeprom_device_id]);
+#endif
+#if 0
+    /* We might change the phy id here. */
+    eeprom_contents[eeprom_phy_id] =
+        (eeprom_contents[eeprom_phy_id] & 0xff00) + 1;
+#endif
     /* TODO: eeprom_id_alt for i82559 */
     eeprom_contents[eeprom_id] |= eeprom_id_valid;
     uint16_t sum = 0;
@@ -639,6 +647,7 @@ static void nic_selective_reset(EEPRO100State * s)
         sum += eeprom_contents[i];
     }
     eeprom_contents[EEPROM_SIZE - 1] = (0xbaba - sum);
+    TRACE(EEPROM, logout("checksum=0x%04x\n", eeprom_contents[EEPROM_SIZE - 1]));
 #endif
 
     memset(s->mem, 0, sizeof(s->mem));
@@ -1710,25 +1719,25 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     } else if (size < 64 && (s->configuration[7] & 1)) {
         /* Short frame and configuration byte 7/0 (discard short receive) set:
          * Short frame is discarded */
-        logout("%p received short frame (%d byte)\n", s, size);
+        logout("%p received short frame (%zu byte)\n", s, size);
         s->statistics.rx_short_frame_errors++;
         //~ return -1;
     } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & 8)) {
         /* Long frame and configuration byte 18/3 (long receive ok) not set:
          * Long frames are discarded. */
-        logout("%p received long frame (%d byte), ignored\n", s, size);
+        logout("%p received long frame (%zu byte), ignored\n", s, size);
         return -1;
     } else if (memcmp(buf, s->macaddr, 6) == 0) {       // !!!
         /* Frame matches individual address. */
         /* TODO: check configuration byte 15/4 (ignore U/L). */
-        TRACE(RXTX, logout("%p received frame for me, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received frame for me, len=%zu\n", s, size));
     } else if (memcmp(buf, broadcast_macaddr, 6) == 0) {
         /* Broadcast frame. */
-        TRACE(RXTX, logout("%p received broadcast, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received broadcast, len=%zu\n", s, size));
         rfd_status |= 0x0002;
     } else if (buf[0] & 0x01) {
         /* Multicast frame. */
-        TRACE(RXTX, logout("%p received multicast, len=%d,%s\n", s, size, nic_dump(buf, size)));
+        TRACE(RXTX, logout("%p received multicast, len=%zu,%s\n", s, size, nic_dump(buf, size)));
         if (s->configuration[21] & BIT(3)) {
           /* Multicast all bit is set, receive all multicast frames. */
         } else {
@@ -1748,10 +1757,10 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
         rfd_status |= 0x0002;
     } else if (s->configuration[15] & 1) {
         /* Promiscuous: receive all. */
-        TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%zu\n", s, size));
         rfd_status |= 0x0004;
     } else {
-        TRACE(RXTX, logout("%p received frame, ignored, len=%d,%s\n", s, size,
+        TRACE(RXTX, logout("%p received frame, ignored, len=%zu,%s\n", s, size,
                nic_dump(buf, size)));
         return -1;
     }
@@ -1764,7 +1773,6 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
         return -1;
     }
     //~ !!!
-//~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
     eepro100_rx_t rx;
     cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *) & rx,
                              offsetof(eepro100_rx_t, packet));
@@ -1772,7 +1780,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
     if (size > rfd_size) {
-      logout("received frame with %d > %u\n", size, rfd_size);
+      logout("received frame with %zu > %u\n", size, rfd_size);
       UNEXPECTED();
     }
     if (size < 64) {
@@ -2078,4 +2086,3 @@ static void eepro100_register_devices(void)
 device_init(eepro100_register_devices)
 
 /* eof */
-//~ find /windows/C/WINDOWS/inf -name "*.inf" | xargs fgrep -li intel|xargs fgrep -li pro|xargs fgrep -l 100|xargs fgrep -li ndis|xargs less
