@@ -1498,13 +1498,17 @@ static abi_long do_bind(int sockfd, abi_ulong target_addr,
                         socklen_t addrlen)
 {
     void *addr;
+    abi_long ret;
 
     if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen+1);
 
-    target_to_host_sockaddr(addr, target_addr, addrlen);
+    ret = target_to_host_sockaddr(addr, target_addr, addrlen);
+    if (ret)
+        return ret;
+
     return get_errno(bind(sockfd, addr, addrlen));
 }
 
@@ -1513,13 +1517,17 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
                            socklen_t addrlen)
 {
     void *addr;
+    abi_long ret;
 
     if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen);
 
-    target_to_host_sockaddr(addr, target_addr, addrlen);
+    ret = target_to_host_sockaddr(addr, target_addr, addrlen);
+    if (ret)
+        return ret;
+
     return get_errno(connect(sockfd, addr, addrlen));
 }
 
@@ -1543,8 +1551,12 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
     if (msgp->msg_name) {
         msg.msg_namelen = tswap32(msgp->msg_namelen);
         msg.msg_name = alloca(msg.msg_namelen);
-        target_to_host_sockaddr(msg.msg_name, tswapl(msgp->msg_name),
+        ret = target_to_host_sockaddr(msg.msg_name, tswapl(msgp->msg_name),
                                 msg.msg_namelen);
+        if (ret) {
+            unlock_user_struct(msgp, target_msg, send ? 0 : 1);
+            return ret;
+        }
     } else {
         msg.msg_name = NULL;
         msg.msg_namelen = 0;
@@ -1586,10 +1598,17 @@ static abi_long do_accept(int fd, abi_ulong target_addr,
     void *addr;
     abi_long ret;
 
+    if (target_addr == 0)
+       return get_errno(accept(fd, NULL, NULL));
+
+    /* linux returns EINVAL if addrlen pointer is invalid */
     if (get_user_u32(addrlen, target_addrlen_addr))
-        return -TARGET_EFAULT;
+        return -TARGET_EINVAL;
 
     if (addrlen < 0)
+        return -TARGET_EINVAL;
+
+    if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen);
@@ -1617,6 +1636,9 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
     if (addrlen < 0)
         return -TARGET_EINVAL;
 
+    if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
+        return -TARGET_EFAULT;
+
     addr = alloca(addrlen);
 
     ret = get_errno(getpeername(fd, addr, &addrlen));
@@ -1636,14 +1658,14 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
     void *addr;
     abi_long ret;
 
-    if (target_addr == 0)
-       return get_errno(accept(fd, NULL, NULL));
-
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
     if (addrlen < 0)
         return -TARGET_EINVAL;
+
+    if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
+        return -TARGET_EFAULT;
 
     addr = alloca(addrlen);
 
@@ -1688,7 +1710,11 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
         return -TARGET_EFAULT;
     if (target_addr) {
         addr = alloca(addrlen);
-        target_to_host_sockaddr(addr, target_addr, addrlen);
+        ret = target_to_host_sockaddr(addr, target_addr, addrlen);
+        if (ret) {
+            unlock_user(host_msg, msg, 0);
+            return ret;
+        }
         ret = get_errno(sendto(fd, host_msg, len, flags, addr, addrlen));
     } else {
         ret = get_errno(send(fd, host_msg, len, flags));
