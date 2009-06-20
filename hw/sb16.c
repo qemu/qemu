@@ -1066,14 +1066,14 @@ static void reset_mixer (SB16State *s)
     }
 }
 
-static IO_WRITE_PROTO(mixer_write_indexb)
+static IO_WRITE_PROTO (mixer_write_indexb)
 {
     SB16State *s = opaque;
     (void) nport;
     s->mixer_nreg = val;
 }
 
-static IO_WRITE_PROTO(mixer_write_datab)
+static IO_WRITE_PROTO (mixer_write_datab)
 {
     SB16State *s = opaque;
 
@@ -1129,13 +1129,13 @@ static IO_WRITE_PROTO(mixer_write_datab)
     s->mixer_regs[s->mixer_nreg] = val;
 }
 
-static IO_WRITE_PROTO(mixer_write_indexw)
+static IO_WRITE_PROTO (mixer_write_indexw)
 {
     mixer_write_indexb (opaque, nport, val & 0xff);
     mixer_write_datab (opaque, nport, (val >> 8) & 0xff);
 }
 
-static IO_READ_PROTO(mixer_read)
+static IO_READ_PROTO (mixer_read)
 {
     SB16State *s = opaque;
 

@@ -278,12 +278,12 @@ static void update_sr (AC97LinkState *s, AC97BusMasterRegs *r, uint32_t new_sr)
     if (level) {
         s->glob_sta |= masks[r - s->bm_regs];
         dolog ("set irq level=1\n");
-        qemu_set_irq(s->pci_dev->irq[0], 1);
+        qemu_set_irq (s->pci_dev->irq[0], 1);
     }
     else {
         s->glob_sta &= ~masks[r - s->bm_regs];
         dolog ("set irq level=0\n");
-        qemu_set_irq(s->pci_dev->irq[0], 0);
+        qemu_set_irq (s->pci_dev->irq[0], 0);
     }
 }
 
@@ -1331,8 +1331,8 @@ int ac97_init (PCIBus *bus)
     s = &d->ac97;
     s->pci_dev = &d->dev;
     c = d->dev.config;
-    pci_config_set_vendor_id(c, PCI_VENDOR_ID_INTEL); /* ro */
-    pci_config_set_device_id(c, PCI_DEVICE_ID_INTEL_82801AA_5); /* ro */
+    pci_config_set_vendor_id (c, PCI_VENDOR_ID_INTEL); /* ro */
+    pci_config_set_device_id (c, PCI_DEVICE_ID_INTEL_82801AA_5); /* ro */
 
     c[0x04] = 0x00;      /* pcicmd pci command rw, ro */
     c[0x05] = 0x00;
@@ -1342,7 +1342,7 @@ int ac97_init (PCIBus *bus)
 
     c[0x08] = 0x01;      /* rid revision ro */
     c[0x09] = 0x00;      /* pi programming interface ro */
-    pci_config_set_class(c, PCI_CLASS_MULTIMEDIA_AUDIO); /* ro */
+    pci_config_set_class (c, PCI_CLASS_MULTIMEDIA_AUDIO); /* ro */
     c[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; /* headtyp header type ro */
 
     c[0x10] = 0x01;      /* nabmar native audio mixer base
