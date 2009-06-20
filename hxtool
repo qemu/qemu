@@ -26,10 +26,10 @@ hxtotexi()
             STEXI*|ETEXI*) flag=$(($flag^1))
             ;;
             DEFHEADING*)
-            echo $(expr "$str" : "DEFHEADING(\(.*\))")
+            echo "$(expr "$str" : "DEFHEADING(\(.*\))")"
             ;;
             *)
-            test $flag -eq 1 && echo $str
+            test $flag -eq 1 && echo "$str"
             ;;
         esac
     done
