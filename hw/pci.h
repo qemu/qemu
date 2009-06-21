@@ -155,6 +155,11 @@ typedef struct PCIIORegion {
 /* Size of the standard PCI config space */
 #define PCI_CONFIG_SPACE_SIZE 0x100
 
+/* Bits in cap_present field. */
+enum {
+    QEMU_PCI_CAP_MSIX = 0x1,
+};
+
 struct PCIDevice {
     DeviceState qdev;
     /* PCI config space */
@@ -186,6 +191,24 @@ struct PCIDevice {
 
     /* Current IRQ levels.  Used internally by the generic PCI code.  */
     int irq_state[4];
+
+    /* Capability bits */
+    uint32_t cap_present;
+
+    /* Offset of MSI-X capability in config space */
+    uint8_t msix_cap;
+
+    /* MSI-X entries */
+    int msix_entries_nr;
+
+    /* Space to store MSIX table */
+    uint8_t *msix_table_page;
+    /* MMIO index used to map MSIX table and pending bit entries. */
+    int msix_mmio_index;
+    /* Reference-count for entries actually in use by driver. */
+    unsigned *msix_entry_used;
+    /* Region including the MSI-X table */
+    uint32_t msix_bar_size;
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
