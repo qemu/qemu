@@ -259,6 +259,18 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);
 
 static inline void
+pci_set_byte(uint8_t *config, uint8_t val)
+{
+    *config = val;
+}
+
+static inline uint8_t
+pci_get_byte(uint8_t *config)
+{
+    return *config;
+}
+
+static inline void
 pci_set_word(uint8_t *config, uint16_t val)
 {
     cpu_to_le16wu((uint16_t *)config, val);
