@@ -736,7 +736,7 @@ STEXI
 ETEXI
 
 DEF("net", HAS_ARG, QEMU_OPTION_net,
-    "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str]\n"
+    "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
     "-net user[,vlan=n][,name=str][,hostname=host]\n"
@@ -777,16 +777,18 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
 STEXI
-@item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}]
+@item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
 = 0 is the default). The NIC is an ne2k_pci by default on the PC
 target. Optionally, the MAC address can be changed to @var{mac}, the
 device address set to @var{addr} (PCI cards only),
-and a @var{name} can be assigned for use in monitor commands. If no
-@option{-net} option is specified, a single NIC is created.
-Qemu can emulate several different models of network card.
+and a @var{name} can be assigned for use in monitor commands.
+Optionally, for PCI cards, you can specify the number @var{v} of MSI-X vectors
+that the card should have; this option currently only affects virtio cards; set
+@var{v} = 0 to disable MSI-X. If no @option{-net} option is specified, a single
+NIC is created.  Qemu can emulate several different models of network card.
 Valid values for @var{type} are
-@code{i82551}, @code{i82557b}, @code{i82559er},
+@code{virtio}, @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
 @code{e1000}, @code{smc91c111}, @code{lance} and @code{mcf_fec}.
 Not all devices are supported on all targets.  Use -net nic,model=?

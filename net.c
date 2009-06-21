@@ -2169,7 +2169,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     }
     if (!strcmp(device, "nic")) {
         static const char * const nic_params[] = {
-            "vlan", "name", "macaddr", "model", "addr", NULL
+            "vlan", "name", "macaddr", "model", "addr", "vectors", NULL
         };
         NICInfo *nd;
         uint8_t *macaddr;
@@ -2206,6 +2206,22 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         }
         if (get_param_value(buf, sizeof(buf), "addr", p)) {
             nd->devaddr = strdup(buf);
+        }
+        nd->nvectors = NIC_NVECTORS_UNSPECIFIED;
+        if (get_param_value(buf, sizeof(buf), "vectors", p)) {
+            char *endptr;
+            long vectors = strtol(buf, &endptr, 0);
+            if (*endptr) {
+                config_error(mon, "invalid syntax for # of vectors\n");
+                ret = -1;
+                goto out;
+            }
+            if (vectors < 0 || vectors > 0x7ffffff) {
+                config_error(mon, "invalid # of vectors\n");
+                ret = -1;
+                goto out;
+            }
+            nd->nvectors = vectors;
         }
         nd->vlan = vlan;
         nd->name = name;

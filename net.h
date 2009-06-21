@@ -84,6 +84,9 @@ int do_set_link(Monitor *mon, const char *name, const char *up_or_down);
 /* NIC info */
 
 #define MAX_NICS 8
+enum {
+	NIC_NVECTORS_UNSPECIFIED = -1
+};
 
 struct NICInfo {
     uint8_t macaddr[6];
@@ -94,6 +97,7 @@ struct NICInfo {
     void *private;
     int used;
     int bootable;
+    int nvectors;
 };
 
 extern int nb_nics;
