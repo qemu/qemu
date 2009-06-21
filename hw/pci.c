@@ -164,7 +164,6 @@ int pci_device_load(PCIDevice *s, QEMUFile *f)
     if (version_id >= 2)
         for (i = 0; i < 4; i ++)
             s->irq_state[i] = qemu_get_be32(f);
-
     return 0;
 }
 
@@ -894,4 +893,77 @@ PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
     qdev_init(dev);
 
     return (PCIDevice *)dev;
+}
+
+static int pci_find_space(PCIDevice *pdev, uint8_t size)
+{
+    int offset = PCI_CONFIG_HEADER_SIZE;
+    int i;
+    for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i)
+        if (pdev->used[i])
+            offset = i + 1;
+        else if (i - offset + 1 == size)
+            return offset;
+    return 0;
+}
+
+static uint8_t pci_find_capability_list(PCIDevice *pdev, uint8_t cap_id,
+                                        uint8_t *prev_p)
+{
+    uint8_t next, prev;
+
+    if (!(pdev->config[PCI_STATUS] & PCI_STATUS_CAP_LIST))
+        return 0;
+
+    for (prev = PCI_CAPABILITY_LIST; (next = pdev->config[prev]);
+         prev = next + PCI_CAP_LIST_NEXT)
+        if (pdev->config[next + PCI_CAP_LIST_ID] == cap_id)
+            break;
+
+    if (prev_p)
+        *prev_p = prev;
+    return next;
+}
+
+/* Reserve space and add capability to the linked list in pci config space */
+int pci_add_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
+{
+    uint8_t offset = pci_find_space(pdev, size);
+    uint8_t *config = pdev->config + offset;
+    if (!offset)
+        return -ENOSPC;
+    config[PCI_CAP_LIST_ID] = cap_id;
+    config[PCI_CAP_LIST_NEXT] = pdev->config[PCI_CAPABILITY_LIST];
+    pdev->config[PCI_CAPABILITY_LIST] = offset;
+    pdev->config[PCI_STATUS] |= PCI_STATUS_CAP_LIST;
+    memset(pdev->used + offset, 0xFF, size);
+    /* Make capability read-only by default */
+    memset(pdev->wmask + offset, 0, size);
+    return offset;
+}
+
+/* Unlink capability from the pci config space. */
+void pci_del_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
+{
+    uint8_t prev, offset = pci_find_capability_list(pdev, cap_id, &prev);
+    if (!offset)
+        return;
+    pdev->config[prev] = pdev->config[offset + PCI_CAP_LIST_NEXT];
+    /* Make capability writeable again */
+    memset(pdev->wmask + offset, 0xff, size);
+    memset(pdev->used + offset, 0, size);
+
+    if (!pdev->config[PCI_CAPABILITY_LIST])
+        pdev->config[PCI_STATUS] &= ~PCI_STATUS_CAP_LIST;
+}
+
+/* Reserve space for capability at a known offset (to call after load). */
+void pci_reserve_capability(PCIDevice *pdev, uint8_t offset, uint8_t size)
+{
+    memset(pdev->used + offset, 0xff, size);
+}
+
+uint8_t pci_find_capability(PCIDevice *pdev, uint8_t cap_id)
+{
+    return pci_find_capability_list(pdev, cap_id, NULL);
 }

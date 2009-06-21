@@ -121,6 +121,10 @@ typedef struct PCIIORegion {
 #define PCI_MIN_GNT		0x3e	/* 8 bits */
 #define PCI_MAX_LAT		0x3f	/* 8 bits */
 
+/* Capability lists */
+#define PCI_CAP_LIST_ID		0	/* Capability ID */
+#define PCI_CAP_LIST_NEXT	1	/* Next capability in the list */
+
 #define PCI_REVISION            0x08    /* obsolete, use PCI_REVISION_ID */
 #define PCI_SUBVENDOR_ID        0x2c    /* obsolete, use PCI_SUBSYSTEM_VENDOR_ID */
 #define PCI_SUBDEVICE_ID        0x2e    /* obsolete, use PCI_SUBSYSTEM_ID */
@@ -128,7 +132,7 @@ typedef struct PCIIORegion {
 /* Bits in the PCI Status Register (PCI 2.3 spec) */
 #define PCI_STATUS_RESERVED1	0x007
 #define PCI_STATUS_INT_STATUS	0x008
-#define PCI_STATUS_CAPABILITIES	0x010
+#define PCI_STATUS_CAP_LIST	0x010
 #define PCI_STATUS_66MHZ	0x020
 #define PCI_STATUS_RESERVED2	0x040
 #define PCI_STATUS_FAST_BACK	0x080
@@ -158,6 +162,9 @@ struct PCIDevice {
     /* Used to implement R/W bytes */
     uint8_t wmask[PCI_CONFIG_SPACE_SIZE];
 
+    /* Used to allocate config space for capabilities. */
+    uint8_t used[PCI_CONFIG_SPACE_SIZE];
+
     /* the following fields are read only */
     PCIBus *bus;
     int devfn;
@@ -185,6 +192,15 @@ int pci_unregister_device(PCIDevice *pci_dev);
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
                             uint32_t size, int type,
                             PCIMapIORegionFunc *map_func);
+
+int pci_add_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
+
+void pci_del_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
+
+void pci_reserve_capability(PCIDevice *pci_dev, uint8_t offset, uint8_t size);
+
+uint8_t pci_find_capability(PCIDevice *pci_dev, uint8_t cap_id);
+
 
 uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len);
