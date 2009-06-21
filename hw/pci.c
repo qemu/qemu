@@ -152,13 +152,19 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
 
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
+    uint8_t config[PCI_CONFIG_SPACE_SIZE];
     uint32_t version_id;
     int i;
 
     version_id = qemu_get_be32(f);
     if (version_id > 2)
         return -EINVAL;
-    qemu_get_buffer(f, s->config, 256);
+    qemu_get_buffer(f, config, sizeof config);
+    for (i = 0; i < sizeof config; ++i)
+        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i])
+            return -EINVAL;
+    memcpy(s->config, config, sizeof config);
+
     pci_update_mappings(s);
 
     if (version_id >= 2)
@@ -254,6 +260,18 @@ static PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
     return pci_find_bus(bus);
 }
 
+static void pci_init_cmask(PCIDevice *dev)
+{
+    pci_set_word(dev->cmask + PCI_VENDOR_ID, 0xffff);
+    pci_set_word(dev->cmask + PCI_DEVICE_ID, 0xffff);
+    dev->cmask[PCI_STATUS] = PCI_STATUS_CAP_LIST;
+    dev->cmask[PCI_REVISION_ID] = 0xff;
+    dev->cmask[PCI_CLASS_PROG] = 0xff;
+    pci_set_word(dev->cmask + PCI_CLASS_DEVICE, 0xffff);
+    dev->cmask[PCI_HEADER_TYPE] = 0xff;
+    dev->cmask[PCI_CAPABILITY_LIST] = 0xff;
+}
+
 static void pci_init_wmask(PCIDevice *dev)
 {
     int i;
@@ -286,6 +304,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     memset(pci_dev->irq_state, 0, sizeof(pci_dev->irq_state));
     pci_set_default_subsystem_id(pci_dev);
+    pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
 
     if (!config_read)
@@ -385,6 +404,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     }
     *(uint32_t *)(pci_dev->config + addr) = cpu_to_le32(type);
     *(uint32_t *)(pci_dev->wmask + addr) = cpu_to_le32(wmask);
+    *(uint32_t *)(pci_dev->cmask + addr) = 0xffffffff;
 }
 
 static void pci_update_mappings(PCIDevice *d)
@@ -939,6 +959,8 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
     memset(pdev->used + offset, 0xFF, size);
     /* Make capability read-only by default */
     memset(pdev->wmask + offset, 0, size);
+    /* Check capability by default */
+    memset(pdev->cmask + offset, 0xFF, size);
     return offset;
 }
 
@@ -951,6 +973,8 @@ void pci_del_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
     pdev->config[prev] = pdev->config[offset + PCI_CAP_LIST_NEXT];
     /* Make capability writeable again */
     memset(pdev->wmask + offset, 0xff, size);
+    /* Clear cmask as device-specific registers can't be checked */
+    memset(pdev->cmask + offset, 0, size);
     memset(pdev->used + offset, 0, size);
 
     if (!pdev->config[PCI_CAPABILITY_LIST])

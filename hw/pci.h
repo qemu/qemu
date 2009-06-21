@@ -101,6 +101,7 @@ typedef struct PCIIORegion {
 #define  PCI_COMMAND_MASTER	0x4	/* Enable bus master */
 #define PCI_STATUS              0x06    /* 16 bits */
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
+#define PCI_CLASS_PROG		0x09	/* Reg. Level Programming Interface */
 #define PCI_CLASS_DEVICE        0x0a    /* Device class */
 #define PCI_CACHE_LINE_SIZE	0x0c	/* 8 bits */
 #define PCI_LATENCY_TIMER	0x0d	/* 8 bits */
@@ -158,6 +159,10 @@ struct PCIDevice {
     DeviceState qdev;
     /* PCI config space */
     uint8_t config[PCI_CONFIG_SPACE_SIZE];
+
+    /* Used to enable config checks on load. Note that writeable bits are
+     * never checked even if set in cmask. */
+    uint8_t cmask[PCI_CONFIG_SPACE_SIZE];
 
     /* Used to implement R/W bytes */
     uint8_t wmask[PCI_CONFIG_SPACE_SIZE];
