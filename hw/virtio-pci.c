@@ -78,11 +78,17 @@ typedef struct {
 
 /* virtio device */
 
-static void virtio_pci_update_irq(void *opaque)
+static void virtio_pci_notify(void *opaque, uint16_t vector)
 {
     VirtIOPCIProxy *proxy = opaque;
 
     qemu_set_irq(proxy->pci_dev.irq[0], proxy->vdev->isr & 1);
+}
+
+static void virtio_pci_reset(void *opaque)
+{
+    VirtIOPCIProxy *proxy = opaque;
+    virtio_reset(proxy->vdev);
 }
 
 static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
@@ -108,7 +114,10 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case VIRTIO_PCI_QUEUE_PFN:
         pa = (target_phys_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
-        virtio_queue_set_addr(vdev, vdev->queue_sel, pa);
+        if (pa == 0)
+            virtio_pci_reset(proxy);
+        else
+            virtio_queue_set_addr(vdev, vdev->queue_sel, pa);
         break;
     case VIRTIO_PCI_QUEUE_SEL:
         if (val < VIRTIO_PCI_QUEUE_MAX)
@@ -120,7 +129,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case VIRTIO_PCI_STATUS:
         vdev->status = val & 0xFF;
         if (vdev->status == 0)
-            virtio_reset(vdev);
+            virtio_pci_reset(proxy);
         break;
     }
 }
@@ -160,7 +169,7 @@ static uint32_t virtio_ioport_read(void *opaque, uint32_t addr)
         /* reading from the ISR also clears it. */
         ret = vdev->isr;
         vdev->isr = 0;
-        virtio_update_irq(vdev);
+        qemu_set_irq(proxy->pci_dev.irq[0], 0);
         break;
     default:
         break;
@@ -245,7 +254,7 @@ static void virtio_map(PCIDevice *pci_dev, int region_num,
 }
 
 static const VirtIOBindings virtio_pci_bindings = {
-    .update_irq = virtio_pci_update_irq
+    .notify = virtio_pci_notify
 };
 
 static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
@@ -256,6 +265,9 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     uint32_t size;
 
     proxy->vdev = vdev;
+
+    /* No support for multiple vectors yet. */
+    proxy->vdev->nvectors = 0;
 
     config = proxy->pci_dev.config;
     pci_config_set_vendor_id(config, vendor);
@@ -280,6 +292,8 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
 
     pci_register_bar(&proxy->pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
                            virtio_map);
+
+    qemu_register_reset(virtio_pci_reset, 0, proxy);
 
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
 }

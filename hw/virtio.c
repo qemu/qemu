@@ -68,6 +68,7 @@ struct VirtQueue
     target_phys_addr_t pa;
     uint16_t last_avail_idx;
     int inuse;
+    uint16_t vector;
     void (*handle_output)(VirtIODevice *vdev, VirtQueue *vq);
 };
 
@@ -421,12 +422,16 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 }
 
 /* virtio device */
+static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
+{
+    if (vdev->binding->notify) {
+        vdev->binding->notify(vdev->binding_opaque, vector);
+    }
+}
 
 void virtio_update_irq(VirtIODevice *vdev)
 {
-    if (vdev->binding->update_irq) {
-        vdev->binding->update_irq(vdev->binding_opaque);
-    }
+    virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
 }
 
 void virtio_reset(void *opaque)
@@ -441,7 +446,8 @@ void virtio_reset(void *opaque)
     vdev->queue_sel = 0;
     vdev->status = 0;
     vdev->isr = 0;
-    virtio_update_irq(vdev);
+    vdev->config_vector = VIRTIO_NO_VECTOR;
+    virtio_notify_vector(vdev, vdev->config_vector);
 
     for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
         vdev->vq[i].vring.desc = 0;
@@ -449,6 +455,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
         vdev->vq[i].pa = 0;
+        vdev->vq[i].vector = VIRTIO_NO_VECTOR;
     }
 }
 
@@ -532,12 +539,8 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
 void virtio_queue_set_addr(VirtIODevice *vdev, int n, target_phys_addr_t addr)
 {
-    if (addr == 0) {
-        virtio_reset(vdev);
-    } else {
-        vdev->vq[n].pa = addr;
-        virtqueue_init(&vdev->vq[n]);
-    }
+    vdev->vq[n].pa = addr;
+    virtqueue_init(&vdev->vq[n]);
 }
 
 target_phys_addr_t virtio_queue_get_addr(VirtIODevice *vdev, int n)
@@ -555,6 +558,18 @@ void virtio_queue_notify(VirtIODevice *vdev, int n)
     if (n < VIRTIO_PCI_QUEUE_MAX && vdev->vq[n].vring.desc) {
         vdev->vq[n].handle_output(vdev, &vdev->vq[n]);
     }
+}
+
+uint16_t virtio_queue_vector(VirtIODevice *vdev, int n)
+{
+    return n < VIRTIO_PCI_QUEUE_MAX ? vdev->vq[n].vector :
+        VIRTIO_NO_VECTOR;
+}
+
+void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
+{
+    if (n < VIRTIO_PCI_QUEUE_MAX)
+        vdev->vq[n].vector = vector;
 }
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
@@ -585,7 +600,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
         return;
 
     vdev->isr |= 0x01;
-    virtio_update_irq(vdev);
+    virtio_notify_vector(vdev, vq->vector);
 }
 
 void virtio_notify_config(VirtIODevice *vdev)
@@ -594,7 +609,7 @@ void virtio_notify_config(VirtIODevice *vdev)
         return;
 
     vdev->isr |= 0x03;
-    virtio_update_irq(vdev);
+    virtio_notify_vector(vdev, vdev->config_vector);
 }
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f)
@@ -603,6 +618,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 
     /* FIXME: load/save binding.  */
     //pci_device_save(&vdev->pci_dev, f);
+    //msix_save(&vdev->pci_dev, f);
 
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
@@ -610,6 +626,9 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_be32s(f, &vdev->features);
     qemu_put_be32(f, vdev->config_len);
     qemu_put_buffer(f, vdev->config, vdev->config_len);
+
+    if (vdev->nvectors)
+        qemu_put_be16s(f, &vdev->config_vector);
 
     for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
@@ -625,6 +644,8 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         qemu_put_be32(f, vdev->vq[i].vring.num);
         qemu_put_be64(f, vdev->vq[i].pa);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
+        if (vdev->nvectors)
+            qemu_put_be16s(f, &vdev->vq[i].vector);
     }
 }
 
@@ -634,6 +655,7 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
 
     /* FIXME: load/save binding.  */
     //pci_device_load(&vdev->pci_dev, f);
+    //r = msix_load(&vdev->pci_dev, f);
 
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
@@ -642,6 +664,10 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
     vdev->config_len = qemu_get_be32(f);
     qemu_get_buffer(f, vdev->config, vdev->config_len);
 
+    if (vdev->nvectors) {
+        qemu_get_be16s(f, &vdev->config_vector);
+        //msix_vector_use(&vdev->pci_dev, vdev->config_vector);
+    }
     num = qemu_get_be32(f);
 
     for (i = 0; i < num; i++) {
@@ -652,9 +678,13 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
         if (vdev->vq[i].pa) {
             virtqueue_init(&vdev->vq[i]);
         }
+        if (vdev->nvectors) {
+            qemu_get_be16s(f, &vdev->vq[i].vector);
+            //msix_vector_use(&vdev->pci_dev, vdev->config_vector);
+        }
     }
 
-    virtio_update_irq(vdev);
+    virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
 }
 
 void virtio_cleanup(VirtIODevice *vdev)
@@ -675,6 +705,7 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
     vdev->status = 0;
     vdev->isr = 0;
     vdev->queue_sel = 0;
+    vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = qemu_mallocz(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
 
     vdev->name = name;
@@ -683,8 +714,6 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
         vdev->config = qemu_mallocz(config_size);
     else
         vdev->config = NULL;
-
-    qemu_register_reset(virtio_reset, 0, vdev);
 
     return vdev;
 }
