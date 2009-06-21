@@ -1,6 +1,6 @@
 
 %.o: %.c
-	$(call quiet-command,$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(CPPFLAGS) $(CFLAGS) -Werror -Wno-error=uninitialized -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 %.o: %.S
 	$(call quiet-command,$(CC) $(CPPFLAGS) -c -o $@ $<,"  AS    $(TARGET_DIR)$@")
