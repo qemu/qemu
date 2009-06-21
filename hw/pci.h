@@ -98,16 +98,24 @@ typedef struct PCIIORegion {
 #define PCI_COMMAND		0x04	/* 16 bits */
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
+#define  PCI_COMMAND_MASTER	0x4	/* Enable bus master */
 #define PCI_STATUS              0x06    /* 16 bits */
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
 #define PCI_CLASS_DEVICE        0x0a    /* Device class */
+#define PCI_CACHE_LINE_SIZE	0x0c	/* 8 bits */
+#define PCI_LATENCY_TIMER	0x0d	/* 8 bits */
 #define PCI_HEADER_TYPE         0x0e    /* 8 bits */
 #define  PCI_HEADER_TYPE_NORMAL		0
 #define  PCI_HEADER_TYPE_BRIDGE		1
 #define  PCI_HEADER_TYPE_CARDBUS	2
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
+#define PCI_BASE_ADDRESS_0	0x10	/* 32 bits */
+#define PCI_PRIMARY_BUS		0x18	/* Primary bus number */
+#define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
+#define PCI_SEC_STATUS		0x1e	/* Secondary status register, only bit 14 used */
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
 #define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
+#define PCI_CAPABILITY_LIST	0x34	/* Offset of first capability list entry */
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
 #define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
 #define PCI_MIN_GNT		0x3e	/* 8 bits */
@@ -137,10 +145,18 @@ typedef struct PCIIORegion {
 
 #define PCI_COMMAND_RESERVED_MASK_HI (PCI_COMMAND_RESERVED >> 8)
 
+/* Size of the standard PCI config header */
+#define PCI_CONFIG_HEADER_SIZE 0x40
+/* Size of the standard PCI config space */
+#define PCI_CONFIG_SPACE_SIZE 0x100
+
 struct PCIDevice {
     DeviceState qdev;
     /* PCI config space */
-    uint8_t config[256];
+    uint8_t config[PCI_CONFIG_SPACE_SIZE];
+
+    /* Used to implement R/W bytes */
+    uint8_t wmask[PCI_CONFIG_SPACE_SIZE];
 
     /* the following fields are read only */
     PCIBus *bus;
