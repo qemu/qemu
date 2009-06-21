@@ -616,9 +616,8 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
     int i;
 
-    /* FIXME: load/save binding.  */
-    //pci_device_save(&vdev->pci_dev, f);
-    //msix_save(&vdev->pci_dev, f);
+    if (vdev->binding->save_config)
+        vdev->binding->save_config(vdev->binding_opaque, f);
 
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
@@ -644,18 +643,20 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         qemu_put_be32(f, vdev->vq[i].vring.num);
         qemu_put_be64(f, vdev->vq[i].pa);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
-        if (vdev->nvectors)
-            qemu_put_be16s(f, &vdev->vq[i].vector);
+        if (vdev->binding->save_queue)
+            vdev->binding->save_queue(vdev->binding_opaque, i, f);
     }
 }
 
-void virtio_load(VirtIODevice *vdev, QEMUFile *f)
+int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 {
-    int num, i;
+    int num, i, ret;
 
-    /* FIXME: load/save binding.  */
-    //pci_device_load(&vdev->pci_dev, f);
-    //r = msix_load(&vdev->pci_dev, f);
+    if (vdev->binding->load_config) {
+        ret = vdev->binding->load_config(vdev->binding_opaque, f);
+        if (ret)
+            return ret;
+    }
 
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
@@ -664,10 +665,6 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
     vdev->config_len = qemu_get_be32(f);
     qemu_get_buffer(f, vdev->config, vdev->config_len);
 
-    if (vdev->nvectors) {
-        qemu_get_be16s(f, &vdev->config_vector);
-        //msix_vector_use(&vdev->pci_dev, vdev->config_vector);
-    }
     num = qemu_get_be32(f);
 
     for (i = 0; i < num; i++) {
@@ -678,13 +675,15 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
         if (vdev->vq[i].pa) {
             virtqueue_init(&vdev->vq[i]);
         }
-        if (vdev->nvectors) {
-            qemu_get_be16s(f, &vdev->vq[i].vector);
-            //msix_vector_use(&vdev->pci_dev, vdev->config_vector);
+        if (vdev->binding->load_queue) {
+            ret = vdev->binding->load_queue(vdev->binding_opaque, i, f);
+            if (ret)
+                return ret;
         }
     }
 
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
+    return 0;
 }
 
 void virtio_cleanup(VirtIODevice *vdev)

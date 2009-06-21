@@ -76,6 +76,10 @@ typedef struct VirtQueueElement
 
 typedef struct {
     void (*notify)(void * opaque, uint16_t vector);
+    void (*save_config)(void * opaque, QEMUFile *f);
+    void (*save_queue)(void * opaque, int n, QEMUFile *f);
+    int (*load_config)(void * opaque, QEMUFile *f);
+    int (*load_queue)(void * opaque, int n, QEMUFile *f);
 } VirtIOBindings;
 
 #define VIRTIO_PCI_QUEUE_MAX 16
