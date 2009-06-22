@@ -32,6 +32,8 @@
 /* We notify when the ring is completely used, even if the guest is supressing
  * callbacks */
 #define VIRTIO_F_NOTIFY_ON_EMPTY        24
+/* We support indirect buffer descriptors */
+#define VIRTIO_RING_F_INDIRECT_DESC     28
 /* A guest should never accept this.  It implies negotiation is broken. */
 #define VIRTIO_F_BAD_FEATURE		30
 
@@ -41,6 +43,8 @@
 #define VRING_DESC_F_NEXT       1
 /* This marks a buffer as write-only (otherwise read-only). */
 #define VRING_DESC_F_WRITE      2
+/* This means the buffer contains a list of buffer descriptors. */
+#define VRING_DESC_F_INDIRECT  4
 
 /* This means don't notify other side when buffer added. */
 #define VRING_USED_F_NO_NOTIFY  1

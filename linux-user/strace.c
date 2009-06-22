@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
-#include <linux/futex.h>
 #include <unistd.h>
 #include "qemu.h"
 

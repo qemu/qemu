@@ -340,7 +340,7 @@ static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
     return 0;
 
  fail3:
-    free (pa->pcm_buf);
+    qemu_free (pa->pcm_buf);
     pa->pcm_buf = NULL;
  fail2:
     pa_simple_free (pa->s);
@@ -394,7 +394,7 @@ static int qpa_init_in (HWVoiceIn *hw, struct audsettings *as)
     return 0;
 
  fail3:
-    free (pa->pcm_buf);
+    qemu_free (pa->pcm_buf);
     pa->pcm_buf = NULL;
  fail2:
     pa_simple_free (pa->s);

@@ -888,4 +888,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         (env->eflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK));
 }
 
+void apic_init_reset(CPUState *env);
+void apic_sipi(CPUState *env);
+void do_cpu_init(CPUState *env);
+void do_cpu_sipi(CPUState *env);
 #endif /* CPU_I386_H */

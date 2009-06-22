@@ -772,6 +772,8 @@ static always_inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg
         t1 = tcg_temp_local_new();
         tcg_gen_andi_tl(t1, cpu_xer, (1 << XER_CA));
         tcg_gen_shri_tl(t1, t1, XER_CA);
+    } else {
+        TCGV_UNUSED(t1);
     }
 
     if (compute_ca && compute_ov) {
@@ -1189,6 +1191,8 @@ static always_inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv ar
         t1 = tcg_temp_local_new();
         tcg_gen_andi_tl(t1, cpu_xer, (1 << XER_CA));
         tcg_gen_shri_tl(t1, t1, XER_CA);
+    } else {
+        TCGV_UNUSED(t1);
     }
 
     if (compute_ca && compute_ov) {
@@ -3364,6 +3368,8 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
             tcg_gen_mov_tl(target, cpu_ctr);
         else
             tcg_gen_mov_tl(target, cpu_lr);
+    } else {
+        TCGV_UNUSED(target);
     }
     if (LK(ctx->opcode))
         gen_setlr(ctx, ctx->nip);

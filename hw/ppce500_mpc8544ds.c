@@ -157,6 +157,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *cpu_model)
 {
     PCIBus *pci_bus;
+    PCIDevice *pci_dev;
     CPUState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
@@ -219,13 +220,14 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
         /* Add virtio block devices. */
         while ((i = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_create_simple(pci_bus, -1, "virtio-blk-pci");
+            pci_dev = pci_create("virtio-blk-pci", drives_table[i].devaddr);
+            qdev_init(&pci_dev->qdev);
             unit_id++;
         }
 
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
-            pci_nic_init(pci_bus, &nd_table[i], -1, "virtio");
+            pci_nic_init(&nd_table[i], "virtio", NULL);
         }
     }
 

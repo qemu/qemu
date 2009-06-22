@@ -751,12 +751,6 @@ static void load_linux(target_phys_addr_t option_rom,
     generate_bootsect(option_rom, gpr, seg, 0);
 }
 
-static void main_cpu_reset(void *opaque)
-{
-    CPUState *env = opaque;
-    cpu_reset(env);
-}
-
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -848,6 +842,7 @@ static void pc_init1(ram_addr_t ram_size,
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size, oprom_area_size;
     PCIBus *pci_bus;
+    PCIDevice *pci_dev;
     int piix3_devfn = -1;
     CPUState *env;
     qemu_irq *cpu_irq;
@@ -883,9 +878,11 @@ static void pc_init1(ram_addr_t ram_size,
         }
         if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
             env->cpuid_apic_id = env->cpu_index;
+            /* APIC reset callback resets cpu */
             apic_init(env);
+        } else {
+            qemu_register_reset((QEMUResetHandler*)cpu_reset, 0, env);
         }
-        qemu_register_reset(main_cpu_reset, 0, env);
     }
 
     vmport_init();
@@ -977,8 +974,23 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     for (i = 0; i < nb_option_roms; i++) {
-        oprom_area_size += load_option_rom(option_rom[i],
-                                           0xc0000 + oprom_area_size, 0xe0000);
+        oprom_area_size += load_option_rom(option_rom[i], 0xc0000 + oprom_area_size,
+                                           0xe0000);
+    }
+
+    for (i = 0; i < nb_nics; i++) {
+        char nic_oprom[1024];
+        const char *model = nd_table[i].model;
+
+        if (!nd_table[i].bootable)
+            continue;
+
+        if (model == NULL)
+            model = "ne2k_pci";
+        snprintf(nic_oprom, sizeof(nic_oprom), "pxe-%s.bin", model);
+
+        oprom_area_size += load_option_rom(nic_oprom, 0xc0000 + oprom_area_size,
+                                           0xe0000);
     }
 
     /* map all the bios at the top of memory */
@@ -1063,10 +1075,10 @@ static void pc_init1(ram_addr_t ram_size,
         if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
             pc_init_ne2k_isa(nd, i8259);
         else
-            pci_nic_init(pci_bus, nd, -1, "ne2k_pci");
+            pci_nic_init(nd, "ne2k_pci", NULL);
     }
 
-    qemu_system_hot_add_init();
+    piix4_acpi_system_hot_add_init();
 
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
         fprintf(stderr, "qemu: too many IDE bus\n");
@@ -1146,7 +1158,9 @@ static void pc_init1(ram_addr_t ram_size,
         int unit_id = 0;
 
         while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_create_simple(pci_bus, -1, "virtio-blk-pci");
+            pci_dev = pci_create("virtio-blk-pci",
+                                 drives_table[index].devaddr);
+            qdev_init(&pci_dev->qdev);
             unit_id++;
         }
     }

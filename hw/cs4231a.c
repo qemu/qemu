@@ -216,7 +216,7 @@ static int16_t ALawDecompressTable[256] =
       944,   912,  1008,   976,   816,   784,   880,   848
 };
 
-static void cs_reset(void *opaque)
+static void cs_reset (void *opaque)
 {
     CSState *s = opaque;
 
@@ -597,23 +597,23 @@ static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_pos;
 }
 
-static void cs_save(QEMUFile *f, void *opaque)
+static void cs_save (QEMUFile *f, void *opaque)
 {
     CSState *s = opaque;
     unsigned int i;
     uint32_t val;
 
     for (i = 0; i < CS_REGS; i++)
-        qemu_put_be32s(f, &s->regs[i]);
+        qemu_put_be32s (f, &s->regs[i]);
 
-    qemu_put_buffer(f, s->dregs, CS_DREGS);
-    val = s->dma_running; qemu_put_be32s(f, &val);
-    val = s->audio_free;  qemu_put_be32s(f, &val);
-    val = s->transferred; qemu_put_be32s(f, &val);
-    val = s->aci_counter; qemu_put_be32s(f, &val);
+    qemu_put_buffer (f, s->dregs, CS_DREGS);
+    val = s->dma_running; qemu_put_be32s (f, &val);
+    val = s->audio_free;  qemu_put_be32s (f, &val);
+    val = s->transferred; qemu_put_be32s (f, &val);
+    val = s->aci_counter; qemu_put_be32s (f, &val);
 }
 
-static int cs_load(QEMUFile *f, void *opaque, int version_id)
+static int cs_load (QEMUFile *f, void *opaque, int version_id)
 {
     CSState *s = opaque;
     unsigned int i;
@@ -623,14 +623,14 @@ static int cs_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     for (i = 0; i < CS_REGS; i++)
-        qemu_get_be32s(f, &s->regs[i]);
+        qemu_get_be32s (f, &s->regs[i]);
 
-    qemu_get_buffer(f, s->dregs, CS_DREGS);
+    qemu_get_buffer (f, s->dregs, CS_DREGS);
 
-    qemu_get_be32s(f, &dma_running);
-    qemu_get_be32s(f, &val); s->audio_free  = val;
-    qemu_get_be32s(f, &val); s->transferred = val;
-    qemu_get_be32s(f, &val); s->aci_counter = val;
+    qemu_get_be32s (f, &dma_running);
+    qemu_get_be32s (f, &val); s->audio_free  = val;
+    qemu_get_be32s (f, &val); s->transferred = val;
+    qemu_get_be32s (f, &val); s->aci_counter = val;
     if (dma_running && (s->dregs[Interface_Configuration] & PEN))
         cs_reset_voices (s, s->dregs[FS_And_Playback_Data_Format]);
     return 0;

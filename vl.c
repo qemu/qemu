@@ -2212,12 +2212,14 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     int index;
     int cache;
     int bdrv_flags, onerror;
+    const char *devaddr;
     int drives_table_idx;
     char *str = arg->opt;
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
                                            "media", "snapshot", "file",
-                                           "cache", "format", "serial", "werror",
+                                           "cache", "format", "serial",
+                                           "werror", "addr",
                                            NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
@@ -2431,6 +2433,15 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         }
     }
 
+    devaddr = NULL;
+    if (get_param_value(buf, sizeof(buf), "addr", str)) {
+        if (type != IF_VIRTIO) {
+            fprintf(stderr, "addr is not supported by in '%s'\n", str);
+            return -1;
+        }
+        devaddr = strdup(buf);
+    }
+
     /* compute bus and unit according index */
 
     if (index != -1) {
@@ -2492,6 +2503,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     bdrv = bdrv_new(buf);
     drives_table_idx = drive_get_free_idx();
     drives_table[drives_table_idx].bdrv = bdrv;
+    drives_table[drives_table_idx].devaddr = devaddr;
     drives_table[drives_table_idx].type = type;
     drives_table[drives_table_idx].bus = bus_id;
     drives_table[drives_table_idx].unit = unit_id;
@@ -3352,6 +3364,12 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         
         if (flags & RAM_SAVE_FLAG_COMPRESS) {
             uint8_t ch = qemu_get_byte(f);
+#if defined(__linux__)
+            if (ch == 0 &&
+                (!kvm_enabled() || kvm_has_sync_mmu())) {
+                madvise(qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE, MADV_DONTNEED);
+            } else
+#endif
             memset(qemu_get_ram_ptr(addr), ch, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_PAGE)
             qemu_get_buffer(f, qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE);
@@ -5865,7 +5883,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     linux_boot = (kernel_filename != NULL);
-    net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
 
     if (!linux_boot && *kernel_cmdline != '\0') {
         fprintf(stderr, "-append only allowed with -kernel option\n");
@@ -5914,41 +5931,11 @@ int main(int argc, char **argv, char **envp)
         if (net_client_parse(net_clients[i]) < 0)
             exit(1);
     }
-    net_client_check();
 
-#ifdef TARGET_I386
-    /* XXX: this should be moved in the PC machine instantiation code */
-    if (net_boot != 0) {
-        int netroms = 0;
-	for (i = 0; i < nb_nics && i < 4; i++) {
-	    const char *model = nd_table[i].model;
-	    char buf[1024];
-            char *filename;
-            if (net_boot & (1 << i)) {
-                if (model == NULL)
-                    model = "ne2k_pci";
-                snprintf(buf, sizeof(buf), "pxe-%s.bin", model);
-                filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, buf);
-                if (filename && get_image_size(filename) > 0) {
-                    if (nb_option_roms >= MAX_OPTION_ROMS) {
-                        fprintf(stderr, "Too many option ROMs\n");
-                        exit(1);
-                    }
-                    option_rom[nb_option_roms] = qemu_strdup(buf);
-                    nb_option_roms++;
-                    netroms++;
-                }
-                if (filename) {
-                    qemu_free(filename);
-                }
-            }
-	}
-	if (netroms == 0) {
-	    fprintf(stderr, "No valid PXE rom found for network device\n");
-	    exit(1);
-	}
-    }
-#endif
+    net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
+    net_set_boot_mask(net_boot);
+
+    net_client_check();
 
     /* init the bluetooth world */
     for (i = 0; i < nb_bt_opts; i++)

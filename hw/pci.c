@@ -87,6 +87,21 @@ static int  pcibus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void pci_bus_reset(void *opaque)
+{
+    PCIBus *bus = (PCIBus *)opaque;
+    int i;
+
+    for (i = 0; i < bus->nirq; i++) {
+        bus->irq_count[i] = 0;
+    }
+    for (i = 0; i < 256; i++) {
+        if (bus->devices[i])
+            memset(bus->devices[i]->irq_state, 0,
+                   sizeof(bus->devices[i]->irq_state));
+    }
+}
+
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq)
@@ -105,6 +120,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
+    qemu_register_reset(pci_bus_reset, 0, bus);
     return bus;
 }
 
@@ -223,21 +239,22 @@ int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
     return pci_parse_devaddr(devaddr, domp, busp, slotp);
 }
 
-int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
+static PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 {
-    char devaddr[32];
+    int dom, bus;
+    unsigned slot;
 
-    if (!get_param_value(devaddr, sizeof(devaddr), "pci_addr", addr))
-	return -1;
-
-    if (!strcmp(devaddr, "auto")) {
-        *domp = *busp = 0;
-        *slotp = -1;
-        /* want to support dom/bus auto-assign at some point */
-        return 0;
+    if (!devaddr) {
+        *devfnp = -1;
+        return pci_find_bus(0);
     }
 
-    return pci_parse_devaddr(devaddr, domp, busp, slotp);
+    if (pci_parse_devaddr(devaddr, &dom, &bus, &slot) < 0) {
+        return NULL;
+    }
+
+    *devfnp = slot << 3;
+    return pci_find_bus(bus);
 }
 
 /* -1 for devfn means auto assign */
@@ -253,6 +270,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         }
         return NULL;
     found: ;
+    } else if (bus->devices[devfn]) {
+        return NULL;
     }
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
@@ -786,6 +805,24 @@ void pci_info(Monitor *mon)
     pci_for_each_device(0, pci_info_device);
 }
 
+PCIDevice *pci_create(const char *name, const char *devaddr)
+{
+    PCIBus *bus;
+    int devfn;
+    DeviceState *dev;
+
+    bus = pci_get_bus_devfn(&devfn, devaddr);
+    if (!bus) {
+        fprintf(stderr, "Invalid PCI device address %s for device %s\n",
+                devaddr, name);
+        exit(1);
+    }
+
+    dev = qdev_create(&bus->qbus, name);
+    qdev_set_prop_int(dev, "devfn", devfn);
+    return (PCIDevice *)dev;
+}
+
 static const char * const pci_nic_models[] = {
 #if !defined(CONFIG_WIN32)
     "atheros_wlan",
@@ -831,9 +868,11 @@ static const char * const pci_nic_names[] = {
 };
 
 /* Initialize a PCI NIC.  */
-PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
-                  const char *default_model)
+PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
+                        const char *default_devaddr)
 {
+    const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
+    PCIDevice *pci_dev;
     DeviceState *dev;
     int i;
 
@@ -841,12 +880,12 @@ PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
 
     for (i = 0; pci_nic_models[i]; i++) {
         if (strcmp(nd->model, pci_nic_models[i]) == 0) {
-            dev = qdev_create(&bus->qbus, pci_nic_names[i]);
-            qdev_set_prop_int(dev, "devfn", devfn);
+            pci_dev = pci_create(pci_nic_names[i], devaddr);
+            dev = &pci_dev->qdev;
             qdev_set_netdev(dev, nd);
             qdev_init(dev);
             nd->private = dev;
-            return (PCIDevice *)dev;
+            return pci_dev;
         }
     }
 
