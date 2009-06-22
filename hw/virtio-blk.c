@@ -25,11 +25,53 @@ typedef struct VirtIOBlock
     BlockDriverState *bs;
     VirtQueue *vq;
     void *rq;
+    char serial_str[BLOCK_SERIAL_STRLEN + 1];
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
 {
     return (VirtIOBlock *)vdev;
+}
+
+/* store identify data in little endian format
+ */
+static inline void put_le16(uint16_t *p, unsigned int v)
+{
+    *p = cpu_to_le16(v);
+}
+
+/* copy to *dst from *src, nul pad dst tail as needed to len bytes
+ */
+static inline void padstr(char *dst, const char *src, int len)
+{
+    while (len--)
+        *dst++ = *src ? *src++ : '\0';
+}
+
+/* setup simulated identify data as appropriate for virtio block device
+ *
+ * ref: AT Attachment 8 - ATA/ATAPI Command Set (ATA8-ACS)
+ */
+static inline void virtio_identify_template(struct virtio_blk_config *bc)
+{
+    uint16_t *p = &bc->identify[0];
+    uint64_t lba_sectors = bc->capacity;
+
+    memset(p, 0, sizeof(bc->identify));
+    put_le16(p + 0, 0x0);                            /* ATA device */
+    padstr((char *)(p + 23), QEMU_VERSION, 8);       /* firmware revision */
+    padstr((char *)(p + 27), "QEMU VIRT_BLK", 40);   /* model# */
+    put_le16(p + 47, 0x80ff);                        /* max xfer 255 sectors */
+    put_le16(p + 49, 0x0b00);                        /* support IORDY/LBA/DMA */
+    put_le16(p + 59, 0x1ff);                         /* cur xfer 255 sectors */
+    put_le16(p + 80, 0x1f0);                         /* support ATA8/7/6/5/4 */
+    put_le16(p + 81, 0x16);
+    put_le16(p + 82, 0x400);
+    put_le16(p + 83, 0x400);
+    put_le16(p + 100, lba_sectors);
+    put_le16(p + 101, lba_sectors >> 16);
+    put_le16(p + 102, lba_sectors >> 32);
+    put_le16(p + 103, lba_sectors >> 48);
 }
 
 typedef struct VirtIOBlockReq
@@ -285,6 +327,8 @@ static void virtio_blk_reset(VirtIODevice *vdev)
     qemu_aio_flush();
 }
 
+/* coalesce internal state, copy to pci i/o region 0
+ */
 static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIOBlock *s = to_virtio_blk(vdev);
@@ -301,11 +345,15 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blkcfg.heads = heads;
     blkcfg.sectors = secs;
     blkcfg.size_max = 0;
+    virtio_identify_template(&blkcfg);
+    memcpy(&blkcfg.identify[VIRTIO_BLK_ID_SN], s->serial_str,
+        VIRTIO_BLK_ID_SN_BYTES);
     memcpy(config, &blkcfg, sizeof(blkcfg));
 }
 
 static uint32_t virtio_blk_get_features(VirtIODevice *vdev)
 {
+    VirtIOBlock *s = to_virtio_blk(vdev);
     uint32_t features = 0;
 
     features |= (1 << VIRTIO_BLK_F_SEG_MAX);
@@ -313,6 +361,8 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev)
 #ifdef __linux__
     features |= (1 << VIRTIO_BLK_F_SCSI);
 #endif
+    if (strcmp(s->serial_str, "0"))
+        features |= 1 << VIRTIO_BLK_F_IDENTIFY;
 
     return features;
 }
@@ -356,6 +406,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev)
     int cylinders, heads, secs;
     static int virtio_blk_id;
     BlockDriverState *bs;
+    char *ps;
 
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
                                           sizeof(struct virtio_blk_config),
@@ -367,6 +418,10 @@ VirtIODevice *virtio_blk_init(DeviceState *dev)
     s->vdev.reset = virtio_blk_reset;
     s->bs = bs;
     s->rq = NULL;
+    if (strlen(ps = (char *)drive_get_serial(bs)))
+        strncpy(s->serial_str, ps, sizeof(s->serial_str));
+    else
+        snprintf(s->serial_str, sizeof(s->serial_str), "0");
     bs->private = dev;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
     bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);
