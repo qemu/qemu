@@ -565,7 +565,7 @@ struct  control_block
 
 typedef struct
 {
-    uint32_t tx_desc_addr;      /* transmit buffer decsriptor array address. */
+    uint32_t tx_desc_addr;      /* transmit buffer descriptor array address. */
     uint16_t tcb_bytes:14;         /* transmit command block byte count (in lower 14 bits)*/
     uint8_t rs1:1;
     uint8_t eof:1;
