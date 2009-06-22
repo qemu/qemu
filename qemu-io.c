@@ -7,6 +7,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+#include <sys/time.h>
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1033,7 +1034,7 @@ static void usage(const char *name)
 {
 	printf(
 "Usage: %s [-h] [-V] [-Crsnm] [-c cmd] ... [file]\n"
-"QEMU Disk excerciser\n"
+"QEMU Disk exerciser\n"
 "\n"
 "  -C, --create         create new file if it doesn't exist\n"
 "  -c, --cmd            command to execute\n"
@@ -1068,7 +1069,7 @@ int main(int argc, char **argv)
 	int opt_index = 0;
 	int flags = 0;
 
-	progname = basename(argv[0]);
+	progname = argv[0];
 
 	while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
 		switch (c) {
