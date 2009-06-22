@@ -1033,7 +1033,7 @@ static void usage(const char *name)
 {
 	printf(
 "Usage: %s [-h] [-V] [-Crsnm] [-c cmd] ... [file]\n"
-"QEMU Disk excerciser\n"
+"QEMU Disk exerciser\n"
 "\n"
 "  -C, --create         create new file if it doesn't exist\n"
 "  -c, --cmd            command to execute\n"
