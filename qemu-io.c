@@ -54,20 +54,20 @@ static void qemu_io_free(void *p)
 }
 
 static void
-dump_buffer(char *buffer, int64_t offset, int len)
+dump_buffer(const void *buffer, int64_t offset, int len)
 {
 	int i, j;
-	char *p;
+	const uint8_t *p;
 
 	for (i = 0, p = buffer; i < len; i += 16) {
-		char    *s = p;
+		const uint8_t *s = p;
 
 		printf("%08llx:  ", (unsigned long long)offset + i);
 		for (j = 0; j < 16 && i + j < len; j++, p++)
 			printf("%02x ", *p);
 		printf(" ");
 		for (j = 0; j < 16 && i + j < len; j++, s++) {
-			if (isalnum((int)*s))
+			if (isalnum(*s))
 				printf("%c", *s);
 			else
 				printf(".");
