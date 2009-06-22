@@ -1,0 +1,23 @@
+#
+# QA groups control file
+# Defines test groups
+# - do not start group names with a digit
+#
+
+#
+# test-group association ... one line per test
+#
+001 rw auto
+002 rw auto
+003 rw auto
+004 rw auto
+005 img auto
+006 img auto
+007 snapshot auto
+008 rw auto
+009 rw auto
+010 rw auto
+011 rw auto
+012 auto
+013 rw auto
+014 rw auto
