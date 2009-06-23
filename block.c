@@ -1376,6 +1376,7 @@ static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
 {
     BlockDriverAIOCBSync *acb = (BlockDriverAIOCBSync *)blockacb;
     qemu_bh_delete(acb->bh);
+    acb->bh = NULL;
     qemu_aio_release(acb);
 }
 
@@ -1393,6 +1394,7 @@ static void bdrv_aio_bh_cb(void *opaque)
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_bh_delete(acb->bh);
+    acb->bh = NULL;
     qemu_aio_release(acb);
 }
 
