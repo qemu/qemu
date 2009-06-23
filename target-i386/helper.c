@@ -1496,7 +1496,76 @@ static void breakpoint_handler(CPUState *env)
     if (prev_debug_excp_handler)
         prev_debug_excp_handler(env);
 }
+
+/* This should come from sysemu.h - if we could include it here... */
+void qemu_system_reset_request(void);
+
+void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+                        uint64_t mcg_status, uint64_t addr, uint64_t misc)
+{
+    uint64_t mcg_cap = cenv->mcg_cap;
+    unsigned bank_num = mcg_cap & 0xff;
+    uint64_t *banks = cenv->mce_banks;
+
+    if (bank >= bank_num || !(status & MCI_STATUS_VAL))
+        return;
+
+    /*
+     * if MSR_MCG_CTL is not all 1s, the uncorrected error
+     * reporting is disabled
+     */
+    if ((status & MCI_STATUS_UC) && (mcg_cap & MCG_CTL_P) &&
+        cenv->mcg_ctl != ~(uint64_t)0)
+        return;
+    banks += 4 * bank;
+    /*
+     * if MSR_MCi_CTL is not all 1s, the uncorrected error
+     * reporting is disabled for the bank
+     */
+    if ((status & MCI_STATUS_UC) && banks[0] != ~(uint64_t)0)
+        return;
+    if (status & MCI_STATUS_UC) {
+        if ((cenv->mcg_status & MCG_STATUS_MCIP) ||
+            !(cenv->cr[4] & CR4_MCE_MASK)) {
+            fprintf(stderr, "injects mce exception while previous "
+                    "one is in progress!\n");
+            qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
+            qemu_system_reset_request();
+            return;
+        }
+        if (banks[1] & MCI_STATUS_VAL)
+            status |= MCI_STATUS_OVER;
+        banks[2] = addr;
+        banks[3] = misc;
+        cenv->mcg_status = mcg_status;
+        banks[1] = status;
+        cpu_interrupt(cenv, CPU_INTERRUPT_MCE);
+    } else if (!(banks[1] & MCI_STATUS_VAL)
+               || !(banks[1] & MCI_STATUS_UC)) {
+        if (banks[1] & MCI_STATUS_VAL)
+            status |= MCI_STATUS_OVER;
+        banks[2] = addr;
+        banks[3] = misc;
+        banks[1] = status;
+    } else
+        banks[1] |= MCI_STATUS_OVER;
+}
 #endif /* !CONFIG_USER_ONLY */
+
+static void mce_init(CPUX86State *cenv)
+{
+    unsigned int bank, bank_num;
+
+    if (((cenv->cpuid_version >> 8)&0xf) >= 6
+        && (cenv->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)) {
+        cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
+        cenv->mcg_ctl = ~(uint64_t)0;
+        bank_num = cenv->mcg_cap & 0xff;
+        cenv->mce_banks = qemu_mallocz(bank_num * sizeof(uint64_t) * 4);
+        for (bank = 0; bank < bank_num; bank++)
+            cenv->mce_banks[bank*4] = ~(uint64_t)0;
+    }
+}
 
 static void host_cpuid(uint32_t function, uint32_t count,
                        uint32_t *eax, uint32_t *ebx,
@@ -1735,6 +1804,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
         cpu_x86_close(env);
         return NULL;
     }
+    mce_init(env);
     cpu_reset(env);
 #ifdef CONFIG_KQEMU
     kqemu_init(env);

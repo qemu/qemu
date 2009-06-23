@@ -615,6 +615,14 @@ Remove all matches from the access control list, and set the default
 policy back to @code{deny}.
 ETEXI
 
+#if defined(TARGET_I386)
+    { "mce", "iillll", do_inject_mce, "cpu bank status mcgstatus addr misc", "inject a MCE on the given CPU"},
+#endif
+STEXI
+@item mce @var{cpu} @var{bank} @var{status} @var{mcgstatus} @var{addr} @var{misc}
+Inject an MCE on the given CPU (x86 only).
+ETEXI
+
 STEXI
 @end table
 ETEXI

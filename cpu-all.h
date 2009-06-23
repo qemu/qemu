@@ -770,6 +770,7 @@ extern int use_icount;
 #define CPU_INTERRUPT_NMI    0x200 /* NMI pending. */
 #define CPU_INTERRUPT_INIT   0x400 /* INIT pending. */
 #define CPU_INTERRUPT_SIPI   0x800 /* SIPI pending. */
+#define CPU_INTERRUPT_MCE    0x1000 /* (x86 only) MCE pending. */
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
@@ -1070,5 +1071,8 @@ extern int64_t kqemu_ret_int_count;
 extern int64_t kqemu_ret_excp_count;
 extern int64_t kqemu_ret_intr_count;
 #endif
+
+void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+                        uint64_t mcg_status, uint64_t addr, uint64_t misc);
 
 #endif /* CPU_ALL_H */

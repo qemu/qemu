@@ -204,6 +204,7 @@
 #define CR4_DE_MASK   (1 << 3)
 #define CR4_PSE_MASK  (1 << 4)
 #define CR4_PAE_MASK  (1 << 5)
+#define CR4_MCE_MASK  (1 << 6)
 #define CR4_PGE_MASK  (1 << 7)
 #define CR4_PCE_MASK  (1 << 8)
 #define CR4_OSFXSR_SHIFT 9
@@ -250,6 +251,17 @@
 #define PG_ERROR_RSVD_MASK 0x08
 #define PG_ERROR_I_D_MASK  0x10
 
+#define MCG_CTL_P	(1UL<<8)   /* MCG_CAP register available */
+
+#define MCE_CAP_DEF	MCG_CTL_P
+#define MCE_BANKS_DEF	10
+
+#define MCG_STATUS_MCIP	(1UL<<2)   /* machine check in progress */
+
+#define MCI_STATUS_VAL	(1UL<<63)  /* valid error */
+#define MCI_STATUS_OVER	(1UL<<62)  /* previous errors lost */
+#define MCI_STATUS_UC	(1UL<<61)  /* uncorrected error */
+
 #define MSR_IA32_TSC                    0x10
 #define MSR_IA32_APICBASE               0x1b
 #define MSR_IA32_APICBASE_BSP           (1<<8)
@@ -289,6 +301,11 @@
 #define MSR_PAT                         0x277
 
 #define MSR_MTRRdefType			0x2ff
+
+#define MSR_MC0_CTL			0x400
+#define MSR_MC0_STATUS			0x401
+#define MSR_MC0_ADDR			0x402
+#define MSR_MC0_MISC			0x403
 
 #define MSR_EFER                        0xc0000080
 
@@ -678,6 +695,11 @@ typedef struct CPUX86State {
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct APICState *apic_state;
+
+    uint64 mcg_cap;
+    uint64 mcg_status;
+    uint64 mcg_ctl;
+    uint64 *mce_banks;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(const char *cpu_model);
@@ -842,7 +864,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 9
+#define CPU_SAVE_VERSION 10
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
