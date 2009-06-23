@@ -714,6 +714,7 @@ ppc64-softmmu \
 sh4-softmmu \
 sh4eb-softmmu \
 sparc-softmmu \
+sparc64-softmmu \
 "
     fi
 # the following are Linux specific
