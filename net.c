@@ -696,7 +696,7 @@ static void slirp_smb(const char *exported_dir, struct in_addr vserver_addr);
 
 int slirp_can_output(void)
 {
-    return !slirp_vc || qemu_can_send_packet(slirp_vc);
+    return qemu_can_send_packet(slirp_vc);
 }
 
 void slirp_output(const uint8_t *pkt, int pkt_len)
@@ -705,8 +705,6 @@ void slirp_output(const uint8_t *pkt, int pkt_len)
     printf("slirp output:\n");
     hex_dump(stdout, pkt, pkt_len);
 #endif
-    if (!slirp_vc)
-        return;
     qemu_send_packet(slirp_vc, pkt, pkt_len);
 }
 
