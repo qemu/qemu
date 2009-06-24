@@ -123,45 +123,45 @@ else
 OBJS+=migration-exec.o
 endif
 
-AUDIO_OBJS = audio.o noaudio.o wavaudio.o mixeng.o
+audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 ifdef CONFIG_SDL
-AUDIO_OBJS += sdlaudio.o
+audio-obj-y += sdlaudio.o
 endif
 ifdef CONFIG_OSS
-AUDIO_OBJS += ossaudio.o
+audio-obj-y += ossaudio.o
 endif
 ifdef CONFIG_COREAUDIO
-AUDIO_OBJS += coreaudio.o
+audio-obj-y += coreaudio.o
 AUDIO_PT = yes
 endif
 ifdef CONFIG_ALSA
-AUDIO_OBJS += alsaaudio.o
+audio-obj-y += alsaaudio.o
 endif
 ifdef CONFIG_DSOUND
-AUDIO_OBJS += dsoundaudio.o
+audio-obj-y += dsoundaudio.o
 endif
 ifdef CONFIG_FMOD
-AUDIO_OBJS += fmodaudio.o
+audio-obj-y += fmodaudio.o
 audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
 endif
 ifdef CONFIG_ESD
 AUDIO_PT = yes
 AUDIO_PT_INT = yes
-AUDIO_OBJS += esdaudio.o
+audio-obj-y += esdaudio.o
 endif
 ifdef CONFIG_PA
 AUDIO_PT = yes
 AUDIO_PT_INT = yes
-AUDIO_OBJS += paaudio.o
+audio-obj-y += paaudio.o
 endif
 ifdef AUDIO_PT
 LDFLAGS += -pthread
 endif
 ifdef AUDIO_PT_INT
-AUDIO_OBJS += audio_pt_int.o
+audio-obj-y += audio_pt_int.o
 endif
-AUDIO_OBJS+= wavcapture.o
-OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
+audio-obj-y += wavcapture.o
+OBJS+=$(addprefix audio/, $(audio-obj-y))
 
 OBJS+=keymaps.o
 ifdef CONFIG_SDL
