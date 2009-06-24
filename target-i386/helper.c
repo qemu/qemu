@@ -44,7 +44,7 @@ static const char *ext_feature_name[] = {
     "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
     "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
     NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, "hypervisor",
 };
 static const char *ext2_feature_name[] = {
     "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
@@ -59,30 +59,30 @@ static const char *ext3_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
-static void add_flagname_to_bitmaps(char *flagname, uint32_t *features, 
-                                    uint32_t *ext_features, 
-                                    uint32_t *ext2_features, 
+static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features,
+                                    uint32_t *ext_features,
+                                    uint32_t *ext2_features,
                                     uint32_t *ext3_features)
 {
     int i;
     int found = 0;
 
-    for ( i = 0 ; i < 32 ; i++ ) 
+    for ( i = 0 ; i < 32 ; i++ )
         if (feature_name[i] && !strcmp (flagname, feature_name[i])) {
             *features |= 1 << i;
             found = 1;
         }
-    for ( i = 0 ; i < 32 ; i++ ) 
+    for ( i = 0 ; i < 32 ; i++ )
         if (ext_feature_name[i] && !strcmp (flagname, ext_feature_name[i])) {
             *ext_features |= 1 << i;
             found = 1;
         }
-    for ( i = 0 ; i < 32 ; i++ ) 
+    for ( i = 0 ; i < 32 ; i++ )
         if (ext2_feature_name[i] && !strcmp (flagname, ext2_feature_name[i])) {
             *ext2_features |= 1 << i;
             found = 1;
         }
-    for ( i = 0 ; i < 32 ; i++ ) 
+    for ( i = 0 ; i < 32 ; i++ )
         if (ext3_feature_name[i] && !strcmp (flagname, ext3_feature_name[i])) {
             *ext3_features |= 1 << i;
             found = 1;
@@ -329,6 +329,9 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     if (!def)
         goto error;
     memcpy(x86_cpu_def, def, sizeof(*def));
+
+    add_flagname_to_bitmaps("hypervisor", &plus_features,
+        &plus_ext_features, &plus_ext2_features, &plus_ext3_features);
 
     featurestr = strtok(NULL, ",");
 
@@ -1523,10 +1526,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = (env->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         *ecx = env->cpuid_ext_features;
         *edx = env->cpuid_features;
-
-        /* "Hypervisor present" bit required for Microsoft SVVP */
-        if (kvm_enabled())
-            *ecx |= (1 << 31);
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
