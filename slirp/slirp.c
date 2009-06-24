@@ -222,7 +222,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     slirp->opaque = opaque;
 
-    register_savevm("slirp", 0, 2, slirp_state_save, slirp_state_load, slirp);
+    register_savevm("slirp", 0, 3, slirp_state_save, slirp_state_load, slirp);
 
     TAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
 
@@ -942,6 +942,16 @@ static void slirp_socket_save(QEMUFile *f, struct socket *so)
     slirp_tcp_save(f, so->so_tcpcb);
 }
 
+static void slirp_bootp_save(QEMUFile *f, Slirp *slirp)
+{
+    int i;
+
+    for (i = 0; i < NB_BOOTP_CLIENTS; i++) {
+        qemu_put_be16(f, slirp->bootp_clients[i].allocated);
+        qemu_put_buffer(f, slirp->bootp_clients[i].macaddr, 6);
+    }
+}
+
 static void slirp_state_save(QEMUFile *f, void *opaque)
 {
     Slirp *slirp = opaque;
@@ -961,6 +971,8 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
     qemu_put_byte(f, 0);
 
     qemu_put_be16(f, slirp->ip_id);
+
+    slirp_bootp_save(f, slirp);
 }
 
 static void slirp_tcp_load(QEMUFile *f, struct tcpcb *tp)
@@ -1057,6 +1069,16 @@ static int slirp_socket_load(QEMUFile *f, struct socket *so)
     return 0;
 }
 
+static void slirp_bootp_load(QEMUFile *f, Slirp *slirp)
+{
+    int i;
+
+    for (i = 0; i < NB_BOOTP_CLIENTS; i++) {
+        slirp->bootp_clients[i].allocated = qemu_get_be16(f);
+        qemu_get_buffer(f, slirp->bootp_clients[i].macaddr, 6);
+    }
+}
+
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
 {
     Slirp *slirp = opaque;
@@ -1094,6 +1116,10 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id >= 2) {
         slirp->ip_id = qemu_get_be16(f);
+    }
+
+    if (version_id >= 3) {
+        slirp_bootp_load(f, slirp);
     }
 
     return 0;
