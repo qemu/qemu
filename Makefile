@@ -197,10 +197,10 @@ endif
 LIBS+=$(VDE_LIBS)
 
 # xen backend driver support
-XEN_OBJS := xen_backend.o xen_devconfig.o
-XEN_OBJS += xen_console.o xenfb.o xen_disk.o xen_nic.o
+xen-obj-y := xen_backend.o xen_devconfig.o
+xen-obj-y += xen_console.o xenfb.o xen_disk.o xen_nic.o
 ifdef CONFIG_XEN
-  OBJS += $(XEN_OBJS)
+  OBJS += $(xen-obj-y)
 endif
 
 LIBS+=$(CURL_LIBS)
