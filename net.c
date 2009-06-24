@@ -903,7 +903,8 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
 
     s->vc = qemu_new_vlan_client(vlan, model, name, NULL, slirp_receive, NULL,
                                  net_slirp_cleanup, s);
-    s->vc->info_str[0] = '\0';
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "net=%s, restricted=%c", inet_ntoa(net), restricted ? 'y' : 'n');
     return 0;
 }
 
