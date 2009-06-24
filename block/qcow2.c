@@ -44,10 +44,6 @@
   - L2 tables have always a size of one cluster.
 */
 
-//#define DEBUG_ALLOC
-//#define DEBUG_ALLOC2
-//#define DEBUG_EXT
-
 
 typedef struct {
     uint32_t magic;
@@ -251,7 +247,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
         goto fail;
 
 #ifdef DEBUG_ALLOC
-    check_refcounts(bs);
+    qcow2_check_refcounts(bs);
 #endif
     return 0;
 
