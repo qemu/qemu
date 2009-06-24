@@ -871,7 +871,7 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
     return 0;
 }
 
-static void net_slirp_hostfwd_remove(Monitor *mon, const char *port_str)
+void net_slirp_hostfwd_remove(Monitor *mon, const char *port_str)
 {
     int host_port;
     char buf[256] = "";
@@ -879,8 +879,10 @@ static void net_slirp_hostfwd_remove(Monitor *mon, const char *port_str)
     int is_udp = 0;
     int n;
 
-    if (!mon)
+    if (!slirp_inited) {
+        monitor_printf(mon, "user mode network stack not in use\n");
         return;
+    }
 
     if (!port_str || !port_str[0])
         goto fail_syntax;
@@ -958,29 +960,30 @@ static void slirp_hostfwd(Monitor *mon, const char *redir_str)
     config_error(mon, "invalid host forwarding rule '%s'\n", redir_str);
 }
 
-void net_slirp_redir(Monitor *mon, const char *redir_str, const char *redir_opt2)
+void net_slirp_hostfwd_add(Monitor *mon, const char *redir_str)
 {
-    struct slirp_config_str *config;
-
     if (!slirp_inited) {
-        if (mon) {
-            monitor_printf(mon, "user mode network stack not in use\n");
-        } else {
-            config = qemu_malloc(sizeof(*config));
-            pstrcpy(config->str, sizeof(config->str), redir_str);
-            config->flags = SLIRP_CFG_HOSTFWD;
-            config->next = slirp_configs;
-            slirp_configs = config;
-        }
-        return;
-    }
-
-    if (!strcmp(redir_str, "remove")) {
-        net_slirp_hostfwd_remove(mon, redir_opt2);
+        monitor_printf(mon, "user mode network stack not in use\n");
         return;
     }
 
     slirp_hostfwd(mon, redir_str);
+}
+
+void net_slirp_redir(const char *redir_str)
+{
+    struct slirp_config_str *config;
+
+    if (!slirp_inited) {
+        config = qemu_malloc(sizeof(*config));
+        pstrcpy(config->str, sizeof(config->str), redir_str);
+        config->flags = SLIRP_CFG_HOSTFWD;
+        config->next = slirp_configs;
+        slirp_configs = config;
+        return;
+    }
+
+    slirp_hostfwd(NULL, redir_str);
 }
 
 #ifndef _WIN32
