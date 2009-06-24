@@ -697,7 +697,7 @@ static void slirp_guestfwd(SlirpState *s, Monitor *mon, const char *config_str,
 #ifndef _WIN32
 static const char *legacy_smb_export;
 
-static void slirp_smb(SlirpState *s, const char *exported_dir,
+static void slirp_smb(SlirpState *s, Monitor *mon, const char *exported_dir,
                       struct in_addr vserver_addr);
 #endif
 
@@ -864,7 +864,7 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
         smb_export = legacy_smb_export;
     }
     if (smb_export) {
-        slirp_smb(s, smb_export, smbsrv);
+        slirp_smb(s, mon, smb_export, smbsrv);
     }
 #endif
 
@@ -1023,7 +1023,7 @@ static void smb_exit(void)
     system(cmd);
 }
 
-static void slirp_smb(SlirpState* s, const char *exported_dir,
+static void slirp_smb(SlirpState* s, Monitor *mon, const char *exported_dir,
                       struct in_addr vserver_addr)
 {
     char smb_conf[1024];
@@ -1033,15 +1033,17 @@ static void slirp_smb(SlirpState* s, const char *exported_dir,
     /* XXX: better tmp dir construction */
     snprintf(smb_dir, sizeof(smb_dir), "/tmp/qemu-smb.%ld", (long)getpid());
     if (mkdir(smb_dir, 0700) < 0) {
-        fprintf(stderr, "qemu: could not create samba server dir '%s'\n", smb_dir);
-        exit(1);
+        config_error(mon, "could not create samba server dir '%s'\n", smb_dir);
+        return;
     }
     snprintf(smb_conf, sizeof(smb_conf), "%s/%s", smb_dir, "smb.conf");
 
     f = fopen(smb_conf, "w");
     if (!f) {
-        fprintf(stderr, "qemu: could not create samba server configuration file '%s'\n", smb_conf);
-        exit(1);
+        smb_exit();
+        config_error(mon, "could not create samba server "
+                     "configuration file '%s'\n", smb_conf);
+        return;
     }
     fprintf(f,
             "[global]\n"
@@ -1071,8 +1073,7 @@ static void slirp_smb(SlirpState* s, const char *exported_dir,
              SMBD_COMMAND, smb_conf);
 
     if (slirp_add_exec(s->slirp, 0, smb_cmdline, vserver_addr, 139) < 0) {
-        fprintf(stderr, "conflicting/invalid smbserver address\n");
-        exit(1);
+        config_error(mon, "conflicting/invalid smbserver address\n");
     }
 }
 
@@ -1087,7 +1088,8 @@ void net_slirp_smb(const char *exported_dir)
     }
     legacy_smb_export = exported_dir;
     if (!TAILQ_EMPTY(&slirp_stacks)) {
-        slirp_smb(TAILQ_FIRST(&slirp_stacks), exported_dir, vserver_addr);
+        slirp_smb(TAILQ_FIRST(&slirp_stacks), NULL, exported_dir,
+                  vserver_addr);
     }
 }
 
