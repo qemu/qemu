@@ -1228,84 +1228,35 @@ do_prompt:
  * Return 0 if this connections is to be closed, 1 otherwise,
  * return 2 if this is a command-line connection
  */
-int
-tcp_ctl(struct socket *so)
+int tcp_ctl(struct socket *so)
 {
-	struct sbuf *sb = &so->so_snd;
-	int command;
- 	struct ex_list *ex_ptr;
-	int do_pty;
-        //	struct socket *tmpso;
+    int command = (ntohl(so->so_faddr.s_addr) & 0xff);
+    struct sbuf *sb = &so->so_snd;
+    struct ex_list *ex_ptr;
+    int do_pty;
 
-	DEBUG_CALL("tcp_ctl");
-	DEBUG_ARG("so = %lx", (long )so);
+    DEBUG_CALL("tcp_ctl");
+    DEBUG_ARG("so = %lx", (long )so);
 
-#if 0
-	/*
-	 * Check if they're authorised
-	 */
-	if (ctl_addr.s_addr && (ctl_addr.s_addr == -1 || (so->so_laddr.s_addr != ctl_addr.s_addr))) {
-		sb->sb_cc = sprintf(sb->sb_wptr,"Error: Permission denied.\r\n");
-		sb->sb_wptr += sb->sb_cc;
-		return 0;
-	}
-#endif
-	command = (ntohl(so->so_faddr.s_addr) & 0xff);
-
-	switch(command) {
-	default: /* Check for exec's */
-
-		/*
-		 * Check if it's pty_exec
-		 */
-		for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
-			if (ex_ptr->ex_fport == so->so_fport &&
-			    command == ex_ptr->ex_addr) {
-				if (ex_ptr->ex_pty == 3) {
-					so->s = -1;
-					so->extra = (void *)ex_ptr->ex_exec;
-					return 1;
-				}
-				do_pty = ex_ptr->ex_pty;
-				goto do_exec;
-			}
-		}
-
-		/*
-		 * Nothing bound..
-		 */
-		/* tcp_fconnect(so); */
-
-		/* FALLTHROUGH */
-	case CTL_ALIAS:
-          sb->sb_cc = snprintf(sb->sb_wptr, sb->sb_datalen - (sb->sb_wptr - sb->sb_data),
-                               "Error: No application configured.\r\n");
-	  sb->sb_wptr += sb->sb_cc;
-	  return(0);
-
-	do_exec:
-		DEBUG_MISC((dfd, " executing %s \n",ex_ptr->ex_exec));
-		return(fork_exec(so, ex_ptr->ex_exec, do_pty));
-
-#if 0
-	case CTL_CMD:
-	   for (tmpso = tcb.so_next; tmpso != &tcb; tmpso = tmpso->so_next) {
-	     if (tmpso->so_emu == EMU_CTL &&
-		 !(tmpso->so_tcpcb?
-		   (tmpso->so_tcpcb->t_state & (TCPS_TIME_WAIT|TCPS_LAST_ACK))
-		   :0)) {
-	       /* Ooops, control connection already active */
-	       sb->sb_cc = sprintf(sb->sb_wptr,"Sorry, already connected.\r\n");
-	       sb->sb_wptr += sb->sb_cc;
-	       return 0;
-	     }
-	   }
-	   so->so_emu = EMU_CTL;
-	   ctl_password_ok = 0;
-	   sb->sb_cc = sprintf(sb->sb_wptr, "Slirp command-line ready (type \"help\" for help).\r\nSlirp> ");
-	   sb->sb_wptr += sb->sb_cc;
-	   do_echo=-1;
-	   return(2);
-#endif
-	}
+    if (command != CTL_ALIAS) {
+        /* Check if it's pty_exec */
+        for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+            if (ex_ptr->ex_fport == so->so_fport &&
+                command == ex_ptr->ex_addr) {
+                if (ex_ptr->ex_pty == 3) {
+                    so->s = -1;
+                    so->extra = (void *)ex_ptr->ex_exec;
+                    return 1;
+                }
+                do_pty = ex_ptr->ex_pty;
+                DEBUG_MISC((dfd, " executing %s \n",ex_ptr->ex_exec));
+                return fork_exec(so, ex_ptr->ex_exec, do_pty);
+            }
+        }
+    }
+    sb->sb_cc =
+        snprintf(sb->sb_wptr, sb->sb_datalen - (sb->sb_wptr - sb->sb_data),
+                 "Error: No application configured.\r\n");
+    sb->sb_wptr += sb->sb_cc;
+    return 0;
 }
