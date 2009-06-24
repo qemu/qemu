@@ -5,8 +5,6 @@
  * terms and conditions of the copyright.
  */
 
-/* MINE */
-
 #ifndef _SLIRP_SOCKET_H_
 #define _SLIRP_SOCKET_H_
 
@@ -64,7 +62,6 @@ struct socket {
 #define SS_ISFCONNECTED		0x004	/* Socket is connected to peer */
 #define SS_FCANTRCVMORE		0x008	/* Socket can't receive more from peer (for half-closes) */
 #define SS_FCANTSENDMORE	0x010	/* Socket can't send more to peer (for half-closes) */
-/* #define SS_ISFDISCONNECTED	0x020*/	/* Socket has disconnected from peer, in 2MSL state */
 #define SS_FWDRAIN		0x040	/* We received a FIN, drain data and set SS_FCANTSENDMORE */
 
 #define SS_CTL			0x080
@@ -89,7 +86,6 @@ int sosendto _P((struct socket *, struct mbuf *));
 struct socket * tcp_listen _P((u_int32_t, u_int, u_int32_t, u_int, int));
 void soisfconnecting _P((register struct socket *));
 void soisfconnected _P((register struct socket *));
-void soisfdisconnected _P((struct socket *));
 void sofwdrain _P((struct socket *));
 struct iovec; /* For win32 */
 size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np);

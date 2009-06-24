@@ -60,7 +60,6 @@ tcp_init(void)
  * in a skeletal tcp/ip header, minimizing the amount of work
  * necessary when the connection is used.
  */
-/* struct tcpiphdr * */
 void
 tcp_template(struct tcpcb *tp)
 {
@@ -119,11 +118,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
         if (m == NULL) {
 		if ((m = m_get()) == NULL)
 			return;
-#ifdef TCP_COMPAT_42
-		tlen = 1;
-#else
 		tlen = 0;
-#endif
 		m->m_data += IF_MAXLINKHDR;
 		*mtod(m, struct tcpiphdr *) = *ti;
 		ti = mtod(m, struct tcpiphdr *);
@@ -220,12 +215,6 @@ tcp_newtcpcb(struct socket *so)
  */
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err)
 {
-/* tcp_drop(tp, errno)
-	register struct tcpcb *tp;
-	int errno;
-{
-*/
-
 	DEBUG_CALL("tcp_drop");
 	DEBUG_ARG("tp = %lx", (long)tp);
 	DEBUG_ARG("errno = %d", errno);
@@ -236,10 +225,6 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err)
 		STAT(tcpstat.tcps_drops++);
 	} else
 		STAT(tcpstat.tcps_conndrops++);
-/*	if (errno == ETIMEDOUT && tp->t_softerror)
- *		errno = tp->t_softerror;
- */
-/*	so->so_error = errno; */
 	return (tcp_close(tp));
 }
 
@@ -267,14 +252,8 @@ tcp_close(struct tcpcb *tp)
 		remque(tcpiphdr2qlink(tcpiphdr_prev(t)));
 		m_freem(m);
 	}
-	/* It's static */
-/*	if (tp->t_template)
- *		(void) m_free(dtom(tp->t_template));
- */
-/*	free(tp, M_PCB);  */
 	free(tp);
         so->so_tcpcb = NULL;
-	soisfdisconnected(so);
 	/* clobber input socket cache if we're closing the cached connection */
 	if (so == tcp_last_so)
 		tcp_last_so = &tcb;
@@ -285,30 +264,6 @@ tcp_close(struct tcpcb *tp)
 	STAT(tcpstat.tcps_closed++);
 	return ((struct tcpcb *)0);
 }
-
-#ifdef notdef
-void
-tcp_drain()
-{
-	/* XXX */
-}
-
-/*
- * When a source quench is received, close congestion window
- * to one segment.  We will gradually open it again as we proceed.
- */
-void
-tcp_quench(i, errno)
-
-	int errno;
-{
-	struct tcpcb *tp = intotcpcb(inp);
-
-	if (tp)
-		tp->snd_cwnd = tp->t_maxseg;
-}
-
-#endif /* notdef */
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -349,9 +304,6 @@ tcp_sockclosed(struct tcpcb *tp)
 		tp->t_state = TCPS_LAST_ACK;
 		break;
 	}
-/*	soisfdisconnecting(tp->t_socket); */
-	if (tp && tp->t_state >= TCPS_FIN_WAIT_2)
-		soisfdisconnected(tp->t_socket);
 	if (tp)
 		tcp_output(tp);
 }
@@ -490,13 +442,6 @@ tcp_connect(struct socket *inso)
 
 	tcp_template(tp);
 
-	/* Compute window scaling to request.  */
-/*	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
- *		(TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
- *		tp->request_r_scale++;
- */
-
-/*	soisconnecting(so); */ /* NOFDREF used instead */
 	STAT(tcpstat.tcps_connattempt++);
 
 	tp->t_state = TCPS_SYN_SENT;
@@ -540,10 +485,7 @@ static const struct tos_t tcptos[] = {
 	  {0, 0, 0, 0}
 };
 
-#ifdef CONFIG_QEMU
-static
-#endif
-struct emu_t *tcpemu = NULL;
+static struct emu_t *tcpemu = NULL;
 
 /*
  * Return TOS according to the above table
@@ -574,10 +516,6 @@ tcp_tos(struct socket *so)
 
 	return 0;
 }
-
-#if 0
-int do_echo = -1;
-#endif
 
 /*
  * Emulate programs that try and connect to us
@@ -661,302 +599,6 @@ tcp_emu(struct socket *so, struct mbuf *m)
 			return 0;
 		}
 
-#if 0
-	 case EMU_RLOGIN:
-		/*
-		 * Rlogin emulation
-		 * First we accumulate all the initial option negotiation,
-		 * then fork_exec() rlogin according to the  options
-		 */
-		{
-			int i, i2, n;
-			char *ptr;
-			char args[100];
-			char term[100];
-			struct sbuf *so_snd = &so->so_snd;
-			struct sbuf *so_rcv = &so->so_rcv;
-
-			/* First check if they have a priveladged port, or too much data has arrived */
-			if (ntohs(so->so_lport) > 1023 || ntohs(so->so_lport) < 512 ||
-			    (m->m_len + so_rcv->sb_wptr) > (so_rcv->sb_data + so_rcv->sb_datalen)) {
-				memcpy(so_snd->sb_wptr, "Permission denied\n", 18);
-				so_snd->sb_wptr += 18;
-				so_snd->sb_cc += 18;
-				tcp_sockclosed(sototcpcb(so));
-				m_free(m);
-				return 0;
-			}
-
-			/* Append the current data */
-			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);
-			so_rcv->sb_wptr += m->m_len;
-			so_rcv->sb_rptr += m->m_len;
-			m_free(m);
-
-			/*
-			 * Check if we have all the initial options,
-			 * and build argument list to rlogin while we're here
-			 */
-			n = 0;
-			ptr = so_rcv->sb_data;
-			args[0] = 0;
-			term[0] = 0;
-			while (ptr < so_rcv->sb_wptr) {
-				if (*ptr++ == 0) {
-					n++;
-					if (n == 2) {
-						sprintf(args, "rlogin -l %s %s",
-							ptr, inet_ntoa(so->so_faddr));
-					} else if (n == 3) {
-						i2 = so_rcv->sb_wptr - ptr;
-						for (i = 0; i < i2; i++) {
-							if (ptr[i] == '/') {
-								ptr[i] = 0;
-#ifdef HAVE_SETENV
-								sprintf(term, "%s", ptr);
-#else
-								sprintf(term, "TERM=%s", ptr);
-#endif
-								ptr[i] = '/';
-								break;
-							}
-						}
-					}
-				}
-			}
-
-			if (n != 4)
-			   return 0;
-
-			/* We have it, set our term variable and fork_exec() */
-#ifdef HAVE_SETENV
-			setenv("TERM", term, 1);
-#else
-			putenv(term);
-#endif
-			fork_exec(so, args, 2);
-			term[0] = 0;
-			so->so_emu = 0;
-
-			/* And finally, send the client a 0 character */
-			so_snd->sb_wptr[0] = 0;
-			so_snd->sb_wptr++;
-			so_snd->sb_cc++;
-
-			return 0;
-		}
-
-	 case EMU_RSH:
-		/*
-		 * rsh emulation
-		 * First we accumulate all the initial option negotiation,
-		 * then rsh_exec() rsh according to the  options
-		 */
-		{
-			int  n;
-			char *ptr;
-			char *user;
-			char *args;
-			struct sbuf *so_snd = &so->so_snd;
-			struct sbuf *so_rcv = &so->so_rcv;
-
-			/* First check if they have a priveladged port, or too much data has arrived */
-			if (ntohs(so->so_lport) > 1023 || ntohs(so->so_lport) < 512 ||
-			    (m->m_len + so_rcv->sb_wptr) > (so_rcv->sb_data + so_rcv->sb_datalen)) {
-				memcpy(so_snd->sb_wptr, "Permission denied\n", 18);
-				so_snd->sb_wptr += 18;
-				so_snd->sb_cc += 18;
-				tcp_sockclosed(sototcpcb(so));
-				m_free(m);
-				return 0;
-			}
-
-			/* Append the current data */
-			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);
-			so_rcv->sb_wptr += m->m_len;
-			so_rcv->sb_rptr += m->m_len;
-			m_free(m);
-
-			/*
-			 * Check if we have all the initial options,
-			 * and build argument list to rlogin while we're here
-			 */
-			n = 0;
-			ptr = so_rcv->sb_data;
-			user="";
-			args="";
-			if (so->extra==NULL) {
-				struct socket *ns;
-				struct tcpcb* tp;
-				int port=atoi(ptr);
-				if (port <= 0) return 0;
-                if (port > 1023 || port < 512) {
-                  memcpy(so_snd->sb_wptr, "Permission denied\n", 18);
-                  so_snd->sb_wptr += 18;
-                  so_snd->sb_cc += 18;
-                  tcp_sockclosed(sototcpcb(so));
-                  return 0;
-                }
-				if ((ns=socreate()) == NULL)
-                  return 0;
-				if (tcp_attach(ns)<0) {
-                  free(ns);
-                  return 0;
-				}
-
-				ns->so_laddr=so->so_laddr;
-				ns->so_lport=htons(port);
-
-				(void) tcp_mss(sototcpcb(ns), 0);
-
-				ns->so_faddr=so->so_faddr;
-				ns->so_fport=htons(IPPORT_RESERVED-1); /* Use a fake port. */
-
-				if (ns->so_faddr.s_addr == 0 ||
-					ns->so_faddr.s_addr == loopback_addr.s_addr)
-                  ns->so_faddr = alias_addr;
-
-				ns->so_iptos = tcp_tos(ns);
-				tp = sototcpcb(ns);
-
-				tcp_template(tp);
-
-				/* Compute window scaling to request.  */
-				/*	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-				 *		(TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
-				 *		tp->request_r_scale++;
-				 */
-
-                /*soisfconnecting(ns);*/
-
-				STAT(tcpstat.tcps_connattempt++);
-
-				tp->t_state = TCPS_SYN_SENT;
-				tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
-				tp->iss = tcp_iss;
-				tcp_iss += TCP_ISSINCR/2;
-				tcp_sendseqinit(tp);
-				tcp_output(tp);
-				so->extra=ns;
-			}
-			while (ptr < so_rcv->sb_wptr) {
-              if (*ptr++ == 0) {
-                n++;
-                if (n == 2) {
-                  user=ptr;
-                } else if (n == 3) {
-                  args=ptr;
-                }
-              }
-			}
-
-			if (n != 4)
-              return 0;
-
-			rsh_exec(so,so->extra, user, inet_ntoa(so->so_faddr), args);
-			so->so_emu = 0;
-			so->extra=NULL;
-
-			/* And finally, send the client a 0 character */
-			so_snd->sb_wptr[0] = 0;
-			so_snd->sb_wptr++;
-			so_snd->sb_cc++;
-
-			return 0;
-		}
-
-	 case EMU_CTL:
-		{
-			int num;
-			struct sbuf *so_snd = &so->so_snd;
-			struct sbuf *so_rcv = &so->so_rcv;
-
-			/*
-			 * If there is binary data here, we save it in so->so_m
-			 */
-			if (!so->so_m) {
-			  int rxlen;
-			  char *rxdata;
-			  rxdata=mtod(m, char *);
-			  for (rxlen=m->m_len; rxlen; rxlen--) {
-			    if (*rxdata++ & 0x80) {
-			      so->so_m = m;
-			      return 0;
-			    }
-			  }
-			} /* if(so->so_m==NULL) */
-
-			/*
-			 * Append the line
-			 */
-			sbappendsb(so_rcv, m);
-
-			/* To avoid going over the edge of the buffer, we reset it */
-			if (so_snd->sb_cc == 0)
-			   so_snd->sb_wptr = so_snd->sb_rptr = so_snd->sb_data;
-
-			/*
-			 * A bit of a hack:
-			 * If the first packet we get here is 1 byte long, then it
-			 * was done in telnet character mode, therefore we must echo
-			 * the characters as they come.  Otherwise, we echo nothing,
-			 * because in linemode, the line is already echoed
-			 * XXX two or more control connections won't work
-			 */
-			if (do_echo == -1) {
-				if (m->m_len == 1) do_echo = 1;
-				else do_echo = 0;
-			}
-			if (do_echo) {
-			  sbappendsb(so_snd, m);
-			  m_free(m);
-			  tcp_output(sototcpcb(so)); /* XXX */
-			} else
-			  m_free(m);
-
-			num = 0;
-			while (num < so->so_rcv.sb_cc) {
-				if (*(so->so_rcv.sb_rptr + num) == '\n' ||
-				    *(so->so_rcv.sb_rptr + num) == '\r') {
-					int n;
-
-					*(so_rcv->sb_rptr + num) = 0;
-					if (ctl_password && !ctl_password_ok) {
-						/* Need a password */
-						if (sscanf(so_rcv->sb_rptr, "pass %256s", buff) == 1) {
-							if (strcmp(buff, ctl_password) == 0) {
-								ctl_password_ok = 1;
-								n = sprintf(so_snd->sb_wptr,
-									    "Password OK.\r\n");
-								goto do_prompt;
-							}
-						}
-						n = sprintf(so_snd->sb_wptr,
-					 "Error: Password required, log on with \"pass PASSWORD\"\r\n");
-						goto do_prompt;
-					}
-					cfg_quitting = 0;
-					n = do_config(so_rcv->sb_rptr, so, PRN_SPRINTF);
-					if (!cfg_quitting) {
-						/* Register the printed data */
-do_prompt:
-						so_snd->sb_cc += n;
-						so_snd->sb_wptr += n;
-						/* Add prompt */
-						n = sprintf(so_snd->sb_wptr, "Slirp> ");
-						so_snd->sb_cc += n;
-						so_snd->sb_wptr += n;
-					}
-					/* Drop so_rcv data */
-					so_rcv->sb_cc = 0;
-					so_rcv->sb_wptr = so_rcv->sb_rptr = so_rcv->sb_data;
-					tcp_output(sototcpcb(so)); /* Send the reply */
-				}
-				num++;
-			}
-			return 0;
-		}
-#endif
         case EMU_FTP: /* ftp */
                 *(m->m_data+m->m_len) = 0; /* NUL terminate for strstr */
 		if ((bptr = (char *)strstr(m->m_data, "ORT")) != NULL) {
@@ -1100,7 +742,7 @@ do_prompt:
 		 * A typical packet for player version 1.0 (release version):
 		 *
 		 * 0000:50 4E 41 00 05
-		 * 0000:00 01 00 02 1B D7 00 00 67 E6 6C DC 63 00 12 50 .....×..gælÜc..P
+		 * 0000:00 01 00 02 1B D7 00 00 67 E6 6C DC 63 00 12 50 ........g.l.c..P
 		 * 0010:4E 43 4C 49 45 4E 54 20 31 30 31 20 41 4C 50 48 NCLIENT 101 ALPH
 		 * 0020:41 6C 00 00 52 00 17 72 61 66 69 6C 65 73 2F 76 Al..R..rafiles/v
 		 * 0030:6F 61 2F 65 6E 67 6C 69 73 68 5F 2E 72 61 79 42 oa/english_.rayB
@@ -1112,8 +754,8 @@ do_prompt:
 		 *
 		 * A typical packet for player version 2.0 (beta):
 		 *
-		 * 0000:50 4E 41 00 06 00 02 00 00 00 01 00 02 1B C1 00 PNA...........Á.
-		 * 0010:00 67 75 78 F5 63 00 0A 57 69 6E 32 2E 30 2E 30 .guxõc..Win2.0.0
+		 * 0000:50 4E 41 00 06 00 02 00 00 00 01 00 02 1B C1 00 PNA.............
+		 * 0010:00 67 75 78 F5 63 00 0A 57 69 6E 32 2E 30 2E 30 .gux.c..Win2.0.0
 		 * 0020:2E 35 6C 00 00 52 00 1C 72 61 66 69 6C 65 73 2F .5l..R..rafiles/
 		 * 0030:77 65 62 73 69 74 65 2F 32 30 72 65 6C 65 61 73 website/20releas
 		 * 0040:65 2E 72 61 79 53 00 00 06 36 42                e.rayS...6B

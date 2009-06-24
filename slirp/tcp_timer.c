@@ -102,10 +102,6 @@ tpgone:
 		;
 	}
 	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;		/* increment iss */
-#ifdef TCP_COMPAT_42
-	if ((int)tcp_iss < 0)
-		tcp_iss = 0;				/* XXX */
-#endif
 	tcp_now++;					/* for timestamps */
 }
 
@@ -210,7 +206,6 @@ tcp_timers(register struct tcpcb *tp, int timer)
 		 * retransmit times until then.
 		 */
 		if (tp->t_rxtshift > TCP_MAXRXTSHIFT / 4) {
-/*			in_losing(tp->t_inpcb); */
 			tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
 			tp->t_srtt = 0;
 		}
@@ -275,7 +270,6 @@ tcp_timers(register struct tcpcb *tp, int timer)
 		if (tp->t_state < TCPS_ESTABLISHED)
 			goto dropit;
 
-/*		if (tp->t_socket->so_options & SO_KEEPALIVE && */
 		if ((SO_OPTIONS) && tp->t_state <= TCPS_CLOSE_WAIT) {
 		    	if (tp->t_idle >= TCPTV_KEEP_IDLE + TCP_MAXIDLE)
 				goto dropit;
@@ -292,17 +286,8 @@ tcp_timers(register struct tcpcb *tp, int timer)
 			 * correspondent TCP to respond.
 			 */
 			STAT(tcpstat.tcps_keepprobe++);
-#ifdef TCP_COMPAT_42
-			/*
-			 * The keepalive packet must have nonzero length
-			 * to get a 4.2 host to respond.
-			 */
-			tcp_respond(tp, &tp->t_template, (struct mbuf *)NULL,
-			    tp->rcv_nxt - 1, tp->snd_una - 1, 0);
-#else
 			tcp_respond(tp, &tp->t_template, (struct mbuf *)NULL,
 			    tp->rcv_nxt, tp->snd_una - 1, 0);
-#endif
 			tp->t_timer[TCPT_KEEP] = TCPTV_KEEPINTVL;
 		} else
 			tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_IDLE;
@@ -310,7 +295,7 @@ tcp_timers(register struct tcpcb *tp, int timer)
 
 	dropit:
 		STAT(tcpstat.tcps_keepdrops++);
-		tp = tcp_drop(tp, 0); /* ETIMEDOUT); */
+		tp = tcp_drop(tp, 0);
 		break;
 	}
 

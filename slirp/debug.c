@@ -9,127 +9,9 @@
 #include <slirp.h>
 
 FILE *dfd = NULL;
-#ifdef DEBUG
-int dostats = 1;
-#else
-int dostats = 0;
-#endif
 int slirp_debug = 0;
 
-/* Carry over one item from main.c so that the tty's restored.
- * Only done when the tty being used is /dev/tty --RedWolf */
-#ifndef CONFIG_QEMU
-extern struct termios slirp_tty_settings;
-extern int slirp_tty_restore;
-
-
-void
-debug_init(file, dbg)
-	char *file;
-	int dbg;
-{
-	/* Close the old debugging file */
-	if (dfd)
-	   fclose(dfd);
-
-	dfd = fopen(file,"w");
-	if (dfd != NULL) {
-#if 0
-		fprintf(dfd,"Slirp %s - Debugging Started.\n", SLIRP_VERSION);
-#endif
-		fprintf(dfd,"Debugging Started level %i.\r\n",dbg);
-		fflush(dfd);
-		slirp_debug = dbg;
-	} else {
-		lprint("Error: Debugging file \"%s\" could not be opened: %s\r\n",
-			file, strerror(errno));
-	}
-}
-
-/*
- * Dump a packet in the same format as tcpdump -x
- */
-#ifdef DEBUG
-void
-dump_packet(dat, n)
-	void *dat;
-	int n;
-{
-	u_char *pptr = (u_char *)dat;
-	int j,k;
-
-	n /= 16;
-	n++;
-	DEBUG_MISC((dfd, "PACKET DUMPED: \n"));
-	for(j = 0; j < n; j++) {
-		for(k = 0; k < 6; k++)
-			DEBUG_MISC((dfd, "%02x ", *pptr++));
-		DEBUG_MISC((dfd, "\n"));
-		fflush(dfd);
-	}
-}
-#endif
-#endif
-
 #ifdef LOG_ENABLED
-#if 0
-/*
- * Statistic routines
- *
- * These will print statistics to the screen, the debug file (dfd), or
- * a buffer, depending on "type", so that the stats can be sent over
- * the link as well.
- */
-
-static void
-ttystats(ttyp)
-	struct ttys *ttyp;
-{
-	struct slirp_ifstats *is = &ttyp->ifstats;
-	char buff[512];
-
-	lprint(" \r\n");
-
-	if (IF_COMP & IF_COMPRESS)
-	   strcpy(buff, "on");
-	else if (IF_COMP & IF_NOCOMPRESS)
-	   strcpy(buff, "off");
-	else
-	   strcpy(buff, "off (for now)");
-	lprint("Unit %d:\r\n", ttyp->unit);
-	lprint("  using %s encapsulation (VJ compression is %s)\r\n", (
-#ifdef USE_PPP
-	       ttyp->proto==PROTO_PPP?"PPP":
-#endif
-	       "SLIP"), buff);
-	lprint("  %d baudrate\r\n", ttyp->baud);
-	lprint("  interface is %s\r\n", ttyp->up?"up":"down");
-	lprint("  using fd %d, guardian pid is %d\r\n", ttyp->fd, ttyp->pid);
-#ifndef FULL_BOLT
-	lprint("  towrite is %d bytes\r\n", ttyp->towrite);
-#endif
-	if (ttyp->zeros)
-	   lprint("  %d zeros have been typed\r\n", ttyp->zeros);
-	else if (ttyp->ones)
-	   lprint("  %d ones have been typed\r\n", ttyp->ones);
-	lprint("Interface stats:\r\n");
-	lprint("  %6d output packets sent (%d bytes)\r\n", is->out_pkts, is->out_bytes);
-	lprint("  %6d output packets dropped (%d bytes)\r\n", is->out_errpkts, is->out_errbytes);
-	lprint("  %6d input packets received (%d bytes)\r\n", is->in_pkts, is->in_bytes);
-	lprint("  %6d input packets dropped (%d bytes)\r\n", is->in_errpkts, is->in_errbytes);
-	lprint("  %6d bad input packets\r\n", is->in_mbad);
-}
-
-static void
-allttystats(void)
-{
-	struct ttys *ttyp;
-
-	for (ttyp = ttys; ttyp; ttyp = ttyp->next)
-	   ttystats(ttyp);
-}
-#endif
-
 static void
 ipstats(void)
 {
@@ -153,25 +35,6 @@ ipstats(void)
 	lprint("  %6d with bad protocol field\r\n", ipstat.ips_noproto);
 	lprint("  %6d total packets delivered\r\n", ipstat.ips_delivered);
 }
-
-#ifndef CONFIG_QEMU
-static void
-vjstats(void)
-{
-	lprint(" \r\n");
-
-	lprint("VJ compression stats:\r\n");
-
-	lprint("  %6d outbound packets (%d compressed)\r\n",
-	       comp_s.sls_packets, comp_s.sls_compressed);
-	lprint("  %6d searches for connection stats (%d misses)\r\n",
-	       comp_s.sls_searches, comp_s.sls_misses);
-	lprint("  %6d inbound uncompressed packets\r\n", comp_s.sls_uncompressedin);
-	lprint("  %6d inbound compressed packets\r\n", comp_s.sls_compressedin);
-	lprint("  %6d inbound unknown type packets\r\n", comp_s.sls_errorin);
-	lprint("  %6d inbound packets tossed due to error\r\n", comp_s.sls_tossed);
-}
-#endif
 
 static void
 tcpstats(void)
@@ -234,11 +97,6 @@ tcpstats(void)
 	lprint("  %6d correct ACK header predictions\r\n", tcpstat.tcps_predack);
 	lprint("  %6d correct data packet header predictions\n", tcpstat.tcps_preddat);
 	lprint("  %6d TCP cache misses\r\n", tcpstat.tcps_socachemiss);
-
-
-/*	lprint("    Packets received too short:		%d\r\n", tcpstat.tcps_rcvshort); */
-/*	lprint("    Segments dropped due to PAWS:	%d\r\n", tcpstat.tcps_pawsdrop); */
-
 }
 
 static void
@@ -290,49 +148,6 @@ mbufstats(void)
 		i++;
 	lprint("  %6d mbufs on used list\r\n",  i);
         lprint("  %6d mbufs queued as packets\r\n\r\n", if_queued);
-}
-#endif
-
-#ifndef CONFIG_QEMU
-void
-slirp_exit(exit_status)
-	int exit_status;
-{
-	struct ttys *ttyp;
-
-	DEBUG_CALL("slirp_exit");
-	DEBUG_ARG("exit_status = %d", exit_status);
-
-	if (dostats) {
-		lprint_print = (int (*) _P((void *, const char *, va_list)))vfprintf;
-		if (!dfd)
-		   debug_init("slirp_stats", 0xf);
-		lprint_arg = (char **)&dfd;
-
-		ipstats();
-		tcpstats();
-		udpstats();
-		icmpstats();
-		mbufstats();
-		sockstats();
-		allttystats();
-		vjstats();
-	}
-
-	for (ttyp = ttys; ttyp; ttyp = ttyp->next)
-	   tty_detached(ttyp, 1);
-
-	if (slirp_forked) {
-		/* Menendez time */
-		if (kill(getppid(), SIGQUIT) < 0)
-			lprint("Couldn't kill parent process %ld!\n",
-			    (long) getppid());
-    	}
-
-	/* Restore the terminal if we gotta */
-	if(slirp_tty_restore)
-	  tcsetattr(0,TCSANOW, &slirp_tty_settings);  /* NOW DAMMIT! */
-	exit(exit_status);
 }
 #endif
 

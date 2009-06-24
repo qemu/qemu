@@ -9,8 +9,6 @@
 #define PRN_SPRINTF	2
 
 extern FILE *dfd;
-extern FILE *lfd;
-extern int dostats;
 extern int slirp_debug;
 
 #define DBG_CALL 0x1

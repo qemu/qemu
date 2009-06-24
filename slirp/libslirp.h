@@ -1,10 +1,6 @@
 #ifndef _LIBSLIRP_H
 #define _LIBSLIRP_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <qemu-common.h>
 
 void slirp_init(int restricted, struct in_addr vnetwork,
@@ -36,9 +32,5 @@ void slirp_connection_info(Monitor *mon);
 void slirp_socket_recv(struct in_addr guest_addr, int guest_port,
                        const uint8_t *buf, int size);
 size_t slirp_socket_can_recv(struct in_addr guest_addr, int guest_port);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

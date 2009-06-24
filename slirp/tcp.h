@@ -113,7 +113,6 @@ struct tcphdr {
 #undef TCP_NODELAY
 #define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
 #undef TCP_MAXSEG
-/* #define	TCP_MAXSEG	0x02 */	/* set maximum segment size */
 
 /*
  * TCP FSM state definitions.

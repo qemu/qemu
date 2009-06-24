@@ -36,88 +36,8 @@ if_init(void)
 {
 	if_fastq.ifq_next = if_fastq.ifq_prev = &if_fastq;
 	if_batchq.ifq_next = if_batchq.ifq_prev = &if_batchq;
-        //	sl_compress_init(&comp_s);
 	next_m = &if_batchq;
 }
-
-#if 0
-/*
- * This shouldn't be needed since the modem is blocking and
- * we don't expect any signals, but what the hell..
- */
-inline int
-writen(fd, bptr, n)
-	int fd;
-	char *bptr;
-	int n;
-{
-	int ret;
-	int total;
-
-	/* This should succeed most of the time */
-	ret = send(fd, bptr, n,0);
-	if (ret == n || ret <= 0)
-	   return ret;
-
-	/* Didn't write everything, go into the loop */
-	total = ret;
-	while (n > total) {
-		ret = send(fd, bptr+total, n-total,0);
-		if (ret <= 0)
-		   return ret;
-		total += ret;
-	}
-	return total;
-}
-
-/*
- * if_input - read() the tty, do "top level" processing (ie: check for any escapes),
- * and pass onto (*ttyp->if_input)
- *
- * XXXXX Any zeros arriving by themselves are NOT placed into the arriving packet.
- */
-#define INBUFF_SIZE 2048 /* XXX */
-void
-if_input(ttyp)
-	struct ttys *ttyp;
-{
-	u_char if_inbuff[INBUFF_SIZE];
-	int if_n;
-
-	DEBUG_CALL("if_input");
-	DEBUG_ARG("ttyp = %lx", (long)ttyp);
-
-	if_n = recv(ttyp->fd, (char *)if_inbuff, INBUFF_SIZE,0);
-
-	DEBUG_MISC((dfd, " read %d bytes\n", if_n));
-
-	if (if_n <= 0) {
-		if (if_n == 0 || (errno != EINTR && errno != EAGAIN)) {
-			if (ttyp->up)
-			   link_up--;
-			tty_detached(ttyp, 0);
-		}
-		return;
-	}
-	if (if_n == 1) {
-		if (*if_inbuff == '0') {
-			ttyp->ones = 0;
-			if (++ttyp->zeros >= 5)
-			   slirp_exit(0);
-			return;
-		}
-		if (*if_inbuff == '1') {
-			ttyp->zeros = 0;
-			if (++ttyp->ones >= 5)
-			   tty_detached(ttyp, 0);
-			return;
-		}
-	}
-	ttyp->ones = ttyp->zeros = 0;
-
-	(*ttyp->if_input)(ttyp, if_inbuff, if_n);
-}
-#endif
 
 /*
  * if_output: Queue packet into an output queue.

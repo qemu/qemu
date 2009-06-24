@@ -17,20 +17,8 @@
 #define IF_MRU 1500
 #define	IF_COMP IF_AUTOCOMP	/* Flags for compression */
 
-#if 0
-/*
- * Set if_maxlinkhdr to 48 because it's 40 bytes for TCP/IP,
- * and 8 bytes for PPP, but need to have it on an 8byte boundary
- */
-#ifdef USE_PPP
-#define IF_MAXLINKHDR 48
-#else
-#define IF_MAXLINKHDR 40
-#endif
-#else
-        /* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
+/* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
 #define IF_MAXLINKHDR (2 + 14 + 40)
-#endif
 
 extern int	if_queued;	/* Number of packets queued so far */
 

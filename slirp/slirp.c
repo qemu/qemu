@@ -55,7 +55,6 @@ int slirp_restrict;
 static int do_slowtimo;
 int link_up;
 struct timeval tt;
-FILE *lfd;
 struct ex_list *exec_list;
 
 /* XXX: suppress those select globals */
@@ -96,16 +95,6 @@ static int get_dns_addr(struct in_addr *pdns_addr)
     pIPAddr = &(FixedInfo->DnsServerList);
     inet_aton(pIPAddr->IpAddress.String, &tmp_addr);
     *pdns_addr = tmp_addr;
-#if 0
-    printf( "DNS Servers:\n" );
-    printf( "DNS Addr:%s\n", pIPAddr->IpAddress.String );
-
-    pIPAddr = FixedInfo -> DnsServerList.Next;
-    while ( pIPAddr ) {
-            printf( "DNS Addr:%s\n", pIPAddr ->IpAddress.String );
-            pIPAddr = pIPAddr ->Next;
-    }
-#endif
     if (FixedInfo) {
         GlobalFree(FixedInfo);
         FixedInfo = NULL;
@@ -179,8 +168,6 @@ void slirp_init(int restricted, struct in_addr vnetwork,
                 const char *bootfile, struct in_addr vdhcp_start,
                 struct in_addr vnameserver)
 {
-    //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
-
 #ifdef _WIN32
     WSADATA Data;
 

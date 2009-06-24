@@ -9,14 +9,6 @@
 
 static void sbappendsb(struct sbuf *sb, struct mbuf *m);
 
-/* Done as a macro in socket.h */
-/* int
- * sbspace(struct sockbuff *sb)
- * {
- *	return SB_DATALEN - sb->sb_cc;
- * }
- */
-
 void
 sbfree(struct sbuf *sb)
 {

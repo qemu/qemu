@@ -1,8 +1,6 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#define CONFIG_QEMU
-
 //#define DEBUG 1
 
 // Uncomment the following line to enable SLIRP statistics printing in Qemu
@@ -14,9 +12,6 @@
 #define STAT(expr) do { } while(0)
 #endif
 
-#ifndef CONFIG_QEMU
-#include "version.h"
-#endif
 #include "config-host.h"
 #include "slirp_config.h"
 
@@ -222,8 +217,6 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include "bootp.h"
 #include "tftp.h"
 #include "libslirp.h"
-
-extern struct ttys *ttys_unit[MAX_INTERFACES];
 
 #ifndef NULL
 #define NULL (void *)0

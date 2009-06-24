@@ -15,14 +15,6 @@
 static void sofcantrcvmore(struct socket *so);
 static void sofcantsendmore(struct socket *so);
 
-#if 0
-static void
-so_init()
-{
-	/* Nothing yet */
-}
-#endif
-
 struct socket *
 solookup(struct socket *head, struct in_addr laddr, u_int lport,
          struct in_addr faddr, u_int fport)
@@ -526,12 +518,6 @@ sorecvfrom(struct socket *so)
 		so->so_expire = curtime + SO_EXPIRE;
 	    }
 
-	    /*		if (m->m_len == len) {
-	     *			m_inc(m, MINCSIZE);
-	     *			m->m_len = 0;
-	     *		}
-	     */
-
 	    /*
 	     * If this packet was destined for CTL_ADDR,
 	     * make it look like that's where it came from, done by udp_output
@@ -604,7 +590,6 @@ tcp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport, int flags
 	DEBUG_ARG("flags = %x", flags);
 
 	if ((so = socreate()) == NULL) {
-	  /* free(so);      Not sofree() ??? free(NULL) == NOP */
 	  return NULL;
 	}
 
@@ -658,33 +643,6 @@ tcp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport, int flags
 	so->s = s;
 	return so;
 }
-
-#if 0
-/*
- * Data is available in so_rcv
- * Just write() the data to the socket
- * XXX not yet...
- */
-static void
-sorwakeup(so)
-	struct socket *so;
-{
-/*	sowrite(so); */
-/*	FD_CLR(so->s,&writefds); */
-}
-
-/*
- * Data has been freed in so_snd
- * We have room for a read() if we want to
- * For now, don't read, it'll be done in the main loop
- */
-static void
-sowwakeup(so)
-	struct socket *so;
-{
-	/* Nothing, yet */
-}
-#endif
 
 /*
  * Various session state calls
@@ -744,17 +702,6 @@ sofcantsendmore(struct socket *so)
 	} else {
 	   so->so_state |= SS_FCANTSENDMORE;
 	}
-}
-
-void
-soisfdisconnected(struct socket *so)
-{
-/*	so->so_state &= ~(SS_ISFCONNECTING|SS_ISFCONNECTED); */
-/*	close(so->s); */
-/*	so->so_state = SS_ISFDISCONNECTED; */
-	/*
-	 * XXX Do nothing ... ?
-	 */
 }
 
 /*

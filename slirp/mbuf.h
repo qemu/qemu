@@ -41,10 +41,8 @@
 /*
  * Macros for type conversion
  * mtod(m,t) -	convert mbuf pointer to data pointer of correct type
- * dtom(x) -	convert data pointer within mbuf to mbuf pointer (XXX)
  */
 #define mtod(m,t)	((t)(m)->m_data)
-/* #define	dtom(x)		((struct mbuf *)((int)(x) & ~(M_SIZE-1))) */
 
 /* XXX About mbufs for slirp:
  * Only one mbuf is ever used in a chain, for each "cell" of data.

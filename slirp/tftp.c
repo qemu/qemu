@@ -23,7 +23,7 @@
  */
 
 #include <slirp.h>
-#include "qemu-common.h" // for pstrcpy
+#include "qemu-common.h"
 
 struct tftp_session {
     int in_use;

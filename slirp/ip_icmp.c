@@ -73,7 +73,6 @@ icmp_input(struct mbuf *m, int hlen)
   register struct icmp *icp;
   register struct ip *ip=mtod(m, struct ip *);
   int icmplen=ip->ip_len;
-  /* int code; */
 
   DEBUG_CALL("icmp_input");
   DEBUG_ARG("m = %lx", (long )m);
@@ -101,9 +100,6 @@ icmp_input(struct mbuf *m, int hlen)
   }
   m->m_len += hlen;
   m->m_data -= hlen;
-
-  /*	icmpstat.icps_inhist[icp->icmp_type]++; */
-  /* code = icp->icmp_code; */
 
   DEBUG_ARG("icmp_type = %d", icp->icmp_type);
   switch (icp->icmp_type) {

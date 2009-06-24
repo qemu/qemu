@@ -98,18 +98,12 @@
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
 
 #define	TCPTV_MIN	(  1*PR_SLOWHZ)		/* minimum allowable value */
-/* #define	TCPTV_REXMTMAX	( 64*PR_SLOWHZ)	*/	/* max allowable REXMT value */
 #define TCPTV_REXMTMAX  ( 12*PR_SLOWHZ)		/* max allowable REXMT value */
 
 #define	TCP_LINGERTIME	120			/* linger at most 2 minutes */
 
 #define TCP_MAXRXTSHIFT 12                      /* maximum retransmits */
 
-
-#ifdef	TCPTIMERS
-char *tcptimers[] =
-    { "REXMT", "PERSIST", "KEEP", "2MSL" };
-#endif
 
 /*
  * Force a time value to be in a certain range.

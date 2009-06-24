@@ -61,9 +61,7 @@ struct tcpcb {
 #define	TF_RCVD_TSTMP	0x0100		/* a timestamp was received in SYN */
 #define	TF_SACK_PERMIT	0x0200		/* other side said I could SACK */
 
-	/* Make it static  for now */
-/*	struct	tcpiphdr *t_template;	/ * skeletal packet for transmit */
-	struct	tcpiphdr t_template;
+	struct	tcpiphdr t_template;    /* static skeletal packet for xmit */
 
 	struct	socket *t_socket;		/* back pointer to socket */
 /*
@@ -199,7 +197,6 @@ struct tcpstat {
 	u_long	tcps_rcvbyte;		/* bytes received in sequence */
 	u_long	tcps_rcvbadsum;		/* packets received with ccksum errs */
 	u_long	tcps_rcvbadoff;		/* packets received with bad offset */
-/*	u_long	tcps_rcvshort;	*/	/* packets received too short */
 	u_long	tcps_rcvduppack;	/* duplicate-only packets received */
 	u_long	tcps_rcvdupbyte;	/* duplicate-only bytes received */
 	u_long	tcps_rcvpartduppack;	/* packets with some duplicate data */
@@ -215,7 +212,6 @@ struct tcpstat {
 	u_long	tcps_rcvackpack;	/* rcvd ack packets */
 	u_long	tcps_rcvackbyte;	/* bytes acked by rcvd acks */
 	u_long	tcps_rcvwinupd;		/* rcvd window update packets */
-/*	u_long	tcps_pawsdrop;	*/	/* segments dropped due to PAWS */
 	u_long	tcps_predack;		/* times hdr predict ok for acks */
 	u_long	tcps_preddat;		/* times hdr predict ok for data pkts */
 	u_long	tcps_socachemiss;	/* tcp_last_so misses */

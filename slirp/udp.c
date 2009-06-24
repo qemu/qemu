@@ -50,16 +50,6 @@ struct socket udb;
 static u_int8_t udp_tos(struct socket *so);
 static void udp_emu(struct socket *so, struct mbuf *m);
 
-/*
- * UDP protocol implementation.
- * Per RFC 768, August, 1980.
- */
-#ifndef	COMPAT_42
-#define UDPCKSUM 1
-#else
-#define UDPCKSUM 0 /* XXX */
-#endif
-
 struct	socket *udp_last_so = &udb;
 
 void
@@ -76,7 +66,6 @@ udp_input(register struct mbuf *m, int iphlen)
 {
 	register struct ip *ip;
 	register struct udphdr *uh;
-/*	struct mbuf *opts = 0;*/
 	int len;
 	struct ip save_ip;
 	struct socket *so;
@@ -129,14 +118,10 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Checksum extended UDP header and data.
 	 */
-	if (UDPCKSUM && uh->uh_sum) {
+	if (uh->uh_sum) {
       memset(&((struct ipovly *)ip)->ih_mbuf, 0, sizeof(struct mbuf_ptr));
 	  ((struct ipovly *)ip)->ih_x1 = 0;
 	  ((struct ipovly *)ip)->ih_len = uh->uh_ulen;
-	  /* keep uh_sum for ICMP reply
-	   * uh->uh_sum = cksum(m, len + sizeof (struct ip));
-	   * if (uh->uh_sum) {
-	   */
 	  if(cksum(m, len + sizeof(struct ip))) {
 	    STAT(udpstat.udps_badsum++);
 	    goto bad;
@@ -201,7 +186,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	  /*
 	   * Setup fields
 	   */
-	  /* udp_last_so = so; */
 	  so->so_laddr = ip->ip_src;
 	  so->so_lport = uh->uh_sport;
 
@@ -246,7 +230,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	return;
 bad:
 	m_freem(m);
-	/* if (opts) m_freem(opts); */
 	return;
 }
 
@@ -277,7 +260,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
     memset(&ui->ui_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
 	ui->ui_x1 = 0;
 	ui->ui_pr = IPPROTO_UDP;
-	ui->ui_len = htons(m->m_len - sizeof(struct ip)); /* + sizeof (struct udphdr)); */
+	ui->ui_len = htons(m->m_len - sizeof(struct ip));
 	/* XXXXX Check for from-one-location sockets, or from-any-location sockets */
         ui->ui_src = saddr->sin_addr;
 	ui->ui_dst = daddr->sin_addr;
@@ -289,10 +272,8 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	 * Stuff checksum and output datagram.
 	 */
 	ui->ui_sum = 0;
-	if (UDPCKSUM) {
-	    if ((ui->ui_sum = cksum(m, /* sizeof (struct udpiphdr) + */ m->m_len)) == 0)
+	if ((ui->ui_sum = cksum(m, m->m_len)) == 0)
 		ui->ui_sum = 0xffff;
-	}
 	((struct ip *)ui)->ip_len = m->m_len;
 
 	((struct ip *)ui)->ip_ttl = IPDEFTTL;
@@ -363,8 +344,6 @@ void
 udp_detach(struct socket *so)
 {
 	closesocket(so->s);
-	/* if (so->so_m) m_free(so->so_m);    done by sofree */
-
 	sofree(so);
 }
 
@@ -651,7 +630,6 @@ udp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport,
 		return NULL;
 	}
 	setsockopt(so->s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int));
-/*	setsockopt(so->s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int)); */
 
 	getsockname(so->s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;
