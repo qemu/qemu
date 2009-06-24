@@ -47,6 +47,7 @@ extern int ppp_exit;
 extern int tcp_keepintvl;
 extern uint8_t client_ethaddr[6];
 extern int slirp_restrict;
+extern char slirp_hostname[33];
 extern char *tftp_prefix;
 extern char *bootp_filename;
 

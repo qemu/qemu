@@ -173,12 +173,14 @@ static void slirp_cleanup(void)
 static void slirp_state_save(QEMUFile *f, void *opaque);
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
-void slirp_init(int restricted, const char *special_ip, const char *tftp_path,
-                const char *bootfile)
+void slirp_init(int restricted, struct in_addr vnetwork,
+                struct in_addr vnetmask, struct in_addr vhost,
+                const char *vhostname, const char *tftp_path,
+                const char *bootfile, struct in_addr vdhcp_start,
+                struct in_addr vnameserver)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 
-    struct in_addr special_addr = { .s_addr = htonl(0x0a000200) };
 #ifdef _WIN32
     WSADATA Data;
 
@@ -203,8 +205,11 @@ void slirp_init(int restricted, const char *special_ip, const char *tftp_path,
         fprintf (stderr, "Warning: No DNS servers found\n");
     }
 
-    if (special_ip) {
-        inet_aton(special_ip, &special_addr);
+    vnetwork_addr = vnetwork;
+    vnetwork_mask = vnetmask;
+    vhost_addr = vhost;
+    if (vhostname) {
+        pstrcpy(slirp_hostname, sizeof(slirp_hostname), vhostname);
     }
     qemu_free(tftp_prefix);
     tftp_prefix = NULL;
@@ -216,12 +221,9 @@ void slirp_init(int restricted, const char *special_ip, const char *tftp_path,
     if (bootfile) {
         bootp_filename = qemu_strdup(bootfile);
     }
+    vdhcp_startaddr = vdhcp_start;
+    vnameserver_addr = vnameserver;
 
-    vnetwork_addr = special_addr;
-    vnetwork_mask.s_addr = htonl(0xffffff00);
-    vhost_addr.s_addr = special_addr.s_addr | htonl(2);
-    vdhcp_startaddr.s_addr = special_addr.s_addr | htonl(15);
-    vnameserver_addr.s_addr = special_addr.s_addr | htonl(3);
     getouraddr();
     register_savevm("slirp", 0, 1, slirp_state_save, slirp_state_load, NULL);
 }
@@ -755,7 +757,7 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
 /* Unlistens a redirection
  *
  * Return value: number of redirs removed */
-int slirp_redir_rm(int is_udp, int host_port)
+int slirp_remove_hostfwd(int is_udp, int host_port)
 {
     struct socket *so;
     struct socket *head = (is_udp ? &udb : &tcb);
@@ -775,8 +777,8 @@ int slirp_redir_rm(int is_udp, int host_port)
     return n;
 }
 
-int slirp_redir(int is_udp, int host_port,
-                struct in_addr guest_addr, int guest_port)
+int slirp_add_hostfwd(int is_udp, int host_port,
+                      struct in_addr guest_addr, int guest_port)
 {
     if (!guest_addr.s_addr) {
         guest_addr = vdhcp_startaddr;
@@ -793,13 +795,13 @@ int slirp_redir(int is_udp, int host_port,
     return 0;
 }
 
-int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,
-                  int guest_port)
+int slirp_add_exec(int do_pty, const void *args, struct in_addr guest_addr,
+                   int guest_port)
 {
-    struct in_addr guest_addr = {
-        .s_addr = vnetwork_addr.s_addr | htonl(addr_low_byte)
-    };
-
+    if (!guest_addr.s_addr) {
+        guest_addr.s_addr =
+            vnetwork_addr.s_addr | (htonl(0x0204) & ~vnetwork_mask.s_addr);
+    }
     if ((guest_addr.s_addr & vnetwork_mask.s_addr) != vnetwork_addr.s_addr ||
         guest_addr.s_addr == vhost_addr.s_addr ||
         guest_addr.s_addr == vnameserver_addr.s_addr) {
@@ -833,11 +835,8 @@ slirp_find_ctl_socket(struct in_addr guest_addr, int guest_port)
     return NULL;
 }
 
-size_t slirp_socket_can_recv(int addr_low_byte, int guest_port)
+size_t slirp_socket_can_recv(struct in_addr guest_addr, int guest_port)
 {
-    struct in_addr guest_addr = {
-        .s_addr = vnetwork_addr.s_addr | htonl(addr_low_byte)
-    };
 	struct iovec iov[2];
 	struct socket *so;
 
@@ -855,13 +854,10 @@ size_t slirp_socket_can_recv(int addr_low_byte, int guest_port)
 	return sopreprbuf(so, iov, NULL);
 }
 
-void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,
-        int size)
+void slirp_socket_recv(struct in_addr guest_addr, int guest_port,
+                       const uint8_t *buf, int size)
 {
     int ret;
-    struct in_addr guest_addr = {
-        .s_addr = vnetwork_addr.s_addr | htonl(addr_low_byte)
-    };
     struct socket *so = slirp_find_ctl_socket(guest_addr, guest_port);
 
     if (!so)

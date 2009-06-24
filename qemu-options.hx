@@ -749,10 +749,11 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-    "-net user[,vlan=n][,name=str][ip=netaddr][,restrict=y|n][,hostname=host]\n"
-    "         [,tftp=dir][,bootfile=f][,redir=rule][,channel=rule]"
+    "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=y|n]\n"
+    "         [,hostname=host][,dhcpstart=addr][,dns=addr][,tftp=dir][,bootfile=f]\n"
+    "         [,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
-                                                                  "[,smb=dir]\n"
+                                             "[,smb=dir[,smbserver=addr]]\n"
 #endif
     "                connect the user mode network stack to VLAN 'n', configure its\n"
     "                DHCP server and enabled optional services\n"
@@ -819,8 +820,14 @@ Connect user mode stack to VLAN @var{n} (@var{n} = 0 is the default).
 @item name=@var{name}
 Assign symbolic name for use in monitor commands.
 
-@item ip=@var{netaddr}
-Set IP network address the guest will see (default: 10.0.2.x).
+@item net=@var{addr}[/@var{mask}]
+Set IP network address the guest will see. Optionally specify the netmask,
+either in the form a.b.c.d or as number of valid top-most bits. Default is
+10.0.2.0/8.
+
+@item host=@var{addr}
+Specify the guest-visible address of the host. Default is the 2nd IP in the
+guest network, i.e. x.x.x.2.
 
 @item restrict=y|yes|n|no
 If this options is enabled, the guest will be isolated, i.e. it will not be
@@ -830,12 +837,20 @@ to the outside. This option does not affect explicitly set forwarding rule.
 @item hostname=@var{name}
 Specifies the client hostname reported by the builtin DHCP server.
 
+@item dhcpstart=@var{addr}
+Specify the first of the 16 IPs the built-in DHCP server can assign. Default
+is the 16th to 31st IP in the guest network, i.e. x.x.x.16 to x.x.x.31.
+
+@item dns=@var{addr}
+Specify the guest-visible address of the virtual nameserver. The address must
+be different from the host address. Default is the 3rd IP in the guest network,
+i.e. x.x.x.3.
+
 @item tftp=@var{dir}
 When using the user mode network stack, activate a built-in TFTP
 server. The files in @var{dir} will be exposed as the root of a TFTP server.
 The TFTP client on the guest must be configured in binary mode (use the command
-@code{bin} of the Unix TFTP client). The host IP address on the guest is
-10.0.2.2 by default.
+@code{bin} of the Unix TFTP client).
 
 @item bootfile=@var{file}
 When using the user mode network stack, broadcast @var{file} as the BOOTP
@@ -847,10 +862,11 @@ Example (using pxelinux):
 qemu -hda linux.img -boot n -net user,tftp=/path/to/tftp/files,bootfile=/pxelinux.0
 @end example
 
-@item smb=@var{dir}
+@item smb=@var{dir}[,smbserver=@var{addr}]
 When using the user mode network stack, activate a built-in SMB
 server so that Windows OSes can access to the host files in @file{@var{dir}}
-transparently.
+transparently. The IP address of the SMB server can be set to @var{addr}. By
+default the 4th IP in the guest network is used, i.e. x.x.x.4.
 
 In the guest Windows OS, the line:
 @example
@@ -865,19 +881,19 @@ Note that a SAMBA server must be installed on the host OS in
 @file{/usr/sbin/smbd}. QEMU was tested successfully with smbd versions from
 Red Hat 9, Fedora Core 3 and OpenSUSE 11.x.
 
-@item redir=[tcp|udp]:@var{host-port}:[@var{guest-host}]:@var{guest-port}
-Redirect incoming TCP or UDP connections to the host port @var{host-port} to
-the guest @var{guest-host} on guest port @var{guest-port}. If @var{guest-host}
-is not specified, its value is 10.0.2.15 (default address given by the built-in
-DHCP server). If no connection type is specified, TCP is used. This option can
-be given multiple times.
+@item hostfwd=[tcp|udp]:@var{hostport}:[@var{guestaddr}]:@var{guestport}
+Redirect incoming TCP or UDP connections to the host port @var{hostport} to
+the guest IP address @var{guestaddr} on guest port @var{guestport}. If
+@var{guestaddr} is not specified, its value is x.x.x.15 (default first address
+given by the built-in DHCP server). If no connection type is specified, TCP is
+used. This option can be given multiple times.
 
 For example, to redirect host X11 connection from screen 1 to guest
 screen 0, use the following:
 
 @example
 # on the host
-qemu -net user,redir=tcp:6001::6000 [...]
+qemu -net user,hostfwd=tcp:6001::6000 [...]
 # this host xterm should open in the guest X11 server
 xterm -display :1
 @end example
@@ -887,14 +903,14 @@ the guest, use the following:
 
 @example
 # on the host
-qemu -net user,redir=tcp:5555::23 [...]
+qemu -net user,hostfwd=tcp:5555::23 [...]
 telnet localhost 5555
 @end example
 
 Then when you use on the host @code{telnet localhost 5555}, you
 connect to the guest telnet server.
 
-@item channel=@var{port}:@var{dev}
+@item guestfwd=[tcp]:@var{server}:@var{port}-@var{dev}
 Forward guest TCP connections to port @var{port} on the host to character
 device @var{dev}. This option can be given multiple times.
 
