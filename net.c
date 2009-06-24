@@ -678,6 +678,7 @@ struct slirp_config_str {
 };
 
 typedef struct SlirpState {
+    TAILQ_ENTRY(SlirpState) entry;
     VLANClientState *vc;
     Slirp *slirp;
 } SlirpState;
@@ -685,7 +686,8 @@ typedef struct SlirpState {
 static struct slirp_config_str *slirp_configs;
 const char *legacy_tftp_prefix;
 const char *legacy_bootp_filename;
-static SlirpState *slirp_state;
+static TAILQ_HEAD(slirp_stacks, SlirpState) slirp_stacks =
+    TAILQ_HEAD_INITIALIZER(slirp_stacks);
 
 static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
                           int legacy_format);
@@ -734,7 +736,7 @@ static void net_slirp_cleanup(VLANClientState *vc)
     SlirpState *s = vc->opaque;
 
     slirp_cleanup(s->slirp);
-    slirp_state = NULL;
+    TAILQ_REMOVE(&slirp_stacks, s, entry);
     qemu_free(s);
 }
 
@@ -842,7 +844,7 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
     s = qemu_mallocz(sizeof(SlirpState));
     s->slirp = slirp_init(restricted, net, mask, host, vhostname,
                           tftp_export, bootfile, dhcp, dns, s);
-    slirp_state = s;
+    TAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     while (slirp_configs) {
         struct slirp_config_str *config = slirp_configs;
@@ -881,7 +883,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
     int is_udp = 0;
     int err;
 
-    if (!slirp_state) {
+    if (TAILQ_EMPTY(&slirp_stacks)) {
         monitor_printf(mon, "user mode network stack not in use\n");
         return;
     }
@@ -908,7 +910,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
 
     host_port = atoi(p);
 
-    err = slirp_remove_hostfwd(slirp_state->slirp, is_udp,
+    err = slirp_remove_hostfwd(TAILQ_FIRST(&slirp_stacks)->slirp, is_udp,
                                host_addr, host_port);
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
@@ -984,19 +986,19 @@ static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
 
 void net_slirp_hostfwd_add(Monitor *mon, const char *redir_str)
 {
-    if (!slirp_state) {
+    if (TAILQ_EMPTY(&slirp_stacks)) {
         monitor_printf(mon, "user mode network stack not in use\n");
         return;
     }
 
-    slirp_hostfwd(slirp_state, mon, redir_str, 0);
+    slirp_hostfwd(TAILQ_FIRST(&slirp_stacks), mon, redir_str, 0);
 }
 
 void net_slirp_redir(const char *redir_str)
 {
     struct slirp_config_str *config;
 
-    if (!slirp_state) {
+    if (TAILQ_EMPTY(&slirp_stacks)) {
         config = qemu_malloc(sizeof(*config));
         pstrcpy(config->str, sizeof(config->str), redir_str);
         config->flags = SLIRP_CFG_HOSTFWD | SLIRP_CFG_LEGACY;
@@ -1005,7 +1007,7 @@ void net_slirp_redir(const char *redir_str)
         return;
     }
 
-    slirp_hostfwd(slirp_state, NULL, redir_str, 1);
+    slirp_hostfwd(TAILQ_FIRST(&slirp_stacks), NULL, redir_str, 1);
 }
 
 #ifndef _WIN32
@@ -1106,8 +1108,8 @@ void net_slirp_smb(const char *exported_dir)
         exit(1);
     }
     legacy_smb_export = exported_dir;
-    if (slirp_state) {
-        slirp_smb(slirp_state, exported_dir, vserver_addr);
+    if (!TAILQ_EMPTY(&slirp_stacks)) {
+        slirp_smb(TAILQ_FIRST(&slirp_stacks), exported_dir, vserver_addr);
     }
 }
 
@@ -1198,13 +1200,12 @@ static void slirp_guestfwd(SlirpState *s, Monitor *mon, const char *config_str,
 
 void do_info_usernet(Monitor *mon)
 {
-    SlirpState *s = slirp_state;
+    SlirpState *s;
 
-    if (!s) {
-        return;
+    TAILQ_FOREACH(s, &slirp_stacks, entry) {
+        monitor_printf(mon, "VLAN %d (%s):\n", s->vc->vlan->id, s->vc->name);
+        slirp_connection_info(s->slirp, mon);
     }
-    monitor_printf(mon, "VLAN %d (%s):\n", s->vc->vlan->id, s->vc->name);
-    slirp_connection_info(s->slirp, mon);
 }
 
 #endif /* CONFIG_SLIRP */
@@ -2515,7 +2516,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         qemu_free(smb_export);
         qemu_free(vsmbsrv);
     } else if (!strcmp(device, "channel")) {
-        if (!slirp_state) {
+        if (TAILQ_EMPTY(&slirp_stacks)) {
             struct slirp_config_str *config;
 
             config = qemu_malloc(sizeof(*config));
@@ -2524,7 +2525,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             config->next = slirp_configs;
             slirp_configs = config;
         } else {
-            slirp_guestfwd(slirp_state, mon, p, 1);
+            slirp_guestfwd(TAILQ_FIRST(&slirp_stacks), mon, p, 1);
         }
         ret = 0;
     } else

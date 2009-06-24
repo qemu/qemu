@@ -185,6 +185,8 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 
 #include "debug.h"
 
+#include "sys-queue.h"
+
 #include "libslirp.h"
 #include "ip.h"
 #include "tcp.h"
@@ -207,6 +209,8 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include "tftp.h"
 
 struct Slirp {
+    TAILQ_ENTRY(Slirp) entry;
+
     /* virtual network configuration */
     struct in_addr vnetwork_addr;
     struct in_addr vnetwork_mask;

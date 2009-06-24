@@ -47,7 +47,8 @@ u_int curtime;
 static u_int time_fasttimo, last_slowtimo;
 static int do_slowtimo;
 
-Slirp *slirp_instance;
+TAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
+    TAILQ_HEAD_INITIALIZER(slirp_instances);
 
 #ifdef _WIN32
 
@@ -223,20 +224,20 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     register_savevm("slirp", 0, 2, slirp_state_save, slirp_state_load, slirp);
 
-    slirp_instance = slirp;
+    TAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
 
     return slirp;
 }
 
 void slirp_cleanup(Slirp *slirp)
 {
+    TAILQ_REMOVE(&slirp_instances, slirp, entry);
+
     unregister_savevm("slirp", slirp);
 
     qemu_free(slirp->tftp_prefix);
     qemu_free(slirp->bootp_filename);
     qemu_free(slirp);
-
-    slirp_instance = NULL;
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -269,11 +270,11 @@ static void updtime(void)
 void slirp_select_fill(int *pnfds,
                        fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
-    Slirp *slirp = slirp_instance;
+    Slirp *slirp;
     struct socket *so, *so_next;
     int nfds;
 
-    if (!slirp_instance) {
+    if (TAILQ_EMPTY(&slirp_instances)) {
         return;
     }
 
@@ -288,11 +289,12 @@ void slirp_select_fill(int *pnfds,
 	 */
 	do_slowtimo = 0;
 
+	TAILQ_FOREACH(slirp, &slirp_instances, entry) {
 		/*
 		 * *_slowtimo needs calling if there are IP fragments
 		 * in the fragment queue, or there are TCP connections active
 		 */
-		do_slowtimo = ((slirp->tcb.so_next != &slirp->tcb) ||
+		do_slowtimo |= ((slirp->tcb.so_next != &slirp->tcb) ||
 		    (&slirp->ipq.ip_link != slirp->ipq.ip_link.next));
 
 		for (so = slirp->tcb.so_next; so != &slirp->tcb;
@@ -383,6 +385,7 @@ void slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 			}
 		}
+	}
 
         *pnfds = nfds;
 }
@@ -390,11 +393,11 @@ void slirp_select_fill(int *pnfds,
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
                        int select_error)
 {
-    Slirp *slirp = slirp_instance;
+    Slirp *slirp;
     struct socket *so, *so_next;
     int ret;
 
-    if (!slirp_instance) {
+    if (TAILQ_EMPTY(&slirp_instances)) {
         return;
     }
 
@@ -405,6 +408,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
 	/* Update time */
 	updtime();
 
+    TAILQ_FOREACH(slirp, &slirp_instances, entry) {
 	/*
 	 * See if anything has timed out
 	 */
@@ -559,6 +563,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
 	if (slirp->if_queued) {
 	    if_start(slirp);
 	}
+    }
 
 	/* clear global file descriptor sets.
 	 * these reside on the stack in vl.c
