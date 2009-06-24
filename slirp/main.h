@@ -11,7 +11,6 @@
 
 #define TOWRITEMAX 512
 
-extern struct timeval tt;
 extern int link_up;
 extern int slirp_socket;
 extern int slirp_socket_unit;

@@ -54,7 +54,6 @@ static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 int slirp_restrict;
 static int do_slowtimo;
 int link_up;
-struct timeval tt;
 struct ex_list *exec_list;
 
 /* XXX: suppress those select globals */
@@ -250,19 +249,17 @@ static void updtime(void)
     struct _timeb tb;
 
     _ftime(&tb);
-    curtime = (u_int)tb.time * (u_int)1000;
-    curtime += (u_int)tb.millitm;
+
+    curtime = tb.time * 1000 + tb.millitm;
 }
 #else
 static void updtime(void)
 {
-        gettimeofday(&tt, NULL);
+    struct timeval tv;
 
-	curtime = (u_int)tt.tv_sec * (u_int)1000;
-	curtime += (u_int)tt.tv_usec / (u_int)1000;
+    gettimeofday(&tv, NULL);
 
-	if ((tt.tv_usec % 1000) >= 500)
-	   curtime++;
+    curtime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 #endif
 
