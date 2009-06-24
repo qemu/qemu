@@ -165,7 +165,7 @@ OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
 
 OBJS+=keymaps.o
 ifdef CONFIG_SDL
-OBJS+=sdl.o x_keymap.o
+OBJS+=sdl.o sdl_zoom.o x_keymap.o
 endif
 ifdef CONFIG_CURSES
 OBJS+=curses.o
@@ -209,7 +209,9 @@ cocoa.o: cocoa.m
 
 keymaps.o: keymaps.c keymaps.h
 
-sdl.o: sdl.c keymaps.h sdl_keysym.h
+sdl_zoom.o: sdl_zoom.c sdl_zoom.h sdl_zoom_template.h
+
+sdl.o: sdl.c keymaps.h sdl_keysym.h sdl_zoom.h
 
 sdl.o audio/sdlaudio.o baum.o: CFLAGS += $(SDL_CFLAGS)
 
