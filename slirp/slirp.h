@@ -1,8 +1,6 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-//#define DEBUG 1
-
 #include "config-host.h"
 #include "slirp_config.h"
 

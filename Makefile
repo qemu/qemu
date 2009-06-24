@@ -190,7 +190,7 @@ ifdef CONFIG_SLIRP
 CPPFLAGS+=-I$(SRC_PATH)/slirp
 SLIRP_OBJS=cksum.o if.o ip_icmp.o ip_input.o ip_output.o \
 slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o \
-tcp_subr.o tcp_timer.o udp.o bootp.o debug.o tftp.o
+tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
 OBJS+=$(addprefix slirp/, $(SLIRP_OBJS))
 endif
 

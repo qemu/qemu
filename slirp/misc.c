@@ -10,6 +10,10 @@
 
 #include "monitor.h"
 
+#ifdef DEBUG
+int slirp_debug = DBG_CALL|DBG_MISC|DBG_ERROR;
+#endif
+
 u_int curtime, time_fasttimo, last_slowtimo;
 
 /*

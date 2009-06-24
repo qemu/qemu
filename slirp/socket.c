@@ -584,7 +584,8 @@ tcp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport, int flags
 	socklen_t addrlen = sizeof(addr);
 
 	DEBUG_CALL("tcp_listen");
-	DEBUG_ARG("port = %d", port);
+	DEBUG_ARG("haddr = %x", haddr);
+	DEBUG_ARG("hport = %d", hport);
 	DEBUG_ARG("laddr = %x", laddr);
 	DEBUG_ARG("lport = %d", lport);
 	DEBUG_ARG("flags = %x", flags);
