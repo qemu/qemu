@@ -114,19 +114,7 @@ struct mbuf {
 #define M_DOFREE		0x08	/* when m_free is called on the mbuf, free()
 					 * it rather than putting it on the free list */
 
-/*
- * Mbuf statistics. XXX
- */
-
-struct mbstat {
-	int mbs_alloced;		/* Number of mbufs allocated */
-
-};
-
-extern struct	mbstat mbstat;
-extern int mbuf_alloced;
 extern struct mbuf m_freelist, m_usedlist;
-extern int mbuf_max;
 
 void m_init _P((void));
 struct mbuf * m_get _P((void));

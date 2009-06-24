@@ -1112,11 +1112,6 @@ void net_slirp_smb(const char *exported_dir)
 
 #endif /* !defined(_WIN32) */
 
-void do_info_slirp(Monitor *mon)
-{
-    slirp_stats();
-}
-
 struct GuestFwd {
     CharDriverState *hd;
     struct in_addr server;

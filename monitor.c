@@ -1733,8 +1733,6 @@ static const mon_cmd_t info_cmds[] = {
       "", "show CPU statistics", },
 #endif
 #if defined(CONFIG_SLIRP)
-    { "slirp", "", do_info_slirp,
-      "", "show SLIRP statistics", },
     { "usernet", "", do_info_usernet,
       "", "show user network stack connection states", },
 #endif

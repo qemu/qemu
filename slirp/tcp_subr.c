@@ -222,9 +222,7 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err)
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
 		(void) tcp_output(tp);
-		STAT(tcpstat.tcps_drops++);
-	} else
-		STAT(tcpstat.tcps_conndrops++);
+	}
 	return (tcp_close(tp));
 }
 
@@ -261,7 +259,6 @@ tcp_close(struct tcpcb *tp)
 	sbfree(&so->so_rcv);
 	sbfree(&so->so_snd);
 	sofree(so);
-	STAT(tcpstat.tcps_closed++);
 	return ((struct tcpcb *)0);
 }
 
@@ -441,8 +438,6 @@ tcp_connect(struct socket *inso)
 	tp = sototcpcb(so);
 
 	tcp_template(tp);
-
-	STAT(tcpstat.tcps_connattempt++);
 
 	tp->t_state = TCPS_SYN_SENT;
 	tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;

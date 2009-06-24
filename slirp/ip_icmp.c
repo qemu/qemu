@@ -33,10 +33,6 @@
 #include "slirp.h"
 #include "ip_icmp.h"
 
-#ifdef LOG_ENABLED
-struct icmpstat icmpstat;
-#endif
-
 /* The message sent when emulating PING */
 /* Be nice and tell them it's just a pseudo-ping packet */
 static const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
@@ -78,14 +74,11 @@ icmp_input(struct mbuf *m, int hlen)
   DEBUG_ARG("m = %lx", (long )m);
   DEBUG_ARG("m_len = %d", m->m_len);
 
-  STAT(icmpstat.icps_received++);
-
   /*
    * Locate icmp structure in mbuf, and check
    * that its not corrupted and of at least minimum length.
    */
   if (icmplen < ICMP_MINLEN) {          /* min 8 bytes payload */
-    STAT(icmpstat.icps_tooshort++);
   freeit:
     m_freem(m);
     goto end_error;
@@ -95,7 +88,6 @@ icmp_input(struct mbuf *m, int hlen)
   m->m_data += hlen;
   icp = mtod(m, struct icmp *);
   if (cksum(m, icmplen)) {
-    STAT(icmpstat.icps_checksum++);
     goto freeit;
   }
   m->m_len += hlen;
@@ -159,12 +151,10 @@ icmp_input(struct mbuf *m, int hlen)
   case ICMP_TSTAMP:
   case ICMP_MASKREQ:
   case ICMP_REDIRECT:
-    STAT(icmpstat.icps_notsupp++);
     m_freem(m);
     break;
 
   default:
-    STAT(icmpstat.icps_badtype++);
     m_freem(m);
   } /* swith */
 
@@ -299,8 +289,6 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
 
   (void ) ip_output((struct socket *)NULL, m);
 
-  STAT(icmpstat.icps_reflect++);
-
 end_error:
   return;
 }
@@ -354,6 +342,4 @@ icmp_reflect(struct mbuf *m)
   }
 
   (void ) ip_output((struct socket *)NULL, m);
-
-  STAT(icmpstat.icps_reflect++);
 }

@@ -26,7 +26,6 @@ int slirp_remove_hostfwd(int is_udp, struct in_addr host_addr, int host_port);
 int slirp_add_exec(int do_pty, const void *args, struct in_addr guest_addr,
                    int guest_port);
 
-void slirp_stats(void);
 void slirp_connection_info(Monitor *mon);
 
 void slirp_socket_recv(struct in_addr guest_addr, int guest_port,

@@ -17,10 +17,9 @@
 
 #include <slirp.h>
 
-int mbuf_alloced = 0;
+static int mbuf_alloced;
 struct mbuf m_freelist, m_usedlist;
 #define MBUF_THRESH 30
-int mbuf_max = 0;
 
 /*
  * Find a nice value for msize
@@ -57,8 +56,6 @@ m_get(void)
 		mbuf_alloced++;
 		if (mbuf_alloced > MBUF_THRESH)
 			flags = M_DOFREE;
-		if (mbuf_alloced > mbuf_max)
-			mbuf_max = mbuf_alloced;
 	} else {
 		m = m_freelist.m_next;
 		remque(m);

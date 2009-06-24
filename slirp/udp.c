@@ -41,10 +41,6 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
-#ifdef LOG_ENABLED
-struct udpstat udpstat;
-#endif
-
 struct socket udb;
 
 static u_int8_t udp_tos(struct socket *so);
@@ -74,8 +70,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	DEBUG_ARG("m = %lx", (long)m);
 	DEBUG_ARG("iphlen = %d", iphlen);
 
-	STAT(udpstat.udps_ipackets++);
-
 	/*
 	 * Strip IP options, if any; should skip this,
 	 * make available to user, and use on returned packets,
@@ -101,7 +95,6 @@ udp_input(register struct mbuf *m, int iphlen)
 
 	if (ip->ip_len != len) {
 		if (len > ip->ip_len) {
-			STAT(udpstat.udps_badlen++);
 			goto bad;
 		}
 		m_adj(m, len - ip->ip_len);
@@ -123,7 +116,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	  ((struct ipovly *)ip)->ih_x1 = 0;
 	  ((struct ipovly *)ip)->ih_len = uh->uh_ulen;
 	  if(cksum(m, len + sizeof(struct ip))) {
-	    STAT(udpstat.udps_badsum++);
 	    goto bad;
 	  }
 	}
@@ -165,7 +157,6 @@ udp_input(register struct mbuf *m, int iphlen)
 		if (tmp == &udb) {
 		  so = NULL;
 		} else {
-		  STAT(udpstat.udpps_pcbcachemiss++);
 		  udp_last_so = so;
 		}
 	}
@@ -278,8 +269,6 @@ int udp_output2(struct socket *so, struct mbuf *m,
 
 	((struct ip *)ui)->ip_ttl = IPDEFTTL;
 	((struct ip *)ui)->ip_tos = iptos;
-
-	STAT(udpstat.udps_opackets++);
 
 	error = ip_output(so, m);
 
