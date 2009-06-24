@@ -275,6 +275,8 @@ void usb_info(Monitor *mon);
 
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
+int get_next_param_value(char *buf, int buf_size,
+                         const char *tag, const char **pstr);
 int check_params(char *buf, int buf_size,
                  const char * const *params, const char *str);
 

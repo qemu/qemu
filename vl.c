@@ -1812,20 +1812,23 @@ static int socket_init(void)
 }
 #endif
 
-int get_param_value(char *buf, int buf_size,
-                    const char *tag, const char *str)
+int get_next_param_value(char *buf, int buf_size,
+                         const char *tag, const char **pstr)
 {
     const char *p;
     char option[128];
 
-    p = str;
+    p = *pstr;
     for(;;) {
         p = get_opt_name(option, sizeof(option), p, '=');
         if (*p != '=')
             break;
         p++;
         if (!strcmp(tag, option)) {
-            (void)get_opt_value(buf, buf_size, p);
+            *pstr = get_opt_value(buf, buf_size, p);
+            if (**pstr == ',') {
+                (*pstr)++;
+            }
             return strlen(buf);
         } else {
             p = get_opt_value(NULL, 0, p);
@@ -1835,6 +1838,12 @@ int get_param_value(char *buf, int buf_size,
         p++;
     }
     return 0;
+}
+
+int get_param_value(char *buf, int buf_size,
+                    const char *tag, const char *str)
+{
+    return get_next_param_value(buf, buf_size, tag, &str);
 }
 
 int check_params(char *buf, int buf_size,
