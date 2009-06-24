@@ -1014,35 +1014,13 @@ void net_slirp_redir(const char *redir_str)
 
 static char smb_dir[1024];
 
-static void erase_dir(char *dir_name)
-{
-    DIR *d;
-    struct dirent *de;
-    char filename[1024];
-
-    /* erase all the files in the directory */
-    if ((d = opendir(dir_name)) != NULL) {
-        for(;;) {
-            de = readdir(d);
-            if (!de)
-                break;
-            if (strcmp(de->d_name, ".") != 0 &&
-                strcmp(de->d_name, "..") != 0) {
-                snprintf(filename, sizeof(filename), "%s/%s",
-                         smb_dir, de->d_name);
-                if (unlink(filename) != 0)  /* is it a directory? */
-                    erase_dir(filename);
-            }
-        }
-        closedir(d);
-        rmdir(dir_name);
-    }
-}
-
 /* automatic user mode samba server configuration */
 static void smb_exit(void)
 {
-    erase_dir(smb_dir);
+    char cmd[1024];
+
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", smb_dir);
+    system(cmd);
 }
 
 static void slirp_smb(SlirpState* s, const char *exported_dir,
