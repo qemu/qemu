@@ -135,9 +135,7 @@ all: $(PROGS)
 #########################################################
 # cpu emulator library
 libobj-y = exec.o translate-all.o cpu-exec.o translate.o host-utils.o
-ifdef CONFIG_KQEMU
-libobj-y += kqemu.o
-endif
+libobj-$(CONFIG_KQEMU) += kqemu.o
 # TCG code generator
 libobj-y += tcg/tcg.o tcg/tcg-runtime.o
 CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
@@ -176,9 +174,7 @@ endif
 ifeq ($(findstring x86_64, $(TARGET_ARCH) $(ARCH)),x86_64)
 USE_I386_DIS=y
 endif
-ifdef USE_I386_DIS
-libobj-y += i386-dis.o
-endif
+libobj-$(USE_I386_DIS) += i386-dis.o
 ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)
 libobj-y += alpha-dis.o
 endif
@@ -328,13 +324,12 @@ obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o
 LIBS+= $(PTHREADLIBS)
 LIBS+= $(CLOCKLIBS)
-ifdef TARGET_HAS_BFLT
-obj-y += flatload.o
-endif
+obj-$(TARGET_HAS_BFLT) += flatload.o
+
 ifdef TARGET_HAS_ELFLOAD32
-obj-y += elfload32.o
 elfload32.o: elfload.c
 endif
+obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
 ifeq ($(TARGET_ARCH), i386)
 obj-y += vm86.o
@@ -547,9 +542,8 @@ LIBS += $(CONFIG_BLUEZ_LIBS)
 endif
 
 # xen backend driver support
-XEN_OBJS := xen_machine_pv.o xen_domainbuild.o
+obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 ifeq ($(CONFIG_XEN), yes)
-  obj-y += $(XEN_OBJS)
   LIBS += $(XEN_LIBS)
 endif
 
@@ -597,9 +591,7 @@ ifdef FDT_LIBS
 obj-y += device_tree.o
 LIBS+= $(FDT_LIBS)
 endif
-ifdef CONFIG_KVM
-obj-y += kvm_ppc.o
-endif
+obj-$(CONFIG_KVM) += kvm_ppc.o
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
 obj-y += mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
