@@ -757,9 +757,7 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
     }
 }
 
-/* Unlistens a redirection
- *
- * Return value: number of redirs removed */
+/* Drop host forwarding rule, return 0 if found. */
 int slirp_remove_hostfwd(int is_udp, struct in_addr host_addr, int host_port)
 {
     struct socket *so;
@@ -767,22 +765,20 @@ int slirp_remove_hostfwd(int is_udp, struct in_addr host_addr, int host_port)
     struct sockaddr_in addr;
     int port = htons(host_port);
     socklen_t addr_len;
-    int n = 0;
 
- loop_again:
     for (so = head->so_next; so != head; so = so->so_next) {
         addr_len = sizeof(addr);
-        if (getsockname(so->s, (struct sockaddr *)&addr, &addr_len) == 0 &&
+        if ((so->so_state & SS_HOSTFWD) &&
+            getsockname(so->s, (struct sockaddr *)&addr, &addr_len) == 0 &&
             addr.sin_addr.s_addr == host_addr.s_addr &&
             addr.sin_port == port) {
             close(so->s);
             sofree(so);
-            n++;
-            goto loop_again;
+            return 0;
         }
     }
 
-    return n;
+    return -1;
 }
 
 int slirp_add_hostfwd(int is_udp, struct in_addr host_addr, int host_port,

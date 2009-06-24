@@ -880,7 +880,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
     char buf[256] = "";
     const char *p = src_str;
     int is_udp = 0;
-    int n;
+    int err;
 
     if (!slirp_inited) {
         monitor_printf(mon, "user mode network stack not in use\n");
@@ -909,10 +909,10 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
 
     host_port = atoi(p);
 
-    n = slirp_remove_hostfwd(is_udp, host_addr, host_port);
+    err = slirp_remove_hostfwd(is_udp, host_addr, host_port);
 
-    monitor_printf(mon, "removed %d host forwarding rules for %s\n", n,
-                   src_str);
+    monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
+                   err ? "removed" : "not found");
     return;
 
  fail_syntax:
