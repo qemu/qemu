@@ -51,7 +51,7 @@ struct VLANState {
     int delivering;
 };
 
-VLANState *qemu_find_vlan(int id);
+VLANState *qemu_find_vlan(int id, int allocate);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
                                       const char *name,

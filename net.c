@@ -389,6 +389,32 @@ VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque)
     return NULL;
 }
 
+static VLANClientState *
+qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
+                              const char *client_str)
+{
+    VLANState *vlan;
+    VLANClientState *vc;
+
+    vlan = qemu_find_vlan(vlan_id, 0);
+    if (!vlan) {
+        monitor_printf(mon, "unknown VLAN %d\n", vlan_id);
+        return NULL;
+    }
+
+    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
+        if (!strcmp(vc->name, client_str)) {
+            break;
+        }
+    }
+    if (!vc) {
+        monitor_printf(mon, "can't find device %s on VLAN %d\n",
+                       client_str, vlan_id);
+    }
+
+    return vc;
+}
+
 int qemu_can_send_packet(VLANClientState *sender)
 {
     VLANState *vlan = sender->vlan;
@@ -2255,12 +2281,15 @@ static int net_dump_init(Monitor *mon, VLANState *vlan, const char *device,
 }
 
 /* find or alloc a new VLAN */
-VLANState *qemu_find_vlan(int id)
+VLANState *qemu_find_vlan(int id, int allocate)
 {
     VLANState **pvlan, *vlan;
     for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
         if (vlan->id == id)
             return vlan;
+    }
+    if (!allocate) {
+        return NULL;
     }
     vlan = qemu_mallocz(sizeof(VLANState));
     vlan->id = id;
@@ -2327,7 +2356,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     if (get_param_value(buf, sizeof(buf), "vlan", p)) {
         vlan_id = strtol(buf, NULL, 0);
     }
-    vlan = qemu_find_vlan(vlan_id);
+    vlan = qemu_find_vlan(vlan_id, 1);
 
     if (get_param_value(buf, sizeof(buf), "name", p)) {
         name = qemu_strdup(buf);
@@ -2740,19 +2769,10 @@ void net_host_device_add(Monitor *mon, const char *device, const char *opts)
 
 void net_host_device_remove(Monitor *mon, int vlan_id, const char *device)
 {
-    VLANState *vlan;
     VLANClientState *vc;
 
-    vlan = qemu_find_vlan(vlan_id);
-
-    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
-        if (!strcmp(vc->name, device)) {
-            break;
-        }
-    }
-
+    vc = qemu_find_vlan_client_by_name(mon, vlan_id, device);
     if (!vc) {
-        monitor_printf(mon, "can't find device %s\n", device);
         return;
     }
     if (!net_host_check_device(vc->model)) {
