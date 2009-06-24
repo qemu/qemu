@@ -287,6 +287,12 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 
   spt = &tftp_sessions[s];
 
+  /* unspecifed prefix means service disabled */
+  if (!tftp_prefix) {
+      tftp_send_error(spt, 2, "Access violation", tp);
+      return;
+  }
+
   src = tp->x.tp_buf;
   dst = spt->filename;
   n = pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
@@ -333,13 +339,6 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
       return;
   }
 
-  /* only allow exported prefixes */
-
-  if (!tftp_prefix) {
-      tftp_send_error(spt, 2, "Access violation", tp);
-      return;
-  }
-
   /* check if the file exists */
 
   if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
@@ -370,7 +369,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 	  int tsize = atoi(value);
 	  struct stat stat_p;
 
-	  if (tsize == 0 && tftp_prefix) {
+	  if (tsize == 0) {
 	      char buffer[1024];
 	      int len;
 
