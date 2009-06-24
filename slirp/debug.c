@@ -291,47 +291,6 @@ mbufstats(void)
 	lprint("  %6d mbufs on used list\r\n",  i);
         lprint("  %6d mbufs queued as packets\r\n\r\n", if_queued);
 }
-
-static void
-sockstats(void)
-{
-	char buff[256];
-	int n;
-	struct socket *so;
-
-        lprint(" \r\n");
-
-	lprint(
-	   "Proto[state]     Sock     Local Address, Port  Remote Address, Port RecvQ SendQ\r\n");
-
-	for (so = tcb.so_next; so != &tcb; so = so->so_next) {
-
-		n = sprintf(buff, "tcp[%s]", so->so_tcpcb?tcpstates[so->so_tcpcb->t_state]:"NONE");
-		while (n < 17)
-		   buff[n++] = ' ';
-		buff[17] = 0;
-		lprint("%s %3d   %15s %5d ",
-				buff, so->s,
-				inet_ntoa(so->so_laddr), ntohs(so->so_lport));
-		lprint("%15s %5d %5d %5d\r\n",
-				inet_ntoa(so->so_faddr), ntohs(so->so_fport),
-				so->so_rcv.sb_cc, so->so_snd.sb_cc);
-	}
-
-	for (so = udb.so_next; so != &udb; so = so->so_next) {
-
-		n = sprintf(buff, "udp[%d sec]", (so->so_expire - curtime) / 1000);
-		while (n < 17)
-		   buff[n++] = ' ';
-		buff[17] = 0;
-		lprint("%s %3d  %15s %5d  ",
-				buff, so->s,
-				inet_ntoa(so->so_laddr), ntohs(so->so_lport));
-		lprint("%15s %5d %5d %5d\r\n",
-				inet_ntoa(so->so_faddr), ntohs(so->so_fport),
-				so->so_rcv.sb_cc, so->so_snd.sb_cc);
-	}
-}
 #endif
 
 #ifndef CONFIG_QEMU
@@ -386,7 +345,6 @@ slirp_stats(void)
     udpstats();
     icmpstats();
     mbufstats();
-    sockstats();
 #else
     lprint("SLIRP statistics code not compiled.\n");
 #endif

@@ -81,6 +81,8 @@ void qemu_handler_true(void *opaque);
 void do_info_network(Monitor *mon);
 int do_set_link(Monitor *mon, const char *name, const char *up_or_down);
 
+void do_info_usernet(Monitor *mon);
+
 /* NIC info */
 
 #define MAX_NICS 8

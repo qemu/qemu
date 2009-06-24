@@ -40,17 +40,6 @@
 
 #include <slirp.h>
 
-/*
- * Since this is only used in "stats socket", we give meaning
- * names instead of the REAL names
- */
-const char * const tcpstates[] = {
-/*	"CLOSED",       "LISTEN",       "SYN_SENT",     "SYN_RCVD", */
-	"REDIRECT",	"LISTEN",	"SYN_SENT",     "SYN_RCVD",
-	"ESTABLISHED",  "CLOSE_WAIT",   "FIN_WAIT_1",   "CLOSING",
-	"LAST_ACK",     "FIN_WAIT_2",   "TIME_WAIT",
-};
-
 static const u_char  tcp_outflags[TCP_NSTATES] = {
 	TH_RST|TH_ACK, 0,      TH_SYN,        TH_SYN|TH_ACK,
 	TH_ACK,        TH_ACK, TH_FIN|TH_ACK, TH_FIN|TH_ACK,

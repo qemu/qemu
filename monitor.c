@@ -1735,6 +1735,8 @@ static const mon_cmd_t info_cmds[] = {
 #if defined(CONFIG_SLIRP)
     { "slirp", "", do_info_slirp,
       "", "show SLIRP statistics", },
+    { "usernet", "", do_info_usernet,
+      "", "show user network stack connection states", },
 #endif
     { "migrate", "", do_info_migrate, "", "show migration status" },
     { "balloon", "", do_info_balloon,

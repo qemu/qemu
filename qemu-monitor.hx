@@ -87,6 +87,8 @@ show the current VM UUID
 show CPU statistics
 @item info slirp
 show SLIRP statistics (if available)
+@item info usernet
+show user network stack connection states
 @item info migrate
 show migration status
 @item info balloon

@@ -1198,6 +1198,12 @@ static void slirp_guestfwd(Monitor *mon, const char *config_str,
     config_error(mon, "invalid guest forwarding rule '%s'\n", config_str);
 }
 
+void do_info_usernet(Monitor *mon)
+{
+    monitor_printf(mon, "VLAN %d (%s):\n", slirp_vc->vlan->id, slirp_vc->name);
+    slirp_connection_info(mon);
+}
+
 #endif /* CONFIG_SLIRP */
 
 #if !defined(_WIN32)
