@@ -42,11 +42,8 @@
 #include <osdep.h>
 #include "ip_icmp.h"
 
-struct ipq ipq;
-
-static struct ip *ip_reass(register struct ip *ip,
-                           register struct ipq *fp);
-static void ip_freef(struct ipq *fp);
+static struct ip *ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp);
+static void ip_freef(Slirp *slirp, struct ipq *fp);
 static void ip_enq(register struct ipasfrag *p,
                    register struct ipasfrag *prev);
 static void ip_deq(register struct ipasfrag *p);
@@ -56,11 +53,11 @@ static void ip_deq(register struct ipasfrag *p);
  * All protocols not implemented in kernel go to raw IP protocol handler.
  */
 void
-ip_init(void)
+ip_init(Slirp *slirp)
 {
-	ipq.ip_link.next = ipq.ip_link.prev = &ipq.ip_link;
-	udp_init();
-	tcp_init();
+    slirp->ipq.ip_link.next = slirp->ipq.ip_link.prev = &slirp->ipq.ip_link;
+    udp_init(slirp);
+    tcp_init(slirp);
 }
 
 /*
@@ -70,6 +67,7 @@ ip_init(void)
 void
 ip_input(struct mbuf *m)
 {
+	Slirp *slirp = m->slirp;
 	register struct ip *ip;
 	int hlen;
 
@@ -120,19 +118,19 @@ ip_input(struct mbuf *m)
 		goto bad;
 	}
 
-    if (slirp_restrict) {
-        if ((ip->ip_dst.s_addr & vnetwork_mask.s_addr) ==
-            vnetwork_addr.s_addr) {
+    if (slirp->restricted) {
+        if ((ip->ip_dst.s_addr & slirp->vnetwork_mask.s_addr) ==
+            slirp->vnetwork_addr.s_addr) {
             if (ip->ip_dst.s_addr == 0xffffffff && ip->ip_p != IPPROTO_UDP)
                 goto bad;
         } else {
+            uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
             struct ex_list *ex_ptr;
 
-            if ((ip->ip_dst.s_addr & ~vnetwork_mask.s_addr) ==
-                ~vnetwork_mask.s_addr)
+            if ((ip->ip_dst.s_addr & inv_mask) == inv_mask) {
                 goto bad;
-
-            for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+            }
+            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
                 if (ex_ptr->ex_addr.s_addr == ip->ip_dst.s_addr)
                     break;
 
@@ -167,7 +165,8 @@ ip_input(struct mbuf *m)
 		 * Look for queue of fragments
 		 * of this datagram.
 		 */
-		for (l = ipq.ip_link.next; l != &ipq.ip_link; l = l->next) {
+		for (l = slirp->ipq.ip_link.next; l != &slirp->ipq.ip_link;
+		     l = l->next) {
             fp = container_of(l, struct ipq, ip_link);
             if (ip->ip_id == fp->ipq_id &&
                     ip->ip_src.s_addr == fp->ipq_src.s_addr &&
@@ -197,13 +196,13 @@ ip_input(struct mbuf *m)
 		 * attempt reassembly; if it succeeds, proceed.
 		 */
 		if (ip->ip_tos & 1 || ip->ip_off) {
-			ip = ip_reass(ip, fp);
+			ip = ip_reass(slirp, ip, fp);
                         if (ip == NULL)
 				return;
-			m = dtom(ip);
+			m = dtom(slirp, ip);
 		} else
 			if (fp)
-		   	   ip_freef(fp);
+		   	   ip_freef(slirp, fp);
 
 	} else
 		ip->ip_len -= hlen;
@@ -239,9 +238,9 @@ bad:
  * is given as fp; otherwise have to make a chain.
  */
 static struct ip *
-ip_reass(register struct ip *ip, register struct ipq *fp)
+ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp)
 {
-	register struct mbuf *m = dtom(ip);
+	register struct mbuf *m = dtom(slirp, ip);
 	register struct ipasfrag *q;
 	int hlen = ip->ip_hl << 2;
 	int i, next;
@@ -263,10 +262,13 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
         if (fp == NULL) {
-	  struct mbuf *t;
-	  if ((t = m_get()) == NULL) goto dropfrag;
+	  struct mbuf *t = m_get(slirp);
+
+	  if (t == NULL) {
+	      goto dropfrag;
+	  }
 	  fp = mtod(t, struct ipq *);
-	  insque(&fp->ip_link, &ipq.ip_link);
+	  insque(&fp->ip_link, &slirp->ipq.ip_link);
 	  fp->ipq_ttl = IPFRAGTTL;
 	  fp->ipq_p = ip->ip_p;
 	  fp->ipq_id = ip->ip_id;
@@ -296,7 +298,7 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 		if (i > 0) {
 			if (i >= ip->ip_len)
 				goto dropfrag;
-			m_adj(dtom(ip), i);
+			m_adj(dtom(slirp, ip), i);
 			ip->ip_off += i;
 			ip->ip_len -= i;
 		}
@@ -312,11 +314,11 @@ ip_reass(register struct ip *ip, register struct ipq *fp)
 		if (i < q->ipf_len) {
 			q->ipf_len -= i;
 			q->ipf_off += i;
-			m_adj(dtom(q), i);
+			m_adj(dtom(slirp, q), i);
 			break;
 		}
 		q = q->ipf_next;
-		m_freem(dtom(q->ipf_prev));
+		m_freem(dtom(slirp, q->ipf_prev));
 		ip_deq(q->ipf_prev);
 	}
 
@@ -340,11 +342,11 @@ insert:
 	 * Reassembly is complete; concatenate fragments.
 	 */
     q = fp->frag_link.next;
-	m = dtom(q);
+	m = dtom(slirp, q);
 
 	q = (struct ipasfrag *) q->ipf_next;
 	while (q != (struct ipasfrag*)&fp->frag_link) {
-	  struct mbuf *t = dtom(q);
+	  struct mbuf *t = dtom(slirp, q);
 	  q = (struct ipasfrag *) q->ipf_next;
 	  m_cat(m, t);
 	}
@@ -375,7 +377,7 @@ insert:
 	ip->ip_src = fp->ipq_src;
 	ip->ip_dst = fp->ipq_dst;
 	remque(&fp->ip_link);
-	(void) m_free(dtom(fp));
+	(void) m_free(dtom(slirp, fp));
 	m->m_len += (ip->ip_hl << 2);
 	m->m_data -= (ip->ip_hl << 2);
 
@@ -391,17 +393,17 @@ dropfrag:
  * associated datagrams.
  */
 static void
-ip_freef(struct ipq *fp)
+ip_freef(Slirp *slirp, struct ipq *fp)
 {
 	register struct ipasfrag *q, *p;
 
 	for (q = fp->frag_link.next; q != (struct ipasfrag*)&fp->frag_link; q = p) {
 		p = q->ipf_next;
 		ip_deq(q);
-		m_freem(dtom(q));
+		m_freem(dtom(slirp, q));
 	}
 	remque(&fp->ip_link);
-	(void) m_free(dtom(fp));
+	(void) m_free(dtom(slirp, fp));
 }
 
 /*
@@ -435,24 +437,24 @@ ip_deq(register struct ipasfrag *p)
  * queue, discard it.
  */
 void
-ip_slowtimo(void)
+ip_slowtimo(Slirp *slirp)
 {
     struct qlink *l;
 
 	DEBUG_CALL("ip_slowtimo");
 
-    l = ipq.ip_link.next;
+    l = slirp->ipq.ip_link.next;
 
         if (l == NULL)
 	   return;
 
-	while (l != &ipq.ip_link) {
+    while (l != &slirp->ipq.ip_link) {
         struct ipq *fp = container_of(l, struct ipq, ip_link);
         l = l->next;
 		if (--fp->ipq_ttl == 0) {
-			ip_freef(fp);
+			ip_freef(slirp, fp);
 		}
-	}
+    }
 }
 
 /*

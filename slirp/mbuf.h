@@ -84,6 +84,7 @@ struct m_hdr {
 
 struct mbuf {
 	struct	m_hdr m_hdr;
+	Slirp *slirp;
 	union M_dat {
 		char	m_dat_[1]; /* ANSI don't like 0 sized arrays */
 		char	*m_ext_;
@@ -114,15 +115,13 @@ struct mbuf {
 #define M_DOFREE		0x08	/* when m_free is called on the mbuf, free()
 					 * it rather than putting it on the free list */
 
-extern struct mbuf m_freelist, m_usedlist;
-
-void m_init _P((void));
-struct mbuf * m_get _P((void));
+void m_init _P((Slirp *));
+struct mbuf * m_get _P((Slirp *));
 void m_free _P((struct mbuf *));
 void m_cat _P((register struct mbuf *, register struct mbuf *));
 void m_inc _P((struct mbuf *, int));
 void m_adj _P((struct mbuf *, int));
 int m_copy _P((struct mbuf *, struct mbuf *, int, int));
-struct mbuf * dtom _P((void *));
+struct mbuf * dtom _P((Slirp *, void *));
 
 #endif

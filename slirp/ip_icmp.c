@@ -69,6 +69,7 @@ icmp_input(struct mbuf *m, int hlen)
   register struct icmp *icp;
   register struct ip *ip=mtod(m, struct ip *);
   int icmplen=ip->ip_len;
+  Slirp *slirp = m->slirp;
 
   DEBUG_CALL("icmp_input");
   DEBUG_ARG("m = %lx", (long )m);
@@ -98,12 +99,12 @@ icmp_input(struct mbuf *m, int hlen)
   case ICMP_ECHO:
     icp->icmp_type = ICMP_ECHOREPLY;
     ip->ip_len += hlen;	             /* since ip_input subtracts this */
-    if (ip->ip_dst.s_addr == vhost_addr.s_addr) {
+    if (ip->ip_dst.s_addr == slirp->vhost_addr.s_addr) {
       icmp_reflect(m);
     } else {
       struct socket *so;
       struct sockaddr_in addr;
-      if ((so = socreate()) == NULL) goto freeit;
+      if ((so = socreate(slirp)) == NULL) goto freeit;
       if(udp_attach(so) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp_attach errno = %d-%s\n",
 		    errno,strerror(errno)));
@@ -122,10 +123,10 @@ icmp_input(struct mbuf *m, int hlen)
 
       /* Send the packet */
       addr.sin_family = AF_INET;
-      if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) ==
-          vnetwork_addr.s_addr) {
+      if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+          slirp->vnetwork_addr.s_addr) {
 	/* It's an alias */
-	if (so->so_faddr.s_addr == vnameserver_addr.s_addr) {
+	if (so->so_faddr.s_addr == slirp->vnameserver_addr.s_addr) {
 	  addr.sin_addr = dns_addr;
 	} else {
 	  addr.sin_addr = loopback_addr;
@@ -222,7 +223,11 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   }
 
   /* make a copy */
-  if(!(m=m_get())) goto end_error;               /* get mbuf */
+  m = m_get(msrc->slirp);
+  if (!m) {
+      goto end_error;
+  }
+
   { int new_m_size;
     new_m_size=sizeof(struct ip )+ICMP_MINLEN+msrc->m_len+ICMP_MAXDATALEN;
     if(new_m_size>m->m_size) m_inc(m, new_m_size);
@@ -285,7 +290,7 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   ip->ip_ttl = MAXTTL;
   ip->ip_p = IPPROTO_ICMP;
   ip->ip_dst = ip->ip_src;    /* ip adresses */
-  ip->ip_src = vhost_addr;
+  ip->ip_src = m->slirp->vhost_addr;
 
   (void ) ip_output((struct socket *)NULL, m);
 

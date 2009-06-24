@@ -38,8 +38,6 @@ typedef	u_int32_t	tcp_seq;
 #define      PR_SLOWHZ       2               /* 2 slow timeouts per second (approx) */
 #define      PR_FASTHZ       5               /* 5 fast timeouts per second (not important) */
 
-extern struct socket *tcp_last_so;
-
 #define TCP_SNDSPACE 8192
 #define TCP_RCVSPACE 8192
 
@@ -162,7 +160,5 @@ struct tcphdr {
     (tp)->snd_una = (tp)->snd_nxt = (tp)->snd_max = (tp)->snd_up = (tp)->iss
 
 #define TCP_ISSINCR     (125*1024)      /* increment for tcp_iss each second */
-
-extern tcp_seq tcp_iss;                /* tcp initial send seq # */
 
 #endif

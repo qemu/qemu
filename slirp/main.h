@@ -31,11 +31,6 @@ extern char *slirp_tty;
 extern char *exec_shell;
 extern u_int curtime;
 extern fd_set *global_readfds, *global_writefds, *global_xfds;
-extern struct in_addr vnetwork_addr;
-extern struct in_addr vnetwork_mask;
-extern struct in_addr vhost_addr;
-extern struct in_addr vdhcp_startaddr;
-extern struct in_addr vnameserver_addr;
 extern struct in_addr our_addr;
 extern struct in_addr loopback_addr;
 extern struct in_addr dns_addr;
@@ -44,16 +39,11 @@ extern char *socket_path;
 extern int towrite_max;
 extern int ppp_exit;
 extern int tcp_keepintvl;
-extern uint8_t client_ethaddr[6];
-extern int slirp_restrict;
-extern char slirp_hostname[33];
-extern char *tftp_prefix;
-extern char *bootp_filename;
 
 #define PROTO_SLIP 0x1
 #ifdef USE_PPP
 #define PROTO_PPP 0x2
 #endif
 
-void if_encap(const uint8_t *ip_data, int ip_data_len);
+void if_encap(Slirp *slirp, const uint8_t *ip_data, int ip_data_len);
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags);

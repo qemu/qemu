@@ -36,8 +36,6 @@
 #define UDP_TTL 0x60
 #define UDP_UDPDATALEN 16192
 
-extern struct socket *udp_last_so;
-
 /*
  * Udp protocol header.
  * Per RFC 768, September, 1981.
@@ -73,15 +71,15 @@ struct udpiphdr {
 #define UDPCTL_CHECKSUM         1       /* checksum UDP packets */
 #define UDPCTL_MAXID            2
 
-extern struct socket udb;
 struct mbuf;
 
-void udp_init _P((void));
+void udp_init _P((Slirp *));
 void udp_input _P((register struct mbuf *, int));
 int udp_output _P((struct socket *, struct mbuf *, struct sockaddr_in *));
 int udp_attach _P((struct socket *));
 void udp_detach _P((struct socket *));
-struct socket * udp_listen _P((u_int32_t, u_int, u_int32_t, u_int, int));
+struct socket * udp_listen _P((Slirp *, u_int32_t, u_int, u_int32_t, u_int,
+                               int));
 int udp_output2(struct socket *so, struct mbuf *m,
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,
                 int iptos);

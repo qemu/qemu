@@ -40,8 +40,6 @@
 
 #include <slirp.h>
 
-u_int16_t ip_id;
-
 /* Number of packets queued before we start sending
  * (to prevent allocing too many mbufs) */
 #define IF_THRESH 10
@@ -55,6 +53,7 @@ u_int16_t ip_id;
 int
 ip_output(struct socket *so, struct mbuf *m0)
 {
+	Slirp *slirp = m0->slirp;
 	register struct ip *ip;
 	register struct mbuf *m = m0;
 	register int hlen = sizeof(struct ip );
@@ -70,7 +69,7 @@ ip_output(struct socket *so, struct mbuf *m0)
 	 */
 	ip->ip_v = IPVERSION;
 	ip->ip_off &= IP_DF;
-	ip->ip_id = htons(ip_id++);
+	ip->ip_id = htons(slirp->ip_id++);
 	ip->ip_hl = hlen >> 2;
 
 	/*
@@ -113,7 +112,7 @@ ip_output(struct socket *so, struct mbuf *m0)
 	mhlen = sizeof (struct ip);
 	for (off = hlen + len; off < (u_int16_t)ip->ip_len; off += len) {
 	  register struct ip *mhip;
-	  m = m_get();
+	  m = m_get(slirp);
           if (m == NULL) {
 	    error = -1;
 	    goto sendorfree;

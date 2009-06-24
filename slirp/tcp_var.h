@@ -158,6 +158,4 @@ struct tcpcb {
 #define	TCP_REXMTVAL(tp) \
 	(((tp)->t_srtt >> TCP_RTT_SHIFT) + (tp)->t_rttvar)
 
-extern u_int32_t	tcp_now;		/* for RFC 1323 timestamps */
-
 #endif

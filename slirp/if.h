@@ -20,12 +20,6 @@
 /* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
 #define IF_MAXLINKHDR (2 + 14 + 40)
 
-extern int	if_queued;	/* Number of packets queued so far */
-
-extern	struct mbuf if_fastq;                  /* fast queue (for interactive data) */
-extern	struct mbuf if_batchq;                 /* queue for non-interactive data */
-extern	struct mbuf *next_m;
-
 #define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
 
 #endif

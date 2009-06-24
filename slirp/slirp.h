@@ -185,6 +185,7 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 
 #include "debug.h"
 
+#include "libslirp.h"
 #include "ip.h"
 #include "tcp.h"
 #include "tcp_timer.h"
@@ -204,14 +205,67 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 
 #include "bootp.h"
 #include "tftp.h"
-#include "libslirp.h"
+
+struct Slirp {
+    /* virtual network configuration */
+    struct in_addr vnetwork_addr;
+    struct in_addr vnetwork_mask;
+    struct in_addr vhost_addr;
+    struct in_addr vdhcp_startaddr;
+    struct in_addr vnameserver_addr;
+
+    /* ARP cache for the guest IP addresses (XXX: allow many entries) */
+    uint8_t client_ethaddr[6];
+
+    struct in_addr client_ipaddr;
+    char client_hostname[33];
+
+    int restricted;
+    struct timeval tt;
+    struct ex_list *exec_list;
+
+    /* mbuf states */
+    struct mbuf m_freelist, m_usedlist;
+    int mbuf_alloced;
+
+    /* if states */
+    int if_queued;          /* number of packets queued so far */
+    struct mbuf if_fastq;   /* fast queue (for interactive data) */
+    struct mbuf if_batchq;  /* queue for non-interactive data */
+    struct mbuf *next_m;    /* pointer to next mbuf to output */
+
+    /* ip states */
+    struct ipq ipq;         /* ip reass. queue */
+    u_int16_t ip_id;        /* ip packet ctr, for ids */
+
+    /* bootp/dhcp states */
+    BOOTPClient bootp_clients[NB_BOOTP_CLIENTS];
+    char *bootp_filename;
+
+    /* tcp states */
+    struct socket tcb;
+    struct socket *tcp_last_so;
+    tcp_seq tcp_iss;        /* tcp initial send seq # */
+    u_int32_t tcp_now;      /* for RFC 1323 timestamps */
+
+    /* udp states */
+    struct socket udb;
+    struct socket *udp_last_so;
+
+    /* tftp states */
+    char *tftp_prefix;
+    struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+
+};
+
+extern Slirp slirp_instance;
 
 #ifndef NULL
 #define NULL (void *)0
 #endif
 
 #ifndef FULL_BOLT
-void if_start _P((void));
+void if_start _P((Slirp *));
 #else
 void if_start _P((struct ttys *));
 #endif
@@ -257,13 +311,13 @@ void lprint _P((const char *, ...));
 int cksum(struct mbuf *m, int len);
 
 /* if.c */
-void if_init _P((void));
+void if_init _P((Slirp *));
 void if_output _P((struct socket *, struct mbuf *));
 
 /* ip_input.c */
-void ip_init _P((void));
+void ip_init _P((Slirp *));
 void ip_input _P((struct mbuf *));
-void ip_slowtimo _P((void));
+void ip_slowtimo _P((Slirp *));
 void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
 
 /* ip_output.c */
@@ -278,7 +332,7 @@ int tcp_output _P((register struct tcpcb *));
 void tcp_setpersist _P((register struct tcpcb *));
 
 /* tcp_subr.c */
-void tcp_init _P((void));
+void tcp_init _P((Slirp *));
 void tcp_template _P((struct tcpcb *));
 void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
 struct tcpcb * tcp_newtcpcb _P((struct socket *));

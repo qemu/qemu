@@ -25,41 +25,31 @@
 #include <slirp.h>
 #include "qemu-common.h"
 
-struct tftp_session {
-    int in_use;
-    char *filename;
+static inline int tftp_session_in_use(struct tftp_session *spt)
+{
+    return (spt->slirp != NULL);
+}
 
-    struct in_addr client_ip;
-    u_int16_t client_port;
-
-    int timestamp;
-};
-
-static struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
-
-char *tftp_prefix;
-
-static void tftp_session_update(struct tftp_session *spt)
+static inline void tftp_session_update(struct tftp_session *spt)
 {
     spt->timestamp = curtime;
-    spt->in_use = 1;
 }
 
 static void tftp_session_terminate(struct tftp_session *spt)
 {
-  qemu_free(spt->filename);
-  spt->in_use = 0;
+    qemu_free(spt->filename);
+    spt->slirp = NULL;
 }
 
-static int tftp_session_allocate(struct tftp_t *tp)
+static int tftp_session_allocate(Slirp *slirp, struct tftp_t *tp)
 {
   struct tftp_session *spt;
   int k;
 
   for (k = 0; k < TFTP_SESSIONS_MAX; k++) {
-    spt = &tftp_sessions[k];
+    spt = &slirp->tftp_sessions[k];
 
-    if (!spt->in_use)
+    if (!tftp_session_in_use(spt))
         goto found;
 
     /* sessions time out after 5 inactive seconds */
@@ -75,21 +65,22 @@ static int tftp_session_allocate(struct tftp_t *tp)
   memset(spt, 0, sizeof(*spt));
   memcpy(&spt->client_ip, &tp->ip.ip_src, sizeof(spt->client_ip));
   spt->client_port = tp->udp.uh_sport;
+  spt->slirp = slirp;
 
   tftp_session_update(spt);
 
   return k;
 }
 
-static int tftp_session_find(struct tftp_t *tp)
+static int tftp_session_find(Slirp *slirp, struct tftp_t *tp)
 {
   struct tftp_session *spt;
   int k;
 
   for (k = 0; k < TFTP_SESSIONS_MAX; k++) {
-    spt = &tftp_sessions[k];
+    spt = &slirp->tftp_sessions[k];
 
-    if (spt->in_use) {
+    if (tftp_session_in_use(spt)) {
       if (!memcmp(&spt->client_ip, &tp->ip.ip_src, sizeof(spt->client_ip))) {
 	if (spt->client_port == tp->udp.uh_sport) {
 	  return k;
@@ -133,7 +124,7 @@ static int tftp_send_oack(struct tftp_session *spt,
     struct tftp_t *tp;
     int n = 0;
 
-    m = m_get();
+    m = m_get(spt->slirp);
 
     if (!m)
 	return -1;
@@ -172,7 +163,7 @@ static void tftp_send_error(struct tftp_session *spt,
   struct tftp_t *tp;
   int nobytes;
 
-  m = m_get();
+  m = m_get(spt->slirp);
 
   if (!m) {
     goto out;
@@ -218,7 +209,7 @@ static int tftp_send_data(struct tftp_session *spt,
     return -1;
   }
 
-  m = m_get();
+  m = m_get(spt->slirp);
 
   if (!m) {
     return -1;
@@ -266,23 +257,23 @@ static int tftp_send_data(struct tftp_session *spt,
   return 0;
 }
 
-static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
+static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
 {
   struct tftp_session *spt;
   int s, k;
   size_t prefix_len;
   char *req_fname;
 
-  s = tftp_session_allocate(tp);
+  s = tftp_session_allocate(slirp, tp);
 
   if (s < 0) {
     return;
   }
 
-  spt = &tftp_sessions[s];
+  spt = &slirp->tftp_sessions[s];
 
   /* unspecifed prefix means service disabled */
-  if (!tftp_prefix) {
+  if (!slirp->tftp_prefix) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
@@ -292,9 +283,9 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   pktlen -= ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
 
   /* prepend tftp_prefix */
-  prefix_len = strlen(tftp_prefix);
+  prefix_len = strlen(slirp->tftp_prefix);
   spt->filename = qemu_malloc(prefix_len + TFTP_FILENAME_MAX + 1);
-  memcpy(spt->filename, tftp_prefix, prefix_len);
+  memcpy(spt->filename, slirp->tftp_prefix, prefix_len);
 
   /* get name */
   req_fname = spt->filename + prefix_len;
@@ -375,17 +366,17 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   tftp_send_data(spt, 1, tp);
 }
 
-static void tftp_handle_ack(struct tftp_t *tp, int pktlen)
+static void tftp_handle_ack(Slirp *slirp, struct tftp_t *tp, int pktlen)
 {
   int s;
 
-  s = tftp_session_find(tp);
+  s = tftp_session_find(slirp, tp);
 
   if (s < 0) {
     return;
   }
 
-  if (tftp_send_data(&tftp_sessions[s],
+  if (tftp_send_data(&slirp->tftp_sessions[s],
 		     ntohs(tp->x.tp_data.tp_block_nr) + 1,
 		     tp) < 0) {
     return;
@@ -398,11 +389,11 @@ void tftp_input(struct mbuf *m)
 
   switch(ntohs(tp->tp_op)) {
   case TFTP_RRQ:
-    tftp_handle_rrq(tp, m->m_len);
+    tftp_handle_rrq(m->slirp, tp, m->m_len);
     break;
 
   case TFTP_ACK:
-    tftp_handle_ack(tp, m->m_len);
+    tftp_handle_ack(m->slirp, tp, m->m_len);
     break;
   }
 }

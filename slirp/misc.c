@@ -385,6 +385,7 @@ void slirp_connection_info(Monitor *mon)
         [TCPS_FIN_WAIT_2]   = "FIN_WAIT_2",
         [TCPS_TIME_WAIT]    = "TIME_WAIT",
     };
+    Slirp *slirp = &slirp_instance;
     struct in_addr dst_addr;
     struct sockaddr_in src;
     socklen_t src_len;
@@ -397,7 +398,7 @@ void slirp_connection_info(Monitor *mon)
     monitor_printf(mon, "  Protocol[State]    FD  Source Address  Port   "
                         "Dest. Address  Port RecvQ SendQ\n");
 
-    for (so = tcb.so_next; so != &tcb; so = so->so_next) {
+    for (so = slirp->tcb.so_next; so != &slirp->tcb; so = so->so_next) {
         if (so->so_state & SS_HOSTFWD) {
             state = "HOST_FORWARD";
         } else if (so->so_tcpcb) {
@@ -427,7 +428,7 @@ void slirp_connection_info(Monitor *mon)
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
     }
 
-    for (so = udb.so_next; so != &udb; so = so->so_next) {
+    for (so = slirp->udb.so_next; so != &slirp->udb; so = so->so_next) {
         if (so->so_state & SS_HOSTFWD) {
             n = snprintf(buf, sizeof(buf), "  UDP[HOST_FORWARD]");
             src_len = sizeof(src);

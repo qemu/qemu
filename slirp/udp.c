@@ -41,17 +41,14 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
-struct socket udb;
-
 static u_int8_t udp_tos(struct socket *so);
 static void udp_emu(struct socket *so, struct mbuf *m);
 
-struct	socket *udp_last_so = &udb;
-
 void
-udp_init(void)
+udp_init(Slirp *slirp)
 {
-	udb.so_next = udb.so_prev = &udb;
+    slirp->udb.so_next = slirp->udb.so_prev = &slirp->udb;
+    slirp->udp_last_so = &slirp->udb;
 }
 /* m->m_data  points at ip packet header
  * m->m_len   length ip packet
@@ -60,6 +57,7 @@ udp_init(void)
 void
 udp_input(register struct mbuf *m, int iphlen)
 {
+	Slirp *slirp = m->slirp;
 	register struct ip *ip;
 	register struct udphdr *uh;
 	int len;
@@ -128,8 +126,9 @@ udp_input(register struct mbuf *m, int iphlen)
             goto bad;
         }
 
-        if (slirp_restrict)
+        if (slirp->restricted) {
             goto bad;
+        }
 
         /*
          *  handle TFTP
@@ -142,22 +141,23 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	so = udp_last_so;
+	so = slirp->udp_last_so;
 	if (so->so_lport != uh->uh_sport ||
 	    so->so_laddr.s_addr != ip->ip_src.s_addr) {
 		struct socket *tmp;
 
-		for (tmp = udb.so_next; tmp != &udb; tmp = tmp->so_next) {
+		for (tmp = slirp->udb.so_next; tmp != &slirp->udb;
+		     tmp = tmp->so_next) {
 			if (tmp->so_lport == uh->uh_sport &&
 			    tmp->so_laddr.s_addr == ip->ip_src.s_addr) {
 				so = tmp;
 				break;
 			}
 		}
-		if (tmp == &udb) {
+		if (tmp == &slirp->udb) {
 		  so = NULL;
 		} else {
-		  udp_last_so = so;
+		  slirp->udp_last_so = so;
 		}
 	}
 
@@ -166,7 +166,10 @@ udp_input(register struct mbuf *m, int iphlen)
 	   * If there's no socket for this packet,
 	   * create one
 	   */
-	  if ((so = socreate()) == NULL) goto bad;
+	  so = socreate(slirp);
+	  if (!so) {
+	      goto bad;
+	  }
 	  if(udp_attach(so) == -1) {
 	    DEBUG_MISC((dfd," udp_attach errno = %d-%s\n",
 			errno,strerror(errno)));
@@ -279,15 +282,18 @@ int udp_output(struct socket *so, struct mbuf *m,
                struct sockaddr_in *addr)
 
 {
+    Slirp *slirp = so->slirp;
     struct sockaddr_in saddr, daddr;
 
     saddr = *addr;
-    if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) == vnetwork_addr.s_addr) {
-        if ((so->so_faddr.s_addr & ~vnetwork_mask.s_addr) ==
-            ~vnetwork_mask.s_addr) {
-            saddr.sin_addr = vhost_addr;
+    if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+        slirp->vnetwork_addr.s_addr) {
+        uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
+
+        if ((so->so_faddr.s_addr & inv_mask) == inv_mask) {
+            saddr.sin_addr = slirp->vhost_addr;
         } else if (addr->sin_addr.s_addr == loopback_addr.s_addr ||
-                   so->so_faddr.s_addr != vhost_addr.s_addr) {
+                   so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
             saddr.sin_addr = so->so_faddr;
         }
     }
@@ -323,7 +329,7 @@ udp_attach(struct socket *so)
     } else {
       /* success, insert in queue */
       so->so_expire = curtime + SO_EXPIRE;
-      insque(so,&udb);
+      insque(so, &so->slirp->udb);
     }
   }
   return(so->s);
@@ -595,20 +601,20 @@ struct cu_header {
 }
 
 struct socket *
-udp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport,
-           int flags)
+udp_listen(Slirp *slirp, u_int32_t haddr, u_int hport, u_int32_t laddr,
+           u_int lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
 	socklen_t addrlen = sizeof(struct sockaddr_in), opt = 1;
 
-	if ((so = socreate()) == NULL) {
-		free(so);
-		return NULL;
+	so = socreate(slirp);
+	if (!so) {
+	    return NULL;
 	}
 	so->s = socket(AF_INET,SOCK_DGRAM,0);
 	so->so_expire = curtime + SO_EXPIRE;
-	insque(so,&udb);
+	insque(so, &slirp->udb);
 
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = haddr;
@@ -624,7 +630,7 @@ udp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport,
 	so->so_fport = addr.sin_port;
 	if (addr.sin_addr.s_addr == 0 ||
 	    addr.sin_addr.s_addr == loopback_addr.s_addr) {
-	   so->so_faddr = vhost_addr;
+	   so->so_faddr = slirp->vhost_addr;
 	} else {
 	   so->so_faddr = addr.sin_addr;
 	}

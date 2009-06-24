@@ -20,6 +20,8 @@ struct socket {
 
   int s;                           /* The actual socket */
 
+  Slirp *slirp;			   /* managing slirp instance */
+
 			/* XXX union these with not-yet-used sbuf params */
   struct mbuf *so_m;	           /* Pointer to the original SYN packet,
 				    * for non-blocking connect()'s, and
@@ -72,10 +74,8 @@ struct socket {
 #define SS_HOSTFWD		0x1000	/* Socket describes host->guest forwarding */
 #define SS_INCOMING		0x2000	/* Connection was initiated by a host on the internet */
 
-extern struct socket tcb;
-
 struct socket * solookup _P((struct socket *, struct in_addr, u_int, struct in_addr, u_int));
-struct socket * socreate _P((void));
+struct socket * socreate _P((Slirp *));
 void sofree _P((struct socket *));
 int soread _P((struct socket *));
 void sorecvoob _P((struct socket *));
@@ -83,7 +83,8 @@ int sosendoob _P((struct socket *));
 int sowrite _P((struct socket *));
 void sorecvfrom _P((struct socket *));
 int sosendto _P((struct socket *, struct mbuf *));
-struct socket * tcp_listen _P((u_int32_t, u_int, u_int32_t, u_int, int));
+struct socket * tcp_listen _P((Slirp *, u_int32_t, u_int, u_int32_t, u_int,
+                               int));
 void soisfconnecting _P((register struct socket *));
 void soisfconnected _P((register struct socket *));
 void sofwdrain _P((struct socket *));

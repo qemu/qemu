@@ -16,8 +16,6 @@ struct ex_list {
 	struct ex_list *ex_next;
 };
 
-extern struct ex_list *exec_list;
-
 #ifndef HAVE_STRDUP
 char *strdup _P((const char *));
 #endif

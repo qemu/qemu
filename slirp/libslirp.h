@@ -5,6 +5,9 @@
 
 #ifdef CONFIG_SLIRP
 
+struct Slirp;
+typedef struct Slirp Slirp;
+
 void slirp_init(int restricted, struct in_addr vnetwork,
                 struct in_addr vnetmask, struct in_addr vhost,
                 const char *vhostname, const char *tftp_path,

@@ -250,7 +250,4 @@ struct ipoption {
 	int8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
-extern struct	ipq	ipq;			/* ip reass. queue */
-extern u_int16_t	ip_id;				/* ip packet ctr, for ids */
-
 #endif

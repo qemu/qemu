@@ -41,12 +41,7 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
-struct socket tcb;
-
 #define	TCPREXMTTHRESH 3
-struct	socket *tcp_last_so = &tcb;
-
-tcp_seq tcp_iss;                /* tcp initial send seq # */
 
 #define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * PR_SLOWHZ)
 
@@ -233,6 +228,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	u_long tiwin;
 	int ret;
     struct ex_list *ex_ptr;
+    Slirp *slirp;
 
 	DEBUG_CALL("tcp_input");
 	DEBUG_ARGS((dfd," m = %8lx  iphlen = %2d  inso = %lx\n",
@@ -243,6 +239,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	 */
 	if (m == NULL) {
 		so = inso;
+		slirp = so->slirp;
 
 		/* Re-set a few variables */
 		tp = sototcpcb(so);
@@ -254,6 +251,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 
 		goto cont_conn;
 	}
+	slirp = m->slirp;
 
 	/*
 	 * Get IP and TCP header together in first mbuf.
@@ -318,8 +316,8 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	m->m_data += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	m->m_len  -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 
-    if (slirp_restrict) {
-        for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+    if (slirp->restricted) {
+        for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == ti->ti_dport &&
                 ti->ti_dst.s_addr == ex_ptr->ex_addr.s_addr) {
                 break;
@@ -332,15 +330,15 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	 * Locate pcb for segment.
 	 */
 findso:
-	so = tcp_last_so;
+	so = slirp->tcp_last_so;
 	if (so->so_fport != ti->ti_dport ||
 	    so->so_lport != ti->ti_sport ||
 	    so->so_laddr.s_addr != ti->ti_src.s_addr ||
 	    so->so_faddr.s_addr != ti->ti_dst.s_addr) {
-		so = solookup(&tcb, ti->ti_src, ti->ti_sport,
+		so = solookup(&slirp->tcb, ti->ti_src, ti->ti_sport,
 			       ti->ti_dst, ti->ti_dport);
 		if (so)
-			tcp_last_so = so;
+			slirp->tcp_last_so = so;
 	}
 
 	/*
@@ -360,7 +358,7 @@ findso:
 	  if ((tiflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) != TH_SYN)
 	    goto dropwithreset;
 
-	  if ((so = socreate()) == NULL)
+	  if ((so = socreate(slirp)) == NULL)
 	    goto dropwithreset;
 	  if (tcp_attach(so) < 0) {
 	    free(so); /* Not sofree (if it failed, it's not insqued) */
@@ -555,12 +553,13 @@ findso:
 	   * If this is destined for the control address, then flag to
 	   * tcp_ctl once connected, otherwise connect
 	   */
-	  if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) ==
-	      vnetwork_addr.s_addr) {
-	    if (so->so_faddr.s_addr != vhost_addr.s_addr &&
-		so->so_faddr.s_addr != vnameserver_addr.s_addr) {
+	  if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+	      slirp->vnetwork_addr.s_addr) {
+	    if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr &&
+		so->so_faddr.s_addr != slirp->vnameserver_addr.s_addr) {
 		/* May be an add exec */
-		for(ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+		for (ex_ptr = slirp->exec_list; ex_ptr;
+		     ex_ptr = ex_ptr->ex_next) {
 		  if(ex_ptr->ex_fport == so->so_fport &&
 		     so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
 		    so->so_state |= SS_CTL;
@@ -631,8 +630,8 @@ findso:
 	  if (iss)
 	    tp->iss = iss;
 	  else
-	    tp->iss = tcp_iss;
-	  tcp_iss += TCP_ISSINCR/2;
+	    tp->iss = slirp->tcp_iss;
+	  slirp->tcp_iss += TCP_ISSINCR/2;
 	  tp->irs = ti->ti_seq;
 	  tcp_sendseqinit(tp);
 	  tcp_rcvseqinit(tp);
