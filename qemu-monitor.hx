@@ -538,8 +538,7 @@ ETEXI
 #ifdef CONFIG_SLIRP
     { "host_net_redir", "ss?", net_slirp_redir,
       "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)\n"
-      "host_net_redir remove [tcp:|udp:]host-port -- remove redirection\n"
-      "host_net_redir list -- show all redirections" },
+      "host_net_redir remove [tcp:|udp:]host-port -- remove redirection" },
 #endif
 STEXI
 @item host_net_redir
