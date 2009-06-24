@@ -236,10 +236,10 @@ bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
 libqemu_common.a: $(OBJS)
 
 #######################################################################
-# USER_OBJS is code used by qemu userspace emulation
-USER_OBJS=cutils.o  cache-utils.o
+# user-obj-y is code used by qemu userspace emulation
+user-obj-y = cutils.o cache-utils.o
 
-libqemu_user.a: $(USER_OBJS)
+libqemu_user.a: $(user-obj-y)
 
 ######################################################################
 
