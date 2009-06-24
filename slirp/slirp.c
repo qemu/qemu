@@ -761,12 +761,16 @@ int slirp_remove_hostfwd(int is_udp, int host_port)
 {
     struct socket *so;
     struct socket *head = (is_udp ? &udb : &tcb);
-    int fport = htons(host_port);
+    struct sockaddr_in addr;
+    int port = htons(host_port);
+    socklen_t addr_len;
     int n = 0;
 
  loop_again:
     for (so = head->so_next; so != head; so = so->so_next) {
-        if (so->so_fport == fport) {
+        addr_len = sizeof(addr);
+        if (getsockname(so->s, (struct sockaddr *)&addr, &addr_len) == 0 &&
+            addr.sin_port == port) {
             close(so->s);
             sofree(so);
             n++;
