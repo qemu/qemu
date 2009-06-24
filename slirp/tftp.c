@@ -27,7 +27,7 @@
 
 struct tftp_session {
     int in_use;
-    unsigned char filename[TFTP_FILENAME_MAX];
+    char filename[TFTP_FILENAME_MAX];
 
     struct in_addr client_ip;
     u_int16_t client_port;
@@ -273,8 +273,8 @@ static int tftp_send_data(struct tftp_session *spt,
 static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 {
   struct tftp_session *spt;
-  int s, k, n;
-  u_int8_t *src, *dst;
+  int s, k;
+  char *req_fname;
 
   s = tftp_session_allocate(tp);
 
@@ -290,37 +290,31 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
       return;
   }
 
-  src = tp->x.tp_buf;
-  dst = spt->filename;
-  n = pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
+  /* skip header fields */
+  k = 0;
+  pktlen -= ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
 
   /* get name */
+  req_fname = spt->filename;
 
-  for (k = 0; k < n; k++) {
-    if (k < TFTP_FILENAME_MAX) {
-      dst[k] = src[k];
-    }
-    else {
+  while (1) {
+    if (k >= TFTP_FILENAME_MAX || k >= pktlen) {
+      tftp_send_error(spt, 2, "Access violation", tp);
       return;
     }
-
-    if (src[k] == '\0') {
+    req_fname[k] = (char)tp->x.tp_buf[k];
+    if (req_fname[k++] == '\0') {
       break;
     }
   }
 
-  if (k >= n) {
-    return;
-  }
-
-  k++;
-
   /* check mode */
-  if ((n - k) < 6) {
+  if ((pktlen - k) < 6) {
+    tftp_send_error(spt, 2, "Access violation", tp);
     return;
   }
 
-  if (memcmp(&src[k], "octet\0", 6) != 0) {
+  if (memcmp(&tp->x.tp_buf[k], "octet\0", 6) != 0) {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
   }
@@ -337,29 +331,28 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   }
 
   /* check if the file exists */
-
-  if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
+  if (tftp_read_data(spt, 0, NULL, 0) < 0) {
       tftp_send_error(spt, 1, "File not found", tp);
       return;
   }
 
-  if (src[n - 1] != 0) {
+  if (tp->x.tp_buf[pktlen - 1] != 0) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
 
-  while (k < n) {
+  while (k < pktlen) {
       const char *key, *value;
 
-      key = (char *)src + k;
+      key = (const char *)&tp->x.tp_buf[k];
       k += strlen(key) + 1;
 
-      if (k >= n) {
+      if (k >= pktlen) {
 	  tftp_send_error(spt, 2, "Access violation", tp);
 	  return;
       }
 
-      value = (char *)src + k;
+      value = (const char *)&tp->x.tp_buf[k];
       k += strlen(value) + 1;
 
       if (strcmp(key, "tsize") == 0) {
