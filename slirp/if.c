@@ -138,10 +138,7 @@ diddit:
 	/*
 	 * This prevents us from malloc()ing too many mbufs
 	 */
-	if (link_up) {
-		/* if_start will check towrite */
-		if_start();
-	}
+	if_start();
 #endif
 }
 
