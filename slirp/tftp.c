@@ -27,7 +27,7 @@
 
 struct tftp_session {
     int in_use;
-    char filename[TFTP_FILENAME_MAX];
+    char *filename;
 
     struct in_addr client_ip;
     u_int16_t client_port;
@@ -47,6 +47,7 @@ static void tftp_session_update(struct tftp_session *spt)
 
 static void tftp_session_terminate(struct tftp_session *spt)
 {
+  qemu_free(spt->filename);
   spt->in_use = 0;
 }
 
@@ -62,8 +63,10 @@ static int tftp_session_allocate(struct tftp_t *tp)
         goto found;
 
     /* sessions time out after 5 inactive seconds */
-    if ((int)(curtime - spt->timestamp) > 5000)
+    if ((int)(curtime - spt->timestamp) > 5000) {
+        qemu_free(spt->filename);
         goto found;
+    }
   }
 
   return -1;
@@ -103,15 +106,8 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
 {
   int fd;
   int bytes_read = 0;
-  char buffer[1024];
-  int n;
 
-  n = snprintf(buffer, sizeof(buffer), "%s/%s",
-	       tftp_prefix, spt->filename);
-  if (n >= sizeof(buffer))
-    return -1;
-
-  fd = open(buffer, O_RDONLY | O_BINARY);
+  fd = open(spt->filename, O_RDONLY | O_BINARY);
 
   if (fd < 0) {
     return -1;
@@ -274,6 +270,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 {
   struct tftp_session *spt;
   int s, k;
+  size_t prefix_len;
   char *req_fname;
 
   s = tftp_session_allocate(tp);
@@ -294,8 +291,13 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   k = 0;
   pktlen -= ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
 
+  /* prepend tftp_prefix */
+  prefix_len = strlen(tftp_prefix);
+  spt->filename = qemu_malloc(prefix_len + TFTP_FILENAME_MAX + 1);
+  memcpy(spt->filename, tftp_prefix, prefix_len);
+
   /* get name */
-  req_fname = spt->filename;
+  req_fname = spt->filename + prefix_len;
 
   while (1) {
     if (k >= TFTP_FILENAME_MAX || k >= pktlen) {
@@ -322,10 +324,8 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   k += 6; /* skipping octet */
 
   /* do sanity checks on the filename */
-
-  if ((spt->filename[0] != '/')
-      || (spt->filename[strlen((char *)spt->filename) - 1] == '/')
-      ||  strstr((char *)spt->filename, "/../")) {
+  if (req_fname[0] != '/' || req_fname[strlen(req_fname) - 1] == '/' ||
+      strstr(req_fname, "/../")) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
@@ -360,13 +360,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 	  struct stat stat_p;
 
 	  if (tsize == 0) {
-	      char buffer[1024];
-	      int len;
-
-	      len = snprintf(buffer, sizeof(buffer), "%s/%s",
-			     tftp_prefix, spt->filename);
-
-	      if (stat(buffer, &stat_p) == 0)
+	      if (stat(spt->filename, &stat_p) == 0)
 		  tsize = stat_p.st_size;
 	      else {
 		  tftp_send_error(spt, 1, "File not found", tp);
