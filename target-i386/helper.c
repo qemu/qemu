@@ -1651,7 +1651,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = env->cpuid_vendor3;
         break;
     case 0x80000001:
-        *eax = env->cpuid_features;
+        *eax = env->cpuid_version;
         *ebx = 0;
         *ecx = env->cpuid_ext3_features;
         *edx = env->cpuid_ext2_features;
