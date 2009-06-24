@@ -17,7 +17,6 @@ struct ex_list {
 };
 
 extern struct ex_list *exec_list;
-extern u_int time_fasttimo, last_slowtimo;
 
 #ifndef HAVE_STRDUP
 char *strdup _P((const char *));

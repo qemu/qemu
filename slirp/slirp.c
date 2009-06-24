@@ -52,12 +52,15 @@ static struct in_addr client_ipaddr;
 static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
 int slirp_restrict;
-static int do_slowtimo;
 int link_up;
 struct ex_list *exec_list;
 
 /* XXX: suppress those select globals */
 fd_set *global_readfds, *global_writefds, *global_xfds;
+
+u_int curtime;
+static u_int time_fasttimo, last_slowtimo;
+static int do_slowtimo;
 
 char slirp_hostname[33];
 
@@ -267,9 +270,7 @@ void slirp_select_fill(int *pnfds,
                        fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
     struct socket *so, *so_next;
-    struct timeval timeout;
     int nfds;
-    int tmp_time;
 
     if (!link_up) {
         return;
@@ -380,39 +381,6 @@ void slirp_select_fill(int *pnfds,
 			}
 		}
 
-	/*
-	 * Setup timeout to use minimum CPU usage, especially when idle
-	 */
-
-	/*
-	 * First, see the timeout needed by *timo
-	 */
-	timeout.tv_sec = 0;
-	timeout.tv_usec = -1;
-	/*
-	 * If a slowtimo is needed, set timeout to 500ms from the last
-	 * slow timeout. If a fast timeout is needed, set timeout within
-	 * 200ms of when it was requested.
-	 */
-	if (do_slowtimo) {
-		/* XXX + 10000 because some select()'s aren't that accurate */
-		timeout.tv_usec = ((500 - (curtime - last_slowtimo)) * 1000) + 10000;
-		if (timeout.tv_usec < 0)
-		   timeout.tv_usec = 0;
-		else if (timeout.tv_usec > 510000)
-		   timeout.tv_usec = 510000;
-
-		/* Can only fasttimo if we also slowtimo */
-		if (time_fasttimo) {
-			tmp_time = (200 - (curtime - time_fasttimo)) * 1000;
-			if (tmp_time < 0)
-			   tmp_time = 0;
-
-			/* Choose the smallest of the 2 */
-			if (tmp_time < timeout.tv_usec)
-			   timeout.tv_usec = (u_int)tmp_time;
-		}
-	}
         *pnfds = nfds;
 }
 
