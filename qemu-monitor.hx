@@ -536,11 +536,11 @@ Remove host VLAN client.
 ETEXI
 
 #ifdef CONFIG_SLIRP
-    { "hostfwd_add", "s", net_slirp_hostfwd_add,
-      "[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
+    { "hostfwd_add", "ss?s?", net_slirp_hostfwd_add,
+      "[vlan_id name] [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
       "redirect TCP or UDP connections from host to guest (requires -net user)" },
-    { "hostfwd_remove", "s", net_slirp_hostfwd_remove,
-      "[tcp|udp]:[hostaddr]:hostport",
+    { "hostfwd_remove", "ss?s?", net_slirp_hostfwd_remove,
+      "[vlan_id name] [tcp|udp]:[hostaddr]:hostport",
       "remove host-to-guest TCP or UDP redirection" },
 #endif
 STEXI

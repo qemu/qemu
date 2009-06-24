@@ -907,23 +907,56 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
     return 0;
 }
 
-void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
+static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
+                                const char *stack)
+{
+    VLANClientState *vc;
+
+    if (vlan) {
+        vc = qemu_find_vlan_client_by_name(mon, strtol(vlan, NULL, 0), stack);
+        if (!vc) {
+            return NULL;
+        }
+        if (strcmp(vc->model, "user")) {
+            monitor_printf(mon, "invalid device specified\n");
+            return NULL;
+        }
+        return vc->opaque;
+    } else {
+        if (TAILQ_EMPTY(&slirp_stacks)) {
+            monitor_printf(mon, "user mode network stack not in use\n");
+            return NULL;
+        }
+        return TAILQ_FIRST(&slirp_stacks);
+    }
+}
+
+void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
+                              const char *arg2, const char *arg3)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
     int host_port;
     char buf[256] = "";
-    const char *p = src_str;
+    const char *src_str, *p;
+    SlirpState *s;
     int is_udp = 0;
     int err;
 
-    if (TAILQ_EMPTY(&slirp_stacks)) {
-        monitor_printf(mon, "user mode network stack not in use\n");
+    if (arg2) {
+        s = slirp_lookup(mon, arg1, arg2);
+        src_str = arg3;
+    } else {
+        s = slirp_lookup(mon, NULL, NULL);
+        src_str = arg1;
+    }
+    if (!s) {
         return;
     }
 
     if (!src_str || !src_str[0])
         goto fail_syntax;
 
+    p = src_str;
     get_str_sep(buf, sizeof(buf), &p, ':');
 
     if (!strcmp(buf, "tcp") || buf[0] == '\0') {
@@ -966,7 +999,7 @@ static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
     char *end;
 
     p = redir_str;
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
         goto fail_syntax;
     }
     if (!strcmp(buf, "tcp") || buf[0] == '\0') {
@@ -1017,14 +1050,23 @@ static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
     config_error(mon, "invalid host forwarding rule '%s'\n", redir_str);
 }
 
-void net_slirp_hostfwd_add(Monitor *mon, const char *redir_str)
+void net_slirp_hostfwd_add(Monitor *mon, const char *arg1,
+                           const char *arg2, const char *arg3)
 {
-    if (TAILQ_EMPTY(&slirp_stacks)) {
-        monitor_printf(mon, "user mode network stack not in use\n");
-        return;
+    const char *redir_str;
+    SlirpState *s;
+
+    if (arg2) {
+        s = slirp_lookup(mon, arg1, arg2);
+        redir_str = arg3;
+    } else {
+        s = slirp_lookup(mon, NULL, NULL);
+        redir_str = arg1;
+    }
+    if (s) {
+        slirp_hostfwd(s, mon, redir_str, 0);
     }
 
-    slirp_hostfwd(TAILQ_FIRST(&slirp_stacks), mon, redir_str, 0);
 }
 
 void net_slirp_redir(const char *redir_str)
