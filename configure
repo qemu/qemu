@@ -1078,6 +1078,7 @@ fi # -z $brlapi
 
 if test "$curses" = "yes" ; then
   curses=no
+  ncurses=no
   cat > $TMPC << EOF
 #include <curses.h>
 #ifdef __OpenBSD__
@@ -1085,7 +1086,10 @@ if test "$curses" = "yes" ; then
 #endif
 int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lncurses > /dev/null 2> /dev/null ; then
+    curses=yes
+    ncurses=yes
+  elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
     curses=yes
   fi
 fi # test "$curses"
@@ -1735,7 +1739,11 @@ fi
 if test "$curses" = "yes" ; then
   echo "#define CONFIG_CURSES 1" >> $config_h
   echo "CONFIG_CURSES=yes" >> $config_mak
-  echo "CURSES_LIBS=-lcurses" >> $config_mak
+  if test "$ncurses" = "yes" ; then
+    echo "CURSES_LIBS=-lncurses" >> $config_mak
+  else
+    echo "CURSES_LIBS=-lcurses" >> $config_mak
+  fi
 fi
 if test "$atfile" = "yes" ; then
   echo "#define CONFIG_ATFILE 1" >> $config_h
