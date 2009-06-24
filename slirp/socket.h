@@ -71,6 +71,8 @@ struct socket {
 #define SS_FACCEPTCONN		0x100	/* Socket is accepting connections from a host on the internet */
 #define SS_FACCEPTONCE		0x200	/* If set, the SS_FACCEPTCONN socket will die after one accept */
 
+#define SS_PERSISTENT_MASK	0xf000	/* Unremovable state bits */
+
 extern struct socket tcb;
 
 struct socket * solookup _P((struct socket *, struct in_addr, u_int, struct in_addr, u_int));

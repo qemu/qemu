@@ -581,7 +581,8 @@ sosendto(struct socket *so, struct mbuf *m)
 	 */
 	if (so->so_expire)
 		so->so_expire = curtime + SO_EXPIRE;
-	so->so_state = SS_ISFCONNECTED; /* So that it gets select()ed */
+	so->so_state &= SS_PERSISTENT_MASK;
+	so->so_state |= SS_ISFCONNECTED; /* So that it gets select()ed */
 	return 0;
 }
 
@@ -620,7 +621,8 @@ tcp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport, int flags
 	if (flags & SS_FACCEPTONCE)
 	   so->so_tcpcb->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT*2;
 
-	so->so_state = (SS_FACCEPTCONN|flags);
+	so->so_state &= SS_PERSISTENT_MASK;
+	so->so_state |= (SS_FACCEPTCONN | flags);
 	so->so_lport = lport; /* Kept in network format */
 	so->so_laddr.s_addr = laddr; /* Ditto */
 
@@ -715,10 +717,12 @@ sofcantrcvmore(struct socket *so)
 		}
 	}
 	so->so_state &= ~(SS_ISFCONNECTING);
-	if (so->so_state & SS_FCANTSENDMORE)
-	   so->so_state = SS_NOFDREF; /* Don't select it */ /* XXX close() here as well? */
-	else
+	if (so->so_state & SS_FCANTSENDMORE) {
+	   so->so_state &= SS_PERSISTENT_MASK;
+	   so->so_state |= SS_NOFDREF; /* Don't select it */
+	} else {
 	   so->so_state |= SS_FCANTRCVMORE;
+	}
 }
 
 static void
@@ -734,10 +738,12 @@ sofcantsendmore(struct socket *so)
             }
 	}
 	so->so_state &= ~(SS_ISFCONNECTING);
-	if (so->so_state & SS_FCANTRCVMORE)
-	   so->so_state = SS_NOFDREF; /* as above */
-	else
+	if (so->so_state & SS_FCANTRCVMORE) {
+	   so->so_state &= SS_PERSISTENT_MASK;
+	   so->so_state |= SS_NOFDREF; /* as above */
+	} else {
 	   so->so_state |= SS_FCANTSENDMORE;
+	}
 }
 
 void

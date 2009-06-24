@@ -495,7 +495,8 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 				continue;
 
 			      /* else failed */
-			      so->so_state = SS_NOFDREF;
+			      so->so_state &= SS_PERSISTENT_MASK;
+			      so->so_state |= SS_NOFDREF;
 			    }
 			    /* else so->so_state &= ~SS_ISFCONNECTING; */
 
@@ -529,7 +530,8 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			      continue; /* Still connecting, continue */
 
 			    /* else failed */
-			    so->so_state = SS_NOFDREF;
+			    so->so_state &= SS_PERSISTENT_MASK;
+			    so->so_state |= SS_NOFDREF;
 
 			    /* tcp_input will take care of it */
 			  } else {
@@ -540,7 +542,8 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 				  errno == EINPROGRESS || errno == ENOTCONN)
 				continue;
 			      /* else failed */
-			      so->so_state = SS_NOFDREF;
+			      so->so_state &= SS_PERSISTENT_MASK;
+			      so->so_state |= SS_NOFDREF;
 			    } else
 			      so->so_state &= ~SS_ISFCONNECTING;
 
