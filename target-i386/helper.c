@@ -1643,28 +1643,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *edx = env->cpuid_ext2_features;
 
         if (kvm_enabled()) {
-            uint32_t h_eax, h_edx;
-
-            host_cpuid(index, 0, &h_eax, NULL, NULL, &h_edx);
-
-            /* disable CPU features that the host does not support */
-
-            /* long mode */
-            if ((h_edx & 0x20000000) == 0 /* || !lm_capable_kernel */)
-                *edx &= ~0x20000000;
-            /* syscall */
-            if ((h_edx & 0x00000800) == 0)
-                *edx &= ~0x00000800;
-            /* nx */
-            if ((h_edx & 0x00100000) == 0)
-                *edx &= ~0x00100000;
-
-            /* disable CPU features that KVM cannot support */
-
-            /* svm */
-            *ecx &= ~4UL;
-            /* 3dnow */
-            *edx &= ~0xc0000000;
+            /* Nested SVM not yet supported in KVM */
+            *ecx &= ~CPUID_EXT3_SVM;
+        } else {
+            /* AMD 3DNow! is not supported in QEMU */
+            *edx &= ~(CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT);
         }
         break;
     case 0x80000002:
