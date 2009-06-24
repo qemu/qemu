@@ -234,7 +234,7 @@ void slirp_init(int restricted, struct in_addr vnetwork,
     vdhcp_startaddr = vdhcp_start;
     vnameserver_addr = vnameserver;
 
-    register_savevm("slirp", 0, 1, slirp_state_save, slirp_state_load, NULL);
+    register_savevm("slirp", 0, 2, slirp_state_save, slirp_state_load, NULL);
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -973,6 +973,8 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
             slirp_socket_save(f, so);
         }
     qemu_put_byte(f, 0);
+
+    qemu_put_be16(f, ip_id);
 }
 
 static void slirp_tcp_load(QEMUFile *f, struct tcpcb *tp)
@@ -1101,6 +1103,10 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
             return -EINVAL;
 
         so->extra = (void *)ex_ptr->ex_exec;
+    }
+
+    if (version_id >= 2) {
+        ip_id = qemu_get_be16(f);
     }
 
     return 0;
