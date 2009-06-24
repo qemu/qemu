@@ -73,6 +73,7 @@ struct socket {
 
 #define SS_PERSISTENT_MASK	0xf000	/* Unremovable state bits */
 #define SS_HOSTFWD		0x1000	/* Socket describes host->guest forwarding */
+#define SS_INCOMING		0x2000	/* Connection was initiated by a host on the internet */
 
 extern struct socket tcb;
 
