@@ -15,24 +15,24 @@ CPPFLAGS += -I. -I.. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS+=-I$(SRC_PATH)/fpu
 
-OBJS=
-OBJS+= virtio.o virtio-pci.o
-OBJS+= fw_cfg.o
-OBJS+= watchdog.o
-OBJS+= nand.o ecc.o
+obj-y =
+obj-y += virtio.o virtio-pci.o
+obj-y += fw_cfg.o
+obj-y += watchdog.o
+obj-y += nand.o ecc.o
 
-OBJS+= m48t59.o escc.o
+obj-y += m48t59.o escc.o
 
 # SCSI layer
-OBJS+= lsi53c895a.o esp.o
+obj-y += lsi53c895a.o esp.o
 
-OBJS+= dma-helpers.o sysbus.o
+obj-y += dma-helpers.o sysbus.o
 
 all: $(HWLIB)
 # Dummy command so that make thinks it has done something
 	@true
 
-$(HWLIB): $(OBJS)
+$(HWLIB): $(obj-y)
 
 clean:
 	rm -f *.o *.d *.a *~
