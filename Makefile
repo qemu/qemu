@@ -64,27 +64,27 @@ $(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
 recurse-all: $(SUBDIR_RULES)
 
 #######################################################################
-# BLOCK_OBJS is code used by both qemu system emulation and qemu-img
+# block-obj-y is code used by both qemu system emulation and qemu-img
 
-BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-BLOCK_OBJS+=block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
-BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
-BLOCK_OBJS+=block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
-BLOCK_OBJS+=block/qcow2-snapshot.o
-BLOCK_OBJS+=block/parallels.o block/nbd.o
-BLOCK_OBJS+=nbd.o block.o aio.o
+block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
+block-obj-y += block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
+block-obj-y += block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
+block-obj-y += block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
+block-obj-y += block/qcow2-snapshot.o
+block-obj-y += block/parallels.o block/nbd.o
+block-obj-y += nbd.o block.o aio.o
 
 ifdef CONFIG_WIN32
-BLOCK_OBJS += block/raw-win32.o
+block-obj-y += block/raw-win32.o
 else
 ifdef CONFIG_AIO
-BLOCK_OBJS += posix-aio-compat.o
+block-obj-y += posix-aio-compat.o
 endif
-BLOCK_OBJS += block/raw-posix.o
+block-obj-y += block/raw-posix.o
 endif
 
 ifdef CONFIG_CURL
-BLOCK_OBJS += block/curl.o
+block-obj-y += block/curl.o
 endif
 
 ######################################################################
@@ -93,7 +93,7 @@ endif
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS=$(BLOCK_OBJS)
+OBJS=$(block-obj-y)
 OBJS+=readline.o console.o
 
 OBJS+=irq.o ptimer.o
@@ -245,11 +245,11 @@ libqemu_user.a: $(USER_OBJS)
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(block-obj-y)
 
-qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
+qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(block-obj-y)
 
-qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(BLOCK_OBJS)
+qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(block-obj-y)
 
 qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
 
