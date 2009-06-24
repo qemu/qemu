@@ -362,6 +362,7 @@
 #define CPUID_EXT_POPCNT   (1 << 23)
 #define CPUID_EXT_XSAVE    (1 << 26)
 #define CPUID_EXT_OSXSAVE  (1 << 27)
+#define CPUID_EXT_HYPERVISOR  (1 << 31)
 
 #define CPUID_EXT2_SYSCALL (1 << 11)
 #define CPUID_EXT2_MP      (1 << 19)

@@ -143,8 +143,12 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     kvm_trim_features(&env->cpuid_features,
         kvm_arch_get_supported_cpuid(env, 1, R_EDX));
+
+    i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
     kvm_trim_features(&env->cpuid_ext_features,
         kvm_arch_get_supported_cpuid(env, 1, R_ECX));
+    env->cpuid_ext_features |= i;
+
     kvm_trim_features(&env->cpuid_ext2_features,
         kvm_arch_get_supported_cpuid(env, 0x80000001, R_EDX));
     kvm_trim_features(&env->cpuid_ext3_features,
