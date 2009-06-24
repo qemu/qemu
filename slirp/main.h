@@ -46,6 +46,8 @@ extern int tcp_keepintvl;
 extern uint8_t client_ethaddr[6];
 extern const char *slirp_special_ip;
 extern int slirp_restrict;
+extern char *tftp_prefix;
+extern char *bootp_filename;
 
 #define PROTO_SLIP 0x1
 #ifdef USE_PPP

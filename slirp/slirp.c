@@ -171,7 +171,8 @@ static void slirp_cleanup(void)
 static void slirp_state_save(QEMUFile *f, void *opaque);
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
-void slirp_init(int restricted, const char *special_ip)
+void slirp_init(int restricted, const char *special_ip, const char *tftp_path,
+                const char *bootfile)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 
@@ -202,6 +203,17 @@ void slirp_init(int restricted, const char *special_ip)
 
     if (special_ip)
         slirp_special_ip = special_ip;
+
+    qemu_free(tftp_prefix);
+    tftp_prefix = NULL;
+    if (tftp_path) {
+        tftp_prefix = qemu_strdup(tftp_path);
+    }
+    qemu_free(bootp_filename);
+    bootp_filename = NULL;
+    if (bootfile) {
+        bootp_filename = qemu_strdup(bootfile);
+    }
 
     inet_aton(slirp_special_ip, &special_addr);
     alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);

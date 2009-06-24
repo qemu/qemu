@@ -5308,14 +5308,14 @@ int main(int argc, char **argv, char **envp)
                 break;
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
-		tftp_prefix = optarg;
+                legacy_tftp_prefix = optarg;
                 break;
             case QEMU_OPTION_bootp:
-                bootp_filename = optarg;
+                legacy_bootp_filename = optarg;
                 break;
 #ifndef _WIN32
             case QEMU_OPTION_smb:
-		net_slirp_smb(optarg);
+                net_slirp_smb(optarg);
                 break;
 #endif
             case QEMU_OPTION_redir:

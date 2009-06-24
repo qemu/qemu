@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-void slirp_init(int restricted, const char *special_ip);
+void slirp_init(int restricted, const char *special_ip, const char *tftp_path,
+                const char *bootfile);
 
 void slirp_select_fill(int *pnfds,
                        fd_set *readfds, fd_set *writefds, fd_set *xfds);
@@ -24,9 +25,7 @@ int slirp_redir(int is_udp, int host_port,
 int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,
                    int guest_port);
 
-extern const char *tftp_prefix;
 extern char slirp_hostname[33];
-extern const char *bootp_filename;
 
 void slirp_stats(void);
 void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,

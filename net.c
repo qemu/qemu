@@ -669,22 +669,28 @@ static void config_error(Monitor *mon, const char *fmt, ...)
 
 /* slirp network adapter */
 
+#define SLIRP_CFG_REDIR 1
+
 struct slirp_config_str {
     struct slirp_config_str *next;
-    const char *str;
+    int flags;
+    char str[1024];
 };
 
 static int slirp_inited;
-static struct slirp_config_str *slirp_redirs;
-#ifndef _WIN32
-static const char *slirp_smb_export;
-#endif
+static struct slirp_config_str *slirp_configs;
+const char *legacy_tftp_prefix;
+const char *legacy_bootp_filename;
 static VLANClientState *slirp_vc;
 
+static void slirp_redirection(Monitor *mon, const char *redir_str);
+static void vmchannel_init(Monitor *mon, const char *config_str);
+
 #ifndef _WIN32
+static const char *legacy_smb_export;
+
 static void slirp_smb(const char *exported_dir);
 #endif
-static void slirp_redirection(Monitor *mon, const char *redir_str);
 
 int slirp_can_output(void)
 {
@@ -724,27 +730,42 @@ static void net_slirp_cleanup(VLANClientState *vc)
     slirp_in_use = 0;
 }
 
-static int net_slirp_init(VLANState *vlan, const char *model, const char *name,
-                          int restricted, const char *ip)
+static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
+                          const char *name, int restricted, const char *ip,
+                          const char *tftp_export, const char *bootfile,
+                          const char *smb_export)
 {
     if (slirp_in_use) {
         /* slirp only supports a single instance so far */
         return -1;
     }
     if (!slirp_inited) {
+        if (!tftp_export) {
+            tftp_export = legacy_tftp_prefix;
+        }
+        if (!bootfile) {
+            bootfile = legacy_bootp_filename;
+        }
         slirp_inited = 1;
-        slirp_init(restricted, ip);
+        slirp_init(restricted, ip, tftp_export, bootfile);
 
-        while (slirp_redirs) {
-            struct slirp_config_str *config = slirp_redirs;
+        while (slirp_configs) {
+            struct slirp_config_str *config = slirp_configs;
 
-            slirp_redirection(NULL, config->str);
-            slirp_redirs = config->next;
+            if (config->flags & SLIRP_CFG_REDIR) {
+                slirp_redirection(mon, config->str);
+            } else {
+                vmchannel_init(mon, config->str);
+            }
+            slirp_configs = config->next;
             qemu_free(config);
         }
 #ifndef _WIN32
-        if (slirp_smb_export) {
-            slirp_smb(slirp_smb_export);
+        if (!smb_export) {
+            smb_export = legacy_smb_export;
+        }
+        if (smb_export) {
+            slirp_smb(smb_export);
         }
 #endif
     }
@@ -853,9 +874,10 @@ void net_slirp_redir(Monitor *mon, const char *redir_str, const char *redir_opt2
             monitor_printf(mon, "user mode network stack not in use\n");
         } else {
             config = qemu_malloc(sizeof(*config));
-            config->str = redir_str;
-            config->next = slirp_redirs;
-            slirp_redirs = config;
+            pstrcpy(config->str, sizeof(config->str), redir_str);
+            config->flags = SLIRP_CFG_REDIR;
+            config->next = slirp_configs;
+            slirp_configs = config;
         }
         return;
     }
@@ -952,14 +974,14 @@ static void slirp_smb(const char *exported_dir)
     slirp_add_exec(0, smb_cmdline, 4, 139);
 }
 
-/* automatic user mode samba server configuration */
+/* automatic user mode samba server configuration (legacy interface) */
 void net_slirp_smb(const char *exported_dir)
 {
-    if (slirp_smb_export) {
+    if (legacy_smb_export) {
         fprintf(stderr, "-smb given twice\n");
         exit(1);
     }
-    slirp_smb_export = exported_dir;
+    legacy_smb_export = exported_dir;
     if (slirp_inited) {
         slirp_smb(exported_dir);
     }
@@ -987,6 +1009,36 @@ static void vmchannel_read(void *opaque, const uint8_t *buf, int size)
 {
     struct VMChannel *vmc = (struct VMChannel*)opaque;
     slirp_socket_recv(4, vmc->port, buf, size);
+}
+
+static void vmchannel_init(Monitor *mon, const char *config_str)
+{
+    struct VMChannel *vmc;
+    char *devname;
+    char name[20];
+    int port;
+
+    port = strtol(config_str, &devname, 10);
+    if (port < 1 || port > 65535 || *devname != ':') {
+        config_error(mon, "invalid vmchannel port number\n");
+        return;
+    }
+    devname++;
+
+    vmc = qemu_malloc(sizeof(struct VMChannel));
+    snprintf(name, sizeof(name), "vmchannel%d", port);
+    vmc->hd = qemu_chr_open(name, devname, NULL);
+    if (!vmc->hd) {
+        config_error(mon, "could not open vmchannel device '%s'\n", devname);
+        qemu_free(vmc);
+        return;
+    }
+    vmc->port = port;
+
+    slirp_add_exec(3, vmc->hd, 4, port);
+    qemu_chr_add_handlers(vmc->hd, vmchannel_can_read, vmchannel_read,
+                          NULL, vmc);
+    return;
 }
 
 #endif /* CONFIG_SLIRP */
@@ -2200,10 +2252,16 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
 #ifdef CONFIG_SLIRP
     if (!strcmp(device, "user")) {
         static const char * const slirp_params[] = {
-            "vlan", "name", "hostname", "restrict", "ip", NULL
+            "vlan", "name", "hostname", "restrict", "ip", "tftp", "bootfile",
+            "smb", "redir", "channel", NULL
         };
+        struct slirp_config_str *config;
+        char *tftp_export = NULL;
+        char *bootfile = NULL;
+        char *smb_export = NULL;
         int restricted = 0;
         char *ip = NULL;
+        const char *q;
 
         if (check_params(buf, sizeof(buf), slirp_params, p) < 0) {
             config_error(mon, "invalid parameter '%s' in '%s'\n", buf, p);
@@ -2219,34 +2277,59 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         if (get_param_value(buf, sizeof(buf), "ip", p)) {
             ip = qemu_strdup(buf);
         }
+        if (get_param_value(buf, sizeof(buf), "tftp", p)) {
+            tftp_export = qemu_strdup(buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "bootfile", p)) {
+            bootfile = qemu_strdup(buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "smb", p)) {
+            smb_export = qemu_strdup(buf);
+        }
+        q = p;
+        while (1) {
+            config = qemu_malloc(sizeof(*config));
+            if (!get_next_param_value(config->str, sizeof(config->str),
+                                      "redir", &q)) {
+                break;
+            }
+            config->flags = SLIRP_CFG_REDIR;
+            config->next = slirp_configs;
+            slirp_configs = config;
+            config = NULL;
+        }
+        q = p;
+        while (1) {
+            config = qemu_malloc(sizeof(*config));
+            if (!get_next_param_value(config->str, sizeof(config->str),
+                                      "channel", &q)) {
+                break;
+            }
+            config->flags = 0;
+            config->next = slirp_configs;
+            slirp_configs = config;
+            config = NULL;
+        }
+        qemu_free(config);
         vlan->nb_host_devs++;
-        ret = net_slirp_init(vlan, device, name, restricted, ip);
+        ret = net_slirp_init(mon, vlan, device, name, restricted, ip,
+                             tftp_export, bootfile, smb_export);
         qemu_free(ip);
+        qemu_free(tftp_export);
+        qemu_free(bootfile);
+        qemu_free(smb_export);
     } else if (!strcmp(device, "channel")) {
-        long port;
-        char name[20], *devname;
-        struct VMChannel *vmc;
+        if (!slirp_inited) {
+            struct slirp_config_str *config;
 
-        port = strtol(p, &devname, 10);
-        devname++;
-        if (port < 1 || port > 65535) {
-            config_error(mon, "vmchannel wrong port number\n");
-            ret = -1;
-            goto out;
+            config = qemu_malloc(sizeof(*config));
+            pstrcpy(config->str, sizeof(config->str), p);
+            config->flags = 0;
+            config->next = slirp_configs;
+            slirp_configs = config;
+        } else {
+            vmchannel_init(mon, p);
         }
-        vmc = malloc(sizeof(struct VMChannel));
-        snprintf(name, 20, "vmchannel%ld", port);
-        vmc->hd = qemu_chr_open(name, devname, NULL);
-        if (!vmc->hd) {
-            config_error(mon, "could not open vmchannel device '%s'\n",
-                         devname);
-            ret = -1;
-            goto out;
-        }
-        vmc->port = port;
-        slirp_add_exec(3, vmc->hd, 4, port);
-        qemu_chr_add_handlers(vmc->hd, vmchannel_can_read, vmchannel_read,
-                NULL, vmc);
         ret = 0;
     } else
 #endif

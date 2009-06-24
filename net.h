@@ -125,6 +125,9 @@ uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
 void net_checksum_calculate(uint8_t *data, int length);
 
 /* from net.c */
+extern const char *legacy_tftp_prefix;
+extern const char *legacy_bootp_filename;
+
 int net_client_init(Monitor *mon, const char *device, const char *p);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);

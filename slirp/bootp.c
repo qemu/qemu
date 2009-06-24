@@ -38,7 +38,7 @@ typedef struct {
 
 static BOOTPClient bootp_clients[NB_ADDR];
 
-const char *bootp_filename;
+char *bootp_filename;
 
 static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 
