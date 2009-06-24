@@ -515,16 +515,16 @@ ifdef CONFIG_OSS
 LIBS += $(CONFIG_OSS_LIB)
 endif
 
-SOUND_HW = sb16.o es1370.o ac97.o
+sound-obj-y = sb16.o es1370.o ac97.o
 ifdef CONFIG_ADLIB
-SOUND_HW += fmopl.o adlib.o
+sound-obj-y += fmopl.o adlib.o
 adlib.o fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
 endif
 ifdef CONFIG_GUS
-SOUND_HW += gus.o gusemu_hal.o gusemu_mixer.o
+sound-obj-y += gus.o gusemu_hal.o gusemu_mixer.o
 endif
 ifdef CONFIG_CS4231A
-SOUND_HW += cs4231a.o
+sound-obj-y += cs4231a.o
 endif
 
 ifdef CONFIG_VNC_TLS
@@ -562,7 +562,7 @@ obj-y += wdt_ib700.o wdt_i6300esb.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
-obj-y += ide.o pckbd.o vga.o $(SOUND_HW) dma.o
+obj-y += ide.o pckbd.o vga.o $(sound-obj-y) dma.o
 obj-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 obj-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
 obj-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
@@ -572,7 +572,7 @@ endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 # shared objects
-obj-y += ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
+obj-y += ppc.o ide.o vga.o $(sound-obj-y) dma.o openpic.o
 # PREP target
 obj-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
 obj-y += prep_pci.o ppc_prep.o
@@ -598,7 +598,7 @@ obj-y += mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 obj-y += g364fb.o jazz_led.o dp8393x.o
 obj-y += ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
-obj-y += piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
+obj-y += piix_pci.o parallel.o cirrus_vga.o pcspk.o $(sound-obj-y)
 obj-y += mipsnet.o
 obj-y += pflash_cfi01.o
 obj-y += vmware_vga.o
