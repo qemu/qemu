@@ -102,6 +102,11 @@ static int get_dns_addr(struct in_addr *pdns_addr)
     return 0;
 }
 
+static void winsock_cleanup(void)
+{
+    WSACleanup();
+}
+
 #else
 
 static int get_dns_addr(struct in_addr *pdns_addr)
@@ -152,12 +157,43 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 
 #endif
 
-#ifdef _WIN32
-static void slirp_cleanup(void)
+static void slirp_init_once(void)
 {
-    WSACleanup();
-}
+    static int initialized;
+    struct hostent *he;
+    char our_name[256];
+#ifdef _WIN32
+    WSADATA Data;
 #endif
+
+    if (initialized) {
+        return;
+    }
+    initialized = 1;
+
+#ifdef _WIN32
+    WSAStartup(MAKEWORD(2,0), &Data);
+    atexit(winsock_cleanup);
+#endif
+
+    loopback_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+    /* FIXME: This address may change during runtime */
+    if (gethostname(our_name, sizeof(our_name)) == 0) {
+        he = gethostbyname(our_name);
+        if (he) {
+            our_addr = *(struct in_addr *)he->h_addr;
+        }
+    }
+    if (our_addr.s_addr == 0) {
+        our_addr = loopback_addr;
+    }
+
+    /* FIXME: This address may change during runtime */
+    if (get_dns_addr(&dns_addr) < 0) {
+        dns_addr = loopback_addr;
+    }
+}
 
 static void slirp_state_save(QEMUFile *f, void *opaque);
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
@@ -168,12 +204,7 @@ void slirp_init(int restricted, struct in_addr vnetwork,
                 const char *bootfile, struct in_addr vdhcp_start,
                 struct in_addr vnameserver)
 {
-#ifdef _WIN32
-    WSADATA Data;
-
-    WSAStartup(MAKEWORD(2,0), &Data);
-    atexit(slirp_cleanup);
-#endif
+    slirp_init_once();
 
     link_up = 1;
     slirp_restrict = restricted;
@@ -183,14 +214,6 @@ void slirp_init(int restricted, struct in_addr vnetwork,
 
     /* Initialise mbufs *after* setting the MTU */
     m_init();
-
-    /* set default addresses */
-    inet_aton("127.0.0.1", &loopback_addr);
-
-    if (get_dns_addr(&dns_addr) < 0) {
-        dns_addr = loopback_addr;
-        fprintf (stderr, "Warning: No DNS servers found\n");
-    }
 
     vnetwork_addr = vnetwork;
     vnetwork_mask = vnetmask;
@@ -211,7 +234,6 @@ void slirp_init(int restricted, struct in_addr vnetwork,
     vdhcp_startaddr = vdhcp_start;
     vnameserver_addr = vnameserver;
 
-    getouraddr();
     register_savevm("slirp", 0, 1, slirp_state_save, slirp_state_load, NULL);
 }
 
