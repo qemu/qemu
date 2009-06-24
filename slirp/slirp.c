@@ -793,11 +793,11 @@ int slirp_add_hostfwd(int is_udp, struct in_addr host_addr, int host_port,
     }
     if (is_udp) {
         if (!udp_listen(host_addr.s_addr, htons(host_port), guest_addr.s_addr,
-                        htons(guest_port), 0))
+                        htons(guest_port), SS_HOSTFWD))
             return -1;
     } else {
         if (!tcp_listen(host_addr.s_addr, htons(host_port), guest_addr.s_addr,
-                        htons(guest_port), 0))
+                        htons(guest_port), SS_HOSTFWD))
             return -1;
     }
     return 0;

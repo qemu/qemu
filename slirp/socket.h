@@ -72,6 +72,7 @@ struct socket {
 #define SS_FACCEPTONCE		0x200	/* If set, the SS_FACCEPTCONN socket will die after one accept */
 
 #define SS_PERSISTENT_MASK	0xf000	/* Unremovable state bits */
+#define SS_HOSTFWD		0x1000	/* Socket describes host->guest forwarding */
 
 extern struct socket tcb;
 
