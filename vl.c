@@ -165,9 +165,7 @@ int main(int argc, char **argv)
 
 #include "qemu_socket.h"
 
-#if defined(CONFIG_SLIRP)
-#include "libslirp.h"
-#endif
+#include "slirp/libslirp.h"
 
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
@@ -4266,11 +4264,8 @@ void main_loop_wait(int timeout)
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout % 1000) * 1000;
 
-#if defined(CONFIG_SLIRP)
-    if (slirp_is_inited()) {
-        slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
-    }
-#endif
+    slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+
     qemu_mutex_unlock_iothread();
     ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
     qemu_mutex_lock_iothread();
@@ -4297,16 +4292,8 @@ void main_loop_wait(int timeout)
                 pioh = &ioh->next;
         }
     }
-#if defined(CONFIG_SLIRP)
-    if (slirp_is_inited()) {
-        if (ret < 0) {
-            FD_ZERO(&rfds);
-            FD_ZERO(&wfds);
-            FD_ZERO(&xfds);
-        }
-        slirp_select_poll(&rfds, &wfds, &xfds);
-    }
-#endif
+
+    slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));
 
     /* rearm timer, if not periodic */
     if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {

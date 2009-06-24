@@ -271,6 +271,10 @@ void slirp_select_fill(int *pnfds,
     int nfds;
     int tmp_time;
 
+    if (!link_up) {
+        return;
+    }
+
     /* fail safe */
     global_readfds = NULL;
     global_writefds = NULL;
@@ -281,7 +285,7 @@ void slirp_select_fill(int *pnfds,
 	 * First, TCP sockets
 	 */
 	do_slowtimo = 0;
-	if (link_up) {
+
 		/*
 		 * *_slowtimo needs calling if there are IP fragments
 		 * in the fragment queue, or there are TCP connections active
@@ -375,7 +379,6 @@ void slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 			}
 		}
-	}
 
 	/*
 	 * Setup timeout to use minimum CPU usage, especially when idle
@@ -413,10 +416,15 @@ void slirp_select_fill(int *pnfds,
         *pnfds = nfds;
 }
 
-void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
+void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
+                       int select_error)
 {
     struct socket *so, *so_next;
     int ret;
+
+    if (!link_up) {
+        return;
+    }
 
     global_readfds = readfds;
     global_writefds = writefds;
@@ -428,7 +436,6 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	/*
 	 * See if anything has timed out
 	 */
-	if (link_up) {
 		if (time_fasttimo && ((curtime - time_fasttimo) >= 2)) {
 			tcp_fasttimo();
 			time_fasttimo = 0;
@@ -438,12 +445,11 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			tcp_slowtimo();
 			last_slowtimo = curtime;
 		}
-	}
 
 	/*
 	 * Check sockets
 	 */
-	if (link_up) {
+	if (!select_error) {
 		/*
 		 * Check TCP sockets
 		 */
@@ -576,7 +582,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	/*
 	 * See if we can start outputting
 	 */
-	if (if_queued && link_up)
+	if (if_queued)
 	   if_start();
 
 	/* clear global file descriptor sets.

@@ -138,7 +138,6 @@ void net_slirp_hostfwd_add(Monitor *mon, const char *redir_str);
 void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str);
 void net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
-int slirp_is_inited(void);
 void net_client_check(void);
 void net_set_boot_mask(int boot_mask);
 void net_host_device_add(Monitor *mon, const char *device, const char *opts);

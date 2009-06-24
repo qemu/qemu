@@ -120,9 +120,7 @@
 #include "qemu_socket.h"
 #include "qemu-log.h"
 
-#if defined(CONFIG_SLIRP)
-#include "libslirp.h"
-#endif
+#include "slirp/libslirp.h"
 
 
 static VLANState *first_vlan;
@@ -710,11 +708,6 @@ void slirp_output(const uint8_t *pkt, int pkt_len)
     if (!slirp_vc)
         return;
     qemu_send_packet(slirp_vc, pkt, pkt_len);
-}
-
-int slirp_is_inited(void)
-{
-    return slirp_inited;
 }
 
 static ssize_t slirp_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
