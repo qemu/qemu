@@ -83,9 +83,7 @@ endif
 block-obj-y += block/raw-posix.o
 endif
 
-ifdef CONFIG_CURL
-block-obj-y += block/curl.o
-endif
+block-obj-$(CONFIG_CURL) += block/curl.o
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -112,8 +110,9 @@ obj-y += qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o ssi.o
 
+obj-$(CONFIG_BRLAPI) += baum.o
+
 ifdef CONFIG_BRLAPI
-obj-y += baum.o
 LIBS+=-lbrlapi
 endif
 
@@ -123,85 +122,60 @@ else
 obj-y += migration-exec.o
 endif
 
-audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
-ifdef CONFIG_SDL
-audio-obj-y += sdlaudio.o
-endif
-ifdef CONFIG_OSS
-audio-obj-y += ossaudio.o
-endif
 ifdef CONFIG_COREAUDIO
-audio-obj-y += coreaudio.o
 AUDIO_PT = yes
 endif
-ifdef CONFIG_ALSA
-audio-obj-y += alsaaudio.o
-endif
-ifdef CONFIG_DSOUND
-audio-obj-y += dsoundaudio.o
-endif
 ifdef CONFIG_FMOD
-audio-obj-y += fmodaudio.o
 audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
 endif
 ifdef CONFIG_ESD
 AUDIO_PT = yes
 AUDIO_PT_INT = yes
-audio-obj-y += esdaudio.o
 endif
 ifdef CONFIG_PA
 AUDIO_PT = yes
 AUDIO_PT_INT = yes
-audio-obj-y += paaudio.o
 endif
 ifdef AUDIO_PT
 LDFLAGS += -pthread
 endif
-ifdef AUDIO_PT_INT
-audio-obj-y += audio_pt_int.o
-endif
+
+audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
+audio-obj-$(CONFIG_SDL) += sdlaudio.o
+audio-obj-$(CONFIG_OSS) += ossaudio.o
+audio-obj-$(CONFIG_COREAUDIO) += coreaudio.o
+audio-obj-$(CONFIG_ALSA) += alsaaudio.o
+audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o
+audio-obj-$(CONFIG_FMOD) += fmodaudio.o
+audio-obj-$(CONFIG_ESD) += esdaudio.o
+audio-obj-$(CONFIG_PA) += paaudio.o
+audio-obj-$(AUDIO_PT_INT) += audio_pt_int.o
 audio-obj-y += wavcapture.o
 obj-y += $(addprefix audio/, $(audio-obj-y))
 
 obj-y += keymaps.o
-ifdef CONFIG_SDL
-obj-y += sdl.o sdl_zoom.o x_keymap.o
-endif
-ifdef CONFIG_CURSES
-obj-y += curses.o
-endif
+obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
+obj-$(CONFIG_CURSES) += curses.o
 obj-y += vnc.o acl.o d3des.o
-ifdef CONFIG_VNC_TLS
-obj-y += vnc-tls.o vnc-auth-vencrypt.o
-endif
-ifdef CONFIG_VNC_SASL
-obj-y += vnc-auth-sasl.o
-endif
-
-ifdef CONFIG_COCOA
-obj-y += cocoa.o
-endif
-
-ifdef CONFIG_IOTHREAD
-obj-y += qemu-thread.o
-endif
+obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
+obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
+obj-$(CONFIG_COCOA) += cocoa.o
+obj-$(CONFIG_IOTHREAD) += qemu-thread.o
 
 ifdef CONFIG_SLIRP
 CPPFLAGS+=-I$(SRC_PATH)/slirp
+endif
+
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
 slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
 slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
-obj-y += $(addprefix slirp/, $(slirp-obj-y))
-endif
+obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
 
 LIBS+=$(VDE_LIBS)
 
 # xen backend driver support
-xen-obj-y := xen_backend.o xen_devconfig.o
-xen-obj-y += xen_console.o xenfb.o xen_disk.o xen_nic.o
-ifdef CONFIG_XEN
-  obj-y += $(xen-obj-y)
-endif
+obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
+obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
 LIBS+=$(CURL_LIBS)
 
