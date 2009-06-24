@@ -134,43 +134,42 @@ all: $(PROGS)
 
 #########################################################
 # cpu emulator library
-LIBOBJS=exec.o translate-all.o cpu-exec.o\
-        translate.o host-utils.o
+libobj-y = exec.o translate-all.o cpu-exec.o translate.o host-utils.o
 ifdef CONFIG_KQEMU
-LIBOBJS+= kqemu.o
+libobj-y += kqemu.o
 endif
 # TCG code generator
-LIBOBJS+= tcg/tcg.o tcg/tcg-runtime.o
+libobj-y += tcg/tcg.o tcg/tcg-runtime.o
 CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
 ifeq ($(ARCH),sparc64)
 CPPFLAGS+=-I$(SRC_PATH)/tcg/sparc
 endif
 ifdef CONFIG_SOFTFLOAT
-LIBOBJS+=fpu/softfloat.o
+libobj-y += fpu/softfloat.o
 else
-LIBOBJS+=fpu/softfloat-native.o
+libobj-y += fpu/softfloat-native.o
 endif
 CPPFLAGS+=-I$(SRC_PATH)/fpu
-LIBOBJS+= op_helper.o helper.o
+libobj-y += op_helper.o helper.o
 
 ifeq ($(TARGET_BASE_ARCH), arm)
-LIBOBJS+= neon_helper.o iwmmxt_helper.o
+libobj-y += neon_helper.o iwmmxt_helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), alpha)
-LIBOBJS+= alpha_palcode.o
+libobj-y += alpha_palcode.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), cris)
-LIBOBJS+= cris-dis.o
+libobj-y += cris-dis.o
 
 ifndef CONFIG_USER_ONLY
-LIBOBJS+= mmu.o
+libobj-y += mmu.o
 endif
 endif
 
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=disas.o
+libobj-y += disas.o
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
 USE_I386_DIS=y
 endif
@@ -178,45 +177,45 @@ ifeq ($(findstring x86_64, $(TARGET_ARCH) $(ARCH)),x86_64)
 USE_I386_DIS=y
 endif
 ifdef USE_I386_DIS
-LIBOBJS+=i386-dis.o
+libobj-y += i386-dis.o
 endif
 ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)
-LIBOBJS+=alpha-dis.o
+libobj-y += alpha-dis.o
 endif
 ifeq ($(findstring ppc, $(TARGET_BASE_ARCH) $(ARCH)),ppc)
-LIBOBJS+=ppc-dis.o
+libobj-y += ppc-dis.o
 endif
 ifeq ($(findstring microblaze, $(TARGET_BASE_ARCH) $(ARCH)),microblaze)
-LIBOBJS+=microblaze-dis.o
+libobj-y += microblaze-dis.o
 ifndef CONFIG_USER_ONLY
-LIBOBJS+= mmu.o
+libobj-y += mmu.o
 endif
 endif
 ifeq ($(findstring mips, $(TARGET_BASE_ARCH) $(ARCH)),mips)
-LIBOBJS+=mips-dis.o
+libobj-y += mips-dis.o
 endif
 ifeq ($(findstring sparc, $(TARGET_BASE_ARCH) $(ARCH)),sparc)
-LIBOBJS+=sparc-dis.o
+libobj-y += sparc-dis.o
 endif
 ifeq ($(findstring arm, $(TARGET_ARCH) $(ARCH)),arm)
-LIBOBJS+=arm-dis.o
+libobj-y += arm-dis.o
 endif
 ifeq ($(findstring m68k, $(TARGET_ARCH) $(ARCH)),m68k)
-LIBOBJS+=m68k-dis.o
+libobj-y += m68k-dis.o
 endif
 ifeq ($(findstring sh4, $(TARGET_ARCH) $(ARCH)),sh4)
-LIBOBJS+=sh4-dis.o
+libobj-y += sh4-dis.o
 endif
 ifeq ($(findstring hppa, $(TARGET_BASE_ARCH) $(ARCH)),hppa)
-LIBOBJS+=hppa-dis.o
+libobj-y += hppa-dis.o
 endif
 ifeq ($(findstring s390, $(TARGET_ARCH) $(ARCH)),s390)
-LIBOBJS+=s390-dis.o
+libobj-y += s390-dis.o
 endif
 
 # libqemu
 
-libqemu.a: $(LIBOBJS)
+libqemu.a: $(libobj-y)
 
 translate.o: translate.c cpu.h
 
