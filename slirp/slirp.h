@@ -256,6 +256,7 @@ struct Slirp {
     char *tftp_prefix;
     struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
 
+    void *opaque;
 };
 
 extern Slirp slirp_instance;

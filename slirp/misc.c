@@ -370,7 +370,7 @@ fd_block(int fd)
 #endif
 }
 
-void slirp_connection_info(Monitor *mon)
+void slirp_connection_info(Slirp *slirp, Monitor *mon)
 {
     const char * const tcpstates[] = {
         [TCPS_CLOSED]       = "CLOSED",
@@ -385,7 +385,6 @@ void slirp_connection_info(Monitor *mon)
         [TCPS_FIN_WAIT_2]   = "FIN_WAIT_2",
         [TCPS_TIME_WAIT]    = "TIME_WAIT",
     };
-    Slirp *slirp = &slirp_instance;
     struct in_addr dst_addr;
     struct sockaddr_in src;
     socklen_t src_len;

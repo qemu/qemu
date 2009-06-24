@@ -187,11 +187,11 @@ static void slirp_init_once(void)
 static void slirp_state_save(QEMUFile *f, void *opaque);
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
-void slirp_init(int restricted, struct in_addr vnetwork,
-                struct in_addr vnetmask, struct in_addr vhost,
-                const char *vhostname, const char *tftp_path,
-                const char *bootfile, struct in_addr vdhcp_start,
-                struct in_addr vnameserver)
+Slirp *slirp_init(int restricted, struct in_addr vnetwork,
+                  struct in_addr vnetmask, struct in_addr vhost,
+                  const char *vhostname, const char *tftp_path,
+                  const char *bootfile, struct in_addr vdhcp_start,
+                  struct in_addr vnameserver, void *opaque)
 {
     Slirp *slirp = &slirp_instance;
 
@@ -226,7 +226,11 @@ void slirp_init(int restricted, struct in_addr vnetwork,
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
 
+    slirp->opaque = opaque;
+
     register_savevm("slirp", 0, 2, slirp_state_save, slirp_state_load, slirp);
+
+    return slirp;
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -635,7 +639,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             rah->ar_sip = ah->ar_tip;
             memcpy(rah->ar_tha, ah->ar_sha, ETH_ALEN);
             rah->ar_tip = ah->ar_sip;
-            slirp_output(arp_reply, sizeof(arp_reply));
+            slirp_output(slirp->opaque, arp_reply, sizeof(arp_reply));
         }
         break;
     case ARPOP_REPLY:
@@ -650,9 +654,8 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     }
 }
 
-void slirp_input(const uint8_t *pkt, int pkt_len)
+void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
 {
-    Slirp *slirp = &slirp_instance;
     struct mbuf *m;
     int proto;
 
@@ -724,7 +727,7 @@ void if_encap(Slirp *slirp, const uint8_t *ip_data, int ip_data_len)
         /* target IP */
         rah->ar_tip = iph->ip_dst.s_addr;
         slirp->client_ipaddr = iph->ip_dst;
-        slirp_output(arp_req, sizeof(arp_req));
+        slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
     } else {
         memcpy(eh->h_dest, slirp->client_ethaddr, ETH_ALEN);
         memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 4);
@@ -732,14 +735,14 @@ void if_encap(Slirp *slirp, const uint8_t *ip_data, int ip_data_len)
         memcpy(&eh->h_source[2], &slirp->vhost_addr, 4);
         eh->h_proto = htons(ETH_P_IP);
         memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
-        slirp_output(buf, ip_data_len + ETH_HLEN);
+        slirp_output(slirp->opaque, buf, ip_data_len + ETH_HLEN);
     }
 }
 
 /* Drop host forwarding rule, return 0 if found. */
-int slirp_remove_hostfwd(int is_udp, struct in_addr host_addr, int host_port)
+int slirp_remove_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
+                         int host_port)
 {
-    Slirp *slirp = &slirp_instance;
     struct socket *so;
     struct socket *head = (is_udp ? &slirp->udb : &slirp->tcb);
     struct sockaddr_in addr;
@@ -761,11 +764,9 @@ int slirp_remove_hostfwd(int is_udp, struct in_addr host_addr, int host_port)
     return -1;
 }
 
-int slirp_add_hostfwd(int is_udp, struct in_addr host_addr, int host_port,
-                      struct in_addr guest_addr, int guest_port)
+int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
+                      int host_port, struct in_addr guest_addr, int guest_port)
 {
-    Slirp *slirp = &slirp_instance;
-
     if (!guest_addr.s_addr) {
         guest_addr = slirp->vdhcp_startaddr;
     }
@@ -781,11 +782,9 @@ int slirp_add_hostfwd(int is_udp, struct in_addr host_addr, int host_port,
     return 0;
 }
 
-int slirp_add_exec(int do_pty, const void *args, struct in_addr guest_addr,
-                   int guest_port)
+int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
+                   struct in_addr guest_addr, int guest_port)
 {
-    Slirp *slirp = &slirp_instance;
-
     if (!guest_addr.s_addr) {
         guest_addr.s_addr = slirp->vnetwork_addr.s_addr |
             (htonl(0x0204) & ~slirp->vnetwork_mask.s_addr);
@@ -824,9 +823,9 @@ slirp_find_ctl_socket(Slirp *slirp, struct in_addr guest_addr, int guest_port)
     return NULL;
 }
 
-size_t slirp_socket_can_recv(struct in_addr guest_addr, int guest_port)
+size_t slirp_socket_can_recv(Slirp *slirp, struct in_addr guest_addr,
+                             int guest_port)
 {
-	Slirp *slirp = &slirp_instance;
 	struct iovec iov[2];
 	struct socket *so;
 
@@ -841,10 +840,9 @@ size_t slirp_socket_can_recv(struct in_addr guest_addr, int guest_port)
 	return sopreprbuf(so, iov, NULL);
 }
 
-void slirp_socket_recv(struct in_addr guest_addr, int guest_port,
+void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr, int guest_port,
                        const uint8_t *buf, int size)
 {
-    Slirp *slirp = &slirp_instance;
     int ret;
     struct socket *so = slirp_find_ctl_socket(slirp, guest_addr, guest_port);
 

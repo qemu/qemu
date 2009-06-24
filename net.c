@@ -677,44 +677,55 @@ struct slirp_config_str {
     int legacy_format;
 };
 
-static int slirp_inited;
+typedef struct SlirpState {
+    VLANClientState *vc;
+    Slirp *slirp;
+} SlirpState;
+
 static struct slirp_config_str *slirp_configs;
 const char *legacy_tftp_prefix;
 const char *legacy_bootp_filename;
-static VLANClientState *slirp_vc;
+static SlirpState *slirp_state;
 
-static void slirp_hostfwd(Monitor *mon, const char *redir_str,
+static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
                           int legacy_format);
-static void slirp_guestfwd(Monitor *mon, const char *config_str,
+static void slirp_guestfwd(SlirpState *s, Monitor *mon, const char *config_str,
                            int legacy_format);
 
 #ifndef _WIN32
 static const char *legacy_smb_export;
 
-static void slirp_smb(const char *exported_dir, struct in_addr vserver_addr);
+static void slirp_smb(SlirpState *s, const char *exported_dir,
+                      struct in_addr vserver_addr);
 #endif
 
-int slirp_can_output(void)
+int slirp_can_output(void *opaque)
 {
-    return qemu_can_send_packet(slirp_vc);
+    SlirpState *s = opaque;
+
+    return qemu_can_send_packet(s->vc);
 }
 
-void slirp_output(const uint8_t *pkt, int pkt_len)
+void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
+    SlirpState *s = opaque;
+
 #ifdef DEBUG_SLIRP
     printf("slirp output:\n");
     hex_dump(stdout, pkt, pkt_len);
 #endif
-    qemu_send_packet(slirp_vc, pkt, pkt_len);
+    qemu_send_packet(s->vc, pkt, pkt_len);
 }
 
 static ssize_t slirp_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
+    SlirpState *s = vc->opaque;
+
 #ifdef DEBUG_SLIRP
     printf("slirp input:\n");
     hex_dump(stdout, buf, size);
 #endif
-    slirp_input(buf, size);
+    slirp_input(s->slirp, buf, size);
     return size;
 }
 
@@ -733,11 +744,13 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
                           const char *vnameserver, const char *smb_export,
                           const char *vsmbserver)
 {
+    SlirpState *s = slirp_state;
+
     if (slirp_in_use) {
         /* slirp only supports a single instance so far */
         return -1;
     }
-    if (!slirp_inited) {
+    if (!s) {
         /* default settings according to historic slirp */
         struct in_addr net  = { .s_addr = htonl(0x0a000000) }; /* 10.0.0.0 */
         struct in_addr mask = { .s_addr = htonl(0xff000000) }; /* 255.0.0.0 */
@@ -830,18 +843,19 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
         }
 #endif
 
-        slirp_init(restricted, net, mask, host, vhostname, tftp_export,
-                   bootfile, dhcp, dns);
-        slirp_inited = 1;
+        s = qemu_mallocz(sizeof(SlirpState));
+        s->slirp = slirp_init(restricted, net, mask, host, vhostname,
+                              tftp_export, bootfile, dhcp, dns, s);
+        slirp_state = s;
 
         while (slirp_configs) {
             struct slirp_config_str *config = slirp_configs;
 
             if (config->flags & SLIRP_CFG_HOSTFWD) {
-                slirp_hostfwd(mon, config->str,
+                slirp_hostfwd(s, mon, config->str,
                               config->flags & SLIRP_CFG_LEGACY);
             } else {
-                slirp_guestfwd(mon, config->str,
+                slirp_guestfwd(s, mon, config->str,
                                config->flags & SLIRP_CFG_LEGACY);
             }
             slirp_configs = config->next;
@@ -852,14 +866,14 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
             smb_export = legacy_smb_export;
         }
         if (smb_export) {
-            slirp_smb(smb_export, smbsrv);
+            slirp_smb(s, smb_export, smbsrv);
         }
 #endif
     }
 
-    slirp_vc = qemu_new_vlan_client(vlan, model, name, NULL, slirp_receive,
-                                    NULL, net_slirp_cleanup, NULL);
-    slirp_vc->info_str[0] = '\0';
+    s->vc = qemu_new_vlan_client(vlan, model, name, NULL, slirp_receive, NULL,
+                                 net_slirp_cleanup, s);
+    s->vc->info_str[0] = '\0';
     slirp_in_use = 1;
     return 0;
 }
@@ -873,7 +887,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
     int is_udp = 0;
     int err;
 
-    if (!slirp_inited) {
+    if (!slirp_state) {
         monitor_printf(mon, "user mode network stack not in use\n");
         return;
     }
@@ -900,7 +914,8 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
 
     host_port = atoi(p);
 
-    err = slirp_remove_hostfwd(is_udp, host_addr, host_port);
+    err = slirp_remove_hostfwd(slirp_state->slirp, is_udp,
+                               host_addr, host_port);
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
                    err ? "removed" : "not found");
@@ -910,7 +925,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
     monitor_printf(mon, "invalid format\n");
 }
 
-static void slirp_hostfwd(Monitor *mon, const char *redir_str,
+static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
                           int legacy_format)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
@@ -962,8 +977,8 @@ static void slirp_hostfwd(Monitor *mon, const char *redir_str,
         goto fail_syntax;
     }
 
-    if (slirp_add_hostfwd(is_udp, host_addr, host_port,
-                          guest_addr, guest_port) < 0) {
+    if (slirp_add_hostfwd(s->slirp, is_udp, host_addr, host_port, guest_addr,
+                          guest_port) < 0) {
         config_error(mon, "could not set up host forwarding rule '%s'\n",
                      redir_str);
     }
@@ -975,19 +990,19 @@ static void slirp_hostfwd(Monitor *mon, const char *redir_str,
 
 void net_slirp_hostfwd_add(Monitor *mon, const char *redir_str)
 {
-    if (!slirp_inited) {
+    if (!slirp_state) {
         monitor_printf(mon, "user mode network stack not in use\n");
         return;
     }
 
-    slirp_hostfwd(mon, redir_str, 0);
+    slirp_hostfwd(slirp_state, mon, redir_str, 0);
 }
 
 void net_slirp_redir(const char *redir_str)
 {
     struct slirp_config_str *config;
 
-    if (!slirp_inited) {
+    if (!slirp_state) {
         config = qemu_malloc(sizeof(*config));
         pstrcpy(config->str, sizeof(config->str), redir_str);
         config->flags = SLIRP_CFG_HOSTFWD | SLIRP_CFG_LEGACY;
@@ -996,7 +1011,7 @@ void net_slirp_redir(const char *redir_str)
         return;
     }
 
-    slirp_hostfwd(NULL, redir_str, 1);
+    slirp_hostfwd(slirp_state, NULL, redir_str, 1);
 }
 
 #ifndef _WIN32
@@ -1034,7 +1049,8 @@ static void smb_exit(void)
     erase_dir(smb_dir);
 }
 
-static void slirp_smb(const char *exported_dir, struct in_addr vserver_addr)
+static void slirp_smb(SlirpState* s, const char *exported_dir,
+                      struct in_addr vserver_addr)
 {
     char smb_conf[1024];
     char smb_cmdline[1024];
@@ -1080,7 +1096,7 @@ static void slirp_smb(const char *exported_dir, struct in_addr vserver_addr)
     snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -s %s",
              SMBD_COMMAND, smb_conf);
 
-    if (slirp_add_exec(0, smb_cmdline, vserver_addr, 139) < 0) {
+    if (slirp_add_exec(s->slirp, 0, smb_cmdline, vserver_addr, 139) < 0) {
         fprintf(stderr, "conflicting/invalid smbserver address\n");
         exit(1);
     }
@@ -1096,8 +1112,8 @@ void net_slirp_smb(const char *exported_dir)
         exit(1);
     }
     legacy_smb_export = exported_dir;
-    if (slirp_inited) {
-        slirp_smb(exported_dir, vserver_addr);
+    if (slirp_state) {
+        slirp_smb(slirp_state, exported_dir, vserver_addr);
     }
 }
 
@@ -1107,21 +1123,22 @@ struct GuestFwd {
     CharDriverState *hd;
     struct in_addr server;
     int port;
+    Slirp *slirp;
 };
 
 static int guestfwd_can_read(void *opaque)
 {
     struct GuestFwd *fwd = opaque;
-    return slirp_socket_can_recv(fwd->server, fwd->port);
+    return slirp_socket_can_recv(fwd->slirp, fwd->server, fwd->port);
 }
 
 static void guestfwd_read(void *opaque, const uint8_t *buf, int size)
 {
     struct GuestFwd *fwd = opaque;
-    slirp_socket_recv(fwd->server, fwd->port, buf, size);
+    slirp_socket_recv(fwd->slirp, fwd->server, fwd->port, buf, size);
 }
 
-static void slirp_guestfwd(Monitor *mon, const char *config_str,
+static void slirp_guestfwd(SlirpState *s, Monitor *mon, const char *config_str,
                            int legacy_format)
 {
     struct in_addr server = { .s_addr = 0 };
@@ -1169,8 +1186,9 @@ static void slirp_guestfwd(Monitor *mon, const char *config_str,
     }
     fwd->server = server;
     fwd->port = port;
+    fwd->slirp = s->slirp;
 
-    if (slirp_add_exec(3, fwd->hd, server, port) < 0) {
+    if (slirp_add_exec(s->slirp, 3, fwd->hd, server, port) < 0) {
         config_error(mon, "conflicting/invalid host:port in guest forwarding "
                      "rule '%s'\n", config_str);
         qemu_free(fwd);
@@ -1186,8 +1204,13 @@ static void slirp_guestfwd(Monitor *mon, const char *config_str,
 
 void do_info_usernet(Monitor *mon)
 {
-    monitor_printf(mon, "VLAN %d (%s):\n", slirp_vc->vlan->id, slirp_vc->name);
-    slirp_connection_info(mon);
+    SlirpState *s = slirp_state;
+
+    if (!s) {
+        return;
+    }
+    monitor_printf(mon, "VLAN %d (%s):\n", s->vc->vlan->id, s->vc->name);
+    slirp_connection_info(s->slirp, mon);
 }
 
 #endif /* CONFIG_SLIRP */
@@ -2498,7 +2521,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         qemu_free(smb_export);
         qemu_free(vsmbsrv);
     } else if (!strcmp(device, "channel")) {
-        if (!slirp_inited) {
+        if (!slirp_state) {
             struct slirp_config_str *config;
 
             config = qemu_malloc(sizeof(*config));
@@ -2507,7 +2530,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             config->next = slirp_configs;
             slirp_configs = config;
         } else {
-            slirp_guestfwd(mon, p, 1);
+            slirp_guestfwd(slirp_state, mon, p, 1);
         }
         ret = 0;
     } else
