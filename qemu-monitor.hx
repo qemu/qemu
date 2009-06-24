@@ -537,10 +537,11 @@ ETEXI
 
 #ifdef CONFIG_SLIRP
     { "hostfwd_add", "s", net_slirp_hostfwd_add,
-      "[tcp|udp]:hostport:[guestaddr]:guestport",
+      "[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
       "redirect TCP or UDP connections from host to guest (requires -net user)" },
     { "hostfwd_remove", "s", net_slirp_hostfwd_remove,
-      "[tcp|udp]:hostport", "remove host-to-guest TCP or UDP redirection" },
+      "[tcp|udp]:[hostaddr]:hostport",
+      "remove host-to-guest TCP or UDP redirection" },
 #endif
 STEXI
 @item host_net_redir

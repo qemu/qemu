@@ -627,7 +627,8 @@ struct cu_header {
 }
 
 struct socket *
-udp_listen(u_int port, u_int32_t laddr, u_int lport, int flags)
+udp_listen(u_int32_t haddr, u_int hport, u_int32_t laddr, u_int lport,
+           int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
@@ -642,8 +643,8 @@ udp_listen(u_int port, u_int32_t laddr, u_int lport, int flags)
 	insque(so,&udb);
 
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = port;
+	addr.sin_addr.s_addr = haddr;
+	addr.sin_port = hport;
 
 	if (bind(so->s,(struct sockaddr *)&addr, addrlen) < 0) {
 		udp_detach(so);

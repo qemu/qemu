@@ -881,11 +881,12 @@ Note that a SAMBA server must be installed on the host OS in
 @file{/usr/sbin/smbd}. QEMU was tested successfully with smbd versions from
 Red Hat 9, Fedora Core 3 and OpenSUSE 11.x.
 
-@item hostfwd=[tcp|udp]:@var{hostport}:[@var{guestaddr}]:@var{guestport}
+@item hostfwd=[tcp|udp]:[@var{hostaddr}]:@var{hostport}-[@var{guestaddr}]:@var{guestport}
 Redirect incoming TCP or UDP connections to the host port @var{hostport} to
 the guest IP address @var{guestaddr} on guest port @var{guestport}. If
 @var{guestaddr} is not specified, its value is x.x.x.15 (default first address
-given by the built-in DHCP server). If no connection type is specified, TCP is
+given by the built-in DHCP server). By specifying @var{hostaddr}, the rule can
+be bound to a specific host interface. If no connection type is set, TCP is
 used. This option can be given multiple times.
 
 For example, to redirect host X11 connection from screen 1 to guest
@@ -893,7 +894,7 @@ screen 0, use the following:
 
 @example
 # on the host
-qemu -net user,hostfwd=tcp:6001::6000 [...]
+qemu -net user,hostfwd=tcp:127.0.0.1:6001-:6000 [...]
 # this host xterm should open in the guest X11 server
 xterm -display :1
 @end example
@@ -911,8 +912,8 @@ Then when you use on the host @code{telnet localhost 5555}, you
 connect to the guest telnet server.
 
 @item guestfwd=[tcp]:@var{server}:@var{port}-@var{dev}
-Forward guest TCP connections to port @var{port} on the host to character
-device @var{dev}. This option can be given multiple times.
+Forward guest TCP connections to the IP address @var{server} on port @var{port}
+to the character device @var{dev}. This option can be given multiple times.
 
 @end table
 

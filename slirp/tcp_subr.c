@@ -970,7 +970,7 @@ do_prompt:
 			laddr = htonl((n1 << 24) | (n2 << 16) | (n3 << 8) | (n4));
 			lport = htons((n5 << 8) | (n6));
 
-			if ((so = solisten(0, laddr, lport, SS_FACCEPTONCE)) == NULL)
+			if ((so = tcp_listen(INADDR_ANY, 0, laddr, lport, SS_FACCEPTONCE)) == NULL)
 			   return 1;
 
 			n6 = ntohs(so->so_fport);
@@ -1002,7 +1002,7 @@ do_prompt:
 			laddr = htonl((n1 << 24) | (n2 << 16) | (n3 << 8) | (n4));
 			lport = htons((n5 << 8) | (n6));
 
-			if ((so = solisten(0, laddr, lport, SS_FACCEPTONCE)) == NULL)
+			if ((so = tcp_listen(INADDR_ANY, 0, laddr, lport, SS_FACCEPTONCE)) == NULL)
 			   return 1;
 
 			n6 = ntohs(so->so_fport);
@@ -1042,7 +1042,7 @@ do_prompt:
 			lport += m->m_data[i] - '0';
 		}
 		if (m->m_data[m->m_len-1] == '\0' && lport != 0 &&
-		    (so = solisten(0, so->so_laddr.s_addr, htons(lport), SS_FACCEPTONCE)) != NULL)
+		    (so = tcp_listen(INADDR_ANY, 0, so->so_laddr.s_addr, htons(lport), SS_FACCEPTONCE)) != NULL)
                     m->m_len = snprintf(m->m_data, m->m_hdr.mh_size, "%d",
                                         ntohs(so->so_fport)) + 1;
 		return 1;
@@ -1057,7 +1057,7 @@ do_prompt:
 
 		/* The %256s is for the broken mIRC */
 		if (sscanf(bptr, "DCC CHAT %256s %u %u", buff, &laddr, &lport) == 3) {
-			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
+			if ((so = tcp_listen(INADDR_ANY, 0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
@@ -1066,7 +1066,7 @@ do_prompt:
                                              (unsigned long)ntohl(so->so_faddr.s_addr),
                                              ntohs(so->so_fport), 1);
 		} else if (sscanf(bptr, "DCC SEND %256s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
-			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
+			if ((so = tcp_listen(INADDR_ANY, 0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
@@ -1075,7 +1075,7 @@ do_prompt:
                                              (unsigned long)ntohl(so->so_faddr.s_addr),
                                              ntohs(so->so_fport), n1, 1);
 		} else if (sscanf(bptr, "DCC MOVE %256s %u %u %u", buff, &laddr, &lport, &n1) == 4) {
-			if ((so = solisten(0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
+			if ((so = tcp_listen(INADDR_ANY, 0, htonl(laddr), htons(lport), SS_FACCEPTONCE)) == NULL)
 				return 1;
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
@@ -1190,7 +1190,8 @@ do_prompt:
 
 				/* try to get udp port between 6970 - 7170 */
 				for (p = 6970; p < 7071; p++) {
-					if (udp_listen( htons(p),
+					if (udp_listen(INADDR_ANY,
+						       htons(p),
 						       so->so_laddr.s_addr,
 						       htons(lport),
 						       SS_FACCEPTONCE)) {

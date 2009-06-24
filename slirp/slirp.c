@@ -757,7 +757,7 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
 /* Unlistens a redirection
  *
  * Return value: number of redirs removed */
-int slirp_remove_hostfwd(int is_udp, int host_port)
+int slirp_remove_hostfwd(int is_udp, struct in_addr host_addr, int host_port)
 {
     struct socket *so;
     struct socket *head = (is_udp ? &udb : &tcb);
@@ -770,6 +770,7 @@ int slirp_remove_hostfwd(int is_udp, int host_port)
     for (so = head->so_next; so != head; so = so->so_next) {
         addr_len = sizeof(addr);
         if (getsockname(so->s, (struct sockaddr *)&addr, &addr_len) == 0 &&
+            addr.sin_addr.s_addr == host_addr.s_addr &&
             addr.sin_port == port) {
             close(so->s);
             sofree(so);
@@ -781,19 +782,19 @@ int slirp_remove_hostfwd(int is_udp, int host_port)
     return n;
 }
 
-int slirp_add_hostfwd(int is_udp, int host_port,
+int slirp_add_hostfwd(int is_udp, struct in_addr host_addr, int host_port,
                       struct in_addr guest_addr, int guest_port)
 {
     if (!guest_addr.s_addr) {
         guest_addr = vdhcp_startaddr;
     }
     if (is_udp) {
-        if (!udp_listen(htons(host_port), guest_addr.s_addr,
+        if (!udp_listen(host_addr.s_addr, htons(host_port), guest_addr.s_addr,
                         htons(guest_port), 0))
             return -1;
     } else {
-        if (!solisten(htons(host_port), guest_addr.s_addr,
-                      htons(guest_port), 0))
+        if (!tcp_listen(host_addr.s_addr, htons(host_port), guest_addr.s_addr,
+                        htons(guest_port), 0))
             return -1;
     }
     return 0;

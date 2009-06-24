@@ -685,7 +685,8 @@ const char *legacy_tftp_prefix;
 const char *legacy_bootp_filename;
 static VLANClientState *slirp_vc;
 
-static void slirp_hostfwd(Monitor *mon, const char *redir_str);
+static void slirp_hostfwd(Monitor *mon, const char *redir_str,
+                          int legacy_format);
 static void slirp_guestfwd(Monitor *mon, const char *config_str,
                            int legacy_format);
 
@@ -846,7 +847,8 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
             struct slirp_config_str *config = slirp_configs;
 
             if (config->flags & SLIRP_CFG_HOSTFWD) {
-                slirp_hostfwd(mon, config->str);
+                slirp_hostfwd(mon, config->str,
+                              config->flags & SLIRP_CFG_LEGACY);
             } else {
                 slirp_guestfwd(mon, config->str,
                                config->flags & SLIRP_CFG_LEGACY);
@@ -871,11 +873,12 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
     return 0;
 }
 
-void net_slirp_hostfwd_remove(Monitor *mon, const char *port_str)
+void net_slirp_hostfwd_remove(Monitor *mon, const char *src_str)
 {
+    struct in_addr host_addr = { .s_addr = INADDR_ANY };
     int host_port;
     char buf[256] = "";
-    const char *p = port_str;
+    const char *p = src_str;
     int is_udp = 0;
     int n;
 
@@ -884,7 +887,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *port_str)
         return;
     }
 
-    if (!port_str || !port_str[0])
+    if (!src_str || !src_str[0])
         goto fail_syntax;
 
     get_str_sep(buf, sizeof(buf), &p, ':');
@@ -897,20 +900,29 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *port_str)
         goto fail_syntax;
     }
 
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        goto fail_syntax;
+    }
+    if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
+        goto fail_syntax;
+    }
+
     host_port = atoi(p);
 
-    n = slirp_remove_hostfwd(is_udp, host_port);
+    n = slirp_remove_hostfwd(is_udp, host_addr, host_port);
 
-    monitor_printf(mon, "removed %d host forwarding rules for %s port %d\n",
-                   n, is_udp ? "udp" : "tcp", host_port);
+    monitor_printf(mon, "removed %d host forwarding rules for %s\n", n,
+                   src_str);
     return;
 
  fail_syntax:
     monitor_printf(mon, "invalid format\n");
 }
 
-static void slirp_hostfwd(Monitor *mon, const char *redir_str)
+static void slirp_hostfwd(Monitor *mon, const char *redir_str,
+                          int legacy_format)
 {
+    struct in_addr host_addr = { .s_addr = INADDR_ANY };
     struct in_addr guest_addr = { .s_addr = 0 };
     int host_port, guest_port;
     const char *p;
@@ -930,7 +942,16 @@ static void slirp_hostfwd(Monitor *mon, const char *redir_str)
         goto fail_syntax;
     }
 
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (!legacy_format) {
+        if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+            goto fail_syntax;
+        }
+        if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
+            goto fail_syntax;
+        }
+    }
+
+    if (get_str_sep(buf, sizeof(buf), &p, legacy_format ? ':' : '-') < 0) {
         goto fail_syntax;
     }
     host_port = strtol(buf, &end, 0);
@@ -950,7 +971,8 @@ static void slirp_hostfwd(Monitor *mon, const char *redir_str)
         goto fail_syntax;
     }
 
-    if (slirp_add_hostfwd(is_udp, host_port, guest_addr, guest_port) < 0) {
+    if (slirp_add_hostfwd(is_udp, host_addr, host_port,
+                          guest_addr, guest_port) < 0) {
         config_error(mon, "could not set up host forwarding rule '%s'\n",
                      redir_str);
     }
@@ -967,7 +989,7 @@ void net_slirp_hostfwd_add(Monitor *mon, const char *redir_str)
         return;
     }
 
-    slirp_hostfwd(mon, redir_str);
+    slirp_hostfwd(mon, redir_str, 0);
 }
 
 void net_slirp_redir(const char *redir_str)
@@ -977,13 +999,13 @@ void net_slirp_redir(const char *redir_str)
     if (!slirp_inited) {
         config = qemu_malloc(sizeof(*config));
         pstrcpy(config->str, sizeof(config->str), redir_str);
-        config->flags = SLIRP_CFG_HOSTFWD;
+        config->flags = SLIRP_CFG_HOSTFWD | SLIRP_CFG_LEGACY;
         config->next = slirp_configs;
         slirp_configs = config;
         return;
     }
 
-    slirp_hostfwd(NULL, redir_str);
+    slirp_hostfwd(NULL, redir_str, 1);
 }
 
 #ifndef _WIN32
