@@ -93,34 +93,34 @@ endif
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS=$(block-obj-y)
-OBJS+=readline.o console.o
+obj-y = $(block-obj-y)
+obj-y += readline.o console.o
 
-OBJS+=irq.o ptimer.o
-OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
-OBJS+=ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
-OBJS+=tmp105.o lm832x.o eeprom93xx.o tsc2005.o
-OBJS+=scsi-disk.o cdrom.o
-OBJS+=scsi-generic.o
-OBJS+=usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
-OBJS+=usb-serial.o usb-net.o
-OBJS+=sd.o ssi-sd.o
-OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
-OBJS+=bt-hci-csr.o
-OBJS+=buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
-OBJS+=qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
-OBJS+=msmouse.o ps2.o
-OBJS+=qdev.o ssi.o
+obj-y += irq.o ptimer.o
+obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
+obj-y += ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
+obj-y += tmp105.o lm832x.o eeprom93xx.o tsc2005.o
+obj-y += scsi-disk.o cdrom.o
+obj-y += scsi-generic.o
+obj-y += usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
+obj-y += usb-serial.o usb-net.o
+obj-y += sd.o ssi-sd.o
+obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
+obj-y += bt-hci-csr.o
+obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
+obj-y += qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
+obj-y += msmouse.o ps2.o
+obj-y += qdev.o ssi.o
 
 ifdef CONFIG_BRLAPI
-OBJS+= baum.o
+obj-y += baum.o
 LIBS+=-lbrlapi
 endif
 
 ifdef CONFIG_WIN32
-OBJS+=tap-win32.o
+obj-y += tap-win32.o
 else
-OBJS+=migration-exec.o
+obj-y += migration-exec.o
 endif
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
@@ -161,29 +161,29 @@ ifdef AUDIO_PT_INT
 audio-obj-y += audio_pt_int.o
 endif
 audio-obj-y += wavcapture.o
-OBJS+=$(addprefix audio/, $(audio-obj-y))
+obj-y += $(addprefix audio/, $(audio-obj-y))
 
-OBJS+=keymaps.o
+obj-y += keymaps.o
 ifdef CONFIG_SDL
-OBJS+=sdl.o sdl_zoom.o x_keymap.o
+obj-y += sdl.o sdl_zoom.o x_keymap.o
 endif
 ifdef CONFIG_CURSES
-OBJS+=curses.o
+obj-y += curses.o
 endif
-OBJS+=vnc.o acl.o d3des.o
+obj-y += vnc.o acl.o d3des.o
 ifdef CONFIG_VNC_TLS
-OBJS+=vnc-tls.o vnc-auth-vencrypt.o
+obj-y += vnc-tls.o vnc-auth-vencrypt.o
 endif
 ifdef CONFIG_VNC_SASL
-OBJS+=vnc-auth-sasl.o
+obj-y += vnc-auth-sasl.o
 endif
 
 ifdef CONFIG_COCOA
-OBJS+=cocoa.o
+obj-y += cocoa.o
 endif
 
 ifdef CONFIG_IOTHREAD
-OBJS+=qemu-thread.o
+obj-y += qemu-thread.o
 endif
 
 ifdef CONFIG_SLIRP
@@ -191,7 +191,7 @@ CPPFLAGS+=-I$(SRC_PATH)/slirp
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
 slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
 slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
-OBJS+=$(addprefix slirp/, $(slirp-obj-y))
+obj-y += $(addprefix slirp/, $(slirp-obj-y))
 endif
 
 LIBS+=$(VDE_LIBS)
@@ -200,7 +200,7 @@ LIBS+=$(VDE_LIBS)
 xen-obj-y := xen_backend.o xen_devconfig.o
 xen-obj-y += xen_console.o xenfb.o xen_disk.o xen_nic.o
 ifdef CONFIG_XEN
-  OBJS += $(xen-obj-y)
+  obj-y += $(xen-obj-y)
 endif
 
 LIBS+=$(CURL_LIBS)
@@ -233,7 +233,7 @@ curses.o: curses.c keymaps.h curses_keys.h
 
 bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
 
-libqemu_common.a: $(OBJS)
+libqemu_common.a: $(obj-y)
 
 #######################################################################
 # user-obj-y is code used by qemu userspace emulation
