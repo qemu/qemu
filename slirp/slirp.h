@@ -191,7 +191,6 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include "tcp_var.h"
 #include "tcpip.h"
 #include "udp.h"
-#include "icmp_var.h"
 #include "mbuf.h"
 #include "sbuf.h"
 #include "socket.h"
