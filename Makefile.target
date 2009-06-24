@@ -515,16 +515,16 @@ ifdef CONFIG_OSS
 LIBS += $(CONFIG_OSS_LIB)
 endif
 
-sound-obj-y = sb16.o es1370.o ac97.o
+sound-obj-y =
+sound-obj-$(CONFIG_SB16) += sb16.o
+sound-obj-$(CONFIG_ES1370) += es1370.o
+sound-obj-$(CONFIG_AC97) += ac97.o
+sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
+sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
+sound-obj-$(CONFIG_CS4321A) += cs4231a.o
+
 ifdef CONFIG_ADLIB
-sound-obj-y += fmopl.o adlib.o
 adlib.o fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
-endif
-ifdef CONFIG_GUS
-sound-obj-y += gus.o gusemu_hal.o gusemu_mixer.o
-endif
-ifdef CONFIG_CS4231A
-sound-obj-y += cs4231a.o
 endif
 
 ifdef CONFIG_VNC_TLS
