@@ -555,16 +555,13 @@ sosendto(struct socket *so, struct mbuf *m)
 	DEBUG_ARG("m = %lx", (long)m);
 
         addr.sin_family = AF_INET;
-	if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
+	if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) ==
+	    vnetwork_addr.s_addr) {
 	  /* It's an alias */
-	  switch(ntohl(so->so_faddr.s_addr) & 0xff) {
-	  case CTL_DNS:
+	  if (so->so_faddr.s_addr == vnameserver_addr.s_addr) {
 	    addr.sin_addr = dns_addr;
-	    break;
-	  case CTL_ALIAS:
-	  default:
+	  } else {
 	    addr.sin_addr = loopback_addr;
-	    break;
 	  }
 	} else
 	  addr.sin_addr = so->so_faddr;
@@ -652,7 +649,7 @@ solisten(u_int port, u_int32_t laddr, u_int lport, int flags)
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;
 	if (addr.sin_addr.s_addr == 0 || addr.sin_addr.s_addr == loopback_addr.s_addr)
-	   so->so_faddr = alias_addr;
+	   so->so_faddr = vhost_addr;
 	else
 	   so->so_faddr = addr.sin_addr;
 

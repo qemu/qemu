@@ -110,7 +110,7 @@ icmp_input(struct mbuf *m, int hlen)
   case ICMP_ECHO:
     icp->icmp_type = ICMP_ECHOREPLY;
     ip->ip_len += hlen;	             /* since ip_input subtracts this */
-    if (ip->ip_dst.s_addr == alias_addr.s_addr) {
+    if (ip->ip_dst.s_addr == vhost_addr.s_addr) {
       icmp_reflect(m);
     } else {
       struct socket *so;
@@ -134,16 +134,13 @@ icmp_input(struct mbuf *m, int hlen)
 
       /* Send the packet */
       addr.sin_family = AF_INET;
-      if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
+      if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) ==
+          vnetwork_addr.s_addr) {
 	/* It's an alias */
-	switch(ntohl(so->so_faddr.s_addr) & 0xff) {
-	case CTL_DNS:
+	if (so->so_faddr.s_addr == vnameserver_addr.s_addr) {
 	  addr.sin_addr = dns_addr;
-	  break;
-	case CTL_ALIAS:
-	default:
+	} else {
 	  addr.sin_addr = loopback_addr;
-	  break;
 	}
       } else {
 	addr.sin_addr = so->so_faddr;
@@ -302,7 +299,7 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   ip->ip_ttl = MAXTTL;
   ip->ip_p = IPPROTO_ICMP;
   ip->ip_dst = ip->ip_src;    /* ip adresses */
-  ip->ip_src = alias_addr;
+  ip->ip_src = vhost_addr;
 
   (void ) ip_output((struct socket *)NULL, m);
 

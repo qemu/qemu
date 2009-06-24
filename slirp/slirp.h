@@ -214,7 +214,6 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include "if.h"
 #include "main.h"
 #include "misc.h"
-#include "ctl.h"
 #ifdef USE_PPP
 #include "ppp/pppd.h"
 #include "ppp/ppp.h"

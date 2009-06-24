@@ -27,8 +27,6 @@
 
 #define NB_ADDR 16
 
-#define START_ADDR 15
-
 #define LEASE_TIME (24 * 3600)
 
 typedef struct {
@@ -64,7 +62,7 @@ static BOOTPClient *get_new_addr(struct in_addr *paddr,
  found:
     bc = &bootp_clients[i];
     bc->allocated = 1;
-    paddr->s_addr = htonl(ntohl(special_addr.s_addr) | (i + START_ADDR));
+    paddr->s_addr = vdhcp_startaddr.s_addr + htonl(i);
     return bc;
 }
 
@@ -72,12 +70,12 @@ static BOOTPClient *request_addr(const struct in_addr *paddr,
                                  const uint8_t *macaddr)
 {
     uint32_t req_addr = ntohl(paddr->s_addr);
-    uint32_t spec_addr = ntohl(special_addr.s_addr);
+    uint32_t dhcp_addr = ntohl(vdhcp_startaddr.s_addr);
     BOOTPClient *bc;
 
-    if (req_addr >= (spec_addr | START_ADDR) &&
-        req_addr < (spec_addr | (NB_ADDR + START_ADDR))) {
-        bc = &bootp_clients[(req_addr & 0xff) - START_ADDR];
+    if (req_addr >= dhcp_addr &&
+        req_addr < (dhcp_addr + NB_ADDR)) {
+        bc = &bootp_clients[req_addr - dhcp_addr];
         if (!bc->allocated || !memcmp(macaddr, bc->macaddr, 6)) {
             bc->allocated = 1;
             return bc;
@@ -99,7 +97,7 @@ static BOOTPClient *find_addr(struct in_addr *paddr, const uint8_t *macaddr)
  found:
     bc = &bootp_clients[i];
     bc->allocated = 1;
-    paddr->s_addr = htonl(ntohl(special_addr.s_addr) | (i + START_ADDR));
+    paddr->s_addr = vdhcp_startaddr.s_addr + htonl(i);
     return bc;
 }
 
@@ -156,7 +154,6 @@ static void bootp_reply(const struct bootp_t *bp)
     struct mbuf *m;
     struct bootp_t *rbp;
     struct sockaddr_in saddr, daddr;
-    struct in_addr dns_addr;
     const struct in_addr *preq_addr;
     int dhcp_msg_type, val;
     uint8_t *q;
@@ -218,7 +215,7 @@ static void bootp_reply(const struct bootp_t *bp)
         }
     }
 
-    saddr.sin_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_ALIAS);
+    saddr.sin_addr = vhost_addr;
     saddr.sin_port = htons(BOOTP_SERVER);
 
     daddr.sin_port = htons(BOOTP_CLIENT);
@@ -262,10 +259,8 @@ static void bootp_reply(const struct bootp_t *bp)
 
         *q++ = RFC1533_NETMASK;
         *q++ = 4;
-        *q++ = 0xff;
-        *q++ = 0xff;
-        *q++ = 0xff;
-        *q++ = 0x00;
+        memcpy(q, &vnetwork_mask, 4);
+        q += 4;
 
         if (!slirp_restrict) {
             *q++ = RFC1533_GATEWAY;
@@ -275,8 +270,7 @@ static void bootp_reply(const struct bootp_t *bp)
 
             *q++ = RFC1533_DNS;
             *q++ = 4;
-            dns_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_DNS);
-            memcpy(q, &dns_addr, 4);
+            memcpy(q, &vnameserver_addr, 4);
             q += 4;
         }
 

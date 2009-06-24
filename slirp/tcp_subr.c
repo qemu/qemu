@@ -384,16 +384,12 @@ int tcp_fconnect(struct socket *so)
     setsockopt(s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(opt ));
 
     addr.sin_family = AF_INET;
-    if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
+    if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) == vnetwork_addr.s_addr) {
       /* It's an alias */
-      switch(ntohl(so->so_faddr.s_addr) & 0xff) {
-      case CTL_DNS:
+      if (so->so_faddr.s_addr == vnameserver_addr.s_addr) {
 	addr.sin_addr = dns_addr;
-	break;
-      case CTL_ALIAS:
-      default:
+      } else {
 	addr.sin_addr = loopback_addr;
-	break;
       }
     } else
       addr.sin_addr = so->so_faddr;
@@ -478,7 +474,7 @@ tcp_connect(struct socket *inso)
 	so->so_faddr = addr.sin_addr;
 	/* Translate connections from localhost to the real hostname */
 	if (so->so_faddr.s_addr == 0 || so->so_faddr.s_addr == loopback_addr.s_addr)
-	   so->so_faddr = alias_addr;
+	   so->so_faddr = vhost_addr;
 
 	/* Close the accept() socket, set right state */
 	if (inso->so_state & SS_FACCEPTONCE) {
@@ -1230,7 +1226,6 @@ do_prompt:
  */
 int tcp_ctl(struct socket *so)
 {
-    int command = (ntohl(so->so_faddr.s_addr) & 0xff);
     struct sbuf *sb = &so->so_snd;
     struct ex_list *ex_ptr;
     int do_pty;
@@ -1238,11 +1233,11 @@ int tcp_ctl(struct socket *so)
     DEBUG_CALL("tcp_ctl");
     DEBUG_ARG("so = %lx", (long )so);
 
-    if (command != CTL_ALIAS) {
+    if (so->so_faddr.s_addr != vhost_addr.s_addr) {
         /* Check if it's pty_exec */
         for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == so->so_fport &&
-                command == ex_ptr->ex_addr) {
+                so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
                 if (ex_ptr->ex_pty == 3) {
                     so->s = -1;
                     so->extra = (void *)ex_ptr->ex_exec;

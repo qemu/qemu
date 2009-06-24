@@ -312,12 +312,14 @@ int udp_output(struct socket *so, struct mbuf *m,
     struct sockaddr_in saddr, daddr;
 
     saddr = *addr;
-    if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
-        if ((so->so_faddr.s_addr & htonl(0x000000ff)) == htonl(0xff))
-            saddr.sin_addr.s_addr = alias_addr.s_addr;
-        else if (addr->sin_addr.s_addr == loopback_addr.s_addr ||
-                 (ntohl(so->so_faddr.s_addr) & 0xff) != CTL_ALIAS)
-            saddr.sin_addr.s_addr = so->so_faddr.s_addr;
+    if ((so->so_faddr.s_addr & vnetwork_mask.s_addr) == vnetwork_addr.s_addr) {
+        if ((so->so_faddr.s_addr & ~vnetwork_mask.s_addr) ==
+            ~vnetwork_mask.s_addr) {
+            saddr.sin_addr = vhost_addr;
+        } else if (addr->sin_addr.s_addr == loopback_addr.s_addr ||
+                   so->so_faddr.s_addr != vhost_addr.s_addr) {
+            saddr.sin_addr = so->so_faddr;
+        }
     }
     daddr.sin_addr = so->so_laddr;
     daddr.sin_port = so->so_lport;
@@ -652,11 +654,12 @@ udp_listen(u_int port, u_int32_t laddr, u_int lport, int flags)
 
 	getsockname(so->s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;
-	if (addr.sin_addr.s_addr == 0 || addr.sin_addr.s_addr == loopback_addr.s_addr)
-	   so->so_faddr = alias_addr;
-	else
+	if (addr.sin_addr.s_addr == 0 ||
+	    addr.sin_addr.s_addr == loopback_addr.s_addr) {
+	   so->so_faddr = vhost_addr;
+	} else {
 	   so->so_faddr = addr.sin_addr;
-
+	}
 	so->so_lport = lport;
 	so->so_laddr.s_addr = laddr;
 	if (flags != SS_FACCEPTONCE)

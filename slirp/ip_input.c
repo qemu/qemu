@@ -134,18 +134,19 @@ ip_input(struct mbuf *m)
 	}
 
     if (slirp_restrict) {
-        if (memcmp(&ip->ip_dst.s_addr, &special_addr, 3)) {
+        if ((ip->ip_dst.s_addr & vnetwork_mask.s_addr) ==
+            vnetwork_addr.s_addr) {
             if (ip->ip_dst.s_addr == 0xffffffff && ip->ip_p != IPPROTO_UDP)
                 goto bad;
         } else {
-            int host = ntohl(ip->ip_dst.s_addr) & 0xff;
             struct ex_list *ex_ptr;
 
-            if (host == 0xff)
+            if ((ip->ip_dst.s_addr & ~vnetwork_mask.s_addr) ==
+                ~vnetwork_mask.s_addr)
                 goto bad;
 
             for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-                if (ex_ptr->ex_addr == host)
+                if (ex_ptr->ex_addr.s_addr == ip->ip_dst.s_addr)
                     break;
 
             if (!ex_ptr)
