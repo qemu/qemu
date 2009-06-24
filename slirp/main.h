@@ -11,7 +11,6 @@
 
 #define TOWRITEMAX 512
 
-extern int link_up;
 extern int slirp_socket;
 extern int slirp_socket_unit;
 extern int slirp_socket_port;

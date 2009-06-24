@@ -40,8 +40,6 @@ static const uint8_t special_ethaddr[6] = {
 
 static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
-int link_up; // FIXME: kill this
-
 /* XXX: suppress those select globals */
 fd_set *global_readfds, *global_writefds, *global_xfds;
 
@@ -49,7 +47,7 @@ u_int curtime;
 static u_int time_fasttimo, last_slowtimo;
 static int do_slowtimo;
 
-Slirp slirp_instance;
+Slirp *slirp_instance;
 
 #ifdef _WIN32
 
@@ -193,11 +191,10 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   const char *bootfile, struct in_addr vdhcp_start,
                   struct in_addr vnameserver, void *opaque)
 {
-    Slirp *slirp = &slirp_instance;
+    Slirp *slirp = qemu_mallocz(sizeof(Slirp));
 
     slirp_init_once();
 
-    link_up = 1;
     slirp->restricted = restricted;
 
     if_init(slirp);
@@ -213,13 +210,9 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
         pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),
                 vhostname);
     }
-    qemu_free(slirp->tftp_prefix);
-    slirp->tftp_prefix = NULL;
     if (tftp_path) {
         slirp->tftp_prefix = qemu_strdup(tftp_path);
     }
-    qemu_free(slirp->bootp_filename);
-    slirp->bootp_filename = NULL;
     if (bootfile) {
         slirp->bootp_filename = qemu_strdup(bootfile);
     }
@@ -230,7 +223,20 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     register_savevm("slirp", 0, 2, slirp_state_save, slirp_state_load, slirp);
 
+    slirp_instance = slirp;
+
     return slirp;
+}
+
+void slirp_cleanup(Slirp *slirp)
+{
+    unregister_savevm("slirp", slirp);
+
+    qemu_free(slirp->tftp_prefix);
+    qemu_free(slirp->bootp_filename);
+    qemu_free(slirp);
+
+    slirp_instance = NULL;
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -263,11 +269,11 @@ static void updtime(void)
 void slirp_select_fill(int *pnfds,
                        fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
-    Slirp *slirp = &slirp_instance;
+    Slirp *slirp = slirp_instance;
     struct socket *so, *so_next;
     int nfds;
 
-    if (!link_up) {
+    if (!slirp_instance) {
         return;
     }
 
@@ -384,11 +390,11 @@ void slirp_select_fill(int *pnfds,
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
                        int select_error)
 {
-    Slirp *slirp = &slirp_instance;
+    Slirp *slirp = slirp_instance;
     struct socket *so, *so_next;
     int ret;
 
-    if (!link_up) {
+    if (!slirp_instance) {
         return;
     }
 
