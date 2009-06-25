@@ -153,6 +153,10 @@ void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
         pci_addr += 9;
     }
 
+    if (!opts) {
+        opts = "";
+    }
+
     if (!strcmp(pci_addr, "auto"))
         pci_addr = NULL;
 

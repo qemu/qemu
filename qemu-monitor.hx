@@ -506,7 +506,7 @@ Add drive to PCI storage controller.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_add", "sss", pci_device_hot_add, "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
+    { "pci_add", "sss?", pci_device_hot_add, "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
 #endif
 STEXI
 @item pci_add
