@@ -2921,6 +2921,11 @@ static void monitor_find_completion(const char *cmdline)
                 for(key = key_defs; key->name != NULL; key++) {
                     cmd_completion(str, key->name);
                 }
+            } else if (!strcmp(cmd->name, "help|?")) {
+                readline_set_completion_index(cur_mon->rs, strlen(str));
+                for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+                    cmd_completion(str, cmd->name);
+                }
             }
             break;
         default:
