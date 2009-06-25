@@ -56,8 +56,7 @@ void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
     int success = 0;
     PCIDevice *dev;
 
-    if (pci_read_devaddr(pci_addr, &dom, &pci_bus, &slot)) {
-        monitor_printf(mon, "Invalid pci address\n");
+    if (pci_read_devaddr(mon, pci_addr, &dom, &pci_bus, &slot)) {
         return;
     }
 
@@ -148,21 +147,19 @@ void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
                         const char *opts)
 {
     PCIDevice *dev = NULL;
-    const char *devaddr = NULL;
-    char buf[32];
 
-    if (!get_param_value(buf, sizeof(buf), "pci_addr", pci_addr)) {
-        monitor_printf(mon, "Invalid pci address\n");
-        return;
+    /* strip legacy tag */
+    if (!strncmp(pci_addr, "pci_addr=", 9)) {
+        pci_addr += 9;
     }
 
-    if (strcmp(buf, "auto"))
-        devaddr = buf;
+    if (!strcmp(pci_addr, "auto"))
+        pci_addr = NULL;
 
     if (strcmp(type, "nic") == 0)
-        dev = qemu_pci_hot_add_nic(mon, devaddr, opts);
+        dev = qemu_pci_hot_add_nic(mon, pci_addr, opts);
     else if (strcmp(type, "storage") == 0)
-        dev = qemu_pci_hot_add_storage(mon, devaddr, opts);
+        dev = qemu_pci_hot_add_storage(mon, pci_addr, opts);
     else
         monitor_printf(mon, "invalid type: %s\n", type);
 
@@ -183,8 +180,7 @@ void pci_device_hot_remove(Monitor *mon, const char *pci_addr)
     int dom, bus;
     unsigned slot;
 
-    if (pci_read_devaddr(pci_addr, &dom, &bus, &slot)) {
-        monitor_printf(mon, "Invalid pci address\n");
+    if (pci_read_devaddr(mon, pci_addr, &dom, &bus, &slot)) {
         return;
     }
 

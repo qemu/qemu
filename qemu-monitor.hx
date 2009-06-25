@@ -493,7 +493,7 @@ Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "drive_add", "ss", drive_hot_add, "pci_addr=[[<domain>:]<bus>:]<slot>\n"
+    { "drive_add", "ss", drive_hot_add, "[[<domain>:]<bus>:]<slot>\n"
                                          "[file=file][,if=type][,bus=n]\n"
                                         "[,unit=m][,media=d][index=i]\n"
                                         "[,cyls=c,heads=h,secs=s[,trans=t]]\n"
@@ -506,7 +506,7 @@ Add drive to PCI storage controller.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_add", "sss", pci_device_hot_add, "pci_addr=auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
+    { "pci_add", "sss", pci_device_hot_add, "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
 #endif
 STEXI
 @item pci_add
@@ -514,7 +514,7 @@ Hot-add PCI device.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_del", "s", pci_device_hot_remove, "pci_addr=[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
+    { "pci_del", "s", pci_device_hot_remove, "[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
 #endif
 STEXI
 @item pci_del

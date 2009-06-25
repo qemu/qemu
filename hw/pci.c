@@ -232,14 +232,18 @@ static int pci_parse_devaddr(const char *addr, int *domp, int *busp, unsigned *s
     return 0;
 }
 
-int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
+int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
+                     unsigned *slotp)
 {
-    char devaddr[32];
-
-    if (!get_param_value(devaddr, sizeof(devaddr), "pci_addr", addr))
+    /* strip legacy tag */
+    if (!strncmp(addr, "pci_addr=", 9)) {
+        addr += 9;
+    }
+    if (pci_parse_devaddr(addr, domp, busp, slotp)) {
+        monitor_printf(mon, "Invalid pci address\n");
         return -1;
-
-    return pci_parse_devaddr(devaddr, domp, busp, slotp);
+    }
+    return 0;
 }
 
 static PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
