@@ -1579,60 +1579,79 @@ static void do_info_balloon(Monitor *mon)
         monitor_printf(mon, "balloon: actual=%d\n", (int)(actual >> 20));
 }
 
-static void do_acl(Monitor *mon,
-                   const char *command,
-                   const char *aclname,
-                   const char *match,
-                   int has_index,
-                   int index)
+static qemu_acl *find_acl(Monitor *mon, const char *name)
 {
-    qemu_acl *acl;
+    qemu_acl *acl = qemu_acl_find(name);
 
-    acl = qemu_acl_find(aclname);
     if (!acl) {
-        monitor_printf(mon, "acl: unknown list '%s'\n", aclname);
-        return;
+        monitor_printf(mon, "acl: unknown list '%s'\n", name);
     }
+    return acl;
+}
 
-    if (strcmp(command, "show") == 0) {
-        int i = 0;
-        qemu_acl_entry *entry;
+static void do_acl_show(Monitor *mon, const char *aclname)
+{
+    qemu_acl *acl = find_acl(mon, aclname);
+    qemu_acl_entry *entry;
+    int i = 0;
+
+    if (acl) {
         monitor_printf(mon, "policy: %s\n",
                        acl->defaultDeny ? "deny" : "allow");
         TAILQ_FOREACH(entry, &acl->entries, next) {
             i++;
             monitor_printf(mon, "%d: %s %s\n", i,
-                           entry->deny ? "deny" : "allow",
-                           entry->match);
+                           entry->deny ? "deny" : "allow", entry->match);
         }
-    } else if (strcmp(command, "reset") == 0) {
+    }
+}
+
+static void do_acl_reset(Monitor *mon, const char *aclname)
+{
+    qemu_acl *acl = find_acl(mon, aclname);
+
+    if (acl) {
         qemu_acl_reset(acl);
         monitor_printf(mon, "acl: removed all rules\n");
-    } else if (strcmp(command, "policy") == 0) {
-        if (!match) {
-            monitor_printf(mon, "acl: missing policy parameter\n");
-            return;
-        }
+    }
+}
 
-        if (strcmp(match, "allow") == 0) {
+static void do_acl_policy(Monitor *mon, const char *aclname,
+                          const char *policy)
+{
+    qemu_acl *acl = find_acl(mon, aclname);
+
+    if (acl) {
+        if (strcmp(policy, "allow") == 0) {
             acl->defaultDeny = 0;
             monitor_printf(mon, "acl: policy set to 'allow'\n");
-        } else if (strcmp(match, "deny") == 0) {
+        } else if (strcmp(policy, "deny") == 0) {
             acl->defaultDeny = 1;
             monitor_printf(mon, "acl: policy set to 'deny'\n");
         } else {
-            monitor_printf(mon, "acl: unknown policy '%s', expected 'deny' or 'allow'\n", match);
+            monitor_printf(mon, "acl: unknown policy '%s', "
+                           "expected 'deny' or 'allow'\n", policy);
         }
-    } else if ((strcmp(command, "allow") == 0) ||
-               (strcmp(command, "deny") == 0)) {
-        int deny = strcmp(command, "deny") == 0 ? 1 : 0;
-        int ret;
+    }
+}
 
-        if (!match) {
-            monitor_printf(mon, "acl: missing match parameter\n");
+static void do_acl_add(Monitor *mon, const char *aclname,
+                       const char *match, const char *policy,
+                       int has_index, int index)
+{
+    qemu_acl *acl = find_acl(mon, aclname);
+    int deny, ret;
+
+    if (acl) {
+        if (strcmp(policy, "allow") == 0) {
+            deny = 0;
+        } else if (strcmp(policy, "deny") == 0) {
+            deny = 1;
+        } else {
+            monitor_printf(mon, "acl: unknown policy '%s', "
+                           "expected 'deny' or 'allow'\n", policy);
             return;
         }
-
         if (has_index)
             ret = qemu_acl_insert(acl, deny, match, index);
         else
@@ -1641,21 +1660,20 @@ static void do_acl(Monitor *mon,
             monitor_printf(mon, "acl: unable to add acl entry\n");
         else
             monitor_printf(mon, "acl: added rule at position %d\n", ret);
-    } else if (strcmp(command, "remove") == 0) {
-        int ret;
+    }
+}
 
-        if (!match) {
-            monitor_printf(mon, "acl: missing match parameter\n");
-            return;
-        }
+static void do_acl_remove(Monitor *mon, const char *aclname, const char *match)
+{
+    qemu_acl *acl = find_acl(mon, aclname);
+    int ret;
 
+    if (acl) {
         ret = qemu_acl_remove(acl, match);
         if (ret < 0)
             monitor_printf(mon, "acl: no matching acl entry\n");
         else
             monitor_printf(mon, "acl: removed rule at position %d\n", ret);
-    } else {
-        monitor_printf(mon, "acl: unknown command '%s'\n", command);
     }
 }
 
