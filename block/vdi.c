@@ -411,10 +411,9 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
 
 static int vdi_create(const char *filename, QEMUOptionParameter *options)
 {
-#if 1
     int fd;
     uint64_t sectors = 0;
-    int flags = 0;
+    //~ int flags = 0;
     size_t cluster_size = 1 * MiB;
     VdiHeader header;
 
@@ -432,7 +431,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    memset(&header, 0, sizeof(header);
+    memset(&header, 0, sizeof(header));
 
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
               0644);
