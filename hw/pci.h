@@ -184,8 +184,8 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq);
 
-PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
-                  const char *default_model);
+PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
+                        const char *default_devaddr);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
@@ -194,7 +194,6 @@ PCIBus *pci_find_bus(int bus_num);
 PCIDevice *pci_find_device(int bus_num, int slot, int function);
 
 int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
-int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
 
 void pci_info(Monitor *mon);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
@@ -221,6 +220,7 @@ pci_config_set_class(uint8_t *pci_config, uint16_t val)
 typedef void (*pci_qdev_initfn)(PCIDevice *dev);
 void pci_qdev_register(const char *name, int size, pci_qdev_initfn init);
 
+PCIDevice *pci_create(const char *name, const char *devaddr);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
 /* lsi53c895a.c */

@@ -439,6 +439,22 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
     return ret;
 }
 
+void qemu_purge_queued_packets(VLANClientState *vc)
+{
+    VLANPacket **pp = &vc->vlan->send_queue;
+
+    while (*pp != NULL) {
+        VLANPacket *packet = *pp;
+
+        if (packet->sender == vc) {
+            *pp = packet->next;
+            qemu_free(packet);
+        } else {
+            pp = &packet->next;
+        }
+    }
+}
+
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
     VLANPacket *packet;
@@ -456,7 +472,7 @@ void qemu_flush_queued_packets(VLANClientState *vc)
         }
 
         if (packet->sent_cb)
-            packet->sent_cb(packet->sender);
+            packet->sent_cb(packet->sender, ret);
 
         qemu_free(packet);
     }
@@ -1027,9 +1043,45 @@ typedef struct TAPState {
     char down_script[1024];
     char down_script_arg[128];
     uint8_t buf[4096];
+    unsigned int read_poll : 1;
+    unsigned int write_poll : 1;
 } TAPState;
 
 static int launch_script(const char *setup_script, const char *ifname, int fd);
+
+static int tap_can_send(void *opaque);
+static void tap_send(void *opaque);
+static void tap_writable(void *opaque);
+
+static void tap_update_fd_handler(TAPState *s)
+{
+    qemu_set_fd_handler2(s->fd,
+                         s->read_poll  ? tap_can_send : NULL,
+                         s->read_poll  ? tap_send     : NULL,
+                         s->write_poll ? tap_writable : NULL,
+                         s);
+}
+
+static void tap_read_poll(TAPState *s, int enable)
+{
+    s->read_poll = !!enable;
+    tap_update_fd_handler(s);
+}
+
+static void tap_write_poll(TAPState *s, int enable)
+{
+    s->write_poll = !!enable;
+    tap_update_fd_handler(s);
+}
+
+static void tap_writable(void *opaque)
+{
+    TAPState *s = opaque;
+
+    tap_write_poll(s, 0);
+
+    qemu_flush_queued_packets(s->vc);
+}
 
 static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
                                int iovcnt)
@@ -1039,7 +1091,12 @@ static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
 
     do {
         len = writev(s->fd, iov, iovcnt);
-    } while (len == -1 && (errno == EINTR || errno == EAGAIN));
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1 && errno == EAGAIN) {
+        tap_write_poll(s, 1);
+        return 0;
+    }
 
     return len;
 }
@@ -1081,13 +1138,10 @@ static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 }
 #endif
 
-static void tap_send(void *opaque);
-
-static void tap_send_completed(VLANClientState *vc)
+static void tap_send_completed(VLANClientState *vc, ssize_t len)
 {
     TAPState *s = vc->opaque;
-
-    qemu_set_fd_handler2(s->fd, tap_can_send, tap_send, NULL, s);
+    tap_read_poll(s, 1);
 }
 
 static void tap_send(void *opaque)
@@ -1103,19 +1157,34 @@ static void tap_send(void *opaque)
 
         size = qemu_send_packet_async(s->vc, s->buf, size, tap_send_completed);
         if (size == 0) {
-            qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+            tap_read_poll(s, 0);
         }
     } while (size > 0);
+}
+
+static void tap_set_sndbuf(TAPState *s, int sndbuf, Monitor *mon)
+{
+#ifdef TUNSETSNDBUF
+    if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1) {
+        config_error(mon, "TUNSETSNDBUF ioctl failed: %s\n",
+                     strerror(errno));
+    }
+#else
+    config_error(mon, "No '-net tap,sndbuf=<nbytes>' support available\n");
+#endif
 }
 
 static void tap_cleanup(VLANClientState *vc)
 {
     TAPState *s = vc->opaque;
 
+    qemu_purge_queued_packets(vc);
+
     if (s->down_script[0])
         launch_script(s->down_script, s->down_script_arg, s->fd);
 
-    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+    tap_read_poll(s, 0);
+    tap_write_poll(s, 0);
     close(s->fd);
     qemu_free(s);
 }
@@ -1133,7 +1202,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     s->fd = fd;
     s->vc = qemu_new_vlan_client(vlan, model, name, NULL, tap_receive,
                                  tap_receive_iov, tap_cleanup, s);
-    qemu_set_fd_handler2(s->fd, tap_can_send, tap_send, NULL, s);
+    tap_read_poll(s, 1);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     return s;
 }
@@ -1372,9 +1441,9 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
     return -1;
 }
 
-static int net_tap_init(VLANState *vlan, const char *model,
-                        const char *name, const char *ifname1,
-                        const char *setup_script, const char *down_script)
+static TAPState *net_tap_init(VLANState *vlan, const char *model,
+                              const char *name, const char *ifname1,
+                              const char *setup_script, const char *down_script)
 {
     TAPState *s;
     int fd;
@@ -1386,13 +1455,13 @@ static int net_tap_init(VLANState *vlan, const char *model,
         ifname[0] = '\0';
     TFR(fd = tap_open(ifname, sizeof(ifname)));
     if (fd < 0)
-        return -1;
+        return NULL;
 
     if (!setup_script || !strcmp(setup_script, "no"))
         setup_script = "";
-    if (setup_script[0] != '\0') {
-	if (launch_script(setup_script, ifname, fd))
-	    return -1;
+    if (setup_script[0] != '\0' &&
+        launch_script(setup_script, ifname, fd)) {
+        return NULL;
     }
     s = net_tap_fd_init(vlan, model, name, fd);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
@@ -1402,7 +1471,7 @@ static int net_tap_init(VLANState *vlan, const char *model,
         snprintf(s->down_script, sizeof(s->down_script), "%s", down_script);
         snprintf(s->down_script_arg, sizeof(s->down_script_arg), "%s", ifname);
     }
-    return 0;
+    return s;
 }
 
 #endif /* !_WIN32 */
@@ -1990,7 +2059,7 @@ static int net_dump_init(Monitor *mon, VLANState *vlan, const char *device,
 
     s = qemu_malloc(sizeof(DumpState));
 
-    s->fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    s->fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
     if (s->fd < 0) {
         config_error(mon, "-net dump: can't open %s\n", filename);
         return -1;
@@ -2084,9 +2153,6 @@ void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
 
 int net_client_init(Monitor *mon, const char *device, const char *p)
 {
-    static const char * const fd_params[] = {
-        "vlan", "name", "fd", NULL
-    };
     char buf[1024];
     int vlan_id, ret;
     VLANState *vlan;
@@ -2103,7 +2169,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     }
     if (!strcmp(device, "nic")) {
         static const char * const nic_params[] = {
-            "vlan", "name", "macaddr", "model", NULL
+            "vlan", "name", "macaddr", "model", "addr", NULL
         };
         NICInfo *nd;
         uint8_t *macaddr;
@@ -2137,6 +2203,9 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         }
         if (get_param_value(buf, sizeof(buf), "model", p)) {
             nd->model = strdup(buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "addr", p)) {
+            nd->devaddr = strdup(buf);
         }
         nd->vlan = vlan;
         nd->name = name;
@@ -2234,9 +2303,13 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     if (!strcmp(device, "tap")) {
         char ifname[64], chkbuf[64];
         char setup_script[1024], down_script[1024];
+        TAPState *s;
         int fd;
         vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
+            static const char * const fd_params[] = {
+                "vlan", "name", "fd", "sndbuf", NULL
+            };
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
                 ret = -1;
@@ -2244,11 +2317,10 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             }
             fd = strtol(buf, NULL, 0);
             fcntl(fd, F_SETFL, O_NONBLOCK);
-            net_tap_fd_init(vlan, device, name, fd);
-            ret = 0;
+            s = net_tap_fd_init(vlan, device, name, fd);
         } else {
             static const char * const tap_params[] = {
-                "vlan", "name", "ifname", "script", "downscript", NULL
+                "vlan", "name", "ifname", "script", "downscript", "sndbuf", NULL
             };
             if (check_params(chkbuf, sizeof(chkbuf), tap_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
@@ -2264,13 +2336,24 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             if (get_param_value(down_script, sizeof(down_script), "downscript", p) == 0) {
                 pstrcpy(down_script, sizeof(down_script), DEFAULT_NETWORK_DOWN_SCRIPT);
             }
-            ret = net_tap_init(vlan, device, name, ifname, setup_script, down_script);
+            s = net_tap_init(vlan, device, name, ifname, setup_script, down_script);
+        }
+        if (s != NULL) {
+            if (get_param_value(buf, sizeof(buf), "sndbuf", p)) {
+                tap_set_sndbuf(s, atoi(buf), mon);
+            }
+            ret = 0;
+        } else {
+            ret = -1;
         }
     } else
 #endif
     if (!strcmp(device, "socket")) {
         char chkbuf[64];
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
+            static const char * const fd_params[] = {
+                "vlan", "name", "fd", NULL
+            };
             int fd;
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
@@ -2455,6 +2538,26 @@ int net_client_parse(const char *str)
         p++;
 
     return net_client_init(NULL, device, p);
+}
+
+void net_set_boot_mask(int net_boot_mask)
+{
+    int i;
+
+    /* Only the first four NICs may be bootable */
+    net_boot_mask = net_boot_mask & 0xF;
+
+    for (i = 0; i < nb_nics; i++) {
+        if (net_boot_mask & (1 << i)) {
+            nd_table[i].bootable = 1;
+            net_boot_mask &= ~(1 << i);
+        }
+    }
+
+    if (net_boot_mask) {
+        fprintf(stderr, "Cannot boot from non-existent NIC\n");
+        exit(1);
+    }
 }
 
 void do_info_network(Monitor *mon)

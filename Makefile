@@ -22,6 +22,7 @@ LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
 
 CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+CPPFLAGS += -U_FORTIFY_SOURCE
 LIBS=
 ifdef CONFIG_STATIC
 LDFLAGS += -static
@@ -65,8 +66,8 @@ recurse-all: $(SUBDIR_RULES)
 #######################################################################
 # BLOCK_OBJS is code used by both qemu system emulation and qemu-img
 
-BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-BLOCK_OBJS+=block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
+BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o aes.o module.o
+BLOCK_OBJS+=block/cow.o block/qcow.o block/vdi.o block/vmdk.o block/cloop.o
 BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
 BLOCK_OBJS+=block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
 BLOCK_OBJS+=block/qcow2-snapshot.o

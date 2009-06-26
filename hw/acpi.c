@@ -714,7 +714,9 @@ static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
 }
 
-void qemu_system_hot_add_init(void)
+static void piix4_device_hot_add(int bus, int slot, int state);
+
+void piix4_acpi_system_hot_add_init(void)
 {
     register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, &gpe);
     register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, &gpe);
@@ -724,6 +726,8 @@ void qemu_system_hot_add_init(void)
 
     register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, NULL);
     register_ioport_read(PCI_EJ_BASE, 4, 4,  pciej_read, NULL);
+
+    qemu_system_device_hot_add_register(piix4_device_hot_add);
 }
 
 static void enable_device(struct pci_status *p, struct gpe_regs *g, int slot)
@@ -738,7 +742,7 @@ static void disable_device(struct pci_status *p, struct gpe_regs *g, int slot)
     p->down |= (1 << slot);
 }
 
-void qemu_system_device_hot_add(int bus, int slot, int state)
+static void piix4_device_hot_add(int bus, int slot, int state)
 {
     pci0_status.up = 0;
     pci0_status.down = 0;
@@ -750,6 +754,18 @@ void qemu_system_device_hot_add(int bus, int slot, int state)
         qemu_set_irq(pm_state->irq, 1);
         qemu_set_irq(pm_state->irq, 0);
     }
+}
+
+static qemu_system_device_hot_add_t device_hot_add_callback;
+void qemu_system_device_hot_add_register(qemu_system_device_hot_add_t callback)
+{
+    device_hot_add_callback = callback;
+}
+
+void qemu_system_device_hot_add(int pcibus, int slot, int state)
+{
+    if (device_hot_add_callback)
+        device_hot_add_callback(pcibus, slot, state);
 }
 
 struct acpi_table_header

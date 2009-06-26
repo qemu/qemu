@@ -494,19 +494,19 @@ static void audio_init (PCIBus *pci_bus)
 #endif
 
 /* Network support */
-static void network_init (PCIBus *pci_bus)
+static void network_init(void)
 {
     int i;
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
-        int devfn = -1;
+        const char *default_devaddr = NULL;
 
         if (i == 0 && (!nd->model || strcmp(nd->model, "pcnet") == 0))
             /* The malta board has a PCNet card using PCI SLOT 11 */
-            devfn = 88;
+            default_devaddr = "0b";
 
-        pci_nic_init(pci_bus, nd, devfn, "pcnet");
+        pci_nic_init(nd, "pcnet", default_devaddr);
     }
 }
 
@@ -976,7 +976,7 @@ void mips_malta_init (ram_addr_t ram_size,
 #endif
 
     /* Network card */
-    network_init(pci_bus);
+    network_init();
 
     /* Optional PCI video card */
     if (cirrus_vga_enabled) {

@@ -327,7 +327,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
     else {
         s->status = new_status & ~STAT_INTR;
     }
-    qemu_set_irq(s->pci_dev->irq[0], !!level);
+    qemu_set_irq (s->pci_dev->irq[0], !!level);
 }
 
 static void es1370_reset (ES1370State *s)
@@ -353,7 +353,7 @@ static void es1370_reset (ES1370State *s)
             s->dac_voice[i] = NULL;
         }
     }
-    qemu_irq_lower(s->pci_dev->irq[0]);
+    qemu_irq_lower (s->pci_dev->irq[0]);
 }
 
 static void es1370_maybe_lower_irq (ES1370State *s, uint32_t sctl)
@@ -1026,10 +1026,10 @@ int es1370_init (PCIBus *bus)
     }
 
     c = d->dev.config;
-    pci_config_set_vendor_id(c, PCI_VENDOR_ID_ENSONIQ);
-    pci_config_set_device_id(c, PCI_DEVICE_ID_ENSONIQ_ES1370);
+    pci_config_set_vendor_id (c, PCI_VENDOR_ID_ENSONIQ);
+    pci_config_set_device_id (c, PCI_DEVICE_ID_ENSONIQ_ES1370);
     c[0x07] = 2 << 1;
-    pci_config_set_class(c, PCI_CLASS_MULTIMEDIA_AUDIO);
+    pci_config_set_class (c, PCI_CLASS_MULTIMEDIA_AUDIO);
 
 #if 1
     c[0x2c] = 0x42;

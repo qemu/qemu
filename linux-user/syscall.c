@@ -85,7 +85,6 @@
 #include "qemu-common.h"
 
 #if defined(USE_NPTL)
-#include <linux/futex.h>
 #define CLONE_NPTL_FLAGS2 (CLONE_SETTLS | \
     CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
 #else

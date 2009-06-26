@@ -92,6 +92,7 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
     "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
     "       [,cache=writethrough|writeback|none][,format=f][,serial=s]\n"
+    "       [,addr=A]\n"
     "                use 'file' as a drive image\n")
 STEXI
 @item -drive @var{option}[,@var{option}[,@var{option}[,...]]]
@@ -126,6 +127,8 @@ the format.  Can be used to specifiy format=raw to avoid interpreting
 an untrusted format header.
 @item serial=@var{serial}
 This option specifies the serial number to assign to the device.
+@item addr=@var{addr}
+Specify the controller's PCI address (if=virtio only).
 @end table
 
 By default, writethrough caching is used for all block device.  This means that
@@ -733,7 +736,7 @@ STEXI
 ETEXI
 
 DEF("net", HAS_ARG, QEMU_OPTION_net,
-    "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
+    "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
     "-net user[,vlan=n][,name=str][,hostname=host]\n"
@@ -744,12 +747,19 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net tap[,vlan=n][,name=str],ifname=name\n"
     "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-    "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
+    "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile]"
+#ifdef TUNSETSNDBUF
+    "[,sndbuf=nbytes]"
+#endif
+    "\n"
     "                connect the host TAP network interface to VLAN 'n' and use the\n"
     "                network scripts 'file' (default=%s)\n"
     "                and 'dfile' (default=%s);\n"
     "                use '[down]script=no' to disable script execution;\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
+#ifdef TUNSETSNDBUF
+    "                use 'sndbuf=nbytes' to limit the size of the send buffer\n"
+#endif
 #endif
     "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                connect the vlan 'n' to another VLAN using a socket connection\n"
@@ -767,10 +777,11 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
 STEXI
-@item -net nic[,vlan=@var{n}][,macaddr=@var{addr}][,model=@var{type}][,name=@var{name}]
+@item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
 = 0 is the default). The NIC is an ne2k_pci by default on the PC
-target. Optionally, the MAC address can be changed to @var{addr}
+target. Optionally, the MAC address can be changed to @var{mac}, the
+device address set to @var{addr} (PCI cards only),
 and a @var{name} can be assigned for use in monitor commands. If no
 @option{-net} option is specified, a single NIC is created.
 Qemu can emulate several different models of network card.

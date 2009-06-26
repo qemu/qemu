@@ -136,7 +136,9 @@ static uint32_t virtio_ioport_read(void *opaque, uint32_t addr)
     switch (addr) {
     case VIRTIO_PCI_HOST_FEATURES:
         ret = vdev->get_features(vdev);
-        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY) | (1 << VIRTIO_F_BAD_FEATURE);
+        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
+        ret |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
+        ret |= (1 << VIRTIO_F_BAD_FEATURE);
         break;
     case VIRTIO_PCI_GUEST_FEATURES:
         ret = vdev->features;

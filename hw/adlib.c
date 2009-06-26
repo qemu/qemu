@@ -115,7 +115,7 @@ static void adlib_kill_timers (AdlibState *s)
     }
 }
 
-static IO_WRITE_PROTO(adlib_write)
+static IO_WRITE_PROTO (adlib_write)
 {
     AdlibState *s = opaque;
     int a = nport & 3;
@@ -133,7 +133,7 @@ static IO_WRITE_PROTO(adlib_write)
 #endif
 }
 
-static IO_READ_PROTO(adlib_read)
+static IO_READ_PROTO (adlib_read)
 {
     AdlibState *s = opaque;
     uint8_t data;

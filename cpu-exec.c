@@ -380,7 +380,14 @@ int cpu_exec(CPUState *env1)
                     }
 #endif
 #if defined(TARGET_I386)
-                    if (env->hflags2 & HF2_GIF_MASK) {
+                    if (interrupt_request & CPU_INTERRUPT_INIT) {
+                            svm_check_intercept(SVM_EXIT_INIT);
+                            do_cpu_init(env);
+                            env->exception_index = EXCP_HALTED;
+                            cpu_loop_exit();
+                    } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
+                            do_cpu_sipi(env);
+                    } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                             !(env->hflags & HF_SMM_MASK)) {
                             svm_check_intercept(SVM_EXIT_SMI);

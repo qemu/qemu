@@ -22,6 +22,7 @@ qemu-options.texi
 qemu-img-cmds.texi
 qemu-img-cmds.h
 qemu-io
+qemu-monitor.texi
 .gdbinit
 *.a
 *.aux

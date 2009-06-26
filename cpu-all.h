@@ -768,6 +768,8 @@ extern int use_icount;
 #define CPU_INTERRUPT_DEBUG  0x80 /* Debug event occured.  */
 #define CPU_INTERRUPT_VIRQ   0x100 /* virtual interrupt pending.  */
 #define CPU_INTERRUPT_NMI    0x200 /* NMI pending. */
+#define CPU_INTERRUPT_INIT   0x400 /* INIT pending. */
+#define CPU_INTERRUPT_SIPI   0x800 /* SIPI pending. */
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);

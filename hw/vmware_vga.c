@@ -1217,7 +1217,7 @@ void pci_vmsvga_init(PCIBus *bus)
     /* Setup PCI configuration */
     s = (struct pci_vmsvga_state_s *)
         pci_register_device(bus, "QEMUware SVGA",
-                sizeof(struct pci_vmsvga_state_s), -1, 0, 0);
+                sizeof(struct pci_vmsvga_state_s), -1, NULL, NULL);
     pci_config_set_vendor_id(s->card.config, PCI_VENDOR_ID_VMWARE);
     pci_config_set_device_id(s->card.config, SVGA_PCI_DEVICE_ID);
     s->card.config[PCI_COMMAND]		= 0x07;		/* I/O + Memory */
