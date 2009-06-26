@@ -48,13 +48,14 @@ int n = 0;
 
 #define SECTOR_SIZE 512
 
+#define VDI_SIGNATURE 0xbeda107f
 #define VDI_VERSION_1_1 0x00010001
 
 typedef char uuid_t[16];
 
 typedef struct {
     char text[0x40];
-    uint32_t signature;         /* unused here */
+    uint32_t signature;
     uint32_t version;
     uint32_t header_size;
     uint32_t image_type;
@@ -82,14 +83,19 @@ typedef struct {
 typedef struct BDRVVdiState {
     BlockDriverState *hd;
     uint32_t *blockmap;
-    uint32_t sectors_per_block;
-    unsigned cluster_size;
+    /* Size of cluster (bytes). */
+    uint32_t cluster_size;
+    /* Size of cluster (sectors). */
+    uint32_t cluster_sectors;
     VdiHeader header;
 } BDRVVdiState;
 
-static const char magic_sun_vdi[] =  "<<< Sun xVM VirtualBox Disk Image >>>\n";
-static const char magic_inno_vdi[] = "<<< innotek VirtualBox Disk Image >>>\n";
-static const char magic_qemu_vdi[] = "<<< QEMU VM VirtualBox Disk Image >>>\n";
+/*
+"<<< Sun VirtualBox Disk Image >>>\n"
+"<<< Sun xVM VirtualBox Disk Image >>>\n"
+"<<< innotek VirtualBox Disk Image >>>\n"
+"<<< QEMU VM VirtualBox Disk Image >>>\n"
+*/
 
 static int vdi_check(BlockDriverState *bs)
 {
@@ -118,18 +124,19 @@ static int vdi_make_empty(BlockDriverState *bs)
 static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const VdiHeader *header = (const VdiHeader *)buf;
-    const size_t length = sizeof(header->text);
+    //~ const size_t length = sizeof(header->text);
     int result = 0;
 
-    logout("\n");
-
     if (buf_size < sizeof(*header)) {
-    } else if (strncmp(header->text, magic_qemu_vdi, length) == 0) {
+        /* Header too small, no VDI. */
+    } else if (le32_to_cpu(header->signature) == VDI_SIGNATURE) {
         result = 100;
-    } else if (strncmp(header->text, magic_inno_vdi, length) == 0) {
-        result = 100;
-    } else if (strncmp(header->text, magic_sun_vdi, length) == 0) {
-        result = 100;
+    }
+
+    if (result == 0) {
+        logout("no vdi image\n");
+    } else {
+        logout("%s", header->text);
     }
 
     return result;
@@ -229,8 +236,11 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
         goto fail_free_blockmap;
     }
 
-    s->sectors_per_block = (header.block_size / SECTOR_SIZE);
+    /* Blocks (VDI documentation) correspond to clusters (QEMU). */
+    s->cluster_size = header.block_size;
+    s->cluster_sectors = (header.block_size / SECTOR_SIZE);
     s->header = header;
+    logout("cluster size %u KiB\n", s->cluster_size / KiB);
 
     return 0;
 
@@ -283,23 +293,18 @@ static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
 static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int *pnum)
 {
-#if 1
-    logout("\n");
-    RAISE();
-    return 0;
-#else
-    BDRVVdiState *s = bs->opaque;
-    int index_in_cluster, n;
-    uint64_t cluster_offset;
-
-    cluster_offset = get_cluster_offset(bs, NULL, sector_num << 9, 0);
-    index_in_cluster = sector_num % s->cluster_sectors;
-    n = s->cluster_sectors - index_in_cluster;
-    if (n > nb_sectors)
-        n = nb_sectors;
-    *pnum = n;
-    return (cluster_offset != 0);
-#endif
+    /* TODO: Check for too large sector_num (in bdrv_is_allocated or here). */
+    BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
+    size_t blockmap_index = sector_num / s->cluster_sectors;
+    size_t sector_in_cluster = sector_num % s->cluster_sectors;
+    int n_sectors = s->cluster_sectors - sector_in_cluster;
+    uint32_t cluster_index = s->blockmap[blockmap_index];
+    logout("%p, %" PRId64 ", %d, %p\n", bs, sector_num, nb_sectors, pnum);
+    if (n_sectors > nb_sectors) {
+        n_sectors = nb_sectors;
+    }
+    *pnum = n_sectors;
+    return cluster_index != UINT32_MAX;
 }
 
 static int vdi_read(BlockDriverState *bs, int64_t sector_num,
@@ -312,23 +317,23 @@ static int vdi_read(BlockDriverState *bs, int64_t sector_num,
         return -1;
     }
     while (nb_sectors > 0 && sector_num < bs->total_sectors) {
-        size_t block_index = sector_num / s->sectors_per_block;
-        size_t block_offset = sector_num % s->sectors_per_block;
-        size_t n_sectors;
         size_t n_bytes;
         uint32_t blockmap_entry;
-        n_sectors = s->sectors_per_block - block_offset;
+        size_t block_index = sector_num / s->cluster_sectors;
+        size_t sector_in_cluster = sector_num % s->cluster_sectors;
+        size_t n_sectors = s->cluster_sectors - sector_in_cluster;
         if (n_sectors > nb_sectors) {
             n_sectors = nb_sectors;
         }
         n_bytes = n_sectors * SECTOR_SIZE;
         blockmap_entry = s->blockmap[block_index];
         if (blockmap_entry == UINT32_MAX) {
+            /* Cluster not allocated, return zeros. */
             memset(buf, 0, n_bytes);
         } else {
             uint64_t offset = (uint64_t)s->header.offset_data +
-                (uint64_t)blockmap_entry * s->header.block_size +
-                block_offset * SECTOR_SIZE;
+                (uint64_t)blockmap_entry * s->cluster_size +
+                sector_in_cluster * SECTOR_SIZE;
             if (bdrv_pread(s->hd, offset, buf, n_bytes) != n_bytes) {
                 logout("read error\n");
                 return -1;
@@ -352,29 +357,28 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
         return -1;
     }
     while (nb_sectors > 0 && sector_num < bs->total_sectors) {
-        size_t block_index = sector_num / s->sectors_per_block;
-        size_t block_offset = sector_num % s->sectors_per_block;
-        size_t n_sectors;
         size_t n_bytes;
         uint32_t blockmap_entry;
         uint64_t offset;
-        n_sectors = s->sectors_per_block - block_offset;
+        size_t block_index = sector_num / s->cluster_sectors;
+        size_t sector_in_cluster = sector_num % s->cluster_sectors;
+        size_t n_sectors = s->cluster_sectors - sector_in_cluster;
         if (n_sectors > nb_sectors) {
             n_sectors = nb_sectors;
         }
         n_bytes = n_sectors * SECTOR_SIZE;
         blockmap_entry = s->blockmap[block_index];
         if (blockmap_entry == UINT32_MAX) {
-            /* Allocate new block and write to it. */
+            /* Allocate new cluster and write to it. */
             uint8_t *block;
             blockmap_entry =
             s->blockmap[block_index] = s->header.blocks_allocated;
             s->header.blocks_allocated++;
             offset = (uint64_t)s->header.offset_data +
-                (uint64_t)blockmap_entry * s->header.block_size;
-            block = qemu_mallocz(s->header.block_size);
-            memcpy(block + block_offset * SECTOR_SIZE, buf, n_bytes);
-            n_bytes = s->header.block_size;
+                (uint64_t)blockmap_entry * s->cluster_size;
+            block = qemu_mallocz(s->cluster_size);
+            memcpy(block + sector_in_cluster * SECTOR_SIZE, buf, n_bytes);
+            n_bytes = s->cluster_size;
             if (bdrv_pwrite(s->hd, offset, block, n_bytes) != n_bytes) {
                 qemu_free(block);
                 logout("write error\n");
@@ -394,8 +398,8 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
         } else {
             /* Write to existing block. */
             offset = (uint64_t)s->header.offset_data +
-                (uint64_t)blockmap_entry * s->header.block_size +
-                block_offset * SECTOR_SIZE;
+                (uint64_t)blockmap_entry * s->cluster_size +
+                sector_in_cluster * SECTOR_SIZE;
             if (bdrv_pwrite(s->hd, offset, buf, n_bytes) != n_bytes) {
                 logout("write error\n");
                 return -1;
