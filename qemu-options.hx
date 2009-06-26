@@ -684,12 +684,17 @@ Disable HPET support.
 ETEXI
 
 #ifdef TARGET_I386
-DEF("no-virtio-balloon", 0, QEMU_OPTION_no_virtio_balloon,
-    "-no-virtio-balloon disable virtio balloon device\n")
+DEF("balloon", HAS_ARG, QEMU_OPTION_balloon,
+    "-balloon none   disable balloon device\n"
+    "-balloon virtio[,addr=str]\n"
+    "                enable virtio balloon device (default)\n")
 #endif
 STEXI
-@item -no-virtio-balloon
-Disable virtio-balloon device.
+@item -balloon none
+Disable balloon device.
+@item -balloon virtio[,addr=@var{addr}]
+Enable virtio balloon device (default), optionally with PCI address
+@var{addr}.
 ETEXI
 
 #ifdef TARGET_I386
