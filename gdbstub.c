@@ -563,6 +563,31 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
+static int cpu_x86_gdb_load_seg(CPUState *env, int sreg, uint8_t *mem_buf)
+{
+    uint16_t selector = ldl_p(mem_buf);
+
+    if (selector != env->segs[sreg].selector) {
+#if defined(CONFIG_USER_ONLY)
+        cpu_x86_load_seg(env, sreg, selector);
+#else
+        unsigned int limit, flags;
+        target_ulong base;
+
+        if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
+            base = selector << 4;
+            limit = 0xffff;
+            flags = 0;
+        } else {
+            if (!cpu_x86_get_descr_debug(env, selector, &base, &limit, &flags))
+                return 4;
+        }
+        cpu_x86_load_seg_cache(env, sreg, selector, base, limit, flags);
+#endif
+    }
+    return 4;
+}
+
 static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
     uint32_t tmp;
@@ -590,23 +615,12 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
             env->eflags = ldl_p(mem_buf);
             return 4;
 
-#if defined(CONFIG_USER_ONLY)
-#define LOAD_SEG(index, sreg)\
-            tmp = ldl_p(mem_buf);\
-            if (tmp != env->segs[sreg].selector)\
-                cpu_x86_load_seg(env, sreg, tmp);\
-            return 4
-#else
-/* FIXME: Honor segment registers.  Needs to avoid raising an exception
-   when the selector is invalid.  */
-#define LOAD_SEG(index, sreg) return 4
-#endif
-        case IDX_SEG_REGS:     LOAD_SEG(10, R_CS);
-        case IDX_SEG_REGS + 1: LOAD_SEG(11, R_SS);
-        case IDX_SEG_REGS + 2: LOAD_SEG(12, R_DS);
-        case IDX_SEG_REGS + 3: LOAD_SEG(13, R_ES);
-        case IDX_SEG_REGS + 4: LOAD_SEG(14, R_FS);
-        case IDX_SEG_REGS + 5: LOAD_SEG(15, R_GS);
+        case IDX_SEG_REGS:     return cpu_x86_gdb_load_seg(env, R_CS, mem_buf);
+        case IDX_SEG_REGS + 1: return cpu_x86_gdb_load_seg(env, R_SS, mem_buf);
+        case IDX_SEG_REGS + 2: return cpu_x86_gdb_load_seg(env, R_DS, mem_buf);
+        case IDX_SEG_REGS + 3: return cpu_x86_gdb_load_seg(env, R_ES, mem_buf);
+        case IDX_SEG_REGS + 4: return cpu_x86_gdb_load_seg(env, R_FS, mem_buf);
+        case IDX_SEG_REGS + 5: return cpu_x86_gdb_load_seg(env, R_GS, mem_buf);
 
         case IDX_FP_REGS + 8:
             env->fpuc = ldl_p(mem_buf);

@@ -770,6 +770,10 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     }
 }
 
+int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
+                            target_ulong *base, unsigned int *limit,
+                            unsigned int *flags);
+
 /* wrapper, just in case memory mappings must be changed */
 static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 {
