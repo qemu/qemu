@@ -23,6 +23,7 @@
 #include "msix.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
+#include "kvm.h"
 
 //#define DEBUG_APIC
 
@@ -953,6 +954,8 @@ static void apic_reset(void *opaque)
          */
         s->lvt[APIC_LVT_LINT0] = 0x700;
     }
+
+    cpu_synchronize_state(s->cpu_env, 1);
 }
 
 static CPUReadMemoryFunc *apic_mem_read[3] = {

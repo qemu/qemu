@@ -6057,17 +6057,6 @@ int main(int argc, char **argv, char **envp)
 
     current_machine = machine;
 
-    /* Set KVM's vcpu state to qemu's initial CPUState. */
-    if (kvm_enabled()) {
-        int ret;
-
-        ret = kvm_sync_vcpus();
-        if (ret < 0) {
-            fprintf(stderr, "failed to initialize vcpus\n");
-            exit(1);
-        }
-    }
-
     /* init USB devices */
     if (usb_enabled) {
         for(i = 0; i < usb_devices_index; i++) {
