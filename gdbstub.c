@@ -1631,6 +1631,64 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             s->signal = 0;
         gdb_continue(s);
         return RS_IDLE;
+    case 'v':
+        if (strncmp(p, "Cont", 4) == 0) {
+            int res_signal, res_thread;
+
+            p += 4;
+            if (*p == '?') {
+                put_packet(s, "vCont;c;C;s;S");
+                break;
+            }
+            res = 0;
+            res_signal = 0;
+            res_thread = 0;
+            while (*p) {
+                int action, signal;
+
+                if (*p++ != ';') {
+                    res = 0;
+                    break;
+                }
+                action = *p++;
+                signal = 0;
+                if (action == 'C' || action == 'S') {
+                    signal = strtoul(p, (char **)&p, 16);
+                } else if (action != 'c' && action != 's') {
+                    res = 0;
+                    break;
+                }
+                thread = 0;
+                if (*p == ':') {
+                    thread = strtoull(p+1, (char **)&p, 16);
+                }
+                action = tolower(action);
+                if (res == 0 || (res == 'c' && action == 's')) {
+                    res = action;
+                    res_signal = signal;
+                    res_thread = thread;
+                }
+            }
+            if (res) {
+                if (res_thread != -1 && res_thread != 0) {
+                    env = find_cpu(res_thread);
+                    if (env == NULL) {
+                        put_packet(s, "E22");
+                        break;
+                    }
+                    s->c_cpu = env;
+                }
+                if (res == 's') {
+                    cpu_single_step(s->c_cpu, sstep_flags);
+                }
+                s->signal = res_signal;
+                gdb_continue(s);
+                return RS_IDLE;
+            }
+            break;
+        } else {
+            goto unknown_command;
+        }
     case 'k':
         /* Kill the target */
         fprintf(stderr, "\nQEMU: Terminated via GDBstub\n");
