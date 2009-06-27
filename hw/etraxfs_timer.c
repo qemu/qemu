@@ -326,7 +326,7 @@ static void etraxfs_timer_init(SysBusDevice *dev)
     timer_regs = cpu_register_io_memory(timer_read, timer_write, t);
     sysbus_init_mmio(dev, 0x5c, timer_regs);
 
-    qemu_register_reset(etraxfs_timer_reset, 0, t);
+    qemu_register_reset(etraxfs_timer_reset, t);
 }
 
 static void etraxfs_timer_register(void)

@@ -84,7 +84,7 @@ static void option_rom_setup_reset(target_phys_addr_t addr, unsigned size)
     cpu_physical_memory_read(addr, rrd->data, size);
     rrd->addr = addr;
     rrd->size = size;
-    qemu_register_reset(option_rom_reset, 0, rrd);
+    qemu_register_reset(option_rom_reset, rrd);
 }
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
@@ -1115,7 +1115,7 @@ static void pc_init1(ram_addr_t ram_size,
             /* APIC reset callback resets cpu */
             apic_init(env);
         } else {
-            qemu_register_reset((QEMUResetHandler*)cpu_reset, 0, env);
+            qemu_register_reset((QEMUResetHandler*)cpu_reset, env);
         }
     }
 

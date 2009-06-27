@@ -1121,7 +1121,7 @@ static void pci_e1000_init(PCIDevice *pci_dev)
 
     register_savevm(info_str, -1, 2, nic_save, nic_load, d);
     d->dev.unregister = pci_e1000_uninit;
-    qemu_register_reset(e1000_reset, 0, d);
+    qemu_register_reset(e1000_reset, d);
     e1000_reset(d);
 }
 

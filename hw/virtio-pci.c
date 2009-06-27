@@ -409,7 +409,7 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     pci_register_bar(&proxy->pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
                            virtio_map);
 
-    qemu_register_reset(virtio_pci_reset, 0, proxy);
+    qemu_register_reset(virtio_pci_reset, proxy);
 
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
 }

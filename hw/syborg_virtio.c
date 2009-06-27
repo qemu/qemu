@@ -260,7 +260,7 @@ static void syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
 
     proxy->id = ((uint32_t)0x1af4 << 16) | vdev->device_id;
 
-    qemu_register_reset(virtio_reset, 0, vdev);
+    qemu_register_reset(virtio_reset, vdev);
 
     virtio_bind_device(vdev, &syborg_virtio_bindings, proxy);
 }

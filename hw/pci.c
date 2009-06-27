@@ -120,7 +120,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
-    qemu_register_reset(pci_bus_reset, 0, bus);
+    qemu_register_reset(pci_bus_reset, bus);
     return bus;
 }
 
