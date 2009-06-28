@@ -51,6 +51,14 @@ int n = 0;
 #define VDI_SIGNATURE 0xbeda107f
 #define VDI_VERSION_1_1 0x00010001
 
+/* Official images use these strings in header.text:
+ * "<<< innotek VirtualBox Disk Image >>>\n"
+ * "<<< Sun xVM VirtualBox Disk Image >>>\n"
+ * "<<< Sun VirtualBox Disk Image >>>\n"
+ * The value does not matter, so QEMU created images use a different text.
+ */
+#define VDI_TEXT "<<< QEMU VM VirtualBox Disk Image >>>\n"
+
 typedef char uuid_t[16];
 
 typedef struct {
@@ -89,13 +97,6 @@ typedef struct BDRVVdiState {
     uint32_t cluster_sectors;
     VdiHeader header;
 } BDRVVdiState;
-
-/*
-"<<< Sun VirtualBox Disk Image >>>\n"
-"<<< Sun xVM VirtualBox Disk Image >>>\n"
-"<<< innotek VirtualBox Disk Image >>>\n"
-"<<< QEMU VM VirtualBox Disk Image >>>\n"
-*/
 
 static int vdi_check(BlockDriverState *bs)
 {
@@ -416,7 +417,9 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
 static int vdi_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd;
-    uint64_t sectors = 0;
+    uint64_t bytes = 0;
+    uint64_t sectors;
+    uint32_t clusters;
     //~ int flags = 0;
     size_t cluster_size = 1 * MiB;
     VdiHeader header;
@@ -426,16 +429,17 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     /* Read out options. */
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            sectors = options->value.n / 512;
+            bytes = options->value.n;
+#if defined(CONFIG_VDI_CLUSTER_SIZE)
         } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
             if (options->value.n) {
+                /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
                 cluster_size = options->value.n;
             }
+#endif
         }
         options++;
     }
-
-    memset(&header, 0, sizeof(header));
 
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
               0644);
@@ -443,9 +447,31 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         return -1;
     }
 
+    sectors = bytes / SECTOR_SIZE;
+    clusters = bytes / cluster_size;
+
+    memset(&header, 0, sizeof(header));
+    strcpy(header.text, VDI_TEXT);
+    header.signature = le32_to_cpu(VDI_SIGNATURE);
+    header.version = le32_to_cpu(VDI_VERSION_1_1);
+    header.header_size = le32_to_cpu(0x190);
+    header.image_type = le32_to_cpu(1);
+    header.image_flags = le32_to_cpu(0);
+    header.offset_blockmap = le32_to_cpu(0x200);
+    header.offset_data = le32_to_cpu(0);
+    header.cylinders = le32_to_cpu(0);
+    header.heads = le32_to_cpu(0);
+    header.sectors = le32_to_cpu(sectors);
+    header.sector_size = le32_to_cpu(SECTOR_SIZE);
+    header.disk_size = le64_to_cpu(bytes);
+    header.block_size = le32_to_cpu(cluster_size);
+    header.block_extra = le32_to_cpu(0);
+    header.blocks_in_image = le32_to_cpu(clusters);
+    header.blocks_allocated = le32_to_cpu(0);
+
     write(fd, &header, sizeof(header));
     close(fd);
-    RAISE();
+
     return 0;
 }
 
