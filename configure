@@ -1249,8 +1249,7 @@ fi
 # have syscall stubs for these implemented.
 #
 atfile=no
-if [ "$linux_user" = "yes" ] ; then
-  cat > $TMPC << EOF
+cat > $TMPC << EOF
 #define _ATFILE_SOURCE
 #include <sys/types.h>
 #include <fcntl.h>
@@ -1263,9 +1262,8 @@ main(void)
 	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
-    atfile=yes
-  fi
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+  atfile=yes
 fi
 
 # Check for inotify functions when we are building linux-user
@@ -1274,8 +1272,7 @@ fi
 # don't provide them even if kernel supports them.
 #
 inotify=no
-if [ "$linux_user" = "yes" ] ; then
-  cat > $TMPC << EOF
+cat > $TMPC << EOF
 #include <sys/inotify.h>
 
 int
@@ -1285,9 +1282,8 @@ main(void)
 	return inotify_init();
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
-    inotify=yes
-  fi
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+  inotify=yes
 fi
 
 # check if utimensat and futimens are supported
