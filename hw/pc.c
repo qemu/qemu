@@ -967,6 +967,12 @@ static void pc_init1(ram_addr_t ram_size,
     if (oprom_area_size < 0x8000)
         oprom_area_size = 0x8000;
 
+    /* map all the bios at the top of memory */
+    cpu_register_physical_memory((uint32_t)(-bios_size),
+                                 bios_size, bios_offset | IO_MEM_ROM);
+
+    bochs_bios_init();
+
     if (linux_boot) {
         load_linux(0xc0000 + oprom_area_size,
                    kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
@@ -992,12 +998,6 @@ static void pc_init1(ram_addr_t ram_size,
         oprom_area_size += load_option_rom(nic_oprom, 0xc0000 + oprom_area_size,
                                            0xe0000);
     }
-
-    /* map all the bios at the top of memory */
-    cpu_register_physical_memory((uint32_t)(-bios_size),
-                                 bios_size, bios_offset | IO_MEM_ROM);
-
-    bochs_bios_init();
 
     cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
     i8259 = i8259_init(cpu_irq[0]);
