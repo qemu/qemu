@@ -1,5 +1,5 @@
 /*
- * Block driver for the VDI format
+ * Block driver for the Virtual Disk Image (VDI) format
  *
  * Copyright (c) 2009 Stefan Weil
  *
@@ -19,11 +19,24 @@
  * Reference:
  * http://forums.virtualbox.org/viewtopic.php?t=8046
  *
+ * This driver supports create / read / write operations on VDI images.
+ *
+ * Some features like snapshots are still missing (see TODO in code).
+ * Deallocation of zero-filled clusters is missing, too
+ * (might be added to common block layer).
+ * Asynchronous read / write support could be added, too.
  */
 
 #include "qemu-common.h"
 #include "block_int.h"
 #include "module.h"
+
+#if defined(HAVE_UUID_H)
+#include <uuid/uuid.h>
+#endif
+
+/* Enable debug messages. */
+//~ #define CONFIG_VDI_DEBUG
 
 /* Support experimental write operations on VDI images. */
 #define CONFIG_VDI_WRITE
@@ -40,26 +53,36 @@
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
-int n = 0;
-#define RAISE() assert(n)
-
+#if defined(CONFIG_VDI_DEBUG)
 #define logout(fmt, ...) \
-    fprintf(stderr, "vdi\t%-24s" fmt, __func__, ##__VA_ARGS__)
+                fprintf(stderr, "vdi\t%-24s" fmt, __func__, ##__VA_ARGS__)
+#else
+#define logout(fmt, ...) ((void)0)
+#endif
 
 #define SECTOR_SIZE 512
 
+/* Image signature. */
 #define VDI_SIGNATURE 0xbeda107f
+
+/* Image version. */
 #define VDI_VERSION_1_1 0x00010001
 
-/* Official images use these strings in header.text:
+/* Image type. */
+#define VDI_TYPE_DYNAMIC 1
+#define VDI_TYPE_FIXED  2
+
+/* Innotek / SUN images use these strings in header.text:
  * "<<< innotek VirtualBox Disk Image >>>\n"
  * "<<< Sun xVM VirtualBox Disk Image >>>\n"
  * "<<< Sun VirtualBox Disk Image >>>\n"
  * The value does not matter, so QEMU created images use a different text.
  */
-#define VDI_TEXT "<<< QEMU VM VirtualBox Disk Image >>>\n"
+#define VDI_TEXT "<<< QEMU VM Virtual Disk Image >>>\n"
 
-typedef char uuid_t[16];
+#if !defined(HAVE_UUID_H)
+typedef unsigned char uuid_t[16];
+#endif
 
 typedef struct {
     char text[0x40];
@@ -68,12 +91,12 @@ typedef struct {
     uint32_t header_size;
     uint32_t image_type;
     uint32_t image_flags;
-    char image_description[256];
+    char description[256];
     uint32_t offset_blockmap;
     uint32_t offset_data;
-    uint32_t cylinders;         /* unused here */
-    uint32_t heads;             /* unused here */
-    uint32_t sectors;           /* unused here */
+    uint32_t cylinders;         /* disk geometry, unused here */
+    uint32_t heads;             /* disk geometry, unused here */
+    uint32_t sectors;           /* disk geometry, unused here */
     uint32_t sector_size;
     uint32_t unused1;
     uint64_t disk_size;
@@ -98,34 +121,95 @@ typedef struct BDRVVdiState {
     VdiHeader header;
 } BDRVVdiState;
 
+static void vdi_header_to_cpu(VdiHeader *header)
+{
+    le32_to_cpus(&header->signature);
+    le32_to_cpus(&header->version);
+    le32_to_cpus(&header->header_size);
+    le32_to_cpus(&header->image_type);
+    le32_to_cpus(&header->image_flags);
+    le32_to_cpus(&header->offset_blockmap);
+    le32_to_cpus(&header->offset_data);
+    le32_to_cpus(&header->cylinders);
+    le32_to_cpus(&header->heads);
+    le32_to_cpus(&header->sectors);
+    le32_to_cpus(&header->sector_size);
+    le64_to_cpus(&header->disk_size);
+    le32_to_cpus(&header->block_size);
+    le32_to_cpus(&header->block_extra);
+    le32_to_cpus(&header->blocks_in_image);
+    le32_to_cpus(&header->blocks_allocated);
+}
+
+static void vdi_header_to_le(VdiHeader *header)
+{
+    cpu_to_le32s(&header->signature);
+    cpu_to_le32s(&header->version);
+    cpu_to_le32s(&header->header_size);
+    cpu_to_le32s(&header->image_type);
+    cpu_to_le32s(&header->image_flags);
+    cpu_to_le32s(&header->offset_blockmap);
+    cpu_to_le32s(&header->offset_data);
+    cpu_to_le32s(&header->cylinders);
+    cpu_to_le32s(&header->heads);
+    cpu_to_le32s(&header->sectors);
+    cpu_to_le32s(&header->sector_size);
+    cpu_to_le64s(&header->disk_size);
+    cpu_to_le32s(&header->block_size);
+    cpu_to_le32s(&header->block_extra);
+    cpu_to_le32s(&header->blocks_in_image);
+    cpu_to_le32s(&header->blocks_allocated);
+}
+
+static void vdi_header_print(VdiHeader *header)
+{
+    logout("text        %s", header->text);
+    logout("signature   0x%04x\n", header->signature);
+    logout("header size 0x%04x\n", header->header_size);
+    logout("image type  0x%04x\n", header->image_type);
+    logout("image flags 0x%04x\n", header->image_flags);
+    logout("description %s\n", header->description);
+    logout("offset bmap 0x%04x\n", header->offset_blockmap);
+    logout("offset data 0x%04x\n", header->offset_data);
+    logout("cylinders   0x%04x\n", header->cylinders);
+    logout("heads       0x%04x\n", header->heads);
+    logout("sectors     0x%04x\n", header->sectors);
+    logout("sector size 0x%04x\n", header->sector_size);
+    logout("image size  0x%" PRIx64 " B (%" PRIu64 " MiB)\n",
+           header->disk_size, header->disk_size / MiB);
+    logout("block size  0x%04x\n", header->block_size);
+    logout("block extra 0x%04x\n", header->block_extra);
+    logout("blocks tot. 0x%04x\n", header->blocks_in_image);
+    logout("blocks all. 0x%04x\n", header->blocks_allocated);
+}
+
 static int vdi_check(BlockDriverState *bs)
 {
+    /* TODO: missing code. */
     logout("\n");
-    RAISE();
     return -ENOTSUP;
 }
 
 static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
+    /* TODO: unchecked code. */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
     logout("\n");
     bdi->cluster_size = s->cluster_size;
     bdi->vm_state_offset = -1;
-    RAISE();
     return -ENOTSUP;
 }
 
 static int vdi_make_empty(BlockDriverState *bs)
 {
+    /* TODO: missing code. */
     logout("\n");
-    RAISE();
     return -ENOTSUP;
 }
 
 static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const VdiHeader *header = (const VdiHeader *)buf;
-    //~ const size_t length = sizeof(header->text);
     int result = 0;
 
     if (buf_size < sizeof(*header)) {
@@ -146,7 +230,8 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
 #if defined(CONFIG_VDI_SNAPSHOT)
 static int vdi_snapshot_create(const char *filename, const char *backing_file)
 {
-    RAISE();
+    /* TODO: missing code. */
+    logout("\n");
     return -1;
 }
 #endif
@@ -179,31 +264,8 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
         goto fail;
     }
 
-    le32_to_cpus(&header.signature);
-    le32_to_cpus(&header.version);
-    le32_to_cpus(&header.header_size);
-    le32_to_cpus(&header.image_type);
-    le32_to_cpus(&header.image_flags);
-    le32_to_cpus(&header.offset_blockmap);
-    le32_to_cpus(&header.offset_data);
-    le32_to_cpus(&header.cylinders);
-    le32_to_cpus(&header.heads);
-    le32_to_cpus(&header.sectors);
-    le32_to_cpus(&header.sector_size);
-    le64_to_cpus(&header.disk_size);
-    le32_to_cpus(&header.block_size);
-    le32_to_cpus(&header.block_extra);
-    le32_to_cpus(&header.blocks_in_image);
-    le32_to_cpus(&header.blocks_allocated);
-
-    logout("%s", header.text);
-    logout("image type  0x%04x\n", header.image_type);
-    logout("image flags 0x%04x\n", header.image_flags);
-    logout("image size  0x%" PRIx64 " B (%" PRIu64 " MiB)\n",
-           header.disk_size, header.disk_size / MiB);
-    logout("header size 0x%04x\n", header.header_size);
-    logout("blocks tot. 0x%04x\n", header.blocks_in_image);
-    logout("blocks all. 0x%04x\n", header.blocks_allocated);
+    vdi_header_to_cpu(&header);
+    vdi_header_print(&header);
 
     if (header.version != VDI_VERSION_1_1) {
         logout("unsupported version %u.%u\n",
@@ -252,44 +314,6 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     bdrv_delete(s->hd);
     return -1;
 }
-
-#if 0
-static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
-                             uint64_t offset, int allocate)
-{
-#if 1
-    RAISE();
-    return -1;
-#else
-    uint64_t parent_cluster_offset;
-    BDRVVdiState *s = bs->opaque;
-    uint8_t  whole_grain[s->cluster_sectors*512];        // 128 sectors * 512 bytes each = grain size 64KB
-
-    // we will be here if it's first write on non-exist grain(cluster).
-    // try to read from parent image, if exist
-    if (s->hd->backing_hd) {
-        BDRVVdiState *ps = s->hd->backing_hd->opaque;
-
-        if (!vdi_is_cid_valid(bs))
-            return -1;
-
-        parent_cluster_offset = get_cluster_offset(s->hd->backing_hd, NULL, offset, allocate);
-
-        if (parent_cluster_offset) {
-            BDRVVdiState *act_s = activeBDRV.hd->opaque;
-
-            if (bdrv_pread(ps->hd, parent_cluster_offset, whole_grain, ps->cluster_sectors*512) != ps->cluster_sectors*512)
-                return -1;
-
-            //Write grain only into the active image
-            if (bdrv_pwrite(act_s->hd, activeBDRV.cluster_offset << 9, whole_grain, sizeof(whole_grain)) != sizeof(whole_grain))
-                return -1;
-        }
-    }
-    return 0;
-#endif
-}
-#endif
 
 static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int *pnum)
@@ -418,11 +442,13 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd;
     uint64_t bytes = 0;
-    uint64_t sectors;
     uint32_t clusters;
     //~ int flags = 0;
     size_t cluster_size = 1 * MiB;
     VdiHeader header;
+    size_t i;
+    size_t blockmap_size;
+    uint32_t *blockmap;
 
     logout("\n");
 
@@ -447,29 +473,41 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         return -1;
     }
 
-    sectors = bytes / SECTOR_SIZE;
     clusters = bytes / cluster_size;
+    blockmap_size = clusters * sizeof(uint32_t);
+    blockmap_size = ((blockmap_size + SECTOR_SIZE - 1) & ~(SECTOR_SIZE -1));
 
     memset(&header, 0, sizeof(header));
     strcpy(header.text, VDI_TEXT);
-    header.signature = le32_to_cpu(VDI_SIGNATURE);
-    header.version = le32_to_cpu(VDI_VERSION_1_1);
-    header.header_size = le32_to_cpu(0x190);
-    header.image_type = le32_to_cpu(1);
-    header.image_flags = le32_to_cpu(0);
-    header.offset_blockmap = le32_to_cpu(0x200);
-    header.offset_data = le32_to_cpu(0);
-    header.cylinders = le32_to_cpu(0);
-    header.heads = le32_to_cpu(0);
-    header.sectors = le32_to_cpu(sectors);
-    header.sector_size = le32_to_cpu(SECTOR_SIZE);
-    header.disk_size = le64_to_cpu(bytes);
-    header.block_size = le32_to_cpu(cluster_size);
-    header.block_extra = le32_to_cpu(0);
-    header.blocks_in_image = le32_to_cpu(clusters);
-    header.blocks_allocated = le32_to_cpu(0);
-
+    header.signature = VDI_SIGNATURE;
+    header.version = VDI_VERSION_1_1;
+    header.header_size = 0x180;
+    header.image_type = VDI_TYPE_DYNAMIC;
+    header.offset_blockmap = 0x200;
+    header.offset_data = 0x200 + blockmap_size;
+    header.sector_size = SECTOR_SIZE;
+    header.disk_size = bytes;
+    header.block_size = cluster_size;
+    header.blocks_in_image = clusters;
+#if defined(HAVE_UUID_H)
+    uuid_generate(header.uuid_image);
+    uuid_generate(header.uuid_last_snap);
+#if 0
+    uuid_generate(header.uuid_link);
+    uuid_generate(header.uuid_parent);
+#endif
+#endif
+    vdi_header_print(&header);
+    vdi_header_to_le(&header);
     write(fd, &header, sizeof(header));
+
+    blockmap = (uint32_t *)qemu_mallocz(blockmap_size);
+    for (i = 0; i < clusters; i++) {
+        blockmap[i] = UINT32_MAX;
+    }
+    write(fd, blockmap, blockmap_size);
+    qemu_free(blockmap);
+
     close(fd);
 
     return 0;
@@ -479,7 +517,6 @@ static void vdi_close(BlockDriverState *bs)
 {
     BDRVVdiState *s = bs->opaque;
     logout("\n");
-
     bdrv_delete(s->hd);
 }
 

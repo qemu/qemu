@@ -991,6 +991,22 @@ if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
 fi
 
 ##########################################
+# uuid_generate() probe, used for vdi block driver
+libuuid="no"
+cat > $TMPC << EOF
+#include <uuid/uuid.h>
+int main(void)
+{
+    uuid_t my_uuid;
+    uuid_generate(my_uuid);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC -luuid >/dev/null 2>&1; then
+   libuuid="yes"
+fi
+
+##########################################
 # vde libraries probe
 if test "$vde" = "yes" ; then
   cat > $TMPC << EOF
@@ -1716,6 +1732,10 @@ if test "$vnc_sasl" = "yes" ; then
 fi
 if test "$fnmatch" = "yes" ; then
   echo "#define HAVE_FNMATCH_H 1" >> $config_h
+fi
+if test "$libuuid" = "yes" ; then
+  echo "#define HAVE_UUID_H 1" >> $config_h
+  echo "UUID_LIBS=-luuid" >> $config_mak
 fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_mak

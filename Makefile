@@ -33,6 +33,7 @@ else
 DOCS=
 endif
 
+LIBS+=$(UUID_LIBS)
 LIBS+=$(PTHREADLIBS)
 LIBS+=$(CLOCKLIBS)
 
