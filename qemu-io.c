@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <getopt.h>
+#include <libgen.h>
 
 #include "qemu-common.h"
 #include "block_int.h"
@@ -1069,7 +1070,12 @@ int main(int argc, char **argv)
 	int opt_index = 0;
 	int flags = 0;
 
-	progname = argv[0];
+#if defined(__WIN32)
+        setbuf(stdout, NULL);
+        setbuf(stderr, NULL);
+#endif
+
+	progname = basename(argv[0]);
 
 	while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
 		switch (c) {

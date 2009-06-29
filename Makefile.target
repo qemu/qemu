@@ -584,6 +584,8 @@ ifdef CONFIG_BLUEZ
 LIBS += $(CONFIG_BLUEZ_LIBS)
 endif
 
+LIBS += $(UUID_LIBS)
+
 # xen backend driver support
 XEN_OBJS := xen_machine_pv.o xen_domainbuild.o
 ifeq ($(CONFIG_XEN), yes)
