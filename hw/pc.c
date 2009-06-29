@@ -448,7 +448,7 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 
 extern uint64_t node_cpumask[MAX_NODES];
 
-static void bochs_bios_init(void)
+static void *bochs_bios_init(void)
 {
     void *fw_cfg;
     uint8_t *smbios_table;
@@ -468,6 +468,7 @@ static void bochs_bios_init(void)
     register_ioport_write(0x503, 1, 1, bochs_bios_write, NULL);
 
     fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES, (uint8_t *)acpi_tables,
@@ -497,6 +498,8 @@ static void bochs_bios_init(void)
     }
     fw_cfg_add_bytes(fw_cfg, FW_CFG_NUMA, (uint8_t *)numa_fw_cfg,
                      (1 + smp_cpus + nb_numa_nodes) * 8);
+
+    return fw_cfg;
 }
 
 /* Generate an initial boot sector which sets state and jump to
@@ -851,6 +854,7 @@ static void pc_init1(ram_addr_t ram_size,
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     int using_vga = cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled;
+    void *fw_cfg;
 
     if (ram_size >= 0xe0000000 ) {
         above_4g_mem_size = ram_size - 0xe0000000;
@@ -971,7 +975,7 @@ static void pc_init1(ram_addr_t ram_size,
     cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
 
-    bochs_bios_init();
+    fw_cfg = bochs_bios_init();
 
     if (linux_boot) {
         load_linux(0xc0000 + oprom_area_size,
