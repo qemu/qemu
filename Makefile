@@ -44,7 +44,7 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
-build-all: $(TOOLS) $(DOCS) recurse-all
+build-all: $(TOOLS) $(DOCS) roms recurse-all
 
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
@@ -263,7 +263,7 @@ clean:
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
-	for d in $(TARGET_DIRS) libhw32 libhw64; do \
+	for d in $(TARGET_DIRS) $(ROMS) libhw32 libhw64; do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
@@ -282,10 +282,16 @@ ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 video.x openbios-sparc32 openbios-sparc64 openbios-ppc \
 pxe-ne2k_pci.bin pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin \
-bamboo.dtb petalogix-s3adsp1800.dtb
+bamboo.dtb petalogix-s3adsp1800.dtb \
+multiboot.bin
 else
 BLOBS=
 endif
+
+roms:
+	for d in $(ROMS); do \
+	$(MAKE) -C $$d || exit 1 ; \
+        done
 
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"

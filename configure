@@ -1868,6 +1868,12 @@ if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
 fi
 echo "TOOLS=$tools" >> $config_mak
 
+roms=
+if test "$cpu" = "i386" -o "$cpu" = "x86_64" ; then
+  roms="pc-bios/optionrom"
+fi
+echo "ROMS=$roms" >> $config_mak
+
 if test -f ${config_h}~ ; then
   if cmp -s $config_h ${config_h}~ ; then
     mv ${config_h}~ $config_h
@@ -2230,10 +2236,11 @@ done # for target in $targets
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
-    DIRS="tests tests/cris slirp audio block"
+    DIRS="tests tests/cris slirp audio block pc-bios/optionrom"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     FILES="$FILES tests/test-mmap.c"
+    FILES="$FILES pc-bios/optionrom/Makefile"
     for dir in $DIRS ; do
             mkdir -p $dir
     done
