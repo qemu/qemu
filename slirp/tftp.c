@@ -284,11 +284,12 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
 
   /* prepend tftp_prefix */
   prefix_len = strlen(slirp->tftp_prefix);
-  spt->filename = qemu_malloc(prefix_len + TFTP_FILENAME_MAX + 1);
+  spt->filename = qemu_malloc(prefix_len + TFTP_FILENAME_MAX + 2);
   memcpy(spt->filename, slirp->tftp_prefix, prefix_len);
+  spt->filename[prefix_len] = '/';
 
   /* get name */
-  req_fname = spt->filename + prefix_len;
+  req_fname = spt->filename + prefix_len + 1;
 
   while (1) {
     if (k >= TFTP_FILENAME_MAX || k >= pktlen) {
@@ -315,7 +316,8 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
   k += 6; /* skipping octet */
 
   /* do sanity checks on the filename */
-  if (req_fname[0] != '/' || req_fname[strlen(req_fname) - 1] == '/' ||
+  if (!strncmp(req_fname, "../", 3) ||
+      req_fname[strlen(req_fname) - 1] == '/' ||
       strstr(req_fname, "/../")) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
