@@ -4,7 +4,7 @@
 #include "hw.h"
 #include "sys-queue.h"
 
-typedef struct DeviceType DeviceType;
+typedef struct DeviceInfo DeviceInfo;
 
 typedef struct DeviceProperty DeviceProperty;
 
@@ -15,7 +15,7 @@ typedef struct BusInfo BusInfo;
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {
-    DeviceType *type;
+    DeviceInfo *info;
     BusState *parent_bus;
     DeviceProperty *props;
     int num_gpio_out;
@@ -72,8 +72,6 @@ typedef struct {
     DevicePropType type;
 } DevicePropList;
 
-typedef struct DeviceInfo DeviceInfo;
-
 typedef void (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
 typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
               int unit);
@@ -86,6 +84,7 @@ struct DeviceInfo {
     /* Private to qdev / bus.  */
     qdev_initfn init;
     BusInfo *bus_info;
+    struct DeviceInfo *next;
 };
 
 void qdev_register(DeviceInfo *info);
