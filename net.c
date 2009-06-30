@@ -1396,17 +1396,39 @@ static void tap_send(void *opaque)
     } while (size > 0);
 }
 
-static void tap_set_sndbuf(TAPState *s, int sndbuf, Monitor *mon)
-{
 #ifdef TUNSETSNDBUF
+/* sndbuf should be set to a value lower than the tx queue
+ * capacity of any destination network interface.
+ * Ethernet NICs generally have txqueuelen=1000, so 1Mb is
+ * a good default, given a 1500 byte MTU.
+ */
+#define TAP_DEFAULT_SNDBUF 1024*1024
+
+static void tap_set_sndbuf(TAPState *s, const char *sndbuf_str, Monitor *mon)
+{
+    int sndbuf = TAP_DEFAULT_SNDBUF;
+
+    if (sndbuf_str) {
+        sndbuf = atoi(sndbuf_str);
+    }
+
+    if (!sndbuf) {
+        sndbuf = INT_MAX;
+    }
+
     if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1) {
         config_error(mon, "TUNSETSNDBUF ioctl failed: %s\n",
                      strerror(errno));
     }
-#else
-    config_error(mon, "No '-net tap,sndbuf=<nbytes>' support available\n");
-#endif
 }
+#else
+static void tap_set_sndbuf(TAPState *s, const char *sndbuf_str, Monitor *mon)
+{
+    if (sndbuf_str) {
+        config_error(mon, "No '-net tap,sndbuf=<nbytes>' support available\n");
+    }
+}
+#endif /* TUNSETSNDBUF */
 
 static void tap_cleanup(VLANClientState *vc)
 {
@@ -2654,9 +2676,11 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             s = net_tap_init(vlan, device, name, ifname, setup_script, down_script);
         }
         if (s != NULL) {
+            const char *sndbuf_str = NULL;
             if (get_param_value(buf, sizeof(buf), "sndbuf", p)) {
-                tap_set_sndbuf(s, atoi(buf), mon);
+                sndbuf_str = buf;
             }
+            tap_set_sndbuf(s, sndbuf_str, mon);
             ret = 0;
         } else {
             ret = -1;
