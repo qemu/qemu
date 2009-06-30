@@ -849,9 +849,9 @@ if test "$xen" = "yes" ; then
 cat > $TMPC <<EOF
 #include <xenctrl.h>
 #include <xs.h>
-int main(void) { xs_daemon_open; xc_interface_open; }
+int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
-   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null > /dev/null ; then
+   if $cc $CFLAGS $ARCH_CFLAGS -c -o $TMPO $TMPC $LDFLAGS -lxenstore -lxenctrl 2> /dev/null > /dev/null ; then
       :
    else
       xen="no"
