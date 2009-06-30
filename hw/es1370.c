@@ -1005,27 +1005,12 @@ static void es1370_on_reset (void *opaque)
     es1370_reset (s);
 }
 
-int es1370_init (PCIBus *bus)
+static void es1370_initfn(PCIDevice *dev)
 {
-    PCIES1370State *d;
-    ES1370State *s;
-    uint8_t *c;
+    PCIES1370State *d = DO_UPCAST(PCIES1370State, dev, dev);
+    ES1370State *s = &d->es1370;
+    uint8_t *c = d->dev.config;
 
-    if (!bus) {
-        dolog ("No PCI bus\n");
-        return -1;
-    }
-
-    d = (PCIES1370State *) pci_register_device (bus, "ES1370",
-                                                sizeof (PCIES1370State),
-                                                -1, NULL, NULL);
-
-    if (!d) {
-        AUD_log (NULL, "Failed to register PCI device for ES1370\n");
-        return -1;
-    }
-
-    c = d->dev.config;
     pci_config_set_vendor_id (c, PCI_VENDOR_ID_ENSONIQ);
     pci_config_set_device_id (c, PCI_DEVICE_ID_ENSONIQ_ES1370);
     c[0x07] = 2 << 1;
@@ -1059,5 +1044,23 @@ int es1370_init (PCIBus *bus)
 
     AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
+}
+
+int es1370_init (PCIBus *bus)
+{
+    pci_create_simple(bus, -1, "ES1370");
     return 0;
 }
+
+static PCIDeviceInfo es1370_info = {
+    .qdev.name    = "ES1370",
+    .qdev.size    = sizeof(PCIES1370State),
+    .init         = es1370_initfn,
+};
+
+static void es1370_register(void)
+{
+    pci_qdev_register(&es1370_info);
+}
+device_init(es1370_register);
+
