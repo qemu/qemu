@@ -380,9 +380,9 @@ for opt do
   ;;
   --install=*) install="$optarg"
   ;;
-  --extra-cflags=*) CFLAGS="$optarg"
+  --extra-cflags=*) EXTRA_CFLAGS="$optarg"
   ;;
-  --extra-ldflags=*) LDFLAGS="$optarg"
+  --extra-ldflags=*) EXTRA_LDFLAGS="$optarg"
   ;;
   --cpu=*) cpu="$optarg"
   ;;
@@ -601,8 +601,8 @@ echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
-echo "  --extra-cflags=CFLAGS    add C compiler flags CFLAGS"
-echo "  --extra-ldflags=LDFLAGS  add linker flags LDFLAGS"
+echo "  --extra-cflags=CFLAGS    append extra C compiler flags CFLAGS"
+echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
@@ -1490,8 +1490,8 @@ echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "OS_LDFLAGS=$OS_LDFLAGS" >> $config_mak
 echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
 echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
-echo "CFLAGS=$CFLAGS" >> $config_mak
-echo "LDFLAGS=$LDFLAGS" >> $config_mak
+echo "CFLAGS=$CFLAGS $EXTRA_CFLAGS" >> $config_mak
+echo "LDFLAGS=$LDFLAGS $EXTRA_LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
 echo "PTHREADLIBS=$PTHREADLIBS" >> $config_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_mak
