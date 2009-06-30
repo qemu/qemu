@@ -723,7 +723,7 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
 
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
-    acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
+    acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
     if (!acb)
         return NULL;
 
