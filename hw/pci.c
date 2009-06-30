@@ -134,7 +134,8 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 static PCIBus *pci_register_secondary_bus(PCIDevice *dev, pci_map_irq_fn map_irq)
 {
     PCIBus *bus;
-    bus = qemu_mallocz(sizeof(PCIBus));
+
+    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, &dev->qdev, NULL));
     bus->map_irq = map_irq;
     bus->parent_dev = dev;
     bus->next = dev->bus->next;
@@ -890,7 +891,7 @@ static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
     devfn = qdev_get_prop_int(qdev, "devfn", -1);
-    pci_dev = do_pci_register_device(pci_dev, bus, "FIXME", devfn,
+    pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write);
     assert(pci_dev);
     info->init(pci_dev);
