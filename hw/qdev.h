@@ -10,6 +10,8 @@ typedef struct DeviceProperty DeviceProperty;
 
 typedef struct BusState BusState;
 
+typedef struct BusInfo BusInfo;
+
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {
@@ -25,18 +27,17 @@ struct DeviceState {
     LIST_ENTRY(DeviceState) sibling;
 };
 
-typedef enum {
-    BUS_TYPE_SYSTEM,
-    BUS_TYPE_PCI,
-    BUS_TYPE_SCSI,
-    BUS_TYPE_I2C,
-    BUS_TYPE_SSI
-} BusType;
+typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
+struct BusInfo {
+    const char *name;
+    size_t size;
+    bus_dev_printfn print_dev;
+};
 
 struct BusState {
     DeviceState *parent;
+    BusInfo *info;
     const char *name;
-    BusType type;
     LIST_HEAD(, DeviceState) children;
     LIST_ENTRY(BusState) sibling;
 };
@@ -84,7 +85,7 @@ struct DeviceInfo {
 
     /* Private to qdev / bus.  */
     qdev_initfn init;
-    BusType bus_type;
+    BusInfo *bus_info;
 };
 
 void qdev_register(DeviceInfo *info);
@@ -116,14 +117,12 @@ void *qdev_get_prop_ptr(DeviceState *dev, const char *name);
 
 /*** BUS API. ***/
 
-BusState *qbus_create(BusType type, size_t size,
-                      DeviceState *parent, const char *name);
+BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name);
 
 #define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)
 
 /*** monitor commands ***/
 
 void do_info_qtree(Monitor *mon);
-void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 
 #endif

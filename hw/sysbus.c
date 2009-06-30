@@ -22,6 +22,14 @@
 #include "sysemu.h"
 #include "monitor.h"
 
+static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+
+struct BusInfo system_bus_info = {
+    .name       = "System",
+    .size       = sizeof(BusState),
+    .print_dev  = sysbus_dev_print,
+};
+
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
     assert(n >= 0 && n < dev->num_irq);
@@ -108,7 +116,7 @@ static void sysbus_device_init(DeviceState *dev, DeviceInfo *base)
 void sysbus_register_withprop(SysBusDeviceInfo *info)
 {
     info->qdev.init = sysbus_device_init;
-    info->qdev.bus_type = BUS_TYPE_SYSTEM;
+    info->qdev.bus_info = &system_bus_info;
 
     assert(info->qdev.size >= sizeof(SysBusDevice));
     qdev_register(&info->qdev);
@@ -153,7 +161,7 @@ DeviceState *sysbus_create_varargs(const char *name,
     return dev;
 }
 
-void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
+static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     SysBusDevice *s = sysbus_from_qdev(dev);
     int i;
