@@ -521,7 +521,7 @@ sound-obj-$(CONFIG_ES1370) += es1370.o
 sound-obj-$(CONFIG_AC97) += ac97.o
 sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
 sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
-sound-obj-$(CONFIG_CS4321A) += cs4231a.o
+sound-obj-$(CONFIG_CS4231A) += cs4231a.o
 
 ifdef CONFIG_ADLIB
 adlib.o fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
