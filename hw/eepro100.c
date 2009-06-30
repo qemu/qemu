@@ -1792,14 +1792,27 @@ static void pci_i82559er_init(PCIDevice *dev)
     nic_init(dev, i82559ER);
 }
 
+static PCIDeviceInfo eepro100_info[] = {
+    {
+        .qdev.name = "i82551",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82551_init,
+    },{
+        .qdev.name = "i82557b",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82557b_init,
+    },{
+        .qdev.name = "i82559er",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82559er_init,
+    },{
+        /* end of list */
+    }
+};
+
 static void eepro100_register_devices(void)
 {
-    pci_qdev_register("i82551", sizeof(PCIEEPRO100State),
-                      pci_i82551_init);
-    pci_qdev_register("i82557b", sizeof(PCIEEPRO100State),
-                      pci_i82557b_init);
-    pci_qdev_register("i82559er", sizeof(PCIEEPRO100State),
-                      pci_i82559er_init);
+    pci_qdev_register_many(eepro100_info);
 }
 
 device_init(eepro100_register_devices)

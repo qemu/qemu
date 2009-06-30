@@ -1125,9 +1125,15 @@ static void pci_e1000_init(PCIDevice *pci_dev)
     e1000_reset(d);
 }
 
+static PCIDeviceInfo e1000_info = {
+    .qdev.name = "e1000",
+    .qdev.size = sizeof(E1000State),
+    .init      = pci_e1000_init,
+};
+
 static void e1000_register_devices(void)
 {
-    pci_qdev_register("e1000", sizeof(E1000State), pci_e1000_init);
+    pci_qdev_register(&e1000_info);
 }
 
 device_init(e1000_register_devices)

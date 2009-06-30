@@ -2143,9 +2143,15 @@ static void lance_init(SysBusDevice *dev)
 }
 #endif /* TARGET_SPARC */
 
+static PCIDeviceInfo pcnet_info = {
+    .qdev.name = "pcnet",
+    .qdev.size = sizeof(PCIPCNetState),
+    .init      = pci_pcnet_init,
+};
+
 static void pcnet_register_devices(void)
 {
-    pci_qdev_register("pcnet", sizeof(PCIPCNetState), pci_pcnet_init);
+    pci_qdev_register(&pcnet_info);
 #if defined (TARGET_SPARC) && !defined(TARGET_SPARC64)
     sysbus_register_dev("lance", sizeof(SysBusPCNetState), lance_init);
 #endif

@@ -2035,9 +2035,15 @@ static void lsi_scsi_init(PCIDevice *dev)
     scsi_bus_new(&dev->qdev, lsi_scsi_attach);
 }
 
+static PCIDeviceInfo lsi_info = {
+    .qdev.name = "lsi53c895a",
+    .qdev.size = sizeof(LSIState),
+    .init      = lsi_scsi_init,
+};
+
 static void lsi53c895a_register_devices(void)
 {
-    pci_qdev_register("lsi53c895a", sizeof(LSIState), lsi_scsi_init);
+    pci_qdev_register(&lsi_info);
 }
 
 device_init(lsi53c895a_register_devices);

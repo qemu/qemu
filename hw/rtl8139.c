@@ -3499,9 +3499,15 @@ static void pci_rtl8139_init(PCIDevice *dev)
 #endif /* RTL8139_ONBOARD_TIMER */
 }
 
+static PCIDeviceInfo rtl8139_info = {
+    .qdev.name = "rtl8139",
+    .qdev.size = sizeof(PCIRTL8139State),
+    .init      = pci_rtl8139_init,
+};
+
 static void rtl8139_register_devices(void)
 {
-    pci_qdev_register("rtl8139", sizeof(PCIRTL8139State), pci_rtl8139_init);
+    pci_qdev_register(&rtl8139_info);
 }
 
 device_init(rtl8139_register_devices)
