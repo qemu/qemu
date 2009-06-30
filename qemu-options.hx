@@ -148,9 +148,7 @@ an internal copy of the data.
 
 Some block drivers perform badly with @option{cache=writethrough}, most notably,
 qcow2.  If performance is more important than correctness,
-@option{cache=writeback} should be used with qcow2.  By default, if no explicit
-caching is specified for a qcow2 disk image, @option{cache=writeback} will be
-used.  For all other disk types, @option{cache=writethrough} is the default.
+@option{cache=writeback} should be used with qcow2.
 
 Instead of @option{-cdrom} you can use:
 @example

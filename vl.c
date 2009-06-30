@@ -2239,7 +2239,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     unit_id = -1;
     translation = BIOS_ATA_TRANSLATION_AUTO;
     index = -1;
-    cache = 3;
+    cache = 1;
 
     if (machine->use_scsi) {
         type = IF_SCSI;
@@ -2557,8 +2557,6 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         bdrv_flags |= BDRV_O_NOCACHE;
     else if (cache == 2) /* write-back */
         bdrv_flags |= BDRV_O_CACHE_WB;
-    else if (cache == 3) /* not specified */
-        bdrv_flags |= BDRV_O_CACHE_DEF;
     if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
