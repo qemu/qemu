@@ -37,12 +37,9 @@ build-all: multiboot.bin
 %.img: %.o
 	$(LD) --oformat binary -Ttext 0 -o $@ $<
 
-%.bin: %.img signrom
-	./signrom $< $@
+%.bin: %.img
+	$(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@
 	cp $@ $(SRC_PATH)/pc-bios/
 
-signrom: signrom.c
-	$(CC) -o $@ -g -Wall $^
-
 clean:
-	$(RM) *.o *.img *.bin signrom *~
+	$(RM) *.o *.img *.bin *~
