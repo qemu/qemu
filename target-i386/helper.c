@@ -314,7 +314,7 @@ static int cpu_x86_fill_model_id(char *str)
 
 static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
 {
-    uint32_t eax, ebx, ecx, edx;
+    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
     x86_cpu_def->name = "host";
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
