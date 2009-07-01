@@ -74,20 +74,20 @@ struct socket {
 #define SS_HOSTFWD		0x1000	/* Socket describes host->guest forwarding */
 #define SS_INCOMING		0x2000	/* Connection was initiated by a host on the internet */
 
-struct socket * solookup _P((struct socket *, struct in_addr, u_int, struct in_addr, u_int));
-struct socket * socreate _P((Slirp *));
-void sofree _P((struct socket *));
-int soread _P((struct socket *));
-void sorecvoob _P((struct socket *));
-int sosendoob _P((struct socket *));
-int sowrite _P((struct socket *));
-void sorecvfrom _P((struct socket *));
-int sosendto _P((struct socket *, struct mbuf *));
-struct socket * tcp_listen _P((Slirp *, u_int32_t, u_int, u_int32_t, u_int,
-                               int));
-void soisfconnecting _P((register struct socket *));
-void soisfconnected _P((register struct socket *));
-void sofwdrain _P((struct socket *));
+struct socket * solookup(struct socket *, struct in_addr, u_int, struct in_addr, u_int);
+struct socket * socreate(Slirp *);
+void sofree(struct socket *);
+int soread(struct socket *);
+void sorecvoob(struct socket *);
+int sosendoob(struct socket *);
+int sowrite(struct socket *);
+void sorecvfrom(struct socket *);
+int sosendto(struct socket *, struct mbuf *);
+struct socket * tcp_listen(Slirp *, u_int32_t, u_int, u_int32_t, u_int,
+                               int);
+void soisfconnecting(register struct socket *);
+void soisfconnected(register struct socket *);
+void sofwdrain(struct socket *);
 struct iovec; /* For win32 */
 size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np);
 int soreadbuf(struct socket *so, const char *buf, int size);

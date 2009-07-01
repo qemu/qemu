@@ -73,13 +73,13 @@ struct udpiphdr {
 
 struct mbuf;
 
-void udp_init _P((Slirp *));
-void udp_input _P((register struct mbuf *, int));
-int udp_output _P((struct socket *, struct mbuf *, struct sockaddr_in *));
-int udp_attach _P((struct socket *));
-void udp_detach _P((struct socket *));
-struct socket * udp_listen _P((Slirp *, u_int32_t, u_int, u_int32_t, u_int,
-                               int));
+void udp_init(Slirp *);
+void udp_input(register struct mbuf *, int);
+int udp_output(struct socket *, struct mbuf *, struct sockaddr_in *);
+int udp_attach(struct socket *);
+void udp_detach(struct socket *);
+struct socket * udp_listen(Slirp *, u_int32_t, u_int, u_int32_t, u_int,
+                           int);
 int udp_output2(struct socket *so, struct mbuf *m,
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,
                 int iptos);

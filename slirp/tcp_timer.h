@@ -120,8 +120,8 @@ extern const int tcp_backoff[];
 
 struct tcpcb;
 
-void tcp_fasttimo _P((Slirp *));
-void tcp_slowtimo _P((Slirp *));
-void tcp_canceltimers _P((struct tcpcb *));
+void tcp_fasttimo(Slirp *);
+void tcp_slowtimo(Slirp *);
+void tcp_canceltimers(struct tcpcb *);
 
 #endif

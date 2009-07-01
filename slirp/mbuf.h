@@ -115,13 +115,13 @@ struct mbuf {
 #define M_DOFREE		0x08	/* when m_free is called on the mbuf, free()
 					 * it rather than putting it on the free list */
 
-void m_init _P((Slirp *));
-struct mbuf * m_get _P((Slirp *));
-void m_free _P((struct mbuf *));
-void m_cat _P((register struct mbuf *, register struct mbuf *));
-void m_inc _P((struct mbuf *, int));
-void m_adj _P((struct mbuf *, int));
-int m_copy _P((struct mbuf *, struct mbuf *, int, int));
-struct mbuf * dtom _P((Slirp *, void *));
+void m_init(Slirp *);
+struct mbuf * m_get(Slirp *);
+void m_free(struct mbuf *);
+void m_cat(register struct mbuf *, register struct mbuf *);
+void m_inc(struct mbuf *, int);
+void m_adj(struct mbuf *, int);
+int m_copy(struct mbuf *, struct mbuf *, int, int);
+struct mbuf * dtom(Slirp *, void *);
 
 #endif

@@ -17,10 +17,10 @@ struct ex_list {
 };
 
 #ifndef HAVE_STRDUP
-char *strdup _P((const char *));
+char *strdup(const char *);
 #endif
 
-void do_wait _P((int));
+void do_wait(int);
 
 #define EMU_NONE 0x0
 
@@ -58,20 +58,20 @@ struct emu_t {
 
 extern int x_port, x_server, x_display;
 
-int show_x _P((char *, struct socket *));
-void redir_x _P((u_int32_t, int, int, int));
-void slirp_insque _P((void *, void *));
-void slirp_remque _P((void *));
-int add_exec _P((struct ex_list **, int, char *, struct in_addr, int));
-int slirp_openpty _P((int *, int *));
+int show_x(char *, struct socket *);
+void redir_x(u_int32_t, int, int, int);
+void slirp_insque(void *, void *);
+void slirp_remque(void *);
+int add_exec(struct ex_list **, int, char *, struct in_addr, int);
+int slirp_openpty(int *, int *);
 int fork_exec(struct socket *so, const char *ex, int do_pty);
-void snooze_hup _P((int));
-void snooze _P((void));
-void relay _P((int));
-void add_emu _P((char *));
-void u_sleep _P((int));
-void fd_nonblock _P((int));
-void fd_block _P((int));
-int rsh_exec _P((struct socket *, struct socket *, char *, char *, char *));
+void snooze_hup(int);
+void snooze(void);
+void relay(int);
+void add_emu(char *);
+void u_sleep(int);
+void fd_nonblock(int);
+void fd_block(int);
+int rsh_exec(struct socket *, struct socket *, char *, char *, char *);
 
 #endif

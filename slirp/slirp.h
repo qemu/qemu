@@ -103,13 +103,6 @@ typedef unsigned char u_int8_t;
 #include <sys/uio.h>
 #endif
 
-#undef _P
-#ifndef NO_PROTOTYPES
-#  define   _P(x)   x
-#else
-#  define   _P(x)   ()
-#endif
-
 #ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -121,17 +114,17 @@ typedef unsigned char u_int8_t;
 
 /* Systems lacking strdup() definition in <string.h>. */
 #if defined(ultrix)
-char *strdup _P((const char *));
+char *strdup(const char *);
 #endif
 
 /* Systems lacking malloc() definition in <stdlib.h>. */
 #if defined(ultrix) || defined(hcx)
-void *malloc _P((size_t arg));
-void free _P((void *ptr));
+void *malloc(size_t arg);
+void free(void *ptr);
 #endif
 
 #ifndef HAVE_INET_ATON
-int inet_aton _P((const char *cp, struct in_addr *ia));
+int inet_aton(const char *cp, struct in_addr *ia);
 #endif
 
 #include <fcntl.h>
@@ -270,38 +263,38 @@ extern Slirp *slirp_instance;
 #endif
 
 #ifndef FULL_BOLT
-void if_start _P((Slirp *));
+void if_start(Slirp *);
 #else
-void if_start _P((struct ttys *));
+void if_start(struct ttys *);
 #endif
 
 #ifdef BAD_SPRINTF
 # define vsprintf vsprintf_len
 # define sprintf sprintf_len
- extern int vsprintf_len _P((char *, const char *, va_list));
- extern int sprintf_len _P((char *, const char *, ...));
+ extern int vsprintf_len(char *, const char *, va_list);
+ extern int sprintf_len(char *, const char *, ...);
 #endif
 
 #ifdef DECLARE_SPRINTF
 # ifndef BAD_SPRINTF
- extern int vsprintf _P((char *, const char *, va_list));
+ extern int vsprintf(char *, const char *, va_list);
 # endif
- extern int vfprintf _P((FILE *, const char *, va_list));
+ extern int vfprintf(FILE *, const char *, va_list);
 #endif
 
 #ifndef HAVE_STRERROR
- extern char *strerror _P((int error));
+ extern char *strerror(int error);
 #endif
 
 #ifndef HAVE_INDEX
- char *index _P((const char *, int));
+ char *index(const char *, int);
 #endif
 
 #ifndef HAVE_GETHOSTID
- long gethostid _P((void));
+ long gethostid(void);
 #endif
 
-void lprint _P((const char *, ...));
+void lprint(const char *, ...);
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -316,39 +309,39 @@ void lprint _P((const char *, ...));
 int cksum(struct mbuf *m, int len);
 
 /* if.c */
-void if_init _P((Slirp *));
-void if_output _P((struct socket *, struct mbuf *));
+void if_init(Slirp *);
+void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
-void ip_init _P((Slirp *));
-void ip_input _P((struct mbuf *));
-void ip_slowtimo _P((Slirp *));
-void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
+void ip_init(Slirp *);
+void ip_input(struct mbuf *);
+void ip_slowtimo(Slirp *);
+void ip_stripoptions(register struct mbuf *, struct mbuf *);
 
 /* ip_output.c */
-int ip_output _P((struct socket *, struct mbuf *));
+int ip_output(struct socket *, struct mbuf *);
 
 /* tcp_input.c */
-void tcp_input _P((register struct mbuf *, int, struct socket *));
-int tcp_mss _P((register struct tcpcb *, u_int));
+void tcp_input(register struct mbuf *, int, struct socket *);
+int tcp_mss(register struct tcpcb *, u_int);
 
 /* tcp_output.c */
-int tcp_output _P((register struct tcpcb *));
-void tcp_setpersist _P((register struct tcpcb *));
+int tcp_output(register struct tcpcb *);
+void tcp_setpersist(register struct tcpcb *);
 
 /* tcp_subr.c */
-void tcp_init _P((Slirp *));
-void tcp_template _P((struct tcpcb *));
-void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
-struct tcpcb * tcp_newtcpcb _P((struct socket *));
-struct tcpcb * tcp_close _P((register struct tcpcb *));
-void tcp_sockclosed _P((struct tcpcb *));
-int tcp_fconnect _P((struct socket *));
-void tcp_connect _P((struct socket *));
-int tcp_attach _P((struct socket *));
-u_int8_t tcp_tos _P((struct socket *));
-int tcp_emu _P((struct socket *, struct mbuf *));
-int tcp_ctl _P((struct socket *));
+void tcp_init(Slirp *);
+void tcp_template(struct tcpcb *);
+void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int);
+struct tcpcb * tcp_newtcpcb(struct socket *);
+struct tcpcb * tcp_close(register struct tcpcb *);
+void tcp_sockclosed(struct tcpcb *);
+int tcp_fconnect(struct socket *);
+void tcp_connect(struct socket *);
+int tcp_attach(struct socket *);
+u_int8_t tcp_tos(struct socket *);
+int tcp_emu(struct socket *, struct mbuf *);
+int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
 #ifdef USE_PPP
