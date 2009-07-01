@@ -123,18 +123,18 @@ obj-y += migration-exec.o
 endif
 
 ifdef CONFIG_COREAUDIO
-AUDIO_PT = yes
+AUDIO_PT = y
 endif
 ifdef CONFIG_FMOD
 audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
 endif
 ifdef CONFIG_ESD
-AUDIO_PT = yes
-AUDIO_PT_INT = yes
+AUDIO_PT = y
+AUDIO_PT_INT = y
 endif
 ifdef CONFIG_PA
-AUDIO_PT = yes
-AUDIO_PT_INT = yes
+AUDIO_PT = y
+AUDIO_PT_INT = y
 endif
 ifdef AUDIO_PT
 LDFLAGS += -pthread
