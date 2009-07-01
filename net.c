@@ -2504,10 +2504,11 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             goto out;
         }
         if (get_param_value(buf, sizeof(buf), "ip", p)) {
+            int vnet_buflen = strlen(buf) + strlen("/24") + 1;
             /* emulate legacy parameter */
-            vnet = qemu_malloc(strlen(buf) + strlen("/24") + 1);
-            strcpy(vnet, buf);
-            strcat(vnet, "/24");
+            vnet = qemu_malloc(vnet_buflen);
+            pstrcpy(vnet, vnet_buflen, buf);
+            pstrcat(vnet, vnet_buflen, "/24");
         }
         if (get_param_value(buf, sizeof(buf), "net", p)) {
             vnet = qemu_strdup(buf);
