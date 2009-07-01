@@ -2402,6 +2402,16 @@ static int parse_bootdevices(char *devices)
     return bitmap;
 }
 
+static void restore_boot_devices(void *opaque)
+{
+    char *standard_boot_devices = opaque;
+
+    qemu_boot_set(standard_boot_devices);
+
+    qemu_unregister_reset(restore_boot_devices, standard_boot_devices);
+    qemu_free(standard_boot_devices);
+}
+
 static void numa_add(const char *optarg)
 {
     char option[128];
@@ -5111,9 +5121,10 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_boot:
                 {
                     static const char * const params[] = {
-                        "order", NULL
+                        "order", "once", NULL
                     };
                     char buf[sizeof(boot_devices)];
+                    char *standard_boot_devices;
                     int legacy = 0;
 
                     if (!strchr(optarg, '=')) {
@@ -5130,6 +5141,16 @@ int main(int argc, char **argv, char **envp)
                         get_param_value(buf, sizeof(buf), "order", optarg)) {
                         boot_devices_bitmap = parse_bootdevices(buf);
                         pstrcpy(boot_devices, sizeof(boot_devices), buf);
+                    }
+                    if (!legacy) {
+                        if (get_param_value(buf, sizeof(buf),
+                                            "once", optarg)) {
+                            boot_devices_bitmap |= parse_bootdevices(buf);
+                            standard_boot_devices = qemu_strdup(boot_devices);
+                            pstrcpy(boot_devices, sizeof(boot_devices), buf);
+                            qemu_register_reset(restore_boot_devices,
+                                                standard_boot_devices);
+                        }
                     }
                 }
                 break;
