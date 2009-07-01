@@ -68,6 +68,7 @@ struct NICInfo {
     const char *model;
     const char *name;
     VLANState *vlan;
+    VLANClientState *vc;
     void *private;
     int used;
 };
