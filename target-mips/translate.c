@@ -2132,7 +2132,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_trunc_i64_tl(t1, t2);
             tcg_temp_free_i64(t2);
             tcg_gen_ext32s_tl(cpu_LO[0], t0);
-            tcg_gen_ext32s_tl(cpu_LO[1], t1);
+            tcg_gen_ext32s_tl(cpu_HI[0], t1);
         }
         opn = "madd";
         break;
@@ -2167,7 +2167,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_ext_tl_i64(t3, t1);
             tcg_gen_mul_i64(t2, t2, t3);
             tcg_gen_concat_tl_i64(t3, cpu_LO[0], cpu_HI[0]);
-            tcg_gen_sub_i64(t2, t2, t3);
+            tcg_gen_sub_i64(t2, t3, t2);
             tcg_temp_free_i64(t3);
             tcg_gen_trunc_i64_tl(t0, t2);
             tcg_gen_shri_i64(t2, t2, 32);
@@ -2189,7 +2189,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_extu_tl_i64(t3, t1);
             tcg_gen_mul_i64(t2, t2, t3);
             tcg_gen_concat_tl_i64(t3, cpu_LO[0], cpu_HI[0]);
-            tcg_gen_sub_i64(t2, t2, t3);
+            tcg_gen_sub_i64(t2, t3, t2);
             tcg_temp_free_i64(t3);
             tcg_gen_trunc_i64_tl(t0, t2);
             tcg_gen_shri_i64(t2, t2, 32);
