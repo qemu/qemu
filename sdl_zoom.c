@@ -14,6 +14,7 @@
 #include "sdl_zoom.h"
 #include "osdep.h"
 #include <stdint.h>
+#include <stdio.h>
 
 static int sdl_zoom_rgb16(SDL_Surface *src, SDL_Surface *dst, int smooth,
                           SDL_Rect *dst_rect);
