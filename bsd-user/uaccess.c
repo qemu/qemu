@@ -37,17 +37,6 @@ abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len)
     return ret;
 }
 
-/* XXX: use host strnlen if available ? */
-static int qemu_strnlen(const char *s, int max_len)
-{
-    int i;
-    for(i = 0; i < max_len; i++) {
-        if (s[i] == '\0')
-            break;
-    }
-    return i;
-}
-
 /* Return the length of a string in target memory or -TARGET_EFAULT if
    access error  */
 abi_long target_strlen(abi_ulong guest_addr1)

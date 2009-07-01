@@ -225,7 +225,7 @@ static BlockDriver *find_protocol(const char *filename)
 {
     BlockDriver *drv1;
     char protocol[128];
-    int len = strnlen(filename, 127)+1;
+    int len = qemu_strnlen(filename, 127) + 1;
     const char *p;
 
 #ifdef _WIN32
