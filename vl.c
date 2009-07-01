@@ -3442,12 +3442,13 @@ void vm_start(void)
 /* reset/shutdown handler */
 
 typedef struct QEMUResetEntry {
+    TAILQ_ENTRY(QEMUResetEntry) entry;
     QEMUResetHandler *func;
     void *opaque;
-    struct QEMUResetEntry *next;
 } QEMUResetEntry;
 
-static QEMUResetEntry *first_reset_entry;
+static TAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
+    TAILQ_HEAD_INITIALIZER(reset_handlers);
 static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
@@ -3501,16 +3502,11 @@ static void do_vm_stop(int reason)
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry **pre, *re;
+    QEMUResetEntry *re = qemu_mallocz(sizeof(QEMUResetEntry));
 
-    pre = &first_reset_entry;
-    while (*pre != NULL)
-        pre = &(*pre)->next;
-    re = qemu_mallocz(sizeof(QEMUResetEntry));
     re->func = func;
     re->opaque = opaque;
-    re->next = NULL;
-    *pre = re;
+    TAILQ_INSERT_TAIL(&reset_handlers, re, entry);
 }
 
 void qemu_system_reset(void)
@@ -3518,7 +3514,7 @@ void qemu_system_reset(void)
     QEMUResetEntry *re;
 
     /* reset all devices */
-    for(re = first_reset_entry; re != NULL; re = re->next) {
+    TAILQ_FOREACH(re, &reset_handlers, entry) {
         re->func(re->opaque);
     }
 }
