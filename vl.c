@@ -2356,6 +2356,35 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     return drives_table_idx;
 }
 
+static int parse_bootdevices(char *devices)
+{
+    /* We just do some generic consistency checks */
+    const char *p;
+    int bitmap = 0;
+
+    for (p = devices; *p != '\0'; p++) {
+        /* Allowed boot devices are:
+         * a-b: floppy disk drives
+         * c-f: IDE disk drives
+         * g-m: machine implementation dependant drives
+         * n-p: network devices
+         * It's up to each machine implementation to check if the given boot
+         * devices match the actual hardware implementation and firmware
+         * features.
+         */
+        if (*p < 'a' || *p > 'p') {
+            fprintf(stderr, "Invalid boot device '%c'\n", *p);
+            exit(1);
+        }
+        if (bitmap & (1 << (*p - 'a'))) {
+            fprintf(stderr, "Boot device '%c' was given twice\n", *p);
+            exit(1);
+        }
+        bitmap |= 1 << (*p - 'a');
+    }
+    return bitmap;
+}
+
 static void numa_add(const char *optarg)
 {
     char option[128];
@@ -4765,7 +4794,7 @@ int main(int argc, char **argv, char **envp)
     int snapshot, linux_boot, net_boot;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    const char *boot_devices = "";
+    char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
@@ -5054,33 +5083,27 @@ int main(int argc, char **argv, char **envp)
                 drive_add(optarg, CDROM_ALIAS);
                 break;
             case QEMU_OPTION_boot:
-                boot_devices = optarg;
-                /* We just do some generic consistency checks */
                 {
-                    /* Could easily be extended to 64 devices if needed */
-                    const char *p;
-                    
-                    boot_devices_bitmap = 0;
-                    for (p = boot_devices; *p != '\0'; p++) {
-                        /* Allowed boot devices are:
-                         * a b     : floppy disk drives
-                         * c ... f : IDE disk drives
-                         * g ... m : machine implementation dependant drives
-                         * n ... p : network devices
-                         * It's up to each machine implementation to check
-                         * if the given boot devices match the actual hardware
-                         * implementation and firmware features.
-                         */
-                        if (*p < 'a' || *p > 'q') {
-                            fprintf(stderr, "Invalid boot device '%c'\n", *p);
-                            exit(1);
-                        }
-                        if (boot_devices_bitmap & (1 << (*p - 'a'))) {
-                            fprintf(stderr,
-                                    "Boot device '%c' was given twice\n",*p);
-                            exit(1);
-                        }
-                        boot_devices_bitmap |= 1 << (*p - 'a');
+                    static const char * const params[] = {
+                        "order", NULL
+                    };
+                    char buf[sizeof(boot_devices)];
+                    int legacy = 0;
+
+                    if (!strchr(optarg, '=')) {
+                        legacy = 1;
+                        pstrcpy(buf, sizeof(buf), optarg);
+                    } else if (check_params(buf, sizeof(buf), params, optarg) < 0) {
+                        fprintf(stderr,
+                                "qemu: unknown boot parameter '%s' in '%s'\n",
+                                buf, optarg);
+                        exit(1);
+                    }
+
+                    if (legacy ||
+                        get_param_value(buf, sizeof(buf), "order", optarg)) {
+                        boot_devices_bitmap = parse_bootdevices(buf);
+                        pstrcpy(boot_devices, sizeof(boot_devices), buf);
                     }
                 }
                 break;
@@ -5649,10 +5672,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    /* boot to floppy or the default cd if no hard disk defined yet */
-    if (!boot_devices[0]) {
-        boot_devices = "cad";
-    }
     setvbuf(stdout, NULL, _IOLBF, 0);
 
     init_timers();
