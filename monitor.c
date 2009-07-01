@@ -1185,28 +1185,15 @@ static void do_ioport_read(Monitor *mon, int count, int format, int size,
                    suffix, addr, size * 2, val);
 }
 
-/* boot_set handler */
-static QEMUBootSetHandler *qemu_boot_set_handler = NULL;
-static void *boot_opaque;
-
-void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
-{
-    qemu_boot_set_handler = func;
-    boot_opaque = opaque;
-}
-
 static void do_boot_set(Monitor *mon, const char *bootdevice)
 {
     int res;
 
-    if (qemu_boot_set_handler)  {
-        res = qemu_boot_set_handler(boot_opaque, bootdevice);
-        if (res == 0)
-            monitor_printf(mon, "boot device list now set to %s\n",
-                           bootdevice);
-        else
-            monitor_printf(mon, "setting boot device list failed with "
-                           "error %i\n", res);
+    res = qemu_boot_set(bootdevice);
+    if (res == 0) {
+        monitor_printf(mon, "boot device list now set to %s\n", bootdevice);
+    } else if (res > 0) {
+        monitor_printf(mon, "setting boot device list failed\n");
     } else {
         monitor_printf(mon, "no function defined to set boot device list for "
                        "this architecture\n");

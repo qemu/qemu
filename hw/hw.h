@@ -262,9 +262,10 @@ typedef void QEMUResetHandler(void *opaque);
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 
-/* handler to set the boot_device for a specific type of QEMUMachine */
+/* handler to set the boot_device order for a specific type of QEMUMachine */
 /* return 0 if success */
-typedef int QEMUBootSetHandler(void *opaque, const char *boot_device);
+typedef int QEMUBootSetHandler(void *opaque, const char *boot_devices);
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
+int qemu_boot_set(const char *boot_devices);
 
 #endif
