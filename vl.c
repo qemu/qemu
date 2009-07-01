@@ -254,6 +254,7 @@ const char *prom_envs[MAX_PROM_ENVS];
 #endif
 int nb_drives_opt;
 struct drive_opt drives_opt[MAX_DRIVES];
+int boot_menu;
 
 int nb_numa_nodes;
 uint64_t node_mem[MAX_NODES];
@@ -5121,7 +5122,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_boot:
                 {
                     static const char * const params[] = {
-                        "order", "once", NULL
+                        "order", "once", "menu", NULL
                     };
                     char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
@@ -5150,6 +5151,19 @@ int main(int argc, char **argv, char **envp)
                             pstrcpy(boot_devices, sizeof(boot_devices), buf);
                             qemu_register_reset(restore_boot_devices,
                                                 standard_boot_devices);
+                        }
+                        if (get_param_value(buf, sizeof(buf),
+                                            "menu", optarg)) {
+                            if (!strcmp(buf, "on")) {
+                                boot_menu = 1;
+                            } else if (!strcmp(buf, "off")) {
+                                boot_menu = 0;
+                            } else {
+                                fprintf(stderr,
+                                        "qemu: invalid option value '%s'\n",
+                                        buf);
+                                exit(1);
+                            }
                         }
                     }
                 }
