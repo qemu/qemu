@@ -3509,12 +3509,25 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
     TAILQ_INSERT_TAIL(&reset_handlers, re, entry);
 }
 
-void qemu_system_reset(void)
+void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry *re;
 
-    /* reset all devices */
     TAILQ_FOREACH(re, &reset_handlers, entry) {
+        if (re->func == func && re->opaque == opaque) {
+            TAILQ_REMOVE(&reset_handlers, re, entry);
+            qemu_free(re);
+            return;
+        }
+    }
+}
+
+void qemu_system_reset(void)
+{
+    QEMUResetEntry *re, *nre;
+
+    /* reset all devices */
+    TAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
     }
 }
