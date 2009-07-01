@@ -1416,7 +1416,7 @@ static void tap_set_sndbuf(TAPState *s, const char *sndbuf_str, Monitor *mon)
         sndbuf = INT_MAX;
     }
 
-    if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1) {
+    if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1 && sndbuf_str) {
         config_error(mon, "TUNSETSNDBUF ioctl failed: %s\n",
                      strerror(errno));
     }
