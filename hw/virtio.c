@@ -626,9 +626,6 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_be32(f, vdev->config_len);
     qemu_put_buffer(f, vdev->config, vdev->config_len);
 
-    if (vdev->nvectors)
-        qemu_put_be16s(f, &vdev->config_vector);
-
     for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
