@@ -1161,7 +1161,7 @@ static void do_ioport_read(Monitor *mon, int count, int format, int size,
     int suffix;
 
     if (has_index) {
-        cpu_outb(NULL, addr & 0xffff, index & 0xff);
+        cpu_outb(NULL, addr & IOPORTS_MASK, index & 0xff);
         addr++;
     }
     addr &= 0xffff;

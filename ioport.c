@@ -94,7 +94,7 @@ static uint32_t default_ioport_readw(void *opaque, uint32_t address)
 {
     uint32_t data;
     data = ioport_read(0, address);
-    address = (address + 1) & (MAX_IOPORTS - 1);
+    address = (address + 1) & IOPORTS_MASK;
     data |= ioport_read(0, address) << 8;
     return data;
 }
@@ -102,7 +102,7 @@ static uint32_t default_ioport_readw(void *opaque, uint32_t address)
 static void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
 {
     ioport_write(0, address, data & 0xff);
-    address = (address + 1) & (MAX_IOPORTS - 1);
+    address = (address + 1) & IOPORTS_MASK;
     ioport_write(0, address, (data >> 8) & 0xff);
 }
 

@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 
 #define MAX_IOPORTS     (64 * 1024)
+#define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
 /* These should really be in isa.h, but are here to make pc.h happy.  */
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
