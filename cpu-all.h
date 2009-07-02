@@ -837,17 +837,7 @@ void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 
 /* IO ports API */
-
-/* NOTE: as these functions may be even used when there is an isa
-   brige on non x86 targets, we always defined them */
-#ifndef NO_CPU_IO_DEFS
-void cpu_outb(CPUState *env, int addr, int val);
-void cpu_outw(CPUState *env, int addr, int val);
-void cpu_outl(CPUState *env, int addr, int val);
-int cpu_inb(CPUState *env, int addr);
-int cpu_inw(CPUState *env, int addr);
-int cpu_inl(CPUState *env, int addr);
-#endif
+#include "ioport.h"
 
 /* memory API */
 
