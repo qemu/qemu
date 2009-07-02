@@ -903,7 +903,6 @@ static BlockDriver bdrv_raw = {
     .bdrv_getlength = raw_getlength,
 
     .create_options = raw_create_options,
-    .protocol_name = "file",
 };
 
 /***********************************************/
