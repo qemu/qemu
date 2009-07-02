@@ -363,12 +363,14 @@ Network adapter that supports CDC ethernet and RNDIS protocols.
 ETEXI
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
-    "-name string    set the name of the guest\n")
+    "-name string1[,process=string2]    set the name of the guest\n"
+    "            string1 sets the window title and string2 the process name (on Linux)\n")
 STEXI
 @item -name @var{name}
 Sets the @var{name} of the guest.
 This name will be displayed in the SDL window caption.
 The @var{name} will also be used for the VNC server.
+Also optionally set the top visible process name in Linux.
 ETEXI
 
 DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,

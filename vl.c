@@ -68,6 +68,7 @@
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
+#include <sys/prctl.h>
 
 /* For the benefit of older linux systems which don't supply it,
    we use a local copy of hpet.h. */
@@ -299,6 +300,20 @@ void hw_error(const char *fmt, ...)
     }
     va_end(ap);
     abort();
+}
+
+static void set_proc_name(const char *s)
+{
+#ifdef __linux__
+    char name[16];
+    if (!s)
+        return;
+    name[sizeof(name) - 1] = 0;
+    strncpy(name, s, sizeof(name));
+    /* Could rewrite argv[0] too, but that's a bit more complicated.
+       This simple way is enough for `top'. */
+    prctl(PR_SET_NAME, name);
+#endif    	
 }
  
 /***************/
@@ -5416,7 +5431,19 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_name:
-                qemu_name = optarg;
+                qemu_name = qemu_strdup(optarg);
+		 {
+		     char *p = strchr(qemu_name, ',');
+		     if (p != NULL) {
+		        *p++ = 0;
+			if (strncmp(p, "process=", 8)) {
+			    fprintf(stderr, "Unknown subargument %s to -name", p);
+			    exit(1);
+			}
+			p += 8;
+			set_proc_name(p);
+		     }	
+		 }	
                 break;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
             case QEMU_OPTION_prom_env:
