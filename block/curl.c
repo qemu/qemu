@@ -71,6 +71,7 @@ typedef struct BDRVCURLState {
     size_t len;
     CURLState states[CURL_NUM_STATES];
     char *url;
+    size_t readahead_size;
 } BDRVCURLState;
 
 static void curl_clean_state(CURLState *s);
@@ -299,15 +300,57 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
     BDRVCURLState *s = bs->opaque;
     CURLState *state = NULL;
     double d;
+
+    #define RA_OPTSTR ":readahead="
+    char *file;
+    char *ra;
+    const char *ra_val;
+    int parse_state = 0;
+
     static int inited = 0;
+
+    file = strdup(filename);
+    s->readahead_size = READ_AHEAD_SIZE;
+
+    /* Parse a trailing ":readahead=#:" param, if present. */
+    ra = file + strlen(file) - 1;
+    while (ra >= file) {
+        if (parse_state == 0) {
+            if (*ra == ':')
+                parse_state++;
+            else
+                break;
+        } else if (parse_state == 1) {
+            if (*ra > '9' || *ra < '0') {
+                char *opt_start = ra - strlen(RA_OPTSTR) + 1;
+                if (opt_start > file &&
+                    strncmp(opt_start, RA_OPTSTR, strlen(RA_OPTSTR)) == 0) {
+                    ra_val = ra + 1;
+                    ra -= strlen(RA_OPTSTR) - 1;
+                    *ra = '\0';
+                    s->readahead_size = atoi(ra_val);
+                    break;
+                } else {
+                    break;
+                }
+            }
+        }
+        ra--;
+    }
+
+    if ((s->readahead_size & 0x1ff) != 0) {
+        fprintf(stderr, "HTTP_READAHEAD_SIZE %Zd is not a multiple of 512\n",
+                s->readahead_size);
+        goto out_noclean;
+    }
 
     if (!inited) {
         curl_global_init(CURL_GLOBAL_ALL);
         inited = 1;
     }
 
-    dprintf("CURL: Opening %s\n", filename);
-    s->url = strdup(filename);
+    dprintf("CURL: Opening %s\n", file);
+    s->url = file;
     state = curl_init_state(s);
     if (!state)
         goto out_noclean;
@@ -346,6 +389,7 @@ out:
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 out_noclean:
+    qemu_free(file);
     return -EINVAL;
 }
 
@@ -401,7 +445,7 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     if (state->orig_buf)
         qemu_free(state->orig_buf);
     state->buf_start = start;
-    state->buf_len = acb->end + READ_AHEAD_SIZE;
+    state->buf_len = acb->end + s->readahead_size;
     end = MIN(start + state->buf_len, s->len) - 1;
     state->orig_buf = qemu_malloc(state->buf_len);
     state->acb[0] = acb;
