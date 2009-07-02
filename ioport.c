@@ -121,19 +121,27 @@ static void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
 #endif
 }
 
+static int ioport_bsize(int size, int *bsize)
+{
+    if (size == 1) {
+        *bsize = 0;
+    } else if (size == 2) {
+        *bsize = 1;
+    } else if (size == 4) {
+        *bsize = 2;
+    } else {
+        return -1;
+    }
+    return 0;
+}
+
 /* size is the word size in byte */
 int register_ioport_read(int start, int length, int size,
                          IOPortReadFunc *func, void *opaque)
 {
     int i, bsize;
 
-    if (size == 1) {
-        bsize = 0;
-    } else if (size == 2) {
-        bsize = 1;
-    } else if (size == 4) {
-        bsize = 2;
-    } else {
+    if (ioport_bsize(size, &bsize)) {
         hw_error("register_ioport_read: invalid size");
         return -1;
     }
@@ -152,13 +160,7 @@ int register_ioport_write(int start, int length, int size,
 {
     int i, bsize;
 
-    if (size == 1) {
-        bsize = 0;
-    } else if (size == 2) {
-        bsize = 1;
-    } else if (size == 4) {
-        bsize = 2;
-    } else {
+    if (ioport_bsize(size, &bsize)) {
         hw_error("register_ioport_write: invalid size");
         return -1;
     }
