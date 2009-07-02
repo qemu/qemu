@@ -239,8 +239,11 @@ static int kvm_has_msr_star(CPUState *env)
         if (ret < 0)
             return 0;
 
-        kvm_msr_list = qemu_mallocz(sizeof(msr_list) +
-                                    msr_list.nmsrs * sizeof(msr_list.indices[0]));
+        /* Old kernel modules had a bug and could write beyond the provided
+           memory. Allocate at least a safe amount of 1K. */
+        kvm_msr_list = qemu_mallocz(MAX(1024, sizeof(msr_list) +
+                                              msr_list.nmsrs *
+                                              sizeof(msr_list.indices[0])));
 
         kvm_msr_list->nmsrs = msr_list.nmsrs;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);
