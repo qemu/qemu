@@ -321,7 +321,8 @@ CFLAGS+=-p
 endif
 
 obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
-      elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o
+      elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
+      ioport-user.o
 LIBS+= $(PTHREADLIBS)
 LIBS+= $(CLOCKLIBS)
 obj-$(TARGET_HAS_BFLT) += flatload.o
@@ -372,7 +373,7 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o gdbstub-xml.o
+        gdbstub.o gdbstub-xml.o ioport-user.o
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
@@ -471,7 +472,7 @@ endif
 endif
 
 obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
-        gdbstub.o gdbstub-xml.o
+        gdbstub.o gdbstub-xml.o ioport-user.o
 obj-y += uaccess.o
 
 # Note: this is a workaround. The real fix is to avoid compiling
