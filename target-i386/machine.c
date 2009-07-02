@@ -2,6 +2,7 @@
 #include "hw/boards.h"
 #include "hw/pc.h"
 #include "hw/isa.h"
+#include "host-utils.h"
 
 #include "exec-all.h"
 #include "kvm.h"
@@ -148,9 +149,9 @@ void cpu_save(QEMUFile *f, void *opaque)
        to find it and save its number instead (-1 for none). */
     pending_irq = -1;
     for (i = 0; i < ARRAY_SIZE(env->interrupt_bitmap); i++) {
-        bit = ffsll(env->interrupt_bitmap[i]);
-        if (bit) {
-            pending_irq = i * 64 + bit - 1;
+        if (env->interrupt_bitmap[i]) {
+            bit = ctz64(env->interrupt_bitmap[i]);
+            pending_irq = i * 64 + bit;
             break;
         }
     }
