@@ -3795,7 +3795,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         exit(1);
     }
 
-    qemu_register_reset(main_cpu_reset, 0, env);
+    qemu_register_reset(main_cpu_reset, env);
     ar7_mips_init(env);
 
     loaderparams.ram_size = machine_ram_size;
