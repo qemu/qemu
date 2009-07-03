@@ -5935,7 +5935,7 @@ static void gen_wrteei(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    if (ctx->opcode & 0x00010000) {
+    if (ctx->opcode & 0x00008000) {
         tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
         /* Stop translation to have a chance to raise an exception */
         gen_stop_exception(ctx);
@@ -8158,7 +8158,7 @@ GEN_HANDLER2(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE),
 GEN_HANDLER2(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE),
 GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE),
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
-GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE),
+GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
 GEN_HANDLER(mbar, 0x1F, 0x16, 0x1a, 0x001FF801, PPC_BOOKE),
 GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE),
