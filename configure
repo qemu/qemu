@@ -467,11 +467,11 @@ for opt do
       sparc_cpu="$optarg"
       case $sparc_cpu in
         v7|v8) SP_CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m32"
-                 target_cpu="sparc"; cpu="sparc" ;;
+                 target_arch2="sparc"; cpu="sparc" ;;
         v8plus|v8plusa) SP_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m32"
-                 target_cpu="sparc"; cpu="sparc" ;;
+                 target_arch2="sparc"; cpu="sparc" ;;
         v9)    SP_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m64"
-                 target_cpu="sparc64"; cpu="sparc64" ;;
+                 target_arch2="sparc64"; cpu="sparc64" ;;
         *)     echo "undefined SPARC architecture. Exiting";exit 1;;
       esac
   ;;
@@ -1888,40 +1888,40 @@ for target in $target_list; do
 target_dir="$target"
 config_mak=$target_dir/config.mak
 config_h=$target_dir/config.h
-target_cpu=`echo $target | cut -d '-' -f 1`
+target_arch2=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
-[ "$target_cpu" = "armeb" ] && target_bigendian=yes
-[ "$target_cpu" = "m68k" ] && target_bigendian=yes
-[ "$target_cpu" = "microblaze" ] && target_bigendian=yes
-[ "$target_cpu" = "mips" ] && target_bigendian=yes
-[ "$target_cpu" = "mipsn32" ] && target_bigendian=yes
-[ "$target_cpu" = "mips64" ] && target_bigendian=yes
-[ "$target_cpu" = "ppc" ] && target_bigendian=yes
-[ "$target_cpu" = "ppcemb" ] && target_bigendian=yes
-[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
-[ "$target_cpu" = "ppc64abi32" ] && target_bigendian=yes
-[ "$target_cpu" = "sh4eb" ] && target_bigendian=yes
-[ "$target_cpu" = "sparc" ] && target_bigendian=yes
-[ "$target_cpu" = "sparc64" ] && target_bigendian=yes
-[ "$target_cpu" = "sparc32plus" ] && target_bigendian=yes
+[ "$target_arch2" = "armeb" ] && target_bigendian=yes
+[ "$target_arch2" = "m68k" ] && target_bigendian=yes
+[ "$target_arch2" = "microblaze" ] && target_bigendian=yes
+[ "$target_arch2" = "mips" ] && target_bigendian=yes
+[ "$target_arch2" = "mipsn32" ] && target_bigendian=yes
+[ "$target_arch2" = "mips64" ] && target_bigendian=yes
+[ "$target_arch2" = "ppc" ] && target_bigendian=yes
+[ "$target_arch2" = "ppcemb" ] && target_bigendian=yes
+[ "$target_arch2" = "ppc64" ] && target_bigendian=yes
+[ "$target_arch2" = "ppc64abi32" ] && target_bigendian=yes
+[ "$target_arch2" = "sh4eb" ] && target_bigendian=yes
+[ "$target_arch2" = "sparc" ] && target_bigendian=yes
+[ "$target_arch2" = "sparc64" ] && target_bigendian=yes
+[ "$target_arch2" = "sparc32plus" ] && target_bigendian=yes
 target_softmmu="no"
 target_user_only="no"
 target_linux_user="no"
 target_darwin_user="no"
 target_bsd_user="no"
 case "$target" in
-  ${target_cpu}-softmmu)
+  ${target_arch2}-softmmu)
     target_softmmu="yes"
     ;;
-  ${target_cpu}-linux-user)
+  ${target_arch2}-linux-user)
     target_user_only="yes"
     target_linux_user="yes"
     ;;
-  ${target_cpu}-darwin-user)
+  ${target_arch2}-darwin-user)
     target_user_only="yes"
     target_darwin_user="yes"
     ;;
-  ${target_cpu}-bsd-user)
+  ${target_arch2}-bsd-user)
     target_user_only="yes"
     target_bsd_user="yes"
     ;;
@@ -1959,16 +1959,16 @@ echo "#include \"../config-host.h\"" >> $config_h
 bflt="no"
 elfload32="no"
 target_nptl="no"
-interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_cpu/g"`
+interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix1\"" >> $config_h
 gdb_xml_files=""
 target_kvm="$kvm"
 
 # Make sure the target and host cpus are compatible
-if test ! \( "$target_cpu" = "$cpu" -o \
-  \( "$target_cpu" = "ppcemb" -a "$cpu" = "ppc" \) -o \
-  \( "$target_cpu" = "x86_64" -a "$cpu" = "i386"   \) -o \
-  \( "$target_cpu" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
+if test ! \( "$target_arch2" = "$cpu" -o \
+  \( "$target_arch2" = "ppcemb" -a "$cpu" = "ppc" \) -o \
+  \( "$target_arch2" = "x86_64" -a "$cpu" = "i386"   \) -o \
+  \( "$target_arch2" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
   target_kvm="no"
 fi
 # Disable KVM for linux-user
@@ -1976,7 +1976,7 @@ if test "$target_softmmu" = "no" ; then
   target_kvm="no"
 fi
 
-case "$target_cpu" in
+case "$target_arch2" in
   i386)
     echo "TARGET_ARCH=i386" >> $config_mak
     echo "#define TARGET_ARCH \"i386\"" >> $config_h
@@ -2192,23 +2192,23 @@ if test ! -z "$gdb_xml_files" ; then
 fi
 echo "TARGET_XML_FILES=$list" >> $config_mak
 
-if test "$target_cpu" = "arm" \
-     -o "$target_cpu" = "armeb" \
-     -o "$target_cpu" = "m68k" \
-     -o "$target_cpu" = "microblaze" \
-     -o "$target_cpu" = "mips" \
-     -o "$target_cpu" = "mipsel" \
-     -o "$target_cpu" = "mipsn32" \
-     -o "$target_cpu" = "mipsn32el" \
-     -o "$target_cpu" = "mips64" \
-     -o "$target_cpu" = "mips64el" \
-     -o "$target_cpu" = "ppc" \
-     -o "$target_cpu" = "ppc64" \
-     -o "$target_cpu" = "ppc64abi32" \
-     -o "$target_cpu" = "ppcemb" \
-     -o "$target_cpu" = "sparc" \
-     -o "$target_cpu" = "sparc64" \
-     -o "$target_cpu" = "sparc32plus"; then
+if test "$target_arch2" = "arm" \
+     -o "$target_arch2" = "armeb" \
+     -o "$target_arch2" = "m68k" \
+     -o "$target_arch2" = "microblaze" \
+     -o "$target_arch2" = "mips" \
+     -o "$target_arch2" = "mipsel" \
+     -o "$target_arch2" = "mipsn32" \
+     -o "$target_arch2" = "mipsn32el" \
+     -o "$target_arch2" = "mips64" \
+     -o "$target_arch2" = "mips64el" \
+     -o "$target_arch2" = "ppc" \
+     -o "$target_arch2" = "ppc64" \
+     -o "$target_arch2" = "ppc64abi32" \
+     -o "$target_arch2" = "ppcemb" \
+     -o "$target_arch2" = "sparc" \
+     -o "$target_arch2" = "sparc64" \
+     -o "$target_arch2" = "sparc32plus"; then
   echo "CONFIG_SOFTFLOAT=y" >> $config_mak
   echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
 fi
