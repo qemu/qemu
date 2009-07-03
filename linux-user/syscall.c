@@ -953,7 +953,7 @@ static abi_long do_pipe2(int host_pipe[], int flags)
 #endif
 }
 
-static abi_long do_pipe(void *cpu_env, int pipedes, int flags)
+static abi_long do_pipe(void *cpu_env, abi_ulong pipedes, int flags)
 {
     int host_pipe[2];
     abi_long ret;
