@@ -50,7 +50,7 @@
 	.global 	_start
 _start:
 	.short		0xaa55
-	.byte		(_end - _start) / 512
+	.byte		1 /* (_end - _start) / 512 */
 	push		%eax
 	push		%ds
 
