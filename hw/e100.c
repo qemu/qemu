@@ -2503,7 +2503,7 @@ static void e100_init(PCIDevice *pci_dev, uint32_t device)
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
-    qemu_register_reset(e100_reset, 0, s);
+    qemu_register_reset(e100_reset, s);
 
     register_savevm(s->vc->model, 0, 3, e100_save, e100_load, s);
 }

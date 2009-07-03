@@ -3620,7 +3620,7 @@ static void ar7_init(CPUState * env)
     //~ }
 #define ar7_instance 0
 #define ar7_version 0
-    qemu_register_reset(ar7_reset, 0, env);
+    qemu_register_reset(ar7_reset, env);
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 

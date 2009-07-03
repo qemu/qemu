@@ -1551,7 +1551,7 @@ static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
-    qemu_register_reset(nic_reset, 0, d);
+    qemu_register_reset(nic_reset, d);
 
     // TODO: use s->vc->model or d->name instead of "dp8381x".
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
