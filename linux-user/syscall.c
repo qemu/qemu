@@ -4555,7 +4555,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_access:
         if (!(p = lock_user_string(arg1)))
             goto efault;
-        ret = get_errno(access(p, arg2));
+        ret = get_errno(access(path(p), arg2));
         unlock_user(p, arg1, 0);
         break;
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
