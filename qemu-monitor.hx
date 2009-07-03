@@ -582,7 +582,7 @@ ETEXI
     { "acl_policy", "ss", do_acl_policy, "aclname allow|deny",
       "set default access control list policy" },
 STEXI
-@item acl_policy @var{aclname] @code{allow|deny}
+@item acl_policy @var{aclname} @code{allow|deny}
 Set the default access control list policy, used in the event that
 none of the explicit rules match. The default policy at startup is
 always @code{deny}.
