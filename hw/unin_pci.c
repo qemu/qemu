@@ -266,7 +266,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     d->config[0x34] = 0x00; // capabilities_pointer
 #endif
     register_savevm("uninorth", 0, 1, pci_unin_save, pci_unin_load, d);
-    qemu_register_reset(pci_unin_reset, 0, d);
+    qemu_register_reset(pci_unin_reset, d);
     pci_unin_reset(d);
 
     return s->bus;

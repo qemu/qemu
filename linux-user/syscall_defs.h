@@ -1231,10 +1231,11 @@ struct __attribute__((__packed__)) target_stat64 {
 	uint32_t st_uid;
 	uint32_t st_gid;
 	uint64_t st_rdev;
-	uint32_t __pad2;
+	uint64_t __pad1;
 
 	int64_t  st_size;
-	int32_t st_blksize;
+	int32_t  st_blksize;
+	uint32_t __pad2;
 	int64_t st_blocks;	/* Number 512-byte blocks allocated. */
 
 	int	       target_st_atime;

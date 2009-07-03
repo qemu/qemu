@@ -41,31 +41,14 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
-#ifdef LOG_ENABLED
-struct udpstat udpstat;
-#endif
-
-struct socket udb;
-
 static u_int8_t udp_tos(struct socket *so);
 static void udp_emu(struct socket *so, struct mbuf *m);
 
-/*
- * UDP protocol implementation.
- * Per RFC 768, August, 1980.
- */
-#ifndef	COMPAT_42
-#define UDPCKSUM 1
-#else
-#define UDPCKSUM 0 /* XXX */
-#endif
-
-struct	socket *udp_last_so = &udb;
-
 void
-udp_init(void)
+udp_init(Slirp *slirp)
 {
-	udb.so_next = udb.so_prev = &udb;
+    slirp->udb.so_next = slirp->udb.so_prev = &slirp->udb;
+    slirp->udp_last_so = &slirp->udb;
 }
 /* m->m_data  points at ip packet header
  * m->m_len   length ip packet
@@ -74,9 +57,9 @@ udp_init(void)
 void
 udp_input(register struct mbuf *m, int iphlen)
 {
+	Slirp *slirp = m->slirp;
 	register struct ip *ip;
 	register struct udphdr *uh;
-/*	struct mbuf *opts = 0;*/
 	int len;
 	struct ip save_ip;
 	struct socket *so;
@@ -84,8 +67,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	DEBUG_CALL("udp_input");
 	DEBUG_ARG("m = %lx", (long)m);
 	DEBUG_ARG("iphlen = %d", iphlen);
-
-	STAT(udpstat.udps_ipackets++);
 
 	/*
 	 * Strip IP options, if any; should skip this,
@@ -112,7 +93,6 @@ udp_input(register struct mbuf *m, int iphlen)
 
 	if (ip->ip_len != len) {
 		if (len > ip->ip_len) {
-			STAT(udpstat.udps_badlen++);
 			goto bad;
 		}
 		m_adj(m, len - ip->ip_len);
@@ -129,16 +109,11 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Checksum extended UDP header and data.
 	 */
-	if (UDPCKSUM && uh->uh_sum) {
+	if (uh->uh_sum) {
       memset(&((struct ipovly *)ip)->ih_mbuf, 0, sizeof(struct mbuf_ptr));
 	  ((struct ipovly *)ip)->ih_x1 = 0;
 	  ((struct ipovly *)ip)->ih_len = uh->uh_ulen;
-	  /* keep uh_sum for ICMP reply
-	   * uh->uh_sum = cksum(m, len + sizeof (struct ip));
-	   * if (uh->uh_sum) {
-	   */
 	  if(cksum(m, len + sizeof(struct ip))) {
-	    STAT(udpstat.udps_badsum++);
 	    goto bad;
 	  }
 	}
@@ -151,8 +126,9 @@ udp_input(register struct mbuf *m, int iphlen)
             goto bad;
         }
 
-        if (slirp_restrict)
+        if (slirp->restricted) {
             goto bad;
+        }
 
         /*
          *  handle TFTP
@@ -165,25 +141,23 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	so = udp_last_so;
+	so = slirp->udp_last_so;
 	if (so->so_lport != uh->uh_sport ||
 	    so->so_laddr.s_addr != ip->ip_src.s_addr) {
 		struct socket *tmp;
 
-		for (tmp = udb.so_next; tmp != &udb; tmp = tmp->so_next) {
+		for (tmp = slirp->udb.so_next; tmp != &slirp->udb;
+		     tmp = tmp->so_next) {
 			if (tmp->so_lport == uh->uh_sport &&
 			    tmp->so_laddr.s_addr == ip->ip_src.s_addr) {
-				tmp->so_faddr.s_addr = ip->ip_dst.s_addr;
-				tmp->so_fport = uh->uh_dport;
 				so = tmp;
 				break;
 			}
 		}
-		if (tmp == &udb) {
+		if (tmp == &slirp->udb) {
 		  so = NULL;
 		} else {
-		  STAT(udpstat.udpps_pcbcachemiss++);
-		  udp_last_so = so;
+		  slirp->udp_last_so = so;
 		}
 	}
 
@@ -192,7 +166,10 @@ udp_input(register struct mbuf *m, int iphlen)
 	   * If there's no socket for this packet,
 	   * create one
 	   */
-	  if ((so = socreate()) == NULL) goto bad;
+	  so = socreate(slirp);
+	  if (!so) {
+	      goto bad;
+	  }
 	  if(udp_attach(so) == -1) {
 	    DEBUG_MISC((dfd," udp_attach errno = %d-%s\n",
 			errno,strerror(errno)));
@@ -203,7 +180,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	  /*
 	   * Setup fields
 	   */
-	  /* udp_last_so = so; */
 	  so->so_laddr = ip->ip_src;
 	  so->so_lport = uh->uh_sport;
 
@@ -248,7 +224,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	return;
 bad:
 	m_freem(m);
-	/* if (opts) m_freem(opts); */
 	return;
 }
 
@@ -279,7 +254,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
     memset(&ui->ui_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
 	ui->ui_x1 = 0;
 	ui->ui_pr = IPPROTO_UDP;
-	ui->ui_len = htons(m->m_len - sizeof(struct ip)); /* + sizeof (struct udphdr)); */
+	ui->ui_len = htons(m->m_len - sizeof(struct ip));
 	/* XXXXX Check for from-one-location sockets, or from-any-location sockets */
         ui->ui_src = saddr->sin_addr;
 	ui->ui_dst = daddr->sin_addr;
@@ -291,16 +266,12 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	 * Stuff checksum and output datagram.
 	 */
 	ui->ui_sum = 0;
-	if (UDPCKSUM) {
-	    if ((ui->ui_sum = cksum(m, /* sizeof (struct udpiphdr) + */ m->m_len)) == 0)
+	if ((ui->ui_sum = cksum(m, m->m_len)) == 0)
 		ui->ui_sum = 0xffff;
-	}
 	((struct ip *)ui)->ip_len = m->m_len;
 
 	((struct ip *)ui)->ip_ttl = IPDEFTTL;
 	((struct ip *)ui)->ip_tos = iptos;
-
-	STAT(udpstat.udps_opackets++);
 
 	error = ip_output(so, m);
 
@@ -311,15 +282,20 @@ int udp_output(struct socket *so, struct mbuf *m,
                struct sockaddr_in *addr)
 
 {
+    Slirp *slirp = so->slirp;
     struct sockaddr_in saddr, daddr;
 
     saddr = *addr;
-    if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
-        if ((so->so_faddr.s_addr & htonl(0x000000ff)) == htonl(0xff))
-            saddr.sin_addr.s_addr = alias_addr.s_addr;
-        else if (addr->sin_addr.s_addr == loopback_addr.s_addr ||
-                 (ntohl(so->so_faddr.s_addr) & 0xff) != CTL_ALIAS)
-            saddr.sin_addr.s_addr = so->so_faddr.s_addr;
+    if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+        slirp->vnetwork_addr.s_addr) {
+        uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
+
+        if ((so->so_faddr.s_addr & inv_mask) == inv_mask) {
+            saddr.sin_addr = slirp->vhost_addr;
+        } else if (addr->sin_addr.s_addr == loopback_addr.s_addr ||
+                   so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
+            saddr.sin_addr = so->so_faddr;
+        }
     }
     daddr.sin_addr = so->so_laddr;
     daddr.sin_port = so->so_lport;
@@ -353,7 +329,7 @@ udp_attach(struct socket *so)
     } else {
       /* success, insert in queue */
       so->so_expire = curtime + SO_EXPIRE;
-      insque(so,&udb);
+      insque(so, &so->slirp->udb);
     }
   }
   return(so->s);
@@ -363,8 +339,6 @@ void
 udp_detach(struct socket *so)
 {
 	closesocket(so->s);
-	/* if (so->so_m) m_free(so->so_m);    done by sofree */
-
 	sofree(so);
 }
 
@@ -627,44 +601,46 @@ struct cu_header {
 }
 
 struct socket *
-udp_listen(u_int port, u_int32_t laddr, u_int lport, int flags)
+udp_listen(Slirp *slirp, u_int32_t haddr, u_int hport, u_int32_t laddr,
+           u_int lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
 	socklen_t addrlen = sizeof(struct sockaddr_in), opt = 1;
 
-	if ((so = socreate()) == NULL) {
-		free(so);
-		return NULL;
+	so = socreate(slirp);
+	if (!so) {
+	    return NULL;
 	}
 	so->s = socket(AF_INET,SOCK_DGRAM,0);
 	so->so_expire = curtime + SO_EXPIRE;
-	insque(so,&udb);
+	insque(so, &slirp->udb);
 
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = port;
+	addr.sin_addr.s_addr = haddr;
+	addr.sin_port = hport;
 
 	if (bind(so->s,(struct sockaddr *)&addr, addrlen) < 0) {
 		udp_detach(so);
 		return NULL;
 	}
 	setsockopt(so->s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int));
-/*	setsockopt(so->s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int)); */
 
 	getsockname(so->s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;
-	if (addr.sin_addr.s_addr == 0 || addr.sin_addr.s_addr == loopback_addr.s_addr)
-	   so->so_faddr = alias_addr;
-	else
+	if (addr.sin_addr.s_addr == 0 ||
+	    addr.sin_addr.s_addr == loopback_addr.s_addr) {
+	   so->so_faddr = slirp->vhost_addr;
+	} else {
 	   so->so_faddr = addr.sin_addr;
-
+	}
 	so->so_lport = lport;
 	so->so_laddr.s_addr = laddr;
 	if (flags != SS_FACCEPTONCE)
 	   so->so_expire = 0;
 
-	so->so_state = SS_ISFCONNECTED;
+	so->so_state &= SS_PERSISTENT_MASK;
+	so->so_state |= SS_ISFCONNECTED | flags;
 
 	return so;
 }

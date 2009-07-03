@@ -75,6 +75,7 @@ void kbd_put_keysym(int keysym);
 
 #define QEMU_BIG_ENDIAN_FLAG    0x01
 #define QEMU_ALLOCATED_FLAG     0x02
+#define QEMU_REALPIXELS_FLAG    0x04
 
 struct PixelFormat {
     uint8_t bits_per_pixel;
@@ -172,7 +173,8 @@ static inline int is_surface_bgr(DisplaySurface *surface)
 
 static inline int is_buffer_shared(DisplaySurface *surface)
 {
-    return (!(surface->flags & QEMU_ALLOCATED_FLAG));
+    return (!(surface->flags & QEMU_ALLOCATED_FLAG) &&
+            !(surface->flags & QEMU_REALPIXELS_FLAG));
 }
 
 static inline void register_displaychangelistener(DisplayState *ds, DisplayChangeListener *dcl)

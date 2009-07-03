@@ -85,8 +85,8 @@ show the current VM name
 show the current VM UUID
 @item info cpustats
 show CPU statistics
-@item info slirp
-show SLIRP statistics (if available)
+@item info usernet
+show user network stack connection states
 @item info migrate
 show migration status
 @item info balloon
@@ -493,7 +493,7 @@ Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "drive_add", "ss", drive_hot_add, "pci_addr=[[<domain>:]<bus>:]<slot>\n"
+    { "drive_add", "ss", drive_hot_add, "[[<domain>:]<bus>:]<slot>\n"
                                          "[file=file][,if=type][,bus=n]\n"
                                         "[,unit=m][,media=d][index=i]\n"
                                         "[,cyls=c,heads=h,secs=s[,trans=t]]\n"
@@ -506,7 +506,7 @@ Add drive to PCI storage controller.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_add", "sss", pci_device_hot_add, "pci_addr=auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
+    { "pci_add", "sss?", pci_device_hot_add, "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
 #endif
 STEXI
 @item pci_add
@@ -514,7 +514,7 @@ Hot-add PCI device.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_del", "s", pci_device_hot_remove, "pci_addr=[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
+    { "pci_del", "s", pci_device_hot_remove, "[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
 #endif
 STEXI
 @item pci_del
@@ -536,10 +536,12 @@ Remove host VLAN client.
 ETEXI
 
 #ifdef CONFIG_SLIRP
-    { "host_net_redir", "ss?", net_slirp_redir,
-      "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)\n"
-      "host_net_redir remove [tcp:|udp:]host-port -- remove redirection\n"
-      "host_net_redir list -- show all redirections" },
+    { "hostfwd_add", "ss?s?", net_slirp_hostfwd_add,
+      "[vlan_id name] [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
+      "redirect TCP or UDP connections from host to guest (requires -net user)" },
+    { "hostfwd_remove", "ss?s?", net_slirp_hostfwd_remove,
+      "[vlan_id name] [tcp|udp]:[hostaddr]:hostport",
+      "remove host-to-guest TCP or UDP redirection" },
 #endif
 STEXI
 @item host_net_redir
@@ -567,48 +569,50 @@ STEXI
 Change watchdog action.
 ETEXI
 
-    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match> [<index>]]\n",
-                               "acl show vnc.username\n"
-                               "acl policy vnc.username deny\n"
-                               "acl allow vnc.username fred\n"
-                               "acl deny vnc.username bob\n"
-                               "acl reset vnc.username\n" },
+    { "acl_show", "s", do_acl_show, "aclname",
+      "list rules in the access control list" },
 STEXI
-@item acl @var{subcommand} @var{aclname} @var{match} @var{index}
+@item acl_show @var{aclname}
+List all the matching rules in the access control list, and the default
+policy. There are currently two named access control lists,
+@var{vnc.x509dname} and @var{vnc.username} matching on the x509 client
+certificate distinguished name, and SASL username respectively.
+ETEXI
 
-Manage access control lists for network services. There are currently
-two named access control lists, @var{vnc.x509dname} and @var{vnc.username}
-matching on the x509 client certificate distinguished name, and SASL
-username respectively.
-
-@table @option
-@item acl show <aclname>
-list all the match rules in the access control list, and the default
-policy
-@item acl policy <aclname> @code{allow|deny}
-set the default access control list policy, used in the event that
+    { "acl_policy", "ss", do_acl_policy, "aclname allow|deny",
+      "set default access control list policy" },
+STEXI
+@item acl_policy @var{aclname} @code{allow|deny}
+Set the default access control list policy, used in the event that
 none of the explicit rules match. The default policy at startup is
-always @code{deny}
-@item acl allow <aclname> <match> [<index>]
-add a match to the access control list, allowing access. The match will
-normally be an exact username or x509 distinguished name, but can
-optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to allow
-all users in the @code{EXAMPLE.COM} kerberos realm. The match will
+always @code{deny}.
+ETEXI
+
+    { "acl_add", "sssi?", do_acl_add, "aclname match allow|deny [index]",
+      "add a match rule to the access control list" },
+STEXI
+@item acl_allow @var{aclname} @var{match} @code{allow|deny} [@var{index}]
+Add a match rule to the access control list, allowing or denying access.
+The match will normally be an exact username or x509 distinguished name,
+but can optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to
+allow all users in the @code{EXAMPLE.COM} kerberos realm. The match will
 normally be appended to the end of the ACL, but can be inserted
-earlier in the list if the optional @code{index} parameter is supplied.
-@item acl deny <aclname> <match> [<index>]
-add a match to the access control list, denying access. The match will
-normally be an exact username or x509 distinguished name, but can
-optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to allow
-all users in the @code{EXAMPLE.COM} kerberos realm. The match will
-normally be appended to the end of the ACL, but can be inserted
-earlier in the list if the optional @code{index} parameter is supplied.
-@item acl remove <aclname> <match>
-remove the specified match rule from the access control list.
-@item acl reset <aclname>
-remove all matches from the access control list, and set the default
+earlier in the list if the optional @var{index} parameter is supplied.
+ETEXI
+
+    { "acl_remove", "ss", do_acl_remove, "aclname match",
+      "remove a match rule from the access control list" },
+STEXI
+@item acl_remove @var{aclname} @var{match}
+Remove the specified match rule from the access control list.
+ETEXI
+
+    { "acl_reset", "s", do_acl_reset, "aclname",
+      "reset the access control list" },
+STEXI
+@item acl_remove @var{aclname} @var{match}
+Remove all matches from the access control list, and set the default
 policy back to @code{deny}.
-@end table
 ETEXI
 
 STEXI

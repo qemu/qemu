@@ -153,9 +153,9 @@ struct icmp {
 	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
-void icmp_input _P((struct mbuf *, int));
+void icmp_input(struct mbuf *, int);
 void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
                 const char *message);
-void icmp_reflect _P((struct mbuf *));
+void icmp_reflect(struct mbuf *);
 
 #endif

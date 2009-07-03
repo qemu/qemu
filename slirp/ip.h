@@ -250,44 +250,4 @@ struct ipoption {
 	int8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
-#ifdef LOG_ENABLED
-/*
- * Structure attached to inpcb.ip_moptions and
- * passed to ip_output when IP multicast options are in use.
- */
-
-struct	ipstat {
-	u_long	ips_total;		/* total packets received */
-	u_long	ips_badsum;		/* checksum bad */
-	u_long	ips_tooshort;		/* packet too short */
-	u_long	ips_toosmall;		/* not enough data */
-	u_long	ips_badhlen;		/* ip header length < data size */
-	u_long	ips_badlen;		/* ip length < ip header length */
-	u_long	ips_fragments;		/* fragments received */
-	u_long	ips_fragdropped;	/* frags dropped (dups, out of space) */
-	u_long	ips_fragtimeout;	/* fragments timed out */
-	u_long	ips_forward;		/* packets forwarded */
-	u_long	ips_cantforward;	/* packets rcvd for unreachable dest */
-	u_long	ips_redirectsent;	/* packets forwarded on same net */
-	u_long	ips_noproto;		/* unknown or unsupported protocol */
-	u_long	ips_delivered;		/* datagrams delivered to upper level*/
-	u_long	ips_localout;		/* total ip packets generated here */
-	u_long	ips_odropped;		/* lost packets due to nobufs, etc. */
-	u_long	ips_reassembled;	/* total packets reassembled ok */
-	u_long	ips_fragmented;		/* datagrams successfully fragmented */
-	u_long	ips_ofragments;		/* output fragments created */
-	u_long	ips_cantfrag;		/* don't fragment flag was set, etc. */
-	u_long	ips_badoptions;		/* error in option processing */
-	u_long	ips_noroute;		/* packets discarded due to no route */
-	u_long	ips_badvers;		/* ip version != 4 */
-	u_long	ips_rawout;		/* total raw ip packets generated */
-	u_long	ips_unaligned;		/* times the ip packet was not aligned */
-};
-
-extern struct	ipstat	ipstat;
-#endif
-
-extern struct	ipq	ipq;			/* ip reass. queue */
-extern u_int16_t	ip_id;				/* ip packet ctr, for ids */
-
 #endif

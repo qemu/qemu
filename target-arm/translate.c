@@ -813,14 +813,6 @@ static inline void gen_bx(DisasContext *s, TCGv var)
     store_cpu_field(var, regs[15]);
 }
 
-/* TODO: This should be removed.  Use gen_bx instead.  */
-static inline void gen_bx_T0(DisasContext *s)
-{
-    TCGv tmp = new_tmp();
-    tcg_gen_mov_i32(tmp, cpu_T[0]);
-    gen_bx(s, tmp);
-}
-
 /* Variant of store_reg which uses branch&exchange logic when storing
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */

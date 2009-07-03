@@ -24,6 +24,32 @@
 #include "qemu-common.h"
 #include "host-utils.h"
 
+/*
+ * fill first 'len' characters of 'buff' with pruned
+ * contents of 'str' delimited by the character 'c'.
+ * Escape character '\' is pruned off.
+ * Return pointer to the delimiting character.
+ */
+const char *fill_token(char *buf, const int len, const char *str, const char c)
+{
+    const char *p=str;
+    char *q=buf;
+
+    while (p < str+len-1) {
+    if (*p == c)
+        break;
+        if (*p == '\\') {
+            p++;
+            if (*p == '\0')
+                break;
+        }
+        *q++ = *p++;
+    }
+    *q='\0';
+    return p;
+}
+
+
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
@@ -81,6 +107,19 @@ int stristart(const char *str, const char *val, const char **ptr)
     if (ptr)
         *ptr = p;
     return 1;
+}
+
+/* XXX: use host strnlen if available ? */
+int qemu_strnlen(const char *s, int max_len)
+{
+    int i;
+
+    for(i = 0; i < max_len; i++) {
+        if (s[i] == '\0') {
+            break;
+        }
+    }
+    return i;
 }
 
 time_t mktimegm(struct tm *tm)

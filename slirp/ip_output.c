@@ -40,8 +40,6 @@
 
 #include <slirp.h>
 
-u_int16_t ip_id;
-
 /* Number of packets queued before we start sending
  * (to prevent allocing too many mbufs) */
 #define IF_THRESH 10
@@ -55,6 +53,7 @@ u_int16_t ip_id;
 int
 ip_output(struct socket *so, struct mbuf *m0)
 {
+	Slirp *slirp = m0->slirp;
 	register struct ip *ip;
 	register struct mbuf *m = m0;
 	register int hlen = sizeof(struct ip );
@@ -64,32 +63,14 @@ ip_output(struct socket *so, struct mbuf *m0)
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m0 = %lx", (long)m0);
 
-	/* We do no options */
-/*	if (opt) {
- *		m = ip_insertoptions(m, opt, &len);
- *		hlen = len;
- *	}
- */
 	ip = mtod(m, struct ip *);
 	/*
 	 * Fill in IP header.
 	 */
 	ip->ip_v = IPVERSION;
 	ip->ip_off &= IP_DF;
-	ip->ip_id = htons(ip_id++);
+	ip->ip_id = htons(slirp->ip_id++);
 	ip->ip_hl = hlen >> 2;
-	STAT(ipstat.ips_localout++);
-
-	/*
-	 * Verify that we have any chance at all of being able to queue
-	 *      the packet or packet fragments
-	 */
-	/* XXX Hmmm... */
-/*	if (if_queued > IF_THRESH && towrite <= 0) {
- *		error = ENOBUFS;
- *		goto bad;
- *	}
- */
 
 	/*
 	 * If small enough for interface, can just send directly.
@@ -110,7 +91,6 @@ ip_output(struct socket *so, struct mbuf *m0)
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = -1;
-		STAT(ipstat.ips_cantfrag++);
 		goto bad;
 	}
 
@@ -132,22 +112,15 @@ ip_output(struct socket *so, struct mbuf *m0)
 	mhlen = sizeof (struct ip);
 	for (off = hlen + len; off < (u_int16_t)ip->ip_len; off += len) {
 	  register struct ip *mhip;
-	  m = m_get();
+	  m = m_get(slirp);
           if (m == NULL) {
 	    error = -1;
-	    STAT(ipstat.ips_odropped++);
 	    goto sendorfree;
 	  }
 	  m->m_data += IF_MAXLINKHDR;
 	  mhip = mtod(m, struct ip *);
 	  *mhip = *ip;
 
-		/* No options */
-/*		if (hlen > sizeof (struct ip)) {
- *			mhlen = ip_optcopy(ip, mhip) + sizeof (struct ip);
- *			mhip->ip_hl = mhlen >> 2;
- *		}
- */
 	  m->m_len = mhlen;
 	  mhip->ip_off = ((off - hlen) >> 3) + (ip->ip_off & ~IP_MF);
 	  if (ip->ip_off & IP_MF)
@@ -168,7 +141,6 @@ ip_output(struct socket *so, struct mbuf *m0)
 	  mhip->ip_sum = cksum(m, mhlen);
 	  *mnext = m;
 	  mnext = &m->m_nextpkt;
-	  STAT(ipstat.ips_ofragments++);
 	}
 	/*
 	 * Update first fragment by trimming what's been copied out
@@ -189,9 +161,6 @@ sendorfree:
 		else
 			m_freem(m);
 	}
-
-	if (error == 0)
-		STAT(ipstat.ips_fragmented++);
     }
 
 done:

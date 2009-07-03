@@ -374,7 +374,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
     reset_info = qemu_mallocz(sizeof(ResetData));
     reset_info->env = env;
     reset_info->reset_addr = hwdef->prom_addr + 0x40ULL;
-    qemu_register_reset(main_cpu_reset, 0, reset_info);
+    qemu_register_reset(main_cpu_reset, reset_info);
     main_cpu_reset(reset_info);
     // Override warm reset address with cold start address
     env->pc = hwdef->prom_addr + 0x20ULL;
@@ -479,7 +479,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
     }
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init(pci_bus, &nd_table[i], -1, "ne2k_pci");
+        pci_nic_init(&nd_table[i], "ne2k_pci", NULL);
 
     irq = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {

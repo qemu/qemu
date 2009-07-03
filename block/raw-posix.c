@@ -117,6 +117,7 @@ typedef struct BDRVRawState {
 static int posix_aio_init(void);
 
 static int fd_open(BlockDriverState *bs);
+static int64_t raw_getlength(BlockDriverState *bs);
 
 #if defined(__FreeBSD__)
 static int cdrom_reopen(BlockDriverState *bs);
@@ -230,6 +231,16 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
     ret = read(s->fd, buf, count);
     if (ret == count)
         goto label__raw_read__success;
+
+    /* Allow reads beyond the end (needed for pwrite) */
+    if ((ret == 0) && bs->growable) {
+        int64_t size = raw_getlength(bs);
+        if (offset >= size) {
+            memset(buf, 0, count);
+            ret = count;
+            goto label__raw_read__success;
+        }
+    }
 
     DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %" PRId64 ", %p, %d) [%" PRId64
                       "] read failed %d : %d = %s\n",
@@ -892,6 +903,7 @@ static BlockDriver bdrv_raw = {
     .bdrv_getlength = raw_getlength,
 
     .create_options = raw_create_options,
+    .protocol_name = "file",
 };
 
 /***********************************************/

@@ -2,6 +2,7 @@
 #include "hw/boards.h"
 #include "hw/pc.h"
 #include "hw/isa.h"
+#include "host-utils.h"
 
 #include "exec-all.h"
 #include "kvm.h"
@@ -28,7 +29,8 @@ void cpu_save(QEMUFile *f, void *opaque)
     uint16_t fptag, fpus, fpuc, fpregs_format;
     uint32_t hflags;
     int32_t a20_mask;
-    int i;
+    int32_t pending_irq;
+    int i, bit;
 
     cpu_synchronize_state(env, 0);
 
@@ -141,11 +143,21 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_be64s(f, &env->mtrr_var[i].mask);
     }
 
-    for (i = 0; i < sizeof(env->interrupt_bitmap)/8; i++) {
-        qemu_put_be64s(f, &env->interrupt_bitmap[i]);
+    /* KVM-related states */
+
+    /* There can only be one pending IRQ set in the bitmap at a time, so try
+       to find it and save its number instead (-1 for none). */
+    pending_irq = -1;
+    for (i = 0; i < ARRAY_SIZE(env->interrupt_bitmap); i++) {
+        if (env->interrupt_bitmap[i]) {
+            bit = ctz64(env->interrupt_bitmap[i]);
+            pending_irq = i * 64 + bit;
+            break;
+        }
     }
-    qemu_put_be64s(f, &env->tsc);
+    qemu_put_sbe32s(f, &pending_irq);
     qemu_put_be32s(f, &env->mp_state);
+    qemu_put_be64s(f, &env->tsc);
 }
 
 #ifdef USE_X86LDOUBLE
@@ -179,6 +191,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     uint32_t hflags;
     uint16_t fpus, fpuc, fptag, fpregs_format;
     int32_t a20_mask;
+    int32_t pending_irq;
 
     if (version_id < 3 || version_id > CPU_SAVE_VERSION)
         return -EINVAL;
@@ -324,12 +337,16 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
             qemu_get_be64s(f, &env->mtrr_var[i].mask);
         }
     }
+
     if (version_id >= 9) {
-        for (i = 0; i < sizeof(env->interrupt_bitmap)/8; i++) {
-            qemu_get_be64s(f, &env->interrupt_bitmap[i]);
+        qemu_get_sbe32s(f, &pending_irq);
+        memset(&env->interrupt_bitmap, 0, sizeof(env->interrupt_bitmap));
+        if (pending_irq >= 0) {
+            env->interrupt_bitmap[pending_irq / 64] |=
+                (uint64_t)1 << (pending_irq % 64);
         }
-        qemu_get_be64s(f, &env->tsc);
         qemu_get_be32s(f, &env->mp_state);
+        qemu_get_be64s(f, &env->tsc);
     }
 
     /* XXX: ensure compatiblity for halted bit ? */

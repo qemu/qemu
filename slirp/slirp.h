@@ -1,22 +1,6 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#define CONFIG_QEMU
-
-//#define DEBUG 1
-
-// Uncomment the following line to enable SLIRP statistics printing in Qemu
-//#define LOG_ENABLED
-
-#ifdef LOG_ENABLED
-#define STAT(expr) expr
-#else
-#define STAT(expr) do { } while(0)
-#endif
-
-#ifndef CONFIG_QEMU
-#include "version.h"
-#endif
 #include "config-host.h"
 #include "slirp_config.h"
 
@@ -119,13 +103,6 @@ typedef unsigned char u_int8_t;
 #include <sys/uio.h>
 #endif
 
-#undef _P
-#ifndef NO_PROTOTYPES
-#  define   _P(x)   x
-#else
-#  define   _P(x)   ()
-#endif
-
 #ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -137,17 +114,17 @@ typedef unsigned char u_int8_t;
 
 /* Systems lacking strdup() definition in <string.h>. */
 #if defined(ultrix)
-char *strdup _P((const char *));
+char *strdup(const char *);
 #endif
 
 /* Systems lacking malloc() definition in <stdlib.h>. */
 #if defined(ultrix) || defined(hcx)
-void *malloc _P((size_t arg));
-void free _P((void *ptr));
+void *malloc(size_t arg);
+void free(void *ptr);
 #endif
 
 #ifndef HAVE_INET_ATON
-int inet_aton _P((const char *cp, struct in_addr *ia));
+int inet_aton(const char *cp, struct in_addr *ia);
 #endif
 
 #include <fcntl.h>
@@ -201,20 +178,21 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 
 #include "debug.h"
 
+#include "sys-queue.h"
+
+#include "libslirp.h"
 #include "ip.h"
 #include "tcp.h"
 #include "tcp_timer.h"
 #include "tcp_var.h"
 #include "tcpip.h"
 #include "udp.h"
-#include "icmp_var.h"
 #include "mbuf.h"
 #include "sbuf.h"
 #include "socket.h"
 #include "if.h"
 #include "main.h"
 #include "misc.h"
-#include "ctl.h"
 #ifdef USE_PPP
 #include "ppp/pppd.h"
 #include "ppp/ppp.h"
@@ -222,47 +200,101 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 
 #include "bootp.h"
 #include "tftp.h"
-#include "libslirp.h"
 
-extern struct ttys *ttys_unit[MAX_INTERFACES];
+struct Slirp {
+    TAILQ_ENTRY(Slirp) entry;
+
+    /* virtual network configuration */
+    struct in_addr vnetwork_addr;
+    struct in_addr vnetwork_mask;
+    struct in_addr vhost_addr;
+    struct in_addr vdhcp_startaddr;
+    struct in_addr vnameserver_addr;
+
+    /* ARP cache for the guest IP addresses (XXX: allow many entries) */
+    uint8_t client_ethaddr[6];
+
+    struct in_addr client_ipaddr;
+    char client_hostname[33];
+
+    int restricted;
+    struct timeval tt;
+    struct ex_list *exec_list;
+
+    /* mbuf states */
+    struct mbuf m_freelist, m_usedlist;
+    int mbuf_alloced;
+
+    /* if states */
+    int if_queued;          /* number of packets queued so far */
+    struct mbuf if_fastq;   /* fast queue (for interactive data) */
+    struct mbuf if_batchq;  /* queue for non-interactive data */
+    struct mbuf *next_m;    /* pointer to next mbuf to output */
+
+    /* ip states */
+    struct ipq ipq;         /* ip reass. queue */
+    u_int16_t ip_id;        /* ip packet ctr, for ids */
+
+    /* bootp/dhcp states */
+    BOOTPClient bootp_clients[NB_BOOTP_CLIENTS];
+    char *bootp_filename;
+
+    /* tcp states */
+    struct socket tcb;
+    struct socket *tcp_last_so;
+    tcp_seq tcp_iss;        /* tcp initial send seq # */
+    u_int32_t tcp_now;      /* for RFC 1323 timestamps */
+
+    /* udp states */
+    struct socket udb;
+    struct socket *udp_last_so;
+
+    /* tftp states */
+    char *tftp_prefix;
+    struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+
+    void *opaque;
+};
+
+extern Slirp *slirp_instance;
 
 #ifndef NULL
 #define NULL (void *)0
 #endif
 
 #ifndef FULL_BOLT
-void if_start _P((void));
+void if_start(Slirp *);
 #else
-void if_start _P((struct ttys *));
+void if_start(struct ttys *);
 #endif
 
 #ifdef BAD_SPRINTF
 # define vsprintf vsprintf_len
 # define sprintf sprintf_len
- extern int vsprintf_len _P((char *, const char *, va_list));
- extern int sprintf_len _P((char *, const char *, ...));
+ extern int vsprintf_len(char *, const char *, va_list);
+ extern int sprintf_len(char *, const char *, ...);
 #endif
 
 #ifdef DECLARE_SPRINTF
 # ifndef BAD_SPRINTF
- extern int vsprintf _P((char *, const char *, va_list));
+ extern int vsprintf(char *, const char *, va_list);
 # endif
- extern int vfprintf _P((FILE *, const char *, va_list));
+ extern int vfprintf(FILE *, const char *, va_list);
 #endif
 
 #ifndef HAVE_STRERROR
- extern char *strerror _P((int error));
+ extern char *strerror(int error);
 #endif
 
 #ifndef HAVE_INDEX
- char *index _P((const char *, int));
+ char *index(const char *, int);
 #endif
 
 #ifndef HAVE_GETHOSTID
- long gethostid _P((void));
+ long gethostid(void);
 #endif
 
-void lprint _P((const char *, ...));
+void lprint(const char *, ...);
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -277,39 +309,39 @@ void lprint _P((const char *, ...));
 int cksum(struct mbuf *m, int len);
 
 /* if.c */
-void if_init _P((void));
-void if_output _P((struct socket *, struct mbuf *));
+void if_init(Slirp *);
+void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
-void ip_init _P((void));
-void ip_input _P((struct mbuf *));
-void ip_slowtimo _P((void));
-void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
+void ip_init(Slirp *);
+void ip_input(struct mbuf *);
+void ip_slowtimo(Slirp *);
+void ip_stripoptions(register struct mbuf *, struct mbuf *);
 
 /* ip_output.c */
-int ip_output _P((struct socket *, struct mbuf *));
+int ip_output(struct socket *, struct mbuf *);
 
 /* tcp_input.c */
-void tcp_input _P((register struct mbuf *, int, struct socket *));
-int tcp_mss _P((register struct tcpcb *, u_int));
+void tcp_input(register struct mbuf *, int, struct socket *);
+int tcp_mss(register struct tcpcb *, u_int);
 
 /* tcp_output.c */
-int tcp_output _P((register struct tcpcb *));
-void tcp_setpersist _P((register struct tcpcb *));
+int tcp_output(register struct tcpcb *);
+void tcp_setpersist(register struct tcpcb *);
 
 /* tcp_subr.c */
-void tcp_init _P((void));
-void tcp_template _P((struct tcpcb *));
-void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
-struct tcpcb * tcp_newtcpcb _P((struct socket *));
-struct tcpcb * tcp_close _P((register struct tcpcb *));
-void tcp_sockclosed _P((struct tcpcb *));
-int tcp_fconnect _P((struct socket *));
-void tcp_connect _P((struct socket *));
-int tcp_attach _P((struct socket *));
-u_int8_t tcp_tos _P((struct socket *));
-int tcp_emu _P((struct socket *, struct mbuf *));
-int tcp_ctl _P((struct socket *));
+void tcp_init(Slirp *);
+void tcp_template(struct tcpcb *);
+void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int);
+struct tcpcb * tcp_newtcpcb(struct socket *);
+struct tcpcb * tcp_close(register struct tcpcb *);
+void tcp_sockclosed(struct tcpcb *);
+int tcp_fconnect(struct socket *);
+void tcp_connect(struct socket *);
+int tcp_attach(struct socket *);
+u_int8_t tcp_tos(struct socket *);
+int tcp_emu(struct socket *, struct mbuf *);
+int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
 #ifdef USE_PPP

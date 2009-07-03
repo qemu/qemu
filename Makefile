@@ -45,7 +45,7 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
-build-all: $(TOOLS) $(DOCS) recurse-all
+build-all: $(TOOLS) $(DOCS) roms recurse-all
 
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
@@ -65,28 +65,26 @@ $(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
 recurse-all: $(SUBDIR_RULES)
 
 #######################################################################
-# BLOCK_OBJS is code used by both qemu system emulation and qemu-img
+# block-obj-y is code used by both qemu system emulation and qemu-img
 
-BLOCK_OBJS=cutils.o cache-utils.o qemu-malloc.o qemu-option.o aes.o module.o
-BLOCK_OBJS+=block/cow.o block/qcow.o block/vdi.o block/vmdk.o block/cloop.o
-BLOCK_OBJS+=block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
-BLOCK_OBJS+=block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
-BLOCK_OBJS+=block/qcow2-snapshot.o
-BLOCK_OBJS+=block/parallels.o block/nbd.o
-BLOCK_OBJS+=nbd.o block.o aio.o
+block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o aes.o module.o
+block-obj-y += block/cow.o block/qcow.o block/vdi.o block/vmdk.o block/cloop.o
+block-obj-y += block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
+block-obj-y += block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
+block-obj-y += block/qcow2-snapshot.o
+block-obj-y += block/parallels.o block/nbd.o
+block-obj-y += nbd.o block.o aio.o
 
 ifdef CONFIG_WIN32
-BLOCK_OBJS += block/raw-win32.o
+block-obj-y += block/raw-win32.o
 else
 ifdef CONFIG_AIO
-BLOCK_OBJS += posix-aio-compat.o
+block-obj-y += posix-aio-compat.o
 endif
-BLOCK_OBJS += block/raw-posix.o
+block-obj-y += block/raw-posix.o
 endif
 
-ifdef CONFIG_CURL
-BLOCK_OBJS += block/curl.o
-endif
+block-obj-$(CONFIG_CURL) += block/curl.o
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -94,115 +92,91 @@ endif
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS=$(BLOCK_OBJS)
-OBJS+=readline.o console.o
+obj-y = $(block-obj-y)
+obj-y += readline.o console.o
 
-OBJS+=irq.o ptimer.o
-OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
-OBJS+=ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
-OBJS+=tmp105.o lm832x.o eeprom93xx.o tsc2005.o
-OBJS+=scsi-disk.o cdrom.o
-OBJS+=scsi-generic.o
-OBJS+=usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
-OBJS+=usb-serial.o usb-net.o
-OBJS+=sd.o ssi-sd.o
-OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
-OBJS+=bt-hci-csr.o
-OBJS+=buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
-OBJS+=qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
-OBJS+=msmouse.o ps2.o
-OBJS+=qdev.o ssi.o
+obj-y += irq.o ptimer.o
+obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
+obj-y += ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
+obj-y += tmp105.o lm832x.o eeprom93xx.o tsc2005.o
+obj-y += scsi-disk.o cdrom.o
+obj-y += scsi-generic.o
+obj-y += usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
+obj-y += usb-serial.o usb-net.o
+obj-y += sd.o ssi-sd.o
+obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
+obj-y += bt-hci-csr.o
+obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
+obj-y += qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
+obj-y += msmouse.o ps2.o
+obj-y += qdev.o ssi.o
+
+obj-$(CONFIG_BRLAPI) += baum.o
 
 ifdef CONFIG_BRLAPI
-OBJS+= baum.o
 LIBS+=-lbrlapi
 endif
 
 ifdef CONFIG_WIN32
-OBJS+=tap-win32.o
+obj-y += tap-win32.o
 else
-OBJS+=migration-exec.o
+obj-y += migration-exec.o
 endif
 
-AUDIO_OBJS = audio.o noaudio.o wavaudio.o mixeng.o
-ifdef CONFIG_SDL
-AUDIO_OBJS += sdlaudio.o
-endif
-ifdef CONFIG_OSS
-AUDIO_OBJS += ossaudio.o
-endif
 ifdef CONFIG_COREAUDIO
-AUDIO_OBJS += coreaudio.o
 AUDIO_PT = yes
 endif
-ifdef CONFIG_ALSA
-AUDIO_OBJS += alsaaudio.o
-endif
-ifdef CONFIG_DSOUND
-AUDIO_OBJS += dsoundaudio.o
-endif
 ifdef CONFIG_FMOD
-AUDIO_OBJS += fmodaudio.o
 audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
 endif
 ifdef CONFIG_ESD
 AUDIO_PT = yes
 AUDIO_PT_INT = yes
-AUDIO_OBJS += esdaudio.o
 endif
 ifdef CONFIG_PA
 AUDIO_PT = yes
 AUDIO_PT_INT = yes
-AUDIO_OBJS += paaudio.o
 endif
 ifdef AUDIO_PT
 LDFLAGS += -pthread
 endif
-ifdef AUDIO_PT_INT
-AUDIO_OBJS += audio_pt_int.o
-endif
-AUDIO_OBJS+= wavcapture.o
-OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
 
-OBJS+=keymaps.o
-ifdef CONFIG_SDL
-OBJS+=sdl.o x_keymap.o
-endif
-ifdef CONFIG_CURSES
-OBJS+=curses.o
-endif
-OBJS+=vnc.o acl.o d3des.o
-ifdef CONFIG_VNC_TLS
-OBJS+=vnc-tls.o vnc-auth-vencrypt.o
-endif
-ifdef CONFIG_VNC_SASL
-OBJS+=vnc-auth-sasl.o
-endif
+audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
+audio-obj-$(CONFIG_SDL) += sdlaudio.o
+audio-obj-$(CONFIG_OSS) += ossaudio.o
+audio-obj-$(CONFIG_COREAUDIO) += coreaudio.o
+audio-obj-$(CONFIG_ALSA) += alsaaudio.o
+audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o
+audio-obj-$(CONFIG_FMOD) += fmodaudio.o
+audio-obj-$(CONFIG_ESD) += esdaudio.o
+audio-obj-$(CONFIG_PA) += paaudio.o
+audio-obj-$(AUDIO_PT_INT) += audio_pt_int.o
+audio-obj-y += wavcapture.o
+obj-y += $(addprefix audio/, $(audio-obj-y))
 
-ifdef CONFIG_COCOA
-OBJS+=cocoa.o
-endif
-
-ifdef CONFIG_IOTHREAD
-OBJS+=qemu-thread.o
-endif
+obj-y += keymaps.o
+obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
+obj-$(CONFIG_CURSES) += curses.o
+obj-y += vnc.o acl.o d3des.o
+obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
+obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
+obj-$(CONFIG_COCOA) += cocoa.o
+obj-$(CONFIG_IOTHREAD) += qemu-thread.o
 
 ifdef CONFIG_SLIRP
 CPPFLAGS+=-I$(SRC_PATH)/slirp
-SLIRP_OBJS=cksum.o if.o ip_icmp.o ip_input.o ip_output.o \
-slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o \
-tcp_subr.o tcp_timer.o udp.o bootp.o debug.o tftp.o
-OBJS+=$(addprefix slirp/, $(SLIRP_OBJS))
 endif
+
+slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
+slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
+slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
+obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
 
 LIBS+=$(VDE_LIBS)
 
 # xen backend driver support
-XEN_OBJS := xen_backend.o xen_devconfig.o
-XEN_OBJS += xen_console.o xenfb.o xen_disk.o xen_nic.o
-ifdef CONFIG_XEN
-  OBJS += $(XEN_OBJS)
-endif
+obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
+obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
 LIBS+=$(CURL_LIBS)
 
@@ -210,9 +184,11 @@ cocoa.o: cocoa.m
 
 keymaps.o: keymaps.c keymaps.h
 
-sdl.o: sdl.c keymaps.h sdl_keysym.h
+sdl_zoom.o: sdl_zoom.c sdl_zoom.h sdl_zoom_template.h
 
-sdl.o audio/sdlaudio.o baum.o: CFLAGS += $(SDL_CFLAGS)
+sdl.o: sdl.c keymaps.h sdl_keysym.h sdl_zoom.h
+
+sdl.o audio/sdlaudio.o sdl_zoom.o baum.o: CFLAGS += $(SDL_CFLAGS)
 
 acl.o: acl.h acl.c
 
@@ -232,23 +208,23 @@ curses.o: curses.c keymaps.h curses_keys.h
 
 bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
 
-libqemu_common.a: $(OBJS)
+libqemu_common.a: $(obj-y)
 
 #######################################################################
-# USER_OBJS is code used by qemu userspace emulation
-USER_OBJS=cutils.o  cache-utils.o
+# user-obj-y is code used by qemu userspace emulation
+user-obj-y = cutils.o cache-utils.o
 
-libqemu_user.a: $(USER_OBJS)
+libqemu_user.a: $(user-obj-y)
 
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(block-obj-y)
 
-qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(BLOCK_OBJS)
+qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(block-obj-y)
 
-qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(BLOCK_OBJS)
+qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(block-obj-y)
 
 qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
 
@@ -262,7 +238,7 @@ clean:
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
-	for d in $(TARGET_DIRS) libhw32 libhw64; do \
+	for d in $(TARGET_DIRS) $(ROMS) libhw32 libhw64; do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
@@ -281,10 +257,16 @@ ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 video.x openbios-sparc32 openbios-sparc64 openbios-ppc \
 pxe-ne2k_pci.bin pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin \
-bamboo.dtb petalogix-s3adsp1800.dtb
+bamboo.dtb petalogix-s3adsp1800.dtb \
+multiboot.bin
 else
 BLOBS=
 endif
+
+roms:
+	for d in $(ROMS); do \
+	$(MAKE) -C $$d || exit 1 ; \
+        done
 
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"
@@ -320,7 +302,7 @@ test speed: all
 	$(MAKE) -C tests $@
 
 TAGS:
-	etags *.[ch] tests/*.[ch]
+	etags *.[ch] tests/*.[ch] block/*.[ch] hw/*.[ch]
 
 cscope:
 	rm -f ./cscope.*

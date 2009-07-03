@@ -118,6 +118,19 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
 
 #endif
 
+static void kvm_trim_features(uint32_t *features, uint32_t supported)
+{
+    int i;
+    uint32_t mask;
+
+    for (i = 0; i < 32; ++i) {
+        mask = 1U << i;
+        if ((*features & mask) && !(supported & mask)) {
+            *features &= ~mask;
+        }
+    }
+}
+
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
@@ -128,6 +141,19 @@ int kvm_arch_init_vcpu(CPUState *env)
     uint32_t unused;
 
     env->mp_state = KVM_MP_STATE_RUNNABLE;
+
+    kvm_trim_features(&env->cpuid_features,
+        kvm_arch_get_supported_cpuid(env, 1, R_EDX));
+
+    i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
+    kvm_trim_features(&env->cpuid_ext_features,
+        kvm_arch_get_supported_cpuid(env, 1, R_ECX));
+    env->cpuid_ext_features |= i;
+
+    kvm_trim_features(&env->cpuid_ext2_features,
+        kvm_arch_get_supported_cpuid(env, 0x80000001, R_EDX));
+    kvm_trim_features(&env->cpuid_ext3_features,
+        kvm_arch_get_supported_cpuid(env, 0x80000001, R_ECX));
 
     cpuid_i = 0;
 

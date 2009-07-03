@@ -120,7 +120,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     env = cpu_init(cpu_model);
 
     env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
-    qemu_register_reset(main_cpu_reset, 0, env);
+    qemu_register_reset(main_cpu_reset, env);
 
     /* Attach emulated BRAM through the LMB.  */
     phys_lmb_bram = qemu_ram_alloc(LMB_BRAM_SIZE);

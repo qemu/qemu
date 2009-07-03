@@ -40,17 +40,6 @@
 
 #include <slirp.h>
 
-/*
- * Since this is only used in "stats socket", we give meaning
- * names instead of the REAL names
- */
-const char * const tcpstates[] = {
-/*	"CLOSED",       "LISTEN",       "SYN_SENT",     "SYN_RCVD", */
-	"REDIRECT",	"LISTEN",	"SYN_SENT",     "SYN_RCVD",
-	"ESTABLISHED",  "CLOSE_WAIT",   "FIN_WAIT_1",   "CLOSING",
-	"LAST_ACK",     "FIN_WAIT_2",   "TIME_WAIT",
-};
-
 static const u_char  tcp_outflags[TCP_NSTATES] = {
 	TH_RST|TH_ACK, 0,      TH_SYN,        TH_SYN|TH_ACK,
 	TH_ACK,        TH_ACK, TH_FIN|TH_ACK, TH_FIN|TH_ACK,
@@ -258,8 +247,6 @@ again:
 	/*
 	 * No reason to send a segment, just return.
 	 */
-	STAT(tcpstat.tcps_didnuttin++);
-
 	return (0);
 
 send:
@@ -283,39 +270,9 @@ send:
 			mss = htons((u_int16_t) tcp_mss(tp, 0));
 			memcpy((caddr_t)(opt + 2), (caddr_t)&mss, sizeof(mss));
 			optlen = 4;
-
-/*			if ((tp->t_flags & TF_REQ_SCALE) &&
- *			    ((flags & TH_ACK) == 0 ||
- *			    (tp->t_flags & TF_RCVD_SCALE))) {
- *				*((u_int32_t *) (opt + optlen)) = htonl(
- *					TCPOPT_NOP << 24 |
- *					TCPOPT_WINDOW << 16 |
- *					TCPOLEN_WINDOW << 8 |
- *					tp->request_r_scale);
- *				optlen += 4;
- *			}
- */
 		}
  	}
 
- 	/*
-	 * Send a timestamp and echo-reply if this is a SYN and our side
-	 * wants to use timestamps (TF_REQ_TSTMP is set) or both our side
-	 * and our peer have sent timestamps in our SYN's.
- 	 */
-/* 	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
- *	     (flags & TH_RST) == 0 &&
- *	    ((flags & (TH_SYN|TH_ACK)) == TH_SYN ||
- *	     (tp->t_flags & TF_RCVD_TSTMP))) {
- *		u_int32_t *lp = (u_int32_t *)(opt + optlen);
- *
- *		/ * Form timestamp option as shown in appendix A of RFC 1323. *  /
- *		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
- *		*lp++ = htonl(tcp_now);
- *		*lp   = htonl(tp->ts_recent);
- *		optlen += TCPOLEN_TSTAMP_APPA;
- *	}
- */
  	hdrlen += optlen;
 
 	/*
@@ -333,40 +290,17 @@ send:
 	 * the template for sends on this connection.
 	 */
 	if (len) {
-		if (tp->t_force && len == 1)
-			STAT(tcpstat.tcps_sndprobe++);
-		else if (SEQ_LT(tp->snd_nxt, tp->snd_max)) {
-			STAT(tcpstat.tcps_sndrexmitpack++);
-			STAT(tcpstat.tcps_sndrexmitbyte += len);
-		} else {
-			STAT(tcpstat.tcps_sndpack++);
-			STAT(tcpstat.tcps_sndbyte += len);
-		}
-
-		m = m_get();
+		m = m_get(so->slirp);
 		if (m == NULL) {
-/*			error = ENOBUFS; */
 			error = 1;
 			goto out;
 		}
 		m->m_data += IF_MAXLINKHDR;
 		m->m_len = hdrlen;
 
-		/*
-		 * This will always succeed, since we make sure our mbufs
-		 * are big enough to hold one MSS packet + header + ... etc.
-		 */
-/*		if (len <= MHLEN - hdrlen - max_linkhdr) { */
+		sbcopy(&so->so_snd, off, (int) len, mtod(m, caddr_t) + hdrlen);
+		m->m_len += len;
 
-			sbcopy(&so->so_snd, off, (int) len, mtod(m, caddr_t) + hdrlen);
-			m->m_len += len;
-
-/*		} else {
- *			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
- *			if (m->m_next == 0)
- *				len = 0;
- *		}
- */
 		/*
 		 * If we're sending everything we've got, set PUSH.
 		 * (This will keep happy those implementations which only
@@ -376,18 +310,8 @@ send:
 		if (off + len == so->so_snd.sb_cc)
 			flags |= TH_PUSH;
 	} else {
-		if (tp->t_flags & TF_ACKNOW)
-			STAT(tcpstat.tcps_sndacks++);
-		else if (flags & (TH_SYN|TH_FIN|TH_RST))
-			STAT(tcpstat.tcps_sndctrl++);
-		else if (SEQ_GT(tp->snd_up, tp->snd_una))
-			STAT(tcpstat.tcps_sndurg++);
-		else
-			STAT(tcpstat.tcps_sndwinup++);
-
-		m = m_get();
+		m = m_get(so->slirp);
 		if (m == NULL) {
-/*			error = ENOBUFS; */
 			error = 1;
 			goto out;
 		}
@@ -444,10 +368,6 @@ send:
 
 	if (SEQ_GT(tp->snd_up, tp->snd_una)) {
 		ti->ti_urp = htons((u_int16_t)(tp->snd_up - ntohl(ti->ti_seq)));
-#ifdef notdef
-	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
-		ti->ti_urp = htons((u_int16_t)(tp->snd_up - tp->snd_nxt));
-#endif
 		ti->ti_flags |= TH_URG;
 	} else
 		/*
@@ -495,7 +415,6 @@ send:
 			if (tp->t_rtt == 0) {
 				tp->t_rtt = 1;
 				tp->t_rtseq = startseq;
-				STAT(tcpstat.tcps_segstimed++);
 			}
 		}
 
@@ -534,35 +453,12 @@ send:
 	((struct ip *)ti)->ip_ttl = IPDEFTTL;
 	((struct ip *)ti)->ip_tos = so->so_iptos;
 
-/* #if BSD >= 43 */
-	/* Don't do IP options... */
-/*	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
- *	    so->so_options & SO_DONTROUTE, 0);
- */
 	error = ip_output(so, m);
-
-/* #else
- *	error = ip_output(m, (struct mbuf *)0, &tp->t_inpcb->inp_route,
- *	    so->so_options & SO_DONTROUTE);
- * #endif
- */
     }
 	if (error) {
 out:
-/*		if (error == ENOBUFS) {
- *			tcp_quench(tp->t_inpcb, 0);
- *			return (0);
- *		}
- */
-/*		if ((error == EHOSTUNREACH || error == ENETDOWN)
- *		    && TCPS_HAVERCVDSYN(tp->t_state)) {
- *			tp->t_softerror = error;
- *			return (0);
- *		}
- */
 		return (error);
 	}
-	STAT(tcpstat.tcps_sndtotal++);
 
 	/*
 	 * Data sent (as far as we can tell).
@@ -585,9 +481,6 @@ tcp_setpersist(struct tcpcb *tp)
 {
     int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 
-/*	if (tp->t_timer[TCPT_REXMT])
- *		panic("tcp_output REXMT");
- */
 	/*
 	 * Start/restart persistence timer.
 	 */

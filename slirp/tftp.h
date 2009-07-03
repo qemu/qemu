@@ -30,4 +30,14 @@ struct tftp_t {
   } x;
 };
 
+struct tftp_session {
+    Slirp *slirp;
+    char *filename;
+
+    struct in_addr client_ip;
+    u_int16_t client_port;
+
+    int timestamp;
+};
+
 void tftp_input(struct mbuf *m);

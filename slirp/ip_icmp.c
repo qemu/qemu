@@ -33,10 +33,6 @@
 #include "slirp.h"
 #include "ip_icmp.h"
 
-#ifdef LOG_ENABLED
-struct icmpstat icmpstat;
-#endif
-
 /* The message sent when emulating PING */
 /* Be nice and tell them it's just a pseudo-ping packet */
 static const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
@@ -73,20 +69,17 @@ icmp_input(struct mbuf *m, int hlen)
   register struct icmp *icp;
   register struct ip *ip=mtod(m, struct ip *);
   int icmplen=ip->ip_len;
-  /* int code; */
+  Slirp *slirp = m->slirp;
 
   DEBUG_CALL("icmp_input");
   DEBUG_ARG("m = %lx", (long )m);
   DEBUG_ARG("m_len = %d", m->m_len);
-
-  STAT(icmpstat.icps_received++);
 
   /*
    * Locate icmp structure in mbuf, and check
    * that its not corrupted and of at least minimum length.
    */
   if (icmplen < ICMP_MINLEN) {          /* min 8 bytes payload */
-    STAT(icmpstat.icps_tooshort++);
   freeit:
     m_freem(m);
     goto end_error;
@@ -96,26 +89,22 @@ icmp_input(struct mbuf *m, int hlen)
   m->m_data += hlen;
   icp = mtod(m, struct icmp *);
   if (cksum(m, icmplen)) {
-    STAT(icmpstat.icps_checksum++);
     goto freeit;
   }
   m->m_len += hlen;
   m->m_data -= hlen;
-
-  /*	icmpstat.icps_inhist[icp->icmp_type]++; */
-  /* code = icp->icmp_code; */
 
   DEBUG_ARG("icmp_type = %d", icp->icmp_type);
   switch (icp->icmp_type) {
   case ICMP_ECHO:
     icp->icmp_type = ICMP_ECHOREPLY;
     ip->ip_len += hlen;	             /* since ip_input subtracts this */
-    if (ip->ip_dst.s_addr == alias_addr.s_addr) {
+    if (ip->ip_dst.s_addr == slirp->vhost_addr.s_addr) {
       icmp_reflect(m);
     } else {
       struct socket *so;
       struct sockaddr_in addr;
-      if ((so = socreate()) == NULL) goto freeit;
+      if ((so = socreate(slirp)) == NULL) goto freeit;
       if(udp_attach(so) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp_attach errno = %d-%s\n",
 		    errno,strerror(errno)));
@@ -134,16 +123,13 @@ icmp_input(struct mbuf *m, int hlen)
 
       /* Send the packet */
       addr.sin_family = AF_INET;
-      if ((so->so_faddr.s_addr & htonl(0xffffff00)) == special_addr.s_addr) {
+      if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+          slirp->vnetwork_addr.s_addr) {
 	/* It's an alias */
-	switch(ntohl(so->so_faddr.s_addr) & 0xff) {
-	case CTL_DNS:
+	if (so->so_faddr.s_addr == slirp->vnameserver_addr.s_addr) {
 	  addr.sin_addr = dns_addr;
-	  break;
-	case CTL_ALIAS:
-	default:
+	} else {
 	  addr.sin_addr = loopback_addr;
-	  break;
 	}
       } else {
 	addr.sin_addr = so->so_faddr;
@@ -166,12 +152,10 @@ icmp_input(struct mbuf *m, int hlen)
   case ICMP_TSTAMP:
   case ICMP_MASKREQ:
   case ICMP_REDIRECT:
-    STAT(icmpstat.icps_notsupp++);
     m_freem(m);
     break;
 
   default:
-    STAT(icmpstat.icps_badtype++);
     m_freem(m);
   } /* swith */
 
@@ -239,7 +223,11 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   }
 
   /* make a copy */
-  if(!(m=m_get())) goto end_error;               /* get mbuf */
+  m = m_get(msrc->slirp);
+  if (!m) {
+      goto end_error;
+  }
+
   { int new_m_size;
     new_m_size=sizeof(struct ip )+ICMP_MINLEN+msrc->m_len+ICMP_MAXDATALEN;
     if(new_m_size>m->m_size) m_inc(m, new_m_size);
@@ -302,11 +290,9 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   ip->ip_ttl = MAXTTL;
   ip->ip_p = IPPROTO_ICMP;
   ip->ip_dst = ip->ip_src;    /* ip adresses */
-  ip->ip_src = alias_addr;
+  ip->ip_src = m->slirp->vhost_addr;
 
   (void ) ip_output((struct socket *)NULL, m);
-
-  STAT(icmpstat.icps_reflect++);
 
 end_error:
   return;
@@ -361,6 +347,4 @@ icmp_reflect(struct mbuf *m)
   }
 
   (void ) ip_output((struct socket *)NULL, m);
-
-  STAT(icmpstat.icps_reflect++);
 }

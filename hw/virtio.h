@@ -75,10 +75,16 @@ typedef struct VirtQueueElement
 } VirtQueueElement;
 
 typedef struct {
-    void (*update_irq)(void * opaque);
+    void (*notify)(void * opaque, uint16_t vector);
+    void (*save_config)(void * opaque, QEMUFile *f);
+    void (*save_queue)(void * opaque, int n, QEMUFile *f);
+    int (*load_config)(void * opaque, QEMUFile *f);
+    int (*load_queue)(void * opaque, int n, QEMUFile *f);
 } VirtIOBindings;
 
 #define VIRTIO_PCI_QUEUE_MAX 16
+
+#define VIRTIO_NO_VECTOR 0xffff
 
 struct VirtIODevice
 {
@@ -89,6 +95,8 @@ struct VirtIODevice
     uint32_t features;
     size_t config_len;
     void *config;
+    uint16_t config_vector;
+    int nvectors;
     uint32_t (*get_features)(VirtIODevice *vdev);
     uint32_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint32_t val);
@@ -118,7 +126,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
-void virtio_load(VirtIODevice *vdev, QEMUFile *f);
+int virtio_load(VirtIODevice *vdev, QEMUFile *f);
 
 void virtio_cleanup(VirtIODevice *vdev);
 
@@ -144,6 +152,8 @@ void virtio_queue_set_addr(VirtIODevice *vdev, int n, target_phys_addr_t addr);
 target_phys_addr_t virtio_queue_get_addr(VirtIODevice *vdev, int n);
 int virtio_queue_get_num(VirtIODevice *vdev, int n);
 void virtio_queue_notify(VirtIODevice *vdev, int n);
+uint16_t virtio_queue_vector(VirtIODevice *vdev, int n);
+void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector);
 void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
 

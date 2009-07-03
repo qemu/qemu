@@ -22,48 +22,41 @@
  * THE SOFTWARE.
  */
 
-#include "qemu-common.h" // for pstrcpy
 #include <slirp.h>
+#include "qemu-common.h"
 
-struct tftp_session {
-    int in_use;
-    unsigned char filename[TFTP_FILENAME_MAX];
+static inline int tftp_session_in_use(struct tftp_session *spt)
+{
+    return (spt->slirp != NULL);
+}
 
-    struct in_addr client_ip;
-    u_int16_t client_port;
-
-    int timestamp;
-};
-
-static struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
-
-const char *tftp_prefix;
-
-static void tftp_session_update(struct tftp_session *spt)
+static inline void tftp_session_update(struct tftp_session *spt)
 {
     spt->timestamp = curtime;
-    spt->in_use = 1;
 }
 
 static void tftp_session_terminate(struct tftp_session *spt)
 {
-  spt->in_use = 0;
+    qemu_free(spt->filename);
+    spt->slirp = NULL;
 }
 
-static int tftp_session_allocate(struct tftp_t *tp)
+static int tftp_session_allocate(Slirp *slirp, struct tftp_t *tp)
 {
   struct tftp_session *spt;
   int k;
 
   for (k = 0; k < TFTP_SESSIONS_MAX; k++) {
-    spt = &tftp_sessions[k];
+    spt = &slirp->tftp_sessions[k];
 
-    if (!spt->in_use)
+    if (!tftp_session_in_use(spt))
         goto found;
 
     /* sessions time out after 5 inactive seconds */
-    if ((int)(curtime - spt->timestamp) > 5000)
+    if ((int)(curtime - spt->timestamp) > 5000) {
+        qemu_free(spt->filename);
         goto found;
+    }
   }
 
   return -1;
@@ -72,21 +65,22 @@ static int tftp_session_allocate(struct tftp_t *tp)
   memset(spt, 0, sizeof(*spt));
   memcpy(&spt->client_ip, &tp->ip.ip_src, sizeof(spt->client_ip));
   spt->client_port = tp->udp.uh_sport;
+  spt->slirp = slirp;
 
   tftp_session_update(spt);
 
   return k;
 }
 
-static int tftp_session_find(struct tftp_t *tp)
+static int tftp_session_find(Slirp *slirp, struct tftp_t *tp)
 {
   struct tftp_session *spt;
   int k;
 
   for (k = 0; k < TFTP_SESSIONS_MAX; k++) {
-    spt = &tftp_sessions[k];
+    spt = &slirp->tftp_sessions[k];
 
-    if (spt->in_use) {
+    if (tftp_session_in_use(spt)) {
       if (!memcmp(&spt->client_ip, &tp->ip.ip_src, sizeof(spt->client_ip))) {
 	if (spt->client_port == tp->udp.uh_sport) {
 	  return k;
@@ -103,15 +97,8 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
 {
   int fd;
   int bytes_read = 0;
-  char buffer[1024];
-  int n;
 
-  n = snprintf(buffer, sizeof(buffer), "%s/%s",
-	       tftp_prefix, spt->filename);
-  if (n >= sizeof(buffer))
-    return -1;
-
-  fd = open(buffer, O_RDONLY | O_BINARY);
+  fd = open(spt->filename, O_RDONLY | O_BINARY);
 
   if (fd < 0) {
     return -1;
@@ -137,7 +124,7 @@ static int tftp_send_oack(struct tftp_session *spt,
     struct tftp_t *tp;
     int n = 0;
 
-    m = m_get();
+    m = m_get(spt->slirp);
 
     if (!m)
 	return -1;
@@ -167,21 +154,19 @@ static int tftp_send_oack(struct tftp_session *spt,
     return 0;
 }
 
-
-
-static int tftp_send_error(struct tftp_session *spt,
-			   u_int16_t errorcode, const char *msg,
-			   struct tftp_t *recv_tp)
+static void tftp_send_error(struct tftp_session *spt,
+                            u_int16_t errorcode, const char *msg,
+                            struct tftp_t *recv_tp)
 {
   struct sockaddr_in saddr, daddr;
   struct mbuf *m;
   struct tftp_t *tp;
   int nobytes;
 
-  m = m_get();
+  m = m_get(spt->slirp);
 
   if (!m) {
-    return -1;
+    goto out;
   }
 
   memset(m->m_data, 0, m->m_size);
@@ -207,9 +192,8 @@ static int tftp_send_error(struct tftp_session *spt,
 
   udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
 
+out:
   tftp_session_terminate(spt);
-
-  return 0;
 }
 
 static int tftp_send_data(struct tftp_session *spt,
@@ -225,7 +209,7 @@ static int tftp_send_data(struct tftp_session *spt,
     return -1;
   }
 
-  m = m_get();
+  m = m_get(spt->slirp);
 
   if (!m) {
     return -1;
@@ -273,51 +257,58 @@ static int tftp_send_data(struct tftp_session *spt,
   return 0;
 }
 
-static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
+static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
 {
   struct tftp_session *spt;
-  int s, k, n;
-  u_int8_t *src, *dst;
+  int s, k;
+  size_t prefix_len;
+  char *req_fname;
 
-  s = tftp_session_allocate(tp);
+  s = tftp_session_allocate(slirp, tp);
 
   if (s < 0) {
     return;
   }
 
-  spt = &tftp_sessions[s];
+  spt = &slirp->tftp_sessions[s];
 
-  src = tp->x.tp_buf;
-  dst = spt->filename;
-  n = pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
+  /* unspecifed prefix means service disabled */
+  if (!slirp->tftp_prefix) {
+      tftp_send_error(spt, 2, "Access violation", tp);
+      return;
+  }
+
+  /* skip header fields */
+  k = 0;
+  pktlen -= ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
+
+  /* prepend tftp_prefix */
+  prefix_len = strlen(slirp->tftp_prefix);
+  spt->filename = qemu_malloc(prefix_len + TFTP_FILENAME_MAX + 2);
+  memcpy(spt->filename, slirp->tftp_prefix, prefix_len);
+  spt->filename[prefix_len] = '/';
 
   /* get name */
+  req_fname = spt->filename + prefix_len + 1;
 
-  for (k = 0; k < n; k++) {
-    if (k < TFTP_FILENAME_MAX) {
-      dst[k] = src[k];
-    }
-    else {
+  while (1) {
+    if (k >= TFTP_FILENAME_MAX || k >= pktlen) {
+      tftp_send_error(spt, 2, "Access violation", tp);
       return;
     }
-
-    if (src[k] == '\0') {
+    req_fname[k] = (char)tp->x.tp_buf[k];
+    if (req_fname[k++] == '\0') {
       break;
     }
   }
 
-  if (k >= n) {
-    return;
-  }
-
-  k++;
-
   /* check mode */
-  if ((n - k) < 6) {
+  if ((pktlen - k) < 6) {
+    tftp_send_error(spt, 2, "Access violation", tp);
     return;
   }
 
-  if (memcmp(&src[k], "octet\0", 6) != 0) {
+  if (memcmp(&tp->x.tp_buf[k], "octet\0", 6) != 0) {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
   }
@@ -325,59 +316,44 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   k += 6; /* skipping octet */
 
   /* do sanity checks on the filename */
-
-  if ((spt->filename[0] != '/')
-      || (spt->filename[strlen((char *)spt->filename) - 1] == '/')
-      ||  strstr((char *)spt->filename, "/../")) {
-      tftp_send_error(spt, 2, "Access violation", tp);
-      return;
-  }
-
-  /* only allow exported prefixes */
-
-  if (!tftp_prefix) {
+  if (!strncmp(req_fname, "../", 3) ||
+      req_fname[strlen(req_fname) - 1] == '/' ||
+      strstr(req_fname, "/../")) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
 
   /* check if the file exists */
-
-  if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
+  if (tftp_read_data(spt, 0, NULL, 0) < 0) {
       tftp_send_error(spt, 1, "File not found", tp);
       return;
   }
 
-  if (src[n - 1] != 0) {
+  if (tp->x.tp_buf[pktlen - 1] != 0) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
 
-  while (k < n) {
+  while (k < pktlen) {
       const char *key, *value;
 
-      key = (char *)src + k;
+      key = (const char *)&tp->x.tp_buf[k];
       k += strlen(key) + 1;
 
-      if (k >= n) {
+      if (k >= pktlen) {
 	  tftp_send_error(spt, 2, "Access violation", tp);
 	  return;
       }
 
-      value = (char *)src + k;
+      value = (const char *)&tp->x.tp_buf[k];
       k += strlen(value) + 1;
 
       if (strcmp(key, "tsize") == 0) {
 	  int tsize = atoi(value);
 	  struct stat stat_p;
 
-	  if (tsize == 0 && tftp_prefix) {
-	      char buffer[1024];
-	      int len;
-
-	      len = snprintf(buffer, sizeof(buffer), "%s/%s",
-			     tftp_prefix, spt->filename);
-
-	      if (stat(buffer, &stat_p) == 0)
+	  if (tsize == 0) {
+	      if (stat(spt->filename, &stat_p) == 0)
 		  tsize = stat_p.st_size;
 	      else {
 		  tftp_send_error(spt, 1, "File not found", tp);
@@ -392,17 +368,17 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   tftp_send_data(spt, 1, tp);
 }
 
-static void tftp_handle_ack(struct tftp_t *tp, int pktlen)
+static void tftp_handle_ack(Slirp *slirp, struct tftp_t *tp, int pktlen)
 {
   int s;
 
-  s = tftp_session_find(tp);
+  s = tftp_session_find(slirp, tp);
 
   if (s < 0) {
     return;
   }
 
-  if (tftp_send_data(&tftp_sessions[s],
+  if (tftp_send_data(&slirp->tftp_sessions[s],
 		     ntohs(tp->x.tp_data.tp_block_nr) + 1,
 		     tp) < 0) {
     return;
@@ -415,11 +391,11 @@ void tftp_input(struct mbuf *m)
 
   switch(ntohs(tp->tp_op)) {
   case TFTP_RRQ:
-    tftp_handle_rrq(tp, m->m_len);
+    tftp_handle_rrq(m->slirp, tp, m->m_len);
     break;
 
   case TFTP_ACK:
-    tftp_handle_ack(tp, m->m_len);
+    tftp_handle_ack(m->slirp, tp, m->m_len);
     break;
   }
 }

@@ -134,7 +134,10 @@ static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
         vdev->features = value;
         break;
     case SYBORG_VIRTIO_QUEUE_BASE:
-        virtio_queue_set_addr(vdev, vdev->queue_sel, value);
+        if (value == 0)
+            virtio_reset(vdev);
+        else
+            virtio_queue_set_addr(vdev, vdev->queue_sel, value);
         break;
     case SYBORG_VIRTIO_QUEUE_SEL:
         if (value < VIRTIO_PCI_QUEUE_MAX)
@@ -228,7 +231,7 @@ static CPUWriteMemoryFunc *syborg_virtio_writefn[] = {
      syborg_virtio_writel
 };
 
-static void syborg_virtio_update_irq(void *opaque)
+static void syborg_virtio_update_irq(void *opaque, uint16_t vector)
 {
     SyborgVirtIOProxy *proxy = opaque;
     int level;
@@ -239,7 +242,7 @@ static void syborg_virtio_update_irq(void *opaque)
 }
 
 static VirtIOBindings syborg_virtio_bindings = {
-    .update_irq = syborg_virtio_update_irq
+    .notify = syborg_virtio_update_irq
 };
 
 static void syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
@@ -248,12 +251,16 @@ static void syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
 
     proxy->vdev = vdev;
 
+    /* Don't support multiple vectors */
+    proxy->vdev->nvectors = 0;
     sysbus_init_irq(&proxy->busdev, &proxy->irq);
     iomemtype = cpu_register_io_memory(syborg_virtio_readfn,
                                        syborg_virtio_writefn, proxy);
     sysbus_init_mmio(&proxy->busdev, 0x1000, iomemtype);
 
     proxy->id = ((uint32_t)0x1af4 << 16) | vdev->device_id;
+
+    qemu_register_reset(virtio_reset, vdev);
 
     virtio_bind_device(vdev, &syborg_virtio_bindings, proxy);
 }

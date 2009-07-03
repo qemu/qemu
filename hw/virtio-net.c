@@ -745,6 +745,10 @@ VirtIODevice *virtio_net_init(DeviceState *dev)
     n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
 
     n->vlans = qemu_mallocz(MAX_VLAN >> 3);
+    if (dev->nd->nvectors == NIC_NVECTORS_UNSPECIFIED)
+        n->vdev.nvectors = 3;
+    else
+        n->vdev.nvectors = dev->nd->nvectors;
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);

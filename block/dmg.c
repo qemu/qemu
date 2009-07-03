@@ -94,7 +94,7 @@ dmg_close:
 	close(s->fd);
 	/* open raw instead */
 	bs->drv=bdrv_find_format("raw");
-	return bs->drv->bdrv_open(bs, filename, flags);
+	return bdrv_open3(bs, filename, flags, bs->drv);
     }
     info_begin=read_off(s->fd);
     if(info_begin==0)

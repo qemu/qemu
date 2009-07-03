@@ -8903,7 +8903,13 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
     /* Register SPR common to all PowerPC implementations */
     gen_spr_generic(env);
     spr_register(env, SPR_PVR, "PVR",
-                 SPR_NOACCESS, SPR_NOACCESS,
+                 /* Linux permits userspace to read PVR */
+#if defined(CONFIG_LINUX_USER)
+                 &spr_read_generic,
+#else
+                 SPR_NOACCESS,
+#endif
+                 SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  def->pvr);
     /* Register SVR if it's defined to anything else than POWERPC_SVR_NONE */

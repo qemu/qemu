@@ -626,7 +626,7 @@ RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
     if (rtc_td_hack)
         register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
 #endif
-    qemu_register_reset(rtc_reset, 0, s);
+    qemu_register_reset(rtc_reset, s);
 
     return s;
 }
@@ -743,6 +743,6 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     if (rtc_td_hack)
         register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
 #endif
-    qemu_register_reset(rtc_reset, 0, s);
+    qemu_register_reset(rtc_reset, s);
     return s;
 }

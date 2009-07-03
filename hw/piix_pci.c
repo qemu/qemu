@@ -345,7 +345,7 @@ int piix3_init(PCIBus *bus, int devfn)
         PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
     piix3_reset(d);
-    qemu_register_reset(piix3_reset, 0, d);
+    qemu_register_reset(piix3_reset, d);
     return d->devfn;
 }
 
@@ -369,6 +369,6 @@ int piix4_init(PCIBus *bus, int devfn)
 
 
     piix4_reset(d);
-    qemu_register_reset(piix4_reset, 0, d);
+    qemu_register_reset(piix4_reset, d);
     return d->devfn;
 }

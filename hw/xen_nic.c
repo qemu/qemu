@@ -301,7 +301,7 @@ static int net_init(struct XenDevice *xendev)
     if (netdev->mac == NULL)
 	return -1;
 
-    vlan = qemu_find_vlan(netdev->xendev.dev);
+    vlan = qemu_find_vlan(netdev->xendev.dev, 1);
     netdev->vs = qemu_new_vlan_client(vlan, "xen", NULL,
                                       net_rx_ok, net_rx_packet, NULL,
                                       NULL, netdev);

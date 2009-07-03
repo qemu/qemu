@@ -93,9 +93,6 @@
 #define CC_A   14
 #define CC_P   15
 
-/* Internal flags for the implementation.  */
-#define F_DELAYSLOT 1
-
 #define NB_MMU_MODES 2
 
 typedef struct CPUCRISState {

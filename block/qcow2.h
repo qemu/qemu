@@ -27,6 +27,10 @@
 
 #include "aes.h"
 
+//#define DEBUG_ALLOC
+//#define DEBUG_ALLOC2
+//#define DEBUG_EXT
+
 #define QCOW_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 #define QCOW_VERSION 2
 

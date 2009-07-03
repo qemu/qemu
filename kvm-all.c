@@ -143,6 +143,15 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     return kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
 }
 
+static void kvm_reset_vcpu(void *opaque)
+{
+    CPUState *env = opaque;
+
+    if (kvm_arch_put_registers(env)) {
+        fprintf(stderr, "Fatal: kvm vcpu reset failed\n");
+        abort();
+    }
+}
 
 int kvm_init_vcpu(CPUState *env)
 {
@@ -176,7 +185,10 @@ int kvm_init_vcpu(CPUState *env)
     }
 
     ret = kvm_arch_init_vcpu(env);
-
+    if (ret == 0) {
+        qemu_register_reset(kvm_reset_vcpu, env);
+        ret = kvm_arch_put_registers(env);
+    }
 err:
     return ret;
 }
@@ -198,21 +210,6 @@ int kvm_get_mp_state(CPUState *env)
         return ret;
     }
     env->mp_state = mp_state.mp_state;
-    return 0;
-}
-
-int kvm_sync_vcpus(void)
-{
-    CPUState *env;
-
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        int ret;
-
-        ret = kvm_arch_put_registers(env);
-        if (ret)
-            return ret;
-    }
-
     return 0;
 }
 
@@ -397,11 +394,6 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
-static void kvm_reset_vcpus(void *opaque)
-{
-    kvm_sync_vcpus();
-}
-
 int kvm_init(int smp_cpus)
 {
     static const char upgrade_note[] =
@@ -491,8 +483,6 @@ int kvm_init(int smp_cpus)
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
-
-    qemu_register_reset(kvm_reset_vcpus, INT_MAX, NULL);
 
     kvm_state = s;
 

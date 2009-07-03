@@ -19,8 +19,11 @@
  */
 #include "hw.h"
 #include "pc.h"
+#include "pci.h"
+#include "msix.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
+#include "kvm.h"
 
 //#define DEBUG_APIC
 
@@ -62,6 +65,19 @@
 
 #define MAX_APICS 255
 #define MAX_APIC_WORDS 8
+
+/* Intel APIC constants: from include/asm/msidef.h */
+#define MSI_DATA_VECTOR_SHIFT		0
+#define MSI_DATA_VECTOR_MASK		0x000000ff
+#define MSI_DATA_DELIVERY_MODE_SHIFT	8
+#define MSI_DATA_TRIGGER_SHIFT		15
+#define MSI_DATA_LEVEL_SHIFT		14
+#define MSI_ADDR_DEST_MODE_SHIFT	2
+#define MSI_ADDR_DEST_ID_SHIFT		12
+#define	MSI_ADDR_DEST_ID_MASK		0x00ffff0
+
+#define MSI_ADDR_BASE                   0xfee00000
+#define MSI_ADDR_SIZE                   0x100000
 
 typedef struct APICState {
     CPUState *cpu_env;
@@ -745,11 +761,31 @@ static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
+static void apic_send_msi(target_phys_addr_t addr, uint32 data)
+{
+    uint8_t dest = (addr & MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
+    uint8_t vector = (data & MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
+    uint8_t dest_mode = (addr >> MSI_ADDR_DEST_MODE_SHIFT) & 0x1;
+    uint8_t trigger_mode = (data >> MSI_DATA_TRIGGER_SHIFT) & 0x1;
+    uint8_t delivery = (data >> MSI_DATA_DELIVERY_MODE_SHIFT) & 0x7;
+    /* XXX: Ignore redirection hint. */
+    apic_deliver_irq(dest, dest_mode, delivery, vector, 0, trigger_mode);
+}
+
 static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     CPUState *env;
     APICState *s;
-    int index;
+    int index = (addr >> 4) & 0xff;
+    if (addr > 0xfff || !index) {
+        /* MSI and MMIO APIC are at the same memory location,
+         * but actually not on the global bus: MSI is on PCI bus
+         * APIC is connected directly to the CPU.
+         * Mapping them on the global bus happens to work because
+         * MSI registers are reserved in APIC MMIO and vice versa. */
+        apic_send_msi(addr, val);
+        return;
+    }
 
     env = cpu_single_env;
     if (!env)
@@ -760,7 +796,6 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     printf("APIC write: %08x = %08x\n", (uint32_t)addr, val);
 #endif
 
-    index = (addr >> 4) & 0xff;
     switch(index) {
     case 0x02:
         s->id = (val >> 24);
@@ -919,6 +954,8 @@ static void apic_reset(void *opaque)
          */
         s->lvt[APIC_LVT_LINT0] = 0x700;
     }
+
+    cpu_synchronize_state(s->cpu_env, 1);
 }
 
 static CPUReadMemoryFunc *apic_mem_read[3] = {
@@ -946,6 +983,7 @@ int apic_init(CPUState *env)
     s->cpu_env = env;
 
     apic_reset(s);
+    msix_supported = 1;
 
     /* XXX: mapping more APICs at the same memory location */
     if (apic_io_memory == 0) {
@@ -953,15 +991,15 @@ int apic_init(CPUState *env)
            on the global memory bus. */
         apic_io_memory = cpu_register_io_memory(apic_mem_read,
                                                 apic_mem_write, NULL);
-        cpu_register_physical_memory(s->apicbase & ~0xfff, 0x1000,
+        /* XXX: what if the base changes? */
+        cpu_register_physical_memory(MSI_ADDR_BASE, MSI_ADDR_SIZE,
                                      apic_io_memory);
     }
     s->timer = qemu_new_timer(vm_clock, apic_timer, s);
 
     register_savevm("apic", s->idx, 2, apic_save, apic_load, s);
-    qemu_register_reset(apic_reset, 0, s);
+    qemu_register_reset(apic_reset, s);
 
     local_apics[s->idx] = s;
     return 0;
 }
-
