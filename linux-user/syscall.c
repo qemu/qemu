@@ -5047,8 +5047,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!is_error(ret)) {
                 if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0))
                     goto efault;
-                rlim.rlim_cur = tswapl(target_rlim->rlim_cur);
-                rlim.rlim_max = tswapl(target_rlim->rlim_max);
+                target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
+                target_rlim->rlim_max = tswapl(rlim.rlim_max);
                 unlock_user_struct(target_rlim, arg2, 1);
             }
         }
