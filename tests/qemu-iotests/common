@@ -120,6 +120,7 @@ check options
     -cow                test cow
     -qcow               test qcow
     -qcow2              test qcow2
+    -vdi                test vdi
     -vpc                test vpc
     -vmdk               test vmdk
     -xdiff		graphical mode diff
@@ -155,6 +156,11 @@ testlist options
 
 	-qcow2)
 	    IMGFMT=qcow2
+	    xpand=false
+	    ;;
+
+	-vdi)
+	    IMGFMT=vdi
 	    xpand=false
 	    ;;
 
