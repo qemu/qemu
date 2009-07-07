@@ -449,7 +449,8 @@ static void virtio_blk_init_pci_0_10(PCIDevice *pci_dev)
     virtio_blk_init_pci_with_class(pci_dev, PCI_CLASS_STORAGE_OTHER);
 }
 
-static void virtio_console_init_pci(PCIDevice *pci_dev)
+static void virtio_console_init_pci_with_class(PCIDevice *pci_dev,
+                                               uint16_t class_code)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -458,8 +459,17 @@ static void virtio_console_init_pci(PCIDevice *pci_dev)
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_CONSOLE,
-                    PCI_CLASS_DISPLAY_OTHER,
-                    0x00);
+                    class_code, 0x00);
+}
+
+static void virtio_console_init_pci(PCIDevice *pci_dev)
+{
+    virtio_console_init_pci_with_class(pci_dev, PCI_CLASS_SERIAL_OTHER);
+}
+
+static void virtio_console_init_pci_0_10(PCIDevice *pci_dev)
+{
+    virtio_console_init_pci_with_class(pci_dev, PCI_CLASS_DISPLAY_OTHER);
 }
 
 static void virtio_net_init_pci(PCIDevice *pci_dev)
@@ -510,6 +520,10 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-blk-pci-0-10",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_blk_init_pci_0_10,
+    },{
+        .qdev.name = "virtio-console-pci-0-10",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_console_init_pci_0_10,
     },{
         /* end of list */
     }
