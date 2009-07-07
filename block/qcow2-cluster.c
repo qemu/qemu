@@ -47,7 +47,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
 #endif
 
     new_l1_size2 = sizeof(uint64_t) * new_l1_size;
-    new_l1_table = qemu_mallocz(new_l1_size2);
+    new_l1_table = qemu_mallocz(align_offset(new_l1_size2, 512));
     memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));
 
     /* write new table (align to cluster) */
