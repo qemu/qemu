@@ -14,7 +14,7 @@
 #ifndef SDL_zoom_h
 #define SDL_zoom_h
 
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 #define SMOOTHING_OFF		0
 #define SMOOTHING_ON		1
