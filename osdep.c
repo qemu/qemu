@@ -51,10 +51,23 @@
 #include "sysemu.h"
 #include "qemu_socket.h"
 
+#if !defined(_POSIX_C_SOURCE) || defined(_WIN32)
+static void *oom_check(void *ptr)
+{
+    if (ptr == NULL) {
+        abort();
+    }
+    return ptr;
+}
+#endif
+
 #if defined(_WIN32)
 void *qemu_memalign(size_t alignment, size_t size)
 {
-    return VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
+    if (!size) {
+        abort();
+    }
+    return oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
 }
 
 void *qemu_vmalloc(size_t size)
@@ -62,7 +75,10 @@ void *qemu_vmalloc(size_t size)
     /* FIXME: this is not exactly optimal solution since VirtualAlloc
        has 64Kb granularity, but at least it guarantees us that the
        memory is page aligned. */
-    return VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
+    if (!size) {
+        abort();
+    }
+    return oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
 }
 
 void qemu_vfree(void *ptr)
@@ -105,6 +121,10 @@ static void *kqemu_vmalloc(size_t size)
 #else
     struct statfs stfs;
 #endif
+
+    if (!size) {
+        abort ();
+    }
 
     if (phys_ram_fd < 0) {
         tmpdir = getenv("QEMU_TMPDIR");
@@ -188,12 +208,12 @@ void *qemu_memalign(size_t alignment, size_t size)
     void *ptr;
     ret = posix_memalign(&ptr, alignment, size);
     if (ret != 0)
-        return NULL;
+        abort();
     return ptr;
 #elif defined(HOST_BSD)
-    return valloc(size);
+    return oom_check(valloc(size));
 #else
-    return memalign(alignment, size);
+    return oom_check(memalign(alignment, size));
 #endif
 }
 
