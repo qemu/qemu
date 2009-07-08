@@ -1081,12 +1081,20 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     return env;
 }
 
+enum {
+    COMPAT_DEFAULT = 0,
+    COMPAT_0_10, /* compatible with qemu 0.10.x */
+};
+
 /* PC hardware initialisation */
 static void pc_init1(ram_addr_t ram_size,
                      const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *kernel_filename,
+                     const char *kernel_cmdline,
                      const char *initrd_filename,
-                     int pci_enabled, const char *cpu_model)
+                     const char *cpu_model,
+                     int pci_enabled,
+                     int compat_level)
 {
     char *filename;
     int ret, linux_boot, i;
@@ -1104,6 +1112,7 @@ static void pc_init1(ram_addr_t ram_size,
     BlockDriverState *fd[MAX_FD];
     int using_vga = cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled;
     void *fw_cfg;
+    const char *virtio_blk_name, *virtio_console_name;
 
     if (ram_size >= 0xe0000000 ) {
         above_4g_mem_size = ram_size - 0xe0000000;
@@ -1394,13 +1403,26 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
+    switch (compat_level) {
+    case COMPAT_DEFAULT:
+    default:
+        virtio_blk_name = "virtio-blk-pci";
+        virtio_console_name = "virtio-console-pci";
+        break;
+
+    case COMPAT_0_10:
+        virtio_blk_name = "virtio-blk-pci-0-10";
+        virtio_console_name = "virtio-console-pci-0-10";
+        break;
+    }
+
     /* Add virtio block devices */
     if (pci_enabled) {
         int index;
         int unit_id = 0;
 
         while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_dev = pci_create("virtio-blk-pci",
+            pci_dev = pci_create(virtio_blk_name,
                                  drives_table[index].devaddr);
             qdev_init(&pci_dev->qdev);
             unit_id++;
@@ -1417,7 +1439,7 @@ static void pc_init1(ram_addr_t ram_size,
     if (pci_enabled) {
         for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
             if (virtcon_hds[i]) {
-                pci_create_simple(pci_bus, -1, "virtio-console-pci");
+                pci_create_simple(pci_bus, -1, virtio_console_name);
             }
         }
     }
@@ -1432,7 +1454,8 @@ static void pc_init_pci(ram_addr_t ram_size,
 {
     pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
-             initrd_filename, 1, cpu_model);
+             initrd_filename, cpu_model,
+             1, COMPAT_DEFAULT);
 }
 
 static void pc_init_isa(ram_addr_t ram_size,
@@ -1444,7 +1467,21 @@ static void pc_init_isa(ram_addr_t ram_size,
 {
     pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
-             initrd_filename, 0, cpu_model);
+             initrd_filename, cpu_model,
+             0, COMPAT_DEFAULT);
+}
+
+static void pc_init_pci_0_10(ram_addr_t ram_size,
+                             const char *boot_device,
+                             const char *kernel_filename,
+                             const char *kernel_cmdline,
+                             const char *initrd_filename,
+                             const char *cpu_model)
+{
+    pc_init1(ram_size, boot_device,
+             kernel_filename, kernel_cmdline,
+             initrd_filename, cpu_model,
+             1, COMPAT_0_10);
 }
 
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
@@ -1470,10 +1507,20 @@ static QEMUMachine isapc_machine = {
     .max_cpus = 1,
 };
 
+static QEMUMachine pc_0_10_machine = {
+    .name = "pc-0-10",
+    .desc = "Standard PC compatible with qemu 0.10.x",
+    .init = pc_init_pci_0_10,
+    .max_cpus = 255,
+};
+
 static void pc_machine_init(void)
 {
     qemu_register_machine(&pc_machine);
     qemu_register_machine(&isapc_machine);
+
+    /* For compatibility with 0.10.x */
+    qemu_register_machine(&pc_0_10_machine);
 }
 
 machine_init(pc_machine_init);
