@@ -1396,12 +1396,12 @@ Enable KQEMU full virtualization (default is user mode only).
 ETEXI
 
 #ifdef CONFIG_KQEMU
-DEF("no-kqemu", 0, QEMU_OPTION_no_kqemu, \
-    "-no-kqemu       disable KQEMU kernel module usage\n")
+DEF("enable-kqemu", 0, QEMU_OPTION_enable_kqemu, \
+    "-enable-kqemu   enable KQEMU kernel module usage\n")
 #endif
 STEXI
-@item -no-kqemu
-Disable KQEMU kernel module usage. KQEMU options are only available if
+@item -enable-kqemu
+Enable KQEMU kernel module usage. KQEMU options are only available if
 KQEMU support is enabled when compiling.
 ETEXI
 

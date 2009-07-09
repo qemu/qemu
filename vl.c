@@ -5344,8 +5344,8 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
 #ifdef CONFIG_KQEMU
-            case QEMU_OPTION_no_kqemu:
-                kqemu_allowed = 0;
+            case QEMU_OPTION_enable_kqemu:
+                kqemu_allowed = 1;
                 break;
             case QEMU_OPTION_kernel_kqemu:
                 kqemu_allowed = 2;
