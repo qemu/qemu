@@ -352,9 +352,15 @@ static void pci_Atheros_WLAN_init(PCIDevice *pci_dev)
     Atheros_WLAN_reset(nd, s);
 }
 
+static PCIDeviceInfo atheros_info = {
+    .qdev.name = "Atheros_WLAN",
+    .qdev.size = sizeof(PCIAtheros_WLANState),
+    .init      = pci_Atheros_WLAN_init,
+};
+
 static void Atheros_WLAN_register_devices(void)
 {
-    pci_qdev_register("Atheros_WLAN", sizeof(PCIAtheros_WLANState), pci_Atheros_WLAN_init);
+    pci_qdev_register(&atheros_info);
 }
 
 device_init(Atheros_WLAN_register_devices)

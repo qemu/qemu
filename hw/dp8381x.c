@@ -1568,13 +1568,23 @@ static void dp8381x_init(PCIDevice *pci_dev)
 #endif
 }
 
+#if defined(DP83815)
+static PCIDeviceInfo dp8381x_info = {
+    .qdev.name = "dp83815",
+    .qdev.size = sizeof(dp8381x_t),
+    .init      = dp8381x_init,
+};
+#else
+static PCIDeviceInfo dp8381x_info = {
+    .qdev.name = "dp83816",
+    .qdev.size = sizeof(dp8381x_t),
+    .init      = dp8381x_init,
+};
+#endif
+
 static void dp8381x_register_devices(void)
 {
-#if defined(DP83815)
-    pci_qdev_register("dp83815", sizeof(dp8381x_t), dp8381x_init);
-#else
-    pci_qdev_register("dp83816", sizeof(dp8381x_t), dp8381x_init);
-#endif
+    pci_qdev_register(&dp8381x_info);
 }
 
 device_init(dp8381x_register_devices)

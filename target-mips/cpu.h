@@ -376,6 +376,9 @@ struct CPUMIPSState {
     int32_t CP0_Config7;
     /* XXX: Maybe make LLAddr per-TC? */
     target_ulong CP0_LLAddr;
+    target_ulong llval;
+    target_ulong llnewval;
+    target_ulong llreg;
     target_ulong CP0_WatchLo[8];
     int32_t CP0_WatchHi[8];
     target_ulong CP0_XContext;
@@ -562,6 +565,8 @@ enum {
 
     EXCP_LAST = EXCP_CACHE,
 };
+/* Dummy exception for conditional stores.  */
+#define EXCP_SC 0x100
 
 int cpu_mips_exec(CPUMIPSState *s);
 CPUMIPSState *cpu_mips_init(const char *cpu_model);
@@ -597,6 +602,11 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *pc = env->active_tc.PC;
     *cs_base = 0;
     *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
+}
+
+static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
+{
+    env->tls_value = newtls;
 }
 
 #endif /* !defined (__MIPS_CPU_H__) */

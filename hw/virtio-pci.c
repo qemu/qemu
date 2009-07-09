@@ -466,16 +466,31 @@ static void virtio_balloon_init_pci(PCIDevice *pci_dev)
                     0x00);
 }
 
+static PCIDeviceInfo virtio_info[] = {
+    {
+        .qdev.name = "virtio-blk-pci",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_blk_init_pci,
+    },{
+        .qdev.name = "virtio-net-pci",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_net_init_pci,
+    },{
+        .qdev.name = "virtio-console-pci",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_console_init_pci,
+    },{
+        .qdev.name = "virtio-balloon-pci",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_balloon_init_pci,
+    },{
+        /* end of list */
+    }
+};
+
 static void virtio_pci_register_devices(void)
 {
-    pci_qdev_register("virtio-blk-pci", sizeof(VirtIOPCIProxy),
-                      virtio_blk_init_pci);
-    pci_qdev_register("virtio-net-pci", sizeof(VirtIOPCIProxy),
-                      virtio_net_init_pci);
-    pci_qdev_register("virtio-console-pci", sizeof(VirtIOPCIProxy),
-                      virtio_console_init_pci);
-    pci_qdev_register("virtio-balloon-pci", sizeof(VirtIOPCIProxy),
-                      virtio_balloon_init_pci);
+    pci_qdev_register_many(virtio_info);
 }
 
 device_init(virtio_pci_register_devices)

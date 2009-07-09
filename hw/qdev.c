@@ -41,27 +41,20 @@ struct DeviceProperty {
     DeviceProperty *next;
 };
 
-struct DeviceType {
-    DeviceInfo *info;
-    DeviceType *next;
-};
-
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 static BusState *main_system_bus;
+extern struct BusInfo system_bus_info;
 
-static DeviceType *device_type_list;
+static DeviceInfo *device_info_list;
 
 /* Register a new device type.  */
 void qdev_register(DeviceInfo *info)
 {
-    DeviceType *t;
-
     assert(info->size >= sizeof(DeviceState));
+    assert(!info->next);
 
-    t = qemu_mallocz(sizeof(DeviceType));
-    t->next = device_type_list;
-    device_type_list = t;
-    t->info = info;
+    info->next = device_info_list;
+    device_info_list = info;
 }
 
 /* Create a new device.  This only initializes the device state structure
@@ -69,34 +62,29 @@ void qdev_register(DeviceInfo *info)
    initialize the actual device emulation.  */
 DeviceState *qdev_create(BusState *bus, const char *name)
 {
-    DeviceType *t;
+    DeviceInfo *info;
     DeviceState *dev;
 
-    for (t = device_type_list; t; t = t->next) {
-        if (strcmp(t->info->name, name) == 0) {
-            break;
-        }
-    }
-    if (!t) {
-        hw_error("Unknown device '%s'\n", name);
-    }
-
-    dev = qemu_mallocz(t->info->size);
-    dev->type = t;
-
     if (!bus) {
-        /* ???: This assumes system busses have no additional state.  */
         if (!main_system_bus) {
-            main_system_bus = qbus_create(BUS_TYPE_SYSTEM, sizeof(BusState),
-                                          NULL, "main-system-bus");
+            main_system_bus = qbus_create(&system_bus_info, NULL, "main-system-bus");
         }
         bus = main_system_bus;
     }
-    if (t->info->bus_type != bus->type) {
-        /* TODO: Print bus type names.  */
-        hw_error("Device '%s' on wrong bus type (%d/%d)", name,
-                 t->info->bus_type, bus->type);
+
+    for (info = device_info_list; info != NULL; info = info->next) {
+        if (info->bus_info != bus->info)
+            continue;
+        if (strcmp(info->name, name) != 0)
+            continue;
+        break;
     }
+    if (!info) {
+        hw_error("Unknown device '%s' for bus '%s'\n", name, bus->info->name);
+    }
+
+    dev = qemu_mallocz(info->size);
+    dev->info = info;
     dev->parent_bus = bus;
     LIST_INSERT_HEAD(&bus->children, dev, sibling);
     return dev;
@@ -107,7 +95,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
    calling this function.  */
 void qdev_init(DeviceState *dev)
 {
-    dev->type->info->init(dev, dev->type->info);
+    dev->info->init(dev, dev->info);
 }
 
 /* Unlink device from bus and free the structure.  */
@@ -169,7 +157,7 @@ CharDriverState *qdev_init_chardev(DeviceState *dev)
     static int next_serial;
     static int next_virtconsole;
     /* FIXME: This is a nasty hack that needs to go away.  */
-    if (strncmp(dev->type->info->name, "virtio", 6) == 0) {
+    if (strncmp(dev->info->name, "virtio", 6) == 0) {
         return virtcon_hds[next_virtconsole++];
     } else {
         return serial_hds[next_serial++];
@@ -320,13 +308,12 @@ void scsi_bus_new(DeviceState *host, SCSIAttachFn attach)
    }
 }
 
-BusState *qbus_create(BusType type, size_t size,
-                      DeviceState *parent, const char *name)
+BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
 {
     BusState *bus;
 
-    bus = qemu_mallocz(size);
-    bus->type = type;
+    bus = qemu_mallocz(info->size);
+    bus->info = info;
     bus->parent = parent;
     bus->name = qemu_strdup(name);
     LIST_INIT(&bus->children);
@@ -336,14 +323,6 @@ BusState *qbus_create(BusType type, size_t size,
     return bus;
 }
 
-static const char *bus_type_names[] = {
-    [ BUS_TYPE_SYSTEM ] = "System",
-    [ BUS_TYPE_PCI ]    = "PCI",
-    [ BUS_TYPE_SCSI ]   = "SCSI",
-    [ BUS_TYPE_I2C ]    = "I2C",
-    [ BUS_TYPE_SSI ]    = "SSI",
-};
-
 #define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
 static void qbus_print(Monitor *mon, BusState *bus, int indent);
 
@@ -351,7 +330,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     DeviceProperty *prop;
     BusState *child;
-    qdev_printf("dev: %s\n", dev->type->info->name);
+    qdev_printf("dev: %s\n", dev->info->name);
     indent += 2;
     if (dev->num_gpio_in) {
         qdev_printf("gpio-in %d\n", dev->num_gpio_in);
@@ -370,20 +349,15 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
             break;
         case PROP_TYPE_DEV:
             qdev_printf("prop-dev %s %s\n", prop->name,
-                        ((DeviceState *)prop->value.ptr)->type->info->name);
+                        ((DeviceState *)prop->value.ptr)->info->name);
             break;
         default:
             qdev_printf("prop-unknown%d %s\n", prop->type, prop->name);
             break;
         }
     }
-    switch (dev->parent_bus->type) {
-    case BUS_TYPE_SYSTEM:
-        sysbus_dev_print(mon, dev, indent);
-        break;
-    default:
-        break;
-    }
+    if (dev->parent_bus->info->print_dev)
+        dev->parent_bus->info->print_dev(mon, dev, indent);
     LIST_FOREACH(child, &dev->child_bus, sibling) {
         qbus_print(mon, child, indent);
     }
@@ -395,7 +369,7 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
 
     qdev_printf("bus: %s\n", bus->name);
     indent += 2;
-    qdev_printf("type %s\n", bus_type_names[bus->type]);
+    qdev_printf("type %s\n", bus->info->name);
     LIST_FOREACH(dev, &bus->children, sibling) {
         qdev_print(mon, dev, indent);
     }

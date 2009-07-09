@@ -17,6 +17,11 @@ struct i2c_bus
     int saved_address;
 };
 
+static struct BusInfo i2c_bus_info = {
+    .name = "I2C",
+    .size = sizeof(i2c_bus),
+};
+
 static void i2c_bus_save(QEMUFile *f, void *opaque)
 {
     i2c_bus *bus = (i2c_bus *)opaque;
@@ -44,8 +49,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
 {
     i2c_bus *bus;
 
-    bus = FROM_QBUS(i2c_bus, qbus_create(BUS_TYPE_I2C, sizeof(i2c_bus),
-                                         parent, name));
+    bus = FROM_QBUS(i2c_bus, qbus_create(&i2c_bus_info, parent, name));
     register_savevm("i2c_bus", -1, 1, i2c_bus_save, i2c_bus_load, bus);
     return bus;
 }
@@ -156,7 +160,7 @@ void i2c_register_slave(I2CSlaveInfo *info)
 {
     assert(info->qdev.size >= sizeof(i2c_slave));
     info->qdev.init = i2c_slave_qdev_init;
-    info->qdev.bus_type = BUS_TYPE_I2C;
+    info->qdev.bus_info = &i2c_bus_info;
     qdev_register(&info->qdev);
 }
 

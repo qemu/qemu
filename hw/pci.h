@@ -315,7 +315,15 @@ pci_config_set_class(uint8_t *pci_config, uint16_t val)
 }
 
 typedef void (*pci_qdev_initfn)(PCIDevice *dev);
-void pci_qdev_register(const char *name, int size, pci_qdev_initfn init);
+typedef struct {
+    DeviceInfo qdev;
+    pci_qdev_initfn init;
+    PCIConfigReadFunc *config_read;
+    PCIConfigWriteFunc *config_write;
+} PCIDeviceInfo;
+
+void pci_qdev_register(PCIDeviceInfo *info);
+void pci_qdev_register_many(PCIDeviceInfo *info);
 
 PCIDevice *pci_create(const char *name, const char *devaddr);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);

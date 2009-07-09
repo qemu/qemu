@@ -2513,9 +2513,15 @@ static void pci_e100_init(PCIDevice *pci_dev)
     e100_init(pci_dev, i82557C);
 }
 
+static PCIDeviceInfo e100_info = {
+    .qdev.name = "e100",
+    .qdev.size = sizeof(PCIE100State),
+    .init      = pci_e100_init,
+};
+
 static void e100_register_devices(void)
 {
-    pci_qdev_register("e100", sizeof(PCIE100State), pci_e100_init);
+    pci_qdev_register(&e100_info);
 }
 
 device_init(e100_register_devices)

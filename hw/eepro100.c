@@ -44,13 +44,6 @@
 #include "net.h"
 #include "eeprom93xx.h"
 
-// TODO: DeviceType is normally only known in qdev.c.
-// We need it here because we need the device name.
-struct DeviceType {
-    DeviceInfo *info;
-    DeviceType *next;
-};
-
 /* Common declarations for all PCI devices. */
 
 #define PCI_CONFIG_8(offset, value) \
@@ -2048,39 +2041,78 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
     register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
 }
 
-typedef struct {
-  const char *name;
-  unsigned value;
-} key_value_t;
-
-static const key_value_t devicetable[] = {
-  {"i82551", i82551},
-  {"i82557a", i82557A},
-  {"i82557b", i82557B},
-  {"i82557c", i82557C},
-  {"i82558b", i82558B},
-  {"i82559c", i82559C},
-  {"i82559er", i82559ER},
-};
-
-static void pci_eepro100_init(PCIDevice *dev)
+static void pci_i82551_init(PCIDevice *dev)
 {
-  size_t i;
-  for (i = 0; i < ARRAY_SIZE(devicetable); i++) {
-    if (strcmp(devicetable[i].name, dev->qdev.type->info->name) == 0) {
-      nic_init(dev, devicetable[i].value);
-      break;
-    }
-  }
+  nic_init(dev, i82551);
 }
+
+static void pci_i82557a_init(PCIDevice *dev)
+{
+  nic_init(dev, i82557A);
+}
+
+static void pci_i82557b_init(PCIDevice *dev)
+{
+  nic_init(dev, i82557B);
+}
+
+static void pci_i82557c_init(PCIDevice *dev)
+{
+  nic_init(dev, i82557C);
+}
+
+static void pci_i82558b_init(PCIDevice *dev)
+{
+  nic_init(dev, i82558B);
+}
+
+static void pci_i82559c_init(PCIDevice *dev)
+{
+  nic_init(dev, i82559C);
+}
+
+static void pci_i82559er_init(PCIDevice *dev)
+{
+  nic_init(dev, i82559ER);
+}
+
+static PCIDeviceInfo eepro100_info[] = {
+    {
+        .qdev.name = "i82551",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82551_init,
+    },{
+        .qdev.name = "i82557a",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82557a_init,
+    },{
+        .qdev.name = "i82557b",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82557b_init,
+    },{
+        .qdev.name = "i82557c",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82557c_init,
+    },{
+        .qdev.name = "i82558b",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82558b_init,
+    },{
+        .qdev.name = "i82559c",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82559c_init,
+    },{
+        .qdev.name = "i82559er",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82559er_init,
+    },{
+        /* end of list */
+    }
+};
 
 static void eepro100_register_devices(void)
 {
-  size_t i;
-  for (i = 0; i < ARRAY_SIZE(devicetable); i++) {
-    pci_qdev_register(devicetable[i].name, sizeof(PCIEEPRO100State),
-                      pci_eepro100_init);
-  }
+    pci_qdev_register_many(eepro100_info);
 }
 
 device_init(eepro100_register_devices)

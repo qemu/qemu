@@ -901,9 +901,15 @@ static void pci_tnetw1130_init(PCIDevice* pci_dev)
     tnetw1130_init(d);
 }
 
+static PCIDeviceInfo tnetw1130_info = {
+    .qdev.name = "tnetw1130",
+    .qdev.size = sizeof(pci_tnetw1130_t),
+    .init      = pci_tnetw1130_init,
+};
+
 static void tnetw1130_register_devices(void)
 {
-    pci_qdev_register("tnetw1130", sizeof(pci_tnetw1130_t), pci_tnetw1130_init);
+    pci_qdev_register(&tnetw1130_info);
 }
 
 device_init(tnetw1130_register_devices)

@@ -45,7 +45,15 @@ struct PCIBus {
     /* The bus IRQ state is the logical OR of the connected devices.
        Keep a count of the number of devices with raised IRQs.  */
     int nirq;
-    int irq_count[];
+    int *irq_count;
+};
+
+static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+
+static struct BusInfo pci_bus_info = {
+    .name       = "PCI",
+    .size       = sizeof(PCIBus),
+    .print_dev  = pcibus_dev_print,
 };
 
 static void pci_update_mappings(PCIDevice *d);
@@ -109,14 +117,13 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     PCIBus *bus;
     static int nbus = 0;
 
-    bus = FROM_QBUS(PCIBus, qbus_create(BUS_TYPE_PCI,
-                                        sizeof(PCIBus) + (nirq * sizeof(int)),
-                                        parent, name));
+    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, parent, name));
     bus->set_irq = set_irq;
     bus->map_irq = map_irq;
     bus->irq_opaque = pic;
     bus->devfn_min = devfn_min;
     bus->nirq = nirq;
+    bus->irq_count = qemu_malloc(nirq * sizeof(bus->irq_count[0]));
     bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
@@ -127,7 +134,8 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 static PCIBus *pci_register_secondary_bus(PCIDevice *dev, pci_map_irq_fn map_irq)
 {
     PCIBus *bus;
-    bus = qemu_mallocz(sizeof(PCIBus));
+
+    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, &dev->qdev, NULL));
     bus->map_irq = map_irq;
     bus->parent_dev = dev;
     bus->next = dev->bus->next;
@@ -895,11 +903,6 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     return s->bus;
 }
 
-typedef struct {
-    DeviceInfo qdev;
-    pci_qdev_initfn init;
-} PCIDeviceInfo;
-
 static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
@@ -909,24 +912,25 @@ static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
     devfn = qdev_get_prop_int(qdev, "devfn", -1);
-    pci_dev = do_pci_register_device(pci_dev, bus, "FIXME", devfn,
-                                     NULL, NULL);//FIXME:config_read, config_write);
+    pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
+                                     info->config_read, info->config_write);
     assert(pci_dev);
     info->init(pci_dev);
 }
 
-void pci_qdev_register(const char *name, int size, pci_qdev_initfn init)
+void pci_qdev_register(PCIDeviceInfo *info)
 {
-    PCIDeviceInfo *info;
-
-    info = qemu_mallocz(sizeof(*info));
-    info->qdev.name = qemu_strdup(name);
-    info->qdev.size = size;
-    info->init = init;
     info->qdev.init = pci_qdev_init;
-    info->qdev.bus_type = BUS_TYPE_PCI;
-
+    info->qdev.bus_info = &pci_bus_info;
     qdev_register(&info->qdev);
+}
+
+void pci_qdev_register_many(PCIDeviceInfo *info)
+{
+    while (info->qdev.name) {
+        pci_qdev_register(info);
+        info++;
+    }
 }
 
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
@@ -1015,4 +1019,40 @@ void pci_reserve_capability(PCIDevice *pdev, uint8_t offset, uint8_t size)
 uint8_t pci_find_capability(PCIDevice *pdev, uint8_t cap_id)
 {
     return pci_find_capability_list(pdev, cap_id, NULL);
+}
+
+static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
+{
+    PCIDevice *d = (PCIDevice *)dev;
+    const pci_class_desc *desc;
+    char ctxt[64];
+    PCIIORegion *r;
+    int i, class;
+
+    class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
+    desc = pci_class_descriptions;
+    while (desc->desc && class != desc->class)
+        desc++;
+    if (desc->desc) {
+        snprintf(ctxt, sizeof(ctxt), "%s", desc->desc);
+    } else {
+        snprintf(ctxt, sizeof(ctxt), "Class %04x", class);
+    }
+
+    monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "
+                   "pci id %04x:%04x (sub %04x:%04x)\n",
+                   indent, "", ctxt,
+                   d->bus->bus_num, d->devfn >> 3, d->devfn & 7,
+                   le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
+                   le16_to_cpu(*((uint16_t *)(d->config + PCI_DEVICE_ID))),
+                   le16_to_cpu(*((uint16_t *)(d->config + PCI_SUBSYSTEM_VENDOR_ID))),
+                   le16_to_cpu(*((uint16_t *)(d->config + PCI_SUBSYSTEM_ID))));
+    for (i = 0; i < PCI_NUM_REGIONS; i++) {
+        r = &d->io_regions[i];
+        if (!r->size)
+            continue;
+        monitor_printf(mon, "%*sbar %d: %s at 0x%x [0x%x]\n", indent, "",
+                       i, r->type & PCI_ADDRESS_SPACE_IO ? "i/o" : "mem",
+                       r->addr, r->addr + r->size - 1);
+    }
 }

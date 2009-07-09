@@ -1308,29 +1308,13 @@ static void ac97_on_reset (void *opaque)
     mixer_reset (s);
 }
 
-int ac97_init (PCIBus *bus)
+static void ac97_initfn(PCIDevice *dev)
 {
-    PCIAC97LinkState *d;
-    AC97LinkState *s;
-    uint8_t *c;
+    PCIAC97LinkState *d = DO_UPCAST(PCIAC97LinkState, dev, dev);
+    AC97LinkState *s = &d->ac97;
+    uint8_t *c = d->dev.config;
 
-    if (!bus) {
-        AUD_log ("ac97", "No PCI bus\n");
-        return -1;
-    }
-
-    d = (PCIAC97LinkState *) pci_register_device (bus, "AC97",
-                                                  sizeof (PCIAC97LinkState),
-                                                  -1, NULL, NULL);
-
-    if (!d) {
-        AUD_log ("ac97", "Failed to register PCI device\n");
-        return -1;
-    }
-
-    s = &d->ac97;
     s->pci_dev = &d->dev;
-    c = d->dev.config;
     pci_config_set_vendor_id (c, PCI_VENDOR_ID_INTEL); /* ro */
     pci_config_set_device_id (c, PCI_DEVICE_ID_INTEL_82801AA_5); /* ro */
 
@@ -1372,5 +1356,23 @@ int ac97_init (PCIBus *bus)
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
     ac97_on_reset (s);
+}
+
+int ac97_init (PCIBus *bus)
+{
+    pci_create_simple(bus, -1, "AC97");
     return 0;
 }
+
+static PCIDeviceInfo ac97_info = {
+    .qdev.name    = "AC97",
+    .qdev.size    = sizeof(PCIAC97LinkState),
+    .init         = ac97_initfn,
+};
+
+static void ac97_register(void)
+{
+    pci_qdev_register(&ac97_info);
+}
+device_init(ac97_register);
+
