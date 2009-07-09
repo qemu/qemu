@@ -597,4 +597,9 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
 }
 
+static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
+{
+    env->tls_value = newtls;
+}
+
 #endif /* !defined (__MIPS_CPU_H__) */
