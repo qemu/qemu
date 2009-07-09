@@ -2330,6 +2330,7 @@ struct target_sigcontext {
     uint32_t   sc_fpc_eir;     /* Unused */
     uint32_t   sc_used_math;
     uint32_t   sc_dsp;         /* dsp status, was sc_ssflags */
+    uint32_t   pad0;
     uint64_t   sc_mdhi;
     uint64_t   sc_mdlo;
     target_ulong   sc_hi1;         /* Was sc_cause */
@@ -2351,6 +2352,7 @@ struct target_ucontext {
     target_ulong uc_flags;
     target_ulong uc_link;
     target_stack_t uc_stack;
+    target_ulong pad0;
     struct target_sigcontext uc_mcontext;
     target_sigset_t uc_sigmask;
 };
