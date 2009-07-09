@@ -2063,6 +2063,7 @@ case "$target_arch2" in
     echo "#define TARGET_ARCH \"mips\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
+    target_nptl="yes"
     target_phys_bits=64
   ;;
   mipsn32|mipsn32el)
