@@ -1626,7 +1626,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_ipc		, 6)
 	MIPS_SYS(sys_fsync	, 1)
 	MIPS_SYS(sys_sigreturn	, 0)
-	MIPS_SYS(sys_clone	, 0)	/* 4120 */
+	MIPS_SYS(sys_clone	, 6)	/* 4120 */
 	MIPS_SYS(sys_setdomainname, 2)
 	MIPS_SYS(sys_newuname	, 1)
 	MIPS_SYS(sys_ni_syscall	, 0)	/* sys_modify_ldt */
