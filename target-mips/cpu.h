@@ -375,6 +375,9 @@ struct CPUMIPSState {
     int32_t CP0_Config7;
     /* XXX: Maybe make LLAddr per-TC? */
     target_ulong CP0_LLAddr;
+    target_ulong llval;
+    target_ulong llnewval;
+    target_ulong llreg;
     target_ulong CP0_WatchLo[8];
     int32_t CP0_WatchHi[8];
     target_ulong CP0_XContext;
@@ -559,6 +562,8 @@ enum {
 
     EXCP_LAST = EXCP_CACHE,
 };
+/* Dummy exception for conditional stores.  */
+#define EXCP_SC 0x100
 
 int cpu_mips_exec(CPUMIPSState *s);
 CPUMIPSState *cpu_mips_init(const char *cpu_model);
