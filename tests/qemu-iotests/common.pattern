@@ -96,7 +96,7 @@ function io_test2() {
     io_pattern writev $((offset + 8 * 4096)) 4096 $((9 * 4096)) 256 165
 
     mv $TEST_IMG $TEST_IMG.orig
-    $QEMU_IMG convert -f qcow2 -O qcow2 -c $TEST_IMG.orig $TEST_IMG
+    $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c $TEST_IMG.orig $TEST_IMG
 
     # Write the used clusters
     echo === Used clusters [1]

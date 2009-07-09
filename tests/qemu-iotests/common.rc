@@ -75,7 +75,8 @@ _cleanup_test_img()
 
 _check_test_img()
 {
-    $QEMU_IMG check -f $IMGFMT $TEST_IMG
+    $QEMU_IMG check -f $IMGFMT $TEST_IMG 2>&1 | \
+    	sed -e 's/qemu-img\: This image format does not support checks/No errors were found on the image./'
 }
 
 _get_pids_by_name()

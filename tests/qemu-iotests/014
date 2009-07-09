@@ -42,7 +42,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 . ./common.pattern
 
-# much of this could be generic for any format supporting compression.
+# much of this could be generic for any format supporting snapshots
 _supported_fmt qcow2
 _supported_os Linux
 
