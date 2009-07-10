@@ -1172,7 +1172,7 @@ static const cmdinfo_t close_cmd = {
 	.oneline	= "close the current open file",
 };
 
-static int openfile(char *name, int flags)
+static int openfile(char *name, int flags, int growable)
 {
 	if (bs) {
 		fprintf(stderr, "file open already, try 'help close'\n");
@@ -1187,6 +1187,17 @@ static int openfile(char *name, int flags)
 		fprintf(stderr, "%s: can't open device %s\n", progname, name);
 		bs = NULL;
 		return 1;
+	}
+
+
+	if (growable) {
+		if (!bs->drv || !bs->drv->protocol_name) {
+			fprintf(stderr,
+				"%s: only protocols can be opened growable\n",
+				progname);
+			return 1;
+		}
+		bs->growable = 1;
 	}
 
 	return 0;
@@ -1207,6 +1218,7 @@ open_help(void)
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
 " -n, -- disable host cache\n"
+" -g, -- allow file to grow (only applies to protocols)"
 "\n");
 }
 
@@ -1217,9 +1229,10 @@ open_f(int argc, char **argv)
 {
 	int flags = 0;
 	int readonly = 0;
+	int growable = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "snCr")) != EOF) {
+	while ((c = getopt(argc, argv, "snCrg")) != EOF) {
 		switch (c) {
 		case 's':
 			flags |= BDRV_O_SNAPSHOT;
@@ -1232,6 +1245,9 @@ open_f(int argc, char **argv)
 			break;
 		case 'r':
 			readonly = 1;
+			break;
+		case 'g':
+			growable = 1;
 			break;
 		default:
 			return command_usage(&open_cmd);
@@ -1246,7 +1262,7 @@ open_f(int argc, char **argv)
 	if (optind != argc - 1)
 		return command_usage(&open_cmd);
 
-	return openfile(argv[optind], flags);
+	return openfile(argv[optind], flags, growable);
 }
 
 static const cmdinfo_t open_cmd = {
@@ -1306,7 +1322,8 @@ static void usage(const char *name)
 int main(int argc, char **argv)
 {
 	int readonly = 0;
-	const char *sopt = "hVc:Crsnm";
+	int growable = 0;
+	const char *sopt = "hVc:Crsnmg";
 	struct option lopt[] = {
 		{ "help", 0, 0, 'h' },
 		{ "version", 0, 0, 'V' },
@@ -1317,6 +1334,7 @@ int main(int argc, char **argv)
 		{ "snapshot", 0, 0, 's' },
 		{ "nocache", 0, 0, 'n' },
 		{ "misalign", 0, 0, 'm' },
+		{ "growable", 0, 0, 'g' },
 		{ NULL, 0, 0, 0 }
 	};
 	int c;
@@ -1344,6 +1362,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			misalign = 1;
+			break;
+		case 'g':
+			growable = 1;
 			break;
 		case 'V':
 			printf("%s version %s\n", progname, VERSION);
@@ -1392,7 +1413,7 @@ int main(int argc, char **argv)
 		flags |= BDRV_O_RDWR;
 
 	if ((argc - optind) == 1)
-		openfile(argv[optind], flags);
+		openfile(argv[optind], flags, growable);
 	command_loop();
 
 	/*
