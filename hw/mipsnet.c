@@ -263,9 +263,9 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     s->io_base = base;
     s->irq = irq;
     if (nd && nd->vlan) {
-        s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                     mipsnet_can_receive, mipsnet_receive, NULL,
-                                     mipsnet_cleanup, s);
+        s->vc = nd->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                              mipsnet_can_receive, mipsnet_receive,
+                                              NULL, mipsnet_cleanup, s);
     } else {
         s->vc = NULL;
     }

@@ -158,7 +158,20 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_sbe32s(f, &pending_irq);
     qemu_put_be32s(f, &env->mp_state);
     qemu_put_be64s(f, &env->tsc);
-}
+
+    /* MCE */
+    qemu_put_be64s(f, &env->mcg_cap);
+    if (env->mcg_cap) {
+        qemu_put_be64s(f, &env->mcg_status);
+        qemu_put_be64s(f, &env->mcg_ctl);
+        for (i = 0; i < (env->mcg_cap & 0xff); i++) {
+            qemu_put_be64s(f, &env->mce_banks[4*i]);
+            qemu_put_be64s(f, &env->mce_banks[4*i + 1]);
+            qemu_put_be64s(f, &env->mce_banks[4*i + 2]);
+            qemu_put_be64s(f, &env->mce_banks[4*i + 3]);
+        }
+    }
+ }
 
 #ifdef USE_X86LDOUBLE
 /* XXX: add that in a FPU generic layer */
@@ -347,6 +360,20 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         }
         qemu_get_be32s(f, &env->mp_state);
         qemu_get_be64s(f, &env->tsc);
+    }
+
+    if (version_id >= 10) {
+        qemu_get_be64s(f, &env->mcg_cap);
+        if (env->mcg_cap) {
+            qemu_get_be64s(f, &env->mcg_status);
+            qemu_get_be64s(f, &env->mcg_ctl);
+            for (i = 0; i < (env->mcg_cap & 0xff); i++) {
+                qemu_get_be64s(f, &env->mce_banks[4*i]);
+                qemu_get_be64s(f, &env->mce_banks[4*i + 1]);
+                qemu_get_be64s(f, &env->mce_banks[4*i + 2]);
+                qemu_get_be64s(f, &env->mce_banks[4*i + 3]);
+            }
+        }
     }
 
     /* XXX: ensure compatiblity for halted bit ? */

@@ -55,39 +55,6 @@ void gemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
-void cpu_outb(CPUState *env, int addr, int val)
-{
-    fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
-}
-
-void cpu_outw(CPUState *env, int addr, int val)
-{
-    fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
-}
-
-void cpu_outl(CPUState *env, int addr, int val)
-{
-    fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
-}
-
-int cpu_inb(CPUState *env, int addr)
-{
-    fprintf(stderr, "inb: port=0x%04x\n", addr);
-    return 0;
-}
-
-int cpu_inw(CPUState *env, int addr)
-{
-    fprintf(stderr, "inw: port=0x%04x\n", addr);
-    return 0;
-}
-
-int cpu_inl(CPUState *env, int addr)
-{
-    fprintf(stderr, "inl: port=0x%04x\n", addr);
-    return 0;
-}
-
 #if defined(TARGET_I386)
 int cpu_get_pic_interrupt(CPUState *env)
 {

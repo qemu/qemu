@@ -37,9 +37,8 @@ typedef struct QEMUSnapshotInfo {
                                      bdrv_file_open()) */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
 #define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
-#define BDRV_O_CACHE_DEF   0x0080 /* use default caching */
 
-#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_CACHE_DEF)
+#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB)
 
 void bdrv_info(Monitor *mon);
 void bdrv_info_stats(Monitor *mon);
@@ -57,8 +56,6 @@ void bdrv_delete(BlockDriverState *bs);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags);
 int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
-               BlockDriver *drv);
-int bdrv_open3(BlockDriverState *bs, const char *filename, int flags,
                BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_check(BlockDriverState *bs);

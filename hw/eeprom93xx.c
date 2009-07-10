@@ -320,6 +320,7 @@ void eeprom93xx_free(eeprom_t *eeprom)
 {
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
+    unregister_savevm("eeprom", eeprom);
     qemu_free(eeprom);
 }
 

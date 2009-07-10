@@ -284,11 +284,13 @@ int msix_uninit(PCIDevice *dev)
 
 void msix_save(PCIDevice *dev, QEMUFile *f)
 {
-    unsigned nentries = (pci_get_word(dev->config + PCI_MSIX_FLAGS) &
-                         PCI_MSIX_FLAGS_QSIZE) + 1;
-    qemu_put_buffer(f, dev->msix_table_page, nentries * MSIX_ENTRY_SIZE);
-    qemu_put_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING,
-                    (nentries + 7) / 8);
+    unsigned n = dev->msix_entries_nr;
+
+    if (!dev->cap_present & QEMU_PCI_CAP_MSIX)
+        return;
+
+    qemu_put_buffer(f, dev->msix_table_page, n * MSIX_ENTRY_SIZE);
+    qemu_put_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING, (n + 7) / 8);
 }
 
 /* Should be called after restoring the config space. */

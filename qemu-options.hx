@@ -148,9 +148,7 @@ an internal copy of the data.
 
 Some block drivers perform badly with @option{cache=writethrough}, most notably,
 qcow2.  If performance is more important than correctness,
-@option{cache=writeback} should be used with qcow2.  By default, if no explicit
-caching is specified for a qcow2 disk image, @option{cache=writeback} will be
-used.  For all other disk types, @option{cache=writethrough} is the default.
+@option{cache=writeback} should be used with qcow2.
 
 Instead of @option{-cdrom} you can use:
 @example
@@ -365,12 +363,14 @@ Network adapter that supports CDC ethernet and RNDIS protocols.
 ETEXI
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
-    "-name string    set the name of the guest\n")
+    "-name string1[,process=string2]    set the name of the guest\n"
+    "            string1 sets the window title and string2 the process name (on Linux)\n")
 STEXI
 @item -name @var{name}
 Sets the @var{name} of the guest.
 This name will be displayed in the SDL window caption.
 The @var{name} will also be used for the VNC server.
+Also optionally set the top visible process name in Linux.
 ETEXI
 
 DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,
@@ -778,7 +778,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                use '[down]script=no' to disable script execution;\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
 #ifdef TUNSETSNDBUF
-    "                use 'sndbuf=nbytes' to limit the size of the send buffer\n"
+    "                use 'sndbuf=nbytes' to limit the size of the send buffer; the\n"
+    "                default of 'sndbuf=1048576' can be disabled using 'sndbuf=0'\n"
 #endif
 #endif
     "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
@@ -1395,12 +1396,12 @@ Enable KQEMU full virtualization (default is user mode only).
 ETEXI
 
 #ifdef CONFIG_KQEMU
-DEF("no-kqemu", 0, QEMU_OPTION_no_kqemu, \
-    "-no-kqemu       disable KQEMU kernel module usage\n")
+DEF("enable-kqemu", 0, QEMU_OPTION_enable_kqemu, \
+    "-enable-kqemu   enable KQEMU kernel module usage\n")
 #endif
 STEXI
-@item -no-kqemu
-Disable KQEMU kernel module usage. KQEMU options are only available if
+@item -enable-kqemu
+Enable KQEMU kernel module usage. KQEMU options are only available if
 KQEMU support is enabled when compiling.
 ETEXI
 

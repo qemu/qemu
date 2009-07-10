@@ -770,6 +770,7 @@ extern int use_icount;
 #define CPU_INTERRUPT_NMI    0x200 /* NMI pending. */
 #define CPU_INTERRUPT_INIT   0x400 /* INIT pending. */
 #define CPU_INTERRUPT_SIPI   0x800 /* SIPI pending. */
+#define CPU_INTERRUPT_MCE    0x1000 /* (x86 only) MCE pending. */
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
@@ -836,17 +837,7 @@ void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 
 /* IO ports API */
-
-/* NOTE: as these functions may be even used when there is an isa
-   brige on non x86 targets, we always defined them */
-#ifndef NO_CPU_IO_DEFS
-void cpu_outb(CPUState *env, int addr, int val);
-void cpu_outw(CPUState *env, int addr, int val);
-void cpu_outl(CPUState *env, int addr, int val);
-int cpu_inb(CPUState *env, int addr);
-int cpu_inw(CPUState *env, int addr);
-int cpu_inl(CPUState *env, int addr);
-#endif
+#include "ioport.h"
 
 /* memory API */
 
@@ -1078,5 +1069,8 @@ extern int64_t kqemu_ret_int_count;
 extern int64_t kqemu_ret_excp_count;
 extern int64_t kqemu_ret_intr_count;
 #endif
+
+void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+                        uint64_t mcg_status, uint64_t addr, uint64_t misc);
 
 #endif /* CPU_ALL_H */

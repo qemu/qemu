@@ -68,6 +68,7 @@
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
+#include <sys/prctl.h>
 
 /* For the benefit of older linux systems which don't supply it,
    we use a local copy of hpet.h. */
@@ -171,18 +172,8 @@ int main(int argc, char **argv)
 
 #include "slirp/libslirp.h"
 
-#define DEBUG_UNUSED_IOPORT
-//#define DEBUG_UNUSED_IOPORT
-//#define DEBUG_IOPORT
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
-
-
-#ifdef DEBUG_IOPORT
-#  define LOG_IOPORT(...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
-#else
-#  define LOG_IOPORT(...) do { } while (0)
-#endif
 
 #define DEFAULT_RAM_SIZE 128
 
@@ -192,14 +183,8 @@ int main(int argc, char **argv)
 /* Max number of bluetooth switches on the commandline.  */
 #define MAX_BT_CMDLINE 10
 
-/* XXX: use a two level table to limit memory usage */
-#define MAX_IOPORTS 65536
-
 static const char *data_dir;
 const char *bios_name = NULL;
-static void *ioport_opaque[MAX_IOPORTS];
-static IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
-static IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
 DriveInfo drives_table[MAX_DRIVES+1];
@@ -299,217 +284,6 @@ uint8_t qemu_uuid[16];
 target_phys_addr_t isa_mem_base = 0;
 PicState2 *isa_pic;
 
-static IOPortReadFunc default_ioport_readb, default_ioport_readw, default_ioport_readl;
-static IOPortWriteFunc default_ioport_writeb, default_ioport_writew, default_ioport_writel;
-
-static uint32_t ioport_read(int index, uint32_t address)
-{
-    static IOPortReadFunc *default_func[3] = {
-        default_ioport_readb,
-        default_ioport_readw,
-        default_ioport_readl
-    };
-    IOPortReadFunc *func = ioport_read_table[index][address];
-    if (!func)
-        func = default_func[index];
-    return func(ioport_opaque[address], address);
-}
-
-static void ioport_write(int index, uint32_t address, uint32_t data)
-{
-    static IOPortWriteFunc *default_func[3] = {
-        default_ioport_writeb,
-        default_ioport_writew,
-        default_ioport_writel
-    };
-    IOPortWriteFunc *func = ioport_write_table[index][address];
-    if (!func)
-        func = default_func[index];
-    func(ioport_opaque[address], address, data);
-}
-
-static uint32_t default_ioport_readb(void *opaque, uint32_t address)
-{
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused inb: port=0x%04x\n", address);
-#endif
-    return 0xff;
-}
-
-static void default_ioport_writeb(void *opaque, uint32_t address, uint32_t data)
-{
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused outb: port=0x%04x data=0x%02x\n", address, data);
-#endif
-}
-
-/* default is to make two byte accesses */
-static uint32_t default_ioport_readw(void *opaque, uint32_t address)
-{
-    uint32_t data;
-    data = ioport_read(0, address);
-    address = (address + 1) & (MAX_IOPORTS - 1);
-    data |= ioport_read(0, address) << 8;
-    return data;
-}
-
-static void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
-{
-    ioport_write(0, address, data & 0xff);
-    address = (address + 1) & (MAX_IOPORTS - 1);
-    ioport_write(0, address, (data >> 8) & 0xff);
-}
-
-static uint32_t default_ioport_readl(void *opaque, uint32_t address)
-{
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused inl: port=0x%04x\n", address);
-#endif
-    return 0xffffffff;
-}
-
-static void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
-{
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused outl: port=0x%04x data=0x%02x\n", address, data);
-#endif
-}
-
-/* size is the word size in byte */
-int register_ioport_read(int start, int length, int size,
-                         IOPortReadFunc *func, void *opaque)
-{
-    int i, bsize;
-
-    if (size == 1) {
-        bsize = 0;
-    } else if (size == 2) {
-        bsize = 1;
-    } else if (size == 4) {
-        bsize = 2;
-    } else {
-        hw_error("register_ioport_read: invalid size");
-        return -1;
-    }
-    for(i = start; i < start + length; i += size) {
-        ioport_read_table[bsize][i] = func;
-        if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            hw_error("register_ioport_read: invalid opaque");
-        ioport_opaque[i] = opaque;
-    }
-    return 0;
-}
-
-/* size is the word size in byte */
-int register_ioport_write(int start, int length, int size,
-                          IOPortWriteFunc *func, void *opaque)
-{
-    int i, bsize;
-
-    if (size == 1) {
-        bsize = 0;
-    } else if (size == 2) {
-        bsize = 1;
-    } else if (size == 4) {
-        bsize = 2;
-    } else {
-        hw_error("register_ioport_write: invalid size");
-        return -1;
-    }
-    for(i = start; i < start + length; i += size) {
-        ioport_write_table[bsize][i] = func;
-        if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            hw_error("register_ioport_write: invalid opaque");
-        ioport_opaque[i] = opaque;
-    }
-    return 0;
-}
-
-void isa_unassign_ioport(int start, int length)
-{
-    int i;
-
-    for(i = start; i < start + length; i++) {
-        ioport_read_table[0][i] = default_ioport_readb;
-        ioport_read_table[1][i] = default_ioport_readw;
-        ioport_read_table[2][i] = default_ioport_readl;
-
-        ioport_write_table[0][i] = default_ioport_writeb;
-        ioport_write_table[1][i] = default_ioport_writew;
-        ioport_write_table[2][i] = default_ioport_writel;
-
-        ioport_opaque[i] = NULL;
-    }
-}
-
-/***********************************************************/
-
-void cpu_outb(CPUState *env, int addr, int val)
-{
-    LOG_IOPORT("outb: %04x %02x\n", addr, val);
-    ioport_write(0, addr, val);
-#ifdef CONFIG_KQEMU
-    if (env)
-        env->last_io_time = cpu_get_time_fast();
-#endif
-}
-
-void cpu_outw(CPUState *env, int addr, int val)
-{
-    LOG_IOPORT("outw: %04x %04x\n", addr, val);
-    ioport_write(1, addr, val);
-#ifdef CONFIG_KQEMU
-    if (env)
-        env->last_io_time = cpu_get_time_fast();
-#endif
-}
-
-void cpu_outl(CPUState *env, int addr, int val)
-{
-    LOG_IOPORT("outl: %04x %08x\n", addr, val);
-    ioport_write(2, addr, val);
-#ifdef CONFIG_KQEMU
-    if (env)
-        env->last_io_time = cpu_get_time_fast();
-#endif
-}
-
-int cpu_inb(CPUState *env, int addr)
-{
-    int val;
-    val = ioport_read(0, addr);
-    LOG_IOPORT("inb : %04x %02x\n", addr, val);
-#ifdef CONFIG_KQEMU
-    if (env)
-        env->last_io_time = cpu_get_time_fast();
-#endif
-    return val;
-}
-
-int cpu_inw(CPUState *env, int addr)
-{
-    int val;
-    val = ioport_read(1, addr);
-    LOG_IOPORT("inw : %04x %04x\n", addr, val);
-#ifdef CONFIG_KQEMU
-    if (env)
-        env->last_io_time = cpu_get_time_fast();
-#endif
-    return val;
-}
-
-int cpu_inl(CPUState *env, int addr)
-{
-    int val;
-    val = ioport_read(2, addr);
-    LOG_IOPORT("inl : %04x %08x\n", addr, val);
-#ifdef CONFIG_KQEMU
-    if (env)
-        env->last_io_time = cpu_get_time_fast();
-#endif
-    return val;
-}
-
 /***********************************************************/
 void hw_error(const char *fmt, ...)
 {
@@ -530,6 +304,20 @@ void hw_error(const char *fmt, ...)
     }
     va_end(ap);
     abort();
+}
+
+static void set_proc_name(const char *s)
+{
+#ifdef __linux__
+    char name[16];
+    if (!s)
+        return;
+    name[sizeof(name) - 1] = 0;
+    strncpy(name, s, sizeof(name));
+    /* Could rewrite argv[0] too, but that's a bit more complicated.
+       This simple way is enough for `top'. */
+    prctl(PR_SET_NAME, name);
+#endif    	
 }
  
 /***************/
@@ -2242,7 +2030,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     unit_id = -1;
     translation = BIOS_ATA_TRANSLATION_AUTO;
     index = -1;
-    cache = 3;
+    cache = 1;
 
     if (machine->use_scsi) {
         type = IF_SCSI;
@@ -2560,8 +2348,6 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         bdrv_flags |= BDRV_O_NOCACHE;
     else if (cache == 2) /* write-back */
         bdrv_flags |= BDRV_O_CACHE_WB;
-    else if (cache == 3) /* not specified */
-        bdrv_flags |= BDRV_O_CACHE_DEF;
     if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
@@ -5621,8 +5407,8 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
 #ifdef CONFIG_KQEMU
-            case QEMU_OPTION_no_kqemu:
-                kqemu_allowed = 0;
+            case QEMU_OPTION_enable_kqemu:
+                kqemu_allowed = 1;
                 break;
             case QEMU_OPTION_kernel_kqemu:
                 kqemu_allowed = 2;
@@ -5708,7 +5494,19 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_name:
-                qemu_name = optarg;
+                qemu_name = qemu_strdup(optarg);
+		 {
+		     char *p = strchr(qemu_name, ',');
+		     if (p != NULL) {
+		        *p++ = 0;
+			if (strncmp(p, "process=", 8)) {
+			    fprintf(stderr, "Unknown subargument %s to -name", p);
+			    exit(1);
+			}
+			p += 8;
+			set_proc_name(p);
+		     }	
+		 }	
                 break;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
             case QEMU_OPTION_prom_env:

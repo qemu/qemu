@@ -389,9 +389,9 @@ for opt do
   ;;
   --install=*) install="$optarg"
   ;;
-  --extra-cflags=*) CFLAGS="$optarg"
+  --extra-cflags=*) EXTRA_CFLAGS="$optarg"
   ;;
-  --extra-ldflags=*) LDFLAGS="$optarg"
+  --extra-ldflags=*) EXTRA_LDFLAGS="$optarg"
   ;;
   --cpu=*) cpu="$optarg"
   ;;
@@ -616,8 +616,8 @@ echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
-echo "  --extra-cflags=CFLAGS    add C compiler flags CFLAGS"
-echo "  --extra-ldflags=LDFLAGS  add linker flags LDFLAGS"
+echo "  --extra-cflags=CFLAGS    append extra C compiler flags CFLAGS"
+echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
@@ -869,9 +869,9 @@ if test "$xen" = "yes" ; then
 cat > $TMPC <<EOF
 #include <xenctrl.h>
 #include <xs.h>
-int main(void) { xs_daemon_open; xc_interface_open; }
+int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
-   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null > /dev/null ; then
+   if $cc $CFLAGS $ARCH_CFLAGS -c -o $TMPO $TMPC $LDFLAGS -lxenstore -lxenctrl 2> /dev/null > /dev/null ; then
       :
    else
       xen="no"
@@ -1285,8 +1285,7 @@ fi
 # have syscall stubs for these implemented.
 #
 atfile=no
-if [ "$linux_user" = "yes" ] ; then
-  cat > $TMPC << EOF
+cat > $TMPC << EOF
 #define _ATFILE_SOURCE
 #include <sys/types.h>
 #include <fcntl.h>
@@ -1299,9 +1298,8 @@ main(void)
 	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
-    atfile=yes
-  fi
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+  atfile=yes
 fi
 
 # Check for inotify functions when we are building linux-user
@@ -1310,8 +1308,7 @@ fi
 # don't provide them even if kernel supports them.
 #
 inotify=no
-if [ "$linux_user" = "yes" ] ; then
-  cat > $TMPC << EOF
+cat > $TMPC << EOF
 #include <sys/inotify.h>
 
 int
@@ -1321,9 +1318,8 @@ main(void)
 	return inotify_init();
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
-    inotify=yes
-  fi
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+  inotify=yes
 fi
 
 # check if utimensat and futimens are supported
@@ -1530,8 +1526,8 @@ echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "OS_LDFLAGS=$OS_LDFLAGS" >> $config_mak
 echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
 echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
-echo "CFLAGS=$CFLAGS" >> $config_mak
-echo "LDFLAGS=$LDFLAGS" >> $config_mak
+echo "CFLAGS=$CFLAGS $EXTRA_CFLAGS" >> $config_mak
+echo "LDFLAGS=$LDFLAGS $EXTRA_LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
 echo "PTHREADLIBS=$PTHREADLIBS" >> $config_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_mak

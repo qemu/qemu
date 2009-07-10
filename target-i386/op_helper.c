@@ -3133,7 +3133,23 @@ void helper_wrmsr(void)
     case MSR_MTRRdefType:
         env->mtrr_deftype = val;
         break;
+    case MSR_MCG_STATUS:
+        env->mcg_status = val;
+        break;
+    case MSR_MCG_CTL:
+        if ((env->mcg_cap & MCG_CTL_P)
+            && (val == 0 || val == ~(uint64_t)0))
+            env->mcg_ctl = val;
+        break;
     default:
+        if ((uint32_t)ECX >= MSR_MC0_CTL
+            && (uint32_t)ECX < MSR_MC0_CTL + (4 * env->mcg_cap & 0xff)) {
+            uint32_t offset = (uint32_t)ECX - MSR_MC0_CTL;
+            if ((offset & 0x3) != 0
+                || (val == 0 || val == ~(uint64_t)0))
+                env->mce_banks[offset] = val;
+            break;
+        }
         /* XXX: exception ? */
         break;
     }
@@ -3252,7 +3268,25 @@ void helper_rdmsr(void)
             /* XXX: exception ? */
             val = 0;
         break;
+    case MSR_MCG_CAP:
+        val = env->mcg_cap;
+        break;
+    case MSR_MCG_CTL:
+        if (env->mcg_cap & MCG_CTL_P)
+            val = env->mcg_ctl;
+        else
+            val = 0;
+        break;
+    case MSR_MCG_STATUS:
+        val = env->mcg_status;
+        break;
     default:
+        if ((uint32_t)ECX >= MSR_MC0_CTL
+            && (uint32_t)ECX < MSR_MC0_CTL + (4 * env->mcg_cap & 0xff)) {
+            uint32_t offset = (uint32_t)ECX - MSR_MC0_CTL;
+            val = env->mce_banks[offset];
+            break;
+        }
         /* XXX: exception ? */
         val = 0;
         break;

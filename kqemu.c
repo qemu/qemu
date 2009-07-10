@@ -74,7 +74,7 @@ int kqemu_fd = KQEMU_INVALID_FD;
    1 = user kqemu
    2 = kernel kqemu
 */
-int kqemu_allowed = 1;
+int kqemu_allowed = 0;
 uint64_t *pages_to_flush;
 unsigned int nb_pages_to_flush;
 uint64_t *ram_pages_to_update;

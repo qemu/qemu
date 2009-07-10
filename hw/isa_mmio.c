@@ -28,7 +28,7 @@
 static void isa_mmio_writeb (void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
-    cpu_outb(NULL, addr & 0xffff, val);
+    cpu_outb(NULL, addr & IOPORTS_MASK, val);
 }
 
 static void isa_mmio_writew (void *opaque, target_phys_addr_t addr,
@@ -37,7 +37,7 @@ static void isa_mmio_writew (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
 #endif
-    cpu_outw(NULL, addr & 0xffff, val);
+    cpu_outw(NULL, addr & IOPORTS_MASK, val);
 }
 
 static void isa_mmio_writel (void *opaque, target_phys_addr_t addr,
@@ -46,14 +46,14 @@ static void isa_mmio_writel (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
-    cpu_outl(NULL, addr & 0xffff, val);
+    cpu_outl(NULL, addr & IOPORTS_MASK, val);
 }
 
 static uint32_t isa_mmio_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
-    val = cpu_inb(NULL, addr & 0xffff);
+    val = cpu_inb(NULL, addr & IOPORTS_MASK);
     return val;
 }
 
@@ -61,7 +61,7 @@ static uint32_t isa_mmio_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
-    val = cpu_inw(NULL, addr & 0xffff);
+    val = cpu_inw(NULL, addr & IOPORTS_MASK);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
 #endif
@@ -72,7 +72,7 @@ static uint32_t isa_mmio_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
-    val = cpu_inl(NULL, addr & 0xffff);
+    val = cpu_inl(NULL, addr & IOPORTS_MASK);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif

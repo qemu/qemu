@@ -10,6 +10,7 @@
 #include "cpu-common.h"
 #endif
 
+#include "ioport.h"
 #include "irq.h"
 
 /* VM Load/Save */
@@ -265,9 +266,5 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 /* return 0 if success */
 typedef int QEMUBootSetHandler(void *opaque, const char *boot_device);
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
-
-/* These should really be in isa.h, but are here to make pc.h happy.  */
-typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
 
 #endif

@@ -85,39 +85,6 @@ void gemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
-void cpu_outb(CPUState *env, int addr, int val)
-{
-    fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
-}
-
-void cpu_outw(CPUState *env, int addr, int val)
-{
-    fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
-}
-
-void cpu_outl(CPUState *env, int addr, int val)
-{
-    fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
-}
-
-int cpu_inb(CPUState *env, int addr)
-{
-    fprintf(stderr, "inb: port=0x%04x\n", addr);
-    return 0;
-}
-
-int cpu_inw(CPUState *env, int addr)
-{
-    fprintf(stderr, "inw: port=0x%04x\n", addr);
-    return 0;
-}
-
-int cpu_inl(CPUState *env, int addr)
-{
-    fprintf(stderr, "inl: port=0x%04x\n", addr);
-    return 0;
-}
-
 #if defined(TARGET_I386)
 int cpu_get_pic_interrupt(CPUState *env)
 {
@@ -2432,6 +2399,7 @@ int main(int argc, char **argv, char **envp)
     envlist_t *envlist = NULL;
     const char *argv0 = NULL;
     int i;
+    int ret;
 
     if (argc <= 1)
         usage();
@@ -2638,9 +2606,10 @@ int main(int argc, char **argv, char **envp)
     env->opaque = ts;
     task_settid(ts);
 
-    if (loader_exec(filename, target_argv, target_environ, regs,
-        info, &bprm) != 0) {
-        printf("Error loading %s\n", filename);
+    ret = loader_exec(filename, target_argv, target_environ, regs,
+        info, &bprm);
+    if (ret != 0) {
+        printf("Error %d while loading %s\n", ret, filename);
         _exit(1);
     }
 
