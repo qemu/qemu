@@ -358,7 +358,7 @@ read_f(int argc, char **argv)
 
 	if (cnt < 0) {
 		printf("read failed: %s\n", strerror(-cnt));
-		return 0;
+		goto out;
 	}
 
 	if (Pflag) {
@@ -373,7 +373,7 @@ read_f(int argc, char **argv)
 	}
 
 	if (qflag)
-		return 0;
+		goto out;
 
         if (vflag)
 		dump_buffer(buf, offset, count);
@@ -382,6 +382,7 @@ read_f(int argc, char **argv)
 	t2 = tsub(t2, t1);
 	print_report("read", &t2, offset, count, total, cnt, Cflag);
 
+out:
 	qemu_io_free(buf);
 
 	return 0;
@@ -480,7 +481,7 @@ readv_f(int argc, char **argv)
 
 	if (cnt < 0) {
 		printf("readv failed: %s\n", strerror(-cnt));
-		return 0;
+		goto out;
 	}
 
 	if (Pflag) {
@@ -495,7 +496,7 @@ readv_f(int argc, char **argv)
 	}
 
 	if (qflag)
-		return 0;
+		goto out;
 
         if (vflag)
 		dump_buffer(buf, offset, qiov.size);
@@ -504,8 +505,8 @@ readv_f(int argc, char **argv)
 	t2 = tsub(t2, t1);
 	print_report("read", &t2, offset, qiov.size, total, cnt, Cflag);
 
+out:
 	qemu_io_free(buf);
-
 	return 0;
 }
 
@@ -613,16 +614,17 @@ write_f(int argc, char **argv)
 
 	if (cnt < 0) {
 		printf("write failed: %s\n", strerror(-cnt));
-		return 0;
+		goto out;
 	}
 
 	if (qflag)
-		return 0;
+		goto out;
 
 	/* Finally, report back -- -C gives a parsable format */
 	t2 = tsub(t2, t1);
 	print_report("wrote", &t2, offset, count, total, cnt, Cflag);
 
+out:
 	qemu_io_free(buf);
 
 	return 0;
@@ -713,18 +715,17 @@ writev_f(int argc, char **argv)
 
 	if (cnt < 0) {
 		printf("writev failed: %s\n", strerror(-cnt));
-		return 0;
+		goto out;
 	}
 
 	if (qflag)
-		return 0;
+		goto out;
 
 	/* Finally, report back -- -C gives a parsable format */
 	t2 = tsub(t2, t1);
 	print_report("wrote", &t2, offset, qiov.size, total, cnt, Cflag);
-
+out:
 	qemu_io_free(buf);
-
 	return 0;
 }
 
@@ -761,18 +762,18 @@ aio_write_done(void *opaque, int ret)
 
 	if (ret < 0) {
 		printf("aio_write failed: %s\n", strerror(-ret));
-		return;
+		goto out;
 	}
 
 	if (ctx->qflag) {
-		return;
+		goto out;
 	}
 
 	/* Finally, report back -- -C gives a parsable format */
 	t2 = tsub(t2, ctx->t1);
 	print_report("wrote", &t2, ctx->offset, ctx->qiov.size,
 		     ctx->qiov.size, 1, ctx->Cflag);
-
+out:
 	qemu_io_free(ctx->buf);
 	free(ctx);
 }
@@ -789,7 +790,7 @@ aio_read_done(void *opaque, int ret)
 
 	if (ret < 0) {
 		printf("readv failed: %s\n", strerror(-ret));
-		return;
+		goto out;
 	}
 
 	if (ctx->Pflag) {
@@ -805,7 +806,7 @@ aio_read_done(void *opaque, int ret)
 	}
 
 	if (ctx->qflag) {
-		return;
+		goto out;
 	}
 
 	if (ctx->vflag) {
@@ -816,7 +817,7 @@ aio_read_done(void *opaque, int ret)
 	t2 = tsub(t2, ctx->t1);
 	print_report("read", &t2, ctx->offset, ctx->qiov.size,
 		     ctx->qiov.size, 1, ctx->Cflag);
-
+out:
 	qemu_io_free(ctx->buf);
 	free(ctx);
 }
@@ -865,17 +866,20 @@ aio_read_f(int argc, char **argv)
 			ctx->vflag = 1;
 			break;
 		default:
+			free(ctx);
 			return command_usage(&aio_read_cmd);
 		}
 	}
 
-	if (optind > argc - 2)
+	if (optind > argc - 2) {
+		free(ctx);
 		return command_usage(&aio_read_cmd);
-
+	}
 
 	ctx->offset = cvtnum(argv[optind]);
 	if (ctx->offset < 0) {
 		printf("non-numeric length argument -- %s\n", argv[optind]);
+		free(ctx);
 		return 0;
 	}
 	optind++;
@@ -883,6 +887,7 @@ aio_read_f(int argc, char **argv)
 	if (ctx->offset & 0x1ff) {
 		printf("offset %lld is not sector aligned\n",
 			(long long)ctx->offset);
+		free(ctx);
 		return 0;
 	}
 
@@ -892,8 +897,11 @@ aio_read_f(int argc, char **argv)
 	gettimeofday(&ctx->t1, NULL);
 	acb = bdrv_aio_readv(bs, ctx->offset >> 9, &ctx->qiov,
 			      ctx->qiov.size >> 9, aio_read_done, ctx);
-	if (!acb)
+	if (!acb) {
+		free(ctx->buf);
+		free(ctx);
 		return -EIO;
+	}
 
 	return 0;
 }
@@ -952,16 +960,20 @@ aio_write_f(int argc, char **argv)
 			pattern = atoi(optarg);
 			break;
 		default:
+			free(ctx);
 			return command_usage(&aio_write_cmd);
 		}
 	}
 
-	if (optind > argc - 2)
+	if (optind > argc - 2) {
+		free(ctx);
 		return command_usage(&aio_write_cmd);
+	}
 
 	ctx->offset = cvtnum(argv[optind]);
 	if (ctx->offset < 0) {
 		printf("non-numeric length argument -- %s\n", argv[optind]);
+		free(ctx);
 		return 0;
 	}
 	optind++;
@@ -969,6 +981,7 @@ aio_write_f(int argc, char **argv)
 	if (ctx->offset & 0x1ff) {
 		printf("offset %lld is not sector aligned\n",
 			(long long)ctx->offset);
+		free(ctx);
 		return 0;
 	}
 
@@ -978,8 +991,11 @@ aio_write_f(int argc, char **argv)
 	gettimeofday(&ctx->t1, NULL);
 	acb = bdrv_aio_writev(bs, ctx->offset >> 9, &ctx->qiov,
 			      ctx->qiov.size >> 9, aio_write_done, ctx);
-	if (!acb)
+	if (!acb) {
+		free(ctx->buf);
+		free(ctx);
 		return -EIO;
+	}
 
 	return 0;
 }
