@@ -769,25 +769,23 @@ aio_write_done(void *opaque, int ret)
 {
 	struct aio_ctx *ctx = opaque;
 	struct timeval t2;
-	int total;
-	int cnt = 1;
 
 	gettimeofday(&t2, NULL);
 
-	total = ctx->qiov.size;
 
 	if (ret < 0) {
 		printf("aio_write failed: %s\n", strerror(-ret));
 		return;
 	}
 
-	if (ctx->qflag)
+	if (ctx->qflag) {
 		return;
+	}
 
 	/* Finally, report back -- -C gives a parsable format */
 	t2 = tsub(t2, ctx->t1);
-	print_report("wrote", &t2, ctx->offset, ctx->qiov.size, total, cnt,
-		     ctx->Cflag);
+	print_report("wrote", &t2, ctx->offset, ctx->qiov.size,
+		     ctx->qiov.size, 1, ctx->Cflag);
 
 	qemu_io_free(ctx->buf);
 	free(ctx);
@@ -800,12 +798,8 @@ aio_read_done(void *opaque, int ret)
 {
 	struct aio_ctx *ctx = opaque;
 	struct timeval t2;
-	int total;
-	int cnt = 1;
 
 	gettimeofday(&t2, NULL);
-
-	total = ctx->qiov.size;
 
 	if (ret < 0) {
 		printf("readv failed: %s\n", strerror(-ret));
@@ -813,31 +807,32 @@ aio_read_done(void *opaque, int ret)
 	}
 
 	if (ctx->Pflag) {
-		void *cmp_buf = malloc(total);
+		void *cmp_buf = malloc(ctx->qiov.size);
 
-		memset(cmp_buf, ctx->pattern, total);
-		if (memcmp(ctx->buf, cmp_buf, total)) {
+		memset(cmp_buf, ctx->pattern, ctx->qiov.size);
+		if (memcmp(ctx->buf, cmp_buf, ctx->qiov.size)) {
 			printf("Pattern verification failed at offset %lld, "
-				"%d bytes\n",
-				(long long) ctx->offset, total);
+				"%zd bytes\n",
+				(long long) ctx->offset, ctx->qiov.size);
 		}
 		free(cmp_buf);
 	}
 
-	if (ctx->qflag)
+	if (ctx->qflag) {
 		return;
+	}
 
-        if (ctx->vflag)
-		dump_buffer(ctx->buf, ctx->offset, total);
+	if (ctx->vflag) {
+		dump_buffer(ctx->buf, ctx->offset, ctx->qiov.size);
+	}
 
 	/* Finally, report back -- -C gives a parsable format */
 	t2 = tsub(t2, ctx->t1);
-	print_report("read", &t2, ctx->offset, ctx->qiov.size, total, cnt,
-		     ctx->Cflag);
+	print_report("read", &t2, ctx->offset, ctx->qiov.size,
+		     ctx->qiov.size, 1, ctx->Cflag);
 
 	qemu_io_free(ctx->buf);
 	free(ctx);
-
 }
 
 static void
@@ -869,8 +864,6 @@ aio_read_f(int argc, char **argv)
 	int nr_iov, i, c;
 	struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
 	BlockDriverAIOCB *acb;
-
-	ctx->pattern = 0xcd;
 
 	while ((c = getopt(argc, argv, "CP:qv")) != EOF) {
 		switch (c) {
@@ -1034,7 +1027,6 @@ aio_write_f(int argc, char **argv)
 			count);
 		return 0;
 	}
-
 
 	for (i = optind; i < argc; i++) {
 	        size_t len;
