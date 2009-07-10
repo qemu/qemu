@@ -782,8 +782,8 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
                           const char *vsmbserver)
 {
     /* default settings according to historic slirp */
-    struct in_addr net  = { .s_addr = htonl(0x0a000000) }; /* 10.0.0.0 */
-    struct in_addr mask = { .s_addr = htonl(0xff000000) }; /* 255.0.0.0 */
+    struct in_addr net  = { .s_addr = htonl(0x0a000200) }; /* 10.0.2.0 */
+    struct in_addr mask = { .s_addr = htonl(0xffffff00) }; /* 255.255.255.0 */
     struct in_addr host = { .s_addr = htonl(0x0a000202) }; /* 10.0.2.2 */
     struct in_addr dhcp = { .s_addr = htonl(0x0a00020f) }; /* 10.0.2.15 */
     struct in_addr dns  = { .s_addr = htonl(0x0a000203) }; /* 10.0.2.3 */
