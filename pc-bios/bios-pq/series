@@ -14,3 +14,5 @@
 0014_add-srat-acpi-table-support.patch
 0015_enable-power-button-even-generation.patch
 0016-use-correct-mask-to-size-pci-option-rom-bar.patch
+0017-bochs-bios-Move-QEMU_CFG-constants-to-rombios.h.patch
+0018-bochs-bios-Make-boot-prompt-optional.patch

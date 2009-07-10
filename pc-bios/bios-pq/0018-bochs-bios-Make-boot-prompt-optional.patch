@@ -1,0 +1,68 @@
+From fff8ffe1c92474ee58ebd6da82fede0ab7929214 Mon Sep 17 00:00:00 2001
+From: Jan Kiszka <jan.kiszka@web.de>
+Date: Thu, 2 Jul 2009 00:11:44 +0200
+Subject: [PATCH 2/2] bochs-bios: Make boot prompt optional
+
+Check via QEMU's firmware configuration interface if the boot prompt
+should be given. This allows to disable the prompt with its several
+seconds long delay, speeding up the common boot case.
+
+Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+---
+ bios/rombios.c |   19 +++++++++++++++++++
+ bios/rombios.h |    1 +
+ 2 files changed, 20 insertions(+), 0 deletions(-)
+
+diff --git a/bios/rombios.c b/bios/rombios.c
+index 0f13b53..560e6d5 100644
+--- a/bios/rombios.c
++++ b/bios/rombios.c
+@@ -2015,6 +2015,21 @@ Bit16u i; ipl_entry_t *e;
+ }
+ 
+ #if BX_ELTORITO_BOOT
++#ifdef BX_QEMU
++int
++qemu_cfg_probe_bootkey()
++{
++  outw(QEMU_CFG_CTL_PORT, QEMU_CFG_SIGNATURE);
++  if (inb(QEMU_CFG_DATA_PORT) != 'Q' ||
++      inb(QEMU_CFG_DATA_PORT) != 'E' ||
++      inb(QEMU_CFG_DATA_PORT) != 'M' ||
++      inb(QEMU_CFG_DATA_PORT) != 'U') return 1;
++
++  outw(QEMU_CFG_CTL_PORT, QEMU_CFG_BOOT_MENU);
++  return inb(QEMU_CFG_DATA_PORT);
++}
++#endif // BX_QEMU
++
+   void
+ interactive_bootkey()
+ {
+@@ -2026,6 +2041,10 @@ interactive_bootkey()
+   Bit16u ss = get_SS();
+   Bit16u valid_choice = 0;
+ 
++#ifdef BX_QEMU
++  if (!qemu_cfg_probe_bootkey()) return;
++#endif
++
+   while (check_for_keystroke())
+     get_keystroke();
+ 
+diff --git a/bios/rombios.h b/bios/rombios.h
+index 59ce19d..8ece2ee 100644
+--- a/bios/rombios.h
++++ b/bios/rombios.h
+@@ -64,6 +64,7 @@
+ #define QEMU_CFG_ID               0x01
+ #define QEMU_CFG_UUID             0x02
+ #define QEMU_CFG_NUMA             0x0d
++#define QEMU_CFG_BOOT_MENU        0x0e
+ #define QEMU_CFG_ARCH_LOCAL       0x8000
+ #define QEMU_CFG_ACPI_TABLES      (QEMU_CFG_ARCH_LOCAL + 0)
+ #define QEMU_CFG_SMBIOS_ENTRIES   (QEMU_CFG_ARCH_LOCAL + 1)
+-- 
+1.6.2.5
+

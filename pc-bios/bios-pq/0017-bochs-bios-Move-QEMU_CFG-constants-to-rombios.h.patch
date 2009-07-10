@@ -1,0 +1,59 @@
+From f371c480cb93f3516f34af5e3a4524ee6ba43c24 Mon Sep 17 00:00:00 2001
+From: Jan Kiszka <jan.kiszka@web.de>
+Date: Thu, 2 Jul 2009 00:11:38 +0200
+Subject: [PATCH 1/2] bochs-bios: Move QEMU_CFG constants to rombios.h
+
+We will need them outside of rombios32.c.
+
+Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+---
+ bios/rombios.h   |   10 ++++++++++
+ bios/rombios32.c |   10 ----------
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/bios/rombios.h b/bios/rombios.h
+index 6f9cbb1..59ce19d 100644
+--- a/bios/rombios.h
++++ b/bios/rombios.h
+@@ -58,6 +58,16 @@
+ #define SMB_IO_BASE       0xb100
+ #define SMP_MSR_ADDR      0x0510
+ 
++#define QEMU_CFG_CTL_PORT         0x510
++#define QEMU_CFG_DATA_PORT        0x511
++#define QEMU_CFG_SIGNATURE        0x00
++#define QEMU_CFG_ID               0x01
++#define QEMU_CFG_UUID             0x02
++#define QEMU_CFG_NUMA             0x0d
++#define QEMU_CFG_ARCH_LOCAL       0x8000
++#define QEMU_CFG_ACPI_TABLES      (QEMU_CFG_ARCH_LOCAL + 0)
++#define QEMU_CFG_SMBIOS_ENTRIES   (QEMU_CFG_ARCH_LOCAL + 1)
++
+   // Define the application NAME
+ #if defined(BX_QEMU)
+ #  define BX_APPNAME "QEMU"
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index f861f81..3fe4e48 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -468,16 +468,6 @@ void wrmsr_smp(uint32_t index, uint64_t val)
+ }
+ 
+ #ifdef BX_QEMU
+-#define QEMU_CFG_CTL_PORT 0x510
+-#define QEMU_CFG_DATA_PORT 0x511
+-#define QEMU_CFG_SIGNATURE  0x00
+-#define QEMU_CFG_ID         0x01
+-#define QEMU_CFG_UUID       0x02
+-#define QEMU_CFG_NUMA       0x0D
+-#define QEMU_CFG_ARCH_LOCAL     0x8000
+-#define QEMU_CFG_ACPI_TABLES  (QEMU_CFG_ARCH_LOCAL + 0)
+-#define QEMU_CFG_SMBIOS_ENTRIES  (QEMU_CFG_ARCH_LOCAL + 1)
+-
+ int qemu_cfg_port;
+ 
+ void qemu_cfg_select(int f)
+-- 
+1.6.2.5
+
