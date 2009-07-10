@@ -1,0 +1,35 @@
+bios: Fix multiple calls into smbios_load_ex
+
+We're marking the used entry bitmap in smbios_load_external() for each
+type we check, regardless of whether we loaded anything.  This makes
+subsequent calls behave as if we've already loaded the tables from qemu
+and can result in missing tables (ex. multiple type4 entries on an SMP
+guest).  Only mark the bitmap if we actually load something.
+
+Signed-off-by: Alex Williamson <alex.williamson@hp.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index f861f81..c869798 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -2554,13 +2554,14 @@ smbios_load_external(int type, char **p, unsigned *nr_structs,
+             *max_struct_size = *p - (char *)header;
+     }
+ 
+-    /* Mark that we've reported on this type */
+-    used_bitmap[(type >> 6) & 0x3] |= (1ULL << (type & 0x3f));
++    if (start != *p) {
++        /* Mark that we've reported on this type */
++        used_bitmap[(type >> 6) & 0x3] |= (1ULL << (type & 0x3f));
++        return 1;
++    }
+ 
+-    return (start != *p);
+-#else /* !BX_QEMU */
++#endif /* !BX_QEMU */
+     return 0;
+-#endif
+ }
+ 
+ void smbios_init(void)

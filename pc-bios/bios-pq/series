@@ -16,3 +16,4 @@
 0016-use-correct-mask-to-size-pci-option-rom-bar.patch
 0017-bochs-bios-Move-QEMU_CFG-constants-to-rombios.h.patch
 0018-bochs-bios-Make-boot-prompt-optional.patch
+0019-bios-fix-multiple-calls.patch
