@@ -256,11 +256,11 @@
 #define MCE_CAP_DEF	MCG_CTL_P
 #define MCE_BANKS_DEF	10
 
-#define MCG_STATUS_MCIP	(1UL<<2)   /* machine check in progress */
+#define MCG_STATUS_MCIP	(1ULL<<2)   /* machine check in progress */
 
-#define MCI_STATUS_VAL	(1UL<<63)  /* valid error */
-#define MCI_STATUS_OVER	(1UL<<62)  /* previous errors lost */
-#define MCI_STATUS_UC	(1UL<<61)  /* uncorrected error */
+#define MCI_STATUS_VAL	(1ULL<<63)  /* valid error */
+#define MCI_STATUS_OVER	(1ULL<<62)  /* previous errors lost */
+#define MCI_STATUS_UC	(1ULL<<61)  /* uncorrected error */
 
 #define MSR_IA32_TSC                    0x10
 #define MSR_IA32_APICBASE               0x1b
