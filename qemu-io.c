@@ -98,6 +98,57 @@ print_report(const char *op, struct timeval *t, int64_t offset,
 	}
 }
 
+/*
+ * Parse multiple length statements for vectored I/O, and construct an I/O
+ * vector matching it.
+ */
+static void *
+create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
+{
+	size_t *sizes = calloc(nr_iov, sizeof(size_t));
+	size_t count = 0;
+	void *buf, *p;
+	int i;
+
+	for (i = 0; i < nr_iov; i++) {
+		char *arg = argv[i];
+		long long len;
+
+		len = cvtnum(arg);
+		if (len < 0) {
+			printf("non-numeric length argument -- %s\n", arg);
+			return NULL;
+		}
+
+		/* should be SIZE_T_MAX, but that doesn't exist */
+		if (len > UINT_MAX) {
+			printf("too large length argument -- %s\n", arg);
+			return NULL;
+		}
+
+		if (len & 0x1ff) {
+			printf("length argument %lld is not sector aligned\n",
+				len);
+			return NULL;
+		}
+
+		sizes[i] = len;
+		count += len;
+	}
+
+	qemu_iovec_init(qiov, nr_iov);
+
+	buf = p = qemu_io_alloc(count, pattern);
+
+	for (i = 0; i < nr_iov; i++) {
+		qemu_iovec_add(qiov, p, sizes[i]);
+		p += sizes[i];
+	}
+
+	free(sizes);
+	return buf;
+}
+
 static int do_read(char *buf, int64_t offset, int count, int *total)
 {
 	int ret;
@@ -375,10 +426,10 @@ readv_f(int argc, char **argv)
 	struct timeval t1, t2;
 	int Cflag = 0, qflag = 0, vflag = 0;
 	int c, cnt;
-	char *buf, *p;
+	char *buf;
 	int64_t offset;
-	int count = 0, total;
-	int nr_iov, i;
+	int total;
+	int nr_iov;
 	QEMUIOVector qiov;
 	int pattern = 0;
 	int Pflag = 0;
@@ -420,40 +471,8 @@ readv_f(int argc, char **argv)
 		return 0;
 	}
 
-	if (count & 0x1ff) {
-		printf("count %d is not sector aligned\n",
-			count);
-		return 0;
-	}
-
-	for (i = optind; i < argc; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[i]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n", argv[i]);
-			return 0;
-		}
-		count += len;
-	}
-
 	nr_iov = argc - optind;
-	qemu_iovec_init(&qiov, nr_iov);
-	buf = p = qemu_io_alloc(count, 0xab);
-	for (i = 0; i < nr_iov; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[optind]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n",
-				argv[optind]);
-			return 0;
-		}
-
-		qemu_iovec_add(&qiov, p, len);
-		p += len;
-		optind++;
-	}
+	buf = create_iovec(&qiov, &argv[optind], nr_iov, 0xab);
 
 	gettimeofday(&t1, NULL);
 	cnt = do_aio_readv(&qiov, offset, &total);
@@ -465,12 +484,12 @@ readv_f(int argc, char **argv)
 	}
 
 	if (Pflag) {
-		void* cmp_buf = malloc(count);
-		memset(cmp_buf, pattern, count);
-		if (memcmp(buf, cmp_buf, count)) {
+		void* cmp_buf = malloc(qiov.size);
+		memset(cmp_buf, pattern, qiov.size);
+		if (memcmp(buf, cmp_buf, qiov.size)) {
 			printf("Pattern verification failed at offset %lld, "
-				"%d bytes\n",
-				(long long) offset, count);
+				"%zd bytes\n",
+				(long long) offset, qiov.size);
 		}
 		free(cmp_buf);
 	}
@@ -646,10 +665,10 @@ writev_f(int argc, char **argv)
 	struct timeval t1, t2;
 	int Cflag = 0, qflag = 0;
 	int c, cnt;
-	char *buf, *p;
+	char *buf;
 	int64_t offset;
-	int count = 0, total;
-	int nr_iov, i;
+	int total;
+	int nr_iov;
 	int pattern = 0xcd;
 	QEMUIOVector qiov;
 
@@ -685,41 +704,8 @@ writev_f(int argc, char **argv)
 		return 0;
 	}
 
-	if (count & 0x1ff) {
-		printf("count %d is not sector aligned\n",
-			count);
-		return 0;
-	}
-
-
-	for (i = optind; i < argc; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[optind]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n", argv[i]);
-			return 0;
-		}
-		count += len;
-	}
-
 	nr_iov = argc - optind;
-	qemu_iovec_init(&qiov, nr_iov);
-	buf = p = qemu_io_alloc(count, pattern);
-	for (i = 0; i < nr_iov; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[optind]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n",
-				argv[optind]);
-			return 0;
-		}
-
-		qemu_iovec_add(&qiov, p, len);
-		p += len;
-		optind++;
-	}
+	buf = create_iovec(&qiov, &argv[optind], nr_iov, pattern);
 
 	gettimeofday(&t1, NULL);
 	cnt = do_aio_writev(&qiov, offset, &total);
@@ -859,9 +845,7 @@ aio_read_help(void)
 static int
 aio_read_f(int argc, char **argv)
 {
-	char *p;
-	int count = 0;
-	int nr_iov, i, c;
+	int nr_iov, c;
 	struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
 	BlockDriverAIOCB *acb;
 
@@ -902,40 +886,8 @@ aio_read_f(int argc, char **argv)
 		return 0;
 	}
 
-	if (count & 0x1ff) {
-		printf("count %d is not sector aligned\n",
-			count);
-		return 0;
-	}
-
-	for (i = optind; i < argc; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[i]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n", argv[i]);
-			return 0;
-		}
-		count += len;
-	}
-
 	nr_iov = argc - optind;
-	qemu_iovec_init(&ctx->qiov, nr_iov);
-	ctx->buf = p = qemu_io_alloc(count, 0xab);
-	for (i = 0; i < nr_iov; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[optind]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n",
-				argv[optind]);
-			return 0;
-		}
-
-		qemu_iovec_add(&ctx->qiov, p, len);
-		p += len;
-		optind++;
-	}
+	ctx->buf = create_iovec(&ctx->qiov, &argv[optind], nr_iov, 0xab);
 
 	gettimeofday(&ctx->t1, NULL);
 	acb = bdrv_aio_readv(bs, ctx->offset >> 9, &ctx->qiov,
@@ -983,9 +935,7 @@ aio_write_help(void)
 static int
 aio_write_f(int argc, char **argv)
 {
-	char *p;
-	int count = 0;
-	int nr_iov, i, c;
+	int nr_iov, c;
 	int pattern = 0xcd;
 	struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
 	BlockDriverAIOCB *acb;
@@ -1022,40 +972,8 @@ aio_write_f(int argc, char **argv)
 		return 0;
 	}
 
-	if (count & 0x1ff) {
-		printf("count %d is not sector aligned\n",
-			count);
-		return 0;
-	}
-
-	for (i = optind; i < argc; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[optind]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n", argv[i]);
-			return 0;
-		}
-		count += len;
-	}
-
 	nr_iov = argc - optind;
-	qemu_iovec_init(&ctx->qiov, nr_iov);
-	ctx->buf = p = qemu_io_alloc(count, pattern);
-	for (i = 0; i < nr_iov; i++) {
-	        size_t len;
-
-		len = cvtnum(argv[optind]);
-		if (len < 0) {
-			printf("non-numeric length argument -- %s\n",
-				argv[optind]);
-			return 0;
-		}
-
-		qemu_iovec_add(&ctx->qiov, p, len);
-		p += len;
-		optind++;
-	}
+	ctx->buf = create_iovec(&ctx->qiov, &argv[optind], nr_iov, pattern);
 
 	gettimeofday(&ctx->t1, NULL);
 	acb = bdrv_aio_writev(bs, ctx->offset >> 9, &ctx->qiov,
