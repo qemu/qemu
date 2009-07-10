@@ -337,46 +337,28 @@ fail:
     return NULL;
 }
 
-typedef struct QEMUFileBdrv
-{
-    BlockDriverState *bs;
-    int64_t base_offset;
-} QEMUFileBdrv;
-
 static int block_put_buffer(void *opaque, const uint8_t *buf,
                            int64_t pos, int size)
 {
-    QEMUFileBdrv *s = opaque;
-    bdrv_put_buffer(s->bs, buf, s->base_offset + pos, size);
+    bdrv_save_vmstate(opaque, buf, pos, size);
     return size;
 }
 
 static int block_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
-    QEMUFileBdrv *s = opaque;
-    return bdrv_get_buffer(s->bs, buf, s->base_offset + pos, size);
+    return bdrv_load_vmstate(opaque, buf, pos, size);
 }
 
 static int bdrv_fclose(void *opaque)
 {
-    QEMUFileBdrv *s = opaque;
-    qemu_free(s);
     return 0;
 }
 
-static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
-    QEMUFileBdrv *s;
-
-    s = qemu_mallocz(sizeof(QEMUFileBdrv));
-
-    s->bs = bs;
-    s->base_offset = offset;
-
     if (is_writable)
-        return qemu_fopen_ops(s, block_put_buffer, NULL, bdrv_fclose, NULL, NULL);
-
-    return qemu_fopen_ops(s, NULL, block_get_buffer, bdrv_fclose, NULL, NULL);
+        return qemu_fopen_ops(bs, block_put_buffer, NULL, bdrv_fclose, NULL, NULL);
+    return qemu_fopen_ops(bs, NULL, block_get_buffer, bdrv_fclose, NULL, NULL);
 }
 
 QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
@@ -1069,7 +1051,6 @@ void do_savevm(Monitor *mon, const char *name)
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
     int must_delete, ret, i;
-    BlockDriverInfo bdi1, *bdi = &bdi1;
     QEMUFile *f;
     int saved_vm_running;
     uint32_t vm_state_size;
@@ -1119,14 +1100,8 @@ void do_savevm(Monitor *mon, const char *name)
 #endif
     sn->vm_clock_nsec = qemu_get_clock(vm_clock);
 
-    if (bdrv_get_info(bs, bdi) < 0 || bdi->vm_state_offset <= 0) {
-        monitor_printf(mon, "Device %s does not support VM state snapshots\n",
-                       bdrv_get_device_name(bs));
-        goto the_end;
-    }
-
     /* save the VM state */
-    f = qemu_fopen_bdrv(bs, bdi->vm_state_offset, 1);
+    f = qemu_fopen_bdrv(bs, 1);
     if (!f) {
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
@@ -1170,7 +1145,6 @@ void do_savevm(Monitor *mon, const char *name)
 void do_loadvm(Monitor *mon, const char *name)
 {
     BlockDriverState *bs, *bs1;
-    BlockDriverInfo bdi1, *bdi = &bdi1;
     QEMUSnapshotInfo sn;
     QEMUFile *f;
     int i, ret;
@@ -1218,19 +1192,13 @@ void do_loadvm(Monitor *mon, const char *name)
         }
     }
 
-    if (bdrv_get_info(bs, bdi) < 0 || bdi->vm_state_offset <= 0) {
-        monitor_printf(mon, "Device %s does not support VM state snapshots\n",
-                       bdrv_get_device_name(bs));
-        return;
-    }
-
     /* Don't even try to load empty VM states */
     ret = bdrv_snapshot_find(bs, &sn, name);
     if ((ret >= 0) && (sn.vm_state_size == 0))
         goto the_end;
 
     /* restore the VM state */
-    f = qemu_fopen_bdrv(bs, bdi->vm_state_offset, 0);
+    f = qemu_fopen_bdrv(bs, 0);
     if (!f) {
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;

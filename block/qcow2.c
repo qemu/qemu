@@ -890,12 +890,16 @@ static void qcow_flush(BlockDriverState *bs)
     bdrv_flush(s->hd);
 }
 
+static int64_t qcow_vm_state_offset(BDRVQcowState *s)
+{
+	return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
+}
+
 static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BDRVQcowState *s = bs->opaque;
     bdi->cluster_size = s->cluster_size;
-    bdi->vm_state_offset = (int64_t)s->l1_vm_state_index <<
-        (s->cluster_bits + s->l2_bits);
+    bdi->vm_state_offset = qcow_vm_state_offset(s);
     return 0;
 }
 
@@ -925,26 +929,28 @@ static void dump_refcounts(BlockDriverState *bs)
 }
 #endif
 
-static int qcow_put_buffer(BlockDriverState *bs, const uint8_t *buf,
+static int qcow_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
                            int64_t pos, int size)
 {
+    BDRVQcowState *s = bs->opaque;
     int growable = bs->growable;
 
     bs->growable = 1;
-    bdrv_pwrite(bs, pos, buf, size);
+    bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
 
     return size;
 }
 
-static int qcow_get_buffer(BlockDriverState *bs, uint8_t *buf,
+static int qcow_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                            int64_t pos, int size)
 {
+    BDRVQcowState *s = bs->opaque;
     int growable = bs->growable;
     int ret;
 
     bs->growable = 1;
-    ret = bdrv_pread(bs, pos, buf, size);
+    ret = bdrv_pread(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
 
     return ret;
@@ -1001,8 +1007,8 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_list     = qcow2_snapshot_list,
     .bdrv_get_info	= qcow_get_info,
 
-    .bdrv_put_buffer    = qcow_put_buffer,
-    .bdrv_get_buffer    = qcow_get_buffer,
+    .bdrv_save_vmstate    = qcow_save_vmstate,
+    .bdrv_load_vmstate    = qcow_load_vmstate,
 
     .create_options = qcow_create_options,
     .bdrv_check = qcow_check,
