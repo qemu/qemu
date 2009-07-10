@@ -50,6 +50,8 @@
 /* Support non-standard cluster (block) size. */
 //~ #define CONFIG_VDI_CLUSTER_SIZE
 
+#define BLOCK_OPT_FIXED_SIZE "fixed_size"
+
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
@@ -87,65 +89,24 @@
 typedef unsigned char uuid_t[16];
 #endif
 
-//~ typedef struct {
-    //~ BlockDriverAIOCB common;
-    //~ struct qemu_paiocb aiocb;
-    //~ struct RawAIOCB *next;
-    //~ int ret;
-//~ } VDIAIOCB;
-
 typedef struct {
     BlockDriverAIOCB common;
     int64_t sector_num;
     QEMUIOVector *qiov;
     uint8_t *buf;
     void *orig_buf;
+    /* Total number of sectors. */
     int nb_sectors;
-    int n;
-    uint64_t cluster_offset;
+    /* Number of sectors for current AIO. */
+    int n_sectors;
+    uint64_t offset;
     uint8_t *cluster_data;
     BlockDriverAIOCB *hd_aiocb;
     struct iovec hd_iov;
     QEMUIOVector hd_qiov;
     QEMUBH *bh;
     //~ QCowL2Meta l2meta;
-} VDIAIOCB;
-
-//~ typedef struct PosixAioState
-//~ {
-    //~ int rfd, wfd;
-    //~ RawAIOCB *first_aio;
-//~ } PosixAioState;
-
-//~ struct BDRVCURLState;
-
-//~ typedef struct CURLAIOCB {
-    //~ BlockDriverAIOCB common;
-    //~ QEMUIOVector *qiov;
-    //~ size_t start;
-    //~ size_t end;
-//~ } CURLAIOCB;
-
-//~ typedef struct CURLState
-//~ {
-    //~ struct BDRVCURLState *s;
-    //~ CURLAIOCB *acb[CURL_NUM_ACB];
-    //~ CURL *curl;
-    //~ char *orig_buf;
-    //~ size_t buf_start;
-    //~ size_t buf_off;
-    //~ size_t buf_len;
-    //~ char range[128];
-    //~ char errmsg[CURL_ERROR_SIZE];
-    //~ char in_use;
-//~ } CURLState;
-
-//~ typedef struct BDRVCURLState {
-    //~ CURLM *multi;
-    //~ size_t len;
-    //~ CURLState states[CURL_NUM_STATES];
-    //~ char *url;
-//~ } BDRVCURLState;
+} VdiAIOCB;
 
 typedef struct {
     char text[0x40];
@@ -307,6 +268,8 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
     const VdiHeader *header = (const VdiHeader *)buf;
     int result = 0;
 
+    logout("\n");
+
     if (buf_size < sizeof(*header)) {
         /* Header too small, no VDI. */
     } else if (le32_to_cpu(header->signature) == VDI_SIGNATURE) {
@@ -429,12 +392,14 @@ static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
     return blockmap_entry != VDI_UNALLOCATED;
 }
 
+#if defined(CONFIG_AIO)
+
 #if 0
-static void vdi_aio_remove(VDIAIOCB *acb)
+static void vdi_aio_remove(VdiAIOCB *acb)
 {
     logout("\n");
 #if 0
-    VDIAIOCB **pacb;
+    VdiAIOCB **pacb;
 
     /* remove the callback from the queue */
     pacb = &posix_aio_state->first_aio;
@@ -459,7 +424,7 @@ static void vdi_aio_cancel(BlockDriverAIOCB *blockacb)
 
 #if 0
     int ret;
-    VDIAIOCB *acb = (VDIAIOCB *)blockacb;
+    VdiAIOCB *acb = (VdiAIOCB *)blockacb;
 
     ret = qemu_paio_cancel(acb->aiocb.aio_fildes, &acb->aiocb);
     if (ret == QEMU_PAIO_NOTCANCELED) {
@@ -473,57 +438,123 @@ static void vdi_aio_cancel(BlockDriverAIOCB *blockacb)
 }
 
 static AIOPool vdi_aio_pool = {
-    .aiocb_size         = sizeof(VDIAIOCB),
+    .aiocb_size         = sizeof(VdiAIOCB),
     .cancel             = vdi_aio_cancel,
 };
 
-static VDIAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
+static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
         QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockDriverCompletionFunc *cb, void *opaque, int is_write)
 {
     //~ BDRVVdiState *s = bs->opaque;
-    VDIAIOCB *acb;
+    VdiAIOCB *acb;
 
     logout("\n");
 
     acb = qemu_aio_get(&vdi_aio_pool, bs, cb, opaque);
-    if (!acb)
+    if (!acb) {
         return NULL;
+    }
 
     acb->hd_aiocb = NULL;
     acb->sector_num = sector_num;
     acb->qiov = qiov;
     if (qiov->niov > 1) {
         acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
-        //~ if (is_write)
-            //~ qemu_iovec_to_buffer(qiov, acb->buf);
+        if (is_write) {
+            qemu_iovec_to_buffer(qiov, acb->buf);
+        }
     } else {
         acb->buf = (uint8_t *)qiov->iov->iov_base;
     }
     acb->nb_sectors = nb_sectors;
-    acb->n = 0;
-    acb->cluster_offset = 0;
-    //~ acb->l2meta.nb_clusters = 0;
+    acb->n_sectors = 0;
+    acb->offset = 0;
     return acb;
 }
 
-static void vdi_aio_read_cb(void *opaque, int ret)
+static int vdi_schedule_bh(QEMUBHFunc *cb, VdiAIOCB *acb)
 {
     logout("\n");
 
+    if (acb->bh) {
+        return -EIO;
+    }
+
+    acb->bh = qemu_bh_new(cb, acb);
+    if (!acb->bh)
+        return -EIO;
+
+    qemu_bh_schedule(acb->bh);
+
+    return 0;
+}
+
+static void vdi_aio_read_cb(void *opaque, int ret);
+
+static void vdi_aio_read_bh(void *opaque)
+{
+    VdiAIOCB *acb = opaque;
+    logout("\n");
+    qemu_bh_delete(acb->bh);
+    acb->bh = NULL;
+    vdi_aio_read_cb(opaque, 0);
+}
+
 #if 0
-    QCowAIOCB *acb = opaque;
+    while (nb_sectors > 0 && sector_num < bs->total_sectors) {
+        size_t n_bytes;
+        uint32_t blockmap_entry;
+        size_t block_index = sector_num / s->cluster_sectors;
+        size_t sector_in_cluster = sector_num % s->cluster_sectors;
+        size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+        if (n_sectors > nb_sectors) {
+            n_sectors = nb_sectors;
+        }
+        n_bytes = n_sectors * SECTOR_SIZE;
+        blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
+        if (blockmap_entry == VDI_UNALLOCATED) {
+            /* Cluster not allocated, return zeros. */
+            memset(buf, 0, n_bytes);
+        } else {
+            uint64_t offset = ((uint64_t)s->header.offset_data / SECTOR_SIZE +
+                (uint64_t)blockmap_entry * s->cluster_size) / SECTOR_SIZE +
+                sector_in_cluster;
+            if (bdrv_read(s->hd, offset, buf, n_sectors) < 0) {
+                logout("read error\n");
+                return -1;
+            }
+        }
+        buf += n_bytes;
+        sector_num += n_sectors;
+        nb_sectors -= n_sectors;
+    }
+#endif
+
+static void vdi_aio_read_cb(void *opaque, int ret)
+{
+    VdiAIOCB *acb = opaque;
     BlockDriverState *bs = acb->common.bs;
-    BDRVQcowState *s = bs->opaque;
-    int index_in_cluster, n1;
+    BDRVVdiState *s = bs->opaque;
+    size_t n_bytes;
 
+    logout("\n");
     acb->hd_aiocb = NULL;
-    if (ret < 0)
+    if (ret < 0) {
         goto done;
+    }
 
-    acb->nb_sectors -= acb->n;
-    acb->sector_num += acb->n;
-    acb->buf += acb->n * 512;
+    n_bytes = acb->n_sectors * SECTOR_SIZE;
+    //~ size_t block_index = acb->sector_num / s->cluster_sectors;
+    size_t sector_in_cluster = acb->sector_num % s->cluster_sectors;
+    size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+    if (n_sectors > acb->nb_sectors) {
+        n_sectors = acb->nb_sectors;
+    }
+
+    acb->nb_sectors -= acb->n_sectors;
+    acb->sector_num += acb->n_sectors;
+    acb->buf += n_bytes;
 
     if (acb->nb_sectors == 0) {
         /* request completed */
@@ -532,62 +563,32 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     }
 
     /* prepare next AIO request */
-    acb->n = acb->nb_sectors;
-    acb->cluster_offset =
-        qcow2_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
-    index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
+    acb->n_sectors = acb->nb_sectors;
+    //~ acb->offset =
+        //~ vdi_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
 
-    if (!acb->cluster_offset) {
-        if (bs->backing_hd) {
-            /* read from the base image */
-            n1 = qcow2_backing_read1(bs->backing_hd, acb->sector_num,
-                               acb->buf, acb->n);
-            if (n1 > 0) {
-                acb->hd_iov.iov_base = (void *)acb->buf;
-                acb->hd_iov.iov_len = acb->n * 512;
-                qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-                acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
-                                    &acb->hd_qiov, acb->n,
-                                    qcow_aio_read_cb, acb);
-                if (acb->hd_aiocb == NULL)
-                    goto done;
-            } else {
-                ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
-                if (ret < 0)
-                    goto done;
-            }
-        } else {
-            /* Note: in this case, no need to wait */
-            memset(acb->buf, 0, 512 * acb->n);
-            ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
-            if (ret < 0)
-                goto done;
+
+
+    if (!acb->offset) {
+        /* Note: in this case, no need to wait */
+        memset(acb->buf, 0, SECTOR_SIZE * acb->n_sectors);
+        ret = vdi_schedule_bh(vdi_aio_read_bh, acb);
+        if (ret < 0) {
+            goto done;
         }
-    } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
-        /* add AIO support for compressed blocks ? */
-        if (qcow2_decompress_cluster(s, acb->cluster_offset) < 0)
-            goto done;
-        memcpy(acb->buf,
-               s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
-        ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
-        if (ret < 0)
-            goto done;
     } else {
-        if ((acb->cluster_offset & 511) != 0) {
-            ret = -EIO;
-            goto done;
-        }
-
         acb->hd_iov.iov_base = (void *)acb->buf;
-        acb->hd_iov.iov_len = acb->n * 512;
+        acb->hd_iov.iov_len = acb->n_sectors * SECTOR_SIZE;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_readv(s->hd,
-                            (acb->cluster_offset >> 9) + index_in_cluster,
-                            &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
+                                       acb->offset + sector_in_cluster,
+                                       &acb->hd_qiov, acb->n_sectors,
+                                       vdi_aio_read_cb, acb);
         if (acb->hd_aiocb == NULL)
             goto done;
+#if 0
+#endif
     }
-
     return;
 done:
     if (acb->qiov->niov > 1) {
@@ -596,43 +597,91 @@ done:
     }
     acb->common.cb(acb->common.opaque, ret);
     qemu_aio_release(acb);
-#endif
 }
 
 static BlockDriverAIOCB *vdi_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
-    VDIAIOCB *acb;
+    VdiAIOCB *acb;
+    logout("\n");
+    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
+    if (!acb) {
+        return NULL;
+    }
+    vdi_aio_read_cb(acb, 0);
+    return &acb->common;
+}
+
+static void vdi_aio_write_cb(void *opaque, int ret)
+{
+    VdiAIOCB *acb = opaque;
+    BlockDriverState *bs = acb->common.bs;
+    BDRVVdiState *s = bs->opaque;
+    const uint8_t *src_buf;
+    int n_end;
 
     logout("\n");
 
-    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque);
-    if (!acb)
-        return NULL;
-    vdi_aio_read_cb(acb, 0);
-    return &acb->common;
+    acb->hd_aiocb = NULL;
+
+    if (ret < 0) {
+        goto done;
+    }
+
+    acb->nb_sectors -= acb->n_sectors;
+    acb->sector_num += acb->n_sectors;
+    acb->buf += acb->n_sectors * SECTOR_SIZE;
+
+    if (acb->nb_sectors == 0) {
+        /* request completed */
+        ret = 0;
+        goto done;
+    }
+
+    size_t sector_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
+    n_end = sector_in_cluster + acb->nb_sectors;
+
+    //~ acb->offset = vdi_alloc_cluster_offset(bs, acb->sector_num << 9,
+                                          //~ sector_in_cluster,
+                                          //~ n_end, &acb->n, &acb->l2meta);
+    src_buf = acb->buf;
+    acb->hd_iov.iov_base = (void *)src_buf;
+    acb->hd_iov.iov_len = acb->n_sectors * SECTOR_SIZE;
+    qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+    acb->hd_aiocb = bdrv_aio_writev(s->hd,
+                                    acb->offset + sector_in_cluster,
+                                    &acb->hd_qiov, acb->n_sectors,
+                                    vdi_aio_write_cb, acb);
+    if (acb->hd_aiocb == NULL) {
+        goto done;
+    }
+
+    return;
+
+done:
+    if (acb->qiov->niov > 1)
+        qemu_vfree(acb->orig_buf);
+    acb->common.cb(acb->common.opaque, ret);
+    qemu_aio_release(acb);
 }
 
 static BlockDriverAIOCB *vdi_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
-    VDIAIOCB *acb;
-
+    VdiAIOCB *acb;
     logout("\n");
-
-    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque);
-    if (!acb)
+    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
+    if (!acb) {
         return NULL;
-    //~ if (qemu_paio_write(&acb->aiocb) < 0) {
-        //~ vdi_aio_remove(acb);
-        //~ return NULL;
-    //~ }
+    }
+    vdi_aio_write_cb(acb, 0);
     return &acb->common;
 }
 
-#if !defined(CONFIG_AIO)
+#else /* CONFIG_AIO */
+
 static int vdi_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
@@ -746,6 +795,7 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 #endif /* CONFIG_VDI_WRITE */
+
 #endif /* CONFIG_AIO */
 
 static int vdi_create(const char *filename, QEMUOptionParameter *options)
@@ -756,6 +806,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     uint32_t clusters;
     //~ int flags = 0;
     size_t cluster_size = 1 * MiB;
+    uint32_t image_type = VDI_TYPE_DYNAMIC;
     VdiHeader header;
     size_t i;
     size_t blockmap_size;
@@ -774,6 +825,8 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
                 cluster_size = options->value.n;
             }
 #endif
+        } else if (!strcmp(options->name, BLOCK_OPT_FIXED_SIZE)) {
+            image_type = VDI_TYPE_FIXED;
         }
         options++;
     }
@@ -793,7 +846,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     header.signature = VDI_SIGNATURE;
     header.version = VDI_VERSION_1_1;
     header.header_size = 0x180;
-    header.image_type = VDI_TYPE_DYNAMIC;
+    header.image_type = image_type;
     header.offset_blockmap = 0x200;
     header.offset_data = 0x200 + blockmap_size;
     header.sector_size = SECTOR_SIZE;
@@ -851,9 +904,14 @@ static QEMUOptionParameter vdi_create_options[] = {
     {
         .name = BLOCK_OPT_CLUSTER_SIZE,
         .type = OPT_SIZE,
-        .help = "vdi cluster size"
+        .help = "VDI cluster size"
     },
 #endif
+    {
+        .name = BLOCK_OPT_FIXED_SIZE,
+        .type = OPT_FLAG,
+        .help = "VDI fixed size (pre-allocated) image"
+    },
     { NULL }
 };
 
