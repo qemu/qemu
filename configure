@@ -34,6 +34,8 @@ ar="ar"
 make="make"
 install="install"
 strip="strip"
+objcopy="objcopy"
+ld="ld"
 
 # parse CC options first
 for opt do
@@ -53,6 +55,8 @@ done
 cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
+objcopy="${cross_prefix}${objcopy}"
+ld="${cross_prefix}${ld}"
 
 # check that the C compiler works.
 cat > $TMPC <<EOF
@@ -1483,6 +1487,8 @@ echo "INSTALL_PROG=$install -m0755 -p" >> $config_mak
 echo "CC=$cc" >> $config_mak
 echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
+echo "OBJCOPY=$objcopy" >> $config_mak
+echo "LD=$ld" >> $config_mak
 # XXX: only use CFLAGS and LDFLAGS ?  
 # XXX: should export HOST_CFLAGS and HOST_LDFLAGS for cross
 # compilation of dyngen tool (useful for win32 build on Linux host)
