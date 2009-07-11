@@ -31,6 +31,7 @@ audio_card_list="ac97 es1370 sb16"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus"
 host_cc="gcc"
 ar="ar"
+link="ld"
 make="make"
 install="install"
 strip="strip"
@@ -52,6 +53,7 @@ done
 
 cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
+link="${cross_prefix}${link}"
 strip="${cross_prefix}${strip}"
 
 # check that the C compiler works.
@@ -546,7 +548,7 @@ if test "$werror" = "yes" ; then
 fi
 
 if test "$solaris" = "no" ; then
-    if ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
+    if $link --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
         LDFLAGS="$LDFLAGS -Wl,--warn-common"
     fi
 fi
