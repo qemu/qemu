@@ -286,7 +286,7 @@ read_f(int argc, char **argv)
 			break;
 		case 'P':
 			Pflag = 1;
-			pattern = atoi(optarg);
+			pattern = strtol(optarg, NULL, 0);
 			break;
 		case 'q':
 			qflag = 1;
@@ -444,7 +444,7 @@ readv_f(int argc, char **argv)
 			break;
 		case 'P':
 			Pflag = 1;
-			pattern = atoi(optarg);
+			pattern = strtol(optarg, NULL, 0);
 			break;
 		case 'q':
 			qflag = 1;
@@ -565,7 +565,7 @@ write_f(int argc, char **argv)
 			pflag = 1;
 			break;
 		case 'P':
-			pattern = atoi(optarg);
+			pattern = strtol(optarg, NULL, 0);
 			break;
 		case 'q':
 			qflag = 1;
@@ -685,7 +685,7 @@ writev_f(int argc, char **argv)
 			qflag = 1;
 			break;
 		case 'P':
-			pattern = atoi(optarg);
+			pattern = strtol(optarg, NULL, 0);
 			break;
 		default:
 			return command_usage(&writev_cmd);
@@ -859,7 +859,7 @@ aio_read_f(int argc, char **argv)
 			break;
 		case 'P':
 			ctx->Pflag = 1;
-			ctx->pattern = atoi(optarg);
+			ctx->pattern = strtol(optarg, NULL, 0);
 			break;
 		case 'q':
 			ctx->qflag = 1;
@@ -959,7 +959,7 @@ aio_write_f(int argc, char **argv)
 			ctx->qflag = 1;
 			break;
 		case 'P':
-			pattern = atoi(optarg);
+			pattern = strtol(optarg, NULL, 0);
 			break;
 		default:
 			free(ctx);
