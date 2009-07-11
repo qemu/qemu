@@ -22,9 +22,15 @@
  * This driver supports create / read / write operations on VDI images.
  *
  * Some features like snapshots are still missing (see TODO in code).
- * Deallocation of zero-filled clusters is missing, too
+ * Deallocation of zero-filled blocks is missing, too
  * (might be added to common block layer).
- * Asynchronous read / write support could be added, too.
+ *
+ * Hints:
+ *
+ * Blocks (VDI documentation) correspond to clusters (QEMU).
+ *
+ * The driver keeps a block cache (little endian entries) in memory.
+ * For the standard block size (1 MiB), a terrabyte disk will use 4 MiB RAM.
  */
 
 #include "qemu-common.h"
@@ -35,8 +41,11 @@
 #include <uuid/uuid.h>
 #endif
 
+/* Use old (synchronous) I/O. */
+#undef CONFIG_AIO
+
 /* Enable debug messages. */
-#define CONFIG_VDI_DEBUG
+//~ #define CONFIG_VDI_DEBUG
 
 /* Support experimental write operations on VDI images. */
 #define CONFIG_VDI_WRITE
@@ -47,10 +56,13 @@
 /* Enable (currently) unsupported features. */
 //~ #define CONFIG_VDI_UNSUPPORTED
 
-/* Support non-standard cluster (block) size. */
-//~ #define CONFIG_VDI_CLUSTER_SIZE
+/* Support non-standard block (cluster) size. */
+//~ #define CONFIG_VDI_BLOCK_SIZE
 
-#define BLOCK_OPT_FIXED_SIZE "fixed_size"
+/* Support static (pre-allocated) images. */
+//~ #define CONFIG_VDI_STATIC_IMAGE
+
+#define BLOCK_OPT_STATIC "static"
 
 #define KiB     1024
 #define MiB     (KiB * KiB)
@@ -72,7 +84,7 @@
 
 /* Image type. */
 #define VDI_TYPE_DYNAMIC 1
-#define VDI_TYPE_FIXED  2
+#define VDI_TYPE_STATIC  2
 
 /* Innotek / SUN images use these strings in header.text:
  * "<<< innotek VirtualBox Disk Image >>>\n"
@@ -100,7 +112,7 @@ typedef struct {
     /* Number of sectors for current AIO. */
     int n_sectors;
     uint64_t offset;
-    uint8_t *cluster_data;
+    //~ uint8_t *cluster_data;
     BlockDriverAIOCB *hd_aiocb;
     struct iovec hd_iov;
     QEMUIOVector hd_qiov;
@@ -138,10 +150,10 @@ typedef struct {
     BlockDriverState *hd;
     /* The blockmap entries are little endian (even in memory). */
     uint32_t *blockmap;
-    /* Size of cluster (bytes). */
-    uint32_t cluster_size;
-    /* Size of cluster (sectors). */
-    uint32_t cluster_sectors;
+    /* Size of block (bytes). */
+    uint32_t block_size;
+    /* Size of block (sectors). */
+    uint32_t block_sectors;
     VdiHeader header;
 } BDRVVdiState;
 
@@ -249,7 +261,7 @@ static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
        vm_state_offset is still missing. */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
     logout("\n");
-    bdi->cluster_size = s->cluster_size;
+    bdi->cluster_size = s->block_size;
     bdi->vm_state_offset = -1;
     return -ENOTSUP;
 }
@@ -349,9 +361,8 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
         goto fail_free_blockmap;
     }
 
-    /* Blocks (VDI documentation) correspond to clusters (QEMU). */
-    s->cluster_size = header.block_size;
-    s->cluster_sectors = (header.block_size / SECTOR_SIZE);
+    s->block_size = header.block_size;
+    s->block_sectors = (header.block_size / SECTOR_SIZE);
     s->header = header;
 
     return 0;
@@ -369,9 +380,9 @@ static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
 {
     /* TODO: Check for too large sector_num (in bdrv_is_allocated or here). */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
-    size_t blockmap_index = sector_num / s->cluster_sectors;
-    size_t sector_in_cluster = sector_num % s->cluster_sectors;
-    int n_sectors = s->cluster_sectors - sector_in_cluster;
+    size_t blockmap_index = sector_num / s->block_sectors;
+    size_t sector_in_block = sector_num % s->block_sectors;
+    int n_sectors = s->block_sectors - sector_in_block;
     uint32_t blockmap_entry = le32_to_cpu(s->blockmap[blockmap_index]);
     logout("%p, %" PRId64 ", %d, %p\n", bs, sector_num, nb_sectors, pnum);
     if (n_sectors > nb_sectors) {
@@ -435,30 +446,28 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
         QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int is_write)
 {
-    //~ BDRVVdiState *s = bs->opaque;
     VdiAIOCB *acb;
 
-    logout("\n");
+    logout("%p, %" PRId64 ", %p, %d, %p, %p, %d\n",
+           bs, sector_num, qiov, nb_sectors, cb, opaque, is_write);
 
     acb = qemu_aio_get(&vdi_aio_pool, bs, cb, opaque);
-    if (!acb) {
-        return NULL;
-    }
-
-    acb->hd_aiocb = NULL;
-    acb->sector_num = sector_num;
-    acb->qiov = qiov;
-    if (qiov->niov > 1) {
-        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
-        if (is_write) {
-            qemu_iovec_to_buffer(qiov, acb->buf);
+    if (acb) {
+        acb->hd_aiocb = NULL;
+        acb->sector_num = sector_num;
+        acb->qiov = qiov;
+        if (qiov->niov > 1) {
+            acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
+            if (is_write) {
+                qemu_iovec_to_buffer(qiov, acb->buf);
+            }
+        } else {
+            acb->buf = (uint8_t *)qiov->iov->iov_base;
         }
-    } else {
-        acb->buf = (uint8_t *)qiov->iov->iov_base;
+        acb->nb_sectors = nb_sectors;
+        acb->n_sectors = 0;
+        acb->offset = 0;
     }
-    acb->nb_sectors = nb_sectors;
-    acb->n_sectors = 0;
-    acb->offset = 0;
     return acb;
 }
 
@@ -495,21 +504,21 @@ static void vdi_aio_read_bh(void *opaque)
     while (nb_sectors > 0 && sector_num < bs->total_sectors) {
         size_t n_bytes;
         uint32_t blockmap_entry;
-        size_t block_index = sector_num / s->cluster_sectors;
-        size_t sector_in_cluster = sector_num % s->cluster_sectors;
-        size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+        size_t block_index = sector_num / s->block_sectors;
+        size_t sector_in_block = sector_num % s->block_sectors;
+        size_t n_sectors = s->block_sectors - sector_in_block;
         if (n_sectors > nb_sectors) {
             n_sectors = nb_sectors;
         }
         n_bytes = n_sectors * SECTOR_SIZE;
         blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
         if (blockmap_entry == VDI_UNALLOCATED) {
-            /* Cluster not allocated, return zeros. */
+            /* Block not allocated, return zeros. */
             memset(buf, 0, n_bytes);
         } else {
-            uint64_t offset = ((uint64_t)s->header.offset_data / SECTOR_SIZE +
-                (uint64_t)blockmap_entry * s->cluster_size) / SECTOR_SIZE +
-                sector_in_cluster;
+            uint64_t offset = s->header.offset_data / SECTOR_SIZE +
+                (uint64_t)blockmap_entry * s->block_sectors +
+                sector_in_block;
             if (bdrv_read(s->hd, offset, buf, n_sectors) < 0) {
                 logout("read error\n");
                 return -1;
@@ -529,7 +538,9 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     size_t n_bytes;
 
     logout("\n");
+
     acb->hd_aiocb = NULL;
+
     if (ret < 0) {
         goto done;
     }
@@ -546,9 +557,9 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     }
 
     uint32_t blockmap_entry;
-    size_t block_index = acb->sector_num / s->cluster_sectors;
-    size_t sector_in_cluster = acb->sector_num % s->cluster_sectors;
-    size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+    size_t block_index = acb->sector_num / s->block_sectors;
+    size_t sector_in_block = acb->sector_num % s->block_sectors;
+    size_t n_sectors = s->block_sectors - sector_in_block;
     if (n_sectors > acb->nb_sectors) {
         n_sectors = acb->nb_sectors;
     }
@@ -557,7 +568,7 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     acb->n_sectors = acb->nb_sectors;
     blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
     if (blockmap_entry == VDI_UNALLOCATED) {
-        /* Cluster not allocated, return zeros, no need to wait. */
+        /* Block not allocated, return zeros, no need to wait. */
         memset(acb->buf, 0, n_bytes);
         ret = vdi_schedule_bh(vdi_aio_read_bh, acb);
         if (ret < 0) {
@@ -567,19 +578,20 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     //~ acb->offset =
         //~ vdi_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
 
-            //~ uint64_t offset = ((uint64_t)s->header.offset_data / SECTOR_SIZE +
-                //~ (uint64_t)blockmap_entry * s->cluster_size) / SECTOR_SIZE +
-                //~ sector_in_cluster;
+            //~ uint64_t offset = (uint64_t)s->header.offset_data / SECTOR_SIZE +
+                //~ (uint64_t)blockmap_entry * s->block_sectors +
+                //~ sector_in_block;
 
         acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = acb->n_sectors * SECTOR_SIZE;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_readv(s->hd,
-                                       acb->offset + sector_in_cluster,
+                                       acb->offset + sector_in_block,
                                        &acb->hd_qiov, acb->n_sectors,
                                        vdi_aio_read_cb, acb);
-        if (acb->hd_aiocb == NULL)
+        if (acb->hd_aiocb == NULL) {
             goto done;
+        }
 #if 0
 #endif
     }
@@ -633,18 +645,18 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         goto done;
     }
 
-    size_t sector_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
-    n_end = sector_in_cluster + acb->nb_sectors;
+    size_t sector_in_block = acb->sector_num & (s->block_sectors - 1);
+    n_end = sector_in_block + acb->nb_sectors;
 
     //~ acb->offset = vdi_alloc_cluster_offset(bs, acb->sector_num << 9,
-                                          //~ sector_in_cluster,
+                                          //~ sector_in_block,
                                           //~ n_end, &acb->n, &acb->l2meta);
     src_buf = acb->buf;
     acb->hd_iov.iov_base = (void *)src_buf;
     acb->hd_iov.iov_len = acb->n_sectors * SECTOR_SIZE;
     qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
     acb->hd_aiocb = bdrv_aio_writev(s->hd,
-                                    acb->offset + sector_in_cluster,
+                                    acb->offset + sector_in_block,
                                     &acb->hd_qiov, acb->n_sectors,
                                     vdi_aio_write_cb, acb);
     if (acb->hd_aiocb == NULL) {
@@ -688,21 +700,21 @@ static int vdi_read(BlockDriverState *bs, int64_t sector_num,
     while (nb_sectors > 0 && sector_num < bs->total_sectors) {
         size_t n_bytes;
         uint32_t blockmap_entry;
-        size_t block_index = sector_num / s->cluster_sectors;
-        size_t sector_in_cluster = sector_num % s->cluster_sectors;
-        size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+        size_t block_index = sector_num / s->block_sectors;
+        size_t sector_in_block = sector_num % s->block_sectors;
+        size_t n_sectors = s->block_sectors - sector_in_block;
         if (n_sectors > nb_sectors) {
             n_sectors = nb_sectors;
         }
         n_bytes = n_sectors * SECTOR_SIZE;
         blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
         if (blockmap_entry == VDI_UNALLOCATED) {
-            /* Cluster not allocated, return zeros. */
+            /* Block not allocated, return zeros. */
             memset(buf, 0, n_bytes);
         } else {
-            uint64_t offset = ((uint64_t)s->header.offset_data / SECTOR_SIZE +
-                (uint64_t)blockmap_entry * s->cluster_size) / SECTOR_SIZE +
-                sector_in_cluster;
+            uint64_t offset = s->header.offset_data / SECTOR_SIZE +
+                (uint64_t)blockmap_entry * s->block_sectors +
+                sector_in_block;
             if (bdrv_read(s->hd, offset, buf, n_sectors) < 0) {
                 logout("read error\n");
                 return -1;
@@ -729,25 +741,25 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
         size_t n_bytes;
         uint32_t blockmap_entry;
         uint64_t offset;
-        size_t block_index = sector_num / s->cluster_sectors;
-        size_t sector_in_cluster = sector_num % s->cluster_sectors;
-        size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+        size_t block_index = sector_num / s->block_sectors;
+        size_t sector_in_block = sector_num % s->block_sectors;
+        size_t n_sectors = s->block_sectors - sector_in_block;
         if (n_sectors > nb_sectors) {
             n_sectors = nb_sectors;
         }
         n_bytes = n_sectors * SECTOR_SIZE;
         blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
         if (blockmap_entry == VDI_UNALLOCATED) {
-            /* Allocate new cluster and write to it. */
+            /* Allocate new block and write to it. */
             uint8_t *block;
             blockmap_entry =
             s->blockmap[block_index] = cpu_to_le32(s->header.blocks_allocated);
             s->header.blocks_allocated++;
             offset = s->header.offset_data / SECTOR_SIZE +
-                     (uint64_t)blockmap_entry * s->cluster_sectors;
-            block = qemu_mallocz(s->cluster_size);
-            memcpy(block + sector_in_cluster * SECTOR_SIZE, buf, n_bytes);
-            if (bdrv_write(s->hd, offset, block, s->cluster_sectors) < 0) {
+                     (uint64_t)blockmap_entry * s->block_sectors;
+            block = qemu_mallocz(s->block_size);
+            memcpy(block + sector_in_block * SECTOR_SIZE, buf, n_bytes);
+            if (bdrv_write(s->hd, offset, block, s->block_sectors) < 0) {
                 qemu_free(block);
                 logout("write error\n");
                 return -1;
@@ -775,8 +787,8 @@ static int vdi_write(BlockDriverState *bs, int64_t sector_num,
         } else {
             /* Write to existing block. */
             offset = s->header.offset_data / SECTOR_SIZE +
-                (uint64_t)blockmap_entry * s->cluster_sectors +
-                sector_in_cluster;
+                (uint64_t)blockmap_entry * s->block_sectors +
+                sector_in_block;
             if (bdrv_write(s->hd, offset, buf, n_sectors) < 0) {
                 logout("write error\n");
                 return -1;
@@ -797,9 +809,9 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     /* TODO: Support pre-allocated images. */
     int fd;
     uint64_t bytes = 0;
-    uint32_t clusters;
+    uint32_t blocks;
     //~ int flags = 0;
-    size_t cluster_size = 1 * MiB;
+    size_t block_size = 1 * MiB;
     uint32_t image_type = VDI_TYPE_DYNAMIC;
     VdiHeader header;
     size_t i;
@@ -812,15 +824,17 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
             bytes = options->value.n;
-#if defined(CONFIG_VDI_CLUSTER_SIZE)
+#if defined(CONFIG_VDI_BLOCK_SIZE)
         } else if (!strcmp(options->name, BLOCK_OPT_CLUSTER_SIZE)) {
             if (options->value.n) {
                 /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
-                cluster_size = options->value.n;
+                block_size = options->value.n;
             }
 #endif
-        } else if (!strcmp(options->name, BLOCK_OPT_FIXED_SIZE)) {
-            image_type = VDI_TYPE_FIXED;
+#if defined(CONFIG_VDI_STATIC_IMAGE)
+        } else if (!strcmp(options->name, BLOCK_OPT_STATIC)) {
+            image_type = VDI_TYPE_STATIC;
+#endif
         }
         options++;
     }
@@ -831,8 +845,8 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         return -1;
     }
 
-    clusters = bytes / cluster_size;
-    blockmap_size = clusters * sizeof(uint32_t);
+    blocks = bytes / block_size;
+    blockmap_size = blocks * sizeof(uint32_t);
     blockmap_size = ((blockmap_size + SECTOR_SIZE - 1) & ~(SECTOR_SIZE -1));
 
     memset(&header, 0, sizeof(header));
@@ -845,8 +859,8 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     header.offset_data = 0x200 + blockmap_size;
     header.sector_size = SECTOR_SIZE;
     header.disk_size = bytes;
-    header.block_size = cluster_size;
-    header.blocks_in_image = clusters;
+    header.block_size = block_size;
+    header.blocks_in_image = blocks;
 #if defined(HAVE_UUID_H)
     uuid_generate(header.uuid_image);
     uuid_generate(header.uuid_last_snap);
@@ -862,7 +876,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     write(fd, &header, sizeof(header));
 
     blockmap = (uint32_t *)qemu_mallocz(blockmap_size);
-    for (i = 0; i < clusters; i++) {
+    for (i = 0; i < blocks; i++) {
         blockmap[i] = VDI_UNALLOCATED;
     }
     write(fd, blockmap, blockmap_size);
@@ -894,18 +908,20 @@ static QEMUOptionParameter vdi_create_options[] = {
         .type = OPT_SIZE,
         .help = "Virtual disk size"
     },
-#if defined(CONFIG_VDI_CLUSTER_SIZE)
+#if defined(CONFIG_VDI_BLOCK_SIZE)
     {
         .name = BLOCK_OPT_CLUSTER_SIZE,
         .type = OPT_SIZE,
-        .help = "VDI cluster size"
+        .help = "VDI cluster (block) size"
     },
 #endif
+#if defined(CONFIG_VDI_STATIC_IMAGE)
     {
-        .name = BLOCK_OPT_FIXED_SIZE,
+        .name = BLOCK_OPT_STATIC,
         .type = OPT_FLAG,
-        .help = "VDI fixed size (pre-allocated) image"
+        .help = "VDI static (pre-allocated) image"
     },
+#endif
     { NULL }
 };
 
