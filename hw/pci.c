@@ -135,7 +135,7 @@ static PCIBus *pci_register_secondary_bus(PCIDevice *dev, pci_map_irq_fn map_irq
 {
     PCIBus *bus;
 
-    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, &dev->qdev, NULL));
+    bus = qemu_mallocz(sizeof(PCIBus));
     bus->map_irq = map_irq;
     bus->parent_dev = dev;
     bus->next = dev->bus->next;
