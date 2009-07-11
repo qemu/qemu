@@ -513,7 +513,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     l1_size2 = l1_size * sizeof(uint64_t);
     l1_allocated = 0;
     if (l1_table_offset != s->l1_table_offset) {
-        l1_table = qemu_malloc(l1_size2);
+        l1_table = qemu_mallocz(align_offset(l1_size2, 512));
         l1_allocated = 1;
         if (bdrv_pread(s->hd, l1_table_offset,
                        l1_table, l1_size2) != l1_size2)

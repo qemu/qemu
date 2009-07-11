@@ -1054,13 +1054,13 @@ int es1370_init (PCIBus *bus)
 
 static PCIDeviceInfo es1370_info = {
     .qdev.name    = "ES1370",
-    .qdev.size    = sizeof(PCIES1370State),
+    .qdev.size    = sizeof (PCIES1370State),
     .init         = es1370_initfn,
 };
 
 static void es1370_register(void)
 {
-    pci_qdev_register(&es1370_info);
+    pci_qdev_register (&es1370_info);
 }
-device_init(es1370_register);
+device_init (es1370_register);
 

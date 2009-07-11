@@ -1308,9 +1308,9 @@ static void ac97_on_reset (void *opaque)
     mixer_reset (s);
 }
 
-static void ac97_initfn(PCIDevice *dev)
+static void ac97_initfn (PCIDevice *dev)
 {
-    PCIAC97LinkState *d = DO_UPCAST(PCIAC97LinkState, dev, dev);
+    PCIAC97LinkState *d = DO_UPCAST (PCIAC97LinkState, dev, dev);
     AC97LinkState *s = &d->ac97;
     uint8_t *c = d->dev.config;
 
@@ -1360,19 +1360,19 @@ static void ac97_initfn(PCIDevice *dev)
 
 int ac97_init (PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "AC97");
+    pci_create_simple (bus, -1, "AC97");
     return 0;
 }
 
 static PCIDeviceInfo ac97_info = {
     .qdev.name    = "AC97",
-    .qdev.size    = sizeof(PCIAC97LinkState),
+    .qdev.size    = sizeof (PCIAC97LinkState),
     .init         = ac97_initfn,
 };
 
-static void ac97_register(void)
+static void ac97_register (void)
 {
-    pci_qdev_register(&ac97_info);
+    pci_qdev_register (&ac97_info);
 }
-device_init(ac97_register);
+device_init (ac97_register);
 

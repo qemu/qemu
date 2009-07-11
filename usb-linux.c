@@ -1265,6 +1265,15 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
 
     /* only check the host once */
     if (!usb_fs_type) {
+        dir = opendir(USBSYSBUS_PATH "/devices");
+        if (dir) {
+            /* devices found in /dev/bus/usb/ (yes - not a mistake!) */
+            strcpy(devpath, USBDEVBUS_PATH);
+            usb_fs_type = USB_FS_SYS;
+            closedir(dir);
+            dprintf(USBDBG_DEVOPENED, USBSYSBUS_PATH);
+            goto found_devices;
+        }
         f = fopen(USBPROCBUS_PATH "/devices", "r");
         if (f) {
             /* devices found in /proc/bus/usb/ */
@@ -1282,15 +1291,6 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             usb_fs_type = USB_FS_DEV;
             fclose(f);
             dprintf(USBDBG_DEVOPENED, USBDEVBUS_PATH);
-            goto found_devices;
-        }
-        dir = opendir(USBSYSBUS_PATH "/devices");
-        if (dir) {
-            /* devices found in /dev/bus/usb/ (yes - not a mistake!) */
-            strcpy(devpath, USBDEVBUS_PATH);
-            usb_fs_type = USB_FS_SYS;
-            closedir(dir);
-            dprintf(USBDBG_DEVOPENED, USBSYSBUS_PATH);
             goto found_devices;
         }
     found_devices:

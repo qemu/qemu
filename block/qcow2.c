@@ -202,7 +202,8 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (s->l1_size < s->l1_vm_state_index)
         goto fail;
     s->l1_table_offset = header.l1_table_offset;
-    s->l1_table = qemu_malloc(s->l1_size * sizeof(uint64_t));
+    s->l1_table = qemu_mallocz(
+        align_offset(s->l1_size * sizeof(uint64_t), 512));
     if (bdrv_pread(s->hd, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
         s->l1_size * sizeof(uint64_t))
         goto fail;
