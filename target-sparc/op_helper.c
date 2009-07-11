@@ -1949,13 +1949,13 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x89: // Secondary LE
         switch(size) {
         case 2:
-            addr = bswap16(addr);
+            val = bswap16(val);
             break;
         case 4:
-            addr = bswap32(addr);
+            val = bswap32(val);
             break;
         case 8:
-            addr = bswap64(addr);
+            val = bswap64(val);
             break;
         default:
             break;
@@ -2321,13 +2321,13 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x89: // Secondary LE
         switch(size) {
         case 2:
-            addr = bswap16(addr);
+            val = bswap16(val);
             break;
         case 4:
-            addr = bswap32(addr);
+            val = bswap32(val);
             break;
         case 8:
-            addr = bswap64(addr);
+            val = bswap64(val);
             break;
         default:
             break;
