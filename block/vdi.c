@@ -105,7 +105,6 @@ typedef struct {
     struct iovec hd_iov;
     QEMUIOVector hd_qiov;
     QEMUBH *bh;
-    //~ QCowL2Meta l2meta;
 } VdiAIOCB;
 
 typedef struct {
@@ -472,8 +471,9 @@ static int vdi_schedule_bh(QEMUBHFunc *cb, VdiAIOCB *acb)
     }
 
     acb->bh = qemu_bh_new(cb, acb);
-    if (!acb->bh)
+    if (!acb->bh) {
         return -EIO;
+    }
 
     qemu_bh_schedule(acb->bh);
 
@@ -535,13 +535,6 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     }
 
     n_bytes = acb->n_sectors * SECTOR_SIZE;
-    //~ size_t block_index = acb->sector_num / s->cluster_sectors;
-    size_t sector_in_cluster = acb->sector_num % s->cluster_sectors;
-    size_t n_sectors = s->cluster_sectors - sector_in_cluster;
-    if (n_sectors > acb->nb_sectors) {
-        n_sectors = acb->nb_sectors;
-    }
-
     acb->nb_sectors -= acb->n_sectors;
     acb->sector_num += acb->n_sectors;
     acb->buf += n_bytes;
@@ -552,21 +545,32 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         goto done;
     }
 
+    uint32_t blockmap_entry;
+    size_t block_index = acb->sector_num / s->cluster_sectors;
+    size_t sector_in_cluster = acb->sector_num % s->cluster_sectors;
+    size_t n_sectors = s->cluster_sectors - sector_in_cluster;
+    if (n_sectors > acb->nb_sectors) {
+        n_sectors = acb->nb_sectors;
+    }
+
     /* prepare next AIO request */
     acb->n_sectors = acb->nb_sectors;
-    //~ acb->offset =
-        //~ vdi_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
-
-
-
-    if (!acb->offset) {
-        /* Note: in this case, no need to wait */
-        memset(acb->buf, 0, SECTOR_SIZE * acb->n_sectors);
+    blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
+    if (blockmap_entry == VDI_UNALLOCATED) {
+        /* Cluster not allocated, return zeros, no need to wait. */
+        memset(acb->buf, 0, n_bytes);
         ret = vdi_schedule_bh(vdi_aio_read_bh, acb);
         if (ret < 0) {
             goto done;
         }
     } else {
+    //~ acb->offset =
+        //~ vdi_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
+
+            //~ uint64_t offset = ((uint64_t)s->header.offset_data / SECTOR_SIZE +
+                //~ (uint64_t)blockmap_entry * s->cluster_size) / SECTOR_SIZE +
+                //~ sector_in_cluster;
+
         acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = acb->n_sectors * SECTOR_SIZE;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
