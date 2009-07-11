@@ -41,7 +41,6 @@ build-all: multiboot.bin
 
 %.bin: %.raw
 	$(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@
-	cp $@ $(SRC_PATH)/pc-bios/
 
 clean:
 	$(RM) *.o *.img *.bin *~
