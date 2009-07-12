@@ -369,42 +369,79 @@ void dump_mmu(CPUState *env)
 #endif /* DEBUG_MMU */
 
 #else /* !TARGET_SPARC64 */
+
+// 41 bit physical address space
+static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
+{
+    return x & 0x1ffffffffffULL;
+}
+
 /*
  * UltraSparc IIi I/DMMUs
  */
+
+static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
+{
+    return (x & mask) == (y & mask);
+}
+
+// Returns true if TTE tag is valid and matches virtual address value in context
+// requires virtual address mask value calculated from TTE entry size
+static inline int ultrasparc_tag_match(uint64_t tlb_tag, uint64_t tlb_tte,
+                                       uint64_t address, uint64_t context,
+                                       target_phys_addr_t *physical)
+{
+    uint64_t mask;
+
+    switch ((tlb_tte >> 61) & 3) {
+    default:
+    case 0x0: // 8k
+        mask = 0xffffffffffffe000ULL;
+        break;
+    case 0x1: // 64k
+        mask = 0xffffffffffff0000ULL;
+        break;
+    case 0x2: // 512k
+        mask = 0xfffffffffff80000ULL;
+        break;
+    case 0x3: // 4M
+        mask = 0xffffffffffc00000ULL;
+        break;
+    }
+
+    // valid, context match, virtual address match?
+    if ((tlb_tte & 0x8000000000000000ULL) &&
+            compare_masked(context, tlb_tag, 0x1fff) &&
+            compare_masked(address, tlb_tag, mask))
+    {
+        // decode physical address
+        *physical = ((tlb_tte & mask) | (address & ~mask)) & 0x1ffffffe000ULL;
+        return 1;
+    }
+
+    return 0;
+}
+
 static int get_physical_address_data(CPUState *env,
                                      target_phys_addr_t *physical, int *prot,
                                      target_ulong address, int rw, int is_user)
 {
-    target_ulong mask;
     unsigned int i;
+    uint64_t context;
 
     if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
-        *physical = address;
+        *physical = ultrasparc_truncate_physical(address);
         *prot = PAGE_READ | PAGE_WRITE;
         return 0;
     }
 
+    context = env->dmmuregs[1] & 0x1fff;
+
     for (i = 0; i < 64; i++) {
-        switch ((env->dtlb_tte[i] >> 61) & 3) {
-        default:
-        case 0x0: // 8k
-            mask = 0xffffffffffffe000ULL;
-            break;
-        case 0x1: // 64k
-            mask = 0xffffffffffff0000ULL;
-            break;
-        case 0x2: // 512k
-            mask = 0xfffffffffff80000ULL;
-            break;
-        case 0x3: // 4M
-            mask = 0xffffffffffc00000ULL;
-            break;
-        }
         // ctx match, vaddr match, valid?
-        if (env->dmmuregs[1] == (env->dtlb_tag[i] & 0x1fff) &&
-            (address & mask) == (env->dtlb_tag[i] & mask) &&
-            (env->dtlb_tte[i] & 0x8000000000000000ULL)) {
+        if (ultrasparc_tag_match(env->dtlb_tag[i], env->dtlb_tte[i],
+                                 address, context, physical)
+        ) {
             // access ok?
             if (((env->dtlb_tte[i] & 0x4) && is_user) ||
                 (!(env->dtlb_tte[i] & 0x2) && (rw == 1))) {
@@ -419,8 +456,6 @@ static int get_physical_address_data(CPUState *env,
 #endif
                 return 1;
             }
-            *physical = ((env->dtlb_tte[i] & mask) | (address & ~mask)) &
-                        0x1ffffffe000ULL;
             *prot = PAGE_READ;
             if (env->dtlb_tte[i] & 0x2)
                 *prot |= PAGE_WRITE;
@@ -430,7 +465,7 @@ static int get_physical_address_data(CPUState *env,
 #ifdef DEBUG_MMU
     printf("DMISS at 0x%" PRIx64 "\n", address);
 #endif
-    env->dmmuregs[6] = (address & ~0x1fffULL) | (env->dmmuregs[1] & 0x1fff);
+    env->dmmuregs[6] = (address & ~0x1fffULL) | context;
     env->exception_index = TT_DMISS;
     return 1;
 }
@@ -439,35 +474,23 @@ static int get_physical_address_code(CPUState *env,
                                      target_phys_addr_t *physical, int *prot,
                                      target_ulong address, int is_user)
 {
-    target_ulong mask;
     unsigned int i;
+    uint64_t context;
 
-    if ((env->lsu & IMMU_E) == 0) { /* IMMU disabled */
-        *physical = address;
+    if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
+        /* IMMU disabled */
+        *physical = ultrasparc_truncate_physical(address);
         *prot = PAGE_EXEC;
         return 0;
     }
 
+    context = env->dmmuregs[1] & 0x1fff;
+
     for (i = 0; i < 64; i++) {
-        switch ((env->itlb_tte[i] >> 61) & 3) {
-        default:
-        case 0x0: // 8k
-            mask = 0xffffffffffffe000ULL;
-            break;
-        case 0x1: // 64k
-            mask = 0xffffffffffff0000ULL;
-            break;
-        case 0x2: // 512k
-            mask = 0xfffffffffff80000ULL;
-            break;
-        case 0x3: // 4M
-            mask = 0xffffffffffc00000ULL;
-                break;
-        }
         // ctx match, vaddr match, valid?
-        if (env->dmmuregs[1] == (env->itlb_tag[i] & 0x1fff) &&
-            (address & mask) == (env->itlb_tag[i] & mask) &&
-            (env->itlb_tte[i] & 0x8000000000000000ULL)) {
+        if (ultrasparc_tag_match(env->itlb_tag[i], env->itlb_tte[i],
+                                 address, context, physical)
+        ) {
             // access ok?
             if ((env->itlb_tte[i] & 0x4) && is_user) {
                 if (env->immuregs[3]) /* Fault status register */
@@ -480,8 +503,6 @@ static int get_physical_address_code(CPUState *env,
 #endif
                 return 1;
             }
-            *physical = ((env->itlb_tte[i] & mask) | (address & ~mask)) &
-                        0x1ffffffe000ULL;
             *prot = PAGE_EXEC;
             return 0;
         }
@@ -490,7 +511,7 @@ static int get_physical_address_code(CPUState *env,
     printf("TMISS at 0x%" PRIx64 "\n", address);
 #endif
     /* Context is stored in DMMU (dmmuregs[1]) also for IMMU */
-    env->immuregs[6] = (address & ~0x1fffULL) | (env->dmmuregs[1] & 0x1fff);
+    env->immuregs[6] = (address & ~0x1fffULL) | context;
     env->exception_index = TT_TMISS;
     return 1;
 }
@@ -646,7 +667,9 @@ void cpu_reset(CPUSPARCState *env)
 
     tlb_flush(env, 1);
     env->cwp = 0;
+#ifndef TARGET_SPARC64
     env->wim = 1;
+#endif
     env->regwptr = env->regbase + (env->cwp * 16);
 #if defined(CONFIG_USER_ONLY)
 #ifdef TARGET_SPARC64
@@ -656,7 +679,9 @@ void cpu_reset(CPUSPARCState *env)
     env->asi = 0x82; // Primary no-fault
 #endif
 #else
+#if !defined(TARGET_SPARC64)
     env->psret = 0;
+#endif
     env->psrs = 1;
     env->psrps = 1;
     CC_OP = CC_OP_FLAGS;

@@ -21,9 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+
 #include "sun4m.h"
-#include "sysemu.h"
+#include "sysbus.h"
 
 //#define DEBUG_ECC
 
@@ -126,6 +126,7 @@
 #define ECC_DIAG_MASK  (ECC_DIAG_SIZE - 1)
 
 typedef struct ECCState {
+    SysBusDevice busdev;
     qemu_irq irq;
     uint32_t regs[ECC_NREGS];
     uint8_t diag[ECC_DIAG_SIZE];
@@ -314,27 +315,46 @@ static void ecc_reset(void *opaque)
     s->regs[ECC_ECR1] = 0;
 }
 
-void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
+static void ecc_init1(SysBusDevice *dev)
 {
     int ecc_io_memory;
-    ECCState *s;
+    ECCState *s = FROM_SYSBUS(ECCState, dev);
 
-    s = qemu_mallocz(sizeof(ECCState));
-
-    s->version = version;
-    s->regs[0] = version;
-    s->irq = irq;
-
+    sysbus_init_irq(dev, &s->irq);
+    s->version = qdev_get_prop_int(&dev->qdev, "version", -1);
+    s->regs[0] = s->version;
     ecc_io_memory = cpu_register_io_memory(ecc_mem_read, ecc_mem_write, s);
-    cpu_register_physical_memory(base, ECC_SIZE, ecc_io_memory);
-    if (version == ECC_MCC) { // SS-600MP only
+    sysbus_init_mmio(dev, ECC_SIZE, ecc_io_memory);
+
+    if (s->version == ECC_MCC) { // SS-600MP only
         ecc_io_memory = cpu_register_io_memory(ecc_diag_mem_read,
                                                ecc_diag_mem_write, s);
-        cpu_register_physical_memory(base + 0x1000, ECC_DIAG_SIZE,
-                                     ecc_io_memory);
+        sysbus_init_mmio(dev, ECC_DIAG_SIZE, ecc_io_memory);
     }
-    register_savevm("ECC", base, 3, ecc_save, ecc_load, s);
+    register_savevm("ECC", -1, 3, ecc_save, ecc_load, s);
     qemu_register_reset(ecc_reset, s);
     ecc_reset(s);
-    return s;
 }
+
+void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "eccmemctl");
+    qdev_set_prop_int(dev, "version", version);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_mmio_map(s, 0, base);
+    if (version == ECC_MCC) { // SS-600MP only
+        sysbus_mmio_map(s, 1, base + 0x1000);
+    }
+}
+
+static void ecc_register_devices(void)
+{
+    sysbus_register_dev("eccmemctl", sizeof(ECCState), ecc_init1);
+}
+
+device_init(ecc_register_devices)

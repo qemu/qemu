@@ -123,7 +123,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus->irq_opaque = pic;
     bus->devfn_min = devfn_min;
     bus->nirq = nirq;
-    bus->irq_count = qemu_malloc(nirq * sizeof(bus->irq_count[0]));
+    bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
     bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
@@ -135,7 +135,7 @@ static PCIBus *pci_register_secondary_bus(PCIDevice *dev, pci_map_irq_fn map_irq
 {
     PCIBus *bus;
 
-    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, &dev->qdev, NULL));
+    bus = qemu_mallocz(sizeof(PCIBus));
     bus->map_irq = map_irq;
     bus->parent_dev = dev;
     bus->next = dev->bus->next;

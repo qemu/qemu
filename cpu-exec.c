@@ -475,7 +475,7 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_SPARC)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-			(env->psret != 0)) {
+			cpu_interrupts_enabled(env)) {
 			int pil = env->interrupt_index & 15;
 			int type = env->interrupt_index & 0xf0;
 
@@ -486,7 +486,7 @@ int cpu_exec(CPUState *env1)
                             env->exception_index = env->interrupt_index;
                             do_interrupt(env);
 			    env->interrupt_index = 0;
-#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
                             cpu_check_irqs(env);
 #endif
                         next_tb = 0;
