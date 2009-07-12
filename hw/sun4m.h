@@ -63,6 +63,6 @@ void cs_init(target_phys_addr_t base, int irq, void *intctl);
 #include "sparc32_dma.h"
 
 /* eccmemctl.c */
-void *ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version);
+void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version);
 
 #endif
