@@ -1186,7 +1186,6 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
     }
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t1);
-    gen_store_gpr(t0, rt);
     tcg_temp_free(t0);
 }
 
