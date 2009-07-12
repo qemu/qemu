@@ -450,7 +450,9 @@ static void sun4uv_init(ram_addr_t RAM_size,
             }
         }
     }
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL, &pci_bus2,
+
+    irq = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, irq, &pci_bus2,
                            &pci_bus3);
     isa_mem_base = VGA_BASE;
     pci_vga_init(pci_bus, 0, 0);
@@ -481,7 +483,6 @@ static void sun4uv_init(ram_addr_t RAM_size,
     for(i = 0; i < nb_nics; i++)
         pci_nic_init(&nd_table[i], "ne2k_pci", NULL);
 
-    irq = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
         fprintf(stderr, "qemu: too many IDE bus\n");
         exit(1);
