@@ -3225,8 +3225,14 @@ static inline void change_pstate(uint64_t new_pstate)
     uint64_t pstate_regs, new_pstate_regs;
     uint64_t *src, *dst;
 
+    if (env->def->features & CPU_FEATURE_GL) {
+        // PS_AG is not implemented in this case
+        new_pstate &= ~PS_AG;
+    }
+
     pstate_regs = env->pstate & 0xc01;
     new_pstate_regs = new_pstate & 0xc01;
+
     if (new_pstate_regs != pstate_regs) {
         // Switch global register bank
         src = get_gregset(new_pstate_regs);
@@ -3239,8 +3245,7 @@ static inline void change_pstate(uint64_t new_pstate)
 
 void helper_wrpstate(target_ulong new_state)
 {
-    if (!(env->def->features & CPU_FEATURE_GL))
-        change_pstate(new_state & 0xf3f);
+    change_pstate(new_state & 0xf3f);
 }
 
 void helper_done(void)
@@ -3392,23 +3397,23 @@ void do_interrupt(CPUState *env)
     env->tsptr->tpc = env->pc;
     env->tsptr->tnpc = env->npc;
     env->tsptr->tt = intno;
-    if (!(env->def->features & CPU_FEATURE_GL)) {
-        switch (intno) {
-        case TT_IVEC:
-            change_pstate(PS_PEF | PS_PRIV | PS_IG);
-            break;
-        case TT_TFAULT:
-        case TT_TMISS:
-        case TT_DFAULT:
-        case TT_DMISS:
-        case TT_DPROT:
-            change_pstate(PS_PEF | PS_PRIV | PS_MG);
-            break;
-        default:
-            change_pstate(PS_PEF | PS_PRIV | PS_AG);
-            break;
-        }
+
+    switch (intno) {
+    case TT_IVEC:
+        change_pstate(PS_PEF | PS_PRIV | PS_IG);
+        break;
+    case TT_TFAULT:
+    case TT_TMISS:
+    case TT_DFAULT:
+    case TT_DMISS:
+    case TT_DPROT:
+        change_pstate(PS_PEF | PS_PRIV | PS_MG);
+        break;
+    default:
+        change_pstate(PS_PEF | PS_PRIV | PS_AG);
+        break;
     }
+
     if (intno == TT_CLRWIN)
         cpu_set_cwp(env, cpu_cwp_dec(env, env->cwp - 1));
     else if ((intno & 0x1c0) == TT_SPILL)

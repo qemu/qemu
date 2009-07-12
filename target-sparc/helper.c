@@ -667,7 +667,9 @@ void cpu_reset(CPUSPARCState *env)
 
     tlb_flush(env, 1);
     env->cwp = 0;
+#ifndef TARGET_SPARC64
     env->wim = 1;
+#endif
     env->regwptr = env->regbase + (env->cwp * 16);
 #if defined(CONFIG_USER_ONLY)
 #ifdef TARGET_SPARC64
@@ -677,7 +679,9 @@ void cpu_reset(CPUSPARCState *env)
     env->asi = 0x82; // Primary no-fault
 #endif
 #else
+#if !defined(TARGET_SPARC64)
     env->psret = 0;
+#endif
     env->psrs = 1;
     env->psrps = 1;
     CC_OP = CC_OP_FLAGS;
