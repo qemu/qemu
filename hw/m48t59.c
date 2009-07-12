@@ -23,9 +23,9 @@
  */
 #include "hw.h"
 #include "nvram.h"
-#include "isa.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
+#include "sysbus.h"
 
 //#define DEBUG_NVRAM
 
@@ -41,11 +41,11 @@
  * PPC platform there is also a nvram lock function.
  */
 struct m48t59_t {
+    SysBusDevice busdev;
     /* Model parameters */
     int type; // 2 = m48t02, 8 = m48t08, 59 = m48t59
     /* Hardware parameters */
     qemu_irq IRQ;
-    int mem_index;
     uint32_t io_base;
     uint16_t size;
     /* RTC management */
@@ -618,32 +618,57 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
                        uint32_t io_base, uint16_t size,
                        int type)
 {
-    m48t59_t *s;
-    target_phys_addr_t save_base;
+    DeviceState *dev;
+    SysBusDevice *s;
+    m48t59_t *d;
 
-    s = qemu_mallocz(sizeof(m48t59_t));
-    s->buffer = qemu_mallocz(size);
-    s->IRQ = IRQ;
-    s->size = size;
-    s->io_base = io_base;
-    s->type = type;
+    dev = qdev_create(NULL, "m48t59");
+    qdev_set_prop_int(dev, "type", type);
+    qdev_set_prop_int(dev, "size", size);
+    qdev_set_prop_int(dev, "io_base", io_base);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, IRQ);
     if (io_base != 0) {
         register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
         register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
     }
     if (mem_base != 0) {
-        s->mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
-        cpu_register_physical_memory(mem_base, size, s->mem_index);
+        sysbus_mmio_map(s, 0, mem_base);
     }
-    if (type == 59) {
+
+    d = FROM_SYSBUS(m48t59_t, s);
+
+    return d;
+}
+
+static void m48t59_init1(SysBusDevice *dev)
+{
+    m48t59_t *s = FROM_SYSBUS(m48t59_t, dev);
+    int mem_index;
+
+    s->size = qdev_get_prop_int(&dev->qdev, "size", -1);
+    s->buffer = qemu_mallocz(s->size);
+    sysbus_init_irq(dev, &s->IRQ);
+    s->io_base = qdev_get_prop_int(&dev->qdev, "io_base", 0);
+    s->type = qdev_get_prop_int(&dev->qdev, "type", -1);
+
+    mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
+    sysbus_init_mmio(dev, s->size, mem_index);
+
+    if (s->type == 59) {
         s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
         s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
     }
     qemu_get_timedate(&s->alarm, 0);
 
     qemu_register_reset(m48t59_reset, s);
-    save_base = mem_base ? mem_base : io_base;
-    register_savevm("m48t59", save_base, 1, m48t59_save, m48t59_load, s);
-
-    return s;
+    register_savevm("m48t59", -1, 1, m48t59_save, m48t59_load, s);
 }
+
+static void m48t59_register_devices(void)
+{
+    sysbus_register_dev("m48t59", sizeof(m48t59_t), m48t59_init1);
+}
+
+device_init(m48t59_register_devices)
