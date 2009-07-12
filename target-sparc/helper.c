@@ -369,6 +369,13 @@ void dump_mmu(CPUState *env)
 #endif /* DEBUG_MMU */
 
 #else /* !TARGET_SPARC64 */
+
+// 41 bit physical address space
+static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
+{
+    return x & 0x1ffffffffffULL;
+}
+
 /*
  * UltraSparc IIi I/DMMUs
  */
@@ -380,7 +387,7 @@ static int get_physical_address_data(CPUState *env,
     unsigned int i;
 
     if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
-        *physical = address;
+        *physical = ultrasparc_truncate_physical(address);
         *prot = PAGE_READ | PAGE_WRITE;
         return 0;
     }
@@ -442,8 +449,9 @@ static int get_physical_address_code(CPUState *env,
     target_ulong mask;
     unsigned int i;
 
-    if ((env->lsu & IMMU_E) == 0) { /* IMMU disabled */
-        *physical = address;
+    if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
+        /* IMMU disabled */
+        *physical = ultrasparc_truncate_physical(address);
         *prot = PAGE_EXEC;
         return 0;
     }
