@@ -21,10 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+
 #include "sun4m.h"
 #include "console.h"
 #include "pixel_ops.h"
+#include "sysbus.h"
 
 #define MAXX 1024
 #define MAXY 768
@@ -34,6 +35,7 @@
 #define TCX_TEC_NREGS    0x1000
 
 typedef struct TCXState {
+    SysBusDevice busdev;
     target_phys_addr_t addr;
     DisplayState *ds;
     uint8_t *vram;
@@ -500,69 +502,103 @@ static CPUWriteMemoryFunc *tcx_dummy_write[3] = {
 void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
               int depth)
 {
-    TCXState *s;
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "SUNW,tcx");
+    qdev_set_prop_int(dev, "addr", addr);
+    qdev_set_prop_int(dev, "vram_size", vram_size);
+    qdev_set_prop_int(dev, "width", width);
+    qdev_set_prop_int(dev, "height", height);
+    qdev_set_prop_int(dev, "depth", depth);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    /* 8-bit plane */
+    sysbus_mmio_map(s, 0, addr + 0x00800000ULL);
+    /* DAC */
+    sysbus_mmio_map(s, 1, addr + 0x00200000ULL);
+    /* TEC (dummy) */
+    sysbus_mmio_map(s, 2, addr + 0x00700000ULL);
+    /* THC 24 bit: NetBSD writes here even with 8-bit display: dummy */
+    sysbus_mmio_map(s, 3, addr + 0x00301000ULL);
+    if (depth == 24) {
+        /* 24-bit plane */
+        sysbus_mmio_map(s, 4, addr + 0x02000000ULL);
+        /* Control plane */
+        sysbus_mmio_map(s, 5, addr + 0x0a000000ULL);
+    } else {
+        /* THC 8 bit (dummy) */
+        sysbus_mmio_map(s, 4, addr + 0x00300000ULL);
+    }
+}
+
+static void tcx_init1(SysBusDevice *dev)
+{
+    TCXState *s = FROM_SYSBUS(TCXState, dev);
     int io_memory, dummy_memory;
     ram_addr_t vram_offset;
-    int size;
+    int size, vram_size;
     uint8_t *vram_base;
+
+    vram_size = qdev_get_prop_int(&dev->qdev, "vram_size", -1);
 
     vram_offset = qemu_ram_alloc(vram_size * (1 + 4 + 4));
     vram_base = qemu_get_ram_ptr(vram_offset);
-
-    s = qemu_mallocz(sizeof(TCXState));
-    s->addr = addr;
+    s->addr = qdev_get_prop_int(&dev->qdev, "addr", -1);
     s->vram_offset = vram_offset;
-    s->width = width;
-    s->height = height;
-    s->depth = depth;
+    s->width = qdev_get_prop_int(&dev->qdev, "width", -1);
+    s->height = qdev_get_prop_int(&dev->qdev, "height", -1);
+    s->depth = qdev_get_prop_int(&dev->qdev, "depth", -1);
 
-    // 8-bit plane
+    /* 8-bit plane */
     s->vram = vram_base;
     size = vram_size;
-    cpu_register_physical_memory(addr + 0x00800000ULL, size, vram_offset);
+    sysbus_init_mmio(dev, size, s->vram_offset);
     vram_offset += size;
     vram_base += size;
 
+    /* DAC */
     io_memory = cpu_register_io_memory(tcx_dac_read, tcx_dac_write, s);
-    cpu_register_physical_memory(addr + 0x00200000ULL, TCX_DAC_NREGS,
-                                 io_memory);
+    sysbus_init_mmio(dev, TCX_DAC_NREGS, io_memory);
 
+    /* TEC (dummy) */
     dummy_memory = cpu_register_io_memory(tcx_dummy_read, tcx_dummy_write,
                                           s);
-    cpu_register_physical_memory(addr + 0x00700000ULL, TCX_TEC_NREGS,
-                                 dummy_memory);
-    if (depth == 24) {
-        // 24-bit plane
+    sysbus_init_mmio(dev, TCX_TEC_NREGS, dummy_memory);
+    /* THC: NetBSD writes here even with 8-bit display: dummy */
+    sysbus_init_mmio(dev, TCX_THC_NREGS_24, dummy_memory);
+
+    if (s->depth == 24) {
+        /* 24-bit plane */
         size = vram_size * 4;
         s->vram24 = (uint32_t *)vram_base;
         s->vram24_offset = vram_offset;
-        cpu_register_physical_memory(addr + 0x02000000ULL, size, vram_offset);
+        sysbus_init_mmio(dev, size, vram_offset);
         vram_offset += size;
         vram_base += size;
 
-        // Control plane
+        /* Control plane */
         size = vram_size * 4;
         s->cplane = (uint32_t *)vram_base;
         s->cplane_offset = vram_offset;
-        cpu_register_physical_memory(addr + 0x0a000000ULL, size, vram_offset);
+        sysbus_init_mmio(dev, size, vram_offset);
+
         s->ds = graphic_console_init(tcx24_update_display,
                                      tcx24_invalidate_display,
                                      tcx24_screen_dump, NULL, s);
     } else {
-        cpu_register_physical_memory(addr + 0x00300000ULL, TCX_THC_NREGS_8,
-                                     dummy_memory);
+        /* THC 8 bit (dummy) */
+        sysbus_init_mmio(dev, TCX_THC_NREGS_8, dummy_memory);
+
         s->ds = graphic_console_init(tcx_update_display,
                                      tcx_invalidate_display,
                                      tcx_screen_dump, NULL, s);
     }
-    // NetBSD writes here even with 8-bit display
-    cpu_register_physical_memory(addr + 0x00301000ULL, TCX_THC_NREGS_24,
-                                 dummy_memory);
 
-    register_savevm("tcx", addr, 4, tcx_save, tcx_load, s);
+    register_savevm("tcx", -1, 4, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
-    qemu_console_resize(s->ds, width, height);
+    qemu_console_resize(s->ds, s->width, s->height);
 }
 
 static void tcx_screen_dump(void *opaque, const char *filename)
@@ -627,3 +663,10 @@ static void tcx24_screen_dump(void *opaque, const char *filename)
     fclose(f);
     return;
 }
+
+static void tcx_register_devices(void)
+{
+    sysbus_register_dev("SUNW,tcx", sizeof(TCXState), tcx_init1);
+}
+
+device_init(tcx_register_devices)

@@ -5,7 +5,7 @@
 
 #include "qdev.h"
 
-#define QDEV_MAX_MMIO 5
+#define QDEV_MAX_MMIO 32
 #define QDEV_MAX_IRQ 32
 
 typedef struct SysBusDevice SysBusDevice;
