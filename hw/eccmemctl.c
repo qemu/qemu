@@ -341,7 +341,7 @@ void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "ecc");
+    dev = qdev_create(NULL, "eccmemctl");
     qdev_set_prop_int(dev, "version", version);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
@@ -354,7 +354,7 @@ void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
 
 static void ecc_register_devices(void)
 {
-    sysbus_register_dev("ecc", sizeof(ECCState), ecc_init1);
+    sysbus_register_dev("eccmemctl", sizeof(ECCState), ecc_init1);
 }
 
 device_init(ecc_register_devices)
