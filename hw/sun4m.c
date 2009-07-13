@@ -382,6 +382,46 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     *reset = qdev_get_gpio_in(dev, 0);
 }
 
+/* NCR89C100/MACIO Internal ID register */
+static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
+
+static void idreg_init(target_phys_addr_t addr)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "macio_idreg");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+    cpu_physical_memory_write_rom(addr, idreg_data, sizeof(idreg_data));
+}
+
+static void idreg_init1(SysBusDevice *dev)
+{
+    ram_addr_t idreg_offset;
+
+    idreg_offset = qemu_ram_alloc(sizeof(idreg_data));
+    sysbus_init_mmio(dev, sizeof(idreg_data), idreg_offset | IO_MEM_ROM);
+}
+
+static SysBusDeviceInfo idreg_info = {
+    .init = idreg_init1,
+    .qdev.name  = "macio_idreg",
+    .qdev.size  = sizeof(SysBusDevice),
+    .qdev.props = (DevicePropList[]) {
+        {.name = NULL}
+    }
+};
+
+static void idreg_register_devices(void)
+{
+    sysbus_register_withprop(&idreg_info);
+}
+
+device_init(idreg_register_devices);
+
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
@@ -397,7 +437,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
     qemu_irq *cpu_halt;
-    ram_addr_t ram_offset, prom_offset, idreg_offset;
+    ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
     int ret;
     char *filename;
@@ -477,13 +517,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                                        hwdef->clock_irq);
 
     if (hwdef->idreg_base) {
-        static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
-
-        idreg_offset = qemu_ram_alloc(sizeof(idreg_data));
-        cpu_register_physical_memory(hwdef->idreg_base, sizeof(idreg_data),
-                                     idreg_offset | IO_MEM_ROM);
-        cpu_physical_memory_write_rom(hwdef->idreg_base, idreg_data,
-                                      sizeof(idreg_data));
+        idreg_init(hwdef->idreg_base);
     }
 
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
