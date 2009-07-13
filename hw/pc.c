@@ -825,6 +825,7 @@ static void load_linux(void *fw_cfg,
     uint8_t header[8192];
     target_phys_addr_t real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f, *fi;
+    char *vmode;
 
     /* Align to 16 bytes as a paranoia measure */
     cmdline_size = (strlen(kernel_cmdline)+16) & ~15;
@@ -898,6 +899,24 @@ static void load_linux(void *fw_cfg,
     } else {
 	stw_p(header+0x20, 0xA33F);
 	stw_p(header+0x22, cmdline_addr-real_addr);
+    }
+
+    /* handle vga= parameter */
+    vmode = strstr(kernel_cmdline, "vga=");
+    if (vmode) {
+        unsigned int video_mode;
+        /* skip "vga=" */
+        vmode += 4;
+        if (!strncmp(vmode, "normal", 6)) {
+            video_mode = 0xffff;
+        } else if (!strncmp(vmode, "ext", 3)) {
+            video_mode = 0xfffe;
+        } else if (!strncmp(vmode, "ask", 3)) {
+            video_mode = 0xfffd;
+        } else {
+            video_mode = strtol(vmode, NULL, 0);
+        }
+        stw_p(header+0x1fa, video_mode);
     }
 
     /* loader type */
