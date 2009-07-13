@@ -553,6 +553,7 @@ static void hpet_reset(void *opaque) {
     /* 64-bit main counter; 3 timers supported; LegacyReplacementRoute. */
     s->capability = 0x8086a201ULL;
     s->capability |= ((HPET_CLK_PERIOD) << 32);
+    s->config = 0ULL;
     if (count > 0)
         /* we don't enable pit when hpet_reset is first called (by hpet_init)
          * because hpet is taking over for pit here. On subsequent invocations,
