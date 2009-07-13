@@ -50,11 +50,12 @@ void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
                            qemu_irq *cpu_irqs, unsigned int num_cpus);
 
 /* slavio_misc.c */
-void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
+void *slavio_misc_init(target_phys_addr_t base,
                        target_phys_addr_t aux1_base,
                        target_phys_addr_t aux2_base, qemu_irq irq,
-                       qemu_irq cpu_halt, qemu_irq **fdc_tc);
+                       qemu_irq fdc_tc);
 void slavio_set_power_fail(void *opaque, int power_failing);
+void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt);
 
 /* cs4231.c */
 void cs_init(target_phys_addr_t base, int irq, void *intctl);

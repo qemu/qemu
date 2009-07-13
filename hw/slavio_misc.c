@@ -21,9 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+
 #include "sun4m.h"
 #include "sysemu.h"
+#include "sysbus.h"
 
 /* debug misc */
 //#define DEBUG_MISC
@@ -44,15 +45,20 @@
 #endif
 
 typedef struct MiscState {
+    SysBusDevice busdev;
     qemu_irq irq;
     uint8_t config;
     uint8_t aux1, aux2;
     uint8_t diag, mctrl;
     uint32_t sysctrl;
     uint16_t leds;
-    qemu_irq cpu_halt;
     qemu_irq fdc_tc;
 } MiscState;
+
+typedef struct APCState {
+    SysBusDevice busdev;
+    qemu_irq cpu_halt;
+} APCState;
 
 #define MISC_SIZE 1
 #define SYSCTRL_SIZE 4
@@ -283,7 +289,7 @@ static CPUWriteMemoryFunc *slavio_aux2_mem_write[3] = {
 
 static void apc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    MiscState *s = opaque;
+    APCState *s = opaque;
 
     MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
     qemu_irq_raise(s->cpu_halt);
@@ -434,75 +440,148 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
+void *slavio_misc_init(target_phys_addr_t base,
                        target_phys_addr_t aux1_base,
                        target_phys_addr_t aux2_base, qemu_irq irq,
-                       qemu_irq cpu_halt, qemu_irq **fdc_tc)
+                       qemu_irq fdc_tc)
 {
-    int io;
-    MiscState *s;
+    DeviceState *dev;
+    SysBusDevice *s;
+    MiscState *d;
 
-    s = qemu_mallocz(sizeof(MiscState));
-
+    dev = qdev_create(NULL, "slavio_misc");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
     if (base) {
         /* 8 bit registers */
-
-        // Slavio control
-        io = cpu_register_io_memory(slavio_cfg_mem_read,
-                                    slavio_cfg_mem_write, s);
-        cpu_register_physical_memory(base + MISC_CFG, MISC_SIZE, io);
-
-        // Diagnostics
-        io = cpu_register_io_memory(slavio_diag_mem_read,
-                                    slavio_diag_mem_write, s);
-        cpu_register_physical_memory(base + MISC_DIAG, MISC_SIZE, io);
-
-        // Modem control
-        io = cpu_register_io_memory(slavio_mdm_mem_read,
-                                    slavio_mdm_mem_write, s);
-        cpu_register_physical_memory(base + MISC_MDM, MISC_SIZE, io);
-
+        /* Slavio control */
+        sysbus_mmio_map(s, 0, base + MISC_CFG);
+        /* Diagnostics */
+        sysbus_mmio_map(s, 1, base + MISC_DIAG);
+        /* Modem control */
+        sysbus_mmio_map(s, 2, base + MISC_MDM);
         /* 16 bit registers */
-        io = cpu_register_io_memory(slavio_led_mem_read,
-                                    slavio_led_mem_write, s);
         /* ss600mp diag LEDs */
-        cpu_register_physical_memory(base + MISC_LEDS, MISC_SIZE, io);
-
+        sysbus_mmio_map(s, 3, base + MISC_LEDS);
         /* 32 bit registers */
-        io = cpu_register_io_memory(slavio_sysctrl_mem_read,
-                                    slavio_sysctrl_mem_write, s);
-        // System control
-        cpu_register_physical_memory(base + MISC_SYS, SYSCTRL_SIZE, io);
+        /* System control */
+        sysbus_mmio_map(s, 4, base + MISC_SYS);
     }
-
-    // AUX 1 (Misc System Functions)
     if (aux1_base) {
-        io = cpu_register_io_memory(slavio_aux1_mem_read,
-                                    slavio_aux1_mem_write, s);
-        cpu_register_physical_memory(aux1_base, MISC_SIZE, io);
+        /* AUX 1 (Misc System Functions) */
+        sysbus_mmio_map(s, 5, aux1_base);
     }
-
-    // AUX 2 (Software Powerdown Control)
     if (aux2_base) {
-        io = cpu_register_io_memory(slavio_aux2_mem_read,
-                                    slavio_aux2_mem_write, s);
-        cpu_register_physical_memory(aux2_base, MISC_SIZE, io);
+        /* AUX 2 (Software Powerdown Control) */
+        sysbus_mmio_map(s, 6, aux2_base);
     }
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_connect_irq(s, 1, fdc_tc);
 
-    // Power management (APC) XXX: not a Slavio device
-    if (power_base) {
-        io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
-        cpu_register_physical_memory(power_base, MISC_SIZE, io);
-    }
+    d = FROM_SYSBUS(MiscState, s);
 
-    s->irq = irq;
-    s->cpu_halt = cpu_halt;
-    *fdc_tc = &s->fdc_tc;
+    return d;
+}
 
-    register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load,
+static void apc_init1(SysBusDevice *dev)
+{
+    APCState *s = FROM_SYSBUS(APCState, dev);
+    int io;
+
+    sysbus_init_irq(dev, &s->cpu_halt);
+
+    /* Power management (APC) XXX: not a Slavio device */
+    io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+}
+
+void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "apc");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    /* Power management (APC) XXX: not a Slavio device */
+    sysbus_mmio_map(s, 0, power_base);
+    sysbus_connect_irq(s, 0, cpu_halt);
+}
+
+static void slavio_misc_init1(SysBusDevice *dev)
+{
+    MiscState *s = FROM_SYSBUS(MiscState, dev);
+    int io;
+
+    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &s->fdc_tc);
+
+    /* 8 bit registers */
+    /* Slavio control */
+    io = cpu_register_io_memory(slavio_cfg_mem_read,
+                                slavio_cfg_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    /* Diagnostics */
+    io = cpu_register_io_memory(slavio_diag_mem_read,
+                                slavio_diag_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    /* Modem control */
+    io = cpu_register_io_memory(slavio_mdm_mem_read,
+                                slavio_mdm_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    /* 16 bit registers */
+    /* ss600mp diag LEDs */
+    io = cpu_register_io_memory(slavio_led_mem_read,
+                                slavio_led_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    /* 32 bit registers */
+    /* System control */
+    io = cpu_register_io_memory(slavio_sysctrl_mem_read,
+                                slavio_sysctrl_mem_write, s);
+    sysbus_init_mmio(dev, SYSCTRL_SIZE, io);
+
+    /* AUX 1 (Misc System Functions) */
+    io = cpu_register_io_memory(slavio_aux1_mem_read,
+                                slavio_aux1_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    /* AUX 2 (Software Powerdown Control) */
+    io = cpu_register_io_memory(slavio_aux2_mem_read,
+                                slavio_aux2_mem_write, s);
+    sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    register_savevm("slavio_misc", -1, 1, slavio_misc_save, slavio_misc_load,
                     s);
     qemu_register_reset(slavio_misc_reset, s);
     slavio_misc_reset(s);
-
-    return s;
 }
+
+static SysBusDeviceInfo slavio_misc_info = {
+    .init = slavio_misc_init1,
+    .qdev.name  = "slavio_misc",
+    .qdev.size  = sizeof(MiscState),
+    .qdev.props = (DevicePropList[]) {
+        {.name = NULL}
+    }
+};
+
+static SysBusDeviceInfo apc_info = {
+    .init = apc_init1,
+    .qdev.name  = "apc",
+    .qdev.size  = sizeof(MiscState),
+    .qdev.props = (DevicePropList[]) {
+        {.name = NULL}
+    }
+};
+
+static void slavio_misc_register_devices(void)
+{
+    sysbus_register_withprop(&slavio_misc_info);
+    sysbus_register_withprop(&apc_info);
+}
+
+device_init(slavio_misc_register_devices)

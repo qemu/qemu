@@ -435,7 +435,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    qemu_irq *fdc_tc;
+    qemu_irq fdc_tc;
     qemu_irq *cpu_halt;
     ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
@@ -553,10 +553,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
     cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
-    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->apc_base,
+    slavio_misc = slavio_misc_init(hwdef->slavio_base,
                                    hwdef->aux1_base, hwdef->aux2_base,
-                                   slavio_irq[hwdef->me_irq], cpu_halt[0],
-                                   &fdc_tc);
+                                   slavio_irq[hwdef->me_irq], fdc_tc);
+    if (hwdef->apc_base) {
+        apc_init(hwdef->apc_base, cpu_halt[0]);
+    }
 
     if (hwdef->fd_base) {
         /* there is zero or one floppy drive */
@@ -566,7 +568,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
             fd[0] = drives_table[drive_index].bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
-                          fdc_tc);
+                          &fdc_tc);
     }
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
@@ -1443,7 +1445,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs, *slavio_irq, *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    qemu_irq *fdc_tc;
+    qemu_irq fdc_tc;
     ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
     int ret;
@@ -1539,8 +1541,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
               slavio_irq[hwdef->ser_irq], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);
 
-    slavio_misc = slavio_misc_init(0, 0, hwdef->aux1_base, 0,
-                                   slavio_irq[hwdef->me_irq], NULL, &fdc_tc);
+    slavio_misc = slavio_misc_init(0, hwdef->aux1_base, 0,
+                                   slavio_irq[hwdef->me_irq], fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
@@ -1550,7 +1552,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
             fd[0] = drives_table[drive_index].bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
-                          fdc_tc);
+                          &fdc_tc);
     }
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
