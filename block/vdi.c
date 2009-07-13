@@ -509,13 +509,13 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     VdiAIOCB *acb = opaque;
     BlockDriverState *bs = acb->common.bs;
     BDRVVdiState *s = bs->opaque;
-    size_t n_bytes;
     uint32_t blockmap_entry;
     uint32_t block_index;
     uint32_t sector_in_block;
-    uint32_t n_sectors;
+    uint32_t n_sectors = acb->n_sectors;
+    size_t n_bytes = n_sectors * SECTOR_SIZE;
 
-    logout("\n");
+    logout("%u sectors read\n", n_sectors);
 
     acb->hd_aiocb = NULL;
 
@@ -523,8 +523,6 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         goto done;
     }
 
-    n_sectors = acb->n_sectors;
-    n_bytes = n_sectors * SECTOR_SIZE;
     acb->nb_sectors -= n_sectors;
     acb->sector_num += n_sectors;
     acb->buf += n_bytes;
@@ -542,6 +540,9 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         n_sectors = acb->nb_sectors;
     }
     n_bytes = n_sectors * SECTOR_SIZE;
+
+    logout("will read %u sectors starting at sector %" PRIu64 "\n",
+           n_sectors, acb->sector_num);
 
     /* prepare next AIO request */
     acb->n_sectors = n_sectors;
@@ -595,13 +596,13 @@ static void vdi_aio_write_cb(void *opaque, int ret)
     VdiAIOCB *acb = opaque;
     BlockDriverState *bs = acb->common.bs;
     BDRVVdiState *s = bs->opaque;
-    size_t n_bytes;
     uint32_t blockmap_entry;
     uint32_t block_index;
     uint32_t sector_in_block;
-    uint32_t n_sectors;
+    uint32_t n_sectors = acb->n_sectors;
+    size_t n_bytes = n_sectors * SECTOR_SIZE;
 
-    logout("\n");
+    logout("%u sectors written\n", n_sectors);
 
     acb->hd_aiocb = NULL;
 
@@ -609,8 +610,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         goto done;
     }
 
-    n_sectors = acb->n_sectors;
-    n_bytes = n_sectors * SECTOR_SIZE;
     acb->nb_sectors -= n_sectors;
     acb->sector_num += n_sectors;
     acb->buf += n_bytes;
@@ -629,14 +628,21 @@ static void vdi_aio_write_cb(void *opaque, int ret)
     }
     n_bytes = n_sectors * SECTOR_SIZE;
 
+    logout("will write %u sectors starting at sector %" PRIu64 "\n",
+           n_sectors, acb->sector_num);
+
     /* prepare next AIO request */
     acb->n_sectors = n_sectors;
     blockmap_entry = le32_to_cpu(s->blockmap[block_index]);
     if (blockmap_entry == VDI_UNALLOCATED) {
-        uint64_t offset = s->header.offset_data / SECTOR_SIZE +
-                          (uint64_t)blockmap_entry * s->block_sectors +
-                          sector_in_block;
+        /* Allocate new block and write to it. */
+        uint64_t offset;
         uint8_t *block;
+        blockmap_entry = s->header.blocks_allocated;
+        s->blockmap[block_index] = cpu_to_le32(blockmap_entry);
+        s->header.blocks_allocated++;
+        offset = s->header.offset_data / SECTOR_SIZE +
+                 (uint64_t)blockmap_entry * s->block_sectors;
         block = qemu_mallocz(s->block_size);
         memcpy(block + sector_in_block * SECTOR_SIZE, acb->buf, n_bytes);
         acb->allocated = 1;
