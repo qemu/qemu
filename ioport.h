@@ -26,6 +26,9 @@
 
 #include "qemu-common.h"
 
+typedef uint32_t pio_addr_t;
+#define FMT_pioaddr     PRIx32
+
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
@@ -33,22 +36,22 @@
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
 
-int register_ioport_read(int start, int length, int size,
+int register_ioport_read(pio_addr_t start, int length, int size,
                          IOPortReadFunc *func, void *opaque);
-int register_ioport_write(int start, int length, int size,
+int register_ioport_write(pio_addr_t start, int length, int size,
                           IOPortWriteFunc *func, void *opaque);
-void isa_unassign_ioport(int start, int length);
+void isa_unassign_ioport(pio_addr_t start, int length);
 
 
 /* NOTE: as these functions may be even used when there is an isa
    brige on non x86 targets, we always defined them */
 #if !defined(NO_CPU_IO_DEFS) && defined(NEED_CPU_H)
-void cpu_outb(CPUState *env, int addr, int val);
-void cpu_outw(CPUState *env, int addr, int val);
-void cpu_outl(CPUState *env, int addr, int val);
-int cpu_inb(CPUState *env, int addr);
-int cpu_inw(CPUState *env, int addr);
-int cpu_inl(CPUState *env, int addr);
+void cpu_outb(CPUState *env, pio_addr_t addr, uint8_t val);
+void cpu_outw(CPUState *env, pio_addr_t addr, uint16_t val);
+void cpu_outl(CPUState *env, pio_addr_t addr, uint32_t val);
+uint8_t cpu_inb(CPUState *env, pio_addr_t addr);
+uint16_t cpu_inw(CPUState *env, pio_addr_t addr);
+uint32_t cpu_inl(CPUState *env, pio_addr_t addr);
 #endif
 
 #endif /* IOPORT_H */
