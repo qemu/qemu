@@ -109,7 +109,6 @@ static void exec_accept_incoming_migration(void *opaque)
     QEMUFile *f = opaque;
     int ret;
 
-    vm_stop(0); /* just in case */
     ret = qemu_loadvm_state(f);
     if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
@@ -119,7 +118,6 @@ static void exec_accept_incoming_migration(void *opaque)
     dprintf("successfully loaded vm state\n");
     /* we've successfully migrated, close the fd */
     qemu_set_fd_handler2(qemu_popen_fd(f), NULL, NULL, NULL, NULL);
-    vm_start();
 
 err:
     qemu_fclose(f);

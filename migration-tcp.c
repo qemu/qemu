@@ -155,7 +155,6 @@ static void tcp_accept_incoming_migration(void *opaque)
         goto out;
     }
 
-    vm_stop(0); /* just in case */
     ret = qemu_loadvm_state(f);
     if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
@@ -167,8 +166,6 @@ static void tcp_accept_incoming_migration(void *opaque)
     /* we've successfully migrated, close the server socket */
     qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
     close(s);
-
-    vm_start();
 
 out_fopen:
     qemu_fclose(f);
