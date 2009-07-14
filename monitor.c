@@ -1185,6 +1185,25 @@ static void do_ioport_read(Monitor *mon, int count, int format, int size,
                    suffix, addr, size * 2, val);
 }
 
+static void do_ioport_write(Monitor *mon, int count, int format, int size,
+                            int addr, int val)
+{
+    addr &= IOPORTS_MASK;
+
+    switch (size) {
+    default:
+    case 1:
+        cpu_outb(NULL, addr, val);
+        break;
+    case 2:
+        cpu_outw(NULL, addr, val);
+        break;
+    case 4:
+        cpu_outl(NULL, addr, val);
+        break;
+    }
+}
+
 static void do_boot_set(Monitor *mon, const char *bootdevice)
 {
     int res;

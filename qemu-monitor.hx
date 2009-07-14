@@ -306,6 +306,11 @@ STEXI
 Read I/O port.
 ETEXI
 
+    { "o", "/ii", do_ioport_write,
+      "/fmt addr value", "I/O port write" },
+STEXI
+Write to I/O port.
+ETEXI
 
     { "sendkey", "si?", do_sendkey,
       "keys [hold_ms]", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)" },
