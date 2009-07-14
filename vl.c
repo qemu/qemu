@@ -5721,10 +5721,8 @@ int main(int argc, char **argv, char **envp)
     if (loadvm)
         do_loadvm(loadvm);
 
-    if (incoming) {
-        autostart = 0; /* fixme how to deal with -daemonize */
+    if (incoming)
         qemu_start_incoming_migration(incoming);
-    }
 
     if (autostart)
         vm_start();
