@@ -61,7 +61,7 @@ $QEMU_IO -c "read -pP 0xa 0 $size" $TEST_IMG | _filter_qemu_io
 
 echo
 echo "unaligned pwrite"
-$QEMU_IO -c 'write -pP 0axb 66 42' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'write -pP 0xab 66 42' $TEST_IMG | _filter_qemu_io
 
 echo
 echo "verify pattern"
