@@ -33,6 +33,12 @@
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
+#ifdef DEBUG_UNUSED_IOPORT
+#  define LOG_UNUSED_IOPORT(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
+#else
+#  define LOG_UNUSED_IOPORT(fmt, ...) do{ } while (0)
+#endif
+
 #ifdef DEBUG_IOPORT
 #  define LOG_IOPORT(...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
 #else
@@ -76,17 +82,14 @@ static void ioport_write(int index, uint32_t address, uint32_t data)
 
 static uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused inb: port=0x%04x\n", address);
-#endif
+    LOG_UNUSED_IOPORT("unused inb: port=0x%04"PRIx32"\n", address);
     return 0xff;
 }
 
 static void default_ioport_writeb(void *opaque, uint32_t address, uint32_t data)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused outb: port=0x%04x data=0x%02x\n", address, data);
-#endif
+    LOG_UNUSED_IOPORT("unused outb: port=0x%04"PRIx32" data=0x%02"PRIx32"\n",
+                      address, data);
 }
 
 /* default is to make two byte accesses */
@@ -108,17 +111,14 @@ static void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
 
 static uint32_t default_ioport_readl(void *opaque, uint32_t address)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused inl: port=0x%04x\n", address);
-#endif
+    LOG_UNUSED_IOPORT("unused inl: port=0x%04"PRIx32"\n", address);
     return 0xffffffff;
 }
 
 static void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused outl: port=0x%04x data=0x%02x\n", address, data);
-#endif
+    LOG_UNUSED_IOPORT("unused outl: port=0x%04"PRIx32" data=0x%02"PRIx32"\n",
+                      address, data);
 }
 
 static int ioport_bsize(int size, int *bsize)
