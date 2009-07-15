@@ -82,6 +82,7 @@ struct CompatProperty {
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 DeviceState *qdev_create(BusState *bus, const char *name);
+DeviceState *qdev_device_add(const char *cmdline);
 void qdev_init(DeviceState *dev);
 void qdev_free(DeviceState *dev);
 

@@ -35,6 +35,10 @@ static BusState *main_system_bus;
 
 static DeviceInfo *device_info_list;
 
+static BusState *qbus_find_recursive(BusState *bus, const char *name,
+                                     const BusInfo *info);
+static BusState *qbus_find(const char *path);
+
 /* Register a new device type.  */
 void qdev_register(DeviceInfo *info)
 {
@@ -99,6 +103,80 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     qdev_prop_set_compat(dev);
     LIST_INSERT_HEAD(&bus->children, dev, sibling);
     return dev;
+}
+
+DeviceState *qdev_device_add(const char *cmdline)
+{
+    DeviceInfo *info;
+    DeviceState *qdev;
+    BusState *bus;
+    char driver[32], path[128] = "";
+    char tag[32], value[256];
+    const char *params = NULL;
+    int n = 0;
+
+    if (1 != sscanf(cmdline, "%32[^,],%n", driver, &n)) {
+        fprintf(stderr, "device parse error: \"%s\"\n", cmdline);
+        return NULL;
+    }
+    if (strcmp(driver, "?") == 0) {
+        for (info = device_info_list; info != NULL; info = info->next) {
+            fprintf(stderr, "name \"%s\", bus %s\n", info->name, info->bus_info->name);
+        }
+        return NULL;
+    }
+    if (n) {
+        params = cmdline + n;
+        get_param_value(path, sizeof(path), "bus",  params);
+    }
+    info = qdev_find_info(NULL, driver);
+    if (!info) {
+        fprintf(stderr, "Device \"%s\" not found.  Try -device '?' for a list.\n",
+                driver);
+        return NULL;
+    }
+    if (info->no_user) {
+        fprintf(stderr, "device \"%s\" can't be added via command line\n",
+                info->name);
+        return NULL;
+    }
+
+    if (strlen(path)) {
+        bus = qbus_find(path);
+        if (!bus)
+            return NULL;
+        qdev = qdev_create(bus, driver);
+    } else {
+        bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
+        if (!bus)
+            return NULL;
+        qdev = qdev_create(bus, driver);
+    }
+
+    if (params) {
+        while (params[0]) {
+            if (2 != sscanf(params, "%31[^=]=%255[^,]%n", tag, value, &n)) {
+                fprintf(stderr, "parse error at \"%s\"\n", params);
+                break;
+            }
+            params += n;
+            if (params[0] == ',')
+                params++;
+            if (strcmp(tag, "bus") == 0)
+                continue;
+            if (strcmp(tag, "id") == 0) {
+                qdev->id = qemu_strdup(value);
+                continue;
+            }
+            if (-1 == qdev_prop_parse(qdev, tag, value)) {
+                fprintf(stderr, "can't set property \"%s\" to \"%s\" for \"%s\"\n",
+                        tag, value, driver);
+            }
+        }
+    }
+
+    qdev_init(qdev);
+    return qdev;
 }
 
 /* Initialize a device.  Device properties should be set before calling
@@ -227,6 +305,179 @@ void scsi_bus_new(DeviceState *host, SCSIAttachFn attach)
        }
        attach(host, drives_table[index].bdrv, unit);
    }
+}
+
+static BusState *qbus_find_recursive(BusState *bus, const char *name,
+                                     const BusInfo *info)
+{
+    DeviceState *dev;
+    BusState *child, *ret;
+    int match = 1;
+
+    if (name && (strcmp(bus->name, name) != 0)) {
+        match = 0;
+    }
+    if (info && (bus->info != info)) {
+        match = 0;
+    }
+    if (match) {
+        return bus;
+    }
+
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        LIST_FOREACH(child, &dev->child_bus, sibling) {
+            ret = qbus_find_recursive(child, name, info);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
+    return NULL;
+}
+
+static void qbus_list_bus(DeviceState *dev, char *dest, int len)
+{
+    BusState *child;
+    const char *sep = " ";
+    int pos = 0;
+
+    pos += snprintf(dest+pos, len-pos,"child busses at \"%s\":",
+                    dev->id ? dev->id : dev->info->name);
+    LIST_FOREACH(child, &dev->child_bus, sibling) {
+        pos += snprintf(dest+pos, len-pos, "%s\"%s\"", sep, child->name);
+        sep = ", ";
+    }
+}
+
+static void qbus_list_dev(BusState *bus, char *dest, int len)
+{
+    DeviceState *dev;
+    const char *sep = " ";
+    int pos = 0;
+
+    pos += snprintf(dest+pos, len-pos, "devices at \"%s\":",
+                    bus->name);
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        pos += snprintf(dest+pos, len-pos, "%s\"%s\"",
+                        sep, dev->info->name);
+        if (dev->id)
+            pos += snprintf(dest+pos, len-pos, "/\"%s\"", dev->id);
+        sep = ", ";
+    }
+}
+
+static BusState *qbus_find_bus(DeviceState *dev, char *elem)
+{
+    BusState *child;
+
+    LIST_FOREACH(child, &dev->child_bus, sibling) {
+        if (strcmp(child->name, elem) == 0) {
+            return child;
+        }
+    }
+    return NULL;
+}
+
+static DeviceState *qbus_find_dev(BusState *bus, char *elem)
+{
+    DeviceState *dev;
+
+    /*
+     * try to match in order:
+     *   (1) instance id, if present
+     *   (2) driver name
+     *   (3) driver alias, if present
+     */
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        if (dev->id  &&  strcmp(dev->id, elem) == 0) {
+            return dev;
+        }
+    }
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        if (strcmp(dev->info->name, elem) == 0) {
+            return dev;
+        }
+    }
+    LIST_FOREACH(dev, &bus->children, sibling) {
+        if (dev->info->alias && strcmp(dev->info->alias, elem) == 0) {
+            return dev;
+        }
+    }
+    return NULL;
+}
+
+static BusState *qbus_find(const char *path)
+{
+    DeviceState *dev;
+    BusState *bus;
+    char elem[128], msg[256];
+    int pos, len;
+
+    /* find start element */
+    if (path[0] == '/') {
+        bus = main_system_bus;
+        pos = 0;
+    } else {
+        if (sscanf(path, "%127[^/]%n", elem, &len) != 1) {
+            fprintf(stderr, "path parse error (\"%s\")\n", path);
+            return NULL;
+        }
+        bus = qbus_find_recursive(main_system_bus, elem, NULL);
+        if (!bus) {
+            fprintf(stderr, "bus \"%s\" not found\n", elem);
+            return NULL;
+        }
+        pos = len;
+    }
+
+    for (;;) {
+        if (path[pos] == '\0') {
+            /* we are done */
+            return bus;
+        }
+
+        /* find device */
+        if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
+            fprintf(stderr, "path parse error (\"%s\" pos %d)\n", path, pos);
+            return NULL;
+        }
+        pos += len;
+        dev = qbus_find_dev(bus, elem);
+        if (!dev) {
+            qbus_list_dev(bus, msg, sizeof(msg));
+            fprintf(stderr, "device \"%s\" not found\n%s\n", elem, msg);
+            return NULL;
+        }
+        if (path[pos] == '\0') {
+            /* last specified element is a device.  If it has exactly
+             * one child bus accept it nevertheless */
+            switch (dev->num_child_bus) {
+            case 0:
+                fprintf(stderr, "device has no child bus (%s)\n", path);
+                return NULL;
+            case 1:
+                return LIST_FIRST(&dev->child_bus);
+            default:
+                qbus_list_bus(dev, msg, sizeof(msg));
+                fprintf(stderr, "device has multiple child busses (%s)\n%s\n",
+                        path, msg);
+                return NULL;
+            }
+        }
+
+        /* find bus */
+        if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
+            fprintf(stderr, "path parse error (\"%s\" pos %d)\n", path, pos);
+            return NULL;
+        }
+        pos += len;
+        bus = qbus_find_bus(dev, elem);
+        if (!bus) {
+            qbus_list_bus(dev, msg, sizeof(msg));
+            fprintf(stderr, "child bus \"%s\" not found\n%s\n", elem, msg);
+            return NULL;
+        }
+    }
 }
 
 BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
