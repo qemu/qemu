@@ -21,9 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+
 #include "sun4m.h"
 #include "qemu-timer.h"
+#include "sysbus.h"
 
 //#define DEBUG_TIMER
 
@@ -52,6 +53,7 @@
 #define MAX_CPUS 16
 
 typedef struct SLAVIO_TIMERState {
+    SysBusDevice busdev;
     qemu_irq irq;
     ptimer_state *timer;
     uint32_t count, counthigh, reached;
@@ -364,36 +366,56 @@ static void slavio_timer_reset(void *opaque)
 static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
                                             qemu_irq irq,
                                             SLAVIO_TIMERState *master,
-                                            uint32_t slave_index)
+                                            uint32_t slave_index,
+                                            uint32_t num_slaves)
 {
-    int slavio_timer_io_memory;
-    SLAVIO_TIMERState *s;
+    DeviceState *dev;
+    SysBusDevice *s;
+    SLAVIO_TIMERState *d;
+
+    dev = qdev_create(NULL, "slavio_timer");
+    qdev_set_prop_int(dev, "slave_index", slave_index);
+    qdev_set_prop_int(dev, "num_slaves", num_slaves);
+    qdev_set_prop_ptr(dev, "master", master);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_mmio_map(s, 0, addr);
+
+    d = FROM_SYSBUS(SLAVIO_TIMERState, s);
+
+    return d;
+}
+
+static void slavio_timer_init1(SysBusDevice *dev)
+{
+    int io;
+    SLAVIO_TIMERState *s = FROM_SYSBUS(SLAVIO_TIMERState, dev);
     QEMUBH *bh;
 
-    s = qemu_mallocz(sizeof(SLAVIO_TIMERState));
-    s->irq = irq;
-    s->master = master;
-    s->slave_index = slave_index;
-    if (!master || slave_index < master->num_slaves) {
+    sysbus_init_irq(dev, &s->irq);
+    s->num_slaves = qdev_get_prop_int(&dev->qdev, "num_slaves", 0);
+    s->slave_index = qdev_get_prop_int(&dev->qdev, "slave_index", 0);
+    s->master = qdev_get_prop_ptr(&dev->qdev, "master");
+
+    if (!s->master || s->slave_index < s->master->num_slaves) {
         bh = qemu_bh_new(slavio_timer_irq, s);
         s->timer = ptimer_init(bh);
         ptimer_set_period(s->timer, TIMER_PERIOD);
     }
 
-    slavio_timer_io_memory = cpu_register_io_memory(slavio_timer_mem_read,
-                                                    slavio_timer_mem_write, s);
-    if (master)
-        cpu_register_physical_memory(addr, CPU_TIMER_SIZE,
-                                     slavio_timer_io_memory);
-    else
-        cpu_register_physical_memory(addr, SYS_TIMER_SIZE,
-                                     slavio_timer_io_memory);
-    register_savevm("slavio_timer", addr, 3, slavio_timer_save,
+    io = cpu_register_io_memory(slavio_timer_mem_read, slavio_timer_mem_write,
+                                s);
+    if (s->master) {
+        sysbus_init_mmio(dev, CPU_TIMER_SIZE, io);
+    } else {
+        sysbus_init_mmio(dev, SYS_TIMER_SIZE, io);
+    }
+
+    register_savevm("slavio_timer", -1, 3, slavio_timer_save,
                     slavio_timer_load, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);
-
-    return s;
 }
 
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
@@ -402,13 +424,31 @@ void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
     SLAVIO_TIMERState *master;
     unsigned int i;
 
-    master = slavio_timer_init(base + SYS_TIMER_OFFSET, master_irq, NULL, 0);
-
-    master->num_slaves = num_cpus;
+    master = slavio_timer_init(base + SYS_TIMER_OFFSET, master_irq, NULL, 0,
+                               num_cpus);
 
     for (i = 0; i < MAX_CPUS; i++) {
         master->slave[i] = slavio_timer_init(base + (target_phys_addr_t)
                                              CPU_TIMER_OFFSET(i),
-                                             cpu_irqs[i], master, i);
+                                             cpu_irqs[i], master, i, 0);
     }
 }
+
+static SysBusDeviceInfo slavio_timer_info = {
+    .init = slavio_timer_init1,
+    .qdev.name  = "slavio_timer",
+    .qdev.size  = sizeof(SLAVIO_TIMERState),
+    .qdev.props = (DevicePropList[]) {
+        {.name = "num_slaves", .type = PROP_TYPE_INT},
+        {.name = "slave_index", .type = PROP_TYPE_INT},
+        {.name = "master", .type = PROP_TYPE_PTR},
+        {.name = NULL}
+    }
+};
+
+static void slavio_timer_register_devices(void)
+{
+    sysbus_register_withprop(&slavio_timer_info);
+}
+
+device_init(slavio_timer_register_devices)
