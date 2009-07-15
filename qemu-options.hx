@@ -381,6 +381,8 @@ Network adapter that supports CDC ethernet and RNDIS protocols.
 @end table
 ETEXI
 
+DEF("device", HAS_ARG, QEMU_OPTION_device,
+    "-device driver[,options]  add device\n")
 DEF("name", HAS_ARG, QEMU_OPTION_name,
     "-name string1[,process=string2]    set the name of the guest\n"
     "            string1 sets the window title and string2 the process name (on Linux)\n")
