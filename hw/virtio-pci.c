@@ -86,12 +86,6 @@ typedef struct {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
     uint32_t addr;
-
-    uint16_t vendor;
-    uint16_t device;
-    uint16_t subvendor;
-    uint16_t class_code;
-    uint8_t pif;
 } VirtIOPCIProxy;
 
 /* virtio device */
