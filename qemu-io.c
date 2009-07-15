@@ -187,6 +187,22 @@ static int do_pwrite(char *buf, int64_t offset, int count, int *total)
 	return 1;
 }
 
+static int do_load_vmstate(char *buf, int64_t offset, int count, int *total)
+{
+	*total = bdrv_load_vmstate(bs, (uint8_t *)buf, offset, count);
+	if (*total < 0)
+		return *total;
+	return 1;
+}
+
+static int do_save_vmstate(char *buf, int64_t offset, int count, int *total)
+{
+	*total = bdrv_save_vmstate(bs, (uint8_t *)buf, offset, count);
+	if (*total < 0)
+		return *total;
+	return 1;
+}
+
 #define NOT_DONE 0x7fffffff
 static void aio_rw_done(void *opaque, int ret)
 {
@@ -242,6 +258,7 @@ read_help(void)
 "\n"
 " Reads a segment of the currently open file, optionally dumping it to the\n"
 " standard output stream (with -v option) for subsequent inspection.\n"
+" -b, -- read from the VM state rather than the virtual disk\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -l, -- length for pattern verification (only with -P)\n"
 " -p, -- use bdrv_pread to read the file\n"
@@ -257,7 +274,7 @@ read_f(int argc, char **argv)
 {
 	struct timeval t1, t2;
 	int Cflag = 0, pflag = 0, qflag = 0, vflag = 0;
-	int Pflag = 0, sflag = 0, lflag = 0;
+	int Pflag = 0, sflag = 0, lflag = 0, bflag = 0;
 	int c, cnt;
 	char *buf;
 	int64_t offset;
@@ -266,8 +283,11 @@ read_f(int argc, char **argv)
         int total = 0;
 	int pattern = 0, pattern_offset = 0, pattern_count = 0;
 
-	while ((c = getopt(argc, argv, "Cl:pP:qs:v")) != EOF) {
+	while ((c = getopt(argc, argv, "bCl:pP:qs:v")) != EOF) {
 		switch (c) {
+		case 'b':
+			bflag = 1;
+			break;
 		case 'C':
 			Cflag = 1;
 			break;
@@ -307,6 +327,11 @@ read_f(int argc, char **argv)
 
 	if (optind != argc - 2)
 		return command_usage(&read_cmd);
+
+	if (bflag && pflag) {
+		printf("-b and -p cannot be specified at the same time\n");
+		return 0;
+	}
 
 	offset = cvtnum(argv[optind]);
 	if (offset < 0) {
@@ -352,6 +377,8 @@ read_f(int argc, char **argv)
 	gettimeofday(&t1, NULL);
 	if (pflag)
 		cnt = do_pread(buf, offset, count, &total);
+	else if (bflag)
+		cnt = do_load_vmstate(buf, offset, count, &total);
 	else
 		cnt = do_read(buf, offset, count, &total);
 	gettimeofday(&t2, NULL);
@@ -394,7 +421,7 @@ static const cmdinfo_t read_cmd = {
 	.cfunc		= read_f,
 	.argmin		= 2,
 	.argmax		= -1,
-	.args		= "[-aCpqv] [-P pattern [-s off] [-l len]] off len",
+	.args		= "[-abCpqv] [-P pattern [-s off] [-l len]] off len",
 	.oneline	= "reads a number of bytes at a specified offset",
 	.help		= read_help,
 };
@@ -534,6 +561,7 @@ write_help(void)
 "\n"
 " Writes into a segment of the currently open file, using a buffer\n"
 " filled with a set pattern (0xcdcdcdcd).\n"
+" -b, -- write to the VM state rather than the virtual disk\n"
 " -p, -- use bdrv_pwrite to write the file\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
@@ -545,7 +573,7 @@ static int
 write_f(int argc, char **argv)
 {
 	struct timeval t1, t2;
-	int Cflag = 0, pflag = 0, qflag = 0;
+	int Cflag = 0, pflag = 0, qflag = 0, bflag = 0;
 	int c, cnt;
 	char *buf;
 	int64_t offset;
@@ -554,8 +582,11 @@ write_f(int argc, char **argv)
         int total = 0;
 	int pattern = 0xcd;
 
-	while ((c = getopt(argc, argv, "CpP:q")) != EOF) {
+	while ((c = getopt(argc, argv, "bCpP:q")) != EOF) {
 		switch (c) {
+		case 'b':
+			bflag = 1;
+			break;
 		case 'C':
 			Cflag = 1;
 			break;
@@ -575,6 +606,11 @@ write_f(int argc, char **argv)
 
 	if (optind != argc - 2)
 		return command_usage(&write_cmd);
+
+	if (bflag && pflag) {
+		printf("-b and -p cannot be specified at the same time\n");
+		return 0;
+	}
 
 	offset = cvtnum(argv[optind]);
 	if (offset < 0) {
@@ -608,6 +644,8 @@ write_f(int argc, char **argv)
 	gettimeofday(&t1, NULL);
 	if (pflag)
 		cnt = do_pwrite(buf, offset, count, &total);
+	else if (bflag)
+		cnt = do_save_vmstate(buf, offset, count, &total);
 	else
 		cnt = do_write(buf, offset, count, &total);
 	gettimeofday(&t2, NULL);
@@ -636,7 +674,7 @@ static const cmdinfo_t write_cmd = {
 	.cfunc		= write_f,
 	.argmin		= 2,
 	.argmax		= -1,
-	.args		= "[-aCpq] [-P pattern ] off len",
+	.args		= "[-abCpq] [-P pattern ] off len",
 	.oneline	= "writes a number of bytes at a specified offset",
 	.help		= write_help,
 };
