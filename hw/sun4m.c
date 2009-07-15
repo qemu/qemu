@@ -433,7 +433,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     unsigned int i;
     void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
-        *espdma_irq, *ledma_irq;
+        espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq fdc_tc;
     qemu_irq *cpu_halt;
@@ -537,7 +537,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
@@ -578,7 +578,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, *espdma_irq, esp_reset);
+             espdma, espdma_irq, esp_reset);
 
     if (hwdef->cs_base)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
@@ -1223,7 +1223,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     unsigned int i;
     void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram, *sbi;
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
-        *espdma_irq, *ledma_irq;
+        espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
@@ -1315,7 +1315,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
     nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
@@ -1337,7 +1337,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, *espdma_irq, esp_reset);
+             espdma, espdma_irq, esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
@@ -1443,7 +1443,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 {
     CPUState *env;
     void *iommu, *espdma, *ledma, *nvram;
-    qemu_irq *cpu_irqs, *slavio_irq, *espdma_irq, *ledma_irq;
+    qemu_irq *cpu_irqs, *slavio_irq, espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq fdc_tc;
     ram_addr_t ram_offset, prom_offset;
@@ -1528,7 +1528,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 2);
@@ -1562,7 +1562,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, *espdma_irq, esp_reset);
+             espdma, espdma_irq, esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
