@@ -19,6 +19,7 @@
 #include "pci.h"
 //#include "sysemu.h"
 #include "msix.h"
+#include "net.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -87,6 +88,7 @@ typedef struct {
     VirtIODevice *vdev;
     uint32_t addr;
     uint32_t class_code;
+    uint32_t nvectors;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -486,11 +488,21 @@ static void virtio_net_init_pci(PCIDevice *pci_dev)
     VirtIODevice *vdev;
 
     vdev = virtio_net_init(&pci_dev->qdev);
+
+    /* set nvectors from property, unless the user specified something
+     * via -net nic,model=virtio,vectors=n command line option */
+    if (pci_dev->qdev.nd->nvectors == NIC_NVECTORS_UNSPECIFIED)
+        if (proxy->nvectors != NIC_NVECTORS_UNSPECIFIED)
+            vdev->nvectors = proxy->nvectors;
+
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_NET,
                     PCI_CLASS_NETWORK_ETHERNET,
                     0x00);
+
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
 }
 
 static void virtio_balloon_init_pci(PCIDevice *pci_dev)
@@ -520,9 +532,18 @@ static PCIDeviceInfo virtio_info[] = {
             {/* end of list */}
         },
     },{
-        .qdev.name = "virtio-net-pci",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_net_init_pci,
+        .qdev.name  = "virtio-net-pci",
+        .qdev.size  = sizeof(VirtIOPCIProxy),
+        .init       = virtio_net_init_pci,
+        .qdev.props = (Property[]) {
+            {
+                .name   = "vectors",
+                .info   = &qdev_prop_uint32,
+                .offset = offsetof(VirtIOPCIProxy, nvectors),
+                .defval = (uint32_t[]) { NIC_NVECTORS_UNSPECIFIED },
+            },
+            {/* end of list */}
+        },
     },{
         .qdev.name = "virtio-console-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
