@@ -822,6 +822,8 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
         if (strcmp(nd->model, pci_nic_models[i]) == 0) {
             pci_dev = pci_create(pci_nic_names[i], devaddr);
             dev = &pci_dev->qdev;
+            if (nd->id)
+                dev->id = qemu_strdup(nd->id);
             dev->nd = nd;
             qdev_init(dev);
             nd->private = dev;
