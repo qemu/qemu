@@ -95,8 +95,11 @@ typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
 
 struct DeviceInfo {
     const char *name;
+    const char *alias;
+    const char *desc;
     size_t size;
     Property *props;
+    int no_user;
 
     /* Private to qdev / bus.  */
     qdev_initfn init;
