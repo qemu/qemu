@@ -19,6 +19,7 @@ typedef struct BusInfo BusInfo;
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {
+    char *id;
     DeviceInfo *info;
     BusState *parent_bus;
     int num_gpio_out;

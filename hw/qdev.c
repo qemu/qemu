@@ -114,7 +114,8 @@ void qdev_init(DeviceState *dev)
 void qdev_free(DeviceState *dev)
 {
     LIST_REMOVE(dev, sibling);
-    free(dev);
+    qemu_free(dev->id);
+    qemu_free(dev);
 }
 
 /* Get a character (serial) device interface.  */
@@ -266,7 +267,8 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
 static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     BusState *child;
-    qdev_printf("dev: %s\n", dev->info->name);
+    qdev_printf("dev: %s, id \"%s\"\n", dev->info->name,
+                dev->id ? dev->id : "");
     indent += 2;
     if (dev->num_gpio_in) {
         qdev_printf("gpio-in %d\n", dev->num_gpio_in);
