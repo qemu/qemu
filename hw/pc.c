@@ -1525,6 +1525,11 @@ static QEMUMachine pc_machine_v0_10 = {
     .init = pc_init_pci,
     .max_cpus = 255,
     .compat_props = (CompatProperty[]) {
+        {
+            .driver   = "virtio-blk-pci",
+            .property = "class",
+            .value    = stringify(PCI_CLASS_STORAGE_OTHER),
+        },
         { /* end of list */ }
     },
 };
