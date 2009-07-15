@@ -1529,6 +1529,10 @@ static QEMUMachine pc_machine_v0_10 = {
             .driver   = "virtio-blk-pci",
             .property = "class",
             .value    = stringify(PCI_CLASS_STORAGE_OTHER),
+        },{
+            .driver   = "virtio-console-pci",
+            .property = "class",
+            .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
         },
         { /* end of list */ }
     },

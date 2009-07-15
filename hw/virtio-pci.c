@@ -465,7 +465,14 @@ static void virtio_console_init_pci_with_class(PCIDevice *pci_dev,
 
 static void virtio_console_init_pci(PCIDevice *pci_dev)
 {
-    virtio_console_init_pci_with_class(pci_dev, PCI_CLASS_SERIAL_OTHER);
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+  
+    if (proxy->class_code != PCI_CLASS_COMMUNICATION_OTHER &&
+        proxy->class_code != PCI_CLASS_DISPLAY_OTHER && /* qemu 0.10 */
+        proxy->class_code != PCI_CLASS_OTHERS)          /* qemu-kvm  */
+        proxy->class_code = PCI_CLASS_COMMUNICATION_OTHER;
+
+    virtio_console_init_pci_with_class(pci_dev, proxy->class_code);
 }
 
 static void virtio_console_init_pci_0_10(PCIDevice *pci_dev)
@@ -520,6 +527,14 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-console-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_console_init_pci,
+        .qdev.props = (Property[]) {
+            {
+                .name   = "class",
+                .info   = &qdev_prop_hex32,
+                .offset = offsetof(VirtIOPCIProxy, class_code),
+            },
+            {/* end of list */}
+        },
     },{
         .qdev.name = "virtio-balloon-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
