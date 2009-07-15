@@ -738,6 +738,7 @@ static void pci_info_device(PCIDevice *d)
             }
         }
     }
+    monitor_printf(mon, "      id \"%s\"\n", d->qdev.id ? d->qdev.id : "");
     if (class == 0x0604 && d->config[0x19] != 0) {
         pci_for_each_device(d->config[0x19], pci_info_device);
     }
