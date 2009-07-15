@@ -1053,7 +1053,8 @@ do {                                                                    \
     fprintf(stderr, fmt , ## __VA_ARGS__);                              \
     cpu_dump_state(env, stderr, fprintf, 0);                            \
     qemu_log(fmt, ## __VA_ARGS__);                                      \
-    log_cpu_state(env, 0);                                              \
+    if (logfile)                                                        \
+        log_cpu_state(env, 0);                                          \
 } while (0)
 
 void cpu_loop(CPUPPCState *env)
