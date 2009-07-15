@@ -151,6 +151,7 @@ extern PropertyInfo qdev_prop_hex32;
 extern PropertyInfo qdev_prop_hex64;
 extern PropertyInfo qdev_prop_ptr;
 extern PropertyInfo qdev_prop_macaddr;
+extern PropertyInfo qdev_prop_pci_devfn;
 
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
