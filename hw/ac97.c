@@ -1366,6 +1366,7 @@ int ac97_init (PCIBus *bus)
 
 static PCIDeviceInfo ac97_info = {
     .qdev.name    = "AC97",
+    .qdev.desc    = "Intel 82801AA AC97 Audio",
     .qdev.size    = sizeof (PCIAC97LinkState),
     .init         = ac97_initfn,
 };

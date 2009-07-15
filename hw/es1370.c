@@ -1054,6 +1054,7 @@ int es1370_init (PCIBus *bus)
 
 static PCIDeviceInfo es1370_info = {
     .qdev.name    = "ES1370",
+    .qdev.desc    = "ENSONIQ AudioPCI ES1370",
     .qdev.size    = sizeof (PCIES1370State),
     .init         = es1370_initfn,
 };
