@@ -85,6 +85,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     dev->parent_bus = bus;
     qdev_prop_set_defaults(dev, dev->info->props);
     qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
+    qdev_prop_set_compat(dev);
     LIST_INSERT_HEAD(&bus->children, dev, sibling);
     return dev;
 }

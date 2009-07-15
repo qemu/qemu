@@ -5946,6 +5946,9 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_DEVICE);
 
+    if (machine->compat_props) {
+        qdev_prop_register_compat(machine->compat_props);
+    }
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 

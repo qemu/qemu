@@ -8,6 +8,8 @@ typedef struct Property Property;
 
 typedef struct PropertyInfo PropertyInfo;
 
+typedef struct CompatProperty CompatProperty;
+
 typedef struct DeviceInfo DeviceInfo;
 
 typedef struct BusState BusState;
@@ -66,6 +68,12 @@ struct PropertyInfo {
     enum PropertyType type;
     int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
+};
+
+struct CompatProperty {
+    const char *driver;
+    const char *property;
+    const char *value;
 };
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
@@ -146,5 +154,8 @@ void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);
+
+void qdev_prop_register_compat(CompatProperty *props);
+void qdev_prop_set_compat(DeviceState *dev);
 
 #endif

@@ -244,3 +244,26 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props)
     }
 }
 
+static CompatProperty *compat_props;
+
+void qdev_prop_register_compat(CompatProperty *props)
+{
+    compat_props = props;
+}
+
+void qdev_prop_set_compat(DeviceState *dev)
+{
+    CompatProperty *prop;
+
+    if (!compat_props) {
+        return;
+    }
+    for (prop = compat_props; prop->driver != NULL; prop++) {
+        if (strcmp(dev->info->name, prop->driver) != 0) {
+            continue;
+        }
+        if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {
+            abort();
+        }
+    }
+}
