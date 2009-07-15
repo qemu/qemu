@@ -1237,23 +1237,19 @@ static int openfile(char *name, int flags, int growable)
 	if (!bs)
 		return 1;
 
+	if (growable) {
+		flags |= BDRV_O_FILE;
+	}
+
 	if (bdrv_open(bs, name, flags) == -1) {
 		fprintf(stderr, "%s: can't open device %s\n", progname, name);
 		bs = NULL;
 		return 1;
 	}
 
-
 	if (growable) {
-		if (!bs->drv || !bs->drv->protocol_name) {
-			fprintf(stderr,
-				"%s: only protocols can be opened growable\n",
-				progname);
-			return 1;
-		}
 		bs->growable = 1;
 	}
-
 	return 0;
 }
 
@@ -1365,6 +1361,7 @@ static void usage(const char *name)
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
 "  -n, --nocache        disable host cache\n"
+"  -g, --growable       allow file to grow (only applies to protocols)\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
