@@ -1519,6 +1519,16 @@ static QEMUMachine pc_machine = {
     .is_default = 1,
 };
 
+static QEMUMachine pc_machine_v0_10 = {
+    .name = "pc-0.10",
+    .desc = "Standard PC, qemu 0.10",
+    .init = pc_init_pci,
+    .max_cpus = 255,
+    .compat_props = (CompatProperty[]) {
+        { /* end of list */ }
+    },
+};
+
 static QEMUMachine isapc_machine = {
     .name = "isapc",
     .desc = "ISA-only PC",
@@ -1536,6 +1546,7 @@ static QEMUMachine pc_0_10_machine = {
 static void pc_machine_init(void)
 {
     qemu_register_machine(&pc_machine);
+    qemu_register_machine(&pc_machine_v0_10);
     qemu_register_machine(&isapc_machine);
 
     /* For compatibility with 0.10.x */
