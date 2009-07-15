@@ -43,11 +43,11 @@
 struct m48t59_t {
     SysBusDevice busdev;
     /* Model parameters */
-    int type; // 2 = m48t02, 8 = m48t08, 59 = m48t59
+    uint32_t type; // 2 = m48t02, 8 = m48t08, 59 = m48t59
     /* Hardware parameters */
     qemu_irq IRQ;
     uint32_t io_base;
-    uint16_t size;
+    uint32_t size;
     /* RTC management */
     time_t   time_offset;
     time_t   stop_time;
@@ -623,9 +623,9 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     m48t59_t *d;
 
     dev = qdev_create(NULL, "m48t59");
-    qdev_set_prop_int(dev, "type", type);
-    qdev_set_prop_int(dev, "size", size);
-    qdev_set_prop_int(dev, "io_base", io_base);
+    qdev_prop_set_uint32(dev, "type", type);
+    qdev_prop_set_uint32(dev, "size", size);
+    qdev_prop_set_uint32(dev, "io_base", io_base);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, IRQ);
@@ -647,11 +647,8 @@ static void m48t59_init1(SysBusDevice *dev)
     m48t59_t *s = FROM_SYSBUS(m48t59_t, dev);
     int mem_index;
 
-    s->size = qdev_get_prop_int(&dev->qdev, "size", -1);
     s->buffer = qemu_mallocz(s->size);
     sysbus_init_irq(dev, &s->IRQ);
-    s->io_base = qdev_get_prop_int(&dev->qdev, "io_base", 0);
-    s->type = qdev_get_prop_int(&dev->qdev, "type", -1);
 
     mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
     sysbus_init_mmio(dev, s->size, mem_index);
@@ -666,9 +663,33 @@ static void m48t59_init1(SysBusDevice *dev)
     register_savevm("m48t59", -1, 1, m48t59_save, m48t59_load, s);
 }
 
+static SysBusDeviceInfo m48t59_info = {
+    .init = m48t59_init1,
+    .qdev.name  = "m48t59",
+    .qdev.size  = sizeof(m48t59_t),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "size",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(m48t59_t, size),
+            .defval = (uint32_t[]) { -1 },
+        },{
+            .name   = "type",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(m48t59_t, type),
+            .defval = (uint32_t[]) { -1 },
+        },{
+            .name   = "io_base",
+            .info   = &qdev_prop_hex32,
+            .offset = offsetof(m48t59_t, io_base),
+        },
+        {/* end of list */}
+    }
+};
+
 static void m48t59_register_devices(void)
 {
-    sysbus_register_dev("m48t59", sizeof(m48t59_t), m48t59_init1);
+    sysbus_register_withprop(&m48t59_info);
 }
 
 device_init(m48t59_register_devices)

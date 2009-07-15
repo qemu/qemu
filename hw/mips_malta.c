@@ -914,8 +914,8 @@ void mips_malta_init (ram_addr_t ram_size,
         /* TODO: Populate SPD eeprom data.  */
         DeviceState *eeprom;
         eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-        qdev_set_prop_int(eeprom, "address", 0x50 + i);
-        qdev_set_prop_ptr(eeprom, "data", eeprom_buf + (i * 256));
+        qdev_prop_set_uint32(eeprom, "address", 0x50 + i);
+        qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
         qdev_init(eeprom);
     }
     pit = pit_init(0x40, i8259[0]);

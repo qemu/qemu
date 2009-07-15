@@ -209,7 +209,6 @@ static void syborg_timer_init(SysBusDevice *dev)
     QEMUBH *bh;
     int iomemtype;
 
-    s->freq = qdev_get_prop_int(&dev->qdev, "frequency", 0);
     if (s->freq == 0) {
         fprintf(stderr, "syborg_timer: Zero/unset frequency\n");
         exit(1);
@@ -230,9 +229,13 @@ static SysBusDeviceInfo syborg_timer_info = {
     .init = syborg_timer_init,
     .qdev.name  = "syborg,timer",
     .qdev.size  = sizeof(SyborgTimerState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "frequency", .type = PROP_TYPE_INT},
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {
+            .name   = "frequency",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(SyborgTimerState, freq),
+        },
+        {/* end of list */}
     }
 };
 

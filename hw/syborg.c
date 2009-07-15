@@ -64,7 +64,7 @@ static void syborg_init(ram_addr_t ram_size,
     sysbus_create_simple("syborg,rtc", 0xC0001000, NULL);
 
     dev = qdev_create(NULL, "syborg,timer");
-    qdev_set_prop_int(dev, "frequency", 1000000);
+    qdev_prop_set_uint32(dev, "frequency", 1000000);
     qdev_init(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, 0xC0002000);
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[1]);
@@ -83,7 +83,7 @@ static void syborg_init(ram_addr_t ram_size,
 
         qemu_check_nic_model(&nd_table[0], "virtio");
         dev = qdev_create(NULL, "syborg,virtio-net");
-        qdev_set_netdev(dev, &nd_table[0]);
+        dev->nd = &nd_table[0];
         qdev_init(dev);
         s = sysbus_from_qdev(dev);
         sysbus_mmio_map(s, 0, 0xc000c000);

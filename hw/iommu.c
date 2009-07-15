@@ -373,7 +373,7 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     IOMMUState *d;
 
     dev = qdev_create(NULL, "iommu");
-    qdev_set_prop_int(dev, "version", version);
+    qdev_prop_set_uint32(dev, "version", version);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -391,8 +391,6 @@ static void iommu_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    s->version = qdev_get_prop_int(&dev->qdev, "version", 0);
-
     io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s);
     sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
 
@@ -405,9 +403,13 @@ static SysBusDeviceInfo iommu_info = {
     .init = iommu_init1,
     .qdev.name  = "iommu",
     .qdev.size  = sizeof(IOMMUState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "version", .type = PROP_TYPE_INT},
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {
+            .name = "version",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(IOMMUState, version),
+        },
+        {/* end of property list */}
     }
 };
 

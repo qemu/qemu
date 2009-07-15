@@ -511,6 +511,8 @@ struct fdctrl_t {
     /* Floppy drives */
     fdrive_t drives[MAX_FD];
     int reset_sensei;
+    uint32_t strict_io;
+    uint32_t mem_mapped;
 };
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
@@ -1898,9 +1900,9 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl_t *fdctrl;
 
     dev = qdev_create(NULL, "fdc");
-    qdev_set_prop_int(dev, "strict_io", 0);
-    qdev_set_prop_int(dev, "mem_mapped", mem_mapped);
-    qdev_set_prop_int(dev, "sun4m", 0);
+    qdev_prop_set_uint32(dev, "strict_io", 0);
+    qdev_prop_set_uint32(dev, "mem_mapped", mem_mapped);
+    qdev_prop_set_uint32(dev, "sun4m", 0);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -1931,9 +1933,9 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
     fdctrl_t *fdctrl;
 
     dev = qdev_create(NULL, "fdc");
-    qdev_set_prop_int(dev, "strict_io", 1);
-    qdev_set_prop_int(dev, "mem_mapped", 1);
-    qdev_set_prop_int(dev, "sun4m", 1);
+    qdev_prop_set_uint32(dev, "strict_io", 1);
+    qdev_prop_set_uint32(dev, "mem_mapped", 1);
+    qdev_prop_set_uint32(dev, "sun4m", 1);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -1953,7 +1955,7 @@ static void fdc_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
-    if (qdev_get_prop_int(&dev->qdev, "strict_io", 0)) {
+    if (s->strict_io) {
         io = cpu_register_io_memory(fdctrl_mem_read_strict,
                                     fdctrl_mem_write_strict, s);
     } else {
@@ -1967,12 +1969,28 @@ static SysBusDeviceInfo fdc_info = {
     .init = fdc_init1,
     .qdev.name  = "fdc",
     .qdev.size  = sizeof(fdctrl_t),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "io_base", .type = PROP_TYPE_INT},
-        {.name = "strict_io", .type = PROP_TYPE_INT},
-        {.name = "mem_mapped", .type = PROP_TYPE_INT},
-        {.name = "sun4m", .type = PROP_TYPE_INT},
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {
+            .name = "io_base",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, io_base),
+        },
+        {
+            .name = "strict_io",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, strict_io),
+        },
+        {
+            .name = "mem_mapped",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, mem_mapped),
+        },
+        {
+            .name = "sun4m",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, sun4m),
+        },
+        {/* end of properties */}
     }
 };
 

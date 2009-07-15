@@ -564,18 +564,12 @@ static SysBusDeviceInfo slavio_misc_info = {
     .init = slavio_misc_init1,
     .qdev.name  = "slavio_misc",
     .qdev.size  = sizeof(MiscState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = NULL}
-    }
 };
 
 static SysBusDeviceInfo apc_info = {
     .init = apc_init1,
     .qdev.name  = "apc",
     .qdev.size  = sizeof(MiscState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = NULL}
-    }
 };
 
 static void slavio_misc_register_devices(void)

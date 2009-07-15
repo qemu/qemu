@@ -108,7 +108,7 @@ obj-y += bt-hci-csr.o
 obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 obj-y += qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
 obj-y += msmouse.o ps2.o
-obj-y += qdev.o ssi.o
+obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 

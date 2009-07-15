@@ -120,6 +120,8 @@ struct SerialState {
     struct ChannelState chn[2];
     int it_shift;
     int mmio_index;
+    uint32_t disabled;
+    uint32_t frequency;
 };
 
 #define SERIAL_CTRL 0
@@ -732,13 +734,13 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
     SerialState *d;
 
     dev = qdev_create(NULL, "escc");
-    qdev_set_prop_int(dev, "disabled", 0);
-    qdev_set_prop_int(dev, "frequency", clock);
-    qdev_set_prop_int(dev, "it_shift", it_shift);
-    qdev_set_prop_ptr(dev, "chrB", chrB);
-    qdev_set_prop_ptr(dev, "chrA", chrA);
-    qdev_set_prop_int(dev, "chnBtype", ser);
-    qdev_set_prop_int(dev, "chnAtype", ser);
+    qdev_prop_set_uint32(dev, "disabled", 0);
+    qdev_prop_set_uint32(dev, "frequency", clock);
+    qdev_prop_set_uint32(dev, "it_shift", it_shift);
+    qdev_prop_set_ptr(dev, "chrB", chrB);
+    qdev_prop_set_ptr(dev, "chrA", chrA);
+    qdev_prop_set_uint32(dev, "chnBtype", ser);
+    qdev_prop_set_uint32(dev, "chnAtype", ser);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irqA);
@@ -895,13 +897,13 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
     SysBusDevice *s;
 
     dev = qdev_create(NULL, "escc");
-    qdev_set_prop_int(dev, "disabled", disabled);
-    qdev_set_prop_int(dev, "frequency", clock);
-    qdev_set_prop_int(dev, "it_shift", it_shift);
-    qdev_set_prop_ptr(dev, "chrB", NULL);
-    qdev_set_prop_ptr(dev, "chrA", NULL);
-    qdev_set_prop_int(dev, "chnBtype", mouse);
-    qdev_set_prop_int(dev, "chnAtype", kbd);
+    qdev_prop_set_uint32(dev, "disabled", disabled);
+    qdev_prop_set_uint32(dev, "frequency", clock);
+    qdev_prop_set_uint32(dev, "it_shift", it_shift);
+    qdev_prop_set_ptr(dev, "chrB", NULL);
+    qdev_prop_set_ptr(dev, "chrA", NULL);
+    qdev_prop_set_uint32(dev, "chnBtype", mouse);
+    qdev_prop_set_uint32(dev, "chnAtype", kbd);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -914,19 +916,13 @@ static void escc_init1(SysBusDevice *dev)
     SerialState *s = FROM_SYSBUS(SerialState, dev);
     int io;
     unsigned int i;
-    uint32_t clock, disabled;
 
-    s->it_shift = qdev_get_prop_int(&dev->qdev, "it_shift", 0);
-    clock = qdev_get_prop_int(&dev->qdev, "frequency", 0);
-    s->chn[0].chr = qdev_get_prop_ptr(&dev->qdev, "chrB");
-    s->chn[1].chr = qdev_get_prop_ptr(&dev->qdev, "chrA");
-    disabled = qdev_get_prop_int(&dev->qdev, "disabled", 0);
-    s->chn[0].disabled = disabled;
-    s->chn[1].disabled = disabled;
+    s->chn[0].disabled = s->disabled;
+    s->chn[1].disabled = s->disabled;
     for (i = 0; i < 2; i++) {
         sysbus_init_irq(dev, &s->chn[i].irq);
         s->chn[i].chn = 1 - i;
-        s->chn[i].clock = clock / 2;
+        s->chn[i].clock = s->frequency / 2;
         if (s->chn[i].chr) {
             qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
                                   serial_receive1, serial_event, &s->chn[i]);
@@ -934,8 +930,6 @@ static void escc_init1(SysBusDevice *dev)
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
-    s->chn[0].type = qdev_get_prop_int(&dev->qdev, "chnBtype", 0);
-    s->chn[1].type = qdev_get_prop_int(&dev->qdev, "chnAtype", 0);
 
     io = cpu_register_io_memory(escc_mem_read, escc_mem_write, s);
     sysbus_init_mmio(dev, ESCC_SIZE << s->it_shift, io);
@@ -957,15 +951,43 @@ static SysBusDeviceInfo escc_info = {
     .init = escc_init1,
     .qdev.name  = "escc",
     .qdev.size  = sizeof(SerialState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "frequency", .type = PROP_TYPE_INT},
-        {.name = "it_shift", .type = PROP_TYPE_INT},
-        {.name = "disabled", .type = PROP_TYPE_INT},
-        {.name = "chrB", .type = PROP_TYPE_PTR},
-        {.name = "chrA", .type = PROP_TYPE_PTR},
-        {.name = "chnBtype", .type = PROP_TYPE_INT},
-        {.name = "chnAtype", .type = PROP_TYPE_INT},
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {
+            .name = "frequency",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SerialState, frequency),
+        },
+        {
+            .name = "it_shift",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SerialState, it_shift),
+        },
+        {
+            .name = "disabled",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SerialState, disabled),
+        },
+        {
+            .name = "chrB",
+            .info = &qdev_prop_ptr,
+            .offset = offsetof(SerialState, chn[1].chr),
+        },
+        {
+            .name = "chrA",
+            .info = &qdev_prop_ptr,
+            .offset = offsetof(SerialState, chn[0].chr),
+        },
+        {
+            .name = "chnBtype",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SerialState, chn[1].type),
+        },
+        {
+            .name = "chnAtype",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SerialState, chn[0].type),
+        },
+        {/* end of list */}
     }
 };
 

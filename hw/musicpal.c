@@ -1578,7 +1578,7 @@ static void musicpal_init(ram_addr_t ram_size,
 
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
     dev = qdev_create(NULL, "mv88w8618_eth");
-    qdev_set_netdev(dev, &nd_table[0]);
+    dev->nd = &nd_table[0];
     qdev_init(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, MP_ETH_BASE);
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[MP_ETH_IRQ]);

@@ -53,8 +53,8 @@ struct xlx_ethlite
     qemu_irq irq;
     VLANClientState *vc;
 
-    unsigned int c_tx_pingpong;
-    unsigned int c_rx_pingpong;
+    uint32_t c_tx_pingpong;
+    uint32_t c_rx_pingpong;
     unsigned int txbuf;
     unsigned int rxbuf;
 
@@ -213,8 +213,6 @@ static void xilinx_ethlite_init(SysBusDevice *dev)
     int regs;
 
     sysbus_init_irq(dev, &s->irq);
-    s->c_tx_pingpong = qdev_get_prop_int(&dev->qdev, "txpingpong", 1);
-    s->c_rx_pingpong = qdev_get_prop_int(&dev->qdev, "rxpingpong", 1);
     s->rxbuf = 0;
 
     regs = cpu_register_io_memory(eth_read, eth_write, s);
@@ -225,10 +223,29 @@ static void xilinx_ethlite_init(SysBusDevice *dev)
                                  eth_can_rx, eth_rx, NULL, eth_cleanup, s);
 }
 
+static SysBusDeviceInfo xilinx_ethlite_info = {
+    .init = xilinx_ethlite_init,
+    .qdev.name  = "xilinx,ethlite",
+    .qdev.size  = sizeof(struct xlx_ethlite),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "txpingpong",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(struct xlx_ethlite, c_tx_pingpong),
+            .defval = (uint32_t[]) { 1 },
+        },{
+            .name   = "rxpingpong",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(struct xlx_ethlite, c_rx_pingpong),
+            .defval = (uint32_t[]) { 1 },
+        },
+        {/* end of list */}
+    }
+};
+
 static void xilinx_ethlite_register(void)
 {
-    sysbus_register_dev("xilinx,ethlite", sizeof (struct xlx_ethlite),
-                        xilinx_ethlite_init);
+    sysbus_register_withprop(&xilinx_ethlite_info);
 }
 
 device_init(xilinx_ethlite_register)

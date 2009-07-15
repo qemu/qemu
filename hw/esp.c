@@ -650,12 +650,14 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
 {
     DeviceState *dev;
     SysBusDevice *s;
+    ESPState *esp;
 
     dev = qdev_create(NULL, "esp");
-    qdev_set_prop_ptr(dev, "dma_memory_read", dma_memory_read);
-    qdev_set_prop_ptr(dev, "dma_memory_write", dma_memory_write);
-    qdev_set_prop_ptr(dev, "dma_opaque", dma_opaque);
-    qdev_set_prop_int(dev, "it_shift", it_shift);
+    esp = DO_UPCAST(ESPState, busdev.qdev, dev);
+    esp->dma_memory_read = dma_memory_read;
+    esp->dma_memory_write = dma_memory_write;
+    esp->dma_opaque = dma_opaque;
+    esp->it_shift = it_shift;
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -668,11 +670,7 @@ static void esp_init1(SysBusDevice *dev)
     int esp_io_memory;
 
     sysbus_init_irq(dev, &s->irq);
-    s->it_shift = qdev_get_prop_int(&dev->qdev, "it_shift", -1);
     assert(s->it_shift != -1);
-    s->dma_memory_read = qdev_get_prop_ptr(&dev->qdev, "dma_memory_read");
-    s->dma_memory_write = qdev_get_prop_ptr(&dev->qdev, "dma_memory_write");
-    s->dma_opaque = qdev_get_prop_ptr(&dev->qdev, "dma_opaque");
 
     esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s);
     sysbus_init_mmio(dev, ESP_REGS << s->it_shift, esp_io_memory);

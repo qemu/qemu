@@ -373,8 +373,7 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     qemu_check_nic_model(&nd_table[0], "lance");
 
     dev = qdev_create(NULL, "lance");
-    qdev_set_netdev(dev, nd);
-    qdev_set_prop_ptr(dev, "dma", dma_opaque);
+    dev->nd = nd;
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, leaddr);
@@ -410,9 +409,6 @@ static SysBusDeviceInfo idreg_info = {
     .init = idreg_init1,
     .qdev.name  = "macio_idreg",
     .qdev.size  = sizeof(SysBusDevice),
-    .qdev.props = (DevicePropList[]) {
-        {.name = NULL}
-    }
 };
 
 static void idreg_register_devices(void)
@@ -468,8 +464,8 @@ static SysBusDeviceInfo prom_info = {
     .init = prom_init1,
     .qdev.name  = "openprom",
     .qdev.size  = sizeof(SysBusDevice),
-    .qdev.props = (DevicePropList[]) {
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {/* end of property list */}
     }
 };
 
@@ -480,12 +476,19 @@ static void prom_register_devices(void)
 
 device_init(prom_register_devices);
 
+typedef struct RamDevice
+{
+    SysBusDevice busdev;
+    uint32_t size;
+} RamDevice;
+
 /* System RAM */
 static void ram_init1(SysBusDevice *dev)
 {
     ram_addr_t RAM_size, ram_offset;
+    RamDevice *d = FROM_SYSBUS(RamDevice, dev);
 
-    RAM_size = qdev_get_prop_int(&dev->qdev, "size", 0);
+    RAM_size = d->size;
 
     ram_offset = qemu_ram_alloc(RAM_size);
     sysbus_init_mmio(dev, RAM_size, ram_offset);
@@ -496,6 +499,7 @@ static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size,
 {
     DeviceState *dev;
     SysBusDevice *s;
+    RamDevice *d;
 
     /* allocate RAM */
     if ((uint64_t)RAM_size > max_mem) {
@@ -506,9 +510,11 @@ static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size,
         exit(1);
     }
     dev = qdev_create(NULL, "memory");
-    qdev_set_prop_int(dev, "size", RAM_size);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
+
+    d = FROM_SYSBUS(RamDevice, s);
+    d->size = RAM_size;
 
     sysbus_mmio_map(s, 0, addr);
 }
@@ -516,10 +522,14 @@ static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size,
 static SysBusDeviceInfo ram_info = {
     .init = ram_init1,
     .qdev.name  = "memory",
-    .qdev.size  = sizeof(SysBusDevice),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "size", .type = PROP_TYPE_INT},
-        {.name = NULL}
+    .qdev.size  = sizeof(RamDevice),
+    .qdev.props = (Property[]) {
+        {
+            .name = "size",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(RamDevice, size),
+        },
+        {/* end of property list */}
     }
 };
 

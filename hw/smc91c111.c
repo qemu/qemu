@@ -733,7 +733,7 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
 
     qemu_check_nic_model(nd, "smc91c111");
     dev = qdev_create(NULL, "smc91c111");
-    qdev_set_netdev(dev, nd);
+    dev->nd = nd;
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, base);

@@ -45,11 +45,11 @@ typedef struct {
 typedef struct {
     SysBusDevice busdev;
     int int_enabled;
-    int fifo_size;
+    uint32_t fifo_size;
     event_data *event_fifo;
     int read_pos, read_count;
     qemu_irq irq;
-    int absolute;
+    uint32_t absolute;
 } SyborgPointerState;
 
 static void syborg_pointer_update(SyborgPointerState *s)
@@ -209,8 +209,6 @@ static void syborg_pointer_init(SysBusDevice *dev)
 				       syborg_pointer_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
 
-    s->absolute = qdev_get_prop_int(&dev->qdev, "absolute", 1);
-    s->fifo_size = qdev_get_prop_int(&dev->qdev, "fifo-size", 16);
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_pointer: fifo too small\n");
         s->fifo_size = 16;
@@ -224,10 +222,29 @@ static void syborg_pointer_init(SysBusDevice *dev)
                     syborg_pointer_save, syborg_pointer_load, s);
 }
 
+static SysBusDeviceInfo syborg_pointer_info = {
+    .init = syborg_pointer_init,
+    .qdev.name  = "syborg,pointer",
+    .qdev.size  = sizeof(SyborgPointerState),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "fifo-size",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(SyborgPointerState, fifo_size),
+            .defval = (uint32_t[]) { 16 },
+        },{
+            .name   = "absolute",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(SyborgPointerState, absolute),
+            .defval = (uint32_t[]) { 1 },
+        },
+        {/* end of list */}
+    }
+};
+
 static void syborg_pointer_register_devices(void)
 {
-    sysbus_register_dev("syborg,pointer", sizeof(SyborgPointerState),
-                        syborg_pointer_init);
+    sysbus_register_withprop(&syborg_pointer_info);
 }
 
 device_init(syborg_pointer_register_devices)

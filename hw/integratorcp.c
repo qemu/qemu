@@ -17,6 +17,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    uint32_t memsz;
     uint32_t flash_offset;
     uint32_t cm_osc;
     uint32_t cm_ctrl;
@@ -230,23 +231,21 @@ static void integratorcm_init(SysBusDevice *dev)
 {
     int iomemtype;
     integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
-    int memsz;
 
-    memsz = qdev_get_prop_int(&dev->qdev, "memsz", 0);
     s->cm_osc = 0x01000048;
     /* ??? What should the high bits of this value be?  */
     s->cm_auxosc = 0x0007feff;
     s->cm_sdram = 0x00011122;
-    if (memsz >= 256) {
+    if (s->memsz >= 256) {
         integrator_spd[31] = 64;
         s->cm_sdram |= 0x10;
-    } else if (memsz >= 128) {
+    } else if (s->memsz >= 128) {
         integrator_spd[31] = 32;
         s->cm_sdram |= 0x0c;
-    } else if (memsz >= 64) {
+    } else if (s->memsz >= 64) {
         integrator_spd[31] = 16;
         s->cm_sdram |= 0x08;
-    } else if (memsz >= 32) {
+    } else if (s->memsz >= 32) {
         integrator_spd[31] = 4;
         s->cm_sdram |= 0x04;
     } else {
@@ -475,7 +474,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0x80000000, ram_size, ram_offset | IO_MEM_RAM);
 
     dev = qdev_create(NULL, "integrator_core");
-    qdev_set_prop_int(dev, "memsz", ram_size >> 20);
+    qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
     qdev_init(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
@@ -522,11 +521,24 @@ static void integratorcp_machine_init(void)
 
 machine_init(integratorcp_machine_init);
 
+static SysBusDeviceInfo core_info = {
+    .init = integratorcm_init,
+    .qdev.name  = "integrator_core",
+    .qdev.size  = sizeof(integratorcm_state),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "memsz",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(integratorcm_state, memsz),
+        },
+        {/* end of list */}
+    }
+};
+
 static void integratorcp_register_devices(void)
 {
     sysbus_register_dev("integrator_pic", sizeof(icp_pic_state), icp_pic_init);
-    sysbus_register_dev("integrator_core", sizeof(integratorcm_state),
-                        integratorcm_init);
+    sysbus_register_withprop(&core_info);
 }
 
 device_init(integratorcp_register_devices)

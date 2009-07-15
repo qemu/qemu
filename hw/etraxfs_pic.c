@@ -140,7 +140,6 @@ static void etraxfs_pic_init(SysBusDevice *dev)
     struct etrax_pic *s = FROM_SYSBUS(typeof (*s), dev);
     int intr_vect_regs;
 
-    s->interrupt_vector = qdev_get_prop_ptr(&dev->qdev, "interrupt_vector");
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_nmi);
@@ -149,10 +148,23 @@ static void etraxfs_pic_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, R_MAX * 4, intr_vect_regs);
 }
 
+static SysBusDeviceInfo etraxfs_pic_info = {
+    .init = etraxfs_pic_init,
+    .qdev.name  = "etraxfs,pic",
+    .qdev.size  = sizeof(struct etrax_pic),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "interrupt_vector",
+            .info   = &qdev_prop_ptr,
+            .offset = offsetof(struct etrax_pic, interrupt_vector),
+        },
+        {/* end of list */}
+    }
+};
+
 static void etraxfs_pic_register(void)
 {
-    sysbus_register_dev("etraxfs,pic", sizeof (struct etrax_pic),
-                        etraxfs_pic_init);
+    sysbus_register_withprop(&etraxfs_pic_info);
 }
 
 device_init(etraxfs_pic_register)

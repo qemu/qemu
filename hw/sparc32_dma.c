@@ -252,7 +252,7 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
     DMAState *d;
 
     dev = qdev_create(NULL, "sparc32_dma");
-    qdev_set_prop_ptr(dev, "iommu_opaque", iommu);
+    qdev_prop_set_ptr(dev, "iommu_opaque", iommu);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, parent_irq);
@@ -271,7 +271,6 @@ static void sparc32_dma_init1(SysBusDevice *dev)
     int dma_io_memory;
 
     sysbus_init_irq(dev, &s->irq);
-    s->iommu = qdev_get_prop_ptr(&dev->qdev, "iommu_opaque");
 
     dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s);
     sysbus_init_mmio(dev, DMA_SIZE, dma_io_memory);
@@ -286,9 +285,13 @@ static SysBusDeviceInfo sparc32_dma_info = {
     .init = sparc32_dma_init1,
     .qdev.name  = "sparc32_dma",
     .qdev.size  = sizeof(DMAState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "iommu_opaque", .type = PROP_TYPE_PTR},
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {
+            .name = "iommu_opaque",
+            .info = &qdev_prop_ptr,
+            .offset = offsetof(DMAState, iommu),
+        },
+        {/* end of property list */}
     }
 };
 

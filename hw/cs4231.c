@@ -185,7 +185,7 @@ static SysBusDeviceInfo cs4231_info = {
     .init = cs4231_init1,
     .qdev.name  = "SUNW,CS4231",
     .qdev.size  = sizeof(CSState),
-    .qdev.props = (DevicePropList[]) {
+    .qdev.props = (Property[]) {
         {.name = NULL}
     }
 };

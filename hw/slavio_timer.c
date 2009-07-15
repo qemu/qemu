@@ -374,9 +374,9 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
     SLAVIO_TIMERState *d;
 
     dev = qdev_create(NULL, "slavio_timer");
-    qdev_set_prop_int(dev, "slave_index", slave_index);
-    qdev_set_prop_int(dev, "num_slaves", num_slaves);
-    qdev_set_prop_ptr(dev, "master", master);
+    qdev_prop_set_uint32(dev, "slave_index", slave_index);
+    qdev_prop_set_uint32(dev, "num_slaves", num_slaves);
+    qdev_prop_set_ptr(dev, "master", master);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -394,9 +394,6 @@ static void slavio_timer_init1(SysBusDevice *dev)
     QEMUBH *bh;
 
     sysbus_init_irq(dev, &s->irq);
-    s->num_slaves = qdev_get_prop_int(&dev->qdev, "num_slaves", 0);
-    s->slave_index = qdev_get_prop_int(&dev->qdev, "slave_index", 0);
-    s->master = qdev_get_prop_ptr(&dev->qdev, "master");
 
     if (!s->master || s->slave_index < s->master->num_slaves) {
         bh = qemu_bh_new(slavio_timer_irq, s);
@@ -438,11 +435,23 @@ static SysBusDeviceInfo slavio_timer_info = {
     .init = slavio_timer_init1,
     .qdev.name  = "slavio_timer",
     .qdev.size  = sizeof(SLAVIO_TIMERState),
-    .qdev.props = (DevicePropList[]) {
-        {.name = "num_slaves", .type = PROP_TYPE_INT},
-        {.name = "slave_index", .type = PROP_TYPE_INT},
-        {.name = "master", .type = PROP_TYPE_PTR},
-        {.name = NULL}
+    .qdev.props = (Property[]) {
+        {
+            .name = "num_slaves",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SLAVIO_TIMERState, num_slaves),
+        },
+        {
+            .name = "slave_index",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SLAVIO_TIMERState, slave_index),
+        },
+        {
+            .name = "master",
+            .info = &qdev_prop_ptr,
+            .offset = offsetof(SLAVIO_TIMERState, master),
+        },
+        {/* end of property list */}
     }
 };
 

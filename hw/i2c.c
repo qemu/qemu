@@ -20,6 +20,14 @@ struct i2c_bus
 static struct BusInfo i2c_bus_info = {
     .name = "I2C",
     .size = sizeof(i2c_bus),
+    .props = (Property[]) {
+        {
+            .name   = "address",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(struct i2c_slave, address),
+        },
+        {/* end of list */}
+    }
 };
 
 static void i2c_bus_save(QEMUFile *f, void *opaque)
@@ -151,7 +159,6 @@ static void i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
     i2c_slave *s = I2C_SLAVE_FROM_QDEV(dev);
 
     s->info = info;
-    s->address = qdev_get_prop_int(dev, "address", 0);
 
     info->init(s);
 }
@@ -169,7 +176,7 @@ DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr)
     DeviceState *dev;
 
     dev = qdev_create(&bus->qbus, name);
-    qdev_set_prop_int(dev, "address", addr);
+    qdev_prop_set_uint32(dev, "address", addr);
     qdev_init(dev);
     return dev;
 }
