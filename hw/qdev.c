@@ -46,6 +46,20 @@ void qdev_register(DeviceInfo *info)
     device_info_list = info;
 }
 
+static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
+{
+    DeviceInfo *info;
+
+    for (info = device_info_list; info != NULL; info = info->next) {
+        if (bus_info && info->bus_info != bus_info)
+            continue;
+        if (strcmp(info->name, name) != 0)
+            continue;
+        return info;
+    }
+    return NULL;
+}
+
 /* Create a new device.  This only initializes the device state structure
    and allows properties to be set.  qdev_init should be called to
    initialize the actual device emulation.  */
@@ -61,13 +75,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
         bus = main_system_bus;
     }
 
-    for (info = device_info_list; info != NULL; info = info->next) {
-        if (info->bus_info != bus->info)
-            continue;
-        if (strcmp(info->name, name) != 0)
-            continue;
-        break;
-    }
+    info = qdev_find_info(bus->info, name);
     if (!info) {
         hw_error("Unknown device '%s' for bus '%s'\n", name, bus->info->name);
     }
