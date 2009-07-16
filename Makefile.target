@@ -56,10 +56,6 @@ ifeq ($(ARCH),alpha)
 CFLAGS+=-msmall-data
 endif
 
-ifeq ($(ARCH),hppa)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
 ifeq ($(ARCH),ia64)
 CFLAGS+=-mno-sdata
 endif
