@@ -18,6 +18,21 @@
 # USA
 #
 
+function do_is_allocated() {
+    local start=$1
+    local size=$(( $2 / 512))
+    local step=$3
+    local count=$4
+
+    for i in `seq 1 $count`; do
+        echo alloc $(( start + i * step )) $size
+    done
+}
+
+function is_allocated() {
+    do_is_allocated "$@" | $QEMU_IO $TEST_IMG | _filter_qemu_io
+}
+
 function do_io() {
     local op=$1
     local start=$2
