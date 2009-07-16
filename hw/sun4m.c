@@ -480,6 +480,56 @@ static void prom_register_devices(void)
 
 device_init(prom_register_devices);
 
+/* System RAM */
+static void ram_init1(SysBusDevice *dev)
+{
+    ram_addr_t RAM_size, ram_offset;
+
+    RAM_size = qdev_get_prop_int(&dev->qdev, "size", 0);
+
+    ram_offset = qemu_ram_alloc(RAM_size);
+    sysbus_init_mmio(dev, RAM_size, ram_offset);
+}
+
+static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size,
+                     uint64_t max_mem)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    /* allocate RAM */
+    if ((uint64_t)RAM_size > max_mem) {
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d, maximum %d\n",
+                (unsigned int)(RAM_size / (1024 * 1024)),
+                (unsigned int)(max_mem / (1024 * 1024)));
+        exit(1);
+    }
+    dev = qdev_create(NULL, "memory");
+    qdev_set_prop_int(dev, "size", RAM_size);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+}
+
+static SysBusDeviceInfo ram_info = {
+    .init = ram_init1,
+    .qdev.name  = "memory",
+    .qdev.size  = sizeof(SysBusDevice),
+    .qdev.props = (DevicePropList[]) {
+        {.name = "size", .type = PROP_TYPE_INT},
+        {.name = NULL}
+    }
+};
+
+static void ram_register_devices(void)
+{
+    sysbus_register_withprop(&ram_info);
+}
+
+device_init(ram_register_devices);
+
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
@@ -495,7 +545,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *esp_reset, *le_reset;
     qemu_irq fdc_tc;
     qemu_irq *cpu_halt;
-    ram_addr_t ram_offset;
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
@@ -527,18 +576,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
 
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)(RAM_size / (1024 * 1024)),
-                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
-        exit(1);
-    }
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
-
     /* set up devices */
+    ram_init(0, RAM_size, hwdef->max_mem);
+
     prom_init(hwdef->slavio_base, bios_name);
 
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
@@ -1259,7 +1299,6 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
         espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    ram_addr_t ram_offset;
     unsigned long kernel_size;
     void *fw_cfg;
 
@@ -1288,18 +1327,9 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)(RAM_size / (1024 * 1024)),
-                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
-        exit(1);
-    }
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
-
     /* set up devices */
+    ram_init(0, RAM_size, hwdef->max_mem);
+
     prom_init(hwdef->slavio_base, bios_name);
 
     sbi = sbi_init(hwdef->sbi_base, &sbi_irq, &sbi_cpu_irq, cpu_irqs);
@@ -1454,7 +1484,6 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs, *slavio_irq, espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq fdc_tc;
-    ram_addr_t ram_offset;
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
@@ -1476,18 +1505,9 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     env->prom_addr = hwdef->slavio_base;
 
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)(RAM_size / (1024 * 1024)),
-                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
-        exit(1);
-    }
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
-
     /* set up devices */
+    ram_init(0, RAM_size, hwdef->max_mem);
+
     prom_init(hwdef->slavio_base, bios_name);
 
     slavio_intctl = sun4c_intctl_init(hwdef->intctl_base,
