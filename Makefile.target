@@ -89,7 +89,7 @@ translate.o: CFLAGS := $(CFLAGS) $(call cc-option, $(CFLAGS), -fno-unit-at-a-tim
 endif
 
 ifeq ($(ARCH),sparc)
-  ifneq ($(CONFIG_SOLARIS),yes)
+  ifneq ($(CONFIG_SOLARIS),y)
     HELPER_CFLAGS+=-ffixed-i0
   endif
 endif
