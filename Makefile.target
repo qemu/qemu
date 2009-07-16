@@ -544,7 +544,7 @@ endif
 
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
-ifeq ($(CONFIG_XEN), yes)
+ifeq ($(CONFIG_XEN), y)
   LIBS += $(XEN_LIBS)
 endif
 
