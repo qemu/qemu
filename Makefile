@@ -67,23 +67,25 @@ recurse-all: $(SUBDIR_RULES)
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += block/cow.o block/qcow.o aes.o block/vmdk.o block/cloop.o
-block-obj-y += block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
-block-obj-y += block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
-block-obj-y += block/qcow2-snapshot.o
-block-obj-y += block/parallels.o block/nbd.o
-block-obj-y += nbd.o block.o aio.o
+block-obj-y += nbd.o block.o aio.o aes.o
+
+block-nested-y += cow.o qcow.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
+block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
+block-nested-y += parallels.o nbd.o
+
 
 ifdef CONFIG_WIN32
-block-obj-y += block/raw-win32.o
+block-nested-y += raw-win32.o
 else
 ifdef CONFIG_AIO
 block-obj-y += posix-aio-compat.o
 endif
-block-obj-y += block/raw-posix.o
+block-nested-y += raw-posix.o
 endif
 
-block-obj-$(CONFIG_CURL) += block/curl.o
+block-nested-$(CONFIG_CURL) += curl.o
+
+block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
