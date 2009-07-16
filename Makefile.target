@@ -14,31 +14,6 @@ LIBS=
 ifndef TARGET_ARCH2
 TARGET_ARCH2=$(TARGET_ARCH)
 endif
-ifeq ($(TARGET_ARCH),arm)
-  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=armeb
-  endif
-endif
-ifeq ($(TARGET_ARCH),sh4)
-  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=sh4eb
-  endif
-endif
-ifeq ($(TARGET_ARCH),mips)
-  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=mipsel
-  endif
-endif
-ifeq ($(TARGET_ARCH),mipsn32)
-  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=mipsn32el
-  endif
-endif
-ifeq ($(TARGET_ARCH),mips64)
-  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=mips64el
-  endif
-endif
 
 ifdef CONFIG_USER_ONLY
 # user emulator name

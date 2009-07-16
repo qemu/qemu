@@ -2031,6 +2031,7 @@ case "$target_arch2" in
   ;;
   arm|armeb)
     echo "TARGET_ARCH=arm" >> $config_mak
+    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"arm\"" >> $config_h
     echo "#define TARGET_ARM 1" >> $config_h
     bflt="yes"
@@ -2063,6 +2064,7 @@ case "$target_arch2" in
   ;;
  mips|mipsel)
     echo "TARGET_ARCH=mips" >> $config_mak
+    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"mips\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
@@ -2071,6 +2073,7 @@ case "$target_arch2" in
   ;;
   mipsn32|mipsn32el)
     echo "TARGET_ARCH=mipsn32" >> $config_mak
+    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "TARGET_BASE_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
@@ -2079,6 +2082,7 @@ case "$target_arch2" in
   ;;
   mips64|mips64el)
     echo "TARGET_ARCH=mips64" >> $config_mak
+    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "TARGET_BASE_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mips64\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
@@ -2132,6 +2136,7 @@ case "$target_arch2" in
   ;;
   sh4|sh4eb)
     echo "TARGET_ARCH=sh4" >> $config_mak
+    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"sh4\"" >> $config_h
     echo "#define TARGET_SH4 1" >> $config_h
     bflt="yes"
@@ -2157,7 +2162,7 @@ case "$target_arch2" in
     echo "TARGET_ARCH=sparc64" >> $config_mak
     echo "TARGET_BASE_ARCH=sparc" >> $config_mak
     echo "TARGET_ABI_DIR=sparc" >> $config_mak
-    echo "TARGET_ARCH2=sparc32plus" >> $config_mak
+    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
     echo "#define TARGET_SPARC64 1" >> $config_h
