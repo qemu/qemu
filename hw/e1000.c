@@ -261,6 +261,11 @@ set_eecd(E1000State *s, int index, uint32_t val)
     }
     if (!(val & E1000_EECD_CS)) {		// rising, no CS (EEPROM reset)
         memset(&s->eecd_state, 0, sizeof s->eecd_state);
+        /*
+         * restore old_eecd's E1000_EECD_SK (known to be on)
+         * to avoid false detection of a clock edge
+         */
+        s->eecd_state.old_eecd = E1000_EECD_SK;
         return;
     }
     s->eecd_state.val_in <<= 1;
