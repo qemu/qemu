@@ -1,10 +1,6 @@
 include config.mak
 include $(SRC_PATH)/rules.mak
 
-ifndef TARGET_BASE_ARCH
-TARGET_BASE_ARCH:=$(TARGET_ARCH)
-endif
-
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
