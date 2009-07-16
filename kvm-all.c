@@ -153,6 +153,15 @@ static void kvm_reset_vcpu(void *opaque)
     }
 }
 
+static void on_vcpu(CPUState *env, void (*func)(void *data), void *data)
+{
+    if (env == cpu_single_env) {
+        func(data);
+        return;
+    }
+    abort();
+}
+
 int kvm_init_vcpu(CPUState *env)
 {
     KVMState *s = kvm_state;
@@ -901,18 +910,32 @@ int kvm_sw_breakpoints_active(CPUState *env)
     return !TAILQ_EMPTY(&env->kvm_state->kvm_sw_breakpoints);
 }
 
+struct kvm_set_guest_debug_data {
+    struct kvm_guest_debug dbg;
+    CPUState *env;
+    int err;
+};
+
+static void kvm_invoke_set_guest_debug(void *data)
+{
+    struct kvm_set_guest_debug_data *dbg_data = data;
+    dbg_data->err = kvm_vcpu_ioctl(dbg_data->env, KVM_SET_GUEST_DEBUG, &dbg_data->dbg);
+}
+
 int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap)
 {
-    struct kvm_guest_debug dbg;
+    struct kvm_set_guest_debug_data data;
 
-    dbg.control = 0;
+    data.dbg.control = 0;
     if (env->singlestep_enabled)
-        dbg.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
+        data.dbg.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
 
-    kvm_arch_update_guest_debug(env, &dbg);
-    dbg.control |= reinject_trap;
+    kvm_arch_update_guest_debug(env, &data.dbg);
+    data.dbg.control |= reinject_trap;
+    data.env = env;
 
-    return kvm_vcpu_ioctl(env, KVM_SET_GUEST_DEBUG, &dbg);
+    on_vcpu(env, kvm_invoke_set_guest_debug, &data);
+    return data.err;
 }
 
 int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
