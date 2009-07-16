@@ -133,8 +133,7 @@ static x86_def_t x86_defs[] = {
             CPUID_PSE36,
         .ext_features = CPUID_EXT_SSE3,
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
-            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX |
-            CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
+            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .ext3_features = CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
