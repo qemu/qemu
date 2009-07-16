@@ -336,9 +336,10 @@ ifeq ($(TARGET_ARCH), i386)
 obj-y += vm86.o
 endif
 ifeq ($(TARGET_ARCH), arm)
-obj-y += nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
-nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
- nwfpe/double_cpdo.o nwfpe/extended_cpdo.o arm-semi.o
+nwfpe-obj-y := fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
+nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
+obj-y +=  $(addprefix nwfpe/, $(nwfpe-obj-y))
+obj-y += arm-semi.o
 endif
 ifeq ($(TARGET_ARCH), m68k)
 obj-y += m68k-sim.o m68k-semi.o
