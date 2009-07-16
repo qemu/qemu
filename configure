@@ -1893,6 +1893,7 @@ gdb_xml_files=""
 
 TARGET_ARCH="$target_arch2"
 TARGET_BASE_ARCH=""
+TARGET_ABI_DIR=""
 
 case "$target_arch2" in
   i386)
@@ -1950,20 +1951,20 @@ case "$target_arch2" in
   ;;
   ppcemb)
     TARGET_BASE_ARCH=ppc
-    echo "TARGET_ABI_DIR=ppc" >> $config_mak
+    TARGET_ABI_DIR=ppc
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc
-    echo "TARGET_ABI_DIR=ppc" >> $config_mak
+    TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
     TARGET_BASE_ARCH=ppc
-    echo "TARGET_ABI_DIR=ppc" >> $config_mak
+    TARGET_ABI_DIR=ppc
     echo "#define TARGET_ABI32 1" >> $config_h
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
@@ -1985,7 +1986,7 @@ case "$target_arch2" in
   sparc32plus)
     TARGET_ARCH=sparc64
     TARGET_BASE_ARCH=sparc
-    echo "TARGET_ABI_DIR=sparc" >> $config_mak
+    TARGET_ABI_DIR=sparc
     echo "#define TARGET_ABI32 1" >> $config_h
     target_phys_bits=64
   ;;
@@ -2006,6 +2007,10 @@ else
   echo "#define TARGET_$target_base_arch_name 1" >> $config_h
 fi
 echo "TARGET_BASE_ARCH=$TARGET_BASE_ARCH" >> $config_mak
+if [ "$TARGET_ABI_DIR" = "" ]; then
+  TARGET_ABI_DIR=$TARGET_ARCH
+fi
+echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_mak
 if [ $target_phys_bits -lt $hostlongbits ] ; then
   target_phys_bits=$hostlongbits
 fi
