@@ -580,8 +580,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
              espdma_memory_read, espdma_memory_write,
              espdma, espdma_irq, esp_reset);
 
-    if (hwdef->cs_base)
-        cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
+    if (hwdef->cs_base) {
+        sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,
+                             slavio_irq[hwdef->cs_irq]);
+    }
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);

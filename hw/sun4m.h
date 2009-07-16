@@ -57,9 +57,6 @@ void *slavio_misc_init(target_phys_addr_t base,
 void slavio_set_power_fail(void *opaque, int power_failing);
 void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt);
 
-/* cs4231.c */
-void cs_init(target_phys_addr_t base, int irq, void *intctl);
-
 /* sparc32_dma.c */
 #include "sparc32_dma.h"
 
