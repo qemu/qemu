@@ -1993,11 +1993,6 @@ case "$target_arch2" in
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
       echo "#define CONFIG_KVM 1" >> $config_h
     fi
-    if test "$xen" = "yes" -a "$target_softmmu" = "yes";
-    then
-      echo "CONFIG_XEN=y" >> $config_mak
-      echo "#define CONFIG_XEN 1" >> $config_h
-    fi
     target_phys_bits=32
   ;;
   x86_64)
@@ -2015,11 +2010,6 @@ case "$target_arch2" in
       echo "CONFIG_KVM=y" >> $config_mak
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
       echo "#define CONFIG_KVM 1" >> $config_h
-    fi
-    if test "$xen" = "yes" -a "$target_softmmu" = "yes"
-    then
-      echo "CONFIG_XEN=y" >> $config_mak
-      echo "#define CONFIG_XEN 1" >> $config_h
     fi
     target_phys_bits=64
   ;;
@@ -2177,6 +2167,13 @@ esac
 if [ $target_phys_bits -lt $hostlongbits ] ; then
   target_phys_bits=$hostlongbits
 fi
+case "$target_arch2" in
+  i386|x86_64)
+    if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
+      echo "CONFIG_XEN=y" >> $config_mak
+      echo "#define CONFIG_XEN 1" >> $config_h
+    fi
+esac
 echo "HWLIB=../libhw$target_phys_bits/libqemuhw$target_phys_bits.a" >> $config_mak
 echo "#define TARGET_PHYS_ADDR_BITS $target_phys_bits" >> $config_h
 echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
