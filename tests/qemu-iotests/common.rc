@@ -71,6 +71,7 @@ _cleanup_test_img()
 {
     rm -f $TEST_DIR/t.$IMGFMT
     rm -f $TEST_DIR/t.$IMGFMT.orig
+    rm -f $TEST_DIR/t.$IMGFMT.base
 }
 
 _check_test_img()
