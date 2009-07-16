@@ -1495,56 +1495,11 @@ echo "EXESUF=$EXESUF" >> $config_mak
 echo "PTHREADLIBS=$PTHREADLIBS" >> $config_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_mak
 case "$cpu" in
-  i386)
-    ARCH=i386
+  i386|x86_64|alpha|cris|hppa|ia64|m68k|microbaze|mips|mips64|ppc|ppc64|s390|sparc|sparc64)
+    ARCH=$cpu
   ;;
-  x86_64)
-    ARCH=x86_64
-  ;;
-  alpha)
-   ARCH=alpha
-  ;;
-  armv4b)
+  armv4b|arm4l)
     ARCH=arm
-  ;;
-  armv4l)
-    ARCH=arm
-  ;;
-  cris)
-    ARCH=cris
-  ;;
-  hppa)
-    ARCH=hppa
-  ;;
-  ia64)
-    ARCH=ia64
-  ;;
-  m68k)
-    ARCH=m68k
-  ;;
-  microblaze)
-    ARCH=microblaze
-  ;;
-  mips)
-    ARCH=mips
-  ;;
-  mips64)
-    ARCH=mips64
-  ;;
-  ppc)
-    ARCH=ppc
-  ;;
-  ppc64)
-    ARCH=ppc64
-  ;;
-  s390)
-    ARCH=s390
-  ;;
-  sparc)
-    ARCH=sparc
-  ;;
-  sparc64)
-    ARCH=sparc64
   ;;
   *)
     echo "Unsupported CPU = $cpu"
