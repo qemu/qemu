@@ -1893,13 +1893,13 @@ gdb_xml_files=""
 
 case "$target_arch2" in
   i386)
-    echo "TARGET_ARCH=i386" >> $config_mak
+    TARGET_ARCH=i386
     echo "#define TARGET_ARCH \"i386\"" >> $config_h
     echo "#define TARGET_I386 1" >> $config_h
     target_phys_bits=32
   ;;
   x86_64)
-    echo "TARGET_ARCH=x86_64" >> $config_mak
+    TARGET_ARCH=x86_64
     echo "TARGET_BASE_ARCH=i386" >> $config_mak
     echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
     echo "#define TARGET_I386 1" >> $config_h
@@ -1907,13 +1907,13 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   alpha)
-    echo "TARGET_ARCH=alpha" >> $config_mak
+    TARGET_ARCH=alpha
     echo "#define TARGET_ARCH \"alpha\"" >> $config_h
     echo "#define TARGET_ALPHA 1" >> $config_h
     target_phys_bits=64
   ;;
   arm|armeb)
-    echo "TARGET_ARCH=arm" >> $config_mak
+    TARGET_ARCH=arm
     echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"arm\"" >> $config_h
     echo "#define TARGET_ARM 1" >> $config_h
@@ -1923,14 +1923,14 @@ case "$target_arch2" in
     target_phys_bits=32
   ;;
   cris)
-    echo "TARGET_ARCH=cris" >> $config_mak
+    TARGET_ARCH=cris
     echo "#define TARGET_ARCH \"cris\"" >> $config_h
     echo "#define TARGET_CRIS 1" >> $config_h
     target_nptl="yes"
     target_phys_bits=32
   ;;
   m68k)
-    echo "TARGET_ARCH=m68k" >> $config_mak
+    TARGET_ARCH=m68k
     echo "#define TARGET_ARCH \"m68k\"" >> $config_h
     echo "#define TARGET_M68K 1" >> $config_h
     bflt="yes"
@@ -1938,7 +1938,7 @@ case "$target_arch2" in
     target_phys_bits=32
   ;;
   microblaze)
-    echo "TARGET_ARCH=microblaze" >> $config_mak
+    TARGET_ARCH=microblaze
     echo "#define TARGET_ARCH \"microblaze\"" >> $config_h
     echo "#define TARGET_MICROBLAZE 1" >> $config_h
     bflt="yes"
@@ -1946,7 +1946,7 @@ case "$target_arch2" in
     target_phys_bits=32
   ;;
  mips|mipsel)
-    echo "TARGET_ARCH=mips" >> $config_mak
+    TARGET_ARCH=mips
     echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"mips\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
@@ -1955,7 +1955,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   mipsn32|mipsn32el)
-    echo "TARGET_ARCH=mipsn32" >> $config_mak
+    TARGET_ARCH=mipsn32
     echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "TARGET_BASE_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
@@ -1964,7 +1964,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   mips64|mips64el)
-    echo "TARGET_ARCH=mips64" >> $config_mak
+    TARGET_ARCH=mips64
     echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "TARGET_BASE_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mips64\"" >> $config_h
@@ -1974,14 +1974,14 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   ppc)
-    echo "TARGET_ARCH=ppc" >> $config_mak
+    TARGET_ARCH=ppc
     echo "#define TARGET_ARCH \"ppc\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=32
   ;;
   ppcemb)
-    echo "TARGET_ARCH=ppcemb" >> $config_mak
+    TARGET_ARCH=ppcemb
     echo "TARGET_BASE_ARCH=ppc" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
@@ -1991,7 +1991,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   ppc64)
-    echo "TARGET_ARCH=ppc64" >> $config_mak
+    TARGET_ARCH=ppc64
     echo "TARGET_BASE_ARCH=ppc" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
@@ -2001,7 +2001,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   ppc64abi32)
-    echo "TARGET_ARCH=ppc64" >> $config_mak
+    TARGET_ARCH=ppc64
     echo "TARGET_BASE_ARCH=ppc" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
@@ -2013,7 +2013,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   sh4|sh4eb)
-    echo "TARGET_ARCH=sh4" >> $config_mak
+    TARGET_ARCH=sh4
     echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ARCH \"sh4\"" >> $config_h
     echo "#define TARGET_SH4 1" >> $config_h
@@ -2022,13 +2022,13 @@ case "$target_arch2" in
     target_phys_bits=32
   ;;
   sparc)
-    echo "TARGET_ARCH=sparc" >> $config_mak
+    TARGET_ARCH=sparc
     echo "#define TARGET_ARCH \"sparc\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
     target_phys_bits=64
   ;;
   sparc64)
-    echo "TARGET_ARCH=sparc64" >> $config_mak
+    TARGET_ARCH=sparc64
     echo "TARGET_BASE_ARCH=sparc" >> $config_mak
     echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
@@ -2037,7 +2037,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   sparc32plus)
-    echo "TARGET_ARCH=sparc64" >> $config_mak
+    TARGET_ARCH=sparc64
     echo "TARGET_BASE_ARCH=sparc" >> $config_mak
     echo "TARGET_ABI_DIR=sparc" >> $config_mak
     echo "TARGET_ARCH2=$target_arch2" >> $config_mak
@@ -2052,6 +2052,7 @@ case "$target_arch2" in
     exit 1
   ;;
 esac
+echo "TARGET_ARCH=$TARGET_ARCH" >> $config_mak
 if [ $target_phys_bits -lt $hostlongbits ] ; then
   target_phys_bits=$hostlongbits
 fi
