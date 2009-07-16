@@ -687,8 +687,6 @@ ifdef CONFIG_SLIRP
 CPPFLAGS+=-I$(SRC_PATH)/slirp
 endif
 
-LIBS+=$(PTHREADLIBS)
-LIBS+=$(CLOCKLIBS)
 # specific flags are needed for non soft mmu emulator
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
