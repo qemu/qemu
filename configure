@@ -1496,78 +1496,65 @@ echo "PTHREADLIBS=$PTHREADLIBS" >> $config_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_mak
 case "$cpu" in
   i386)
-    echo "ARCH=i386" >> $config_mak
-    echo "#define HOST_I386 1" >> $config_h
+    ARCH=i386
   ;;
   x86_64)
-    echo "ARCH=x86_64" >> $config_mak
-    echo "#define HOST_X86_64 1" >> $config_h
+    ARCH=x86_64
   ;;
   alpha)
-    echo "ARCH=alpha" >> $config_mak
-    echo "#define HOST_ALPHA 1" >> $config_h
+   ARCH=alpha
   ;;
   armv4b)
-    echo "ARCH=arm" >> $config_mak
-    echo "#define HOST_ARM 1" >> $config_h
+    ARCH=arm
   ;;
   armv4l)
-    echo "ARCH=arm" >> $config_mak
-    echo "#define HOST_ARM 1" >> $config_h
+    ARCH=arm
   ;;
   cris)
-    echo "ARCH=cris" >> $config_mak
-    echo "#define HOST_CRIS 1" >> $config_h
+    ARCH=cris
   ;;
   hppa)
-    echo "ARCH=hppa" >> $config_mak
-    echo "#define HOST_HPPA 1" >> $config_h
+    ARCH=hppa
   ;;
   ia64)
-    echo "ARCH=ia64" >> $config_mak
-    echo "#define HOST_IA64 1" >> $config_h
+    ARCH=ia64
   ;;
   m68k)
-    echo "ARCH=m68k" >> $config_mak
-    echo "#define HOST_M68K 1" >> $config_h
+    ARCH=m68k
   ;;
   microblaze)
-    echo "ARCH=microblaze" >> $config_mak
-    echo "#define HOST_MICROBLAZE 1" >> $config_h
+    ARCH=microblaze
   ;;
   mips)
-    echo "ARCH=mips" >> $config_mak
-    echo "#define HOST_MIPS 1" >> $config_h
+    ARCH=mips
   ;;
   mips64)
-    echo "ARCH=mips64" >> $config_mak
-    echo "#define HOST_MIPS64 1" >> $config_h
+    ARCH=mips64
   ;;
   ppc)
-    echo "ARCH=ppc" >> $config_mak
-    echo "#define HOST_PPC 1" >> $config_h
+    ARCH=ppc
   ;;
   ppc64)
-    echo "ARCH=ppc64" >> $config_mak
-    echo "#define HOST_PPC64 1" >> $config_h
+    ARCH=ppc64
   ;;
   s390)
-    echo "ARCH=s390" >> $config_mak
-    echo "#define HOST_S390 1" >> $config_h
+    ARCH=s390
   ;;
   sparc)
-    echo "ARCH=sparc" >> $config_mak
-    echo "#define HOST_SPARC 1" >> $config_h
+    ARCH=sparc
   ;;
   sparc64)
-    echo "ARCH=sparc64" >> $config_mak
-    echo "#define HOST_SPARC64 1" >> $config_h
+    ARCH=sparc64
   ;;
   *)
     echo "Unsupported CPU = $cpu"
     exit 1
   ;;
 esac
+echo "ARCH=$ARCH" >> $config_mak
+arch_name=`echo $ARCH | tr '[:lower:]' '[:upper:]'`
+echo "#define HOST_$arch_name 1" >> $config_h
+
 if test "$debug_tcg" = "yes" ; then
   echo "#define DEBUG_TCG 1" >> $config_h
 fi
