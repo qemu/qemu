@@ -1,28 +1,10 @@
 include config.mak
 include $(SRC_PATH)/rules.mak
 
+ifndef TARGET_BASE_ARCH
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
-ifeq ($(TARGET_ARCH), x86_64)
-TARGET_BASE_ARCH:=i386
 endif
-ifeq ($(TARGET_ARCH), mipsn32)
-TARGET_BASE_ARCH:=mips
-endif
-ifeq ($(TARGET_ARCH), mips64)
-TARGET_BASE_ARCH:=mips
-endif
-ifeq ($(TARGET_ARCH), ppc64)
-TARGET_BASE_ARCH:=ppc
-endif
-ifeq ($(TARGET_ARCH), ppc64h)
-TARGET_BASE_ARCH:=ppc
-endif
-ifeq ($(TARGET_ARCH), ppcemb)
-TARGET_BASE_ARCH:=ppc
-endif
-ifeq ($(TARGET_ARCH), sparc64)
-TARGET_BASE_ARCH:=sparc
-endif
+
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H

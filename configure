@@ -2002,6 +2002,7 @@ case "$target_arch2" in
   ;;
   x86_64)
     echo "TARGET_ARCH=x86_64" >> $config_mak
+    echo "TARGET_BASE_ARCH=i386" >> $config_mak
     echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
     echo "#define TARGET_I386 1" >> $config_h
     echo "#define TARGET_X86_64 1" >> $config_h
@@ -2070,6 +2071,7 @@ case "$target_arch2" in
   ;;
   mipsn32|mipsn32el)
     echo "TARGET_ARCH=mipsn32" >> $config_mak
+    echo "TARGET_BASE_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_ABI_MIPSN32 1" >> $config_h
@@ -2077,6 +2079,7 @@ case "$target_arch2" in
   ;;
   mips64|mips64el)
     echo "TARGET_ARCH=mips64" >> $config_mak
+    echo "TARGET_BASE_ARCH=mips" >> $config_mak
     echo "#define TARGET_ARCH \"mips64\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_MIPS64 1" >> $config_h
@@ -2092,6 +2095,7 @@ case "$target_arch2" in
   ;;
   ppcemb)
     echo "TARGET_ARCH=ppcemb" >> $config_mak
+    echo "TARGET_BASE_ARCH=ppc" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
@@ -2106,6 +2110,7 @@ case "$target_arch2" in
   ;;
   ppc64)
     echo "TARGET_ARCH=ppc64" >> $config_mak
+    echo "TARGET_BASE_ARCH=ppc" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
@@ -2115,6 +2120,7 @@ case "$target_arch2" in
   ;;
   ppc64abi32)
     echo "TARGET_ARCH=ppc64" >> $config_mak
+    echo "TARGET_BASE_ARCH=ppc" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
     echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
@@ -2140,6 +2146,7 @@ case "$target_arch2" in
   ;;
   sparc64)
     echo "TARGET_ARCH=sparc64" >> $config_mak
+    echo "TARGET_BASE_ARCH=sparc" >> $config_mak
     echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
     echo "#define TARGET_SPARC64 1" >> $config_h
@@ -2148,6 +2155,7 @@ case "$target_arch2" in
   ;;
   sparc32plus)
     echo "TARGET_ARCH=sparc64" >> $config_mak
+    echo "TARGET_BASE_ARCH=sparc" >> $config_mak
     echo "TARGET_ABI_DIR=sparc" >> $config_mak
     echo "TARGET_ARCH2=sparc32plus" >> $config_mak
     echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
