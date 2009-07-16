@@ -300,9 +300,7 @@ obj-m68k-y += m68k-sim.o m68k-semi.o
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): ARLIBS=../libqemu_user.a libqemu.a
-$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)  ../libqemu_user.a libqemu.a
-	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
+ARLIBS=../libqemu_user.a libqemu.a
 
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
@@ -332,9 +330,7 @@ obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): ARLIBS=libqemu.a
-$(QEMU_PROG): $(obj-y) libqemu.a
-	$(call LINK,$(obj-y))
+ARLIBS=libqemu.a
 
 endif #CONFIG_DARWIN_USER
 
@@ -432,9 +428,7 @@ obj-y += uaccess.o
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): ARLIBS=libqemu.a ../libqemu_user.a
-$(QEMU_PROG): $(obj-y) libqemu.a ../libqemu_user.a
-	$(call LINK,$(obj-y))
+ARLIBS=libqemu.a ../libqemu_user.a
 
 endif #CONFIG_BSD_USER
 
@@ -683,12 +677,14 @@ vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
 
-$(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
-$(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
-$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) ../libqemu_common.a libqemu.a $(HWLIB)
-	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
+LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
+ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # !CONFIG_USER_ONLY
+
+$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) $(ARLIBS)
+	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
+
 
 gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
 ifeq ($(TARGET_XML_FILES),)
