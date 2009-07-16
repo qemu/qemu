@@ -530,14 +530,37 @@ static void ram_register_devices(void)
 
 device_init(ram_register_devices);
 
+static CPUState *cpu_devinit(const char *cpu_model, unsigned int id,
+                             uint64_t prom_addr, qemu_irq **cpu_irqs)
+{
+    CPUState *env;
+
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
+        exit(1);
+    }
+
+    cpu_sparc_set_id(env, id);
+    if (id == 0) {
+        qemu_register_reset(main_cpu_reset, env);
+    } else {
+        qemu_register_reset(secondary_cpu_reset, env);
+        env->halted = 1;
+    }
+    *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
+    env->prom_addr = prom_addr;
+
+    return env;
+}
+
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
-
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *envs[MAX_CPUS];
     unsigned int i;
     void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
@@ -555,21 +578,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         cpu_model = hwdef->default_cpu_model;
 
     for(i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
-            fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-            exit(1);
-        }
-        cpu_sparc_set_id(env, i);
-        envs[i] = env;
-        if (i == 0) {
-            qemu_register_reset(main_cpu_reset, env);
-        } else {
-            qemu_register_reset(secondary_cpu_reset, env);
-            env->halted = 1;
-        }
-        cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
-        env->prom_addr = hwdef->slavio_base;
+        envs[i] = cpu_devinit(cpu_model, i, hwdef->slavio_base, &cpu_irqs[i]);
     }
 
     for (i = smp_cpus; i < MAX_CPUS; i++)
@@ -1293,7 +1302,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *envs[MAX_CPUS];
     unsigned int i;
     void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram, *sbi;
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
@@ -1306,22 +1315,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
 
-    for (i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
-            fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-            exit(1);
-        }
-        cpu_sparc_set_id(env, i);
-        envs[i] = env;
-        if (i == 0) {
-            qemu_register_reset(main_cpu_reset, env);
-        } else {
-            qemu_register_reset(secondary_cpu_reset, env);
-            env->halted = 1;
-        }
-        cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
-        env->prom_addr = hwdef->slavio_base;
+    for(i = 0; i < smp_cpus; i++) {
+        envs[i] = cpu_devinit(cpu_model, i, hwdef->slavio_base, &cpu_irqs[i]);
     }
 
     for (i = smp_cpus; i < MAX_CPUS; i++)
@@ -1493,17 +1488,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
 
-    env = cpu_init(cpu_model);
-    if (!env) {
-        fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-        exit(1);
-    }
-
-    cpu_sparc_set_id(env, 0);
-
-    qemu_register_reset(main_cpu_reset, env);
-    cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
-    env->prom_addr = hwdef->slavio_base;
+    env = cpu_devinit(cpu_model, 0, hwdef->slavio_base, &cpu_irqs);
 
     /* set up devices */
     ram_init(0, RAM_size, hwdef->max_mem);
