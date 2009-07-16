@@ -23,6 +23,9 @@ version 0.10.6:
   - Fix migration after hot remove with eepro100 (Mark McLoughlin)
   - Don't start a VM after failed migration if stopped (Anthony Liguori)
   - Fix live migration under heavy IO load (Glauber Costa)
+  - Honor -S on incoming migration (Paolo Bonzini)
+  - Reset HPET config register on reset (Beth Kon)
+  - Reset PS2 keyboard/mouse on reset (Dinesh Subraveti)
 
 version 0.10.5:
   - kvm: trim unsupported cpu features from cpuid (Avi Kivity)
