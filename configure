@@ -1907,7 +1907,6 @@ case "$target_arch2" in
   ;;
   arm|armeb)
     TARGET_ARCH=arm
-    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     bflt="yes"
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
@@ -1927,23 +1926,20 @@ case "$target_arch2" in
     target_nptl="yes"
     target_phys_bits=32
   ;;
- mips|mipsel)
+  mips|mipsel)
     TARGET_ARCH=mips
-    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
     target_nptl="yes"
     target_phys_bits=64
   ;;
   mipsn32|mipsn32el)
     TARGET_ARCH=mipsn32
-    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     TARGET_BASE_ARCH=mips
     echo "#define TARGET_ABI_MIPSN32 1" >> $config_h
     target_phys_bits=64
   ;;
   mips64|mips64el)
     TARGET_ARCH=mips64
-    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     TARGET_BASE_ARCH=mips
     echo "#define TARGET_ABI_MIPSN64 1" >> $config_h
     target_phys_bits=64
@@ -1968,14 +1964,12 @@ case "$target_arch2" in
     TARGET_ARCH=ppc64
     TARGET_BASE_ARCH=ppc
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
-    echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
     echo "#define TARGET_ABI32 1" >> $config_h
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
-    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     bflt="yes"
     target_nptl="yes"
     target_phys_bits=32
@@ -1992,7 +1986,6 @@ case "$target_arch2" in
     TARGET_ARCH=sparc64
     TARGET_BASE_ARCH=sparc
     echo "TARGET_ABI_DIR=sparc" >> $config_mak
-    echo "TARGET_ARCH2=$target_arch2" >> $config_mak
     echo "#define TARGET_ABI32 1" >> $config_h
     target_phys_bits=64
   ;;
@@ -2002,6 +1995,7 @@ case "$target_arch2" in
   ;;
 esac
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_mak
+echo "TARGET_ARCH2=$target_arch2" >> $config_mak
 echo "#define TARGET_ARCH \"$TARGET_ARCH\"" >> $config_h
 target_arch_name=`echo $TARGET_ARCH | tr '[:lower:]' '[:upper:]'`
 echo "#define TARGET_$target_arch_name 1" >> $config_h

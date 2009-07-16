@@ -6,10 +6,6 @@ VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
 #CFLAGS+=-Werror
 LIBS=
-# user emulator name
-ifndef TARGET_ARCH2
-TARGET_ARCH2=$(TARGET_ARCH)
-endif
 
 ifdef CONFIG_USER_ONLY
 # user emulator name
