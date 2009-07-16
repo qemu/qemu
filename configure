@@ -1489,13 +1489,8 @@ echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
 echo "OBJCOPY=$objcopy" >> $config_mak
 echo "LD=$ld" >> $config_mak
-# XXX: only use CFLAGS and LDFLAGS ?  
-# XXX: should export HOST_CFLAGS and HOST_LDFLAGS for cross
-# compilation of dyngen tool (useful for win32 build on Linux host)
-echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
-echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
-echo "CFLAGS=$CFLAGS $OS_CFLAGS $EXTRA_CFLAGS" >> $config_mak
-echo "LDFLAGS=$LDFLAGS $OS_LDFLAGS $EXTRA_LDFLAGS" >> $config_mak
+echo "CFLAGS=$CFLAGS $OS_CFLAGS $ARCH_CFLAGS $EXTRA_CFLAGS" >> $config_mak
+echo "LDFLAGS=$LDFLAGS $OS_LDFLAGS $ARCH_LDFLAGS $EXTRA_LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
 echo "PTHREADLIBS=$PTHREADLIBS" >> $config_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_mak
