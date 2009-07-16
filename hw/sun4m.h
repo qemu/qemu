@@ -28,10 +28,10 @@ void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
               int depth);
 
 /* slavio_intctl.c */
-void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
-                         const uint32_t *intbit_to_level,
-                         qemu_irq **irq, qemu_irq **cpu_irq,
-                         qemu_irq **parent_irq, unsigned int cputimer);
+DeviceState *slavio_intctl_init(target_phys_addr_t addr,
+                                target_phys_addr_t addrg,
+                                const uint32_t *intbit_to_level,
+                                qemu_irq **parent_irq, unsigned int cputimer);
 void slavio_pic_info(Monitor *mon, void *opaque);
 void slavio_irq_info(Monitor *mon, void *opaque);
 
