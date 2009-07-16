@@ -23,8 +23,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program (see the file COPYING included with this
- *  distribution); if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *  distribution); if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu-common.h"
 #include "net.h"

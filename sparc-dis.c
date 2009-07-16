@@ -23,9 +23,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS or GDB; see the file COPYING. If not, write to
-   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with GAS or GDB; see the file COPYING. If not,
+   see <http://www.gnu.org/licenses/>.  */
 
 #include <stdlib.h>
 #include "dis-asm.h"
@@ -256,9 +255,8 @@ static const char *sparc_decode_sparclet_cpreg (int);
    for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this software; see the file COPYING.  If not, write to
-   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with this software; see the file COPYING.  If not,
+   see <http://www.gnu.org/licenses/>.  */
 
 /* FIXME-someday: perhaps the ,a's and such should be embedded in the
    instruction's name rather than the args.  This would make gas faster, pinsn
@@ -2258,9 +2256,7 @@ sparc_decode_sparclet_cpreg (int value)
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
 
 /* Bitmask of v9 architectures.  */
 #define MASK_V9 ((1 << SPARC_OPCODE_ARCH_V9) \
