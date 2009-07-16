@@ -301,13 +301,6 @@ obj-m68k-y += m68k-sim.o m68k-semi.o
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 ARLIBS=../libqemu_user.a libqemu.a
-
-ifeq ($(ARCH),alpha)
-# Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
-# the address space (31 bit so sign extending doesn't matter)
-	echo -ne '\001\000\000\000' | dd of=qemu bs=1 seek=48 count=4 conv=notrunc
-endif
-
 endif #CONFIG_LINUX_USER
 
 #########################################################
