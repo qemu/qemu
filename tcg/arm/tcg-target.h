@@ -51,8 +51,9 @@ enum {
     TCG_REG_R12,
     TCG_REG_R13,
     TCG_REG_R14,
-    TCG_TARGET_NB_REGS
 };
+
+#define TCG_TARGET_NB_REGS 15
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R13
@@ -69,8 +70,7 @@ enum {
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
 #if QEMU_GNUC_PREREQ(4, 1)
-    void __clear_cache(char *beg, char *end);
-    __clear_cache((char *) start, (char *) stop);
+    __builtin___clear_cache((char *) start, (char *) stop);
 #else
     register unsigned long _beg __asm ("a1") = start;
     register unsigned long _end __asm ("a2") = stop;

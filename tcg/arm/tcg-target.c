@@ -1567,7 +1567,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
     tcg_out_st32(s, COND_AL, arg, arg1, arg2);
 }
 
-void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
+static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
 {
     if (val > 0)
         if (val < 0x100)
