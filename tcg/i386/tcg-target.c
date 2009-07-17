@@ -624,7 +624,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         }
         if (!bswap) {
             tcg_out_modrm_offset(s, 0x8b, data_reg, r0, GUEST_BASE);
-            tcg_out_modrm_offset(s, 0x8b, data_reg2, r0, GUEST+BASE + 4);
+            tcg_out_modrm_offset(s, 0x8b, data_reg2, r0, GUEST_BASE + 4);
         } else {
             tcg_out_modrm_offset(s, 0x8b, data_reg, r0, GUEST_BASE + 4);
             tcg_out_opc(s, (0xc8 + data_reg) | P_EXT);
