@@ -31,9 +31,10 @@ x=`dd if="$1" bs=1 count=1 skip=2 2>/dev/null | od -t u1 -A n`
 size=$(( $x * 512 - 1 ))
 
 # now get the checksum
-for i in `od -A n -t u1 -v "$1"`; do
+nums=`od -A n -t u1 -v "$1"`
+for i in ${nums}; do
     # add each byte's value to sum
-    sum=$(( $sum + $i ))
+    sum=`expr $sum + $i`
 done
 
 sum=$(( $sum % 256 ))
