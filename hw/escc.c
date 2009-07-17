@@ -970,22 +970,22 @@ static SysBusDeviceInfo escc_info = {
         {
             .name = "chrB",
             .info = &qdev_prop_ptr,
-            .offset = offsetof(SerialState, chn[1].chr),
+            .offset = offsetof(SerialState, chn[0].chr),
         },
         {
             .name = "chrA",
             .info = &qdev_prop_ptr,
-            .offset = offsetof(SerialState, chn[0].chr),
+            .offset = offsetof(SerialState, chn[1].chr),
         },
         {
             .name = "chnBtype",
             .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, chn[1].type),
+            .offset = offsetof(SerialState, chn[0].type),
         },
         {
             .name = "chnAtype",
             .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, chn[0].type),
+            .offset = offsetof(SerialState, chn[1].type),
         },
         {/* end of list */}
     }
