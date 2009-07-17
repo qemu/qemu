@@ -134,13 +134,13 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->rip = infop->entry;
 }
 
-typedef target_ulong    elf_greg_t;
+typedef target_ulong    target_elf_greg_t;
 typedef uint32_t        target_uid_t;
 typedef uint32_t        target_gid_t;
 typedef int32_t         target_pid_t;
 
 #define ELF_NREG    27
-typedef elf_greg_t  elf_gregset_t[ELF_NREG];
+typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
 /*
  * Note that ELF_NREG should be 29 as there should be place for
@@ -149,7 +149,7 @@ typedef elf_greg_t  elf_gregset_t[ELF_NREG];
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 {
     (*regs)[0] = env->regs[15];
     (*regs)[1] = env->regs[14];
@@ -211,13 +211,13 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->edx = 0;
 }
 
-typedef target_ulong    elf_greg_t;
+typedef target_ulong    target_elf_greg_t;
 typedef uint16_t        target_uid_t;
 typedef uint16_t        target_gid_t;
 typedef int32_t         target_pid_t;
 
 #define ELF_NREG    17
-typedef elf_greg_t  elf_gregset_t[ELF_NREG];
+typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
 /*
  * Note that ELF_NREG should be 19 as there should be place for
@@ -226,7 +226,7 @@ typedef elf_greg_t  elf_gregset_t[ELF_NREG];
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 {
     (*regs)[0] = env->regs[R_EBX];
     (*regs)[1] = env->regs[R_ECX];
@@ -286,15 +286,15 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->ARM_r10 = infop->start_data;
 }
 
-typedef uint32_t elf_greg_t;
+typedef uint32_t target_elf_greg_t;
 typedef uint16_t target_uid_t;
 typedef uint16_t target_gid_t;
 typedef int32_t  target_pid_t;
 
 #define ELF_NREG    18
-typedef elf_greg_t  elf_gregset_t[ELF_NREG];
+typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
-static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 {
     (*regs)[0] = env->regs[0];
     (*regs)[1] = env->regs[1];
@@ -1725,7 +1725,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
 /*
  * Definitions to generate Intel SVR4-like core files.
- * These mostly have the same names as the SVR4 types with "elf_"
+ * These mostly have the same names as the SVR4 types with "target_elf_"
  * tacked on the front to prevent clashes with linux definitions,
  * and the typedef forms have been avoided.  This is mostly like
  * the SVR4 structure, but more Linuxy, with things that Linux does
@@ -1745,9 +1745,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
  * Next you define type of register set used for dumping.  ELF specification
  * says that it needs to be array of elf_greg_t that has size of ELF_NREG.
  *
- * typedef <target_regtype> elf_greg_t;
+ * typedef <target_regtype> target_elf_greg_t;
  * #define ELF_NREG <number of registers>
- * typedef elf_greg_t elf_gregset_t[ELF_NREG];
+ * typedef taret_elf_greg_t target_elf_gregset_t[ELF_NREG];
  *
  * Then define following types to match target types.  Actual types can
  * be found from linux kernel (arch/<ARCH>/include/asm/posix_types.h):
@@ -1759,7 +1759,8 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
  * Last step is to implement target specific function that copies registers
  * from given cpu into just specified register set.  Prototype is:
  *
- * static void elf_core_copy_regs(elf_gregset_t *regs, const CPUState *env);
+ * static void elf_core_copy_regs(taret_elf_gregset_t *regs,
+ *                                const CPUState *env);
  *
  * Parameters:
  *     regs - copy register values into here (allocated and zeroed by caller)
@@ -1779,14 +1780,14 @@ struct memelfnote {
     size_t     notesz;
 };
 
-struct elf_siginfo {
+struct target_elf_siginfo {
     int  si_signo; /* signal number */
     int  si_code;  /* extra code */
     int  si_errno; /* errno */
 };
 
-struct elf_prstatus {
-    struct elf_siginfo pr_info;      /* Info associated with signal */
+struct target_elf_prstatus {
+    struct target_elf_siginfo pr_info;      /* Info associated with signal */
     short              pr_cursig;    /* Current signal */
     target_ulong       pr_sigpend;   /* XXX */
     target_ulong       pr_sighold;   /* XXX */
@@ -1798,13 +1799,13 @@ struct elf_prstatus {
     struct target_timeval pr_stime;  /* XXX System time */
     struct target_timeval pr_cutime; /* XXX Cumulative user time */
     struct target_timeval pr_cstime; /* XXX Cumulative system time */
-    elf_gregset_t      pr_reg;       /* GP registers */
+    target_elf_gregset_t      pr_reg;       /* GP registers */
     int                pr_fpvalid;   /* XXX */
 };
 
 #define ELF_PRARGSZ     (80) /* Number of chars for args */
 
-struct elf_prpsinfo {
+struct target_elf_prpsinfo {
     char         pr_state;       /* numeric process state */
     char         pr_sname;       /* char for pr_state */
     char         pr_zomb;        /* zombie */
@@ -1821,7 +1822,7 @@ struct elf_prpsinfo {
 /* Here is the structure in which status of each thread is captured. */
 struct elf_thread_status {
     TAILQ_ENTRY(elf_thread_status)  ets_link;
-    struct elf_prstatus prstatus;   /* NT_PRSTATUS */
+    struct target_elf_prstatus prstatus;   /* NT_PRSTATUS */
 #if 0
     elf_fpregset_t fpu;             /* NT_PRFPREG */
     struct task_struct *thread;
@@ -1833,8 +1834,8 @@ struct elf_thread_status {
 
 struct elf_note_info {
     struct memelfnote   *notes;
-    struct elf_prstatus *prstatus;  /* NT_PRSTATUS */
-    struct elf_prpsinfo *psinfo;    /* NT_PRPSINFO */
+    struct target_elf_prstatus *prstatus;  /* NT_PRSTATUS */
+    struct target_elf_prpsinfo *psinfo;    /* NT_PRPSINFO */
 
     TAILQ_HEAD(thread_list_head, elf_thread_status) thread_list;
 #if 0
@@ -1876,8 +1877,8 @@ static int vma_walker(void *priv, unsigned long start, unsigned long end,
 static void fill_elf_header(struct elfhdr *, int, uint16_t, uint32_t);
 static void fill_note(struct memelfnote *, const char *, int,
     unsigned int, void *);
-static void fill_prstatus(struct elf_prstatus *, const TaskState *, int);
-static int fill_psinfo(struct elf_prpsinfo *, const TaskState *);
+static void fill_prstatus(struct target_elf_prstatus *, const TaskState *, int);
+static int fill_psinfo(struct target_elf_prpsinfo *, const TaskState *);
 static void fill_auxv_note(struct memelfnote *, const TaskState *);
 static void fill_elf_note_phdr(struct elf_phdr *, int, off_t);
 static size_t note_size(const struct memelfnote *);
@@ -1891,10 +1892,10 @@ static int write_note(struct memelfnote *, int);
 static int write_note_info(struct elf_note_info *, int);
 
 #ifdef BSWAP_NEEDED
-static void bswap_prstatus(struct elf_prstatus *);
-static void bswap_psinfo(struct elf_prpsinfo *);
+static void bswap_prstatus(struct target_elf_prstatus *);
+static void bswap_psinfo(struct target_elf_prpsinfo *);
 
-static void bswap_prstatus(struct elf_prstatus *prstatus)
+static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 {
     prstatus->pr_info.si_signo = tswapl(prstatus->pr_info.si_signo);
     prstatus->pr_info.si_code = tswapl(prstatus->pr_info.si_code);
@@ -1911,7 +1912,7 @@ static void bswap_prstatus(struct elf_prstatus *prstatus)
     prstatus->pr_fpvalid = tswap32(prstatus->pr_fpvalid);
 }
 
-static void bswap_psinfo(struct elf_prpsinfo *psinfo)
+static void bswap_psinfo(struct target_elf_prpsinfo *psinfo)
 {
     psinfo->pr_flag = tswapl(psinfo->pr_flag);
     psinfo->pr_uid = tswap16(psinfo->pr_uid);
@@ -2105,7 +2106,7 @@ static size_t note_size(const struct memelfnote *note)
     return (note->notesz);
 }
 
-static void fill_prstatus(struct elf_prstatus *prstatus,
+static void fill_prstatus(struct target_elf_prstatus *prstatus,
     const TaskState *ts, int signr)
 {
     (void) memset(prstatus, 0, sizeof (*prstatus));
@@ -2120,7 +2121,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 #endif
 }
 
-static int fill_psinfo(struct elf_prpsinfo *psinfo, const TaskState *ts)
+static int fill_psinfo(struct target_elf_prpsinfo *psinfo, const TaskState *ts)
 {
     char *filename, *base_filename;
     unsigned int i, len;
