@@ -32,7 +32,6 @@
 
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 static BusState *main_system_bus;
-extern struct BusInfo system_bus_info;
 
 static DeviceInfo *device_info_list;
 

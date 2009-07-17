@@ -162,4 +162,7 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 void qdev_prop_register_compat(CompatProperty *props);
 void qdev_prop_set_compat(DeviceState *dev);
 
+/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
+extern struct BusInfo system_bus_info;
+
 #endif
