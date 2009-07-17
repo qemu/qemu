@@ -297,7 +297,7 @@ static void host_cpuid(uint32_t function, uint32_t count, uint32_t *eax,
 
 static int cpu_x86_fill_model_id(char *str)
 {
-    uint32_t eax, ebx, ecx, edx;
+    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
     int i;
 
     for (i = 0; i < 3; i++) {
