@@ -56,7 +56,7 @@ typedef struct {
 typedef struct {
     SysBusDevice busdev;
     int pending_count;
-    int num_irqs;
+    uint32_t num_irqs;
     syborg_int_flags *flags;
     qemu_irq parent_irq;
 } SyborgIntState;
@@ -208,7 +208,6 @@ static void syborg_int_init(SysBusDevice *dev)
     int iomemtype;
 
     sysbus_init_irq(dev, &s->parent_irq);
-    s->num_irqs = qdev_get_prop_int(&dev->qdev, "num-interrupts", 64);
     qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
     iomemtype = cpu_register_io_memory(syborg_int_readfn,
                                        syborg_int_writefn, s);
@@ -218,10 +217,24 @@ static void syborg_int_init(SysBusDevice *dev)
     register_savevm("syborg_int", -1, 1, syborg_int_save, syborg_int_load, s);
 }
 
+static SysBusDeviceInfo syborg_int_info = {
+    .init = syborg_int_init,
+    .qdev.name  = "syborg,interrupt",
+    .qdev.size  = sizeof(SyborgIntState),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "num-interrupts",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(SyborgIntState, num_irqs),
+            .defval = (uint32_t[]) { 64 },
+        },
+        {/* end of list */}
+    }
+};
+
 static void syborg_interrupt_register_devices(void)
 {
-    sysbus_register_dev("syborg,interrupt", sizeof(SyborgIntState),
-                        syborg_int_init);
+    sysbus_register_withprop(&syborg_int_info);
 }
 
 device_init(syborg_interrupt_register_devices)

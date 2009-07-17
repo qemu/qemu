@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+
 #include "sun4m.h"
+#include "sysbus.h"
 
 /* debug iommu */
 //#define DEBUG_IOMMU
@@ -127,6 +128,7 @@
 #define IOMMU_PAGE_MASK     ~(IOMMU_PAGE_SIZE - 1)
 
 typedef struct IOMMUState {
+    SysBusDevice busdev;
     uint32_t regs[IOMMU_NREGS];
     target_phys_addr_t iostart;
     uint32_t version;
@@ -366,20 +368,54 @@ static void iommu_reset(void *opaque)
 
 void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
 {
-    IOMMUState *s;
-    int iommu_io_memory;
+    DeviceState *dev;
+    SysBusDevice *s;
+    IOMMUState *d;
 
-    s = qemu_mallocz(sizeof(IOMMUState));
+    dev = qdev_create(NULL, "iommu");
+    qdev_prop_set_uint32(dev, "version", version);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_mmio_map(s, 0, addr);
 
-    s->version = version;
-    s->irq = irq;
+    d = FROM_SYSBUS(IOMMUState, s);
 
-    iommu_io_memory = cpu_register_io_memory(iommu_mem_read,
-                                             iommu_mem_write, s);
-    cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
+    return d;
+}
 
-    register_savevm("iommu", addr, 2, iommu_save, iommu_load, s);
+static void iommu_init1(SysBusDevice *dev)
+{
+    IOMMUState *s = FROM_SYSBUS(IOMMUState, dev);
+    int io;
+
+    sysbus_init_irq(dev, &s->irq);
+
+    io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s);
+    sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
+
+    register_savevm("iommu", -1, 2, iommu_save, iommu_load, s);
     qemu_register_reset(iommu_reset, s);
     iommu_reset(s);
-    return s;
 }
+
+static SysBusDeviceInfo iommu_info = {
+    .init = iommu_init1,
+    .qdev.name  = "iommu",
+    .qdev.size  = sizeof(IOMMUState),
+    .qdev.props = (Property[]) {
+        {
+            .name = "version",
+            .info = &qdev_prop_hex32,
+            .offset = offsetof(IOMMUState, version),
+        },
+        {/* end of property list */}
+    }
+};
+
+static void iommu_register_devices(void)
+{
+    sysbus_register_withprop(&iommu_info);
+}
+
+device_init(iommu_register_devices)

@@ -34,6 +34,12 @@
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
+#ifdef DEBUG_UNUSED_IOPORT
+#  define LOG_UNUSED_IOPORT(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
+#else
+#  define LOG_UNUSED_IOPORT(fmt, ...) do{ } while (0)
+#endif
+
 #ifdef DEBUG_IOPORT
 #  define LOG_IOPORT(...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
 #else
@@ -77,17 +83,14 @@ static void ioport_write(int index, uint32_t address, uint32_t data)
 
 static uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused inb: port=0x%04x\n", address);
-#endif
+    LOG_UNUSED_IOPORT("unused inb: port=0x%04"PRIx32"\n", address);
     return 0xff;
 }
 
 static void default_ioport_writeb(void *opaque, uint32_t address, uint32_t data)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused outb: port=0x%04x data=0x%02x\n", address, data);
-#endif
+    LOG_UNUSED_IOPORT("unused outb: port=0x%04"PRIx32" data=0x%02"PRIx32"\n",
+                      address, data);
 }
 
 /* default is to make two byte accesses */
@@ -109,17 +112,14 @@ static void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
 
 static uint32_t default_ioport_readl(void *opaque, uint32_t address)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused inl: port=0x%04x\n", address);
-#endif
+    LOG_UNUSED_IOPORT("unused inl: port=0x%04"PRIx32"\n", address);
     return 0xffffffff;
 }
 
 static void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
 {
-#ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "unused outl: port=0x%04x data=0x%02x\n", address, data);
-#endif
+    LOG_UNUSED_IOPORT("unused outl: port=0x%04"PRIx32" data=0x%02"PRIx32"\n",
+                      address, data);
 }
 
 static int ioport_bsize(int size, int *bsize)
@@ -137,7 +137,7 @@ static int ioport_bsize(int size, int *bsize)
 }
 
 /* size is the word size in byte */
-int register_ioport_read(int start, int length, int size,
+int register_ioport_read(pio_addr_t start, int length, int size,
                          IOPortReadFunc *func, void *opaque)
 {
     int i, bsize;
@@ -156,7 +156,7 @@ int register_ioport_read(int start, int length, int size,
 }
 
 /* size is the word size in byte */
-int register_ioport_write(int start, int length, int size,
+int register_ioport_write(pio_addr_t start, int length, int size,
                           IOPortWriteFunc *func, void *opaque)
 {
     int i, bsize;
@@ -174,7 +174,7 @@ int register_ioport_write(int start, int length, int size,
     return 0;
 }
 
-void isa_unassign_ioport(int start, int length)
+void isa_unassign_ioport(pio_addr_t start, int length)
 {
     int i;
 
@@ -193,9 +193,9 @@ void isa_unassign_ioport(int start, int length)
 
 /***********************************************************/
 
-void cpu_outb(CPUState *env, int addr, int val)
+void cpu_outb(CPUState *env, pio_addr_t addr, uint8_t val)
 {
-    LOG_IOPORT("outb: %04x %02x\n", addr, val);
+    LOG_IOPORT("outb: %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
     ioport_write(0, addr, val);
 #ifdef CONFIG_KQEMU
     if (env)
@@ -203,9 +203,9 @@ void cpu_outb(CPUState *env, int addr, int val)
 #endif
 }
 
-void cpu_outw(CPUState *env, int addr, int val)
+void cpu_outw(CPUState *env, pio_addr_t addr, uint16_t val)
 {
-    LOG_IOPORT("outw: %04x %04x\n", addr, val);
+    LOG_IOPORT("outw: %04"FMT_pioaddr" %04"PRIx16"\n", addr, val);
     ioport_write(1, addr, val);
 #ifdef CONFIG_KQEMU
     if (env)
@@ -213,9 +213,9 @@ void cpu_outw(CPUState *env, int addr, int val)
 #endif
 }
 
-void cpu_outl(CPUState *env, int addr, int val)
+void cpu_outl(CPUState *env, pio_addr_t addr, uint32_t val)
 {
-    LOG_IOPORT("outl: %04x %08x\n", addr, val);
+    LOG_IOPORT("outl: %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);
     ioport_write(2, addr, val);
 #ifdef CONFIG_KQEMU
     if (env)
@@ -223,11 +223,11 @@ void cpu_outl(CPUState *env, int addr, int val)
 #endif
 }
 
-int cpu_inb(CPUState *env, int addr)
+uint8_t cpu_inb(CPUState *env, pio_addr_t addr)
 {
-    int val;
+    uint8_t val;
     val = ioport_read(0, addr);
-    LOG_IOPORT("inb : %04x %02x\n", addr, val);
+    LOG_IOPORT("inb : %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
 #ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -235,11 +235,11 @@ int cpu_inb(CPUState *env, int addr)
     return val;
 }
 
-int cpu_inw(CPUState *env, int addr)
+uint16_t cpu_inw(CPUState *env, pio_addr_t addr)
 {
-    int val;
+    uint16_t val;
     val = ioport_read(1, addr);
-    LOG_IOPORT("inw : %04x %04x\n", addr, val);
+    LOG_IOPORT("inw : %04"FMT_pioaddr" %04"PRIx16"\n", addr, val);
 #ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -247,15 +247,14 @@ int cpu_inw(CPUState *env, int addr)
     return val;
 }
 
-int cpu_inl(CPUState *env, int addr)
+uint32_t cpu_inl(CPUState *env, pio_addr_t addr)
 {
-    int val;
+    uint32_t val;
     val = ioport_read(2, addr);
-    LOG_IOPORT("inl : %04x %08x\n", addr, val);
+    LOG_IOPORT("inl : %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);
 #ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
     return val;
 }
-

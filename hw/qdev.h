@@ -4,9 +4,13 @@
 #include "hw.h"
 #include "sys-queue.h"
 
-typedef struct DeviceInfo DeviceInfo;
+typedef struct Property Property;
 
-typedef struct DeviceProperty DeviceProperty;
+typedef struct PropertyInfo PropertyInfo;
+
+typedef struct CompatProperty CompatProperty;
+
+typedef struct DeviceInfo DeviceInfo;
 
 typedef struct BusState BusState;
 
@@ -15,9 +19,9 @@ typedef struct BusInfo BusInfo;
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {
+    char *id;
     DeviceInfo *info;
     BusState *parent_bus;
-    DeviceProperty *props;
     int num_gpio_out;
     qemu_irq *gpio_out;
     int num_gpio_in;
@@ -32,6 +36,7 @@ struct BusInfo {
     const char *name;
     size_t size;
     bus_dev_printfn print_dev;
+    Property *props;
 };
 
 struct BusState {
@@ -42,17 +47,41 @@ struct BusState {
     LIST_ENTRY(BusState) sibling;
 };
 
+struct Property {
+    const char   *name;
+    PropertyInfo *info;
+    int          offset;
+    void         *defval;
+};
+
+enum PropertyType {
+    PROP_TYPE_UNSPEC = 0,
+    PROP_TYPE_UINT16,
+    PROP_TYPE_UINT32,
+    PROP_TYPE_TADDR,
+    PROP_TYPE_MACADDR,
+    PROP_TYPE_PTR,
+};
+
+struct PropertyInfo {
+    const char *name;
+    size_t size;
+    enum PropertyType type;
+    int (*parse)(DeviceState *dev, Property *prop, const char *str);
+    int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
+};
+
+struct CompatProperty {
+    const char *driver;
+    const char *property;
+    const char *value;
+};
+
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 DeviceState *qdev_create(BusState *bus, const char *name);
 void qdev_init(DeviceState *dev);
 void qdev_free(DeviceState *dev);
-
-/* Set properties between creation and init.  */
-void qdev_set_prop_int(DeviceState *dev, const char *name, uint64_t value);
-void qdev_set_prop_dev(DeviceState *dev, const char *name, DeviceState *value);
-void qdev_set_prop_ptr(DeviceState *dev, const char *name, void *value);
-void qdev_set_netdev(DeviceState *dev, NICInfo *nd);
 
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
@@ -61,25 +90,17 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
 
-typedef enum {
-    PROP_TYPE_INT,
-    PROP_TYPE_PTR,
-    PROP_TYPE_DEV
-} DevicePropType;
-
-typedef struct {
-    const char *name;
-    DevicePropType type;
-} DevicePropList;
-
 typedef void (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
 typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
               int unit);
 
 struct DeviceInfo {
     const char *name;
+    const char *alias;
+    const char *desc;
     size_t size;
-    DevicePropList *props;
+    Property *props;
+    int no_user;
 
     /* Private to qdev / bus.  */
     qdev_initfn init;
@@ -99,10 +120,6 @@ void scsi_bus_new(DeviceState *host, SCSIAttachFn attach);
 CharDriverState *qdev_init_chardev(DeviceState *dev);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
-uint64_t qdev_get_prop_int(DeviceState *dev, const char *name, uint64_t def);
-DeviceState *qdev_get_prop_dev(DeviceState *dev, const char *name);
-/* FIXME: Remove opaque pointer properties.  */
-void *qdev_get_prop_ptr(DeviceState *dev, const char *name);
 
 /* Convery from a base type to a parent type, with compile time checking.  */
 #ifdef __GNUC__
@@ -123,5 +140,29 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name);
 /*** monitor commands ***/
 
 void do_info_qtree(Monitor *mon);
+
+/*** qdev-properties.c ***/
+
+extern PropertyInfo qdev_prop_uint16;
+extern PropertyInfo qdev_prop_uint32;
+extern PropertyInfo qdev_prop_hex32;
+extern PropertyInfo qdev_prop_ptr;
+extern PropertyInfo qdev_prop_macaddr;
+
+/* Set properties between creation and init.  */
+void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
+int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
+void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type);
+void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
+void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
+/* FIXME: Remove opaque pointer properties.  */
+void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
+void qdev_prop_set_defaults(DeviceState *dev, Property *props);
+
+void qdev_prop_register_compat(CompatProperty *props);
+void qdev_prop_set_compat(DeviceState *dev);
+
+/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
+extern struct BusInfo system_bus_info;
 
 #endif

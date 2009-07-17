@@ -14,8 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "config.h"
 #include "qemu-common.h"
@@ -511,111 +510,135 @@ static const int gpr_map[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 
 #define NUM_CORE_REGS (CPU_NB_REGS * 2 + 25)
 
+#define IDX_IP_REG      CPU_NB_REGS
+#define IDX_FLAGS_REG   (IDX_IP_REG + 1)
+#define IDX_SEG_REGS    (IDX_FLAGS_REG + 1)
+#define IDX_FP_REGS     (IDX_SEG_REGS + 6)
+#define IDX_XMM_REGS    (IDX_FP_REGS + 16)
+#define IDX_MXCSR_REG   (IDX_XMM_REGS + CPU_NB_REGS)
+
 static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
     if (n < CPU_NB_REGS) {
         GET_REGL(env->regs[gpr_map[n]]);
-    } else if (n >= CPU_NB_REGS + 8 && n < CPU_NB_REGS + 16) {
-        /* FIXME: byteswap float values.  */
+    } else if (n >= IDX_FP_REGS && n < IDX_FP_REGS + 8) {
 #ifdef USE_X86LDOUBLE
-        memcpy(mem_buf, &env->fpregs[n - (CPU_NB_REGS + 8)], 10);
+        /* FIXME: byteswap float values - after fixing fpregs layout. */
+        memcpy(mem_buf, &env->fpregs[n - IDX_FP_REGS], 10);
 #else
         memset(mem_buf, 0, 10);
 #endif
         return 10;
-    } else if (n >= CPU_NB_REGS + 24) {
-        n -= CPU_NB_REGS + 24;
-        if (n < CPU_NB_REGS) {
-            stq_p(mem_buf, env->xmm_regs[n].XMM_Q(0));
-            stq_p(mem_buf + 8, env->xmm_regs[n].XMM_Q(1));
-            return 16;
-        } else if (n == CPU_NB_REGS) {
-            GET_REG32(env->mxcsr);
-        } 
+    } else if (n >= IDX_XMM_REGS && n < IDX_XMM_REGS + CPU_NB_REGS) {
+        n -= IDX_XMM_REGS;
+        stq_p(mem_buf, env->xmm_regs[n].XMM_Q(0));
+        stq_p(mem_buf + 8, env->xmm_regs[n].XMM_Q(1));
+        return 16;
     } else {
-        n -= CPU_NB_REGS;
         switch (n) {
-        case 0: GET_REGL(env->eip);
-        case 1: GET_REG32(env->eflags);
-        case 2: GET_REG32(env->segs[R_CS].selector);
-        case 3: GET_REG32(env->segs[R_SS].selector);
-        case 4: GET_REG32(env->segs[R_DS].selector);
-        case 5: GET_REG32(env->segs[R_ES].selector);
-        case 6: GET_REG32(env->segs[R_FS].selector);
-        case 7: GET_REG32(env->segs[R_GS].selector);
-        /* 8...15 x87 regs.  */
-        case 16: GET_REG32(env->fpuc);
-        case 17: GET_REG32((env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11);
-        case 18: GET_REG32(0); /* ftag */
-        case 19: GET_REG32(0); /* fiseg */
-        case 20: GET_REG32(0); /* fioff */
-        case 21: GET_REG32(0); /* foseg */
-        case 22: GET_REG32(0); /* fooff */
-        case 23: GET_REG32(0); /* fop */
-        /* 24+ xmm regs.  */
+        case IDX_IP_REG:    GET_REGL(env->eip);
+        case IDX_FLAGS_REG: GET_REG32(env->eflags);
+
+        case IDX_SEG_REGS:     GET_REG32(env->segs[R_CS].selector);
+        case IDX_SEG_REGS + 1: GET_REG32(env->segs[R_SS].selector);
+        case IDX_SEG_REGS + 2: GET_REG32(env->segs[R_DS].selector);
+        case IDX_SEG_REGS + 3: GET_REG32(env->segs[R_ES].selector);
+        case IDX_SEG_REGS + 4: GET_REG32(env->segs[R_FS].selector);
+        case IDX_SEG_REGS + 5: GET_REG32(env->segs[R_GS].selector);
+
+        case IDX_FP_REGS + 8:  GET_REG32(env->fpuc);
+        case IDX_FP_REGS + 9:  GET_REG32((env->fpus & ~0x3800) |
+                                         (env->fpstt & 0x7) << 11);
+        case IDX_FP_REGS + 10: GET_REG32(0); /* ftag */
+        case IDX_FP_REGS + 11: GET_REG32(0); /* fiseg */
+        case IDX_FP_REGS + 12: GET_REG32(0); /* fioff */
+        case IDX_FP_REGS + 13: GET_REG32(0); /* foseg */
+        case IDX_FP_REGS + 14: GET_REG32(0); /* fooff */
+        case IDX_FP_REGS + 15: GET_REG32(0); /* fop */
+
+        case IDX_MXCSR_REG: GET_REG32(env->mxcsr);
         }
     }
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int i)
+static int cpu_x86_gdb_load_seg(CPUState *env, int sreg, uint8_t *mem_buf)
+{
+    uint16_t selector = ldl_p(mem_buf);
+
+    if (selector != env->segs[sreg].selector) {
+#if defined(CONFIG_USER_ONLY)
+        cpu_x86_load_seg(env, sreg, selector);
+#else
+        unsigned int limit, flags;
+        target_ulong base;
+
+        if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
+            base = selector << 4;
+            limit = 0xffff;
+            flags = 0;
+        } else {
+            if (!cpu_x86_get_descr_debug(env, selector, &base, &limit, &flags))
+                return 4;
+        }
+        cpu_x86_load_seg_cache(env, sreg, selector, base, limit, flags);
+#endif
+    }
+    return 4;
+}
+
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
     uint32_t tmp;
 
-    if (i < CPU_NB_REGS) {
-        env->regs[gpr_map[i]] = ldtul_p(mem_buf);
+    if (n < CPU_NB_REGS) {
+        env->regs[gpr_map[n]] = ldtul_p(mem_buf);
         return sizeof(target_ulong);
-    } else if (i >= CPU_NB_REGS + 8 && i < CPU_NB_REGS + 16) {
-        i -= CPU_NB_REGS + 8;
+    } else if (n >= IDX_FP_REGS && n < IDX_FP_REGS + 8) {
 #ifdef USE_X86LDOUBLE
-        memcpy(&env->fpregs[i], mem_buf, 10);
+        /* FIXME: byteswap float values - after fixing fpregs layout. */
+        memcpy(&env->fpregs[n - IDX_FP_REGS], mem_buf, 10);
 #endif
         return 10;
-    } else if (i >= CPU_NB_REGS + 24) {
-        i -= CPU_NB_REGS + 24;
-        if (i < CPU_NB_REGS) {
-            env->xmm_regs[i].XMM_Q(0) = ldq_p(mem_buf);
-            env->xmm_regs[i].XMM_Q(1) = ldq_p(mem_buf + 8);
-            return 16;
-        } else if (i == CPU_NB_REGS) {
+    } else if (n >= IDX_XMM_REGS && n < IDX_XMM_REGS + CPU_NB_REGS) {
+        n -= IDX_XMM_REGS;
+        env->xmm_regs[n].XMM_Q(0) = ldq_p(mem_buf);
+        env->xmm_regs[n].XMM_Q(1) = ldq_p(mem_buf + 8);
+        return 16;
+    } else {
+        switch (n) {
+        case IDX_IP_REG:
+            env->eip = ldtul_p(mem_buf);
+            return sizeof(target_ulong);
+        case IDX_FLAGS_REG:
+            env->eflags = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_SEG_REGS:     return cpu_x86_gdb_load_seg(env, R_CS, mem_buf);
+        case IDX_SEG_REGS + 1: return cpu_x86_gdb_load_seg(env, R_SS, mem_buf);
+        case IDX_SEG_REGS + 2: return cpu_x86_gdb_load_seg(env, R_DS, mem_buf);
+        case IDX_SEG_REGS + 3: return cpu_x86_gdb_load_seg(env, R_ES, mem_buf);
+        case IDX_SEG_REGS + 4: return cpu_x86_gdb_load_seg(env, R_FS, mem_buf);
+        case IDX_SEG_REGS + 5: return cpu_x86_gdb_load_seg(env, R_GS, mem_buf);
+
+        case IDX_FP_REGS + 8:
+            env->fpuc = ldl_p(mem_buf);
+            return 4;
+        case IDX_FP_REGS + 9:
+            tmp = ldl_p(mem_buf);
+            env->fpstt = (tmp >> 11) & 7;
+            env->fpus = tmp & ~0x3800;
+            return 4;
+        case IDX_FP_REGS + 10: /* ftag */  return 4;
+        case IDX_FP_REGS + 11: /* fiseg */ return 4;
+        case IDX_FP_REGS + 12: /* fioff */ return 4;
+        case IDX_FP_REGS + 13: /* foseg */ return 4;
+        case IDX_FP_REGS + 14: /* fooff */ return 4;
+        case IDX_FP_REGS + 15: /* fop */   return 4;
+
+        case IDX_MXCSR_REG:
             env->mxcsr = ldl_p(mem_buf);
             return 4;
-        }
-    } else {
-        i -= CPU_NB_REGS;
-        switch (i) {
-        case 0: env->eip = ldtul_p(mem_buf); return sizeof(target_ulong);
-        case 1: env->eflags = ldl_p(mem_buf); return 4;
-#if defined(CONFIG_USER_ONLY)
-#define LOAD_SEG(index, sreg)\
-            tmp = ldl_p(mem_buf);\
-            if (tmp != env->segs[sreg].selector)\
-                cpu_x86_load_seg(env, sreg, tmp);
-#else
-/* FIXME: Honor segment registers.  Needs to avoid raising an exception
-   when the selector is invalid.  */
-#define LOAD_SEG(index, sreg) do {} while(0)
-#endif
-        case 2: LOAD_SEG(10, R_CS); return 4;
-        case 3: LOAD_SEG(11, R_SS); return 4;
-        case 4: LOAD_SEG(12, R_DS); return 4;
-        case 5: LOAD_SEG(13, R_ES); return 4;
-        case 6: LOAD_SEG(14, R_FS); return 4;
-        case 7: LOAD_SEG(15, R_GS); return 4;
-        /* 8...15 x87 regs.  */
-        case 16: env->fpuc = ldl_p(mem_buf); return 4;
-        case 17:
-                 tmp = ldl_p(mem_buf);
-                 env->fpstt = (tmp >> 11) & 7;
-                 env->fpus = tmp & ~0x3800;
-                 return 4;
-        case 18: /* ftag */ return 4;
-        case 19: /* fiseg */ return 4;
-        case 20: /* fioff */ return 4;
-        case 21: /* foseg */ return 4;
-        case 22: /* fooff */ return 4;
-        case 23: /* fop */ return 4;
-        /* 24+ xmm regs.  */
         }
     }
     /* Unrecognised register.  */
@@ -1631,6 +1654,64 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             s->signal = 0;
         gdb_continue(s);
         return RS_IDLE;
+    case 'v':
+        if (strncmp(p, "Cont", 4) == 0) {
+            int res_signal, res_thread;
+
+            p += 4;
+            if (*p == '?') {
+                put_packet(s, "vCont;c;C;s;S");
+                break;
+            }
+            res = 0;
+            res_signal = 0;
+            res_thread = 0;
+            while (*p) {
+                int action, signal;
+
+                if (*p++ != ';') {
+                    res = 0;
+                    break;
+                }
+                action = *p++;
+                signal = 0;
+                if (action == 'C' || action == 'S') {
+                    signal = strtoul(p, (char **)&p, 16);
+                } else if (action != 'c' && action != 's') {
+                    res = 0;
+                    break;
+                }
+                thread = 0;
+                if (*p == ':') {
+                    thread = strtoull(p+1, (char **)&p, 16);
+                }
+                action = tolower(action);
+                if (res == 0 || (res == 'c' && action == 's')) {
+                    res = action;
+                    res_signal = signal;
+                    res_thread = thread;
+                }
+            }
+            if (res) {
+                if (res_thread != -1 && res_thread != 0) {
+                    env = find_cpu(res_thread);
+                    if (env == NULL) {
+                        put_packet(s, "E22");
+                        break;
+                    }
+                    s->c_cpu = env;
+                }
+                if (res == 's') {
+                    cpu_single_step(s->c_cpu, sstep_flags);
+                }
+                s->signal = res_signal;
+                gdb_continue(s);
+                return RS_IDLE;
+            }
+            break;
+        } else {
+            goto unknown_command;
+        }
     case 'k':
         /* Kill the target */
         fprintf(stderr, "\nQEMU: Terminated via GDBstub\n");

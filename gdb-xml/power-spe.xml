@@ -7,7 +7,7 @@
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.power.spe">
-  <reg name="ev0h" bitsize="32"/>
+  <reg name="ev0h" bitsize="32" regnum="71"/>
   <reg name="ev1h" bitsize="32"/>
   <reg name="ev2h" bitsize="32"/>
   <reg name="ev3h" bitsize="32"/>

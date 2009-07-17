@@ -21,9 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+
 #include "sun4m.h"
 #include "monitor.h"
+#include "sysbus.h"
 
 //#define DEBUG_IRQ_COUNT
 //#define DEBUG_IRQ
@@ -49,27 +50,29 @@
 #define MAX_CPUS 16
 #define MAX_PILS 16
 
-struct SLAVIO_CPUINTCTLState;
+struct SLAVIO_INTCTLState;
+
+typedef struct SLAVIO_CPUINTCTLState {
+    uint32_t intreg_pending;
+    struct SLAVIO_INTCTLState *master;
+    uint32_t cpu;
+} SLAVIO_CPUINTCTLState;
 
 typedef struct SLAVIO_INTCTLState {
+    SysBusDevice busdev;
     uint32_t intregm_pending;
     uint32_t intregm_disabled;
     uint32_t target_cpu;
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count[32];
 #endif
-    qemu_irq *cpu_irqs[MAX_CPUS];
+    qemu_irq cpu_irqs[MAX_CPUS][MAX_PILS];
     const uint32_t *intbit_to_level;
     uint32_t cputimer_lbit, cputimer_mbit;
+    uint32_t cputimer_bit;
     uint32_t pil_out[MAX_CPUS];
-    struct SLAVIO_CPUINTCTLState *slaves[MAX_CPUS];
+    SLAVIO_CPUINTCTLState slaves[MAX_CPUS];
 } SLAVIO_INTCTLState;
-
-typedef struct SLAVIO_CPUINTCTLState {
-    uint32_t intreg_pending;
-    SLAVIO_INTCTLState *master;
-    uint32_t cpu;
-} SLAVIO_CPUINTCTLState;
 
 #define INTCTL_MAXADDR 0xf
 #define INTCTL_SIZE (INTCTL_MAXADDR + 1)
@@ -225,7 +228,7 @@ void slavio_pic_info(Monitor *mon, void *opaque)
 
     for (i = 0; i < MAX_CPUS; i++) {
         monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
-                       s->slaves[i]->intreg_pending);
+                       s->slaves[i].intreg_pending);
     }
     monitor_printf(mon, "master: pending 0x%08x, disabled 0x%08x\n",
                    s->intregm_pending, s->intregm_disabled);
@@ -266,7 +269,7 @@ static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
                     pil_pending |= 1 << s->intbit_to_level[j];
             }
         }
-        pil_pending |= (s->slaves[i]->intreg_pending & CPU_SOFTIRQ_MASK) >> 16;
+        pil_pending |= (s->slaves[i].intreg_pending & CPU_SOFTIRQ_MASK) >> 16;
 
         if (set_irqs) {
             for (j = 0; j < MAX_PILS; j++) {
@@ -303,10 +306,10 @@ static void slavio_set_irq(void *opaque, int irq, int level)
             s->irq_count[pil]++;
 #endif
             s->intregm_pending |= mask;
-            s->slaves[s->target_cpu]->intreg_pending |= 1 << pil;
+            s->slaves[s->target_cpu].intreg_pending |= 1 << pil;
         } else {
             s->intregm_pending &= ~mask;
-            s->slaves[s->target_cpu]->intreg_pending &= ~(1 << pil);
+            s->slaves[s->target_cpu].intreg_pending &= ~(1 << pil);
         }
         slavio_check_interrupts(s, 1);
     }
@@ -320,13 +323,22 @@ static void slavio_set_timer_irq_cpu(void *opaque, int cpu, int level)
 
     if (level) {
         s->intregm_pending |= s->cputimer_mbit;
-        s->slaves[cpu]->intreg_pending |= s->cputimer_lbit;
+        s->slaves[cpu].intreg_pending |= s->cputimer_lbit;
     } else {
         s->intregm_pending &= ~s->cputimer_mbit;
-        s->slaves[cpu]->intreg_pending &= ~s->cputimer_lbit;
+        s->slaves[cpu].intreg_pending &= ~s->cputimer_lbit;
     }
 
     slavio_check_interrupts(s, 1);
+}
+
+static void slavio_set_irq_all(void *opaque, int irq, int level)
+{
+    if (irq < 32) {
+        slavio_set_irq(opaque, irq, level);
+    } else {
+        slavio_set_timer_irq_cpu(opaque, irq - 32, level);
+    }
 }
 
 static void slavio_intctl_save(QEMUFile *f, void *opaque)
@@ -335,7 +347,7 @@ static void slavio_intctl_save(QEMUFile *f, void *opaque)
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
-        qemu_put_be32s(f, &s->slaves[i]->intreg_pending);
+        qemu_put_be32s(f, &s->slaves[i].intreg_pending);
     }
     qemu_put_be32s(f, &s->intregm_pending);
     qemu_put_be32s(f, &s->intregm_disabled);
@@ -351,7 +363,7 @@ static int slavio_intctl_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     for (i = 0; i < MAX_CPUS; i++) {
-        qemu_get_be32s(f, &s->slaves[i]->intreg_pending);
+        qemu_get_be32s(f, &s->slaves[i].intreg_pending);
     }
     qemu_get_be32s(f, &s->intregm_pending);
     qemu_get_be32s(f, &s->intregm_disabled);
@@ -366,7 +378,7 @@ static void slavio_intctl_reset(void *opaque)
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
-        s->slaves[i]->intreg_pending = 0;
+        s->slaves[i].intreg_pending = 0;
     }
     s->intregm_disabled = ~MASTER_IRQ_MASK;
     s->intregm_pending = 0;
@@ -374,47 +386,87 @@ static void slavio_intctl_reset(void *opaque)
     slavio_check_interrupts(s, 0);
 }
 
-void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
-                         const uint32_t *intbit_to_level,
-                         qemu_irq **irq, qemu_irq **cpu_irq,
-                         qemu_irq **parent_irq, unsigned int cputimer)
+static void slavio_intctl_init1(SysBusDevice *dev)
 {
-    int slavio_intctl_io_memory, slavio_intctlm_io_memory, i;
-    SLAVIO_INTCTLState *s;
-    SLAVIO_CPUINTCTLState *slave;
+    SLAVIO_INTCTLState *s = FROM_SYSBUS(SLAVIO_INTCTLState, dev);
+    int io_memory;
+    unsigned int i, j;
 
-    s = qemu_mallocz(sizeof(SLAVIO_INTCTLState));
+    qdev_init_gpio_in(&dev->qdev, slavio_set_irq_all, 32 + MAX_CPUS);
+    io_memory = cpu_register_io_memory(slavio_intctlm_mem_read,
+                                       slavio_intctlm_mem_write, s);
+    sysbus_init_mmio(dev, INTCTLM_SIZE, io_memory);
+    s->cputimer_mbit = 1 << s->cputimer_bit;
+    s->cputimer_lbit = 1 << s->intbit_to_level[s->cputimer_bit];
 
-    s->intbit_to_level = intbit_to_level;
     for (i = 0; i < MAX_CPUS; i++) {
-        slave = qemu_mallocz(sizeof(SLAVIO_CPUINTCTLState));
-
-        slave->cpu = i;
-        slave->master = s;
-
-        slavio_intctl_io_memory = cpu_register_io_memory(slavio_intctl_mem_read,
-                                                         slavio_intctl_mem_write,
-                                                         slave);
-        cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_SIZE,
-                                     slavio_intctl_io_memory);
-
-        s->slaves[i] = slave;
-        s->cpu_irqs[i] = parent_irq[i];
+        for (j = 0; j < MAX_PILS; j++) {
+            sysbus_init_irq(dev, &s->cpu_irqs[i][j]);
+        }
+        io_memory = cpu_register_io_memory(slavio_intctl_mem_read,
+                                           slavio_intctl_mem_write,
+                                           &s->slaves[i]);
+        sysbus_init_mmio(dev, INTCTL_SIZE, io_memory);
+        s->slaves[i].cpu = i;
+        s->slaves[i].master = s;
     }
-
-    slavio_intctlm_io_memory = cpu_register_io_memory(slavio_intctlm_mem_read,
-                                                      slavio_intctlm_mem_write,
-                                                      s);
-    cpu_register_physical_memory(addrg, INTCTLM_SIZE, slavio_intctlm_io_memory);
-
-    register_savevm("slavio_intctl", addr, 1, slavio_intctl_save,
+    register_savevm("slavio_intctl", -1, 1, slavio_intctl_save,
                     slavio_intctl_load, s);
     qemu_register_reset(slavio_intctl_reset, s);
-    *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
-
-    *cpu_irq = qemu_allocate_irqs(slavio_set_timer_irq_cpu, s, MAX_CPUS);
-    s->cputimer_mbit = 1 << cputimer;
-    s->cputimer_lbit = 1 << intbit_to_level[cputimer];
     slavio_intctl_reset(s);
-    return s;
 }
+
+DeviceState *slavio_intctl_init(target_phys_addr_t addr,
+                                target_phys_addr_t addrg,
+                                const uint32_t *intbit_to_level,
+                                qemu_irq **parent_irq, unsigned int cputimer)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    unsigned int i, j;
+
+    dev = qdev_create(NULL, "slavio_intctl");
+    qdev_prop_set_ptr(dev, "intbit_to_level", (void *)intbit_to_level);
+    qdev_prop_set_uint32(dev, "cputimer_bit", cputimer);
+    qdev_init(dev);
+
+    s = sysbus_from_qdev(dev);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        for (j = 0; j < MAX_PILS; j++) {
+            sysbus_connect_irq(s, i * MAX_PILS + j, parent_irq[i][j]);
+        }
+    }
+    sysbus_mmio_map(s, 0, addrg);
+    for (i = 0; i < MAX_CPUS; i++) {
+        sysbus_mmio_map(s, i + 1, addr + i * TARGET_PAGE_SIZE);
+    }
+
+    return dev;
+}
+
+static SysBusDeviceInfo slavio_intctl_info = {
+    .init = slavio_intctl_init1,
+    .qdev.name  = "slavio_intctl",
+    .qdev.size  = sizeof(SLAVIO_INTCTLState),
+    .qdev.props = (Property[]) {
+        {
+            .name = "intbit_to_level",
+            .info = &qdev_prop_ptr,
+            .offset = offsetof(SLAVIO_INTCTLState, intbit_to_level),
+        },
+        {
+            .name = "cputimer_bit",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(SLAVIO_INTCTLState, cputimer_bit),
+        },
+        {/* end of property list */}
+    }
+};
+
+static void slavio_intctl_register_devices(void)
+{
+    sysbus_register_withprop(&slavio_intctl_info);
+}
+
+device_init(slavio_intctl_register_devices)

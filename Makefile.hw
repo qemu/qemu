@@ -8,9 +8,6 @@ include $(SRC_PATH)/rules.mak
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
-CFLAGS += $(OS_CFLAGS) $(ARCH_CFLAGS)
-LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
-
 CPPFLAGS += -I. -I.. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS+=-I$(SRC_PATH)/fpu
@@ -26,7 +23,7 @@ obj-y += m48t59.o escc.o
 # SCSI layer
 obj-y += lsi53c895a.o esp.o
 
-obj-y += dma-helpers.o sysbus.o
+obj-y += dma-helpers.o sysbus.o qdev-addr.o
 
 all: $(HWLIB)
 # Dummy command so that make thinks it has done something

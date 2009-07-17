@@ -14,9 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
- *  MA 02110-1301, USA.
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdio.h>
@@ -25,35 +23,38 @@
 #include "qemu-common.h"
 #include "ioport.h"
 
-void cpu_outb(CPUState *env, int addr, int val)
+void cpu_outb(CPUState *env, pio_addr_t addr, uint8_t val)
 {
-    fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
+    fprintf(stderr, "outb: port=0x%04"FMT_pioaddr", data=%02"PRIx8"\n",
+            addr, val);
 }
 
-void cpu_outw(CPUState *env, int addr, int val)
+void cpu_outw(CPUState *env, pio_addr_t addr, uint16_t val)
 {
-    fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
+    fprintf(stderr, "outw: port=0x%04"FMT_pioaddr", data=%04"PRIx16"\n",
+            addr, val);
 }
 
-void cpu_outl(CPUState *env, int addr, int val)
+void cpu_outl(CPUState *env, pio_addr_t addr, uint32_t val)
 {
-    fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
+    fprintf(stderr, "outl: port=0x%04"FMT_pioaddr", data=%08"PRIx32"\n",
+            addr, val);
 }
 
-int cpu_inb(CPUState *env, int addr)
+uint8_t cpu_inb(CPUState *env, pio_addr_t addr)
 {
-    fprintf(stderr, "inb: port=0x%04x\n", addr);
+    fprintf(stderr, "inb: port=0x%04"FMT_pioaddr"\n", addr);
     return 0;
 }
 
-int cpu_inw(CPUState *env, int addr)
+uint16_t cpu_inw(CPUState *env, pio_addr_t addr)
 {
-    fprintf(stderr, "inw: port=0x%04x\n", addr);
+    fprintf(stderr, "inw: port=0x%04"FMT_pioaddr"\n", addr);
     return 0;
 }
 
-int cpu_inl(CPUState *env, int addr)
+uint32_t cpu_inl(CPUState *env, pio_addr_t addr)
 {
-    fprintf(stderr, "inl: port=0x%04x\n", addr);
+    fprintf(stderr, "inl: port=0x%04"FMT_pioaddr"\n", addr);
     return 0;
 }

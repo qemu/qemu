@@ -35,6 +35,9 @@
 #define PCI_CLASS_BRIDGE_PCI             0x0604
 #define PCI_CLASS_BRIDGE_OTHER           0x0680
 
+#define PCI_CLASS_SERIAL_OTHER           0x0780
+
+#define PCI_CLASS_PROCESSOR_CO           0x0b40
 #define PCI_CLASS_COMMUNICATION_OTHER    0x0780
 
 #define PCI_CLASS_PROCESSOR_CO           0x0b40

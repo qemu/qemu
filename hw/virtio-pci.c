@@ -19,6 +19,7 @@
 #include "pci.h"
 //#include "sysemu.h"
 #include "msix.h"
+#include "net.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -86,12 +87,8 @@ typedef struct {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
     uint32_t addr;
-
-    uint16_t vendor;
-    uint16_t device;
-    uint16_t subvendor;
-    uint16_t class_code;
-    uint8_t pif;
+    uint32_t class_code;
+    uint32_t nvectors;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -426,7 +423,8 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
 }
 
-static void virtio_blk_init_pci(PCIDevice *pci_dev)
+static void virtio_blk_init_pci_with_class(PCIDevice *pci_dev,
+                                           uint16_t class_code)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -435,11 +433,27 @@ static void virtio_blk_init_pci(PCIDevice *pci_dev)
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_BLOCK,
-                    PCI_CLASS_STORAGE_OTHER,
-                    0x00);
+                    class_code, 0x00);
 }
 
-static void virtio_console_init_pci(PCIDevice *pci_dev)
+static void virtio_blk_init_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+  
+    if (proxy->class_code != PCI_CLASS_STORAGE_SCSI &&
+        proxy->class_code != PCI_CLASS_STORAGE_OTHER)
+        proxy->class_code = PCI_CLASS_STORAGE_SCSI;
+ 
+    virtio_blk_init_pci_with_class(pci_dev, proxy->class_code);
+}
+
+static void virtio_blk_init_pci_0_10(PCIDevice *pci_dev)
+{
+    virtio_blk_init_pci_with_class(pci_dev, PCI_CLASS_STORAGE_OTHER);
+}
+
+static void virtio_console_init_pci_with_class(PCIDevice *pci_dev,
+                                               uint16_t class_code)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -448,8 +462,24 @@ static void virtio_console_init_pci(PCIDevice *pci_dev)
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_CONSOLE,
-                    PCI_CLASS_DISPLAY_OTHER,
-                    0x00);
+                    class_code, 0x00);
+}
+
+static void virtio_console_init_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+  
+    if (proxy->class_code != PCI_CLASS_COMMUNICATION_OTHER &&
+        proxy->class_code != PCI_CLASS_DISPLAY_OTHER && /* qemu 0.10 */
+        proxy->class_code != PCI_CLASS_OTHERS)          /* qemu-kvm  */
+        proxy->class_code = PCI_CLASS_COMMUNICATION_OTHER;
+
+    virtio_console_init_pci_with_class(pci_dev, proxy->class_code);
+}
+
+static void virtio_console_init_pci_0_10(PCIDevice *pci_dev)
+{
+    virtio_console_init_pci_with_class(pci_dev, PCI_CLASS_DISPLAY_OTHER);
 }
 
 static void virtio_net_init_pci(PCIDevice *pci_dev)
@@ -458,11 +488,21 @@ static void virtio_net_init_pci(PCIDevice *pci_dev)
     VirtIODevice *vdev;
 
     vdev = virtio_net_init(&pci_dev->qdev);
+
+    /* set nvectors from property, unless the user specified something
+     * via -net nic,model=virtio,vectors=n command line option */
+    if (pci_dev->qdev.nd->nvectors == NIC_NVECTORS_UNSPECIFIED)
+        if (proxy->nvectors != NIC_NVECTORS_UNSPECIFIED)
+            vdev->nvectors = proxy->nvectors;
+
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_NET,
                     PCI_CLASS_NETWORK_ETHERNET,
                     0x00);
+
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
 }
 
 static void virtio_balloon_init_pci(PCIDevice *pci_dev)
@@ -483,18 +523,52 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-blk-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_blk_init_pci,
+        .qdev.props = (Property[]) {
+            {
+                .name   = "class",
+                .info   = &qdev_prop_hex32,
+                .offset = offsetof(VirtIOPCIProxy, class_code),
+            },
+            {/* end of list */}
+        },
     },{
-        .qdev.name = "virtio-net-pci",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_net_init_pci,
+        .qdev.name  = "virtio-net-pci",
+        .qdev.size  = sizeof(VirtIOPCIProxy),
+        .init       = virtio_net_init_pci,
+        .qdev.props = (Property[]) {
+            {
+                .name   = "vectors",
+                .info   = &qdev_prop_uint32,
+                .offset = offsetof(VirtIOPCIProxy, nvectors),
+                .defval = (uint32_t[]) { NIC_NVECTORS_UNSPECIFIED },
+            },
+            {/* end of list */}
+        },
     },{
         .qdev.name = "virtio-console-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_console_init_pci,
+        .qdev.props = (Property[]) {
+            {
+                .name   = "class",
+                .info   = &qdev_prop_hex32,
+                .offset = offsetof(VirtIOPCIProxy, class_code),
+            },
+            {/* end of list */}
+        },
     },{
         .qdev.name = "virtio-balloon-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_balloon_init_pci,
+    },{
+        /* For compatibility with 0.10 */
+        .qdev.name = "virtio-blk-pci-0-10",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_blk_init_pci_0_10,
+    },{
+        .qdev.name = "virtio-console-pci-0-10",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_console_init_pci_0_10,
     },{
         /* end of list */
     }

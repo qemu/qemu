@@ -159,9 +159,10 @@ void path_combine(char *dest, int dest_size,
                   const char *base_path,
                   const char *filename);
 
-int bdrv_put_buffer(BlockDriverState *bs, const uint8_t *buf,
-                    int64_t pos, int size);
+int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
+                      int64_t pos, int size);
 
-int bdrv_get_buffer(BlockDriverState *bs, uint8_t *buf, int64_t pos, int size);
+int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
+                      int64_t pos, int size);
 
 #endif

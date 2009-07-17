@@ -321,7 +321,6 @@ static void ecc_init1(SysBusDevice *dev)
     ECCState *s = FROM_SYSBUS(ECCState, dev);
 
     sysbus_init_irq(dev, &s->irq);
-    s->version = qdev_get_prop_int(&dev->qdev, "version", -1);
     s->regs[0] = s->version;
     ecc_io_memory = cpu_register_io_memory(ecc_mem_read, ecc_mem_write, s);
     sysbus_init_mmio(dev, ECC_SIZE, ecc_io_memory);
@@ -342,7 +341,7 @@ void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     SysBusDevice *s;
 
     dev = qdev_create(NULL, "eccmemctl");
-    qdev_set_prop_int(dev, "version", version);
+    qdev_prop_set_uint32(dev, "version", version);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
@@ -352,9 +351,25 @@ void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     }
 }
 
+static SysBusDeviceInfo ecc_info = {
+    .init = ecc_init1,
+    .qdev.name  = "eccmemctl",
+    .qdev.size  = sizeof(ECCState),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "version",
+            .info   = &qdev_prop_hex32,
+            .offset = offsetof(ECCState, version),
+            .defval = (uint32_t[]) { -1 },
+        },
+        {/* end of list */}
+    }
+};
+
+
 static void ecc_register_devices(void)
 {
-    sysbus_register_dev("eccmemctl", sizeof(ECCState), ecc_init1);
+    sysbus_register_withprop(&ecc_info);
 }
 
 device_init(ecc_register_devices)

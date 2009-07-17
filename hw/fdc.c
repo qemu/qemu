@@ -26,11 +26,14 @@
  * The controller is used in Sun4m systems in a slightly different
  * way. There are changes in DOR register and DMA is not available.
  */
+
 #include "hw.h"
 #include "fdc.h"
 #include "block.h"
 #include "qemu-timer.h"
 #include "isa.h"
+#include "sysbus.h"
+#include "qdev-addr.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -468,6 +471,7 @@ enum {
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct fdctrl_t {
+    SysBusDevice busdev;
     /* Controller's identification */
     uint8_t version;
     /* HW */
@@ -508,6 +512,8 @@ struct fdctrl_t {
     /* Floppy drives */
     fdrive_t drives[MAX_FD];
     int reset_sensei;
+    uint32_t strict_io;
+    uint32_t mem_mapped;
 };
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
@@ -1849,11 +1855,10 @@ static void fdctrl_result_timer(void *opaque)
 }
 
 /* Init functions */
-static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
-                                     target_phys_addr_t io_base,
-                                     BlockDriverState **fds)
+static void fdctrl_init_common (fdctrl_t *fdctrl, int dma_chann,
+                                target_phys_addr_t io_base,
+                                BlockDriverState **fds)
 {
-    fdctrl_t *fdctrl;
     int i, j;
 
     /* Fill 'command_to_handler' lookup table */
@@ -1865,13 +1870,11 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
     }
 
     FLOPPY_DPRINTF("init controller\n");
-    fdctrl = qemu_mallocz(sizeof(fdctrl_t));
     fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
     fdctrl->result_timer = qemu_new_timer(vm_clock,
                                           fdctrl_result_timer, fdctrl);
 
     fdctrl->version = 0x90; /* Intel 82078 controller */
-    fdctrl->irq = irq;
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
     fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
@@ -1887,24 +1890,26 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
     for (i = 0; i < MAX_FD; i++) {
         fd_revalidate(&fdctrl->drives[i]);
     }
-
-    return fdctrl;
 }
 
 fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
                        target_phys_addr_t io_base,
                        BlockDriverState **fds)
 {
+    DeviceState *dev;
+    SysBusDevice *s;
     fdctrl_t *fdctrl;
-    int io_mem;
 
-    fdctrl = fdctrl_init_common(irq, dma_chann, io_base, fds);
-
-    fdctrl->sun4m = 0;
+    dev = qdev_create(NULL, "fdc");
+    qdev_prop_set_uint32(dev, "strict_io", 0);
+    qdev_prop_set_uint32(dev, "mem_mapped", mem_mapped);
+    qdev_prop_set_uint32(dev, "sun4m", 0);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    fdctrl = FROM_SYSBUS(fdctrl_t, s);
     if (mem_mapped) {
-        io_mem = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write,
-                                        fdctrl);
-        cpu_register_physical_memory(io_base, 0x08, io_mem);
+        sysbus_mmio_map(s, 0, io_base);
     } else {
         register_ioport_read((uint32_t)io_base + 0x01, 5, 1,
                              &fdctrl_read_port, fdctrl);
@@ -1916,22 +1921,83 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
                               &fdctrl_write_port, fdctrl);
     }
 
+    fdctrl_init_common(fdctrl, dma_chann, io_base, fds);
+
     return fdctrl;
 }
 
 fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
                              BlockDriverState **fds, qemu_irq *fdc_tc)
 {
+    DeviceState *dev;
+    SysBusDevice *s;
     fdctrl_t *fdctrl;
-    int io_mem;
 
-    fdctrl = fdctrl_init_common(irq, -1, io_base, fds);
-    fdctrl->sun4m = 1;
-    io_mem = cpu_register_io_memory(fdctrl_mem_read_strict,
-                                    fdctrl_mem_write_strict,
-                                    fdctrl);
-    cpu_register_physical_memory(io_base, 0x08, io_mem);
-    *fdc_tc = *qemu_allocate_irqs(fdctrl_handle_tc, fdctrl, 1);
+    dev = qdev_create(NULL, "fdc");
+    qdev_prop_set_uint32(dev, "strict_io", 1);
+    qdev_prop_set_uint32(dev, "mem_mapped", 1);
+    qdev_prop_set_uint32(dev, "sun4m", 1);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_mmio_map(s, 0, io_base);
+    *fdc_tc = qdev_get_gpio_in(dev, 0);
+
+    fdctrl = FROM_SYSBUS(fdctrl_t, s);
+    fdctrl_init_common(fdctrl, -1, io_base, fds);
 
     return fdctrl;
 }
+
+static void fdc_init1(SysBusDevice *dev)
+{
+    fdctrl_t *s = FROM_SYSBUS(fdctrl_t, dev);
+    int io;
+
+    sysbus_init_irq(dev, &s->irq);
+    qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
+    if (s->strict_io) {
+        io = cpu_register_io_memory(fdctrl_mem_read_strict,
+                                    fdctrl_mem_write_strict, s);
+    } else {
+        io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, s);
+    }
+    sysbus_init_mmio(dev, 0x08, io);
+}
+
+
+static SysBusDeviceInfo fdc_info = {
+    .init = fdc_init1,
+    .qdev.name  = "fdc",
+    .qdev.size  = sizeof(fdctrl_t),
+    .qdev.props = (Property[]) {
+        {
+            .name = "io_base",
+            .info = &qdev_prop_taddr,
+            .offset = offsetof(fdctrl_t, io_base),
+        },
+        {
+            .name = "strict_io",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, strict_io),
+        },
+        {
+            .name = "mem_mapped",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, mem_mapped),
+        },
+        {
+            .name = "sun4m",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(fdctrl_t, sun4m),
+        },
+        {/* end of properties */}
+    }
+};
+
+static void fdc_register_devices(void)
+{
+    sysbus_register_withprop(&fdc_info);
+}
+
+device_init(fdc_register_devices)

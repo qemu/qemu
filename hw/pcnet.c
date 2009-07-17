@@ -2128,8 +2128,6 @@ static void lance_init(SysBusDevice *dev)
     s->mmio_index =
         cpu_register_io_memory(lance_mem_read, lance_mem_write, d);
 
-    s->dma_opaque = qdev_get_prop_ptr(&dev->qdev, "dma");
-
     qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
 
     sysbus_init_mmio(dev, 4, s->mmio_index);
@@ -2141,6 +2139,21 @@ static void lance_init(SysBusDevice *dev)
 
     pcnet_common_init(&dev->qdev, s, lance_cleanup);
 }
+
+static SysBusDeviceInfo lance_info = {
+    .init = lance_init,
+    .qdev.name  = "lance",
+    .qdev.size  = sizeof(SysBusPCNetState),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "dma",
+            .info   = &qdev_prop_ptr,
+            .offset = offsetof(SysBusPCNetState, state.dma_opaque),
+        },
+        {/* end of list */}
+    }
+};
+
 #endif /* TARGET_SPARC */
 
 static PCIDeviceInfo pcnet_info = {
@@ -2153,7 +2166,7 @@ static void pcnet_register_devices(void)
 {
     pci_qdev_register(&pcnet_info);
 #if defined (TARGET_SPARC) && !defined(TARGET_SPARC64)
-    sysbus_register_dev("lance", sizeof(SysBusPCNetState), lance_init);
+    sysbus_register_withprop(&lance_info);
 #endif
 }
 

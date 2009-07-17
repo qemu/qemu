@@ -133,6 +133,9 @@ void init_task_state(TaskState *ts);
 void task_settid(TaskState *);
 void stop_all_tasks(void);
 extern const char *qemu_uname_release;
+#if defined(CONFIG_USE_GUEST_BASE)
+extern unsigned long mmap_min_addr;
+#endif
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
 /*

@@ -373,8 +373,7 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     qemu_check_nic_model(&nd_table[0], "lance");
 
     dev = qdev_create(NULL, "lance");
-    qdev_set_netdev(dev, nd);
-    qdev_set_prop_ptr(dev, "dma", dma_opaque);
+    dev->nd = nd;
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, leaddr);
@@ -382,108 +381,241 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     *reset = qdev_get_gpio_in(dev, 0);
 }
 
+/* NCR89C100/MACIO Internal ID register */
+static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
+
+static void idreg_init(target_phys_addr_t addr)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "macio_idreg");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+    cpu_physical_memory_write_rom(addr, idreg_data, sizeof(idreg_data));
+}
+
+static void idreg_init1(SysBusDevice *dev)
+{
+    ram_addr_t idreg_offset;
+
+    idreg_offset = qemu_ram_alloc(sizeof(idreg_data));
+    sysbus_init_mmio(dev, sizeof(idreg_data), idreg_offset | IO_MEM_ROM);
+}
+
+static SysBusDeviceInfo idreg_info = {
+    .init = idreg_init1,
+    .qdev.name  = "macio_idreg",
+    .qdev.size  = sizeof(SysBusDevice),
+};
+
+static void idreg_register_devices(void)
+{
+    sysbus_register_withprop(&idreg_info);
+}
+
+device_init(idreg_register_devices);
+
+/* Boot PROM (OpenBIOS) */
+static void prom_init(target_phys_addr_t addr, const char *bios_name)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    char *filename;
+    int ret;
+
+    dev = qdev_create(NULL, "openprom");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+
+    /* load boot prom */
+    if (bios_name == NULL) {
+        bios_name = PROM_FILENAME;
+    }
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (filename) {
+        ret = load_elf(filename, addr - PROM_VADDR, NULL, NULL, NULL);
+        if (ret < 0 || ret > PROM_SIZE_MAX) {
+            ret = load_image_targphys(filename, addr, PROM_SIZE_MAX);
+        }
+        qemu_free(filename);
+    } else {
+        ret = -1;
+    }
+    if (ret < 0 || ret > PROM_SIZE_MAX) {
+        fprintf(stderr, "qemu: could not load prom '%s'\n", bios_name);
+        exit(1);
+    }
+}
+
+static void prom_init1(SysBusDevice *dev)
+{
+    ram_addr_t prom_offset;
+
+    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
+    sysbus_init_mmio(dev, PROM_SIZE_MAX, prom_offset | IO_MEM_ROM);
+}
+
+static SysBusDeviceInfo prom_info = {
+    .init = prom_init1,
+    .qdev.name  = "openprom",
+    .qdev.size  = sizeof(SysBusDevice),
+    .qdev.props = (Property[]) {
+        {/* end of property list */}
+    }
+};
+
+static void prom_register_devices(void)
+{
+    sysbus_register_withprop(&prom_info);
+}
+
+device_init(prom_register_devices);
+
+typedef struct RamDevice
+{
+    SysBusDevice busdev;
+    uint32_t size;
+} RamDevice;
+
+/* System RAM */
+static void ram_init1(SysBusDevice *dev)
+{
+    ram_addr_t RAM_size, ram_offset;
+    RamDevice *d = FROM_SYSBUS(RamDevice, dev);
+
+    RAM_size = d->size;
+
+    ram_offset = qemu_ram_alloc(RAM_size);
+    sysbus_init_mmio(dev, RAM_size, ram_offset);
+}
+
+static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size,
+                     uint64_t max_mem)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    RamDevice *d;
+
+    /* allocate RAM */
+    if ((uint64_t)RAM_size > max_mem) {
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d, maximum %d\n",
+                (unsigned int)(RAM_size / (1024 * 1024)),
+                (unsigned int)(max_mem / (1024 * 1024)));
+        exit(1);
+    }
+    dev = qdev_create(NULL, "memory");
+    s = sysbus_from_qdev(dev);
+
+    d = FROM_SYSBUS(RamDevice, s);
+    d->size = RAM_size;
+    qdev_init(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+}
+
+static SysBusDeviceInfo ram_info = {
+    .init = ram_init1,
+    .qdev.name  = "memory",
+    .qdev.size  = sizeof(RamDevice),
+    .qdev.props = (Property[]) {
+        {
+            .name = "size",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(RamDevice, size),
+        },
+        {/* end of property list */}
+    }
+};
+
+static void ram_register_devices(void)
+{
+    sysbus_register_withprop(&ram_info);
+}
+
+device_init(ram_register_devices);
+
+static CPUState *cpu_devinit(const char *cpu_model, unsigned int id,
+                             uint64_t prom_addr, qemu_irq **cpu_irqs)
+{
+    CPUState *env;
+
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
+        exit(1);
+    }
+
+    cpu_sparc_set_id(env, id);
+    if (id == 0) {
+        qemu_register_reset(main_cpu_reset, env);
+    } else {
+        qemu_register_reset(secondary_cpu_reset, env);
+        env->halted = 1;
+    }
+    *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
+    env->prom_addr = prom_addr;
+
+    return env;
+}
+
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
-
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *envs[MAX_CPUS];
     unsigned int i;
     void *iommu, *espdma, *ledma, *nvram;
-    qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
-        *espdma_irq, *ledma_irq;
+    qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS],
+        espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    qemu_irq *fdc_tc;
+    qemu_irq fdc_tc;
     qemu_irq *cpu_halt;
-    ram_addr_t ram_offset, prom_offset, idreg_offset;
     unsigned long kernel_size;
-    int ret;
-    char *filename;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
     void *fw_cfg;
+    DeviceState *dev;
 
     /* init CPUs */
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
 
     for(i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
-            fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-            exit(1);
-        }
-        cpu_sparc_set_id(env, i);
-        envs[i] = env;
-        if (i == 0) {
-            qemu_register_reset(main_cpu_reset, env);
-        } else {
-            qemu_register_reset(secondary_cpu_reset, env);
-            env->halted = 1;
-        }
-        cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
-        env->prom_addr = hwdef->slavio_base;
+        envs[i] = cpu_devinit(cpu_model, i, hwdef->slavio_base, &cpu_irqs[i]);
     }
 
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
 
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)(RAM_size / (1024 * 1024)),
-                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
-        exit(1);
-    }
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
-
-    /* load boot prom */
-    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
-    cpu_register_physical_memory(hwdef->slavio_base,
-                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
-                                 TARGET_PAGE_MASK,
-                                 prom_offset | IO_MEM_ROM);
-
-    if (bios_name == NULL)
-        bios_name = PROM_FILENAME;
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (filename) {
-        ret = load_elf(filename, hwdef->slavio_base - PROM_VADDR,
-                       NULL, NULL, NULL);
-        if (ret < 0 || ret > PROM_SIZE_MAX)
-            ret = load_image_targphys(filename, hwdef->slavio_base,
-                                      PROM_SIZE_MAX);
-        qemu_free(filename);
-    } else {
-        ret = -1;
-    }
-    if (ret < 0 || ret > PROM_SIZE_MAX) {
-        fprintf(stderr, "qemu: could not load prom '%s'\n",
-                bios_name);
-        exit(1);
-    }
-
     /* set up devices */
-    slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
-                                       hwdef->intctl_base + 0x10000ULL,
-                                       &hwdef->intbit_to_level[0],
-                                       &slavio_irq, &slavio_cpu_irq,
-                                       cpu_irqs,
-                                       hwdef->clock_irq);
+    ram_init(0, RAM_size, hwdef->max_mem);
+
+    prom_init(hwdef->slavio_base, bios_name);
+
+    dev = slavio_intctl_init(hwdef->intctl_base,
+                             hwdef->intctl_base + 0x10000ULL,
+                             &hwdef->intbit_to_level[0],
+                             cpu_irqs,
+                             hwdef->clock_irq);
+
+    for (i = 0; i < 32; i++) {
+        slavio_irq[i] = qdev_get_gpio_in(dev, i);
+    }
+    for (i = 0; i < MAX_CPUS; i++) {
+        slavio_cpu_irq[i] = qdev_get_gpio_in(dev, 32 + i);
+    }
 
     if (hwdef->idreg_base) {
-        static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
-
-        idreg_offset = qemu_ram_alloc(sizeof(idreg_data));
-        cpu_register_physical_memory(hwdef->idreg_base, sizeof(idreg_data),
-                                     idreg_offset | IO_MEM_ROM);
-        cpu_physical_memory_write_rom(hwdef->idreg_base, idreg_data,
-                                      sizeof(idreg_data));
+        idreg_init(hwdef->idreg_base);
     }
 
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
@@ -503,7 +635,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
@@ -519,10 +651,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
     cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
-    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->apc_base,
+    slavio_misc = slavio_misc_init(hwdef->slavio_base,
                                    hwdef->aux1_base, hwdef->aux2_base,
-                                   slavio_irq[hwdef->me_irq], cpu_halt[0],
-                                   &fdc_tc);
+                                   slavio_irq[hwdef->me_irq], fdc_tc);
+    if (hwdef->apc_base) {
+        apc_init(hwdef->apc_base, cpu_halt[0]);
+    }
 
     if (hwdef->fd_base) {
         /* there is zero or one floppy drive */
@@ -532,7 +666,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
             fd[0] = drives_table[drive_index].bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
-                          fdc_tc);
+                          &fdc_tc);
     }
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
@@ -542,10 +676,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, *espdma_irq, esp_reset);
+             espdma, espdma_irq, esp_reset);
 
-    if (hwdef->cs_base)
-        cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
+    if (hwdef->cs_base) {
+        sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,
+                             slavio_irq[hwdef->cs_irq]);
+    }
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
@@ -1183,81 +1319,31 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *envs[MAX_CPUS];
     unsigned int i;
     void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram, *sbi;
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
-        *espdma_irq, *ledma_irq;
+        espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
-    int ret;
-    char *filename;
     void *fw_cfg;
 
     /* init CPUs */
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
 
-    for (i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
-            fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-            exit(1);
-        }
-        cpu_sparc_set_id(env, i);
-        envs[i] = env;
-        if (i == 0) {
-            qemu_register_reset(main_cpu_reset, env);
-        } else {
-            qemu_register_reset(secondary_cpu_reset, env);
-            env->halted = 1;
-        }
-        cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
-        env->prom_addr = hwdef->slavio_base;
+    for(i = 0; i < smp_cpus; i++) {
+        envs[i] = cpu_devinit(cpu_model, i, hwdef->slavio_base, &cpu_irqs[i]);
     }
 
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)(RAM_size / (1024 * 1024)),
-                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
-        exit(1);
-    }
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
-
-    /* load boot prom */
-    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
-    cpu_register_physical_memory(hwdef->slavio_base,
-                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
-                                 TARGET_PAGE_MASK,
-                                 prom_offset | IO_MEM_ROM);
-
-    if (bios_name == NULL)
-        bios_name = PROM_FILENAME;
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (filename) {
-        ret = load_elf(filename, hwdef->slavio_base - PROM_VADDR,
-                       NULL, NULL, NULL);
-        if (ret < 0 || ret > PROM_SIZE_MAX)
-            ret = load_image_targphys(filename, hwdef->slavio_base,
-                                      PROM_SIZE_MAX);
-        qemu_free(filename);
-    } else {
-        ret = -1;
-    }
-    if (ret < 0 || ret > PROM_SIZE_MAX) {
-        fprintf(stderr, "qemu: could not load prom '%s'\n",
-                bios_name);
-        exit(1);
-    }
-
     /* set up devices */
+    ram_init(0, RAM_size, hwdef->max_mem);
+
+    prom_init(hwdef->slavio_base, bios_name);
+
     sbi = sbi_init(hwdef->sbi_base, &sbi_irq, &sbi_cpu_irq, cpu_irqs);
 
     for (i = 0; i < MAX_IOUNITS; i++)
@@ -1279,7 +1365,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
     nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
@@ -1301,7 +1387,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, *espdma_irq, esp_reset);
+             espdma, espdma_irq, esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
@@ -1407,13 +1493,10 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 {
     CPUState *env;
     void *iommu, *espdma, *ledma, *nvram;
-    qemu_irq *cpu_irqs, *slavio_irq, *espdma_irq, *ledma_irq;
+    qemu_irq *cpu_irqs, *slavio_irq, espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    qemu_irq *fdc_tc;
-    ram_addr_t ram_offset, prom_offset;
+    qemu_irq fdc_tc;
     unsigned long kernel_size;
-    int ret;
-    char *filename;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
     void *fw_cfg;
@@ -1422,56 +1505,13 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
 
-    env = cpu_init(cpu_model);
-    if (!env) {
-        fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-        exit(1);
-    }
-
-    cpu_sparc_set_id(env, 0);
-
-    qemu_register_reset(main_cpu_reset, env);
-    cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
-    env->prom_addr = hwdef->slavio_base;
-
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)(RAM_size / (1024 * 1024)),
-                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
-        exit(1);
-    }
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
-
-    /* load boot prom */
-    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
-    cpu_register_physical_memory(hwdef->slavio_base,
-                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
-                                 TARGET_PAGE_MASK,
-                                 prom_offset | IO_MEM_ROM);
-
-    if (bios_name == NULL)
-        bios_name = PROM_FILENAME;
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (filename) {
-        ret = load_elf(filename, hwdef->slavio_base - PROM_VADDR,
-                       NULL, NULL, NULL);
-        if (ret < 0 || ret > PROM_SIZE_MAX)
-            ret = load_image_targphys(filename, hwdef->slavio_base,
-                                      PROM_SIZE_MAX);
-        qemu_free(filename);
-    } else {
-        ret = -1;
-    }
-    if (ret < 0 || ret > PROM_SIZE_MAX) {
-        fprintf(stderr, "qemu: could not load prom '%s'\n",
-                filename);
-        exit(1);
-    }
+    env = cpu_devinit(cpu_model, 0, hwdef->slavio_base, &cpu_irqs);
 
     /* set up devices */
+    ram_init(0, RAM_size, hwdef->max_mem);
+
+    prom_init(hwdef->slavio_base, bios_name);
+
     slavio_intctl = sun4c_intctl_init(hwdef->intctl_base,
                                       &slavio_irq, cpu_irqs);
 
@@ -1492,7 +1532,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 2);
@@ -1505,8 +1545,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
               slavio_irq[hwdef->ser_irq], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);
 
-    slavio_misc = slavio_misc_init(0, 0, hwdef->aux1_base, 0,
-                                   slavio_irq[hwdef->me_irq], NULL, &fdc_tc);
+    slavio_misc = slavio_misc_init(0, hwdef->aux1_base, 0,
+                                   slavio_irq[hwdef->me_irq], fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
@@ -1516,7 +1556,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
             fd[0] = drives_table[drive_index].bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
-                          fdc_tc);
+                          &fdc_tc);
     }
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
@@ -1526,7 +1566,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, *espdma_irq, esp_reset);
+             espdma, espdma_irq, esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);

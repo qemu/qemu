@@ -14,8 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
@@ -625,8 +624,13 @@ static inline void stfq_be_p(void *ptr, float64 v)
 /* On some host systems the guest address space is reserved on the host.
  * This allows the guest address space to be offset to a convenient location.
  */
-//#define GUEST_BASE 0x20000000
-#define GUEST_BASE 0
+#if defined(CONFIG_USE_GUEST_BASE)
+extern unsigned long guest_base;
+extern int have_guest_base;
+#define GUEST_BASE guest_base
+#else
+#define GUEST_BASE 0ul
+#endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 #define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))

@@ -17,8 +17,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  *
  * *****************************************************************
  *
@@ -554,6 +553,7 @@ static void hpet_reset(void *opaque) {
     /* 64-bit main counter; 3 timers supported; LegacyReplacementRoute. */
     s->capability = 0x8086a201ULL;
     s->capability |= ((HPET_CLK_PERIOD) << 32);
+    s->config = 0ULL;
     if (count > 0)
         /* we don't enable pit when hpet_reset is first called (by hpet_init)
          * because hpet is taking over for pit here. On subsequent invocations,

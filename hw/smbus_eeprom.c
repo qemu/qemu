@@ -99,14 +99,20 @@ static void smbus_eeprom_init(SMBusDevice *dev)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
 
-    /* FIXME: Should be a blob rather than a ptr.  */
-    eeprom->data = qdev_get_prop_ptr(&dev->i2c.qdev, "data");
     eeprom->offset = 0;
 }
 
 static SMBusDeviceInfo smbus_eeprom_info = {
     .i2c.qdev.name = "smbus-eeprom",
     .i2c.qdev.size = sizeof(SMBusEEPROMDevice),
+    .i2c.qdev.props = (Property[]) {
+        {
+            .name   = "data",
+            .info   = &qdev_prop_ptr,
+            .offset = offsetof(SMBusEEPROMDevice, data),
+        },
+        {/* end of list */}
+    },
     .init = smbus_eeprom_init,
     .quick_cmd = eeprom_quick_cmd,
     .send_byte = eeprom_send_byte,

@@ -40,7 +40,7 @@ struct i2c_slave
     I2CSlaveInfo *info;
 
     /* Remaining fields for internal use by the I2C code.  */
-    int address;
+    uint32_t address;
 };
 
 i2c_bus *i2c_init_bus(DeviceState *parent, const char *name);

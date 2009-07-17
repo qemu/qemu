@@ -28,10 +28,10 @@ void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
               int depth);
 
 /* slavio_intctl.c */
-void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
-                         const uint32_t *intbit_to_level,
-                         qemu_irq **irq, qemu_irq **cpu_irq,
-                         qemu_irq **parent_irq, unsigned int cputimer);
+DeviceState *slavio_intctl_init(target_phys_addr_t addr,
+                                target_phys_addr_t addrg,
+                                const uint32_t *intbit_to_level,
+                                qemu_irq **parent_irq, unsigned int cputimer);
 void slavio_pic_info(Monitor *mon, void *opaque);
 void slavio_irq_info(Monitor *mon, void *opaque);
 
@@ -50,14 +50,12 @@ void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
                            qemu_irq *cpu_irqs, unsigned int num_cpus);
 
 /* slavio_misc.c */
-void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
+void *slavio_misc_init(target_phys_addr_t base,
                        target_phys_addr_t aux1_base,
                        target_phys_addr_t aux2_base, qemu_irq irq,
-                       qemu_irq cpu_halt, qemu_irq **fdc_tc);
+                       qemu_irq fdc_tc);
 void slavio_set_power_fail(void *opaque, int power_failing);
-
-/* cs4231.c */
-void cs_init(target_phys_addr_t base, int irq, void *intctl);
+void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt);
 
 /* sparc32_dma.c */
 #include "sparc32_dma.h"

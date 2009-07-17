@@ -5,8 +5,8 @@
 
 #include "qdev.h"
 
-#define QDEV_MAX_MMIO 5
-#define QDEV_MAX_IRQ 32
+#define QDEV_MAX_MMIO 32
+#define QDEV_MAX_IRQ 256
 
 typedef struct SysBusDevice SysBusDevice;
 typedef void (*mmio_mapfunc)(SysBusDevice *dev, target_phys_addr_t addr);

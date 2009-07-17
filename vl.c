@@ -31,6 +31,8 @@
 
 /* Needed early for HOST_BSD etc. */
 #include "config-host.h"
+/* Needed early to override system queue definitions on BSD */
+#include "sys-queue.h"
 
 #ifndef _WIN32
 #include <libgen.h>
@@ -258,6 +260,7 @@ const char *prom_envs[MAX_PROM_ENVS];
 #endif
 int nb_drives_opt;
 struct drive_opt drives_opt[MAX_DRIVES];
+int boot_menu;
 
 int nb_numa_nodes;
 uint64_t node_mem[MAX_NODES];
@@ -277,6 +280,9 @@ static QEMUTimer *icount_vm_timer;
 static QEMUTimer *nographic_timer;
 
 uint8_t qemu_uuid[16];
+
+static QEMUBootSetHandler *boot_set_handler;
+static void *boot_set_opaque;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -2358,6 +2364,59 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     return drives_table_idx;
 }
 
+void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
+{
+    boot_set_handler = func;
+    boot_set_opaque = opaque;
+}
+
+int qemu_boot_set(const char *boot_devices)
+{
+    if (!boot_set_handler) {
+        return -EINVAL;
+    }
+    return boot_set_handler(boot_set_opaque, boot_devices);
+}
+
+static int parse_bootdevices(char *devices)
+{
+    /* We just do some generic consistency checks */
+    const char *p;
+    int bitmap = 0;
+
+    for (p = devices; *p != '\0'; p++) {
+        /* Allowed boot devices are:
+         * a-b: floppy disk drives
+         * c-f: IDE disk drives
+         * g-m: machine implementation dependant drives
+         * n-p: network devices
+         * It's up to each machine implementation to check if the given boot
+         * devices match the actual hardware implementation and firmware
+         * features.
+         */
+        if (*p < 'a' || *p > 'p') {
+            fprintf(stderr, "Invalid boot device '%c'\n", *p);
+            exit(1);
+        }
+        if (bitmap & (1 << (*p - 'a'))) {
+            fprintf(stderr, "Boot device '%c' was given twice\n", *p);
+            exit(1);
+        }
+        bitmap |= 1 << (*p - 'a');
+    }
+    return bitmap;
+}
+
+static void restore_boot_devices(void *opaque)
+{
+    char *standard_boot_devices = opaque;
+
+    qemu_boot_set(standard_boot_devices);
+
+    qemu_unregister_reset(restore_boot_devices, standard_boot_devices);
+    qemu_free(standard_boot_devices);
+}
+
 static void numa_add(const char *optarg)
 {
     char option[128];
@@ -3410,12 +3469,13 @@ void vm_start(void)
 /* reset/shutdown handler */
 
 typedef struct QEMUResetEntry {
+    TAILQ_ENTRY(QEMUResetEntry) entry;
     QEMUResetHandler *func;
     void *opaque;
-    struct QEMUResetEntry *next;
 } QEMUResetEntry;
 
-static QEMUResetEntry *first_reset_entry;
+static TAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
+    TAILQ_HEAD_INITIALIZER(reset_handlers);
 static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
@@ -3469,24 +3529,32 @@ static void do_vm_stop(int reason)
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry **pre, *re;
+    QEMUResetEntry *re = qemu_mallocz(sizeof(QEMUResetEntry));
 
-    pre = &first_reset_entry;
-    while (*pre != NULL)
-        pre = &(*pre)->next;
-    re = qemu_mallocz(sizeof(QEMUResetEntry));
     re->func = func;
     re->opaque = opaque;
-    re->next = NULL;
-    *pre = re;
+    TAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+}
+
+void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
+{
+    QEMUResetEntry *re;
+
+    TAILQ_FOREACH(re, &reset_handlers, entry) {
+        if (re->func == func && re->opaque == opaque) {
+            TAILQ_REMOVE(&reset_handlers, re, entry);
+            qemu_free(re);
+            return;
+        }
+    }
 }
 
 void qemu_system_reset(void)
 {
-    QEMUResetEntry *re;
+    QEMUResetEntry *re, *nre;
 
     /* reset all devices */
-    for(re = first_reset_entry; re != NULL; re = re->next) {
+    TAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
     }
 }
@@ -4814,7 +4882,7 @@ int main(int argc, char **argv, char **envp)
     int snapshot, linux_boot, net_boot;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    const char *boot_devices = "";
+    char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
@@ -5117,33 +5185,51 @@ int main(int argc, char **argv, char **envp)
                 drive_add(optarg, CDROM_ALIAS);
                 break;
             case QEMU_OPTION_boot:
-                boot_devices = optarg;
-                /* We just do some generic consistency checks */
                 {
-                    /* Could easily be extended to 64 devices if needed */
-                    const char *p;
-                    
-                    boot_devices_bitmap = 0;
-                    for (p = boot_devices; *p != '\0'; p++) {
-                        /* Allowed boot devices are:
-                         * a b     : floppy disk drives
-                         * c ... f : IDE disk drives
-                         * g ... m : machine implementation dependant drives
-                         * n ... p : network devices
-                         * It's up to each machine implementation to check
-                         * if the given boot devices match the actual hardware
-                         * implementation and firmware features.
-                         */
-                        if (*p < 'a' || *p > 'q') {
-                            fprintf(stderr, "Invalid boot device '%c'\n", *p);
-                            exit(1);
+                    static const char * const params[] = {
+                        "order", "once", "menu", NULL
+                    };
+                    char buf[sizeof(boot_devices)];
+                    char *standard_boot_devices;
+                    int legacy = 0;
+
+                    if (!strchr(optarg, '=')) {
+                        legacy = 1;
+                        pstrcpy(buf, sizeof(buf), optarg);
+                    } else if (check_params(buf, sizeof(buf), params, optarg) < 0) {
+                        fprintf(stderr,
+                                "qemu: unknown boot parameter '%s' in '%s'\n",
+                                buf, optarg);
+                        exit(1);
+                    }
+
+                    if (legacy ||
+                        get_param_value(buf, sizeof(buf), "order", optarg)) {
+                        boot_devices_bitmap = parse_bootdevices(buf);
+                        pstrcpy(boot_devices, sizeof(boot_devices), buf);
+                    }
+                    if (!legacy) {
+                        if (get_param_value(buf, sizeof(buf),
+                                            "once", optarg)) {
+                            boot_devices_bitmap |= parse_bootdevices(buf);
+                            standard_boot_devices = qemu_strdup(boot_devices);
+                            pstrcpy(boot_devices, sizeof(boot_devices), buf);
+                            qemu_register_reset(restore_boot_devices,
+                                                standard_boot_devices);
                         }
-                        if (boot_devices_bitmap & (1 << (*p - 'a'))) {
-                            fprintf(stderr,
-                                    "Boot device '%c' was given twice\n",*p);
-                            exit(1);
+                        if (get_param_value(buf, sizeof(buf),
+                                            "menu", optarg)) {
+                            if (!strcmp(buf, "on")) {
+                                boot_menu = 1;
+                            } else if (!strcmp(buf, "off")) {
+                                boot_menu = 0;
+                            } else {
+                                fprintf(stderr,
+                                        "qemu: invalid option value '%s'\n",
+                                        buf);
+                                exit(1);
+                            }
                         }
-                        boot_devices_bitmap |= 1 << (*p - 'a');
                     }
                 }
                 break;
@@ -5712,10 +5798,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    /* boot to floppy or the default cd if no hard disk defined yet */
-    if (!boot_devices[0]) {
-        boot_devices = "cad";
-    }
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);
 
@@ -5930,6 +6012,9 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_DEVICE);
 
+    if (machine->compat_props) {
+        qdev_prop_register_compat(machine->compat_props);
+    }
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
@@ -6057,10 +6142,8 @@ int main(int argc, char **argv, char **envp)
     if (loadvm)
         do_loadvm(cur_mon, loadvm);
 
-    if (incoming) {
-        autostart = 0; /* fixme how to deal with -daemonize */
+    if (incoming)
         qemu_start_incoming_migration(incoming);
-    }
 
     if (autostart)
         vm_start();

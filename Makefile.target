@@ -1,63 +1,12 @@
 include config.mak
 include $(SRC_PATH)/rules.mak
 
-TARGET_BASE_ARCH:=$(TARGET_ARCH)
-ifeq ($(TARGET_ARCH), x86_64)
-TARGET_BASE_ARCH:=i386
-endif
-ifeq ($(TARGET_ARCH), mipsn32)
-TARGET_BASE_ARCH:=mips
-endif
-ifeq ($(TARGET_ARCH), mips64)
-TARGET_BASE_ARCH:=mips
-endif
-ifeq ($(TARGET_ARCH), ppc64)
-TARGET_BASE_ARCH:=ppc
-endif
-ifeq ($(TARGET_ARCH), ppc64h)
-TARGET_BASE_ARCH:=ppc
-endif
-ifeq ($(TARGET_ARCH), ppcemb)
-TARGET_BASE_ARCH:=ppc
-endif
-ifeq ($(TARGET_ARCH), sparc64)
-TARGET_BASE_ARCH:=sparc
-endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
 #CFLAGS+=-Werror
 BASE_LDFLAGS += -g
 LIBS=
-# user emulator name
-ifndef TARGET_ARCH2
-TARGET_ARCH2=$(TARGET_ARCH)
-endif
-ifeq ($(TARGET_ARCH),arm)
-  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=armeb
-  endif
-endif
-ifeq ($(TARGET_ARCH),sh4)
-  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=sh4eb
-  endif
-endif
-ifeq ($(TARGET_ARCH),mips)
-  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=mipsel
-  endif
-endif
-ifeq ($(TARGET_ARCH),mipsn32)
-  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=mipsn32el
-  endif
-endif
-ifeq ($(TARGET_ARCH),mips64)
-  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
-    TARGET_ARCH2=mips64el
-  endif
-endif
 
 ifdef CONFIG_USER_ONLY
 # user emulator name
@@ -110,7 +59,7 @@ translate.o: CFLAGS := $(CFLAGS) $(call cc-option, $(CFLAGS), -fno-unit-at-a-tim
 endif
 
 ifeq ($(ARCH),sparc)
-  ifneq ($(CONFIG_SOLARIS),yes)
+  ifneq ($(CONFIG_SOLARIS),y)
     HELPER_CFLAGS+=-ffixed-i0
   endif
 endif
@@ -120,16 +69,9 @@ ifeq ($(ARCH),alpha)
 CFLAGS+=-msmall-data
 endif
 
-ifeq ($(ARCH),hppa)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
 ifeq ($(ARCH),ia64)
 CFLAGS+=-mno-sdata
 endif
-
-CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
-LDFLAGS+=$(OS_LDFLAGS) $(ARCH_LDFLAGS)
 
 CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS+=-U_FORTIFY_SOURCE
@@ -250,7 +192,7 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-op_helper.o: CFLAGS += $(HELPER_CFLAGS) $(I386_CFLAGS)
+op_helper.o: CFLAGS += $(HELPER_CFLAGS)
 
 cpu-exec.o: CFLAGS += $(HELPER_CFLAGS)
 
@@ -259,9 +201,6 @@ cpu-exec.o: CFLAGS += $(HELPER_CFLAGS)
 
 ifdef CONFIG_LINUX_USER
 
-ifndef TARGET_ABI_DIR
-  TARGET_ABI_DIR=$(TARGET_ARCH)
-endif
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
@@ -355,8 +294,6 @@ endif
 obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
       ioport-user.o
-LIBS+= $(PTHREADLIBS)
-LIBS+= $(CLOCKLIBS)
 obj-$(TARGET_HAS_BFLT) += flatload.o
 
 ifdef TARGET_HAS_ELFLOAD32
@@ -367,29 +304,23 @@ obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 ifeq ($(TARGET_ARCH), i386)
 obj-y += vm86.o
 endif
-ifeq ($(TARGET_ARCH), arm)
-obj-y += nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
-nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
- nwfpe/double_cpdo.o nwfpe/extended_cpdo.o arm-semi.o
-endif
-ifeq ($(TARGET_ARCH), m68k)
-obj-y += m68k-sim.o m68k-semi.o
-endif
+
+nwfpe-obj-y := fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
+nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
+obj-arm-y +=  $(addprefix nwfpe/, $(nwfpe-obj-y))
+obj-arm-y += arm-semi.o
+
+obj-m68k-y += m68k-sim.o m68k-semi.o
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): ARLIBS=../libqemu_user.a libqemu.a
-$(QEMU_PROG): $(obj-y) ../libqemu_user.a libqemu.a
-	$(call LINK,$(obj-y))
-ifeq ($(ARCH),alpha)
-# Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
-# the address space (31 bit so sign extending doesn't matter)
-	echo -ne '\001\000\000\000' | dd of=qemu bs=1 seek=48 count=4 conv=notrunc
-endif
-
+ARLIBS=../libqemu_user.a libqemu.a
 endif #CONFIG_LINUX_USER
+
+LIBS+= $(PTHREADLIBS)
+LIBS+= $(CLOCKLIBS)
 
 #########################################################
 # Darwin user emulator target
@@ -411,9 +342,7 @@ obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): ARLIBS=libqemu.a
-$(QEMU_PROG): $(obj-y) libqemu.a
-	$(call LINK,$(obj-y))
+ARLIBS=libqemu.a
 
 endif #CONFIG_DARWIN_USER
 
@@ -514,9 +443,7 @@ obj-y += uaccess.o
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
-$(QEMU_PROG): ARLIBS=libqemu.a ../libqemu_user.a
-$(QEMU_PROG): $(obj-y) libqemu.a ../libqemu_user.a
-	$(call LINK,$(obj-y))
+ARLIBS=libqemu.a ../libqemu_user.a
 
 endif #CONFIG_BSD_USER
 
@@ -581,7 +508,7 @@ LIBS += $(UUID_LIBS)
 
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
-ifeq ($(CONFIG_XEN), yes)
+ifeq ($(CONFIG_XEN), y)
   LIBS += $(XEN_LIBS)
 endif
 
@@ -605,131 +532,133 @@ obj-y += tnetw1130.o
 # Generic watchdog support and some watchdog devices
 obj-y += wdt_ib700.o wdt_i6300esb.o
 
-ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
-obj-y += ide.o pckbd.o vga.o $(sound-obj-y) dma.o
-obj-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
-obj-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
-obj-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
-obj-y += device-hotplug.o pci-hotplug.o smbios.o
+obj-i386-y = ide.o pckbd.o vga.o $(sound-obj-y) dma.o
+obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
+obj-i386-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
+obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
+obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o
+
+ifeq ($(TARGET_BASE_ARCH), i386)
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
-ifeq ($(TARGET_BASE_ARCH), ppc)
-ifndef CONFIG_WIN32
-CPPFLAGS += -Werror
-endif # CONFIG_WIN32
-CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+
 # shared objects
-obj-y += ppc.o ide.o vga.o $(sound-obj-y) dma.o openpic.o
+obj-ppc-y = ppc.o ide.o vga.o $(sound-obj-y) dma.o openpic.o
 # PREP target
-obj-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
-obj-y += prep_pci.o ppc_prep.o
+obj-ppc-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
+obj-ppc-y += prep_pci.o ppc_prep.o
 # Mac shared devices
-obj-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
+obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
 # OldWorld PowerMac
-obj-y += heathrow_pic.o grackle_pci.o ppc_oldworld.o
+obj-ppc-y += heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
-obj-y += unin_pci.o ppc_newworld.o
+obj-ppc-y += unin_pci.o ppc_newworld.o
 # PowerPC 4xx boards
-obj-y += pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
-obj-y += ppc440.o ppc440_bamboo.o
+obj-ppc-y += pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
+obj-ppc-y += ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
-obj-y += ppce500_pci.o ppce500_mpc8544ds.o
-ifdef FDT_LIBS
-obj-y += device_tree.o
-LIBS+= $(FDT_LIBS)
-endif
-obj-$(CONFIG_KVM) += kvm_ppc.o
-endif
-ifeq ($(TARGET_BASE_ARCH), mips)
-obj-y += mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
-obj-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
-obj-y += g364fb.o jazz_led.o dp8393x.o
-obj-y += ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
-obj-y += piix_pci.o parallel.o cirrus_vga.o pcspk.o $(sound-obj-y)
-ifeq ($(TARGET_ARCH), mips)
-obj-y += ar7.o
-endif
-obj-y += mipsnet.o
-obj-y += pflash.o
-obj-y += pflash_amd.o
-obj-y += pflash_cfi01.o
-obj-y += pflash_cfi02.o
-obj-y += vmware_vga.o
+obj-ppc-y += ppce500_pci.o ppce500_mpc8544ds.o
+obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
+
+ifeq ($(TARGET_BASE_ARCH), ppc)
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
-ifeq ($(TARGET_BASE_ARCH), microblaze)
-obj-y += petalogix_s3adsp1800_mmu.o
 
-obj-y += microblaze_pic_cpu.o
-obj-y += xilinx_intc.o
-obj-y += xilinx_timer.o
-obj-y += xilinx_uartlite.o
-obj-y += xilinx_ethlite.o
-
-obj-y += pflash_cfi02.o
 ifdef FDT_LIBS
-obj-y += device_tree.o
+obj-ppc-y += device_tree.o
 LIBS+= $(FDT_LIBS)
 endif
+
+obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
+obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
+obj-mips-y += g364fb.o jazz_led.o dp8393x.o
+obj-mips-y += ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
+obj-mips-y += piix_pci.o parallel.o cirrus_vga.o pcspk.o $(sound-obj-y)
+ifeq ($(TARGET_ARCH), mips)
+obj-mips-y += ar7.o
 endif
-ifeq ($(TARGET_BASE_ARCH), cris)
+obj-mips-y += mipsnet.o
+obj-mips-y += pflash.o
+obj-mips-y += pflash_amd.o
+obj-mips-y += pflash_cfi01.o
+obj-mips-y += pflash_cfi02.o
+obj-mips-y += vmware_vga.o
+
+ifeq ($(TARGET_BASE_ARCH), mips)
+CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+endif
+
+obj-microblaze-y = petalogix_s3adsp1800_mmu.o
+
+obj-microblaze-y += microblaze_pic_cpu.o
+obj-microblaze-y += xilinx_intc.o
+obj-microblaze-y += xilinx_timer.o
+obj-microblaze-y += xilinx_uartlite.o
+obj-microblaze-y += xilinx_ethlite.o
+
+obj-microblaze-y += pflash_cfi02.o
+
+ifdef FDT_LIBS
+obj-microblaze-y += device_tree.o
+LIBS+= $(FDT_LIBS)
+endif
+
 # Boards
-obj-y += cris_pic_cpu.o etraxfs.o axis_dev88.o
+obj-cris-y = cris_pic_cpu.o etraxfs.o axis_dev88.o
 
 # IO blocks
-obj-y += etraxfs_dma.o
-obj-y += etraxfs_pic.o
-obj-y += etraxfs_eth.o
-obj-y += etraxfs_timer.o
-obj-y += etraxfs_ser.o
+obj-cris-y += etraxfs_dma.o
+obj-cris-y += etraxfs_pic.o
+obj-cris-y += etraxfs_eth.o
+obj-cris-y += etraxfs_timer.o
+obj-cris-y += etraxfs_ser.o
 
-obj-y += pflash_cfi02.o
-endif
-ifeq ($(TARGET_BASE_ARCH), sparc)
+obj-cris-y += pflash_cfi02.o
+
 ifeq ($(TARGET_ARCH), sparc64)
-obj-y += sun4u.o ide.o pckbd.o vga.o apb_pci.o
-obj-y += fdc.o mc146818rtc.o serial.o
-obj-y += cirrus_vga.o parallel.o
+obj-sparc-y = sun4u.o ide.o pckbd.o vga.o apb_pci.o
+obj-sparc-y += fdc.o mc146818rtc.o serial.o
+obj-sparc-y += cirrus_vga.o parallel.o
 else
-obj-y += sun4m.o tcx.o iommu.o slavio_intctl.o
-obj-y += slavio_timer.o slavio_misc.o fdc.o sparc32_dma.o
-obj-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
+obj-sparc-y = sun4m.o tcx.o iommu.o slavio_intctl.o
+obj-sparc-y += slavio_timer.o slavio_misc.o fdc.o sparc32_dma.o
+obj-sparc-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
-endif
+
+obj-arm-y = integratorcp.o versatilepb.o smc91c111.o arm_pic.o arm_timer.o
+obj-arm-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
+obj-arm-y += versatile_pci.o
+obj-arm-y += realview_gic.o realview.o arm_sysctl.o mpcore.o
+obj-arm-y += armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
+obj-arm-y += pl061.o
+obj-arm-y += arm-semi.o
+obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
+obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
+obj-arm-y += pflash_cfi01.o gumstix.o
+obj-arm-y += zaurus.o ide.o serial.o spitz.o tosa.o tc6393xb.o
+obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
+obj-arm-y += omap2.o omap_dss.o soc_dma.o
+obj-arm-y += omap_sx1.o palm.o tsc210x.o
+obj-arm-y += nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
+obj-arm-y += mst_fpga.o mainstone.o
+obj-arm-y += musicpal.o pflash_cfi02.o
+obj-arm-y += framebuffer.o
+obj-arm-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
+obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
+obj-arm-y += syborg_virtio.o
+
 ifeq ($(TARGET_BASE_ARCH), arm)
-obj-y += integratorcp.o versatilepb.o smc91c111.o arm_pic.o arm_timer.o
-obj-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
-obj-y += versatile_pci.o
-obj-y += realview_gic.o realview.o arm_sysctl.o mpcore.o
-obj-y += armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
-obj-y += pl061.o
-obj-y += arm-semi.o
-obj-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
-obj-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
-obj-y += pflash_cfi01.o gumstix.o
-obj-y += zaurus.o ide.o serial.o spitz.o tosa.o tc6393xb.o
-obj-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
-obj-y += omap2.o omap_dss.o soc_dma.o
-obj-y += omap_sx1.o palm.o tsc210x.o
-obj-y += nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
-obj-y += mst_fpga.o mainstone.o
-obj-y += musicpal.o pflash_cfi02.o
-obj-y += framebuffer.o
-obj-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
-obj-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
-obj-y += syborg_virtio.o
 CPPFLAGS += -DHAS_AUDIO
 endif
-ifeq ($(TARGET_BASE_ARCH), sh4)
-obj-y += shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-obj-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
-obj-y += ide.o
-endif
-ifeq ($(TARGET_BASE_ARCH), m68k)
-obj-y += an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
-obj-y += m68k-semi.o dummy_m68k.o
-endif
+
+obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
+obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
+obj-sh4-y += ide.o
+
+obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
+obj-m68k-y += m68k-semi.o dummy_m68k.o
+
 ifdef CONFIG_COCOA
 COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa -framework IOKit
 ifdef CONFIG_COREAUDIO
@@ -742,8 +671,6 @@ CPPFLAGS+=-I$(SRC_PATH)/slirp
 endif
 endif
 
-LIBS+=$(PTHREADLIBS)
-LIBS+=$(CLOCKLIBS)
 # specific flags are needed for non soft mmu emulator
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
@@ -787,12 +714,14 @@ vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
 
-$(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
-$(QEMU_PROG): ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
-$(QEMU_PROG): $(obj-y) ../libqemu_common.a libqemu.a $(HWLIB)
-	$(call LINK,$(obj-y))
+LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
+ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # !CONFIG_USER_ONLY
+
+$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) $(ARLIBS)
+	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
+
 
 gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
 ifeq ($(TARGET_XML_FILES),)

@@ -16,8 +16,8 @@ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
 the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+along with this file; see the file COPYING.  If not,
+see <http://www.gnu.org/licenses/>.  */
 #include "dis-asm.h"
 #define BFD_DEFAULT_TARGET_SIZE 64
 
@@ -39,8 +39,8 @@ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
 the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+along with this file; see the file COPYING.  If not,
+see <http://www.gnu.org/licenses/>.  */
 
 /* The opcode table is an array of struct powerpc_opcode.  */
 
@@ -361,9 +361,8 @@ extern const int powerpc_num_macros;
    the GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this file; see the file COPYING.  If not, write to the Free
-   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
-   02110-1301, USA.  */
+   along with this file; see the file COPYING.
+   If not, see <http://www.gnu.org/licenses/>.  */
 
 /* This file holds the PowerPC opcode table.  The opcode table
    includes almost all of the extended instruction mnemonics.  This

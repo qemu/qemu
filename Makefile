@@ -16,10 +16,6 @@ endif
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
-
-CFLAGS += $(OS_CFLAGS) $(ARCH_CFLAGS)
-LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
-
 CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS += -U_FORTIFY_SOURCE
@@ -67,24 +63,26 @@ recurse-all: $(SUBDIR_RULES)
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
-block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o aes.o module.o
-block-obj-y += block/cow.o block/qcow.o block/vdi.o block/vmdk.o block/cloop.o
-block-obj-y += block/dmg.o block/bochs.o block/vpc.o block/vvfat.o
-block-obj-y += block/qcow2.o block/qcow2-refcount.o block/qcow2-cluster.o
-block-obj-y += block/qcow2-snapshot.o
-block-obj-y += block/parallels.o block/nbd.o
-block-obj-y += nbd.o block.o aio.o
+block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
+block-obj-y += nbd.o block.o aio.o aes.o
+
+block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
+block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
+block-nested-y += parallels.o nbd.o
+
 
 ifdef CONFIG_WIN32
-block-obj-y += block/raw-win32.o
+block-nested-y += raw-win32.o
 else
 ifdef CONFIG_AIO
 block-obj-y += posix-aio-compat.o
 endif
-block-obj-y += block/raw-posix.o
+block-nested-y += raw-posix.o
 endif
 
-block-obj-$(CONFIG_CURL) += block/curl.o
+block-nested-$(CONFIG_CURL) += curl.o
+
+block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -107,9 +105,9 @@ obj-y += sd.o ssi-sd.o
 obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 obj-y += bt-hci-csr.o
 obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
-obj-y += qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
+obj-y += qemu-char.o aio.o net-checksum.o savevm.o
 obj-y += msmouse.o ps2.o
-obj-y += qdev.o ssi.o
+obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 

@@ -150,7 +150,6 @@ static void xilinx_intc_init(SysBusDevice *dev)
     struct xlx_pic *p = FROM_SYSBUS(typeof (*p), dev);
     int pic_regs;
 
-    p->c_kind_of_intr = qdev_get_prop_int(&dev->qdev, "kind-of-intr", 0);
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &p->parent_irq);
 
@@ -158,10 +157,23 @@ static void xilinx_intc_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, R_MAX * 4, pic_regs);
 }
 
+static SysBusDeviceInfo xilinx_intc_info = {
+    .init = xilinx_intc_init,
+    .qdev.name  = "xilinx,intc",
+    .qdev.size  = sizeof(struct xlx_pic),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "kind-of-intr",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(struct xlx_pic, c_kind_of_intr),
+        },
+        {/* end of list */}
+    }
+};
+
 static void xilinx_intc_register(void)
 {
-    sysbus_register_dev("xilinx,intc", sizeof (struct xlx_pic),
-                        xilinx_intc_init);
+    sysbus_register_withprop(&xilinx_intc_info);
 }
 
 device_init(xilinx_intc_register)

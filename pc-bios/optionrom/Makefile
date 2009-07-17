@@ -3,7 +3,6 @@ all: build-all
 include ../../config-host.mak
 
 VPATH=$(SRC_PATH)/pc-bios/optionrom
-OBJCOPY=objcopy
 
 # from kernel sources - scripts/Kbuild.include
 # try-run
@@ -35,11 +34,13 @@ build-all: multiboot.bin
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 %.img: %.o
-	$(LD) --oformat binary -Ttext 0 -o $@ $<
+	$(LD) -Ttext 0 -e _start -s -o $@ $<
 
-%.bin: %.img
+%.raw: %.img
+	$(OBJCOPY) -O binary -j .text $< $@
+
+%.bin: %.raw
 	$(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@
-	cp $@ $(SRC_PATH)/pc-bios/
 
 clean:
 	$(RM) *.o *.img *.bin *~

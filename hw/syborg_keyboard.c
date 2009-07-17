@@ -53,7 +53,7 @@ typedef struct {
     SysBusDevice busdev;
     int int_enabled;
     int extension_bit;
-    int fifo_size;
+    uint32_t fifo_size;
     uint32_t *key_fifo;
     int read_pos, read_count;
     qemu_irq irq;
@@ -212,7 +212,6 @@ static void syborg_keyboard_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(syborg_keyboard_readfn,
                                        syborg_keyboard_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
-    s->fifo_size = qdev_get_prop_int(&dev->qdev, "fifo-size", 16);
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_keyboard: fifo too small\n");
         s->fifo_size = 16;
@@ -225,10 +224,24 @@ static void syborg_keyboard_init(SysBusDevice *dev)
                     syborg_keyboard_save, syborg_keyboard_load, s);
 }
 
+static SysBusDeviceInfo syborg_keyboard_info = {
+    .init = syborg_keyboard_init,
+    .qdev.name  = "syborg,keyboard",
+    .qdev.size  = sizeof(SyborgKeyboardState),
+    .qdev.props = (Property[]) {
+        {
+            .name   = "fifo-size",
+            .info   = &qdev_prop_uint32,
+            .offset = offsetof(SyborgKeyboardState, fifo_size),
+            .defval = (uint32_t[]) { 16 },
+        },
+        {/* end of list */}
+    }
+};
+
 static void syborg_keyboard_register_devices(void)
 {
-    sysbus_register_dev("syborg,keyboard", sizeof(SyborgKeyboardState),
-                        syborg_keyboard_init);
+    sysbus_register_withprop(&syborg_keyboard_info);
 }
 
 device_init(syborg_keyboard_register_devices)
