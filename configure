@@ -2036,11 +2036,12 @@ case "$target_arch2" in
     fi
 esac
 case "$target_arch2" in
-  i386|x86_64|ppcemb)
+  i386|x86_64|ppcemb|ppc|ppc64)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_arch2" = "$cpu" -o \
       \( "$target_arch2" = "ppcemb" -a "$cpu" = "ppc" \) -o \
+      \( "$target_arch2" = "ppc64"  -a "$cpu" = "ppc" \) -o \
       \( "$target_arch2" = "x86_64" -a "$cpu" = "i386"   \) -o \
       \( "$target_arch2" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_mak
