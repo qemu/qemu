@@ -226,7 +226,7 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     if (mem == NULL)  {
             fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
                     TARGET_FMT_plx "\n", __func__, phys_addr,
-                    phys_addr + size - 1);
+                    (target_phys_addr_t)(phys_addr + size - 1));
             return -EINVAL;
     }
 
