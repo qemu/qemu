@@ -170,7 +170,7 @@ static int vmdk_is_cid_valid(BlockDriverState *bs)
 {
 #ifdef CHECK_CID
     BDRVVmdkState *s = bs->opaque;
-    BlockDriverState *p_bs = s->hd->backing_hd;
+    BlockDriverState *p_bs = bs->backing_hd;
     uint32_t cur_pcid;
 
     if (p_bs) {
@@ -338,26 +338,26 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
         p_name += sizeof("parentFileNameHint") + 1;
         if ((end_name = strchr(p_name,'\"')) == NULL)
             return -1;
-        if ((end_name - p_name) > sizeof (s->hd->backing_file) - 1)
+        if ((end_name - p_name) > sizeof (bs->backing_file) - 1)
             return -1;
 
-        pstrcpy(s->hd->backing_file, end_name - p_name + 1, p_name);
-        if (stat(s->hd->backing_file, &file_buf) != 0) {
+        pstrcpy(bs->backing_file, end_name - p_name + 1, p_name);
+        if (stat(bs->backing_file, &file_buf) != 0) {
             path_combine(parent_img_name, sizeof(parent_img_name),
-                         filename, s->hd->backing_file);
+                         filename, bs->backing_file);
         } else {
             pstrcpy(parent_img_name, sizeof(parent_img_name),
-                    s->hd->backing_file);
+                    bs->backing_file);
         }
 
-        s->hd->backing_hd = bdrv_new("");
-        if (!s->hd->backing_hd) {
+        bs->backing_hd = bdrv_new("");
+        if (!bs->backing_hd) {
             failure:
             bdrv_close(s->hd);
             return -1;
         }
         parent_open = 1;
-        if (bdrv_open(s->hd->backing_hd, parent_img_name, BDRV_O_RDONLY) < 0)
+        if (bdrv_open(bs->backing_hd, parent_img_name, BDRV_O_RDONLY) < 0)
             goto failure;
         parent_open = 0;
     }
@@ -464,13 +464,14 @@ static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
 
     // we will be here if it's first write on non-exist grain(cluster).
     // try to read from parent image, if exist
-    if (s->hd->backing_hd) {
-        BDRVVmdkState *ps = s->hd->backing_hd->opaque;
+    if (bs->backing_hd) {
+        BDRVVmdkState *ps = bs->backing_hd->opaque;
 
         if (!vmdk_is_cid_valid(bs))
             return -1;
 
-        parent_cluster_offset = get_cluster_offset(s->hd->backing_hd, NULL, offset, allocate);
+        parent_cluster_offset = get_cluster_offset(bs->backing_hd, NULL,
+            offset, allocate);
 
         if (parent_cluster_offset) {
             BDRVVmdkState *act_s = activeBDRV.hd->opaque;
@@ -621,10 +622,10 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
             n = nb_sectors;
         if (!cluster_offset) {
             // try to read from parent image, if exist
-            if (s->hd->backing_hd) {
+            if (bs->backing_hd) {
                 if (!vmdk_is_cid_valid(bs))
                     return -1;
-                ret = bdrv_read(s->hd->backing_hd, sector_num, buf, n);
+                ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
                 if (ret < 0)
                     return -1;
             } else {
