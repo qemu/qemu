@@ -117,9 +117,9 @@ static int parse_mac(DeviceState *dev, Property *prop, const char *str)
     char *p;
 
     for (i = 0, pos = 0; i < 6; i++, pos += 3) {
-        if (!isxdigit(str[pos]))
+        if (!qemu_isxdigit(str[pos]))
             return -1;
-        if (!isxdigit(str[pos+1]))
+        if (!qemu_isxdigit(str[pos+1]))
             return -1;
         if (i == 5 && str[pos+2] != '\0')
             return -1;
