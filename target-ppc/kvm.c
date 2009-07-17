@@ -44,7 +44,13 @@ int kvm_arch_init(KVMState *s, int smp_cpus)
 
 int kvm_arch_init_vcpu(CPUState *cenv)
 {
-    return 0;
+    int ret = 0;
+    struct kvm_sregs sregs;
+
+    sregs.pvr = cenv->spr[SPR_PVR];
+    ret = kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
+
+    return ret;
 }
 
 int kvm_arch_put_registers(CPUState *env)
