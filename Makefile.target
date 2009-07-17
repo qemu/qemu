@@ -262,8 +262,6 @@ endif
 obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
       ioport-user.o
-LIBS+= $(PTHREADLIBS)
-LIBS+= $(CLOCKLIBS)
 obj-$(TARGET_HAS_BFLT) += flatload.o
 
 ifdef TARGET_HAS_ELFLOAD32
@@ -288,6 +286,9 @@ signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 ARLIBS=../libqemu_user.a libqemu.a
 endif #CONFIG_LINUX_USER
+
+LIBS+= $(PTHREADLIBS)
+LIBS+= $(CLOCKLIBS)
 
 #########################################################
 # Darwin user emulator target
