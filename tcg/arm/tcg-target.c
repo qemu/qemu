@@ -990,7 +990,22 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
 # endif
 
     *label_ptr += ((void *) s->code_ptr - (void *) label_ptr - 8) >> 2;
-#else
+#else /* !CONFIG_SOFTMMU */
+    if (GUEST_BASE) {
+        uint32_t offset = GUEST_BASE;
+        int i;
+        int rot;
+
+        while (offset) {
+            i = ctz32(offset) & ~1;
+            rot = ((32 - i) << 7) & 0xf00;
+
+            tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 8, addr_reg,
+                            ((offset >> i) & 0xff) | rot);
+            addr_reg = 8;
+            offset &= ~(0xff << i);
+        }
+    }
     switch (opc) {
     case 0:
         tcg_out_ld8_12(s, COND_AL, data_reg, addr_reg, 0);
@@ -1200,7 +1215,22 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 # endif
 
     *label_ptr += ((void *) s->code_ptr - (void *) label_ptr - 8) >> 2;
-#else
+#else /* !CONFIG_SOFTMMU */
+    if (GUEST_BASE) {
+        uint32_t offset = GUEST_BASE;
+        int i;
+        int rot;
+
+        while (offset) {
+            i = ctz32(offset) & ~1;
+            rot = ((32 - i) << 7) & 0xf00;
+
+            tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 8, addr_reg,
+                            ((offset >> i) & 0xff) | rot);
+            addr_reg = 8;
+            offset &= ~(0xff << i);
+        }
+    }
     switch (opc) {
     case 0:
         tcg_out_st8_12(s, COND_AL, data_reg, addr_reg, 0);

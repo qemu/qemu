@@ -508,6 +508,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                             int opc)
 {
     int addr_reg, data_reg, r0, r1, mem_index, s_bits, bswap, rexw;
+    int32_t offset;
 #if defined(CONFIG_SOFTMMU)
     uint8_t *label1_ptr, *label2_ptr;
 #endif
@@ -604,8 +605,20 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     /* add x(r1), r0 */
     tcg_out_modrm_offset(s, 0x03 | P_REXW, r0, r1, offsetof(CPUTLBEntry, addend) - 
                          offsetof(CPUTLBEntry, addr_read));
+    offset = 0;
 #else
-    r0 = addr_reg;
+    if (GUEST_BASE == (int32_t)GUEST_BASE) {
+        r0 = addr_reg;
+        offset = GUEST_BASE;
+    } else {
+        offset = 0;
+        /* movq $GUEST_BASE, r0 */
+        tcg_out_opc(s, (0xb8 + (r0 & 7)) | P_REXW, 0, r0, 0);
+        tcg_out32(s, GUEST_BASE);
+        tcg_out32(s, GUEST_BASE >> 32);
+        /* addq addr_reg, r0 */
+        tcg_out_modrm(s, 0x01 | P_REXW, addr_reg, r0);
+    }
 #endif    
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -616,15 +629,15 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movzbl */
-        tcg_out_modrm_offset(s, 0xb6 | P_EXT, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0xb6 | P_EXT, data_reg, r0, offset);
         break;
     case 0 | 4:
         /* movsbX */
-        tcg_out_modrm_offset(s, 0xbe | P_EXT | rexw, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0xbe | P_EXT | rexw, data_reg, r0, offset);
         break;
     case 1:
         /* movzwl */
-        tcg_out_modrm_offset(s, 0xb7 | P_EXT, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0xb7 | P_EXT, data_reg, r0, offset);
         if (bswap) {
             /* rolw $8, data_reg */
             tcg_out8(s, 0x66); 
@@ -635,7 +648,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     case 1 | 4:
         if (bswap) {
             /* movzwl */
-            tcg_out_modrm_offset(s, 0xb7 | P_EXT, data_reg, r0, 0);
+            tcg_out_modrm_offset(s, 0xb7 | P_EXT, data_reg, r0, offset);
             /* rolw $8, data_reg */
             tcg_out8(s, 0x66); 
             tcg_out_modrm(s, 0xc1, 0, data_reg);
@@ -645,12 +658,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
             tcg_out_modrm(s, 0xbf | P_EXT | rexw, data_reg, data_reg);
         } else {
             /* movswX */
-            tcg_out_modrm_offset(s, 0xbf | P_EXT | rexw, data_reg, r0, 0);
+            tcg_out_modrm_offset(s, 0xbf | P_EXT | rexw, data_reg, r0, offset);
         }
         break;
     case 2:
         /* movl (r0), data_reg */
-        tcg_out_modrm_offset(s, 0x8b, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x8b, data_reg, r0, offset);
         if (bswap) {
             /* bswap */
             tcg_out_opc(s, (0xc8 + (data_reg & 7)) | P_EXT, 0, data_reg, 0);
@@ -659,19 +672,19 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     case 2 | 4:
         if (bswap) {
             /* movl (r0), data_reg */
-            tcg_out_modrm_offset(s, 0x8b, data_reg, r0, 0);
+            tcg_out_modrm_offset(s, 0x8b, data_reg, r0, offset);
             /* bswap */
             tcg_out_opc(s, (0xc8 + (data_reg & 7)) | P_EXT, 0, data_reg, 0);
             /* movslq */
             tcg_out_modrm(s, 0x63 | P_REXW, data_reg, data_reg);
         } else {
             /* movslq */
-            tcg_out_modrm_offset(s, 0x63 | P_REXW, data_reg, r0, 0);
+            tcg_out_modrm_offset(s, 0x63 | P_REXW, data_reg, r0, offset);
         }
         break;
     case 3:
         /* movq (r0), data_reg */
-        tcg_out_modrm_offset(s, 0x8b | P_REXW, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x8b | P_REXW, data_reg, r0, offset);
         if (bswap) {
             /* bswap */
             tcg_out_opc(s, (0xc8 + (data_reg & 7)) | P_EXT | P_REXW, 0, data_reg, 0);
@@ -691,6 +704,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                             int opc)
 {
     int addr_reg, data_reg, r0, r1, mem_index, s_bits, bswap, rexw;
+    int32_t offset;
 #if defined(CONFIG_SOFTMMU)
     uint8_t *label1_ptr, *label2_ptr;
 #endif
@@ -775,8 +789,20 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     /* add x(r1), r0 */
     tcg_out_modrm_offset(s, 0x03 | P_REXW, r0, r1, offsetof(CPUTLBEntry, addend) - 
                          offsetof(CPUTLBEntry, addr_write));
+    offset = 0;
 #else
-    r0 = addr_reg;
+    if (GUEST_BASE == (int32_t)GUEST_BASE) {
+        r0 = addr_reg;
+        offset = GUEST_BASE;
+    } else {
+        offset = 0;
+        /* movq $GUEST_BASE, r0 */
+        tcg_out_opc(s, (0xb8 + (r0 & 7)) | P_REXW, 0, r0, 0);
+        tcg_out32(s, GUEST_BASE);
+        tcg_out32(s, GUEST_BASE >> 32);
+        /* addq addr_reg, r0 */
+        tcg_out_modrm(s, 0x01 | P_REXW, addr_reg, r0);
+    }
 #endif
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -787,7 +813,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REXB, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB, data_reg, r0, offset);
         break;
     case 1:
         if (bswap) {
@@ -799,7 +825,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         }
         /* movw */
         tcg_out8(s, 0x66);
-        tcg_out_modrm_offset(s, 0x89, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x89, data_reg, r0, offset);
         break;
     case 2:
         if (bswap) {
@@ -809,7 +835,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
             data_reg = r1;
         }
         /* movl */
-        tcg_out_modrm_offset(s, 0x89, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x89, data_reg, r0, offset);
         break;
     case 3:
         if (bswap) {
@@ -819,7 +845,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
             data_reg = r1;
         }
         /* movq */
-        tcg_out_modrm_offset(s, 0x89 | P_REXW, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x89 | P_REXW, data_reg, r0, offset);
         break;
     default:
         tcg_abort();

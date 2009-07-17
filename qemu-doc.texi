@@ -2026,7 +2026,7 @@ qemu-i386 /usr/local/qemu-i386/wine/bin/wine \
 @subsection Command line options
 
 @example
-usage: qemu-i386 [-h] [-d] [-L path] [-s size] [-cpu model] [-g port] program [arguments...]
+usage: qemu-i386 [-h] [-d] [-L path] [-s size] [-cpu model] [-g port] [-B offset] program [arguments...]
 @end example
 
 @table @option
@@ -2038,6 +2038,10 @@ Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
 Set the x86 stack size in bytes (default=524288)
 @item -cpu model
 Select CPU model (-cpu ? for list and additional feature selection)
+@item -B offset
+Offset guest address by the specified number of bytes.  This is useful when
+the address region rewuired by guest applications is reserved on the host.
+Ths option is currently only supported on some hosts.
 @end table
 
 Debug options:

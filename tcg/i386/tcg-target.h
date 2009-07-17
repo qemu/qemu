@@ -53,6 +53,8 @@ enum {
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_rot_i32
 
+#define TCG_TARGET_HAS_GUEST_BASE
+
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_EBP
 #define TCG_AREG1 TCG_REG_EBX

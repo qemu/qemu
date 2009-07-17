@@ -60,6 +60,8 @@ enum {
 #define TCG_TARGET_STACK_ALIGN		8
 #define TCG_TARGET_CALL_STACK_OFFSET	0
 
+#define TCG_TARGET_HAS_GUEST_BASE
+
 enum {
     /* Note: must be synced with dyngen-exec.h */
     TCG_AREG0 = TCG_REG_R7,
