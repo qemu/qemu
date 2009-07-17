@@ -406,7 +406,7 @@ static SysBusDeviceInfo iommu_info = {
     .qdev.props = (Property[]) {
         {
             .name = "version",
-            .info = &qdev_prop_uint32,
+            .info = &qdev_prop_hex32,
             .offset = offsetof(IOMMUState, version),
         },
         {/* end of property list */}

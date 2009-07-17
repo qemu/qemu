@@ -358,7 +358,7 @@ static SysBusDeviceInfo ecc_info = {
     .qdev.props = (Property[]) {
         {
             .name   = "version",
-            .info   = &qdev_prop_uint32,
+            .info   = &qdev_prop_hex32,
             .offset = offsetof(ECCState, version),
             .defval = (uint32_t[]) { -1 },
         },
