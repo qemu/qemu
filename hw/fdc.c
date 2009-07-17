@@ -33,6 +33,7 @@
 #include "qemu-timer.h"
 #include "isa.h"
 #include "sysbus.h"
+#include "qdev-addr.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -1972,7 +1973,7 @@ static SysBusDeviceInfo fdc_info = {
     .qdev.props = (Property[]) {
         {
             .name = "io_base",
-            .info = &qdev_prop_uint32,
+            .info = &qdev_prop_taddr,
             .offset = offsetof(fdctrl_t, io_base),
         },
         {
