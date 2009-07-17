@@ -2110,7 +2110,10 @@ if test "$source_path_used" = "yes" ; then
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     FILES="$FILES tests/test-mmap.c"
-    FILES="$FILES pc-bios/optionrom/Makefile"
+    FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps pc-bios/video.x"
+    for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.dtb $source_path/pc-bios/openbios-*; do
+        FILES="$FILES pc-bios/`basename $bios_file`"
+    done
     for dir in $DIRS ; do
             mkdir -p $dir
     done
