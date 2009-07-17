@@ -358,11 +358,10 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
             break;
         }
     }
-    if (!def) {
-        if (strcmp(name, "host") != 0) {
-            goto error;
-        }
+    if (kvm_enabled() && strcmp(name, "host") == 0) {
         cpu_x86_fill_host(x86_cpu_def);
+    } else if (!def) {
+        goto error;
     } else {
         memcpy(x86_cpu_def, def, sizeof(*def));
     }
