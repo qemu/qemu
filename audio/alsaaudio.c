@@ -25,6 +25,10 @@
 #include "qemu-common.h"
 #include "audio.h"
 
+#if QEMU_GNUC_PREREQ(4, 3)
+#pragma GCC diagnostic ignored "-Waddress"
+#endif
+
 #define AUDIO_CAP "alsa"
 #include "audio_int.h"
 
