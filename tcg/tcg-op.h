@@ -1749,7 +1749,7 @@ static inline void tcg_gen_rotr_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
-    tcg_gen_shl_i64(t0, arg1, arg2);
+    tcg_gen_shr_i64(t0, arg1, arg2);
     tcg_gen_subfi_i64(t1, 64, arg2);
     tcg_gen_shl_i64(t1, arg1, t1);
     tcg_gen_or_i64(ret, t0, t1);
