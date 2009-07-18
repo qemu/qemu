@@ -798,9 +798,9 @@ static int elf_core_dump(int, const CPUState *);
 #ifdef BSWAP_NEEDED
 static void bswap_note(struct elf_note *en)
 {
-    bswaptls(&en->n_namesz);
-    bswaptls(&en->n_descsz);
-    bswaptls(&en->n_type);
+    bswap32s(&en->n_namesz);
+    bswap32s(&en->n_descsz);
+    bswap32s(&en->n_type);
 }
 #endif /* BSWAP_NEEDED */
 
