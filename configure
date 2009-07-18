@@ -592,6 +592,9 @@ case "$cpu" in
     arm*)
            host_guest_base="yes"
            ;;
+    ppc*)
+           host_guest_base="yes"
+           ;;
 esac
 
 [ -z "$guest_base" ] && guest_base="$host_guest_base"
