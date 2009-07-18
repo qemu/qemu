@@ -349,7 +349,7 @@ static int tcg_target_const_match (tcg_target_long val,
 #define DIVDU  XO31(457)
 
 #define LBZX   XO31( 87)
-#define LHZX   XO31(276)
+#define LHZX   XO31(279)
 #define LHAX   XO31(343)
 #define LWZX   XO31( 23)
 #define STBX   XO31(215)
