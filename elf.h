@@ -454,7 +454,9 @@ typedef struct {
 #define R_PPC_SECTOFF_HI	35
 #define R_PPC_SECTOFF_HA	36
 /* Keep this the last entry.  */
+#ifndef R_PPC_NUM
 #define R_PPC_NUM		37
+#endif
 
 /* ARM specific declarations */
 

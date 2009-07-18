@@ -272,6 +272,9 @@ static void *load_at(int fd, int offset, int size)
     return ptr;
 }
 
+#ifdef ELF_CLASS
+#undef ELF_CLASS
+#endif
 
 #define ELF_CLASS   ELFCLASS32
 #include "elf.h"
