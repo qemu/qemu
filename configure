@@ -1499,7 +1499,7 @@ case "$cpu" in
   i386|x86_64|alpha|cris|hppa|ia64|m68k|microbaze|mips|mips64|ppc|ppc64|s390|sparc|sparc64)
     ARCH=$cpu
   ;;
-  armv4b|arm4l)
+  armv4b|armv4l)
     ARCH=arm
   ;;
   *)
