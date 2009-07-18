@@ -100,6 +100,10 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 
     ct_str = *pct_str;
     switch (ct_str[0]) {
+    case 'I':
+         ct->ct |= TCG_CT_CONST_ARM;
+         break;
+
     case 'r':
 #ifndef CONFIG_SOFTMMU
     case 'd':
@@ -175,6 +179,13 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     return 0;
 }
 
+
+static inline int check_fit_imm(uint32_t imm)
+{
+    /* XXX: use rotation */
+    return (imm & ~0xff) == 0;
+}
+
 /* Test if a constant matches the constraint.
  * TODO: define constraints for:
  *
@@ -189,6 +200,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
     int ct;
     ct = arg_ct->ct;
     if (ct & TCG_CT_CONST)
+        return 1;
+    else if ((ct & TCG_CT_CONST_ARM) && check_fit_imm(val))
         return 1;
     else
         return 0;
@@ -333,6 +346,16 @@ static inline void tcg_out_movi32(TCGContext *s,
                 tcg_out_dat_imm(s, cond, ARITH_ADD, rd, 15, offset) :
                 tcg_out_dat_imm(s, cond, ARITH_SUB, rd, 15, -offset);
 
+#ifdef __ARM_ARCH_7A__
+    /* use movw/movt */
+    /* movw */
+    tcg_out32(s, (cond << 28) | 0x03000000 | (rd << 12)
+              | ((arg << 4) & 0x000f0000) | (arg & 0xfff));
+    if (arg & 0xffff0000)
+        /* movt */
+        tcg_out32(s, (cond << 28) | 0x03400000 | (rd << 12)
+                  | ((arg >> 12) & 0x000f0000) | ((arg >> 16) & 0xfff));
+#else
     tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0, arg & 0xff);
     if (arg & 0x0000ff00)
         tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
@@ -343,6 +366,7 @@ static inline void tcg_out_movi32(TCGContext *s,
     if (arg & 0xff000000)
         tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
                         ((arg >> 24) & 0xff) | 0x400);
+#endif
 }
 
 static inline void tcg_out_mul32(TCGContext *s,
@@ -1383,8 +1407,12 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         c = ARITH_EOR;
         /* Fall through.  */
     gen_arith:
-        tcg_out_dat_reg(s, COND_AL, c,
-                        args[0], args[1], args[2], SHIFT_IMM_LSL(0));
+        if (const_args[2])
+            tcg_out_dat_imm(s, COND_AL, c,
+                            args[0], args[1], args[2]);
+        else
+            tcg_out_dat_reg(s, COND_AL, c,
+                            args[0], args[1], args[2], SHIFT_IMM_LSL(0));
         break;
     case INDEX_op_add2_i32:
         tcg_out_dat_reg2(s, COND_AL, ARITH_ADD, ARITH_ADC,
@@ -1523,15 +1551,15 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_st_i32, { "r", "r" } },
 
     /* TODO: "r", "r", "ri" */
-    { INDEX_op_add_i32, { "r", "r", "r" } },
-    { INDEX_op_sub_i32, { "r", "r", "r" } },
+    { INDEX_op_add_i32, { "r", "r", "rI" } },
+    { INDEX_op_sub_i32, { "r", "r", "rI" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
     { INDEX_op_div2_i32, { "r", "r", "r", "1", "2" } },
     { INDEX_op_divu2_i32, { "r", "r", "r", "1", "2" } },
-    { INDEX_op_and_i32, { "r", "r", "r" } },
-    { INDEX_op_or_i32, { "r", "r", "r" } },
-    { INDEX_op_xor_i32, { "r", "r", "r" } },
+    { INDEX_op_and_i32, { "r", "r", "rI" } },
+    { INDEX_op_or_i32, { "r", "r", "rI" } },
+    { INDEX_op_xor_i32, { "r", "r", "rI" } },
     { INDEX_op_neg_i32, { "r", "r" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
