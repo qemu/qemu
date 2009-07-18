@@ -40,6 +40,9 @@
  * Hints:
  *
  * Blocks (VDI documentation) correspond to clusters (QEMU).
+ * QEMU's backing files could be implemented using VDI snapshot files (TODO).
+ * VDI snapshot files may also contain the complete machine state.
+ * Maybe this machine state can be converted to QEMU PC machine snapshot data.
  *
  * The driver keeps a block cache (little endian entries) in memory.
  * For the standard block size (1 MiB), a terrabyte disk will use 4 MiB RAM,
@@ -62,13 +65,13 @@
 /* Enable debug messages. */
 //~ #define CONFIG_VDI_DEBUG
 
-/* Support experimental write operations on VDI images. */
+/* Support write operations on VDI images. */
 #define CONFIG_VDI_WRITE
 
-/* Support snapshot images. */
+/* Support snapshot images (not implemented yet). */
 //~ #define CONFIG_VDI_SNAPSHOT
 
-/* Enable (currently) unsupported features. */
+/* Enable (currently) unsupported features (not implemented yet). */
 //~ #define CONFIG_VDI_UNSUPPORTED
 
 /* Support non-standard block (cluster) size. */
@@ -83,14 +86,14 @@
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
+#define SECTOR_SIZE 512
+
 #if defined(CONFIG_VDI_DEBUG)
 #define logout(fmt, ...) \
                 fprintf(stderr, "vdi\t%-24s" fmt, __func__, ##__VA_ARGS__)
 #else
 #define logout(fmt, ...) ((void)0)
 #endif
-
-#define SECTOR_SIZE 512
 
 /* Image signature. */
 #define VDI_SIGNATURE 0xbeda107f
@@ -118,12 +121,6 @@ typedef unsigned char uuid_t[16];
 #endif
 
 #if defined(CONFIG_AIO)
-typedef enum {
-    aio_state_normal,
-    aio_must_write_header,
-    aio_header_written
-} aio_state;
-
 typedef struct {
     BlockDriverAIOCB common;
     int64_t sector_num;
@@ -138,7 +135,7 @@ typedef struct {
     /* Buffer for new allocated block. */
     void *block_buffer;
     void *orig_buf;
-    aio_state state;
+    int header_modified;
     BlockDriverAIOCB *hd_aiocb;
     struct iovec hd_iov;
     QEMUIOVector hd_qiov;
@@ -487,7 +484,8 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
         acb->sector_num = sector_num;
         acb->qiov = qiov;
         if (qiov->niov > 1) {
-            acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
+            acb->buf = qemu_blockalign(bs, qiov->size);
+            acb->orig_buf = acb->buf;
             if (is_write) {
                 qemu_iovec_to_buffer(qiov, acb->buf);
             }
@@ -498,7 +496,7 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
         acb->n_sectors = 0;
         acb->bmap_entry = VDI_UNALLOCATED;
         acb->block_buffer = NULL;
-        acb->state = aio_state_normal;
+        acb->header_modified = 0;
     }
     return acb;
 }
@@ -641,11 +639,28 @@ static void vdi_aio_write_cb(void *opaque, int ret)
     if (acb->nb_sectors == 0) {
         logout("finished data write\n");
         acb->n_sectors = 0;
-        if (acb->bmap_entry != VDI_UNALLOCATED) {
+        if (acb->header_modified) {
+            VdiHeader *header = acb->block_buffer;
+            logout("now writing modified header\n");
+            *header = s->header;
+            vdi_header_to_le(header);
+            acb->header_modified = 0;
+            acb->hd_iov.iov_base = acb->block_buffer;
+            acb->hd_iov.iov_len = SECTOR_SIZE;
+            qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+            acb->hd_aiocb = bdrv_aio_writev(s->hd, 0, &acb->hd_qiov, 1,
+                                            vdi_aio_write_cb, acb);
+            if (acb->hd_aiocb == NULL) {
+                goto done;
+            }
+            return;
+        } else if (acb->bmap_entry != VDI_UNALLOCATED) {
             /* One or more new blocks were allocated. */
             uint64_t offset;
             uint32_t bmap_first;
             uint32_t bmap_last;
+            qemu_free(acb->block_buffer);
+            acb->block_buffer = NULL;
             bmap_first = acb->bmap_entry;
             bmap_last = s->header.blocks_allocated - 1;
             logout("now writing modified block map entry %u...%u\n",
@@ -656,7 +671,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             n_sectors = bmap_last - bmap_first + 1;
             offset = (s->bmap_sector + bmap_first);
             acb->bmap_entry = VDI_UNALLOCATED;
-            acb->state = aio_must_write_header;
             acb->hd_iov.iov_base = (uint8_t *)&s->bmap[0] +
                                    bmap_first * SECTOR_SIZE;
             acb->hd_iov.iov_len = n_sectors * SECTOR_SIZE;
@@ -669,27 +683,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
                 goto done;
             }
             return;
-        } else if (acb->state == aio_must_write_header) {
-            VdiHeader *header = acb->block_buffer;
-            logout("block map written, now writing modified header\n");
-            *header = s->header;
-            vdi_header_to_le(header);
-            assert(acb->state == aio_must_write_header);
-            acb->state = aio_header_written;
-            acb->hd_iov.iov_base = acb->block_buffer;
-            acb->hd_iov.iov_len = SECTOR_SIZE;
-            qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-            acb->hd_aiocb = bdrv_aio_writev(s->hd, 0, &acb->hd_qiov, 1,
-                                            vdi_aio_write_cb, acb);
-            if (acb->hd_aiocb == NULL) {
-                goto done;
-            }
-            return;
-        } else if (acb->state == aio_header_written) {
-            logout("header written, finished adding new block\n");
-            qemu_free(acb->block_buffer);
-            acb->block_buffer = NULL;
-            acb->state = aio_state_normal;
         }
         ret = 0;
         goto done;
@@ -721,9 +714,11 @@ static void vdi_aio_write_cb(void *opaque, int ret)
                  (uint64_t)bmap_entry * s->block_sectors;
         block = acb->block_buffer;
         if (block == NULL) {
-            block = acb->block_buffer = qemu_mallocz(s->block_size);
+            block = qemu_mallocz(s->block_size);
+            acb->block_buffer = block;
             acb->bmap_entry = bmap_entry;
-            assert(acb->state == aio_state_normal);
+            assert(!acb->header_modified);
+            acb->header_modified = 1;
         }
         memcpy(block + sector_in_block * SECTOR_SIZE,
                acb->buf, n_sectors * SECTOR_SIZE);
