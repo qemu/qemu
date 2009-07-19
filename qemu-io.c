@@ -26,6 +26,26 @@ static BlockDriverState *bs;
 static int misalign;
 
 /*
+ * Parse the pattern argument to various sub-commands.
+ *
+ * Because the pattern is used as an argument to memset it must evaluate
+ * to an unsigned integer that fits into a single byte.
+ */
+static int parse_pattern(const char *arg)
+{
+	char *endptr = NULL;
+	long pattern;
+
+	pattern = strtol(arg, &endptr, 0);
+	if (pattern < 0 || pattern > UCHAR_MAX || *endptr != '\0') {
+		printf("%s is not a valid pattern byte\n", arg);
+		return -1;
+	}
+
+	return pattern;
+}
+
+/*
  * Memory allocation helpers.
  *
  * Make sure memory is aligned by default, or purposefully misaligned if
@@ -304,7 +324,9 @@ read_f(int argc, char **argv)
 			break;
 		case 'P':
 			Pflag = 1;
-			pattern = atoi(optarg);
+			pattern = parse_pattern(optarg);
+			if (pattern < 0)
+				return 0;
 			break;
 		case 'q':
 			qflag = 1;
@@ -469,7 +491,9 @@ readv_f(int argc, char **argv)
 			break;
 		case 'P':
 			Pflag = 1;
-			pattern = atoi(optarg);
+			pattern = parse_pattern(optarg);
+			if (pattern < 0)
+				return 0;
 			break;
 		case 'q':
 			qflag = 1;
@@ -594,7 +618,9 @@ write_f(int argc, char **argv)
 			pflag = 1;
 			break;
 		case 'P':
-			pattern = atoi(optarg);
+			pattern = parse_pattern(optarg);
+			if (pattern < 0)
+				return 0;
 			break;
 		case 'q':
 			qflag = 1;
@@ -721,7 +747,9 @@ writev_f(int argc, char **argv)
 			qflag = 1;
 			break;
 		case 'P':
-			pattern = atoi(optarg);
+			pattern = parse_pattern(optarg);
+			if (pattern < 0)
+				return 0;
 			break;
 		default:
 			return command_usage(&writev_cmd);
@@ -895,7 +923,9 @@ aio_read_f(int argc, char **argv)
 			break;
 		case 'P':
 			ctx->Pflag = 1;
-			ctx->pattern = atoi(optarg);
+			ctx->pattern = parse_pattern(optarg);
+			if (ctx->pattern < 0)
+				return 0;
 			break;
 		case 'q':
 			ctx->qflag = 1;
@@ -995,7 +1025,9 @@ aio_write_f(int argc, char **argv)
 			ctx->qflag = 1;
 			break;
 		case 'P':
-			pattern = atoi(optarg);
+			pattern = parse_pattern(optarg);
+			if (pattern < 0)
+				return 0;
 			break;
 		default:
 			free(ctx);
