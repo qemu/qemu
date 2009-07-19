@@ -60,13 +60,13 @@
 #define dh_retvar_decl0_void void
 #define dh_retvar_decl0_i32 TCGv_i32 retval
 #define dh_retvar_decl0_i64 TCGv_i64 retval
-#define dh_retvar_decl0_ptr TCGv_iptr retval
+#define dh_retvar_decl0_ptr TCGv_ptr retval
 #define dh_retvar_decl0(t) glue(dh_retvar_decl0_, dh_alias(t))
 
 #define dh_retvar_decl_void
 #define dh_retvar_decl_i32 TCGv_i32 retval,
 #define dh_retvar_decl_i64 TCGv_i64 retval,
-#define dh_retvar_decl_ptr TCGv_iptr retval,
+#define dh_retvar_decl_ptr TCGv_ptr retval,
 #define dh_retvar_decl(t) glue(dh_retvar_decl_, dh_alias(t))
 
 #define dh_retvar_void TCG_CALL_DUMMY_ARG
