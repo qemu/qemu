@@ -845,7 +845,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #else  /* !CONFIG_SOFTMMU */
     r0 = addr_reg;
     r1 = 3;
-    rbase = GUEST_BASE ? rbase : 0;
+    rbase = GUEST_BASE ? TCG_GUEST_BASE_REG : 0;
 #endif
 
 #ifdef TARGET_WORDS_BIGENDIAN
