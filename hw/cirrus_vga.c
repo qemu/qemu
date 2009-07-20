@@ -2029,7 +2029,7 @@ static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
     } else {
 	val = 0xff;
 #ifdef DEBUG_CIRRUS
-	printf("cirrus: mem_readb %06x\n", addr);
+	printf("cirrus: mem_readb " TARGET_FMT_plx "\n", addr);
 #endif
     }
     return val;
@@ -2124,7 +2124,8 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
 	}
     } else {
 #ifdef DEBUG_CIRRUS
-	printf("cirrus: mem_writeb %06x value %02x\n", addr, mem_value);
+        printf("cirrus: mem_writeb " TARGET_FMT_plx " value %02x\n", addr,
+               mem_value);
 #endif
     }
 }

@@ -558,18 +558,18 @@ static always_inline int get_bat (CPUState *env, mmu_ctx_t *ctx,
     }
     if (ret < 0) {
 #if defined(DEBUG_BATS)
-        if (IS_LOGGING) {
-            QEMU_LOG0("no BAT match for " ADDRX ":\n", virtual);
+        if (qemu_log_enabled()) {
+            LOG_BATS("no BAT match for " ADDRX ":\n", virtual);
             for (i = 0; i < 4; i++) {
                 BATu = &BATut[i];
                 BATl = &BATlt[i];
                 BEPIu = *BATu & 0xF0000000;
                 BEPIl = *BATu & 0x0FFE0000;
                 bl = (*BATu & 0x00001FFC) << 15;
-                QEMU_LOG0("%s: %cBAT%d v " ADDRX " BATu " ADDRX
-                        " BATl " ADDRX " \n\t" ADDRX " " ADDRX " " ADDRX "\n",
-                        __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
-                        *BATu, *BATl, BEPIu, BEPIl, bl);
+                LOG_BATS("%s: %cBAT%d v " ADDRX " BATu " ADDRX
+                         " BATl " ADDRX " \n\t" ADDRX " " ADDRX " " ADDRX "\n",
+                         __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
+                         *BATu, *BATl, BEPIu, BEPIl, bl);
             }
         }
 #endif
@@ -860,8 +860,8 @@ void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs)
     slb->tmp = (vsid << 8) | (flags << 3);
 
     LOG_SLB("%s: %d " ADDRX " - " ADDRX " => %016" PRIx64
-                " %08" PRIx32 "\n", __func__,
-                slb_nr, rb, rs, tmp64, tmp);
+            " %08" PRIx32 "\n", __func__,
+            slb_nr, rb, rs, slb->tmp64, slb->tmp);
 
     slb_set_entry(env, slb_nr, slb);
 }
@@ -2445,7 +2445,7 @@ static always_inline void powerpc_excp (CPUState *env,
         tlb_miss:
 #if defined (DEBUG_SOFTWARE_TLB)
             if (qemu_log_enabled()) {
-                const unsigned char *es;
+                const char *es;
                 target_ulong *miss, *cmp;
                 int en;
                 if (excp == POWERPC_EXCP_IFTLB) {
@@ -2478,7 +2478,7 @@ static always_inline void powerpc_excp (CPUState *env,
         tlb_miss_74xx:
 #if defined (DEBUG_SOFTWARE_TLB)
             if (qemu_log_enabled()) {
-                const unsigned char *es;
+                const char *es;
                 target_ulong *miss, *cmp;
                 int en;
                 if (excp == POWERPC_EXCP_IFTLB) {

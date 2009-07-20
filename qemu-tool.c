@@ -15,10 +15,13 @@
 #include "monitor.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
+#include "qemu-log.h"
 
 #include <sys/time.h>
 
 QEMUClock *rt_clock;
+
+FILE *logfile;
 
 struct QEMUBH
 {

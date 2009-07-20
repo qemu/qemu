@@ -583,15 +583,15 @@ void dump_mmu(CPUState *env)
                 break;
             }
             if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx
+                printf("VA: %" PRIx64 ", PA: %" PRIx64
                        ", %s, %s, %s, %s, ctx %" PRId64 "\n",
-                       env->dtlb_tag[i] & ~0x1fffULL,
-                       env->dtlb_tte[i] & 0x1ffffffe000ULL,
+                       env->dtlb_tag[i] & (uint64_t)~0x1fffULL,
+                       env->dtlb_tte[i] & (uint64_t)0x1ffffffe000ULL,
                        mask,
                        env->dtlb_tte[i] & 0x4? "priv": "user",
                        env->dtlb_tte[i] & 0x2? "RW": "RO",
                        env->dtlb_tte[i] & 0x40? "locked": "unlocked",
-                       env->dtlb_tag[i] & 0x1fffULL);
+                       env->dtlb_tag[i] & (uint64_t)0x1fffULL);
             }
         }
     }
@@ -616,14 +616,14 @@ void dump_mmu(CPUState *env)
                 break;
             }
             if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx
+                printf("VA: %" PRIx64 ", PA: %" PRIx64
                        ", %s, %s, %s, ctx %" PRId64 "\n",
-                       env->itlb_tag[i] & ~0x1fffULL,
-                       env->itlb_tte[i] & 0x1ffffffe000ULL,
+                       env->itlb_tag[i] & (uint64_t)~0x1fffULL,
+                       env->itlb_tte[i] & (uint64_t)0x1ffffffe000ULL,
                        mask,
                        env->itlb_tte[i] & 0x4? "priv": "user",
                        env->itlb_tte[i] & 0x40? "locked": "unlocked",
-                       env->itlb_tag[i] & 0x1fffULL);
+                       env->itlb_tag[i] & (uint64_t)0x1fffULL);
             }
         }
     }
@@ -1314,7 +1314,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
                 }
                 cpu_def->fpu_version = fpu_version;
 #ifdef DEBUG_FEATURES
-                fprintf(stderr, "fpu_version %llx\n", fpu_version);
+                fprintf(stderr, "fpu_version %x\n", fpu_version);
 #endif
             } else if (!strcmp(featurestr, "mmu_version")) {
                 char *err;
@@ -1326,7 +1326,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
                 }
                 cpu_def->mmu_version = mmu_version;
 #ifdef DEBUG_FEATURES
-                fprintf(stderr, "mmu_version %llx\n", mmu_version);
+                fprintf(stderr, "mmu_version %x\n", mmu_version);
 #endif
             } else if (!strcmp(featurestr, "nwindows")) {
                 char *err;

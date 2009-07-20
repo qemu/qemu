@@ -655,7 +655,8 @@ static void tb_invalidate_check(target_ulong address)
         for(tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
                   address >= tb->pc + tb->size)) {
-                printf("ERROR invalidate: address=%08lx PC=%08lx size=%04x\n",
+                printf("ERROR invalidate: address=" TARGET_FMT_lx
+                       " PC=%08lx size=%04x\n",
                        address, (long)tb->pc, tb->size);
             }
         }
@@ -677,26 +678,6 @@ static void tb_page_check(void)
                        (long)tb->pc, tb->size, flags1, flags2);
             }
         }
-    }
-}
-
-static void tb_jmp_check(TranslationBlock *tb)
-{
-    TranslationBlock *tb1;
-    unsigned int n1;
-
-    /* suppress any remaining jumps to this TB */
-    tb1 = tb->jmp_first;
-    for(;;) {
-        n1 = (long)tb1 & 3;
-        tb1 = (TranslationBlock *)((long)tb1 & ~3);
-        if (n1 == 2)
-            break;
-        tb1 = tb1->jmp_next[n1];
-    }
-    /* check end of list */
-    if (tb1 != tb) {
-        printf("ERROR: jmp_list from 0x%08lx\n", (long)tb);
     }
 }
 
@@ -2939,7 +2920,7 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     idx = SUBPAGE_IDX(start);
     eidx = SUBPAGE_IDX(end);
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %d\n", __func__,
+    printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
     memory >>= IO_MEM_SHIFT;

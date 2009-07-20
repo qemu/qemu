@@ -107,9 +107,9 @@ void sun4c_irq_info(Monitor *mon, void *opaque)
     int64_t count;
 
     monitor_printf(mon, "IRQ statistics:\n");
-    count = s->irq_count[i];
+    count = s->irq_count;
     if (count > 0)
-        monitor_printf(mon, "%2d: %" PRId64 "\n", i, count);
+        monitor_printf(mon, " %" PRId64 "\n", count);
 #endif
 }
 
@@ -121,7 +121,6 @@ static void sun4c_check_interrupts(void *opaque)
     uint32_t pil_pending;
     unsigned int i;
 
-    DPRINTF("pending %x disabled %x\n", pending, s->intregm_disabled);
     pil_pending = 0;
     if (s->pending && !(s->reg & 0x80000000)) {
         for (i = 0; i < 8; i++) {
@@ -156,7 +155,7 @@ static void sun4c_set_irq(void *opaque, int irq, int level)
     if (pil > 0) {
         if (level) {
 #ifdef DEBUG_IRQ_COUNT
-            s->irq_count[pil]++;
+            s->irq_count++;
 #endif
             s->pending |= mask;
         } else {

@@ -1212,11 +1212,14 @@ GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
     defined(DEBUG_MXCC)
 static void dump_mxcc(CPUState *env)
 {
-    printf("mxccdata: %016llx %016llx %016llx %016llx\n",
+    printf("mxccdata: %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64
+           "\n",
            env->mxccdata[0], env->mxccdata[1],
            env->mxccdata[2], env->mxccdata[3]);
-    printf("mxccregs: %016llx %016llx %016llx %016llx\n"
-           "          %016llx %016llx %016llx %016llx\n",
+    printf("mxccregs: %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64
+           "\n"
+           "          %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64
+           "\n",
            env->mxccregs[0], env->mxccregs[1],
            env->mxccregs[2], env->mxccregs[3],
            env->mxccregs[4], env->mxccregs[5],
@@ -1455,7 +1458,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                 env->mmubpregs[reg] = 0ULL;
                 break;
             }
-            DPRINTF_MMU("read breakpoint reg[%d] 0x%016llx\n", reg, ret);
+            DPRINTF_MMU("read breakpoint reg[%d] 0x%016" PRIx64 "\n", reg,
+                        ret);
         }
         break;
     case 8: /* User code access, XXX */
@@ -1808,7 +1812,7 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                 env->mmubpregs[reg] = (val & 0xfULL);
                 break;
             }
-            DPRINTF_MMU("write breakpoint reg[%d] 0x%016llx\n", reg,
+            DPRINTF_MMU("write breakpoint reg[%d] 0x%016x\n", reg,
                         env->mmuregs[reg]);
         }
         break;

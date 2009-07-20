@@ -277,7 +277,7 @@ static int update_refcount(BlockDriverState *bs,
     int first_index = -1, last_index = -1;
 
 #ifdef DEBUG_ALLOC2
-    printf("update_refcount: offset=%lld size=%lld addend=%d\n",
+    printf("update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
            offset, length, addend);
 #endif
     if (length <= 0)
@@ -380,7 +380,7 @@ retry:
             goto retry;
     }
 #ifdef DEBUG_ALLOC2
-    printf("alloc_clusters: size=%lld -> %lld\n",
+    printf("alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
             size,
             (s->free_cluster_index - nb_clusters) << s->cluster_bits);
 #endif

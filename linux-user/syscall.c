@@ -6977,7 +6977,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     }
 fail:
 #ifdef DEBUG
-    gemu_log(" = %ld\n", ret);
+    gemu_log(" = " TARGET_ABI_FMT_ld "\n", ret);
 #endif
     if(do_strace)
         print_syscall_ret(num, ret);
