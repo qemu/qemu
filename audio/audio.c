@@ -60,45 +60,45 @@ static struct {
     int plive;
     int log_to_monitor;
 } conf = {
-    {                           /* DAC fixed settings */
-        1,                      /* enabled */
-        1,                      /* nb_voices */
-        1,                      /* greedy */
-        {
-            44100,              /* freq */
-            2,                  /* nchannels */
-            AUD_FMT_S16,        /* fmt */
-            AUDIO_HOST_ENDIANNESS
+    .fixed_out = { /* DAC fixed settings */
+        .enabled = 1,
+        .nb_voices = 1,
+        .greedy = 1,
+        .settings = {
+            .freq = 44100,
+            .nchannels = 2,
+            .fmt = AUD_FMT_S16,
+            .endianness =  AUDIO_HOST_ENDIANNESS,
         }
     },
 
-    {                           /* ADC fixed settings */
-        1,                      /* enabled */
-        1,                      /* nb_voices */
-        1,                      /* greedy */
-        {
-            44100,              /* freq */
-            2,                  /* nchannels */
-            AUD_FMT_S16,        /* fmt */
-            AUDIO_HOST_ENDIANNESS
+    .fixed_in = { /* ADC fixed settings */
+        .enabled = 1,
+        .nb_voices = 1,
+        .greedy = 1,
+        .settings = {
+            .freq = 44100,
+            .nchannels = 2,
+            .fmt = AUD_FMT_S16,
+            .endianness = AUDIO_HOST_ENDIANNESS,
         }
     },
 
-    { 250 },                    /* period */
-    0,                          /* plive */
-    0                           /* log_to_monitor */
+    .period = { .ticks = 250 },
+    .plive = 0,
+    .log_to_monitor = 0,
 };
 
 static AudioState glob_audio_state;
 
 struct mixeng_volume nominal_volume = {
-    0,
+    .mute = 0,
 #ifdef FLOAT_MIXENG
-    1.0,
-    1.0
+    .r = 1.0,
+    .l = 1.0,
 #else
-    1ULL << 32,
-    1ULL << 32
+    .r = 1ULL << 32,
+    .l = 1ULL << 32,
 #endif
 };
 
