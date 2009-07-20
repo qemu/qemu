@@ -46,18 +46,18 @@ function do_io() {
 }
 
 function io_pattern() {
-    do_io $@ | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_io "$@" | $QEMU_IO $TEST_IMG | _filter_qemu_io
 }
 
 function io() {
     local start=$2
     local pattern=$(( (start >> 9) % 256 ))
 
-    do_io $@ $pattern | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_io "$@" $pattern | $QEMU_IO $TEST_IMG | _filter_qemu_io
 }
 
 function io_zero() {
-    do_io $@ 0 | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_io "$@" 0 | $QEMU_IO $TEST_IMG | _filter_qemu_io
 }
 
 function io_test() {
@@ -65,28 +65,28 @@ function io_test() {
     local offset=$2
 
     # Complete clusters (size = 4k)
-    io $op $offset 4096 4096 256
+    io "$op" $offset 4096 4096 256
     offset=$((offset + 256 * 4096))
 
     # From somewhere in the middle to the end of a cluster
-    io $op $((offset + 2048)) 2048 4096 256
+    io "$op" $((offset + 2048)) 2048 4096 256
     offset=$((offset + 256 * 4096))
 
     # From the start to somewhere in the middle of a cluster
-    io $op $offset 2048 4096 256
+    io "$op" $offset 2048 4096 256
     offset=$((offset + 256 * 4096))
 
     # Completely misaligned (and small)
-    io $op $((offset + 1024)) 2048 4096 256
+    io "$op" $((offset + 1024)) 2048 4096 256
     offset=$((offset + 256 * 4096))
 
     # Spanning multiple clusters
-    io $op $((offset + 2048)) 8192 12288 64
+    io "$op" $((offset + 2048)) 8192 12288 64
     offset=$((offset + 64 * 12288))
 
     # Spanning multiple L2 tables
     # L2 table size: 512 clusters of 4k = 2M
-    io $op $((offset + 2048)) 4194304 4999680 8
+    io "$op" $((offset + 2048)) 4194304 4999680 8
     offset=$((offset + 8 * 4999680))
 
     if false; then
