@@ -584,8 +584,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
         return -EINVAL;
     k = &sigact_table[sig - 1];
 #if defined(DEBUG_SIGNAL)
-    fprintf(stderr, "sigaction sig=%d act=0x%08x, oact=0x%08x\n",
-            sig, (int)act, (int)oact);
+    fprintf(stderr, "sigaction sig=%d act=0x%p, oact=0x%p\n",
+            sig, act, oact);
 #endif
     if (oact) {
         oact->_sa_handler = tswapl(k->_sa_handler);

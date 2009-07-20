@@ -905,7 +905,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 
     flag_r = (td.flags & OHCI_TD_R) != 0;
 #ifdef DEBUG_PACKET
-    dprintf(" TD @ 0x%.8x %u bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
+    dprintf(" TD @ 0x%.8x %" PRId64 " bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
             addr, len, str, flag_r, td.cbp, td.be);
 
     if (len > 0 && dir != OHCI_TD_DIR_IN) {
@@ -1677,7 +1677,7 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
             usb_bit_time = 1;
         }
 #endif
-        dprintf("usb-ohci: usb_bit_time=%lli usb_frame_time=%lli\n",
+        dprintf("usb-ohci: usb_bit_time=%" PRId64 " usb_frame_time=%" PRId64 "\n",
                 usb_frame_time, usb_bit_time);
     }
 

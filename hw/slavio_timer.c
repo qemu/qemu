@@ -197,8 +197,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             s->counthigh = val & (TIMER_MAX_COUNT64 >> 32);
             s->reached = 0;
             count = ((uint64_t)s->counthigh << 32) | s->count;
-            DPRINTF("processor %d user timer set to %016llx\n", s->slave_index,
-                    count);
+            DPRINTF("processor %d user timer set to %016" PRIx64 "\n",
+                    s->slave_index, count);
             if (s->timer)
                 ptimer_set_count(s->timer, LIMIT_TO_PERIODS(s->limit - count));
         } else {
@@ -223,8 +223,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             s->count = val & TIMER_MAX_COUNT64;
             s->reached = 0;
             count = ((uint64_t)s->counthigh) << 32 | s->count;
-            DPRINTF("processor %d user timer set to %016llx\n", s->slave_index,
-                    count);
+            DPRINTF("processor %d user timer set to %016" PRIx64 "\n",
+                    s->slave_index, count);
             if (s->timer)
                 ptimer_set_count(s->timer, LIMIT_TO_PERIODS(s->limit - count));
         } else
