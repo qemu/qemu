@@ -89,8 +89,8 @@ static uint32_t pcie500_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
 {
     PPCE500PCIState *pci = opaque;
 
-    pci_debug("%s: (addr:%Lx) -> value:%x\n", __func__, addr,
-                    pci->pci_state.config_reg);
+    pci_debug("%s: (addr:" TARGET_FMT_plx ") -> value:%x\n", __func__, addr,
+              pci->pci_state.config_reg);
     return pci->pci_state.config_reg;
 }
 
@@ -105,7 +105,8 @@ static void pcie500_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
 {
     PPCE500PCIState *controller = opaque;
 
-    pci_debug("%s: value:%x -> (addr%Lx)\n", __func__, value, addr);
+    pci_debug("%s: value:%x -> (addr:" TARGET_FMT_plx ")\n", __func__, value,
+              addr);
     controller->pci_state.config_reg = value & ~0x3;
 }
 
@@ -169,7 +170,8 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
         break;
     }
 
-    pci_debug("%s: win:%lx(addr:%Lx) -> value:%x\n",__func__,win,addr,value);
+    pci_debug("%s: win:%lx(addr:" TARGET_FMT_plx ") -> value:%x\n", __func__,
+              win, addr, value);
     return value;
 }
 
@@ -187,7 +189,8 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
 
     win = addr & 0xfe0;
 
-    pci_debug("%s: value:%x -> win:%lx(addr:%Lx)\n",__func__,value,win,addr);
+    pci_debug("%s: value:%x -> win:%lx(addr:" TARGET_FMT_plx ")\n",
+              __func__, value, win, addr);
 
     switch (win) {
     case PPCE500_PCI_OW1:
