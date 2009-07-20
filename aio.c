@@ -112,7 +112,7 @@ void qemu_aio_flush(void)
         LIST_FOREACH(node, &aio_handlers, node) {
             ret |= node->io_flush(node->opaque);
         }
-    } while (ret > 0);
+    } while (qemu_bh_poll() || ret > 0);
 }
 
 void qemu_aio_wait(void)
