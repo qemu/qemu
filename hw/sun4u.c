@@ -455,7 +455,7 @@ device_init(prom_register_devices);
 typedef struct RamDevice
 {
     SysBusDevice busdev;
-    uint32_t size; // XXX
+    uint64_t size;
 } RamDevice;
 
 /* System RAM */
@@ -494,7 +494,7 @@ static SysBusDeviceInfo ram_info = {
     .qdev.props = (Property[]) {
         {
             .name = "size",
-            .info = &qdev_prop_uint32,
+            .info = &qdev_prop_uint64,
             .offset = offsetof(RamDevice, size),
         },
         {/* end of property list */}
