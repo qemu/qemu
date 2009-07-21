@@ -21,12 +21,6 @@ endif
 
 PROGS=$(QEMU_PROG)
 
-# cc-option
-# Usage: CFLAGS+=$(call cc-option, $(CFLAGS), -falign-functions=0, -malign-functions=0)
-
-cc-option = $(shell if $(CC) $(1) $(2) -S -o /dev/null -xc /dev/null \
-              > /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi ;)
-
 HELPER_CFLAGS=
 
 ifeq ($(ARCH),i386)
