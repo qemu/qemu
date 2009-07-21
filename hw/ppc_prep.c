@@ -60,7 +60,8 @@ do {                                                     \
     }                                                    \
 } while (0)
 #elif defined (DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, ...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
+#define PPC_IO_DPRINTF(fmt, ...) \
+qemu_log_mask(CPU_LOG_IOPORT, fmt, ## __VA_ARGS__)
 #else
 #define PPC_IO_DPRINTF(fmt, ...) do { } while (0)
 #endif

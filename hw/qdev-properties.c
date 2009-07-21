@@ -88,6 +88,59 @@ PropertyInfo qdev_prop_hex32 = {
     .print = print_hex32,
 };
 
+/* --- 64bit integer --- */
+
+static int parse_uint64(DeviceState *dev, Property *prop, const char *str)
+{
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+    const char *fmt;
+
+    /* accept both hex and decimal */
+    fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx64 : "%" PRIu64;
+    if (sscanf(str, fmt, ptr) != 1)
+        return -1;
+    return 0;
+}
+
+static int print_uint64(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "%" PRIu64, *ptr);
+}
+
+PropertyInfo qdev_prop_uint64 = {
+    .name  = "uint64",
+    .type  = PROP_TYPE_UINT64,
+    .size  = sizeof(uint64_t),
+    .parse = parse_uint64,
+    .print = print_uint64,
+};
+
+/* --- 64bit hex value --- */
+
+static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
+{
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (sscanf(str, "%" PRIx64, ptr) != 1)
+        return -1;
+    return 0;
+}
+
+static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "0x%" PRIx64, *ptr);
+}
+
+PropertyInfo qdev_prop_hex64 = {
+    .name  = "hex64",
+    .type  = PROP_TYPE_UINT64,
+    .size  = sizeof(uint64_t),
+    .parse = parse_hex64,
+    .print = print_hex64,
+};
+
 /* --- pointer --- */
 
 static int print_ptr(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -222,6 +275,11 @@ void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_UINT32);
+}
+
+void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_UINT64);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)

@@ -58,6 +58,7 @@ enum PropertyType {
     PROP_TYPE_UNSPEC = 0,
     PROP_TYPE_UINT16,
     PROP_TYPE_UINT32,
+    PROP_TYPE_UINT64,
     PROP_TYPE_TADDR,
     PROP_TYPE_MACADDR,
     PROP_TYPE_PTR,
@@ -145,7 +146,9 @@ void do_info_qtree(Monitor *mon);
 
 extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
+extern PropertyInfo qdev_prop_uint64;
 extern PropertyInfo qdev_prop_hex32;
+extern PropertyInfo qdev_prop_hex64;
 extern PropertyInfo qdev_prop_ptr;
 extern PropertyInfo qdev_prop_macaddr;
 
@@ -155,6 +158,7 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
 void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
+void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);

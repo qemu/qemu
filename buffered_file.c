@@ -113,7 +113,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
     int offset = 0;
     ssize_t ret;
 
-    dprintf("putting %ld bytes at %Ld\n", size, pos);
+    dprintf("putting %d bytes at %" PRId64 "\n", size, pos);
 
     if (s->has_error) {
         dprintf("flush when error, bailing\n");
@@ -151,7 +151,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
     }
 
     if (offset >= 0) {
-        dprintf("buffering %ld bytes\n", size - offset);
+        dprintf("buffering %d bytes\n", size - offset);
         buffered_append(s, buf + offset, size - offset);
         offset = size;
     }

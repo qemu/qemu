@@ -1866,7 +1866,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
 
 static int64_t tcg_table_op_count[NB_OPS];
 
-void dump_op_count(void)
+static void dump_op_count(void)
 {
     int i;
     FILE *f;
@@ -2074,10 +2074,8 @@ void tcg_dump_info(FILE *f,
                 s->restore_count);
     cpu_fprintf(f, "  avg cycles        %0.1f\n",
                 s->restore_count ? (double)s->restore_time / s->restore_count : 0);
-    {
-        extern void dump_op_count(void);
-        dump_op_count();
-    }
+
+    dump_op_count();
 }
 #else
 void tcg_dump_info(FILE *f,
