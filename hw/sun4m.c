@@ -1322,12 +1322,13 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 {
     CPUState *envs[MAX_CPUS];
     unsigned int i;
-    void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram, *sbi;
-    qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
+    void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram;
+    qemu_irq *cpu_irqs[MAX_CPUS], sbi_irq[32], sbi_cpu_irq[MAX_CPUS],
         espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     unsigned long kernel_size;
     void *fw_cfg;
+    DeviceState *dev;
 
     /* init CPUs */
     if (!cpu_model)
@@ -1345,7 +1346,14 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     prom_init(hwdef->slavio_base, bios_name);
 
-    sbi = sbi_init(hwdef->sbi_base, &sbi_irq, &sbi_cpu_irq, cpu_irqs);
+    dev = sbi_init(hwdef->sbi_base, cpu_irqs);
+
+    for (i = 0; i < 32; i++) {
+        sbi_irq[i] = qdev_get_gpio_in(dev, i);
+    }
+    for (i = 0; i < MAX_CPUS; i++) {
+        sbi_cpu_irq[i] = qdev_get_gpio_in(dev, 32 + i);
+    }
 
     for (i = 0; i < MAX_IOUNITS; i++)
         if (hwdef->iounit_bases[i] != (target_phys_addr_t)-1)

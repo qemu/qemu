@@ -36,8 +36,7 @@ void slavio_pic_info(Monitor *mon, void *opaque);
 void slavio_irq_info(Monitor *mon, void *opaque);
 
 /* sbi.c */
-void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
-               qemu_irq **parent_irq);
+DeviceState *sbi_init(target_phys_addr_t addr, qemu_irq **parent_irq);
 
 /* sun4c_intctl.c */
 void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,

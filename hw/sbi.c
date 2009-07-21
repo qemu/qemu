@@ -21,9 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "hw.h"
 #include "sun4m.h"
 #include "console.h"
+#include "sysbus.h"
 
 //#define DEBUG_IRQ
 
@@ -39,19 +41,16 @@
 #define SBI_NREGS 16
 
 typedef struct SBIState {
+    SysBusDevice busdev;
     uint32_t regs[SBI_NREGS];
     uint32_t intreg_pending[MAX_CPUS];
-    qemu_irq *cpu_irqs[MAX_CPUS];
+    qemu_irq cpu_irqs[MAX_CPUS];
     uint32_t pil_out[MAX_CPUS];
 } SBIState;
 
 #define SBI_SIZE (SBI_NREGS * 4)
 
 static void sbi_set_irq(void *opaque, int irq, int level)
-{
-}
-
-static void sbi_set_timer_irq_cpu(void *opaque, int cpu, int level)
 {
 }
 
@@ -132,27 +131,54 @@ static void sbi_reset(void *opaque)
     }
 }
 
-void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
-               qemu_irq **parent_irq)
+DeviceState *sbi_init(target_phys_addr_t addr, qemu_irq **parent_irq)
 {
+    DeviceState *dev;
+    SysBusDevice *s;
     unsigned int i;
-    int sbi_io_memory;
-    SBIState *s;
 
-    s = qemu_mallocz(sizeof(SBIState));
+    dev = qdev_create(NULL, "sbi");
+    qdev_init(dev);
+
+    s = sysbus_from_qdev(dev);
 
     for (i = 0; i < MAX_CPUS; i++) {
-        s->cpu_irqs[i] = parent_irq[i];
+        sysbus_connect_irq(s, i, *parent_irq[i]);
+    }
+
+    sysbus_mmio_map(s, 0, addr);
+
+    return dev;
+}
+
+static void sbi_init1(SysBusDevice *dev)
+{
+    SBIState *s = FROM_SYSBUS(SBIState, dev);
+    int sbi_io_memory;
+    unsigned int i;
+
+    qdev_init_gpio_in(&dev->qdev, sbi_set_irq, 32 + MAX_CPUS);
+    for (i = 0; i < MAX_CPUS; i++) {
+        sysbus_init_irq(dev, &s->cpu_irqs[i]);
     }
 
     sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s);
-    cpu_register_physical_memory(addr, SBI_SIZE, sbi_io_memory);
+    sysbus_init_mmio(dev, SBI_SIZE, sbi_io_memory);
 
-    register_savevm("sbi", addr, 1, sbi_save, sbi_load, s);
+    register_savevm("sbi", -1, 1, sbi_save, sbi_load, s);
     qemu_register_reset(sbi_reset, s);
-    *irq = qemu_allocate_irqs(sbi_set_irq, s, 32);
-    *cpu_irq = qemu_allocate_irqs(sbi_set_timer_irq_cpu, s, MAX_CPUS);
     sbi_reset(s);
-
-    return s;
 }
+
+static SysBusDeviceInfo sbi_info = {
+    .init = sbi_init1,
+    .qdev.name  = "sbi",
+    .qdev.size  = sizeof(SBIState),
+};
+
+static void sbi_register_devices(void)
+{
+    sysbus_register_withprop(&sbi_info);
+}
+
+device_init(sbi_register_devices)
