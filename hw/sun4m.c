@@ -374,6 +374,7 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
 
     dev = qdev_create(NULL, "lance");
     dev->nd = nd;
+    qdev_prop_set_ptr(dev, "dma", dma_opaque);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, leaddr);
