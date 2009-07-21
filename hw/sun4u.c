@@ -401,6 +401,63 @@ static void prom_register_devices(void)
 
 device_init(prom_register_devices);
 
+
+typedef struct RamDevice
+{
+    SysBusDevice busdev;
+    uint32_t size; // XXX
+} RamDevice;
+
+/* System RAM */
+static void ram_init1(SysBusDevice *dev)
+{
+    ram_addr_t RAM_size, ram_offset;
+    RamDevice *d = FROM_SYSBUS(RamDevice, dev);
+
+    RAM_size = d->size;
+
+    ram_offset = qemu_ram_alloc(RAM_size);
+    sysbus_init_mmio(dev, RAM_size, ram_offset);
+}
+
+static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    RamDevice *d;
+
+    /* allocate RAM */
+    dev = qdev_create(NULL, "memory");
+    s = sysbus_from_qdev(dev);
+
+    d = FROM_SYSBUS(RamDevice, s);
+    d->size = RAM_size;
+    qdev_init(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+}
+
+static SysBusDeviceInfo ram_info = {
+    .init = ram_init1,
+    .qdev.name  = "memory",
+    .qdev.size  = sizeof(RamDevice),
+    .qdev.props = (Property[]) {
+        {
+            .name = "size",
+            .info = &qdev_prop_uint32,
+            .offset = offsetof(RamDevice, size),
+        },
+        {/* end of property list */}
+    }
+};
+
+static void ram_register_devices(void)
+{
+    sysbus_register_withprop(&ram_info);
+}
+
+device_init(ram_register_devices);
+
 static void sun4uv_init(ram_addr_t RAM_size,
                         const char *boot_devices,
                         const char *kernel_filename, const char *kernel_cmdline,
@@ -411,7 +468,6 @@ static void sun4uv_init(ram_addr_t RAM_size,
     m48t59_t *nvram;
     int linux_boot;
     unsigned int i;
-    ram_addr_t ram_offset;
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     QEMUBH *bh;
@@ -454,9 +510,8 @@ static void sun4uv_init(ram_addr_t RAM_size,
     env->pc = hwdef->prom_addr + 0x20ULL;
     env->npc = env->pc + 4;
 
-    /* allocate RAM */
-    ram_offset = qemu_ram_alloc(RAM_size);
-    cpu_register_physical_memory(0, RAM_size, ram_offset);
+    /* set up devices */
+    ram_init(0, RAM_size);
 
     prom_init(hwdef->prom_addr, bios_name);
 
