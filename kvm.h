@@ -60,6 +60,9 @@ int kvm_remove_breakpoint(CPUState *current_env, target_ulong addr,
 void kvm_remove_all_breakpoints(CPUState *current_env);
 int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap);
 
+int kvm_pit_in_kernel(void);
+int kvm_irqchip_in_kernel(void);
+
 /* internal API */
 
 struct KVMState;
