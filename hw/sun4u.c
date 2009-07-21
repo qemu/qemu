@@ -458,32 +458,14 @@ static void ram_register_devices(void)
 
 device_init(ram_register_devices);
 
-static void sun4uv_init(ram_addr_t RAM_size,
-                        const char *boot_devices,
-                        const char *kernel_filename, const char *kernel_cmdline,
-                        const char *initrd_filename, const char *cpu_model,
-                        const struct hwdef *hwdef)
+static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 {
     CPUState *env;
-    m48t59_t *nvram;
-    int linux_boot;
-    unsigned int i;
-    long initrd_size, kernel_size;
-    PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     QEMUBH *bh;
-    qemu_irq *irq;
-    int drive_index;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    BlockDriverState *fd[MAX_FD];
-    void *fw_cfg;
     ResetData *reset_info;
 
-    linux_boot = (kernel_filename != NULL);
-
-    /* init CPUs */
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
-
     env = cpu_init(cpu_model);
     if (!env) {
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
@@ -509,6 +491,32 @@ static void sun4uv_init(ram_addr_t RAM_size,
     // Override warm reset address with cold start address
     env->pc = hwdef->prom_addr + 0x20ULL;
     env->npc = env->pc + 4;
+
+    return env;
+}
+
+static void sun4uv_init(ram_addr_t RAM_size,
+                        const char *boot_devices,
+                        const char *kernel_filename, const char *kernel_cmdline,
+                        const char *initrd_filename, const char *cpu_model,
+                        const struct hwdef *hwdef)
+{
+    CPUState *env;
+    m48t59_t *nvram;
+    int linux_boot;
+    unsigned int i;
+    long initrd_size, kernel_size;
+    PCIBus *pci_bus, *pci_bus2, *pci_bus3;
+    qemu_irq *irq;
+    int drive_index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    BlockDriverState *fd[MAX_FD];
+    void *fw_cfg;
+
+    linux_boot = (kernel_filename != NULL);
+
+    /* init CPUs */
+    env = cpu_devinit(cpu_model, hwdef);
 
     /* set up devices */
     ram_init(0, RAM_size);
