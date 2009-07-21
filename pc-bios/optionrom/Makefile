@@ -1,6 +1,7 @@
 all: build-all
 
 include ../../config-host.mak
+include ../../rules.mak
 
 VPATH=$(SRC_PATH)/pc-bios/optionrom
 
@@ -22,25 +23,22 @@ try-run = $(shell set -e;		\
 cc-option-yn = $(call try-run,\
 	$(CC) $(KBUILD_CFLAGS) $(1) -S -xc /dev/null -o "$$TMP",y,n)
 
-CFLAGS = -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
-CFLAGS += -I$(SRC_PATH)
+CPPFLAGS = -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
+CPPFLAGS += -I$(SRC_PATH)
 ifeq ($(call cc-option-yn,-fno-stack-protector),y)
-CFLAGS += -fno-stack-protector
+CPPFLAGS += -fno-stack-protector
 endif
 
 build-all: multiboot.bin
 
-%.o: %.S
-	$(CC) $(CFLAGS) -o $@ -c $<
-
 %.img: %.o
-	$(LD) -Ttext 0 -e _start -s -o $@ $<
+	$(call quiet-command,$(LD) -Ttext 0 -e _start -s -o $@ $<,"  Building $(TARGET_DIR)$@")
 
 %.raw: %.img
-	$(OBJCOPY) -O binary -j .text $< $@
+	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,"  Building $(TARGET_DIR)$@")
 
 %.bin: %.raw
-	$(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@
+	$(call quiet-command,$(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@,"  Signing $(TARGET_DIR)$@")
 
 clean:
 	$(RM) *.o *.img *.bin *~
