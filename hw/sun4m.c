@@ -1502,13 +1502,15 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 {
     CPUState *env;
     void *iommu, *espdma, *ledma, *nvram;
-    qemu_irq *cpu_irqs, *slavio_irq, espdma_irq, ledma_irq;
+    qemu_irq *cpu_irqs, slavio_irq[8], espdma_irq, ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq fdc_tc;
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
     int drive_index;
     void *fw_cfg;
+    DeviceState *dev;
+    unsigned int i;
 
     /* init CPU */
     if (!cpu_model)
@@ -1521,8 +1523,11 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 
     prom_init(hwdef->slavio_base, bios_name);
 
-    slavio_intctl = sun4c_intctl_init(hwdef->intctl_base,
-                                      &slavio_irq, cpu_irqs);
+    dev = sun4c_intctl_init(hwdef->intctl_base, cpu_irqs);
+
+    for (i = 0; i < 8; i++) {
+        slavio_irq[i] = qdev_get_gpio_in(dev, i);
+    }
 
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
                        slavio_irq[hwdef->me_irq]);
