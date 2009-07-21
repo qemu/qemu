@@ -118,6 +118,20 @@
 
 #if !defined(HAVE_UUID_H)
 typedef unsigned char uuid_t[16];
+
+void uuid_generate(uuid_t out)
+{
+}
+
+void uuid_unparse(uuid_t uu, char *out)
+{
+    sprintf(out, "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
+            le32_to_cpu(*(uint32_t *)&uu[0]),
+            le16_to_cpu(*(uint16_t *)&uu[4]),
+            le16_to_cpu(*(uint16_t *)&uu[6]),
+            le16_to_cpu(*(uint16_t *)&uu[8]),
+            uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
+}
 #endif
 
 #if defined(CONFIG_AIO)
@@ -228,6 +242,7 @@ static void vdi_header_to_le(VdiHeader *header)
 #if defined(CONFIG_VDI_DEBUG)
 static void vdi_header_print(VdiHeader *header)
 {
+    char uuid[37];
     logout("text        %s", header->text);
     logout("signature   0x%04x\n", header->signature);
     logout("header size 0x%04x\n", header->header_size);
@@ -246,6 +261,14 @@ static void vdi_header_print(VdiHeader *header)
     logout("block extra 0x%04x\n", header->block_extra);
     logout("blocks tot. 0x%04x\n", header->blocks_in_image);
     logout("blocks all. 0x%04x\n", header->blocks_allocated);
+    uuid_unparse(header->uuid_image, uuid);
+    logout("uuid image  %s\n", uuid);
+    uuid_unparse(header->uuid_last_snap, uuid);
+    logout("uuid snap   %s\n", uuid);
+    uuid_unparse(header->uuid_link, uuid);
+    logout("uuid link   %s\n", uuid);
+    uuid_unparse(header->uuid_parent, uuid);
+    logout("uuid parent %s\n", uuid);
 }
 #endif
 
@@ -293,18 +316,16 @@ static int vdi_check(BlockDriverState *bs)
     return n_errors;
 }
 
-#if defined(CONFIG_VDI_SNAPSHOT)
 static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
-    /* TODO: vdi_get_info would be needed for snapshots.
+    /* TODO: vdi_get_info would be needed for machine snapshots.
        vm_state_offset is still missing. */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
     logout("\n");
     bdi->cluster_size = s->block_size;
-    bdi->vm_state_offset = -1;
-    return -ENOTSUP;
+    bdi->vm_state_offset = 0;
+    return 0;
 }
-#endif
 
 static int vdi_make_empty(BlockDriverState *bs)
 {
@@ -955,13 +976,11 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     header.disk_size = bytes;
     header.block_size = block_size;
     header.blocks_in_image = blocks;
-#if defined(HAVE_UUID_H)
     uuid_generate(header.uuid_image);
     uuid_generate(header.uuid_last_snap);
 #if 0
     uuid_generate(header.uuid_link);
     uuid_generate(header.uuid_parent);
-#endif
 #endif
 #if defined(CONFIG_VDI_DEBUG)
     vdi_header_print(&header);
@@ -1026,31 +1045,31 @@ static QEMUOptionParameter vdi_create_options[] = {
 };
 
 static BlockDriver bdrv_vdi = {
-    .format_name        = "vdi",
-    .instance_size      = sizeof(BDRVVdiState),
-    .bdrv_probe         = vdi_probe,
-    .bdrv_open          = vdi_open,
-    .bdrv_close         = vdi_close,
-    .bdrv_create        = vdi_create,
-    .bdrv_flush         = vdi_flush,
+    .format_name = "vdi",
+    .instance_size = sizeof(BDRVVdiState),
+    .bdrv_probe = vdi_probe,
+    .bdrv_open = vdi_open,
+    .bdrv_close = vdi_close,
+    .bdrv_create = vdi_create,
+    .bdrv_flush = vdi_flush,
 #if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_getlength     = vdi_getlength,
+    .bdrv_getlength = vdi_getlength,
 #endif
-    .bdrv_is_allocated  = vdi_is_allocated,
+    .bdrv_is_allocated = vdi_is_allocated,
 #if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_set_key       = vdi_set_key,
+    .bdrv_set_key = vdi_set_key,
 #endif
-    .bdrv_make_empty    = vdi_make_empty,
+    .bdrv_make_empty = vdi_make_empty,
 
 #ifdef CONFIG_AIO
-    .bdrv_aio_readv     = vdi_aio_readv,
+    .bdrv_aio_readv = vdi_aio_readv,
 #if defined(CONFIG_VDI_WRITE)
-    .bdrv_aio_writev    = vdi_aio_writev,
+    .bdrv_aio_writev = vdi_aio_writev,
 #endif
 #else
-    .bdrv_read          = vdi_read,
+    .bdrv_read = vdi_read,
 #if defined(CONFIG_VDI_WRITE)
-    .bdrv_write         = vdi_write,
+    .bdrv_write = vdi_write,
 #endif
 #endif
 
@@ -1059,20 +1078,20 @@ static BlockDriver bdrv_vdi = {
 #endif
 
 #if defined(CONFIG_VDI_SNAPSHOT)
-    .bdrv_snapshot_create   = vdi_snapshot_create,
-    .bdrv_snapshot_goto     = vdi_snapshot_goto,
-    .bdrv_snapshot_delete   = vdi_snapshot_delete,
-    .bdrv_snapshot_list     = vdi_snapshot_list,
-    .bdrv_get_info = vdi_get_info,
+    .bdrv_snapshot_create = vdi_snapshot_create,
+    .bdrv_snapshot_goto = vdi_snapshot_goto,
+    .bdrv_snapshot_delete = vdi_snapshot_delete,
+    .bdrv_snapshot_list = vdi_snapshot_list,
 #endif
+    .bdrv_get_info = vdi_get_info,
 
 #if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_put_buffer    = vdi_put_buffer,
-    .bdrv_get_buffer    = vdi_get_buffer,
+    .bdrv_put_buffer = vdi_put_buffer,
+    .bdrv_get_buffer = vdi_get_buffer,
 #endif
 
-    .create_options     = vdi_create_options,
-    .bdrv_check         = vdi_check,
+    .create_options = vdi_create_options,
+    .bdrv_check = vdi_check,
 };
 
 static void bdrv_vdi_init(void)
