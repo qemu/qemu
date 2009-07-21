@@ -1738,8 +1738,10 @@ if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
 fi
 echo "TOOLS=$tools" >> $config_host_mak
 
+# Mac OS X ships with a broken assembler
 roms=
-if test "$cpu" = "i386" -o "$cpu" = "x86_64" ; then
+if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
+        "$targetos" != "Darwin" ; then
   roms="pc-bios/optionrom"
 fi
 echo "ROMS=$roms" >> $config_host_mak
