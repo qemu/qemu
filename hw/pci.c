@@ -145,11 +145,13 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     return bus;
 }
 
-static PCIBus *pci_register_secondary_bus(PCIDevice *dev, pci_map_irq_fn map_irq)
+static PCIBus *pci_register_secondary_bus(PCIDevice *dev,
+                                          pci_map_irq_fn map_irq,
+                                          const char *name)
 {
     PCIBus *bus;
 
-    bus = qemu_mallocz(sizeof(PCIBus));
+    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, &dev->qdev, name));
     bus->map_irq = map_irq;
     bus->parent_dev = dev;
     bus->next = dev->bus->next;
@@ -891,7 +893,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
         PCI_HEADER_TYPE_MULTI_FUNCTION | PCI_HEADER_TYPE_BRIDGE; // header_type
     s->dev.config[0x1E] = 0xa0; // secondary status
 
-    s->bus = pci_register_secondary_bus(&s->dev, map_irq);
+    s->bus = pci_register_secondary_bus(&s->dev, map_irq, name);
     return s->bus;
 }
 
