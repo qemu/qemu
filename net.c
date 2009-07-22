@@ -2411,6 +2411,23 @@ void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
     exit(exit_status);
 }
 
+static int net_handle_fd_param(Monitor *mon, const char *param)
+{
+    if (!qemu_isdigit(param[0])) {
+        int fd;
+
+        fd = monitor_get_fd(mon, param);
+        if (fd == -1) {
+            config_error(mon, "No file descriptor named %s found", param);
+            return -1;
+        }
+
+        return fd;
+    } else {
+        return strtol(param, NULL, 0);
+    }
+}
+
 int net_client_init(Monitor *mon, const char *device, const char *p)
 {
     char buf[1024];
@@ -2651,14 +2668,20 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             static const char * const fd_params[] = {
                 "vlan", "name", "fd", "sndbuf", NULL
             };
+            ret = -1;
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
                 goto out;
             }
-            fd = strtol(buf, NULL, 0);
+            fd = net_handle_fd_param(mon, buf);
+            if (fd == -1) {
+                goto out;
+            }
             fcntl(fd, F_SETFL, O_NONBLOCK);
             s = net_tap_fd_init(vlan, device, name, fd);
+            if (!s) {
+                close(fd);
+            }
         } else {
             static const char * const tap_params[] = {
                 "vlan", "name", "ifname", "script", "downscript", "sndbuf", NULL
@@ -2698,15 +2721,20 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
                 "vlan", "name", "fd", NULL
             };
             int fd;
+            ret = -1;
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
                 goto out;
             }
-            fd = strtol(buf, NULL, 0);
-            ret = -1;
-            if (net_socket_fd_init(vlan, device, name, fd, 1))
-                ret = 0;
+            fd = net_handle_fd_param(mon, buf);
+            if (fd == -1) {
+                goto out;
+            }
+            if (!net_socket_fd_init(vlan, device, name, fd, 1)) {
+                close(fd);
+                goto out;
+            }
+            ret = 0;
         } else if (get_param_value(buf, sizeof(buf), "listen", p) > 0) {
             static const char * const listen_params[] = {
                 "vlan", "name", "listen", NULL
