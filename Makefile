@@ -225,7 +225,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h $(DOCS) qemu-options.texi qemu-img-cmds.texi
+	rm -f config-host.mak config-host.h config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS) libhw32 libhw64; do \
 	rm -rf $$d || exit 1 ; \

@@ -3,9 +3,7 @@ OUTPUT_FORMAT("elf64-ia64-little", "elf64-ia64-little",
 	      "elf64-ia64-little")
 OUTPUT_ARCH(ia64)
 ENTRY(_start)
-SEARCH_DIR("/usr/ia64-linux/lib"); SEARCH_DIR("/usr/local/lib"); SEARCH_DIR("/lib"); SEARCH_DIR("/usr/lib");
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;    */
+/* __DYNAMIC = 0;    */
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */

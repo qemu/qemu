@@ -3,9 +3,7 @@ OUTPUT_FORMAT("elf32-m68k", "elf32-m68k",
 	      "elf32-m68k")
 OUTPUT_ARCH(m68k)
 ENTRY(_start)
-SEARCH_DIR("/usr/local/m68k-linux/lib");
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;    */
+/* __DYNAMIC = 0;    */
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */

@@ -1,7 +1,6 @@
 OUTPUT_FORMAT("elf64-sparc", "elf64-sparc",
               "elf64-sparc")
 OUTPUT_ARCH(sparc:v9)
-SEARCH_DIR(/lib64); SEARCH_DIR(/lib); SEARCH_DIR(/usr/lib64); SEARCH_DIR(/usr/lib); SEARCH_DIR(/usr/local/lib64); SEARCH_DIR(/usr/local/lib); SEARCH_DIR(/usr/alpha-unknown-linux-gnu/lib);
 ENTRY(_start)
 SECTIONS
 {

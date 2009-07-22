@@ -1477,6 +1477,7 @@ fi
 
 config_host_mak="config-host.mak"
 config_host_h="config-host.h"
+config_host_ld="config-host.ld"
 
 #echo "Creating $config_host_mak and $config_host_h"
 
@@ -1784,6 +1785,18 @@ if test -f ${config_host_h}~ ; then
   fi
 fi
 
+# generate list of library paths for linker script
+
+$ld --verbose -v 2> /dev/null | grep SEARCH_DIR > ${config_host_ld}
+
+if test -f ${config_host_ld}~ ; then
+  if cmp -s $config_host_ld ${config_host_ld}~ ; then
+    mv ${config_host_ld}~ $config_host_ld
+  else
+    rm ${config_host_ld}~
+  fi
+fi
+
 for target in $target_list; do
 target_dir="$target"
 config_mak=$target_dir/config.mak
@@ -2049,7 +2062,7 @@ if test "$target_linux_user" = "yes" -o "$target_linux_user" = "yes" ; then
   case "$ARCH" in
   i386)
     if test "$gprof" = "yes" -o "$static" = "yes" ; then
-      ldflags='-Wl,-T,$(SRC_PATH)/$(ARCH).ld'
+      ldflags='-Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld'
     else
       # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
       # that the kernel ELF loader considers as an executable. I think this
@@ -2059,20 +2072,20 @@ if test "$target_linux_user" = "yes" -o "$target_linux_user" = "yes" ; then
     ;;
   sparc)
     # -static is used to avoid g1/g3 usage by the dynamic linker
-    ldflags='-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static'
+    ldflags='-Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static'
     ;;
   ia64)
-    ldflags='-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static'
+    ldflags='-Wl,-G0 -Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static'
     ;;
   x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64)
-    ldflags='-Wl,-T,$(SRC_PATH)/$(ARCH).ld'
+    ldflags='-Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld'
     ;;
   esac
 fi
 if test "$target_softmmu" = "yes" ; then
   case "$ARCH" in
   ia64)
-    ldflags='-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static'
+    ldflags='-Wl,-G0 -Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static'
     ;;
   esac
 fi

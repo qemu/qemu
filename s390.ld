@@ -2,9 +2,7 @@ OUTPUT_FORMAT("elf32-s390", "elf32-s390",
 	      "elf32-s390")
 OUTPUT_ARCH(s390:31-bit)
 ENTRY(_start)
-SEARCH_DIR("/usr/s390-redhat-linux/lib"); SEARCH_DIR("/usr/lib"); SEARCH_DIR("/usr/local/lib"); SEARCH_DIR("/lib");
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;    */
+/* __DYNAMIC = 0;    */
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */

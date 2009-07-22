@@ -2,7 +2,6 @@ OUTPUT_FORMAT("elf64-alpha", "elf64-alpha",
 	      "elf64-alpha")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)
-SEARCH_DIR(/lib); SEARCH_DIR(/usr/lib); SEARCH_DIR(/usr/local/lib); SEARCH_DIR(/usr/alpha-unknown-linux-gnu/lib);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */

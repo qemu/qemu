@@ -3,7 +3,6 @@ OUTPUT_FORMAT("elf32-hppa-linux", "elf32-hppa-linux",
 	      "elf32-hppa-linux")
 OUTPUT_ARCH(hppa:hppa1.1)
 ENTRY(_start)
-SEARCH_DIR("/usr/hppa-linux-gnu/lib"); SEARCH_DIR("/usr/local/lib"); SEARCH_DIR("/lib"); SEARCH_DIR("/usr/lib");
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
