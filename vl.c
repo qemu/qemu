@@ -3359,6 +3359,8 @@ static QEMUMachine *find_machine(const char *name)
     for(m = first_machine; m != NULL; m = m->next) {
         if (!strcmp(m->name, name))
             return m;
+        if (m->alias && !strcmp(m->alias, name))
+            return m;
     }
     return NULL;
 }
@@ -4995,6 +4997,9 @@ int main(int argc, char **argv, char **envp)
                     QEMUMachine *m;
                     printf("Supported machines are:\n");
                     for(m = first_machine; m != NULL; m = m->next) {
+                        if (m->alias)
+                            printf("%-10s %s (alias of %s)\n",
+                                   m->alias, m->desc, m->name);
                         printf("%-10s %s%s\n",
                                m->name, m->desc,
                                m->is_default ? " (default)" : "");
