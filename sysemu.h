@@ -3,6 +3,7 @@
 /* Misc. things related to the system emulator.  */
 
 #include "qemu-common.h"
+#include "qemu-option.h"
 #include "sys-queue.h"
 
 #ifdef _WIN32
@@ -275,13 +276,6 @@ extern struct soundhw soundhw[];
 void do_usb_add(Monitor *mon, const char *devname);
 void do_usb_del(Monitor *mon, const char *devname);
 void usb_info(Monitor *mon);
-
-int get_param_value(char *buf, int buf_size,
-                    const char *tag, const char *str);
-int get_next_param_value(char *buf, int buf_size,
-                         const char *tag, const char **pstr);
-int check_params(char *buf, int buf_size,
-                 const char * const *params, const char *str);
 
 void register_devices(void);
 

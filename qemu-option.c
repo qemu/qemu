@@ -85,6 +85,70 @@ const char *get_opt_value(char *buf, int buf_size, const char *p)
     return p;
 }
 
+int get_next_param_value(char *buf, int buf_size,
+                         const char *tag, const char **pstr)
+{
+    const char *p;
+    char option[128];
+
+    p = *pstr;
+    for(;;) {
+        p = get_opt_name(option, sizeof(option), p, '=');
+        if (*p != '=')
+            break;
+        p++;
+        if (!strcmp(tag, option)) {
+            *pstr = get_opt_value(buf, buf_size, p);
+            if (**pstr == ',') {
+                (*pstr)++;
+            }
+            return strlen(buf);
+        } else {
+            p = get_opt_value(NULL, 0, p);
+        }
+        if (*p != ',')
+            break;
+        p++;
+    }
+    return 0;
+}
+
+int get_param_value(char *buf, int buf_size,
+                    const char *tag, const char *str)
+{
+    return get_next_param_value(buf, buf_size, tag, &str);
+}
+
+int check_params(char *buf, int buf_size,
+                 const char * const *params, const char *str)
+{
+    const char *p;
+    int i;
+
+    p = str;
+    while (*p != '\0') {
+        p = get_opt_name(buf, buf_size, p, '=');
+        if (*p != '=') {
+            return -1;
+        }
+        p++;
+        for (i = 0; params[i] != NULL; i++) {
+            if (!strcmp(params[i], buf)) {
+                break;
+            }
+        }
+        if (params[i] == NULL) {
+            return -1;
+        }
+        p = get_opt_value(NULL, 0, p);
+        if (*p != ',') {
+            break;
+        }
+        p++;
+    }
+    return 0;
+}
+
 /*
  * Searches an option list for an option with the given name
  */
