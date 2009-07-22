@@ -28,7 +28,6 @@
 #include <fcntl.h>
 #include <time.h>
 #include <limits.h>
-#include <mqueue.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -850,6 +849,9 @@ static inline abi_long copy_to_user_timeval(abi_ulong target_tv_addr,
     return 0;
 }
 
+#if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
+#include <mqueue.h>
+
 static inline abi_long copy_from_user_mq_attr(struct mq_attr *attr,
                                               abi_ulong target_mq_attr_addr)
 {
@@ -887,6 +889,7 @@ static inline abi_long copy_to_user_mq_attr(abi_ulong target_mq_attr_addr,
 
     return 0;
 }
+#endif
 
 /* do_select() must return target values and target errnos. */
 static abi_long do_select(int n,
@@ -6863,7 +6866,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 
-#ifdef TARGET_NR_mq_open
+#if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
     case TARGET_NR_mq_open:
         {
             struct mq_attr posix_mq_attr;
