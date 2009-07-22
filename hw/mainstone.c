@@ -77,7 +77,8 @@ static void mainstone_common_init(ram_addr_t ram_size,
     target_phys_addr_t mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
     PXA2xxState *cpu;
     qemu_irq *mst_irq;
-    int i, index;
+    DriveInfo *dinfo;
+    int i;
 
     if (!cpu_model)
         cpu_model = "pxa270-c5";
@@ -92,8 +93,8 @@ static void mainstone_common_init(ram_addr_t ram_size,
 
     /* There are two 32MiB flash devices on the board */
     for (i = 0; i < 2; i ++) {
-        index = drive_get_index(IF_PFLASH, 0, i);
-        if (index == -1) {
+        dinfo = drive_get(IF_PFLASH, 0, i);
+        if (!dinfo) {
             fprintf(stderr, "Two flash images must be given with the "
                     "'pflash' parameter\n");
             exit(1);
@@ -101,7 +102,7 @@ static void mainstone_common_init(ram_addr_t ram_size,
 
         if (!pflash_cfi01_register(mainstone_flash_base[i],
                                 qemu_ram_alloc(MAINSTONE_FLASH),
-                                drives_table[index].bdrv, sector_len,
+                                dinfo->bdrv, sector_len,
                                 MAINSTONE_FLASH / sector_len, 4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
             exit(1);

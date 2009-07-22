@@ -180,8 +180,7 @@ static const char *data_dir;
 const char *bios_name = NULL;
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
-DriveInfo drives_table[MAX_DRIVES+1];
-int nb_drives;
+struct drivelist drives = TAILQ_HEAD_INITIALIZER(drives);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
@@ -1879,19 +1878,6 @@ static int drive_opt_get_free_idx(void)
     return -1;
 }
 
-static int drive_get_free_idx(void)
-{
-    int index;
-
-    for (index = 0; index < MAX_DRIVES; index++)
-        if (!drives_table[index].used) {
-            drives_table[index].used = 1;
-            return index;
-        }
-
-    return -1;
-}
-
 int drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
@@ -1918,54 +1904,56 @@ void drive_remove(int index)
     nb_drives_opt--;
 }
 
-int drive_get_index(BlockInterfaceType type, int bus, int unit)
+DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
 {
-    int index;
+    DriveInfo *dinfo;
 
     /* seek interface, bus and unit */
 
-    for (index = 0; index < MAX_DRIVES; index++)
-        if (drives_table[index].type == type &&
-	    drives_table[index].bus == bus &&
-	    drives_table[index].unit == unit &&
-	    drives_table[index].used)
-        return index;
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->type == type &&
+	    dinfo->bus == bus &&
+	    dinfo->unit == unit)
+            return dinfo;
+    }
 
-    return -1;
+    return NULL;
 }
 
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
-    int index;
+    DriveInfo *dinfo;
 
     max_bus = -1;
-    for (index = 0; index < nb_drives; index++) {
-        if(drives_table[index].type == type &&
-           drives_table[index].bus > max_bus)
-            max_bus = drives_table[index].bus;
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if(dinfo->type == type &&
+           dinfo->bus > max_bus)
+            max_bus = dinfo->bus;
     }
     return max_bus;
 }
 
 const char *drive_get_serial(BlockDriverState *bdrv)
 {
-    int index;
+    DriveInfo *dinfo;
 
-    for (index = 0; index < nb_drives; index++)
-        if (drives_table[index].bdrv == bdrv)
-            return drives_table[index].serial;
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->bdrv == bdrv)
+            return dinfo->serial;
+    }
 
     return "\0";
 }
 
 BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
 {
-    int index;
+    DriveInfo *dinfo;
 
-    for (index = 0; index < nb_drives; index++)
-        if (drives_table[index].bdrv == bdrv)
-            return drives_table[index].onerror;
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->bdrv == bdrv)
+            return dinfo->onerror;
+    }
 
     return BLOCK_ERR_STOP_ENOSPC;
 }
@@ -1977,19 +1965,20 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 void drive_uninit(BlockDriverState *bdrv)
 {
-    int i;
+    DriveInfo *dinfo;
 
-    for (i = 0; i < MAX_DRIVES; i++)
-        if (drives_table[i].bdrv == bdrv) {
-            drives_table[i].bdrv = NULL;
-            drives_table[i].used = 0;
-            drive_remove(drives_table[i].drive_opt_idx);
-            nb_drives--;
-            break;
-        }
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->bdrv != bdrv)
+            continue;
+        drive_remove(dinfo->drive_opt_idx);
+        TAILQ_REMOVE(&drives, dinfo, next);
+        qemu_free(dinfo);
+        break;
+    }
 }
 
-int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
+DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
+                      int *fatal_error)
 {
     char buf[128];
     char file[1024];
@@ -2008,7 +1997,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     int cache;
     int bdrv_flags, onerror;
     const char *devaddr;
-    int drives_table_idx;
+    DriveInfo *dinfo;
     char *str = arg->opt;
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
@@ -2016,11 +2005,12 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
                                            "cache", "format", "serial",
                                            "werror", "addr",
                                            NULL };
+    *fatal_error = 1;
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
                          buf, str);
-         return -1;
+         return NULL;
     }
 
     file[0] = 0;
@@ -2048,7 +2038,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         bus_id = strtol(buf, NULL, 0);
 	if (bus_id < 0) {
 	    fprintf(stderr, "qemu: '%s' invalid bus id\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2056,7 +2046,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         unit_id = strtol(buf, NULL, 0);
 	if (unit_id < 0) {
 	    fprintf(stderr, "qemu: '%s' invalid unit id\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2088,7 +2078,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             max_devs = 0;
 	} else {
             fprintf(stderr, "qemu: '%s' unsupported bus type '%s'\n", str, buf);
-            return -1;
+            return NULL;
 	}
     }
 
@@ -2096,7 +2086,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         index = strtol(buf, NULL, 0);
 	if (index < 0) {
 	    fprintf(stderr, "qemu: '%s' invalid index\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2115,15 +2105,15 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (cyls || heads || secs) {
         if (cyls < 1 || cyls > 16383) {
             fprintf(stderr, "qemu: '%s' invalid physical cyls number\n", str);
-	    return -1;
+	    return NULL;
 	}
         if (heads < 1 || heads > 16) {
             fprintf(stderr, "qemu: '%s' invalid physical heads number\n", str);
-	    return -1;
+	    return NULL;
 	}
         if (secs < 1 || secs > 63) {
             fprintf(stderr, "qemu: '%s' invalid physical secs number\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2132,7 +2122,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             fprintf(stderr,
                     "qemu: '%s' trans must be used with cyls,heads and secs\n",
                     str);
-            return -1;
+            return NULL;
         }
         if (!strcmp(buf, "none"))
             translation = BIOS_ATA_TRANSLATION_NONE;
@@ -2142,7 +2132,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             translation = BIOS_ATA_TRANSLATION_AUTO;
 	else {
             fprintf(stderr, "qemu: '%s' invalid translation type\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2153,12 +2143,12 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             if (cyls || secs || heads) {
                 fprintf(stderr,
                         "qemu: '%s' invalid physical CHS format\n", str);
-	        return -1;
+	        return NULL;
             }
 	    media = MEDIA_CDROM;
 	} else {
 	    fprintf(stderr, "qemu: '%s' invalid media\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2169,7 +2159,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
 	    snapshot = 0;
 	else {
 	    fprintf(stderr, "qemu: '%s' invalid snapshot option\n", str);
-	    return -1;
+	    return NULL;
 	}
     }
 
@@ -2182,7 +2172,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             cache = 2;
         else {
            fprintf(stderr, "qemu: invalid cache option\n");
-           return -1;
+           return NULL;
         }
     }
 
@@ -2191,12 +2181,12 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             fprintf(stderr, "qemu: Supported formats:");
             bdrv_iterate_format(bdrv_format_print, NULL);
             fprintf(stderr, "\n");
-	    return -1;
+	    return NULL;
         }
         drv = bdrv_find_format(buf);
         if (!drv) {
             fprintf(stderr, "qemu: '%s' invalid format\n", buf);
-            return -1;
+            return NULL;
         }
     }
 
@@ -2212,7 +2202,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (get_param_value(buf, sizeof(serial), "werror", str)) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO) {
             fprintf(stderr, "werror is no supported by this format\n");
-            return -1;
+            return NULL;
         }
         if (!strcmp(buf, "ignore"))
             onerror = BLOCK_ERR_IGNORE;
@@ -2224,7 +2214,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
             onerror = BLOCK_ERR_REPORT;
         else {
             fprintf(stderr, "qemu: '%s' invalid write error action\n", buf);
-            return -1;
+            return NULL;
         }
     }
 
@@ -2232,7 +2222,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (get_param_value(buf, sizeof(buf), "addr", str)) {
         if (type != IF_VIRTIO) {
             fprintf(stderr, "addr is not supported by in '%s'\n", str);
-            return -1;
+            return NULL;
         }
         devaddr = strdup(buf);
     }
@@ -2243,7 +2233,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         if (bus_id != 0 || unit_id != -1) {
             fprintf(stderr,
                     "qemu: '%s' index cannot be used with bus and unit\n", str);
-            return -1;
+            return NULL;
         }
         if (max_devs == 0)
         {
@@ -2261,7 +2251,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
 
     if (unit_id == -1) {
        unit_id = 0;
-       while (drive_get_index(type, bus_id, unit_id) != -1) {
+       while (drive_get(type, bus_id, unit_id) != NULL) {
            unit_id++;
            if (max_devs && unit_id >= max_devs) {
                unit_id -= max_devs;
@@ -2275,15 +2265,17 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (max_devs && unit_id >= max_devs) {
         fprintf(stderr, "qemu: '%s' unit %d too big (max is %d)\n",
                         str, unit_id, max_devs - 1);
-        return -1;
+        return NULL;
     }
 
     /*
      * ignore multiple definitions
      */
 
-    if (drive_get_index(type, bus_id, unit_id) != -1)
-        return -2;
+    if (drive_get(type, bus_id, unit_id) != NULL) {
+        *fatal_error = 0;
+        return NULL;
+    }
 
     /* init */
 
@@ -2296,16 +2288,16 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         snprintf(buf, sizeof(buf), "%s%s%i",
                  devname, mediastr, unit_id);
     bdrv = bdrv_new(buf);
-    drives_table_idx = drive_get_free_idx();
-    drives_table[drives_table_idx].bdrv = bdrv;
-    drives_table[drives_table_idx].devaddr = devaddr;
-    drives_table[drives_table_idx].type = type;
-    drives_table[drives_table_idx].bus = bus_id;
-    drives_table[drives_table_idx].unit = unit_id;
-    drives_table[drives_table_idx].onerror = onerror;
-    drives_table[drives_table_idx].drive_opt_idx = arg - drives_opt;
-    strncpy(drives_table[drives_table_idx].serial, serial, sizeof(serial));
-    nb_drives++;
+    dinfo = qemu_mallocz(sizeof(*dinfo));
+    dinfo->bdrv = bdrv;
+    dinfo->devaddr = devaddr;
+    dinfo->type = type;
+    dinfo->bus = bus_id;
+    dinfo->unit = unit_id;
+    dinfo->onerror = onerror;
+    dinfo->drive_opt_idx = arg - drives_opt;
+    strncpy(dinfo->serial, serial, sizeof(serial));
+    TAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     switch(type) {
     case IF_IDE:
@@ -2336,8 +2328,10 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     case IF_COUNT:
         abort();
     }
-    if (!file[0])
-        return -2;
+    if (!file[0]) {
+        *fatal_error = 0;
+        return NULL;
+    }
     bdrv_flags = 0;
     if (snapshot) {
         bdrv_flags |= BDRV_O_SNAPSHOT;
@@ -2350,11 +2344,12 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
-        return -1;
+        return NULL;
     }
     if (bdrv_key_required(bdrv))
         autostart = 0;
-    return drives_table_idx;
+    *fatal_error = 0;
+    return dinfo;
 }
 
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
@@ -4981,7 +4976,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     nb_net_clients = 0;
-    nb_drives = 0;
     nb_drives_opt = 0;
     nb_numa_nodes = 0;
     hda_index = -1;
@@ -5854,9 +5848,12 @@ int main(int argc, char **argv, char **envp)
 
     /* open the virtual block devices */
 
-    for(i = 0; i < nb_drives_opt; i++)
-        if (drive_init(&drives_opt[i], snapshot, machine) == -1)
-	    exit(1);
+    for(i = 0; i < nb_drives_opt; i++) {
+        int fatal_error;
+        if (drive_init(&drives_opt[i], snapshot, machine, &fatal_error) == NULL)
+            if (fatal_error)
+                exit(1);
+    }
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);

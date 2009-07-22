@@ -127,7 +127,7 @@ static void sx1_init(ram_addr_t ram_size,
     static uint32_t cs2val = 0x00001139;
     static uint32_t cs3val = 0x00001139;
     ram_addr_t phys_flash;
-    int index;
+    DriveInfo *dinfo;
     int fl_idx;
     uint32_t flash_size = flash0_size;
 
@@ -151,9 +151,9 @@ static void sx1_init(ram_addr_t ram_size,
 
     fl_idx = 0;
 
-    if ((index = drive_get_index(IF_PFLASH, 0, fl_idx)) > -1) {
+    if ((dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         if (!pflash_cfi01_register(OMAP_CS0_BASE, qemu_ram_alloc(flash_size),
-            drives_table[index].bdrv, sector_size, flash_size / sector_size,
+            dinfo->bdrv, sector_size, flash_size / sector_size,
             4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
@@ -162,7 +162,7 @@ static void sx1_init(ram_addr_t ram_size,
     }
 
     if ((version == 1) &&
-            (index = drive_get_index(IF_PFLASH, 0, fl_idx)) > -1) {
+            (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         cpu_register_physical_memory(OMAP_CS1_BASE, flash1_size,
                         (phys_flash = qemu_ram_alloc(flash1_size)) |
                         IO_MEM_ROM);
@@ -171,7 +171,7 @@ static void sx1_init(ram_addr_t ram_size,
                         OMAP_CS1_SIZE - flash1_size, io);
 
         if (!pflash_cfi01_register(OMAP_CS1_BASE, qemu_ram_alloc(flash1_size),
-            drives_table[index].bdrv, sector_size, flash1_size / sector_size,
+            dinfo->bdrv, sector_size, flash1_size / sector_size,
             4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);

@@ -550,7 +550,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     PCIBus *pci_bus;
     qemu_irq *i8259;
     int ppc_boot_device;
-    int index;
+    DriveInfo *dinfo;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
 
@@ -691,11 +691,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        if (index != -1)
-            hd[i] = drives_table[index].bdrv;
-        else
-            hd[i] = NULL;
+        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        hd[i] = dinfo ? dinfo->bdrv : NULL;
     }
 
     for(i = 0; i < MAX_IDE_BUS; i++) {
@@ -708,11 +705,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
     //    SB16_init();
 
     for(i = 0; i < MAX_FD; i++) {
-        index = drive_get_index(IF_FLOPPY, 0, i);
-        if (index != -1)
-            fd[i] = drives_table[index].bdrv;
-        else
-            fd[i] = NULL;
+        dinfo = drive_get(IF_FLOPPY, 0, i);
+        fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
     fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 

@@ -4496,7 +4496,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];
     omap_clk gpio_clks[4];
-    int sdindex;
+    DriveInfo *dinfo;
     int i;
 
     /* Core */
@@ -4645,12 +4645,12 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     s->sdrc = omap_sdrc_init(0x68009000);
     s->gpmc = omap_gpmc_init(0x6800a000, s->irq[0][OMAP_INT_24XX_GPMC_IRQ]);
 
-    sdindex = drive_get_index(IF_SD, 0, 0);
-    if (sdindex == -1) {
+    dinfo = drive_get(IF_SD, 0, 0);
+    if (!dinfo) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = omap2_mmc_init(omap_l4tao(s->l4, 9), drives_table[sdindex].bdrv,
+    s->mmc = omap2_mmc_init(omap_l4tao(s->l4, 9), dinfo->bdrv,
                     s->irq[0][OMAP_INT_24XX_MMC_IRQ],
                     &s->drq[OMAP24XX_DMA_MMC1_TX],
                     omap_findclk(s, "mmc_fclk"), omap_findclk(s, "mmc_iclk"));

@@ -267,13 +267,10 @@ static int next_block_unit[IF_COUNT];
 BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type)
 {
     int unit = next_block_unit[type]++;
-    int index;
+    DriveInfo *dinfo;
 
-    index = drive_get_index(type, 0, unit);
-    if (index == -1) {
-        return NULL;
-    }
-    return drives_table[index].bdrv;
+    dinfo = drive_get(type, 0, unit);
+    return dinfo ? dinfo->bdrv : NULL;
 }
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
@@ -296,14 +293,14 @@ void scsi_bus_new(DeviceState *host, SCSIAttachFn attach)
 {
    int bus = next_scsi_bus++;
    int unit;
-   int index;
+   DriveInfo *dinfo;
 
    for (unit = 0; unit < MAX_SCSI_DEVS; unit++) {
-       index = drive_get_index(IF_SCSI, bus, unit);
-       if (index == -1) {
+       dinfo = drive_get(IF_SCSI, bus, unit);
+       if (!dinfo) {
            continue;
        }
-       attach(host, drives_table[index].bdrv, unit);
+       attach(host, dinfo->bdrv, unit);
    }
 }
 

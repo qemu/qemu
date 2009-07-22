@@ -235,11 +235,8 @@ void mips_jazz_init (ram_addr_t ram_size,
         exit(1);
     }
     for (n = 0; n < MAX_FD; n++) {
-        int fd = drive_get_index(IF_FLOPPY, 0, n);
-        if (fd != -1)
-            fds[n] = drives_table[fd].bdrv;
-        else
-            fds[n] = NULL;
+        DriveInfo *dinfo = drive_get(IF_FLOPPY, 0, n);
+        fds[n] = dinfo ? dinfo->bdrv : NULL;
     }
     fdctrl_init(rc4030[1], 0, 1, 0x80003000, fds);
 

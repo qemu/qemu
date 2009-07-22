@@ -172,6 +172,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq *irqs, *mpic, *pci_irqs;
     SerialState * serial[2];
+    DriveInfo *dinfo;
 
     /* Setup CPU */
     env = cpu_ppc_init("e500v2_v30");
@@ -219,8 +220,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         int unit_id = 0;
 
         /* Add virtio block devices. */
-        while ((i = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_dev = pci_create("virtio-blk-pci", drives_table[i].devaddr);
+        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
+            pci_dev = pci_create("virtio-blk-pci", dinfo->devaddr);
             qdev_init(&pci_dev->qdev);
             unit_id++;
         }

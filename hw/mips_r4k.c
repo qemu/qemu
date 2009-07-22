@@ -155,8 +155,8 @@ void mips_r4k_init (ram_addr_t ram_size,
     RTCState *rtc_state;
     int i;
     qemu_irq *i8259;
-    int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *dinfo;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -208,11 +208,11 @@ void mips_r4k_init (ram_addr_t ram_size,
                                      bios_offset | IO_MEM_ROM);
 
         load_image_targphys(filename, 0x1fc00000, BIOS_SIZE);
-    } else if ((index = drive_get_index(IF_PFLASH, 0, 0)) > -1) {
+    } else if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
         uint32_t mips_rom = 0x00400000;
         bios_offset = qemu_ram_alloc(mips_rom);
         if (!pflash_cfi01_register(0x1fc00000, bios_offset,
-            drives_table[index].bdrv, sector_len, mips_rom / sector_len,
+            dinfo->bdrv, sector_len, mips_rom / sector_len,
             4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}
@@ -267,11 +267,8 @@ void mips_r4k_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        if (index != -1)
-            hd[i] = drives_table[index].bdrv;
-        else
-            hd[i] = NULL;
+        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        hd[i] = dinfo ? dinfo->bdrv : NULL;
     }
 
     for(i = 0; i < MAX_IDE_BUS; i++)

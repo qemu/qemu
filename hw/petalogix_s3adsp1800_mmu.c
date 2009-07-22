@@ -106,6 +106,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     DeviceState *dev;
     CPUState *env;
     int kernel_size;
+    DriveInfo *dinfo;
     int i;
     target_phys_addr_t ddr_base = 0x90000000;
     ram_addr_t phys_lmb_bram;
@@ -131,9 +132,9 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     cpu_register_physical_memory(ddr_base, ram_size, phys_ram | IO_MEM_RAM);
 
     phys_flash = qemu_ram_alloc(FLASH_SIZE);
-    i = drive_get_index(IF_PFLASH, 0, 0);
+    dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi02_register(0xa0000000, phys_flash,
-                          i != -1 ? drives_table[i].bdrv : NULL, (64 * 1024),
+                          dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
                           1, 1, 0x0000, 0x0000, 0x0000, 0x0000,
                           0x555, 0x2aa);

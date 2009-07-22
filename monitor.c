@@ -253,13 +253,15 @@ static void help_cmd(Monitor *mon, const char *name)
 
 static void do_commit(Monitor *mon, const char *device)
 {
-    int i, all_devices;
+    int all_devices;
+    DriveInfo *dinfo;
 
     all_devices = !strcmp(device, "all");
-    for (i = 0; i < nb_drives; i++) {
-            if (all_devices ||
-                !strcmp(bdrv_get_device_name(drives_table[i].bdrv), device))
-                bdrv_commit(drives_table[i].bdrv);
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if (!all_devices)
+            if (!strcmp(bdrv_get_device_name(dinfo->bdrv), device))
+                continue;
+        bdrv_commit(dinfo->bdrv);
     }
 }
 

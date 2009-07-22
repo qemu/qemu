@@ -3,6 +3,7 @@
 /* Misc. things related to the system emulator.  */
 
 #include "qemu-common.h"
+#include "sys-queue.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -164,20 +165,19 @@ typedef struct DriveInfo {
     BlockInterfaceType type;
     int bus;
     int unit;
-    int used;
     int drive_opt_idx;
     BlockInterfaceErrorAction onerror;
     char serial[BLOCK_SERIAL_STRLEN + 1];
+    TAILQ_ENTRY(DriveInfo) next;
 } DriveInfo;
 
 #define MAX_IDE_DEVS	2
 #define MAX_SCSI_DEVS	7
 #define MAX_DRIVES 32
 
-extern int nb_drives;
-extern DriveInfo drives_table[MAX_DRIVES+1];
+extern TAILQ_HEAD(drivelist, DriveInfo) drives;
 
-extern int drive_get_index(BlockInterfaceType type, int bus, int unit);
+extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 extern int drive_get_max_bus(BlockInterfaceType type);
 extern void drive_uninit(BlockDriverState *bdrv);
 extern void drive_remove(int index);
@@ -196,7 +196,8 @@ extern struct drive_opt drives_opt[MAX_DRIVES];
 extern int nb_drives_opt;
 
 extern int drive_add(const char *file, const char *fmt, ...);
-extern int drive_init(struct drive_opt *arg, int snapshot, void *machine);
+extern DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *machine,
+                             int *fatal_error);
 
 /* acpi */
 typedef void (*qemu_system_device_hot_add_t)(int pcibus, int slot, int state);
@@ -207,7 +208,7 @@ void qemu_system_device_hot_add(int pcibus, int slot, int state);
 
 typedef int (dev_match_fn)(void *dev_private, void *arg);
 
-int add_init_drive(const char *opts);
+DriveInfo *add_init_drive(const char *opts);
 void destroy_nic(dev_match_fn *match_fn, void *arg);
 void destroy_bdrvs(dev_match_fn *match_fn, void *arg);
 

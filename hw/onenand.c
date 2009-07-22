@@ -618,7 +618,7 @@ static CPUWriteMemoryFunc *onenand_writefn[] = {
 void *onenand_init(uint32_t id, int regshift, qemu_irq irq)
 {
     OneNANDState *s = (OneNANDState *) qemu_mallocz(sizeof(*s));
-    int bdrv_index = drive_get_index(IF_MTD, 0, 0);
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
     uint32_t size = 1 << (24 + ((id >> 12) & 7));
     void *ram;
 
@@ -632,11 +632,11 @@ void *onenand_init(uint32_t id, int regshift, qemu_irq irq)
     s->density_mask = (id & (1 << 11)) ? (1 << (6 + ((id >> 12) & 7))) : 0;
     s->iomemtype = cpu_register_io_memory(onenand_readfn,
                     onenand_writefn, s);
-    if (bdrv_index == -1)
+    if (!dinfo)
         s->image = memset(qemu_malloc(size + (size >> 5)),
                         0xff, size + (size >> 5));
     else
-        s->bdrv = drives_table[bdrv_index].bdrv;
+        s->bdrv = dinfo->bdrv;
     s->otp = memset(qemu_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
     s->ram = qemu_ram_alloc(0xc000 << s->shift);

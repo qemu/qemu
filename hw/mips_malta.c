@@ -773,7 +773,7 @@ void mips_malta_init (ram_addr_t ram_size,
     uint8_t *eeprom_buf;
     i2c_bus *smbus;
     int i;
-    int index;
+    DriveInfo *dinfo;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     int fl_idx = 0;
@@ -827,8 +827,8 @@ void mips_malta_init (ram_addr_t ram_size,
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
     } else {
-        index = drive_get_index(IF_PFLASH, 0, fl_idx);
-        if (index != -1) {
+        dinfo = drive_get(IF_PFLASH, 0, fl_idx);
+        if (dinfo) {
             /* Load firmware from flash. */
             bios_size = 0x400000;
             fl_sectors = bios_size >> 16;
@@ -836,10 +836,10 @@ void mips_malta_init (ram_addr_t ram_size,
             printf("Register parallel flash %d size " TARGET_FMT_lx " at "
                    "offset %08lx addr %08llx '%s' %x\n",
                    fl_idx, bios_size, bios_offset, 0x1e000000LL,
-                   bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
+                   bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
             pflash_cfi01_register(0x1e000000LL, bios_offset,
-                                  drives_table[index].bdrv, 65536, fl_sectors,
+                                  dinfo->bdrv, 65536, fl_sectors,
                                   4, 0x0000, 0x0000, 0x0000, 0x0000);
             fl_idx++;
         } else {
@@ -898,11 +898,8 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        if (index != -1)
-            hd[i] = drives_table[index].bdrv;
-        else
-            hd[i] = NULL;
+        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        hd[i] = dinfo ? dinfo->bdrv : NULL;
     }
 
     piix4_devfn = piix4_init(pci_bus, 80);
@@ -929,11 +926,8 @@ void mips_malta_init (ram_addr_t ram_size,
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
-        index = drive_get_index(IF_FLOPPY, 0, i);
-       if (index != -1)
-           fd[i] = drives_table[index].bdrv;
-       else
-           fd[i] = NULL;
+        dinfo = drive_get(IF_FLOPPY, 0, i);
+        fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
     floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 
