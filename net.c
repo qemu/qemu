@@ -1150,7 +1150,7 @@ static void slirp_smb(SlirpState* s, Monitor *mon, const char *exported_dir,
     snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -s %s",
              SMBD_COMMAND, smb_conf);
 
-    if (slirp_add_exec(s->slirp, 0, smb_cmdline, vserver_addr, 139) < 0) {
+    if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0) {
         slirp_smb_cleanup(s);
         config_error(mon, "conflicting/invalid smbserver address\n");
     }
@@ -1239,16 +1239,17 @@ static void slirp_guestfwd(SlirpState *s, Monitor *mon, const char *config_str,
         qemu_free(fwd);
         return;
     }
-    fwd->server = server;
-    fwd->port = port;
-    fwd->slirp = s->slirp;
 
-    if (slirp_add_exec(s->slirp, 3, fwd->hd, server, port) < 0) {
+    if (slirp_add_exec(s->slirp, 3, fwd->hd, &server, port) < 0) {
         config_error(mon, "conflicting/invalid host:port in guest forwarding "
                      "rule '%s'\n", config_str);
         qemu_free(fwd);
         return;
     }
+    fwd->server = server;
+    fwd->port = port;
+    fwd->slirp = s->slirp;
+
     qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
                           NULL, fwd);
     return;
