@@ -1907,6 +1907,29 @@ static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
     *size = j;
 }
 
+#ifndef WIN32
+static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
+{
+    TCPCharDriver *s = chr->opaque;
+    struct msghdr msg = { 0, };
+    struct iovec iov[1];
+
+    iov[0].iov_base = buf;
+    iov[0].iov_len = len;
+
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 1;
+
+    return recvmsg(s->fd, &msg, 0);
+}
+#else
+static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
+{
+    TCPCharDriver *s = chr->opaque;
+    return recv(s->fd, buf, len, 0);
+}
+#endif
+
 static void tcp_chr_read(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -1919,7 +1942,7 @@ static void tcp_chr_read(void *opaque)
     len = sizeof(buf);
     if (len > s->max_size)
         len = s->max_size;
-    size = recv(s->fd, (void *)buf, len, 0);
+    size = tcp_chr_recv(chr, (void *)buf, len);
     if (size == 0) {
         /* connection closed */
         s->connected = 0;
