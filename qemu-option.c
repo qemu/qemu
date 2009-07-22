@@ -182,6 +182,40 @@ static int parse_option_bool(const char *name, const char *value, int *ret)
     return 0;
 }
 
+static int parse_option_size(const char *name, const char *value, uint64_t *ret)
+{
+    char *postfix;
+    double sizef;
+
+    if (value != NULL) {
+        sizef = strtod(value, &postfix);
+        switch (*postfix) {
+        case 'T':
+            sizef *= 1024;
+        case 'G':
+            sizef *= 1024;
+        case 'M':
+            sizef *= 1024;
+        case 'K':
+        case 'k':
+            sizef *= 1024;
+        case 'b':
+        case '\0':
+            *ret = (uint64_t) sizef;
+            break;
+        default:
+            fprintf(stderr, "Option '%s' needs size as parameter\n", name);
+            fprintf(stderr, "You may use k, M, G or T suffixes for "
+                    "kilobytes, megabytes, gigabytes and terabytes.\n");
+            return -1;
+        }
+    } else {
+        fprintf(stderr, "Option '%s' needs a parameter\n", name);
+        return -1;
+    }
+    return 0;
+}
+
 /*
  * Sets the value of a parameter in a given option list. The parsing of the
  * value depends on the type of option:
@@ -229,34 +263,10 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
         break;
 
     case OPT_SIZE:
-        if (value != NULL) {
-            double sizef = strtod(value, (char**) &value);
-
-            switch (*value) {
-            case 'T':
-                sizef *= 1024;
-            case 'G':
-                sizef *= 1024;
-            case 'M':
-                sizef *= 1024;
-            case 'K':
-            case 'k':
-                sizef *= 1024;
-            case 'b':
-            case '\0':
-                list->value.n = (uint64_t) sizef;
-                break;
-            default:
-                fprintf(stderr, "Option '%s' needs size as parameter\n", name);
-                fprintf(stderr, "You may use k, M, G or T suffixes for "
-                    "kilobytes, megabytes, gigabytes and terabytes.\n");
-                return -1;
-            }
-        } else {
-            fprintf(stderr, "Option '%s' needs a parameter\n", name);
+        if (-1 == parse_option_size(name, value, &list->value.n))
             return -1;
-        }
         break;
+
     default:
         fprintf(stderr, "Bug: Option '%s' has an unknown type\n", name);
         return -1;
