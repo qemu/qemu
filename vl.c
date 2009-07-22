@@ -1920,6 +1920,18 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
+DriveInfo *drive_get_by_id(char *id)
+{
+    DriveInfo *dinfo;
+
+    TAILQ_FOREACH(dinfo, &drives, next) {
+        if (strcmp(id, dinfo->id))
+            continue;
+        return dinfo;
+    }
+    return NULL;
+}
+
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
@@ -1989,7 +2001,6 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
     enum { MEDIA_DISK, MEDIA_CDROM } media;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
-    BlockDriverState *bdrv;
     BlockDriver *drv = NULL;
     QEMUMachine *machine = opaque;
     int max_devs;
@@ -2003,7 +2014,7 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
                                            "cyls", "heads", "secs", "trans",
                                            "media", "snapshot", "file",
                                            "cache", "format", "serial",
-                                           "werror", "addr",
+                                           "werror", "addr", "id",
                                            NULL };
     *fatal_error = 1;
 
@@ -2279,17 +2290,20 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
 
     /* init */
 
-    if (type == IF_IDE || type == IF_SCSI)
-        mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
-    if (max_devs)
-        snprintf(buf, sizeof(buf), "%s%i%s%i",
-                 devname, bus_id, mediastr, unit_id);
-    else
-        snprintf(buf, sizeof(buf), "%s%s%i",
-                 devname, mediastr, unit_id);
-    bdrv = bdrv_new(buf);
     dinfo = qemu_mallocz(sizeof(*dinfo));
-    dinfo->bdrv = bdrv;
+    if (!get_param_value(buf, sizeof(buf), "id", str)) {
+        /* no id supplied -> create one */
+        if (type == IF_IDE || type == IF_SCSI)
+            mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
+        if (max_devs)
+            snprintf(buf, sizeof(buf), "%s%i%s%i",
+                     devname, bus_id, mediastr, unit_id);
+        else
+            snprintf(buf, sizeof(buf), "%s%s%i",
+                     devname, mediastr, unit_id);
+    }
+    dinfo->id = qemu_strdup(buf);
+    dinfo->bdrv = bdrv_new(dinfo->id);
     dinfo->devaddr = devaddr;
     dinfo->type = type;
     dinfo->bus = bus_id;
@@ -2306,12 +2320,12 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
         switch(media) {
 	case MEDIA_DISK:
             if (cyls != 0) {
-                bdrv_set_geometry_hint(bdrv, cyls, heads, secs);
-                bdrv_set_translation_hint(bdrv, translation);
+                bdrv_set_geometry_hint(dinfo->bdrv, cyls, heads, secs);
+                bdrv_set_translation_hint(dinfo->bdrv, translation);
             }
 	    break;
 	case MEDIA_CDROM:
-            bdrv_set_type_hint(bdrv, BDRV_TYPE_CDROM);
+            bdrv_set_type_hint(dinfo->bdrv, BDRV_TYPE_CDROM);
 	    break;
 	}
         break;
@@ -2319,7 +2333,7 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
         /* FIXME: This isn't really a floppy, but it's a reasonable
            approximation.  */
     case IF_FLOPPY:
-        bdrv_set_type_hint(bdrv, BDRV_TYPE_FLOPPY);
+        bdrv_set_type_hint(dinfo->bdrv, BDRV_TYPE_FLOPPY);
         break;
     case IF_PFLASH:
     case IF_MTD:
@@ -2341,12 +2355,12 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
         bdrv_flags |= BDRV_O_NOCACHE;
     else if (cache == 2) /* write-back */
         bdrv_flags |= BDRV_O_CACHE_WB;
-    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
+    if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return NULL;
     }
-    if (bdrv_key_required(bdrv))
+    if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
     *fatal_error = 0;
     return dinfo;
