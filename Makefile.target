@@ -228,19 +228,11 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
 endif
 
 ifeq ($(ARCH),mips64)
-ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
 endif
 
 # profiling code
@@ -371,19 +363,11 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
 endif
 
 ifeq ($(ARCH),mips64)
-ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
 endif
 
 obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
