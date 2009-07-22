@@ -165,6 +165,23 @@ QEMUOptionParameter *get_option_parameter(QEMUOptionParameter *list,
     return NULL;
 }
 
+static int parse_option_bool(const char *name, const char *value, int *ret)
+{
+    if (value != NULL) {
+        if (!strcmp(value, "on")) {
+            *ret = 1;
+        } else if (!strcmp(value, "off")) {
+            *ret = 0;
+        } else {
+            fprintf(stderr, "Option '%s': Use 'on' or 'off'\n", name);
+            return -1;
+        }
+    } else {
+        *ret = 1;
+    }
+    return 0;
+}
+
 /*
  * Sets the value of a parameter in a given option list. The parsing of the
  * value depends on the type of option:
@@ -185,6 +202,8 @@ QEMUOptionParameter *get_option_parameter(QEMUOptionParameter *list,
 int set_option_parameter(QEMUOptionParameter *list, const char *name,
     const char *value)
 {
+    int flag;
+
     // Find a matching parameter
     list = get_option_parameter(list, name);
     if (list == NULL) {
@@ -195,18 +214,9 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
     // Process parameter
     switch (list->type) {
     case OPT_FLAG:
-        if (value != NULL) {
-            if (!strcmp(value, "on")) {
-                list->value.n = 1;
-            } else if (!strcmp(value, "off")) {
-                list->value.n = 0;
-            } else {
-                fprintf(stderr, "Option '%s': Use 'on' or 'off'\n", name);
-                return -1;
-            }
-        } else {
-            list->value.n = 1;
-        }
+        if (-1 == parse_option_bool(name, value, &flag))
+            return -1;
+        list->value.n = flag;
         break;
 
     case OPT_STRING:
