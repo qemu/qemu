@@ -70,6 +70,14 @@ typedef struct mon_cmd_t {
     const char *help;
 } mon_cmd_t;
 
+/* file descriptors passed via SCM_RIGHTS */
+typedef struct mon_fd_t mon_fd_t;
+struct mon_fd_t {
+    char *name;
+    int fd;
+    LIST_ENTRY(mon_fd_t) next;
+};
+
 struct Monitor {
     CharDriverState *chr;
     int flags;
@@ -80,6 +88,7 @@ struct Monitor {
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
+    LIST_HEAD(,mon_fd_t) fds;
     LIST_ENTRY(Monitor) entry;
 };
 
@@ -1704,6 +1713,66 @@ static void do_inject_mce(Monitor *mon,
         }
 }
 #endif
+
+static void do_getfd(Monitor *mon, const char *fdname)
+{
+    mon_fd_t *monfd;
+    int fd;
+
+    fd = qemu_chr_get_msgfd(mon->chr);
+    if (fd == -1) {
+        monitor_printf(mon, "getfd: no file descriptor supplied via SCM_RIGHTS\n");
+        return;
+    }
+
+    if (qemu_isdigit(fdname[0])) {
+        monitor_printf(mon, "getfd: monitor names may not begin with a number\n");
+        return;
+    }
+
+    fd = dup(fd);
+    if (fd == -1) {
+        monitor_printf(mon, "Failed to dup() file descriptor: %s\n",
+                       strerror(errno));
+        return;
+    }
+
+    LIST_FOREACH(monfd, &mon->fds, next) {
+        if (strcmp(monfd->name, fdname) != 0) {
+            continue;
+        }
+
+        close(monfd->fd);
+        monfd->fd = fd;
+        return;
+    }
+
+    monfd = qemu_mallocz(sizeof(mon_fd_t));
+    monfd->name = qemu_strdup(fdname);
+    monfd->fd = fd;
+
+    LIST_INSERT_HEAD(&mon->fds, monfd, next);
+}
+
+static void do_closefd(Monitor *mon, const char *fdname)
+{
+    mon_fd_t *monfd;
+
+    LIST_FOREACH(monfd, &mon->fds, next) {
+        if (strcmp(monfd->name, fdname) != 0) {
+            continue;
+        }
+
+        LIST_REMOVE(monfd, next);
+        close(monfd->fd);
+        qemu_free(monfd->name);
+        qemu_free(monfd);
+        return;
+    }
+
+    monitor_printf(mon, "Failed to find file descriptor named %s\n",
+                   fdname);
+}
 
 static const mon_cmd_t mon_cmds[] = {
 #include "qemu-monitor.h"
