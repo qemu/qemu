@@ -159,6 +159,12 @@ typedef enum {
 
 #define BLOCK_SERIAL_STRLEN 20
 
+typedef struct DriveOpt {
+    const char *file;
+    char opt[1024];
+    TAILQ_ENTRY(DriveOpt) next;
+} DriveOpt;
+
 typedef struct DriveInfo {
     BlockDriverState *bdrv;
     char *id;
@@ -166,7 +172,7 @@ typedef struct DriveInfo {
     BlockInterfaceType type;
     int bus;
     int unit;
-    int drive_opt_idx;
+    DriveOpt *opt;
     BlockInterfaceErrorAction onerror;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     TAILQ_ENTRY(DriveInfo) next;
@@ -177,28 +183,20 @@ typedef struct DriveInfo {
 #define MAX_DRIVES 32
 
 extern TAILQ_HEAD(drivelist, DriveInfo) drives;
+extern TAILQ_HEAD(driveoptlist, DriveOpt) driveopts;
 
 extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 extern DriveInfo *drive_get_by_id(char *id);
 extern int drive_get_max_bus(BlockInterfaceType type);
 extern void drive_uninit(BlockDriverState *bdrv);
-extern void drive_remove(int index);
+extern void drive_remove(DriveOpt *opt);
 extern const char *drive_get_serial(BlockDriverState *bdrv);
 extern BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv);
 
 BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type);
 
-struct drive_opt {
-    const char *file;
-    char opt[1024];
-    int used;
-};
-
-extern struct drive_opt drives_opt[MAX_DRIVES];
-extern int nb_drives_opt;
-
-extern int drive_add(const char *file, const char *fmt, ...);
-extern DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *machine,
+extern DriveOpt *drive_add(const char *file, const char *fmt, ...);
+extern DriveInfo *drive_init(DriveOpt *arg, int snapshot, void *machine,
                              int *fatal_error);
 
 /* acpi */

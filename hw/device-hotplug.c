@@ -30,17 +30,17 @@
 
 DriveInfo *add_init_drive(const char *opts)
 {
-    int drive_opt_idx;
     int fatal_error;
     DriveInfo *dinfo;
+    DriveOpt *dopt;
 
-    drive_opt_idx = drive_add(NULL, "%s", opts);
-    if (!drive_opt_idx)
+    dopt = drive_add(NULL, "%s", opts);
+    if (!dopt)
         return NULL;
 
-    dinfo = drive_init(&drives_opt[drive_opt_idx], 0, current_machine, &fatal_error);
+    dinfo = drive_init(dopt, 0, current_machine, &fatal_error);
     if (!dinfo) {
-        drive_remove(drive_opt_idx);
+        drive_remove(dopt);
         return NULL;
     }
 

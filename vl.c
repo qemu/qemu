@@ -181,6 +181,7 @@ const char *bios_name = NULL;
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
 struct drivelist drives = TAILQ_HEAD_INITIALIZER(drives);
+struct driveoptlist driveopts = TAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
@@ -248,8 +249,6 @@ int alt_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
-int nb_drives_opt;
-struct drive_opt drives_opt[MAX_DRIVES];
 int boot_menu;
 
 int nb_numa_nodes;
@@ -1865,43 +1864,27 @@ static int bt_parse(const char *opt)
 #define MTD_ALIAS "if=mtd"
 #define SD_ALIAS "index=0,if=sd"
 
-static int drive_opt_get_free_idx(void)
-{
-    int index;
-
-    for (index = 0; index < MAX_DRIVES; index++)
-        if (!drives_opt[index].used) {
-            drives_opt[index].used = 1;
-            return index;
-        }
-
-    return -1;
-}
-
-int drive_add(const char *file, const char *fmt, ...)
+DriveOpt *drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
-    int index = drive_opt_get_free_idx();
+    DriveOpt *dopt;
 
-    if (nb_drives_opt >= MAX_DRIVES || index == -1) {
-        fprintf(stderr, "qemu: too many drives\n");
-        return -1;
-    }
+    dopt = qemu_mallocz(sizeof(*dopt));
 
-    drives_opt[index].file = file;
+    dopt->file = file;
     va_start(ap, fmt);
-    vsnprintf(drives_opt[index].opt,
-              sizeof(drives_opt[0].opt), fmt, ap);
+    vsnprintf(dopt->opt,
+              sizeof(dopt->opt), fmt, ap);
     va_end(ap);
 
-    nb_drives_opt++;
-    return index;
+    TAILQ_INSERT_TAIL(&driveopts, dopt, next);
+    return dopt;
 }
 
-void drive_remove(int index)
+void drive_remove(DriveOpt *dopt)
 {
-    drives_opt[index].used = 0;
-    nb_drives_opt--;
+    TAILQ_REMOVE(&driveopts, dopt, next);
+    qemu_free(dopt);
 }
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
@@ -1982,14 +1965,14 @@ void drive_uninit(BlockDriverState *bdrv)
     TAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv != bdrv)
             continue;
-        drive_remove(dinfo->drive_opt_idx);
+        drive_remove(dinfo->opt);
         TAILQ_REMOVE(&drives, dinfo, next);
         qemu_free(dinfo);
         break;
     }
 }
 
-DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
+DriveInfo *drive_init(DriveOpt *arg, int snapshot, void *opaque,
                       int *fatal_error)
 {
     char buf[128];
@@ -2309,7 +2292,7 @@ DriveInfo *drive_init(struct drive_opt *arg, int snapshot, void *opaque,
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->onerror = onerror;
-    dinfo->drive_opt_idx = arg - drives_opt;
+    dinfo->opt = arg;
     strncpy(dinfo->serial, serial, sizeof(serial));
     TAILQ_INSERT_TAIL(&drives, dinfo, next);
 
@@ -4896,7 +4879,7 @@ int main(int argc, char **argv, char **envp)
     int cyls, heads, secs, translation;
     const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
-    int hda_index;
+    DriveOpt *dopt, *hda_opt = NULL;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd = NULL;
@@ -4990,10 +4973,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     nb_net_clients = 0;
-    nb_drives_opt = 0;
     nb_numa_nodes = 0;
-    hda_index = -1;
-
     nb_nics = 0;
 
     tb_size = 0;
@@ -5007,7 +4987,7 @@ int main(int argc, char **argv, char **envp)
             break;
         r = argv[optind];
         if (r[0] != '-') {
-	    hda_index = drive_add(argv[optind++], HD_ALIAS, 0);
+	    hda_opt = drive_add(argv[optind++], HD_ALIAS, 0);
         } else {
             const QEMUOption *popt;
 
@@ -5071,9 +5051,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_hda:
                 if (cyls == 0)
-                    hda_index = drive_add(optarg, HD_ALIAS, 0);
+                    hda_opt = drive_add(optarg, HD_ALIAS, 0);
                 else
-                    hda_index = drive_add(optarg, HD_ALIAS
+                    hda_opt = drive_add(optarg, HD_ALIAS
 			     ",cyls=%d,heads=%d,secs=%d%s",
                              0, cyls, heads, secs,
                              translation == BIOS_ATA_TRANSLATION_LBA ?
@@ -5135,9 +5115,9 @@ int main(int argc, char **argv, char **envp)
                         fprintf(stderr, "qemu: invalid physical CHS format\n");
                         exit(1);
                     }
-		    if (hda_index != -1)
-                        snprintf(drives_opt[hda_index].opt,
-                                 sizeof(drives_opt[hda_index].opt),
+		    if (hda_opt != NULL)
+                        snprintf(hda_opt->opt,
+                                 sizeof(hda_opt->opt),
                                  HD_ALIAS ",cyls=%d,heads=%d,secs=%d%s",
                                  0, cyls, heads, secs,
 			         translation == BIOS_ATA_TRANSLATION_LBA ?
@@ -5846,25 +5826,19 @@ int main(int argc, char **argv, char **envp)
     bdrv_init();
 
     /* we always create the cdrom drive, even if no disk is there */
-
-    if (nb_drives_opt < MAX_DRIVES)
-        drive_add(NULL, CDROM_ALIAS);
+    drive_add(NULL, CDROM_ALIAS);
 
     /* we always create at least one floppy */
-
-    if (nb_drives_opt < MAX_DRIVES)
-        drive_add(NULL, FD_ALIAS, 0);
+    drive_add(NULL, FD_ALIAS, 0);
 
     /* we always create one sd slot, even if no card is in it */
-
-    if (nb_drives_opt < MAX_DRIVES)
-        drive_add(NULL, SD_ALIAS);
+    drive_add(NULL, SD_ALIAS);
 
     /* open the virtual block devices */
 
-    for(i = 0; i < nb_drives_opt; i++) {
+    TAILQ_FOREACH(dopt, &driveopts, next) {
         int fatal_error;
-        if (drive_init(&drives_opt[i], snapshot, machine, &fatal_error) == NULL)
+        if (drive_init(dopt, snapshot, machine, &fatal_error) == NULL)
             if (fatal_error)
                 exit(1);
     }
