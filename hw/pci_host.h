@@ -28,6 +28,8 @@
 /* debug PCI */
 //#define DEBUG_PCI
 
+#include "sysbus.h"
+
 #ifdef DEBUG_PCI
 #define PCI_DPRINTF(fmt, ...) \
 do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
@@ -36,6 +38,7 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 typedef struct {
+    SysBusDevice busdev;
     uint32_t config_reg;
     PCIBus *bus;
 } PCIHostState;

@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "pci.h"
+#include "sysbus.h"
 
 typedef uint32_t pci_addr_t;
 #include "pci_host.h"
@@ -169,16 +170,9 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
+static void i440fx_pcihost_initfn(SysBusDevice *dev)
 {
-    PCIBus *b;
-    PCIDevice *d;
-    I440FXState *s;
-
-    s = qemu_mallocz(sizeof(I440FXState));
-    b = pci_register_bus(NULL, "pci", 
-                         piix3_set_irq, pci_slot_get_pirq, pic, 0, 4);
-    s->bus = b;
+    I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
     register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);
     register_ioport_read(0xcf8, 4, 4, i440fx_addr_readl, s);
@@ -189,10 +183,10 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
     register_ioport_read(0xcfc, 4, 1, pci_host_data_readb, s);
     register_ioport_read(0xcfc, 4, 2, pci_host_data_readw, s);
     register_ioport_read(0xcfc, 4, 4, pci_host_data_readl, s);
+}
 
-    d = pci_register_device(b, "i440FX", sizeof(PCIDevice), 0,
-                            NULL, i440fx_write_config);
-
+static void i440fx_initfn(PCIDevice *d)
+{
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_INTEL_82441);
     d->config[0x08] = 0x02; // revision
@@ -202,7 +196,25 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
     d->config[0x72] = 0x02; /* SMRAM */
 
     register_savevm("I440FX", 0, 2, i440fx_save, i440fx_load, d);
+}
+
+PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
+{
+    DeviceState *dev;
+    PCIBus *b;
+    PCIDevice *d;
+    I440FXState *s;
+
+    dev = qdev_create(NULL, "i440FX-pcihost");
+    s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
+    b = pci_register_bus(&s->busdev.qdev, "pci.0",
+                         piix3_set_irq, pci_slot_get_pirq, pic, 0, 4);
+    s->bus = b;
+    qdev_init(dev);
+
+    d = pci_create_simple(b, 0, "i440FX");
     *pi440fx_state = d;
+
     return b;
 }
 
@@ -326,49 +338,93 @@ static int piix_load(QEMUFile* f, void *opaque, int version_id)
     return pci_device_load(d, f);
 }
 
-int piix3_init(PCIBus *bus, int devfn)
+static void piix3_initfn(PCIDevice *d)
 {
-    PCIDevice *d;
     uint8_t *pci_conf;
 
-    d = pci_register_device(bus, "PIIX3", sizeof(PCIDevice),
-                                    devfn, NULL, NULL);
     register_savevm("PIIX3", 0, 2, piix_save, piix_load, d);
 
-    piix3_dev = d;
     pci_conf = d->config;
-
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_0); // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
     pci_conf[PCI_HEADER_TYPE] =
         PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
+    piix3_dev = d;
     piix3_reset(d);
     qemu_register_reset(piix3_reset, d);
-    return d->devfn;
 }
 
-int piix4_init(PCIBus *bus, int devfn)
+static void piix4_initfn(PCIDevice *d)
 {
-    PCIDevice *d;
     uint8_t *pci_conf;
 
-    d = pci_register_device(bus, "PIIX4", sizeof(PCIDevice),
-                                    devfn, NULL, NULL);
     register_savevm("PIIX4", 0, 2, piix_save, piix_load, d);
 
-    piix4_dev = d;
     pci_conf = d->config;
-
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_0); // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
     pci_conf[PCI_HEADER_TYPE] =
         PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
-
+    piix4_dev = d;
     piix4_reset(d);
     qemu_register_reset(piix4_reset, d);
+}
+
+int piix3_init(PCIBus *bus, int devfn)
+{
+    PCIDevice *d;
+
+    d = pci_create_simple(bus, devfn, "PIIX3");
     return d->devfn;
 }
+
+int piix4_init(PCIBus *bus, int devfn)
+{
+    PCIDevice *d;
+
+    d = pci_create_simple(bus, devfn, "PIIX4");
+    return d->devfn;
+}
+
+static PCIDeviceInfo i440fx_info[] = {
+    {
+        .qdev.name    = "i440FX",
+        .qdev.desc    = "Host bridge",
+        .qdev.size    = sizeof(PCIDevice),
+        .qdev.no_user = 1,
+        .init         = i440fx_initfn,
+        .config_write = i440fx_write_config,
+    },{
+        .qdev.name    = "PIIX3",
+        .qdev.desc    = "ISA bridge",
+        .qdev.size    = sizeof(PCIDevice),
+        .qdev.no_user = 1,
+        .init         = piix3_initfn,
+    },{
+        .qdev.name    = "PIIX4",
+        .qdev.desc    = "ISA bridge",
+        .qdev.size    = sizeof(PCIDevice),
+        .qdev.no_user = 1,
+        .init         = piix4_initfn,
+    },{
+        /* end of list */
+    }
+};
+
+static SysBusDeviceInfo i440fx_pcihost_info = {
+    .init         = i440fx_pcihost_initfn,
+    .qdev.name    = "i440FX-pcihost",
+    .qdev.size    = sizeof(I440FXState),
+    .qdev.no_user = 1,
+};
+
+static void i440fx_register(void)
+{
+    sysbus_register_withprop(&i440fx_pcihost_info);
+    pci_qdev_register_many(i440fx_info);
+}
+device_init(i440fx_register);
