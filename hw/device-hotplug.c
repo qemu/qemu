@@ -28,19 +28,19 @@
 #include "block_int.h"
 #include "sysemu.h"
 
-DriveInfo *add_init_drive(const char *opts)
+DriveInfo *add_init_drive(const char *optstr)
 {
     int fatal_error;
     DriveInfo *dinfo;
-    DriveOpt *dopt;
+    QemuOpts *opts;
 
-    dopt = drive_add(NULL, "%s", opts);
-    if (!dopt)
+    opts = drive_add(NULL, "%s", optstr);
+    if (!opts)
         return NULL;
 
-    dinfo = drive_init(dopt, 0, current_machine, &fatal_error);
+    dinfo = drive_init(opts, current_machine, &fatal_error);
     if (!dinfo) {
-        drive_remove(dopt);
+        qemu_opts_del(opts);
         return NULL;
     }
 
