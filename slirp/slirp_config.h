@@ -190,9 +190,6 @@
 #define NO_UNIX_SOCKETS
 #endif
 
-/* Define if gettimeofday only takes one argument */
-#undef GETTIMEOFDAY_ONE_ARG
-
 /* Define if you have revoke() */
 #undef HAVE_REVOKE
 
