@@ -2,9 +2,6 @@
  * User definable configuration options
  */
 
-/* Undefine if you don't want talk emulation */
-#undef EMULATE_TALK
-
 /* Define if you want the connection to be probed */
 /* XXX Not working yet, so ignore this for now */
 #undef PROBE_CONN
