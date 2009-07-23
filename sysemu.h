@@ -121,6 +121,7 @@ extern int usb_enabled;
 extern int virtio_balloon;
 extern const char *virtio_balloon_devaddr;
 extern int smp_cpus;
+extern int max_cpus;
 extern int cursor_hide;
 extern int graphic_rotate;
 extern int no_quit;
