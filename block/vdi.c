@@ -55,6 +55,12 @@
 
 #if defined(HAVE_UUID_H)
 #include <uuid/uuid.h>
+#else
+/* TODO: move uuid emulation to some central place in QEMU. */
+#include "sysemu.h"     /* UUID_FMT */
+typedef unsigned char uuid_t[16];
+void uuid_generate(uuid_t out);
+void uuid_unparse(uuid_t uu, char *out);
 #endif
 
 /* Code configuration options. */
@@ -117,20 +123,16 @@
 #define VDI_UNALLOCATED UINT32_MAX
 
 #if !defined(HAVE_UUID_H)
-typedef unsigned char uuid_t[16];
-
 void uuid_generate(uuid_t out)
 {
+    memset(out, 0, sizeof(out));
 }
 
 void uuid_unparse(uuid_t uu, char *out)
 {
-    sprintf(out, "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
-            le32_to_cpu(*(uint32_t *)&uu[0]),
-            le16_to_cpu(*(uint16_t *)&uu[4]),
-            le16_to_cpu(*(uint16_t *)&uu[6]),
-            le16_to_cpu(*(uint16_t *)&uu[8]),
-            uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
+    snprintf(out, 37, UUID_FMT,
+            uu[0], uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7],
+            uu[8], uu[9], uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
 }
 #endif
 
