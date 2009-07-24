@@ -357,7 +357,7 @@ int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
         for (phys_addr = mem->start_addr, addr = mem->phys_offset;
              phys_addr < mem->start_addr + mem->memory_size;
              phys_addr += TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
-            unsigned long *bitmap = (unsigned long *)d.dirty_bitmap;
+            uint64_t *bitmap = (uint64_t *)d.dirty_bitmap;
             unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
             unsigned word = nr / (sizeof(*bitmap) * 8);
             unsigned bit = nr % (sizeof(*bitmap) * 8);
