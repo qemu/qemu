@@ -6567,12 +6567,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 		arg4 = temp;
 	}
 #endif
-#if defined(TARGET_NR_fadvise64_64) || defined(TARGET_NR_arm_fadvise64_64)
+#if defined(TARGET_NR_fadvise64_64) || defined(TARGET_NR_arm_fadvise64_64) || defined(TARGET_NR_fadvise64)
 #ifdef TARGET_NR_fadvise64_64
     case TARGET_NR_fadvise64_64:
 #endif
-        /* This is a hint, so ignoring and returning success is ok.  */
-	ret = get_errno(0);
+#ifdef TARGET_NR_fadvise64
+    case TARGET_NR_fadvise64:
+#endif
+#ifdef TARGET_S390X
+        switch (arg4) {
+        case 4: arg4 = POSIX_FADV_NOREUSE + 1; break; /* make sure it's an invalid value */
+        case 5: arg4 = POSIX_FADV_NOREUSE + 2; break; /* ditto */
+        case 6: arg4 = POSIX_FADV_DONTNEED; break;
+        case 7: arg4 = POSIX_FADV_NOREUSE; break;
+        default: break;
+        }
+#endif
+        ret = -posix_fadvise(arg1, arg2, arg3, arg4);
 	break;
 #endif
 #ifdef TARGET_NR_madvise
