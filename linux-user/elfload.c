@@ -867,6 +867,25 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #endif /* TARGET_ALPHA */
 
+#ifdef TARGET_S390X
+
+#define ELF_START_MMAP (0x20000000000ULL)
+
+#define elf_check_arch(x) ( (x) == ELF_ARCH )
+
+#define ELF_CLASS	ELFCLASS64
+#define ELF_DATA	ELFDATA2MSB
+#define ELF_ARCH	EM_S390
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->psw.addr = infop->entry;
+    regs->psw.mask = PSW_MASK_64 | PSW_MASK_32;
+    regs->gprs[15] = infop->start_stack;
+}
+
+#endif /* TARGET_S390X */
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif
