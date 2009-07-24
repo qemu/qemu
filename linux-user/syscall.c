@@ -196,9 +196,7 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
-#if TARGET_ABI_BITS == 32
 _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count);
-#endif
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
@@ -5795,9 +5793,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_getdents:
-#if TARGET_ABI_BITS != 32
-        goto unimplemented;
-#elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
+#if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
         {
             struct target_dirent *target_dirp;
             struct linux_dirent *dirp;
