@@ -45,7 +45,7 @@
  * Maybe this machine state can be converted to QEMU PC machine snapshot data.
  *
  * The driver keeps a block cache (little endian entries) in memory.
- * For the standard block size (1 MiB), a terrabyte disk will use 4 MiB RAM,
+ * For the standard block size (1 MiB), a 1 TiB disk will use 4 MiB RAM,
  * so this seems to be reasonable.
  */
 
