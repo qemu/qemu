@@ -5529,6 +5529,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
                 if (!lock_user_struct(VERIFY_WRITE, target_st, arg2, 0))
                     goto efault;
+                memset(target_st, 0, sizeof(*target_st));
                 __put_user(st.st_dev, &target_st->st_dev);
                 __put_user(st.st_ino, &target_st->st_ino);
                 __put_user(st.st_mode, &target_st->st_mode);
