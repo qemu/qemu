@@ -84,7 +84,7 @@ static struct {
         }
     },
 
-    .period = { .ticks = 250 },
+    .period = { .hertz = 250 },
     .plive = 0,
     .log_to_monitor = 0,
 };
