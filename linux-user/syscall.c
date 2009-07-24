@@ -3683,6 +3683,14 @@ static int target_to_host_fcntl_cmd(int cmd)
 	case TARGET_F_SETLKW64:
 	    return F_SETLKW64;
 #endif
+        case TARGET_F_SETLEASE:
+            return F_SETLEASE;
+        case TARGET_F_GETLEASE:
+            return F_GETLEASE;
+        case TARGET_F_DUPFD_CLOEXEC:
+            return F_DUPFD_CLOEXEC;
+        case TARGET_F_NOTIFY:
+            return F_NOTIFY;
 	default:
             return -TARGET_EINVAL;
     }
@@ -3709,7 +3717,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl.l_whence = tswap16(target_fl->l_whence);
         fl.l_start = tswapl(target_fl->l_start);
         fl.l_len = tswapl(target_fl->l_len);
-        fl.l_pid = tswapl(target_fl->l_pid);
+        fl.l_pid = tswap32(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl));
         if (ret == 0) {
@@ -3719,7 +3727,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             target_fl->l_whence = tswap16(fl.l_whence);
             target_fl->l_start = tswapl(fl.l_start);
             target_fl->l_len = tswapl(fl.l_len);
-            target_fl->l_pid = tswapl(fl.l_pid);
+            target_fl->l_pid = tswap32(fl.l_pid);
             unlock_user_struct(target_fl, arg, 1);
         }
         break;
@@ -3732,7 +3740,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl.l_whence = tswap16(target_fl->l_whence);
         fl.l_start = tswapl(target_fl->l_start);
         fl.l_len = tswapl(target_fl->l_len);
-        fl.l_pid = tswapl(target_fl->l_pid);
+        fl.l_pid = tswap32(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl));
         break;
@@ -3744,7 +3752,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl64.l_whence = tswap16(target_fl64->l_whence);
         fl64.l_start = tswapl(target_fl64->l_start);
         fl64.l_len = tswapl(target_fl64->l_len);
-        fl64.l_pid = tswap16(target_fl64->l_pid);
+        fl64.l_pid = tswap32(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl64));
         if (ret == 0) {
@@ -3754,7 +3762,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             target_fl64->l_whence = tswap16(fl64.l_whence);
             target_fl64->l_start = tswapl(fl64.l_start);
             target_fl64->l_len = tswapl(fl64.l_len);
-            target_fl64->l_pid = tswapl(fl64.l_pid);
+            target_fl64->l_pid = tswap32(fl64.l_pid);
             unlock_user_struct(target_fl64, arg, 1);
         }
         break;
@@ -3766,7 +3774,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl64.l_whence = tswap16(target_fl64->l_whence);
         fl64.l_start = tswapl(target_fl64->l_start);
         fl64.l_len = tswapl(target_fl64->l_len);
-        fl64.l_pid = tswap16(target_fl64->l_pid);
+        fl64.l_pid = tswap32(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl64));
         break;
@@ -3786,6 +3794,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_GETOWN:
     case TARGET_F_SETSIG:
     case TARGET_F_GETSIG:
+    case TARGET_F_SETLEASE:
+    case TARGET_F_GETLEASE:
         ret = get_errno(fcntl(fd, host_cmd, arg));
         break;
 
@@ -6602,7 +6612,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 fl.l_whence = tswap16(target_efl->l_whence);
                 fl.l_start = tswap64(target_efl->l_start);
                 fl.l_len = tswap64(target_efl->l_len);
-                fl.l_pid = tswapl(target_efl->l_pid);
+                fl.l_pid = tswap32(target_efl->l_pid);
                 unlock_user_struct(target_efl, arg3, 0);
             } else
 #endif
@@ -6613,7 +6623,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 fl.l_whence = tswap16(target_fl->l_whence);
                 fl.l_start = tswap64(target_fl->l_start);
                 fl.l_len = tswap64(target_fl->l_len);
-                fl.l_pid = tswapl(target_fl->l_pid);
+                fl.l_pid = tswap32(target_fl->l_pid);
                 unlock_user_struct(target_fl, arg3, 0);
             }
             ret = get_errno(fcntl(arg1, cmd, &fl));
@@ -6626,7 +6636,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     target_efl->l_whence = tswap16(fl.l_whence);
                     target_efl->l_start = tswap64(fl.l_start);
                     target_efl->l_len = tswap64(fl.l_len);
-                    target_efl->l_pid = tswapl(fl.l_pid);
+                    target_efl->l_pid = tswap32(fl.l_pid);
                     unlock_user_struct(target_efl, arg3, 1);
                 } else
 #endif
@@ -6637,7 +6647,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     target_fl->l_whence = tswap16(fl.l_whence);
                     target_fl->l_start = tswap64(fl.l_start);
                     target_fl->l_len = tswap64(fl.l_len);
-                    target_fl->l_pid = tswapl(fl.l_pid);
+                    target_fl->l_pid = tswap32(fl.l_pid);
                     unlock_user_struct(target_fl, arg3, 1);
                 }
 	    }
@@ -6653,7 +6663,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 fl.l_whence = tswap16(target_efl->l_whence);
                 fl.l_start = tswap64(target_efl->l_start);
                 fl.l_len = tswap64(target_efl->l_len);
-                fl.l_pid = tswapl(target_efl->l_pid);
+                fl.l_pid = tswap32(target_efl->l_pid);
                 unlock_user_struct(target_efl, arg3, 0);
             } else
 #endif
@@ -6664,7 +6674,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 fl.l_whence = tswap16(target_fl->l_whence);
                 fl.l_start = tswap64(target_fl->l_start);
                 fl.l_len = tswap64(target_fl->l_len);
-                fl.l_pid = tswapl(target_fl->l_pid);
+                fl.l_pid = tswap32(target_fl->l_pid);
                 unlock_user_struct(target_fl, arg3, 0);
             }
             ret = get_errno(fcntl(arg1, cmd, &fl));
