@@ -60,7 +60,8 @@
 #include "sysemu.h"     /* UUID_FMT */
 typedef unsigned char uuid_t[16];
 void uuid_generate(uuid_t out);
-void uuid_unparse(uuid_t uu, char *out);
+int uuid_is_null(const uuid_t uu);
+void uuid_unparse(const uuid_t uu, char *out);
 #endif
 
 /* Code configuration options. */
@@ -128,7 +129,13 @@ void uuid_generate(uuid_t out)
     memset(out, 0, sizeof(out));
 }
 
-void uuid_unparse(uuid_t uu, char *out)
+int uuid_is_null(const uuid_t uu)
+{
+    uuid_t null_uuid = { 0 };
+    return memcmp(uu, null_uuid, sizeof(uu)) == 0;
+}
+
+void uuid_unparse(const uuid_t uu, char *out)
 {
     snprintf(out, 37, UUID_FMT,
             uu[0], uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7],
@@ -201,6 +208,16 @@ typedef struct {
     VdiHeader header;
 } BDRVVdiState;
 
+/* Change UUID from little endian (IPRT = VirtualBox format) to big endian
+ * format (network byte order, standard, see RFC 4122) and vice versa.
+ */
+static void uuid_convert(uuid_t uuid)
+{
+    bswap32s((uint32_t *)&uuid[0]);
+    bswap16s((uint16_t *)&uuid[4]);
+    bswap16s((uint16_t *)&uuid[6]);
+}
+
 static void vdi_header_to_cpu(VdiHeader *header)
 {
     le32_to_cpus(&header->signature);
@@ -219,6 +236,10 @@ static void vdi_header_to_cpu(VdiHeader *header)
     le32_to_cpus(&header->block_extra);
     le32_to_cpus(&header->blocks_in_image);
     le32_to_cpus(&header->blocks_allocated);
+    uuid_convert(header->uuid_image);
+    uuid_convert(header->uuid_last_snap);
+    uuid_convert(header->uuid_link);
+    uuid_convert(header->uuid_parent);
 }
 
 static void vdi_header_to_le(VdiHeader *header)
@@ -239,6 +260,11 @@ static void vdi_header_to_le(VdiHeader *header)
     cpu_to_le32s(&header->block_extra);
     cpu_to_le32s(&header->blocks_in_image);
     cpu_to_le32s(&header->blocks_allocated);
+    cpu_to_le32s(&header->blocks_allocated);
+    uuid_convert(header->uuid_image);
+    uuid_convert(header->uuid_last_snap);
+    uuid_convert(header->uuid_link);
+    uuid_convert(header->uuid_parent);
 }
 
 #if defined(CONFIG_VDI_DEBUG)
@@ -411,6 +437,12 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     } else if (header.disk_size !=
                (uint64_t)header.blocks_in_image * header.block_size) {
         logout("unexpected block number %u B\n", header.blocks_in_image);
+        goto fail;
+    } else if (!uuid_is_null(header.uuid_link)) {
+        logout("link uuid != 0, unsupported\n");
+        goto fail;
+    } else if (!uuid_is_null(header.uuid_parent)) {
+        logout("parent uuid != 0, unsupported\n");
         goto fail;
     }
 
