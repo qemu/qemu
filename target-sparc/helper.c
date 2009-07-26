@@ -409,7 +409,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
     }
 
     // valid, context match, virtual address match?
-    if ((tlb->tte & 0x8000000000000000ULL) &&
+    if (TTE_IS_VALID(tlb->tte) &&
             compare_masked(context, tlb->tag, 0x1fff) &&
             compare_masked(address, tlb->tag, mask))
     {
@@ -468,6 +468,7 @@ static int get_physical_address_data(CPUState *env,
             *prot = PAGE_READ;
             if (env->dtlb[i].tte & 0x2)
                 *prot |= PAGE_WRITE;
+            TTE_SET_USED(env->dtlb[i].tte);
             return 0;
         }
     }
@@ -513,6 +514,7 @@ static int get_physical_address_code(CPUState *env,
                 return 1;
             }
             *prot = PAGE_EXEC;
+            TTE_SET_USED(env->itlb[i].tte);
             return 0;
         }
     }

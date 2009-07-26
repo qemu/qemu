@@ -87,13 +87,14 @@ static uint64_t ultrasparc_tag_target(uint64_t tag_access_register)
     return ((tag_access_register & 0x1fff) << 48) | (tag_access_register >> 22);
 }
 
-static void replace_tlb_entry(SparcTLBEntry *tlb, CPUState *env1,
-                              uint64_t tlb_tag, uint64_t tlb_tte)
+static void replace_tlb_entry(SparcTLBEntry *tlb,
+                              uint64_t tlb_tag, uint64_t tlb_tte,
+                              CPUState *env1)
 {
     target_ulong mask, size, va, offset;
 
     // flush page range if translation is valid
-    if (tlb->tte & 0x8000000000000000ULL) {
+    if (TTE_IS_VALID(tlb->tte)) {
 
         mask = 0xffffffffffffe000ULL;
         mask <<= 3 * ((tlb->tte >> 61) & 3);
@@ -111,29 +112,78 @@ static void replace_tlb_entry(SparcTLBEntry *tlb, CPUState *env1,
 }
 
 static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
-                      CPUState *env1)
+                      const char* strmmu, CPUState *env1)
 {
     unsigned int i;
     target_ulong mask;
 
     for (i = 0; i < 64; i++) {
-        if (tlb[i].tte & 0x8000000000000000ULL) {
+        if (TTE_IS_VALID(tlb[i].tte)) {
 
             mask = 0xffffffffffffe000ULL;
             mask <<= 3 * ((tlb[i].tte >> 61) & 3);
 
             if ((demap_addr & mask) == (tlb[i].tag & mask)) {
-                replace_tlb_entry(&tlb[i], env1, 0, 0);
+                replace_tlb_entry(&tlb[i], 0, 0, env1);
 #ifdef DEBUG_MMU
-                DPRINTF_MMU("mmu demap invalidated entry [%02u]\n",
-                            i);
-                dump_mmu(env);
+                DPRINTF_MMU("%s demap invalidated entry [%02u]\n", strmmu, i);
+                dump_mmu(env1);
 #endif
             }
             //return;
         }
     }
 
+}
+
+static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
+                                 uint64_t tlb_tag, uint64_t tlb_tte,
+                                 const char* strmmu, CPUState *env1)
+{
+    unsigned int i, replace_used;
+
+    // Try replacing invalid entry
+    for (i = 0; i < 64; i++) {
+        if (!TTE_IS_VALID(tlb[i].tte)) {
+            replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
+#ifdef DEBUG_MMU
+            DPRINTF_MMU("%s lru replaced invalid entry [%i]\n", strmmu, i);
+            dump_mmu(env1);
+#endif
+            return;
+        }
+    }
+
+    // All entries are valid, try replacing unlocked entry
+
+    for (replace_used = 0; replace_used < 2; ++replace_used) {
+
+        // Used entries are not replaced on first pass
+
+        for (i = 0; i < 64; i++) {
+            if (!TTE_IS_LOCKED(tlb[i].tte) && !TTE_IS_USED(tlb[i].tte)) {
+
+                replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
+#ifdef DEBUG_MMU
+                DPRINTF_MMU("%s lru replaced unlocked %s entry [%i]\n",
+                            strmmu, (replace_used?"used":"unused"), i);
+                dump_mmu(env1);
+#endif
+                return;
+            }
+        }
+
+        // Now reset used bit and search for unused entries again
+
+        for (i = 0; i < 64; i++) {
+            TTE_SET_UNUSED(tlb[i].tte);
+        }
+    }
+
+#ifdef DEBUG_MMU
+    DPRINTF_MMU("%s lru replacement failed: no entries available\n", strmmu);
+#endif
+    // error state?
 }
 
 #endif
@@ -2547,59 +2597,24 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x54: // I-MMU data in
-        {
-            unsigned int i;
-
-            // Try finding an invalid entry
-            for (i = 0; i < 64; i++) {
-                if ((env->itlb[i].tte & 0x8000000000000000ULL) == 0) {
-                    replace_tlb_entry(&env->itlb[i], env,
-                                      env->immu.tag_access, val);
-#ifdef DEBUG_MMU
-                    DPRINTF_MMU("immu data map replaced invalid entry [%i]\n",
-                                i);
-                    dump_mmu(env);
-#endif
-                    return;
-                }
-            }
-            // Try finding an unlocked entry
-            for (i = 0; i < 64; i++) {
-                if ((env->itlb[i].tte & 0x40) == 0) {
-                    replace_tlb_entry(&env->itlb[i], env,
-                                      env->immu.tag_access, val);
-#ifdef DEBUG_MMU
-                    DPRINTF_MMU("immu data map replaced unlocked entry [%i]\n",
-                                i);
-                    dump_mmu(env);
-#endif
-                    return;
-                }
-            }
-#ifdef DEBUG_MMU
-            DPRINTF_MMU("immu data map failed: no entries available\n");
-#endif
-            // error state?
-            return;
-        }
+        replace_tlb_1bit_lru(env->itlb, env->immu.tag_access, val, "immu", env);
+        return;
     case 0x55: // I-MMU data access
         {
             // TODO: auto demap
 
             unsigned int i = (addr >> 3) & 0x3f;
 
-            replace_tlb_entry(&env->itlb[i], env,
-                              env->immu.tag_access, val);
+            replace_tlb_entry(&env->itlb[i], env->immu.tag_access, val, env);
 
 #ifdef DEBUG_MMU
-            DPRINTF_MMU("immu data access replaced entry [%i]\n",
-                        i);
+            DPRINTF_MMU("immu data access replaced entry [%i]\n", i);
             dump_mmu(env);
 #endif
             return;
         }
     case 0x57: // I-MMU demap
-        demap_tlb(env->itlb, val, env);
+        demap_tlb(env->itlb, val, "immu", env);
         return;
     case 0x58: // D-MMU regs
         {
@@ -2649,56 +2664,22 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x5c: // D-MMU data in
-        {
-            unsigned int i;
-
-            // Try finding an invalid entry
-            for (i = 0; i < 64; i++) {
-                if ((env->dtlb[i].tte & 0x8000000000000000ULL) == 0) {
-                    replace_tlb_entry(&env->dtlb[i], env,
-                                      env->dmmu.tag_access, val);
-#ifdef DEBUG_MMU
-                    DPRINTF_MMU("dmmu data map replaced invalid entry [%i]\n",
-                                i);
-                    dump_mmu(env);
-#endif
-                    return;
-                }
-            }
-            // Try finding an unlocked entry
-            for (i = 0; i < 64; i++) {
-                if ((env->dtlb[i].tte & 0x40) == 0) {
-                    replace_tlb_entry(&env->dtlb[i], env,
-                                      env->dmmu.tag_access, val);
-#ifdef DEBUG_MMU
-                    DPRINTF_MMU("dmmu data map replaced unlocked entry [%i]\n",
-                                i);
-                    dump_mmu(env);
-#endif
-                    return;
-                }
-            }
-#ifdef DEBUG_MMU
-            DPRINTF_MMU("dmmu data map failed: no entries available\n");
-#endif
-            // error state?
-            return;
-        }
+        replace_tlb_1bit_lru(env->dtlb, env->dmmu.tag_access, val, "dmmu", env);
+        return;
     case 0x5d: // D-MMU data access
         {
             unsigned int i = (addr >> 3) & 0x3f;
 
-            replace_tlb_entry(&env->dtlb[i], env,
-                              env->dmmu.tag_access, val);
+            replace_tlb_entry(&env->dtlb[i], env->dmmu.tag_access, val, env);
+
 #ifdef DEBUG_MMU
-            DPRINTF_MMU("dmmu data access replaced entry [%i]\n",
-                        i);
+            DPRINTF_MMU("dmmu data access replaced entry [%i]\n", i);
             dump_mmu(env);
 #endif
             return;
         }
     case 0x5f: // D-MMU demap
-        demap_tlb(env->dtlb, val, env);
+        demap_tlb(env->dtlb, val, "dmmu", env);
         return;
     case 0x49: // Interrupt data receive
         // XXX
