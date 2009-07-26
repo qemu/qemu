@@ -273,6 +273,11 @@ enum {
 };
 #endif
 
+typedef struct SparcTLBEntry {
+    uint64_t tag;
+    uint64_t tte;
+} SparcTLBEntry;
+
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
@@ -319,12 +324,33 @@ typedef struct CPUSPARCState {
     uint64_t lsu;
 #define DMMU_E 0x8
 #define IMMU_E 0x4
-    uint64_t immuregs[16];
-    uint64_t dmmuregs[16];
-    uint64_t itlb_tag[64];
-    uint64_t itlb_tte[64];
-    uint64_t dtlb_tag[64];
-    uint64_t dtlb_tte[64];
+    //typedef struct SparcMMU
+    union {
+        uint64_t immuregs[16];
+        struct {
+            uint64_t tsb_tag_target;
+            uint64_t unused_mmu_primary_context;   // use DMMU
+            uint64_t unused_mmu_secondary_context; // use DMMU
+            uint64_t sfsr;
+            uint64_t sfar;
+            uint64_t tsb;
+            uint64_t tag_access;
+        } immu;
+    };
+    union {
+        uint64_t dmmuregs[16];
+        struct {
+            uint64_t tsb_tag_target;
+            uint64_t mmu_primary_context;
+            uint64_t mmu_secondary_context;
+            uint64_t sfsr;
+            uint64_t sfar;
+            uint64_t tsb;
+            uint64_t tag_access;
+        } dmmu;
+    };
+    SparcTLBEntry itlb[64];
+    SparcTLBEntry dtlb[64];
     uint32_t mmu_version;
 #else
     uint32_t mmuregs[32];
