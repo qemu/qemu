@@ -212,6 +212,10 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         vga_bios_ptr[3] = 'V';
         cpu_to_be32w((uint32_t *)(vga_bios_ptr + 4), vga_bios_size);
         vga_bios_size += 8;
+
+        /* Round to page boundary */
+        vga_bios_size = (vga_bios_size + TARGET_PAGE_SIZE - 1) &
+            TARGET_PAGE_MASK;
     }
 
     if (linux_boot) {
