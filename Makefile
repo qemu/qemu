@@ -62,21 +62,13 @@ recurse-all: $(SUBDIR_RULES)
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 block-obj-y += nbd.o block.o aio.o aes.o
+block-obj-$(CONFIG_AIO) += posix-aio-compat.o
 
 block-nested-y += cow.o qcow.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
 block-nested-y += parallels.o nbd.o
-
-
-ifdef CONFIG_WIN32
-block-nested-y += raw-win32.o
-else
-ifdef CONFIG_AIO
-block-obj-y += posix-aio-compat.o
-endif
-block-nested-y += raw-posix.o
-endif
-
+block-nested-$(CONFIG_WIN32) += raw-win32.o
+block-nested-$(CONFIG_POSIX) += raw-posix.o
 block-nested-$(CONFIG_CURL) += curl.o
 
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
@@ -112,11 +104,8 @@ ifdef CONFIG_BRLAPI
 LIBS+=-lbrlapi
 endif
 
-ifdef CONFIG_WIN32
-obj-y += tap-win32.o
-else
-obj-y += migration-exec.o
-endif
+obj-$(CONFIG_WIN32) += tap-win32.o
+obj-$(CONFIG_POSIX) += migration-exec.o
 
 ifdef CONFIG_COREAUDIO
 AUDIO_PT = y
