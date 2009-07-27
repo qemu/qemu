@@ -37,8 +37,13 @@
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
+
+/* Order of CONFIG_AUDIO_DRIVERS is import.
+   The 1st one is the one used by default, that is the reason
+    that we generate the list.
+*/
 static struct audio_driver *drvtab[] = {
-    AUDIO_DRIVERS
+    CONFIG_AUDIO_DRIVERS
     &no_audio_driver,
     &wav_audio_driver
 };
