@@ -102,6 +102,7 @@ typedef enum DisplayType
     DT_NOGRAPHIC,
 } DisplayType;
 
+extern int autostart;
 extern int bios_size;
 extern int cirrus_vga_enabled;
 extern int std_vga_enabled;
