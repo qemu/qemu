@@ -475,13 +475,28 @@ for opt do
   --sparc_cpu=*)
       sparc_cpu="$optarg"
       case $sparc_cpu in
-        v7|v8) SP_CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m32"
-                 target_arch2="sparc"; cpu="sparc" ;;
-        v8plus|v8plusa) SP_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m32"
-                 target_arch2="sparc"; cpu="sparc" ;;
-        v9)    SP_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m64"
-                 target_arch2="sparc64"; cpu="sparc64" ;;
-        *)     echo "undefined SPARC architecture. Exiting";exit 1;;
+        v7|v8)
+          ARCH_CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__"
+          ARCH_LDFLAGS="-m32"
+          target_arch2="sparc"
+          cpu="sparc"
+        ;;
+        v8plus|v8plusa)
+          ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"
+          ARCH_LDFLAGS="-m32"
+          target_arch2="sparc"
+          cpu="sparc"
+        ;;
+        v9)
+          ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"
+          ARCH_LDFLAGS="-m64"
+          target_arch2="sparc64"
+          cpu="sparc64"
+        ;;
+        *)
+          echo "undefined SPARC architecture. Exiting";
+          exit 1
+        ;;
       esac
   ;;
   --enable-werror) werror="yes"
@@ -554,9 +569,6 @@ case "$cpu" in
     sparc) if test -z "$sparc_cpu" ; then
                ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_v8plus__"
                ARCH_LDFLAGS="-m32"
-           else
-               ARCH_CFLAGS="${SP_CFLAGS}"
-               ARCH_LDFLAGS="${SP_LDFLAGS}"
            fi
            ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g2 -ffixed-g3"
            if test "$solaris" = "no" ; then
@@ -566,9 +578,6 @@ case "$cpu" in
     sparc64) if test -z "$sparc_cpu" ; then
                ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__"
                ARCH_LDFLAGS="-m64"
-           else
-               ARCH_CFLAGS="${SP_CFLAGS}"
-               ARCH_LDFLAGS="${SP_LDFLAGS}"
            fi
            if test "$solaris" = "no" ; then
                ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g5 -ffixed-g6 -ffixed-g7"
