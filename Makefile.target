@@ -440,7 +440,7 @@ ifdef CONFIG_FMOD
 LIBS += $(FMOD_LIBS)
 endif
 ifdef CONFIG_OSS
-LIBS += $(CONFIG_OSS_LIB)
+LIBS += $(OSS_LIBS)
 endif
 
 sound-obj-y =
