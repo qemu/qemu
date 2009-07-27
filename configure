@@ -1746,7 +1746,6 @@ fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
-  echo "#define O_LARGEFILE 0" >> $config_host_h
   echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_host_h
   echo "#define HOST_BSD 1" >> $config_host_h
 fi
