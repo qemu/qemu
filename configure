@@ -892,45 +892,42 @@ fi
 sdl_too_old=no
 
 if test "$sdl" = "yes" ; then
-    sdl=no
-
-cat > $TMPC << EOF
+  sdl=no
+  cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-    sdl_cflags=`sdl-config --cflags 2> /dev/null`
-    sdl_libs=`sdl-config --libs 2> /dev/null`
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > $TMPSDLLOG 2>&1 ; then
-        _sdlversion=`sdl-config --version | sed 's/[^0-9]//g'`
-        if test "$_sdlversion" -lt 121 ; then
-            sdl_too_old=yes
-        else
-            if test "$cocoa" = "no" ; then
-                sdl=yes
-            fi
-        fi
+  sdl_cflags=`sdl-config --cflags 2> /dev/null`
+  sdl_libs=`sdl-config --libs 2> /dev/null`
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > $TMPSDLLOG 2>&1 ; then
+    _sdlversion=`sdl-config --version | sed 's/[^0-9]//g'`
+    if test "$_sdlversion" -lt 121 ; then
+      sdl_too_old=yes
+    else
+      if test "$cocoa" = "no" ; then
+        sdl=yes
+      fi
+    fi
 
-        # static link with sdl ?
-        if test "$sdl" = "yes" -a "$static" = "yes" ; then
-            aa="no"
-            sdl_libs=`sdl-config --static-libs 2>/dev/null`
-	    if test `sdl-config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` ; then
-                sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
-                sdl_cflags="$sd_cflags `aalib-config --cflags >2 /dev/null`"
-            fi
-
-            if $cc -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2> /dev/null; then
-		:
-            else
-                sdl=no
-            fi
-        fi # static link
-    fi # sdl compile test
+    # static link with sdl ?
+    if test "$sdl" = "yes" -a "$static" = "yes" ; then
+      sdl_libs=`sdl-config --static-libs 2>/dev/null`
+      if test `sdl-config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` ; then
+         sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
+         sdl_cflags="$sd_cflags `aalib-config --cflags >2 /dev/null`"
+      fi
+      if $cc -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2> /dev/null; then
+	:
+      else
+        sdl=no
+      fi
+    fi # static link
+  fi # sdl compile test
 fi
 
 if test "$sdl" = "yes" ; then
-cat > $TMPC <<EOF
+  cat > $TMPC <<EOF
 #include <SDL.h>
 #if defined(SDL_VIDEO_DRIVER_X11)
 #include <X11/XKBlib.h>
@@ -939,9 +936,9 @@ cat > $TMPC <<EOF
 #endif
 int main(void) { return 0; }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
-	sdl_libs="$sdl_libs -lX11"
-    fi
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
+    sdl_libs="$sdl_libs -lX11"
+  fi
 fi
 
 ##########################################
