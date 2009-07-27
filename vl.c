@@ -187,7 +187,7 @@ ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
-static int autostart;
+int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
@@ -6091,7 +6091,7 @@ int main(int argc, char **argv, char **envp)
         qemu_start_incoming_migration(incoming);
     }
 
-    if (autostart)
+    else if (autostart)
         vm_start();
 
 #ifndef _WIN32
