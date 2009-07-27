@@ -514,9 +514,7 @@ CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
 obj-ppc-$(CONFIG_FDT) += device_tree.o
-ifdef FDT_LIBS
 LIBS+= $(FDT_LIBS)
-endif
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
@@ -542,9 +540,7 @@ obj-microblaze-y += xilinx_ethlite.o
 obj-microblaze-y += pflash_cfi02.o
 
 obj-microblaze-$(CONFIG_FDT) += device_tree.o
-ifdef FDT_LIBS
 LIBS+= $(FDT_LIBS)
-endif
 
 # Boards
 obj-cris-y = cris_pic_cpu.o etraxfs.o axis_dev88.o

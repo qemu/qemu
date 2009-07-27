@@ -1257,11 +1257,12 @@ fi
 ##########################################
 # fdt probe
 if test "$fdt" = "yes" ; then
-    fdt=no
-    cat > $TMPC << EOF
+  fdt=no
+  fdt_libs="-lfdt"
+  cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lfdt 2> /dev/null > /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC $fdt_libs 2> /dev/null > /dev/null ; then
     fdt=yes
   fi
 fi
@@ -1711,7 +1712,7 @@ fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak
   echo "#define CONFIG_FDT 1" >> $config_host_h
-  echo "FDT_LIBS=-lfdt" >> $config_host_mak
+  echo "FDT_LIBS=$fdt_libs" >> $config_host_mak
 fi
 
 # XXX: suppress that
