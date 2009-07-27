@@ -1,7 +1,7 @@
 all: build-all
 
 include ../../config-host.mak
-include ../../rules.mak
+include $(SRC_PATH)/rules.mak
 
 VPATH=$(SRC_PATH)/pc-bios/optionrom
 
