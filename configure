@@ -997,6 +997,8 @@ fi
 ##########################################
 # vde libraries probe
 if test "$vde" = "yes" ; then
+  vde=no
+  vde_libs="-lvdeplug"
   cat > $TMPC << EOF
 #include <libvdeplug.h>
 int main(void)
@@ -1006,11 +1008,9 @@ int main(void)
     return 0;
 }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lvdeplug > /dev/null 2> /dev/null ; then
-        :
-    else
-        vde="no"
-    fi
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC $vde_libs > /dev/null 2> /dev/null ; then
+    vde=yes
+  fi
 fi
 
 ##########################################
@@ -1589,7 +1589,7 @@ fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
   echo "#define CONFIG_VDE 1" >> $config_host_h
-  echo "VDE_LIBS=-lvdeplug" >> $config_host_mak
+  echo "VDE_LIBS=$vde_libs" >> $config_host_mak
 fi
 for card in $audio_card_list; do
     def=CONFIG_`echo $card | tr '[:lower:]' '[:upper:]'`
