@@ -2107,7 +2107,13 @@ fi
 
 $source_path/create_config < $config_mak > $config_h
 
-test -f ${config_h}~ && cmp -s $config_h ${config_h}~ && mv ${config_h}~ $config_h
+if test -f ${config_h}~ ; then
+  if cmp -s $config_h ${config_h}~ ; then
+    mv ${config_h}~ $config_h
+  else
+    rm ${config_h}~
+  fi
+fi
 
 done # for target in $targets
 
