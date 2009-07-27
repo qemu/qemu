@@ -1522,7 +1522,7 @@ if test "$debug_tcg" = "yes" ; then
   echo "#define CONFIG_DEBUG_TCG 1" >> $config_host_h
 fi
 if test "$debug" = "yes" ; then
-  echo "#define DEBUG_EXEC 1" >> $config_host_h
+  echo "#define CONFIG_DEBUG_EXEC 1" >> $config_host_h
 fi
 if test "$strip_opt" = "yes" ; then
   echo "STRIP_OPT=-s" >> $config_host_mak

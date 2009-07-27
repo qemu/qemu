@@ -46,7 +46,7 @@
 
 int tb_invalidated_flag;
 
-//#define DEBUG_EXEC
+//#define CONFIG_DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
 int qemu_cpu_has_work(CPUState *env)
@@ -568,7 +568,7 @@ int cpu_exec(CPUState *env1)
                     env->exception_index = EXCP_INTERRUPT;
                     cpu_loop_exit();
                 }
-#ifdef DEBUG_EXEC
+#ifdef CONFIG_DEBUG_EXEC
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
                     regs_to_env();
@@ -614,7 +614,7 @@ int cpu_exec(CPUState *env1)
                     next_tb = 0;
                     tb_invalidated_flag = 0;
                 }
-#ifdef DEBUG_EXEC
+#ifdef CONFIG_DEBUG_EXEC
                 qemu_log_mask(CPU_LOG_EXEC, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
                              (long)tb->tc_ptr, tb->pc,
                              lookup_symbol(tb->pc));
