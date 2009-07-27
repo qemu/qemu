@@ -38,6 +38,9 @@
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENODEV
 #endif
+#if !defined(ENOTSUP) && defined(__OpenBSD__)
+#define ENOTSUP 4096
+#endif
 
 #ifndef CONFIG_IOVEC
 #define CONFIG_IOVEC
@@ -52,10 +55,8 @@ struct iovec {
 #ifdef _WIN32
 #define fsync _commit
 #define lseek _lseeki64
-#define ENOTSUP 4096
 extern int qemu_ftruncate64(int, int64_t);
 #define ftruncate qemu_ftruncate64
-
 
 static inline char *realpath(const char *path, char *resolved_path)
 {

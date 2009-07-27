@@ -265,7 +265,6 @@ oss_lib="-lossaudio"
 ;;
 OpenBSD)
 bsd="yes"
-openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
 oss_lib="-lossaudio"
@@ -1542,10 +1541,6 @@ EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
     echo "#define CONFIG_MACHINE_BSWAP_H 1" >> $config_host_h
   fi
-fi
-
-if [ "$openbsd" = "yes" ] ; then
-  echo "#define ENOTSUP 4096" >> $config_host_h
 fi
 
 if test "$darwin" = "yes" ; then
