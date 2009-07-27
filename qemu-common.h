@@ -39,8 +39,8 @@
 #define ENOMEDIUM ENODEV
 #endif
 
-#ifndef HAVE_IOVEC
-#define HAVE_IOVEC
+#ifndef CONFIG_IOVEC
+#define CONFIG_IOVEC
 struct iovec {
     void *iov_base;
     size_t iov_len;
