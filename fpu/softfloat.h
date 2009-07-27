@@ -32,7 +32,7 @@ these four paragraphs for those parts of this code that are retained.
 #ifndef SOFTFLOAT_H
 #define SOFTFLOAT_H
 
-#if defined(CONFIG_SOLARIS) && defined(NEEDS_LIBSUNMATH)
+#if defined(CONFIG_SOLARIS) && defined(CONFIG_NEEDS_LIBSUNMATH)
 #include <sunmath.h>
 #endif
 
