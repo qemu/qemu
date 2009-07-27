@@ -159,6 +159,7 @@ case "$cpu" in
     cpu="unknown"
   ;;
 esac
+brlapi="yes"
 gprof="no"
 debug_tcg="no"
 debug="no"
@@ -1084,16 +1085,17 @@ done
 ##########################################
 # BrlAPI probe
 
-if test -z "$brlapi" ; then
-    brlapi=no
-cat > $TMPC << EOF
+if test "$brlapi" = "yes" ; then
+  brlapi=no
+  brlapi_libs="-lbrlapi"
+  cat > $TMPC << EOF
 #include <brlapi.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
-    if $cc ${ARCH_CFLAGS} -o $TMPE ${OS_CFLAGS} $TMPC -lbrlapi > /dev/null 2> /dev/null ; then
-	    brlapi=yes
-    fi # brlapi compile test
-fi # -z $brlapi
+  if $cc ${ARCH_CFLAGS} -o $TMPE ${OS_CFLAGS} $TMPC $brlapi_libs > /dev/null 2> /dev/null ; then
+    brlapi=yes
+  fi
+fi
 
 ##########################################
 # curses probe
@@ -1678,7 +1680,7 @@ fi
 if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=y" >> $config_host_mak
   echo "#define CONFIG_BRLAPI 1" >> $config_host_h
-  echo "BRLAPI_LIBS=-lbrlapi" >> $config_host_mak
+  echo "BRLAPI_LIBS=$brlapi_libs" >> $config_host_mak
 fi
 if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ=y" >> $config_host_mak

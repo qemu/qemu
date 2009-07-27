@@ -100,9 +100,7 @@ obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 
-ifdef CONFIG_BRLAPI
-LIBS+=-lbrlapi
-endif
+LIBS+=$(BRLAPI_LIBS)
 
 obj-$(CONFIG_WIN32) += tap-win32.o
 obj-$(CONFIG_POSIX) += migration-exec.o
