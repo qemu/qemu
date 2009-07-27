@@ -478,19 +478,16 @@ for opt do
         v7|v8)
           ARCH_CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__"
           ARCH_LDFLAGS="-m32"
-          target_arch2="sparc"
           cpu="sparc"
         ;;
         v8plus|v8plusa)
           ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"
           ARCH_LDFLAGS="-m32"
-          target_arch2="sparc"
           cpu="sparc"
         ;;
         v9)
           ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"
           ARCH_LDFLAGS="-m64"
-          target_arch2="sparc64"
           cpu="sparc64"
         ;;
         *)
