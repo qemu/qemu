@@ -1655,8 +1655,8 @@ if test "$vnc_tls" = "yes" ; then
 fi
 if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
-  echo "CONFIG_VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
-  echo "CONFIG_VNC_SASL_LIBS=$vnc_sasl_libs" >> $config_host_mak
+  echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
+  echo "VNC_SASL_LIBS=$vnc_sasl_libs" >> $config_host_mak
   echo "#define CONFIG_VNC_SASL 1" >> $config_host_h
 fi
 if test "$fnmatch" = "yes" ; then
