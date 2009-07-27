@@ -1797,9 +1797,8 @@ else
     exit 1
 fi
 
-if test "$xen" = "yes" ;
-    then
-    echo "CONFIG_XEN=y" >> $config_host_mak
+if test "$xen" = "yes" ; then
+  echo "CONFIG_XEN=y" >> $config_host_mak
 fi
 
 tools=
