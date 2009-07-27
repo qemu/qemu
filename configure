@@ -1736,7 +1736,7 @@ if test "$iovec" = "yes" ; then
   echo "#define HAVE_IOVEC 1" >> $config_host_h
 fi
 if test "$preadv" = "yes" ; then
-  echo "#define HAVE_PREADV 1" >> $config_host_h
+  echo "#define CONFIG_PREADV 1" >> $config_host_h
 fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak

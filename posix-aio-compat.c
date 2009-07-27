@@ -33,7 +33,7 @@ static int cur_threads = 0;
 static int idle_threads = 0;
 static TAILQ_HEAD(, qemu_paiocb) request_list;
 
-#ifdef HAVE_PREADV
+#ifdef CONFIG_PREADV
 static int preadv_present = 1;
 #else
 static int preadv_present = 0;
@@ -102,7 +102,7 @@ static size_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
 	return aiocb->aio_nbytes;
 }
 
-#ifdef HAVE_PREADV
+#ifdef CONFIG_PREADV
 
 static ssize_t
 qemu_preadv(int fd, const struct iovec *iov, int nr_iov, off_t offset)
