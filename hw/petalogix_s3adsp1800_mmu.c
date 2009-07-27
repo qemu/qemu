@@ -52,14 +52,12 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
                                       target_phys_addr_t initrd_size,
                                       const char *kernel_cmdline)
 {
+    char *path;
+    int fdt_size;
 #ifdef CONFIG_FDT
     void *fdt;
     int r;
-#endif
-    char *path;
-    int fdt_size;
 
-#ifdef CONFIG_FDT
     /* Try the local "mb.dtb" override.  */
     fdt = load_device_tree("mb.dtb", &fdt_size);
     if (!fdt) {
