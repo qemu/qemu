@@ -201,7 +201,6 @@ aix="no"
 blobs="yes"
 fdt="yes"
 sdl="yes"
-sdl_x11="no"
 xen="yes"
 pkgversion=""
 
@@ -940,7 +939,7 @@ cat > $TMPC <<EOF
 int main(void) { return 0; }
 EOF
     if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
-	sdl_x11="yes"
+	sdl_libs="$sdl_libs -lX11"
     fi
 fi
 
@@ -1659,8 +1658,6 @@ if test "$sdl1" = "yes" ; then
   echo "CONFIG_SDL=y" >> $config_host_mak
   if test "$target_softmmu" = "no" -o "$static" = "yes"; then
     echo "SDL_LIBS=$sdl_static_libs" >> $config_host_mak
-  elif test "$sdl_x11" = "yes" ; then
-    echo "SDL_LIBS=$sld_libs -lX11" >> $config_host_mak
   else
     echo "SDL_LIBS=$sdl_libs`" >> $config_host_mak
   fi
