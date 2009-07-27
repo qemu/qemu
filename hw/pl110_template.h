@@ -95,18 +95,18 @@ static drawfn glue(pl110_draw_fn_,BITS)[36] =
 
 #if ORDER == 0
 #define NAME glue(glue(lblp_, BORDER), BITS)
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #elif ORDER == 1
 #define NAME glue(glue(bbbp_, BORDER), BITS)
-#ifndef WORDS_BIGENDIAN
+#ifndef HOST_WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #else
 #define SWAP_PIXELS 1
 #define NAME glue(glue(lbbp_, BORDER), BITS)
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #endif

@@ -1528,8 +1528,8 @@ if test "$strip_opt" = "yes" ; then
   echo "STRIP_OPT=-s" >> $config_host_mak
 fi
 if test "$bigendian" = "yes" ; then
-  echo "WORDS_BIGENDIAN=yes" >> $config_host_mak
-  echo "#define WORDS_BIGENDIAN 1" >> $config_host_h
+  echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak
+  echo "#define HOST_WORDS_BIGENDIAN 1" >> $config_host_h
 fi
 echo "#define HOST_LONG_BITS $hostlongbits" >> $config_host_h
 if test "$mingw32" = "yes" ; then

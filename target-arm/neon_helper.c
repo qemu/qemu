@@ -49,7 +49,7 @@ typedef struct \
 { \
     type v1; \
 } neon_##name;
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define NEON_TYPE2(name, type) \
 typedef struct \
 { \

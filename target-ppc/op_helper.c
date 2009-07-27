@@ -1921,7 +1921,7 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
 
 /*****************************************************************************/
 /* Altivec extension helpers */
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define HI_IDX 0
 #define LO_IDX 1
 #else
@@ -1929,7 +1929,7 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
 #define LO_IDX 0
 #endif
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define VECTOR_FOR_INORDER_I(index, element)            \
     for (index = 0; index < ARRAY_SIZE(r->element); index++)
 #else
@@ -2055,7 +2055,7 @@ STVE(stvewx, stl, bswap32, u32)
 
 void helper_mtvscr (ppc_avr_t *r)
 {
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
     env->vscr = r->u32[3];
 #else
     env->vscr = r->u32[0];
@@ -2422,7 +2422,7 @@ void helper_vmladduhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
         }                                                               \
         *r = result;                                                    \
     }
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define MRGHI 0
 #define MRGLO 1
 #else
@@ -2583,7 +2583,7 @@ void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     int i;
     VECTOR_FOR_INORDER_I (i, u8) {
         int s = c->u8[i] & 0x1f;
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         int index = s & 0xf;
 #else
         int index = 15 - (s & 0xf);
@@ -2597,7 +2597,7 @@ void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     *r = result;
 }
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define PKBIG 1
 #else
 #define PKBIG 0
@@ -2606,7 +2606,7 @@ void helper_vpkpx (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i, j;
     ppc_avr_t result;
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
     const ppc_avr_t *x[2] = { a, b };
 #else
     const ppc_avr_t *x[2] = { b, a };
@@ -2723,7 +2723,7 @@ void helper_vlogefp (ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define LEFT 0
 #define RIGHT 1
 #else
@@ -2783,7 +2783,7 @@ void helper_vsldoi (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
     int i;
     ppc_avr_t result;
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
     for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
         int index = sh + i;
         if (index > 0xf) {
@@ -2809,7 +2809,7 @@ void helper_vslo (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
   int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
 
-#if defined (WORDS_BIGENDIAN)
+#if defined (HOST_WORDS_BIGENDIAN)
   memmove (&r->u8[0], &a->u8[sh], 16-sh);
   memset (&r->u8[16-sh], 0, sh);
 #else
@@ -2820,7 +2820,7 @@ void helper_vslo (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 
 /* Experimental testing shows that hardware masks the immediate.  */
 #define _SPLAT_MASKED(element) (splat & (ARRAY_SIZE(r->element) - 1))
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define SPLAT_ELEMENT(element) _SPLAT_MASKED(element)
 #else
 #define SPLAT_ELEMENT(element) (ARRAY_SIZE(r->element)-1 - _SPLAT_MASKED(element))
@@ -2877,7 +2877,7 @@ void helper_vsro (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
   int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
 
-#if defined (WORDS_BIGENDIAN)
+#if defined (HOST_WORDS_BIGENDIAN)
   memmove (&r->u8[sh], &a->u8[0], 16-sh);
   memset (&r->u8[0], 0, sh);
 #else
@@ -2901,7 +2901,7 @@ void helper_vsumsws (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     ppc_avr_t result;
     int sat = 0;
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
     upper = ARRAY_SIZE(r->s32)-1;
 #else
     upper = 0;
@@ -2925,7 +2925,7 @@ void helper_vsum2sws (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     ppc_avr_t result;
     int sat = 0;
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
     upper = 1;
 #else
     upper = 0;
@@ -2997,7 +2997,7 @@ void helper_vsum4ubs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define UPKHI 1
 #define UPKLO 0
 #else

@@ -146,7 +146,7 @@ typedef struct {
 #endif
 #ifdef FLOAT128
 typedef struct {
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     uint64_t high, low;
 #else
     uint64_t low, high;

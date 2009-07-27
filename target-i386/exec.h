@@ -155,7 +155,7 @@ typedef union {
 /* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
 typedef union {
     double d;
-#if !defined(WORDS_BIGENDIAN) && !defined(__arm__)
+#if !defined(HOST_WORDS_BIGENDIAN) && !defined(__arm__)
     struct {
         uint32_t lower;
         int32_t upper;

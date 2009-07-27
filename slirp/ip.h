@@ -33,7 +33,7 @@
 #ifndef _IP_H_
 #define _IP_H_
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 # ifndef NTOHL
 #  define NTOHL(d)
 # endif
@@ -73,7 +73,7 @@ typedef u_int32_t n_long;                 /* long as received from the net */
  * Structure of an internet header, naked of options.
  */
 struct ip {
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 	u_int ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #else
@@ -139,7 +139,7 @@ struct	ip_timestamp {
 	u_int8_t	ipt_code;		/* IPOPT_TS */
 	u_int8_t	ipt_len;		/* size of structure (variable) */
 	u_int8_t	ipt_ptr;		/* index of current entry */
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 	u_int	ipt_oflw:4,		/* overflow counter */
 		ipt_flg:4;		/* flags, see below */
 #else

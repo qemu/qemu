@@ -506,7 +506,7 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     union {
         uint64_t ll;
         struct {
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
             uint32_t high, low;
 #else
             uint32_t low, high;

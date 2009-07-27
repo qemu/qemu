@@ -528,7 +528,7 @@ typedef union {
     uint64_t q;
 } MMXReg;
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define XMM_B(n) _b[15 - (n)]
 #define XMM_W(n) _w[7 - (n)]
 #define XMM_L(n) _l[3 - (n)]

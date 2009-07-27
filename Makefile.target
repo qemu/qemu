@@ -234,7 +234,7 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-ifeq ($(WORDS_BIGENDIAN),yes)
+ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
@@ -242,7 +242,7 @@ endif
 endif
 
 ifeq ($(ARCH),mips64)
-ifeq ($(WORDS_BIGENDIAN),yes)
+ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
@@ -377,7 +377,7 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-ifeq ($(WORDS_BIGENDIAN),yes)
+ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
@@ -385,7 +385,7 @@ endif
 endif
 
 ifeq ($(ARCH),mips64)
-ifeq ($(WORDS_BIGENDIAN),yes)
+ifeq ($(HOST_WORDS_BIGENDIAN),y)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld

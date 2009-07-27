@@ -385,7 +385,7 @@ void helper_faligndata(void)
     *((uint64_t *)&DT0) = tmp;
 }
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define VIS_B64(n) b[7 - (n)]
 #define VIS_W64(n) w[3 - (n)]
 #define VIS_SW64(n) sw[3 - (n)]

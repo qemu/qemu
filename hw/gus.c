@@ -35,7 +35,7 @@
 #define ldebug(...)
 #endif
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define GUS_ENDIANNESS 1
 #else
 #define GUS_ENDIANNESS 0

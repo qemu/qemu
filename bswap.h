@@ -81,7 +81,7 @@ static inline void bswap64s(uint64_t *s)
     *s = bswap64(*s);
 }
 
-#if defined(WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
 #define be_bswap(v, size) (v)
 #define le_bswap(v, size) bswap ## size(v)
 #define be_bswaps(v, size)
@@ -203,7 +203,7 @@ static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
 
 #endif
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define cpu_to_32wu cpu_to_be32wu
 #else
 #define cpu_to_32wu cpu_to_le32wu

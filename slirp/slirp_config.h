@@ -83,7 +83,7 @@
 #undef HAVE_SYS_BITYPES_H
 
 /* Define if the machine is big endian */
-//#undef WORDS_BIGENDIAN
+//#undef HOST_WORDS_BIGENDIAN
 
 /* Define if your sprintf returns char * instead of int */
 #undef BAD_SPRINTF
