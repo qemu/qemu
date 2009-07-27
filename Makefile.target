@@ -175,10 +175,6 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
-ifdef CONFIG_STATIC
-LDFLAGS+=-static
-endif
-
 ifeq ($(ARCH),i386)
 ifdef TARGET_GPROF
 USE_I386_LD=y
@@ -321,10 +317,6 @@ ifdef CONFIG_BSD_USER
 
 VPATH+=:$(SRC_PATH)/bsd-user
 CPPFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
-
-ifdef CONFIG_STATIC
-LDFLAGS+=-static
-endif
 
 ifeq ($(ARCH),i386)
 ifdef TARGET_GPROF
@@ -620,9 +612,6 @@ CPPFLAGS+=-I$(SRC_PATH)/slirp
 endif
 
 # specific flags are needed for non soft mmu emulator
-ifdef CONFIG_STATIC
-LDFLAGS+=-static
-endif
 ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
 ifndef CONFIG_SOLARIS

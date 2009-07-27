@@ -1588,6 +1588,7 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
   echo "#define CONFIG_STATIC 1" >> $config_host_h
+  LDFLAGS="$LDFLAGS -static"
 fi
 if test $profiler = "yes" ; then
   echo "#define CONFIG_PROFILER 1" >> $config_host_h
