@@ -893,7 +893,6 @@ sdl_too_old=no
 
 if test "$sdl" = "yes" ; then
     sdl=no
-    sdl_static=no
 
 cat > $TMPC << EOF
 #include <SDL.h>
@@ -913,16 +912,18 @@ EOF
         fi
 
         # static link with sdl ?
-        if test "$sdl" = "yes" ; then
+        if test "$sdl" = "yes" -a "$static" = "yes" ; then
             aa="no"
-            `sdl-config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
-            sdl_static_libs=`sdl-config --static-libs 2>/dev/null`
-            if [ "$aa" = "yes" ] ; then
-                sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
+            sdl_libs=`sdl-config --static-libs 2>/dev/null`
+	    if test `sdl-config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` ; then
+                sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
+                sdl_cflags="$sd_cflags `aalib-config --cflags >2 /dev/null`"
             fi
 
-            if $cc -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_static_libs > /dev/null 2> /dev/null; then
-                sdl_static=yes
+            if $cc -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2> /dev/null; then
+		:
+            else
+                sdl=no
             fi
         fi # static link
     fi # sdl compile test
@@ -1436,9 +1437,6 @@ if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
 echo "SDL support       $sdl"
-if test "$sdl" != "no" ; then
-    echo "SDL static link   $sdl_static"
-fi
 echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
@@ -1477,9 +1475,6 @@ echo "preadv support    $preadv"
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
-#if test "$sdl_static" = "no"; then
-#  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
-#fi
 
 config_host_mak="config-host.mak"
 config_host_h="config-host.h"
@@ -1648,24 +1643,11 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$build_docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
 fi
-if test "$static" = "yes"; then
-  sdl1=$sdl_static
-else
-  sdl1=$sdl
-fi
-if test "$sdl1" = "yes" ; then
+if test "$sdl" = "yes" ; then
   echo "#define CONFIG_SDL 1" >> $config_host_h
   echo "CONFIG_SDL=y" >> $config_host_mak
-  if test "$static" = "yes"; then
-    echo "SDL_LIBS=$sdl_static_libs" >> $config_host_mak
-  else
-    echo "SDL_LIBS=$sdl_libs`" >> $config_host_mak
-  fi
-  if [ "${aa}" = "yes" ] ; then
-    echo "SDL_CFLAGS=$sdl_cflags `aalib-config --cflags`" >> $config_host_mak
-  else
-    echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
-  fi
+  echo "SDL_LIBS=$sdl_libs" >> $config_host_mak
+  echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
 fi
 if test "$cocoa" = "yes" ; then
   echo "#define CONFIG_COCOA 1" >> $config_host_h
