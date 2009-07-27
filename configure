@@ -901,7 +901,9 @@ cat > $TMPC << EOF
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `sdl-config --cflags 2> /dev/null` $TMPC `sdl-config --libs 2> /dev/null` > $TMPSDLLOG 2>&1 ; then
+    sdl_cflags=`sdl-config --cflags 2> /dev/null`
+    sdl_libs=`sdl-config --libs 2> /dev/null`
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > $TMPSDLLOG 2>&1 ; then
         _sdlversion=`sdl-config --version | sed 's/[^0-9]//g'`
         if test "$_sdlversion" -lt 121 ; then
             sdl_too_old=yes
@@ -920,7 +922,7 @@ EOF
                 sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
             fi
 
-            if $cc -o $TMPE ${OS_CFLAGS} `sdl-config --cflags 2> /dev/null` $TMPC $sdl_static_libs > /dev/null 2> /dev/null; then
+            if $cc -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_static_libs > /dev/null 2> /dev/null; then
                 sdl_static=yes
             fi
         fi # static link
@@ -937,7 +939,7 @@ cat > $TMPC <<EOF
 #endif
 int main(void) { return 0; }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `sdl-config --cflags 2> /dev/null` $TMPC `sdl-config --libs 2> /dev/null` > /dev/null 2>&1 ; then
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
 	sdl_x11="yes"
     fi
 fi
@@ -1658,14 +1660,14 @@ if test "$sdl1" = "yes" ; then
   if test "$target_softmmu" = "no" -o "$static" = "yes"; then
     echo "SDL_LIBS=$sdl_static_libs" >> $config_host_mak
   elif test "$sdl_x11" = "yes" ; then
-    echo "SDL_LIBS=`sdl-config --libs` -lX11" >> $config_host_mak
+    echo "SDL_LIBS=$sld_libs -lX11" >> $config_host_mak
   else
-    echo "SDL_LIBS=`sdl-config --libs`" >> $config_host_mak
+    echo "SDL_LIBS=$sdl_libs`" >> $config_host_mak
   fi
   if [ "${aa}" = "yes" ] ; then
-    echo "SDL_CFLAGS=`sdl-config --cflags` `aalib-config --cflags`" >> $config_host_mak
+    echo "SDL_CFLAGS=$sdl_cflags `aalib-config --cflags`" >> $config_host_mak
   else
-    echo "SDL_CFLAGS=`sdl-config --cflags`" >> $config_host_mak
+    echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
   fi
 fi
 if test "$cocoa" = "yes" ; then
