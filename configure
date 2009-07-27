@@ -1649,8 +1649,8 @@ if test "$mixemu" = "yes" ; then
 fi
 if test "$vnc_tls" = "yes" ; then
   echo "CONFIG_VNC_TLS=y" >> $config_host_mak
-  echo "CONFIG_VNC_TLS_CFLAGS=$vnc_tls_cflags" >> $config_host_mak
-  echo "CONFIG_VNC_TLS_LIBS=$vnc_tls_libs" >> $config_host_mak
+  echo "VNC_TLS_CFLAGS=$vnc_tls_cflags" >> $config_host_mak
+  echo "VNC_TLS_LIBS=$vnc_tls_libs" >> $config_host_mak
   echo "#define CONFIG_VNC_TLS 1" >> $config_host_h
 fi
 if test "$vnc_sasl" = "yes" ; then
