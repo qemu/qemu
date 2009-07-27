@@ -926,13 +926,7 @@ EOF
             fi
         fi # static link
     fi # sdl compile test
-else
-    # Make sure to disable cocoa if sdl was set
-    if test "$sdl" = "yes" ; then
-       cocoa="no"
-       audio_drv_list="`echo $audio_drv_list | sed s,coreaudio,,g`"
-    fi
-fi # -z $sdl
+fi
 
 if test "$sdl" = "yes" ; then
 cat > $TMPC <<EOF
