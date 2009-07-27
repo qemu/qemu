@@ -304,6 +304,11 @@ int kvm_set_migration_log(int enable)
     return 0;
 }
 
+static int test_le_bit(unsigned long nr, unsigned char *addr)
+{
+    return (addr[nr >> 3] >> (nr & 7)) & 1;
+}
+
 /**
  * kvm_physical_sync_dirty_bitmap - Grab dirty bitmap from kernel space
  * This function updates qemu's dirty bitmap using cpu_physical_memory_set_dirty().
@@ -357,12 +362,10 @@ int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
         for (phys_addr = mem->start_addr, addr = mem->phys_offset;
              phys_addr < mem->start_addr + mem->memory_size;
              phys_addr += TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
-            uint64_t *bitmap = (uint64_t *)d.dirty_bitmap;
+            unsigned char *bitmap = (unsigned char *)d.dirty_bitmap;
             unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
-            unsigned word = nr / (sizeof(*bitmap) * 8);
-            unsigned bit = nr % (sizeof(*bitmap) * 8);
 
-            if ((bitmap[word] >> bit) & 1) {
+            if (test_le_bit(nr, bitmap)) {
                 cpu_physical_memory_set_dirty(addr);
             } else if (r < 0) {
                 /* When our KVM implementation doesn't know about dirty logging
