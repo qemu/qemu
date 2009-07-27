@@ -539,8 +539,8 @@ qemu-io> wrote 65536/65536 bytes at offset 4296146944
 qemu-io> No errors were found on the image.
 Checking if backing clusters are allocated when they shouldn't
 
-qemu-io> 128/128 sectors not allocated at offset 1 MiB
-qemu-io> qemu-io> 128/128 sectors not allocated at offset 4.001 GiB
+qemu-io> 0/128 sectors allocated at offset 1 MiB
+qemu-io> qemu-io> 0/128 sectors allocated at offset 4.001 GiB
 qemu-io> Reading
 
 === IO: pattern 0
