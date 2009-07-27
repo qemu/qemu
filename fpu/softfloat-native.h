@@ -1,7 +1,7 @@
 /* Native implementation of soft float functions */
 #include <math.h>
 
-#if (defined(HOST_BSD) && !defined(__APPLE__)) || defined(HOST_SOLARIS)
+#if (defined(HOST_BSD) && !defined(__APPLE__)) || defined(CONFIG_SOLARIS)
 #include <ieeefp.h>
 #define fabsf(f) ((float)fabs(f))
 #else
@@ -19,8 +19,9 @@
  *   Solaris 10 with GCC4 does not need these macros as they
  *   are defined in <iso/math_c99.h> with a compiler directive
  */
-#if defined(HOST_SOLARIS) && (( HOST_SOLARIS <= 9 ) || ((HOST_SOLARIS >= 10) \
-                                                        && (__GNUC__ < 4))) \
+#if defined(CONFIG_SOLARIS) && \
+           ((CONFIG_SOLARIS_VERSION <= 9 ) || \
+           ((CONFIG_SOLARIS_VERSION >= 10) && (__GNUC__ < 4))) \
     || (defined(__OpenBSD__) && (OpenBSD < 200811))
 /*
  * C99 7.12.3 classification macros
@@ -111,7 +112,7 @@ typedef union {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point rounding mode.
 *----------------------------------------------------------------------------*/
-#if (defined(HOST_BSD) && !defined(__APPLE__)) || defined(HOST_SOLARIS)
+#if (defined(HOST_BSD) && !defined(__APPLE__)) || defined(CONFIG_SOLARIS)
 #if defined(__OpenBSD__)
 #define FE_RM FP_RM
 #define FE_RP FP_RP

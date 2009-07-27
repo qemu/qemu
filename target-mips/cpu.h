@@ -14,7 +14,7 @@
 
 // uint_fast8_t and uint_fast16_t not in <sys/int_types.h>
 // XXX: move that elsewhere
-#if defined(HOST_SOLARIS) && HOST_SOLARIS < 10
+#if defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10
 typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 #endif

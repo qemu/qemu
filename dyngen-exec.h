@@ -75,7 +75,7 @@ extern int printf(const char *, ...);
 #define AREG1 "s0"
 #define AREG2 "s1"
 #elif defined(__sparc__)
-#ifdef HOST_SOLARIS
+#ifdef CONFIG_SOLARIS
 #define AREG0 "g2"
 #define AREG1 "g3"
 #define AREG2 "g4"

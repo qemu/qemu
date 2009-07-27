@@ -28,7 +28,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#ifdef HOST_SOLARIS
+#ifdef CONFIG_SOLARIS
 #include <sys/types.h>
 #include <sys/statvfs.h>
 #endif
@@ -116,7 +116,7 @@ static void *kqemu_vmalloc(size_t size)
     int map_anon = 0;
     const char *tmpdir;
     char phys_ram_file[1024];
-#ifdef HOST_SOLARIS
+#ifdef CONFIG_SOLARIS
     struct statvfs stfs;
 #else
     struct statfs stfs;
@@ -129,7 +129,7 @@ static void *kqemu_vmalloc(size_t size)
     if (phys_ram_fd < 0) {
         tmpdir = getenv("QEMU_TMPDIR");
         if (!tmpdir)
-#ifdef HOST_SOLARIS
+#ifdef CONFIG_SOLARIS
             tmpdir = "/tmp";
         if (statvfs(tmpdir, &stfs) == 0) {
 #else

@@ -1588,7 +1588,8 @@ fi
 
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=y" >> $config_host_mak
-  echo "#define HOST_SOLARIS $solarisrev" >> $config_host_h
+  echo "#define CONFIG_SOLARIS 1" >> $config_host_h
+  echo "#define CONFIG_SOLARIS_VERSION $solarisrev" >> $config_host_h
   if test "$needs_libsunmath" = "yes" ; then
     echo "NEEDS_LIBSUNMATH=yes" >> $config_host_mak
     echo "#define NEEDS_LIBSUNMATH 1" >> $config_host_h
