@@ -437,7 +437,7 @@ ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid
 endif
 ifdef CONFIG_FMOD
-LIBS += $(CONFIG_FMOD_LIB)
+LIBS += $(FMOD_LIBS)
 endif
 ifdef CONFIG_OSS
 LIBS += $(CONFIG_OSS_LIB)

@@ -124,7 +124,7 @@ ifdef CONFIG_COREAUDIO
 AUDIO_PT = y
 endif
 ifdef CONFIG_FMOD
-audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
+audio/audio.o audio/fmodaudio.o: CPPFLAGS := $(FMOD_CFLAGS) $(CPPFLAGS)
 endif
 ifdef CONFIG_ESD
 AUDIO_PT = y
