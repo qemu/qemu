@@ -108,11 +108,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <malloc.h>
-#include <sys/timeb.h>
 #include <mmsystem.h>
-#define getopt_long_only getopt_long
-#define memalign(align, size) malloc(size)
 #endif
 
 #ifdef CONFIG_SDL
