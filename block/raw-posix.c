@@ -779,7 +779,7 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
     int64_t size;
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
     struct stat sb;
 #ifdef __FreeBSD__
     int reopened = 0;
@@ -795,7 +795,7 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     if (ret < 0)
         return ret;
 
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
 #ifdef __FreeBSD__
 again:
 #endif

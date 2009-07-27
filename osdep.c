@@ -36,12 +36,12 @@
 /* FIXME: This file should be target independent. However it has kqemu
    hacks, so must be built for every target.  */
 
-/* Needed early for HOST_BSD etc. */
+/* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 
 #ifdef _WIN32
 #include <windows.h>
-#elif defined(HOST_BSD)
+#elif defined(CONFIG_BSD)
 #include <stdlib.h>
 #else
 #include <malloc.h>
@@ -210,7 +210,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     if (ret != 0)
         abort();
     return ptr;
-#elif defined(HOST_BSD)
+#elif defined(CONFIG_BSD)
     return oom_check(valloc(size));
 #else
     return oom_check(memalign(alignment, size));

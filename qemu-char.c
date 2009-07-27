@@ -61,7 +61,7 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
 #include <sys/stat.h>
 #ifdef __FreeBSD__
 #include <libutil.h>

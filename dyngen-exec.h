@@ -39,7 +39,7 @@
 /* XXX: This may be wrong for 64-bit ILP32 hosts.  */
 typedef void * host_reg_t;
 
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
 typedef struct __sFILE FILE;
 #else
 typedef struct FILE FILE;

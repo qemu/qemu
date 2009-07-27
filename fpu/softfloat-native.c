@@ -9,7 +9,7 @@
 void set_float_rounding_mode(int val STATUS_PARAM)
 {
     STATUS(float_rounding_mode) = val;
-#if defined(HOST_BSD) && !defined(__APPLE__) ||         \
+#if defined(CONFIG_BSD) && !defined(__APPLE__) ||         \
     (defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10)
     fpsetround(val);
 #elif defined(__arm__)
@@ -26,7 +26,7 @@ void set_floatx80_rounding_precision(int val STATUS_PARAM)
 }
 #endif
 
-#if defined(HOST_BSD) || \
+#if defined(CONFIG_BSD) || \
     (defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10)
 #define lrint(d)		((int32_t)rint(d))
 #define llrint(d)		((int64_t)rint(d))

@@ -1747,7 +1747,7 @@ fi
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_host_h
-  echo "#define HOST_BSD 1" >> $config_host_h
+  echo "#define CONFIG_BSD 1" >> $config_host_h
 fi
 
 echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_host_h
