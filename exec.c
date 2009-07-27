@@ -1515,7 +1515,7 @@ void cpu_set_log_filename(const char *filename)
 
 static void cpu_unlink_tb(CPUState *env)
 {
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
        problem and hope the cpu will stop of its own accord.  For userspace
        emulation this often isn't actually as bad as it sounds.  Often

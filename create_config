@@ -46,10 +46,6 @@ case $line in
     value=${line#*=}
     echo "#define $name $value"
     ;;
- USE_NPTL=y) # configuration
-    name=${line%=*}
-    echo "#define $name 1"
-    ;;
 esac
 
 done # read

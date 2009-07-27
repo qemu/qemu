@@ -1592,7 +1592,7 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 
 static inline int gdb_id(CPUState *env)
 {
-#if defined(CONFIG_USER_ONLY) && defined(USE_NPTL)
+#if defined(CONFIG_USER_ONLY) && defined(CONFIG_USE_NPTL)
     return env->host_tid;
 #else
     return env->cpu_index + 1;

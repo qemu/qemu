@@ -2056,7 +2056,7 @@ if test "$target_user_only" = "yes" -a "$bflt" = "yes"; then
 fi
 if test "$target_user_only" = "yes" \
         -a "$nptl" = "yes" -a "$target_nptl" = "yes"; then
-  echo "USE_NPTL=y" >> $config_mak
+  echo "CONFIG_USE_NPTL=y" >> $config_mak
 fi
 # 32 bit ELF loader in addition to native 64 bit loader?
 if test "$target_user_only" = "yes" -a "$elfload32" = "yes"; then

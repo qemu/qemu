@@ -108,7 +108,7 @@ int64_t cpu_get_real_ticks(void)
 
 #endif
 
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */
 
@@ -222,7 +222,7 @@ void cpu_list_unlock(void)
 {
     pthread_mutex_unlock(&cpu_list_mutex);
 }
-#else /* if !USE_NPTL */
+#else /* if !CONFIG_USE_NPTL */
 /* These are no-ops because we are not threadsafe.  */
 static inline void cpu_exec_start(CPUState *env)
 {
@@ -2357,7 +2357,7 @@ THREAD CPUState *thread_env;
 void task_settid(TaskState *ts)
 {
     if (ts->ts_tid == 0) {
-#ifdef USE_NPTL
+#ifdef CONFIG_USE_NPTL
         ts->ts_tid = (pid_t)syscall(SYS_gettid);
 #else
         /* when no threads are used, tid becomes pid */
