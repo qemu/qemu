@@ -1920,7 +1920,7 @@ static int tcp_get_msgfd(CharDriverState *chr)
     return s->msgfd;
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 static void unix_process_msgfd(CharDriverState *chr, struct msghdr *msg)
 {
     TCPCharDriver *s = chr->opaque;
