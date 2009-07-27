@@ -1541,7 +1541,7 @@ else
 int main(void) { return bswap_32(0); }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
-    echo "#define HAVE_BYTESWAP_H 1" >> $config_host_h
+    echo "#define CONFIG_BYTESWAP_H 1" >> $config_host_h
   fi
   cat > $TMPC << EOF
 #include <sys/endian.h>

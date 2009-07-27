@@ -11,7 +11,7 @@
 #include <machine/bswap.h>
 #else
 
-#ifdef HAVE_BYTESWAP_H
+#ifdef CONFIG_BYTESWAP_H
 #include <byteswap.h>
 #else
 
@@ -47,7 +47,7 @@
 		(uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
 })
 
-#endif /* !HAVE_BYTESWAP_H */
+#endif /* !CONFIG_BYTESWAP_H */
 
 static inline uint16_t bswap16(uint16_t x)
 {
