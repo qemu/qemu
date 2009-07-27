@@ -1637,7 +1637,7 @@ if test "$vnc_sasl" = "yes" ; then
   echo "#define CONFIG_VNC_SASL 1" >> $config_host_h
 fi
 if test "$fnmatch" = "yes" ; then
-  echo "#define HAVE_FNMATCH_H 1" >> $config_host_h
+  echo "#define CONFIG_FNMATCH 1" >> $config_host_h
 fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_host_mak
