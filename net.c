@@ -101,15 +101,6 @@
 #include <libvdeplug.h>
 #endif
 
-#ifdef _WIN32
-#include <windows.h>
-#include <malloc.h>
-#include <sys/timeb.h>
-#include <mmsystem.h>
-#define getopt_long_only getopt_long
-#define memalign(align, size) malloc(size)
-#endif
-
 #include "qemu-common.h"
 #include "net.h"
 #include "monitor.h"
@@ -278,26 +269,6 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     saddr->sin_port = htons(port);
     return 0;
 }
-
-#if !defined(_WIN32) && 0
-static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
-{
-    const char *p;
-    int len;
-
-    len = MIN(108, strlen(str));
-    p = strchr(str, ',');
-    if (p)
-	len = MIN(len, p - str);
-
-    memset(uaddr, 0, sizeof(*uaddr));
-
-    uaddr->sun_family = AF_UNIX;
-    memcpy(uaddr->sun_path, str, len);
-
-    return 0;
-}
-#endif
 
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6])
 {
