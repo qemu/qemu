@@ -1519,7 +1519,7 @@ arch_name=`echo $ARCH | tr '[:lower:]' '[:upper:]'`
 echo "#define HOST_$arch_name 1" >> $config_host_h
 
 if test "$debug_tcg" = "yes" ; then
-  echo "#define DEBUG_TCG 1" >> $config_host_h
+  echo "#define CONFIG_DEBUG_TCG 1" >> $config_host_h
 fi
 if test "$debug" = "yes" ; then
   echo "#define DEBUG_EXEC 1" >> $config_host_h
