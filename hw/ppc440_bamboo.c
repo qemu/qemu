@@ -32,7 +32,7 @@ static void *bamboo_load_device_tree(target_phys_addr_t addr,
                                      const char *kernel_cmdline)
 {
     void *fdt = NULL;
-#ifdef HAVE_FDT
+#ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = { 0, 0, ramsize };
     char *filename;
     int fdt_size;

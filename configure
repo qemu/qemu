@@ -1739,7 +1739,8 @@ if test "$preadv" = "yes" ; then
   echo "#define HAVE_PREADV 1" >> $config_host_h
 fi
 if test "$fdt" = "yes" ; then
-  echo "#define HAVE_FDT 1" >> $config_host_h
+  echo "CONFIG_FDT=y" >> $config_host_mak
+  echo "#define CONFIG_FDT 1" >> $config_host_h
   echo "FDT_LIBS=-lfdt" >> $config_host_mak
 fi
 

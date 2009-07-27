@@ -46,7 +46,7 @@
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
 
-#ifdef HAVE_FDT
+#ifdef CONFIG_FDT
 static int mpc8544_copy_soc_cell(void *fdt, const char *node, const char *prop)
 {
     uint32_t cell;
@@ -77,7 +77,7 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
                                      const char *kernel_cmdline)
 {
     void *fdt = NULL;
-#ifdef HAVE_FDT
+#ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = {0, ramsize};
     char *filename;
     int fdt_size;

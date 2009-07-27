@@ -513,8 +513,8 @@ ifeq ($(TARGET_BASE_ARCH), ppc)
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
+obj-ppc-$(CONFIG_FDT) += device_tree.o
 ifdef FDT_LIBS
-obj-ppc-y += device_tree.o
 LIBS+= $(FDT_LIBS)
 endif
 
@@ -541,8 +541,8 @@ obj-microblaze-y += xilinx_ethlite.o
 
 obj-microblaze-y += pflash_cfi02.o
 
+obj-microblaze-$(CONFIG_FDT) += device_tree.o
 ifdef FDT_LIBS
-obj-microblaze-y += device_tree.o
 LIBS+= $(FDT_LIBS)
 endif
 
