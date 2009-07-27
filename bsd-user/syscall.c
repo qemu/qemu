@@ -66,7 +66,7 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     switch(num) {
     case TARGET_FREEBSD_NR_exit:
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
@@ -138,7 +138,7 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     switch(num) {
     case TARGET_NETBSD_NR_exit:
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
@@ -210,7 +210,7 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     switch(num) {
     case TARGET_OPENBSD_NR_exit:
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);

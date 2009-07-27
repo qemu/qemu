@@ -1583,7 +1583,7 @@ if test -n "$sparc_cpu"; then
 fi
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> $config_host_mak
-  echo "#define HAVE_GPROF 1" >> $config_host_h
+  echo "#define TARGET_GPROF 1" >> $config_host_h
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak

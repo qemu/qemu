@@ -57,7 +57,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <qemu-common.h>
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
 
@@ -4162,7 +4162,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
           pthread_exit(NULL);
       }
 #endif
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
@@ -5676,7 +5676,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group:
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
