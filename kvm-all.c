@@ -318,18 +318,12 @@ int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
     KVMDirtyLog d;
     KVMSlot *mem;
     int ret = 0;
-    int r;
 
     d.dirty_bitmap = NULL;
     while (start_addr < end_addr) {
         mem = kvm_lookup_overlapping_slot(s, start_addr, end_addr);
         if (mem == NULL) {
             break;
-        }
-
-        /* We didn't activate dirty logging? Don't care then. */
-        if(!(mem->flags & KVM_MEM_LOG_DIRTY_PAGES)) {
-            continue;
         }
 
         size = ((mem->memory_size >> TARGET_PAGE_BITS) + 7) / 8;
@@ -343,8 +337,7 @@ int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
 
         d.slot = mem->slot;
 
-        r = kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d);
-        if (r == -EINVAL) {
+        if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
             dprintf("ioctl failed %d\n", errno);
             ret = -1;
             break;
@@ -357,10 +350,6 @@ int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
 
             if (test_le_bit(nr, bitmap)) {
-                cpu_physical_memory_set_dirty(addr);
-            } else if (r < 0) {
-                /* When our KVM implementation doesn't know about dirty logging
-                 * we can just assume it's always dirty and be fine. */
                 cpu_physical_memory_set_dirty(addr);
             }
         }
