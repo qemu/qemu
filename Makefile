@@ -203,7 +203,7 @@ vnc-auth-sasl.o: vnc-auth-sasl.c vnc.h
 
 curses.o: curses.c keymaps.h curses_keys.h
 
-bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
+bt-host.o: CFLAGS += $(BLUEZ_CFLAGS)
 
 libqemu_common.a: $(obj-y)
 

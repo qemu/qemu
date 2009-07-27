@@ -466,7 +466,7 @@ LIBS += $(VNC_SASL_LIBS)
 endif
 
 ifdef CONFIG_BLUEZ
-LIBS += $(CONFIG_BLUEZ_LIBS)
+LIBS += $(BLUEZ_LIBS)
 endif
 
 # xen backend driver support
