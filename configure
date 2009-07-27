@@ -1550,7 +1550,7 @@ EOF
 int main(void) { return bswap32(0); }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
-    echo "#define HAVE_MACHINE_BSWAP_H 1" >> $config_host_h
+    echo "#define CONFIG_MACHINE_BSWAP_H 1" >> $config_host_h
   fi
 fi
 

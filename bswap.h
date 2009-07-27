@@ -5,7 +5,7 @@
 
 #include <inttypes.h>
 
-#ifdef HAVE_MACHINE_BSWAP_H
+#ifdef CONFIG_MACHINE_BSWAP_H
 #include <sys/endian.h>
 #include <sys/types.h>
 #include <machine/bswap.h>
@@ -64,7 +64,7 @@ static inline uint64_t bswap64(uint64_t x)
     return bswap_64(x);
 }
 
-#endif /* ! HAVE_MACHINE_BSWAP_H */
+#endif /* ! CONFIG_MACHINE_BSWAP_H */
 
 static inline void bswap16s(uint16_t *s)
 {
