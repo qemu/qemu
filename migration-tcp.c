@@ -170,6 +170,8 @@ static void tcp_accept_incoming_migration(void *opaque)
     /* we've successfully migrated, close the server socket */
     qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
     close(s);
+    if (autostart)
+        vm_start();
 
 out_fopen:
     qemu_fclose(f);

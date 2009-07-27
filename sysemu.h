@@ -77,6 +77,7 @@ int tap_win32_init(VLANState *vlan, const char *model,
 /* SLIRP */
 void do_info_slirp(void);
 
+extern int autostart;
 extern int bios_size;
 extern int cirrus_vga_enabled;
 extern int std_vga_enabled;
