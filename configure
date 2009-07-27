@@ -1536,6 +1536,7 @@ if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   echo "#define CONFIG_WIN32 1" >> $config_host_h
 else
+  echo "CONFIG_POSIX=y" >> $config_host_mak
   cat > $TMPC << EOF
 #include <byteswap.h>
 int main(void) { return bswap_32(0); }
