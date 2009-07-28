@@ -38,7 +38,7 @@
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENODEV
 #endif
-#if !defined(ENOTSUP) && defined(__OpenBSD__)
+#if !defined(ENOTSUP) && (defined(__OpenBSD__) || defined(_WIN32))
 #define ENOTSUP 4096
 #endif
 
