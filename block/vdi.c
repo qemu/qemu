@@ -81,10 +81,10 @@ void uuid_unparse(const uuid_t uu, char *out);
 /* Enable (currently) unsupported features (not implemented yet). */
 //~ #define CONFIG_VDI_UNSUPPORTED
 
-/* Support non-standard block (cluster) size. */
+/* Support non-standard block (cluster) size. This is untested. */
 //~ #define CONFIG_VDI_BLOCK_SIZE
 
-/* Support static (pre-allocated) images. */
+/* Support static (fixed, pre-allocated) images. */
 #define CONFIG_VDI_STATIC_IMAGE
 
 /* Command line option for static images. */
@@ -359,6 +359,7 @@ static int vdi_make_empty(BlockDriverState *bs)
 {
     /* TODO: missing code. */
     logout("\n");
+    /* The return value for missing code must be 0, see block.c. */
     return 0;
 }
 
