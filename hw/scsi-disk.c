@@ -74,6 +74,7 @@ struct SCSIDeviceState
     scsi_completionfn completion;
     void *opaque;
     char drive_serial_str[21];
+    QEMUBH *bh;
 };
 
 /* Global pool of SCSIRequest structures.  */
@@ -308,12 +309,13 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
     return 0;
 }
 
-static void scsi_dma_restart_cb(void *opaque, int running, int reason)
+static void scsi_dma_restart_bh(void *opaque)
 {
     SCSIDeviceState *s = opaque;
     SCSIRequest *r = s->requests;
-    if (!running)
-        return;
+
+    qemu_bh_delete(s->bh);
+    s->bh = NULL;
 
     while (r) {
         if (r->status & SCSI_REQ_STATUS_RETRY) {
@@ -321,6 +323,19 @@ static void scsi_dma_restart_cb(void *opaque, int running, int reason)
             scsi_write_request(r); 
         }
         r = r->next;
+    }
+}
+
+static void scsi_dma_restart_cb(void *opaque, int running, int reason)
+{
+    SCSIDeviceState *s = opaque;
+
+    if (!running)
+        return;
+
+    if (!s->bh) {
+        s->bh = qemu_bh_new(scsi_dma_restart_bh, s);
+        qemu_bh_schedule(s->bh);
     }
 }
 
