@@ -2480,51 +2480,77 @@ static void pci_vga_write_config(PCIDevice *d,
         s->map_addr = 0;
 }
 
+static void pci_vga_initfn(PCIDevice *dev)
+{
+     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
+     VGAState *s = &d->vga_state;
+     uint8_t *pci_conf = d->dev.config;
+
+     // vga + console init
+     vga_common_init(s, VGA_RAM_SIZE);
+     vga_init(s);
+     s->pci_dev = &d->dev;
+     s->ds = graphic_console_init(s->update, s->invalidate,
+                                  s->screen_dump, s->text_update, s);
+
+     // dummy VGA (same as Bochs ID)
+     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
+     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
+     pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
+     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
+
+     /* XXX: VGA_RAM_SIZE must be a power of two */
+     pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
+                      PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+
+     if (s->bios_size) {
+        unsigned int bios_total_size;
+        /* must be a power of two */
+        bios_total_size = 1;
+        while (bios_total_size < s->bios_size)
+            bios_total_size <<= 1;
+        pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
+                         PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+    }
+}
+
 int pci_vga_init(PCIBus *bus,
                  unsigned long vga_bios_offset, int vga_bios_size)
 {
-    PCIVGAState *d;
-    VGAState *s;
-    uint8_t *pci_conf;
+    PCIDevice *dev;
 
-    d = (PCIVGAState *)pci_register_device(bus, "VGA",
-                                           sizeof(PCIVGAState),
-                                           -1, NULL, pci_vga_write_config);
-    if (!d)
-        return -1;
-    s = &d->vga_state;
+    dev = pci_create("VGA", NULL);
+    qdev_prop_set_uint32(&dev->qdev, "bios-offset", vga_bios_offset);
+    qdev_prop_set_uint32(&dev->qdev, "bios-size", vga_bios_offset);
+    qdev_init(&dev->qdev);
 
-    vga_common_init(s, VGA_RAM_SIZE);
-    vga_init(s);
-
-    s->ds = graphic_console_init(s->update, s->invalidate,
-                                 s->screen_dump, s->text_update, s);
-
-    s->pci_dev = &d->dev;
-
-    pci_conf = d->dev.config;
-    // dummy VGA (same as Bochs ID)
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
-    pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
-
-    /* XXX: VGA_RAM_SIZE must be a power of two */
-    pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
-                           PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-    if (vga_bios_size != 0) {
-        unsigned int bios_total_size;
-        s->bios_offset = vga_bios_offset;
-        s->bios_size = vga_bios_size;
-        /* must be a power of two */
-        bios_total_size = 1;
-        while (bios_total_size < vga_bios_size)
-            bios_total_size <<= 1;
-        pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
-                               PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-    }
     return 0;
 }
+
+static PCIDeviceInfo vga_info = {
+    .qdev.name    = "VGA",
+    .qdev.size    = sizeof(PCIVGAState),
+    .init         = pci_vga_initfn,
+    .config_write = pci_vga_write_config,
+    .qdev.props   = (Property[]) {
+        {
+            .name   = "bios-offset",
+            .info   = &qdev_prop_hex32,
+            .offset = offsetof(PCIVGAState, vga_state.bios_offset),
+        },{
+            .name   = "bios-size",
+            .info   = &qdev_prop_hex32,
+            .offset = offsetof(PCIVGAState, vga_state.bios_size),
+        },
+        {/* end of list */}
+    }
+};
+
+static void vga_register(void)
+{
+    pci_qdev_register(&vga_info);
+}
+device_init(vga_register);
 
 /********************************************************/
 /* vga screen dump */
