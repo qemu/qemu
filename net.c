@@ -29,7 +29,7 @@
 #include <sys/time.h>
 #include <zlib.h>
 
-/* Needed early for HOST_BSD etc. */
+/* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 
 #ifndef _WIN32
@@ -52,7 +52,7 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
 #include <sys/stat.h>
 #if defined(__FreeBSD__) || defined(__DragonFly__)
 #include <libutil.h>
@@ -99,15 +99,6 @@
 
 #if defined(CONFIG_VDE)
 #include <libvdeplug.h>
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#include <malloc.h>
-#include <sys/timeb.h>
-#include <mmsystem.h>
-#define getopt_long_only getopt_long
-#define memalign(align, size) malloc(size)
 #endif
 
 #include "qemu-common.h"
@@ -278,26 +269,6 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     saddr->sin_port = htons(port);
     return 0;
 }
-
-#if !defined(_WIN32) && 0
-static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
-{
-    const char *p;
-    int len;
-
-    len = MIN(108, strlen(str));
-    p = strchr(str, ',');
-    if (p)
-	len = MIN(len, p - str);
-
-    memset(uaddr, 0, sizeof(*uaddr));
-
-    uaddr->sun_family = AF_UNIX;
-    memcpy(uaddr->sun_path, str, len);
-
-    return 0;
-}
-#endif
 
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6])
 {
@@ -1150,7 +1121,7 @@ static void slirp_smb(SlirpState* s, Monitor *mon, const char *exported_dir,
     snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -s %s",
              SMBD_COMMAND, smb_conf);
 
-    if (slirp_add_exec(s->slirp, 0, smb_cmdline, vserver_addr, 139) < 0) {
+    if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0) {
         slirp_smb_cleanup(s);
         config_error(mon, "conflicting/invalid smbserver address\n");
     }
@@ -1239,16 +1210,17 @@ static void slirp_guestfwd(SlirpState *s, Monitor *mon, const char *config_str,
         qemu_free(fwd);
         return;
     }
-    fwd->server = server;
-    fwd->port = port;
-    fwd->slirp = s->slirp;
 
-    if (slirp_add_exec(s->slirp, 3, fwd->hd, server, port) < 0) {
+    if (slirp_add_exec(s->slirp, 3, fwd->hd, &server, port) < 0) {
         config_error(mon, "conflicting/invalid host:port in guest forwarding "
                      "rule '%s'\n", config_str);
         qemu_free(fwd);
         return;
     }
+    fwd->server = server;
+    fwd->port = port;
+    fwd->slirp = s->slirp;
+
     qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
                           NULL, fwd);
     return;
@@ -1463,7 +1435,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     return s;
 }
 
-#if defined (HOST_BSD) || defined (__FreeBSD_kernel__)
+#if defined (CONFIG_BSD) || defined (__FreeBSD_kernel__)
 static int tap_open(char *ifname, int ifname_size)
 {
     int fd;
@@ -2410,6 +2382,23 @@ void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
     exit(exit_status);
 }
 
+static int net_handle_fd_param(Monitor *mon, const char *param)
+{
+    if (!qemu_isdigit(param[0])) {
+        int fd;
+
+        fd = monitor_get_fd(mon, param);
+        if (fd == -1) {
+            config_error(mon, "No file descriptor named %s found", param);
+            return -1;
+        }
+
+        return fd;
+    } else {
+        return strtol(param, NULL, 0);
+    }
+}
+
 int net_client_init(Monitor *mon, const char *device, const char *p)
 {
     char buf[1024];
@@ -2650,14 +2639,20 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             static const char * const fd_params[] = {
                 "vlan", "name", "fd", "sndbuf", NULL
             };
+            ret = -1;
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
                 goto out;
             }
-            fd = strtol(buf, NULL, 0);
+            fd = net_handle_fd_param(mon, buf);
+            if (fd == -1) {
+                goto out;
+            }
             fcntl(fd, F_SETFL, O_NONBLOCK);
             s = net_tap_fd_init(vlan, device, name, fd);
+            if (!s) {
+                close(fd);
+            }
         } else {
             static const char * const tap_params[] = {
                 "vlan", "name", "ifname", "script", "downscript", "sndbuf", NULL
@@ -2697,15 +2692,20 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
                 "vlan", "name", "fd", NULL
             };
             int fd;
+            ret = -1;
             if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
                 config_error(mon, "invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
                 goto out;
             }
-            fd = strtol(buf, NULL, 0);
-            ret = -1;
-            if (net_socket_fd_init(vlan, device, name, fd, 1))
-                ret = 0;
+            fd = net_handle_fd_param(mon, buf);
+            if (fd == -1) {
+                goto out;
+            }
+            if (!net_socket_fd_init(vlan, device, name, fd, 1)) {
+                close(fd);
+                goto out;
+            }
+            ret = 0;
         } else if (get_param_value(buf, sizeof(buf), "listen", p) > 0) {
             static const char * const listen_params[] = {
                 "vlan", "name", "listen", NULL

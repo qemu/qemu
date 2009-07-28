@@ -46,8 +46,8 @@ static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
                                        int page_size)
 {
     uint64_t tsb_base = tsb_register & ~0x1fffULL;
-    int tsb_split = (env->dmmuregs[5] & 0x1000ULL) ? 1 : 0;
-    int tsb_size  = env->dmmuregs[5] & 0xf;
+    int tsb_split = (tsb_register & 0x1000ULL) ? 1 : 0;
+    int tsb_size  = tsb_register & 0xf;
 
     // discard lower 13 bits which hold tag access context
     uint64_t tag_access_va = tag_access_register & ~0x1fffULL;
@@ -85,6 +85,105 @@ static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
 static uint64_t ultrasparc_tag_target(uint64_t tag_access_register)
 {
     return ((tag_access_register & 0x1fff) << 48) | (tag_access_register >> 22);
+}
+
+static void replace_tlb_entry(SparcTLBEntry *tlb,
+                              uint64_t tlb_tag, uint64_t tlb_tte,
+                              CPUState *env1)
+{
+    target_ulong mask, size, va, offset;
+
+    // flush page range if translation is valid
+    if (TTE_IS_VALID(tlb->tte)) {
+
+        mask = 0xffffffffffffe000ULL;
+        mask <<= 3 * ((tlb->tte >> 61) & 3);
+        size = ~mask + 1;
+
+        va = tlb->tag & mask;
+
+        for (offset = 0; offset < size; offset += TARGET_PAGE_SIZE) {
+            tlb_flush_page(env1, va + offset);
+        }
+    }
+
+    tlb->tag = tlb_tag;
+    tlb->tte = tlb_tte;
+}
+
+static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
+                      const char* strmmu, CPUState *env1)
+{
+    unsigned int i;
+    target_ulong mask;
+
+    for (i = 0; i < 64; i++) {
+        if (TTE_IS_VALID(tlb[i].tte)) {
+
+            mask = 0xffffffffffffe000ULL;
+            mask <<= 3 * ((tlb[i].tte >> 61) & 3);
+
+            if ((demap_addr & mask) == (tlb[i].tag & mask)) {
+                replace_tlb_entry(&tlb[i], 0, 0, env1);
+#ifdef DEBUG_MMU
+                DPRINTF_MMU("%s demap invalidated entry [%02u]\n", strmmu, i);
+                dump_mmu(env1);
+#endif
+            }
+            //return;
+        }
+    }
+
+}
+
+static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
+                                 uint64_t tlb_tag, uint64_t tlb_tte,
+                                 const char* strmmu, CPUState *env1)
+{
+    unsigned int i, replace_used;
+
+    // Try replacing invalid entry
+    for (i = 0; i < 64; i++) {
+        if (!TTE_IS_VALID(tlb[i].tte)) {
+            replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
+#ifdef DEBUG_MMU
+            DPRINTF_MMU("%s lru replaced invalid entry [%i]\n", strmmu, i);
+            dump_mmu(env1);
+#endif
+            return;
+        }
+    }
+
+    // All entries are valid, try replacing unlocked entry
+
+    for (replace_used = 0; replace_used < 2; ++replace_used) {
+
+        // Used entries are not replaced on first pass
+
+        for (i = 0; i < 64; i++) {
+            if (!TTE_IS_LOCKED(tlb[i].tte) && !TTE_IS_USED(tlb[i].tte)) {
+
+                replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
+#ifdef DEBUG_MMU
+                DPRINTF_MMU("%s lru replaced unlocked %s entry [%i]\n",
+                            strmmu, (replace_used?"used":"unused"), i);
+                dump_mmu(env1);
+#endif
+                return;
+            }
+        }
+
+        // Now reset used bit and search for unused entries again
+
+        for (i = 0; i < 64; i++) {
+            TTE_SET_UNUSED(tlb[i].tte);
+        }
+    }
+
+#ifdef DEBUG_MMU
+    DPRINTF_MMU("%s lru replacement failed: no entries available\n", strmmu);
+#endif
+    // error state?
 }
 
 #endif
@@ -286,7 +385,7 @@ void helper_faligndata(void)
     *((uint64_t *)&DT0) = tmp;
 }
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define VIS_B64(n) b[7 - (n)]
 #define VIS_W64(n) w[3 - (n)]
 #define VIS_SW64(n) sw[3 - (n)]
@@ -2143,7 +2242,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 
             if (reg == 0) {
                 // I-TSB Tag Target register
-                ret = ultrasparc_tag_target(env->immuregs[6]);
+                ret = ultrasparc_tag_target(env->immu.tag_access);
             } else {
                 ret = env->immuregs[reg];
             }
@@ -2154,7 +2253,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             // env->immuregs[5] holds I-MMU TSB register value
             // env->immuregs[6] holds I-MMU Tag Access register value
-            ret = ultrasparc_tsb_pointer(env->immuregs[5], env->immuregs[6],
+            ret = ultrasparc_tsb_pointer(env->immu.tsb, env->immu.tag_access,
                                          8*1024);
             break;
         }
@@ -2162,7 +2261,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             // env->immuregs[5] holds I-MMU TSB register value
             // env->immuregs[6] holds I-MMU Tag Access register value
-            ret = ultrasparc_tsb_pointer(env->immuregs[5], env->immuregs[6],
+            ret = ultrasparc_tsb_pointer(env->immu.tsb, env->immu.tag_access,
                                          64*1024);
             break;
         }
@@ -2170,14 +2269,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             int reg = (addr >> 3) & 0x3f;
 
-            ret = env->itlb_tte[reg];
+            ret = env->itlb[reg].tte;
             break;
         }
     case 0x56: // I-MMU tag read
         {
             int reg = (addr >> 3) & 0x3f;
 
-            ret = env->itlb_tag[reg];
+            ret = env->itlb[reg].tag;
             break;
         }
     case 0x58: // D-MMU regs
@@ -2186,7 +2285,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 
             if (reg == 0) {
                 // D-TSB Tag Target register
-                ret = ultrasparc_tag_target(env->dmmuregs[6]);
+                ret = ultrasparc_tag_target(env->dmmu.tag_access);
             } else {
                 ret = env->dmmuregs[reg];
             }
@@ -2196,7 +2295,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             // env->dmmuregs[5] holds D-MMU TSB register value
             // env->dmmuregs[6] holds D-MMU Tag Access register value
-            ret = ultrasparc_tsb_pointer(env->dmmuregs[5], env->dmmuregs[6],
+            ret = ultrasparc_tsb_pointer(env->dmmu.tsb, env->dmmu.tag_access,
                                          8*1024);
             break;
         }
@@ -2204,7 +2303,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             // env->dmmuregs[5] holds D-MMU TSB register value
             // env->dmmuregs[6] holds D-MMU Tag Access register value
-            ret = ultrasparc_tsb_pointer(env->dmmuregs[5], env->dmmuregs[6],
+            ret = ultrasparc_tsb_pointer(env->dmmu.tsb, env->dmmu.tag_access,
                                          64*1024);
             break;
         }
@@ -2212,14 +2311,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             int reg = (addr >> 3) & 0x3f;
 
-            ret = env->dtlb_tte[reg];
+            ret = env->dtlb[reg].tte;
             break;
         }
     case 0x5e: // D-MMU tag read
         {
             int reg = (addr >> 3) & 0x3f;
 
-            ret = env->dtlb_tag[reg];
+            ret = env->dtlb[reg].tag;
             break;
         }
     case 0x46: // D-cache data
@@ -2462,25 +2561,34 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             oldreg = env->immuregs[reg];
             switch(reg) {
             case 0: // RO
-            case 4:
                 return;
             case 1: // Not in I-MMU
             case 2:
-            case 7:
-            case 8:
                 return;
             case 3: // SFSR
                 if ((val & 1) == 0)
                     val = 0; // Clear SFSR
+                env->immu.sfsr = val;
                 break;
+            case 4: // RO
+                return;
             case 5: // TSB access
+                DPRINTF_MMU("immu TSB write: 0x%016" PRIx64 " -> 0x%016"
+                            PRIx64 "\n", env->immu.tsb, val);
+                env->immu.tsb = val;
+                break;
             case 6: // Tag access
+                env->immu.tag_access = val;
+                break;
+            case 7:
+            case 8:
+                return;
             default:
                 break;
             }
-            env->immuregs[reg] = val;
+
             if (oldreg != env->immuregs[reg]) {
-                DPRINTF_MMU("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08"
+                DPRINTF_MMU("immu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
                             PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
 #ifdef DEBUG_MMU
@@ -2489,55 +2597,24 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x54: // I-MMU data in
-        {
-            unsigned int i;
-
-            // Try finding an invalid entry
-            for (i = 0; i < 64; i++) {
-                if ((env->itlb_tte[i] & 0x8000000000000000ULL) == 0) {
-                    env->itlb_tag[i] = env->immuregs[6];
-                    env->itlb_tte[i] = val;
-                    return;
-                }
-            }
-            // Try finding an unlocked entry
-            for (i = 0; i < 64; i++) {
-                if ((env->itlb_tte[i] & 0x40) == 0) {
-                    env->itlb_tag[i] = env->immuregs[6];
-                    env->itlb_tte[i] = val;
-                    return;
-                }
-            }
-            // error state?
-            return;
-        }
+        replace_tlb_1bit_lru(env->itlb, env->immu.tag_access, val, "immu", env);
+        return;
     case 0x55: // I-MMU data access
         {
             // TODO: auto demap
 
             unsigned int i = (addr >> 3) & 0x3f;
 
-            env->itlb_tag[i] = env->immuregs[6];
-            env->itlb_tte[i] = val;
+            replace_tlb_entry(&env->itlb[i], env->immu.tag_access, val, env);
+
+#ifdef DEBUG_MMU
+            DPRINTF_MMU("immu data access replaced entry [%i]\n", i);
+            dump_mmu(env);
+#endif
             return;
         }
     case 0x57: // I-MMU demap
-        {
-            unsigned int i;
-
-            for (i = 0; i < 64; i++) {
-                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                    target_ulong mask = 0xffffffffffffe000ULL;
-
-                    mask <<= 3 * ((env->itlb_tte[i] >> 61) & 3);
-                    if ((val & mask) == (env->itlb_tag[i] & mask)) {
-                        env->itlb_tag[i] = 0;
-                        env->itlb_tte[i] = 0;
-                    }
-                    return;
-                }
-            }
-        }
+        demap_tlb(env->itlb, val, "immu", env);
         return;
     case 0x58: // D-MMU regs
         {
@@ -2552,22 +2629,33 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             case 3: // SFSR
                 if ((val & 1) == 0) {
                     val = 0; // Clear SFSR, Fault address
-                    env->dmmuregs[4] = 0;
+                    env->dmmu.sfar = 0;
                 }
-                env->dmmuregs[reg] = val;
+                env->dmmu.sfsr = val;
                 break;
             case 1: // Primary context
+                env->dmmu.mmu_primary_context = val;
+                break;
             case 2: // Secondary context
+                env->dmmu.mmu_secondary_context = val;
+                break;
             case 5: // TSB access
+                DPRINTF_MMU("dmmu TSB write: 0x%016" PRIx64 " -> 0x%016"
+                            PRIx64 "\n", env->dmmu.tsb, val);
+                env->dmmu.tsb = val;
+                break;
             case 6: // Tag access
+                env->dmmu.tag_access = val;
+                break;
             case 7: // Virtual Watchpoint
             case 8: // Physical Watchpoint
             default:
+                env->dmmuregs[reg] = val;
                 break;
             }
-            env->dmmuregs[reg] = val;
+
             if (oldreg != env->dmmuregs[reg]) {
-                DPRINTF_MMU("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08"
+                DPRINTF_MMU("dmmu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
                             PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }
 #ifdef DEBUG_MMU
@@ -2576,53 +2664,22 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x5c: // D-MMU data in
-        {
-            unsigned int i;
-
-            // Try finding an invalid entry
-            for (i = 0; i < 64; i++) {
-                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) == 0) {
-                    env->dtlb_tag[i] = env->dmmuregs[6];
-                    env->dtlb_tte[i] = val;
-                    return;
-                }
-            }
-            // Try finding an unlocked entry
-            for (i = 0; i < 64; i++) {
-                if ((env->dtlb_tte[i] & 0x40) == 0) {
-                    env->dtlb_tag[i] = env->dmmuregs[6];
-                    env->dtlb_tte[i] = val;
-                    return;
-                }
-            }
-            // error state?
-            return;
-        }
+        replace_tlb_1bit_lru(env->dtlb, env->dmmu.tag_access, val, "dmmu", env);
+        return;
     case 0x5d: // D-MMU data access
         {
             unsigned int i = (addr >> 3) & 0x3f;
 
-            env->dtlb_tag[i] = env->dmmuregs[6];
-            env->dtlb_tte[i] = val;
+            replace_tlb_entry(&env->dtlb[i], env->dmmu.tag_access, val, env);
+
+#ifdef DEBUG_MMU
+            DPRINTF_MMU("dmmu data access replaced entry [%i]\n", i);
+            dump_mmu(env);
+#endif
             return;
         }
     case 0x5f: // D-MMU demap
-        {
-            unsigned int i;
-
-            for (i = 0; i < 64; i++) {
-                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                    target_ulong mask = 0xffffffffffffe000ULL;
-
-                    mask <<= 3 * ((env->dtlb_tte[i] >> 61) & 3);
-                    if ((val & mask) == (env->dtlb_tag[i] & mask)) {
-                        env->dtlb_tag[i] = 0;
-                        env->dtlb_tte[i] = 0;
-                    }
-                    return;
-                }
-            }
-        }
+        demap_tlb(env->dtlb, val, "dmmu", env);
         return;
     case 0x49: // Interrupt data receive
         // XXX

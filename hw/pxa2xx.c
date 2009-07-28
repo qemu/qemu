@@ -2034,7 +2034,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 {
     PXA2xxState *s;
     int iomemtype, i;
-    int index;
+    DriveInfo *dinfo;
     s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
 
     if (revision && strncmp(revision, "pxa27", 5)) {
@@ -2066,12 +2066,12 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
+    dinfo = drive_get(IF_SD, 0, 0);
+    if (!dinfo) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = pxa2xx_mmci_init(0x41100000, drives_table[index].bdrv,
+    s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
                               s->pic[PXA2XX_PIC_MMC], s->dma);
 
     for (i = 0; pxa270_serial[i].io_base; i ++)
@@ -2153,7 +2153,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 {
     PXA2xxState *s;
     int iomemtype, i;
-    int index;
+    DriveInfo *dinfo;
 
     s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
 
@@ -2178,12 +2178,12 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 85);
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
+    dinfo = drive_get(IF_SD, 0, 0);
+    if (!dinfo) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = pxa2xx_mmci_init(0x41100000, drives_table[index].bdrv,
+    s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
                               s->pic[PXA2XX_PIC_MMC], s->dma);
 
     for (i = 0; pxa255_serial[i].io_base; i ++)

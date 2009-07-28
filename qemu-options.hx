@@ -39,7 +39,10 @@ Select CPU model (-cpu ? for list and additional feature selection)
 ETEXI
 
 DEF("smp", HAS_ARG, QEMU_OPTION_smp,
-    "-smp n          set the number of CPUs to 'n' [default=1]\n")
+    "-smp n[,maxcpus=cpus]\n"
+    "                set the number of CPUs to 'n' [default=1]\n"
+    "                maxcpus= maximum number of total cpus, including\n"
+    "                offline CPUs for hotplug etc.\n")
 STEXI
 @item -smp @var{n}
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
@@ -381,6 +384,8 @@ Network adapter that supports CDC ethernet and RNDIS protocols.
 @end table
 ETEXI
 
+DEF("device", HAS_ARG, QEMU_OPTION_device,
+    "-device driver[,options]  add device\n")
 DEF("name", HAS_ARG, QEMU_OPTION_name,
     "-name string1[,process=string2]    set the name of the guest\n"
     "            string1 sets the window title and string2 the process name (on Linux)\n")

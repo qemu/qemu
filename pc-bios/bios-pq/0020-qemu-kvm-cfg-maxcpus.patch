@@ -1,0 +1,62 @@
+Read max_cpus variable from QEMU_CFG. If not provided, use value of
+smp_cpus.
+
+Signed-off-by: Jes Sorensen <jes@sgi.com>
+
+diff --git a/bios/rombios.h b/bios/rombios.h
+index 8ece2ee..dbf3bd3 100644
+--- a/bios/rombios.h
++++ b/bios/rombios.h
+@@ -65,6 +65,7 @@
+ #define QEMU_CFG_UUID             0x02
+ #define QEMU_CFG_NUMA             0x0d
+ #define QEMU_CFG_BOOT_MENU        0x0e
++#define QEMU_CFG_MAX_CPUS         0x0f
+ #define QEMU_CFG_ARCH_LOCAL       0x8000
+ #define QEMU_CFG_ACPI_TABLES      (QEMU_CFG_ARCH_LOCAL + 0)
+ #define QEMU_CFG_SMBIOS_ENTRIES   (QEMU_CFG_ARCH_LOCAL + 1)
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index 69e82b1..610fc1f 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -436,6 +436,7 @@ void delay_ms(int n)
+ }
+ 
+ uint16_t smp_cpus;
++uint16_t max_cpus;
+ uint32_t cpuid_signature;
+ uint32_t cpuid_features;
+ uint32_t cpuid_ext_features;
+@@ -526,6 +527,19 @@ static uint16_t smbios_entries(void)
+     return cnt;
+ }
+ 
++static uint16_t get_max_cpus(void)
++{
++    uint16_t cnt;
++
++    qemu_cfg_select(QEMU_CFG_MAX_CPUS);
++    qemu_cfg_read((uint8_t*)&cnt, sizeof(cnt));
++
++    if (!cnt)
++        cnt = smp_cpus;
++
++    return cnt;
++}
++
+ uint64_t qemu_cfg_get64 (void)
+ {
+     uint64_t ret;
+@@ -2689,6 +2703,12 @@ void rombios32_init(uint32_t *s3_resume_vector, uint8_t *shutdown_flag)
+ 
+     smp_probe();
+ 
++#ifdef BX_QEMU
++    max_cpus = get_max_cpus();
++#else
++    max_cpus = smp_cpus;
++#endif
++
+     find_bios_table_area();
+ 
+     if (*shutdown_flag == 0xfe) {

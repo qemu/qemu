@@ -32,16 +32,21 @@
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
-
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENODEV
+#endif
+#if !defined(ENOTSUP) && defined(__OpenBSD__)
+#define ENOTSUP 4096
 #endif
 
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
-#ifndef HAVE_IOVEC
-#define HAVE_IOVEC
+#ifndef CONFIG_IOVEC
+#define CONFIG_IOVEC
 struct iovec {
     void *iov_base;
     size_t iov_len;
@@ -53,10 +58,8 @@ struct iovec {
 #ifdef _WIN32
 #define fsync _commit
 #define lseek _lseeki64
-#define ENOTSUP 4096
 extern int qemu_ftruncate64(int, int64_t);
 #define ftruncate qemu_ftruncate64
-
 
 static inline char *realpath(const char *path, char *resolved_path)
 {

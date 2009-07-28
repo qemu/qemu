@@ -63,6 +63,8 @@ struct KVMState
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
+    int irqchip_in_kernel;
+    int pit_in_kernel;
 };
 
 static KVMState *kvm_state;
@@ -153,6 +155,17 @@ static void kvm_reset_vcpu(void *opaque)
     }
 }
 
+int kvm_irqchip_in_kernel(void)
+{
+    return kvm_state->irqchip_in_kernel;
+}
+
+int kvm_pit_in_kernel(void)
+{
+    return kvm_state->pit_in_kernel;
+}
+
+
 int kvm_init_vcpu(CPUState *env)
 {
     KVMState *s = kvm_state;
@@ -226,7 +239,7 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     if (mem == NULL)  {
             fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
                     TARGET_FMT_plx "\n", __func__, phys_addr,
-                    phys_addr + size - 1);
+                    (target_phys_addr_t)(phys_addr + size - 1));
             return -EINVAL;
     }
 
@@ -282,6 +295,11 @@ int kvm_set_migration_log(int enable)
     return 0;
 }
 
+static int test_le_bit(unsigned long nr, unsigned char *addr)
+{
+    return (addr[nr >> 3] >> (nr & 7)) & 1;
+}
+
 /**
  * kvm_physical_sync_dirty_bitmap - Grab dirty bitmap from kernel space
  * This function updates qemu's dirty bitmap using cpu_physical_memory_set_dirty().
@@ -328,12 +346,10 @@ int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
         for (phys_addr = mem->start_addr, addr = mem->phys_offset;
              phys_addr < mem->start_addr + mem->memory_size;
              phys_addr += TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
-            unsigned long *bitmap = (unsigned long *)d.dirty_bitmap;
+            unsigned char *bitmap = (unsigned char *)d.dirty_bitmap;
             unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
-            unsigned word = nr / (sizeof(*bitmap) * 8);
-            unsigned bit = nr % (sizeof(*bitmap) * 8);
 
-            if ((bitmap[word] >> bit) & 1) {
+            if (test_le_bit(nr, bitmap)) {
                 cpu_physical_memory_set_dirty(addr);
             }
         }
@@ -873,6 +889,15 @@ void kvm_setup_guest_memory(void *start, size_t size)
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
+static void on_vcpu(CPUState *env, void (*func)(void *data), void *data)
+{
+    if (env == cpu_single_env) {
+        func(data);
+        return;
+    }
+    abort();
+}
+
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
                                                  target_ulong pc)
 {
@@ -890,18 +915,32 @@ int kvm_sw_breakpoints_active(CPUState *env)
     return !TAILQ_EMPTY(&env->kvm_state->kvm_sw_breakpoints);
 }
 
+struct kvm_set_guest_debug_data {
+    struct kvm_guest_debug dbg;
+    CPUState *env;
+    int err;
+};
+
+static void kvm_invoke_set_guest_debug(void *data)
+{
+    struct kvm_set_guest_debug_data *dbg_data = data;
+    dbg_data->err = kvm_vcpu_ioctl(dbg_data->env, KVM_SET_GUEST_DEBUG, &dbg_data->dbg);
+}
+
 int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap)
 {
-    struct kvm_guest_debug dbg;
+    struct kvm_set_guest_debug_data data;
 
-    dbg.control = 0;
+    data.dbg.control = 0;
     if (env->singlestep_enabled)
-        dbg.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
+        data.dbg.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
 
-    kvm_arch_update_guest_debug(env, &dbg);
-    dbg.control |= reinject_trap;
+    kvm_arch_update_guest_debug(env, &data.dbg);
+    data.dbg.control |= reinject_trap;
+    data.env = env;
 
-    return kvm_vcpu_ioctl(env, KVM_SET_GUEST_DEBUG, &dbg);
+    on_vcpu(env, kvm_invoke_set_guest_debug, &data);
+    return data.err;
 }
 
 int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,

@@ -1512,8 +1512,8 @@ static void musicpal_init(ram_addr_t ram_size,
     qemu_irq pic[32];
     DeviceState *dev;
     int i;
-    int index;
     unsigned long flash_size;
+    DriveInfo *dinfo;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -1549,9 +1549,9 @@ static void musicpal_init(ram_addr_t ram_size,
                    serial_hds[1], 1);
 
     /* Register flash */
-    index = drive_get_index(IF_PFLASH, 0, 0);
-    if (index != -1) {
-        flash_size = bdrv_getlength(drives_table[index].bdrv);
+    dinfo = drive_get(IF_PFLASH, 0, 0);
+    if (dinfo) {
+        flash_size = bdrv_getlength(dinfo->bdrv);
         if (flash_size != 8*1024*1024 && flash_size != 16*1024*1024 &&
             flash_size != 32*1024*1024) {
             fprintf(stderr, "Invalid flash image size\n");
@@ -1564,7 +1564,7 @@ static void musicpal_init(ram_addr_t ram_size,
          * image is smaller than 32 MB.
          */
         pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(flash_size),
-                              drives_table[index].bdrv, 0x10000,
+                              dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,

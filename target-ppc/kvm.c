@@ -44,7 +44,13 @@ int kvm_arch_init(KVMState *s, int smp_cpus)
 
 int kvm_arch_init_vcpu(CPUState *cenv)
 {
-    return 0;
+    int ret = 0;
+    struct kvm_sregs sregs;
+
+    sregs.pvr = cenv->spr[SPR_PVR];
+    ret = kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
+
+    return ret;
 }
 
 int kvm_arch_put_registers(CPUState *env)
@@ -118,6 +124,14 @@ int kvm_arch_get_registers(CPUState *env)
     return 0;
 }
 
+#if defined(TARGET_PPCEMB)
+#define PPC_INPUT_INT PPC40x_INPUT_INT
+#elif defined(TARGET_PPC64)
+#define PPC_INPUT_INT PPC970_INPUT_INT
+#else
+#define PPC_INPUT_INT PPC6xx_INPUT_INT
+#endif
+
 int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
     int r;
@@ -127,7 +141,7 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
     if (run->ready_for_interrupt_injection &&
         (env->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->irq_input_state & (1<<PPC40x_INPUT_INT)))
+        (env->irq_input_state & (1<<PPC_INPUT_INT)))
     {
         /* For now KVM disregards the 'irq' argument. However, in the
          * future KVM could cache it in-kernel to avoid a heavyweight exit

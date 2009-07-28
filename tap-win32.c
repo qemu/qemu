@@ -30,13 +30,7 @@
 #include "sysemu.h"
 #include <stdio.h>
 #include <windows.h>
-
-/* NOTE: PCIBus is redefined in winddk.h */
-#define PCIBus _PCIBus
-#include <ddk/ntapi.h>
-#include <ddk/winddk.h>
-#include <ddk/ntddk.h>
-#undef PCIBus
+#include <winioctl.h>
 
 //=============
 // TAP IOCTLs

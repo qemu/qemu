@@ -46,7 +46,7 @@
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
 
-#ifdef HAVE_FDT
+#ifdef CONFIG_FDT
 static int mpc8544_copy_soc_cell(void *fdt, const char *node, const char *prop)
 {
     uint32_t cell;
@@ -77,7 +77,7 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
                                      const char *kernel_cmdline)
 {
     void *fdt = NULL;
-#ifdef HAVE_FDT
+#ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = {0, ramsize};
     char *filename;
     int fdt_size;
@@ -172,6 +172,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq *irqs, *mpic, *pci_irqs;
     SerialState * serial[2];
+    DriveInfo *dinfo;
 
     /* Setup CPU */
     env = cpu_ppc_init("e500v2_v30");
@@ -219,8 +220,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         int unit_id = 0;
 
         /* Add virtio block devices. */
-        while ((i = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
-            pci_dev = pci_create("virtio-blk-pci", drives_table[i].devaddr);
+        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
+            pci_dev = pci_create("virtio-blk-pci", dinfo->devaddr);
             qdev_init(&pci_dev->qdev);
             unit_id++;
         }

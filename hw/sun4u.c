@@ -557,10 +557,10 @@ static void sun4uv_init(ram_addr_t RAM_size,
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     qemu_irq *irq;
-    int drive_index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     void *fw_cfg;
+    DriveInfo *dinfo;
 
     /* init CPUs */
     env = cpu_devinit(cpu_model, hwdef);
@@ -608,12 +608,9 @@ static void sun4uv_init(ram_addr_t RAM_size,
         exit(1);
     }
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        drive_index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS,
-                                      i % MAX_IDE_DEVS);
-       if (drive_index != -1)
-           hd[i] = drives_table[drive_index].bdrv;
-       else
-           hd[i] = NULL;
+        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS,
+                          i % MAX_IDE_DEVS);
+        hd[i] = dinfo ? dinfo->bdrv : NULL;
     }
 
     pci_cmd646_ide_init(pci_bus, hd, 1);
@@ -621,11 +618,8 @@ static void sun4uv_init(ram_addr_t RAM_size,
     /* FIXME: wire up interrupts.  */
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
     for(i = 0; i < MAX_FD; i++) {
-        drive_index = drive_get_index(IF_FLOPPY, 0, i);
-       if (drive_index != -1)
-           fd[i] = drives_table[drive_index].bdrv;
-       else
-           fd[i] = NULL;
+        dinfo = drive_get(IF_FLOPPY, 0, i);
+        fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
     floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);

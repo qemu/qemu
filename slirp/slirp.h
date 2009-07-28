@@ -108,10 +108,6 @@ typedef unsigned char u_int8_t;
 #include <arpa/inet.h>
 #endif
 
-#ifdef GETTIMEOFDAY_ONE_ARG
-#define gettimeofday(x, y) gettimeofday(x)
-#endif
-
 /* Systems lacking strdup() definition in <string.h>. */
 #if defined(ultrix)
 char *strdup(const char *);

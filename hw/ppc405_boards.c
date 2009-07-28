@@ -188,7 +188,7 @@ static void ref405ep_init (ram_addr_t ram_size,
     int linux_boot;
     int fl_idx, fl_sectors, len;
     int ppc_boot_device = boot_device[0];
-    int index;
+    DriveInfo *dinfo;
 
     /* XXX: fix this */
     ram_bases[0] = qemu_ram_alloc(0x08000000);
@@ -215,19 +215,19 @@ static void ref405ep_init (ram_addr_t ram_size,
 #endif
     fl_idx = 0;
 #ifdef USE_FLASH_BIOS
-    index = drive_get_index(IF_PFLASH, 0, fl_idx);
-    if (index != -1) {
-        bios_size = bdrv_getlength(drives_table[index].bdrv);
+    dinfo = drive_get(IF_PFLASH, 0, fl_idx);
+    if (dinfo) {
+        bios_size = bdrv_getlength(dinfo->bdrv);
         bios_offset = qemu_ram_alloc(bios_size);
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
-               bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
+               bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
-                              drives_table[index].bdrv, 65536, fl_sectors, 1,
+                              dinfo->bdrv, 65536, fl_sectors, 1,
                               2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
         fl_idx++;
     } else
@@ -509,7 +509,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
     int linux_boot;
     int fl_idx, fl_sectors;
     int ppc_boot_device = boot_device[0];
-    int index;
+    DriveInfo *dinfo;
 
     /* RAM is soldered to the board so the size cannot be changed */
     ram_bases[0] = qemu_ram_alloc(0x04000000);
@@ -528,9 +528,9 @@ static void taihu_405ep_init(ram_addr_t ram_size,
 #endif
     fl_idx = 0;
 #if defined(USE_FLASH_BIOS)
-    index = drive_get_index(IF_PFLASH, 0, fl_idx);
-    if (index != -1) {
-        bios_size = bdrv_getlength(drives_table[index].bdrv);
+    dinfo = drive_get(IF_PFLASH, 0, fl_idx);
+    if (dinfo) {
+        bios_size = bdrv_getlength(dinfo->bdrv);
         /* XXX: should check that size is 2MB */
         //        bios_size = 2 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
@@ -539,10 +539,10 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
-               bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
+               bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
-                              drives_table[index].bdrv, 65536, fl_sectors, 1,
+                              dinfo->bdrv, 65536, fl_sectors, 1,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
         fl_idx++;
     } else
@@ -570,9 +570,9 @@ static void taihu_405ep_init(ram_addr_t ram_size,
                                      bios_size, bios_offset | IO_MEM_ROM);
     }
     /* Register Linux flash */
-    index = drive_get_index(IF_PFLASH, 0, fl_idx);
-    if (index != -1) {
-        bios_size = bdrv_getlength(drives_table[index].bdrv);
+    dinfo = drive_get(IF_PFLASH, 0, fl_idx);
+    if (dinfo) {
+        bios_size = bdrv_getlength(dinfo->bdrv);
         /* XXX: should check that size is 32MB */
         bios_size = 32 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
@@ -580,11 +580,11 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s'\n",
                fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
-               bdrv_get_device_name(drives_table[index].bdrv));
+               bdrv_get_device_name(dinfo->bdrv));
 #endif
         bios_offset = qemu_ram_alloc(bios_size);
         pflash_cfi02_register(0xfc000000, bios_offset,
-                              drives_table[index].bdrv, 65536, fl_sectors, 1,
+                              dinfo->bdrv, 65536, fl_sectors, 1,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
         fl_idx++;
     }

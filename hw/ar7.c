@@ -3767,7 +3767,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
 {
     char *filename;
     CPUState *env;
-    int drive_index;
+    DriveInfo *dinfo;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
     ram_addr_t rom_offset;
@@ -3821,15 +3821,15 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
-    drive_index = drive_get_index(IF_PFLASH, 0, 0);
-    if (drive_index != -1) {
+    dinfo = drive_get(IF_PFLASH, 0, 0);
+    if (dinfo) {
         pflash_t *pf;
-        int64_t image_size = bdrv_getlength(drives_table[drive_index].bdrv);
+        int64_t image_size = bdrv_getlength(dinfo->bdrv);
         if (image_size > 0) {
             flash_size = image_size;
             flash_offset = qemu_ram_alloc(flash_size);
             pf = pflash_device_register(FLASH_ADDR, flash_offset,
-                                        drives_table[drive_index].bdrv,
+                                        dinfo->bdrv,
                                         flash_size, 2,
                                         flash_manufacturer, flash_type);
         } else {

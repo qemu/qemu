@@ -203,6 +203,7 @@ static void r2d_init(ram_addr_t ram_size,
     ram_addr_t sdram_addr;
     qemu_irq *irq;
     PCIBus *pci;
+    DriveInfo *dinfo;
     int i;
 
     if (!cpu_model)
@@ -225,9 +226,9 @@ static void r2d_init(ram_addr_t ram_size,
     sm501_init(0x10000000, SM501_VRAM_SIZE, irq[SM501], serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */
-    if ((i = drive_get_index(IF_IDE, 0, 0)) != -1)
+    if ((dinfo = drive_get(IF_IDE, 0, 0)) != NULL)
 	mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
-		      drives_table[i].bdrv, NULL);
+		      dinfo->bdrv, NULL);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)

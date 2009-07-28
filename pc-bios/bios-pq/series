@@ -17,3 +17,5 @@
 0017-bochs-bios-Move-QEMU_CFG-constants-to-rombios.h.patch
 0018-bochs-bios-Make-boot-prompt-optional.patch
 0019-bios-fix-multiple-calls.patch
+0020-qemu-kvm-cfg-maxcpus.patch
+0021-qemu-madt-maxcpus.patch

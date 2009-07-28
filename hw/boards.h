@@ -14,6 +14,7 @@ typedef void QEMUMachineInitFunc(ram_addr_t ram_size,
 
 typedef struct QEMUMachine {
     const char *name;
+    const char *alias;
     const char *desc;
     QEMUMachineInitFunc *init;
     int use_scsi;

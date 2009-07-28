@@ -3,13 +3,7 @@ OUTPUT_FORMAT("elf64-powerpc", "elf64-powerpc",
 	      "elf64-powerpc")
 OUTPUT_ARCH(powerpc:common64)
 ENTRY(_start)
-SEARCH_DIR("/usr/powerpc64-unknown-linux-gnu/lib64");
-SEARCH_DIR("/usr/lib/binutils/powerpc64-unknown-linux-gnu/2.16.164");
-SEARCH_DIR("/usr/local/lib64"); SEARCH_DIR("/lib64"); SEARCH_DIR("/usr/lib64");
-SEARCH_DIR("/usr/powerpc64-unknown-linux-gnu/lib");
-SEARCH_DIR("/usr/lib/binutils/powerpc64-unknown-linux-gnu/2.16.1");
-SEARCH_DIR("/usr/local/lib"); SEARCH_DIR("/lib"); SEARCH_DIR("/usr/lib"); /* Do we
-need any of these for elf? +   __DYNAMIC = 0;    */
+/* __DYNAMIC = 0;    */
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */

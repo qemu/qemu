@@ -42,12 +42,6 @@ endif # !CONFIG_WIN32
 endif # !CONFIG_LINUX_USER
 endif # !CONFIG_MY_EXTENSIONS
 
-# cc-option
-# Usage: CFLAGS+=$(call cc-option, $(CFLAGS), -falign-functions=0, -malign-functions=0)
-
-cc-option = $(shell if $(CC) $(1) $(2) -S -o /dev/null -xc /dev/null \
-              > /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi ;)
-
 HELPER_CFLAGS=
 
 ifeq ($(ARCH),i386)
@@ -81,7 +75,7 @@ LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 ifdef CONFIG_SOLARIS
 LIBS+=-lsocket -lnsl -lresolv
-ifdef NEEDS_LIBSUNMATH
+ifdef CONFIG_NEEDS_LIBSUNMATH
 LIBS+=-lsunmath
 LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
 CFLAGS+=-I/opt/SUNWspro/prod/include/cc
@@ -204,87 +198,6 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
-ifdef CONFIG_STATIC
-LDFLAGS+=-static
-endif
-
-ifeq ($(ARCH),i386)
-ifdef TARGET_GPROF
-USE_I386_LD=y
-endif
-ifdef CONFIG_STATIC
-USE_I386_LD=y
-endif
-ifdef USE_I386_LD
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
-# that the kernel ELF loader considers as an executable. I think this
-# is the simplest way to make it self virtualizable!
-LDFLAGS+=-Wl,-shared
-endif
-endif
-
-ifeq ($(ARCH),x86_64)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),ppc)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),ppc64)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),s390)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-ifeq ($(ARCH),s390x)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),sparc)
-# -static is used to avoid g1/g3 usage by the dynamic linker	
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
-endif
-
-ifeq ($(ARCH),sparc64)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),alpha)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),ia64)
-LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),arm)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),m68k)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),mips)
-ifeq ($(WORDS_BIGENDIAN),yes)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
-endif
-
-ifeq ($(ARCH),mips64)
-ifeq ($(WORDS_BIGENDIAN),yes)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
-endif
-
 # profiling code
 ifdef TARGET_GPROF
 LDFLAGS+=-p
@@ -354,87 +267,6 @@ ifdef CONFIG_BSD_USER
 VPATH+=:$(SRC_PATH)/bsd-user
 CPPFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
-ifdef CONFIG_STATIC
-LDFLAGS+=-static
-endif
-
-ifeq ($(ARCH),i386)
-ifdef TARGET_GPROF
-USE_I386_LD=y
-endif
-ifdef CONFIG_STATIC
-USE_I386_LD=y
-endif
-ifdef USE_I386_LD
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
-# that the kernel ELF loader considers as an executable. I think this
-# is the simplest way to make it self virtualizable!
-LDFLAGS+=-Wl,-shared
-endif
-endif
-
-ifeq ($(ARCH),x86_64)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),ppc)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),ppc64)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),s390)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-ifeq ($(ARCH),s390x)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),sparc)
-# -static is used to avoid g1/g3 usage by the dynamic linker
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
-endif
-
-ifeq ($(ARCH),sparc64)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),alpha)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),ia64)
-LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),arm)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),m68k)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),mips)
-ifeq ($(WORDS_BIGENDIAN),yes)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
-endif
-
-ifeq ($(ARCH),mips64)
-ifeq ($(WORDS_BIGENDIAN),yes)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
-endif
-
 obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o ioport-user.o
 obj-y += uaccess.o
@@ -472,10 +304,10 @@ ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid
 endif
 ifdef CONFIG_FMOD
-LIBS += $(CONFIG_FMOD_LIB)
+LIBS += $(FMOD_LIBS)
 endif
 ifdef CONFIG_OSS
-LIBS += $(CONFIG_OSS_LIB)
+LIBS += $(OSS_LIBS)
 endif
 
 sound-obj-y =
@@ -491,17 +323,17 @@ adlib.o fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
 endif
 
 ifdef CONFIG_VNC_TLS
-CPPFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
-LIBS += $(CONFIG_VNC_TLS_LIBS)
+CPPFLAGS += $(VNC_TLS_CFLAGS)
+LIBS += $(VNC_TLS_LIBS)
 endif
 
 ifdef CONFIG_VNC_SASL
-CPPFLAGS += $(CONFIG_VNC_SASL_CFLAGS)
-LIBS += $(CONFIG_VNC_SASL_LIBS)
+CPPFLAGS += $(VNC_SASL_CFLAGS)
+LIBS += $(VNC_SASL_LIBS)
 endif
 
 ifdef CONFIG_BLUEZ
-LIBS += $(CONFIG_BLUEZ_LIBS)
+LIBS += $(BLUEZ_LIBS)
 endif
 
 LIBS += $(UUID_LIBS)
@@ -565,10 +397,8 @@ ifeq ($(TARGET_BASE_ARCH), ppc)
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
-ifdef FDT_LIBS
-obj-ppc-y += device_tree.o
+obj-ppc-$(CONFIG_FDT) += device_tree.o
 LIBS+= $(FDT_LIBS)
-endif
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
@@ -599,10 +429,8 @@ obj-microblaze-y += xilinx_ethlite.o
 
 obj-microblaze-y += pflash_cfi02.o
 
-ifdef FDT_LIBS
-obj-microblaze-y += device_tree.o
+obj-microblaze-$(CONFIG_FDT) += device_tree.o
 LIBS+= $(FDT_LIBS)
-endif
 
 # Boards
 obj-cris-y = cris_pic_cpu.o etraxfs.o axis_dev88.o
@@ -672,9 +500,6 @@ endif
 endif
 
 # specific flags are needed for non soft mmu emulator
-ifdef CONFIG_STATIC
-LDFLAGS+=-static
-endif
 ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
 ifndef CONFIG_SOLARIS

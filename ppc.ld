@@ -3,7 +3,6 @@
  */
 OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
 OUTPUT_ARCH(powerpc:common)
-SEARCH_DIR(/usr/powerpc-linux-gnu/lib); SEARCH_DIR(/usr/local/lib); SEARCH_DIR(/lib); SEARCH_DIR(/usr/lib)
 ENTRY(_start)
 SECTIONS
 {

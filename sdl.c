@@ -185,7 +185,7 @@ static DisplaySurface* sdl_create_displaysurface(int width, int height)
             surface->linesize = width * host_format.BytesPerPixel;
             surface->pf = sdl_to_qemu_pixelformat(&host_format);
         }
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
         surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
 #else
         surface->flags = QEMU_ALLOCATED_FLAG;
@@ -204,7 +204,7 @@ static DisplaySurface* sdl_create_displaysurface(int width, int height)
     surface->linesize = real_screen->pitch;
     surface->data = real_screen->pixels;
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_REALPIXELS_FLAG | QEMU_BIG_ENDIAN_FLAG;
 #else
     surface->flags = QEMU_REALPIXELS_FLAG;

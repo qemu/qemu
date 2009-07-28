@@ -26,6 +26,8 @@
 #ifndef QEMU_OPTIONS_H
 #define QEMU_OPTIONS_H
 
+#include "sys-queue.h"
+
 enum QEMUOptionParType {
     OPT_FLAG,
     OPT_NUMBER,
@@ -46,6 +48,12 @@ typedef struct QEMUOptionParameter {
 
 const char *get_opt_name(char *buf, int buf_size, const char *p, char delim);
 const char *get_opt_value(char *buf, int buf_size, const char *p);
+int get_next_param_value(char *buf, int buf_size,
+                         const char *tag, const char **pstr);
+int get_param_value(char *buf, int buf_size,
+                    const char *tag, const char *str);
+int check_params(char *buf, int buf_size,
+                 const char * const *params, const char *str);
 
 
 /*
@@ -65,5 +73,48 @@ QEMUOptionParameter *parse_option_parameters(const char *param,
 void free_option_parameters(QEMUOptionParameter *list);
 void print_option_parameters(QEMUOptionParameter *list);
 void print_option_help(QEMUOptionParameter *list);
+
+/* ------------------------------------------------------------------ */
+
+typedef struct QemuOpt QemuOpt;
+typedef struct QemuOpts QemuOpts;
+typedef struct QemuOptsList QemuOptsList;
+
+enum QemuOptType {
+    QEMU_OPT_STRING = 0,  /* no parsing (use string as-is)                        */
+    QEMU_OPT_BOOL,        /* on/off                                               */
+    QEMU_OPT_NUMBER,      /* simple number                                        */
+    QEMU_OPT_SIZE,        /* size, accepts (K)ilo, (M)ega, (G)iga, (T)era postfix */
+};
+
+typedef struct QemuOptDesc {
+    const char *name;
+    enum QemuOptType type;
+    const char *help;
+} QemuOptDesc;
+
+struct QemuOptsList {
+    const char *name;
+    TAILQ_HEAD(, QemuOpts) head;
+    QemuOptDesc desc[];
+};
+
+const char *qemu_opt_get(QemuOpts *opts, const char *name);
+int qemu_opt_get_bool(QemuOpts *opts, const char *name, int defval);
+uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
+uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);
+int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
+
+QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id);
+QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exists);
+int qemu_opts_set(QemuOptsList *list, const char *id,
+                  const char *name, const char *value);
+void qemu_opts_del(QemuOpts *opts);
+QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname);
+
+typedef int (*qemu_opts_loopfunc)(QemuOpts *opts, void *opaque);
+int qemu_opts_print(QemuOpts *opts, void *dummy);
+int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
+                      int abort_on_failure);
 
 #endif

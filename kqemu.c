@@ -26,7 +26,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #endif
-#ifdef HOST_SOLARIS
+#ifdef CONFIG_SOLARIS
 #include <sys/ioccom.h>
 #endif
 

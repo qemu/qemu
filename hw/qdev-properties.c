@@ -198,6 +198,49 @@ PropertyInfo qdev_prop_macaddr = {
     .print = print_mac,
 };
 
+/* --- pci address --- */
+
+/*
+ * bus-local address, i.e. "$slot" or "$slot.$fn"
+ */
+static int parse_pci_devfn(DeviceState *dev, Property *prop, const char *str)
+{
+    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    unsigned int slot, fn, n;
+
+    if (sscanf(str, "%x.%x%n", &slot, &fn, &n) != 2) {
+        fn = 0;
+        if (sscanf(str, "%x%n", &slot, &n) != 1) {
+            return -1;
+        }
+    }
+    if (str[n] != '\0')
+        return -1;
+    if (fn > 7)
+        return -1;
+    *ptr = slot << 3 | fn;
+    return 0;
+}
+
+static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (-1 == *ptr) {
+        return snprintf(dest, len, "<unset>");
+    } else {
+        return snprintf(dest, len, "%02x.%x", *ptr >> 3, *ptr & 7);
+    }
+}
+
+PropertyInfo qdev_prop_pci_devfn = {
+    .name  = "pci-devfn",
+    .type  = PROP_TYPE_UINT32,
+    .size  = sizeof(uint32_t),
+    .parse = parse_pci_devfn,
+    .print = print_pci_devfn,
+};
+
 /* --- public helpers --- */
 
 static Property *qdev_prop_walk(Property *props, const char *name)

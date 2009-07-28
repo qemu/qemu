@@ -135,7 +135,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     int escc_mem_index, ide_mem_index[2];
     uint16_t ppc_boot_device;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    int index;
+    DriveInfo *dinfo;
     void *fw_cfg;
     void *dbdma;
     uint8_t *vga_bios_ptr;
@@ -212,6 +212,10 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         vga_bios_ptr[3] = 'V';
         cpu_to_be32w((uint32_t *)(vga_bios_ptr + 4), vga_bios_size);
         vga_bios_size += 8;
+
+        /* Round to page boundary */
+        vga_bios_size = (vga_bios_size + TARGET_PAGE_SIZE - 1) &
+            TARGET_PAGE_MASK;
     }
 
     if (linux_boot) {
@@ -324,31 +328,19 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     }
 
     /* First IDE channel is a MAC IDE on the MacIO bus */
-    index = drive_get_index(IF_IDE, 0, 0);
-    if (index == -1)
-        hd[0] = NULL;
-    else
-        hd[0] =  drives_table[index].bdrv;
-    index = drive_get_index(IF_IDE, 0, 1);
-    if (index == -1)
-        hd[1] = NULL;
-    else
-        hd[1] =  drives_table[index].bdrv;
+    dinfo = drive_get(IF_IDE, 0, 0);
+    hd[0] = dinfo ? dinfo->bdrv : NULL;
+    dinfo = drive_get(IF_IDE, 0, 1);
+    hd[1] = dinfo ? dinfo->bdrv : NULL;
     dbdma = DBDMA_init(&dbdma_mem_index);
     ide_mem_index[0] = -1;
     ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
 
     /* Second IDE channel is a CMD646 on the PCI bus */
-    index = drive_get_index(IF_IDE, 1, 0);
-    if (index == -1)
-        hd[0] = NULL;
-    else
-        hd[0] =  drives_table[index].bdrv;
-    index = drive_get_index(IF_IDE, 1, 1);
-    if (index == -1)
-        hd[1] = NULL;
-    else
-        hd[1] =  drives_table[index].bdrv;
+    dinfo = drive_get(IF_IDE, 1, 0);
+    hd[0] = dinfo ? dinfo->bdrv : NULL;
+    dinfo = drive_get(IF_IDE, 1, 1);
+    hd[1] = dinfo ? dinfo->bdrv : NULL;
     hd[3] = hd[2] = NULL;
     pci_cmd646_ide_init(pci_bus, hd, 0);
 

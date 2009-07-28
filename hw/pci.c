@@ -61,8 +61,8 @@ static struct BusInfo pci_bus_info = {
     .print_dev  = pcibus_dev_print,
     .props      = (Property[]) {
         {
-            .name   = "devfn",
-            .info   = &qdev_prop_uint32,
+            .name   = "addr",
+            .info   = &qdev_prop_pci_devfn,
             .offset = offsetof(PCIDevice, devfn),
             .defval = (uint32_t[]) { -1 },
         },
@@ -783,7 +783,7 @@ PCIDevice *pci_create(const char *name, const char *devaddr)
     }
 
     dev = qdev_create(&bus->qbus, name);
-    qdev_prop_set_uint32(dev, "devfn", devfn);
+    qdev_prop_set_uint32(dev, "addr", devfn);
     return (PCIDevice *)dev;
 }
 
@@ -953,7 +953,7 @@ PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
     DeviceState *dev;
 
     dev = qdev_create(&bus->qbus, name);
-    qdev_prop_set_uint32(dev, "devfn", devfn);
+    qdev_prop_set_uint32(dev, "addr", devfn);
     qdev_init(dev);
 
     return (PCIDevice *)dev;

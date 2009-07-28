@@ -442,16 +442,16 @@ NANDFlashState *nand_init(int manf_id, int chip_id)
 {
     int pagesize;
     NANDFlashState *s;
-    int index;
+    DriveInfo *dinfo;
 
     if (nand_flash_ids[chip_id].size == 0) {
         hw_error("%s: Unsupported NAND chip ID.\n", __FUNCTION__);
     }
 
     s = (NANDFlashState *) qemu_mallocz(sizeof(NANDFlashState));
-    index = drive_get_index(IF_MTD, 0, 0);
-    if (index != -1)
-        s->bdrv = drives_table[index].bdrv;
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo)
+        s->bdrv = dinfo->bdrv;
     s->manf_id = manf_id;
     s->chip_id = chip_id;
     s->size = nand_flash_ids[s->chip_id].size << 20;

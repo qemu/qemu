@@ -628,6 +628,24 @@ STEXI
 Inject an MCE on the given CPU (x86 only).
 ETEXI
 
+    { "getfd", "s", do_getfd, "getfd name",
+      "receive a file descriptor via SCM rights and assign it a name" },
+STEXI
+@item getfd @var{fdname}
+If a file descriptor is passed alongside this command using the SCM_RIGHTS
+mechanism on unix sockets, it is stored using the name @var{fdname} for
+later use by other monitor commands.
+ETEXI
+
+    { "closefd", "s", do_closefd, "closefd name",
+      "close a file descriptor previously passed via SCM rights" },
+STEXI
+@item closefd @var{fdname}
+Close the file descriptor previously assigned to @var{fdname} using the
+@code{getfd} command. This is only needed if the file descriptor was never
+used by another monitor command.
+ETEXI
+
 STEXI
 @end table
 ETEXI

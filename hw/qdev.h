@@ -27,6 +27,7 @@ struct DeviceState {
     int num_gpio_in;
     qemu_irq *gpio_in;
     LIST_HEAD(, BusState) child_bus;
+    int num_child_bus;
     NICInfo *nd;
     LIST_ENTRY(DeviceState) sibling;
 };
@@ -81,6 +82,7 @@ struct CompatProperty {
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 DeviceState *qdev_create(BusState *bus, const char *name);
+DeviceState *qdev_device_add(const char *cmdline);
 void qdev_init(DeviceState *dev);
 void qdev_free(DeviceState *dev);
 
@@ -151,6 +153,7 @@ extern PropertyInfo qdev_prop_hex32;
 extern PropertyInfo qdev_prop_hex64;
 extern PropertyInfo qdev_prop_ptr;
 extern PropertyInfo qdev_prop_macaddr;
+extern PropertyInfo qdev_prop_pci_devfn;
 
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);

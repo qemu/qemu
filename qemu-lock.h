@@ -23,7 +23,7 @@
    likely to release it soon.  In environments where you have more threads
    than physical CPUs (the extreme case being a single CPU host) a spinlock
    simply wastes CPU until the OS decides to preempt it.  */
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
 
 #include <pthread.h>
 #define spin_lock pthread_mutex_lock

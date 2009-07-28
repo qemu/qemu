@@ -120,7 +120,7 @@ void ppc_translate_init(void)
         cpu_reg_names_size -= (i < 10) ? 4 : 5;
 
         snprintf(p, cpu_reg_names_size, "avr%dH", i);
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
         cpu_avrh[i] = tcg_global_mem_new_i64(TCG_AREG0,
                                              offsetof(CPUState, avr[i].u64[0]), p);
 #else
@@ -131,7 +131,7 @@ void ppc_translate_init(void)
         cpu_reg_names_size -= (i < 10) ? 6 : 7;
 
         snprintf(p, cpu_reg_names_size, "avr%dL", i);
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
         cpu_avrl[i] = tcg_global_mem_new_i64(TCG_AREG0,
                                              offsetof(CPUState, avr[i].u64[1]), p);
 #else

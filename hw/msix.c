@@ -255,6 +255,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     return 0;
 
 err_config:
+    dev->msix_entries_nr = 0;
     cpu_unregister_io_memory(dev->msix_mmio_index);
 err_index:
     qemu_free(dev->msix_table_page);

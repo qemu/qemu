@@ -371,7 +371,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
 {
     int i;
     HPETState *s = (HPETState *)opaque;
-    uint64_t old_val, new_val, index;
+    uint64_t old_val, new_val, val, index;
 
     dprintf("qemu: Enter hpet_ram_writel at %" PRIx64 " = %#x\n", addr, value);
     index = addr;
@@ -387,8 +387,8 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
         switch ((addr - 0x100) % 0x20) {
             case HPET_TN_CFG:
                 dprintf("qemu: hpet_ram_writel HPET_TN_CFG\n");
-                timer->config = hpet_fixup_reg(new_val, old_val, 
-                                               HPET_TN_CFG_WRITE_MASK);
+                val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
+                timer->config = (timer->config & 0xffffffff00000000ULL) | val;
                 if (new_val & HPET_TN_32BIT) {
                     timer->cmp = (uint32_t)timer->cmp;
                     timer->period = (uint32_t)timer->period;
@@ -456,8 +456,8 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             case HPET_ID:
                 return;
             case HPET_CFG:
-                s->config = hpet_fixup_reg(new_val, old_val, 
-                                           HPET_CFG_WRITE_MASK);
+                val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
+                s->config = (s->config & 0xffffffff00000000ULL) | val;
                 if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                     /* Enable main counter and interrupt generation. */
                     s->hpet_offset = ticks_to_ns(s->hpet_counter)
@@ -541,8 +541,8 @@ static void hpet_reset(void *opaque) {
         timer->tn = i;
         timer->cmp = ~0ULL;
         timer->config =  HPET_TN_PERIODIC_CAP | HPET_TN_SIZE_CAP;
-        /* advertise availability of irqs 5,10,11 */
-        timer->config |=  0x00000c20ULL << 32;
+        /* advertise availability of ioapic inti2 */
+        timer->config |=  0x00000004ULL << 32;
         timer->state = s;
         timer->period = 0ULL;
         timer->wrap_flag = 0;

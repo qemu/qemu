@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu-timer.h"
 #include "qemu-char.h"
 #include "slirp.h"
 #include "hw/hw.h"
@@ -244,29 +245,6 @@ void slirp_cleanup(Slirp *slirp)
 #define CONN_CANFRCV(so) (((so)->so_state & (SS_FCANTRCVMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
 #define UPD_NFDS(x) if (nfds < (x)) nfds = (x)
 
-/*
- * curtime kept to an accuracy of 1ms
- */
-#ifdef _WIN32
-static void updtime(void)
-{
-    struct _timeb tb;
-
-    _ftime(&tb);
-
-    curtime = tb.time * 1000 + tb.millitm;
-}
-#else
-static void updtime(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    curtime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-#endif
-
 void slirp_select_fill(int *pnfds,
                        fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
@@ -405,8 +383,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
     global_writefds = writefds;
     global_xfds = xfds;
 
-	/* Update time */
-	updtime();
+    curtime = qemu_get_clock(rt_clock);
 
     TAILQ_FOREACH(slirp, &slirp_instances, entry) {
 	/*
@@ -794,19 +771,19 @@ int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
 }
 
 int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
-                   struct in_addr guest_addr, int guest_port)
+                   struct in_addr *guest_addr, int guest_port)
 {
-    if (!guest_addr.s_addr) {
-        guest_addr.s_addr = slirp->vnetwork_addr.s_addr |
+    if (!guest_addr->s_addr) {
+        guest_addr->s_addr = slirp->vnetwork_addr.s_addr |
             (htonl(0x0204) & ~slirp->vnetwork_mask.s_addr);
     }
-    if ((guest_addr.s_addr & slirp->vnetwork_mask.s_addr) !=
+    if ((guest_addr->s_addr & slirp->vnetwork_mask.s_addr) !=
         slirp->vnetwork_addr.s_addr ||
-        guest_addr.s_addr == slirp->vhost_addr.s_addr ||
-        guest_addr.s_addr == slirp->vnameserver_addr.s_addr) {
+        guest_addr->s_addr == slirp->vhost_addr.s_addr ||
+        guest_addr->s_addr == slirp->vnameserver_addr.s_addr) {
         return -1;
     }
-    return add_exec(&slirp->exec_list, do_pty, (char *)args, guest_addr,
+    return add_exec(&slirp->exec_list, do_pty, (char *)args, *guest_addr,
                     htons(guest_port));
 }
 

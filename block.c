@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "config-host.h"
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
 /* include native header before sys-queue.h */
 #include <sys/queue.h>
 #endif
@@ -34,7 +34,7 @@
 
 #include <sys/param.h>          /* PATH_MAX */
 
-#ifdef HOST_BSD
+#ifdef CONFIG_BSD
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>

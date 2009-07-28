@@ -36,11 +36,6 @@ void do_wait(int);
 
 #define EMU_NOCONNECT 0x10	/* Don't connect */
 
-/* UDP emulations */
-#define EMU_TALK	0x1
-#define EMU_NTALK	0x2
-#define EMU_CUSEEME	0x3
-
 struct tos_t {
 	u_int16_t lport;
 	u_int16_t fport;

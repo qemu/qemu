@@ -57,7 +57,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <qemu-common.h>
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
 
@@ -82,7 +82,7 @@
 #include "qemu.h"
 #include "qemu-common.h"
 
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
 #define CLONE_NPTL_FLAGS2 (CLONE_SETTLS | \
     CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
 #else
@@ -219,7 +219,7 @@ _syscall1(int,exit_group,int,error_code)
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
 _syscall1(int,set_tid_address,int *,tidptr)
 #endif
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
 #if defined(TARGET_NR_futex) && defined(__NR_futex)
 _syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
           const struct timespec *,timeout,int *,uaddr2,int,val3)
@@ -3458,7 +3458,7 @@ static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 
 #endif /* defined(TARGET_I386) */
 
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
 
 #define NEW_STACK_SIZE PTHREAD_STACK_MIN
 
@@ -3525,7 +3525,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
     TaskState *ts;
     uint8_t *new_stack;
     CPUState *new_env;
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
     unsigned int nptl_flags;
     sigset_t sigmask;
 #endif
@@ -3536,7 +3536,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
 
     if (flags & CLONE_VM) {
         TaskState *parent_ts = (TaskState *)env->opaque;
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
         new_thread_info info;
         pthread_attr_t attr;
 #endif
@@ -3550,7 +3550,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         new_env->opaque = ts;
         ts->bprm = parent_ts->bprm;
         ts->info = parent_ts->info;
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
         nptl_flags = flags;
         flags &= ~CLONE_NPTL_FLAGS2;
 
@@ -3619,7 +3619,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
             /* Child Process.  */
             cpu_clone_regs(env, newsp);
             fork_end(1);
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
             /* There is a race condition here.  The parent process could
                theoretically read the TID in the child process before the child
                tid is set.  This would require using either ptrace
@@ -4014,7 +4014,7 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
 }
 #endif
 
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
 /* ??? Using host futex calls even when target atomic operations
    are not really atomic probably breaks things.  However implementing
    futexes locally would make futexes shared between multiple processes
@@ -4124,7 +4124,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
     switch(num) {
     case TARGET_NR_exit:
-#ifdef USE_NPTL
+#ifdef CONFIG_USE_NPTL
       /* In old applications this may be used to implement _exit(2).
          However in threaded applictions it is used for thread termination,
          and _exit_group is used for application termination.
@@ -4160,7 +4160,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
           pthread_exit(NULL);
       }
 #endif
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
@@ -5674,7 +5674,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group:
-#ifdef HAVE_GPROF
+#ifdef TARGET_GPROF
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
@@ -6826,7 +6826,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
 	break;
 #endif
-#if defined(USE_NPTL)
+#if defined(CONFIG_USE_NPTL)
     case TARGET_NR_futex:
         ret = do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
         break;

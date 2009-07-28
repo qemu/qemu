@@ -1126,7 +1126,7 @@ static void pc_init1(ram_addr_t ram_size,
     CPUState *env;
     qemu_irq *cpu_irq;
     qemu_irq *i8259;
-    int index;
+    DriveInfo *dinfo;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     int using_vga = cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled;
@@ -1356,11 +1356,8 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-	if (index != -1)
-	    hd[i] = drives_table[index].bdrv;
-	else
-	    hd[i] = NULL;
+        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        hd[i] = dinfo ? dinfo->bdrv : NULL;
     }
 
     if (pci_enabled) {
@@ -1379,11 +1376,8 @@ static void pc_init1(ram_addr_t ram_size,
 #endif
 
     for(i = 0; i < MAX_FD; i++) {
-        index = drive_get_index(IF_FLOPPY, 0, i);
-	if (index != -1)
-	    fd[i] = drives_table[index].bdrv;
-	else
-	    fd[i] = NULL;
+        dinfo = drive_get(IF_FLOPPY, 0, i);
+        fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
     floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 
@@ -1437,12 +1431,11 @@ static void pc_init1(ram_addr_t ram_size,
 
     /* Add virtio block devices */
     if (pci_enabled) {
-        int index;
         int unit_id = 0;
 
-        while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
+        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
             pci_dev = pci_create(virtio_blk_name,
-                                 drives_table[index].devaddr);
+                                 dinfo->devaddr);
             qdev_init(&pci_dev->qdev);
             unit_id++;
         }
@@ -1512,7 +1505,8 @@ void cmos_set_s3_resume(void)
 }
 
 static QEMUMachine pc_machine = {
-    .name = "pc",
+    .name = "pc-0.11",
+    .alias = "pc",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,

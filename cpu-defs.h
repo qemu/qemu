@@ -106,7 +106,7 @@ typedef struct CPUTLBEntry {
                    sizeof(target_phys_addr_t))];
 } CPUTLBEntry;
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 typedef struct icount_decr_u16 {
     uint16_t high;
     uint16_t low;

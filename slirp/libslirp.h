@@ -33,7 +33,7 @@ int slirp_add_hostfwd(Slirp *slirp, int is_udp,
 int slirp_remove_hostfwd(Slirp *slirp, int is_udp,
                          struct in_addr host_addr, int host_port);
 int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
-                   struct in_addr guest_addr, int guest_port);
+                   struct in_addr *guest_addr, int guest_port);
 
 void slirp_connection_info(Slirp *slirp, Monitor *mon);
 

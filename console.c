@@ -309,7 +309,7 @@ static void vga_bitblt(DisplayState *ds, int xs, int ys, int xd, int yd, int w, 
 		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
 		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) ))
 
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define PAT(x) x
 #else
 #define PAT(x) cbswap_32(x)
@@ -1562,7 +1562,7 @@ DisplaySurface* defaultallocator_create_displaysurface(int width, int height)
     surface->height = height;
     surface->linesize = width * 4;
     surface->pf = qemu_default_pixelformat(32);
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
 #else
     surface->flags = QEMU_ALLOCATED_FLAG;
@@ -1583,7 +1583,7 @@ DisplaySurface* defaultallocator_resize_displaysurface(DisplaySurface *surface,
         surface->data = (uint8_t*) qemu_realloc(surface->data, surface->linesize * surface->height);
     else
         surface->data = (uint8_t*) qemu_malloc(surface->linesize * surface->height);
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
 #else
     surface->flags = QEMU_ALLOCATED_FLAG;
@@ -1601,7 +1601,7 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
     surface->height = height;
     surface->linesize = linesize;
     surface->pf = qemu_default_pixelformat(bpp);
-#ifdef WORDS_BIGENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_BIG_ENDIAN_FLAG;
 #endif
     surface->data = data;

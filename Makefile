@@ -20,9 +20,7 @@ CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS += -U_FORTIFY_SOURCE
 LIBS=
-ifdef CONFIG_STATIC
-LDFLAGS += -static
-endif
+
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8
 else
@@ -65,21 +63,13 @@ recurse-all: $(SUBDIR_RULES)
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 block-obj-y += nbd.o block.o aio.o aes.o
+block-obj-$(CONFIG_AIO) += posix-aio-compat.o
 
 block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
 block-nested-y += parallels.o nbd.o
-
-
-ifdef CONFIG_WIN32
-block-nested-y += raw-win32.o
-else
-ifdef CONFIG_AIO
-block-obj-y += posix-aio-compat.o
-endif
-block-nested-y += raw-posix.o
-endif
-
+block-nested-$(CONFIG_WIN32) += raw-win32.o
+block-nested-$(CONFIG_POSIX) += raw-posix.o
 block-nested-$(CONFIG_CURL) += curl.o
 
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
@@ -111,21 +101,16 @@ obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 
-ifdef CONFIG_BRLAPI
-LIBS+=-lbrlapi
-endif
+LIBS+=$(BRLAPI_LIBS)
 
-ifdef CONFIG_WIN32
-obj-y += tap-win32.o
-else
-obj-y += migration-exec.o
-endif
+obj-$(CONFIG_WIN32) += tap-win32.o
+obj-$(CONFIG_POSIX) += migration-exec.o
 
 ifdef CONFIG_COREAUDIO
 AUDIO_PT = y
 endif
 ifdef CONFIG_FMOD
-audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
+audio/audio.o audio/fmodaudio.o: CPPFLAGS := $(FMOD_CFLAGS) $(CPPFLAGS)
 endif
 ifdef CONFIG_ESD
 AUDIO_PT = y
@@ -194,7 +179,7 @@ vnc.h: vnc-tls.h vnc-auth-vencrypt.h vnc-auth-sasl.h keymaps.h
 
 vnc.o: vnc.c vnc.h vnc_keysym.h vnchextile.h d3des.c d3des.h acl.h
 
-vnc.o: CFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
+vnc.o: CFLAGS += $(VNC_TLS_CFLAGS)
 
 vnc-tls.o: vnc-tls.c vnc.h
 
@@ -204,7 +189,7 @@ vnc-auth-sasl.o: vnc-auth-sasl.c vnc.h
 
 curses.o: curses.c keymaps.h curses_keys.h
 
-bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
+bt-host.o: CFLAGS += $(BLUEZ_CFLAGS)
 
 libqemu_common.a: $(obj-y)
 
@@ -241,7 +226,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h $(DOCS) qemu-options.texi qemu-img-cmds.texi
+	rm -f config-host.mak config-host.h config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS) libhw32 libhw64; do \
 	rm -rf $$d || exit 1 ; \

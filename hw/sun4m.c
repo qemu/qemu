@@ -581,9 +581,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_halt;
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
-    int drive_index;
     void *fw_cfg;
     DeviceState *dev;
+    DriveInfo *dinfo;
 
     /* init CPUs */
     if (!cpu_model)
@@ -662,9 +662,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->fd_base) {
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
-        drive_index = drive_get_index(IF_FLOPPY, 0, 0);
-        if (drive_index != -1)
-            fd[0] = drives_table[drive_index].bdrv;
+        dinfo = drive_get(IF_FLOPPY, 0, 0);
+        if (dinfo)
+            fd[0] = dinfo->bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
                           &fdc_tc);
@@ -1507,10 +1507,10 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq fdc_tc;
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
-    int drive_index;
     void *fw_cfg;
     DeviceState *dev;
     unsigned int i;
+    DriveInfo *dinfo;
 
     /* init CPU */
     if (!cpu_model)
@@ -1565,9 +1565,9 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
-        drive_index = drive_get_index(IF_FLOPPY, 0, 0);
-        if (drive_index != -1)
-            fd[0] = drives_table[drive_index].bdrv;
+        dinfo = drive_get(IF_FLOPPY, 0, 0);
+        if (dinfo)
+            fd[0] = dinfo->bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
                           &fdc_tc);
