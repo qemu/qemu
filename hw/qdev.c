@@ -590,3 +590,14 @@ void do_info_qtree(Monitor *mon)
     if (main_system_bus)
         qbus_print(mon, main_system_bus, 0);
 }
+
+void do_info_qdrv(Monitor *mon)
+{
+    DeviceInfo *info;
+    char msg[256];
+
+    for (info = device_info_list; info != NULL; info = info->next) {
+        qdev_print_devinfo(info, msg, sizeof(msg));
+        monitor_printf(mon, "%s\n", msg);
+    }
+}
