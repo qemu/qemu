@@ -193,6 +193,7 @@ static int parse_option_number(const char *name, const char *value, uint64_t *re
             fprintf(stderr, "Option '%s' needs a number as parameter\n", name);
             return -1;
         }
+        *ret = number;
     } else {
         fprintf(stderr, "Option '%s' needs a parameter\n", name);
         return -1;
