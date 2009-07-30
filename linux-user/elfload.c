@@ -1199,7 +1199,7 @@ static int symfind(const void *s0, const void *s1)
     int result = 0;
     if (key->st_value < sym->st_value) {
         result = -1;
-    } else if (key->st_value > sym->st_value + sym->st_size) {
+    } else if (key->st_value >= sym->st_value + sym->st_size) {
         result = 1;
     }
     return result;
