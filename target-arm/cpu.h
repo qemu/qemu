@@ -405,7 +405,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 1
+#define CPU_SAVE_VERSION 2
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
