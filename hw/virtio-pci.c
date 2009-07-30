@@ -423,63 +423,37 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
 }
 
-static void virtio_blk_init_pci_with_class(PCIDevice *pci_dev,
-                                           uint16_t class_code)
+static void virtio_blk_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
+
+    if (proxy->class_code != PCI_CLASS_STORAGE_SCSI &&
+        proxy->class_code != PCI_CLASS_STORAGE_OTHER)
+        proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
     vdev = virtio_blk_init(&pci_dev->qdev);
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_BLOCK,
-                    class_code, 0x00);
-}
-
-static void virtio_blk_init_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-  
-    if (proxy->class_code != PCI_CLASS_STORAGE_SCSI &&
-        proxy->class_code != PCI_CLASS_STORAGE_OTHER)
-        proxy->class_code = PCI_CLASS_STORAGE_SCSI;
- 
-    virtio_blk_init_pci_with_class(pci_dev, proxy->class_code);
-}
-
-static void virtio_blk_init_pci_0_10(PCIDevice *pci_dev)
-{
-    virtio_blk_init_pci_with_class(pci_dev, PCI_CLASS_STORAGE_OTHER);
-}
-
-static void virtio_console_init_pci_with_class(PCIDevice *pci_dev,
-                                               uint16_t class_code)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-    VirtIODevice *vdev;
-
-    vdev = virtio_console_init(&pci_dev->qdev);
-    virtio_init_pci(proxy, vdev,
-                    PCI_VENDOR_ID_REDHAT_QUMRANET,
-                    PCI_DEVICE_ID_VIRTIO_CONSOLE,
-                    class_code, 0x00);
+                    proxy->class_code, 0x00);
 }
 
 static void virtio_console_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-  
+    VirtIODevice *vdev;
+
     if (proxy->class_code != PCI_CLASS_COMMUNICATION_OTHER &&
         proxy->class_code != PCI_CLASS_DISPLAY_OTHER && /* qemu 0.10 */
         proxy->class_code != PCI_CLASS_OTHERS)          /* qemu-kvm  */
         proxy->class_code = PCI_CLASS_COMMUNICATION_OTHER;
 
-    virtio_console_init_pci_with_class(pci_dev, proxy->class_code);
-}
-
-static void virtio_console_init_pci_0_10(PCIDevice *pci_dev)
-{
-    virtio_console_init_pci_with_class(pci_dev, PCI_CLASS_DISPLAY_OTHER);
+    vdev = virtio_console_init(&pci_dev->qdev);
+    virtio_init_pci(proxy, vdev,
+                    PCI_VENDOR_ID_REDHAT_QUMRANET,
+                    PCI_DEVICE_ID_VIRTIO_CONSOLE,
+                    proxy->class_code, 0x00);
 }
 
 static void virtio_net_init_pci(PCIDevice *pci_dev)
@@ -560,15 +534,6 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-balloon-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_balloon_init_pci,
-    },{
-        /* For compatibility with 0.10 */
-        .qdev.name = "virtio-blk-pci-0-10",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_blk_init_pci_0_10,
-    },{
-        .qdev.name = "virtio-console-pci-0-10",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_console_init_pci_0_10,
     },{
         /* end of list */
     }
