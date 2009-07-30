@@ -66,20 +66,11 @@ void uuid_unparse(const uuid_t uu, char *out);
 
 /* Code configuration options. */
 
-/* Use old (synchronous) I/O. */
-//~ #undef CONFIG_AIO
-
 /* Enable debug messages. */
 //~ #define CONFIG_VDI_DEBUG
 
 /* Support write operations on VDI images. */
 #define CONFIG_VDI_WRITE
-
-/* Support snapshot images (not implemented yet). */
-//~ #define CONFIG_VDI_SNAPSHOT
-
-/* Enable (currently) unsupported features (not implemented yet). */
-//~ #define CONFIG_VDI_UNSUPPORTED
 
 /* Support non-standard block (cluster) size. This is untested. */
 //~ #define CONFIG_VDI_BLOCK_SIZE
@@ -143,7 +134,6 @@ void uuid_unparse(const uuid_t uu, char *out)
 }
 #endif
 
-#if defined(CONFIG_AIO)
 typedef struct {
     BlockDriverAIOCB common;
     int64_t sector_num;
@@ -165,7 +155,6 @@ typedef struct {
     QEMUIOVector hd_qiov;
     QEMUBH *bh;
 } VdiAIOCB;
-#endif
 
 typedef struct {
     char text[0x40];
@@ -385,15 +374,6 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
     return result;
 }
 
-#if defined(CONFIG_VDI_SNAPSHOT)
-static int vdi_snapshot_create(const char *filename, const char *backing_file)
-{
-    /* TODO: missing code. */
-    logout("\n");
-    return -1;
-}
-#endif
-
 static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVVdiState *s = bs->opaque;
@@ -487,8 +467,6 @@ static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
     *pnum = n_sectors;
     return bmap_entry != VDI_UNALLOCATED;
 }
-
-#if defined(CONFIG_AIO)
 
 #if 0
 static void vdi_aio_remove(VdiAIOCB *acb)
@@ -841,119 +819,6 @@ static BlockDriverAIOCB *vdi_aio_writev(BlockDriverState *bs,
     return &acb->common;
 }
 
-#else /* CONFIG_AIO */
-
-static int vdi_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
-{
-    BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
-    logout("%p, %" PRId64 ", %p, %d\n", bs, sector_num, buf, nb_sectors);
-    if (sector_num < 0) {
-        logout("unsupported sector %" PRId64 "\n", sector_num);
-        return -1;
-    }
-    while (nb_sectors > 0 && sector_num < bs->total_sectors) {
-        uint32_t bmap_entry;
-        size_t block_index = sector_num / s->block_sectors;
-        size_t sector_in_block = sector_num % s->block_sectors;
-        size_t n_sectors = s->block_sectors - sector_in_block;
-        if (n_sectors > nb_sectors) {
-            n_sectors = nb_sectors;
-        }
-        bmap_entry = le32_to_cpu(s->bmap[block_index]);
-        if (bmap_entry == VDI_UNALLOCATED) {
-            /* Block not allocated, return zeros. */
-            memset(buf, 0, n_sectors * SECTOR_SIZE);
-        } else {
-            uint64_t offset = s->header.offset_data / SECTOR_SIZE +
-                (uint64_t)bmap_entry * s->block_sectors + sector_in_block;
-            if (bdrv_read(s->hd, offset, buf, n_sectors) < 0) {
-                logout("read error\n");
-                return -1;
-            }
-        }
-        buf += n_sectors * SECTOR_SIZE;
-        sector_num += n_sectors;
-        nb_sectors -= n_sectors;
-    }
-    return 0;
-}
-
-#if defined(CONFIG_VDI_WRITE)
-static int vdi_write(BlockDriverState *bs, int64_t sector_num,
-                     const uint8_t *buf, int nb_sectors)
-{
-    BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
-    logout("%p, %" PRId64 ", %p, %d\n", bs, sector_num, buf, nb_sectors);
-    if (sector_num < 0) {
-        logout("unsupported sector %" PRId64 "\n", sector_num);
-        return -1;
-    }
-    while (nb_sectors > 0 && sector_num < bs->total_sectors) {
-        uint32_t bmap_entry;
-        uint64_t offset;
-        size_t block_index = sector_num / s->block_sectors;
-        size_t sector_in_block = sector_num % s->block_sectors;
-        size_t n_sectors = s->block_sectors - sector_in_block;
-        if (n_sectors > nb_sectors) {
-            n_sectors = nb_sectors;
-        }
-        bmap_entry = le32_to_cpu(s->bmap[block_index]);
-        if (bmap_entry == VDI_UNALLOCATED) {
-            /* Allocate new block and write to it. */
-            VdiHeader header;
-            uint8_t *block;
-            bmap_entry = s->header.blocks_allocated;
-            s->bmap[block_index] = cpu_to_le32(bmap_entry);
-            s->header.blocks_allocated++;
-            offset = s->header.offset_data / SECTOR_SIZE +
-                     (uint64_t)bmap_entry * s->block_sectors;
-            block = qemu_mallocz(s->block_size);
-            memcpy(block + sector_in_block * SECTOR_SIZE,
-                   buf, n_sectors * SECTOR_SIZE);
-            if (bdrv_write(s->hd, offset, block, s->block_sectors) < 0) {
-                qemu_free(block);
-                logout("write error\n");
-                return -1;
-            }
-            qemu_free(block);
-
-            /* Write modified sector from block map. */
-            block_index /= (SECTOR_SIZE / sizeof(uint32_t));
-            offset = s->bmap_sector + block_index;
-            if (bdrv_write(s->hd, offset,
-                           (uint8_t *)&s->bmap[bmap_entry], 1) < 0) {
-                logout("write error\n");
-                return -1;
-            }
-
-            /* Write modified header (blocks_allocated). */
-            header = s->header;
-            vdi_header_to_le(&header);
-            if (bdrv_write(s->hd, 0, (uint8_t *)&header, 1) < 0) {
-                logout("write error\n");
-                return -1;
-            }
-        } else {
-            /* Write to existing block. */
-            offset = s->header.offset_data / SECTOR_SIZE +
-                (uint64_t)bmap_entry * s->block_sectors +
-                sector_in_block;
-            if (bdrv_write(s->hd, offset, buf, n_sectors) < 0) {
-                logout("write error\n");
-                return -1;
-            }
-        }
-        buf += n_sectors * SECTOR_SIZE;
-        sector_num += n_sectors;
-        nb_sectors -= n_sectors;
-    }
-    return 0;
-}
-#endif /* CONFIG_VDI_WRITE */
-
-#endif /* CONFIG_AIO */
-
 static int vdi_create(const char *filename, QEMUOptionParameter *options)
 {
     /* TODO: Support pre-allocated images. */
@@ -1087,43 +952,15 @@ static BlockDriver bdrv_vdi = {
     .bdrv_close = vdi_close,
     .bdrv_create = vdi_create,
     .bdrv_flush = vdi_flush,
-#if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_getlength = vdi_getlength,
-#endif
     .bdrv_is_allocated = vdi_is_allocated,
-#if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_set_key = vdi_set_key,
-#endif
     .bdrv_make_empty = vdi_make_empty,
 
-#ifdef CONFIG_AIO
     .bdrv_aio_readv = vdi_aio_readv,
 #if defined(CONFIG_VDI_WRITE)
     .bdrv_aio_writev = vdi_aio_writev,
 #endif
-#else
-    .bdrv_read = vdi_read,
-#if defined(CONFIG_VDI_WRITE)
-    .bdrv_write = vdi_write,
-#endif
-#endif
 
-#if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_write_compressed = vdi_write_compressed,
-#endif
-
-#if defined(CONFIG_VDI_SNAPSHOT)
-    .bdrv_snapshot_create = vdi_snapshot_create,
-    .bdrv_snapshot_goto = vdi_snapshot_goto,
-    .bdrv_snapshot_delete = vdi_snapshot_delete,
-    .bdrv_snapshot_list = vdi_snapshot_list,
-#endif
     .bdrv_get_info = vdi_get_info,
-
-#if defined(CONFIG_VDI_UNSUPPORTED)
-    .bdrv_put_buffer = vdi_put_buffer,
-    .bdrv_get_buffer = vdi_get_buffer,
-#endif
 
     .create_options = vdi_create_options,
     .bdrv_check = vdi_check,
