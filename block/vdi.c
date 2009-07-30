@@ -892,12 +892,21 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
 
     bmap = (uint32_t *)qemu_mallocz(bmap_size);
     for (i = 0; i < blocks; i++) {
-        bmap[i] = VDI_UNALLOCATED;
+        if (image_type == VDI_TYPE_STATIC) {
+            bmap[i] = i;
+        } else {
+            bmap[i] = VDI_UNALLOCATED;
+        }
     }
     if (write(fd, bmap, bmap_size) < 0) {
         result = -errno;
     }
     qemu_free(bmap);
+    if (image_type == VDI_TYPE_STATIC) {
+        if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
+            result = -errno;
+        }
+    }
 
     if (close(fd) < 0) {
         result = -errno;
