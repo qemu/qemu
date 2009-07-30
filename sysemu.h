@@ -99,10 +99,17 @@ typedef enum DisplayType
 
 extern int autostart;
 extern int bios_size;
-extern int cirrus_vga_enabled;
-extern int std_vga_enabled;
-extern int vmsvga_enabled;
-extern int xenfb_enabled;
+
+typedef enum {
+    VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB
+} VGAInterfaceType;
+
+extern int vga_interface_type;
+#define cirrus_vga_enabled (vga_interface_type == VGA_CIRRUS)
+#define std_vga_enabled (vga_interface_type == VGA_STD)
+#define xenfb_enabled (vga_interface_type == VGA_XENFB)
+#define vmsvga_enabled (vga_interface_type == VGA_VMWARE)
+
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
