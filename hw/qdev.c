@@ -520,7 +520,7 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
         len = snprintf(buf, len, "%s.%d", info->name,
                        parent ? parent->num_child_bus : 0);
         for (i = 0; i < len; i++)
-            buf[i] = tolower(buf[i]);
+            buf[i] = qemu_tolower(buf[i]);
         bus->name = buf;
     }
 
