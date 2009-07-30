@@ -118,6 +118,8 @@ static void exec_accept_incoming_migration(void *opaque)
     dprintf("successfully loaded vm state\n");
     /* we've successfully migrated, close the fd */
     qemu_set_fd_handler2(qemu_popen_fd(f), NULL, NULL, NULL, NULL);
+    if (autostart)
+        vm_start();
 
 err:
     qemu_fclose(f);

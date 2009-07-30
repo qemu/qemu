@@ -1882,6 +1882,8 @@ static const mon_cmd_t info_cmds[] = {
       "", "show balloon information" },
     { "qtree", "", do_info_qtree,
       "", "show device tree" },
+    { "qdrv", "", do_info_qdrv,
+      "", "show qdev driver list" },
     { NULL, NULL, },
 };
 

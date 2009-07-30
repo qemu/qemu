@@ -501,6 +501,7 @@ typedef struct BMDMAState {
     QEMUIOVector qiov;
     int64_t sector_num;
     uint32_t nsector;
+    QEMUBH *bh;
 } BMDMAState;
 
 typedef struct PCIIDEState {
@@ -1109,17 +1110,32 @@ static void ide_sector_write(IDEState *s)
     }
 }
 
-static void ide_dma_restart_cb(void *opaque, int running, int reason)
+static void ide_dma_restart_bh(void *opaque)
 {
     BMDMAState *bm = opaque;
-    if (!running)
-        return;
+
+    qemu_bh_delete(bm->bh);
+    bm->bh = NULL;
+
     if (bm->status & BM_STATUS_DMA_RETRY) {
         bm->status &= ~BM_STATUS_DMA_RETRY;
         ide_dma_restart(bm->ide_if);
     } else if (bm->status & BM_STATUS_PIO_RETRY) {
         bm->status &= ~BM_STATUS_PIO_RETRY;
         ide_sector_write(bm->ide_if);
+    }
+}
+
+static void ide_dma_restart_cb(void *opaque, int running, int reason)
+{
+    BMDMAState *bm = opaque;
+
+    if (!running)
+        return;
+
+    if (!bm->bh) {
+        bm->bh = qemu_bh_new(ide_dma_restart_bh, bm);
+        qemu_bh_schedule(bm->bh);
     }
 }
 

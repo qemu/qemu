@@ -26,6 +26,7 @@ typedef struct VirtIOBlock
     VirtQueue *vq;
     void *rq;
     char serial_str[BLOCK_SERIAL_STRLEN + 1];
+    QEMUBH *bh;
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
@@ -302,19 +303,32 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
      */
 }
 
-static void virtio_blk_dma_restart_cb(void *opaque, int running, int reason)
+static void virtio_blk_dma_restart_bh(void *opaque)
 {
     VirtIOBlock *s = opaque;
     VirtIOBlockReq *req = s->rq;
 
-    if (!running)
-        return;
+    qemu_bh_delete(s->bh);
+    s->bh = NULL;
 
     s->rq = NULL;
 
     while (req) {
         virtio_blk_handle_write(req);
         req = req->next;
+    }
+}
+
+static void virtio_blk_dma_restart_cb(void *opaque, int running, int reason)
+{
+    VirtIOBlock *s = opaque;
+
+    if (!running)
+        return;
+
+    if (!s->bh) {
+        s->bh = qemu_bh_new(virtio_blk_dma_restart_bh, s);
+        qemu_bh_schedule(s->bh);
     }
 }
 

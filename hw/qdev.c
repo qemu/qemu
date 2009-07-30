@@ -105,6 +105,21 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     return dev;
 }
 
+static int qdev_print_devinfo(DeviceInfo *info, char *dest, int len)
+{
+    int pos = 0;
+
+    pos += snprintf(dest+pos, len-pos, "name \"%s\", bus %s",
+                    info->name, info->bus_info->name);
+    if (info->alias)
+        pos += snprintf(dest+pos, len-pos, ", alias \"%s\"", info->alias);
+    if (info->desc)
+        pos += snprintf(dest+pos, len-pos, ", desc \"%s\"", info->desc);
+    if (info->no_user)
+        pos += snprintf(dest+pos, len-pos, ", no-user");
+    return pos;
+}
+
 DeviceState *qdev_device_add(const char *cmdline)
 {
     DeviceInfo *info;
@@ -120,8 +135,10 @@ DeviceState *qdev_device_add(const char *cmdline)
         return NULL;
     }
     if (strcmp(driver, "?") == 0) {
+        char msg[256];
         for (info = device_info_list; info != NULL; info = info->next) {
-            fprintf(stderr, "name \"%s\", bus %s\n", info->name, info->bus_info->name);
+            qdev_print_devinfo(info, msg, sizeof(msg));
+            fprintf(stderr, "%s\n", msg);
         }
         return NULL;
     }
@@ -572,4 +589,15 @@ void do_info_qtree(Monitor *mon)
 {
     if (main_system_bus)
         qbus_print(mon, main_system_bus, 0);
+}
+
+void do_info_qdrv(Monitor *mon)
+{
+    DeviceInfo *info;
+    char msg[256];
+
+    for (info = device_info_list; info != NULL; info = info->next) {
+        qdev_print_devinfo(info, msg, sizeof(msg));
+        monitor_printf(mon, "%s\n", msg);
+    }
 }

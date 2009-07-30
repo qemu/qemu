@@ -669,6 +669,11 @@ static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 
 static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
 {
+    uint8_t *src_row;
+    uint8_t *dst_row;
+    int y,pitch,depth;
+
+    /* send bitblit op to the vnc client */
     vnc_write_u8(vs, 0);  /* msg id */
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1); /* number of rects */
@@ -676,6 +681,23 @@ static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, i
     vnc_write_u16(vs, src_x);
     vnc_write_u16(vs, src_y);
     vnc_flush(vs);
+
+    /* do bitblit op on the local surface too */
+    pitch = ds_get_linesize(vs->ds);
+    depth = ds_get_bytes_per_pixel(vs->ds);
+    src_row = vs->server.ds->data + pitch * src_y + depth * src_x;
+    dst_row = vs->server.ds->data + pitch * dst_y + depth * dst_x;
+    if (dst_y > src_y) {
+        /* copy backwards */
+        src_row += pitch * (h-1);
+        dst_row += pitch * (h-1);
+        pitch = -pitch;
+    }
+    for (y = 0; y < h; y++) {
+        memmove(dst_row, src_row, w * depth);
+        src_row += pitch;
+        dst_row += pitch;
+    }
 }
 
 static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_y, int w, int h)

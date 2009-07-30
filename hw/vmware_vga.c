@@ -1210,14 +1210,11 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
                     iomemtype);
 }
 
-void pci_vmsvga_init(PCIBus *bus)
+static void pci_vmsvga_initfn(PCIDevice *dev)
 {
-    struct pci_vmsvga_state_s *s;
+    struct pci_vmsvga_state_s *s =
+        DO_UPCAST(struct pci_vmsvga_state_s, card, dev);
 
-    /* Setup PCI configuration */
-    s = (struct pci_vmsvga_state_s *)
-        pci_register_device(bus, "QEMUware SVGA",
-                sizeof(struct pci_vmsvga_state_s), -1, NULL, NULL);
     pci_config_set_vendor_id(s->card.config, PCI_VENDOR_ID_VMWARE);
     pci_config_set_device_id(s->card.config, SVGA_PCI_DEVICE_ID);
     s->card.config[PCI_COMMAND]		= 0x07;		/* I/O + Memory */
@@ -1240,3 +1237,20 @@ void pci_vmsvga_init(PCIBus *bus)
 
     register_savevm("vmware_vga", 0, 0, pci_vmsvga_save, pci_vmsvga_load, s);
 }
+
+void pci_vmsvga_init(PCIBus *bus)
+{
+    pci_create_simple(bus, -1, "QEMUware SVGA");
+}
+
+static PCIDeviceInfo vmsvga_info = {
+    .qdev.name    = "QEMUware SVGA",
+    .qdev.size    = sizeof(struct pci_vmsvga_state_s),
+    .init         = pci_vmsvga_initfn,
+};
+
+static void vmsvga_register(void)
+{
+    pci_qdev_register(&vmsvga_info);
+}
+device_init(vmsvga_register);
