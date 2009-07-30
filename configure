@@ -471,6 +471,12 @@ for opt do
   ;;
   --enable-system) softmmu="yes"
   ;;
+  --disable-user)
+      linux_user="no" ;
+      bsd_user="no" ;
+      darwin_user="no"
+  ;;
+  --enable-user) ;;
   --disable-linux-user) linux_user="no"
   ;;
   --enable-linux-user) linux_user="yes"
@@ -629,6 +635,8 @@ echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
+echo "  --enable-user            enable supported user emulation targets"
+echo "  --disable-user           disable all user emulation targets"
 echo "  --enable-linux-user      enable all linux usermode emulation targets"
 echo "  --disable-linux-user     disable all linux usermode emulation targets"
 echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
