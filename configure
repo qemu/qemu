@@ -1807,8 +1807,9 @@ fi
 echo "TOOLS=$tools" >> $config_host_mak
 
 roms=
-if test "$cpu" = "i386" -o "$cpu" = "x86_64" ; then
-  roms="pc-bios/optionrom"
+if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
+        "$targetos" != "Darwin" ; then
+  roms="optionrom"
 fi
 echo "ROMS=$roms" >> $config_host_mak
 
