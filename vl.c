@@ -2213,7 +2213,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     /* init */
 
     dinfo = qemu_mallocz(sizeof(*dinfo));
-    if ((buf = qemu_opt_get(opts, "id")) != NULL) {
+    if ((buf = qemu_opts_id(opts)) != NULL) {
         dinfo->id = qemu_strdup(buf);
     } else {
         /* no id supplied -> create one */
