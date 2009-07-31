@@ -191,7 +191,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         kernel_size = load_elf(kernel_filename, kernel_base, NULL, &lowaddr, NULL);
         if (kernel_size > 0 && lowaddr != KERNEL_LOAD_ADDR) {
             kernel_size = load_elf(kernel_filename, (2 * kernel_base) - lowaddr,
-                                   NULL, 0, NULL);
+                                   NULL, NULL, NULL);
         }
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, kernel_base,

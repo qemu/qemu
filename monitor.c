@@ -2268,7 +2268,7 @@ static int get_monitor_def(target_long *pval, const char *name)
 
 static void next(void)
 {
-    if (pch != '\0') {
+    if (*pch != '\0') {
         pch++;
         while (qemu_isspace(*pch))
             pch++;

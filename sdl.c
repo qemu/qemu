@@ -53,7 +53,7 @@ static SDL_Cursor *sdl_cursor_hidden;
 static int absolute_enabled = 0;
 static int guest_cursor = 0;
 static int guest_x, guest_y;
-static SDL_Cursor *guest_sprite = 0;
+static SDL_Cursor *guest_sprite = NULL;
 static uint8_t allocator;
 static SDL_PixelFormat host_format;
 static int scaling_active = 0;

@@ -1376,17 +1376,17 @@ int main(int argc, char **argv)
 	int growable = 0;
 	const char *sopt = "hVc:Crsnmg";
 	struct option lopt[] = {
-		{ "help", 0, 0, 'h' },
-		{ "version", 0, 0, 'V' },
-		{ "offset", 1, 0, 'o' },
-		{ "cmd", 1, 0, 'c' },
-		{ "create", 0, 0, 'C' },
-		{ "read-only", 0, 0, 'r' },
-		{ "snapshot", 0, 0, 's' },
-		{ "nocache", 0, 0, 'n' },
-		{ "misalign", 0, 0, 'm' },
-		{ "growable", 0, 0, 'g' },
-		{ NULL, 0, 0, 0 }
+		{ "help", 0, NULL, 'h' },
+		{ "version", 0, NULL, 'V' },
+		{ "offset", 1, NULL, 'o' },
+		{ "cmd", 1, NULL, 'c' },
+		{ "create", 0, NULL, 'C' },
+		{ "read-only", 0, NULL, 'r' },
+		{ "snapshot", 0, NULL, 's' },
+		{ "nocache", 0, NULL, 'n' },
+		{ "misalign", 0, NULL, 'm' },
+		{ "growable", 0, NULL, 'g' },
+		{ NULL, 0, NULL, 0 }
 	};
 	int c;
 	int opt_index = 0;

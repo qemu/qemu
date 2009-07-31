@@ -191,22 +191,22 @@ int main(int argc, char **argv)
     char sockpath[128];
     const char *sopt = "hVb:o:p:rsnP:c:dvk:e:t";
     struct option lopt[] = {
-        { "help", 0, 0, 'h' },
-        { "version", 0, 0, 'V' },
-        { "bind", 1, 0, 'b' },
-        { "port", 1, 0, 'p' },
-        { "socket", 1, 0, 'k' },
-        { "offset", 1, 0, 'o' },
-        { "read-only", 0, 0, 'r' },
-        { "partition", 1, 0, 'P' },
-        { "connect", 1, 0, 'c' },
-        { "disconnect", 0, 0, 'd' },
-        { "snapshot", 0, 0, 's' },
-        { "nocache", 0, 0, 'n' },
-        { "shared", 1, 0, 'e' },
-        { "persistent", 0, 0, 't' },
-        { "verbose", 0, 0, 'v' },
-        { NULL, 0, 0, 0 }
+        { "help", 0, NULL, 'h' },
+        { "version", 0, NULL, 'V' },
+        { "bind", 1, NULL, 'b' },
+        { "port", 1, NULL, 'p' },
+        { "socket", 1, NULL, 'k' },
+        { "offset", 1, NULL, 'o' },
+        { "read-only", 0, NULL, 'r' },
+        { "partition", 1, NULL, 'P' },
+        { "connect", 1, NULL, 'c' },
+        { "disconnect", 0, NULL, 'd' },
+        { "snapshot", 0, NULL, 's' },
+        { "nocache", 0, NULL, 'n' },
+        { "shared", 1, NULL, 'e' },
+        { "persistent", 0, NULL, 't' },
+        { "verbose", 0, NULL, 'v' },
+        { NULL, 0, NULL, 0 }
     };
     int ch;
     int opt_ind = 0;

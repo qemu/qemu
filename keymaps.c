@@ -75,7 +75,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     if (!(filename && (f = fopen(filename, "r")))) {
 	fprintf(stderr,
 		"Could not read keymap file: '%s'\n", language);
-	return 0;
+	return NULL;
     }
     qemu_free(filename);
     for(;;) {
@@ -144,7 +144,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 
 void *init_keyboard_layout(const name2keysym_t *table, const char *language)
 {
-    return parse_keyboard_layout(table, language, 0);
+    return parse_keyboard_layout(table, language, NULL);
 }
 
 
