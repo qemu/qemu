@@ -72,7 +72,9 @@ void uuid_unparse(const uuid_t uu, char *out);
 /* Support write operations on VDI images. */
 #define CONFIG_VDI_WRITE
 
-/* Support non-standard block (cluster) size. This is untested. */
+/* Support non-standard block (cluster) size. This is untested.
+ * Maybe it will be needed for very large images.
+ */
 //~ #define CONFIG_VDI_BLOCK_SIZE
 
 /* Support static (fixed, pre-allocated) images. */
@@ -468,47 +470,15 @@ static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
     return bmap_entry != VDI_UNALLOCATED;
 }
 
-#if 0
-static void vdi_aio_remove(VdiAIOCB *acb)
-{
-    logout("\n");
-#if 0
-    VdiAIOCB **pacb;
-
-    /* remove the callback from the queue */
-    pacb = &posix_aio_state->first_aio;
-    for(;;) {
-        if (*pacb == NULL) {
-            fprintf(stderr, "vdi_aio_remove: aio request not found!\n");
-            break;
-        } else if (*pacb == acb) {
-            *pacb = acb->next;
-            qemu_aio_release(acb);
-            break;
-        }
-        pacb = &(*pacb)->next;
-    }
-#endif
-}
-#endif
-
 static void vdi_aio_cancel(BlockDriverAIOCB *blockacb)
 {
-    logout("\n");
-
-#if 0
-    int ret;
+    /* TODO: This code is untested. How can I get it executed? */
     VdiAIOCB *acb = (VdiAIOCB *)blockacb;
-
-    ret = qemu_paio_cancel(acb->aiocb.aio_fildes, &acb->aiocb);
-    if (ret == QEMU_PAIO_NOTCANCELED) {
-        /* fail safe: if the aio could not be canceled, we wait for
-           it */
-        while (qemu_paio_error(&acb->aiocb) == EINPROGRESS);
+    logout("\n");
+    if (acb->hd_aiocb) {
+        bdrv_aio_cancel(acb->hd_aiocb);
     }
-
-    vdi_aio_remove(acb);
-#endif
+    qemu_aio_release(acb);
 }
 
 static AIOPool vdi_aio_pool = {
@@ -821,7 +791,6 @@ static BlockDriverAIOCB *vdi_aio_writev(BlockDriverState *bs,
 
 static int vdi_create(const char *filename, QEMUOptionParameter *options)
 {
-    /* TODO: Support pre-allocated images. */
     int fd;
     int result = 0;
     uint64_t bytes = 0;
@@ -878,10 +847,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     header.blocks_in_image = blocks;
     uuid_generate(header.uuid_image);
     uuid_generate(header.uuid_last_snap);
-#if 0
-    uuid_generate(header.uuid_link);
-    uuid_generate(header.uuid_parent);
-#endif
+    /* There is no need to set header.uuid_link or header.uuid_parent here. */
 #if defined(CONFIG_VDI_DEBUG)
     vdi_header_print(&header);
 #endif
@@ -950,6 +916,7 @@ static QEMUOptionParameter vdi_create_options[] = {
         .help = "VDI static (pre-allocated) image"
     },
 #endif
+    /* TODO: An additional option to set UUID values might be useful. */
     { NULL }
 };
 
