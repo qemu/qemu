@@ -1116,6 +1116,7 @@ static void pc_init1(ram_addr_t ram_size,
     int bios_size, isa_bios_size, oprom_area_size;
     PCIBus *pci_bus;
     PCIDevice *pci_dev;
+    ISADevice *isa_dev;
     int piix3_devfn = -1;
     CPUState *env;
     qemu_irq *cpu_irq;
@@ -1362,7 +1363,9 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    i8042_init(i8259[1], i8259[12], 0x60);
+    isa_dev = isa_create_simple("i8042", 0x60, 0x64);
+    isa_connect_irq(isa_dev, 0, i8259[1]);
+    isa_connect_irq(isa_dev, 1, i8259[12]);
     DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, i8259);
