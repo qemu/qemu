@@ -327,7 +327,7 @@ obj-y += e1000.o
 obj-y += wdt_ib700.o wdt_i6300esb.o
 
 # Hardware support
-obj-i386-y = ide.o pckbd.o vga.o $(sound-obj-y) dma.o
+obj-i386-y = ide.o pckbd.o vga.o $(sound-obj-y) dma.o isa-bus.o
 obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
 obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
@@ -338,7 +338,7 @@ CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
 # shared objects
-obj-ppc-y = ppc.o ide.o vga.o $(sound-obj-y) dma.o openpic.o
+obj-ppc-y = ppc.o ide.o vga.o $(sound-obj-y) dma.o isa-bus.o openpic.o
 # PREP target
 obj-ppc-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
 obj-ppc-y += prep_pci.o ppc_prep.o
@@ -366,7 +366,7 @@ obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
-obj-mips-y += piix_pci.o parallel.o cirrus_vga.o pcspk.o $(sound-obj-y)
+obj-mips-y += piix_pci.o parallel.o cirrus_vga.o isa-bus.o pcspk.o $(sound-obj-y)
 obj-mips-y += mipsnet.o
 obj-mips-y += pflash_cfi01.o
 obj-mips-y += vmware_vga.o
@@ -401,12 +401,12 @@ obj-cris-y += etraxfs_ser.o
 obj-cris-y += pflash_cfi02.o
 
 ifeq ($(TARGET_ARCH), sparc64)
-obj-sparc-y = sun4u.o ide.o pckbd.o vga.o apb_pci.o
+obj-sparc-y = sun4u.o ide.o isa-bus.o pckbd.o vga.o apb_pci.o
 obj-sparc-y += fdc.o mc146818rtc.o serial.o
 obj-sparc-y += cirrus_vga.o parallel.o
 else
 obj-sparc-y = sun4m.o tcx.o iommu.o slavio_intctl.o
-obj-sparc-y += slavio_timer.o slavio_misc.o fdc.o sparc32_dma.o
+obj-sparc-y += slavio_timer.o slavio_misc.o fdc.o isa-bus.o sparc32_dma.o
 obj-sparc-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 
