@@ -4411,7 +4411,7 @@ PCMCIACardState *dscm1xxxx_init(BlockDriverState *bdrv)
     md->card.cis = dscm1xxxx_cis;
     md->card.cis_len = sizeof(dscm1xxxx_cis);
 
-    ide_init2(md->ide, bdrv, 0, qemu_allocate_irqs(md_set_irq, md, 1)[0]);
+    ide_init2(md->ide, bdrv, NULL, qemu_allocate_irqs(md_set_irq, md, 1)[0]);
     md->ide->is_cf = 1;
     md->ide->mdata_size = METADATA_SIZE;
     md->ide->mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);

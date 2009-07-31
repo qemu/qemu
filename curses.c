@@ -158,7 +158,7 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
 
 #include "curses_keys.h"
 
-static kbd_layout_t *kbd_layout = 0;
+static kbd_layout_t *kbd_layout = NULL;
 static int keycode2keysym[CURSES_KEYS];
 
 static void curses_refresh(DisplayState *ds)

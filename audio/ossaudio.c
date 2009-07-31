@@ -481,7 +481,7 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
     oss->mmapped = 0;
     if (conf.try_mmap) {
         oss->pcm_buf = mmap (
-            0,
+            NULL,
             hw->samples << hw->info.shift,
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
