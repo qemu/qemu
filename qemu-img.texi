@@ -48,6 +48,8 @@ Old QEMU image format. Left for compatibility.
 User Mode Linux Copy On Write image format. Used to be the only growable
 image format in QEMU. It is supported only for compatibility with
 previous versions. It does not work on win32.
+@item vdi
+VirtualBox 1.1 compatible image format.
 @item vmdk
 VMware 3 and 4 compatible image format.
 @item cloop
