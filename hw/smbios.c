@@ -40,9 +40,20 @@ struct smbios_table {
 
 static uint8_t *smbios_entries;
 static size_t smbios_entries_len;
+static int smbios_type4_count = 0;
+
+static void smbios_validate_table(void)
+{
+    if (smbios_type4_count && smbios_type4_count != smp_cpus) {
+         fprintf(stderr,
+                 "Number of SMBIOS Type 4 tables must match cpu count.\n");
+        exit(1);
+    }
+}
 
 uint8_t *smbios_get_table(size_t *length)
 {
+    smbios_validate_table();
     *length = smbios_entries_len;
     return smbios_entries;
 }
@@ -173,8 +184,8 @@ int smbios_entry_add(const char *t)
         struct smbios_table *table;
         int size = get_image_size(buf);
 
-        if (size < sizeof(struct smbios_structure_header)) {
-            fprintf(stderr, "Cannot read smbios file %s", buf);
+        if (size == -1 || size < sizeof(struct smbios_structure_header)) {
+            fprintf(stderr, "Cannot read smbios file %s\n", buf);
             exit(1);
         }
 
@@ -196,6 +207,9 @@ int smbios_entry_add(const char *t)
 
         header = (struct smbios_structure_header *)(table->data);
         smbios_check_collision(header->type, SMBIOS_TABLE_ENTRY);
+        if (header->type == 4) {
+            smbios_type4_count++;
+        }
 
         smbios_entries_len += sizeof(*table) + size;
         (*(uint16_t *)smbios_entries) =
