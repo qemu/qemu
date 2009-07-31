@@ -120,18 +120,33 @@ static int qdev_print_devinfo(DeviceInfo *info, char *dest, int len)
     return pos;
 }
 
-DeviceState *qdev_device_add(const char *cmdline)
+static int set_property(const char *name, const char *value, void *opaque)
 {
+    DeviceState *dev = opaque;
+
+    if (strcmp(name, "driver") == 0)
+        return 0;
+    if (strcmp(name, "bus") == 0)
+        return 0;
+
+    if (-1 == qdev_prop_parse(dev, name, value)) {
+        fprintf(stderr, "can't set property \"%s\" to \"%s\" for \"%s\"\n",
+                name, value, dev->info->name);
+        return -1;
+    }
+    return 0;
+}
+
+DeviceState *qdev_device_add(QemuOpts *opts)
+{
+    const char *driver, *path, *id;
     DeviceInfo *info;
     DeviceState *qdev;
     BusState *bus;
-    char driver[32], path[128] = "";
-    char tag[32], value[256];
-    const char *params = NULL;
-    int n = 0;
 
-    if (1 != sscanf(cmdline, "%32[^,],%n", driver, &n)) {
-        fprintf(stderr, "device parse error: \"%s\"\n", cmdline);
+    driver = qemu_opt_get(opts, "driver");
+    if (!driver) {
+        fprintf(stderr, "-device: no driver specified\n");
         return NULL;
     }
     if (strcmp(driver, "?") == 0) {
@@ -142,10 +157,8 @@ DeviceState *qdev_device_add(const char *cmdline)
         }
         return NULL;
     }
-    if (n) {
-        params = cmdline + n;
-        get_param_value(path, sizeof(path), "bus",  params);
-    }
+
+    /* find driver */
     info = qdev_find_info(NULL, driver);
     if (!info) {
         fprintf(stderr, "Device \"%s\" not found.  Try -device '?' for a list.\n",
@@ -158,40 +171,26 @@ DeviceState *qdev_device_add(const char *cmdline)
         return NULL;
     }
 
-    if (strlen(path)) {
+    /* find bus */
+    path = qemu_opt_get(opts, "bus");
+    if (path != NULL) {
         bus = qbus_find(path);
-        if (!bus)
-            return NULL;
-        qdev = qdev_create(bus, driver);
     } else {
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
-        if (!bus)
-            return NULL;
-        qdev = qdev_create(bus, driver);
     }
+    if (!bus)
+        return NULL;
 
-    if (params) {
-        while (params[0]) {
-            if (2 != sscanf(params, "%31[^=]=%255[^,]%n", tag, value, &n)) {
-                fprintf(stderr, "parse error at \"%s\"\n", params);
-                break;
-            }
-            params += n;
-            if (params[0] == ',')
-                params++;
-            if (strcmp(tag, "bus") == 0)
-                continue;
-            if (strcmp(tag, "id") == 0) {
-                qdev->id = qemu_strdup(value);
-                continue;
-            }
-            if (-1 == qdev_prop_parse(qdev, tag, value)) {
-                fprintf(stderr, "can't set property \"%s\" to \"%s\" for \"%s\"\n",
-                        tag, value, driver);
-            }
-        }
+    /* create device, set properties */
+    qdev = qdev_create(bus, driver);
+    id = qemu_opts_id(opts);
+    if (id) {
+        qdev->id = id;
     }
-
+    if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
+        qdev_free(qdev);
+        return NULL;
+    }
     qdev_init(qdev);
     return qdev;
 }
@@ -208,7 +207,6 @@ void qdev_init(DeviceState *dev)
 void qdev_free(DeviceState *dev)
 {
     LIST_REMOVE(dev, sibling);
-    qemu_free(dev->id);
     qemu_free(dev);
 }
 

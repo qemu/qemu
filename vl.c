@@ -4716,9 +4716,18 @@ char *qemu_find_file(int type, const char *name)
     return buf;
 }
 
+static int device_init_func(QemuOpts *opts, void *opaque)
+{
+    DeviceState *dev;
+
+    dev = qdev_device_add(opts);
+    if (!dev)
+        return -1;
+    return 0;
+}
+
 struct device_config {
     enum {
-        DEV_GENERIC,   /* -device      */
         DEV_USB,       /* -usbdevice   */
         DEV_BT,        /* -bt          */
     } type;
@@ -4752,16 +4761,6 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     return 0;
 }
 
-static int generic_parse(const char *cmdline)
-{
-    DeviceState *dev;
-
-    dev = qdev_device_add(cmdline);
-    if (!dev)
-        return -1;
-    return 0;
-}
-
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4776,7 +4775,7 @@ int main(int argc, char **argv, char **envp)
     int cyls, heads, secs, translation;
     const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
-    QemuOpts *hda_opts = NULL;
+    QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd = NULL;
@@ -5386,7 +5385,11 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
-                add_device_config(DEV_GENERIC, optarg);
+                opts = qemu_opts_parse(&qemu_device_opts, optarg, "driver");
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_smp:
             {
@@ -5922,7 +5925,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* init generic devices */
-    if (foreach_device_config(DEV_GENERIC, generic_parse))
+    if (qemu_opts_foreach(&qemu_device_opts, device_init_func, NULL, 1) != 0)
         exit(1);
 
     if (!display_state)

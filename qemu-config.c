@@ -71,8 +71,22 @@ QemuOptsList qemu_drive_opts = {
     },
 };
 
+QemuOptsList qemu_device_opts = {
+    .name = "device",
+    .head = TAILQ_HEAD_INITIALIZER(qemu_device_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any
+         * sanity checking will happen later
+         * when setting device properties
+         */
+        { /* end if list */ }
+    },
+};
+
 static QemuOptsList *lists[] = {
     &qemu_drive_opts,
+    &qemu_device_opts,
     NULL,
 };
 

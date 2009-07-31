@@ -3,6 +3,7 @@
 
 #include "hw.h"
 #include "sys-queue.h"
+#include "qemu-option.h"
 
 typedef struct Property Property;
 
@@ -19,7 +20,7 @@ typedef struct BusInfo BusInfo;
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {
-    char *id;
+    const char *id;
     DeviceInfo *info;
     BusState *parent_bus;
     int num_gpio_out;
@@ -82,7 +83,7 @@ struct CompatProperty {
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 DeviceState *qdev_create(BusState *bus, const char *name);
-DeviceState *qdev_device_add(const char *cmdline);
+DeviceState *qdev_device_add(QemuOpts *opts);
 void qdev_init(DeviceState *dev);
 void qdev_free(DeviceState *dev);
 
