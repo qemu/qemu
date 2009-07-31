@@ -169,6 +169,9 @@ static void pl110_invalidate_display(void * opaque)
 {
     pl110_state *s = (pl110_state *)opaque;
     s->invalidate = 1;
+    if (pl110_enabled(s)) {
+        qemu_console_resize(s->ds, s->cols, s->rows);
+    }
 }
 
 static void pl110_update_pallette(pl110_state *s, int n)

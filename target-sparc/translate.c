@@ -4909,4 +4909,9 @@ void gen_pc_load(CPUState *env, TranslationBlock *tb,
     } else {
         env->npc = npc;
     }
+
+    /* flush pending conditional evaluations before exposing cpu state */
+    if (CC_OP != CC_OP_FLAGS) {
+        helper_compute_psr();
+    }
 }
