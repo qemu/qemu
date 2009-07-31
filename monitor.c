@@ -257,9 +257,10 @@ static void do_commit(Monitor *mon, const char *device)
 
     all_devices = !strcmp(device, "all");
     for (i = 0; i < nb_drives; i++) {
-            if (all_devices ||
-                !strcmp(bdrv_get_device_name(drives_table[i].bdrv), device))
-                bdrv_commit(drives_table[i].bdrv);
+        if (!all_devices)
+            if (strcmp(bdrv_get_device_name(drives_table[i].bdrv), device))
+                continue;
+        bdrv_commit(drives_table[i].bdrv);
     }
 }
 
