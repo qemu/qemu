@@ -715,8 +715,13 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
     QemuOpts *opts;
     const char *p,*pe,*pc;
 
-    if (get_param_value(value, sizeof(value), "id", params))
+    if (strncmp(params, "id=", 3) == 0) {
+        get_opt_value(value, sizeof(value), params+3);
         id = qemu_strdup(value);
+    } else if ((p = strstr(params, ",id=")) != NULL) {
+        get_opt_value(value, sizeof(value), p+4);
+        id = qemu_strdup(value);
+    }
     opts = qemu_opts_create(list, id, 1);
     if (opts == NULL)
         return NULL;
