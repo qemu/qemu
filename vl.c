@@ -2197,8 +2197,15 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         break;
     case IF_PFLASH:
     case IF_MTD:
-    case IF_VIRTIO:
     case IF_NONE:
+        break;
+    case IF_VIRTIO:
+        /* add virtio block device */
+        opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
+        qemu_opt_set(opts, "driver", "virtio-blk-pci");
+        qemu_opt_set(opts, "drive", dinfo->id);
+        if (devaddr)
+            qemu_opt_set(opts, "addr", devaddr);
         break;
     case IF_COUNT:
         abort();

@@ -17,7 +17,7 @@
 
 #include "virtio.h"
 #include "pci.h"
-//#include "sysemu.h"
+#include "sysemu.h"
 #include "msix.h"
 #include "net.h"
 
@@ -89,6 +89,7 @@ typedef struct {
     uint32_t addr;
     uint32_t class_code;
     uint32_t nvectors;
+    DriveInfo *dinfo;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -432,7 +433,10 @@ static void virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code != PCI_CLASS_STORAGE_OTHER)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
-    vdev = virtio_blk_init(&pci_dev->qdev);
+    if (!proxy->dinfo) {
+        fprintf(stderr, "drive property not set\n");
+    }
+    vdev = virtio_blk_init(&pci_dev->qdev, proxy->dinfo);
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_BLOCK,
@@ -502,6 +506,10 @@ static PCIDeviceInfo virtio_info[] = {
                 .name   = "class",
                 .info   = &qdev_prop_hex32,
                 .offset = offsetof(VirtIOPCIProxy, class_code),
+            },{
+                .name   = "drive",
+                .info   = &qdev_prop_drive,
+                .offset = offsetof(VirtIOPCIProxy, dinfo),
             },
             {/* end of list */}
         },

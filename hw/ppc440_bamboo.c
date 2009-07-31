@@ -90,7 +90,6 @@ static void bamboo_init(ram_addr_t ram_size,
 {
     unsigned int pci_irq_nrs[4] = { 28, 27, 26, 25 };
     PCIBus *pcibus;
-    PCIDevice *pci_dev;
     CPUState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
@@ -102,21 +101,11 @@ static void bamboo_init(ram_addr_t ram_size,
     target_ulong dt_base = 0;
     void *fdt;
     int i;
-    DriveInfo *dinfo;
 
     /* Setup CPU. */
     env = ppc440ep_init(&ram_size, &pcibus, pci_irq_nrs, 1, cpu_model);
 
     if (pcibus) {
-        int unit_id = 0;
-
-        /* Add virtio block devices. */
-        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
-            pci_dev = pci_create("virtio-blk-pci", dinfo->devaddr);
-            qdev_init(&pci_dev->qdev);
-            unit_id++;
-        }
-
         /* Add virtio console devices */
         for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
             if (virtcon_hds[i]) {

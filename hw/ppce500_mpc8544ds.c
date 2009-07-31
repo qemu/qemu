@@ -157,7 +157,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *cpu_model)
 {
     PCIBus *pci_bus;
-    PCIDevice *pci_dev;
     CPUState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
@@ -172,7 +171,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq *irqs, *mpic, *pci_irqs;
     SerialState * serial[2];
-    DriveInfo *dinfo;
 
     /* Setup CPU */
     env = cpu_ppc_init("e500v2_v30");
@@ -217,15 +215,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     isa_mmio_init(MPC8544_PCI_IO, MPC8544_PCI_IOLEN);
 
     if (pci_bus) {
-        int unit_id = 0;
-
-        /* Add virtio block devices. */
-        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
-            pci_dev = pci_create("virtio-blk-pci", dinfo->devaddr);
-            qdev_init(&pci_dev->qdev);
-            unit_id++;
-        }
-
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
             pci_nic_init(&nd_table[i], "virtio", NULL);

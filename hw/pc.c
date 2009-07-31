@@ -1409,18 +1409,6 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    /* Add virtio block devices */
-    if (pci_enabled) {
-        int unit_id = 0;
-
-        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
-            pci_dev = pci_create("virtio-blk-pci",
-                                 dinfo->devaddr);
-            qdev_init(&pci_dev->qdev);
-            unit_id++;
-        }
-    }
-
     /* Add virtio balloon device */
     if (pci_enabled && virtio_balloon) {
         pci_dev = pci_create("virtio-balloon-pci", virtio_balloon_devaddr);

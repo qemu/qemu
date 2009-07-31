@@ -16,6 +16,7 @@
 
 #include "hw.h"
 #include "qdev.h"
+#include "sysemu.h"
 
 /* from Linux's linux/virtio_config.h */
 
@@ -161,7 +162,7 @@ void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
                         void *opaque);
 
 /* Base devices.  */
-VirtIODevice *virtio_blk_init(DeviceState *dev);
+VirtIODevice *virtio_blk_init(DeviceState *dev, DriveInfo *dinfo);
 VirtIODevice *virtio_net_init(DeviceState *dev);
 VirtIODevice *virtio_console_init(DeviceState *dev);
 VirtIODevice *virtio_balloon_init(DeviceState *dev);
