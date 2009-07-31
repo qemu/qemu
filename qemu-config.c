@@ -71,3 +71,44 @@ QemuOptsList qemu_drive_opts = {
     },
 };
 
+static QemuOptsList *lists[] = {
+    &qemu_drive_opts,
+    NULL,
+};
+
+int qemu_set_option(const char *str)
+{
+    char group[64], id[64], arg[64];
+    QemuOpts *opts;
+    int i, rc, offset;
+
+    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
+    if (rc < 3 || str[offset] != '=') {
+        fprintf(stderr, "can't parse: \"%s\"\n", str);
+        return -1;
+    }
+
+    for (i = 0; lists[i] != NULL; i++) {
+        if (strcmp(lists[i]->name, group) == 0)
+            break;
+    }
+    if (lists[i] == NULL) {
+        fprintf(stderr, "there is no option group \"%s\"\n", group);
+        return -1;
+    }
+
+    opts = qemu_opts_find(lists[i], id);
+    if (!opts) {
+        fprintf(stderr, "there is no %s \"%s\" defined\n",
+                lists[i]->name, id);
+        return -1;
+    }
+
+    if (-1 == qemu_opt_set(opts, arg, str+offset+1)) {
+        fprintf(stderr, "failed to set \"%s\" for %s \"%s\"\n",
+                arg, lists[i]->name, id);
+        return -1;
+    }
+    return 0;
+}
+

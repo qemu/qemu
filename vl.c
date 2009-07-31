@@ -4966,6 +4966,10 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_drive:
                 drive_add(NULL, "%s", optarg);
 	        break;
+            case QEMU_OPTION_set:
+                if (qemu_set_option(optarg) != 0)
+                    exit(1);
+	        break;
             case QEMU_OPTION_mtdblock:
                 drive_add(optarg, MTD_ALIAS);
                 break;
