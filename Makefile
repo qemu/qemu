@@ -38,7 +38,7 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
-build-all: $(TOOLS) $(DOCS) roms recurse-all
+build-all: $(TOOLS) $(DOCS) recurse-all
 
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
@@ -55,7 +55,14 @@ subdir-%:
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
 $(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
 
-recurse-all: $(SUBDIR_RULES)
+
+ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
+romsubdir-%:
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pc-bios/$* V="$(V)" TARGET_DIR="$*/",)
+
+ALL_SUBDIRS=$(TARGET_DIRS) $(patsubst %,pc-bios/%, $(ROMS))
+
+recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -220,7 +227,7 @@ clean:
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
-	for d in $(TARGET_DIRS) $(ROMS) libhw32 libhw64; do \
+	for d in $(ALL_SUBDIRS) libhw32 libhw64; do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
@@ -244,11 +251,6 @@ multiboot.bin
 else
 BLOBS=
 endif
-
-roms:
-	for d in $(ROMS); do \
-	$(MAKE) -C $$d || exit 1 ; \
-        done
 
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"
