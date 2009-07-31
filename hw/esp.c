@@ -422,7 +422,7 @@ static void parent_esp_reset(void *opaque, int irq, int level)
 static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     ESPState *s = opaque;
-    uint32_t saddr;
+    uint32_t saddr, old_val;
 
     saddr = addr >> s->it_shift;
     DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
@@ -445,10 +445,15 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
         }
         break;
     case ESP_RINTR:
-        // Clear interrupt/error status bits
-        s->rregs[ESP_RSTAT] &= ~(STAT_GE | STAT_PE);
+        /* Clear sequence step, interrupt register and all status bits
+           except TC */
+        old_val = s->rregs[ESP_RINTR];
+        s->rregs[ESP_RINTR] = 0;
+        s->rregs[ESP_RSTAT] &= ~STAT_TC;
+        s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_lower_irq(s);
-        break;
+
+        return old_val;
     default:
         break;
     }
