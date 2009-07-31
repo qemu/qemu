@@ -1982,6 +1982,9 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
 	} else if (!strcmp(buf, "xen")) {
 	    type = IF_XEN;
             max_devs = 0;
+	} else if (!strcmp(buf, "none")) {
+	    type = IF_NONE;
+            max_devs = 0;
 	} else {
             fprintf(stderr, "qemu: unsupported bus type '%s'\n", buf);
             return NULL;
@@ -2195,6 +2198,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     case IF_PFLASH:
     case IF_MTD:
     case IF_VIRTIO:
+    case IF_NONE:
         break;
     case IF_COUNT:
         abort();
