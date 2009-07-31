@@ -158,6 +158,7 @@ int main(int argc, char **argv)
 #include "kvm.h"
 #include "balloon.h"
 #include "qemu-option.h"
+#include "qemu-config.h"
 
 #include "disas.h"
 
@@ -1797,75 +1798,6 @@ static int bt_parse(const char *opt)
 #define MTD_ALIAS "if=mtd"
 #define SD_ALIAS "index=0,if=sd"
 
-static QemuOptsList drive_opt_list = {
-    .name = "drive",
-    .head = TAILQ_HEAD_INITIALIZER(drive_opt_list.head),
-    .desc = {
-        {
-            .name = "bus",
-            .type = QEMU_OPT_NUMBER,
-            .help = "bus number",
-        },{
-            .name = "unit",
-            .type = QEMU_OPT_NUMBER,
-            .help = "unit number (i.e. lun for scsi)",
-        },{
-            .name = "if",
-            .type = QEMU_OPT_STRING,
-            .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
-        },{
-            .name = "index",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "cyls",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of cylinders (ide disk geometry)",
-        },{
-            .name = "heads",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of heads (ide disk geometry)",
-        },{
-            .name = "secs",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of sectors (ide disk geometry)",
-        },{
-            .name = "trans",
-            .type = QEMU_OPT_STRING,
-            .help = "chs translation (auto, lba. none)",
-        },{
-            .name = "media",
-            .type = QEMU_OPT_STRING,
-            .help = "media type (disk, cdrom)",
-        },{
-            .name = "snapshot",
-            .type = QEMU_OPT_BOOL,
-        },{
-            .name = "file",
-            .type = QEMU_OPT_STRING,
-            .help = "disk image",
-        },{
-            .name = "cache",
-            .type = QEMU_OPT_STRING,
-            .help = "host cache usage (none, writeback, writethrough)",
-        },{
-            .name = "format",
-            .type = QEMU_OPT_STRING,
-            .help = "disk format (raw, qcow2, ...)",
-        },{
-            .name = "serial",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "werror",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "addr",
-            .type = QEMU_OPT_STRING,
-            .help = "pci address (virtio only)",
-        },
-        { /* end if list */ }
-    },
-};
-
 QemuOpts *drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
@@ -1876,7 +1808,7 @@ QemuOpts *drive_add(const char *file, const char *fmt, ...)
     vsnprintf(optstr, sizeof(optstr), fmt, ap);
     va_end(ap);
 
-    opts = qemu_opts_parse(&drive_opt_list, optstr, NULL);
+    opts = qemu_opts_parse(&qemu_drive_opts, optstr, NULL);
     if (!opts) {
         fprintf(stderr, "%s: huh? duplicate? (%s)\n",
                 __FUNCTION__, optstr);
@@ -5832,8 +5764,8 @@ int main(int argc, char **argv, char **envp)
 
     /* open the virtual block devices */
     if (snapshot)
-        qemu_opts_foreach(&drive_opt_list, drive_enable_snapshot, NULL, 0);
-    if (qemu_opts_foreach(&drive_opt_list, drive_init_func, machine, 1) != 0)
+        qemu_opts_foreach(&qemu_drive_opts, drive_enable_snapshot, NULL, 0);
+    if (qemu_opts_foreach(&qemu_drive_opts, drive_init_func, machine, 1) != 0)
         exit(1);
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
