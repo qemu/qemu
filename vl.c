@@ -1835,7 +1835,7 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
-DriveInfo *drive_get_by_id(char *id)
+DriveInfo *drive_get_by_id(const char *id)
 {
     DriveInfo *dinfo;
 
