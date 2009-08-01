@@ -48,7 +48,7 @@ u_int curtime;
 static u_int time_fasttimo, last_slowtimo;
 static int do_slowtimo;
 
-TAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
+static TAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
     TAILQ_HEAD_INITIALIZER(slirp_instances);
 
 #ifdef _WIN32
