@@ -1014,7 +1014,7 @@ static const char *lookup_symbolxx(struct syminfo *s, target_ulong orig_addr)
     key.st_value = orig_addr;
 
     sym = bsearch(&key, syms, s->disas_num_syms, sizeof(*syms), symfind);
-    if (sym != 0) {
+    if (sym != NULL) {
         return s->disas_strtab + sym->st_name;
     }
 

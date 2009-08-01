@@ -74,13 +74,15 @@ tcp_slowtimo(Slirp *slirp)
 	 * Search through tcb's and update active timers.
 	 */
 	ip = slirp->tcb.so_next;
-	if (ip == 0)
-	   return;
+        if (ip == NULL) {
+            return;
+        }
 	for (; ip != &slirp->tcb; ip = ipnxt) {
 		ipnxt = ip->so_next;
 		tp = sototcpcb(ip);
-		if (tp == 0)
-			continue;
+                if (tp == NULL) {
+                        continue;
+                }
 		for (i = 0; i < TCPT_NTIMERS; i++) {
 			if (tp->t_timer[i] && --tp->t_timer[i] == 0) {
 				tcp_timers(tp,i);
