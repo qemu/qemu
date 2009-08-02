@@ -1195,7 +1195,7 @@ static void do_eeprom_op(E100State *s, eeprom_t *e, int cs, int sk, int di, int 
                         {
                             memcpy(&e->data, (void *)(e->contents + e->address),
                                     sizeof(e->data));
-                            logout("EEPROM prepare data to read(addr=%#x,data=%#x)\n", 
+                            logout("EEPROM prepare data to read(addr=%#x,data=%#x)\n",
                                     e->address, e->data);
                         }
 
@@ -1215,7 +1215,7 @@ static void do_eeprom_op(E100State *s, eeprom_t *e, int cs, int sk, int di, int 
 
                         CSR(CSR_EEPROM, eedo) = t;
 
-                        logout("EEPROM read(reg address=%#x, reg val=%#x, do=%#x, len=%#x)\n", 
+                        logout("EEPROM read(reg address=%#x, reg val=%#x, do=%#x, len=%#x)\n",
                                 e->address, e->data, t, e->val_len);
 
                         if ( e->val_len > sizeof(e->data)*8 )
@@ -1251,7 +1251,7 @@ static void scb_eeprom_func(E100State *s, uint32_t val, int dir)
     int eesk = ((val & EEPROM_SK) != 0);
     int eedi = ((val & EEPROM_DI) != 0);
 
-    logout("EEPROM: Old(cs=%#x, sk=%#x), New(cs=%#x, sk=%#x, di=%#x)\n", 
+    logout("EEPROM: Old(cs=%#x, sk=%#x), New(cs=%#x, sk=%#x, di=%#x)\n",
             s->eeprom.cs, s->eeprom.sk, eecs, eesk, eedi);
 
     do_eeprom_op(s, &s->eeprom, eecs, eesk, eedi, dir);
@@ -1846,7 +1846,7 @@ static void e100_execute(E100State *s, uint32_t addr_offset,
                 {
                     // This should not be happen
                     _val = ((uint16_t)val) >> 8;
-                    logout("WARNNING: Drvier write 4 bytes to CSR register at offset %d,"
+                    logout("WARNNING: Driver writes 4 bytes to CSR register at offset %d,"
                            "emulator may do things wrong!!!\n", addr_offset);
                 }
 
@@ -1878,7 +1878,7 @@ static void e100_execute(E100State *s, uint32_t addr_offset,
                 else if ( bytes == WRITEW )
                     _val = (val & 0xff00) >> 8;
                 else
-                    logout("WARNNING: Drvier write 4 bytes to CSR register at offset %d,"
+                    logout("WARNNING: Driver writes 4 bytes to CSR register at offset %d,"
                            "emulator may do things wrong!!!\n", addr_offset);
 
                 // Driver generates a software interrupt
@@ -1929,15 +1929,16 @@ static uint8_t e100_read1(E100State * s, uint32_t addr_offset)
 
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invaild read, beyond memory boundary(addr:%#x)\n", addr_offset
-                + s->region_base_addr[CSR_MEMORY_BASE]);
+        logout("Invalid read, beyond memory boundary(addr:%#x)\n",
+               addr_offset + s->region_base_addr[CSR_MEMORY_BASE]);
         return val;
     }
 
 
     e100_execute(s, addr_offset, val, OP_READ, OP_IS_READ);
     val = CSR_READ(addr_offset, uint8_t);
-    logout("READ1: Register name = %s, addr_offset = %#x, val=%#x\n", SCBNAME(addr_offset), addr_offset, val);
+    logout("READ1: Register name = %s, addr_offset = %#x, val=%#x\n",
+           SCBNAME(addr_offset), addr_offset, val);
 
     return val;
 }
@@ -1948,14 +1949,15 @@ static uint16_t e100_read2(E100State * s, uint32_t addr_offset)
 
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invaild read, beyond memory boundary(addr:%#x)\n", addr_offset 
-                + s->region_base_addr[CSR_MEMORY_BASE]);
+        logout("Invalid read, beyond memory boundary(addr:%#x)\n",
+               addr_offset + s->region_base_addr[CSR_MEMORY_BASE]);
         return val;
     }
 
     e100_execute(s, addr_offset, val, OP_READ, OP_IS_READ);
     val = CSR_READ(addr_offset, uint16_t);
-    logout("READ2: Register name = %s, addr_offset = %#x, val=%#x\n", SCBNAME(addr_offset), addr_offset, val);
+    logout("READ2: Register name = %s, addr_offset = %#x, val=%#x\n",
+           SCBNAME(addr_offset), addr_offset, val);
 
     return val;
 
@@ -1967,14 +1969,15 @@ static uint32_t e100_read4(E100State * s, uint32_t addr_offset)
 
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invaild read, beyond memory boundary(addr:%#x)\n", addr_offset 
-                + s->region_base_addr[CSR_MEMORY_BASE]);
+        logout("Invalid read, beyond memory boundary(addr:%#x)\n",
+               addr_offset + s->region_base_addr[CSR_MEMORY_BASE]);
         return val;
     }
 
     e100_execute(s, addr_offset, val, OP_READ, OP_IS_READ);
     val = CSR_READ(addr_offset, uint32_t);
-    logout("READ4: Register name = %s, addr_offset = %#x, val=%#x\n", SCBNAME(addr_offset), addr_offset, val);
+    logout("READ4: Register name = %s, addr_offset = %#x, val=%#x\n",
+           SCBNAME(addr_offset), addr_offset, val);
 
     return val;
 
@@ -1983,21 +1986,18 @@ static uint32_t e100_read4(E100State * s, uint32_t addr_offset)
 static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
     E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_MEMORY_BASE];
     return e100_read1(s, addr);
 }
 
 static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_MEMORY_BASE];
     return e100_read2(s, addr);
 }
 
 static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_MEMORY_BASE];
     return e100_read4(s, addr);
 }
 
@@ -2011,8 +2011,8 @@ static void e100_write1(E100State * s, uint32_t addr_offset, uint8_t val)
 {
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invaild write, beyond memory boundary(addr = %#x, val = %#x\n", addr_offset
-                + s->region_base_addr[CSR_MEMORY_BASE], val);
+        logout("Invalid write, beyond memory boundary(addr = %#x, val = %#x\n",
+               addr_offset + s->region_base_addr[CSR_MEMORY_BASE], val);
         return;
     }
 
@@ -2028,7 +2028,8 @@ static void e100_write1(E100State * s, uint32_t addr_offset, uint8_t val)
         CSR_WRITE(addr_offset, val, uint8_t);
         CSR(CSR_EEPROM, eedo) = !!(eedo & EEPROM_DO);
 
-        logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n", SCBNAME(addr_offset),addr_offset, (uint8_t)CSR_VAL(CSR_EEPROM));
+        logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n",
+               SCBNAME(addr_offset), addr_offset, (uint8_t)CSR_VAL(CSR_EEPROM));
         return;
     }
     else
@@ -2036,7 +2037,8 @@ static void e100_write1(E100State * s, uint32_t addr_offset, uint8_t val)
         CSR_WRITE(addr_offset, val, uint8_t);
     }
 
-    logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n", SCBNAME(addr_offset),addr_offset, val);
+    logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n",
+           SCBNAME(addr_offset), addr_offset, val);
     return;
 }
 
@@ -2044,8 +2046,8 @@ static void e100_write2(E100State * s, uint32_t addr_offset, uint16_t val)
 {
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invaild write, beyond memory boundary(addr = %#x, val = %#x\n", addr_offset
-                + s->region_base_addr[CSR_MEMORY_BASE], val);
+        logout("Invalid write, beyond memory boundary(addr = %#x, val = %#x\n",
+               addr_offset + s->region_base_addr[CSR_MEMORY_BASE], val);
         return;
     }
 
@@ -2062,7 +2064,8 @@ static void e100_write2(E100State * s, uint32_t addr_offset, uint16_t val)
         CSR_WRITE(addr_offset, val, uint16_t);
         CSR(CSR_EEPROM, eedo) = !!(eedo & EEPROM_DO);
 
-        logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n", SCBNAME(addr_offset),addr_offset, CSR_VAL(CSR_EEPROM));
+        logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n",
+               SCBNAME(addr_offset), addr_offset, CSR_VAL(CSR_EEPROM));
         return;
     }
     else
@@ -2070,7 +2073,8 @@ static void e100_write2(E100State * s, uint32_t addr_offset, uint16_t val)
         CSR_WRITE(addr_offset, val, uint16_t);
     }
 
-    logout("WRITE2: Register name = %s, addr_offset = %#x, val = %#x\n", SCBNAME(addr_offset),addr_offset, val);
+    logout("WRITE2: Register name = %s, addr_offset = %#x, val = %#x\n",
+           SCBNAME(addr_offset), addr_offset, val);
     return;
 }
 
@@ -2078,8 +2082,8 @@ static void e100_write4(E100State * s, uint32_t addr_offset, uint32_t val)
 {
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invaild write, beyond memory boundary(addr = %#x, val = %#x\n", addr_offset 
-                + s->region_base_addr[CSR_MEMORY_BASE], val);
+        logout("Invalid write, beyond memory boundary(addr = %#x, val = %#x\n",
+               addr_offset + s->region_base_addr[CSR_MEMORY_BASE], val);
         return;
     }
 
@@ -2108,7 +2112,6 @@ static void e100_write4(E100State * s, uint32_t addr_offset, uint32_t val)
 static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_MEMORY_BASE];
     e100_write1(s, addr, val);
     e100_execute(s, addr, val, OP_WRITE, WRITEB);
 }
@@ -2116,7 +2119,6 @@ static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_MEMORY_BASE];
     e100_write2(s, addr, val);
     e100_execute(s, addr, val, OP_WRITE, WRITEW);
 }
@@ -2124,9 +2126,8 @@ static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_MEMORY_BASE];
     e100_write4(s, addr, val);
-    (void)e100_execute(s, addr, val, OP_WRITE, WRITEL);
+    e100_execute(s, addr, val, OP_WRITE, WRITEL);
 }
 
 static CPUWriteMemoryFunc *pci_mmio_write[] = {
@@ -2156,7 +2157,7 @@ static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
     E100State *s = opaque;
     addr -= s->region_base_addr[CSR_IO_BASE];
     e100_write1(s, addr, val);
-    (void)e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEB);
+    e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEB);
 }
 
 static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
@@ -2164,7 +2165,7 @@ static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
     E100State *s = opaque;
     addr -= s->region_base_addr[CSR_IO_BASE];
     e100_write2(s, addr, val);
-    (void)e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEW);
+    e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEW);
 }
 
 static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
@@ -2172,7 +2173,7 @@ static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
     E100State *s = opaque;
     addr -= s->region_base_addr[CSR_IO_BASE];
     e100_write4(s, addr, val);
-    (void)e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEL);
+    e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEL);
 }
 
 static uint32_t ioport_read1(void *opaque, uint32_t addr)
@@ -2329,14 +2330,14 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
     {
         /* Long frame and configuration byte 18/3 (long receive ok) not set:
          * Long frames are discarded. */
-        logout("Discard long frame(size=%d)\n", size);
+        logout("Discard long frame(size=%zu)\n", size);
 
         return -1;
     }
     else if ( !memcmp(buf, s->macaddr, sizeof(s->macaddr)) )
     {
         /* The frame is for me */
-        logout("Receive a frame for me(size=%d)\n", size);
+        logout("Receive a frame for me(size=%zu)\n", size);
         e100_dump("FRAME:", (uint8_t *)buf, size);
     }
     else if ( !memcmp(buf, broadcast_macaddr, sizeof(broadcast_macaddr)) )
@@ -2349,7 +2350,7 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
 
         /* Broadcast frame */
         rfd.status |= RX_IA_MATCH;
-        logout("Receive a broadcast frame(size=%d)\n", size);
+        logout("Receive a broadcast frame(size=%zu)\n", size);
     }
     else if ( s->is_multcast_enable && (buf[0] & 0x1) )
     {
@@ -2359,7 +2360,7 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
             logout("Multicast address mismatch, discard\n");
             return -1;
         }
-        logout("Receive a multicast frame(size=%d)\n", size);
+        logout("Receive a multicast frame(size=%zu)\n", size);
     }
     else if ( size < 64 && (s->config.dis_short_rx) )
     {
@@ -2375,13 +2376,13 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
             rfd.status |= RX_SHORT;
             s->statistics.rx_short_frame_errors ++;
         }
-        logout("Receive a short frame(size=%d), discard it\n", size);
+        logout("Receive a short frame(size=%zu), discard it\n", size);
         return -1;
     }
     else if ( s->config.promiscuous )
     {
         /* Promiscuous: receive all. No address match */
-        logout("Received frame in promiscuous mode(size=%d)\n", size);
+        logout("Received frame in promiscuous mode(size=%zu)\n", size);
         rfd.status |= RX_NO_MATCH;
     }
     else
@@ -2425,7 +2426,7 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
         return -1;
     }
 
-    logout("Complete a frame receive(size = %d)\n", size);
+    logout("Complete a frame receive(size = %zu)\n", size);
     return size;
 }
 
