@@ -77,9 +77,7 @@ endif
 ifeq ($(TARGET_BASE_ARCH), cris)
 libobj-y += cris-dis.o
 
-ifndef CONFIG_USER_ONLY
-libobj-y += mmu.o
-endif
+libobj-$(CONFIG_SOFTMMU) += mmu.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -99,9 +97,7 @@ libobj-y += ppc-dis.o
 endif
 ifeq ($(findstring microblaze, $(TARGET_BASE_ARCH) $(ARCH)),microblaze)
 libobj-y += microblaze-dis.o
-ifndef CONFIG_USER_ONLY
-libobj-y += mmu.o
-endif
+libobj-$(CONFIG_SOFTMMU) += mmu.o
 endif
 ifeq ($(findstring mips, $(TARGET_BASE_ARCH) $(ARCH)),mips)
 libobj-y += mips-dis.o
@@ -217,7 +213,7 @@ endif #CONFIG_BSD_USER
 
 #########################################################
 # System emulator target
-ifndef CONFIG_USER_ONLY
+ifdef CONFIG_SOFTMMU
 
 obj-y = vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o \
         gdbstub.o gdbstub-xml.o msix.o ioport.o qemu-config.o
@@ -398,7 +394,7 @@ monitor.o: qemu-monitor.h
 LIBS += $(COCOA_LIBS) $(VDE_LIBS) $(CURL_LIBS)
 ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
-endif # !CONFIG_USER_ONLY
+endif # CONFIG_SOFTMMU
 
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) $(ARLIBS)
 	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
