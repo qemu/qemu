@@ -1837,7 +1837,8 @@ static void vga_update_display(void *opaque)
     if (ds_get_bits_per_pixel(s->ds) == 0) {
         /* nothing to do */
     } else {
-        full_update = 0;
+        full_update = s->full_update;
+        s->full_update = 0;
         if (!(s->ar_index & 0x20)) {
             graphic_mode = GMODE_BLANK;
         } else {
@@ -1867,8 +1868,7 @@ static void vga_invalidate_display(void *opaque)
 {
     VGAState *s = (VGAState *)opaque;
 
-    s->last_width = -1;
-    s->last_height = -1;
+    s->full_update = 1;
 }
 
 void vga_reset(void *opaque)
