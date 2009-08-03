@@ -236,9 +236,7 @@ sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
 sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
 sound-obj-$(CONFIG_CS4231A) += cs4231a.o
 
-ifdef CONFIG_ADLIB
 adlib.o fmopl.o: QEMU_CFLAGS := ${QEMU_CFLAGS} -DBUILD_Y8950=0
-endif
 
 ifdef CONFIG_VNC_TLS
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
