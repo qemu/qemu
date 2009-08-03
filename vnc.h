@@ -93,6 +93,7 @@ struct VncSurface
 struct VncDisplay
 {
     QEMUTimer *timer;
+    int timer_interval;
     int lsock;
     DisplayState *ds;
     VncState *clients;

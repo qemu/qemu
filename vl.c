@@ -992,7 +992,7 @@ int qemu_timer_pending(QEMUTimer *ts)
     return 0;
 }
 
-static inline int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
+int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
 {
     if (!timer_head)
         return 0;
