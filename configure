@@ -1374,6 +1374,28 @@ if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x
   build_docs="no"
 fi
 
+# Search for bsawp_32 function
+byteswap_h=no
+cat > $TMPC << EOF
+#include <byteswap.h>
+int main(void) { return bswap_32(0); }
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
+  byteswap_h=yes
+fi
+
+# Search for bsawp_32 function
+bswap_h=no
+cat > $TMPC << EOF
+#include <sys/endian.h>
+#include <sys/types.h>
+#include <machine/bswap.h>
+int main(void) { return bswap32(0); }
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
+  bswap_h=yes
+fi
+
 ##########################################
 # Do we need librt
 cat > $TMPC <<EOF
@@ -1548,22 +1570,6 @@ if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
-  cat > $TMPC << EOF
-#include <byteswap.h>
-int main(void) { return bswap_32(0); }
-EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
-    echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
-  fi
-  cat > $TMPC << EOF
-#include <sys/endian.h>
-#include <sys/types.h>
-#include <machine/bswap.h>
-int main(void) { return bswap32(0); }
-EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
-    echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
-  fi
 fi
 
 if test "$darwin" = "yes" ; then
@@ -1669,6 +1675,12 @@ if test "$splice" = "yes" ; then
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
+fi
+if test "$byteswap_h" = "yes" ; then
+  echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
+fi
+if test "$bswap_h" = "yes" ; then
+  echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
 if test "$curl" = "yes" ; then
   echo "CONFIG_CURL=y" >> $config_host_mak
