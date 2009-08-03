@@ -1103,6 +1103,8 @@ EOF
   curl_libs=`curl-config --libs 2>/dev/null`
   if compile_prog "$curl_cflags" "$curl_libs" ; then
     curl=yes
+    libs_tools="$curl_libs $libs_tools"
+    libs_softmmu="$curl_libs $libs_softmmu"
   fi
 fi # test "$curl"
 
@@ -1690,7 +1692,6 @@ fi
 if test "$curl" = "yes" ; then
   echo "CONFIG_CURL=y" >> $config_host_mak
   echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
-  echo "CURL_LIBS=$curl_libs" >> $config_host_mak
 fi
 if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=y" >> $config_host_mak

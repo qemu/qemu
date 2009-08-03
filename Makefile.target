@@ -300,7 +300,7 @@ vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
 
-LIBS += $(COCOA_LIBS) $(CURL_LIBS)
+LIBS += $(COCOA_LIBS)
 ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # CONFIG_SOFTMMU
