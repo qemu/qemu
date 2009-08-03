@@ -124,8 +124,6 @@ slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
 slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
 obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
 
-LIBS+=$(VDE_LIBS)
-
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
 obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o

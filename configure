@@ -962,6 +962,8 @@ int main(void)
 EOF
   if compile_prog "" "$vde_libs" ; then
     vde=yes
+    libs_softmmu="$vde_libs $libs_softmmu"
+    libs_tools="$vde_libs $libs_tools"
   fi
 fi
 
@@ -1613,7 +1615,6 @@ if test "$slirp" = "yes" ; then
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
-  echo "VDE_LIBS=$vde_libs" >> $config_host_mak
 fi
 for card in $audio_card_list; do
     def=CONFIG_`echo $card | tr '[:lower:]' '[:upper:]'`
