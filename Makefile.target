@@ -202,10 +202,6 @@ obj-i386-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
 obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o
 
-ifeq ($(TARGET_BASE_ARCH), i386)
-QEMU_CFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
-endif
-
 # shared objects
 obj-ppc-y = ppc.o ide.o vga.o $(sound-obj-y) dma.o isa-bus.o openpic.o
 # PREP target
@@ -223,11 +219,6 @@ obj-ppc-y += ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
 obj-ppc-y += ppce500_pci.o ppce500_mpc8544ds.o
 obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
-
-ifeq ($(TARGET_BASE_ARCH), ppc)
-QEMU_CFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
-endif
-
 obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
@@ -238,10 +229,6 @@ obj-mips-y += piix_pci.o parallel.o cirrus_vga.o isa-bus.o pcspk.o $(sound-obj-y
 obj-mips-y += mipsnet.o
 obj-mips-y += pflash_cfi01.o
 obj-mips-y += vmware_vga.o
-
-ifeq ($(TARGET_BASE_ARCH), mips)
-QEMU_CFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
-endif
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
 
@@ -298,10 +285,6 @@ obj-arm-y += framebuffer.o
 obj-arm-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
 obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 obj-arm-y += syborg_virtio.o
-
-ifeq ($(TARGET_BASE_ARCH), arm)
-QEMU_CFLAGS += -DHAS_AUDIO
-endif
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
 obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
