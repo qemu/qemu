@@ -285,10 +285,6 @@ obj-sh4-y += ide.o
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 obj-m68k-y += m68k-semi.o dummy_m68k.o
 
-ifdef CONFIG_COCOA
-COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa -framework IOKit
-endif
-
 # profiling code
 ifdef TARGET_GPROF
 main.o vl.o: QEMU_CFLAGS+=-p
@@ -300,7 +296,6 @@ vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
 
-LIBS += $(COCOA_LIBS)
 ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # CONFIG_SOFTMMU
