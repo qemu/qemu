@@ -720,6 +720,10 @@ static void sdl_refresh(DisplayState *ds)
                 bpp = 32;
             do_sdl_resize(rev->w, rev->h, bpp);
             scaling_active = 1;
+            if (!is_buffer_shared(ds->surface)) {
+                ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds), ds_get_height(ds));
+                dpy_resize(ds);
+            }
             vga_hw_invalidate();
             vga_hw_update();
             break;
