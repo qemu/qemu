@@ -2070,6 +2070,14 @@ fi
 cflags=""
 ldflags=""
 
+if test "$ARCH" = "sparc64" ; then
+  cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
+else
+  cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
+fi
+cflags="-I\$(SRC_PATH)/tcg $cflags"
+cflags="-I\$(SRC_PATH)/fpu $cflags"
+
 case "$ARCH" in
 alpha)
   # Ensure there's only a single GP
