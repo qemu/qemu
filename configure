@@ -365,10 +365,7 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 if test "$mingw32" = "yes" ; then
-  linux="no"
   EXESUF=".exe"
-  linux_user="no"
-  bsd_user="no"
   CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
 fi
 
