@@ -83,9 +83,7 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-
-cpu-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+op_helper.o cpu-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
