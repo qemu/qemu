@@ -1921,12 +1921,14 @@ case "$target_arch2" in
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=32
+    target_nptl="yes"
   ;;
   ppcemb)
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
+    target_nptl="yes"
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc
