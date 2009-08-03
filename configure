@@ -236,16 +236,10 @@ case $targetos in
 CYGWIN*)
 mingw32="yes"
 CFLAGS="-mno-cygwin $CFLAGS"
-if [ "$cpu" = "i386" ] ; then
-    kqemu="yes"
-fi
 audio_possible_drivers="sdl"
 ;;
 MINGW32*)
 mingw32="yes"
-if [ "$cpu" = "i386" ] ; then
-    kqemu="yes"
-fi
 audio_possible_drivers="dsound sdl fmod"
 ;;
 GNU/kFreeBSD)
@@ -365,6 +359,9 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 if test "$mingw32" = "yes" ; then
+  if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+  fi
   EXESUF=".exe"
   CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
 fi
