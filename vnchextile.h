@@ -13,7 +13,8 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              void *last_fg_,
                                              int *has_bg, int *has_fg)
 {
-    uint8_t *row = vs->server.ds->data + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
+    VncDisplay *vd = vs->vd;
+    uint8_t *row = vd->server->data + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
     pixel_t *irow = (pixel_t *)row;
     int j, i;
     pixel_t *last_bg = (pixel_t *)last_bg_;

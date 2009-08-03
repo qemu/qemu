@@ -84,6 +84,11 @@ typedef struct VncDisplay VncDisplay;
 #include "vnc-auth-sasl.h"
 #endif
 
+struct VncSurface
+{
+    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    DisplaySurface *ds;
+};
 
 struct VncDisplay
 {
@@ -92,6 +97,9 @@ struct VncDisplay
     DisplayState *ds;
     VncState *clients;
     kbd_layout_t *kbd_layout;
+
+    struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
+    DisplaySurface *server;  /* vnc server surface */
 
     char *display;
     char *password;
@@ -105,19 +113,12 @@ struct VncDisplay
 #endif
 };
 
-struct VncSurface
-{
-    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
-    DisplaySurface *ds;
-};
-
 struct VncState
 {
     int csock;
 
     DisplayState *ds;
-    struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
-    struct VncSurface server;  /* vnc server surface */
+    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
 
     VncDisplay *vd;
     int need_update;
