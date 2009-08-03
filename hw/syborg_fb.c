@@ -535,16 +535,9 @@ static SysBusDeviceInfo syborg_fb_info = {
     .qdev.name  = "syborg,framebuffer",
     .qdev.size  = sizeof(SyborgFBState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "width",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(SyborgFBState, cols),
-        },{
-            .name   = "height",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(SyborgFBState, rows),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("width",  SyborgFBState, cols, 0),
+        DEFINE_PROP_UINT32("height", SyborgFBState, rows, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
