@@ -301,7 +301,7 @@ void hw_error(const char *fmt, ...)
 
 static void set_proc_name(const char *s)
 {
-#ifdef __linux__
+#if defined(__linux__) && defined(PR_SET_NAME)
     char name[16];
     if (!s)
         return;
