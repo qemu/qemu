@@ -4051,6 +4051,43 @@ struct target_sigframe
     abi_ulong extramask[TARGET_NSIG_WORDS-1];
     struct target_sigcontext sc;
 };
+ 
+typedef int target_greg_t;
+#define TARGET_NGREG 18
+typedef target_greg_t target_gregset_t[TARGET_NGREG];
+
+typedef struct target_fpregset {
+    int f_fpcntl[3];
+    int f_fpregs[8*3];
+} target_fpregset_t;
+
+struct target_mcontext {
+    int version;
+    target_gregset_t gregs;
+    target_fpregset_t fpregs;
+};
+
+#define TARGET_MCONTEXT_VERSION 2
+
+struct target_ucontext {
+    abi_ulong uc_flags;
+    abi_ulong uc_link;
+    target_stack_t uc_stack;
+    struct target_mcontext uc_mcontext;
+    abi_long uc_filler[80];
+    target_sigset_t uc_sigmask;
+};
+
+struct target_rt_sigframe
+{
+    abi_ulong pretcode;
+    int sig;
+    abi_ulong pinfo;
+    abi_ulong puc;
+    char retcode[8];
+    struct target_siginfo info;
+    struct target_ucontext uc;
+};
 
 static int
 setup_sigcontext(struct target_sigcontext *sc, CPUState *env, abi_ulong mask)
@@ -4160,11 +4197,146 @@ give_sigsegv:
     force_sig(SIGSEGV);
 }
 
+static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
+                                           CPUState *env)
+{
+    target_greg_t *gregs = uc->uc_mcontext.gregs;
+    int err;
+
+    err = __put_user(TARGET_MCONTEXT_VERSION, &uc->uc_mcontext.version);
+    err |= __put_user(env->dregs[0], &gregs[0]);
+    err |= __put_user(env->dregs[1], &gregs[1]);
+    err |= __put_user(env->dregs[2], &gregs[2]);
+    err |= __put_user(env->dregs[3], &gregs[3]);
+    err |= __put_user(env->dregs[4], &gregs[4]);
+    err |= __put_user(env->dregs[5], &gregs[5]);
+    err |= __put_user(env->dregs[6], &gregs[6]);
+    err |= __put_user(env->dregs[7], &gregs[7]);
+    err |= __put_user(env->aregs[0], &gregs[8]);
+    err |= __put_user(env->aregs[1], &gregs[9]);
+    err |= __put_user(env->aregs[2], &gregs[10]);
+    err |= __put_user(env->aregs[3], &gregs[11]);
+    err |= __put_user(env->aregs[4], &gregs[12]);
+    err |= __put_user(env->aregs[5], &gregs[13]);
+    err |= __put_user(env->aregs[6], &gregs[14]);
+    err |= __put_user(env->aregs[7], &gregs[15]);
+    err |= __put_user(env->pc, &gregs[16]);
+    err |= __put_user(env->sr, &gregs[17]);
+
+    return err;
+}
+ 
+static inline int target_rt_restore_ucontext(CPUState *env,
+                                             struct target_ucontext *uc,
+                                             int *pd0)
+{
+    int temp;
+    int err;
+    target_greg_t *gregs = uc->uc_mcontext.gregs;
+    
+    err = __get_user(temp, &uc->uc_mcontext.version);
+    if (temp != TARGET_MCONTEXT_VERSION)
+        goto badframe;
+
+    /* restore passed registers */
+    err |= __get_user(env->dregs[0], &gregs[0]);
+    err |= __get_user(env->dregs[1], &gregs[1]);
+    err |= __get_user(env->dregs[2], &gregs[2]);
+    err |= __get_user(env->dregs[3], &gregs[3]);
+    err |= __get_user(env->dregs[4], &gregs[4]);
+    err |= __get_user(env->dregs[5], &gregs[5]);
+    err |= __get_user(env->dregs[6], &gregs[6]);
+    err |= __get_user(env->dregs[7], &gregs[7]);
+    err |= __get_user(env->aregs[0], &gregs[8]);
+    err |= __get_user(env->aregs[1], &gregs[9]);
+    err |= __get_user(env->aregs[2], &gregs[10]);
+    err |= __get_user(env->aregs[3], &gregs[11]);
+    err |= __get_user(env->aregs[4], &gregs[12]);
+    err |= __get_user(env->aregs[5], &gregs[13]);
+    err |= __get_user(env->aregs[6], &gregs[14]);
+    err |= __get_user(env->aregs[7], &gregs[15]);
+    err |= __get_user(env->pc, &gregs[16]);
+    err |= __get_user(temp, &gregs[17]);
+    env->sr = (env->sr & 0xff00) | (temp & 0xff);
+
+    *pd0 = env->dregs[0];
+    return err;
+
+badframe:
+    return 1;
+}
+
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUState *env)
 {
-    fprintf(stderr, "setup_rt_frame: not implemented\n");
+    struct target_rt_sigframe *frame;
+    abi_ulong frame_addr;
+    abi_ulong retcode_addr;
+    abi_ulong info_addr;
+    abi_ulong uc_addr;
+    int err = 0;
+    int i;
+
+    frame_addr = get_sigframe(ka, env, sizeof *frame);
+    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+	goto give_sigsegv;
+
+    err |= __put_user(sig, &frame->sig);
+
+    info_addr = frame_addr + offsetof(struct target_rt_sigframe, info);
+    err |= __put_user(info_addr, &frame->pinfo);
+
+    uc_addr = frame_addr + offsetof(struct target_rt_sigframe, uc);
+    err |= __put_user(uc_addr, &frame->puc);
+
+    err |= copy_siginfo_to_user(&frame->info, info);
+
+    /* Create the ucontext */
+
+    err |= __put_user(0, &frame->uc.uc_flags);
+    err |= __put_user(0, &frame->uc.uc_link);
+    err |= __put_user(target_sigaltstack_used.ss_sp,
+                      &frame->uc.uc_stack.ss_sp);
+    err |= __put_user(sas_ss_flags(env->aregs[7]),
+                      &frame->uc.uc_stack.ss_flags);
+    err |= __put_user(target_sigaltstack_used.ss_size,
+                      &frame->uc.uc_stack.ss_size);
+    err |= target_rt_setup_ucontext(&frame->uc, env);
+
+    if (err)
+            goto give_sigsegv;
+
+    for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+        if (__put_user(set->sig[i], &frame->uc.uc_sigmask.sig[i]))
+            goto give_sigsegv;
+    }
+
+    /* Set up to return from userspace.  */
+
+    retcode_addr = frame_addr + offsetof(struct target_sigframe, retcode);
+    err |= __put_user(retcode_addr, &frame->pretcode);
+
+    /* moveq #,d0; notb d0; trap #0 */
+
+    err |= __put_user(0x70004600 + ((TARGET_NR_rt_sigreturn ^ 0xff) << 16),
+                      (long *)(frame->retcode + 0));
+    err |= __put_user(0x4e40, (short *)(frame->retcode + 4));
+
+    if (err)
+        goto give_sigsegv;
+
+    /* Set up to return from userspace */
+
+    env->aregs[7] = frame_addr;
+    env->pc = ka->_sa_handler;
+
+    unlock_user_struct(frame, frame_addr, 1);
+    return;
+
+give_sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
+    force_sig(SIGSEGV);
 }
 
 long do_sigreturn(CPUState *env)
@@ -4207,8 +4379,35 @@ badframe:
 
 long do_rt_sigreturn(CPUState *env)
 {
-    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
+    struct target_rt_sigframe *frame;
+    abi_ulong frame_addr = env->aregs[7] - 4;
+    target_sigset_t target_set;
+    sigset_t set;
+    int d0;
+
+    if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
+        goto badframe;
+
+    target_to_host_sigset_internal(&set, &target_set);
+    sigprocmask(SIG_SETMASK, &set, NULL);
+
+    /* restore registers */
+
+    if (target_rt_restore_ucontext(env, &frame->uc, &d0))
+        goto badframe;
+
+    if (do_sigaltstack(frame_addr +
+                       offsetof(struct target_rt_sigframe, uc.uc_stack),
+                       0, get_sp_from_cpustate(env)) == -EFAULT)
+        goto badframe;
+
+    unlock_user_struct(frame, frame_addr, 0);
+    return d0;
+
+badframe:
+    unlock_user_struct(frame, frame_addr, 0);
+    force_sig(TARGET_SIGSEGV);
+    return 0;
 }
 
 #else
