@@ -32,6 +32,7 @@ cpu=""
 prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
+sparc_cpu=""
 cross_prefix=""
 cc="gcc"
 audio_drv_list=""
@@ -61,19 +62,10 @@ for opt do
   --sparc_cpu=*)
     sparc_cpu="$optarg"
     case $sparc_cpu in
-    v7|v8)
-      CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $CFLAGS"
-      LDFLAGS="-m32 $LDFLAGS"
-      cpu="sparc"
-    ;;
-    v8plus|v8plusa)
-      CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
-      LDFLAGS="-m32 $LDFLAGS"
+    v7|v8|v8plus|v8plusa)
       cpu="sparc"
     ;;
     v9)
-      CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
-      LDFLAGS="-m64 $LDFLAGS"
       cpu="sparc64"
     ;;
     *)
@@ -551,23 +543,28 @@ done
 #
 host_guest_base="no"
 case "$cpu" in
-    sparc) if test -z "$sparc_cpu" ; then
-               CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_v8plus__ $CFLAGS"
-               LDFLAGS="-m32 $LDFLAGS"
-           fi
-           CFLAGS="-ffixed-g2 -ffixed-g3 $CFLAGS"
+    sparc) case $sparc_cpu in
+           v7|v8)
+             CFLAGS="-mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $CFLAGS"
+           ;;
+           v8plus|v8plusa)
+             CFLAGS="-mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
+           ;;
+           *) # sparc_cpu not defined in the command line
+             CFLAGS="-mcpu=ultrasparc -D__sparc_v8plus__ $CFLAGS"
+           esac
+           LDFLAGS="-m32 $LDFLAGS"
+           CFLAGS="-m32 -ffixed-g2 -ffixed-g3 $CFLAGS"
            if test "$solaris" = "no" ; then
-               CFLAGS="-ffixed-g1 -ffixed-g6 $CFLAGS"
+             CFLAGS="-ffixed-g1 -ffixed-g6 $CFLAGS"
            fi
            ;;
-    sparc64) if test -z "$sparc_cpu" ; then
-               CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__ $CFLAGS"
-               LDFLAGS="-m64 $LDFLAGS"
-           fi
-           if test "$solaris" = "no" ; then
-               CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $CFLAGS"
-           else
-               CFLAGS="-ffixed-g1 -ffixed-g5 -ffixed-g6 -ffixed-g7 $CFLAGS"
+    sparc64)
+           CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__ $CFLAGS"
+           LDFLAGS="-m64 $LDFLAGS"
+           CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $CFLAGS"
+           if test "$solaris" != "no" ; then
+             CFLAGS="-ffixed-g1 $CFLAGS"
            fi
            ;;
     s390)
