@@ -33,7 +33,6 @@ host_cc="gcc"
 ar="ar"
 make="make"
 install="install"
-strip="strip"
 objcopy="objcopy"
 ld="ld"
 
@@ -54,7 +53,6 @@ done
 
 cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
-strip="${cross_prefix}${strip}"
 objcopy="${cross_prefix}${objcopy}"
 ld="${cross_prefix}${ld}"
 
