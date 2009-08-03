@@ -19,7 +19,7 @@ VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS += -U_FORTIFY_SOURCE
-LIBS=
+LIBS=-lz
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8
@@ -215,8 +215,6 @@ qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(block-obj-y)
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(block-obj-y)
 
 qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(block-obj-y)
-
-qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
