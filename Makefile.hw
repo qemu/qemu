@@ -8,9 +8,7 @@ include $(SRC_PATH)/rules.mak
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
-QEMU_CFLAGS += -I. -I.. -I$(SRC_PATH) -MMD -MP -MT $@
-QEMU_CFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
-QEMU_CFLAGS+=-I$(SRC_PATH)/fpu
+QEMU_CFLAGS+=-I.. -I$(SRC_PATH)/fpu
 
 obj-y =
 obj-y += virtio.o virtio-pci.o
