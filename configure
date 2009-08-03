@@ -1402,6 +1402,11 @@ else
     exit 1
 fi
 
+if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaries" != yes -a \
+        "$aix" != "yes" ; then
+    libs_softmmu="-lutil $libs_softmmu"
+fi
+
 # End of CC checks
 # After here, no more $cc or $ld runs
 

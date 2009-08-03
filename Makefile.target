@@ -395,16 +395,6 @@ ifdef CONFIG_SLIRP
 QEMU_CFLAGS+=-I$(SRC_PATH)/slirp
 endif
 
-# specific flags are needed for non soft mmu emulator
-ifndef CONFIG_DARWIN
-ifndef CONFIG_WIN32
-ifndef CONFIG_SOLARIS
-ifndef CONFIG_AIX
-LIBS+=-lutil
-endif
-endif
-endif
-endif
 ifdef TARGET_GPROF
 vl.o: QEMU_CFLAGS+=-p
 LDFLAGS+=-p
