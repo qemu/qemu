@@ -55,9 +55,7 @@ case $line in
     ;;
  TARGET_ARCH=*) # configuration
     target_arch=${line#*=}
-    arch_name=`echo $target_arch | tr '[:lower:]' '[:upper:]'`
     echo "#define TARGET_ARCH \"$target_arch\""
-    echo "#define TARGET_$arch_name 1"
     ;;
  TARGET_BASE_ARCH=*) # configuration
     target_base_arch=${line#*=}

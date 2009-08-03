@@ -1982,6 +1982,8 @@ case "$target_arch2" in
   ;;
 esac
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_mak
+target_arch_name="`echo $TARGET_ARCH | tr '[:lower:]' '[:upper:]'`"
+echo "TARGET_$target_arch_name=y" >> $config_mak
 echo "TARGET_ARCH2=$target_arch2" >> $config_mak
 # TARGET_BASE_ARCH needs to be defined after TARGET_ARCH
 if [ "$TARGET_BASE_ARCH" = "" ]; then
