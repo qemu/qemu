@@ -23,11 +23,6 @@ ifeq ($(subst ppc64,ppc,$(ARCH))$(TARGET_BASE_ARCH),ppcppc)
 translate.o: QEMU_CFLAGS := $(QEMU_CFLAGS) $(call cc-option, $(QEMU_CFLAGS), -fno-unit-at-a-time,)
 endif
 
-ifeq ($(ARCH),alpha)
-# Ensure there's only a single GP
-QEMU_CFLAGS+=-msmall-data
-endif
-
 ifeq ($(ARCH),ia64)
 QEMU_CFLAGS+=-mno-sdata
 endif

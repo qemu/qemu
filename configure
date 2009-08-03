@@ -2072,8 +2072,15 @@ fi
 
 cflags=""
 ldflags=""
-linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
 
+case "$ARCH" in
+alpha)
+  # Ensure there's only a single GP
+  cflags="-msmall-data $cflags"
+;;
+esac
+
+linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
   i386)
