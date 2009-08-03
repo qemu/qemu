@@ -891,6 +891,7 @@ EOF
   if test "$mingw32" = "yes" ; then
     sdl_libs="`echo $sdl_libs | sed s/-mwindows//g` -mconsole"
   fi
+  libs_softmmu="$sdl_libs $libs_softmmu"
 fi
 
 ##########################################
@@ -1632,7 +1633,6 @@ if [ "$build_docs" = "yes" ] ; then
 fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=y" >> $config_host_mak
-  echo "SDL_LIBS=$sdl_libs" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
 fi
 if test "$cocoa" = "yes" ; then

@@ -453,7 +453,7 @@ vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
 
-LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
+LIBS += $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS) $(CURL_LIBS)
 ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # !CONFIG_USER_ONLY
