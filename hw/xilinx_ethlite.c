@@ -228,18 +228,9 @@ static SysBusDeviceInfo xilinx_ethlite_info = {
     .qdev.name  = "xilinx,ethlite",
     .qdev.size  = sizeof(struct xlx_ethlite),
     .qdev.props = (Property[]) {
-        {
-            .name   = "txpingpong",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(struct xlx_ethlite, c_tx_pingpong),
-            .defval = (uint32_t[]) { 1 },
-        },{
-            .name   = "rxpingpong",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(struct xlx_ethlite, c_rx_pingpong),
-            .defval = (uint32_t[]) { 1 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("txpingpong", struct xlx_ethlite, c_tx_pingpong, 1),
+        DEFINE_PROP_UINT32("rxpingpong", struct xlx_ethlite, c_rx_pingpong, 1),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
