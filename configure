@@ -1415,12 +1415,12 @@ fi
 # After here, no more $cc or $ld runs
 
 # default flags for all hosts
-CFLAGS="$CFLAGS -g -fno-strict-aliasing"
+CFLAGS="-g -fno-strict-aliasing $CFLAGS"
 if test "$debug" = "no" ; then
-  CFLAGS="$CFLAGS -O2"
+  CFLAGS="-O2 $CFLAGS"
 fi
-CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
-LDFLAGS="$LDFLAGS -g"
+CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls $CFLAGS"
+LDFLAGS="-g $LDFLAGS"
 
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
@@ -1435,12 +1435,12 @@ if test -z "$werror" ; then
 fi
 
 if test "$werror" = "yes" ; then
-    CFLAGS="$CFLAGS -Werror"
+    CFLAGS="-Werror $CFLAGS"
 fi
 
 if test "$solaris" = "no" ; then
     if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
-        LDFLAGS="$LDFLAGS -Wl,--warn-common"
+        LDFLAGS="-Wl,--warn-common $LDFLAGS"
     fi
 fi
 
@@ -1598,7 +1598,7 @@ if test "$gprof" = "yes" ; then
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
-  LDFLAGS="$LDFLAGS -static"
+  LDFLAGS="-static $LDFLAGS"
 fi
 if test $profiler = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
