@@ -364,6 +364,14 @@ if [ "$bsd" = "yes" ] ; then
   bsd_user="yes"
 fi
 
+if test "$mingw32" = "yes" ; then
+  linux="no"
+  EXESUF=".exe"
+  linux_user="no"
+  bsd_user="no"
+  CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
+fi
+
 # find source path
 source_path=`dirname "$0"`
 source_path_used="no"
@@ -664,14 +672,6 @@ echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
-fi
-
-if test "$mingw32" = "yes" ; then
-    linux="no"
-    EXESUF=".exe"
-    linux_user="no"
-    bsd_user="no"
-    CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
 fi
 
 if test ! -x "$(which cgcc 2>/dev/null)"; then
