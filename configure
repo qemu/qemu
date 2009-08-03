@@ -922,7 +922,7 @@ EOF
     vnc_sasl_cflags=""
     vnc_sasl_libs="-lsasl2"
     if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
-	:
+	libs_softmmu="$vnc_sasl_libs $libs_softmmu"
     else
 	vnc_sasl="no"
     fi
@@ -1632,7 +1632,6 @@ fi
 if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
   echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
-  echo "VNC_SASL_LIBS=$vnc_sasl_libs" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
