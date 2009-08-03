@@ -47,6 +47,10 @@ for opt do
   ;;
   --cpu=*) cpu="$optarg"
   ;;
+  --extra-cflags=*) CFLAGS="$optarg $CFLAGS"
+  ;;
+  --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
+  ;;
   esac
 done
 
@@ -388,9 +392,9 @@ for opt do
   ;;
   --install=*) install="$optarg"
   ;;
-  --extra-cflags=*) EXTRA_CFLAGS="$optarg"
+  --extra-cflags=*)
   ;;
-  --extra-ldflags=*) EXTRA_LDFLAGS="$optarg"
+  --extra-ldflags=*)
   ;;
   --cpu=*)
   ;;
@@ -1780,8 +1784,8 @@ fi
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
-echo "CFLAGS=$CFLAGS $EXTRA_CFLAGS" >> $config_host_mak
-echo "LDFLAGS=$LDFLAGS $EXTRA_LDFLAGS" >> $config_host_mak
+echo "CFLAGS=$CFLAGS" >> $config_host_mak
+echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
