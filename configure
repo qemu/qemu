@@ -1376,21 +1376,15 @@ fi
 
 ##########################################
 # Do we need librt
-CLOCKLIBS=""
 cat > $TMPC <<EOF
 #include <signal.h>
 #include <time.h>
 int main(void) { clockid_t id; return clock_gettime(id, NULL); }
 EOF
 
-rt=no
 if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
-  :
+  CLOCKLIBS=""
 elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lrt > /dev/null 2> /dev/null ; then
-  rt=yes
-fi
-
-if test "$rt" = "yes" ; then
   CLOCKLIBS="-lrt"
 fi
 
