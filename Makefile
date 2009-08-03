@@ -95,20 +95,12 @@ obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o
 obj-$(CONFIG_POSIX) += migration-exec.o
 
-ifdef CONFIG_COREAUDIO
-AUDIO_PT = y
-endif
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 ifdef CONFIG_ESD
-AUDIO_PT = y
 AUDIO_PT_INT = y
 endif
 ifdef CONFIG_PA
-AUDIO_PT = y
 AUDIO_PT_INT = y
-endif
-ifdef AUDIO_PT
-LDFLAGS += -pthread
 endif
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
