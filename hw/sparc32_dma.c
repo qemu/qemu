@@ -266,12 +266,8 @@ static SysBusDeviceInfo sparc32_dma_info = {
     .qdev.name  = "sparc32_dma",
     .qdev.size  = sizeof(DMAState),
     .qdev.props = (Property[]) {
-        {
-            .name = "iommu_opaque",
-            .info = &qdev_prop_ptr,
-            .offset = offsetof(DMAState, iommu),
-        },
-        {/* end of property list */}
+        DEFINE_PROP_PTR("iommu_opaque", DMAState, iommu),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
