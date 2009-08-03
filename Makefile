@@ -19,7 +19,7 @@ VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 CPPFLAGS += -U_FORTIFY_SOURCE
-LIBS=-lz
+LIBS+=-lz
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8

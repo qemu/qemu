@@ -1748,6 +1748,7 @@ echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
+echo "LIBS=$LIBS" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "PTHREADLIBS=$PTHREADLIBS" >> $config_host_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_host_mak
