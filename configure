@@ -1015,7 +1015,11 @@ for drv in $audio_drv_list; do
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
     ;;
 
-    oss|sdl|core|wav|dsound)
+    coreaudio)
+      libs_softmmu="-framework CoreAudio $libs_softmmu"
+    ;;
+
+    oss|sdl|wav|dsound)
     # XXX: Probes for CoreAudio, DirectSound, SDL(?)
     ;;
 
