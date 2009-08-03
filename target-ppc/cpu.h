@@ -561,7 +561,9 @@ struct CPUPPCState {
     /* XER */
     target_ulong xer;
     /* Reservation address */
-    target_ulong reserve;
+    target_ulong reserve_addr;
+    /* Reservation value */
+    target_ulong reserve_val;
 
     /* Those ones are used in supervisor mode only */
     /* machine state register */

@@ -20,7 +20,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     for (i = 0; i < 8; i++)
         qemu_put_be32s(f, &env->crf[i]);
     qemu_put_betls(f, &env->xer);
-    qemu_put_betls(f, &env->reserve);
+    qemu_put_betls(f, &env->reserve_addr);
     qemu_put_betls(f, &env->msr);
     for (i = 0; i < 4; i++)
         qemu_put_betls(f, &env->tgpr[i]);
@@ -107,7 +107,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 8; i++)
         qemu_get_be32s(f, &env->crf[i]);
     qemu_get_betls(f, &env->xer);
-    qemu_get_betls(f, &env->reserve);
+    qemu_get_betls(f, &env->reserve_addr);
     qemu_get_betls(f, &env->msr);
     for (i = 0; i < 4; i++)
         qemu_get_betls(f, &env->tgpr[i]);

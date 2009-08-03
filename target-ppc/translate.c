@@ -158,7 +158,8 @@ void ppc_translate_init(void)
                                  offsetof(CPUState, xer), "xer");
 
     cpu_reserve = tcg_global_mem_new(TCG_AREG0,
-                                     offsetof(CPUState, reserve), "reserve");
+                                     offsetof(CPUState, reserve_addr),
+                                     "reserve_addr");
 
     cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
                                        offsetof(CPUState, fpscr), "fpscr");
@@ -3006,12 +3007,14 @@ static void gen_isync(DisasContext *ctx)
 static void gen_lwarx(DisasContext *ctx)
 {
     TCGv t0;
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
     gen_set_access_type(ctx, ACCESS_RES);
     t0 = tcg_temp_local_new();
     gen_addr_reg_index(ctx, t0);
     gen_check_align(ctx, t0, 0x03);
-    gen_qemu_ld32u(ctx, cpu_gpr[rD(ctx->opcode)], t0);
+    gen_qemu_ld32u(ctx, gpr, t0);
     tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUState, reserve_val));
     tcg_temp_free(t0);
 }
 
@@ -3041,12 +3044,14 @@ static void gen_stwcx_(DisasContext *ctx)
 static void gen_ldarx(DisasContext *ctx)
 {
     TCGv t0;
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
     gen_set_access_type(ctx, ACCESS_RES);
     t0 = tcg_temp_local_new();
     gen_addr_reg_index(ctx, t0);
     gen_check_align(ctx, t0, 0x07);
-    gen_qemu_ld64(ctx, cpu_gpr[rD(ctx->opcode)], t0);
+    gen_qemu_ld64(ctx, gpr, t0);
     tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUState, reserve_val));
     tcg_temp_free(t0);
 }
 
@@ -8834,7 +8839,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
             a = 'E';
         cpu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
     }
-    cpu_fprintf(f, " ]             RES " ADDRX "\n", env->reserve);
+    cpu_fprintf(f, " ]             RES " ADDRX "\n", env->reserve_addr);
     for (i = 0; i < 32; i++) {
         if ((i & (RFPL - 1)) == 0)
             cpu_fprintf(f, "FPR%02d", i);
