@@ -87,6 +87,7 @@ typedef struct VncDisplay VncDisplay;
 
 struct VncDisplay
 {
+    QEMUTimer *timer;
     int lsock;
     DisplayState *ds;
     VncState *clients;
@@ -112,7 +113,6 @@ struct VncSurface
 
 struct VncState
 {
-    QEMUTimer *timer;
     int csock;
 
     DisplayState *ds;
