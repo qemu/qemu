@@ -1394,6 +1394,37 @@ if test "$rt" = "yes" ; then
   CLOCKLIBS="-lrt"
 fi
 
+# Determine what linker flags to use to force archive inclusion
+check_linker_flags()
+{
+    w2=
+    if test "$2" ; then
+	w2=-Wl,$2
+    fi
+    $cc $ARCH_CFLAGS -o $TMPE $OS_CFLAGS $TMPC -Wl,$1 ${w2} >/dev/null 2>/dev/null
+}
+
+cat > $TMPC << EOF
+int main(void) { }
+EOF
+if check_linker_flags --whole-archive --no-whole-archive ; then
+    # GNU ld
+    arlibs_begin="-Wl,--whole-archive"
+    arlibs_end="-Wl,--no-whole-archive"
+elif check_linker_flags -z,allextract -z,defaultextract ; then
+    # Solaris ld
+    arlibs_begin"=-Wl,-z,allextract"
+    arlibs_end="-Wl,-z,defaultextract"
+elif check_linker_flags -all_load ; then
+    # Mac OS X
+    arlibs_begin="-all_load"
+    arlibs_end=""
+else
+    echo "Error: your linker does not support --whole-archive or -z."
+    echo "Please report to qemu-devel@nongnu.org"
+    exit 1
+fi
+
 if test "$mingw32" = "yes" ; then
   if test -z "$prefix" ; then
       prefix="c:/Program Files/Qemu"
@@ -1702,37 +1733,6 @@ bsd)
 ;;
 esac
 
-# Determine what linker flags to use to force archive inclusion
-check_linker_flags()
-{
-    w2=
-    if test "$2" ; then
-	w2=-Wl,$2
-    fi
-    $cc $ARCH_CFLAGS -o $TMPE $OS_CFLAGS $TMPC -Wl,$1 ${w2} >/dev/null 2>/dev/null
-}
-
-cat > $TMPC << EOF
-int main(void) { }
-EOF
-if check_linker_flags --whole-archive --no-whole-archive ; then
-    # GNU ld
-    echo "ARLIBS_BEGIN=-Wl,--whole-archive" >> $config_host_mak
-    echo "ARLIBS_END=-Wl,--no-whole-archive" >> $config_host_mak
-elif check_linker_flags -z,allextract -z,defaultextract ; then
-    # Solaris ld
-    echo "ARLIBS_BEGIN=-Wl,-z,allextract" >> $config_host_mak
-    echo "ARLIBS_END=-Wl,-z,defaultextract" >> $config_host_mak
-elif check_linker_flags -all_load ; then
-    # Mac OS X
-    echo "ARLIBS_BEGIN=-all_load" >> $config_host_mak
-    echo "ARLIBS_END=" >> $config_host_mak
-else
-    echo "Error: your linker does not support --whole-archive or -z."
-    echo "Please report to qemu-devel@nongnu.org"
-    exit 1
-fi
-
 tools=
 if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   tools="qemu-img\$(EXESUF) $tools"
@@ -1772,6 +1772,8 @@ echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
 echo "CFLAGS=$CFLAGS $OS_CFLAGS $ARCH_CFLAGS $EXTRA_CFLAGS" >> $config_host_mak
 echo "LDFLAGS=$LDFLAGS $OS_LDFLAGS $ARCH_LDFLAGS $EXTRA_LDFLAGS" >> $config_host_mak
+echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
+echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "PTHREADLIBS=$PTHREADLIBS" >> $config_host_mak
 echo "CLOCKLIBS=$CLOCKLIBS" >> $config_host_mak
