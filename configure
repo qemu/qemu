@@ -1227,6 +1227,7 @@ int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
     fdt=yes
+    libs_softmmu="$fdt_libs $libs_softmmu"
   fi
 fi
 
@@ -1711,7 +1712,6 @@ if test "$preadv" = "yes" ; then
 fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak
-  echo "FDT_LIBS=$fdt_libs" >> $config_host_mak
 fi
 
 # XXX: suppress that
