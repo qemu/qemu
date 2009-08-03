@@ -1595,9 +1595,6 @@ if test "$solaris" = "yes" ; then
     echo "CONFIG_NEEDS_LIBSUNMATH=y" >> $config_host_mak
   fi
 fi
-if test "$gprof" = "yes" ; then
-  echo "TARGET_GPROF=yes" >> $config_host_mak
-fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
   LDFLAGS="-static $LDFLAGS"
@@ -2082,6 +2079,17 @@ ia64)
   cflags="-mno-sdata $cflags"
 ;;
 esac
+
+if test "$gprof" = "yes" ; then
+  echo "TARGET_GPROF=yes" >> $config_mak
+  if test "$target_linux_user" = "yes" ; then
+    cflags="-p $cflags"
+    ldflags="-p $ldflags"
+  fi
+  if test "$target_softmmu" = "yes" ; then
+    ldflags="-p $ldflags"
+  fi
+fi
 
 linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then

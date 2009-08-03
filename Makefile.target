@@ -138,12 +138,6 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
-# profiling code
-ifdef TARGET_GPROF
-LDFLAGS+=-p
-QEMU_CFLAGS+=-p
-endif
-
 obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
       ioport-user.o
@@ -366,7 +360,6 @@ endif
 
 # profiling code
 ifdef TARGET_GPROF
-LDFLAGS+=-p
 main.o vl.o: QEMU_CFLAGS+=-p
 endif
 
