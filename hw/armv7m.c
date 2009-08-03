@@ -242,12 +242,8 @@ static SysBusDeviceInfo bitband_info = {
     .qdev.name  = "ARM,bitband-memory",
     .qdev.size  = sizeof(BitBandState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "base",
-            .info   = &qdev_prop_hex32,
-            .offset = offsetof(BitBandState, base),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("base", BitBandState, base, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
