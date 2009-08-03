@@ -2145,12 +2145,8 @@ static SysBusDeviceInfo lance_info = {
     .qdev.name  = "lance",
     .qdev.size  = sizeof(SysBusPCNetState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "dma",
-            .info   = &qdev_prop_ptr,
-            .offset = offsetof(SysBusPCNetState, state.dma_opaque),
-        },
-        {/* end of list */}
+        DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
