@@ -76,7 +76,6 @@ for opt do
   ;;
   esac
 done
-
 # OS specific
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate it's usage altogether
@@ -135,14 +134,14 @@ fi
 
 target_list=""
 case "$cpu" in
+  alpha|cris|ia64|m68k|microblaze|mips|mips64|ppc|ppc64|sparc64)
+    cpu="$cpu"
+  ;;
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
   ;;
   x86_64|amd64)
     cpu="x86_64"
-  ;;
-  alpha)
-    cpu="alpha"
   ;;
   armv*b)
     cpu="armv4b"
@@ -150,41 +149,14 @@ case "$cpu" in
   armv*l)
     cpu="armv4l"
   ;;
-  cris)
-    cpu="cris"
-  ;;
   parisc|parisc64)
     cpu="hppa"
-  ;;
-  ia64)
-    cpu="ia64"
-  ;;
-  m68k)
-    cpu="m68k"
-  ;;
-  microblaze)
-    cpu="microblaze"
-  ;;
-  mips)
-    cpu="mips"
-  ;;
-  mips64)
-    cpu="mips64"
-  ;;
-  ppc)
-    cpu="ppc"
-  ;;
-  ppc64)
-    cpu="ppc64"
   ;;
   s390*)
     cpu="s390"
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
-  ;;
-  sparc64)
-    cpu="sparc64"
   ;;
   *)
     cpu="unknown"
@@ -787,30 +759,21 @@ fi
 else
 
 # if cross compiling, cannot launch a program, so make a static guess
-if test "$cpu" = "armv4b" \
-     -o "$cpu" = "hppa" \
-     -o "$cpu" = "m68k" \
-     -o "$cpu" = "mips" \
-     -o "$cpu" = "mips64" \
-     -o "$cpu" = "ppc" \
-     -o "$cpu" = "ppc64" \
-     -o "$cpu" = "s390" \
-     -o "$cpu" = "sparc" \
-     -o "$cpu" = "sparc64"; then
-    bigendian="yes"
-fi
+case "$cpu" in
+  armv4b|hppa|m68k|mips|mips64|ppc|ppc64|s390|sparc|sparc64)
+    bigendian=yes
+  ;;
+esac
 
 fi
 
 # host long bits test
 hostlongbits="32"
-if test "$cpu" = "x86_64" \
-     -o "$cpu" = "alpha" \
-     -o "$cpu" = "ia64" \
-     -o "$cpu" = "sparc64" \
-     -o "$cpu" = "ppc64"; then
-    hostlongbits="64"
-fi
+case "$cpu" in
+  x86_64|alpha|ia64|sparc64|ppc64)
+    hostlongbits=64
+  ;;
+esac
 
 # Check host NPTL support
 cat > $TMPC <<EOF
