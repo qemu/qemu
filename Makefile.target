@@ -19,20 +19,8 @@ endif
 
 PROGS=$(QEMU_PROG)
 
-HELPER_CFLAGS=
-
-ifeq ($(ARCH),i386)
-HELPER_CFLAGS+=-fomit-frame-pointer
-endif
-
 ifeq ($(subst ppc64,ppc,$(ARCH))$(TARGET_BASE_ARCH),ppcppc)
 translate.o: QEMU_CFLAGS := $(QEMU_CFLAGS) $(call cc-option, $(QEMU_CFLAGS), -fno-unit-at-a-time,)
-endif
-
-ifeq ($(ARCH),sparc)
-  ifneq ($(CONFIG_SOLARIS),y)
-    HELPER_CFLAGS+=-ffixed-i0
-  endif
 endif
 
 ifeq ($(ARCH),alpha)
@@ -153,6 +141,10 @@ op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 cpu-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
+# Note: this is a workaround. The real fix is to avoid compiling
+# cpu_signal_handler() in cpu-exec.c.
+signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+
 #########################################################
 # Linux user emulator target
 
@@ -188,10 +180,6 @@ obj-arm-y += arm-semi.o
 
 obj-m68k-y += m68k-sim.o m68k-semi.o
 
-# Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in cpu-exec.c.
-signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-
 ARLIBS=../libqemu_user.a libqemu.a
 endif #CONFIG_LINUX_USER
 
@@ -211,10 +199,6 @@ LIBS+=-lmx
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
         gdbstub.o gdbstub-xml.o ioport-user.o
 
-# Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in cpu-exec.c.
-signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-
 ARLIBS=libqemu.a
 
 endif #CONFIG_DARWIN_USER
@@ -230,10 +214,6 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o ioport-user.o
 obj-y += uaccess.o
-
-# Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in cpu-exec.c.
-signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 ARLIBS=libqemu.a ../libqemu_user.a
 

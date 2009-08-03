@@ -44,6 +44,7 @@ make="make"
 install="install"
 objcopy="objcopy"
 ld="ld"
+helper_cflags=""
 
 # parse CC options first
 for opt do
@@ -533,6 +534,7 @@ case "$cpu" in
            QEMU_CFLAGS="-m32 -ffixed-g2 -ffixed-g3 $QEMU_CFLAGS"
            if test "$solaris" = "no" ; then
              QEMU_CFLAGS="-ffixed-g1 -ffixed-g6 $QEMU_CFLAGS"
+             helper_cflags="-ffixed-i0"
            fi
            ;;
     sparc64)
@@ -549,6 +551,7 @@ case "$cpu" in
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
            LDFLAGS="-m32 $LDFLAGS"
+           helper_cflags="-fomit-frame-pointer"
            host_guest_base="yes"
            ;;
     x86_64)
@@ -1753,6 +1756,7 @@ echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
+echo "HELPER_CFLAGS=$helper_cflags" >> $config_host_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
