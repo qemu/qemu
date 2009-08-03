@@ -425,12 +425,8 @@ static SysBusDeviceInfo slavio_intctl_info = {
     .qdev.name  = "slavio_intctl",
     .qdev.size  = sizeof(SLAVIO_INTCTLState),
     .qdev.props = (Property[]) {
-        {
-            .name = "cputimer_bit",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SLAVIO_INTCTLState, cputimer_bit),
-        },
-        {/* end of property list */}
+        DEFINE_PROP_UINT32("cputimer_bit", SLAVIO_INTCTLState, cputimer_bit, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
