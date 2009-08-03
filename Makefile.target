@@ -227,24 +227,6 @@ obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 
 LIBS+=-lz
-ifdef CONFIG_ALSA
-LIBS += -lasound
-endif
-ifdef CONFIG_ESD
-LIBS += -lesd
-endif
-ifdef CONFIG_PA
-LIBS += -lpulse-simple
-endif
-ifdef CONFIG_DSOUND
-LIBS += -lole32 -ldxguid
-endif
-ifdef CONFIG_FMOD
-LIBS += $(FMOD_LIBS)
-endif
-ifdef CONFIG_OSS
-LIBS += $(OSS_LIBS)
-endif
 
 sound-obj-y =
 sound-obj-$(CONFIG_SB16) += sb16.o

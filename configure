@@ -993,6 +993,7 @@ for drv in $audio_drv_list; do
     alsa)
     audio_drv_probe $drv alsa/asoundlib.h -lasound \
         "snd_pcm_t **handle; return snd_pcm_close(*handle);"
+    libs_softmmu="-lasound $libs_softmmu"
     ;;
 
     fmod)
@@ -1004,22 +1005,33 @@ for drv in $audio_drv_list; do
         exit 1
     fi
     audio_drv_probe $drv fmod.h $fmod_lib "return FSOUND_GetVersion();" "-I $fmod_inc"
+    libs_softmmu="$fmod_lib $libs_softmmu"
     ;;
 
     esd)
     audio_drv_probe $drv esd.h -lesd 'return esd_play_stream(0, 0, "", 0);'
+    libs_softmmu="-lesd $libs_softmmu"
     ;;
 
     pa)
     audio_drv_probe $drv pulse/simple.h -lpulse-simple \
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
+    libs_softmmu="-lpulse-simple $libs_softmmu"
     ;;
 
     coreaudio)
       libs_softmmu="-framework CoreAudio $libs_softmmu"
     ;;
 
-    oss|sdl|wav|dsound)
+    dsound)
+      libs_softmmu="-lole32 -ldxguid $libs_softmmu"
+    ;;
+
+    oss)
+      libs_softmmu="$oss_lib $libs_softmmu"
+    ;;
+
+    sdl|wav)
     # XXX: Probes for CoreAudio, DirectSound, SDL(?)
     ;;
 
@@ -1602,10 +1614,7 @@ for drv in $audio_drv_list; do
     def=CONFIG_`echo $drv | tr '[:lower:]' '[:upper:]'`
     echo "$def=y" >> $config_host_mak
     if test "$drv" = "fmod"; then
-        echo "FMOD_LIBS=$fmod_lib" >> $config_host_mak
         echo "FMOD_CFLAGS=-I$fmod_inc" >> $config_host_mak
-    elif test "$drv" = "oss"; then
-        echo "OSS_LIBS=$oss_lib" >> $config_host_mak
     fi
 done
 if test "$mixemu" = "yes" ; then
