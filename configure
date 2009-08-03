@@ -46,6 +46,7 @@ objcopy="objcopy"
 ld="ld"
 helper_cflags=""
 libs_softmmu=""
+audio_pt_int=""
 
 # parse CC options first
 for opt do
@@ -1011,12 +1012,14 @@ for drv in $audio_drv_list; do
     esd)
     audio_drv_probe $drv esd.h -lesd 'return esd_play_stream(0, 0, "", 0);'
     libs_softmmu="-lesd $libs_softmmu"
+    audio_pt_int="yes"
     ;;
 
     pa)
     audio_drv_probe $drv pulse/simple.h -lpulse-simple \
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
     libs_softmmu="-lpulse-simple $libs_softmmu"
+    audio_pt_int="yes"
     ;;
 
     coreaudio)
@@ -1622,6 +1625,9 @@ for drv in $audio_drv_list; do
         echo "FMOD_CFLAGS=-I$fmod_inc" >> $config_host_mak
     fi
 done
+if test "$audio_pt_int" = "yes" ; then
+  echo "CONFIG_AUDIO_PT_INT=y" >> $config_host_mak
+fi
 if test "$mixemu" = "yes" ; then
   echo "CONFIG_MIXEMU=y" >> $config_host_mak
 fi

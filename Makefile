@@ -96,12 +96,6 @@ obj-$(CONFIG_WIN32) += tap-win32.o
 obj-$(CONFIG_POSIX) += migration-exec.o
 
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
-ifdef CONFIG_ESD
-AUDIO_PT_INT = y
-endif
-ifdef CONFIG_PA
-AUDIO_PT_INT = y
-endif
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
@@ -112,7 +106,7 @@ audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o
 audio-obj-$(CONFIG_FMOD) += fmodaudio.o
 audio-obj-$(CONFIG_ESD) += esdaudio.o
 audio-obj-$(CONFIG_PA) += paaudio.o
-audio-obj-$(AUDIO_PT_INT) += audio_pt_int.o
+audio-obj-$(CONFIG_AUDIO_PT_INT) += audio_pt_int.o
 audio-obj-y += wavcapture.o
 obj-y += $(addprefix audio/, $(audio-obj-y))
 
