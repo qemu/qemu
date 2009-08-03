@@ -285,10 +285,7 @@ obj-sh4-y += ide.o
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 obj-m68k-y += m68k-semi.o dummy_m68k.o
 
-# profiling code
-ifdef TARGET_GPROF
-main.o vl.o: QEMU_CFLAGS+=-p
-endif
+main.o vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 

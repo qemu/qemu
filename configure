@@ -2169,6 +2169,7 @@ if test "$gprof" = "yes" ; then
   fi
   if test "$target_softmmu" = "yes" ; then
     ldflags="-p $ldflags"
+    echo "GPROF_CFLAGS=-p" >> $config_mak
   fi
 fi
 
