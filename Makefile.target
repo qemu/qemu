@@ -58,12 +58,10 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
 ifeq ($(ARCH),sparc64)
 QEMU_CFLAGS+=-I$(SRC_PATH)/tcg/sparc
 endif
-ifdef CONFIG_SOFTFLOAT
-libobj-y += fpu/softfloat.o
-else
-libobj-y += fpu/softfloat-native.o
-endif
 QEMU_CFLAGS+=-I$(SRC_PATH)/fpu
+
+libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
+libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
 
 ifeq ($(TARGET_BASE_ARCH), arm)

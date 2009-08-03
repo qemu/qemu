@@ -2045,6 +2045,9 @@ case "$target_arch2" in
   arm|armeb|m68k|microblaze|mips|mipsel|mipsn32|mipsn32el|mips64|mips64el|ppc|ppc64|ppc64abi32|ppcemb|sparc|sparc64|sparc32plus)
     echo "CONFIG_SOFTFLOAT=y" >> $config_mak
     ;;
+  *)
+    echo "CONFIG_NOSOFTFLOAT=y" >> $config_mak
+    ;;
 esac
 
 if test "$target_user_only" = "yes" -a "$bflt" = "yes"; then
