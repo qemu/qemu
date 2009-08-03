@@ -530,36 +530,6 @@ for opt do
   esac
 done
 
-# default flags for all hosts
-CFLAGS="$CFLAGS -g -fno-strict-aliasing"
-if test "$debug" = "no" ; then
-  CFLAGS="$CFLAGS -O2"
-fi
-CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
-LDFLAGS="$LDFLAGS -g"
-
-# Consult white-list to determine whether to enable werror
-# by default.  Only enable by default for git builds
-if test -z "$werror" ; then
-    z_version=`cut -f3 -d. $source_path/VERSION`
-    if test "$z_version" = "50" -a \
-        "$linux" = "yes" ; then
-        werror="yes"
-    else
-        werror="no"
-    fi
-fi
-
-if test "$werror" = "yes" ; then
-    CFLAGS="$CFLAGS -Werror"
-fi
-
-if test "$solaris" = "no" ; then
-    if ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
-        LDFLAGS="$LDFLAGS -Wl,--warn-common"
-    fi
-fi
-
 #
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
 # ARCH_CFLAGS/ARCH_LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
@@ -1439,6 +1409,39 @@ else
     echo "Error: your linker does not support --whole-archive or -z."
     echo "Please report to qemu-devel@nongnu.org"
     exit 1
+fi
+
+# End of CC checks
+# After here, no more $cc or $ld runs
+
+# default flags for all hosts
+CFLAGS="$CFLAGS -g -fno-strict-aliasing"
+if test "$debug" = "no" ; then
+  CFLAGS="$CFLAGS -O2"
+fi
+CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
+LDFLAGS="$LDFLAGS -g"
+
+# Consult white-list to determine whether to enable werror
+# by default.  Only enable by default for git builds
+if test -z "$werror" ; then
+    z_version=`cut -f3 -d. $source_path/VERSION`
+    if test "$z_version" = "50" -a \
+        "$linux" = "yes" ; then
+        werror="yes"
+    else
+        werror="no"
+    fi
+fi
+
+if test "$werror" = "yes" ; then
+    CFLAGS="$CFLAGS -Werror"
+fi
+
+if test "$solaris" = "no" ; then
+    if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
+        LDFLAGS="$LDFLAGS -Wl,--warn-common"
+    fi
 fi
 
 if test "$mingw32" = "yes" ; then
