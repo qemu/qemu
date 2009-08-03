@@ -47,6 +47,7 @@ libobj-y += tcg/tcg.o tcg/tcg-runtime.o
 libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
 libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
+libobj-$(CONFIG_NEED_MMU) += mmu.o
 
 ifeq ($(TARGET_BASE_ARCH), arm)
 libobj-y += neon_helper.o iwmmxt_helper.o
@@ -58,8 +59,6 @@ endif
 
 ifeq ($(TARGET_BASE_ARCH), cris)
 libobj-y += cris-dis.o
-
-libobj-$(CONFIG_SOFTMMU) += mmu.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -79,7 +78,6 @@ libobj-y += ppc-dis.o
 endif
 ifeq ($(findstring microblaze, $(TARGET_BASE_ARCH) $(ARCH)),microblaze)
 libobj-y += microblaze-dis.o
-libobj-$(CONFIG_SOFTMMU) += mmu.o
 endif
 ifeq ($(findstring mips, $(TARGET_BASE_ARCH) $(ARCH)),mips)
 libobj-y += mips-dis.o
