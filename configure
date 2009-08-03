@@ -61,7 +61,7 @@ cat > $TMPC <<EOF
 int main(void) {}
 EOF
 
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
   : C compiler works ok
 else
     echo "ERROR: \"$cc\" either does not exist or does not work"
@@ -75,7 +75,7 @@ cat > $TMPC <<EOF
 #endif
 int main(void) { return 0; }
 EOF
-  $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
+  $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
 }
 
 if check_define __i386__ ; then
