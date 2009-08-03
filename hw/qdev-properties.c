@@ -168,6 +168,21 @@ PropertyInfo qdev_prop_drive = {
     .print = print_drive,
 };
 
+/* --- character device --- */
+
+static int print_chr(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "%s", (*ptr)->label);
+}
+
+PropertyInfo qdev_prop_chr = {
+    .name  = "chr",
+    .type  = PROP_TYPE_CHR,
+    .size  = sizeof(CharDriverState*),
+    .print = print_chr,
+};
+
 /* --- pointer --- */
 
 static int print_ptr(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -355,6 +370,11 @@ void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_DRIVE);
+}
+
+void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_CHR);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
