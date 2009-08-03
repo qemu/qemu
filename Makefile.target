@@ -57,49 +57,20 @@ ifeq ($(TARGET_BASE_ARCH), alpha)
 libobj-y += alpha_palcode.o
 endif
 
-ifeq ($(TARGET_BASE_ARCH), cris)
-libobj-y += cris-dis.o
-endif
-
 # NOTE: the disassembler code is only needed for debugging
 libobj-y += disas.o
-ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
-USE_I386_DIS=y
-endif
-ifeq ($(findstring x86_64, $(TARGET_ARCH) $(ARCH)),x86_64)
-USE_I386_DIS=y
-endif
-libobj-$(USE_I386_DIS) += i386-dis.o
-ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)
-libobj-y += alpha-dis.o
-endif
-ifeq ($(findstring ppc, $(TARGET_BASE_ARCH) $(ARCH)),ppc)
-libobj-y += ppc-dis.o
-endif
-ifeq ($(findstring microblaze, $(TARGET_BASE_ARCH) $(ARCH)),microblaze)
-libobj-y += microblaze-dis.o
-endif
-ifeq ($(findstring mips, $(TARGET_BASE_ARCH) $(ARCH)),mips)
-libobj-y += mips-dis.o
-endif
-ifeq ($(findstring sparc, $(TARGET_BASE_ARCH) $(ARCH)),sparc)
-libobj-y += sparc-dis.o
-endif
-ifeq ($(findstring arm, $(TARGET_ARCH) $(ARCH)),arm)
-libobj-y += arm-dis.o
-endif
-ifeq ($(findstring m68k, $(TARGET_ARCH) $(ARCH)),m68k)
-libobj-y += m68k-dis.o
-endif
-ifeq ($(findstring sh4, $(TARGET_ARCH) $(ARCH)),sh4)
-libobj-y += sh4-dis.o
-endif
-ifeq ($(findstring hppa, $(TARGET_BASE_ARCH) $(ARCH)),hppa)
-libobj-y += hppa-dis.o
-endif
-ifeq ($(findstring s390, $(TARGET_ARCH) $(ARCH)),s390)
-libobj-y += s390-dis.o
-endif
+libobj-$(CONFIG_ALPHA_DIS) += alpha-dis.o
+libobj-$(CONFIG_ARM_DIS) += arm-dis.o
+libobj-$(CONFIG_CRIS_DIS) += cris-dis.o
+libobj-$(CONFIG_HPPA_DIS) += hppa-dis.o
+libobj-$(CONFIG_I386_DIS) += i386-dis.o
+libobj-$(CONFIG_M68K_DIS) += m68k-dis.o
+libobj-$(CONFIG_MICROBLAZE_DIS) += microblaze-dis.o
+libobj-$(CONFIG_MIPS_DIS) += mips-dis.o
+libobj-$(CONFIG_PPC_DIS) += ppc-dis.o
+libobj-$(CONFIG_S390_DIS) += s390-dis.o
+libobj-$(CONFIG_SH4_DIS) += sh4-dis.o
+libobj-$(CONFIG_SPARC_DIS) += sparc-dis.o
 
 # libqemu
 
