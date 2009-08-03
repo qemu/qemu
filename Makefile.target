@@ -47,14 +47,8 @@ libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
 libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
 libobj-$(CONFIG_NEED_MMU) += mmu.o
-
-ifeq ($(TARGET_BASE_ARCH), arm)
-libobj-y += neon_helper.o iwmmxt_helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), alpha)
-libobj-y += alpha_palcode.o
-endif
+libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
+libobj-$(TARGET_ALPHA) += alpha_palcode.o
 
 # NOTE: the disassembler code is only needed for debugging
 libobj-y += disas.o
@@ -103,9 +97,7 @@ obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
-ifeq ($(TARGET_ARCH), i386)
-obj-y += vm86.o
-endif
+obj-$(TARGET_I386) += vm86.o
 
 nwfpe-obj-y = fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
 nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
