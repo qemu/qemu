@@ -502,41 +502,26 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_blk_init_pci,
         .qdev.props = (Property[]) {
-            {
-                .name   = "class",
-                .info   = &qdev_prop_hex32,
-                .offset = offsetof(VirtIOPCIProxy, class_code),
-            },{
-                .name   = "drive",
-                .info   = &qdev_prop_drive,
-                .offset = offsetof(VirtIOPCIProxy, dinfo),
-            },
-            {/* end of list */}
+            DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+            DEFINE_PROP_DRIVE("drive", VirtIOPCIProxy, dinfo),
+            DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name  = "virtio-net-pci",
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
         .qdev.props = (Property[]) {
-            {
-                .name   = "vectors",
-                .info   = &qdev_prop_uint32,
-                .offset = offsetof(VirtIOPCIProxy, nvectors),
-                .defval = (uint32_t[]) { NIC_NVECTORS_UNSPECIFIED },
-            },
-            {/* end of list */}
+            DEFINE_PROP_HEX32("vectors", VirtIOPCIProxy, nvectors,
+                              NIC_NVECTORS_UNSPECIFIED),
+            DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "virtio-console-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_console_init_pci,
         .qdev.props = (Property[]) {
-            {
-                .name   = "class",
-                .info   = &qdev_prop_hex32,
-                .offset = offsetof(VirtIOPCIProxy, class_code),
-            },
-            {/* end of list */}
+            DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+            DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "virtio-balloon-pci",
