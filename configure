@@ -321,6 +321,7 @@ SunOS)
   fi
   audio_possible_drivers="oss sdl"
   CFLAGS="-std=gnu99 $CFLAGS"
+  LIBS="-lsocket -lnsl -lresolv $LIBS"
 ;;
 AIX)
   aix="yes"

@@ -27,10 +27,6 @@ else
 DOCS=
 endif
 
-ifdef CONFIG_SOLARIS
-LIBS+=-lsocket -lnsl -lresolv
-endif
-
 ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif

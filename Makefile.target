@@ -52,7 +52,6 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 ifdef CONFIG_SOLARIS
-LIBS+=-lsocket -lnsl -lresolv
 ifdef CONFIG_NEEDS_LIBSUNMATH
 LIBS+=-lsunmath
 LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
