@@ -682,7 +682,6 @@ fi
 if test "$mingw32" = "yes" ; then
     linux="no"
     EXESUF=".exe"
-    oss="no"
     linux_user="no"
     bsd_user="no"
     OS_CFLAGS="$OS_CFLAGS -DWIN32_LEAN_AND_MEAN -DWINVER=0x501"
