@@ -98,9 +98,7 @@ obj-$(CONFIG_POSIX) += migration-exec.o
 ifdef CONFIG_COREAUDIO
 AUDIO_PT = y
 endif
-ifdef CONFIG_FMOD
-audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS := $(FMOD_CFLAGS) $(QEMU_CFLAGS)
-endif
+audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 ifdef CONFIG_ESD
 AUDIO_PT = y
 AUDIO_PT_INT = y
