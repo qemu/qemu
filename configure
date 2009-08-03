@@ -1074,9 +1074,9 @@ if test "$curses" = "yes" ; then
 int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
   if compile_prog "" "-lncurses" ; then
-    curses_libs="-lncurses"
+    libs_softmmu="-lncurses $libs_softmmu"
   elif compile_prog "" "-lcurses" ; then
-    curses_libs="-lcurses"
+    libs_softmmu="-lcurses $libs_softmmu"
   else
     curses=no
   fi
@@ -1658,7 +1658,6 @@ if test "$cocoa" = "yes" ; then
 fi
 if test "$curses" = "yes" ; then
   echo "CONFIG_CURSES=y" >> $config_host_mak
-  echo "CURSES_LIBS=$curses_libs" >> $config_host_mak
 fi
 if test "$atfile" = "yes" ; then
   echo "CONFIG_ATFILE=y" >> $config_host_mak
