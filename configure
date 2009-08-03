@@ -224,7 +224,7 @@ fi
 case $targetos in
 CYGWIN*)
 mingw32="yes"
-OS_CFLAGS="-mno-cygwin"
+CFLAGS="-mno-cygwin $CFLAGS"
 if [ "$cpu" = "i386" ] ; then
     kqemu="yes"
 fi
@@ -282,16 +282,16 @@ if [ "$cpu" = "i386" ] ; then
     [ "$is_x86_64" = "1" ] && cpu=x86_64
 fi
 if [ "$cpu" = "x86_64" ] ; then
-    OS_CFLAGS="-arch x86_64"
-    LDFLAGS="-arch x86_64"
+    CFLAGS="-arch x86_64 $CFLAGS"
+    LDFLAGS="-arch x86_64 $LDFLAGS"
 else
-    OS_CFLAGS="-mdynamic-no-pic"
+    CFLAGS="-mdynamic-no-pic $CFLAGS"
 fi
 darwin_user="yes"
 cocoa="yes"
 audio_drv_list="coreaudio"
 audio_possible_drivers="coreaudio sdl fmod"
-OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
+LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
 ;;
 SunOS)
     solaris="yes"
@@ -325,7 +325,7 @@ SunOS)
         audio_drv_list="oss"
     fi
     audio_possible_drivers="oss sdl"
-    OS_CFLAGS=-std=gnu99
+    CFLAGS="-std=gnu99 $CFLAGS"
 ;;
 AIX)
 aix="yes"
@@ -479,18 +479,18 @@ for opt do
       sparc_cpu="$optarg"
       case $sparc_cpu in
         v7|v8)
-          ARCH_CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__"
-          ARCH_LDFLAGS="-m32"
+          CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $CFLAGS"
+          LDFLAGS="-m32 $LDFLAGS"
           cpu="sparc"
         ;;
         v8plus|v8plusa)
-          ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"
-          ARCH_LDFLAGS="-m32"
+          CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
+          LDFLAGS="-m32 $LDFLAGS"
           cpu="sparc"
         ;;
         v9)
-          ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"
-          ARCH_LDFLAGS="-m64"
+          CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
+          LDFLAGS="-m64 $LDFLAGS"
           cpu="sparc64"
         ;;
         *)
@@ -532,40 +532,40 @@ done
 
 #
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
-# ARCH_CFLAGS/ARCH_LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
+# CFLAGS/LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
 #
 host_guest_base="no"
 case "$cpu" in
     sparc) if test -z "$sparc_cpu" ; then
-               ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_v8plus__"
-               ARCH_LDFLAGS="-m32"
+               CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_v8plus__ $CFLAGS"
+               LDFLAGS="-m32 $LDFLAGS"
            fi
-           ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g2 -ffixed-g3"
+           CFLAGS="-ffixed-g2 -ffixed-g3 $CFLAGS"
            if test "$solaris" = "no" ; then
-               ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g1 -ffixed-g6"
+               CFLAGS="-ffixed-g1 -ffixed-g6 $CFLAGS"
            fi
            ;;
     sparc64) if test -z "$sparc_cpu" ; then
-               ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__"
-               ARCH_LDFLAGS="-m64"
+               CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__ $CFLAGS"
+               LDFLAGS="-m64 $LDFLAGS"
            fi
            if test "$solaris" = "no" ; then
-               ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g5 -ffixed-g6 -ffixed-g7"
+               CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $CFLAGS"
            else
-               ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g1 -ffixed-g5 -ffixed-g6 -ffixed-g7"
+               CFLAGS="-ffixed-g1 -ffixed-g5 -ffixed-g6 -ffixed-g7 $CFLAGS"
            fi
            ;;
     s390)
-           ARCH_CFLAGS="-march=z900"
+           CFLAGS="-march=z900 $CFLAGS"
            ;;
     i386)
-           ARCH_CFLAGS="-m32"
-           ARCH_LDFLAGS="-m32"
+           CFLAGS="-m32 $CFLAGS"
+           LDFLAGS="-m32 $LDFLAGS"
            host_guest_base="yes"
            ;;
     x86_64)
-           ARCH_CFLAGS="-m64"
-           ARCH_LDFLAGS="-m64"
+           CFLAGS="-m64 $CFLAGS"
+           LDFLAGS="-m64 $LDFLAGS"
            host_guest_base="yes"
            ;;
     arm*)
@@ -660,7 +660,7 @@ if test "$mingw32" = "yes" ; then
     EXESUF=".exe"
     linux_user="no"
     bsd_user="no"
-    OS_CFLAGS="$OS_CFLAGS -DWIN32_LEAN_AND_MEAN -DWINVER=0x501"
+    CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
 fi
 
 if test ! -x "$(which cgcc 2>/dev/null)"; then
@@ -774,7 +774,7 @@ int main(int argc, char ** argv){
 }
 EOF
 
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
 $TMPE && bigendian="yes"
 else
 echo big/little test failed
@@ -820,7 +820,7 @@ void foo()
 }
 EOF
 
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
   :
 else
    nptl="no"
@@ -833,7 +833,7 @@ cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lz > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC -lz > /dev/null 2> /dev/null ; then
     :
 else
     echo
@@ -853,7 +853,7 @@ if test "$xen" = "yes" ; then
 #include <xs.h>
 int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
-  if $cc $CFLAGS $ARCH_CFLAGS $EXTRA_CFLAGS -c -o $TMPO $TMPC $LDFLAGS $EXTRA_LDFLAGS $xen_libs 2> /dev/null > /dev/null ; then
+  if $cc $CFLAGS -c -o $TMPO $TMPC $LDFLAGS $xen_libs 2> /dev/null > /dev/null ; then
     :
   else
     xen="no"
@@ -874,7 +874,7 @@ int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
   sdl_cflags=`sdl-config --cflags 2> /dev/null`
   sdl_libs=`sdl-config --libs 2> /dev/null`
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > $TMPSDLLOG 2>&1 ; then
+  if $cc $CFLAGS -o $TMPE $sdl_cflags $TMPC $sdl_libs > $TMPSDLLOG 2>&1 ; then
     _sdlversion=`sdl-config --version | sed 's/[^0-9]//g'`
     if test "$_sdlversion" -lt 121 ; then
       sdl_too_old=yes
@@ -891,7 +891,7 @@ EOF
          sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
          sdl_cflags="$sd_cflags `aalib-config --cflags >2 /dev/null`"
       fi
-      if $cc -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2> /dev/null; then
+      if $cc -o $TMPE $CFLAGS $sdl_cflags $TMPC $sdl_libs > /dev/null 2> /dev/null; then
 	:
       else
         sdl=no
@@ -910,7 +910,7 @@ if test "$sdl" = "yes" ; then
 #endif
 int main(void) { return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
+  if $cc $CFLAGS -o $TMPE $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
     sdl_libs="$sdl_libs -lX11"
   fi
 fi
@@ -924,7 +924,7 @@ int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
     vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
     vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_tls_cflags $TMPC \
+    if $cc $CFLAGS -o $TMPE $vnc_tls_cflags $TMPC \
            $vnc_tls_libs > /dev/null 2> /dev/null ; then
 	:
     else
@@ -943,7 +943,7 @@ EOF
     # Assuming Cyrus-SASL installed in /usr prefix
     vnc_sasl_cflags=""
     vnc_sasl_libs="-lsasl2"
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_sasl_cflags $TMPC \
+    if $cc $CFLAGS -o $TMPE $vnc_sasl_cflags $TMPC \
            $vnc_sasl_libs 2> /dev/null > /dev/null ; then
 	:
     else
@@ -962,7 +962,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
    fnmatch="yes"
 fi
 
@@ -980,7 +980,7 @@ int main(void)
     return 0;
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC $vde_libs > /dev/null 2> /dev/null ; then
+  if $cc $CFLAGS -o $TMPE $TMPC $vde_libs > /dev/null 2> /dev/null ; then
     vde=yes
   fi
 fi
@@ -999,7 +999,7 @@ audio_drv_probe()
 #include <$hdr>
 int main(void) { $exp }
 EOF
-    if $cc $ARCH_CFLAGS $cfl -o $TMPE $TMPC $lib > /dev/null 2> /dev/null ; then
+    if $cc $CFLAGS $cfl -o $TMPE $TMPC $lib > /dev/null 2> /dev/null ; then
         :
     else
         echo
@@ -1064,7 +1064,7 @@ if test "$brlapi" = "yes" ; then
 #include <brlapi.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
-  if $cc ${ARCH_CFLAGS} -o $TMPE ${OS_CFLAGS} $TMPC $brlapi_libs > /dev/null 2> /dev/null ; then
+  if $cc $CFLAGS -o $TMPE $TMPC $brlapi_libs > /dev/null 2> /dev/null ; then
     brlapi=yes
   fi
 fi
@@ -1080,9 +1080,9 @@ if test "$curses" = "yes" ; then
 #endif
 int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lncurses > /dev/null 2> /dev/null ; then
+  if $cc $CFLAGS -o $TMPE $TMPC -lncurses > /dev/null 2> /dev/null ; then
     curses_libs="-lncurses"
-  elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
+  elif $cc $CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
     curses_libs="-lcurses"
   else
     curses=no
@@ -1099,7 +1099,7 @@ if test "$curl" = "yes" ; then
 int main(void) { return curl_easy_init(); }
 EOF
   curl_libs=`curl-config --libs 2>/dev/null`
- if $cc $ARCH_CFLAGS $curl_libs -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+ if $cc $CFLAGS $curl_libs -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
     curl=yes
   fi
 fi # test "$curl"
@@ -1116,7 +1116,7 @@ int main(void) { return bt_error(0); }
 EOF
   bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
   bluez_libs=`pkg-config --libs bluez 2> /dev/null`
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $bluez_cflags $TMPC \
+  if $cc $CFLAGS -o $TMPE $bluez_cflags $TMPC \
       $bluez_libs > /dev/null 2> /dev/null ; then
     :
   else
@@ -1156,14 +1156,14 @@ EOF
   else
       kvm_cflags=""
   fi
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC \
+  if $cc $CFLAGS -o $TMPE $kvm_cflags $TMPC \
       > /dev/null 2>/dev/null ; then
     :
   else
     kvm="no";
     if [ -x "`which awk 2>/dev/null`" ] && \
        [ -x "`which grep 2>/dev/null`" ]; then
-      kvmerr=`LANG=C $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC 2>&1 \
+      kvmerr=`LANG=C $cc $CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
       if test "$kvmerr" != "" ; then
@@ -1187,7 +1187,7 @@ cat > $TMPC << EOF
 int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
   for pthread_lib in $PTHREADLIBS_LIST; do
-    if $cc $ARCH_CFLAGS -o $TMPE $TMPC $pthread_lib 2> /dev/null > /dev/null ; then
+    if $cc $CFLAGS -o $TMPE $TMPC $pthread_lib 2> /dev/null > /dev/null ; then
       pthread=yes
       PTHREADLIBS="$pthread_lib"
       break
@@ -1209,7 +1209,7 @@ cat > $TMPC <<EOF
 int main(void) { struct iovec iov; return 0; }
 EOF
 iovec=no
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
   iovec=yes
 fi
 
@@ -1222,7 +1222,7 @@ cat > $TMPC <<EOF
 int main(void) { preadv; }
 EOF
 preadv=no
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
   preadv=yes
 fi
 
@@ -1234,7 +1234,7 @@ if test "$fdt" = "yes" ; then
   cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC $fdt_libs 2> /dev/null > /dev/null ; then
+  if $cc $CFLAGS -o $TMPE $TMPC $fdt_libs 2> /dev/null > /dev/null ; then
     fdt=yes
   fi
 fi
@@ -1258,7 +1258,7 @@ main(void)
 	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
   atfile=yes
 fi
 
@@ -1278,7 +1278,7 @@ main(void)
 	return inotify_init();
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
   inotify=yes
 fi
 
@@ -1297,7 +1297,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
   utimens=yes
 fi
 
@@ -1315,7 +1315,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
   pipe2=yes
 fi
 
@@ -1335,7 +1335,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
   splice=yes
 fi
 
@@ -1350,7 +1350,7 @@ cat > $TMPC << EOF
 #include <byteswap.h>
 int main(void) { return bswap_32(0); }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
   byteswap_h=yes
 fi
 
@@ -1362,7 +1362,7 @@ cat > $TMPC << EOF
 #include <machine/bswap.h>
 int main(void) { return bswap32(0); }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
   bswap_h=yes
 fi
 
@@ -1374,9 +1374,9 @@ cat > $TMPC <<EOF
 int main(void) { clockid_t id; return clock_gettime(id, NULL); }
 EOF
 
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
   CLOCKLIBS=""
-elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lrt > /dev/null 2> /dev/null ; then
+elif $cc $CFLAGS -o $TMPE $TMPC -lrt > /dev/null 2> /dev/null ; then
   CLOCKLIBS="-lrt"
 fi
 
@@ -1387,7 +1387,7 @@ check_linker_flags()
     if test "$2" ; then
 	w2=-Wl,$2
     fi
-    $cc $ARCH_CFLAGS -o $TMPE $OS_CFLAGS $TMPC -Wl,$1 ${w2} >/dev/null 2>/dev/null
+    $cc $CFLAGS -o $TMPE $TMPC -Wl,$1 ${w2} >/dev/null 2>/dev/null
 }
 
 cat > $TMPC << EOF
@@ -1472,7 +1472,8 @@ fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
-echo "ARCH_CFLAGS       $ARCH_CFLAGS"
+echo "CFLAGS            $CFLAGS"
+echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
 echo "host CPU          $cpu"
@@ -1779,8 +1780,8 @@ fi
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
-echo "CFLAGS=$CFLAGS $OS_CFLAGS $ARCH_CFLAGS $EXTRA_CFLAGS" >> $config_host_mak
-echo "LDFLAGS=$LDFLAGS $OS_LDFLAGS $ARCH_LDFLAGS $EXTRA_LDFLAGS" >> $config_host_mak
+echo "CFLAGS=$CFLAGS $EXTRA_CFLAGS" >> $config_host_mak
+echo "LDFLAGS=$LDFLAGS $EXTRA_LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
