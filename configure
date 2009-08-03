@@ -2071,34 +2071,35 @@ fi
 # generate LDFLAGS for targets
 
 ldflags=""
+linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
 if test "$target_linux_user" = "yes" -o "$target_linux_user" = "yes" ; then
   case "$ARCH" in
   i386)
     if test "$gprof" = "yes" -o "$static" = "yes" ; then
-      ldflags='-Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld $ldflags'
+      ldflags="$linker_script $ldflags"
     else
       # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
       # that the kernel ELF loader considers as an executable. I think this
       # is the simplest way to make it self virtualizable!
-      ldflags='-Wl,-shared $ldflags'
+      ldflags="-Wl,-shared $ldflags"
     fi
     ;;
   sparc)
     # -static is used to avoid g1/g3 usage by the dynamic linker
-    ldflags='-Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static $ldflags'
+    ldflags="$linker_script -static $ldflags"
     ;;
   ia64)
-    ldflags='-Wl,-G0 -Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static $ldflags'
+    ldflags="-Wl,-G0 $linker_script -static $ldflags"
     ;;
   x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64)
-    ldflags='-Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld $ldflags'
+    ldflags="$linker_script $ldflags"
     ;;
   esac
 fi
 if test "$target_softmmu" = "yes" ; then
   case "$ARCH" in
   ia64)
-    ldflags='-Wl,-G0 -Wl,-T../config-host.ld -Wl,-T,$(SRC_PATH)/$(ARCH).ld -static $ldflags'
+    ldflags="-Wl,-G0 $linker_script -static $ldflags"
     ;;
   esac
 fi
