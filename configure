@@ -829,7 +829,7 @@ if test "$xen" = "yes" ; then
 int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
   if compile_prog "" "$xen_libs" ; then
-    :
+    libs_softmmu="$xen_libs $libs_softmmu"
   else
     xen="no"
   fi
@@ -1694,7 +1694,6 @@ if test "$bluez" = "yes" ; then
 fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN=y" >> $config_host_mak
-  echo "XEN_LIBS=$xen_libs" >> $config_host_mak
 fi
 if test "$aio" = "yes" ; then
   echo "CONFIG_AIO=y" >> $config_host_mak
