@@ -597,7 +597,7 @@ void do_info_qtree(Monitor *mon)
         qbus_print(mon, main_system_bus, 0);
 }
 
-void do_info_qdrv(Monitor *mon)
+void do_info_qdm(Monitor *mon)
 {
     DeviceInfo *info;
     char msg[256];

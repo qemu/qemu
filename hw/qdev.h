@@ -148,7 +148,7 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name);
 /*** monitor commands ***/
 
 void do_info_qtree(Monitor *mon);
-void do_info_qdrv(Monitor *mon);
+void do_info_qdm(Monitor *mon);
 
 /*** qdev-properties.c ***/
 
@@ -197,6 +197,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
     DEFINE_PROP(_n, _s, _f, qdev_prop_ptr, void*)
 #define DEFINE_PROP_CHR(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_chr, CharDriverState*)
+#define DEFINE_PROP_DRIVE(_n, _s, _f)             \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_chr, DriveInfo*)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, uint8_t[6])
 
