@@ -164,7 +164,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &env->asi);
     qemu_get_be32s(f, &env->pstate);
     qemu_get_be32s(f, &env->tl);
-    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
     qemu_get_be32s(f, &env->cansave);
     qemu_get_be32s(f, &env->canrestore);
     qemu_get_be32s(f, &env->otherwin);

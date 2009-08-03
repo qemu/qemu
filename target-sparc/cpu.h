@@ -49,6 +49,7 @@
 #define TT_NCP_INSN 0x24
 #define TT_TRAP     0x80
 #else
+#define TT_POWER_ON_RESET 0x01
 #define TT_TFAULT   0x08
 #define TT_CODE_ACCESS 0x0a
 #define TT_ILL_INSN 0x10
@@ -377,7 +378,6 @@ typedef struct CPUSPARCState {
 #if defined(TARGET_SPARC64)
 #define MAXTL_MAX 8
 #define MAXTL_MASK (MAXTL_MAX - 1)
-    trap_state *tsptr;
     trap_state ts[MAXTL_MAX];
     uint32_t xcc;               /* Extended integer condition codes */
     uint32_t asi;
@@ -593,6 +593,7 @@ void cpu_check_irqs(CPUSPARCState *env);
 void cpu_tick_set_count(void *opaque, uint64_t count);
 uint64_t cpu_tick_get_count(void *opaque);
 void cpu_tick_set_limit(void *opaque, uint64_t limit);
+trap_state* cpu_tsptr(CPUState* env);
 #endif
 
 static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)

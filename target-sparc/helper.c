@@ -699,9 +699,10 @@ void cpu_reset(CPUSPARCState *env)
     env->psrps = 1;
     CC_OP = CC_OP_FLAGS;
 #ifdef TARGET_SPARC64
-    env->pstate = PS_PRIV;
+    env->pstate = PS_PRIV|PS_RED|PS_PEF|PS_AG;
     env->hpstate = HS_PRIV;
-    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
+    env->tl = env->maxtl;
+    cpu_tsptr(env)->tt = TT_POWER_ON_RESET;
     env->lsu = 0;
 #else
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);
