@@ -220,121 +220,123 @@ elif check_define __sun__ ; then
 else
   targetos=`uname -s`
 fi
+
 case $targetos in
 CYGWIN*)
-mingw32="yes"
-CFLAGS="-mno-cygwin $CFLAGS"
-audio_possible_drivers="sdl"
+  mingw32="yes"
+  CFLAGS="-mno-cygwin $CFLAGS"
+  audio_possible_drivers="sdl"
 ;;
 MINGW32*)
-mingw32="yes"
-audio_possible_drivers="dsound sdl fmod"
+  mingw32="yes"
+  audio_possible_drivers="dsound sdl fmod"
 ;;
 GNU/kFreeBSD)
-audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd pa"
-if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+  audio_drv_list="oss"
+  audio_possible_drivers="oss sdl esd pa"
+  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
-fi
+  fi
 ;;
 FreeBSD)
-bsd="yes"
-audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd pa"
-if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+  bsd="yes"
+  audio_drv_list="oss"
+  audio_possible_drivers="oss sdl esd pa"
+  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
-fi
+  fi
 ;;
 DragonFly)
-bsd="yes"
-audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd pa"
-if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+  bsd="yes"
+  audio_drv_list="oss"
+  audio_possible_drivers="oss sdl esd pa"
+  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
-fi
-aio="no"
+  fi
+  aio="no"
 ;;
 NetBSD)
-bsd="yes"
-audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd"
-oss_lib="-lossaudio"
+  bsd="yes"
+  audio_drv_list="oss"
+  audio_possible_drivers="oss sdl esd"
+  oss_lib="-lossaudio"
 ;;
 OpenBSD)
-bsd="yes"
-audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd"
-oss_lib="-lossaudio"
+  bsd="yes"
+  audio_drv_list="oss"
+  audio_possible_drivers="oss sdl esd"
+  oss_lib="-lossaudio"
 ;;
 Darwin)
-bsd="yes"
-darwin="yes"
-# on Leopard most of the system is 32-bit, so we have to ask the kernel it if we can run 64-bit userspace code
-if [ "$cpu" = "i386" ] ; then
+  bsd="yes"
+  darwin="yes"
+  # on Leopard most of the system is 32-bit, so we have to ask the kernel it if we can
+  # run 64-bit userspace code
+  if [ "$cpu" = "i386" ] ; then
     is_x86_64=`sysctl -n hw.optional.x86_64`
     [ "$is_x86_64" = "1" ] && cpu=x86_64
-fi
-if [ "$cpu" = "x86_64" ] ; then
+  fi
+  if [ "$cpu" = "x86_64" ] ; then
     CFLAGS="-arch x86_64 $CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
-else
+  else
     CFLAGS="-mdynamic-no-pic $CFLAGS"
-fi
-darwin_user="yes"
-cocoa="yes"
-audio_drv_list="coreaudio"
-audio_possible_drivers="coreaudio sdl fmod"
-LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
+  fi
+  darwin_user="yes"
+  cocoa="yes"
+  audio_drv_list="coreaudio"
+  audio_possible_drivers="coreaudio sdl fmod"
+  LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
 ;;
 SunOS)
-    solaris="yes"
-    make="gmake"
-    install="ginstall"
-    needs_libsunmath="no"
-    solarisrev=`uname -r | cut -f2 -d.`
-    # have to select again, because `uname -m` returns i86pc
-    # even on an x86_64 box.
-    solariscpu=`isainfo -k`
-    if test "${solariscpu}" = "amd64" ; then
-        cpu="x86_64"
+  solaris="yes"
+  make="gmake"
+  install="ginstall"
+  needs_libsunmath="no"
+  solarisrev=`uname -r | cut -f2 -d.`
+  # have to select again, because `uname -m` returns i86pc
+  # even on an x86_64 box.
+  solariscpu=`isainfo -k`
+  if test "${solariscpu}" = "amd64" ; then
+    cpu="x86_64"
+  fi
+  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+    if test "$solarisrev" -le 9 ; then
+      if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
+        needs_libsunmath="yes"
+      else
+        echo "QEMU will not link correctly on Solaris 8/X86 or 9/x86 without"
+        echo "libsunmath from the Sun Studio compilers tools, due to a lack of"
+        echo "C99 math features in libm.so in Solaris 8/x86 and Solaris 9/x86"
+        echo "Studio 11 can be downloaded from www.sun.com."
+        exit 1
+      fi
     fi
-    if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-        if test "$solarisrev" -le 9 ; then
-            if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
-                needs_libsunmath="yes"
-            else
-                echo "QEMU will not link correctly on Solaris 8/X86 or 9/x86 without"
-                echo "libsunmath from the Sun Studio compilers tools, due to a lack of"
-                echo "C99 math features in libm.so in Solaris 8/x86 and Solaris 9/x86"
-                echo "Studio 11 can be downloaded from www.sun.com."
-                exit 1
-            fi
-        fi
-        if test "$solarisrev" -ge 9 ; then
-            kqemu="yes"
-        fi
+    if test "$solarisrev" -ge 9 ; then
+      kqemu="yes"
     fi
-    if test -f /usr/include/sys/soundcard.h ; then
-        audio_drv_list="oss"
-    fi
-    audio_possible_drivers="oss sdl"
-    CFLAGS="-std=gnu99 $CFLAGS"
+  fi
+  if test -f /usr/include/sys/soundcard.h ; then
+    audio_drv_list="oss"
+  fi
+  audio_possible_drivers="oss sdl"
+  CFLAGS="-std=gnu99 $CFLAGS"
 ;;
 AIX)
-aix="yes"
-make="gmake"
+  aix="yes"
+  make="gmake"
 ;;
 *)
-audio_drv_list="oss"
-audio_possible_drivers="oss alsa sdl esd pa"
-linux="yes"
-linux_user="yes"
-usb="linux"
-kvm="yes"
-if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+  audio_drv_list="oss"
+  audio_possible_drivers="oss alsa sdl esd pa"
+  linux="yes"
+  linux_user="yes"
+  usb="linux"
+  kvm="yes"
+  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
-fi
+  fi
 ;;
 esac
 
