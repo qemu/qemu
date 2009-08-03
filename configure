@@ -887,6 +887,9 @@ EOF
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     sdl_libs="$sdl_libs -lX11"
   fi
+  if test "$mingw32" = "yes" ; then
+    sdl_libs="`echo $sdl_libs | sed s/-mwindows//g` -mconsole"
+  fi
 fi
 
 ##########################################

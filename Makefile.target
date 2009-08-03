@@ -441,10 +441,6 @@ ifeq ($(ARCH),ia64)
 LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
 
-ifdef CONFIG_WIN32
-SDL_LIBS := $(filter-out -mwindows, $(SDL_LIBS)) -mconsole
-endif
-
 # profiling code
 ifdef TARGET_GPROF
 LDFLAGS+=-p
