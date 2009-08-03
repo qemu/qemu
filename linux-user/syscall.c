@@ -6111,7 +6111,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented;
     case TARGET_NR_sigaltstack:
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_MIPS) || \
-    defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_ALPHA)
+    defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_ALPHA) || \
+    defined(TARGET_M68K)
         ret = do_sigaltstack(arg1, arg2, get_sp_from_cpustate((CPUState *)cpu_env));
         break;
 #else
