@@ -1604,6 +1604,7 @@ if test $profiler = "yes" ; then
 fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
+  CFLAGS="-I\$(SRC_PATH)/slirp $CFLAGS"
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak

@@ -135,10 +135,6 @@ obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 obj-$(CONFIG_COCOA) += cocoa.o
 obj-$(CONFIG_IOTHREAD) += qemu-thread.o
 
-ifdef CONFIG_SLIRP
-QEMU_CFLAGS+=-I$(SRC_PATH)/slirp
-endif
-
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
 slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
 slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o

@@ -313,9 +313,6 @@ obj-m68k-y += m68k-semi.o dummy_m68k.o
 ifdef CONFIG_COCOA
 COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa -framework IOKit
 endif
-ifdef CONFIG_SLIRP
-QEMU_CFLAGS+=-I$(SRC_PATH)/slirp
-endif
 
 # profiling code
 ifdef TARGET_GPROF
