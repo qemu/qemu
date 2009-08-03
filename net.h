@@ -79,7 +79,7 @@ void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
 void qemu_handler_true(void *opaque);
 
 void do_info_network(Monitor *mon);
-int do_set_link(Monitor *mon, const char *name, const char *up_or_down);
+void do_set_link(Monitor *mon, const char *name, const char *up_or_down);
 
 void do_info_usernet(Monitor *mon);
 
