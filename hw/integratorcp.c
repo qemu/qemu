@@ -526,12 +526,8 @@ static SysBusDeviceInfo core_info = {
     .qdev.name  = "integrator_core",
     .qdev.size  = sizeof(integratorcm_state),
     .qdev.props = (Property[]) {
-        {
-            .name   = "memsz",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(integratorcm_state, memsz),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("memsz", integratorcm_state, memsz, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
