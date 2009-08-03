@@ -118,7 +118,7 @@ typedef struct ChannelState {
 struct SerialState {
     SysBusDevice busdev;
     struct ChannelState chn[2];
-    int it_shift;
+    uint32_t it_shift;
     int mmio_index;
     uint32_t disabled;
     uint32_t frequency;
@@ -952,42 +952,15 @@ static SysBusDeviceInfo escc_info = {
     .qdev.name  = "escc",
     .qdev.size  = sizeof(SerialState),
     .qdev.props = (Property[]) {
-        {
-            .name = "frequency",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, frequency),
-        },
-        {
-            .name = "it_shift",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, it_shift),
-        },
-        {
-            .name = "disabled",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, disabled),
-        },
-        {
-            .name = "chrB",
-            .info = &qdev_prop_ptr,
-            .offset = offsetof(SerialState, chn[0].chr),
-        },
-        {
-            .name = "chrA",
-            .info = &qdev_prop_ptr,
-            .offset = offsetof(SerialState, chn[1].chr),
-        },
-        {
-            .name = "chnBtype",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, chn[0].type),
-        },
-        {
-            .name = "chnAtype",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SerialState, chn[1].type),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("frequency", SerialState, frequency,   0),
+        DEFINE_PROP_UINT32("it_shift",  SerialState, it_shift,    0),
+        DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
+        DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
+        DEFINE_PROP_UINT32("chnBtype",  SerialState, chn[0].type, 0),
+        DEFINE_PROP_UINT32("chnAtype",  SerialState, chn[1].type, 0),
+        DEFINE_PROP_CHR("chrB", SerialState, chn[0].chr),
+        DEFINE_PROP_CHR("chrA", SerialState, chn[1].chr),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
