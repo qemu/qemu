@@ -202,7 +202,6 @@ signal.o: CFLAGS += $(HELPER_CFLAGS)
 ARLIBS=../libqemu_user.a libqemu.a
 endif #CONFIG_LINUX_USER
 
-LIBS+= $(PTHREADLIBS)
 LIBS+= $(CLOCKLIBS)
 
 #########################################################

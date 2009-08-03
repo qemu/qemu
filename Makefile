@@ -27,7 +27,6 @@ else
 DOCS=
 endif
 
-LIBS+=$(PTHREADLIBS)
 LIBS+=$(CLOCKLIBS)
 
 ifdef CONFIG_SOLARIS
