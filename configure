@@ -20,6 +20,16 @@ TMPSDLLOG="${TMPDIR1}/qemu-conf-sdl-$$-${RANDOM}.log"
 
 trap "rm -f $TMPC $TMPO $TMPE $TMPS $TMPI $TMPSDLLOG; exit" 0 2 3 15
 
+compile_object() {
+  $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
+}
+
+compile_prog() {
+  local_cflags="$1"
+  local_ldflags="$2"
+  $cc $CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags > /dev/null 2> /dev/null
+}
+
 # default parameters
 cpu=""
 prefix=""
@@ -68,7 +78,7 @@ cat > $TMPC <<EOF
 int main(void) {}
 EOF
 
-if $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
+if compile_object ; then
   : C compiler works ok
 else
     echo "ERROR: \"$cc\" either does not exist or does not work"
@@ -82,7 +92,7 @@ cat > $TMPC <<EOF
 #endif
 int main(void) { return 0; }
 EOF
-  $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
+  compile_object
 }
 
 if test ! -z "$cpu" ; then
@@ -778,7 +788,7 @@ int main(int argc, char ** argv){
 }
 EOF
 
-if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
 $TMPE && bigendian="yes"
 else
 echo big/little test failed
@@ -824,7 +834,7 @@ void foo()
 }
 EOF
 
-if $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
+if compile_object ; then
   :
 else
    nptl="no"
@@ -837,7 +847,7 @@ cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC -lz > /dev/null 2> /dev/null ; then
+if compile_prog "" "-lz" ; then
     :
 else
     echo
@@ -857,7 +867,7 @@ if test "$xen" = "yes" ; then
 #include <xs.h>
 int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
-  if $cc $CFLAGS -c -o $TMPO $TMPC $LDFLAGS $xen_libs 2> /dev/null > /dev/null ; then
+  if compile_prog "" "$xen_libs" ; then
     :
   else
     xen="no"
@@ -878,7 +888,7 @@ int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
   sdl_cflags=`sdl-config --cflags 2> /dev/null`
   sdl_libs=`sdl-config --libs 2> /dev/null`
-  if $cc $CFLAGS -o $TMPE $sdl_cflags $TMPC $sdl_libs > $TMPSDLLOG 2>&1 ; then
+  if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     _sdlversion=`sdl-config --version | sed 's/[^0-9]//g'`
     if test "$_sdlversion" -lt 121 ; then
       sdl_too_old=yes
@@ -895,7 +905,7 @@ EOF
          sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
          sdl_cflags="$sd_cflags `aalib-config --cflags >2 /dev/null`"
       fi
-      if $cc -o $TMPE $CFLAGS $sdl_cflags $TMPC $sdl_libs > /dev/null 2> /dev/null; then
+      if compile_prog "$sdl_cflags" "$sdl_libs" ; then
 	:
       else
         sdl=no
@@ -914,7 +924,7 @@ if test "$sdl" = "yes" ; then
 #endif
 int main(void) { return 0; }
 EOF
-  if $cc $CFLAGS -o $TMPE $sdl_cflags $TMPC $sdl_libs > /dev/null 2>&1 ; then
+  if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     sdl_libs="$sdl_libs -lX11"
   fi
 fi
@@ -928,8 +938,7 @@ int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
     vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
     vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
-    if $cc $CFLAGS -o $TMPE $vnc_tls_cflags $TMPC \
-           $vnc_tls_libs > /dev/null 2> /dev/null ; then
+    if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
 	:
     else
 	vnc_tls="no"
@@ -947,8 +956,7 @@ EOF
     # Assuming Cyrus-SASL installed in /usr prefix
     vnc_sasl_cflags=""
     vnc_sasl_libs="-lsasl2"
-    if $cc $CFLAGS -o $TMPE $vnc_sasl_cflags $TMPC \
-           $vnc_sasl_libs 2> /dev/null > /dev/null ; then
+    if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
 	:
     else
 	vnc_sasl="no"
@@ -966,7 +974,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
    fnmatch="yes"
 fi
 
@@ -984,7 +992,7 @@ int main(void)
     return 0;
 }
 EOF
-  if $cc $CFLAGS -o $TMPE $TMPC $vde_libs > /dev/null 2> /dev/null ; then
+  if compile_prog "" "$vde_libs" ; then
     vde=yes
   fi
 fi
@@ -1003,7 +1011,7 @@ audio_drv_probe()
 #include <$hdr>
 int main(void) { $exp }
 EOF
-    if $cc $CFLAGS $cfl -o $TMPE $TMPC $lib > /dev/null 2> /dev/null ; then
+    if compile_prog "$cfl" "$lib" ; then
         :
     else
         echo
@@ -1068,7 +1076,7 @@ if test "$brlapi" = "yes" ; then
 #include <brlapi.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
-  if $cc $CFLAGS -o $TMPE $TMPC $brlapi_libs > /dev/null 2> /dev/null ; then
+  if compile_prog "" "$brlapi_libs" ; then
     brlapi=yes
   fi
 fi
@@ -1084,9 +1092,9 @@ if test "$curses" = "yes" ; then
 #endif
 int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
-  if $cc $CFLAGS -o $TMPE $TMPC -lncurses > /dev/null 2> /dev/null ; then
+  if compile_prog "" "-lncurses" ; then
     curses_libs="-lncurses"
-  elif $cc $CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
+  elif compile_prog "" "-lcurses" ; then
     curses_libs="-lcurses"
   else
     curses=no
@@ -1103,7 +1111,7 @@ if test "$curl" = "yes" ; then
 int main(void) { return curl_easy_init(); }
 EOF
   curl_libs=`curl-config --libs 2>/dev/null`
- if $cc $CFLAGS $curl_libs -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+ if compile_prog "" "$curl_libs" ; then
     curl=yes
   fi
 fi # test "$curl"
@@ -1120,8 +1128,7 @@ int main(void) { return bt_error(0); }
 EOF
   bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
   bluez_libs=`pkg-config --libs bluez 2> /dev/null`
-  if $cc $CFLAGS -o $TMPE $bluez_cflags $TMPC \
-      $bluez_libs > /dev/null 2> /dev/null ; then
+  if compile_prog "$bluez_cflags" "$bluez_libs" ; then
     :
   else
     bluez="no"
@@ -1160,8 +1167,7 @@ EOF
   else
       kvm_cflags=""
   fi
-  if $cc $CFLAGS -o $TMPE $kvm_cflags $TMPC \
-      > /dev/null 2>/dev/null ; then
+  if compile_prog "$kvm_cflags" "" ; then
     :
   else
     kvm="no";
@@ -1191,7 +1197,7 @@ cat > $TMPC << EOF
 int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
   for pthread_lib in $PTHREADLIBS_LIST; do
-    if $cc $CFLAGS -o $TMPE $TMPC $pthread_lib 2> /dev/null > /dev/null ; then
+    if compile_prog "" "$pthread_lib" ; then
       pthread=yes
       PTHREADLIBS="$pthread_lib"
       break
@@ -1213,7 +1219,7 @@ cat > $TMPC <<EOF
 int main(void) { struct iovec iov; return 0; }
 EOF
 iovec=no
-if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
   iovec=yes
 fi
 
@@ -1226,7 +1232,7 @@ cat > $TMPC <<EOF
 int main(void) { preadv; }
 EOF
 preadv=no
-if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
   preadv=yes
 fi
 
@@ -1238,7 +1244,7 @@ if test "$fdt" = "yes" ; then
   cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
-  if $cc $CFLAGS -o $TMPE $TMPC $fdt_libs 2> /dev/null > /dev/null ; then
+  if compile_prog "" "$fdt_libs" ; then
     fdt=yes
   fi
 fi
@@ -1262,7 +1268,7 @@ main(void)
 	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
 }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+if compile_prog "" "" ; then
   atfile=yes
 fi
 
@@ -1282,7 +1288,7 @@ main(void)
 	return inotify_init();
 }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
+if compile_prog "" "" ; then
   inotify=yes
 fi
 
@@ -1301,7 +1307,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   utimens=yes
 fi
 
@@ -1319,7 +1325,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   pipe2=yes
 fi
 
@@ -1339,7 +1345,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   splice=yes
 fi
 
@@ -1354,7 +1360,7 @@ cat > $TMPC << EOF
 #include <byteswap.h>
 int main(void) { return bswap_32(0); }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
   byteswap_h=yes
 fi
 
@@ -1366,7 +1372,7 @@ cat > $TMPC << EOF
 #include <machine/bswap.h>
 int main(void) { return bswap32(0); }
 EOF
-if $cc $CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
   bswap_h=yes
 fi
 
@@ -1378,9 +1384,9 @@ cat > $TMPC <<EOF
 int main(void) { clockid_t id; return clock_gettime(id, NULL); }
 EOF
 
-if $cc $CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+if compile_prog "" "" ; then
   CLOCKLIBS=""
-elif $cc $CFLAGS -o $TMPE $TMPC -lrt > /dev/null 2> /dev/null ; then
+elif compile_prog "" "-lrt" ; then
   CLOCKLIBS="-lrt"
 fi
 
@@ -1391,7 +1397,7 @@ check_linker_flags()
     if test "$2" ; then
 	w2=-Wl,$2
     fi
-    $cc $CFLAGS -o $TMPE $TMPC -Wl,$1 ${w2} >/dev/null 2>/dev/null
+    compile_prog "" "-Wl,$1 ${w2}"
 }
 
 cat > $TMPC << EOF
