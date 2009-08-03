@@ -364,10 +364,6 @@ ifdef CONFIG_SLIRP
 QEMU_CFLAGS+=-I$(SRC_PATH)/slirp
 endif
 
-ifeq ($(ARCH),ia64)
-LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
-endif
-
 # profiling code
 ifdef TARGET_GPROF
 LDFLAGS+=-p
