@@ -219,12 +219,8 @@ static SysBusDeviceInfo arm_sysctl_info = {
     .qdev.name  = "realview_sysctl",
     .qdev.size  = sizeof(arm_sysctl_state),
     .qdev.props = (Property[]) {
-        {
-            .name   = "sys_id",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(arm_sysctl_state, sys_id),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
