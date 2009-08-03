@@ -32,8 +32,7 @@ QEMU_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 endif
 endif
 
-kvm.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
-kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
+kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
 all: $(PROGS)
 # Dummy command so that make thinks it has done something
