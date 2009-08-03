@@ -668,22 +668,10 @@ static SysBusDeviceInfo m48t59_info = {
     .qdev.name  = "m48t59",
     .qdev.size  = sizeof(m48t59_t),
     .qdev.props = (Property[]) {
-        {
-            .name   = "size",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(m48t59_t, size),
-            .defval = (uint32_t[]) { -1 },
-        },{
-            .name   = "type",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(m48t59_t, type),
-            .defval = (uint32_t[]) { -1 },
-        },{
-            .name   = "io_base",
-            .info   = &qdev_prop_hex32,
-            .offset = offsetof(m48t59_t, io_base),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("size",    m48t59_t, size,    -1),
+        DEFINE_PROP_UINT32("type",    m48t59_t, type,    -1),
+        DEFINE_PROP_HEX32( "io_base", m48t59_t, io_base,  0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
