@@ -167,6 +167,7 @@ LIBS+=$(VDE_LIBS)
 obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
 obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
+CPPFLAGS+=$(CURL_CFLAGS)
 LIBS+=$(CURL_LIBS)
 
 cocoa.o: cocoa.m

@@ -1107,8 +1107,9 @@ if test "$curl" = "yes" ; then
 #include <curl/curl.h>
 int main(void) { return curl_easy_init(); }
 EOF
+  curl_cflags=`curl-config --cflags 2>/dev/null`
   curl_libs=`curl-config --libs 2>/dev/null`
- if compile_prog "" "$curl_libs" ; then
+  if compile_prog "$curl_cflags" "$curl_libs" ; then
     curl=yes
   fi
 fi # test "$curl"
@@ -1695,6 +1696,7 @@ if test "$bswap_h" = "yes" ; then
 fi
 if test "$curl" = "yes" ; then
   echo "CONFIG_CURL=y" >> $config_host_mak
+  echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
   echo "CURL_LIBS=$curl_libs" >> $config_host_mak
 fi
 if test "$brlapi" = "yes" ; then
