@@ -219,18 +219,9 @@ static SysBusDeviceInfo xilinx_timer_info = {
     .qdev.name  = "xilinx,timer",
     .qdev.size  = sizeof(struct timerblock),
     .qdev.props = (Property[]) {
-        {
-            .name   = "frequency",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(struct timerblock, freq_hz),
-            .defval = (uint32_t[]) { 2 },
-        },{
-            .name   = "nr-timers",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(struct timerblock, nr_timers),
-            .defval = (uint32_t[]) { 2 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("frequency", struct timerblock, freq_hz,   0),
+        DEFINE_PROP_UINT32("nr-timers", struct timerblock, nr_timers, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
