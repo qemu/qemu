@@ -160,6 +160,44 @@ extern PropertyInfo qdev_prop_macaddr;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_pci_devfn;
 
+#define typeof_field(type, field) typeof(((type *)0)->field)
+#define type_check(t1,t2) ((t1*)0 - (t2*)0)
+
+#define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
+        .name      = (_name),                                    \
+        .info      = &(_prop),                                   \
+        .offset    = offsetof(_state, _field)                    \
+            + type_check(_type,typeof_field(_state, _field)),    \
+        }
+#define DEFINE_PROP_DEFAULT(_name, _state, _field, _defval, _prop, _type) { \
+        .name      = (_name),                                           \
+        .info      = &(_prop),                                          \
+        .offset    = offsetof(_state, _field)                           \
+            + type_check(_type,typeof_field(_state, _field)),           \
+        .defval    = (_type[]) { _defval },                             \
+        }
+
+#define DEFINE_PROP_UINT16(_n, _s, _f, _d)                      \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint16, uint16_t)
+#define DEFINE_PROP_UINT32(_n, _s, _f, _d)                      \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint32, uint32_t)
+#define DEFINE_PROP_UINT64(_n, _s, _f, _d)                      \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint64, uint64_t)
+#define DEFINE_PROP_HEX32(_n, _s, _f, _d)                       \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex32, uint32_t)
+#define DEFINE_PROP_HEX64(_n, _s, _f, _d)                       \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex64, uint64_t)
+#define DEFINE_PROP_PCI_DEVFN(_n, _s, _f, _d)                   \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_pci_devfn, uint32_t)
+
+#define DEFINE_PROP_PTR(_n, _s, _f)             \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_ptr, void*)
+#define DEFINE_PROP_MACADDR(_n, _s, _f)         \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, uint8_t[6])
+
+#define DEFINE_PROP_END_OF_LIST()               \
+    {}
+
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
