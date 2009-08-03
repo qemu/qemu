@@ -58,6 +58,30 @@ for opt do
   ;;
   --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
   ;;
+  --sparc_cpu=*)
+    sparc_cpu="$optarg"
+    case $sparc_cpu in
+    v7|v8)
+      CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $CFLAGS"
+      LDFLAGS="-m32 $LDFLAGS"
+      cpu="sparc"
+    ;;
+    v8plus|v8plusa)
+      CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
+      LDFLAGS="-m32 $LDFLAGS"
+      cpu="sparc"
+    ;;
+    v9)
+      CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
+      LDFLAGS="-m64 $LDFLAGS"
+      cpu="sparc64"
+    ;;
+    *)
+      echo "undefined SPARC architecture. Exiting";
+      exit 1
+    ;;
+    esac
+  ;;
   esac
 done
 
@@ -489,28 +513,6 @@ for opt do
   --enable-uname-release=*) uname_release="$optarg"
   ;;
   --sparc_cpu=*)
-      sparc_cpu="$optarg"
-      case $sparc_cpu in
-        v7|v8)
-          CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $CFLAGS"
-          LDFLAGS="-m32 $LDFLAGS"
-          cpu="sparc"
-        ;;
-        v8plus|v8plusa)
-          CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
-          LDFLAGS="-m32 $LDFLAGS"
-          cpu="sparc"
-        ;;
-        v9)
-          CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
-          LDFLAGS="-m64 $LDFLAGS"
-          cpu="sparc64"
-        ;;
-        *)
-          echo "undefined SPARC architecture. Exiting";
-          exit 1
-        ;;
-      esac
   ;;
   --enable-werror) werror="yes"
   ;;
