@@ -2078,6 +2078,9 @@ alpha)
   # Ensure there's only a single GP
   cflags="-msmall-data $cflags"
 ;;
+ia64)
+  cflags="-mno-sdata $cflags"
+;;
 esac
 
 linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"

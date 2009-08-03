@@ -23,10 +23,6 @@ ifeq ($(subst ppc64,ppc,$(ARCH))$(TARGET_BASE_ARCH),ppcppc)
 translate.o: QEMU_CFLAGS := $(QEMU_CFLAGS) $(call cc-option, $(QEMU_CFLAGS), -fno-unit-at-a-time,)
 endif
 
-ifeq ($(ARCH),ia64)
-QEMU_CFLAGS+=-mno-sdata
-endif
-
 LIBS+=-lm
 ifdef CONFIG_SOLARIS
 ifdef CONFIG_NEEDS_LIBSUNMATH
