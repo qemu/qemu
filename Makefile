@@ -27,10 +27,6 @@ else
 DOCS=
 endif
 
-ifdef CONFIG_WIN32
-LIBS+=-lwinmm -lws2_32 -liphlpapi
-endif
-
 build-all: $(TOOLS) $(DOCS) recurse-all
 
 config-host.mak: configure

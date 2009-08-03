@@ -355,6 +355,7 @@ if test "$mingw32" = "yes" ; then
   fi
   EXESUF=".exe"
   CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
+  LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 fi
 
 # find source path
