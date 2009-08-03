@@ -904,7 +904,7 @@ EOF
     vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
     vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
     if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
-	:
+	libs_softmmu="$vnc_tls_libs $libs_softmmu"
     else
 	vnc_tls="no"
     fi
@@ -1628,7 +1628,6 @@ fi
 if test "$vnc_tls" = "yes" ; then
   echo "CONFIG_VNC_TLS=y" >> $config_host_mak
   echo "VNC_TLS_CFLAGS=$vnc_tls_cflags" >> $config_host_mak
-  echo "VNC_TLS_LIBS=$vnc_tls_libs" >> $config_host_mak
 fi
 if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
