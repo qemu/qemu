@@ -16,12 +16,6 @@ case $line in
     arch_name=`echo $arch | tr '[:lower:]' '[:upper:]'`
     echo "#define HOST_$arch_name 1"
     ;;
- CONFIG__sparc_*=y) # configuration
-    name=${line%=*}
-    name=${name#CONFIG}
-    value=${line#*=}
-    echo "#define $name $value"
-    ;;
  CONFIG_AUDIO_DRIVERS=*)
     drivers=${line#*=}
     echo "#define CONFIG_AUDIO_DRIVERS \\"

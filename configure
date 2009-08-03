@@ -1599,9 +1599,6 @@ if test "$solaris" = "yes" ; then
     echo "CONFIG_NEEDS_LIBSUNMATH=y" >> $config_host_mak
   fi
 fi
-if test -n "$sparc_cpu"; then
-  echo "CONFIG__sparc_${sparc_cpu}__=y" >> $config_host_mak
-fi
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> $config_host_mak
 fi
