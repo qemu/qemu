@@ -1589,4 +1589,15 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = env->hflags;
 }
 
+static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
+{
+#if defined(TARGET_PPC64)
+    /* The kernel checks TIF_32BIT here; we don't support loading 32-bit
+       binaries on PPC64 yet. */
+    env->gpr[13] = newtls;
+#else
+    env->gpr[2] = newtls;
+#endif
+}
+
 #endif /* !defined (__CPU_PPC_H__) */
