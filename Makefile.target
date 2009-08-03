@@ -3,7 +3,7 @@ include $(SRC_PATH)/rules.mak
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
-CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
+QEMU_CFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
 
 ifdef CONFIG_USER_ONLY
 # user emulator name
@@ -26,7 +26,7 @@ HELPER_CFLAGS+=-fomit-frame-pointer
 endif
 
 ifeq ($(subst ppc64,ppc,$(ARCH))$(TARGET_BASE_ARCH),ppcppc)
-translate.o: CFLAGS := $(CFLAGS) $(call cc-option, $(CFLAGS), -fno-unit-at-a-time,)
+translate.o: QEMU_CFLAGS := $(QEMU_CFLAGS) $(call cc-option, $(QEMU_CFLAGS), -fno-unit-at-a-time,)
 endif
 
 ifeq ($(ARCH),sparc)
@@ -37,26 +37,26 @@ endif
 
 ifeq ($(ARCH),alpha)
 # Ensure there's only a single GP
-CFLAGS+=-msmall-data
+QEMU_CFLAGS+=-msmall-data
 endif
 
 ifeq ($(ARCH),ia64)
-CFLAGS+=-mno-sdata
+QEMU_CFLAGS+=-mno-sdata
 endif
 
-CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
-CPPFLAGS+=-U_FORTIFY_SOURCE
+QEMU_CFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+QEMU_CFLAGS+=-U_FORTIFY_SOURCE
 LIBS+=-lm
 ifdef CONFIG_SOLARIS
 ifdef CONFIG_NEEDS_LIBSUNMATH
 LIBS+=-lsunmath
 LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
-CFLAGS+=-I/opt/SUNWspro/prod/include/cc
+QEMU_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 endif
 endif
 
-kvm.o: CFLAGS+=$(KVM_CFLAGS)
-kvm-all.o: CFLAGS+=$(KVM_CFLAGS)
+kvm.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
+kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
 all: $(PROGS)
 # Dummy command so that make thinks it has done something
@@ -68,16 +68,16 @@ libobj-y = exec.o translate-all.o cpu-exec.o translate.o host-utils.o
 libobj-$(CONFIG_KQEMU) += kqemu.o
 # TCG code generator
 libobj-y += tcg/tcg.o tcg/tcg-runtime.o
-CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
+QEMU_CFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
 ifeq ($(ARCH),sparc64)
-CPPFLAGS+=-I$(SRC_PATH)/tcg/sparc
+QEMU_CFLAGS+=-I$(SRC_PATH)/tcg/sparc
 endif
 ifdef CONFIG_SOFTFLOAT
 libobj-y += fpu/softfloat.o
 else
 libobj-y += fpu/softfloat-native.o
 endif
-CPPFLAGS+=-I$(SRC_PATH)/fpu
+QEMU_CFLAGS+=-I$(SRC_PATH)/fpu
 libobj-y += op_helper.o helper.o
 
 ifeq ($(TARGET_BASE_ARCH), arm)
@@ -151,9 +151,9 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-op_helper.o: CFLAGS += $(HELPER_CFLAGS)
+op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
-cpu-exec.o: CFLAGS += $(HELPER_CFLAGS)
+cpu-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
 # Linux user emulator target
@@ -161,12 +161,12 @@ cpu-exec.o: CFLAGS += $(HELPER_CFLAGS)
 ifdef CONFIG_LINUX_USER
 
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
-CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
+QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
 # profiling code
 ifdef TARGET_GPROF
 LDFLAGS+=-p
-CFLAGS+=-p
+QEMU_CFLAGS+=-p
 endif
 
 obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
@@ -192,7 +192,7 @@ obj-m68k-y += m68k-sim.o m68k-semi.o
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: CFLAGS += $(HELPER_CFLAGS)
+signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 ARLIBS=../libqemu_user.a libqemu.a
 endif #CONFIG_LINUX_USER
@@ -203,7 +203,7 @@ endif #CONFIG_LINUX_USER
 ifdef CONFIG_DARWIN_USER
 
 VPATH+=:$(SRC_PATH)/darwin-user
-CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
+QEMU_CFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
 
 # Leave some space for the regular program loading zone
 LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
@@ -215,7 +215,7 @@ obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: CFLAGS += $(HELPER_CFLAGS)
+signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 ARLIBS=libqemu.a
 
@@ -227,7 +227,7 @@ endif #CONFIG_DARWIN_USER
 ifdef CONFIG_BSD_USER
 
 VPATH+=:$(SRC_PATH)/bsd-user
-CPPFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
+QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o ioport-user.o
@@ -235,7 +235,7 @@ obj-y += uaccess.o
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: CFLAGS += $(HELPER_CFLAGS)
+signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 ARLIBS=libqemu.a ../libqemu_user.a
 
@@ -281,16 +281,16 @@ sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
 sound-obj-$(CONFIG_CS4231A) += cs4231a.o
 
 ifdef CONFIG_ADLIB
-adlib.o fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
+adlib.o fmopl.o: QEMU_CFLAGS := ${QEMU_CFLAGS} -DBUILD_Y8950=0
 endif
 
 ifdef CONFIG_VNC_TLS
-CPPFLAGS += $(VNC_TLS_CFLAGS)
+QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 LIBS += $(VNC_TLS_LIBS)
 endif
 
 ifdef CONFIG_VNC_SASL
-CPPFLAGS += $(VNC_SASL_CFLAGS)
+QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 LIBS += $(VNC_SASL_LIBS)
 endif
 
@@ -325,7 +325,7 @@ obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
-CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+QEMU_CFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
 # shared objects
@@ -347,7 +347,7 @@ obj-ppc-y += ppce500_pci.o ppce500_mpc8544ds.o
 obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
 
 ifeq ($(TARGET_BASE_ARCH), ppc)
-CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+QEMU_CFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
 obj-ppc-$(CONFIG_FDT) += device_tree.o
@@ -363,7 +363,7 @@ obj-mips-y += pflash_cfi01.o
 obj-mips-y += vmware_vga.o
 
 ifeq ($(TARGET_BASE_ARCH), mips)
-CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+QEMU_CFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
@@ -424,7 +424,7 @@ obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 obj-arm-y += syborg_virtio.o
 
 ifeq ($(TARGET_BASE_ARCH), arm)
-CPPFLAGS += -DHAS_AUDIO
+QEMU_CFLAGS += -DHAS_AUDIO
 endif
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
@@ -441,7 +441,7 @@ COCOA_LIBS+=-framework CoreAudio
 endif
 endif
 ifdef CONFIG_SLIRP
-CPPFLAGS+=-I$(SRC_PATH)/slirp
+QEMU_CFLAGS+=-I$(SRC_PATH)/slirp
 endif
 
 # specific flags are needed for non soft mmu emulator
@@ -455,7 +455,7 @@ endif
 endif
 endif
 ifdef TARGET_GPROF
-vl.o: CFLAGS+=-p
+vl.o: QEMU_CFLAGS+=-p
 LDFLAGS+=-p
 endif
 
@@ -470,10 +470,10 @@ endif
 # profiling code
 ifdef TARGET_GPROF
 LDFLAGS+=-p
-main.o: CFLAGS+=-p
+main.o: QEMU_CFLAGS+=-p
 endif
 
-vl.o: CFLAGS+=$(SDL_CFLAGS)
+vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 
 vl.o: qemu-options.h
 

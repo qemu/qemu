@@ -18,13 +18,13 @@ TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
 trap "rm -f $TMPC $TMPO $TMPE ; exit" 0 2 3 15
 
 compile_object() {
-  $cc $CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
+  $cc $QEMU_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
 }
 
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  $cc $CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags > /dev/null 2> /dev/null
+  $cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags > /dev/null 2> /dev/null
 }
 
 # default parameters
@@ -55,7 +55,7 @@ for opt do
   ;;
   --cpu=*) cpu="$optarg"
   ;;
-  --extra-cflags=*) CFLAGS="$optarg $CFLAGS"
+  --extra-cflags=*) QEMU_CFLAGS="$optarg $QEMU_CFLAGS"
   ;;
   --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
   ;;
@@ -224,7 +224,7 @@ fi
 case $targetos in
 CYGWIN*)
   mingw32="yes"
-  CFLAGS="-mno-cygwin $CFLAGS"
+  QEMU_CFLAGS="-mno-cygwin $QEMU_CFLAGS"
   audio_possible_drivers="sdl"
 ;;
 MINGW32*)
@@ -277,10 +277,10 @@ Darwin)
     [ "$is_x86_64" = "1" ] && cpu=x86_64
   fi
   if [ "$cpu" = "x86_64" ] ; then
-    CFLAGS="-arch x86_64 $CFLAGS"
+    QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
   else
-    CFLAGS="-mdynamic-no-pic $CFLAGS"
+    QEMU_CFLAGS="-mdynamic-no-pic $QEMU_CFLAGS"
   fi
   darwin_user="yes"
   cocoa="yes"
@@ -320,7 +320,7 @@ SunOS)
     audio_drv_list="oss"
   fi
   audio_possible_drivers="oss sdl"
-  CFLAGS="-std=gnu99 $CFLAGS"
+  QEMU_CFLAGS="-std=gnu99 $QEMU_CFLAGS"
   LIBS="-lsocket -lnsl -lresolv $LIBS"
 ;;
 AIX)
@@ -354,7 +354,7 @@ if test "$mingw32" = "yes" ; then
     kqemu="yes"
   fi
   EXESUF=".exe"
-  CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $CFLAGS"
+  QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 fi
 
@@ -515,44 +515,44 @@ done
 
 #
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
-# CFLAGS/LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
+# QEMU_CFLAGS/LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
 #
 host_guest_base="no"
 case "$cpu" in
     sparc) case $sparc_cpu in
            v7|v8)
-             CFLAGS="-mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $CFLAGS"
+             QEMU_CFLAGS="-mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $QEMU_CFLAGS"
            ;;
            v8plus|v8plusa)
-             CFLAGS="-mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $CFLAGS"
+             QEMU_CFLAGS="-mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $QEMU_CFLAGS"
            ;;
            *) # sparc_cpu not defined in the command line
-             CFLAGS="-mcpu=ultrasparc -D__sparc_v8plus__ $CFLAGS"
+             QEMU_CFLAGS="-mcpu=ultrasparc -D__sparc_v8plus__ $QEMU_CFLAGS"
            esac
            LDFLAGS="-m32 $LDFLAGS"
-           CFLAGS="-m32 -ffixed-g2 -ffixed-g3 $CFLAGS"
+           QEMU_CFLAGS="-m32 -ffixed-g2 -ffixed-g3 $QEMU_CFLAGS"
            if test "$solaris" = "no" ; then
-             CFLAGS="-ffixed-g1 -ffixed-g6 $CFLAGS"
+             QEMU_CFLAGS="-ffixed-g1 -ffixed-g6 $QEMU_CFLAGS"
            fi
            ;;
     sparc64)
-           CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__ $CFLAGS"
+           QEMU_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__ $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
-           CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $CFLAGS"
+           QEMU_CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $QEMU_CFLAGS"
            if test "$solaris" != "no" ; then
-             CFLAGS="-ffixed-g1 $CFLAGS"
+             QEMU_CFLAGS="-ffixed-g1 $QEMU_CFLAGS"
            fi
            ;;
     s390)
-           CFLAGS="-march=z900 $CFLAGS"
+           QEMU_CFLAGS="-march=z900 $QEMU_CFLAGS"
            ;;
     i386)
-           CFLAGS="-m32 $CFLAGS"
+           QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
            LDFLAGS="-m32 $LDFLAGS"
            host_guest_base="yes"
            ;;
     x86_64)
-           CFLAGS="-m64 $CFLAGS"
+           QEMU_CFLAGS="-m64 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
            host_guest_base="yes"
            ;;
@@ -588,7 +588,7 @@ echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
-echo "  --extra-cflags=CFLAGS    append extra C compiler flags CFLAGS"
+echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
@@ -1131,7 +1131,7 @@ EOF
     kvm="no";
     if [ -x "`which awk 2>/dev/null`" ] && \
        [ -x "`which grep 2>/dev/null`" ]; then
-      kvmerr=`LANG=C $cc $CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
+      kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
       if test "$kvmerr" != "" ; then
@@ -1382,11 +1382,12 @@ fi
 # After here, no more $cc or $ld runs
 
 # default flags for all hosts
-CFLAGS="-g -fno-strict-aliasing $CFLAGS"
+QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
+CFLAGS="-g $CFLAGS"
 if test "$debug" = "no" ; then
   CFLAGS="-O2 $CFLAGS"
 fi
-CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls $CFLAGS"
+QEMU_CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 LDFLAGS="-g $LDFLAGS"
 
 # Consult white-list to determine whether to enable werror
@@ -1402,7 +1403,7 @@ if test -z "$werror" ; then
 fi
 
 if test "$werror" = "yes" ; then
-    CFLAGS="-Werror $CFLAGS"
+    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 if test "$solaris" = "no" ; then
@@ -1440,6 +1441,7 @@ echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
 echo "CFLAGS            $CFLAGS"
+echo "QEMU_CFLAGS       $QEMU_CFLAGS"
 echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
@@ -1740,12 +1742,13 @@ echo "HOST_CC=$host_cc" >> $config_host_mak
 if test "$sparse" = "yes" ; then
   echo "CC      := REAL_CC=\"\$(CC)\" cgcc"       >> $config_host_mak
   echo "HOST_CC := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
-  echo "CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
+  echo "QEMU_CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
 fi
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
+echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
@@ -2116,5 +2119,5 @@ for hwlib in 32 64; do
   rm -f $d/Makefile
   ln -s $source_path/Makefile.hw $d/Makefile
   echo "HWLIB=libqemuhw$hwlib.a" > $d/config.mak
-  echo "CPPFLAGS=-DTARGET_PHYS_ADDR_BITS=$hwlib" >> $d/config.mak
+  echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" >> $d/config.mak
 done
