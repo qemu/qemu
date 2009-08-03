@@ -2073,7 +2073,8 @@ fi
 cflags=""
 ldflags=""
 linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
-if test "$target_linux_user" = "yes" -o "$target_linux_user" = "yes" ; then
+
+if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
   i386)
     if test "$gprof" = "yes" -o "$static" = "yes" ; then
