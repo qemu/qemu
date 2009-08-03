@@ -309,6 +309,9 @@ SunOS)
     if test "$solarisrev" -le 9 ; then
       if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
         needs_libsunmath="yes"
+        QEMU_CFLAGS="-I/opt/SUNWspro/prod/include/cc $QEMU_CFLAGS"
+        LDFLAGS="-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib $LDFLAGS"
+        LIBS="-lsunmath $LIBS"
       else
         echo "QEMU will not link correctly on Solaris 8/X86 or 9/x86 without"
         echo "libsunmath from the Sun Studio compilers tools, due to a lack of"

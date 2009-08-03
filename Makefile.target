@@ -24,13 +24,6 @@ translate.o: QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-unit-at-a-tim
 endif
 
 LIBS+=-lm
-ifdef CONFIG_SOLARIS
-ifdef CONFIG_NEEDS_LIBSUNMATH
-LIBS+=-lsunmath
-LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
-QEMU_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
-endif
-endif
 
 kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
