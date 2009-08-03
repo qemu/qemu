@@ -227,18 +227,9 @@ static SysBusDeviceInfo syborg_pointer_info = {
     .qdev.name  = "syborg,pointer",
     .qdev.size  = sizeof(SyborgPointerState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "fifo-size",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(SyborgPointerState, fifo_size),
-            .defval = (uint32_t[]) { 16 },
-        },{
-            .name   = "absolute",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(SyborgPointerState, absolute),
-            .defval = (uint32_t[]) { 1 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("fifo-size", SyborgPointerState, fifo_size, 16),
+        DEFINE_PROP_UINT32("absolute",  SyborgPointerState, absolute,   1),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
