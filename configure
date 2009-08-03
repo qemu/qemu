@@ -1387,7 +1387,8 @@ CFLAGS="-g $CFLAGS"
 if test "$debug" = "no" ; then
   CFLAGS="-O2 $CFLAGS"
 fi
-QEMU_CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 LDFLAGS="-g $LDFLAGS"
 
 # Consult white-list to determine whether to enable werror
