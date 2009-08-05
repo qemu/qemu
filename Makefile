@@ -93,7 +93,7 @@ obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o
-obj-$(CONFIG_POSIX) += migration-exec.o
+obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o
 
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 

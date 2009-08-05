@@ -43,6 +43,8 @@ void qemu_start_incoming_migration(const char *uri)
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
         exec_start_incoming_migration(p);
+    else if (strstart(uri, "unix:", &p))
+        unix_start_incoming_migration(p);
 #endif
     else
         fprintf(stderr, "unknown migration protocol: %s\n", uri);
@@ -58,6 +60,8 @@ void do_migrate(Monitor *mon, int detach, const char *uri)
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
         s = exec_start_outgoing_migration(p, max_throttle, detach);
+    else if (strstart(uri, "unix:", &p))
+        s = unix_start_outgoing_migration(p, max_throttle, detach);
 #endif
     else
         monitor_printf(mon, "unknown migration protocol: %s\n", uri);
