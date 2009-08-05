@@ -73,10 +73,7 @@ MigrationState *exec_start_outgoing_migration(const char *command,
         goto err_after_open;
     }
 
-    if (fcntl(s->fd, F_SETFD, O_NONBLOCK) == -1) {
-        dprintf("Unable to set nonblocking mode on file descriptor\n");
-        goto err_after_open;
-    }
+    socket_set_nonblock(s->fd);
 
     s->opaque = qemu_popen(f, "w");
 
