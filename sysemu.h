@@ -113,6 +113,7 @@ extern int vga_interface_type;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
+extern uint8_t irq0override;
 extern DisplayType display_type;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;

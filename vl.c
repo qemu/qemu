@@ -227,6 +227,7 @@ int no_reboot = 0;
 int no_shutdown = 0;
 int cursor_hide = 1;
 int graphic_rotate = 0;
+uint8_t irq0override = 1;
 #ifndef _WIN32
 int daemonize = 0;
 #endif
