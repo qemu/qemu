@@ -1002,6 +1002,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         break;
     case CU_SHOWSTATS:
         /* Dump statistical counters. */
+        TRACE(OTHER, logout("val=0x%02x (dump stats)\n", val));
         dump_statistics(s);
         break;
     case CU_CMD_BASE:
@@ -1011,6 +1012,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         break;
     case CU_DUMPSTATS:
         /* Dump and reset statistical counters. */
+        TRACE(OTHER, logout("val=0x%02x (dump stats and reset)\n", val));
         dump_statistics(s);
         memset(&s->statistics, 0, sizeof(s->statistics));
         break;
