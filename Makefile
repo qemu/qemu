@@ -244,8 +244,9 @@ endif
 test speed: all
 	$(MAKE) -C tests $@
 
+.PHONY: TAGS
 TAGS:
-	etags *.[ch] tests/*.[ch] block/*.[ch] hw/*.[ch]
+	find "$(SRC_PATH)" -name '*.[hc]' -print0 | xargs -0 etags
 
 cscope:
 	rm -f ./cscope.*
