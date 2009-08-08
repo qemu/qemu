@@ -55,6 +55,9 @@
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
 #define BIOS_CFG_IOPORT      0x510
+#define FW_CFG_SPARC64_WIDTH (FW_CFG_ARCH_LOCAL + 0x00)
+#define FW_CFG_SPARC64_HEIGHT (FW_CFG_ARCH_LOCAL + 0x01)
+#define FW_CFG_SPARC64_DEPTH (FW_CFG_ARCH_LOCAL + 0x02)
 
 #define MAX_PILS 16
 
@@ -652,6 +655,11 @@ static void sun4uv_init(ram_addr_t RAM_size,
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, INITRD_LOAD_ADDR);
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, boot_devices[0]);
+
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_WIDTH, graphic_width);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_HEIGHT, graphic_height);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_DEPTH, graphic_depth);
+
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
