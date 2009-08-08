@@ -98,10 +98,6 @@ struct sun4m_hwdef {
     target_phys_addr_t ecc_base;
     uint32_t ecc_version;
     long vram_size, nvram_size;
-    // IRQ numbers are not PIL ones, but master interrupt controller
-    // register bit numbers
-    int esp_irq, le_irq, clock_irq, clock1_irq;
-    int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq, ecc_irq;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
@@ -120,9 +116,6 @@ struct sun4d_hwdef {
     target_phys_addr_t tcx_base;
     target_phys_addr_t sbi_base;
     unsigned long vram_size, nvram_size;
-    // IRQ numbers are not PIL ones, but SBI register bit numbers
-    int esp_irq, le_irq, clock_irq, clock1_irq;
-    int ser_irq, ms_kb_irq, me_irq;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iounit_version;
@@ -137,10 +130,6 @@ struct sun4c_hwdef {
     target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, aux1_base;
     long vram_size, nvram_size;
-    // IRQ numbers are not PIL ones, but master interrupt controller
-    // register bit numbers
-    int esp_irq, le_irq, clock_irq, clock1_irq;
-    int ser_irq, ms_kb_irq, fd_irq, me_irq;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
@@ -778,7 +767,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     dev = slavio_intctl_init(hwdef->intctl_base,
                              hwdef->intctl_base + 0x10000ULL,
                              cpu_irqs,
-                             hwdef->clock_irq);
+                             7);
 
     for (i = 0; i < 32; i++) {
         slavio_irq[i] = qdev_get_gpio_in(dev, i);
@@ -792,13 +781,13 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     }
 
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
-                       slavio_irq[hwdef->me_irq]);
+                       slavio_irq[30]);
 
-    espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
+    espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[18],
                               iommu, &espdma_irq, &esp_reset);
 
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
-                             slavio_irq[hwdef->le_irq], iommu, &ledma_irq,
+                             slavio_irq[16], iommu, &ledma_irq,
                              &le_reset);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
@@ -813,20 +802,19 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
 
-    slavio_timer_init_all(hwdef->counter_base, slavio_irq[hwdef->clock1_irq],
-                          slavio_cpu_irq, smp_cpus);
+    slavio_timer_init_all(hwdef->counter_base, slavio_irq[19], slavio_cpu_irq, smp_cpus);
 
-    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq],
+    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[14],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], slavio_irq[hwdef->ser_irq],
+    escc_init(hwdef->serial_base, slavio_irq[15], slavio_irq[15],
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
     cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
     slavio_misc = slavio_misc_init(hwdef->slavio_base,
                                    hwdef->aux1_base, hwdef->aux2_base,
-                                   slavio_irq[hwdef->me_irq], fdc_tc);
+                                   slavio_irq[30], fdc_tc);
     if (hwdef->apc_base) {
         apc_init(hwdef->apc_base, cpu_halt[0]);
     }
@@ -838,7 +826,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         if (dinfo)
             fd[0] = dinfo->bdrv;
 
-        sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
+        sun4m_fdctrl_init(slavio_irq[22], hwdef->fd_base, fd,
                           &fdc_tc);
     }
 
@@ -853,7 +841,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     if (hwdef->cs_base) {
         sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,
-                             slavio_irq[hwdef->cs_irq]);
+                             slavio_irq[5]);
     }
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
@@ -865,7 +853,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                "Sun4m");
 
     if (hwdef->ecc_base)
-        ecc_init(hwdef->ecc_base, slavio_irq[hwdef->ecc_irq],
+        ecc_init(hwdef->ecc_base, slavio_irq[28],
                  hwdef->ecc_version);
 
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
@@ -924,15 +912,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0x71910000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
-        .cs_irq = 5,
         .nvram_machine_id = 0x80,
         .machine_id = ss5_id,
         .iommu_version = 0x05000000,
@@ -961,15 +940,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ecc_version  = 0x10000000, // version 0, implementation 1
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
-        .ecc_irq = 28,
         .nvram_machine_id = 0x72,
         .machine_id = ss10_id,
         .iommu_version = 0x03000000,
@@ -996,15 +966,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ecc_version  = 0x00000000, // version 0, implementation 0
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
-        .ecc_irq = 28,
         .nvram_machine_id = 0x71,
         .machine_id = ss600mp_id,
         .iommu_version = 0x01000000,
@@ -1033,15 +994,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ecc_version  = 0x20000000, // version 0, implementation 2
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
-        .ecc_irq = 28,
         .nvram_machine_id = 0x72,
         .machine_id = ss20_id,
         .iommu_version = 0x13000000,
@@ -1068,14 +1020,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0x71910000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
         .nvram_machine_id = 0x80,
         .machine_id = vger_id,
         .iommu_version = 0x05000000,
@@ -1101,14 +1045,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0x71910000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
         .nvram_machine_id = 0x80,
         .machine_id = lx_id,
         .iommu_version = 0x04000000,
@@ -1136,15 +1072,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0x71910000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
-        .cs_irq = 5,
         .nvram_machine_id = 0x80,
         .machine_id = ss4_id,
         .iommu_version = 0x05000000,
@@ -1171,14 +1098,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0x71910000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
         .nvram_machine_id = 0x80,
         .machine_id = scls_id,
         .iommu_version = 0x05000000,
@@ -1205,14 +1124,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0x71910000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 18,
-        .le_irq = 16,
-        .clock_irq = 7,
-        .clock1_irq = 19,
-        .ms_kb_irq = 14,
-        .ser_irq = 15,
-        .fd_irq = 22,
-        .me_irq = 30,
         .nvram_machine_id = 0x80,
         .machine_id = sbook_id,
         .iommu_version = 0x05000000,
@@ -1402,12 +1313,6 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .sbi_base     = 0xf02800000ULL,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 3,
-        .le_irq = 4,
-        .clock_irq = 14,
-        .clock1_irq = 10,
-        .ms_kb_irq = 12,
-        .ser_irq = 12,
         .nvram_machine_id = 0x80,
         .machine_id = ss1000_id,
         .iounit_version = 0x03000000,
@@ -1436,12 +1341,6 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .sbi_base     = 0xf02800000ULL,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
-        .esp_irq = 3,
-        .le_irq = 4,
-        .clock_irq = 14,
-        .clock1_irq = 10,
-        .ms_kb_irq = 12,
-        .ser_irq = 12,
         .nvram_machine_id = 0x80,
         .machine_id = ss2000_id,
         .iounit_version = 0x03000000,
@@ -1515,12 +1414,12 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         if (hwdef->iounit_bases[i] != (target_phys_addr_t)-1)
             iounits[i] = iommu_init(hwdef->iounit_bases[i],
                                     hwdef->iounit_version,
-                                    sbi_irq[hwdef->me_irq]);
+                                    sbi_irq[0]);
 
-    espdma = sparc32_dma_init(hwdef->espdma_base, sbi_irq[hwdef->esp_irq],
+    espdma = sparc32_dma_init(hwdef->espdma_base, sbi_irq[3],
                               iounits[0], &espdma_irq, &esp_reset);
 
-    ledma = sparc32_dma_init(hwdef->ledma_base, sbi_irq[hwdef->le_irq],
+    ledma = sparc32_dma_init(hwdef->ledma_base, sbi_irq[4],
                              iounits[0], &ledma_irq, &le_reset);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
@@ -1535,14 +1434,13 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
 
-    slavio_timer_init_all(hwdef->counter_base, sbi_irq[hwdef->clock1_irq],
-                          sbi_cpu_irq, smp_cpus);
+    slavio_timer_init_all(hwdef->counter_base, sbi_irq[10], sbi_cpu_irq, smp_cpus);
 
-    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, sbi_irq[hwdef->ms_kb_irq],
+    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, sbi_irq[12],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, sbi_irq[hwdef->ser_irq], sbi_irq[hwdef->ser_irq],
+    escc_init(hwdef->serial_base, sbi_irq[12], sbi_irq[12],
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
@@ -1635,14 +1533,6 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
         .aux1_base    = 0xf7400003,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x800,
-        .esp_irq = 2,
-        .le_irq = 3,
-        .clock_irq = 5,
-        .clock1_irq = 7,
-        .ms_kb_irq = 1,
-        .ser_irq = 1,
-        .fd_irq = 1,
-        .me_irq = 1,
         .nvram_machine_id = 0x55,
         .machine_id = ss2_id,
         .max_mem = 0x10000000,
@@ -1706,13 +1596,13 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     }
 
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
-                       slavio_irq[hwdef->me_irq]);
+                       slavio_irq[1]);
 
-    espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
+    espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[2],
                               iommu, &espdma_irq, &esp_reset);
 
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
-                             slavio_irq[hwdef->le_irq], iommu, &ledma_irq,
+                             slavio_irq[3], iommu, &ledma_irq,
                              &le_reset);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
@@ -1727,16 +1617,16 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 2);
 
-    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq],
+    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[1],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
-              slavio_irq[hwdef->ser_irq], serial_hds[0], serial_hds[1],
+    escc_init(hwdef->serial_base, slavio_irq[1],
+              slavio_irq[1], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);
 
     slavio_misc = slavio_misc_init(0, hwdef->aux1_base, 0,
-                                   slavio_irq[hwdef->me_irq], fdc_tc);
+                                   slavio_irq[1], fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
@@ -1745,7 +1635,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
         if (dinfo)
             fd[0] = dinfo->bdrv;
 
-        sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
+        sun4m_fdctrl_init(slavio_irq[1], hwdef->fd_base, fd,
                           &fdc_tc);
     }
 
