@@ -667,6 +667,7 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
     sysbus_mmio_map(s, 0, espaddr);
+    *reset = qdev_get_gpio_in(dev, 0);
 }
 
 static void esp_init1(SysBusDevice *dev)

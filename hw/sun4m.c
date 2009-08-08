@@ -364,11 +364,29 @@ static void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     return s;
 }
 
-static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
-                       void *dma_opaque, qemu_irq irq, qemu_irq *reset)
+static void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
+                              void *iommu, qemu_irq *dev_irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
+
+    dev = qdev_create(NULL, "sparc32_dma");
+    qdev_prop_set_ptr(dev, "iommu_opaque", iommu);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, parent_irq);
+    *dev_irq = qdev_get_gpio_in(dev, 0);
+    sysbus_mmio_map(s, 0, daddr);
+
+    return s;
+}
+
+static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
+                       void *dma_opaque, qemu_irq irq)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    qemu_irq reset;
 
     qemu_check_nic_model(&nd_table[0], "lance");
 
@@ -379,7 +397,8 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, leaddr);
     sysbus_connect_irq(s, 0, irq);
-    *reset = qdev_get_gpio_in(dev, 0);
+    reset = qdev_get_gpio_in(dev, 0);
+    qdev_connect_gpio_out(dma_opaque, 0, reset);
 }
 
 static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
@@ -735,7 +754,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS],
         espdma_irq, ledma_irq;
-    qemu_irq *esp_reset, *le_reset;
+    qemu_irq esp_reset;
     qemu_irq fdc_tc;
     qemu_irq *cpu_halt;
     unsigned long kernel_size;
@@ -781,11 +800,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                        slavio_irq[30]);
 
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[18],
-                              iommu, &espdma_irq, &esp_reset);
+                              iommu, &espdma_irq);
 
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
-                             slavio_irq[16], iommu, &ledma_irq,
-                             &le_reset);
+                             slavio_irq[16], iommu, &ledma_irq);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
@@ -794,7 +812,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 8);
 
@@ -831,9 +849,11 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         exit(1);
     }
 
+    esp_reset = qdev_get_gpio_in(espdma, 0);
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, espdma_irq, esp_reset);
+             espdma, espdma_irq, &esp_reset);
+
 
     if (hwdef->cs_base) {
         sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,
@@ -1354,7 +1374,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     void *iounits[MAX_IOUNITS], *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], sbi_irq[32], sbi_cpu_irq[MAX_CPUS],
         espdma_irq, ledma_irq;
-    qemu_irq *esp_reset, *le_reset;
+    qemu_irq esp_reset;
     unsigned long kernel_size;
     void *fw_cfg;
     DeviceState *dev;
@@ -1391,10 +1411,10 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                                     sbi_irq[0]);
 
     espdma = sparc32_dma_init(hwdef->espdma_base, sbi_irq[3],
-                              iounits[0], &espdma_irq, &esp_reset);
+                              iounits[0], &espdma_irq);
 
     ledma = sparc32_dma_init(hwdef->ledma_base, sbi_irq[4],
-                             iounits[0], &ledma_irq, &le_reset);
+                             iounits[0], &ledma_irq);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
@@ -1403,7 +1423,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq);
 
     nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0, 0x2000, 8);
 
@@ -1421,9 +1441,10 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         exit(1);
     }
 
+    esp_reset = qdev_get_gpio_in(espdma, 0);
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, espdma_irq, esp_reset);
+             espdma, espdma_irq, &esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
@@ -1540,7 +1561,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     CPUState *env;
     void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs, slavio_irq[8], espdma_irq, ledma_irq;
-    qemu_irq *esp_reset, *le_reset;
+    qemu_irq esp_reset;
     qemu_irq fdc_tc;
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
@@ -1570,11 +1591,10 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                        slavio_irq[1]);
 
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[2],
-                              iommu, &espdma_irq, &esp_reset);
+                              iommu, &espdma_irq);
 
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
-                             slavio_irq[3], iommu, &ledma_irq,
-                             &le_reset);
+                             slavio_irq[3], iommu, &ledma_irq);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
@@ -1583,7 +1603,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
              graphic_depth);
 
-    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
+    lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x800, 2);
 
@@ -1614,9 +1634,10 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
         exit(1);
     }
 
+    esp_reset = qdev_get_gpio_in(espdma, 0);
     esp_init(hwdef->esp_base, 2,
              espdma_memory_read, espdma_memory_write,
-             espdma, espdma_irq, esp_reset);
+             espdma, espdma_irq, &esp_reset);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
                                     RAM_size);
