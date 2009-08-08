@@ -97,7 +97,6 @@ struct sun4m_hwdef {
     target_phys_addr_t tcx_base, cs_base, apc_base, aux1_base, aux2_base;
     target_phys_addr_t ecc_base;
     uint32_t ecc_version;
-    long vram_size, nvram_size;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
@@ -115,7 +114,6 @@ struct sun4d_hwdef {
     target_phys_addr_t ledma_base, le_base;
     target_phys_addr_t tcx_base;
     target_phys_addr_t sbi_base;
-    unsigned long vram_size, nvram_size;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iounit_version;
@@ -129,7 +127,6 @@ struct sun4c_hwdef {
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, aux1_base;
-    long vram_size, nvram_size;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
@@ -794,13 +791,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
+    tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
              graphic_depth);
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
-    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
-                        hwdef->nvram_size, 8);
+    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 8);
 
     slavio_timer_init_all(hwdef->counter_base, slavio_irq[19], slavio_cpu_irq, smp_cpus);
 
@@ -910,8 +906,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = ss5_id,
         .iommu_version = 0x05000000,
@@ -938,8 +932,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0xff1a01000ULL,
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x10000000, // version 0, implementation 1
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x72,
         .machine_id = ss10_id,
         .iommu_version = 0x03000000,
@@ -964,8 +956,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0xff1a01000ULL, // XXX should not exist
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x00000000, // version 0, implementation 0
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x71,
         .machine_id = ss600mp_id,
         .iommu_version = 0x01000000,
@@ -992,8 +982,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .aux2_base    = 0xff1a01000ULL,
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x20000000, // version 0, implementation 2
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x72,
         .machine_id = ss20_id,
         .iommu_version = 0x13000000,
@@ -1018,8 +1006,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x71300000, // pmc
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = vger_id,
         .iommu_version = 0x05000000,
@@ -1043,8 +1029,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .le_base      = 0x78c00000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = lx_id,
         .iommu_version = 0x04000000,
@@ -1070,8 +1054,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = ss4_id,
         .iommu_version = 0x05000000,
@@ -1096,8 +1078,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = scls_id,
         .iommu_version = 0x05000000,
@@ -1122,8 +1102,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = sbook_id,
         .iommu_version = 0x05000000,
@@ -1311,8 +1289,6 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .ledma_base   = 0x800040000ULL,
         .le_base      = 0x800060000ULL,
         .sbi_base     = 0xf02800000ULL,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = ss1000_id,
         .iounit_version = 0x03000000,
@@ -1339,8 +1315,6 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .ledma_base   = 0x800040000ULL,
         .le_base      = 0x800060000ULL,
         .sbi_base     = 0xf02800000ULL,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000,
         .nvram_machine_id = 0x80,
         .machine_id = ss2000_id,
         .iounit_version = 0x03000000,
@@ -1426,13 +1400,12 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
+    tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
              graphic_depth);
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
-    nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0,
-                        hwdef->nvram_size, 8);
+    nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0, 0x2000, 8);
 
     slavio_timer_init_all(hwdef->counter_base, sbi_irq[10], sbi_cpu_irq, smp_cpus);
 
@@ -1531,8 +1504,6 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
         .esp_base     = 0xf8800000,
         .le_base      = 0xf8c00000,
         .aux1_base    = 0xf7400003,
-        .vram_size    = 0x00100000,
-        .nvram_size   = 0x800,
         .nvram_machine_id = 0x55,
         .machine_id = ss2_id,
         .max_mem = 0x10000000,
@@ -1609,13 +1580,12 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
+    tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
              graphic_depth);
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq, le_reset);
 
-    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
-                        hwdef->nvram_size, 2);
+    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x800, 2);
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[1],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
