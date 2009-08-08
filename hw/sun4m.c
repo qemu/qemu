@@ -105,7 +105,6 @@ struct sun4m_hwdef {
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
-    uint32_t intbit_to_level[32];
     uint64_t max_mem;
     const char * const default_cpu_model;
 };
@@ -145,7 +144,6 @@ struct sun4c_hwdef {
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
-    uint32_t intbit_to_level[32];
     uint64_t max_mem;
     const char * const default_cpu_model;
 };
@@ -400,7 +398,6 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
 
 static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
                                        target_phys_addr_t addrg,
-                                       const uint32_t *intbit_to_level,
                                        qemu_irq **parent_irq,
                                        unsigned int cputimer)
 {
@@ -409,7 +406,6 @@ static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
     unsigned int i, j;
 
     dev = qdev_create(NULL, "slavio_intctl");
-    qdev_prop_set_ptr(dev, "intbit_to_level", (void *)intbit_to_level);
     qdev_prop_set_uint32(dev, "cputimer_bit", cputimer);
     qdev_init(dev);
 
@@ -781,7 +777,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     dev = slavio_intctl_init(hwdef->intctl_base,
                              hwdef->intctl_base + 0x10000ULL,
-                             &hwdef->intbit_to_level[0],
                              cpu_irqs,
                              hwdef->clock_irq);
 
@@ -941,10 +936,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x80,
         .machine_id = ss5_id,
         .iommu_version = 0x05000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0x10000000,
         .default_cpu_model = "Fujitsu MB86904",
     },
@@ -982,10 +973,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x72,
         .machine_id = ss10_id,
         .iommu_version = 0x03000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
@@ -1021,10 +1008,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x71,
         .machine_id = ss600mp_id,
         .iommu_version = 0x01000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
@@ -1062,10 +1045,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x72,
         .machine_id = ss20_id,
         .iommu_version = 0x13000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
@@ -1100,10 +1079,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x80,
         .machine_id = vger_id,
         .iommu_version = 0x05000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0x10000000,
         .default_cpu_model = "Fujitsu MB86904",
     },
@@ -1137,10 +1112,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x80,
         .machine_id = lx_id,
         .iommu_version = 0x04000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0x10000000,
         .default_cpu_model = "TI MicroSparc I",
     },
@@ -1177,10 +1148,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x80,
         .machine_id = ss4_id,
         .iommu_version = 0x05000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0x10000000,
         .default_cpu_model = "Fujitsu MB86904",
     },
@@ -1215,10 +1182,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x80,
         .machine_id = scls_id,
         .iommu_version = 0x05000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0x10000000,
         .default_cpu_model = "TI MicroSparc I",
     },
@@ -1253,10 +1216,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .nvram_machine_id = 0x80,
         .machine_id = sbook_id,
         .iommu_version = 0x05000000,
-        .intbit_to_level = {
-            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
-            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
-        },
         .max_mem = 0x10000000,
         .default_cpu_model = "TI MicroSparc I",
     },
