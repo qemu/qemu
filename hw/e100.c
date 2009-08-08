@@ -2452,7 +2452,7 @@ static void eeprom_init(E100State *s)
     s->eeprom.addr_len = EEPROM_I82557_ADDRBIT;
     memcpy(s->eeprom.contents, eeprom_i82557, sizeof(eeprom_i82557));
     /* Driver is going to get MAC from eeprom*/
-    memcpy((uint8_t *)s->eeprom.contents, s->macaddr, sizeof(s->macaddr));
+    memcpy(s->eeprom.contents, s->macaddr, sizeof(s->macaddr));
 
     /* The last word in eeprom saving checksum value.
      * After we update MAC in eeprom, the checksum need be re-calculate
