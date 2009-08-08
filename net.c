@@ -2946,7 +2946,7 @@ void do_set_link(Monitor *mon, const char *name, const char *up_or_down)
 done:
 
     if (!vc) {
-        monitor_printf(mon, "could not find network device '%s'", name);
+        monitor_printf(mon, "could not find network device '%s'\n", name);
         return;
     }
 
