@@ -63,12 +63,6 @@ typedef struct APCState {
 #define MISC_SIZE 1
 #define SYSCTRL_SIZE 4
 
-#define MISC_LEDS 0x01600000
-#define MISC_CFG  0x01800000
-#define MISC_DIAG 0x01a00000
-#define MISC_MDM  0x01b00000
-#define MISC_SYS  0x01f00000
-
 #define AUX1_TC        0x02
 
 #define AUX2_PWROFF    0x01
@@ -440,49 +434,6 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *slavio_misc_init(target_phys_addr_t base,
-                       target_phys_addr_t aux1_base,
-                       target_phys_addr_t aux2_base, qemu_irq irq,
-                       qemu_irq fdc_tc)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    MiscState *d;
-
-    dev = qdev_create(NULL, "slavio_misc");
-    qdev_init(dev);
-    s = sysbus_from_qdev(dev);
-    if (base) {
-        /* 8 bit registers */
-        /* Slavio control */
-        sysbus_mmio_map(s, 0, base + MISC_CFG);
-        /* Diagnostics */
-        sysbus_mmio_map(s, 1, base + MISC_DIAG);
-        /* Modem control */
-        sysbus_mmio_map(s, 2, base + MISC_MDM);
-        /* 16 bit registers */
-        /* ss600mp diag LEDs */
-        sysbus_mmio_map(s, 3, base + MISC_LEDS);
-        /* 32 bit registers */
-        /* System control */
-        sysbus_mmio_map(s, 4, base + MISC_SYS);
-    }
-    if (aux1_base) {
-        /* AUX 1 (Misc System Functions) */
-        sysbus_mmio_map(s, 5, aux1_base);
-    }
-    if (aux2_base) {
-        /* AUX 2 (Software Powerdown Control) */
-        sysbus_mmio_map(s, 6, aux2_base);
-    }
-    sysbus_connect_irq(s, 0, irq);
-    sysbus_connect_irq(s, 1, fdc_tc);
-
-    d = FROM_SYSBUS(MiscState, s);
-
-    return d;
-}
-
 static void apc_init1(SysBusDevice *dev)
 {
     APCState *s = FROM_SYSBUS(APCState, dev);
@@ -493,19 +444,6 @@ static void apc_init1(SysBusDevice *dev)
     /* Power management (APC) XXX: not a Slavio device */
     io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
     sysbus_init_mmio(dev, MISC_SIZE, io);
-}
-
-void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-
-    dev = qdev_create(NULL, "apc");
-    qdev_init(dev);
-    s = sysbus_from_qdev(dev);
-    /* Power management (APC) XXX: not a Slavio device */
-    sysbus_mmio_map(s, 0, power_base);
-    sysbus_connect_irq(s, 0, cpu_halt);
 }
 
 static void slavio_misc_init1(SysBusDevice *dev)

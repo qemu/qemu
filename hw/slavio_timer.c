@@ -76,9 +76,6 @@ typedef struct TimerContext {
 #define SYS_TIMER_SIZE 0x14
 #define CPU_TIMER_SIZE 0x10
 
-#define SYS_TIMER_OFFSET      0x10000ULL
-#define CPU_TIMER_OFFSET(cpu) (0x1000ULL * cpu)
-
 #define TIMER_LIMIT         0
 #define TIMER_COUNTER       1
 #define TIMER_COUNTER_NORST 2
@@ -413,26 +410,6 @@ static void slavio_timer_reset(void *opaque)
         curr_timer->running = 1;
     }
     s->cputimer_mode = 0;
-}
-
-void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
-                           qemu_irq *cpu_irqs, unsigned int num_cpus)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    unsigned int i;
-
-    dev = qdev_create(NULL, "slavio_timer");
-    qdev_prop_set_uint32(dev, "num_cpus", num_cpus);
-    qdev_init(dev);
-    s = sysbus_from_qdev(dev);
-    sysbus_connect_irq(s, 0, master_irq);
-    sysbus_mmio_map(s, 0, addr + SYS_TIMER_OFFSET);
-
-    for (i = 0; i < MAX_CPUS; i++) {
-        sysbus_mmio_map(s, i + 1, addr + (target_phys_addr_t)CPU_TIMER_OFFSET(i));
-        sysbus_connect_irq(s, i + 1, cpu_irqs[i]);
-    }
 }
 
 static void slavio_timer_init1(SysBusDevice *dev)

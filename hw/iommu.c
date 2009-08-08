@@ -366,24 +366,6 @@ static void iommu_reset(void *opaque)
     s->regs[IOMMU_MASK_ID] = IOMMU_TS_MASK;
 }
 
-void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    IOMMUState *d;
-
-    dev = qdev_create(NULL, "iommu");
-    qdev_prop_set_uint32(dev, "version", version);
-    qdev_init(dev);
-    s = sysbus_from_qdev(dev);
-    sysbus_connect_irq(s, 0, irq);
-    sysbus_mmio_map(s, 0, addr);
-
-    d = FROM_SYSBUS(IOMMUState, s);
-
-    return d;
-}
-
 static void iommu_init1(SysBusDevice *dev)
 {
     IOMMUState *s = FROM_SYSBUS(IOMMUState, dev);
