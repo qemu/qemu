@@ -209,33 +209,17 @@ typedef enum {
 } ru_state_t;
 
 typedef struct {
-#if 1   // TODO: remove unused entries, check save / load!!!
     uint8_t cmd;
     uint32_t start;
     uint32_t stop;
-    uint8_t boundary;
-    uint8_t tsr;
-    uint8_t tpsr;
-    uint16_t tcnt;
-    uint16_t rcnt;
-    uint32_t rsar;
-    uint8_t rsr;
-    uint8_t rxcr;
-    uint8_t isr;
-    uint8_t dcfg;
-    uint8_t imr;
-    uint8_t phys[6];            /* mac address */
-    uint8_t curpag;
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
     PCIDevice *pci_dev;
     VLANClientState *vc;
-#endif
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
     uint32_t region[3];         /* PCI region addresses */
     uint8_t macaddr[6];
-    uint32_t statcounter[19];
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
@@ -290,6 +274,10 @@ typedef enum {
     /* BITS(15, 14) signature */
     eeprom_id_valid = BIT(14),  /* signature for valid eeprom */
 } eeprom_id_t;
+
+/* Parameters for nic_save, nic_load. */
+static int eepro100_instance = 0;
+static const int eepro100_version = 20090807;
 
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
@@ -359,8 +347,9 @@ static unsigned compute_mcast_idx(const uint8_t * ep)
             carry = ((crc & 0x80000000L) ? 1 : 0) ^ (b & 0x01);
             crc <<= 1;
             b >>= 1;
-            if (carry)
+            if (carry) {
                 crc = ((crc ^ POLYNOMIAL) | carry);
+            }
         }
     }
     return (crc & BITS(7, 2)) >> 2;
@@ -371,8 +360,9 @@ static const char *nic_dump(const uint8_t * buf, unsigned size)
 {
     static char dump[3 * 16 + 1];
     char *p = &dump[0];
-    if (size > 16)
+    if (size > 16) {
         size = 16;
+    }
     while (size-- > 0) {
         p += sprintf(p, " %02x", *buf++);
     }
@@ -380,7 +370,7 @@ static const char *nic_dump(const uint8_t * buf, unsigned size)
 }
 #endif                          /* DEBUG_EEPRO100 */
 
-#if 0
+#if 0 // TODO
 enum scb_stat_ack {
     stat_ack_not_ours = 0x00,
     stat_ack_sw_gen = 0x04,
@@ -917,7 +907,7 @@ static void action_command(EEPRO100State *s)
         case CmdIASetup:
             cpu_physical_memory_read(s->cb_address + 8, &s->macaddr[0], 6);
             TRACE(OTHER, logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6)));
-        // !!! missing
+            // TODO: missing code.
             break;
         case CmdConfigure:
             cpu_physical_memory_read(s->cb_address + 8, &s->configuration[0],
@@ -1814,50 +1804,34 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     int i;
     int ret;
 
-    if (version_id > 3)
+    if (version_id != eepro100_version) {
         return -EINVAL;
-
-    if (s->pci_dev && version_id >= 3) {
-        ret = pci_device_load(s->pci_dev, f);
-        if (ret < 0)
-            return ret;
     }
 
-    if (version_id >= 2) {
-        qemu_get_8s(f, &s->rxcr);
-    } else {
-        s->rxcr = 0x0c;
+    if (s->pci_dev) {
+        ret = pci_device_load(s->pci_dev, f);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     qemu_get_8s(f, &s->cmd);
     qemu_get_be32s(f, &s->start);
     qemu_get_be32s(f, &s->stop);
-    qemu_get_8s(f, &s->boundary);
-    qemu_get_8s(f, &s->tsr);
-    qemu_get_8s(f, &s->tpsr);
-    qemu_get_be16s(f, &s->tcnt);
-    qemu_get_be16s(f, &s->rcnt);
-    qemu_get_be32s(f, &s->rsar);
-    qemu_get_8s(f, &s->rsr);
-    qemu_get_8s(f, &s->isr);
-    qemu_get_8s(f, &s->dcfg);
-    qemu_get_8s(f, &s->imr);
-    qemu_get_buffer(f, s->phys, 6);
-    qemu_get_8s(f, &s->curpag);
     qemu_get_buffer(f, s->mult, 8);
     qemu_get_buffer(f, s->mem, sizeof(s->mem));
 
-    /* Restore all members of struct between scv_stat and mem */
+    /* Restore all members of struct between scv_stat and mem. */
     qemu_get_8s(f, &s->scb_stat);
     qemu_get_8s(f, &s->int_stat);
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++) {
         qemu_get_be32s(f, &s->region[i]);
+    }
     qemu_get_buffer(f, s->macaddr, 6);
-    for (i = 0; i < 19; i++)
-        qemu_get_be32s(f, &s->statcounter[i]);
-    for (i = 0; i < 32; i++)
+    for (i = 0; i < 32; i++) {
         qemu_get_be16s(f, &s->mdimem[i]);
-    /* The eeprom should be saved and restored by its own routines */
+    }
+    /* The eeprom should be saved and restored by its own routines. */
     qemu_get_be32s(f, &s->device);
     qemu_get_be32s(f, &s->pointer);
     qemu_get_be32s(f, &s->cu_base);
@@ -1865,7 +1839,7 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->ru_base);
     qemu_get_be32s(f, &s->ru_offset);
     qemu_get_be32s(f, &s->statsaddr);
-    /* Restore epro100_stats_t statistics */
+    /* Restore epro100_stats_t statistics. */
     qemu_get_be32s(f, &s->statistics.tx_good_frames);
     qemu_get_be32s(f, &s->statistics.tx_max_collisions);
     qemu_get_be32s(f, &s->statistics.tx_late_collisions);
@@ -1903,40 +1877,27 @@ static void nic_save(QEMUFile * f, void *opaque)
     EEPRO100State *s = (EEPRO100State *) opaque;
     int i;
 
-    if (s->pci_dev)
+    if (s->pci_dev) {
         pci_device_save(s->pci_dev, f);
-
-    qemu_put_8s(f, &s->rxcr);
+    }
 
     qemu_put_8s(f, &s->cmd);
     qemu_put_be32s(f, &s->start);
     qemu_put_be32s(f, &s->stop);
-    qemu_put_8s(f, &s->boundary);
-    qemu_put_8s(f, &s->tsr);
-    qemu_put_8s(f, &s->tpsr);
-    qemu_put_be16s(f, &s->tcnt);
-    qemu_put_be16s(f, &s->rcnt);
-    qemu_put_be32s(f, &s->rsar);
-    qemu_put_8s(f, &s->rsr);
-    qemu_put_8s(f, &s->isr);
-    qemu_put_8s(f, &s->dcfg);
-    qemu_put_8s(f, &s->imr);
-    qemu_put_buffer(f, s->phys, 6);
-    qemu_put_8s(f, &s->curpag);
     qemu_put_buffer(f, s->mult, 8);
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 
-    /* Save all members of struct between scv_stat and mem */
+    /* Save all members of struct between scv_stat and mem. */
     qemu_put_8s(f, &s->scb_stat);
     qemu_put_8s(f, &s->int_stat);
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++) {
         qemu_put_be32s(f, &s->region[i]);
+    }
     qemu_put_buffer(f, s->macaddr, 6);
-    for (i = 0; i < 19; i++)
-        qemu_put_be32s(f, &s->statcounter[i]);
-    for (i = 0; i < 32; i++)
+    for (i = 0; i < 32; i++) {
         qemu_put_be16s(f, &s->mdimem[i]);
-    /* The eeprom should be saved and restored by its own routines */
+    }
+    /* The eeprom should be saved and restored by its own routines. */
     qemu_put_be32s(f, &s->device);
     qemu_put_be32s(f, &s->pointer);
     qemu_put_be32s(f, &s->cu_base);
@@ -1944,7 +1905,7 @@ static void nic_save(QEMUFile * f, void *opaque)
     qemu_put_be32s(f, &s->ru_base);
     qemu_put_be32s(f, &s->ru_offset);
     qemu_put_be32s(f, &s->statsaddr);
-    /* Save epro100_stats_t statistics */
+    /* Save epro100_stats_t statistics. */
     qemu_put_be32s(f, &s->statistics.tx_good_frames);
     qemu_put_be32s(f, &s->statistics.tx_max_collisions);
     qemu_put_be32s(f, &s->statistics.tx_late_collisions);
@@ -2040,42 +2001,43 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
 
     qemu_register_reset(nic_reset, s);
 
-    register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
+    register_savevm(s->vc->model, eepro100_instance, eepro100_version,
+                    nic_save, nic_load, s);
 }
 
 static void pci_i82551_init(PCIDevice *dev)
 {
-  nic_init(dev, i82551);
+    nic_init(dev, i82551);
 }
 
 static void pci_i82557a_init(PCIDevice *dev)
 {
-  nic_init(dev, i82557A);
+    nic_init(dev, i82557A);
 }
 
 static void pci_i82557b_init(PCIDevice *dev)
 {
-  nic_init(dev, i82557B);
+    nic_init(dev, i82557B);
 }
 
 static void pci_i82557c_init(PCIDevice *dev)
 {
-  nic_init(dev, i82557C);
+    nic_init(dev, i82557C);
 }
 
 static void pci_i82558b_init(PCIDevice *dev)
 {
-  nic_init(dev, i82558B);
+    nic_init(dev, i82558B);
 }
 
 static void pci_i82559c_init(PCIDevice *dev)
 {
-  nic_init(dev, i82559C);
+    nic_init(dev, i82559C);
 }
 
 static void pci_i82559er_init(PCIDevice *dev)
 {
-  nic_init(dev, i82559ER);
+    nic_init(dev, i82559ER);
 }
 
 static PCIDeviceInfo eepro100_info[] = {
