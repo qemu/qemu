@@ -479,5 +479,5 @@ static const name2keysym_t name2keysym[] = {
     { "F20", 0x11c },
     { "Escape", 27 },
 
-    { 0, 0 },
+    { NULL, 0 },
 };

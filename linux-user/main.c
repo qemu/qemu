@@ -962,7 +962,7 @@ void cpu_loop (CPUSPARCState *env)
                 if (trapnr == TT_DFAULT)
                     info._sifields._sigfault._addr = env->dmmuregs[4];
                 else
-                    info._sifields._sigfault._addr = env->tsptr->tpc;
+                    info._sifields._sigfault._addr = cpu_tsptr(env)->tpc;
                 queue_signal(env, info.si_signo, &info);
             }
             break;
@@ -1060,6 +1060,63 @@ do {                                                                    \
         log_cpu_state(env, 0);                                          \
 } while (0)
 
+static int do_store_exclusive(CPUPPCState *env)
+{
+    target_ulong addr;
+    target_ulong page_addr;
+    target_ulong val;
+    int flags;
+    int segv = 0;
+
+    addr = env->reserve_ea;
+    page_addr = addr & TARGET_PAGE_MASK;
+    start_exclusive();
+    mmap_lock();
+    flags = page_get_flags(page_addr);
+    if ((flags & PAGE_READ) == 0) {
+        segv = 1;
+    } else {
+        int reg = env->reserve_info & 0x1f;
+        int size = (env->reserve_info >> 5) & 0xf;
+        int stored = 0;
+
+        if (addr == env->reserve_addr) {
+            switch (size) {
+            case 1: segv = get_user_u8(val, addr); break;
+            case 2: segv = get_user_u16(val, addr); break;
+            case 4: segv = get_user_u32(val, addr); break;
+#if defined(TARGET_PPC64)
+            case 8: segv = get_user_u64(val, addr); break;
+#endif
+            default: abort();
+            }
+            if (!segv && val == env->reserve_val) {
+                val = env->gpr[reg];
+                switch (size) {
+                case 1: segv = put_user_u8(val, addr); break;
+                case 2: segv = put_user_u16(val, addr); break;
+                case 4: segv = put_user_u32(val, addr); break;
+#if defined(TARGET_PPC64)
+                case 8: segv = put_user_u64(val, addr); break;
+#endif
+                default: abort();
+                }
+                if (!segv) {
+                    stored = 1;
+                }
+            }
+        }
+        env->crf[0] = (stored << 1) | xer_so;
+        env->reserve_addr = (target_ulong)-1;
+    }
+    if (!segv) {
+        env->nip += 4;
+    }
+    mmap_unlock();
+    end_exclusive();
+    return segv;
+}
+
 void cpu_loop(CPUPPCState *env)
 {
     target_siginfo_t info;
@@ -1067,7 +1124,9 @@ void cpu_loop(CPUPPCState *env)
     uint32_t ret;
 
     for(;;) {
+        cpu_exec_start(env);
         trapnr = cpu_ppc_exec(env);
+        cpu_exec_end(env);
         switch(trapnr) {
         case POWERPC_EXCP_NONE:
             /* Just go on */
@@ -1446,6 +1505,15 @@ void cpu_loop(CPUPPCState *env)
 #if 0
             printf("syscall returned 0x%08x (%d)\n", ret, ret);
 #endif
+            break;
+        case POWERPC_EXCP_STCX:
+            if (do_store_exclusive(env)) {
+                info.si_signo = TARGET_SIGSEGV;
+                info.si_errno = 0;
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->nip;
+                queue_signal(env, info.si_signo, &info);
+            }
             break;
         case EXCP_DEBUG:
             {

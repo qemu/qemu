@@ -320,5 +320,5 @@ static const name2keysym_t name2keysym[]={
 {"Katakana_Real", 0xff25},
 {"Eisu_toggle", 0xff30},
 
-{0,0},
+{NULL,0},
 };

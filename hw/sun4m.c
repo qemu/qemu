@@ -36,6 +36,7 @@
 #include "isa.h"
 #include "fw_cfg.h"
 #include "escc.h"
+#include "qdev-addr.h"
 
 //#define DEBUG_IRQ
 
@@ -364,6 +365,21 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
     return kernel_size;
 }
 
+static void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "iommu");
+    qdev_prop_set_uint32(dev, "version", version);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_mmio_map(s, 0, addr);
+
+    return s;
+}
+
 static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
                        void *dma_opaque, qemu_irq irq, qemu_irq *reset)
 {
@@ -380,6 +396,167 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     sysbus_mmio_map(s, 0, leaddr);
     sysbus_connect_irq(s, 0, irq);
     *reset = qdev_get_gpio_in(dev, 0);
+}
+
+static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
+                                       target_phys_addr_t addrg,
+                                       const uint32_t *intbit_to_level,
+                                       qemu_irq **parent_irq,
+                                       unsigned int cputimer)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    unsigned int i, j;
+
+    dev = qdev_create(NULL, "slavio_intctl");
+    qdev_prop_set_ptr(dev, "intbit_to_level", (void *)intbit_to_level);
+    qdev_prop_set_uint32(dev, "cputimer_bit", cputimer);
+    qdev_init(dev);
+
+    s = sysbus_from_qdev(dev);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        for (j = 0; j < MAX_PILS; j++) {
+            sysbus_connect_irq(s, i * MAX_PILS + j, parent_irq[i][j]);
+        }
+    }
+    sysbus_mmio_map(s, 0, addrg);
+    for (i = 0; i < MAX_CPUS; i++) {
+        sysbus_mmio_map(s, i + 1, addr + i * TARGET_PAGE_SIZE);
+    }
+
+    return dev;
+}
+
+#define SYS_TIMER_OFFSET      0x10000ULL
+#define CPU_TIMER_OFFSET(cpu) (0x1000ULL * cpu)
+
+static void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
+                                  qemu_irq *cpu_irqs, unsigned int num_cpus)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    unsigned int i;
+
+    dev = qdev_create(NULL, "slavio_timer");
+    qdev_prop_set_uint32(dev, "num_cpus", num_cpus);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, master_irq);
+    sysbus_mmio_map(s, 0, addr + SYS_TIMER_OFFSET);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        sysbus_mmio_map(s, i + 1, addr + (target_phys_addr_t)CPU_TIMER_OFFSET(i));
+        sysbus_connect_irq(s, i + 1, cpu_irqs[i]);
+    }
+}
+
+#define MISC_LEDS 0x01600000
+#define MISC_CFG  0x01800000
+#define MISC_DIAG 0x01a00000
+#define MISC_MDM  0x01b00000
+#define MISC_SYS  0x01f00000
+
+static void *slavio_misc_init(target_phys_addr_t base,
+                              target_phys_addr_t aux1_base,
+                              target_phys_addr_t aux2_base, qemu_irq irq,
+                              qemu_irq fdc_tc)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "slavio_misc");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    if (base) {
+        /* 8 bit registers */
+        /* Slavio control */
+        sysbus_mmio_map(s, 0, base + MISC_CFG);
+        /* Diagnostics */
+        sysbus_mmio_map(s, 1, base + MISC_DIAG);
+        /* Modem control */
+        sysbus_mmio_map(s, 2, base + MISC_MDM);
+        /* 16 bit registers */
+        /* ss600mp diag LEDs */
+        sysbus_mmio_map(s, 3, base + MISC_LEDS);
+        /* 32 bit registers */
+        /* System control */
+        sysbus_mmio_map(s, 4, base + MISC_SYS);
+    }
+    if (aux1_base) {
+        /* AUX 1 (Misc System Functions) */
+        sysbus_mmio_map(s, 5, aux1_base);
+    }
+    if (aux2_base) {
+        /* AUX 2 (Software Powerdown Control) */
+        sysbus_mmio_map(s, 6, aux2_base);
+    }
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_connect_irq(s, 1, fdc_tc);
+
+    return s;
+}
+
+static void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "eccmemctl");
+    qdev_prop_set_uint32(dev, "version", version);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    sysbus_mmio_map(s, 0, base);
+    if (version == 0) { // SS-600MP only
+        sysbus_mmio_map(s, 1, base + 0x1000);
+    }
+}
+
+static void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "apc");
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    /* Power management (APC) XXX: not a Slavio device */
+    sysbus_mmio_map(s, 0, power_base);
+    sysbus_connect_irq(s, 0, cpu_halt);
+}
+
+static void tcx_init(target_phys_addr_t addr, int vram_size, int width,
+                     int height, int depth)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "SUNW,tcx");
+    qdev_prop_set_taddr(dev, "addr", addr);
+    qdev_prop_set_uint32(dev, "vram_size", vram_size);
+    qdev_prop_set_uint16(dev, "width", width);
+    qdev_prop_set_uint16(dev, "height", height);
+    qdev_prop_set_uint16(dev, "depth", depth);
+    qdev_init(dev);
+    s = sysbus_from_qdev(dev);
+    /* 8-bit plane */
+    sysbus_mmio_map(s, 0, addr + 0x00800000ULL);
+    /* DAC */
+    sysbus_mmio_map(s, 1, addr + 0x00200000ULL);
+    /* TEC (dummy) */
+    sysbus_mmio_map(s, 2, addr + 0x00700000ULL);
+    /* THC 24 bit: NetBSD writes here even with 8-bit display: dummy */
+    sysbus_mmio_map(s, 3, addr + 0x00301000ULL);
+    if (depth == 24) {
+        /* 24-bit plane */
+        sysbus_mmio_map(s, 4, addr + 0x02000000ULL);
+        /* Control plane */
+        sysbus_mmio_map(s, 5, addr + 0x0a000000ULL);
+    } else {
+        /* THC 8 bit (dummy) */
+        sysbus_mmio_map(s, 4, addr + 0x00300000ULL);
+    }
 }
 
 /* NCR89C100/MACIO Internal ID register */
@@ -1314,6 +1491,26 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
     },
 };
 
+static DeviceState *sbi_init(target_phys_addr_t addr, qemu_irq **parent_irq)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    unsigned int i;
+
+    dev = qdev_create(NULL, "sbi");
+    qdev_init(dev);
+
+    s = sysbus_from_qdev(dev);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        sysbus_connect_irq(s, i, *parent_irq[i]);
+    }
+
+    sysbus_mmio_map(s, 0, addr);
+
+    return dev;
+}
+
 static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
@@ -1493,6 +1690,26 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
         .default_cpu_model = "Cypress CY7C601",
     },
 };
+
+static DeviceState *sun4c_intctl_init(target_phys_addr_t addr,
+                                      qemu_irq *parent_irq)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    unsigned int i;
+
+    dev = qdev_create(NULL, "sun4c_intctl");
+    qdev_init(dev);
+
+    s = sysbus_from_qdev(dev);
+
+    for (i = 0; i < MAX_PILS; i++) {
+        sysbus_connect_irq(s, i, parent_irq[i]);
+    }
+    sysbus_mmio_map(s, 0, addr);
+
+    return dev;
+}
 
 static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,

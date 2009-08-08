@@ -82,7 +82,7 @@ static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_
     key.st_value = orig_addr;
 
     sym = bsearch(&key, syms, s->disas_num_syms, sizeof(*syms), glue(symfind, SZ));
-    if (sym != 0) {
+    if (sym != NULL) {
         return s->disas_strtab + sym->st_name;
     }
 

@@ -316,7 +316,7 @@ static inline PageDesc *page_find_alloc(target_ulong index)
 #if defined(CONFIG_USER_ONLY)
         size_t len = sizeof(PageDesc) * L2_SIZE;
         /* Don't use qemu_malloc because it may recurse.  */
-        p = mmap(0, len, PROT_READ | PROT_WRITE,
+        p = mmap(NULL, len, PROT_READ | PROT_WRITE,
                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         *lp = p;
         if (h2g_valid(p)) {
@@ -341,8 +341,9 @@ static inline PageDesc *page_find(target_ulong index)
         return NULL;
 
     p = *lp;
-    if (!p)
-        return 0;
+    if (!p) {
+        return NULL;
+    }
     return p + (index & (L2_SIZE - 1));
 }
 

@@ -269,7 +269,7 @@ static CURLState *curl_init_state(BDRVCURLState *s)
         return NULL;
     curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
     curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, 5);
-    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, curl_read_cb);
+    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, (void *)curl_read_cb);
     curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state);
     curl_easy_setopt(state->curl, CURLOPT_PRIVATE, (void *)state);
     curl_easy_setopt(state->curl, CURLOPT_AUTOREFERER, 1);
@@ -358,11 +358,11 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
     // Get file size
 
     curl_easy_setopt(state->curl, CURLOPT_NOBODY, 1);
-    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, curl_size_cb);
+    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, (void *)curl_size_cb);
     if (curl_easy_perform(state->curl))
         goto out;
     curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d);
-    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, curl_read_cb);
+    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, (void *)curl_read_cb);
     curl_easy_setopt(state->curl, CURLOPT_NOBODY, 0);
     if (d)
         s->len = (size_t)d;

@@ -158,7 +158,8 @@ void ppc_translate_init(void)
                                  offsetof(CPUState, xer), "xer");
 
     cpu_reserve = tcg_global_mem_new(TCG_AREG0,
-                                     offsetof(CPUState, reserve), "reserve");
+                                     offsetof(CPUState, reserve_addr),
+                                     "reserve_addr");
 
     cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
                                        offsetof(CPUState, fpscr), "fpscr");
@@ -3006,33 +3007,60 @@ static void gen_isync(DisasContext *ctx)
 static void gen_lwarx(DisasContext *ctx)
 {
     TCGv t0;
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
     gen_set_access_type(ctx, ACCESS_RES);
     t0 = tcg_temp_local_new();
     gen_addr_reg_index(ctx, t0);
     gen_check_align(ctx, t0, 0x03);
-    gen_qemu_ld32u(ctx, cpu_gpr[rD(ctx->opcode)], t0);
+    gen_qemu_ld32u(ctx, gpr, t0);
     tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUState, reserve_val));
     tcg_temp_free(t0);
 }
+
+#if defined(CONFIG_USER_ONLY)
+static void gen_conditional_store (DisasContext *ctx, TCGv EA,
+                                   int reg, int size)
+{
+    TCGv t0 = tcg_temp_new();
+    uint32_t save_exception = ctx->exception;
+
+    tcg_gen_st_tl(EA, cpu_env, offsetof(CPUState, reserve_ea));
+    tcg_gen_movi_tl(t0, (size << 5) | reg);
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, reserve_info));
+    tcg_temp_free(t0);
+    gen_update_nip(ctx, ctx->nip-4);
+    ctx->exception = POWERPC_EXCP_BRANCH;
+    gen_exception(ctx, POWERPC_EXCP_STCX);
+    ctx->exception = save_exception;
+}
+#endif
 
 /* stwcx. */
 static void gen_stwcx_(DisasContext *ctx)
 {
-    int l1;
     TCGv t0;
     gen_set_access_type(ctx, ACCESS_RES);
     t0 = tcg_temp_local_new();
     gen_addr_reg_index(ctx, t0);
     gen_check_align(ctx, t0, 0x03);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
-    tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
-    tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
-    l1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
-    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
-    gen_qemu_st32(ctx, cpu_gpr[rS(ctx->opcode)], t0);
-    gen_set_label(l1);
-    tcg_gen_movi_tl(cpu_reserve, -1);
+#if defined(CONFIG_USER_ONLY)
+    gen_conditional_store(ctx, t0, rS(ctx->opcode), 4);
+#else
+    {
+        int l1;
+
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        l1 = gen_new_label();
+        tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+        gen_qemu_st32(ctx, cpu_gpr[rS(ctx->opcode)], t0);
+        gen_set_label(l1);
+        tcg_gen_movi_tl(cpu_reserve, -1);
+    }
+#endif
     tcg_temp_free(t0);
 }
 
@@ -3041,33 +3069,41 @@ static void gen_stwcx_(DisasContext *ctx)
 static void gen_ldarx(DisasContext *ctx)
 {
     TCGv t0;
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
     gen_set_access_type(ctx, ACCESS_RES);
     t0 = tcg_temp_local_new();
     gen_addr_reg_index(ctx, t0);
     gen_check_align(ctx, t0, 0x07);
-    gen_qemu_ld64(ctx, cpu_gpr[rD(ctx->opcode)], t0);
+    gen_qemu_ld64(ctx, gpr, t0);
     tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUState, reserve_val));
     tcg_temp_free(t0);
 }
 
 /* stdcx. */
 static void gen_stdcx_(DisasContext *ctx)
 {
-    int l1;
     TCGv t0;
     gen_set_access_type(ctx, ACCESS_RES);
     t0 = tcg_temp_local_new();
     gen_addr_reg_index(ctx, t0);
     gen_check_align(ctx, t0, 0x07);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
-    tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
-    tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
-    l1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
-    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
-    gen_qemu_st64(ctx, cpu_gpr[rS(ctx->opcode)], t0);
-    gen_set_label(l1);
-    tcg_gen_movi_tl(cpu_reserve, -1);
+#if defined(CONFIG_USER_ONLY)
+    gen_conditional_store(ctx, t0, rS(ctx->opcode), 8);
+#else
+    {
+        int l1;
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        l1 = gen_new_label();
+        tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+        gen_qemu_st64(ctx, cpu_gpr[rS(ctx->opcode)], t0);
+        gen_set_label(l1);
+        tcg_gen_movi_tl(cpu_reserve, -1);
+    }
+#endif
     tcg_temp_free(t0);
 }
 #endif /* defined(TARGET_PPC64) */
@@ -8834,7 +8870,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
             a = 'E';
         cpu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
     }
-    cpu_fprintf(f, " ]             RES " ADDRX "\n", env->reserve);
+    cpu_fprintf(f, " ]             RES " ADDRX "\n", env->reserve_addr);
     for (i = 0; i < 32; i++) {
         if ((i & (RFPL - 1)) == 0)
             cpu_fprintf(f, "FPR%02d", i);

@@ -72,5 +72,5 @@ for input; do
   echo "  { \"$basename\", $arrayname }," >> $output
 done
 
-echo "  { 0, 0 }" >> $output
+echo "  { (char *)0, (char *)0 }" >> $output
 echo "};" >> $output

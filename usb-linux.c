@@ -1057,7 +1057,7 @@ static int get_tag_value(char *buf, int buf_size,
  */
 static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
 {
-    FILE *f = 0;
+    FILE *f = NULL;
     char line[1024];
     char buf[1024];
     int bus_num, addr, speed, device_count, class_id, product_id, vendor_id;
@@ -1178,7 +1178,7 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
  */
 static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
 {
-    DIR *dir = 0;
+    DIR *dir = NULL;
     char line[1024];
     int bus_num, addr, speed, class_id, product_id, vendor_id;
     int ret = 0;
@@ -1257,8 +1257,8 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
 static int usb_host_scan(void *opaque, USBScanFunc *func)
 {
     Monitor *mon = cur_mon;
-    FILE *f = 0;
-    DIR *dir = 0;
+    FILE *f = NULL;
+    DIR *dir = NULL;
     int ret = 0;
     const char *fs_type[] = {"unknown", "proc", "dev", "sys"};
     char devpath[PATH_MAX];

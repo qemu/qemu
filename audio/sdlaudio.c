@@ -201,7 +201,7 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
     }
 
 #ifndef _WIN32
-    pthread_sigmask (SIG_SETMASK, &old, 0);
+    pthread_sigmask (SIG_SETMASK, &old, NULL);
 #endif
     return status;
 }

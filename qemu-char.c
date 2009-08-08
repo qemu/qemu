@@ -1947,7 +1947,7 @@ static void unix_process_msgfd(CharDriverState *chr, struct msghdr *msg)
 static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 {
     TCPCharDriver *s = chr->opaque;
-    struct msghdr msg = { 0, };
+    struct msghdr msg = { NULL, };
     struct iovec iov[1];
     union {
         struct cmsghdr cmsg;
@@ -2212,7 +2212,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     CharDriverState *chr;
 
     if (!strcmp(filename, "vc")) {
-        chr = text_console_init(0);
+        chr = text_console_init(NULL);
     } else
     if (strstart(filename, "vc:", &p)) {
         chr = text_console_init(p);

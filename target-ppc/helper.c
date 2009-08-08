@@ -2806,7 +2806,7 @@ void cpu_ppc_reset (void *opaque)
         env->msr |= (1ULL << MSR_SF);
 #endif
     hreg_compute_hflags(env);
-    env->reserve = (target_ulong)-1ULL;
+    env->reserve_addr = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
     env->pending_interrupts = 0;
     env->exception_index = POWERPC_EXCP_NONE;

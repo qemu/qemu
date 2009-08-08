@@ -329,8 +329,8 @@ static void do_dcbz(target_ulong addr, int dcache_line_size)
     for (i = 0 ; i < dcache_line_size ; i += 4) {
         stl(addr + i , 0);
     }
-    if (env->reserve == addr)
-        env->reserve = (target_ulong)-1ULL;
+    if (env->reserve_addr == addr)
+        env->reserve_addr = (target_ulong)-1ULL;
 }
 
 void helper_dcbz(target_ulong addr)

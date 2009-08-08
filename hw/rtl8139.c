@@ -2090,12 +2090,12 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             #define ETH_MTU     1500
 
             /* ip packet header */
-            ip_header *ip = 0;
+            ip_header *ip = NULL;
             int hlen = 0;
             uint8_t  ip_protocol = 0;
             uint16_t ip_data_len = 0;
 
-            uint8_t *eth_payload_data = 0;
+            uint8_t *eth_payload_data = NULL;
             size_t   eth_payload_len  = 0;
 
             int proto = be16_to_cpu(*(uint16_t *)(saved_buffer + 12));

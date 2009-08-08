@@ -32,7 +32,7 @@ struct BusInfo system_bus_info = {
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
     assert(n >= 0 && n < dev->num_irq);
-    dev->irqs[n] = 0;
+    dev->irqs[n] = NULL;
     if (dev->irqp[n]) {
         *dev->irqp[n] = irq;
     }
