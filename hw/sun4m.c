@@ -268,13 +268,6 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 {
 }
 
-static void *slavio_misc;
-
-void qemu_system_powerdown(void)
-{
-    slavio_set_power_fail(slavio_misc, 1);
-}
-
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -458,10 +451,17 @@ static void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
 #define MISC_MDM  0x01b00000
 #define MISC_SYS  0x01f00000
 
-static void *slavio_misc_init(target_phys_addr_t base,
-                              target_phys_addr_t aux1_base,
-                              target_phys_addr_t aux2_base, qemu_irq irq,
-                              qemu_irq fdc_tc)
+static qemu_irq slavio_powerdown;
+
+void qemu_system_powerdown(void)
+{
+    qemu_irq_raise(slavio_powerdown);
+}
+
+static void slavio_misc_init(target_phys_addr_t base,
+                             target_phys_addr_t aux1_base,
+                             target_phys_addr_t aux2_base, qemu_irq irq,
+                             qemu_irq fdc_tc)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -494,8 +494,7 @@ static void *slavio_misc_init(target_phys_addr_t base,
     }
     sysbus_connect_irq(s, 0, irq);
     sysbus_connect_irq(s, 1, fdc_tc);
-
-    return s;
+    slavio_powerdown = qdev_get_gpio_in(dev, 0);
 }
 
 static void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
@@ -826,9 +825,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
     cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
-    slavio_misc = slavio_misc_init(hwdef->slavio_base,
-                                   hwdef->aux1_base, hwdef->aux2_base,
-                                   slavio_irq[30], fdc_tc);
+    slavio_misc_init(hwdef->slavio_base, hwdef->aux1_base, hwdef->aux2_base,
+                     slavio_irq[30], fdc_tc);
+
     if (hwdef->apc_base) {
         apc_init(hwdef->apc_base, cpu_halt[0]);
     }
@@ -1615,8 +1614,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
               slavio_irq[1], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);
 
-    slavio_misc = slavio_misc_init(0, hwdef->aux1_base, 0,
-                                   slavio_irq[1], fdc_tc);
+    slavio_misc_init(0, hwdef->aux1_base, 0, slavio_irq[1], fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
