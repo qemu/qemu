@@ -451,13 +451,6 @@ static void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
 #define MISC_MDM  0x01b00000
 #define MISC_SYS  0x01f00000
 
-static qemu_irq slavio_powerdown;
-
-void qemu_system_powerdown(void)
-{
-    qemu_irq_raise(slavio_powerdown);
-}
-
 static void slavio_misc_init(target_phys_addr_t base,
                              target_phys_addr_t aux1_base,
                              target_phys_addr_t aux2_base, qemu_irq irq,
@@ -494,7 +487,7 @@ static void slavio_misc_init(target_phys_addr_t base,
     }
     sysbus_connect_irq(s, 0, irq);
     sysbus_connect_irq(s, 1, fdc_tc);
-    slavio_powerdown = qdev_get_gpio_in(dev, 0);
+    qemu_system_powerdown = qdev_get_gpio_in(dev, 0);
 }
 
 static void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)

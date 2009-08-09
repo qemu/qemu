@@ -4281,6 +4281,8 @@ static int vm_can_run(void)
     return 1;
 }
 
+qemu_irq qemu_system_powerdown;
+
 static void main_loop(void)
 {
     int r;
@@ -4321,8 +4323,9 @@ static void main_loop(void)
             qemu_system_reset();
             resume_all_vcpus();
         }
-        if (qemu_powerdown_requested())
-            qemu_system_powerdown();
+        if (qemu_powerdown_requested()) {
+            qemu_irq_raise(qemu_system_powerdown);
+        }
         if ((r = qemu_vmstop_requested()))
             vm_stop(r);
     }

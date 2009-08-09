@@ -254,10 +254,6 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     }
 }
 
-void qemu_system_powerdown(void)
-{
-}
-
 typedef struct ResetData {
     CPUState *env;
     uint64_t reset_addr;
