@@ -55,7 +55,7 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 block-obj-y += nbd.o block.o aio.o aes.o osdep.o
-block-obj-$(CONFIG_AIO) += posix-aio-compat.o
+block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 
 block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o

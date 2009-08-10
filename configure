@@ -196,8 +196,6 @@ build_docs="yes"
 uname_release=""
 curses="yes"
 curl="yes"
-pthread="yes"
-aio="yes"
 io_thread="no"
 nptl="yes"
 mixemu="no"
@@ -247,7 +245,6 @@ DragonFly)
   bsd="yes"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  aio="no"
 ;;
 NetBSD)
   bsd="yes"
@@ -347,7 +344,6 @@ if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
-  aio=no
 fi
 
 # find source path
@@ -490,10 +486,6 @@ for opt do
   ;;
   --enable-mixemu) mixemu="yes"
   ;;
-  --disable-pthread) pthread="no"
-  ;;
-  --disable-aio) aio="no"
-  ;;
   --enable-io-thread) io_thread="yes"
   ;;
   --disable-blobs) blobs="no"
@@ -630,8 +622,6 @@ echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
-echo "  --disable-pthread        disable pthread support"
-echo "  --disable-aio            disable AIO support"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
@@ -1171,24 +1161,25 @@ fi
 # pthread probe
 PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 
-if test "$pthread" = yes; then
-  pthread=no
+pthread=no
 cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
-  for pthread_lib in $PTHREADLIBS_LIST; do
-    if compile_prog "" "$pthread_lib" ; then
-      pthread=yes
-      LIBS="$pthread_lib $LIBS"
-      break
-    fi
-  done
-fi
+for pthread_lib in $PTHREADLIBS_LIST; do
+  if compile_prog "" "$pthread_lib" ; then
+    pthread=yes
+    LIBS="$pthread_lib $LIBS"
+    break
+  fi
+done
 
 if test "$pthread" = no; then
-   aio=no
-   io_thread=no
+  echo
+  echo "Error: pthread check failed"
+  echo "Make sure to have the pthread libs and headers installed."
+  echo
+  exit 1
 fi
 
 ##########################################
@@ -1520,7 +1511,6 @@ echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
 echo "vde support       $vde"
-echo "AIO support       $aio"
 echo "IO thread         $io_thread"
 echo "Install blobs     $blobs"
 echo -e "KVM support       $kvm"
@@ -1691,9 +1681,6 @@ if test "$bluez" = "yes" ; then
 fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN=y" >> $config_host_mak
-fi
-if test "$aio" = "yes" ; then
-  echo "CONFIG_AIO=y" >> $config_host_mak
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak
