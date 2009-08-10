@@ -131,10 +131,6 @@ extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
 
-#ifdef CONFIG_KQEMU
-extern int kqemu_allowed;
-#endif
-
 #define MAX_NODES 64
 extern int nb_numa_nodes;
 extern uint64_t node_mem[MAX_NODES];

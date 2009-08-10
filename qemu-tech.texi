@@ -116,8 +116,8 @@ QEMU full system emulation features:
 QEMU uses a full software MMU for maximum portability.
 
 @item
-QEMU can optionally use an in-kernel accelerator, like kqemu and
-kvm. The accelerators execute some of the guest code natively, while
+QEMU can optionally use an in-kernel accelerator, like kvm. The accelerators 
+execute some of the guest code natively, while
 continuing to emulate the rest of the machine.
 
 @item

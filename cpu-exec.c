@@ -321,31 +321,6 @@ int cpu_exec(CPUState *env1)
                 }
                 env->exception_index = -1;
             }
-#ifdef CONFIG_KQEMU
-            if (kqemu_is_ok(env) && env->interrupt_request == 0 && env->exit_request == 0) {
-                int ret;
-                env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
-                ret = kqemu_cpu_exec(env);
-                /* put eflags in CPU temporary format */
-                CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-                DF = 1 - (2 * ((env->eflags >> 10) & 1));
-                CC_OP = CC_OP_EFLAGS;
-                env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-                if (ret == 1) {
-                    /* exception */
-                    longjmp(env->jmp_env, 1);
-                } else if (ret == 2) {
-                    /* softmmu execution needed */
-                } else {
-                    if (env->interrupt_request != 0 || env->exit_request != 0) {
-                        /* hardware interrupt will be executed just after */
-                    } else {
-                        /* otherwise, we restart */
-                        longjmp(env->jmp_env, 1);
-                    }
-                }
-            }
-#endif
 
             if (kvm_enabled()) {
                 kvm_cpu_exec(env);
@@ -620,11 +595,7 @@ int cpu_exec(CPUState *env1)
                    spans two pages, we cannot safely do a direct
                    jump. */
                 {
-                    if (next_tb != 0 &&
-#ifdef CONFIG_KQEMU
-                        (env->kqemu_enabled != 2) &&
-#endif
-                        tb->page_addr[1] == -1) {
+                    if (next_tb != 0 && tb->page_addr[1] == -1) {
                     tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
                 }
                 }
@@ -678,13 +649,6 @@ int cpu_exec(CPUState *env1)
                 }
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
-#if defined(CONFIG_KQEMU)
-#define MIN_CYCLE_BEFORE_SWITCH (100 * 1000)
-                if (kqemu_is_ok(env) &&
-                    (cpu_get_time_fast() - env->last_io_time) >= MIN_CYCLE_BEFORE_SWITCH) {
-                    cpu_loop_exit();
-                }
-#endif
             } /* for(;;) */
         } else {
             env_to_regs();

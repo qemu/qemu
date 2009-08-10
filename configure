@@ -185,7 +185,6 @@ vnc_sasl="yes"
 bsd="no"
 linux="no"
 solaris="no"
-kqemu="no"
 profiler="no"
 cocoa="no"
 softmmu="yes"
@@ -238,25 +237,16 @@ MINGW32*)
 GNU/kFreeBSD)
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
-  fi
 ;;
 FreeBSD)
   bsd="yes"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
-  fi
 ;;
 DragonFly)
   bsd="yes"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
-  fi
   aio="no"
 ;;
 NetBSD)
@@ -320,9 +310,6 @@ SunOS)
         exit 1
       fi
     fi
-    if test "$solarisrev" -ge 9 ; then
-      kqemu="yes"
-    fi
   fi
   if test -f /usr/include/sys/soundcard.h ; then
     audio_drv_list="oss"
@@ -343,7 +330,6 @@ AIX)
   usb="linux"
   kvm="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
 ;;
@@ -358,9 +344,6 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 if test "$mingw32" = "yes" ; then
-  if [ "$cpu" = "i386" ] ; then
-    kqemu="yes"
-  fi
   EXESUF=".exe"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
@@ -449,8 +432,6 @@ for opt do
   --disable-slirp) slirp="no"
   ;;
   --disable-vde) vde="no"
-  ;;
-  --disable-kqemu) kqemu="no"
   ;;
   --disable-xen) xen="no"
   ;;
@@ -596,9 +577,6 @@ echo "  --prefix=PREFIX          install in PREFIX [$prefix]"
 echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
 echo "                           use %M for cpu name [$interp_prefix]"
 echo "  --target-list=LIST       set target list [$target_list]"
-echo ""
-echo "kqemu kernel acceleration support:"
-echo "  --disable-kqemu          disable kqemu support"
 echo ""
 echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
@@ -1534,7 +1512,6 @@ fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
-echo "kqemu support     $kqemu"
 echo "xen support       $xen"
 echo "brlapi support    $brlapi"
 echo "Documentation     $build_docs"
@@ -2018,10 +1995,6 @@ case "$target_arch2" in
   i386|x86_64)
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
       echo "CONFIG_XEN=y" >> $config_mak
-    fi
-    if test $kqemu = "yes" -a "$target_softmmu" = "yes"
-    then
-      echo "CONFIG_KQEMU=y" >> $config_mak
     fi
 esac
 case "$target_arch2" in

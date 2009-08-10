@@ -70,7 +70,6 @@ Generic Subsystems:
 Dynamic translator        Fabrice Bellard
 Main loop                 Fabrice Bellard (new maintainer needed)
 TCG                       Fabrice Bellard
-kqemu interface           Fabrice Bellard
 IDE device                ?
 SCSI device               Paul Brook
 PCI layer                 ?
