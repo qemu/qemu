@@ -54,7 +54,7 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += nbd.o block.o aio.o aes.o
+block-obj-y += nbd.o block.o aio.o aes.o osdep.o
 block-obj-$(CONFIG_AIO) += posix-aio-compat.o
 
 block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
@@ -170,11 +170,11 @@ libqemu_user.a: $(user-obj-y)
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(block-obj-y)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y)
 
-qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(block-obj-y)
+qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o $(block-obj-y)
 
-qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(block-obj-y)
+qemu-io$(EXESUF):  qemu-io.o qemu-tool.o cmd.o $(block-obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")

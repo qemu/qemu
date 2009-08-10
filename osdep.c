@@ -33,9 +33,6 @@
 #include <sys/statvfs.h>
 #endif
 
-/* FIXME: This file should be target independent. However it has kqemu
-   hacks, so must be built for every target.  */
-
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 
