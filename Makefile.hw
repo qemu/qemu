@@ -11,7 +11,7 @@ VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 QEMU_CFLAGS+=-I.. -I$(SRC_PATH)/fpu
 
 obj-y =
-obj-y += virtio.o virtio-pci.o
+obj-y += virtio.o
 obj-y += fw_cfg.o
 obj-y += watchdog.o
 obj-y += nand.o ecc.o
