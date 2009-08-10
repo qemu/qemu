@@ -706,6 +706,7 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu);
+#define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
 int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
                           int rw, int access_type);
 void do_interrupt (CPUPPCState *env);
