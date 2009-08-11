@@ -216,22 +216,30 @@ static void wav_audio_fini (void *opaque)
 }
 
 static struct audio_option wav_options[] = {
-    {.name  = "FREQUENCY",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.settings.freq,
-     .descr = "Frequency"},
-    {.name  = "FORMAT",
-     .tag   = AUD_OPT_FMT,
-     .valp  = &conf.settings.fmt,
-     .descr = "Format"},
-    {.name  = "DAC_FIXED_CHANNELS",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.settings.nchannels,
-     .descr = "Number of channels (1 - mono, 2 - stereo)"},
-    {.name  = "PATH",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.wav_path,
-     .descr = "Path to wave file"},
+    {
+        .name  = "FREQUENCY",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.settings.freq,
+        .descr = "Frequency"
+    },
+    {
+        .name  = "FORMAT",
+        .tag   = AUD_OPT_FMT,
+        .valp  = &conf.settings.fmt,
+        .descr = "Format"
+    },
+    {
+        .name  = "DAC_FIXED_CHANNELS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.settings.nchannels,
+        .descr = "Number of channels (1 - mono, 2 - stereo)"
+    },
+    {
+        .name  = "PATH",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.wav_path,
+        .descr = "Path to wave file"
+    },
     { /* End of list */ }
 };
 
@@ -249,7 +257,7 @@ struct audio_driver wav_audio_driver = {
     .options        = wav_options,
     .init           = wav_audio_init,
     .fini           = wav_audio_fini,
-    .pcm_ops = &wav_pcm_ops,
+    .pcm_ops        = &wav_pcm_ops,
     .can_be_default = 0,
     .max_voices_out = 1,
     .max_voices_in  = 0,

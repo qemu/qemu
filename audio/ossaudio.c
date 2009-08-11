@@ -654,10 +654,8 @@ static int oss_run_in (HWVoiceIn *hw)
         int add;
         int len;
     } bufs[2] = {
-        {.add = hw->wpos,
-         .len = 0},
-	{.add = 0,
-         .len = 0}
+        { .add = hw->wpos, .len = 0 },
+        { .add = 0,        .len = 0 }
     };
 
     if (!dead) {
@@ -738,30 +736,42 @@ static void oss_audio_fini (void *opaque)
 }
 
 static struct audio_option oss_options[] = {
-    {.name  = "FRAGSIZE",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.fragsize,
-     .descr = "Fragment size in bytes"},
-    {.name  = "NFRAGS",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.nfrags,
-     .descr = "Number of fragments"},
-    {.name  = "MMAP",
-     .tag   = AUD_OPT_BOOL,
-     .valp  = &conf.try_mmap,
-     .descr = "Try using memory mapped access"},
-    {.name  = "DAC_DEV",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.devpath_out,
-     .descr = "Path to DAC device"},
-    {.name  = "ADC_DEV",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.devpath_in,
-     .descr = "Path to ADC device"},
-    {.name  = "DEBUG",
-     .tag   = AUD_OPT_BOOL,
-     .valp  = &conf.debug,
-     .descr = "Turn on some debugging messages"},
+    {
+        .name  = "FRAGSIZE",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.fragsize,
+        .descr = "Fragment size in bytes"
+    },
+    {
+        .name  = "NFRAGS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nfrags,
+        .descr = "Number of fragments"
+    },
+    {
+        .name  = "MMAP",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.try_mmap,
+        .descr = "Try using memory mapped access"
+    },
+    {
+        .name  = "DAC_DEV",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.devpath_out,
+        .descr = "Path to DAC device"
+    },
+    {
+        .name  = "ADC_DEV",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.devpath_in,
+        .descr = "Path to ADC device"
+    },
+    {
+        .name  = "DEBUG",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.debug,
+        .descr = "Turn on some debugging messages"
+    },
     { /* End of list */ }
 };
 

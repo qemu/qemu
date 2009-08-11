@@ -420,10 +420,12 @@ static void sdl_audio_fini (void *opaque)
 }
 
 static struct audio_option sdl_options[] = {
-    {.name  = "SAMPLES",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.nb_samples,
-     .descr = "Size of SDL buffer in samples"},
+    {
+        .name  = "SAMPLES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nb_samples,
+        .descr = "Size of SDL buffer in samples"
+    },
     { /* End of list */ }
 };
 

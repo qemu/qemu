@@ -513,14 +513,18 @@ static void coreaudio_audio_fini (void *opaque)
 }
 
 static struct audio_option coreaudio_options[] = {
-    {.name  = "BUFFER_SIZE",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.buffer_frames,
-     .descr = "Size of the buffer in frames"},
-    {.name  = "BUFFER_COUNT",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.nbuffers,
-     .descr = "Number of buffers"},
+    {
+        .name  = "BUFFER_SIZE",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.buffer_frames,
+        .descr = "Size of the buffer in frames"
+    },
+    {
+        .name  = "BUFFER_COUNT",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nbuffers,
+        .descr = "Number of buffers"
+    },
     { /* End of list */ }
 };
 

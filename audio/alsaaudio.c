@@ -786,10 +786,8 @@ static int alsa_run_in (HWVoiceIn *hw)
         int add;
         int len;
     } bufs[2] = {
-        {.add = hw->wpos,
-         .len = 0},
-        {.add = 0,
-         .len = 0}
+        { .add = hw->wpos, .len = 0 },
+        { .add = 0,        .len = 0 }
     };
     snd_pcm_sframes_t avail;
     snd_pcm_uframes_t read_samples = 0;
@@ -937,50 +935,71 @@ static void alsa_audio_fini (void *opaque)
 }
 
 static struct audio_option alsa_options[] = {
-    {.name        = "DAC_SIZE_IN_USEC",
-     .tag         = AUD_OPT_BOOL,
-     .valp        = &conf.size_in_usec_out,
-     .descr       = "DAC period/buffer size in microseconds (otherwise in frames)"},
-    {.name        = "DAC_PERIOD_SIZE",
-     .tag         = AUD_OPT_INT,
-     .valp        = &conf.period_size_out,
-     .descr       = "DAC period size (0 to go with system default)",
-     .overriddenp = &conf.period_size_out_overridden},
-    {.name        = "DAC_BUFFER_SIZE",
-     .tag         = AUD_OPT_INT,
-     .valp        = &conf.buffer_size_out,
-     .descr       = "DAC buffer size (0 to go with system default)",
-     .overriddenp = &conf.buffer_size_out_overridden},
-    {.name        = "ADC_SIZE_IN_USEC",
-     .tag         = AUD_OPT_BOOL,
-     .valp        = &conf.size_in_usec_in,
-     .descr       = "ADC period/buffer size in microseconds (otherwise in frames)"},
-    {.name        = "ADC_PERIOD_SIZE",
-     .tag         = AUD_OPT_INT,
-     .valp        = &conf.period_size_in,
-     .descr       = "ADC period size (0 to go with system default)",
-     .overriddenp = &conf.period_size_in_overridden},
-    {.name        = "ADC_BUFFER_SIZE",
-     .tag         = AUD_OPT_INT,
-     .valp        = &conf.buffer_size_in,
-     .descr       = "ADC buffer size (0 to go with system default)",
-     .overriddenp = &conf.buffer_size_in_overridden},
-    {.name        = "THRESHOLD",
-     .tag         = AUD_OPT_INT,
-     .valp        = &conf.threshold,
-     .descr       = "(undocumented)"},
-    {.name        = "DAC_DEV",
-     .tag         = AUD_OPT_STR,
-     .valp        = &conf.pcm_name_out,
-     .descr       = "DAC device name (for instance dmix)"},
-    {.name        = "ADC_DEV",
-     .tag         = AUD_OPT_STR,
-     .valp        = &conf.pcm_name_in,
-     .descr       = "ADC device name"},
-    {.name        = "VERBOSE",
-     .tag         = AUD_OPT_BOOL,
-     .valp        = &conf.verbose,
-     .descr       = "Behave in a more verbose way"},
+    {
+        .name        = "DAC_SIZE_IN_USEC",
+        .tag         = AUD_OPT_BOOL,
+        .valp        = &conf.size_in_usec_out,
+        .descr       = "DAC period/buffer size in microseconds (otherwise in frames)"
+    },
+    {
+        .name        = "DAC_PERIOD_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.period_size_out,
+        .descr       = "DAC period size (0 to go with system default)",
+        .overriddenp = &conf.period_size_out_overridden
+    },
+    {
+        .name        = "DAC_BUFFER_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.buffer_size_out,
+        .descr       = "DAC buffer size (0 to go with system default)",
+        .overriddenp = &conf.buffer_size_out_overridden
+    },
+    {
+        .name        = "ADC_SIZE_IN_USEC",
+        .tag         = AUD_OPT_BOOL,
+        .valp        = &conf.size_in_usec_in,
+        .descr       =
+        "ADC period/buffer size in microseconds (otherwise in frames)"
+    },
+    {
+        .name        = "ADC_PERIOD_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.period_size_in,
+        .descr       = "ADC period size (0 to go with system default)",
+        .overriddenp = &conf.period_size_in_overridden
+    },
+    {
+        .name        = "ADC_BUFFER_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.buffer_size_in,
+        .descr       = "ADC buffer size (0 to go with system default)",
+        .overriddenp = &conf.buffer_size_in_overridden
+    },
+    {
+        .name        = "THRESHOLD",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.threshold,
+        .descr       = "(undocumented)"
+    },
+    {
+        .name        = "DAC_DEV",
+        .tag         = AUD_OPT_STR,
+        .valp        = &conf.pcm_name_out,
+        .descr       = "DAC device name (for instance dmix)"
+    },
+    {
+        .name        = "ADC_DEV",
+        .tag         = AUD_OPT_STR,
+        .valp        = &conf.pcm_name_in,
+        .descr       = "ADC device name"
+    },
+    {
+        .name        = "VERBOSE",
+        .tag         = AUD_OPT_BOOL,
+        .valp        = &conf.verbose,
+        .descr       = "Behave in a more verbose way"
+    },
     { /* End of list */ }
 };
 

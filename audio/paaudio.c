@@ -466,26 +466,36 @@ static void qpa_audio_fini (void *opaque)
 }
 
 struct audio_option qpa_options[] = {
-    {.name  = "SAMPLES",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.samples,
-     .descr = "buffer size in samples"},
-    {.name  = "DIVISOR",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.divisor,
-     .descr = "threshold divisor"},
-    {.name  = "SERVER",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.server,
-     .descr = "server address"},
-    {.name  = "SINK",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.sink,
-     .descr = "sink device name"},
-    {.name  = "SOURCE",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.source,
-     .descr = "source device name"},
+    {
+        .name  = "SAMPLES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.samples,
+        .descr = "buffer size in samples"
+    },
+    {
+        .name  = "DIVISOR",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.divisor,
+        .descr = "threshold divisor"
+    },
+    {
+        .name  = "SERVER",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.server,
+        .descr = "server address"
+    },
+    {
+        .name  = "SINK",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.sink,
+        .descr = "sink device name"
+    },
+    {
+        .name  = "SOURCE",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.source,
+        .descr = "source device name"
+    },
     { /* End of list */ }
 };
 

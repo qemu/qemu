@@ -1033,46 +1033,66 @@ static void *dsound_audio_init (void)
 }
 
 static struct audio_option dsound_options[] = {
-    {.name  = "LOCK_RETRIES",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.lock_retries,
-     .descr = "Number of times to attempt locking the buffer"},
-    {.name  = "RESTOURE_RETRIES",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.restore_retries,
-     .descr = "Number of times to attempt restoring the buffer"},
-    {.name  = "GETSTATUS_RETRIES",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.getstatus_retries,
-     .descr = "Number of times to attempt getting status of the buffer"},
-    {.name  = "SET_PRIMARY",
-     .tag   = AUD_OPT_BOOL,
-     .valp  = &conf.set_primary
-     .descr = "Set the parameters of primary buffer"},
-    {.name  = "LATENCY_MILLIS",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.latency_millis,
-     .descr = "(undocumented)"},
-    {.name  = "PRIMARY_FREQ",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.settings.freq,
-     .descr = "Primary buffer frequency"},
-    {.name  = "PRIMARY_CHANNELS",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.settings.nchannels,
-     .descr = "Primary buffer number of channels (1 - mono, 2 - stereo)"},
-    {.name  = "PRIMARY_FMT",
-     .tag   = AUD_OPT_FMT,
-     .valp  = &conf.settings.fmt,
-     .descr = "Primary buffer format"},
-    {.name  = "BUFSIZE_OUT",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.bufsize_out,
-     .descr = "(undocumented)"},
-    {.name  = "BUFSIZE_IN",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.bufsize_in,
-     .descr = "(undocumented)"},
+    {
+        .name  = "LOCK_RETRIES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.lock_retries,
+        .descr = "Number of times to attempt locking the buffer"
+    },
+    {
+        .name  = "RESTOURE_RETRIES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.restore_retries,
+        .descr = "Number of times to attempt restoring the buffer"
+    },
+    {
+        .name  = "GETSTATUS_RETRIES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.getstatus_retries,
+        .descr = "Number of times to attempt getting status of the buffer"
+    },
+    {
+        .name  = "SET_PRIMARY",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.set_primary
+        .descr = "Set the parameters of primary buffer"
+    },
+    {
+        .name  = "LATENCY_MILLIS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.latency_millis,
+        .descr = "(undocumented)"
+    },
+    {
+        .name  = "PRIMARY_FREQ",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.settings.freq,
+        .descr = "Primary buffer frequency"
+    },
+    {
+        .name  = "PRIMARY_CHANNELS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.settings.nchannels,
+        .descr = "Primary buffer number of channels (1 - mono, 2 - stereo)"
+    },
+    {
+        .name  = "PRIMARY_FMT",
+        .tag   = AUD_OPT_FMT,
+        .valp  = &conf.settings.fmt,
+        .descr = "Primary buffer format"
+    },
+    {
+        .name  = "BUFSIZE_OUT",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.bufsize_out,
+        .descr = "(undocumented)"
+    },
+    {
+        .name  = "BUFSIZE_IN",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.bufsize_in,
+        .descr = "(undocumented)"
+    },
     { /* End of list */ }
 };
 

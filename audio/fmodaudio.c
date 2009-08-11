@@ -513,40 +513,27 @@ static struct {
     const char *name;
     int type;
 } drvtab[] = {
-    {.name = "none",
-     .type = FSOUND_OUTPUT_NOSOUND},
+    { .name = "none",   .type = FSOUND_OUTPUT_NOSOUND },
 #ifdef _WIN32
-    {.name = "winmm",
-     .type = FSOUND_OUTPUT_WINMM},
-    {.name = "dsound",
-     .type = FSOUND_OUTPUT_DSOUND},
-    {.name = "a3d",
-     .type = FSOUND_OUTPUT_A3D},
-    {.name = "asio",
-     .type = FSOUND_OUTPUT_ASIO},
+    { .name = "winmm",  .type = FSOUND_OUTPUT_WINMM   },
+    { .name = "dsound", .type = FSOUND_OUTPUT_DSOUND  },
+    { .name = "a3d",    .type = FSOUND_OUTPUT_A3D     },
+    { .name = "asio",   .type = FSOUND_OUTPUT_ASIO    },
 #endif
 #ifdef __linux__
-    {.name = "oss",
-     .type = FSOUND_OUTPUT_OSS},
-    {.name = "alsa",
-     .type =  FSOUND_OUTPUT_ALSA},
-    {.name = "esd",
-     .type = FSOUND_OUTPUT_ESD},
+    { .name = "oss",    .type = FSOUND_OUTPUT_OSS     },
+    { .name = "alsa",   .type = FSOUND_OUTPUT_ALSA    },
+    { .name = "esd",    .type = FSOUND_OUTPUT_ESD     },
 #endif
 #ifdef __APPLE__
-    {.name = "mac",
-     .type = FSOUND_OUTPUT_MAC},
+    { .name = "mac",    .type = FSOUND_OUTPUT_MAC     },
 #endif
 #if 0
-    {.name = "xbox",
-     .type = FSOUND_OUTPUT_XBOX},
-    {.name = "ps2",
-     .type = FSOUND_OUTPUT_PS2},
-    {.name = "gcube",
-     .type = FSOUND_OUTPUT_GC},
+    { .name = "xbox",   .type = FSOUND_OUTPUT_XBOX    },
+    { .name = "ps2",    .type = FSOUND_OUTPUT_PS2     },
+    { .name = "gcube",  .type = FSOUND_OUTPUT_GC      },
 #endif
-    {.name = "none-realtime",
-     .type = FSOUND_OUTPUT_NOSOUND_NONREALTIME}
+    { .name = "none-realtime", .type = FSOUND_OUTPUT_NOSOUND_NONREALTIME }
 };
 
 static void *fmod_audio_init (void)
@@ -648,31 +635,43 @@ static void fmod_audio_fini (void *opaque)
 }
 
 static struct audio_option fmod_options[] = {
-    {.name  = "DRV",
-     .tag   = AUD_OPT_STR,
-     .valp  = &conf.drvname,
-     .descr = "FMOD driver"},
-    {.name  = "FREQ",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.freq,
-     .descr = "Default frequency"},
-    {.name  = "SAMPLES",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.nb_samples,
-     .descr = "Buffer size in samples"},
-    {.name  = "CHANNELS",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.nb_channels,
-     .descr = "Number of default channels (1 - mono, 2 - stereo)"},
-    {.name  = "BUFSIZE",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.bufsize,
-     .descr = "(undocumented)"}
+    {
+        .name  = "DRV",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.drvname,
+        .descr = "FMOD driver"
+    },
+    {
+        .name  = "FREQ",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.freq,
+        .descr = "Default frequency"
+    },
+    {
+        .name  = "SAMPLES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nb_samples,
+        .descr = "Buffer size in samples"
+    },
+    {
+        .name  = "CHANNELS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nb_channels,
+        .descr = "Number of default channels (1 - mono, 2 - stereo)"
+    },
+    {
+        .name  = "BUFSIZE",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.bufsize,
+        .descr = "(undocumented)"
+    }
 #if 0
-    {.name  = "THRESHOLD",
-     .tag   = AUD_OPT_INT,
-     .valp  = &conf.threshold,
-     .descr = "(undocumented)"}
+    {
+        .name  = "THRESHOLD",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.threshold,
+        .descr = "(undocumented)"
+    }
 #endif
     { /* End of list */ }
 };
@@ -684,11 +683,11 @@ static struct audio_pcm_ops fmod_pcm_ops = {
     .write    = fmod_write,
     .ctl_out  = fmod_ctl_out,
 
-    .init_in = fmod_init_in,
-    .fini_in = fmod_fini_in,
-    .run_in  = fmod_run_in,
-    .read    = fmod_read,
-    .ctl_in  = fmod_ctl_in
+    .init_in  = fmod_init_in,
+    .fini_in  = fmod_fini_in,
+    .run_in   = fmod_run_in,
+    .read     = fmod_read,
+    .ctl_in   = fmod_ctl_in
 };
 
 struct audio_driver fmod_audio_driver = {
