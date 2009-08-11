@@ -198,7 +198,7 @@ extern PropertyInfo qdev_prop_pci_devfn;
 #define DEFINE_PROP_CHR(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_chr, CharDriverState*)
 #define DEFINE_PROP_DRIVE(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_chr, DriveInfo*)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_drive, DriveInfo*)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, uint8_t[6])
 
