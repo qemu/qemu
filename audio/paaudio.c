@@ -469,22 +469,27 @@ static void qpa_audio_fini (void *opaque)
 }
 
 struct audio_option qpa_options[] = {
-    {"SAMPLES", AUD_OPT_INT, &conf.samples,
-     "buffer size in samples", NULL, 0},
-
-    {"DIVISOR", AUD_OPT_INT, &conf.divisor,
-     "threshold divisor", NULL, 0},
-
-    {"SERVER", AUD_OPT_STR, &conf.server,
-     "server address", NULL, 0},
-
-    {"SINK", AUD_OPT_STR, &conf.sink,
-     "sink device name", NULL, 0},
-
-    {"SOURCE", AUD_OPT_STR, &conf.source,
-     "source device name", NULL, 0},
-
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {.name  = "SAMPLES",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.samples,
+     .descr = "buffer size in samples"},
+    {.name  = "DIVISOR",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.divisor,
+     .descr = "threshold divisor"},
+    {.name  = "SERVER",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.server,
+     .descr = "server address"},
+    {.name  = "SINK",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.sink,
+     .descr = "sink device name"},
+    {.name  = "SOURCE",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.source,
+     .descr = "source device name"},
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops qpa_pcm_ops = {

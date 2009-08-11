@@ -736,19 +736,31 @@ static void oss_audio_fini (void *opaque)
 }
 
 static struct audio_option oss_options[] = {
-    {"FRAGSIZE", AUD_OPT_INT, &conf.fragsize,
-     "Fragment size in bytes", NULL, 0},
-    {"NFRAGS", AUD_OPT_INT, &conf.nfrags,
-     "Number of fragments", NULL, 0},
-    {"MMAP", AUD_OPT_BOOL, &conf.try_mmap,
-     "Try using memory mapped access", NULL, 0},
-    {"DAC_DEV", AUD_OPT_STR, &conf.devpath_out,
-     "Path to DAC device", NULL, 0},
-    {"ADC_DEV", AUD_OPT_STR, &conf.devpath_in,
-     "Path to ADC device", NULL, 0},
-    {"DEBUG", AUD_OPT_BOOL, &conf.debug,
-     "Turn on some debugging messages", NULL, 0},
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {.name  = "FRAGSIZE",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.fragsize,
+     .descr = "Fragment size in bytes"},
+    {.name  = "NFRAGS",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.nfrags,
+     .descr = "Number of fragments"},
+    {.name  = "MMAP",
+     .tag   = AUD_OPT_BOOL,
+     .valp  = &conf.try_mmap,
+     .descr = "Try using memory mapped access"},
+    {.name  = "DAC_DEV",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.devpath_out,
+     .descr = "Path to DAC device"},
+    {.name  = "ADC_DEV",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.devpath_in,
+     .descr = "Path to ADC device"},
+    {.name  = "DEBUG",
+     .tag   = AUD_OPT_BOOL,
+     .valp  = &conf.debug,
+     .descr = "Turn on some debugging messages"},
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops oss_pcm_ops = {

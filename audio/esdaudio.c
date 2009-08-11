@@ -551,19 +551,23 @@ static void qesd_audio_fini (void *opaque)
 }
 
 struct audio_option qesd_options[] = {
-    {"SAMPLES", AUD_OPT_INT, &conf.samples,
-     "buffer size in samples", NULL, 0},
-
-    {"DIVISOR", AUD_OPT_INT, &conf.divisor,
-     "threshold divisor", NULL, 0},
-
-    {"DAC_HOST", AUD_OPT_STR, &conf.dac_host,
-     "playback host", NULL, 0},
-
-    {"ADC_HOST", AUD_OPT_STR, &conf.adc_host,
-     "capture host", NULL, 0},
-
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {.name  = "SAMPLES",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.samples,
+     .descr = "buffer size in samples"},
+    {.name  = "DIVISOR",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.divisor,
+     .descr = "threshold divisor"},
+    {.name  = "DAC_HOST",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.dac_host,
+     .descr = "playback host"},
+    {.name  = "ADC_HOST",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.adc_host,
+     .descr = "capture host"},
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops qesd_pcm_ops = {

@@ -639,22 +639,33 @@ static void fmod_audio_fini (void *opaque)
 }
 
 static struct audio_option fmod_options[] = {
-    {"DRV", AUD_OPT_STR, &conf.drvname,
-     "FMOD driver", NULL, 0},
-    {"FREQ", AUD_OPT_INT, &conf.freq,
-     "Default frequency", NULL, 0},
-    {"SAMPLES", AUD_OPT_INT, &conf.nb_samples,
-     "Buffer size in samples", NULL, 0},
-    {"CHANNELS", AUD_OPT_INT, &conf.nb_channels,
-     "Number of default channels (1 - mono, 2 - stereo)", NULL, 0},
-    {"BUFSIZE", AUD_OPT_INT, &conf.bufsize,
-     "(undocumented)", NULL, 0},
+    {.name  = "DRV",
+     .tag   = AUD_OPT_STR,
+     .valp  = &conf.drvname,
+     .descr = "FMOD driver"},
+    {.name  = "FREQ",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.freq,
+     .descr = "Default frequency"},
+    {.name  = "SAMPLES",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.nb_samples,
+     .descr = "Buffer size in samples"},
+    {.name  = "CHANNELS",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.nb_channels,
+     .descr = "Number of default channels (1 - mono, 2 - stereo)"},
+    {.name  = "BUFSIZE",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.bufsize,
+     .descr = "(undocumented)"}
 #if 0
-    {"THRESHOLD", AUD_OPT_INT, &conf.threshold,
-     "(undocumented)"},
+    {.name  = "THRESHOLD",
+     .tag   = AUD_OPT_INT,
+     .valp  = &conf.threshold,
+     .descr = "(undocumented)"}
 #endif
-
-    {NULL, 0, NULL, NULL, NULL, 0}
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops fmod_pcm_ops = {
