@@ -48,7 +48,7 @@ typedef struct SDLVoiceOut {
 static struct {
     int nb_samples;
 } conf = {
-    1024
+    .nb_samples = 1024
 };
 
 static struct SDLAudioState {

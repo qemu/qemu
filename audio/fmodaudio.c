@@ -50,13 +50,9 @@ static struct {
     int threshold;
     int broken_adc;
 } conf = {
-    NULL,
-    2048 * 2,
-    44100,
-    2,
-    0,
-    0,
-    0
+    .nb_samples  = 2048 * 2,
+    .freq        = 44100,
+    .nb_channels = 2,
 };
 
 static void GCC_FMT_ATTR (1, 2) fmod_logerr (const char *fmt, ...)
@@ -517,27 +513,40 @@ static struct {
     const char *name;
     int type;
 } drvtab[] = {
-    {"none", FSOUND_OUTPUT_NOSOUND},
+    {.name = "none",
+     .type = FSOUND_OUTPUT_NOSOUND},
 #ifdef _WIN32
-    {"winmm", FSOUND_OUTPUT_WINMM},
-    {"dsound", FSOUND_OUTPUT_DSOUND},
-    {"a3d", FSOUND_OUTPUT_A3D},
-    {"asio", FSOUND_OUTPUT_ASIO},
+    {.name = "winmm",
+     .type = FSOUND_OUTPUT_WINMM},
+    {.name = "dsound",
+     .type = FSOUND_OUTPUT_DSOUND},
+    {.name = "a3d",
+     .type = FSOUND_OUTPUT_A3D},
+    {.name = "asio",
+     .type = FSOUND_OUTPUT_ASIO},
 #endif
 #ifdef __linux__
-    {"oss", FSOUND_OUTPUT_OSS},
-    {"alsa", FSOUND_OUTPUT_ALSA},
-    {"esd", FSOUND_OUTPUT_ESD},
+    {.name = "oss",
+     .type = FSOUND_OUTPUT_OSS},
+    {.name = "alsa",
+     .type =  FSOUND_OUTPUT_ALSA},
+    {.name = "esd",
+     .type = FSOUND_OUTPUT_ESD},
 #endif
 #ifdef __APPLE__
-    {"mac", FSOUND_OUTPUT_MAC},
+    {.name = "mac",
+     .type = FSOUND_OUTPUT_MAC},
 #endif
 #if 0
-    {"xbox", FSOUND_OUTPUT_XBOX},
-    {"ps2", FSOUND_OUTPUT_PS2},
-    {"gcube", FSOUND_OUTPUT_GC},
+    {.name = "xbox",
+     .type = FSOUND_OUTPUT_XBOX},
+    {.name = "ps2",
+     .type = FSOUND_OUTPUT_PS2},
+    {.name = "gcube",
+     .type = FSOUND_OUTPUT_GC},
 #endif
-    {"none-realtime", FSOUND_OUTPUT_NOSOUND_NONREALTIME}
+    {.name = "none-realtime",
+     .type = FSOUND_OUTPUT_NOSOUND_NONREALTIME}
 };
 
 static void *fmod_audio_init (void)

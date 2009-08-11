@@ -38,11 +38,8 @@ static struct {
     char *sink;
     char *source;
 } conf = {
-    1024,
-    2,
-    NULL,
-    NULL,
-    NULL
+    .samples = 1024,
+    .divisor = 2,
 };
 
 static void GCC_FMT_ATTR (2, 3) qpa_logerr (int err, const char *fmt, ...)

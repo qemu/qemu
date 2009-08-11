@@ -40,13 +40,10 @@ static struct {
     struct audsettings settings;
     const char *wav_path;
 } conf = {
-    {
-        44100,
-        2,
-        AUD_FMT_S16,
-        0
-    },
-    "qemu.wav"
+    .settings.freq      = 44100,
+    .settings.nchannels = 2,
+    .settings.fmt       = AUD_FMT_S16,
+    .wav_path           = "qemu.wav"
 };
 
 static int wav_run_out (HWVoiceOut *hw)

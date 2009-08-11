@@ -49,18 +49,16 @@ static struct {
     struct audsettings settings;
     int latency_millis;
 } conf = {
-    1,
-    1,
-    1,
-    0,
-    16384,
-    16384,
-    {
-        44100,
-        2,
-        AUD_FMT_S16
-    },
-    10
+    .lock_retries       = 1,
+    .restore_retries    = 1,
+    .getstatus_retries  = 1,
+    .set_primary        = 0,
+    .bufsize_in         = 16384,
+    .bufsize_out        = 16384,
+    .settings.freq      = 44100,
+    .settings.nchannels = 2,
+    .settings.fmt       = AUD_FMT_S16
+    .latency_millis     = 10
 };
 
 typedef struct {

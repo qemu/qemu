@@ -786,8 +786,10 @@ static int alsa_run_in (HWVoiceIn *hw)
         int add;
         int len;
     } bufs[2] = {
-        { hw->wpos, 0 },
-        { 0, 0 }
+        {.add = hw->wpos,
+         .len = 0},
+        {.add = 0,
+         .len = 0}
     };
     snd_pcm_sframes_t avail;
     snd_pcm_uframes_t read_samples = 0;

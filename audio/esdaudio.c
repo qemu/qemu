@@ -58,10 +58,8 @@ static struct {
     char *dac_host;
     char *adc_host;
 } conf = {
-    1024,
-    2,
-    NULL,
-    NULL
+    .samples = 1024,
+    .divisor = 2,
 };
 
 static void GCC_FMT_ATTR (2, 3) qesd_logerr (int err, const char *fmt, ...)
