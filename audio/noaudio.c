@@ -160,15 +160,15 @@ static struct audio_pcm_ops no_pcm_ops = {
 };
 
 struct audio_driver no_audio_driver = {
-    INIT_FIELD (name           = ) "none",
-    INIT_FIELD (descr          = ) "Timer based audio emulation",
-    INIT_FIELD (options        = ) NULL,
-    INIT_FIELD (init           = ) no_audio_init,
-    INIT_FIELD (fini           = ) no_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &no_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (NoVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (NoVoiceIn)
+    .name           = "none",
+    .descr          = "Timer based audio emulation",
+    .options        = NULL,
+    .init           = no_audio_init,
+    .fini           = no_audio_fini,
+    .pcm_ops        = &no_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (NoVoiceOut),
+    .voice_size_in  = sizeof (NoVoiceIn)
 };

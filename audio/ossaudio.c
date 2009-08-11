@@ -766,15 +766,15 @@ static struct audio_pcm_ops oss_pcm_ops = {
 };
 
 struct audio_driver oss_audio_driver = {
-    INIT_FIELD (name           = ) "oss",
-    INIT_FIELD (descr          = ) "OSS http://www.opensound.com",
-    INIT_FIELD (options        = ) oss_options,
-    INIT_FIELD (init           = ) oss_audio_init,
-    INIT_FIELD (fini           = ) oss_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &oss_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (OSSVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (OSSVoiceIn)
+    .name           = "oss",
+    .descr          = "OSS http://www.opensound.com",
+    .options        = oss_options,
+    .init           = oss_audio_init,
+    .fini           = oss_audio_fini,
+    .pcm_ops        = &oss_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (OSSVoiceOut),
+    .voice_size_in  = sizeof (OSSVoiceIn)
 };

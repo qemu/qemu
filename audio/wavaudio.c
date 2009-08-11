@@ -248,16 +248,15 @@ static struct audio_pcm_ops wav_pcm_ops = {
 };
 
 struct audio_driver wav_audio_driver = {
-    INIT_FIELD (name           = ) "wav",
-    INIT_FIELD (descr          = )
-    "WAV renderer http://wikipedia.org/wiki/WAV",
-    INIT_FIELD (options        = ) wav_options,
-    INIT_FIELD (init           = ) wav_audio_init,
-    INIT_FIELD (fini           = ) wav_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &wav_pcm_ops,
-    INIT_FIELD (can_be_default = ) 0,
-    INIT_FIELD (max_voices_out = ) 1,
-    INIT_FIELD (max_voices_in  = ) 0,
-    INIT_FIELD (voice_size_out = ) sizeof (WAVVoiceOut),
-    INIT_FIELD (voice_size_in  = ) 0
+    .name           = "wav",
+    .descr          = "WAV renderer http://wikipedia.org/wiki/WAV",
+    .options        = wav_options,
+    .init           = wav_audio_init,
+    .fini           = wav_audio_fini,
+    .pcm_ops = &wav_pcm_ops,
+    .can_be_default = 0,
+    .max_voices_out = 1,
+    .max_voices_in  = 0,
+    .voice_size_out = sizeof (WAVVoiceOut),
+    .voice_size_in  = 0
 };

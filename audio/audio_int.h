@@ -232,11 +232,9 @@ static inline int audio_ring_dist (int dst, int src, int len)
 
 #if defined __GNUC__
 #define GCC_ATTR __attribute__ ((__unused__, __format__ (__printf__, 1, 2)))
-#define INIT_FIELD(f) . f
 #define GCC_FMT_ATTR(n, m) __attribute__ ((__format__ (__printf__, n, m)))
 #else
 #define GCC_ATTR /**/
-#define INIT_FIELD(f) /**/
 #define GCC_FMT_ATTR(n, m)
 #endif
 

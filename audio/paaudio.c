@@ -501,15 +501,15 @@ static struct audio_pcm_ops qpa_pcm_ops = {
 };
 
 struct audio_driver pa_audio_driver = {
-    INIT_FIELD (name           = ) "pa",
-    INIT_FIELD (descr          = ) "http://www.pulseaudio.org/",
-    INIT_FIELD (options        = ) qpa_options,
-    INIT_FIELD (init           = ) qpa_audio_init,
-    INIT_FIELD (fini           = ) qpa_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &qpa_pcm_ops,
-    INIT_FIELD (can_be_default = ) 0,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (PAVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (PAVoiceIn)
+    .name           = "pa",
+    .descr          = "http://www.pulseaudio.org/",
+    .options        = qpa_options,
+    .init           = qpa_audio_init,
+    .fini           = qpa_audio_fini,
+    .pcm_ops        = &qpa_pcm_ops,
+    .can_be_default = 0,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (PAVoiceOut),
+    .voice_size_in  = sizeof (PAVoiceIn)
 };

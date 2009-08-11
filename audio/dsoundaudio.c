@@ -1073,16 +1073,15 @@ static struct audio_pcm_ops dsound_pcm_ops = {
 };
 
 struct audio_driver dsound_audio_driver = {
-    INIT_FIELD (name           = ) "dsound",
-    INIT_FIELD (descr          = )
-    "DirectSound http://wikipedia.org/wiki/DirectSound",
-    INIT_FIELD (options        = ) dsound_options,
-    INIT_FIELD (init           = ) dsound_audio_init,
-    INIT_FIELD (fini           = ) dsound_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &dsound_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) 1,
-    INIT_FIELD (voice_size_out = ) sizeof (DSoundVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (DSoundVoiceIn)
+    .name           = "dsound",
+    .descr          = "DirectSound http://wikipedia.org/wiki/DirectSound",
+    .options        = dsound_options,
+    .init           = dsound_audio_init,
+    .fini           = dsound_audio_fini,
+    .pcm_ops        = &dsound_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = 1,
+    .voice_size_out = sizeof (DSoundVoiceOut),
+    .oice_size_in   = sizeof (DSoundVoiceIn)
 };

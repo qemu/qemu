@@ -672,15 +672,15 @@ static struct audio_pcm_ops fmod_pcm_ops = {
 };
 
 struct audio_driver fmod_audio_driver = {
-    INIT_FIELD (name           = ) "fmod",
-    INIT_FIELD (descr          = ) "FMOD 3.xx http://www.fmod.org",
-    INIT_FIELD (options        = ) fmod_options,
-    INIT_FIELD (init           = ) fmod_audio_init,
-    INIT_FIELD (fini           = ) fmod_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &fmod_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (FMODVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (FMODVoiceIn)
+    .name           = "fmod",
+    .descr          = "FMOD 3.xx http://www.fmod.org",
+    .options        = fmod_options,
+    .init           = fmod_audio_init,
+    .fini           = fmod_audio_fini,
+    .pcm_ops        = &fmod_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (FMODVoiceOut),
+    .voice_size_in  = sizeof (FMODVoiceIn)
 };

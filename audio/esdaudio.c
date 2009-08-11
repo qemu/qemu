@@ -581,16 +581,15 @@ static struct audio_pcm_ops qesd_pcm_ops = {
 };
 
 struct audio_driver esd_audio_driver = {
-    INIT_FIELD (name           = ) "esd",
-    INIT_FIELD (descr          = )
-    "http://en.wikipedia.org/wiki/Esound",
-    INIT_FIELD (options        = ) qesd_options,
-    INIT_FIELD (init           = ) qesd_audio_init,
-    INIT_FIELD (fini           = ) qesd_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &qesd_pcm_ops,
-    INIT_FIELD (can_be_default = ) 0,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (ESDVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (ESDVoiceIn)
+    .name           = "esd",
+    .descr          = "http://en.wikipedia.org/wiki/Esound",
+    .options        = qesd_options,
+    .init           = qesd_audio_init,
+    .fini           = qesd_audio_fini,
+    .pcm_ops        = &qesd_pcm_ops,
+    .can_be_default = 0,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (ESDVoiceOut),
+    .voice_size_in  = sizeof (ESDVoiceIn)
 };

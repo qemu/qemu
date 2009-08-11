@@ -535,16 +535,15 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
 };
 
 struct audio_driver coreaudio_audio_driver = {
-    INIT_FIELD (name           = ) "coreaudio",
-    INIT_FIELD (descr          = )
-    "CoreAudio http://developer.apple.com/audio/coreaudio.html",
-    INIT_FIELD (options        = ) coreaudio_options,
-    INIT_FIELD (init           = ) coreaudio_audio_init,
-    INIT_FIELD (fini           = ) coreaudio_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &coreaudio_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) 1,
-    INIT_FIELD (max_voices_in  = ) 0,
-    INIT_FIELD (voice_size_out = ) sizeof (coreaudioVoiceOut),
-    INIT_FIELD (voice_size_in  = ) 0
+    .name           = "coreaudio",
+    .descr          = "CoreAudio http://developer.apple.com/audio/coreaudio.html",
+    .options        = coreaudio_options,
+    .init           = coreaudio_audio_init,
+    .fini           = coreaudio_audio_fini,
+    .pcm_ops        = &coreaudio_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = 1,
+    .max_voices_in  = 0,
+    .voice_size_out = sizeof (coreaudioVoiceOut),
+    .voice_size_in  = 0
 };

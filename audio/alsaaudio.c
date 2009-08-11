@@ -983,15 +983,15 @@ static struct audio_pcm_ops alsa_pcm_ops = {
 };
 
 struct audio_driver alsa_audio_driver = {
-    INIT_FIELD (name           = ) "alsa",
-    INIT_FIELD (descr          = ) "ALSA http://www.alsa-project.org",
-    INIT_FIELD (options        = ) alsa_options,
-    INIT_FIELD (init           = ) alsa_audio_init,
-    INIT_FIELD (fini           = ) alsa_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &alsa_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (ALSAVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (ALSAVoiceIn)
+    .name           = "alsa",
+    .descr          = "ALSA http://www.alsa-project.org",
+    .options        = alsa_options,
+    .init           = alsa_audio_init,
+    .fini           = alsa_audio_fini,
+    .pcm_ops        = &alsa_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (ALSAVoiceOut),
+    .voice_size_in  = sizeof (ALSAVoiceIn)
 };
