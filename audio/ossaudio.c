@@ -764,17 +764,17 @@ static struct audio_option oss_options[] = {
 };
 
 static struct audio_pcm_ops oss_pcm_ops = {
-    oss_init_out,
-    oss_fini_out,
-    oss_run_out,
-    oss_write,
-    oss_ctl_out,
+    .init_out = oss_init_out,
+    .fini_out = oss_fini_out,
+    .run_out  = oss_run_out,
+    .write    = oss_write,
+    .ctl_out  = oss_ctl_out,
 
-    oss_init_in,
-    oss_fini_in,
-    oss_run_in,
-    oss_read,
-    oss_ctl_in
+    .init_in  = oss_init_in,
+    .fini_in  = oss_fini_in,
+    .run_in   = oss_run_in,
+    .read     = oss_read,
+    .ctl_in   = oss_ctl_in
 };
 
 struct audio_driver oss_audio_driver = {

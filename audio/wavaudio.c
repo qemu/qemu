@@ -239,17 +239,11 @@ static struct audio_option wav_options[] = {
 };
 
 static struct audio_pcm_ops wav_pcm_ops = {
-    wav_init_out,
-    wav_fini_out,
-    wav_run_out,
-    wav_write_out,
-    wav_ctl_out,
-
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    .init_out = wav_init_out,
+    .fini_out = wav_fini_out,
+    .run_out  = wav_run_out,
+    .write    = wav_write_out,
+    .ctl_out  = wav_ctl_out,
 };
 
 struct audio_driver wav_audio_driver = {

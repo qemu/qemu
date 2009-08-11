@@ -428,17 +428,11 @@ static struct audio_option sdl_options[] = {
 };
 
 static struct audio_pcm_ops sdl_pcm_ops = {
-    sdl_init_out,
-    sdl_fini_out,
-    sdl_run_out,
-    sdl_write_out,
-    sdl_ctl_out,
-
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    .init_out = sdl_init_out,
+    .fini_out = sdl_fini_out,
+    .run_out  = sdl_run_out,
+    .write    = sdl_write_out,
+    .ctl_out  = sdl_ctl_out,
 };
 
 struct audio_driver sdl_audio_driver = {

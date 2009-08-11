@@ -571,17 +571,17 @@ struct audio_option qesd_options[] = {
 };
 
 static struct audio_pcm_ops qesd_pcm_ops = {
-    qesd_init_out,
-    qesd_fini_out,
-    qesd_run_out,
-    qesd_write,
-    qesd_ctl_out,
+    .init_out = qesd_init_out,
+    .fini_out = qesd_fini_out,
+    .run_out  = qesd_run_out,
+    .write    = qesd_write,
+    .ctl_out  = qesd_ctl_out,
 
-    qesd_init_in,
-    qesd_fini_in,
-    qesd_run_in,
-    qesd_read,
-    qesd_ctl_in,
+    .init_in  = qesd_init_in,
+    .fini_in  = qesd_fini_in,
+    .run_in   = qesd_run_in,
+    .read     = qesd_read,
+    .ctl_in   = qesd_ctl_in,
 };
 
 struct audio_driver esd_audio_driver = {

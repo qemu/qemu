@@ -525,17 +525,11 @@ static struct audio_option coreaudio_options[] = {
 };
 
 static struct audio_pcm_ops coreaudio_pcm_ops = {
-    coreaudio_init_out,
-    coreaudio_fini_out,
-    coreaudio_run_out,
-    coreaudio_write,
-    coreaudio_ctl_out,
-
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    .init_out = coreaudio_init_out,
+    .fini_out = coreaudio_fini_out,
+    .run_out  = coreaudio_run_out,
+    .write    = coreaudio_write,
+    .ctl_out  = coreaudio_ctl_out
 };
 
 struct audio_driver coreaudio_audio_driver = {

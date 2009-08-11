@@ -146,17 +146,17 @@ static void no_audio_fini (void *opaque)
 }
 
 static struct audio_pcm_ops no_pcm_ops = {
-    no_init_out,
-    no_fini_out,
-    no_run_out,
-    no_write,
-    no_ctl_out,
+    .init_out = no_init_out,
+    .fini_out = no_fini_out,
+    .run_out  = no_run_out,
+    .write    = no_write,
+    .ctl_out  = no_ctl_out,
 
-    no_init_in,
-    no_fini_in,
-    no_run_in,
-    no_read,
-    no_ctl_in
+    .init_in  = no_init_in,
+    .fini_in  = no_fini_in,
+    .run_in   = no_run_in,
+    .read     = no_read,
+    .ctl_in   = no_ctl_in
 };
 
 struct audio_driver no_audio_driver = {

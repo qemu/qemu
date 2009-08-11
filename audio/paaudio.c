@@ -493,16 +493,17 @@ struct audio_option qpa_options[] = {
 };
 
 static struct audio_pcm_ops qpa_pcm_ops = {
-    qpa_init_out,
-    qpa_fini_out,
-    qpa_run_out,
-    qpa_write,
-    qpa_ctl_out,
-    qpa_init_in,
-    qpa_fini_in,
-    qpa_run_in,
-    qpa_read,
-    qpa_ctl_in
+    .init_out = qpa_init_out,
+    .fini_out = qpa_fini_out,
+    .run_out  = qpa_run_out,
+    .write    = qpa_write,
+    .ctl_out  = qpa_ctl_out,
+
+    .init_in  = qpa_init_in,
+    .fini_in  = qpa_fini_in,
+    .run_in   = qpa_run_in,
+    .read     = qpa_read,
+    .ctl_in   = qpa_ctl_in
 };
 
 struct audio_driver pa_audio_driver = {

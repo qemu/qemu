@@ -983,17 +983,17 @@ static struct audio_option alsa_options[] = {
 };
 
 static struct audio_pcm_ops alsa_pcm_ops = {
-    alsa_init_out,
-    alsa_fini_out,
-    alsa_run_out,
-    alsa_write,
-    alsa_ctl_out,
+    .init_out = alsa_init_out,
+    .fini_out = alsa_fini_out,
+    .run_out  = alsa_run_out,
+    .write    = alsa_write,
+    .ctl_out  = alsa_ctl_out,
 
-    alsa_init_in,
-    alsa_fini_in,
-    alsa_run_in,
-    alsa_read,
-    alsa_ctl_in
+    .init_in  = alsa_init_in,
+    .fini_in  = alsa_fini_in,
+    .run_in   = alsa_run_in,
+    .read     = alsa_read,
+    .ctl_in   = alsa_ctl_in
 };
 
 struct audio_driver alsa_audio_driver = {

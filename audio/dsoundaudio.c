@@ -1079,17 +1079,17 @@ static struct audio_option dsound_options[] = {
 };
 
 static struct audio_pcm_ops dsound_pcm_ops = {
-    dsound_init_out,
-    dsound_fini_out,
-    dsound_run_out,
-    dsound_write,
-    dsound_ctl_out,
+    .init_out = dsound_init_out,
+    .fini_out = dsound_fini_out,
+    .run_out  = dsound_run_out,
+    .write    = dsound_write,
+    .ctl_out  = dsound_ctl_out,
 
-    dsound_init_in,
-    dsound_fini_in,
-    dsound_run_in,
-    dsound_read,
-    dsound_ctl_in
+    .init_in  = dsound_init_in,
+    .fini_in  = dsound_fini_in,
+    .run_in   = dsound_run_in,
+    .read     = dsound_read,
+    .ctl_in   = dsound_ctl_in
 };
 
 struct audio_driver dsound_audio_driver = {

@@ -669,17 +669,17 @@ static struct audio_option fmod_options[] = {
 };
 
 static struct audio_pcm_ops fmod_pcm_ops = {
-    fmod_init_out,
-    fmod_fini_out,
-    fmod_run_out,
-    fmod_write,
-    fmod_ctl_out,
+    .init_out = fmod_init_out,
+    .fini_out = fmod_fini_out,
+    .run_out  = fmod_run_out,
+    .write    = fmod_write,
+    .ctl_out  = fmod_ctl_out,
 
-    fmod_init_in,
-    fmod_fini_in,
-    fmod_run_in,
-    fmod_read,
-    fmod_ctl_in
+    .init_in = fmod_init_in,
+    .fini_in = fmod_fini_in,
+    .run_in  = fmod_run_in,
+    .read    = fmod_read,
+    .ctl_in  = fmod_ctl_in
 };
 
 struct audio_driver fmod_audio_driver = {
