@@ -67,7 +67,6 @@ typedef struct SLAVIO_INTCTLState {
     uint64_t irq_count[32];
 #endif
     qemu_irq cpu_irqs[MAX_CPUS][MAX_PILS];
-    const uint32_t *intbit_to_level;
     uint32_t cputimer_lbit, cputimer_mbit;
     uint32_t cputimer_bit;
     uint32_t pil_out[MAX_CPUS];
@@ -252,6 +251,11 @@ void slavio_irq_info(Monitor *mon, void *opaque)
 #endif
 }
 
+static const uint32_t intbit_to_level[] = {
+    2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+    6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+};
+
 static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
 {
     uint32_t pending = s->intregm_pending, pil_pending;
@@ -266,7 +270,7 @@ static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
             (i == s->target_cpu)) {
             for (j = 0; j < 32; j++) {
                 if (pending & (1 << j))
-                    pil_pending |= 1 << s->intbit_to_level[j];
+                    pil_pending |= 1 << intbit_to_level[j];
             }
         }
         pil_pending |= (s->slaves[i].intreg_pending & CPU_SOFTIRQ_MASK) >> 16;
@@ -296,7 +300,7 @@ static void slavio_set_irq(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
     uint32_t mask = 1 << irq;
-    uint32_t pil = s->intbit_to_level[irq];
+    uint32_t pil = intbit_to_level[irq];
 
     DPRINTF("Set cpu %d irq %d -> pil %d level %d\n", s->target_cpu, irq, pil,
             level);
@@ -397,7 +401,7 @@ static void slavio_intctl_init1(SysBusDevice *dev)
                                        slavio_intctlm_mem_write, s);
     sysbus_init_mmio(dev, INTCTLM_SIZE, io_memory);
     s->cputimer_mbit = 1 << s->cputimer_bit;
-    s->cputimer_lbit = 1 << s->intbit_to_level[s->cputimer_bit];
+    s->cputimer_lbit = 1 << intbit_to_level[s->cputimer_bit];
 
     for (i = 0; i < MAX_CPUS; i++) {
         for (j = 0; j < MAX_PILS; j++) {
@@ -421,17 +425,8 @@ static SysBusDeviceInfo slavio_intctl_info = {
     .qdev.name  = "slavio_intctl",
     .qdev.size  = sizeof(SLAVIO_INTCTLState),
     .qdev.props = (Property[]) {
-        {
-            .name = "intbit_to_level",
-            .info = &qdev_prop_ptr,
-            .offset = offsetof(SLAVIO_INTCTLState, intbit_to_level),
-        },
-        {
-            .name = "cputimer_bit",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SLAVIO_INTCTLState, cputimer_bit),
-        },
-        {/* end of property list */}
+        DEFINE_PROP_UINT32("cputimer_bit", SLAVIO_INTCTLState, cputimer_bit, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

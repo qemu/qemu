@@ -340,13 +340,8 @@ static SysBusDeviceInfo ecc_info = {
     .qdev.name  = "eccmemctl",
     .qdev.size  = sizeof(ECCState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "version",
-            .info   = &qdev_prop_hex32,
-            .offset = offsetof(ECCState, version),
-            .defval = (uint32_t[]) { -1 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_HEX32("version", ECCState, version, -1),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

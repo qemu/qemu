@@ -229,13 +229,8 @@ static SysBusDeviceInfo syborg_keyboard_info = {
     .qdev.name  = "syborg,keyboard",
     .qdev.size  = sizeof(SyborgKeyboardState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "fifo-size",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(SyborgKeyboardState, fifo_size),
-            .defval = (uint32_t[]) { 16 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("fifo-size", SyborgKeyboardState, fifo_size, 16),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

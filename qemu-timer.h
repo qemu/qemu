@@ -24,6 +24,7 @@ void qemu_free_timer(QEMUTimer *ts);
 void qemu_del_timer(QEMUTimer *ts);
 void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
 int qemu_timer_pending(QEMUTimer *ts);
+int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time);
 
 extern int64_t ticks_per_sec;
 

@@ -2905,7 +2905,7 @@ void do_info_network(Monitor *mon)
     }
 }
 
-int do_set_link(Monitor *mon, const char *name, const char *up_or_down)
+void do_set_link(Monitor *mon, const char *name, const char *up_or_down)
 {
     VLANState *vlan;
     VLANClientState *vc = NULL;
@@ -2918,7 +2918,7 @@ done:
 
     if (!vc) {
         monitor_printf(mon, "could not find network device '%s'", name);
-        return 0;
+        return;
     }
 
     if (strcmp(up_or_down, "up") == 0)
@@ -2931,8 +2931,6 @@ done:
 
     if (vc->link_status_changed)
         vc->link_status_changed(vc);
-
-    return 1;
 }
 
 void net_cleanup(void)

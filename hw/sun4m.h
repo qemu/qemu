@@ -30,9 +30,6 @@ void slavio_irq_info(Monitor *mon, void *opaque);
 void sun4c_pic_info(Monitor *mon, void *opaque);
 void sun4c_irq_info(Monitor *mon, void *opaque);
 
-/* slavio_misc.c */
-void slavio_set_power_fail(void *opaque, int power_failing);
-
 /* sparc32_dma.c */
 #include "sparc32_dma.h"
 

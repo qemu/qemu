@@ -136,6 +136,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         break;
     case IF_VIRTIO:
         dev = pci_create("virtio-blk-pci", devaddr);
+        qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
         break;
     default:
         dev = NULL;

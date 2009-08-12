@@ -1,3 +1,4 @@
+#include "sysemu.h"
 #include "qdev.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
@@ -139,6 +140,47 @@ PropertyInfo qdev_prop_hex64 = {
     .size  = sizeof(uint64_t),
     .parse = parse_hex64,
     .print = print_hex64,
+};
+
+/* --- drive --- */
+
+static int parse_drive(DeviceState *dev, Property *prop, const char *str)
+{
+    DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
+
+    *ptr = drive_get_by_id(str);
+    if (*ptr == NULL)
+        return -1;
+    return 0;
+}
+
+static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "%s", (*ptr)->id);
+}
+
+PropertyInfo qdev_prop_drive = {
+    .name  = "drive",
+    .type  = PROP_TYPE_DRIVE,
+    .size  = sizeof(DriveInfo*),
+    .parse = parse_drive,
+    .print = print_drive,
+};
+
+/* --- character device --- */
+
+static int print_chr(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "%s", (*ptr)->label);
+}
+
+PropertyInfo qdev_prop_chr = {
+    .name  = "chr",
+    .type  = PROP_TYPE_CHR,
+    .size  = sizeof(CharDriverState*),
+    .print = print_chr,
 };
 
 /* --- pointer --- */
@@ -323,6 +365,16 @@ void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_UINT64);
+}
+
+void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_DRIVE);
+}
+
+void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_CHR);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)

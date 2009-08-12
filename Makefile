@@ -16,27 +16,12 @@ endif
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
-CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP -MT $@
-CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
-CPPFLAGS += -U_FORTIFY_SOURCE
-LIBS=
+LIBS+=-lz $(LIBS_TOOLS)
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8
 else
 DOCS=
-endif
-
-LIBS+=$(UUID_LIBS)
-LIBS+=$(PTHREADLIBS)
-LIBS+=$(CLOCKLIBS)
-
-ifdef CONFIG_SOLARIS
-LIBS+=-lsocket -lnsl -lresolv
-endif
-
-ifdef CONFIG_WIN32
-LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
 build-all: $(TOOLS) $(DOCS) recurse-all
@@ -107,29 +92,10 @@ obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
-
-LIBS+=$(BRLAPI_LIBS)
-
 obj-$(CONFIG_WIN32) += tap-win32.o
 obj-$(CONFIG_POSIX) += migration-exec.o
 
-ifdef CONFIG_COREAUDIO
-AUDIO_PT = y
-endif
-ifdef CONFIG_FMOD
-audio/audio.o audio/fmodaudio.o: CPPFLAGS := $(FMOD_CFLAGS) $(CPPFLAGS)
-endif
-ifdef CONFIG_ESD
-AUDIO_PT = y
-AUDIO_PT_INT = y
-endif
-ifdef CONFIG_PA
-AUDIO_PT = y
-AUDIO_PT_INT = y
-endif
-ifdef AUDIO_PT
-LDFLAGS += -pthread
-endif
+audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
@@ -140,7 +106,7 @@ audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o
 audio-obj-$(CONFIG_FMOD) += fmodaudio.o
 audio-obj-$(CONFIG_ESD) += esdaudio.o
 audio-obj-$(CONFIG_PA) += paaudio.o
-audio-obj-$(AUDIO_PT_INT) += audio_pt_int.o
+audio-obj-$(CONFIG_AUDIO_PT_INT) += audio_pt_int.o
 audio-obj-y += wavcapture.o
 obj-y += $(addprefix audio/, $(audio-obj-y))
 
@@ -153,22 +119,16 @@ obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 obj-$(CONFIG_COCOA) += cocoa.o
 obj-$(CONFIG_IOTHREAD) += qemu-thread.o
 
-ifdef CONFIG_SLIRP
-CPPFLAGS+=-I$(SRC_PATH)/slirp
-endif
-
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
 slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
 slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
 obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
 
-LIBS+=$(VDE_LIBS)
-
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
 obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
-LIBS+=$(CURL_LIBS)
+QEMU_CFLAGS+=$(CURL_CFLAGS)
 
 cocoa.o: cocoa.m
 
@@ -178,7 +138,7 @@ sdl_zoom.o: sdl_zoom.c sdl_zoom.h sdl_zoom_template.h
 
 sdl.o: sdl.c keymaps.h sdl_keysym.h sdl_zoom.h
 
-sdl.o audio/sdlaudio.o sdl_zoom.o baum.o: CFLAGS += $(SDL_CFLAGS)
+sdl.o audio/sdlaudio.o sdl_zoom.o baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
 
 acl.o: acl.h acl.c
 
@@ -186,7 +146,7 @@ vnc.h: vnc-tls.h vnc-auth-vencrypt.h vnc-auth-sasl.h keymaps.h
 
 vnc.o: vnc.c vnc.h vnc_keysym.h vnchextile.h d3des.c d3des.h acl.h
 
-vnc.o: CFLAGS += $(VNC_TLS_CFLAGS)
+vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 
 vnc-tls.o: vnc-tls.c vnc.h
 
@@ -196,7 +156,7 @@ vnc-auth-sasl.o: vnc-auth-sasl.c vnc.h
 
 curses.o: curses.c keymaps.h curses_keys.h
 
-bt-host.o: CFLAGS += $(BLUEZ_CFLAGS)
+bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 libqemu_common.a: $(obj-y)
 
@@ -215,8 +175,6 @@ qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(block-obj-y)
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(block-obj-y)
 
 qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(block-obj-y)
-
-qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
@@ -256,7 +214,7 @@ endif
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"
 	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
-ifndef CONFIG_WIN32
+ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"

@@ -39,7 +39,8 @@ done
 
 sum=$(( $sum % 256 ))
 sum=$(( 256 - $sum ))
+sum_octal=$( printf "%o" $sum )
 
 # and write the output file
 cp "$1" "$2"
-printf "\\$sum" | dd of="$2" bs=1 count=1 seek=$size conv=notrunc 2>/dev/null
+printf "\\$sum_octal" | dd of="$2" bs=1 count=1 seek=$size conv=notrunc 2>/dev/null

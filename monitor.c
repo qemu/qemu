@@ -259,7 +259,7 @@ static void do_commit(Monitor *mon, const char *device)
     all_devices = !strcmp(device, "all");
     TAILQ_FOREACH(dinfo, &drives, next) {
         if (!all_devices)
-            if (!strcmp(bdrv_get_device_name(dinfo->bdrv), device))
+            if (strcmp(bdrv_get_device_name(dinfo->bdrv), device))
                 continue;
         bdrv_commit(dinfo->bdrv);
     }
@@ -1882,8 +1882,8 @@ static const mon_cmd_t info_cmds[] = {
       "", "show balloon information" },
     { "qtree", "", do_info_qtree,
       "", "show device tree" },
-    { "qdrv", "", do_info_qdrv,
-      "", "show qdev driver list" },
+    { "qdm", "", do_info_qdm,
+      "", "show qdev device model list" },
     { NULL, NULL, },
 };
 

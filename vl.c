@@ -162,6 +162,7 @@ int main(int argc, char **argv)
 #include "kvm.h"
 #include "balloon.h"
 #include "qemu-option.h"
+#include "qemu-config.h"
 
 #include "disas.h"
 
@@ -304,7 +305,7 @@ void hw_error(const char *fmt, ...)
 
 static void set_proc_name(const char *s)
 {
-#ifdef __linux__
+#if defined(__linux__) && defined(PR_SET_NAME)
     char name[16];
     if (!s)
         return;
@@ -950,13 +951,6 @@ void qemu_del_timer(QEMUTimer *ts)
     }
 }
 
-static inline int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
-{
-    if (!timer_head)
-        return 0;
-    return (timer_head->expire_time <= current_time);
-}
-
 /* modify the current timer so that it will be fired when current_time
    >= expire_time. The corresponding callback will be called. */
 void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
@@ -998,6 +992,13 @@ int qemu_timer_pending(QEMUTimer *ts)
             return 1;
     }
     return 0;
+}
+
+int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
+{
+    if (!timer_head)
+        return 0;
+    return (timer_head->expire_time <= current_time);
 }
 
 static void qemu_run_timers(QEMUTimer **ptimer_head, int64_t current_time)
@@ -1799,75 +1800,6 @@ static int bt_parse(const char *opt)
 #define MTD_ALIAS "if=mtd"
 #define SD_ALIAS "index=0,if=sd"
 
-static QemuOptsList drive_opt_list = {
-    .name = "drive",
-    .head = TAILQ_HEAD_INITIALIZER(drive_opt_list.head),
-    .desc = {
-        {
-            .name = "bus",
-            .type = QEMU_OPT_NUMBER,
-            .help = "bus number",
-        },{
-            .name = "unit",
-            .type = QEMU_OPT_NUMBER,
-            .help = "unit number (i.e. lun for scsi)",
-        },{
-            .name = "if",
-            .type = QEMU_OPT_STRING,
-            .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
-        },{
-            .name = "index",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "cyls",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of cylinders (ide disk geometry)",
-        },{
-            .name = "heads",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of heads (ide disk geometry)",
-        },{
-            .name = "secs",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of sectors (ide disk geometry)",
-        },{
-            .name = "trans",
-            .type = QEMU_OPT_STRING,
-            .help = "chs translation (auto, lba. none)",
-        },{
-            .name = "media",
-            .type = QEMU_OPT_STRING,
-            .help = "media type (disk, cdrom)",
-        },{
-            .name = "snapshot",
-            .type = QEMU_OPT_BOOL,
-        },{
-            .name = "file",
-            .type = QEMU_OPT_STRING,
-            .help = "disk image",
-        },{
-            .name = "cache",
-            .type = QEMU_OPT_STRING,
-            .help = "host cache usage (none, writeback, writethrough)",
-        },{
-            .name = "format",
-            .type = QEMU_OPT_STRING,
-            .help = "disk format (raw, qcow2, ...)",
-        },{
-            .name = "serial",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "werror",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "addr",
-            .type = QEMU_OPT_STRING,
-            .help = "pci address (virtio only)",
-        },
-        { /* end if list */ }
-    },
-};
-
 QemuOpts *drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
@@ -1878,7 +1810,7 @@ QemuOpts *drive_add(const char *file, const char *fmt, ...)
     vsnprintf(optstr, sizeof(optstr), fmt, ap);
     va_end(ap);
 
-    opts = qemu_opts_parse(&drive_opt_list, optstr, NULL);
+    opts = qemu_opts_parse(&qemu_drive_opts, optstr, NULL);
     if (!opts) {
         fprintf(stderr, "%s: huh? duplicate? (%s)\n",
                 __FUNCTION__, optstr);
@@ -1905,7 +1837,7 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
-DriveInfo *drive_get_by_id(char *id)
+DriveInfo *drive_get_by_id(const char *id)
 {
     DriveInfo *dinfo;
 
@@ -2051,6 +1983,9 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
             max_devs = 0;
 	} else if (!strcmp(buf, "xen")) {
 	    type = IF_XEN;
+            max_devs = 0;
+	} else if (!strcmp(buf, "none")) {
+	    type = IF_NONE;
             max_devs = 0;
 	} else {
             fprintf(stderr, "qemu: unsupported bus type '%s'\n", buf);
@@ -2215,7 +2150,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     /* init */
 
     dinfo = qemu_mallocz(sizeof(*dinfo));
-    if ((buf = qemu_opt_get(opts, "id")) != NULL) {
+    if ((buf = qemu_opts_id(opts)) != NULL) {
         dinfo->id = qemu_strdup(buf);
     } else {
         /* no id supplied -> create one */
@@ -2264,7 +2199,15 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         break;
     case IF_PFLASH:
     case IF_MTD:
+    case IF_NONE:
+        break;
     case IF_VIRTIO:
+        /* add virtio block device */
+        opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
+        qemu_opt_set(opts, "driver", "virtio-blk-pci");
+        qemu_opt_set(opts, "drive", dinfo->id);
+        if (devaddr)
+            qemu_opt_set(opts, "addr", devaddr);
         break;
     case IF_COUNT:
         abort();
@@ -4295,6 +4238,8 @@ static int vm_can_run(void)
     return 1;
 }
 
+qemu_irq qemu_system_powerdown;
+
 static void main_loop(void)
 {
     int r;
@@ -4335,8 +4280,9 @@ static void main_loop(void)
             qemu_system_reset();
             resume_all_vcpus();
         }
-        if (qemu_powerdown_requested())
-            qemu_system_powerdown();
+        if (qemu_powerdown_requested()) {
+            qemu_irq_raise(qemu_system_powerdown);
+        }
         if ((r = qemu_vmstop_requested()))
             vm_stop(r);
     }
@@ -4830,9 +4776,18 @@ char *qemu_find_file(int type, const char *name)
     return buf;
 }
 
+static int device_init_func(QemuOpts *opts, void *opaque)
+{
+    DeviceState *dev;
+
+    dev = qdev_device_add(opts);
+    if (!dev)
+        return -1;
+    return 0;
+}
+
 struct device_config {
     enum {
-        DEV_GENERIC,   /* -device      */
         DEV_USB,       /* -usbdevice   */
         DEV_BT,        /* -bt          */
     } type;
@@ -4866,16 +4821,6 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     return 0;
 }
 
-static int generic_parse(const char *cmdline)
-{
-    DeviceState *dev;
-
-    dev = qdev_device_add(cmdline);
-    if (!dev)
-        return -1;
-    return 0;
-}
-
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4890,7 +4835,7 @@ int main(int argc, char **argv, char **envp)
     int cyls, heads, secs, translation;
     const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
-    QemuOpts *hda_opts = NULL;
+    QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd = NULL;
@@ -5093,6 +5038,10 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_drive:
                 drive_add(NULL, "%s", optarg);
+	        break;
+            case QEMU_OPTION_set:
+                if (qemu_set_option(optarg) != 0)
+                    exit(1);
 	        break;
             case QEMU_OPTION_mtdblock:
                 drive_add(optarg, MTD_ALIAS);
@@ -5510,7 +5459,11 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
-                add_device_config(DEV_GENERIC, optarg);
+                opts = qemu_opts_parse(&qemu_device_opts, optarg, "driver");
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_smp:
             {
@@ -5893,8 +5846,8 @@ int main(int argc, char **argv, char **envp)
 
     /* open the virtual block devices */
     if (snapshot)
-        qemu_opts_foreach(&drive_opt_list, drive_enable_snapshot, NULL, 0);
-    if (qemu_opts_foreach(&drive_opt_list, drive_init_func, machine, 1) != 0)
+        qemu_opts_foreach(&qemu_drive_opts, drive_enable_snapshot, NULL, 0);
+    if (qemu_opts_foreach(&qemu_drive_opts, drive_init_func, machine, 1) != 0)
         exit(1);
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
@@ -6047,7 +6000,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* init generic devices */
-    if (foreach_device_config(DEV_GENERIC, generic_parse))
+    if (qemu_opts_foreach(&qemu_device_opts, device_init_func, NULL, 1) != 0)
         exit(1);
 
     if (!display_state)

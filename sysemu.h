@@ -47,14 +47,7 @@ void qemu_system_powerdown_request(void);
 int qemu_shutdown_requested(void);
 int qemu_reset_requested(void);
 int qemu_powerdown_requested(void);
-#ifdef NEED_CPU_H
-#if !defined(TARGET_SPARC) && !defined(TARGET_I386)
-// Please implement a power failure function to signal the OS
-#define qemu_system_powerdown() do{}while(0)
-#else
-void qemu_system_powerdown(void);
-#endif
-#endif
+extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
 void do_savevm(Monitor *mon, const char *name);
@@ -151,6 +144,7 @@ extern unsigned int nb_prom_envs;
 #endif
 
 typedef enum {
+    IF_NONE,
     IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
     IF_COUNT
 } BlockInterfaceType;
@@ -183,7 +177,7 @@ extern TAILQ_HEAD(drivelist, DriveInfo) drives;
 extern TAILQ_HEAD(driveoptlist, DriveOpt) driveopts;
 
 extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
-extern DriveInfo *drive_get_by_id(char *id);
+extern DriveInfo *drive_get_by_id(const char *id);
 extern int drive_get_max_bus(BlockInterfaceType type);
 extern void drive_uninit(BlockDriverState *bdrv);
 extern const char *drive_get_serial(BlockDriverState *bdrv);

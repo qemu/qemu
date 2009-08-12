@@ -222,13 +222,8 @@ static SysBusDeviceInfo syborg_int_info = {
     .qdev.name  = "syborg,interrupt",
     .qdev.size  = sizeof(SyborgIntState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "num-interrupts",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(SyborgIntState, num_irqs),
-            .defval = (uint32_t[]) { 64 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("num-interrupts", SyborgIntState, num_irqs, 64),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

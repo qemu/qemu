@@ -7,9 +7,9 @@ include $(SRC_PATH)/rules.mak
 
 VPATH=$(SRC_PATH)/pc-bios/optionrom
 
-CPPFLAGS = -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
-CPPFLAGS += -I$(SRC_PATH)
-CPPFLAGS += $(call cc-option, $(CFLAGS), -fno-stack-protector,"")
+CFLAGS = -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
+CFLAGS += -I$(SRC_PATH)
+CFLAGS += $(call cc-option, $(CFLAGS), -fno-stack-protector,"")
 
 build-all: multiboot.bin
 
@@ -20,7 +20,7 @@ build-all: multiboot.bin
 	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,"  Building $(TARGET_DIR)$@")
 
 %.bin: %.raw
-	$(call quiet-command,$(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@,"  Signing $(TARGET_DIR)$@")
+	$(call quiet-command,$(SHELL) $(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@,"  Signing $(TARGET_DIR)$@")
 
 clean:
 	$(RM) *.o *.img *.bin *~

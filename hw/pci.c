@@ -60,13 +60,8 @@ static struct BusInfo pci_bus_info = {
     .size       = sizeof(PCIBus),
     .print_dev  = pcibus_dev_print,
     .props      = (Property[]) {
-        {
-            .name   = "addr",
-            .info   = &qdev_prop_pci_devfn,
-            .offset = offsetof(PCIDevice, devfn),
-            .defval = (uint32_t[]) { -1 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
+        DEFINE_PROP_END_OF_LIST()
     }
 };
 

@@ -17,7 +17,7 @@
 
 #include "virtio.h"
 #include "pci.h"
-//#include "sysemu.h"
+#include "sysemu.h"
 #include "msix.h"
 #include "net.h"
 
@@ -89,6 +89,7 @@ typedef struct {
     uint32_t addr;
     uint32_t class_code;
     uint32_t nvectors;
+    DriveInfo *dinfo;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -432,7 +433,10 @@ static void virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code != PCI_CLASS_STORAGE_OTHER)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
-    vdev = virtio_blk_init(&pci_dev->qdev);
+    if (!proxy->dinfo) {
+        fprintf(stderr, "drive property not set\n");
+    }
+    vdev = virtio_blk_init(&pci_dev->qdev, proxy->dinfo);
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_BLOCK,
@@ -498,37 +502,26 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_blk_init_pci,
         .qdev.props = (Property[]) {
-            {
-                .name   = "class",
-                .info   = &qdev_prop_hex32,
-                .offset = offsetof(VirtIOPCIProxy, class_code),
-            },
-            {/* end of list */}
+            DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+            DEFINE_PROP_DRIVE("drive", VirtIOPCIProxy, dinfo),
+            DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name  = "virtio-net-pci",
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
         .qdev.props = (Property[]) {
-            {
-                .name   = "vectors",
-                .info   = &qdev_prop_uint32,
-                .offset = offsetof(VirtIOPCIProxy, nvectors),
-                .defval = (uint32_t[]) { NIC_NVECTORS_UNSPECIFIED },
-            },
-            {/* end of list */}
+            DEFINE_PROP_HEX32("vectors", VirtIOPCIProxy, nvectors,
+                              NIC_NVECTORS_UNSPECIFIED),
+            DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "virtio-console-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_console_init_pci,
         .qdev.props = (Property[]) {
-            {
-                .name   = "class",
-                .info   = &qdev_prop_hex32,
-                .offset = offsetof(VirtIOPCIProxy, class_code),
-            },
-            {/* end of list */}
+            DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+            DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "virtio-balloon-pci",

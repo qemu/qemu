@@ -48,7 +48,7 @@ typedef struct SDLVoiceOut {
 static struct {
     int nb_samples;
 } conf = {
-    1024
+    .nb_samples = 1024
 };
 
 static struct SDLAudioState {
@@ -420,35 +420,33 @@ static void sdl_audio_fini (void *opaque)
 }
 
 static struct audio_option sdl_options[] = {
-    {"SAMPLES", AUD_OPT_INT, &conf.nb_samples,
-     "Size of SDL buffer in samples", NULL, 0},
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {
+        .name  = "SAMPLES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nb_samples,
+        .descr = "Size of SDL buffer in samples"
+    },
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops sdl_pcm_ops = {
-    sdl_init_out,
-    sdl_fini_out,
-    sdl_run_out,
-    sdl_write_out,
-    sdl_ctl_out,
-
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    .init_out = sdl_init_out,
+    .fini_out = sdl_fini_out,
+    .run_out  = sdl_run_out,
+    .write    = sdl_write_out,
+    .ctl_out  = sdl_ctl_out,
 };
 
 struct audio_driver sdl_audio_driver = {
-    INIT_FIELD (name           = ) "sdl",
-    INIT_FIELD (descr          = ) "SDL http://www.libsdl.org",
-    INIT_FIELD (options        = ) sdl_options,
-    INIT_FIELD (init           = ) sdl_audio_init,
-    INIT_FIELD (fini           = ) sdl_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &sdl_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) 1,
-    INIT_FIELD (max_voices_in  = ) 0,
-    INIT_FIELD (voice_size_out = ) sizeof (SDLVoiceOut),
-    INIT_FIELD (voice_size_in  = ) 0
+    .name           = "sdl",
+    .descr          = "SDL http://www.libsdl.org",
+    .options        = sdl_options,
+    .init           = sdl_audio_init,
+    .fini           = sdl_audio_fini,
+    .pcm_ops        = &sdl_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = 1,
+    .max_voices_in  = 0,
+    .voice_size_out = sizeof (SDLVoiceOut),
+    .voice_size_in  = 0
 };

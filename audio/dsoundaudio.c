@@ -49,18 +49,16 @@ static struct {
     struct audsettings settings;
     int latency_millis;
 } conf = {
-    1,
-    1,
-    1,
-    0,
-    16384,
-    16384,
-    {
-        44100,
-        2,
-        AUD_FMT_S16
-    },
-    10
+    .lock_retries       = 1,
+    .restore_retries    = 1,
+    .getstatus_retries  = 1,
+    .set_primary        = 0,
+    .bufsize_in         = 16384,
+    .bufsize_out        = 16384,
+    .settings.freq      = 44100,
+    .settings.nchannels = 2,
+    .settings.fmt       = AUD_FMT_S16
+    .latency_millis     = 10
 };
 
 typedef struct {
@@ -1035,54 +1033,93 @@ static void *dsound_audio_init (void)
 }
 
 static struct audio_option dsound_options[] = {
-    {"LOCK_RETRIES", AUD_OPT_INT, &conf.lock_retries,
-     "Number of times to attempt locking the buffer", NULL, 0},
-    {"RESTOURE_RETRIES", AUD_OPT_INT, &conf.restore_retries,
-     "Number of times to attempt restoring the buffer", NULL, 0},
-    {"GETSTATUS_RETRIES", AUD_OPT_INT, &conf.getstatus_retries,
-     "Number of times to attempt getting status of the buffer", NULL, 0},
-    {"SET_PRIMARY", AUD_OPT_BOOL, &conf.set_primary,
-     "Set the parameters of primary buffer", NULL, 0},
-    {"LATENCY_MILLIS", AUD_OPT_INT, &conf.latency_millis,
-     "(undocumented)", NULL, 0},
-    {"PRIMARY_FREQ", AUD_OPT_INT, &conf.settings.freq,
-     "Primary buffer frequency", NULL, 0},
-    {"PRIMARY_CHANNELS", AUD_OPT_INT, &conf.settings.nchannels,
-     "Primary buffer number of channels (1 - mono, 2 - stereo)", NULL, 0},
-    {"PRIMARY_FMT", AUD_OPT_FMT, &conf.settings.fmt,
-     "Primary buffer format", NULL, 0},
-    {"BUFSIZE_OUT", AUD_OPT_INT, &conf.bufsize_out,
-     "(undocumented)", NULL, 0},
-    {"BUFSIZE_IN", AUD_OPT_INT, &conf.bufsize_in,
-     "(undocumented)", NULL, 0},
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {
+        .name  = "LOCK_RETRIES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.lock_retries,
+        .descr = "Number of times to attempt locking the buffer"
+    },
+    {
+        .name  = "RESTOURE_RETRIES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.restore_retries,
+        .descr = "Number of times to attempt restoring the buffer"
+    },
+    {
+        .name  = "GETSTATUS_RETRIES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.getstatus_retries,
+        .descr = "Number of times to attempt getting status of the buffer"
+    },
+    {
+        .name  = "SET_PRIMARY",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.set_primary
+        .descr = "Set the parameters of primary buffer"
+    },
+    {
+        .name  = "LATENCY_MILLIS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.latency_millis,
+        .descr = "(undocumented)"
+    },
+    {
+        .name  = "PRIMARY_FREQ",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.settings.freq,
+        .descr = "Primary buffer frequency"
+    },
+    {
+        .name  = "PRIMARY_CHANNELS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.settings.nchannels,
+        .descr = "Primary buffer number of channels (1 - mono, 2 - stereo)"
+    },
+    {
+        .name  = "PRIMARY_FMT",
+        .tag   = AUD_OPT_FMT,
+        .valp  = &conf.settings.fmt,
+        .descr = "Primary buffer format"
+    },
+    {
+        .name  = "BUFSIZE_OUT",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.bufsize_out,
+        .descr = "(undocumented)"
+    },
+    {
+        .name  = "BUFSIZE_IN",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.bufsize_in,
+        .descr = "(undocumented)"
+    },
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops dsound_pcm_ops = {
-    dsound_init_out,
-    dsound_fini_out,
-    dsound_run_out,
-    dsound_write,
-    dsound_ctl_out,
+    .init_out = dsound_init_out,
+    .fini_out = dsound_fini_out,
+    .run_out  = dsound_run_out,
+    .write    = dsound_write,
+    .ctl_out  = dsound_ctl_out,
 
-    dsound_init_in,
-    dsound_fini_in,
-    dsound_run_in,
-    dsound_read,
-    dsound_ctl_in
+    .init_in  = dsound_init_in,
+    .fini_in  = dsound_fini_in,
+    .run_in   = dsound_run_in,
+    .read     = dsound_read,
+    .ctl_in   = dsound_ctl_in
 };
 
 struct audio_driver dsound_audio_driver = {
-    INIT_FIELD (name           = ) "dsound",
-    INIT_FIELD (descr          = )
-    "DirectSound http://wikipedia.org/wiki/DirectSound",
-    INIT_FIELD (options        = ) dsound_options,
-    INIT_FIELD (init           = ) dsound_audio_init,
-    INIT_FIELD (fini           = ) dsound_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &dsound_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) 1,
-    INIT_FIELD (voice_size_out = ) sizeof (DSoundVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (DSoundVoiceIn)
+    .name           = "dsound",
+    .descr          = "DirectSound http://wikipedia.org/wiki/DirectSound",
+    .options        = dsound_options,
+    .init           = dsound_audio_init,
+    .fini           = dsound_audio_fini,
+    .pcm_ops        = &dsound_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = 1,
+    .voice_size_out = sizeof (DSoundVoiceOut),
+    .oice_size_in   = sizeof (DSoundVoiceIn)
 };

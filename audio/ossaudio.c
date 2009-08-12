@@ -654,8 +654,8 @@ static int oss_run_in (HWVoiceIn *hw)
         int add;
         int len;
     } bufs[2] = {
-        { hw->wpos, 0 },
-        { 0, 0 }
+        { .add = hw->wpos, .len = 0 },
+        { .add = 0,        .len = 0 }
     };
 
     if (!dead) {
@@ -736,45 +736,69 @@ static void oss_audio_fini (void *opaque)
 }
 
 static struct audio_option oss_options[] = {
-    {"FRAGSIZE", AUD_OPT_INT, &conf.fragsize,
-     "Fragment size in bytes", NULL, 0},
-    {"NFRAGS", AUD_OPT_INT, &conf.nfrags,
-     "Number of fragments", NULL, 0},
-    {"MMAP", AUD_OPT_BOOL, &conf.try_mmap,
-     "Try using memory mapped access", NULL, 0},
-    {"DAC_DEV", AUD_OPT_STR, &conf.devpath_out,
-     "Path to DAC device", NULL, 0},
-    {"ADC_DEV", AUD_OPT_STR, &conf.devpath_in,
-     "Path to ADC device", NULL, 0},
-    {"DEBUG", AUD_OPT_BOOL, &conf.debug,
-     "Turn on some debugging messages", NULL, 0},
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {
+        .name  = "FRAGSIZE",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.fragsize,
+        .descr = "Fragment size in bytes"
+    },
+    {
+        .name  = "NFRAGS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nfrags,
+        .descr = "Number of fragments"
+    },
+    {
+        .name  = "MMAP",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.try_mmap,
+        .descr = "Try using memory mapped access"
+    },
+    {
+        .name  = "DAC_DEV",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.devpath_out,
+        .descr = "Path to DAC device"
+    },
+    {
+        .name  = "ADC_DEV",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.devpath_in,
+        .descr = "Path to ADC device"
+    },
+    {
+        .name  = "DEBUG",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.debug,
+        .descr = "Turn on some debugging messages"
+    },
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops oss_pcm_ops = {
-    oss_init_out,
-    oss_fini_out,
-    oss_run_out,
-    oss_write,
-    oss_ctl_out,
+    .init_out = oss_init_out,
+    .fini_out = oss_fini_out,
+    .run_out  = oss_run_out,
+    .write    = oss_write,
+    .ctl_out  = oss_ctl_out,
 
-    oss_init_in,
-    oss_fini_in,
-    oss_run_in,
-    oss_read,
-    oss_ctl_in
+    .init_in  = oss_init_in,
+    .fini_in  = oss_fini_in,
+    .run_in   = oss_run_in,
+    .read     = oss_read,
+    .ctl_in   = oss_ctl_in
 };
 
 struct audio_driver oss_audio_driver = {
-    INIT_FIELD (name           = ) "oss",
-    INIT_FIELD (descr          = ) "OSS http://www.opensound.com",
-    INIT_FIELD (options        = ) oss_options,
-    INIT_FIELD (init           = ) oss_audio_init,
-    INIT_FIELD (fini           = ) oss_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &oss_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (OSSVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (OSSVoiceIn)
+    .name           = "oss",
+    .descr          = "OSS http://www.opensound.com",
+    .options        = oss_options,
+    .init           = oss_audio_init,
+    .fini           = oss_audio_fini,
+    .pcm_ops        = &oss_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (OSSVoiceOut),
+    .voice_size_in  = sizeof (OSSVoiceIn)
 };

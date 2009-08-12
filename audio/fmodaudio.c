@@ -50,13 +50,9 @@ static struct {
     int threshold;
     int broken_adc;
 } conf = {
-    NULL,
-    2048 * 2,
-    44100,
-    2,
-    0,
-    0,
-    0
+    .nb_samples  = 2048 * 2,
+    .freq        = 44100,
+    .nb_channels = 2,
 };
 
 static void GCC_FMT_ATTR (1, 2) fmod_logerr (const char *fmt, ...)
@@ -517,27 +513,27 @@ static struct {
     const char *name;
     int type;
 } drvtab[] = {
-    {"none", FSOUND_OUTPUT_NOSOUND},
+    { .name = "none",   .type = FSOUND_OUTPUT_NOSOUND },
 #ifdef _WIN32
-    {"winmm", FSOUND_OUTPUT_WINMM},
-    {"dsound", FSOUND_OUTPUT_DSOUND},
-    {"a3d", FSOUND_OUTPUT_A3D},
-    {"asio", FSOUND_OUTPUT_ASIO},
+    { .name = "winmm",  .type = FSOUND_OUTPUT_WINMM   },
+    { .name = "dsound", .type = FSOUND_OUTPUT_DSOUND  },
+    { .name = "a3d",    .type = FSOUND_OUTPUT_A3D     },
+    { .name = "asio",   .type = FSOUND_OUTPUT_ASIO    },
 #endif
 #ifdef __linux__
-    {"oss", FSOUND_OUTPUT_OSS},
-    {"alsa", FSOUND_OUTPUT_ALSA},
-    {"esd", FSOUND_OUTPUT_ESD},
+    { .name = "oss",    .type = FSOUND_OUTPUT_OSS     },
+    { .name = "alsa",   .type = FSOUND_OUTPUT_ALSA    },
+    { .name = "esd",    .type = FSOUND_OUTPUT_ESD     },
 #endif
 #ifdef __APPLE__
-    {"mac", FSOUND_OUTPUT_MAC},
+    { .name = "mac",    .type = FSOUND_OUTPUT_MAC     },
 #endif
 #if 0
-    {"xbox", FSOUND_OUTPUT_XBOX},
-    {"ps2", FSOUND_OUTPUT_PS2},
-    {"gcube", FSOUND_OUTPUT_GC},
+    { .name = "xbox",   .type = FSOUND_OUTPUT_XBOX    },
+    { .name = "ps2",    .type = FSOUND_OUTPUT_PS2     },
+    { .name = "gcube",  .type = FSOUND_OUTPUT_GC      },
 #endif
-    {"none-realtime", FSOUND_OUTPUT_NOSOUND_NONREALTIME}
+    { .name = "none-realtime", .type = FSOUND_OUTPUT_NOSOUND_NONREALTIME }
 };
 
 static void *fmod_audio_init (void)
@@ -639,48 +635,71 @@ static void fmod_audio_fini (void *opaque)
 }
 
 static struct audio_option fmod_options[] = {
-    {"DRV", AUD_OPT_STR, &conf.drvname,
-     "FMOD driver", NULL, 0},
-    {"FREQ", AUD_OPT_INT, &conf.freq,
-     "Default frequency", NULL, 0},
-    {"SAMPLES", AUD_OPT_INT, &conf.nb_samples,
-     "Buffer size in samples", NULL, 0},
-    {"CHANNELS", AUD_OPT_INT, &conf.nb_channels,
-     "Number of default channels (1 - mono, 2 - stereo)", NULL, 0},
-    {"BUFSIZE", AUD_OPT_INT, &conf.bufsize,
-     "(undocumented)", NULL, 0},
+    {
+        .name  = "DRV",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.drvname,
+        .descr = "FMOD driver"
+    },
+    {
+        .name  = "FREQ",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.freq,
+        .descr = "Default frequency"
+    },
+    {
+        .name  = "SAMPLES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nb_samples,
+        .descr = "Buffer size in samples"
+    },
+    {
+        .name  = "CHANNELS",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.nb_channels,
+        .descr = "Number of default channels (1 - mono, 2 - stereo)"
+    },
+    {
+        .name  = "BUFSIZE",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.bufsize,
+        .descr = "(undocumented)"
+    }
 #if 0
-    {"THRESHOLD", AUD_OPT_INT, &conf.threshold,
-     "(undocumented)"},
+    {
+        .name  = "THRESHOLD",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.threshold,
+        .descr = "(undocumented)"
+    }
 #endif
-
-    {NULL, 0, NULL, NULL, NULL, 0}
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops fmod_pcm_ops = {
-    fmod_init_out,
-    fmod_fini_out,
-    fmod_run_out,
-    fmod_write,
-    fmod_ctl_out,
+    .init_out = fmod_init_out,
+    .fini_out = fmod_fini_out,
+    .run_out  = fmod_run_out,
+    .write    = fmod_write,
+    .ctl_out  = fmod_ctl_out,
 
-    fmod_init_in,
-    fmod_fini_in,
-    fmod_run_in,
-    fmod_read,
-    fmod_ctl_in
+    .init_in  = fmod_init_in,
+    .fini_in  = fmod_fini_in,
+    .run_in   = fmod_run_in,
+    .read     = fmod_read,
+    .ctl_in   = fmod_ctl_in
 };
 
 struct audio_driver fmod_audio_driver = {
-    INIT_FIELD (name           = ) "fmod",
-    INIT_FIELD (descr          = ) "FMOD 3.xx http://www.fmod.org",
-    INIT_FIELD (options        = ) fmod_options,
-    INIT_FIELD (init           = ) fmod_audio_init,
-    INIT_FIELD (fini           = ) fmod_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &fmod_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (FMODVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (FMODVoiceIn)
+    .name           = "fmod",
+    .descr          = "FMOD 3.xx http://www.fmod.org",
+    .options        = fmod_options,
+    .init           = fmod_audio_init,
+    .fini           = fmod_audio_fini,
+    .pcm_ops        = &fmod_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (FMODVoiceOut),
+    .voice_size_in  = sizeof (FMODVoiceIn)
 };

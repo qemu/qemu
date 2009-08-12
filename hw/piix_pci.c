@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "pci.h"
+#include "isa.h"
 #include "sysbus.h"
 
 typedef uint32_t pci_addr_t;
@@ -342,6 +343,7 @@ static void piix3_initfn(PCIDevice *d)
 {
     uint8_t *pci_conf;
 
+    isa_bus_new(&d->qdev);
     register_savevm("PIIX3", 0, 2, piix_save, piix_load, d);
 
     pci_conf = d->config;

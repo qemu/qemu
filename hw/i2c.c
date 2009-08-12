@@ -21,12 +21,8 @@ static struct BusInfo i2c_bus_info = {
     .name = "I2C",
     .size = sizeof(i2c_bus),
     .props = (Property[]) {
-        {
-            .name   = "address",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(struct i2c_slave, address),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("address", struct i2c_slave, address, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

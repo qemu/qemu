@@ -254,10 +254,6 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     }
 }
 
-void qemu_system_powerdown(void)
-{
-}
-
 typedef struct ResetData {
     CPUState *env;
     uint64_t reset_addr;
@@ -495,12 +491,8 @@ static SysBusDeviceInfo ram_info = {
     .qdev.name  = "memory",
     .qdev.size  = sizeof(RamDevice),
     .qdev.props = (Property[]) {
-        {
-            .name = "size",
-            .info = &qdev_prop_uint64,
-            .offset = offsetof(RamDevice, size),
-        },
-        {/* end of property list */}
+        DEFINE_PROP_UINT64("size", RamDevice, size, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

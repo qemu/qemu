@@ -107,8 +107,8 @@ typedef struct VGACommonState {
     uint32_t map_addr;
     uint32_t map_end;
     uint32_t lfb_vram_mapped; /* whether 0xa0000 is mapped as ram */
-    unsigned long bios_offset;
-    unsigned int bios_size;
+    uint32_t bios_offset;
+    uint32_t bios_size;
     int it_shift;
     PCIDevice *pci_dev;
     uint32_t latch;
@@ -158,6 +158,7 @@ typedef struct VGACommonState {
     uint32_t last_width, last_height; /* in chars or pixels */
     uint32_t last_scr_width, last_scr_height; /* in pixels */
     uint32_t last_depth; /* in bits */
+    uint8_t full_update;
     uint8_t cursor_start, cursor_end;
     uint32_t cursor_offset;
     unsigned int (*rgb_to_pixel)(unsigned int r,

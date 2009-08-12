@@ -496,6 +496,20 @@ static void piix4_reset(void *opaque)
     }
 }
 
+static void piix4_powerdown(void *opaque, int irq, int power_failing)
+{
+#if defined(TARGET_I386)
+    PIIX4PMState *s = opaque;
+
+    if (!s) {
+        qemu_system_shutdown_request();
+    } else if (s->pmen & PWRBTN_EN) {
+        s->pmsts |= PWRBTN_EN;
+        pm_update_sci(s);
+    }
+#endif
+}
+
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq)
 {
@@ -545,6 +559,8 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
 
+    qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
+
     register_savevm("piix4_pm", 0, 1, pm_save, pm_load, s);
 
     s->smbus = i2c_init_bus(NULL, "i2c");
@@ -553,18 +569,6 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     return s->smbus;
 }
-
-#if defined(TARGET_I386)
-void qemu_system_powerdown(void)
-{
-    if (!pm_state) {
-        qemu_system_shutdown_request();
-    } else if (pm_state->pmen & PWRBTN_EN) {
-        pm_state->pmsts |= PWRBTN_EN;
-	pm_update_sci(pm_state);
-    }
-}
-#endif
 
 #define GPE_BASE 0xafe0
 #define PCI_BASE 0xae00

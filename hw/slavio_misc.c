@@ -95,7 +95,7 @@ static void slavio_misc_reset(void *opaque)
     s->config = s->aux1 = s->aux2 = s->mctrl = 0;
 }
 
-void slavio_set_power_fail(void *opaque, int power_failing)
+static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
 {
     MiscState *s = opaque;
 
@@ -491,6 +491,8 @@ static void slavio_misc_init1(SysBusDevice *dev)
     io = cpu_register_io_memory(slavio_aux2_mem_read,
                                 slavio_aux2_mem_write, s);
     sysbus_init_mmio(dev, MISC_SIZE, io);
+
+    qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
 
     register_savevm("slavio_misc", -1, 1, slavio_misc_save, slavio_misc_load,
                     s);

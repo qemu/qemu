@@ -451,12 +451,8 @@ static SysBusDeviceInfo slavio_timer_info = {
     .qdev.name  = "slavio_timer",
     .qdev.size  = sizeof(SLAVIO_TIMERState),
     .qdev.props = (Property[]) {
-        {
-            .name = "num_cpus",
-            .info = &qdev_prop_uint32,
-            .offset = offsetof(SLAVIO_TIMERState, num_cpus),
-        },
-        {/* end of property list */}
+        DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

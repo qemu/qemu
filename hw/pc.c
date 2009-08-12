@@ -1116,6 +1116,7 @@ static void pc_init1(ram_addr_t ram_size,
     int bios_size, isa_bios_size, oprom_area_size;
     PCIBus *pci_bus;
     PCIDevice *pci_dev;
+    ISADevice *isa_dev;
     int piix3_devfn = -1;
     CPUState *env;
     qemu_irq *cpu_irq;
@@ -1362,7 +1363,9 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    i8042_init(i8259[1], i8259[12], 0x60);
+    isa_dev = isa_create_simple("i8042", 0x60, 0x64);
+    isa_connect_irq(isa_dev, 0, i8259[1]);
+    isa_connect_irq(isa_dev, 1, i8259[12]);
     DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, i8259);
@@ -1406,18 +1409,6 @@ static void pc_init1(ram_addr_t ram_size,
         max_bus = drive_get_max_bus(IF_SCSI);
 	for (bus = 0; bus <= max_bus; bus++) {
             pci_create_simple(pci_bus, -1, "lsi53c895a");
-        }
-    }
-
-    /* Add virtio block devices */
-    if (pci_enabled) {
-        int unit_id = 0;
-
-        while ((dinfo = drive_get(IF_VIRTIO, 0, unit_id)) != NULL) {
-            pci_dev = pci_create("virtio-blk-pci",
-                                 dinfo->devaddr);
-            qdev_init(&pci_dev->qdev);
-            unit_id++;
         }
     }
 

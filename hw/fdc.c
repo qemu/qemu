@@ -471,7 +471,6 @@ enum {
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct fdctrl_t {
-    SysBusDevice busdev;
     /* Controller's identification */
     uint8_t version;
     /* HW */
@@ -512,6 +511,16 @@ struct fdctrl_t {
     fdrive_t drives[MAX_FD];
     int reset_sensei;
 };
+
+typedef struct fdctrl_sysbus_t {
+    SysBusDevice busdev;
+    struct fdctrl_t state;
+} fdctrl_sysbus_t;
+
+typedef struct fdctrl_isabus_t {
+    ISADevice busdev;
+    struct fdctrl_t state;
+} fdctrl_isabus_t;
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
 {
@@ -1866,27 +1875,26 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
                        target_phys_addr_t io_base,
                        BlockDriverState **fds)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
     fdctrl_t *fdctrl;
 
-    dev = qdev_create(NULL, "fdc");
-    qdev_init(dev);
-    s = sysbus_from_qdev(dev);
-    sysbus_connect_irq(s, 0, irq);
-    fdctrl = FROM_SYSBUS(fdctrl_t, s);
     if (mem_mapped) {
-        sysbus_mmio_map(s, 0, io_base);
+        DeviceState *dev;
+        fdctrl_sysbus_t *sys;
+
+        dev = qdev_create(NULL, "sysbus-fdc");
+        qdev_init(dev);
+        sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
+        fdctrl = &sys->state;
+        sysbus_connect_irq(&sys->busdev, 0, irq);
+        sysbus_mmio_map(&sys->busdev, 0, io_base);
     } else {
-        register_ioport_read((uint32_t)io_base + 0x01, 5, 1,
-                             &fdctrl_read_port, fdctrl);
-        register_ioport_read((uint32_t)io_base + 0x07, 1, 1,
-                             &fdctrl_read_port, fdctrl);
-        register_ioport_write((uint32_t)io_base + 0x01, 5, 1,
-                              &fdctrl_write_port, fdctrl);
-        register_ioport_write((uint32_t)io_base + 0x07, 1, 1,
-                              &fdctrl_write_port, fdctrl);
+        ISADevice *dev;
+
+        dev = isa_create_simple("isa-fdc", io_base, 0);
+        fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
+        isa_connect_irq(dev, 0, irq);
     }
+
     fdctrl->dma_chann = dma_chann;
     DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
 
@@ -1899,17 +1907,16 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
                              BlockDriverState **fds, qemu_irq *fdc_tc)
 {
     DeviceState *dev;
-    SysBusDevice *s;
+    fdctrl_sysbus_t *sys;
     fdctrl_t *fdctrl;
 
     dev = qdev_create(NULL, "SUNW,fdtwo");
     qdev_init(dev);
-    s = sysbus_from_qdev(dev);
-    sysbus_connect_irq(s, 0, irq);
-    sysbus_mmio_map(s, 0, io_base);
+    sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
+    fdctrl = &sys->state;
+    sysbus_connect_irq(&sys->busdev, 0, irq);
+    sysbus_mmio_map(&sys->busdev, 0, io_base);
     *fdc_tc = qdev_get_gpio_in(dev, 0);
-
-    fdctrl = FROM_SYSBUS(fdctrl_t, s);
 
     fdctrl->dma_chann = -1;
 
@@ -1918,15 +1925,10 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
     return fdctrl;
 }
 
-static void fdctrl_init_common(SysBusDevice *dev, fdctrl_t *fdctrl,
-                               int is_sun4m, int io)
+static void fdctrl_init_common(fdctrl_t *fdctrl)
 {
     int i, j;
     static int command_tables_inited = 0;
-
-    sysbus_init_irq(dev, &fdctrl->irq);
-    qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
-    sysbus_init_mmio(dev, 0x08, io);
 
     /* Fill 'command_to_handler' lookup table */
     if (!command_tables_inited) {
@@ -1947,47 +1949,80 @@ static void fdctrl_init_common(SysBusDevice *dev, fdctrl_t *fdctrl,
 
     fdctrl->version = 0x90; /* Intel 82078 controller */
     fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
-    fdctrl->sun4m = is_sun4m;
 
     fdctrl_external_reset(fdctrl);
     register_savevm("fdc", -1, 2, fdc_save, fdc_load, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);
 }
 
-static void fdc_init1(SysBusDevice *dev)
+static void isabus_fdc_init1(ISADevice *dev)
 {
-    fdctrl_t *fdctrl = FROM_SYSBUS(fdctrl_t, dev);
+    fdctrl_isabus_t *isa = DO_UPCAST(fdctrl_isabus_t, busdev, dev);
+    fdctrl_t *fdctrl = &isa->state;
+
+    register_ioport_read(isa->busdev.iobase[0] + 0x01, 5, 1,
+                         &fdctrl_read_port, fdctrl);
+    register_ioport_read(isa->busdev.iobase[0] + 0x07, 1, 1,
+                         &fdctrl_read_port, fdctrl);
+    register_ioport_write(isa->busdev.iobase[0] + 0x01, 5, 1,
+                          &fdctrl_write_port, fdctrl);
+    register_ioport_write(isa->busdev.iobase[0] + 0x07, 1, 1,
+                          &fdctrl_write_port, fdctrl);
+    isa_init_irq(&isa->busdev, &fdctrl->irq);
+
+    fdctrl_init_common(fdctrl);
+}
+
+static void sysbus_fdc_init1(SysBusDevice *dev)
+{
+    fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
     int io;
 
     io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, fdctrl);
-    fdctrl_init_common(dev, fdctrl, 0, io);
+    sysbus_init_mmio(dev, 0x08, io);
+    sysbus_init_irq(dev, &fdctrl->irq);
+    qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
+
+    fdctrl_init_common(fdctrl);
 }
 
 static void sun4m_fdc_init1(SysBusDevice *dev)
 {
-    fdctrl_t *fdctrl = FROM_SYSBUS(fdctrl_t, dev);
+    fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
     int io;
 
     io = cpu_register_io_memory(fdctrl_mem_read_strict,
                                 fdctrl_mem_write_strict, fdctrl);
-    fdctrl_init_common(dev, fdctrl, 1, io);
+    sysbus_init_mmio(dev, 0x08, io);
+    sysbus_init_irq(dev, &fdctrl->irq);
+    qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
+
+    fdctrl->sun4m = 1;
+    fdctrl_init_common(fdctrl);
 }
 
-static SysBusDeviceInfo fdc_info = {
-    .init = fdc_init1,
-    .qdev.name  = "fdc",
-    .qdev.size  = sizeof(fdctrl_t),
+static ISADeviceInfo isa_fdc_info = {
+    .init = isabus_fdc_init1,
+    .qdev.name  = "isa-fdc",
+    .qdev.size  = sizeof(fdctrl_isabus_t),
+};
+
+static SysBusDeviceInfo sysbus_fdc_info = {
+    .init = sysbus_fdc_init1,
+    .qdev.name  = "sysbus-fdc",
+    .qdev.size  = sizeof(fdctrl_sysbus_t),
 };
 
 static SysBusDeviceInfo sun4m_fdc_info = {
     .init = sun4m_fdc_init1,
     .qdev.name  = "SUNW,fdtwo",
-    .qdev.size  = sizeof(fdctrl_t),
+    .qdev.size  = sizeof(fdctrl_sysbus_t),
 };
 
 static void fdc_register_devices(void)
 {
-    sysbus_register_withprop(&fdc_info);
+    isa_qdev_register(&isa_fdc_info);
+    sysbus_register_withprop(&sysbus_fdc_info);
     sysbus_register_withprop(&sun4m_fdc_info);
 }
 

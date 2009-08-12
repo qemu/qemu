@@ -607,6 +607,20 @@ int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
     return 0;
 }
 
+int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
+                     int abort_on_failure)
+{
+    QemuOpt *opt;
+    int rc = 0;
+
+    TAILQ_FOREACH(opt, &opts->head, next) {
+        rc = func(opt->name, opt->str, opaque);
+        if (abort_on_failure  &&  rc != 0)
+            break;
+    }
+    return rc;
+}
+
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
 {
     QemuOpts *opts;
@@ -663,6 +677,11 @@ int qemu_opts_set(QemuOptsList *list, const char *id,
     return qemu_opt_set(opts, name, value);
 }
 
+const char *qemu_opts_id(QemuOpts *opts)
+{
+    return opts->id;
+}
+
 void qemu_opts_del(QemuOpts *opts)
 {
     QemuOpt *opt;
@@ -696,8 +715,13 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
     QemuOpts *opts;
     const char *p,*pe,*pc;
 
-    if (get_param_value(value, sizeof(value), "id", params))
+    if (strncmp(params, "id=", 3) == 0) {
+        get_opt_value(value, sizeof(value), params+3);
         id = qemu_strdup(value);
+    } else if ((p = strstr(params, ",id=")) != NULL) {
+        get_opt_value(value, sizeof(value), p+4);
+        id = qemu_strdup(value);
+    }
     opts = qemu_opts_create(list, id, 1);
     if (opts == NULL)
         return NULL;

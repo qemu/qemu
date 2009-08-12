@@ -646,33 +646,12 @@ static SysBusDeviceInfo tcx_info = {
     .qdev.name  = "SUNW,tcx",
     .qdev.size  = sizeof(TCXState),
     .qdev.props = (Property[]) {
-        {
-            .name   = "addr",
-            .info   = &qdev_prop_taddr,
-            .offset = offsetof(TCXState, addr),
-            .defval = (target_phys_addr_t[]) { -1 },
-        },{
-            .name   = "vram_size",
-            .info   = &qdev_prop_hex32,
-            .offset = offsetof(TCXState, vram_size),
-            .defval = (uint32_t[]) { -1 },
-        },{
-            .name   = "width",
-            .info   = &qdev_prop_uint16,
-            .offset = offsetof(TCXState, width),
-            .defval = (uint16_t[]) { -1 },
-        },{
-            .name   = "height",
-            .info   = &qdev_prop_uint16,
-            .offset = offsetof(TCXState, height),
-            .defval = (uint16_t[]) { -1 },
-        },{
-            .name   = "depth",
-            .info   = &qdev_prop_uint16,
-            .offset = offsetof(TCXState, depth),
-            .defval = (uint16_t[]) { -1 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_TADDR("addr",      TCXState, addr,      -1),
+        DEFINE_PROP_HEX32("vram_size", TCXState, vram_size, -1),
+        DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
+        DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
+        DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

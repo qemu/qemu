@@ -162,12 +162,8 @@ static SysBusDeviceInfo xilinx_intc_info = {
     .qdev.name  = "xilinx,intc",
     .qdev.size  = sizeof(struct xlx_pic),
     .qdev.props = (Property[]) {
-        {
-            .name   = "kind-of-intr",
-            .info   = &qdev_prop_uint32,
-            .offset = offsetof(struct xlx_pic, c_kind_of_intr),
-        },
-        {/* end of list */}
+        DEFINE_PROP_UINT32("kind-of-intr", struct xlx_pic, c_kind_of_intr, 0),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

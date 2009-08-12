@@ -786,8 +786,8 @@ static int alsa_run_in (HWVoiceIn *hw)
         int add;
         int len;
     } bufs[2] = {
-        { hw->wpos, 0 },
-        { 0, 0 }
+        { .add = hw->wpos, .len = 0 },
+        { .add = 0,        .len = 0 }
     };
     snd_pcm_sframes_t avail;
     snd_pcm_uframes_t read_samples = 0;
@@ -935,63 +935,98 @@ static void alsa_audio_fini (void *opaque)
 }
 
 static struct audio_option alsa_options[] = {
-    {"DAC_SIZE_IN_USEC", AUD_OPT_BOOL, &conf.size_in_usec_out,
-     "DAC period/buffer size in microseconds (otherwise in frames)", NULL, 0},
-    {"DAC_PERIOD_SIZE", AUD_OPT_INT, &conf.period_size_out,
-     "DAC period size (0 to go with system default)",
-     &conf.period_size_out_overridden, 0},
-    {"DAC_BUFFER_SIZE", AUD_OPT_INT, &conf.buffer_size_out,
-     "DAC buffer size (0 to go with system default)",
-     &conf.buffer_size_out_overridden, 0},
-
-    {"ADC_SIZE_IN_USEC", AUD_OPT_BOOL, &conf.size_in_usec_in,
-     "ADC period/buffer size in microseconds (otherwise in frames)", NULL, 0},
-    {"ADC_PERIOD_SIZE", AUD_OPT_INT, &conf.period_size_in,
-     "ADC period size (0 to go with system default)",
-     &conf.period_size_in_overridden, 0},
-    {"ADC_BUFFER_SIZE", AUD_OPT_INT, &conf.buffer_size_in,
-     "ADC buffer size (0 to go with system default)",
-     &conf.buffer_size_in_overridden, 0},
-
-    {"THRESHOLD", AUD_OPT_INT, &conf.threshold,
-     "(undocumented)", NULL, 0},
-
-    {"DAC_DEV", AUD_OPT_STR, &conf.pcm_name_out,
-     "DAC device name (for instance dmix)", NULL, 0},
-
-    {"ADC_DEV", AUD_OPT_STR, &conf.pcm_name_in,
-     "ADC device name", NULL, 0},
-
-    {"VERBOSE", AUD_OPT_BOOL, &conf.verbose,
-     "Behave in a more verbose way", NULL, 0},
-
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {
+        .name        = "DAC_SIZE_IN_USEC",
+        .tag         = AUD_OPT_BOOL,
+        .valp        = &conf.size_in_usec_out,
+        .descr       = "DAC period/buffer size in microseconds (otherwise in frames)"
+    },
+    {
+        .name        = "DAC_PERIOD_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.period_size_out,
+        .descr       = "DAC period size (0 to go with system default)",
+        .overriddenp = &conf.period_size_out_overridden
+    },
+    {
+        .name        = "DAC_BUFFER_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.buffer_size_out,
+        .descr       = "DAC buffer size (0 to go with system default)",
+        .overriddenp = &conf.buffer_size_out_overridden
+    },
+    {
+        .name        = "ADC_SIZE_IN_USEC",
+        .tag         = AUD_OPT_BOOL,
+        .valp        = &conf.size_in_usec_in,
+        .descr       =
+        "ADC period/buffer size in microseconds (otherwise in frames)"
+    },
+    {
+        .name        = "ADC_PERIOD_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.period_size_in,
+        .descr       = "ADC period size (0 to go with system default)",
+        .overriddenp = &conf.period_size_in_overridden
+    },
+    {
+        .name        = "ADC_BUFFER_SIZE",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.buffer_size_in,
+        .descr       = "ADC buffer size (0 to go with system default)",
+        .overriddenp = &conf.buffer_size_in_overridden
+    },
+    {
+        .name        = "THRESHOLD",
+        .tag         = AUD_OPT_INT,
+        .valp        = &conf.threshold,
+        .descr       = "(undocumented)"
+    },
+    {
+        .name        = "DAC_DEV",
+        .tag         = AUD_OPT_STR,
+        .valp        = &conf.pcm_name_out,
+        .descr       = "DAC device name (for instance dmix)"
+    },
+    {
+        .name        = "ADC_DEV",
+        .tag         = AUD_OPT_STR,
+        .valp        = &conf.pcm_name_in,
+        .descr       = "ADC device name"
+    },
+    {
+        .name        = "VERBOSE",
+        .tag         = AUD_OPT_BOOL,
+        .valp        = &conf.verbose,
+        .descr       = "Behave in a more verbose way"
+    },
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops alsa_pcm_ops = {
-    alsa_init_out,
-    alsa_fini_out,
-    alsa_run_out,
-    alsa_write,
-    alsa_ctl_out,
+    .init_out = alsa_init_out,
+    .fini_out = alsa_fini_out,
+    .run_out  = alsa_run_out,
+    .write    = alsa_write,
+    .ctl_out  = alsa_ctl_out,
 
-    alsa_init_in,
-    alsa_fini_in,
-    alsa_run_in,
-    alsa_read,
-    alsa_ctl_in
+    .init_in  = alsa_init_in,
+    .fini_in  = alsa_fini_in,
+    .run_in   = alsa_run_in,
+    .read     = alsa_read,
+    .ctl_in   = alsa_ctl_in
 };
 
 struct audio_driver alsa_audio_driver = {
-    INIT_FIELD (name           = ) "alsa",
-    INIT_FIELD (descr          = ) "ALSA http://www.alsa-project.org",
-    INIT_FIELD (options        = ) alsa_options,
-    INIT_FIELD (init           = ) alsa_audio_init,
-    INIT_FIELD (fini           = ) alsa_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &alsa_pcm_ops,
-    INIT_FIELD (can_be_default = ) 1,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (ALSAVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (ALSAVoiceIn)
+    .name           = "alsa",
+    .descr          = "ALSA http://www.alsa-project.org",
+    .options        = alsa_options,
+    .init           = alsa_audio_init,
+    .fini           = alsa_audio_fini,
+    .pcm_ops        = &alsa_pcm_ops,
+    .can_be_default = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (ALSAVoiceOut),
+    .voice_size_in  = sizeof (ALSAVoiceIn)
 };

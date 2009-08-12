@@ -104,11 +104,15 @@ int qemu_opt_get_bool(QemuOpts *opts, const char *name, int defval);
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
+typedef int (*qemu_opt_loopfunc)(const char *name, const char *value, void *opaque);
+int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
+                     int abort_on_failure);
 
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id);
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exists);
 int qemu_opts_set(QemuOptsList *list, const char *id,
                   const char *name, const char *value);
+const char *qemu_opts_id(QemuOpts *opts);
 void qemu_opts_del(QemuOpts *opts);
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname);
 

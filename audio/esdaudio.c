@@ -58,10 +58,8 @@ static struct {
     char *dac_host;
     char *adc_host;
 } conf = {
-    1024,
-    2,
-    NULL,
-    NULL
+    .samples = 1024,
+    .divisor = 2,
 };
 
 static void GCC_FMT_ATTR (2, 3) qesd_logerr (int err, const char *fmt, ...)
@@ -551,46 +549,57 @@ static void qesd_audio_fini (void *opaque)
 }
 
 struct audio_option qesd_options[] = {
-    {"SAMPLES", AUD_OPT_INT, &conf.samples,
-     "buffer size in samples", NULL, 0},
-
-    {"DIVISOR", AUD_OPT_INT, &conf.divisor,
-     "threshold divisor", NULL, 0},
-
-    {"DAC_HOST", AUD_OPT_STR, &conf.dac_host,
-     "playback host", NULL, 0},
-
-    {"ADC_HOST", AUD_OPT_STR, &conf.adc_host,
-     "capture host", NULL, 0},
-
-    {NULL, 0, NULL, NULL, NULL, 0}
+    {
+        .name  = "SAMPLES",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.samples,
+        .descr = "buffer size in samples"
+    },
+    {
+        .name  = "DIVISOR",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.divisor,
+        .descr = "threshold divisor"
+    },
+    {
+        .name  = "DAC_HOST",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.dac_host,
+        .descr = "playback host"
+    },
+    {
+        .name  = "ADC_HOST",
+        .tag   = AUD_OPT_STR,
+        .valp  = &conf.adc_host,
+        .descr = "capture host"
+    },
+    { /* End of list */ }
 };
 
 static struct audio_pcm_ops qesd_pcm_ops = {
-    qesd_init_out,
-    qesd_fini_out,
-    qesd_run_out,
-    qesd_write,
-    qesd_ctl_out,
+    .init_out = qesd_init_out,
+    .fini_out = qesd_fini_out,
+    .run_out  = qesd_run_out,
+    .write    = qesd_write,
+    .ctl_out  = qesd_ctl_out,
 
-    qesd_init_in,
-    qesd_fini_in,
-    qesd_run_in,
-    qesd_read,
-    qesd_ctl_in,
+    .init_in  = qesd_init_in,
+    .fini_in  = qesd_fini_in,
+    .run_in   = qesd_run_in,
+    .read     = qesd_read,
+    .ctl_in   = qesd_ctl_in,
 };
 
 struct audio_driver esd_audio_driver = {
-    INIT_FIELD (name           = ) "esd",
-    INIT_FIELD (descr          = )
-    "http://en.wikipedia.org/wiki/Esound",
-    INIT_FIELD (options        = ) qesd_options,
-    INIT_FIELD (init           = ) qesd_audio_init,
-    INIT_FIELD (fini           = ) qesd_audio_fini,
-    INIT_FIELD (pcm_ops        = ) &qesd_pcm_ops,
-    INIT_FIELD (can_be_default = ) 0,
-    INIT_FIELD (max_voices_out = ) INT_MAX,
-    INIT_FIELD (max_voices_in  = ) INT_MAX,
-    INIT_FIELD (voice_size_out = ) sizeof (ESDVoiceOut),
-    INIT_FIELD (voice_size_in  = ) sizeof (ESDVoiceIn)
+    .name           = "esd",
+    .descr          = "http://en.wikipedia.org/wiki/Esound",
+    .options        = qesd_options,
+    .init           = qesd_audio_init,
+    .fini           = qesd_audio_fini,
+    .pcm_ops        = &qesd_pcm_ops,
+    .can_be_default = 0,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
+    .voice_size_out = sizeof (ESDVoiceOut),
+    .voice_size_in  = sizeof (ESDVoiceIn)
 };
