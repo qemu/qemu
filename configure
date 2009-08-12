@@ -181,6 +181,7 @@ bluez=""
 brlapi=""
 curl=""
 curses=""
+build_docs=""
 nptl=""
 vde=""
 vnc_tls=""
@@ -208,7 +209,6 @@ linux_user="no"
 darwin_user="no"
 bsd_user="no"
 guest_base=""
-build_docs="yes"
 uname_release=""
 io_thread="no"
 mixemu="no"
@@ -523,6 +523,8 @@ for opt do
   --with-pkgversion=*) pkgversion=" ($optarg)"
   ;;
   --disable-docs) build_docs="no"
+  ;;
+  --enable-docs) build_docs="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1408,8 +1410,16 @@ if compile_prog "" "" ; then
 fi
 
 # Check if tools are available to build documentation.
-if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x "`which pod2man 2>/dev/null`" \) ; then
-  build_docs="no"
+if test "$build_docs" != "no" ; then
+  if test -x "`which texi2html 2>/dev/null`" -a \
+          -x "`which pod2man 2>/dev/null`" ; then
+    build_docs=yes
+  else
+    if test "$build_docs" = "yes" ; then
+      feature_not_found "build_docs"
+    fi
+    build_docs=no
+  fi
 fi
 
 # Search for bsawp_32 function
