@@ -177,7 +177,7 @@ esac
 # to ensure that several features are compiled in, and it is impossible without a
 # --enable-foo that exits if feature is not found
 
-brlapi="yes"
+brlapi=""
 gprof="no"
 debug_tcg="no"
 debug="no"
@@ -444,6 +444,8 @@ for opt do
   ;;
   --disable-brlapi) brlapi="no"
   ;;
+  --enable-brlapi) brlapi="yes"
+  ;;
   --disable-bluez) bluez="no"
   ;;
   --disable-kvm) kvm="no"
@@ -607,6 +609,7 @@ echo "                           Available cards: $audio_possible_cards"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
 echo "  --disable-brlapi         disable BrlAPI"
+echo "  --enable-brlapi          enable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
@@ -1058,8 +1061,7 @@ done
 ##########################################
 # BrlAPI probe
 
-if test "$brlapi" = "yes" ; then
-  brlapi=no
+if test "$brlapi" != "no" ; then
   brlapi_libs="-lbrlapi"
   cat > $TMPC << EOF
 #include <brlapi.h>
@@ -1068,6 +1070,11 @@ EOF
   if compile_prog "" "$brlapi_libs" ; then
     brlapi=yes
     libs_softmmu="$brlapi_libs $libs_softmmu"
+  else
+    if test "$brlapi" = "yes" ; then
+      feature_not_found "brlapi"
+    fi
+    brlapi=no
   fi
 fi
 
