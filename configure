@@ -188,6 +188,7 @@ sdl=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
+xen=""
 
 gprof="no"
 debug_tcg="no"
@@ -218,7 +219,6 @@ kvm="no"
 kerneldir=""
 aix="no"
 blobs="yes"
-xen="yes"
 pkgversion=""
 
 # OS specific
@@ -451,6 +451,8 @@ for opt do
   ;;
   --disable-xen) xen="no"
   ;;
+  --enable-xen) xen="yes"
+  ;;
   --disable-brlapi) brlapi="no"
   ;;
   --enable-brlapi) brlapi="yes"
@@ -632,6 +634,7 @@ echo "  --audio-card-list=LIST   set list of emulated audio cards [$audio_card_l
 echo "                           Available cards: $audio_possible_cards"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
+echo "  --enable-xen             enable xen backend driver support"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --enable-brlapi          enable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
@@ -869,7 +872,7 @@ fi
 ##########################################
 # xen probe
 
-if test "$xen" = "yes" ; then
+if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
   cat > $TMPC <<EOF
 #include <xenctrl.h>
@@ -877,9 +880,13 @@ if test "$xen" = "yes" ; then
 int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
   if compile_prog "" "$xen_libs" ; then
+    xen=yes
     libs_softmmu="$xen_libs $libs_softmmu"
   else
-    xen="no"
+    if test "$xen" = "yes" ; then
+      feature_not_found "xen"
+    fi
+    xen=no
   fi
 fi
 
