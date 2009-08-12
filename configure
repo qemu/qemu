@@ -183,6 +183,7 @@ curl=""
 curses=""
 docs=""
 nptl=""
+sdl=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
@@ -217,7 +218,6 @@ kerneldir=""
 aix="no"
 blobs="yes"
 fdt="yes"
-sdl="yes"
 xen="yes"
 pkgversion=""
 
@@ -406,6 +406,8 @@ for opt do
   --static) static="yes"
   ;;
   --disable-sdl) sdl="no"
+  ;;
+  --enable-sdl) sdl="yes"
   ;;
   --fmod-lib=*) fmod_lib="$optarg"
   ;;
@@ -618,6 +620,7 @@ echo "  --disable-sparse         disable sparse checker (default)"
 echo "  --disable-strip          disable stripping binaries"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
+echo "  --enable-sdl             enable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
@@ -879,8 +882,7 @@ fi
 
 sdl_too_old=no
 
-if test "$sdl" = "yes" ; then
-  sdl=no
+if test "$sdl" != "no" ; then
   cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
@@ -911,6 +913,11 @@ EOF
         sdl=no
       fi
     fi # static link
+  else # sdl not found
+    if test "$sdl" = "yes" ; then
+      feature_not_found "sdl"
+    fi
+    sdl=no
   fi # sdl compile test
 fi
 
