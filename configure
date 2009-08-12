@@ -183,6 +183,7 @@ curl=""
 curses=""
 docs=""
 fdt=""
+kvm=""
 nptl=""
 sdl=""
 vde=""
@@ -215,7 +216,6 @@ guest_base=""
 uname_release=""
 io_thread="no"
 mixemu="no"
-kvm="no"
 kerneldir=""
 aix="no"
 blobs="yes"
@@ -337,7 +337,6 @@ AIX)
   linux="yes"
   linux_user="yes"
   usb="linux"
-  kvm="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
@@ -462,6 +461,8 @@ for opt do
   --enable-bluez) bluez="yes"
   ;;
   --disable-kvm) kvm="no"
+  ;;
+  --enable-kvm) kvm="yes"
   ;;
   --enable-profiler) profiler="yes"
   ;;
@@ -650,6 +651,7 @@ echo "  --enable-fdt             enable fdt device tree"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
+echo "  --enable-kvm             enable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-nptl            disable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
@@ -1216,7 +1218,7 @@ fi
 
 ##########################################
 # kvm probe
-if test "$kvm" = "yes" ; then
+if test "$kvm" != "no" ; then
     cat > $TMPC <<EOF
 #include <linux/kvm.h>
 #if !defined(KVM_API_VERSION) || KVM_API_VERSION < 12 || KVM_API_VERSION > 12
@@ -1247,20 +1249,23 @@ EOF
       kvm_cflags=""
   fi
   if compile_prog "$kvm_cflags" "" ; then
-    :
+    kvm=yes
   else
-    kvm="no";
-    if [ -x "`which awk 2>/dev/null`" ] && \
-       [ -x "`which grep 2>/dev/null`" ]; then
-      kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
+    if test "$kvm" = "yes" ; then
+      if [ -x "`which awk 2>/dev/null`" ] && \
+         [ -x "`which grep 2>/dev/null`" ]; then
+        kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
-      if test "$kvmerr" != "" ; then
-        kvm="no - (${kvmerr})\n\
-    NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
-recent kvm-kmod from http://sourceforge.net/projects/kvm."
+        if test "$kvmerr" != "" ; then
+          echo -e "${kvmerr}\n\
+      NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
+  recent kvm-kmod from http://sourceforge.net/projects/kvm."
+        fi
       fi
+      feature_not_found "kvm"
     fi
+    kvm=no
   fi
 fi
 
@@ -1625,7 +1630,7 @@ echo "GUEST_BASE        $guest_base"
 echo "vde support       $vde"
 echo "IO thread         $io_thread"
 echo "Install blobs     $blobs"
-echo -e "KVM support       $kvm"
+echo "KVM support       $kvm"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 
