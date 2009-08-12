@@ -1491,15 +1491,7 @@ echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
 echo "Mixer emulation   $mixemu"
 echo "VNC TLS support   $vnc_tls"
-if test "$vnc_tls" = "yes" ; then
-    echo "    TLS CFLAGS    $vnc_tls_cflags"
-    echo "    TLS LIBS      $vnc_tls_libs"
-fi
 echo "VNC SASL support  $vnc_sasl"
-if test "$vnc_sasl" = "yes" ; then
-    echo "    SASL CFLAGS    $vnc_sasl_cflags"
-    echo "    SASL LIBS      $vnc_sasl_libs"
-fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
