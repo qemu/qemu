@@ -177,6 +177,7 @@ esac
 # to ensure that several features are compiled in, and it is impossible without a
 # --enable-foo that exits if feature is not found
 
+bluez=""
 brlapi=""
 curl=""
 curses=""
@@ -211,7 +212,6 @@ build_docs="yes"
 uname_release=""
 io_thread="no"
 mixemu="no"
-bluez="yes"
 kvm="no"
 kerneldir=""
 aix="no"
@@ -455,6 +455,8 @@ for opt do
   ;;
   --disable-bluez) bluez="no"
   ;;
+  --enable-bluez) bluez="yes"
+  ;;
   --disable-kvm) kvm="no"
   ;;
   --enable-profiler) profiler="yes"
@@ -632,6 +634,7 @@ echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
 echo "  --enable-curl            enable curl connectivity"
 echo "  --disable-bluez          disable bluez stack connectivity"
+echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-nptl            disable usermode NPTL support"
@@ -1171,10 +1174,7 @@ fi # test "$curl"
 
 ##########################################
 # bluez support probe
-if test "$bluez" = "yes" ; then
-  `pkg-config bluez 2> /dev/null` || bluez="no"
-fi
-if test "$bluez" = "yes" ; then
+if test "$bluez" != "no" ; then
   cat > $TMPC << EOF
 #include <bluetooth/bluetooth.h>
 int main(void) { return bt_error(0); }
@@ -1182,8 +1182,12 @@ EOF
   bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
   bluez_libs=`pkg-config --libs bluez 2> /dev/null`
   if compile_prog "$bluez_cflags" "$bluez_libs" ; then
+    bluez=yes
     libs_softmmu="$bluez_libs $libs_softmmu"
   else
+    if test "$bluez" = "yes" ; then
+      feature_not_found "bluez"
+    fi
     bluez="no"
   fi
 fi
@@ -1578,6 +1582,7 @@ if test -n "$sparc_cpu"; then
 fi
 echo "xen support       $xen"
 echo "brlapi support    $brlapi"
+echo "bluez  support    $bluez"
 echo "Documentation     $build_docs"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
