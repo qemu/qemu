@@ -60,6 +60,9 @@
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
+#ifdef CONFIG_EVENTFD
+#include <sys/eventfd.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -6974,6 +6977,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 #endif /* CONFIG_SPLICE */
+#ifdef CONFIG_EVENTFD
+#if defined(TARGET_NR_eventfd)
+    case TARGET_NR_eventfd:
+        ret = get_errno(eventfd(arg1, 0));
+        break;
+#endif
+#if defined(TARGET_NR_eventfd2)
+    case TARGET_NR_eventfd2:
+        ret = get_errno(eventfd(arg1, arg2));
+        break;
+#endif
+#endif /* CONFIG_EVENTFD  */
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
