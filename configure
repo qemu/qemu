@@ -178,6 +178,7 @@ esac
 # --enable-foo that exits if feature is not found
 
 brlapi=""
+curl=""
 curses=""
 vde=""
 vnc_tls=""
@@ -207,7 +208,6 @@ bsd_user="no"
 guest_base=""
 build_docs="yes"
 uname_release=""
-curl="yes"
 io_thread="no"
 nptl="yes"
 mixemu="no"
@@ -504,6 +504,8 @@ for opt do
   ;;
   --disable-curl) curl="no"
   ;;
+  --enable-curl) curl="yes"
+  ;;
   --disable-nptl) nptl="no"
   ;;
   --enable-mixemu) mixemu="yes"
@@ -626,6 +628,7 @@ echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
+echo "  --enable-curl            enable curl connectivity"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
@@ -1136,8 +1139,7 @@ fi
 ##########################################
 # curl probe
 
-if test "$curl" = "yes" ; then
-  curl=no
+if test "$curl" != "no" ; then
   cat > $TMPC << EOF
 #include <curl/curl.h>
 int main(void) { return curl_easy_init(); }
@@ -1148,6 +1150,11 @@ EOF
     curl=yes
     libs_tools="$curl_libs $libs_tools"
     libs_softmmu="$curl_libs $libs_softmmu"
+  else
+    if test "$curl" = "yes" ; then
+      feature_not_found "curl"
+    fi
+    curl=no
   fi
 fi # test "$curl"
 
