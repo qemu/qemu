@@ -166,6 +166,17 @@ case "$cpu" in
     cpu="unknown"
   ;;
 esac
+
+# Default value for a variable defining feature "foo"
+#  * foo="no", feature will only be used if --enable-foo arg is given
+#  * foo="", feature will be searched for, and if found, will be used
+#  * foo="yes", this value vill only be set by --enable-foo flag.
+#                   feature will searched for, if not found, configure exits with error
+#
+# Always add --enable-foo and --disable-foo command line args.  Distributions want
+# to ensure that several features are compiled in, and it is impossible without a
+# --enable-foo that exits if feature is not found
+
 brlapi="yes"
 gprof="no"
 debug_tcg="no"
