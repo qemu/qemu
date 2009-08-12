@@ -437,10 +437,13 @@ static void virtio_blk_init_pci(PCIDevice *pci_dev)
         fprintf(stderr, "drive property not set\n");
     }
     vdev = virtio_blk_init(&pci_dev->qdev, proxy->dinfo);
+    vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_BLOCK,
                     proxy->class_code, 0x00);
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
 }
 
 static void virtio_console_init_pci(PCIDevice *pci_dev)
@@ -504,6 +507,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.props = (Property[]) {
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
             DEFINE_PROP_DRIVE("drive", VirtIOPCIProxy, dinfo),
+            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
@@ -511,8 +515,8 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
         .qdev.props = (Property[]) {
-            DEFINE_PROP_HEX32("vectors", VirtIOPCIProxy, nvectors,
-                              NIC_NVECTORS_UNSPECIFIED),
+            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
+                               NIC_NVECTORS_UNSPECIFIED),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
