@@ -178,6 +178,7 @@ esac
 # --enable-foo that exits if feature is not found
 
 brlapi=""
+curses=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
@@ -206,7 +207,6 @@ bsd_user="no"
 guest_base=""
 build_docs="yes"
 uname_release=""
-curses="yes"
 curl="yes"
 io_thread="no"
 nptl="yes"
@@ -500,6 +500,8 @@ for opt do
   ;;
   --disable-curses) curses="no"
   ;;
+  --enable-curses) curses="yes"
+  ;;
   --disable-curl) curl="no"
   ;;
   --disable-nptl) nptl="no"
@@ -622,6 +624,7 @@ echo "  --enable-vnc-tls         enable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
+echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
@@ -1104,8 +1107,8 @@ fi
 # curses probe
 curses_list="-lncurses -lcurses"
 
-if test "$curses" = "yes" ; then
-  curses=no
+if test "$curses" != "no" ; then
+  curses_found=no
   cat > $TMPC << EOF
 #include <curses.h>
 #ifdef __OpenBSD__
@@ -1115,11 +1118,19 @@ int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
   for curses_lib in $curses_list; do
     if compile_prog "" "$curses_lib" ; then
-      curses=yes
+      curses_found=yes
       libs_softmmu="$curses_lib $libs_softmmu"
       break
     fi
   done
+  if test "$curses_found" = "yes" ; then
+    curses=yes
+  else
+    if test "$curses" = "yes" ; then
+      feature_not_found "curses"
+    fi
+    curses=no
+  fi
 fi
 
 ##########################################
