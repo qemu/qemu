@@ -179,6 +179,7 @@ esac
 
 brlapi=""
 vde=""
+vnc_tls=""
 
 gprof="no"
 debug_tcg="no"
@@ -192,7 +193,6 @@ slirp="yes"
 fmod_lib=""
 fmod_inc=""
 oss_lib=""
-vnc_tls="yes"
 vnc_sasl="yes"
 bsd="no"
 linux="no"
@@ -435,6 +435,8 @@ for opt do
   ;;
   --disable-vnc-tls) vnc_tls="no"
   ;;
+  --enable-vnc-tls) vnc_tls="yes"
+  ;;
   --disable-vnc-sasl) vnc_sasl="no"
   ;;
   --disable-slirp) slirp="no"
@@ -614,6 +616,7 @@ echo "  --disable-xen            disable xen backend driver support"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --enable-brlapi          enable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
+echo "  --enable-vnc-tls         enable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --disable-curl           disable curl connectivity"
@@ -907,18 +910,22 @@ fi
 
 ##########################################
 # VNC TLS detection
-if test "$vnc_tls" = "yes" ; then
-cat > $TMPC <<EOF
+if test "$vnc_tls" != "no" ; then
+  cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
-    vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
-    vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
-    if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
-	libs_softmmu="$vnc_tls_libs $libs_softmmu"
-    else
-	vnc_tls="no"
+  vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
+  vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
+  if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
+    vnc_tls=yes
+    libs_softmmu="$vnc_tls_libs $libs_softmmu"
+  else
+    if test "$vnc_tls" = "yes" ; then
+      feature_not_found "vnc-tls"
     fi
+    vnc_tls=no
+  fi
 fi
 
 ##########################################
