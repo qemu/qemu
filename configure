@@ -186,6 +186,7 @@ fdt=""
 kvm=""
 nptl=""
 sdl=""
+sparse="no"
 vde=""
 vnc_tls=""
 vnc_sasl=""
@@ -194,7 +195,6 @@ xen=""
 gprof="no"
 debug_tcg="no"
 debug="no"
-sparse="no"
 strip_opt="yes"
 bigendian="no"
 mingw32="no"
@@ -682,10 +682,6 @@ echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
 fi
 
-if test ! -x "$(which cgcc 2>/dev/null)"; then
-    sparse="no"
-fi
-
 #
 # Solaris specific configure tool chain decisions
 #
@@ -889,6 +885,19 @@ EOF
       feature_not_found "xen"
     fi
     xen=no
+  fi
+fi
+
+##########################################
+# Sparse probe
+if test "$sparse" != "no" ; then
+  if test -x "$(which cgcc 2>/dev/null)"; then
+    sparse=yes
+  else
+    if test "$sparse" = "yes" ; then
+      feature_not_found "sparse"
+    fi
+    sparse=no
   fi
 fi
 
