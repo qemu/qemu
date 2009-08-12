@@ -180,6 +180,7 @@ esac
 brlapi=""
 curl=""
 curses=""
+nptl=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
@@ -209,7 +210,6 @@ guest_base=""
 build_docs="yes"
 uname_release=""
 io_thread="no"
-nptl="yes"
 mixemu="no"
 bluez="yes"
 kvm="no"
@@ -508,6 +508,8 @@ for opt do
   ;;
   --disable-nptl) nptl="no"
   ;;
+  --enable-nptl) nptl="yes"
+  ;;
   --enable-mixemu) mixemu="yes"
   ;;
   --enable-io-thread) io_thread="yes"
@@ -632,6 +634,7 @@ echo "  --enable-curl            enable curl connectivity"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
+echo "  --enable-nptl            disable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
 echo "  --enable-user            enable supported user emulation targets"
@@ -806,8 +809,12 @@ case "$cpu" in
   ;;
 esac
 
-# Check host NPTL support
-cat > $TMPC <<EOF
+
+##########################################
+# NPTL probe
+
+if test "$nptl" != "no" ; then
+  cat > $TMPC <<EOF
 #include <sched.h>
 #include <linux/futex.h>
 void foo()
@@ -818,10 +825,14 @@ void foo()
 }
 EOF
 
-if compile_object ; then
-  :
-else
-   nptl="no"
+  if compile_object ; then
+    nptl=yes
+  else
+    if test "$nptl" = "yes" ; then
+      feature_not_found "nptl"
+    fi
+    nptl=no
+  fi
 fi
 
 ##########################################
