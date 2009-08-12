@@ -178,6 +178,8 @@ esac
 # --enable-foo that exits if feature is not found
 
 brlapi=""
+vde=""
+
 gprof="no"
 debug_tcg="no"
 debug="no"
@@ -187,7 +189,6 @@ bigendian="no"
 mingw32="no"
 EXESUF=""
 slirp="yes"
-vde="yes"
 fmod_lib=""
 fmod_inc=""
 oss_lib=""
@@ -440,6 +441,8 @@ for opt do
   ;;
   --disable-vde) vde="no"
   ;;
+  --enable-vde) vde="yes"
+  ;;
   --disable-xen) xen="no"
   ;;
   --disable-brlapi) brlapi="no"
@@ -636,6 +639,7 @@ echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
+echo "  --enable-vde             enable support for vde network"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
@@ -952,8 +956,7 @@ fi
 
 ##########################################
 # vde libraries probe
-if test "$vde" = "yes" ; then
-  vde=no
+if test "$vde" != "no" ; then
   vde_libs="-lvdeplug"
   cat > $TMPC << EOF
 #include <libvdeplug.h>
@@ -968,6 +971,11 @@ EOF
     vde=yes
     libs_softmmu="$vde_libs $libs_softmmu"
     libs_tools="$vde_libs $libs_tools"
+  else
+    if test "$vde" = "yes" ; then
+      feature_not_found "vde"
+    fi
+    vde=no
   fi
 fi
 
