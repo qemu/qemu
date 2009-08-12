@@ -1052,8 +1052,10 @@ fi
 
 ##########################################
 # curses probe
+curses_list="-lncurses -lcurses"
 
 if test "$curses" = "yes" ; then
+  curses=no
   cat > $TMPC << EOF
 #include <curses.h>
 #ifdef __OpenBSD__
@@ -1061,14 +1063,14 @@ if test "$curses" = "yes" ; then
 #endif
 int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
-  if compile_prog "" "-lncurses" ; then
-    libs_softmmu="-lncurses $libs_softmmu"
-  elif compile_prog "" "-lcurses" ; then
-    libs_softmmu="-lcurses $libs_softmmu"
-  else
-    curses=no
-  fi
-fi # test "$curses"
+  for curses_lib in $curses_list; do
+    if compile_prog "" "$curses_lib" ; then
+      curses=yes
+      libs_softmmu="$curses_lib $libs_softmmu"
+      break
+    fi
+  done
+fi
 
 ##########################################
 # curl probe
