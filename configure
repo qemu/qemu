@@ -181,7 +181,7 @@ bluez=""
 brlapi=""
 curl=""
 curses=""
-build_docs=""
+docs=""
 nptl=""
 vde=""
 vnc_tls=""
@@ -522,9 +522,9 @@ for opt do
   ;;
   --with-pkgversion=*) pkgversion=" ($optarg)"
   ;;
-  --disable-docs) build_docs="no"
+  --disable-docs) docs="no"
   ;;
-  --enable-docs) build_docs="yes"
+  --enable-docs) docs="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1410,15 +1410,15 @@ if compile_prog "" "" ; then
 fi
 
 # Check if tools are available to build documentation.
-if test "$build_docs" != "no" ; then
+if test "$docs" != "no" ; then
   if test -x "`which texi2html 2>/dev/null`" -a \
           -x "`which pod2man 2>/dev/null`" ; then
-    build_docs=yes
+    docs=yes
   else
-    if test "$build_docs" = "yes" ; then
-      feature_not_found "build_docs"
+    if test "$docs" = "yes" ; then
+      feature_not_found "docs"
     fi
-    build_docs=no
+    docs=no
   fi
 fi
 
@@ -1593,7 +1593,7 @@ fi
 echo "xen support       $xen"
 echo "brlapi support    $brlapi"
 echo "bluez  support    $bluez"
-echo "Documentation     $build_docs"
+echo "Documentation     $docs"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
@@ -1722,7 +1722,7 @@ if [ "$source_path_used" = "yes" ]; then
   echo "VPATH=$source_path" >> $config_host_mak
 fi
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-if [ "$build_docs" = "yes" ] ; then
+if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
