@@ -180,6 +180,7 @@ esac
 brlapi=""
 vde=""
 vnc_tls=""
+vnc_sasl=""
 
 gprof="no"
 debug_tcg="no"
@@ -193,7 +194,6 @@ slirp="yes"
 fmod_lib=""
 fmod_inc=""
 oss_lib=""
-vnc_sasl="yes"
 bsd="no"
 linux="no"
 solaris="no"
@@ -439,6 +439,8 @@ for opt do
   ;;
   --disable-vnc-sasl) vnc_sasl="no"
   ;;
+  --enable-vnc-sasl) vnc_sasl="yes"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-vde) vde="no"
@@ -618,6 +620,7 @@ echo "  --enable-brlapi          enable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --enable-vnc-tls         enable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
+echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --disable-curl           disable curl connectivity"
 echo "  --disable-bluez          disable bluez stack connectivity"
@@ -931,19 +934,23 @@ fi
 ##########################################
 # VNC SASL detection
 if test "$vnc_sasl" = "yes" ; then
-cat > $TMPC <<EOF
+  cat > $TMPC <<EOF
 #include <sasl/sasl.h>
 #include <stdio.h>
 int main(void) { sasl_server_init(NULL, "qemu"); return 0; }
 EOF
-    # Assuming Cyrus-SASL installed in /usr prefix
-    vnc_sasl_cflags=""
-    vnc_sasl_libs="-lsasl2"
-    if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
-	libs_softmmu="$vnc_sasl_libs $libs_softmmu"
-    else
-	vnc_sasl="no"
+  # Assuming Cyrus-SASL installed in /usr prefix
+  vnc_sasl_cflags=""
+  vnc_sasl_libs="-lsasl2"
+  if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
+    vnc_sasl=yes
+    libs_softmmu="$vnc_sasl_libs $libs_softmmu"
+  else
+    if test "$vnc_sasl" = "yes" ; then
+      feature_not_found "vnc-sasl"
     fi
+    vnc_sasl=no
+  fi
 fi
 
 ##########################################
