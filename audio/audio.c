@@ -1571,7 +1571,7 @@ static struct audio_option audio_options[] = {
         .name  = "LOG_TO_MONITOR",
         .tag   = AUD_OPT_BOOL,
         .valp  = &conf.log_to_monitor,
-        .descr = ".descr = print logging messages to monitor instead of stderr"
+        .descr = "print logging messages to monitor instead of stderr"
     },
     { /* End of list */ }
 };
