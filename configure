@@ -182,6 +182,7 @@ brlapi=""
 curl=""
 curses=""
 docs=""
+fdt=""
 nptl=""
 sdl=""
 vde=""
@@ -217,7 +218,6 @@ kvm="no"
 kerneldir=""
 aix="no"
 blobs="yes"
-fdt="yes"
 xen="yes"
 pkgversion=""
 
@@ -510,6 +510,10 @@ for opt do
   ;;
   --enable-curl) curl="yes"
   ;;
+  --disable-fdt) fdt="no"
+  ;;
+  --enable-fdt) fdt="yes"
+  ;;
   --disable-nptl) nptl="no"
   ;;
   --enable-nptl) nptl="yes"
@@ -638,6 +642,8 @@ echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
 echo "  --enable-curl            enable curl connectivity"
+echo "  --disable-fdt            disable fdt device tree"
+echo "  --enable-fdt             enable fdt device tree"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
@@ -1304,8 +1310,7 @@ fi
 
 ##########################################
 # fdt probe
-if test "$fdt" = "yes" ; then
-  fdt=no
+if test "$fdt" != "no" ; then
   fdt_libs="-lfdt"
   cat > $TMPC << EOF
 int main(void) { return 0; }
@@ -1313,6 +1318,11 @@ EOF
   if compile_prog "" "$fdt_libs" ; then
     fdt=yes
     libs_softmmu="$fdt_libs $libs_softmmu"
+  else
+    if test "$fdt" = "yes" ; then
+      feature_not_found "fdt"
+    fi
+    fdt=no
   fi
 fi
 
