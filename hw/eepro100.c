@@ -715,8 +715,8 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             } else {
                 /* Flexible mode. */
                 uint8_t tbd_count = 0;
-                if (!(s->configuration[6] & BIT(4))) {
-                    /* Extended TCB. */
+                if ((s->device >= i82558B) && !(s->configuration[6] & BIT(4))) {
+                    /* Extended Flexible TCB. */
                     assert(tcb_bytes == 0);
                     for (; tbd_count < 2; tbd_count++) {
                         uint32_t tx_buffer_address = ldl_phys(tbd_address);
@@ -724,7 +724,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
                         uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
                         tbd_address += 8;
                         logout
-                            ("TBD (extended mode): buffer address 0x%08x, size 0x%04x\n",
+                            ("TBD (extended flexible mode): buffer address 0x%08x, size 0x%04x\n",
                              tx_buffer_address, tx_buffer_size);
                         cpu_physical_memory_read(tx_buffer_address, &buf[size],
                                                  tx_buffer_size);
