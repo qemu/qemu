@@ -273,52 +273,59 @@ static abi_ulong mmap_next_start = 0x40000000;
 
 unsigned long last_brk;
 
-/* find a free memory area of size 'size'. The search starts at
-   'start'. If 'start' == 0, then a default start address is used.
-   Return -1 if error.
-*/
-/* page_init() marks pages used by the host as reserved to be sure not
-   to use them. */
+/*
+ * Find and reserve a free memory area of size 'size'. The search
+ * starts at 'start'.
+ * It must be called with mmap_lock() held.
+ * Return -1 if error.
+ */
 abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 {
-    abi_ulong addr, addr1, addr_start;
-    int prot;
-    unsigned long new_brk;
-
-    new_brk = (unsigned long)sbrk(0);
-    if (last_brk && last_brk < new_brk && last_brk == (target_ulong)last_brk) {
-        /* This is a hack to catch the host allocating memory with brk().
-           If it uses mmap then we loose.
-           FIXME: We really want to avoid the host allocating memory in
-           the first place, and maybe leave some slack to avoid switching
-           to mmap.  */
-        page_set_flags(last_brk & TARGET_PAGE_MASK,
-                       TARGET_PAGE_ALIGN(new_brk),
-                       PAGE_RESERVED); 
-    }
-    last_brk = new_brk;
+    void *ptr;
+    abi_ulong addr;
 
     size = HOST_PAGE_ALIGN(size);
-    start = start & qemu_host_page_mask;
+    start &= qemu_host_page_mask;
+
+    /* If 'start' == 0, then a default start address is used. */
+    if (start == 0)
+        start = mmap_next_start;
+
     addr = start;
-    if (addr == 0)
-        addr = mmap_next_start;
-    addr_start = addr;
+
     for(;;) {
-        prot = 0;
-        for(addr1 = addr; addr1 < (addr + size); addr1 += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(addr1);
-        }
-        if (prot == 0)
+        /*
+         * Reserve needed memory area to avoid a race.
+         * It should be discarded using:
+         *  - mmap() with MAP_FIXED flag
+         *  - mremap() with MREMAP_FIXED flag
+         *  - shmat() with SHM_REMAP flag
+         */
+        ptr = mmap((void *)(unsigned long)addr, size, PROT_NONE,
+                   MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE, -1, 0);
+
+        /* ENOMEM, if host address space has no memory */
+        if (ptr == MAP_FAILED)
+            return (abi_ulong)-1;
+
+        /* If address fits target address space we've found what we need */
+        if ((unsigned long)ptr + size - 1 <= (abi_ulong)-1)
             break;
+
+        /* Unmap and try again with new page */
+        munmap(ptr, size);
         addr += qemu_host_page_size;
-        /* we found nothing */
-        if (addr == addr_start)
+
+        /* ENOMEM if we check whole of target address space */
+        if (addr == start)
             return (abi_ulong)-1;
     }
-    if (start == 0)
-        mmap_next_start = addr + size;
-    return addr;
+
+    /* Update default start address */
+    if (start == mmap_next_start)
+        mmap_next_start = (unsigned long)ptr + size;
+
+    return h2g(ptr);
 }
 
 /* NOTE: all the constants are the HOST ones */
