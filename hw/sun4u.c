@@ -361,6 +361,8 @@ pci_ebus_init(PCIBus *bus, int devfn)
 static void
 pci_ebus_init1(PCIDevice *s)
 {
+    isa_bus_new(&s->qdev);
+
     pci_config_set_vendor_id(s->config, PCI_VENDOR_ID_SUN);
     pci_config_set_device_id(s->config, PCI_DEVICE_ID_SUN_EBUS);
     s->config[0x04] = 0x06; // command = bus master, pci mem
