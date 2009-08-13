@@ -254,14 +254,24 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 
 static void virtio_blk_handle_write(VirtIOBlockReq *req)
 {
-    bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
-                    req->qiov.size / 512, virtio_blk_rw_complete, req);
+    BlockDriverAIOCB *acb;
+
+    acb = bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
+                          req->qiov.size / 512, virtio_blk_rw_complete, req);
+    if (!acb) {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+    }
 }
 
 static void virtio_blk_handle_read(VirtIOBlockReq *req)
 {
-    bdrv_aio_readv(req->dev->bs, req->out->sector, &req->qiov,
-                   req->qiov.size / 512, virtio_blk_rw_complete, req);
+    BlockDriverAIOCB *acb;
+
+    acb = bdrv_aio_readv(req->dev->bs, req->out->sector, &req->qiov,
+                         req->qiov.size / 512, virtio_blk_rw_complete, req);
+    if (!acb) {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+    }
 }
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
