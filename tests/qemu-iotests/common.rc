@@ -61,8 +61,8 @@ _make_test_img()
     	sed -e "s#$IMGFMT#IMGFMT#g" | \
 	sed -e "s# encryption=off##g" | \
 	sed -e "s# cluster_size=0##g" | \
-	sed -e "s# compat6=off##g"
-
+	sed -e "s# compat6=off##g" | \
+	sed -e "s# static=off##g"
 }
 
 _cleanup_test_img()
