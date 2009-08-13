@@ -2888,6 +2888,7 @@ static void ide_save(QEMUFile* f, IDEState *s)
 
     qemu_put_8s(f, &s->sense_key);
     qemu_put_8s(f, &s->asc);
+    qemu_put_8s(f, &s->cdrom_changed);
     /* XXX: if a transfer is pending, we do not save it yet */
 }
 
