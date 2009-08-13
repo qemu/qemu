@@ -173,7 +173,12 @@ PropertyInfo qdev_prop_drive = {
 static int print_chr(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%s", (*ptr)->label);
+
+    if (*ptr && (*ptr)->label) {
+        return snprintf(dest, len, "%s", (*ptr)->label);
+    } else {
+        return snprintf(dest, len, "<null>");
+    }
 }
 
 PropertyInfo qdev_prop_chr = {
