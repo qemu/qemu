@@ -437,9 +437,9 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     s->header = header;
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
-    s->bmap = qemu_malloc(bmap_size);
-    if (bdrv_read(s->hd, s->bmap_sector,
-                  (uint8_t *)s->bmap, bmap_size / SECTOR_SIZE) < 0) {
+    bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    s->bmap = qemu_malloc(bmap_size * SECTOR_SIZE);
+    if (bdrv_read(s->hd, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
         goto fail_free_bmap;
     }
 
@@ -817,7 +817,9 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)
         } else if (!strcmp(options->name, BLOCK_OPT_STATIC)) {
-            image_type = VDI_TYPE_STATIC;
+            if (options->value.n) {
+                image_type = VDI_TYPE_STATIC;
+            }
 #endif
         }
         options++;
@@ -845,6 +847,9 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     header.disk_size = bytes;
     header.block_size = block_size;
     header.blocks_in_image = blocks;
+    if (image_type == VDI_TYPE_STATIC) {
+        header.blocks_allocated = blocks;
+    }
     uuid_generate(header.uuid_image);
     uuid_generate(header.uuid_last_snap);
     /* There is no need to set header.uuid_link or header.uuid_parent here. */
