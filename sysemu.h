@@ -125,8 +125,6 @@ extern int win2k_install_hack;
 extern int rtc_td_hack;
 extern int alt_grab;
 extern int usb_enabled;
-extern int virtio_balloon;
-extern const char *virtio_balloon_devaddr;
 extern int smp_cpus;
 extern int max_cpus;
 extern int cursor_hide;

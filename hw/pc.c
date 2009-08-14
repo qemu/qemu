@@ -1123,7 +1123,6 @@ static void pc_init1(ram_addr_t ram_size,
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size, oprom_area_size;
     PCIBus *pci_bus;
-    PCIDevice *pci_dev;
     ISADevice *isa_dev;
     int piix3_devfn = -1;
     CPUState *env;
@@ -1421,12 +1420,6 @@ static void pc_init1(ram_addr_t ram_size,
 	for (bus = 0; bus <= max_bus; bus++) {
             pci_create_simple(pci_bus, -1, "lsi53c895a");
         }
-    }
-
-    /* Add virtio balloon device */
-    if (pci_enabled && virtio_balloon) {
-        pci_dev = pci_create("virtio-balloon-pci", virtio_balloon_devaddr);
-        qdev_init(&pci_dev->qdev);
     }
 
     /* Add virtio console devices */
