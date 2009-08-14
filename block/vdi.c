@@ -437,9 +437,9 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     s->header = header;
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
-    s->bmap = qemu_malloc(bmap_size);
-    if (bdrv_read(s->hd, s->bmap_sector,
-                  (uint8_t *)s->bmap, bmap_size / SECTOR_SIZE) < 0) {
+    bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    s->bmap = qemu_malloc(bmap_size * SECTOR_SIZE);
+    if (bdrv_read(s->hd, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
         goto fail_free_bmap;
     }
 
