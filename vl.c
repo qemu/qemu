@@ -4878,6 +4878,7 @@ int main(int argc, char **argv, char **envp)
     CPUState *env;
     int show_vnc_port = 0;
 
+    qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
     LIST_INIT (&vm_change_state_head);

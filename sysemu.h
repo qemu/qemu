@@ -65,6 +65,11 @@ int qemu_savevm_state_complete(QEMUFile *f);
 int qemu_savevm_state(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
+void qemu_errors_to_file(FILE *fp);
+void qemu_errors_to_mon(Monitor *mon);
+void qemu_errors_to_previous(void);
+void qemu_error(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
+
 #ifdef _WIN32
 /* Polling handling */
 
