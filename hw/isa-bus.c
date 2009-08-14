@@ -76,6 +76,27 @@ void isa_connect_irq(ISADevice *dev, int devnr, int isairq)
     }
 }
 
+/*
+ * isa_reserve_irq() reserves the ISA irq and returns the corresponding
+ * qemu_irq entry for the i8259.
+ *
+ * This function is only for special cases such as the 'ferr', and
+ * temporary use for normal devices until they are converted to qdev.
+ */
+qemu_irq isa_reserve_irq(int isairq)
+{
+    if (isairq < 0 || isairq > 15) {
+        fprintf(stderr, "isa irq %d invalid\n", isairq);
+        exit(1);
+    }
+    if (isabus->assigned & (1 << isairq)) {
+        fprintf(stderr, "isa irq %d already assigned\n", isairq);
+        exit(1);
+    }
+    isabus->assigned |= (1 << isairq);
+    return isabus->irqs[isairq];
+}
+
 void isa_init_irq(ISADevice *dev, qemu_irq *p)
 {
     assert(dev->nirqs < ARRAY_SIZE(dev->irqs));

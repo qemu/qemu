@@ -261,7 +261,7 @@ obj-arm-y += arm-semi.o
 obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 obj-arm-y += pflash_cfi01.o gumstix.o
-obj-arm-y += zaurus.o ide.o serial.o spitz.o tosa.o tc6393xb.o
+obj-arm-y += zaurus.o ide.o isa-bus.o serial.o spitz.o tosa.o tc6393xb.o
 obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
@@ -275,7 +275,7 @@ obj-arm-y += syborg_virtio.o
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
 obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
-obj-sh4-y += ide.o
+obj-sh4-y += ide.o isa-bus.o
 
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 obj-m68k-y += m68k-semi.o dummy_m68k.o

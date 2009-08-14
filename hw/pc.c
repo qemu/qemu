@@ -1043,13 +1043,14 @@ static void audio_init (PCIBus *pci_bus, qemu_irq *pic)
 }
 #endif
 
-static void pc_init_ne2k_isa(NICInfo *nd, qemu_irq *pic)
+static void pc_init_ne2k_isa(NICInfo *nd)
 {
     static int nb_ne2k = 0;
 
     if (nb_ne2k == NE2000_NB_MAX)
         return;
-    isa_ne2000_init(ne2000_io[nb_ne2k], pic[ne2000_irq[nb_ne2k]], nd);
+    isa_ne2000_init(ne2000_io[nb_ne2k],
+                    isa_reserve_irq(ne2000_irq[nb_ne2k]), nd);
     nb_ne2k++;
 }
 
@@ -1276,7 +1277,6 @@ static void pc_init1(ram_addr_t ram_size,
     isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
     isa_irq_state->i8259 = i8259;
     isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
-    ferr_irq = isa_irq[13];
 
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, isa_irq);
@@ -1286,6 +1286,8 @@ static void pc_init1(ram_addr_t ram_size,
         isa_bus_new(NULL);
     }
     isa_bus_irqs(isa_irq);
+
+    ferr_irq = isa_reserve_irq(13);
 
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1311,7 +1313,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    rtc_state = rtc_init(0x70, isa_irq[8], 2000);
+    rtc_state = rtc_init(0x70, isa_reserve_irq(8), 2000);
 
     qemu_register_boot_set(pc_boot_set, rtc_state);
 
@@ -1321,7 +1323,7 @@ static void pc_init1(ram_addr_t ram_size,
     if (pci_enabled) {
         isa_irq_state->ioapic = ioapic_init();
     }
-    pit = pit_init(0x40, isa_irq[0]);
+    pit = pit_init(0x40, isa_reserve_irq(0));
     pcspk_init(pit);
     if (!no_hpet) {
         hpet_init(isa_irq);
@@ -1329,14 +1331,14 @@ static void pc_init1(ram_addr_t ram_size,
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(serial_io[i], isa_irq[serial_irq[i]], 115200,
+            serial_init(serial_io[i], isa_reserve_irq(serial_irq[i]), 115200,
                         serial_hds[i]);
         }
     }
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(parallel_io[i], isa_irq[parallel_irq[i]],
+            parallel_init(parallel_io[i], isa_reserve_irq(parallel_irq[i]),
                           parallel_hds[i]);
         }
     }
@@ -1347,7 +1349,7 @@ static void pc_init1(ram_addr_t ram_size,
         NICInfo *nd = &nd_table[i];
 
         if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
-            pc_init_ne2k_isa(nd, isa_irq);
+            pc_init_ne2k_isa(nd);
         else
             pci_nic_init(nd, "e1000", NULL);
     }
@@ -1368,7 +1370,8 @@ static void pc_init1(ram_addr_t ram_size,
         pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1, isa_irq);
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
-            isa_ide_init(ide_iobase[i], ide_iobase2[i], isa_irq[ide_irq[i]],
+            isa_ide_init(ide_iobase[i], ide_iobase2[i],
+                         isa_reserve_irq(ide_irq[i]),
 	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
         }
     }
@@ -1398,7 +1401,8 @@ static void pc_init1(ram_addr_t ram_size,
         i2c_bus *smbus;
 
         /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, isa_irq[9]);
+        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
+                              isa_reserve_irq(9));
         for (i = 0; i < 8; i++) {
             DeviceState *eeprom;
             eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");

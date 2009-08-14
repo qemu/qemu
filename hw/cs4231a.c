@@ -60,10 +60,9 @@ static struct {
 
 typedef struct CSState {
     QEMUSoundCard card;
-    qemu_irq *pic;
+    qemu_irq pic;
     uint32_t regs[CS_REGS];
     uint8_t dregs[CS_DREGS];
-    int irq;
     int dma;
     int port;
     int shift;
@@ -483,7 +482,7 @@ IO_WRITE_PROTO (cs_write)
         case Alternate_Feature_Status:
             if ((s->dregs[iaddr] & PI) && !(val & PI)) {
                 /* XXX: TI CI */
-                qemu_irq_lower (s->pic[s->irq]);
+                qemu_irq_lower (s->pic);
                 s->regs[Status] &= ~INT;
             }
             s->dregs[iaddr] = val;
@@ -503,7 +502,7 @@ IO_WRITE_PROTO (cs_write)
 
     case Status:
         if (s->regs[Status] & INT) {
-            qemu_irq_lower (s->pic[s->irq]);
+            qemu_irq_lower (s->pic);
         }
         s->regs[Status] &= ~INT;
         s->dregs[Alternate_Feature_Status] &= ~(PI | CI | TI);
@@ -588,7 +587,7 @@ static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
         s->regs[Status] |= INT;
         s->dregs[Alternate_Feature_Status] |= PI;
         s->transferred = 0;
-        qemu_irq_raise (s->pic[s->irq]);
+        qemu_irq_raise (s->pic);
     }
     else {
         s->transferred += written;
@@ -643,8 +642,7 @@ int cs4231a_init (qemu_irq *pic)
 
     s = qemu_mallocz (sizeof (*s));
 
-    s->pic = pic;
-    s->irq = conf.irq;
+    s->pic = isa_reserve_irq(conf.irq);
     s->dma = conf.dma;
     s->port = conf.port;
 
