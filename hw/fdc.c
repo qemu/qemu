@@ -1871,33 +1871,42 @@ static void fdctrl_connect_drives(fdctrl_t *fdctrl, BlockDriverState **fds)
     }
 }
 
-fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
-                       target_phys_addr_t io_base,
-                       BlockDriverState **fds)
+fdctrl_t *fdctrl_init_isa(int isairq, int dma_chann,
+                          uint32_t io_base,
+                          BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
+    ISADevice *dev;
 
-    if (mem_mapped) {
-        DeviceState *dev;
-        fdctrl_sysbus_t *sys;
-
-        dev = qdev_create(NULL, "sysbus-fdc");
-        qdev_init(dev);
-        sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
-        fdctrl = &sys->state;
-        sysbus_connect_irq(&sys->busdev, 0, irq);
-        sysbus_mmio_map(&sys->busdev, 0, io_base);
-    } else {
-        ISADevice *dev;
-
-        dev = isa_create_simple("isa-fdc", io_base, 0);
-        fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
-        isa_connect_irq(dev, 0, irq);
-    }
+    dev = isa_create_simple("isa-fdc", io_base, 0);
+    fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
+    isa_connect_irq(dev, 0, isairq);
 
     fdctrl->dma_chann = dma_chann;
     DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
 
+    fdctrl_connect_drives(fdctrl, fds);
+
+    return fdctrl;
+}
+
+fdctrl_t *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
+                             target_phys_addr_t mmio_base,
+                             BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+    DeviceState *dev;
+    fdctrl_sysbus_t *sys;
+
+    dev = qdev_create(NULL, "sysbus-fdc");
+    qdev_init(dev);
+    sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
+    fdctrl = &sys->state;
+    sysbus_connect_irq(&sys->busdev, 0, irq);
+    sysbus_mmio_map(&sys->busdev, 0, mmio_base);
+
+    fdctrl->dma_chann = dma_chann;
+    DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
     fdctrl_connect_drives(fdctrl, fds);
 
     return fdctrl;

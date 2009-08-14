@@ -618,7 +618,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd);
+    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
 
     initrd_size = 0;

@@ -929,7 +929,7 @@ void mips_malta_init (ram_addr_t ram_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
+    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
 
     /* Sound card */
 #ifdef HAS_AUDIO

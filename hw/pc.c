@@ -1283,7 +1283,9 @@ static void pc_init1(ram_addr_t ram_size,
         piix3_devfn = piix3_init(pci_bus, -1);
     } else {
         pci_bus = NULL;
+        isa_bus_new(NULL);
     }
+    isa_bus_irqs(isa_irq);
 
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1372,8 +1374,8 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     isa_dev = isa_create_simple("i8042", 0x60, 0x64);
-    isa_connect_irq(isa_dev, 0, isa_irq[1]);
-    isa_connect_irq(isa_dev, 1, isa_irq[12]);
+    isa_connect_irq(isa_dev, 0, 1);
+    isa_connect_irq(isa_dev, 1, 12);
     DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
@@ -1383,7 +1385,7 @@ static void pc_init1(ram_addr_t ram_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init(isa_irq[6], 2, 0, 0x3f0, fd);
+    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
 
     cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
 
