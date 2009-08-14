@@ -1878,9 +1878,8 @@ fdctrl_t *fdctrl_init_isa(int isairq, int dma_chann,
     fdctrl_t *fdctrl;
     ISADevice *dev;
 
-    dev = isa_create_simple("isa-fdc", io_base, 0);
+    dev = isa_create_simple("isa-fdc", io_base, 0, isairq, -1);
     fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
-    isa_connect_irq(dev, 0, isairq);
 
     fdctrl->dma_chann = dma_chann;
     DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);

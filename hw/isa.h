@@ -30,7 +30,8 @@ void isa_connect_irq(ISADevice *dev, int devirq, int isairq);
 qemu_irq isa_reserve_irq(int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p);
 void isa_qdev_register(ISADeviceInfo *info);
-ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2);
+ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2,
+                             uint32_t irq, uint32_t irq2);
 
 extern target_phys_addr_t isa_mem_base;
 

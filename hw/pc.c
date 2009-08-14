@@ -1376,9 +1376,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    isa_dev = isa_create_simple("i8042", 0x60, 0x64);
-    isa_connect_irq(isa_dev, 0, 1);
-    isa_connect_irq(isa_dev, 1, 12);
+    isa_dev = isa_create_simple("i8042", 0x60, 0x64, 1, 12);
     DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
