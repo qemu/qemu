@@ -737,8 +737,8 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", clock);
     qdev_prop_set_uint32(dev, "it_shift", it_shift);
-    qdev_prop_set_ptr(dev, "chrB", chrB);
-    qdev_prop_set_ptr(dev, "chrA", chrA);
+    qdev_prop_set_chr(dev, "chrB", chrB);
+    qdev_prop_set_chr(dev, "chrA", chrA);
     qdev_prop_set_uint32(dev, "chnBtype", ser);
     qdev_prop_set_uint32(dev, "chnAtype", ser);
     qdev_init(dev);
@@ -900,8 +900,8 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
     qdev_prop_set_uint32(dev, "disabled", disabled);
     qdev_prop_set_uint32(dev, "frequency", clock);
     qdev_prop_set_uint32(dev, "it_shift", it_shift);
-    qdev_prop_set_ptr(dev, "chrB", NULL);
-    qdev_prop_set_ptr(dev, "chrA", NULL);
+    qdev_prop_set_chr(dev, "chrB", NULL);
+    qdev_prop_set_chr(dev, "chrA", NULL);
     qdev_prop_set_uint32(dev, "chnBtype", mouse);
     qdev_prop_set_uint32(dev, "chnAtype", kbd);
     qdev_init(dev);
