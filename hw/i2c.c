@@ -149,14 +149,14 @@ void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
     }
 }
 
-static void i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
+static int i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
 {
     I2CSlaveInfo *info = container_of(base, I2CSlaveInfo, qdev);
     i2c_slave *s = I2C_SLAVE_FROM_QDEV(dev);
 
     s->info = info;
 
-    info->init(s);
+    return info->init(s);
 }
 
 void i2c_register_slave(I2CSlaveInfo *info)

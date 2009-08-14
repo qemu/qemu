@@ -998,7 +998,7 @@ static void es1370_on_reset (void *opaque)
     es1370_reset (s);
 }
 
-static void es1370_initfn (PCIDevice *dev)
+static int es1370_initfn (PCIDevice *dev)
 {
     ES1370State *s = DO_UPCAST (ES1370State, dev, dev);
     uint8_t *c = s->dev.config;
@@ -1033,6 +1033,7 @@ static void es1370_initfn (PCIDevice *dev)
 
     AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
+    return 0;
 }
 
 int es1370_init (PCIBus *bus)

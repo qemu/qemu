@@ -25,7 +25,7 @@ struct SysBusDevice {
     } mmio[QDEV_MAX_MMIO];
 };
 
-typedef void (*sysbus_initfn)(SysBusDevice *dev);
+typedef int (*sysbus_initfn)(SysBusDevice *dev);
 
 /* Macros to compensate for lack of type inheritance in C.  */
 #define sysbus_from_qdev(dev) ((SysBusDevice *)(dev))

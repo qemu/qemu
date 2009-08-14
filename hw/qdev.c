@@ -199,16 +199,19 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev_free(qdev);
         return NULL;
     }
-    qdev_init(qdev);
+    if (qdev_init(qdev) != 0) {
+        qdev_free(qdev);
+        return NULL;
+    }
     return qdev;
 }
 
 /* Initialize a device.  Device properties should be set before calling
    this function.  IRQs and MMIO regions should be connected/mapped after
    calling this function.  */
-void qdev_init(DeviceState *dev)
+int qdev_init(DeviceState *dev)
 {
-    dev->info->init(dev, dev->info);
+    return dev->info->init(dev, dev->info);
 }
 
 /* Unlink device from bus and free the structure.  */

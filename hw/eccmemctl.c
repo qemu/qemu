@@ -315,7 +315,7 @@ static void ecc_reset(void *opaque)
     s->regs[ECC_ECR1] = 0;
 }
 
-static void ecc_init1(SysBusDevice *dev)
+static int ecc_init1(SysBusDevice *dev)
 {
     int ecc_io_memory;
     ECCState *s = FROM_SYSBUS(ECCState, dev);
@@ -333,6 +333,7 @@ static void ecc_init1(SysBusDevice *dev)
     register_savevm("ECC", -1, 3, ecc_save, ecc_load, s);
     qemu_register_reset(ecc_reset, s);
     ecc_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo ecc_info = {

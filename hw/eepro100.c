@@ -1732,7 +1732,7 @@ static int pci_nic_uninit(PCIDevice *dev)
     return 0;
 }
 
-static void nic_init(PCIDevice *pci_dev, uint32_t device)
+static int nic_init(PCIDevice *pci_dev, uint32_t device)
 {
     PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
     EEPRO100State *s;
@@ -1778,21 +1778,22 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
     qemu_register_reset(nic_reset, s);
 
     register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
+    return 0;
 }
 
-static void pci_i82551_init(PCIDevice *dev)
+static int pci_i82551_init(PCIDevice *dev)
 {
-    nic_init(dev, i82551);
+    return nic_init(dev, i82551);
 }
 
-static void pci_i82557b_init(PCIDevice *dev)
+static int pci_i82557b_init(PCIDevice *dev)
 {
-    nic_init(dev, i82557B);
+    return nic_init(dev, i82557B);
 }
 
-static void pci_i82559er_init(PCIDevice *dev)
+static int pci_i82559er_init(PCIDevice *dev)
 {
-    nic_init(dev, i82559ER);
+    return nic_init(dev, i82559ER);
 }
 
 static PCIDeviceInfo eepro100_info[] = {

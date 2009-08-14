@@ -365,7 +365,7 @@ static void eth_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-static void mv88w8618_eth_init(SysBusDevice *dev)
+static int mv88w8618_eth_init(SysBusDevice *dev)
 {
     mv88w8618_eth_state *s = FROM_SYSBUS(mv88w8618_eth_state, dev);
 
@@ -376,6 +376,7 @@ static void mv88w8618_eth_init(SysBusDevice *dev)
     s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
                                            mv88w8618_eth_writefn, s);
     sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
+    return 0;
 }
 
 /* LCD register offsets */
@@ -544,7 +545,7 @@ static CPUWriteMemoryFunc * const musicpal_lcd_writefn[] = {
     musicpal_lcd_write
 };
 
-static void musicpal_lcd_init(SysBusDevice *dev)
+static int musicpal_lcd_init(SysBusDevice *dev)
 {
     musicpal_lcd_state *s = FROM_SYSBUS(musicpal_lcd_state, dev);
     int iomemtype;
@@ -560,6 +561,8 @@ static void musicpal_lcd_init(SysBusDevice *dev)
     qemu_console_resize(s->ds, 128*3, 64*3);
 
     qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brigthness_in, 3);
+
+    return 0;
 }
 
 /* PIC register offsets */
@@ -642,7 +645,7 @@ static CPUWriteMemoryFunc * const mv88w8618_pic_writefn[] = {
     mv88w8618_pic_write
 };
 
-static void mv88w8618_pic_init(SysBusDevice *dev)
+static int mv88w8618_pic_init(SysBusDevice *dev)
 {
     mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state, dev);
     int iomemtype;
@@ -654,6 +657,7 @@ static void mv88w8618_pic_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
 
     qemu_register_reset(mv88w8618_pic_reset, s);
+    return 0;
 }
 
 /* PIT register offsets */
@@ -761,7 +765,7 @@ static CPUWriteMemoryFunc * const mv88w8618_pit_writefn[] = {
     mv88w8618_pit_write
 };
 
-static void mv88w8618_pit_init(SysBusDevice *dev)
+static int mv88w8618_pit_init(SysBusDevice *dev)
 {
     int iomemtype;
     mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state, dev);
@@ -776,6 +780,7 @@ static void mv88w8618_pit_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(mv88w8618_pit_readfn,
                                        mv88w8618_pit_writefn, s);
     sysbus_init_mmio(dev, MP_PIT_SIZE, iomemtype);
+    return 0;
 }
 
 /* Flash config register offsets */
@@ -824,7 +829,7 @@ static CPUWriteMemoryFunc * const mv88w8618_flashcfg_writefn[] = {
     mv88w8618_flashcfg_write
 };
 
-static void mv88w8618_flashcfg_init(SysBusDevice *dev)
+static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 {
     int iomemtype;
     mv88w8618_flashcfg_state *s = FROM_SYSBUS(mv88w8618_flashcfg_state, dev);
@@ -833,6 +838,7 @@ static void mv88w8618_flashcfg_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(mv88w8618_flashcfg_readfn,
                        mv88w8618_flashcfg_writefn, s);
     sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
+    return 0;
 }
 
 /* Misc register offsets */
@@ -913,13 +919,14 @@ static CPUWriteMemoryFunc * const mv88w8618_wlan_writefn[] = {
     mv88w8618_wlan_write,
 };
 
-static void mv88w8618_wlan_init(SysBusDevice *dev)
+static int mv88w8618_wlan_init(SysBusDevice *dev)
 {
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(mv88w8618_wlan_readfn,
                                        mv88w8618_wlan_writefn, NULL);
     sysbus_init_mmio(dev, MP_WLAN_SIZE, iomemtype);
+    return 0;
 }
 
 /* GPIO register offsets */
@@ -1120,7 +1127,7 @@ static void musicpal_gpio_reset(musicpal_gpio_state *s)
     s->isr = 0;
 }
 
-static void musicpal_gpio_init(SysBusDevice *dev)
+static int musicpal_gpio_init(SysBusDevice *dev)
 {
     musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state, dev);
     int iomemtype;
@@ -1137,6 +1144,8 @@ static void musicpal_gpio_init(SysBusDevice *dev)
     qdev_init_gpio_out(&dev->qdev, s->out, 5);
     /* 10 gpio button input + 1 I2C data input */
     qdev_init_gpio_in(&dev->qdev, musicpal_gpio_irq, 11);
+
+    return 0;
 }
 
 /* Keyboard codes & masks */
@@ -1244,7 +1253,7 @@ static void musicpal_key_event(void *opaque, int keycode)
     s->kbd_extended = 0;
 }
 
-static void musicpal_key_init(SysBusDevice *dev)
+static int musicpal_key_init(SysBusDevice *dev)
 {
     musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
 
@@ -1257,6 +1266,8 @@ static void musicpal_key_init(SysBusDevice *dev)
     qdev_init_gpio_out(&dev->qdev, s->out, 10);
 
     qemu_add_kbd_event_handler(musicpal_key_event, s);
+
+    return 0;
 }
 
 static struct arm_boot_info musicpal_binfo = {

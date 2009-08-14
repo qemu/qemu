@@ -803,7 +803,7 @@ static void ne2000_cleanup(VLANClientState *vc)
     unregister_savevm("ne2000", s);
 }
 
-static void pci_ne2000_init(PCIDevice *pci_dev)
+static int pci_ne2000_init(PCIDevice *pci_dev)
 {
     PCINE2000State *d = (PCINE2000State *)pci_dev;
     NE2000State *s;
@@ -830,6 +830,7 @@ static void pci_ne2000_init(PCIDevice *pci_dev)
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
     register_savevm("ne2000", -1, 3, ne2000_save, ne2000_load, s);
+    return 0;
 }
 
 static PCIDeviceInfo ne2000_info = {

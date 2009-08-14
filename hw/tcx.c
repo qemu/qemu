@@ -515,7 +515,7 @@ static CPUWriteMemoryFunc * const tcx_dummy_write[3] = {
     tcx_dummy_writel,
 };
 
-static void tcx_init1(SysBusDevice *dev)
+static int tcx_init1(SysBusDevice *dev)
 {
     TCXState *s = FROM_SYSBUS(TCXState, dev);
     int io_memory, dummy_memory;
@@ -576,6 +576,7 @@ static void tcx_init1(SysBusDevice *dev)
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
     qemu_console_resize(s->ds, s->width, s->height);
+    return 0;
 }
 
 static void tcx_screen_dump(void *opaque, const char *filename)

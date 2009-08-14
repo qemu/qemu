@@ -339,7 +339,7 @@ static int gptm_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_gptm_init(SysBusDevice *dev)
+static int stellaris_gptm_init(SysBusDevice *dev)
 {
     int iomemtype;
     gptm_state *s = FROM_SYSBUS(gptm_state, dev);
@@ -355,6 +355,7 @@ static void stellaris_gptm_init(SysBusDevice *dev)
     s->timer[0] = qemu_new_timer(vm_clock, gptm_tick, &s->opaque[0]);
     s->timer[1] = qemu_new_timer(vm_clock, gptm_tick, &s->opaque[1]);
     register_savevm("stellaris_gptm", -1, 1, gptm_save, gptm_load, s);
+    return 0;
 }
 
 
@@ -654,9 +655,9 @@ static int ssys_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_sys_init(uint32_t base, qemu_irq irq,
-                               stellaris_board_info * board,
-                               uint8_t *macaddr)
+static int stellaris_sys_init(uint32_t base, qemu_irq irq,
+                              stellaris_board_info * board,
+                              uint8_t *macaddr)
 {
     int iomemtype;
     ssys_state *s;
@@ -673,6 +674,7 @@ static void stellaris_sys_init(uint32_t base, qemu_irq irq,
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     ssys_reset(s);
     register_savevm("stellaris_sys", -1, 1, ssys_save, ssys_load, s);
+    return 0;
 }
 
 
@@ -870,7 +872,7 @@ static int stellaris_i2c_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_i2c_init(SysBusDevice * dev)
+static int stellaris_i2c_init(SysBusDevice * dev)
 {
     stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
     i2c_bus *bus;
@@ -887,6 +889,7 @@ static void stellaris_i2c_init(SysBusDevice * dev)
     stellaris_i2c_reset(s);
     register_savevm("stellaris_i2c", -1, 1,
                     stellaris_i2c_save, stellaris_i2c_load, s);
+    return 0;
 }
 
 /* Analogue to Digital Converter.  This is only partially implemented,
@@ -1178,7 +1181,7 @@ static int stellaris_adc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_adc_init(SysBusDevice *dev)
+static int stellaris_adc_init(SysBusDevice *dev)
 {
     stellaris_adc_state *s = FROM_SYSBUS(stellaris_adc_state, dev);
     int iomemtype;
@@ -1195,6 +1198,7 @@ static void stellaris_adc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
     register_savevm("stellaris_adc", -1, 1,
                     stellaris_adc_save, stellaris_adc_load, s);
+    return 0;
 }
 
 /* Some boards have both an OLED controller and SD card connected to
@@ -1244,7 +1248,7 @@ static int stellaris_ssi_bus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_ssi_bus_init(SSISlave *dev)
+static int stellaris_ssi_bus_init(SSISlave *dev)
 {
     stellaris_ssi_bus_state *s = FROM_SSI_SLAVE(stellaris_ssi_bus_state, dev);
 
@@ -1254,6 +1258,7 @@ static void stellaris_ssi_bus_init(SSISlave *dev)
 
     register_savevm("stellaris_ssi_bus", -1, 1,
                     stellaris_ssi_bus_save, stellaris_ssi_bus_load, s);
+    return 0;
 }
 
 /* Board init.  */

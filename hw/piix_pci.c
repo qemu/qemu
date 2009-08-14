@@ -171,7 +171,7 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static void i440fx_pcihost_initfn(SysBusDevice *dev)
+static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
@@ -184,9 +184,10 @@ static void i440fx_pcihost_initfn(SysBusDevice *dev)
     register_ioport_read(0xcfc, 4, 1, pci_host_data_readb, s);
     register_ioport_read(0xcfc, 4, 2, pci_host_data_readw, s);
     register_ioport_read(0xcfc, 4, 4, pci_host_data_readl, s);
+    return 0;
 }
 
-static void i440fx_initfn(PCIDevice *d)
+static int i440fx_initfn(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_INTEL_82441);
@@ -197,6 +198,7 @@ static void i440fx_initfn(PCIDevice *d)
     d->config[0x72] = 0x02; /* SMRAM */
 
     register_savevm("I440FX", 0, 2, i440fx_save, i440fx_load, d);
+    return 0;
 }
 
 PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
@@ -339,7 +341,7 @@ static int piix_load(QEMUFile* f, void *opaque, int version_id)
     return pci_device_load(d, f);
 }
 
-static void piix3_initfn(PCIDevice *d)
+static int piix3_initfn(PCIDevice *d)
 {
     uint8_t *pci_conf;
 
@@ -356,9 +358,10 @@ static void piix3_initfn(PCIDevice *d)
     piix3_dev = d;
     piix3_reset(d);
     qemu_register_reset(piix3_reset, d);
+    return 0;
 }
 
-static void piix4_initfn(PCIDevice *d)
+static int piix4_initfn(PCIDevice *d)
 {
     uint8_t *pci_conf;
 
@@ -374,6 +377,7 @@ static void piix4_initfn(PCIDevice *d)
     piix4_dev = d;
     piix4_reset(d);
     qemu_register_reset(piix4_reset, d);
+    return 0;
 }
 
 int piix3_init(PCIBus *bus, int devfn)

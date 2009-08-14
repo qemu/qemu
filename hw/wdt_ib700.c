@@ -88,12 +88,14 @@ static int ib700_load(QEMUFile *f, void *vp, int version)
     return 0;
 }
 
-static void wdt_ib700_init(ISADevice *dev)
+static int wdt_ib700_init(ISADevice *dev)
 {
     timer = qemu_new_timer(vm_clock, ib700_timer_expired, NULL);
     register_savevm("ib700_wdt", -1, 0, ib700_save, ib700_load, NULL);
     register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, NULL);
     register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, NULL);
+
+    return 0;
 }
 
 static WatchdogTimerModel model = {

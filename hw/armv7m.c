@@ -122,7 +122,7 @@ typedef struct {
     uint32_t base;
 } BitBandState;
 
-static void bitband_init(SysBusDevice *dev)
+static int bitband_init(SysBusDevice *dev)
 {
     BitBandState *s = FROM_SYSBUS(BitBandState, dev);
     int iomemtype;
@@ -130,6 +130,7 @@ static void bitband_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(bitband_readfn, bitband_writefn,
                                        &s->base);
     sysbus_init_mmio(dev, 0x02000000, iomemtype);
+    return 0;
 }
 
 static void armv7m_bitband_init(void)

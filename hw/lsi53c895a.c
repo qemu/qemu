@@ -2163,7 +2163,7 @@ static int lsi_scsi_uninit(PCIDevice *d)
     return 0;
 }
 
-static void lsi_scsi_init(PCIDevice *dev)
+static int lsi_scsi_init(PCIDevice *dev)
 {
     LSIState *s = (LSIState *)dev;
     uint8_t *pci_conf;
@@ -2205,6 +2205,7 @@ static void lsi_scsi_init(PCIDevice *dev)
     scsi_bus_new(&dev->qdev, lsi_scsi_attach);
 
     register_savevm("lsiscsi", -1, 0, lsi_scsi_save, lsi_scsi_load, s);
+    return 0;
 }
 
 static PCIDeviceInfo lsi_info = {

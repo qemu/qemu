@@ -233,7 +233,7 @@ static CPUWriteMemoryFunc * const mv88w8618_audio_writefn[] = {
     mv88w8618_audio_write
 };
 
-static void mv88w8618_audio_init(SysBusDevice *dev)
+static int mv88w8618_audio_init(SysBusDevice *dev)
 {
     mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state, dev);
     int iomemtype;
@@ -247,6 +247,8 @@ static void mv88w8618_audio_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, MP_AUDIO_SIZE, iomemtype);
 
     qemu_register_reset(mv88w8618_audio_reset, s);
+
+    return 0;
 }
 
 static SysBusDeviceInfo mv88w8618_audio_info = {

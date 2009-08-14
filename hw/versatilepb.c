@@ -129,7 +129,7 @@ static CPUWriteMemoryFunc * const vpb_sic_writefn[] = {
    vpb_sic_write
 };
 
-static void vpb_sic_init(SysBusDevice *dev)
+static int vpb_sic_init(SysBusDevice *dev)
 {
     vpb_sic_state *s = FROM_SYSBUS(vpb_sic_state, dev);
     int iomemtype;
@@ -144,6 +144,7 @@ static void vpb_sic_init(SysBusDevice *dev)
                                        vpb_sic_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? Save/restore.  */
+    return 0;
 }
 
 /* Board init.  */

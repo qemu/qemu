@@ -3445,7 +3445,7 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     return 0;
 }
 
-static void pci_rtl8139_init(PCIDevice *dev)
+static int pci_rtl8139_init(PCIDevice *dev)
 {
     PCIRTL8139State *d = (PCIRTL8139State *)dev;
     RTL8139State *s;
@@ -3497,6 +3497,7 @@ static void pci_rtl8139_init(PCIDevice *dev)
     qemu_mod_timer(s->timer,
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
+    return 0;
 }
 
 static PCIDeviceInfo rtl8139_info = {

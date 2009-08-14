@@ -193,7 +193,7 @@ static void uart_event(void *opaque, int event)
 
 }
 
-static void xilinx_uartlite_init(SysBusDevice *dev)
+static int xilinx_uartlite_init(SysBusDevice *dev)
 {
     struct xlx_uartlite *s = FROM_SYSBUS(typeof (*s), dev);
     int uart_regs;
@@ -207,6 +207,7 @@ static void xilinx_uartlite_init(SysBusDevice *dev)
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr)
         qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    return 0;
 }
 
 static void xilinx_uart_register(void)

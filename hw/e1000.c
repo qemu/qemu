@@ -1081,7 +1081,7 @@ static void e1000_reset(void *opaque)
     memset(&d->tx, 0, sizeof d->tx);
 }
 
-static void pci_e1000_init(PCIDevice *pci_dev)
+static int pci_e1000_init(PCIDevice *pci_dev)
 {
     E1000State *d = (E1000State *)pci_dev;
     uint8_t *pci_conf;
@@ -1132,6 +1132,7 @@ static void pci_e1000_init(PCIDevice *pci_dev)
     d->dev.unregister = pci_e1000_uninit;
     qemu_register_reset(e1000_reset, d);
     e1000_reset(d);
+    return 0;
 }
 
 static PCIDeviceInfo e1000_info = {

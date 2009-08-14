@@ -358,7 +358,7 @@ pci_ebus_init(PCIBus *bus, int devfn)
     pci_create_simple(bus, devfn, "ebus");
 }
 
-static void
+static int
 pci_ebus_init1(PCIDevice *s)
 {
     isa_bus_new(&s->qdev);
@@ -379,6 +379,7 @@ pci_ebus_init1(PCIDevice *s)
                            ebus_mmio_mapfunc);
     pci_register_bar(s, 1, 0x800000,  PCI_ADDRESS_SPACE_MEM,
                            ebus_mmio_mapfunc);
+    return 0;
 }
 
 static PCIDeviceInfo ebus_info = {
@@ -428,12 +429,13 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
     }
 }
 
-static void prom_init1(SysBusDevice *dev)
+static int prom_init1(SysBusDevice *dev)
 {
     ram_addr_t prom_offset;
 
     prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     sysbus_init_mmio(dev, PROM_SIZE_MAX, prom_offset | IO_MEM_ROM);
+    return 0;
 }
 
 static SysBusDeviceInfo prom_info = {
@@ -460,7 +462,7 @@ typedef struct RamDevice
 } RamDevice;
 
 /* System RAM */
-static void ram_init1(SysBusDevice *dev)
+static int ram_init1(SysBusDevice *dev)
 {
     ram_addr_t RAM_size, ram_offset;
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
@@ -469,6 +471,7 @@ static void ram_init1(SysBusDevice *dev)
 
     ram_offset = qemu_ram_alloc(RAM_size);
     sysbus_init_mmio(dev, RAM_size, ram_offset);
+    return 0;
 }
 
 static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size)

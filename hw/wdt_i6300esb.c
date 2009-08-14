@@ -413,7 +413,7 @@ static int i6300esb_load(QEMUFile *f, void *vp, int version)
     return 0;
 }
 
-static void i6300esb_init(PCIDevice *dev)
+static int i6300esb_init(PCIDevice *dev)
 {
     I6300State *d = container_of(dev, I6300State, dev);
     uint8_t *pci_conf;
@@ -442,6 +442,8 @@ static void i6300esb_init(PCIDevice *dev)
 
     register_savevm("i6300esb_wdt", -1, sizeof(I6300State),
                      i6300esb_save, i6300esb_load, d);
+
+    return 0;
 }
 
 static WatchdogTimerModel model = {

@@ -189,7 +189,7 @@ static void timer_hit(void *opaque)
     timer_update_irq(t);
 }
 
-static void xilinx_timer_init(SysBusDevice *dev)
+static int xilinx_timer_init(SysBusDevice *dev)
 {
     struct timerblock *t = FROM_SYSBUS(typeof (*t), dev);
     unsigned int i;
@@ -212,6 +212,7 @@ static void xilinx_timer_init(SysBusDevice *dev)
 
     timer_regs = cpu_register_io_memory(timer_read, timer_write, t);
     sysbus_init_mmio(dev, R_MAX * 4 * t->nr_timers, timer_regs);
+    return 0;
 }
 
 static SysBusDeviceInfo xilinx_timer_info = {

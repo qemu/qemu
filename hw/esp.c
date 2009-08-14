@@ -682,7 +682,7 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
     *reset = qdev_get_gpio_in(dev, 0);
 }
 
-static void esp_init1(SysBusDevice *dev)
+static int esp_init1(SysBusDevice *dev)
 {
     ESPState *s = FROM_SYSBUS(ESPState, dev);
     int esp_io_memory;
@@ -701,6 +701,7 @@ static void esp_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
     scsi_bus_new(&dev->qdev, esp_scsi_attach);
+    return 0;
 }
 
 static void esp_register_devices(void)

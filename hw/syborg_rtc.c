@@ -123,7 +123,7 @@ static int syborg_rtc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void syborg_rtc_init(SysBusDevice *dev)
+static int syborg_rtc_init(SysBusDevice *dev)
 {
     SyborgRTCState *s = FROM_SYSBUS(SyborgRTCState, dev);
     struct tm tm;
@@ -137,6 +137,7 @@ static void syborg_rtc_init(SysBusDevice *dev)
     s->offset = (uint64_t)mktime(&tm) * 1000000000;
 
     register_savevm("syborg_rtc", -1, 1, syborg_rtc_save, syborg_rtc_load, s);
+    return 0;
 }
 
 static void syborg_rtc_register_devices(void)

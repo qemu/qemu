@@ -198,7 +198,7 @@ static void sun4c_intctl_reset(void *opaque)
     s->pending = 0;
 }
 
-static void sun4c_intctl_init1(SysBusDevice *dev)
+static int sun4c_intctl_init1(SysBusDevice *dev)
 {
     Sun4c_INTCTLState *s = FROM_SYSBUS(Sun4c_INTCTLState, dev);
     int io_memory;
@@ -216,6 +216,7 @@ static void sun4c_intctl_init1(SysBusDevice *dev)
                     sun4c_intctl_load, s);
     qemu_register_reset(sun4c_intctl_reset, s);
     sun4c_intctl_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo sun4c_intctl_info = {

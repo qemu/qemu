@@ -895,7 +895,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     return s->bus;
 }
 
-static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceInfo *info = container_of(base, PCIDeviceInfo, qdev);
@@ -907,7 +907,7 @@ static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write);
     assert(pci_dev);
-    info->init(pci_dev);
+    return info->init(pci_dev);
 }
 
 void pci_qdev_register(PCIDeviceInfo *info)

@@ -390,7 +390,7 @@ static int nvic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void armv7m_nvic_init(SysBusDevice *dev)
+static int armv7m_nvic_init(SysBusDevice *dev)
 {
     nvic_state *s= FROM_SYSBUSGIC(nvic_state, dev);
 
@@ -398,6 +398,7 @@ static void armv7m_nvic_init(SysBusDevice *dev)
     cpu_register_physical_memory(0xe000e000, 0x1000, s->gic.iomemtype);
     s->systick.timer = qemu_new_timer(vm_clock, systick_timer_tick, s);
     register_savevm("armv7m_nvic", -1, 1, nvic_save, nvic_load, s);
+    return 0;
 }
 
 static void armv7m_nvic_register_devices(void)

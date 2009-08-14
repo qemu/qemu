@@ -315,7 +315,7 @@ static int syborg_serial_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void syborg_serial_init(SysBusDevice *dev)
+static int syborg_serial_init(SysBusDevice *dev)
 {
     SyborgSerialState *s = FROM_SYSBUS(SyborgSerialState, dev);
     int iomemtype;
@@ -337,6 +337,7 @@ static void syborg_serial_init(SysBusDevice *dev)
 
     register_savevm("syborg_serial", -1, 1,
                     syborg_serial_save, syborg_serial_load, s);
+    return 0;
 }
 
 static SysBusDeviceInfo syborg_serial_info = {

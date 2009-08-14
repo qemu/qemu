@@ -315,7 +315,7 @@ pci_config_set_class(uint8_t *pci_config, uint16_t val)
     pci_set_word(&pci_config[PCI_CLASS_DEVICE], val);
 }
 
-typedef void (*pci_qdev_initfn)(PCIDevice *dev);
+typedef int (*pci_qdev_initfn)(PCIDevice *dev);
 typedef struct {
     DeviceInfo qdev;
     pci_qdev_initfn init;

@@ -424,7 +424,7 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
 }
 
-static void virtio_blk_init_pci(PCIDevice *pci_dev)
+static int virtio_blk_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -435,6 +435,7 @@ static void virtio_blk_init_pci(PCIDevice *pci_dev)
 
     if (!proxy->dinfo) {
         fprintf(stderr, "drive property not set\n");
+        return -1;
     }
     vdev = virtio_blk_init(&pci_dev->qdev, proxy->dinfo);
     vdev->nvectors = proxy->nvectors;
@@ -444,9 +445,10 @@ static void virtio_blk_init_pci(PCIDevice *pci_dev)
                     proxy->class_code, 0x00);
     /* make the actual value visible */
     proxy->nvectors = vdev->nvectors;
+    return 0;
 }
 
-static void virtio_console_init_pci(PCIDevice *pci_dev)
+static int virtio_console_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -461,9 +463,10 @@ static void virtio_console_init_pci(PCIDevice *pci_dev)
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_CONSOLE,
                     proxy->class_code, 0x00);
+    return 0;
 }
 
-static void virtio_net_init_pci(PCIDevice *pci_dev)
+static int virtio_net_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -484,9 +487,10 @@ static void virtio_net_init_pci(PCIDevice *pci_dev)
 
     /* make the actual value visible */
     proxy->nvectors = vdev->nvectors;
+    return 0;
 }
 
-static void virtio_balloon_init_pci(PCIDevice *pci_dev)
+static int virtio_balloon_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -497,6 +501,7 @@ static void virtio_balloon_init_pci(PCIDevice *pci_dev)
                     PCI_DEVICE_ID_VIRTIO_BALLOON,
                     PCI_CLASS_MEMORY_RAM,
                     0x00);
+    return 0;
 }
 
 static PCIDeviceInfo virtio_info[] = {

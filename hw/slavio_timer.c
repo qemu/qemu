@@ -412,7 +412,7 @@ static void slavio_timer_reset(void *opaque)
     s->cputimer_mode = 0;
 }
 
-static void slavio_timer_init1(SysBusDevice *dev)
+static int slavio_timer_init1(SysBusDevice *dev)
 {
     int io;
     SLAVIO_TIMERState *s = FROM_SYSBUS(SLAVIO_TIMERState, dev);
@@ -444,6 +444,7 @@ static void slavio_timer_init1(SysBusDevice *dev)
                     slavio_timer_load, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo slavio_timer_info = {

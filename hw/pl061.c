@@ -291,7 +291,7 @@ static int pl061_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pl061_init(SysBusDevice *dev)
+static int pl061_init(SysBusDevice *dev)
 {
     int iomemtype;
     pl061_state *s = FROM_SYSBUS(pl061_state, dev);
@@ -304,6 +304,7 @@ static void pl061_init(SysBusDevice *dev)
     qdev_init_gpio_out(&dev->qdev, s->out, 8);
     pl061_reset(s);
     register_savevm("pl061_gpio", -1, 1, pl061_save, pl061_load, s);
+    return 0;
 }
 
 static void pl061_register_devices(void)

@@ -366,7 +366,7 @@ static void iommu_reset(void *opaque)
     s->regs[IOMMU_MASK_ID] = IOMMU_TS_MASK;
 }
 
-static void iommu_init1(SysBusDevice *dev)
+static int iommu_init1(SysBusDevice *dev)
 {
     IOMMUState *s = FROM_SYSBUS(IOMMUState, dev);
     int io;
@@ -379,6 +379,7 @@ static void iommu_init1(SysBusDevice *dev)
     register_savevm("iommu", -1, 2, iommu_save, iommu_load, s);
     qemu_register_reset(iommu_reset, s);
     iommu_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo iommu_info = {

@@ -18,7 +18,7 @@ static struct BusInfo ssi_bus_info = {
     .size = sizeof(SSIBus),
 };
 
-static void ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
+static int ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
 {
     SSISlaveInfo *info = container_of(base_info, SSISlaveInfo, qdev);
     SSISlave *s = SSI_SLAVE_FROM_QDEV(dev);
@@ -31,7 +31,7 @@ static void ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
     }
 
     s->info = info;
-    info->init(s);
+    return info->init(s);
 }
 
 void ssi_register_slave(SSISlaveInfo *info)

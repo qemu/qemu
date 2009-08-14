@@ -1948,7 +1948,7 @@ static void pcnet_common_cleanup(PCNetState *d)
     qemu_free_timer(d->poll_timer);
 }
 
-static void pcnet_common_init(DeviceState *dev, PCNetState *s,
+static int pcnet_common_init(DeviceState *dev, PCNetState *s,
                               NetCleanup *cleanup)
 {
     s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
@@ -1959,6 +1959,7 @@ static void pcnet_common_init(DeviceState *dev, PCNetState *s,
                                  cleanup, s);
     pcnet_h_reset(s);
     register_savevm("pcnet", -1, 2, pcnet_save, pcnet_load, s);
+    return 0;
 }
 
 /* PCI interface */
@@ -2015,7 +2016,7 @@ static int pci_pcnet_uninit(PCIDevice *dev)
     return 0;
 }
 
-static void pci_pcnet_init(PCIDevice *pci_dev)
+static int pci_pcnet_init(PCIDevice *pci_dev)
 {
     PCIPCNetState *d = (PCIPCNetState *)pci_dev;
     PCNetState *s = &d->state;
@@ -2061,7 +2062,7 @@ static void pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_write = pci_physical_memory_write;
     s->pci_dev = pci_dev;
 
-    pcnet_common_init(&pci_dev->qdev, s, pci_pcnet_cleanup);
+    return pcnet_common_init(&pci_dev->qdev, s, pci_pcnet_cleanup);
 }
 
 /* SPARC32 interface */
@@ -2120,7 +2121,7 @@ static void lance_cleanup(VLANClientState *vc)
     pcnet_common_cleanup(d);
 }
 
-static void lance_init(SysBusDevice *dev)
+static int lance_init(SysBusDevice *dev)
 {
     SysBusPCNetState *d = FROM_SYSBUS(SysBusPCNetState, dev);
     PCNetState *s = &d->state;
@@ -2137,7 +2138,7 @@ static void lance_init(SysBusDevice *dev)
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
 
-    pcnet_common_init(&dev->qdev, s, lance_cleanup);
+    return pcnet_common_init(&dev->qdev, s, lance_cleanup);
 }
 
 static SysBusDeviceInfo lance_info = {

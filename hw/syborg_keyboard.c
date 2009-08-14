@@ -203,7 +203,7 @@ static int syborg_keyboard_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void syborg_keyboard_init(SysBusDevice *dev)
+static int syborg_keyboard_init(SysBusDevice *dev)
 {
     SyborgKeyboardState *s = FROM_SYSBUS(SyborgKeyboardState, dev);
     int iomemtype;
@@ -222,6 +222,7 @@ static void syborg_keyboard_init(SysBusDevice *dev)
 
     register_savevm("syborg_keyboard", -1, 1,
                     syborg_keyboard_save, syborg_keyboard_load, s);
+    return 0;
 }
 
 static SysBusDeviceInfo syborg_keyboard_info = {

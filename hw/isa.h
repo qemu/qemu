@@ -18,7 +18,7 @@ struct ISADevice {
     int nirqs;
 };
 
-typedef void (*isa_qdev_initfn)(ISADevice *dev);
+typedef int (*isa_qdev_initfn)(ISADevice *dev);
 struct ISADeviceInfo {
     DeviceInfo qdev;
     isa_qdev_initfn init;

@@ -434,7 +434,7 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void apc_init1(SysBusDevice *dev)
+static int apc_init1(SysBusDevice *dev)
 {
     APCState *s = FROM_SYSBUS(APCState, dev);
     int io;
@@ -444,9 +444,10 @@ static void apc_init1(SysBusDevice *dev)
     /* Power management (APC) XXX: not a Slavio device */
     io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
     sysbus_init_mmio(dev, MISC_SIZE, io);
+    return 0;
 }
 
-static void slavio_misc_init1(SysBusDevice *dev)
+static int slavio_misc_init1(SysBusDevice *dev)
 {
     MiscState *s = FROM_SYSBUS(MiscState, dev);
     int io;
@@ -498,6 +499,7 @@ static void slavio_misc_init1(SysBusDevice *dev)
                     s);
     qemu_register_reset(slavio_misc_reset, s);
     slavio_misc_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo slavio_misc_info = {

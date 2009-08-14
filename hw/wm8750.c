@@ -645,7 +645,7 @@ static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void wm8750_init(i2c_slave *i2c)
+static int wm8750_init(i2c_slave *i2c)
 {
     WM8750State *s = FROM_I2C_SLAVE(WM8750State, i2c);
 
@@ -653,6 +653,7 @@ static void wm8750_init(i2c_slave *i2c)
     wm8750_reset(&s->i2c);
 
     register_savevm(CODEC, -1, 0, wm8750_save, wm8750_load, s);
+    return 0;
 }
 
 #if 0

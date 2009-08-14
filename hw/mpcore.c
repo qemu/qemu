@@ -262,7 +262,7 @@ static void mpcore_priv_map(SysBusDevice *dev, target_phys_addr_t base)
     cpu_register_physical_memory(base + 0x1000, 0x1000, s->gic.iomemtype);
 }
 
-static void mpcore_priv_init(SysBusDevice *dev)
+static int mpcore_priv_init(SysBusDevice *dev)
 {
     mpcore_priv_state *s = FROM_SYSBUSGIC(mpcore_priv_state, dev);
     int i;
@@ -274,6 +274,7 @@ static void mpcore_priv_init(SysBusDevice *dev)
     for (i = 0; i < 8; i++) {
         mpcore_timer_init(s, &s->timer[i], i);
     }
+    return 0;
 }
 
 /* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
@@ -309,7 +310,7 @@ static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void realview_mpcore_init(SysBusDevice *dev)
+static int realview_mpcore_init(SysBusDevice *dev)
 {
     mpcore_rirq_state *s = FROM_SYSBUS(mpcore_rirq_state, dev);
     DeviceState *gic;
@@ -331,6 +332,7 @@ static void realview_mpcore_init(SysBusDevice *dev)
         }
     }
     qdev_init_gpio_in(&dev->qdev, mpcore_rirq_set_irq, 64);
+    return 0;
 }
 
 static void mpcore_register_devices(void)

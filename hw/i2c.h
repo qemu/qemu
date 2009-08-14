@@ -22,7 +22,7 @@ typedef int (*i2c_recv_cb)(i2c_slave *s);
 /* Notify the slave of a bus state change.  */
 typedef void (*i2c_event_cb)(i2c_slave *s, enum i2c_event event);
 
-typedef void (*i2c_slave_initfn)(i2c_slave *dev);
+typedef int (*i2c_slave_initfn)(i2c_slave *dev);
 
 typedef struct {
     DeviceInfo qdev;

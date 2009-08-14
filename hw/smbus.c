@@ -198,12 +198,12 @@ static int smbus_i2c_send(i2c_slave *s, uint8_t data)
     return 0;
 }
 
-static void smbus_device_init(i2c_slave *i2c)
+static int smbus_device_init(i2c_slave *i2c)
 {
     SMBusDeviceInfo *t = container_of(i2c->info, SMBusDeviceInfo, i2c);
     SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, i2c);
 
-    t->init(dev);
+    return t->init(dev);
 }
 
 void smbus_register_device(SMBusDeviceInfo *info)

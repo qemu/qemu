@@ -2482,7 +2482,7 @@ static void pci_vga_write_config(PCIDevice *d,
         s->map_addr = 0;
 }
 
-static void pci_vga_initfn(PCIDevice *dev)
+static int pci_vga_initfn(PCIDevice *dev)
 {
      PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
      VGAState *s = &d->vga_state;
@@ -2513,7 +2513,8 @@ static void pci_vga_initfn(PCIDevice *dev)
             bios_total_size <<= 1;
         pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
                          PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-    }
+     }
+     return 0;
 }
 
 int pci_vga_init(PCIBus *bus,

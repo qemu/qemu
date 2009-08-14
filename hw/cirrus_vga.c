@@ -3302,7 +3302,7 @@ static void pci_cirrus_write_config(PCIDevice *d,
     cirrus_update_memory_access(s);
 }
 
-static void pci_cirrus_vga_initfn(PCIDevice *dev)
+static int pci_cirrus_vga_initfn(PCIDevice *dev)
 {
      PCICirrusVGAState *d = DO_UPCAST(PCICirrusVGAState, dev, dev);
      CirrusVGAState *s = &d->cirrus_vga;
@@ -3335,6 +3335,7 @@ static void pci_cirrus_vga_initfn(PCIDevice *dev)
                           PCI_ADDRESS_SPACE_MEM, cirrus_pci_mmio_map);
      }
      /* XXX: ROM BIOS */
+     return 0;
 }
 
 void pci_cirrus_vga_init(PCIBus *bus)

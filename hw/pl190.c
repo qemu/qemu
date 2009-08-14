@@ -227,7 +227,7 @@ static void pl190_reset(pl190_state *s)
   pl190_update_vectors(s);
 }
 
-static void pl190_init(SysBusDevice *dev)
+static int pl190_init(SysBusDevice *dev)
 {
     pl190_state *s = FROM_SYSBUS(pl190_state, dev);
     int iomemtype;
@@ -240,6 +240,7 @@ static void pl190_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->fiq);
     pl190_reset(s);
     /* ??? Save/restore.  */
+    return 0;
 }
 
 static void pl190_register_devices(void)

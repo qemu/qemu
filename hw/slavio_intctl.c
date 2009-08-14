@@ -420,7 +420,7 @@ static void slavio_intctl_reset(void *opaque)
     slavio_check_interrupts(s, 0);
 }
 
-static void slavio_intctl_init1(SysBusDevice *dev)
+static int slavio_intctl_init1(SysBusDevice *dev)
 {
     SLAVIO_INTCTLState *s = FROM_SYSBUS(SLAVIO_INTCTLState, dev);
     int io_memory;
@@ -446,6 +446,7 @@ static void slavio_intctl_init1(SysBusDevice *dev)
                     slavio_intctl_load, s);
     qemu_register_reset(slavio_intctl_reset, s);
     slavio_intctl_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo slavio_intctl_info = {

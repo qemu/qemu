@@ -1933,7 +1933,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
     return fdctrl;
 }
 
-static void fdctrl_init_common(fdctrl_t *fdctrl)
+static int fdctrl_init_common(fdctrl_t *fdctrl)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -1961,9 +1961,10 @@ static void fdctrl_init_common(fdctrl_t *fdctrl)
     fdctrl_external_reset(fdctrl);
     register_savevm("fdc", -1, 2, fdc_save, fdc_load, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);
+    return 0;
 }
 
-static void isabus_fdc_init1(ISADevice *dev)
+static int isabus_fdc_init1(ISADevice *dev)
 {
     fdctrl_isabus_t *isa = DO_UPCAST(fdctrl_isabus_t, busdev, dev);
     fdctrl_t *fdctrl = &isa->state;
@@ -1978,10 +1979,10 @@ static void isabus_fdc_init1(ISADevice *dev)
                           &fdctrl_write_port, fdctrl);
     isa_init_irq(&isa->busdev, &fdctrl->irq);
 
-    fdctrl_init_common(fdctrl);
+    return fdctrl_init_common(fdctrl);
 }
 
-static void sysbus_fdc_init1(SysBusDevice *dev)
+static int sysbus_fdc_init1(SysBusDevice *dev)
 {
     fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
     int io;
@@ -1991,10 +1992,10 @@ static void sysbus_fdc_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 
-    fdctrl_init_common(fdctrl);
+    return fdctrl_init_common(fdctrl);
 }
 
-static void sun4m_fdc_init1(SysBusDevice *dev)
+static int sun4m_fdc_init1(SysBusDevice *dev)
 {
     fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
     int io;
@@ -2006,7 +2007,7 @@ static void sun4m_fdc_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 
     fdctrl->sun4m = 1;
-    fdctrl_init_common(fdctrl);
+    return fdctrl_init_common(fdctrl);
 }
 
 static ISADeviceInfo isa_fdc_info = {

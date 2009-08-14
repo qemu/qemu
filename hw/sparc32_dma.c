@@ -244,7 +244,7 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void sparc32_dma_init1(SysBusDevice *dev)
+static int sparc32_dma_init1(SysBusDevice *dev)
 {
     DMAState *s = FROM_SYSBUS(DMAState, dev);
     int dma_io_memory;
@@ -259,6 +259,7 @@ static void sparc32_dma_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
     qdev_init_gpio_out(&dev->qdev, &s->dev_reset, 1);
+    return 0;
 }
 
 static SysBusDeviceInfo sparc32_dma_info = {

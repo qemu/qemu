@@ -153,7 +153,7 @@ static void bitbang_i2c_gpio_set(void *opaque, int irq, int level)
     i2c->last_clock = clock;
 }
 
-static void bitbang_i2c_init(SysBusDevice *dev)
+static int bitbang_i2c_init(SysBusDevice *dev)
 {
     bitbang_i2c_interface *s = FROM_SYSBUS(bitbang_i2c_interface, dev);
     i2c_bus *bus;
@@ -168,6 +168,8 @@ static void bitbang_i2c_init(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, bitbang_i2c_gpio_set, 2);
     qdev_init_gpio_out(&dev->qdev, &s->out, 1);
+
+    return 0;
 }
 
 static void bitbang_i2c_register(void)

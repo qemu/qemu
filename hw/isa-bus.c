@@ -104,14 +104,15 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p)
     dev->nirqs++;
 }
 
-static void isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     ISADevice *dev = DO_UPCAST(ISADevice, qdev, qdev);
     ISADeviceInfo *info = DO_UPCAST(ISADeviceInfo, qdev, base);
 
     dev->isairq[0] = -1;
     dev->isairq[1] = -1;
-    info->init(dev);
+
+    return info->init(dev);
 }
 
 void isa_qdev_register(ISADeviceInfo *info)
@@ -156,9 +157,10 @@ static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     }
 }
 
-static void isabus_bridge_init(SysBusDevice *dev)
+static int isabus_bridge_init(SysBusDevice *dev)
 {
     /* nothing */
+    return 0;
 }
 
 static SysBusDeviceInfo isabus_bridge_info = {

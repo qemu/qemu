@@ -503,7 +503,7 @@ static int syborg_fb_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void syborg_fb_init(SysBusDevice *dev)
+static int syborg_fb_init(SysBusDevice *dev)
 {
     SyborgFBState *s = FROM_SYSBUS(SyborgFBState, dev);
     int iomemtype;
@@ -528,6 +528,7 @@ static void syborg_fb_init(SysBusDevice *dev)
 
     register_savevm("syborg_framebuffer", -1, 1,
                     syborg_fb_save, syborg_fb_load, s);
+    return 0;
 }
 
 static SysBusDeviceInfo syborg_fb_info = {
