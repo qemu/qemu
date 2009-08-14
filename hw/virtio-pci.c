@@ -434,7 +434,7 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
     if (!proxy->dinfo) {
-        fprintf(stderr, "drive property not set\n");
+        qemu_error("virtio-blk-pci: drive property not set\n");
         return -1;
     }
     vdev = virtio_blk_init(&pci_dev->qdev, proxy->dinfo);
