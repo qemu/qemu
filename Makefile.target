@@ -86,7 +86,7 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
-obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
+obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
       ioport-user.o
 obj-$(TARGET_HAS_BFLT) += flatload.o
@@ -132,7 +132,7 @@ ifdef CONFIG_BSD_USER
 VPATH+=:$(SRC_PATH)/bsd-user
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
-obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
+obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o ioport-user.o
 obj-y += uaccess.o
 

@@ -190,8 +190,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern THREAD CPUState *thread_env;
 void cpu_loop(CPUState *env);
-void init_paths(const char *prefix);
-const char *path(const char *pathname);
 char *target_strerror(int err);
 int get_osversion(void);
 void fork_start(void);
