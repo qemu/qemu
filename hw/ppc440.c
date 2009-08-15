@@ -12,6 +12,7 @@
  */
 
 #include "hw.h"
+#include "pc.h"
 #include "isa.h"
 #include "ppc.h"
 #include "ppc4xx.h"
@@ -40,7 +41,6 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     target_phys_addr_t ram_bases[PPC440EP_SDRAM_NR_BANKS];
     target_phys_addr_t ram_sizes[PPC440EP_SDRAM_NR_BANKS];
     CPUState *env;
-    ppc4xx_mmio_t *mmio;
     qemu_irq *pic;
     qemu_irq *irqs;
     qemu_irq *pci_irqs;
@@ -87,14 +87,14 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
 
     isa_mmio_init(PPC440EP_PCI_IO, PPC440EP_PCI_IOLEN);
 
-    /* MMIO -- most "miscellaneous" devices live above 0xef600000. */
-    mmio = ppc4xx_mmio_init(env, 0xef600000);
-
-    if (serial_hds[0])
-        ppc405_serial_init(env, mmio, 0x300, pic[0], serial_hds[0]);
-
-    if (serial_hds[1])
-        ppc405_serial_init(env, mmio, 0x400, pic[1], serial_hds[1]);
+    if (serial_hds[0] != NULL) {
+        serial_mm_init(0xef600300, 0, pic[0], PPC_SERIAL_MM_BAUDBASE,
+                       serial_hds[0], 1);
+    }
+    if (serial_hds[1] != NULL) {
+        serial_mm_init(0xef600400, 0, pic[1], PPC_SERIAL_MM_BAUDBASE,
+                       serial_hds[1], 1);
+    }
 
     return env;
 }

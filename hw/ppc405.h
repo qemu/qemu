@@ -59,35 +59,6 @@ struct ppc4xx_bd_info_t {
 ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
                                 uint32_t flags);
 
-/* PowerPC 4xx peripheral local bus arbitrer */
-void ppc4xx_plb_init (CPUState *env);
-/* PLB to OPB bridge */
-void ppc4xx_pob_init (CPUState *env);
-/* OPB arbitrer */
-void ppc4xx_opba_init (CPUState *env, ppc4xx_mmio_t *mmio,
-                       target_phys_addr_t offset);
-/* Peripheral controller */
-void ppc405_ebc_init (CPUState *env);
-/* DMA controller */
-void ppc405_dma_init (CPUState *env, qemu_irq irqs[4]);
-/* GPIO */
-void ppc405_gpio_init (CPUState *env, ppc4xx_mmio_t *mmio,
-                       target_phys_addr_t offset);
-/* Serial ports */
-void ppc405_serial_init (CPUState *env, ppc4xx_mmio_t *mmio,
-                         target_phys_addr_t offset, qemu_irq irq,
-                         CharDriverState *chr);
-/* On Chip Memory */
-void ppc405_ocm_init (CPUState *env);
-/* I2C controller */
-void ppc405_i2c_init (CPUState *env, ppc4xx_mmio_t *mmio,
-                      target_phys_addr_t offset, qemu_irq irq);
-/* General purpose timers */
-void ppc4xx_gpt_init (CPUState *env, ppc4xx_mmio_t *mmio,
-                      target_phys_addr_t offset, qemu_irq irq[5]);
-/* Memory access layer */
-void ppc405_mal_init (CPUState *env, qemu_irq irqs[4]);
-/* PowerPC 405 microcontrollers */
 CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
                          target_phys_addr_t ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
