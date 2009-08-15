@@ -87,12 +87,16 @@ VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
-      elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
-      ioport-user.o
+      elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o
+
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
 obj-$(TARGET_I386) += vm86.o
+
+ifeq ($(TARGET_BASE_ARCH), i386)
+obj-y += ioport-user.o
+endif
 
 nwfpe-obj-y = fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
 nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
@@ -118,7 +122,11 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o gdbstub-xml.o ioport-user.o
+        gdbstub.o gdbstub-xml.o
+
+ifeq ($(TARGET_BASE_ARCH), i386)
+obj-y += ioport-user.o
+endif
 
 ARLIBS=libqemu.a
 
@@ -133,8 +141,11 @@ VPATH+=:$(SRC_PATH)/bsd-user
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-        gdbstub.o gdbstub-xml.o ioport-user.o
-obj-y += uaccess.o
+        gdbstub.o gdbstub-xml.o uaccess.o
+
+ifeq ($(TARGET_BASE_ARCH), i386)
+obj-y += ioport-user.o
+endif
 
 ARLIBS=libqemu.a ../libqemu_user.a
 
