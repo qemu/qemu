@@ -912,6 +912,11 @@ static inline void save_npc(DisasContext *dc, TCGv cond)
 static inline void save_state(DisasContext *dc, TCGv cond)
 {
     tcg_gen_movi_tl(cpu_pc, dc->pc);
+    /* flush pending conditional evaluations before exposing cpu state */
+    if (dc->cc_op != CC_OP_FLAGS) {
+        dc->cc_op = CC_OP_FLAGS;
+        gen_helper_compute_psr();
+    }
     save_npc(dc, cond);
 }
 
@@ -4110,6 +4115,12 @@ static void disas_sparc_insn(DisasContext * dc)
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
 
+            /* flush pending conditional evaluations before exposing
+               cpu state */
+            if (dc->cc_op != CC_OP_FLAGS) {
+                dc->cc_op = CC_OP_FLAGS;
+                gen_helper_compute_psr();
+            }
             cpu_src1 = get_src1(insn, cpu_src1);
             if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
                 rs2 = GET_FIELD(insn, 27, 31);
