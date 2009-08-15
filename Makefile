@@ -162,7 +162,7 @@ libqemu_common.a: $(obj-y)
 
 #######################################################################
 # user-obj-y is code used by qemu userspace emulation
-user-obj-y = cutils.o cache-utils.o path.o
+user-obj-y = cutils.o cache-utils.o path.o envlist.o
 
 libqemu_user.a: $(user-obj-y)
 
