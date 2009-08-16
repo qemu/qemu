@@ -2031,8 +2031,9 @@ void ppc_hw_interrupt (CPUState *env)
 #else /* defined (CONFIG_USER_ONLY) */
 static inline void dump_syscall(CPUState *env)
 {
-    qemu_log_mask(CPU_LOG_INT, "syscall r0=" REGX " r3=" REGX " r4=" REGX
-                  " r5=" REGX " r6=" REGX " nip=" TARGET_FMT_lx "\n",
+    qemu_log_mask(CPU_LOG_INT, "syscall r0=%016" PRIx64 " r3=%016" PRIx64
+                  " r4=%016" PRIx64 " r5=%016" PRIx64 " r6=%016" PRIx64
+                  " nip=" TARGET_FMT_lx "\n",
                   ppc_dump_gpr(env, 0), ppc_dump_gpr(env, 3),
                   ppc_dump_gpr(env, 4), ppc_dump_gpr(env, 5),
                   ppc_dump_gpr(env, 6), env->nip);

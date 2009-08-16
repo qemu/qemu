@@ -8860,7 +8860,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & (RGPL - 1)) == 0)
             cpu_fprintf(f, "GPR%02d", i);
-        cpu_fprintf(f, " " REGX, ppc_dump_gpr(env, i));
+        cpu_fprintf(f, " %016" PRIx64, ppc_dump_gpr(env, i));
         if ((i & (RGPL - 1)) == (RGPL - 1))
             cpu_fprintf(f, "\n");
     }

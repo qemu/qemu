@@ -56,8 +56,6 @@
 
 #include "cpu-defs.h"
 
-#define REGX "%016" PRIx64
-
 #include <setjmp.h>
 
 #include "softfloat.h"
