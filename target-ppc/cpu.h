@@ -57,8 +57,6 @@
 #include "cpu-defs.h"
 
 #define REGX "%016" PRIx64
-#define ADDRX TARGET_FMT_lx
-#define PADDRX TARGET_FMT_plx
 
 #include <setjmp.h>
 

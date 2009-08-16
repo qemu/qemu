@@ -795,9 +795,9 @@ static void cpu_4xx_fit_cb (void *opaque)
     env->spr[SPR_40x_TSR] |= 1 << 26;
     if ((env->spr[SPR_40x_TCR] >> 23) & 0x1)
         ppc_set_irq(env, PPC_INTERRUPT_FIT, 1);
-    LOG_TB("%s: ir %d TCR " ADDRX " TSR " ADDRX "\n", __func__,
-                (int)((env->spr[SPR_40x_TCR] >> 23) & 0x1),
-                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
+    LOG_TB("%s: ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx "\n", __func__,
+           (int)((env->spr[SPR_40x_TCR] >> 23) & 0x1),
+           env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
 }
 
 /* Programmable interval timer */
@@ -841,12 +841,12 @@ static void cpu_4xx_pit_cb (void *opaque)
     if ((env->spr[SPR_40x_TCR] >> 26) & 0x1)
         ppc_set_irq(env, PPC_INTERRUPT_PIT, 1);
     start_stop_pit(env, tb_env, 1);
-    LOG_TB("%s: ar %d ir %d TCR " ADDRX " TSR " ADDRX " "
-                "%016" PRIx64 "\n", __func__,
-                (int)((env->spr[SPR_40x_TCR] >> 22) & 0x1),
-                (int)((env->spr[SPR_40x_TCR] >> 26) & 0x1),
-                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
-                ppcemb_timer->pit_reload);
+    LOG_TB("%s: ar %d ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx " "
+           "%016" PRIx64 "\n", __func__,
+           (int)((env->spr[SPR_40x_TCR] >> 22) & 0x1),
+           (int)((env->spr[SPR_40x_TCR] >> 26) & 0x1),
+           env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
+           ppcemb_timer->pit_reload);
 }
 
 /* Watchdog timer */
@@ -881,8 +881,8 @@ static void cpu_4xx_wdt_cb (void *opaque)
     next = now + muldiv64(next, ticks_per_sec, tb_env->decr_freq);
     if (next == now)
         next++;
-    LOG_TB("%s: TCR " ADDRX " TSR " ADDRX "\n", __func__,
-                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
+    LOG_TB("%s: TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx "\n", __func__,
+           env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
     switch ((env->spr[SPR_40x_TSR] >> 30) & 0x3) {
     case 0x0:
     case 0x1:
@@ -924,7 +924,7 @@ void store_40x_pit (CPUState *env, target_ulong val)
 
     tb_env = env->tb_env;
     ppcemb_timer = tb_env->opaque;
-    LOG_TB("%s val" ADDRX "\n", __func__, val);
+    LOG_TB("%s val" TARGET_FMT_lx "\n", __func__, val);
     ppcemb_timer->pit_reload = val;
     start_stop_pit(env, tb_env, 0);
 }
@@ -936,7 +936,7 @@ target_ulong load_40x_pit (CPUState *env)
 
 void store_booke_tsr (CPUState *env, target_ulong val)
 {
-    LOG_TB("%s: val " ADDRX "\n", __func__, val);
+    LOG_TB("%s: val " TARGET_FMT_lx "\n", __func__, val);
     env->spr[SPR_40x_TSR] &= ~(val & 0xFC000000);
     if (val & 0x80000000)
         ppc_set_irq(env, PPC_INTERRUPT_PIT, 0);
@@ -947,7 +947,7 @@ void store_booke_tcr (CPUState *env, target_ulong val)
     ppc_tb_t *tb_env;
 
     tb_env = env->tb_env;
-    LOG_TB("%s: val " ADDRX "\n", __func__, val);
+    LOG_TB("%s: val " TARGET_FMT_lx "\n", __func__, val);
     env->spr[SPR_40x_TCR] = val & 0xFFC00000;
     start_stop_pit(env, tb_env, 1);
     cpu_4xx_wdt_cb(env);

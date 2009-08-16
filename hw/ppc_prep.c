@@ -112,7 +112,10 @@ static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
 static void _PPC_intack_write (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
-//    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+#if 0
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
+#endif
 }
 
 static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
@@ -121,7 +124,10 @@ static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
 
     if ((addr & 0xf) == 0)
         retval = pic_intack_read(isa_pic);
-//   printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+#if 0
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
+#endif
 
     return retval;
 }
@@ -191,7 +197,8 @@ static struct {
 static void PPC_XCSR_writeb (void *opaque,
                              target_phys_addr_t addr, uint32_t value)
 {
-    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
 }
 
 static void PPC_XCSR_writew (void *opaque,
@@ -200,7 +207,8 @@ static void PPC_XCSR_writew (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
 }
 
 static void PPC_XCSR_writel (void *opaque,
@@ -209,14 +217,16 @@ static void PPC_XCSR_writel (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
 }
 
 static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
 
     return retval;
 }
@@ -225,7 +235,8 @@ static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
 #ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap16(retval);
 #endif
@@ -237,7 +248,8 @@ static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
 #ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap32(retval);
 #endif
@@ -469,7 +481,7 @@ static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " => 0x%08" PRIx32 "\n", addr, value);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", addr, value);
     cpu_outw(NULL, addr, value);
 }
 
@@ -483,7 +495,7 @@ static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap16(ret);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " <= 0x%08" PRIx32 "\n", addr, ret);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " <= 0x%08" PRIx32 "\n", addr, ret);
 
     return ret;
 }
@@ -497,7 +509,7 @@ static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " => 0x%08" PRIx32 "\n", addr, value);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", addr, value);
     cpu_outl(NULL, addr, value);
 }
 
@@ -511,7 +523,7 @@ static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap32(ret);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " <= 0x%08" PRIx32 "\n", addr, ret);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " <= 0x%08" PRIx32 "\n", addr, ret);
 
     return ret;
 }

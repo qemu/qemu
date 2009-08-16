@@ -3755,17 +3755,17 @@ static inline void gen_op_mfspr(DisasContext *ctx)
              */
             if (sprn != SPR_PVR) {
                 qemu_log("Trying to read privileged spr %d %03x at "
-                            ADDRX "\n", sprn, sprn, ctx->nip);
-                printf("Trying to read privileged spr %d %03x at " ADDRX "\n",
-                       sprn, sprn, ctx->nip);
+                         TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
+                printf("Trying to read privileged spr %d %03x at "
+                       TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
             }
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
         qemu_log("Trying to read invalid spr %d %03x at "
-                    ADDRX "\n", sprn, sprn, ctx->nip);
-        printf("Trying to read invalid spr %d %03x at " ADDRX "\n",
+                    TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
+        printf("Trying to read invalid spr %d %03x at " TARGET_FMT_lx "\n",
                sprn, sprn, ctx->nip);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
     }
@@ -3905,16 +3905,16 @@ static void gen_mtspr(DisasContext *ctx)
         } else {
             /* Privilege exception */
             qemu_log("Trying to write privileged spr %d %03x at "
-                        ADDRX "\n", sprn, sprn, ctx->nip);
-            printf("Trying to write privileged spr %d %03x at " ADDRX "\n",
-                   sprn, sprn, ctx->nip);
+                     TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
+            printf("Trying to write privileged spr %d %03x at " TARGET_FMT_lx
+                   "\n", sprn, sprn, ctx->nip);
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
         qemu_log("Trying to write invalid spr %d %03x at "
-                    ADDRX "\n", sprn, sprn, ctx->nip);
-        printf("Trying to write invalid spr %d %03x at " ADDRX "\n",
+                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
+        printf("Trying to write invalid spr %d %03x at " TARGET_FMT_lx "\n",
                sprn, sprn, ctx->nip);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
     }
@@ -8839,10 +8839,12 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
     int i;
 
-    cpu_fprintf(f, "NIP " ADDRX "   LR " ADDRX " CTR " ADDRX " XER %08x\n",
-                env->nip, env->lr, env->ctr, env->xer);
-    cpu_fprintf(f, "MSR " ADDRX " HID0 " ADDRX "  HF " ADDRX " idx %d\n",
-                env->msr, env->spr[SPR_HID0], env->hflags, env->mmu_idx);
+    cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
+                TARGET_FMT_lx " XER %08x\n", env->nip, env->lr, env->ctr,
+                env->xer);
+    cpu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
+                TARGET_FMT_lx " idx %d\n", env->msr, env->spr[SPR_HID0],
+                env->hflags, env->mmu_idx);
 #if !defined(NO_TIMER_DUMP)
     cpu_fprintf(f, "TB %08x %08x "
 #if !defined(CONFIG_USER_ONLY)
@@ -8876,7 +8878,8 @@ void cpu_dump_state (CPUState *env, FILE *f,
             a = 'E';
         cpu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
     }
-    cpu_fprintf(f, " ]             RES " ADDRX "\n", env->reserve_addr);
+    cpu_fprintf(f, " ]             RES " TARGET_FMT_lx "\n",
+                env->reserve_addr);
     for (i = 0; i < 32; i++) {
         if ((i & (RFPL - 1)) == 0)
             cpu_fprintf(f, "FPR%02d", i);
@@ -8886,8 +8889,9 @@ void cpu_dump_state (CPUState *env, FILE *f,
     }
     cpu_fprintf(f, "FPSCR %08x\n", env->fpscr);
 #if !defined(CONFIG_USER_ONLY)
-    cpu_fprintf(f, "SRR0 " ADDRX " SRR1 " ADDRX " SDR1 " ADDRX "\n",
-                env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
+    cpu_fprintf(f, "SRR0 " TARGET_FMT_lx " SRR1 " TARGET_FMT_lx " SDR1 "
+                TARGET_FMT_lx "\n", env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+                env->sdr1);
 #endif
 
 #undef RGPL
@@ -9016,7 +9020,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_opc_icount[lj] = num_insns;
         }
         LOG_DISAS("----------------\n");
-        LOG_DISAS("nip=" ADDRX " super=%d ir=%d\n",
+        LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
                   ctx.nip, ctx.mem_idx, (int)msr_ir);
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
@@ -9044,12 +9048,12 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         if (unlikely(handler->handler == &gen_invalid)) {
             if (qemu_log_enabled()) {
                 qemu_log("invalid/unsupported opcode: "
-                          "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
-                          opc1(ctx.opcode), opc2(ctx.opcode),
-                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
+                         "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
+                         opc1(ctx.opcode), opc2(ctx.opcode),
+                         opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             } else {
                 printf("invalid/unsupported opcode: "
-                       "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
+                       "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
                        opc1(ctx.opcode), opc2(ctx.opcode),
                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             }
@@ -9057,13 +9061,13 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
                 if (qemu_log_enabled()) {
                     qemu_log("invalid bits: %08x for opcode: "
-                              "%02x - %02x - %02x (%08x) " ADDRX "\n",
-                              ctx.opcode & handler->inval, opc1(ctx.opcode),
-                              opc2(ctx.opcode), opc3(ctx.opcode),
-                              ctx.opcode, ctx.nip - 4);
+                             "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
+                             ctx.opcode & handler->inval, opc1(ctx.opcode),
+                             opc2(ctx.opcode), opc3(ctx.opcode),
+                             ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
-                           "%02x - %02x - %02x (%08x) " ADDRX "\n",
+                           "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
                            ctx.opcode & handler->inval, opc1(ctx.opcode),
                            opc2(ctx.opcode), opc3(ctx.opcode),
                            ctx.opcode, ctx.nip - 4);

@@ -235,7 +235,7 @@ static void dcr_write_uic (void *opaque, int dcrn, target_ulong val)
 
     uic = opaque;
     dcrn -= uic->dcr_base;
-    LOG_UIC("%s: dcr %d val " ADDRX "\n", __func__, dcrn, val);
+    LOG_UIC("%s: dcr %d val " TARGET_FMT_lx "\n", __func__, dcrn, val);
     switch (dcrn) {
     case DCR_UICSR:
         uic->uicsr &= ~val;
@@ -368,7 +368,8 @@ static uint32_t sdram_bcr (target_phys_addr_t ram_base,
         bcr = 0x000C0000;
         break;
     default:
-        printf("%s: invalid RAM size " PADDRX "\n", __func__, ram_size);
+        printf("%s: invalid RAM size " TARGET_FMT_plx "\n", __func__,
+               ram_size);
         return 0x00000000;
     }
     bcr |= ram_base & 0xFF800000;
@@ -401,7 +402,7 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     if (*bcrp & 0x00000001) {
         /* Unmap RAM */
 #ifdef DEBUG_SDRAM
-        printf("%s: unmap RAM area " PADDRX " " ADDRX "\n",
+        printf("%s: unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(*bcrp), sdram_size(*bcrp));
 #endif
         cpu_register_physical_memory(sdram_base(*bcrp), sdram_size(*bcrp),
@@ -410,7 +411,7 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     *bcrp = bcr & 0xFFDEE001;
     if (enabled && (bcr & 0x00000001)) {
 #ifdef DEBUG_SDRAM
-        printf("%s: Map RAM area " PADDRX " " ADDRX "\n",
+        printf("%s: Map RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(bcr), sdram_size(bcr));
 #endif
         cpu_register_physical_memory(sdram_base(bcr), sdram_size(bcr),
@@ -439,7 +440,7 @@ static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
 
     for (i = 0; i < sdram->nbanks; i++) {
 #ifdef DEBUG_SDRAM
-        printf("%s: Unmap RAM area " PADDRX " " ADDRX "\n",
+        printf("%s: Unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(sdram->bcr[i]), sdram_size(sdram->bcr[i]));
 #endif
         cpu_register_physical_memory(sdram_base(sdram->bcr[i]),

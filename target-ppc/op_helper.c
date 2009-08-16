@@ -56,14 +56,14 @@ void helper_raise_exception (uint32_t exception)
 /* SPR accesses */
 void helper_load_dump_spr (uint32_t sprn)
 {
-    qemu_log("Read SPR %d %03x => " ADDRX "\n",
-                sprn, sprn, env->spr[sprn]);
+    qemu_log("Read SPR %d %03x => " TARGET_FMT_lx "\n", sprn, sprn,
+             env->spr[sprn]);
 }
 
 void helper_store_dump_spr (uint32_t sprn)
 {
-    qemu_log("Write SPR %d %03x <= " ADDRX "\n",
-                sprn, sprn, env->spr[sprn]);
+    qemu_log("Write SPR %d %03x <= " TARGET_FMT_lx "\n", sprn, sprn,
+             env->spr[sprn]);
 }
 
 target_ulong helper_load_tbl (void)
@@ -160,8 +160,8 @@ void helper_store_hid0_601 (target_ulong val)
         env->hflags_nmsr &= ~(1 << MSR_LE);
         env->hflags_nmsr |= (1 << MSR_LE) & (((val >> 3) & 1) << MSR_LE);
         env->hflags |= env->hflags_nmsr;
-        qemu_log("%s: set endianness to %c => " ADDRX "\n",
-                    __func__, val & 0x8 ? 'l' : 'b', env->hflags);
+        qemu_log("%s: set endianness to %c => " TARGET_FMT_lx "\n", __func__,
+                 val & 0x8 ? 'l' : 'b', env->hflags);
     }
     env->spr[SPR_HID0] = (uint32_t)val;
 }
@@ -3804,9 +3804,9 @@ static void do_6xx_tlb (target_ulong new_EPN, int is_code)
         EPN = env->spr[SPR_DMISS];
     }
     way = (env->spr[SPR_SRR1] >> 17) & 1;
-    LOG_SWTLB("%s: EPN " ADDRX " " ADDRX " PTE0 " ADDRX
-                " PTE1 " ADDRX " way %d\n",
-                __func__, new_EPN, EPN, CMP, RPN, way);
+    LOG_SWTLB("%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
+              " PTE1 " TARGET_FMT_lx " way %d\n", __func__, new_EPN, EPN, CMP,
+              RPN, way);
     /* Store this TLB */
     ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
@@ -3832,9 +3832,9 @@ static void do_74xx_tlb (target_ulong new_EPN, int is_code)
     CMP = env->spr[SPR_PTEHI];
     EPN = env->spr[SPR_TLBMISS] & ~0x3;
     way = env->spr[SPR_TLBMISS] & 0x3;
-    LOG_SWTLB("%s: EPN " ADDRX " " ADDRX " PTE0 " ADDRX
-                " PTE1 " ADDRX " way %d\n",
-                __func__, new_EPN, EPN, CMP, RPN, way);
+    LOG_SWTLB("%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
+              " PTE1 " TARGET_FMT_lx " way %d\n", __func__, new_EPN, EPN, CMP,
+              RPN, way);
     /* Store this TLB */
     ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
@@ -3958,14 +3958,15 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
-    LOG_SWTLB("%s entry %d val " ADDRX "\n", __func__, (int)entry, val);
+    LOG_SWTLB("%s entry %d val " TARGET_FMT_lx "\n", __func__, (int)entry,
+              val);
     entry &= 0x3F;
     tlb = &env->tlb[entry].tlbe;
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
-        LOG_SWTLB("%s: invalidate old TLB %d start " ADDRX
-                    " end " ADDRX "\n", __func__, (int)entry, tlb->EPN, end);
+        LOG_SWTLB("%s: invalidate old TLB %d start " TARGET_FMT_lx " end "
+                  TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
@@ -3990,18 +3991,18 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
     }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
     tlb->attr = val & 0xFF;
-    LOG_SWTLB("%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
-                " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)entry, tlb->RPN, tlb->EPN, tlb->size,
-                tlb->prot & PAGE_READ ? 'r' : '-',
-                tlb->prot & PAGE_WRITE ? 'w' : '-',
-                tlb->prot & PAGE_EXEC ? 'x' : '-',
-                tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    LOG_SWTLB("%s: set up TLB %d RPN " TARGET_FMT_plx " EPN " TARGET_FMT_lx
+              " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
+              (int)entry, tlb->RPN, tlb->EPN, tlb->size,
+              tlb->prot & PAGE_READ ? 'r' : '-',
+              tlb->prot & PAGE_WRITE ? 'w' : '-',
+              tlb->prot & PAGE_EXEC ? 'x' : '-',
+              tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
     /* Invalidate new TLB (if valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
-        LOG_SWTLB("%s: invalidate TLB %d start " ADDRX
-                    " end " ADDRX "\n", __func__, (int)entry, tlb->EPN, end);
+        LOG_SWTLB("%s: invalidate TLB %d start " TARGET_FMT_lx " end "
+                  TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
@@ -4011,7 +4012,8 @@ void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
 {
     ppcemb_tlb_t *tlb;
 
-    LOG_SWTLB("%s entry %i val " ADDRX "\n", __func__, (int)entry, val);
+    LOG_SWTLB("%s entry %i val " TARGET_FMT_lx "\n", __func__, (int)entry,
+              val);
     entry &= 0x3F;
     tlb = &env->tlb[entry].tlbe;
     tlb->RPN = val & 0xFFFFFC00;
@@ -4020,13 +4022,13 @@ void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
         tlb->prot |= PAGE_EXEC;
     if (val & 0x100)
         tlb->prot |= PAGE_WRITE;
-    LOG_SWTLB("%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
-                " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)entry, tlb->RPN, tlb->EPN, tlb->size,
-                tlb->prot & PAGE_READ ? 'r' : '-',
-                tlb->prot & PAGE_WRITE ? 'w' : '-',
-                tlb->prot & PAGE_EXEC ? 'x' : '-',
-                tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    LOG_SWTLB("%s: set up TLB %d RPN " TARGET_FMT_plx " EPN " TARGET_FMT_lx
+              " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
+              (int)entry, tlb->RPN, tlb->EPN, tlb->size,
+              tlb->prot & PAGE_READ ? 'r' : '-',
+              tlb->prot & PAGE_WRITE ? 'w' : '-',
+              tlb->prot & PAGE_EXEC ? 'x' : '-',
+              tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
 }
 
 target_ulong helper_4xx_tlbsx (target_ulong address)
@@ -4041,8 +4043,8 @@ void helper_440_tlbwe (uint32_t word, target_ulong entry, target_ulong value)
     target_ulong EPN, RPN, size;
     int do_flush_tlbs;
 
-    LOG_SWTLB("%s word %d entry %d value " ADDRX "\n",
-                __func__, word, (int)entry, value);
+    LOG_SWTLB("%s word %d entry %d value " TARGET_FMT_lx "\n",
+              __func__, word, (int)entry, value);
     do_flush_tlbs = 0;
     entry &= 0x3F;
     tlb = &env->tlb[entry].tlbe;

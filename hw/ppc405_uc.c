@@ -267,7 +267,7 @@ static uint32_t opba_readb (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     opba = opaque;
     switch (addr) {
@@ -291,7 +291,8 @@ static void opba_writeb (void *opaque,
     ppc4xx_opba_t *opba;
 
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     opba = opaque;
     switch (addr) {
@@ -311,7 +312,7 @@ static uint32_t opba_readw (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     ret = opba_readb(opaque, addr) << 8;
     ret |= opba_readb(opaque, addr + 1);
@@ -323,7 +324,8 @@ static void opba_writew (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     opba_writeb(opaque, addr, value >> 8);
     opba_writeb(opaque, addr + 1, value);
@@ -334,7 +336,7 @@ static uint32_t opba_readl (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     ret = opba_readb(opaque, addr) << 24;
     ret |= opba_readb(opaque, addr + 1) << 16;
@@ -346,7 +348,8 @@ static void opba_writel (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     opba_writeb(opaque, addr, value >> 24);
     opba_writeb(opaque, addr + 1, value >> 16);
@@ -380,7 +383,7 @@ static void ppc4xx_opba_init(target_phys_addr_t base)
 
     opba = qemu_mallocz(sizeof(ppc4xx_opba_t));
 #ifdef DEBUG_OPBA
-    printf("%s: offset " PADDRX "\n", __func__, base);
+    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
     io = cpu_register_io_memory(opba_read, opba_write, opba);
     cpu_register_physical_memory(base, 0x002, io);
@@ -744,7 +747,7 @@ static uint32_t ppc405_gpio_readb (void *opaque, target_phys_addr_t addr)
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
 
     return 0;
@@ -757,7 +760,8 @@ static void ppc405_gpio_writeb (void *opaque,
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
 }
 
@@ -767,7 +771,7 @@ static uint32_t ppc405_gpio_readw (void *opaque, target_phys_addr_t addr)
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
 
     return 0;
@@ -780,7 +784,8 @@ static void ppc405_gpio_writew (void *opaque,
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
 }
 
@@ -790,7 +795,7 @@ static uint32_t ppc405_gpio_readl (void *opaque, target_phys_addr_t addr)
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
 
     return 0;
@@ -803,7 +808,8 @@ static void ppc405_gpio_writel (void *opaque,
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
 }
 
@@ -833,7 +839,7 @@ static void ppc405_gpio_init(target_phys_addr_t base)
 
     gpio = qemu_mallocz(sizeof(ppc405_gpio_t));
 #ifdef DEBUG_GPIO
-    printf("%s: offset " PADDRX "\n", __func__, base);
+    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
     io = cpu_register_io_memory(ppc405_gpio_read, ppc405_gpio_write, gpio);
     cpu_register_physical_memory(base, 0x038, io);
@@ -1035,7 +1041,7 @@ static uint32_t ppc4xx_i2c_readb (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     i2c = opaque;
     switch (addr) {
@@ -1090,7 +1096,7 @@ static uint32_t ppc4xx_i2c_readb (void *opaque, target_phys_addr_t addr)
         break;
     }
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " %02" PRIx32 "\n", __func__, addr, ret);
+    printf("%s: addr " TARGET_FMT_plx " %02" PRIx32 "\n", __func__, addr, ret);
 #endif
 
     return ret;
@@ -1102,7 +1108,8 @@ static void ppc4xx_i2c_writeb (void *opaque,
     ppc4xx_i2c_t *i2c;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     i2c = opaque;
     switch (addr) {
@@ -1160,7 +1167,7 @@ static uint32_t ppc4xx_i2c_readw (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     ret = ppc4xx_i2c_readb(opaque, addr) << 8;
     ret |= ppc4xx_i2c_readb(opaque, addr + 1);
@@ -1172,7 +1179,8 @@ static void ppc4xx_i2c_writew (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     ppc4xx_i2c_writeb(opaque, addr, value >> 8);
     ppc4xx_i2c_writeb(opaque, addr + 1, value);
@@ -1183,7 +1191,7 @@ static uint32_t ppc4xx_i2c_readl (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     ret = ppc4xx_i2c_readb(opaque, addr) << 24;
     ret |= ppc4xx_i2c_readb(opaque, addr + 1) << 16;
@@ -1197,7 +1205,8 @@ static void ppc4xx_i2c_writel (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     ppc4xx_i2c_writeb(opaque, addr, value >> 24);
     ppc4xx_i2c_writeb(opaque, addr + 1, value >> 16);
@@ -1241,7 +1250,7 @@ static void ppc405_i2c_init(target_phys_addr_t base, qemu_irq irq)
     i2c = qemu_mallocz(sizeof(ppc4xx_i2c_t));
     i2c->irq = irq;
 #ifdef DEBUG_I2C
-    printf("%s: offset " PADDRX "\n", __func__, base);
+    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
     io = cpu_register_io_memory(i2c_read, i2c_write, i2c);
     cpu_register_physical_memory(base, 0x011, io);
@@ -1269,7 +1278,7 @@ struct ppc4xx_gpt_t {
 static uint32_t ppc4xx_gpt_readb (void *opaque, target_phys_addr_t addr)
 {
 #ifdef DEBUG_GPT
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     /* XXX: generate a bus fault */
     return -1;
@@ -1279,7 +1288,8 @@ static void ppc4xx_gpt_writeb (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     /* XXX: generate a bus fault */
 }
@@ -1287,7 +1297,7 @@ static void ppc4xx_gpt_writeb (void *opaque,
 static uint32_t ppc4xx_gpt_readw (void *opaque, target_phys_addr_t addr)
 {
 #ifdef DEBUG_GPT
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     /* XXX: generate a bus fault */
     return -1;
@@ -1297,7 +1307,8 @@ static void ppc4xx_gpt_writew (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     /* XXX: generate a bus fault */
 }
@@ -1361,7 +1372,7 @@ static uint32_t ppc4xx_gpt_readl (void *opaque, target_phys_addr_t addr)
     int idx;
 
 #ifdef DEBUG_GPT
-    printf("%s: addr " PADDRX "\n", __func__, addr);
+    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
     gpt = opaque;
     switch (addr) {
@@ -1416,7 +1427,8 @@ static void ppc4xx_gpt_writel (void *opaque,
     int idx;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
+           value);
 #endif
     gpt = opaque;
     switch (addr) {
@@ -1522,7 +1534,7 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
     }
     gpt->timer = qemu_new_timer(vm_clock, &ppc4xx_gpt_cb, gpt);
 #ifdef DEBUG_GPT
-    printf("%s: offset " PADDRX "\n", __func__, base);
+    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
     io = cpu_register_io_memory(gpt_read, gpt_write, gpt);
     cpu_register_physical_memory(base, 0x0d4, io);
