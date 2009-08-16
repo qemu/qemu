@@ -781,7 +781,7 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
 
-static always_inline uint64_t ppc_dump_gpr (CPUPPCState *env, int gprn)
+static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 {
     uint64_t gprv;
 

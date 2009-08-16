@@ -103,8 +103,7 @@ static void alpha_translate_init(void)
     done_init = 1;
 }
 
-static always_inline void gen_excp (DisasContext *ctx,
-                                    int exception, int error_code)
+static inline void gen_excp(DisasContext *ctx, int exception, int error_code)
 {
     TCGv_i32 tmp1, tmp2;
 
@@ -116,12 +115,12 @@ static always_inline void gen_excp (DisasContext *ctx,
     tcg_temp_free_i32(tmp1);
 }
 
-static always_inline void gen_invalid (DisasContext *ctx)
+static inline void gen_invalid(DisasContext *ctx)
 {
     gen_excp(ctx, EXCP_OPCDEC, 0);
 }
 
-static always_inline void gen_qemu_ldf (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_ldf(TCGv t0, TCGv t1, int flags)
 {
     TCGv tmp = tcg_temp_new();
     TCGv_i32 tmp32 = tcg_temp_new_i32();
@@ -132,7 +131,7 @@ static always_inline void gen_qemu_ldf (TCGv t0, TCGv t1, int flags)
     tcg_temp_free(tmp);
 }
 
-static always_inline void gen_qemu_ldg (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_ldg(TCGv t0, TCGv t1, int flags)
 {
     TCGv tmp = tcg_temp_new();
     tcg_gen_qemu_ld64(tmp, t1, flags);
@@ -140,7 +139,7 @@ static always_inline void gen_qemu_ldg (TCGv t0, TCGv t1, int flags)
     tcg_temp_free(tmp);
 }
 
-static always_inline void gen_qemu_lds (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_lds(TCGv t0, TCGv t1, int flags)
 {
     TCGv tmp = tcg_temp_new();
     TCGv_i32 tmp32 = tcg_temp_new_i32();
@@ -151,22 +150,23 @@ static always_inline void gen_qemu_lds (TCGv t0, TCGv t1, int flags)
     tcg_temp_free(tmp);
 }
 
-static always_inline void gen_qemu_ldl_l (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_ldl_l(TCGv t0, TCGv t1, int flags)
 {
     tcg_gen_mov_i64(cpu_lock, t1);
     tcg_gen_qemu_ld32s(t0, t1, flags);
 }
 
-static always_inline void gen_qemu_ldq_l (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_ldq_l(TCGv t0, TCGv t1, int flags)
 {
     tcg_gen_mov_i64(cpu_lock, t1);
     tcg_gen_qemu_ld64(t0, t1, flags);
 }
 
-static always_inline void gen_load_mem (DisasContext *ctx,
-                                        void (*tcg_gen_qemu_load)(TCGv t0, TCGv t1, int flags),
-                                        int ra, int rb, int32_t disp16,
-                                        int fp, int clear)
+static inline void gen_load_mem(DisasContext *ctx,
+                                void (*tcg_gen_qemu_load)(TCGv t0, TCGv t1,
+                                                          int flags),
+                                int ra, int rb, int32_t disp16, int fp,
+                                int clear)
 {
     TCGv addr;
 
@@ -190,7 +190,7 @@ static always_inline void gen_load_mem (DisasContext *ctx,
     tcg_temp_free(addr);
 }
 
-static always_inline void gen_qemu_stf (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_stf(TCGv t0, TCGv t1, int flags)
 {
     TCGv_i32 tmp32 = tcg_temp_new_i32();
     TCGv tmp = tcg_temp_new();
@@ -201,7 +201,7 @@ static always_inline void gen_qemu_stf (TCGv t0, TCGv t1, int flags)
     tcg_temp_free_i32(tmp32);
 }
 
-static always_inline void gen_qemu_stg (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_stg(TCGv t0, TCGv t1, int flags)
 {
     TCGv tmp = tcg_temp_new();
     gen_helper_g_to_memory(tmp, t0);
@@ -209,7 +209,7 @@ static always_inline void gen_qemu_stg (TCGv t0, TCGv t1, int flags)
     tcg_temp_free(tmp);
 }
 
-static always_inline void gen_qemu_sts (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_sts(TCGv t0, TCGv t1, int flags)
 {
     TCGv_i32 tmp32 = tcg_temp_new_i32();
     TCGv tmp = tcg_temp_new();
@@ -220,7 +220,7 @@ static always_inline void gen_qemu_sts (TCGv t0, TCGv t1, int flags)
     tcg_temp_free_i32(tmp32);
 }
 
-static always_inline void gen_qemu_stl_c (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_stl_c(TCGv t0, TCGv t1, int flags)
 {
     int l1, l2;
 
@@ -236,7 +236,7 @@ static always_inline void gen_qemu_stl_c (TCGv t0, TCGv t1, int flags)
     tcg_gen_movi_i64(cpu_lock, -1);
 }
 
-static always_inline void gen_qemu_stq_c (TCGv t0, TCGv t1, int flags)
+static inline void gen_qemu_stq_c(TCGv t0, TCGv t1, int flags)
 {
     int l1, l2;
 
@@ -252,10 +252,11 @@ static always_inline void gen_qemu_stq_c (TCGv t0, TCGv t1, int flags)
     tcg_gen_movi_i64(cpu_lock, -1);
 }
 
-static always_inline void gen_store_mem (DisasContext *ctx,
-                                         void (*tcg_gen_qemu_store)(TCGv t0, TCGv t1, int flags),
-                                         int ra, int rb, int32_t disp16,
-                                         int fp, int clear, int local)
+static inline void gen_store_mem(DisasContext *ctx,
+                                 void (*tcg_gen_qemu_store)(TCGv t0, TCGv t1,
+                                                            int flags),
+                                 int ra, int rb, int32_t disp16, int fp,
+                                 int clear, int local)
 {
     TCGv addr;
     if (local)
@@ -288,9 +289,8 @@ static always_inline void gen_store_mem (DisasContext *ctx,
     tcg_temp_free(addr);
 }
 
-static always_inline void gen_bcond (DisasContext *ctx,
-                                     TCGCond cond,
-                                     int ra, int32_t disp, int mask)
+static inline void gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
+                             int32_t disp, int mask)
 {
     int l1, l2;
 
@@ -317,8 +317,8 @@ static always_inline void gen_bcond (DisasContext *ctx,
     gen_set_label(l2);
 }
 
-static always_inline void gen_fbcond (DisasContext *ctx, int opc,
-                                      int ra, int32_t disp16)
+static inline void gen_fbcond(DisasContext *ctx, int opc, int ra,
+                              int32_t disp16)
 {
     int l1, l2;
     TCGv tmp;
@@ -363,9 +363,8 @@ static always_inline void gen_fbcond (DisasContext *ctx, int opc,
     gen_set_label(l2);
 }
 
-static always_inline void gen_cmov (TCGCond inv_cond,
-                                    int ra, int rb, int rc,
-                                    int islit, uint8_t lit, int mask)
+static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
+                            int islit, uint8_t lit, int mask)
 {
     int l1;
 
@@ -397,7 +396,7 @@ static always_inline void gen_cmov (TCGCond inv_cond,
 }
 
 #define FARITH2(name)                                       \
-static always_inline void glue(gen_f, name)(int rb, int rc) \
+static inline void glue(gen_f, name)(int rb, int rc)        \
 {                                                           \
     if (unlikely(rc == 31))                                 \
       return;                                               \
@@ -429,7 +428,7 @@ FARITH2(cvtqlv)
 FARITH2(cvtqlsv)
 
 #define FARITH3(name)                                                     \
-static always_inline void glue(gen_f, name) (int ra, int rb, int rc)      \
+static inline void glue(gen_f, name)(int ra, int rb, int rc)              \
 {                                                                         \
     if (unlikely(rc == 31))                                               \
         return;                                                           \
@@ -480,7 +479,7 @@ FARITH3(cpysn)
 FARITH3(cpyse)
 
 #define FCMOV(name)                                                   \
-static always_inline void glue(gen_f, name) (int ra, int rb, int rc)  \
+static inline void glue(gen_f, name)(int ra, int rb, int rc)          \
 {                                                                     \
     int l1;                                                           \
     TCGv tmp;                                                         \
@@ -512,9 +511,8 @@ FCMOV(cmpfle)
 FCMOV(cmpfgt)
 
 /* EXTWH, EXTWH, EXTLH, EXTQH */
-static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
-                                    int ra, int rb, int rc,
-                                    int islit, uint8_t lit)
+static inline void gen_ext_h(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
+                             int ra, int rb, int rc, int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
@@ -543,9 +541,8 @@ static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
 }
 
 /* EXTBL, EXTWL, EXTWL, EXTLL, EXTQL */
-static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
-                                    int ra, int rb, int rc,
-                                    int islit, uint8_t lit)
+static inline void gen_ext_l(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
+                             int ra, int rb, int rc, int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
@@ -568,8 +565,8 @@ static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
 
 /* Code to call arith3 helpers */
 #define ARITH3(name)                                                  \
-static always_inline void glue(gen_, name) (int ra, int rb, int rc,   \
-                                            int islit, uint8_t lit)   \
+static inline void glue(gen_, name)(int ra, int rb, int rc, int islit,\
+                                    uint8_t lit)                      \
 {                                                                     \
     if (unlikely(rc == 31))                                           \
         return;                                                       \
@@ -617,9 +614,8 @@ ARITH3(umulh)
 ARITH3(mullv)
 ARITH3(mulqv)
 
-static always_inline void gen_cmp(TCGCond cond,
-                                  int ra, int rb, int rc,
-                                  int islit, uint8_t lit)
+static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
+                           uint8_t lit)
 {
     int l1, l2;
     TCGv tmp;
@@ -647,7 +643,7 @@ static always_inline void gen_cmp(TCGCond cond,
     gen_set_label(l2);
 }
 
-static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
+static inline int translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
@@ -2336,9 +2332,9 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-static always_inline void gen_intermediate_code_internal (CPUState *env,
-                                                          TranslationBlock *tb,
-                                                          int search_pc)
+static inline void gen_intermediate_code_internal(CPUState *env,
+                                                  TranslationBlock *tb,
+                                                  int search_pc)
 {
 #if defined ALPHA_DEBUG_DISAS
     static int insn_count;

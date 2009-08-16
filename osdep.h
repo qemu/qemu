@@ -48,12 +48,9 @@
 #endif
 
 #ifndef always_inline
-#if (__GNUC__ < 3) || defined(__APPLE__)
-#define always_inline inline
-#else
-#define always_inline __attribute__ (( always_inline )) __inline__
+#if !((__GNUC__ < 3) || defined(__APPLE__))
 #ifdef __OPTIMIZE__
-#define inline always_inline
+#define inline __attribute__ (( always_inline )) __inline__
 #endif
 #endif
 #else

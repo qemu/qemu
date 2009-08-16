@@ -239,7 +239,7 @@ void helper_store_601_batu (uint32_t nr, target_ulong val)
 /*****************************************************************************/
 /* Memory load and stores */
 
-static always_inline target_ulong addr_add(target_ulong addr, target_long arg)
+static inline target_ulong addr_add(target_ulong addr, target_long arg)
 {
 #if defined(TARGET_PPC64)
         if (!msr_sf)
@@ -532,7 +532,7 @@ uint32_t helper_float64_to_float32(uint64_t arg)
     return f.l;
 }
 
-static always_inline int isden (float64 d)
+static inline int isden(float64 d)
 {
     CPU_DoubleU u;
 
@@ -594,7 +594,7 @@ uint32_t helper_compute_fprf (uint64_t arg, uint32_t set_fprf)
 }
 
 /* Floating-point invalid operations exception */
-static always_inline uint64_t fload_invalid_op_excp (int op)
+static inline uint64_t fload_invalid_op_excp(int op)
 {
     uint64_t ret = 0;
     int ve;
@@ -675,7 +675,7 @@ static always_inline uint64_t fload_invalid_op_excp (int op)
     return ret;
 }
 
-static always_inline void float_zero_divide_excp (void)
+static inline void float_zero_divide_excp(void)
 {
     env->fpscr |= 1 << FPSCR_ZX;
     env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
@@ -691,7 +691,7 @@ static always_inline void float_zero_divide_excp (void)
     }
 }
 
-static always_inline void float_overflow_excp (void)
+static inline void float_overflow_excp(void)
 {
     env->fpscr |= 1 << FPSCR_OX;
     /* Update the floating-point exception summary */
@@ -709,7 +709,7 @@ static always_inline void float_overflow_excp (void)
     }
 }
 
-static always_inline void float_underflow_excp (void)
+static inline void float_underflow_excp(void)
 {
     env->fpscr |= 1 << FPSCR_UX;
     /* Update the floating-point exception summary */
@@ -724,7 +724,7 @@ static always_inline void float_underflow_excp (void)
     }
 }
 
-static always_inline void float_inexact_excp (void)
+static inline void float_inexact_excp(void)
 {
     env->fpscr |= 1 << FPSCR_XX;
     /* Update the floating-point exception summary */
@@ -738,7 +738,7 @@ static always_inline void float_inexact_excp (void)
     }
 }
 
-static always_inline void fpscr_set_rounding_mode (void)
+static inline void fpscr_set_rounding_mode(void)
 {
     int rnd_type;
 
@@ -1199,7 +1199,7 @@ uint64_t helper_fctidz (uint64_t arg)
 
 #endif
 
-static always_inline uint64_t do_fri (uint64_t arg, int rounding_mode)
+static inline uint64_t do_fri(uint64_t arg, int rounding_mode)
 {
     CPU_DoubleU farg;
     farg.ll = arg;
@@ -1614,8 +1614,8 @@ void helper_store_msr (target_ulong val)
     }
 }
 
-static always_inline void do_rfi (target_ulong nip, target_ulong msr,
-                                    target_ulong msrm, int keep_msrh)
+static inline void do_rfi(target_ulong nip, target_ulong msr,
+                          target_ulong msrm, int keep_msrh)
 {
 #if defined(TARGET_PPC64)
     if (msr & (1ULL << MSR_SF)) {
@@ -1956,7 +1956,7 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
 
 /* Saturating arithmetic helpers.  */
 #define SATCVT(from, to, from_type, to_type, min, max, use_min, use_max) \
-    static always_inline to_type cvt##from##to (from_type x, int *sat)  \
+    static inline to_type cvt##from##to(from_type x, int *sat)          \
     {                                                                   \
         to_type r;                                                      \
         if (use_min && x < min) {                                       \
@@ -1975,7 +1975,7 @@ SATCVT(sw, sh, int32_t, int16_t, INT16_MIN, INT16_MAX, 1, 1)
 SATCVT(sd, sw, int64_t, int32_t, INT32_MIN, INT32_MAX, 1, 1)
 
 /* Work around gcc problems with the macro version */
-static always_inline uint8_t cvtuhub(uint16_t x, int *sat)
+static inline uint8_t cvtuhub(uint16_t x, int *sat)
 {
     uint8_t r;
 
@@ -2243,8 +2243,8 @@ VCMPFP(gtfp, ==, float_relation_greater)
 #undef VCMPFP_DO
 #undef VCMPFP
 
-static always_inline void vcmpbfp_internal (ppc_avr_t *r, ppc_avr_t *a,
-                                            ppc_avr_t *b, int record)
+static inline void vcmpbfp_internal(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
+                                    int record)
 {
     int i;
     int all_in = 0;
@@ -3063,12 +3063,12 @@ static uint8_t hbrev[16] = {
     0x1, 0x9, 0x5, 0xD, 0x3, 0xB, 0x7, 0xF,
 };
 
-static always_inline uint8_t byte_reverse (uint8_t val)
+static inline uint8_t byte_reverse(uint8_t val)
 {
     return hbrev[val >> 4] | (hbrev[val & 0xF] << 4);
 }
 
-static always_inline uint32_t word_reverse (uint32_t val)
+static inline uint32_t word_reverse(uint32_t val)
 {
     return byte_reverse(val >> 24) | (byte_reverse(val >> 16) << 8) |
         (byte_reverse(val >> 8) << 16) | (byte_reverse(val) << 24);
@@ -3100,7 +3100,7 @@ uint32_t helper_cntlzw32 (uint32_t val)
 }
 
 /* Single-precision floating-point conversions */
-static always_inline uint32_t efscfsi (uint32_t val)
+static inline uint32_t efscfsi(uint32_t val)
 {
     CPU_FloatU u;
 
@@ -3109,7 +3109,7 @@ static always_inline uint32_t efscfsi (uint32_t val)
     return u.l;
 }
 
-static always_inline uint32_t efscfui (uint32_t val)
+static inline uint32_t efscfui(uint32_t val)
 {
     CPU_FloatU u;
 
@@ -3118,7 +3118,7 @@ static always_inline uint32_t efscfui (uint32_t val)
     return u.l;
 }
 
-static always_inline int32_t efsctsi (uint32_t val)
+static inline int32_t efsctsi(uint32_t val)
 {
     CPU_FloatU u;
 
@@ -3130,7 +3130,7 @@ static always_inline int32_t efsctsi (uint32_t val)
     return float32_to_int32(u.f, &env->vec_status);
 }
 
-static always_inline uint32_t efsctui (uint32_t val)
+static inline uint32_t efsctui(uint32_t val)
 {
     CPU_FloatU u;
 
@@ -3142,7 +3142,7 @@ static always_inline uint32_t efsctui (uint32_t val)
     return float32_to_uint32(u.f, &env->vec_status);
 }
 
-static always_inline uint32_t efsctsiz (uint32_t val)
+static inline uint32_t efsctsiz(uint32_t val)
 {
     CPU_FloatU u;
 
@@ -3154,7 +3154,7 @@ static always_inline uint32_t efsctsiz (uint32_t val)
     return float32_to_int32_round_to_zero(u.f, &env->vec_status);
 }
 
-static always_inline uint32_t efsctuiz (uint32_t val)
+static inline uint32_t efsctuiz(uint32_t val)
 {
     CPU_FloatU u;
 
@@ -3166,7 +3166,7 @@ static always_inline uint32_t efsctuiz (uint32_t val)
     return float32_to_uint32_round_to_zero(u.f, &env->vec_status);
 }
 
-static always_inline uint32_t efscfsf (uint32_t val)
+static inline uint32_t efscfsf(uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -3178,7 +3178,7 @@ static always_inline uint32_t efscfsf (uint32_t val)
     return u.l;
 }
 
-static always_inline uint32_t efscfuf (uint32_t val)
+static inline uint32_t efscfuf(uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -3190,7 +3190,7 @@ static always_inline uint32_t efscfuf (uint32_t val)
     return u.l;
 }
 
-static always_inline uint32_t efsctsf (uint32_t val)
+static inline uint32_t efsctsf(uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -3205,7 +3205,7 @@ static always_inline uint32_t efsctsf (uint32_t val)
     return float32_to_int32(u.f, &env->vec_status);
 }
 
-static always_inline uint32_t efsctuf (uint32_t val)
+static inline uint32_t efsctuf(uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -3274,7 +3274,7 @@ HELPER_SPE_VECTOR_CONV(fsctsf);
 HELPER_SPE_VECTOR_CONV(fsctuf);
 
 /* Single-precision floating-point arithmetic */
-static always_inline uint32_t efsadd (uint32_t op1, uint32_t op2)
+static inline uint32_t efsadd(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3283,7 +3283,7 @@ static always_inline uint32_t efsadd (uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-static always_inline uint32_t efssub (uint32_t op1, uint32_t op2)
+static inline uint32_t efssub(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3292,7 +3292,7 @@ static always_inline uint32_t efssub (uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-static always_inline uint32_t efsmul (uint32_t op1, uint32_t op2)
+static inline uint32_t efsmul(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3301,7 +3301,7 @@ static always_inline uint32_t efsmul (uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-static always_inline uint32_t efsdiv (uint32_t op1, uint32_t op2)
+static inline uint32_t efsdiv(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3340,7 +3340,7 @@ HELPER_SPE_VECTOR_ARITH(fsmul);
 HELPER_SPE_VECTOR_ARITH(fsdiv);
 
 /* Single-precision floating-point comparisons */
-static always_inline uint32_t efststlt (uint32_t op1, uint32_t op2)
+static inline uint32_t efststlt(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3348,7 +3348,7 @@ static always_inline uint32_t efststlt (uint32_t op1, uint32_t op2)
     return float32_lt(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static always_inline uint32_t efststgt (uint32_t op1, uint32_t op2)
+static inline uint32_t efststgt(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3356,7 +3356,7 @@ static always_inline uint32_t efststgt (uint32_t op1, uint32_t op2)
     return float32_le(u1.f, u2.f, &env->vec_status) ? 0 : 4;
 }
 
-static always_inline uint32_t efststeq (uint32_t op1, uint32_t op2)
+static inline uint32_t efststeq(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3364,19 +3364,19 @@ static always_inline uint32_t efststeq (uint32_t op1, uint32_t op2)
     return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static always_inline uint32_t efscmplt (uint32_t op1, uint32_t op2)
+static inline uint32_t efscmplt(uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return efststlt(op1, op2);
 }
 
-static always_inline uint32_t efscmpgt (uint32_t op1, uint32_t op2)
+static inline uint32_t efscmpgt(uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return efststgt(op1, op2);
 }
 
-static always_inline uint32_t efscmpeq (uint32_t op1, uint32_t op2)
+static inline uint32_t efscmpeq(uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return efststeq(op1, op2);
@@ -3400,7 +3400,7 @@ HELPER_SINGLE_SPE_CMP(fscmpgt);
 /* efscmpeq */
 HELPER_SINGLE_SPE_CMP(fscmpeq);
 
-static always_inline uint32_t evcmp_merge (int t0, int t1)
+static inline uint32_t evcmp_merge(int t0, int t1)
 {
     return (t0 << 3) | (t1 << 2) | ((t0 | t1) << 1) | (t0 & t1);
 }
@@ -3850,12 +3850,12 @@ void helper_74xx_tlbi (target_ulong EPN)
     do_74xx_tlb(EPN, 1);
 }
 
-static always_inline target_ulong booke_tlb_to_page_size (int size)
+static inline target_ulong booke_tlb_to_page_size(int size)
 {
     return 1024 << (2 * size);
 }
 
-static always_inline int booke_page_size_to_tlb (target_ulong page_size)
+static inline int booke_page_size_to_tlb(target_ulong page_size)
 {
     int size;
 

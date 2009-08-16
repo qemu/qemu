@@ -115,7 +115,7 @@ static void _PPC_intack_write (void *opaque,
 //    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
 }
 
-static always_inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
+static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
@@ -426,9 +426,8 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
-static always_inline target_phys_addr_t prep_IO_address (sysctrl_t *sysctrl,
-                                                         target_phys_addr_t
-                                                         addr)
+static inline target_phys_addr_t prep_IO_address(sysctrl_t *sysctrl,
+                                                 target_phys_addr_t addr)
 {
     if (sysctrl->contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
