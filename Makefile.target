@@ -35,7 +35,7 @@ all: $(PROGS)
 
 #########################################################
 # cpu emulator library
-libobj-y = exec.o translate-all.o cpu-exec.o translate.o host-utils.o
+libobj-y = exec.o translate-all.o cpu-exec.o translate.o
 libobj-$(CONFIG_KQEMU) += kqemu.o
 libobj-y += tcg/tcg.o tcg/tcg-runtime.o
 libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
