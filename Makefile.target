@@ -94,9 +94,7 @@ obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
 obj-$(TARGET_I386) += vm86.o
 
-ifeq ($(TARGET_BASE_ARCH), i386)
-obj-y += ioport-user.o
-endif
+obj-i386-y += ioport-user.o
 
 nwfpe-obj-y = fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
 nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
@@ -124,9 +122,7 @@ LIBS+=-lmx
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
         gdbstub.o gdbstub-xml.o
 
-ifeq ($(TARGET_BASE_ARCH), i386)
-obj-y += ioport-user.o
-endif
+obj-i386-y += ioport-user.o
 
 ARLIBS=libqemu.a
 
@@ -143,9 +139,7 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o uaccess.o
 
-ifeq ($(TARGET_BASE_ARCH), i386)
-obj-y += ioport-user.o
-endif
+obj-i386-y += ioport-user.o
 
 ARLIBS=libqemu.a ../libqemu_user.a
 
