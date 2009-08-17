@@ -936,8 +936,11 @@ static const VMStateDescription vmstate_apic = {
 static void apic_reset(void *opaque)
 {
     APICState *s = opaque;
-    int bsp = cpu_is_bsp(s->cpu_env);
+    int bsp;
 
+    cpu_synchronize_state(s->cpu_env);
+
+    bsp = cpu_is_bsp(s->cpu_env);
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
@@ -952,8 +955,6 @@ static void apic_reset(void *opaque)
          */
         s->lvt[APIC_LVT_LINT0] = 0x700;
     }
-
-    cpu_synchronize_state(s->cpu_env, 1);
 }
 
 static CPUReadMemoryFunc * const apic_mem_read[3] = {

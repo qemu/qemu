@@ -57,6 +57,7 @@ struct KVMState
     KVMSlot slots[32];
     int fd;
     int vmfd;
+    int regs_modified;
     int coalesced_mmio;
     int broken_set_mem_region;
     int migration_log;
@@ -576,6 +577,14 @@ static void kvm_run_coalesced_mmio(CPUState *env, struct kvm_run *run)
 #endif
 }
 
+void kvm_cpu_synchronize_state(CPUState *env)
+{
+    if (!env->kvm_state->regs_modified) {
+        kvm_arch_get_registers(env);
+        env->kvm_state->regs_modified = 1;
+    }
+}
+
 int kvm_cpu_exec(CPUState *env)
 {
     struct kvm_run *run = env->kvm_run;
@@ -588,6 +597,11 @@ int kvm_cpu_exec(CPUState *env)
             dprintf("interrupt exit requested\n");
             ret = 0;
             break;
+        }
+
+        if (env->kvm_state->regs_modified) {
+            kvm_arch_put_registers(env);
+            env->kvm_state->regs_modified = 0;
         }
 
         kvm_arch_pre_run(env, run);

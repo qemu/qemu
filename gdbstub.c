@@ -1568,8 +1568,8 @@ static void gdb_breakpoint_remove_all(void)
 static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 {
 #if defined(TARGET_I386)
+    cpu_synchronize_state(s->c_cpu);
     s->c_cpu->eip = pc;
-    cpu_synchronize_state(s->c_cpu, 1);
 #elif defined (TARGET_PPC)
     s->c_cpu->nip = pc;
 #elif defined (TARGET_SPARC)
@@ -1755,7 +1755,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         break;
     case 'g':
-        cpu_synchronize_state(s->g_cpu, 0);
+        cpu_synchronize_state(s->g_cpu);
         len = 0;
         for (addr = 0; addr < num_g_regs; addr++) {
             reg_size = gdb_read_register(s->g_cpu, mem_buf + len, addr);
@@ -1765,6 +1765,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         put_packet(s, buf);
         break;
     case 'G':
+        cpu_synchronize_state(s->g_cpu);
         registers = mem_buf;
         len = strlen(p) / 2;
         hextomem((uint8_t *)registers, p, len);
@@ -1773,7 +1774,6 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             len -= reg_size;
             registers += reg_size;
         }
-        cpu_synchronize_state(s->g_cpu, 1);
         put_packet(s, "OK");
         break;
     case 'm':
@@ -1929,7 +1929,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             thread = strtoull(p+16, (char **)&p, 16);
             env = find_cpu(thread);
             if (env != NULL) {
-                cpu_synchronize_state(env, 0);
+                cpu_synchronize_state(env);
                 len = snprintf((char *)mem_buf, sizeof(mem_buf),
                                "CPU#%d [%s]", env->cpu_index,
                                env->halted ? "halted " : "running");

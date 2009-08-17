@@ -128,16 +128,14 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
 
 uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
                                       int reg);
+void kvm_cpu_synchronize_state(CPUState *env);
 
 /* generic hooks - to be moved/refactored once there are more users */
 
-static inline void cpu_synchronize_state(CPUState *env, int modified)
+static inline void cpu_synchronize_state(CPUState *env)
 {
     if (kvm_enabled()) {
-        if (modified)
-            kvm_arch_put_registers(env);
-        else
-            kvm_arch_get_registers(env);
+        kvm_cpu_synchronize_state(env);
     }
 }
 
