@@ -73,7 +73,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 # CPUs and machines.
 
 obj-y = $(block-obj-y)
-obj-y += readline.o console.o
+obj-y += readline.o console.o host-utils.o
 
 obj-y += irq.o ptimer.o
 obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
