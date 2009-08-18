@@ -285,6 +285,34 @@ int qemu_stdio_fd(QEMUFile *f)
     return fd;
 }
 
+QEMUFile *qemu_fdopen(int fd, const char *mode)
+{
+    QEMUFileStdio *s;
+
+    if (mode == NULL ||
+	(mode[0] != 'r' && mode[0] != 'w') ||
+	mode[1] != 'b' || mode[2] != 0) {
+        fprintf(stderr, "qemu_fdopen: Argument validity check failed\n");
+        return NULL;
+    }
+
+    s = qemu_mallocz(sizeof(QEMUFileStdio));
+    s->stdio_file = fdopen(fd, mode);
+    if (!s->stdio_file)
+        goto fail;
+
+    if(mode[0] == 'r') {
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_fclose, NULL, NULL);
+    } else {
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_fclose, NULL, NULL);
+    }
+    return s->file;
+
+fail:
+    qemu_free(s);
+    return NULL;
+}
+
 QEMUFile *qemu_fopen_socket(int fd)
 {
     QEMUFileSocket *s = qemu_mallocz(sizeof(QEMUFileSocket));

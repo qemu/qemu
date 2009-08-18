@@ -79,6 +79,13 @@ MigrationState *unix_start_outgoing_migration(const char *path,
 					      int64_t bandwidth_limit,
 					      int detach);
 
+int fd_start_incoming_migration(const char *path);
+
+MigrationState *fd_start_outgoing_migration(Monitor *mon,
+					    const char *fdname,
+					    int64_t bandwidth_limit,
+					    int detach);
+
 void migrate_fd_monitor_suspend(FdMigrationState *s);
 
 void migrate_fd_error(FdMigrationState *s);
