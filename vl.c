@@ -217,6 +217,8 @@ int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
 int max_cpus = 0;
+int smp_cores = 1;
+int smp_threads = 1;
 const char *vnc_display;
 int acpi_enabled = 1;
 int no_hpet = 0;
@@ -2356,6 +2358,56 @@ static void numa_add(const char *optarg)
     return;
 }
 
+static void smp_parse(const char *optarg)
+{
+    int smp, sockets = 0, threads = 0, cores = 0;
+    char *endptr;
+    char option[128];
+
+    smp = strtoul(optarg, &endptr, 10);
+    if (endptr != optarg) {
+        if (*endptr == ',') {
+            endptr++;
+        }
+    }
+    if (get_param_value(option, 128, "sockets", endptr) != 0)
+        sockets = strtoull(option, NULL, 10);
+    if (get_param_value(option, 128, "cores", endptr) != 0)
+        cores = strtoull(option, NULL, 10);
+    if (get_param_value(option, 128, "threads", endptr) != 0)
+        threads = strtoull(option, NULL, 10);
+    if (get_param_value(option, 128, "maxcpus", endptr) != 0)
+        max_cpus = strtoull(option, NULL, 10);
+
+    /* compute missing values, prefer sockets over cores over threads */
+    if (smp == 0 || sockets == 0) {
+        sockets = sockets > 0 ? sockets : 1;
+        cores = cores > 0 ? cores : 1;
+        threads = threads > 0 ? threads : 1;
+        if (smp == 0) {
+            smp = cores * threads * sockets;
+        } else {
+            sockets = smp / (cores * threads);
+        }
+    } else {
+        if (cores == 0) {
+            threads = threads > 0 ? threads : 1;
+            cores = smp / (sockets * threads);
+        } else {
+            if (sockets == 0) {
+                sockets = smp / (cores * threads);
+            } else {
+                threads = smp / (cores * sockets);
+            }
+        }
+    }
+    smp_cpus = smp;
+    smp_cores = cores > 0 ? cores : 1;
+    smp_threads = threads > 0 ? threads : 1;
+    if (max_cpus == 0)
+        max_cpus = smp_cpus;
+}
+
 /***********************************************************/
 /* USB devices */
 
@@ -3565,6 +3617,8 @@ void qemu_init_vcpu(void *_env)
 
     if (kvm_enabled())
         kvm_init_vcpu(env);
+    env->nr_cores = smp_cores;
+    env->nr_threads = smp_threads;
     return;
 }
 
@@ -3888,6 +3942,8 @@ void qemu_init_vcpu(void *_env)
         kvm_start_vcpu(env);
     else
         tcg_init_vcpu(env);
+    env->nr_cores = smp_cores;
+    env->nr_threads = smp_threads;
 }
 
 void qemu_notify_event(void)
@@ -5374,18 +5430,11 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_smp:
-            {
-                char *p;
-                char option[128];
-                smp_cpus = strtol(optarg, &p, 10);
+                smp_parse(optarg);
                 if (smp_cpus < 1) {
                     fprintf(stderr, "Invalid number of CPUs\n");
                     exit(1);
                 }
-                if (*p++ != ',')
-                    break;
-                if (get_param_value(option, 128, "maxcpus", p))
-                    max_cpus = strtol(option, NULL, 0);
                 if (max_cpus < smp_cpus) {
                     fprintf(stderr, "maxcpus must be equal to or greater than "
                             "smp\n");
@@ -5396,7 +5445,6 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-            }
 	    case QEMU_OPTION_vnc:
                 display_type = DT_VNC;
 		vnc_display = optarg;
