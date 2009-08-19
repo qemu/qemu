@@ -119,7 +119,7 @@ static x86_def_t x86_defs[] = {
 #ifdef TARGET_X86_64
     {
         .name = "qemu64",
-        .level = 2,
+        .level = 4,
         .vendor1 = CPUID_VENDOR_AMD_1,
         .vendor2 = CPUID_VENDOR_AMD_2,
         .vendor3 = CPUID_VENDOR_AMD_3,
@@ -190,7 +190,7 @@ static x86_def_t x86_defs[] = {
 #endif
     {
         .name = "qemu32",
-        .level = 2,
+        .level = 4,
         .family = 6,
         .model = 3,
         .stepping = 3,
