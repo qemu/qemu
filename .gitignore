@@ -43,4 +43,5 @@ patches
 pc-bios/bios-pq/status
 pc-bios/vgabios-pq/status
 pc-bios/optionrom/multiboot.bin
+pc-bios/optionrom/multiboot.raw
 .stgit-*
