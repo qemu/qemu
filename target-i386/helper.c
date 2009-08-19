@@ -1627,6 +1627,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = (env->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         *ecx = env->cpuid_ext_features;
         *edx = env->cpuid_features;
+        if (env->nr_cores * env->nr_threads > 1) {
+            *ebx |= (env->nr_cores * env->nr_threads) << 16;
+            *edx |= 1 << 28;    /* HTT bit */
+        }
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
@@ -1637,21 +1641,29 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 4:
         /* cache info: needed for Core compatibility */
+        if (env->nr_cores > 1) {
+        	*eax = (env->nr_cores - 1) << 26;
+        } else {
+        	*eax = 0;
+        }
         switch (count) {
             case 0: /* L1 dcache info */
-                *eax = 0x0000121;
+                *eax |= 0x0000121;
                 *ebx = 0x1c0003f;
                 *ecx = 0x000003f;
                 *edx = 0x0000001;
                 break;
             case 1: /* L1 icache info */
-                *eax = 0x0000122;
+                *eax |= 0x0000122;
                 *ebx = 0x1c0003f;
                 *ecx = 0x000003f;
                 *edx = 0x0000001;
                 break;
             case 2: /* L2 cache info */
-                *eax = 0x0000143;
+                *eax |= 0x0000143;
+                if (env->nr_threads > 1) {
+                    *eax |= (env->nr_threads - 1) << 14;
+                }
                 *ebx = 0x3c0003f;
                 *ecx = 0x0000fff;
                 *edx = 0x0000001;
@@ -1704,6 +1716,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = env->cpuid_ext3_features;
         *edx = env->cpuid_ext2_features;
 
+        if (env->nr_cores * env->nr_threads > 1 &&
+            env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
+            env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
+            env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
+            *ecx |= 1 << 1;    /* CmpLegacy bit */
+        }
+
         if (kvm_enabled()) {
             /* Nested SVM not yet supported in KVM */
             *ecx &= ~CPUID_EXT3_SVM;
@@ -1750,6 +1769,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
+        if (env->nr_cores * env->nr_threads > 1) {
+            *ecx |= (env->nr_cores * env->nr_threads) - 1;
+        }
         break;
     case 0x8000000A:
         *eax = 0x00000001; /* SVM Revision */
