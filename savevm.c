@@ -848,6 +848,27 @@ const VMStateInfo vmstate_info_timer = {
     .put  = put_timer,
 };
 
+/* uint8_t buffers */
+
+static int get_buffer(QEMUFile *f, void *pv, size_t size)
+{
+    uint8_t *v = pv;
+    qemu_get_buffer(f, v, size);
+    return 0;
+}
+
+static void put_buffer(QEMUFile *f, const void *pv, size_t size)
+{
+    uint8_t *v = (void *)pv;
+    qemu_put_buffer(f, v, size);
+}
+
+const VMStateInfo vmstate_info_buffer = {
+    .name = "buffer",
+    .get  = get_buffer,
+    .put  = put_buffer,
+};
+
 typedef struct SaveStateEntry {
     char idstr[256];
     int instance_id;

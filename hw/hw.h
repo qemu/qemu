@@ -285,6 +285,7 @@ enum VMStateFlags {
     VMS_ARRAY   = 0x004,
     VMS_STRUCT  = 0x008,
     VMS_VARRAY  = 0x010,  /* Array with size in another field */
+    VMS_BUFFER  = 0x020,  /* static sized buffer */
 };
 
 typedef struct {
@@ -321,6 +322,7 @@ extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
 
 extern const VMStateInfo vmstate_info_timer;
+extern const VMStateInfo vmstate_info_buffer;
 
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
 #define type_check_pointer(t1,t2) ((t1**)0 - (t2*)0)
@@ -387,6 +389,16 @@ extern const VMStateInfo vmstate_info_timer;
     .flags      = VMS_STRUCT|VMS_ARRAY,                              \
     .offset     = offsetof(_state, _field)                           \
         + type_check_array(_type,typeof_field(_state, _field),_num)  \
+}
+
+#define VMSTATE_STATIC_BUFFER(_field, _state, _version) {            \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .size       = sizeof(typeof_field(_state,_field)),               \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = offsetof(_state, _field)                           \
+        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
 }
 
 /* _f : field name
@@ -458,6 +470,12 @@ extern const VMStateInfo vmstate_info_timer;
 
 #define VMSTATE_INT32_VARRAY(_f, _s, _f_n)                            \
     VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, 0)
+
+#define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
+    VMSTATE_STATIC_BUFFER(_f, _s, _v)
+
+#define VMSTATE_BUFFER(_f, _s)                                        \
+    VMSTATE_STATIC_BUFFER(_f, _s, 0)
 
 #define VMSTATE_END_OF_LIST()                                         \
     {}
