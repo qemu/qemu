@@ -144,7 +144,7 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
 {
     int i;
 
-    qemu_put_be32(f, 2); /* PCI device version */
+    qemu_put_be32(f, s->version_id); /* PCI device version */
     qemu_put_buffer(f, s->config, 256);
     for (i = 0; i < 4; i++)
         qemu_put_be32(f, s->irq_state[i]);
@@ -319,6 +319,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->config_write = config_write;
     bus->devices[devfn] = pci_dev;
     pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, 4);
+    pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
 }
 

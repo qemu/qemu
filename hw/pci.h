@@ -209,6 +209,8 @@ struct PCIDevice {
     unsigned *msix_entry_used;
     /* Region including the MSI-X table */
     uint32_t msix_bar_size;
+    /* Version id needed for VMState */
+    int32_t version_id;
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
