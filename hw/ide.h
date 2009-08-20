@@ -19,4 +19,9 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
 		   void *dbdma, int channel, qemu_irq dma_irq);
 
+/* ide-mmio.c */
+void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
+                    qemu_irq irq, int shift,
+                    BlockDriverState *hd0, BlockDriverState *hd1);
+
 #endif /* HW_IDE_H */
