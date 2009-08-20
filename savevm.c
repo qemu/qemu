@@ -807,6 +807,27 @@ const VMStateInfo vmstate_info_uint64 = {
     .put  = put_uint64,
 };
 
+/* timers  */
+
+static int get_timer(QEMUFile *f, void *pv, size_t size)
+{
+    QEMUTimer *v = pv;
+    qemu_get_timer(f, v);
+    return 0;
+}
+
+static void put_timer(QEMUFile *f, const void *pv, size_t size)
+{
+    QEMUTimer *v = (void *)pv;
+    qemu_put_timer(f, v);
+}
+
+const VMStateInfo vmstate_info_timer = {
+    .name = "timer",
+    .get  = get_timer,
+    .put  = put_timer,
+};
+
 typedef struct SaveStateEntry {
     char idstr[256];
     int instance_id;
@@ -954,6 +975,9 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             void *addr = opaque + field->offset;
             int ret;
 
+            if (field->flags & VMS_POINTER) {
+                addr = *(void **)addr;
+            }
             ret = field->info->get(f, addr, field->size);
             if (ret < 0) {
                 return ret;
@@ -971,6 +995,10 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 
     while(field->name) {
         const void *addr = opaque + field->offset;
+
+        if (field->flags & VMS_POINTER) {
+            addr = *(void **)addr;
+        }
         field->info->put(f, addr, field->size);
         field++;
     }
