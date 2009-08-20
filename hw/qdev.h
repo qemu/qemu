@@ -163,9 +163,6 @@ extern PropertyInfo qdev_prop_macaddr;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_pci_devfn;
 
-#define typeof_field(type, field) typeof(((type *)0)->field)
-#define type_check(t1,t2) ((t1*)0 - (t2*)0)
-
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \
         .info      = &(_prop),                                   \
