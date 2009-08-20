@@ -20,7 +20,7 @@
 typedef struct VirtIOConsole
 {
     VirtIODevice vdev;
-    VirtQueue *ivq, *dvq;
+    VirtQueue *ivq, *ovq;
     CharDriverState *chr;
 } VirtIOConsole;
 
@@ -132,7 +132,7 @@ VirtIODevice *virtio_console_init(DeviceState *dev)
     s->vdev.get_features = virtio_console_get_features;
 
     s->ivq = virtio_add_queue(&s->vdev, 128, virtio_console_handle_input);
-    s->dvq = virtio_add_queue(&s->vdev, 128, virtio_console_handle_output);
+    s->ovq = virtio_add_queue(&s->vdev, 128, virtio_console_handle_output);
 
     s->chr = qdev_init_chardev(dev);
     qemu_chr_add_handlers(s->chr, vcon_can_read, vcon_read, vcon_event, s);
