@@ -38,6 +38,7 @@
 #include "boards.h"
 #include "qemu-log.h"
 #include "mips-bios.h"
+#include "ide.h"
 
 //#define DEBUG_BOARD_INIT
 

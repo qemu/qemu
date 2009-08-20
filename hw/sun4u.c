@@ -33,6 +33,7 @@
 #include "firmware_abi.h"
 #include "fw_cfg.h"
 #include "sysbus.h"
+#include "ide.h"
 
 //#define DEBUG_IRQ
 

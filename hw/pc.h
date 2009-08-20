@@ -143,14 +143,6 @@ int isa_vga_mm_init(target_phys_addr_t vram_base,
 void pci_cirrus_vga_init(PCIBus *bus);
 void isa_cirrus_vga_init(void);
 
-/* ide.c */
-void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
-                         int secondary_ide_enabled);
-void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
-                        qemu_irq *pic);
-void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
-                        qemu_irq *pic);
-
 /* ne2000.c */
 
 void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd);
