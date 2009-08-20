@@ -361,6 +361,17 @@ extern const VMStateInfo vmstate_info_timer;
             + type_check(_type,typeof_field(_state, _field))         \
 }
 
+#define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) { \
+    .name       = (stringify(_field)),                               \
+    .num        = (_num),                                            \
+    .version_id = (_version),                                        \
+    .vmsd       = &(_vmsd),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_STRUCT|VMS_ARRAY,                              \
+    .offset     = offsetof(_state, _field)                           \
+        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+}
+
 /* _f : field name
    _n : num of elements
    _s : struct state name
