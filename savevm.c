@@ -984,7 +984,12 @@ int qemu_loadvm_state(QEMUFile *f)
             le->next = first_le;
             first_le = le;
 
-            le->se->load_state(f, le->se->opaque, le->version_id);
+            ret = le->se->load_state(f, le->se->opaque, le->version_id);
+            if (ret < 0) {
+                fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
+                        instance_id, idstr);
+                goto out;
+            }
             break;
         case QEMU_VM_SECTION_PART:
         case QEMU_VM_SECTION_END:
@@ -997,7 +1002,12 @@ int qemu_loadvm_state(QEMUFile *f)
                 goto out;
             }
 
-            le->se->load_state(f, le->se->opaque, le->version_id);
+            ret = le->se->load_state(f, le->se->opaque, le->version_id);
+            if (ret < 0) {
+                fprintf(stderr, "qemu: warning: error while loading state section id %d\n",
+                        section_id);
+                goto out;
+            }
             break;
         default:
             fprintf(stderr, "Unknown savevm section type %d\n", section_type);
