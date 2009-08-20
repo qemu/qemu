@@ -349,7 +349,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     char *featurestr, *name = strtok(s, ",");
     uint32_t plus_features = 0, plus_ext_features = 0, plus_ext2_features = 0, plus_ext3_features = 0;
     uint32_t minus_features = 0, minus_ext_features = 0, minus_ext2_features = 0, minus_ext3_features = 0;
-    int family = -1, model = -1, stepping = -1;
+    uint32_t numvalue;
 
     def = NULL;
     for (i = 0; i < ARRAY_SIZE(x86_defs); i++) {
@@ -381,28 +381,47 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
             *val = 0; val++;
             if (!strcmp(featurestr, "family")) {
                 char *err;
-                family = strtol(val, &err, 10);
-                if (!*val || *err || family < 0) {
+                numvalue = strtoul(val, &err, 0);
+                if (!*val || *err) {
                     fprintf(stderr, "bad numerical value %s\n", val);
                     goto error;
                 }
-                x86_cpu_def->family = family;
+                x86_cpu_def->family = numvalue;
             } else if (!strcmp(featurestr, "model")) {
                 char *err;
-                model = strtol(val, &err, 10);
-                if (!*val || *err || model < 0 || model > 0xff) {
+                numvalue = strtoul(val, &err, 0);
+                if (!*val || *err || numvalue > 0xff) {
                     fprintf(stderr, "bad numerical value %s\n", val);
                     goto error;
                 }
-                x86_cpu_def->model = model;
+                x86_cpu_def->model = numvalue;
             } else if (!strcmp(featurestr, "stepping")) {
                 char *err;
-                stepping = strtol(val, &err, 10);
-                if (!*val || *err || stepping < 0 || stepping > 0xf) {
+                numvalue = strtoul(val, &err, 0);
+                if (!*val || *err || numvalue > 0xf) {
                     fprintf(stderr, "bad numerical value %s\n", val);
                     goto error;
                 }
-                x86_cpu_def->stepping = stepping;
+                x86_cpu_def->stepping = numvalue ;
+            } else if (!strcmp(featurestr, "level")) {
+                char *err;
+                numvalue = strtoul(val, &err, 0);
+                if (!*val || *err) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    goto error;
+                }
+                x86_cpu_def->level = numvalue;
+            } else if (!strcmp(featurestr, "xlevel")) {
+                char *err;
+                numvalue = strtoul(val, &err, 0);
+                if (!*val || *err) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    goto error;
+                }
+                if (numvalue < 0x80000000) {
+                	numvalue += 0x80000000;
+                }
+                x86_cpu_def->xlevel = numvalue;
             } else if (!strcmp(featurestr, "vendor")) {
                 if (strlen(val) != 12) {
                     fprintf(stderr, "vendor string must be 12 chars long\n");
