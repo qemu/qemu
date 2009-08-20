@@ -36,6 +36,10 @@
 #include "sh.h"
 #include "dma.h"
 
+typedef struct IDEBus IDEBus;
+typedef struct IDEState IDEState;
+typedef struct BMDMAState BMDMAState;
+
 /* debug IDE devices */
 //#define DEBUG_IDE
 //#define DEBUG_IDE_ATAPI
@@ -394,12 +398,12 @@ static int smart_attributes[][5] = {
 
 
 
-struct IDEState;
-
-typedef void EndTransferFunc(struct IDEState *);
+typedef void EndTransferFunc(IDEState *);
 
 /* NOTE: IDEState represents in fact one drive */
-typedef struct IDEState {
+struct IDEState {
+    IDEBus *bus;
+    uint8_t unit;
     /* ide config */
     int is_cdrom;
     int is_cf;
@@ -409,8 +413,6 @@ typedef struct IDEState {
     int identify_set;
     uint16_t identify_data[256];
     qemu_irq irq;
-    PCIDevice *pci_dev;
-    struct BMDMAState *bmdma;
     int drive_serial;
     char drive_serial_str[21];
     /* ide regs */
@@ -434,8 +436,6 @@ typedef struct IDEState {
     uint8_t cmd;
     /* set for lba48 access */
     uint8_t lba48;
-    /* depends on bit 4 in select, only meaningful for drive 0 */
-    struct IDEState *cur_drive;
     BlockDriverState *bs;
     /* ATAPI specific */
     uint8_t sense_key;
@@ -472,8 +472,14 @@ typedef struct IDEState {
     int smart_errors;
     uint8_t smart_selftest_count;
     uint8_t *smart_selftest_data;
+};
 
-} IDEState;
+struct IDEBus {
+    BusState qbus;
+    BMDMAState *bmdma;
+    IDEState ifs[2];
+    uint8_t unit;
+};
 
 /* XXX: DVDs that could fit on a CD will be reported as a CD */
 static inline int media_present(IDEState *s)
@@ -513,18 +519,19 @@ static inline int media_is_cd(IDEState *s)
 #define UDIDETCR0	0x73
 #define UDIDETCR1	0x7B
 
-typedef struct BMDMAState {
+struct BMDMAState {
     uint8_t cmd;
     uint8_t status;
     uint32_t addr;
 
     struct PCIIDEState *pci_dev;
+    IDEBus *bus;
     /* current transfer state */
     uint32_t cur_addr;
     uint32_t cur_prd_last;
     uint32_t cur_prd_addr;
     uint32_t cur_prd_len;
-    IDEState *ide_if;
+    uint8_t unit;
     BlockDriverCompletionFunc *dma_cb;
     BlockDriverAIOCB *aiocb;
     struct iovec iov;
@@ -532,14 +539,25 @@ typedef struct BMDMAState {
     int64_t sector_num;
     uint32_t nsector;
     QEMUBH *bh;
-} BMDMAState;
+};
 
 typedef struct PCIIDEState {
     PCIDevice dev;
-    IDEState ide_if[4];
+    IDEBus bus[2];
     BMDMAState bmdma[2];
     int type; /* see IDE_TYPE_xxx */
 } PCIIDEState;
+
+static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
+{
+    assert(bmdma->unit != -1);
+    return bmdma->bus->ifs + bmdma->unit;
+}
+
+static inline IDEState *idebus_active_if(IDEBus *bus)
+{
+    return bus->ifs + bus->unit;
+}
 
 static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
 static void ide_dma_restart(IDEState *s);
@@ -794,7 +812,7 @@ static inline void ide_dma_submit_check(IDEState *s,
 
 static inline void ide_set_irq(IDEState *s)
 {
-    BMDMAState *bm = s->bmdma;
+    BMDMAState *bm = s->bus->bmdma;
     if (!(s->cmd & IDE_CMD_DISABLE_IRQ)) {
         if (bm) {
             bm->status |= BM_STATUS_INT;
@@ -910,7 +928,7 @@ static void ide_sector_read(IDEState *s)
 /* return 0 if buffer completed */
 static int dma_buf_prepare(BMDMAState *bm, int is_write)
 {
-    IDEState *s = bm->ide_if;
+    IDEState *s = bmdma_active_if(bm);
     struct {
         uint32_t addr;
         uint32_t size;
@@ -969,8 +987,8 @@ static int ide_handle_write_error(IDEState *s, int error, int op)
 
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
-        s->bmdma->ide_if = s;
-        s->bmdma->status |= op;
+        s->bus->bmdma->unit = s->unit;
+        s->bus->bmdma->status |= op;
         vm_stop(0);
     } else {
         if (op == BM_STATUS_DMA_RETRY) {
@@ -987,7 +1005,7 @@ static int ide_handle_write_error(IDEState *s, int error, int op)
 /* return 0 if buffer completed */
 static int dma_buf_rw(BMDMAState *bm, int is_write)
 {
-    IDEState *s = bm->ide_if;
+    IDEState *s = bmdma_active_if(bm);
     struct {
         uint32_t addr;
         uint32_t size;
@@ -1035,7 +1053,7 @@ static int dma_buf_rw(BMDMAState *bm, int is_write)
 static void ide_read_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
-    IDEState *s = bm->ide_if;
+    IDEState *s = bmdma_active_if(bm);
     int n;
     int64_t sector_num;
 
@@ -1062,7 +1080,7 @@ static void ide_read_dma_cb(void *opaque, int ret)
         bm->status &= ~BM_STATUS_DMAING;
         bm->status |= BM_STATUS_INT;
         bm->dma_cb = NULL;
-        bm->ide_if = NULL;
+        bm->unit = -1;
         bm->aiocb = NULL;
         return;
     }
@@ -1153,10 +1171,10 @@ static void ide_dma_restart_bh(void *opaque)
 
     if (bm->status & BM_STATUS_DMA_RETRY) {
         bm->status &= ~BM_STATUS_DMA_RETRY;
-        ide_dma_restart(bm->ide_if);
+        ide_dma_restart(bmdma_active_if(bm));
     } else if (bm->status & BM_STATUS_PIO_RETRY) {
         bm->status &= ~BM_STATUS_PIO_RETRY;
-        ide_sector_write(bm->ide_if);
+        ide_sector_write(bmdma_active_if(bm));
     }
 }
 
@@ -1176,7 +1194,7 @@ static void ide_dma_restart_cb(void *opaque, int running, int reason)
 static void ide_write_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
-    IDEState *s = bm->ide_if;
+    IDEState *s = bmdma_active_if(bm);
     int n;
     int64_t sector_num;
 
@@ -1202,7 +1220,7 @@ static void ide_write_dma_cb(void *opaque, int ret)
         bm->status &= ~BM_STATUS_DMAING;
         bm->status |= BM_STATUS_INT;
         bm->dma_cb = NULL;
-        bm->ide_if = NULL;
+        bm->unit = -1;
         bm->aiocb = NULL;
         return;
     }
@@ -1462,7 +1480,7 @@ static void ide_atapi_cmd_read_pio(IDEState *s, int lba, int nb_sectors,
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
-    IDEState *s = bm->ide_if;
+    IDEState *s = bmdma_active_if(bm);
     int data_offset, n;
 
     if (ret < 0) {
@@ -1500,7 +1518,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         bm->status &= ~BM_STATUS_DMAING;
         bm->status |= BM_STATUS_INT;
         bm->dma_cb = NULL;
-        bm->ide_if = NULL;
+        bm->unit = -1;
         bm->aiocb = NULL;
         return;
     }
@@ -2184,18 +2202,18 @@ static void ide_cmd_lba48_transform(IDEState *s, int lba48)
     }
 }
 
-static void ide_clear_hob(IDEState *ide_if)
+static void ide_clear_hob(IDEBus *bus)
 {
     /* any write clears HOB high bit of device control register */
-    ide_if[0].select &= ~(1 << 7);
-    ide_if[1].select &= ~(1 << 7);
+    bus->ifs[0].select &= ~(1 << 7);
+    bus->ifs[1].select &= ~(1 << 7);
 }
 
 static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *ide_if = opaque;
+    IDEBus *bus = opaque;
     IDEState *s;
-    int unit, n;
+    int n;
     int lba48 = 0;
 
 #ifdef DEBUG_IDE
@@ -2205,56 +2223,54 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     addr &= 7;
 
     /* ignore writes to command block while busy with previous command */
-    if (addr != 7 && (ide_if->cur_drive->status & (BUSY_STAT|DRQ_STAT)))
+    if (addr != 7 && (idebus_active_if(bus)->status & (BUSY_STAT|DRQ_STAT)))
         return;
 
     switch(addr) {
     case 0:
         break;
     case 1:
-	ide_clear_hob(ide_if);
+	ide_clear_hob(bus);
         /* NOTE: data is written to the two drives */
-	ide_if[0].hob_feature = ide_if[0].feature;
-	ide_if[1].hob_feature = ide_if[1].feature;
-        ide_if[0].feature = val;
-        ide_if[1].feature = val;
+	bus->ifs[0].hob_feature = bus->ifs[0].feature;
+	bus->ifs[1].hob_feature = bus->ifs[1].feature;
+        bus->ifs[0].feature = val;
+        bus->ifs[1].feature = val;
         break;
     case 2:
-	ide_clear_hob(ide_if);
-	ide_if[0].hob_nsector = ide_if[0].nsector;
-	ide_if[1].hob_nsector = ide_if[1].nsector;
-        ide_if[0].nsector = val;
-        ide_if[1].nsector = val;
+	ide_clear_hob(bus);
+	bus->ifs[0].hob_nsector = bus->ifs[0].nsector;
+	bus->ifs[1].hob_nsector = bus->ifs[1].nsector;
+        bus->ifs[0].nsector = val;
+        bus->ifs[1].nsector = val;
         break;
     case 3:
-	ide_clear_hob(ide_if);
-	ide_if[0].hob_sector = ide_if[0].sector;
-	ide_if[1].hob_sector = ide_if[1].sector;
-        ide_if[0].sector = val;
-        ide_if[1].sector = val;
+	ide_clear_hob(bus);
+	bus->ifs[0].hob_sector = bus->ifs[0].sector;
+	bus->ifs[1].hob_sector = bus->ifs[1].sector;
+        bus->ifs[0].sector = val;
+        bus->ifs[1].sector = val;
         break;
     case 4:
-	ide_clear_hob(ide_if);
-	ide_if[0].hob_lcyl = ide_if[0].lcyl;
-	ide_if[1].hob_lcyl = ide_if[1].lcyl;
-        ide_if[0].lcyl = val;
-        ide_if[1].lcyl = val;
+	ide_clear_hob(bus);
+	bus->ifs[0].hob_lcyl = bus->ifs[0].lcyl;
+	bus->ifs[1].hob_lcyl = bus->ifs[1].lcyl;
+        bus->ifs[0].lcyl = val;
+        bus->ifs[1].lcyl = val;
         break;
     case 5:
-	ide_clear_hob(ide_if);
-	ide_if[0].hob_hcyl = ide_if[0].hcyl;
-	ide_if[1].hob_hcyl = ide_if[1].hcyl;
-        ide_if[0].hcyl = val;
-        ide_if[1].hcyl = val;
+	ide_clear_hob(bus);
+	bus->ifs[0].hob_hcyl = bus->ifs[0].hcyl;
+	bus->ifs[1].hob_hcyl = bus->ifs[1].hcyl;
+        bus->ifs[0].hcyl = val;
+        bus->ifs[1].hcyl = val;
         break;
     case 6:
 	/* FIXME: HOB readback uses bit 7 */
-        ide_if[0].select = (val & ~0x10) | 0xa0;
-        ide_if[1].select = (val | 0x10) | 0xa0;
+        bus->ifs[0].select = (val & ~0x10) | 0xa0;
+        bus->ifs[1].select = (val | 0x10) | 0xa0;
         /* select drive */
-        unit = (val >> 4) & 1;
-        s = ide_if + unit;
-        ide_if->cur_drive = s;
+        bus->unit = (val >> 4) & 1;
         break;
     default:
     case 7:
@@ -2262,9 +2278,9 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #if defined(DEBUG_IDE)
         printf("ide: CMD=%02x\n", val);
 #endif
-        s = ide_if->cur_drive;
+        s = idebus_active_if(bus);
         /* ignore commands to non existant slave */
-        if (s != ide_if && !s->bs)
+        if (s != bus->ifs && !s->bs)
             break;
 
         /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
@@ -2767,8 +2783,8 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 {
-    IDEState *ide_if = opaque;
-    IDEState *s = ide_if->cur_drive;
+    IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
     uint32_t addr;
     int ret, hob;
 
@@ -2781,8 +2797,8 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         ret = 0xff;
         break;
     case 1:
-        if ((!ide_if[0].bs && !ide_if[1].bs) ||
-            (s != ide_if && !s->bs))
+        if ((!bus->ifs[0].bs && !bus->ifs[1].bs) ||
+            (s != bus->ifs && !s->bs))
             ret = 0;
         else if (!hob)
             ret = s->error;
@@ -2790,7 +2806,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_feature;
         break;
     case 2:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if (!bus->ifs[0].bs && !bus->ifs[1].bs)
             ret = 0;
         else if (!hob)
             ret = s->nsector & 0xff;
@@ -2798,7 +2814,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_nsector;
         break;
     case 3:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if (!bus->ifs[0].bs && !bus->ifs[1].bs)
             ret = 0;
         else if (!hob)
             ret = s->sector;
@@ -2806,7 +2822,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_sector;
         break;
     case 4:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if (!bus->ifs[0].bs && !bus->ifs[1].bs)
             ret = 0;
         else if (!hob)
             ret = s->lcyl;
@@ -2814,7 +2830,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_lcyl;
         break;
     case 5:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if (!bus->ifs[0].bs && !bus->ifs[1].bs)
             ret = 0;
         else if (!hob)
             ret = s->hcyl;
@@ -2822,15 +2838,15 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_hcyl;
         break;
     case 6:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if (!bus->ifs[0].bs && !bus->ifs[1].bs)
             ret = 0;
         else
             ret = s->select;
         break;
     default:
     case 7:
-        if ((!ide_if[0].bs && !ide_if[1].bs) ||
-            (s != ide_if && !s->bs))
+        if ((!bus->ifs[0].bs && !bus->ifs[1].bs) ||
+            (s != bus->ifs && !s->bs))
             ret = 0;
         else
             ret = s->status;
@@ -2845,12 +2861,12 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 
 static uint32_t ide_status_read(void *opaque, uint32_t addr)
 {
-    IDEState *ide_if = opaque;
-    IDEState *s = ide_if->cur_drive;
+    IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
     int ret;
 
-    if ((!ide_if[0].bs && !ide_if[1].bs) ||
-        (s != ide_if && !s->bs))
+    if ((!bus->ifs[0].bs && !bus->ifs[1].bs) ||
+        (s != bus->ifs && !s->bs))
         ret = 0;
     else
         ret = s->status;
@@ -2862,7 +2878,7 @@ static uint32_t ide_status_read(void *opaque, uint32_t addr)
 
 static void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *ide_if = opaque;
+    IDEBus *bus = opaque;
     IDEState *s;
     int i;
 
@@ -2870,19 +2886,19 @@ static void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
     printf("ide: write control addr=0x%x val=%02x\n", addr, val);
 #endif
     /* common for both drives */
-    if (!(ide_if[0].cmd & IDE_CMD_RESET) &&
+    if (!(bus->ifs[0].cmd & IDE_CMD_RESET) &&
         (val & IDE_CMD_RESET)) {
         /* reset low to high */
         for(i = 0;i < 2; i++) {
-            s = &ide_if[i];
+            s = &bus->ifs[i];
             s->status = BUSY_STAT | SEEK_STAT;
             s->error = 0x01;
         }
-    } else if ((ide_if[0].cmd & IDE_CMD_RESET) &&
+    } else if ((bus->ifs[0].cmd & IDE_CMD_RESET) &&
                !(val & IDE_CMD_RESET)) {
         /* high to low */
         for(i = 0;i < 2; i++) {
-            s = &ide_if[i];
+            s = &bus->ifs[i];
             if (s->is_cdrom)
                 s->status = 0x00; /* NOTE: READY is _not_ set */
             else
@@ -2891,13 +2907,14 @@ static void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
         }
     }
 
-    ide_if[0].cmd = val;
-    ide_if[1].cmd = val;
+    bus->ifs[0].cmd = val;
+    bus->ifs[1].cmd = val;
 }
 
 static void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *s = ((IDEState *)opaque)->cur_drive;
+    IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
     /* PIO data access allowed only when DRQ bit is set */
@@ -2914,7 +2931,8 @@ static void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ide_data_readw(void *opaque, uint32_t addr)
 {
-    IDEState *s = ((IDEState *)opaque)->cur_drive;
+    IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
     uint8_t *p;
     int ret;
 
@@ -2933,7 +2951,8 @@ static uint32_t ide_data_readw(void *opaque, uint32_t addr)
 
 static void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *s = ((IDEState *)opaque)->cur_drive;
+    IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
     /* PIO data access allowed only when DRQ bit is set */
@@ -2950,7 +2969,8 @@ static void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ide_data_readl(void *opaque, uint32_t addr)
 {
-    IDEState *s = ((IDEState *)opaque)->cur_drive;
+    IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
     uint8_t *p;
     int ret;
 
@@ -2979,11 +2999,13 @@ static void ide_dummy_transfer_stop(IDEState *s)
 
 static void ide_reset(IDEState *s)
 {
+    IDEBus *bus = s->bus;
+
     if (s->is_cf)
         s->mult_sectors = 0;
     else
         s->mult_sectors = MAX_MULT_SECTORS;
-    s->cur_drive = s;
+    bus->unit = s->unit;
     s->select = 0xa0;
     s->status = READY_STAT | SEEK_STAT;
     ide_set_signature(s);
@@ -2994,7 +3016,7 @@ static void ide_reset(IDEState *s)
     s->media_changed = 0;
 }
 
-static void ide_init2(IDEState *ide_state,
+static void ide_init2(IDEBus *bus,
                       BlockDriverState *hd0, BlockDriverState *hd1,
                       qemu_irq irq)
 {
@@ -3004,11 +3026,10 @@ static void ide_init2(IDEState *ide_state,
     uint64_t nb_sectors;
 
     for(i = 0; i < 2; i++) {
-        s = ide_state + i;
-        if (i == 0)
-            s->bs = hd0;
-        else
-            s->bs = hd1;
+        s = bus->ifs + i;
+        s->bus = bus;
+        s->unit = i;
+        s->bs = (i == 0) ? hd0 : hd1;
         s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
         if (s->bs) {
             bdrv_get_geometry(s->bs, &nb_sectors);
@@ -3042,20 +3063,20 @@ static void ide_init2(IDEState *ide_state,
     }
 }
 
-static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
+static void ide_init_ioport(IDEBus *bus, int iobase, int iobase2)
 {
-    register_ioport_write(iobase, 8, 1, ide_ioport_write, ide_state);
-    register_ioport_read(iobase, 8, 1, ide_ioport_read, ide_state);
+    register_ioport_write(iobase, 8, 1, ide_ioport_write, bus);
+    register_ioport_read(iobase, 8, 1, ide_ioport_read, bus);
     if (iobase2) {
-        register_ioport_read(iobase2, 1, 1, ide_status_read, ide_state);
-        register_ioport_write(iobase2, 1, 1, ide_cmd_write, ide_state);
+        register_ioport_read(iobase2, 1, 1, ide_status_read, bus);
+        register_ioport_write(iobase2, 1, 1, ide_cmd_write, bus);
     }
 
     /* data ports */
-    register_ioport_write(iobase, 2, 2, ide_data_writew, ide_state);
-    register_ioport_read(iobase, 2, 2, ide_data_readw, ide_state);
-    register_ioport_write(iobase, 4, 4, ide_data_writel, ide_state);
-    register_ioport_read(iobase, 4, 4, ide_data_readl, ide_state);
+    register_ioport_write(iobase, 2, 2, ide_data_writew, bus);
+    register_ioport_read(iobase, 2, 2, ide_data_readw, bus);
+    register_ioport_write(iobase, 4, 4, ide_data_writel, bus);
+    register_ioport_read(iobase, 4, 4, ide_data_readl, bus);
 }
 
 /* save per IDE drive data */
@@ -3122,18 +3143,36 @@ static void ide_load(QEMUFile* f, IDEState *s, int version_id)
     /* XXX: if a transfer is pending, we do not save it yet */
 }
 
+static void idebus_save(QEMUFile* f, IDEBus *bus)
+{
+    IDEState *s = idebus_active_if(bus);
+    qemu_put_8s(f, &s->cmd);
+    qemu_put_8s(f, &bus->unit);
+}
+
+static void idebus_load(QEMUFile* f, IDEBus *bus, int version_id)
+{
+    IDEState *s;
+    uint8_t cmd;
+
+    qemu_get_8s(f, &cmd);
+    qemu_get_8s(f, &bus->unit);
+    s = idebus_active_if(bus);
+    s->cmd = cmd;
+}
+
 /***********************************************************/
 /* ISA IDE definitions */
 
 void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
                   BlockDriverState *hd0, BlockDriverState *hd1)
 {
-    IDEState *ide_state;
+    IDEBus *bus;
 
-    ide_state = qemu_mallocz(sizeof(IDEState) * 2);
+    bus = qemu_mallocz(sizeof(*bus));
 
-    ide_init2(ide_state, hd0, hd1, irq);
-    ide_init_ioport(ide_state, iobase, iobase2);
+    ide_init2(bus, hd0, hd1, irq);
+    ide_init_ioport(bus, iobase, iobase2);
 }
 
 /***********************************************************/
@@ -3145,32 +3184,32 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
 {
     PCIIDEState *d = (PCIIDEState *)pci_dev;
-    IDEState *ide_state;
+    IDEBus *bus;
 
     if (region_num <= 3) {
-        ide_state = &d->ide_if[(region_num >> 1) * 2];
+        bus = &d->bus[(region_num >> 1)];
         if (region_num & 1) {
-            register_ioport_read(addr + 2, 1, 1, ide_status_read, ide_state);
-            register_ioport_write(addr + 2, 1, 1, ide_cmd_write, ide_state);
+            register_ioport_read(addr + 2, 1, 1, ide_status_read, bus);
+            register_ioport_write(addr + 2, 1, 1, ide_cmd_write, bus);
         } else {
-            register_ioport_write(addr, 8, 1, ide_ioport_write, ide_state);
-            register_ioport_read(addr, 8, 1, ide_ioport_read, ide_state);
+            register_ioport_write(addr, 8, 1, ide_ioport_write, bus);
+            register_ioport_read(addr, 8, 1, ide_ioport_read, bus);
 
             /* data ports */
-            register_ioport_write(addr, 2, 2, ide_data_writew, ide_state);
-            register_ioport_read(addr, 2, 2, ide_data_readw, ide_state);
-            register_ioport_write(addr, 4, 4, ide_data_writel, ide_state);
-            register_ioport_read(addr, 4, 4, ide_data_readl, ide_state);
+            register_ioport_write(addr, 2, 2, ide_data_writew, bus);
+            register_ioport_read(addr, 2, 2, ide_data_readw, bus);
+            register_ioport_write(addr, 4, 4, ide_data_writel, bus);
+            register_ioport_read(addr, 4, 4, ide_data_readl, bus);
         }
     }
 }
 
 static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
 {
-    BMDMAState *bm = s->bmdma;
+    BMDMAState *bm = s->bus->bmdma;
     if(!bm)
         return;
-    bm->ide_if = s;
+    bm->unit = s->unit;
     bm->dma_cb = dma_cb;
     bm->cur_prd_last = 0;
     bm->cur_prd_addr = 0;
@@ -3184,7 +3223,7 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
 
 static void ide_dma_restart(IDEState *s)
 {
-    BMDMAState *bm = s->bmdma;
+    BMDMAState *bm = s->bus->bmdma;
     ide_set_sector(s, bm->sector_num);
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
@@ -3199,7 +3238,7 @@ static void ide_dma_cancel(BMDMAState *bm)
     if (bm->status & BM_STATUS_DMAING) {
         bm->status &= ~BM_STATUS_DMAING;
         /* cancel DMA request */
-        bm->ide_if = NULL;
+        bm->unit = -1;
         bm->dma_cb = NULL;
         if (bm->aiocb) {
 #ifdef DEBUG_AIO
@@ -3380,9 +3419,9 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
 
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
-        d->ide_if[2 * i].bmdma = bm;
-        d->ide_if[2 * i + 1].bmdma = bm;
-        bm->pci_dev = (PCIIDEState *)pci_dev;
+        d->bus[i].bmdma = bm;
+        bm->pci_dev = DO_UPCAST(PCIIDEState, dev, pci_dev);
+        bm->bus = d->bus+i;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
@@ -3415,23 +3454,20 @@ static void pci_ide_save(QEMUFile* f, void *opaque)
         qemu_put_be32s(f, &bm->addr);
         qemu_put_sbe64s(f, &bm->sector_num);
         qemu_put_be32s(f, &bm->nsector);
-        ifidx = bm->ide_if ? bm->ide_if - d->ide_if : 0;
+        ifidx = bm->unit + 2*i;
         qemu_put_8s(f, &ifidx);
         /* XXX: if a transfer is pending, we do not save it yet */
     }
 
     /* per IDE interface data */
     for(i = 0; i < 2; i++) {
-        IDEState *s = &d->ide_if[i * 2];
-        uint8_t drive1_selected;
-        qemu_put_8s(f, &s->cmd);
-        drive1_selected = (s->cur_drive != s);
-        qemu_put_8s(f, &drive1_selected);
+        idebus_save(f, &d->bus[i]);
     }
 
     /* per IDE drive data */
-    for(i = 0; i < 4; i++) {
-        ide_save(f, &d->ide_if[i]);
+    for(i = 0; i < 2; i++) {
+        ide_save(f, &d->bus[i].ifs[0]);
+        ide_save(f, &d->bus[i].ifs[1]);
     }
 }
 
@@ -3455,22 +3491,19 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
         qemu_get_sbe64s(f, &bm->sector_num);
         qemu_get_be32s(f, &bm->nsector);
         qemu_get_8s(f, &ifidx);
-        bm->ide_if = &d->ide_if[ifidx];
+        bm->unit = ifidx & 1;
         /* XXX: if a transfer is pending, we do not save it yet */
     }
 
     /* per IDE interface data */
     for(i = 0; i < 2; i++) {
-        IDEState *s = &d->ide_if[i * 2];
-        uint8_t drive1_selected;
-        qemu_get_8s(f, &s->cmd);
-        qemu_get_8s(f, &drive1_selected);
-        s->cur_drive = &d->ide_if[i * 2 + (drive1_selected != 0)];
+        idebus_load(f, &d->bus[i], version_id);
     }
 
     /* per IDE drive data */
-    for(i = 0; i < 4; i++) {
-        ide_load(f, &d->ide_if[i], version_id);
+    for(i = 0; i < 2; i++) {
+        ide_load(f, &d->bus[i].ifs[0], version_id);
+        ide_load(f, &d->bus[i].ifs[1], version_id);
     }
     return 0;
 }
@@ -3516,7 +3549,6 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
-    int i;
     qemu_irq *irq;
 
     d = (PCIIDEState *)pci_register_device(bus, "CMD646 IDE",
@@ -3553,12 +3585,9 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 
-    for(i = 0; i < 4; i++)
-        d->ide_if[i].pci_dev = (PCIDevice *)d;
-
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
-    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
-    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
+    ide_init2(&d->bus[0], hd_table[0], hd_table[1], irq[0]);
+    ide_init2(&d->bus[1], hd_table[2], hd_table[3], irq[1]);
 
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
     qemu_register_reset(cmd646_reset, d);
@@ -3610,10 +3639,10 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
-    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], isa_reserve_irq(14));
-    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], isa_reserve_irq(15));
-    ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
-    ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
+    ide_init2(&d->bus[0], hd_table[0], hd_table[1], isa_reserve_irq(14));
+    ide_init2(&d->bus[1], hd_table[2], hd_table[3], isa_reserve_irq(15));
+    ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
+    ide_init_ioport(&d->bus[1], 0x170, 0x376);
 
     for (i = 0; i < 4; i++)
         if (hd_table[i])
@@ -3653,10 +3682,10 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     /*
      * These should call isa_reserve_irq() instead when MIPS supports it
      */
-    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], pic[14]);
-    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], pic[15]);
-    ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
-    ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
+    ide_init2(&d->bus[0], hd_table[0], hd_table[1], pic[14]);
+    ide_init2(&d->bus[1], hd_table[2], hd_table[3], pic[15]);
+    ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
+    ide_init_ioport(&d->bus[1], 0x170, 0x376);
 
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
 }
@@ -3666,7 +3695,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 /* MacIO based PowerPC IDE */
 
 typedef struct MACIOIDEState {
-    IDEState ide_if[2];
+    IDEBus bus;
     BlockDriverAIOCB *aiocb;
 } MACIOIDEState;
 
@@ -3674,7 +3703,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 {
     DBDMA_io *io = opaque;
     MACIOIDEState *m = io->opaque;
-    IDEState *s = m->ide_if->cur_drive;
+    IDEState *s = idebus_active_if(&m->bus);
 
     if (ret < 0) {
         m->aiocb = NULL;
@@ -3729,7 +3758,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 {
     DBDMA_io *io = opaque;
     MACIOIDEState *m = io->opaque;
-    IDEState *s = m->ide_if->cur_drive;
+    IDEState *s = idebus_active_if(&m->bus);
     int n;
     int64_t sector_num;
 
@@ -3787,7 +3816,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 static void pmac_ide_transfer(DBDMA_io *io)
 {
     MACIOIDEState *m = io->opaque;
-    IDEState *s = m->ide_if->cur_drive;
+    IDEState *s = idebus_active_if(&m->bus);
 
     s->io_buffer_size = 0;
     if (s->is_cdrom) {
@@ -3815,11 +3844,11 @@ static void pmac_ide_writeb (void *opaque,
     addr = (addr & 0xFFF) >> 4;
     switch (addr) {
     case 1 ... 7:
-        ide_ioport_write(d->ide_if, addr, val);
+        ide_ioport_write(&d->bus, addr, val);
         break;
     case 8:
     case 22:
-        ide_cmd_write(d->ide_if, 0, val);
+        ide_cmd_write(&d->bus, 0, val);
         break;
     default:
         break;
@@ -3834,11 +3863,11 @@ static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
     addr = (addr & 0xFFF) >> 4;
     switch (addr) {
     case 1 ... 7:
-        retval = ide_ioport_read(d->ide_if, addr);
+        retval = ide_ioport_read(&d->bus, addr);
         break;
     case 8:
     case 22:
-        retval = ide_status_read(d->ide_if, 0);
+        retval = ide_status_read(&d->bus, 0);
         break;
     default:
         retval = 0xFF;
@@ -3857,7 +3886,7 @@ static void pmac_ide_writew (void *opaque,
     val = bswap16(val);
 #endif
     if (addr == 0) {
-        ide_data_writew(d->ide_if, 0, val);
+        ide_data_writew(&d->bus, 0, val);
     }
 }
 
@@ -3868,7 +3897,7 @@ static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
 
     addr = (addr & 0xFFF) >> 4;
     if (addr == 0) {
-        retval = ide_data_readw(d->ide_if, 0);
+        retval = ide_data_readw(&d->bus, 0);
     } else {
         retval = 0xFFFF;
     }
@@ -3888,7 +3917,7 @@ static void pmac_ide_writel (void *opaque,
     val = bswap32(val);
 #endif
     if (addr == 0) {
-        ide_data_writel(d->ide_if, 0, val);
+        ide_data_writel(&d->bus, 0, val);
     }
 }
 
@@ -3899,7 +3928,7 @@ static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
 
     addr = (addr & 0xFFF) >> 4;
     if (addr == 0) {
-        retval = ide_data_readl(d->ide_if, 0);
+        retval = ide_data_readl(&d->bus, 0);
     } else {
         retval = 0xFFFFFFFF;
     }
@@ -3924,39 +3953,31 @@ static CPUReadMemoryFunc * const pmac_ide_read[] = {
 static void pmac_ide_save(QEMUFile *f, void *opaque)
 {
     MACIOIDEState *d = opaque;
-    IDEState *s = d->ide_if;
-    uint8_t drive1_selected;
     unsigned int i;
 
     /* per IDE interface data */
-    qemu_put_8s(f, &s->cmd);
-    drive1_selected = (s->cur_drive != s);
-    qemu_put_8s(f, &drive1_selected);
+    idebus_save(f, &d->bus);
 
     /* per IDE drive data */
     for(i = 0; i < 2; i++) {
-        ide_save(f, &s[i]);
+        ide_save(f, &d->bus.ifs[i]);
     }
 }
 
 static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
 {
     MACIOIDEState *d = opaque;
-    IDEState *s = d->ide_if;
-    uint8_t drive1_selected;
     unsigned int i;
 
     if (version_id != 1 && version_id != 3)
         return -EINVAL;
 
     /* per IDE interface data */
-    qemu_get_8s(f, &s->cmd);
-    qemu_get_8s(f, &drive1_selected);
-    s->cur_drive = &s[(drive1_selected != 0)];
+    idebus_load(f, &d->bus, version_id);
 
     /* per IDE drive data */
     for(i = 0; i < 2; i++) {
-        ide_load(f, &s[i], version_id);
+        ide_load(f, &d->bus.ifs[i], version_id);
     }
     return 0;
 }
@@ -3964,10 +3985,9 @@ static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
 static void pmac_ide_reset(void *opaque)
 {
     MACIOIDEState *d = opaque;
-    IDEState *s = d->ide_if;
 
-    ide_reset(&s[0]);
-    ide_reset(&s[1]);
+    ide_reset(d->bus.ifs +0);
+    ide_reset(d->bus.ifs +1);
 }
 
 /* hd_table must contain 4 block drivers */
@@ -3980,7 +4000,7 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
     int pmac_ide_memory;
 
     d = qemu_mallocz(sizeof(MACIOIDEState));
-    ide_init2(d->ide_if, hd_table[0], hd_table[1], irq);
+    ide_init2(&d->bus, hd_table[0], hd_table[1], irq);
 
     if (dbdma)
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);
@@ -4002,31 +4022,31 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
  */
 
 typedef struct {
-    void *dev;
+    IDEBus *bus;
     int shift;
 } MMIOState;
 
 static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
 {
     MMIOState *s = (MMIOState*)opaque;
-    IDEState *ide = (IDEState*)s->dev;
+    IDEBus *bus = s->bus;
     addr >>= s->shift;
     if (addr & 7)
-        return ide_ioport_read(ide, addr);
+        return ide_ioport_read(bus, addr);
     else
-        return ide_data_readw(ide, 0);
+        return ide_data_readw(bus, 0);
 }
 
 static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
 	uint32_t val)
 {
     MMIOState *s = (MMIOState*)opaque;
-    IDEState *ide = (IDEState*)s->dev;
+    IDEBus *bus = s->bus;
     addr >>= s->shift;
     if (addr & 7)
-        ide_ioport_write(ide, addr, val);
+        ide_ioport_write(bus, addr, val);
     else
-        ide_data_writew(ide, 0, val);
+        ide_data_writew(bus, 0, val);
 }
 
 static CPUReadMemoryFunc * const mmio_ide_reads[] = {
@@ -4044,16 +4064,16 @@ static CPUWriteMemoryFunc * const mmio_ide_writes[] = {
 static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
 {
     MMIOState *s= (MMIOState*)opaque;
-    IDEState *ide = (IDEState*)s->dev;
-    return ide_status_read(ide, 0);
+    IDEBus *bus = s->bus;
+    return ide_status_read(bus, 0);
 }
 
 static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
 	uint32_t val)
 {
     MMIOState *s = (MMIOState*)opaque;
-    IDEState *ide = (IDEState*)s->dev;
-    ide_cmd_write(ide, 0, val);
+    IDEBus *bus = s->bus;
+    ide_cmd_write(bus, 0, val);
 }
 
 static CPUReadMemoryFunc * const mmio_ide_status[] = {
@@ -4073,12 +4093,12 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     BlockDriverState *hd0, BlockDriverState *hd1)
 {
     MMIOState *s = qemu_mallocz(sizeof(MMIOState));
-    IDEState *ide = qemu_mallocz(sizeof(IDEState) * 2);
+    IDEBus *bus = qemu_mallocz(sizeof(*bus));
     int mem1, mem2;
 
-    ide_init2(ide, hd0, hd1, irq);
+    ide_init2(bus, hd0, hd1, irq);
 
-    s->dev = ide;
+    s->bus = bus;
     s->shift = shift;
 
     mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s);
@@ -4094,7 +4114,7 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
 
 /* DSCM-1XXXX Microdrive hard disk with CF+ II / PCMCIA interface.  */
 typedef struct {
-    IDEState ide[2];
+    IDEBus bus;
     PCMCIACardState card;
     uint32_t attr_base;
     uint32_t io_base;
@@ -4165,7 +4185,7 @@ static void md_reset(MicroDriveState *s)
     s->pins = 0;
     s->cycle = 0;
     s->ctrl = 0;
-    ide_reset(s->ide);
+    ide_reset(s->bus.ifs);
 }
 
 static uint8_t md_attr_read(void *opaque, uint32_t at)
@@ -4235,6 +4255,7 @@ static void md_attr_write(void *opaque, uint32_t at, uint8_t value)
 static uint16_t md_common_read(void *opaque, uint32_t at)
 {
     MicroDriveState *s = (MicroDriveState *) opaque;
+    IDEState *ifs;
     uint16_t ret;
     at -= s->io_base;
 
@@ -4262,13 +4283,13 @@ static uint16_t md_common_read(void *opaque, uint32_t at)
     switch (at) {
     case 0x0:	/* Even RD Data */
     case 0x8:
-        return ide_data_readw(s->ide, 0);
+        return ide_data_readw(&s->bus, 0);
 
         /* TODO: 8-bit accesses */
         if (s->cycle)
             ret = s->io >> 8;
         else {
-            s->io = ide_data_readw(s->ide, 0);
+            s->io = ide_data_readw(&s->bus, 0);
             ret = s->io & 0xff;
         }
         s->cycle = !s->cycle;
@@ -4276,16 +4297,18 @@ static uint16_t md_common_read(void *opaque, uint32_t at)
     case 0x9:	/* Odd RD Data */
         return s->io >> 8;
     case 0xd:	/* Error */
-        return ide_ioport_read(s->ide, 0x1);
+        return ide_ioport_read(&s->bus, 0x1);
     case 0xe:	/* Alternate Status */
-        if (s->ide->cur_drive->bs)
-            return s->ide->cur_drive->status;
+        ifs = idebus_active_if(&s->bus);
+        if (ifs->bs)
+            return ifs->status;
         else
             return 0;
     case 0xf:	/* Device Address */
-        return 0xc2 | ((~s->ide->select << 2) & 0x3c);
+        ifs = idebus_active_if(&s->bus);
+        return 0xc2 | ((~ifs->select << 2) & 0x3c);
     default:
-        return ide_ioport_read(s->ide, at);
+        return ide_ioport_read(&s->bus, at);
     }
 
     return 0;
@@ -4320,12 +4343,12 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
     switch (at) {
     case 0x0:	/* Even WR Data */
     case 0x8:
-        ide_data_writew(s->ide, 0, value);
+        ide_data_writew(&s->bus, 0, value);
         break;
 
         /* TODO: 8-bit accesses */
         if (s->cycle)
-            ide_data_writew(s->ide, 0, s->io | (value << 8));
+            ide_data_writew(&s->bus, 0, s->io | (value << 8));
         else
             s->io = value & 0xff;
         s->cycle = !s->cycle;
@@ -4335,7 +4358,7 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
         s->cycle = !s->cycle;
         break;
     case 0xd:	/* Features */
-        ide_ioport_write(s->ide, 0x1, value);
+        ide_ioport_write(&s->bus, 0x1, value);
         break;
     case 0xe:	/* Device Control */
         s->ctrl = value;
@@ -4348,7 +4371,7 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
             s->pins |= PINS_CRDY;
             s->stat &= ~STAT_PWRDWN;
         }
-        ide_ioport_write(s->ide, at, value);
+        ide_ioport_write(&s->bus, at, value);
     }
 }
 
@@ -4356,7 +4379,6 @@ static void md_save(QEMUFile *f, void *opaque)
 {
     MicroDriveState *s = (MicroDriveState *) opaque;
     int i;
-    uint8_t drive1_selected;
 
     qemu_put_8s(f, &s->opt);
     qemu_put_8s(f, &s->stat);
@@ -4366,19 +4388,16 @@ static void md_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->io);
     qemu_put_byte(f, s->cycle);
 
-    drive1_selected = (s->ide->cur_drive != s->ide);
-    qemu_put_8s(f, &s->ide->cmd);
-    qemu_put_8s(f, &drive1_selected);
+    idebus_save(f, &s->bus);
 
     for (i = 0; i < 2; i ++)
-        ide_save(f, &s->ide[i]);
+        ide_save(f, &s->bus.ifs[i]);
 }
 
 static int md_load(QEMUFile *f, void *opaque, int version_id)
 {
     MicroDriveState *s = (MicroDriveState *) opaque;
     int i;
-    uint8_t drive1_selected;
 
     if (version_id != 0 && version_id != 3)
         return -EINVAL;
@@ -4391,12 +4410,10 @@ static int md_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->io);
     s->cycle = qemu_get_byte(f);
 
-    qemu_get_8s(f, &s->ide->cmd);
-    qemu_get_8s(f, &drive1_selected);
-    s->ide->cur_drive = &s->ide[(drive1_selected != 0)];
+    idebus_load(f, &s->bus, version_id);
 
     for (i = 0; i < 2; i ++)
-        ide_load(f, &s->ide[i], version_id);
+        ide_load(f, &s->bus.ifs[i], version_id);
 
     return 0;
 }
@@ -4622,10 +4639,10 @@ PCMCIACardState *dscm1xxxx_init(BlockDriverState *bdrv)
     md->card.cis = dscm1xxxx_cis;
     md->card.cis_len = sizeof(dscm1xxxx_cis);
 
-    ide_init2(md->ide, bdrv, NULL, qemu_allocate_irqs(md_set_irq, md, 1)[0]);
-    md->ide->is_cf = 1;
-    md->ide->mdata_size = METADATA_SIZE;
-    md->ide->mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
+    ide_init2(&md->bus, bdrv, NULL, qemu_allocate_irqs(md_set_irq, md, 1)[0]);
+    md->bus.ifs[0].is_cf = 1;
+    md->bus.ifs[0].mdata_size = METADATA_SIZE;
+    md->bus.ifs[0].mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
 
     register_savevm("microdrive", -1, 3, md_save, md_load, md);
 
