@@ -187,6 +187,32 @@ static x86_def_t x86_defs[] = {
         .xlevel = 0x80000008,
         .model_id = "Intel(R) Core(TM)2 Duo CPU     T7700  @ 2.40GHz",
     },
+    {
+        .name = "kvm64",
+        .level = 5,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
+        .family = 15,
+        .model = 6,
+        .stepping = 1,
+        /* Missing: CPUID_VME, CPUID_HT */
+        .features = PPRO_FEATURES |
+            CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
+            CPUID_PSE36,
+        /* Missing: CPUID_EXT_POPCNT, CPUID_EXT_MONITOR */
+        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16,
+        /* Missing: CPUID_EXT2_PDPE1GB, CPUID_EXT2_RDTSCP */
+        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) |
+            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
+        /* Missing: CPUID_EXT3_LAHF_LM, CPUID_EXT3_CMP_LEG, CPUID_EXT3_EXTAPIC,
+                    CPUID_EXT3_CR8LEG, CPUID_EXT3_ABM, CPUID_EXT3_SSE4A,
+                    CPUID_EXT3_MISALIGNSSE, CPUID_EXT3_3DNOWPREFETCH,
+                    CPUID_EXT3_OSVW, CPUID_EXT3_IBS, CPUID_EXT3_SVM */
+        .ext3_features = 0,
+        .xlevel = 0x80000008,
+        .model_id = "Common KVM processor"
+    },
 #endif
     {
         .name = "qemu32",
