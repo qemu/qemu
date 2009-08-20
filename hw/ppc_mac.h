@@ -49,10 +49,6 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
                  int dbdma_mem_index, int cuda_mem_index, void *nvram,
                  int nb_ide, int *ide_mem_index, int escc_mem_index);
 
-/* NewWorld PowerMac IDE */
-int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
-                   void *dbdma, int channel, qemu_irq dma_irq);
-
 /* Heathrow PIC */
 qemu_irq *heathrow_pic_init(int *pmem_index,
                             int nb_cpus, qemu_irq **irqs);

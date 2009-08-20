@@ -15,4 +15,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
                         qemu_irq *pic);
 
+/* ide-macio.c */
+int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
+		   void *dbdma, int channel, qemu_irq dma_irq);
+
 #endif /* HW_IDE_H */
