@@ -36,6 +36,7 @@
 #include "hpet_emul.h"
 #include "watchdog.h"
 #include "smbios.h"
+#include "ide.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS

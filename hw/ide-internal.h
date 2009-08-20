@@ -6,6 +6,7 @@
  * only hw/ide*.c is supposed to include this file.
  * non-internal declarations are in hw/ide.h
  */
+#include "ide.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE

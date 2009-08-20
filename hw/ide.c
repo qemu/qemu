@@ -2673,20 +2673,6 @@ void idebus_load(QEMUFile* f, IDEBus *bus, int version_id)
 }
 
 /***********************************************************/
-/* ISA IDE definitions */
-
-void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
-                  BlockDriverState *hd0, BlockDriverState *hd1)
-{
-    IDEBus *bus;
-
-    bus = qemu_mallocz(sizeof(*bus));
-
-    ide_init2(bus, hd0, hd1, irq);
-    ide_init_ioport(bus, iobase, iobase2);
-}
-
-/***********************************************************/
 /* PCI IDE definitions */
 
 static void cmd646_update_irq(PCIIDEState *d);

@@ -32,6 +32,7 @@
 #include "ppc.h"
 #include "boards.h"
 #include "qemu-log.h"
+#include "ide.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO

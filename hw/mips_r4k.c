@@ -17,6 +17,7 @@
 #include "flash.h"
 #include "qemu-log.h"
 #include "mips-bios.h"
+#include "ide.h"
 
 #define PHYS_TO_VIRT(x) ((x) | ~(target_ulong)0x7fffffff)
 
