@@ -270,4 +270,106 @@ typedef int QEMUBootSetHandler(void *opaque, const char *boot_devices);
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
 int qemu_boot_set(const char *boot_devices);
 
+typedef struct VMStateInfo VMStateInfo;
+typedef struct VMStateDescription VMStateDescription;
+
+struct VMStateInfo {
+    const char *name;
+    int (*get)(QEMUFile *f, void *pv, size_t size);
+    void (*put)(QEMUFile *f, const void *pv, size_t size);
+};
+
+enum VMStateFlags {
+    VMS_SINGLE  = 0x001,
+};
+
+typedef struct {
+    const char *name;
+    size_t offset;
+    size_t size;
+    const VMStateInfo *info;
+    enum VMStateFlags flags;
+    int version_id;
+} VMStateField;
+
+struct VMStateDescription {
+    const char *name;
+    int version_id;
+    int minimum_version_id;
+    int minimum_version_id_old;
+    LoadStateHandler *load_state_old;
+    VMStateField *fields;
+};
+
+extern const VMStateInfo vmstate_info_int8;
+extern const VMStateInfo vmstate_info_int16;
+extern const VMStateInfo vmstate_info_int32;
+extern const VMStateInfo vmstate_info_int64;
+
+extern const VMStateInfo vmstate_info_uint8;
+extern const VMStateInfo vmstate_info_uint16;
+extern const VMStateInfo vmstate_info_uint32;
+extern const VMStateInfo vmstate_info_uint64;
+
+#define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .size       = sizeof(_type),                                     \
+    .info       = &(_info),                                          \
+    .flags      = VMS_SINGLE,                                        \
+    .offset     = offsetof(_state, _field)                           \
+            + type_check(_type,typeof_field(_state, _field))         \
+}
+
+/* _f : field name
+   _s : struct state name
+   _v : version
+*/
+
+#define VMSTATE_INT8_V(_f, _s, _v)                                    \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int8, int8_t)
+#define VMSTATE_INT16_V(_f, _s, _v)                                   \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int16, int16_t)
+#define VMSTATE_INT32_V(_f, _s, _v)                                   \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int32, int32_t)
+#define VMSTATE_INT64_V(_f, _s, _v)                                   \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int64, int64_t)
+
+#define VMSTATE_UINT8_V(_f, _s, _v)                                   \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint8, uint8_t)
+#define VMSTATE_UINT16_V(_f, _s, _v)                                  \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint16, uint16_t)
+#define VMSTATE_UINT32_V(_f, _s, _v)                                  \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint32, uint32_t)
+#define VMSTATE_UINT64_V(_f, _s, _v)                                  \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint64, uint64_t)
+
+#define VMSTATE_INT8(_f, _s)                                          \
+    VMSTATE_INT8_V(_f, _s, 0)
+#define VMSTATE_INT16(_f, _s)                                         \
+    VMSTATE_INT16_V(_f, _s, 0)
+#define VMSTATE_INT32(_f, _s)                                         \
+    VMSTATE_INT32_V(_f, _s, 0)
+#define VMSTATE_INT64(_f, _s)                                         \
+    VMSTATE_INT64_V(_f, _s, 0)
+
+#define VMSTATE_UINT8(_f, _s)                                         \
+    VMSTATE_UINT8_V(_f, _s, 0)
+#define VMSTATE_UINT16(_f, _s)                                        \
+    VMSTATE_UINT16_V(_f, _s, 0)
+#define VMSTATE_UINT32(_f, _s)                                        \
+    VMSTATE_UINT32_V(_f, _s, 0)
+#define VMSTATE_UINT64(_f, _s)                                        \
+    VMSTATE_UINT64_V(_f, _s, 0)
+
+#define VMSTATE_END_OF_LIST()                                         \
+    {}
+
+extern int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
+                              void *opaque, int version_id);
+extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+                               const void *opaque);
+extern int vmstate_register(int instance_id, const VMStateDescription *vmsd,
+                            void *base);
+extern void vmstate_unregister(const char *idstr, void *opaque);
 #endif
