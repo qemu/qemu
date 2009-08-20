@@ -1060,6 +1060,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
         field++;
     }
+    if (vmsd->run_after_load)
+        return vmsd->run_after_load(opaque);
     return 0;
 }
 

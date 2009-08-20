@@ -306,6 +306,7 @@ struct VMStateDescription {
     int minimum_version_id;
     int minimum_version_id_old;
     LoadStateHandler *load_state_old;
+    int (*run_after_load)(void *opaque);
     VMStateField *fields;
 };
 
