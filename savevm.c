@@ -1239,17 +1239,6 @@ void load_vmstate(Monitor *mon, const char *name)
     }
 }
 
-void do_loadvm(Monitor *mon, const char *name)
-{
-    int saved_vm_running  = vm_running;
-
-    vm_stop(0);
-
-    load_vmstate(mon, name);
-    if (saved_vm_running)
-        vm_start();
-}
-
 void do_delvm(Monitor *mon, const char *name)
 {
     DriveInfo *dinfo;
