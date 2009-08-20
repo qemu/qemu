@@ -140,37 +140,58 @@ int pci_bus_num(PCIBus *s)
     return s->bus_num;
 }
 
-void pci_device_save(PCIDevice *s, QEMUFile *f)
+static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
+    PCIDevice *s = container_of(pv, PCIDevice, config);
+    uint8_t config[size];
     int i;
 
-    qemu_put_be32(f, s->version_id); /* PCI device version */
-    qemu_put_buffer(f, s->config, 256);
-    for (i = 0; i < 4; i++)
-        qemu_put_be32(f, s->irq_state[i]);
+    qemu_get_buffer(f, config, size);
+    for (i = 0; i < size; ++i)
+        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i])
+            return -EINVAL;
+    memcpy(s->config, config, size);
+
+    pci_update_mappings(s);
+
+    return 0;
+}
+
+/* just put buffer */
+static void put_pci_config_device(QEMUFile *f, const void *pv, size_t size)
+{
+    const uint8_t *v = pv;
+    qemu_put_buffer(f, v, size);
+}
+
+static VMStateInfo vmstate_info_pci_config = {
+    .name = "pci config",
+    .get  = get_pci_config_device,
+    .put  = put_pci_config_device,
+};
+
+const VMStateDescription vmstate_pci_device = {
+    .name = "PCIDevice",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_LE(version_id, PCIDevice),
+        VMSTATE_SINGLE(config, PCIDevice, 0, vmstate_info_pci_config,
+                       typeof_field(PCIDevice,config)),
+        VMSTATE_INT32_ARRAY_V(irq_state, PCIDevice, 4, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+void pci_device_save(PCIDevice *s, QEMUFile *f)
+{
+    vmstate_save_state(f, &vmstate_pci_device, s);
 }
 
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
-    uint8_t config[PCI_CONFIG_SPACE_SIZE];
-    uint32_t version_id;
-    int i;
-
-    version_id = qemu_get_be32(f);
-    if (version_id > 2)
-        return -EINVAL;
-    qemu_get_buffer(f, config, sizeof config);
-    for (i = 0; i < sizeof config; ++i)
-        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i])
-            return -EINVAL;
-    memcpy(s->config, config, sizeof config);
-
-    pci_update_mappings(s);
-
-    if (version_id >= 2)
-        for (i = 0; i < 4; i ++)
-            s->irq_state[i] = qemu_get_be32(f);
-    return 0;
+    return vmstate_load_state(f, &vmstate_pci_device, s, s->version_id);
 }
 
 static int pci_set_default_subsystem_id(PCIDevice *pci_dev)

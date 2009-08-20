@@ -402,6 +402,18 @@ extern const VMStateInfo vmstate_info_buffer;
         + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
 }
 
+extern const VMStateDescription vmstate_pci_device;
+
+#define VMSTATE_PCI_DEVICE(_field, _state) {                         \
+    .name       = (stringify(_field)),                               \
+    .version_id = 2,                                                 \
+    .size       = sizeof(PCIDevice),                                 \
+    .vmsd       = &vmstate_pci_device,                               \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = offsetof(_state, _field)                           \
+            + type_check(PCIDevice,typeof_field(_state, _field))     \
+}
+
 /* _f : field name
    _f_n : num of elements field_name
    _n : num of elements
