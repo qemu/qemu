@@ -1727,8 +1727,7 @@ static void do_loadvm(Monitor *mon, const char *name)
 
     vm_stop(0);
 
-    load_vmstate(mon, name);
-    if (saved_vm_running)
+    if (load_vmstate(mon, name) >= 0 && saved_vm_running)
         vm_start();
 }
 
