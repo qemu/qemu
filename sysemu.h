@@ -52,6 +52,7 @@ void qemu_system_reset(void);
 
 void do_savevm(Monitor *mon, const char *name);
 void do_loadvm(Monitor *mon, const char *name);
+void load_vmstate(Monitor *mon, const char *name);
 void do_delvm(Monitor *mon, const char *name);
 void do_info_snapshots(Monitor *mon);
 

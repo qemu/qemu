@@ -1174,14 +1174,13 @@ void do_savevm(Monitor *mon, const char *name)
         vm_start();
 }
 
-void do_loadvm(Monitor *mon, const char *name)
+void load_vmstate(Monitor *mon, const char *name)
 {
     DriveInfo *dinfo;
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn;
     QEMUFile *f;
     int ret;
-    int saved_vm_running;
 
     bs = get_bs_snapshots();
     if (!bs) {
@@ -1191,9 +1190,6 @@ void do_loadvm(Monitor *mon, const char *name)
 
     /* Flush all IO requests so they don't interfere with the new state.  */
     qemu_aio_flush();
-
-    saved_vm_running = vm_running;
-    vm_stop(0);
 
     TAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
@@ -1220,7 +1216,7 @@ void do_loadvm(Monitor *mon, const char *name)
                 }
                 /* fatal on snapshot block device */
                 if (bs == bs1)
-                    goto the_end;
+                    return;
             }
         }
     }
@@ -1228,20 +1224,28 @@ void do_loadvm(Monitor *mon, const char *name)
     /* Don't even try to load empty VM states */
     ret = bdrv_snapshot_find(bs, &sn, name);
     if ((ret >= 0) && (sn.vm_state_size == 0))
-        goto the_end;
+        return;
 
     /* restore the VM state */
     f = qemu_fopen_bdrv(bs, 0);
     if (!f) {
         monitor_printf(mon, "Could not open VM state file\n");
-        goto the_end;
+        return;
     }
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
     if (ret < 0) {
         monitor_printf(mon, "Error %d while loading VM state\n", ret);
     }
- the_end:
+}
+
+void do_loadvm(Monitor *mon, const char *name)
+{
+    int saved_vm_running  = vm_running;
+
+    vm_stop(0);
+
+    load_vmstate(mon, name);
     if (saved_vm_running)
         vm_start();
 }
