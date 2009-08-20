@@ -719,6 +719,17 @@ void unregister_savevm(const char *idstr, void *opaque)
     }
 }
 
+static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
+{
+    return se->load_state(f, se->opaque, version_id);
+}
+
+static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
+{
+    se->save_state(f, se->opaque);
+}
+
+
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
 #define QEMU_VM_FILE_VERSION         0x00000003
@@ -821,7 +832,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        se->save_state(f, se->opaque);
+        vmstate_save(f, se);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
@@ -907,7 +918,7 @@ static int qemu_loadvm_state_v2(QEMUFile *f)
             fprintf(stderr, "qemu: warning: instance 0x%x of device '%s' not present in current VM\n",
                     instance_id, idstr);
         } else {
-            ret = se->load_state(f, se->opaque, version_id);
+            ret = vmstate_load(f, se, version_id);
             if (ret < 0) {
                 fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
                         instance_id, idstr);
@@ -984,7 +995,7 @@ int qemu_loadvm_state(QEMUFile *f)
             le->next = first_le;
             first_le = le;
 
-            ret = le->se->load_state(f, le->se->opaque, le->version_id);
+            ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
                 fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
                         instance_id, idstr);
@@ -1002,7 +1013,7 @@ int qemu_loadvm_state(QEMUFile *f)
                 goto out;
             }
 
-            ret = le->se->load_state(f, le->se->opaque, le->version_id);
+            ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
                 fprintf(stderr, "qemu: warning: error while loading state section id %d\n",
                         section_id);
