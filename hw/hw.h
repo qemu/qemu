@@ -315,6 +315,7 @@ extern const VMStateInfo vmstate_info_int32;
 extern const VMStateInfo vmstate_info_int64;
 
 extern const VMStateInfo vmstate_info_int32_equal;
+extern const VMStateInfo vmstate_info_int32_le;
 
 extern const VMStateInfo vmstate_info_uint8;
 extern const VMStateInfo vmstate_info_uint16;
@@ -446,6 +447,9 @@ extern const VMStateInfo vmstate_info_buffer;
 
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
+
+#define VMSTATE_INT32_LE(_f, _s)                                   \
+    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
 
 #define VMSTATE_TIMER_V(_f, _s, _v)                                   \
     VMSTATE_POINTER(_f, _s, _v, vmstate_info_timer, QEMUTimer *)
