@@ -73,36 +73,17 @@ static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 static PCIBus *first_bus;
 
-static void pcibus_save(QEMUFile *f, void *opaque)
-{
-    PCIBus *bus = (PCIBus *)opaque;
-    int i;
-
-    qemu_put_be32(f, bus->nirq);
-    for (i = 0; i < bus->nirq; i++)
-        qemu_put_be32(f, bus->irq_count[i]);
-}
-
-static int  pcibus_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCIBus *bus = (PCIBus *)opaque;
-    int i, nirq;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    nirq = qemu_get_be32(f);
-    if (bus->nirq != nirq) {
-        fprintf(stderr, "pcibus_load: nirq mismatch: src=%d dst=%d\n",
-                nirq, bus->nirq);
-        return -EINVAL;
+static const VMStateDescription vmstate_pcibus = {
+    .name = "PCIBUS",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_EQUAL(nirq, PCIBus),
+        VMSTATE_INT32_VARRAY(irq_count, PCIBus, nirq),
+        VMSTATE_END_OF_LIST()
     }
-
-    for (i = 0; i < nirq; i++)
-        bus->irq_count[i] = qemu_get_be32(f);
-
-    return 0;
-}
+};
 
 static void pci_bus_reset(void *opaque)
 {
@@ -135,7 +116,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
     bus->next = first_bus;
     first_bus = bus;
-    register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
+    vmstate_register(nbus++, &vmstate_pcibus, bus);
     qemu_register_reset(pci_bus_reset, bus);
     return bus;
 }
