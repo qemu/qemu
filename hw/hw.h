@@ -282,12 +282,14 @@ struct VMStateInfo {
 enum VMStateFlags {
     VMS_SINGLE  = 0x001,
     VMS_POINTER = 0x002,
+    VMS_ARRAY   = 0x004,
 };
 
 typedef struct {
     const char *name;
     size_t offset;
     size_t size;
+    int num;
     const VMStateInfo *info;
     enum VMStateFlags flags;
     int version_id;
@@ -314,6 +316,8 @@ extern const VMStateInfo vmstate_info_uint64;
 
 extern const VMStateInfo vmstate_info_timer;
 
+#define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
+
 #define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -334,7 +338,19 @@ extern const VMStateInfo vmstate_info_timer;
             + type_check(_type,typeof_field(_state, _field))         \
 }
 
+#define VMSTATE_ARRAY(_field, _state, _num, _version, _info, _type) {\
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num        = (_num),                                            \
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_ARRAY,                                         \
+    .offset     = offsetof(_state, _field)                           \
+        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+}
+
 /* _f : field name
+   _n : num of elements
    _s : struct state name
    _v : version
 */
@@ -380,6 +396,18 @@ extern const VMStateInfo vmstate_info_timer;
 
 #define VMSTATE_TIMER(_f, _s)                                         \
     VMSTATE_TIMER_V(_f, _s, 0)
+
+#define VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)                        \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint32, uint32_t)
+
+#define VMSTATE_UINT32_ARRAY(_f, _s, _n)                              \
+    VMSTATE_UINT32_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_INT32_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_int32, int32_t)
+
+#define VMSTATE_INT32_ARRAY(_f, _s, _n)                               \
+    VMSTATE_INT32_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_END_OF_LIST()                                         \
     {}
