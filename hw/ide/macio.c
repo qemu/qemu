@@ -22,14 +22,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include <hw/hw.h>
+#include <hw/ppc_mac.h>
+#include <hw/mac_dbdma.h>
 #include "block.h"
 #include "block_int.h"
 #include "sysemu.h"
 #include "dma.h"
-#include "ppc_mac.h"
-#include "mac_dbdma.h"
-#include "ide-internal.h"
+
+#include <hw/ide/internal.h>
 
 /***********************************************************/
 /* MacIO based PowerPC IDE */

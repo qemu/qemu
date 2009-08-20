@@ -22,12 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include <hw/hw.h>
 #include "block.h"
 #include "block_int.h"
 #include "sysemu.h"
 #include "dma.h"
-#include "ide-internal.h"
+
+#include <hw/ide/internal.h>
 
 /***********************************************************/
 /* MMIO based ide port

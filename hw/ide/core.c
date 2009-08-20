@@ -22,17 +22,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pci.h"
-#include "scsi-disk.h"
+#include <hw/hw.h>
+#include <hw/pc.h>
+#include <hw/pci.h>
+#include <hw/scsi-disk.h>
+#include <hw/sh.h>
 #include "block.h"
 #include "block_int.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
-#include "sh.h"
 #include "dma.h"
-#include "ide-internal.h"
+
+#include <hw/ide/internal.h>
 
 static int smart_attributes[][5] = {
     /* id,  flags, val, wrst, thrsh */

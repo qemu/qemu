@@ -22,14 +22,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pc.h"
+#include <hw/hw.h>
+#include <hw/pc.h>
+#include <hw/pcmcia.h>
 #include "block.h"
 #include "block_int.h"
 #include "sysemu.h"
 #include "dma.h"
-#include "ide-internal.h"
-#include "pcmcia.h"
+
+#include <hw/ide/internal.h>
 
 /***********************************************************/
 /* CF-ATA Microdrive */
