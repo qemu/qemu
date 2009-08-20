@@ -983,7 +983,13 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
             for (i = 0; i < n_elems; i++) {
                 void *addr = base_addr + field->size * i;
-                ret = field->info->get(f, addr, field->size);
+
+                if (field->flags & VMS_STRUCT) {
+                    ret = vmstate_load_state(f, field->vmsd, addr, version_id);
+                } else {
+                    ret = field->info->get(f, addr, field->size);
+
+                }
                 if (ret < 0) {
                     return ret;
                 }
@@ -1011,7 +1017,12 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
         for (i = 0; i < n_elems; i++) {
             const void *addr = base_addr + field->size * i;
-            field->info->put(f, addr, field->size);
+
+            if (field->flags & VMS_STRUCT) {
+                vmstate_save_state(f, field->vmsd, addr);
+            } else {
+                field->info->put(f, addr, field->size);
+            }
         }
         field++;
     }
