@@ -284,6 +284,7 @@ enum VMStateFlags {
     VMS_POINTER = 0x002,
     VMS_ARRAY   = 0x004,
     VMS_STRUCT  = 0x008,
+    VMS_VARRAY  = 0x010,  /* Array with size in another field */
 };
 
 typedef struct {
@@ -291,6 +292,7 @@ typedef struct {
     size_t offset;
     size_t size;
     int num;
+    size_t num_offset;
     const VMStateInfo *info;
     enum VMStateFlags flags;
     const VMStateDescription *vmsd;
@@ -321,6 +323,7 @@ extern const VMStateInfo vmstate_info_uint64;
 extern const VMStateInfo vmstate_info_timer;
 
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
+#define type_check_pointer(t1,t2) ((t1**)0 - (t2*)0)
 
 #define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
     .name       = (stringify(_field)),                               \
@@ -353,6 +356,18 @@ extern const VMStateInfo vmstate_info_timer;
         + type_check_array(_type,typeof_field(_state, _field),_num)  \
 }
 
+#define VMSTATE_VARRAY(_field, _state, _field_num, _version, _info, _type) {\
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num_offset = offsetof(_state, _field_num)                       \
+        + type_check(int32_t,typeof_field(_state, _field_num)),      \
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_VARRAY|VMS_POINTER,                            \
+    .offset     = offsetof(_state, _field)                           \
+        + type_check_pointer(_type,typeof_field(_state, _field))     \
+}
+
 #define VMSTATE_STRUCT(_field, _state, _version, _vmsd, _type) {     \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -375,6 +390,7 @@ extern const VMStateInfo vmstate_info_timer;
 }
 
 /* _f : field name
+   _f_n : num of elements field_name
    _n : num of elements
    _s : struct state name
    _v : version
@@ -436,6 +452,12 @@ extern const VMStateInfo vmstate_info_timer;
 
 #define VMSTATE_INT32_ARRAY(_f, _s, _n)                               \
     VMSTATE_INT32_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, _v)                      \
+    VMSTATE_VARRAY(_f, _s, _f_n, _v, vmstate_info_int32, int32_t)
+
+#define VMSTATE_INT32_VARRAY(_f, _s, _f_n)                            \
+    VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, 0)
 
 #define VMSTATE_END_OF_LIST()                                         \
     {}
