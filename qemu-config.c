@@ -53,6 +53,10 @@ QemuOptsList qemu_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "host cache usage (none, writeback, writethrough)",
         },{
+            .name = "aio",
+            .type = QEMU_OPT_STRING,
+            .help = "host AIO implementation (threads, native)",
+        },{
             .name = "format",
             .type = QEMU_OPT_STRING,
             .help = "disk format (raw, qcow2, ...)",

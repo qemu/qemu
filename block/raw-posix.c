@@ -115,6 +115,7 @@ typedef struct BDRVRawState {
     int fd_got_error;
     int fd_media_changed;
 #endif
+    int use_aio;
     uint8_t* aligned_buf;
 } BDRVRawState;
 
@@ -159,6 +160,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     }
     s->fd = fd;
     s->aligned_buf = NULL;
+
     if ((bdrv_flags & BDRV_O_NOCACHE)) {
         s->aligned_buf = qemu_blockalign(bs, ALIGNED_BUFFER_SIZE);
         if (s->aligned_buf == NULL) {
@@ -166,9 +168,22 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         }
     }
 
-    s->aio_ctx = paio_init();
-    if (!s->aio_ctx) {
-        goto out_free_buf;
+#ifdef CONFIG_LINUX_AIO
+    if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
+                      (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
+        s->aio_ctx = laio_init();
+        if (!s->aio_ctx) {
+            goto out_free_buf;
+        }
+        s->use_aio = 1;
+    } else
+#endif
+    {
+        s->aio_ctx = paio_init();
+        if (!s->aio_ctx) {
+            goto out_free_buf;
+        }
+        s->use_aio = 0;
     }
 
     return 0;
@@ -524,8 +539,13 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
      * boundary.  Check if this is the case or telll the low-level
      * driver that it needs to copy the buffer.
      */
-    if (s->aligned_buf && !qiov_is_aligned(qiov)) {
-        type |= QEMU_AIO_MISALIGNED;
+    if (s->aligned_buf) {
+        if (!qiov_is_aligned(qiov)) {
+            type |= QEMU_AIO_MISALIGNED;
+        } else if (s->use_aio) {
+            return laio_submit(bs, s->aio_ctx, s->fd, sector_num, qiov,
+	                       nb_sectors, cb, opaque, type);
+        }
     }
 
     return paio_submit(bs, s->aio_ctx, s->fd, sector_num, qiov, nb_sectors,

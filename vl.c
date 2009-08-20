@@ -1916,6 +1916,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     int max_devs;
     int index;
     int cache;
+    int aio = 0;
     int bdrv_flags, onerror;
     const char *devaddr;
     DriveInfo *dinfo;
@@ -2048,6 +2049,19 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
            return NULL;
         }
     }
+
+#ifdef CONFIG_LINUX_AIO
+    if ((buf = qemu_opt_get(opts, "aio")) != NULL) {
+        if (!strcmp(buf, "threads"))
+            aio = 0;
+        else if (!strcmp(buf, "native"))
+            aio = 1;
+        else {
+           fprintf(stderr, "qemu: invalid aio option\n");
+           return NULL;
+        }
+    }
+#endif
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
        if (strcmp(buf, "?") == 0) {
@@ -2218,11 +2232,19 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         bdrv_flags |= BDRV_O_NOCACHE;
     else if (cache == 2) /* write-back */
         bdrv_flags |= BDRV_O_CACHE_WB;
+
+    if (aio == 1) {
+        bdrv_flags |= BDRV_O_NATIVE_AIO;
+    } else {
+        bdrv_flags &= ~BDRV_O_NATIVE_AIO;
+    }
+
     if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return NULL;
     }
+
     if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
     *fatal_error = 0;

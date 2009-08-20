@@ -1401,6 +1401,7 @@ static void usage(const char *name)
 "  -n, --nocache        disable host cache\n"
 "  -g, --growable       allow file to grow (only applies to protocols)\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
+"  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n",
@@ -1412,7 +1413,7 @@ int main(int argc, char **argv)
 {
 	int readonly = 0;
 	int growable = 0;
-	const char *sopt = "hVc:Crsnmg";
+	const char *sopt = "hVc:Crsnmgk";
 	struct option lopt[] = {
 		{ "help", 0, NULL, 'h' },
 		{ "version", 0, NULL, 'V' },
@@ -1424,6 +1425,7 @@ int main(int argc, char **argv)
 		{ "nocache", 0, NULL, 'n' },
 		{ "misalign", 0, NULL, 'm' },
 		{ "growable", 0, NULL, 'g' },
+		{ "native-aio", 0, NULL, 'k' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int c;
@@ -1454,6 +1456,9 @@ int main(int argc, char **argv)
 			break;
 		case 'g':
 			growable = 1;
+			break;
+		case 'k':
+			flags |= BDRV_O_NATIVE_AIO;
 			break;
 		case 'V':
 			printf("%s version %s\n", progname, VERSION);

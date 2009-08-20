@@ -33,4 +33,10 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque);
 
+/* linux-aio.c - Linux native implementation */
+void *laio_init(void);
+BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque, int type);
+
 #endif /* QEMU_RAW_POSIX_AIO_H */
