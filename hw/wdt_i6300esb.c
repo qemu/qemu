@@ -25,7 +25,6 @@
 #include "qemu-timer.h"
 #include "watchdog.h"
 #include "hw.h"
-#include "isa.h"
 #include "pc.h"
 #include "pci.h"
 
@@ -71,7 +70,7 @@
 
 /* Device state. */
 struct I6300State {
-    PCIDevice dev;              /* PCI device state, must be first field. */
+    PCIDevice dev;
 
     int reboot_enabled;         /* "Reboot" on timer expiry.  The real action
                                  * performed depends on the -watchdog-action
@@ -199,7 +198,7 @@ static void i6300esb_timer_expired(void *vp)
 static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
                                   uint32_t data, int len)
 {
-    I6300State *d = (I6300State *) dev;
+    I6300State *d = container_of(dev, I6300State, dev);
     int old;
 
     i6300esb_debug("addr = %x, data = %x, len = %d\n", addr, data, len);
@@ -227,7 +226,7 @@ static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
 
 static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
 {
-    I6300State *d = (I6300State *) dev;
+    I6300State *d = container_of(dev, I6300State, dev);
     uint32_t data;
 
     i6300esb_debug ("addr = %x, len = %d\n", addr, len);
@@ -361,7 +360,7 @@ static void i6300esb_map(PCIDevice *dev, int region_num,
         i6300esb_mem_writew,
         i6300esb_mem_writel,
     };
-    I6300State *d = (I6300State *) dev;
+    I6300State *d = container_of(dev, I6300State, dev);
     int io_mem;
 
     i6300esb_debug("addr = %x, size = %x, type = %d\n", addr, size, type);
