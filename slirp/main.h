@@ -31,7 +31,6 @@ extern char *exec_shell;
 extern u_int curtime;
 extern fd_set *global_readfds, *global_writefds, *global_xfds;
 extern struct in_addr loopback_addr;
-extern struct in_addr dns_addr;
 extern char *username;
 extern char *socket_path;
 extern int towrite_max;
