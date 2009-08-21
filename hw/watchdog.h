@@ -25,13 +25,6 @@
 extern void wdt_i6300esb_init(void);
 extern void wdt_ib700_init(void);
 
-/* Possible values for action parameter. */
-#define WDT_RESET        1	/* Hard reset. */
-#define WDT_SHUTDOWN     2	/* Shutdown. */
-#define WDT_POWEROFF     3	/* Quit. */
-#define WDT_PAUSE        4	/* Pause. */
-#define WDT_DEBUG        5	/* Prints a message and continues running. */
-#define WDT_NONE         6	/* Do nothing. */
 
 struct WatchdogTimerModel {
     LIST_ENTRY(WatchdogTimerModel) entry;
@@ -47,10 +40,6 @@ struct WatchdogTimerModel {
     void (*wdt_pc_init)(PCIBus *pci_bus);
 };
 typedef struct WatchdogTimerModel WatchdogTimerModel;
-
-/* in vl.c */
-extern WatchdogTimerModel *watchdog;
-extern int watchdog_action;
 
 /* in hw/watchdog.c */
 extern int select_watchdog(const char *p);

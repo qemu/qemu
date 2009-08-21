@@ -233,8 +233,6 @@ uint8_t irq0override = 1;
 #ifndef _WIN32
 int daemonize = 0;
 #endif
-WatchdogTimerModel *watchdog = NULL;
-int watchdog_action = WDT_RESET;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;

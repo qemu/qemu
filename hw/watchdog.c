@@ -24,6 +24,16 @@
 #include "sysemu.h"
 #include "hw/watchdog.h"
 
+/* Possible values for action parameter. */
+#define WDT_RESET        1	/* Hard reset. */
+#define WDT_SHUTDOWN     2	/* Shutdown. */
+#define WDT_POWEROFF     3	/* Quit. */
+#define WDT_PAUSE        4	/* Pause. */
+#define WDT_DEBUG        5	/* Prints a message and continues running. */
+#define WDT_NONE         6	/* Do nothing. */
+
+static WatchdogTimerModel *watchdog;
+static int watchdog_action = WDT_RESET;
 static LIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
 
 void watchdog_add_model(WatchdogTimerModel *model)
