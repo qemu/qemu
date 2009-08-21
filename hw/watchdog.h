@@ -22,10 +22,6 @@
 #ifndef QEMU_WATCHDOG_H
 #define QEMU_WATCHDOG_H
 
-extern void wdt_i6300esb_init(void);
-extern void wdt_ib700_init(void);
-
-
 struct WatchdogTimerModel {
     LIST_ENTRY(WatchdogTimerModel) entry;
 
@@ -33,11 +29,6 @@ struct WatchdogTimerModel {
     const char *wdt_name;
     /* Longer description (eg. manufacturer and full model number). */
     const char *wdt_description;
-
-    /* This callback should create/register the device.  It is called
-     * indirectly from hw/pc.c when the virtual PC is being set up.
-     */
-    void (*wdt_pc_init)(PCIBus *pci_bus);
 };
 typedef struct WatchdogTimerModel WatchdogTimerModel;
 
@@ -46,7 +37,5 @@ extern int select_watchdog(const char *p);
 extern int select_watchdog_action(const char *action);
 extern void watchdog_add_model(WatchdogTimerModel *model);
 extern void watchdog_perform_action(void);
-extern void watchdog_pc_init(PCIBus *pci_bus);
-extern void register_watchdogs(void);
 
 #endif /* QEMU_WATCHDOG_H */
