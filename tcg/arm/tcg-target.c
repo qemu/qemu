@@ -1427,6 +1427,10 @@ static inline void tcg_out_op(TCGContext *s, int opc,
     case INDEX_op_neg_i32:
         tcg_out_dat_imm(s, COND_AL, ARITH_RSB, args[0], args[1], 0);
         break;
+    case INDEX_op_not_i32:
+        tcg_out_dat_reg(s, COND_AL,
+                        ARITH_MVN, args[0], 0, args[1], SHIFT_IMM_LSL(0));
+        break;
     case INDEX_op_mul_i32:
         tcg_out_mul32(s, COND_AL, args[0], args[1], args[2]);
         break;
@@ -1561,6 +1565,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_or_i32, { "r", "r", "rI" } },
     { INDEX_op_xor_i32, { "r", "r", "rI" } },
     { INDEX_op_neg_i32, { "r", "r" } },
+    { INDEX_op_not_i32, { "r", "r" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
