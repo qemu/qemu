@@ -115,6 +115,7 @@ struct ESPState {
 #define CMD_TI       0x10
 #define CMD_ICCS     0x11
 #define CMD_MSGACC   0x12
+#define CMD_PAD      0x18
 #define CMD_SATN     0x1a
 #define CMD_SEL      0x41
 #define CMD_SELATN   0x42
@@ -529,6 +530,12 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             DPRINTF("Message Accepted (%2.2x)\n", val);
             write_response(s);
             s->rregs[ESP_RINTR] = INTR_DC;
+            s->rregs[ESP_RSEQ] = 0;
+            break;
+        case CMD_PAD:
+            DPRINTF("Transfer padding (%2.2x)\n", val);
+            s->rregs[ESP_RSTAT] = STAT_TC;
+            s->rregs[ESP_RINTR] = INTR_FC;
             s->rregs[ESP_RSEQ] = 0;
             break;
         case CMD_SATN:
