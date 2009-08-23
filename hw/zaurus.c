@@ -160,7 +160,7 @@ static CPUWriteMemoryFunc *scoop_writefn[] = {
 
 void scoop_gpio_set(void *opaque, int line, int level)
 {
-    struct scoop_info_s *s = (struct scoop_info_s *) s;
+    struct scoop_info_s *s = (struct scoop_info_s *) opaque;
 
     if (level)
         s->gpio_level |= (1 << line);
