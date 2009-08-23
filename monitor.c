@@ -3062,6 +3062,9 @@ static void monitor_find_completion(const char *cmdline)
             }
         }
         str = args[nb_args - 1];
+        if (*ptype == '-' && ptype[1] != '\0') {
+            ptype += 2;
+        }
         switch(*ptype) {
         case 'F':
             /* file completion */
