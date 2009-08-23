@@ -68,9 +68,6 @@
 #define MP_RTC_IRQ              28
 #define MP_AUDIO_IRQ            30
 
-static uint32_t gpio_in_state = 0xffffffff;
-static uint32_t gpio_isr;
-static uint32_t gpio_out_state;
 static ram_addr_t sram_off;
 
 typedef enum i2c_state {
@@ -782,6 +779,7 @@ static void mv88w8618_eth_init(SysBusDevice *dev)
 
 typedef struct musicpal_lcd_state {
     SysBusDevice busdev;
+    uint32_t brightness;
     uint32_t mode;
     uint32_t irqctrl;
     int page;
@@ -790,37 +788,15 @@ typedef struct musicpal_lcd_state {
     uint8_t video_ram[128*64/8];
 } musicpal_lcd_state;
 
-static uint32_t lcd_brightness;
-
-static uint8_t scale_lcd_color(uint8_t col)
+static uint8_t scale_lcd_color(musicpal_lcd_state *s, uint8_t col)
 {
-    int tmp = col;
-
-    switch (lcd_brightness) {
-    case 0x00000007: /* 0 */
-        return 0;
-
-    case 0x00020000: /* 1 */
-        return (tmp * 1) / 7;
-
-    case 0x00020001: /* 2 */
-        return (tmp * 2) / 7;
-
-    case 0x00040000: /* 3 */
-        return (tmp * 3) / 7;
-
-    case 0x00010006: /* 4 */
-        return (tmp * 4) / 7;
-
-    case 0x00020005: /* 5 */
-        return (tmp * 5) / 7;
-
-    case 0x00040003: /* 6 */
-        return (tmp * 6) / 7;
-
-    case 0x00030004: /* 7 */
-    default:
+    switch (s->brightness) {
+    case 7:
         return col;
+    case 0:
+        return 0;
+    default:
+        return (col * s->brightness) / 7;
     }
 }
 
@@ -851,9 +827,9 @@ static void lcd_refresh(void *opaque)
         return;
 #define LCD_REFRESH(depth, func) \
     case depth: \
-        col = func(scale_lcd_color((MP_LCD_TEXTCOLOR >> 16) & 0xff), \
-                   scale_lcd_color((MP_LCD_TEXTCOLOR >> 8) & 0xff), \
-                   scale_lcd_color(MP_LCD_TEXTCOLOR & 0xff)); \
+        col = func(scale_lcd_color(s, (MP_LCD_TEXTCOLOR >> 16) & 0xff), \
+                   scale_lcd_color(s, (MP_LCD_TEXTCOLOR >> 8) & 0xff), \
+                   scale_lcd_color(s, MP_LCD_TEXTCOLOR & 0xff)); \
         for (x = 0; x < 128; x++) \
             for (y = 0; y < 64; y++) \
                 if (s->video_ram[x + (y/8)*128] & (1 << (y % 8))) \
@@ -875,6 +851,13 @@ static void lcd_refresh(void *opaque)
 
 static void lcd_invalidate(void *opaque)
 {
+}
+
+static void musicpal_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
+{
+    musicpal_lcd_state *s = (musicpal_lcd_state *) opaque;
+    s->brightness &= ~(1 << irq);
+    s->brightness |= level << irq;
 }
 
 static uint32_t musicpal_lcd_read(void *opaque, target_phys_addr_t offset)
@@ -946,14 +929,17 @@ static void musicpal_lcd_init(SysBusDevice *dev)
     musicpal_lcd_state *s = FROM_SYSBUS(musicpal_lcd_state, dev);
     int iomemtype;
 
+    s->brightness = 7;
+
     iomemtype = cpu_register_io_memory(musicpal_lcd_readfn,
                                        musicpal_lcd_writefn, s);
     sysbus_init_mmio(dev, MP_LCD_SIZE, iomemtype);
-    cpu_register_physical_memory(MP_LCD_BASE, MP_LCD_SIZE, iomemtype);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
                                  NULL, NULL, s);
     qemu_console_resize(s->ds, 128*3, 64*3);
+
+    qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brigthness_in, 3);
 }
 
 /* PIC register offsets */
@@ -1327,15 +1313,7 @@ static void mv88w8618_wlan_init(SysBusDevice *dev)
 #define MP_GPIO_ISR_HI          0x520
 
 /* GPIO bits & masks */
-#define MP_GPIO_WHEEL_VOL       (1 << 8)
-#define MP_GPIO_WHEEL_VOL_INV   (1 << 9)
-#define MP_GPIO_WHEEL_NAV       (1 << 10)
-#define MP_GPIO_WHEEL_NAV_INV   (1 << 11)
 #define MP_GPIO_LCD_BRIGHTNESS  0x00070000
-#define MP_GPIO_BTN_FAVORITS    (1 << 19)
-#define MP_GPIO_BTN_MENU        (1 << 20)
-#define MP_GPIO_BTN_VOLUME      (1 << 21)
-#define MP_GPIO_BTN_NAVIGATION  (1 << 22)
 #define MP_GPIO_I2C_DATA_BIT    29
 #define MP_GPIO_I2C_DATA        (1 << MP_GPIO_I2C_DATA_BIT)
 #define MP_GPIO_I2C_CLOCK_BIT   30
@@ -1343,29 +1321,127 @@ static void mv88w8618_wlan_init(SysBusDevice *dev)
 /* LCD brightness bits in GPIO_OE_HI */
 #define MP_OE_LCD_BRIGHTNESS    0x0007
 
+typedef struct musicpal_gpio_state {
+    SysBusDevice busdev;
+    uint32_t lcd_brightness;
+    uint32_t out_state;
+    uint32_t in_state;
+    uint32_t isr;
+    uint32_t key_released;
+    uint32_t keys_event;    /* store the received key event */
+    qemu_irq irq;
+    qemu_irq out[3];
+} musicpal_gpio_state;
+
+static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
+    int i;
+    uint32_t brightness;
+
+    /* compute brightness ratio */
+    switch (s->lcd_brightness) {
+    case 0x00000007:
+        brightness = 0;
+        break;
+
+    case 0x00020000:
+        brightness = 1;
+        break;
+
+    case 0x00020001:
+        brightness = 2;
+        break;
+
+    case 0x00040000:
+        brightness = 3;
+        break;
+
+    case 0x00010006:
+        brightness = 4;
+        break;
+
+    case 0x00020005:
+        brightness = 5;
+        break;
+
+    case 0x00040003:
+        brightness = 6;
+        break;
+
+    case 0x00030004:
+    default:
+        brightness = 7;
+    }
+
+    /* set lcd brightness GPIOs  */
+    for (i = 0; i <= 2; i++)
+        qemu_set_irq(s->out[i], (brightness >> i) & 1);
+}
+
+static void musicpal_gpio_keys_update(musicpal_gpio_state *s)
+{
+        int gpio_mask = 0;
+
+        /* transform the key state for GPIO usage */
+        gpio_mask |= (s->keys_event & 15) << 8;
+        gpio_mask |= ((s->keys_event >> 4) & 15) << 19;
+
+        /* update GPIO state */
+        if (s->key_released) {
+            s->in_state |= gpio_mask;
+        } else {
+            s->in_state &= ~gpio_mask;
+            s->isr = gpio_mask;
+            qemu_irq_raise(s->irq);
+        }
+}
+
+static void musicpal_gpio_irq(void *opaque, int irq, int level)
+{
+    musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
+
+    /* receives keys bits */
+    if (irq <= 7) {
+        s->keys_event &= ~(1 << irq);
+        s->keys_event |= level << irq;
+        return;
+    }
+
+    /* receives key press/release */
+    if (irq == 8) {
+        s->key_released = level;
+        return;
+    }
+
+    /* a key has been transmited */
+    if (irq == 9 && level == 1)
+        musicpal_gpio_keys_update(s);
+}
+
 static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 {
+    musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
+
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
-        return lcd_brightness & MP_OE_LCD_BRIGHTNESS;
+        return s->lcd_brightness & MP_OE_LCD_BRIGHTNESS;
 
     case MP_GPIO_OUT_LO:
-        return gpio_out_state & 0xFFFF;
+        return s->out_state & 0xFFFF;
     case MP_GPIO_OUT_HI:
-        return gpio_out_state >> 16;
+        return s->out_state >> 16;
 
     case MP_GPIO_IN_LO:
-        return gpio_in_state & 0xFFFF;
+        return s->in_state & 0xFFFF;
     case MP_GPIO_IN_HI:
         /* Update received I2C data */
-        gpio_in_state = (gpio_in_state & ~MP_GPIO_I2C_DATA) |
+        s->in_state = (s->in_state & ~MP_GPIO_I2C_DATA) |
                         (i2c_get_data(mixer_i2c) << MP_GPIO_I2C_DATA_BIT);
-        return gpio_in_state >> 16;
+        return s->in_state >> 16;
 
     case MP_GPIO_ISR_LO:
-        return gpio_isr & 0xFFFF;
+        return s->isr & 0xFFFF;
     case MP_GPIO_ISR_HI:
-        return gpio_isr >> 16;
+        return s->isr >> 16;
 
     default:
         return 0;
@@ -1375,22 +1451,25 @@ static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
+    musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
-        lcd_brightness = (lcd_brightness & MP_GPIO_LCD_BRIGHTNESS) |
+        s->lcd_brightness = (s->lcd_brightness & MP_GPIO_LCD_BRIGHTNESS) |
                          (value & MP_OE_LCD_BRIGHTNESS);
+        musicpal_gpio_brightness_update(s);
         break;
 
     case MP_GPIO_OUT_LO:
-        gpio_out_state = (gpio_out_state & 0xFFFF0000) | (value & 0xFFFF);
+        s->out_state = (s->out_state & 0xFFFF0000) | (value & 0xFFFF);
         break;
     case MP_GPIO_OUT_HI:
-        gpio_out_state = (gpio_out_state & 0xFFFF) | (value << 16);
-        lcd_brightness = (lcd_brightness & 0xFFFF) |
-                         (gpio_out_state & MP_GPIO_LCD_BRIGHTNESS);
+        s->out_state = (s->out_state & 0xFFFF) | (value << 16);
+        s->lcd_brightness = (s->lcd_brightness & 0xFFFF) |
+                            (s->out_state & MP_GPIO_LCD_BRIGHTNESS);
+        musicpal_gpio_brightness_update(s);
         i2c_state_update(mixer_i2c,
-                         (gpio_out_state >> MP_GPIO_I2C_DATA_BIT) & 1,
-                         (gpio_out_state >> MP_GPIO_I2C_CLOCK_BIT) & 1);
+                         (s->out_state >> MP_GPIO_I2C_DATA_BIT) & 1,
+                         (s->out_state >> MP_GPIO_I2C_CLOCK_BIT) & 1);
         break;
 
     }
@@ -1408,13 +1487,29 @@ static CPUWriteMemoryFunc *musicpal_gpio_writefn[] = {
     musicpal_gpio_write,
 };
 
-static void musicpal_gpio_init(void)
+static void musicpal_gpio_reset(musicpal_gpio_state *s)
 {
+    s->in_state = 0xffffffff;
+    s->key_released = 0;
+    s->keys_event = 0;
+    s->isr = 0;
+}
+
+static void musicpal_gpio_init(SysBusDevice *dev)
+{
+    musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state, dev);
     int iomemtype;
 
+    sysbus_init_irq(dev, &s->irq);
+
     iomemtype = cpu_register_io_memory(musicpal_gpio_readfn,
-                                       musicpal_gpio_writefn, NULL);
-    cpu_register_physical_memory(MP_GPIO_BASE, MP_GPIO_SIZE, iomemtype);
+                                       musicpal_gpio_writefn, s);
+    sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
+
+    musicpal_gpio_reset(s);
+
+    qdev_init_gpio_out(&dev->qdev, s->out, 3);
+    qdev_init_gpio_in(&dev->qdev, musicpal_gpio_irq, 10);
 }
 
 /* Keyboard codes & masks */
@@ -1432,69 +1527,109 @@ static void musicpal_gpio_init(void)
 #define KEYCODE_LEFT            0x4b
 #define KEYCODE_RIGHT           0x4d
 
+#define MP_KEY_WHEEL_VOL       (1)
+#define MP_KEY_WHEEL_VOL_INV   (1 << 1)
+#define MP_KEY_WHEEL_NAV       (1 << 2)
+#define MP_KEY_WHEEL_NAV_INV   (1 << 3)
+#define MP_KEY_BTN_FAVORITS    (1 << 4)
+#define MP_KEY_BTN_MENU        (1 << 5)
+#define MP_KEY_BTN_VOLUME      (1 << 6)
+#define MP_KEY_BTN_NAVIGATION  (1 << 7)
+
+typedef struct musicpal_key_state {
+    SysBusDevice busdev;
+    uint32_t kbd_extended;
+    uint32_t keys_state;
+    qemu_irq out[10];
+} musicpal_key_state;
+
 static void musicpal_key_event(void *opaque, int keycode)
 {
-    qemu_irq irq = opaque;
+    musicpal_key_state *s = (musicpal_key_state *) opaque;
     uint32_t event = 0;
-    static int kbd_extended;
+    int i;
 
     if (keycode == KEYCODE_EXTENDED) {
-        kbd_extended = 1;
+        s->kbd_extended = 1;
         return;
     }
 
-    if (kbd_extended)
+    if (s->kbd_extended)
         switch (keycode & KEY_CODE) {
         case KEYCODE_UP:
-            event = MP_GPIO_WHEEL_NAV | MP_GPIO_WHEEL_NAV_INV;
+            event = MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_NAV_INV;
             break;
 
         case KEYCODE_DOWN:
-            event = MP_GPIO_WHEEL_NAV;
+            event = MP_KEY_WHEEL_NAV;
             break;
 
         case KEYCODE_LEFT:
-            event = MP_GPIO_WHEEL_VOL | MP_GPIO_WHEEL_VOL_INV;
+            event = MP_KEY_WHEEL_VOL | MP_KEY_WHEEL_VOL_INV;
             break;
 
         case KEYCODE_RIGHT:
-            event = MP_GPIO_WHEEL_VOL;
+            event = MP_KEY_WHEEL_VOL;
             break;
         }
     else {
         switch (keycode & KEY_CODE) {
         case KEYCODE_F:
-            event = MP_GPIO_BTN_FAVORITS;
+            event = MP_KEY_BTN_FAVORITS;
             break;
 
         case KEYCODE_TAB:
-            event = MP_GPIO_BTN_VOLUME;
+            event = MP_KEY_BTN_VOLUME;
             break;
 
         case KEYCODE_ENTER:
-            event = MP_GPIO_BTN_NAVIGATION;
+            event = MP_KEY_BTN_NAVIGATION;
             break;
 
         case KEYCODE_M:
-            event = MP_GPIO_BTN_MENU;
+            event = MP_KEY_BTN_MENU;
             break;
         }
         /* Do not repeat already pressed buttons */
-        if (!(keycode & KEY_RELEASED) && !(gpio_in_state & event))
+        if (!(keycode & KEY_RELEASED) && !(s->keys_state & event))
             event = 0;
     }
 
     if (event) {
+
+        /* transmit key event on GPIOS */
+        for (i = 0; i <= 7; i++)
+            qemu_set_irq(s->out[i], (event >> i) & 1);
+
+        /* handle key press/release */
         if (keycode & KEY_RELEASED) {
-            gpio_in_state |= event;
+            s->keys_state |= event;
+            qemu_irq_raise(s->out[8]);
         } else {
-            gpio_in_state &= ~event;
-            gpio_isr = event;
-            qemu_irq_raise(irq);
+            s->keys_state &= ~event;
+            qemu_irq_lower(s->out[8]);
         }
+
+        /* signal that a key event occured */
+        qemu_irq_pulse(s->out[9]);
     }
 
-    kbd_extended = 0;
+    s->kbd_extended = 0;
+}
+
+static void musicpal_key_init(SysBusDevice *dev)
+{
+    musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
+
+    sysbus_init_mmio(dev, 0x0, 0);
+
+    s->kbd_extended = 0;
+    s->keys_state = 0;
+
+    /* 8 key event GPIO + 1 key press/release + 1 strobe */
+    qdev_init_gpio_out(&dev->qdev, s->out, 10);
+
+    qemu_add_kbd_event_handler(musicpal_key_event, s);
 }
 
 static struct arm_boot_info musicpal_binfo = {
@@ -1511,6 +1646,8 @@ static void musicpal_init(ram_addr_t ram_size,
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;
+    DeviceState *lcd_dev;
+    DeviceState *key_dev;
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
@@ -1572,10 +1709,6 @@ static void musicpal_init(ram_addr_t ram_size,
     }
     sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
 
-    sysbus_create_simple("musicpal_lcd", MP_LCD_BASE, NULL);
-
-    qemu_add_kbd_event_handler(musicpal_key_event, pic[MP_GPIO_IRQ]);
-
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
     dev = qdev_create(NULL, "mv88w8618_eth");
     dev->nd = &nd_table[0];
@@ -1588,7 +1721,16 @@ static void musicpal_init(ram_addr_t ram_size,
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 
     musicpal_misc_init();
-    musicpal_gpio_init();
+
+    dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
+    lcd_dev = sysbus_create_simple("musicpal_lcd", MP_LCD_BASE, NULL);
+    key_dev = sysbus_create_simple("musicpal_key", 0, NULL);
+
+    for (i = 0; i < 3; i++)
+        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(lcd_dev, i));
+
+    for (i = 0; i < 10; i++)
+        qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i));
 
     musicpal_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
     musicpal_binfo.kernel_filename = kernel_filename;
@@ -1624,6 +1766,10 @@ static void musicpal_register_devices(void)
                         mv88w8618_wlan_init);
     sysbus_register_dev("musicpal_lcd", sizeof(musicpal_lcd_state),
                         musicpal_lcd_init);
+    sysbus_register_dev("musicpal_gpio", sizeof(musicpal_gpio_state),
+                        musicpal_gpio_init);
+    sysbus_register_dev("musicpal_key", sizeof(musicpal_key_state),
+                        musicpal_key_init);
 }
 
 device_init(musicpal_register_devices)
