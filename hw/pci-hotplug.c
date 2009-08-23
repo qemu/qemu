@@ -125,9 +125,8 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
             monitor_printf(mon, "Parameter addr not supported\n");
             return NULL;
         }
-    } else if (type == IF_VIRTIO) {
-        monitor_printf(mon, "virtio requires a backing file/device.\n");
-        return NULL;
+    } else {
+        dinfo = NULL;
     }
 
     switch (type) {
@@ -135,6 +134,10 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         dev = pci_create("lsi53c895a", devaddr);
         break;
     case IF_VIRTIO:
+        if (!dinfo) {
+            monitor_printf(mon, "virtio requires a backing file/device.\n");
+            return NULL;
+        }
         dev = pci_create("virtio-blk-pci", devaddr);
         qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
         break;
