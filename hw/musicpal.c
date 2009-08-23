@@ -66,8 +66,6 @@
 #define MP_RTC_IRQ              28
 #define MP_AUDIO_IRQ            30
 
-static ram_addr_t sram_off;
-
 /* Wolfson 8750 I2C address */
 #define MP_WM_ADDR              0x34
 
@@ -1286,6 +1284,7 @@ static void musicpal_init(ram_addr_t ram_size,
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
+    ram_addr_t sram_off;
 
     if (!cpu_model)
         cpu_model = "arm926";
