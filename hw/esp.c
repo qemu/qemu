@@ -115,7 +115,9 @@ struct ESPState {
 #define CMD_TI       0x10
 #define CMD_ICCS     0x11
 #define CMD_MSGACC   0x12
+#define CMD_PAD      0x18
 #define CMD_SATN     0x1a
+#define CMD_SEL      0x41
 #define CMD_SELATN   0x42
 #define CMD_SELATNS  0x43
 #define CMD_ENSEL    0x44
@@ -530,15 +532,25 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             s->rregs[ESP_RINTR] = INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
             break;
+        case CMD_PAD:
+            DPRINTF("Transfer padding (%2.2x)\n", val);
+            s->rregs[ESP_RSTAT] = STAT_TC;
+            s->rregs[ESP_RINTR] = INTR_FC;
+            s->rregs[ESP_RSEQ] = 0;
+            break;
         case CMD_SATN:
             DPRINTF("Set ATN (%2.2x)\n", val);
             break;
+        case CMD_SEL:
+            DPRINTF("Select without ATN (%2.2x)\n", val);
+            handle_satn(s);
+            break;
         case CMD_SELATN:
-            DPRINTF("Set ATN (%2.2x)\n", val);
+            DPRINTF("Select with ATN (%2.2x)\n", val);
             handle_satn(s);
             break;
         case CMD_SELATNS:
-            DPRINTF("Set ATN & stop (%2.2x)\n", val);
+            DPRINTF("Select with ATN & stop (%2.2x)\n", val);
             handle_satn_stop(s);
             break;
         case CMD_ENSEL:

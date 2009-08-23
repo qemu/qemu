@@ -1134,6 +1134,7 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
         } else {
             dc->pc = dc->npc;
             dc->npc = target;
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
         }
     } else {
         flush_cond(dc, r_cond);
@@ -1174,6 +1175,7 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
         } else {
             dc->pc = dc->npc;
             dc->npc = target;
+            tcg_gen_mov_tl(cpu_pc, cpu_npc);
         }
     } else {
         flush_cond(dc, r_cond);

@@ -439,6 +439,22 @@ int cpu_sparc_exec(CPUSPARCState *s);
 #endif
 
 #ifndef NO_CPU_IO_DEFS
+
+static inline int cpu_cwp_inc(CPUSPARCState *env1, int cwp)
+{
+    if (unlikely(cwp >= env1->nwindows))
+        cwp -= env1->nwindows;
+    return cwp;
+}
+
+static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
+{
+    if (unlikely(cwp < 0))
+        cwp += env1->nwindows;
+    return cwp;
+}
+#endif
+
 static inline void memcpy32(target_ulong *dst, const target_ulong *src)
 {
     dst[0] = src[0];
@@ -463,43 +479,25 @@ static inline void cpu_set_cwp(CPUSPARCState *env1, int new_cwp)
     env1->regwptr = env1->regbase + (new_cwp * 16);
 }
 
-static inline int cpu_cwp_inc(CPUSPARCState *env1, int cwp)
-{
-    if (unlikely(cwp >= env1->nwindows))
-        cwp -= env1->nwindows;
-    return cwp;
-}
+/* sun4m.c, sun4u.c */
+void cpu_check_irqs(CPUSPARCState *env);
 
-static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
+static inline void PUT_PSR(CPUSPARCState *env1, target_ulong val)
 {
-    if (unlikely(cwp < 0))
-        cwp += env1->nwindows;
-    return cwp;
-}
+    env1->psr = val & PSR_ICC;
+    env1->psref = (val & PSR_EF)? 1 : 0;
+    env1->psrpil = (val & PSR_PIL) >> 8;
+#if ((!defined (TARGET_SPARC64)) && !defined(CONFIG_USER_ONLY))
+    cpu_check_irqs(env1);
 #endif
-
+    env1->psrs = (val & PSR_S)? 1 : 0;
+    env1->psrps = (val & PSR_PS)? 1 : 0;
 #if !defined (TARGET_SPARC64)
-#define PUT_PSR(env, val) do { int _tmp = val;                          \
-        env->psr = _tmp & PSR_ICC;                                      \
-        env->psref = (_tmp & PSR_EF)? 1 : 0;                            \
-        env->psrpil = (_tmp & PSR_PIL) >> 8;                            \
-        env->psrs = (_tmp & PSR_S)? 1 : 0;                              \
-        env->psrps = (_tmp & PSR_PS)? 1 : 0;                            \
-        env->psret = (_tmp & PSR_ET)? 1 : 0;                            \
-        cpu_set_cwp(env, _tmp & PSR_CWP);                               \
-        CC_OP = CC_OP_FLAGS;                                            \
-    } while (0)
-#else
-#define PUT_PSR(env, val) do { int _tmp = val;                          \
-        env->psr = _tmp & PSR_ICC;                                      \
-        env->psref = (_tmp & PSR_EF)? 1 : 0;                            \
-        env->psrpil = (_tmp & PSR_PIL) >> 8;                            \
-        env->psrs = (_tmp & PSR_S)? 1 : 0;                              \
-        env->psrps = (_tmp & PSR_PS)? 1 : 0;                            \
-        cpu_set_cwp(env, _tmp & PSR_CWP);                               \
-        CC_OP = CC_OP_FLAGS;                                            \
-    } while (0)
+    env1->psret = (val & PSR_ET)? 1 : 0;
 #endif
+    cpu_set_cwp(env1, val & PSR_CWP);
+    env1->cc_op = CC_OP_FLAGS;
+}
 
 #ifdef TARGET_SPARC64
 #define GET_CCR(env) (((env->xcc >> 20) << 4) | ((env->psr & PSR_ICC) >> 20))
@@ -584,9 +582,6 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 
 #include "cpu-all.h"
 #include "exec-all.h"
-
-/* sum4m.c, sun4u.c */
-void cpu_check_irqs(CPUSPARCState *env);
 
 #ifdef TARGET_SPARC64
 /* sun4u.c */

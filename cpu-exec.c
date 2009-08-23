@@ -485,9 +485,6 @@ int cpu_exec(CPUState *env1)
                             env->exception_index = env->interrupt_index;
                             do_interrupt(env);
 			    env->interrupt_index = 0;
-#if !defined(CONFIG_USER_ONLY)
-                            cpu_check_irqs(env);
-#endif
                         next_tb = 0;
 			}
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {

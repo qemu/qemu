@@ -220,11 +220,14 @@ static CPUWriteMemoryFunc *slavio_intctlm_mem_write[3] = {
     slavio_intctlm_mem_writel,
 };
 
-void slavio_pic_info(Monitor *mon, void *opaque)
+void slavio_pic_info(Monitor *mon, DeviceState *dev)
 {
-    SLAVIO_INTCTLState *s = opaque;
+    SysBusDevice *sd;
+    SLAVIO_INTCTLState *s;
     int i;
 
+    sd = sysbus_from_qdev(dev);
+    s = FROM_SYSBUS(SLAVIO_INTCTLState, sd);
     for (i = 0; i < MAX_CPUS; i++) {
         monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
                        s->slaves[i].intreg_pending);
@@ -233,15 +236,18 @@ void slavio_pic_info(Monitor *mon, void *opaque)
                    s->intregm_pending, s->intregm_disabled);
 }
 
-void slavio_irq_info(Monitor *mon, void *opaque)
+void slavio_irq_info(Monitor *mon, DeviceState *dev)
 {
 #ifndef DEBUG_IRQ_COUNT
     monitor_printf(mon, "irq statistic code not compiled.\n");
 #else
-    SLAVIO_INTCTLState *s = opaque;
+    SysBusDevice *sd;
+    SLAVIO_INTCTLState *s;
     int i;
     int64_t count;
 
+    sd = sysbus_from_qdev(dev);
+    s = FROM_SYSBUS(SLAVIO_INTCTLState, sd);
     monitor_printf(mon, "IRQ statistics:\n");
     for (i = 0; i < 32; i++) {
         count = s->irq_count[i];
