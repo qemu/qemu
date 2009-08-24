@@ -820,7 +820,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = d->dev.irq[0];
-    s->pci_dev = (PCIDevice *)d;
+    s->pci_dev = pci_dev;
     qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     ne2000_reset(s);
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
