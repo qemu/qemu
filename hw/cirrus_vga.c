@@ -2346,7 +2346,7 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
 
 static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
 {
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
+    CirrusVGAState *s = opaque;
     uint32_t ret;
 
     addr &= s->cirrus_addr_mask;
@@ -2405,7 +2405,7 @@ static uint32_t cirrus_linear_readl(void *opaque, target_phys_addr_t addr)
 static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
 				 uint32_t val)
 {
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
+    CirrusVGAState *s = opaque;
     unsigned mode;
 
     addr &= s->cirrus_addr_mask;
@@ -2533,7 +2533,7 @@ static uint32_t cirrus_linear_bitblt_readl(void *opaque, target_phys_addr_t addr
 static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
 				 uint32_t val)
 {
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
+    CirrusVGAState *s = opaque;
 
     if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
 	/* bitblt */
@@ -2919,7 +2919,7 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
+    CirrusVGAState *s = opaque;
 
     addr &= CIRRUS_PNPMMIO_SIZE - 1;
 
@@ -2963,7 +2963,7 @@ static uint32_t cirrus_mmio_readl(void *opaque, target_phys_addr_t addr)
 static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
 			       uint32_t val)
 {
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
+    CirrusVGAState *s = opaque;
 
     addr &= CIRRUS_PNPMMIO_SIZE - 1;
 
