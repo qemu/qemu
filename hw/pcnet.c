@@ -1764,7 +1764,7 @@ static uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
 static void pcnet_ioport_map(PCIDevice *pci_dev, int region_num,
                              uint32_t addr, uint32_t size, int type)
 {
-    PCNetState *d = &((PCIPCNetState *)pci_dev)->state;
+    PCNetState *d = &DO_UPCAST(PCIPCNetState, pci_dev, pci_dev)->state;
 
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_map addr=0x%04x size=0x%04x\n", addr, size);
@@ -1979,7 +1979,7 @@ static CPUReadMemoryFunc * const pcnet_mmio_read[] = {
 static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
-    PCIPCNetState *d = (PCIPCNetState *)pci_dev;
+    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, pci_dev);
 
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_mmio_map addr=0x%08x 0x%08x\n", addr, size);
@@ -2009,7 +2009,7 @@ static void pci_pcnet_cleanup(VLANClientState *vc)
 
 static int pci_pcnet_uninit(PCIDevice *dev)
 {
-    PCIPCNetState *d = (PCIPCNetState *)dev;
+    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, dev);
 
     cpu_unregister_io_memory(d->state.mmio_index);
 
@@ -2018,7 +2018,7 @@ static int pci_pcnet_uninit(PCIDevice *dev)
 
 static int pci_pcnet_init(PCIDevice *pci_dev)
 {
-    PCIPCNetState *d = (PCIPCNetState *)pci_dev;
+    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, pci_dev);
     PCNetState *s = &d->state;
     uint8_t *pci_conf;
 
