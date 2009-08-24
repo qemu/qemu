@@ -779,7 +779,7 @@ typedef struct PCINE2000State {
 static void ne2000_map(PCIDevice *pci_dev, int region_num,
                        uint32_t addr, uint32_t size, int type)
 {
-    PCINE2000State *d = (PCINE2000State *)pci_dev;
+    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s = &d->ne2000;
 
     register_ioport_write(addr, 16, 1, ne2000_ioport_write, s);
@@ -805,7 +805,7 @@ static void ne2000_cleanup(VLANClientState *vc)
 
 static int pci_ne2000_init(PCIDevice *pci_dev)
 {
-    PCINE2000State *d = (PCINE2000State *)pci_dev;
+    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s;
     uint8_t *pci_conf;
 
