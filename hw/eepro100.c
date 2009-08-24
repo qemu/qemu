@@ -1350,7 +1350,7 @@ typedef struct PCIEEPRO100State {
 static void pci_map(PCIDevice * pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
 {
-    PCIEEPRO100State *d = (PCIEEPRO100State *) pci_dev;
+    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, pci_dev);
     EEPRO100State *s = &d->eepro100;
 
     logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
@@ -1424,7 +1424,7 @@ static CPUReadMemoryFunc * const pci_mmio_read[] = {
 static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
                          uint32_t addr, uint32_t size, int type)
 {
-    PCIEEPRO100State *d = (PCIEEPRO100State *) pci_dev;
+    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, pci_dev);
 
     logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
            region_num, addr, size, type);
@@ -1724,7 +1724,7 @@ static void nic_cleanup(VLANClientState *vc)
 
 static int pci_nic_uninit(PCIDevice *dev)
 {
-    PCIEEPRO100State *d = (PCIEEPRO100State *) dev;
+    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, dev);
     EEPRO100State *s = &d->eepro100;
 
     cpu_unregister_io_memory(s->mmio_index);
@@ -1734,7 +1734,7 @@ static int pci_nic_uninit(PCIDevice *dev)
 
 static int nic_init(PCIDevice *pci_dev, uint32_t device)
 {
-    PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
+    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, pci_dev);
     EEPRO100State *s;
 
     logout("\n");
