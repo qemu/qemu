@@ -897,7 +897,7 @@ enum { MAC_NARRAYS = ARRAY_SIZE(mac_regarraystosave) };
 static void
 nic_save(QEMUFile *f, void *opaque)
 {
-    E1000State *s = (E1000State *)opaque;
+    E1000State *s = opaque;
     int i, j;
 
     pci_device_save(&s->dev, f);
@@ -940,7 +940,7 @@ nic_save(QEMUFile *f, void *opaque)
 static int
 nic_load(QEMUFile *f, void *opaque, int version_id)
 {
-    E1000State *s = (E1000State *)opaque;
+    E1000State *s = opaque;
     int i, j, ret;
 
     if ((ret = pci_device_load(&s->dev, f)) < 0)
@@ -1032,7 +1032,7 @@ static void
 e1000_mmio_map(PCIDevice *pci_dev, int region_num,
                 uint32_t addr, uint32_t size, int type)
 {
-    E1000State *d = (E1000State *)pci_dev;
+    E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
     int i;
     const uint32_t excluded_regs[] = {
         E1000_MDIC, E1000_ICR, E1000_ICS, E1000_IMS,
@@ -1062,7 +1062,7 @@ e1000_cleanup(VLANClientState *vc)
 static int
 pci_e1000_uninit(PCIDevice *dev)
 {
-    E1000State *d = (E1000State *) dev;
+    E1000State *d = DO_UPCAST(E1000State, dev, dev);
 
     cpu_unregister_io_memory(d->mmio_index);
 
@@ -1083,7 +1083,7 @@ static void e1000_reset(void *opaque)
 
 static int pci_e1000_init(PCIDevice *pci_dev)
 {
-    E1000State *d = (E1000State *)pci_dev;
+    E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
     uint8_t *pci_conf;
     uint16_t checksum = 0;
     static const char info_str[] = "e1000";
