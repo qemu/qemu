@@ -1927,7 +1927,7 @@ static void lsi_io_writel(void *opaque, uint32_t addr, uint32_t val)
 static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
                            uint32_t addr, uint32_t size, int type)
 {
-    LSIState *s = (LSIState *)pci_dev;
+    LSIState *s = DO_UPCAST(LSIState, pci_dev, pci_dev);
 
     DPRINTF("Mapping IO at %08x\n", addr);
 
@@ -1942,7 +1942,7 @@ static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
 static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
-    LSIState *s = (LSIState *)pci_dev;
+    LSIState *s = DO_UPCAST(LSIState, pci_dev, pci_dev);
 
     DPRINTF("Mapping ram at %08x\n", addr);
     s->script_ram_base = addr;
@@ -1952,7 +1952,7 @@ static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
 static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                              uint32_t addr, uint32_t size, int type)
 {
-    LSIState *s = (LSIState *)pci_dev;
+    LSIState *s = DO_UPCAST(LSIState, pci_dev, pci_dev);
 
     DPRINTF("Mapping registers at %08x\n", addr);
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
@@ -2153,7 +2153,7 @@ static int lsi_scsi_load(QEMUFile *f, void *opaque, int version_id)
 
 static int lsi_scsi_uninit(PCIDevice *d)
 {
-    LSIState *s = (LSIState *) d;
+    LSIState *s = DO_UPCAST(LSIState, pci_dev, d);
 
     cpu_unregister_io_memory(s->mmio_io_addr);
     cpu_unregister_io_memory(s->ram_io_addr);
@@ -2165,7 +2165,7 @@ static int lsi_scsi_uninit(PCIDevice *d)
 
 static int lsi_scsi_init(PCIDevice *dev)
 {
-    LSIState *s = (LSIState *)dev;
+    LSIState *s = DO_UPCAST(LSIState, pci_dev, dev);
     uint8_t *pci_conf;
 
     pci_conf = s->pci_dev.config;
