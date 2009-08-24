@@ -147,6 +147,11 @@ typedef struct NE2000State {
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
 
+typedef struct PCINE2000State {
+    PCIDevice dev;
+    NE2000State ne2000;
+} PCINE2000State;
+
 static void ne2000_reset(NE2000State *s)
 {
     int i;
@@ -770,11 +775,6 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 
 /***********************************************************/
 /* PCI NE2000 definitions */
-
-typedef struct PCINE2000State {
-    PCIDevice dev;
-    NE2000State ne2000;
-} PCINE2000State;
 
 static void ne2000_map(PCIDevice *pci_dev, int region_num,
                        uint32_t addr, uint32_t size, int type)
