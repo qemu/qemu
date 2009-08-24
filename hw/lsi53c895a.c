@@ -1960,7 +1960,7 @@ static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
 
 void lsi_scsi_attach(DeviceState *host, BlockDriverState *bd, int id)
 {
-    LSIState *s = (LSIState *)host;
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, host);
 
     if (id < 0) {
         for (id = 0; id < LSI_MAX_DEVS; id++) {
