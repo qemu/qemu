@@ -180,8 +180,6 @@ typedef struct VGACommonState {
     union vga_retrace retrace_info;
 } VGACommonState;
 
-typedef VGACommonState VGAState;
-
 static inline int c6_to_8(int v)
 {
     int b;
@@ -190,15 +188,15 @@ static inline int c6_to_8(int v)
     return (v << 2) | (b << 1) | b;
 }
 
-void vga_common_init(VGAState *s, int vga_ram_size);
-void vga_init(VGAState *s);
+void vga_common_init(VGACommonState *s, int vga_ram_size);
+void vga_init(VGACommonState *s);
 void vga_common_reset(VGACommonState *s);
 
-void vga_dirty_log_start(VGAState *s);
+void vga_dirty_log_start(VGACommonState *s);
 
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
-void vga_invalidate_scanlines(VGAState *s, int y1, int y2);
+void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
 int ppm_save(const char *filename, struct DisplaySurface *ds);
 
 void vga_draw_cursor_line_8(uint8_t *d1, const uint8_t *src1,

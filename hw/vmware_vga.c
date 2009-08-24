@@ -1129,8 +1129,8 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     vmsvga_reset(s);
 
 #ifdef EMBED_STDVGA
-    vga_common_init((VGAState *) s, vga_ram_size);
-    vga_init((VGAState *) s);
+    vga_common_init(&s->vga, vga_ram_size);
+    vga_init(&s->vga);
 #else
     s->vram_size = vga_ram_size;
     s->vram_offset = qemu_ram_alloc(vga_ram_size);

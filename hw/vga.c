@@ -149,6 +149,8 @@ static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
+typedef VGACommonState VGAState;
+
 static void vga_screen_dump(void *opaque, const char *filename);
 static char *screen_dump_filename;
 static DisplayChangeListener *screen_dump_dcl;
@@ -2256,7 +2258,7 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-void vga_common_init(VGAState *s, int vga_ram_size)
+void vga_common_init(VGACommonState *s, int vga_ram_size)
 {
     int i, j, v, b;
 
