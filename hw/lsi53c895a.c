@@ -175,7 +175,7 @@ typedef struct {
 } lsi_queue;
 
 typedef struct {
-    PCIDevice pci_dev;
+    PCIDevice dev;
     int mmio_io_addr;
     int ram_io_addr;
     uint32_t script_ram_base;
@@ -410,7 +410,7 @@ static void lsi_update_irq(LSIState *s)
                 level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
-    qemu_set_irq(s->pci_dev.irq[0], level);
+    qemu_set_irq(s->dev.irq[0], level);
 }
 
 /* Stop SCRIPTS execution and raise a SCSI interrupt.  */
@@ -1927,7 +1927,7 @@ static void lsi_io_writel(void *opaque, uint32_t addr, uint32_t val)
 static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
                            uint32_t addr, uint32_t size, int type)
 {
-    LSIState *s = DO_UPCAST(LSIState, pci_dev, pci_dev);
+    LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
 
     DPRINTF("Mapping IO at %08x\n", addr);
 
@@ -1942,7 +1942,7 @@ static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
 static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
-    LSIState *s = DO_UPCAST(LSIState, pci_dev, pci_dev);
+    LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
 
     DPRINTF("Mapping ram at %08x\n", addr);
     s->script_ram_base = addr;
@@ -1952,7 +1952,7 @@ static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
 static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                              uint32_t addr, uint32_t size, int type)
 {
-    LSIState *s = DO_UPCAST(LSIState, pci_dev, pci_dev);
+    LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
 
     DPRINTF("Mapping registers at %08x\n", addr);
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
@@ -1980,7 +1980,7 @@ void lsi_scsi_attach(DeviceState *host, BlockDriverState *bd, int id)
     s->scsi_dev[id] = scsi_generic_init(bd, 1, lsi_command_complete, s);
     if (s->scsi_dev[id] == NULL)
         s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
-    bd->private = &s->pci_dev;
+    bd->private = &s->dev;
 }
 
 static void lsi_scsi_save(QEMUFile *f, void *opaque)
@@ -1991,7 +1991,7 @@ static void lsi_scsi_save(QEMUFile *f, void *opaque)
     assert(s->current_dma_len == 0);
     assert(s->active_commands == 0);
 
-    pci_device_save(&s->pci_dev, f);
+    pci_device_save(&s->dev, f);
 
     qemu_put_sbe32s(f, &s->carry);
     qemu_put_sbe32s(f, &s->sense);
@@ -2074,7 +2074,7 @@ static int lsi_scsi_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
 
-    if ((ret = pci_device_load(&s->pci_dev, f)) < 0)
+    if ((ret = pci_device_load(&s->dev, f)) < 0)
         return ret;
 
     qemu_get_sbe32s(f, &s->carry);
@@ -2153,7 +2153,7 @@ static int lsi_scsi_load(QEMUFile *f, void *opaque, int version_id)
 
 static int lsi_scsi_uninit(PCIDevice *d)
 {
-    LSIState *s = DO_UPCAST(LSIState, pci_dev, d);
+    LSIState *s = DO_UPCAST(LSIState, dev, d);
 
     cpu_unregister_io_memory(s->mmio_io_addr);
     cpu_unregister_io_memory(s->ram_io_addr);
@@ -2165,10 +2165,10 @@ static int lsi_scsi_uninit(PCIDevice *d)
 
 static int lsi_scsi_init(PCIDevice *dev)
 {
-    LSIState *s = DO_UPCAST(LSIState, pci_dev, dev);
+    LSIState *s = DO_UPCAST(LSIState, dev, dev);
     uint8_t *pci_conf;
 
-    pci_conf = s->pci_dev.config;
+    pci_conf = s->dev.config;
 
     /* PCI Vendor ID (word) */
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_LSI_LOGIC);
@@ -2198,7 +2198,7 @@ static int lsi_scsi_init(PCIDevice *dev)
     s->queue = qemu_malloc(sizeof(lsi_queue));
     s->queue_len = 1;
     s->active_commands = 0;
-    s->pci_dev.unregister = lsi_scsi_uninit;
+    s->dev.unregister = lsi_scsi_uninit;
 
     lsi_soft_reset(s);
 
