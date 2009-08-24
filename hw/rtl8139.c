@@ -423,6 +423,7 @@ static void RTL8139TallyCounters_load(QEMUFile* f, RTL8139TallyCounters *tally_c
 static void RTL8139TallyCounters_save(QEMUFile* f, RTL8139TallyCounters *tally_counters);
 
 typedef struct RTL8139State {
+    PCIDevice dev;
     uint8_t phys[8]; /* mac address */
     uint8_t mult[8]; /* multicast mask array */
 
@@ -463,7 +464,6 @@ typedef struct RTL8139State {
     uint16_t CpCmd;
     uint8_t  TxThresh;
 
-    PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
     int rtl8139_mmio_io_addr;
@@ -692,7 +692,7 @@ static void rtl8139_update_irq(RTL8139State *s)
     DEBUG_PRINT(("RTL8139: Set IRQ to %d (%04x %04x)\n",
        isr ? 1 : 0, s->IntrStatus, s->IntrMask));
 
-    qemu_set_irq(s->pci_dev->irq[0], (isr != 0));
+    qemu_set_irq(s->dev.irq[0], (isr != 0));
 }
 
 #define POLYNOMIAL 0x04c11db6
@@ -3121,7 +3121,7 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
     RTL8139State* s=(RTL8139State*)opaque;
     unsigned int i;
 
-    pci_device_save(s->pci_dev, f);
+    pci_device_save(&s->dev, f);
 
     qemu_put_buffer(f, s->phys, 6);
     qemu_put_buffer(f, s->mult, 8);
@@ -3215,7 +3215,7 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
             return -EINVAL;
 
     if (version_id >= 3) {
-        ret = pci_device_load(s->pci_dev, f);
+        ret = pci_device_load(&s->dev, f);
         if (ret < 0)
             return ret;
     }
@@ -3323,16 +3323,10 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
 /***********************************************************/
 /* PCI RTL8139 definitions */
 
-typedef struct PCIRTL8139State {
-    PCIDevice dev;
-    RTL8139State rtl8139;
-} PCIRTL8139State;
-
 static void rtl8139_mmio_map(PCIDevice *pci_dev, int region_num,
                        uint32_t addr, uint32_t size, int type)
 {
-    PCIRTL8139State *d = (PCIRTL8139State *)pci_dev;
-    RTL8139State *s = &d->rtl8139;
+    RTL8139State *s = DO_UPCAST(RTL8139State, dev, pci_dev);
 
     cpu_register_physical_memory(addr + 0, 0x100, s->rtl8139_mmio_io_addr);
 }
@@ -3340,8 +3334,7 @@ static void rtl8139_mmio_map(PCIDevice *pci_dev, int region_num,
 static void rtl8139_ioport_map(PCIDevice *pci_dev, int region_num,
                        uint32_t addr, uint32_t size, int type)
 {
-    PCIRTL8139State *d = (PCIRTL8139State *)pci_dev;
-    RTL8139State *s = &d->rtl8139;
+    RTL8139State *s = DO_UPCAST(RTL8139State, dev, pci_dev);
 
     register_ioport_write(addr, 0x100, 1, rtl8139_ioport_writeb, s);
     register_ioport_read( addr, 0x100, 1, rtl8139_ioport_readb,  s);
@@ -3437,8 +3430,7 @@ static void rtl8139_cleanup(VLANClientState *vc)
 
 static int pci_rtl8139_uninit(PCIDevice *dev)
 {
-    PCIRTL8139State *d = (PCIRTL8139State *)dev;
-    RTL8139State *s = &d->rtl8139;
+    RTL8139State *s = DO_UPCAST(RTL8139State, dev, dev);
 
     cpu_unregister_io_memory(s->rtl8139_mmio_io_addr);
 
@@ -3447,13 +3439,12 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
 
 static int pci_rtl8139_init(PCIDevice *dev)
 {
-    PCIRTL8139State *d = (PCIRTL8139State *)dev;
-    RTL8139State *s;
+    RTL8139State * s = DO_UPCAST(RTL8139State, dev, dev);
     uint8_t *pci_conf;
 
-    d->dev.unregister = pci_rtl8139_uninit;
+    s->dev.unregister = pci_rtl8139_uninit;
 
-    pci_conf = d->dev.config;
+    pci_conf = s->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8139);
     pci_conf[0x04] = 0x05; /* command = I/O space, Bus Master */
@@ -3463,19 +3454,16 @@ static int pci_rtl8139_init(PCIDevice *dev)
     pci_conf[0x3d] = 1;    /* interrupt pin 0 */
     pci_conf[0x34] = 0xdc;
 
-    s = &d->rtl8139;
-
     /* I/O handler for memory-mapped I/O */
     s->rtl8139_mmio_io_addr =
     cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s);
 
-    pci_register_bar(&d->dev, 0, 0x100,
+    pci_register_bar(&s->dev, 0, 0x100,
                            PCI_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
 
-    pci_register_bar(&d->dev, 1, 0x100,
+    pci_register_bar(&s->dev, 1, 0x100,
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
-    s->pci_dev = (PCIDevice *)d;
     qdev_get_macaddr(&dev->qdev, s->macaddr);
     qemu_register_reset(rtl8139_reset, s);
     rtl8139_reset(s);
@@ -3502,7 +3490,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
 
 static PCIDeviceInfo rtl8139_info = {
     .qdev.name = "rtl8139",
-    .qdev.size = sizeof(PCIRTL8139State),
+    .qdev.size = sizeof(RTL8139State),
     .init      = pci_rtl8139_init,
 };
 
