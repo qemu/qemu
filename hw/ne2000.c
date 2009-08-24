@@ -650,7 +650,7 @@ static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
 
 static void ne2000_save(QEMUFile* f,void* opaque)
 {
-	NE2000State* s=(NE2000State*)opaque;
+	NE2000State* s = opaque;
         uint32_t tmp;
 
         if (s->pci_dev)
@@ -681,7 +681,7 @@ static void ne2000_save(QEMUFile* f,void* opaque)
 
 static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 {
-	NE2000State* s=(NE2000State*)opaque;
+	NE2000State* s = opaque;
         int ret;
         uint32_t tmp;
 
