@@ -507,7 +507,7 @@ static void nic_selective_reset(EEPRO100State * s)
 
 static void nic_reset(void *opaque)
 {
-    EEPRO100State *s = (EEPRO100State *) opaque;
+    EEPRO100State *s = opaque;
     logout("%p\n", s);
     static int first;
     if (!first) {
@@ -1548,7 +1548,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
 
 static int nic_load(QEMUFile * f, void *opaque, int version_id)
 {
-    EEPRO100State *s = (EEPRO100State *) opaque;
+    EEPRO100State *s = opaque;
     int i;
     int ret;
 
@@ -1638,7 +1638,7 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
 
 static void nic_save(QEMUFile * f, void *opaque)
 {
-    EEPRO100State *s = (EEPRO100State *) opaque;
+    EEPRO100State *s = opaque;
     int i;
 
     if (s->pci_dev)
