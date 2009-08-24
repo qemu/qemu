@@ -181,6 +181,7 @@ typedef enum {
 } ru_state_t;
 
 typedef struct {
+    PCIDevice dev;
 #if 1
     uint8_t cmd;
     uint32_t start;
@@ -200,7 +201,6 @@ typedef struct {
     uint8_t curpag;
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
-    PCIDevice *pci_dev;
     VLANClientState *vc;
 #endif
     uint8_t scb_stat;           /* SCB stat/ack byte */
@@ -304,7 +304,7 @@ static void disable_interrupt(EEPRO100State * s)
 {
     if (s->int_stat) {
         logout("interrupt disabled\n");
-        qemu_irq_lower(s->pci_dev->irq[0]);
+        qemu_irq_lower(s->dev.irq[0]);
         s->int_stat = 0;
     }
 }
@@ -313,7 +313,7 @@ static void enable_interrupt(EEPRO100State * s)
 {
     if (!s->int_stat) {
         logout("interrupt enabled\n");
-        qemu_irq_raise(s->pci_dev->irq[0]);
+        qemu_irq_raise(s->dev.irq[0]);
         s->int_stat = 1;
     }
 }
@@ -392,7 +392,7 @@ static void eepro100_fcp_interrupt(EEPRO100State * s)
 static void pci_reset(EEPRO100State * s)
 {
     uint32_t device = s->device;
-    uint8_t *pci_conf = s->pci_dev->config;
+    uint8_t *pci_conf = s->dev.config;
 
     logout("%p\n", s);
 
@@ -1342,16 +1342,10 @@ static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
 /***********************************************************/
 /* PCI EEPRO100 definitions */
 
-typedef struct PCIEEPRO100State {
-    PCIDevice dev;
-    EEPRO100State eepro100;
-} PCIEEPRO100State;
-
 static void pci_map(PCIDevice * pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
 {
-    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, pci_dev);
-    EEPRO100State *s = &d->eepro100;
+    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
            region_num, addr, size, type);
@@ -1424,15 +1418,15 @@ static CPUReadMemoryFunc * const pci_mmio_read[] = {
 static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
                          uint32_t addr, uint32_t size, int type)
 {
-    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, pci_dev);
+    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
            region_num, addr, size, type);
 
     if (region_num == 0) {
         /* Map control / status registers. */
-        cpu_register_physical_memory(addr, size, d->eepro100.mmio_index);
-        d->eepro100.region[region_num] = addr;
+        cpu_register_physical_memory(addr, size, s->mmio_index);
+        s->region[region_num] = addr;
     }
 }
 
@@ -1555,8 +1549,8 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     if (version_id > 3)
         return -EINVAL;
 
-    if (s->pci_dev && version_id >= 3) {
-        ret = pci_device_load(s->pci_dev, f);
+    if (version_id >= 3) {
+        ret = pci_device_load(&s->dev, f);
         if (ret < 0)
             return ret;
     }
@@ -1641,8 +1635,7 @@ static void nic_save(QEMUFile * f, void *opaque)
     EEPRO100State *s = opaque;
     int i;
 
-    if (s->pci_dev)
-        pci_device_save(s->pci_dev, f);
+    pci_device_save(&s->dev, f);
 
     qemu_put_8s(f, &s->rxcr);
 
@@ -1724,8 +1717,7 @@ static void nic_cleanup(VLANClientState *vc)
 
 static int pci_nic_uninit(PCIDevice *dev)
 {
-    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, dev);
-    EEPRO100State *s = &d->eepro100;
+    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, dev);
 
     cpu_unregister_io_memory(s->mmio_index);
 
@@ -1734,16 +1726,13 @@ static int pci_nic_uninit(PCIDevice *dev)
 
 static int nic_init(PCIDevice *pci_dev, uint32_t device)
 {
-    PCIEEPRO100State *d = DO_UPCAST(PCIEEPRO100State, dev, pci_dev);
-    EEPRO100State *s;
+    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     logout("\n");
 
-    d->dev.unregister = pci_nic_uninit;
+    s->dev.unregister = pci_nic_uninit;
 
-    s = &d->eepro100;
     s->device = device;
-    s->pci_dev = &d->dev;
 
     pci_reset(s);
 
@@ -1752,24 +1741,24 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
     s->eeprom = eeprom93xx_new(EEPROM_SIZE);
 
     /* Handler for memory-mapped I/O */
-    d->eepro100.mmio_index =
+    s->mmio_index =
         cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
 
-    pci_register_bar(&d->dev, 0, PCI_MEM_SIZE,
+    pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
                            PCI_ADDRESS_SPACE_MEM |
                            PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_mmio_map);
-    pci_register_bar(&d->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
+    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
                            pci_map);
-    pci_register_bar(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
                            pci_mmio_map);
 
-    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
+    qdev_get_macaddr(&s->dev.qdev, s->macaddr);
     logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
     assert(s->region[1] == 0);
 
     nic_reset(s);
 
-    s->vc = qdev_get_vlan_client(&d->dev.qdev,
+    s->vc = qdev_get_vlan_client(&s->dev.qdev,
                                  nic_can_receive, nic_receive, NULL,
                                  nic_cleanup, s);
 
@@ -1799,15 +1788,15 @@ static int pci_i82559er_init(PCIDevice *dev)
 static PCIDeviceInfo eepro100_info[] = {
     {
         .qdev.name = "i82551",
-        .qdev.size = sizeof(PCIEEPRO100State),
+        .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
     },{
         .qdev.name = "i82557b",
-        .qdev.size = sizeof(PCIEEPRO100State),
+        .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
     },{
         .qdev.name = "i82559er",
-        .qdev.size = sizeof(PCIEEPRO100State),
+        .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
     },{
         /* end of list */
