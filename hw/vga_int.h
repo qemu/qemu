@@ -192,7 +192,7 @@ static inline int c6_to_8(int v)
 
 void vga_common_init(VGAState *s, int vga_ram_size);
 void vga_init(VGAState *s);
-void vga_reset(void *s);
+void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGAState *s);
 

@@ -3125,7 +3125,7 @@ static void cirrus_reset(void *opaque)
 {
     CirrusVGAState *s = opaque;
 
-    vga_reset(s);
+    vga_common_reset(&s->vga);
     unmap_linear_vram(s);
     s->vga.sr[0x06] = 0x0f;
     if (s->device_id == CIRRUS_ID_CLGD5446) {

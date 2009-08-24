@@ -1873,10 +1873,8 @@ static void vga_invalidate_display(void *opaque)
     s->full_update = 1;
 }
 
-void vga_reset(void *opaque)
+void vga_common_reset(VGACommonState *s)
 {
-    VGAState *s = (VGAState *) opaque;
-
     s->lfb_addr = 0;
     s->lfb_end = 0;
     s->map_addr = 0;
@@ -1940,6 +1938,12 @@ void vga_reset(void *opaque)
         memset(&s->retrace_info, 0, sizeof (s->retrace_info));
         break;
     }
+}
+
+static void vga_reset(void *opaque)
+{
+    VGAState *s = (VGAState *) opaque;
+    vga_common_reset(s);
 }
 
 #define TEXTMODE_X(x)	((x) % width)
