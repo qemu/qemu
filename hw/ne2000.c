@@ -141,7 +141,6 @@ typedef struct NE2000State {
     uint8_t mult[8]; /* multicast mask array */
     qemu_irq irq;
     int isa_io_base;
-    PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
     uint8_t mem[NE2000_MEM_SIZE];
@@ -653,13 +652,10 @@ static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
     return 0;
 }
 
-static void ne2000_save(QEMUFile* f,void* opaque)
+static void ne2000_save(QEMUFile* f, void* opaque)
 {
 	NE2000State* s = opaque;
         uint32_t tmp;
-
-        if (s->pci_dev)
-            pci_device_save(s->pci_dev, f);
 
         qemu_put_8s(f, &s->rxcr);
 
@@ -684,20 +680,13 @@ static void ne2000_save(QEMUFile* f,void* opaque)
 	qemu_put_buffer(f, s->mem, NE2000_MEM_SIZE);
 }
 
-static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
+static int ne2000_load(QEMUFile* f, void* opaque, int version_id)
 {
 	NE2000State* s = opaque;
-        int ret;
         uint32_t tmp;
 
         if (version_id > 3)
             return -EINVAL;
-
-        if (s->pci_dev && version_id >= 3) {
-            ret = pci_device_load(s->pci_dev, f);
-            if (ret < 0)
-                return ret;
-        }
 
         if (version_id >= 2) {
             qemu_get_8s(f, &s->rxcr);
@@ -725,6 +714,31 @@ static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 	qemu_get_buffer(f, s->mem, NE2000_MEM_SIZE);
 
 	return 0;
+}
+
+static void pci_ne2000_save(QEMUFile* f, void* opaque)
+{
+	PCINE2000State* s = opaque;
+
+        pci_device_save(&s->dev, f);
+        ne2000_save(f, &s->ne2000);
+}
+
+static int pci_ne2000_load(QEMUFile* f, void* opaque, int version_id)
+{
+	PCINE2000State* s = opaque;
+        int ret;
+
+        if (version_id > 3)
+            return -EINVAL;
+
+        if (version_id >= 3) {
+            ret = pci_device_load(&s->dev, f);
+            if (ret < 0)
+                return ret;
+        }
+
+        return ne2000_load(f, &s->ne2000, version_id);
 }
 
 static void isa_ne2000_cleanup(VLANClientState *vc)
@@ -820,7 +834,6 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = d->dev.irq[0];
-    s->pci_dev = pci_dev;
     qdev_get_macaddr(&d->dev.qdev, s->macaddr);
     ne2000_reset(s);
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
@@ -829,7 +842,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
-    register_savevm("ne2000", -1, 3, ne2000_save, ne2000_load, s);
+    register_savevm("ne2000", -1, 3, pci_ne2000_save, pci_ne2000_load, d);
     return 0;
 }
 

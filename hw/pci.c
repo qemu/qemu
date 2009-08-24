@@ -87,7 +87,7 @@ static const VMStateDescription vmstate_pcibus = {
 
 static void pci_bus_reset(void *opaque)
 {
-    PCIBus *bus = (PCIBus *)opaque;
+    PCIBus *bus = opaque;
     int i;
 
     for (i = 0; i < bus->nirq; i++) {
@@ -627,7 +627,7 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
 static void pci_set_irq(void *opaque, int irq_num, int level)
 {
-    PCIDevice *pci_dev = (PCIDevice *)opaque;
+    PCIDevice *pci_dev = opaque;
     PCIBus *bus;
     int change;
 
