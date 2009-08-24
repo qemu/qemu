@@ -1965,15 +1965,15 @@ static int pcnet_common_init(DeviceState *dev, PCNetState *s,
 /* PCI interface */
 
 static CPUWriteMemoryFunc * const pcnet_mmio_write[] = {
-    (CPUWriteMemoryFunc * const )&pcnet_mmio_writeb,
-    (CPUWriteMemoryFunc * const )&pcnet_mmio_writew,
-    (CPUWriteMemoryFunc * const )&pcnet_mmio_writel
+    &pcnet_mmio_writeb,
+    &pcnet_mmio_writew,
+    &pcnet_mmio_writel
 };
 
 static CPUReadMemoryFunc * const pcnet_mmio_read[] = {
-    (CPUReadMemoryFunc * const )&pcnet_mmio_readb,
-    (CPUReadMemoryFunc * const )&pcnet_mmio_readw,
-    (CPUReadMemoryFunc * const )&pcnet_mmio_readl
+    &pcnet_mmio_readb,
+    &pcnet_mmio_readw,
+    &pcnet_mmio_readl
 };
 
 static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
