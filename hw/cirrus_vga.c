@@ -3263,7 +3263,7 @@ void isa_cirrus_vga_init(void)
 static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
 			       uint32_t addr, uint32_t size, int type)
 {
-    CirrusVGAState *s = &((PCICirrusVGAState *)d)->cirrus_vga;
+    CirrusVGAState *s = &DO_UPCAST(PCICirrusVGAState, dev, d)->cirrus_vga;
 
     /* XXX: add byte swapping apertures */
     cpu_register_physical_memory(addr, s->vga.vram_size,
@@ -3284,7 +3284,7 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
 static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
 				uint32_t addr, uint32_t size, int type)
 {
-    CirrusVGAState *s = &((PCICirrusVGAState *)d)->cirrus_vga;
+    CirrusVGAState *s = &DO_UPCAST(PCICirrusVGAState, dev, d)->cirrus_vga;
 
     cpu_register_physical_memory(addr, CIRRUS_PNPMMIO_SIZE,
 				 s->cirrus_mmio_io_addr);
@@ -3293,11 +3293,11 @@ static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
 static void pci_cirrus_write_config(PCIDevice *d,
                                     uint32_t address, uint32_t val, int len)
 {
-    PCICirrusVGAState *pvs = container_of(d, PCICirrusVGAState, dev);
+    PCICirrusVGAState *pvs = DO_UPCAST(PCICirrusVGAState, dev, d);
     CirrusVGAState *s = &pvs->cirrus_vga;
 
     pci_default_write_config(d, address, val, len);
-    if (s->vga.map_addr && pvs->dev.io_regions[0].addr == -1)
+    if (s->vga.map_addr && d->io_regions[0].addr == -1)
         s->vga.map_addr = 0;
     cirrus_update_memory_access(s);
 }
@@ -3312,7 +3312,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      /* setup VGA */
      vga_common_init(&s->vga, VGA_RAM_SIZE);
      cirrus_init_common(s, device_id, 1);
-     s->vga.pci_dev = (PCIDevice *)d;
+     s->vga.pci_dev = dev;
      s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                       s->vga.screen_dump, s->vga.text_update,
                                       &s->vga);
