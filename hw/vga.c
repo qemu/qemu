@@ -2227,7 +2227,7 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
 
 typedef struct PCIVGAState {
     PCIDevice dev;
-    VGAState vga_state;
+    VGAState vga;
 } PCIVGAState;
 
 void vga_dirty_log_start(VGAState *s)
@@ -2245,7 +2245,7 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
 {
     PCIVGAState *d = (PCIVGAState *)pci_dev;
-    VGAState *s = &d->vga_state;
+    VGAState *s = &d->vga;
     if (region_num == PCI_ROM_SLOT) {
         cpu_register_physical_memory(addr, s->bios_size, s->bios_offset);
     } else {
@@ -2479,7 +2479,7 @@ static void pci_vga_write_config(PCIDevice *d,
                                  uint32_t address, uint32_t val, int len)
 {
     PCIVGAState *pvs = container_of(d, PCIVGAState, dev);
-    VGAState *s = &pvs->vga_state;
+    VGAState *s = &pvs->vga;
 
     pci_default_write_config(d, address, val, len);
     if (s->map_addr && pvs->dev.io_regions[0].addr == -1)
@@ -2489,7 +2489,7 @@ static void pci_vga_write_config(PCIDevice *d,
 static int pci_vga_initfn(PCIDevice *dev)
 {
      PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
-     VGAState *s = &d->vga_state;
+     VGAState *s = &d->vga;
      uint8_t *pci_conf = d->dev.config;
 
      // vga + console init
@@ -2540,8 +2540,8 @@ static PCIDeviceInfo vga_info = {
     .init         = pci_vga_initfn,
     .config_write = pci_vga_write_config,
     .qdev.props   = (Property[]) {
-        DEFINE_PROP_HEX32("bios-offset", PCIVGAState, vga_state.bios_offset, 0),
-        DEFINE_PROP_HEX32("bios-size",   PCIVGAState, vga_state.bios_size,   0),
+        DEFINE_PROP_HEX32("bios-offset", PCIVGAState, vga.bios_offset, 0),
+        DEFINE_PROP_HEX32("bios-size",   PCIVGAState, vga.bios_size,   0),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
