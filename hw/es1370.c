@@ -909,7 +909,7 @@ static void es1370_adc_callback (void *opaque, int avail)
 static void es1370_map (PCIDevice *pci_dev, int region_num,
                         uint32_t addr, uint32_t size, int type)
 {
-    ES1370State *s = DO_UPCAST(ES1370State, dev, pci_dev);
+    ES1370State *s = DO_UPCAST (ES1370State, dev, pci_dev);
 
     (void) region_num;
     (void) size;
@@ -998,9 +998,9 @@ static void es1370_on_reset (void *opaque)
     es1370_reset (s);
 }
 
-static void es1370_initfn(PCIDevice *dev)
+static void es1370_initfn (PCIDevice *dev)
 {
-    ES1370State *s = DO_UPCAST(ES1370State, dev, dev);
+    ES1370State *s = DO_UPCAST (ES1370State, dev, dev);
     uint8_t *c = s->dev.config;
 
     pci_config_set_vendor_id (c, PCI_VENDOR_ID_ENSONIQ);
@@ -1037,7 +1037,7 @@ static void es1370_initfn(PCIDevice *dev)
 
 int es1370_init (PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "ES1370");
+    pci_create_simple (bus, -1, "ES1370");
     return 0;
 }
 
@@ -1048,7 +1048,7 @@ static PCIDeviceInfo es1370_info = {
     .init         = es1370_initfn,
 };
 
-static void es1370_register(void)
+static void es1370_register (void)
 {
     pci_qdev_register (&es1370_info);
 }
