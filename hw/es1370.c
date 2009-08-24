@@ -266,8 +266,7 @@ struct chan {
 };
 
 typedef struct ES1370State {
-    PCIDevice *pci_dev;
-
+    PCIDevice dev;
     QEMUSoundCard card;
     struct chan chan[NB_CHANNELS];
     SWVoiceOut *dac_voice[2];
@@ -279,11 +278,6 @@ typedef struct ES1370State {
     uint32_t codec;
     uint32_t sctl;
 } ES1370State;
-
-typedef struct PCIES1370State {
-    PCIDevice dev;
-    ES1370State es1370;
-} PCIES1370State;
 
 struct chan_bits {
     uint32_t ctl_en;
@@ -327,7 +321,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
     else {
         s->status = new_status & ~STAT_INTR;
     }
-    qemu_set_irq (s->pci_dev->irq[0], !!level);
+    qemu_set_irq (s->dev.irq[0], !!level);
 }
 
 static void es1370_reset (ES1370State *s)
@@ -353,7 +347,7 @@ static void es1370_reset (ES1370State *s)
             s->dac_voice[i] = NULL;
         }
     }
-    qemu_irq_lower (s->pci_dev->irq[0]);
+    qemu_irq_lower (s->dev.irq[0]);
 }
 
 static void es1370_maybe_lower_irq (ES1370State *s, uint32_t sctl)
@@ -915,8 +909,7 @@ static void es1370_adc_callback (void *opaque, int avail)
 static void es1370_map (PCIDevice *pci_dev, int region_num,
                         uint32_t addr, uint32_t size, int type)
 {
-    PCIES1370State *d = (PCIES1370State *) pci_dev;
-    ES1370State *s = &d->es1370;
+    ES1370State *s = DO_UPCAST(ES1370State, dev, pci_dev);
 
     (void) region_num;
     (void) size;
@@ -936,7 +929,7 @@ static void es1370_save (QEMUFile *f, void *opaque)
     ES1370State *s = opaque;
     size_t i;
 
-    pci_device_save (s->pci_dev, f);
+    pci_device_save (&s->dev, f);
     for (i = 0; i < NB_CHANNELS; ++i) {
         struct chan *d = &s->chan[i];
         qemu_put_be32s (f, &d->shift);
@@ -962,7 +955,7 @@ static int es1370_load (QEMUFile *f, void *opaque, int version_id)
     if (version_id != 2)
         return -EINVAL;
 
-    ret = pci_device_load (s->pci_dev, f);
+    ret = pci_device_load (&s->dev, f);
     if (ret)
         return ret;
 
@@ -1007,9 +1000,8 @@ static void es1370_on_reset (void *opaque)
 
 static void es1370_initfn(PCIDevice *dev)
 {
-    PCIES1370State *d = DO_UPCAST(PCIES1370State, dev, dev);
-    ES1370State *s = &d->es1370;
-    uint8_t *c = d->dev.config;
+    ES1370State *s = DO_UPCAST(ES1370State, dev, dev);
+    uint8_t *c = s->dev.config;
 
     pci_config_set_vendor_id (c, PCI_VENDOR_ID_ENSONIQ);
     pci_config_set_device_id (c, PCI_DEVICE_ID_ENSONIQ_ES1370);
@@ -1035,10 +1027,7 @@ static void es1370_initfn(PCIDevice *dev)
     c[0x3e] = 0x0c;
     c[0x3f] = 0x80;
 
-    s = &d->es1370;
-    s->pci_dev = &d->dev;
-
-    pci_register_bar (&d->dev, 0, 256, PCI_ADDRESS_SPACE_IO, es1370_map);
+    pci_register_bar (&s->dev, 0, 256, PCI_ADDRESS_SPACE_IO, es1370_map);
     register_savevm ("es1370", 0, 2, es1370_save, es1370_load, s);
     qemu_register_reset (es1370_on_reset, s);
 
@@ -1055,7 +1044,7 @@ int es1370_init (PCIBus *bus)
 static PCIDeviceInfo es1370_info = {
     .qdev.name    = "ES1370",
     .qdev.desc    = "ENSONIQ AudioPCI ES1370",
-    .qdev.size    = sizeof (PCIES1370State),
+    .qdev.size    = sizeof (ES1370State),
     .init         = es1370_initfn,
 };
 
