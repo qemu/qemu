@@ -188,6 +188,8 @@ static inline uint32_t rotl(uint32_t val, int n)
    right-rotated by an even amount between 0 and 30. */
 static inline int encode_imm(uint32_t imm)
 {
+    int shift;
+
     /* simple case, only lower bits */
     if ((imm & ~0xff) == 0)
         return 0;
