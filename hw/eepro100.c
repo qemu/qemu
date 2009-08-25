@@ -32,6 +32,12 @@
  * Open Source Software Developer Manual
  *
  * TODO:
+ *      * PHY emulation should be separated from nic emulation.
+ *        Most nic emulations could share the same phy code.
+ *      * i82550 is untested. It is programmed like the i82559.
+ *      * i82562 is untested. It is programmed like the i82559.
+ *      * Power management (i82558 and later) is not implemented.
+ *
  * EE100   eepro100_write2         addr=General Status/Control+2 val=0x0080
  * EE100   eepro100_write2         feature is missing in this emulation: unknown word write
  * EE100   eepro100_read2          addr=General Status/Control+2 val=0x0080
@@ -81,11 +87,15 @@
 #define MAX_ETH_FRAME_SIZE 1514
 
 /* This driver supports several different devices which are declared here. */
+#define i82550          0x82550
 #define i82551          0x82551
 #define i82557A         0x82557a
 #define i82557B         0x82557b
 #define i82557C         0x82557c
+#define i82558A         0x82558a
 #define i82558B         0x82558b
+#define i82559A         0x82559a
+#define i82559B         0x82559b
 #define i82559C         0x82559c
 #define i82559ER        0x82559e
 #define i82562          0x82562
@@ -477,102 +487,140 @@ static void pci_reset(EEPRO100State * s)
 {
     uint32_t device = s->device;
     uint8_t *pci_conf = s->pci_dev->config;
+    bool power_management = 1;
 
     TRACE(OTHER, logout("%p\n", s));
 
     /* PCI Vendor ID */
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    /* PCI Device ID */
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+    /* PCI Device ID depends on device and is set below. */
     /* PCI Command */
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);         // TODO: maybe 0x17
     /* PCI Status */
     PCI_CONFIG_16(PCI_STATUS, 0x0280);
-    /* PCI Revision ID depends on device */
+    /* PCI Revision ID depends on device. */
     /* PCI Class Code */
     PCI_CONFIG_8(0x09, 0x00);
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* PCI Cache Line Size */
-    /* check cache line size!!! */
-    //~ PCI_CONFIG_8(0x0c, 0x00);
+    /* Only bit 3 and bit 4 are writable (not emulated). */
     /* PCI Latency Timer */
     PCI_CONFIG_8(0x0d, 0x20);   // latency timer = 32 clocks
     PCI_CONFIG_8(PCI_HEADER_TYPE, 0x00);
     /* BIST (built-in self test) */
-#if 0
-    /* PCI Base Address Registers */
-    /* CSR Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
-                  PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
-    /* CSR I/O Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_1, PCI_ADDRESS_SPACE_IO);
-#if 0
-    /* Flash Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_2, 0xfffe0000 | PCI_ADDRESS_SPACE_MEM);
-#endif
-#endif
     /* Expansion ROM Base Address (depends on boot disable!!!) */
     PCI_CONFIG_32(0x30, 0x00000000);
     /* Capability Pointer */
     PCI_CONFIG_8(0x34, 0xdc);
+    /* Interrupt Line */
     /* Interrupt Pin */
     PCI_CONFIG_8(0x3d, 1);      // interrupt pin 0
     /* Minimum Grant */
     PCI_CONFIG_8(0x3e, 0x08);
     /* Maximum Latency */
     PCI_CONFIG_8(0x3f, 0x18);
-    /* Power Management Capabilities / Next Item Pointer / Capability ID */
-    PCI_CONFIG_32(0xdc, 0x7e210001);
 
     switch (device) {
+    case i82550:
+        // TODO: check device id.
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+        /* Revision ID: 0x0c, 0x0d, 0x0e. */
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0e);
+        break;
     case i82551:
-        //~ pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
-        PCI_CONFIG_8(PCI_REVISION, 0x0f);
+        // TODO: check device id.
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        /* Revision ID: 0x0f, 0x10. */
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0f);
         break;
     case i82557A:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_8(PCI_REVISION, 0x01);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
         PCI_CONFIG_8(0x34, 0x00);
+        power_management = 0;
         break;
     case i82557B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_8(PCI_REVISION, 0x02);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x02);
         PCI_CONFIG_8(0x34, 0x00);
+        power_management = 0;
         break;
     case i82557C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_8(PCI_REVISION, 0x03);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x03);
         PCI_CONFIG_8(0x34, 0x00);
+        power_management = 0;
+        break;
+    case i82558A:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x04);
         break;
     case i82558B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        PCI_CONFIG_8(PCI_REVISION, 0x05);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x05);
+        break;
+    case i82559A:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x06);
+        break;
+    case i82559B:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x07);
         break;
     case i82559C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        //~ PCI_CONFIG_8(PCI_REVISION, 0x08);
-        PCI_CONFIG_8(PCI_REVISION, 0x0c);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+        // TODO: Windows wants revision id 0x0c.
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0c);
 #if EEPROM_SIZE > 0
         PCI_CONFIG_16(PCI_SUBSYSTEM_VENDOR_ID, 0x8086);
         PCI_CONFIG_16(PCI_SUBSYSTEM_ID, 0x0040);
 #endif
         break;
     case i82559ER:
-        //~ pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        PCI_CONFIG_8(PCI_REVISION, 0x09);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
         break;
-    //~ pci_config_set_device_id(pci_conf, 0x1029);
-    //~ pci_config_set_device_id(pci_conf, 0x1030);       /* 82559 InBusiness 10/100 !!! */
+        //~ pci_config_set_device_id(pci_conf, 0x1030);       /* 82559 InBusiness 10/100 !!! */
+    case i82562:
+        // TODO: check device id.
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+        /* TODO: wrong revision id. */
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0e);
+        break;
     default:
         logout("Device %X is undefined!\n", device);
     }
 
+    if (power_management) {
+        /* Power Management Capabilities */
+        PCI_CONFIG_8(0xdc, 0x01);
+        /* Next Item Pointer */
+        /* Capability ID */
+        PCI_CONFIG_16(0xde, 0x7e21);
+        /* TODO: Power Management Control / Status. */
+        /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
+    }
+
+#if EEPROM_SIZE > 0
     if (device == i82557C || device == i82558B || device == i82559C) {
+        // TODO: get vendor id from EEPROM for i82557C or later.
+        // TODO: get device id from EEPROM for i82557C or later.
+        // TODO: status bit 4 can be disabled by EEPROM for i82558, i82559.
+        // TODO: header type is determined by EEPROM for i82559.
+        // TODO: get subsystem id from EEPROM for i82557C or later.
+        // TODO: get subsystem vendor id from EEPROM for i82557C or later.
+        // TODO: exp. rom baddr depends on a bit in EEPROM for i82558 or later.
+        // TODO: capability pointer depends on EEPROM for i82558.
         logout("Get device id and revision from EEPROM!!!\n");
     }
+#endif
 }
 
 static void nic_selective_reset(EEPRO100State * s)
@@ -2005,6 +2053,11 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
                     nic_save, nic_load, s);
 }
 
+static void pci_i82550_init(PCIDevice *dev)
+{
+    nic_init(dev, i82550);
+}
+
 static void pci_i82551_init(PCIDevice *dev)
 {
     nic_init(dev, i82551);
@@ -2025,9 +2078,24 @@ static void pci_i82557c_init(PCIDevice *dev)
     nic_init(dev, i82557C);
 }
 
+static void pci_i82558a_init(PCIDevice *dev)
+{
+    nic_init(dev, i82558A);
+}
+
 static void pci_i82558b_init(PCIDevice *dev)
 {
     nic_init(dev, i82558B);
+}
+
+static void pci_i82559a_init(PCIDevice *dev)
+{
+    nic_init(dev, i82559A);
+}
+
+static void pci_i82559b_init(PCIDevice *dev)
+{
+    nic_init(dev, i82559B);
 }
 
 static void pci_i82559c_init(PCIDevice *dev)
@@ -2040,8 +2108,17 @@ static void pci_i82559er_init(PCIDevice *dev)
     nic_init(dev, i82559ER);
 }
 
+static void pci_i82562_init(PCIDevice *dev)
+{
+    nic_init(dev, i82562);
+}
+
 static PCIDeviceInfo eepro100_info[] = {
     {
+        .qdev.name = "i82550",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82550_init,
+    },{
         .qdev.name = "i82551",
         .qdev.size = sizeof(PCIEEPRO100State),
         .init      = pci_i82551_init,
@@ -2058,9 +2135,21 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(PCIEEPRO100State),
         .init      = pci_i82557c_init,
     },{
+        .qdev.name = "i82558a",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82558a_init,
+    },{
         .qdev.name = "i82558b",
         .qdev.size = sizeof(PCIEEPRO100State),
         .init      = pci_i82558b_init,
+    },{
+        .qdev.name = "i82559a",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82559a_init,
+    },{
+        .qdev.name = "i82559b",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82559b_init,
     },{
         .qdev.name = "i82559c",
         .qdev.size = sizeof(PCIEEPRO100State),
@@ -2069,6 +2158,10 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.name = "i82559er",
         .qdev.size = sizeof(PCIEEPRO100State),
         .init      = pci_i82559er_init,
+    },{
+        .qdev.name = "i82562",
+        .qdev.size = sizeof(PCIEEPRO100State),
+        .init      = pci_i82562_init,
     },{
         /* end of list */
     }
