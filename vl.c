@@ -3749,6 +3749,7 @@ static void *kvm_cpu_thread_fn(void *arg)
 
     block_io_signals();
     qemu_thread_self(env->thread);
+    kvm_init_vcpu(env);
 
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
@@ -3944,7 +3945,6 @@ static void tcg_init_vcpu(void *_env)
 
 static void kvm_start_vcpu(CPUState *env)
 {
-    kvm_init_vcpu(env);
     env->thread = qemu_mallocz(sizeof(QemuThread));
     env->halt_cond = qemu_mallocz(sizeof(QemuCond));
     qemu_cond_init(env->halt_cond);
