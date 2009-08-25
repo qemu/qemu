@@ -771,6 +771,9 @@ static void sdl_mouse_define(int width, int height, int bpp,
         line = image;
         for (x = 0; x < width; x ++, dst ++) {
             switch (bpp) {
+            case 32:
+                src = *(line ++); src |= *(line ++); src |= *(line ++); line++;
+                break;
             case 24:
                 src = *(line ++); src |= *(line ++); src |= *(line ++);
                 break;

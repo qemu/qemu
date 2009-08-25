@@ -1779,13 +1779,13 @@ static uint32_t lsi_mmio_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUReadMemoryFunc *lsi_mmio_readfn[3] = {
+static CPUReadMemoryFunc * const lsi_mmio_readfn[3] = {
     lsi_mmio_readb,
     lsi_mmio_readw,
     lsi_mmio_readl,
 };
 
-static CPUWriteMemoryFunc *lsi_mmio_writefn[3] = {
+static CPUWriteMemoryFunc * const lsi_mmio_writefn[3] = {
     lsi_mmio_writeb,
     lsi_mmio_writew,
     lsi_mmio_writel,
@@ -1860,13 +1860,13 @@ static uint32_t lsi_ram_readl(void *opaque, target_phys_addr_t addr)
     return le32_to_cpu(s->script_ram[addr >> 2]);
 }
 
-static CPUReadMemoryFunc *lsi_ram_readfn[3] = {
+static CPUReadMemoryFunc * const lsi_ram_readfn[3] = {
     lsi_ram_readb,
     lsi_ram_readw,
     lsi_ram_readl,
 };
 
-static CPUWriteMemoryFunc *lsi_ram_writefn[3] = {
+static CPUWriteMemoryFunc * const lsi_ram_writefn[3] = {
     lsi_ram_writeb,
     lsi_ram_writew,
     lsi_ram_writel,

@@ -5897,7 +5897,7 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 
     l1 = gen_new_label();
     t0 = tcg_temp_new_i32();
-    tcg_gen_andi_i32(t0, fpu_fcr31, get_fp_bit(cc));
+    tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
     tcg_temp_free_i32(t0);
     if (rs == 0) {
@@ -5919,7 +5919,7 @@ static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
     else
         cond = TCG_COND_NE;
 
-    tcg_gen_andi_i32(t0, fpu_fcr31, get_fp_bit(cc));
+    tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
     gen_load_fpr32(t0, fs);
     gen_store_fpr32(t0, fd);
@@ -5939,7 +5939,7 @@ static inline void gen_movcf_d (DisasContext *ctx, int fs, int fd, int cc, int t
     else
         cond = TCG_COND_NE;
 
-    tcg_gen_andi_i32(t0, fpu_fcr31, get_fp_bit(cc));
+    tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
     tcg_temp_free_i32(t0);
     fp0 = tcg_temp_new_i64();
@@ -5961,13 +5961,13 @@ static inline void gen_movcf_ps (int fs, int fd, int cc, int tf)
     else
         cond = TCG_COND_NE;
 
-    tcg_gen_andi_i32(t0, fpu_fcr31, get_fp_bit(cc));
+    tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
     gen_load_fpr32(t0, fs);
     gen_store_fpr32(t0, fd);
     gen_set_label(l1);
 
-    tcg_gen_andi_i32(t0, fpu_fcr31, get_fp_bit(cc+1));
+    tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc+1));
     tcg_gen_brcondi_i32(cond, t0, 0, l2);
     gen_load_fpr32h(t0, fs);
     gen_store_fpr32h(t0, fd);

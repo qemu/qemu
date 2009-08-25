@@ -209,7 +209,7 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
         m48t59_write(nvram, i, image[i]);
 }
 
-static void *slavio_intctl;
+static DeviceState *slavio_intctl;
 
 void pic_info(Monitor *mon)
 {
@@ -396,15 +396,13 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
 
 static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
                                        target_phys_addr_t addrg,
-                                       qemu_irq **parent_irq,
-                                       unsigned int cputimer)
+                                       qemu_irq **parent_irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
     unsigned int i, j;
 
     dev = qdev_create(NULL, "slavio_intctl");
-    qdev_prop_set_uint32(dev, "cputimer_bit", cputimer);
     qdev_init(dev);
 
     s = sysbus_from_qdev(dev);
@@ -748,7 +746,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     unsigned long kernel_size;
     BlockDriverState *fd[MAX_FD];
     void *fw_cfg;
-    DeviceState *dev;
     DriveInfo *dinfo;
 
     /* init CPUs */
@@ -768,16 +765,15 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     prom_init(hwdef->slavio_base, bios_name);
 
-    dev = slavio_intctl_init(hwdef->intctl_base,
-                             hwdef->intctl_base + 0x10000ULL,
-                             cpu_irqs,
-                             7);
+    slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
+                                       hwdef->intctl_base + 0x10000ULL,
+                                       cpu_irqs);
 
     for (i = 0; i < 32; i++) {
-        slavio_irq[i] = qdev_get_gpio_in(dev, i);
+        slavio_irq[i] = qdev_get_gpio_in(slavio_intctl, i);
     }
     for (i = 0; i < MAX_CPUS; i++) {
-        slavio_cpu_irq[i] = qdev_get_gpio_in(dev, 32 + i);
+        slavio_cpu_irq[i] = qdev_get_gpio_in(slavio_intctl, 32 + i);
     }
 
     if (hwdef->idreg_base) {

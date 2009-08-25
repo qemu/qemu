@@ -828,7 +828,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
 STEXI
 @item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
-= 0 is the default). The NIC is an ne2k_pci by default on the PC
+= 0 is the default). The NIC is an e1000 by default on the PC
 target. Optionally, the MAC address can be changed to @var{mac}, the
 device address set to @var{addr} (PCI cards only),
 and a @var{name} can be assigned for use in monitor commands.
@@ -1412,25 +1412,6 @@ DEF("bios", HAS_ARG, QEMU_OPTION_bios, \
 STEXI
 @item -bios @var{file}
 Set the filename for the BIOS.
-ETEXI
-
-#ifdef CONFIG_KQEMU
-DEF("kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu, \
-    "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n")
-#endif
-STEXI
-@item -kernel-kqemu
-Enable KQEMU full virtualization (default is user mode only).
-ETEXI
-
-#ifdef CONFIG_KQEMU
-DEF("enable-kqemu", 0, QEMU_OPTION_enable_kqemu, \
-    "-enable-kqemu   enable KQEMU kernel module usage\n")
-#endif
-STEXI
-@item -enable-kqemu
-Enable KQEMU kernel module usage. KQEMU options are only available if
-KQEMU support is enabled when compiling.
 ETEXI
 
 #ifdef CONFIG_KVM

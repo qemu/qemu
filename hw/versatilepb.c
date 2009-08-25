@@ -117,13 +117,13 @@ static void vpb_sic_write(void *opaque, target_phys_addr_t offset,
     vpb_sic_update(s);
 }
 
-static CPUReadMemoryFunc *vpb_sic_readfn[] = {
+static CPUReadMemoryFunc * const vpb_sic_readfn[] = {
    vpb_sic_read,
    vpb_sic_read,
    vpb_sic_read
 };
 
-static CPUWriteMemoryFunc *vpb_sic_writefn[] = {
+static CPUWriteMemoryFunc * const vpb_sic_writefn[] = {
    vpb_sic_write,
    vpb_sic_write,
    vpb_sic_write

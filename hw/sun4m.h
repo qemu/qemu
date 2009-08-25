@@ -23,8 +23,8 @@ static inline void sparc_iommu_memory_write(void *opaque,
 }
 
 /* slavio_intctl.c */
-void slavio_pic_info(Monitor *mon, void *opaque);
-void slavio_irq_info(Monitor *mon, void *opaque);
+void slavio_pic_info(Monitor *mon, DeviceState *dev);
+void slavio_irq_info(Monitor *mon, DeviceState *dev);
 
 /* sun4c_intctl.c */
 void sun4c_pic_info(Monitor *mon, void *opaque);

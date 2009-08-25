@@ -30,4 +30,3 @@ Optimizations/Features:
 - evaluate x87 stack pointer statically
 - find a way to avoid translating several time the same TB if CR0.TS
   is set or not.
-- move kqemu support outside target-i386.

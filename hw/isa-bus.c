@@ -29,18 +29,9 @@ static struct BusInfo isa_bus_info = {
     .name  = "ISA",
     .size  = sizeof(ISABus),
     .props = (Property[]) {
-        {
-            .name   = "iobase",
-            .info   = &qdev_prop_hex32,
-            .offset = offsetof(ISADevice, iobase[0]),
-            .defval = (uint32_t[]) { -1 },
-        },{
-            .name   = "iobase2",
-            .info   = &qdev_prop_hex32,
-            .offset = offsetof(ISADevice, iobase[1]),
-            .defval = (uint32_t[]) { -1 },
-        },
-        {/* end of list */}
+        DEFINE_PROP_HEX32("iobase",  ISADevice, iobase[0], -1),
+        DEFINE_PROP_HEX32("iobase2", ISADevice, iobase[1], -1),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 

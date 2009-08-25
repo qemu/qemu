@@ -196,7 +196,6 @@ vnc_sasl="yes"
 bsd="no"
 linux="no"
 solaris="no"
-kqemu="no"
 profiler="no"
 cocoa="no"
 softmmu="yes"
@@ -208,8 +207,6 @@ build_docs="yes"
 uname_release=""
 curses="yes"
 curl="yes"
-pthread="yes"
-aio="yes"
 io_thread="no"
 nptl="yes"
 mixemu="no"
@@ -249,26 +246,16 @@ MINGW32*)
 GNU/kFreeBSD)
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
-  fi
 ;;
 FreeBSD)
   bsd="yes"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
-  fi
 ;;
 DragonFly)
   bsd="yes"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
-  fi
-  aio="no"
 ;;
 NetBSD)
   bsd="yes"
@@ -331,9 +318,6 @@ SunOS)
         exit 1
       fi
     fi
-    if test "$solarisrev" -ge 9 ; then
-      kqemu="yes"
-    fi
   fi
   if test -f /usr/include/sys/soundcard.h ; then
     audio_drv_list="oss"
@@ -354,7 +338,6 @@ AIX)
   usb="linux"
   kvm="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-    kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
 ;;
@@ -369,13 +352,9 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 if test "$mingw32" = "yes" ; then
-  if [ "$cpu" = "i386" ] ; then
-    kqemu="yes"
-  fi
   EXESUF=".exe"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
-  aio=no
 fi
 
 # find source path
@@ -461,8 +440,6 @@ for opt do
   ;;
   --disable-vde) vde="no"
   ;;
-  --disable-kqemu) kqemu="no"
-  ;;
   --disable-xen) xen="no"
   ;;
   --disable-brlapi) brlapi="no"
@@ -482,6 +459,12 @@ for opt do
   ;;
   --enable-system) softmmu="yes"
   ;;
+  --disable-user)
+      linux_user="no" ;
+      bsd_user="no" ;
+      darwin_user="no"
+  ;;
+  --enable-user) ;;
   --disable-linux-user) linux_user="no"
   ;;
   --enable-linux-user) linux_user="yes"
@@ -513,10 +496,6 @@ for opt do
   --disable-nptl) nptl="no"
   ;;
   --enable-mixemu) mixemu="yes"
-  ;;
-  --disable-pthread) pthread="no"
-  ;;
-  --disable-aio) aio="no"
   ;;
   --enable-io-thread) io_thread="yes"
   ;;
@@ -602,9 +581,6 @@ echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
 echo "                           use %M for cpu name [$interp_prefix]"
 echo "  --target-list=LIST       set target list [$target_list]"
 echo ""
-echo "kqemu kernel acceleration support:"
-echo "  --disable-kqemu          disable kqemu support"
-echo ""
 echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
@@ -640,6 +616,8 @@ echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
+echo "  --enable-user            enable supported user emulation targets"
+echo "  --disable-user           disable all user emulation targets"
 echo "  --enable-linux-user      enable all linux usermode emulation targets"
 echo "  --disable-linux-user     disable all linux usermode emulation targets"
 echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
@@ -655,8 +633,6 @@ echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
-echo "  --disable-pthread        disable pthread support"
-echo "  --disable-aio            disable AIO support"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
@@ -1216,24 +1192,25 @@ fi
 # pthread probe
 PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 
-if test "$pthread" = yes; then
-  pthread=no
+pthread=no
 cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
-  for pthread_lib in $PTHREADLIBS_LIST; do
-    if compile_prog "" "$pthread_lib" ; then
-      pthread=yes
-      LIBS="$pthread_lib $LIBS"
-      break
-    fi
-  done
-fi
+for pthread_lib in $PTHREADLIBS_LIST; do
+  if compile_prog "" "$pthread_lib" ; then
+    pthread=yes
+    LIBS="$pthread_lib $LIBS"
+    break
+  fi
+done
 
-if test "$pthread" = no; then
-   aio=no
-   io_thread=no
+if test "$pthread" = no -a "$mingw32" != "yes"; then
+  echo
+  echo "Error: pthread check failed"
+  echo "Make sure to have the pthread libs and headers installed."
+  echo
+  exit 1
 fi
 
 ##########################################
@@ -1557,7 +1534,6 @@ fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
-echo "kqemu support     $kqemu"
 echo "xen support       $xen"
 echo "brlapi support    $brlapi"
 echo "Documentation     $build_docs"
@@ -1566,7 +1542,6 @@ echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
 echo "vde support       $vde"
-echo "AIO support       $aio"
 echo "IO thread         $io_thread"
 echo "Install blobs     $blobs"
 echo -e "KVM support       $kvm"
@@ -1743,9 +1718,6 @@ if test "$bluez" = "yes" ; then
 fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN=y" >> $config_host_mak
-fi
-if test "$aio" = "yes" ; then
-  echo "CONFIG_AIO=y" >> $config_host_mak
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak
@@ -2049,10 +2021,6 @@ case "$target_arch2" in
   i386|x86_64)
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
       echo "CONFIG_XEN=y" >> $config_mak
-    fi
-    if test $kqemu = "yes" -a "$target_softmmu" = "yes"
-    then
-      echo "CONFIG_KQEMU=y" >> $config_mak
     fi
 esac
 case "$target_arch2" in

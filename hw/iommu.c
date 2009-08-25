@@ -238,13 +238,13 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *iommu_mem_read[3] = {
+static CPUReadMemoryFunc * const iommu_mem_read[3] = {
     NULL,
     NULL,
     iommu_mem_readl,
 };
 
-static CPUWriteMemoryFunc *iommu_mem_write[3] = {
+static CPUWriteMemoryFunc * const iommu_mem_write[3] = {
     NULL,
     NULL,
     iommu_mem_writel,

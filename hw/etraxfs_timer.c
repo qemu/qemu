@@ -285,12 +285,12 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc *timer_read[] = {
+static CPUReadMemoryFunc * const timer_read[] = {
     NULL, NULL,
     &timer_readl,
 };
 
-static CPUWriteMemoryFunc *timer_write[] = {
+static CPUWriteMemoryFunc * const timer_write[] = {
     NULL, NULL,
     &timer_writel,
 };

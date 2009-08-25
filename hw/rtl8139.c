@@ -3353,13 +3353,13 @@ static void rtl8139_ioport_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read( addr, 0x100, 4, rtl8139_ioport_readl,  s);
 }
 
-static CPUReadMemoryFunc *rtl8139_mmio_read[3] = {
+static CPUReadMemoryFunc * const rtl8139_mmio_read[3] = {
     rtl8139_mmio_readb,
     rtl8139_mmio_readw,
     rtl8139_mmio_readl,
 };
 
-static CPUWriteMemoryFunc *rtl8139_mmio_write[3] = {
+static CPUWriteMemoryFunc * const rtl8139_mmio_write[3] = {
     rtl8139_mmio_writeb,
     rtl8139_mmio_writew,
     rtl8139_mmio_writel,

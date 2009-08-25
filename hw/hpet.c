@@ -508,7 +508,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *hpet_ram_read[] = {
+static CPUReadMemoryFunc * const hpet_ram_read[] = {
 #ifdef HPET_DEBUG
     hpet_ram_readb,
     hpet_ram_readw,
@@ -519,7 +519,7 @@ static CPUReadMemoryFunc *hpet_ram_read[] = {
     hpet_ram_readl,
 };
 
-static CPUWriteMemoryFunc *hpet_ram_write[] = {
+static CPUWriteMemoryFunc * const hpet_ram_write[] = {
 #ifdef HPET_DEBUG
     hpet_ram_writeb,
     hpet_ram_writew,

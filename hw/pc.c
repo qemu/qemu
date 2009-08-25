@@ -54,13 +54,13 @@
 #define BIOS_CFG_IOPORT 0x510
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
+#define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 
 #define MAX_IDE_BUS 2
 
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
-static IOAPICState *ioapic;
 static PCIDevice *i440fx_state;
 
 typedef struct rom_reset_data {
@@ -87,6 +87,21 @@ static void option_rom_setup_reset(target_phys_addr_t addr, unsigned size)
     qemu_register_reset(option_rom_reset, rrd);
 }
 
+typedef struct isa_irq_state {
+    qemu_irq *i8259;
+    qemu_irq *ioapic;
+} IsaIrqState;
+
+static void isa_irq_handler(void *opaque, int n, int level)
+{
+    IsaIrqState *isa = (IsaIrqState *)opaque;
+
+    if (n < 16) {
+        qemu_set_irq(isa->i8259[n], level);
+    }
+    qemu_set_irq(isa->ioapic[n], level);
+};
+
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
 }
@@ -107,17 +122,7 @@ static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
 /* TSC handling */
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
-    /* Note: when using kqemu, it is more logical to return the host TSC
-       because kqemu does not trap the RDTSC instruction for
-       performance reasons */
-#ifdef CONFIG_KQEMU
-    if (env->kqemu_enabled) {
-        return cpu_get_real_ticks();
-    } else
-#endif
-    {
-        return cpu_get_ticks();
-    }
+    return cpu_get_ticks();
 }
 
 /* SMM support */
@@ -476,6 +481,7 @@ static void *bochs_bios_init(void)
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES, (uint8_t *)acpi_tables,
                      acpi_tables_len);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_IRQ0_OVERRIDE, &irq0override, 1);
 
     smbios_table = smbios_get_table(&smbios_len);
     if (smbios_table)
@@ -1120,7 +1126,9 @@ static void pc_init1(ram_addr_t ram_size,
     int piix3_devfn = -1;
     CPUState *env;
     qemu_irq *cpu_irq;
+    qemu_irq *isa_irq;
     qemu_irq *i8259;
+    IsaIrqState *isa_irq_state;
     DriveInfo *dinfo;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
@@ -1256,7 +1264,7 @@ static void pc_init1(ram_addr_t ram_size,
             continue;
 
         if (model == NULL)
-            model = "ne2k_pci";
+            model = "e1000";
         snprintf(nic_oprom, sizeof(nic_oprom), "pxe-%s.bin", model);
 
         oprom_area_size += load_option_rom(nic_oprom, 0xc0000 + oprom_area_size,
@@ -1265,10 +1273,13 @@ static void pc_init1(ram_addr_t ram_size,
 
     cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
     i8259 = i8259_init(cpu_irq[0]);
-    ferr_irq = i8259[13];
+    isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
+    isa_irq_state->i8259 = i8259;
+    isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
+    ferr_irq = isa_irq[13];
 
     if (pci_enabled) {
-        pci_bus = i440fx_init(&i440fx_state, i8259);
+        pci_bus = i440fx_init(&i440fx_state, isa_irq);
         piix3_devfn = piix3_init(pci_bus, -1);
     } else {
         pci_bus = NULL;
@@ -1298,7 +1309,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    rtc_state = rtc_init(0x70, i8259[8], 2000);
+    rtc_state = rtc_init(0x70, isa_irq[8], 2000);
 
     qemu_register_boot_set(pc_boot_set, rtc_state);
 
@@ -1306,27 +1317,24 @@ static void pc_init1(ram_addr_t ram_size,
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
     if (pci_enabled) {
-        ioapic = ioapic_init();
+        isa_irq_state->ioapic = ioapic_init();
     }
-    pit = pit_init(0x40, i8259[0]);
+    pit = pit_init(0x40, isa_irq[0]);
     pcspk_init(pit);
     if (!no_hpet) {
-        hpet_init(i8259);
-    }
-    if (pci_enabled) {
-        pic_set_alt_irq_func(isa_pic, ioapic_set_irq, ioapic);
+        hpet_init(isa_irq);
     }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(serial_io[i], i8259[serial_irq[i]], 115200,
+            serial_init(serial_io[i], isa_irq[serial_irq[i]], 115200,
                         serial_hds[i]);
         }
     }
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(parallel_io[i], i8259[parallel_irq[i]],
+            parallel_init(parallel_io[i], isa_irq[parallel_irq[i]],
                           parallel_hds[i]);
         }
     }
@@ -1337,9 +1345,9 @@ static void pc_init1(ram_addr_t ram_size,
         NICInfo *nd = &nd_table[i];
 
         if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
-            pc_init_ne2k_isa(nd, i8259);
+            pc_init_ne2k_isa(nd, isa_irq);
         else
-            pci_nic_init(nd, "ne2k_pci", NULL);
+            pci_nic_init(nd, "e1000", NULL);
     }
 
     piix4_acpi_system_hot_add_init();
@@ -1355,27 +1363,27 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1, i8259);
+        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1, isa_irq);
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
-            isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
+            isa_ide_init(ide_iobase[i], ide_iobase2[i], isa_irq[ide_irq[i]],
 	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
         }
     }
 
     isa_dev = isa_create_simple("i8042", 0x60, 0x64);
-    isa_connect_irq(isa_dev, 0, i8259[1]);
-    isa_connect_irq(isa_dev, 1, i8259[12]);
+    isa_connect_irq(isa_dev, 0, isa_irq[1]);
+    isa_connect_irq(isa_dev, 1, isa_irq[12]);
     DMA_init(0);
 #ifdef HAS_AUDIO
-    audio_init(pci_enabled ? pci_bus : NULL, i8259);
+    audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
 #endif
 
     for(i = 0; i < MAX_FD; i++) {
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
+    floppy_controller = fdctrl_init(isa_irq[6], 2, 0, 0x3f0, fd);
 
     cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
 
@@ -1388,7 +1396,7 @@ static void pc_init1(ram_addr_t ram_size,
         i2c_bus *smbus;
 
         /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, i8259[9]);
+        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, isa_irq[9]);
         for (i = 0; i < 8; i++) {
             DeviceState *eeprom;
             eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
@@ -1485,6 +1493,10 @@ static QEMUMachine pc_machine_v0_10 = {
             .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
         },{
             .driver   = "virtio-net-pci",
+            .property = "vectors",
+            .value    = stringify(0),
+        },{
+            .driver   = "virtio-blk-pci",
             .property = "vectors",
             .value    = stringify(0),
         },

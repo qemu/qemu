@@ -94,7 +94,7 @@ static uint32_t pcie500_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
     return pci->pci_state.config_reg;
 }
 
-static CPUReadMemoryFunc *pcie500_cfgaddr_read[] = {
+static CPUReadMemoryFunc * const pcie500_cfgaddr_read[] = {
     &pcie500_cfgaddr_readl,
     &pcie500_cfgaddr_readl,
     &pcie500_cfgaddr_readl,
@@ -110,19 +110,19 @@ static void pcie500_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
     controller->pci_state.config_reg = value & ~0x3;
 }
 
-static CPUWriteMemoryFunc *pcie500_cfgaddr_write[] = {
+static CPUWriteMemoryFunc * const pcie500_cfgaddr_write[] = {
     &pcie500_cfgaddr_writel,
     &pcie500_cfgaddr_writel,
     &pcie500_cfgaddr_writel,
 };
 
-static CPUReadMemoryFunc *pcie500_cfgdata_read[] = {
+static CPUReadMemoryFunc * const pcie500_cfgdata_read[] = {
     &pci_host_data_readb,
     &pci_host_data_readw,
     &pci_host_data_readl,
 };
 
-static CPUWriteMemoryFunc *pcie500_cfgdata_write[] = {
+static CPUWriteMemoryFunc * const pcie500_cfgdata_write[] = {
     &pci_host_data_writeb,
     &pci_host_data_writew,
     &pci_host_data_writel,
@@ -175,7 +175,7 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUReadMemoryFunc *e500_pci_reg_read[] = {
+static CPUReadMemoryFunc * const e500_pci_reg_read[] = {
     &pci_reg_read4,
     &pci_reg_read4,
     &pci_reg_read4,
@@ -227,7 +227,7 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
     };
 }
 
-static CPUWriteMemoryFunc *e500_pci_reg_write[] = {
+static CPUWriteMemoryFunc * const e500_pci_reg_write[] = {
     &pci_reg_write4,
     &pci_reg_write4,
     &pci_reg_write4,

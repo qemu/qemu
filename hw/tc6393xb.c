@@ -567,12 +567,12 @@ TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
 {
     int iomemtype;
     TC6393xbState *s;
-    CPUReadMemoryFunc *tc6393xb_readfn[] = {
+    CPUReadMemoryFunc * const tc6393xb_readfn[] = {
         tc6393xb_readb,
         tc6393xb_readw,
         tc6393xb_readl,
     };
-    CPUWriteMemoryFunc *tc6393xb_writefn[] = {
+    CPUWriteMemoryFunc * const tc6393xb_writefn[] = {
         tc6393xb_writeb,
         tc6393xb_writew,
         tc6393xb_writel,

@@ -60,9 +60,6 @@ struct PicState2 {
     PicState pics[2];
     qemu_irq parent_irq;
     void *irq_request_opaque;
-    /* IOAPIC callback support */
-    SetIRQFunc *alt_irq_func;
-    void *alt_irq_opaque;
 };
 
 #if defined(DEBUG_PIC) || defined (DEBUG_IRQ_COUNT)
@@ -203,9 +200,6 @@ static void i8259_set_irq(void *opaque, int irq, int level)
     }
 #endif
     pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
-    /* used for IOAPIC irqs */
-    if (s->alt_irq_func)
-        s->alt_irq_func(s->alt_irq_opaque, irq, level);
     pic_update_irq(s);
 }
 
@@ -561,11 +555,4 @@ qemu_irq *i8259_init(qemu_irq parent_irq)
     s->pics[1].pics_state = s;
     isa_pic = s;
     return qemu_allocate_irqs(i8259_set_irq, s, 16);
-}
-
-void pic_set_alt_irq_func(PicState2 *s, SetIRQFunc *alt_irq_func,
-                          void *alt_irq_opaque)
-{
-    s->alt_irq_func = alt_irq_func;
-    s->alt_irq_opaque = alt_irq_opaque;
 }

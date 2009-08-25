@@ -134,13 +134,13 @@ static void ref405ep_fpga_writel (void *opaque,
     ref405ep_fpga_writeb(opaque, addr + 3, value & 0xFF);
 }
 
-static CPUReadMemoryFunc *ref405ep_fpga_read[] = {
+static CPUReadMemoryFunc * const ref405ep_fpga_read[] = {
     &ref405ep_fpga_readb,
     &ref405ep_fpga_readw,
     &ref405ep_fpga_readl,
 };
 
-static CPUWriteMemoryFunc *ref405ep_fpga_write[] = {
+static CPUWriteMemoryFunc * const ref405ep_fpga_write[] = {
     &ref405ep_fpga_writeb,
     &ref405ep_fpga_writew,
     &ref405ep_fpga_writel,
@@ -221,8 +221,8 @@ static void ref405ep_init (ram_addr_t ram_size,
         bios_offset = qemu_ram_alloc(bios_size);
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size " ADDRX " at offset %08lx "
-               " addr " ADDRX " '%s' %d\n",
+        printf("Register parallel flash %d size " TARGET_FMT_lx
+               " at offset %08lx addr " TARGET_FMT_lx " '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
                bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
@@ -458,13 +458,13 @@ static void taihu_cpld_writel (void *opaque,
     taihu_cpld_writeb(opaque, addr + 3, value & 0xFF);
 }
 
-static CPUReadMemoryFunc *taihu_cpld_read[] = {
+static CPUReadMemoryFunc * const taihu_cpld_read[] = {
     &taihu_cpld_readb,
     &taihu_cpld_readw,
     &taihu_cpld_readl,
 };
 
-static CPUWriteMemoryFunc *taihu_cpld_write[] = {
+static CPUWriteMemoryFunc * const taihu_cpld_write[] = {
     &taihu_cpld_writeb,
     &taihu_cpld_writew,
     &taihu_cpld_writel,
@@ -536,8 +536,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         fl_sectors = (bios_size + 65535) >> 16;
         bios_offset = qemu_ram_alloc(bios_size);
 #ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size " ADDRX " at offset %08lx "
-               " addr " ADDRX " '%s' %d\n",
+        printf("Register parallel flash %d size " TARGET_FMT_lx
+               " at offset %08lx addr " TARGET_FMT_lx " '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
                bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
@@ -577,8 +577,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         bios_size = 32 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size " ADDRX " at offset %08lx "
-               " addr " ADDRX " '%s'\n",
+        printf("Register parallel flash %d size " TARGET_FMT_lx
+               " at offset %08lx  addr " TARGET_FMT_lx " '%s'\n",
                fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
                bdrv_get_device_name(dinfo->bdrv));
 #endif

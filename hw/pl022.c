@@ -227,13 +227,13 @@ static void pl022_reset(pl022_state *s)
     s->sr = PL022_SR_TFE | PL022_SR_TNF;
 }
 
-static CPUReadMemoryFunc *pl022_readfn[] = {
+static CPUReadMemoryFunc * const pl022_readfn[] = {
    pl022_read,
    pl022_read,
    pl022_read
 };
 
-static CPUWriteMemoryFunc *pl022_writefn[] = {
+static CPUWriteMemoryFunc * const pl022_writefn[] = {
    pl022_write,
    pl022_write,
    pl022_write

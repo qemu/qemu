@@ -765,7 +765,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 }
 
 /* Memory mapped interface */
-uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr)
+uint32_t serial_mm_readb(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
 
@@ -773,8 +773,7 @@ uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr)
     return serial_ioport_read(s, addr) & 0xFF;
 }
 
-void serial_mm_writeb (void *opaque,
-                       target_phys_addr_t addr, uint32_t value)
+void serial_mm_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     SerialState *s = opaque;
 
@@ -782,7 +781,7 @@ void serial_mm_writeb (void *opaque,
     serial_ioport_write(s, addr, value & 0xFF);
 }
 
-uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t serial_mm_readw(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
     uint32_t val;
@@ -794,8 +793,8 @@ uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-void serial_mm_writew (void *opaque,
-                       target_phys_addr_t addr, uint32_t value)
+static void serial_mm_writew(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
 {
     SerialState *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -804,7 +803,7 @@ void serial_mm_writew (void *opaque,
     serial_ioport_write(s, addr, value & 0xFFFF);
 }
 
-uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t serial_mm_readl(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
     uint32_t val;
@@ -816,8 +815,8 @@ uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-void serial_mm_writel (void *opaque,
-                       target_phys_addr_t addr, uint32_t value)
+static void serial_mm_writel(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
 {
     SerialState *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -826,13 +825,13 @@ void serial_mm_writel (void *opaque,
     serial_ioport_write(s, addr, value);
 }
 
-static CPUReadMemoryFunc *serial_mm_read[] = {
+static CPUReadMemoryFunc * const serial_mm_read[] = {
     &serial_mm_readb,
     &serial_mm_readw,
     &serial_mm_readl,
 };
 
-static CPUWriteMemoryFunc *serial_mm_write[] = {
+static CPUWriteMemoryFunc * const serial_mm_write[] = {
     &serial_mm_writeb,
     &serial_mm_writew,
     &serial_mm_writel,

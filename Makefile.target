@@ -55,8 +55,7 @@ all: $(PROGS)
 
 #########################################################
 # cpu emulator library
-libobj-y = exec.o translate-all.o cpu-exec.o translate.o host-utils.o
-libobj-$(CONFIG_KQEMU) += kqemu.o
+libobj-y = exec.o translate-all.o cpu-exec.o translate.o
 libobj-y += tcg/tcg.o tcg/tcg-runtime.o
 libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
 libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
@@ -111,13 +110,15 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
-obj-y = main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
-      elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o \
-      ioport-user.o
+obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
+      elfload.o linuxload.o uaccess.o gdbstub.o gdbstub-xml.o
+
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
 obj-$(TARGET_I386) += vm86.o
+
+obj-i386-y += ioport-user.o
 
 nwfpe-obj-y = fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
 nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
@@ -143,7 +144,9 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o gdbstub-xml.o ioport-user.o
+        gdbstub.o gdbstub-xml.o
+
+obj-i386-y += ioport-user.o
 
 ARLIBS=libqemu.a
 
@@ -157,9 +160,10 @@ ifdef CONFIG_BSD_USER
 VPATH+=:$(SRC_PATH)/bsd-user
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
-obj-y = main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
-        gdbstub.o gdbstub-xml.o ioport-user.o
-obj-y += uaccess.o
+obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
+        gdbstub.o gdbstub-xml.o uaccess.o
+
+obj-i386-y += ioport-user.o
 
 ARLIBS=libqemu.a ../libqemu_user.a
 
@@ -169,11 +173,11 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o \
+obj-y = vl.o monitor.o pci.o loader.o isa_mmio.o machine.o \
         gdbstub.o gdbstub-xml.o msix.o ioport.o qemu-config.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
+obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o virtio-pci.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 
 LIBS+=-lz
@@ -307,7 +311,7 @@ obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
 obj-arm-y += nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 obj-arm-y += mst_fpga.o mainstone.o
-obj-arm-y += musicpal.o pflash_cfi02.o
+obj-arm-y += musicpal.o pflash_cfi02.o bitbang_i2c.o marvell_88w8618_audio.o
 obj-arm-y += framebuffer.o
 obj-arm-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
 obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o

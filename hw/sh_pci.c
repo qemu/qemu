@@ -148,8 +148,8 @@ static uint32_t sh_pci_inl (void *p, target_phys_addr_t addr)
 }
 
 typedef struct {
-    CPUReadMemoryFunc *r[3];
-    CPUWriteMemoryFunc *w[3];
+    CPUReadMemoryFunc * const r[3];
+    CPUWriteMemoryFunc * const w[3];
 } MemOp;
 
 static MemOp sh_pci_reg = {

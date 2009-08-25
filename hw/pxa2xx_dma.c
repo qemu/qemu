@@ -416,13 +416,13 @@ static void QEMU_NORETURN pxa2xx_dma_writebad(void *opaque,
     hw_error("%s: Bad access width\n", __FUNCTION__);
 }
 
-static CPUReadMemoryFunc *pxa2xx_dma_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_dma_readfn[] = {
     pxa2xx_dma_readbad,
     pxa2xx_dma_readbad,
     pxa2xx_dma_read
 };
 
-static CPUWriteMemoryFunc *pxa2xx_dma_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_dma_writefn[] = {
     pxa2xx_dma_writebad,
     pxa2xx_dma_writebad,
     pxa2xx_dma_write

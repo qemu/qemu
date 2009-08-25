@@ -134,13 +134,13 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_pm_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_pm_readfn[] = {
     pxa2xx_pm_read,
     pxa2xx_pm_read,
     pxa2xx_pm_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_pm_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_pm_writefn[] = {
     pxa2xx_pm_write,
     pxa2xx_pm_write,
     pxa2xx_pm_write,
@@ -215,13 +215,13 @@ static void pxa2xx_cm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_cm_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_cm_readfn[] = {
     pxa2xx_cm_read,
     pxa2xx_cm_read,
     pxa2xx_cm_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_cm_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_cm_writefn[] = {
     pxa2xx_cm_write,
     pxa2xx_cm_write,
     pxa2xx_cm_write,
@@ -515,13 +515,13 @@ static void pxa2xx_mm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_mm_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_mm_readfn[] = {
     pxa2xx_mm_read,
     pxa2xx_mm_read,
     pxa2xx_mm_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_mm_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_mm_writefn[] = {
     pxa2xx_mm_write,
     pxa2xx_mm_write,
     pxa2xx_mm_write,
@@ -791,13 +791,13 @@ static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_ssp_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_ssp_readfn[] = {
     pxa2xx_ssp_read,
     pxa2xx_ssp_read,
     pxa2xx_ssp_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_ssp_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_ssp_writefn[] = {
     pxa2xx_ssp_write,
     pxa2xx_ssp_write,
     pxa2xx_ssp_write,
@@ -1155,13 +1155,13 @@ static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_rtc_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_rtc_readfn[] = {
     pxa2xx_rtc_read,
     pxa2xx_rtc_read,
     pxa2xx_rtc_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_rtc_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_rtc_writefn[] = {
     pxa2xx_rtc_write,
     pxa2xx_rtc_write,
     pxa2xx_rtc_write,
@@ -1439,13 +1439,13 @@ static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_i2c_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_i2c_readfn[] = {
     pxa2xx_i2c_read,
     pxa2xx_i2c_read,
     pxa2xx_i2c_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_i2c_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_i2c_writefn[] = {
     pxa2xx_i2c_write,
     pxa2xx_i2c_write,
     pxa2xx_i2c_write,
@@ -1666,13 +1666,13 @@ static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_i2s_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_i2s_readfn[] = {
     pxa2xx_i2s_read,
     pxa2xx_i2s_read,
     pxa2xx_i2s_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_i2s_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_i2s_writefn[] = {
     pxa2xx_i2s_write,
     pxa2xx_i2s_write,
     pxa2xx_i2s_write,
@@ -1909,13 +1909,13 @@ static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_fir_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_fir_readfn[] = {
     pxa2xx_fir_read,
     pxa2xx_fir_read,
     pxa2xx_fir_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_fir_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_fir_writefn[] = {
     pxa2xx_fir_write,
     pxa2xx_fir_write,
     pxa2xx_fir_write,

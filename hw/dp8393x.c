@@ -663,13 +663,13 @@ static void dp8393x_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     dp8393x_writew(opaque, addr + 2, (val >> 16) & 0xffff);
 }
 
-static CPUReadMemoryFunc *dp8393x_read[3] = {
+static CPUReadMemoryFunc * const dp8393x_read[3] = {
     dp8393x_readb,
     dp8393x_readw,
     dp8393x_readl,
 };
 
-static CPUWriteMemoryFunc *dp8393x_write[3] = {
+static CPUWriteMemoryFunc * const dp8393x_write[3] = {
     dp8393x_writeb,
     dp8393x_writew,
     dp8393x_writel,

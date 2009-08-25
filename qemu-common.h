@@ -118,6 +118,10 @@ int qemu_strnlen(const char *s, int max_len);
 time_t mktimegm(struct tm *tm);
 int qemu_fls(int i);
 
+/* path.c */
+void init_paths(const char *prefix);
+const char *path(const char *pathname);
+
 #define qemu_isalnum(c)		isalnum((unsigned char)(c))
 #define qemu_isalpha(c)		isalpha((unsigned char)(c))
 #define qemu_iscntrl(c)		iscntrl((unsigned char)(c))

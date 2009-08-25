@@ -56,10 +56,6 @@
 
 #include "cpu-defs.h"
 
-#define REGX "%016" PRIx64
-#define ADDRX TARGET_FMT_lx
-#define PADDRX TARGET_FMT_plx
-
 #include <setjmp.h>
 
 #include "softfloat.h"
@@ -710,6 +706,7 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu);
+#define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
 int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
                           int rw, int access_type);
 void do_interrupt (CPUPPCState *env);
@@ -781,7 +778,7 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
 
-static always_inline uint64_t ppc_dump_gpr (CPUPPCState *env, int gprn)
+static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 {
     uint64_t gprv;
 

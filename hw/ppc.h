@@ -26,8 +26,8 @@ void ppc40x_chip_reset (CPUState *env);
 void ppc40x_system_reset (CPUState *env);
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
-extern CPUWriteMemoryFunc *PPC_io_write[];
-extern CPUReadMemoryFunc *PPC_io_read[];
+extern CPUWriteMemoryFunc * const PPC_io_write[];
+extern CPUReadMemoryFunc * const PPC_io_read[];
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 void ppc40x_irq_init (CPUState *env);
@@ -45,3 +45,5 @@ enum {
 #define FW_CFG_PPC_WIDTH	(FW_CFG_ARCH_LOCAL + 0x00)
 #define FW_CFG_PPC_HEIGHT	(FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_PPC_DEPTH	(FW_CFG_ARCH_LOCAL + 0x02)
+
+#define PPC_SERIAL_MM_BAUDBASE 399193

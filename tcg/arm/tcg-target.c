@@ -179,11 +179,38 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     return 0;
 }
 
+static inline uint32_t rotl(uint32_t val, int n)
+{
+  return (val << n) | (val >> (32 - n));
+}
+
+/* ARM immediates for ALU instructions are made of an unsigned 8-bit
+   right-rotated by an even amount between 0 and 30. */
+static inline int encode_imm(uint32_t imm)
+{
+    int shift;
+
+    /* simple case, only lower bits */
+    if ((imm & ~0xff) == 0)
+        return 0;
+    /* then try a simple even shift */
+    shift = ctz32(imm) & ~1;
+    if (((imm >> shift) & ~0xff) == 0)
+        return 32 - shift;
+    /* now try harder with rotations */
+    if ((rotl(imm, 2) & ~0xff) == 0)
+        return 2;
+    if ((rotl(imm, 4) & ~0xff) == 0)
+        return 4;
+    if ((rotl(imm, 6) & ~0xff) == 0)
+        return 6;
+    /* imm can't be encoded */
+    return -1;
+}
 
 static inline int check_fit_imm(uint32_t imm)
 {
-    /* XXX: use rotation */
-    return (imm & ~0xff) == 0;
+    return encode_imm(imm) >= 0;
 }
 
 /* Test if a constant matches the constraint.
@@ -1407,10 +1434,12 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         c = ARITH_EOR;
         /* Fall through.  */
     gen_arith:
-        if (const_args[2])
+        if (const_args[2]) {
+            int rot;
+            rot = encode_imm(args[2]);
             tcg_out_dat_imm(s, COND_AL, c,
-                            args[0], args[1], args[2]);
-        else
+                            args[0], args[1], rotl(args[2], rot) | (rot << 7));
+        } else
             tcg_out_dat_reg(s, COND_AL, c,
                             args[0], args[1], args[2], SHIFT_IMM_LSL(0));
         break;
@@ -1426,6 +1455,10 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         break;
     case INDEX_op_neg_i32:
         tcg_out_dat_imm(s, COND_AL, ARITH_RSB, args[0], args[1], 0);
+        break;
+    case INDEX_op_not_i32:
+        tcg_out_dat_reg(s, COND_AL,
+                        ARITH_MVN, args[0], 0, args[1], SHIFT_IMM_LSL(0));
         break;
     case INDEX_op_mul_i32:
         tcg_out_mul32(s, COND_AL, args[0], args[1], args[2]);
@@ -1561,6 +1594,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_or_i32, { "r", "r", "rI" } },
     { INDEX_op_xor_i32, { "r", "r", "rI" } },
     { INDEX_op_neg_i32, { "r", "r" } },
+    { INDEX_op_not_i32, { "r", "r" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },

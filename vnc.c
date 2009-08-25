@@ -2295,6 +2295,10 @@ int vnc_display_password(DisplayState *ds, const char *password)
 {
     VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
 
+    if (!vs) {
+        return -1;
+    }
+
     if (vs->password) {
         qemu_free(vs->password);
         vs->password = NULL;
@@ -2302,6 +2306,11 @@ int vnc_display_password(DisplayState *ds, const char *password)
     if (password && password[0]) {
         if (!(vs->password = qemu_strdup(password)))
             return -1;
+        if (vs->auth == VNC_AUTH_NONE) {
+            vs->auth = VNC_AUTH_VNC;
+        }
+    } else {
+        vs->auth = VNC_AUTH_NONE;
     }
 
     return 0;

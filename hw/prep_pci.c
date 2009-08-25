@@ -107,13 +107,13 @@ static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *PPC_PCIIO_write[] = {
+static CPUWriteMemoryFunc * const PPC_PCIIO_write[] = {
     &PPC_PCIIO_writeb,
     &PPC_PCIIO_writew,
     &PPC_PCIIO_writel,
 };
 
-static CPUReadMemoryFunc *PPC_PCIIO_read[] = {
+static CPUReadMemoryFunc * const PPC_PCIIO_read[] = {
     &PPC_PCIIO_readb,
     &PPC_PCIIO_readw,
     &PPC_PCIIO_readl,

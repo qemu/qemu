@@ -156,7 +156,7 @@ void cpu_loop(CPUPPCState *env)
 /* To deal with multiple qemu header version as host for the darwin-user code */
 # define DAR SPR_DAR
 #endif
-            EXCP_DUMP(env, "Invalid data memory access: 0x" ADDRX "\n",
+            EXCP_DUMP(env, "Invalid data memory access: 0x" TARGET_FMT_lx "\n",
                       env->spr[SPR_DAR]);
             /* Handle this via the gdb */
             gdb_handlesig (env, SIGSEGV);
@@ -165,7 +165,7 @@ void cpu_loop(CPUPPCState *env)
             queue_signal(info.si_signo, &info);
             break;
         case POWERPC_EXCP_ISI:      /* Instruction storage exception         */
-            EXCP_DUMP(env, "Invalid instruction fetch: 0x\n" ADDRX "\n",
+            EXCP_DUMP(env, "Invalid instruction fetch: 0x\n" TARGET_FMT_lx "\n",
                       env->spr[SPR_DAR]);
             /* Handle this via the gdb */
             gdb_handlesig (env, SIGSEGV);

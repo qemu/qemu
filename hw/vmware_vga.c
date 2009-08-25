@@ -1057,13 +1057,13 @@ static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
         *(uint32_t *) (s->vram_ptr + addr) = value;
 }
 
-static CPUReadMemoryFunc *vmsvga_vram_read[] = {
+static CPUReadMemoryFunc * const vmsvga_vram_read[] = {
     vmsvga_vram_readb,
     vmsvga_vram_readw,
     vmsvga_vram_readl,
 };
 
-static CPUWriteMemoryFunc *vmsvga_vram_write[] = {
+static CPUWriteMemoryFunc * const vmsvga_vram_write[] = {
     vmsvga_vram_writeb,
     vmsvga_vram_writew,
     vmsvga_vram_writel,

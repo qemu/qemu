@@ -511,10 +511,10 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     // Prepare the Hard Disk Footer
     memset(buf, 0, 1024);
 
-    strncpy(footer->creator, "conectix", 8);
+    memcpy(footer->creator, "conectix", 8);
     // TODO Check if "qemu" creator_app is ok for VPC
-    strncpy(footer->creator_app, "qemu", 4);
-    strncpy(footer->creator_os, "Wi2k", 4);
+    memcpy(footer->creator_app, "qemu", 4);
+    memcpy(footer->creator_os, "Wi2k", 4);
 
     footer->features = be32_to_cpu(0x02);
     footer->version = be32_to_cpu(0x00010000);
@@ -563,7 +563,7 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     // Prepare the Dynamic Disk Header
     memset(buf, 0, 1024);
 
-    strncpy(dyndisk_header->magic, "cxsparse", 8);
+    memcpy(dyndisk_header->magic, "cxsparse", 8);
 
     dyndisk_header->data_offset = be64_to_cpu(0xFFFFFFFF);
     dyndisk_header->table_offset = be64_to_cpu(3 * 512);

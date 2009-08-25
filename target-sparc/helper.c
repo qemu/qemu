@@ -684,6 +684,7 @@ void cpu_reset(CPUSPARCState *env)
     env->wim = 1;
 #endif
     env->regwptr = env->regbase + (env->cwp * 16);
+    CC_OP = CC_OP_FLAGS;
 #if defined(CONFIG_USER_ONLY)
 #ifdef TARGET_SPARC64
     env->cleanwin = env->nwindows - 2;
@@ -697,7 +698,6 @@ void cpu_reset(CPUSPARCState *env)
 #endif
     env->psrs = 1;
     env->psrps = 1;
-    CC_OP = CC_OP_FLAGS;
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV|PS_RED|PS_PEF|PS_AG;
     env->hpstate = HS_PRIV;

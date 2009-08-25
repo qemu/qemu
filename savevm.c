@@ -172,11 +172,11 @@ struct QEMUFile {
     int has_error;
 };
 
-typedef struct QEMUFilePopen
+typedef struct QEMUFileStdio
 {
-    FILE *popen_file;
+    FILE *stdio_file;
     QEMUFile *file;
-} QEMUFilePopen;
+} QEMUFileStdio;
 
 typedef struct QEMUFileSocket
 {
@@ -206,16 +206,16 @@ static int socket_close(void *opaque)
     return 0;
 }
 
-static int popen_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
+static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
 {
-    QEMUFilePopen *s = opaque;
-    return fwrite(buf, 1, size, s->popen_file);
+    QEMUFileStdio *s = opaque;
+    return fwrite(buf, 1, size, s->stdio_file);
 }
 
-static int popen_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static int stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
-    QEMUFilePopen *s = opaque;
-    FILE *fp = s->popen_file;
+    QEMUFileStdio *s = opaque;
+    FILE *fp = s->stdio_file;
     int bytes;
 
     do {
@@ -225,31 +225,39 @@ static int popen_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
     return bytes;
 }
 
-static int popen_close(void *opaque)
+static int stdio_pclose(void *opaque)
 {
-    QEMUFilePopen *s = opaque;
-    pclose(s->popen_file);
+    QEMUFileStdio *s = opaque;
+    pclose(s->stdio_file);
     qemu_free(s);
     return 0;
 }
 
-QEMUFile *qemu_popen(FILE *popen_file, const char *mode)
+static int stdio_fclose(void *opaque)
 {
-    QEMUFilePopen *s;
+    QEMUFileStdio *s = opaque;
+    fclose(s->stdio_file);
+    qemu_free(s);
+    return 0;
+}
 
-    if (popen_file == NULL || mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
+QEMUFile *qemu_popen(FILE *stdio_file, const char *mode)
+{
+    QEMUFileStdio *s;
+
+    if (stdio_file == NULL || mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
         fprintf(stderr, "qemu_popen: Argument validity check failed\n");
         return NULL;
     }
 
-    s = qemu_mallocz(sizeof(QEMUFilePopen));
+    s = qemu_mallocz(sizeof(QEMUFileStdio));
 
-    s->popen_file = popen_file;
+    s->stdio_file = stdio_file;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, NULL, popen_get_buffer, popen_close, NULL, NULL);
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_pclose, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, popen_put_buffer, NULL, popen_close, NULL, NULL);
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_pclose, NULL, NULL);
     }
     return s->file;
 }
@@ -266,13 +274,13 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
     return qemu_popen(popen_file, mode);
 }
 
-int qemu_popen_fd(QEMUFile *f)
+int qemu_stdio_fd(QEMUFile *f)
 {
-    QEMUFilePopen *p;
+    QEMUFileStdio *p;
     int fd;
 
-    p = (QEMUFilePopen *)f->opaque;
-    fd = fileno(p->popen_file);
+    p = (QEMUFileStdio *)f->opaque;
+    fd = fileno(p->stdio_file);
 
     return fd;
 }
@@ -286,53 +294,46 @@ QEMUFile *qemu_fopen_socket(int fd)
     return s->file;
 }
 
-typedef struct QEMUFileStdio
-{
-    FILE *outfile;
-} QEMUFileStdio;
-
 static int file_put_buffer(void *opaque, const uint8_t *buf,
                             int64_t pos, int size)
 {
     QEMUFileStdio *s = opaque;
-    fseek(s->outfile, pos, SEEK_SET);
-    fwrite(buf, 1, size, s->outfile);
+    fseek(s->stdio_file, pos, SEEK_SET);
+    fwrite(buf, 1, size, s->stdio_file);
     return size;
 }
 
 static int file_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
     QEMUFileStdio *s = opaque;
-    fseek(s->outfile, pos, SEEK_SET);
-    return fread(buf, 1, size, s->outfile);
-}
-
-static int file_close(void *opaque)
-{
-    QEMUFileStdio *s = opaque;
-    fclose(s->outfile);
-    qemu_free(s);
-    return 0;
+    fseek(s->stdio_file, pos, SEEK_SET);
+    return fread(buf, 1, size, s->stdio_file);
 }
 
 QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
     QEMUFileStdio *s;
 
+    if (mode == NULL ||
+	(mode[0] != 'r' && mode[0] != 'w') ||
+	mode[1] != 'b' || mode[2] != 0) {
+        fprintf(stderr, "qemu_fdopen: Argument validity check failed\n");
+        return NULL;
+    }
+
     s = qemu_mallocz(sizeof(QEMUFileStdio));
 
-    s->outfile = fopen(filename, mode);
-    if (!s->outfile)
+    s->stdio_file = fopen(filename, mode);
+    if (!s->stdio_file)
         goto fail;
 
-    if (!strcmp(mode, "wb"))
-        return qemu_fopen_ops(s, file_put_buffer, NULL, file_close, NULL, NULL);
-    else if (!strcmp(mode, "rb"))
-        return qemu_fopen_ops(s, NULL, file_get_buffer, file_close, NULL, NULL);
-
+    if(mode[0] == 'w') {
+        s->file = qemu_fopen_ops(s, file_put_buffer, NULL, stdio_fclose, NULL, NULL);
+    } else {
+        s->file = qemu_fopen_ops(s, NULL, file_get_buffer, stdio_fclose, NULL, NULL);
+    }
+    return s->file;
 fail:
-    if (s->outfile)
-        fclose(s->outfile);
     qemu_free(s);
     return NULL;
 }

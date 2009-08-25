@@ -133,25 +133,25 @@ static void fw_cfg_mem_writew(void *opaque, target_phys_addr_t addr,
     fw_cfg_select(opaque, (uint16_t)value);
 }
 
-static CPUReadMemoryFunc *fw_cfg_ctl_mem_read[3] = {
+static CPUReadMemoryFunc * const fw_cfg_ctl_mem_read[3] = {
     NULL,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *fw_cfg_ctl_mem_write[3] = {
+static CPUWriteMemoryFunc * const fw_cfg_ctl_mem_write[3] = {
     NULL,
     fw_cfg_mem_writew,
     NULL,
 };
 
-static CPUReadMemoryFunc *fw_cfg_data_mem_read[3] = {
+static CPUReadMemoryFunc * const fw_cfg_data_mem_read[3] = {
     fw_cfg_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *fw_cfg_data_mem_write[3] = {
+static CPUWriteMemoryFunc * const fw_cfg_data_mem_write[3] = {
     fw_cfg_mem_writeb,
     NULL,
     NULL,

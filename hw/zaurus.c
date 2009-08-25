@@ -142,12 +142,12 @@ static void scoop_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc *scoop_readfn[] = {
+static CPUReadMemoryFunc * const scoop_readfn[] = {
     scoop_readb,
     scoop_readb,
     scoop_readb,
 };
-static CPUWriteMemoryFunc *scoop_writefn[] = {
+static CPUWriteMemoryFunc * const scoop_writefn[] = {
     scoop_writeb,
     scoop_writeb,
     scoop_writeb,
@@ -155,7 +155,7 @@ static CPUWriteMemoryFunc *scoop_writefn[] = {
 
 void scoop_gpio_set(void *opaque, int line, int level)
 {
-    ScoopInfo *s = (ScoopInfo *) s;
+    ScoopInfo *s = (ScoopInfo *) opaque;
 
     if (level)
         s->gpio_level |= (1 << line);

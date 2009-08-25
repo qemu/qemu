@@ -696,13 +696,13 @@ static void cmos_mm_writel (void *opaque,
     cmos_ioport_write(s, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc *rtc_mm_read[] = {
+static CPUReadMemoryFunc * const rtc_mm_read[] = {
     &cmos_mm_readb,
     &cmos_mm_readw,
     &cmos_mm_readl,
 };
 
-static CPUWriteMemoryFunc *rtc_mm_write[] = {
+static CPUWriteMemoryFunc * const rtc_mm_write[] = {
     &cmos_mm_writeb,
     &cmos_mm_writew,
     &cmos_mm_writel,

@@ -147,7 +147,7 @@ typedef struct AC97BusMasterRegs {
 } AC97BusMasterRegs;
 
 typedef struct AC97LinkState {
-    PCIDevice *pci_dev;
+    PCIDevice dev;
     QEMUSoundCard card;
     uint32_t glob_cnt;
     uint32_t glob_sta;
@@ -174,11 +174,6 @@ enum {
 #else
 #define dolog(...)
 #endif
-
-typedef struct PCIAC97LinkState {
-    PCIDevice dev;
-    AC97LinkState ac97;
-} PCIAC97LinkState;
 
 #define MKREGS(prefix, start)                   \
 enum {                                          \
@@ -278,12 +273,12 @@ static void update_sr (AC97LinkState *s, AC97BusMasterRegs *r, uint32_t new_sr)
     if (level) {
         s->glob_sta |= masks[r - s->bm_regs];
         dolog ("set irq level=1\n");
-        qemu_set_irq (s->pci_dev->irq[0], 1);
+        qemu_set_irq (s->dev.irq[0], 1);
     }
     else {
         s->glob_sta &= ~masks[r - s->bm_regs];
         dolog ("set irq level=0\n");
-        qemu_set_irq (s->pci_dev->irq[0], 0);
+        qemu_set_irq (s->dev.irq[0], 0);
     }
 }
 
@@ -578,8 +573,7 @@ static void mixer_reset (AC97LinkState *s)
  */
 static uint32_t nam_readb (void *opaque, uint32_t addr)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     dolog ("U nam readb %#x\n", addr);
     s->cas = 0;
     return ~0U;
@@ -587,8 +581,7 @@ static uint32_t nam_readb (void *opaque, uint32_t addr)
 
 static uint32_t nam_readw (void *opaque, uint32_t addr)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     uint32_t val = ~0U;
     uint32_t index = addr - s->base[0];
     s->cas = 0;
@@ -598,8 +591,7 @@ static uint32_t nam_readw (void *opaque, uint32_t addr)
 
 static uint32_t nam_readl (void *opaque, uint32_t addr)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     dolog ("U nam readl %#x\n", addr);
     s->cas = 0;
     return ~0U;
@@ -611,16 +603,14 @@ static uint32_t nam_readl (void *opaque, uint32_t addr)
  */
 static void nam_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     dolog ("U nam writeb %#x <- %#x\n", addr, val);
     s->cas = 0;
 }
 
 static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     uint32_t index = addr - s->base[0];
     s->cas = 0;
     switch (index) {
@@ -711,8 +701,7 @@ static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
 
 static void nam_writel (void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     dolog ("U nam writel %#x <- %#x\n", addr, val);
     s->cas = 0;
 }
@@ -723,8 +712,7 @@ static void nam_writel (void *opaque, uint32_t addr, uint32_t val)
  */
 static uint32_t nabm_readb (void *opaque, uint32_t addr)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
     uint32_t index = addr - s->base[1];
     uint32_t val = ~0U;
@@ -779,8 +767,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
 
 static uint32_t nabm_readw (void *opaque, uint32_t addr)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
     uint32_t index = addr - s->base[1];
     uint32_t val = ~0U;
@@ -809,8 +796,7 @@ static uint32_t nabm_readw (void *opaque, uint32_t addr)
 
 static uint32_t nabm_readl (void *opaque, uint32_t addr)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
     uint32_t index = addr - s->base[1];
     uint32_t val = ~0U;
@@ -860,8 +846,7 @@ static uint32_t nabm_readl (void *opaque, uint32_t addr)
  */
 static void nabm_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
     uint32_t index = addr - s->base[1];
     switch (index) {
@@ -917,8 +902,7 @@ static void nabm_writeb (void *opaque, uint32_t addr, uint32_t val)
 
 static void nabm_writew (void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
     uint32_t index = addr - s->base[1];
     switch (index) {
@@ -938,8 +922,7 @@ static void nabm_writew (void *opaque, uint32_t addr, uint32_t val)
 
 static void nabm_writel (void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIAC97LinkState *d = opaque;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
     uint32_t index = addr - s->base[1];
     switch (index) {
@@ -1190,7 +1173,7 @@ static void ac97_save (QEMUFile *f, void *opaque)
     uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
 
-    pci_device_save (s->pci_dev, f);
+    pci_device_save (&s->dev, f);
 
     qemu_put_be32s (f, &s->glob_cnt);
     qemu_put_be32s (f, &s->glob_sta);
@@ -1227,7 +1210,7 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
     if (version_id != 2)
         return -EINVAL;
 
-    ret = pci_device_load (s->pci_dev, f);
+    ret = pci_device_load (&s->dev, f);
     if (ret)
         return ret;
 
@@ -1269,8 +1252,8 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
 static void ac97_map (PCIDevice *pci_dev, int region_num,
                       uint32_t addr, uint32_t size, int type)
 {
-    PCIAC97LinkState *d = (PCIAC97LinkState *) pci_dev;
-    AC97LinkState *s = &d->ac97;
+    AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, pci_dev);
+    PCIDevice *d = &s->dev;
 
     if (!region_num) {
         s->base[0] = addr;
@@ -1310,11 +1293,9 @@ static void ac97_on_reset (void *opaque)
 
 static void ac97_initfn (PCIDevice *dev)
 {
-    PCIAC97LinkState *d = DO_UPCAST (PCIAC97LinkState, dev, dev);
-    AC97LinkState *s = &d->ac97;
-    uint8_t *c = d->dev.config;
+    AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
+    uint8_t *c = s->dev.config;
 
-    s->pci_dev = &d->dev;
     pci_config_set_vendor_id (c, PCI_VENDOR_ID_INTEL); /* ro */
     pci_config_set_device_id (c, PCI_DEVICE_ID_INTEL_82801AA_5); /* ro */
 
@@ -1350,8 +1331,8 @@ static void ac97_initfn (PCIDevice *dev)
     c[0x3c] = 0x00;      /* intr_ln interrupt line rw */
     c[0x3d] = 0x01;      /* intr_pn interrupt pin ro */
 
-    pci_register_bar (&d->dev, 0, 256 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
-    pci_register_bar (&d->dev, 1, 64 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
+    pci_register_bar (&s->dev, 0, 256 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
+    pci_register_bar (&s->dev, 1, 64 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
     register_savevm ("ac97", 0, 2, ac97_save, ac97_load, s);
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
@@ -1367,7 +1348,7 @@ int ac97_init (PCIBus *bus)
 static PCIDeviceInfo ac97_info = {
     .qdev.name    = "AC97",
     .qdev.desc    = "Intel 82801AA AC97 Audio",
-    .qdev.size    = sizeof (PCIAC97LinkState),
+    .qdev.size    = sizeof (AC97LinkState),
     .init         = ac97_initfn,
 };
 

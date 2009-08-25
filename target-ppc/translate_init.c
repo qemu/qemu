@@ -543,8 +543,8 @@ static inline void spr_register (CPUPPCState *env, int num,
         exit(1);
     }
 #if defined(PPC_DEBUG_SPR)
-    printf("*** register spr %d (%03x) %s val " ADDRX "\n", num, num, name,
-           initial_value);
+    printf("*** register spr %d (%03x) %s val " TARGET_FMT_lx "\n", num, num,
+           name, initial_value);
 #endif
     spr->name = name;
     spr->uea_read = uea_read;

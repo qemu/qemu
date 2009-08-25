@@ -558,13 +558,13 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
     gic_dist_writew(opaque, offset + 2, value >> 16);
 }
 
-static CPUReadMemoryFunc *gic_dist_readfn[] = {
+static CPUReadMemoryFunc * const gic_dist_readfn[] = {
    gic_dist_readb,
    gic_dist_readw,
    gic_dist_readl
 };
 
-static CPUWriteMemoryFunc *gic_dist_writefn[] = {
+static CPUWriteMemoryFunc * const gic_dist_writefn[] = {
    gic_dist_writeb,
    gic_dist_writew,
    gic_dist_writel

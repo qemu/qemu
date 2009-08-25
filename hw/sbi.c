@@ -84,13 +84,13 @@ static void sbi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static CPUReadMemoryFunc *sbi_mem_read[3] = {
+static CPUReadMemoryFunc * const sbi_mem_read[3] = {
     NULL,
     NULL,
     sbi_mem_readl,
 };
 
-static CPUWriteMemoryFunc *sbi_mem_write[3] = {
+static CPUWriteMemoryFunc * const sbi_mem_write[3] = {
     NULL,
     NULL,
     sbi_mem_writel,

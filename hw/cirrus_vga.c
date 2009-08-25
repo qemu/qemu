@@ -2156,13 +2156,13 @@ static void cirrus_vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_
 #endif
 }
 
-static CPUReadMemoryFunc *cirrus_vga_mem_read[3] = {
+static CPUReadMemoryFunc * const cirrus_vga_mem_read[3] = {
     cirrus_vga_mem_readb,
     cirrus_vga_mem_readw,
     cirrus_vga_mem_readl,
 };
 
-static CPUWriteMemoryFunc *cirrus_vga_mem_write[3] = {
+static CPUWriteMemoryFunc * const cirrus_vga_mem_write[3] = {
     cirrus_vga_mem_writeb,
     cirrus_vga_mem_writew,
     cirrus_vga_mem_writel,
@@ -2472,13 +2472,13 @@ static void cirrus_linear_writel(void *opaque, target_phys_addr_t addr,
 }
 
 
-static CPUReadMemoryFunc *cirrus_linear_read[3] = {
+static CPUReadMemoryFunc * const cirrus_linear_read[3] = {
     cirrus_linear_readb,
     cirrus_linear_readw,
     cirrus_linear_readl,
 };
 
-static CPUWriteMemoryFunc *cirrus_linear_write[3] = {
+static CPUWriteMemoryFunc * const cirrus_linear_write[3] = {
     cirrus_linear_writeb,
     cirrus_linear_writew,
     cirrus_linear_writel,
@@ -2573,13 +2573,13 @@ static void cirrus_linear_bitblt_writel(void *opaque, target_phys_addr_t addr,
 }
 
 
-static CPUReadMemoryFunc *cirrus_linear_bitblt_read[3] = {
+static CPUReadMemoryFunc * const cirrus_linear_bitblt_read[3] = {
     cirrus_linear_bitblt_readb,
     cirrus_linear_bitblt_readw,
     cirrus_linear_bitblt_readl,
 };
 
-static CPUWriteMemoryFunc *cirrus_linear_bitblt_write[3] = {
+static CPUWriteMemoryFunc * const cirrus_linear_bitblt_write[3] = {
     cirrus_linear_bitblt_writeb,
     cirrus_linear_bitblt_writew,
     cirrus_linear_bitblt_writel,
@@ -3003,13 +3003,13 @@ static void cirrus_mmio_writel(void *opaque, target_phys_addr_t addr,
 }
 
 
-static CPUReadMemoryFunc *cirrus_mmio_read[3] = {
+static CPUReadMemoryFunc * const cirrus_mmio_read[3] = {
     cirrus_mmio_readb,
     cirrus_mmio_readw,
     cirrus_mmio_readl,
 };
 
-static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
+static CPUWriteMemoryFunc * const cirrus_mmio_write[3] = {
     cirrus_mmio_writeb,
     cirrus_mmio_writew,
     cirrus_mmio_writel,

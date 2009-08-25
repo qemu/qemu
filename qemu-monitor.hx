@@ -57,8 +57,6 @@ show virtual to physical memory mappings (i386 only)
 show the active virtual memory mappings (i386 only)
 @item info hpet
 show state of HPET (i386 only)
-@item info kqemu
-show KQEMU information
 @item info kvm
 show KVM information
 @item info usb

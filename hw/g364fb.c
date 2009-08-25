@@ -522,13 +522,13 @@ static void g364fb_ctrl_writeb(void *opaque, target_phys_addr_t addr, uint32_t v
     g364fb_ctrl_writel(opaque, addr & ~0x3, val);
 }
 
-static CPUReadMemoryFunc *g364fb_ctrl_read[3] = {
+static CPUReadMemoryFunc * const g364fb_ctrl_read[3] = {
     g364fb_ctrl_readb,
     g364fb_ctrl_readw,
     g364fb_ctrl_readl,
 };
 
-static CPUWriteMemoryFunc *g364fb_ctrl_write[3] = {
+static CPUWriteMemoryFunc * const g364fb_ctrl_write[3] = {
     g364fb_ctrl_writeb,
     g364fb_ctrl_writew,
     g364fb_ctrl_writel,

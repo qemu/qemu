@@ -393,8 +393,8 @@ struct ppc_tb_t {
     void *opaque;
 };
 
-static always_inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env, uint64_t vmclk,
-                                              int64_t tb_offset)
+static inline uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk,
+                                      int64_t tb_offset)
 {
     /* TB time in tb periods */
     return muldiv64(vmclk, tb_env->tb_freq, ticks_per_sec) + tb_offset;
@@ -411,7 +411,7 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
     return tb & 0xFFFFFFFF;
 }
 
-static always_inline uint32_t _cpu_ppc_load_tbu (CPUState *env)
+static inline uint32_t _cpu_ppc_load_tbu(CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -427,9 +427,8 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     return _cpu_ppc_load_tbu(env);
 }
 
-static always_inline void cpu_ppc_store_tb (ppc_tb_t *tb_env, uint64_t vmclk,
-                                            int64_t *tb_offsetp,
-                                            uint64_t value)
+static inline void cpu_ppc_store_tb(ppc_tb_t *tb_env, uint64_t vmclk,
+                                    int64_t *tb_offsetp, uint64_t value)
 {
     *tb_offsetp = value - muldiv64(vmclk, tb_env->tb_freq, ticks_per_sec);
     LOG_TB("%s: tb %016" PRIx64 " offset %08" PRIx64 "\n",
@@ -447,7 +446,7 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
                      &tb_env->tb_offset, tb | (uint64_t)value);
 }
 
-static always_inline void _cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+static inline void _cpu_ppc_store_tbu(CPUState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -550,8 +549,7 @@ static void cpu_ppc_tb_start (CPUState *env)
     }
 }
 
-static always_inline uint32_t _cpu_ppc_load_decr (CPUState *env,
-                                                  uint64_t next)
+static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint32_t decr;
@@ -594,14 +592,14 @@ uint64_t cpu_ppc_load_purr (CPUState *env)
 /* When decrementer expires,
  * all we need to do is generate or queue a CPU exception
  */
-static always_inline void cpu_ppc_decr_excp (CPUState *env)
+static inline void cpu_ppc_decr_excp(CPUState *env)
 {
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
     ppc_set_irq(env, PPC_INTERRUPT_DECR, 1);
 }
 
-static always_inline void cpu_ppc_hdecr_excp (CPUState *env)
+static inline void cpu_ppc_hdecr_excp(CPUState *env)
 {
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
@@ -635,8 +633,8 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
         (*raise_excp)(env);
 }
 
-static always_inline void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
-                                               uint32_t value, int is_excp)
+static inline void _cpu_ppc_store_decr(CPUState *env, uint32_t decr,
+                                       uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -654,8 +652,8 @@ static void cpu_ppc_decr_cb (void *opaque)
     _cpu_ppc_store_decr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
-static always_inline void _cpu_ppc_store_hdecr (CPUState *env, uint32_t hdecr,
-                                                uint32_t value, int is_excp)
+static inline void _cpu_ppc_store_hdecr(CPUState *env, uint32_t hdecr,
+                                        uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -797,9 +795,9 @@ static void cpu_4xx_fit_cb (void *opaque)
     env->spr[SPR_40x_TSR] |= 1 << 26;
     if ((env->spr[SPR_40x_TCR] >> 23) & 0x1)
         ppc_set_irq(env, PPC_INTERRUPT_FIT, 1);
-    LOG_TB("%s: ir %d TCR " ADDRX " TSR " ADDRX "\n", __func__,
-                (int)((env->spr[SPR_40x_TCR] >> 23) & 0x1),
-                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
+    LOG_TB("%s: ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx "\n", __func__,
+           (int)((env->spr[SPR_40x_TCR] >> 23) & 0x1),
+           env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
 }
 
 /* Programmable interval timer */
@@ -843,12 +841,12 @@ static void cpu_4xx_pit_cb (void *opaque)
     if ((env->spr[SPR_40x_TCR] >> 26) & 0x1)
         ppc_set_irq(env, PPC_INTERRUPT_PIT, 1);
     start_stop_pit(env, tb_env, 1);
-    LOG_TB("%s: ar %d ir %d TCR " ADDRX " TSR " ADDRX " "
-                "%016" PRIx64 "\n", __func__,
-                (int)((env->spr[SPR_40x_TCR] >> 22) & 0x1),
-                (int)((env->spr[SPR_40x_TCR] >> 26) & 0x1),
-                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
-                ppcemb_timer->pit_reload);
+    LOG_TB("%s: ar %d ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx " "
+           "%016" PRIx64 "\n", __func__,
+           (int)((env->spr[SPR_40x_TCR] >> 22) & 0x1),
+           (int)((env->spr[SPR_40x_TCR] >> 26) & 0x1),
+           env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
+           ppcemb_timer->pit_reload);
 }
 
 /* Watchdog timer */
@@ -883,8 +881,8 @@ static void cpu_4xx_wdt_cb (void *opaque)
     next = now + muldiv64(next, ticks_per_sec, tb_env->decr_freq);
     if (next == now)
         next++;
-    LOG_TB("%s: TCR " ADDRX " TSR " ADDRX "\n", __func__,
-                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
+    LOG_TB("%s: TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx "\n", __func__,
+           env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
     switch ((env->spr[SPR_40x_TSR] >> 30) & 0x3) {
     case 0x0:
     case 0x1:
@@ -926,7 +924,7 @@ void store_40x_pit (CPUState *env, target_ulong val)
 
     tb_env = env->tb_env;
     ppcemb_timer = tb_env->opaque;
-    LOG_TB("%s val" ADDRX "\n", __func__, val);
+    LOG_TB("%s val" TARGET_FMT_lx "\n", __func__, val);
     ppcemb_timer->pit_reload = val;
     start_stop_pit(env, tb_env, 0);
 }
@@ -938,7 +936,7 @@ target_ulong load_40x_pit (CPUState *env)
 
 void store_booke_tsr (CPUState *env, target_ulong val)
 {
-    LOG_TB("%s: val " ADDRX "\n", __func__, val);
+    LOG_TB("%s: val " TARGET_FMT_lx "\n", __func__, val);
     env->spr[SPR_40x_TSR] &= ~(val & 0xFC000000);
     if (val & 0x80000000)
         ppc_set_irq(env, PPC_INTERRUPT_PIT, 0);
@@ -949,7 +947,7 @@ void store_booke_tcr (CPUState *env, target_ulong val)
     ppc_tb_t *tb_env;
 
     tb_env = env->tb_env;
-    LOG_TB("%s: val " ADDRX "\n", __func__, val);
+    LOG_TB("%s: val " TARGET_FMT_lx "\n", __func__, val);
     env->spr[SPR_40x_TCR] = val & 0xFFC00000;
     start_stop_pit(env, tb_env, 1);
     cpu_4xx_wdt_cb(env);

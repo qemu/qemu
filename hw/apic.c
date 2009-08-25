@@ -957,13 +957,13 @@ static void apic_reset(void *opaque)
     cpu_synchronize_state(s->cpu_env, 1);
 }
 
-static CPUReadMemoryFunc *apic_mem_read[3] = {
+static CPUReadMemoryFunc * const apic_mem_read[3] = {
     apic_mem_readb,
     apic_mem_readw,
     apic_mem_readl,
 };
 
-static CPUWriteMemoryFunc *apic_mem_write[3] = {
+static CPUWriteMemoryFunc * const apic_mem_write[3] = {
     apic_mem_writeb,
     apic_mem_writew,
     apic_mem_writel,

@@ -32,13 +32,6 @@ CPUState *ppc4xx_init (const char *cpu_model,
                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                        uint32_t sysclk);
 
-typedef struct ppc4xx_mmio_t ppc4xx_mmio_t;
-int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
-                          target_phys_addr_t offset, uint32_t len,
-                          CPUReadMemoryFunc **mem_read,
-                          CPUWriteMemoryFunc **mem_write, void *opaque);
-ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, target_phys_addr_t base);
-
 /* PowerPC 4xx universal interrupt controller */
 enum {
     PPCUIC_OUTPUT_INT = 0,

@@ -33,6 +33,7 @@
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_neg_i32
 #undef TCG_TARGET_HAS_neg_i64
+#define TCG_TARGET_HAS_not_i32
 #undef TCG_TARGET_STACK_GROWSUP
 
 enum {

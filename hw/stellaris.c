@@ -268,13 +268,13 @@ static void gptm_write(void *opaque, target_phys_addr_t offset, uint32_t value)
     gptm_update_irq(s);
 }
 
-static CPUReadMemoryFunc *gptm_readfn[] = {
+static CPUReadMemoryFunc * const gptm_readfn[] = {
    gptm_read,
    gptm_read,
    gptm_read
 };
 
-static CPUWriteMemoryFunc *gptm_writefn[] = {
+static CPUWriteMemoryFunc * const gptm_writefn[] = {
    gptm_write,
    gptm_write,
    gptm_write
@@ -579,13 +579,13 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
     ssys_update(s);
 }
 
-static CPUReadMemoryFunc *ssys_readfn[] = {
+static CPUReadMemoryFunc * const ssys_readfn[] = {
    ssys_read,
    ssys_read,
    ssys_read
 };
 
-static CPUWriteMemoryFunc *ssys_writefn[] = {
+static CPUWriteMemoryFunc * const ssys_writefn[] = {
    ssys_write,
    ssys_write,
    ssys_write
@@ -827,13 +827,13 @@ static void stellaris_i2c_reset(stellaris_i2c_state *s)
     stellaris_i2c_update(s);
 }
 
-static CPUReadMemoryFunc *stellaris_i2c_readfn[] = {
+static CPUReadMemoryFunc * const stellaris_i2c_readfn[] = {
    stellaris_i2c_read,
    stellaris_i2c_read,
    stellaris_i2c_read
 };
 
-static CPUWriteMemoryFunc *stellaris_i2c_writefn[] = {
+static CPUWriteMemoryFunc * const stellaris_i2c_writefn[] = {
    stellaris_i2c_write,
    stellaris_i2c_write,
    stellaris_i2c_write
@@ -1111,13 +1111,13 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
     stellaris_adc_update(s);
 }
 
-static CPUReadMemoryFunc *stellaris_adc_readfn[] = {
+static CPUReadMemoryFunc * const stellaris_adc_readfn[] = {
    stellaris_adc_read,
    stellaris_adc_read,
    stellaris_adc_read
 };
 
-static CPUWriteMemoryFunc *stellaris_adc_writefn[] = {
+static CPUWriteMemoryFunc * const stellaris_adc_writefn[] = {
    stellaris_adc_write,
    stellaris_adc_write,
    stellaris_adc_write

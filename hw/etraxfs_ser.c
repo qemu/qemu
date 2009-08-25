@@ -122,12 +122,12 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     ser_update_irq(s);
 }
 
-static CPUReadMemoryFunc *ser_read[] = {
+static CPUReadMemoryFunc * const ser_read[] = {
     NULL, NULL,
     &ser_readl,
 };
 
-static CPUWriteMemoryFunc *ser_write[] = {
+static CPUWriteMemoryFunc * const ser_write[] = {
     NULL, NULL,
     &ser_writel,
 };

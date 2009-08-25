@@ -836,7 +836,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     bmap_size = ((bmap_size + SECTOR_SIZE - 1) & ~(SECTOR_SIZE -1));
 
     memset(&header, 0, sizeof(header));
-    strcpy(header.text, VDI_TEXT);
+    pstrcpy(header.text, sizeof(header.text), VDI_TEXT);
     header.signature = VDI_SIGNATURE;
     header.version = VDI_VERSION_1_1;
     header.header_size = 0x180;

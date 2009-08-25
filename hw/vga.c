@@ -152,6 +152,8 @@ static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
 static void vga_screen_dump(void *opaque, const char *filename);
+static char *screen_dump_filename;
+static DisplayChangeListener *screen_dump_dcl;
 
 static void vga_dumb_update_retrace_info(VGAState *s)
 {
@@ -2108,13 +2110,13 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, s->last_width, height);
 }
 
-static CPUReadMemoryFunc *vga_mem_read[3] = {
+static CPUReadMemoryFunc * const vga_mem_read[3] = {
     vga_mem_readb,
     vga_mem_readw,
     vga_mem_readl,
 };
 
-static CPUWriteMemoryFunc *vga_mem_write[3] = {
+static CPUWriteMemoryFunc * const vga_mem_write[3] = {
     vga_mem_writeb,
     vga_mem_writew,
     vga_mem_writel,
@@ -2401,13 +2403,13 @@ static void vga_mm_writel (void *opaque,
     vga_ioport_write(s, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc *vga_mm_read_ctrl[] = {
+static CPUReadMemoryFunc * const vga_mm_read_ctrl[] = {
     &vga_mm_readb,
     &vga_mm_readw,
     &vga_mm_readl,
 };
 
-static CPUWriteMemoryFunc *vga_mm_write_ctrl[] = {
+static CPUWriteMemoryFunc * const vga_mm_write_ctrl[] = {
     &vga_mm_writeb,
     &vga_mm_writew,
     &vga_mm_writel,
@@ -2550,9 +2552,13 @@ device_init(vga_register);
 /********************************************************/
 /* vga screen dump */
 
-static void vga_save_dpy_update(DisplayState *s,
+static void vga_save_dpy_update(DisplayState *ds,
                                 int x, int y, int w, int h)
 {
+    if (screen_dump_filename) {
+        ppm_save(screen_dump_filename, ds->surface);
+        screen_dump_filename = NULL;
+    }
 }
 
 static void vga_save_dpy_resize(DisplayState *s)
@@ -2601,70 +2607,16 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
     return 0;
 }
 
-static void vga_screen_dump_blank(VGAState *s, const char *filename)
+static DisplayChangeListener* vga_screen_dump_init(DisplayState *ds)
 {
-    FILE *f;
-    unsigned int y, x, w, h;
-    unsigned char blank_sample[3] = { 0, 0, 0 };
+    DisplayChangeListener *dcl;
 
-    w = s->last_scr_width;
-    h = s->last_scr_height;
-
-    f = fopen(filename, "wb");
-    if (!f)
-        return;
-    fprintf(f, "P6\n%d %d\n%d\n", w, h, 255);
-    for (y = 0; y < h; y++) {
-        for (x = 0; x < w; x++) {
-            fwrite(blank_sample, 3, 1, f);
-        }
-    }
-    fclose(f);
-}
-
-static void vga_screen_dump_common(VGAState *s, const char *filename,
-                                   int w, int h)
-{
-    DisplayState *saved_ds, ds1, *ds = &ds1;
-    DisplayChangeListener dcl;
-
-    /* XXX: this is a little hackish */
-    vga_invalidate_display(s);
-    saved_ds = s->ds;
-
-    memset(ds, 0, sizeof(DisplayState));
-    memset(&dcl, 0, sizeof(DisplayChangeListener));
-    dcl.dpy_update = vga_save_dpy_update;
-    dcl.dpy_resize = vga_save_dpy_resize;
-    dcl.dpy_refresh = vga_save_dpy_refresh;
-    register_displaychangelistener(ds, &dcl);
-    ds->allocator = &default_allocator;
-    ds->surface = qemu_create_displaysurface(ds, w, h);
-
-    s->ds = ds;
-    s->graphic_mode = -1;
-    vga_update_display(s);
-
-    ppm_save(filename, ds->surface);
-
-    qemu_free_displaysurface(ds);
-    s->ds = saved_ds;
-}
-
-static void vga_screen_dump_graphic(VGAState *s, const char *filename)
-{
-    int w, h;
-
-    s->get_resolution(s, &w, &h);
-    vga_screen_dump_common(s, filename, w, h);
-}
-
-static void vga_screen_dump_text(VGAState *s, const char *filename)
-{
-    int w, h, cwidth, cheight;
-
-    vga_get_text_resolution(s, &w, &h, &cwidth, &cheight);
-    vga_screen_dump_common(s, filename, w * cwidth, h * cheight);
+    dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+    dcl->dpy_update = vga_save_dpy_update;
+    dcl->dpy_resize = vga_save_dpy_resize;
+    dcl->dpy_refresh = vga_save_dpy_refresh;
+    register_displaychangelistener(ds, dcl);
+    return dcl;
 }
 
 /* save the vga display in a PPM image even if no display is
@@ -2673,11 +2625,11 @@ static void vga_screen_dump(void *opaque, const char *filename)
 {
     VGAState *s = (VGAState *)opaque;
 
-    if (!(s->ar_index & 0x20))
-        vga_screen_dump_blank(s, filename);
-    else if (s->gr[6] & 1)
-        vga_screen_dump_graphic(s, filename);
-    else
-        vga_screen_dump_text(s, filename);
+    if (!screen_dump_dcl)
+        screen_dump_dcl = vga_screen_dump_init(s->ds);
+
+    screen_dump_filename = (char *)filename;
     vga_invalidate_display(s);
+    vga_hw_update();
 }
+

@@ -14,14 +14,8 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, int baudbase,
                              CharDriverState *chr, int ioregister);
 void serial_frequency(SerialState *s, uint32_t frequency);
-uint32_t serial_read(void *opaque, uint32_t addr);
-void serial_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr);
 void serial_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value);
-uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr);
-void serial_mm_writew (void *opaque, target_phys_addr_t addr, uint32_t value);
-uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr);
-void serial_mm_writel (void *opaque, target_phys_addr_t addr, uint32_t value);
 
 /* parallel.c */
 
@@ -36,8 +30,6 @@ extern PicState2 *isa_pic;
 void pic_set_irq(int irq, int level);
 void pic_set_irq_new(void *opaque, int irq, int level);
 qemu_irq *i8259_init(qemu_irq parent_irq);
-void pic_set_alt_irq_func(PicState2 *s, SetIRQFunc *alt_irq_func,
-                          void *alt_irq_opaque);
 int pic_read_irq(PicState2 *s);
 void pic_update_irq(PicState2 *s);
 uint32_t pic_intack_read(PicState2 *s);
@@ -54,7 +46,7 @@ int apic_init(CPUState *env);
 int apic_accept_pic_intr(CPUState *env);
 void apic_deliver_pic_intr(CPUState *env, int level);
 int apic_get_interrupt(CPUState *env);
-IOAPICState *ioapic_init(void);
+qemu_irq *ioapic_init(void);
 void ioapic_set_irq(void *opaque, int vector, int level);
 void apic_reset_irq_delivered(void);
 int apic_get_irq_delivered(void);

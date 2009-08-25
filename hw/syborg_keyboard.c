@@ -121,13 +121,13 @@ static void syborg_keyboard_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *syborg_keyboard_readfn[] = {
+static CPUReadMemoryFunc * const syborg_keyboard_readfn[] = {
      syborg_keyboard_read,
      syborg_keyboard_read,
      syborg_keyboard_read
 };
 
-static CPUWriteMemoryFunc *syborg_keyboard_writefn[] = {
+static CPUWriteMemoryFunc * const syborg_keyboard_writefn[] = {
      syborg_keyboard_write,
      syborg_keyboard_write,
      syborg_keyboard_write

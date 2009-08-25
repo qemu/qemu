@@ -215,13 +215,13 @@ static void integratorcm_write(void *opaque, target_phys_addr_t offset,
 
 /* Integrator/CM control registers.  */
 
-static CPUReadMemoryFunc *integratorcm_readfn[] = {
+static CPUReadMemoryFunc * const integratorcm_readfn[] = {
    integratorcm_read,
    integratorcm_read,
    integratorcm_read
 };
 
-static CPUWriteMemoryFunc *integratorcm_writefn[] = {
+static CPUWriteMemoryFunc * const integratorcm_writefn[] = {
    integratorcm_write,
    integratorcm_write,
    integratorcm_write
@@ -360,13 +360,13 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
     icp_pic_update(s);
 }
 
-static CPUReadMemoryFunc *icp_pic_readfn[] = {
+static CPUReadMemoryFunc * const icp_pic_readfn[] = {
    icp_pic_read,
    icp_pic_read,
    icp_pic_read
 };
 
-static CPUWriteMemoryFunc *icp_pic_writefn[] = {
+static CPUWriteMemoryFunc * const icp_pic_writefn[] = {
    icp_pic_write,
    icp_pic_write,
    icp_pic_write
@@ -416,13 +416,13 @@ static void icp_control_write(void *opaque, target_phys_addr_t offset,
         hw_error("icp_control_write: Bad offset %x\n", (int)offset);
     }
 }
-static CPUReadMemoryFunc *icp_control_readfn[] = {
+static CPUReadMemoryFunc * const icp_control_readfn[] = {
    icp_control_read,
    icp_control_read,
    icp_control_read
 };
 
-static CPUWriteMemoryFunc *icp_control_writefn[] = {
+static CPUWriteMemoryFunc * const icp_control_writefn[] = {
    icp_control_write,
    icp_control_write,
    icp_control_write

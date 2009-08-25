@@ -408,13 +408,13 @@ static void omap_i2c_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_i2c_readfn[] = {
+static CPUReadMemoryFunc * const omap_i2c_readfn[] = {
     omap_badwidth_read16,
     omap_i2c_read,
     omap_badwidth_read16,
 };
 
-static CPUWriteMemoryFunc *omap_i2c_writefn[] = {
+static CPUWriteMemoryFunc * const omap_i2c_writefn[] = {
     omap_i2c_writeb,	/* Only the last fifo write can be 8 bit.  */
     omap_i2c_write,
     omap_badwidth_write16,

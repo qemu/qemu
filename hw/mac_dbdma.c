@@ -785,13 +785,13 @@ static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc *dbdma_write[] = {
+static CPUWriteMemoryFunc * const dbdma_write[] = {
     NULL,
     NULL,
     dbdma_writel,
 };
 
-static CPUReadMemoryFunc *dbdma_read[] = {
+static CPUReadMemoryFunc * const dbdma_read[] = {
     NULL,
     NULL,
     dbdma_readl,

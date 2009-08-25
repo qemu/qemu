@@ -48,7 +48,9 @@ static int vga_osi_call (CPUState *env)
     static int vga_vbl_enabled;
     int linesize;
 
-    //    printf("osi_call R5=" REGX "\n", ppc_dump_gpr(env, 5));
+#if 0
+    printf("osi_call R5=%016" PRIx64 "\n", ppc_dump_gpr(env, 5));
+#endif
 
     /* same handler as PearPC, coming from the original MOL video
        driver. */
@@ -100,7 +102,7 @@ static int vga_osi_call (CPUState *env)
         /* R6 = x, R7 = y, R8 = visible, R9 = data */
         break;
     default:
-        fprintf(stderr, "unsupported OSI call R5=" REGX "\n",
+        fprintf(stderr, "unsupported OSI call R5=%016" PRIx64 "\n",
                 ppc_dump_gpr(env, 5));
         break;
     }

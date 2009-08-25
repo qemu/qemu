@@ -682,11 +682,6 @@ typedef struct CPUX86State {
         uint64_t mask;
     } mtrr_var[8];
 
-#ifdef CONFIG_KQEMU
-    int kqemu_enabled;
-    int last_io_time;
-#endif
-
     /* For KVM */
     uint64_t interrupt_bitmap[256 / 64];
     uint32_t mp_state;
@@ -804,6 +799,7 @@ int cpu_x86_signal_handler(int host_signum, void *pinfo,
 /* helper.c */
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write, int mmu_idx, int is_softmmu);
+#define cpu_handle_mmu_fault cpu_x86_handle_mmu_fault
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
@@ -849,15 +845,6 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
 #define X86_DUMP_CCOP 0x0002 /* dump qemu flag cache */
-
-#ifdef CONFIG_KQEMU
-static inline int cpu_get_time_fast(void)
-{
-    int low, high;
-    asm volatile("rdtsc" : "=a" (low), "=d" (high));
-    return low;
-}
-#endif
 
 #define TARGET_PAGE_BITS 12
 

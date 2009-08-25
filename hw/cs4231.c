@@ -129,13 +129,13 @@ static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static CPUReadMemoryFunc *cs_mem_read[3] = {
+static CPUReadMemoryFunc * const cs_mem_read[3] = {
     cs_mem_readl,
     cs_mem_readl,
     cs_mem_readl,
 };
 
-static CPUWriteMemoryFunc *cs_mem_write[3] = {
+static CPUWriteMemoryFunc * const cs_mem_write[3] = {
     cs_mem_writel,
     cs_mem_writel,
     cs_mem_writel,

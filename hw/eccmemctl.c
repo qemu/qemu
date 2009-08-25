@@ -221,13 +221,13 @@ static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *ecc_mem_read[3] = {
+static CPUReadMemoryFunc * const ecc_mem_read[3] = {
     NULL,
     NULL,
     ecc_mem_readl,
 };
 
-static CPUWriteMemoryFunc *ecc_mem_write[3] = {
+static CPUWriteMemoryFunc * const ecc_mem_write[3] = {
     NULL,
     NULL,
     ecc_mem_writel,
@@ -251,13 +251,13 @@ static uint32_t ecc_diag_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *ecc_diag_mem_read[3] = {
+static CPUReadMemoryFunc * const ecc_diag_mem_read[3] = {
     ecc_diag_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *ecc_diag_mem_write[3] = {
+static CPUWriteMemoryFunc * const ecc_diag_mem_write[3] = {
     ecc_diag_mem_writeb,
     NULL,
     NULL,

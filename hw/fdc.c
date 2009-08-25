@@ -603,25 +603,25 @@ static void fdctrl_write_mem (void *opaque,
     fdctrl_write(opaque, (uint32_t)reg, value);
 }
 
-static CPUReadMemoryFunc *fdctrl_mem_read[3] = {
+static CPUReadMemoryFunc * const fdctrl_mem_read[3] = {
     fdctrl_read_mem,
     fdctrl_read_mem,
     fdctrl_read_mem,
 };
 
-static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
+static CPUWriteMemoryFunc * const fdctrl_mem_write[3] = {
     fdctrl_write_mem,
     fdctrl_write_mem,
     fdctrl_write_mem,
 };
 
-static CPUReadMemoryFunc *fdctrl_mem_read_strict[3] = {
+static CPUReadMemoryFunc * const fdctrl_mem_read_strict[3] = {
     fdctrl_read_mem,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *fdctrl_mem_write_strict[3] = {
+static CPUWriteMemoryFunc * const fdctrl_mem_write_strict[3] = {
     fdctrl_write_mem,
     NULL,
     NULL,

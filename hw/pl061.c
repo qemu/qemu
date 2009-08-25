@@ -223,13 +223,13 @@ static void pl061_set_irq(void * opaque, int irq, int level)
     }
 }
 
-static CPUReadMemoryFunc *pl061_readfn[] = {
+static CPUReadMemoryFunc * const pl061_readfn[] = {
    pl061_read,
    pl061_read,
    pl061_read
 };
 
-static CPUWriteMemoryFunc *pl061_writefn[] = {
+static CPUWriteMemoryFunc * const pl061_writefn[] = {
    pl061_write,
    pl061_write,
    pl061_write

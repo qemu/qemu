@@ -127,13 +127,13 @@ static void mcf_intc_reset(mcf_intc_state *s)
     s->active_vector = 24;
 }
 
-static CPUReadMemoryFunc *mcf_intc_readfn[] = {
+static CPUReadMemoryFunc * const mcf_intc_readfn[] = {
    mcf_intc_read,
    mcf_intc_read,
    mcf_intc_read
 };
 
-static CPUWriteMemoryFunc *mcf_intc_writefn[] = {
+static CPUWriteMemoryFunc * const mcf_intc_writefn[] = {
    mcf_intc_write,
    mcf_intc_write,
    mcf_intc_write

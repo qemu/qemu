@@ -565,13 +565,13 @@ static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *nvram_write[] = {
+static CPUWriteMemoryFunc * const nvram_write[] = {
     &nvram_writeb,
     &nvram_writew,
     &nvram_writel,
 };
 
-static CPUReadMemoryFunc *nvram_read[] = {
+static CPUReadMemoryFunc * const nvram_read[] = {
     &nvram_readb,
     &nvram_readw,
     &nvram_readl,

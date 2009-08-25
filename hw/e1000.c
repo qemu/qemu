@@ -1020,11 +1020,11 @@ static const uint32_t mac_reg_init[] = {
 
 /* PCI interface */
 
-static CPUWriteMemoryFunc *e1000_mmio_write[] = {
+static CPUWriteMemoryFunc * const e1000_mmio_write[] = {
     e1000_mmio_writeb,	e1000_mmio_writew,	e1000_mmio_writel
 };
 
-static CPUReadMemoryFunc *e1000_mmio_read[] = {
+static CPUReadMemoryFunc * const e1000_mmio_read[] = {
     e1000_mmio_readb,	e1000_mmio_readw,	e1000_mmio_readl
 };
 

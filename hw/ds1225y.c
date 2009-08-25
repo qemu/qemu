@@ -126,19 +126,19 @@ static void nvram_writel_protected (void *opaque, target_phys_addr_t addr, uint3
     nvram_writeb_protected(opaque, addr + 3, (val >> 24) & 0xff);
 }
 
-static CPUReadMemoryFunc *nvram_read[] = {
+static CPUReadMemoryFunc * const nvram_read[] = {
     &nvram_readb,
     &nvram_readw,
     &nvram_readl,
 };
 
-static CPUWriteMemoryFunc *nvram_write[] = {
+static CPUWriteMemoryFunc * const nvram_write[] = {
     &nvram_writeb,
     &nvram_writew,
     &nvram_writel,
 };
 
-static CPUWriteMemoryFunc *nvram_write_protected[] = {
+static CPUWriteMemoryFunc * const nvram_write_protected[] = {
     &nvram_writeb_protected,
     &nvram_writew_protected,
     &nvram_writel_protected,

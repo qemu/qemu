@@ -340,13 +340,13 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *pl110_readfn[] = {
+static CPUReadMemoryFunc * const pl110_readfn[] = {
    pl110_read,
    pl110_read,
    pl110_read
 };
 
-static CPUWriteMemoryFunc *pl110_writefn[] = {
+static CPUWriteMemoryFunc * const pl110_writefn[] = {
    pl110_write,
    pl110_write,
    pl110_write

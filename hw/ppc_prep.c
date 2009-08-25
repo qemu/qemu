@@ -112,16 +112,22 @@ static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
 static void _PPC_intack_write (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
-//    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+#if 0
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
+#endif
 }
 
-static always_inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
+static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
     if ((addr & 0xf) == 0)
         retval = pic_intack_read(isa_pic);
-//   printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+#if 0
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
+#endif
 
     return retval;
 }
@@ -149,13 +155,13 @@ static uint32_t PPC_intack_readl (void *opaque, target_phys_addr_t addr)
 #endif
 }
 
-static CPUWriteMemoryFunc *PPC_intack_write[] = {
+static CPUWriteMemoryFunc * const PPC_intack_write[] = {
     &_PPC_intack_write,
     &_PPC_intack_write,
     &_PPC_intack_write,
 };
 
-static CPUReadMemoryFunc *PPC_intack_read[] = {
+static CPUReadMemoryFunc * const PPC_intack_read[] = {
     &PPC_intack_readb,
     &PPC_intack_readw,
     &PPC_intack_readl,
@@ -191,7 +197,8 @@ static struct {
 static void PPC_XCSR_writeb (void *opaque,
                              target_phys_addr_t addr, uint32_t value)
 {
-    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
 }
 
 static void PPC_XCSR_writew (void *opaque,
@@ -200,7 +207,8 @@ static void PPC_XCSR_writew (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
 }
 
 static void PPC_XCSR_writel (void *opaque,
@@ -209,14 +217,16 @@ static void PPC_XCSR_writel (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+           value);
 }
 
 static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
 
     return retval;
 }
@@ -225,7 +235,8 @@ static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
 #ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap16(retval);
 #endif
@@ -237,7 +248,8 @@ static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
+    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
+           retval);
 #ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap32(retval);
 #endif
@@ -245,13 +257,13 @@ static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *PPC_XCSR_write[] = {
+static CPUWriteMemoryFunc * const PPC_XCSR_write[] = {
     &PPC_XCSR_writeb,
     &PPC_XCSR_writew,
     &PPC_XCSR_writel,
 };
 
-static CPUReadMemoryFunc *PPC_XCSR_read[] = {
+static CPUReadMemoryFunc * const PPC_XCSR_read[] = {
     &PPC_XCSR_readb,
     &PPC_XCSR_readw,
     &PPC_XCSR_readl,
@@ -426,9 +438,8 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
-static always_inline target_phys_addr_t prep_IO_address (sysctrl_t *sysctrl,
-                                                         target_phys_addr_t
-                                                         addr)
+static inline target_phys_addr_t prep_IO_address(sysctrl_t *sysctrl,
+                                                 target_phys_addr_t addr)
 {
     if (sysctrl->contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
@@ -470,7 +481,7 @@ static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " => 0x%08" PRIx32 "\n", addr, value);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", addr, value);
     cpu_outw(NULL, addr, value);
 }
 
@@ -484,7 +495,7 @@ static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap16(ret);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " <= 0x%08" PRIx32 "\n", addr, ret);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " <= 0x%08" PRIx32 "\n", addr, ret);
 
     return ret;
 }
@@ -498,7 +509,7 @@ static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " => 0x%08" PRIx32 "\n", addr, value);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", addr, value);
     cpu_outl(NULL, addr, value);
 }
 
@@ -512,18 +523,18 @@ static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap32(ret);
 #endif
-    PPC_IO_DPRINTF("0x" PADDRX " <= 0x%08" PRIx32 "\n", addr, ret);
+    PPC_IO_DPRINTF("0x" TARGET_FMT_plx " <= 0x%08" PRIx32 "\n", addr, ret);
 
     return ret;
 }
 
-static CPUWriteMemoryFunc *PPC_prep_io_write[] = {
+static CPUWriteMemoryFunc * const PPC_prep_io_write[] = {
     &PPC_prep_io_writeb,
     &PPC_prep_io_writew,
     &PPC_prep_io_writel,
 };
 
-static CPUReadMemoryFunc *PPC_prep_io_read[] = {
+static CPUReadMemoryFunc * const PPC_prep_io_read[] = {
     &PPC_prep_io_readb,
     &PPC_prep_io_readw,
     &PPC_prep_io_readl,

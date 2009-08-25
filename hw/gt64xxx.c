@@ -865,13 +865,13 @@ static uint32_t gt64120_readl (void *opaque,
     return val;
 }
 
-static CPUWriteMemoryFunc *gt64120_write[] = {
+static CPUWriteMemoryFunc * const gt64120_write[] = {
     &gt64120_writel,
     &gt64120_writel,
     &gt64120_writel,
 };
 
-static CPUReadMemoryFunc *gt64120_read[] = {
+static CPUReadMemoryFunc * const gt64120_read[] = {
     &gt64120_readl,
     &gt64120_readl,
     &gt64120_readl,

@@ -570,6 +570,7 @@ static void fd_chr_read(void *opaque)
     if (size == 0) {
         /* FD has been closed. Remove it from the active list.  */
         qemu_set_fd_handler2(s->fd_in, NULL, NULL, NULL, NULL);
+        qemu_chr_event(chr, CHR_EVENT_CLOSED);
         return;
     }
     if (size > 0) {
@@ -602,6 +603,7 @@ static void fd_chr_close(struct CharDriverState *chr)
     }
 
     qemu_free(s);
+    qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
 /* open a character device to a unix fd */
@@ -690,6 +692,7 @@ static void stdio_read(void *opaque)
     if (size == 0) {
         /* stdin has been closed. Remove it from the active list.  */
         qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
+        qemu_chr_event(chr, CHR_EVENT_CLOSED);
         return;
     }
     if (size > 0) {
@@ -943,6 +946,7 @@ static void pty_chr_close(struct CharDriverState *chr)
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
     qemu_free(s);
+    qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
 static CharDriverState *qemu_chr_open_pty(void)
@@ -1264,6 +1268,7 @@ static void pp_close(CharDriverState *chr)
     ioctl(fd, PPRELEASE);
     close(fd);
     qemu_free(drv);
+    qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
 static CharDriverState *qemu_chr_open_pp(const char *filename)
@@ -1390,6 +1395,8 @@ static void win_chr_close(CharDriverState *chr)
         qemu_del_polling_cb(win_chr_pipe_poll, chr);
     else
         qemu_del_polling_cb(win_chr_poll, chr);
+
+    qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
 static int win_chr_init(CharDriverState *chr, const char *filename)
@@ -1779,6 +1786,7 @@ static void udp_chr_close(CharDriverState *chr)
         closesocket(s->fd);
     }
     qemu_free(s);
+    qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
 static CharDriverState *qemu_chr_open_udp(const char *def)
@@ -1999,6 +2007,7 @@ static void tcp_chr_read(void *opaque)
         qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         closesocket(s->fd);
         s->fd = -1;
+        qemu_chr_event(chr, CHR_EVENT_CLOSED);
     } else if (size > 0) {
         if (s->do_telnetopt)
             tcp_chr_process_IAC_bytes(chr, s, buf, &size);
@@ -2095,6 +2104,7 @@ static void tcp_chr_close(CharDriverState *chr)
         closesocket(s->listen_fd);
     }
     qemu_free(s);
+    qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
 static CharDriverState *qemu_chr_open_tcp(const char *host_str,

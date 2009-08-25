@@ -654,13 +654,13 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
-static CPUReadMemoryFunc *escc_mem_read[3] = {
+static CPUReadMemoryFunc * const escc_mem_read[3] = {
     escc_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *escc_mem_write[3] = {
+static CPUWriteMemoryFunc * const escc_mem_write[3] = {
     escc_mem_writeb,
     NULL,
     NULL,

@@ -11,6 +11,7 @@
 #define CHR_EVENT_RESET   2 /* new connection established */
 #define CHR_EVENT_MUX_IN  3 /* mux-focus was set to this terminal */
 #define CHR_EVENT_MUX_OUT 4 /* mux-focus will move on */
+#define CHR_EVENT_CLOSED  5 /* connection closed */
 
 
 #define CHR_IOCTL_SERIAL_SET_PARAMS   1

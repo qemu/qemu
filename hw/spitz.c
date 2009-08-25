@@ -156,12 +156,12 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
 {
     int iomemtype;
     SLNANDState *s;
-    CPUReadMemoryFunc *sl_readfn[] = {
+    CPUReadMemoryFunc * const sl_readfn[] = {
         sl_readb,
         sl_readb,
         sl_readl,
     };
-    CPUWriteMemoryFunc *sl_writefn[] = {
+    CPUWriteMemoryFunc * const sl_writefn[] = {
         sl_writeb,
         sl_writeb,
         sl_writeb,

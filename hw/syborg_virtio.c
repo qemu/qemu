@@ -219,13 +219,13 @@ static void syborg_virtio_writeb(void *opaque, target_phys_addr_t offset,
     BADF("Bad byte write offset 0x%x\n", (int)offset);
 }
 
-static CPUReadMemoryFunc *syborg_virtio_readfn[] = {
+static CPUReadMemoryFunc * const syborg_virtio_readfn[] = {
      syborg_virtio_readb,
      syborg_virtio_readw,
      syborg_virtio_readl
 };
 
-static CPUWriteMemoryFunc *syborg_virtio_writefn[] = {
+static CPUWriteMemoryFunc * const syborg_virtio_writefn[] = {
      syborg_virtio_writeb,
      syborg_virtio_writew,
      syborg_virtio_writel

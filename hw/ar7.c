@@ -71,7 +71,7 @@
 #include "disas.h"              /* lookup_symbol */
 #include "exec-all.h"           /* logfile */
 
-#include "hw/pc.h"              /* serial_16550_init, serial_read, serial_write */
+#include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
 #include "hw/tnetw1130.h"       /* vlynq_tnetw1130_init */
 

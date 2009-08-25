@@ -229,13 +229,13 @@ static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
     pxa2xx_pic_mem_write(opaque, offset, value);
 }
 
-static CPUReadMemoryFunc *pxa2xx_pic_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_pic_readfn[] = {
     pxa2xx_pic_mem_read,
     pxa2xx_pic_mem_read,
     pxa2xx_pic_mem_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_pic_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_pic_writefn[] = {
     pxa2xx_pic_mem_write,
     pxa2xx_pic_mem_write,
     pxa2xx_pic_mem_write,

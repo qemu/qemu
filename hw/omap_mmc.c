@@ -540,13 +540,13 @@ static void omap_mmc_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *omap_mmc_readfn[] = {
+static CPUReadMemoryFunc * const omap_mmc_readfn[] = {
     omap_badwidth_read16,
     omap_mmc_read,
     omap_badwidth_read16,
 };
 
-static CPUWriteMemoryFunc *omap_mmc_writefn[] = {
+static CPUWriteMemoryFunc * const omap_mmc_writefn[] = {
     omap_badwidth_write16,
     omap_mmc_write,
     omap_badwidth_write16,

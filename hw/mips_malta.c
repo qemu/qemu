@@ -407,13 +407,13 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *malta_fpga_read[] = {
+static CPUReadMemoryFunc * const malta_fpga_read[] = {
    malta_fpga_readl,
    malta_fpga_readl,
    malta_fpga_readl
 };
 
-static CPUWriteMemoryFunc *malta_fpga_write[] = {
+static CPUWriteMemoryFunc * const malta_fpga_write[] = {
    malta_fpga_writel,
    malta_fpga_writel,
    malta_fpga_writel

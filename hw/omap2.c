@@ -343,7 +343,7 @@ static uint32_t omap_gp_timer_readh(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static CPUReadMemoryFunc *omap_gp_timer_readfn[] = {
+static CPUReadMemoryFunc * const omap_gp_timer_readfn[] = {
     omap_badwidth_read32,
     omap_gp_timer_readh,
     omap_gp_timer_readw,
@@ -460,7 +460,7 @@ static void omap_gp_timer_writeh(void *opaque, target_phys_addr_t addr,
         s->writeh = (uint16_t) value;
 }
 
-static CPUWriteMemoryFunc *omap_gp_timer_writefn[] = {
+static CPUWriteMemoryFunc * const omap_gp_timer_writefn[] = {
     omap_badwidth_write32,
     omap_gp_timer_writeh,
     omap_gp_timer_write,
@@ -529,7 +529,7 @@ static uint32_t omap_synctimer_readh(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static CPUReadMemoryFunc *omap_synctimer_readfn[] = {
+static CPUReadMemoryFunc * const omap_synctimer_readfn[] = {
     omap_badwidth_read32,
     omap_synctimer_readh,
     omap_synctimer_readw,
@@ -541,7 +541,7 @@ static void omap_synctimer_write(void *opaque, target_phys_addr_t addr,
     OMAP_BAD_REG(addr);
 }
 
-static CPUWriteMemoryFunc *omap_synctimer_writefn[] = {
+static CPUWriteMemoryFunc * const omap_synctimer_writefn[] = {
     omap_badwidth_write32,
     omap_synctimer_write,
     omap_synctimer_write,
@@ -927,13 +927,13 @@ static void omap_gpio_module_writep(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_gpio_module_readfn[] = {
+static CPUReadMemoryFunc * const omap_gpio_module_readfn[] = {
     omap_gpio_module_readp,
     omap_gpio_module_readp,
     omap_gpio_module_read,
 };
 
-static CPUWriteMemoryFunc *omap_gpio_module_writefn[] = {
+static CPUWriteMemoryFunc * const omap_gpio_module_writefn[] = {
     omap_gpio_module_writep,
     omap_gpio_module_writep,
     omap_gpio_module_write,
@@ -1032,13 +1032,13 @@ static void omap_gpif_top_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_gpif_top_readfn[] = {
+static CPUReadMemoryFunc * const omap_gpif_top_readfn[] = {
     omap_gpif_top_read,
     omap_gpif_top_read,
     omap_gpif_top_read,
 };
 
-static CPUWriteMemoryFunc *omap_gpif_top_writefn[] = {
+static CPUWriteMemoryFunc * const omap_gpif_top_writefn[] = {
     omap_gpif_top_write,
     omap_gpif_top_write,
     omap_gpif_top_write,
@@ -1356,13 +1356,13 @@ static void omap_mcspi_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_mcspi_readfn[] = {
+static CPUReadMemoryFunc * const omap_mcspi_readfn[] = {
     omap_badwidth_read32,
     omap_badwidth_read32,
     omap_mcspi_read,
 };
 
-static CPUWriteMemoryFunc *omap_mcspi_writefn[] = {
+static CPUWriteMemoryFunc * const omap_mcspi_writefn[] = {
     omap_badwidth_write32,
     omap_badwidth_write32,
     omap_mcspi_write,
@@ -1947,13 +1947,13 @@ static void omap_eac_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_eac_readfn[] = {
+static CPUReadMemoryFunc * const omap_eac_readfn[] = {
     omap_badwidth_read16,
     omap_eac_read,
     omap_badwidth_read16,
 };
 
-static CPUWriteMemoryFunc *omap_eac_writefn[] = {
+static CPUWriteMemoryFunc * const omap_eac_writefn[] = {
     omap_badwidth_write16,
     omap_eac_write,
     omap_badwidth_write16,
@@ -2096,13 +2096,13 @@ static void omap_sti_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_sti_readfn[] = {
+static CPUReadMemoryFunc * const omap_sti_readfn[] = {
     omap_badwidth_read32,
     omap_badwidth_read32,
     omap_sti_read,
 };
 
-static CPUWriteMemoryFunc *omap_sti_writefn[] = {
+static CPUWriteMemoryFunc * const omap_sti_writefn[] = {
     omap_badwidth_write32,
     omap_badwidth_write32,
     omap_sti_write,
@@ -2134,13 +2134,13 @@ static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_sti_fifo_readfn[] = {
+static CPUReadMemoryFunc * const omap_sti_fifo_readfn[] = {
     omap_sti_fifo_read,
     omap_badwidth_read8,
     omap_badwidth_read8,
 };
 
-static CPUWriteMemoryFunc *omap_sti_fifo_writefn[] = {
+static CPUWriteMemoryFunc * const omap_sti_fifo_writefn[] = {
     omap_sti_fifo_write,
     omap_badwidth_write8,
     omap_badwidth_write8,
@@ -2191,20 +2191,20 @@ struct omap_l4_s {
 static int omap_l4_io_entries;
 static int omap_cpu_io_entry;
 static struct omap_l4_entry {
-        CPUReadMemoryFunc **mem_read;
-        CPUWriteMemoryFunc **mem_write;
+        CPUReadMemoryFunc * const *mem_read;
+        CPUWriteMemoryFunc * const *mem_write;
         void *opaque;
 } *omap_l4_io_entry;
-static CPUReadMemoryFunc **omap_l4_io_readb_fn;
-static CPUReadMemoryFunc **omap_l4_io_readh_fn;
-static CPUReadMemoryFunc **omap_l4_io_readw_fn;
-static CPUWriteMemoryFunc **omap_l4_io_writeb_fn;
-static CPUWriteMemoryFunc **omap_l4_io_writeh_fn;
-static CPUWriteMemoryFunc **omap_l4_io_writew_fn;
+static CPUReadMemoryFunc * const *omap_l4_io_readb_fn;
+static CPUReadMemoryFunc * const *omap_l4_io_readh_fn;
+static CPUReadMemoryFunc * const *omap_l4_io_readw_fn;
+static CPUWriteMemoryFunc * const *omap_l4_io_writeb_fn;
+static CPUWriteMemoryFunc * const *omap_l4_io_writeh_fn;
+static CPUWriteMemoryFunc * const *omap_l4_io_writew_fn;
 static void **omap_l4_io_opaque;
 
-int l4_register_io_memory(CPUReadMemoryFunc **mem_read,
-                CPUWriteMemoryFunc **mem_write, void *opaque)
+int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
+                CPUWriteMemoryFunc * const *mem_write, void *opaque)
 {
     omap_l4_io_entry[omap_l4_io_entries].mem_read = mem_read;
     omap_l4_io_entry[omap_l4_io_entries].mem_write = mem_write;
@@ -2258,13 +2258,13 @@ static void omap_l4_io_writew(void *opaque, target_phys_addr_t addr,
     return omap_l4_io_writew_fn[i](omap_l4_io_opaque[i], addr, value);
 }
 
-static CPUReadMemoryFunc *omap_l4_io_readfn[] = {
+static CPUReadMemoryFunc * const omap_l4_io_readfn[] = {
     omap_l4_io_readb,
     omap_l4_io_readh,
     omap_l4_io_readw,
 };
 
-static CPUWriteMemoryFunc *omap_l4_io_writefn[] = {
+static CPUWriteMemoryFunc * const omap_l4_io_writefn[] = {
     omap_l4_io_writeb,
     omap_l4_io_writeh,
     omap_l4_io_writew,
@@ -2340,13 +2340,13 @@ static void omap_l4ta_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_l4ta_readfn[] = {
+static CPUReadMemoryFunc * const omap_l4ta_readfn[] = {
     omap_badwidth_read16,
     omap_l4ta_read,
     omap_badwidth_read16,
 };
 
-static CPUWriteMemoryFunc *omap_l4ta_writefn[] = {
+static CPUWriteMemoryFunc * const omap_l4ta_writefn[] = {
     omap_badwidth_write32,
     omap_badwidth_write32,
     omap_l4ta_write,
@@ -2692,13 +2692,13 @@ static void omap_tap_write(void *opaque, target_phys_addr_t addr,
     OMAP_BAD_REG(addr);
 }
 
-static CPUReadMemoryFunc *omap_tap_readfn[] = {
+static CPUReadMemoryFunc * const omap_tap_readfn[] = {
     omap_badwidth_read32,
     omap_badwidth_read32,
     omap_tap_read,
 };
 
-static CPUWriteMemoryFunc *omap_tap_writefn[] = {
+static CPUWriteMemoryFunc * const omap_tap_writefn[] = {
     omap_badwidth_write32,
     omap_badwidth_write32,
     omap_tap_write,
@@ -3414,13 +3414,13 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_prcm_readfn[] = {
+static CPUReadMemoryFunc * const omap_prcm_readfn[] = {
     omap_badwidth_read32,
     omap_badwidth_read32,
     omap_prcm_read,
 };
 
-static CPUWriteMemoryFunc *omap_prcm_writefn[] = {
+static CPUWriteMemoryFunc * const omap_prcm_writefn[] = {
     omap_badwidth_write32,
     omap_badwidth_write32,
     omap_prcm_write,
@@ -3784,13 +3784,13 @@ static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_sysctl_readfn[] = {
+static CPUReadMemoryFunc * const omap_sysctl_readfn[] = {
     omap_sysctl_read8,
     omap_badwidth_read32,	/* TODO */
     omap_sysctl_read,
 };
 
-static CPUWriteMemoryFunc *omap_sysctl_writefn[] = {
+static CPUWriteMemoryFunc * const omap_sysctl_writefn[] = {
     omap_sysctl_write8,
     omap_badwidth_write32,	/* TODO */
     omap_sysctl_write,
@@ -4014,13 +4014,13 @@ static void omap_sdrc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_sdrc_readfn[] = {
+static CPUReadMemoryFunc * const omap_sdrc_readfn[] = {
     omap_badwidth_read32,
     omap_badwidth_read32,
     omap_sdrc_read,
 };
 
-static CPUWriteMemoryFunc *omap_sdrc_writefn[] = {
+static CPUWriteMemoryFunc * const omap_sdrc_writefn[] = {
     omap_badwidth_write32,
     omap_badwidth_write32,
     omap_sdrc_write,
@@ -4388,13 +4388,13 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_gpmc_readfn[] = {
+static CPUReadMemoryFunc * const omap_gpmc_readfn[] = {
     omap_badwidth_read32,	/* TODO */
     omap_badwidth_read32,	/* TODO */
     omap_gpmc_read,
 };
 
-static CPUWriteMemoryFunc *omap_gpmc_writefn[] = {
+static CPUWriteMemoryFunc * const omap_gpmc_writefn[] = {
     omap_badwidth_write32,	/* TODO */
     omap_badwidth_write32,	/* TODO */
     omap_gpmc_write,

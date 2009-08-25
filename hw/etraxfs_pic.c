@@ -99,12 +99,12 @@ pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc *pic_read[] = {
+static CPUReadMemoryFunc * const pic_read[] = {
     NULL, NULL,
     &pic_readl,
 };
 
-static CPUWriteMemoryFunc *pic_write[] = {
+static CPUWriteMemoryFunc * const pic_write[] = {
     NULL, NULL,
     &pic_writel,
 };

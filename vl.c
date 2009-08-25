@@ -195,10 +195,7 @@ int vm_running;
 int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
-int cirrus_vga_enabled = 1;
-int std_vga_enabled = 0;
-int vmsvga_enabled = 0;
-int xenfb_enabled = 0;
+int vga_interface_type = VGA_CIRRUS;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -234,6 +231,7 @@ int no_reboot = 0;
 int no_shutdown = 0;
 int cursor_hide = 1;
 int graphic_rotate = 0;
+uint8_t irq0override = 1;
 #ifndef _WIN32
 int daemonize = 0;
 #endif
@@ -1143,11 +1141,6 @@ static void host_alarm_handler(int host_signum)
         if (next_cpu) {
             /* stop the currently executing cpu because a timer occured */
             cpu_exit(next_cpu);
-#ifdef CONFIG_KQEMU
-            if (next_cpu->kqemu_enabled) {
-                kqemu_cpu_interrupt(next_cpu);
-            }
-#endif
         }
 #endif
         timer_alarm_pending = 1;
@@ -3613,11 +3606,7 @@ void qemu_notify_event(void)
 
     if (env) {
         cpu_exit(env);
-#ifdef USE_KQEMU
-        if (env->kqemu_enabled)
-            kqemu_cpu_interrupt(env);
-#endif
-     }
+    }
 }
 
 #define qemu_mutex_lock_iothread() do { } while (0)
@@ -4502,18 +4491,15 @@ static void select_vgahw (const char *p)
 {
     const char *opts;
 
-    cirrus_vga_enabled = 0;
-    std_vga_enabled = 0;
-    vmsvga_enabled = 0;
-    xenfb_enabled = 0;
+    vga_interface_type = VGA_NONE;
     if (strstart(p, "std", &opts)) {
-        std_vga_enabled = 1;
+        vga_interface_type = VGA_STD;
     } else if (strstart(p, "cirrus", &opts)) {
-        cirrus_vga_enabled = 1;
+        vga_interface_type = VGA_CIRRUS;
     } else if (strstart(p, "vmware", &opts)) {
-        vmsvga_enabled = 1;
+        vga_interface_type = VGA_VMWARE;
     } else if (strstart(p, "xenfb", &opts)) {
-        xenfb_enabled = 1;
+        vga_interface_type = VGA_XENFB;
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);
@@ -5250,11 +5236,7 @@ int main(int argc, char **argv, char **envp)
                 }
 
                 /* On 32-bit hosts, QEMU is limited by virtual address space */
-                if (value > (2047 << 20)
-#ifndef CONFIG_KQEMU
-                    && HOST_LONG_BITS == 32
-#endif
-                    ) {
+                if (value > (2047 << 20) && HOST_LONG_BITS == 32) {
                     fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
                     exit(1);
                 }
@@ -5435,20 +5417,9 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 #endif
-#ifdef CONFIG_KQEMU
-            case QEMU_OPTION_enable_kqemu:
-                kqemu_allowed = 1;
-                break;
-            case QEMU_OPTION_kernel_kqemu:
-                kqemu_allowed = 2;
-                break;
-#endif
 #ifdef CONFIG_KVM
             case QEMU_OPTION_enable_kvm:
                 kvm_allowed = 1;
-#ifdef CONFIG_KQEMU
-                kqemu_allowed = 0;
-#endif
                 break;
 #endif
             case QEMU_OPTION_usb:
@@ -5661,14 +5632,6 @@ int main(int argc, char **argv, char **envp)
         data_dir = CONFIG_QEMU_SHAREDIR;
     }
 
-#if defined(CONFIG_KVM) && defined(CONFIG_KQEMU)
-    if (kvm_allowed && kqemu_allowed) {
-        fprintf(stderr,
-                "You can not enable both KVM and kqemu at the same time\n");
-        exit(1);
-    }
-#endif
-
     /*
      * Default to max_cpus = smp_cpus, in case the user doesn't
      * specify a max_cpus value.
@@ -5747,10 +5710,6 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
-#ifdef CONFIG_KQEMU
-    if (smp_cpus > 1)
-        kqemu_allowed = 0;
-#endif
     if (qemu_init_main_loop()) {
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
@@ -5816,19 +5775,6 @@ int main(int argc, char **argv, char **envp)
     /* init the memory */
     if (ram_size == 0)
         ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
-
-#ifdef CONFIG_KQEMU
-    /* FIXME: This is a nasty hack because kqemu can't cope with dynamic
-       guest ram allocation.  It needs to go away.  */
-    if (kqemu_allowed) {
-        kqemu_phys_ram_size = ram_size + 8 * 1024 * 1024 + 4 * 1024 * 1024;
-        kqemu_phys_ram_base = qemu_vmalloc(kqemu_phys_ram_size);
-        if (!kqemu_phys_ram_base) {
-            fprintf(stderr, "Could not allocate physical memory\n");
-            exit(1);
-        }
-    }
-#endif
 
     /* init the dynamic translator */
     cpu_exec_init_all(tb_size * 1024 * 1024);
@@ -6107,12 +6053,10 @@ int main(int argc, char **argv, char **envp)
         do_loadvm(cur_mon, loadvm);
 
     if (incoming) {
-        autostart = 0;
         qemu_start_incoming_migration(incoming);
-    }
-
-    else if (autostart)
+    } else if (autostart) {
         vm_start();
+    }
 
 #ifndef _WIN32
     if (daemonize) {

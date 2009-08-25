@@ -559,13 +559,13 @@ static void pxa2xx_lcdc_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_lcdc_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_lcdc_readfn[] = {
     pxa2xx_lcdc_read,
     pxa2xx_lcdc_read,
     pxa2xx_lcdc_read
 };
 
-static CPUWriteMemoryFunc *pxa2xx_lcdc_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_lcdc_writefn[] = {
     pxa2xx_lcdc_write,
     pxa2xx_lcdc_write,
     pxa2xx_lcdc_write

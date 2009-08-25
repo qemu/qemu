@@ -73,13 +73,13 @@ static uint32_t pci_vpb_config_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_vpb_config_write[] = {
+static CPUWriteMemoryFunc * const pci_vpb_config_write[] = {
     &pci_vpb_config_writeb,
     &pci_vpb_config_writew,
     &pci_vpb_config_writel,
 };
 
-static CPUReadMemoryFunc *pci_vpb_config_read[] = {
+static CPUReadMemoryFunc * const pci_vpb_config_read[] = {
     &pci_vpb_config_readb,
     &pci_vpb_config_readw,
     &pci_vpb_config_readl,

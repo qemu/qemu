@@ -417,13 +417,13 @@ static void rc4030_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     rc4030_writel(opaque, addr & ~0x3, val);
 }
 
-static CPUReadMemoryFunc *rc4030_read[3] = {
+static CPUReadMemoryFunc * const rc4030_read[3] = {
     rc4030_readb,
     rc4030_readw,
     rc4030_readl,
 };
 
-static CPUWriteMemoryFunc *rc4030_write[3] = {
+static CPUWriteMemoryFunc * const rc4030_write[3] = {
     rc4030_writeb,
     rc4030_writew,
     rc4030_writel,
@@ -571,13 +571,13 @@ static void jazzio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     jazzio_writew(opaque, addr + 2, (val >> 16) & 0xffff);
 }
 
-static CPUReadMemoryFunc *jazzio_read[3] = {
+static CPUReadMemoryFunc * const jazzio_read[3] = {
     jazzio_readb,
     jazzio_readw,
     jazzio_readl,
 };
 
-static CPUWriteMemoryFunc *jazzio_write[3] = {
+static CPUWriteMemoryFunc * const jazzio_write[3] = {
     jazzio_writeb,
     jazzio_writew,
     jazzio_writel,

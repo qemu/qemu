@@ -152,11 +152,11 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc *eth_read[] = {
+static CPUReadMemoryFunc * const eth_read[] = {
     NULL, NULL, &eth_readl,
 };
 
-static CPUWriteMemoryFunc *eth_write[] = {
+static CPUWriteMemoryFunc * const eth_write[] = {
     NULL, NULL, &eth_writel,
 };
 

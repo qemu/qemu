@@ -544,12 +544,12 @@ static void eth_set_link(VLANClientState *vc)
 	eth->phy.link = !vc->link_down;
 }
 
-static CPUReadMemoryFunc *eth_read[] = {
+static CPUReadMemoryFunc * const eth_read[] = {
 	NULL, NULL,
 	&eth_readl,
 };
 
-static CPUWriteMemoryFunc *eth_write[] = {
+static CPUWriteMemoryFunc * const eth_write[] = {
 	NULL, NULL,
 	&eth_writel,
 };

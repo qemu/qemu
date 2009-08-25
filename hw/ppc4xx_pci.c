@@ -93,7 +93,7 @@ static uint32_t pci4xx_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
     return ppc4xx_pci->pci_state.config_reg;
 }
 
-static CPUReadMemoryFunc *pci4xx_cfgaddr_read[] = {
+static CPUReadMemoryFunc * const pci4xx_cfgaddr_read[] = {
     &pci4xx_cfgaddr_readl,
     &pci4xx_cfgaddr_readl,
     &pci4xx_cfgaddr_readl,
@@ -111,19 +111,19 @@ static void pci4xx_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
     ppc4xx_pci->pci_state.config_reg = value & ~0x3;
 }
 
-static CPUWriteMemoryFunc *pci4xx_cfgaddr_write[] = {
+static CPUWriteMemoryFunc * const pci4xx_cfgaddr_write[] = {
     &pci4xx_cfgaddr_writel,
     &pci4xx_cfgaddr_writel,
     &pci4xx_cfgaddr_writel,
 };
 
-static CPUReadMemoryFunc *pci4xx_cfgdata_read[] = {
+static CPUReadMemoryFunc * const pci4xx_cfgdata_read[] = {
     &pci_host_data_readb,
     &pci_host_data_readw,
     &pci_host_data_readl,
 };
 
-static CPUWriteMemoryFunc *pci4xx_cfgdata_write[] = {
+static CPUWriteMemoryFunc * const pci4xx_cfgdata_write[] = {
     &pci_host_data_writeb,
     &pci_host_data_writew,
     &pci_host_data_writel,
@@ -272,13 +272,13 @@ static uint32_t ppc4xx_pci_reg_read4(void *opaque, target_phys_addr_t offset)
     return value;
 }
 
-static CPUReadMemoryFunc *pci_reg_read[] = {
+static CPUReadMemoryFunc * const pci_reg_read[] = {
     &ppc4xx_pci_reg_read4,
     &ppc4xx_pci_reg_read4,
     &ppc4xx_pci_reg_read4,
 };
 
-static CPUWriteMemoryFunc *pci_reg_write[] = {
+static CPUWriteMemoryFunc * const pci_reg_write[] = {
     &ppc4xx_pci_reg_write4,
     &ppc4xx_pci_reg_write4,
     &ppc4xx_pci_reg_write4,

@@ -99,13 +99,21 @@ typedef enum DisplayType
 
 extern int autostart;
 extern int bios_size;
-extern int cirrus_vga_enabled;
-extern int std_vga_enabled;
-extern int vmsvga_enabled;
-extern int xenfb_enabled;
+
+typedef enum {
+    VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB
+} VGAInterfaceType;
+
+extern int vga_interface_type;
+#define cirrus_vga_enabled (vga_interface_type == VGA_CIRRUS)
+#define std_vga_enabled (vga_interface_type == VGA_STD)
+#define xenfb_enabled (vga_interface_type == VGA_XENFB)
+#define vmsvga_enabled (vga_interface_type == VGA_VMWARE)
+
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
+extern uint8_t irq0override;
 extern DisplayType display_type;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
@@ -122,10 +130,6 @@ extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
-
-#ifdef CONFIG_KQEMU
-extern int kqemu_allowed;
-#endif
 
 #define MAX_NODES 64
 extern int nb_numa_nodes;

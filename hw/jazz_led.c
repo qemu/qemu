@@ -131,13 +131,13 @@ static void led_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 #endif
 }
 
-static CPUReadMemoryFunc *led_read[3] = {
+static CPUReadMemoryFunc * const led_read[3] = {
     led_readb,
     led_readw,
     led_readl,
 };
 
-static CPUWriteMemoryFunc *led_write[3] = {
+static CPUWriteMemoryFunc * const led_write[3] = {
     led_writeb,
     led_writew,
     led_writel,

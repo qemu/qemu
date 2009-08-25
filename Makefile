@@ -54,8 +54,8 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += nbd.o block.o aio.o aes.o
-block-obj-$(CONFIG_AIO) += posix-aio-compat.o
+block-obj-y += nbd.o block.o aio.o aes.o osdep.o
+block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 
 block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
@@ -73,7 +73,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 # CPUs and machines.
 
 obj-y = $(block-obj-y)
-obj-y += readline.o console.o
+obj-y += readline.o console.o host-utils.o
 
 obj-y += irq.o ptimer.o
 obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
@@ -93,7 +93,7 @@ obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o
-obj-$(CONFIG_POSIX) += migration-exec.o
+obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o
 
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 
@@ -162,7 +162,7 @@ libqemu_common.a: $(obj-y)
 
 #######################################################################
 # user-obj-y is code used by qemu userspace emulation
-user-obj-y = cutils.o cache-utils.o
+user-obj-y = cutils.o cache-utils.o path.o envlist.o host-utils.o
 
 libqemu_user.a: $(user-obj-y)
 
@@ -170,11 +170,11 @@ libqemu_user.a: $(user-obj-y)
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o tool-osdep.o $(block-obj-y)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y)
 
-qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o tool-osdep.o $(block-obj-y)
+qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o $(block-obj-y)
 
-qemu-io$(EXESUF):  qemu-io.o qemu-tool.o tool-osdep.o cmd.o $(block-obj-y)
+qemu-io$(EXESUF):  qemu-io.o qemu-tool.o cmd.o $(block-obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
@@ -244,8 +244,9 @@ endif
 test speed: all
 	$(MAKE) -C tests $@
 
+.PHONY: TAGS
 TAGS:
-	etags *.[ch] tests/*.[ch] block/*.[ch] hw/*.[ch]
+	find "$(SRC_PATH)" -name '*.[hc]' -print0 | xargs -0 etags
 
 cscope:
 	rm -f ./cscope.*
