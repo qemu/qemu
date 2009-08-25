@@ -50,6 +50,8 @@ typedef struct USBWacomState {
         WACOM_MODE_HID = 1,
         WACOM_MODE_WACOM = 2,
     } mode;
+    uint8_t idle;
+    int changed;
 } USBWacomState;
 
 static const uint8_t qemu_wacom_dev_descriptor[] = {
@@ -125,6 +127,7 @@ static void usb_mouse_event(void *opaque,
     s->dy += dy1;
     s->dz += dz1;
     s->buttons_state = buttons_state;
+    s->changed = 1;
 }
 
 static void usb_wacom_event(void *opaque,
@@ -132,10 +135,12 @@ static void usb_wacom_event(void *opaque,
 {
     USBWacomState *s = opaque;
 
-    s->x = x;
-    s->y = y;
+    /* scale to Penpartner resolution */
+    s->x = (x * 5040 / 0x7FFF);
+    s->y = (y * 3780 / 0x7FFF);
     s->dz += dz;
     s->buttons_state = buttons_state;
+    s->changed = 1;
 }
 
 static inline int int_clamp(int val, int vmin, int vmax)
@@ -199,26 +204,22 @@ static int usb_wacom_poll(USBWacomState *s, uint8_t *buf, int len)
     if (s->buttons_state & MOUSE_EVENT_LBUTTON)
         b |= 0x01;
     if (s->buttons_state & MOUSE_EVENT_RBUTTON)
-        b |= 0x02;
+        b |= 0x40;
     if (s->buttons_state & MOUSE_EVENT_MBUTTON)
-        b |= 0x04;
+        b |= 0x20; /* eraser */
 
     if (len < 7)
         return 0;
 
     buf[0] = s->mode;
-    buf[5] = 0x00;
-    if (b) {
-        buf[1] = s->x & 0xff;
-        buf[2] = s->x >> 8;
-        buf[3] = s->y & 0xff;
-        buf[4] = s->y >> 8;
+    buf[5] = 0x00 | (b & 0xf0);
+    buf[1] = s->x & 0xff;
+    buf[2] = s->x >> 8;
+    buf[3] = s->y & 0xff;
+    buf[4] = s->y >> 8;
+    if (b & 0x3f) {
         buf[6] = 0;
     } else {
-        buf[1] = 0;
-        buf[2] = 0;
-        buf[3] = 0;
-        buf[4] = 0;
         buf[6] = (unsigned char) -127;
     }
 
@@ -350,7 +351,12 @@ static int usb_wacom_handle_control(USBDevice *dev, int request, int value,
         else if (s->mode == WACOM_MODE_WACOM)
             ret = usb_wacom_poll(s, data, length);
         break;
+    case HID_GET_IDLE:
+        ret = 1;
+        data[0] = s->idle;
+        break;
     case HID_SET_IDLE:
+        s->idle = (uint8_t) (value >> 8);
         ret = 0;
         break;
     default:
@@ -369,6 +375,9 @@ static int usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
     switch (p->pid) {
     case USB_TOKEN_IN:
         if (p->devep == 1) {
+            if (!(s->changed || s->idle))
+                return USB_RET_NAK;
+            s->changed = 0;
             if (s->mode == WACOM_MODE_HID)
                 ret = usb_mouse_poll(s, p->data, p->len);
             else if (s->mode == WACOM_MODE_WACOM)
@@ -395,6 +404,7 @@ static int usb_wacom_initfn(USBDevice *dev)
 {
     USBWacomState *s = DO_UPCAST(USBWacomState, dev, dev);
     s->dev.speed = USB_SPEED_FULL;
+    s->changed = 1;
     return 0;
 }
 
