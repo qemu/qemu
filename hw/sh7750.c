@@ -434,13 +434,13 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *sh7750_mem_read[] = {
+static CPUReadMemoryFunc * const sh7750_mem_read[] = {
     sh7750_mem_readb,
     sh7750_mem_readw,
     sh7750_mem_readl
 };
 
-static CPUWriteMemoryFunc *sh7750_mem_write[] = {
+static CPUWriteMemoryFunc * const sh7750_mem_write[] = {
     sh7750_mem_writeb,
     sh7750_mem_writew,
     sh7750_mem_writel
@@ -688,13 +688,13 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *sh7750_mmct_read[] = {
+static CPUReadMemoryFunc * const sh7750_mmct_read[] = {
     invalid_read,
     invalid_read,
     sh7750_mmct_readl
 };
 
-static CPUWriteMemoryFunc *sh7750_mmct_write[] = {
+static CPUWriteMemoryFunc * const sh7750_mmct_write[] = {
     invalid_write,
     invalid_write,
     sh7750_mmct_writel

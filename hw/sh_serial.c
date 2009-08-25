@@ -351,13 +351,13 @@ static void sh_serial_write (void *opaque,
     sh_serial_ioport_write(s, addr, value);
 }
 
-static CPUReadMemoryFunc *sh_serial_readfn[] = {
+static CPUReadMemoryFunc * const sh_serial_readfn[] = {
     &sh_serial_read,
     &sh_serial_read,
     &sh_serial_read,
 };
 
-static CPUWriteMemoryFunc *sh_serial_writefn[] = {
+static CPUWriteMemoryFunc * const sh_serial_writefn[] = {
     &sh_serial_write,
     &sh_serial_write,
     &sh_serial_write,

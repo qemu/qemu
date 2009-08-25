@@ -1646,14 +1646,14 @@ static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
 }
 
 /* Only dword reads are defined on OHCI register space */
-static CPUReadMemoryFunc *ohci_readfn[3]={
+static CPUReadMemoryFunc * const ohci_readfn[3]={
     ohci_mem_read,
     ohci_mem_read,
     ohci_mem_read
 };
 
 /* Only dword writes are defined on OHCI register space */
-static CPUWriteMemoryFunc *ohci_writefn[3]={
+static CPUWriteMemoryFunc * const ohci_writefn[3]={
     ohci_mem_write,
     ohci_mem_write,
     ohci_mem_write

@@ -118,13 +118,13 @@ static uint32_t m5208_timer_read(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static CPUReadMemoryFunc *m5208_timer_readfn[] = {
+static CPUReadMemoryFunc * const m5208_timer_readfn[] = {
    m5208_timer_read,
    m5208_timer_read,
    m5208_timer_read
 };
 
-static CPUWriteMemoryFunc *m5208_timer_writefn[] = {
+static CPUWriteMemoryFunc * const m5208_timer_writefn[] = {
    m5208_timer_write,
    m5208_timer_write,
    m5208_timer_write
@@ -157,13 +157,13 @@ static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
 }
 
-static CPUReadMemoryFunc *m5208_sys_readfn[] = {
+static CPUReadMemoryFunc * const m5208_sys_readfn[] = {
    m5208_sys_read,
    m5208_sys_read,
    m5208_sys_read
 };
 
-static CPUWriteMemoryFunc *m5208_sys_writefn[] = {
+static CPUWriteMemoryFunc * const m5208_sys_writefn[] = {
    m5208_sys_write,
    m5208_sys_write,
    m5208_sys_write

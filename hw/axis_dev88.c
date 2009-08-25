@@ -69,13 +69,13 @@ nand_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     s->rdy = rdy;
 }
 
-static CPUReadMemoryFunc *nand_read[] = {
+static CPUReadMemoryFunc * const nand_read[] = {
     &nand_readl,
     &nand_readl,
     &nand_readl,
 };
 
-static CPUWriteMemoryFunc *nand_write[] = {
+static CPUWriteMemoryFunc * const nand_write[] = {
     &nand_writel,
     &nand_writel,
     &nand_writel,
@@ -226,12 +226,12 @@ static void gpio_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc *gpio_read[] = {
+static CPUReadMemoryFunc * const gpio_read[] = {
     NULL, NULL,
     &gpio_readl,
 };
 
-static CPUWriteMemoryFunc *gpio_write[] = {
+static CPUWriteMemoryFunc * const gpio_write[] = {
     NULL, NULL,
     &gpio_writel,
 };

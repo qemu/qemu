@@ -90,13 +90,13 @@ static void syborg_rtc_write(void *opaque, target_phys_addr_t offset, uint32_t v
     }
 }
 
-static CPUReadMemoryFunc *syborg_rtc_readfn[] = {
+static CPUReadMemoryFunc * const syborg_rtc_readfn[] = {
     syborg_rtc_read,
     syborg_rtc_read,
     syborg_rtc_read
 };
 
-static CPUWriteMemoryFunc *syborg_rtc_writefn[] = {
+static CPUWriteMemoryFunc * const syborg_rtc_writefn[] = {
     syborg_rtc_write,
     syborg_rtc_write,
     syborg_rtc_write

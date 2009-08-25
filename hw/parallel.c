@@ -518,13 +518,13 @@ static void parallel_mm_writel (void *opaque,
     parallel_ioport_write_sw(s, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc *parallel_mm_read_sw[] = {
+static CPUReadMemoryFunc * const parallel_mm_read_sw[] = {
     &parallel_mm_readb,
     &parallel_mm_readw,
     &parallel_mm_readl,
 };
 
-static CPUWriteMemoryFunc *parallel_mm_write_sw[] = {
+static CPUWriteMemoryFunc * const parallel_mm_write_sw[] = {
     &parallel_mm_writeb,
     &parallel_mm_writew,
     &parallel_mm_writel,

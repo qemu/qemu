@@ -1405,13 +1405,13 @@ static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
     return eepro100_read4(s, addr);
 }
 
-static CPUWriteMemoryFunc *pci_mmio_write[] = {
+static CPUWriteMemoryFunc * const pci_mmio_write[] = {
     pci_mmio_writeb,
     pci_mmio_writew,
     pci_mmio_writel
 };
 
-static CPUReadMemoryFunc *pci_mmio_read[] = {
+static CPUReadMemoryFunc * const pci_mmio_read[] = {
     pci_mmio_readb,
     pci_mmio_readw,
     pci_mmio_readl

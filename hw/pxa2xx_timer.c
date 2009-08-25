@@ -318,13 +318,13 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_timer_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_timer_readfn[] = {
     pxa2xx_timer_read,
     pxa2xx_timer_read,
     pxa2xx_timer_read,
 };
 
-static CPUWriteMemoryFunc *pxa2xx_timer_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_timer_writefn[] = {
     pxa2xx_timer_write,
     pxa2xx_timer_write,
     pxa2xx_timer_write,

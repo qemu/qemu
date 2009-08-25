@@ -630,13 +630,13 @@ static uint32_t cuda_readl (void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static CPUWriteMemoryFunc *cuda_write[] = {
+static CPUWriteMemoryFunc * const cuda_write[] = {
     &cuda_writeb,
     &cuda_writew,
     &cuda_writel,
 };
 
-static CPUReadMemoryFunc *cuda_read[] = {
+static CPUReadMemoryFunc * const cuda_read[] = {
     &cuda_readb,
     &cuda_readw,
     &cuda_readl,

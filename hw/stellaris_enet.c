@@ -303,13 +303,13 @@ static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *stellaris_enet_readfn[] = {
+static CPUReadMemoryFunc * const stellaris_enet_readfn[] = {
    stellaris_enet_read,
    stellaris_enet_read,
    stellaris_enet_read
 };
 
-static CPUWriteMemoryFunc *stellaris_enet_writefn[] = {
+static CPUWriteMemoryFunc * const stellaris_enet_writefn[] = {
    stellaris_enet_write,
    stellaris_enet_write,
    stellaris_enet_write

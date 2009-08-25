@@ -200,13 +200,13 @@ static void pl190_write(void *opaque, target_phys_addr_t offset, uint32_t val)
     pl190_update(s);
 }
 
-static CPUReadMemoryFunc *pl190_readfn[] = {
+static CPUReadMemoryFunc * const pl190_readfn[] = {
    pl190_read,
    pl190_read,
    pl190_read
 };
 
-static CPUWriteMemoryFunc *pl190_writefn[] = {
+static CPUWriteMemoryFunc * const pl190_writefn[] = {
    pl190_write,
    pl190_write,
    pl190_write

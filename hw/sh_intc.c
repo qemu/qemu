@@ -282,13 +282,13 @@ static void sh_intc_write(void *opaque, target_phys_addr_t offset,
 #endif
 }
 
-static CPUReadMemoryFunc *sh_intc_readfn[] = {
+static CPUReadMemoryFunc * const sh_intc_readfn[] = {
     sh_intc_read,
     sh_intc_read,
     sh_intc_read
 };
 
-static CPUWriteMemoryFunc *sh_intc_writefn[] = {
+static CPUWriteMemoryFunc * const sh_intc_writefn[] = {
     sh_intc_write,
     sh_intc_write,
     sh_intc_write

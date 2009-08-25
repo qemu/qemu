@@ -194,11 +194,11 @@ static void msix_mmio_write_unallowed(void *opaque, target_phys_addr_t addr,
     fprintf(stderr, "MSI-X: only dword write is allowed!\n");
 }
 
-static CPUWriteMemoryFunc *msix_mmio_write[] = {
+static CPUWriteMemoryFunc * const msix_mmio_write[] = {
     msix_mmio_write_unallowed, msix_mmio_write_unallowed, msix_mmio_writel
 };
 
-static CPUReadMemoryFunc *msix_mmio_read[] = {
+static CPUReadMemoryFunc * const msix_mmio_read[] = {
     msix_mmio_read_unallowed, msix_mmio_read_unallowed, msix_mmio_readl
 };
 

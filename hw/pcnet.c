@@ -1963,16 +1963,16 @@ static void pcnet_common_init(DeviceState *dev, PCNetState *s,
 
 /* PCI interface */
 
-static CPUWriteMemoryFunc *pcnet_mmio_write[] = {
-    (CPUWriteMemoryFunc *)&pcnet_mmio_writeb,
-    (CPUWriteMemoryFunc *)&pcnet_mmio_writew,
-    (CPUWriteMemoryFunc *)&pcnet_mmio_writel
+static CPUWriteMemoryFunc * const pcnet_mmio_write[] = {
+    (CPUWriteMemoryFunc * const )&pcnet_mmio_writeb,
+    (CPUWriteMemoryFunc * const )&pcnet_mmio_writew,
+    (CPUWriteMemoryFunc * const )&pcnet_mmio_writel
 };
 
-static CPUReadMemoryFunc *pcnet_mmio_read[] = {
-    (CPUReadMemoryFunc *)&pcnet_mmio_readb,
-    (CPUReadMemoryFunc *)&pcnet_mmio_readw,
-    (CPUReadMemoryFunc *)&pcnet_mmio_readl
+static CPUReadMemoryFunc * const pcnet_mmio_read[] = {
+    (CPUReadMemoryFunc * const )&pcnet_mmio_readb,
+    (CPUReadMemoryFunc * const )&pcnet_mmio_readw,
+    (CPUReadMemoryFunc * const )&pcnet_mmio_readl
 };
 
 static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
@@ -2101,13 +2101,13 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
     return val & 0xffff;
 }
 
-static CPUReadMemoryFunc *lance_mem_read[3] = {
+static CPUReadMemoryFunc * const lance_mem_read[3] = {
     NULL,
     lance_mem_readw,
     NULL,
 };
 
-static CPUWriteMemoryFunc *lance_mem_write[3] = {
+static CPUWriteMemoryFunc * const lance_mem_write[3] = {
     NULL,
     lance_mem_writew,
     NULL,

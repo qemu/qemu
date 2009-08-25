@@ -680,13 +680,13 @@ static ssize_t smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t
     return size;
 }
 
-static CPUReadMemoryFunc *smc91c111_readfn[] = {
+static CPUReadMemoryFunc * const smc91c111_readfn[] = {
     smc91c111_readb,
     smc91c111_readw,
     smc91c111_readl
 };
 
-static CPUWriteMemoryFunc *smc91c111_writefn[] = {
+static CPUWriteMemoryFunc * const smc91c111_writefn[] = {
     smc91c111_writeb,
     smc91c111_writew,
     smc91c111_writel

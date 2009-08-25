@@ -307,13 +307,13 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
     pl080_update(s);
 }
 
-static CPUReadMemoryFunc *pl080_readfn[] = {
+static CPUReadMemoryFunc * const pl080_readfn[] = {
    pl080_read,
    pl080_read,
    pl080_read
 };
 
-static CPUWriteMemoryFunc *pl080_writefn[] = {
+static CPUWriteMemoryFunc * const pl080_writefn[] = {
    pl080_write,
    pl080_write,
    pl080_write

@@ -75,13 +75,13 @@ static uint32_t pci_apb_config_readl (void *opaque,
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_apb_config_write[] = {
+static CPUWriteMemoryFunc * const pci_apb_config_write[] = {
     &pci_apb_config_writel,
     &pci_apb_config_writel,
     &pci_apb_config_writel,
 };
 
-static CPUReadMemoryFunc *pci_apb_config_read[] = {
+static CPUReadMemoryFunc * const pci_apb_config_read[] = {
     &pci_apb_config_readl,
     &pci_apb_config_readl,
     &pci_apb_config_readl,
@@ -124,25 +124,25 @@ static uint32_t apb_config_readl (void *opaque,
     return val;
 }
 
-static CPUWriteMemoryFunc *apb_config_write[] = {
+static CPUWriteMemoryFunc * const apb_config_write[] = {
     &apb_config_writel,
     &apb_config_writel,
     &apb_config_writel,
 };
 
-static CPUReadMemoryFunc *apb_config_read[] = {
+static CPUReadMemoryFunc * const apb_config_read[] = {
     &apb_config_readl,
     &apb_config_readl,
     &apb_config_readl,
 };
 
-static CPUWriteMemoryFunc *pci_apb_write[] = {
+static CPUWriteMemoryFunc * const pci_apb_write[] = {
     &pci_host_data_writeb,
     &pci_host_data_writew,
     &pci_host_data_writel,
 };
 
-static CPUReadMemoryFunc *pci_apb_read[] = {
+static CPUReadMemoryFunc * const pci_apb_read[] = {
     &pci_host_data_readb,
     &pci_host_data_readw,
     &pci_host_data_readl,
@@ -190,13 +190,13 @@ static uint32_t pci_apb_ioreadl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_apb_iowrite[] = {
+static CPUWriteMemoryFunc * const pci_apb_iowrite[] = {
     &pci_apb_iowriteb,
     &pci_apb_iowritew,
     &pci_apb_iowritel,
 };
 
-static CPUReadMemoryFunc *pci_apb_ioread[] = {
+static CPUReadMemoryFunc * const pci_apb_ioread[] = {
     &pci_apb_ioreadb,
     &pci_apb_ioreadw,
     &pci_apb_ioreadl,

@@ -626,13 +626,13 @@ static void sm501_system_config_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc *sm501_system_config_readfn[] = {
+static CPUReadMemoryFunc * const sm501_system_config_readfn[] = {
     NULL,
     NULL,
     &sm501_system_config_read,
 };
 
-static CPUWriteMemoryFunc *sm501_system_config_writefn[] = {
+static CPUWriteMemoryFunc * const sm501_system_config_writefn[] = {
     NULL,
     NULL,
     &sm501_system_config_write,
@@ -864,13 +864,13 @@ static void sm501_disp_ctrl_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc *sm501_disp_ctrl_readfn[] = {
+static CPUReadMemoryFunc * const sm501_disp_ctrl_readfn[] = {
     NULL,
     NULL,
     &sm501_disp_ctrl_read,
 };
 
-static CPUWriteMemoryFunc *sm501_disp_ctrl_writefn[] = {
+static CPUWriteMemoryFunc * const sm501_disp_ctrl_writefn[] = {
     NULL,
     NULL,
     &sm501_disp_ctrl_write,

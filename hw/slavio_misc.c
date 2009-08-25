@@ -128,13 +128,13 @@ static uint32_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *slavio_cfg_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_cfg_mem_read[3] = {
     slavio_cfg_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_cfg_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_cfg_mem_write[3] = {
     slavio_cfg_mem_writeb,
     NULL,
     NULL,
@@ -159,13 +159,13 @@ static uint32_t slavio_diag_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *slavio_diag_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_diag_mem_read[3] = {
     slavio_diag_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_diag_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_diag_mem_write[3] = {
     slavio_diag_mem_writeb,
     NULL,
     NULL,
@@ -190,13 +190,13 @@ static uint32_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *slavio_mdm_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_mdm_mem_read[3] = {
     slavio_mdm_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_mdm_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_mdm_mem_write[3] = {
     slavio_mdm_mem_writeb,
     NULL,
     NULL,
@@ -230,13 +230,13 @@ static uint32_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *slavio_aux1_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_aux1_mem_read[3] = {
     slavio_aux1_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_aux1_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_aux1_mem_write[3] = {
     slavio_aux1_mem_writeb,
     NULL,
     NULL,
@@ -269,13 +269,13 @@ static uint32_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *slavio_aux2_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_aux2_mem_read[3] = {
     slavio_aux2_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_aux2_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_aux2_mem_write[3] = {
     slavio_aux2_mem_writeb,
     NULL,
     NULL,
@@ -297,13 +297,13 @@ static uint32_t apc_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc *apc_mem_read[3] = {
+static CPUReadMemoryFunc * const apc_mem_read[3] = {
     apc_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *apc_mem_write[3] = {
+static CPUWriteMemoryFunc * const apc_mem_write[3] = {
     apc_mem_writeb,
     NULL,
     NULL,
@@ -343,13 +343,13 @@ static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *slavio_sysctrl_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_sysctrl_mem_read[3] = {
     NULL,
     NULL,
     slavio_sysctrl_mem_readl,
 };
 
-static CPUWriteMemoryFunc *slavio_sysctrl_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_sysctrl_mem_write[3] = {
     NULL,
     NULL,
     slavio_sysctrl_mem_writel,
@@ -386,13 +386,13 @@ static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *slavio_led_mem_read[3] = {
+static CPUReadMemoryFunc * const slavio_led_mem_read[3] = {
     NULL,
     slavio_led_mem_readw,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_led_mem_write[3] = {
+static CPUWriteMemoryFunc * const slavio_led_mem_write[3] = {
     NULL,
     slavio_led_mem_writew,
     NULL,

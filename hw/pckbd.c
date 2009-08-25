@@ -405,13 +405,13 @@ static void kbd_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value
         kbd_write_data(s, 0, value & 0xff);
 }
 
-static CPUReadMemoryFunc *kbd_mm_read[] = {
+static CPUReadMemoryFunc * const kbd_mm_read[] = {
     &kbd_mm_readb,
     &kbd_mm_readb,
     &kbd_mm_readb,
 };
 
-static CPUWriteMemoryFunc *kbd_mm_write[] = {
+static CPUWriteMemoryFunc * const kbd_mm_write[] = {
     &kbd_mm_writeb,
     &kbd_mm_writeb,
     &kbd_mm_writeb,

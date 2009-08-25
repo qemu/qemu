@@ -72,25 +72,25 @@ static uint32_t pci_grackle_config_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_grackle_config_write[] = {
+static CPUWriteMemoryFunc * const pci_grackle_config_write[] = {
     &pci_grackle_config_writel,
     &pci_grackle_config_writel,
     &pci_grackle_config_writel,
 };
 
-static CPUReadMemoryFunc *pci_grackle_config_read[] = {
+static CPUReadMemoryFunc * const pci_grackle_config_read[] = {
     &pci_grackle_config_readl,
     &pci_grackle_config_readl,
     &pci_grackle_config_readl,
 };
 
-static CPUWriteMemoryFunc *pci_grackle_write[] = {
+static CPUWriteMemoryFunc * const pci_grackle_write[] = {
     &pci_host_data_writeb,
     &pci_host_data_writew,
     &pci_host_data_writel,
 };
 
-static CPUReadMemoryFunc *pci_grackle_read[] = {
+static CPUReadMemoryFunc * const pci_grackle_read[] = {
     &pci_host_data_readb,
     &pci_host_data_readw,
     &pci_host_data_readl,

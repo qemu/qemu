@@ -2108,13 +2108,13 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, s->last_width, height);
 }
 
-static CPUReadMemoryFunc *vga_mem_read[3] = {
+static CPUReadMemoryFunc * const vga_mem_read[3] = {
     vga_mem_readb,
     vga_mem_readw,
     vga_mem_readl,
 };
 
-static CPUWriteMemoryFunc *vga_mem_write[3] = {
+static CPUWriteMemoryFunc * const vga_mem_write[3] = {
     vga_mem_writeb,
     vga_mem_writew,
     vga_mem_writel,
@@ -2401,13 +2401,13 @@ static void vga_mm_writel (void *opaque,
     vga_ioport_write(s, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc *vga_mm_read_ctrl[] = {
+static CPUReadMemoryFunc * const vga_mm_read_ctrl[] = {
     &vga_mm_readb,
     &vga_mm_readw,
     &vga_mm_readl,
 };
 
-static CPUWriteMemoryFunc *vga_mm_write_ctrl[] = {
+static CPUWriteMemoryFunc * const vga_mm_write_ctrl[] = {
     &vga_mm_writeb,
     &vga_mm_writew,
     &vga_mm_writel,

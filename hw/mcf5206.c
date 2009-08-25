@@ -505,13 +505,13 @@ static void m5206_mbar_writel(void *opaque, target_phys_addr_t offset,
     m5206_mbar_write(s, offset, value);
 }
 
-static CPUReadMemoryFunc *m5206_mbar_readfn[] = {
+static CPUReadMemoryFunc * const m5206_mbar_readfn[] = {
    m5206_mbar_readb,
    m5206_mbar_readw,
    m5206_mbar_readl
 };
 
-static CPUWriteMemoryFunc *m5206_mbar_writefn[] = {
+static CPUWriteMemoryFunc * const m5206_mbar_writefn[] = {
    m5206_mbar_writeb,
    m5206_mbar_writew,
    m5206_mbar_writel

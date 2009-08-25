@@ -126,13 +126,13 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc *pic_write[] = {
+static CPUWriteMemoryFunc * const pic_write[] = {
     &pic_writel,
     &pic_writel,
     &pic_writel,
 };
 
-static CPUReadMemoryFunc *pic_read[] = {
+static CPUReadMemoryFunc * const pic_read[] = {
     &pic_readl,
     &pic_readl,
     &pic_readl,

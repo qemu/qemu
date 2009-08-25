@@ -82,13 +82,13 @@ static void sun4c_intctl_mem_writeb(void *opaque, target_phys_addr_t addr,
     sun4c_check_interrupts(s);
 }
 
-static CPUReadMemoryFunc *sun4c_intctl_mem_read[3] = {
+static CPUReadMemoryFunc * const sun4c_intctl_mem_read[3] = {
     sun4c_intctl_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *sun4c_intctl_mem_write[3] = {
+static CPUWriteMemoryFunc * const sun4c_intctl_mem_write[3] = {
     sun4c_intctl_mem_writeb,
     NULL,
     NULL,

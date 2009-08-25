@@ -3906,13 +3906,13 @@ static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *pmac_ide_write[] = {
+static CPUWriteMemoryFunc * const pmac_ide_write[] = {
     pmac_ide_writeb,
     pmac_ide_writew,
     pmac_ide_writel,
 };
 
-static CPUReadMemoryFunc *pmac_ide_read[] = {
+static CPUReadMemoryFunc * const pmac_ide_read[] = {
     pmac_ide_readb,
     pmac_ide_readw,
     pmac_ide_readl,
@@ -4026,13 +4026,13 @@ static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
         ide_data_writew(ide, 0, val);
 }
 
-static CPUReadMemoryFunc *mmio_ide_reads[] = {
+static CPUReadMemoryFunc * const mmio_ide_reads[] = {
     mmio_ide_read,
     mmio_ide_read,
     mmio_ide_read,
 };
 
-static CPUWriteMemoryFunc *mmio_ide_writes[] = {
+static CPUWriteMemoryFunc * const mmio_ide_writes[] = {
     mmio_ide_write,
     mmio_ide_write,
     mmio_ide_write,
@@ -4053,13 +4053,13 @@ static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
     ide_cmd_write(ide, 0, val);
 }
 
-static CPUReadMemoryFunc *mmio_ide_status[] = {
+static CPUReadMemoryFunc * const mmio_ide_status[] = {
     mmio_ide_status_read,
     mmio_ide_status_read,
     mmio_ide_status_read,
 };
 
-static CPUWriteMemoryFunc *mmio_ide_cmd[] = {
+static CPUWriteMemoryFunc * const mmio_ide_cmd[] = {
     mmio_ide_cmd_write,
     mmio_ide_cmd_write,
     mmio_ide_cmd_write,

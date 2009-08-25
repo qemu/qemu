@@ -237,13 +237,13 @@ static void pxa2xx_gpio_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_gpio_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_gpio_readfn[] = {
     pxa2xx_gpio_read,
     pxa2xx_gpio_read,
     pxa2xx_gpio_read
 };
 
-static CPUWriteMemoryFunc *pxa2xx_gpio_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_gpio_writefn[] = {
     pxa2xx_gpio_write,
     pxa2xx_gpio_write,
     pxa2xx_gpio_write

@@ -257,13 +257,13 @@ static void pxa2xx_keypad_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc *pxa2xx_keypad_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_keypad_readfn[] = {
     pxa2xx_keypad_read,
     pxa2xx_keypad_read,
     pxa2xx_keypad_read
 };
 
-static CPUWriteMemoryFunc *pxa2xx_keypad_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_keypad_writefn[] = {
     pxa2xx_keypad_write,
     pxa2xx_keypad_write,
     pxa2xx_keypad_write

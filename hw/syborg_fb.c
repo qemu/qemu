@@ -445,13 +445,13 @@ static void syborg_fb_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *syborg_fb_readfn[] = {
+static CPUReadMemoryFunc * const syborg_fb_readfn[] = {
     syborg_fb_read,
     syborg_fb_read,
     syborg_fb_read
 };
 
-static CPUWriteMemoryFunc *syborg_fb_writefn[] = {
+static CPUWriteMemoryFunc * const syborg_fb_writefn[] = {
     syborg_fb_write,
     syborg_fb_write,
     syborg_fb_write

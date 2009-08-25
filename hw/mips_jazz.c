@@ -58,13 +58,13 @@ static void rtc_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     cpu_outw(env, 0x71, val & 0xff);
 }
 
-static CPUReadMemoryFunc *rtc_read[3] = {
+static CPUReadMemoryFunc * const rtc_read[3] = {
     rtc_readb,
     rtc_readb,
     rtc_readb,
 };
 
-static CPUWriteMemoryFunc *rtc_write[3] = {
+static CPUWriteMemoryFunc * const rtc_write[3] = {
     rtc_writeb,
     rtc_writeb,
     rtc_writeb,
@@ -76,13 +76,13 @@ static void dma_dummy_writeb(void *opaque, target_phys_addr_t addr, uint32_t val
      * the current DMA acknowledge cycle is completed. */
 }
 
-static CPUReadMemoryFunc *dma_dummy_read[3] = {
+static CPUReadMemoryFunc * const dma_dummy_read[3] = {
     NULL,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *dma_dummy_write[3] = {
+static CPUWriteMemoryFunc * const dma_dummy_write[3] = {
     dma_dummy_writeb,
     dma_dummy_writeb,
     dma_dummy_writeb,

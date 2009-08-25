@@ -155,13 +155,13 @@ static uint32_t PPC_intack_readl (void *opaque, target_phys_addr_t addr)
 #endif
 }
 
-static CPUWriteMemoryFunc *PPC_intack_write[] = {
+static CPUWriteMemoryFunc * const PPC_intack_write[] = {
     &_PPC_intack_write,
     &_PPC_intack_write,
     &_PPC_intack_write,
 };
 
-static CPUReadMemoryFunc *PPC_intack_read[] = {
+static CPUReadMemoryFunc * const PPC_intack_read[] = {
     &PPC_intack_readb,
     &PPC_intack_readw,
     &PPC_intack_readl,
@@ -257,13 +257,13 @@ static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *PPC_XCSR_write[] = {
+static CPUWriteMemoryFunc * const PPC_XCSR_write[] = {
     &PPC_XCSR_writeb,
     &PPC_XCSR_writew,
     &PPC_XCSR_writel,
 };
 
-static CPUReadMemoryFunc *PPC_XCSR_read[] = {
+static CPUReadMemoryFunc * const PPC_XCSR_read[] = {
     &PPC_XCSR_readb,
     &PPC_XCSR_readw,
     &PPC_XCSR_readl,
@@ -528,13 +528,13 @@ static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUWriteMemoryFunc *PPC_prep_io_write[] = {
+static CPUWriteMemoryFunc * const PPC_prep_io_write[] = {
     &PPC_prep_io_writeb,
     &PPC_prep_io_writew,
     &PPC_prep_io_writel,
 };
 
-static CPUReadMemoryFunc *PPC_prep_io_read[] = {
+static CPUReadMemoryFunc * const PPC_prep_io_read[] = {
     &PPC_prep_io_readb,
     &PPC_prep_io_readw,
     &PPC_prep_io_readl,

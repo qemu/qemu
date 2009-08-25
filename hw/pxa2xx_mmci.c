@@ -403,7 +403,7 @@ static uint32_t pxa2xx_mmci_readw(void *opaque, target_phys_addr_t offset)
     return pxa2xx_mmci_read(opaque, offset);
 }
 
-static CPUReadMemoryFunc *pxa2xx_mmci_readfn[] = {
+static CPUReadMemoryFunc * const pxa2xx_mmci_readfn[] = {
     pxa2xx_mmci_readb,
     pxa2xx_mmci_readh,
     pxa2xx_mmci_readw
@@ -433,7 +433,7 @@ static void pxa2xx_mmci_writew(void *opaque,
     pxa2xx_mmci_write(opaque, offset, value);
 }
 
-static CPUWriteMemoryFunc *pxa2xx_mmci_writefn[] = {
+static CPUWriteMemoryFunc * const pxa2xx_mmci_writefn[] = {
     pxa2xx_mmci_writeb,
     pxa2xx_mmci_writeh,
     pxa2xx_mmci_writew

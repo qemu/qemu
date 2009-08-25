@@ -105,13 +105,13 @@ static void bitband_writel(void *opaque, target_phys_addr_t offset,
     cpu_physical_memory_write(addr, (uint8_t *)&v, 4);
 }
 
-static CPUReadMemoryFunc *bitband_readfn[] = {
+static CPUReadMemoryFunc * const bitband_readfn[] = {
    bitband_readb,
    bitband_readw,
    bitband_readl
 };
 
-static CPUWriteMemoryFunc *bitband_writefn[] = {
+static CPUWriteMemoryFunc * const bitband_writefn[] = {
    bitband_writeb,
    bitband_writew,
    bitband_writel

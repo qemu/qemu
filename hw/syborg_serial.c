@@ -261,13 +261,13 @@ static void syborg_serial_event(void *opaque, int event)
     /* TODO: Report BREAK events?  */
 }
 
-static CPUReadMemoryFunc *syborg_serial_readfn[] = {
+static CPUReadMemoryFunc * const syborg_serial_readfn[] = {
      syborg_serial_read,
      syborg_serial_read,
      syborg_serial_read
 };
 
-static CPUWriteMemoryFunc *syborg_serial_writefn[] = {
+static CPUWriteMemoryFunc * const syborg_serial_writefn[] = {
      syborg_serial_write,
      syborg_serial_write,
      syborg_serial_write

@@ -1436,13 +1436,13 @@ static void musb_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
     };
 }
 
-CPUReadMemoryFunc *musb_read[] = {
+CPUReadMemoryFunc * const musb_read[] = {
     musb_readb,
     musb_readh,
     musb_readw,
 };
 
-CPUWriteMemoryFunc *musb_write[] = {
+CPUWriteMemoryFunc * const musb_write[] = {
     musb_writeb,
     musb_writeh,
     musb_writew,

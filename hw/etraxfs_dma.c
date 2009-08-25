@@ -668,13 +668,13 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
         }
 }
 
-static CPUReadMemoryFunc *dma_read[] = {
+static CPUReadMemoryFunc * const dma_read[] = {
 	&dma_rinvalid,
 	&dma_rinvalid,
 	&dma_readl,
 };
 
-static CPUWriteMemoryFunc *dma_write[] = {
+static CPUWriteMemoryFunc * const dma_write[] = {
 	&dma_winvalid,
 	&dma_winvalid,
 	&dma_writel,

@@ -603,13 +603,13 @@ static void onenand_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *onenand_readfn[] = {
+static CPUReadMemoryFunc * const onenand_readfn[] = {
     onenand_read,	/* TODO */
     onenand_read,
     onenand_read,
 };
 
-static CPUWriteMemoryFunc *onenand_writefn[] = {
+static CPUWriteMemoryFunc * const onenand_writefn[] = {
     onenand_write,	/* TODO */
     onenand_write,
     onenand_write,

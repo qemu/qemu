@@ -401,13 +401,13 @@ static void omap_lcdc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc *omap_lcdc_readfn[] = {
+static CPUReadMemoryFunc * const omap_lcdc_readfn[] = {
     omap_lcdc_read,
     omap_lcdc_read,
     omap_lcdc_read,
 };
 
-static CPUWriteMemoryFunc *omap_lcdc_writefn[] = {
+static CPUWriteMemoryFunc * const omap_lcdc_writefn[] = {
     omap_lcdc_write,
     omap_lcdc_write,
     omap_lcdc_write,

@@ -1013,13 +1013,13 @@ static uint32_t openpic_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *openpic_write[] = {
+static CPUWriteMemoryFunc * const openpic_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &openpic_writel,
 };
 
-static CPUReadMemoryFunc *openpic_read[] = {
+static CPUReadMemoryFunc * const openpic_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &openpic_readl,
@@ -1574,84 +1574,84 @@ static uint32_t mpic_src_msi_read (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *mpic_glb_write[] = {
+static CPUWriteMemoryFunc * const mpic_glb_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &openpic_gbl_write,
 };
 
-static CPUReadMemoryFunc *mpic_glb_read[] = {
+static CPUReadMemoryFunc * const mpic_glb_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &openpic_gbl_read,
 };
 
-static CPUWriteMemoryFunc *mpic_tmr_write[] = {
+static CPUWriteMemoryFunc * const mpic_tmr_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &mpic_timer_write,
 };
 
-static CPUReadMemoryFunc *mpic_tmr_read[] = {
+static CPUReadMemoryFunc * const mpic_tmr_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &mpic_timer_read,
 };
 
-static CPUWriteMemoryFunc *mpic_cpu_write[] = {
+static CPUWriteMemoryFunc * const mpic_cpu_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &openpic_cpu_write,
 };
 
-static CPUReadMemoryFunc *mpic_cpu_read[] = {
+static CPUReadMemoryFunc * const mpic_cpu_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &openpic_cpu_read,
 };
 
-static CPUWriteMemoryFunc *mpic_ext_write[] = {
+static CPUWriteMemoryFunc * const mpic_ext_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &mpic_src_ext_write,
 };
 
-static CPUReadMemoryFunc *mpic_ext_read[] = {
+static CPUReadMemoryFunc * const mpic_ext_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &mpic_src_ext_read,
 };
 
-static CPUWriteMemoryFunc *mpic_int_write[] = {
+static CPUWriteMemoryFunc * const mpic_int_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &mpic_src_int_write,
 };
 
-static CPUReadMemoryFunc *mpic_int_read[] = {
+static CPUReadMemoryFunc * const mpic_int_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &mpic_src_int_read,
 };
 
-static CPUWriteMemoryFunc *mpic_msg_write[] = {
+static CPUWriteMemoryFunc * const mpic_msg_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &mpic_src_msg_write,
 };
 
-static CPUReadMemoryFunc *mpic_msg_read[] = {
+static CPUReadMemoryFunc * const mpic_msg_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &mpic_src_msg_read,
 };
-static CPUWriteMemoryFunc *mpic_msi_write[] = {
+static CPUWriteMemoryFunc * const mpic_msi_write[] = {
     &openpic_buggy_write,
     &openpic_buggy_write,
     &mpic_src_msi_write,
 };
 
-static CPUReadMemoryFunc *mpic_msi_read[] = {
+static CPUReadMemoryFunc * const mpic_msi_read[] = {
     &openpic_buggy_read,
     &openpic_buggy_read,
     &mpic_src_msi_read,
@@ -1663,8 +1663,8 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     openpic_t *mpp;
     int i;
     struct {
-        CPUReadMemoryFunc **read;
-        CPUWriteMemoryFunc **write;
+        CPUReadMemoryFunc * const *read;
+        CPUWriteMemoryFunc * const *write;
         target_phys_addr_t start_addr;
         ram_addr_t size;
     } const list[] = {

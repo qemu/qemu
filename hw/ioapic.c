@@ -229,13 +229,13 @@ static void ioapic_reset(void *opaque)
         s->ioredtbl[i] = 1 << 16; /* mask LVT */
 }
 
-static CPUReadMemoryFunc *ioapic_mem_read[3] = {
+static CPUReadMemoryFunc * const ioapic_mem_read[3] = {
     ioapic_mem_readl,
     ioapic_mem_readl,
     ioapic_mem_readl,
 };
 
-static CPUWriteMemoryFunc *ioapic_mem_write[3] = {
+static CPUWriteMemoryFunc * const ioapic_mem_write[3] = {
     ioapic_mem_writel,
     ioapic_mem_writel,
     ioapic_mem_writel,

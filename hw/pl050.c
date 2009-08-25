@@ -110,13 +110,13 @@ static void pl050_write(void *opaque, target_phys_addr_t offset,
         hw_error("pl050_write: Bad offset %x\n", (int)offset);
     }
 }
-static CPUReadMemoryFunc *pl050_readfn[] = {
+static CPUReadMemoryFunc * const pl050_readfn[] = {
    pl050_read,
    pl050_read,
    pl050_read
 };
 
-static CPUWriteMemoryFunc *pl050_writefn[] = {
+static CPUWriteMemoryFunc * const pl050_writefn[] = {
    pl050_write,
    pl050_write,
    pl050_write

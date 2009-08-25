@@ -223,13 +223,13 @@ static void pl011_event(void *opaque, int event)
         pl011_put_fifo(opaque, 0x400);
 }
 
-static CPUReadMemoryFunc *pl011_readfn[] = {
+static CPUReadMemoryFunc * const pl011_readfn[] = {
    pl011_read,
    pl011_read,
    pl011_read
 };
 
-static CPUWriteMemoryFunc *pl011_writefn[] = {
+static CPUWriteMemoryFunc * const pl011_writefn[] = {
    pl011_write,
    pl011_write,
    pl011_write

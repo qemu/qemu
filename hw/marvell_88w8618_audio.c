@@ -221,13 +221,13 @@ static void mv88w8618_audio_reset(void *opaque)
     s->irq_enable = 0;
 }
 
-static CPUReadMemoryFunc *mv88w8618_audio_readfn[] = {
+static CPUReadMemoryFunc * const mv88w8618_audio_readfn[] = {
     mv88w8618_audio_read,
     mv88w8618_audio_read,
     mv88w8618_audio_read
 };
 
-static CPUWriteMemoryFunc *mv88w8618_audio_writefn[] = {
+static CPUWriteMemoryFunc * const mv88w8618_audio_writefn[] = {
     mv88w8618_audio_write,
     mv88w8618_audio_write,
     mv88w8618_audio_write

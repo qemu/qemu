@@ -284,13 +284,13 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
 }
 
 
-static CPUReadMemoryFunc *mcf_uart_readfn[] = {
+static CPUReadMemoryFunc * const mcf_uart_readfn[] = {
    mcf_uart_read,
    mcf_uart_read,
    mcf_uart_read
 };
 
-static CPUWriteMemoryFunc *mcf_uart_writefn[] = {
+static CPUWriteMemoryFunc * const mcf_uart_writefn[] = {
    mcf_uart_write,
    mcf_uart_write,
    mcf_uart_write

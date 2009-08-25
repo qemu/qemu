@@ -71,25 +71,25 @@ static uint32_t pci_unin_main_config_readl (void *opaque,
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_unin_main_config_write[] = {
+static CPUWriteMemoryFunc * const pci_unin_main_config_write[] = {
     &pci_unin_main_config_writel,
     &pci_unin_main_config_writel,
     &pci_unin_main_config_writel,
 };
 
-static CPUReadMemoryFunc *pci_unin_main_config_read[] = {
+static CPUReadMemoryFunc * const pci_unin_main_config_read[] = {
     &pci_unin_main_config_readl,
     &pci_unin_main_config_readl,
     &pci_unin_main_config_readl,
 };
 
-static CPUWriteMemoryFunc *pci_unin_main_write[] = {
+static CPUWriteMemoryFunc * const pci_unin_main_write[] = {
     &pci_host_data_writeb,
     &pci_host_data_writew,
     &pci_host_data_writel,
 };
 
-static CPUReadMemoryFunc *pci_unin_main_read[] = {
+static CPUReadMemoryFunc * const pci_unin_main_read[] = {
     &pci_host_data_readb,
     &pci_host_data_readw,
     &pci_host_data_readl,
@@ -111,25 +111,25 @@ static uint32_t pci_unin_config_readl (void *opaque,
     return s->host_state.config_reg;
 }
 
-static CPUWriteMemoryFunc *pci_unin_config_write[] = {
+static CPUWriteMemoryFunc * const pci_unin_config_write[] = {
     &pci_unin_config_writel,
     &pci_unin_config_writel,
     &pci_unin_config_writel,
 };
 
-static CPUReadMemoryFunc *pci_unin_config_read[] = {
+static CPUReadMemoryFunc * const pci_unin_config_read[] = {
     &pci_unin_config_readl,
     &pci_unin_config_readl,
     &pci_unin_config_readl,
 };
 
-static CPUWriteMemoryFunc *pci_unin_write[] = {
+static CPUWriteMemoryFunc * const pci_unin_write[] = {
     &pci_host_data_writeb,
     &pci_host_data_writew,
     &pci_host_data_writel,
 };
 
-static CPUReadMemoryFunc *pci_unin_read[] = {
+static CPUReadMemoryFunc * const pci_unin_read[] = {
     &pci_host_data_readb,
     &pci_host_data_readw,
     &pci_host_data_readl,

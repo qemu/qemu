@@ -93,13 +93,13 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc *nvram_write[] = {
+static CPUWriteMemoryFunc * const nvram_write[] = {
     &macio_nvram_writeb,
     &macio_nvram_writeb,
     &macio_nvram_writeb,
 };
 
-static CPUReadMemoryFunc *nvram_read[] = {
+static CPUReadMemoryFunc * const nvram_read[] = {
     &macio_nvram_readb,
     &macio_nvram_readb,
     &macio_nvram_readb,

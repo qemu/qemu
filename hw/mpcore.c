@@ -243,13 +243,13 @@ bad_reg:
     hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
 }
 
-static CPUReadMemoryFunc *mpcore_priv_readfn[] = {
+static CPUReadMemoryFunc * const mpcore_priv_readfn[] = {
    mpcore_priv_read,
    mpcore_priv_read,
    mpcore_priv_read
 };
 
-static CPUWriteMemoryFunc *mpcore_priv_writefn[] = {
+static CPUWriteMemoryFunc * const mpcore_priv_writefn[] = {
    mpcore_priv_write,
    mpcore_priv_write,
    mpcore_priv_write

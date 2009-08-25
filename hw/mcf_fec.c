@@ -429,13 +429,13 @@ static ssize_t mcf_fec_receive(VLANClientState *vc, const uint8_t *buf, size_t s
     return size;
 }
 
-static CPUReadMemoryFunc *mcf_fec_readfn[] = {
+static CPUReadMemoryFunc * const mcf_fec_readfn[] = {
    mcf_fec_read,
    mcf_fec_read,
    mcf_fec_read
 };
 
-static CPUWriteMemoryFunc *mcf_fec_writefn[] = {
+static CPUWriteMemoryFunc * const mcf_fec_writefn[] = {
    mcf_fec_write,
    mcf_fec_write,
    mcf_fec_write

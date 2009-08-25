@@ -79,13 +79,13 @@ static uint32_t isa_mmio_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *isa_mmio_write[] = {
+static CPUWriteMemoryFunc * const isa_mmio_write[] = {
     &isa_mmio_writeb,
     &isa_mmio_writew,
     &isa_mmio_writel,
 };
 
-static CPUReadMemoryFunc *isa_mmio_read[] = {
+static CPUReadMemoryFunc * const isa_mmio_read[] = {
     &isa_mmio_readb,
     &isa_mmio_readw,
     &isa_mmio_readl,

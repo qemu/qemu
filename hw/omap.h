@@ -1039,8 +1039,8 @@ enum {
 
 # ifdef MEM_VERBOSE
 struct io_fn {
-    CPUReadMemoryFunc **mem_read;
-    CPUWriteMemoryFunc **mem_write;
+    CPUReadMemoryFunc * const *mem_read;
+    CPUWriteMemoryFunc * const *mem_write;
     void *opaque;
     int in;
 };
@@ -1112,12 +1112,12 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
     s->in --;
 }
 
-static CPUReadMemoryFunc *io_readfn[] = { io_readb, io_readh, io_readw, };
-static CPUWriteMemoryFunc *io_writefn[] = { io_writeb, io_writeh, io_writew, };
+static CPUReadMemoryFunc * const io_readfn[] = { io_readb, io_readh, io_readw, };
+static CPUWriteMemoryFunc * const io_writefn[] = { io_writeb, io_writeh, io_writew, };
 
-inline static int debug_register_io_memory(
-                CPUReadMemoryFunc **mem_read, CPUWriteMemoryFunc **mem_write,
-                void *opaque)
+inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
+                                           CPUWriteMemoryFunc * const *mem_write,
+                                           void *opaque)
 {
     struct io_fn *s = qemu_malloc(sizeof(struct io_fn));
 
@@ -1135,8 +1135,8 @@ inline static int debug_register_io_memory(
 
 # ifdef L4_MUX_HACK
 #  undef l4_register_io_memory
-int l4_register_io_memory(CPUReadMemoryFunc **mem_read,
-                CPUWriteMemoryFunc **mem_write, void *opaque);
+int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
+                          CPUWriteMemoryFunc * const *mem_write, void *opaque);
 # endif
 
 #endif /* hw_omap_h */

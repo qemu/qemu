@@ -291,13 +291,13 @@ static void tmu012_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *tmu012_readfn[] = {
+static CPUReadMemoryFunc * const tmu012_readfn[] = {
     tmu012_read,
     tmu012_read,
     tmu012_read
 };
 
-static CPUWriteMemoryFunc *tmu012_writefn[] = {
+static CPUWriteMemoryFunc * const tmu012_writefn[] = {
     tmu012_write,
     tmu012_write,
     tmu012_write

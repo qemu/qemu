@@ -147,13 +147,13 @@ uart_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     uart_update_irq(s);
 }
 
-static CPUReadMemoryFunc *uart_read[] = {
+static CPUReadMemoryFunc * const uart_read[] = {
     &uart_readl,
     &uart_readl,
     &uart_readl,
 };
 
-static CPUWriteMemoryFunc *uart_write[] = {
+static CPUWriteMemoryFunc * const uart_write[] = {
     &uart_writel,
     &uart_writel,
     &uart_writel,

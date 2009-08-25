@@ -804,13 +804,13 @@ static void serial_mm_writel(void *opaque, target_phys_addr_t addr,
     serial_ioport_write(s, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc *serial_mm_read[] = {
+static CPUReadMemoryFunc * const serial_mm_read[] = {
     &serial_mm_readb,
     &serial_mm_readw,
     &serial_mm_readl,
 };
 
-static CPUWriteMemoryFunc *serial_mm_write[] = {
+static CPUWriteMemoryFunc * const serial_mm_write[] = {
     &serial_mm_writeb,
     &serial_mm_writew,
     &serial_mm_writel,

@@ -223,13 +223,13 @@ static void sp804_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *sp804_readfn[] = {
+static CPUReadMemoryFunc * const sp804_readfn[] = {
    sp804_read,
    sp804_read,
    sp804_read
 };
 
-static CPUWriteMemoryFunc *sp804_writefn[] = {
+static CPUWriteMemoryFunc * const sp804_writefn[] = {
    sp804_write,
    sp804_write,
    sp804_write
@@ -311,13 +311,13 @@ static void icp_pit_write(void *opaque, target_phys_addr_t offset,
 }
 
 
-static CPUReadMemoryFunc *icp_pit_readfn[] = {
+static CPUReadMemoryFunc * const icp_pit_readfn[] = {
    icp_pit_read,
    icp_pit_read,
    icp_pit_read
 };
 
-static CPUWriteMemoryFunc *icp_pit_writefn[] = {
+static CPUWriteMemoryFunc * const icp_pit_writefn[] = {
    icp_pit_write,
    icp_pit_write,
    icp_pit_write

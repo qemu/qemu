@@ -205,8 +205,8 @@ static int tb_phys_invalidate_count;
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
     target_phys_addr_t base;
-    CPUReadMemoryFunc **mem_read[TARGET_PAGE_SIZE][4];
-    CPUWriteMemoryFunc **mem_write[TARGET_PAGE_SIZE][4];
+    CPUReadMemoryFunc * const *mem_read[TARGET_PAGE_SIZE][4];
+    CPUWriteMemoryFunc * const *mem_write[TARGET_PAGE_SIZE][4];
     void *opaque[TARGET_PAGE_SIZE][2][4];
     ram_addr_t region_offset[TARGET_PAGE_SIZE][2][4];
 } subpage_t;
@@ -2550,13 +2550,13 @@ static void unassigned_mem_writel(void *opaque, target_phys_addr_t addr, uint32_
 #endif
 }
 
-static CPUReadMemoryFunc *unassigned_mem_read[3] = {
+static CPUReadMemoryFunc * const unassigned_mem_read[3] = {
     unassigned_mem_readb,
     unassigned_mem_readw,
     unassigned_mem_readl,
 };
 
-static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
+static CPUWriteMemoryFunc * const unassigned_mem_write[3] = {
     unassigned_mem_writeb,
     unassigned_mem_writew,
     unassigned_mem_writel,
@@ -2622,13 +2622,13 @@ static void notdirty_mem_writel(void *opaque, target_phys_addr_t ram_addr,
         tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
 }
 
-static CPUReadMemoryFunc *error_mem_read[3] = {
+static CPUReadMemoryFunc * const error_mem_read[3] = {
     NULL, /* never used */
     NULL, /* never used */
     NULL, /* never used */
 };
 
-static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
+static CPUWriteMemoryFunc * const notdirty_mem_write[3] = {
     notdirty_mem_writeb,
     notdirty_mem_writew,
     notdirty_mem_writel,
@@ -2721,13 +2721,13 @@ static void watch_mem_writel(void *opaque, target_phys_addr_t addr,
     stl_phys(addr, val);
 }
 
-static CPUReadMemoryFunc *watch_mem_read[3] = {
+static CPUReadMemoryFunc * const watch_mem_read[3] = {
     watch_mem_readb,
     watch_mem_readw,
     watch_mem_readl,
 };
 
-static CPUWriteMemoryFunc *watch_mem_write[3] = {
+static CPUWriteMemoryFunc * const watch_mem_write[3] = {
     watch_mem_writeb,
     watch_mem_writew,
     watch_mem_writel,
@@ -2819,13 +2819,13 @@ static void subpage_writel (void *opaque,
     subpage_writelen(opaque, addr, value, 2);
 }
 
-static CPUReadMemoryFunc *subpage_read[] = {
+static CPUReadMemoryFunc * const subpage_read[] = {
     &subpage_readb,
     &subpage_readw,
     &subpage_readl,
 };
 
-static CPUWriteMemoryFunc *subpage_write[] = {
+static CPUWriteMemoryFunc * const subpage_write[] = {
     &subpage_writeb,
     &subpage_writew,
     &subpage_writel,
@@ -2906,8 +2906,8 @@ static int get_free_io_mem_idx(void)
    value can be used with cpu_register_physical_memory(). (-1) is
    returned if error. */
 static int cpu_register_io_memory_fixed(int io_index,
-                                        CPUReadMemoryFunc **mem_read,
-                                        CPUWriteMemoryFunc **mem_write,
+                                        CPUReadMemoryFunc * const *mem_read,
+                                        CPUWriteMemoryFunc * const *mem_write,
                                         void *opaque)
 {
     int i, subwidth = 0;
@@ -2932,8 +2932,8 @@ static int cpu_register_io_memory_fixed(int io_index,
     return (io_index << IO_MEM_SHIFT) | subwidth;
 }
 
-int cpu_register_io_memory(CPUReadMemoryFunc **mem_read,
-                           CPUWriteMemoryFunc **mem_write,
+int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
+                           CPUWriteMemoryFunc * const *mem_write,
                            void *opaque)
 {
     return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque);

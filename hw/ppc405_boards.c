@@ -134,13 +134,13 @@ static void ref405ep_fpga_writel (void *opaque,
     ref405ep_fpga_writeb(opaque, addr + 3, value & 0xFF);
 }
 
-static CPUReadMemoryFunc *ref405ep_fpga_read[] = {
+static CPUReadMemoryFunc * const ref405ep_fpga_read[] = {
     &ref405ep_fpga_readb,
     &ref405ep_fpga_readw,
     &ref405ep_fpga_readl,
 };
 
-static CPUWriteMemoryFunc *ref405ep_fpga_write[] = {
+static CPUWriteMemoryFunc * const ref405ep_fpga_write[] = {
     &ref405ep_fpga_writeb,
     &ref405ep_fpga_writew,
     &ref405ep_fpga_writel,
@@ -458,13 +458,13 @@ static void taihu_cpld_writel (void *opaque,
     taihu_cpld_writeb(opaque, addr + 3, value & 0xFF);
 }
 
-static CPUReadMemoryFunc *taihu_cpld_read[] = {
+static CPUReadMemoryFunc * const taihu_cpld_read[] = {
     &taihu_cpld_readb,
     &taihu_cpld_readw,
     &taihu_cpld_readl,
 };
 
-static CPUWriteMemoryFunc *taihu_cpld_write[] = {
+static CPUWriteMemoryFunc * const taihu_cpld_write[] = {
     &taihu_cpld_writeb,
     &taihu_cpld_writew,
     &taihu_cpld_writel,

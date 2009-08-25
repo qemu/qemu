@@ -156,13 +156,13 @@ static void syborg_int_write(void *opaque, target_phys_addr_t offset, uint32_t v
     syborg_int_update(s);
 }
 
-static CPUReadMemoryFunc *syborg_int_readfn[] = {
+static CPUReadMemoryFunc * const syborg_int_readfn[] = {
     syborg_int_read,
     syborg_int_read,
     syborg_int_read
 };
 
-static CPUWriteMemoryFunc *syborg_int_writefn[] = {
+static CPUWriteMemoryFunc * const syborg_int_writefn[] = {
     syborg_int_write,
     syborg_int_write,
     syborg_int_write

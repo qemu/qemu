@@ -344,13 +344,13 @@ static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *mv88w8618_eth_readfn[] = {
+static CPUReadMemoryFunc * const mv88w8618_eth_readfn[] = {
     mv88w8618_eth_read,
     mv88w8618_eth_read,
     mv88w8618_eth_read
 };
 
-static CPUWriteMemoryFunc *mv88w8618_eth_writefn[] = {
+static CPUWriteMemoryFunc * const mv88w8618_eth_writefn[] = {
     mv88w8618_eth_write,
     mv88w8618_eth_write,
     mv88w8618_eth_write
@@ -532,13 +532,13 @@ static void musicpal_lcd_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *musicpal_lcd_readfn[] = {
+static CPUReadMemoryFunc * const musicpal_lcd_readfn[] = {
     musicpal_lcd_read,
     musicpal_lcd_read,
     musicpal_lcd_read
 };
 
-static CPUWriteMemoryFunc *musicpal_lcd_writefn[] = {
+static CPUWriteMemoryFunc * const musicpal_lcd_writefn[] = {
     musicpal_lcd_write,
     musicpal_lcd_write,
     musicpal_lcd_write
@@ -630,13 +630,13 @@ static void mv88w8618_pic_reset(void *opaque)
     s->enabled = 0;
 }
 
-static CPUReadMemoryFunc *mv88w8618_pic_readfn[] = {
+static CPUReadMemoryFunc * const mv88w8618_pic_readfn[] = {
     mv88w8618_pic_read,
     mv88w8618_pic_read,
     mv88w8618_pic_read
 };
 
-static CPUWriteMemoryFunc *mv88w8618_pic_writefn[] = {
+static CPUWriteMemoryFunc * const mv88w8618_pic_writefn[] = {
     mv88w8618_pic_write,
     mv88w8618_pic_write,
     mv88w8618_pic_write
@@ -749,13 +749,13 @@ static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *mv88w8618_pit_readfn[] = {
+static CPUReadMemoryFunc * const mv88w8618_pit_readfn[] = {
     mv88w8618_pit_read,
     mv88w8618_pit_read,
     mv88w8618_pit_read
 };
 
-static CPUWriteMemoryFunc *mv88w8618_pit_writefn[] = {
+static CPUWriteMemoryFunc * const mv88w8618_pit_writefn[] = {
     mv88w8618_pit_write,
     mv88w8618_pit_write,
     mv88w8618_pit_write
@@ -812,13 +812,13 @@ static void mv88w8618_flashcfg_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *mv88w8618_flashcfg_readfn[] = {
+static CPUReadMemoryFunc * const mv88w8618_flashcfg_readfn[] = {
     mv88w8618_flashcfg_read,
     mv88w8618_flashcfg_read,
     mv88w8618_flashcfg_read
 };
 
-static CPUWriteMemoryFunc *mv88w8618_flashcfg_writefn[] = {
+static CPUWriteMemoryFunc * const mv88w8618_flashcfg_writefn[] = {
     mv88w8618_flashcfg_write,
     mv88w8618_flashcfg_write,
     mv88w8618_flashcfg_write
@@ -856,13 +856,13 @@ static void musicpal_misc_write(void *opaque, target_phys_addr_t offset,
 {
 }
 
-static CPUReadMemoryFunc *musicpal_misc_readfn[] = {
+static CPUReadMemoryFunc * const musicpal_misc_readfn[] = {
     musicpal_misc_read,
     musicpal_misc_read,
     musicpal_misc_read,
 };
 
-static CPUWriteMemoryFunc *musicpal_misc_writefn[] = {
+static CPUWriteMemoryFunc * const musicpal_misc_writefn[] = {
     musicpal_misc_write,
     musicpal_misc_write,
     musicpal_misc_write,
@@ -901,13 +901,13 @@ static void mv88w8618_wlan_write(void *opaque, target_phys_addr_t offset,
 {
 }
 
-static CPUReadMemoryFunc *mv88w8618_wlan_readfn[] = {
+static CPUReadMemoryFunc * const mv88w8618_wlan_readfn[] = {
     mv88w8618_wlan_read,
     mv88w8618_wlan_read,
     mv88w8618_wlan_read,
 };
 
-static CPUWriteMemoryFunc *mv88w8618_wlan_writefn[] = {
+static CPUWriteMemoryFunc * const mv88w8618_wlan_writefn[] = {
     mv88w8618_wlan_write,
     mv88w8618_wlan_write,
     mv88w8618_wlan_write,
@@ -1099,13 +1099,13 @@ static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc *musicpal_gpio_readfn[] = {
+static CPUReadMemoryFunc * const musicpal_gpio_readfn[] = {
     musicpal_gpio_read,
     musicpal_gpio_read,
     musicpal_gpio_read,
 };
 
-static CPUWriteMemoryFunc *musicpal_gpio_writefn[] = {
+static CPUWriteMemoryFunc * const musicpal_gpio_writefn[] = {
     musicpal_gpio_write,
     musicpal_gpio_write,
     musicpal_gpio_write,

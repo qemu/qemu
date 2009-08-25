@@ -409,13 +409,13 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
     pl181_update(s);
 }
 
-static CPUReadMemoryFunc *pl181_readfn[] = {
+static CPUReadMemoryFunc * const pl181_readfn[] = {
    pl181_read,
    pl181_read,
    pl181_read
 };
 
-static CPUWriteMemoryFunc *pl181_writefn[] = {
+static CPUWriteMemoryFunc * const pl181_writefn[] = {
    pl181_write,
    pl181_write,
    pl181_write
