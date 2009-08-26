@@ -436,33 +436,28 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
 
 void qemu_purge_queued_packets(VLANClientState *vc)
 {
-    VLANPacket **pp = &vc->vlan->send_queue;
+    VLANPacket *packet, *next;
 
-    while (*pp != NULL) {
-        VLANPacket *packet = *pp;
-
+    TAILQ_FOREACH_SAFE(packet, &vc->vlan->send_queue, entry, next) {
         if (packet->sender == vc) {
-            *pp = packet->next;
+            TAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
             qemu_free(packet);
-        } else {
-            pp = &packet->next;
         }
     }
 }
 
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
-    VLANPacket *packet;
-
-    while ((packet = vc->vlan->send_queue) != NULL) {
+    while (!TAILQ_EMPTY(&vc->vlan->send_queue)) {
+        VLANPacket *packet;
         int ret;
 
-        vc->vlan->send_queue = packet->next;
+        packet = TAILQ_FIRST(&vc->vlan->send_queue);
+        TAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
 
         ret = qemu_deliver_packet(packet->sender, packet->data, packet->size);
         if (ret == 0 && packet->sent_cb != NULL) {
-            packet->next = vc->vlan->send_queue;
-            vc->vlan->send_queue = packet;
+            TAILQ_INSERT_HEAD(&vc->vlan->send_queue, packet, entry);
             break;
         }
 
@@ -480,12 +475,12 @@ static void qemu_enqueue_packet(VLANClientState *sender,
     VLANPacket *packet;
 
     packet = qemu_malloc(sizeof(VLANPacket) + size);
-    packet->next = sender->vlan->send_queue;
     packet->sender = sender;
     packet->size = size;
     packet->sent_cb = sent_cb;
     memcpy(packet->data, buf, size);
-    sender->vlan->send_queue = packet;
+
+    TAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
 }
 
 ssize_t qemu_send_packet_async(VLANClientState *sender,
@@ -597,7 +592,6 @@ static ssize_t qemu_enqueue_packet_iov(VLANClientState *sender,
     max_len = calc_iov_length(iov, iovcnt);
 
     packet = qemu_malloc(sizeof(VLANPacket) + max_len);
-    packet->next = sender->vlan->send_queue;
     packet->sender = sender;
     packet->sent_cb = sent_cb;
     packet->size = 0;
@@ -609,7 +603,7 @@ static ssize_t qemu_enqueue_packet_iov(VLANClientState *sender,
         packet->size += len;
     }
 
-    sender->vlan->send_queue = packet;
+    TAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
 
     return packet->size;
 }
@@ -2330,6 +2324,7 @@ VLANState *qemu_find_vlan(int id, int allocate)
     }
     vlan = qemu_mallocz(sizeof(VLANState));
     vlan->id = id;
+    TAILQ_INIT(&vlan->send_queue);
     vlan->next = NULL;
     pvlan = &first_vlan;
     while (*pvlan != NULL)
