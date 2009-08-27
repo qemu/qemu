@@ -850,9 +850,12 @@ static void tx_command(EEPRO100State *s)
         TRACE(RXTX, logout
             ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
              tx_buffer_address, tx_buffer_size));
-        assert(size + tx_buffer_size <= sizeof(buf));
-        cpu_physical_memory_read(tx_buffer_address, &buf[size],
-                                 tx_buffer_size);
+        if (size + tx_buffer_size > sizeof(buf)) {
+            logout("bad simple TCB with size 0x%04x\n", tx_buffer_size);
+        } else {
+            cpu_physical_memory_read(tx_buffer_address, &buf[size],
+                                     tx_buffer_size);
+        }
         size += tx_buffer_size;
     }
     if (!(s->tx.command & COMMAND_SF)) {
