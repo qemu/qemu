@@ -44,6 +44,7 @@
  * EE100   eepro100_read2          feature is missing in this emulation: unknown word read
  */
 
+#include <stdbool.h>            /* bool */
 #include <stddef.h>             /* offsetof */
 #include "hw.h"
 #include "pci.h"
@@ -128,8 +129,6 @@
 #define  RX_RESUMENR    0x0007
 #define INT_MASK        0x0100
 #define DRVR_INT        0x0200  /* Driver generated interrupt. */
-
-typedef unsigned char bool;
 
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
