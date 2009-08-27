@@ -868,7 +868,7 @@ static void tx_command(EEPRO100State *s)
         /* Flexible mode. */
         uint8_t tbd_count = 0;
         if (!(s->configuration[6] & BIT(4)) && s->device != i82557C) {
-            /* Extended TCB (not for 82557). */
+            /* Extended TCB (not for 82557). TODO: i82551? */
             assert(tcb_bytes == 0);
             for (; tbd_count < 2 && tbd_count < s->tx.tbd_count; tbd_count++) {
                 uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
