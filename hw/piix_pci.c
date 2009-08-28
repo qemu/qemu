@@ -51,7 +51,7 @@ static uint32_t i440fx_addr_readl(void* opaque, uint32_t addr)
     return s->config_reg;
 }
 
-static void piix3_set_irq(qemu_irq *pic, int irq_num, int level);
+static void piix3_set_irq(void *opaque, int irq_num, int level);
 
 /* return the global irq number corresponding to a given device irq
    pin. We could also use the bus number to have a more precise
@@ -233,9 +233,10 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic)
 
 static PCIDevice *piix3_dev;
 
-static void piix3_set_irq(qemu_irq *pic, int irq_num, int level)
+static void piix3_set_irq(void *opaque, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
+    qemu_irq *pic = opaque;
 
     pci_irq_levels[irq_num] = level;
 

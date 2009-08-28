@@ -90,8 +90,10 @@ static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
     return irq_num;
 }
 
-static void pci_vpb_set_irq(qemu_irq *pic, int irq_num, int level)
+static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
 {
+    qemu_irq *pic = opaque;
+
     qemu_set_irq(pic[irq_num], level);
 }
 

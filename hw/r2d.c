@@ -183,8 +183,10 @@ static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
     return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }
 
-static void r2d_pci_set_irq(qemu_irq *p, int n, int l)
+static void r2d_pci_set_irq(void *opaque, int n, int l)
 {
+    qemu_irq *p = opaque;
+
     qemu_set_irq(p[n], l);
 }
 

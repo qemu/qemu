@@ -304,8 +304,10 @@ static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     return slot - 1;
 }
 
-static void ppc4xx_pci_set_irq(qemu_irq *pci_irqs, int irq_num, int level)
+static void ppc4xx_pci_set_irq(void *opaque, int irq_num, int level)
 {
+    qemu_irq *pci_irqs = opaque;
+
     DPRINTF("%s: PCI irq %d\n", __func__, irq_num);
     qemu_set_irq(pci_irqs[irq_num], level);
 }
