@@ -1474,6 +1474,21 @@ if compile_prog "" "" ; then
   splice=yes
 fi
 
+# check if eventfd is supported
+eventfd=no
+cat > $TMPC << EOF
+#include <sys/eventfd.h>
+
+int main(void)
+{
+    int efd = eventfd(0, 0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  eventfd=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if test -x "`which texi2html 2>/dev/null`" -a \
@@ -1812,6 +1827,9 @@ if test "$pipe2" = "yes" ; then
 fi
 if test "$splice" = "yes" ; then
   echo "CONFIG_SPLICE=y" >> $config_host_mak
+fi
+if test "$eventfd" = "yes" ; then
+  echo "CONFIG_EVENTFD=y" >> $config_host_mak
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
