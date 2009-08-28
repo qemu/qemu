@@ -2580,7 +2580,6 @@ static int default_fmt_size = 4;
 
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdline,
-                                              void *str_allocated[],
                                               QDict *qdict)
 {
     const char *p, *typestr;
@@ -2657,7 +2656,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 }
                 str = qemu_malloc(strlen(buf) + 1);
                 pstrcpy(str, sizeof(buf), buf);
-                str_allocated[nb_args] = str;
             add_str:
                 if (nb_args >= MAX_ARGS) {
                 error_args:
@@ -2667,6 +2665,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 args[nb_args++] = str;
                 if (str)
                     qdict_put(qdict, key, qstring_from_str(str));
+                qemu_free(str);
             }
             break;
         case '/':
@@ -2864,17 +2863,12 @@ fail:
 
 static void monitor_handle_command(Monitor *mon, const char *cmdline)
 {
-    int i;
     QDict *qdict;
     const mon_cmd_t *cmd;
-    void *str_allocated[MAX_ARGS];
 
     qdict = qdict_new();
 
-    for (i = 0; i < MAX_ARGS; i++)
-        str_allocated[i] = NULL;
-
-    cmd = monitor_parse_command(mon, cmdline, str_allocated, qdict);
+    cmd = monitor_parse_command(mon, cmdline, qdict);
     if (cmd) {
         void (*handler)(Monitor *mon, const QDict *qdict);
 
@@ -2887,9 +2881,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     }
 
     QDECREF(qdict);
-
-    for (i = 0; i < MAX_ARGS; i++)
-        qemu_free(str_allocated[i]);
 }
 
 static void cmd_completion(const char *name, const char *list)
