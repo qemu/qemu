@@ -124,7 +124,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     /* end of transfer ? */
     if (s->nsector == 0) {
         s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s);
+        ide_set_irq(s->bus);
     }
 
     /* end of DMA ? */
