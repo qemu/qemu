@@ -37,6 +37,10 @@ typedef struct PIIX3State {
     PCIDevice dev;
 } PIIX3State;
 
+typedef struct PIIX3IrqState {
+    qemu_irq *pic;
+} PIIX3IrqState;
+
 struct PCII440FXState {
     PCIDevice dev;
     target_phys_addr_t isa_page_descs[384 / 4];
@@ -219,11 +223,13 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic)
     PCIBus *b;
     PCIDevice *d;
     I440FXState *s;
+    PIIX3IrqState *irq_state = qemu_malloc(sizeof(*irq_state));
 
+    irq_state->pic = pic;
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
     b = pci_register_bus(&s->busdev.qdev, "pci.0",
-                         piix3_set_irq, pci_slot_get_pirq, pic, 0, 4);
+                         piix3_set_irq, pci_slot_get_pirq, irq_state, 0, 4);
     s->bus = b;
     qdev_init(dev);
 
@@ -240,7 +246,7 @@ static PIIX3State *piix3_dev;
 static void piix3_set_irq(void *opaque, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
-    qemu_irq *pic = opaque;
+    PIIX3IrqState *irq_state = opaque;
 
     pci_irq_levels[irq_num] = level;
 
@@ -255,7 +261,7 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
             if (pic_irq == piix3_dev->dev.config[0x60 + i])
                 pic_level |= pci_irq_levels[i];
         }
-        qemu_set_irq(pic[pic_irq], pic_level);
+        qemu_set_irq(irq_state->pic[pic_irq], pic_level);
     }
 }
 
