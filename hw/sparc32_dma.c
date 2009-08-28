@@ -222,27 +222,16 @@ static void dma_reset(void *opaque)
     s->dmaregs[0] = DMA_VER;
 }
 
-static void dma_save(QEMUFile *f, void *opaque)
-{
-    DMAState *s = opaque;
-    unsigned int i;
-
-    for (i = 0; i < DMA_REGS; i++)
-        qemu_put_be32s(f, &s->dmaregs[i]);
-}
-
-static int dma_load(QEMUFile *f, void *opaque, int version_id)
-{
-    DMAState *s = opaque;
-    unsigned int i;
-
-    if (version_id != 2)
-        return -EINVAL;
-    for (i = 0; i < DMA_REGS; i++)
-        qemu_get_be32s(f, &s->dmaregs[i]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_dma = {
+    .name ="sparc32_dma",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(dmaregs, DMAState, DMA_REGS),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int sparc32_dma_init1(SysBusDevice *dev)
 {
@@ -254,7 +243,7 @@ static int sparc32_dma_init1(SysBusDevice *dev)
     dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s);
     sysbus_init_mmio(dev, DMA_SIZE, dma_io_memory);
 
-    register_savevm("sparc32_dma", -1, 2, dma_save, dma_load, s);
+    vmstate_register(-1, &vmstate_dma, s);
     qemu_register_reset(dma_reset, s);
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
