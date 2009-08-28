@@ -46,6 +46,7 @@ struct PCII440FXState {
     PCIDevice dev;
     target_phys_addr_t isa_page_descs[384 / 4];
     uint8_t smm_enabled;
+    PIIX3IrqState *irq_state;
 };
 
 static void i440fx_addr_writel(void* opaque, uint32_t addr, uint32_t val)
@@ -236,6 +237,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
 
     d = pci_create_simple(b, 0, "i440FX");
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
+    (*pi440fx_state)->irq_state = irq_state;
 
     irq_state->piix3 = DO_UPCAST(PIIX3State, dev,
                                  pci_create_simple(b, -1, "PIIX3"));
