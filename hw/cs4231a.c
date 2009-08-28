@@ -642,7 +642,7 @@ int cs4231a_init (qemu_irq *pic)
 
     s = qemu_mallocz (sizeof (*s));
 
-    s->pic = isa_reserve_irq(conf.irq);
+    s->pic = isa_reserve_irq (conf.irq);
     s->dma = conf.dma;
     s->port = conf.port;
 

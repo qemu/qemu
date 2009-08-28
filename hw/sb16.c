@@ -1408,7 +1408,7 @@ int SB16_init (qemu_irq *pic)
     s = qemu_mallocz (sizeof (*s));
 
     s->cmd = -1;
-    s->pic = isa_reserve_irq(conf.irq);
+    s->pic = isa_reserve_irq (conf.irq);
     s->dma = conf.dma;
     s->hdma = conf.hdma;
     s->port = conf.port;
