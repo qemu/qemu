@@ -183,6 +183,7 @@ qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 
 check-qint: check-qint.o qint.o qemu-malloc.o
 check-qstring: check-qstring.o qstring.o qemu-malloc.o
+check-qdict: check-qdict.o qdict.o qint.o qstring.o qemu-malloc.o
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
