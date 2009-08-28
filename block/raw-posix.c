@@ -115,7 +115,9 @@ typedef struct BDRVRawState {
     int fd_got_error;
     int fd_media_changed;
 #endif
+#ifdef CONFIG_LINUX_AIO
     int use_aio;
+#endif
     uint8_t* aligned_buf;
 } BDRVRawState;
 
@@ -183,7 +185,9 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         if (!s->aio_ctx) {
             goto out_free_buf;
         }
+#ifdef CONFIG_LINUX_AIO
         s->use_aio = 0;
+#endif
     }
 
     return 0;
@@ -542,9 +546,11 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
     if (s->aligned_buf) {
         if (!qiov_is_aligned(qiov)) {
             type |= QEMU_AIO_MISALIGNED;
+#ifdef CONFIG_LINUX_AIO
         } else if (s->use_aio) {
             return laio_submit(bs, s->aio_ctx, s->fd, sector_num, qiov,
-	                       nb_sectors, cb, opaque, type);
+                               nb_sectors, cb, opaque, type);
+#endif
         }
     }
 
