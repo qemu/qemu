@@ -38,6 +38,7 @@ typedef struct PIIX3State {
 } PIIX3State;
 
 typedef struct PIIX3IrqState {
+    PIIX3State *piix3;
     qemu_irq *pic;
 } PIIX3IrqState;
 
@@ -217,8 +218,6 @@ static int i440fx_initfn(PCIDevice *dev)
     return 0;
 }
 
-static PIIX3State *piix3_dev;
-
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic)
 {
     DeviceState *dev;
@@ -238,8 +237,9 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     d = pci_create_simple(b, 0, "i440FX");
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
-    piix3_dev = DO_UPCAST(PIIX3State, dev, pci_create_simple(b, -1, "PIIX3"));
-    *piix3_devfn = piix3_dev->dev.devfn;
+    irq_state->piix3 = DO_UPCAST(PIIX3State, dev,
+                                 pci_create_simple(b, -1, "PIIX3"));
+    *piix3_devfn = irq_state->piix3->dev.devfn;
 
     return b;
 }
@@ -255,13 +255,13 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
-    pic_irq = piix3_dev->dev.config[0x60 + irq_num];
+    pic_irq = irq_state->piix3->dev.config[0x60 + irq_num];
     if (pic_irq < 16) {
         /* The pic level is the logical OR of all the PCI irqs mapped
            to it */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == piix3_dev->dev.config[0x60 + i])
+            if (pic_irq == irq_state->piix3->dev.config[0x60 + i])
                 pic_level |= pci_irq_levels[i];
         }
         qemu_set_irq(irq_state->pic[pic_irq], pic_level);
