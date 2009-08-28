@@ -217,7 +217,9 @@ static int i440fx_initfn(PCIDevice *dev)
     return 0;
 }
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic)
+static PIIX3State *piix3_dev;
+
+PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic)
 {
     DeviceState *dev;
     PCIBus *b;
@@ -236,12 +238,13 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic)
     d = pci_create_simple(b, 0, "i440FX");
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
+    piix3_dev = DO_UPCAST(PIIX3State, dev, pci_create_simple(b, -1, "PIIX3"));
+    *piix3_devfn = piix3_dev->dev.devfn;
+
     return b;
 }
 
 /* PIIX3 PCI to ISA bridge */
-
-static PIIX3State *piix3_dev;
 
 static void piix3_set_irq(void *opaque, int irq_num, int level)
 {
@@ -334,18 +337,9 @@ static int piix3_initfn(PCIDevice *dev)
     pci_conf[PCI_HEADER_TYPE] =
         PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
-    piix3_dev = d;
     piix3_reset(d);
     qemu_register_reset(piix3_reset, d);
     return 0;
-}
-
-int piix3_init(PCIBus *bus, int devfn)
-{
-    PCIDevice *d;
-
-    d = pci_create_simple(bus, devfn, "PIIX3");
-    return d->devfn;
 }
 
 static PCIDeviceInfo i440fx_info[] = {

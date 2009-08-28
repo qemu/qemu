@@ -1279,8 +1279,7 @@ static void pc_init1(ram_addr_t ram_size,
     isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
 
     if (pci_enabled) {
-        pci_bus = i440fx_init(&i440fx_state, isa_irq);
-        piix3_devfn = piix3_init(pci_bus, -1);
+        pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq);
     } else {
         pci_bus = NULL;
         isa_bus_new(NULL);
