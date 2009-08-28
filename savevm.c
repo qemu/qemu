@@ -1048,7 +1048,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 void *addr = base_addr + field->size * i;
 
                 if (field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, field->vmsd, addr, version_id);
+                    ret = vmstate_load_state(f, field->vmsd, addr, field->vmsd->version_id);
                 } else {
                     ret = field->info->get(f, addr, field->size);
 
