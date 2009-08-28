@@ -443,8 +443,7 @@ static void piix3_reset(void *opaque)
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
-                        qemu_irq *pic)
+void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
@@ -479,8 +478,7 @@ void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
-void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
-                        qemu_irq *pic)
+void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
@@ -505,11 +503,8 @@ void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
     pci_register_bar((PCIDevice *)d, 4, 0x10,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
-    /*
-     * These should call isa_reserve_irq() instead when MIPS supports it
-     */
-    ide_init2(&d->bus[0], hd_table[0], hd_table[1], pic[14]);
-    ide_init2(&d->bus[1], hd_table[2], hd_table[3], pic[15]);
+    ide_init2(&d->bus[0], hd_table[0], hd_table[1], isa_reserve_irq(14));
+    ide_init2(&d->bus[1], hd_table[2], hd_table[3], isa_reserve_irq(15));
     ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->bus[1], 0x170, 0x376);
 

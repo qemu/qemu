@@ -10,10 +10,8 @@ void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
 /* ide-pci.c */
 void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
                          int secondary_ide_enabled);
-void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
-                        qemu_irq *pic);
-void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
-                        qemu_irq *pic);
+void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
+void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 
 /* ide-macio.c */
 int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,

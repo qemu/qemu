@@ -86,6 +86,7 @@ static int piix4_initfn(PCIDevice *d)
 {
     uint8_t *pci_conf;
 
+    isa_bus_new(&d->qdev);
     register_savevm("PIIX4", 0, 2, piix_save, piix_load, d);
 
     pci_conf = d->config;

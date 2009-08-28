@@ -1363,7 +1363,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1, isa_irq);
+        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
             isa_ide_init(ide_iobase[i], ide_iobase2[i],
