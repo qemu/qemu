@@ -35,6 +35,8 @@ typedef PCIHostState I440FXState;
 
 struct PCII440FXState {
     PCIDevice dev;
+    target_phys_addr_t isa_page_descs[384 / 4];
+    uint8_t smm_enabled;
 };
 
 static void i440fx_addr_writel(void* opaque, uint32_t addr, uint32_t val)
@@ -61,8 +63,6 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + slot_addend) & 3;
 }
 
-static target_phys_addr_t isa_page_descs[384 / 4];
-static uint8_t smm_enabled;
 static int pci_irq_levels[4];
 
 static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r)
@@ -86,7 +86,7 @@ static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r)
         /* XXX: should distinguish read/write cases */
         for(addr = start; addr < end; addr += 4096) {
             cpu_register_physical_memory(addr, 4096,
-                                         isa_page_descs[(addr - 0xa0000) >> 12]);
+                                         d->isa_page_descs[(addr - 0xa0000) >> 12]);
         }
         break;
     }
@@ -103,12 +103,12 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
         update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r);
     }
     smram = d->dev.config[0x72];
-    if ((smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
+    if ((d->smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
         cpu_register_physical_memory(0xa0000, 0x20000, 0xa0000);
     } else {
         for(addr = 0xa0000; addr < 0xc0000; addr += 4096) {
             cpu_register_physical_memory(addr, 4096,
-                                         isa_page_descs[(addr - 0xa0000) >> 12]);
+                                         d->isa_page_descs[(addr - 0xa0000) >> 12]);
         }
     }
 }
@@ -116,8 +116,8 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
 void i440fx_set_smm(PCII440FXState *d, int val)
 {
     val = (val != 0);
-    if (smm_enabled != val) {
-        smm_enabled = val;
+    if (d->smm_enabled != val) {
+        d->smm_enabled = val;
         i440fx_update_memory_mappings(d);
     }
 }
@@ -130,7 +130,7 @@ void i440fx_init_memory_mappings(PCII440FXState *d)
 {
     int i;
     for(i = 0; i < 96; i++) {
-        isa_page_descs[i] = cpu_get_physical_page_desc(0xa0000 + i * 0x1000);
+        d->isa_page_descs[i] = cpu_get_physical_page_desc(0xa0000 + i * 0x1000);
     }
 }
 
@@ -151,7 +151,7 @@ static void i440fx_save(QEMUFile* f, void *opaque)
     int i;
 
     pci_device_save(&d->dev, f);
-    qemu_put_8s(f, &smm_enabled);
+    qemu_put_8s(f, &d->smm_enabled);
 
     for (i = 0; i < 4; i++)
         qemu_put_be32(f, pci_irq_levels[i]);
@@ -168,7 +168,7 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
     if (ret < 0)
         return ret;
     i440fx_update_memory_mappings(d);
-    qemu_get_8s(f, &smm_enabled);
+    qemu_get_8s(f, &d->smm_enabled);
 
     if (version_id >= 2)
         for (i = 0; i < 4; i++)
