@@ -156,7 +156,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     RTCState *rtc_state;
     int i;
     qemu_irq *i8259;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *dinfo;
 
     /* init CPUs */
@@ -268,8 +268,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        hd[i] = dinfo ? dinfo->bdrv : NULL;
+        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
     for(i = 0; i < MAX_IDE_BUS; i++)

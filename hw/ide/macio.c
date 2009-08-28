@@ -334,7 +334,7 @@ static void pmac_ide_reset(void *opaque)
 /* hd_table must contain 4 block drivers */
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
-int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
+int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
 		   void *dbdma, int channel, qemu_irq dma_irq)
 {
     MACIOIDEState *d;

@@ -775,7 +775,7 @@ void mips_malta_init (ram_addr_t ram_size,
     i2c_bus *smbus;
     int i;
     DriveInfo *dinfo;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     int fl_idx = 0;
     int fl_sectors = 0;
@@ -899,8 +899,7 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        hd[i] = dinfo ? dinfo->bdrv : NULL;
+        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
     piix4_devfn = piix4_init(pci_bus, 80);

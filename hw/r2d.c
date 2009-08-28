@@ -231,7 +231,7 @@ static void r2d_init(ram_addr_t ram_size,
     /* onboard CF (True IDE mode, Master only). */
     if ((dinfo = drive_get(IF_IDE, 0, 0)) != NULL)
 	mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
-		      dinfo->bdrv, NULL);
+		      dinfo, NULL);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)

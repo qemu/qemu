@@ -58,7 +58,7 @@ static int isa_ide_load(QEMUFile* f, void *opaque, int version_id)
 }
 
 void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
-                  BlockDriverState *hd0, BlockDriverState *hd1)
+                  DriveInfo *hd0, DriveInfo *hd1)
 {
     ISAIDEState *s;
 

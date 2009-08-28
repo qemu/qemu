@@ -375,7 +375,7 @@ static void cmd646_reset(void *opaque)
 }
 
 /* CMD646 PCI IDE controller */
-void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
+void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
                          int secondary_ide_enabled)
 {
     PCIIDEState *d;
@@ -443,12 +443,11 @@ static void piix3_reset(void *opaque)
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
+void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
                         qemu_irq *pic)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
-    int i;
 
     /* register a function 1 of PIIX3 */
     d = (PCIIDEState *)pci_register_device(bus, "PIIX3 IDE",
@@ -475,16 +474,12 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->bus[1], 0x170, 0x376);
 
-    for (i = 0; i < 4; i++)
-        if (hd_table[i])
-            hd_table[i]->private = &d->dev;
-
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
 }
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
-void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
+void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn,
                         qemu_irq *pic)
 {
     PCIIDEState *d;

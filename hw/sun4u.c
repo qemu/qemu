@@ -566,7 +566,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     qemu_irq *irq;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     void *fw_cfg;
     DriveInfo *dinfo;
@@ -617,9 +617,8 @@ static void sun4uv_init(ram_addr_t RAM_size,
         exit(1);
     }
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS,
+        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS,
                           i % MAX_IDE_DEVS);
-        hd[i] = dinfo ? dinfo->bdrv : NULL;
     }
 
     pci_cmd646_ide_init(pci_bus, hd, 1);

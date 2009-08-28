@@ -2506,7 +2506,7 @@ void ide_reset(IDEState *s)
     s->media_changed = 0;
 }
 
-void ide_init2(IDEBus *bus, BlockDriverState *hd0, BlockDriverState *hd1,
+void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
                qemu_irq irq)
 {
     IDEState *s;
@@ -2518,7 +2518,10 @@ void ide_init2(IDEBus *bus, BlockDriverState *hd0, BlockDriverState *hd1,
         s = bus->ifs + i;
         s->bus = bus;
         s->unit = i;
-        s->bs = (i == 0) ? hd0 : hd1;
+        if (i == 0 && hd0)
+            s->bs = hd0->bdrv;
+        if (i == 1 && hd1)
+            s->bs = hd1->bdrv;
         s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
         if (s->bs) {
             bdrv_get_geometry(s->bs, &nb_sectors);

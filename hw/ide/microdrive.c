@@ -555,7 +555,7 @@ static int dscm1xxxx_detach(void *opaque)
     return 0;
 }
 
-PCMCIACardState *dscm1xxxx_init(BlockDriverState *bdrv)
+PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv)
 {
     MicroDriveState *md = (MicroDriveState *) qemu_mallocz(sizeof(MicroDriveState));
     md->card.state = md;

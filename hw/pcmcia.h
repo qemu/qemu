@@ -1,6 +1,7 @@
 /* PCMCIA/Cardbus */
 
 #include "qemu-common.h"
+#include "sysemu.h"
 
 typedef struct {
     qemu_irq irq;
@@ -48,4 +49,4 @@ struct PCMCIACardState {
 #define CISTPL_ENDMARK		0xff
 
 /* dscm1xxxx.c */
-PCMCIACardState *dscm1xxxx_init(BlockDriverState *bdrv);
+PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv);

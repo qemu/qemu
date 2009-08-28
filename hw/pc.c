@@ -264,7 +264,7 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 
 /* hd_table must contain 4 block drivers */
 static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                      const char *boot_device, BlockDriverState **hd_table)
+                      const char *boot_device, DriveInfo **hd_table)
 {
     RTCState *s = rtc_state;
     int nbds, bds[3] = { 0, };
@@ -355,9 +355,9 @@ static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
     if (hd_table[0])
-        cmos_init_hd(0x19, 0x1b, hd_table[0]);
+        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv);
     if (hd_table[1])
-        cmos_init_hd(0x1a, 0x24, hd_table[1]);
+        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv);
 
     val = 0;
     for (i = 0; i < 4; i++) {
@@ -367,9 +367,9 @@ static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                 geometry.  It is always such that: 1 <= sects <= 63, 1
                 <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
                 geometry can be different if a translation is done. */
-            translation = bdrv_get_translation_hint(hd_table[i]);
+            translation = bdrv_get_translation_hint(hd_table[i]->bdrv);
             if (translation == BIOS_ATA_TRANSLATION_AUTO) {
-                bdrv_get_geometry_hint(hd_table[i], &cylinders, &heads, &sectors);
+                bdrv_get_geometry_hint(hd_table[i]->bdrv, &cylinders, &heads, &sectors);
                 if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
                     /* No translation. */
                     translation = 0;
@@ -1131,7 +1131,7 @@ static void pc_init1(ram_addr_t ram_size,
     qemu_irq *i8259;
     IsaIrqState *isa_irq_state;
     DriveInfo *dinfo;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     int using_vga = cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled;
     void *fw_cfg;
@@ -1359,8 +1359,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        hd[i] = dinfo ? dinfo->bdrv : NULL;
+        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
     if (pci_enabled) {
