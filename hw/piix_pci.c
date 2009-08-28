@@ -154,21 +154,11 @@ static void i440fx_write_config(PCIDevice *dev,
         i440fx_update_memory_mappings(d);
 }
 
-static void i440fx_save(QEMUFile* f, void *opaque)
-{
-    PCII440FXState *d = opaque;
-
-    pci_device_save(&d->dev, f);
-    qemu_put_8s(f, &d->smm_enabled);
-}
-
-static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
+static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
 {
     PCII440FXState *d = opaque;
     int ret, i;
 
-    if (version_id > 3)
-        return -EINVAL;
     ret = pci_device_load(&d->dev, f);
     if (ret < 0)
         return ret;
@@ -181,6 +171,28 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
 
     return 0;
 }
+
+static int i440fx_after_load(void *opaque)
+{
+    PCII440FXState *d = opaque;
+
+    i440fx_update_memory_mappings(d);
+    return 0;
+}
+
+static const VMStateDescription vmstate_i440fx = {
+    .name = "I440FX",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 1,
+    .load_state_old = i440fx_load_old,
+    .run_after_load = i440fx_after_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, PCII440FXState),
+        VMSTATE_UINT8(smm_enabled, PCII440FXState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
@@ -210,7 +222,7 @@ static int i440fx_initfn(PCIDevice *dev)
 
     d->dev.config[0x72] = 0x02; /* SMRAM */
 
-    register_savevm("I440FX", 0, 3, i440fx_save, i440fx_load, d);
+    vmstate_register(0, &vmstate_i440fx, d);
     return 0;
 }
 
