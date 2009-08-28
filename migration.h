@@ -54,11 +54,11 @@ void do_migrate(Monitor *mon, int detach, const char *uri);
 
 void do_migrate_cancel(Monitor *mon, const QDict *qdict);
 
-void do_migrate_set_speed(Monitor *mon, const char *value);
+void do_migrate_set_speed(Monitor *mon, const QDict *qdict);
 
 uint64_t migrate_max_downtime(void);
 
-void do_migrate_set_downtime(Monitor *mon, const char *value);
+void do_migrate_set_downtime(Monitor *mon, const QDict *qdict);
 
 void do_info_migrate(Monitor *mon);
 

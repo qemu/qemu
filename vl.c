@@ -479,10 +479,11 @@ void do_info_mice(Monitor *mon)
     }
 }
 
-void do_mouse_set(Monitor *mon, int index)
+void do_mouse_set(Monitor *mon, const QDict *qdict)
 {
     QEMUPutMouseEntry *cursor;
     int i = 0;
+    int index = qdict_get_int(qdict, "index");
 
     if (!qemu_put_mouse_event_head) {
         monitor_printf(mon, "No mouse devices connected\n");
@@ -2597,14 +2598,14 @@ static int usb_parse(const char *cmdline)
     return usb_device_add(cmdline, 0);
 }
 
-void do_usb_add(Monitor *mon, const char *devname)
+void do_usb_add(Monitor *mon, const QDict *qdict)
 {
-    usb_device_add(devname, 1);
+    usb_device_add(qdict_get_str(qdict, "devname"), 1);
 }
 
-void do_usb_del(Monitor *mon, const char *devname)
+void do_usb_del(Monitor *mon, const QDict *qdict)
 {
-    usb_device_del(devname);
+    usb_device_del(qdict_get_str(qdict, "devname"));
 }
 
 void usb_info(Monitor *mon)

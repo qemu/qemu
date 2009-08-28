@@ -5,6 +5,7 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "sys-queue.h"
+#include "qdict.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -50,9 +51,9 @@ int qemu_powerdown_requested(void);
 extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
-void do_savevm(Monitor *mon, const char *name);
+void do_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(Monitor *mon, const char *name);
-void do_delvm(Monitor *mon, const char *name);
+void do_delvm(Monitor *mon, const QDict *qdict);
 void do_info_snapshots(Monitor *mon);
 
 void qemu_announce_self(void);
@@ -212,8 +213,8 @@ void destroy_bdrvs(dev_match_fn *match_fn, void *arg);
 void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
                         const char *opts);
 void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts);
-void do_pci_device_hot_remove(Monitor *mon, const char *pci_addr);
 void pci_device_hot_remove(Monitor *mon, const char *pci_addr);
+void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 void pci_device_hot_remove_success(int pcibus, int slot);
 
 /* serial ports */
@@ -269,8 +270,8 @@ struct soundhw {
 extern struct soundhw soundhw[];
 #endif
 
-void do_usb_add(Monitor *mon, const char *devname);
-void do_usb_del(Monitor *mon, const char *devname);
+void do_usb_add(Monitor *mon, const QDict *qdict);
+void do_usb_del(Monitor *mon, const QDict *qdict);
 void usb_info(Monitor *mon);
 
 void register_devices(void);

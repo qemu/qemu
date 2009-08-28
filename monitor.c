@@ -254,15 +254,16 @@ static void help_cmd(Monitor *mon, const char *name)
     }
 }
 
-static void do_help_cmd(Monitor *mon, const char *name)
+static void do_help_cmd(Monitor *mon, const QDict *qdict)
 {
-    help_cmd(mon, name);
+    help_cmd(mon, qdict_get_try_str(qdict, "name"));
 }
 
-static void do_commit(Monitor *mon, const char *device)
+static void do_commit(Monitor *mon, const QDict *qdict)
 {
     int all_devices;
     DriveInfo *dinfo;
+    const char *device = qdict_get_str(qdict, "device");
 
     all_devices = !strcmp(device, "all");
     TAILQ_FOREACH(dinfo, &drives, next) {
@@ -273,9 +274,10 @@ static void do_commit(Monitor *mon, const char *device)
     }
 }
 
-static void do_info(Monitor *mon, const char *item)
+static void do_info(Monitor *mon, const QDict *qdict)
 {
     const mon_cmd_t *cmd;
+    const char *item = qdict_get_try_str(qdict, "item");
     void (*handler)(Monitor *);
 
     if (!item)
@@ -387,8 +389,9 @@ static void do_info_cpus(Monitor *mon)
     }
 }
 
-static void do_cpu_set(Monitor *mon, int index)
+static void do_cpu_set(Monitor *mon, const QDict *qdict)
 {
+    int index = qdict_get_int(qdict, "index");
     if (mon_set_cpu(index) < 0)
         monitor_printf(mon, "Invalid CPU index\n");
 }
@@ -522,19 +525,20 @@ static void do_change(Monitor *mon, const char *device, const char *target,
     }
 }
 
-static void do_screen_dump(Monitor *mon, const char *filename)
+static void do_screen_dump(Monitor *mon, const QDict *qdict)
 {
-    vga_hw_screen_dump(filename);
+    vga_hw_screen_dump(qdict_get_str(qdict, "filename"));
 }
 
-static void do_logfile(Monitor *mon, const char *filename)
+static void do_logfile(Monitor *mon, const QDict *qdict)
 {
-    cpu_set_log_filename(filename);
+    cpu_set_log_filename(qdict_get_str(qdict, "filename"));
 }
 
-static void do_log(Monitor *mon, const char *items)
+static void do_log(Monitor *mon, const QDict *qdict)
 {
     int mask;
+    const char *items = qdict_get_str(qdict, "items");
 
     if (!strcmp(items, "none")) {
         mask = 0;
@@ -548,8 +552,9 @@ static void do_log(Monitor *mon, const char *items)
     cpu_set_log(mask);
 }
 
-static void do_singlestep(Monitor *mon, const char *option)
+static void do_singlestep(Monitor *mon, const QDict *qdict)
 {
+    const char *option = qdict_get_try_str(qdict, "option");
     if (!option || !strcmp(option, "on")) {
         singlestep = 1;
     } else if (!strcmp(option, "off")) {
@@ -601,8 +606,9 @@ static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
     }
 }
 
-static void do_gdbserver(Monitor *mon, const char *device)
+static void do_gdbserver(Monitor *mon, const QDict *qdict)
 {
+    const char *device = qdict_get_try_str(qdict, "device");
     if (!device)
         device = "tcp::" DEFAULT_GDBSTUB_PORT;
     if (gdbserver_start(device) < 0) {
@@ -616,8 +622,9 @@ static void do_gdbserver(Monitor *mon, const char *device)
     }
 }
 
-static void do_watchdog_action(Monitor *mon, const char *action)
+static void do_watchdog_action(Monitor *mon, const QDict *qdict)
 {
+    const char *action = qdict_get_str(qdict, "action");
     if (select_watchdog_action(action) == -1) {
         monitor_printf(mon, "Unknown watchdog action '%s'\n", action);
     }
@@ -1167,8 +1174,9 @@ static void do_mouse_move(Monitor *mon, const char *dx_str, const char *dy_str,
     kbd_mouse_event(dx, dy, dz, mouse_button_state);
 }
 
-static void do_mouse_button(Monitor *mon, int button_state)
+static void do_mouse_button(Monitor *mon, const QDict *qdict)
 {
+    int button_state = qdict_get_int(qdict, "button_state");
     mouse_button_state = button_state;
     kbd_mouse_event(0, 0, 0, mouse_button_state);
 }
@@ -1223,9 +1231,10 @@ static void do_ioport_write(Monitor *mon, int count, int format, int size,
     }
 }
 
-static void do_boot_set(Monitor *mon, const char *bootdevice)
+static void do_boot_set(Monitor *mon, const QDict *qdict)
 {
     int res;
+    const char *bootdevice = qdict_get_str(qdict, "bootdevice");
 
     res = qemu_boot_set(bootdevice);
     if (res == 0) {
@@ -1467,9 +1476,10 @@ static void do_info_capture(Monitor *mon)
 }
 
 #ifdef HAS_AUDIO
-static void do_stop_capture(Monitor *mon, int n)
+static void do_stop_capture(Monitor *mon, const QDict *qdict)
 {
     int i;
+    int n = qdict_get_int(qdict, "n");
     CaptureState *s;
 
     for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
@@ -1504,9 +1514,10 @@ static void do_wav_capture(Monitor *mon, const char *path,
 #endif
 
 #if defined(TARGET_I386)
-static void do_inject_nmi(Monitor *mon, int cpu_index)
+static void do_inject_nmi(Monitor *mon, const QDict *qdict)
 {
     CPUState *env;
+    int cpu_index = qdict_get_int(qdict, "cpu_index");
 
     for (env = first_cpu; env != NULL; env = env->next_cpu)
         if (env->cpu_index == cpu_index) {
@@ -1529,8 +1540,9 @@ static void do_info_status(Monitor *mon)
 }
 
 
-static void do_balloon(Monitor *mon, int value)
+static void do_balloon(Monitor *mon, const QDict *qdict)
 {
+    int value = qdict_get_int(qdict, "value");
     ram_addr_t target = value;
     qemu_balloon(target << 20);
 }
@@ -1559,8 +1571,9 @@ static qemu_acl *find_acl(Monitor *mon, const char *name)
     return acl;
 }
 
-static void do_acl_show(Monitor *mon, const char *aclname)
+static void do_acl_show(Monitor *mon, const QDict *qdict)
 {
+    const char *aclname = qdict_get_str(qdict, "aclname");
     qemu_acl *acl = find_acl(mon, aclname);
     qemu_acl_entry *entry;
     int i = 0;
@@ -1576,8 +1589,9 @@ static void do_acl_show(Monitor *mon, const char *aclname)
     }
 }
 
-static void do_acl_reset(Monitor *mon, const char *aclname)
+static void do_acl_reset(Monitor *mon, const QDict *qdict)
 {
+    const char *aclname = qdict_get_str(qdict, "aclname");
     qemu_acl *acl = find_acl(mon, aclname);
 
     if (acl) {
@@ -1669,8 +1683,9 @@ static void do_inject_mce(Monitor *mon,
 }
 #endif
 
-static void do_getfd(Monitor *mon, const char *fdname)
+static void do_getfd(Monitor *mon, const QDict *qdict)
 {
+    const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
     int fd;
 
@@ -1709,8 +1724,9 @@ static void do_getfd(Monitor *mon, const char *fdname)
     LIST_INSERT_HEAD(&mon->fds, monfd, next);
 }
 
-static void do_closefd(Monitor *mon, const char *fdname)
+static void do_closefd(Monitor *mon, const QDict *qdict)
 {
+    const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
 
     LIST_FOREACH(monfd, &mon->fds, next) {
@@ -1729,9 +1745,10 @@ static void do_closefd(Monitor *mon, const char *fdname)
                    fdname);
 }
 
-static void do_loadvm(Monitor *mon, const char *name)
+static void do_loadvm(Monitor *mon, const QDict *qdict)
 {
     int saved_vm_running  = vm_running;
+    const char *name = qdict_get_str(qdict, "name");
 
     vm_stop(0);
 
@@ -2555,7 +2572,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
     void (*handler_d)(Monitor *mon, const QDict *qdict);
-    void (*handler_1)(Monitor *mon, void *arg0);
     void (*handler_2)(Monitor *mon, void *arg0, void *arg1);
     void (*handler_3)(Monitor *mon, void *arg0, void *arg1, void *arg2);
     void (*handler_4)(Monitor *mon, void *arg0, void *arg1, void *arg2,
@@ -2848,12 +2864,9 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     qemu_errors_to_mon(mon);
     switch(nb_args) {
     case 0:
+    case 1:
         handler_d = cmd->handler;
         handler_d(mon, qdict);
-        break;
-    case 1:
-        handler_1 = cmd->handler;
-        handler_1(mon, args[0]);
         break;
     case 2:
         handler_2 = cmd->handler;

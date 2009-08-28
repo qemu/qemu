@@ -203,9 +203,9 @@ void pci_device_hot_remove(Monitor *mon, const char *pci_addr)
     qemu_system_device_hot_add(bus, slot, 0);
 }
 
-void do_pci_device_hot_remove(Monitor *mon, const char *pci_addr)
+void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict)
 {
-    pci_device_hot_remove(mon, pci_addr);
+    pci_device_hot_remove(mon, qdict_get_str(qdict, "pci_addr"));
 }
 
 static int pci_match_fn(void *dev_private, void *arg)

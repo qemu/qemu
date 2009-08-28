@@ -2,6 +2,7 @@
 #define CONSOLE_H
 
 #include "qemu-char.h"
+#include "qdict.h"
 
 /* keyboard/mouse support */
 
@@ -44,7 +45,7 @@ struct MouseTransformInfo {
 };
 
 void do_info_mice(Monitor *mon);
-void do_mouse_set(Monitor *mon, int index);
+void do_mouse_set(Monitor *mon, const QDict *qdict);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */
