@@ -273,7 +273,7 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
 {
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    if (-1 == *ptr) {
+    if (*ptr == -1) {
         return snprintf(dest, len, "<unset>");
     } else {
         return snprintf(dest, len, "%02x.%x", *ptr >> 3, *ptr & 7);

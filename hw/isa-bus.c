@@ -137,10 +137,12 @@ ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2
     isa->iobase[0] = iobase;
     isa->iobase[1] = iobase2;
     qdev_init(dev);
-    if (-1 != irq)
+    if (irq != -1) {
         isa_connect_irq(isa, 0, irq);
-    if (-1 != irq2)
+    }
+    if (irq2 != -1) {
         isa_connect_irq(isa, 1, irq2);
+    }
     return isa;
 }
 
