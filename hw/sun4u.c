@@ -352,11 +352,19 @@ static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
     }
 }
 
+static void dummy_isa_irq_handler(void *opaque, int n, int level)
+{
+}
+
 /* EBUS (Eight bit bus) bridge */
 static void
 pci_ebus_init(PCIBus *bus, int devfn)
 {
+    qemu_irq *isa_irq;
+
     pci_create_simple(bus, devfn, "ebus");
+    isa_irq = qemu_allocate_irqs(dummy_isa_irq_handler, NULL, 16);
+    isa_bus_irqs(isa_irq);
 }
 
 static int
