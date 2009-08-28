@@ -182,6 +182,7 @@ qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
 
 check-qint: check-qint.o qint.o qemu-malloc.o
+check-qstring: check-qstring.o qstring.o qemu-malloc.o
 
 clean:
 # avoid old build problems by removing potentially incorrect old files

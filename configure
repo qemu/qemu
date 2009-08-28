@@ -1927,7 +1927,7 @@ if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   if [ "$linux" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) qemu-io\$(EXESUF) $tools"
     if [ "$check_utests" = "yes" ]; then
-      tools="check-qint $tools"
+      tools="check-qint check-qstring $tools"
     fi
   fi
 fi
