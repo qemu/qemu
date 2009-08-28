@@ -374,36 +374,40 @@ static void slavio_set_irq_all(void *opaque, int irq, int level)
     }
 }
 
-static void slavio_intctl_save(QEMUFile *f, void *opaque)
+static int vmstate_intctl_after_load(void *opaque)
 {
     SLAVIO_INTCTLState *s = opaque;
-    int i;
 
-    for (i = 0; i < MAX_CPUS; i++) {
-        qemu_put_be32s(f, &s->slaves[i].intreg_pending);
-    }
-    qemu_put_be32s(f, &s->intregm_pending);
-    qemu_put_be32s(f, &s->intregm_disabled);
-    qemu_put_be32s(f, &s->target_cpu);
-}
-
-static int slavio_intctl_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SLAVIO_INTCTLState *s = opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    for (i = 0; i < MAX_CPUS; i++) {
-        qemu_get_be32s(f, &s->slaves[i].intreg_pending);
-    }
-    qemu_get_be32s(f, &s->intregm_pending);
-    qemu_get_be32s(f, &s->intregm_disabled);
-    qemu_get_be32s(f, &s->target_cpu);
     slavio_check_interrupts(s, 0);
     return 0;
 }
+
+static const VMStateDescription vmstate_intctl_cpu = {
+    .name ="slavio_intctl_cpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(intreg_pending, SLAVIO_CPUINTCTLState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_intctl = {
+    .name ="slavio_intctl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .run_after_load = vmstate_intctl_after_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_STRUCT_ARRAY(slaves, SLAVIO_INTCTLState, MAX_CPUS, 1,
+                             vmstate_intctl_cpu, SLAVIO_CPUINTCTLState),
+        VMSTATE_UINT32(intregm_pending, SLAVIO_INTCTLState),
+        VMSTATE_UINT32(intregm_disabled, SLAVIO_INTCTLState),
+        VMSTATE_UINT32(target_cpu, SLAVIO_INTCTLState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void slavio_intctl_reset(void *opaque)
 {
@@ -442,8 +446,7 @@ static int slavio_intctl_init1(SysBusDevice *dev)
         s->slaves[i].cpu = i;
         s->slaves[i].master = s;
     }
-    register_savevm("slavio_intctl", -1, 1, slavio_intctl_save,
-                    slavio_intctl_load, s);
+    vmstate_register(-1, &vmstate_intctl, s);
     qemu_register_reset(slavio_intctl_reset, s);
     slavio_intctl_reset(s);
     return 0;
