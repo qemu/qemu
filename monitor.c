@@ -1695,18 +1695,15 @@ static void do_acl_remove(Monitor *mon, const QDict *qdict)
 }
 
 #if defined(TARGET_I386)
-static void do_inject_mce(Monitor *mon,
-                          int cpu_index, int bank,
-                          unsigned status_hi, unsigned status_lo,
-                          unsigned mcg_status_hi, unsigned mcg_status_lo,
-                          unsigned addr_hi, unsigned addr_lo,
-                          unsigned misc_hi, unsigned misc_lo)
+static void do_inject_mce(Monitor *mon, const QDict *qdict)
 {
     CPUState *cenv;
-    uint64_t status = ((uint64_t)status_hi << 32) | status_lo;
-    uint64_t mcg_status = ((uint64_t)mcg_status_hi << 32) | mcg_status_lo;
-    uint64_t addr = ((uint64_t)addr_hi << 32) | addr_lo;
-    uint64_t misc = ((uint64_t)misc_hi << 32) | misc_lo;
+    int cpu_index = qdict_get_int(qdict, "cpu_index");
+    int bank = qdict_get_int(qdict, "bank");
+    uint64_t status = qdict_get_int(qdict, "status");
+    uint64_t mcg_status = qdict_get_int(qdict, "mcg_status");
+    uint64_t addr = qdict_get_int(qdict, "addr");
+    uint64_t misc = qdict_get_int(qdict, "misc");
 
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu)
         if (cenv->cpu_index == cpu_index && cenv->mcg_cap) {
@@ -2605,9 +2602,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
     void (*handler_d)(Monitor *mon, const QDict *qdict);
-    void (*handler_10)(Monitor *mon, void *arg0, void *arg1, void *arg2,
-                       void *arg3, void *arg4, void *arg5, void *arg6,
-                       void *arg7, void *arg8, void *arg9);
 
 #ifdef DEBUG
     monitor_printf(mon, "command='%s'\n", cmdline);
@@ -2888,13 +2882,9 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     case 5:
     case 6:
     case 7:
+    case 10:
         handler_d = cmd->handler;
         handler_d(mon, qdict);
-        break;
-    case 10:
-        handler_10 = cmd->handler;
-        handler_10(mon, args[0], args[1], args[2], args[3], args[4], args[5],
-                   args[6], args[7], args[8], args[9]);
         break;
     default:
         monitor_printf(mon, "unsupported number of arguments: %d\n", nb_args);
