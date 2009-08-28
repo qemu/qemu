@@ -35,6 +35,7 @@ typedef PCIHostState I440FXState;
 
 typedef struct PIIX3State {
     PCIDevice dev;
+    int pci_irq_levels[4];
 } PIIX3State;
 
 typedef struct PIIX3IrqState {
@@ -72,8 +73,6 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
     slot_addend = (pci_dev->devfn >> 3) - 1;
     return (irq_num + slot_addend) & 3;
 }
-
-static int pci_irq_levels[4];
 
 static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r)
 {
@@ -164,7 +163,7 @@ static void i440fx_save(QEMUFile* f, void *opaque)
     qemu_put_8s(f, &d->smm_enabled);
 
     for (i = 0; i < 4; i++)
-        qemu_put_be32(f, pci_irq_levels[i]);
+        qemu_put_be32(f, d->irq_state->piix3->pci_irq_levels[i]);
 }
 
 static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
@@ -182,7 +181,7 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
 
     if (version_id >= 2)
         for (i = 0; i < 4; i++)
-            pci_irq_levels[i] = qemu_get_be32(f);
+            d->irq_state->piix3->pci_irq_levels[i] = qemu_get_be32(f);
 
     return 0;
 }
@@ -253,7 +252,7 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
     int i, pic_irq, pic_level;
     PIIX3IrqState *irq_state = opaque;
 
-    pci_irq_levels[irq_num] = level;
+    irq_state->piix3->pci_irq_levels[irq_num] = level;
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
@@ -264,7 +263,7 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
         pic_level = 0;
         for (i = 0; i < 4; i++) {
             if (pic_irq == irq_state->piix3->dev.config[0x60 + i])
-                pic_level |= pci_irq_levels[i];
+                pic_level |= irq_state->piix3->pci_irq_levels[i];
         }
         qemu_set_irq(irq_state->pic[pic_irq], pic_level);
     }
@@ -307,7 +306,7 @@ static void piix3_reset(void *opaque)
     pci_conf[0xac] = 0x00;
     pci_conf[0xae] = 0x00;
 
-    memset(pci_irq_levels, 0, sizeof(pci_irq_levels));
+    memset(d->pci_irq_levels, 0, sizeof(d->pci_irq_levels));
 }
 
 static void piix_save(QEMUFile* f, void *opaque)
