@@ -1198,13 +1198,16 @@ static void do_mouse_button(Monitor *mon, const QDict *qdict)
     kbd_mouse_event(0, 0, 0, mouse_button_state);
 }
 
-static void do_ioport_read(Monitor *mon, int count, int format, int size,
-                           int addr, int has_index, int index)
+static void do_ioport_read(Monitor *mon, const QDict *qdict)
 {
+    int size = qdict_get_int(qdict, "size");
+    int addr = qdict_get_int(qdict, "addr");
+    int has_index = qdict_haskey(qdict, "index");
     uint32_t val;
     int suffix;
 
     if (has_index) {
+        int index = qdict_get_int(qdict, "index");
         cpu_outb(NULL, addr & IOPORTS_MASK, index & 0xff);
         addr++;
     }
@@ -2598,8 +2601,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
     void (*handler_d)(Monitor *mon, const QDict *qdict);
-    void (*handler_6)(Monitor *mon, void *arg0, void *arg1, void *arg2,
-                      void *arg3, void *arg4, void *arg5);
     void (*handler_7)(Monitor *mon, void *arg0, void *arg1, void *arg2,
                       void *arg3, void *arg4, void *arg5, void *arg6);
     void (*handler_8)(Monitor *mon, void *arg0, void *arg1, void *arg2,
@@ -2889,12 +2890,9 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     case 3:
     case 4:
     case 5:
+    case 6:
         handler_d = cmd->handler;
         handler_d(mon, qdict);
-        break;
-    case 6:
-        handler_6 = cmd->handler;
-        handler_6(mon, args[0], args[1], args[2], args[3], args[4], args[5]);
         break;
     case 7:
         handler_7 = cmd->handler;
