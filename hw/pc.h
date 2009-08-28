@@ -117,10 +117,13 @@ void pcspk_init(PITState *);
 int pcspk_audio_init(qemu_irq *pic);
 
 /* piix_pci.c */
-PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic);
-void i440fx_set_smm(PCIDevice *d, int val);
+struct PCII440FXState;
+typedef struct PCII440FXState PCII440FXState;
+
+PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic);
+void i440fx_set_smm(PCII440FXState *d, int val);
 int piix3_init(PCIBus *bus, int devfn);
-void i440fx_init_memory_mappings(PCIDevice *d);
+void i440fx_init_memory_mappings(PCII440FXState *d);
 
 /* piix4.c */
 extern PCIDevice *piix4_dev;

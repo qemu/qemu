@@ -62,7 +62,7 @@
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
-static PCIDevice *i440fx_state;
+static PCII440FXState *i440fx_state;
 
 typedef struct rom_reset_data {
     uint8_t *data;

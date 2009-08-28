@@ -33,6 +33,10 @@ typedef uint32_t pci_addr_t;
 
 typedef PCIHostState I440FXState;
 
+struct PCII440FXState {
+    PCIDevice dev;
+};
+
 static void i440fx_addr_writel(void* opaque, uint32_t addr, uint32_t val)
 {
     I440FXState *s = opaque;
@@ -61,7 +65,7 @@ static target_phys_addr_t isa_page_descs[384 / 4];
 static uint8_t smm_enabled;
 static int pci_irq_levels[4];
 
-static void update_pam(PCIDevice *d, uint32_t start, uint32_t end, int r)
+static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r)
 {
     uint32_t addr;
 
@@ -88,17 +92,17 @@ static void update_pam(PCIDevice *d, uint32_t start, uint32_t end, int r)
     }
 }
 
-static void i440fx_update_memory_mappings(PCIDevice *d)
+static void i440fx_update_memory_mappings(PCII440FXState *d)
 {
     int i, r;
     uint32_t smram, addr;
 
-    update_pam(d, 0xf0000, 0x100000, (d->config[0x59] >> 4) & 3);
+    update_pam(d, 0xf0000, 0x100000, (d->dev.config[0x59] >> 4) & 3);
     for(i = 0; i < 12; i++) {
-        r = (d->config[(i >> 1) + 0x5a] >> ((i & 1) * 4)) & 3;
+        r = (d->dev.config[(i >> 1) + 0x5a] >> ((i & 1) * 4)) & 3;
         update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r);
     }
-    smram = d->config[0x72];
+    smram = d->dev.config[0x72];
     if ((smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
         cpu_register_physical_memory(0xa0000, 0x20000, 0xa0000);
     } else {
@@ -109,7 +113,7 @@ static void i440fx_update_memory_mappings(PCIDevice *d)
     }
 }
 
-void i440fx_set_smm(PCIDevice *d, int val)
+void i440fx_set_smm(PCII440FXState *d, int val)
 {
     val = (val != 0);
     if (smm_enabled != val) {
@@ -122,7 +126,7 @@ void i440fx_set_smm(PCIDevice *d, int val)
 /* XXX: suppress when better memory API. We make the assumption that
    no device (in particular the VGA) changes the memory mappings in
    the 0xa0000-0x100000 range */
-void i440fx_init_memory_mappings(PCIDevice *d)
+void i440fx_init_memory_mappings(PCII440FXState *d)
 {
     int i;
     for(i = 0; i < 96; i++) {
@@ -130,21 +134,23 @@ void i440fx_init_memory_mappings(PCIDevice *d)
     }
 }
 
-static void i440fx_write_config(PCIDevice *d,
+static void i440fx_write_config(PCIDevice *dev,
                                 uint32_t address, uint32_t val, int len)
 {
+    PCII440FXState *d = DO_UPCAST(PCII440FXState, dev, dev);
+
     /* XXX: implement SMRAM.D_LOCK */
-    pci_default_write_config(d, address, val, len);
+    pci_default_write_config(dev, address, val, len);
     if ((address >= 0x59 && address <= 0x5f) || address == 0x72)
         i440fx_update_memory_mappings(d);
 }
 
 static void i440fx_save(QEMUFile* f, void *opaque)
 {
-    PCIDevice *d = opaque;
+    PCII440FXState *d = opaque;
     int i;
 
-    pci_device_save(d, f);
+    pci_device_save(&d->dev, f);
     qemu_put_8s(f, &smm_enabled);
 
     for (i = 0; i < 4; i++)
@@ -153,12 +159,12 @@ static void i440fx_save(QEMUFile* f, void *opaque)
 
 static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
 {
-    PCIDevice *d = opaque;
+    PCII440FXState *d = opaque;
     int ret, i;
 
     if (version_id > 2)
         return -EINVAL;
-    ret = pci_device_load(d, f);
+    ret = pci_device_load(&d->dev, f);
     if (ret < 0)
         return ret;
     i440fx_update_memory_mappings(d);
@@ -187,21 +193,23 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static int i440fx_initfn(PCIDevice *d)
+static int i440fx_initfn(PCIDevice *dev)
 {
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_INTEL_82441);
-    d->config[0x08] = 0x02; // revision
-    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
+    PCII440FXState *d = DO_UPCAST(PCII440FXState, dev, dev);
 
-    d->config[0x72] = 0x02; /* SMRAM */
+    pci_config_set_vendor_id(d->dev.config, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82441);
+    d->dev.config[0x08] = 0x02; // revision
+    pci_config_set_class(d->dev.config, PCI_CLASS_BRIDGE_HOST);
+    d->dev.config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
+
+    d->dev.config[0x72] = 0x02; /* SMRAM */
 
     register_savevm("I440FX", 0, 2, i440fx_save, i440fx_load, d);
     return 0;
 }
 
-PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
+PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic)
 {
     DeviceState *dev;
     PCIBus *b;
@@ -216,7 +224,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
     qdev_init(dev);
 
     d = pci_create_simple(b, 0, "i440FX");
-    *pi440fx_state = d;
+    *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
     return b;
 }
@@ -332,7 +340,7 @@ static PCIDeviceInfo i440fx_info[] = {
     {
         .qdev.name    = "i440FX",
         .qdev.desc    = "Host bridge",
-        .qdev.size    = sizeof(PCIDevice),
+        .qdev.size    = sizeof(PCII440FXState),
         .qdev.no_user = 1,
         .init         = i440fx_initfn,
         .config_write = i440fx_write_config,
