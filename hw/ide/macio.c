@@ -279,13 +279,13 @@ static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc *pmac_ide_write[] = {
+static CPUWriteMemoryFunc * const pmac_ide_write[] = {
     pmac_ide_writeb,
     pmac_ide_writew,
     pmac_ide_writel,
 };
 
-static CPUReadMemoryFunc *pmac_ide_read[] = {
+static CPUReadMemoryFunc * const pmac_ide_read[] = {
     pmac_ide_readb,
     pmac_ide_readw,
     pmac_ide_readl,
