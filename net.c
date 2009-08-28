@@ -897,8 +897,7 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
     }
 }
 
-void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
-                              const char *arg2, const char *arg3)
+void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
     int host_port;
@@ -907,6 +906,9 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
     SlirpState *s;
     int is_udp = 0;
     int err;
+    const char *arg1 = qdict_get_str(qdict, "arg1");
+    const char *arg2 = qdict_get_try_str(qdict, "arg2");
+    const char *arg3 = qdict_get_try_str(qdict, "arg3");
 
     if (arg2) {
         s = slirp_lookup(mon, arg1, arg2);
@@ -1016,11 +1018,13 @@ static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
     config_error(mon, "invalid host forwarding rule '%s'\n", redir_str);
 }
 
-void net_slirp_hostfwd_add(Monitor *mon, const char *arg1,
-                           const char *arg2, const char *arg3)
+void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict)
 {
     const char *redir_str;
     SlirpState *s;
+    const char *arg1 = qdict_get_str(qdict, "arg1");
+    const char *arg2 = qdict_get_try_str(qdict, "arg2");
+    const char *arg3 = qdict_get_try_str(qdict, "arg3");
 
     if (arg2) {
         s = slirp_lookup(mon, arg1, arg2);

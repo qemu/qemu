@@ -138,10 +138,8 @@ int net_client_init(Monitor *mon, const char *device, const char *p);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);
 void net_slirp_smb(const char *exported_dir);
-void net_slirp_hostfwd_add(Monitor *mon, const char *arg1,
-                           const char *arg2, const char *arg3);
-void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
-                              const char *arg2, const char *arg3);
+void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
+void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict);
 void net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
 void net_client_check(void);

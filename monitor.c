@@ -517,9 +517,11 @@ static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
     }
 }
 
-static void do_change(Monitor *mon, const char *device, const char *target,
-                      const char *arg)
+static void do_change(Monitor *mon, const QDict *qdict)
 {
+    const char *device = qdict_get_str(qdict, "device");
+    const char *target = qdict_get_str(qdict, "target");
+    const char *arg = qdict_get_try_str(qdict, "arg");
     if (strcmp(device, "vnc") == 0) {
         do_change_vnc(mon, target, arg);
     } else {
@@ -1112,12 +1114,14 @@ static void release_keys(void *opaque)
     }
 }
 
-static void do_sendkey(Monitor *mon, const char *string, int has_hold_time,
-                       int hold_time)
+static void do_sendkey(Monitor *mon, const QDict *qdict)
 {
     char keyname_buf[16];
     char *separator;
     int keyname_len, keycode, i;
+    const char *string = qdict_get_str(qdict, "string");
+    int has_hold_time = qdict_haskey(qdict, "hold_time");
+    int hold_time = qdict_get_try_int(qdict, "hold_time", -1);
 
     if (nb_pending_keycodes > 0) {
         qemu_del_timer(key_timer);
@@ -1166,10 +1170,12 @@ static void do_sendkey(Monitor *mon, const char *string, int has_hold_time,
 
 static int mouse_button_state;
 
-static void do_mouse_move(Monitor *mon, const char *dx_str, const char *dy_str,
-                          const char *dz_str)
+static void do_mouse_move(Monitor *mon, const QDict *qdict)
 {
     int dx, dy, dz;
+    const char *dx_str = qdict_get_str(qdict, "dx_str");
+    const char *dy_str = qdict_get_str(qdict, "dy_str");
+    const char *dz_str = qdict_get_try_str(qdict, "dz_str");
     dx = strtol(dx_str, NULL, 0);
     dy = strtol(dy_str, NULL, 0);
     dz = 0;
@@ -2579,7 +2585,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
     void (*handler_d)(Monitor *mon, const QDict *qdict);
-    void (*handler_3)(Monitor *mon, void *arg0, void *arg1, void *arg2);
     void (*handler_4)(Monitor *mon, void *arg0, void *arg1, void *arg2,
                       void *arg3);
     void (*handler_5)(Monitor *mon, void *arg0, void *arg1, void *arg2,
@@ -2872,12 +2877,9 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     case 0:
     case 1:
     case 2:
+    case 3:
         handler_d = cmd->handler;
         handler_d(mon, qdict);
-        break;
-    case 3:
-        handler_3 = cmd->handler;
-        handler_3(mon, args[0], args[1], args[2]);
         break;
     case 4:
         handler_4 = cmd->handler;
