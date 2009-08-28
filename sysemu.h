@@ -212,6 +212,7 @@ void destroy_bdrvs(dev_match_fn *match_fn, void *arg);
 void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
                         const char *opts);
 void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts);
+void do_pci_device_hot_remove(Monitor *mon, const char *pci_addr);
 void pci_device_hot_remove(Monitor *mon, const char *pci_addr);
 void pci_device_hot_remove_success(int pcibus, int slot);
 

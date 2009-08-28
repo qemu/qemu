@@ -251,6 +251,11 @@ static void help_cmd(Monitor *mon, const char *name)
     }
 }
 
+static void do_help_cmd(Monitor *mon, const char *name)
+{
+    help_cmd(mon, name);
+}
+
 static void do_commit(Monitor *mon, const char *device)
 {
     int all_devices;

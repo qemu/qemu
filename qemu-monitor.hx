@@ -9,7 +9,7 @@ STEXI
 @table @option
 ETEXI
 
-    { "help|?", "s?", help_cmd, "[cmd]", "show the help" },
+    { "help|?", "s?", do_help_cmd, "[cmd]", "show the help" },
 STEXI
 @item help or ? [@var{cmd}]
 Show the help for all commands or just for command @var{cmd}.
@@ -517,7 +517,7 @@ Hot-add PCI device.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_del", "s", pci_device_hot_remove, "[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
+    { "pci_del", "s", do_pci_device_hot_remove, "[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
 #endif
 STEXI
 @item pci_del
