@@ -317,33 +317,17 @@ static void piix3_reset(void *opaque)
     memset(d->pci_irq_levels, 0, sizeof(d->pci_irq_levels));
 }
 
-static void piix3_save(QEMUFile* f, void *opaque)
-{
-    PIIX3State *d = opaque;
-    int i;
-
-    pci_device_save(&d->dev, f);
-
-    for (i = 0; i < 4; i++)
-        qemu_put_be32(f, d->pci_irq_levels[i]);
-}
-
-static int piix3_load(QEMUFile* f, void *opaque, int version_id)
-{
-    PIIX3State *d = opaque;
-    int i, ret;
-
-    if (version_id > 3 || version_id < 2)
-        return -EINVAL;
-    ret = pci_device_load(&d->dev, f);
-    if (ret < 0)
-        return ret;
-    if (version_id >= 3) {
-        for (i = 0; i < 4; i++)
-            d->pci_irq_levels[i] = qemu_get_be32(f);
+static const VMStateDescription vmstate_piix3 = {
+    .name = "PIIX3",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, PIIX3State),
+        VMSTATE_INT32_ARRAY_V(pci_irq_levels, PIIX3State, 4, 3),
+        VMSTATE_END_OF_LIST()
     }
-    return 0;
-}
+};
 
 static int piix3_initfn(PCIDevice *dev)
 {
@@ -351,7 +335,7 @@ static int piix3_initfn(PCIDevice *dev)
     uint8_t *pci_conf;
 
     isa_bus_new(&d->dev.qdev);
-    register_savevm("PIIX3", 0, 3, piix3_save, piix3_load, d);
+    vmstate_register(0, &vmstate_piix3, d);
 
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
