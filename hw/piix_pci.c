@@ -157,13 +157,9 @@ static void i440fx_write_config(PCIDevice *dev,
 static void i440fx_save(QEMUFile* f, void *opaque)
 {
     PCII440FXState *d = opaque;
-    int i;
 
     pci_device_save(&d->dev, f);
     qemu_put_8s(f, &d->smm_enabled);
-
-    for (i = 0; i < 4; i++)
-        qemu_put_be32(f, d->irq_state->piix3->pci_irq_levels[i]);
 }
 
 static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
@@ -171,7 +167,7 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
     PCII440FXState *d = opaque;
     int ret, i;
 
-    if (version_id > 2)
+    if (version_id > 3)
         return -EINVAL;
     ret = pci_device_load(&d->dev, f);
     if (ret < 0)
@@ -179,7 +175,7 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
     i440fx_update_memory_mappings(d);
     qemu_get_8s(f, &d->smm_enabled);
 
-    if (version_id >= 2)
+    if (version_id == 2)
         for (i = 0; i < 4; i++)
             d->irq_state->piix3->pci_irq_levels[i] = qemu_get_be32(f);
 
@@ -214,7 +210,7 @@ static int i440fx_initfn(PCIDevice *dev)
 
     d->dev.config[0x72] = 0x02; /* SMRAM */
 
-    register_savevm("I440FX", 0, 2, i440fx_save, i440fx_load, d);
+    register_savevm("I440FX", 0, 3, i440fx_save, i440fx_load, d);
     return 0;
 }
 
@@ -309,18 +305,32 @@ static void piix3_reset(void *opaque)
     memset(d->pci_irq_levels, 0, sizeof(d->pci_irq_levels));
 }
 
-static void piix_save(QEMUFile* f, void *opaque)
+static void piix3_save(QEMUFile* f, void *opaque)
 {
-    PCIDevice *d = opaque;
-    pci_device_save(d, f);
+    PIIX3State *d = opaque;
+    int i;
+
+    pci_device_save(&d->dev, f);
+
+    for (i = 0; i < 4; i++)
+        qemu_put_be32(f, d->pci_irq_levels[i]);
 }
 
-static int piix_load(QEMUFile* f, void *opaque, int version_id)
+static int piix3_load(QEMUFile* f, void *opaque, int version_id)
 {
-    PCIDevice *d = opaque;
-    if (version_id != 2)
+    PIIX3State *d = opaque;
+    int i, ret;
+
+    if (version_id > 3 || version_id < 2)
         return -EINVAL;
-    return pci_device_load(d, f);
+    ret = pci_device_load(&d->dev, f);
+    if (ret < 0)
+        return ret;
+    if (version_id >= 3) {
+        for (i = 0; i < 4; i++)
+            d->pci_irq_levels[i] = qemu_get_be32(f);
+    }
+    return 0;
 }
 
 static int piix3_initfn(PCIDevice *dev)
@@ -329,7 +339,7 @@ static int piix3_initfn(PCIDevice *dev)
     uint8_t *pci_conf;
 
     isa_bus_new(&d->dev.qdev);
-    register_savevm("PIIX3", 0, 2, piix_save, piix_load, d);
+    register_savevm("PIIX3", 0, 3, piix3_save, piix3_load, d);
 
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
