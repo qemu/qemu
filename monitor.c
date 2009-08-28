@@ -2583,12 +2583,11 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               QDict *qdict)
 {
     const char *p, *typestr;
-    int c, nb_args, has_arg;
+    int c;
     const mon_cmd_t *cmd;
     char cmdname[256];
     char buf[1024];
     char *key;
-    void *args[MAX_ARGS];
 
 #ifdef DEBUG
     monitor_printf(mon, "command='%s'\n", cmdline);
@@ -2612,7 +2611,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
 
     /* parse the parameters */
     typestr = cmd->args_type;
-    nb_args = 0;
     for(;;) {
         typestr = key_get_info(typestr, &key);
         if (!typestr)
@@ -2625,7 +2623,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
         case 's':
             {
                 int ret;
-                char *str;
 
                 while (qemu_isspace(*p))
                     p++;
@@ -2633,8 +2630,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     typestr++;
                     if (*p == '\0') {
                         /* no optional string: NULL argument */
-                        str = NULL;
-                        goto add_str;
+                        break;
                     }
                 }
                 ret = get_str(buf, sizeof(buf), &p);
@@ -2654,18 +2650,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     }
                     goto fail;
                 }
-                str = qemu_malloc(strlen(buf) + 1);
-                pstrcpy(str, sizeof(buf), buf);
-            add_str:
-                if (nb_args >= MAX_ARGS) {
-                error_args:
-                    monitor_printf(mon, "%s: too many arguments\n", cmdname);
-                    goto fail;
-                }
-                args[nb_args++] = str;
-                if (str)
-                    qdict_put(qdict, key, qstring_from_str(str));
-                qemu_free(str);
+                qdict_put(qdict, key, qstring_from_str(buf));
             }
             break;
         case '/':
@@ -2742,11 +2727,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                         size = -1;
                     }
                 }
-                if (nb_args + 3 > MAX_ARGS)
-                    goto error_args;
-                args[nb_args++] = (void*)(long)count;
-                args[nb_args++] = (void*)(long)format;
-                args[nb_args++] = (void*)(long)size;
                 qdict_put(qdict, "count", qint_from_int(count));
                 qdict_put(qdict, "format", qint_from_int(format));
                 qdict_put(qdict, "size", qint_from_int(size));
@@ -2756,58 +2736,30 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
         case 'l':
             {
                 int64_t val;
-                int dict_add = 1;
 
                 while (qemu_isspace(*p))
                     p++;
                 if (*typestr == '?' || *typestr == '.') {
                     if (*typestr == '?') {
-                        if (*p == '\0')
-                            has_arg = 0;
-                        else
-                            has_arg = 1;
+                        if (*p == '\0') {
+                            typestr++;
+                            break;
+                        }
                     } else {
                         if (*p == '.') {
                             p++;
                             while (qemu_isspace(*p))
                                 p++;
-                            has_arg = 1;
                         } else {
-                            has_arg = 0;
+                            typestr++;
+                            break;
                         }
                     }
                     typestr++;
-                    if (nb_args >= MAX_ARGS)
-                        goto error_args;
-                    dict_add = has_arg;
-                    args[nb_args++] = (void *)(long)has_arg;
-                    if (!has_arg) {
-                        if (nb_args >= MAX_ARGS)
-                            goto error_args;
-                        val = -1;
-                        goto add_num;
-                    }
                 }
                 if (get_expr(mon, &val, &p))
                     goto fail;
-            add_num:
-                if (c == 'i') {
-                    if (nb_args >= MAX_ARGS)
-                        goto error_args;
-                    args[nb_args++] = (void *)(long)val;
-                    if (dict_add)
-                        qdict_put(qdict, key, qint_from_int(val));
-                } else {
-                    if ((nb_args + 1) >= MAX_ARGS)
-                        goto error_args;
-#if TARGET_PHYS_ADDR_BITS > 32
-                    args[nb_args++] = (void *)(long)((val >> 32) & 0xffffffff);
-#else
-                    args[nb_args++] = (void *)0;
-#endif
-                    args[nb_args++] = (void *)(long)(val & 0xffffffff);
-                    qdict_put(qdict, key, qint_from_int(val));
-                }
+                qdict_put(qdict, key, qint_from_int(val));
             }
             break;
         case '-':
@@ -2831,9 +2783,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     p++;
                     has_option = 1;
                 }
-                if (nb_args >= MAX_ARGS)
-                    goto error_args;
-                args[nb_args++] = (void *)(long)has_option;
                 qdict_put(qdict, key, qint_from_int(has_option));
             }
             break;
