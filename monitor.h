@@ -3,6 +3,7 @@
 
 #include "qemu-common.h"
 #include "qemu-char.h"
+#include "qdict.h"
 #include "block.h"
 
 extern Monitor *cur_mon;
