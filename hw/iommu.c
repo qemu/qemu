@@ -328,30 +328,17 @@ void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void iommu_save(QEMUFile *f, void *opaque)
-{
-    IOMMUState *s = opaque;
-    int i;
-
-    for (i = 0; i < IOMMU_NREGS; i++)
-        qemu_put_be32s(f, &s->regs[i]);
-    qemu_put_be64s(f, &s->iostart);
-}
-
-static int iommu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    IOMMUState *s = opaque;
-    int i;
-
-    if (version_id != 2)
-        return -EINVAL;
-
-    for (i = 0; i < IOMMU_NREGS; i++)
-        qemu_get_be32s(f, &s->regs[i]);
-    qemu_get_be64s(f, &s->iostart);
-
-    return 0;
-}
+static const VMStateDescription vmstate_iommu = {
+    .name ="iommu",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(regs, IOMMUState, IOMMU_NREGS),
+        VMSTATE_UINT64(iostart, IOMMUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void iommu_reset(void *opaque)
 {
@@ -376,7 +363,7 @@ static int iommu_init1(SysBusDevice *dev)
     io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s);
     sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
 
-    register_savevm("iommu", -1, 2, iommu_save, iommu_load, s);
+    vmstate_register(-1, &vmstate_iommu, s);
     qemu_register_reset(iommu_reset, s);
     iommu_reset(s);
     return 0;
