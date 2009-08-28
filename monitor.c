@@ -2605,12 +2605,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
     void (*handler_d)(Monitor *mon, const QDict *qdict);
-    void (*handler_8)(Monitor *mon, void *arg0, void *arg1, void *arg2,
-                      void *arg3, void *arg4, void *arg5, void *arg6,
-                      void *arg7);
-    void (*handler_9)(Monitor *mon, void *arg0, void *arg1, void *arg2,
-                      void *arg3, void *arg4, void *arg5, void *arg6,
-                      void *arg7, void *arg8);
     void (*handler_10)(Monitor *mon, void *arg0, void *arg1, void *arg2,
                        void *arg3, void *arg4, void *arg5, void *arg6,
                        void *arg7, void *arg8, void *arg9);
@@ -2896,16 +2890,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     case 7:
         handler_d = cmd->handler;
         handler_d(mon, qdict);
-        break;
-    case 8:
-        handler_8 = cmd->handler;
-        handler_8(mon, args[0], args[1], args[2], args[3], args[4], args[5],
-                  args[6], args[7]);
-        break;
-    case 9:
-        handler_9 = cmd->handler;
-        handler_9(mon, args[0], args[1], args[2], args[3], args[4], args[5],
-                  args[6], args[7], args[8]);
         break;
     case 10:
         handler_10 = cmd->handler;
