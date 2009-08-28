@@ -323,8 +323,6 @@ static void piix4_reset(void *opaque)
     pci_conf[0xab] = 0x00;
     pci_conf[0xac] = 0x00;
     pci_conf[0xae] = 0x00;
-
-    memset(pci_irq_levels, 0, sizeof(pci_irq_levels));
 }
 
 static void piix_save(QEMUFile* f, void *opaque)
