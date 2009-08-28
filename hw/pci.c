@@ -41,8 +41,6 @@ struct PCIBus {
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     uint32_t config_reg; /* XXX: suppress */
-    /* low level pic */
-    SetIRQFunc *low_set_irq;
     qemu_irq *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
