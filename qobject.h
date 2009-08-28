@@ -37,6 +37,7 @@
 
 typedef enum {
     QTYPE_NONE,
+    QTYPE_QINT,
 } qtype_code;
 
 struct QObject;
