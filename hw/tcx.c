@@ -378,41 +378,10 @@ static void tcx24_invalidate_display(void *opaque)
     qemu_console_resize(s->ds, s->width, s->height);
 }
 
-static void tcx_save(QEMUFile *f, void *opaque)
+static int vmstate_tcx_after_load(void *opaque)
 {
     TCXState *s = opaque;
 
-    qemu_put_be16s(f, &s->height);
-    qemu_put_be16s(f, &s->width);
-    qemu_put_be16s(f, &s->depth);
-    qemu_put_buffer(f, s->r, 256);
-    qemu_put_buffer(f, s->g, 256);
-    qemu_put_buffer(f, s->b, 256);
-    qemu_put_8s(f, &s->dac_index);
-    qemu_put_8s(f, &s->dac_state);
-}
-
-static int tcx_load(QEMUFile *f, void *opaque, int version_id)
-{
-    TCXState *s = opaque;
-    uint32_t dummy;
-
-    if (version_id != 3 && version_id != 4)
-        return -EINVAL;
-
-    if (version_id == 3) {
-        qemu_get_be32s(f, &dummy);
-        qemu_get_be32s(f, &dummy);
-        qemu_get_be32s(f, &dummy);
-    }
-    qemu_get_be16s(f, &s->height);
-    qemu_get_be16s(f, &s->width);
-    qemu_get_be16s(f, &s->depth);
-    qemu_get_buffer(f, s->r, 256);
-    qemu_get_buffer(f, s->g, 256);
-    qemu_get_buffer(f, s->b, 256);
-    qemu_get_8s(f, &s->dac_index);
-    qemu_get_8s(f, &s->dac_state);
     update_palette_entries(s, 0, 256);
     if (s->depth == 24) {
         tcx24_set_dirty(s);
@@ -422,6 +391,25 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
+
+static const VMStateDescription vmstate_tcx = {
+    .name ="tcx",
+    .version_id = 4,
+    .minimum_version_id = 4,
+    .minimum_version_id_old = 4,
+    .run_after_load = vmstate_tcx_after_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16(height, TCXState),
+        VMSTATE_UINT16(width, TCXState),
+        VMSTATE_UINT16(depth, TCXState),
+        VMSTATE_BUFFER(r, TCXState),
+        VMSTATE_BUFFER(g, TCXState),
+        VMSTATE_BUFFER(b, TCXState),
+        VMSTATE_UINT8(dac_index, TCXState),
+        VMSTATE_UINT8(dac_state, TCXState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void tcx_reset(void *opaque)
 {
@@ -572,7 +560,7 @@ static int tcx_init1(SysBusDevice *dev)
                                      tcx_screen_dump, NULL, s);
     }
 
-    register_savevm("tcx", -1, 4, tcx_save, tcx_load, s);
+    vmstate_register(-1, &vmstate_tcx, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
     qemu_console_resize(s->ds, s->width, s->height);
