@@ -33,6 +33,10 @@ typedef uint32_t pci_addr_t;
 
 typedef PCIHostState I440FXState;
 
+typedef struct PIIX3State {
+    PCIDevice dev;
+} PIIX3State;
+
 struct PCII440FXState {
     PCIDevice dev;
     target_phys_addr_t isa_page_descs[384 / 4];
@@ -231,7 +235,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, qemu_irq *pic)
 
 /* PIIX3 PCI to ISA bridge */
 
-static PCIDevice *piix3_dev;
+static PIIX3State *piix3_dev;
 
 static void piix3_set_irq(void *opaque, int irq_num, int level)
 {
@@ -242,13 +246,13 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
-    pic_irq = piix3_dev->config[0x60 + irq_num];
+    pic_irq = piix3_dev->dev.config[0x60 + irq_num];
     if (pic_irq < 16) {
         /* The pic level is the logical OR of all the PCI irqs mapped
            to it */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == piix3_dev->config[0x60 + i])
+            if (pic_irq == piix3_dev->dev.config[0x60 + i])
                 pic_level |= pci_irq_levels[i];
         }
         qemu_set_irq(pic[pic_irq], pic_level);
@@ -257,8 +261,8 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
 
 static void piix3_reset(void *opaque)
 {
-    PCIDevice *d = opaque;
-    uint8_t *pci_conf = d->config;
+    PIIX3State *d = opaque;
+    uint8_t *pci_conf = d->dev.config;
 
     pci_conf[0x04] = 0x07; // master, memory and I/O
     pci_conf[0x05] = 0x00;
@@ -309,14 +313,15 @@ static int piix_load(QEMUFile* f, void *opaque, int version_id)
     return pci_device_load(d, f);
 }
 
-static int piix3_initfn(PCIDevice *d)
+static int piix3_initfn(PCIDevice *dev)
 {
+    PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
     uint8_t *pci_conf;
 
-    isa_bus_new(&d->qdev);
+    isa_bus_new(&d->dev.qdev);
     register_savevm("PIIX3", 0, 2, piix_save, piix_load, d);
 
-    pci_conf = d->config;
+    pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_0); // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
@@ -348,7 +353,7 @@ static PCIDeviceInfo i440fx_info[] = {
     },{
         .qdev.name    = "PIIX3",
         .qdev.desc    = "ISA bridge",
-        .qdev.size    = sizeof(PCIDevice),
+        .qdev.size    = sizeof(PIIX3State),
         .qdev.no_user = 1,
         .init         = piix3_initfn,
     },{
