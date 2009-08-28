@@ -80,7 +80,7 @@ void do_migrate(Monitor *mon, int detach, const char *uri)
     }
 }
 
-void do_migrate_cancel(Monitor *mon)
+void do_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     MigrationState *s = current_migration;
 

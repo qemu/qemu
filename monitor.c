@@ -426,7 +426,7 @@ static void do_info_cpu_stats(Monitor *mon)
 }
 #endif
 
-static void do_quit(Monitor *mon)
+static void do_quit(Monitor *mon, const QDict *qdict)
 {
     exit(0);
 }
@@ -559,7 +559,7 @@ static void do_singlestep(Monitor *mon, const char *option)
     }
 }
 
-static void do_stop(Monitor *mon)
+static void do_stop(Monitor *mon, const QDict *qdict)
 {
     vm_stop(EXCP_INTERRUPT);
 }
@@ -571,7 +571,7 @@ struct bdrv_iterate_context {
     int err;
 };
 
-static void do_cont(Monitor *mon)
+static void do_cont(Monitor *mon, const QDict *qdict)
 {
     struct bdrv_iterate_context context = { mon, 0 };
 
@@ -587,7 +587,7 @@ static void bdrv_key_cb(void *opaque, int err)
 
     /* another key was set successfully, retry to continue */
     if (!err)
-        do_cont(mon);
+        do_cont(mon, NULL);
 }
 
 static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
@@ -1238,12 +1238,12 @@ static void do_boot_set(Monitor *mon, const char *bootdevice)
     }
 }
 
-static void do_system_reset(Monitor *mon)
+static void do_system_reset(Monitor *mon, const QDict *qdict)
 {
     qemu_system_reset_request();
 }
 
-static void do_system_powerdown(Monitor *mon)
+static void do_system_powerdown(Monitor *mon, const QDict *qdict)
 {
     qemu_system_powerdown_request();
 }
@@ -2554,7 +2554,7 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     QDict *qdict;
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
-    void (*handler_0)(Monitor *mon);
+    void (*handler_d)(Monitor *mon, const QDict *qdict);
     void (*handler_1)(Monitor *mon, void *arg0);
     void (*handler_2)(Monitor *mon, void *arg0, void *arg1);
     void (*handler_3)(Monitor *mon, void *arg0, void *arg1, void *arg2);
@@ -2848,8 +2848,8 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     qemu_errors_to_mon(mon);
     switch(nb_args) {
     case 0:
-        handler_0 = cmd->handler;
-        handler_0(mon);
+        handler_d = cmd->handler;
+        handler_d(mon, qdict);
         break;
     case 1:
         handler_1 = cmd->handler;
