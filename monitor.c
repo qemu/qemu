@@ -2759,6 +2759,12 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 }
                 if (get_expr(mon, &val, &p))
                     goto fail;
+                /* Check if 'i' is greater than 32-bit */
+                if ((c == 'i') && ((val >> 32) & 0xffffffff)) {
+                    monitor_printf(mon, "\'%s\' has failed: ", cmdname);
+                    monitor_printf(mon, "integer is for 32-bit values\n");
+                    goto fail;
+                }
                 qdict_put(qdict, key, qint_from_int(val));
             }
             break;
