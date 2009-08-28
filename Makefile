@@ -91,7 +91,7 @@ obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 obj-y += qemu-char.o aio.o net-checksum.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o ssi.o
-obj-y += qint.o qstring.o
+obj-y += qint.o qstring.o qdict.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o
