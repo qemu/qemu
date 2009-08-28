@@ -452,9 +452,11 @@ static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
     return 0;
 }
 
-static void do_eject(Monitor *mon, int force, const char *filename)
+static void do_eject(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs;
+    int force = qdict_get_int(qdict, "force");
+    const char *filename = qdict_get_str(qdict, "filename");
 
     bs = bdrv_find(filename);
     if (!bs) {
@@ -912,11 +914,13 @@ static void do_physical_memory_save(Monitor *mon, unsigned int valh,
     fclose(f);
 }
 
-static void do_sum(Monitor *mon, uint32_t start, uint32_t size)
+static void do_sum(Monitor *mon, const QDict *qdict)
 {
     uint32_t addr;
     uint8_t buf[1];
     uint16_t sum;
+    uint32_t start = qdict_get_int(qdict, "start");
+    uint32_t size = qdict_get_int(qdict, "size");
 
     sum = 0;
     for(addr = start; addr < (start + size); addr++) {
@@ -1600,9 +1604,10 @@ static void do_acl_reset(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_acl_policy(Monitor *mon, const char *aclname,
-                          const char *policy)
+static void do_acl_policy(Monitor *mon, const QDict *qdict)
 {
+    const char *aclname = qdict_get_str(qdict, "aclname");
+    const char *policy = qdict_get_str(qdict, "policy");
     qemu_acl *acl = find_acl(mon, aclname);
 
     if (acl) {
@@ -1647,8 +1652,10 @@ static void do_acl_add(Monitor *mon, const char *aclname,
     }
 }
 
-static void do_acl_remove(Monitor *mon, const char *aclname, const char *match)
+static void do_acl_remove(Monitor *mon, const QDict *qdict)
 {
+    const char *aclname = qdict_get_str(qdict, "aclname");
+    const char *match = qdict_get_str(qdict, "match");
     qemu_acl *acl = find_acl(mon, aclname);
     int ret;
 
@@ -2572,7 +2579,6 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
     void (*handler_d)(Monitor *mon, const QDict *qdict);
-    void (*handler_2)(Monitor *mon, void *arg0, void *arg1);
     void (*handler_3)(Monitor *mon, void *arg0, void *arg1, void *arg2);
     void (*handler_4)(Monitor *mon, void *arg0, void *arg1, void *arg2,
                       void *arg3);
@@ -2865,12 +2871,9 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     switch(nb_args) {
     case 0:
     case 1:
+    case 2:
         handler_d = cmd->handler;
         handler_d(mon, qdict);
-        break;
-    case 2:
-        handler_2 = cmd->handler;
-        handler_2(mon, args[0], args[1]);
         break;
     case 3:
         handler_3 = cmd->handler;

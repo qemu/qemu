@@ -2822,8 +2822,11 @@ static int net_host_check_device(const char *device)
     return 0;
 }
 
-void net_host_device_add(Monitor *mon, const char *device, const char *opts)
+void net_host_device_add(Monitor *mon, const QDict *qdict)
 {
+    const char *device = qdict_get_str(qdict, "device");
+    const char *opts = qdict_get_try_str(qdict, "opts");
+
     if (!net_host_check_device(device)) {
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
@@ -2833,9 +2836,11 @@ void net_host_device_add(Monitor *mon, const char *device, const char *opts)
     }
 }
 
-void net_host_device_remove(Monitor *mon, int vlan_id, const char *device)
+void net_host_device_remove(Monitor *mon, const QDict *qdict)
 {
     VLANClientState *vc;
+    int vlan_id = qdict_get_int(qdict, "vlan_id");
+    const char *device = qdict_get_str(qdict, "device");
 
     vc = qemu_find_vlan_client_by_name(mon, vlan_id, device);
     if (!vc) {
@@ -2900,10 +2905,12 @@ void do_info_network(Monitor *mon)
     }
 }
 
-void do_set_link(Monitor *mon, const char *name, const char *up_or_down)
+void do_set_link(Monitor *mon, const QDict *qdict)
 {
     VLANState *vlan;
     VLANClientState *vc = NULL;
+    const char *name = qdict_get_str(qdict, "name");
+    const char *up_or_down = qdict_get_str(qdict, "up_or_down");
 
     for (vlan = first_vlan; vlan != NULL; vlan = vlan->next)
         for (vc = vlan->first_client; vc != NULL; vc = vc->next)

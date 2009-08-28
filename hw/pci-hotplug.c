@@ -48,7 +48,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
     return pci_nic_init(&nd_table[ret], "rtl8139", devaddr);
 }
 
-void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
+void drive_hot_add(Monitor *mon, const QDict *qdict)
 {
     int dom, pci_bus;
     unsigned slot;
@@ -56,6 +56,8 @@ void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
     int success = 0;
     PCIDevice *dev;
     DriveInfo *dinfo;
+    const char *pci_addr = qdict_get_str(qdict, "pci_addr");
+    const char *opts = qdict_get_str(qdict, "opts");
 
     if (pci_read_devaddr(mon, pci_addr, &dom, &pci_bus, &slot)) {
         return;
