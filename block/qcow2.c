@@ -642,7 +642,7 @@ static int get_bits_from_size(size_t size)
 static int preallocate(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    uint64_t cluster_offset;
+    uint64_t cluster_offset = 0;
     uint64_t nb_sectors;
     uint64_t offset;
     int num;
