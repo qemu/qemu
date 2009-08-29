@@ -263,38 +263,18 @@ static CPUWriteMemoryFunc * const ecc_diag_mem_write[3] = {
     NULL,
 };
 
-static int ecc_load(QEMUFile *f, void *opaque, int version_id)
-{
-    ECCState *s = opaque;
-    int i;
-
-    if (version_id != 3)
-        return -EINVAL;
-
-    for (i = 0; i < ECC_NREGS; i++)
-        qemu_get_be32s(f, &s->regs[i]);
-
-    for (i = 0; i < ECC_DIAG_SIZE; i++)
-        qemu_get_8s(f, &s->diag[i]);
-
-    qemu_get_be32s(f, &s->version);
-
-    return 0;
-}
-
-static void ecc_save(QEMUFile *f, void *opaque)
-{
-    ECCState *s = opaque;
-    int i;
-
-    for (i = 0; i < ECC_NREGS; i++)
-        qemu_put_be32s(f, &s->regs[i]);
-
-    for (i = 0; i < ECC_DIAG_SIZE; i++)
-        qemu_put_8s(f, &s->diag[i]);
-
-    qemu_put_be32s(f, &s->version);
-}
+static const VMStateDescription vmstate_ecc = {
+    .name ="ECC",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(regs, ECCState, ECC_NREGS),
+        VMSTATE_BUFFER(diag, ECCState),
+        VMSTATE_UINT32(version, ECCState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void ecc_reset(void *opaque)
 {
@@ -330,7 +310,7 @@ static int ecc_init1(SysBusDevice *dev)
                                                ecc_diag_mem_write, s);
         sysbus_init_mmio(dev, ECC_DIAG_SIZE, ecc_io_memory);
     }
-    register_savevm("ECC", -1, 3, ecc_save, ecc_load, s);
+    vmstate_register(-1, &vmstate_ecc, s);
     qemu_register_reset(ecc_reset, s);
     ecc_reset(s);
     return 0;
