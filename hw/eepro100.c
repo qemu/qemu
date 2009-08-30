@@ -24,7 +24,7 @@
  *      Linux networking (i386 guest, i386 / ppc / ppc64 host) ok
  *      Linux networking e100 driver (mips / mipsel guest, i386 host) ok
  *      Linux networking eepro100 driver (mipsel guest) not ok
- *      Windows networking (Vista) ???
+ *      Windows networking (Vista) not ok
  *
  * References:
  *
