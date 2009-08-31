@@ -1302,22 +1302,24 @@ static int cirrus_vga_read_sr(CirrusVGAState * s)
     }
 }
 
-static int
-cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
+static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
 {
-    switch (reg_index) {
+    switch (s->vga.sr_index) {
     case 0x00:			// Standard VGA
     case 0x01:			// Standard VGA
     case 0x02:			// Standard VGA
     case 0x03:			// Standard VGA
     case 0x04:			// Standard VGA
-	return CIRRUS_HOOK_NOT_HANDLED;
+	s->vga.sr[s->vga.sr_index] = val & sr_mask[s->vga.sr_index];
+	if (s->vga.sr_index == 1)
+            s->vga.update_retrace_info(&s->vga);
+        break;
     case 0x06:			// Unlock Cirrus extensions
-	reg_value &= 0x17;
-	if (reg_value == 0x12) {
-	    s->vga.sr[reg_index] = 0x12;
+	val &= 0x17;
+	if (val == 0x12) {
+	    s->vga.sr[s->vga.sr_index] = 0x12;
 	} else {
-	    s->vga.sr[reg_index] = 0x0f;
+	    s->vga.sr[s->vga.sr_index] = 0x0f;
 	}
 	break;
     case 0x10:
@@ -1328,8 +1330,8 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0xb0:
     case 0xd0:
     case 0xf0:			// Graphics Cursor X
-	s->vga.sr[0x10] = reg_value;
-	s->hw_cursor_x = (reg_value << 3) | (reg_index >> 5);
+	s->vga.sr[0x10] = val;
+	s->hw_cursor_x = (val << 3) | (s->vga.sr_index >> 5);
 	break;
     case 0x11:
     case 0x31:
@@ -1339,8 +1341,8 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0xb1:
     case 0xd1:
     case 0xf1:			// Graphics Cursor Y
-	s->vga.sr[0x11] = reg_value;
-	s->hw_cursor_y = (reg_value << 3) | (reg_index >> 5);
+	s->vga.sr[0x11] = val;
+	s->hw_cursor_y = (val << 3) | (s->vga.sr_index >> 5);
 	break;
     case 0x07:			// Extended Sequencer Mode
     cirrus_update_memory_access(s);
@@ -1365,25 +1367,24 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x1d:			// VCLK 2 Denominator & Post
     case 0x1e:			// VCLK 3 Denominator & Post
     case 0x1f:			// BIOS Write Enable and MCLK select
-	s->vga.sr[reg_index] = reg_value;
+	s->vga.sr[s->vga.sr_index] = val;
 #ifdef DEBUG_CIRRUS
 	printf("cirrus: handled outport sr_index %02x, sr_value %02x\n",
-	       reg_index, reg_value);
+	       s->vga.sr_index, val);
 #endif
 	break;
     case 0x17:			// Configuration Readback and Extended Control
-	s->vga.sr[reg_index] = (s->vga.sr[reg_index] & 0x38) | (reg_value & 0xc7);
+	s->vga.sr[s->vga.sr_index] = (s->vga.sr[s->vga.sr_index] & 0x38)
+                                   | (val & 0xc7);
         cirrus_update_memory_access(s);
         break;
     default:
 #ifdef DEBUG_CIRRUS
-	printf("cirrus: outport sr_index %02x, sr_value %02x\n", reg_index,
-	       reg_value);
+	printf("cirrus: outport sr_index %02x, sr_value %02x\n",
+               s->vga.sr_index, val);
 #endif
 	break;
     }
-
-    return CIRRUS_HOOK_HANDLED;
 }
 
 /***************************************
@@ -2806,13 +2807,11 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	s->sr_index = val;
 	break;
     case 0x3c5:
-	if (cirrus_hook_write_sr(c, s->sr_index, val))
-	    break;
 #ifdef DEBUG_VGA_REG
 	printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
-	s->sr[s->sr_index] = val & sr_mask[s->sr_index];
-	if (s->sr_index == 1) s->update_retrace_info(s);
+	cirrus_vga_write_sr(c, val);
+        break;
 	break;
     case 0x3c6:
 	cirrus_write_hidden_dac(c, val);
