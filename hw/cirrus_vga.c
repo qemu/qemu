@@ -1236,19 +1236,17 @@ static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
  *
  ***************************************/
 
-static int
-cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
+static int cirrus_vga_read_sr(CirrusVGAState * s)
 {
-    switch (reg_index) {
+    switch (s->vga.sr_index) {
     case 0x00:			// Standard VGA
     case 0x01:			// Standard VGA
     case 0x02:			// Standard VGA
     case 0x03:			// Standard VGA
     case 0x04:			// Standard VGA
-	return CIRRUS_HOOK_NOT_HANDLED;
+	return s->vga.sr[s->vga.sr_index];
     case 0x06:			// Unlock Cirrus extensions
-	*reg_value = s->vga.sr[reg_index];
-	break;
+	return s->vga.sr[s->vga.sr_index];
     case 0x10:
     case 0x30:
     case 0x50:
@@ -1257,8 +1255,7 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0xb0:
     case 0xd0:
     case 0xf0:			// Graphics Cursor X
-	*reg_value = s->vga.sr[0x10];
-	break;
+	return s->vga.sr[0x10];
     case 0x11:
     case 0x31:
     case 0x51:
@@ -1267,8 +1264,7 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0xb1:
     case 0xd1:
     case 0xf1:			// Graphics Cursor Y
-	*reg_value = s->vga.sr[0x11];
-	break;
+	return s->vga.sr[0x11];
     case 0x05:			// ???
     case 0x07:			// Extended Sequencer Mode
     case 0x08:			// EEPROM Control
@@ -1294,19 +1290,16 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x1e:			// VCLK 3 Denominator & Post
     case 0x1f:			// BIOS Write Enable and MCLK select
 #ifdef DEBUG_CIRRUS
-	printf("cirrus: handled inport sr_index %02x\n", reg_index);
+	printf("cirrus: handled inport sr_index %02x\n", s->vga.sr_index);
 #endif
-	*reg_value = s->vga.sr[reg_index];
-	break;
+	return s->vga.sr[s->vga.sr_index];
     default:
 #ifdef DEBUG_CIRRUS
-	printf("cirrus: inport sr_index %02x\n", reg_index);
+	printf("cirrus: inport sr_index %02x\n", s->vga.sr_index);
 #endif
-	*reg_value = 0xff;
+	return 0xff;
 	break;
     }
-
-    return CIRRUS_HOOK_HANDLED;
 }
 
 static int
@@ -2687,9 +2680,8 @@ static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 	    val = s->sr_index;
 	    break;
 	case 0x3c5:
-	    if (cirrus_hook_read_sr(c, s->sr_index, &val))
-		break;
-	    val = s->sr[s->sr_index];
+	    val = cirrus_vga_read_sr(c);
+            break;
 #ifdef DEBUG_VGA_REG
 	    printf("vga: read SR%x = 0x%02x\n", s->sr_index, val);
 #endif
