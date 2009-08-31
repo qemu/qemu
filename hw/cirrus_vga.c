@@ -1634,10 +1634,9 @@ static int cirrus_vga_read_cr(CirrusVGAState * s, unsigned reg_index)
     }
 }
 
-static int
-cirrus_hook_write_cr(CirrusVGAState * s, unsigned reg_index, int reg_value)
+static void cirrus_vga_write_cr(CirrusVGAState * s, int reg_value)
 {
-    switch (reg_index) {
+    switch (s->vga.cr_index) {
     case 0x00:			// Standard VGA
     case 0x01:			// Standard VGA
     case 0x02:			// Standard VGA
@@ -1663,16 +1662,35 @@ cirrus_hook_write_cr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x16:			// Standard VGA
     case 0x17:			// Standard VGA
     case 0x18:			// Standard VGA
-	return CIRRUS_HOOK_NOT_HANDLED;
+	/* handle CR0-7 protection */
+	if ((s->vga.cr[0x11] & 0x80) && s->vga.cr_index <= 7) {
+	    /* can always write bit 4 of CR7 */
+	    if (s->vga.cr_index == 7)
+		s->vga.cr[7] = (s->vga.cr[7] & ~0x10) | (reg_value & 0x10);
+	    return;
+	}
+	s->vga.cr[s->vga.cr_index] = reg_value;
+	switch(s->vga.cr_index) {
+	case 0x00:
+	case 0x04:
+	case 0x05:
+	case 0x06:
+	case 0x07:
+	case 0x11:
+	case 0x17:
+	    s->vga.update_retrace_info(&s->vga);
+	    break;
+	}
+        break;
     case 0x19:			// Interlace End
     case 0x1a:			// Miscellaneous Control
     case 0x1b:			// Extended Display Control
     case 0x1c:			// Sync Adjust and Genlock
     case 0x1d:			// Overlay Extended Control
-	s->vga.cr[reg_index] = reg_value;
+	s->vga.cr[s->vga.cr_index] = reg_value;
 #ifdef DEBUG_CIRRUS
 	printf("cirrus: handled outport cr_index %02x, cr_value %02x\n",
-	       reg_index, reg_value);
+	       s->vga.cr_index, reg_value);
 #endif
 	break;
     case 0x22:			// Graphics Data Latches Readback (R)
@@ -1683,13 +1701,11 @@ cirrus_hook_write_cr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x25:			// Part Status
     default:
 #ifdef DEBUG_CIRRUS
-	printf("cirrus: outport cr_index %02x, cr_value %02x\n", reg_index,
-	       reg_value);
+	printf("cirrus: outport cr_index %02x, cr_value %02x\n",
+               s->vga.cr_index, reg_value);
 #endif
 	break;
     }
-
-    return CIRRUS_HOOK_HANDLED;
 }
 
 /***************************************
@@ -2826,31 +2842,10 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	break;
     case 0x3b5:
     case 0x3d5:
-	if (cirrus_hook_write_cr(c, s->cr_index, val))
-	    break;
 #ifdef DEBUG_VGA_REG
 	printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
-	/* handle CR0-7 protection */
-	if ((s->cr[0x11] & 0x80) && s->cr_index <= 7) {
-	    /* can always write bit 4 of CR7 */
-	    if (s->cr_index == 7)
-		s->cr[7] = (s->cr[7] & ~0x10) | (val & 0x10);
-	    return;
-	}
-	s->cr[s->cr_index] = val;
-
-	switch(s->cr_index) {
-	case 0x00:
-	case 0x04:
-	case 0x05:
-	case 0x06:
-	case 0x07:
-	case 0x11:
-	case 0x17:
-	    s->update_retrace_info(s);
-	    break;
-	}
+	cirrus_vga_write_cr(c, val);
 	break;
     case 0x3ba:
     case 0x3da:
