@@ -590,7 +590,7 @@ static inline void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ep->packey[dir].complete_opaque = ep;
 
     if (s->port.dev)
-        ret = s->port.dev->handle_packet(s->port.dev, &ep->packey[dir]);
+        ret = s->port.dev->info->handle_packet(s->port.dev, &ep->packey[dir]);
     else
         ret = USB_RET_NODEV;
 

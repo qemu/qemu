@@ -751,7 +751,7 @@ static int usb_host_handle_packet(USBDevice *s, USBPacket *p)
         s->remote_wakeup = 0;
         s->addr = 0;
         s->state = USB_STATE_DEFAULT;
-        s->handle_reset(s);
+        s->info->handle_reset(s);
         return 0;
     }
 
@@ -881,17 +881,18 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 }
 
+static int usb_host_initfn(USBDevice *dev)
+{
+    return 0;
+}
+
 static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *prod_name)
 {
     int fd = -1, ret;
-    USBHostDevice *dev = NULL;
+    USBDevice *d = NULL;
+    USBHostDevice *dev;
     struct usbdevfs_connectinfo ci;
     char buf[1024];
-
-    dev = qemu_mallocz(sizeof(USBHostDevice));
-
-    dev->bus_num = bus_num;
-    dev->addr = addr;
 
     printf("husb: open device %d.%d\n", bus_num, addr);
 
@@ -907,6 +908,12 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
         goto fail;
     }
     dprintf("husb: opened %s\n", buf);
+
+    d = usb_create_simple(NULL /* FIXME */, "USB Host Device");
+    dev = DO_UPCAST(USBHostDevice, dev, d);
+
+    dev->bus_num = bus_num;
+    dev->addr = addr;
 
     /* read the device description */
     dev->descr_len = read(fd, dev->descr, sizeof(dev->descr));
@@ -925,7 +932,6 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     }
 #endif
 
-    dev->fd = fd;
 
     /* 
      * Initial configuration is -1 which makes us claim first 
@@ -953,10 +959,6 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     else
         dev->dev.speed = USB_SPEED_HIGH;
 
-    dev->dev.handle_packet  = usb_host_handle_packet;
-    dev->dev.handle_reset   = usb_host_handle_reset;
-    dev->dev.handle_destroy = usb_host_handle_destroy;
-
     if (!prod_name || prod_name[0] == '\0')
         snprintf(dev->dev.devname, sizeof(dev->dev.devname),
                  "host:%d.%d", bus_num, addr);
@@ -972,12 +974,31 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     return (USBDevice *) dev;
 
 fail:
-    if (dev)
-        qemu_free(dev);
-
-    close(fd);
+    if (d)
+        qdev_free(&d->qdev);
+    if (fd != -1)
+        close(fd);
     return NULL;
 }
+
+static struct USBDeviceInfo usb_host_dev_info = {
+    .qdev.name      = "USB Host Device",
+    .qdev.size      = sizeof(USBHostDevice),
+    .init           = usb_host_initfn,
+    .handle_packet  = usb_host_handle_packet,
+    .handle_reset   = usb_host_handle_reset,
+#if 0
+    .handle_control = usb_host_handle_control,
+    .handle_data    = usb_host_handle_data,
+#endif
+    .handle_destroy = usb_host_handle_destroy,
+};
+
+static void usb_host_register_devices(void)
+{
+    usb_qdev_register(&usb_host_dev_info);
+}
+device_init(usb_host_register_devices)
 
 static int usb_host_auto_add(const char *spec);
 static int usb_host_auto_del(const char *spec);

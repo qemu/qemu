@@ -23,6 +23,7 @@
  */
 
 #include "block.h"
+#include "qdev.h"
 
 #define USB_TOKEN_SETUP 0x2d
 #define USB_TOKEN_IN    0x69 /* device -> host */
@@ -116,37 +117,52 @@
 #define USB_ENDPOINT_XFER_BULK		2
 #define USB_ENDPOINT_XFER_INT		3
 
+typedef struct USBBus USBBus;
 typedef struct USBPort USBPort;
 typedef struct USBDevice USBDevice;
+typedef struct USBDeviceInfo USBDeviceInfo;
 typedef struct USBPacket USBPacket;
 
 /* definition of a USB device */
 struct USBDevice {
+    DeviceState qdev;
+    USBDeviceInfo *info;
     void *opaque;
 
-    /* 
-     * Process USB packet. 
+    int speed;
+    uint8_t addr;
+    char devname[32];
+
+    int state;
+    uint8_t setup_buf[8];
+    uint8_t data_buf[1024];
+    int remote_wakeup;
+    int setup_state;
+    int setup_len;
+    int setup_index;
+};
+
+struct USBDeviceInfo {
+    DeviceInfo qdev;
+    int (*init)(USBDevice *dev);
+
+    /*
+     * Process USB packet.
      * Called by the HC (Host Controller).
      *
-     * Returns length of the transaction 
+     * Returns length of the transaction
      * or one of the USB_RET_XXX codes.
-     */ 
+     */
     int (*handle_packet)(USBDevice *dev, USBPacket *p);
 
-    /* 
+    /*
      * Called when device is destroyed.
      */
     void (*handle_destroy)(USBDevice *dev);
 
-    int speed;
-
-    /* The following fields are used by the generic USB device
-       layer. They are here just to avoid creating a new structure 
-       for them. */
-
     /*
      * Reset the device
-     */  
+     */
     void (*handle_reset)(USBDevice *dev);
 
     /*
@@ -165,17 +181,6 @@ struct USBDevice {
      * Returns length or one of the USB_RET_ codes.
      */
     int (*handle_data)(USBDevice *dev, USBPacket *p);
-
-    uint8_t addr;
-    char devname[32];
-
-    int state;
-    uint8_t setup_buf[8];
-    uint8_t data_buf[1024];
-    int remote_wakeup;
-    int setup_state;
-    int setup_len;
-    int setup_index;
 };
 
 typedef void (*usb_attachfn)(USBPort *port, USBDevice *dev);
@@ -297,3 +302,21 @@ MUSBState *musb_init(qemu_irq *irqs);
 uint32_t musb_core_intr_get(MUSBState *s);
 void musb_core_intr_clear(MUSBState *s, uint32_t mask);
 void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);
+
+/* usb-bus.c */
+
+struct USBBus {
+    BusState qbus;
+    int busnr;
+    int nfree;
+    int nused;
+    TAILQ_HEAD(, USBPort) free;
+    TAILQ_HEAD(, USBPort) used;
+    TAILQ_ENTRY(USBBus) next;
+};
+
+USBBus *usb_bus_new(DeviceState *host);
+USBBus *usb_bus_find(int busnr);
+void usb_qdev_register(USBDeviceInfo *info);
+void usb_qdev_register_many(USBDeviceInfo *info);
+USBDevice *usb_create_simple(USBBus *bus, const char *name);

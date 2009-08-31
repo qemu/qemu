@@ -2481,7 +2481,7 @@ static void usb_msd_password_cb(void *opaque, int err)
     if (!err)
         usb_device_add_dev(dev);
     else
-        dev->handle_destroy(dev);
+        dev->info->handle_destroy(dev);
 }
 
 static int usb_device_add(const char *devname, int is_hotplug)
@@ -2567,7 +2567,7 @@ int usb_device_del_addr(int bus_num, int addr)
     dev = port->dev;
     *lastp = port->next;
     usb_attach(port, NULL);
-    dev->handle_destroy(dev);
+    dev->info->handle_destroy(dev);
     port->next = free_usb_ports;
     free_usb_ports = port;
     return 0;

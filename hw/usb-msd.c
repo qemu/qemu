@@ -514,8 +514,17 @@ static void usb_msd_handle_destroy(USBDevice *dev)
     qemu_free(s);
 }
 
+static int usb_msd_initfn(USBDevice *dev)
+{
+    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+
+    s->dev.speed = USB_SPEED_FULL;
+    return 0;
+}
+
 USBDevice *usb_msd_init(const char *filename)
 {
+    USBDevice *dev;
     MSDState *s;
     BlockDriverState *bdrv;
     BlockDriver *drv = NULL;
@@ -548,30 +557,19 @@ USBDevice *usb_msd_init(const char *filename)
         return NULL;
     }
 
-    s = qemu_mallocz(sizeof(MSDState));
-
     bdrv = bdrv_new("usb");
     if (bdrv_open2(bdrv, filename, 0, drv) < 0)
-        goto fail;
+        return NULL;
+
+    dev = usb_create_simple(NULL /* FIXME */, "QEMU USB MSD");
+    s = DO_UPCAST(MSDState, dev, dev);
     s->bs = bdrv;
-
-    s->dev.speed = USB_SPEED_FULL;
-    s->dev.handle_packet = usb_generic_handle_packet;
-
-    s->dev.handle_reset = usb_msd_handle_reset;
-    s->dev.handle_control = usb_msd_handle_control;
-    s->dev.handle_data = usb_msd_handle_data;
-    s->dev.handle_destroy = usb_msd_handle_destroy;
-
     snprintf(s->dev.devname, sizeof(s->dev.devname), "QEMU USB MSD(%.16s)",
              filename);
 
     s->scsi_dev = scsi_disk_init(bdrv, 0, usb_msd_command_complete, s);
     usb_msd_handle_reset((USBDevice *)s);
     return (USBDevice *)s;
- fail:
-    qemu_free(s);
-    return NULL;
 }
 
 BlockDriverState *usb_msd_get_bdrv(USBDevice *dev)
@@ -580,3 +578,20 @@ BlockDriverState *usb_msd_get_bdrv(USBDevice *dev)
 
     return s->bs;
 }
+
+static struct USBDeviceInfo msd_info = {
+    .qdev.name      = "QEMU USB MSD",
+    .qdev.size      = sizeof(MSDState),
+    .init           = usb_msd_initfn,
+    .handle_packet  = usb_generic_handle_packet,
+    .handle_reset   = usb_msd_handle_reset,
+    .handle_control = usb_msd_handle_control,
+    .handle_data    = usb_msd_handle_data,
+    .handle_destroy = usb_msd_handle_destroy,
+};
+
+static void usb_msd_register_devices(void)
+{
+    usb_qdev_register(&msd_info);
+}
+device_init(usb_msd_register_devices)

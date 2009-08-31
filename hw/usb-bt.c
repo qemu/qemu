@@ -617,22 +617,23 @@ static void usb_bt_handle_destroy(USBDevice *dev)
     qemu_free(s);
 }
 
+static int usb_bt_initfn(USBDevice *dev)
+{
+    struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
+    s->dev.speed = USB_SPEED_HIGH;
+    return 0;
+}
+
 USBDevice *usb_bt_init(HCIInfo *hci)
 {
+    USBDevice *dev;
     struct USBBtState *s;
 
     if (!hci)
         return NULL;
-    s = qemu_mallocz(sizeof(struct USBBtState));
+    dev = usb_create_simple(NULL /* FIXME */, "QEMU BT dongle");
+    s = DO_UPCAST(struct USBBtState, dev, dev);
     s->dev.opaque = s;
-    s->dev.speed = USB_SPEED_HIGH;
-    s->dev.handle_packet = usb_generic_handle_packet;
-    pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU BT dongle");
-
-    s->dev.handle_reset = usb_bt_handle_reset;
-    s->dev.handle_control = usb_bt_handle_control;
-    s->dev.handle_data = usb_bt_handle_data;
-    s->dev.handle_destroy = usb_bt_handle_destroy;
 
     s->hci = hci;
     s->hci->opaque = s;
@@ -641,5 +642,22 @@ USBDevice *usb_bt_init(HCIInfo *hci)
 
     usb_bt_handle_reset(&s->dev);
 
-    return &s->dev;
+    return dev;
 }
+
+static struct USBDeviceInfo bt_info = {
+    .qdev.name      = "QEMU BT dongle",
+    .qdev.size      = sizeof(struct USBBtState),
+    .init           = usb_bt_initfn,
+    .handle_packet  = usb_generic_handle_packet,
+    .handle_reset   = usb_bt_handle_reset,
+    .handle_control = usb_bt_handle_control,
+    .handle_data    = usb_bt_handle_data,
+    .handle_destroy = usb_bt_handle_destroy,
+};
+
+static void usb_bt_register_devices(void)
+{
+    usb_qdev_register(&bt_info);
+}
+device_init(usb_bt_register_devices)
