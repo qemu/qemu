@@ -99,8 +99,6 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 /*** Device API.  ***/
 
 typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
-typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
-              int unit);
 
 struct DeviceInfo {
     const char *name;
@@ -122,8 +120,6 @@ void qdev_register(DeviceInfo *info);
 /* GPIO inputs also double as IRQ sinks.  */
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
-
-void scsi_bus_new(DeviceState *host, SCSIAttachFn attach);
 
 CharDriverState *qdev_init_chardev(DeviceState *dev);
 

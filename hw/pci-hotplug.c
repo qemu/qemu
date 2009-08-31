@@ -30,6 +30,7 @@
 #include "pc.h"
 #include "monitor.h"
 #include "block_int.h"
+#include "scsi-disk.h"
 #include "virtio-blk.h"
 
 #if defined(TARGET_I386) || defined(TARGET_X86_64)
@@ -58,6 +59,7 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
     DriveInfo *dinfo;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
     const char *opts = qdict_get_str(qdict, "opts");
+    BusState *scsibus;
 
     if (pci_read_devaddr(mon, pci_addr, &dom, &pci_bus, &slot)) {
         return;
@@ -82,8 +84,9 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
     switch (type) {
     case IF_SCSI:
         success = 1;
-        lsi_scsi_attach(&dev->qdev, dinfo->bdrv,
-                        dinfo->unit);
+        scsibus = LIST_FIRST(&dev->qdev.child_bus);
+        scsi_bus_legacy_add_drive(DO_UPCAST(SCSIBus, qbus, scsibus),
+                                  dinfo, dinfo->unit);
         break;
     default:
         monitor_printf(mon, "Can't hot-add drive to type %d\n", type);

@@ -63,7 +63,7 @@ struct ESPState {
     uint8_t ti_buf[TI_BUFSZ];
     uint32_t sense;
     uint32_t dma;
-    SCSIDevice *scsi_dev[ESP_MAX_DEVS];
+    SCSIBus *bus;
     SCSIDevice *current_dev;
     uint8_t cmdbuf[TI_BUFSZ];
     uint32_t cmdlen;
@@ -187,11 +187,11 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 
     if (s->current_dev) {
         /* Started a new command before the old one finished.  Cancel it.  */
-        s->current_dev->cancel_io(s->current_dev, 0);
+        s->current_dev->info->cancel_io(s->current_dev, 0);
         s->async_len = 0;
     }
 
-    if (target >= ESP_MAX_DEVS || !s->scsi_dev[target]) {
+    if (target >= ESP_MAX_DEVS || !s->bus->devs[target]) {
         // No such drive
         s->rregs[ESP_RSTAT] = 0;
         s->rregs[ESP_RINTR] = INTR_DC;
@@ -199,7 +199,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
         esp_raise_irq(s);
         return 0;
     }
-    s->current_dev = s->scsi_dev[target];
+    s->current_dev = s->bus->devs[target];
     return dmalen;
 }
 
@@ -210,7 +210,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     DPRINTF("do_busid_cmd: busid 0x%x\n", busid);
     lun = busid & 7;
-    datalen = s->current_dev->send_command(s->current_dev, 0, buf, lun);
+    datalen = s->current_dev->info->send_command(s->current_dev, 0, buf, lun);
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
@@ -218,10 +218,10 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
         s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
-            s->current_dev->read_data(s->current_dev, 0);
+            s->current_dev->info->read_data(s->current_dev, 0);
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
-            s->current_dev->write_data(s->current_dev, 0);
+            s->current_dev->info->write_data(s->current_dev, 0);
         }
     }
     s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
@@ -338,9 +338,9 @@ static void esp_do_dma(ESPState *s)
     if (s->async_len == 0) {
         if (to_device) {
             // ti_size is negative
-            s->current_dev->write_data(s->current_dev, 0);
+            s->current_dev->info->write_data(s->current_dev, 0);
         } else {
-            s->current_dev->read_data(s->current_dev, 0);
+            s->current_dev->info->read_data(s->current_dev, 0);
             /* If there is still data to be read from the device then
                complete the DMA operation immediately.  Otherwise defer
                until the scsi layer has completed.  */
@@ -354,10 +354,10 @@ static void esp_do_dma(ESPState *s)
     }
 }
 
-static void esp_command_complete(void *opaque, int reason, uint32_t tag,
+static void esp_command_complete(SCSIBus *bus, int reason, uint32_t tag,
                                  uint32_t arg)
 {
-    ESPState *s = (ESPState *)opaque;
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, bus->qbus.parent);
 
     if (reason == SCSI_REASON_DONE) {
         DPRINTF("SCSI Command complete\n");
@@ -375,7 +375,7 @@ static void esp_command_complete(void *opaque, int reason, uint32_t tag,
     } else {
         DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
         s->async_len = arg;
-        s->async_buf = s->current_dev->get_buf(s->current_dev, 0);
+        s->async_buf = s->current_dev->info->get_buf(s->current_dev, 0);
         if (s->dma_left) {
             esp_do_dma(s);
         } else if (s->dma_counter != 0 && s->ti_size <= 0) {
@@ -652,33 +652,6 @@ static int esp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void esp_scsi_attach(DeviceState *host, BlockDriverState *bd, int id)
-{
-    ESPState *s = FROM_SYSBUS(ESPState, sysbus_from_qdev(host));
-
-    if (id < 0) {
-        for (id = 0; id < ESP_MAX_DEVS; id++) {
-            if (id == (s->rregs[ESP_CFG1] & 0x7))
-                continue;
-            if (s->scsi_dev[id] == NULL)
-                break;
-        }
-    }
-    if (id >= ESP_MAX_DEVS) {
-        DPRINTF("Bad Device ID %d\n", id);
-        return;
-    }
-    if (s->scsi_dev[id]) {
-        DPRINTF("Destroying device %d\n", id);
-        s->scsi_dev[id]->destroy(s->scsi_dev[id]);
-    }
-    DPRINTF("Attaching block device %d\n", id);
-    /* Command queueing is not implemented.  */
-    s->scsi_dev[id] = scsi_generic_init(bd, 0, esp_command_complete, s);
-    if (s->scsi_dev[id] == NULL)
-        s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
-}
-
 void esp_init(target_phys_addr_t espaddr, int it_shift,
               espdma_memory_read_write dma_memory_read,
               espdma_memory_read_write dma_memory_write,
@@ -719,7 +692,8 @@ static int esp_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
-    scsi_bus_new(&dev->qdev, esp_scsi_attach);
+    s->bus = scsi_bus_new(&dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
+    scsi_bus_legacy_handle_cmdline(s->bus);
     return 0;
 }
 

@@ -331,7 +331,6 @@ PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
 /* lsi53c895a.c */
 #define LSI_MAX_DEVS 7
-void lsi_scsi_attach(DeviceState *host, BlockDriverState *bd, int id);
 
 /* vmware_vga.c */
 void pci_vmsvga_init(PCIBus *bus);
