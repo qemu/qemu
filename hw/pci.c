@@ -73,40 +73,21 @@ static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 static PCIBus *first_bus;
 
-static void pcibus_save(QEMUFile *f, void *opaque)
-{
-    PCIBus *bus = (PCIBus *)opaque;
-    int i;
-
-    qemu_put_be32(f, bus->nirq);
-    for (i = 0; i < bus->nirq; i++)
-        qemu_put_be32(f, bus->irq_count[i]);
-}
-
-static int  pcibus_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCIBus *bus = (PCIBus *)opaque;
-    int i, nirq;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    nirq = qemu_get_be32(f);
-    if (bus->nirq != nirq) {
-        fprintf(stderr, "pcibus_load: nirq mismatch: src=%d dst=%d\n",
-                nirq, bus->nirq);
-        return -EINVAL;
+static const VMStateDescription vmstate_pcibus = {
+    .name = "PCIBUS",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_EQUAL(nirq, PCIBus),
+        VMSTATE_INT32_VARRAY(irq_count, PCIBus, nirq),
+        VMSTATE_END_OF_LIST()
     }
-
-    for (i = 0; i < nirq; i++)
-        bus->irq_count[i] = qemu_get_be32(f);
-
-    return 0;
-}
+};
 
 static void pci_bus_reset(void *opaque)
 {
-    PCIBus *bus = (PCIBus *)opaque;
+    PCIBus *bus = opaque;
     int i;
 
     for (i = 0; i < bus->nirq; i++) {
@@ -135,7 +116,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
     bus->next = first_bus;
     first_bus = bus;
-    register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
+    vmstate_register(nbus++, &vmstate_pcibus, bus);
     qemu_register_reset(pci_bus_reset, bus);
     return bus;
 }
@@ -159,38 +140,58 @@ int pci_bus_num(PCIBus *s)
     return s->bus_num;
 }
 
-void pci_device_save(PCIDevice *s, QEMUFile *f)
+static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
+    PCIDevice *s = container_of(pv, PCIDevice, config);
+    uint8_t config[size];
     int i;
 
-    qemu_put_be32(f, 2); /* PCI device version */
-    /* todo: endianess */
-    qemu_put_buffer(f, s->config, 256);
-    for (i = 0; i < 4; i++)
-        qemu_put_be32(f, s->irq_state[i]);
+    qemu_get_buffer(f, config, size);
+    for (i = 0; i < size; ++i)
+        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i])
+            return -EINVAL;
+    memcpy(s->config, config, size);
+
+    pci_update_mappings(s);
+
+    return 0;
+}
+
+/* just put buffer */
+static void put_pci_config_device(QEMUFile *f, const void *pv, size_t size)
+{
+    const uint8_t *v = pv;
+    qemu_put_buffer(f, v, size);
+}
+
+static VMStateInfo vmstate_info_pci_config = {
+    .name = "pci config",
+    .get  = get_pci_config_device,
+    .put  = put_pci_config_device,
+};
+
+const VMStateDescription vmstate_pci_device = {
+    .name = "PCIDevice",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_LE(version_id, PCIDevice),
+        VMSTATE_SINGLE(config, PCIDevice, 0, vmstate_info_pci_config,
+                       typeof_field(PCIDevice,config)),
+        VMSTATE_INT32_ARRAY_V(irq_state, PCIDevice, 4, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+void pci_device_save(PCIDevice *s, QEMUFile *f)
+{
+    vmstate_save_state(f, &vmstate_pci_device, s);
 }
 
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
-    uint8_t config[PCI_CONFIG_SPACE_SIZE];
-    uint32_t version_id;
-    int i;
-
-    version_id = qemu_get_be32(f);
-    if (version_id > 2)
-        return -EINVAL;
-    /* todo: endianess */
-    for (i = 0; i < sizeof config; ++i)
-        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i])
-            return -EINVAL;
-    memcpy(s->config, config, sizeof config);
-
-    pci_update_mappings(s);
-
-    if (version_id >= 2)
-        for (i = 0; i < 4; i ++)
-            s->irq_state[i] = qemu_get_be32(f);
-    return 0;
+    return vmstate_load_state(f, &vmstate_pci_device, s, s->version_id);
 }
 
 static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
@@ -339,6 +340,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->config_write = config_write;
     bus->devices[devfn] = pci_dev;
     pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, 4);
+    pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
 }
 
@@ -625,7 +627,7 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
 static void pci_set_irq(void *opaque, int irq_num, int level)
 {
-    PCIDevice *pci_dev = (PCIDevice *)opaque;
+    PCIDevice *pci_dev = opaque;
     PCIBus *bus;
     int change;
 
@@ -913,7 +915,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     return s->bus;
 }
 
-static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceInfo *info = container_of(base, PCIDeviceInfo, qdev);
@@ -925,7 +927,7 @@ static void pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write);
     assert(pci_dev);
-    info->init(pci_dev);
+    return info->init(pci_dev);
 }
 
 void pci_qdev_register(PCIDeviceInfo *info)

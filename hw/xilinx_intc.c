@@ -145,7 +145,7 @@ static void irq_handler(void *opaque, int irq, int level)
     update_irq(p);
 }
 
-static void xilinx_intc_init(SysBusDevice *dev)
+static int xilinx_intc_init(SysBusDevice *dev)
 {
     struct xlx_pic *p = FROM_SYSBUS(typeof (*p), dev);
     int pic_regs;
@@ -155,6 +155,7 @@ static void xilinx_intc_init(SysBusDevice *dev)
 
     pic_regs = cpu_register_io_memory(pic_read, pic_write, p);
     sysbus_init_mmio(dev, R_MAX * 4, pic_regs);
+    return 0;
 }
 
 static SysBusDeviceInfo xilinx_intc_info = {

@@ -221,11 +221,11 @@ int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
 int max_cpus = 0;
+int smp_cores = 1;
+int smp_threads = 1;
 const char *vnc_display;
 int acpi_enabled = 1;
 int no_hpet = 0;
-int virtio_balloon = 1;
-const char *virtio_balloon_devaddr;
 int fd_bootchk = 1;
 int no_reboot = 0;
 int no_shutdown = 0;
@@ -235,8 +235,7 @@ uint8_t irq0override = 1;
 #ifndef _WIN32
 int daemonize = 0;
 #endif
-WatchdogTimerModel *watchdog = NULL;
-int watchdog_action = WDT_RESET;
+const char *watchdog;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
@@ -1916,6 +1915,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     int max_devs;
     int index;
     int cache;
+    int aio = 0;
     int bdrv_flags, onerror;
     const char *devaddr;
     DriveInfo *dinfo;
@@ -2048,6 +2048,19 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
            return NULL;
         }
     }
+
+#ifdef CONFIG_LINUX_AIO
+    if ((buf = qemu_opt_get(opts, "aio")) != NULL) {
+        if (!strcmp(buf, "threads"))
+            aio = 0;
+        else if (!strcmp(buf, "native"))
+            aio = 1;
+        else {
+           fprintf(stderr, "qemu: invalid aio option\n");
+           return NULL;
+        }
+    }
+#endif
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
        if (strcmp(buf, "?") == 0) {
@@ -2218,11 +2231,19 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         bdrv_flags |= BDRV_O_NOCACHE;
     else if (cache == 2) /* write-back */
         bdrv_flags |= BDRV_O_CACHE_WB;
+
+    if (aio == 1) {
+        bdrv_flags |= BDRV_O_NATIVE_AIO;
+    } else {
+        bdrv_flags &= ~BDRV_O_NATIVE_AIO;
+    }
+
     if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return NULL;
     }
+
     if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
     *fatal_error = 0;
@@ -2356,6 +2377,56 @@ static void numa_add(const char *optarg)
         nb_numa_nodes++;
     }
     return;
+}
+
+static void smp_parse(const char *optarg)
+{
+    int smp, sockets = 0, threads = 0, cores = 0;
+    char *endptr;
+    char option[128];
+
+    smp = strtoul(optarg, &endptr, 10);
+    if (endptr != optarg) {
+        if (*endptr == ',') {
+            endptr++;
+        }
+    }
+    if (get_param_value(option, 128, "sockets", endptr) != 0)
+        sockets = strtoull(option, NULL, 10);
+    if (get_param_value(option, 128, "cores", endptr) != 0)
+        cores = strtoull(option, NULL, 10);
+    if (get_param_value(option, 128, "threads", endptr) != 0)
+        threads = strtoull(option, NULL, 10);
+    if (get_param_value(option, 128, "maxcpus", endptr) != 0)
+        max_cpus = strtoull(option, NULL, 10);
+
+    /* compute missing values, prefer sockets over cores over threads */
+    if (smp == 0 || sockets == 0) {
+        sockets = sockets > 0 ? sockets : 1;
+        cores = cores > 0 ? cores : 1;
+        threads = threads > 0 ? threads : 1;
+        if (smp == 0) {
+            smp = cores * threads * sockets;
+        } else {
+            sockets = smp / (cores * threads);
+        }
+    } else {
+        if (cores == 0) {
+            threads = threads > 0 ? threads : 1;
+            cores = smp / (sockets * threads);
+        } else {
+            if (sockets == 0) {
+                sockets = smp / (cores * threads);
+            } else {
+                threads = smp / (cores * sockets);
+            }
+        }
+    }
+    smp_cpus = smp;
+    smp_cores = cores > 0 ? cores : 1;
+    smp_threads = threads > 0 ? threads : 1;
+    if (max_cpus == 0)
+        max_cpus = smp_cpus;
 }
 
 /***********************************************************/
@@ -3579,6 +3650,8 @@ void qemu_init_vcpu(void *_env)
 
     if (kvm_enabled())
         kvm_init_vcpu(env);
+    env->nr_cores = smp_cores;
+    env->nr_threads = smp_threads;
     return;
 }
 
@@ -3902,6 +3975,8 @@ void qemu_init_vcpu(void *_env)
         kvm_start_vcpu(env);
     else
         tcg_init_vcpu(env);
+    env->nr_cores = smp_cores;
+    env->nr_threads = smp_threads;
 }
 
 void qemu_notify_event(void)
@@ -4523,23 +4598,27 @@ static void select_vgahw (const char *p)
 #ifdef TARGET_I386
 static int balloon_parse(const char *arg)
 {
-    char buf[128];
-    const char *p;
+    QemuOpts *opts;
 
-    if (!strcmp(arg, "none")) {
-        virtio_balloon = 0;
-    } else if (!strncmp(arg, "virtio", 6)) {
-        virtio_balloon = 1;
-        if (arg[6] == ',')  {
-            p = arg + 7;
-            if (get_param_value(buf, sizeof(buf), "addr", p)) {
-                virtio_balloon_devaddr = strdup(buf);
-            }
-        }
-    } else {
-        return -1;
+    if (strcmp(arg, "none") == 0) {
+        return 0;
     }
-    return 0;
+
+    if (!strncmp(arg, "virtio", 6)) {
+        if (arg[6] == ',') {
+            /* have params -> parse them */
+            opts = qemu_opts_parse(&qemu_device_opts, arg+7, NULL);
+            if (!opts)
+                return  -1;
+        } else {
+            /* create empty opts */
+            opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
+        }
+        qemu_opt_set(opts, "driver", "virtio-balloon-pci");
+        return 0;
+    }
+
+    return -1;
 }
 #endif
 
@@ -4854,6 +4933,7 @@ int main(int argc, char **argv, char **envp)
     CPUState *env;
     int show_vnc_port = 0;
 
+    qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
     LIST_INIT (&vm_change_state_head);
@@ -4932,8 +5012,6 @@ int main(int argc, char **argv, char **envp)
 
     tb_size = 0;
     autostart= 1;
-
-    register_watchdogs();
 
     optind = 1;
     for(;;) {
@@ -5348,9 +5426,12 @@ int main(int argc, char **argv, char **envp)
                 serial_device_index++;
                 break;
             case QEMU_OPTION_watchdog:
-                i = select_watchdog(optarg);
-                if (i > 0)
-                    exit (i == 1 ? 1 : 0);
+                if (watchdog) {
+                    fprintf(stderr,
+                            "qemu: only one watchdog option may be given\n");
+                    return 1;
+                }
+                watchdog = optarg;
                 break;
             case QEMU_OPTION_watchdog_action:
                 if (select_watchdog_action(optarg) == -1) {
@@ -5437,18 +5518,11 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_smp:
-            {
-                char *p;
-                char option[128];
-                smp_cpus = strtol(optarg, &p, 10);
+                smp_parse(optarg);
                 if (smp_cpus < 1) {
                     fprintf(stderr, "Invalid number of CPUs\n");
                     exit(1);
                 }
-                if (*p++ != ',')
-                    break;
-                if (get_param_value(option, 128, "maxcpus", p))
-                    max_cpus = strtol(option, NULL, 0);
                 if (max_cpus < smp_cpus) {
                     fprintf(stderr, "maxcpus must be equal to or greater than "
                             "smp\n");
@@ -5459,7 +5533,6 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-            }
 	    case QEMU_OPTION_vnc:
                 display_type = DT_VNC;
 		vnc_display = optarg;
@@ -5923,6 +5996,12 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_DEVICE);
 
+    if (watchdog) {
+        i = select_watchdog(watchdog);
+        if (i > 0)
+            exit (i == 1 ? 1 : 0);
+    }
+
     if (machine->compat_props) {
         qdev_prop_register_compat(machine->compat_props);
     }
@@ -6049,8 +6128,11 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (loadvm)
-        do_loadvm(cur_mon, loadvm);
+    if (loadvm) {
+        if (load_vmstate(cur_mon, loadvm) < 0) {
+            autostart = 0;
+        }
+    }
 
     if (incoming) {
         qemu_start_incoming_migration(incoming);

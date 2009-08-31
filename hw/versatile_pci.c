@@ -109,7 +109,7 @@ static void pci_vpb_map(SysBusDevice *dev, target_phys_addr_t base)
     }
 }
 
-static void pci_vpb_init(SysBusDevice *dev)
+static int pci_vpb_init(SysBusDevice *dev)
 {
     PCIVPBState *s = FROM_SYSBUS(PCIVPBState, dev);
     PCIBus *bus;
@@ -129,16 +129,17 @@ static void pci_vpb_init(SysBusDevice *dev)
     sysbus_init_mmio_cb(dev, 0x04000000, pci_vpb_map);
 
     pci_create_simple(bus, -1, "versatile_pci_host");
+    return 0;
 }
 
-static void pci_realview_init(SysBusDevice *dev)
+static int pci_realview_init(SysBusDevice *dev)
 {
     PCIVPBState *s = FROM_SYSBUS(PCIVPBState, dev);
     s->realview = 1;
-    pci_vpb_init(dev);
+    return pci_vpb_init(dev);
 }
 
-static void versatile_pci_host_init(PCIDevice *d)
+static int versatile_pci_host_init(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_XILINX);
     /* Both boards have the same device ID.  Oh well.  */
@@ -151,6 +152,7 @@ static void versatile_pci_host_init(PCIDevice *d)
     d->config[0x09] = 0x00; // programming i/f
     pci_config_set_class(d->config, PCI_CLASS_PROCESSOR_CO);
     d->config[0x0D] = 0x10; // latency_timer
+    return 0;
 }
 
 static PCIDeviceInfo versatile_pci_host_info = {

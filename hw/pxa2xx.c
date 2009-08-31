@@ -850,7 +850,7 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pxa2xx_ssp_init(SysBusDevice *dev)
+static int pxa2xx_ssp_init(SysBusDevice *dev)
 {
     int iomemtype;
     PXA2xxSSPState *s = FROM_SYSBUS(PXA2xxSSPState, dev);
@@ -864,6 +864,7 @@ static void pxa2xx_ssp_init(SysBusDevice *dev)
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
     s->bus = ssi_create_bus(&dev->qdev, "ssi");
+    return 0;
 }
 
 /* Real-Time Clock */
@@ -1479,9 +1480,10 @@ static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pxa2xx_i2c_slave_init(i2c_slave *i2c)
+static int pxa2xx_i2c_slave_init(i2c_slave *i2c)
 {
     /* Nothing to do.  */
+    return 0;
 }
 
 static I2CSlaveInfo pxa2xx_i2c_slave_info = {

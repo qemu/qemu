@@ -254,7 +254,7 @@ static int sp804_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void sp804_init(SysBusDevice *dev)
+static int sp804_init(SysBusDevice *dev)
 {
     int iomemtype;
     sp804_state *s = FROM_SYSBUS(sp804_state, dev);
@@ -272,6 +272,7 @@ static void sp804_init(SysBusDevice *dev)
                                        sp804_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     register_savevm("sp804", -1, 1, sp804_save, sp804_load, s);
+    return 0;
 }
 
 
@@ -323,7 +324,7 @@ static CPUWriteMemoryFunc * const icp_pit_writefn[] = {
    icp_pit_write
 };
 
-static void icp_pit_init(SysBusDevice *dev)
+static int icp_pit_init(SysBusDevice *dev)
 {
     int iomemtype;
     icp_pit_state *s = FROM_SYSBUS(icp_pit_state, dev);
@@ -343,6 +344,7 @@ static void icp_pit_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
+    return 0;
 }
 
 static void arm_timer_register_devices(void)

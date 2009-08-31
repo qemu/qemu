@@ -1291,7 +1291,7 @@ static void ac97_on_reset (void *opaque)
     mixer_reset (s);
 }
 
-static void ac97_initfn (PCIDevice *dev)
+static int ac97_initfn (PCIDevice *dev)
 {
     AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
     uint8_t *c = s->dev.config;
@@ -1337,6 +1337,7 @@ static void ac97_initfn (PCIDevice *dev)
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
     ac97_on_reset (s);
+    return 0;
 }
 
 int ac97_init (PCIBus *bus)

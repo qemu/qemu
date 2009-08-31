@@ -541,7 +541,8 @@ pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
                                  uint16_t id2, uint16_t id3)
 {
     pflash_t *pfl;
-    target_long total_len;
+    target_phys_addr_t total_len;
+    int ret;
 
 #ifdef PFLASH_DEBUG
     if (getenv("DEBUG_FLASH")) {
@@ -577,7 +578,12 @@ pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
     pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */
-        bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
+        ret = bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
+        if (ret < 0) {
+            cpu_unregister_io_memory(pfl->fl_mem);
+            qemu_free(pfl);
+            return NULL;
+        }
     }
 #if 0 /* XXX: there should be a bit to set up read-only,
        *      the same way the hardware does (with WP pin).

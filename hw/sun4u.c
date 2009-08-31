@@ -33,6 +33,7 @@
 #include "firmware_abi.h"
 #include "fw_cfg.h"
 #include "sysbus.h"
+#include "ide.h"
 
 //#define DEBUG_IRQ
 
@@ -351,14 +352,22 @@ static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
     }
 }
 
+static void dummy_isa_irq_handler(void *opaque, int n, int level)
+{
+}
+
 /* EBUS (Eight bit bus) bridge */
 static void
 pci_ebus_init(PCIBus *bus, int devfn)
 {
+    qemu_irq *isa_irq;
+
     pci_create_simple(bus, devfn, "ebus");
+    isa_irq = qemu_allocate_irqs(dummy_isa_irq_handler, NULL, 16);
+    isa_bus_irqs(isa_irq);
 }
 
-static void
+static int
 pci_ebus_init1(PCIDevice *s)
 {
     isa_bus_new(&s->qdev);
@@ -379,6 +388,7 @@ pci_ebus_init1(PCIDevice *s)
                            ebus_mmio_mapfunc);
     pci_register_bar(s, 1, 0x800000,  PCI_ADDRESS_SPACE_MEM,
                            ebus_mmio_mapfunc);
+    return 0;
 }
 
 static PCIDeviceInfo ebus_info = {
@@ -428,12 +438,13 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
     }
 }
 
-static void prom_init1(SysBusDevice *dev)
+static int prom_init1(SysBusDevice *dev)
 {
     ram_addr_t prom_offset;
 
     prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     sysbus_init_mmio(dev, PROM_SIZE_MAX, prom_offset | IO_MEM_ROM);
+    return 0;
 }
 
 static SysBusDeviceInfo prom_info = {
@@ -460,7 +471,7 @@ typedef struct RamDevice
 } RamDevice;
 
 /* System RAM */
-static void ram_init1(SysBusDevice *dev)
+static int ram_init1(SysBusDevice *dev)
 {
     ram_addr_t RAM_size, ram_offset;
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
@@ -469,6 +480,7 @@ static void ram_init1(SysBusDevice *dev)
 
     ram_offset = qemu_ram_alloc(RAM_size);
     sysbus_init_mmio(dev, RAM_size, ram_offset);
+    return 0;
 }
 
 static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size)
@@ -618,7 +630,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd);
+    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
 
     initrd_size = 0;

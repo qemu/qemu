@@ -27,7 +27,7 @@
 #include "qemu-log.h"
 #include "block_int.h"
 #include "module.h"
-#include "posix-aio-compat.h"
+#include "block/raw-posix-aio.h"
 
 #ifdef CONFIG_COCOA
 #include <paths.h>
@@ -107,6 +107,7 @@ typedef struct BDRVRawState {
     int type;
     unsigned int lseek_err_cnt;
     int open_flags;
+    void *aio_ctx;
 #if defined(__linux__)
     /* linux floppy specific */
     int64_t fd_open_time;
@@ -114,10 +115,11 @@ typedef struct BDRVRawState {
     int fd_got_error;
     int fd_media_changed;
 #endif
+#ifdef CONFIG_LINUX_AIO
+    int use_aio;
+#endif
     uint8_t* aligned_buf;
 } BDRVRawState;
-
-static int posix_aio_init(void);
 
 static int fd_open(BlockDriverState *bs);
 static int64_t raw_getlength(BlockDriverState *bs);
@@ -131,8 +133,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 {
     BDRVRawState *s = bs->opaque;
     int fd, ret;
-
-    posix_aio_init();
 
     s->lseek_err_cnt = 0;
 
@@ -162,15 +162,41 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     }
     s->fd = fd;
     s->aligned_buf = NULL;
+
     if ((bdrv_flags & BDRV_O_NOCACHE)) {
         s->aligned_buf = qemu_blockalign(bs, ALIGNED_BUFFER_SIZE);
         if (s->aligned_buf == NULL) {
-            ret = -errno;
-            close(fd);
-            return ret;
+            goto out_close;
         }
     }
+
+#ifdef CONFIG_LINUX_AIO
+    if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
+                      (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
+        s->aio_ctx = laio_init();
+        if (!s->aio_ctx) {
+            goto out_free_buf;
+        }
+        s->use_aio = 1;
+    } else
+#endif
+    {
+        s->aio_ctx = paio_init();
+        if (!s->aio_ctx) {
+            goto out_free_buf;
+        }
+#ifdef CONFIG_LINUX_AIO
+        s->use_aio = 0;
+#endif
+    }
+
     return 0;
+
+out_free_buf:
+    qemu_vfree(s->aligned_buf);
+out_close:
+    close(fd);
+    return -errno;
 }
 
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
@@ -487,240 +513,65 @@ static int raw_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
-/***********************************************************/
-/* Unix AIO using POSIX AIO */
-
-typedef struct RawAIOCB {
-    BlockDriverAIOCB common;
-    struct qemu_paiocb aiocb;
-    struct RawAIOCB *next;
-    int ret;
-} RawAIOCB;
-
-typedef struct PosixAioState
+/*
+ * Check if all memory in this vector is sector aligned.
+ */
+static int qiov_is_aligned(QEMUIOVector *qiov)
 {
-    int rfd, wfd;
-    RawAIOCB *first_aio;
-} PosixAioState;
+    int i;
 
-static void posix_aio_read(void *opaque)
-{
-    PosixAioState *s = opaque;
-    RawAIOCB *acb, **pacb;
-    int ret;
-    ssize_t len;
-
-    /* read all bytes from signal pipe */
-    for (;;) {
-        char bytes[16];
-
-        len = read(s->rfd, bytes, sizeof(bytes));
-        if (len == -1 && errno == EINTR)
-            continue; /* try again */
-        if (len == sizeof(bytes))
-            continue; /* more to read */
-        break;
-    }
-
-    for(;;) {
-        pacb = &s->first_aio;
-        for(;;) {
-            acb = *pacb;
-            if (!acb)
-                goto the_end;
-            ret = qemu_paio_error(&acb->aiocb);
-            if (ret == ECANCELED) {
-                /* remove the request */
-                *pacb = acb->next;
-                qemu_aio_release(acb);
-            } else if (ret != EINPROGRESS) {
-                /* end of aio */
-                if (ret == 0) {
-                    ret = qemu_paio_return(&acb->aiocb);
-                    if (ret == acb->aiocb.aio_nbytes)
-                        ret = 0;
-                    else
-                        ret = -EINVAL;
-                } else {
-                    ret = -ret;
-                }
-                /* remove the request */
-                *pacb = acb->next;
-                /* call the callback */
-                acb->common.cb(acb->common.opaque, ret);
-                qemu_aio_release(acb);
-                break;
-            } else {
-                pacb = &acb->next;
-            }
+    for (i = 0; i < qiov->niov; i++) {
+        if ((uintptr_t) qiov->iov[i].iov_base % 512) {
+            return 0;
         }
     }
- the_end: ;
+
+    return 1;
 }
 
-static int posix_aio_flush(void *opaque)
-{
-    PosixAioState *s = opaque;
-    return !!s->first_aio;
-}
-
-static PosixAioState *posix_aio_state;
-
-static void aio_signal_handler(int signum)
-{
-    if (posix_aio_state) {
-        char byte = 0;
-
-        write(posix_aio_state->wfd, &byte, sizeof(byte));
-    }
-
-    qemu_service_io();
-}
-
-static int posix_aio_init(void)
-{
-    struct sigaction act;
-    PosixAioState *s;
-    int fds[2];
-    struct qemu_paioinit ai;
-  
-    if (posix_aio_state)
-        return 0;
-
-    s = qemu_malloc(sizeof(PosixAioState));
-
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
-    act.sa_handler = aio_signal_handler;
-    sigaction(SIGUSR2, &act, NULL);
-
-    s->first_aio = NULL;
-    if (pipe(fds) == -1) {
-        fprintf(stderr, "failed to create pipe\n");
-        return -errno;
-    }
-
-    s->rfd = fds[0];
-    s->wfd = fds[1];
-
-    fcntl(s->rfd, F_SETFL, O_NONBLOCK);
-    fcntl(s->wfd, F_SETFL, O_NONBLOCK);
-
-    qemu_aio_set_fd_handler(s->rfd, posix_aio_read, NULL, posix_aio_flush, s);
-
-    memset(&ai, 0, sizeof(ai));
-    ai.aio_threads = 64;
-    ai.aio_num = 64;
-    qemu_paio_init(&ai);
-
-    posix_aio_state = s;
-
-    return 0;
-}
-
-static void raw_aio_remove(RawAIOCB *acb)
-{
-    RawAIOCB **pacb;
-
-    /* remove the callback from the queue */
-    pacb = &posix_aio_state->first_aio;
-    for(;;) {
-        if (*pacb == NULL) {
-            fprintf(stderr, "raw_aio_remove: aio request not found!\n");
-            break;
-        } else if (*pacb == acb) {
-            *pacb = acb->next;
-            qemu_aio_release(acb);
-            break;
-        }
-        pacb = &(*pacb)->next;
-    }
-}
-
-static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    int ret;
-    RawAIOCB *acb = (RawAIOCB *)blockacb;
-
-    ret = qemu_paio_cancel(acb->aiocb.aio_fildes, &acb->aiocb);
-    if (ret == QEMU_PAIO_NOTCANCELED) {
-        /* fail safe: if the aio could not be canceled, we wait for
-           it */
-        while (qemu_paio_error(&acb->aiocb) == EINPROGRESS);
-    }
-
-    raw_aio_remove(acb);
-}
-
-static AIOPool raw_aio_pool = {
-    .aiocb_size         = sizeof(RawAIOCB),
-    .cancel             = raw_aio_cancel,
-};
-
-static RawAIOCB *raw_aio_setup(BlockDriverState *bs, int64_t sector_num,
-        QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
     BDRVRawState *s = bs->opaque;
-    RawAIOCB *acb;
 
     if (fd_open(bs) < 0)
         return NULL;
 
-    acb = qemu_aio_get(&raw_aio_pool, bs, cb, opaque);
-    if (!acb)
-        return NULL;
-    acb->aiocb.aio_fildes = s->fd;
-    acb->aiocb.ev_signo = SIGUSR2;
-    acb->aiocb.aio_iov = qiov->iov;
-    acb->aiocb.aio_niov = qiov->niov;
-    acb->aiocb.aio_nbytes = nb_sectors * 512;
-    acb->aiocb.aio_offset = sector_num * 512;
-    acb->aiocb.aio_flags = 0;
-
     /*
      * If O_DIRECT is used the buffer needs to be aligned on a sector
-     * boundary. Tell the low level code to ensure that in case it's
-     * not done yet.
+     * boundary.  Check if this is the case or telll the low-level
+     * driver that it needs to copy the buffer.
      */
-    if (s->aligned_buf)
-        acb->aiocb.aio_flags |= QEMU_AIO_SECTOR_ALIGNED;
+    if (s->aligned_buf) {
+        if (!qiov_is_aligned(qiov)) {
+            type |= QEMU_AIO_MISALIGNED;
+#ifdef CONFIG_LINUX_AIO
+        } else if (s->use_aio) {
+            return laio_submit(bs, s->aio_ctx, s->fd, sector_num, qiov,
+                               nb_sectors, cb, opaque, type);
+#endif
+        }
+    }
 
-    acb->next = posix_aio_state->first_aio;
-    posix_aio_state->first_aio = acb;
-    return acb;
+    return paio_submit(bs, s->aio_ctx, s->fd, sector_num, qiov, nb_sectors,
+                       cb, opaque, type);
 }
 
 static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
-    RawAIOCB *acb;
-
-    acb = raw_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque);
-    if (!acb)
-        return NULL;
-    if (qemu_paio_read(&acb->aiocb) < 0) {
-        raw_aio_remove(acb);
-        return NULL;
-    }
-    return &acb->common;
+    return raw_aio_submit(bs, sector_num, qiov, nb_sectors,
+                          cb, opaque, QEMU_AIO_READ);
 }
 
 static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
-    RawAIOCB *acb;
-
-    acb = raw_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque);
-    if (!acb)
-        return NULL;
-    if (qemu_paio_write(&acb->aiocb) < 0) {
-        raw_aio_remove(acb);
-        return NULL;
-    }
-    return &acb->common;
+    return raw_aio_submit(bs, sector_num, qiov, nb_sectors,
+                          cb, opaque, QEMU_AIO_WRITE);
 }
 
 static void raw_close(BlockDriverState *bs)
@@ -1085,30 +936,10 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
-    RawAIOCB *acb;
 
     if (fd_open(bs) < 0)
         return NULL;
-
-    acb = qemu_aio_get(&raw_aio_pool, bs, cb, opaque);
-    if (!acb)
-        return NULL;
-    acb->aiocb.aio_fildes = s->fd;
-    acb->aiocb.ev_signo = SIGUSR2;
-    acb->aiocb.aio_offset = 0;
-    acb->aiocb.aio_flags = 0;
-
-    acb->next = posix_aio_state->first_aio;
-    posix_aio_state->first_aio = acb;
-
-    acb->aiocb.aio_ioctl_buf = buf;
-    acb->aiocb.aio_ioctl_cmd = req;
-    if (qemu_paio_ioctl(&acb->aiocb) < 0) {
-        raw_aio_remove(acb);
-        return NULL;
-    }
-
-    return &acb->common;
+    return paio_ioctl(bs, s->fd, req, buf, cb, opaque);
 }
 
 #elif defined(__FreeBSD__)
@@ -1188,8 +1019,6 @@ static int floppy_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
-
-    posix_aio_init();
 
     s->type = FTYPE_FD;
 

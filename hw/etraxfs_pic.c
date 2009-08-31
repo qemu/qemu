@@ -136,7 +136,7 @@ static void irq_handler(void *opaque, int irq, int level)
     pic_update(fs);
 }
 
-static void etraxfs_pic_init(SysBusDevice *dev)
+static int etraxfs_pic_init(SysBusDevice *dev)
 {
     struct etrax_pic *s = FROM_SYSBUS(typeof (*s), dev);
     int intr_vect_regs;
@@ -147,6 +147,7 @@ static void etraxfs_pic_init(SysBusDevice *dev)
 
     intr_vect_regs = cpu_register_io_memory(pic_read, pic_write, s);
     sysbus_init_mmio(dev, R_MAX * 4, intr_vect_regs);
+    return 0;
 }
 
 static SysBusDeviceInfo etraxfs_pic_info = {

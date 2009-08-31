@@ -51,7 +51,7 @@ extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
 void do_savevm(Monitor *mon, const char *name);
-void do_loadvm(Monitor *mon, const char *name);
+int load_vmstate(Monitor *mon, const char *name);
 void do_delvm(Monitor *mon, const char *name);
 void do_info_snapshots(Monitor *mon);
 
@@ -64,6 +64,11 @@ int qemu_savevm_state_iterate(QEMUFile *f);
 int qemu_savevm_state_complete(QEMUFile *f);
 int qemu_savevm_state(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
+
+void qemu_errors_to_file(FILE *fp);
+void qemu_errors_to_mon(Monitor *mon);
+void qemu_errors_to_previous(void);
+void qemu_error(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
 
 #ifdef _WIN32
 /* Polling handling */
@@ -120,8 +125,6 @@ extern int win2k_install_hack;
 extern int rtc_td_hack;
 extern int alt_grab;
 extern int usb_enabled;
-extern int virtio_balloon;
-extern const char *virtio_balloon_devaddr;
 extern int smp_cpus;
 extern int max_cpus;
 extern int cursor_hide;

@@ -304,7 +304,7 @@ static int ssd0303_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void ssd0303_init(i2c_slave *i2c)
+static int ssd0303_init(i2c_slave *i2c)
 {
     ssd0303_state *s = FROM_I2C_SLAVE(ssd0303_state, i2c);
 
@@ -313,6 +313,7 @@ static void ssd0303_init(i2c_slave *i2c)
                                  NULL, NULL, s);
     qemu_console_resize(s->ds, 96 * MAGNIFY, 16 * MAGNIFY);
     register_savevm("ssd0303_oled", -1, 1, ssd0303_save, ssd0303_load, s);
+    return 0;
 }
 
 static I2CSlaveInfo ssd0303_info = {

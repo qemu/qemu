@@ -18,17 +18,24 @@
  */
 #include "hw.h"
 #include "sysemu.h"
+#include "monitor.h"
+#include "sysbus.h"
 #include "isa.h"
 
 struct ISABus {
     BusState qbus;
+    qemu_irq *irqs;
+    uint32_t assigned;
 };
 static ISABus *isabus;
 
+static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+
 static struct BusInfo isa_bus_info = {
-    .name  = "ISA",
-    .size  = sizeof(ISABus),
-    .props = (Property[]) {
+    .name      = "ISA",
+    .size      = sizeof(ISABus),
+    .print_dev = isabus_dev_print,
+    .props     = (Property[]) {
         DEFINE_PROP_HEX32("iobase",  ISADevice, iobase[0], -1),
         DEFINE_PROP_HEX32("iobase2", ISADevice, iobase[1], -1),
         DEFINE_PROP_END_OF_LIST(),
@@ -41,16 +48,53 @@ ISABus *isa_bus_new(DeviceState *dev)
         fprintf(stderr, "Can't create a second ISA bus\n");
         return NULL;
     }
+    if (NULL == dev) {
+        dev = qdev_create(NULL, "isabus-bridge");
+        qdev_init(dev);
+    }
 
     isabus = FROM_QBUS(ISABus, qbus_create(&isa_bus_info, dev, NULL));
     return isabus;
 }
 
-void isa_connect_irq(ISADevice *dev, int n, qemu_irq irq)
+void isa_bus_irqs(qemu_irq *irqs)
 {
-    assert(n >= 0 && n < dev->nirqs);
-    if (dev->irqs[n])
-        *dev->irqs[n] = irq;
+    isabus->irqs = irqs;
+}
+
+void isa_connect_irq(ISADevice *dev, int devnr, int isairq)
+{
+    assert(devnr >= 0 && devnr < dev->nirqs);
+    if (isabus->assigned & (1 << isairq)) {
+        fprintf(stderr, "isa irq %d already assigned\n", isairq);
+        exit(1);
+    }
+    if (dev->irqs[devnr]) {
+        isabus->assigned |= (1 << isairq);
+        dev->isairq[devnr] = isairq;
+        *dev->irqs[devnr] = isabus->irqs[isairq];
+    }
+}
+
+/*
+ * isa_reserve_irq() reserves the ISA irq and returns the corresponding
+ * qemu_irq entry for the i8259.
+ *
+ * This function is only for special cases such as the 'ferr', and
+ * temporary use for normal devices until they are converted to qdev.
+ */
+qemu_irq isa_reserve_irq(int isairq)
+{
+    if (isairq < 0 || isairq > 15) {
+        fprintf(stderr, "isa irq %d invalid\n", isairq);
+        exit(1);
+    }
+    if (isabus->assigned & (1 << isairq)) {
+        fprintf(stderr, "isa irq %d already assigned\n", isairq);
+        exit(1);
+    }
+    isabus->assigned |= (1 << isairq);
+    return isabus->irqs[isairq];
 }
 
 void isa_init_irq(ISADevice *dev, qemu_irq *p)
@@ -60,12 +104,15 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p)
     dev->nirqs++;
 }
 
-static void isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     ISADevice *dev = DO_UPCAST(ISADevice, qdev, qdev);
     ISADeviceInfo *info = DO_UPCAST(ISADeviceInfo, qdev, base);
 
-    info->init(dev);
+    dev->isairq[0] = -1;
+    dev->isairq[1] = -1;
+
+    return info->init(dev);
 }
 
 void isa_qdev_register(ISADeviceInfo *info)
@@ -75,7 +122,8 @@ void isa_qdev_register(ISADeviceInfo *info)
     qdev_register(&info->qdev);
 }
 
-ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2)
+ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2,
+                             uint32_t irq, uint32 irq2)
 {
     DeviceState *dev;
     ISADevice *isa;
@@ -89,5 +137,43 @@ ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2
     isa->iobase[0] = iobase;
     isa->iobase[1] = iobase2;
     qdev_init(dev);
+    if (irq != -1) {
+        isa_connect_irq(isa, 0, irq);
+    }
+    if (irq2 != -1) {
+        isa_connect_irq(isa, 1, irq2);
+    }
     return isa;
 }
+
+static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
+{
+    ISADevice *d = DO_UPCAST(ISADevice, qdev, dev);
+
+    if (d->isairq[1] != -1) {
+        monitor_printf(mon, "%*sisa irqs %d,%d\n", indent, "",
+                       d->isairq[0], d->isairq[1]);
+    } else if (d->isairq[0] != -1) {
+        monitor_printf(mon, "%*sisa irq %d\n", indent, "",
+                       d->isairq[0]);
+    }
+}
+
+static int isabus_bridge_init(SysBusDevice *dev)
+{
+    /* nothing */
+    return 0;
+}
+
+static SysBusDeviceInfo isabus_bridge_info = {
+    .init = isabus_bridge_init,
+    .qdev.name  = "isabus-bridge",
+    .qdev.size  = sizeof(SysBusDevice),
+};
+
+static void isabus_register_devices(void)
+{
+    sysbus_register_withprop(&isabus_bridge_info);
+}
+
+device_init(isabus_register_devices)

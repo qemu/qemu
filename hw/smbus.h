@@ -37,7 +37,7 @@ struct SMBusDevice {
 
 typedef struct {
     I2CSlaveInfo i2c;
-    void (*init)(SMBusDevice *dev);
+    int (*init)(SMBusDevice *dev);
     void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
     void (*send_byte)(SMBusDevice *dev, uint8_t val);
     uint8_t (*receive_byte)(SMBusDevice *dev);

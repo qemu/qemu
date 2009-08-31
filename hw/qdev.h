@@ -88,7 +88,7 @@ struct CompatProperty {
 
 DeviceState *qdev_create(BusState *bus, const char *name);
 DeviceState *qdev_device_add(QemuOpts *opts);
-void qdev_init(DeviceState *dev);
+int qdev_init(DeviceState *dev);
 void qdev_free(DeviceState *dev);
 
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
@@ -98,7 +98,7 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
 
-typedef void (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
+typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
 typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
               int unit);
 
@@ -162,9 +162,6 @@ extern PropertyInfo qdev_prop_ptr;
 extern PropertyInfo qdev_prop_macaddr;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_pci_devfn;
-
-#define typeof_field(type, field) typeof(((type *)0)->field)
-#define type_check(t1,t2) ((t1*)0 - (t2*)0)
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \

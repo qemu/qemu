@@ -229,7 +229,7 @@ static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void ssi_sd_init(SSISlave *dev)
+static int ssi_sd_init(SSISlave *dev)
 {
     ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, dev);
     BlockDriverState *bs;
@@ -238,6 +238,7 @@ static void ssi_sd_init(SSISlave *dev)
     bs = qdev_init_bdrv(&dev->qdev, IF_SD);
     s->sd = sd_init(bs, 1);
     register_savevm("ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
+    return 0;
 }
 
 static SSISlaveInfo ssi_sd_info = {

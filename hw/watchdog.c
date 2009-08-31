@@ -20,10 +20,21 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-option.h"
+#include "qemu-config.h"
 #include "sys-queue.h"
 #include "sysemu.h"
 #include "hw/watchdog.h"
 
+/* Possible values for action parameter. */
+#define WDT_RESET        1	/* Hard reset. */
+#define WDT_SHUTDOWN     2	/* Shutdown. */
+#define WDT_POWEROFF     3	/* Quit. */
+#define WDT_PAUSE        4	/* Pause. */
+#define WDT_DEBUG        5	/* Prints a message and continues running. */
+#define WDT_NONE         6	/* Do nothing. */
+
+static int watchdog_action = WDT_RESET;
 static LIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
 
 void watchdog_add_model(WatchdogTimerModel *model)
@@ -39,12 +50,7 @@ void watchdog_add_model(WatchdogTimerModel *model)
 int select_watchdog(const char *p)
 {
     WatchdogTimerModel *model;
-
-    if (watchdog) {
-        fprintf(stderr,
-                 "qemu: only one watchdog option may be given\n");
-        return 1;
-    }
+    QemuOpts *opts;
 
     /* -watchdog ? lists available devices and exits cleanly. */
     if (strcmp(p, "?") == 0) {
@@ -57,7 +63,9 @@ int select_watchdog(const char *p)
 
     LIST_FOREACH(model, &watchdog_list, entry) {
         if (strcasecmp(model->wdt_name, p) == 0) {
-            watchdog = model;
+            /* add the device */
+            opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
+            qemu_opt_set(opts, "driver", p);
             return 0;
         }
     }
@@ -119,16 +127,4 @@ void watchdog_perform_action(void)
     case WDT_NONE:
         break;
     }
-}
-
-void watchdog_pc_init(PCIBus *pci_bus)
-{
-    if (watchdog)
-        watchdog->wdt_pc_init(pci_bus);
-}
-
-void register_watchdogs(void)
-{
-    wdt_ib700_init();
-    wdt_i6300esb_init();
 }

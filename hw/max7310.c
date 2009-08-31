@@ -190,7 +190,7 @@ static void max7310_gpio_set(void *opaque, int line, int level)
 
 /* MAX7310 is SMBus-compatible (can be used with only SMBus protocols),
  * but also accepts sequences that are not SMBus so return an I2C device.  */
-static void max7310_init(i2c_slave *i2c)
+static int max7310_init(i2c_slave *i2c)
 {
     MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, i2c);
 
@@ -200,6 +200,7 @@ static void max7310_init(i2c_slave *i2c)
     max7310_reset(&s->i2c);
 
     register_savevm("max7310", -1, 0, max7310_save, max7310_load, s);
+    return 0;
 }
 
 qemu_irq *max7310_gpio_in_get(i2c_slave *i2c)

@@ -1871,33 +1871,41 @@ static void fdctrl_connect_drives(fdctrl_t *fdctrl, BlockDriverState **fds)
     }
 }
 
-fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
-                       target_phys_addr_t io_base,
-                       BlockDriverState **fds)
+fdctrl_t *fdctrl_init_isa(int isairq, int dma_chann,
+                          uint32_t io_base,
+                          BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
+    ISADevice *dev;
 
-    if (mem_mapped) {
-        DeviceState *dev;
-        fdctrl_sysbus_t *sys;
-
-        dev = qdev_create(NULL, "sysbus-fdc");
-        qdev_init(dev);
-        sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
-        fdctrl = &sys->state;
-        sysbus_connect_irq(&sys->busdev, 0, irq);
-        sysbus_mmio_map(&sys->busdev, 0, io_base);
-    } else {
-        ISADevice *dev;
-
-        dev = isa_create_simple("isa-fdc", io_base, 0);
-        fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
-        isa_connect_irq(dev, 0, irq);
-    }
+    dev = isa_create_simple("isa-fdc", io_base, 0, isairq, -1);
+    fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
 
     fdctrl->dma_chann = dma_chann;
     DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
 
+    fdctrl_connect_drives(fdctrl, fds);
+
+    return fdctrl;
+}
+
+fdctrl_t *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
+                             target_phys_addr_t mmio_base,
+                             BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+    DeviceState *dev;
+    fdctrl_sysbus_t *sys;
+
+    dev = qdev_create(NULL, "sysbus-fdc");
+    qdev_init(dev);
+    sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
+    fdctrl = &sys->state;
+    sysbus_connect_irq(&sys->busdev, 0, irq);
+    sysbus_mmio_map(&sys->busdev, 0, mmio_base);
+
+    fdctrl->dma_chann = dma_chann;
+    DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
     fdctrl_connect_drives(fdctrl, fds);
 
     return fdctrl;
@@ -1925,7 +1933,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
     return fdctrl;
 }
 
-static void fdctrl_init_common(fdctrl_t *fdctrl)
+static int fdctrl_init_common(fdctrl_t *fdctrl)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -1953,9 +1961,10 @@ static void fdctrl_init_common(fdctrl_t *fdctrl)
     fdctrl_external_reset(fdctrl);
     register_savevm("fdc", -1, 2, fdc_save, fdc_load, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);
+    return 0;
 }
 
-static void isabus_fdc_init1(ISADevice *dev)
+static int isabus_fdc_init1(ISADevice *dev)
 {
     fdctrl_isabus_t *isa = DO_UPCAST(fdctrl_isabus_t, busdev, dev);
     fdctrl_t *fdctrl = &isa->state;
@@ -1970,10 +1979,10 @@ static void isabus_fdc_init1(ISADevice *dev)
                           &fdctrl_write_port, fdctrl);
     isa_init_irq(&isa->busdev, &fdctrl->irq);
 
-    fdctrl_init_common(fdctrl);
+    return fdctrl_init_common(fdctrl);
 }
 
-static void sysbus_fdc_init1(SysBusDevice *dev)
+static int sysbus_fdc_init1(SysBusDevice *dev)
 {
     fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
     int io;
@@ -1983,10 +1992,10 @@ static void sysbus_fdc_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 
-    fdctrl_init_common(fdctrl);
+    return fdctrl_init_common(fdctrl);
 }
 
-static void sun4m_fdc_init1(SysBusDevice *dev)
+static int sun4m_fdc_init1(SysBusDevice *dev)
 {
     fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
     int io;
@@ -1998,7 +2007,7 @@ static void sun4m_fdc_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 
     fdctrl->sun4m = 1;
-    fdctrl_init_common(fdctrl);
+    return fdctrl_init_common(fdctrl);
 }
 
 static ISADeviceInfo isa_fdc_info = {

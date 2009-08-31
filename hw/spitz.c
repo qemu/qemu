@@ -604,7 +604,7 @@ static int spitz_lcdtg_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void spitz_lcdtg_init(SSISlave *dev)
+static int spitz_lcdtg_init(SSISlave *dev)
 {
     SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
 
@@ -614,6 +614,7 @@ static void spitz_lcdtg_init(SSISlave *dev)
 
     register_savevm("spitz-lcdtg", -1, 1,
                     spitz_lcdtg_save, spitz_lcdtg_load, s);
+    return 0;
 }
 
 /* SSP devices */
@@ -697,7 +698,7 @@ static int spitz_ssp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void corgi_ssp_init(SSISlave *dev)
+static int corgi_ssp_init(SSISlave *dev)
 {
     CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
 
@@ -707,6 +708,7 @@ static void corgi_ssp_init(SSISlave *dev)
     s->bus[2] = ssi_create_bus(&dev->qdev, "ssi2");
 
     register_savevm("spitz_ssp", -1, 1, spitz_ssp_save, spitz_ssp_load, s);
+    return 0;
 }
 
 static void spitz_ssp_attach(PXA2xxState *cpu)

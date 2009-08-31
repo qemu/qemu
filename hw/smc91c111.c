@@ -700,7 +700,7 @@ static void smc91c111_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-static void smc91c111_init1(SysBusDevice *dev)
+static int smc91c111_init1(SysBusDevice *dev)
 {
     smc91c111_state *s = FROM_SYSBUS(smc91c111_state, dev);
 
@@ -717,6 +717,7 @@ static void smc91c111_init1(SysBusDevice *dev)
                                  smc91c111_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->macaddr);
     /* ??? Save/restore.  */
+    return 0;
 }
 
 static void smc91c111_register_devices(void)

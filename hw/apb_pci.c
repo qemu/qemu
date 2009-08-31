@@ -260,7 +260,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     return d->host_state.bus;
 }
 
-static void pci_pbm_init_device(SysBusDevice *dev)
+static int pci_pbm_init_device(SysBusDevice *dev)
 {
 
     APBState *s;
@@ -283,9 +283,10 @@ static void pci_pbm_init_device(SysBusDevice *dev)
     pci_mem_data = cpu_register_io_memory(pci_apb_read,
                                           pci_apb_write, &s->host_state);
     sysbus_init_mmio(dev, 0x10000000ULL, pci_mem_data);
+    return 0;
 }
 
-static void pbm_pci_host_init(PCIDevice *d)
+static int pbm_pci_host_init(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_SUN);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_SUN_SABRE);
@@ -298,6 +299,7 @@ static void pbm_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0D] = 0x10; // latency_timer
     d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
+    return 0;
 }
 
 static PCIDeviceInfo pbm_pci_host_info = {

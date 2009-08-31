@@ -848,7 +848,7 @@ static void tnetw1130_pci_config(uint8_t *pci_conf)
     /* 0x48...0xff reserved, returns 0 */
 }
 
-static void tnetw1130_init(pci_tnetw1130_t *d)
+static int tnetw1130_init(pci_tnetw1130_t *d)
 {
     tnetw1130_t *s = &d->tnetw1130;
 
@@ -889,16 +889,18 @@ static void tnetw1130_init(pci_tnetw1130_t *d)
 
     register_savevm("tnetw1130", tnetw1130_instance, tnetw1130_version,
                     tnetw1130_save, tnetw1130_load, d);
+
+    return 0;
 }
 
-static void pci_tnetw1130_init(PCIDevice* pci_dev)
+static int pci_tnetw1130_init(PCIDevice* pci_dev)
 {
     pci_tnetw1130_t *d = (pci_tnetw1130_t *)pci_dev;
 #if defined(DEBUG_TNETW1130)
     set_traceflags("DEBUG_TNETW1130");
 #endif
     TRACE(TNETW, logout("\n"));
-    tnetw1130_init(d);
+    return tnetw1130_init(d);
 }
 
 static PCIDeviceInfo tnetw1130_info = {

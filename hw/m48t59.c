@@ -642,7 +642,7 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     return d;
 }
 
-static void m48t59_init1(SysBusDevice *dev)
+static int m48t59_init1(SysBusDevice *dev)
 {
     m48t59_t *s = FROM_SYSBUS(m48t59_t, dev);
     int mem_index;
@@ -661,6 +661,7 @@ static void m48t59_init1(SysBusDevice *dev)
 
     qemu_register_reset(m48t59_reset, s);
     register_savevm("m48t59", -1, 1, m48t59_save, m48t59_load, s);
+    return 0;
 }
 
 static SysBusDeviceInfo m48t59_info = {

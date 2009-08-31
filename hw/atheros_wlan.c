@@ -317,7 +317,7 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 }
 
 
-static void pci_Atheros_WLAN_init(PCIDevice *pci_dev)
+static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
 {
     PCIAtheros_WLANState *d = (PCIAtheros_WLANState *)pci_dev;
     Atheros_WLANState *s = &d->Atheros_WLAN;
@@ -350,6 +350,7 @@ static void pci_Atheros_WLAN_init(PCIDevice *pci_dev)
     register_savevm("Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
 
     Atheros_WLAN_reset(nd, s);
+    return 0;
 }
 
 static PCIDeviceInfo atheros_info = {

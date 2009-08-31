@@ -105,11 +105,11 @@ void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
     dev->mmio[n].cb = cb;
 }
 
-static void sysbus_device_init(DeviceState *dev, DeviceInfo *base)
+static int sysbus_device_init(DeviceState *dev, DeviceInfo *base)
 {
     SysBusDeviceInfo *info = container_of(base, SysBusDeviceInfo, qdev);
 
-    info->init(sysbus_from_qdev(dev));
+    return info->init(sysbus_from_qdev(dev));
 }
 
 void sysbus_register_withprop(SysBusDeviceInfo *info)

@@ -743,7 +743,7 @@ static void nic_selective_reset(EEPRO100State * s)
 static void nic_reset(void *opaque)
 {
     static int first;
-    EEPRO100State *s = (EEPRO100State *) opaque;
+    EEPRO100State *s = opaque;
     TRACE(OTHER, logout("%p\n", s));
     if (!first) {
         first = 1;
@@ -1899,7 +1899,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
 
 static int nic_load(QEMUFile * f, void *opaque, int version_id)
 {
-    EEPRO100State *s = (EEPRO100State *) opaque;
+    EEPRO100State *s = opaque;
     int i;
     int ret;
 
@@ -1970,7 +1970,7 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
 
 static void nic_save(QEMUFile * f, void *opaque)
 {
-    EEPRO100State *s = (EEPRO100State *) opaque;
+    EEPRO100State *s = opaque;
     int i;
 
     pci_device_save(&s->dev, f);
@@ -2047,7 +2047,7 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
     return 0;
 }
 
-static void nic_init(PCIDevice *pci_dev, uint32_t device)
+static int nic_init(PCIDevice *pci_dev, uint32_t device)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
@@ -2093,66 +2093,68 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
 
     register_savevm(s->vc->model, eepro100_instance, eepro100_version,
                     nic_save, nic_load, s);
+
+    return 0;
 }
 
-static void pci_i82550_init(PCIDevice *dev)
+static int pci_i82550_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82550);
+    return nic_init(pci_dev, i82550);
 }
 
-static void pci_i82551_init(PCIDevice *dev)
+static int pci_i82551_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82551);
+    return nic_init(pci_dev, i82551);
 }
 
-static void pci_i82557a_init(PCIDevice *dev)
+static int pci_i82557a_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82557A);
+    return nic_init(pci_dev, i82557A);
 }
 
-static void pci_i82557b_init(PCIDevice *dev)
+static int pci_i82557b_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82557B);
+    return nic_init(pci_dev, i82557B);
 }
 
-static void pci_i82557c_init(PCIDevice *dev)
+static int pci_i82557c_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82557C);
+    return nic_init(pci_dev, i82557C);
 }
 
-static void pci_i82558a_init(PCIDevice *dev)
+static int pci_i82558a_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82558A);
+    return nic_init(pci_dev, i82558A);
 }
 
-static void pci_i82558b_init(PCIDevice *dev)
+static int pci_i82558b_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82558B);
+    return nic_init(pci_dev, i82558B);
 }
 
-static void pci_i82559a_init(PCIDevice *dev)
+static int pci_i82559a_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82559A);
+    return nic_init(pci_dev, i82559A);
 }
 
-static void pci_i82559b_init(PCIDevice *dev)
+static int pci_i82559b_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82559B);
+    return nic_init(pci_dev, i82559B);
 }
 
-static void pci_i82559c_init(PCIDevice *dev)
+static int pci_i82559c_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82559C);
+    return nic_init(pci_dev, i82559C);
 }
 
-static void pci_i82559er_init(PCIDevice *dev)
+static int pci_i82559er_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82559ER);
+    return nic_init(pci_dev, i82559ER);
 }
 
-static void pci_i82562_init(PCIDevice *dev)
+static int pci_i82562_init(PCIDevice *pci_dev)
 {
-    nic_init(dev, i82562);
+    return nic_init(pci_dev, i82562);
 }
 
 static PCIDeviceInfo eepro100_info[] = {

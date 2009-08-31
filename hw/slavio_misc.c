@@ -47,10 +47,11 @@
 typedef struct MiscState {
     SysBusDevice busdev;
     qemu_irq irq;
+    uint32_t dummy;
     uint8_t config;
     uint8_t aux1, aux2;
     uint8_t diag, mctrl;
-    uint32_t sysctrl;
+    uint8_t sysctrl;
     uint16_t leds;
     qemu_irq fdc_tc;
 } MiscState;
@@ -398,43 +399,24 @@ static CPUWriteMemoryFunc * const slavio_led_mem_write[3] = {
     NULL,
 };
 
-static void slavio_misc_save(QEMUFile *f, void *opaque)
-{
-    MiscState *s = opaque;
-    uint32_t tmp = 0;
-    uint8_t tmp8;
+static const VMStateDescription vmstate_misc = {
+    .name ="slavio_misc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(dummy, MiscState),
+        VMSTATE_UINT8(config, MiscState),
+        VMSTATE_UINT8(aux1, MiscState),
+        VMSTATE_UINT8(aux2, MiscState),
+        VMSTATE_UINT8(diag, MiscState),
+        VMSTATE_UINT8(mctrl, MiscState),
+        VMSTATE_UINT8(sysctrl, MiscState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    qemu_put_be32s(f, &tmp); /* ignored, was IRQ.  */
-    qemu_put_8s(f, &s->config);
-    qemu_put_8s(f, &s->aux1);
-    qemu_put_8s(f, &s->aux2);
-    qemu_put_8s(f, &s->diag);
-    qemu_put_8s(f, &s->mctrl);
-    tmp8 = s->sysctrl & 0xff;
-    qemu_put_8s(f, &tmp8);
-}
-
-static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
-{
-    MiscState *s = opaque;
-    uint32_t tmp;
-    uint8_t tmp8;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_be32s(f, &tmp);
-    qemu_get_8s(f, &s->config);
-    qemu_get_8s(f, &s->aux1);
-    qemu_get_8s(f, &s->aux2);
-    qemu_get_8s(f, &s->diag);
-    qemu_get_8s(f, &s->mctrl);
-    qemu_get_8s(f, &tmp8);
-    s->sysctrl = (uint32_t)tmp8;
-    return 0;
-}
-
-static void apc_init1(SysBusDevice *dev)
+static int apc_init1(SysBusDevice *dev)
 {
     APCState *s = FROM_SYSBUS(APCState, dev);
     int io;
@@ -444,9 +426,10 @@ static void apc_init1(SysBusDevice *dev)
     /* Power management (APC) XXX: not a Slavio device */
     io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
     sysbus_init_mmio(dev, MISC_SIZE, io);
+    return 0;
 }
 
-static void slavio_misc_init1(SysBusDevice *dev)
+static int slavio_misc_init1(SysBusDevice *dev)
 {
     MiscState *s = FROM_SYSBUS(MiscState, dev);
     int io;
@@ -494,10 +477,10 @@ static void slavio_misc_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
 
-    register_savevm("slavio_misc", -1, 1, slavio_misc_save, slavio_misc_load,
-                    s);
+    vmstate_register(-1, &vmstate_misc, s);
     qemu_register_reset(slavio_misc_reset, s);
     slavio_misc_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo slavio_misc_info = {

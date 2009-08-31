@@ -308,7 +308,7 @@ static void etraxfs_timer_reset(void *opaque)
     qemu_irq_lower(t->irq);
 }
 
-static void etraxfs_timer_init(SysBusDevice *dev)
+static int etraxfs_timer_init(SysBusDevice *dev)
 {
     struct etrax_timer *t = FROM_SYSBUS(typeof (*t), dev);
     int timer_regs;
@@ -327,6 +327,7 @@ static void etraxfs_timer_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x5c, timer_regs);
 
     qemu_register_reset(etraxfs_timer_reset, t);
+    return 0;
 }
 
 static void etraxfs_timer_register(void)

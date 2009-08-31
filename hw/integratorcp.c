@@ -227,7 +227,7 @@ static CPUWriteMemoryFunc * const integratorcm_writefn[] = {
    integratorcm_write
 };
 
-static void integratorcm_init(SysBusDevice *dev)
+static int integratorcm_init(SysBusDevice *dev)
 {
     int iomemtype;
     integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
@@ -260,6 +260,7 @@ static void integratorcm_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x00800000, iomemtype);
     integratorcm_do_remap(s, 1);
     /* ??? Save/restore.  */
+    return 0;
 }
 
 /* Integrator/CP hardware emulation.  */
@@ -372,7 +373,7 @@ static CPUWriteMemoryFunc * const icp_pic_writefn[] = {
    icp_pic_write
 };
 
-static void icp_pic_init(SysBusDevice *dev)
+static int icp_pic_init(SysBusDevice *dev)
 {
     icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
     int iomemtype;
@@ -383,6 +384,7 @@ static void icp_pic_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(icp_pic_readfn,
                                        icp_pic_writefn, s);
     sysbus_init_mmio(dev, 0x00800000, iomemtype);
+    return 0;
 }
 
 /* CP control registers.  */

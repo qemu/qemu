@@ -96,11 +96,12 @@ static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
     return eeprom_receive_byte(dev);
 }
 
-static void smbus_eeprom_init(SMBusDevice *dev)
+static int smbus_eeprom_init(SMBusDevice *dev)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
 
     eeprom->offset = 0;
+    return 0;
 }
 
 static SMBusDeviceInfo smbus_eeprom_info = {

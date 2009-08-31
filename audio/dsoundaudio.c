@@ -57,7 +57,7 @@ static struct {
     .bufsize_out        = 16384,
     .settings.freq      = 44100,
     .settings.nchannels = 2,
-    .settings.fmt       = AUD_FMT_S16
+    .settings.fmt       = AUD_FMT_S16,
     .latency_millis     = 10
 };
 
@@ -1054,7 +1054,7 @@ static struct audio_option dsound_options[] = {
     {
         .name  = "SET_PRIMARY",
         .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.set_primary
+        .valp  = &conf.set_primary,
         .descr = "Set the parameters of primary buffer"
     },
     {
@@ -1121,5 +1121,5 @@ struct audio_driver dsound_audio_driver = {
     .max_voices_out = INT_MAX,
     .max_voices_in  = 1,
     .voice_size_out = sizeof (DSoundVoiceOut),
-    .oice_size_in   = sizeof (DSoundVoiceIn)
+    .voice_size_in  = sizeof (DSoundVoiceIn)
 };

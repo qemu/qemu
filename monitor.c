@@ -331,7 +331,7 @@ static CPUState *mon_get_cpu(void)
     if (!cur_mon->mon_cpu) {
         mon_set_cpu(0);
     }
-    cpu_synchronize_state(cur_mon->mon_cpu, 0);
+    cpu_synchronize_state(cur_mon->mon_cpu);
     return cur_mon->mon_cpu;
 }
 
@@ -358,7 +358,7 @@ static void do_info_cpus(Monitor *mon)
     mon_get_cpu();
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu_synchronize_state(env, 0);
+        cpu_synchronize_state(env);
         monitor_printf(mon, "%c CPU #%d:",
                        (env == mon->mon_cpu) ? '*' : ' ',
                        env->cpu_index);
@@ -1721,6 +1721,16 @@ static void do_closefd(Monitor *mon, const char *fdname)
                    fdname);
 }
 
+static void do_loadvm(Monitor *mon, const char *name)
+{
+    int saved_vm_running  = vm_running;
+
+    vm_stop(0);
+
+    if (load_vmstate(mon, name) >= 0 && saved_vm_running)
+        vm_start();
+}
+
 int monitor_get_fd(Monitor *mon, const char *fdname)
 {
     mon_fd_t *monfd;
@@ -2782,6 +2792,7 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
         goto fail;
     }
 
+    qemu_errors_to_mon(mon);
     switch(nb_args) {
     case 0:
         handler_0 = cmd->handler;
@@ -2833,8 +2844,10 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
         break;
     default:
         monitor_printf(mon, "unsupported number of arguments: %d\n", nb_args);
-        goto fail;
+        break;
     }
+    qemu_errors_to_previous();
+
  fail:
     for(i = 0; i < MAX_ARGS; i++)
         qemu_free(str_allocated[i]);
@@ -3201,4 +3214,70 @@ void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
 
     if (err && completion_cb)
         completion_cb(opaque, err);
+}
+
+typedef struct QemuErrorSink QemuErrorSink;
+struct QemuErrorSink {
+    enum {
+        ERR_SINK_FILE,
+        ERR_SINK_MONITOR,
+    } dest;
+    union {
+        FILE    *fp;
+        Monitor *mon;
+    };
+    QemuErrorSink *previous;
+};
+
+static __thread QemuErrorSink *qemu_error_sink;
+
+void qemu_errors_to_file(FILE *fp)
+{
+    QemuErrorSink *sink;
+
+    sink = qemu_mallocz(sizeof(*sink));
+    sink->dest = ERR_SINK_FILE;
+    sink->fp = fp;
+    sink->previous = qemu_error_sink;
+    qemu_error_sink = sink;
+}
+
+void qemu_errors_to_mon(Monitor *mon)
+{
+    QemuErrorSink *sink;
+
+    sink = qemu_mallocz(sizeof(*sink));
+    sink->dest = ERR_SINK_MONITOR;
+    sink->mon = mon;
+    sink->previous = qemu_error_sink;
+    qemu_error_sink = sink;
+}
+
+void qemu_errors_to_previous(void)
+{
+    QemuErrorSink *sink;
+
+    assert(qemu_error_sink != NULL);
+    sink = qemu_error_sink;
+    qemu_error_sink = sink->previous;
+    qemu_free(sink);
+}
+
+void qemu_error(const char *fmt, ...)
+{
+    va_list args;
+
+    assert(qemu_error_sink != NULL);
+    switch (qemu_error_sink->dest) {
+    case ERR_SINK_FILE:
+        va_start(args, fmt);
+        vfprintf(qemu_error_sink->fp, fmt, args);
+        va_end(args);
+        break;
+    case ERR_SINK_MONITOR:
+        va_start(args, fmt);
+        monitor_vprintf(qemu_error_sink->mon, fmt, args);
+        va_end(args);
+        break;
+    }
 }

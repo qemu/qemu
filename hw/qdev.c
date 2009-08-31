@@ -138,8 +138,8 @@ static int set_property(const char *name, const char *value, void *opaque)
         return 0;
 
     if (-1 == qdev_prop_parse(dev, name, value)) {
-        fprintf(stderr, "can't set property \"%s\" to \"%s\" for \"%s\"\n",
-                name, value, dev->info->name);
+        qemu_error("can't set property \"%s\" to \"%s\" for \"%s\"\n",
+                   name, value, dev->info->name);
         return -1;
     }
     return 0;
@@ -154,14 +154,14 @@ DeviceState *qdev_device_add(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
-        fprintf(stderr, "-device: no driver specified\n");
+        qemu_error("-device: no driver specified\n");
         return NULL;
     }
     if (strcmp(driver, "?") == 0) {
         char msg[256];
         for (info = device_info_list; info != NULL; info = info->next) {
             qdev_print_devinfo(info, msg, sizeof(msg));
-            fprintf(stderr, "%s\n", msg);
+            qemu_error("%s\n", msg);
         }
         return NULL;
     }
@@ -169,13 +169,13 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* find driver */
     info = qdev_find_info(NULL, driver);
     if (!info) {
-        fprintf(stderr, "Device \"%s\" not found.  Try -device '?' for a list.\n",
-                driver);
+        qemu_error("Device \"%s\" not found.  Try -device '?' for a list.\n",
+                   driver);
         return NULL;
     }
     if (info->no_user) {
-        fprintf(stderr, "device \"%s\" can't be added via command line\n",
-                info->name);
+        qemu_error("device \"%s\" can't be added via command line\n",
+                   info->name);
         return NULL;
     }
 
@@ -199,16 +199,19 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev_free(qdev);
         return NULL;
     }
-    qdev_init(qdev);
+    if (qdev_init(qdev) != 0) {
+        qdev_free(qdev);
+        return NULL;
+    }
     return qdev;
 }
 
 /* Initialize a device.  Device properties should be set before calling
    this function.  IRQs and MMIO regions should be connected/mapped after
    calling this function.  */
-void qdev_init(DeviceState *dev)
+int qdev_init(DeviceState *dev)
 {
-    dev->info->init(dev, dev->info);
+    return dev->info->init(dev, dev->info);
 }
 
 /* Unlink device from bus and free the structure.  */
@@ -439,12 +442,12 @@ static BusState *qbus_find(const char *path)
         pos = 0;
     } else {
         if (sscanf(path, "%127[^/]%n", elem, &len) != 1) {
-            fprintf(stderr, "path parse error (\"%s\")\n", path);
+            qemu_error("path parse error (\"%s\")\n", path);
             return NULL;
         }
         bus = qbus_find_recursive(main_system_bus, elem, NULL);
         if (!bus) {
-            fprintf(stderr, "bus \"%s\" not found\n", elem);
+            qemu_error("bus \"%s\" not found\n", elem);
             return NULL;
         }
         pos = len;
@@ -458,14 +461,14 @@ static BusState *qbus_find(const char *path)
 
         /* find device */
         if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
-            fprintf(stderr, "path parse error (\"%s\" pos %d)\n", path, pos);
+            qemu_error("path parse error (\"%s\" pos %d)\n", path, pos);
             return NULL;
         }
         pos += len;
         dev = qbus_find_dev(bus, elem);
         if (!dev) {
             qbus_list_dev(bus, msg, sizeof(msg));
-            fprintf(stderr, "device \"%s\" not found\n%s\n", elem, msg);
+            qemu_error("device \"%s\" not found\n%s\n", elem, msg);
             return NULL;
         }
         if (path[pos] == '\0') {
@@ -473,28 +476,28 @@ static BusState *qbus_find(const char *path)
              * one child bus accept it nevertheless */
             switch (dev->num_child_bus) {
             case 0:
-                fprintf(stderr, "device has no child bus (%s)\n", path);
+                qemu_error("device has no child bus (%s)\n", path);
                 return NULL;
             case 1:
                 return LIST_FIRST(&dev->child_bus);
             default:
                 qbus_list_bus(dev, msg, sizeof(msg));
-                fprintf(stderr, "device has multiple child busses (%s)\n%s\n",
-                        path, msg);
+                qemu_error("device has multiple child busses (%s)\n%s\n",
+                           path, msg);
                 return NULL;
             }
         }
 
         /* find bus */
         if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
-            fprintf(stderr, "path parse error (\"%s\" pos %d)\n", path, pos);
+            qemu_error("path parse error (\"%s\" pos %d)\n", path, pos);
             return NULL;
         }
         pos += len;
         bus = qbus_find_bus(dev, elem);
         if (!bus) {
             qbus_list_bus(dev, msg, sizeof(msg));
-            fprintf(stderr, "child bus \"%s\" not found\n%s\n", elem, msg);
+            qemu_error("child bus \"%s\" not found\n%s\n", elem, msg);
             return NULL;
         }
     }

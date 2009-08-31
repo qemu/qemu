@@ -131,7 +131,7 @@ static void sbi_reset(void *opaque)
     }
 }
 
-static void sbi_init1(SysBusDevice *dev)
+static int sbi_init1(SysBusDevice *dev)
 {
     SBIState *s = FROM_SYSBUS(SBIState, dev);
     int sbi_io_memory;
@@ -148,6 +148,7 @@ static void sbi_init1(SysBusDevice *dev)
     register_savevm("sbi", -1, 1, sbi_save, sbi_load, s);
     qemu_register_reset(sbi_reset, s);
     sbi_reset(s);
+    return 0;
 }
 
 static SysBusDeviceInfo sbi_info = {

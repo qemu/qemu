@@ -199,7 +199,7 @@ static int syborg_pointer_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void syborg_pointer_init(SysBusDevice *dev)
+static int syborg_pointer_init(SysBusDevice *dev)
 {
     SyborgPointerState *s = FROM_SYSBUS(SyborgPointerState, dev);
     int iomemtype;
@@ -220,6 +220,7 @@ static void syborg_pointer_init(SysBusDevice *dev)
 
     register_savevm("syborg_pointer", -1, 1,
                     syborg_pointer_save, syborg_pointer_load, s);
+    return 0;
 }
 
 static SysBusDeviceInfo syborg_pointer_info = {

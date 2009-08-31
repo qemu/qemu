@@ -2464,7 +2464,7 @@ static void eeprom_init(E100State *s)
 
 }
 
-static void e100_init(PCIDevice *pci_dev, uint32_t device)
+static int e100_init(PCIDevice *pci_dev, uint32_t device)
 {
     PCIE100State *d = (PCIE100State *)pci_dev;
     E100State *s = &d->e100;
@@ -2507,11 +2507,13 @@ static void e100_init(PCIDevice *pci_dev, uint32_t device)
     qemu_register_reset(e100_reset, s);
 
     register_savevm(s->vc->model, 0, 3, e100_save, e100_load, s);
+
+    return 0;
 }
 
-static void pci_e100_init(PCIDevice *pci_dev)
+static int pci_e100_init(PCIDevice *pci_dev)
 {
-    e100_init(pci_dev, i82557C);
+    return e100_init(pci_dev, i82557C);
 }
 
 static PCIDeviceInfo e100_info = {

@@ -41,10 +41,6 @@ endif # !CONFIG_WIN32
 endif # !CONFIG_LINUX_USER
 endif # !CONFIG_MY_EXTENSIONS
 
-ifeq ($(subst ppc64,ppc,$(ARCH))$(TARGET_BASE_ARCH),ppcppc)
-translate.o: QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-unit-at-a-time,)
-endif
-
 LIBS+=-lm
 
 kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
@@ -217,18 +213,19 @@ obj-y += atheros_wlan_packet.o atheros_wlan_crc32.o
 endif
 obj-y += tnetw1130.o
 
-# Generic watchdog support and some watchdog devices
-obj-y += wdt_ib700.o wdt_i6300esb.o
+# PCI watchdog devices
+obj-y += wdt_i6300esb.o
 
 # Hardware support
-obj-i386-y = ide.o pckbd.o vga.o $(sound-obj-y) dma.o isa-bus.o
+obj-i386-y = ide/core.o ide/isa.o ide/pci.o pckbd.o vga.o $(sound-obj-y) dma.o isa-bus.o
 obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
 obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
-obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o
+obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 
 # shared objects
-obj-ppc-y = ppc.o ide.o vga.o $(sound-obj-y) dma.o isa-bus.o openpic.o
+obj-ppc-y = ppc.o ide/core.o ide/isa.o ide/pci.o ide/macio.o
+obj-ppc-y += vga.o $(sound-obj-y) dma.o isa-bus.o openpic.o
 # PREP target
 obj-ppc-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
 obj-ppc-y += prep_pci.o ppc_prep.o
@@ -249,7 +246,8 @@ obj-ppc-$(CONFIG_FDT) += device_tree.o
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
-obj-mips-y += ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
+obj-mips-y += ide/core.o ide/isa.o ide/pci.o
+obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 obj-mips-y += piix_pci.o parallel.o cirrus_vga.o isa-bus.o pcspk.o $(sound-obj-y)
 ifeq ($(TARGET_ARCH), mips)
 obj-mips-y += ar7.o
@@ -286,7 +284,7 @@ obj-cris-y += etraxfs_ser.o
 obj-cris-y += pflash_cfi02.o
 
 ifeq ($(TARGET_ARCH), sparc64)
-obj-sparc-y = sun4u.o ide.o isa-bus.o pckbd.o vga.o apb_pci.o
+obj-sparc-y = sun4u.o ide/core.o ide/pci.o isa-bus.o pckbd.o vga.o apb_pci.o
 obj-sparc-y += fdc.o mc146818rtc.o serial.o
 obj-sparc-y += cirrus_vga.o parallel.o
 else
@@ -305,7 +303,7 @@ obj-arm-y += arm-semi.o
 obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 obj-arm-y += pflash_cfi01.o gumstix.o
-obj-arm-y += zaurus.o ide.o serial.o spitz.o tosa.o tc6393xb.o
+obj-arm-y += zaurus.o ide/core.o isa-bus.o ide/microdrive.o serial.o spitz.o tosa.o tc6393xb.o
 obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
@@ -319,7 +317,7 @@ obj-arm-y += syborg_virtio.o
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
 obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
-obj-sh4-y += ide.o
+obj-sh4-y += ide/core.o isa-bus.o ide/mmio.o
 
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 obj-m68k-y += m68k-semi.o dummy_m68k.o

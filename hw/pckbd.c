@@ -446,7 +446,7 @@ typedef struct ISAKBDState {
     KBDState  kbd;
 } ISAKBDState;
 
-static void i8042_initfn(ISADevice *dev)
+static int i8042_initfn(ISADevice *dev)
 {
     KBDState *s = &(DO_UPCAST(ISAKBDState, dev, dev)->kbd);
 
@@ -466,6 +466,7 @@ static void i8042_initfn(ISADevice *dev)
     vmmouse_init(s->mouse);
 #endif
     qemu_register_reset(kbd_reset, s);
+    return 0;
 }
 
 static ISADeviceInfo i8042_info = {

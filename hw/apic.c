@@ -864,39 +864,8 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void apic_save(QEMUFile *f, void *opaque)
-{
-    APICState *s = opaque;
-    int i;
-
-    qemu_put_be32s(f, &s->apicbase);
-    qemu_put_8s(f, &s->id);
-    qemu_put_8s(f, &s->arb_id);
-    qemu_put_8s(f, &s->tpr);
-    qemu_put_be32s(f, &s->spurious_vec);
-    qemu_put_8s(f, &s->log_dest);
-    qemu_put_8s(f, &s->dest_mode);
-    for (i = 0; i < 8; i++) {
-        qemu_put_be32s(f, &s->isr[i]);
-        qemu_put_be32s(f, &s->tmr[i]);
-        qemu_put_be32s(f, &s->irr[i]);
-    }
-    for (i = 0; i < APIC_LVT_NB; i++) {
-        qemu_put_be32s(f, &s->lvt[i]);
-    }
-    qemu_put_be32s(f, &s->esr);
-    qemu_put_be32s(f, &s->icr[0]);
-    qemu_put_be32s(f, &s->icr[1]);
-    qemu_put_be32s(f, &s->divide_conf);
-    qemu_put_be32(f, s->count_shift);
-    qemu_put_be32s(f, &s->initial_count);
-    qemu_put_be64(f, s->initial_count_load_time);
-    qemu_put_be64(f, s->next_time);
-
-    qemu_put_timer(f, s->timer);
-}
-
-static int apic_load(QEMUFile *f, void *opaque, int version_id)
+/* This function is only used for old state version 1 and 2 */
+static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
 {
     APICState *s = opaque;
     int i;
@@ -934,11 +903,44 @@ static int apic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_apic = {
+    .name = "apic",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 1,
+    .load_state_old = apic_load_old,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(apicbase, APICState),
+        VMSTATE_UINT8(id, APICState),
+        VMSTATE_UINT8(arb_id, APICState),
+        VMSTATE_UINT8(tpr, APICState),
+        VMSTATE_UINT32(spurious_vec, APICState),
+        VMSTATE_UINT8(log_dest, APICState),
+        VMSTATE_UINT8(dest_mode, APICState),
+        VMSTATE_UINT32_ARRAY(isr, APICState, 8),
+        VMSTATE_UINT32_ARRAY(tmr, APICState, 8),
+        VMSTATE_UINT32_ARRAY(irr, APICState, 8),
+        VMSTATE_UINT32_ARRAY(lvt, APICState, APIC_LVT_NB),
+        VMSTATE_UINT32(esr, APICState),
+        VMSTATE_UINT32_ARRAY(icr, APICState, 2),
+        VMSTATE_UINT32(divide_conf, APICState),
+        VMSTATE_INT32(count_shift, APICState),
+        VMSTATE_UINT32(initial_count, APICState),
+        VMSTATE_INT64(initial_count_load_time, APICState),
+        VMSTATE_INT64(next_time, APICState),
+        VMSTATE_TIMER(timer, APICState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void apic_reset(void *opaque)
 {
     APICState *s = opaque;
-    int bsp = cpu_is_bsp(s->cpu_env);
+    int bsp;
 
+    cpu_synchronize_state(s->cpu_env);
+
+    bsp = cpu_is_bsp(s->cpu_env);
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
@@ -953,8 +955,6 @@ static void apic_reset(void *opaque)
          */
         s->lvt[APIC_LVT_LINT0] = 0x700;
     }
-
-    cpu_synchronize_state(s->cpu_env, 1);
 }
 
 static CPUReadMemoryFunc * const apic_mem_read[3] = {
@@ -996,7 +996,7 @@ int apic_init(CPUState *env)
     }
     s->timer = qemu_new_timer(vm_clock, apic_timer, s);
 
-    register_savevm("apic", s->idx, 2, apic_save, apic_load, s);
+    vmstate_register(s->idx, &vmstate_apic, s);
     qemu_register_reset(apic_reset, s);
 
     local_apics[s->idx] = s;

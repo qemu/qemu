@@ -125,7 +125,7 @@ static int max111x_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void max111x_init(SSISlave *dev, int inputs)
+static int max111x_init(SSISlave *dev, int inputs)
 {
     MAX111xState *s = FROM_SSI_SLAVE(MAX111xState, dev);
 
@@ -144,16 +144,17 @@ static void max111x_init(SSISlave *dev, int inputs)
     s->com = 0;
 
     register_savevm("max111x", -1, 0, max111x_save, max111x_load, s);
+    return 0;
 }
 
-static void max1110_init(SSISlave *dev)
+static int max1110_init(SSISlave *dev)
 {
-    max111x_init(dev, 8);
+    return max111x_init(dev, 8);
 }
 
-static void max1111_init(SSISlave *dev)
+static int max1111_init(SSISlave *dev)
 {
-    max111x_init(dev, 4);
+    return max111x_init(dev, 4);
 }
 
 void max111x_set_input(DeviceState *dev, int line, uint8_t value)

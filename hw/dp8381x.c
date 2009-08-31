@@ -1497,7 +1497,7 @@ static void eeprom_init(dp8381x_t * s)
 }
 #endif
 
-static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
+static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 {
     pci_dp8381x_t *d = (pci_dp8381x_t *)pci_dev;
     dp8381x_t *s = &d->dp8381x;
@@ -1556,15 +1556,17 @@ static void pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     // TODO: use s->vc->model or d->name instead of "dp8381x".
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
                     dp8381x_save, dp8381x_load, d);
+
+    return 0;
 }
 
-static void dp8381x_init(PCIDevice *pci_dev)
+static int dp8381x_init(PCIDevice *pci_dev)
 {
     logout("\n");
 #if defined(DP83815)
-    pci_dp8381x_init(pci_dev, DP83815DVNG);
+    return pci_dp8381x_init(pci_dev, DP83815DVNG);
 #else
-    pci_dp8381x_init(pci_dev, DP83816AVNG);
+    return pci_dp8381x_init(pci_dev, DP83816AVNG);
 #endif
 }
 

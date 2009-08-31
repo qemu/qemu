@@ -238,7 +238,7 @@ void mips_jazz_init (ram_addr_t ram_size,
         DriveInfo *dinfo = drive_get(IF_FLOPPY, 0, n);
         fds[n] = dinfo ? dinfo->bdrv : NULL;
     }
-    fdctrl_init(rc4030[1], 0, 1, 0x80003000, fds);
+    fdctrl_init_sysbus(rc4030[1], 0, 0x80003000, fds);
 
     /* Real time clock */
     rtc_init(0x70, i8259[8], 1980);

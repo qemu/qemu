@@ -640,9 +640,54 @@ static int get_bits_from_size(size_t size)
     return res;
 }
 
+
+static int preallocate(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t cluster_offset = 0;
+    uint64_t nb_sectors;
+    uint64_t offset;
+    int num;
+    QCowL2Meta meta;
+
+    nb_sectors = bdrv_getlength(bs) >> 9;
+    offset = 0;
+
+    while (nb_sectors) {
+        num = MIN(nb_sectors, INT_MAX >> 9);
+        cluster_offset = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num,
+            &meta);
+
+        if (cluster_offset == 0) {
+            return -1;
+        }
+
+        if (qcow2_alloc_cluster_link_l2(bs, cluster_offset, &meta) < 0) {
+            qcow2_free_any_clusters(bs, cluster_offset, meta.nb_clusters);
+            return -1;
+        }
+
+        /* TODO Preallocate data if requested */
+
+        nb_sectors -= num;
+        offset += num << 9;
+    }
+
+    /*
+     * It is expected that the image file is large enough to actually contain
+     * all of the allocated clusters (otherwise we get failing reads after
+     * EOF). Extend the image to the last allocated sector.
+     */
+    if (cluster_offset != 0) {
+        bdrv_truncate(s->hd, cluster_offset + (num <<  9));
+    }
+
+    return 0;
+}
+
 static int qcow_create2(const char *filename, int64_t total_size,
                         const char *backing_file, const char *backing_format,
-                        int flags, size_t cluster_size)
+                        int flags, size_t cluster_size, int prealloc)
 {
 
     int fd, header_size, backing_filename_len, l1_size, i, shift, l2_bits;
@@ -764,6 +809,16 @@ static int qcow_create2(const char *filename, int64_t total_size,
     qemu_free(s->refcount_table);
     qemu_free(s->refcount_block);
     close(fd);
+
+    /* Preallocate metadata */
+    if (prealloc) {
+        BlockDriverState *bs;
+        bs = bdrv_new("");
+        bdrv_open(bs, filename, BDRV_O_CACHE_WB);
+        preallocate(bs);
+        bdrv_close(bs);
+    }
+
     return 0;
 }
 
@@ -774,6 +829,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     uint64_t sectors = 0;
     int flags = 0;
     size_t cluster_size = 65536;
+    int prealloc = 0;
 
     /* Read out options */
     while (options && options->name) {
@@ -789,12 +845,28 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
             if (options->value.n) {
                 cluster_size = options->value.n;
             }
+        } else if (!strcmp(options->name, BLOCK_OPT_PREALLOC)) {
+            if (!options->value.s || !strcmp(options->value.s, "off")) {
+                prealloc = 0;
+            } else if (!strcmp(options->value.s, "metadata")) {
+                prealloc = 1;
+            } else {
+                fprintf(stderr, "Invalid preallocation mode: '%s'\n",
+                    options->value.s);
+                return -EINVAL;
+            }
         }
         options++;
     }
 
+    if (backing_file && prealloc) {
+        fprintf(stderr, "Backing file and preallocation cannot be used at "
+            "the same time\n");
+        return -EINVAL;
+    }
+
     return qcow_create2(filename, sectors, backing_file, backing_fmt, flags,
-        cluster_size);
+        cluster_size, prealloc);
 }
 
 static int qcow_make_empty(BlockDriverState *bs)
@@ -983,6 +1055,11 @@ static QEMUOptionParameter qcow_create_options[] = {
         .name = BLOCK_OPT_CLUSTER_SIZE,
         .type = OPT_SIZE,
         .help = "qcow2 cluster size"
+    },
+    {
+        .name = BLOCK_OPT_PREALLOC,
+        .type = OPT_STRING,
+        .help = "Preallocation mode (allowed values: off, metadata)"
     },
     { NULL }
 };

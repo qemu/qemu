@@ -37,6 +37,7 @@
 #define BLOCK_OPT_BACKING_FILE  "backing_file"
 #define BLOCK_OPT_BACKING_FMT   "backing_fmt"
 #define BLOCK_OPT_CLUSTER_SIZE  "cluster_size"
+#define BLOCK_OPT_PREALLOC      "preallocation"
 
 typedef struct AIOPool {
     void (*cancel)(BlockDriverAIOCB *acb);

@@ -202,7 +202,7 @@ static int syborg_int_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void syborg_int_init(SysBusDevice *dev)
+static int syborg_int_init(SysBusDevice *dev)
 {
     SyborgIntState *s = FROM_SYSBUS(SyborgIntState, dev);
     int iomemtype;
@@ -215,6 +215,7 @@ static void syborg_int_init(SysBusDevice *dev)
     s->flags = qemu_mallocz(s->num_irqs * sizeof(syborg_int_flags));
 
     register_savevm("syborg_int", -1, 1, syborg_int_save, syborg_int_load, s);
+    return 0;
 }
 
 static SysBusDeviceInfo syborg_int_info = {

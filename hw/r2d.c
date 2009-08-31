@@ -31,6 +31,7 @@
 #include "pci.h"
 #include "net.h"
 #include "sh7750_regs.h"
+#include "ide.h"
 
 #define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000

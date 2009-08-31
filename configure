@@ -177,22 +177,44 @@ case "$cpu" in
     cpu="unknown"
   ;;
 esac
-brlapi="yes"
+
+# Default value for a variable defining feature "foo"
+#  * foo="no", feature will only be used if --enable-foo arg is given
+#  * foo="", feature will be searched for, and if found, will be used
+#  * foo="yes", this value vill only be set by --enable-foo flag.
+#                   feature will searched for, if not found, configure exits with error
+#
+# Always add --enable-foo and --disable-foo command line args.  Distributions want
+# to ensure that several features are compiled in, and it is impossible without a
+# --enable-foo that exits if feature is not found
+
+bluez=""
+brlapi=""
+curl=""
+curses=""
+docs=""
+fdt=""
+kvm=""
+nptl=""
+sdl=""
+sparse="no"
+vde=""
+vnc_tls=""
+vnc_sasl=""
+xen=""
+linux_aio=""
+
 gprof="no"
 debug_tcg="no"
 debug="no"
-sparse="no"
 strip_opt="yes"
 bigendian="no"
 mingw32="no"
 EXESUF=""
 slirp="yes"
-vde="yes"
 fmod_lib=""
 fmod_inc=""
 oss_lib=""
-vnc_tls="yes"
-vnc_sasl="yes"
 bsd="no"
 linux="no"
 solaris="no"
@@ -203,21 +225,12 @@ linux_user="no"
 darwin_user="no"
 bsd_user="no"
 guest_base=""
-build_docs="yes"
 uname_release=""
-curses="yes"
-curl="yes"
 io_thread="no"
-nptl="yes"
 mixemu="no"
-bluez="yes"
-kvm="no"
 kerneldir=""
 aix="no"
 blobs="yes"
-fdt="yes"
-sdl="yes"
-xen="yes"
 pkgversion=""
 
 # OS specific
@@ -336,7 +349,6 @@ AIX)
   linux="yes"
   linux_user="yes"
   usb="linux"
-  kvm="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
@@ -406,6 +418,8 @@ for opt do
   ;;
   --disable-sdl) sdl="no"
   ;;
+  --enable-sdl) sdl="yes"
+  ;;
   --fmod-lib=*) fmod_lib="$optarg"
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
@@ -434,19 +448,33 @@ for opt do
   ;;
   --disable-vnc-tls) vnc_tls="no"
   ;;
+  --enable-vnc-tls) vnc_tls="yes"
+  ;;
   --disable-vnc-sasl) vnc_sasl="no"
+  ;;
+  --enable-vnc-sasl) vnc_sasl="yes"
   ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-vde) vde="no"
   ;;
+  --enable-vde) vde="yes"
+  ;;
   --disable-xen) xen="no"
+  ;;
+  --enable-xen) xen="yes"
   ;;
   --disable-brlapi) brlapi="no"
   ;;
+  --enable-brlapi) brlapi="yes"
+  ;;
   --disable-bluez) bluez="no"
   ;;
+  --enable-bluez) bluez="yes"
+  ;;
   --disable-kvm) kvm="no"
+  ;;
+  --enable-kvm) kvm="yes"
   ;;
   --enable-profiler) profiler="yes"
   ;;
@@ -491,11 +519,25 @@ for opt do
   ;;
   --disable-curses) curses="no"
   ;;
+  --enable-curses) curses="yes"
+  ;;
   --disable-curl) curl="no"
+  ;;
+  --enable-curl) curl="yes"
+  ;;
+  --disable-fdt) fdt="no"
+  ;;
+  --enable-fdt) fdt="yes"
   ;;
   --disable-nptl) nptl="no"
   ;;
+  --enable-nptl) nptl="yes"
+  ;;
   --enable-mixemu) mixemu="yes"
+  ;;
+  --disable-linux-aio) linux_aio="no"
+  ;;
+  --enable-linux-aio) linux_aio="yes"
   ;;
   --enable-io-thread) io_thread="yes"
   ;;
@@ -505,7 +547,9 @@ for opt do
   ;;
   --with-pkgversion=*) pkgversion=" ($optarg)"
   ;;
-  --disable-docs) build_docs="no"
+  --disable-docs) docs="no"
+  ;;
+  --enable-docs) docs="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -599,6 +643,7 @@ echo "  --disable-sparse         disable sparse checker (default)"
 echo "  --disable-strip          disable stripping binaries"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
+echo "  --enable-sdl             enable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
@@ -606,14 +651,25 @@ echo "  --audio-card-list=LIST   set list of emulated audio cards [$audio_card_l
 echo "                           Available cards: $audio_possible_cards"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
+echo "  --enable-xen             enable xen backend driver support"
 echo "  --disable-brlapi         disable BrlAPI"
+echo "  --enable-brlapi          enable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
+echo "  --enable-vnc-tls         enable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
+echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
+echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
+echo "  --enable-curl            enable curl connectivity"
+echo "  --disable-fdt            disable fdt device tree"
+echo "  --enable-fdt             enable fdt device tree"
 echo "  --disable-bluez          disable bluez stack connectivity"
+echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
+echo "  --enable-kvm             enable KVM acceleration support"
 echo "  --disable-nptl           disable usermode NPTL support"
+echo "  --enable-nptl            disable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
 echo "  --enable-user            enable supported user emulation targets"
@@ -633,16 +689,15 @@ echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
+echo "  --enable-vde             enable support for vde network"
+echo "  --disable-linux-aio      disable Linux AIO support"
+echo "  --enable-linux-aio       enable Linux AIO support"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
-fi
-
-if test ! -x "$(which cgcc 2>/dev/null)"; then
-    sparse="no"
 fi
 
 #
@@ -740,6 +795,16 @@ if test -z "$target_list" ; then
     exit 1
 fi
 
+feature_not_found() {
+  feature=$1
+
+  echo "ERROR"
+  echo "ERROR: User requested feature $feature"
+  echo "ERROR: configure was not able to found it"
+  echo "ERROR"
+  exit 1;
+}
+
 if test -z "$cross_prefix" ; then
 
 # ---
@@ -781,8 +846,12 @@ case "$cpu" in
   ;;
 esac
 
-# Check host NPTL support
-cat > $TMPC <<EOF
+
+##########################################
+# NPTL probe
+
+if test "$nptl" != "no" ; then
+  cat > $TMPC <<EOF
 #include <sched.h>
 #include <linux/futex.h>
 void foo()
@@ -793,10 +862,14 @@ void foo()
 }
 EOF
 
-if compile_object ; then
-  :
-else
-   nptl="no"
+  if compile_object ; then
+    nptl=yes
+  else
+    if test "$nptl" = "yes" ; then
+      feature_not_found "nptl"
+    fi
+    nptl=no
+  fi
 fi
 
 ##########################################
@@ -819,7 +892,7 @@ fi
 ##########################################
 # xen probe
 
-if test "$xen" = "yes" ; then
+if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
   cat > $TMPC <<EOF
 #include <xenctrl.h>
@@ -827,9 +900,26 @@ if test "$xen" = "yes" ; then
 int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
 EOF
   if compile_prog "" "$xen_libs" ; then
+    xen=yes
     libs_softmmu="$xen_libs $libs_softmmu"
   else
-    xen="no"
+    if test "$xen" = "yes" ; then
+      feature_not_found "xen"
+    fi
+    xen=no
+  fi
+fi
+
+##########################################
+# Sparse probe
+if test "$sparse" != "no" ; then
+  if test -x "$(which cgcc 2>/dev/null)"; then
+    sparse=yes
+  else
+    if test "$sparse" = "yes" ; then
+      feature_not_found "sparse"
+    fi
+    sparse=no
   fi
 fi
 
@@ -838,8 +928,7 @@ fi
 
 sdl_too_old=no
 
-if test "$sdl" = "yes" ; then
-  sdl=no
+if test "$sdl" != "no" ; then
   cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
@@ -870,6 +959,11 @@ EOF
         sdl=no
       fi
     fi # static link
+  else # sdl not found
+    if test "$sdl" = "yes" ; then
+      feature_not_found "sdl"
+    fi
+    sdl=no
   fi # sdl compile test
 fi
 
@@ -894,36 +988,44 @@ fi
 
 ##########################################
 # VNC TLS detection
-if test "$vnc_tls" = "yes" ; then
-cat > $TMPC <<EOF
+if test "$vnc_tls" != "no" ; then
+  cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
-    vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
-    vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
-    if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
-	libs_softmmu="$vnc_tls_libs $libs_softmmu"
-    else
-	vnc_tls="no"
+  vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
+  vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
+  if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
+    vnc_tls=yes
+    libs_softmmu="$vnc_tls_libs $libs_softmmu"
+  else
+    if test "$vnc_tls" = "yes" ; then
+      feature_not_found "vnc-tls"
     fi
+    vnc_tls=no
+  fi
 fi
 
 ##########################################
 # VNC SASL detection
 if test "$vnc_sasl" = "yes" ; then
-cat > $TMPC <<EOF
+  cat > $TMPC <<EOF
 #include <sasl/sasl.h>
 #include <stdio.h>
 int main(void) { sasl_server_init(NULL, "qemu"); return 0; }
 EOF
-    # Assuming Cyrus-SASL installed in /usr prefix
-    vnc_sasl_cflags=""
-    vnc_sasl_libs="-lsasl2"
-    if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
-	libs_softmmu="$vnc_sasl_libs $libs_softmmu"
-    else
-	vnc_sasl="no"
+  # Assuming Cyrus-SASL installed in /usr prefix
+  vnc_sasl_cflags=""
+  vnc_sasl_libs="-lsasl2"
+  if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
+    vnc_sasl=yes
+    libs_softmmu="$vnc_sasl_libs $libs_softmmu"
+  else
+    if test "$vnc_sasl" = "yes" ; then
+      feature_not_found "vnc-sasl"
     fi
+    vnc_sasl=no
+  fi
 fi
 
 ##########################################
@@ -959,8 +1061,7 @@ fi
 
 ##########################################
 # vde libraries probe
-if test "$vde" = "yes" ; then
-  vde=no
+if test "$vde" != "no" ; then
   vde_libs="-lvdeplug"
   cat > $TMPC << EOF
 #include <libvdeplug.h>
@@ -975,6 +1076,11 @@ EOF
     vde=yes
     libs_softmmu="$vde_libs $libs_softmmu"
     libs_tools="$vde_libs $libs_tools"
+  else
+    if test "$vde" = "yes" ; then
+      feature_not_found "vde"
+    fi
+    vde=no
   fi
 fi
 
@@ -1068,8 +1174,7 @@ done
 ##########################################
 # BrlAPI probe
 
-if test "$brlapi" = "yes" ; then
-  brlapi=no
+if test "$brlapi" != "no" ; then
   brlapi_libs="-lbrlapi"
   cat > $TMPC << EOF
 #include <brlapi.h>
@@ -1078,13 +1183,20 @@ EOF
   if compile_prog "" "$brlapi_libs" ; then
     brlapi=yes
     libs_softmmu="$brlapi_libs $libs_softmmu"
+  else
+    if test "$brlapi" = "yes" ; then
+      feature_not_found "brlapi"
+    fi
+    brlapi=no
   fi
 fi
 
 ##########################################
 # curses probe
+curses_list="-lncurses -lcurses"
 
-if test "$curses" = "yes" ; then
+if test "$curses" != "no" ; then
+  curses_found=no
   cat > $TMPC << EOF
 #include <curses.h>
 #ifdef __OpenBSD__
@@ -1092,20 +1204,27 @@ if test "$curses" = "yes" ; then
 #endif
 int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
-  if compile_prog "" "-lncurses" ; then
-    libs_softmmu="-lncurses $libs_softmmu"
-  elif compile_prog "" "-lcurses" ; then
-    libs_softmmu="-lcurses $libs_softmmu"
+  for curses_lib in $curses_list; do
+    if compile_prog "" "$curses_lib" ; then
+      curses_found=yes
+      libs_softmmu="$curses_lib $libs_softmmu"
+      break
+    fi
+  done
+  if test "$curses_found" = "yes" ; then
+    curses=yes
   else
+    if test "$curses" = "yes" ; then
+      feature_not_found "curses"
+    fi
     curses=no
   fi
-fi # test "$curses"
+fi
 
 ##########################################
 # curl probe
 
-if test "$curl" = "yes" ; then
-  curl=no
+if test "$curl" != "no" ; then
   cat > $TMPC << EOF
 #include <curl/curl.h>
 int main(void) { return curl_easy_init(); }
@@ -1116,15 +1235,17 @@ EOF
     curl=yes
     libs_tools="$curl_libs $libs_tools"
     libs_softmmu="$curl_libs $libs_softmmu"
+  else
+    if test "$curl" = "yes" ; then
+      feature_not_found "curl"
+    fi
+    curl=no
   fi
 fi # test "$curl"
 
 ##########################################
 # bluez support probe
-if test "$bluez" = "yes" ; then
-  `pkg-config bluez 2>/dev/null` || bluez="no"
-fi
-if test "$bluez" = "yes" ; then
+if test "$bluez" != "no" ; then
   cat > $TMPC << EOF
 #include <bluetooth/bluetooth.h>
 int main(void) { return bt_error(0); }
@@ -1132,15 +1253,19 @@ EOF
   bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
   bluez_libs=`pkg-config --libs bluez 2> /dev/null`
   if compile_prog "$bluez_cflags" "$bluez_libs" ; then
+    bluez=yes
     libs_softmmu="$bluez_libs $libs_softmmu"
   else
+    if test "$bluez" = "yes" ; then
+      feature_not_found "bluez"
+    fi
     bluez="no"
   fi
 fi
 
 ##########################################
 # kvm probe
-if test "$kvm" = "yes" ; then
+if test "$kvm" != "no" ; then
     cat > $TMPC <<EOF
 #include <linux/kvm.h>
 #if !defined(KVM_API_VERSION) || KVM_API_VERSION < 12 || KVM_API_VERSION > 12
@@ -1171,20 +1296,23 @@ EOF
       kvm_cflags=""
   fi
   if compile_prog "$kvm_cflags" "" ; then
-    :
+    kvm=yes
   else
-    kvm="no";
-    if [ -x "`which awk 2>/dev/null`" ] && \
-       [ -x "`which grep 2>/dev/null`" ]; then
-      kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
+    if test "$kvm" = "yes" ; then
+      if [ -x "`which awk 2>/dev/null`" ] && \
+         [ -x "`which grep 2>/dev/null`" ]; then
+        kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
-      if test "$kvmerr" != "" ; then
-        kvm="no - (${kvmerr})\n\
-    NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
-recent kvm-kmod from http://sourceforge.net/projects/kvm."
+        if test "$kvmerr" != "" ; then
+          echo -e "${kvmerr}\n\
+      NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
+  recent kvm-kmod from http://sourceforge.net/projects/kvm."
+        fi
       fi
+      feature_not_found "kvm"
     fi
+    kvm=no
   fi
 fi
 
@@ -1205,12 +1333,32 @@ for pthread_lib in $PTHREADLIBS_LIST; do
   fi
 done
 
-if test "$pthread" = no -a "$mingw32" != "yes"; then
+if test "$mingw32" != yes -a "$pthread" = no; then
   echo
   echo "Error: pthread check failed"
   echo "Make sure to have the pthread libs and headers installed."
   echo
   exit 1
+fi
+
+##########################################
+# linux-aio probe
+AIOLIBS=""
+
+if test "$linux_aio" != "no" ; then
+  cat > $TMPC <<EOF
+#include <libaio.h>
+#include <sys/eventfd.h>
+int main(void) { io_setup(0, NULL); io_set_eventfd(NULL, 0); eventfd(0, 0); return 0; }
+EOF
+  if compile_prog "" "-laio" ; then
+    linux_aio=yes
+    LIBS="$LIBS -laio"
+  else
+    if test "$linux_aio" = "yes" ; then
+      feature_not_found "linux AIO"
+    fi
+  fi
 fi
 
 ##########################################
@@ -1241,8 +1389,7 @@ fi
 
 ##########################################
 # fdt probe
-if test "$fdt" = "yes" ; then
-  fdt=no
+if test "$fdt" != "no" ; then
   fdt_libs="-lfdt"
   cat > $TMPC << EOF
 int main(void) { return 0; }
@@ -1250,6 +1397,11 @@ EOF
   if compile_prog "" "$fdt_libs" ; then
     fdt=yes
     libs_softmmu="$fdt_libs $libs_softmmu"
+  else
+    if test "$fdt" = "yes" ; then
+      feature_not_found "fdt"
+    fi
+    fdt=no
   fi
 fi
 
@@ -1353,9 +1505,32 @@ if compile_prog "" "" ; then
   splice=yes
 fi
 
+# check if eventfd is supported
+eventfd=no
+cat > $TMPC << EOF
+#include <sys/eventfd.h>
+
+int main(void)
+{
+    int efd = eventfd(0, 0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  eventfd=yes
+fi
+
 # Check if tools are available to build documentation.
-if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x "`which pod2man 2>/dev/null`" \) ; then
-  build_docs="no"
+if test "$docs" != "no" ; then
+  if test -x "`which texi2html 2>/dev/null`" -a \
+          -x "`which pod2man 2>/dev/null`" ; then
+    docs=yes
+  else
+    if test "$docs" = "yes" ; then
+      feature_not_found "docs"
+    fi
+    docs=no
+  fi
 fi
 
 # Search for bsawp_32 function
@@ -1522,29 +1697,23 @@ echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
 echo "Mixer emulation   $mixemu"
 echo "VNC TLS support   $vnc_tls"
-if test "$vnc_tls" = "yes" ; then
-    echo "    TLS CFLAGS    $vnc_tls_cflags"
-    echo "    TLS LIBS      $vnc_tls_libs"
-fi
 echo "VNC SASL support  $vnc_sasl"
-if test "$vnc_sasl" = "yes" ; then
-    echo "    SASL CFLAGS    $vnc_sasl_cflags"
-    echo "    SASL LIBS      $vnc_sasl_libs"
-fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
 echo "xen support       $xen"
 echo "brlapi support    $brlapi"
-echo "Documentation     $build_docs"
+echo "bluez  support    $bluez"
+echo "Documentation     $docs"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
 echo "vde support       $vde"
 echo "IO thread         $io_thread"
+echo "Linux AIO support $linux_aio"
 echo "Install blobs     $blobs"
-echo -e "KVM support       $kvm"
+echo "KVM support       $kvm"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 echo "uuid support      $uuid"
@@ -1671,7 +1840,7 @@ if [ "$source_path_used" = "yes" ]; then
   echo "VPATH=$source_path" >> $config_host_mak
 fi
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-if [ "$build_docs" = "yes" ] ; then
+if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
@@ -1695,6 +1864,9 @@ if test "$pipe2" = "yes" ; then
 fi
 if test "$splice" = "yes" ; then
   echo "CONFIG_SPLICE=y" >> $config_host_mak
+fi
+if test "$eventfd" = "yes" ; then
+  echo "CONFIG_EVENTFD=y" >> $config_host_mak
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
@@ -1721,6 +1893,9 @@ if test "$xen" = "yes" ; then
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak
+fi
+if test "$linux_aio" = "yes" ; then
+  echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak
@@ -1873,6 +2048,7 @@ test -f $config_h && mv $config_h ${config_h}~
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
+mkdir -p $target_dir/ide
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
 fi

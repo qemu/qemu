@@ -226,7 +226,7 @@ static void tmp105_reset(i2c_slave *i2c)
     tmp105_interrupt_update(s);
 }
 
-static void tmp105_init(i2c_slave *i2c)
+static int tmp105_init(i2c_slave *i2c)
 {
     TMP105State *s = FROM_I2C_SLAVE(TMP105State, i2c);
 
@@ -235,6 +235,7 @@ static void tmp105_init(i2c_slave *i2c)
     tmp105_reset(&s->i2c);
 
     register_savevm("TMP105", -1, 0, tmp105_save, tmp105_load, s);
+    return 0;
 }
 
 static I2CSlaveInfo tmp105_info = {

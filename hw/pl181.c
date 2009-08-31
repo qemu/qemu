@@ -445,7 +445,7 @@ static void pl181_reset(void *opaque)
     s->mask[1] = 0;
 }
 
-static void pl181_init(SysBusDevice *dev)
+static int pl181_init(SysBusDevice *dev)
 {
     int iomemtype;
     pl181_state *s = FROM_SYSBUS(pl181_state, dev);
@@ -461,6 +461,7 @@ static void pl181_init(SysBusDevice *dev)
     qemu_register_reset(pl181_reset, s);
     pl181_reset(s);
     /* ??? Save/restore.  */
+    return 0;
 }
 
 static void pl181_register_devices(void)

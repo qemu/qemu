@@ -25,7 +25,6 @@
 #include "qemu-timer.h"
 #include "watchdog.h"
 #include "hw.h"
-#include "isa.h"
 #include "pc.h"
 #include "pci.h"
 
@@ -71,7 +70,7 @@
 
 /* Device state. */
 struct I6300State {
-    PCIDevice dev;              /* PCI device state, must be first field. */
+    PCIDevice dev;
 
     int reboot_enabled;         /* "Reboot" on timer expiry.  The real action
                                  * performed depends on the -watchdog-action
@@ -199,7 +198,7 @@ static void i6300esb_timer_expired(void *vp)
 static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
                                   uint32_t data, int len)
 {
-    I6300State *d = (I6300State *) dev;
+    I6300State *d = container_of(dev, I6300State, dev);
     int old;
 
     i6300esb_debug("addr = %x, data = %x, len = %d\n", addr, data, len);
@@ -227,7 +226,7 @@ static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
 
 static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
 {
-    I6300State *d = (I6300State *) dev;
+    I6300State *d = container_of(dev, I6300State, dev);
     uint32_t data;
 
     i6300esb_debug ("addr = %x, len = %d\n", addr, len);
@@ -361,7 +360,7 @@ static void i6300esb_map(PCIDevice *dev, int region_num,
         i6300esb_mem_writew,
         i6300esb_mem_writel,
     };
-    I6300State *d = (I6300State *) dev;
+    I6300State *d = container_of(dev, I6300State, dev);
     int io_mem;
 
     i6300esb_debug("addr = %x, size = %x, type = %d\n", addr, size, type);
@@ -414,21 +413,10 @@ static int i6300esb_load(QEMUFile *f, void *vp, int version)
     return 0;
 }
 
-/* Create and initialize a virtual Intel 6300ESB during PC creation. */
-static void i6300esb_pc_init(PCIBus *pci_bus)
+static int i6300esb_init(PCIDevice *dev)
 {
-    I6300State *d;
+    I6300State *d = container_of(dev, I6300State, dev);
     uint8_t *pci_conf;
-
-    if (!pci_bus) {
-        fprintf(stderr, "wdt_i6300esb: no PCI bus in this machine\n");
-        return;
-    }
-
-    d = (I6300State *)
-        pci_register_device (pci_bus, "i6300esb_wdt", sizeof (I6300State),
-                             -1,
-                             i6300esb_config_read, i6300esb_config_write);
 
     d->reboot_enabled = 1;
     d->clock_scale = CLOCK_SCALE_1KHZ;
@@ -454,15 +442,27 @@ static void i6300esb_pc_init(PCIBus *pci_bus)
 
     register_savevm("i6300esb_wdt", -1, sizeof(I6300State),
                      i6300esb_save, i6300esb_load, d);
+
+    return 0;
 }
 
 static WatchdogTimerModel model = {
     .wdt_name = "i6300esb",
     .wdt_description = "Intel 6300ESB",
-    .wdt_pc_init = i6300esb_pc_init,
 };
 
-void wdt_i6300esb_init(void)
+static PCIDeviceInfo i6300esb_info = {
+    .qdev.name    = "i6300esb",
+    .qdev.size    = sizeof(I6300State),
+    .config_read  = i6300esb_config_read,
+    .config_write = i6300esb_config_write,
+    .init         = i6300esb_init,
+};
+
+static void i6300esb_register_devices(void)
 {
     watchdog_add_model(&model);
+    pci_qdev_register(&i6300esb_info);
 }
+
+device_init(i6300esb_register_devices);

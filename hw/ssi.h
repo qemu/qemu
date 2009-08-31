@@ -18,7 +18,7 @@ typedef struct SSISlave SSISlave;
 /* Slave devices.  */
 typedef struct {
     DeviceInfo qdev;
-    void (*init)(SSISlave *dev);
+    int (*init)(SSISlave *dev);
     uint32_t (*transfer)(SSISlave *dev, uint32_t val);
 } SSISlaveInfo;
 

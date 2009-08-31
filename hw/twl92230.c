@@ -875,7 +875,7 @@ static int menelaus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void twl92230_init(i2c_slave *i2c)
+static int twl92230_init(i2c_slave *i2c)
 {
     MenelausState *s = FROM_I2C_SLAVE(MenelausState, i2c);
 
@@ -888,6 +888,7 @@ static void twl92230_init(i2c_slave *i2c)
     menelaus_reset(&s->i2c);
 
     register_savevm("menelaus", -1, 0, menelaus_save, menelaus_load, s);
+    return 0;
 }
 
 static I2CSlaveInfo twl92230_info = {

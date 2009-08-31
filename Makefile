@@ -56,6 +56,7 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
 block-obj-y += nbd.o block.o aio.o aes.o osdep.o
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
+block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
 block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
@@ -93,7 +94,7 @@ obj-y += qdev.o qdev-properties.o ssi.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o
-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o
+obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
 
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 

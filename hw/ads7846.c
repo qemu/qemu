@@ -134,7 +134,7 @@ static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void ads7846_init(SSISlave *dev)
+static int ads7846_init(SSISlave *dev)
 {
     ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, dev);
 
@@ -152,6 +152,7 @@ static void ads7846_init(SSISlave *dev)
     ads7846_int_update(s);
 
     register_savevm("ads7846", -1, 0, ads7846_save, ads7846_load, s);
+    return 0;
 }
 
 static SSISlaveInfo ads7846_info = {

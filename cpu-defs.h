@@ -185,6 +185,8 @@ typedef struct CPUWatchpoint {
     int cpu_index; /* CPU index (informative) */                        \
     uint32_t host_tid; /* host thread ID */                             \
     int numa_node; /* NUMA node this cpu is belonging to  */            \
+    int nr_cores;  /* number of cores within this CPU package */        \
+    int nr_threads;/* number of threads within this CPU */              \
     int running; /* Nonzero if cpu is currently running(usermode).  */  \
     /* user data */                                                     \
     void *opaque;                                                       \
