@@ -186,8 +186,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     } else {
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
     }
-    if (!bus)
+    if (!bus) {
+        qemu_error("Did not find %s bus for %s\n",
+                   path ? path : info->bus_info->name, info->name);
         return NULL;
+    }
 
     /* create device, set properties */
     qdev = qdev_create(bus, driver);
