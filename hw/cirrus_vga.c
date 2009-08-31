@@ -2658,95 +2658,96 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 
 static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *c = opaque;
+    VGACommonState *s = &c->vga;
     int val, index;
 
-    if (vga_ioport_invalid(&s->vga, addr)) {
+    if (vga_ioport_invalid(s, addr)) {
 	val = 0xff;
     } else {
 	switch (addr) {
 	case 0x3c0:
-	    if (s->vga.ar_flip_flop == 0) {
-		val = s->vga.ar_index;
+	    if (s->ar_flip_flop == 0) {
+		val = s->ar_index;
 	    } else {
 		val = 0;
 	    }
 	    break;
 	case 0x3c1:
-	    index = s->vga.ar_index & 0x1f;
+	    index = s->ar_index & 0x1f;
 	    if (index < 21)
-		val = s->vga.ar[index];
+		val = s->ar[index];
 	    else
 		val = 0;
 	    break;
 	case 0x3c2:
-	    val = s->vga.st00;
+	    val = s->st00;
 	    break;
 	case 0x3c4:
-	    val = s->vga.sr_index;
+	    val = s->sr_index;
 	    break;
 	case 0x3c5:
-	    if (cirrus_hook_read_sr(s, s->vga.sr_index, &val))
+	    if (cirrus_hook_read_sr(c, s->sr_index, &val))
 		break;
-	    val = s->vga.sr[s->vga.sr_index];
+	    val = s->sr[s->sr_index];
 #ifdef DEBUG_VGA_REG
-	    printf("vga: read SR%x = 0x%02x\n", s->vga.sr_index, val);
+	    printf("vga: read SR%x = 0x%02x\n", s->sr_index, val);
 #endif
 	    break;
 	case 0x3c6:
-	    cirrus_read_hidden_dac(s, &val);
+	    cirrus_read_hidden_dac(c, &val);
 	    break;
 	case 0x3c7:
-	    val = s->vga.dac_state;
+	    val = s->dac_state;
 	    break;
 	case 0x3c8:
-	    val = s->vga.dac_write_index;
-	    s->cirrus_hidden_dac_lockindex = 0;
+	    val = s->dac_write_index;
+	    c->cirrus_hidden_dac_lockindex = 0;
 	    break;
         case 0x3c9:
-	    if (cirrus_hook_read_palette(s, &val))
+	    if (cirrus_hook_read_palette(c, &val))
 		break;
-	    val = s->vga.palette[s->vga.dac_read_index * 3 + s->vga.dac_sub_index];
-	    if (++s->vga.dac_sub_index == 3) {
-		s->vga.dac_sub_index = 0;
-		s->vga.dac_read_index++;
+	    val = s->palette[s->dac_read_index * 3 + s->dac_sub_index];
+	    if (++s->dac_sub_index == 3) {
+		s->dac_sub_index = 0;
+		s->dac_read_index++;
 	    }
 	    break;
 	case 0x3ca:
-	    val = s->vga.fcr;
+	    val = s->fcr;
 	    break;
 	case 0x3cc:
-	    val = s->vga.msr;
+	    val = s->msr;
 	    break;
 	case 0x3ce:
-	    val = s->vga.gr_index;
+	    val = s->gr_index;
 	    break;
 	case 0x3cf:
-	    if (cirrus_hook_read_gr(s, s->vga.gr_index, &val))
+	    if (cirrus_hook_read_gr(c, s->gr_index, &val))
 		break;
-	    val = s->vga.gr[s->vga.gr_index];
+	    val = s->gr[s->gr_index];
 #ifdef DEBUG_VGA_REG
-	    printf("vga: read GR%x = 0x%02x\n", s->vga.gr_index, val);
+	    printf("vga: read GR%x = 0x%02x\n", s->gr_index, val);
 #endif
 	    break;
 	case 0x3b4:
 	case 0x3d4:
-	    val = s->vga.cr_index;
+	    val = s->cr_index;
 	    break;
 	case 0x3b5:
 	case 0x3d5:
-	    if (cirrus_hook_read_cr(s, s->vga.cr_index, &val))
+	    if (cirrus_hook_read_cr(c, s->cr_index, &val))
 		break;
-	    val = s->vga.cr[s->vga.cr_index];
+	    val = s->cr[s->cr_index];
 #ifdef DEBUG_VGA_REG
-	    printf("vga: read CR%x = 0x%02x\n", s->vga.cr_index, val);
+	    printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
 #endif
 	    break;
 	case 0x3ba:
 	case 0x3da:
 	    /* just toggle to fool polling */
-	    val = s->vga.st01 = s->vga.retrace(&s->vga);
-	    s->vga.ar_flip_flop = 0;
+	    val = s->st01 = s->retrace(s);
+	    s->ar_flip_flop = 0;
 	    break;
 	default:
 	    val = 0x00;
@@ -2761,11 +2762,12 @@ static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 
 static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *c = opaque;
+    VGACommonState *s = &c->vga;
     int index;
 
     /* check port range access depending on color/monochrome mode */
-    if (vga_ioport_invalid(&s->vga, addr)) {
+    if (vga_ioport_invalid(s, addr)) {
 	return;
     }
 #ifdef DEBUG_VGA
@@ -2774,120 +2776,120 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
     switch (addr) {
     case 0x3c0:
-	if (s->vga.ar_flip_flop == 0) {
+	if (s->ar_flip_flop == 0) {
 	    val &= 0x3f;
-	    s->vga.ar_index = val;
+	    s->ar_index = val;
 	} else {
-	    index = s->vga.ar_index & 0x1f;
+	    index = s->ar_index & 0x1f;
 	    switch (index) {
 	    case 0x00 ... 0x0f:
-		s->vga.ar[index] = val & 0x3f;
+		s->ar[index] = val & 0x3f;
 		break;
 	    case 0x10:
-		s->vga.ar[index] = val & ~0x10;
+		s->ar[index] = val & ~0x10;
 		break;
 	    case 0x11:
-		s->vga.ar[index] = val;
+		s->ar[index] = val;
 		break;
 	    case 0x12:
-		s->vga.ar[index] = val & ~0xc0;
+		s->ar[index] = val & ~0xc0;
 		break;
 	    case 0x13:
-		s->vga.ar[index] = val & ~0xf0;
+		s->ar[index] = val & ~0xf0;
 		break;
 	    case 0x14:
-		s->vga.ar[index] = val & ~0xf0;
+		s->ar[index] = val & ~0xf0;
 		break;
 	    default:
 		break;
 	    }
 	}
-	s->vga.ar_flip_flop ^= 1;
+	s->ar_flip_flop ^= 1;
 	break;
     case 0x3c2:
-	s->vga.msr = val & ~0x10;
-	s->vga.update_retrace_info(&s->vga);
+	s->msr = val & ~0x10;
+	s->update_retrace_info(s);
 	break;
     case 0x3c4:
-	s->vga.sr_index = val;
+	s->sr_index = val;
 	break;
     case 0x3c5:
-	if (cirrus_hook_write_sr(s, s->vga.sr_index, val))
+	if (cirrus_hook_write_sr(c, s->sr_index, val))
 	    break;
 #ifdef DEBUG_VGA_REG
-	printf("vga: write SR%x = 0x%02x\n", s->vga.sr_index, val);
+	printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
-	s->vga.sr[s->vga.sr_index] = val & sr_mask[s->vga.sr_index];
-	if (s->vga.sr_index == 1) s->vga.update_retrace_info(&s->vga);
+	s->sr[s->sr_index] = val & sr_mask[s->sr_index];
+	if (s->sr_index == 1) s->update_retrace_info(s);
 	break;
     case 0x3c6:
-	cirrus_write_hidden_dac(s, val);
+	cirrus_write_hidden_dac(c, val);
 	break;
     case 0x3c7:
-	s->vga.dac_read_index = val;
-	s->vga.dac_sub_index = 0;
-	s->vga.dac_state = 3;
+	s->dac_read_index = val;
+	s->dac_sub_index = 0;
+	s->dac_state = 3;
 	break;
     case 0x3c8:
-	s->vga.dac_write_index = val;
-	s->vga.dac_sub_index = 0;
-	s->vga.dac_state = 0;
+	s->dac_write_index = val;
+	s->dac_sub_index = 0;
+	s->dac_state = 0;
 	break;
     case 0x3c9:
-	if (cirrus_hook_write_palette(s, val))
+	if (cirrus_hook_write_palette(c, val))
 	    break;
-	s->vga.dac_cache[s->vga.dac_sub_index] = val;
-	if (++s->vga.dac_sub_index == 3) {
-	    memcpy(&s->vga.palette[s->vga.dac_write_index * 3], s->vga.dac_cache, 3);
-	    s->vga.dac_sub_index = 0;
-	    s->vga.dac_write_index++;
+	s->dac_cache[s->dac_sub_index] = val;
+	if (++s->dac_sub_index == 3) {
+	    memcpy(&s->palette[s->dac_write_index * 3], s->dac_cache, 3);
+	    s->dac_sub_index = 0;
+	    s->dac_write_index++;
 	}
 	break;
     case 0x3ce:
-	s->vga.gr_index = val;
+	s->gr_index = val;
 	break;
     case 0x3cf:
-	if (cirrus_hook_write_gr(s, s->vga.gr_index, val))
+	if (cirrus_hook_write_gr(c, s->gr_index, val))
 	    break;
 #ifdef DEBUG_VGA_REG
-	printf("vga: write GR%x = 0x%02x\n", s->vga.gr_index, val);
+	printf("vga: write GR%x = 0x%02x\n", s->gr_index, val);
 #endif
-	s->vga.gr[s->vga.gr_index] = val & gr_mask[s->vga.gr_index];
+	s->gr[s->gr_index] = val & gr_mask[s->gr_index];
 	break;
     case 0x3b4:
     case 0x3d4:
-	s->vga.cr_index = val;
+	s->cr_index = val;
 	break;
     case 0x3b5:
     case 0x3d5:
-	if (cirrus_hook_write_cr(s, s->vga.cr_index, val))
+	if (cirrus_hook_write_cr(c, s->cr_index, val))
 	    break;
 #ifdef DEBUG_VGA_REG
-	printf("vga: write CR%x = 0x%02x\n", s->vga.cr_index, val);
+	printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
 	/* handle CR0-7 protection */
-	if ((s->vga.cr[0x11] & 0x80) && s->vga.cr_index <= 7) {
+	if ((s->cr[0x11] & 0x80) && s->cr_index <= 7) {
 	    /* can always write bit 4 of CR7 */
-	    if (s->vga.cr_index == 7)
-		s->vga.cr[7] = (s->vga.cr[7] & ~0x10) | (val & 0x10);
+	    if (s->cr_index == 7)
+		s->cr[7] = (s->cr[7] & ~0x10) | (val & 0x10);
 	    return;
 	}
-	switch (s->vga.cr_index) {
+	switch (s->cr_index) {
 	case 0x01:		/* horizontal display end */
 	case 0x07:
 	case 0x09:
 	case 0x0c:
 	case 0x0d:
 	case 0x12:		/* vertical display end */
-	    s->vga.cr[s->vga.cr_index] = val;
+	    s->cr[s->cr_index] = val;
 	    break;
 
 	default:
-	    s->vga.cr[s->vga.cr_index] = val;
+	    s->cr[s->cr_index] = val;
 	    break;
 	}
 
-	switch(s->vga.cr_index) {
+	switch(s->cr_index) {
 	case 0x00:
 	case 0x04:
 	case 0x05:
@@ -2895,13 +2897,13 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	case 0x07:
 	case 0x11:
 	case 0x17:
-	    s->vga.update_retrace_info(&s->vga);
+	    s->update_retrace_info(s);
 	    break;
 	}
 	break;
     case 0x3ba:
     case 0x3da:
-	s->vga.fcr = val & 0x10;
+	s->fcr = val & 0x10;
 	break;
     }
 }
