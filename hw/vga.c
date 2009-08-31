@@ -333,9 +333,9 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
         case 0x3c7:
             val = s->dac_state;
             break;
-	case 0x3c8:
-	    val = s->dac_write_index;
-	    break;
+        case 0x3c8:
+            val = s->dac_write_index;
+            break;
         case 0x3c9:
             val = s->palette[s->dac_read_index * 3 + s->dac_sub_index];
             if (++s->dac_sub_index == 3) {
