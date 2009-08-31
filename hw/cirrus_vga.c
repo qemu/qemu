@@ -1583,8 +1583,7 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
  *
  ***************************************/
 
-static int
-cirrus_hook_read_cr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
+static int cirrus_vga_read_cr(CirrusVGAState * s, unsigned reg_index)
 {
     switch (reg_index) {
     case 0x00:			// Standard VGA
@@ -1612,10 +1611,9 @@ cirrus_hook_read_cr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x16:			// Standard VGA
     case 0x17:			// Standard VGA
     case 0x18:			// Standard VGA
-	return CIRRUS_HOOK_NOT_HANDLED;
+	return s->vga.cr[s->vga.cr_index];
     case 0x24:			// Attribute Controller Toggle Readback (R)
-        *reg_value = (s->vga.ar_flip_flop << 7);
-        break;
+        return (s->vga.ar_flip_flop << 7);
     case 0x19:			// Interlace End
     case 0x1a:			// Miscellaneous Control
     case 0x1b:			// Extended Display Control
@@ -1624,20 +1622,16 @@ cirrus_hook_read_cr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x22:			// Graphics Data Latches Readback (R)
     case 0x25:			// Part Status
     case 0x27:			// Part ID (R)
-	*reg_value = s->vga.cr[reg_index];
-	break;
+	return s->vga.cr[s->vga.cr_index];
     case 0x26:			// Attribute Controller Index Readback (R)
-	*reg_value = s->vga.ar_index & 0x3f;
+	return s->vga.ar_index & 0x3f;
 	break;
     default:
 #ifdef DEBUG_CIRRUS
 	printf("cirrus: inport cr_index %02x\n", reg_index);
-	*reg_value = 0xff;
 #endif
-	break;
+	return 0xff;
     }
-
-    return CIRRUS_HOOK_HANDLED;
 }
 
 static int
@@ -2719,9 +2713,7 @@ static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 	    break;
 	case 0x3b5:
 	case 0x3d5:
-	    if (cirrus_hook_read_cr(c, s->cr_index, &val))
-		break;
-	    val = s->cr[s->cr_index];
+            val = cirrus_vga_read_cr(c, s->cr_index);
 #ifdef DEBUG_VGA_REG
 	    printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
 #endif
