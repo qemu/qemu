@@ -1928,7 +1928,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     translation = BIOS_ATA_TRANSLATION_AUTO;
     cache = 1;
 
-    if (machine->use_scsi) {
+    if (machine && machine->use_scsi) {
         type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
         pstrcpy(devname, sizeof(devname), "scsi");
