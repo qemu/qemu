@@ -1835,7 +1835,7 @@ static void vga_draw_blank(VGAState *s, int full_update)
 
 static void vga_update_display(void *opaque)
 {
-    VGAState *s = (VGAState *)opaque;
+    VGAState *s = opaque;
     int full_update, graphic_mode;
 
     if (ds_get_bits_per_pixel(s->ds) == 0) {
@@ -1870,7 +1870,7 @@ static void vga_update_display(void *opaque)
 /* force a full display refresh */
 static void vga_invalidate_display(void *opaque)
 {
-    VGAState *s = (VGAState *)opaque;
+    VGAState *s = opaque;
 
     s->full_update = 1;
 }
@@ -1944,7 +1944,7 @@ void vga_common_reset(VGACommonState *s)
 
 static void vga_reset(void *opaque)
 {
-    VGAState *s = (VGAState *) opaque;
+    VGAState *s =  opaque;
     vga_common_reset(s);
 }
 
@@ -1956,7 +1956,7 @@ static void vga_reset(void *opaque)
  * instead of doing a full vga_update_display() */
 static void vga_update_text(void *opaque, console_ch_t *chardata)
 {
-    VGAState *s = (VGAState *) opaque;
+    VGAState *s =  opaque;
     int graphic_mode, i, cursor_offset, cursor_visible;
     int cw, cheight, width, height, size, c_min, c_max;
     uint32_t *src;
@@ -2628,7 +2628,7 @@ static DisplayChangeListener* vga_screen_dump_init(DisplayState *ds)
    available */
 static void vga_screen_dump(void *opaque, const char *filename)
 {
-    VGAState *s = (VGAState *)opaque;
+    VGAState *s = opaque;
 
     if (!screen_dump_dcl)
         screen_dump_dcl = vga_screen_dump_init(s->ds);
