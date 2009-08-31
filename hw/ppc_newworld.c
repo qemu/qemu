@@ -332,7 +332,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                escc_mem_index);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, 3, -1);
+        usb_ohci_init_pci(pci_bus, -1);
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
