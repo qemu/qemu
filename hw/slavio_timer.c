@@ -110,11 +110,8 @@ static void slavio_timer_get_out(CPUTimerState *t)
     } else {
         limit = t->limit;
     }
-    if (t->timer) {
-        count = limit - PERIODS_TO_LIMIT(ptimer_get_count(t->timer));
-    } else {
-        count = 0;
-    }
+    count = limit - PERIODS_TO_LIMIT(ptimer_get_count(t->timer));
+
     DPRINTF("get_out: limit %" PRIx64 " count %x%08x\n", t->limit, t->counthigh,
             t->count);
     t->count = count & TIMER_COUNT_MASK32;
@@ -219,9 +216,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             count = ((uint64_t)t->counthigh << 32) | t->count;
             DPRINTF("processor %d user timer set to %016" PRIx64 "\n",
                     timer_index, count);
-            if (t->timer) {
-                ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
-            }
+            ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
         } else {
             // set limit, reset counter
             qemu_irq_lower(t->irq);
@@ -247,22 +242,17 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             count = ((uint64_t)t->counthigh) << 32 | t->count;
             DPRINTF("processor %d user timer set to %016" PRIx64 "\n",
                     timer_index, count);
-            if (t->timer) {
-                ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
-            }
+            ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
         } else
             DPRINTF("not user timer\n");
         break;
     case TIMER_COUNTER_NORST:
         // set limit without resetting counter
         t->limit = val & TIMER_MAX_COUNT32;
-        if (t->timer) {
-            if (t->limit == 0) { /* free-run */
-                ptimer_set_limit(t->timer,
-                                 LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
-            } else {
-                ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(t->limit), 0);
-            }
+        if (t->limit == 0) { /* free-run */
+            ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
+        } else {
+            ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(t->limit), 0);
         }
         break;
     case TIMER_STATUS:
@@ -271,16 +261,12 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             if ((val & 1) && !t->running) {
                 DPRINTF("processor %d user timer started\n",
                         timer_index);
-                if (t->timer) {
-                    ptimer_run(t->timer, 0);
-                }
+                ptimer_run(t->timer, 0);
                 t->running = 1;
             } else if (!(val & 1) && t->running) {
                 DPRINTF("processor %d user timer stopped\n",
                         timer_index);
-                if (t->timer) {
-                    ptimer_stop(t->timer);
-                }
+                ptimer_stop(t->timer);
                 t->running = 0;
             }
         }
@@ -361,9 +347,7 @@ static void slavio_timer_save(QEMUFile *f, void *opaque)
         qemu_put_be32s(f, &curr_timer->counthigh);
         qemu_put_be32s(f, &curr_timer->reached);
         qemu_put_be32s(f, &curr_timer->running);
-        if (curr_timer->timer) {
-            qemu_put_ptimer(f, curr_timer->timer);
-        }
+        qemu_put_ptimer(f, curr_timer->timer);
     }
 }
 
@@ -383,9 +367,7 @@ static int slavio_timer_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be32s(f, &curr_timer->counthigh);
         qemu_get_be32s(f, &curr_timer->reached);
         qemu_get_be32s(f, &curr_timer->running);
-        if (curr_timer->timer) {
-            qemu_get_ptimer(f, curr_timer->timer);
-        }
+        qemu_get_ptimer(f, curr_timer->timer);
     }
 
     return 0;
