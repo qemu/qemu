@@ -7,10 +7,12 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+#include <sys/time.h>
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <getopt.h>
+#include <libgen.h>
 
 #include "qemu-common.h"
 #include "block_int.h"
