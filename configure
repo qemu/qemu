@@ -1929,6 +1929,8 @@ if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
     if [ "$check_utests" = "yes" ]; then
       tools="check-qint check-qstring check-qdict $tools"
     fi
+  elif test "$mingw32" = "yes" ; then
+      tools="qemu-io\$(EXESUF) $tools"
   fi
 fi
 echo "TOOLS=$tools" >> $config_host_mak
