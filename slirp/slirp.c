@@ -47,8 +47,8 @@ static int do_slowtimo;
 static TAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
     TAILQ_HEAD_INITIALIZER(slirp_instances);
 
-struct in_addr dns_addr = { 0 };
-u_int dns_addr_time = 0;
+static struct in_addr dns_addr;
+static u_int dns_addr_time;
 
 #ifdef _WIN32
 
