@@ -154,7 +154,7 @@ static void glue(vga_draw_glyph9_, DEPTH)(uint8_t *d, int linesize,
 /*
  * 4 color mode
  */
-static void glue(vga_draw_line2_, DEPTH)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line2_, DEPTH)(VGACommonState *s1, uint8_t *d,
                                          const uint8_t *s, int width)
 {
     uint32_t plane_mask, *palette, data, v;
@@ -196,7 +196,7 @@ static void glue(vga_draw_line2_, DEPTH)(VGAState *s1, uint8_t *d,
 /*
  * 4 color mode, dup2 horizontal
  */
-static void glue(vga_draw_line2d2_, DEPTH)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line2d2_, DEPTH)(VGACommonState *s1, uint8_t *d,
                                            const uint8_t *s, int width)
 {
     uint32_t plane_mask, *palette, data, v;
@@ -229,7 +229,7 @@ static void glue(vga_draw_line2d2_, DEPTH)(VGAState *s1, uint8_t *d,
 /*
  * 16 color mode
  */
-static void glue(vga_draw_line4_, DEPTH)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line4_, DEPTH)(VGACommonState *s1, uint8_t *d,
                                          const uint8_t *s, int width)
 {
     uint32_t plane_mask, data, v, *palette;
@@ -261,7 +261,7 @@ static void glue(vga_draw_line4_, DEPTH)(VGAState *s1, uint8_t *d,
 /*
  * 16 color mode, dup2 horizontal
  */
-static void glue(vga_draw_line4d2_, DEPTH)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line4d2_, DEPTH)(VGACommonState *s1, uint8_t *d,
                                            const uint8_t *s, int width)
 {
     uint32_t plane_mask, data, v, *palette;
@@ -295,7 +295,7 @@ static void glue(vga_draw_line4d2_, DEPTH)(VGAState *s1, uint8_t *d,
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
-static void glue(vga_draw_line8d2_, DEPTH)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line8d2_, DEPTH)(VGACommonState *s1, uint8_t *d,
                                            const uint8_t *s, int width)
 {
     uint32_t *palette;
@@ -318,7 +318,7 @@ static void glue(vga_draw_line8d2_, DEPTH)(VGAState *s1, uint8_t *d,
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
-static void glue(vga_draw_line8_, DEPTH)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line8_, DEPTH)(VGACommonState *s1, uint8_t *d,
                                          const uint8_t *s, int width)
 {
     uint32_t *palette;
@@ -414,7 +414,7 @@ void glue(vga_draw_cursor_line_, DEPTH)(uint8_t *d1,
 /*
  * 15 bit color
  */
-static void glue(vga_draw_line15_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line15_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
                                           const uint8_t *s, int width)
 {
 #if DEPTH == 15 && defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
@@ -439,7 +439,7 @@ static void glue(vga_draw_line15_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
 /*
  * 16 bit color
  */
-static void glue(vga_draw_line16_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line16_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
                                           const uint8_t *s, int width)
 {
 #if DEPTH == 16 && defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
@@ -464,7 +464,7 @@ static void glue(vga_draw_line16_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
 /*
  * 24 bit color
  */
-static void glue(vga_draw_line24_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line24_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
                                           const uint8_t *s, int width)
 {
     int w;
@@ -490,7 +490,7 @@ static void glue(vga_draw_line24_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
 /*
  * 32 bit color
  */
-static void glue(vga_draw_line32_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
+static void glue(vga_draw_line32_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
                                           const uint8_t *s, int width)
 {
 #if DEPTH == 32 && defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN) && !defined(BGR_FORMAT)
