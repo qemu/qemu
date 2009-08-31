@@ -208,11 +208,6 @@
 
 #define CIRRUS_PNPMMIO_SIZE         0x1000
 
-
-/* I/O and memory hook */
-#define CIRRUS_HOOK_NOT_HANDLED 0
-#define CIRRUS_HOOK_HANDLED 1
-
 #define ABS(a) ((signed)(a) > 0 ? a : -a)
 
 #define BLTUNSAFE(s) \
