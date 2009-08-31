@@ -573,6 +573,11 @@ static uint16_t eepro100_read_command(EEPRO100State * s)
 }
 #endif
 
+static bool device_supports_eTxCB(EEPRO100State * s)
+{
+    return (s->device != i82557B && s->device != i82557C);
+}
+
 /* Commands that can be put in a command list entry. */
 enum commands {
     CmdNOp = 0,
@@ -715,7 +720,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             } else {
                 /* Flexible mode. */
                 uint8_t tbd_count = 0;
-                if ((s->device >= i82558B) && !(s->configuration[6] & BIT(4))) {
+                if (device_supports_eTxCB(s) && !(s->configuration[6] & BIT(4))) {
                     /* Extended Flexible TCB. */
                     assert(tcb_bytes == 0);
                     for (; tbd_count < 2; tbd_count++) {
