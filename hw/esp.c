@@ -528,9 +528,10 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             break;
         case CMD_MSGACC:
             DPRINTF("Message Accepted (%2.2x)\n", val);
-            write_response(s);
             s->rregs[ESP_RINTR] = INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
+            s->rregs[ESP_RFLAGS] = 0;
+            esp_raise_irq(s);
             break;
         case CMD_PAD:
             DPRINTF("Transfer padding (%2.2x)\n", val);
