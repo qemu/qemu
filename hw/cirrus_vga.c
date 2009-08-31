@@ -1458,38 +1458,33 @@ static void cirrus_vga_write_palette(CirrusVGAState * s, int reg_value)
  *
  ***************************************/
 
-static int
-cirrus_hook_read_gr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
+static int cirrus_vga_read_gr(CirrusVGAState * s, unsigned reg_index)
 {
     switch (reg_index) {
     case 0x00: // Standard VGA, BGCOLOR 0x000000ff
-      *reg_value = s->cirrus_shadow_gr0;
-      return CIRRUS_HOOK_HANDLED;
+        return s->cirrus_shadow_gr0;
     case 0x01: // Standard VGA, FGCOLOR 0x000000ff
-      *reg_value = s->cirrus_shadow_gr1;
-      return CIRRUS_HOOK_HANDLED;
+        return s->cirrus_shadow_gr1;
     case 0x02:			// Standard VGA
     case 0x03:			// Standard VGA
     case 0x04:			// Standard VGA
     case 0x06:			// Standard VGA
     case 0x07:			// Standard VGA
     case 0x08:			// Standard VGA
-	return CIRRUS_HOOK_NOT_HANDLED;
+        return s->vga.gr[s->vga.gr_index];
     case 0x05:			// Standard VGA, Cirrus extended mode
     default:
 	break;
     }
 
     if (reg_index < 0x3a) {
-	*reg_value = s->vga.gr[reg_index];
+	return s->vga.gr[reg_index];
     } else {
 #ifdef DEBUG_CIRRUS
 	printf("cirrus: inport gr_index %02x\n", reg_index);
 #endif
-	*reg_value = 0xff;
+	return 0xff;
     }
-
-    return CIRRUS_HOOK_HANDLED;
 }
 
 static int
@@ -1716,97 +1711,97 @@ static uint8_t cirrus_mmio_blt_read(CirrusVGAState * s, unsigned address)
 
     switch (address) {
     case (CIRRUS_MMIO_BLTBGCOLOR + 0):
-	cirrus_hook_read_gr(s, 0x00, &value);
+	value = cirrus_vga_read_gr(s, 0x00);
 	break;
     case (CIRRUS_MMIO_BLTBGCOLOR + 1):
-	cirrus_hook_read_gr(s, 0x10, &value);
+	value = cirrus_vga_read_gr(s, 0x10);
 	break;
     case (CIRRUS_MMIO_BLTBGCOLOR + 2):
-	cirrus_hook_read_gr(s, 0x12, &value);
+	value = cirrus_vga_read_gr(s, 0x12);
 	break;
     case (CIRRUS_MMIO_BLTBGCOLOR + 3):
-	cirrus_hook_read_gr(s, 0x14, &value);
+	value = cirrus_vga_read_gr(s, 0x14);
 	break;
     case (CIRRUS_MMIO_BLTFGCOLOR + 0):
-	cirrus_hook_read_gr(s, 0x01, &value);
+	value = cirrus_vga_read_gr(s, 0x01);
 	break;
     case (CIRRUS_MMIO_BLTFGCOLOR + 1):
-	cirrus_hook_read_gr(s, 0x11, &value);
+	value = cirrus_vga_read_gr(s, 0x11);
 	break;
     case (CIRRUS_MMIO_BLTFGCOLOR + 2):
-	cirrus_hook_read_gr(s, 0x13, &value);
+	value = cirrus_vga_read_gr(s, 0x13);
 	break;
     case (CIRRUS_MMIO_BLTFGCOLOR + 3):
-	cirrus_hook_read_gr(s, 0x15, &value);
+	value = cirrus_vga_read_gr(s, 0x15);
 	break;
     case (CIRRUS_MMIO_BLTWIDTH + 0):
-	cirrus_hook_read_gr(s, 0x20, &value);
+	value = cirrus_vga_read_gr(s, 0x20);
 	break;
     case (CIRRUS_MMIO_BLTWIDTH + 1):
-	cirrus_hook_read_gr(s, 0x21, &value);
+	value = cirrus_vga_read_gr(s, 0x21);
 	break;
     case (CIRRUS_MMIO_BLTHEIGHT + 0):
-	cirrus_hook_read_gr(s, 0x22, &value);
+	value = cirrus_vga_read_gr(s, 0x22);
 	break;
     case (CIRRUS_MMIO_BLTHEIGHT + 1):
-	cirrus_hook_read_gr(s, 0x23, &value);
+	value = cirrus_vga_read_gr(s, 0x23);
 	break;
     case (CIRRUS_MMIO_BLTDESTPITCH + 0):
-	cirrus_hook_read_gr(s, 0x24, &value);
+	value = cirrus_vga_read_gr(s, 0x24);
 	break;
     case (CIRRUS_MMIO_BLTDESTPITCH + 1):
-	cirrus_hook_read_gr(s, 0x25, &value);
+	value = cirrus_vga_read_gr(s, 0x25);
 	break;
     case (CIRRUS_MMIO_BLTSRCPITCH + 0):
-	cirrus_hook_read_gr(s, 0x26, &value);
+	value = cirrus_vga_read_gr(s, 0x26);
 	break;
     case (CIRRUS_MMIO_BLTSRCPITCH + 1):
-	cirrus_hook_read_gr(s, 0x27, &value);
+	value = cirrus_vga_read_gr(s, 0x27);
 	break;
     case (CIRRUS_MMIO_BLTDESTADDR + 0):
-	cirrus_hook_read_gr(s, 0x28, &value);
+	value = cirrus_vga_read_gr(s, 0x28);
 	break;
     case (CIRRUS_MMIO_BLTDESTADDR + 1):
-	cirrus_hook_read_gr(s, 0x29, &value);
+	value = cirrus_vga_read_gr(s, 0x29);
 	break;
     case (CIRRUS_MMIO_BLTDESTADDR + 2):
-	cirrus_hook_read_gr(s, 0x2a, &value);
+	value = cirrus_vga_read_gr(s, 0x2a);
 	break;
     case (CIRRUS_MMIO_BLTSRCADDR + 0):
-	cirrus_hook_read_gr(s, 0x2c, &value);
+	value = cirrus_vga_read_gr(s, 0x2c);
 	break;
     case (CIRRUS_MMIO_BLTSRCADDR + 1):
-	cirrus_hook_read_gr(s, 0x2d, &value);
+	value = cirrus_vga_read_gr(s, 0x2d);
 	break;
     case (CIRRUS_MMIO_BLTSRCADDR + 2):
-	cirrus_hook_read_gr(s, 0x2e, &value);
+	value = cirrus_vga_read_gr(s, 0x2e);
 	break;
     case CIRRUS_MMIO_BLTWRITEMASK:
-	cirrus_hook_read_gr(s, 0x2f, &value);
+	value = cirrus_vga_read_gr(s, 0x2f);
 	break;
     case CIRRUS_MMIO_BLTMODE:
-	cirrus_hook_read_gr(s, 0x30, &value);
+	value = cirrus_vga_read_gr(s, 0x30);
 	break;
     case CIRRUS_MMIO_BLTROP:
-	cirrus_hook_read_gr(s, 0x32, &value);
+	value = cirrus_vga_read_gr(s, 0x32);
 	break;
     case CIRRUS_MMIO_BLTMODEEXT:
-	cirrus_hook_read_gr(s, 0x33, &value);
+	value = cirrus_vga_read_gr(s, 0x33);
 	break;
     case (CIRRUS_MMIO_BLTTRANSPARENTCOLOR + 0):
-	cirrus_hook_read_gr(s, 0x34, &value);
+	value = cirrus_vga_read_gr(s, 0x34);
 	break;
     case (CIRRUS_MMIO_BLTTRANSPARENTCOLOR + 1):
-	cirrus_hook_read_gr(s, 0x35, &value);
+	value = cirrus_vga_read_gr(s, 0x35);
 	break;
     case (CIRRUS_MMIO_BLTTRANSPARENTCOLORMASK + 0):
-	cirrus_hook_read_gr(s, 0x38, &value);
+	value = cirrus_vga_read_gr(s, 0x38);
 	break;
     case (CIRRUS_MMIO_BLTTRANSPARENTCOLORMASK + 1):
-	cirrus_hook_read_gr(s, 0x39, &value);
+	value = cirrus_vga_read_gr(s, 0x39);
 	break;
     case CIRRUS_MMIO_BLTSTATUS:
-	cirrus_hook_read_gr(s, 0x31, &value);
+	value = cirrus_vga_read_gr(s, 0x31);
 	break;
     default:
 #ifdef DEBUG_CIRRUS
@@ -2714,9 +2709,7 @@ static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 	    val = s->gr_index;
 	    break;
 	case 0x3cf:
-	    if (cirrus_hook_read_gr(c, s->gr_index, &val))
-		break;
-	    val = s->gr[s->gr_index];
+	    val = cirrus_vga_read_gr(c, s->gr_index);
 #ifdef DEBUG_VGA_REG
 	    printf("vga: read GR%x = 0x%02x\n", s->gr_index, val);
 #endif
