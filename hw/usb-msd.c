@@ -8,6 +8,8 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-option.h"
+#include "qemu-config.h"
 #include "usb.h"
 #include "block.h"
 #include "scsi-disk.h"
@@ -43,8 +45,8 @@ typedef struct {
     uint32_t data_len;
     uint32_t residue;
     uint32_t tag;
-    BlockDriverState *bs;
     SCSIBus *bus;
+    DriveInfo *dinfo;
     SCSIDevice *scsi_dev;
     int result;
     /* For async completion.  */
@@ -511,7 +513,7 @@ static void usb_msd_handle_destroy(USBDevice *dev)
     MSDState *s = (MSDState *)dev;
 
     s->scsi_dev->info->destroy(s->scsi_dev);
-    bdrv_delete(s->bs);
+    drive_uninit(s->dinfo->bdrv);
     qemu_free(s);
 }
 
@@ -519,18 +521,32 @@ static int usb_msd_initfn(USBDevice *dev)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
 
+    if (!s->dinfo || !s->dinfo->bdrv) {
+        qemu_error("usb-msd: drive property not set\n");
+        return -1;
+    }
+
     s->dev.speed = USB_SPEED_FULL;
+    s->bus = scsi_bus_new(&s->dev.qdev, 0, 1, usb_msd_command_complete);
+    s->scsi_dev = scsi_bus_legacy_add_drive(s->bus, s->dinfo, 0);
+    usb_msd_handle_reset(dev);
     return 0;
 }
 
 USBDevice *usb_msd_init(const char *filename)
 {
+    static int nr=0;
+    char id[8];
+    QemuOpts *opts;
+    DriveInfo *dinfo;
     USBDevice *dev;
-    MSDState *s;
-    BlockDriverState *bdrv;
-    BlockDriver *drv = NULL;
+    int fatal_error;
     const char *p1;
     char fmt[32];
+
+    /* parse -usbdevice disk: syntax into drive opts */
+    snprintf(id, sizeof(id), "usb%d", nr++);
+    opts = qemu_opts_create(&qemu_drive_opts, id, 0);
 
     p1 = strchr(filename, ':');
     if (p1++) {
@@ -539,52 +555,45 @@ USBDevice *usb_msd_init(const char *filename)
         if (strstart(filename, "format=", &p2)) {
             int len = MIN(p1 - p2, sizeof(fmt));
             pstrcpy(fmt, len, p2);
-
-            drv = bdrv_find_format(fmt);
-            if (!drv) {
-                printf("invalid format %s\n", fmt);
-                return NULL;
-            }
+            qemu_opt_set(opts, "format", fmt);
         } else if (*filename != ':') {
             printf("unrecognized USB mass-storage option %s\n", filename);
             return NULL;
         }
-
         filename = p1;
     }
-
     if (!*filename) {
         printf("block device specification needed\n");
         return NULL;
     }
+    qemu_opt_set(opts, "file", filename);
+    qemu_opt_set(opts, "if", "none");
 
-    bdrv = bdrv_new("usb");
-    if (bdrv_open2(bdrv, filename, 0, drv) < 0)
+    /* create host drive */
+    dinfo = drive_init(opts, NULL, &fatal_error);
+    if (!dinfo) {
+        qemu_opts_del(opts);
         return NULL;
+    }
 
-    dev = usb_create_simple(NULL /* FIXME */, "QEMU USB MSD");
-    s = DO_UPCAST(MSDState, dev, dev);
-    s->bs = bdrv;
-    snprintf(s->dev.devname, sizeof(s->dev.devname), "QEMU USB MSD(%.16s)",
-             filename);
+    /* create guest device */
+    dev = usb_create(NULL /* FIXME */, "QEMU USB MSD");
+    qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
+    qdev_init(&dev->qdev);
 
-    s->bus = scsi_bus_new(&s->dev.qdev, 0, 1, usb_msd_command_complete);
-#if 0
-    s->scsi_dev = scsi_disk_init(s->bus, bdrv);
-#endif
-    usb_msd_handle_reset((USBDevice *)s);
-    return (USBDevice *)s;
+    return dev;
 }
 
 BlockDriverState *usb_msd_get_bdrv(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
 
-    return s->bs;
+    return s->dinfo->bdrv;
 }
 
 static struct USBDeviceInfo msd_info = {
     .qdev.name      = "QEMU USB MSD",
+    .qdev.alias     = "usb-storage",
     .qdev.size      = sizeof(MSDState),
     .init           = usb_msd_initfn,
     .handle_packet  = usb_generic_handle_packet,
@@ -592,6 +601,10 @@ static struct USBDeviceInfo msd_info = {
     .handle_control = usb_msd_handle_control,
     .handle_data    = usb_msd_handle_data,
     .handle_destroy = usb_msd_handle_destroy,
+    .qdev.props     = (Property[]) {
+        DEFINE_PROP_DRIVE("drive", MSDState, dinfo),
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 static void usb_msd_register_devices(void)
