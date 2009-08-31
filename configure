@@ -1354,6 +1354,7 @@ EOF
     if test "$linux_aio" = "yes" ; then
       feature_not_found "linux AIO"
     fi
+    linux_aio=no
   fi
 fi
 
