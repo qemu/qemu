@@ -677,7 +677,9 @@ static int preallocate(BlockDriverState *bs)
      * EOF). Extend the image to the last allocated sector.
      */
     if (cluster_offset != 0) {
-        bdrv_truncate(s->hd, cluster_offset + (num <<  9));
+        uint8_t buf[512];
+        memset(buf, 0, 512);
+        bdrv_write(s->hd, (cluster_offset >> 9) + num - 1, buf, 1);
     }
 
     return 0;
