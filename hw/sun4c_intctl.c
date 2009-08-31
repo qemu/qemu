@@ -169,26 +169,17 @@ static void sun4c_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void sun4c_intctl_save(QEMUFile *f, void *opaque)
-{
-    Sun4c_INTCTLState *s = opaque;
-
-    qemu_put_8s(f, &s->reg);
-    qemu_put_8s(f, &s->pending);
-}
-
-static int sun4c_intctl_load(QEMUFile *f, void *opaque, int version_id)
-{
-    Sun4c_INTCTLState *s = opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_8s(f, &s->reg);
-    qemu_get_8s(f, &s->pending);
-
-    return 0;
-}
+static const VMStateDescription vmstate_sun4c_intctl = {
+    .name ="sun4c_intctl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(reg, Sun4c_INTCTLState),
+        VMSTATE_UINT8(pending, Sun4c_INTCTLState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void sun4c_intctl_reset(void *opaque)
 {
@@ -212,8 +203,7 @@ static int sun4c_intctl_init1(SysBusDevice *dev)
     for (i = 0; i < MAX_PILS; i++) {
         sysbus_init_irq(dev, &s->cpu_irqs[i]);
     }
-    register_savevm("sun4c_intctl", -1, 1, sun4c_intctl_save,
-                    sun4c_intctl_load, s);
+    vmstate_register(-1, &vmstate_sun4c_intctl, s);
     qemu_register_reset(sun4c_intctl_reset, s);
     sun4c_intctl_reset(s);
     return 0;

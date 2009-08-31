@@ -212,6 +212,27 @@ void qemu_get_ptimer(QEMUFile *f, ptimer_state *s)
     qemu_get_timer(f, s->timer);
 }
 
+static int get_ptimer(QEMUFile *f, void *pv, size_t size)
+{
+    ptimer_state *v = pv;
+
+    qemu_get_ptimer(f, v);
+    return 0;
+}
+
+static void put_ptimer(QEMUFile *f, const void *pv, size_t size)
+{
+    ptimer_state *v = (void *)pv;
+
+    qemu_put_ptimer(f, v);
+}
+
+const VMStateInfo vmstate_info_ptimer = {
+    .name = "ptimer",
+    .get  = get_ptimer,
+    .put  = put_ptimer,
+};
+
 ptimer_state *ptimer_init(QEMUBH *bh)
 {
     ptimer_state *s;

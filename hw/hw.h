@@ -324,6 +324,7 @@ extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
 
 extern const VMStateInfo vmstate_info_timer;
+extern const VMStateInfo vmstate_info_ptimer;
 extern const VMStateInfo vmstate_info_buffer;
 
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
@@ -469,6 +470,12 @@ extern const VMStateDescription vmstate_pci_device;
 
 #define VMSTATE_TIMER(_f, _s)                                         \
     VMSTATE_TIMER_V(_f, _s, 0)
+
+#define VMSTATE_PTIMER_V(_f, _s, _v)                                  \
+    VMSTATE_POINTER(_f, _s, _v, vmstate_info_ptimer, ptimer_state *)
+
+#define VMSTATE_PTIMER(_f, _s)                                        \
+    VMSTATE_PTIMER_V(_f, _s, 0)
 
 #define VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint32, uint32_t)
