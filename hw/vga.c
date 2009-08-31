@@ -2126,13 +2126,10 @@ static CPUWriteMemoryFunc * const vga_mem_write[3] = {
     vga_mem_writel,
 };
 
-static void vga_save(QEMUFile *f, void *opaque)
+void vga_common_save(QEMUFile *f, void *opaque)
 {
-    VGAState *s = opaque;
+    VGACommonState *s = opaque;
     int i;
-
-    if (s->pci_dev)
-        pci_device_save(s->pci_dev, f);
 
     qemu_put_be32s(f, &s->latch);
     qemu_put_8s(f, &s->sr_index);
@@ -2170,19 +2167,13 @@ static void vga_save(QEMUFile *f, void *opaque)
 #endif
 }
 
-static int vga_load(QEMUFile *f, void *opaque, int version_id)
+int vga_common_load(QEMUFile *f, void *opaque, int version_id)
 {
-    VGAState *s = opaque;
-    int is_vbe, i, ret;
+    VGACommonState *s = opaque;
+    int is_vbe, i;
 
     if (version_id > 2)
         return -EINVAL;
-
-    if (s->pci_dev && version_id >= 2) {
-        ret = pci_device_load(s->pci_dev, f);
-        if (ret < 0)
-            return ret;
-    }
 
     qemu_get_be32s(f, &s->latch);
     qemu_get_8s(f, &s->sr_index);
@@ -2229,8 +2220,32 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
 
 typedef struct PCIVGAState {
     PCIDevice dev;
-    VGAState vga;
+    VGACommonState vga;
 } PCIVGAState;
+
+static void pci_vga_save(QEMUFile *f, void *opaque)
+{
+    PCIVGAState *s = opaque;
+
+    pci_device_save(&s->dev, f);
+    vga_common_save(f, &s->vga);
+}
+
+static int pci_vga_load(QEMUFile *f, void *opaque, int version_id)
+{
+    PCIVGAState *s = opaque;
+    int ret;
+
+    if (version_id > 2)
+        return -EINVAL;
+
+    if (version_id >= 2) {
+        ret = pci_device_load(&s->dev, f);
+        if (ret < 0)
+            return ret;
+    }
+    return vga_common_load(f, &s->vga, version_id);
+}
 
 void vga_dirty_log_start(VGAState *s)
 {
@@ -2315,7 +2330,6 @@ void vga_init(VGAState *s)
     int vga_io_memory;
 
     qemu_register_reset(vga_reset, s);
-    register_savevm("vga", 0, 2, vga_save, vga_load, s);
 
     register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
 
@@ -2428,7 +2442,7 @@ static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
     s_ioport_ctrl = cpu_register_io_memory(vga_mm_read_ctrl, vga_mm_write_ctrl, s);
     vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s);
 
-    register_savevm("vga", 0, 2, vga_save, vga_load, s);
+    register_savevm("vga", 0, 2, vga_common_save, vga_common_load, s);
 
     cpu_register_physical_memory(ctrl_base, 0x100000, s_ioport_ctrl);
     s->bank_offset = 0;
@@ -2444,6 +2458,7 @@ int isa_vga_init(void)
 
     vga_common_init(s, VGA_RAM_SIZE);
     vga_init(s);
+    register_savevm("vga", 0, 2, vga_common_save, vga_common_load, s);
 
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);
@@ -2497,7 +2512,8 @@ static int pci_vga_initfn(PCIDevice *dev)
      // vga + console init
      vga_common_init(s, VGA_RAM_SIZE);
      vga_init(s);
-     s->pci_dev = &d->dev;
+     register_savevm("vga", 0, 2, pci_vga_save, pci_vga_load, d);
+
      s->ds = graphic_console_init(s->update, s->invalidate,
                                   s->screen_dump, s->text_update, s);
 

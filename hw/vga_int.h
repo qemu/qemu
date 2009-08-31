@@ -110,7 +110,6 @@ typedef struct VGACommonState {
     uint32_t bios_offset;
     uint32_t bios_size;
     int it_shift;
-    PCIDevice *pci_dev;
     uint32_t latch;
     uint8_t sr_index;
     uint8_t sr[256];
@@ -194,6 +193,8 @@ void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
 
+void vga_common_save(QEMUFile *f, void *opaque);
+int vga_common_load(QEMUFile *f, void *opaque, int version_id);
 uint32_t vga_ioport_read(void *opaque, uint32_t addr);
 void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
