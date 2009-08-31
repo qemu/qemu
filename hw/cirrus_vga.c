@@ -2661,10 +2661,7 @@ static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
     CirrusVGAState *s = opaque;
     int val, index;
 
-    /* check port range access depending on color/monochrome mode */
-    if ((addr >= 0x3b0 && addr <= 0x3bf && (s->vga.msr & MSR_COLOR_EMULATION))
-	|| (addr >= 0x3d0 && addr <= 0x3df
-	    && !(s->vga.msr & MSR_COLOR_EMULATION))) {
+    if (vga_ioport_invalid(&s->vga, addr)) {
 	val = 0xff;
     } else {
 	switch (addr) {
@@ -2768,11 +2765,9 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     int index;
 
     /* check port range access depending on color/monochrome mode */
-    if ((addr >= 0x3b0 && addr <= 0x3bf && (s->vga.msr & MSR_COLOR_EMULATION))
-	|| (addr >= 0x3d0 && addr <= 0x3df
-	    && !(s->vga.msr & MSR_COLOR_EMULATION)))
+    if (vga_ioport_invalid(&s->vga, addr)) {
 	return;
-
+    }
 #ifdef DEBUG_VGA
     printf("VGA: write addr=0x%04x data=0x%02x\n", addr, val);
 #endif

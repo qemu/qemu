@@ -284,14 +284,23 @@ static uint8_t vga_dumb_retrace(VGAState *s)
     return s->st01 ^ (ST01_V_RETRACE | ST01_DISP_ENABLE);
 }
 
+int vga_ioport_invalid(VGACommonState *s, uint32_t addr)
+{
+    if (s->msr & MSR_COLOR_EMULATION) {
+        /* Color */
+        return (addr >= 0x3b0 && addr <= 0x3bf);
+    } else {
+        /* Monochrome */
+        return (addr >= 0x3d0 && addr <= 0x3df);
+    }
+}
+
 uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 {
     VGACommonState *s = opaque;
     int val, index;
 
-    /* check port range access depending on color/monochrome mode */
-    if ((addr >= 0x3b0 && addr <= 0x3bf && (s->msr & MSR_COLOR_EMULATION)) ||
-        (addr >= 0x3d0 && addr <= 0x3df && !(s->msr & MSR_COLOR_EMULATION))) {
+    if (vga_ioport_invalid(s, addr)) {
         val = 0xff;
     } else {
         switch(addr) {
@@ -383,10 +392,9 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     int index;
 
     /* check port range access depending on color/monochrome mode */
-    if ((addr >= 0x3b0 && addr <= 0x3bf && (s->msr & MSR_COLOR_EMULATION)) ||
-        (addr >= 0x3d0 && addr <= 0x3df && !(s->msr & MSR_COLOR_EMULATION)))
+    if (vga_ioport_invalid(s, addr)) {
         return;
-
+    }
 #ifdef DEBUG_VGA
     printf("VGA: write addr=0x%04x data=0x%02x\n", addr, val);
 #endif
