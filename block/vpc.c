@@ -1,5 +1,5 @@
 /*
- * Block driver for Conectix/Microsoft Virtual PC images
+ * Block driver for Connectix / Microsoft Virtual PC images
  *
  * Copyright (c) 2005 Alex Beregszaszi
  * Copyright (c) 2009 Kevin Wolf <kwolf@suse.de>
