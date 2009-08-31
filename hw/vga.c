@@ -2394,27 +2394,6 @@ static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
     qemu_register_coalesced_mmio(vram_base + 0x000a0000, 0x20000);
 }
 
-int isa_vga_init(void)
-{
-    VGAState *s;
-
-    s = qemu_mallocz(sizeof(VGAState));
-
-    vga_common_init(s, VGA_RAM_SIZE);
-    vga_init(s);
-    register_savevm("vga", 0, 2, vga_common_save, vga_common_load, s);
-
-    s->ds = graphic_console_init(s->update, s->invalidate,
-                                 s->screen_dump, s->text_update, s);
-
-#ifdef CONFIG_BOCHS_VBE
-    /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 VGA_RAM_SIZE, s->vram_offset);
-#endif
-    return 0;
-}
-
 int isa_vga_mm_init(target_phys_addr_t vram_base,
                     target_phys_addr_t ctrl_base, int it_shift)
 {
