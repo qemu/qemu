@@ -219,6 +219,8 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (qcow2_refcount_init(bs) < 0)
         goto fail;
 
+    LIST_INIT(&s->cluster_allocs);
+
     /* read qcow2 extensions */
     if (header.backing_file_offset)
         ext_end = header.backing_file_offset;
@@ -338,6 +340,7 @@ typedef struct QCowAIOCB {
     QEMUIOVector hd_qiov;
     QEMUBH *bh;
     QCowL2Meta l2meta;
+    LIST_ENTRY(QCowAIOCB) next_depend;
 } QCowAIOCB;
 
 static void qcow_aio_cancel(BlockDriverAIOCB *blockacb)
@@ -500,6 +503,7 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
     acb->n = 0;
     acb->cluster_offset = 0;
     acb->l2meta.nb_clusters = 0;
+    LIST_INIT(&acb->l2meta.dependent_requests);
     return acb;
 }
 
@@ -517,6 +521,33 @@ static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
     return &acb->common;
 }
 
+static void qcow_aio_write_cb(void *opaque, int ret);
+
+static void run_dependent_requests(QCowL2Meta *m)
+{
+    QCowAIOCB *req;
+    QCowAIOCB *next;
+
+    /* Take the request off the list of running requests */
+    if (m->nb_clusters != 0) {
+        LIST_REMOVE(m, next_in_flight);
+    }
+
+    /*
+     * Restart all dependent requests.
+     * Can't use LIST_FOREACH here - the next link might not be the same
+     * any more after the callback  (request could depend on a different
+     * request now)
+     */
+    for (req = m->dependent_requests.lh_first; req != NULL; req = next) {
+        next = req->next_depend.le_next;
+        qcow_aio_write_cb(req, 0);
+    }
+
+    /* Empty the list for the next part of the request */
+    LIST_INIT(&m->dependent_requests);
+}
+
 static void qcow_aio_write_cb(void *opaque, int ret)
 {
     QCowAIOCB *acb = opaque;
@@ -528,13 +559,14 @@ static void qcow_aio_write_cb(void *opaque, int ret)
 
     acb->hd_aiocb = NULL;
 
+    if (ret >= 0) {
+        ret = qcow2_alloc_cluster_link_l2(bs, acb->cluster_offset, &acb->l2meta);
+    }
+
+    run_dependent_requests(&acb->l2meta);
+
     if (ret < 0)
         goto done;
-
-    if (qcow2_alloc_cluster_link_l2(bs, acb->cluster_offset, &acb->l2meta) < 0) {
-        qcow2_free_any_clusters(bs, acb->cluster_offset, acb->l2meta.nb_clusters);
-        goto done;
-    }
 
     acb->nb_sectors -= acb->n;
     acb->sector_num += acb->n;
@@ -555,6 +587,14 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     acb->cluster_offset = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
                                           index_in_cluster,
                                           n_end, &acb->n, &acb->l2meta);
+
+    /* Need to wait for another request? If so, we are done for now. */
+    if (!acb->cluster_offset && acb->l2meta.depends_on != NULL) {
+        LIST_INSERT_HEAD(&acb->l2meta.depends_on->dependent_requests,
+            acb, next_depend);
+        return;
+    }
+
     if (!acb->cluster_offset || (acb->cluster_offset & 511) != 0) {
         ret = -EIO;
         goto done;
