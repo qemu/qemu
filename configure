@@ -1000,7 +1000,7 @@ fi
 
 ##########################################
 # VNC SASL detection
-if test "$vnc_sasl" = "yes" ; then
+if test "$vnc_sasl" != "no" ; then
   cat > $TMPC <<EOF
 #include <sasl/sasl.h>
 #include <stdio.h>
