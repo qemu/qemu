@@ -2656,7 +2656,7 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 
 /* I/O ports */
 
-static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
+static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 {
     CirrusVGAState *s = opaque;
     int val, index;
@@ -2762,7 +2762,7 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
     return val;
 }
 
-static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     CirrusVGAState *s = opaque;
     int index;
@@ -2926,7 +2926,7 @@ static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
     if (addr >= 0x100) {
         return cirrus_mmio_blt_read(s, addr - 0x100);
     } else {
-        return vga_ioport_read(s, addr + 0x3c0);
+        return cirrus_vga_ioport_read(s, addr + 0x3c0);
     }
 }
 
@@ -2970,7 +2970,7 @@ static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
     if (addr >= 0x100) {
 	cirrus_mmio_blt_write(s, addr - 0x100, val);
     } else {
-        vga_ioport_write(s, addr + 0x3c0, val);
+        cirrus_vga_ioport_write(s, addr + 0x3c0, val);
     }
 }
 
@@ -3198,19 +3198,19 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
             s->bustype = CIRRUS_BUSTYPE_ISA;
     }
 
-    register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
+    register_ioport_write(0x3c0, 16, 1, cirrus_vga_ioport_write, s);
 
-    register_ioport_write(0x3b4, 2, 1, vga_ioport_write, s);
-    register_ioport_write(0x3d4, 2, 1, vga_ioport_write, s);
-    register_ioport_write(0x3ba, 1, 1, vga_ioport_write, s);
-    register_ioport_write(0x3da, 1, 1, vga_ioport_write, s);
+    register_ioport_write(0x3b4, 2, 1, cirrus_vga_ioport_write, s);
+    register_ioport_write(0x3d4, 2, 1, cirrus_vga_ioport_write, s);
+    register_ioport_write(0x3ba, 1, 1, cirrus_vga_ioport_write, s);
+    register_ioport_write(0x3da, 1, 1, cirrus_vga_ioport_write, s);
 
-    register_ioport_read(0x3c0, 16, 1, vga_ioport_read, s);
+    register_ioport_read(0x3c0, 16, 1, cirrus_vga_ioport_read, s);
 
-    register_ioport_read(0x3b4, 2, 1, vga_ioport_read, s);
-    register_ioport_read(0x3d4, 2, 1, vga_ioport_read, s);
-    register_ioport_read(0x3ba, 1, 1, vga_ioport_read, s);
-    register_ioport_read(0x3da, 1, 1, vga_ioport_read, s);
+    register_ioport_read(0x3b4, 2, 1, cirrus_vga_ioport_read, s);
+    register_ioport_read(0x3d4, 2, 1, cirrus_vga_ioport_read, s);
+    register_ioport_read(0x3ba, 1, 1, cirrus_vga_ioport_read, s);
+    register_ioport_read(0x3da, 1, 1, cirrus_vga_ioport_read, s);
 
     s->vga.vga_io_memory = cpu_register_io_memory(cirrus_vga_mem_read,
                                                   cirrus_vga_mem_write, s);
