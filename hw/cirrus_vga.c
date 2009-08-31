@@ -1436,19 +1436,20 @@ static int cirrus_vga_read_palette(CirrusVGAState * s)
     return val;
 }
 
-static int cirrus_hook_write_palette(CirrusVGAState * s, int reg_value)
+static void cirrus_vga_write_palette(CirrusVGAState * s, int reg_value)
 {
-    if (!(s->vga.sr[0x12] & CIRRUS_CURSOR_HIDDENPEL))
-	return CIRRUS_HOOK_NOT_HANDLED;
     s->vga.dac_cache[s->vga.dac_sub_index] = reg_value;
     if (++s->vga.dac_sub_index == 3) {
-        memcpy(&s->cirrus_hidden_palette[(s->vga.dac_write_index & 0x0f) * 3],
-               s->vga.dac_cache, 3);
+        if ((s->vga.sr[0x12] & CIRRUS_CURSOR_HIDDENPEL)) {
+            memcpy(&s->cirrus_hidden_palette[(s->vga.dac_write_index & 0x0f) * 3],
+                   s->vga.dac_cache, 3);
+        } else {
+            memcpy(&s->vga.palette[s->vga.dac_write_index * 3], s->vga.dac_cache, 3);
+        }
         /* XXX update cursor */
 	s->vga.dac_sub_index = 0;
 	s->vga.dac_write_index++;
     }
-    return CIRRUS_HOOK_HANDLED;
 }
 
 /***************************************
@@ -2824,15 +2825,8 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	s->dac_state = 0;
 	break;
     case 0x3c9:
-	if (cirrus_hook_write_palette(c, val))
-	    break;
-	s->dac_cache[s->dac_sub_index] = val;
-	if (++s->dac_sub_index == 3) {
-	    memcpy(&s->palette[s->dac_write_index * 3], s->dac_cache, 3);
-	    s->dac_sub_index = 0;
-	    s->dac_write_index++;
-	}
-	break;
+        cirrus_vga_write_palette(c, val);
+        break;
     case 0x3ce:
 	s->gr_index = val;
 	break;
