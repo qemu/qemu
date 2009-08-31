@@ -1399,13 +1399,13 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
  *
  ***************************************/
 
-static void cirrus_read_hidden_dac(CirrusVGAState * s, int *reg_value)
+static int cirrus_read_hidden_dac(CirrusVGAState * s)
 {
-    *reg_value = 0xff;
     if (++s->cirrus_hidden_dac_lockindex == 5) {
-        *reg_value = s->cirrus_hidden_dac_data;
-	s->cirrus_hidden_dac_lockindex = 0;
+        s->cirrus_hidden_dac_lockindex = 0;
+        return s->cirrus_hidden_dac_data;
     }
+    return 0xff;
 }
 
 static void cirrus_write_hidden_dac(CirrusVGAState * s, int reg_value)
@@ -2695,7 +2695,7 @@ static uint32_t cirrus_vga_ioport_read(void *opaque, uint32_t addr)
 #endif
 	    break;
 	case 0x3c6:
-	    cirrus_read_hidden_dac(c, &val);
+	    val = cirrus_read_hidden_dac(c);
 	    break;
 	case 0x3c7:
 	    val = s->dac_state;
