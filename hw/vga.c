@@ -28,7 +28,6 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
-#include "kvm.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -2218,61 +2217,6 @@ int vga_common_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-typedef struct PCIVGAState {
-    PCIDevice dev;
-    VGACommonState vga;
-} PCIVGAState;
-
-static void pci_vga_save(QEMUFile *f, void *opaque)
-{
-    PCIVGAState *s = opaque;
-
-    pci_device_save(&s->dev, f);
-    vga_common_save(f, &s->vga);
-}
-
-static int pci_vga_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCIVGAState *s = opaque;
-    int ret;
-
-    if (version_id > 2)
-        return -EINVAL;
-
-    if (version_id >= 2) {
-        ret = pci_device_load(&s->dev, f);
-        if (ret < 0)
-            return ret;
-    }
-    return vga_common_load(f, &s->vga, version_id);
-}
-
-void vga_dirty_log_start(VGAState *s)
-{
-    if (kvm_enabled() && s->map_addr)
-        kvm_log_start(s->map_addr, s->map_end - s->map_addr);
-
-    if (kvm_enabled() && s->lfb_vram_mapped) {
-        kvm_log_start(isa_mem_base + 0xa0000, 0x8000);
-        kvm_log_start(isa_mem_base + 0xa8000, 0x8000);
-    }
-}
-
-static void vga_map(PCIDevice *pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
-{
-    PCIVGAState *d = (PCIVGAState *)pci_dev;
-    VGAState *s = &d->vga;
-    if (region_num == PCI_ROM_SLOT) {
-        cpu_register_physical_memory(addr, s->bios_size, s->bios_offset);
-    } else {
-        cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
-        s->map_addr = addr;
-        s->map_end = addr + s->vram_size;
-        vga_dirty_log_start(s);
-    }
-}
-
 void vga_common_init(VGACommonState *s, int vga_ram_size)
 {
     int i, j, v, b;
@@ -2491,84 +2435,6 @@ int isa_vga_mm_init(target_phys_addr_t vram_base,
 #endif
     return 0;
 }
-
-static void pci_vga_write_config(PCIDevice *d,
-                                 uint32_t address, uint32_t val, int len)
-{
-    PCIVGAState *pvs = container_of(d, PCIVGAState, dev);
-    VGAState *s = &pvs->vga;
-
-    pci_default_write_config(d, address, val, len);
-    if (s->map_addr && pvs->dev.io_regions[0].addr == -1)
-        s->map_addr = 0;
-}
-
-static int pci_vga_initfn(PCIDevice *dev)
-{
-     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
-     VGAState *s = &d->vga;
-     uint8_t *pci_conf = d->dev.config;
-
-     // vga + console init
-     vga_common_init(s, VGA_RAM_SIZE);
-     vga_init(s);
-     register_savevm("vga", 0, 2, pci_vga_save, pci_vga_load, d);
-
-     s->ds = graphic_console_init(s->update, s->invalidate,
-                                  s->screen_dump, s->text_update, s);
-
-     // dummy VGA (same as Bochs ID)
-     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
-     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
-     pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
-     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
-
-     /* XXX: VGA_RAM_SIZE must be a power of two */
-     pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
-                      PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-
-     if (s->bios_size) {
-        unsigned int bios_total_size;
-        /* must be a power of two */
-        bios_total_size = 1;
-        while (bios_total_size < s->bios_size)
-            bios_total_size <<= 1;
-        pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
-                         PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-     }
-     return 0;
-}
-
-int pci_vga_init(PCIBus *bus,
-                 unsigned long vga_bios_offset, int vga_bios_size)
-{
-    PCIDevice *dev;
-
-    dev = pci_create("VGA", NULL);
-    qdev_prop_set_uint32(&dev->qdev, "bios-offset", vga_bios_offset);
-    qdev_prop_set_uint32(&dev->qdev, "bios-size", vga_bios_offset);
-    qdev_init(&dev->qdev);
-
-    return 0;
-}
-
-static PCIDeviceInfo vga_info = {
-    .qdev.name    = "VGA",
-    .qdev.size    = sizeof(PCIVGAState),
-    .init         = pci_vga_initfn,
-    .config_write = pci_vga_write_config,
-    .qdev.props   = (Property[]) {
-        DEFINE_PROP_HEX32("bios-offset", PCIVGAState, vga.bios_offset, 0),
-        DEFINE_PROP_HEX32("bios-size",   PCIVGAState, vga.bios_size,   0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
-};
-
-static void vga_register(void)
-{
-    pci_qdev_register(&vga_info);
-}
-device_init(vga_register);
 
 /********************************************************/
 /* vga screen dump */
