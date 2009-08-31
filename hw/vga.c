@@ -285,9 +285,9 @@ static uint8_t vga_dumb_retrace(VGAState *s)
     return s->st01 ^ (ST01_V_RETRACE | ST01_DISP_ENABLE);
 }
 
-static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
+uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 {
-    VGAState *s = opaque;
+    VGACommonState *s = opaque;
     int val, index;
 
     /* check port range access depending on color/monochrome mode */
@@ -378,9 +378,9 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
     return val;
 }
 
-static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    VGAState *s = opaque;
+    VGACommonState *s = opaque;
     int index;
 
     /* check port range access depending on color/monochrome mode */
