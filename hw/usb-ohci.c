@@ -65,6 +65,7 @@ enum ohci_type {
 };
 
 typedef struct {
+    USBBus *bus;
     qemu_irq irq;
     enum ohci_type type;
     int mem;
@@ -1688,9 +1689,10 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
     ohci->irq = irq;
     ohci->type = type;
 
+    ohci->bus = usb_bus_new(NULL /* FIXME */);
     ohci->num_ports = num_ports;
     for (i = 0; i < num_ports; i++) {
-        qemu_register_usb_port(&ohci->rhport[i].port, ohci, i, ohci_attach);
+        usb_register_port(ohci->bus, &ohci->rhport[i].port, ohci, i, ohci_attach);
     }
 
     ohci->async_td = 0;

@@ -399,11 +399,6 @@ static int usb_wacom_initfn(USBDevice *dev)
     return 0;
 }
 
-USBDevice *usb_wacom_init(void)
-{
-    return usb_create_simple(NULL /* FIXME */, "QEMU PenPartner Tablet");
-}
-
 static struct USBDeviceInfo wacom_info = {
     .qdev.name      = "QEMU PenPartner Tablet",
     .qdev.size      = sizeof(USBWacomState),

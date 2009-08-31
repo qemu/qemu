@@ -2434,72 +2434,56 @@ static void smp_parse(const char *optarg)
 /***********************************************************/
 /* USB devices */
 
-static USBPort *used_usb_ports;
-static USBPort *free_usb_ports;
-
-/* ??? Maybe change this to register a hub to keep track of the topology.  */
-void qemu_register_usb_port(USBPort *port, void *opaque, int index,
-                            usb_attachfn attach)
-{
-    port->opaque = opaque;
-    port->index = index;
-    port->attach = attach;
-    port->next = free_usb_ports;
-    free_usb_ports = port;
-}
-
-int usb_device_add_dev(USBDevice *dev)
-{
-    USBPort *port;
-
-    /* Find a USB port to add the device to.  */
-    port = free_usb_ports;
-    if (!port->next) {
-        USBDevice *hub;
-
-        /* Create a new hub and chain it on.  */
-        free_usb_ports = NULL;
-        port->next = used_usb_ports;
-        used_usb_ports = port;
-
-        hub = usb_hub_init(VM_USB_HUB_SIZE);
-        usb_attach(port, hub);
-        port = free_usb_ports;
-    }
-
-    free_usb_ports = port->next;
-    port->next = used_usb_ports;
-    used_usb_ports = port;
-    usb_attach(port, dev);
-    return 0;
-}
-
 static void usb_msd_password_cb(void *opaque, int err)
 {
     USBDevice *dev = opaque;
 
     if (!err)
-        usb_device_add_dev(dev);
+        usb_device_attach(dev);
     else
         dev->info->handle_destroy(dev);
 }
 
+static struct {
+    const char *name;
+    const char *qdev;
+} usbdevs[] = {
+    {
+        .name = "mouse",
+        .qdev = "QEMU USB Mouse",
+    },{
+        .name = "tablet",
+        .qdev = "QEMU USB Tablet",
+    },{
+        .name = "keyboard",
+        .qdev = "QEMU USB Keyboard",
+    },{
+        .name = "wacom-tablet",
+        .qdev = "QEMU PenPartner Tablet",
+    }
+};
+
 static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
-    USBDevice *dev;
+    USBBus *bus = usb_bus_find(-1 /* any */);
+    USBDevice *dev = NULL;
+    int i;
 
-    if (!free_usb_ports)
+    if (!usb_enabled)
         return -1;
 
+    /* simple devices which don't need extra care */
+    for (i = 0; i < ARRAY_SIZE(usbdevs); i++) {
+        if (strcmp(devname, usbdevs[i].name) != 0)
+            continue;
+        dev = usb_create_simple(bus, usbdevs[i].qdev);
+        goto done;
+    }
+
+    /* the other ones */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-    } else if (!strcmp(devname, "mouse")) {
-        dev = usb_mouse_init();
-    } else if (!strcmp(devname, "tablet")) {
-        dev = usb_tablet_init();
-    } else if (!strcmp(devname, "keyboard")) {
-        dev = usb_keyboard_init();
     } else if (strstart(devname, "disk:", &p)) {
         BlockDriverState *bs;
 
@@ -2515,8 +2499,6 @@ static int usb_device_add(const char *devname, int is_hotplug)
                 return 0;
             }
         }
-    } else if (!strcmp(devname, "wacom-tablet")) {
-        dev = usb_wacom_init();
     } else if (strstart(devname, "serial:", &p)) {
         dev = usb_serial_init(p);
 #ifdef CONFIG_BRLAPI
@@ -2539,37 +2521,7 @@ static int usb_device_add(const char *devname, int is_hotplug)
     if (!dev)
         return -1;
 
-    return usb_device_add_dev(dev);
-}
-
-int usb_device_del_addr(int bus_num, int addr)
-{
-    USBPort *port;
-    USBPort **lastp;
-    USBDevice *dev;
-
-    if (!used_usb_ports)
-        return -1;
-
-    if (bus_num != 0)
-        return -1;
-
-    lastp = &used_usb_ports;
-    port = used_usb_ports;
-    while (port && port->dev->addr != addr) {
-        lastp = &port->next;
-        port = port->next;
-    }
-
-    if (!port)
-        return -1;
-
-    dev = port->dev;
-    *lastp = port->next;
-    usb_attach(port, NULL);
-    dev->info->handle_destroy(dev);
-    port->next = free_usb_ports;
-    free_usb_ports = port;
+done:
     return 0;
 }
 
@@ -2581,7 +2533,7 @@ static int usb_device_del(const char *devname)
     if (strstart(devname, "host:", &p))
         return usb_host_device_close(p);
 
-    if (!used_usb_ports)
+    if (!usb_enabled)
         return -1;
 
     p = strchr(devname, '.');
@@ -2590,7 +2542,7 @@ static int usb_device_del(const char *devname)
     bus_num = strtoul(devname, NULL, 0);
     addr = strtoul(p + 1, NULL, 0);
 
-    return usb_device_del_addr(bus_num, addr);
+    return usb_device_delete_addr(bus_num, addr);
 }
 
 static int usb_parse(const char *cmdline)
@@ -2606,40 +2558,6 @@ void do_usb_add(Monitor *mon, const QDict *qdict)
 void do_usb_del(Monitor *mon, const QDict *qdict)
 {
     usb_device_del(qdict_get_str(qdict, "devname"));
-}
-
-void usb_info(Monitor *mon)
-{
-    USBDevice *dev;
-    USBPort *port;
-    const char *speed_str;
-
-    if (!usb_enabled) {
-        monitor_printf(mon, "USB support not enabled\n");
-        return;
-    }
-
-    for (port = used_usb_ports; port; port = port->next) {
-        dev = port->dev;
-        if (!dev)
-            continue;
-        switch(dev->speed) {
-        case USB_SPEED_LOW:
-            speed_str = "1.5";
-            break;
-        case USB_SPEED_FULL:
-            speed_str = "12";
-            break;
-        case USB_SPEED_HIGH:
-            speed_str = "480";
-            break;
-        default:
-            speed_str = "?";
-            break;
-        }
-        monitor_printf(mon, "  Device %d.%d, Speed %s Mb/s, Product %s\n",
-                       0, dev->addr, speed_str, dev->devname);
-    }
 }
 
 /***********************************************************/

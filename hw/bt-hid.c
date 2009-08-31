@@ -566,5 +566,6 @@ static struct bt_device_s *bt_hid_init(struct bt_scatternet_s *net,
 
 struct bt_device_s *bt_keyboard_init(struct bt_scatternet_s *net)
 {
-    return bt_hid_init(net, usb_keyboard_init(), class_keyboard);
+    USBDevice *dev = usb_create_simple(NULL /* FIXME */, "QEMU USB Keyboard");
+    return bt_hid_init(net, dev, class_keyboard);
 }

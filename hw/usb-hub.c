@@ -531,16 +531,12 @@ static int usb_hub_initfn(USBDevice *dev)
     s->nb_ports = MAX_PORTS; /* FIXME: make configurable */
     for (i = 0; i < s->nb_ports; i++) {
         port = &s->ports[i];
-        qemu_register_usb_port(&port->port, s, i, usb_hub_attach);
+        usb_register_port(usb_bus_from_device(dev),
+                          &port->port, s, i, usb_hub_attach);
         port->wPortStatus = PORT_STAT_POWER;
         port->wPortChange = 0;
     }
     return 0;
-}
-
-USBDevice *usb_hub_init(int nb_ports)
-{
-    return usb_create_simple(NULL /* FIXME */, "QEMU USB Hub");
 }
 
 static struct USBDeviceInfo hub_info = {

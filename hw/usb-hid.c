@@ -871,21 +871,6 @@ static int usb_keyboard_initfn(USBDevice *dev)
     return usb_hid_initfn(dev, USB_KEYBOARD);
 }
 
-USBDevice *usb_tablet_init(void)
-{
-    return usb_create_simple(NULL /* FIXME */, "QEMU USB Tablet");
-}
-
-USBDevice *usb_mouse_init(void)
-{
-    return usb_create_simple(NULL /* FIXME */, "QEMU USB Mouse");
-}
-
-USBDevice *usb_keyboard_init(void)
-{
-    return usb_create_simple(NULL /* FIXME */, "QEMU USB Keyboard");
-}
-
 void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
 {
     USBHIDState *s = (USBHIDState *)dev;

@@ -252,7 +252,7 @@ static void async_complete(void *opaque)
 
             if (errno == ENODEV && !s->closing) {
                 printf("husb: device %d.%d disconnected\n", s->bus_num, s->addr);
-	        usb_device_del_addr(0, s->dev.addr);
+	        usb_device_delete_addr(s->bus_num, s->dev.addr);
                 return;
             }
 
@@ -909,7 +909,7 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     }
     dprintf("husb: opened %s\n", buf);
 
-    d = usb_create_simple(NULL /* FIXME */, "USB Host Device");
+    d = usb_create(NULL /* FIXME */, "USB Host Device");
     dev = DO_UPCAST(USBHostDevice, dev, d);
 
     dev->bus_num = bus_num;
@@ -1039,16 +1039,16 @@ int usb_host_device_close(const char *devname)
     if (usb_host_find_device(&bus_num, &addr, product_name, sizeof(product_name),
                              devname) < 0)
         return -1;
- 
+
     s = hostdev_find(bus_num, addr);
     if (s) {
-        usb_device_del_addr(0, s->dev.addr);
+        usb_device_delete_addr(s->bus_num, s->dev.addr);
         return 0;
     }
 
     return -1;
 }
- 
+
 static int get_tag_value(char *buf, int buf_size,
                          const char *str, const char *tag,
                          const char *stopchars)
@@ -1387,7 +1387,7 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
 
 	dev = usb_host_device_open_addr(bus_num, addr, product_name);
 	if (dev)
-	    usb_device_add_dev(dev);
+            qdev_init(&dev->qdev);
     }
 
     return 0;
