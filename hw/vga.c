@@ -2113,13 +2113,13 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, s->last_width, height);
 }
 
-static CPUReadMemoryFunc * const vga_mem_read[3] = {
+CPUReadMemoryFunc * const vga_mem_read[3] = {
     vga_mem_readb,
     vga_mem_readw,
     vga_mem_readl,
 };
 
-static CPUWriteMemoryFunc * const vga_mem_write[3] = {
+CPUWriteMemoryFunc * const vga_mem_write[3] = {
     vga_mem_writeb,
     vga_mem_writew,
     vga_mem_writel,

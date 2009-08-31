@@ -220,3 +220,5 @@ extern const uint8_t gr_mask[16];
 
 #define VGA_RAM_SIZE (8192 * 1024)
 
+extern CPUReadMemoryFunc * const vga_mem_read[3];
+extern CPUWriteMemoryFunc * const vga_mem_write[3];
