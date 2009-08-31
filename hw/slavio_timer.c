@@ -334,44 +334,33 @@ static CPUWriteMemoryFunc * const slavio_timer_mem_write[3] = {
     slavio_timer_mem_writel,
 };
 
-static void slavio_timer_save(QEMUFile *f, void *opaque)
-{
-    SLAVIO_TIMERState *s = opaque;
-    unsigned int i;
-    CPUTimerState *curr_timer;
-
-    for (i = 0; i <= MAX_CPUS; i++) {
-        curr_timer = &s->cputimer[i];
-        qemu_put_be64s(f, &curr_timer->limit);
-        qemu_put_be32s(f, &curr_timer->count);
-        qemu_put_be32s(f, &curr_timer->counthigh);
-        qemu_put_be32s(f, &curr_timer->reached);
-        qemu_put_be32s(f, &curr_timer->running);
-        qemu_put_ptimer(f, curr_timer->timer);
+static const VMStateDescription vmstate_timer = {
+    .name ="timer",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(limit, CPUTimerState),
+        VMSTATE_UINT32(count, CPUTimerState),
+        VMSTATE_UINT32(counthigh, CPUTimerState),
+        VMSTATE_UINT32(reached, CPUTimerState),
+        VMSTATE_UINT32(running, CPUTimerState),
+        VMSTATE_PTIMER(timer, CPUTimerState),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-static int slavio_timer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SLAVIO_TIMERState *s = opaque;
-    unsigned int i;
-    CPUTimerState *curr_timer;
-
-    if (version_id != 3)
-        return -EINVAL;
-
-    for (i = 0; i <= MAX_CPUS; i++) {
-        curr_timer = &s->cputimer[i];
-        qemu_get_be64s(f, &curr_timer->limit);
-        qemu_get_be32s(f, &curr_timer->count);
-        qemu_get_be32s(f, &curr_timer->counthigh);
-        qemu_get_be32s(f, &curr_timer->reached);
-        qemu_get_be32s(f, &curr_timer->running);
-        qemu_get_ptimer(f, curr_timer->timer);
+static const VMStateDescription vmstate_slavio_timer = {
+    .name ="slavio_timer",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_STRUCT_ARRAY(cputimer, SLAVIO_TIMERState, MAX_CPUS + 1, 3,
+                             vmstate_timer, CPUTimerState),
+        VMSTATE_END_OF_LIST()
     }
-
-    return 0;
-}
+};
 
 static void slavio_timer_reset(void *opaque)
 {
@@ -422,8 +411,7 @@ static int slavio_timer_init1(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cputimer[i].irq);
     }
 
-    register_savevm("slavio_timer", -1, 3, slavio_timer_save,
-                    slavio_timer_load, s);
+    vmstate_register(-1, &vmstate_slavio_timer, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);
     return 0;
