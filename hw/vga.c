@@ -488,19 +488,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 s->cr[7] = (s->cr[7] & ~0x10) | (val & 0x10);
             return;
         }
-        switch(s->cr_index) {
-        case 0x01: /* horizontal display end */
-        case 0x07:
-        case 0x09:
-        case 0x0c:
-        case 0x0d:
-        case 0x12: /* vertical display end */
-            s->cr[s->cr_index] = val;
-            break;
-        default:
-            s->cr[s->cr_index] = val;
-            break;
-        }
+        s->cr[s->cr_index] = val;
 
         switch(s->cr_index) {
         case 0x00:
