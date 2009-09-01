@@ -397,8 +397,7 @@ static void pci_reset(EEPRO100State * s)
 
     /* PCI Vendor ID */
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    /* PCI Device ID */
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+    /* PCI Device ID depends on device and is set below. */
     /* PCI Command */
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);
     /* PCI Status */
@@ -446,29 +445,29 @@ static void pci_reset(EEPRO100State * s)
 
     switch (device) {
     case i82551:
-        //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x0f);
         break;
     case i82557B:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x02);
         break;
     case i82557C:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x03);
         break;
     case i82558B:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_16(PCI_STATUS, 0x2810);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x05);
         break;
     case i82559C:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_16(PCI_STATUS, 0x2810);
         //~ PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
         break;
     case i82559ER:
-        //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         PCI_CONFIG_16(PCI_STATUS, 0x2810);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
         break;
