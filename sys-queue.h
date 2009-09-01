@@ -126,6 +126,11 @@ struct {                                                                \
                 (var);                                                  \
                 (var) = ((var)->field.le_next))
 
+#define LIST_FOREACH_SAFE(var, head, field, next_var)                   \
+        for ((var) = ((head)->lh_first);                                \
+                (var) && ((next_var) = ((var)->field.le_next), 1);      \
+                (var) = (next_var))
+
 /*
  * List access methods.
  */
