@@ -3465,7 +3465,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
     qdev_get_macaddr(&dev->qdev, s->macaddr);
-    qemu_register_reset(rtl8139_reset, s);
     rtl8139_reset(s);
     s->vc = qdev_get_vlan_client(&dev->qdev,
                                  rtl8139_can_receive, rtl8139_receive, NULL,
@@ -3489,9 +3488,10 @@ static int pci_rtl8139_init(PCIDevice *dev)
 }
 
 static PCIDeviceInfo rtl8139_info = {
-    .qdev.name = "rtl8139",
-    .qdev.size = sizeof(RTL8139State),
-    .init      = pci_rtl8139_init,
+    .qdev.name  = "rtl8139",
+    .qdev.size  = sizeof(RTL8139State),
+    .qdev.reset = rtl8139_reset,
+    .init       = pci_rtl8139_init,
 };
 
 static void rtl8139_register_devices(void)
