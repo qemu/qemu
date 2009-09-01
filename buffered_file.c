@@ -52,7 +52,7 @@ static void buffered_append(QEMUFileBuffered *s,
     if (size > (s->buffer_capacity - s->buffer_size)) {
         void *tmp;
 
-        dprintf("increasing buffer capacity from %ld by %ld\n",
+        dprintf("increasing buffer capacity from %zu by %zu\n",
                 s->buffer_capacity, size + 1024);
 
         s->buffer_capacity += size + 1024;
@@ -79,7 +79,7 @@ static void buffered_flush(QEMUFileBuffered *s)
         return;
     }
 
-    dprintf("flushing %ld byte(s) of data\n", s->buffer_size);
+    dprintf("flushing %zu byte(s) of data\n", s->buffer_size);
 
     while (offset < s->buffer_size) {
         ssize_t ret;
@@ -93,16 +93,16 @@ static void buffered_flush(QEMUFileBuffered *s)
         }
 
         if (ret <= 0) {
-            dprintf("error flushing data, %ld\n", ret);
+            dprintf("error flushing data, %zd\n", ret);
             s->has_error = 1;
             break;
         } else {
-            dprintf("flushed %ld byte(s)\n", ret);
+            dprintf("flushed %zd byte(s)\n", ret);
             offset += ret;
         }
     }
 
-    dprintf("flushed %ld of %ld byte(s)\n", offset, s->buffer_size);
+    dprintf("flushed %zu of %zu byte(s)\n", offset, s->buffer_size);
     memmove(s->buffer, s->buffer + offset, s->buffer_size - offset);
     s->buffer_size -= offset;
 }
@@ -145,7 +145,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
             break;
         }
 
-        dprintf("put %ld byte(s)\n", ret);
+        dprintf("put %zd byte(s)\n", ret);
         offset += ret;
         s->bytes_xfer += ret;
     }
