@@ -214,12 +214,21 @@ DeviceState *qdev_device_add(QemuOpts *opts)
    calling this function.  */
 int qdev_init(DeviceState *dev)
 {
-    return dev->info->init(dev, dev->info);
+    int rc;
+
+    rc = dev->info->init(dev, dev->info);
+    if (rc < 0)
+        return rc;
+    if (dev->info->reset)
+        qemu_register_reset(dev->info->reset, dev);
+    return 0;
 }
 
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
+    if (dev->info->reset)
+        qemu_unregister_reset(dev->info->reset, dev);
     LIST_REMOVE(dev, sibling);
     qemu_free(dev);
 }

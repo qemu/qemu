@@ -108,6 +108,9 @@ struct DeviceInfo {
     Property *props;
     int no_user;
 
+    /* callbacks */
+    QEMUResetHandler *reset;
+
     /* Private to qdev / bus.  */
     qdev_initfn init;
     BusInfo *bus_info;
