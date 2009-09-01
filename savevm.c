@@ -1260,10 +1260,10 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 }
 
 typedef struct LoadStateEntry {
+    LIST_ENTRY(LoadStateEntry) entry;
     SaveStateEntry *se;
     int section_id;
     int version_id;
-    struct LoadStateEntry *next;
 } LoadStateEntry;
 
 static int qemu_loadvm_state_v2(QEMUFile *f)
@@ -1309,7 +1309,9 @@ static int qemu_loadvm_state_v2(QEMUFile *f)
 
 int qemu_loadvm_state(QEMUFile *f)
 {
-    LoadStateEntry *first_le = NULL;
+    LIST_HEAD(, LoadStateEntry) loadvm_handlers =
+        LIST_HEAD_INITIALIZER(loadvm_handlers);
+    LoadStateEntry *le, *new_le;
     uint8_t section_type;
     unsigned int v;
     int ret;
@@ -1326,7 +1328,6 @@ int qemu_loadvm_state(QEMUFile *f)
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
         uint32_t instance_id, version_id, section_id;
-        LoadStateEntry *le;
         SaveStateEntry *se;
         char idstr[257];
         int len;
@@ -1364,8 +1365,7 @@ int qemu_loadvm_state(QEMUFile *f)
             le->se = se;
             le->section_id = section_id;
             le->version_id = version_id;
-            le->next = first_le;
-            first_le = le;
+            LIST_INSERT_HEAD(&loadvm_handlers, le, entry);
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
@@ -1378,7 +1378,11 @@ int qemu_loadvm_state(QEMUFile *f)
         case QEMU_VM_SECTION_END:
             section_id = qemu_get_be32(f);
 
-            for (le = first_le; le && le->section_id != section_id; le = le->next);
+            LIST_FOREACH(le, &loadvm_handlers, entry) {
+                if (le->section_id == section_id) {
+                    break;
+                }
+            }
             if (le == NULL) {
                 fprintf(stderr, "Unknown savevm section %d\n", section_id);
                 ret = -EINVAL;
@@ -1402,9 +1406,8 @@ int qemu_loadvm_state(QEMUFile *f)
     ret = 0;
 
 out:
-    while (first_le) {
-        LoadStateEntry *le = first_le;
-        first_le = first_le->next;
+    LIST_FOREACH_SAFE(le, &loadvm_handlers, entry, new_le) {
+        LIST_REMOVE(le, entry);
         qemu_free(le);
     }
 
