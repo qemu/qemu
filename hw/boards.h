@@ -25,7 +25,6 @@ typedef struct QEMUMachine {
 } QEMUMachine;
 
 int qemu_register_machine(QEMUMachine *m);
-int qemu_register_machines(QEMUMachine *machine, size_t number);
 
 extern QEMUMachine *current_machine;
 

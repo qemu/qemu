@@ -4151,7 +4151,10 @@ static QEMUMachine ar7_machines[] = {
 
 static void ar7_machine_init(void)
 {
-    qemu_register_machines(ar7_machines, ARRAY_SIZE(ar7_machines));
+    size_t i;
+    for (i = 0; i < ARRAY_SIZE(ar7_machines); i++) {
+        qemu_register_machine(&ar7_machines[i]);
+    }
 }
 
 machine_init(ar7_machine_init);

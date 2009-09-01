@@ -3318,15 +3318,6 @@ int qemu_register_machine(QEMUMachine *m)
     return 0;
 }
 
-int qemu_register_machines(QEMUMachine *machine, size_t number)
-{
-    size_t i;
-    for (i = 0; i < number; i++) {
-        qemu_register_machine(&machine[i]);
-    }
-    return 0;
-}
-
 static QEMUMachine *find_machine(const char *name)
 {
     QEMUMachine *m;
