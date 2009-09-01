@@ -1187,8 +1187,8 @@ struct __attribute__((__packed__)) target_stat64 {
 	unsigned long long __pad0;
 	long long      st_size;
 	int	       st_blksize;
-	long long      st_blocks;	/* Number 512-byte blocks allocated. */
 	unsigned int   __pad1;
+	long long      st_blocks;	/* Number 512-byte blocks allocated. */
 	int	       target_st_atime;
         unsigned int   target_st_atime_nsec;
 	int	       target_st_mtime;
