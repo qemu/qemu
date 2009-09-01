@@ -890,6 +890,7 @@ const VMStateInfo vmstate_info_buffer = {
 };
 
 typedef struct SaveStateEntry {
+    TAILQ_ENTRY(SaveStateEntry) entry;
     char idstr[256];
     int instance_id;
     int version_id;
@@ -899,11 +900,25 @@ typedef struct SaveStateEntry {
     LoadStateHandler *load_state;
     const VMStateDescription *vmsd;
     void *opaque;
-    struct SaveStateEntry *next;
 } SaveStateEntry;
 
-static SaveStateEntry *first_se;
+static TAILQ_HEAD(savevm_handlers, SaveStateEntry) savevm_handlers =
+    TAILQ_HEAD_INITIALIZER(savevm_handlers);
 static int global_section_id;
+
+static int calculate_new_instance_id(const char *idstr)
+{
+    SaveStateEntry *se;
+    int instance_id = 0;
+
+    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if (strcmp(idstr, se->idstr) == 0
+            && instance_id <= se->instance_id) {
+            instance_id = se->instance_id + 1;
+        }
+    }
+    return instance_id;
+}
 
 /* TODO: Individual devices generally have very little idea about the rest
    of the system, so instance_id should be removed/replaced.
@@ -917,11 +932,10 @@ int register_savevm_live(const char *idstr,
                          LoadStateHandler *load_state,
                          void *opaque)
 {
-    SaveStateEntry *se, **pse;
+    SaveStateEntry *se;
 
     se = qemu_malloc(sizeof(SaveStateEntry));
     pstrcpy(se->idstr, sizeof(se->idstr), idstr);
-    se->instance_id = (instance_id == -1) ? 0 : instance_id;
     se->version_id = version_id;
     se->section_id = global_section_id++;
     se->save_live_state = save_live_state;
@@ -929,18 +943,14 @@ int register_savevm_live(const char *idstr,
     se->load_state = load_state;
     se->opaque = opaque;
     se->vmsd = NULL;
-    se->next = NULL;
 
-    /* add at the end of list */
-    pse = &first_se;
-    while (*pse != NULL) {
-        if (instance_id == -1
-                && strcmp(se->idstr, (*pse)->idstr) == 0
-                && se->instance_id <= (*pse)->instance_id)
-            se->instance_id = (*pse)->instance_id + 1;
-        pse = &(*pse)->next;
+    if (instance_id == -1) {
+        se->instance_id = calculate_new_instance_id(idstr);
+    } else {
+        se->instance_id = instance_id;
     }
-    *pse = se;
+    /* add at the end of list */
+    TAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
 }
 
@@ -957,28 +967,23 @@ int register_savevm(const char *idstr,
 
 void unregister_savevm(const char *idstr, void *opaque)
 {
-    SaveStateEntry **pse;
+    SaveStateEntry *se, *new_se;
 
-    pse = &first_se;
-    while (*pse != NULL) {
-        if (strcmp((*pse)->idstr, idstr) == 0 && (*pse)->opaque == opaque) {
-            SaveStateEntry *next = (*pse)->next;
-            qemu_free(*pse);
-            *pse = next;
-            continue;
+    TAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
+        if (strcmp(se->idstr, idstr) == 0 && se->opaque == opaque) {
+            TAILQ_REMOVE(&savevm_handlers, se, entry);
+            qemu_free(se);
         }
-        pse = &(*pse)->next;
     }
 }
 
 int vmstate_register(int instance_id, const VMStateDescription *vmsd,
                      void *opaque)
 {
-    SaveStateEntry *se, **pse;
+    SaveStateEntry *se;
 
     se = qemu_malloc(sizeof(SaveStateEntry));
     pstrcpy(se->idstr, sizeof(se->idstr), vmsd->name);
-    se->instance_id = (instance_id == -1) ? 0 : instance_id;
     se->version_id = vmsd->version_id;
     se->section_id = global_section_id++;
     se->save_live_state = NULL;
@@ -986,35 +991,20 @@ int vmstate_register(int instance_id, const VMStateDescription *vmsd,
     se->load_state = NULL;
     se->opaque = opaque;
     se->vmsd = vmsd;
-    se->next = NULL;
 
-    /* add at the end of list */
-    pse = &first_se;
-    while (*pse != NULL) {
-        if (instance_id == -1
-                && strcmp(se->idstr, (*pse)->idstr) == 0
-                && se->instance_id <= (*pse)->instance_id)
-            se->instance_id = (*pse)->instance_id + 1;
-        pse = &(*pse)->next;
+    if (instance_id == -1) {
+        se->instance_id = calculate_new_instance_id(vmsd->name);
+    } else {
+        se->instance_id = instance_id;
     }
-    *pse = se;
+    /* add at the end of list */
+    TAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
 }
 
 void vmstate_unregister(const char *idstr,  void *opaque)
 {
-    SaveStateEntry **pse;
-
-    pse = &first_se;
-    while (*pse != NULL) {
-        if (strcmp((*pse)->idstr, idstr) == 0 && (*pse)->opaque == opaque) {
-            SaveStateEntry *next = (*pse)->next;
-            qemu_free(*pse);
-            *pse = next;
-            continue;
-        }
-        pse = &(*pse)->next;
-    }
+    unregister_savevm(idstr, opaque);
 }
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -1129,7 +1119,7 @@ int qemu_savevm_state_begin(QEMUFile *f)
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
-    for (se = first_se; se != NULL; se = se->next) {
+    TAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
         if (se->save_live_state == NULL)
@@ -1161,7 +1151,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     SaveStateEntry *se;
     int ret = 1;
 
-    for (se = first_se; se != NULL; se = se->next) {
+    TAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->save_live_state == NULL)
             continue;
 
@@ -1185,7 +1175,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
 {
     SaveStateEntry *se;
 
-    for (se = first_se; se != NULL; se = se->next) {
+    TAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->save_live_state == NULL)
             continue;
 
@@ -1196,7 +1186,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
     }
 
-    for(se = first_se; se != NULL; se = se->next) {
+    TAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
 	if (se->save_state == NULL && se->vmsd == NULL)
@@ -1261,7 +1251,7 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 {
     SaveStateEntry *se;
 
-    for(se = first_se; se != NULL; se = se->next) {
+    TAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (!strcmp(se->idstr, idstr) &&
             instance_id == se->instance_id)
             return se;
