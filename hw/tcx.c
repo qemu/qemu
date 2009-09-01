@@ -560,8 +560,6 @@ static int tcx_init1(SysBusDevice *dev)
                                      tcx_screen_dump, NULL, s);
     }
 
-    vmstate_register(-1, &vmstate_tcx, s);
-    qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
     qemu_console_resize(s->ds, s->width, s->height);
     return 0;
@@ -634,6 +632,8 @@ static SysBusDeviceInfo tcx_info = {
     .init = tcx_init1,
     .qdev.name  = "SUNW,tcx",
     .qdev.size  = sizeof(TCXState),
+    .qdev.reset = tcx_reset,
+    .qdev.vmsd  = &vmstate_tcx,
     .qdev.props = (Property[]) {
         DEFINE_PROP_TADDR("addr",      TCXState, addr,      -1),
         DEFINE_PROP_HEX32("vram_size", TCXState, vram_size, -1),
