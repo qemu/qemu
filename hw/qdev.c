@@ -221,12 +221,18 @@ int qdev_init(DeviceState *dev)
         return rc;
     if (dev->info->reset)
         qemu_register_reset(dev->info->reset, dev);
+    if (dev->info->vmsd)
+        vmstate_register(-1, dev->info->vmsd, dev);
     return 0;
 }
 
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
+#if 0 /* FIXME: need sane vmstate_unregister function */
+    if (dev->info->vmsd)
+        vmstate_unregister(dev->info->vmsd, dev);
+#endif
     if (dev->info->reset)
         qemu_unregister_reset(dev->info->reset, dev);
     LIST_REMOVE(dev, sibling);

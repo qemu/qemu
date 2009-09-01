@@ -111,6 +111,9 @@ struct DeviceInfo {
     /* callbacks */
     QEMUResetHandler *reset;
 
+    /* device state */
+    const VMStateDescription *vmsd;
+
     /* Private to qdev / bus.  */
     qdev_initfn init;
     BusInfo *bus_info;
