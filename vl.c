@@ -3671,7 +3671,8 @@ static void *kvm_cpu_thread_fn(void *arg)
 
     block_io_signals();
     qemu_thread_self(env->thread);
-    kvm_init_vcpu(env);
+    if (kvm_enabled())
+        kvm_init_vcpu(env);
 
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
