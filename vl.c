@@ -4625,9 +4625,7 @@ static char *find_datadir(const char *argv0)
     char *dir;
     char *p = NULL;
     char *res;
-#ifdef PATH_MAX
     char buf[PATH_MAX];
-#endif
     size_t max_len;
 
 #if defined(__linux__)
@@ -4652,10 +4650,7 @@ static char *find_datadir(const char *argv0)
     /* If we don't have any way of figuring out the actual executable
        location then try argv[0].  */
     if (!p) {
-#ifdef PATH_MAX
-        p = buf;
-#endif
-        p = realpath(argv0, p);
+        p = realpath(argv0, buf);
         if (!p) {
             return NULL;
         }
@@ -4674,9 +4669,7 @@ static char *find_datadir(const char *argv0)
             res = NULL;
         }
     }
-#ifndef PATH_MAX
-    free(p);
-#endif
+
     return res;
 }
 #undef SHARE_SUFFIX
