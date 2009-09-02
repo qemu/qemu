@@ -274,7 +274,7 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
 
     case OPT_STRING:
         if (value != NULL) {
-            list->value.s = strdup(value);
+            list->value.s = qemu_strdup(value);
         } else {
             fprintf(stderr, "Option '%s' needs a parameter\n", name);
             return -1;
@@ -334,12 +334,12 @@ void free_option_parameters(QEMUOptionParameter *list)
 
     while (cur && cur->name) {
         if (cur->type == OPT_STRING) {
-            free(cur->value.s);
+            qemu_free(cur->value.s);
         }
         cur++;
     }
 
-    free(list);
+    qemu_free(list);
 }
 
 /*
