@@ -421,9 +421,10 @@ static void rtc_update_second2(void *opaque)
     }
 
     /* update ended interrupt */
+    s->cmos_data[RTC_REG_C] |= REG_C_UF;
     if (s->cmos_data[RTC_REG_B] & REG_B_UIE) {
-        s->cmos_data[RTC_REG_C] |= 0x90;
-        rtc_irq_raise(s->irq);
+      s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
+      rtc_irq_raise(s->irq);
     }
 
     /* clear update in progress bit */
