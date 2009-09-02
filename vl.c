@@ -858,7 +858,7 @@ static void configure_alarms(char const *opt)
         exit(0);
     }
 
-    arg = strdup(opt);
+    arg = qemu_strdup(opt);
 
     /* Reorder the array */
     name = strtok(arg, ",");
@@ -887,7 +887,7 @@ next:
         name = strtok(NULL, ",");
     }
 
-    free(arg);
+    qemu_free(arg);
 
     if (cur) {
         /* Disable remaining timers */
@@ -4686,7 +4686,7 @@ char *qemu_find_file(int type, const char *name)
     /* If name contains path separators then try it as a straight path.  */
     if ((strchr(name, '/') || strchr(name, '\\'))
         && access(name, R_OK) == 0) {
-        return strdup(name);
+        return qemu_strdup(name);
     }
     switch (type) {
     case QEMU_FILE_TYPE_BIOS:
