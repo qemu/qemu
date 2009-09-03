@@ -16,4 +16,6 @@ DEF_HELPER_1(mmu_read, i32, i32)
 DEF_HELPER_2(mmu_write, void, i32, i32)
 #endif
 
+DEF_HELPER_4(memalign, void, i32, i32, i32, i32)
+
 #include "def-helper.h"

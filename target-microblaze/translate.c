@@ -810,9 +810,16 @@ static void dec_load(DisasContext *dc)
 
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
-    if (dc->rd)
+
+    /* Verify alignment if needed.  */
+    if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
+                            tcg_const_tl(0), tcg_const_tl(size));
+    }
+
+    if (dc->rd) {
         gen_load(dc, cpu_R[dc->rd], *addr, size);
-    else {
+    } else {
         gen_load(dc, env_imm, *addr, size);
     }
 
@@ -847,6 +854,13 @@ static void dec_store(DisasContext *dc)
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
+
+    /* Verify alignment if needed.  */
+    if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
+                            tcg_const_tl(1), tcg_const_tl(size));
+    }
+
     gen_store(dc, *addr, cpu_R[dc->rd], size);
     if (addr == &t)
         tcg_temp_free(t);
