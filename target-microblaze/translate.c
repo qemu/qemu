@@ -814,7 +814,7 @@ static void dec_load(DisasContext *dc)
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
-                            tcg_const_tl(0), tcg_const_tl(size));
+                            tcg_const_tl(0), tcg_const_tl(size - 1));
     }
 
     if (dc->rd) {
@@ -858,7 +858,7 @@ static void dec_store(DisasContext *dc)
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
-                            tcg_const_tl(1), tcg_const_tl(size));
+                            tcg_const_tl(1), tcg_const_tl(size - 1));
     }
 
     gen_store(dc, *addr, cpu_R[dc->rd], size);
