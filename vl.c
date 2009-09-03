@@ -5559,6 +5559,16 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    if (kvm_enabled()) {
+        int ret;
+
+        ret = kvm_init(smp_cpus);
+        if (ret < 0) {
+            fprintf(stderr, "failed to initialize KVM\n");
+            exit(1);
+        }
+    }
+
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
     if (!data_dir) {
@@ -5790,16 +5800,6 @@ int main(int argc, char **argv, char **envp)
             for (i = 0; i < smp_cpus; i++) {
                 node_cpumask[i % nb_numa_nodes] |= 1 << i;
             }
-        }
-    }
-
-    if (kvm_enabled()) {
-        int ret;
-
-        ret = kvm_init(smp_cpus);
-        if (ret < 0) {
-            fprintf(stderr, "failed to initialize KVM\n");
-            exit(1);
         }
     }
 
