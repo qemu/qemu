@@ -363,6 +363,20 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
+static void tcg_out_goto(TCGContext *s, int call, uint8_t *target)
+{
+    int32_t disp;
+
+    disp = target - s->code_ptr - 5;
+    if (disp == (target - s->code_ptr - 5)) {
+        tcg_out8(s, call ? 0xe8 : 0xe9);
+        tcg_out32(s, disp);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R10, (tcg_target_long) target);
+        tcg_out_modrm(s, 0xff, call ? 2 : 4, TCG_REG_R10);
+    }
+}
+
 static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
                               int arg1, tcg_target_long arg2)
 {
@@ -559,9 +573,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
     /* XXX: move that code at the end of the TB */
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_RSI, mem_index);
-    tcg_out8(s, 0xe8);
-    tcg_out32(s, (tcg_target_long)qemu_ld_helpers[s_bits] - 
-              (tcg_target_long)s->code_ptr - 4);
+    tcg_out_goto(s, 1, qemu_ld_helpers[s_bits]);
 
     switch(opc) {
     case 0 | 4:
@@ -774,9 +786,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         break;
     }
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_RDX, mem_index);
-    tcg_out8(s, 0xe8);
-    tcg_out32(s, (tcg_target_long)qemu_st_helpers[s_bits] - 
-              (tcg_target_long)s->code_ptr - 4);
+    tcg_out_goto(s, 1, qemu_st_helpers[s_bits]);
 
     /* jmp label2 */
     tcg_out8(s, 0xeb);
@@ -865,8 +875,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     switch(opc) {
     case INDEX_op_exit_tb:
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_RAX, args[0]);
-        tcg_out8(s, 0xe9); /* jmp tb_ret_addr */
-        tcg_out32(s, tb_ret_addr - s->code_ptr - 4);
+        tcg_out_goto(s, 0, tb_ret_addr);
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
@@ -885,16 +894,14 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_call:
         if (const_args[0]) {
-            tcg_out8(s, 0xe8);
-            tcg_out32(s, args[0] - (tcg_target_long)s->code_ptr - 4);
+            tcg_out_goto(s, 1, (void *) args[0]);
         } else {
             tcg_out_modrm(s, 0xff, 2, args[0]);
         }
         break;
     case INDEX_op_jmp:
         if (const_args[0]) {
-            tcg_out8(s, 0xe9);
-            tcg_out32(s, args[0] - (tcg_target_long)s->code_ptr - 4);
+            tcg_out_goto(s, 0, (void *) args[0]);
         } else {
             tcg_out_modrm(s, 0xff, 4, args[0]);
         }
