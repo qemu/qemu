@@ -500,6 +500,10 @@ static void dec_msr(DisasContext *dc)
                 break;
         }
     }
+
+    if (dc->rd == 0) {
+        tcg_gen_movi_tl(cpu_R[0], 0);
+    }
 }
 
 /* 64-bit signed mul, lower result in d and upper in d2.  */
