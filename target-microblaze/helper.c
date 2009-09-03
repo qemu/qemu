@@ -85,7 +85,7 @@ int cpu_mb_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                              paddr, lu.prot, mmu_idx, is_softmmu);
         } else {
             env->sregs[SR_EAR] = address;
-            DMMU(qemu_log("mmu=%d miss addr=%x\n", mmu_idx, vaddr));
+            DMMU(qemu_log("mmu=%d miss v=%x\n", mmu_idx, address));
 
             switch (lu.err) {
                 case ERR_PROT:
