@@ -129,6 +129,7 @@ void do_interrupt(CPUState *env)
         case EXCP_MMU:
             env->regs[17] = env->sregs[SR_PC];
 
+            env->sregs[SR_ESR] &= ~(1 << 12);
             /* Exception breaks branch + dslot sequence?  */
             if (env->iflags & D_FLAG) {
                 D(qemu_log("D_FLAG set at exception bimm=%d\n", env->bimm));
