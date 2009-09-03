@@ -1442,7 +1442,7 @@ CPUState *cpu_mb_init (const char *cpu_model)
                        | PVR0_USE_DCACHE_MASK \
                        | PVR0_USE_MMU \
                        | (0xb << 8);
-     env->pvr.regs[2] = PVR2_D_OPB_MASK \
+    env->pvr.regs[2] = PVR2_D_OPB_MASK \
                         | PVR2_D_LMB_MASK \
                         | PVR2_I_OPB_MASK \
                         | PVR2_I_LMB_MASK \
@@ -1453,8 +1453,13 @@ CPUState *cpu_mb_init (const char *cpu_model)
                         | PVR2_USE_HW_MUL_MASK \
                         | PVR2_USE_MUL64_MASK \
                         | 0;
-     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
-     env->pvr.regs[11] = PVR11_USE_MMU;
+    env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
+    env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
+#if !defined(CONFIG_USER_ONLY)
+    env->mmu.c_mmu = 3;
+    env->mmu.c_mmu_tlb_access = 3;
+    env->mmu.c_mmu_zones = 16;
+#endif
 
     if (tcg_initialized)
         return env;
