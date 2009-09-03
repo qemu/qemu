@@ -616,7 +616,6 @@ static void dec_div(DisasContext *dc)
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
 
-    /* FIXME: support div by zero exceptions.  */
     if (u)
         gen_helper_divu(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
     else

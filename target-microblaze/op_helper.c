@@ -167,7 +167,12 @@ static inline int div_prepare(uint32_t a, uint32_t b)
 {
     if (b == 0) {
         env->sregs[SR_MSR] |= MSR_DZ;
-        /* FIXME: Raise the div by zero exception.  */
+
+        if ((env->sregs[SR_MSR] & MSR_EE)
+            && !(env->pvr.regs[2] & PVR2_DIV_ZERO_EXC_MASK)) {
+            env->sregs[SR_ESR] = ESR_EC_DIVZERO;
+            helper_raise_exception(EXCP_HW_EXCP);
+        }
         return 0;
     }
     env->sregs[SR_MSR] &= ~MSR_DZ;
