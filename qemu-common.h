@@ -114,6 +114,7 @@ int stristart(const char *str, const char *val, const char **ptr);
 int qemu_strnlen(const char *s, int max_len);
 time_t mktimegm(struct tm *tm);
 int qemu_fls(int i);
+int qemu_fdatasync(int fd);
 
 /* path.c */
 void init_paths(const char *prefix);

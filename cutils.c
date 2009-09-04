@@ -115,6 +115,22 @@ int qemu_fls(int i)
     return 32 - clz32(i);
 }
 
+/*
+ * Make sure data goes on disk, but if possible do not bother to
+ * write out the inode just for timestamp updates.
+ *
+ * Unfortunately even in 2009 many operating systems do not support
+ * fdatasync and have to fall back to fsync.
+ */
+int qemu_fdatasync(int fd)
+{
+#ifdef _POSIX_SYNCHRONIZED_IO
+    return fdatasync(fd);
+#else
+    return fsync(fd);
+#endif
+}
+
 /* io vectors */
 
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint)

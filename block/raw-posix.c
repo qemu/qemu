@@ -723,7 +723,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
 static void raw_flush(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
-    fsync(s->fd);
+    qemu_fdatasync(s->fd);
 }
 
 
