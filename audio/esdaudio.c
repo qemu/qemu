@@ -131,7 +131,7 @@ static void *qesd_thread_out (void *arg)
                 int wsamples = written >> hw->info.shift;
                 int wbytes = wsamples << hw->info.shift;
                 if (wbytes != written) {
-                    dolog ("warning: Misaligned write %d (requested %d), "
+                    dolog ("warning: Misaligned write %d (requested %zd), "
                            "alignment %d\n",
                            wbytes, written, hw->info.align + 1);
                 }
@@ -361,7 +361,7 @@ static void *qesd_thread_in (void *arg)
                 int rsamples = nread >> hw->info.shift;
                 int rbytes = rsamples << hw->info.shift;
                 if (rbytes != nread) {
-                    dolog ("warning: Misaligned write %d (requested %d), "
+                    dolog ("warning: Misaligned write %d (requested %zd), "
                            "alignment %d\n",
                            rbytes, nread, hw->info.align + 1);
                 }

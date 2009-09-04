@@ -52,10 +52,12 @@ void qemu_start_incoming_migration(const char *uri)
         fprintf(stderr, "unknown migration protocol: %s\n", uri);
 }
 
-void do_migrate(Monitor *mon, int detach, const char *uri)
+void do_migrate(Monitor *mon, const QDict *qdict)
 {
     MigrationState *s = NULL;
     const char *p;
+    int detach = qdict_get_int(qdict, "detach");
+    const char *uri = qdict_get_str(qdict, "uri");
 
     if (strstart(uri, "tcp:", &p))
         s = tcp_start_outgoing_migration(p, max_throttle, detach);
@@ -80,7 +82,7 @@ void do_migrate(Monitor *mon, int detach, const char *uri)
     }
 }
 
-void do_migrate_cancel(Monitor *mon)
+void do_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     MigrationState *s = current_migration;
 
@@ -88,11 +90,12 @@ void do_migrate_cancel(Monitor *mon)
         s->cancel(s);
 }
 
-void do_migrate_set_speed(Monitor *mon, const char *value)
+void do_migrate_set_speed(Monitor *mon, const QDict *qdict)
 {
     double d;
     char *ptr;
     FdMigrationState *s;
+    const char *value = qdict_get_str(qdict, "value");
 
     d = strtod(value, &ptr);
     switch (*ptr) {
@@ -126,10 +129,11 @@ uint64_t migrate_max_downtime(void)
     return max_downtime;
 }
 
-void do_migrate_set_downtime(Monitor *mon, const char *value)
+void do_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 {
     char *ptr;
     double d;
+    const char *value = qdict_get_str(qdict, "value");
 
     d = strtod(value, &ptr);
     if (!strcmp(ptr,"ms")) {

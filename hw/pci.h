@@ -240,11 +240,11 @@ void pci_default_write_config(PCIDevice *d,
 void pci_device_save(PCIDevice *s, QEMUFile *f);
 int pci_device_load(PCIDevice *s, QEMUFile *f);
 
-typedef void (*pci_set_irq_fn)(qemu_irq *pic, int irq_num, int level);
+typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         qemu_irq *pic, int devfn_min, int nirq);
+                         void *irq_opaque, int devfn_min, int nirq);
 
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
@@ -354,6 +354,6 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
 
 /* sh_pci.c */
 PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                            qemu_irq *pic, int devfn_min, int nirq);
+                            void *pic, int devfn_min, int nirq);
 
 #endif

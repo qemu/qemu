@@ -137,8 +137,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
     int escc_mem_index, ide_mem_index[2];
     uint16_t ppc_boot_device;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *dinfo;
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     void *dbdma;
     uint8_t *vga_bios_ptr;
@@ -331,19 +330,15 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     }
 
     /* First IDE channel is a MAC IDE on the MacIO bus */
-    dinfo = drive_get(IF_IDE, 0, 0);
-    hd[0] = dinfo ? dinfo->bdrv : NULL;
-    dinfo = drive_get(IF_IDE, 0, 1);
-    hd[1] = dinfo ? dinfo->bdrv : NULL;
+    hd[0] = drive_get(IF_IDE, 0, 0);
+    hd[1] = drive_get(IF_IDE, 0, 1);
     dbdma = DBDMA_init(&dbdma_mem_index);
     ide_mem_index[0] = -1;
     ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
 
     /* Second IDE channel is a CMD646 on the PCI bus */
-    dinfo = drive_get(IF_IDE, 1, 0);
-    hd[0] = dinfo ? dinfo->bdrv : NULL;
-    dinfo = drive_get(IF_IDE, 1, 1);
-    hd[1] = dinfo ? dinfo->bdrv : NULL;
+    hd[0] = drive_get(IF_IDE, 1, 0);
+    hd[1] = drive_get(IF_IDE, 1, 1);
     hd[3] = hd[2] = NULL;
     pci_cmd646_ide_init(pci_bus, hd, 0);
 

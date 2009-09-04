@@ -436,33 +436,28 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
 
 void qemu_purge_queued_packets(VLANClientState *vc)
 {
-    VLANPacket **pp = &vc->vlan->send_queue;
+    VLANPacket *packet, *next;
 
-    while (*pp != NULL) {
-        VLANPacket *packet = *pp;
-
+    TAILQ_FOREACH_SAFE(packet, &vc->vlan->send_queue, entry, next) {
         if (packet->sender == vc) {
-            *pp = packet->next;
+            TAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
             qemu_free(packet);
-        } else {
-            pp = &packet->next;
         }
     }
 }
 
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
-    VLANPacket *packet;
-
-    while ((packet = vc->vlan->send_queue) != NULL) {
+    while (!TAILQ_EMPTY(&vc->vlan->send_queue)) {
+        VLANPacket *packet;
         int ret;
 
-        vc->vlan->send_queue = packet->next;
+        packet = TAILQ_FIRST(&vc->vlan->send_queue);
+        TAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
 
         ret = qemu_deliver_packet(packet->sender, packet->data, packet->size);
         if (ret == 0 && packet->sent_cb != NULL) {
-            packet->next = vc->vlan->send_queue;
-            vc->vlan->send_queue = packet;
+            TAILQ_INSERT_HEAD(&vc->vlan->send_queue, packet, entry);
             break;
         }
 
@@ -480,12 +475,12 @@ static void qemu_enqueue_packet(VLANClientState *sender,
     VLANPacket *packet;
 
     packet = qemu_malloc(sizeof(VLANPacket) + size);
-    packet->next = sender->vlan->send_queue;
     packet->sender = sender;
     packet->size = size;
     packet->sent_cb = sent_cb;
     memcpy(packet->data, buf, size);
-    sender->vlan->send_queue = packet;
+
+    TAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
 }
 
 ssize_t qemu_send_packet_async(VLANClientState *sender,
@@ -597,7 +592,6 @@ static ssize_t qemu_enqueue_packet_iov(VLANClientState *sender,
     max_len = calc_iov_length(iov, iovcnt);
 
     packet = qemu_malloc(sizeof(VLANPacket) + max_len);
-    packet->next = sender->vlan->send_queue;
     packet->sender = sender;
     packet->sent_cb = sent_cb;
     packet->size = 0;
@@ -609,7 +603,7 @@ static ssize_t qemu_enqueue_packet_iov(VLANClientState *sender,
         packet->size += len;
     }
 
-    sender->vlan->send_queue = packet;
+    TAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
 
     return packet->size;
 }
@@ -903,8 +897,7 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
     }
 }
 
-void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
-                              const char *arg2, const char *arg3)
+void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
     int host_port;
@@ -913,6 +906,9 @@ void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
     SlirpState *s;
     int is_udp = 0;
     int err;
+    const char *arg1 = qdict_get_str(qdict, "arg1");
+    const char *arg2 = qdict_get_try_str(qdict, "arg2");
+    const char *arg3 = qdict_get_try_str(qdict, "arg3");
 
     if (arg2) {
         s = slirp_lookup(mon, arg1, arg2);
@@ -1022,11 +1018,13 @@ static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
     config_error(mon, "invalid host forwarding rule '%s'\n", redir_str);
 }
 
-void net_slirp_hostfwd_add(Monitor *mon, const char *arg1,
-                           const char *arg2, const char *arg3)
+void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict)
 {
     const char *redir_str;
     SlirpState *s;
+    const char *arg1 = qdict_get_str(qdict, "arg1");
+    const char *arg2 = qdict_get_try_str(qdict, "arg2");
+    const char *arg3 = qdict_get_try_str(qdict, "arg3");
 
     if (arg2) {
         s = slirp_lookup(mon, arg1, arg2);
@@ -2330,6 +2328,7 @@ VLANState *qemu_find_vlan(int id, int allocate)
     }
     vlan = qemu_mallocz(sizeof(VLANState));
     vlan->id = id;
+    TAILQ_INIT(&vlan->send_queue);
     vlan->next = NULL;
     pvlan = &first_vlan;
     while (*pvlan != NULL)
@@ -2827,8 +2826,11 @@ static int net_host_check_device(const char *device)
     return 0;
 }
 
-void net_host_device_add(Monitor *mon, const char *device, const char *opts)
+void net_host_device_add(Monitor *mon, const QDict *qdict)
 {
+    const char *device = qdict_get_str(qdict, "device");
+    const char *opts = qdict_get_try_str(qdict, "opts");
+
     if (!net_host_check_device(device)) {
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
@@ -2838,9 +2840,11 @@ void net_host_device_add(Monitor *mon, const char *device, const char *opts)
     }
 }
 
-void net_host_device_remove(Monitor *mon, int vlan_id, const char *device)
+void net_host_device_remove(Monitor *mon, const QDict *qdict)
 {
     VLANClientState *vc;
+    int vlan_id = qdict_get_int(qdict, "vlan_id");
+    const char *device = qdict_get_str(qdict, "device");
 
     vc = qemu_find_vlan_client_by_name(mon, vlan_id, device);
     if (!vc) {
@@ -2905,10 +2909,12 @@ void do_info_network(Monitor *mon)
     }
 }
 
-void do_set_link(Monitor *mon, const char *name, const char *up_or_down)
+void do_set_link(Monitor *mon, const QDict *qdict)
 {
     VLANState *vlan;
     VLANClientState *vc = NULL;
+    const char *name = qdict_get_str(qdict, "name");
+    const char *up_or_down = qdict_get_str(qdict, "up_or_down");
 
     for (vlan = first_vlan; vlan != NULL; vlan = vlan->next)
         for (vc = vlan->first_client; vc != NULL; vc = vc->next)

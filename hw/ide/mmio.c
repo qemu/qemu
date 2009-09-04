@@ -124,7 +124,7 @@ static int mmio_ide_load(QEMUFile* f, void *opaque, int version_id)
 
 void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     qemu_irq irq, int shift,
-                    BlockDriverState *hd0, BlockDriverState *hd1)
+                    DriveInfo *hd0, DriveInfo *hd1)
 {
     MMIOState *s = qemu_mallocz(sizeof(MMIOState));
     IDEBus *bus = qemu_mallocz(sizeof(*bus));

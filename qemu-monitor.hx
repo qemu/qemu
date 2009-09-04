@@ -9,20 +9,20 @@ STEXI
 @table @option
 ETEXI
 
-    { "help|?", "s?", help_cmd, "[cmd]", "show the help" },
+    { "help|?", "name:s?", do_help_cmd, "[cmd]", "show the help" },
 STEXI
 @item help or ? [@var{cmd}]
 Show the help for all commands or just for command @var{cmd}.
 ETEXI
 
-    { "commit", "s", do_commit,
+    { "commit", "device:s", do_commit,
       "device|all", "commit changes to the disk images (if -snapshot is used) or backing files" },
 STEXI
 @item commit
 Commit changes to the disk images (if -snapshot is used) or backing files.
 ETEXI
 
-    { "info", "s?", do_info,
+    { "info", "item:s?", do_info,
       "[subcommand]", "show various information about the system state" },
 STEXI
 @item info @var{subcommand}
@@ -101,14 +101,14 @@ STEXI
 Quit the emulator.
 ETEXI
 
-    { "eject", "-fB", do_eject,
+    { "eject", "force:-f,filename:B", do_eject,
       "[-f] device", "eject a removable medium (use -f to force it)" },
 STEXI
 @item eject [-f] @var{device}
 Eject a removable medium (use -f to force it).
 ETEXI
 
-    { "change", "BFs?", do_change,
+    { "change", "device:B,target:F,arg:s?", do_change,
       "device filename [format]", "change a removable medium, optional format" },
 STEXI
 @item change @var{device} @var{setting}
@@ -147,28 +147,28 @@ Password: ********
 @end table
 ETEXI
 
-    { "screendump", "F", do_screen_dump,
+    { "screendump", "filename:F", do_screen_dump,
       "filename", "save screen into PPM image 'filename'" },
 STEXI
 @item screendump @var{filename}
 Save screen into PPM image @var{filename}.
 ETEXI
 
-    { "logfile", "F", do_logfile,
+    { "logfile", "filename:F", do_logfile,
       "filename", "output logs to 'filename'" },
 STEXI
 @item logfile @var{filename}
 Output logs to @var{filename}.
 ETEXI
 
-    { "log", "s", do_log,
+    { "log", "items:s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" },
 STEXI
 @item log @var{item1}[,...]
 Activate logging of the specified items to @file{/tmp/qemu.log}.
 ETEXI
 
-    { "savevm", "s?", do_savevm,
+    { "savevm", "name:s?", do_savevm,
       "[tag|id]", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" },
 STEXI
 @item savevm [@var{tag}|@var{id}]
@@ -178,7 +178,7 @@ a snapshot with the same tag or ID, it is replaced. More info at
 @ref{vm_snapshots}.
 ETEXI
 
-    { "loadvm", "s", do_loadvm,
+    { "loadvm", "name:s", do_loadvm,
       "tag|id", "restore a VM snapshot from its tag or id" },
 STEXI
 @item loadvm @var{tag}|@var{id}
@@ -186,14 +186,14 @@ Set the whole virtual machine to the snapshot identified by the tag
 @var{tag} or the unique snapshot ID @var{id}.
 ETEXI
 
-    { "delvm", "s", do_delvm,
+    { "delvm", "name:s", do_delvm,
       "tag|id", "delete a VM snapshot from its tag or id" },
 STEXI
 @item delvm @var{tag}|@var{id}
 Delete the snapshot identified by @var{tag} or @var{id}.
 ETEXI
 
-    { "singlestep", "s?", do_singlestep,
+    { "singlestep", "option:s?", do_singlestep,
       "[on|off]", "run emulation in singlestep mode or switch to normal mode", },
 STEXI
 @item singlestep [off]
@@ -215,21 +215,21 @@ STEXI
 Resume emulation.
 ETEXI
 
-    { "gdbserver", "s?", do_gdbserver,
+    { "gdbserver", "device:s?", do_gdbserver,
       "[device]", "start gdbserver on given device (default 'tcp::1234'), stop with 'none'", },
 STEXI
 @item gdbserver [@var{port}]
 Start gdbserver session (default @var{port}=1234)
 ETEXI
 
-    { "x", "/l", do_memory_dump,
+    { "x", "fmt:/,addr:l", do_memory_dump,
       "/fmt addr", "virtual memory dump starting at 'addr'", },
 STEXI
 @item x/fmt @var{addr}
 Virtual memory dump starting at @var{addr}.
 ETEXI
 
-    { "xp", "/l", do_physical_memory_dump,
+    { "xp", "fmt:/,addr:l", do_physical_memory_dump,
       "/fmt addr", "physical memory dump starting at 'addr'", },
 STEXI
 @item xp /@var{fmt} @var{addr}
@@ -289,7 +289,7 @@ Dump 80 16 bit values at the start of the video memory.
 @end itemize
 ETEXI
 
-    { "p|print", "/l", do_print,
+    { "p|print", "fmt:/,val:l", do_print,
       "/fmt expr", "print expression value (use $reg for CPU register access)", },
 STEXI
 @item p or print/@var{fmt} @var{expr}
@@ -298,19 +298,19 @@ Print expression value. Only the @var{format} part of @var{fmt} is
 used.
 ETEXI
 
-    { "i", "/ii.", do_ioport_read,
+    { "i", "fmt:/,addr:i,index:i.", do_ioport_read,
       "/fmt addr", "I/O port read" },
 STEXI
 Read I/O port.
 ETEXI
 
-    { "o", "/ii", do_ioport_write,
+    { "o", "fmt:/,addr:i,val:i", do_ioport_write,
       "/fmt addr value", "I/O port write" },
 STEXI
 Write to I/O port.
 ETEXI
 
-    { "sendkey", "si?", do_sendkey,
+    { "sendkey", "string:s,hold_time:i?", do_sendkey,
       "keys [hold_ms]", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)" },
 STEXI
 @item sendkey @var{keys}
@@ -342,7 +342,7 @@ STEXI
 Power down the system (if supported).
 ETEXI
 
-    { "sum", "ii", do_sum,
+    { "sum", "start:i,size:i", do_sum,
       "addr size", "compute the checksum of a memory region" },
 STEXI
 @item sum @var{addr} @var{size}
@@ -350,7 +350,7 @@ STEXI
 Compute the checksum of a memory region.
 ETEXI
 
-    { "usb_add", "s", do_usb_add,
+    { "usb_add", "devname:s", do_usb_add,
       "device", "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')" },
 STEXI
 @item usb_add @var{devname}
@@ -359,7 +359,7 @@ Add the USB device @var{devname}.  For details of available devices see
 @ref{usb_devices}
 ETEXI
 
-    { "usb_del", "s", do_usb_del,
+    { "usb_del", "devname:s", do_usb_del,
       "device", "remove USB device 'bus.addr'" },
 STEXI
 @item usb_del @var{devname}
@@ -369,13 +369,13 @@ hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
 command @code{info usb} to see the devices you can remove.
 ETEXI
 
-    { "cpu", "i", do_cpu_set,
+    { "cpu", "index:i", do_cpu_set,
       "index", "set the default CPU" },
 STEXI
 Set the default CPU.
 ETEXI
 
-    { "mouse_move", "sss?", do_mouse_move,
+    { "mouse_move", "dx_str:s,dy_str:s,dz_str:s?", do_mouse_move,
       "dx dy [dz]", "send mouse move events" },
 STEXI
 @item mouse_move @var{dx} @var{dy} [@var{dz}]
@@ -383,14 +383,14 @@ Move the active mouse to the specified coordinates @var{dx} @var{dy}
 with optional scroll axis @var{dz}.
 ETEXI
 
-    { "mouse_button", "i", do_mouse_button,
+    { "mouse_button", "button_state:i", do_mouse_button,
       "state", "change mouse button state (1=L, 2=M, 4=R)" },
 STEXI
 @item mouse_button @var{val}
 Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
 ETEXI
 
-    { "mouse_set", "i", do_mouse_set,
+    { "mouse_set", "index:i", do_mouse_set,
       "index", "set which mouse device receives events" },
 STEXI
 @item mouse_set @var{index}
@@ -402,7 +402,7 @@ info mice
 ETEXI
 
 #ifdef HAS_AUDIO
-    { "wavcapture", "si?i?i?", do_wav_capture,
+    { "wavcapture", "path:s,freq:i?,bits:i?,nchannels:i?", do_wav_capture,
       "path [frequency [bits [channels]]]",
       "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
 #endif
@@ -420,7 +420,7 @@ Defaults:
 ETEXI
 
 #ifdef HAS_AUDIO
-    { "stopcapture", "i", do_stop_capture,
+    { "stopcapture", "n:i", do_stop_capture,
       "capture index", "stop capture" },
 #endif
 STEXI
@@ -431,21 +431,21 @@ info capture
 @end example
 ETEXI
 
-    { "memsave", "lis", do_memory_save,
+    { "memsave", "val:l,size:i,filename:s", do_memory_save,
       "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
 STEXI
 @item memsave @var{addr} @var{size} @var{file}
 save to disk virtual memory dump starting at @var{addr} of size @var{size}.
 ETEXI
 
-    { "pmemsave", "lis", do_physical_memory_save,
+    { "pmemsave", "val:l,size:i,filename:s", do_physical_memory_save,
       "addr size file", "save to disk physical memory dump starting at 'addr' of size 'size'", },
 STEXI
 @item pmemsave @var{addr} @var{size} @var{file}
 save to disk physical memory dump starting at @var{addr} of size @var{size}.
 ETEXI
 
-    { "boot_set", "s", do_boot_set,
+    { "boot_set", "bootdevice:s", do_boot_set,
       "bootdevice", "define new values for the boot device list" },
 STEXI
 @item boot_set @var{bootdevicelist}
@@ -458,7 +458,7 @@ the same that can be specified in the @code{-boot} command line option.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "nmi", "i", do_inject_nmi,
+    { "nmi", "cpu_index:i", do_inject_nmi,
       "cpu", "inject an NMI on the given CPU", },
 #endif
 STEXI
@@ -466,7 +466,7 @@ STEXI
 Inject an NMI on the given CPU (x86 only).
 ETEXI
 
-    { "migrate", "-ds", do_migrate,
+    { "migrate", "detach:-d,uri:s", do_migrate,
       "[-d] uri", "migrate to URI (using -d to not wait for completion)" },
 STEXI
 @item migrate [-d] @var{uri}
@@ -480,14 +480,14 @@ STEXI
 Cancel the current VM migration.
 ETEXI
 
-    { "migrate_set_speed", "s", do_migrate_set_speed,
+    { "migrate_set_speed", "value:s", do_migrate_set_speed,
       "value", "set maximum speed (in bytes) for migrations" },
 STEXI
 @item migrate_set_speed @var{value}
 Set maximum speed to @var{value} (in bytes) for migrations.
 ETEXI
 
-    { "migrate_set_downtime", "s", do_migrate_set_downtime,
+    { "migrate_set_downtime", "value:s", do_migrate_set_downtime,
       "value", "set maximum tolerated downtime (in seconds) for migrations" },
 
 STEXI
@@ -496,8 +496,9 @@ Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "drive_add", "ss", drive_hot_add, "[[<domain>:]<bus>:]<slot>\n"
-                                         "[file=file][,if=type][,bus=n]\n"
+    { "drive_add", "pci_addr:s,opts:s", drive_hot_add,
+                                        "[[<domain>:]<bus>:]<slot>\n"
+                                        "[file=file][,if=type][,bus=n]\n"
                                         "[,unit=m][,media=d][index=i]\n"
                                         "[,cyls=c,heads=h,secs=s[,trans=t]]\n"
                                         "[snapshot=on|off][,cache=on|off]",
@@ -509,7 +510,7 @@ Add drive to PCI storage controller.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_add", "sss?", pci_device_hot_add, "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
+    { "pci_add", "pci_addr:s,type:s,opts:s?", pci_device_hot_add, "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...", "hot-add PCI device" },
 #endif
 STEXI
 @item pci_add
@@ -517,21 +518,21 @@ Hot-add PCI device.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "pci_del", "s", pci_device_hot_remove, "[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
+    { "pci_del", "pci_addr:s", do_pci_device_hot_remove, "[[<domain>:]<bus>:]<slot>", "hot remove PCI device" },
 #endif
 STEXI
 @item pci_del
 Hot remove PCI device.
 ETEXI
 
-    { "host_net_add", "ss?", net_host_device_add,
+    { "host_net_add", "device:s,opts:s?", net_host_device_add,
       "tap|user|socket|vde|dump [options]", "add host VLAN client" },
 STEXI
 @item host_net_add
 Add host VLAN client.
 ETEXI
 
-    { "host_net_remove", "is", net_host_device_remove,
+    { "host_net_remove", "vlan_id:i,device:s", net_host_device_remove,
       "vlan_id name", "remove host VLAN client" },
 STEXI
 @item host_net_remove
@@ -539,10 +540,10 @@ Remove host VLAN client.
 ETEXI
 
 #ifdef CONFIG_SLIRP
-    { "hostfwd_add", "ss?s?", net_slirp_hostfwd_add,
+    { "hostfwd_add", "arg1:s,arg2:s?,arg3:s?", net_slirp_hostfwd_add,
       "[vlan_id name] [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
       "redirect TCP or UDP connections from host to guest (requires -net user)" },
-    { "hostfwd_remove", "ss?s?", net_slirp_hostfwd_remove,
+    { "hostfwd_remove", "arg1:s,arg2:s?,arg3:s?", net_slirp_hostfwd_remove,
       "[vlan_id name] [tcp|udp]:[hostaddr]:hostport",
       "remove host-to-guest TCP or UDP redirection" },
 #endif
@@ -551,28 +552,28 @@ STEXI
 Redirect TCP or UDP connections from host to guest (requires -net user).
 ETEXI
 
-    { "balloon", "i", do_balloon,
+    { "balloon", "value:i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },
 STEXI
 @item balloon @var{value}
 Request VM to change its memory allocation to @var{value} (in MB).
 ETEXI
 
-    { "set_link", "ss", do_set_link,
+    { "set_link", "name:s,up_or_down:s", do_set_link,
       "name up|down", "change the link status of a network adapter" },
 STEXI
 @item set_link @var{name} [up|down]
 Set link @var{name} up or down.
 ETEXI
 
-    { "watchdog_action", "s", do_watchdog_action,
+    { "watchdog_action", "action:s", do_watchdog_action,
       "[reset|shutdown|poweroff|pause|debug|none]", "change watchdog action" },
 STEXI
 @item watchdog_action
 Change watchdog action.
 ETEXI
 
-    { "acl_show", "s", do_acl_show, "aclname",
+    { "acl_show", "aclname:s", do_acl_show, "aclname",
       "list rules in the access control list" },
 STEXI
 @item acl_show @var{aclname}
@@ -582,7 +583,7 @@ policy. There are currently two named access control lists,
 certificate distinguished name, and SASL username respectively.
 ETEXI
 
-    { "acl_policy", "ss", do_acl_policy, "aclname allow|deny",
+    { "acl_policy", "aclname:s,policy:s", do_acl_policy, "aclname allow|deny",
       "set default access control list policy" },
 STEXI
 @item acl_policy @var{aclname} @code{allow|deny}
@@ -591,7 +592,7 @@ none of the explicit rules match. The default policy at startup is
 always @code{deny}.
 ETEXI
 
-    { "acl_add", "sssi?", do_acl_add, "aclname match allow|deny [index]",
+    { "acl_add", "aclname:s,match:s,policy:s,index:i?", do_acl_add, "aclname match allow|deny [index]",
       "add a match rule to the access control list" },
 STEXI
 @item acl_allow @var{aclname} @var{match} @code{allow|deny} [@var{index}]
@@ -603,14 +604,14 @@ normally be appended to the end of the ACL, but can be inserted
 earlier in the list if the optional @var{index} parameter is supplied.
 ETEXI
 
-    { "acl_remove", "ss", do_acl_remove, "aclname match",
+    { "acl_remove", "aclname:s,match:s", do_acl_remove, "aclname match",
       "remove a match rule from the access control list" },
 STEXI
 @item acl_remove @var{aclname} @var{match}
 Remove the specified match rule from the access control list.
 ETEXI
 
-    { "acl_reset", "s", do_acl_reset, "aclname",
+    { "acl_reset", "aclname:s", do_acl_reset, "aclname",
       "reset the access control list" },
 STEXI
 @item acl_remove @var{aclname} @var{match}
@@ -619,14 +620,14 @@ policy back to @code{deny}.
 ETEXI
 
 #if defined(TARGET_I386)
-    { "mce", "iillll", do_inject_mce, "cpu bank status mcgstatus addr misc", "inject a MCE on the given CPU"},
+    { "mce", "cpu_index:i,bank:i,status:l,mcg_status:l,addr:l,misc:l", do_inject_mce, "cpu bank status mcgstatus addr misc", "inject a MCE on the given CPU"},
 #endif
 STEXI
 @item mce @var{cpu} @var{bank} @var{status} @var{mcgstatus} @var{addr} @var{misc}
 Inject an MCE on the given CPU (x86 only).
 ETEXI
 
-    { "getfd", "s", do_getfd, "getfd name",
+    { "getfd", "fdname:s", do_getfd, "getfd name",
       "receive a file descriptor via SCM rights and assign it a name" },
 STEXI
 @item getfd @var{fdname}
@@ -635,7 +636,7 @@ mechanism on unix sockets, it is stored using the name @var{fdname} for
 later use by other monitor commands.
 ETEXI
 
-    { "closefd", "s", do_closefd, "closefd name",
+    { "closefd", "fdname:s", do_closefd, "closefd name",
       "close a file descriptor previously passed via SCM rights" },
 STEXI
 @item closefd @var{fdname}

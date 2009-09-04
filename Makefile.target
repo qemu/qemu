@@ -248,7 +248,7 @@ obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc403
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o ide/isa.o ide/pci.o
 obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
-obj-mips-y += piix_pci.o parallel.o cirrus_vga.o isa-bus.o pcspk.o $(sound-obj-y)
+obj-mips-y += piix4.o parallel.o cirrus_vga.o isa-bus.o pcspk.o $(sound-obj-y)
 ifeq ($(TARGET_ARCH), mips)
 obj-mips-y += ar7.o
 endif

@@ -47,6 +47,7 @@
 
 #include <stdbool.h>            /* bool */
 #include <stddef.h>             /* offsetof */
+#include <stdbool.h>
 #include "hw.h"
 #include "pci.h"
 #include "net.h"

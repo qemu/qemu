@@ -1048,7 +1048,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 void *addr = base_addr + field->size * i;
 
                 if (field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, field->vmsd, addr, version_id);
+                    ret = vmstate_load_state(f, field->vmsd, addr, field->vmsd->version_id);
                 } else {
                     ret = field->info->get(f, addr, field->size);
 
@@ -1480,7 +1480,7 @@ static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
     return ret;
 }
 
-void do_savevm(Monitor *mon, const char *name)
+void do_savevm(Monitor *mon, const QDict *qdict)
 {
     DriveInfo *dinfo;
     BlockDriverState *bs, *bs1;
@@ -1494,6 +1494,7 @@ void do_savevm(Monitor *mon, const char *name)
 #else
     struct timeval tv;
 #endif
+    const char *name = qdict_get_try_str(qdict, "name");
 
     bs = get_bs_snapshots();
     if (!bs) {
@@ -1644,11 +1645,12 @@ int load_vmstate(Monitor *mon, const char *name)
     return 0;
 }
 
-void do_delvm(Monitor *mon, const char *name)
+void do_delvm(Monitor *mon, const QDict *qdict)
 {
     DriveInfo *dinfo;
     BlockDriverState *bs, *bs1;
     int ret;
+    const char *name = qdict_get_str(qdict, "name");
 
     bs = get_bs_snapshots();
     if (!bs) {

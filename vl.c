@@ -177,6 +177,9 @@ int main(int argc, char **argv)
 
 #define DEFAULT_RAM_SIZE 128
 
+/* Maximum number of monitor devices */
+#define MAX_MONITOR_DEVICES 10
+
 static const char *data_dir;
 const char *bios_name = NULL;
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
@@ -480,10 +483,11 @@ void do_info_mice(Monitor *mon)
     }
 }
 
-void do_mouse_set(Monitor *mon, int index)
+void do_mouse_set(Monitor *mon, const QDict *qdict)
 {
     QEMUPutMouseEntry *cursor;
     int i = 0;
+    int index = qdict_get_int(qdict, "index");
 
     if (!qemu_put_mouse_event_head) {
         monitor_printf(mon, "No mouse devices connected\n");
@@ -2596,14 +2600,14 @@ static int usb_parse(const char *cmdline)
     return usb_device_add(cmdline, 0);
 }
 
-void do_usb_add(Monitor *mon, const char *devname)
+void do_usb_add(Monitor *mon, const QDict *qdict)
 {
-    usb_device_add(devname, 1);
+    usb_device_add(qdict_get_str(qdict, "devname"), 1);
 }
 
-void do_usb_del(Monitor *mon, const char *devname)
+void do_usb_del(Monitor *mon, const QDict *qdict)
 {
-    usb_device_del(devname);
+    usb_device_del(qdict_get_str(qdict, "devname"));
 }
 
 void usb_info(Monitor *mon)
@@ -3754,6 +3758,7 @@ static void *kvm_cpu_thread_fn(void *arg)
 
     block_io_signals();
     qemu_thread_self(env->thread);
+    kvm_init_vcpu(env);
 
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
@@ -3949,7 +3954,6 @@ static void tcg_init_vcpu(void *_env)
 
 static void kvm_start_vcpu(CPUState *env)
 {
-    kvm_init_vcpu(env);
     env->thread = qemu_mallocz(sizeof(QemuThread));
     env->halt_cond = qemu_mallocz(sizeof(QemuCond));
     qemu_cond_init(env->halt_cond);
@@ -4894,8 +4898,9 @@ int main(int argc, char **argv, char **envp)
     QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
-    CharDriverState *monitor_hd = NULL;
-    const char *monitor_device;
+    CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
+    const char *monitor_devices[MAX_MONITOR_DEVICES];
+    int monitor_device_index;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
     const char *parallel_devices[MAX_PARALLEL_PORTS];
@@ -4976,7 +4981,6 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    monitor_device = "vc:132Cx43C";
 
     serial_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
@@ -4991,6 +4995,12 @@ int main(int argc, char **argv, char **envp)
     for(i = 0; i < MAX_VIRTIO_CONSOLES; i++)
         virtio_consoles[i] = NULL;
     virtio_console_index = 0;
+
+    monitor_devices[0] = "vc:132Cx43C";
+    for (i = 1; i < MAX_MONITOR_DEVICES; i++) {
+        monitor_devices[i] = NULL;
+    }
+    monitor_device_index = 0;
 
     for (i = 0; i < MAX_NODES; i++) {
         node_mem[i] = 0;
@@ -5406,7 +5416,12 @@ int main(int argc, char **argv, char **envp)
                     break;
                 }
             case QEMU_OPTION_monitor:
-                monitor_device = optarg;
+                if (monitor_device_index >= MAX_MONITOR_DEVICES) {
+                    fprintf(stderr, "qemu: too many monitor devices\n");
+                    exit(1);
+                }
+                monitor_devices[monitor_device_index] = optarg;
+                monitor_device_index++;
                 break;
             case QEMU_OPTION_serial:
                 if (serial_device_index >= MAX_SERIAL_PORTS) {
@@ -5716,8 +5731,9 @@ int main(int argc, char **argv, char **envp)
            serial_devices[0] = "stdio";
        if (parallel_device_index == 0)
            parallel_devices[0] = "null";
-       if (strncmp(monitor_device, "vc", 2) == 0)
-           monitor_device = "stdio";
+       if (strncmp(monitor_devices[0], "vc", 2) == 0) {
+           monitor_devices[0] = "stdio";
+       }
     }
 
 #ifndef _WIN32
@@ -5863,20 +5879,15 @@ int main(int argc, char **argv, char **envp)
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
 
-#ifndef _WIN32
-    /* must be after terminal init, SDL library changes signal handlers */
-    sighandler_setup();
-#endif
-
     /* Maintain compatibility with multiple stdio monitors */
-    if (!strcmp(monitor_device,"stdio")) {
+    if (!strcmp(monitor_devices[0],"stdio")) {
         for (i = 0; i < MAX_SERIAL_PORTS; i++) {
             const char *devname = serial_devices[i];
             if (devname && !strcmp(devname,"mon:stdio")) {
-                monitor_device = NULL;
+                monitor_devices[0] = NULL;
                 break;
             } else if (devname && !strcmp(devname,"stdio")) {
-                monitor_device = NULL;
+                monitor_devices[0] = NULL;
                 serial_devices[i] = "mon:stdio";
                 break;
             }
@@ -5935,11 +5946,21 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    if (monitor_device) {
-        monitor_hd = qemu_chr_open("monitor", monitor_device, NULL);
-        if (!monitor_hd) {
-            fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
-            exit(1);
+    for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
+        const char *devname = monitor_devices[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            if (i == 0) {
+                snprintf(label, sizeof(label), "monitor");
+            } else {
+                snprintf(label, sizeof(label), "monitor%d", i);
+            }
+            monitor_hds[i] = qemu_chr_open(label, devname, NULL);
+            if (!monitor_hds[i]) {
+                fprintf(stderr, "qemu: could not open monitor device '%s'\n",
+                        devname);
+                exit(1);
+            }
         }
     }
 
@@ -5999,6 +6020,11 @@ int main(int argc, char **argv, char **envp)
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
+
+#ifndef _WIN32
+    /* must be after terminal init, SDL library changes signal handlers */
+    sighandler_setup();
+#endif
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         for (i = 0; i < nb_numa_nodes; i++) {
@@ -6083,8 +6109,13 @@ int main(int argc, char **argv, char **envp)
     text_consoles_set_display(display_state);
     qemu_chr_initial_reset();
 
-    if (monitor_device && monitor_hd)
-        monitor_init(monitor_hd, MONITOR_USE_READLINE | MONITOR_IS_DEFAULT);
+    for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
+        if (monitor_devices[i] && monitor_hds[i]) {
+            monitor_init(monitor_hds[i],
+                         MONITOR_USE_READLINE |
+                         ((i == 0) ? MONITOR_IS_DEFAULT : 0));
+        }
+    }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];

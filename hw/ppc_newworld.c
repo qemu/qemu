@@ -107,8 +107,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
     int ppc_boot_device;
-    DriveInfo *dinfo;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     void *dbdma;
     uint8_t *vga_bios_ptr;
@@ -316,8 +315,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         exit(1);
     }
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        hd[i] = dinfo ? dinfo->bdrv : NULL;
+        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
     dbdma = DBDMA_init(&dbdma_mem_index);
     pci_cmd646_ide_init(pci_bus, hd, 0);

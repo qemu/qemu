@@ -379,7 +379,6 @@ struct IDEState {
     int mult_sectors;
     int identify_set;
     uint16_t identify_data[256];
-    qemu_irq irq;
     int drive_serial;
     char drive_serial_str[21];
     /* ide regs */
@@ -399,8 +398,6 @@ struct IDEState {
     uint8_t select;
     uint8_t status;
 
-    /* 0x3f6 command, only meaningful for drive 0 */
-    uint8_t cmd;
     /* set for lba48 access */
     uint8_t lba48;
     BlockDriverState *bs;
@@ -446,6 +443,8 @@ struct IDEBus {
     BMDMAState *bmdma;
     IDEState ifs[2];
     uint8_t unit;
+    uint8_t cmd;
+    qemu_irq irq;
 };
 
 #define BM_STATUS_DMAING 0x01
@@ -490,14 +489,14 @@ static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
     return bmdma->bus->ifs + bmdma->unit;
 }
 
-static inline void ide_set_irq(IDEState *s)
+static inline void ide_set_irq(IDEBus *bus)
 {
-    BMDMAState *bm = s->bus->bmdma;
-    if (!(s->cmd & IDE_CMD_DISABLE_IRQ)) {
+    BMDMAState *bm = bus->bmdma;
+    if (!(bus->cmd & IDE_CMD_DISABLE_IRQ)) {
         if (bm) {
             bm->status |= BM_STATUS_INT;
         }
-        qemu_irq_raise(s->irq);
+        qemu_irq_raise(bus->irq);
     }
 }
 
@@ -528,7 +527,7 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
-void ide_init2(IDEBus *bus, BlockDriverState *hd0, BlockDriverState *hd1,
+void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
                qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2);
 

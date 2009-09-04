@@ -789,6 +789,7 @@ void mips_malta_init (ram_addr_t ram_size,
     target_long bios_size;
     int64_t kernel_entry;
     PCIBus *pci_bus;
+    ISADevice *isa_dev;
     CPUState *env;
     RTCState *rtc_state;
     fdctrl_t *floppy_controller;
@@ -799,7 +800,7 @@ void mips_malta_init (ram_addr_t ram_size,
     i2c_bus *smbus;
     int i;
     DriveInfo *dinfo;
-    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
     int fl_idx = 0;
     int fl_sectors = 0;
@@ -931,14 +932,14 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        dinfo = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-        hd[i] = dinfo ? dinfo->bdrv : NULL;
+        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
     piix4_devfn = piix4_init(pci_bus, 80);
-    pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1, i8259);
+    isa_bus_irqs(i8259);
+    pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
-    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, i8259[9]);
+    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_reserve_irq(9));
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
     for (i = 0; i < 8; i++) {
         /* TODO: Populate SPD eeprom data.  */
@@ -948,17 +949,18 @@ void mips_malta_init (ram_addr_t ram_size,
         qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
         qdev_init(eeprom);
     }
-    pit = pit_init(0x40, i8259[0]);
+    pit = pit_init(0x40, isa_reserve_irq(0));
     DMA_init(0);
 
     /* Super I/O */
     //~ super_io_init();
-    i8042_init(i8259[1], i8259[12], 0x60);
-    rtc_state = rtc_init(0x70, i8259[8], 2000);
-    serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
-    serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
+    isa_dev = isa_create_simple("i8042", 0x60, 0x64, 1, 12);
+ 
+    rtc_state = rtc_init(0x70, isa_reserve_irq(8), 2000);
+    serial_init(0x3f8, isa_reserve_irq(4), 115200, serial_hds[0]);
+    serial_init(0x2f8, isa_reserve_irq(3), 115200, serial_hds[1]);
     if (parallel_hds[0])
-        parallel_init(0x378, i8259[7], parallel_hds[0]);
+        parallel_init(0x378, isa_reserve_irq(7), parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;

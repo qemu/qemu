@@ -754,7 +754,7 @@ static void spitz_microdrive_attach(PXA2xxState *cpu, int slot)
         return;
     bs = dinfo->bdrv;
     if (bdrv_is_inserted(bs) && !bdrv_is_removable(bs)) {
-        md = dscm1xxxx_init(bs);
+        md = dscm1xxxx_init(dinfo);
         pxa2xx_pcmcia_attach(cpu->pcmcia[slot], md);
     }
 }

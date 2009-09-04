@@ -91,6 +91,7 @@ obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 obj-y += qemu-char.o aio.o net-checksum.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o ssi.o
+obj-y += qint.o qstring.o qdict.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o
@@ -179,6 +180,10 @@ qemu-io$(EXESUF):  qemu-io.o qemu-tool.o cmd.o $(block-obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
+
+check-qint: check-qint.o qint.o qemu-malloc.o
+check-qstring: check-qstring.o qstring.o qemu-malloc.o
+check-qdict: check-qdict.o qdict.o qint.o qstring.o qemu-malloc.o
 
 clean:
 # avoid old build problems by removing potentially incorrect old files

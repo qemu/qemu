@@ -253,8 +253,10 @@ static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     return ret;
 }
 
-static void mpc85xx_pci_set_irq(qemu_irq *pic, int irq_num, int level)
+static void mpc85xx_pci_set_irq(void *opaque, int irq_num, int level)
 {
+    qemu_irq *pic = opaque;
+
     pci_debug("%s: PCI irq %d, level:%d\n", __func__, irq_num, level);
 
     qemu_set_irq(pic[irq_num], level);

@@ -124,8 +124,10 @@ static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + (pci_dev->devfn >> 3)) & 1;
 }
 
-static void prep_set_irq(qemu_irq *pic, int irq_num, int level)
+static void prep_set_irq(void *opaque, int irq_num, int level)
 {
+    qemu_irq *pic = opaque;
+
     qemu_set_irq(pic[(irq_num & 1) ? 11 : 9] , level);
 }
 

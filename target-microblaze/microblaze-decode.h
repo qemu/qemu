@@ -29,7 +29,7 @@
                  + ((x&0xF0000000LU)?128:0)
 #define B8(d) ((unsigned char)B8__(HEX__(d)))
 
-/* Decode logic, mask and value.  */
+/* Decode logic, value and mask.  */
 #define DEC_ADD     {B8(00000000), B8(00110001)}
 #define DEC_SUB     {B8(00000001), B8(00110001)}
 #define DEC_AND     {B8(00100001), B8(00110101)}
@@ -41,6 +41,7 @@
 #define DEC_BARREL  {B8(00010001), B8(00110111)}
 #define DEC_MUL     {B8(00010000), B8(00110111)}
 #define DEC_DIV     {B8(00010010), B8(00110111)}
+#define DEC_FPU     {B8(00010110), B8(00111111)}
 
 #define DEC_LD      {B8(00110000), B8(00110100)}
 #define DEC_ST      {B8(00110100), B8(00110100)}

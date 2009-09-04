@@ -57,7 +57,7 @@ static void tosa_microdrive_attach(PXA2xxState *cpu)
         return;
     bs = dinfo->bdrv;
     if (bdrv_is_inserted(bs) && !bdrv_is_removable(bs)) {
-        md = dscm1xxxx_init(bs);
+        md = dscm1xxxx_init(dinfo);
         pxa2xx_pcmcia_attach(cpu->pcmcia[0], md);
     }
 }

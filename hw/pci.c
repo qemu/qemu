@@ -41,9 +41,7 @@ struct PCIBus {
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     uint32_t config_reg; /* XXX: suppress */
-    /* low level pic */
-    SetIRQFunc *low_set_irq;
-    qemu_irq *irq_opaque;
+    void *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
     PCIBus *next;
@@ -102,7 +100,7 @@ static void pci_bus_reset(void *opaque)
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         qemu_irq *pic, int devfn_min, int nirq)
+                         void *irq_opaque, int devfn_min, int nirq)
 {
     PCIBus *bus;
     static int nbus = 0;
@@ -110,7 +108,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, parent, name));
     bus->set_irq = set_irq;
     bus->map_irq = map_irq;
-    bus->irq_opaque = pic;
+    bus->irq_opaque = irq_opaque;
     bus->devfn_min = devfn_min;
     bus->nirq = nirq;
     bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));

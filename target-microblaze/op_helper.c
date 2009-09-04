@@ -167,7 +167,12 @@ static inline int div_prepare(uint32_t a, uint32_t b)
 {
     if (b == 0) {
         env->sregs[SR_MSR] |= MSR_DZ;
-        /* FIXME: Raise the div by zero exception.  */
+
+        if ((env->sregs[SR_MSR] & MSR_EE)
+            && !(env->pvr.regs[2] & PVR2_DIV_ZERO_EXC_MASK)) {
+            env->sregs[SR_ESR] = ESR_EC_DIVZERO;
+            helper_raise_exception(EXCP_HW_EXCP);
+        }
         return 0;
     }
     env->sregs[SR_MSR] &= ~MSR_DZ;
@@ -201,6 +206,24 @@ uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
     return 0;
 }
 
+void helper_memalign(uint32_t addr, uint32_t dr, uint32_t wr, uint32_t mask)
+{
+    if (addr & mask) {
+            qemu_log("unaligned access addr=%x mask=%x, wr=%d\n",
+                     addr, mask, wr);
+            if (!(env->sregs[SR_MSR] & MSR_EE)) {
+                return;
+            }
+
+            env->sregs[SR_ESR] = ESR_EC_UNALIGNED_DATA | (wr << 10) \
+                                 | (dr & 31) << 5;
+            if (mask == 3) {
+                env->sregs[SR_ESR] |= 1 << 11;
+            }
+            helper_raise_exception(EXCP_HW_EXCP);
+    }
+}
+
 #if !defined(CONFIG_USER_ONLY)
 /* Writes/reads to the MMU's special regs end up here.  */
 uint32_t helper_mmu_read(uint32_t rn)
@@ -213,3 +236,30 @@ void helper_mmu_write(uint32_t rn, uint32_t v)
     mmu_write(env, rn, v);
 }
 #endif
+
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+                          int is_asi, int size)
+{
+    CPUState *saved_env;
+    /* XXX: hack to restore env in all cases, even if not called from
+       generated code */
+    saved_env = env;
+    env = cpu_single_env;
+    qemu_log("Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",
+             addr, is_write, is_exec);
+    if (!(env->sregs[SR_MSR] & MSR_EE)) {
+        return;
+    }
+
+    if (is_exec) {
+        if (!(env->pvr.regs[2] & PVR2_IOPB_BUS_EXC_MASK)) {
+            env->sregs[SR_ESR] = ESR_EC_INSN_BUS;
+            helper_raise_exception(EXCP_HW_EXCP);
+        }
+    } else {
+        if (!(env->pvr.regs[2] & PVR2_DOPB_BUS_EXC_MASK)) {
+            env->sregs[SR_ESR] = ESR_EC_DATA_BUS;
+            helper_raise_exception(EXCP_HW_EXCP);
+        }
+    }
+}

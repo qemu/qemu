@@ -127,6 +127,16 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
             tlb_zsel = (d >> 4) & 0xf;
             t0 = mmu->regs[MMU_R_ZPR] >> (30 - (tlb_zsel * 2));
             t0 &= 0x3;
+
+            if (tlb_zsel > mmu->c_mmu_zones) {
+                qemu_log("tlb zone select out of range! %d\n", tlb_zsel);
+                t0 = 1; /* Ignore.  */
+            }
+
+            if (mmu->c_mmu == 1) {
+                t0 = 1; /* Zones are disabled.  */
+            }
+
             switch (t0) {
                 case 0:
                     if (mmu_idx == MMU_USER_IDX)
@@ -142,8 +152,8 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
                     tlb_ex = 1;
                     tlb_wr = 1;
                     break;
+                default: break;
             }
-
 
             lu->err = ERR_PROT;
             lu->prot = PAGE_READ;
@@ -180,14 +190,32 @@ uint32_t mmu_read(CPUState *env, uint32_t rn)
     unsigned int i;
     uint32_t r;
 
+    if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
+        qemu_log("MMU access on MMU-less system\n");
+        return 0;
+    }
+
     switch (rn) {
         /* Reads to HI/LO trig reads from the mmu rams.  */
         case MMU_R_TLBLO:
         case MMU_R_TLBHI:
+            if (!(env->mmu.c_mmu_tlb_access & 1)) {
+                qemu_log("Invalid access to MMU reg %d\n", rn);
+                return 0;
+            }
+
             i = env->mmu.regs[MMU_R_TLBX] & 0xff;
             r = env->mmu.rams[rn & 1][i];
             if (rn == MMU_R_TLBHI)
                 env->mmu.regs[MMU_R_PID] = env->mmu.tids[i];
+            break;
+        case MMU_R_PID:
+        case MMU_R_ZPR:
+            if (!(env->mmu.c_mmu_tlb_access & 1)) {
+                qemu_log("Invalid access to MMU reg %d\n", rn);
+                return 0;
+            }
+            r = env->mmu.regs[rn];
             break;
         default:
             r = env->mmu.regs[rn];
@@ -201,6 +229,11 @@ void mmu_write(CPUState *env, uint32_t rn, uint32_t v)
 {
     unsigned int i;
     D(qemu_log("%s rn=%d=%x old=%x\n", __func__, rn, v, env->mmu.regs[rn]));
+
+    if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
+        qemu_log("MMU access on MMU-less system\n");
+        return;
+    }
 
     switch (rn) {
         /* Writes to HI/LO trig writes to the mmu rams.  */
@@ -219,6 +252,11 @@ void mmu_write(CPUState *env, uint32_t rn, uint32_t v)
             D(qemu_log("%s ram[%d][%d]=%x\n", __func__, rn & 1, i, v));
             break;
         case MMU_R_ZPR:
+            if (env->mmu.c_mmu_tlb_access <= 1) {
+                qemu_log("Invalid access to MMU reg %d\n", rn);
+                return;
+            }
+
             /* Changes to the zone protection reg flush the QEMU TLB.
                Fortunately, these are very uncommon.  */
             if (v != env->mmu.regs[rn]) {
@@ -227,6 +265,11 @@ void mmu_write(CPUState *env, uint32_t rn, uint32_t v)
             env->mmu.regs[rn] = v;
             break;
         case MMU_R_PID:
+            if (env->mmu.c_mmu_tlb_access <= 1) {
+                qemu_log("Invalid access to MMU reg %d\n", rn);
+                return;
+            }
+
             if (v != env->mmu.regs[rn]) {
                 mmu_change_pid(env, v);
                 env->mmu.regs[rn] = v;
@@ -236,6 +279,12 @@ void mmu_write(CPUState *env, uint32_t rn, uint32_t v)
         {
             struct microblaze_mmu_lookup lu;
             int hit;
+
+            if (env->mmu.c_mmu_tlb_access <= 1) {
+                qemu_log("Invalid access to MMU reg %d\n", rn);
+                return;
+            }
+
             hit = mmu_translate(&env->mmu, &lu,
                                 v & TLB_EPN_MASK, 0, cpu_mmu_index(env));
             if (hit) {
@@ -252,5 +301,8 @@ void mmu_write(CPUState *env, uint32_t rn, uint32_t v)
 
 void mmu_init(struct microblaze_mmu *mmu)
 {
-    memset(mmu, 0, sizeof *mmu);
+    int i;
+    for (i = 0; i < ARRAY_SIZE(mmu->regs); i++) {
+        mmu->regs[i] = 0;
+    }
 }

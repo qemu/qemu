@@ -38,6 +38,7 @@ struct CPUMBState;
 #define EXCP_IRQ        3
 #define EXCP_BREAK      4
 #define EXCP_HW_BREAK   5
+#define EXCP_HW_EXCP    6
 
 /* Register aliases. R0 - R15 */
 #define R_SP     1
@@ -77,7 +78,18 @@ struct CPUMBState;
 #define          ESR_DIZ       (1<<11) /* Zone Protection */
 #define          ESR_S         (1<<10) /* Store instruction */
 
-
+#define          ESR_EC_FSL             0
+#define          ESR_EC_UNALIGNED_DATA  1
+#define          ESR_EC_ILLEGAL_OP      2
+#define          ESR_EC_INSN_BUS        3
+#define          ESR_EC_DATA_BUS        4
+#define          ESR_EC_DIVZERO         5
+#define          ESR_EC_FPU             6
+#define          ESR_EC_PRIVINSN        7
+#define          ESR_EC_DATA_STORAGE    8
+#define          ESR_EC_INSN_STORAGE    9
+#define          ESR_EC_DATA_TLB        10
+#define          ESR_EC_INSN_TLB        11
 
 /* Version reg.  */
 /* Basic PVR mask */
@@ -198,13 +210,15 @@ typedef struct CPUMBState {
     uint32_t sregs[24];
 
     /* Internal flags.  */
-#define IMM_FLAG	4	
+#define IMM_FLAG	4
+#define MSR_EE_FLAG     (1 << 8)
 #define DRTI_FLAG	(1 << 16)
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)
 #define D_FLAG		(1 << 19)  /* Bit in ESR.  */
 /* TB dependant CPUState.  */
-#define IFLAGS_TB_MASK	(D_FLAG | IMM_FLAG | DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)
+#define IFLAGS_TB_MASK  (D_FLAG | IMM_FLAG | DRTI_FLAG \
+                         | DRTE_FLAG | DRTB_FLAG | MSR_EE_FLAG)
     uint32_t iflags;
 
     struct {
@@ -306,6 +320,10 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 {
     *pc = env->sregs[SR_PC];
     *cs_base = 0;
+    env->iflags |= env->sregs[SR_MSR] & MSR_EE;
     *flags = env->iflags & IFLAGS_TB_MASK;
 }
+
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+                          int is_asi, int size);
 #endif

@@ -1,7 +1,9 @@
 #ifndef QEMU_NET_H
 #define QEMU_NET_H
 
+#include "sys-queue.h"
 #include "qemu-common.h"
+#include "qdict.h"
 
 /* VLANs support */
 
@@ -35,7 +37,7 @@ typedef struct VLANPacket VLANPacket;
 typedef void (NetPacketSent) (VLANClientState *, ssize_t);
 
 struct VLANPacket {
-    struct VLANPacket *next;
+    TAILQ_ENTRY(VLANPacket) entry;
     VLANClientState *sender;
     int size;
     NetPacketSent *sent_cb;
@@ -47,7 +49,7 @@ struct VLANState {
     VLANClientState *first_client;
     struct VLANState *next;
     unsigned int nb_guest_devs, nb_host_devs;
-    VLANPacket *send_queue;
+    TAILQ_HEAD(send_queue, VLANPacket) send_queue;
     int delivering;
 };
 
@@ -79,7 +81,7 @@ void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
 void qemu_handler_true(void *opaque);
 
 void do_info_network(Monitor *mon);
-void do_set_link(Monitor *mon, const char *name, const char *up_or_down);
+void do_set_link(Monitor *mon, const QDict *qdict);
 
 void do_info_usernet(Monitor *mon);
 
@@ -136,16 +138,14 @@ int net_client_init(Monitor *mon, const char *device, const char *p);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);
 void net_slirp_smb(const char *exported_dir);
-void net_slirp_hostfwd_add(Monitor *mon, const char *arg1,
-                           const char *arg2, const char *arg3);
-void net_slirp_hostfwd_remove(Monitor *mon, const char *arg1,
-                              const char *arg2, const char *arg3);
+void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
+void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict);
 void net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
 void net_client_check(void);
 void net_set_boot_mask(int boot_mask);
-void net_host_device_add(Monitor *mon, const char *device, const char *opts);
-void net_host_device_remove(Monitor *mon, int vlan_id, const char *device);
+void net_host_device_add(Monitor *mon, const QDict *qdict);
+void net_host_device_remove(Monitor *mon, const QDict *qdict);
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"

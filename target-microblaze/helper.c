@@ -85,7 +85,7 @@ int cpu_mb_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                              paddr, lu.prot, mmu_idx, is_softmmu);
         } else {
             env->sregs[SR_EAR] = address;
-            DMMU(qemu_log("mmu=%d miss addr=%x\n", mmu_idx, vaddr));
+            DMMU(qemu_log("mmu=%d miss v=%x\n", mmu_idx, address));
 
             switch (lu.err) {
                 case ERR_PROT:
@@ -126,9 +126,41 @@ void do_interrupt(CPUState *env)
     assert(!(env->iflags & (DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)));
 /*    assert(env->sregs[SR_MSR] & (MSR_EE)); Only for HW exceptions.  */
     switch (env->exception_index) {
+        case EXCP_HW_EXCP:
+            if (!(env->pvr.regs[0] & PVR0_USE_EXC_MASK)) {
+                qemu_log("Exception raised on system without exceptions!\n");
+                return;
+            }
+
+            env->regs[17] = env->sregs[SR_PC] + 4;
+            env->sregs[SR_ESR] &= ~(1 << 12);
+
+            /* Exception breaks branch + dslot sequence?  */
+            if (env->iflags & D_FLAG) {
+                env->sregs[SR_ESR] |= 1 << 12 ;
+                env->sregs[SR_BTR] = env->btarget;
+            }
+
+            /* Disable the MMU.  */
+            t = (env->sregs[SR_MSR] & (MSR_VM | MSR_UM)) << 1;
+            env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
+            env->sregs[SR_MSR] |= t;
+            /* Exception in progress.  */
+            env->sregs[SR_MSR] |= MSR_EIP;
+
+            qemu_log_mask(CPU_LOG_INT,
+                          "hw exception at pc=%x ear=%x esr=%x iflags=%x\n",
+                          env->sregs[SR_PC], env->sregs[SR_EAR],
+                          env->sregs[SR_ESR], env->iflags);
+            log_cpu_state_mask(CPU_LOG_INT, env, 0);
+            env->iflags &= ~(IMM_FLAG | D_FLAG);
+            env->sregs[SR_PC] = 0x20;
+            break;
+
         case EXCP_MMU:
             env->regs[17] = env->sregs[SR_PC];
 
+            env->sregs[SR_ESR] &= ~(1 << 12);
             /* Exception breaks branch + dslot sequence?  */
             if (env->iflags & D_FLAG) {
                 D(qemu_log("D_FLAG set at exception bimm=%d\n", env->bimm));

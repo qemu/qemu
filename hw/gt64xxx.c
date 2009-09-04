@@ -904,9 +904,10 @@ static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static int pci_irq_levels[4];
 
-static void pci_gt64120_set_irq(qemu_irq *pic, int irq_num, int level)
+static void pci_gt64120_set_irq(void *opaque, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
+    qemu_irq *pic = opaque;
 
     pci_irq_levels[irq_num] = level;
 
