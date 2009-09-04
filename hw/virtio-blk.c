@@ -130,6 +130,13 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
 }
 
+static void virtio_blk_flush_complete(void *opaque, int ret)
+{
+    VirtIOBlockReq *req = opaque;
+
+    virtio_blk_req_complete(req, ret ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK);
+}
+
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
     VirtIOBlockReq *req = qemu_mallocz(sizeof(*req));
@@ -268,6 +275,16 @@ static void do_multiwrite(BlockDriverState *bs, BlockRequest *blkreq,
     }
 }
 
+static void virtio_blk_handle_flush(VirtIOBlockReq *req)
+{
+    BlockDriverAIOCB *acb;
+
+    acb = bdrv_aio_flush(req->dev->bs, virtio_blk_flush_complete, req);
+    if (!acb) {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+    }
+}
+
 static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
     VirtIOBlockReq *req, BlockDriverState **old_bs)
 {
@@ -323,7 +340,9 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         req->out = (void *)req->elem.out_sg[0].iov_base;
         req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
 
-        if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
+        if (req->out->type & VIRTIO_BLK_T_FLUSH) {
+            virtio_blk_handle_flush(req);
+        } else if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
             virtio_blk_handle_scsi(req);
         } else if (req->out->type & VIRTIO_BLK_T_OUT) {
             qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
@@ -417,6 +436,9 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev)
 
     features |= (1 << VIRTIO_BLK_F_SEG_MAX);
     features |= (1 << VIRTIO_BLK_F_GEOMETRY);
+
+    if (bdrv_enable_write_cache(s->bs))
+        features |= (1 << VIRTIO_BLK_F_WCACHE);
 #ifdef __linux__
     features |= (1 << VIRTIO_BLK_F_SCSI);
 #endif
