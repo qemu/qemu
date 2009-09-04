@@ -148,8 +148,11 @@ static void ide_identify(IDEState *s)
     put_le16(p + 83, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     /* 14=set to 1, 1=SMART self test, 0=SMART error logging */
     put_le16(p + 84, (1 << 14) | 0);
-    /* 14 = NOP supported, 0=SMART feature set enabled */
-    put_le16(p + 85, (1 << 14) | 1);
+    /* 14 = NOP supported, 5=WCACHE enabled, 0=SMART feature set enabled */
+    if (bdrv_enable_write_cache(s->bs))
+         put_le16(p + 85, (1 << 14) | (1 << 5) | 1);
+    else
+         put_le16(p + 85, (1 << 14) | 1);
     /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
     put_le16(p + 86, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     /* 14=set to 1, 1=smart self test, 0=smart error logging */

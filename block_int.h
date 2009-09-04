@@ -158,6 +158,9 @@ struct BlockDriverState {
     /* the memory alignment required for the buffers handled by this driver */
     int buffer_alignment;
 
+    /* do we need to tell the quest if we have a volatile write cache? */
+    int enable_write_cache;
+
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;
