@@ -803,6 +803,12 @@ static void dec_load(DisasContext *dc)
     unsigned int size;
 
     size = 1 << (dc->opcode & 3);
+    if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
+          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        return;
+    }
 
     LOG_DIS("l %x %d\n", dc->opcode, size);
     t_sync_flags(dc);
@@ -848,6 +854,13 @@ static void dec_store(DisasContext *dc)
     unsigned int size;
 
     size = 1 << (dc->opcode & 3);
+
+    if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
+          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        return;
+    }
 
     LOG_DIS("s%d%s\n", size, dc->type_b ? "i" : "");
     t_sync_flags(dc);
