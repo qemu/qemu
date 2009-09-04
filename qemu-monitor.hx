@@ -15,7 +15,7 @@ STEXI
 Show the help for all commands or just for command @var{cmd}.
 ETEXI
 
-    { "commit", "device:s", do_commit,
+    { "commit", "device:B", do_commit,
       "device|all", "commit changes to the disk images (if -snapshot is used) or backing files" },
 STEXI
 @item commit
