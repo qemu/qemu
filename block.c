@@ -54,6 +54,8 @@ static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
 static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
+static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque);
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
@@ -138,6 +140,10 @@ void bdrv_register(BlockDriver *bdrv)
         bdrv->bdrv_read = bdrv_read_em;
         bdrv->bdrv_write = bdrv_write_em;
     }
+
+    if (!bdrv->bdrv_aio_flush)
+        bdrv->bdrv_aio_flush = bdrv_aio_flush_em;
+
     bdrv->next = first_drv;
     first_drv = bdrv;
 }
@@ -1552,6 +1558,21 @@ fail:
     return -1;
 }
 
+BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv)
+        return NULL;
+
+    /*
+     * Note that unlike bdrv_flush the driver is reponsible for flushing a
+     * backing image if it exists.
+     */
+    return drv->bdrv_aio_flush(bs, cb, opaque);
+}
+
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 {
     acb->pool->cancel(acb);
@@ -1640,6 +1661,25 @@ static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
+}
+
+static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockDriverAIOCBSync *acb;
+
+    acb = qemu_aio_get(&bdrv_em_aio_pool, bs, cb, opaque);
+    acb->is_write = 1; /* don't bounce in the completion hadler */
+    acb->qiov = NULL;
+    acb->bounce = NULL;
+    acb->ret = 0;
+
+    if (!acb->bh)
+        acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+
+    bdrv_flush(bs);
+    qemu_bh_schedule(acb->bh);
+    return &acb->common;
 }
 
 /**************************************************************/

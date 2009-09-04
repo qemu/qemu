@@ -134,6 +134,16 @@ static size_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
 	return aiocb->aio_nbytes;
 }
 
+static size_t handle_aiocb_flush(struct qemu_paiocb *aiocb)
+{
+    int ret;
+
+    ret = fdatasync(aiocb->aio_fildes);
+    if (ret == -1)
+        return -errno;
+    return 0;
+}
+
 #ifdef CONFIG_PREADV
 
 static ssize_t
@@ -330,6 +340,9 @@ static void *aio_thread(void *unused)
         case QEMU_AIO_WRITE:
 		ret = handle_aiocb_rw(aiocb);
 		break;
+        case QEMU_AIO_FLUSH:
+                ret = handle_aiocb_flush(aiocb);
+                break;
         case QEMU_AIO_IOCTL:
 		ret = handle_aiocb_ioctl(aiocb);
 		break;
@@ -530,8 +543,10 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
     acb->ev_signo = SIGUSR2;
-    acb->aio_iov = qiov->iov;
-    acb->aio_niov = qiov->niov;
+    if (qiov) {
+        acb->aio_iov = qiov->iov;
+        acb->aio_niov = qiov->niov;
+    }
     acb->aio_nbytes = nb_sectors * 512;
     acb->aio_offset = sector_num * 512;
 

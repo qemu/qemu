@@ -69,6 +69,8 @@ struct BlockDriver {
     BlockDriverAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
+    BlockDriverAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque);
 
     int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
         int num_reqs);
