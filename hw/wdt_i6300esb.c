@@ -198,7 +198,7 @@ static void i6300esb_timer_expired(void *vp)
 static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
                                   uint32_t data, int len)
 {
-    I6300State *d = container_of(dev, I6300State, dev);
+    I6300State *d = DO_UPCAST(I6300State, dev, dev);
     int old;
 
     i6300esb_debug("addr = %x, data = %x, len = %d\n", addr, data, len);
@@ -226,7 +226,7 @@ static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
 
 static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
 {
-    I6300State *d = container_of(dev, I6300State, dev);
+    I6300State *d = DO_UPCAST(I6300State, dev, dev);
     uint32_t data;
 
     i6300esb_debug ("addr = %x, len = %d\n", addr, len);
@@ -360,7 +360,7 @@ static void i6300esb_map(PCIDevice *dev, int region_num,
         i6300esb_mem_writew,
         i6300esb_mem_writel,
     };
-    I6300State *d = container_of(dev, I6300State, dev);
+    I6300State *d = DO_UPCAST(I6300State, dev, dev);
     int io_mem;
 
     i6300esb_debug("addr = %x, size = %x, type = %d\n", addr, size, type);
@@ -415,7 +415,7 @@ static int i6300esb_load(QEMUFile *f, void *vp, int version)
 
 static int i6300esb_init(PCIDevice *dev)
 {
-    I6300State *d = container_of(dev, I6300State, dev);
+    I6300State *d = DO_UPCAST(I6300State, dev, dev);
     uint8_t *pci_conf;
 
     d->reboot_enabled = 1;
