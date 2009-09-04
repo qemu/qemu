@@ -771,6 +771,16 @@ static void ide_atapi_cmd_check_status(IDEState *s)
     ide_set_irq(s->bus);
 }
 
+static void ide_flush_cb(void *opaque, int ret)
+{
+    IDEState *s = opaque;
+
+    /* XXX: how do we signal I/O errors here? */
+
+    s->status = READY_STAT | SEEK_STAT;
+    ide_set_irq(s->bus);
+}
+
 static inline void cpu_to_ube16(uint8_t *buf, int val)
 {
     buf[0] = val >> 8;
@@ -1969,9 +1979,9 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_FLUSH_CACHE:
         case WIN_FLUSH_CACHE_EXT:
             if (s->bs)
-                bdrv_flush(s->bs);
-	    s->status = READY_STAT | SEEK_STAT;
-            ide_set_irq(s->bus);
+                bdrv_aio_flush(s->bs, ide_flush_cb, s);
+            else
+                ide_flush_cb(s, 0);
             break;
         case WIN_STANDBY:
         case WIN_STANDBY2:
