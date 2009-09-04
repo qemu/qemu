@@ -402,7 +402,7 @@ info mice
 ETEXI
 
 #ifdef HAS_AUDIO
-    { "wavcapture", "path:s,freq:i?,bits:i?,nchannels:i?", do_wav_capture,
+    { "wavcapture", "path:F,freq:i?,bits:i?,nchannels:i?", do_wav_capture,
       "path [frequency [bits [channels]]]",
       "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
 #endif
