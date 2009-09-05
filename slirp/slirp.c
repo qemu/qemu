@@ -104,7 +104,7 @@ static void winsock_cleanup(void)
 
 #else
 
-struct stat dns_addr_stat;
+static struct stat dns_addr_stat;
 
 int get_dns_addr(struct in_addr *pdns_addr)
 {
