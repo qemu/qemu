@@ -203,14 +203,14 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     return dmalen;
 }
 
-static void do_cmd(ESPState *s, uint8_t *buf)
+static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 {
     int32_t datalen;
     int lun;
 
-    DPRINTF("do_cmd: busid 0x%x\n", buf[0]);
-    lun = buf[0] & 7;
-    datalen = s->current_dev->send_command(s->current_dev, 0, &buf[1], lun);
+    DPRINTF("do_busid_cmd: busid 0x%x\n", busid);
+    lun = busid & 7;
+    datalen = s->current_dev->send_command(s->current_dev, 0, buf, lun);
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
@@ -229,6 +229,13 @@ static void do_cmd(ESPState *s, uint8_t *buf)
     esp_raise_irq(s);
 }
 
+static void do_cmd(ESPState *s, uint8_t *buf)
+{
+    uint8_t busid = buf[0];
+
+    do_busid_cmd(s, &buf[1], busid);
+}
+
 static void handle_satn(ESPState *s)
 {
     uint8_t buf[32];
@@ -237,6 +244,17 @@ static void handle_satn(ESPState *s)
     len = get_cmd(s, buf);
     if (len)
         do_cmd(s, buf);
+}
+
+static void handle_s_without_atn(ESPState *s)
+{
+    uint8_t buf[32];
+    int len;
+
+    len = get_cmd(s, buf);
+    if (len) {
+        do_busid_cmd(s, buf, 0);
+    }
 }
 
 static void handle_satn_stop(ESPState *s)
@@ -544,7 +562,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             break;
         case CMD_SEL:
             DPRINTF("Select without ATN (%2.2x)\n", val);
-            handle_satn(s);
+            handle_s_without_atn(s);
             break;
         case CMD_SELATN:
             DPRINTF("Select with ATN (%2.2x)\n", val);
