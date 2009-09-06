@@ -1021,7 +1021,7 @@ static inline int64_t cpu_get_real_ticks (void)
 
 static inline int64_t cpu_get_real_ticks(void)
 {
-#if __mips_isa_rev >= 2
+#if defined(__mips_isa_rev) && __mips_isa_rev >= 2
     uint32_t count;
     static uint32_t cyc_per_count = 0;
 
