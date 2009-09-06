@@ -56,7 +56,7 @@ static IOPortWriteFunc default_ioport_writeb, default_ioport_writew, default_iop
 
 static uint32_t ioport_read(int index, uint32_t address)
 {
-    static IOPortReadFunc *default_func[3] = {
+    static IOPortReadFunc * const default_func[3] = {
         default_ioport_readb,
         default_ioport_readw,
         default_ioport_readl
@@ -69,7 +69,7 @@ static uint32_t ioport_read(int index, uint32_t address)
 
 static void ioport_write(int index, uint32_t address, uint32_t data)
 {
-    static IOPortWriteFunc *default_func[3] = {
+    static IOPortWriteFunc * const default_func[3] = {
         default_ioport_writeb,
         default_ioport_writew,
         default_ioport_writel
