@@ -4526,7 +4526,7 @@ static void select_soundhw (const char *optarg)
             l = !e ? strlen (p) : (size_t) (e - p);
 
             for (c = soundhw; c->name; ++c) {
-                if (!strncmp (c->name, p, l)) {
+                if (!strncmp (c->name, p, l) && !c->name[l]) {
                     c->enabled = 1;
                     break;
                 }
