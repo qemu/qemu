@@ -617,13 +617,13 @@ static void sun4uv_init(ram_addr_t RAM_size,
 
     pci_cmd646_ide_init(pci_bus, hd, 1);
 
-    /* FIXME: wire up interrupts.  */
-    i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
+    isa_create_simple("i8042", 0x60, 0x64, 1, 12);
     for(i = 0; i < MAX_FD; i++) {
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
     fdctrl_init_isa(6, 2, 0x3f0, fd);
+    /* FIXME: wire up interrupts.  */
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
 
     initrd_size = 0;
