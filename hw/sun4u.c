@@ -326,17 +326,11 @@ void cpu_tick_set_limit(void *opaque, uint64_t limit)
     ptimer_set_limit(opaque, -limit, 0);
 }
 
-static const int ide_iobase[2] = { 0x1f0, 0x170 };
-static const int ide_iobase2[2] = { 0x3f6, 0x376 };
-static const int ide_irq[2] = { 14, 15 };
-
 static const int serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
 static const int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 
 static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
-
-static fdctrl_t *floppy_controller;
 
 static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                               uint32_t addr, uint32_t size, int type)
@@ -629,7 +623,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
+    fdctrl_init_isa(6, 2, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
 
     initrd_size = 0;
