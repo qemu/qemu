@@ -549,7 +549,7 @@ static void generate_bootsect(target_phys_addr_t option_rom,
     *p++ = 0x1f;		/* pop ds */
     *p++ = 0x58;		/* pop ax */
     *p++ = 0xcb;		/* lret */
-    
+
     /* Actual code */
     *reloc = (p - rom);
 
@@ -738,7 +738,7 @@ static int load_multiboot(void *fw_cfg,
             if ((next_space = strchr(initrd_filename, ' ')))
                 *next_space = '\0';
 #ifdef DEBUG_MULTIBOOT
-	     printf("multiboot loading module: %s\n", initrd_filename);
+            printf("multiboot loading module: %s\n", initrd_filename);
 #endif
             f = fopen(initrd_filename, "rb");
             if (f) {
@@ -858,7 +858,7 @@ static void load_linux(void *fw_cfg,
 	   treating it like a Linux kernel. */
 	if (load_multiboot(fw_cfg, f, kernel_filename,
                            initrd_filename, kernel_cmdline, header))
-	   return;
+            return;
 	protocol = 0;
     }
 
@@ -1058,35 +1058,35 @@ static void pc_init_ne2k_isa(NICInfo *nd)
 static int load_option_rom(const char *oprom, target_phys_addr_t start,
                            target_phys_addr_t end)
 {
-        int size;
-        char *filename;
+    int size;
+    char *filename;
 
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, oprom);
-        if (filename) {
-            size = get_image_size(filename);
-            if (size > 0 && start + size > end) {
-                fprintf(stderr, "Not enough space to load option rom '%s'\n",
-                        oprom);
-                exit(1);
-            }
-            size = load_image_targphys(filename, start, end - start);
-            qemu_free(filename);
-        } else {
-            size = -1;
-        }
-        if (size < 0) {
-            fprintf(stderr, "Could not load option rom '%s'\n", oprom);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, oprom);
+    if (filename) {
+        size = get_image_size(filename);
+        if (size > 0 && start + size > end) {
+            fprintf(stderr, "Not enough space to load option rom '%s'\n",
+                    oprom);
             exit(1);
         }
-        /* Round up optiom rom size to the next 2k boundary */
-        size = (size + 2047) & ~2047;
-        option_rom_setup_reset(start, size);
-        return size;
+        size = load_image_targphys(filename, start, end - start);
+        qemu_free(filename);
+    } else {
+        size = -1;
+    }
+    if (size < 0) {
+        fprintf(stderr, "Could not load option rom '%s'\n", oprom);
+        exit(1);
+    }
+    /* Round up optiom rom size to the next 2k boundary */
+    size = (size + 2047) & ~2047;
+    option_rom_setup_reset(start, size);
+    return size;
 }
 
 int cpu_is_bsp(CPUState *env)
 {
-	return env->cpuid_apic_id == 0;
+    return env->cpuid_apic_id == 0;
 }
 
 static CPUState *pc_new_cpu(const char *cpu_model)
