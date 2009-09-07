@@ -27,6 +27,7 @@ typedef struct VirtIOBlock
     void *rq;
     char serial_str[BLOCK_SERIAL_STRLEN + 1];
     QEMUBH *bh;
+    size_t config_size;
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
@@ -406,7 +407,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     virtio_identify_template(&blkcfg);
     memcpy(&blkcfg.identify[VIRTIO_BLK_ID_SN], s->serial_str,
         VIRTIO_BLK_ID_SN_BYTES);
-    memcpy(config, &blkcfg, sizeof(blkcfg));
+    memcpy(config, &blkcfg, s->config_size);
 }
 
 static uint32_t virtio_blk_get_features(VirtIODevice *vdev)
@@ -463,18 +464,21 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, DriveInfo *dinfo)
     VirtIOBlock *s;
     int cylinders, heads, secs;
     static int virtio_blk_id;
-    char *ps;
+    char *ps = (char *)drive_get_serial(dinfo->bdrv);
+    size_t size = strlen(ps) ? sizeof(struct virtio_blk_config) :
+	    offsetof(struct virtio_blk_config, _blk_size);
 
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
-                                          sizeof(struct virtio_blk_config),
+                                          size,
                                           sizeof(VirtIOBlock));
 
+    s->config_size = size;
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
     s->bs = dinfo->bdrv;
     s->rq = NULL;
-    if (strlen(ps = (char *)drive_get_serial(s->bs)))
+    if (strlen(ps))
         strncpy(s->serial_str, ps, sizeof(s->serial_str));
     else
         snprintf(s->serial_str, sizeof(s->serial_str), "0");
