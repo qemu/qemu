@@ -364,8 +364,17 @@ static void virtio_map(PCIDevice *pci_dev, int region_num,
 static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
                                 uint32_t val, int len)
 {
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    if (PCI_COMMAND == address) {
+        if (!(val & PCI_COMMAND_MASTER)) {
+            proxy->vdev->status &= !VIRTIO_CONFIG_S_DRIVER_OK;
+        }
+    }
+
     pci_default_write_config(pci_dev, address, val, len);
-    msix_write_config(pci_dev, address, val, len);
+    if(proxy->vdev->nvectors)
+        msix_write_config(pci_dev, address, val, len);
 }
 
 static const VirtIOBindings virtio_pci_bindings = {
@@ -407,10 +416,11 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
                          msix_bar_size(&proxy->pci_dev),
                          PCI_ADDRESS_SPACE_MEM,
                          msix_mmio_map);
-        proxy->pci_dev.config_write = virtio_write_config;
         proxy->pci_dev.unregister = msix_uninit;
     } else
         vdev->nvectors = 0;
+
+    proxy->pci_dev.config_write = virtio_write_config;
 
     size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev) + vdev->config_len;
     if (size & (size-1))
