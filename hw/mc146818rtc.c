@@ -76,11 +76,9 @@ struct RTCState {
     int64_t next_periodic_time;
     /* second update */
     int64_t next_second_time;
-#ifdef TARGET_I386
     uint32_t irq_coalesced;
     uint32_t period;
     QEMUTimer *coalesced_timer;
-#endif
     QEMUTimer *second_timer;
     QEMUTimer *second_timer2;
 };
@@ -524,13 +522,15 @@ static void rtc_save(QEMUFile *f, void *opaque)
     qemu_put_be64(f, s->next_second_time);
     qemu_put_timer(f, s->second_timer);
     qemu_put_timer(f, s->second_timer2);
+    qemu_put_be32(f, s->irq_coalesced);
+    qemu_put_be32(f, s->period);
 }
 
 static int rtc_load(QEMUFile *f, void *opaque, int version_id)
 {
     RTCState *s = opaque;
 
-    if (version_id != 1)
+    if (version_id < 1 || version_id > 2)
         return -EINVAL;
 
     qemu_get_buffer(f, s->cmos_data, 128);
@@ -550,31 +550,18 @@ static int rtc_load(QEMUFile *f, void *opaque, int version_id)
     s->next_second_time=qemu_get_be64(f);
     qemu_get_timer(f, s->second_timer);
     qemu_get_timer(f, s->second_timer2);
-    return 0;
-}
 
+    if (version_id >= 2) {
+        s->irq_coalesced = qemu_get_be32(f);
+        s->period = qemu_get_be32(f);
 #ifdef TARGET_I386
-static void rtc_save_td(QEMUFile *f, void *opaque)
-{
-    RTCState *s = opaque;
-
-    qemu_put_be32(f, s->irq_coalesced);
-    qemu_put_be32(f, s->period);
-}
-
-static int rtc_load_td(QEMUFile *f, void *opaque, int version_id)
-{
-    RTCState *s = opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->irq_coalesced = qemu_get_be32(f);
-    s->period = qemu_get_be32(f);
-    rtc_coalesced_timer_update(s);
+        if (rtc_td_hack) {
+            rtc_coalesced_timer_update(s);
+        }
+#endif
+    }
     return 0;
 }
-#endif
 
 static void rtc_reset(void *opaque)
 {
@@ -622,11 +609,7 @@ static int rtc_initfn(ISADevice *dev)
     register_ioport_write(base, 2, 1, cmos_ioport_write, s);
     register_ioport_read(base, 2, 1, cmos_ioport_read, s);
 
-    register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);
-#ifdef TARGET_I386
-    if (rtc_td_hack)
-        register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
-#endif
+    register_savevm("mc146818rtc", base, 2, rtc_save, rtc_load, s);
     qemu_register_reset(rtc_reset, s);
     return 0;
 }
@@ -758,11 +741,7 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     io_memory = cpu_register_io_memory(rtc_mm_read, rtc_mm_write, s);
     cpu_register_physical_memory(base, 2 << it_shift, io_memory);
 
-    register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);
-#ifdef TARGET_I386
-    if (rtc_td_hack)
-        register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
-#endif
+    register_savevm("mc146818rtc", base, 2, rtc_save, rtc_load, s);
     qemu_register_reset(rtc_reset, s);
     return s;
 }
