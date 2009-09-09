@@ -87,6 +87,21 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
+typedef struct BlockRequest {
+    /* Fields to be filled by multiwrite caller */
+    int64_t sector;
+    int nb_sectors;
+    QEMUIOVector *qiov;
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+
+    /* Filled by multiwrite implementation */
+    int error;
+} BlockRequest;
+
+int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs,
+    int num_reqs);
+
 /* sg packet commands */
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
 BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
