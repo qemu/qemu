@@ -252,15 +252,40 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 }
 #endif /* __linux__ */
 
-static void virtio_blk_handle_write(VirtIOBlockReq *req)
+static void do_multiwrite(BlockDriverState *bs, BlockRequest *blkreq,
+    int num_writes)
 {
-    BlockDriverAIOCB *acb;
+    int i, ret;
+    ret = bdrv_aio_multiwrite(bs, blkreq, num_writes);
 
-    acb = bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
-                          req->qiov.size / 512, virtio_blk_rw_complete, req);
-    if (!acb) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+    if (ret != 0) {
+        for (i = 0; i < num_writes; i++) {
+            if (blkreq[i].error) {
+                virtio_blk_req_complete(blkreq[i].opaque, VIRTIO_BLK_S_IOERR);
+            }
+        }
     }
+}
+
+static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
+    VirtIOBlockReq *req, BlockDriverState **old_bs)
+{
+    if (req->dev->bs != *old_bs || *num_writes == 32) {
+        if (*old_bs != NULL) {
+            do_multiwrite(*old_bs, blkreq, *num_writes);
+        }
+        *num_writes = 0;
+        *old_bs = req->dev->bs;
+    }
+
+    blkreq[*num_writes].sector = req->out->sector;
+    blkreq[*num_writes].nb_sectors = req->qiov.size / 512;
+    blkreq[*num_writes].qiov = &req->qiov;
+    blkreq[*num_writes].cb = virtio_blk_rw_complete;
+    blkreq[*num_writes].opaque = req;
+    blkreq[*num_writes].error = 0;
+
+    (*num_writes)++;
 }
 
 static void virtio_blk_handle_read(VirtIOBlockReq *req)
@@ -278,6 +303,9 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBlock *s = to_virtio_blk(vdev);
     VirtIOBlockReq *req;
+    BlockRequest blkreq[32];
+    int num_writes = 0;
+    BlockDriverState *old_bs = NULL;
 
     while ((req = virtio_blk_get_request(s))) {
         if (req->elem.out_num < 1 || req->elem.in_num < 1) {
@@ -299,13 +327,18 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         } else if (req->out->type & VIRTIO_BLK_T_OUT) {
             qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                      req->elem.out_num - 1);
-            virtio_blk_handle_write(req);
+            virtio_blk_handle_write(blkreq, &num_writes, req, &old_bs);
         } else {
             qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
                                      req->elem.in_num - 1);
             virtio_blk_handle_read(req);
         }
     }
+
+    if (num_writes > 0) {
+        do_multiwrite(old_bs, blkreq, num_writes);
+    }
+
     /*
      * FIXME: Want to check for completions before returning to guest mode,
      * so cached reads and writes are reported as quickly as possible. But
@@ -324,7 +357,8 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     s->rq = NULL;
 
     while (req) {
-        virtio_blk_handle_write(req);
+        bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
+            req->qiov.size / 512, virtio_blk_rw_complete, req);
         req = req->next;
     }
 }
