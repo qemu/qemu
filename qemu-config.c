@@ -85,6 +85,33 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "path",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "host",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "port",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "to",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "wait",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "server",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "delay",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "telnet",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },

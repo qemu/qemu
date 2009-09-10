@@ -2116,67 +2116,39 @@ static void tcp_chr_close(CharDriverState *chr)
     qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_tcp(const char *host_str,
-                                          int is_telnet,
-					  int is_unix)
+static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 {
     CharDriverState *chr = NULL;
     TCPCharDriver *s = NULL;
-    int fd = -1, offset = 0;
-    int is_listen = 0;
-    int is_waitconnect = 1;
-    int do_nodelay = 0;
-    const char *ptr;
+    int fd = -1;
+    int is_listen;
+    int is_waitconnect;
+    int do_nodelay;
+    int is_unix;
+    int is_telnet;
 
-    ptr = host_str;
-    while((ptr = strchr(ptr,','))) {
-        ptr++;
-        if (!strncmp(ptr,"server",6)) {
-            is_listen = 1;
-        } else if (!strncmp(ptr,"nowait",6)) {
-            is_waitconnect = 0;
-        } else if (!strncmp(ptr,"nodelay",6)) {
-            do_nodelay = 1;
-        } else if (!strncmp(ptr,"to=",3)) {
-            /* nothing, inet_listen() parses this one */;
-        } else if (!strncmp(ptr,"ipv4",4)) {
-            /* nothing, inet_connect() and inet_listen() parse this one */;
-        } else if (!strncmp(ptr,"ipv6",4)) {
-            /* nothing, inet_connect() and inet_listen() parse this one */;
-        } else {
-            printf("Unknown option: %s\n", ptr);
-            goto fail;
-        }
-    }
+    is_listen      = qemu_opt_get_bool(opts, "server", 0);
+    is_waitconnect = qemu_opt_get_bool(opts, "wait", 1);
+    is_telnet      = qemu_opt_get_bool(opts, "telnet", 0);
+    do_nodelay     = !qemu_opt_get_bool(opts, "delay", 1);
+    is_unix        = qemu_opt_get(opts, "path") != NULL;
     if (!is_listen)
         is_waitconnect = 0;
 
     chr = qemu_mallocz(sizeof(CharDriverState));
     s = qemu_mallocz(sizeof(TCPCharDriver));
 
-    if (is_listen) {
-        chr->filename = qemu_malloc(256);
-        if (is_unix) {
-            pstrcpy(chr->filename, 256, "unix:");
-        } else if (is_telnet) {
-            pstrcpy(chr->filename, 256, "telnet:");
-        } else {
-            pstrcpy(chr->filename, 256, "tcp:");
-        }
-        offset = strlen(chr->filename);
-    }
     if (is_unix) {
         if (is_listen) {
-            fd = unix_listen(host_str, chr->filename + offset, 256 - offset);
+            fd = unix_listen_opts(opts);
         } else {
-            fd = unix_connect(host_str);
+            fd = unix_connect_opts(opts);
         }
     } else {
         if (is_listen) {
-            fd = inet_listen(host_str, chr->filename + offset, 256 - offset,
-                             SOCK_STREAM, 0);
+            fd = inet_listen_opts(opts, 0);
         } else {
-            fd = inet_connect(host_str, SOCK_STREAM);
+            fd = inet_connect_opts(opts);
         }
     }
     if (fd < 0)
@@ -2202,6 +2174,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
         qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
         if (is_telnet)
             s->do_telnetopt = 1;
+
     } else {
         s->connected = 1;
         s->fd = fd;
@@ -2209,14 +2182,30 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
         tcp_chr_connect(chr);
     }
 
+    /* for "info chardev" monitor command */
+    chr->filename = qemu_malloc(256);
+    if (is_unix) {
+        snprintf(chr->filename, 256, "unix:%s%s",
+                 qemu_opt_get(opts, "path"),
+                 qemu_opt_get_bool(opts, "server", 0) ? ",server" : "");
+    } else if (is_telnet) {
+        snprintf(chr->filename, 256, "telnet:%s:%s%s",
+                 qemu_opt_get(opts, "host"), qemu_opt_get(opts, "port"),
+                 qemu_opt_get_bool(opts, "server", 0) ? ",server" : "");
+    } else {
+        snprintf(chr->filename, 256, "tcp:%s:%s%s",
+                 qemu_opt_get(opts, "host"), qemu_opt_get(opts, "port"),
+                 qemu_opt_get_bool(opts, "server", 0) ? ",server" : "");
+    }
+
     if (is_listen && is_waitconnect) {
         printf("QEMU waiting for connection on: %s\n",
-               chr->filename ? chr->filename : host_str);
+               chr->filename);
         tcp_chr_accept(chr);
         socket_set_nonblock(s->listen_fd);
     }
-
     return chr;
+
  fail:
     if (fd >= 0)
         closesocket(fd);
@@ -2227,6 +2216,8 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
 
 static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 {
+    char host[65], port[33];
+    int pos;
     const char *p;
     QemuOpts *opts;
 
@@ -2248,7 +2239,33 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         qemu_opt_set(opts, "path", p);
         return opts;
     }
+    if (strstart(filename, "tcp:", &p) ||
+        strstart(filename, "telnet:", &p)) {
+        if (sscanf(p, "%64[^:]:%32[^,]%n", host, port, &pos) < 2) {
+            host[0] = 0;
+            if (sscanf(p, ":%32[^,]%n", port, &pos) < 1)
+                goto fail;
+        }
+        qemu_opt_set(opts, "backend", "socket");
+        qemu_opt_set(opts, "host", host);
+        qemu_opt_set(opts, "port", port);
+        if (p[pos] == ',') {
+            if (qemu_opts_do_parse(opts, p+pos+1, NULL) != 0)
+                goto fail;
+        }
+        if (strstart(filename, "telnet:", &p))
+            qemu_opt_set(opts, "telnet", "on");
+        return opts;
+    }
+    if (strstart(filename, "unix:", &p)) {
+        qemu_opt_set(opts, "backend", "socket");
+        if (qemu_opts_do_parse(opts, p, "path") != 0)
+            goto fail;
+        return opts;
+    }
 
+fail:
+    fprintf(stderr, "%s: fail on \"%s\"\n", __FUNCTION__, filename);
     qemu_opts_del(opts);
     return NULL;
 }
@@ -2258,6 +2275,7 @@ static const struct {
     CharDriverState *(*open)(QemuOpts *opts);
 } backend_table[] = {
     { .name = "null",      .open = qemu_chr_open_null },
+    { .name = "socket",    .open = qemu_chr_open_socket },
 #ifdef _WIN32
     { .name = "file",      .open = qemu_chr_open_win_file_out },
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
@@ -2320,12 +2338,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     if (strstart(filename, "vc:", &p)) {
         chr = text_console_init(p);
     } else
-    if (strstart(filename, "tcp:", &p)) {
-        chr = qemu_chr_open_tcp(p, 0, 0);
-    } else
-    if (strstart(filename, "telnet:", &p)) {
-        chr = qemu_chr_open_tcp(p, 1, 0);
-    } else
     if (strstart(filename, "udp:", &p)) {
         chr = qemu_chr_open_udp(p);
     } else
@@ -2341,9 +2353,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         chr = qemu_chr_open_msmouse();
     } else
 #ifndef _WIN32
-    if (strstart(filename, "unix:", &p)) {
-	chr = qemu_chr_open_tcp(p, 0, 1);
-    } else if (!strcmp(filename, "pty")) {
+    if (!strcmp(filename, "pty")) {
         chr = qemu_chr_open_pty();
     } else if (!strcmp(filename, "stdio")) {
         chr = qemu_chr_open_stdio();
