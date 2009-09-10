@@ -119,6 +119,8 @@ struct SerialState {
     uint8_t msr; /* read only */
     uint8_t scr;
     uint8_t fcr;
+    uint8_t fcr_vmstate; /* we can't write directly this value
+                            it has side effects */
     /* NOTE: this hidden state is necessary for tx irq generation as
        it can be reset while reading iir */
     int thr_ipending;
@@ -635,50 +637,49 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
-static void serial_save(QEMUFile *f, void *opaque)
+static void serial_pre_save(const void *opaque)
 {
-    SerialState *s = opaque;
-
-    qemu_put_be16s(f,&s->divider);
-    qemu_put_8s(f,&s->rbr);
-    qemu_put_8s(f,&s->ier);
-    qemu_put_8s(f,&s->iir);
-    qemu_put_8s(f,&s->lcr);
-    qemu_put_8s(f,&s->mcr);
-    qemu_put_8s(f,&s->lsr);
-    qemu_put_8s(f,&s->msr);
-    qemu_put_8s(f,&s->scr);
-    qemu_put_8s(f,&s->fcr);
+    SerialState *s = (void *)opaque;
+    s->fcr_vmstate = s->fcr;
 }
 
-static int serial_load(QEMUFile *f, void *opaque, int version_id)
+static int serial_pre_load(void *opaque)
 {
     SerialState *s = opaque;
-    uint8_t fcr = 0;
-
-    if(version_id > 3)
-        return -EINVAL;
-
-    if (version_id >= 2)
-        qemu_get_be16s(f, &s->divider);
-    else
-        s->divider = qemu_get_byte(f);
-    qemu_get_8s(f,&s->rbr);
-    qemu_get_8s(f,&s->ier);
-    qemu_get_8s(f,&s->iir);
-    qemu_get_8s(f,&s->lcr);
-    qemu_get_8s(f,&s->mcr);
-    qemu_get_8s(f,&s->lsr);
-    qemu_get_8s(f,&s->msr);
-    qemu_get_8s(f,&s->scr);
-
-    if (version_id >= 3)
-        qemu_get_8s(f,&fcr);
-
-    /* Initialize fcr via setter to perform essential side-effects */
-    serial_ioport_write(s, 0x02, fcr);
+    s->fcr_vmstate = 0;
     return 0;
 }
+
+static int serial_post_load(void *opaque)
+{
+    SerialState *s = opaque;
+
+    /* Initialize fcr via setter to perform essential side-effects */
+    serial_ioport_write(s, 0x02, s->fcr_vmstate);
+    return 0;
+}
+
+static const VMStateDescription vmstate_serial = {
+    .name = "serial",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .pre_save = serial_pre_save,
+    .pre_load = serial_pre_load,
+    .post_load = serial_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16_V(divider, SerialState, 2),
+        VMSTATE_UINT8(rbr, SerialState),
+        VMSTATE_UINT8(ier, SerialState),
+        VMSTATE_UINT8(iir, SerialState),
+        VMSTATE_UINT8(lcr, SerialState),
+        VMSTATE_UINT8(mcr, SerialState),
+        VMSTATE_UINT8(lsr, SerialState),
+        VMSTATE_UINT8(msr, SerialState),
+        VMSTATE_UINT8(scr, SerialState),
+        VMSTATE_UINT8_V(fcr_vmstate, SerialState, 3),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void serial_reset(void *opaque)
 {
@@ -737,7 +738,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     serial_init_core(s, irq, baudbase, chr);
 
-    register_savevm("serial", base, 3, serial_save, serial_load, s);
+    vmstate_register(base, &vmstate_serial, s);
 
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
@@ -828,7 +829,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     s->it_shift = it_shift;
 
     serial_init_core(s, irq, baudbase, chr);
-    register_savevm("serial", base, 3, serial_save, serial_load, s);
+    vmstate_register(base, &vmstate_serial, s);
 
     if (ioregister) {
         s_io_memory = cpu_register_io_memory(serial_mm_read,
