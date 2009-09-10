@@ -2230,6 +2230,11 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     if (NULL == opts)
         return NULL;
 
+    if (strstart(filename, "mon:", &p)) {
+        filename = p;
+        qemu_opt_set(opts, "mux", "on");
+    }
+
     if (strcmp(filename, "null")    == 0 ||
         strcmp(filename, "pty")     == 0 ||
         strcmp(filename, "msmouse") == 0 ||
@@ -2378,8 +2383,18 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
     if (!chr->filename)
         chr->filename = qemu_strdup(qemu_opt_get(opts, "backend"));
     chr->init = init;
-    chr->label = qemu_strdup(qemu_opts_id(opts));
     TAILQ_INSERT_TAIL(&chardevs, chr, next);
+
+    if (qemu_opt_get_bool(opts, "mux", 0)) {
+        CharDriverState *base = chr;
+        int len = strlen(qemu_opts_id(opts)) + 6;
+        base->label = qemu_malloc(len);
+        snprintf(base->label, len, "%s-base", qemu_opts_id(opts));
+        chr = qemu_chr_open_mux(base);
+        chr->filename = base->filename;
+        TAILQ_INSERT_TAIL(&chardevs, chr, next);
+    }
+    chr->label = qemu_strdup(qemu_opts_id(opts));
     return chr;
 }
 
@@ -2391,20 +2406,15 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
 
     opts = qemu_chr_parse_compat(label, filename);
     if (opts) {
-        return qemu_chr_open_opts(opts, init);
+        chr = qemu_chr_open_opts(opts, init);
+        if (qemu_opt_get_bool(opts, "mux", 0)) {
+            monitor_init(chr, MONITOR_USE_READLINE);
+        }
+        return chr;
     }
 
     if (strstart(filename, "udp:", &p)) {
         chr = qemu_chr_open_udp(p);
-    } else
-    if (strstart(filename, "mon:", &p)) {
-        chr = qemu_chr_open(label, p, NULL);
-        if (chr) {
-            chr = qemu_chr_open_mux(chr);
-            monitor_init(chr, MONITOR_USE_READLINE);
-        } else {
-            printf("Unable to open driver: %s\n", p);
-        }
     } else
     {
         chr = NULL;
