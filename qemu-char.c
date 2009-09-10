@@ -2229,6 +2229,7 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     if (strcmp(filename, "null")    == 0 ||
         strcmp(filename, "pty")     == 0 ||
         strcmp(filename, "msmouse") == 0 ||
+        strcmp(filename, "braille") == 0 ||
         strcmp(filename, "stdio")   == 0) {
         qemu_opt_set(opts, "backend", filename);
         return opts;
@@ -2289,6 +2290,9 @@ static const struct {
     { .name = "pipe",      .open = qemu_chr_open_pipe },
     { .name = "pty",       .open = qemu_chr_open_pty },
     { .name = "stdio",     .open = qemu_chr_open_stdio },
+#endif
+#ifdef CONFIG_BRLAPI
+    { .name = "braille",   .open = chr_baum_init },
 #endif
 };
 
@@ -2379,11 +2383,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     } else
     if (strstart(filename, "con:", NULL)) {
         chr = qemu_chr_open_win_con(filename);
-    } else
-#endif
-#ifdef CONFIG_BRLAPI
-    if (!strcmp(filename, "braille")) {
-        chr = chr_baum_init();
     } else
 #endif
     {
