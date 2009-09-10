@@ -617,7 +617,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
 
     pci_cmd646_ide_init(pci_bus, hd, 1);
 
-    isa_create_simple("i8042", 1, 12);
+    isa_create_simple("i8042");
     for(i = 0; i < MAX_FD; i++) {
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;

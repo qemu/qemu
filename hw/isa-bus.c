@@ -57,20 +57,6 @@ void isa_bus_irqs(qemu_irq *irqs)
     isabus->irqs = irqs;
 }
 
-void isa_connect_irq(ISADevice *dev, int devnr, int isairq)
-{
-    assert(devnr >= 0 && devnr < dev->nirqs);
-    if (isabus->assigned & (1 << isairq)) {
-        fprintf(stderr, "isa irq %d already assigned\n", isairq);
-        exit(1);
-    }
-    if (dev->irqs[devnr]) {
-        isabus->assigned |= (1 << isairq);
-        dev->isairq[devnr] = isairq;
-        *dev->irqs[devnr] = isabus->irqs[isairq];
-    }
-}
-
 /*
  * isa_reserve_irq() reserves the ISA irq and returns the corresponding
  * qemu_irq entry for the i8259.
@@ -92,10 +78,16 @@ qemu_irq isa_reserve_irq(int isairq)
     return isabus->irqs[isairq];
 }
 
-void isa_init_irq(ISADevice *dev, qemu_irq *p)
+void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
 {
-    assert(dev->nirqs < ARRAY_SIZE(dev->irqs));
-    dev->irqs[dev->nirqs] = p;
+    assert(dev->nirqs < ARRAY_SIZE(dev->isairq));
+    if (isabus->assigned & (1 << isairq)) {
+        fprintf(stderr, "isa irq %d already assigned\n", isairq);
+        exit(1);
+    }
+    isabus->assigned |= (1 << isairq);
+    dev->isairq[dev->nirqs] = isairq;
+    *p = isabus->irqs[isairq];
     dev->nirqs++;
 }
 
@@ -117,25 +109,17 @@ void isa_qdev_register(ISADeviceInfo *info)
     qdev_register(&info->qdev);
 }
 
-ISADevice *isa_create_simple(const char *name, uint32_t irq, uint32 irq2)
+ISADevice *isa_create_simple(const char *name)
 {
     DeviceState *dev;
-    ISADevice *isa;
 
     if (!isabus) {
         fprintf(stderr, "Tried to create isa device %s with no isa bus present.\n", name);
         return NULL;
     }
     dev = qdev_create(&isabus->qbus, name);
-    isa = DO_UPCAST(ISADevice, qdev, dev);
     qdev_init(dev);
-    if (irq != -1) {
-        isa_connect_irq(isa, 0, irq);
-    }
-    if (irq2 != -1) {
-        isa_connect_irq(isa, 1, irq2);
-    }
-    return isa;
+    return DO_UPCAST(ISADevice, qdev, dev);
 }
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)

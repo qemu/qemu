@@ -450,8 +450,8 @@ static int i8042_initfn(ISADevice *dev)
 {
     KBDState *s = &(DO_UPCAST(ISAKBDState, dev, dev)->kbd);
 
-    isa_init_irq(dev, &s->irq_kbd);
-    isa_init_irq(dev, &s->irq_mouse);
+    isa_init_irq(dev, &s->irq_kbd, 1);
+    isa_init_irq(dev, &s->irq_mouse, 12);
 
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
