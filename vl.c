@@ -1067,9 +1067,6 @@ void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
 
 static void timer_save(QEMUFile *f, void *opaque)
 {
-    if (cpu_ticks_enabled) {
-        hw_error("cannot save state if virtual timers are running");
-    }
     qemu_put_be64(f, cpu_ticks_offset);
     qemu_put_be64(f, ticks_per_sec);
     qemu_put_be64(f, cpu_clock_offset);
@@ -1079,9 +1076,6 @@ static int timer_load(QEMUFile *f, void *opaque, int version_id)
 {
     if (version_id != 1 && version_id != 2)
         return -EINVAL;
-    if (cpu_ticks_enabled) {
-        return -EINVAL;
-    }
     cpu_ticks_offset=qemu_get_be64(f);
     ticks_per_sec=qemu_get_be64(f);
     if (version_id == 2) {
