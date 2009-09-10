@@ -46,13 +46,6 @@
 #define IO_WRITE_PROTO(name) \
     static void name (void *opaque, uint32_t nport, uint32_t val)
 
-static struct {
-    int port;
-    int irq;
-    int dma;
-    int freq;
-} conf = {0x240, 7, 3, 44100};
-
 typedef struct GUSState {
     ISADevice dev;
     GUSEmuState emu;
@@ -300,11 +293,11 @@ static int gus_initfn (ISADevice *dev)
     register_ioport_read (s->port + 0x100, 8, 1, gus_readb, s);
     register_ioport_read (s->port + 0x100, 8, 2, gus_readw, s);
 
-    DMA_register_channel (conf.dma, GUS_read_DMA, s);
+    DMA_register_channel (s->emu.gusdma, GUS_read_DMA, s);
     s->emu.himemaddr = s->himem;
     s->emu.gusdatapos = s->emu.himemaddr + 1024 * 1024 + 32;
     s->emu.opaque = s;
-    isa_init_irq(dev, &s->pic, s->emu.gusirq);
+    isa_init_irq (dev, &s->pic, s->emu.gusirq);
 
     AUD_set_active_out (s->voice, 1);
 
@@ -314,13 +307,13 @@ static int gus_initfn (ISADevice *dev)
 
 int GUS_init (qemu_irq *pic)
 {
-    isa_create_simple("gus");
+    isa_create_simple ("gus");
     return 0;
 }
 
 static ISADeviceInfo gus_info = {
     .qdev.name     = "gus",
-    .qdev.desc     = "Creative Sound Blaster 16",
+    .qdev.desc     = "Gravis Ultrasound GF1",
     .qdev.size     = sizeof (GUSState),
     .init          = gus_initfn,
     .qdev.props    = (Property[]) {
@@ -332,8 +325,8 @@ static ISADeviceInfo gus_info = {
     },
 };
 
-static void gus_register(void)
+static void gus_register (void)
 {
-    isa_qdev_register(&gus_info);
+    isa_qdev_register (&gus_info);
 }
-device_init(gus_register)
+device_init (gus_register)
