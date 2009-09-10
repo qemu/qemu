@@ -191,33 +191,18 @@ static void ioapic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
     }
 }
 
-static void ioapic_save(QEMUFile *f, void *opaque)
-{
-    IOAPICState *s = opaque;
-    int i;
-
-    qemu_put_8s(f, &s->id);
-    qemu_put_8s(f, &s->ioregsel);
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        qemu_put_be64s(f, &s->ioredtbl[i]);
+static const VMStateDescription vmstate_ioapic = {
+    .name = "ioapic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(id, IOAPICState),
+        VMSTATE_UINT8(ioregsel, IOAPICState),
+        VMSTATE_UINT64_ARRAY(ioredtbl, IOAPICState, IOAPIC_NUM_PINS),
+        VMSTATE_END_OF_LIST()
     }
-}
-
-static int ioapic_load(QEMUFile *f, void *opaque, int version_id)
-{
-    IOAPICState *s = opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_8s(f, &s->id);
-    qemu_get_8s(f, &s->ioregsel);
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        qemu_get_be64s(f, &s->ioredtbl[i]);
-    }
-    return 0;
-}
+};
 
 static void ioapic_reset(void *opaque)
 {
@@ -254,7 +239,7 @@ qemu_irq *ioapic_init(void)
                                        ioapic_mem_write, s);
     cpu_register_physical_memory(0xfec00000, 0x1000, io_memory);
 
-    register_savevm("ioapic", 0, 1, ioapic_save, ioapic_load, s);
+    vmstate_register(0, &vmstate_ioapic, s);
     qemu_register_reset(ioapic_reset, s);
     irq = qemu_allocate_irqs(ioapic_set_irq, s, IOAPIC_NUM_PINS);
 
