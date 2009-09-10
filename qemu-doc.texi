@@ -241,6 +241,9 @@ During the graphical emulation, you can use the following keys:
 @item Ctrl-Alt-f
 Toggle full screen
 
+@item Ctrl-Alt-u
+Restore the screen's un-scaled dimensions
+
 @item Ctrl-Alt-n
 Switch to virtual console 'n'. Standard console mappings are:
 @table @emph
