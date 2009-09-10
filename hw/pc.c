@@ -1450,6 +1450,8 @@ static void pc_init_isa(ram_addr_t ram_size,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
+    if (cpu_model == NULL)
+        cpu_model = "486";
     pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
              initrd_filename, cpu_model, 0);
