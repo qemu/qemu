@@ -758,7 +758,7 @@ static void qemu_chr_close_stdio(struct CharDriverState *chr)
     fd_chr_close(chr);
 }
 
-static CharDriverState *qemu_chr_open_stdio(void)
+static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
 {
     CharDriverState *chr;
 
@@ -2227,7 +2227,8 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         return NULL;
 
     if (strcmp(filename, "null") == 0 ||
-        strcmp(filename, "pty") == 0) {
+        strcmp(filename, "pty") == 0 ||
+        strcmp(filename, "stdio") == 0) {
         qemu_opt_set(opts, "backend", filename);
         return opts;
     }
@@ -2285,6 +2286,7 @@ static const struct {
     { .name = "file",      .open = qemu_chr_open_file_out },
     { .name = "pipe",      .open = qemu_chr_open_pipe },
     { .name = "pty",       .open = qemu_chr_open_pty },
+    { .name = "stdio",     .open = qemu_chr_open_stdio },
 #endif
 };
 
@@ -2356,9 +2358,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         chr = qemu_chr_open_msmouse();
     } else
 #ifndef _WIN32
-    if (!strcmp(filename, "stdio")) {
-        chr = qemu_chr_open_stdio();
-    } else
 #if defined(__linux__)
     if (strstart(filename, "/dev/parport", NULL)) {
         chr = qemu_chr_open_pp(filename);
