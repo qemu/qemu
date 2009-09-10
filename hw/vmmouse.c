@@ -53,6 +53,7 @@
 typedef struct _VMMouseState
 {
     uint32_t queue[VMMOUSE_QUEUE_SIZE];
+    int32_t queue_size;
     uint16_t nb_queue;
     uint16_t status;
     uint8_t absolute;
@@ -234,39 +235,29 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
     return data[0];
 }
 
-static void vmmouse_save(QEMUFile *f, void *opaque)
+static int vmmouse_post_load(void *opaque)
 {
     VMMouseState *s = opaque;
-    int i;
-
-    qemu_put_be32(f, VMMOUSE_QUEUE_SIZE);
-    for (i = 0; i < VMMOUSE_QUEUE_SIZE; i++)
-        qemu_put_be32s(f, &s->queue[i]);
-    qemu_put_be16s(f, &s->nb_queue);
-    qemu_put_be16s(f, &s->status);
-    qemu_put_8s(f, &s->absolute);
-}
-
-static int vmmouse_load(QEMUFile *f, void *opaque, int version_id)
-{
-    VMMouseState *s = opaque;
-    int i;
-
-    if (version_id != 0)
-        return -EINVAL;
-
-    if (qemu_get_be32(f) != VMMOUSE_QUEUE_SIZE)
-        return -EINVAL;
-    for (i = 0; i < VMMOUSE_QUEUE_SIZE; i++)
-        qemu_get_be32s(f, &s->queue[i]);
-    qemu_get_be16s(f, &s->nb_queue);
-    qemu_get_be16s(f, &s->status);
-    qemu_get_8s(f, &s->absolute);
 
     vmmouse_update_handler(s);
-
     return 0;
 }
+
+static const VMStateDescription vmstate_vmmouse = {
+    .name = "vmmouse",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = vmmouse_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_EQUAL(queue_size, VMMouseState),
+        VMSTATE_UINT32_ARRAY(queue, VMMouseState, VMMOUSE_QUEUE_SIZE),
+        VMSTATE_UINT16(nb_queue, VMMouseState),
+        VMSTATE_UINT16(status, VMMouseState),
+        VMSTATE_UINT8(absolute, VMMouseState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void *vmmouse_init(void *m)
 {
@@ -278,11 +269,12 @@ void *vmmouse_init(void *m)
 
     s->status = 0xffff;
     s->ps2_mouse = m;
+    s->queue_size = VMMOUSE_QUEUE_SIZE;
 
     vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
-    register_savevm("vmmouse", 0, 0, vmmouse_save, vmmouse_load, s);
+    vmstate_register(0, &vmstate_vmmouse, s);
 
     return s;
 }
