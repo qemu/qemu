@@ -339,28 +339,19 @@ static void kbd_reset(void *opaque)
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
 }
 
-static void kbd_save(QEMUFile* f, void* opaque)
-{
-    KBDState *s = (KBDState*)opaque;
-
-    qemu_put_8s(f, &s->write_cmd);
-    qemu_put_8s(f, &s->status);
-    qemu_put_8s(f, &s->mode);
-    qemu_put_8s(f, &s->pending);
-}
-
-static int kbd_load(QEMUFile* f, void* opaque, int version_id)
-{
-    KBDState *s = (KBDState*)opaque;
-
-    if (version_id != 3)
-        return -EINVAL;
-    qemu_get_8s(f, &s->write_cmd);
-    qemu_get_8s(f, &s->status);
-    qemu_get_8s(f, &s->mode);
-    qemu_get_8s(f, &s->pending);
-    return 0;
-}
+static const VMStateDescription vmstate_kbd = {
+    .name = "pckbd",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(write_cmd, KBDState),
+        VMSTATE_UINT8(status, KBDState),
+        VMSTATE_UINT8(mode, KBDState),
+        VMSTATE_UINT8(pending, KBDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /* Memory mapped interface */
 static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
@@ -407,7 +398,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->mask = mask;
 
     kbd_reset(s);
-    register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
+    vmstate_register(0, &vmstate_kbd, s);
     s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s);
     cpu_register_physical_memory(base, size, s_io_memory);
 
@@ -432,7 +423,7 @@ static int i8042_initfn(ISADevice *dev)
     isa_init_irq(dev, &s->irq_mouse, 12);
 
     kbd_reset(s);
-    register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
+    vmstate_register(0, &vmstate_kbd, s);
     register_ioport_read(0x60, 1, 1, kbd_read_data, s);
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);
