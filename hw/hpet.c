@@ -174,9 +174,7 @@ static void hpet_save(QEMUFile *f, void *opaque)
         qemu_put_be64s(f, &s->timer[i].fsb);
         qemu_put_be64s(f, &s->timer[i].period);
         qemu_put_8s(f, &s->timer[i].wrap_flag);
-        if (s->timer[i].qemu_timer) {
-            qemu_put_timer(f, s->timer[i].qemu_timer);
-        }
+        qemu_put_timer(f, s->timer[i].qemu_timer);
     }
 }
 
@@ -201,9 +199,7 @@ static int hpet_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be64s(f, &s->timer[i].fsb);
         qemu_get_be64s(f, &s->timer[i].period);
         qemu_get_8s(f, &s->timer[i].wrap_flag);
-        if (s->timer[i].qemu_timer) {
-            qemu_get_timer(f, s->timer[i].qemu_timer);
-        }
+        qemu_get_timer(f, s->timer[i].qemu_timer);
     }
     return 0;
 }
