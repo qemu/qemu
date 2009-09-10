@@ -1028,6 +1028,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     if  (version_id < vmsd->minimum_version_id) {
         return vmsd->load_state_old(f, opaque, version_id);
     }
+    if (vmsd->pre_load) {
+        int ret = vmsd->pre_load(opaque);
+        if (ret)
+            return ret;
+    }
     while(field->name) {
         if (field->version_id <= version_id) {
             void *base_addr = opaque + field->offset;
