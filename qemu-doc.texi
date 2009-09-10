@@ -199,6 +199,20 @@ QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 QEMU uses GUS emulation(GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
 by Tibor "TS" Schütz.
 
+Not that, by default, GUS shares IRQ(7) with parallel ports and so
+qemu must be told to not have parallel ports to have working GUS
+
+@example
+qemu dos.img -soundhw gus -parallel none
+@end example
+
+Alternatively:
+@example
+qemu dos.img -device gus,irq=5
+@end example
+
+Or some other unclaimed IRQ.
+
 CS4231A is the chip used in Windows Sound System and GUSMAX products
 
 @c man end
