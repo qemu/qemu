@@ -157,52 +157,55 @@ static void update_irq(struct HPETTimer *timer)
     }
 }
 
-static void hpet_save(QEMUFile *f, void *opaque)
+static void hpet_pre_save(const void *opaque)
 {
-    HPETState *s = opaque;
-    int i;
-    qemu_put_be64s(f, &s->config);
-    qemu_put_be64s(f, &s->isr);
+    HPETState *s = (void *)opaque;
     /* save current counter value */
     s->hpet_counter = hpet_get_ticks();
-    qemu_put_be64s(f, &s->hpet_counter);
-
-    for (i = 0; i < HPET_NUM_TIMERS; i++) {
-        qemu_put_8s(f, &s->timer[i].tn);
-        qemu_put_be64s(f, &s->timer[i].config);
-        qemu_put_be64s(f, &s->timer[i].cmp);
-        qemu_put_be64s(f, &s->timer[i].fsb);
-        qemu_put_be64s(f, &s->timer[i].period);
-        qemu_put_8s(f, &s->timer[i].wrap_flag);
-        qemu_put_timer(f, s->timer[i].qemu_timer);
-    }
 }
 
-static int hpet_load(QEMUFile *f, void *opaque, int version_id)
+static int hpet_post_load(void *opaque)
 {
     HPETState *s = opaque;
-    int i;
 
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_be64s(f, &s->config);
-    qemu_get_be64s(f, &s->isr);
-    qemu_get_be64s(f, &s->hpet_counter);
     /* Recalculate the offset between the main counter and guest time */
     s->hpet_offset = ticks_to_ns(s->hpet_counter) - qemu_get_clock(vm_clock);
-
-    for (i = 0; i < HPET_NUM_TIMERS; i++) {
-        qemu_get_8s(f, &s->timer[i].tn);
-        qemu_get_be64s(f, &s->timer[i].config);
-        qemu_get_be64s(f, &s->timer[i].cmp);
-        qemu_get_be64s(f, &s->timer[i].fsb);
-        qemu_get_be64s(f, &s->timer[i].period);
-        qemu_get_8s(f, &s->timer[i].wrap_flag);
-        qemu_get_timer(f, s->timer[i].qemu_timer);
-    }
     return 0;
 }
+
+static const VMStateDescription vmstate_hpet_timer = {
+    .name = "hpet_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(tn, HPETTimer),
+        VMSTATE_UINT64(config, HPETTimer),
+        VMSTATE_UINT64(cmp, HPETTimer),
+        VMSTATE_UINT64(fsb, HPETTimer),
+        VMSTATE_UINT64(period, HPETTimer),
+        VMSTATE_UINT8(wrap_flag, HPETTimer),
+        VMSTATE_TIMER(qemu_timer, HPETTimer),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_hpet = {
+    .name = "hpet",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = hpet_pre_save,
+    .post_load = hpet_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(config, HPETState),
+        VMSTATE_UINT64(isr, HPETState),
+        VMSTATE_UINT64(hpet_counter, HPETState),
+        VMSTATE_STRUCT_ARRAY(timer, HPETState, HPET_NUM_TIMERS, 0,
+                             vmstate_hpet_timer, HPETTimer),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /*
  * timer expiration callback
@@ -575,7 +578,7 @@ void hpet_init(qemu_irq *irq) {
         timer->qemu_timer = qemu_new_timer(vm_clock, hpet_timer, timer);
     }
     hpet_reset(s);
-    register_savevm("hpet", -1, 1, hpet_save, hpet_load, s);
+    vmstate_register(-1, &vmstate_hpet, s);
     qemu_register_reset(hpet_reset, s);
     /* HPET Area */
     iomemtype = cpu_register_io_memory(hpet_ram_read,
