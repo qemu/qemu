@@ -864,7 +864,7 @@ static void tsc210x_pin_update(TSC210xState *s)
     s->busy = 1;
     s->precision = s->nextprecision;
     s->function = s->nextfunction;
-    expires = qemu_get_clock(vm_clock) + (ticks_per_sec >> 10);
+    expires = qemu_get_clock(vm_clock) + (get_ticks_per_sec() >> 10);
     qemu_mod_timer(s->timer, expires);
 }
 

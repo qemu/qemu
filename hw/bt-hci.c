@@ -577,7 +577,7 @@ static void bt_hci_inquiry_result(struct bt_hci_s *hci,
 static void bt_hci_mod_timer_1280ms(QEMUTimer *timer, int period)
 {
     qemu_mod_timer(timer, qemu_get_clock(vm_clock) +
-                    muldiv64(period << 7, ticks_per_sec, 100));
+                   muldiv64(period << 7, get_ticks_per_sec(), 100));
 }
 
 static void bt_hci_inquiry_start(struct bt_hci_s *hci, int length)
@@ -1086,7 +1086,7 @@ static int bt_hci_mode_change(struct bt_hci_s *hci, uint16_t handle,
     bt_hci_event_status(hci, HCI_SUCCESS);
 
     qemu_mod_timer(link->acl_mode_timer, qemu_get_clock(vm_clock) +
-                            muldiv64(interval * 625, ticks_per_sec, 1000000));
+                   muldiv64(interval * 625, get_ticks_per_sec(), 1000000));
     bt_hci_lmp_mode_change_master(hci, link->link, mode, interval);
 
     return 0;

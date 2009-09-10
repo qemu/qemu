@@ -98,11 +98,11 @@ static void pxa2xx_timer_update(void *opaque, uint64_t now_qemu)
     uint64_t new_qemu;
 
     now_vm = s->clock +
-            muldiv64(now_qemu - s->lastload, s->freq, ticks_per_sec);
+            muldiv64(now_qemu - s->lastload, s->freq, get_ticks_per_sec());
 
     for (i = 0; i < 4; i ++) {
         new_qemu = now_qemu + muldiv64((uint32_t) (s->timer[i].value - now_vm),
-                        ticks_per_sec, s->freq);
+                        get_ticks_per_sec(), s->freq);
         qemu_mod_timer(s->timer[i].qtimer, new_qemu);
     }
 }
@@ -127,10 +127,10 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
 
     now_vm = s->tm4[counter].clock + muldiv64(now_qemu -
                     s->tm4[counter].lastload,
-                    s->tm4[counter].freq, ticks_per_sec);
+                    s->tm4[counter].freq, get_ticks_per_sec());
 
     new_qemu = now_qemu + muldiv64((uint32_t) (s->tm4[n].tm.value - now_vm),
-                    ticks_per_sec, s->tm4[counter].freq);
+                    get_ticks_per_sec(), s->tm4[counter].freq);
     qemu_mod_timer(s->tm4[n].tm.qtimer, new_qemu);
 }
 
@@ -158,7 +158,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
         return s->tm4[tm].tm.value;
     case OSCR:
         return s->clock + muldiv64(qemu_get_clock(vm_clock) -
-                        s->lastload, s->freq, ticks_per_sec);
+                        s->lastload, s->freq, get_ticks_per_sec());
     case OSCR11: tm ++;
     case OSCR10: tm ++;
     case OSCR9:  tm ++;
@@ -175,7 +175,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
                 s->snapshot = s->tm4[tm - 1].clock + muldiv64(
                                 qemu_get_clock(vm_clock) -
                                 s->tm4[tm - 1].lastload,
-                                s->tm4[tm - 1].freq, ticks_per_sec);
+                                s->tm4[tm - 1].freq, get_ticks_per_sec());
             else
                 s->snapshot = s->tm4[tm - 1].clock;
         }
@@ -183,7 +183,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
         if (!s->tm4[tm].freq)
             return s->tm4[tm].clock;
         return s->tm4[tm].clock + muldiv64(qemu_get_clock(vm_clock) -
-                        s->tm4[tm].lastload, s->tm4[tm].freq, ticks_per_sec);
+                        s->tm4[tm].lastload, s->tm4[tm].freq, get_ticks_per_sec());
     case OIER:
         return s->irq_enabled;
     case OSSR:	/* Status register */

@@ -90,7 +90,7 @@ static void gptm_reload(gptm_state *s, int n, int reset)
         tick += (int64_t)count * system_clock_scale;
     } else if (s->config == 1) {
         /* 32-bit RTC.  1Hz tick.  */
-        tick += ticks_per_sec;
+        tick += get_ticks_per_sec();
     } else if (s->mode[n] == 0xa) {
         /* PWM mode.  Not implemented.  */
     } else {

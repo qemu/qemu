@@ -392,7 +392,8 @@ static void spitz_keyboard_tick(void *opaque)
             s->fifopos = 0;
     }
 
-    qemu_mod_timer(s->kbdtimer, qemu_get_clock(vm_clock) + ticks_per_sec / 32);
+    qemu_mod_timer(s->kbdtimer, qemu_get_clock(vm_clock) +
+                   get_ticks_per_sec() / 32);
 }
 
 static void spitz_keyboard_pre_map(SpitzKeyboardState *s)

@@ -523,7 +523,7 @@ static void tusb_async_writew(void *opaque, target_phys_addr_t addr,
         if (value & TUSB_DEV_OTG_TIMER_ENABLE)
             qemu_mod_timer(s->otg_timer, qemu_get_clock(vm_clock) +
                             muldiv64(TUSB_DEV_OTG_TIMER_VAL(value),
-                                    ticks_per_sec, TUSB_DEVCLOCK));
+                                     get_ticks_per_sec(), TUSB_DEVCLOCK));
         else
             qemu_del_timer(s->otg_timer);
         break;
@@ -763,6 +763,6 @@ void tusb6010_power(TUSBState *s, int on)
         s->intr_ok = 0;
         tusb_intr_update(s);
         qemu_mod_timer(s->pwr_timer,
-                        qemu_get_clock(vm_clock) + ticks_per_sec / 2);
+                       qemu_get_clock(vm_clock) + get_ticks_per_sec() / 2);
     }
 }

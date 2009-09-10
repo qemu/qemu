@@ -130,7 +130,7 @@ static void i6300esb_restart_timer(I6300State *d, int stage)
         timeout <<= 5;
 
     /* Get the timeout in units of ticks_per_sec. */
-    timeout = ticks_per_sec * timeout / 33000000;
+    timeout = get_ticks_per_sec() * timeout / 33000000;
 
     i6300esb_debug("stage %d, timeout %" PRIi64 "\n", d->stage, timeout);
 

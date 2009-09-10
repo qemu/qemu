@@ -412,7 +412,7 @@ static void omap_gp_timer_write(void *opaque, target_phys_addr_t addr,
         if (s->trigger == gpt_trigger_none)
             omap_gp_timer_out(s, s->scpwm);
         /* TODO: make sure this doesn't overflow 32-bits */
-        s->ticks_per_sec = ticks_per_sec << (s->pre ? s->ptv + 1 : 0);
+        s->ticks_per_sec = get_ticks_per_sec() << (s->pre ? s->ptv + 1 : 0);
         omap_gp_timer_update(s);
         break;
 
@@ -491,7 +491,7 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
 
 /* 32-kHz Sync Timer of the OMAP2 */
 static uint32_t omap_synctimer_read(struct omap_synctimer_s *s) {
-    return muldiv64(qemu_get_clock(vm_clock), 0x8000, ticks_per_sec);
+    return muldiv64(qemu_get_clock(vm_clock), 0x8000, get_ticks_per_sec());
 }
 
 static void omap_synctimer_reset(struct omap_synctimer_s *s)

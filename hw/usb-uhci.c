@@ -1054,7 +1054,7 @@ static void uhci_frame_timer(void *opaque)
 
     /* prepare the timer for the next frame */
     expire_time = qemu_get_clock(vm_clock) +
-        (ticks_per_sec / FRAME_TIMER_FREQ);
+        (get_ticks_per_sec() / FRAME_TIMER_FREQ);
     qemu_mod_timer(s->frame_timer, expire_time);
 }
 

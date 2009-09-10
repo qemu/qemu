@@ -67,7 +67,7 @@ static uint32_t pl031_get_count(pl031_state *s)
 {
     /* This assumes qemu_get_clock returns the time since the machine was
        created.  */
-    return s->tick_offset + qemu_get_clock(vm_clock) / ticks_per_sec;
+    return s->tick_offset + qemu_get_clock(vm_clock) / get_ticks_per_sec();
 }
 
 static void pl031_set_alarm(pl031_state *s)
@@ -76,7 +76,7 @@ static void pl031_set_alarm(pl031_state *s)
     uint32_t ticks;
 
     now = qemu_get_clock(vm_clock);
-    ticks = s->tick_offset + now / ticks_per_sec;
+    ticks = s->tick_offset + now / get_ticks_per_sec();
 
     /* The timer wraps around.  This subtraction also wraps in the same way,
        and gives correct results when alarm < now_ticks.  */
@@ -86,7 +86,7 @@ static void pl031_set_alarm(pl031_state *s)
         qemu_del_timer(s->timer);
         pl031_interrupt(s);
     } else {
-        qemu_mod_timer(s->timer, now + (int64_t)ticks * ticks_per_sec);
+        qemu_mod_timer(s->timer, now + (int64_t)ticks * get_ticks_per_sec());
     }
 }
 

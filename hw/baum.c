@@ -335,7 +335,8 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
         int i;
 
         /* Allow 100ms to complete the DisplayData packet */
-        qemu_mod_timer(baum->cellCount_timer, qemu_get_clock(vm_clock) + ticks_per_sec / 10);
+        qemu_mod_timer(baum->cellCount_timer, qemu_get_clock(vm_clock) +
+                       get_ticks_per_sec() / 10);
         for (i = 0; i < baum->x * baum->y ; i++) {
             EAT(c);
             cells[i] = c;

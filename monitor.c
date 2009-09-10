@@ -1164,7 +1164,7 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
     }
     /* delayed key up events */
     qemu_mod_timer(key_timer, qemu_get_clock(vm_clock) +
-                    muldiv64(ticks_per_sec, hold_time, 1000));
+                   muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
 static int mouse_button_state;
@@ -1463,9 +1463,9 @@ static void do_info_profile(Monitor *mon)
     if (total == 0)
         total = 1;
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
-                   dev_time, dev_time / (double)ticks_per_sec);
+                   dev_time, dev_time / (double)get_ticks_per_sec());
     monitor_printf(mon, "qemu time   %" PRId64 " (%0.3f)\n",
-                   qemu_time, qemu_time / (double)ticks_per_sec);
+                   qemu_time, qemu_time / (double)get_ticks_per_sec());
     qemu_time = 0;
     dev_time = 0;
 }

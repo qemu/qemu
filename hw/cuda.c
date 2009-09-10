@@ -171,7 +171,7 @@ static unsigned int get_counter(CUDATimer *s)
     unsigned int counter;
 
     d = muldiv64(qemu_get_clock(vm_clock) - s->load_time,
-                 CUDA_TIMER_FREQ, ticks_per_sec);
+                 CUDA_TIMER_FREQ, get_ticks_per_sec());
     if (s->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
         if (d <= (s->counter_value + 1)) {
@@ -201,7 +201,7 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
 
     /* current counter value */
     d = muldiv64(current_time - s->load_time,
-                 CUDA_TIMER_FREQ, ticks_per_sec);
+                 CUDA_TIMER_FREQ, get_ticks_per_sec());
     /* the timer goes down from latch to -1 (period of latch + 2) */
     if (d <= (s->counter_value + 1)) {
         counter = (s->counter_value - d) & 0xffff;
@@ -220,7 +220,7 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
     }
     CUDA_DPRINTF("latch=%d counter=%" PRId64 " delta_next=%" PRId64 "\n",
                  s->latch, d, next_time - d);
-    next_time = muldiv64(next_time, ticks_per_sec, CUDA_TIMER_FREQ) +
+    next_time = muldiv64(next_time, get_ticks_per_sec(), CUDA_TIMER_FREQ) +
         s->load_time;
     if (next_time <= current_time)
         next_time = current_time + 1;
@@ -505,7 +505,7 @@ static void cuda_adb_poll(void *opaque)
     }
     qemu_mod_timer(s->adb_poll_timer,
                    qemu_get_clock(vm_clock) +
-                   (ticks_per_sec / CUDA_ADB_POLL_FREQ));
+                   (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
 }
 
 static void cuda_receive_packet(CUDAState *s,
@@ -523,7 +523,7 @@ static void cuda_receive_packet(CUDAState *s,
             if (autopoll) {
                 qemu_mod_timer(s->adb_poll_timer,
                                qemu_get_clock(vm_clock) +
-                               (ticks_per_sec / CUDA_ADB_POLL_FREQ));
+                               (get_ticks_per_sec() / CUDA_ADB_POLL_FREQ));
             } else {
                 qemu_del_timer(s->adb_poll_timer);
             }
@@ -534,14 +534,14 @@ static void cuda_receive_packet(CUDAState *s,
         break;
     case CUDA_SET_TIME:
         ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
-        s->tick_offset = ti - (qemu_get_clock(vm_clock) / ticks_per_sec);
+        s->tick_offset = ti - (qemu_get_clock(vm_clock) / get_ticks_per_sec());
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;
         cuda_send_packet_to_host(s, obuf, 3);
         break;
     case CUDA_GET_TIME:
-        ti = s->tick_offset + (qemu_get_clock(vm_clock) / ticks_per_sec);
+        ti = s->tick_offset + (qemu_get_clock(vm_clock) / get_ticks_per_sec());
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;

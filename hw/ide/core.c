@@ -647,7 +647,7 @@ static void ide_sector_write(IDEState *s)
            option _only_ to install Windows 2000. You must disable it
            for normal use. */
         qemu_mod_timer(s->sector_write_timer, 
-                       qemu_get_clock(vm_clock) + (ticks_per_sec / 1000));
+                       qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 1000));
     } else 
 #endif
     {

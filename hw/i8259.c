@@ -247,7 +247,8 @@ int pic_read_irq(PicState2 *s)
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n",
            irq,
-           (double)(qemu_get_clock(vm_clock) - irq_time[irq]) * 1000000.0 / ticks_per_sec);
+           (double)(qemu_get_clock(vm_clock) -
+                    irq_time[irq]) * 1000000.0 / get_ticks_per_sec());
 #endif
 #if defined(DEBUG_PIC)
     printf("pic_interrupt: irq=%d\n", irq);

@@ -1541,7 +1541,7 @@ static void fdctrl_handle_readid (fdctrl_t *fdctrl, int direction)
     /* XXX: should set main status register to busy */
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     qemu_mod_timer(fdctrl->result_timer,
-                   qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
+                   qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 50));
 }
 
 static void fdctrl_handle_format_track (fdctrl_t *fdctrl, int direction)

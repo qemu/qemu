@@ -186,7 +186,7 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
-int64_t ticks_per_sec;
+static int64_t ticks_per_sec;
 ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
@@ -1032,6 +1032,11 @@ int64_t qemu_get_clock(QEMUClock *clock)
     }
 }
 
+int64_t get_ticks_per_sec(void)
+{
+    return ticks_per_sec;
+}
+
 static void init_timers(void)
 {
     init_get_clock();
@@ -1110,10 +1115,10 @@ static void host_alarm_handler(int host_signum)
             delta_cum += delta;
             if (++count == DISP_FREQ) {
                 printf("timer: min=%" PRId64 " us max=%" PRId64 " us avg=%" PRId64 " us avg_freq=%0.3f Hz\n",
-                       muldiv64(delta_min, 1000000, ticks_per_sec),
-                       muldiv64(delta_max, 1000000, ticks_per_sec),
-                       muldiv64(delta_cum, 1000000 / DISP_FREQ, ticks_per_sec),
-                       (double)ticks_per_sec / ((double)delta_cum / DISP_FREQ));
+                       muldiv64(delta_min, 1000000, get_ticks_per_sec()),
+                       muldiv64(delta_max, 1000000, get_ticks_per_sec()),
+                       muldiv64(delta_cum, 1000000 / DISP_FREQ, get_ticks_per_sec()),
+                       (double)get_ticks_per_sec() / ((double)delta_cum / DISP_FREQ));
                 count = 0;
                 delta_min = INT64_MAX;
                 delta_max = 0;
