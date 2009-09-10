@@ -659,12 +659,13 @@ static int cs4231a_initfn (ISADevice *dev)
 
 int cs4231a_init (qemu_irq *pic)
 {
-    isa_create_simple("cs4231a");
+    isa_create_simple ("cs4231a");
     return 0;
 }
 
 static ISADeviceInfo cs4231a_info = {
     .qdev.name     = "cs4231a",
+    .qdev.desc     = "Crystal Semiconductor CS4231A",
     .qdev.size     = sizeof (CSState),
     .init          = cs4231a_initfn,
     .qdev.props    = (Property[]) {
@@ -675,8 +676,8 @@ static ISADeviceInfo cs4231a_info = {
     },
 };
 
-static void cs4231a_register(void)
+static void cs4231a_register (void)
 {
-    isa_qdev_register(&cs4231a_info);
+    isa_qdev_register (&cs4231a_info);
 }
-device_init(cs4231a_register)
+device_init (cs4231a_register)
