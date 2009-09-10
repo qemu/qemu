@@ -483,6 +483,12 @@ extern const VMStateDescription vmstate_pci_device;
 #define VMSTATE_PTIMER(_f, _s)                                        \
     VMSTATE_PTIMER_V(_f, _s, 0)
 
+#define VMSTATE_UINT16_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint16, uint16_t)
+
+#define VMSTATE_UINT16_ARRAY(_f, _s, _n)                               \
+    VMSTATE_UINT16_ARRAY_V(_f, _s, _n, 0)
+
 #define VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint32, uint32_t)
 
