@@ -2416,6 +2416,10 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     CharDriverState *chr;
     QemuOpts *opts;
 
+    if (strstart(filename, "chardev:", &p)) {
+        return qemu_chr_find(p);
+    }
+
     opts = qemu_chr_parse_compat(label, filename);
     if (!opts)
         return NULL;
@@ -2444,4 +2448,16 @@ void qemu_chr_info(Monitor *mon)
     TAILQ_FOREACH(chr, &chardevs, next) {
         monitor_printf(mon, "%s: filename=%s\n", chr->label, chr->filename);
     }
+}
+
+CharDriverState *qemu_chr_find(const char *name)
+{
+    CharDriverState *chr;
+
+    TAILQ_FOREACH(chr, &chardevs, next) {
+        if (strcmp(chr->label, name) != 0)
+            continue;
+        return chr;
+    }
+    return NULL;
 }

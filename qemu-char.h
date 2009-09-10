@@ -90,6 +90,7 @@ void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 int qemu_chr_get_msgfd(CharDriverState *s);
 void qemu_chr_accept_input(CharDriverState *s);
 void qemu_chr_info(Monitor *mon);
+CharDriverState *qemu_chr_find(const char *name);
 
 extern int term_escape_char;
 

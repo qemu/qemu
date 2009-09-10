@@ -130,6 +130,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "rows",
             .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "mux",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },
