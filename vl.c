@@ -3683,12 +3683,10 @@ static void *kvm_cpu_thread_fn(void *arg)
     while (!qemu_system_ready)
         qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
 
-    cpu_synchronize_state(env);
-
     while (1) {
-        qemu_wait_io_event(env);
         if (cpu_can_run(env))
             qemu_cpu_exec(env);
+        qemu_wait_io_event(env);
     }
 
     return NULL;
@@ -3713,9 +3711,6 @@ static void *tcg_cpu_thread_fn(void *arg)
     while (!qemu_system_ready)
         qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu_synchronize_state(env);
-    }
     while (1) {
         tcg_cpu_exec();
         qemu_wait_io_event(cur_cpu);
