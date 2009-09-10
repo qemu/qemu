@@ -1266,47 +1266,6 @@ typedef struct LoadStateEntry {
     int version_id;
 } LoadStateEntry;
 
-static int qemu_loadvm_state_v2(QEMUFile *f)
-{
-    SaveStateEntry *se;
-    int len, ret, instance_id, record_len, version_id;
-    int64_t total_len, end_pos, cur_pos;
-    char idstr[256];
-
-    total_len = qemu_get_be64(f);
-    end_pos = total_len + qemu_ftell(f);
-    for(;;) {
-        if (qemu_ftell(f) >= end_pos)
-            break;
-        len = qemu_get_byte(f);
-        qemu_get_buffer(f, (uint8_t *)idstr, len);
-        idstr[len] = '\0';
-        instance_id = qemu_get_be32(f);
-        version_id = qemu_get_be32(f);
-        record_len = qemu_get_be32(f);
-        cur_pos = qemu_ftell(f);
-        se = find_se(idstr, instance_id);
-        if (!se) {
-            fprintf(stderr, "qemu: warning: instance 0x%x of device '%s' not present in current VM\n",
-                    instance_id, idstr);
-        } else {
-            ret = vmstate_load(f, se, version_id);
-            if (ret < 0) {
-                fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
-                        instance_id, idstr);
-                return ret;
-            }
-        }
-        /* always seek to exact end of record */
-        qemu_fseek(f, cur_pos + record_len, SEEK_SET);
-    }
-
-    if (qemu_file_has_error(f))
-        return -EIO;
-
-    return 0;
-}
-
 int qemu_loadvm_state(QEMUFile *f)
 {
     LIST_HEAD(, LoadStateEntry) loadvm_handlers =
@@ -1321,8 +1280,10 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
 
     v = qemu_get_be32(f);
-    if (v == QEMU_VM_FILE_VERSION_COMPAT)
-        return qemu_loadvm_state_v2(f);
+    if (v == QEMU_VM_FILE_VERSION_COMPAT) {
+        fprintf(stderr, "SaveVM v2 format is obsolete and don't work anymore\n");
+        return -ENOTSUP;
+    }
     if (v != QEMU_VM_FILE_VERSION)
         return -ENOTSUP;
 
