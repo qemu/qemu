@@ -1074,28 +1074,18 @@ void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
     }
 }
 
-static void timer_save(QEMUFile *f, void *opaque)
-{
-    struct TimersState *s = opaque;
-
-    qemu_put_be64(f, s->cpu_ticks_offset);
-    qemu_put_be64(f, s->ticks_per_sec);
-    qemu_put_be64(f, s->cpu_clock_offset);
-}
-
-static int timer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    struct TimersState *s = opaque;
-
-    if (version_id != 1 && version_id != 2)
-        return -EINVAL;
-    s->cpu_ticks_offset = qemu_get_be64(f);
-    s->ticks_per_sec = qemu_get_be64(f);
-    if (version_id == 2) {
-        s->cpu_clock_offset = qemu_get_be64(f);
+static const VMStateDescription vmstate_timers = {
+    .name = "timer",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT64(cpu_ticks_offset, TimersState),
+        VMSTATE_INT64(ticks_per_sec, TimersState),
+        VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
+        VMSTATE_END_OF_LIST()
     }
-    return 0;
-}
+};
 
 static void qemu_event_increment(void);
 
@@ -5626,7 +5616,7 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(&qemu_drive_opts, drive_init_func, machine, 1) != 0)
         exit(1);
 
-    register_savevm("timer", 0, 2, timer_save, timer_load, &timers_state);
+    vmstate_register(0, &vmstate_timers ,&timers_state);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
 
     /* Maintain compatibility with multiple stdio monitors */
