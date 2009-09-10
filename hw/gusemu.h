@@ -46,8 +46,8 @@ typedef struct _GUSEmuState
 {
  GUSbyte *himemaddr; /* 1024*1024 bytes used for storing uploaded samples (+32 additional bytes for read padding) */
  GUSbyte *gusdatapos; /* (gusdataend-gusdata) bytes used for storing emulated GF1/mixer register states (32*32+4 bytes in initial GUSemu32 version) */
- int gusirq;
- int gusdma;
+ uint32_t gusirq;
+ uint32_t gusdma;
  unsigned int timer1fraction;
  unsigned int timer2fraction;
  void *opaque;
