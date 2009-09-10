@@ -847,6 +847,26 @@ const VMStateInfo vmstate_info_uint64 = {
     .put  = put_uint64,
 };
 
+/* 8 bit int. See that the received value is the same than the one
+   in the field */
+
+static int get_uint8_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint8_t *v = pv;
+    uint8_t v2;
+    qemu_get_8s(f, &v2);
+
+    if (*v == v2)
+        return 0;
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint8_equal = {
+    .name = "int32 equal",
+    .get  = get_uint8_equal,
+    .put  = put_uint8,
+};
+
 /* timers  */
 
 static int get_timer(QEMUFile *f, void *pv, size_t size)

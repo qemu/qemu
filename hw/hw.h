@@ -318,6 +318,7 @@ extern const VMStateInfo vmstate_info_int16;
 extern const VMStateInfo vmstate_info_int32;
 extern const VMStateInfo vmstate_info_int64;
 
+extern const VMStateInfo vmstate_info_uint8_equal;
 extern const VMStateInfo vmstate_info_int32_equal;
 extern const VMStateInfo vmstate_info_int32_le;
 
@@ -460,6 +461,9 @@ extern const VMStateDescription vmstate_pci_device;
     VMSTATE_UINT32_V(_f, _s, 0)
 #define VMSTATE_UINT64(_f, _s)                                        \
     VMSTATE_UINT64_V(_f, _s, 0)
+
+#define VMSTATE_UINT8_EQUAL(_f, _s)                                   \
+    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint8_equal, uint8_t)
 
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
