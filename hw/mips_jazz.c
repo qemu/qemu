@@ -241,7 +241,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     fdctrl_init_sysbus(rc4030[1], 0, 0x80003000, fds);
 
     /* Real time clock */
-    rtc_init(0x70, i8259[8], 1980);
+    rtc_init(1980);
     s_rtc = cpu_register_io_memory(rtc_read, rtc_write, env);
     cpu_register_physical_memory(0x80004000, 0x00001000, s_rtc);
 

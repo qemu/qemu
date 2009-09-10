@@ -63,10 +63,11 @@
 #define REG_C_AF   0x20
 
 struct RTCState {
+    ISADevice dev;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
     struct tm current_tm;
-    int base_year;
+    int32_t base_year;
     qemu_irq irq;
     qemu_irq sqw_irq;
     int it_shift;
@@ -589,20 +590,19 @@ static void rtc_reset(void *opaque)
 #endif
 }
 
-RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
+static int rtc_initfn(ISADevice *dev)
 {
-    RTCState *s;
+    RTCState *s = DO_UPCAST(RTCState, dev, dev);
+    int base = 0x70;
+    int isairq = 8;
 
-    s = qemu_mallocz(sizeof(RTCState));
+    isa_init_irq(dev, &s->irq, isairq);
 
-    s->irq = irq;
-    s->sqw_irq = sqw_irq;
     s->cmos_data[RTC_REG_A] = 0x26;
     s->cmos_data[RTC_REG_B] = 0x02;
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
 
-    s->base_year = base_year;
     rtc_set_date_from_host(s);
 
     s->periodic_timer = qemu_new_timer(vm_clock,
@@ -628,14 +628,35 @@ RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
         register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
 #endif
     qemu_register_reset(rtc_reset, s);
-
-    return s;
+    return 0;
 }
 
-RTCState *rtc_init(int base, qemu_irq irq, int base_year)
+RTCState *rtc_init(int base_year)
 {
-    return rtc_init_sqw(base, irq, NULL, base_year);
+    ISADevice *dev;
+
+    dev = isa_create("mc146818rtc");
+    qdev_prop_set_int32(&dev->qdev, "base_year", base_year);
+    qdev_init(&dev->qdev);
+    return DO_UPCAST(RTCState, dev, dev);
 }
+
+static ISADeviceInfo mc146818rtc_info = {
+    .qdev.name     = "mc146818rtc",
+    .qdev.size     = sizeof(RTCState),
+    .qdev.no_user  = 1,
+    .init          = rtc_initfn,
+    .qdev.props    = (Property[]) {
+        DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void mc146818rtc_register(void)
+{
+    isa_qdev_register(&mc146818rtc_info);
+}
+device_init(mc146818rtc_register)
 
 /* Memory mapped interface */
 static uint32_t cmos_mm_readb (void *opaque, target_phys_addr_t addr)

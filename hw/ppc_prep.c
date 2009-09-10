@@ -680,7 +680,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     pci_vga_init(pci_bus, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);
-    rtc_init(0x70, i8259[8], 2000);
+    rtc_init(2000);
 
     serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
     nb_nics1 = nb_nics;
