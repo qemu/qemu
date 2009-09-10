@@ -63,7 +63,6 @@ struct CharDriverState {
     void (*chr_close)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void *opaque;
-    int focus;
     QEMUBH *bh;
     char *label;
     char *filename;

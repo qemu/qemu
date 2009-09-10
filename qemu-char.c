@@ -233,6 +233,7 @@ typedef struct {
     IOEventHandler *chr_event[MAX_MUX];
     void *ext_opaque[MAX_MUX];
     CharDriverState *drv;
+    int focus;
     int mux_cnt;
     int term_got_escape;
     int max_size;
@@ -361,11 +362,11 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
             break;
         case 'c':
             /* Switch to the next registered device */
-            mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_OUT);
-            chr->focus++;
-            if (chr->focus >= d->mux_cnt)
-                chr->focus = 0;
-            mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
+            mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_OUT);
+            d->focus++;
+            if (d->focus >= d->mux_cnt)
+                d->focus = 0;
+            mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
             break;
         case 't':
             d->timestamps = !d->timestamps;
@@ -384,8 +385,8 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
 
 static void mux_chr_accept_input(CharDriverState *chr)
 {
-    int m = chr->focus;
     MuxDriver *d = chr->opaque;
+    int m = d->focus;
 
     while (d->prod[m] != d->cons[m] &&
            d->chr_can_read[m] &&
@@ -399,7 +400,7 @@ static int mux_chr_can_read(void *opaque)
 {
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
-    int m = chr->focus;
+    int m = d->focus;
 
     if ((d->prod[m] - d->cons[m]) < MUX_BUFFER_SIZE)
         return 1;
@@ -412,7 +413,7 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
 {
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
-    int m = chr->focus;
+    int m = d->focus;
     int i;
 
     mux_chr_accept_input (opaque);
@@ -456,12 +457,12 @@ static void mux_chr_update_read_handler(CharDriverState *chr)
         qemu_chr_add_handlers(d->drv, mux_chr_can_read, mux_chr_read,
                               mux_chr_event, chr);
     }
-    if (chr->focus != -1) {
-        mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_OUT);
+    if (d->focus != -1) {
+        mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_OUT);
     }
-    chr->focus = d->mux_cnt;
+    d->focus = d->mux_cnt;
     d->mux_cnt++;
-    mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
+    mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 
 static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
@@ -474,7 +475,7 @@ static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
 
     chr->opaque = d;
     d->drv = drv;
-    chr->focus = -1;
+    d->focus = -1;
     chr->chr_write = mux_chr_write;
     chr->chr_update_read_handler = mux_chr_update_read_handler;
     chr->chr_accept_input = mux_chr_accept_input;
