@@ -35,11 +35,6 @@ static struct BusInfo isa_bus_info = {
     .name      = "ISA",
     .size      = sizeof(ISABus),
     .print_dev = isabus_dev_print,
-    .props     = (Property[]) {
-        DEFINE_PROP_HEX32("iobase",  ISADevice, iobase[0], -1),
-        DEFINE_PROP_HEX32("iobase2", ISADevice, iobase[1], -1),
-        DEFINE_PROP_END_OF_LIST(),
-    }
 };
 
 ISABus *isa_bus_new(DeviceState *dev)
@@ -122,8 +117,7 @@ void isa_qdev_register(ISADeviceInfo *info)
     qdev_register(&info->qdev);
 }
 
-ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2,
-                             uint32_t irq, uint32 irq2)
+ISADevice *isa_create_simple(const char *name, uint32_t irq, uint32 irq2)
 {
     DeviceState *dev;
     ISADevice *isa;
@@ -134,8 +128,6 @@ ISADevice *isa_create_simple(const char *name, uint32_t iobase, uint32_t iobase2
     }
     dev = qdev_create(&isabus->qbus, name);
     isa = DO_UPCAST(ISADevice, qdev, dev);
-    isa->iobase[0] = iobase;
-    isa->iobase[1] = iobase2;
     qdev_init(dev);
     if (irq != -1) {
         isa_connect_irq(isa, 0, irq);

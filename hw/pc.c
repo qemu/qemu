@@ -1373,7 +1373,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    isa_dev = isa_create_simple("i8042", 0x60, 0x64, 1, 12);
+    isa_dev = isa_create_simple("i8042", 1, 12);
     DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
@@ -1383,7 +1383,7 @@ static void pc_init1(ram_addr_t ram_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
+    floppy_controller = fdctrl_init_isa(fd);
 
     cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
 

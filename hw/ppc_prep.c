@@ -719,7 +719,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    fdctrl_init_isa(6, 2, 0x3f0, fd);
+    fdctrl_init_isa(fd);
 
     /* Register speaker port */
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
