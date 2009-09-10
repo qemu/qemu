@@ -109,7 +109,7 @@ void isa_qdev_register(ISADeviceInfo *info)
     qdev_register(&info->qdev);
 }
 
-ISADevice *isa_create_simple(const char *name)
+ISADevice *isa_create(const char *name)
 {
     DeviceState *dev;
 
@@ -118,8 +118,19 @@ ISADevice *isa_create_simple(const char *name)
         return NULL;
     }
     dev = qdev_create(&isabus->qbus, name);
-    qdev_init(dev);
     return DO_UPCAST(ISADevice, qdev, dev);
+}
+
+ISADevice *isa_create_simple(const char *name)
+{
+    ISADevice *dev;
+
+    dev = isa_create(name);
+    if (qdev_init(&dev->qdev) != 0) {
+        qdev_free(&dev->qdev);
+        return NULL;
+    }
+    return dev;
 }
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
