@@ -112,6 +112,18 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "telnet",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "width",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "height",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "cols",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "rows",
+            .type = QEMU_OPT_NUMBER,
         },
         { /* end if list */ }
     },

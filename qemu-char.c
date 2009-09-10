@@ -2221,7 +2221,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 
 static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 {
-    char host[65], port[33];
+    char host[65], port[33], width[8], height[8];
     int pos;
     const char *p;
     QemuOpts *opts;
@@ -2236,6 +2236,23 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         strcmp(filename, "braille") == 0 ||
         strcmp(filename, "stdio")   == 0) {
         qemu_opt_set(opts, "backend", filename);
+        return opts;
+    }
+    if (strstart(filename, "vc", &p)) {
+        qemu_opt_set(opts, "backend", "vc");
+        if (*p == ':') {
+            if (sscanf(p+1, "%8[0-9]x%8[0-9]", width, height) == 2) {
+                /* pixels */
+                qemu_opt_set(opts, "width", width);
+                qemu_opt_set(opts, "height", height);
+            } else if (sscanf(p+1, "%8[0-9]Cx%8[0-9]C", width, height) == 2) {
+                /* chars */
+                qemu_opt_set(opts, "cols", width);
+                qemu_opt_set(opts, "rows", height);
+            } else {
+                goto fail;
+            }
+        }
         return opts;
     }
     if (strcmp(filename, "con:") == 0) {
@@ -2306,6 +2323,7 @@ static const struct {
     { .name = "null",      .open = qemu_chr_open_null },
     { .name = "socket",    .open = qemu_chr_open_socket },
     { .name = "msmouse",   .open = qemu_chr_open_msmouse },
+    { .name = "vc",        .open = text_console_init },
 #ifdef _WIN32
     { .name = "file",      .open = qemu_chr_open_win_file_out },
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
@@ -2376,12 +2394,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         return qemu_chr_open_opts(opts, init);
     }
 
-    if (!strcmp(filename, "vc")) {
-        chr = text_console_init(NULL);
-    } else
-    if (strstart(filename, "vc:", &p)) {
-        chr = text_console_init(p);
-    } else
     if (strstart(filename, "udp:", &p)) {
         chr = qemu_chr_open_udp(p);
     } else
