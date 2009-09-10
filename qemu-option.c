@@ -709,22 +709,10 @@ int qemu_opts_print(QemuOpts *opts, void *dummy)
     return 0;
 }
 
-QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname)
+int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname)
 {
-    char option[128], value[128], *id = NULL;
-    QemuOpts *opts;
+    char option[128], value[128];
     const char *p,*pe,*pc;
-
-    if (strncmp(params, "id=", 3) == 0) {
-        get_opt_value(value, sizeof(value), params+3);
-        id = qemu_strdup(value);
-    } else if ((p = strstr(params, ",id=")) != NULL) {
-        get_opt_value(value, sizeof(value), p+4);
-        id = qemu_strdup(value);
-    }
-    opts = qemu_opts_create(list, id, 1);
-    if (opts == NULL)
-        return NULL;
 
     p = params;
     for(;;) {
@@ -739,7 +727,7 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
             } else {
                 /* option without value, probably a flag */
                 p = get_opt_name(option, sizeof(option), p, ',');
-                if (strncmp(p, "no", 2) == 0) {
+                if (strncmp(option, "no", 2) == 0) {
                     memmove(option, option+2, strlen(option+2)+1);
                     pstrcpy(value, sizeof(value), "off");
                 } else {
@@ -758,8 +746,7 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
         if (strcmp(option, "id") != 0) {
             /* store and parse */
             if (-1 == qemu_opt_set(opts, option, value)) {
-                qemu_opts_del(opts);
-                return NULL;
+                return -1;
             }
         }
         if (*p != ',') {
@@ -767,6 +754,31 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
         }
         p++;
     }
+    return 0;
+}
+
+QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname)
+{
+    char value[128], *id = NULL;
+    const char *p;
+    QemuOpts *opts;
+
+    if (strncmp(params, "id=", 3) == 0) {
+        get_opt_value(value, sizeof(value), params+3);
+        id = qemu_strdup(value);
+    } else if ((p = strstr(params, ",id=")) != NULL) {
+        get_opt_value(value, sizeof(value), p+4);
+        id = qemu_strdup(value);
+    }
+    opts = qemu_opts_create(list, id, 1);
+    if (opts == NULL)
+        return NULL;
+
+    if (qemu_opts_do_parse(opts, params, firstname) != 0) {
+        qemu_opts_del(opts);
+        return NULL;
+    }
+
     return opts;
 }
 
