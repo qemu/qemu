@@ -47,7 +47,6 @@ static struct {
     int freq;
     int nb_channels;
     int bufsize;
-    int threshold;
     int broken_adc;
 } conf = {
     .nb_samples  = 2048 * 2,
@@ -239,9 +238,7 @@ static int fmod_run_out (HWVoiceOut *hw)
         return 0;
     }
 
-    if (!hw->pending_disable
-        && nb_live
-        && (conf.threshold && live <= conf.threshold)) {
+    if (!hw->pending_disable && nb_live) {
         ldebug ("live=%d nb_live=%d\n", live, nb_live);
         return 0;
     }
@@ -664,15 +661,7 @@ static struct audio_option fmod_options[] = {
         .tag   = AUD_OPT_INT,
         .valp  = &conf.bufsize,
         .descr = "(undocumented)"
-    }
-#if 0
-    {
-        .name  = "THRESHOLD",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.threshold,
-        .descr = "(undocumented)"
-    }
-#endif
+    },
     { /* End of list */ }
 };
 
