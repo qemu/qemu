@@ -1701,7 +1701,7 @@ static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_win_con(const char *filename)
+static CharDriverState *qemu_chr_open_win_con(QemuOpts *opts)
 {
     return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE));
 }
@@ -2234,6 +2234,10 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         qemu_opt_set(opts, "backend", filename);
         return opts;
     }
+    if (strcmp(filename, "con:") == 0) {
+        qemu_opt_set(opts, "backend", "console");
+        return opts;
+    }
     if (strstart(filename, "file:", &p)) {
         qemu_opt_set(opts, "backend", "file");
         qemu_opt_set(opts, "path", p);
@@ -2285,6 +2289,7 @@ static const struct {
 #ifdef _WIN32
     { .name = "file",      .open = qemu_chr_open_win_file_out },
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
+    { .name = "console",   .open = qemu_chr_open_win_con },
 #else
     { .name = "file",      .open = qemu_chr_open_file_out },
     { .name = "pipe",      .open = qemu_chr_open_pipe },
@@ -2380,9 +2385,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
 #else /* !_WIN32 */
     if (strstart(filename, "COM", NULL)) {
         chr = qemu_chr_open_win(filename);
-    } else
-    if (strstart(filename, "con:", NULL)) {
-        chr = qemu_chr_open_win_con(filename);
     } else
 #endif
     {
