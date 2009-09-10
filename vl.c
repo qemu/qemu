@@ -2792,58 +2792,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 /***********************************************************/
 /* ram save/restore */
 
-#define BDRV_HASH_BLOCK_SIZE 1024
-#define IOBUF_SIZE 4096
-#define RAM_CBLOCK_MAGIC 0xfabe
-
-typedef struct RamDecompressState {
-    z_stream zstream;
-    QEMUFile *f;
-    uint8_t buf[IOBUF_SIZE];
-} RamDecompressState;
-
-static int ram_decompress_open(RamDecompressState *s, QEMUFile *f)
-{
-    int ret;
-    memset(s, 0, sizeof(*s));
-    s->f = f;
-    ret = inflateInit(&s->zstream);
-    if (ret != Z_OK)
-        return -1;
-    return 0;
-}
-
-static int ram_decompress_buf(RamDecompressState *s, uint8_t *buf, int len)
-{
-    int ret, clen;
-
-    s->zstream.avail_out = len;
-    s->zstream.next_out = buf;
-    while (s->zstream.avail_out > 0) {
-        if (s->zstream.avail_in == 0) {
-            if (qemu_get_be16(s->f) != RAM_CBLOCK_MAGIC)
-                return -1;
-            clen = qemu_get_be16(s->f);
-            if (clen > IOBUF_SIZE)
-                return -1;
-            qemu_get_buffer(s->f, s->buf, clen);
-            s->zstream.avail_in = clen;
-            s->zstream.next_in = s->buf;
-        }
-        ret = inflate(&s->zstream, Z_PARTIAL_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-static void ram_decompress_close(RamDecompressState *s)
-{
-    inflateEnd(&s->zstream);
-}
-
-#define RAM_SAVE_FLAG_FULL	0x01
+#define RAM_SAVE_FLAG_FULL	0x01 /* Obsolete, not used anymore */
 #define RAM_SAVE_FLAG_COMPRESS	0x02
 #define RAM_SAVE_FLAG_MEM_SIZE	0x04
 #define RAM_SAVE_FLAG_PAGE	0x08
@@ -2991,46 +2940,10 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
     return (stage == 2) && (expected_time <= migrate_max_downtime());
 }
 
-static int ram_load_dead(QEMUFile *f, void *opaque)
-{
-    RamDecompressState s1, *s = &s1;
-    uint8_t buf[10];
-    ram_addr_t i;
-
-    if (ram_decompress_open(s, f) < 0)
-        return -EINVAL;
-    for(i = 0; i < last_ram_offset; i+= BDRV_HASH_BLOCK_SIZE) {
-        if (ram_decompress_buf(s, buf, 1) < 0) {
-            fprintf(stderr, "Error while reading ram block header\n");
-            goto error;
-        }
-        if (buf[0] == 0) {
-            if (ram_decompress_buf(s, qemu_get_ram_ptr(i),
-                                   BDRV_HASH_BLOCK_SIZE) < 0) {
-                fprintf(stderr, "Error while reading ram block address=0x%08" PRIx64, (uint64_t)i);
-                goto error;
-            }
-        } else {
-        error:
-            printf("Error block header\n");
-            return -EINVAL;
-        }
-    }
-    ram_decompress_close(s);
-
-    return 0;
-}
-
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
     int flags;
-
-    if (version_id == 2) {
-        if (qemu_get_be32(f) != last_ram_offset)
-            return -EINVAL;
-        return ram_load_dead(f, opaque);
-    }
 
     if (version_id != 3)
         return -EINVAL;
@@ -3046,11 +2959,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 return -EINVAL;
         }
 
-        if (flags & RAM_SAVE_FLAG_FULL) {
-            if (ram_load_dead(f, opaque) < 0)
-                return -EINVAL;
-        }
-        
         if (flags & RAM_SAVE_FLAG_COMPRESS) {
             uint8_t ch = qemu_get_byte(f);
             memset(qemu_get_ram_ptr(addr), ch, TARGET_PAGE_SIZE);
