@@ -100,7 +100,8 @@ static void isa_irq_handler(void *opaque, int n, int level)
     if (n < 16) {
         qemu_set_irq(isa->i8259[n], level);
     }
-    qemu_set_irq(isa->ioapic[n], level);
+    if (isa->ioapic)
+        qemu_set_irq(isa->ioapic[n], level);
 };
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
