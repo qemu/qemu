@@ -241,6 +241,8 @@ void mips_r4k_init (ram_addr_t ram_size,
 
     /* The PIC is attached to the MIPS CPU INT0 pin */
     i8259 = i8259_init(env->irq[2]);
+    isa_bus_new(NULL);
+    isa_bus_irqs(i8259);
 
     rtc_state = rtc_init(0x70, i8259[8], 2000);
 
@@ -276,7 +278,7 @@ void mips_r4k_init (ram_addr_t ram_size,
                      hd[MAX_IDE_DEVS * i],
 		     hd[MAX_IDE_DEVS * i + 1]);
 
-    i8042_init(i8259[1], i8259[12], 0x60);
+    isa_create_simple("i8042");
 }
 
 static QEMUMachine mips_machine = {

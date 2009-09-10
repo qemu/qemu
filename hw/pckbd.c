@@ -362,28 +362,6 @@ static int kbd_load(QEMUFile* f, void* opaque, int version_id)
     return 0;
 }
 
-void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base)
-{
-    KBDState *s = &kbd_state;
-
-    s->irq_kbd = kbd_irq;
-    s->irq_mouse = mouse_irq;
-
-    kbd_reset(s);
-    register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
-    register_ioport_read(io_base, 1, 1, kbd_read_data, s);
-    register_ioport_write(io_base, 1, 1, kbd_write_data, s);
-    register_ioport_read(io_base + 4, 1, 1, kbd_read_status, s);
-    register_ioport_write(io_base + 4, 1, 1, kbd_write_command, s);
-
-    s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
-    s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
-#ifdef TARGET_I386
-    vmmouse_init(s->mouse);
-#endif
-    qemu_register_reset(kbd_reset, s);
-}
-
 /* Memory mapped interface */
 static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
 {

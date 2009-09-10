@@ -711,7 +711,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
                      hd[2 * i],
 		     hd[2 * i + 1]);
     }
-    i8042_init(i8259[1], i8259[12], 0x60);
+    isa_create_simple("i8042");
     DMA_init(1);
     //    SB16_init();
 
