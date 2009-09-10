@@ -626,20 +626,27 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_file_out(const char *file_out)
+static CharDriverState *qemu_chr_open_file_out(QemuOpts *opts)
 {
     int fd_out;
 
-    TFR(fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666));
+    TFR(fd_out = open(qemu_opt_get(opts, "path"),
+                      O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666));
     if (fd_out < 0)
         return NULL;
     return qemu_chr_open_fd(-1, fd_out);
 }
 
-static CharDriverState *qemu_chr_open_pipe(const char *filename)
+static CharDriverState *qemu_chr_open_pipe(QemuOpts *opts)
 {
     int fd_in, fd_out;
     char filename_in[256], filename_out[256];
+    const char *filename = qemu_opt_get(opts, "path");
+
+    if (filename == NULL) {
+        fprintf(stderr, "chardev: pipe: no filename given\n");
+        return NULL;
+    }
 
     snprintf(filename_in, 256, "%s.in", filename);
     snprintf(filename_out, 256, "%s.out", filename);
@@ -1658,8 +1665,9 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
 }
 
 
-static CharDriverState *qemu_chr_open_win_pipe(const char *filename)
+static CharDriverState *qemu_chr_open_win_pipe(QemuOpts *opts)
 {
+    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     WinCharState *s;
 
@@ -1697,8 +1705,9 @@ static CharDriverState *qemu_chr_open_win_con(const char *filename)
     return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE));
 }
 
-static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
+static CharDriverState *qemu_chr_open_win_file_out(QemuOpts *opts)
 {
+    const char *file_out = qemu_opt_get(opts, "path");
     HANDLE fd_out;
 
     fd_out = CreateFile(file_out, GENERIC_WRITE, FILE_SHARE_READ, NULL,
@@ -2218,6 +2227,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
 
 static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 {
+    const char *p;
     QemuOpts *opts;
 
     opts = qemu_opts_create(&qemu_chardev_opts, label, 1);
@@ -2226,6 +2236,16 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 
     if (strcmp(filename, "null") == 0) {
         qemu_opt_set(opts, "backend", "null");
+        return opts;
+    }
+    if (strstart(filename, "file:", &p)) {
+        qemu_opt_set(opts, "backend", "file");
+        qemu_opt_set(opts, "path", p);
+        return opts;
+    }
+    if (strstart(filename, "pipe:", &p)) {
+        qemu_opt_set(opts, "backend", "pipe");
+        qemu_opt_set(opts, "path", p);
         return opts;
     }
 
@@ -2238,6 +2258,13 @@ static const struct {
     CharDriverState *(*open)(QemuOpts *opts);
 } backend_table[] = {
     { .name = "null",      .open = qemu_chr_open_null },
+#ifdef _WIN32
+    { .name = "file",      .open = qemu_chr_open_win_file_out },
+    { .name = "pipe",      .open = qemu_chr_open_win_pipe },
+#else
+    { .name = "file",      .open = qemu_chr_open_file_out },
+    { .name = "pipe",      .open = qemu_chr_open_pipe },
+#endif
 };
 
 CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
@@ -2316,10 +2343,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
 #ifndef _WIN32
     if (strstart(filename, "unix:", &p)) {
 	chr = qemu_chr_open_tcp(p, 0, 1);
-    } else if (strstart(filename, "file:", &p)) {
-        chr = qemu_chr_open_file_out(p);
-    } else if (strstart(filename, "pipe:", &p)) {
-        chr = qemu_chr_open_pipe(p);
     } else if (!strcmp(filename, "pty")) {
         chr = qemu_chr_open_pty();
     } else if (!strcmp(filename, "stdio")) {
@@ -2344,14 +2367,8 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     if (strstart(filename, "COM", NULL)) {
         chr = qemu_chr_open_win(filename);
     } else
-    if (strstart(filename, "pipe:", &p)) {
-        chr = qemu_chr_open_win_pipe(p);
-    } else
     if (strstart(filename, "con:", NULL)) {
         chr = qemu_chr_open_win_con(filename);
-    } else
-    if (strstart(filename, "file:", &p)) {
-        chr = qemu_chr_open_win_file_out(p);
     } else
 #endif
 #ifdef CONFIG_BRLAPI

@@ -79,6 +79,13 @@ QemuOptsList qemu_chardev_opts = {
     .name = "chardev",
     .head = TAILQ_HEAD_INITIALIZER(qemu_chardev_opts.head),
     .desc = {
+        {
+            .name = "backend",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end if list */ }
     },
 };
