@@ -513,28 +513,25 @@ void cpu_exec_init_all(unsigned long tb_size)
 
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
 
-#define CPU_COMMON_SAVE_VERSION 1
-
-static void cpu_common_save(QEMUFile *f, void *opaque)
+static void cpu_common_pre_save(const void *opaque)
 {
-    CPUState *env = opaque;
+    CPUState *env = (void *)opaque;
 
     cpu_synchronize_state(env);
-
-    qemu_put_be32s(f, &env->halted);
-    qemu_put_be32s(f, &env->interrupt_request);
 }
 
-static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
+static int cpu_common_pre_load(void *opaque)
 {
     CPUState *env = opaque;
 
     cpu_synchronize_state(env);
-    if (version_id != CPU_COMMON_SAVE_VERSION)
-        return -EINVAL;
+    return 0;
+}
 
-    qemu_get_be32s(f, &env->halted);
-    qemu_get_be32s(f, &env->interrupt_request);
+static int cpu_common_post_load(void *opaque)
+{
+    CPUState *env = opaque;
+
     /* 0x01 was CPU_INTERRUPT_EXIT. This line can be removed when the
        version_id is increased. */
     env->interrupt_request &= ~0x01;
@@ -542,6 +539,21 @@ static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
+
+static const VMStateDescription vmstate_cpu_common = {
+    .name = "cpu_common",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = cpu_common_pre_save,
+    .pre_load = cpu_common_pre_load,
+    .post_load = cpu_common_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(halted, CPUState),
+        VMSTATE_UINT32(interrupt_request, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 #endif
 
 CPUState *qemu_get_cpu(int cpu)
@@ -581,8 +593,7 @@ void cpu_exec_init(CPUState *env)
     cpu_list_unlock();
 #endif
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
-    register_savevm("cpu_common", cpu_index, CPU_COMMON_SAVE_VERSION,
-                    cpu_common_save, cpu_common_load, env);
+    vmstate_register(cpu_index, &vmstate_cpu_common, env);
     register_savevm("cpu", cpu_index, CPU_SAVE_VERSION,
                     cpu_save, cpu_load, env);
 #endif
