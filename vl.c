@@ -186,7 +186,6 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
-static int64_t ticks_per_sec;
 ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
@@ -609,10 +608,15 @@ static int64_t cpu_get_icount(void)
 /***********************************************************/
 /* guest cycle counter */
 
-static int64_t cpu_ticks_prev;
-static int64_t cpu_ticks_offset;
-static int64_t cpu_clock_offset;
-static int cpu_ticks_enabled;
+typedef struct TimersState {
+    int64_t cpu_ticks_prev;
+    int64_t cpu_ticks_offset;
+    int64_t cpu_clock_offset;
+    int32_t cpu_ticks_enabled;
+    int64_t ticks_per_sec;
+} TimersState;
+
+TimersState timers_state;
 
 /* return the host CPU cycle counter and handle stop/restart */
 int64_t cpu_get_ticks(void)
@@ -620,18 +624,18 @@ int64_t cpu_get_ticks(void)
     if (use_icount) {
         return cpu_get_icount();
     }
-    if (!cpu_ticks_enabled) {
-        return cpu_ticks_offset;
+    if (!timers_state.cpu_ticks_enabled) {
+        return timers_state.cpu_ticks_offset;
     } else {
         int64_t ticks;
         ticks = cpu_get_real_ticks();
-        if (cpu_ticks_prev > ticks) {
+        if (timers_state.cpu_ticks_prev > ticks) {
             /* Note: non increasing ticks may happen if the host uses
                software suspend */
-            cpu_ticks_offset += cpu_ticks_prev - ticks;
+            timers_state.cpu_ticks_offset += timers_state.cpu_ticks_prev - ticks;
         }
-        cpu_ticks_prev = ticks;
-        return ticks + cpu_ticks_offset;
+        timers_state.cpu_ticks_prev = ticks;
+        return ticks + timers_state.cpu_ticks_offset;
     }
 }
 
@@ -639,21 +643,21 @@ int64_t cpu_get_ticks(void)
 static int64_t cpu_get_clock(void)
 {
     int64_t ti;
-    if (!cpu_ticks_enabled) {
-        return cpu_clock_offset;
+    if (!timers_state.cpu_ticks_enabled) {
+        return timers_state.cpu_clock_offset;
     } else {
         ti = get_clock();
-        return ti + cpu_clock_offset;
+        return ti + timers_state.cpu_clock_offset;
     }
 }
 
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void)
 {
-    if (!cpu_ticks_enabled) {
-        cpu_ticks_offset -= cpu_get_real_ticks();
-        cpu_clock_offset -= get_clock();
-        cpu_ticks_enabled = 1;
+    if (!timers_state.cpu_ticks_enabled) {
+        timers_state.cpu_ticks_offset -= cpu_get_real_ticks();
+        timers_state.cpu_clock_offset -= get_clock();
+        timers_state.cpu_ticks_enabled = 1;
     }
 }
 
@@ -661,10 +665,10 @@ void cpu_enable_ticks(void)
    cpu_get_ticks() after that.  */
 void cpu_disable_ticks(void)
 {
-    if (cpu_ticks_enabled) {
-        cpu_ticks_offset = cpu_get_ticks();
-        cpu_clock_offset = cpu_get_clock();
-        cpu_ticks_enabled = 0;
+    if (timers_state.cpu_ticks_enabled) {
+        timers_state.cpu_ticks_offset = cpu_get_ticks();
+        timers_state.cpu_clock_offset = cpu_get_clock();
+        timers_state.cpu_ticks_enabled = 0;
     }
 }
 
@@ -1034,13 +1038,13 @@ int64_t qemu_get_clock(QEMUClock *clock)
 
 int64_t get_ticks_per_sec(void)
 {
-    return ticks_per_sec;
+    return timers_state.ticks_per_sec;
 }
 
 static void init_timers(void)
 {
     init_get_clock();
-    ticks_per_sec = QEMU_TIMER_BASE;
+    timers_state.ticks_per_sec = QEMU_TIMER_BASE;
     rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
     vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
 }
@@ -1072,19 +1076,23 @@ void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
 
 static void timer_save(QEMUFile *f, void *opaque)
 {
-    qemu_put_be64(f, cpu_ticks_offset);
-    qemu_put_be64(f, ticks_per_sec);
-    qemu_put_be64(f, cpu_clock_offset);
+    struct TimersState *s = opaque;
+
+    qemu_put_be64(f, s->cpu_ticks_offset);
+    qemu_put_be64(f, s->ticks_per_sec);
+    qemu_put_be64(f, s->cpu_clock_offset);
 }
 
 static int timer_load(QEMUFile *f, void *opaque, int version_id)
 {
+    struct TimersState *s = opaque;
+
     if (version_id != 1 && version_id != 2)
         return -EINVAL;
-    cpu_ticks_offset=qemu_get_be64(f);
-    ticks_per_sec=qemu_get_be64(f);
+    s->cpu_ticks_offset = qemu_get_be64(f);
+    s->ticks_per_sec = qemu_get_be64(f);
     if (version_id == 2) {
-        cpu_clock_offset=qemu_get_be64(f);
+        s->cpu_clock_offset = qemu_get_be64(f);
     }
     return 0;
 }
@@ -5618,7 +5626,7 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(&qemu_drive_opts, drive_init_func, machine, 1) != 0)
         exit(1);
 
-    register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
+    register_savevm("timer", 0, 2, timer_save, timer_load, &timers_state);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
 
     /* Maintain compatibility with multiple stdio monitors */
