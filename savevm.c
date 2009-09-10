@@ -1073,6 +1073,9 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 {
     VMStateField *field = vmsd->fields;
 
+    if (vmsd->pre_save) {
+        vmsd->pre_save(opaque);
+    }
     while(field->name) {
         const void *base_addr = opaque + field->offset;
         int i, n_elems = 1;
@@ -1095,6 +1098,9 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
         }
         field++;
+    }
+    if (vmsd->post_save) {
+        vmsd->post_save(opaque);
     }
 }
 
