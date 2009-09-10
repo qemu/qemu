@@ -329,25 +329,17 @@ int inet_connect(const char *str, int socktype)
 
 #ifndef _WIN32
 
-int unix_listen(const char *str, char *ostr, int olen)
+int unix_listen_opts(QemuOpts *opts)
 {
     struct sockaddr_un un;
-    char *path, *opts;
-    int sock, fd, len;
+    const char *path = qemu_opt_get(opts, "path");
+    int sock, fd;
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("socket(unix)");
         return -1;
     }
-
-    opts = strchr(str, ',');
-    if (opts) {
-        len = opts - str;
-        path = qemu_malloc(len+1);
-        snprintf(path, len+1, "%.*s", len, str);
-    } else
-        path = qemu_strdup(str);
 
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
@@ -365,8 +357,8 @@ int unix_listen(const char *str, char *ostr, int olen)
          * worst case possible is bind() failing, i.e. a DoS attack.
          */
         fd = mkstemp(un.sun_path); close(fd);
+        qemu_opt_set(opts, "path", un.sun_path);
     }
-    snprintf(ostr, olen, "%s%s", un.sun_path, opts ? opts : "");
 
     unlink(un.sun_path);
     if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
@@ -380,11 +372,9 @@ int unix_listen(const char *str, char *ostr, int olen)
 
     if (sockets_debug)
         fprintf(stderr, "bind(unix:%s): OK\n", un.sun_path);
-    qemu_free(path);
     return sock;
 
 err:
-    qemu_free(path);
     closesocket(sock);
     return -1;
 }
@@ -420,6 +410,35 @@ int unix_connect_opts(QemuOpts *opts)
 }
 
 /* compatibility wrapper */
+int unix_listen(const char *str, char *ostr, int olen)
+{
+    QemuOpts *opts;
+    char *path, *optstr;
+    int sock, len;
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0);
+
+    optstr = strchr(str, ',');
+    if (optstr) {
+        len = optstr - str;
+        if (len) {
+            path = qemu_malloc(len+1);
+            snprintf(path, len+1, "%.*s", len, str);
+            qemu_opt_set(opts, "path", path);
+            qemu_free(path);
+        }
+    } else {
+        qemu_opt_set(opts, "path", str);
+    }
+
+    sock = unix_listen_opts(opts);
+
+    if (sock != -1 && ostr)
+        snprintf(ostr, olen, "%s%s", qemu_opt_get(opts, "path"), optstr ? optstr : "");
+    qemu_opts_del(opts);
+    return sock;
+}
+
 int unix_connect(const char *path)
 {
     QemuOpts *opts;
