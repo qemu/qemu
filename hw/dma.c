@@ -500,62 +500,45 @@ static void dma_init2(struct dma_cont *d, int base, int dshift,
     }
 }
 
-static void dma_save (QEMUFile *f, void *opaque)
-{
-    struct dma_cont *d = opaque;
-    int i;
-
-    /* qemu_put_8s (f, &d->status); */
-    qemu_put_8s (f, &d->command);
-    qemu_put_8s (f, &d->mask);
-    qemu_put_8s (f, &d->flip_flop);
-    qemu_put_be32 (f, d->dshift);
-
-    for (i = 0; i < 4; ++i) {
-        struct dma_regs *r = &d->regs[i];
-        qemu_put_be32 (f, r->now[0]);
-        qemu_put_be32 (f, r->now[1]);
-        qemu_put_be16s (f, &r->base[0]);
-        qemu_put_be16s (f, &r->base[1]);
-        qemu_put_8s (f, &r->mode);
-        qemu_put_8s (f, &r->page);
-        qemu_put_8s (f, &r->pageh);
-        qemu_put_8s (f, &r->dack);
-        qemu_put_8s (f, &r->eop);
+static const VMStateDescription vmstate_dma_regs = {
+    .name = "dma_regs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_ARRAY(now, struct dma_regs, 2),
+        VMSTATE_UINT16_ARRAY(base, struct dma_regs, 2),
+        VMSTATE_UINT8(mode, struct dma_regs),
+        VMSTATE_UINT8(page, struct dma_regs),
+        VMSTATE_UINT8(pageh, struct dma_regs),
+        VMSTATE_UINT8(dack, struct dma_regs),
+        VMSTATE_UINT8(eop, struct dma_regs),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-static int dma_load (QEMUFile *f, void *opaque, int version_id)
+static int dma_post_load(void *opaque)
 {
-    struct dma_cont *d = opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    /* qemu_get_8s (f, &d->status); */
-    qemu_get_8s (f, &d->command);
-    qemu_get_8s (f, &d->mask);
-    qemu_get_8s (f, &d->flip_flop);
-    d->dshift=qemu_get_be32 (f);
-
-    for (i = 0; i < 4; ++i) {
-        struct dma_regs *r = &d->regs[i];
-        r->now[0]=qemu_get_be32 (f);
-        r->now[1]=qemu_get_be32 (f);
-        qemu_get_be16s (f, &r->base[0]);
-        qemu_get_be16s (f, &r->base[1]);
-        qemu_get_8s (f, &r->mode);
-        qemu_get_8s (f, &r->page);
-        qemu_get_8s (f, &r->pageh);
-        qemu_get_8s (f, &r->dack);
-        qemu_get_8s (f, &r->eop);
-    }
-
     DMA_run();
 
     return 0;
 }
+
+static const VMStateDescription vmstate_dma = {
+    .name = "dma",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = dma_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(command, struct dma_cont),
+        VMSTATE_UINT8(mask, struct dma_cont),
+        VMSTATE_UINT8(flip_flop, struct dma_cont),
+        VMSTATE_INT32(dshift, struct dma_cont),
+        VMSTATE_STRUCT_ARRAY(regs, struct dma_cont, 4, 1, vmstate_dma_regs, struct dma_regs),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void DMA_init (int high_page_enable)
 {
@@ -563,8 +546,8 @@ void DMA_init (int high_page_enable)
               high_page_enable ? 0x480 : -1);
     dma_init2(&dma_controllers[1], 0xc0, 1, 0x88,
               high_page_enable ? 0x488 : -1);
-    register_savevm ("dma", 0, 1, dma_save, dma_load, &dma_controllers[0]);
-    register_savevm ("dma", 1, 1, dma_save, dma_load, &dma_controllers[1]);
+    vmstate_register (0, &vmstate_dma, &dma_controllers[0]);
+    vmstate_register (1, &vmstate_dma, &dma_controllers[1]);
 
     dma_bh = qemu_bh_new(DMA_run_bh, NULL);
 }
