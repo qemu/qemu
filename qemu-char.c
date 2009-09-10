@@ -1146,8 +1146,9 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_tty(const char *filename)
+static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
 {
+    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     int fd;
 
@@ -1279,8 +1280,9 @@ static void pp_close(CharDriverState *chr)
     qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_pp(const char *filename)
+static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
 {
+    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     ParallelCharDriver *drv;
     int fd;
@@ -1348,8 +1350,9 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_pp(const char *filename)
+static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
 {
+    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     int fd;
 
@@ -1567,8 +1570,9 @@ static int win_chr_poll(void *opaque)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_win(const char *filename)
+static CharDriverState *qemu_chr_open_win(QemuOpts *opts)
 {
+    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     WinCharState *s;
 
@@ -2238,6 +2242,11 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         qemu_opt_set(opts, "backend", "console");
         return opts;
     }
+    if (strstart(filename, "COM", NULL)) {
+        qemu_opt_set(opts, "backend", "serial");
+        qemu_opt_set(opts, "path", filename);
+        return opts;
+    }
     if (strstart(filename, "file:", &p)) {
         qemu_opt_set(opts, "backend", "file");
         qemu_opt_set(opts, "path", p);
@@ -2272,6 +2281,17 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
             goto fail;
         return opts;
     }
+    if (strstart(filename, "/dev/parport", NULL) ||
+        strstart(filename, "/dev/ppi", NULL)) {
+        qemu_opt_set(opts, "backend", "parport");
+        qemu_opt_set(opts, "path", filename);
+        return opts;
+    }
+    if (strstart(filename, "/dev/", NULL)) {
+        qemu_opt_set(opts, "backend", "tty");
+        qemu_opt_set(opts, "path", filename);
+        return opts;
+    }
 
 fail:
     fprintf(stderr, "%s: fail on \"%s\"\n", __FUNCTION__, filename);
@@ -2290,6 +2310,7 @@ static const struct {
     { .name = "file",      .open = qemu_chr_open_win_file_out },
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
     { .name = "console",   .open = qemu_chr_open_win_con },
+    { .name = "serial",    .open = qemu_chr_open_win },
 #else
     { .name = "file",      .open = qemu_chr_open_file_out },
     { .name = "pipe",      .open = qemu_chr_open_pipe },
@@ -2298,6 +2319,13 @@ static const struct {
 #endif
 #ifdef CONFIG_BRLAPI
     { .name = "braille",   .open = chr_baum_init },
+#endif
+#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
+    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    { .name = "tty",       .open = qemu_chr_open_tty },
+#endif
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
+    { .name = "parport",   .open = qemu_chr_open_pp },
 #endif
 };
 
@@ -2366,27 +2394,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
             printf("Unable to open driver: %s\n", p);
         }
     } else
-#ifndef _WIN32
-#if defined(__linux__)
-    if (strstart(filename, "/dev/parport", NULL)) {
-        chr = qemu_chr_open_pp(filename);
-    } else
-#elif defined(__FreeBSD__) || defined(__DragonFly__)
-    if (strstart(filename, "/dev/ppi", NULL)) {
-        chr = qemu_chr_open_pp(filename);
-    } else
-#endif
-#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
-    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-    if (strstart(filename, "/dev/", NULL)) {
-        chr = qemu_chr_open_tty(filename);
-    } else
-#endif
-#else /* !_WIN32 */
-    if (strstart(filename, "COM", NULL)) {
-        chr = qemu_chr_open_win(filename);
-    } else
-#endif
     {
         chr = NULL;
     }
