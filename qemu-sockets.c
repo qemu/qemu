@@ -29,6 +29,19 @@
 static int sockets_debug = 0;
 static const int on=1, off=0;
 
+/* used temporarely until all users are converted to QemuOpts */
+QemuOptsList dummy_opts = {
+    .name = "dummy",
+    .head = TAILQ_HEAD_INITIALIZER(dummy_opts.head),
+    .desc = {
+        {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end if list */ }
+    },
+};
+
 static int inet_getport(struct addrinfo *e)
 {
     struct sockaddr_in *i4;
@@ -376,10 +389,16 @@ err:
     return -1;
 }
 
-int unix_connect(const char *path)
+int unix_connect_opts(QemuOpts *opts)
 {
     struct sockaddr_un un;
+    const char *path = qemu_opt_get(opts, "path");
     int sock;
+
+    if (NULL == path) {
+        fprintf(stderr, "unix connect: no path specified\n");
+        return -1;
+    }
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
@@ -397,6 +416,19 @@ int unix_connect(const char *path)
 
     if (sockets_debug)
         fprintf(stderr, "connect(unix:%s): OK\n", path);
+    return sock;
+}
+
+/* compatibility wrapper */
+int unix_connect(const char *path)
+{
+    QemuOpts *opts;
+    int sock;
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0);
+    qemu_opt_set(opts, "path", path);
+    sock = unix_connect_opts(opts);
+    qemu_opts_del(opts);
     return sock;
 }
 

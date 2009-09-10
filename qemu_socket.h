@@ -29,6 +29,8 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #endif /* !_WIN32 */
 
+#include "qemu-option.h"
+
 /* misc helpers */
 void socket_set_nonblock(int fd);
 int send_all(int fd, const void *buf, int len1);
@@ -39,6 +41,7 @@ int inet_listen(const char *str, char *ostr, int olen,
 int inet_connect(const char *str, int socktype);
 
 int unix_listen(const char *path, char *ostr, int olen);
+int unix_connect_opts(QemuOpts *opts);
 int unix_connect(const char *path);
 
 /* Old, ipv4 only bits.  Don't use for new code. */
