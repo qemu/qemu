@@ -2226,9 +2226,10 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     if (NULL == opts)
         return NULL;
 
-    if (strcmp(filename, "null") == 0 ||
-        strcmp(filename, "pty") == 0 ||
-        strcmp(filename, "stdio") == 0) {
+    if (strcmp(filename, "null")    == 0 ||
+        strcmp(filename, "pty")     == 0 ||
+        strcmp(filename, "msmouse") == 0 ||
+        strcmp(filename, "stdio")   == 0) {
         qemu_opt_set(opts, "backend", filename);
         return opts;
     }
@@ -2279,6 +2280,7 @@ static const struct {
 } backend_table[] = {
     { .name = "null",      .open = qemu_chr_open_null },
     { .name = "socket",    .open = qemu_chr_open_socket },
+    { .name = "msmouse",   .open = qemu_chr_open_msmouse },
 #ifdef _WIN32
     { .name = "file",      .open = qemu_chr_open_win_file_out },
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
@@ -2354,8 +2356,6 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         } else {
             printf("Unable to open driver: %s\n", p);
         }
-    } else if (!strcmp(filename, "msmouse")) {
-        chr = qemu_chr_open_msmouse();
     } else
 #ifndef _WIN32
 #if defined(__linux__)

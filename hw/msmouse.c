@@ -64,7 +64,7 @@ static void msmouse_chr_close (struct CharDriverState *chr)
     qemu_free (chr);
 }
 
-CharDriverState *qemu_chr_open_msmouse(void)
+CharDriverState *qemu_chr_open_msmouse(QemuOpts *opts)
 {
     CharDriverState *chr;
 
