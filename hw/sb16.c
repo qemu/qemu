@@ -869,7 +869,7 @@ static void reset (SB16State *s)
     s->v2x6 = 0;
     s->cmd = -1;
 
-    dsp_out_data(s, 0xaa);
+    dsp_out_data (s, 0xaa);
     speaker (s, 0);
     control (s, 0);
     legacy_reset (s);
@@ -1440,7 +1440,7 @@ static int sb16_initfn (ISADevice *dev)
 
 int SB16_init (qemu_irq *pic)
 {
-    isa_create_simple("sb16");
+    isa_create_simple ("sb16");
     return 0;
 }
 
@@ -1459,8 +1459,8 @@ static ISADeviceInfo sb16_info = {
     },
 };
 
-static void sb16_register(void)
+static void sb16_register (void)
 {
-    isa_qdev_register(&sb16_info);
+    isa_qdev_register (&sb16_info);
 }
-device_init(sb16_register)
+device_init (sb16_register)
