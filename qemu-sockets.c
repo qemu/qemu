@@ -453,6 +453,18 @@ int unix_connect(const char *path)
 
 #else
 
+int unix_listen_opts(QemuOpts *opts)
+{
+    fprintf(stderr, "unix sockets are not available on windows\n");
+    return -1;
+}
+
+int unix_connect_opts(QemuOpts *opts)
+{
+    fprintf(stderr, "unix sockets are not available on windows\n");
+    return -1;
+}
+
 int unix_listen(const char *path, char *ostr, int olen)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
