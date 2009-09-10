@@ -509,5 +509,5 @@ extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                                const void *opaque);
 extern int vmstate_register(int instance_id, const VMStateDescription *vmsd,
                             void *base);
-extern void vmstate_unregister(const char *idstr, void *opaque);
+void vmstate_unregister(const VMStateDescription *vmsd, void *opaque);
 #endif

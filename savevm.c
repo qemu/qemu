@@ -1002,9 +1002,16 @@ int vmstate_register(int instance_id, const VMStateDescription *vmsd,
     return 0;
 }
 
-void vmstate_unregister(const char *idstr,  void *opaque)
+void vmstate_unregister(const VMStateDescription *vmsd, void *opaque)
 {
-    unregister_savevm(idstr, opaque);
+    SaveStateEntry *se, *new_se;
+
+    TAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
+        if (se->vmsd == vmsd && se->opaque == opaque) {
+            TAILQ_REMOVE(&savevm_handlers, se, entry);
+            qemu_free(se);
+        }
+    }
 }
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
