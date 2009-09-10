@@ -1729,7 +1729,6 @@ static CharDriverState *qemu_chr_open_win_file_out(QemuOpts *opts)
 
 typedef struct {
     int fd;
-    struct sockaddr_in daddr;
     uint8_t buf[1024];
     int bufcnt;
     int bufptr;
@@ -1740,8 +1739,7 @@ static int udp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     NetCharDriver *s = chr->opaque;
 
-    return sendto(s->fd, (const void *)buf, len, 0,
-                  (struct sockaddr *)&s->daddr, sizeof(struct sockaddr_in));
+    return send(s->fd, (const void *)buf, len, 0);
 }
 
 static int udp_chr_read_poll(void *opaque)
@@ -1803,30 +1801,18 @@ static void udp_chr_close(CharDriverState *chr)
     qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_udp(const char *def)
+static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
     int fd = -1;
-    struct sockaddr_in saddr;
 
     chr = qemu_mallocz(sizeof(CharDriverState));
     s = qemu_mallocz(sizeof(NetCharDriver));
 
-    fd = socket(PF_INET, SOCK_DGRAM, 0);
+    fd = inet_dgram_opts(opts);
     if (fd < 0) {
-        perror("socket(PF_INET, SOCK_DGRAM)");
-        goto return_err;
-    }
-
-    if (parse_host_src_port(&s->daddr, &saddr, def) < 0) {
-        printf("Could not parse: %s\n", def);
-        goto return_err;
-    }
-
-    if (bind(fd, (struct sockaddr *)&saddr, sizeof(saddr)) < 0)
-    {
-        perror("bind");
+        fprintf(stderr, "inet_dgram_opts failed\n");
         goto return_err;
     }
 
@@ -2297,6 +2283,31 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
             qemu_opt_set(opts, "telnet", "on");
         return opts;
     }
+    if (strstart(filename, "udp:", &p)) {
+        qemu_opt_set(opts, "backend", "udp");
+        if (sscanf(p, "%64[^:]:%32[^@,]%n", host, port, &pos) < 2) {
+            host[0] = 0;
+            if (sscanf(p, ":%32[^,]%n", port, &pos) < 1) {
+                fprintf(stderr, "udp #1\n");
+                goto fail;
+            }
+        }
+        qemu_opt_set(opts, "host", host);
+        qemu_opt_set(opts, "port", port);
+        if (p[pos] == '@') {
+            p += pos + 1;
+            if (sscanf(p, "%64[^:]:%32[^,]%n", host, port, &pos) < 2) {
+                host[0] = 0;
+                if (sscanf(p, ":%32[^,]%n", port, &pos) < 1) {
+                    fprintf(stderr, "udp #2\n");
+                    goto fail;
+                }
+            }
+            qemu_opt_set(opts, "localaddr", host);
+            qemu_opt_set(opts, "localport", port);
+        }
+        return opts;
+    }
     if (strstart(filename, "unix:", &p)) {
         qemu_opt_set(opts, "backend", "socket");
         if (qemu_opts_do_parse(opts, p, "path") != 0)
@@ -2327,6 +2338,7 @@ static const struct {
 } backend_table[] = {
     { .name = "null",      .open = qemu_chr_open_null },
     { .name = "socket",    .open = qemu_chr_open_socket },
+    { .name = "udp",       .open = qemu_chr_open_udp },
     { .name = "msmouse",   .open = qemu_chr_open_msmouse },
     { .name = "vc",        .open = text_console_init },
 #ifdef _WIN32
@@ -2405,27 +2417,12 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     QemuOpts *opts;
 
     opts = qemu_chr_parse_compat(label, filename);
-    if (opts) {
-        chr = qemu_chr_open_opts(opts, init);
-        if (qemu_opt_get_bool(opts, "mux", 0)) {
-            monitor_init(chr, MONITOR_USE_READLINE);
-        }
-        return chr;
-    }
+    if (!opts)
+        return NULL;
 
-    if (strstart(filename, "udp:", &p)) {
-        chr = qemu_chr_open_udp(p);
-    } else
-    {
-        chr = NULL;
-    }
-
-    if (chr) {
-        if (!chr->filename)
-            chr->filename = qemu_strdup(filename);
-        chr->init = init;
-        chr->label = qemu_strdup(label);
-        TAILQ_INSERT_TAIL(&chardevs, chr, next);
+    chr = qemu_chr_open_opts(opts, init);
+    if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
+        monitor_init(chr, MONITOR_USE_READLINE);
     }
     return chr;
 }
