@@ -956,7 +956,7 @@ static void pty_chr_close(struct CharDriverState *chr)
     qemu_chr_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_pty(void)
+static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
 {
     CharDriverState *chr;
     PtyCharDriver *s;
@@ -986,6 +986,7 @@ static CharDriverState *qemu_chr_open_pty(void)
     len = strlen(q_ptsname(s->fd)) + 5;
     chr->filename = qemu_malloc(len);
     snprintf(chr->filename, len, "pty:%s", q_ptsname(s->fd));
+    qemu_opt_set(opts, "path", q_ptsname(s->fd));
     fprintf(stderr, "char device redirected to %s\n", q_ptsname(s->fd));
 
     chr->opaque = s;
@@ -2225,8 +2226,9 @@ static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     if (NULL == opts)
         return NULL;
 
-    if (strcmp(filename, "null") == 0) {
-        qemu_opt_set(opts, "backend", "null");
+    if (strcmp(filename, "null") == 0 ||
+        strcmp(filename, "pty") == 0) {
+        qemu_opt_set(opts, "backend", filename);
         return opts;
     }
     if (strstart(filename, "file:", &p)) {
@@ -2282,6 +2284,7 @@ static const struct {
 #else
     { .name = "file",      .open = qemu_chr_open_file_out },
     { .name = "pipe",      .open = qemu_chr_open_pipe },
+    { .name = "pty",       .open = qemu_chr_open_pty },
 #endif
 };
 
@@ -2353,9 +2356,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         chr = qemu_chr_open_msmouse();
     } else
 #ifndef _WIN32
-    if (!strcmp(filename, "pty")) {
-        chr = qemu_chr_open_pty();
-    } else if (!strcmp(filename, "stdio")) {
+    if (!strcmp(filename, "stdio")) {
         chr = qemu_chr_open_stdio();
     } else
 #if defined(__linux__)
