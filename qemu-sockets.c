@@ -37,6 +37,21 @@ QemuOptsList dummy_opts = {
         {
             .name = "path",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "host",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "port",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "to",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },
@@ -237,11 +252,11 @@ listen:
     return slisten;
 }
 
-int inet_connect(const char *str, int socktype)
+int inet_connect_opts(QemuOpts *opts)
 {
     struct addrinfo ai,*res,*e;
-    char addr[64];
-    char port[33];
+    const char *addr;
+    const char *port;
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
     int sock,rc;
@@ -249,44 +264,24 @@ int inet_connect(const char *str, int socktype)
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
     ai.ai_family = PF_UNSPEC;
-    ai.ai_socktype = socktype;
+    ai.ai_socktype = SOCK_STREAM;
 
-    /* parse address */
-    if (str[0] == '[') {
-        /* IPv6 addr */
-        if (2 != sscanf(str,"[%64[^]]]:%32[^,]",addr,port)) {
-            fprintf(stderr, "%s: ipv6 parse error (%s)\n",
-                    __FUNCTION__, str);
-            return -1;
-        }
-        ai.ai_family = PF_INET6;
-    } else if (qemu_isdigit(str[0])) {
-        /* IPv4 addr */
-        if (2 != sscanf(str,"%64[0-9.]:%32[^,]",addr,port)) {
-            fprintf(stderr, "%s: ipv4 parse error (%s)\n",
-                    __FUNCTION__, str);
-            return -1;
-        }
-        ai.ai_family = PF_INET;
-    } else {
-        /* hostname */
-        if (2 != sscanf(str,"%64[^:]:%32[^,]",addr,port)) {
-            fprintf(stderr, "%s: hostname parse error (%s)\n",
-                    __FUNCTION__, str);
-            return -1;
-        }
+    addr = qemu_opt_get(opts, "host");
+    port = qemu_opt_get(opts, "port");
+    if (addr == NULL || port == NULL) {
+        fprintf(stderr, "inet_connect: host and/or port not specified\n");
+        return -1;
     }
 
-    /* parse options */
-    if (strstr(str, ",ipv4"))
+    if (qemu_opt_get_bool(opts, "ipv4", 0))
         ai.ai_family = PF_INET;
-    if (strstr(str, ",ipv6"))
+    if (qemu_opt_get_bool(opts, "ipv6", 0))
         ai.ai_family = PF_INET6;
 
     /* lookup */
     if (0 != (rc = getaddrinfo(addr, port, &ai, &res))) {
-        fprintf(stderr,"getaddrinfo(%s,%s): %s\n", gai_strerror(rc),
-                addr, port);
+        fprintf(stderr,"getaddrinfo(%s,%s): %s\n", addr, port,
+                gai_strerror(rc));
 	return -1;
     }
     if (sockets_debug)
@@ -325,6 +320,74 @@ int inet_connect(const char *str, int socktype)
     }
     freeaddrinfo(res);
     return -1;
+}
+
+/* compatibility wrapper */
+static int inet_parse(QemuOpts *opts, const char *str)
+{
+    const char *optstr, *h;
+    char addr[64];
+    char port[33];
+    int pos;
+
+    /* parse address */
+    if (str[0] == ':') {
+        /* no host given */
+        addr[0] = '\0';
+        if (1 != sscanf(str,":%32[^,]%n",port,&pos)) {
+            fprintf(stderr, "%s: portonly parse error (%s)\n",
+                    __FUNCTION__, str);
+            return -1;
+        }
+    } else if (str[0] == '[') {
+        /* IPv6 addr */
+        if (2 != sscanf(str,"[%64[^]]]:%32[^,]%n",addr,port,&pos)) {
+            fprintf(stderr, "%s: ipv6 parse error (%s)\n",
+                    __FUNCTION__, str);
+            return -1;
+        }
+        qemu_opt_set(opts, "ipv6", "yes");
+    } else if (qemu_isdigit(str[0])) {
+        /* IPv4 addr */
+        if (2 != sscanf(str,"%64[0-9.]:%32[^,]%n",addr,port,&pos)) {
+            fprintf(stderr, "%s: ipv4 parse error (%s)\n",
+                    __FUNCTION__, str);
+            return -1;
+        }
+        qemu_opt_set(opts, "ipv4", "yes");
+    } else {
+        /* hostname */
+        if (2 != sscanf(str,"%64[^:]:%32[^,]%n",addr,port,&pos)) {
+            fprintf(stderr, "%s: hostname parse error (%s)\n",
+                    __FUNCTION__, str);
+            return -1;
+        }
+    }
+    qemu_opt_set(opts, "host", addr);
+    qemu_opt_set(opts, "port", port);
+
+    /* parse options */
+    optstr = str + pos;
+    h = strstr(optstr, ",to=");
+    if (h)
+        qemu_opt_set(opts, "to", h+4);
+    if (strstr(optstr, ",ipv4"))
+        qemu_opt_set(opts, "ipv4", "yes");
+    if (strstr(optstr, ",ipv6"))
+        qemu_opt_set(opts, "ipv6", "yes");
+    return 0;
+}
+
+int inet_connect(const char *str, int socktype)
+{
+    QemuOpts *opts;
+    int sock = -1;
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0);
+    if (inet_parse(opts, str) == 0)
+        sock = inet_connect_opts(opts);
+    qemu_opts_del(opts);
+    return sock;
 }
 
 #ifndef _WIN32
