@@ -456,8 +456,12 @@ static void mux_chr_update_read_handler(CharDriverState *chr)
         qemu_chr_add_handlers(d->drv, mux_chr_can_read, mux_chr_read,
                               mux_chr_event, chr);
     }
+    if (chr->focus != -1) {
+        mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_OUT);
+    }
     chr->focus = d->mux_cnt;
     d->mux_cnt++;
+    mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
 }
 
 static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)

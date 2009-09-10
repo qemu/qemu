@@ -85,6 +85,8 @@ struct mon_fd_t {
 
 struct Monitor {
     CharDriverState *chr;
+    int mux_out;
+    int reset_seen;
     int flags;
     int suspend_cnt;
     uint8_t outbuf[1024];
@@ -129,7 +131,7 @@ static int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
 
 void monitor_flush(Monitor *mon)
 {
-    if (mon && mon->outbuf_index != 0 && mon->chr->focus == 0) {
+    if (mon && mon->outbuf_index != 0 && !mon->mux_out) {
         qemu_chr_write(mon->chr, mon->outbuf, mon->outbuf_index);
         mon->outbuf_index = 0;
     }
@@ -3111,23 +3113,36 @@ static void monitor_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_MUX_IN:
-        readline_restart(mon->rs);
-        monitor_resume(mon);
-        monitor_flush(mon);
+        mon->mux_out = 0;
+        if (mon->reset_seen) {
+            readline_restart(mon->rs);
+            monitor_resume(mon);
+            monitor_flush(mon);
+        } else {
+            mon->suspend_cnt = 0;
+        }
         break;
 
     case CHR_EVENT_MUX_OUT:
-        if (mon->suspend_cnt == 0)
-            monitor_printf(mon, "\n");
-        monitor_flush(mon);
-        monitor_suspend(mon);
+        if (mon->reset_seen) {
+            if (mon->suspend_cnt == 0) {
+                monitor_printf(mon, "\n");
+            }
+            monitor_flush(mon);
+            monitor_suspend(mon);
+        } else {
+            mon->suspend_cnt++;
+        }
+        mon->mux_out = 1;
         break;
 
     case CHR_EVENT_RESET:
         monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
                        "information\n", QEMU_VERSION);
-        if (mon->chr->focus == 0)
+        if (!mon->mux_out) {
             readline_show_prompt(mon->rs);
+        }
+        mon->reset_seen = 1;
         break;
     }
 }
@@ -3155,8 +3170,6 @@ void monitor_init(CharDriverState *chr, int flags)
 
     mon->chr = chr;
     mon->flags = flags;
-    if (mon->chr->focus != 0)
-        mon->suspend_cnt = 1; /* mux'ed monitors start suspended */
     if (flags & MONITOR_USE_READLINE) {
         mon->rs = readline_init(mon, monitor_find_completion);
         monitor_read_command(mon, 0);
