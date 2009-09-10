@@ -260,7 +260,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     isa_vga_init();
 
     if (nd_table[0].vlan)
-        isa_ne2000_init(0x300, i8259[9], &nd_table[0]);
+        isa_ne2000_init(0x300, 9, &nd_table[0]);
 
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
         fprintf(stderr, "qemu: too many IDE bus\n");

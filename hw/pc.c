@@ -1052,7 +1052,7 @@ static void pc_init_ne2k_isa(NICInfo *nd)
     if (nb_ne2k == NE2000_NB_MAX)
         return;
     isa_ne2000_init(ne2000_io[nb_ne2k],
-                    isa_reserve_irq(ne2000_irq[nb_ne2k]), nd);
+                    ne2000_irq[nb_ne2k], nd);
     nb_ne2k++;
 }
 
