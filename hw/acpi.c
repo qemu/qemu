@@ -441,7 +441,7 @@ static void pm_write_config(PCIDevice *d,
         pm_io_space_update((PIIX4PMState *)d);
 }
 
-static int vmstate_acpi_after_load(void *opaque)
+static int vmstate_acpi_post_load(void *opaque)
 {
     PIIX4PMState *s = opaque;
 
@@ -454,7 +454,7 @@ static const VMStateDescription vmstate_acpi = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .run_after_load = vmstate_acpi_after_load,
+    .post_load = vmstate_acpi_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, PIIX4PMState),
         VMSTATE_UINT16(pmsts, PIIX4PMState),

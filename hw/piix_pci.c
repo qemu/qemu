@@ -172,7 +172,7 @@ static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static int i440fx_after_load(void *opaque)
+static int i440fx_post_load(void *opaque)
 {
     PCII440FXState *d = opaque;
 
@@ -186,7 +186,7 @@ static const VMStateDescription vmstate_i440fx = {
     .minimum_version_id = 3,
     .minimum_version_id_old = 1,
     .load_state_old = i440fx_load_old,
-    .run_after_load = i440fx_after_load,
+    .post_load = i440fx_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, PCII440FXState),
         VMSTATE_UINT8(smm_enabled, PCII440FXState),
