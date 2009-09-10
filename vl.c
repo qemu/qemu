@@ -5281,6 +5281,16 @@ int main(int argc, char **argv, char **envp)
                 monitor_devices[monitor_device_index] = optarg;
                 monitor_device_index++;
                 break;
+            case QEMU_OPTION_chardev:
+                opts = qemu_opts_parse(&qemu_chardev_opts, optarg, "backend");
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+                if (NULL == qemu_chr_open_opts(opts, NULL)) {
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_serial:
                 if (serial_device_index >= MAX_SERIAL_PORTS) {
                     fprintf(stderr, "qemu: too many serial ports\n");

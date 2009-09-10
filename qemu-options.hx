@@ -1195,6 +1195,8 @@ STEXI
 @table @option
 ETEXI
 
+DEF("chardev", HAS_ARG, QEMU_OPTION_chardev, \
+    "-chardev spec   create unconnected chardev\n")
 DEF("serial", HAS_ARG, QEMU_OPTION_serial, \
     "-serial dev     redirect the serial port to char device 'dev'\n")
 STEXI

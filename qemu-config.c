@@ -75,6 +75,14 @@ QemuOptsList qemu_drive_opts = {
     },
 };
 
+QemuOptsList qemu_chardev_opts = {
+    .name = "chardev",
+    .head = TAILQ_HEAD_INITIALIZER(qemu_chardev_opts.head),
+    .desc = {
+        { /* end if list */ }
+    },
+};
+
 QemuOptsList qemu_device_opts = {
     .name = "device",
     .head = TAILQ_HEAD_INITIALIZER(qemu_device_opts.head),
@@ -90,6 +98,7 @@ QemuOptsList qemu_device_opts = {
 
 static QemuOptsList *lists[] = {
     &qemu_drive_opts,
+    &qemu_chardev_opts,
     &qemu_device_opts,
     NULL,
 };

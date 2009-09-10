@@ -3,6 +3,8 @@
 
 #include "qemu-common.h"
 #include "sys-queue.h"
+#include "qemu-option.h"
+#include "qemu-config.h"
 
 /* character device */
 
@@ -68,6 +70,8 @@ struct CharDriverState {
     TAILQ_ENTRY(CharDriverState) next;
 };
 
+CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
+                                    void (*init)(struct CharDriverState *s));
 CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s));
 void qemu_chr_close(CharDriverState *chr);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);

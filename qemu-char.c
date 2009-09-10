@@ -214,7 +214,7 @@ static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static CharDriverState *qemu_chr_open_null(void)
+static CharDriverState *qemu_chr_open_null(QemuOpts *opts)
 {
     CharDriverState *chr;
 
@@ -2216,19 +2216,82 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     return NULL;
 }
 
+static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
+{
+    QemuOpts *opts;
+
+    opts = qemu_opts_create(&qemu_chardev_opts, label, 1);
+    if (NULL == opts)
+        return NULL;
+
+    if (strcmp(filename, "null") == 0) {
+        qemu_opt_set(opts, "backend", "null");
+        return opts;
+    }
+
+    qemu_opts_del(opts);
+    return NULL;
+}
+
+static const struct {
+    const char *name;
+    CharDriverState *(*open)(QemuOpts *opts);
+} backend_table[] = {
+    { .name = "null",      .open = qemu_chr_open_null },
+};
+
+CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
+                                    void (*init)(struct CharDriverState *s))
+{
+    CharDriverState *chr;
+    int i;
+
+    if (qemu_opts_id(opts) == NULL) {
+        fprintf(stderr, "chardev: no id specified\n");
+        return NULL;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(backend_table); i++) {
+        if (strcmp(backend_table[i].name, qemu_opt_get(opts, "backend")) == 0)
+            break;
+    }
+    if (i == ARRAY_SIZE(backend_table)) {
+        fprintf(stderr, "chardev: backend \"%s\" not found\n",
+                qemu_opt_get(opts, "backend"));
+        return NULL;
+    }
+
+    chr = backend_table[i].open(opts);
+    if (!chr) {
+        fprintf(stderr, "chardev: opening backend \"%s\" failed\n",
+                qemu_opt_get(opts, "backend"));
+        return NULL;
+    }
+
+    if (!chr->filename)
+        chr->filename = qemu_strdup(qemu_opt_get(opts, "backend"));
+    chr->init = init;
+    chr->label = qemu_strdup(qemu_opts_id(opts));
+    TAILQ_INSERT_TAIL(&chardevs, chr, next);
+    return chr;
+}
+
 CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
 {
     const char *p;
     CharDriverState *chr;
+    QemuOpts *opts;
+
+    opts = qemu_chr_parse_compat(label, filename);
+    if (opts) {
+        return qemu_chr_open_opts(opts, init);
+    }
 
     if (!strcmp(filename, "vc")) {
         chr = text_console_init(NULL);
     } else
     if (strstart(filename, "vc:", &p)) {
         chr = text_console_init(p);
-    } else
-    if (!strcmp(filename, "null")) {
-        chr = qemu_chr_open_null();
     } else
     if (strstart(filename, "tcp:", &p)) {
         chr = qemu_chr_open_tcp(p, 0, 0);
