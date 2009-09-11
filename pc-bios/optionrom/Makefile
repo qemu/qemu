@@ -7,9 +7,9 @@ include $(SRC_PATH)/rules.mak
 
 VPATH=$(SRC_PATH)/pc-bios/optionrom
 
-CFLAGS = -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
+CFLAGS := -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
 CFLAGS += -I$(SRC_PATH)
-CFLAGS += $(call cc-option, -fno-stack-protector,"")
+CFLAGS += $(call cc-option, $(CFLAGS), -fno-stack-protector)
 QEMU_CFLAGS = $(CFLAGS)
 
 build-all: multiboot.bin
