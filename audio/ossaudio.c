@@ -205,13 +205,16 @@ static int oss_open (int in, struct oss_params *req,
                      struct oss_params *obt, int *pfd)
 {
     int fd;
+    int oflags;
     int mmmmssss;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
     const char *dspname = in ? conf.devpath_in : conf.devpath_out;
     const char *typ = in ? "ADC" : "DAC";
 
-    fd = open (dspname, (in ? O_RDONLY : O_WRONLY) | O_NONBLOCK);
+    /* Kludge needed to have working mmap on Linux */
+    oflags = conf.try_mmap ? O_RDWR : (in ? O_RDONLY : O_WRONLY);
+    fd = open (dspname, oflags | O_NONBLOCK);
     if (-1 == fd) {
         oss_logerr2 (errno, typ, "Failed to open `%s'\n", dspname);
         return -1;
