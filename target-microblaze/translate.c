@@ -232,7 +232,7 @@ static void dec_pattern(DisasContext *dc)
     int l1;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR))) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -553,7 +553,7 @@ static void dec_mul(DisasContext *dc)
     unsigned int subcode;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
-         && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+         && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
          && !(dc->env->pvr.regs[0] & PVR0_USE_HW_MUL_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -610,7 +610,7 @@ static void dec_div(DisasContext *dc)
     u = dc->imm & 2; 
     LOG_DIS("div\n");
 
-    if (!(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+    if ((dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[0] & PVR0_USE_DIV_MASK))) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -630,7 +630,7 @@ static void dec_barrel(DisasContext *dc)
     unsigned int s, t;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !(dc->env->pvr.regs[0] & PVR0_USE_BARREL_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -804,7 +804,7 @@ static void dec_load(DisasContext *dc)
 
     size = 1 << (dc->opcode & 3);
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
@@ -819,14 +819,28 @@ static void dec_load(DisasContext *dc)
 
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        TCGv v = tcg_temp_new();
+
+        /*
+         * Microblaze gives MMU faults priority over faults due to
+         * unaligned addresses. That's why we speculatively do the load
+         * into v. If the load succeeds, we verify alignment of the
+         * address and if that succeeds we write into the destination reg.
+         */
+        gen_load(dc, v, *addr, size);
+
+        tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(0), tcg_const_tl(size - 1));
-    }
-
-    if (dc->rd) {
-        gen_load(dc, cpu_R[dc->rd], *addr, size);
+        if (dc->rd)
+            tcg_gen_mov_tl(cpu_R[dc->rd], v);
+        tcg_temp_free(v);
     } else {
-        gen_load(dc, env_imm, *addr, size);
+        if (dc->rd) {
+            gen_load(dc, cpu_R[dc->rd], *addr, size);
+        } else {
+            gen_load(dc, env_imm, *addr, size);
+        }
     }
 
     if (addr == &t)
@@ -856,7 +870,7 @@ static void dec_store(DisasContext *dc)
     size = 1 << (dc->opcode & 3);
 
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
@@ -868,13 +882,18 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
+    gen_store(dc, *addr, cpu_R[dc->rd], size);
+
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
+        /* FIXME: if the alignment is wrong, we should restore the value
+         *        in memory.
+         */
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
     }
 
-    gen_store(dc, *addr, cpu_R[dc->rd], size);
     if (addr == &t)
         tcg_temp_free(t);
 }
@@ -1112,9 +1131,9 @@ static void dec_rts(DisasContext *dc)
 static void dec_fpu(DisasContext *dc)
 {
     if ((dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[2] & PVR2_USE_FPU_MASK))) {
-        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_FPU);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
     }
@@ -1125,6 +1144,12 @@ static void dec_fpu(DisasContext *dc)
 
 static void dec_null(DisasContext *dc)
 {
+    if ((dc->tb_flags & MSR_EE_FLAG)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        return;
+    }
     qemu_log ("unknown insn pc=%x opc=%x\n", dc->pc, dc->opcode);
     dc->abort_at_next_insn = 1;
 }
@@ -1171,8 +1196,8 @@ static inline void decode(DisasContext *dc)
         dc->nr_nops = 0;
     else {
         if ((dc->tb_flags & MSR_EE_FLAG)
-              && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-              && !(dc->env->pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK)) {
+              && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+              && (dc->env->pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK)) {
             tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
             t_gen_raise_exception(dc, EXCP_HW_EXCP);
             return;
