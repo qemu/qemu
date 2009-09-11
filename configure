@@ -2226,15 +2226,15 @@ case "$target_arch2" in
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
     fi
 esac
-echo "HWLIB=../libhw$target_phys_bits/libqemuhw$target_phys_bits.a" >> $config_mak
 echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_mak
-echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_mak
 fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_mak
   echo "LIBS+=$libs_softmmu" >> $config_mak
+  echo "HWLIB=../libhw$target_phys_bits/libqemuhw$target_phys_bits.a" >> $config_mak
+  echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_mak
