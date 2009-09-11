@@ -232,7 +232,7 @@ static void dec_pattern(DisasContext *dc)
     int l1;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR))) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -553,7 +553,7 @@ static void dec_mul(DisasContext *dc)
     unsigned int subcode;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
-         && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+         && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
          && !(dc->env->pvr.regs[0] & PVR0_USE_HW_MUL_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -610,7 +610,7 @@ static void dec_div(DisasContext *dc)
     u = dc->imm & 2; 
     LOG_DIS("div\n");
 
-    if (!(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+    if ((dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[0] & PVR0_USE_DIV_MASK))) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -630,7 +630,7 @@ static void dec_barrel(DisasContext *dc)
     unsigned int s, t;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !(dc->env->pvr.regs[0] & PVR0_USE_BARREL_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
@@ -804,7 +804,7 @@ static void dec_load(DisasContext *dc)
 
     size = 1 << (dc->opcode & 3);
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
@@ -856,7 +856,7 @@ static void dec_store(DisasContext *dc)
     size = 1 << (dc->opcode & 3);
 
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
@@ -1112,9 +1112,9 @@ static void dec_rts(DisasContext *dc)
 static void dec_fpu(DisasContext *dc)
 {
     if ((dc->tb_flags & MSR_EE_FLAG)
-          && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+          && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[2] & PVR2_USE_FPU_MASK))) {
-        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_FPU);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
     }
@@ -1171,8 +1171,8 @@ static inline void decode(DisasContext *dc)
         dc->nr_nops = 0;
     else {
         if ((dc->tb_flags & MSR_EE_FLAG)
-              && !(dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-              && !(dc->env->pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK)) {
+              && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+              && (dc->env->pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK)) {
             tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
             t_gen_raise_exception(dc, EXCP_HW_EXCP);
             return;
