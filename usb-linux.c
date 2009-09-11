@@ -583,9 +583,9 @@ static int usb_host_handle_control(USBHostDevice *s, USBPacket *p)
 
     buffer_len = 8 + s->ctrl.len;
     if (buffer_len > sizeof(s->ctrl.buffer)) {
-	    fprintf(stderr, "husb: ctrl buffer too small (%u > %lu)\n",
-		    buffer_len, sizeof(s->ctrl.buffer));
-	    return USB_RET_STALL;
+        fprintf(stderr, "husb: ctrl buffer too small (%u > %zu)\n",
+                buffer_len, sizeof(s->ctrl.buffer));
+        return USB_RET_STALL;
     }
 
     aurb = async_alloc();
