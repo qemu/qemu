@@ -528,8 +528,6 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 /***********************************************************/
 /* real time host monotonic timer */
 
-#define QEMU_TIMER_BASE 1000000000LL
-
 #ifdef WIN32
 
 static int64_t clock_freq;
@@ -550,7 +548,7 @@ static int64_t get_clock(void)
 {
     LARGE_INTEGER ti;
     QueryPerformanceCounter(&ti);
-    return muldiv64(ti.QuadPart, QEMU_TIMER_BASE, clock_freq);
+    return muldiv64(ti.QuadPart, get_ticks_per_sec(), clock_freq);
 }
 
 #else
@@ -613,7 +611,7 @@ typedef struct TimersState {
     int64_t cpu_ticks_offset;
     int64_t cpu_clock_offset;
     int32_t cpu_ticks_enabled;
-    int64_t ticks_per_sec;
+    int64_t dummy;
 } TimersState;
 
 TimersState timers_state;
@@ -758,7 +756,7 @@ static void rtc_stop_timer(struct qemu_alarm_timer *t);
    fairly approximate, so ignore small variation.
    When the guest is idle real and virtual time will be aligned in
    the IO wait loop.  */
-#define ICOUNT_WOBBLE (QEMU_TIMER_BASE / 10)
+#define ICOUNT_WOBBLE (get_ticks_per_sec() / 10)
 
 static void icount_adjust(void)
 {
@@ -800,7 +798,7 @@ static void icount_adjust_rt(void * opaque)
 static void icount_adjust_vm(void * opaque)
 {
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + QEMU_TIMER_BASE / 10);
+                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
     icount_adjust();
 }
 
@@ -816,7 +814,7 @@ static void init_icount_adjust(void)
                    qemu_get_clock(rt_clock) + 1000);
     icount_vm_timer = qemu_new_timer(vm_clock, icount_adjust_vm, NULL);
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + QEMU_TIMER_BASE / 10);
+                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
 }
 
 static struct qemu_alarm_timer alarm_timers[] = {
@@ -1036,15 +1034,9 @@ int64_t qemu_get_clock(QEMUClock *clock)
     }
 }
 
-int64_t get_ticks_per_sec(void)
-{
-    return timers_state.ticks_per_sec;
-}
-
 static void init_timers(void)
 {
     init_get_clock();
-    timers_state.ticks_per_sec = QEMU_TIMER_BASE;
     rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
     vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
 }
@@ -1081,7 +1073,7 @@ static const VMStateDescription vmstate_timers = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_INT64(cpu_ticks_offset, TimersState),
-        VMSTATE_INT64(ticks_per_sec, TimersState),
+        VMSTATE_INT64(dummy, TimersState),
         VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
         VMSTATE_END_OF_LIST()
     }
