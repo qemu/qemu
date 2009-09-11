@@ -65,6 +65,7 @@ enum ohci_type {
 };
 
 typedef struct {
+    USBBus *bus;
     qemu_irq irq;
     enum ohci_type type;
     int mem;
@@ -754,7 +755,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
             ohci->usb_packet.len = len;
             ohci->usb_packet.complete_cb = ohci_async_complete_packet;
             ohci->usb_packet.complete_opaque = ohci;
-            ret = dev->handle_packet(dev, &ohci->usb_packet);
+            ret = dev->info->handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
         }
@@ -944,7 +945,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             ohci->usb_packet.len = len;
             ohci->usb_packet.complete_cb = ohci_async_complete_packet;
             ohci->usb_packet.complete_opaque = ohci;
-            ret = dev->handle_packet(dev, &ohci->usb_packet);
+            ret = dev->info->handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
         }
@@ -1659,7 +1660,8 @@ static CPUWriteMemoryFunc * const ohci_writefn[3]={
     ohci_mem_write
 };
 
-static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
+static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
+                          int num_ports, int devfn,
                           qemu_irq irq, enum ohci_type type,
                           const char *name, uint32_t localmem_base)
 {
@@ -1688,9 +1690,10 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
     ohci->irq = irq;
     ohci->type = type;
 
+    ohci->bus = usb_bus_new(dev);
     ohci->num_ports = num_ports;
     for (i = 0; i < num_ports; i++) {
-        qemu_register_usb_port(&ohci->rhport[i].port, ohci, i, ohci_attach);
+        usb_register_port(ohci->bus, &ohci->rhport[i].port, ohci, i, ohci_attach);
     }
 
     ohci->async_td = 0;
@@ -1710,17 +1713,10 @@ static void ohci_mapfunc(PCIDevice *pci_dev, int i,
     cpu_register_physical_memory(addr, size, ohci->state.mem);
 }
 
-void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
+static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 {
-    OHCIPCIState *ohci;
-
-    ohci = DO_UPCAST(OHCIPCIState, pci_dev,
-                     pci_register_device(bus, "OHCI USB", sizeof(*ohci),
-                                         devfn, NULL, NULL));
-    if (ohci == NULL) {
-        fprintf(stderr, "usb-ohci: Failed to register PCI device\n");
-        return;
-    }
+    OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, dev);
+    int num_ports = 3;
 
     pci_config_set_vendor_id(ohci->pci_dev.config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(ohci->pci_dev.config,
@@ -1729,11 +1725,18 @@ void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
     pci_config_set_class(ohci->pci_dev.config, PCI_CLASS_SERIAL_USB);
     ohci->pci_dev.config[0x3d] = 0x01; /* interrupt pin 1 */
 
-    usb_ohci_init(&ohci->state, num_ports, devfn, ohci->pci_dev.irq[0],
+    usb_ohci_init(&ohci->state, &dev->qdev, num_ports,
+                  ohci->pci_dev.devfn, ohci->pci_dev.irq[0],
                   OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
 
     pci_register_bar((struct PCIDevice *)ohci, 0, 256,
                            PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
+    return 0;
+}
+
+void usb_ohci_init_pci(struct PCIBus *bus, int devfn)
+{
+    pci_create_simple(bus, devfn, "OHCI USB PCI");
 }
 
 void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
@@ -1741,7 +1744,7 @@ void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
 {
     OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
 
-    usb_ohci_init(ohci, num_ports, devfn, irq,
+    usb_ohci_init(ohci, NULL /* FIXME */, num_ports, devfn, irq,
                   OHCI_TYPE_PXA, "OHCI USB", 0);
 
     cpu_register_physical_memory(base, 0x1000, ohci->mem);
@@ -1752,9 +1755,22 @@ void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
 {
     OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
 
-    usb_ohci_init(ohci, num_ports, devfn, irq,
+    usb_ohci_init(ohci, NULL /* FIXME */, num_ports, devfn, irq,
                   OHCI_TYPE_SM501, "OHCI USB", localmem_base);
 
     cpu_register_physical_memory(mmio_base, 0x1000, ohci->mem);
 }
 
+static PCIDeviceInfo ohci_info = {
+    .qdev.name    = "OHCI USB PCI",
+    .qdev.alias   = "pci-ohci",
+    .qdev.desc    = "Apple USB Controller",
+    .qdev.size    = sizeof(OHCIPCIState),
+    .init         = usb_ohci_initfn_pci,
+};
+
+static void ohci_register(void)
+{
+    pci_qdev_register(&ohci_info);
+}
+device_init(ohci_register);

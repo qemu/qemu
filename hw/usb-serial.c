@@ -524,8 +524,16 @@ static void usb_serial_event(void *opaque, int event)
     }
 }
 
+static int usb_serial_initfn(USBDevice *dev)
+{
+    USBSerialState *s = DO_UPCAST(USBSerialState, dev, dev);
+    s->dev.speed = USB_SPEED_FULL;
+    return 0;
+}
+
 USBDevice *usb_serial_init(const char *filename)
 {
+    USBDevice *dev;
     USBSerialState *s;
     CharDriverState *cdrv;
     unsigned short vendorid = 0x0403, productid = 0x6001;
@@ -561,32 +569,40 @@ USBDevice *usb_serial_init(const char *filename)
         return NULL;
     }
     filename++;
-    s = qemu_mallocz(sizeof(USBSerialState));
 
     snprintf(label, sizeof(label), "usbserial%d", index++);
     cdrv = qemu_chr_open(label, filename, NULL);
     if (!cdrv)
-        goto fail;
+        return NULL;
+
+    dev = usb_create_simple(NULL /* FIXME */, "QEMU USB Serial");
+    s = DO_UPCAST(USBSerialState, dev, dev);
     s->cs = cdrv;
-    qemu_chr_add_handlers(cdrv, usb_serial_can_read, usb_serial_read, usb_serial_event, s);
-
-    s->dev.speed = USB_SPEED_FULL;
-    s->dev.handle_packet = usb_generic_handle_packet;
-
-    s->dev.handle_reset = usb_serial_handle_reset;
-    s->dev.handle_control = usb_serial_handle_control;
-    s->dev.handle_data = usb_serial_handle_data;
-    s->dev.handle_destroy = usb_serial_handle_destroy;
-
     s->vendorid = vendorid;
     s->productid = productid;
-
     snprintf(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Serial(%.16s)",
              filename);
 
+    qemu_chr_add_handlers(cdrv, usb_serial_can_read, usb_serial_read,
+                          usb_serial_event, s);
+
     usb_serial_handle_reset((USBDevice *)s);
     return (USBDevice *)s;
- fail:
-    qemu_free(s);
-    return NULL;
 }
+
+static struct USBDeviceInfo serial_info = {
+    .qdev.name      = "QEMU USB Serial",
+    .qdev.size      = sizeof(USBSerialState),
+    .init           = usb_serial_initfn,
+    .handle_packet  = usb_generic_handle_packet,
+    .handle_reset   = usb_serial_handle_reset,
+    .handle_control = usb_serial_handle_control,
+    .handle_data    = usb_serial_handle_data,
+    .handle_destroy = usb_serial_handle_destroy,
+};
+
+static void usb_serial_register_devices(void)
+{
+    usb_qdev_register(&serial_info);
+}
+device_init(usb_serial_register_devices)

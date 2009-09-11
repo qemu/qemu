@@ -14,6 +14,7 @@
 
 #include "hw.h"
 #include "pci.h"
+#include "scsi.h"
 #include "scsi-disk.h"
 #include "block_int.h"
 
@@ -192,7 +193,7 @@ typedef struct {
      * 2 if processing DMA from lsi_execute_script.
      * 3 if a DMA operation is in progress.  */
     int waiting;
-    SCSIDevice *scsi_dev[LSI_MAX_DEVS];
+    SCSIBus *bus;
     SCSIDevice *current_dev;
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
@@ -510,8 +511,8 @@ static void lsi_do_dma(LSIState *s, int out)
     s->dbc -= count;
 
     if (s->dma_buf == NULL) {
-        s->dma_buf = s->current_dev->get_buf(s->current_dev,
-                                             s->current_tag);
+        s->dma_buf = s->current_dev->info->get_buf(s->current_dev,
+                                                   s->current_tag);
     }
 
     /* ??? Set SFBR to first data byte.  */
@@ -525,10 +526,10 @@ static void lsi_do_dma(LSIState *s, int out)
         s->dma_buf = NULL;
         if (out) {
             /* Write the data.  */
-            s->current_dev->write_data(s->current_dev, s->current_tag);
+            s->current_dev->info->write_data(s->current_dev, s->current_tag);
         } else {
             /* Request any remaining data.  */
-            s->current_dev->read_data(s->current_dev, s->current_tag);
+            s->current_dev->info->read_data(s->current_dev, s->current_tag);
         }
     } else {
         s->dma_buf += count;
@@ -584,7 +585,7 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     id = (tag >> 8) & 0xf;
     s->ssid = id | 0x80;
     DPRINTF("Reselected target %d\n", id);
-    s->current_dev = s->scsi_dev[id];
+    s->current_dev = s->bus->devs[id];
     s->current_tag = tag;
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
@@ -632,10 +633,10 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void lsi_command_complete(void *opaque, int reason, uint32_t tag,
+static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
                                  uint32_t arg)
 {
-    LSIState *s = opaque;
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, bus->qbus.parent);
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
@@ -680,14 +681,14 @@ static void lsi_do_command(LSIState *s)
     cpu_physical_memory_read(s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
     s->command_complete = 0;
-    n = s->current_dev->send_command(s->current_dev, s->current_tag, buf,
-                                     s->current_lun);
+    n = s->current_dev->info->send_command(s->current_dev, s->current_tag, buf,
+                                           s->current_lun);
     if (n > 0) {
         lsi_set_phase(s, PHASE_DI);
-        s->current_dev->read_data(s->current_dev, s->current_tag);
+        s->current_dev->info->read_data(s->current_dev, s->current_tag);
     } else if (n < 0) {
         lsi_set_phase(s, PHASE_DO);
-        s->current_dev->write_data(s->current_dev, s->current_tag);
+        s->current_dev->info->write_data(s->current_dev, s->current_tag);
     }
 
     if (!s->command_complete) {
@@ -1040,7 +1041,7 @@ again:
                 }
                 s->sstat0 |= LSI_SSTAT0_WOA;
                 s->scntl1 &= ~LSI_SCNTL1_IARB;
-                if (id >= LSI_MAX_DEVS || !s->scsi_dev[id]) {
+                if (id >= LSI_MAX_DEVS || !s->bus->devs[id]) {
                     DPRINTF("Selected absent target %d\n", id);
                     lsi_script_scsi_interrupt(s, 0, LSI_SIST1_STO);
                     lsi_disconnect(s);
@@ -1051,7 +1052,7 @@ again:
                 /* ??? Linux drivers compain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
-                s->current_dev = s->scsi_dev[id];
+                s->current_dev = s->bus->devs[id];
                 s->current_tag = id << 8;
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 3)) {
@@ -1958,31 +1959,6 @@ static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
 }
 
-void lsi_scsi_attach(DeviceState *host, BlockDriverState *bd, int id)
-{
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, host);
-
-    if (id < 0) {
-        for (id = 0; id < LSI_MAX_DEVS; id++) {
-            if (s->scsi_dev[id] == NULL)
-                break;
-        }
-    }
-    if (id >= LSI_MAX_DEVS) {
-        BADF("Bad Device ID %d\n", id);
-        return;
-    }
-    if (s->scsi_dev[id]) {
-        DPRINTF("Destroying device %d\n", id);
-        s->scsi_dev[id]->destroy(s->scsi_dev[id]);
-    }
-    DPRINTF("Attaching block device %d\n", id);
-    s->scsi_dev[id] = scsi_generic_init(bd, 1, lsi_command_complete, s);
-    if (s->scsi_dev[id] == NULL)
-        s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
-    bd->private = &s->dev;
-}
-
 static void lsi_scsi_save(QEMUFile *f, void *opaque)
 {
     LSIState *s = opaque;
@@ -2202,16 +2178,17 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     lsi_soft_reset(s);
 
-    scsi_bus_new(&dev->qdev, lsi_scsi_attach);
-
+    s->bus = scsi_bus_new(&dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
+    scsi_bus_legacy_handle_cmdline(s->bus);
     register_savevm("lsiscsi", -1, 0, lsi_scsi_save, lsi_scsi_load, s);
     return 0;
 }
 
 static PCIDeviceInfo lsi_info = {
-    .qdev.name = "lsi53c895a",
-    .qdev.size = sizeof(LSIState),
-    .init      = lsi_scsi_init,
+    .qdev.name  = "lsi53c895a",
+    .qdev.alias = "lsi",
+    .qdev.size  = sizeof(LSIState),
+    .init       = lsi_scsi_init,
 };
 
 static void lsi53c895a_register_devices(void)

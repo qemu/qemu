@@ -684,6 +684,7 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
     int l2_index, ret;
     uint64_t l2_offset, *l2_table, cluster_offset;
     int nb_clusters, i = 0;
+    QCowL2Meta *old_alloc;
 
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
     if (ret == 0)
@@ -731,6 +732,44 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
             break;
     }
     nb_clusters = i;
+
+    /*
+     * Check if there already is an AIO write request in flight which allocates
+     * the same cluster. In this case we need to wait until the previous
+     * request has completed and updated the L2 table accordingly.
+     */
+    LIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
+
+        uint64_t end_offset = offset + nb_clusters * s->cluster_size;
+        uint64_t old_offset = old_alloc->offset;
+        uint64_t old_end_offset = old_alloc->offset +
+            old_alloc->nb_clusters * s->cluster_size;
+
+        if (end_offset < old_offset || offset > old_end_offset) {
+            /* No intersection */
+        } else {
+            if (offset < old_offset) {
+                /* Stop at the start of a running allocation */
+                nb_clusters = (old_offset - offset) >> s->cluster_bits;
+            } else {
+                nb_clusters = 0;
+            }
+
+            if (nb_clusters == 0) {
+                /* Set dependency and wait for a callback */
+                m->depends_on = old_alloc;
+                m->nb_clusters = 0;
+                *num = 0;
+                return 0;
+            }
+        }
+    }
+
+    if (!nb_clusters) {
+        abort();
+    }
+
+    LIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
 
     /* allocate a new cluster */
 

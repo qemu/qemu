@@ -1015,7 +1015,7 @@ fi
 
 ##########################################
 # VNC SASL detection
-if test "$vnc_sasl" = "yes" ; then
+if test "$vnc_sasl" != "no" ; then
   cat > $TMPC <<EOF
 #include <sasl/sasl.h>
 #include <stdio.h>
@@ -1385,6 +1385,7 @@ EOF
     if test "$linux_aio" = "yes" ; then
       feature_not_found "linux AIO"
     fi
+    linux_aio=no
   fi
 fi
 
@@ -1967,7 +1968,7 @@ if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
       tools="check-qint check-qstring check-qdict $tools"
     fi
   elif test "$mingw32" = "yes" ; then
-    tools="qemu-io\$(EXESUF) $tools"
+      tools="qemu-io\$(EXESUF) $tools"
   fi
 fi
 echo "TOOLS=$tools" >> $config_host_mak

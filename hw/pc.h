@@ -85,8 +85,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 
 typedef struct RTCState RTCState;
 
-RTCState *rtc_init(int base, qemu_irq irq, int base_year);
-RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year);
+RTCState *rtc_init(int base_year);
 RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
                       int base_year);
 void rtc_set_memory(RTCState *s, int addr, int val);
@@ -152,7 +151,7 @@ void isa_cirrus_vga_init(void);
 
 /* ne2000.c */
 
-void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd);
+void isa_ne2000_init(int base, int irq, NICInfo *nd);
 
 int cpu_is_bsp(CPUState *env);
 #endif

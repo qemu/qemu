@@ -1871,14 +1871,13 @@ static void fdctrl_connect_drives(fdctrl_t *fdctrl, BlockDriverState **fds)
     }
 }
 
-fdctrl_t *fdctrl_init_isa(int isairq, int dma_chann,
-                          uint32_t io_base,
-                          BlockDriverState **fds)
+fdctrl_t *fdctrl_init_isa(BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
     ISADevice *dev;
+    int dma_chann = 2;
 
-    dev = isa_create_simple("isa-fdc", io_base, 0, isairq, -1);
+    dev = isa_create_simple("isa-fdc");
     fdctrl = &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
 
     fdctrl->dma_chann = dma_chann;
@@ -1968,16 +1967,18 @@ static int isabus_fdc_init1(ISADevice *dev)
 {
     fdctrl_isabus_t *isa = DO_UPCAST(fdctrl_isabus_t, busdev, dev);
     fdctrl_t *fdctrl = &isa->state;
+    int iobase = 0x3f0;
+    int isairq = 6;
 
-    register_ioport_read(isa->busdev.iobase[0] + 0x01, 5, 1,
+    register_ioport_read(iobase + 0x01, 5, 1,
                          &fdctrl_read_port, fdctrl);
-    register_ioport_read(isa->busdev.iobase[0] + 0x07, 1, 1,
+    register_ioport_read(iobase + 0x07, 1, 1,
                          &fdctrl_read_port, fdctrl);
-    register_ioport_write(isa->busdev.iobase[0] + 0x01, 5, 1,
+    register_ioport_write(iobase + 0x01, 5, 1,
                           &fdctrl_write_port, fdctrl);
-    register_ioport_write(isa->busdev.iobase[0] + 0x07, 1, 1,
+    register_ioport_write(iobase + 0x07, 1, 1,
                           &fdctrl_write_port, fdctrl);
-    isa_init_irq(&isa->busdev, &fdctrl->irq);
+    isa_init_irq(&isa->busdev, &fdctrl->irq, isairq);
 
     return fdctrl_init_common(fdctrl);
 }

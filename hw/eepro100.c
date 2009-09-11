@@ -47,7 +47,6 @@
 
 #include <stdbool.h>            /* bool */
 #include <stddef.h>             /* offsetof */
-#include <stdbool.h>
 #include "hw.h"
 #include "pci.h"
 #include "net.h"
@@ -538,8 +537,7 @@ static void pci_reset(EEPRO100State * s)
         s->has_extended_tcb_support = 1;
         break;
     case i82551:
-        // TODO: check device id.
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         /* Revision ID: 0x0f, 0x10. */
         PCI_CONFIG_8(PCI_REVISION_ID, 0x0f);
         // TODO: check size of statistical counters.

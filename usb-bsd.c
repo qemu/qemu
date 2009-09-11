@@ -552,13 +552,12 @@ static const char *usb_class_str(uint8_t class)
     return p->class_name;
 }
 
-static void usb_info_device(int bus_num, int addr, int class_id,
+static void usb_info_device(Monitor *mon, int bus_num, int addr, int class_id,
                             int vendor_id, int product_id,
                             const char *product_name,
                             int speed)
 {
     const char *class_str, *speed_str;
-    Monitor *mon = cur_mon;
 
     switch(speed) {
     case USB_SPEED_LOW:
@@ -595,14 +594,16 @@ static int usb_host_info_device(void *opaque,
                                 const char *product_name,
                                 int speed)
 {
-    usb_info_device(bus_num, addr, class_id, vendor_id, product_id,
+    Monitor *mon = opaque;
+
+    usb_info_device(mon, bus_num, addr, class_id, vendor_id, product_id,
                     product_name, speed);
     return 0;
 }
 
 void usb_host_info(Monitor *mon)
 {
-    usb_host_scan(NULL, usb_host_info_device);
+    usb_host_scan(mon, usb_host_info_device);
 }
 
 /* XXX add this */

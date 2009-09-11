@@ -13,7 +13,12 @@
 #include "qobject.h"
 #include "qemu-common.h"
 
-static const QType qint_type;
+static void qint_destroy_obj(QObject *obj);
+
+static const QType qint_type = {
+    .code = QTYPE_QINT,
+    .destroy = qint_destroy_obj,
+};
 
 /**
  * qint_from_int(): Create a new QInt from an int64_t
@@ -59,8 +64,3 @@ static void qint_destroy_obj(QObject *obj)
     assert(obj != NULL);
     qemu_free(qobject_to_qint(obj));
 }
-
-static const QType qint_type = {
-    .code = QTYPE_QINT,
-    .destroy = qint_destroy_obj,
-};

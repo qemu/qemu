@@ -25,6 +25,7 @@
 #include "audiodev.h"
 #include "audio/audio.h"
 #include "isa.h"
+#include "qdev.h"
 #include "qemu-timer.h"
 
 /*
@@ -40,11 +41,8 @@
 /* #define DEBUG_XLAW */
 
 static struct {
-    int irq;
-    int dma;
-    int port;
     int aci_counter;
-} conf = {9, 3, 0x534, 1};
+} conf = {1};
 
 #ifdef DEBUG
 #define dolog(...) AUD_log ("cs4231a", __VA_ARGS__)
@@ -59,12 +57,14 @@ static struct {
 #define CS_DREGS 32
 
 typedef struct CSState {
+    ISADevice dev;
     QEMUSoundCard card;
     qemu_irq pic;
     uint32_t regs[CS_REGS];
     uint8_t dregs[CS_DREGS];
-    int dma;
-    int port;
+    uint32_t irq;
+    uint32_t dma;
+    uint32_t port;
     int shift;
     int dma_running;
     int audio_free;
@@ -635,16 +635,12 @@ static int cs_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-int cs4231a_init (qemu_irq *pic)
+static int cs4231a_initfn (ISADevice *dev)
 {
+    CSState *s = DO_UPCAST (CSState, dev, dev);
     int i;
-    CSState *s;
 
-    s = qemu_mallocz (sizeof (*s));
-
-    s->pic = isa_reserve_irq (conf.irq);
-    s->dma = conf.dma;
-    s->port = conf.port;
+    isa_init_irq (dev, &s->pic, s->irq);
 
     for (i = 0; i < 4; i++) {
         register_ioport_write (s->port + i, 1, 1, cs_write, s);
@@ -660,3 +656,28 @@ int cs4231a_init (qemu_irq *pic)
     AUD_register_card ("cs4231a", &s->card);
     return 0;
 }
+
+int cs4231a_init (qemu_irq *pic)
+{
+    isa_create_simple ("cs4231a");
+    return 0;
+}
+
+static ISADeviceInfo cs4231a_info = {
+    .qdev.name     = "cs4231a",
+    .qdev.desc     = "Crystal Semiconductor CS4231A",
+    .qdev.size     = sizeof (CSState),
+    .init          = cs4231a_initfn,
+    .qdev.props    = (Property[]) {
+        DEFINE_PROP_HEX32  ("iobase",  CSState, port, 0x534),
+        DEFINE_PROP_UINT32 ("irq",     CSState, irq,  9),
+        DEFINE_PROP_UINT32 ("dma",     CSState, dma,  3),
+        DEFINE_PROP_END_OF_LIST (),
+    },
+};
+
+static void cs4231a_register (void)
+{
+    isa_qdev_register (&cs4231a_info);
+}
+device_init (cs4231a_register)

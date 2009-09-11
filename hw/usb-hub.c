@@ -486,7 +486,7 @@ static int usb_hub_broadcast_packet(USBHubState *s, USBPacket *p)
         port = &s->ports[i];
         dev = port->port.dev;
         if (dev && (port->wPortStatus & PORT_STAT_ENABLE)) {
-            ret = dev->handle_packet(dev, p);
+            ret = dev->info->handle_packet(dev, p);
             if (ret != USB_RET_NODEV) {
                 return ret;
             }
@@ -521,32 +521,37 @@ static void usb_hub_handle_destroy(USBDevice *dev)
     qemu_free(s);
 }
 
-USBDevice *usb_hub_init(int nb_ports)
+static int usb_hub_initfn(USBDevice *dev)
 {
-    USBHubState *s;
+    USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
     USBHubPort *port;
     int i;
 
-    if (nb_ports > MAX_PORTS)
-        return NULL;
-    s = qemu_mallocz(sizeof(USBHubState));
-    s->dev.speed = USB_SPEED_FULL;
-    s->dev.handle_packet = usb_hub_handle_packet;
-
-    /* generic USB device init */
-    s->dev.handle_reset = usb_hub_handle_reset;
-    s->dev.handle_control = usb_hub_handle_control;
-    s->dev.handle_data = usb_hub_handle_data;
-    s->dev.handle_destroy = usb_hub_handle_destroy;
-
-    pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Hub");
-
-    s->nb_ports = nb_ports;
-    for(i = 0; i < s->nb_ports; i++) {
+    s->dev.speed  = USB_SPEED_FULL,
+    s->nb_ports = MAX_PORTS; /* FIXME: make configurable */
+    for (i = 0; i < s->nb_ports; i++) {
         port = &s->ports[i];
-        qemu_register_usb_port(&port->port, s, i, usb_hub_attach);
+        usb_register_port(usb_bus_from_device(dev),
+                          &port->port, s, i, usb_hub_attach);
         port->wPortStatus = PORT_STAT_POWER;
         port->wPortChange = 0;
     }
-    return (USBDevice *)s;
+    return 0;
 }
+
+static struct USBDeviceInfo hub_info = {
+    .qdev.name      = "QEMU USB Hub",
+    .qdev.size      = sizeof(USBHubState),
+    .init           = usb_hub_initfn,
+    .handle_packet  = usb_hub_handle_packet,
+    .handle_reset   = usb_hub_handle_reset,
+    .handle_control = usb_hub_handle_control,
+    .handle_data    = usb_hub_handle_data,
+    .handle_destroy = usb_hub_handle_destroy,
+};
+
+static void usb_hub_register_devices(void)
+{
+    usb_qdev_register(&hub_info);
+}
+device_init(usb_hub_register_devices)

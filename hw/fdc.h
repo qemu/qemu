@@ -3,9 +3,7 @@
 
 typedef struct fdctrl_t fdctrl_t;
 
-fdctrl_t *fdctrl_init_isa(int isairq, int dma_chann,
-                          uint32_t io_base,
-                          BlockDriverState **fds);
+fdctrl_t *fdctrl_init_isa(BlockDriverState **fds);
 fdctrl_t *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
                              target_phys_addr_t mmio_base,
                              BlockDriverState **fds);

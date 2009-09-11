@@ -59,8 +59,8 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
     index   = (s->setup_buf[5] << 8) | s->setup_buf[4];
  
     if (s->setup_buf[0] & USB_DIR_IN) {
-        ret = s->handle_control(s, request, value, index, 
-                                s->setup_len, s->data_buf);
+        ret = s->info->handle_control(s, request, value, index, 
+                                      s->setup_len, s->data_buf);
         if (ret < 0)
             return ret;
 
@@ -83,7 +83,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     int ret = 0;
 
     if (p->devep != 0)
-        return s->handle_data(s, p);
+        return s->info->handle_data(s, p);
 
     request = (s->setup_buf[0] << 8) | s->setup_buf[1];
     value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
@@ -93,8 +93,8 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     case SETUP_STATE_ACK:
         if (!(s->setup_buf[0] & USB_DIR_IN)) {
             s->setup_state = SETUP_STATE_IDLE;
-            ret = s->handle_control(s, request, value, index,
-                                    s->setup_len, s->data_buf);
+            ret = s->info->handle_control(s, request, value, index,
+                                          s->setup_len, s->data_buf);
             if (ret > 0)
                 return 0;
             return ret;
@@ -126,7 +126,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
 static int do_token_out(USBDevice *s, USBPacket *p)
 {
     if (p->devep != 0)
-        return s->handle_data(s, p);
+        return s->info->handle_data(s, p);
 
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
@@ -179,7 +179,7 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
         s->remote_wakeup = 0;
         s->addr = 0;
         s->state = USB_STATE_DEFAULT;
-        s->handle_reset(s);
+        s->info->handle_reset(s);
         return 0;
     }
 
@@ -225,7 +225,7 @@ void usb_send_msg(USBDevice *dev, int msg)
     USBPacket p;
     memset(&p, 0, sizeof(p));
     p.pid = msg;
-    dev->handle_packet(dev, &p);
+    dev->info->handle_packet(dev, &p);
 
     /* This _must_ be synchronous */
 }

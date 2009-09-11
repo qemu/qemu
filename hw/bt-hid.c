@@ -111,7 +111,7 @@ static void bt_hid_reset(struct bt_hid_device_s *s)
     bt_l2cap_device_done(&s->btdev);
     bt_l2cap_device_init(&s->btdev, net);
 
-    s->usbdev->handle_reset(s->usbdev);
+    s->usbdev->info->handle_reset(s->usbdev);
     s->proto = BT_HID_PROTO_REPORT;
     s->state = bt_state_ready;
     s->dataother.len = 0;
@@ -131,7 +131,7 @@ static int bt_hid_out(struct bt_hid_device_s *s)
         p.devep = 1;
         p.data = s->dataout.buffer;
         p.len = s->dataout.len;
-        s->dataout.len = s->usbdev->handle_data(s->usbdev, &p);
+        s->dataout.len = s->usbdev->info->handle_data(s->usbdev, &p);
 
         return s->dataout.len;
     }
@@ -154,7 +154,7 @@ static int bt_hid_in(struct bt_hid_device_s *s)
     p.devep = 1;
     p.data = s->datain.buffer;
     p.len = sizeof(s->datain.buffer);
-    s->datain.len = s->usbdev->handle_data(s->usbdev, &p);
+    s->datain.len = s->usbdev->info->handle_data(s->usbdev, &p);
 
     return s->datain.len;
 }
@@ -323,8 +323,8 @@ static void bt_hid_control_transaction(struct bt_hid_device_s *s,
             break;
         }
         s->proto = parameter;
-        s->usbdev->handle_control(s->usbdev, SET_PROTOCOL, s->proto, 0, 0,
-                                  NULL);
+        s->usbdev->info->handle_control(s->usbdev, SET_PROTOCOL, s->proto, 0, 0,
+                                        NULL);
         ret = BT_HS_SUCCESSFUL;
         break;
 
@@ -333,7 +333,7 @@ static void bt_hid_control_transaction(struct bt_hid_device_s *s,
             ret = BT_HS_ERR_INVALID_PARAMETER;
             break;
         }
-        s->usbdev->handle_control(s->usbdev, GET_IDLE, 0, 0, 1,
+        s->usbdev->info->handle_control(s->usbdev, GET_IDLE, 0, 0, 1,
                         s->control->sdu_out(s->control, 1));
         s->control->sdu_submit(s->control);
         break;
@@ -346,7 +346,7 @@ static void bt_hid_control_transaction(struct bt_hid_device_s *s,
 
         /* We don't need to know about the Idle Rate here really,
          * so just pass it on to the device.  */
-        ret = s->usbdev->handle_control(s->usbdev,
+        ret = s->usbdev->info->handle_control(s->usbdev,
                         SET_IDLE, data[1], 0, 0, NULL) ?
                 BT_HS_SUCCESSFUL : BT_HS_ERR_INVALID_PARAMETER;
         /* XXX: Does this generate a handshake? */
@@ -450,7 +450,7 @@ static void bt_hid_connected_update(struct bt_hid_device_s *hid)
     hid->btdev.device.inquiry_scan = !hid->connected;
 
     if (hid->connected && !prev) {
-        hid->usbdev->handle_reset(hid->usbdev);
+        hid->usbdev->info->handle_reset(hid->usbdev);
         hid->proto = BT_HID_PROTO_REPORT;
     }
 
@@ -518,7 +518,7 @@ static void bt_hid_destroy(struct bt_device_s *dev)
         bt_hid_send_control(hid, BT_HC_VIRTUAL_CABLE_UNPLUG);
     bt_l2cap_device_done(&hid->btdev);
 
-    hid->usbdev->handle_destroy(hid->usbdev);
+    hid->usbdev->info->handle_destroy(hid->usbdev);
 
     qemu_free(hid);
 }
@@ -566,5 +566,6 @@ static struct bt_device_s *bt_hid_init(struct bt_scatternet_s *net,
 
 struct bt_device_s *bt_keyboard_init(struct bt_scatternet_s *net)
 {
-    return bt_hid_init(net, usb_keyboard_init(), class_keyboard);
+    USBDevice *dev = usb_create_simple(NULL /* FIXME */, "QEMU USB Keyboard");
+    return bt_hid_init(net, dev, class_keyboard);
 }

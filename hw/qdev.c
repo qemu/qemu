@@ -186,8 +186,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     } else {
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
     }
-    if (!bus)
+    if (!bus) {
+        qemu_error("Did not find %s bus for %s\n",
+                   path ? path : info->bus_info->name, info->name);
         return NULL;
+    }
 
     /* create device, set properties */
     qdev = qdev_create(bus, driver);
@@ -211,12 +214,27 @@ DeviceState *qdev_device_add(QemuOpts *opts)
    calling this function.  */
 int qdev_init(DeviceState *dev)
 {
-    return dev->info->init(dev, dev->info);
+    int rc;
+
+    rc = dev->info->init(dev, dev->info);
+    if (rc < 0)
+        return rc;
+    if (dev->info->reset)
+        qemu_register_reset(dev->info->reset, dev);
+    if (dev->info->vmsd)
+        vmstate_register(-1, dev->info->vmsd, dev);
+    return 0;
 }
 
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
+#if 0 /* FIXME: need sane vmstate_unregister function */
+    if (dev->info->vmsd)
+        vmstate_unregister(dev->info->vmsd, dev);
+#endif
+    if (dev->info->reset)
+        qemu_unregister_reset(dev->info->reset, dev);
     LIST_REMOVE(dev, sibling);
     qemu_free(dev);
 }
@@ -309,25 +327,6 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
         }
     }
     return NULL;
-}
-
-static int next_scsi_bus;
-
-/* Create a scsi bus, and attach devices to it.  */
-/* TODO: Actually create a scsi bus for hotplug to use.  */
-void scsi_bus_new(DeviceState *host, SCSIAttachFn attach)
-{
-   int bus = next_scsi_bus++;
-   int unit;
-   DriveInfo *dinfo;
-
-   for (unit = 0; unit < MAX_SCSI_DEVS; unit++) {
-       dinfo = drive_get(IF_SCSI, bus, unit);
-       if (!dinfo) {
-           continue;
-       }
-       attach(host, dinfo->bdrv, unit);
-   }
 }
 
 static BusState *qbus_find_recursive(BusState *bus, const char *name,

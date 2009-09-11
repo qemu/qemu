@@ -25,6 +25,7 @@
 #include "audiodev.h"
 #include "audio/audio.h"
 #include "isa.h"
+#include "qdev.h"
 #include "qemu-timer.h"
 
 #define dolog(...) AUD_log ("sb16", __VA_ARGS__)
@@ -45,23 +46,15 @@
 
 static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
-static struct {
-    int ver_lo;
-    int ver_hi;
-    int irq;
-    int dma;
-    int hdma;
-    int port;
-} conf = {5, 4, 5, 1, 5, 0x220};
-
 typedef struct SB16State {
+    ISADevice dev;
     QEMUSoundCard card;
     qemu_irq pic;
-    int irq;
-    int dma;
-    int hdma;
-    int port;
-    int ver;
+    uint32_t irq;
+    uint32_t dma;
+    uint32_t hdma;
+    uint32_t port;
+    uint32_t ver;
 
     int in_index;
     int out_data_len;
@@ -876,7 +869,7 @@ static void reset (SB16State *s)
     s->v2x6 = 0;
     s->cmd = -1;
 
-    dsp_out_data(s, 0xaa);
+    dsp_out_data (s, 0xaa);
     speaker (s, 0);
     control (s, 0);
     legacy_reset (s);
@@ -1398,22 +1391,17 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-int SB16_init (qemu_irq *pic)
+static int sb16_initfn (ISADevice *dev)
 {
-    SB16State *s;
-    int i;
     static const uint8_t dsp_write_ports[] = {0x6, 0xc};
     static const uint8_t dsp_read_ports[] = {0x6, 0xa, 0xc, 0xd, 0xe, 0xf};
+    SB16State *s;
+    int i;
 
-    s = qemu_mallocz (sizeof (*s));
+    s = DO_UPCAST (SB16State, dev, dev);
 
     s->cmd = -1;
-    s->pic = isa_reserve_irq (conf.irq);
-    s->irq = conf.irq;
-    s->dma = conf.dma;
-    s->hdma = conf.hdma;
-    s->port = conf.port;
-    s->ver = conf.ver_lo | (conf.ver_hi << 8);
+    isa_init_irq (dev, &s->pic, s->irq);
 
     s->mixer_regs[0x80] = magic_of_irq (s->irq);
     s->mixer_regs[0x81] = (1 << s->dma) | (1 << s->hdma);
@@ -1449,3 +1437,30 @@ int SB16_init (qemu_irq *pic)
     AUD_register_card ("sb16", &s->card);
     return 0;
 }
+
+int SB16_init (qemu_irq *pic)
+{
+    isa_create_simple ("sb16");
+    return 0;
+}
+
+static ISADeviceInfo sb16_info = {
+    .qdev.name     = "sb16",
+    .qdev.desc     = "Creative Sound Blaster 16",
+    .qdev.size     = sizeof (SB16State),
+    .init          = sb16_initfn,
+    .qdev.props    = (Property[]) {
+        DEFINE_PROP_HEX32  ("version", SB16State, ver,  0x0405), /* 4.5 */
+        DEFINE_PROP_HEX32  ("iobase",  SB16State, port, 0x220),
+        DEFINE_PROP_UINT32 ("irq",     SB16State, irq,  5),
+        DEFINE_PROP_UINT32 ("dma",     SB16State, dma,  1),
+        DEFINE_PROP_UINT32 ("dma16",   SB16State, hdma, 5),
+        DEFINE_PROP_END_OF_LIST (),
+    },
+};
+
+static void sb16_register (void)
+{
+    isa_qdev_register (&sb16_info);
+}
+device_init (sb16_register)

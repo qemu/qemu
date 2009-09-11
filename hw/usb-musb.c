@@ -281,6 +281,7 @@ typedef struct {
 
 struct MUSBState {
     qemu_irq *irqs;
+    USBBus *bus;
     USBPort port;
 
     int idx;
@@ -330,7 +331,8 @@ struct MUSBState {
         s->ep[i].epnum = i;
     }
 
-    qemu_register_usb_port(&s->port, s, 0, musb_attach);
+    s->bus = usb_bus_new(NULL /* FIXME */);
+    usb_register_port(s->bus, &s->port, s, 0, musb_attach);
 
     return s;
 }
@@ -590,7 +592,7 @@ static inline void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ep->packey[dir].complete_opaque = ep;
 
     if (s->port.dev)
-        ret = s->port.dev->handle_packet(s->port.dev, &ep->packey[dir]);
+        ret = s->port.dev->info->handle_packet(s->port.dev, &ep->packey[dir]);
     else
         ret = USB_RET_NODEV;
 

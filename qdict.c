@@ -17,7 +17,12 @@
 #include "sys-queue.h"
 #include "qemu-common.h"
 
-static const QType qdict_type;
+static void qdict_destroy_obj(QObject *obj);
+
+static const QType qdict_type = {
+    .code = QTYPE_QDICT,
+    .destroy = qdict_destroy_obj,
+};
 
 /**
  * qdict_new(): Create a new QDict
@@ -290,8 +295,3 @@ static void qdict_destroy_obj(QObject *obj)
 
     qemu_free(qdict);
 }
-
-static const QType qdict_type = {
-    .code = QTYPE_QDICT,
-    .destroy = qdict_destroy_obj,
-};

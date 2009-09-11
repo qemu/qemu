@@ -392,21 +392,27 @@ static void usb_wacom_handle_destroy(USBDevice *dev)
     qemu_free(s);
 }
 
-USBDevice *usb_wacom_init(void)
+static int usb_wacom_initfn(USBDevice *dev)
 {
-    USBWacomState *s;
-
-    s = qemu_mallocz(sizeof(USBWacomState));
+    USBWacomState *s = DO_UPCAST(USBWacomState, dev, dev);
     s->dev.speed = USB_SPEED_FULL;
-    s->dev.handle_packet = usb_generic_handle_packet;
-
-    s->dev.handle_reset = usb_wacom_handle_reset;
-    s->dev.handle_control = usb_wacom_handle_control;
-    s->dev.handle_data = usb_wacom_handle_data;
-    s->dev.handle_destroy = usb_wacom_handle_destroy;
-
-    pstrcpy(s->dev.devname, sizeof(s->dev.devname),
-            "QEMU PenPartner Tablet");
-
-    return (USBDevice *) s;
+    return 0;
 }
+
+static struct USBDeviceInfo wacom_info = {
+    .qdev.name      = "QEMU PenPartner Tablet",
+    .qdev.alias     = "wacom-tablet",
+    .qdev.size      = sizeof(USBWacomState),
+    .init           = usb_wacom_initfn,
+    .handle_packet  = usb_generic_handle_packet,
+    .handle_reset   = usb_wacom_handle_reset,
+    .handle_control = usb_wacom_handle_control,
+    .handle_data    = usb_wacom_handle_data,
+    .handle_destroy = usb_wacom_handle_destroy,
+};
+
+static void usb_wacom_register_devices(void)
+{
+    usb_qdev_register(&wacom_info);
+}
+device_init(usb_wacom_register_devices)

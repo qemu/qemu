@@ -100,7 +100,8 @@ static void isa_irq_handler(void *opaque, int n, int level)
     if (n < 16) {
         qemu_set_irq(isa->i8259[n], level);
     }
-    qemu_set_irq(isa->ioapic[n], level);
+    if (isa->ioapic)
+        qemu_set_irq(isa->ioapic[n], level);
 };
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
@@ -549,7 +550,7 @@ static void generate_bootsect(target_phys_addr_t option_rom,
     *p++ = 0x1f;		/* pop ds */
     *p++ = 0x58;		/* pop ax */
     *p++ = 0xcb;		/* lret */
-    
+
     /* Actual code */
     *reloc = (p - rom);
 
@@ -738,7 +739,7 @@ static int load_multiboot(void *fw_cfg,
             if ((next_space = strchr(initrd_filename, ' ')))
                 *next_space = '\0';
 #ifdef DEBUG_MULTIBOOT
-	     printf("multiboot loading module: %s\n", initrd_filename);
+            printf("multiboot loading module: %s\n", initrd_filename);
 #endif
             f = fopen(initrd_filename, "rb");
             if (f) {
@@ -858,7 +859,7 @@ static void load_linux(void *fw_cfg,
 	   treating it like a Linux kernel. */
 	if (load_multiboot(fw_cfg, f, kernel_filename,
                            initrd_filename, kernel_cmdline, header))
-	   return;
+            return;
 	protocol = 0;
     }
 
@@ -1051,42 +1052,42 @@ static void pc_init_ne2k_isa(NICInfo *nd)
     if (nb_ne2k == NE2000_NB_MAX)
         return;
     isa_ne2000_init(ne2000_io[nb_ne2k],
-                    isa_reserve_irq(ne2000_irq[nb_ne2k]), nd);
+                    ne2000_irq[nb_ne2k], nd);
     nb_ne2k++;
 }
 
 static int load_option_rom(const char *oprom, target_phys_addr_t start,
                            target_phys_addr_t end)
 {
-        int size;
-        char *filename;
+    int size;
+    char *filename;
 
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, oprom);
-        if (filename) {
-            size = get_image_size(filename);
-            if (size > 0 && start + size > end) {
-                fprintf(stderr, "Not enough space to load option rom '%s'\n",
-                        oprom);
-                exit(1);
-            }
-            size = load_image_targphys(filename, start, end - start);
-            qemu_free(filename);
-        } else {
-            size = -1;
-        }
-        if (size < 0) {
-            fprintf(stderr, "Could not load option rom '%s'\n", oprom);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, oprom);
+    if (filename) {
+        size = get_image_size(filename);
+        if (size > 0 && start + size > end) {
+            fprintf(stderr, "Not enough space to load option rom '%s'\n",
+                    oprom);
             exit(1);
         }
-        /* Round up optiom rom size to the next 2k boundary */
-        size = (size + 2047) & ~2047;
-        option_rom_setup_reset(start, size);
-        return size;
+        size = load_image_targphys(filename, start, end - start);
+        qemu_free(filename);
+    } else {
+        size = -1;
+    }
+    if (size < 0) {
+        fprintf(stderr, "Could not load option rom '%s'\n", oprom);
+        exit(1);
+    }
+    /* Round up optiom rom size to the next 2k boundary */
+    size = (size + 2047) & ~2047;
+    option_rom_setup_reset(start, size);
+    return size;
 }
 
 int cpu_is_bsp(CPUState *env)
 {
-	return env->cpuid_apic_id == 0;
+    return env->cpuid_apic_id == 0;
 }
 
 static CPUState *pc_new_cpu(const char *cpu_model)
@@ -1312,7 +1313,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    rtc_state = rtc_init(0x70, isa_reserve_irq(8), 2000);
+    rtc_state = rtc_init(2000);
 
     qemu_register_boot_set(pc_boot_set, rtc_state);
 
@@ -1372,7 +1373,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    isa_dev = isa_create_simple("i8042", 0x60, 0x64, 1, 12);
+    isa_dev = isa_create_simple("i8042");
     DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
@@ -1382,7 +1383,7 @@ static void pc_init1(ram_addr_t ram_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    floppy_controller = fdctrl_init_isa(6, 2, 0x3f0, fd);
+    floppy_controller = fdctrl_init_isa(fd);
 
     cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
 
@@ -1449,6 +1450,8 @@ static void pc_init_isa(ram_addr_t ram_size,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
+    if (cpu_model == NULL)
+        cpu_model = "486";
     pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
              initrd_filename, cpu_model, 0);

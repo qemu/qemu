@@ -13,7 +13,12 @@
 #include "qstring.h"
 #include "qemu-common.h"
 
-static const QType qstring_type;
+static void qstring_destroy_obj(QObject *obj);
+
+static const QType qstring_type = {
+    .code = QTYPE_QSTRING,
+    .destroy = qstring_destroy_obj,
+};
 
 /**
  * qstring_from_str(): Create a new QString from a regular C string
@@ -66,8 +71,3 @@ static void qstring_destroy_obj(QObject *obj)
     qemu_free(qs->string);
     qemu_free(qs);
 }
-
-static const QType qstring_type = {
-    .code = QTYPE_QSTRING,
-    .destroy = qstring_destroy_obj,
-};

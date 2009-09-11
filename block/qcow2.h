@@ -98,6 +98,7 @@ typedef struct BDRVQcowState {
     uint8_t *cluster_cache;
     uint8_t *cluster_data;
     uint64_t cluster_cache_offset;
+    LIST_HEAD(QCowClusterAlloc, QCowL2Meta) cluster_allocs;
 
     uint64_t *refcount_table;
     uint64_t refcount_table_offset;
@@ -128,6 +129,8 @@ typedef struct QCowCreateState {
     int64_t refcount_block_offset;
 } QCowCreateState;
 
+struct QCowAIOCB;
+
 /* XXX This could be private for qcow2-cluster.c */
 typedef struct QCowL2Meta
 {
@@ -135,6 +138,10 @@ typedef struct QCowL2Meta
     int n_start;
     int nb_available;
     int nb_clusters;
+    struct QCowL2Meta *depends_on;
+    LIST_HEAD(QCowAioDependencies, QCowAIOCB) dependent_requests;
+
+    LIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
 
 static inline int size_to_clusters(BDRVQcowState *s, int64_t size)

@@ -109,8 +109,6 @@ typedef struct VGACommonState {
     uint32_t lfb_vram_mapped; /* whether 0xa0000 is mapped as ram */
     uint32_t bios_offset;
     uint32_t bios_size;
-    int it_shift;
-    PCIDevice *pci_dev;
     uint32_t latch;
     uint8_t sr_index;
     uint8_t sr[256];
@@ -194,6 +192,10 @@ void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
 
+void vga_common_save(QEMUFile *f, void *opaque);
+int vga_common_load(QEMUFile *f, void *opaque, int version_id);
+uint32_t vga_ioport_read(void *opaque, uint32_t addr);
+void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
@@ -212,8 +214,12 @@ void vga_draw_cursor_line_32(uint8_t *d1, const uint8_t *src1,
                              unsigned int color0, unsigned int color1,
                              unsigned int color_xor);
 
+int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
+
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];
 
 #define VGA_RAM_SIZE (8192 * 1024)
 
+extern CPUReadMemoryFunc * const vga_mem_read[3];
+extern CPUWriteMemoryFunc * const vga_mem_write[3];

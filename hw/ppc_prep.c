@@ -680,7 +680,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     pci_vga_init(pci_bus, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);
-    rtc_init(0x70, i8259[8], 2000);
+    rtc_init(2000);
 
     serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
     nb_nics1 = nb_nics;
@@ -691,7 +691,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
 	    nd_table[i].model = "ne2k_isa";
         }
         if (strcmp(nd_table[i].model, "ne2k_isa") == 0) {
-            isa_ne2000_init(ne2000_io[i], i8259[ne2000_irq[i]], &nd_table[i]);
+            isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
         } else {
             pci_nic_init(&nd_table[i], "ne2k_pci", NULL);
         }
@@ -711,7 +711,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
                      hd[2 * i],
 		     hd[2 * i + 1]);
     }
-    i8042_init(i8259[1], i8259[12], 0x60);
+    isa_create_simple("i8042");
     DMA_init(1);
     //    SB16_init();
 
@@ -719,7 +719,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
-    fdctrl_init_isa(6, 2, 0x3f0, fd);
+    fdctrl_init_isa(fd);
 
     /* Register speaker port */
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
@@ -745,7 +745,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
 #endif
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, 3, -1);
+        usb_ohci_init_pci(pci_bus, -1);
     }
 
     m48t59 = m48t59_init(i8259[8], 0, 0x0074, NVRAM_SIZE, 59);

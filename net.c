@@ -31,6 +31,8 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
+/* Needed early to override system queue definitions on BSD */
+#include "sys-queue.h"
 
 #ifndef _WIN32
 #include <sys/times.h>
