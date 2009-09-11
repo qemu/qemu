@@ -222,6 +222,7 @@ aix="no"
 blobs="yes"
 pkgversion=""
 check_utests="no"
+user_pie="no"
 
 # OS specific
 if check_define __linux__ ; then
@@ -503,6 +504,10 @@ for opt do
   ;;
   --disable-guest-base) guest_base="no"
   ;;
+  --enable-user-pie) user_pie="yes"
+  ;;
+  --disable-user-pie) user_pie="no"
+  ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
   --sparc_cpu=*)
@@ -683,6 +688,8 @@ echo "  --disable-bsd-user       disable all BSD usermode emulation targets"
 echo "  --enable-guest-base      enable GUEST_BASE support for usermode"
 echo "                           emulation targets"
 echo "  --disable-guest-base     disable GUEST_BASE support"
+echo "  --enable-user-pie        build usermode emulation targets as PIE"
+echo "  --disable-user-pie       do not build usermode emulation targets as PIE"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --oss-lib                path to OSS library"
@@ -1723,6 +1730,7 @@ echo "Documentation     $docs"
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
+echo "PIE user targets  $user_pie"
 echo "vde support       $vde"
 echo "IO thread         $io_thread"
 echo "Linux AIO support $linux_aio"
@@ -2353,6 +2361,12 @@ if test "$target_softmmu" = "yes" ; then
     cflags="-DHAS_AUDIO -DHAS_AUDIO_CHOICE $cflags"
   ;;
   esac
+fi
+
+if test "$target_user_only" = "yes" -a "$static" = "no" -a \
+	"$user_pie" = "yes" ; then
+  cflags="-fpie $cflags"
+  ldflags="-pie $ldflags"
 fi
 
 if test "$target_softmmu" = "yes" -a \( \
