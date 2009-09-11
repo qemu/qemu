@@ -112,23 +112,6 @@ struct mixeng_volume nominal_volume = {
 #endif
 };
 
-/* http://www.df.lth.se/~john_e/gems/gem002d.html */
-/* http://www.multi-platforms.com/Tips/PopCount.htm */
-uint32_t popcount (uint32_t u)
-{
-    u = ((u&0x55555555) + ((u>>1)&0x55555555));
-    u = ((u&0x33333333) + ((u>>2)&0x33333333));
-    u = ((u&0x0f0f0f0f) + ((u>>4)&0x0f0f0f0f));
-    u = ((u&0x00ff00ff) + ((u>>8)&0x00ff00ff));
-    u = ( u&0x0000ffff) + (u>>16);
-    return u;
-}
-
-inline uint32_t lsbindex (uint32_t u)
-{
-    return popcount ((u&-u)-1);
-}
-
 #ifdef AUDIO_IS_FLAWLESS_AND_NO_CHECKS_ARE_REQURIED
 #error No its not
 #else

@@ -27,6 +27,7 @@
 #include "isa.h"
 #include "qdev.h"
 #include "qemu-timer.h"
+#include "host-utils.h"
 
 #define dolog(...) AUD_log ("sb16", __VA_ARGS__)
 
@@ -1092,8 +1093,8 @@ static IO_WRITE_PROTO (mixer_write_datab)
         {
             int dma, hdma;
 
-            dma = lsbindex (val & 0xf);
-            hdma = lsbindex (val & 0xf0);
+            dma = ctz32 (val & 0xf);
+            hdma = ctz32 (val & 0xf0);
             if (dma != s->dma || hdma != s->hdma) {
                 dolog (
                     "attempt to change DMA "

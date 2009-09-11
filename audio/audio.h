@@ -147,9 +147,6 @@ static inline void *advance (void *p, int incr)
     return (d + incr);
 }
 
-uint32_t popcount (uint32_t u);
-uint32_t lsbindex (uint32_t u);
-
 #ifdef __GNUC__
 #define audio_MIN(a, b) ( __extension__ ({      \
     __typeof (a) ta = a;                        \

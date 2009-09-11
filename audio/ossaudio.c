@@ -31,6 +31,7 @@
 #include <sys/soundcard.h>
 #endif
 #include "qemu-common.h"
+#include "host-utils.h"
 #include "qemu-char.h"
 #include "audio.h"
 
@@ -273,7 +274,7 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
-    mmmmssss = (req->nfrags << 16) | lsbindex (req->fragsize);
+    mmmmssss = (req->nfrags << 16) | ctz32 (req->fragsize);
     if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
         oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
                      req->nfrags, req->fragsize);
