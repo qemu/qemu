@@ -21,5 +21,5 @@ quiet-command = $(if $(V),$1,$(if $(2),@echo $2 && $1, @$1))
 # cc-option
 # Usage: CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
 
-cc-option = $(shell if $(CC) $(1) -S -o /dev/null -xc /dev/null \
-              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
+cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
+              >/dev/null 2>&1 && echo OK), $2, $3)
