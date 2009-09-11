@@ -819,14 +819,28 @@ static void dec_load(DisasContext *dc)
 
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        TCGv v = tcg_temp_new();
+
+        /*
+         * Microblaze gives MMU faults priority over faults due to
+         * unaligned addresses. That's why we speculatively do the load
+         * into v. If the load succeeds, we verify alignment of the
+         * address and if that succeeds we write into the destination reg.
+         */
+        gen_load(dc, v, *addr, size);
+
+        tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(0), tcg_const_tl(size - 1));
-    }
-
-    if (dc->rd) {
-        gen_load(dc, cpu_R[dc->rd], *addr, size);
+        if (dc->rd)
+            tcg_gen_mov_tl(cpu_R[dc->rd], v);
+        tcg_temp_free(v);
     } else {
-        gen_load(dc, env_imm, *addr, size);
+        if (dc->rd) {
+            gen_load(dc, cpu_R[dc->rd], *addr, size);
+        } else {
+            gen_load(dc, env_imm, *addr, size);
+        }
     }
 
     if (addr == &t)
@@ -868,13 +882,18 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
+    gen_store(dc, *addr, cpu_R[dc->rd], size);
+
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
+        /* FIXME: if the alignment is wrong, we should restore the value
+         *        in memory.
+         */
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
     }
 
-    gen_store(dc, *addr, cpu_R[dc->rd], size);
     if (addr == &t)
         tcg_temp_free(t);
 }
