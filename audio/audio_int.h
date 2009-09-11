@@ -68,6 +68,7 @@ typedef struct SWVoiceCap SWVoiceCap;
 
 typedef struct HWVoiceOut {
     int enabled;
+    int poll_mode;
     int pending_disable;
     struct audio_pcm_info info;
 
@@ -87,6 +88,7 @@ typedef struct HWVoiceOut {
 
 typedef struct HWVoiceIn {
     int enabled;
+    int poll_mode;
     struct audio_pcm_info info;
 
     t_sample *conv;
@@ -221,6 +223,8 @@ int  audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live);
 
 int audio_bug (const char *funcname, int cond);
 void *audio_calloc (const char *funcname, int nmemb, size_t size);
+
+void audio_run (const char *msg);
 
 #define VOICE_ENABLE 1
 #define VOICE_DISABLE 2

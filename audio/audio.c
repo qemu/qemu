@@ -34,6 +34,7 @@
 /* #define DEBUG_LIVE */
 /* #define DEBUG_OUT */
 /* #define DEBUG_CAPTURE */
+/* #define DEBUG_POLL */
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
@@ -64,6 +65,8 @@ static struct {
     } period;
     int plive;
     int log_to_monitor;
+    int try_poll_in;
+    int try_poll_out;
 } conf = {
     .fixed_out = { /* DAC fixed settings */
         .enabled = 1,
@@ -92,6 +95,8 @@ static struct {
     .period = { .hertz = 250 },
     .plive = 0,
     .log_to_monitor = 0,
+    .try_poll_in = 1,
+    .try_poll_out = 1,
 };
 
 static AudioState glob_audio_state;
@@ -1082,6 +1087,47 @@ static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 #undef DAC
 #include "audio_template.h"
 
+/*
+ * Timer
+ */
+static void audio_timer (void *opaque)
+{
+    AudioState *s = opaque;
+
+    audio_run ("timer");
+    qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
+}
+
+
+static int audio_is_timer_needed (void)
+{
+    HWVoiceIn *hwi = NULL;
+    HWVoiceOut *hwo = NULL;
+
+    while ((hwo = audio_pcm_hw_find_any_enabled_out (hwo))) {
+        if (!hwo->poll_mode) return 1;
+    }
+    while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
+        if (!hwi->poll_mode) return 1;
+    }
+    return 0;
+}
+
+static void audio_reset_timer (void)
+{
+    AudioState *s = &glob_audio_state;
+
+    if (audio_is_timer_needed ()) {
+        qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + 1);
+    }
+    else {
+        qemu_del_timer (s->ts);
+    }
+}
+
+/*
+ * Public API
+ */
 int AUD_write (SWVoiceOut *sw, void *buf, int size)
 {
     int bytes;
@@ -1142,7 +1188,8 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
             if (!hw->enabled) {
                 hw->enabled = 1;
                 if (s->vm_running) {
-                    hw->pcm_ops->ctl_out (hw, VOICE_ENABLE);
+                    hw->pcm_ops->ctl_out (hw, VOICE_ENABLE, conf.try_poll_out);
+                    audio_reset_timer ();
                 }
             }
         }
@@ -1186,7 +1233,7 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
             if (!hw->enabled) {
                 hw->enabled = 1;
                 if (s->vm_running) {
-                    hw->pcm_ops->ctl_in (hw, VOICE_ENABLE);
+                    hw->pcm_ops->ctl_in (hw, VOICE_ENABLE, conf.try_poll_in);
                 }
             }
             sw->total_hw_samples_acquired = hw->total_samples_captured;
@@ -1480,15 +1527,29 @@ static void audio_run_capture (AudioState *s)
     }
 }
 
-static void audio_timer (void *opaque)
+void audio_run (const char *msg)
 {
-    AudioState *s = opaque;
+    AudioState *s = &glob_audio_state;
 
     audio_run_out (s);
     audio_run_in (s);
     audio_run_capture (s);
+#ifdef DEBUG_POLL
+    {
+        static double prevtime;
+        double currtime;
+        struct timeval tv;
 
-    qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
+        if (gettimeofday (&tv, NULL)) {
+            perror ("audio_run: gettimeofday");
+            return;
+        }
+
+        currtime = tv.tv_sec + tv.tv_usec * 1e-6;
+        dolog ("Elapsed since last %s: %f\n", msg, currtime - prevtime);
+        prevtime = currtime;
+    }
+#endif
 }
 
 static struct audio_option audio_options[] = {
@@ -1523,6 +1584,12 @@ static struct audio_option audio_options[] = {
         .valp  = &conf.fixed_out.nb_voices,
         .descr = "Number of voices for DAC"
     },
+    {
+        .name  = "DAC_TRY_POLL",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.try_poll_out,
+        .descr = "Attempt using poll mode for DAC"
+    },
     /* ADC */
     {
         .name  = "ADC_FIXED_SETTINGS",
@@ -1554,6 +1621,12 @@ static struct audio_option audio_options[] = {
         .valp  = &conf.fixed_in.nb_voices,
         .descr = "Number of voices for ADC"
     },
+    {
+        .name  = "ADC_TRY_POLL",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.try_poll_out,
+        .descr = "Attempt using poll mode for ADC"
+    },
     /* Misc */
     {
         .name  = "TIMER_PERIOD",
@@ -1571,7 +1644,7 @@ static struct audio_option audio_options[] = {
         .name  = "LOG_TO_MONITOR",
         .tag   = AUD_OPT_BOOL,
         .valp  = &conf.log_to_monitor,
-        .descr = "print logging messages to monitor instead of stderr"
+        .descr = "Print logging messages to monitor instead of stderr"
     },
     { /* End of list */ }
 };
@@ -1676,12 +1749,13 @@ static void audio_vm_change_state_handler (void *opaque, int running,
 
     s->vm_running = running;
     while ((hwo = audio_pcm_hw_find_any_enabled_out (hwo))) {
-        hwo->pcm_ops->ctl_out (hwo, op);
+        hwo->pcm_ops->ctl_out (hwo, op, conf.try_poll_out);
     }
 
     while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
-        hwi->pcm_ops->ctl_in (hwi, op);
+        hwi->pcm_ops->ctl_in (hwi, op, conf.try_poll_in);
     }
+    audio_reset_timer ();
 }
 
 static void audio_atexit (void)
@@ -1739,6 +1813,7 @@ static void audio_init (void)
     size_t i;
     int done = 0;
     const char *drvname;
+    VMChangeStateEntry *e;
     AudioState *s = &glob_audio_state;
 
     if (s->drv) {
@@ -1812,8 +1887,6 @@ static void audio_init (void)
         }
     }
 
-    VMChangeStateEntry *e;
-
     if (conf.period.hertz <= 0) {
         if (conf.period.hertz < 0) {
             dolog ("warning: Timer period is negative - %d "
@@ -1833,7 +1906,6 @@ static void audio_init (void)
 
     LIST_INIT (&s->card_head);
     register_savevm ("audio", 0, 1, audio_save, audio_load, s);
-    qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
 }
 
 void AUD_register_card (const char *name, QEMUSoundCard *card)
