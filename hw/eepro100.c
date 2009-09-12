@@ -502,6 +502,8 @@ static void nic_selective_reset(EEPRO100State * s)
     //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, s->macaddr, 6);
     eeprom_contents[0xa] = 0x4000;
+    if (s->device == i82557B || s->device == i82557C)
+        eeprom_contents[5] = 0x0100;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
