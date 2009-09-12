@@ -33,14 +33,23 @@ register struct CPUX86State *env asm(AREG0);
 #include "qemu-common.h"
 #include "qemu-log.h"
 
+#undef EAX
 #define EAX (env->regs[R_EAX])
+#undef ECX
 #define ECX (env->regs[R_ECX])
+#undef EDX
 #define EDX (env->regs[R_EDX])
+#undef EBX
 #define EBX (env->regs[R_EBX])
+#undef ESP
 #define ESP (env->regs[R_ESP])
+#undef EBP
 #define EBP (env->regs[R_EBP])
+#undef ESI
 #define ESI (env->regs[R_ESI])
+#undef EDI
 #define EDI (env->regs[R_EDI])
+#undef EIP
 #define EIP (env->eip)
 #define DF  (env->df)
 

@@ -572,6 +572,7 @@ const struct powerpc_operand powerpc_operands[] =
 
   /* The DS field in a DS form instruction.  This is like D, but the
      lower two bits are forced to zero.  */
+#undef DS
 #define DS DQ + 1
   { 0xfffc, 0, NULL, NULL,
     PPC_OPERAND_PARENS | PPC_OPERAND_SIGNED | PPC_OPERAND_DS },
