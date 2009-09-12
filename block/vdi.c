@@ -690,8 +690,8 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             n_sectors = bmap_last - bmap_first + 1;
             offset = s->bmap_sector + bmap_first;
             acb->bmap_first = VDI_UNALLOCATED;
-            acb->hd_iov.iov_base = (uint8_t *)&s->bmap[0] +
-                                   bmap_first * SECTOR_SIZE;
+            acb->hd_iov.iov_base = (void *)((uint8_t *)&s->bmap[0] +
+                                            bmap_first * SECTOR_SIZE);
             acb->hd_iov.iov_len = n_sectors * SECTOR_SIZE;
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
             logout("will write %u block map sectors starting from entry %u\n",
@@ -742,7 +742,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         acb->bmap_last = block_index;
         memcpy(block + sector_in_block * SECTOR_SIZE,
                acb->buf, n_sectors * SECTOR_SIZE);
-        acb->hd_iov.iov_base = block;
+        acb->hd_iov.iov_base = (void *)block;
         acb->hd_iov.iov_len = s->block_size;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_writev(s->hd, offset,
@@ -755,7 +755,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         uint64_t offset = s->header.offset_data / SECTOR_SIZE +
                           (uint64_t)bmap_entry * s->block_sectors +
                           sector_in_block;
-        acb->hd_iov.iov_base = acb->buf;
+        acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = n_sectors * SECTOR_SIZE;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_writev(s->hd, offset, &acb->hd_qiov,
