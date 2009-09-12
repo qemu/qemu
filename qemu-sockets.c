@@ -30,7 +30,7 @@ static int sockets_debug = 0;
 static const int on=1, off=0;
 
 /* used temporarely until all users are converted to QemuOpts */
-QemuOptsList dummy_opts = {
+static QemuOptsList dummy_opts = {
     .name = "dummy",
     .head = QTAILQ_HEAD_INITIALIZER(dummy_opts.head),
     .desc = {
