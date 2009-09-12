@@ -326,6 +326,10 @@ SunOS)
     audio_drv_list="oss"
   fi
   audio_possible_drivers="oss sdl"
+# needed for CMSG_ macros in sys/socket.h
+  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
+# needed for TIOCWIN* defines in termios.h
+  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
   QEMU_CFLAGS="-std=gnu99 $QEMU_CFLAGS"
   LIBS="-lsocket -lnsl -lresolv $LIBS"
 ;;
