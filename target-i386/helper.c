@@ -743,8 +743,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
-    if (kvm_enabled())
-        cpu_synchronize_state(env);
+    cpu_synchronize_state(env);
 
     eflags = env->eflags;
 #ifdef TARGET_X86_64
