@@ -25,7 +25,7 @@
 #ifndef __QEMU_ACL_H__
 #define __QEMU_ACL_H__
 
-#include "sys-queue.h"
+#include "qemu-queue.h"
 
 typedef struct qemu_acl_entry qemu_acl_entry;
 typedef struct qemu_acl qemu_acl;
@@ -34,13 +34,13 @@ struct qemu_acl_entry {
     char *match;
     int deny;
 
-    TAILQ_ENTRY(qemu_acl_entry) next;
+    QTAILQ_ENTRY(qemu_acl_entry) next;
 };
 
 struct qemu_acl {
     char *aclname;
     unsigned int nentries;
-    TAILQ_HEAD(,qemu_acl_entry) entries;
+    QTAILQ_HEAD(,qemu_acl_entry) entries;
     int defaultDeny;
 };
 

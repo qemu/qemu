@@ -766,8 +766,8 @@ static void audio_detach_capture (HWVoiceOut *hw)
             sw->rate = NULL;
         }
 
-        LIST_REMOVE (sw, entries);
-        LIST_REMOVE (sc, entries);
+        QLIST_REMOVE (sw, entries);
+        QLIST_REMOVE (sc, entries);
         qemu_free (sc);
         if (was_active) {
             /* We have removed soft voice from the capture:
@@ -811,8 +811,8 @@ static int audio_attach_capture (HWVoiceOut *hw)
             qemu_free (sw);
             return -1;
         }
-        LIST_INSERT_HEAD (&hw_cap->sw_head, sw, entries);
-        LIST_INSERT_HEAD (&hw->cap_head, sc, entries);
+        QLIST_INSERT_HEAD (&hw_cap->sw_head, sw, entries);
+        QLIST_INSERT_HEAD (&hw->cap_head, sc, entries);
 #ifdef DEBUG_CAPTURE
         asprintf (&sw->name, "for %p %d,%d,%d",
                   hw, sw->info.freq, sw->info.bits, sw->info.nchannels);
@@ -1803,9 +1803,9 @@ static void audio_init (void)
         return;
     }
 
-    LIST_INIT (&s->hw_head_out);
-    LIST_INIT (&s->hw_head_in);
-    LIST_INIT (&s->cap_head);
+    QLIST_INIT (&s->hw_head_out);
+    QLIST_INIT (&s->hw_head_in);
+    QLIST_INIT (&s->cap_head);
     atexit (audio_atexit);
 
     s->ts = qemu_new_timer (vm_clock, audio_timer, s);
@@ -1887,7 +1887,7 @@ static void audio_init (void)
                "(Audio can continue looping even after stopping the VM)\n");
     }
 
-    LIST_INIT (&s->card_head);
+    QLIST_INIT (&s->card_head);
     register_savevm ("audio", 0, 1, audio_save, audio_load, s);
 }
 
@@ -1896,12 +1896,12 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
     audio_init ();
     card->name = qemu_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
-    LIST_INSERT_HEAD (&glob_audio_state.card_head, card, entries);
+    QLIST_INSERT_HEAD (&glob_audio_state.card_head, card, entries);
 }
 
 void AUD_remove_card (QEMUSoundCard *card)
 {
-    LIST_REMOVE (card, entries);
+    QLIST_REMOVE (card, entries);
     qemu_free (card->name);
 }
 
@@ -1933,7 +1933,7 @@ CaptureVoiceOut *AUD_add_capture (
 
     cap = audio_pcm_capture_find_specific (as);
     if (cap) {
-        LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
+        QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
         return cap;
     }
     else {
@@ -1948,8 +1948,8 @@ CaptureVoiceOut *AUD_add_capture (
         }
 
         hw = &cap->hw;
-        LIST_INIT (&hw->sw_head);
-        LIST_INIT (&cap->cb_head);
+        QLIST_INIT (&hw->sw_head);
+        QLIST_INIT (&cap->cb_head);
 
         /* XXX find a more elegant way */
         hw->samples = 4096 * 4;
@@ -1977,8 +1977,8 @@ CaptureVoiceOut *AUD_add_capture (
             [hw->info.swap_endianness]
             [audio_bits_to_index (hw->info.bits)];
 
-        LIST_INSERT_HEAD (&s->cap_head, cap, entries);
-        LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
+        QLIST_INSERT_HEAD (&s->cap_head, cap, entries);
+        QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
 
         hw = NULL;
         while ((hw = audio_pcm_hw_find_any_out (hw))) {
@@ -2004,7 +2004,7 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
     for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
         if (cb->opaque == cb_opaque) {
             cb->ops.destroy (cb_opaque);
-            LIST_REMOVE (cb, entries);
+            QLIST_REMOVE (cb, entries);
             qemu_free (cb);
 
             if (!cap->cb_head.lh_first) {
@@ -2021,12 +2021,12 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
                         st_rate_stop (sw->rate);
                         sw->rate = NULL;
                     }
-                    LIST_REMOVE (sw, entries);
-                    LIST_REMOVE (sc, entries);
+                    QLIST_REMOVE (sw, entries);
+                    QLIST_REMOVE (sc, entries);
                     qemu_free (sc);
                     sw = sw1;
                 }
-                LIST_REMOVE (cap, entries);
+                QLIST_REMOVE (cap, entries);
                 qemu_free (cap);
             }
             return;

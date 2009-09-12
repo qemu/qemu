@@ -106,8 +106,8 @@
 /***********************************************************/
 /* character device */
 
-static TAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs =
-    TAILQ_HEAD_INITIALIZER(chardevs);
+static QTAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs =
+    QTAILQ_HEAD_INITIALIZER(chardevs);
 static int initial_reset_issued;
 
 static void qemu_chr_event(CharDriverState *s, int event)
@@ -139,7 +139,7 @@ void qemu_chr_initial_reset(void)
 
     initial_reset_issued = 1;
 
-    TAILQ_FOREACH(chr, &chardevs, next) {
+    QTAILQ_FOREACH(chr, &chardevs, next) {
         qemu_chr_reset(chr);
     }
 }
@@ -352,7 +352,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 's':
             {
                 DriveInfo *dinfo;
-                TAILQ_FOREACH(dinfo, &drives, next) {
+                QTAILQ_FOREACH(dinfo, &drives, next) {
                     bdrv_commit(dinfo->bdrv);
                 }
             }
@@ -2400,7 +2400,7 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
     if (!chr->filename)
         chr->filename = qemu_strdup(qemu_opt_get(opts, "backend"));
     chr->init = init;
-    TAILQ_INSERT_TAIL(&chardevs, chr, next);
+    QTAILQ_INSERT_TAIL(&chardevs, chr, next);
 
     if (qemu_opt_get_bool(opts, "mux", 0)) {
         CharDriverState *base = chr;
@@ -2409,7 +2409,7 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
         snprintf(base->label, len, "%s-base", qemu_opts_id(opts));
         chr = qemu_chr_open_mux(base);
         chr->filename = base->filename;
-        TAILQ_INSERT_TAIL(&chardevs, chr, next);
+        QTAILQ_INSERT_TAIL(&chardevs, chr, next);
     }
     chr->label = qemu_strdup(qemu_opts_id(opts));
     return chr;
@@ -2438,7 +2438,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
 
 void qemu_chr_close(CharDriverState *chr)
 {
-    TAILQ_REMOVE(&chardevs, chr, next);
+    QTAILQ_REMOVE(&chardevs, chr, next);
     if (chr->chr_close)
         chr->chr_close(chr);
     qemu_free(chr->filename);
@@ -2450,7 +2450,7 @@ void qemu_chr_info(Monitor *mon)
 {
     CharDriverState *chr;
 
-    TAILQ_FOREACH(chr, &chardevs, next) {
+    QTAILQ_FOREACH(chr, &chardevs, next) {
         monitor_printf(mon, "%s: filename=%s\n", chr->label, chr->filename);
     }
 }
@@ -2459,7 +2459,7 @@ CharDriverState *qemu_chr_find(const char *name)
 {
     CharDriverState *chr;
 
-    TAILQ_FOREACH(chr, &chardevs, next) {
+    QTAILQ_FOREACH(chr, &chardevs, next) {
         if (strcmp(chr->label, name) != 0)
             continue;
         return chr;

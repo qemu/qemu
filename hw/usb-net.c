@@ -26,7 +26,7 @@
 #include "qemu-common.h"
 #include "usb.h"
 #include "net.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -595,7 +595,7 @@ static const uint32_t oid_supported_list[] =
 #define NDIS_MAC_OPTION_8021P_PRIORITY		(1 << 6)
 
 struct rndis_response {
-    TAILQ_ENTRY(rndis_response) entries;
+    QTAILQ_ENTRY(rndis_response) entries;
     uint32_t length;
     uint8_t buf[0];
 };
@@ -621,7 +621,7 @@ typedef struct USBNetState {
 
     char usbstring_mac[13];
     VLANClientState *vc;
-    TAILQ_HEAD(rndis_resp_head, rndis_response) rndis_resp;
+    QTAILQ_HEAD(rndis_resp_head, rndis_response) rndis_resp;
 } USBNetState;
 
 static int ndis_query(USBNetState *s, uint32_t oid,
@@ -812,7 +812,7 @@ static int rndis_get_response(USBNetState *s, uint8_t *buf)
     if (!r)
         return ret;
 
-    TAILQ_REMOVE(&s->rndis_resp, r, entries);
+    QTAILQ_REMOVE(&s->rndis_resp, r, entries);
     ret = r->length;
     memcpy(buf, r->buf, r->length);
     qemu_free(r);
@@ -825,7 +825,7 @@ static void *rndis_queue_response(USBNetState *s, unsigned int length)
     struct rndis_response *r =
             qemu_mallocz(sizeof(struct rndis_response) + length);
 
-    TAILQ_INSERT_TAIL(&s->rndis_resp, r, entries);
+    QTAILQ_INSERT_TAIL(&s->rndis_resp, r, entries);
     r->length = length;
 
     return &r->buf[0];
@@ -836,7 +836,7 @@ static void rndis_clear_responsequeue(USBNetState *s)
     struct rndis_response *r;
 
     while ((r = s->rndis_resp.tqh_first)) {
-        TAILQ_REMOVE(&s->rndis_resp, r, entries);
+        QTAILQ_REMOVE(&s->rndis_resp, r, entries);
         qemu_free(r);
     }
 }
@@ -1440,7 +1440,7 @@ static int usb_net_initfn(USBDevice *dev)
 
     s->rndis = 1;
     s->rndis_state = RNDIS_UNINITIALIZED;
-    TAILQ_INIT(&s->rndis_resp);
+    QTAILQ_INIT(&s->rndis_resp);
 
     s->medium = 0;	/* NDIS_MEDIUM_802_3 */
     s->speed = 1000000; /* 100MBps, in 100Bps units */

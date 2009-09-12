@@ -98,7 +98,7 @@ typedef struct BDRVQcowState {
     uint8_t *cluster_cache;
     uint8_t *cluster_data;
     uint64_t cluster_cache_offset;
-    LIST_HEAD(QCowClusterAlloc, QCowL2Meta) cluster_allocs;
+    QLIST_HEAD(QCowClusterAlloc, QCowL2Meta) cluster_allocs;
 
     uint64_t *refcount_table;
     uint64_t refcount_table_offset;
@@ -139,9 +139,9 @@ typedef struct QCowL2Meta
     int nb_available;
     int nb_clusters;
     struct QCowL2Meta *depends_on;
-    LIST_HEAD(QCowAioDependencies, QCowAIOCB) dependent_requests;
+    QLIST_HEAD(QCowAioDependencies, QCowAIOCB) dependent_requests;
 
-    LIST_ENTRY(QCowL2Meta) next_in_flight;
+    QLIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
 
 static inline int size_to_clusters(BDRVQcowState *s, int64_t size)

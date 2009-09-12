@@ -428,7 +428,7 @@ int kvm_init(int smp_cpus)
     s = qemu_mallocz(sizeof(KVMState));
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
-    TAILQ_INIT(&s->kvm_sw_breakpoints);
+    QTAILQ_INIT(&s->kvm_sw_breakpoints);
 #endif
     for (i = 0; i < ARRAY_SIZE(s->slots); i++)
         s->slots[i].slot = i;
@@ -917,7 +917,7 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
 {
     struct kvm_sw_breakpoint *bp;
 
-    TAILQ_FOREACH(bp, &env->kvm_state->kvm_sw_breakpoints, entry) {
+    QTAILQ_FOREACH(bp, &env->kvm_state->kvm_sw_breakpoints, entry) {
         if (bp->pc == pc)
             return bp;
     }
@@ -926,7 +926,7 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
 
 int kvm_sw_breakpoints_active(CPUState *env)
 {
-    return !TAILQ_EMPTY(&env->kvm_state->kvm_sw_breakpoints);
+    return !QTAILQ_EMPTY(&env->kvm_state->kvm_sw_breakpoints);
 }
 
 struct kvm_set_guest_debug_data {
@@ -983,7 +983,7 @@ int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
             return err;
         }
 
-        TAILQ_INSERT_HEAD(&current_env->kvm_state->kvm_sw_breakpoints,
+        QTAILQ_INSERT_HEAD(&current_env->kvm_state->kvm_sw_breakpoints,
                           bp, entry);
     } else {
         err = kvm_arch_insert_hw_breakpoint(addr, len, type);
@@ -1020,7 +1020,7 @@ int kvm_remove_breakpoint(CPUState *current_env, target_ulong addr,
         if (err)
             return err;
 
-        TAILQ_REMOVE(&current_env->kvm_state->kvm_sw_breakpoints, bp, entry);
+        QTAILQ_REMOVE(&current_env->kvm_state->kvm_sw_breakpoints, bp, entry);
         qemu_free(bp);
     } else {
         err = kvm_arch_remove_hw_breakpoint(addr, len, type);
@@ -1042,7 +1042,7 @@ void kvm_remove_all_breakpoints(CPUState *current_env)
     KVMState *s = current_env->kvm_state;
     CPUState *env;
 
-    TAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {
+    QTAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {
         if (kvm_arch_remove_sw_breakpoint(current_env, bp) != 0) {
             /* Try harder to find a CPU that currently sees the breakpoint. */
             for (env = first_cpu; env != NULL; env = env->next_cpu) {

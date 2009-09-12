@@ -7687,8 +7687,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     gen_icount_start();
     for(;;) {
-        if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
-            TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == pc_ptr &&
                     !((bp->flags & BP_CPU) && (tb->flags & HF_RF_MASK))) {
                     gen_debug(dc, pc_ptr - dc->cs_base);

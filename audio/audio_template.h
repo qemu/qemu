@@ -184,12 +184,12 @@ static void glue (audio_pcm_sw_fini_, TYPE) (SW *sw)
 
 static void glue (audio_pcm_hw_add_sw_, TYPE) (HW *hw, SW *sw)
 {
-    LIST_INSERT_HEAD (&hw->sw_head, sw, entries);
+    QLIST_INSERT_HEAD (&hw->sw_head, sw, entries);
 }
 
 static void glue (audio_pcm_hw_del_sw_, TYPE) (SW *sw)
 {
-    LIST_REMOVE (sw, entries);
+    QLIST_REMOVE (sw, entries);
 }
 
 static void glue (audio_pcm_hw_gc_, TYPE) (HW **hwp)
@@ -201,7 +201,7 @@ static void glue (audio_pcm_hw_gc_, TYPE) (HW **hwp)
 #ifdef DAC
         audio_detach_capture (hw);
 #endif
-        LIST_REMOVE (hw, entries);
+        QLIST_REMOVE (hw, entries);
         glue (s->nb_hw_voices_, TYPE) += 1;
         glue (audio_pcm_hw_free_resources_ ,TYPE) (hw);
         glue (hw->pcm_ops->fini_, TYPE) (hw);
@@ -267,9 +267,9 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (struct audsettings *as)
     }
 
     hw->pcm_ops = drv->pcm_ops;
-    LIST_INIT (&hw->sw_head);
+    QLIST_INIT (&hw->sw_head);
 #ifdef DAC
-    LIST_INIT (&hw->cap_head);
+    QLIST_INIT (&hw->cap_head);
 #endif
     if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
         goto err0;
@@ -294,7 +294,7 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (struct audsettings *as)
         goto err1;
     }
 
-    LIST_INSERT_HEAD (&s->glue (hw_head_, TYPE), hw, entries);
+    QLIST_INSERT_HEAD (&s->glue (hw_head_, TYPE), hw, entries);
     glue (s->nb_hw_voices_, TYPE) -= 1;
 #ifdef DAC
     audio_attach_capture (hw);

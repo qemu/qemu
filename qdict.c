@@ -14,7 +14,7 @@
 #include "qdict.h"
 #include "qstring.h"
 #include "qobject.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "qemu-common.h"
 
 static void qdict_destroy_obj(QObject *obj);
@@ -88,7 +88,7 @@ static QDictEntry *qdict_find(const QDict *qdict,
 {
     QDictEntry *entry;
 
-    LIST_FOREACH(entry, &qdict->table[hash], next)
+    QLIST_FOREACH(entry, &qdict->table[hash], next)
         if (!strcmp(entry->key, key))
             return entry;
 
@@ -120,7 +120,7 @@ void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
     } else {
         /* allocate a new entry */
         entry = alloc_entry(key, value);
-        LIST_INSERT_HEAD(&qdict->table[hash], entry, next);
+        QLIST_INSERT_HEAD(&qdict->table[hash], entry, next);
     }
 
     qdict->size++;
@@ -266,7 +266,7 @@ void qdict_del(QDict *qdict, const char *key)
 
     entry = qdict_find(qdict, key, tdb_hash(key) % QDICT_HASH_SIZE);
     if (entry) {
-        LIST_REMOVE(entry, next);
+        QLIST_REMOVE(entry, next);
         qentry_destroy(entry);
         qdict->size--;
     }
@@ -284,10 +284,10 @@ static void qdict_destroy_obj(QObject *obj)
     qdict = qobject_to_qdict(obj);
 
     for (i = 0; i < QDICT_HASH_SIZE; i++) {
-        QDictEntry *entry = LIST_FIRST(&qdict->table[i]);
+        QDictEntry *entry = QLIST_FIRST(&qdict->table[i]);
         while (entry) {
-            QDictEntry *tmp = LIST_NEXT(entry, next);
-            LIST_REMOVE(entry, next);
+            QDictEntry *tmp = QLIST_NEXT(entry, next);
+            QLIST_REMOVE(entry, next);
             qentry_destroy(entry);
             entry = tmp;
         }

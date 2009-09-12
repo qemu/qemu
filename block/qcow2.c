@@ -219,7 +219,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (qcow2_refcount_init(bs) < 0)
         goto fail;
 
-    LIST_INIT(&s->cluster_allocs);
+    QLIST_INIT(&s->cluster_allocs);
 
     /* read qcow2 extensions */
     if (header.backing_file_offset)
@@ -340,7 +340,7 @@ typedef struct QCowAIOCB {
     QEMUIOVector hd_qiov;
     QEMUBH *bh;
     QCowL2Meta l2meta;
-    LIST_ENTRY(QCowAIOCB) next_depend;
+    QLIST_ENTRY(QCowAIOCB) next_depend;
 } QCowAIOCB;
 
 static void qcow_aio_cancel(BlockDriverAIOCB *blockacb)
@@ -503,7 +503,7 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
     acb->n = 0;
     acb->cluster_offset = 0;
     acb->l2meta.nb_clusters = 0;
-    LIST_INIT(&acb->l2meta.dependent_requests);
+    QLIST_INIT(&acb->l2meta.dependent_requests);
     return acb;
 }
 
@@ -530,12 +530,12 @@ static void run_dependent_requests(QCowL2Meta *m)
 
     /* Take the request off the list of running requests */
     if (m->nb_clusters != 0) {
-        LIST_REMOVE(m, next_in_flight);
+        QLIST_REMOVE(m, next_in_flight);
     }
 
     /*
      * Restart all dependent requests.
-     * Can't use LIST_FOREACH here - the next link might not be the same
+     * Can't use QLIST_FOREACH here - the next link might not be the same
      * any more after the callback  (request could depend on a different
      * request now)
      */
@@ -545,7 +545,7 @@ static void run_dependent_requests(QCowL2Meta *m)
     }
 
     /* Empty the list for the next part of the request */
-    LIST_INIT(&m->dependent_requests);
+    QLIST_INIT(&m->dependent_requests);
 }
 
 static void qcow_aio_write_cb(void *opaque, int ret)
@@ -590,7 +590,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
 
     /* Need to wait for another request? If so, we are done for now. */
     if (!acb->cluster_offset && acb->l2meta.depends_on != NULL) {
-        LIST_INSERT_HEAD(&acb->l2meta.depends_on->dependent_requests,
+        QLIST_INSERT_HEAD(&acb->l2meta.depends_on->dependent_requests,
             acb, next_depend);
         return;
     }
@@ -690,7 +690,7 @@ static int preallocate(BlockDriverState *bs)
 
     nb_sectors = bdrv_getlength(bs) >> 9;
     offset = 0;
-    LIST_INIT(&meta.dependent_requests);
+    QLIST_INIT(&meta.dependent_requests);
 
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);

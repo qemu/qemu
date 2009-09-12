@@ -2,7 +2,7 @@
 #define QDICT_H
 
 #include "qobject.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include <stdint.h>
 
 #define QDICT_HASH_SIZE 512
@@ -10,13 +10,13 @@
 typedef struct QDictEntry {
     char *key;
     QObject *value;
-    LIST_ENTRY(QDictEntry) next;
+    QLIST_ENTRY(QDictEntry) next;
 } QDictEntry;
 
 typedef struct QDict {
     QObject_HEAD;
     size_t size;
-    LIST_HEAD(,QDictEntry) table[QDICT_HASH_SIZE];
+    QLIST_HEAD(,QDictEntry) table[QDICT_HASH_SIZE];
 } QDict;
 
 /* Object API */

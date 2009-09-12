@@ -31,8 +31,6 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
-/* Needed early to override system queue definitions on BSD */
-#include "sys-queue.h"
 
 #ifndef _WIN32
 #include <libgen.h>
@@ -168,6 +166,8 @@ int main(int argc, char **argv)
 
 #include "slirp/libslirp.h"
 
+#include "qemu-queue.h"
+
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
 
@@ -180,8 +180,8 @@ static const char *data_dir;
 const char *bios_name = NULL;
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
-struct drivelist drives = TAILQ_HEAD_INITIALIZER(drives);
-struct driveoptlist driveopts = TAILQ_HEAD_INITIALIZER(driveopts);
+struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
+struct driveoptlist driveopts = QTAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
@@ -1810,7 +1810,7 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
 
     /* seek interface, bus and unit */
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->type == type &&
 	    dinfo->bus == bus &&
 	    dinfo->unit == unit)
@@ -1824,7 +1824,7 @@ DriveInfo *drive_get_by_id(const char *id)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (strcmp(id, dinfo->id))
             continue;
         return dinfo;
@@ -1838,7 +1838,7 @@ int drive_get_max_bus(BlockInterfaceType type)
     DriveInfo *dinfo;
 
     max_bus = -1;
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if(dinfo->type == type &&
            dinfo->bus > max_bus)
             max_bus = dinfo->bus;
@@ -1850,7 +1850,7 @@ const char *drive_get_serial(BlockDriverState *bdrv)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
             return dinfo->serial;
     }
@@ -1862,7 +1862,7 @@ BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
             return dinfo->onerror;
     }
@@ -1879,11 +1879,11 @@ void drive_uninit(BlockDriverState *bdrv)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv != bdrv)
             continue;
         qemu_opts_del(dinfo->opts);
-        TAILQ_REMOVE(&drives, dinfo, next);
+        QTAILQ_REMOVE(&drives, dinfo, next);
         qemu_free(dinfo);
         break;
     }
@@ -2170,7 +2170,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     dinfo->opts = opts;
     if (serial)
         strncpy(dinfo->serial, serial, sizeof(serial));
-    TAILQ_INSERT_TAIL(&drives, dinfo, next);
+    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     switch(type) {
     case IF_IDE:
@@ -3145,10 +3145,10 @@ static void nographic_update(void *opaque)
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
-    LIST_ENTRY (vm_change_state_entry) entries;
+    QLIST_ENTRY (vm_change_state_entry) entries;
 };
 
-static LIST_HEAD(vm_change_state_head, vm_change_state_entry) vm_change_state_head;
+static QLIST_HEAD(vm_change_state_head, vm_change_state_entry) vm_change_state_head;
 
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque)
@@ -3159,13 +3159,13 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 
     e->cb = cb;
     e->opaque = opaque;
-    LIST_INSERT_HEAD(&vm_change_state_head, e, entries);
+    QLIST_INSERT_HEAD(&vm_change_state_head, e, entries);
     return e;
 }
 
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 {
-    LIST_REMOVE (e, entries);
+    QLIST_REMOVE (e, entries);
     qemu_free (e);
 }
 
@@ -3195,13 +3195,13 @@ void vm_start(void)
 /* reset/shutdown handler */
 
 typedef struct QEMUResetEntry {
-    TAILQ_ENTRY(QEMUResetEntry) entry;
+    QTAILQ_ENTRY(QEMUResetEntry) entry;
     QEMUResetHandler *func;
     void *opaque;
 } QEMUResetEntry;
 
-static TAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
-    TAILQ_HEAD_INITIALIZER(reset_handlers);
+static QTAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
+    QTAILQ_HEAD_INITIALIZER(reset_handlers);
 static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
@@ -3259,16 +3259,16 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 
     re->func = func;
     re->opaque = opaque;
-    TAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
 }
 
 void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry *re;
 
-    TAILQ_FOREACH(re, &reset_handlers, entry) {
+    QTAILQ_FOREACH(re, &reset_handlers, entry) {
         if (re->func == func && re->opaque == opaque) {
-            TAILQ_REMOVE(&reset_handlers, re, entry);
+            QTAILQ_REMOVE(&reset_handlers, re, entry);
             qemu_free(re);
             return;
         }
@@ -3280,7 +3280,7 @@ void qemu_system_reset(void)
     QEMUResetEntry *re, *nre;
 
     /* reset all devices */
-    TAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
+    QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
     }
 }
@@ -4579,9 +4579,9 @@ struct device_config {
         DEV_BT,        /* -bt          */
     } type;
     const char *cmdline;
-    TAILQ_ENTRY(device_config) next;
+    QTAILQ_ENTRY(device_config) next;
 };
-TAILQ_HEAD(, device_config) device_configs = TAILQ_HEAD_INITIALIZER(device_configs);
+QTAILQ_HEAD(, device_config) device_configs = QTAILQ_HEAD_INITIALIZER(device_configs);
 
 static void add_device_config(int type, const char *cmdline)
 {
@@ -4590,7 +4590,7 @@ static void add_device_config(int type, const char *cmdline)
     conf = qemu_mallocz(sizeof(*conf));
     conf->type = type;
     conf->cmdline = cmdline;
-    TAILQ_INSERT_TAIL(&device_configs, conf, next);
+    QTAILQ_INSERT_TAIL(&device_configs, conf, next);
 }
 
 static int foreach_device_config(int type, int (*func)(const char *cmdline))
@@ -4598,7 +4598,7 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     struct device_config *conf;
     int rc;
 
-    TAILQ_FOREACH(conf, &device_configs, next) {
+    QTAILQ_FOREACH(conf, &device_configs, next) {
         if (conf->type != type)
             continue;
         rc = func(conf->cmdline);
@@ -4655,7 +4655,7 @@ int main(int argc, char **argv, char **envp)
     qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
-    LIST_INIT (&vm_change_state_head);
+    QLIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
     {
         struct sigaction act;

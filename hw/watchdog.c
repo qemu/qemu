@@ -22,7 +22,7 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "sysemu.h"
 #include "hw/watchdog.h"
 
@@ -35,11 +35,11 @@
 #define WDT_NONE         6	/* Do nothing. */
 
 static int watchdog_action = WDT_RESET;
-static LIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
+static QLIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
 
 void watchdog_add_model(WatchdogTimerModel *model)
 {
-    LIST_INSERT_HEAD(&watchdog_list, model, entry);
+    QLIST_INSERT_HEAD(&watchdog_list, model, entry);
 }
 
 /* Returns:
@@ -54,14 +54,14 @@ int select_watchdog(const char *p)
 
     /* -watchdog ? lists available devices and exits cleanly. */
     if (strcmp(p, "?") == 0) {
-        LIST_FOREACH(model, &watchdog_list, entry) {
+        QLIST_FOREACH(model, &watchdog_list, entry) {
             fprintf(stderr, "\t%s\t%s\n",
                      model->wdt_name, model->wdt_description);
         }
         return 2;
     }
 
-    LIST_FOREACH(model, &watchdog_list, entry) {
+    QLIST_FOREACH(model, &watchdog_list, entry) {
         if (strcasecmp(model->wdt_name, p) == 0) {
             /* add the device */
             opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
@@ -71,7 +71,7 @@ int select_watchdog(const char *p)
     }
 
     fprintf(stderr, "Unknown -watchdog device. Supported devices are:\n");
-    LIST_FOREACH(model, &watchdog_list, entry) {
+    QLIST_FOREACH(model, &watchdog_list, entry) {
         fprintf(stderr, "\t%s\t%s\n",
                  model->wdt_name, model->wdt_description);
     }

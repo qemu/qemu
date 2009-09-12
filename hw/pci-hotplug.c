@@ -84,7 +84,7 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
     switch (type) {
     case IF_SCSI:
         success = 1;
-        scsibus = LIST_FIRST(&dev->qdev.child_bus);
+        scsibus = QLIST_FIRST(&dev->qdev.child_bus);
         scsi_bus_legacy_add_drive(DO_UPCAST(SCSIBus, qbus, scsibus),
                                   dinfo, dinfo->unit);
         break;

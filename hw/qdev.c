@@ -101,7 +101,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     qdev_prop_set_defaults(dev, dev->info->props);
     qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     qdev_prop_set_compat(dev);
-    LIST_INSERT_HEAD(&bus->children, dev, sibling);
+    QLIST_INSERT_HEAD(&bus->children, dev, sibling);
     return dev;
 }
 
@@ -235,7 +235,7 @@ void qdev_free(DeviceState *dev)
 #endif
     if (dev->info->reset)
         qemu_unregister_reset(dev->info->reset, dev);
-    LIST_REMOVE(dev, sibling);
+    QLIST_REMOVE(dev, sibling);
     qemu_free(dev);
 }
 
@@ -321,7 +321,7 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
 {
     BusState *bus;
 
-    LIST_FOREACH(bus, &dev->child_bus, sibling) {
+    QLIST_FOREACH(bus, &dev->child_bus, sibling) {
         if (strcmp(name, bus->name) == 0) {
             return bus;
         }
@@ -346,8 +346,8 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
         return bus;
     }
 
-    LIST_FOREACH(dev, &bus->children, sibling) {
-        LIST_FOREACH(child, &dev->child_bus, sibling) {
+    QLIST_FOREACH(dev, &bus->children, sibling) {
+        QLIST_FOREACH(child, &dev->child_bus, sibling) {
             ret = qbus_find_recursive(child, name, info);
             if (ret) {
                 return ret;
@@ -365,7 +365,7 @@ static void qbus_list_bus(DeviceState *dev, char *dest, int len)
 
     pos += snprintf(dest+pos, len-pos,"child busses at \"%s\":",
                     dev->id ? dev->id : dev->info->name);
-    LIST_FOREACH(child, &dev->child_bus, sibling) {
+    QLIST_FOREACH(child, &dev->child_bus, sibling) {
         pos += snprintf(dest+pos, len-pos, "%s\"%s\"", sep, child->name);
         sep = ", ";
     }
@@ -379,7 +379,7 @@ static void qbus_list_dev(BusState *bus, char *dest, int len)
 
     pos += snprintf(dest+pos, len-pos, "devices at \"%s\":",
                     bus->name);
-    LIST_FOREACH(dev, &bus->children, sibling) {
+    QLIST_FOREACH(dev, &bus->children, sibling) {
         pos += snprintf(dest+pos, len-pos, "%s\"%s\"",
                         sep, dev->info->name);
         if (dev->id)
@@ -392,7 +392,7 @@ static BusState *qbus_find_bus(DeviceState *dev, char *elem)
 {
     BusState *child;
 
-    LIST_FOREACH(child, &dev->child_bus, sibling) {
+    QLIST_FOREACH(child, &dev->child_bus, sibling) {
         if (strcmp(child->name, elem) == 0) {
             return child;
         }
@@ -410,17 +410,17 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
      *   (2) driver name
      *   (3) driver alias, if present
      */
-    LIST_FOREACH(dev, &bus->children, sibling) {
+    QLIST_FOREACH(dev, &bus->children, sibling) {
         if (dev->id  &&  strcmp(dev->id, elem) == 0) {
             return dev;
         }
     }
-    LIST_FOREACH(dev, &bus->children, sibling) {
+    QLIST_FOREACH(dev, &bus->children, sibling) {
         if (strcmp(dev->info->name, elem) == 0) {
             return dev;
         }
     }
-    LIST_FOREACH(dev, &bus->children, sibling) {
+    QLIST_FOREACH(dev, &bus->children, sibling) {
         if (dev->info->alias && strcmp(dev->info->alias, elem) == 0) {
             return dev;
         }
@@ -478,7 +478,7 @@ static BusState *qbus_find(const char *path)
                 qemu_error("device has no child bus (%s)\n", path);
                 return NULL;
             case 1:
-                return LIST_FIRST(&dev->child_bus);
+                return QLIST_FIRST(&dev->child_bus);
             default:
                 qbus_list_bus(dev, msg, sizeof(msg));
                 qemu_error("device has multiple child busses (%s)\n%s\n",
@@ -532,9 +532,9 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
         bus->name = buf;
     }
 
-    LIST_INIT(&bus->children);
+    QLIST_INIT(&bus->children);
     if (parent) {
-        LIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
+        QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
     }
     return bus;
@@ -575,7 +575,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     qdev_print_props(mon, dev, dev->parent_bus->info->props, "bus", indent);
     if (dev->parent_bus->info->print_dev)
         dev->parent_bus->info->print_dev(mon, dev, indent);
-    LIST_FOREACH(child, &dev->child_bus, sibling) {
+    QLIST_FOREACH(child, &dev->child_bus, sibling) {
         qbus_print(mon, child, indent);
     }
 }
@@ -587,7 +587,7 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
     qdev_printf("bus: %s\n", bus->name);
     indent += 2;
     qdev_printf("type %s\n", bus->info->name);
-    LIST_FOREACH(dev, &bus->children, sibling) {
+    QLIST_FOREACH(dev, &bus->children, sibling) {
         qdev_print(mon, dev, indent);
     }
 }

@@ -22,11 +22,6 @@
  * THE SOFTWARE.
  */
 #include "config-host.h"
-#ifdef CONFIG_BSD
-/* include native header before sys-queue.h */
-#include <sys/queue.h>
-#endif
-
 #include "qemu-common.h"
 #include "monitor.h"
 #include "block_int.h"
@@ -36,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
 #ifndef __DragonFly__
 #include <sys/disk.h>
 #endif

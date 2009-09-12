@@ -1844,7 +1844,7 @@ struct target_elf_prpsinfo {
 
 /* Here is the structure in which status of each thread is captured. */
 struct elf_thread_status {
-    TAILQ_ENTRY(elf_thread_status)  ets_link;
+    QTAILQ_ENTRY(elf_thread_status)  ets_link;
     struct target_elf_prstatus prstatus;   /* NT_PRSTATUS */
 #if 0
     elf_fpregset_t fpu;             /* NT_PRFPREG */
@@ -1860,7 +1860,7 @@ struct elf_note_info {
     struct target_elf_prstatus *prstatus;  /* NT_PRSTATUS */
     struct target_elf_prpsinfo *psinfo;    /* NT_PRPSINFO */
 
-    TAILQ_HEAD(thread_list_head, elf_thread_status) thread_list;
+    QTAILQ_HEAD(thread_list_head, elf_thread_status) thread_list;
 #if 0
     /*
      * Current version of ELF coredump doesn't support
@@ -1878,11 +1878,11 @@ struct vm_area_struct {
     abi_ulong   vma_start;  /* start vaddr of memory region */
     abi_ulong   vma_end;    /* end vaddr of memory region */
     abi_ulong   vma_flags;  /* protection etc. flags for the region */
-    TAILQ_ENTRY(vm_area_struct) vma_link;
+    QTAILQ_ENTRY(vm_area_struct) vma_link;
 };
 
 struct mm_struct {
-    TAILQ_HEAD(, vm_area_struct) mm_mmap;
+    QTAILQ_HEAD(, vm_area_struct) mm_mmap;
     int mm_count;           /* number of mappings */
 };
 
@@ -1962,7 +1962,7 @@ static struct mm_struct *vma_init(void)
         return (NULL);
 
     mm->mm_count = 0;
-    TAILQ_INIT(&mm->mm_mmap);
+    QTAILQ_INIT(&mm->mm_mmap);
 
     return (mm);
 }
@@ -1972,7 +1972,7 @@ static void vma_delete(struct mm_struct *mm)
     struct vm_area_struct *vma;
 
     while ((vma = vma_first(mm)) != NULL) {
-        TAILQ_REMOVE(&mm->mm_mmap, vma, vma_link);
+        QTAILQ_REMOVE(&mm->mm_mmap, vma, vma_link);
         qemu_free(vma);
     }
     qemu_free(mm);
@@ -1990,7 +1990,7 @@ static int vma_add_mapping(struct mm_struct *mm, abi_ulong start,
     vma->vma_end = end;
     vma->vma_flags = flags;
 
-    TAILQ_INSERT_TAIL(&mm->mm_mmap, vma, vma_link);
+    QTAILQ_INSERT_TAIL(&mm->mm_mmap, vma, vma_link);
     mm->mm_count++;
 
     return (0);
@@ -1998,12 +1998,12 @@ static int vma_add_mapping(struct mm_struct *mm, abi_ulong start,
 
 static struct vm_area_struct *vma_first(const struct mm_struct *mm)
 {
-    return (TAILQ_FIRST(&mm->mm_mmap));
+    return (QTAILQ_FIRST(&mm->mm_mmap));
 }
 
 static struct vm_area_struct *vma_next(struct vm_area_struct *vma)
 {
-    return (TAILQ_NEXT(vma, vma_link));
+    return (QTAILQ_NEXT(vma, vma_link));
 }
 
 static int vma_get_mapping_count(const struct mm_struct *mm)
@@ -2328,7 +2328,7 @@ static void fill_thread_info(struct elf_note_info *info, const CPUState *env)
     fill_note(&ets->notes[0], "CORE", NT_PRSTATUS, sizeof (ets->prstatus),
         &ets->prstatus);
 
-    TAILQ_INSERT_TAIL(&info->thread_list, ets, ets_link);
+    QTAILQ_INSERT_TAIL(&info->thread_list, ets, ets_link);
 
     info->notes_size += note_size(&ets->notes[0]);
 }
@@ -2343,7 +2343,7 @@ static int fill_note_info(struct elf_note_info *info,
 
     (void) memset(info, 0, sizeof (*info));
 
-    TAILQ_INIT(&info->thread_list);
+    QTAILQ_INIT(&info->thread_list);
 
     info->notes = qemu_mallocz(NUMNOTES * sizeof (struct memelfnote));
     if (info->notes == NULL)
@@ -2389,9 +2389,9 @@ static void free_note_info(struct elf_note_info *info)
 {
     struct elf_thread_status *ets;
 
-    while (!TAILQ_EMPTY(&info->thread_list)) {
-        ets = TAILQ_FIRST(&info->thread_list);
-        TAILQ_REMOVE(&info->thread_list, ets, ets_link);
+    while (!QTAILQ_EMPTY(&info->thread_list)) {
+        ets = QTAILQ_FIRST(&info->thread_list);
+        QTAILQ_REMOVE(&info->thread_list, ets, ets_link);
         qemu_free(ets);
     }
 

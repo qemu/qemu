@@ -1,7 +1,7 @@
 #ifndef QEMU_NET_H
 #define QEMU_NET_H
 
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "qemu-common.h"
 #include "qdict.h"
 
@@ -37,7 +37,7 @@ typedef struct VLANPacket VLANPacket;
 typedef void (NetPacketSent) (VLANClientState *, ssize_t);
 
 struct VLANPacket {
-    TAILQ_ENTRY(VLANPacket) entry;
+    QTAILQ_ENTRY(VLANPacket) entry;
     VLANClientState *sender;
     int size;
     NetPacketSent *sent_cb;
@@ -49,7 +49,7 @@ struct VLANState {
     VLANClientState *first_client;
     struct VLANState *next;
     unsigned int nb_guest_devs, nb_host_devs;
-    TAILQ_HEAD(send_queue, VLANPacket) send_queue;
+    QTAILQ_HEAD(send_queue, VLANPacket) send_queue;
     int delivering;
 };
 

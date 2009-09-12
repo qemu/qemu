@@ -80,7 +80,7 @@ typedef struct mon_fd_t mon_fd_t;
 struct mon_fd_t {
     char *name;
     int fd;
-    LIST_ENTRY(mon_fd_t) next;
+    QLIST_ENTRY(mon_fd_t) next;
 };
 
 struct Monitor {
@@ -95,11 +95,11 @@ struct Monitor {
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
-    LIST_HEAD(,mon_fd_t) fds;
-    LIST_ENTRY(Monitor) entry;
+    QLIST_HEAD(,mon_fd_t) fds;
+    QLIST_ENTRY(Monitor) entry;
 };
 
-static LIST_HEAD(mon_list, Monitor) mon_list;
+static QLIST_HEAD(mon_list, Monitor) mon_list;
 
 static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
@@ -270,7 +270,7 @@ static void do_commit(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
 
     all_devices = !strcmp(device, "all");
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (!all_devices)
             if (strcmp(bdrv_get_device_name(dinfo->bdrv), device))
                 continue;
@@ -1477,7 +1477,7 @@ static void do_info_profile(Monitor *mon)
 #endif
 
 /* Capture support */
-static LIST_HEAD (capture_list_head, CaptureState) capture_head;
+static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
 static void do_info_capture(Monitor *mon)
 {
@@ -1500,7 +1500,7 @@ static void do_stop_capture(Monitor *mon, const QDict *qdict)
     for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
         if (i == n) {
             s->ops.destroy (s->opaque);
-            LIST_REMOVE (s, entries);
+            QLIST_REMOVE (s, entries);
             qemu_free (s);
             return;
         }
@@ -1528,7 +1528,7 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Faied to add wave capture\n");
         qemu_free (s);
     }
-    LIST_INSERT_HEAD (&capture_head, s, entries);
+    QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
 #endif
 
@@ -1600,7 +1600,7 @@ static void do_acl_show(Monitor *mon, const QDict *qdict)
     if (acl) {
         monitor_printf(mon, "policy: %s\n",
                        acl->defaultDeny ? "deny" : "allow");
-        TAILQ_FOREACH(entry, &acl->entries, next) {
+        QTAILQ_FOREACH(entry, &acl->entries, next) {
             i++;
             monitor_printf(mon, "%d: %s %s\n", i,
                            entry->deny ? "deny" : "allow", entry->match);
@@ -1729,7 +1729,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    LIST_FOREACH(monfd, &mon->fds, next) {
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
             continue;
         }
@@ -1743,7 +1743,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
     monfd->name = qemu_strdup(fdname);
     monfd->fd = fd;
 
-    LIST_INSERT_HEAD(&mon->fds, monfd, next);
+    QLIST_INSERT_HEAD(&mon->fds, monfd, next);
 }
 
 static void do_closefd(Monitor *mon, const QDict *qdict)
@@ -1751,12 +1751,12 @@ static void do_closefd(Monitor *mon, const QDict *qdict)
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
 
-    LIST_FOREACH(monfd, &mon->fds, next) {
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
             continue;
         }
 
-        LIST_REMOVE(monfd, next);
+        QLIST_REMOVE(monfd, next);
         close(monfd->fd);
         qemu_free(monfd->name);
         qemu_free(monfd);
@@ -1782,7 +1782,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
 {
     mon_fd_t *monfd;
 
-    LIST_FOREACH(monfd, &mon->fds, next) {
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         int fd;
 
         if (strcmp(monfd->name, fdname) != 0) {
@@ -1792,7 +1792,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
         fd = monfd->fd;
 
         /* caller takes ownership of fd */
-        LIST_REMOVE(monfd, next);
+        QLIST_REMOVE(monfd, next);
         qemu_free(monfd->name);
         qemu_free(monfd);
 
@@ -3178,7 +3178,7 @@ void monitor_init(CharDriverState *chr, int flags)
     qemu_chr_add_handlers(chr, monitor_can_read, monitor_read, monitor_event,
                           mon);
 
-    LIST_INSERT_HEAD(&mon_list, mon, entry);
+    QLIST_INSERT_HEAD(&mon_list, mon, entry);
     if (!cur_mon || (flags & MONITOR_IS_DEFAULT))
         cur_mon = mon;
 }

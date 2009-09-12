@@ -8314,8 +8314,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_icount_start();
     while (ctx.bstate == BS_NONE) {
-        if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
-            TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == ctx.pc) {
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;

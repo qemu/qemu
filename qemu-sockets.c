@@ -32,7 +32,7 @@ static const int on=1, off=0;
 /* used temporarely until all users are converted to QemuOpts */
 QemuOptsList dummy_opts = {
     .name = "dummy",
-    .head = TAILQ_HEAD_INITIALIZER(dummy_opts.head),
+    .head = QTAILQ_HEAD_INITIALIZER(dummy_opts.head),
     .desc = {
         {
             .name = "path",

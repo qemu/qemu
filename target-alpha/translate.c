@@ -2367,8 +2367,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     gen_icount_start();
     for (ret = 0; ret == 0;) {
-        if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
-            TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == ctx.pc) {
                     gen_excp(&ctx, EXCP_DEBUG, 0);
                     break;

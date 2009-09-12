@@ -44,8 +44,8 @@ u_int curtime;
 static u_int time_fasttimo, last_slowtimo;
 static int do_slowtimo;
 
-static TAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
-    TAILQ_HEAD_INITIALIZER(slirp_instances);
+static QTAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
+    QTAILQ_HEAD_INITIALIZER(slirp_instances);
 
 static struct in_addr dns_addr;
 static u_int dns_addr_time;
@@ -234,14 +234,14 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     register_savevm("slirp", 0, 3, slirp_state_save, slirp_state_load, slirp);
 
-    TAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
+    QTAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
 
     return slirp;
 }
 
 void slirp_cleanup(Slirp *slirp)
 {
-    TAILQ_REMOVE(&slirp_instances, slirp, entry);
+    QTAILQ_REMOVE(&slirp_instances, slirp, entry);
 
     unregister_savevm("slirp", slirp);
 
@@ -261,7 +261,7 @@ void slirp_select_fill(int *pnfds,
     struct socket *so, *so_next;
     int nfds;
 
-    if (TAILQ_EMPTY(&slirp_instances)) {
+    if (QTAILQ_EMPTY(&slirp_instances)) {
         return;
     }
 
@@ -276,7 +276,7 @@ void slirp_select_fill(int *pnfds,
 	 */
 	do_slowtimo = 0;
 
-	TAILQ_FOREACH(slirp, &slirp_instances, entry) {
+	QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
 		/*
 		 * *_slowtimo needs calling if there are IP fragments
 		 * in the fragment queue, or there are TCP connections active
@@ -384,7 +384,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
     struct socket *so, *so_next;
     int ret;
 
-    if (TAILQ_EMPTY(&slirp_instances)) {
+    if (QTAILQ_EMPTY(&slirp_instances)) {
         return;
     }
 
@@ -394,7 +394,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
 
     curtime = qemu_get_clock(rt_clock);
 
-    TAILQ_FOREACH(slirp, &slirp_instances, entry) {
+    QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
 	/*
 	 * See if anything has timed out
 	 */

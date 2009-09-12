@@ -3082,8 +3082,8 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
 {
 	CPUBreakpoint *bp;
 
-	if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
-		TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+	if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+		QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
 			if (bp->pc == dc->pc) {
 				cris_evaluate_flags (dc);
 				tcg_gen_movi_tl(env_pc, dc->pc);

@@ -50,7 +50,7 @@ struct XenDevice {
     int                gnttabdev;
 
     struct XenDevOps   *ops;
-    TAILQ_ENTRY(XenDevice) next;
+    QTAILQ_ENTRY(XenDevice) next;
 };
 
 /* ------------------------------------------------------------- */

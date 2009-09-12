@@ -4,7 +4,7 @@
 
 #include "qemu-common.h"
 #include "qemu-option.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "qdict.h"
 
 #ifdef _WIN32
@@ -174,15 +174,15 @@ typedef struct DriveInfo {
     QemuOpts *opts;
     BlockInterfaceErrorAction onerror;
     char serial[BLOCK_SERIAL_STRLEN + 1];
-    TAILQ_ENTRY(DriveInfo) next;
+    QTAILQ_ENTRY(DriveInfo) next;
 } DriveInfo;
 
 #define MAX_IDE_DEVS	2
 #define MAX_SCSI_DEVS	7
 #define MAX_DRIVES 32
 
-extern TAILQ_HEAD(drivelist, DriveInfo) drives;
-extern TAILQ_HEAD(driveoptlist, DriveOpt) driveopts;
+extern QTAILQ_HEAD(drivelist, DriveInfo) drives;
+extern QTAILQ_HEAD(driveoptlist, DriveOpt) driveopts;
 
 extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 extern DriveInfo *drive_get_by_id(const char *id);

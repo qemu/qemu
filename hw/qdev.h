@@ -3,7 +3,7 @@
 
 #include "hw.h"
 #include "sysemu.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "qemu-char.h"
 #include "qemu-option.h"
 
@@ -29,10 +29,10 @@ struct DeviceState {
     qemu_irq *gpio_out;
     int num_gpio_in;
     qemu_irq *gpio_in;
-    LIST_HEAD(, BusState) child_bus;
+    QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
     NICInfo *nd;
-    LIST_ENTRY(DeviceState) sibling;
+    QLIST_ENTRY(DeviceState) sibling;
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
@@ -47,8 +47,8 @@ struct BusState {
     DeviceState *parent;
     BusInfo *info;
     const char *name;
-    LIST_HEAD(, DeviceState) children;
-    LIST_ENTRY(BusState) sibling;
+    QLIST_HEAD(, DeviceState) children;
+    QLIST_ENTRY(BusState) sibling;
 };
 
 struct Property {

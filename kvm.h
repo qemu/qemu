@@ -15,7 +15,7 @@
 #define QEMU_KVM_H
 
 #include "config.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 
 #ifdef CONFIG_KVM
 extern int kvm_allowed;
@@ -100,10 +100,10 @@ struct kvm_sw_breakpoint {
     target_ulong pc;
     target_ulong saved_insn;
     int use_count;
-    TAILQ_ENTRY(kvm_sw_breakpoint) entry;
+    QTAILQ_ENTRY(kvm_sw_breakpoint) entry;
 };
 
-TAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
+QTAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
 
 int kvm_arch_debug(struct kvm_debug_exit_arch *arch_info);
 

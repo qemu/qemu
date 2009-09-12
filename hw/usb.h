@@ -24,7 +24,7 @@
 
 #include "block.h"
 #include "qdev.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 
 #define USB_TOKEN_SETUP 0x2d
 #define USB_TOKEN_IN    0x69 /* device -> host */
@@ -193,7 +193,7 @@ struct USBPort {
     usb_attachfn attach;
     void *opaque;
     int index; /* internal port index, may be used with the opaque */
-    TAILQ_ENTRY(USBPort) next;
+    QTAILQ_ENTRY(USBPort) next;
 };
 
 typedef void USBCallback(USBPacket * packet, void *opaque);
@@ -298,9 +298,9 @@ struct USBBus {
     int busnr;
     int nfree;
     int nused;
-    TAILQ_HEAD(, USBPort) free;
-    TAILQ_HEAD(, USBPort) used;
-    TAILQ_ENTRY(USBBus) next;
+    QTAILQ_HEAD(, USBPort) free;
+    QTAILQ_HEAD(, USBPort) used;
+    QTAILQ_ENTRY(USBBus) next;
 };
 
 USBBus *usb_bus_new(DeviceState *host);

@@ -2,7 +2,7 @@
 #define QEMU_CHAR_H
 
 #include "qemu-common.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
 
@@ -66,7 +66,7 @@ struct CharDriverState {
     QEMUBH *bh;
     char *label;
     char *filename;
-    TAILQ_ENTRY(CharDriverState) next;
+    QTAILQ_ENTRY(CharDriverState) next;
 };
 
 CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
