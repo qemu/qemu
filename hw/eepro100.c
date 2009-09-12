@@ -723,6 +723,10 @@ static void nic_selective_reset(EEPRO100State * s)
 #endif
     /* TODO: eeprom_id_alt for i82559 */
     eeprom_contents[eeprom_id] |= eeprom_id_valid;
+    if (s->device >= i82557A && s->device <= i82557C) {
+        /* Set revision. */
+        eeprom_contents[eeprom_id] |= BIT(8);
+    }
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
