@@ -1585,7 +1585,7 @@ if check_linker_flags --whole-archive --no-whole-archive ; then
     arlibs_end="-Wl,--no-whole-archive"
 elif check_linker_flags -z,allextract -z,defaultextract ; then
     # Solaris ld
-    arlibs_begin"=-Wl,-z,allextract"
+    arlibs_begin="-Wl,-z,allextract"
     arlibs_end="-Wl,-z,defaultextract"
 elif check_linker_flags -all_load ; then
     # Mac OS X
@@ -1597,7 +1597,7 @@ else
     exit 1
 fi
 
-if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaries" != yes -a \
+if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
         "$aix" != "yes" ; then
     libs_softmmu="-lutil $libs_softmmu"
 fi
