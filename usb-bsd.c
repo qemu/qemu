@@ -63,6 +63,7 @@ typedef struct USBHostDevice {
 } USBHostDevice;
 
 
+#if 0
 static int ensure_ep_open(USBHostDevice *dev, int ep, int mode)
 {
     char buf[32];
@@ -110,6 +111,7 @@ static void ensure_eps_closed(USBHostDevice *dev)
         epnum++;
     }
 }
+#endif
 
 static void usb_host_handle_reset(USBDevice *dev)
 {
@@ -118,6 +120,7 @@ static void usb_host_handle_reset(USBDevice *dev)
 #endif
 }
 
+#if 0
 /* XXX:
  * -check device states against transfer requests
  *  and return appropriate response
@@ -275,6 +278,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         return ret;
     }
 }
+#endif
 
 static void usb_host_handle_destroy(USBDevice *opaque)
 {
@@ -293,9 +297,15 @@ static void usb_host_handle_destroy(USBDevice *opaque)
     qemu_free(s);
 }
 
+static int usb_host_initfn(USBDevice *dev)
+{
+    return 0;
+}
+
 USBDevice *usb_host_device_open(const char *devname)
 {
     struct usb_device_info bus_info, dev_info;
+    USBDevice *d = NULL;
     USBHostDevice *dev;
     char ctlpath[PATH_MAX + 1];
     char buspath[PATH_MAX + 1];
@@ -343,9 +353,6 @@ USBDevice *usb_host_device_open(const char *devname)
     }
 
     if (dfd >= 0) {
-        dev = qemu_mallocz(sizeof(USBHostDevice));
-        dev->devfd = dfd;
-
         if (ioctl(dfd, USB_GET_DEVICEINFO, &dev_info) < 0) {
 #ifdef DEBUG
             printf("usb_host_device_open: failed to grab device info - %s\n",
@@ -354,17 +361,13 @@ USBDevice *usb_host_device_open(const char *devname)
             goto fail;
         }
 
+        d = usb_create(NULL /* FIXME */, "USB Host Device");
+        dev = DO_UPCAST(USBHostDevice, dev, d);
+
         if (dev_info.udi_speed == 1)
             dev->dev.speed = USB_SPEED_LOW - 1;
         else
             dev->dev.speed = USB_SPEED_FULL - 1;
-
-        dev->dev.handle_packet = usb_generic_handle_packet;
-
-        dev->dev.handle_reset = usb_host_handle_reset;
-        dev->dev.handle_control = usb_host_handle_control;
-        dev->dev.handle_data = usb_host_handle_data;
-        dev->dev.handle_destroy = usb_host_handle_destroy;
 
         if (strncmp(dev_info.udi_product, "product", 7) != 0)
             pstrcpy(dev->dev.devname, sizeof(dev->dev.devname),
@@ -388,6 +391,25 @@ USBDevice *usb_host_device_open(const char *devname)
 fail:
     return NULL;
 }
+
+static struct USBDeviceInfo usb_host_dev_info = {
+    .qdev.name      = "USB Host Device",
+    .qdev.size      = sizeof(USBHostDevice),
+    .init           = usb_host_initfn,
+    .handle_packet  = usb_generic_handle_packet,
+    .handle_reset   = usb_host_handle_reset,
+#if 0
+    .handle_control = usb_host_handle_control,
+    .handle_data    = usb_host_handle_data,
+#endif
+    .handle_destroy = usb_host_handle_destroy,
+};
+
+static void usb_host_register_devices(void)
+{
+    usb_qdev_register(&usb_host_dev_info);
+}
+device_init(usb_host_register_devices)
 
 static int usb_host_scan(void *opaque, USBScanFunc *func)
 {
