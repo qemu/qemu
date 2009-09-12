@@ -515,7 +515,7 @@ static void nic_reset(void *opaque)
 }
 
 #if defined(DEBUG_EEPRO100)
-static const char *reg[PCI_IO_SIZE / 4] = {
+static const char * const reg[PCI_IO_SIZE / 4] = {
     "Command/Status",
     "General Pointer",
     "Port",
@@ -932,14 +932,14 @@ static void eepro100_write_pointer(EEPRO100State * s, uint32_t val)
  ****************************************************************************/
 
 #if defined(DEBUG_EEPRO100)
-static const char *mdi_op_name[] = {
+static const char * const mdi_op_name[] = {
     "opcode 0",
     "write",
     "read",
     "opcode 3"
 };
 
-static const char *mdi_reg_name[] = {
+static const char * const mdi_reg_name[] = {
     "Control",
     "Status",
     "PHY Identification (Word 1)",
