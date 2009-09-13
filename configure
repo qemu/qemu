@@ -807,7 +807,7 @@ feature_not_found() {
 
   echo "ERROR"
   echo "ERROR: User requested feature $feature"
-  echo "ERROR: configure was not able to found it"
+  echo "ERROR: configure was not able to find it"
   echo "ERROR"
   exit 1;
 }
