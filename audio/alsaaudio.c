@@ -37,6 +37,7 @@ struct pollhlp {
     snd_pcm_t *handle;
     struct pollfd *pfds;
     int count;
+    int mask;
 };
 
 typedef struct ALSAVoiceOut {
@@ -200,7 +201,7 @@ static void alsa_poll_handler (void *opaque)
         return;
     }
 
-    if (!(revents & POLLOUT)) {
+    if (!(revents & hlp->mask)) {
         if (conf.verbose) {
             dolog ("revents = %d\n", revents);
         }
@@ -230,7 +231,7 @@ static void alsa_poll_handler (void *opaque)
     }
 }
 
-static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp)
+static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
 {
     int i, count, err;
     struct pollfd *pfds;
@@ -287,6 +288,7 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp)
     hlp->pfds = pfds;
     hlp->count = count;
     hlp->handle = handle;
+    hlp->mask = mask;
     return 0;
 }
 
@@ -294,14 +296,14 @@ static int alsa_poll_out (HWVoiceOut *hw)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
 
-    return alsa_poll_helper (alsa->handle, &alsa->pollhlp);
+    return alsa_poll_helper (alsa->handle, &alsa->pollhlp, POLLOUT);
 }
 
 static int alsa_poll_in (HWVoiceIn *hw)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
 
-    return alsa_poll_helper (alsa->handle, &alsa->pollhlp);
+    return alsa_poll_helper (alsa->handle, &alsa->pollhlp, POLLIN);
 }
 
 static int alsa_write (SWVoiceOut *sw, void *buf, int len)
