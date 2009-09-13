@@ -64,13 +64,17 @@ static struct {
     const char *devpath_out;
     const char *devpath_in;
     int debug;
+    int exclusive;
+    int policy;
 } conf = {
     .try_mmap = 0,
     .nfrags = 4,
     .fragsize = 4096,
     .devpath_out = "/dev/dsp",
     .devpath_in = "/dev/dsp",
-    .debug = 0
+    .debug = 0,
+    .exclusive = 0,
+    .policy = 5
 };
 
 struct oss_params {
@@ -234,15 +238,16 @@ static int oss_open (int in, struct oss_params *req,
                      struct oss_params *obt, int *pfd)
 {
     int fd;
-    int oflags;
-    int mmmmssss;
+    int version;
+    int oflags = conf.exclusive ? O_EXCL : 0;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
     const char *dspname = in ? conf.devpath_in : conf.devpath_out;
     const char *typ = in ? "ADC" : "DAC";
 
     /* Kludge needed to have working mmap on Linux */
-    oflags = conf.try_mmap ? O_RDWR : (in ? O_RDONLY : O_WRONLY);
+    oflags |= conf.try_mmap ? O_RDWR : (in ? O_RDONLY : O_WRONLY);
+
     fd = open (dspname, oflags | O_NONBLOCK);
     if (-1 == fd) {
         oss_logerr2 (errno, typ, "Failed to open `%s'\n", dspname);
@@ -274,11 +279,33 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
-    mmmmssss = (req->nfrags << 16) | ctz32 (req->fragsize);
-    if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
-        oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
-                     req->nfrags, req->fragsize);
-        goto err;
+    if (ioctl (fd, OSS_GETVERSION, &version)) {
+        oss_logerr2 (errno, typ, "Failed to get OSS version\n");
+        version = 0;
+    }
+
+    if (conf.debug) {
+        dolog ("OSS version = %#x\n", version);
+    }
+
+#ifdef SNDCTL_DSP_POLICY
+    if (conf.policy >= 0 && version >= 0x040000) {
+        int policy = conf.policy;
+        if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
+            oss_logerr2 (errno, typ, "Failed to set timing policy to %d\n",
+                         conf.policy);
+            goto err;
+        }
+    }
+    else
+#endif
+    {
+        int mmmmssss = (req->nfrags << 16) | ctz32 (req->fragsize);
+        if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
+            oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
+                         req->nfrags, req->fragsize);
+            goto err;
+        }
     }
 
     if (ioctl (fd, in ? SNDCTL_DSP_GETISPACE : SNDCTL_DSP_GETOSPACE, &abinfo)) {
@@ -839,6 +866,20 @@ static struct audio_option oss_options[] = {
         .valp  = &conf.devpath_in,
         .descr = "Path to ADC device"
     },
+    {
+        .name  = "EXCLUSIVE",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.exclusive,
+        .descr = "Open device in exclusive mode (vmix wont work)"
+    },
+#ifdef SNDCTL_DSP_POLICY
+    {
+        .name  = "POLICY",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.policy,
+        .descr = "Set the timing policy of the device, -1 to use fragment mode",
+    },
+#endif
     {
         .name  = "DEBUG",
         .tag   = AUD_OPT_BOOL,
