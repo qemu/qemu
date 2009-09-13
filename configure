@@ -2364,10 +2364,9 @@ if test "$target_softmmu" = "yes" ; then
 fi
 
 if test "$target_user_only" = "yes" -a "$static" = "no" -a \
-  "$user_pie" = "yes" ; then
+	"$user_pie" = "yes" ; then
   cflags="-fpie $cflags"
   ldflags="-pie $ldflags"
-  echo "CONFIG_USER_PIE=y" >> $config_mak
 fi
 
 if test "$target_softmmu" = "yes" -a \( \
