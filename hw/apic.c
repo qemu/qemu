@@ -516,7 +516,7 @@ void apic_sipi(CPUState *env)
 
     env->eip = 0;
     cpu_x86_load_seg_cache(env, R_CS, s->sipi_vector << 8, s->sipi_vector << 12,
-                           0xffff, 0);
+                           env->segs[R_CS].limit, env->segs[R_CS].flags);
     env->halted = 0;
     s->wait_for_sipi = 0;
 }
