@@ -1547,16 +1547,26 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         break;
 
     case INDEX_op_ext8s_i32:
+#ifdef __ARM_ARCH_7A__
+        /* sxtb */
+        tcg_out32(s, 0xe6af0070 | (args[0] << 12) | args[1]);
+#else
         tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                         args[0], 0, args[1], SHIFT_IMM_LSL(24));
         tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                         args[0], 0, args[0], SHIFT_IMM_ASR(24));
+#endif
         break;
     case INDEX_op_ext16s_i32:
+#ifdef __ARM_ARCH_7A__
+        /* sxth */
+        tcg_out32(s, 0xe6bf0070 | (args[0] << 12) | args[1]);
+#else
         tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                         args[0], 0, args[1], SHIFT_IMM_LSL(16));
         tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                         args[0], 0, args[0], SHIFT_IMM_ASR(16));
+#endif
         break;
 
     default:
