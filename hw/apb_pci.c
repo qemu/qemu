@@ -247,7 +247,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     /* mem_data */
     sysbus_mmio_map(s, 3, mem_base);
     d = FROM_SYSBUS(APBState, s);
-    d->host_state.bus = pci_register_bus(NULL, "pci",
+    d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_apb_set_irq, pci_pbm_map_irq, pic,
                                          0, 32);
     pci_create_simple(d->host_state.bus, 0, "pbm");
