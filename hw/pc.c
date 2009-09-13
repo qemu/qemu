@@ -456,8 +456,6 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-extern uint64_t node_cpumask[MAX_NODES];
-
 static void *bochs_bios_init(void)
 {
     void *fw_cfg;
