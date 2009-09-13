@@ -45,7 +45,6 @@ typedef struct OSSVoiceOut {
     int nfrags;
     int fragsize;
     int mmapped;
-    int old_optr;
 } OSSVoiceOut;
 
 typedef struct OSSVoiceIn {
@@ -54,7 +53,6 @@ typedef struct OSSVoiceIn {
     int fd;
     int nfrags;
     int fragsize;
-    int old_optr;
 } OSSVoiceIn;
 
 static struct {
@@ -366,7 +364,7 @@ static int oss_run_out (HWVoiceOut *hw)
     bufsize = hw->samples << hw->info.shift;
 
     if (oss->mmapped) {
-        int bytes;
+        int bytes, pos;
 
         err = ioctl (oss->fd, SNDCTL_DSP_GETOPTR, &cntinfo);
         if (err < 0) {
@@ -374,20 +372,8 @@ static int oss_run_out (HWVoiceOut *hw)
             return 0;
         }
 
-        if (cntinfo.ptr == oss->old_optr) {
-            if (abs (hw->samples - live) < 64) {
-                dolog ("warning: Overrun\n");
-            }
-            return 0;
-        }
-
-        if (cntinfo.ptr > oss->old_optr) {
-            bytes = cntinfo.ptr - oss->old_optr;
-        }
-        else {
-            bytes = bufsize + cntinfo.ptr - oss->old_optr;
-        }
-
+        pos = hw->rpos << hw->info.shift;
+        bytes = audio_ring_dist (cntinfo.ptr, pos, bufsize);
         decr = audio_MIN (bytes >> hw->info.shift, live);
     }
     else {
@@ -461,9 +447,6 @@ static int oss_run_out (HWVoiceOut *hw)
 
         rpos = (rpos + convert_samples) % hw->samples;
         samples -= convert_samples;
-    }
-    if (oss->mmapped) {
-        oss->old_optr = cntinfo.ptr;
     }
 
     hw->rpos = rpos;
@@ -550,7 +533,8 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
         if (oss->pcm_buf == MAP_FAILED) {
             oss_logerr (errno, "Failed to map %d bytes of DAC\n",
                         hw->samples << hw->info.shift);
-        } else {
+        }
+        else {
             int err;
             int trig = 0;
             if (ioctl (fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
@@ -748,7 +732,6 @@ static int oss_run_in (HWVoiceIn *hw)
     else {
         bufs[0].len = dead << hwshift;
     }
-
 
     for (i = 0; i < 2; ++i) {
         ssize_t nread;
