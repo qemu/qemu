@@ -1607,7 +1607,7 @@ static struct audio_option audio_options[] = {
     {
         .name  = "ADC_TRY_POLL",
         .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.try_poll_out,
+        .valp  = &conf.try_poll_in,
         .descr = "Attempt using poll mode for ADC"
     },
     /* Misc */
