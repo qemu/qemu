@@ -123,13 +123,35 @@ static void GCC_FMT_ATTR (3, 4) alsa_logerr2 (
     AUD_log (AUDIO_CAP, "Reason: %s\n", snd_strerror (err));
 }
 
-static void alsa_anal_close (snd_pcm_t **handlep)
+static void alsa_fini_poll (struct pollhlp *hlp)
+{
+    int i;
+    struct pollfd *pfds = hlp->pfds;
+
+    if (pfds) {
+        for (i = 0; i < hlp->count; ++i) {
+            qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
+        }
+        qemu_free (pfds);
+    }
+    hlp->pfds = NULL;
+    hlp->count = 0;
+    hlp->handle = NULL;
+}
+
+static void alsa_anal_close1 (snd_pcm_t **handlep)
 {
     int err = snd_pcm_close (*handlep);
     if (err) {
         alsa_logerr (err, "Failed to close PCM handle %p\n", *handlep);
     }
     *handlep = NULL;
+}
+
+static void alsa_anal_close (snd_pcm_t **handlep, struct pollhlp *hlp)
+{
+    alsa_fini_poll (hlp);
+    alsa_anal_close1 (handlep);
 }
 
 static int alsa_recover (snd_pcm_t *handle)
@@ -648,7 +670,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
     return 0;
 
  err:
-    alsa_anal_close (&handle);
+    alsa_anal_close1 (&handle);
     return -1;
 }
 
@@ -765,35 +787,17 @@ static int alsa_run_out (HWVoiceOut *hw)
     return decr;
 }
 
-static void alsa_fini_poll (struct pollhlp *hlp)
-{
-    int i;
-    struct pollfd *pfds = hlp->pfds;
-
-    if (pfds) {
-        for (i = 0; i < hlp->count; ++i) {
-            qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
-        }
-        qemu_free (pfds);
-    }
-    hlp->pfds = NULL;
-    hlp->count = 0;
-    hlp->handle = NULL;
-}
-
 static void alsa_fini_out (HWVoiceOut *hw)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
 
     ldebug ("alsa_fini\n");
-    alsa_anal_close (&alsa->handle);
+    alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
     if (alsa->pcm_buf) {
         qemu_free (alsa->pcm_buf);
         alsa->pcm_buf = NULL;
     }
-
-    alsa_fini_poll (&alsa->pollhlp);
 }
 
 static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
@@ -830,7 +834,7 @@ static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
     if (!alsa->pcm_buf) {
         dolog ("Could not allocate DAC buffer (%d samples, each %d bytes)\n",
                hw->samples, 1 << hw->info.shift);
-        alsa_anal_close (&handle);
+        alsa_anal_close1 (&handle);
         return -1;
     }
 
@@ -921,7 +925,7 @@ static int alsa_init_in (HWVoiceIn *hw, struct audsettings *as)
     if (!alsa->pcm_buf) {
         dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
                hw->samples, 1 << hw->info.shift);
-        alsa_anal_close (&handle);
+        alsa_anal_close1 (&handle);
         return -1;
     }
 
@@ -933,13 +937,12 @@ static void alsa_fini_in (HWVoiceIn *hw)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
 
-    alsa_anal_close (&alsa->handle);
+    alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
     if (alsa->pcm_buf) {
         qemu_free (alsa->pcm_buf);
         alsa->pcm_buf = NULL;
     }
-    alsa_fini_poll (&alsa->pollhlp);
 }
 
 static int alsa_run_in (HWVoiceIn *hw)

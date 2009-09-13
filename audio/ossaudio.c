@@ -114,11 +114,13 @@ static void GCC_FMT_ATTR (3, 4) oss_logerr2 (
 
 static void oss_anal_close (int *fdp)
 {
-    int err = close (*fdp);
+    int err;
+
+    qemu_set_fd_handler (*fdp, NULL, NULL, NULL);
+    err = close (*fdp);
     if (err) {
         oss_logerr (errno, "Failed to close file(fd=%d)\n", *fdp);
     }
-    qemu_set_fd_handler (*fdp, NULL, NULL, NULL);
     *fdp = -1;
 }
 
