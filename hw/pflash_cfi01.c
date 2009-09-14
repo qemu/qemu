@@ -110,9 +110,10 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
     else if (pfl->width == 4)
         boff = boff >> 2;
 
-    DPRINTF("%s: reading offset " TARGET_FMT_lx " under cmd %02x width %d\n",
+#if 0
+    DPRINTF("%s: reading offset " TARGET_FMT_plx " under cmd %02x width %d\n",
             __func__, offset, pfl->cmd, width);
-
+#endif
     switch (pfl->cmd) {
     case 0x00:
         /* Flash area read */
@@ -120,7 +121,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
         switch (width) {
         case 1:
             ret = p[offset];
-            DPRINTF("%s: data offset " TARGET_FMT_lx " %02x\n",
+            DPRINTF("%s: data offset " TARGET_FMT_plx " %02x\n",
                     __func__, offset, ret);
             break;
         case 2:
@@ -131,7 +132,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
             ret = p[offset];
             ret |= p[offset + 1] << 8;
 #endif
-            DPRINTF("%s: data offset " TARGET_FMT_lx " %04x\n",
+            DPRINTF("%s: data offset " TARGET_FMT_plx " %04x\n",
                     __func__, offset, ret);
             break;
         case 4:
@@ -147,7 +148,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
             ret |= p[offset + 2] << 16;
             ret |= p[offset + 3] << 24;
 #endif
-            DPRINTF("%s: data offset " TARGET_FMT_lx " %08x\n",
+            DPRINTF("%s: data offset " TARGET_FMT_plx " %08x\n",
                     __func__, offset, ret);
             break;
         default:
@@ -199,8 +200,8 @@ static void inline pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
 {
     uint8_t *p = pfl->storage;
 
-    DPRINTF("%s: block write offset " TARGET_FMT_lx
-            " value %x counter " TARGET_FMT_lx "\n",
+    DPRINTF("%s: block write offset " TARGET_FMT_plx
+            " value %x counter " TARGET_FMT_plx "\n",
             __func__, offset, value, pfl->counter);
     switch (width) {
     case 1:
@@ -244,7 +245,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
 
     cmd = value;
 
-    DPRINTF("%s: writing offset " TARGET_FMT_lx " value %08x width %d wcycle 0x%x\n",
+    DPRINTF("%s: writing offset " TARGET_FMT_plx " value %08x width %d wcycle 0x%x\n",
             __func__, offset, value, width, pfl->wcycle);
 
     /* Set the device in I/O access mode */
@@ -264,14 +265,14 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
             goto reset_flash;
         case 0x10: /* Single Byte Program */
         case 0x40: /* Single Byte Program */
-            DPRINTF(stderr, "%s: Single Byte Program\n", __func__);
+            DPRINTF("%s: Single Byte Program\n", __func__);
             break;
         case 0x20: /* Block erase */
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
 
-            DPRINTF("%s: block erase at " TARGET_FMT_lx " bytes "
-                    TARGET_FMT_lx "\n",
+            DPRINTF("%s: block erase at " TARGET_FMT_plx " bytes "
+                    TARGET_FMT_plx "\n",
                     __func__, offset, pfl->sector_len);
 
             memset(p + offset, 0xff, pfl->sector_len);
