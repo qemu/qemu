@@ -75,7 +75,7 @@ destroyed, but local temporaries and globals are preserved.
 * Helpers:
 
 Using the tcg_gen_helper_x_y it is possible to call any function
-taking i32, i64 or pointer types. Before calling an helper, all
+taking i32, i64 or pointer types. Before calling a helper, all
 globals are stored at their canonical location and it is assumed that
 the function can modify them. In the future, function modifiers will
 be allowed to tell that the helper does not read or write some globals.
