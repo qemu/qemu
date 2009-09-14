@@ -572,7 +572,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
 
     /* init CPUs */
     if (cpu_model == NULL)
-        cpu_model = "default";
+        cpu_model = "602";
     for (i = 0; i < smp_cpus; i++) {
         env = cpu_init(cpu_model);
         if (!env) {
@@ -670,6 +670,9 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
     i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
     pci_bus = pci_prep_init(i8259);
+    /* Hmm, prep has no pci-isa bridge ??? */
+    isa_bus_new(NULL);
+    isa_bus_irqs(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
     PPC_io_memory = cpu_register_io_memory(PPC_prep_io_read,
