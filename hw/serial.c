@@ -712,9 +712,14 @@ static void serial_reset(void *opaque)
 static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
 			     CharDriverState *chr)
 {
+    if (!chr) {
+        fprintf(stderr, "Can't create serial device, empty char device\n");
+	exit(1);
+    }
+
     s->irq = irq;
     s->baudbase = baudbase;
-    s->chr = chr ?: qemu_chr_open("null", "null", NULL);
+    s->chr = chr;
 
     s->modem_status_poll = qemu_new_timer(vm_clock, (QEMUTimerCB *) serial_update_msl, s);
 
