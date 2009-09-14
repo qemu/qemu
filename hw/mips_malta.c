@@ -781,6 +781,15 @@ void mips_malta_init (ram_addr_t ram_size,
     int fl_idx = 0;
     int fl_sectors = 0;
 
+    /* Make sure the first 3 serial ports are associated with a device. */
+    for(i = 0; i < 3; i++) {
+        if (!serial_hds[i]) {
+            char label[32];
+            snprintf(label, sizeof(label), "serial%d", i);
+            serial_hds[i] = qemu_chr_open(label, "null", NULL);
+        }
+    }
+
     /* init CPUs */
     if (cpu_model == NULL) {
 #ifdef TARGET_MIPS64
