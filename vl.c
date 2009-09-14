@@ -5688,15 +5688,17 @@ int main(int argc, char **argv, char **envp)
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];
+        char label[32];
+        snprintf(label, sizeof(label), "serial%d", i);
         if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "serial%d", i);
             serial_hds[i] = qemu_chr_open(label, devname, NULL);
-            if (!serial_hds[i]) {
-                fprintf(stderr, "qemu: could not open serial device '%s'\n",
-                        devname);
-                exit(1);
-            }
+        } else {
+            serial_hds[i] = qemu_chr_open(label, "null", NULL);
+        }
+        if (!serial_hds[i]) {
+            fprintf(stderr, "qemu: could not open serial device '%s'\n",
+                    devname);
+            exit(1);
         }
     }
 
