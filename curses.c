@@ -368,7 +368,4 @@ void curses_display_init(DisplayState *ds, int full_screen)
     ds->surface = qemu_create_displaysurface_from(640, 400, 0, 0, (uint8_t*) screen);
 
     invalidate = 1;
-
-    /* Standard VGA initial text mode dimensions */
-    curses_resize(ds);
 }
