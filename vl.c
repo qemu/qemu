@@ -200,6 +200,7 @@ int vm_running;
 int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
+QEMUClock *rtc_clock;
 int vga_interface_type = VGA_CIRRUS;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
@@ -1057,6 +1058,8 @@ static void init_clocks(void)
     rt_clock = qemu_new_clock(QEMU_CLOCK_REALTIME);
     vm_clock = qemu_new_clock(QEMU_CLOCK_VIRTUAL);
     host_clock = qemu_new_clock(QEMU_CLOCK_HOST);
+
+    rtc_clock = host_clock;
 }
 
 /* save a timer */
@@ -1635,6 +1638,17 @@ static void configure_rtc(QemuOpts *opts)
             rtc_utc = 0;
         } else {
             configure_rtc_date_offset(value, 0);
+        }
+    }
+    value = qemu_opt_get(opts, "clock");
+    if (value) {
+        if (!strcmp(value, "host")) {
+            rtc_clock = host_clock;
+        } else if (!strcmp(value, "vm")) {
+            rtc_clock = vm_clock;
+        } else {
+            fprintf(stderr, "qemu: invalid option value '%s'\n", value);
+            exit(1);
         }
     }
 #ifdef CONFIG_TARGET_I386
@@ -4798,6 +4812,8 @@ int main(int argc, char **argv, char **envp)
     CPUState *env;
     int show_vnc_port = 0;
 
+    init_clocks();
+
     qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
@@ -5674,7 +5690,6 @@ int main(int argc, char **argv, char **envp)
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
 
-    init_clocks();
     if (init_timer_alarm() < 0) {
         fprintf(stderr, "could not initialize alarm timer\n");
         exit(1);
