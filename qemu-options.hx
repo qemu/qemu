@@ -1500,21 +1500,27 @@ DEF("startdate", HAS_ARG, QEMU_OPTION_startdate, "")
 
 #ifdef TARGET_I386
 DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
-    "-rtc [base=utc|localtime|date][,driftfix=none|slew]\n" \
-    "                set the RTC base, enable drift fix for clock ticks\n")
+    "-rtc [base=utc|localtime|date][,clock=host|vm][,driftfix=none|slew]\n" \
+    "                set the RTC base and clock, enable drift fix for clock ticks\n")
 #else
 DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
-    "-rtc [base=utc|localtime|date]\n" \
+    "-rtc [base=utc|localtime|date][,clock=host|vm]\n" \
     "                set the RTC base and clock\n")
 #endif
 
 STEXI
 
-@item -rtc [base=utc|localtime|@var{date}][,driftfix=none|slew]
+@item -rtc [base=utc|localtime|@var{date}][,clock=host|vm][,driftfix=none|slew]
 Specify @option{base} as @code{utc} or @code{localtime} to let the RTC start at the current
 UTC or local time, respectively. @code{localtime} is required for correct date in
 MS-DOS or Windows. To start at a specific point in time, provide @var{date} in the
 format @code{2006-06-17T16:01:21} or @code{2006-06-17}. The default base is UTC.
+
+By default the RTC is driven by the host system time. This allows to use the
+RTC as accurate reference clock inside the guest, specifically if the host
+time is smoothly following an accurate external reference clock, e.g. via NTP.
+If you want to isolate the guest time from the host, even prevent it from
+progressing during suspension, you can set @option{clock} to @code{vm} instead.
 
 Enable @option{driftfix} (i386 targets only) if you experience time drift problems,
 specifically with Windows' ACPI HAL. This option will try to figure out how

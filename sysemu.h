@@ -5,6 +5,7 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "qemu-queue.h"
+#include "qemu-timer.h"
 #include "qdict.h"
 
 #ifdef _WIN32
@@ -134,6 +135,7 @@ extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
+extern QEMUClock *rtc_clock;
 
 #define MAX_NODES 64
 extern int nb_numa_nodes;
