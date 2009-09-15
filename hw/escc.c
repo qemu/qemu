@@ -743,8 +743,8 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
     qdev_prop_set_uint32(dev, "chnAtype", ser);
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
-    sysbus_connect_irq(s, 0, irqA);
-    sysbus_connect_irq(s, 1, irqB);
+    sysbus_connect_irq(s, 0, irqB);
+    sysbus_connect_irq(s, 1, irqA);
     if (base) {
         sysbus_mmio_map(s, 0, base);
     }
