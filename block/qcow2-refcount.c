@@ -192,7 +192,8 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t offset, refcount_block_offset;
-    int ret, refcount_table_index;
+    unsigned int refcount_table_index;
+    int ret;
     uint64_t data64;
     int cache = cache_refcount_updates;
 

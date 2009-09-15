@@ -530,7 +530,7 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
     return v;
 }
 
-#define IO_BUF_SIZE 65536
+#define IO_BUF_SIZE (2 * 1024 * 1024)
 
 static int img_convert(int argc, char **argv)
 {
