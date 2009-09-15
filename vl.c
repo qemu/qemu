@@ -2176,6 +2176,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     case IF_IDE:
     case IF_SCSI:
     case IF_XEN:
+    case IF_NONE:
         switch(media) {
 	case MEDIA_DISK:
             if (cyls != 0) {
@@ -2196,7 +2197,6 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         break;
     case IF_PFLASH:
     case IF_MTD:
-    case IF_NONE:
         break;
     case IF_VIRTIO:
         /* add virtio block device */
