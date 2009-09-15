@@ -681,15 +681,9 @@ slows down the IDE transfers).
 ETEXI
 
 #ifdef TARGET_I386
-DEF("rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack,
-    "-rtc-td-hack    use it to fix time drift in Windows ACPI HAL\n")
+HXCOMM Deprecated by -rtc
+DEF("rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack, "")
 #endif
-STEXI
-@item -rtc-td-hack
-Use it if you experience time drift problem in Windows with ACPI HAL.
-This option will try to figure out how many timer interrupts were not
-processed by the Windows guest and will re-inject them.
-ETEXI
 
 #ifdef TARGET_I386
 DEF("no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk,
@@ -1500,23 +1494,32 @@ Force the use of the given methods for timer alarm. To see what timers
 are available use -clock ?.
 ETEXI
 
-DEF("localtime", 0, QEMU_OPTION_localtime, \
-    "-localtime      set the real time clock to local time [default=utc]\n")
-STEXI
-@item -localtime
-Set the real time clock to local time (the default is to UTC
-time). This option is needed to have correct date in MS-DOS or
-Windows.
-ETEXI
+HXCOMM Options deprecated by -rtc
+DEF("localtime", 0, QEMU_OPTION_localtime, "")
+DEF("startdate", HAS_ARG, QEMU_OPTION_startdate, "")
 
-DEF("startdate", HAS_ARG, QEMU_OPTION_startdate, \
-    "-startdate      select initial date of the clock\n")
+#ifdef TARGET_I386
+DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
+    "-rtc [base=utc|localtime|date][,driftfix=none|slew]\n" \
+    "                set the RTC base, enable drift fix for clock ticks\n")
+#else
+DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
+    "-rtc [base=utc|localtime|date]\n" \
+    "                set the RTC base and clock\n")
+#endif
+
 STEXI
 
-@item -startdate @var{date}
-Set the initial date of the real time clock. Valid formats for
-@var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
-@code{2006-06-17}. The default value is @code{now}.
+@item -rtc [base=utc|localtime|@var{date}][,driftfix=none|slew]
+Specify @option{base} as @code{utc} or @code{localtime} to let the RTC start at the current
+UTC or local time, respectively. @code{localtime} is required for correct date in
+MS-DOS or Windows. To start at a specific point in time, provide @var{date} in the
+format @code{2006-06-17T16:01:21} or @code{2006-06-17}. The default base is UTC.
+
+Enable @option{driftfix} (i386 targets only) if you experience time drift problems,
+specifically with Windows' ACPI HAL. This option will try to figure out how
+many timer interrupts were not processed by the Windows guest and will
+re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
