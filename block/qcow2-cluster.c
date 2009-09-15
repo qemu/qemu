@@ -264,7 +264,7 @@ static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
         return 0;
 
     for (i = start; i < start + nb_clusters; i++)
-        if (offset + i * cluster_size != (be64_to_cpu(l2_table[i]) & ~mask))
+        if (offset + (uint64_t) i * cluster_size != (be64_to_cpu(l2_table[i]) & ~mask))
             break;
 
 	return (i - start);
@@ -395,10 +395,11 @@ uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int *num)
 {
     BDRVQcowState *s = bs->opaque;
-    int l1_index, l2_index;
+    unsigned int l1_index, l2_index;
     uint64_t l2_offset, *l2_table, cluster_offset;
     int l1_bits, c;
-    int index_in_cluster, nb_available, nb_needed, nb_clusters;
+    unsigned int index_in_cluster, nb_clusters;
+    uint64_t nb_available, nb_needed;
 
     index_in_cluster = (offset >> 9) & (s->cluster_sectors - 1);
     nb_needed = *num + index_in_cluster;
@@ -409,7 +410,7 @@ uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
      * the end of the l1 entry
      */
 
-    nb_available = (1 << l1_bits) - (offset & ((1 << l1_bits) - 1));
+    nb_available = (1ULL << l1_bits) - (offset & ((1ULL << l1_bits) - 1));
 
     /* compute the number of available sectors */
 
@@ -483,8 +484,9 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
                              int *new_l2_index)
 {
     BDRVQcowState *s = bs->opaque;
-    int l1_index, l2_index, ret;
+    unsigned int l1_index, l2_index;
     uint64_t l2_offset, *l2_table;
+    int ret;
 
     /* seek the the l2 offset in the l1 table */
 
@@ -683,7 +685,7 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     int l2_index, ret;
     uint64_t l2_offset, *l2_table, cluster_offset;
-    int nb_clusters, i = 0;
+    unsigned int nb_clusters, i = 0;
     QCowL2Meta *old_alloc;
 
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);

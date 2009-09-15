@@ -47,7 +47,7 @@
 #define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
 
 #define MIN_CLUSTER_BITS 9
-#define MAX_CLUSTER_BITS 16
+#define MAX_CLUSTER_BITS 21
 
 #define L2_CACHE_SIZE 16
 
