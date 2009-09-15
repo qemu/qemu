@@ -805,12 +805,14 @@ void mips_malta_init (ram_addr_t ram_size,
     int fl_idx = 0;
     int fl_sectors = 0;
 
-    if (ram_size > 256 * MiB) {
-        /* Larger RAM is not supported (collision with GT64120 memory). */
-        ram_size = 256 * MiB;
+    /* Make sure the first 3 serial ports are associated with a device. */
+    for(i = 0; i < 3; i++) {
+        if (!serial_hds[i]) {
+            char label[32];
+            snprintf(label, sizeof(label), "serial%d", i);
+            serial_hds[i] = qemu_chr_open(label, "null", NULL);
+        }
     }
-
-    logout("RAM size = %d MiB\n", ram_size / MiB);
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -834,6 +836,9 @@ void mips_malta_init (ram_addr_t ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
+
+    logout("RAM size = %d MiB\n", ram_size / MiB);
+
     ram_offset = qemu_ram_alloc(ram_size);
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
 

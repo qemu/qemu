@@ -3361,7 +3361,7 @@ static CPUWriteMemoryFunc * const rtl8139_mmio_write[3] = {
 static inline int64_t rtl8139_get_next_tctr_time(RTL8139State *s, int64_t current_time)
 {
     int64_t next_time = current_time +
-        muldiv64(1, ticks_per_sec, PCI_FREQUENCY);
+        muldiv64(1, get_ticks_per_sec(), PCI_FREQUENCY);
     if (next_time <= current_time)
         next_time = current_time + 1;
     return next_time;
@@ -3385,7 +3385,8 @@ static void rtl8139_timer(void *opaque)
 
     curr_time = qemu_get_clock(vm_clock);
 
-    curr_tick = muldiv64(curr_time - s->TCTR_base, PCI_FREQUENCY, ticks_per_sec);
+    curr_tick = muldiv64(curr_time - s->TCTR_base, PCI_FREQUENCY,
+                         get_ticks_per_sec());
 
     if (s->TimerInt && curr_tick >= s->TimerInt)
     {

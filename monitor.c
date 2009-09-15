@@ -80,11 +80,13 @@ typedef struct mon_fd_t mon_fd_t;
 struct mon_fd_t {
     char *name;
     int fd;
-    LIST_ENTRY(mon_fd_t) next;
+    QLIST_ENTRY(mon_fd_t) next;
 };
 
 struct Monitor {
     CharDriverState *chr;
+    int mux_out;
+    int reset_seen;
     int flags;
     int suspend_cnt;
     uint8_t outbuf[1024];
@@ -93,11 +95,11 @@ struct Monitor {
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
-    LIST_HEAD(,mon_fd_t) fds;
-    LIST_ENTRY(Monitor) entry;
+    QLIST_HEAD(,mon_fd_t) fds;
+    QLIST_ENTRY(Monitor) entry;
 };
 
-static LIST_HEAD(mon_list, Monitor) mon_list;
+static QLIST_HEAD(mon_list, Monitor) mon_list;
 
 static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
@@ -129,7 +131,7 @@ static int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
 
 void monitor_flush(Monitor *mon)
 {
-    if (mon && mon->outbuf_index != 0 && mon->chr->focus == 0) {
+    if (mon && mon->outbuf_index != 0 && !mon->mux_out) {
         qemu_chr_write(mon->chr, mon->outbuf, mon->outbuf_index);
         mon->outbuf_index = 0;
     }
@@ -268,7 +270,7 @@ static void do_commit(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
 
     all_devices = !strcmp(device, "all");
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (!all_devices)
             if (strcmp(bdrv_get_device_name(dinfo->bdrv), device))
                 continue;
@@ -1162,7 +1164,7 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
     }
     /* delayed key up events */
     qemu_mod_timer(key_timer, qemu_get_clock(vm_clock) +
-                    muldiv64(ticks_per_sec, hold_time, 1000));
+                   muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
 static int mouse_button_state;
@@ -1461,9 +1463,9 @@ static void do_info_profile(Monitor *mon)
     if (total == 0)
         total = 1;
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
-                   dev_time, dev_time / (double)ticks_per_sec);
+                   dev_time, dev_time / (double)get_ticks_per_sec());
     monitor_printf(mon, "qemu time   %" PRId64 " (%0.3f)\n",
-                   qemu_time, qemu_time / (double)ticks_per_sec);
+                   qemu_time, qemu_time / (double)get_ticks_per_sec());
     qemu_time = 0;
     dev_time = 0;
 }
@@ -1475,7 +1477,7 @@ static void do_info_profile(Monitor *mon)
 #endif
 
 /* Capture support */
-static LIST_HEAD (capture_list_head, CaptureState) capture_head;
+static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
 static void do_info_capture(Monitor *mon)
 {
@@ -1498,7 +1500,7 @@ static void do_stop_capture(Monitor *mon, const QDict *qdict)
     for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
         if (i == n) {
             s->ops.destroy (s->opaque);
-            LIST_REMOVE (s, entries);
+            QLIST_REMOVE (s, entries);
             qemu_free (s);
             return;
         }
@@ -1526,7 +1528,7 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Faied to add wave capture\n");
         qemu_free (s);
     }
-    LIST_INSERT_HEAD (&capture_head, s, entries);
+    QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
 #endif
 
@@ -1598,7 +1600,7 @@ static void do_acl_show(Monitor *mon, const QDict *qdict)
     if (acl) {
         monitor_printf(mon, "policy: %s\n",
                        acl->defaultDeny ? "deny" : "allow");
-        TAILQ_FOREACH(entry, &acl->entries, next) {
+        QTAILQ_FOREACH(entry, &acl->entries, next) {
             i++;
             monitor_printf(mon, "%d: %s %s\n", i,
                            entry->deny ? "deny" : "allow", entry->match);
@@ -1727,7 +1729,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    LIST_FOREACH(monfd, &mon->fds, next) {
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
             continue;
         }
@@ -1741,7 +1743,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
     monfd->name = qemu_strdup(fdname);
     monfd->fd = fd;
 
-    LIST_INSERT_HEAD(&mon->fds, monfd, next);
+    QLIST_INSERT_HEAD(&mon->fds, monfd, next);
 }
 
 static void do_closefd(Monitor *mon, const QDict *qdict)
@@ -1749,12 +1751,12 @@ static void do_closefd(Monitor *mon, const QDict *qdict)
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
 
-    LIST_FOREACH(monfd, &mon->fds, next) {
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
             continue;
         }
 
-        LIST_REMOVE(monfd, next);
+        QLIST_REMOVE(monfd, next);
         close(monfd->fd);
         qemu_free(monfd->name);
         qemu_free(monfd);
@@ -1780,7 +1782,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
 {
     mon_fd_t *monfd;
 
-    LIST_FOREACH(monfd, &mon->fds, next) {
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         int fd;
 
         if (strcmp(monfd->name, fdname) != 0) {
@@ -1790,7 +1792,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
         fd = monfd->fd;
 
         /* caller takes ownership of fd */
-        LIST_REMOVE(monfd, next);
+        QLIST_REMOVE(monfd, next);
         qemu_free(monfd->name);
         qemu_free(monfd);
 
@@ -3111,23 +3113,36 @@ static void monitor_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_MUX_IN:
-        readline_restart(mon->rs);
-        monitor_resume(mon);
-        monitor_flush(mon);
+        mon->mux_out = 0;
+        if (mon->reset_seen) {
+            readline_restart(mon->rs);
+            monitor_resume(mon);
+            monitor_flush(mon);
+        } else {
+            mon->suspend_cnt = 0;
+        }
         break;
 
     case CHR_EVENT_MUX_OUT:
-        if (mon->suspend_cnt == 0)
-            monitor_printf(mon, "\n");
-        monitor_flush(mon);
-        monitor_suspend(mon);
+        if (mon->reset_seen) {
+            if (mon->suspend_cnt == 0) {
+                monitor_printf(mon, "\n");
+            }
+            monitor_flush(mon);
+            monitor_suspend(mon);
+        } else {
+            mon->suspend_cnt++;
+        }
+        mon->mux_out = 1;
         break;
 
     case CHR_EVENT_RESET:
         monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
                        "information\n", QEMU_VERSION);
-        if (mon->chr->focus == 0)
+        if (!mon->mux_out) {
             readline_show_prompt(mon->rs);
+        }
+        mon->reset_seen = 1;
         break;
     }
 }
@@ -3155,8 +3170,6 @@ void monitor_init(CharDriverState *chr, int flags)
 
     mon->chr = chr;
     mon->flags = flags;
-    if (mon->chr->focus != 0)
-        mon->suspend_cnt = 1; /* mux'ed monitors start suspended */
     if (flags & MONITOR_USE_READLINE) {
         mon->rs = readline_init(mon, monitor_find_completion);
         monitor_read_command(mon, 0);
@@ -3165,7 +3178,7 @@ void monitor_init(CharDriverState *chr, int flags)
     qemu_chr_add_handlers(chr, monitor_can_read, monitor_read, monitor_event,
                           mon);
 
-    LIST_INSERT_HEAD(&mon_list, mon, entry);
+    QLIST_INSERT_HEAD(&mon_list, mon, entry);
     if (!cur_mon || (flags & MONITOR_IS_DEFAULT))
         cur_mon = mon;
 }

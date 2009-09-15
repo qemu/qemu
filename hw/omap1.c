@@ -675,7 +675,7 @@ static inline uint32_t omap_timer_read(struct omap_mpu_timer_s *timer)
 
     if (timer->st && timer->enable && timer->rate)
         return timer->val - muldiv64(distance >> (timer->ptv + 1),
-                        timer->rate, ticks_per_sec);
+                                     timer->rate, get_ticks_per_sec());
     else
         return timer->val;
 }
@@ -693,7 +693,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
     if (timer->enable && timer->st && timer->rate) {
         timer->val = timer->reset_val;	/* Should skip this on clk enable */
         expires = muldiv64((uint64_t) timer->val << (timer->ptv + 1),
-                        ticks_per_sec, timer->rate);
+                           get_ticks_per_sec(), timer->rate);
 
         /* If timer expiry would be sooner than in about 1 ms and
          * auto-reload isn't set, then fire immediately.  This is a hack
@@ -701,7 +701,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
          * sets the interval to a very low value and polls the status bit
          * in a busy loop when it wants to sleep just a couple of CPU
          * ticks.  */
-        if (expires > (ticks_per_sec >> 10) || timer->ar)
+        if (expires > (get_ticks_per_sec() >> 10) || timer->ar)
             qemu_mod_timer(timer->timer, timer->time + expires);
         else
             qemu_bh_schedule(timer->tick);
@@ -1158,14 +1158,14 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
                 now -= s->ulpd_gauge_start;
 
                 /* 32-kHz ticks */
-                ticks = muldiv64(now, 32768, ticks_per_sec);
+                ticks = muldiv64(now, 32768, get_ticks_per_sec());
                 s->ulpd_pm_regs[0x00 >> 2] = (ticks >>  0) & 0xffff;
                 s->ulpd_pm_regs[0x04 >> 2] = (ticks >> 16) & 0xffff;
                 if (ticks >> 32)	/* OVERFLOW_32K */
                     s->ulpd_pm_regs[0x14 >> 2] |= 1 << 2;
 
                 /* High frequency ticks */
-                ticks = muldiv64(now, 12000000, ticks_per_sec);
+                ticks = muldiv64(now, 12000000, get_ticks_per_sec());
                 s->ulpd_pm_regs[0x08 >> 2] = (ticks >>  0) & 0xffff;
                 s->ulpd_pm_regs[0x0c >> 2] = (ticks >> 16) & 0xffff;
                 if (ticks >> 32)	/* OVERFLOW_HI_FREQ */
@@ -3831,7 +3831,8 @@ static void omap_mcbsp_source_tick(void *opaque)
     s->rx_req = s->rx_rate << bps[(s->rcr[0] >> 5) & 7];
 
     omap_mcbsp_rx_newdata(s);
-    qemu_mod_timer(s->source_timer, qemu_get_clock(vm_clock) + ticks_per_sec);
+    qemu_mod_timer(s->source_timer, qemu_get_clock(vm_clock) +
+                   get_ticks_per_sec());
 }
 
 static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
@@ -3876,7 +3877,8 @@ static void omap_mcbsp_sink_tick(void *opaque)
     s->tx_req = s->tx_rate << bps[(s->xcr[0] >> 5) & 7];
 
     omap_mcbsp_tx_newdata(s);
-    qemu_mod_timer(s->sink_timer, qemu_get_clock(vm_clock) + ticks_per_sec);
+    qemu_mod_timer(s->sink_timer, qemu_get_clock(vm_clock) +
+                   get_ticks_per_sec());
 }
 
 static void omap_mcbsp_tx_start(struct omap_mcbsp_s *s)

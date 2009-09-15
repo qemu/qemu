@@ -41,7 +41,7 @@ uint32_t cpu_mips_get_count (CPUState *env)
     uint32_t value = env->CP0_Count;
     if (!cpu_mips_timer_disabled(env)) {
         int64_t current_time = qemu_get_clock(vm_clock);
-        value += (uint32_t)muldiv64(current_time, TIMER_FREQ, ticks_per_sec);
+        value += (uint32_t)muldiv64(current_time, TIMER_FREQ, get_ticks_per_sec());
         /* If count passed compare value, a timer interrupt should occur.
            But this will happen only in the main loop, so we check here. */
         int delta = value - env->CP0_Compare;
@@ -59,8 +59,8 @@ static void cpu_mips_timer_update(CPUState *env)
 
     now = qemu_get_clock(vm_clock);
     wait = env->CP0_Compare - env->CP0_Count -
-	    (uint32_t)muldiv64(now, TIMER_FREQ, ticks_per_sec);
-    next = now + muldiv64(wait, ticks_per_sec, TIMER_FREQ);
+	    (uint32_t)muldiv64(now, TIMER_FREQ, get_ticks_per_sec());
+    next = now + muldiv64(wait, get_ticks_per_sec(), TIMER_FREQ);
     qemu_mod_timer(env->timer, next);
 }
 
@@ -72,7 +72,7 @@ void cpu_mips_store_count (CPUState *env, uint32_t count)
         /* Store new count register */
         env->CP0_Count =
             count - (uint32_t)muldiv64(qemu_get_clock(vm_clock),
-                                       TIMER_FREQ, ticks_per_sec);
+                                       TIMER_FREQ, get_ticks_per_sec());
         /* Update timer timer */
         cpu_mips_timer_update(env);
         cpu_mips_timer_triggered = 1;
@@ -99,7 +99,7 @@ void cpu_mips_stop_count(CPUState *env)
 {
     /* Store the current value */
     env->CP0_Count += (uint32_t)muldiv64(qemu_get_clock(vm_clock),
-                                         TIMER_FREQ, ticks_per_sec);
+                                         TIMER_FREQ, get_ticks_per_sec());
 }
 
 static void mips_timer_cb(void *opaque)

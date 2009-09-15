@@ -52,7 +52,7 @@ static void ib700_write_enable_reg(void *vp, uint32_t addr, uint32_t data)
 
     ib700_debug("addr = %x, data = %x\n", addr, data);
 
-    timeout = (int64_t) time_map[data & 0xF] * ticks_per_sec;
+    timeout = (int64_t) time_map[data & 0xF] * get_ticks_per_sec();
     qemu_mod_timer(timer, qemu_get_clock (vm_clock) + timeout);
 }
 

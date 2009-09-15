@@ -374,7 +374,7 @@ static void slavio_set_irq_all(void *opaque, int irq, int level)
     }
 }
 
-static int vmstate_intctl_after_load(void *opaque)
+static int vmstate_intctl_post_load(void *opaque)
 {
     SLAVIO_INTCTLState *s = opaque;
 
@@ -398,7 +398,7 @@ static const VMStateDescription vmstate_intctl = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .run_after_load = vmstate_intctl_after_load,
+    .post_load = vmstate_intctl_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_STRUCT_ARRAY(slaves, SLAVIO_INTCTLState, MAX_CPUS, 1,
                              vmstate_intctl_cpu, SLAVIO_CPUINTCTLState),

@@ -23,6 +23,7 @@
  */
 #include <alsa/asoundlib.h>
 #include "qemu-common.h"
+#include "qemu-char.h"
 #include "audio.h"
 
 #if QEMU_GNUC_PREREQ(4, 3)
@@ -32,16 +33,25 @@
 #define AUDIO_CAP "alsa"
 #include "audio_int.h"
 
+struct pollhlp {
+    snd_pcm_t *handle;
+    struct pollfd *pfds;
+    int count;
+    int mask;
+};
+
 typedef struct ALSAVoiceOut {
     HWVoiceOut hw;
     void *pcm_buf;
     snd_pcm_t *handle;
+    struct pollhlp pollhlp;
 } ALSAVoiceOut;
 
 typedef struct ALSAVoiceIn {
     HWVoiceIn hw;
     snd_pcm_t *handle;
     void *pcm_buf;
+    struct pollhlp pollhlp;
 } ALSAVoiceIn;
 
 static struct {
@@ -114,13 +124,186 @@ static void GCC_FMT_ATTR (3, 4) alsa_logerr2 (
     AUD_log (AUDIO_CAP, "Reason: %s\n", snd_strerror (err));
 }
 
-static void alsa_anal_close (snd_pcm_t **handlep)
+static void alsa_fini_poll (struct pollhlp *hlp)
+{
+    int i;
+    struct pollfd *pfds = hlp->pfds;
+
+    if (pfds) {
+        for (i = 0; i < hlp->count; ++i) {
+            qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
+        }
+        qemu_free (pfds);
+    }
+    hlp->pfds = NULL;
+    hlp->count = 0;
+    hlp->handle = NULL;
+}
+
+static void alsa_anal_close1 (snd_pcm_t **handlep)
 {
     int err = snd_pcm_close (*handlep);
     if (err) {
         alsa_logerr (err, "Failed to close PCM handle %p\n", *handlep);
     }
     *handlep = NULL;
+}
+
+static void alsa_anal_close (snd_pcm_t **handlep, struct pollhlp *hlp)
+{
+    alsa_fini_poll (hlp);
+    alsa_anal_close1 (handlep);
+}
+
+static int alsa_recover (snd_pcm_t *handle)
+{
+    int err = snd_pcm_prepare (handle);
+    if (err < 0) {
+        alsa_logerr (err, "Failed to prepare handle %p\n", handle);
+        return -1;
+    }
+    return 0;
+}
+
+static int alsa_resume (snd_pcm_t *handle)
+{
+    int err = snd_pcm_resume (handle);
+    if (err < 0) {
+        alsa_logerr (err, "Failed to resume handle %p\n", handle);
+        return -1;
+    }
+    return 0;
+}
+
+static void alsa_poll_handler (void *opaque)
+{
+    int err, count;
+    snd_pcm_state_t state;
+    struct pollhlp *hlp = opaque;
+    unsigned short revents;
+
+    count = poll (hlp->pfds, hlp->count, 0);
+    if (count < 0) {
+        dolog ("alsa_poll_handler: poll %s\n", strerror (errno));
+        return;
+    }
+
+    if (!count) {
+        return;
+    }
+
+    /* XXX: ALSA example uses initial count, not the one returned by
+       poll, correct? */
+    err = snd_pcm_poll_descriptors_revents (hlp->handle, hlp->pfds,
+                                            hlp->count, &revents);
+    if (err < 0) {
+        alsa_logerr (err, "snd_pcm_poll_descriptors_revents");
+        return;
+    }
+
+    if (!(revents & hlp->mask)) {
+        if (conf.verbose) {
+            dolog ("revents = %d\n", revents);
+        }
+        return;
+    }
+
+    state = snd_pcm_state (hlp->handle);
+    switch (state) {
+    case SND_PCM_STATE_XRUN:
+        alsa_recover (hlp->handle);
+        break;
+
+    case SND_PCM_STATE_SUSPENDED:
+        alsa_resume (hlp->handle);
+        break;
+
+    case SND_PCM_STATE_PREPARED:
+        audio_run ("alsa run (prepared)");
+        break;
+
+    case SND_PCM_STATE_RUNNING:
+        audio_run ("alsa run (running)");
+        break;
+
+    default:
+        dolog ("Unexpected state %d\n", state);
+    }
+}
+
+static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
+{
+    int i, count, err;
+    struct pollfd *pfds;
+
+    count = snd_pcm_poll_descriptors_count (handle);
+    if (count <= 0) {
+        dolog ("Could not initialize poll mode\n"
+               "Invalid number of poll descriptors %d\n", count);
+        return -1;
+    }
+
+    pfds = audio_calloc ("alsa_poll_helper", count, sizeof (*pfds));
+    if (!pfds) {
+        dolog ("Could not initialize poll mode\n");
+        return -1;
+    }
+
+    err = snd_pcm_poll_descriptors (handle, pfds, count);
+    if (err < 0) {
+        alsa_logerr (err, "Could not initialize poll mode\n"
+                     "Could not obtain poll descriptors\n");
+        qemu_free (pfds);
+        return -1;
+    }
+
+    for (i = 0; i < count; ++i) {
+        if (pfds[i].events & POLLIN) {
+            err = qemu_set_fd_handler (pfds[i].fd, alsa_poll_handler,
+                                       NULL, hlp);
+        }
+        if (pfds[i].events & POLLOUT) {
+            if (conf.verbose) {
+                dolog ("POLLOUT %d %d\n", i, pfds[i].fd);
+            }
+            err = qemu_set_fd_handler (pfds[i].fd, NULL,
+                                       alsa_poll_handler, hlp);
+        }
+        if (conf.verbose) {
+            dolog ("Set handler events=%#x index=%d fd=%d err=%d\n",
+                   pfds[i].events, i, pfds[i].fd, err);
+        }
+
+        if (err) {
+            dolog ("Failed to set handler events=%#x index=%d fd=%d err=%d\n",
+                   pfds[i].events, i, pfds[i].fd, err);
+
+            while (i--) {
+                qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
+            }
+            qemu_free (pfds);
+            return -1;
+        }
+    }
+    hlp->pfds = pfds;
+    hlp->count = count;
+    hlp->handle = handle;
+    hlp->mask = mask;
+    return 0;
+}
+
+static int alsa_poll_out (HWVoiceOut *hw)
+{
+    ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
+
+    return alsa_poll_helper (alsa->handle, &alsa->pollhlp, POLLOUT);
+}
+
+static int alsa_poll_in (HWVoiceIn *hw)
+{
+    ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
+
+    return alsa_poll_helper (alsa->handle, &alsa->pollhlp, POLLIN);
 }
 
 static int alsa_write (SWVoiceOut *sw, void *buf, int len)
@@ -489,28 +672,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
     return 0;
 
  err:
-    alsa_anal_close (&handle);
+    alsa_anal_close1 (&handle);
     return -1;
-}
-
-static int alsa_recover (snd_pcm_t *handle)
-{
-    int err = snd_pcm_prepare (handle);
-    if (err < 0) {
-        alsa_logerr (err, "Failed to prepare handle %p\n", handle);
-        return -1;
-    }
-    return 0;
-}
-
-static int alsa_resume (snd_pcm_t *handle)
-{
-    int err = snd_pcm_resume (handle);
-    if (err < 0) {
-        alsa_logerr (err, "Failed to resume handle %p\n", handle);
-        return -1;
-    }
-    return 0;
 }
 
 static snd_pcm_sframes_t alsa_get_avail (snd_pcm_t *handle)
@@ -631,7 +794,7 @@ static void alsa_fini_out (HWVoiceOut *hw)
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
 
     ldebug ("alsa_fini\n");
-    alsa_anal_close (&alsa->handle);
+    alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
     if (alsa->pcm_buf) {
         qemu_free (alsa->pcm_buf);
@@ -673,7 +836,7 @@ static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
     if (!alsa->pcm_buf) {
         dolog ("Could not allocate DAC buffer (%d samples, each %d bytes)\n",
                hw->samples, 1 << hw->info.shift);
-        alsa_anal_close (&handle);
+        alsa_anal_close1 (&handle);
         return -1;
     }
 
@@ -705,11 +868,21 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int pause)
 
 static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
+    va_list ap;
+    int poll_mode;
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
+
+    va_start (ap, cmd);
+    poll_mode = va_arg (ap, int);
+    va_end (ap);
 
     switch (cmd) {
     case VOICE_ENABLE:
         ldebug ("enabling voice\n");
+        if (poll_mode && alsa_poll_out (hw)) {
+            poll_mode = 0;
+        }
+        hw->poll_mode = poll_mode;
         return alsa_voice_ctl (alsa->handle, "playback", 0);
 
     case VOICE_DISABLE:
@@ -754,7 +927,7 @@ static int alsa_init_in (HWVoiceIn *hw, struct audsettings *as)
     if (!alsa->pcm_buf) {
         dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
                hw->samples, 1 << hw->info.shift);
-        alsa_anal_close (&handle);
+        alsa_anal_close1 (&handle);
         return -1;
     }
 
@@ -766,7 +939,7 @@ static void alsa_fini_in (HWVoiceIn *hw)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
 
-    alsa_anal_close (&alsa->handle);
+    alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
     if (alsa->pcm_buf) {
         qemu_free (alsa->pcm_buf);
@@ -909,15 +1082,30 @@ static int alsa_read (SWVoiceIn *sw, void *buf, int size)
 
 static int alsa_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
+    va_list ap;
+    int poll_mode;
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
+
+    va_start (ap, cmd);
+    poll_mode = va_arg (ap, int);
+    va_end (ap);
 
     switch (cmd) {
     case VOICE_ENABLE:
         ldebug ("enabling voice\n");
+        if (poll_mode && alsa_poll_in (hw)) {
+            poll_mode = 0;
+        }
+        hw->poll_mode = poll_mode;
+
         return alsa_voice_ctl (alsa->handle, "capture", 0);
 
     case VOICE_DISABLE:
         ldebug ("disabling voice\n");
+        if (hw->poll_mode) {
+            hw->poll_mode = 0;
+            alsa_fini_poll (&alsa->pollhlp);
+        }
         return alsa_voice_ctl (alsa->handle, "capture", 1);
     }
 
@@ -1014,7 +1202,7 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .fini_in  = alsa_fini_in,
     .run_in   = alsa_run_in,
     .read     = alsa_read,
-    .ctl_in   = alsa_ctl_in
+    .ctl_in   = alsa_ctl_in,
 };
 
 struct audio_driver alsa_audio_driver = {

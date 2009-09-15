@@ -21,7 +21,7 @@ obj-y += m48t59.o escc.o
 # SCSI layer
 obj-y += lsi53c895a.o esp.o
 
-obj-y += dma-helpers.o sysbus.o qdev-addr.o
+obj-y += dma-helpers.o sysbus.o qdev-addr.o isa-bus.o
 
 all: $(HWLIB)
 # Dummy command so that make thinks it has done something

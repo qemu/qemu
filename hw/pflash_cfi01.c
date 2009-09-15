@@ -387,7 +387,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         pfl->status = 0x00;
         /* Let's wait 1/2 second before sector erase is done */
         qemu_mod_timer(pfl->timer, 
-                       qemu_get_clock(vm_clock) + (ticks_per_sec / 2));
+                       qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 2));
         pfl->cmd = FlashCommandStatus;
         return;
     } else if (pfl->cmd == 0x60) {

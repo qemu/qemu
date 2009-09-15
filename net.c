@@ -31,8 +31,6 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
-/* Needed early to override system queue definitions on BSD */
-#include "sys-queue.h"
 
 #ifndef _WIN32
 #include <sys/times.h>
@@ -114,6 +112,7 @@
 #include "qemu-log.h"
 
 #include "slirp/libslirp.h"
+#include "qemu-queue.h"
 
 
 static VLANState *first_vlan;
@@ -440,9 +439,9 @@ void qemu_purge_queued_packets(VLANClientState *vc)
 {
     VLANPacket *packet, *next;
 
-    TAILQ_FOREACH_SAFE(packet, &vc->vlan->send_queue, entry, next) {
+    QTAILQ_FOREACH_SAFE(packet, &vc->vlan->send_queue, entry, next) {
         if (packet->sender == vc) {
-            TAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
+            QTAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
             qemu_free(packet);
         }
     }
@@ -450,16 +449,16 @@ void qemu_purge_queued_packets(VLANClientState *vc)
 
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
-    while (!TAILQ_EMPTY(&vc->vlan->send_queue)) {
+    while (!QTAILQ_EMPTY(&vc->vlan->send_queue)) {
         VLANPacket *packet;
         int ret;
 
-        packet = TAILQ_FIRST(&vc->vlan->send_queue);
-        TAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
+        packet = QTAILQ_FIRST(&vc->vlan->send_queue);
+        QTAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
 
         ret = qemu_deliver_packet(packet->sender, packet->data, packet->size);
         if (ret == 0 && packet->sent_cb != NULL) {
-            TAILQ_INSERT_HEAD(&vc->vlan->send_queue, packet, entry);
+            QTAILQ_INSERT_HEAD(&vc->vlan->send_queue, packet, entry);
             break;
         }
 
@@ -482,7 +481,7 @@ static void qemu_enqueue_packet(VLANClientState *sender,
     packet->sent_cb = sent_cb;
     memcpy(packet->data, buf, size);
 
-    TAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
+    QTAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
 }
 
 ssize_t qemu_send_packet_async(VLANClientState *sender,
@@ -605,7 +604,7 @@ static ssize_t qemu_enqueue_packet_iov(VLANClientState *sender,
         packet->size += len;
     }
 
-    TAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
+    QTAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
 
     return packet->size;
 }
@@ -671,7 +670,7 @@ struct slirp_config_str {
 };
 
 typedef struct SlirpState {
-    TAILQ_ENTRY(SlirpState) entry;
+    QTAILQ_ENTRY(SlirpState) entry;
     VLANClientState *vc;
     Slirp *slirp;
 #ifndef _WIN32
@@ -682,8 +681,8 @@ typedef struct SlirpState {
 static struct slirp_config_str *slirp_configs;
 const char *legacy_tftp_prefix;
 const char *legacy_bootp_filename;
-static TAILQ_HEAD(slirp_stacks, SlirpState) slirp_stacks =
-    TAILQ_HEAD_INITIALIZER(slirp_stacks);
+static QTAILQ_HEAD(slirp_stacks, SlirpState) slirp_stacks =
+    QTAILQ_HEAD_INITIALIZER(slirp_stacks);
 
 static void slirp_hostfwd(SlirpState *s, Monitor *mon, const char *redir_str,
                           int legacy_format);
@@ -736,7 +735,7 @@ static void net_slirp_cleanup(VLANClientState *vc)
 
     slirp_cleanup(s->slirp);
     slirp_smb_cleanup(s);
-    TAILQ_REMOVE(&slirp_stacks, s, entry);
+    QTAILQ_REMOVE(&slirp_stacks, s, entry);
     qemu_free(s);
 }
 
@@ -844,7 +843,7 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
     s = qemu_mallocz(sizeof(SlirpState));
     s->slirp = slirp_init(restricted, net, mask, host, vhostname,
                           tftp_export, bootfile, dhcp, dns, s);
-    TAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
+    QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     while (slirp_configs) {
         struct slirp_config_str *config = slirp_configs;
@@ -891,11 +890,11 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
         }
         return vc->opaque;
     } else {
-        if (TAILQ_EMPTY(&slirp_stacks)) {
+        if (QTAILQ_EMPTY(&slirp_stacks)) {
             monitor_printf(mon, "user mode network stack not in use\n");
             return NULL;
         }
-        return TAILQ_FIRST(&slirp_stacks);
+        return QTAILQ_FIRST(&slirp_stacks);
     }
 }
 
@@ -946,7 +945,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 
     host_port = atoi(p);
 
-    err = slirp_remove_hostfwd(TAILQ_FIRST(&slirp_stacks)->slirp, is_udp,
+    err = slirp_remove_hostfwd(QTAILQ_FIRST(&slirp_stacks)->slirp, is_udp,
                                host_addr, host_port);
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
@@ -1045,7 +1044,7 @@ void net_slirp_redir(const char *redir_str)
 {
     struct slirp_config_str *config;
 
-    if (TAILQ_EMPTY(&slirp_stacks)) {
+    if (QTAILQ_EMPTY(&slirp_stacks)) {
         config = qemu_malloc(sizeof(*config));
         pstrcpy(config->str, sizeof(config->str), redir_str);
         config->flags = SLIRP_CFG_HOSTFWD | SLIRP_CFG_LEGACY;
@@ -1054,7 +1053,7 @@ void net_slirp_redir(const char *redir_str)
         return;
     }
 
-    slirp_hostfwd(TAILQ_FIRST(&slirp_stacks), NULL, redir_str, 1);
+    slirp_hostfwd(QTAILQ_FIRST(&slirp_stacks), NULL, redir_str, 1);
 }
 
 #ifndef _WIN32
@@ -1137,8 +1136,8 @@ void net_slirp_smb(const char *exported_dir)
         exit(1);
     }
     legacy_smb_export = exported_dir;
-    if (!TAILQ_EMPTY(&slirp_stacks)) {
-        slirp_smb(TAILQ_FIRST(&slirp_stacks), NULL, exported_dir,
+    if (!QTAILQ_EMPTY(&slirp_stacks)) {
+        slirp_smb(QTAILQ_FIRST(&slirp_stacks), NULL, exported_dir,
                   vserver_addr);
     }
 }
@@ -1233,7 +1232,7 @@ void do_info_usernet(Monitor *mon)
 {
     SlirpState *s;
 
-    TAILQ_FOREACH(s, &slirp_stacks, entry) {
+    QTAILQ_FOREACH(s, &slirp_stacks, entry) {
         monitor_printf(mon, "VLAN %d (%s):\n", s->vc->vlan->id, s->vc->name);
         slirp_connection_info(s->slirp, mon);
     }
@@ -2254,7 +2253,7 @@ static ssize_t dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size
         return size;
     }
 
-    ts = muldiv64(qemu_get_clock(vm_clock), 1000000, ticks_per_sec);
+    ts = muldiv64(qemu_get_clock(vm_clock), 1000000, get_ticks_per_sec());
     caplen = size > s->pcap_caplen ? s->pcap_caplen : size;
 
     hdr.ts.tv_sec = ts / 1000000;
@@ -2330,7 +2329,7 @@ VLANState *qemu_find_vlan(int id, int allocate)
     }
     vlan = qemu_mallocz(sizeof(VLANState));
     vlan->id = id;
-    TAILQ_INIT(&vlan->send_queue);
+    QTAILQ_INIT(&vlan->send_queue);
     vlan->next = NULL;
     pvlan = &first_vlan;
     while (*pvlan != NULL)
@@ -2594,7 +2593,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         qemu_free(smb_export);
         qemu_free(vsmbsrv);
     } else if (!strcmp(device, "channel")) {
-        if (TAILQ_EMPTY(&slirp_stacks)) {
+        if (QTAILQ_EMPTY(&slirp_stacks)) {
             struct slirp_config_str *config;
 
             config = qemu_malloc(sizeof(*config));
@@ -2603,7 +2602,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             config->next = slirp_configs;
             slirp_configs = config;
         } else {
-            slirp_guestfwd(TAILQ_FIRST(&slirp_stacks), mon, p, 1);
+            slirp_guestfwd(QTAILQ_FIRST(&slirp_stacks), mon, p, 1);
         }
         ret = 0;
     } else

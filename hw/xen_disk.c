@@ -77,7 +77,7 @@ struct ioreq {
     int                 aio_errors;
 
     struct XenBlkDev    *blkdev;
-    LIST_ENTRY(ioreq)   list;
+    QLIST_ENTRY(ioreq)   list;
 };
 
 struct XenBlkDev {
@@ -99,9 +99,9 @@ struct XenBlkDev {
     int                 cnt_map;
 
     /* request lists */
-    LIST_HEAD(inflight_head, ioreq) inflight;
-    LIST_HEAD(finished_head, ioreq) finished;
-    LIST_HEAD(freelist_head, ioreq) freelist;
+    QLIST_HEAD(inflight_head, ioreq) inflight;
+    QLIST_HEAD(finished_head, ioreq) finished;
+    QLIST_HEAD(freelist_head, ioreq) freelist;
     int                 requests_total;
     int                 requests_inflight;
     int                 requests_finished;
@@ -118,7 +118,7 @@ static struct ioreq *ioreq_start(struct XenBlkDev *blkdev)
 {
     struct ioreq *ioreq = NULL;
 
-    if (LIST_EMPTY(&blkdev->freelist)) {
+    if (QLIST_EMPTY(&blkdev->freelist)) {
 	if (blkdev->requests_total >= max_requests)
 	    goto out;
 	/* allocate new struct */
@@ -128,11 +128,11 @@ static struct ioreq *ioreq_start(struct XenBlkDev *blkdev)
         qemu_iovec_init(&ioreq->v, BLKIF_MAX_SEGMENTS_PER_REQUEST);
     } else {
 	/* get one from freelist */
-	ioreq = LIST_FIRST(&blkdev->freelist);
-	LIST_REMOVE(ioreq, list);
+	ioreq = QLIST_FIRST(&blkdev->freelist);
+	QLIST_REMOVE(ioreq, list);
         qemu_iovec_reset(&ioreq->v);
     }
-    LIST_INSERT_HEAD(&blkdev->inflight, ioreq, list);
+    QLIST_INSERT_HEAD(&blkdev->inflight, ioreq, list);
     blkdev->requests_inflight++;
 
 out:
@@ -143,8 +143,8 @@ static void ioreq_finish(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
-    LIST_REMOVE(ioreq, list);
-    LIST_INSERT_HEAD(&blkdev->finished, ioreq, list);
+    QLIST_REMOVE(ioreq, list);
+    QLIST_INSERT_HEAD(&blkdev->finished, ioreq, list);
     blkdev->requests_inflight--;
     blkdev->requests_finished++;
 }
@@ -153,10 +153,10 @@ static void ioreq_release(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
-    LIST_REMOVE(ioreq, list);
+    QLIST_REMOVE(ioreq, list);
     memset(ioreq, 0, sizeof(*ioreq));
     ioreq->blkdev = blkdev;
-    LIST_INSERT_HEAD(&blkdev->freelist, ioreq, list);
+    QLIST_INSERT_HEAD(&blkdev->freelist, ioreq, list);
     blkdev->requests_finished--;
 }
 
@@ -476,8 +476,8 @@ static void blk_send_response_all(struct XenBlkDev *blkdev)
     struct ioreq *ioreq;
     int send_notify = 0;
 
-    while (!LIST_EMPTY(&blkdev->finished)) {
-        ioreq = LIST_FIRST(&blkdev->finished);
+    while (!QLIST_EMPTY(&blkdev->finished)) {
+        ioreq = QLIST_FIRST(&blkdev->finished);
 	send_notify += blk_send_response_one(ioreq);
 	ioreq_release(ioreq);
     }
@@ -564,9 +564,9 @@ static void blk_alloc(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
 
-    LIST_INIT(&blkdev->inflight);
-    LIST_INIT(&blkdev->finished);
-    LIST_INIT(&blkdev->freelist);
+    QLIST_INIT(&blkdev->inflight);
+    QLIST_INIT(&blkdev->finished);
+    QLIST_INIT(&blkdev->freelist);
     blkdev->bh = qemu_bh_new(blk_bh, blkdev);
     if (xen_mode != XEN_EMULATE)
         batch_maps = 1;
@@ -750,9 +750,9 @@ static int blk_free(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     struct ioreq *ioreq;
 
-    while (!LIST_EMPTY(&blkdev->freelist)) {
-	ioreq = LIST_FIRST(&blkdev->freelist);
-        LIST_REMOVE(ioreq, list);
+    while (!QLIST_EMPTY(&blkdev->freelist)) {
+	ioreq = QLIST_FIRST(&blkdev->freelist);
+        QLIST_REMOVE(ioreq, list);
         qemu_iovec_destroy(&ioreq->v);
 	qemu_free(ioreq);
     }

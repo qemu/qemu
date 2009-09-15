@@ -48,7 +48,7 @@ struct xs_handle *xenstore = NULL;
 const char *xen_protocol;
 
 /* private */
-static TAILQ_HEAD(XenDeviceHead, XenDevice) xendevs = TAILQ_HEAD_INITIALIZER(xendevs);
+static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs = QTAILQ_HEAD_INITIALIZER(xendevs);
 static int debug = 0;
 
 /* ------------------------------------------------------------- */
@@ -165,7 +165,7 @@ struct XenDevice *xen_be_find_xendev(const char *type, int dom, int dev)
 {
     struct XenDevice *xendev;
 
-    TAILQ_FOREACH(xendev, &xendevs, next) {
+    QTAILQ_FOREACH(xendev, &xendevs, next) {
 	if (xendev->dom != dom)
 	    continue;
 	if (xendev->dev != dev)
@@ -227,7 +227,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
 	xendev->gnttabdev = -1;
     }
 
-    TAILQ_INSERT_TAIL(&xendevs, xendev, next);
+    QTAILQ_INSERT_TAIL(&xendevs, xendev, next);
 
     if (xendev->ops->alloc)
 	xendev->ops->alloc(xendev);
@@ -243,7 +243,7 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
     struct XenDevice *xendev, *xnext;
 
     /*
-     * This is pretty much like TAILQ_FOREACH(xendev, &xendevs, next) but
+     * This is pretty much like QTAILQ_FOREACH(xendev, &xendevs, next) but
      * we save the next pointer in xnext because we might free xendev.
      */
     xnext = xendevs.tqh_first;
@@ -271,7 +271,7 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
 	if (xendev->gnttabdev >= 0)
 	    xc_gnttab_close(xendev->gnttabdev);
 
-	TAILQ_REMOVE(&xendevs, xendev, next);
+	QTAILQ_REMOVE(&xendevs, xendev, next);
 	qemu_free(xendev);
     }
     return NULL;

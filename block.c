@@ -22,11 +22,6 @@
  * THE SOFTWARE.
  */
 #include "config-host.h"
-#ifdef CONFIG_BSD
-/* include native header before sys-queue.h */
-#include <sys/queue.h>
-#endif
-
 #include "qemu-common.h"
 #include "monitor.h"
 #include "block_int.h"
@@ -38,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
 #ifndef __DragonFly__
 #include <sys/disk.h>
 #endif
@@ -55,6 +51,8 @@ static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
+static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
@@ -140,6 +138,10 @@ void bdrv_register(BlockDriver *bdrv)
         bdrv->bdrv_read = bdrv_read_em;
         bdrv->bdrv_write = bdrv_write_em;
     }
+
+    if (!bdrv->bdrv_aio_flush)
+        bdrv->bdrv_aio_flush = bdrv_aio_flush_em;
+
     bdrv->next = first_drv;
     first_drv = bdrv;
 }
@@ -410,6 +412,16 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     }
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
+
+    /*
+     * Yes, BDRV_O_NOCACHE aka O_DIRECT means we have to present a
+     * write cache to the guest.  We do need the fdatasync to flush
+     * out transactions for block allocations, and we maybe have a
+     * volatile write cache in our backing device to deal with.
+     */
+    if (flags & (BDRV_O_CACHE_WB|BDRV_O_NOCACHE))
+        bs->enable_write_cache = 1;
+
     /* Note: for compatibility, we open disk image files as RDWR, and
        RDONLY as fallback */
     if (!(flags & BDRV_O_FILE))
@@ -920,6 +932,11 @@ int bdrv_is_sg(BlockDriverState *bs)
     return bs->sg;
 }
 
+int bdrv_enable_write_cache(BlockDriverState *bs)
+{
+    return bs->enable_write_cache;
+}
+
 /* XXX: no longer used */
 void bdrv_set_change_cb(BlockDriverState *bs,
                         void (*change_cb)(void *opaque), void *opaque)
@@ -1356,6 +1373,204 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+
+typedef struct MultiwriteCB {
+    int error;
+    int num_requests;
+    int num_callbacks;
+    struct {
+        BlockDriverCompletionFunc *cb;
+        void *opaque;
+        QEMUIOVector *free_qiov;
+        void *free_buf;
+    } callbacks[];
+} MultiwriteCB;
+
+static void multiwrite_user_cb(MultiwriteCB *mcb)
+{
+    int i;
+
+    for (i = 0; i < mcb->num_callbacks; i++) {
+        mcb->callbacks[i].cb(mcb->callbacks[i].opaque, mcb->error);
+        qemu_free(mcb->callbacks[i].free_qiov);
+        qemu_free(mcb->callbacks[i].free_buf);
+    }
+}
+
+static void multiwrite_cb(void *opaque, int ret)
+{
+    MultiwriteCB *mcb = opaque;
+
+    if (ret < 0) {
+        mcb->error = ret;
+        multiwrite_user_cb(mcb);
+    }
+
+    mcb->num_requests--;
+    if (mcb->num_requests == 0) {
+        if (mcb->error == 0) {
+            multiwrite_user_cb(mcb);
+        }
+        qemu_free(mcb);
+    }
+}
+
+static int multiwrite_req_compare(const void *a, const void *b)
+{
+    return (((BlockRequest*) a)->sector - ((BlockRequest*) b)->sector);
+}
+
+/*
+ * Takes a bunch of requests and tries to merge them. Returns the number of
+ * requests that remain after merging.
+ */
+static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
+    int num_reqs, MultiwriteCB *mcb)
+{
+    int i, outidx;
+
+    // Sort requests by start sector
+    qsort(reqs, num_reqs, sizeof(*reqs), &multiwrite_req_compare);
+
+    // Check if adjacent requests touch the same clusters. If so, combine them,
+    // filling up gaps with zero sectors.
+    outidx = 0;
+    for (i = 1; i < num_reqs; i++) {
+        int merge = 0;
+        int64_t oldreq_last = reqs[outidx].sector + reqs[outidx].nb_sectors;
+
+        // This handles the cases that are valid for all block drivers, namely
+        // exactly sequential writes and overlapping writes.
+        if (reqs[i].sector <= oldreq_last) {
+            merge = 1;
+        }
+
+        // The block driver may decide that it makes sense to combine requests
+        // even if there is a gap of some sectors between them. In this case,
+        // the gap is filled with zeros (therefore only applicable for yet
+        // unused space in format like qcow2).
+        if (!merge && bs->drv->bdrv_merge_requests) {
+            merge = bs->drv->bdrv_merge_requests(bs, &reqs[outidx], &reqs[i]);
+        }
+
+        if (merge) {
+            size_t size;
+            QEMUIOVector *qiov = qemu_mallocz(sizeof(*qiov));
+            qemu_iovec_init(qiov,
+                reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1);
+
+            // Add the first request to the merged one. If the requests are
+            // overlapping, drop the last sectors of the first request.
+            size = (reqs[i].sector - reqs[outidx].sector) << 9;
+            qemu_iovec_concat(qiov, reqs[outidx].qiov, size);
+
+            // We might need to add some zeros between the two requests
+            if (reqs[i].sector > oldreq_last) {
+                size_t zero_bytes = (reqs[i].sector - oldreq_last) << 9;
+                uint8_t *buf = qemu_blockalign(bs, zero_bytes);
+                memset(buf, 0, zero_bytes);
+                qemu_iovec_add(qiov, buf, zero_bytes);
+                mcb->callbacks[i].free_buf = buf;
+            }
+
+            // Add the second request
+            qemu_iovec_concat(qiov, reqs[i].qiov, reqs[i].qiov->size);
+
+            reqs[outidx].nb_sectors += reqs[i].nb_sectors;
+            reqs[outidx].qiov = qiov;
+
+            mcb->callbacks[i].free_qiov = reqs[outidx].qiov;
+        } else {
+            outidx++;
+            reqs[outidx].sector     = reqs[i].sector;
+            reqs[outidx].nb_sectors = reqs[i].nb_sectors;
+            reqs[outidx].qiov       = reqs[i].qiov;
+        }
+    }
+
+    return outidx + 1;
+}
+
+/*
+ * Submit multiple AIO write requests at once.
+ *
+ * On success, the function returns 0 and all requests in the reqs array have
+ * been submitted. In error case this function returns -1, and any of the
+ * requests may or may not be submitted yet. In particular, this means that the
+ * callback will be called for some of the requests, for others it won't. The
+ * caller must check the error field of the BlockRequest to wait for the right
+ * callbacks (if error != 0, no callback will be called).
+ *
+ * The implementation may modify the contents of the reqs array, e.g. to merge
+ * requests. However, the fields opaque and error are left unmodified as they
+ * are used to signal failure for a single request to the caller.
+ */
+int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
+{
+    BlockDriverAIOCB *acb;
+    MultiwriteCB *mcb;
+    int i;
+
+    if (num_reqs == 0) {
+        return 0;
+    }
+
+    // Create MultiwriteCB structure
+    mcb = qemu_mallocz(sizeof(*mcb) + num_reqs * sizeof(*mcb->callbacks));
+    mcb->num_requests = 0;
+    mcb->num_callbacks = num_reqs;
+
+    for (i = 0; i < num_reqs; i++) {
+        mcb->callbacks[i].cb = reqs[i].cb;
+        mcb->callbacks[i].opaque = reqs[i].opaque;
+    }
+
+    // Check for mergable requests
+    num_reqs = multiwrite_merge(bs, reqs, num_reqs, mcb);
+
+    // Run the aio requests
+    for (i = 0; i < num_reqs; i++) {
+        acb = bdrv_aio_writev(bs, reqs[i].sector, reqs[i].qiov,
+            reqs[i].nb_sectors, multiwrite_cb, mcb);
+
+        if (acb == NULL) {
+            // We can only fail the whole thing if no request has been
+            // submitted yet. Otherwise we'll wait for the submitted AIOs to
+            // complete and report the error in the callback.
+            if (mcb->num_requests == 0) {
+                reqs[i].error = EIO;
+                goto fail;
+            } else {
+                mcb->error = EIO;
+                break;
+            }
+        } else {
+            mcb->num_requests++;
+        }
+    }
+
+    return 0;
+
+fail:
+    free(mcb);
+    return -1;
+}
+
+BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv)
+        return NULL;
+
+    /*
+     * Note that unlike bdrv_flush the driver is reponsible for flushing a
+     * backing image if it exists.
+     */
+    return drv->bdrv_aio_flush(bs, cb, opaque);
+}
+
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 {
     acb->pool->cancel(acb);
@@ -1444,6 +1659,25 @@ static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
+}
+
+static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockDriverAIOCBSync *acb;
+
+    acb = qemu_aio_get(&bdrv_em_aio_pool, bs, cb, opaque);
+    acb->is_write = 1; /* don't bounce in the completion hadler */
+    acb->qiov = NULL;
+    acb->bounce = NULL;
+    acb->ret = 0;
+
+    if (!acb->bh)
+        acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+
+    bdrv_flush(bs);
+    qemu_bh_schedule(acb->bh);
+    return &acb->common;
 }
 
 /**************************************************************/

@@ -48,7 +48,7 @@
 #include "sysemu.h"
 #include "qemu_socket.h"
 
-#if !defined(_POSIX_C_SOURCE) || defined(_WIN32)
+#if !defined(_POSIX_C_SOURCE) || defined(_WIN32) || defined(__sun__)
 static void *oom_check(void *ptr)
 {
     if (ptr == NULL) {
@@ -87,7 +87,7 @@ void qemu_vfree(void *ptr)
 
 void *qemu_memalign(size_t alignment, size_t size)
 {
-#if defined(_POSIX_C_SOURCE)
+#if defined(_POSIX_C_SOURCE) && !defined(__sun__)
     int ret;
     void *ptr;
     ret = posix_memalign(&ptr, alignment, size);

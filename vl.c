@@ -31,8 +31,6 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
-/* Needed early to override system queue definitions on BSD */
-#include "sys-queue.h"
 
 #ifndef _WIN32
 #include <libgen.h>
@@ -172,6 +170,8 @@ int main(int argc, char **argv)
 
 #include "slirp/libslirp.h"
 
+#include "qemu-queue.h"
+
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
 
@@ -184,13 +184,12 @@ static const char *data_dir;
 const char *bios_name = NULL;
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
-struct drivelist drives = TAILQ_HEAD_INITIALIZER(drives);
-struct driveoptlist driveopts = TAILQ_HEAD_INITIALIZER(driveopts);
+struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
+struct driveoptlist driveopts = QTAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
-int64_t ticks_per_sec;
 ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
@@ -533,8 +532,6 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 /***********************************************************/
 /* real time host monotonic timer */
 
-#define QEMU_TIMER_BASE 1000000000LL
-
 #ifdef WIN32
 
 static int64_t clock_freq;
@@ -555,7 +552,7 @@ static int64_t get_clock(void)
 {
     LARGE_INTEGER ti;
     QueryPerformanceCounter(&ti);
-    return muldiv64(ti.QuadPart, QEMU_TIMER_BASE, clock_freq);
+    return muldiv64(ti.QuadPart, get_ticks_per_sec(), clock_freq);
 }
 
 #else
@@ -613,10 +610,15 @@ static int64_t cpu_get_icount(void)
 /***********************************************************/
 /* guest cycle counter */
 
-static int64_t cpu_ticks_prev;
-static int64_t cpu_ticks_offset;
-static int64_t cpu_clock_offset;
-static int cpu_ticks_enabled;
+typedef struct TimersState {
+    int64_t cpu_ticks_prev;
+    int64_t cpu_ticks_offset;
+    int64_t cpu_clock_offset;
+    int32_t cpu_ticks_enabled;
+    int64_t dummy;
+} TimersState;
+
+TimersState timers_state;
 
 /* return the host CPU cycle counter and handle stop/restart */
 int64_t cpu_get_ticks(void)
@@ -624,18 +626,18 @@ int64_t cpu_get_ticks(void)
     if (use_icount) {
         return cpu_get_icount();
     }
-    if (!cpu_ticks_enabled) {
-        return cpu_ticks_offset;
+    if (!timers_state.cpu_ticks_enabled) {
+        return timers_state.cpu_ticks_offset;
     } else {
         int64_t ticks;
         ticks = cpu_get_real_ticks();
-        if (cpu_ticks_prev > ticks) {
+        if (timers_state.cpu_ticks_prev > ticks) {
             /* Note: non increasing ticks may happen if the host uses
                software suspend */
-            cpu_ticks_offset += cpu_ticks_prev - ticks;
+            timers_state.cpu_ticks_offset += timers_state.cpu_ticks_prev - ticks;
         }
-        cpu_ticks_prev = ticks;
-        return ticks + cpu_ticks_offset;
+        timers_state.cpu_ticks_prev = ticks;
+        return ticks + timers_state.cpu_ticks_offset;
     }
 }
 
@@ -643,21 +645,21 @@ int64_t cpu_get_ticks(void)
 static int64_t cpu_get_clock(void)
 {
     int64_t ti;
-    if (!cpu_ticks_enabled) {
-        return cpu_clock_offset;
+    if (!timers_state.cpu_ticks_enabled) {
+        return timers_state.cpu_clock_offset;
     } else {
         ti = get_clock();
-        return ti + cpu_clock_offset;
+        return ti + timers_state.cpu_clock_offset;
     }
 }
 
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void)
 {
-    if (!cpu_ticks_enabled) {
-        cpu_ticks_offset -= cpu_get_real_ticks();
-        cpu_clock_offset -= get_clock();
-        cpu_ticks_enabled = 1;
+    if (!timers_state.cpu_ticks_enabled) {
+        timers_state.cpu_ticks_offset -= cpu_get_real_ticks();
+        timers_state.cpu_clock_offset -= get_clock();
+        timers_state.cpu_ticks_enabled = 1;
     }
 }
 
@@ -665,10 +667,10 @@ void cpu_enable_ticks(void)
    cpu_get_ticks() after that.  */
 void cpu_disable_ticks(void)
 {
-    if (cpu_ticks_enabled) {
-        cpu_ticks_offset = cpu_get_ticks();
-        cpu_clock_offset = cpu_get_clock();
-        cpu_ticks_enabled = 0;
+    if (timers_state.cpu_ticks_enabled) {
+        timers_state.cpu_ticks_offset = cpu_get_ticks();
+        timers_state.cpu_clock_offset = cpu_get_clock();
+        timers_state.cpu_ticks_enabled = 0;
     }
 }
 
@@ -758,7 +760,7 @@ static void rtc_stop_timer(struct qemu_alarm_timer *t);
    fairly approximate, so ignore small variation.
    When the guest is idle real and virtual time will be aligned in
    the IO wait loop.  */
-#define ICOUNT_WOBBLE (QEMU_TIMER_BASE / 10)
+#define ICOUNT_WOBBLE (get_ticks_per_sec() / 10)
 
 static void icount_adjust(void)
 {
@@ -800,7 +802,7 @@ static void icount_adjust_rt(void * opaque)
 static void icount_adjust_vm(void * opaque)
 {
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + QEMU_TIMER_BASE / 10);
+                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
     icount_adjust();
 }
 
@@ -816,7 +818,7 @@ static void init_icount_adjust(void)
                    qemu_get_clock(rt_clock) + 1000);
     icount_vm_timer = qemu_new_timer(vm_clock, icount_adjust_vm, NULL);
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + QEMU_TIMER_BASE / 10);
+                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
 }
 
 static struct qemu_alarm_timer alarm_timers[] = {
@@ -1037,7 +1039,6 @@ int64_t qemu_get_clock(QEMUClock *clock)
 static void init_timers(void)
 {
     init_get_clock();
-    ticks_per_sec = QEMU_TIMER_BASE;
     rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
     vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
 }
@@ -1067,30 +1068,18 @@ void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
     }
 }
 
-static void timer_save(QEMUFile *f, void *opaque)
-{
-    if (cpu_ticks_enabled) {
-        hw_error("cannot save state if virtual timers are running");
+static const VMStateDescription vmstate_timers = {
+    .name = "timer",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT64(cpu_ticks_offset, TimersState),
+        VMSTATE_INT64(dummy, TimersState),
+        VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
+        VMSTATE_END_OF_LIST()
     }
-    qemu_put_be64(f, cpu_ticks_offset);
-    qemu_put_be64(f, ticks_per_sec);
-    qemu_put_be64(f, cpu_clock_offset);
-}
-
-static int timer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    if (version_id != 1 && version_id != 2)
-        return -EINVAL;
-    if (cpu_ticks_enabled) {
-        return -EINVAL;
-    }
-    cpu_ticks_offset=qemu_get_be64(f);
-    ticks_per_sec=qemu_get_be64(f);
-    if (version_id == 2) {
-        cpu_clock_offset=qemu_get_be64(f);
-    }
-    return 0;
-}
+};
 
 static void qemu_event_increment(void);
 
@@ -1118,10 +1107,10 @@ static void host_alarm_handler(int host_signum)
             delta_cum += delta;
             if (++count == DISP_FREQ) {
                 printf("timer: min=%" PRId64 " us max=%" PRId64 " us avg=%" PRId64 " us avg_freq=%0.3f Hz\n",
-                       muldiv64(delta_min, 1000000, ticks_per_sec),
-                       muldiv64(delta_max, 1000000, ticks_per_sec),
-                       muldiv64(delta_cum, 1000000 / DISP_FREQ, ticks_per_sec),
-                       (double)ticks_per_sec / ((double)delta_cum / DISP_FREQ));
+                       muldiv64(delta_min, 1000000, get_ticks_per_sec()),
+                       muldiv64(delta_max, 1000000, get_ticks_per_sec()),
+                       muldiv64(delta_cum, 1000000 / DISP_FREQ, get_ticks_per_sec()),
+                       (double)get_ticks_per_sec() / ((double)delta_cum / DISP_FREQ));
                 count = 0;
                 delta_min = INT64_MAX;
                 delta_max = 0;
@@ -1823,7 +1812,7 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
 
     /* seek interface, bus and unit */
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->type == type &&
 	    dinfo->bus == bus &&
 	    dinfo->unit == unit)
@@ -1837,7 +1826,7 @@ DriveInfo *drive_get_by_id(const char *id)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (strcmp(id, dinfo->id))
             continue;
         return dinfo;
@@ -1851,7 +1840,7 @@ int drive_get_max_bus(BlockInterfaceType type)
     DriveInfo *dinfo;
 
     max_bus = -1;
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if(dinfo->type == type &&
            dinfo->bus > max_bus)
             max_bus = dinfo->bus;
@@ -1863,7 +1852,7 @@ const char *drive_get_serial(BlockDriverState *bdrv)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
             return dinfo->serial;
     }
@@ -1875,7 +1864,7 @@ BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
             return dinfo->onerror;
     }
@@ -1892,11 +1881,11 @@ void drive_uninit(BlockDriverState *bdrv)
 {
     DriveInfo *dinfo;
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv != bdrv)
             continue;
         qemu_opts_del(dinfo->opts);
-        TAILQ_REMOVE(&drives, dinfo, next);
+        QTAILQ_REMOVE(&drives, dinfo, next);
         qemu_free(dinfo);
         break;
     }
@@ -2183,7 +2172,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     dinfo->opts = opts;
     if (serial)
         strncpy(dinfo->serial, serial, sizeof(serial));
-    TAILQ_INSERT_TAIL(&drives, dinfo, next);
+    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     switch(type) {
     case IF_IDE:
@@ -2797,97 +2786,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 /***********************************************************/
 /* ram save/restore */
 
-static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
-{
-    int v;
-
-    v = qemu_get_byte(f);
-    switch(v) {
-    case 0:
-        if (qemu_get_buffer(f, buf, len) != len)
-            return -EIO;
-        break;
-    case 1:
-        v = qemu_get_byte(f);
-        memset(buf, v, len);
-        break;
-    default:
-        return -EINVAL;
-    }
-
-    if (qemu_file_has_error(f))
-        return -EIO;
-
-    return 0;
-}
-
-static int ram_load_v1(QEMUFile *f, void *opaque)
-{
-    int ret;
-    ram_addr_t i;
-
-    if (qemu_get_be32(f) != last_ram_offset)
-        return -EINVAL;
-    for(i = 0; i < last_ram_offset; i+= TARGET_PAGE_SIZE) {
-        ret = ram_get_page(f, qemu_get_ram_ptr(i), TARGET_PAGE_SIZE);
-        if (ret)
-            return ret;
-    }
-    return 0;
-}
-
-#define BDRV_HASH_BLOCK_SIZE 1024
-#define IOBUF_SIZE 4096
-#define RAM_CBLOCK_MAGIC 0xfabe
-
-typedef struct RamDecompressState {
-    z_stream zstream;
-    QEMUFile *f;
-    uint8_t buf[IOBUF_SIZE];
-} RamDecompressState;
-
-static int ram_decompress_open(RamDecompressState *s, QEMUFile *f)
-{
-    int ret;
-    memset(s, 0, sizeof(*s));
-    s->f = f;
-    ret = inflateInit(&s->zstream);
-    if (ret != Z_OK)
-        return -1;
-    return 0;
-}
-
-static int ram_decompress_buf(RamDecompressState *s, uint8_t *buf, int len)
-{
-    int ret, clen;
-
-    s->zstream.avail_out = len;
-    s->zstream.next_out = buf;
-    while (s->zstream.avail_out > 0) {
-        if (s->zstream.avail_in == 0) {
-            if (qemu_get_be16(s->f) != RAM_CBLOCK_MAGIC)
-                return -1;
-            clen = qemu_get_be16(s->f);
-            if (clen > IOBUF_SIZE)
-                return -1;
-            qemu_get_buffer(s->f, s->buf, clen);
-            s->zstream.avail_in = clen;
-            s->zstream.next_in = s->buf;
-        }
-        ret = inflate(&s->zstream, Z_PARTIAL_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-static void ram_decompress_close(RamDecompressState *s)
-{
-    inflateEnd(&s->zstream);
-}
-
-#define RAM_SAVE_FLAG_FULL	0x01
+#define RAM_SAVE_FLAG_FULL	0x01 /* Obsolete, not used anymore */
 #define RAM_SAVE_FLAG_COMPRESS	0x02
 #define RAM_SAVE_FLAG_MEM_SIZE	0x04
 #define RAM_SAVE_FLAG_PAGE	0x08
@@ -3035,49 +2934,10 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
     return (stage == 2) && (expected_time <= migrate_max_downtime());
 }
 
-static int ram_load_dead(QEMUFile *f, void *opaque)
-{
-    RamDecompressState s1, *s = &s1;
-    uint8_t buf[10];
-    ram_addr_t i;
-
-    if (ram_decompress_open(s, f) < 0)
-        return -EINVAL;
-    for(i = 0; i < last_ram_offset; i+= BDRV_HASH_BLOCK_SIZE) {
-        if (ram_decompress_buf(s, buf, 1) < 0) {
-            fprintf(stderr, "Error while reading ram block header\n");
-            goto error;
-        }
-        if (buf[0] == 0) {
-            if (ram_decompress_buf(s, qemu_get_ram_ptr(i),
-                                   BDRV_HASH_BLOCK_SIZE) < 0) {
-                fprintf(stderr, "Error while reading ram block address=0x%08" PRIx64, (uint64_t)i);
-                goto error;
-            }
-        } else {
-        error:
-            printf("Error block header\n");
-            return -EINVAL;
-        }
-    }
-    ram_decompress_close(s);
-
-    return 0;
-}
-
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
     int flags;
-
-    if (version_id == 1)
-        return ram_load_v1(f, opaque);
-
-    if (version_id == 2) {
-        if (qemu_get_be32(f) != last_ram_offset)
-            return -EINVAL;
-        return ram_load_dead(f, opaque);
-    }
 
     if (version_id != 3)
         return -EINVAL;
@@ -3093,11 +2953,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 return -EINVAL;
         }
 
-        if (flags & RAM_SAVE_FLAG_FULL) {
-            if (ram_load_dead(f, opaque) < 0)
-                return -EINVAL;
-        }
-        
         if (flags & RAM_SAVE_FLAG_COMPRESS) {
             uint8_t ch = qemu_get_byte(f);
             memset(qemu_get_ram_ptr(addr), ch, TARGET_PAGE_SIZE);
@@ -3295,10 +3150,10 @@ static void nographic_update(void *opaque)
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
-    LIST_ENTRY (vm_change_state_entry) entries;
+    QLIST_ENTRY (vm_change_state_entry) entries;
 };
 
-static LIST_HEAD(vm_change_state_head, vm_change_state_entry) vm_change_state_head;
+static QLIST_HEAD(vm_change_state_head, vm_change_state_entry) vm_change_state_head;
 
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque)
@@ -3309,13 +3164,13 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 
     e->cb = cb;
     e->opaque = opaque;
-    LIST_INSERT_HEAD(&vm_change_state_head, e, entries);
+    QLIST_INSERT_HEAD(&vm_change_state_head, e, entries);
     return e;
 }
 
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 {
-    LIST_REMOVE (e, entries);
+    QLIST_REMOVE (e, entries);
     qemu_free (e);
 }
 
@@ -3345,13 +3200,13 @@ void vm_start(void)
 /* reset/shutdown handler */
 
 typedef struct QEMUResetEntry {
-    TAILQ_ENTRY(QEMUResetEntry) entry;
+    QTAILQ_ENTRY(QEMUResetEntry) entry;
     QEMUResetHandler *func;
     void *opaque;
 } QEMUResetEntry;
 
-static TAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
-    TAILQ_HEAD_INITIALIZER(reset_handlers);
+static QTAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
+    QTAILQ_HEAD_INITIALIZER(reset_handlers);
 static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
@@ -3409,16 +3264,16 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 
     re->func = func;
     re->opaque = opaque;
-    TAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
 }
 
 void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry *re;
 
-    TAILQ_FOREACH(re, &reset_handlers, entry) {
+    QTAILQ_FOREACH(re, &reset_handlers, entry) {
         if (re->func == func && re->opaque == opaque) {
-            TAILQ_REMOVE(&reset_handlers, re, entry);
+            QTAILQ_REMOVE(&reset_handlers, re, entry);
             qemu_free(re);
             return;
         }
@@ -3430,7 +3285,7 @@ void qemu_system_reset(void)
     QEMUResetEntry *re, *nre;
 
     /* reset all devices */
-    TAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
+    QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
     }
 }
@@ -3688,12 +3543,10 @@ static void *kvm_cpu_thread_fn(void *arg)
     while (!qemu_system_ready)
         qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
 
-    cpu_synchronize_state(env);
-
     while (1) {
-        qemu_wait_io_event(env);
         if (cpu_can_run(env))
             qemu_cpu_exec(env);
+        qemu_wait_io_event(env);
     }
 
     return NULL;
@@ -3718,9 +3571,6 @@ static void *tcg_cpu_thread_fn(void *arg)
     while (!qemu_system_ready)
         qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu_synchronize_state(env);
-    }
     while (1) {
         tcg_cpu_exec();
         qemu_wait_io_event(cur_cpu);
@@ -4769,9 +4619,9 @@ struct device_config {
         DEV_BT,        /* -bt          */
     } type;
     const char *cmdline;
-    TAILQ_ENTRY(device_config) next;
+    QTAILQ_ENTRY(device_config) next;
 };
-TAILQ_HEAD(, device_config) device_configs = TAILQ_HEAD_INITIALIZER(device_configs);
+QTAILQ_HEAD(, device_config) device_configs = QTAILQ_HEAD_INITIALIZER(device_configs);
 
 static void add_device_config(int type, const char *cmdline)
 {
@@ -4780,7 +4630,7 @@ static void add_device_config(int type, const char *cmdline)
     conf = qemu_mallocz(sizeof(*conf));
     conf->type = type;
     conf->cmdline = cmdline;
-    TAILQ_INSERT_TAIL(&device_configs, conf, next);
+    QTAILQ_INSERT_TAIL(&device_configs, conf, next);
 }
 
 static int foreach_device_config(int type, int (*func)(const char *cmdline))
@@ -4788,7 +4638,7 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     struct device_config *conf;
     int rc;
 
-    TAILQ_FOREACH(conf, &device_configs, next) {
+    QTAILQ_FOREACH(conf, &device_configs, next) {
         if (conf->type != type)
             continue;
         rc = func(conf->cmdline);
@@ -4849,7 +4699,7 @@ int main(int argc, char **argv, char **envp)
     qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
-    LIST_INIT (&vm_change_state_head);
+    QLIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
     {
         struct sigaction act;
@@ -5340,6 +5190,16 @@ int main(int argc, char **argv, char **envp)
                 monitor_devices[monitor_device_index] = optarg;
                 monitor_device_index++;
                 break;
+            case QEMU_OPTION_chardev:
+                opts = qemu_opts_parse(&qemu_chardev_opts, optarg, "backend");
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+                if (NULL == qemu_chr_open_opts(opts, NULL)) {
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_serial:
                 if (serial_device_index >= MAX_SERIAL_PORTS) {
                     fprintf(stderr, "qemu: too many serial ports\n");
@@ -5803,7 +5663,7 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(&qemu_drive_opts, drive_init_func, machine, 1) != 0)
         exit(1);
 
-    register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
+    vmstate_register(0, &vmstate_timers ,&timers_state);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
 
     /* Maintain compatibility with multiple stdio monitors */

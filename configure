@@ -233,6 +233,7 @@ aix="no"
 blobs="yes"
 pkgversion=""
 check_utests="no"
+user_pie="no"
 
 # OS specific
 if check_define __linux__ ; then
@@ -337,6 +338,10 @@ SunOS)
     audio_drv_list="oss"
   fi
   audio_possible_drivers="oss sdl"
+# needed for CMSG_ macros in sys/socket.h
+  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
+# needed for TIOCWIN* defines in termios.h
+  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
   QEMU_CFLAGS="-std=gnu99 $QEMU_CFLAGS"
   LIBS="-lsocket -lnsl -lresolv $LIBS"
 ;;
@@ -509,6 +514,10 @@ for opt do
   --enable-guest-base) guest_base="yes"
   ;;
   --disable-guest-base) guest_base="no"
+  ;;
+  --enable-user-pie) user_pie="yes"
+  ;;
+  --disable-user-pie) user_pie="no"
   ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
@@ -690,6 +699,8 @@ echo "  --disable-bsd-user       disable all BSD usermode emulation targets"
 echo "  --enable-guest-base      enable GUEST_BASE support for usermode"
 echo "                           emulation targets"
 echo "  --disable-guest-base     disable GUEST_BASE support"
+echo "  --enable-user-pie        build usermode emulation targets as PIE"
+echo "  --disable-user-pie       do not build usermode emulation targets as PIE"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --oss-lib                path to OSS library"
@@ -807,7 +818,7 @@ feature_not_found() {
 
   echo "ERROR"
   echo "ERROR: User requested feature $feature"
-  echo "ERROR: configure was not able to found it"
+  echo "ERROR: configure was not able to find it"
   echo "ERROR"
   exit 1;
 }
@@ -1616,7 +1627,7 @@ if check_linker_flags --whole-archive --no-whole-archive ; then
     arlibs_end="-Wl,--no-whole-archive"
 elif check_linker_flags -z,allextract -z,defaultextract ; then
     # Solaris ld
-    arlibs_begin"=-Wl,-z,allextract"
+    arlibs_begin="-Wl,-z,allextract"
     arlibs_end="-Wl,-z,defaultextract"
 elif check_linker_flags -all_load ; then
     # Mac OS X
@@ -1628,9 +1639,21 @@ else
     exit 1
 fi
 
-if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaries" != yes -a \
+if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
         "$aix" != "yes" ; then
     libs_softmmu="-lutil $libs_softmmu"
+fi
+
+##########################################
+# check if the compiler defines offsetof
+
+need_offsetof=yes
+cat > $TMPC << EOF
+#include <stddef.h>
+int main(void) { struct s { int f; }; return offsetof(struct s, f); }
+EOF
+if compile_prog "" "" ; then
+    need_offsetof=no
 fi
 
 # End of CC checks
@@ -1738,6 +1761,7 @@ echo "Documentation     $docs"
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
+echo "PIE user targets  $user_pie"
 echo "vde support       $vde"
 echo "IO thread         $io_thread"
 echo "Linux AIO support $linux_aio"
@@ -1937,6 +1961,9 @@ if test "$preadv" = "yes" ; then
 fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak
+fi
+if test "$need_offsetof" = "yes" ; then
+  echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
@@ -2244,15 +2271,15 @@ case "$target_arch2" in
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
     fi
 esac
-echo "HWLIB=../libhw$target_phys_bits/libqemuhw$target_phys_bits.a" >> $config_mak
 echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_mak
-echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_mak
 fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_mak
   echo "LIBS+=$libs_softmmu" >> $config_mak
+  echo "HWLIB=../libhw$target_phys_bits/libqemuhw$target_phys_bits.a" >> $config_mak
+  echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_mak
@@ -2373,6 +2400,12 @@ if test "$target_softmmu" = "yes" ; then
   esac
 fi
 
+if test "$target_user_only" = "yes" -a "$static" = "no" -a \
+	"$user_pie" = "yes" ; then
+  cflags="-fpie $cflags"
+  ldflags="-pie $ldflags"
+fi
+
 if test "$target_softmmu" = "yes" -a \( \
         "$TARGET_ARCH" = "microblaze" -o \
         "$TARGET_ARCH" = "cris" \) ; then
@@ -2394,16 +2427,6 @@ fi
 linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
-  i386)
-    if test "$gprof" = "yes" -o "$static" = "yes" ; then
-      ldflags="$linker_script $ldflags"
-    else
-      # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
-      # that the kernel ELF loader considers as an executable. I think this
-      # is the simplest way to make it self virtualizable!
-      ldflags="-Wl,-shared $ldflags"
-    fi
-    ;;
   sparc)
     # -static is used to avoid g1/g3 usage by the dynamic linker
     ldflags="$linker_script -static $ldflags"
@@ -2411,7 +2434,7 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   ia64)
     ldflags="-Wl,-G0 $linker_script -static $ldflags"
     ;;
-  x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64)
+  i386|x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64)
     ldflags="$linker_script $ldflags"
     ;;
   esac

@@ -23,7 +23,7 @@
 #define QEMU_WATCHDOG_H
 
 struct WatchdogTimerModel {
-    LIST_ENTRY(WatchdogTimerModel) entry;
+    QLIST_ENTRY(WatchdogTimerModel) entry;
 
     /* Short name of the device - used to select it on the command line. */
     const char *wdt_name;

@@ -738,7 +738,7 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
      * the same cluster. In this case we need to wait until the previous
      * request has completed and updated the L2 table accordingly.
      */
-    LIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
+    QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
 
         uint64_t end_offset = offset + nb_clusters * s->cluster_size;
         uint64_t old_offset = old_alloc->offset;
@@ -769,7 +769,7 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
         abort();
     }
 
-    LIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
+    QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
 
     /* allocate a new cluster */
 

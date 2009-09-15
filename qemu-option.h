@@ -26,7 +26,7 @@
 #ifndef QEMU_OPTIONS_H
 #define QEMU_OPTIONS_H
 
-#include "sys-queue.h"
+#include "qemu-queue.h"
 
 enum QEMUOptionParType {
     OPT_FLAG,
@@ -95,7 +95,7 @@ typedef struct QemuOptDesc {
 
 struct QemuOptsList {
     const char *name;
-    TAILQ_HEAD(, QemuOpts) head;
+    QTAILQ_HEAD(, QemuOpts) head;
     QemuOptDesc desc[];
 };
 
@@ -114,6 +114,7 @@ int qemu_opts_set(QemuOptsList *list, const char *id,
                   const char *name, const char *value);
 const char *qemu_opts_id(QemuOpts *opts);
 void qemu_opts_del(QemuOpts *opts);
+int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname);
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname);
 
 typedef int (*qemu_opts_loopfunc)(QemuOpts *opts, void *opaque);

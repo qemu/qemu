@@ -481,6 +481,7 @@ struct fdctrl_t {
     uint8_t sra;
     uint8_t srb;
     uint8_t dor;
+    uint8_t dor_vmstate; /* only used as temp during vmstate */
     uint8_t tdr;
     uint8_t dsr;
     uint8_t msr;
@@ -490,6 +491,7 @@ struct fdctrl_t {
     uint8_t status2;
     /* Command FIFO */
     uint8_t *fifo;
+    int32_t fifo_size;
     uint32_t data_pos;
     uint32_t data_len;
     uint8_t data_state;
@@ -508,6 +510,7 @@ struct fdctrl_t {
     /* Sun4m quirks? */
     int sun4m;
     /* Floppy drives */
+    uint8_t num_floppies;
     fdrive_t drives[MAX_FD];
     int reset_sensei;
 };
@@ -627,108 +630,73 @@ static CPUWriteMemoryFunc * const fdctrl_mem_write_strict[3] = {
     NULL,
 };
 
-static void fd_save (QEMUFile *f, fdrive_t *fd)
+static const VMStateDescription vmstate_fdrive = {
+    .name = "fdrive",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(head, fdrive_t),
+        VMSTATE_UINT8(track, fdrive_t),
+        VMSTATE_UINT8(sect, fdrive_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void fdc_pre_save(const void *opaque)
 {
-    qemu_put_8s(f, &fd->head);
-    qemu_put_8s(f, &fd->track);
-    qemu_put_8s(f, &fd->sect);
+    fdctrl_t *s = (void *)opaque;
+
+    s->dor_vmstate = s->dor | GET_CUR_DRV(s);
 }
 
-static void fdc_save (QEMUFile *f, void *opaque)
+static int fdc_post_load(void *opaque)
 {
     fdctrl_t *s = opaque;
-    uint8_t tmp;
-    int i;
-    uint8_t dor = s->dor | GET_CUR_DRV(s);
 
-    /* Controller state */
-    qemu_put_8s(f, &s->sra);
-    qemu_put_8s(f, &s->srb);
-    qemu_put_8s(f, &dor);
-    qemu_put_8s(f, &s->tdr);
-    qemu_put_8s(f, &s->dsr);
-    qemu_put_8s(f, &s->msr);
-    qemu_put_8s(f, &s->status0);
-    qemu_put_8s(f, &s->status1);
-    qemu_put_8s(f, &s->status2);
-    /* Command FIFO */
-    qemu_put_buffer(f, s->fifo, FD_SECTOR_LEN);
-    qemu_put_be32s(f, &s->data_pos);
-    qemu_put_be32s(f, &s->data_len);
-    qemu_put_8s(f, &s->data_state);
-    qemu_put_8s(f, &s->data_dir);
-    qemu_put_8s(f, &s->eot);
-    /* States kept only to be returned back */
-    qemu_put_8s(f, &s->timer0);
-    qemu_put_8s(f, &s->timer1);
-    qemu_put_8s(f, &s->precomp_trk);
-    qemu_put_8s(f, &s->config);
-    qemu_put_8s(f, &s->lock);
-    qemu_put_8s(f, &s->pwrd);
-
-    tmp = MAX_FD;
-    qemu_put_8s(f, &tmp);
-    for (i = 0; i < MAX_FD; i++)
-        fd_save(f, &s->drives[i]);
-}
-
-static int fd_load (QEMUFile *f, fdrive_t *fd)
-{
-    qemu_get_8s(f, &fd->head);
-    qemu_get_8s(f, &fd->track);
-    qemu_get_8s(f, &fd->sect);
-
+    SET_CUR_DRV(s, s->dor_vmstate & FD_DOR_SELMASK);
+    s->dor = s->dor_vmstate & ~FD_DOR_SELMASK;
     return 0;
 }
 
-static int fdc_load (QEMUFile *f, void *opaque, int version_id)
-{
-    fdctrl_t *s = opaque;
-    int i, ret = 0;
-    uint8_t n;
-
-    if (version_id != 2)
-        return -EINVAL;
-
-    /* Controller state */
-    qemu_get_8s(f, &s->sra);
-    qemu_get_8s(f, &s->srb);
-    qemu_get_8s(f, &s->dor);
-    SET_CUR_DRV(s, s->dor & FD_DOR_SELMASK);
-    s->dor &= ~FD_DOR_SELMASK;
-    qemu_get_8s(f, &s->tdr);
-    qemu_get_8s(f, &s->dsr);
-    qemu_get_8s(f, &s->msr);
-    qemu_get_8s(f, &s->status0);
-    qemu_get_8s(f, &s->status1);
-    qemu_get_8s(f, &s->status2);
-    /* Command FIFO */
-    qemu_get_buffer(f, s->fifo, FD_SECTOR_LEN);
-    qemu_get_be32s(f, &s->data_pos);
-    qemu_get_be32s(f, &s->data_len);
-    qemu_get_8s(f, &s->data_state);
-    qemu_get_8s(f, &s->data_dir);
-    qemu_get_8s(f, &s->eot);
-    /* States kept only to be returned back */
-    qemu_get_8s(f, &s->timer0);
-    qemu_get_8s(f, &s->timer1);
-    qemu_get_8s(f, &s->precomp_trk);
-    qemu_get_8s(f, &s->config);
-    qemu_get_8s(f, &s->lock);
-    qemu_get_8s(f, &s->pwrd);
-    qemu_get_8s(f, &n);
-
-    if (n > MAX_FD)
-        return -EINVAL;
-
-    for (i = 0; i < n; i++) {
-        ret = fd_load(f, &s->drives[i]);
-        if (ret != 0)
-            break;
+static const VMStateDescription vmstate_fdc = {
+    .name = "fdc",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .pre_save = fdc_pre_save,
+    .post_load = fdc_post_load,
+    .fields      = (VMStateField []) {
+        /* Controller State */
+        VMSTATE_UINT8(sra, fdctrl_t),
+        VMSTATE_UINT8(srb, fdctrl_t),
+        VMSTATE_UINT8(dor_vmstate, fdctrl_t),
+        VMSTATE_UINT8(tdr, fdctrl_t),
+        VMSTATE_UINT8(dsr, fdctrl_t),
+        VMSTATE_UINT8(msr, fdctrl_t),
+        VMSTATE_UINT8(status0, fdctrl_t),
+        VMSTATE_UINT8(status1, fdctrl_t),
+        VMSTATE_UINT8(status2, fdctrl_t),
+        /* Command FIFO */
+        VMSTATE_VARRAY(fifo, fdctrl_t, fifo_size, 0, vmstate_info_uint8, uint8),
+        VMSTATE_UINT32(data_pos, fdctrl_t),
+        VMSTATE_UINT32(data_len, fdctrl_t),
+        VMSTATE_UINT8(data_state, fdctrl_t),
+        VMSTATE_UINT8(data_dir, fdctrl_t),
+        VMSTATE_UINT8(eot, fdctrl_t),
+        /* States kept only to be returned back */
+        VMSTATE_UINT8(timer0, fdctrl_t),
+        VMSTATE_UINT8(timer1, fdctrl_t),
+        VMSTATE_UINT8(precomp_trk, fdctrl_t),
+        VMSTATE_UINT8(config, fdctrl_t),
+        VMSTATE_UINT8(lock, fdctrl_t),
+        VMSTATE_UINT8(pwrd, fdctrl_t),
+        VMSTATE_UINT8_EQUAL(num_floppies, fdctrl_t),
+        VMSTATE_STRUCT_ARRAY(drives, fdctrl_t, MAX_FD, 1,
+                             vmstate_fdrive, fdrive_t),
+        VMSTATE_END_OF_LIST()
     }
-
-    return ret;
-}
+};
 
 static void fdctrl_external_reset(void *opaque)
 {
@@ -1541,7 +1509,7 @@ static void fdctrl_handle_readid (fdctrl_t *fdctrl, int direction)
     /* XXX: should set main status register to busy */
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     qemu_mod_timer(fdctrl->result_timer,
-                   qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
+                   qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 50));
 }
 
 static void fdctrl_handle_format_track (fdctrl_t *fdctrl, int direction)
@@ -1951,14 +1919,16 @@ static int fdctrl_init_common(fdctrl_t *fdctrl)
 
     FLOPPY_DPRINTF("init controller\n");
     fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
+    fdctrl->fifo_size = 512;
     fdctrl->result_timer = qemu_new_timer(vm_clock,
                                           fdctrl_result_timer, fdctrl);
 
     fdctrl->version = 0x90; /* Intel 82078 controller */
     fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
+    fdctrl->num_floppies = MAX_FD;
 
     fdctrl_external_reset(fdctrl);
-    register_savevm("fdc", -1, 2, fdc_save, fdc_load, fdctrl);
+    vmstate_register(-1, &vmstate_fdc, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);
     return 0;
 }

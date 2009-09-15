@@ -709,7 +709,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                 memset(p,0,20);
                 p[0] = 8;
                 p[1] = 0x12;
-                p[2] = 4; /* WCE */
+                if (bdrv_enable_write_cache(s->dinfo->bdrv)) {
+                     p[2] = 4; /* WCE */
+                }
                 p += 20;
             }
             if ((page == 0x3f || page == 0x2a)

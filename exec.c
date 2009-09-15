@@ -513,28 +513,25 @@ void cpu_exec_init_all(unsigned long tb_size)
 
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
 
-#define CPU_COMMON_SAVE_VERSION 1
-
-static void cpu_common_save(QEMUFile *f, void *opaque)
+static void cpu_common_pre_save(const void *opaque)
 {
-    CPUState *env = opaque;
+    CPUState *env = (void *)opaque;
 
     cpu_synchronize_state(env);
-
-    qemu_put_be32s(f, &env->halted);
-    qemu_put_be32s(f, &env->interrupt_request);
 }
 
-static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
+static int cpu_common_pre_load(void *opaque)
 {
     CPUState *env = opaque;
 
     cpu_synchronize_state(env);
-    if (version_id != CPU_COMMON_SAVE_VERSION)
-        return -EINVAL;
+    return 0;
+}
 
-    qemu_get_be32s(f, &env->halted);
-    qemu_get_be32s(f, &env->interrupt_request);
+static int cpu_common_post_load(void *opaque)
+{
+    CPUState *env = opaque;
+
     /* 0x01 was CPU_INTERRUPT_EXIT. This line can be removed when the
        version_id is increased. */
     env->interrupt_request &= ~0x01;
@@ -542,6 +539,21 @@ static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
+
+static const VMStateDescription vmstate_cpu_common = {
+    .name = "cpu_common",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = cpu_common_pre_save,
+    .pre_load = cpu_common_pre_load,
+    .post_load = cpu_common_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(halted, CPUState),
+        VMSTATE_UINT32(interrupt_request, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 #endif
 
 CPUState *qemu_get_cpu(int cpu)
@@ -574,15 +586,14 @@ void cpu_exec_init(CPUState *env)
     }
     env->cpu_index = cpu_index;
     env->numa_node = 0;
-    TAILQ_INIT(&env->breakpoints);
-    TAILQ_INIT(&env->watchpoints);
+    QTAILQ_INIT(&env->breakpoints);
+    QTAILQ_INIT(&env->watchpoints);
     *penv = env;
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
 #endif
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
-    register_savevm("cpu_common", cpu_index, CPU_COMMON_SAVE_VERSION,
-                    cpu_common_save, cpu_common_load, env);
+    vmstate_register(cpu_index, &vmstate_cpu_common, env);
     register_savevm("cpu", cpu_index, CPU_SAVE_VERSION,
                     cpu_save, cpu_load, env);
 #endif
@@ -1337,9 +1348,9 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
 
     /* keep all GDB-injected watchpoints in front */
     if (flags & BP_GDB)
-        TAILQ_INSERT_HEAD(&env->watchpoints, wp, entry);
+        QTAILQ_INSERT_HEAD(&env->watchpoints, wp, entry);
     else
-        TAILQ_INSERT_TAIL(&env->watchpoints, wp, entry);
+        QTAILQ_INSERT_TAIL(&env->watchpoints, wp, entry);
 
     tlb_flush_page(env, addr);
 
@@ -1355,7 +1366,7 @@ int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
     target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
-    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if (addr == wp->vaddr && len_mask == wp->len_mask
                 && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
             cpu_watchpoint_remove_by_ref(env, wp);
@@ -1368,7 +1379,7 @@ int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
 /* Remove a specific watchpoint by reference.  */
 void cpu_watchpoint_remove_by_ref(CPUState *env, CPUWatchpoint *watchpoint)
 {
-    TAILQ_REMOVE(&env->watchpoints, watchpoint, entry);
+    QTAILQ_REMOVE(&env->watchpoints, watchpoint, entry);
 
     tlb_flush_page(env, watchpoint->vaddr);
 
@@ -1380,7 +1391,7 @@ void cpu_watchpoint_remove_all(CPUState *env, int mask)
 {
     CPUWatchpoint *wp, *next;
 
-    TAILQ_FOREACH_SAFE(wp, &env->watchpoints, entry, next) {
+    QTAILQ_FOREACH_SAFE(wp, &env->watchpoints, entry, next) {
         if (wp->flags & mask)
             cpu_watchpoint_remove_by_ref(env, wp);
     }
@@ -1400,9 +1411,9 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
 
     /* keep all GDB-injected breakpoints in front */
     if (flags & BP_GDB)
-        TAILQ_INSERT_HEAD(&env->breakpoints, bp, entry);
+        QTAILQ_INSERT_HEAD(&env->breakpoints, bp, entry);
     else
-        TAILQ_INSERT_TAIL(&env->breakpoints, bp, entry);
+        QTAILQ_INSERT_TAIL(&env->breakpoints, bp, entry);
 
     breakpoint_invalidate(env, pc);
 
@@ -1420,7 +1431,7 @@ int cpu_breakpoint_remove(CPUState *env, target_ulong pc, int flags)
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
 
-    TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+    QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
         if (bp->pc == pc && bp->flags == flags) {
             cpu_breakpoint_remove_by_ref(env, bp);
             return 0;
@@ -1436,7 +1447,7 @@ int cpu_breakpoint_remove(CPUState *env, target_ulong pc, int flags)
 void cpu_breakpoint_remove_by_ref(CPUState *env, CPUBreakpoint *breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    TAILQ_REMOVE(&env->breakpoints, breakpoint, entry);
+    QTAILQ_REMOVE(&env->breakpoints, breakpoint, entry);
 
     breakpoint_invalidate(env, breakpoint->pc);
 
@@ -1450,7 +1461,7 @@ void cpu_breakpoint_remove_all(CPUState *env, int mask)
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp, *next;
 
-    TAILQ_FOREACH_SAFE(bp, &env->breakpoints, entry, next) {
+    QTAILQ_FOREACH_SAFE(bp, &env->breakpoints, entry, next) {
         if (bp->flags & mask)
             cpu_breakpoint_remove_by_ref(env, bp);
     }
@@ -1701,13 +1712,13 @@ CPUState *cpu_copy(CPUState *env)
     /* Clone all break/watchpoints.
        Note: Once we support ptrace with hw-debug register access, make sure
        BP_CPU break/watchpoints are handled correctly on clone. */
-    TAILQ_INIT(&env->breakpoints);
-    TAILQ_INIT(&env->watchpoints);
+    QTAILQ_INIT(&env->breakpoints);
+    QTAILQ_INIT(&env->watchpoints);
 #if defined(TARGET_HAS_ICE)
-    TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+    QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
         cpu_breakpoint_insert(new_env, bp->pc, bp->flags, NULL);
     }
-    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
         cpu_watchpoint_insert(new_env, wp->vaddr, (~wp->len_mask) + 1,
                               wp->flags, NULL);
     }
@@ -1998,7 +2009,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     code_address = address;
     /* Make accesses to pages with watchpoints go via the
        watchpoint trap routines.  */
-    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             iotlb = io_mem_watch + paddr;
             /* TODO: The memory case can be optimized by not trapping
@@ -2704,7 +2715,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
         return;
     }
     vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
-    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if ((vaddr == (wp->vaddr & len_mask) ||
              (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
             wp->flags |= BP_WATCHPOINT_HIT;
@@ -3210,11 +3221,11 @@ static BounceBuffer bounce;
 typedef struct MapClient {
     void *opaque;
     void (*callback)(void *opaque);
-    LIST_ENTRY(MapClient) link;
+    QLIST_ENTRY(MapClient) link;
 } MapClient;
 
-static LIST_HEAD(map_client_list, MapClient) map_client_list
-    = LIST_HEAD_INITIALIZER(map_client_list);
+static QLIST_HEAD(map_client_list, MapClient) map_client_list
+    = QLIST_HEAD_INITIALIZER(map_client_list);
 
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
 {
@@ -3222,7 +3233,7 @@ void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
 
     client->opaque = opaque;
     client->callback = callback;
-    LIST_INSERT_HEAD(&map_client_list, client, link);
+    QLIST_INSERT_HEAD(&map_client_list, client, link);
     return client;
 }
 
@@ -3230,7 +3241,7 @@ void cpu_unregister_map_client(void *_client)
 {
     MapClient *client = (MapClient *)_client;
 
-    LIST_REMOVE(client, link);
+    QLIST_REMOVE(client, link);
     qemu_free(client);
 }
 
@@ -3238,8 +3249,8 @@ static void cpu_notify_map_clients(void)
 {
     MapClient *client;
 
-    while (!LIST_EMPTY(&map_client_list)) {
-        client = LIST_FIRST(&map_client_list);
+    while (!QLIST_EMPTY(&map_client_list)) {
+        client = QLIST_FIRST(&map_client_list);
         client->callback(client->opaque);
         cpu_unregister_map_client(client);
     }

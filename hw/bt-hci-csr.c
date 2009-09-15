@@ -363,7 +363,7 @@ static int csrhci_ioctl(struct CharDriverState *chr, int cmd, void *arg)
     switch (cmd) {
     case CHR_IOCTL_SERIAL_SET_PARAMS:
         ssp = (QEMUSerialSetParams *) arg;
-        s->baud_delay = ticks_per_sec / ssp->speed;
+        s->baud_delay = get_ticks_per_sec() / ssp->speed;
         /* Moments later... (but shorter than 100ms) */
         s->modem_state |= CHR_TIOCM_CTS;
         break;
@@ -389,7 +389,7 @@ static void csrhci_reset(struct csrhci_s *s)
     s->out_len = 0;
     s->out_size = FIFO_LEN;
     s->in_len = 0;
-    s->baud_delay = ticks_per_sec;
+    s->baud_delay = get_ticks_per_sec();
     s->enable = 0;
     s->in_hdr = INT_MAX;
     s->in_data = INT_MAX;

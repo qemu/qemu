@@ -306,7 +306,10 @@ struct VMStateDescription {
     int minimum_version_id;
     int minimum_version_id_old;
     LoadStateHandler *load_state_old;
-    int (*run_after_load)(void *opaque);
+    int (*pre_load)(void *opaque);
+    int (*post_load)(void *opaque);
+    void (*pre_save)(const void *opaque);
+    void (*post_save)(const void *opaque);
     VMStateField *fields;
 };
 
@@ -315,6 +318,7 @@ extern const VMStateInfo vmstate_info_int16;
 extern const VMStateInfo vmstate_info_int32;
 extern const VMStateInfo vmstate_info_int64;
 
+extern const VMStateInfo vmstate_info_uint8_equal;
 extern const VMStateInfo vmstate_info_int32_equal;
 extern const VMStateInfo vmstate_info_int32_le;
 
@@ -404,6 +408,15 @@ extern const VMStateInfo vmstate_info_buffer;
         + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
 }
 
+#define VMSTATE_BUFFER_START_MIDDLE(_field, _state, start) {         \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(typeof_field(_state,_field)) - start,       \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = offsetof(_state, _field) + start                   \
+        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+}
+
 extern const VMStateDescription vmstate_pci_device;
 
 #define VMSTATE_PCI_DEVICE(_field, _state) {                         \
@@ -458,6 +471,9 @@ extern const VMStateDescription vmstate_pci_device;
 #define VMSTATE_UINT64(_f, _s)                                        \
     VMSTATE_UINT64_V(_f, _s, 0)
 
+#define VMSTATE_UINT8_EQUAL(_f, _s)                                   \
+    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint8_equal, uint8_t)
+
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
 
@@ -476,11 +492,23 @@ extern const VMStateDescription vmstate_pci_device;
 #define VMSTATE_PTIMER(_f, _s)                                        \
     VMSTATE_PTIMER_V(_f, _s, 0)
 
+#define VMSTATE_UINT16_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint16, uint16_t)
+
+#define VMSTATE_UINT16_ARRAY(_f, _s, _n)                               \
+    VMSTATE_UINT16_ARRAY_V(_f, _s, _n, 0)
+
 #define VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint32, uint32_t)
 
 #define VMSTATE_UINT32_ARRAY(_f, _s, _n)                              \
     VMSTATE_UINT32_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_UINT64_ARRAY_V(_f, _s, _n, _v)                        \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint64, uint64_t)
+
+#define VMSTATE_UINT64_ARRAY(_f, _s, _n)                              \
+    VMSTATE_UINT64_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_INT32_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_int32, int32_t)
@@ -509,5 +537,5 @@ extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                                const void *opaque);
 extern int vmstate_register(int instance_id, const VMStateDescription *vmsd,
                             void *base);
-extern void vmstate_unregister(const char *idstr, void *opaque);
+void vmstate_unregister(const VMStateDescription *vmsd, void *opaque);
 #endif

@@ -64,7 +64,7 @@ qemu_acl *qemu_acl_init(const char *aclname)
     acl->defaultDeny = 1;
 
     acl->nentries = 0;
-    TAILQ_INIT(&acl->entries);
+    QTAILQ_INIT(&acl->entries);
 
     acls = qemu_realloc(acls, sizeof(*acls) * (nacls +1));
     acls[nacls] = acl;
@@ -78,7 +78,7 @@ int qemu_acl_party_is_allowed(qemu_acl *acl,
 {
     qemu_acl_entry *entry;
 
-    TAILQ_FOREACH(entry, &acl->entries, next) {
+    QTAILQ_FOREACH(entry, &acl->entries, next) {
 #ifdef CONFIG_FNMATCH
         if (fnmatch(entry->match, party, 0) == 0)
             return entry->deny ? 0 : 1;
@@ -102,8 +102,8 @@ void qemu_acl_reset(qemu_acl *acl)
      * of "open access" while the user re-initializes the
      * access control list */
     acl->defaultDeny = 1;
-    TAILQ_FOREACH(entry, &acl->entries, next) {
-        TAILQ_REMOVE(&acl->entries, entry, next);
+    QTAILQ_FOREACH(entry, &acl->entries, next) {
+        QTAILQ_REMOVE(&acl->entries, entry, next);
         free(entry->match);
         free(entry);
     }
@@ -121,7 +121,7 @@ int qemu_acl_append(qemu_acl *acl,
     entry->match = qemu_strdup(match);
     entry->deny = deny;
 
-    TAILQ_INSERT_TAIL(&acl->entries, entry, next);
+    QTAILQ_INSERT_TAIL(&acl->entries, entry, next);
     acl->nentries++;
 
     return acl->nentries;
@@ -147,10 +147,10 @@ int qemu_acl_insert(qemu_acl *acl,
     entry->match = qemu_strdup(match);
     entry->deny = deny;
 
-    TAILQ_FOREACH(tmp, &acl->entries, next) {
+    QTAILQ_FOREACH(tmp, &acl->entries, next) {
         i++;
         if (i == index) {
-            TAILQ_INSERT_BEFORE(tmp, entry, next);
+            QTAILQ_INSERT_BEFORE(tmp, entry, next);
             acl->nentries++;
             break;
         }
@@ -165,10 +165,10 @@ int qemu_acl_remove(qemu_acl *acl,
     qemu_acl_entry *entry;
     int i = 0;
 
-    TAILQ_FOREACH(entry, &acl->entries, next) {
+    QTAILQ_FOREACH(entry, &acl->entries, next) {
         i++;
         if (strcmp(entry->match, match) == 0) {
-            TAILQ_REMOVE(&acl->entries, entry, next);
+            QTAILQ_REMOVE(&acl->entries, entry, next);
             return i;
         }
     }

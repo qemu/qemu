@@ -268,7 +268,6 @@ static int gus_initfn (ISADevice *dev)
 
     if (!s->voice) {
         AUD_remove_card (&s->card);
-        qemu_free (s);
         return -1;
     }
 

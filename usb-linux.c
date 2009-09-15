@@ -115,7 +115,7 @@ struct ctrl_struct {
     uint16_t offset;
     uint8_t  state;
     struct   usb_ctrlrequest req;
-    uint8_t  buffer[1024];
+    uint8_t  buffer[2048];
 };
 
 typedef struct USBHostDevice {
@@ -552,6 +552,7 @@ static int usb_host_handle_control(USBHostDevice *s, USBPacket *p)
     struct usbdevfs_urb *urb;
     AsyncURB *aurb;
     int ret, value, index;
+    int buffer_len;
 
     /* 
      * Process certain standard device requests.
@@ -580,6 +581,13 @@ static int usb_host_handle_control(USBHostDevice *s, USBPacket *p)
 
     /* The rest are asynchronous */
 
+    buffer_len = 8 + s->ctrl.len;
+    if (buffer_len > sizeof(s->ctrl.buffer)) {
+        fprintf(stderr, "husb: ctrl buffer too small (%u > %zu)\n",
+                buffer_len, sizeof(s->ctrl.buffer));
+        return USB_RET_STALL;
+    }
+
     aurb = async_alloc();
     aurb->hdev   = s;
     aurb->packet = p;
@@ -596,7 +604,7 @@ static int usb_host_handle_control(USBHostDevice *s, USBPacket *p)
     urb->endpoint = p->devep;
 
     urb->buffer        = &s->ctrl.req;
-    urb->buffer_length = 8 + s->ctrl.len;
+    urb->buffer_length = buffer_len;
 
     urb->usercontext = s;
 

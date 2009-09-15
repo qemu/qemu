@@ -378,7 +378,7 @@ static void tcx24_invalidate_display(void *opaque)
     qemu_console_resize(s->ds, s->width, s->height);
 }
 
-static int vmstate_tcx_after_load(void *opaque)
+static int vmstate_tcx_post_load(void *opaque)
 {
     TCXState *s = opaque;
 
@@ -397,7 +397,7 @@ static const VMStateDescription vmstate_tcx = {
     .version_id = 4,
     .minimum_version_id = 4,
     .minimum_version_id_old = 4,
-    .run_after_load = vmstate_tcx_after_load,
+    .post_load = vmstate_tcx_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT16(height, TCXState),
         VMSTATE_UINT16(width, TCXState),

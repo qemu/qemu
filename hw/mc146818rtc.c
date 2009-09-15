@@ -109,7 +109,7 @@ static void rtc_coalesced_timer_update(RTCState *s)
         /* divide each RTC interval to 2 - 8 smaller intervals */
         int c = MIN(s->irq_coalesced, 7) + 1; 
         int64_t next_clock = qemu_get_clock(vm_clock) +
-		muldiv64(s->period / c, ticks_per_sec, 32768);
+		muldiv64(s->period / c, get_ticks_per_sec(), 32768);
         qemu_mod_timer(s->coalesced_timer, next_clock);
     }
 }
@@ -159,9 +159,9 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
         s->period = period;
 #endif
         /* compute 32 khz clock */
-        cur_clock = muldiv64(current_time, 32768, ticks_per_sec);
+        cur_clock = muldiv64(current_time, 32768, get_ticks_per_sec());
         next_irq_clock = (cur_clock & ~(period - 1)) + period;
-        s->next_periodic_time = muldiv64(next_irq_clock, ticks_per_sec, 32768) + 1;
+        s->next_periodic_time = muldiv64(next_irq_clock, get_ticks_per_sec(), 32768) + 1;
         qemu_mod_timer(s->periodic_timer, s->next_periodic_time);
     } else {
 #ifdef TARGET_I386
@@ -380,7 +380,7 @@ static void rtc_update_second(void *opaque)
 
     /* if the oscillator is not in normal operation, we do not update */
     if ((s->cmos_data[RTC_REG_A] & 0x70) != 0x20) {
-        s->next_second_time += ticks_per_sec;
+        s->next_second_time += get_ticks_per_sec();
         qemu_mod_timer(s->second_timer, s->next_second_time);
     } else {
         rtc_next_second(&s->current_tm);
@@ -391,7 +391,7 @@ static void rtc_update_second(void *opaque)
         }
         /* should be 244 us = 8 / 32768 seconds, but currently the
            timers do not have the necessary resolution. */
-        delay = (ticks_per_sec * 1) / 100;
+        delay = (get_ticks_per_sec() * 1) / 100;
         if (delay < 1)
             delay = 1;
         qemu_mod_timer(s->second_timer2,
@@ -431,7 +431,7 @@ static void rtc_update_second2(void *opaque)
     /* clear update in progress bit */
     s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
 
-    s->next_second_time += ticks_per_sec;
+    s->next_second_time += get_ticks_per_sec();
     qemu_mod_timer(s->second_timer, s->next_second_time);
 }
 
@@ -616,7 +616,7 @@ static int rtc_initfn(ISADevice *dev)
     s->second_timer2 = qemu_new_timer(vm_clock,
                                       rtc_update_second2, s);
 
-    s->next_second_time = qemu_get_clock(vm_clock) + (ticks_per_sec * 99) / 100;
+    s->next_second_time = qemu_get_clock(vm_clock) + (get_ticks_per_sec() * 99) / 100;
     qemu_mod_timer(s->second_timer2, s->next_second_time);
 
     register_ioport_write(base, 2, 1, cmos_ioport_write, s);
@@ -754,7 +754,7 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     s->second_timer2 = qemu_new_timer(vm_clock,
                                       rtc_update_second2, s);
 
-    s->next_second_time = qemu_get_clock(vm_clock) + (ticks_per_sec * 99) / 100;
+    s->next_second_time = qemu_get_clock(vm_clock) + (get_ticks_per_sec() * 99) / 100;
     qemu_mod_timer(s->second_timer2, s->next_second_time);
 
     io_memory = cpu_register_io_memory(rtc_mm_read, rtc_mm_write, s);

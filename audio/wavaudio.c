@@ -54,7 +54,7 @@ static int wav_run_out (HWVoiceOut *hw)
     struct st_sample *src;
     int64_t now = qemu_get_clock (vm_clock);
     int64_t ticks = now - wav->old_ticks;
-    int64_t bytes = (ticks * hw->info.bytes_per_second) / ticks_per_sec;
+    int64_t bytes = (ticks * hw->info.bytes_per_second) / get_ticks_per_sec();
 
     if (bytes > INT_MAX) {
         samples = INT_MAX >> hw->info.shift;

@@ -48,32 +48,6 @@ int have_guest_base;
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
-#if defined(__i386__) && !defined(CONFIG_STATIC)
-/* Force usage of an ELF interpreter even if it is an ELF shared
-   object ! */
-const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
-#endif
-
-/* for recent libc, we add these dummy symbols which are not declared
-   when generating a linked object (bug in ld ?) */
-#if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)) && !defined(CONFIG_STATIC)
-asm(".globl __preinit_array_start\n"
-    ".globl __preinit_array_end\n"
-    ".globl __init_array_start\n"
-    ".globl __init_array_end\n"
-    ".globl __fini_array_start\n"
-    ".globl __fini_array_end\n"
-    ".section \".rodata\"\n"
-    "__preinit_array_start:\n"
-    "__preinit_array_end:\n"
-    "__init_array_start:\n"
-    "__init_array_end:\n"
-    "__fini_array_start:\n"
-    "__fini_array_end:\n"
-    ".long 0\n"
-    ".previous\n");
-#endif
-
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
    by remapping the process stack directly at the right place */

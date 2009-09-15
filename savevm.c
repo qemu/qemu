@@ -90,6 +90,7 @@
 #include "audio/audio.h"
 #include "migration.h"
 #include "qemu_socket.h"
+#include "qemu-queue.h"
 
 /* point to the block driver where the snapshots are managed */
 static BlockDriverState *bs_snapshots;
@@ -847,6 +848,26 @@ const VMStateInfo vmstate_info_uint64 = {
     .put  = put_uint64,
 };
 
+/* 8 bit int. See that the received value is the same than the one
+   in the field */
+
+static int get_uint8_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint8_t *v = pv;
+    uint8_t v2;
+    qemu_get_8s(f, &v2);
+
+    if (*v == v2)
+        return 0;
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint8_equal = {
+    .name = "int32 equal",
+    .get  = get_uint8_equal,
+    .put  = put_uint8,
+};
+
 /* timers  */
 
 static int get_timer(QEMUFile *f, void *pv, size_t size)
@@ -890,7 +911,7 @@ const VMStateInfo vmstate_info_buffer = {
 };
 
 typedef struct SaveStateEntry {
-    TAILQ_ENTRY(SaveStateEntry) entry;
+    QTAILQ_ENTRY(SaveStateEntry) entry;
     char idstr[256];
     int instance_id;
     int version_id;
@@ -902,8 +923,8 @@ typedef struct SaveStateEntry {
     void *opaque;
 } SaveStateEntry;
 
-static TAILQ_HEAD(savevm_handlers, SaveStateEntry) savevm_handlers =
-    TAILQ_HEAD_INITIALIZER(savevm_handlers);
+static QTAILQ_HEAD(savevm_handlers, SaveStateEntry) savevm_handlers =
+    QTAILQ_HEAD_INITIALIZER(savevm_handlers);
 static int global_section_id;
 
 static int calculate_new_instance_id(const char *idstr)
@@ -911,7 +932,7 @@ static int calculate_new_instance_id(const char *idstr)
     SaveStateEntry *se;
     int instance_id = 0;
 
-    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (strcmp(idstr, se->idstr) == 0
             && instance_id <= se->instance_id) {
             instance_id = se->instance_id + 1;
@@ -950,7 +971,7 @@ int register_savevm_live(const char *idstr,
         se->instance_id = instance_id;
     }
     /* add at the end of list */
-    TAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
+    QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
 }
 
@@ -969,9 +990,9 @@ void unregister_savevm(const char *idstr, void *opaque)
 {
     SaveStateEntry *se, *new_se;
 
-    TAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
+    QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
         if (strcmp(se->idstr, idstr) == 0 && se->opaque == opaque) {
-            TAILQ_REMOVE(&savevm_handlers, se, entry);
+            QTAILQ_REMOVE(&savevm_handlers, se, entry);
             qemu_free(se);
         }
     }
@@ -998,13 +1019,20 @@ int vmstate_register(int instance_id, const VMStateDescription *vmsd,
         se->instance_id = instance_id;
     }
     /* add at the end of list */
-    TAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
+    QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
 }
 
-void vmstate_unregister(const char *idstr,  void *opaque)
+void vmstate_unregister(const VMStateDescription *vmsd, void *opaque)
 {
-    unregister_savevm(idstr, opaque);
+    SaveStateEntry *se, *new_se;
+
+    QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
+        if (se->vmsd == vmsd && se->opaque == opaque) {
+            QTAILQ_REMOVE(&savevm_handlers, se, entry);
+            qemu_free(se);
+        }
+    }
 }
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -1020,6 +1048,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     }
     if  (version_id < vmsd->minimum_version_id) {
         return vmsd->load_state_old(f, opaque, version_id);
+    }
+    if (vmsd->pre_load) {
+        int ret = vmsd->pre_load(opaque);
+        if (ret)
+            return ret;
     }
     while(field->name) {
         if (field->version_id <= version_id) {
@@ -1050,8 +1083,9 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
         field++;
     }
-    if (vmsd->run_after_load)
-        return vmsd->run_after_load(opaque);
+    if (vmsd->post_load) {
+        return vmsd->post_load(opaque);
+    }
     return 0;
 }
 
@@ -1060,6 +1094,9 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 {
     VMStateField *field = vmsd->fields;
 
+    if (vmsd->pre_save) {
+        vmsd->pre_save(opaque);
+    }
     while(field->name) {
         const void *base_addr = opaque + field->offset;
         int i, n_elems = 1;
@@ -1082,6 +1119,9 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
         }
         field++;
+    }
+    if (vmsd->post_save) {
+        vmsd->post_save(opaque);
     }
 }
 
@@ -1119,7 +1159,7 @@ int qemu_savevm_state_begin(QEMUFile *f)
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
-    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
         if (se->save_live_state == NULL)
@@ -1151,7 +1191,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     SaveStateEntry *se;
     int ret = 1;
 
-    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->save_live_state == NULL)
             continue;
 
@@ -1175,7 +1215,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
 {
     SaveStateEntry *se;
 
-    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->save_live_state == NULL)
             continue;
 
@@ -1186,7 +1226,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
     }
 
-    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
 	if (se->save_state == NULL && se->vmsd == NULL)
@@ -1251,7 +1291,7 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 {
     SaveStateEntry *se;
 
-    TAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (!strcmp(se->idstr, idstr) &&
             instance_id == se->instance_id)
             return se;
@@ -1260,57 +1300,16 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 }
 
 typedef struct LoadStateEntry {
-    LIST_ENTRY(LoadStateEntry) entry;
+    QLIST_ENTRY(LoadStateEntry) entry;
     SaveStateEntry *se;
     int section_id;
     int version_id;
 } LoadStateEntry;
 
-static int qemu_loadvm_state_v2(QEMUFile *f)
-{
-    SaveStateEntry *se;
-    int len, ret, instance_id, record_len, version_id;
-    int64_t total_len, end_pos, cur_pos;
-    char idstr[256];
-
-    total_len = qemu_get_be64(f);
-    end_pos = total_len + qemu_ftell(f);
-    for(;;) {
-        if (qemu_ftell(f) >= end_pos)
-            break;
-        len = qemu_get_byte(f);
-        qemu_get_buffer(f, (uint8_t *)idstr, len);
-        idstr[len] = '\0';
-        instance_id = qemu_get_be32(f);
-        version_id = qemu_get_be32(f);
-        record_len = qemu_get_be32(f);
-        cur_pos = qemu_ftell(f);
-        se = find_se(idstr, instance_id);
-        if (!se) {
-            fprintf(stderr, "qemu: warning: instance 0x%x of device '%s' not present in current VM\n",
-                    instance_id, idstr);
-        } else {
-            ret = vmstate_load(f, se, version_id);
-            if (ret < 0) {
-                fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
-                        instance_id, idstr);
-                return ret;
-            }
-        }
-        /* always seek to exact end of record */
-        qemu_fseek(f, cur_pos + record_len, SEEK_SET);
-    }
-
-    if (qemu_file_has_error(f))
-        return -EIO;
-
-    return 0;
-}
-
 int qemu_loadvm_state(QEMUFile *f)
 {
-    LIST_HEAD(, LoadStateEntry) loadvm_handlers =
-        LIST_HEAD_INITIALIZER(loadvm_handlers);
+    QLIST_HEAD(, LoadStateEntry) loadvm_handlers =
+        QLIST_HEAD_INITIALIZER(loadvm_handlers);
     LoadStateEntry *le, *new_le;
     uint8_t section_type;
     unsigned int v;
@@ -1321,8 +1320,10 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
 
     v = qemu_get_be32(f);
-    if (v == QEMU_VM_FILE_VERSION_COMPAT)
-        return qemu_loadvm_state_v2(f);
+    if (v == QEMU_VM_FILE_VERSION_COMPAT) {
+        fprintf(stderr, "SaveVM v2 format is obsolete and don't work anymore\n");
+        return -ENOTSUP;
+    }
     if (v != QEMU_VM_FILE_VERSION)
         return -ENOTSUP;
 
@@ -1365,7 +1366,7 @@ int qemu_loadvm_state(QEMUFile *f)
             le->se = se;
             le->section_id = section_id;
             le->version_id = version_id;
-            LIST_INSERT_HEAD(&loadvm_handlers, le, entry);
+            QLIST_INSERT_HEAD(&loadvm_handlers, le, entry);
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
@@ -1378,7 +1379,7 @@ int qemu_loadvm_state(QEMUFile *f)
         case QEMU_VM_SECTION_END:
             section_id = qemu_get_be32(f);
 
-            LIST_FOREACH(le, &loadvm_handlers, entry) {
+            QLIST_FOREACH(le, &loadvm_handlers, entry) {
                 if (le->section_id == section_id) {
                     break;
                 }
@@ -1406,8 +1407,8 @@ int qemu_loadvm_state(QEMUFile *f)
     ret = 0;
 
 out:
-    LIST_FOREACH_SAFE(le, &loadvm_handlers, entry, new_le) {
-        LIST_REMOVE(le, entry);
+    QLIST_FOREACH_SAFE(le, &loadvm_handlers, entry, new_le) {
+        QLIST_REMOVE(le, entry);
         qemu_free(le);
     }
 
@@ -1440,7 +1441,7 @@ static BlockDriverState *get_bs_snapshots(void)
 
     if (bs_snapshots)
         return bs_snapshots;
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         bs = dinfo->bdrv;
         if (bdrv_can_snapshot(bs))
             goto ok;
@@ -1545,7 +1546,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
 
     /* create the snapshots */
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
         if (bdrv_has_snapshot(bs1)) {
             if (must_delete) {
@@ -1588,7 +1589,7 @@ int load_vmstate(Monitor *mon, const char *name)
     /* Flush all IO requests so they don't interfere with the new state.  */
     qemu_aio_flush();
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
         if (bdrv_has_snapshot(bs1)) {
             ret = bdrv_snapshot_goto(bs1, name);
@@ -1651,7 +1652,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
         if (bdrv_has_snapshot(bs1)) {
             ret = bdrv_snapshot_delete(bs1, name);
@@ -1682,7 +1683,7 @@ void do_info_snapshots(Monitor *mon)
         return;
     }
     monitor_printf(mon, "Snapshot devices:");
-    TAILQ_FOREACH(dinfo, &drives, next) {
+    QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
         if (bdrv_has_snapshot(bs1)) {
             if (bs == bs1)

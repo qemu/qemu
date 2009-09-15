@@ -290,7 +290,7 @@ static void set_next_tick(dp8393xState *s)
 
     ticks = s->regs[SONIC_WT1] << 16 | s->regs[SONIC_WT0];
     s->wt_last_update = qemu_get_clock(vm_clock);
-    delay = ticks_per_sec * ticks / 5000000;
+    delay = get_ticks_per_sec() * ticks / 5000000;
     qemu_mod_timer(s->watchdog, s->wt_last_update + delay);
 }
 

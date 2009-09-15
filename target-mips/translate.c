@@ -464,6 +464,7 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong pc, saved_pc;
     uint32_t opcode;
+    int singlestep_enabled;
     /* Routine used to access memory */
     int mem_idx;
     uint32_t hflags, saved_hflags;
@@ -2460,12 +2461,17 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     TranslationBlock *tb;
     tb = ctx->tb;
-    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
+    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
+        likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
         gen_save_pc(dest);
         tcg_gen_exit_tb((long)tb + n);
     } else {
         gen_save_pc(dest);
+        if (ctx->singlestep_enabled) {
+            save_cpu_state(ctx, 0);
+            gen_helper_0i(raise_exception, EXCP_DEBUG);
+        }
         tcg_gen_exit_tb(0);
     }
 }
@@ -8264,6 +8270,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
             tcg_gen_mov_tl(cpu_PC, btarget);
+            if (ctx->singlestep_enabled) {
+                save_cpu_state(ctx, 0);
+                gen_helper_0i(raise_exception, EXCP_DEBUG);
+            }
             tcg_gen_exit_tb(0);
             break;
         default:
@@ -8293,6 +8303,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE - 16;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
+    ctx.singlestep_enabled = env->singlestep_enabled;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
     /* Restore delay slot state from the tb context.  */
@@ -8315,8 +8326,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_icount_start();
     while (ctx.bstate == BS_NONE) {
-        if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
-            TAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == ctx.pc) {
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
@@ -8348,7 +8359,11 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         ctx.pc += 4;
         num_insns++;
 
-        if (env->singlestep_enabled)
+        /* Execute a branch and its delay slot as a single instruction.
+           This is what GDB expects and is consistent with what the
+           hardware does (e.g. if a delay slot instruction faults, the
+           reported PC is the PC of the branch).  */
+        if (env->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0)
             break;
 
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
@@ -8365,7 +8380,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (env->singlestep_enabled) {
+    if (env->singlestep_enabled && ctx.bstate != BS_BRANCH) {
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         gen_helper_0i(raise_exception, EXCP_DEBUG);
     } else {

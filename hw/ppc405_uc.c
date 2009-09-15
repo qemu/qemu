@@ -1379,7 +1379,7 @@ static uint32_t ppc4xx_gpt_readl (void *opaque, target_phys_addr_t addr)
     case 0x00:
         /* Time base counter */
         ret = muldiv64(qemu_get_clock(vm_clock) + gpt->tb_offset,
-                       gpt->tb_freq, ticks_per_sec);
+                       gpt->tb_freq, get_ticks_per_sec());
         break;
     case 0x10:
         /* Output enable */
@@ -1434,7 +1434,7 @@ static void ppc4xx_gpt_writel (void *opaque,
     switch (addr) {
     case 0x00:
         /* Time base counter */
-        gpt->tb_offset = muldiv64(value, ticks_per_sec, gpt->tb_freq)
+        gpt->tb_offset = muldiv64(value, get_ticks_per_sec(), gpt->tb_freq)
             - qemu_get_clock(vm_clock);
         ppc4xx_gpt_compute_timer(gpt);
         break;

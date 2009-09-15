@@ -53,7 +53,7 @@ static int no_run_out (HWVoiceOut *hw)
 
     now = qemu_get_clock (vm_clock);
     ticks = now - no->old_ticks;
-    bytes = (ticks * hw->info.bytes_per_second) / ticks_per_sec;
+    bytes = (ticks * hw->info.bytes_per_second) / get_ticks_per_sec();
     bytes = audio_MIN (bytes, INT_MAX);
     samples = bytes >> hw->info.shift;
 
@@ -109,7 +109,7 @@ static int no_run_in (HWVoiceIn *hw)
     if (dead) {
         int64_t now = qemu_get_clock (vm_clock);
         int64_t ticks = now - no->old_ticks;
-        int64_t bytes = (ticks * hw->info.bytes_per_second) / ticks_per_sec;
+        int64_t bytes = (ticks * hw->info.bytes_per_second) / get_ticks_per_sec();
 
         no->old_ticks = now;
         bytes = audio_MIN (bytes, INT_MAX);

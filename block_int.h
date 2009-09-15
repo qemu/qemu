@@ -69,6 +69,14 @@ struct BlockDriver {
     BlockDriverAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
+    BlockDriverAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque);
+
+    int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
+        int num_reqs);
+    int (*bdrv_merge_requests)(BlockDriverState *bs, BlockRequest* a,
+        BlockRequest *b);
+
 
     const char *protocol_name;
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
@@ -151,6 +159,9 @@ struct BlockDriverState {
 
     /* the memory alignment required for the buffers handled by this driver */
     int buffer_alignment;
+
+    /* do we need to tell the quest if we have a volatile write cache? */
+    int enable_write_cache;
 
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */

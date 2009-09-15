@@ -258,7 +258,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
 static void cow_flush(BlockDriverState *bs)
 {
     BDRVCowState *s = bs->opaque;
-    fsync(s->fd);
+    qemu_fdatasync(s->fd);
 }
 
 static QEMUOptionParameter cow_create_options[] = {

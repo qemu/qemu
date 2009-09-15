@@ -10,7 +10,7 @@
 
 #include "hw.h"
 #include "xen.h"
-#include "sys-queue.h"   /* BSD list implementation */
+#include "qemu-queue.h"
 
 /*
  * tweaks needed to build with different xen versions

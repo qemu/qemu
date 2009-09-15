@@ -148,8 +148,11 @@ static void ide_identify(IDEState *s)
     put_le16(p + 83, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     /* 14=set to 1, 1=SMART self test, 0=SMART error logging */
     put_le16(p + 84, (1 << 14) | 0);
-    /* 14 = NOP supported, 0=SMART feature set enabled */
-    put_le16(p + 85, (1 << 14) | 1);
+    /* 14 = NOP supported, 5=WCACHE enabled, 0=SMART feature set enabled */
+    if (bdrv_enable_write_cache(s->bs))
+         put_le16(p + 85, (1 << 14) | (1 << 5) | 1);
+    else
+         put_le16(p + 85, (1 << 14) | 1);
     /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
     put_le16(p + 86, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     /* 14=set to 1, 1=smart self test, 0=smart error logging */
@@ -644,7 +647,7 @@ static void ide_sector_write(IDEState *s)
            option _only_ to install Windows 2000. You must disable it
            for normal use. */
         qemu_mod_timer(s->sector_write_timer, 
-                       qemu_get_clock(vm_clock) + (ticks_per_sec / 1000));
+                       qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 1000));
     } else 
 #endif
     {
@@ -765,6 +768,16 @@ static void ide_atapi_cmd_check_status(IDEState *s)
     s->error = MC_ERR | (SENSE_UNIT_ATTENTION << 4);
     s->status = ERR_STAT;
     s->nsector = 0;
+    ide_set_irq(s->bus);
+}
+
+static void ide_flush_cb(void *opaque, int ret)
+{
+    IDEState *s = opaque;
+
+    /* XXX: how do we signal I/O errors here? */
+
+    s->status = READY_STAT | SEEK_STAT;
     ide_set_irq(s->bus);
 }
 
@@ -1966,9 +1979,9 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_FLUSH_CACHE:
         case WIN_FLUSH_CACHE_EXT:
             if (s->bs)
-                bdrv_flush(s->bs);
-	    s->status = READY_STAT | SEEK_STAT;
-            ide_set_irq(s->bus);
+                bdrv_aio_flush(s->bs, ide_flush_cb, s);
+            else
+                ide_flush_cb(s, 0);
             break;
         case WIN_STANDBY:
         case WIN_STANDBY2:

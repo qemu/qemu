@@ -85,7 +85,24 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
 BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *iov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
+				 BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
+
+typedef struct BlockRequest {
+    /* Fields to be filled by multiwrite caller */
+    int64_t sector;
+    int nb_sectors;
+    QEMUIOVector *qiov;
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+
+    /* Filled by multiwrite implementation */
+    int error;
+} BlockRequest;
+
+int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs,
+    int num_reqs);
 
 /* sg packet commands */
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
@@ -120,6 +137,7 @@ int bdrv_get_translation_hint(BlockDriverState *bs);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
+int bdrv_enable_write_cache(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 int bdrv_is_locked(BlockDriverState *bs);

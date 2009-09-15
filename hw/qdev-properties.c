@@ -193,6 +193,16 @@ PropertyInfo qdev_prop_drive = {
 
 /* --- character device --- */
 
+static int parse_chr(DeviceState *dev, Property *prop, const char *str)
+{
+    CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+
+    *ptr = qemu_chr_find(str);
+    if (*ptr == NULL)
+        return -1;
+    return 0;
+}
+
 static int print_chr(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
@@ -208,6 +218,7 @@ PropertyInfo qdev_prop_chr = {
     .name  = "chr",
     .type  = PROP_TYPE_CHR,
     .size  = sizeof(CharDriverState*),
+    .parse = parse_chr,
     .print = print_chr,
 };
 

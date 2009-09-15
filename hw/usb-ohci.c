@@ -1669,12 +1669,12 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 
     if (usb_frame_time == 0) {
 #ifdef OHCI_TIME_WARP
-        usb_frame_time = ticks_per_sec;
-        usb_bit_time = muldiv64(1, ticks_per_sec, USB_HZ/1000);
+        usb_frame_time = get_ticks_per_sec();
+        usb_bit_time = muldiv64(1, get_ticks_per_sec(), USB_HZ/1000);
 #else
-        usb_frame_time = muldiv64(1, ticks_per_sec, 1000);
-        if (ticks_per_sec >= USB_HZ) {
-            usb_bit_time = muldiv64(1, ticks_per_sec, USB_HZ);
+        usb_frame_time = muldiv64(1, get_ticks_per_sec(), 1000);
+        if (get_ticks_per_sec() >= USB_HZ) {
+            usb_bit_time = muldiv64(1, get_ticks_per_sec(), USB_HZ);
         } else {
             usb_bit_time = 1;
         }

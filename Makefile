@@ -39,8 +39,6 @@ subdir-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
-$(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
-
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -74,7 +72,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 # CPUs and machines.
 
 obj-y = $(block-obj-y)
-obj-y += readline.o console.o host-utils.o
+obj-y += readline.o console.o
 
 obj-y += irq.o ptimer.o
 obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
@@ -161,12 +159,6 @@ curses.o: curses.c keymaps.h curses_keys.h
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 libqemu_common.a: $(obj-y)
-
-#######################################################################
-# user-obj-y is code used by qemu userspace emulation
-user-obj-y = cutils.o cache-utils.o path.o envlist.o host-utils.o
-
-libqemu_user.a: $(user-obj-y)
 
 ######################################################################
 

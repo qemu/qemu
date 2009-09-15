@@ -1,20 +1,19 @@
-#include <sys/queue.h>
-
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "qemu-queue.h"
 #include "envlist.h"
 
 struct envlist_entry {
 	const char *ev_var;			/* actual env value */
-	LIST_ENTRY(envlist_entry) ev_link;
+	QLIST_ENTRY(envlist_entry) ev_link;
 };
 
 struct envlist {
-	LIST_HEAD(, envlist_entry) el_entries;	/* actual entries */
+	QLIST_HEAD(, envlist_entry) el_entries;	/* actual entries */
 	size_t el_count;			/* number of entries */
 };
 
@@ -33,7 +32,7 @@ envlist_create(void)
 	if ((envlist = malloc(sizeof (*envlist))) == NULL)
 		return (NULL);
 
-	LIST_INIT(&envlist->el_entries);
+	QLIST_INIT(&envlist->el_entries);
 	envlist->el_count = 0;
 
 	return (envlist);
@@ -51,7 +50,7 @@ envlist_free(envlist_t *envlist)
 
 	while (envlist->el_entries.lh_first != NULL) {
 		entry = envlist->el_entries.lh_first;
-		LIST_REMOVE(entry, ev_link);
+		QLIST_REMOVE(entry, ev_link);
 
 		free((char *)entry->ev_var);
 		free(entry);
@@ -159,7 +158,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
 	}
 
 	if (entry != NULL) {
-		LIST_REMOVE(entry, ev_link);
+		QLIST_REMOVE(entry, ev_link);
 		free((char *)entry->ev_var);
 		free(entry);
 	} else {
@@ -172,7 +171,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
 		free(entry);
 		return (errno);
 	}
-	LIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
+	QLIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
 
 	return (0);
 }
@@ -205,7 +204,7 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
 			break;
 	}
 	if (entry != NULL) {
-		LIST_REMOVE(entry, ev_link);
+		QLIST_REMOVE(entry, ev_link);
 		free((char *)entry->ev_var);
 		free(entry);
 

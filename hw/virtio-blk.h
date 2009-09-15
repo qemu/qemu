@@ -31,6 +31,7 @@
 #define VIRTIO_BLK_F_BLK_SIZE   6       /* Block size of disk is available*/
 #define VIRTIO_BLK_F_SCSI       7       /* Supports scsi command passthru */
 #define VIRTIO_BLK_F_IDENTIFY   8       /* ATA IDENTIFY supported */
+#define VIRTIO_BLK_F_WCACHE     9       /* write cache enabled */
 
 #define VIRTIO_BLK_ID_LEN       256     /* length of identify u16 array */
 #define VIRTIO_BLK_ID_SN        10      /* start of char * serial# */
@@ -54,6 +55,9 @@ struct virtio_blk_config
 
 /* This bit says it's a scsi command, not an actual read or write. */
 #define VIRTIO_BLK_T_SCSI_CMD   2
+
+/* Flush the volatile write cache */
+#define VIRTIO_BLK_T_FLUSH      4
 
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER    0x80000000

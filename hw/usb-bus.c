@@ -12,7 +12,7 @@ static struct BusInfo usb_bus_info = {
     .print_dev = usb_bus_dev_print,
 };
 static int next_usb_bus = 0;
-static TAILQ_HEAD(, USBBus) busses = TAILQ_HEAD_INITIALIZER(busses);
+static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
 USBBus *usb_bus_new(DeviceState *host)
 {
@@ -20,9 +20,9 @@ USBBus *usb_bus_new(DeviceState *host)
 
     bus = FROM_QBUS(USBBus, qbus_create(&usb_bus_info, host, NULL));
     bus->busnr = next_usb_bus++;
-    TAILQ_INIT(&bus->free);
-    TAILQ_INIT(&bus->used);
-    TAILQ_INSERT_TAIL(&busses, bus, next);
+    QTAILQ_INIT(&bus->free);
+    QTAILQ_INIT(&bus->used);
+    QTAILQ_INSERT_TAIL(&busses, bus, next);
     return bus;
 }
 
@@ -31,8 +31,8 @@ USBBus *usb_bus_find(int busnr)
     USBBus *bus;
 
     if (-1 == busnr)
-        return TAILQ_FIRST(&busses);
-    TAILQ_FOREACH(bus, &busses, next) {
+        return QTAILQ_FIRST(&busses);
+    QTAILQ_FOREACH(bus, &busses, next) {
         if (bus->busnr == busnr)
             return bus;
     }
@@ -100,7 +100,7 @@ void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
     port->opaque = opaque;
     port->index = index;
     port->attach = attach;
-    TAILQ_INSERT_TAIL(&bus->free, port, next);
+    QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
 }
 
@@ -116,13 +116,13 @@ static void do_attach(USBDevice *dev)
     }
     dev->attached++;
 
-    port = TAILQ_FIRST(&bus->free);
-    TAILQ_REMOVE(&bus->free, port, next);
+    port = QTAILQ_FIRST(&bus->free);
+    QTAILQ_REMOVE(&bus->free, port, next);
     bus->nfree--;
 
     usb_attach(port, dev);
 
-    TAILQ_INSERT_TAIL(&bus->used, port, next);
+    QTAILQ_INSERT_TAIL(&bus->used, port, next);
     bus->nused++;
 }
 
@@ -149,7 +149,7 @@ int usb_device_delete_addr(int busnr, int addr)
     if (!bus)
         return -1;
 
-    TAILQ_FOREACH(port, &bus->used, next) {
+    QTAILQ_FOREACH(port, &bus->used, next) {
         if (port->dev->addr == addr)
             break;
     }
@@ -157,13 +157,13 @@ int usb_device_delete_addr(int busnr, int addr)
         return -1;
 
     dev = port->dev;
-    TAILQ_REMOVE(&bus->used, port, next);
+    QTAILQ_REMOVE(&bus->used, port, next);
     bus->nused--;
 
     usb_attach(port, NULL);
     dev->info->handle_destroy(dev);
 
-    TAILQ_INSERT_TAIL(&bus->free, port, next);
+    QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
     return 0;
 }
@@ -196,13 +196,13 @@ void usb_info(Monitor *mon)
     USBDevice *dev;
     USBPort *port;
 
-    if (TAILQ_EMPTY(&busses)) {
+    if (QTAILQ_EMPTY(&busses)) {
         monitor_printf(mon, "USB support not enabled\n");
         return;
     }
 
-    TAILQ_FOREACH(bus, &busses, next) {
-        TAILQ_FOREACH(port, &bus->used, next) {
+    QTAILQ_FOREACH(bus, &busses, next) {
+        QTAILQ_FOREACH(port, &bus->used, next) {
             dev = port->dev;
             if (!dev)
                 continue;

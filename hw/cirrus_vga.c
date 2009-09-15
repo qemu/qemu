@@ -2955,85 +2955,12 @@ static CPUWriteMemoryFunc * const cirrus_mmio_write[3] = {
 
 /* load/save state */
 
-static void cirrus_vga_save(QEMUFile *f, void *opaque)
+static int cirrus_post_load(void *opaque)
 {
     CirrusVGAState *s = opaque;
 
-    qemu_put_be32s(f, &s->vga.latch);
-    qemu_put_8s(f, &s->vga.sr_index);
-    qemu_put_buffer(f, s->vga.sr, 256);
-    qemu_put_8s(f, &s->vga.gr_index);
-    qemu_put_8s(f, &s->cirrus_shadow_gr0);
-    qemu_put_8s(f, &s->cirrus_shadow_gr1);
-    qemu_put_buffer(f, s->vga.gr + 2, 254);
-    qemu_put_8s(f, &s->vga.ar_index);
-    qemu_put_buffer(f, s->vga.ar, 21);
-    qemu_put_be32(f, s->vga.ar_flip_flop);
-    qemu_put_8s(f, &s->vga.cr_index);
-    qemu_put_buffer(f, s->vga.cr, 256);
-    qemu_put_8s(f, &s->vga.msr);
-    qemu_put_8s(f, &s->vga.fcr);
-    qemu_put_8s(f, &s->vga.st00);
-    qemu_put_8s(f, &s->vga.st01);
-
-    qemu_put_8s(f, &s->vga.dac_state);
-    qemu_put_8s(f, &s->vga.dac_sub_index);
-    qemu_put_8s(f, &s->vga.dac_read_index);
-    qemu_put_8s(f, &s->vga.dac_write_index);
-    qemu_put_buffer(f, s->vga.dac_cache, 3);
-    qemu_put_buffer(f, s->vga.palette, 768);
-
-    qemu_put_be32(f, s->vga.bank_offset);
-
-    qemu_put_8s(f, &s->cirrus_hidden_dac_lockindex);
-    qemu_put_8s(f, &s->cirrus_hidden_dac_data);
-
-    qemu_put_be32s(f, &s->hw_cursor_x);
-    qemu_put_be32s(f, &s->hw_cursor_y);
-    /* XXX: we do not save the bitblt state - we assume we do not save
-       the state when the blitter is active */
-}
-
-static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CirrusVGAState *s = opaque;
-
-    if (version_id > 2)
-        return -EINVAL;
-
-    qemu_get_be32s(f, &s->vga.latch);
-    qemu_get_8s(f, &s->vga.sr_index);
-    qemu_get_buffer(f, s->vga.sr, 256);
-    qemu_get_8s(f, &s->vga.gr_index);
-    qemu_get_8s(f, &s->cirrus_shadow_gr0);
-    qemu_get_8s(f, &s->cirrus_shadow_gr1);
     s->vga.gr[0x00] = s->cirrus_shadow_gr0 & 0x0f;
     s->vga.gr[0x01] = s->cirrus_shadow_gr1 & 0x0f;
-    qemu_get_buffer(f, s->vga.gr + 2, 254);
-    qemu_get_8s(f, &s->vga.ar_index);
-    qemu_get_buffer(f, s->vga.ar, 21);
-    s->vga.ar_flip_flop=qemu_get_be32(f);
-    qemu_get_8s(f, &s->vga.cr_index);
-    qemu_get_buffer(f, s->vga.cr, 256);
-    qemu_get_8s(f, &s->vga.msr);
-    qemu_get_8s(f, &s->vga.fcr);
-    qemu_get_8s(f, &s->vga.st00);
-    qemu_get_8s(f, &s->vga.st01);
-
-    qemu_get_8s(f, &s->vga.dac_state);
-    qemu_get_8s(f, &s->vga.dac_sub_index);
-    qemu_get_8s(f, &s->vga.dac_read_index);
-    qemu_get_8s(f, &s->vga.dac_write_index);
-    qemu_get_buffer(f, s->vga.dac_cache, 3);
-    qemu_get_buffer(f, s->vga.palette, 768);
-
-    s->vga.bank_offset = qemu_get_be32(f);
-
-    qemu_get_8s(f, &s->cirrus_hidden_dac_lockindex);
-    qemu_get_8s(f, &s->cirrus_hidden_dac_data);
-
-    qemu_get_be32s(f, &s->hw_cursor_x);
-    qemu_get_be32s(f, &s->hw_cursor_y);
 
     cirrus_update_memory_access(s);
     /* force refresh */
@@ -3043,30 +2970,59 @@ static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pci_cirrus_vga_save(QEMUFile *f, void *opaque)
-{
-    PCICirrusVGAState *s = opaque;
-
-    pci_device_save(&s->dev, f);
-    cirrus_vga_save(f, &s->cirrus_vga);
-}
-
-static int pci_cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCICirrusVGAState *s = opaque;
-    int ret;
-
-    if (version_id > 2)
-        return -EINVAL;
-
-    if (version_id >= 2) {
-        ret = pci_device_load(&s->dev, f);
-        if (ret < 0)
-            return ret;
+static const VMStateDescription vmstate_cirrus_vga = {
+    .name = "cirrus_vga",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = cirrus_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(vga.latch, CirrusVGAState),
+        VMSTATE_UINT8(vga.sr_index, CirrusVGAState),
+        VMSTATE_BUFFER(vga.sr, CirrusVGAState),
+        VMSTATE_UINT8(vga.gr_index, CirrusVGAState),
+        VMSTATE_UINT8(cirrus_shadow_gr0, CirrusVGAState),
+        VMSTATE_UINT8(cirrus_shadow_gr1, CirrusVGAState),
+        VMSTATE_BUFFER_START_MIDDLE(vga.gr, CirrusVGAState, 2),
+        VMSTATE_UINT8(vga.ar_index, CirrusVGAState),
+        VMSTATE_BUFFER(vga.ar, CirrusVGAState),
+        VMSTATE_INT32(vga.ar_flip_flop, CirrusVGAState),
+        VMSTATE_UINT8(vga.cr_index, CirrusVGAState),
+        VMSTATE_BUFFER(vga.cr, CirrusVGAState),
+        VMSTATE_UINT8(vga.msr, CirrusVGAState),
+        VMSTATE_UINT8(vga.fcr, CirrusVGAState),
+        VMSTATE_UINT8(vga.st00, CirrusVGAState),
+        VMSTATE_UINT8(vga.st01, CirrusVGAState),
+        VMSTATE_UINT8(vga.dac_state, CirrusVGAState),
+        VMSTATE_UINT8(vga.dac_sub_index, CirrusVGAState),
+        VMSTATE_UINT8(vga.dac_read_index, CirrusVGAState),
+        VMSTATE_UINT8(vga.dac_write_index, CirrusVGAState),
+        VMSTATE_BUFFER(vga.dac_cache, CirrusVGAState),
+        VMSTATE_BUFFER(vga.palette, CirrusVGAState),
+        VMSTATE_INT32(vga.bank_offset, CirrusVGAState),
+        VMSTATE_UINT8(cirrus_hidden_dac_lockindex, CirrusVGAState),
+        VMSTATE_UINT8(cirrus_hidden_dac_data, CirrusVGAState),
+        VMSTATE_UINT32(hw_cursor_x, CirrusVGAState),
+        VMSTATE_UINT32(hw_cursor_y, CirrusVGAState),
+        /* XXX: we do not save the bitblt state - we assume we do not save
+           the state when the blitter is active */
+        VMSTATE_END_OF_LIST()
     }
+};
 
-    return cirrus_vga_load(f, &s->cirrus_vga, version_id);
-}
+static const VMStateDescription vmstate_pci_cirrus_vga = {
+    .name = "cirrus_vga",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .post_load = cirrus_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, PCICirrusVGAState),
+        VMSTATE_STRUCT(cirrus_vga, PCICirrusVGAState, 0,
+                       vmstate_cirrus_vga, CirrusVGAState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /***************************************
  *
@@ -3203,7 +3159,7 @@ void isa_cirrus_vga_init(void)
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                      s->vga.screen_dump, s->vga.text_update,
                                      &s->vga);
-    register_savevm("cirrus_vga", 0, 2, cirrus_vga_save, cirrus_vga_load, s);
+    vmstate_register(0, &vmstate_cirrus_vga, s);
     /* XXX ISA-LFB support */
 }
 
@@ -3286,7 +3242,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
          pci_register_bar((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
                           PCI_ADDRESS_SPACE_MEM, cirrus_pci_mmio_map);
      }
-     register_savevm("cirrus_vga", 0, 2, pci_cirrus_vga_save, pci_cirrus_vga_load, d);
+     vmstate_register(0, &vmstate_pci_cirrus_vga, d);
      /* XXX: ROM BIOS */
      return 0;
 }

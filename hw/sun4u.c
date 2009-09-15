@@ -623,8 +623,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
         fd[i] = dinfo ? dinfo->bdrv : NULL;
     }
     fdctrl_init_isa(fd);
-    /* FIXME: wire up interrupts.  */
-    nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
+    nvram = m48t59_init_isa(0x0074, NVRAM_SIZE, 59);
 
     initrd_size = 0;
     kernel_size = sun4u_load_kernel(kernel_filename, initrd_filename,

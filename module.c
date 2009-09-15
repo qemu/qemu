@@ -12,17 +12,17 @@
  */
 
 #include "qemu-common.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 #include "module.h"
 
 typedef struct ModuleEntry
 {
     module_init_type type;
     void (*init)(void);
-    TAILQ_ENTRY(ModuleEntry) node;
+    QTAILQ_ENTRY(ModuleEntry) node;
 } ModuleEntry;
 
-typedef TAILQ_HEAD(, ModuleEntry) ModuleTypeList;
+typedef QTAILQ_HEAD(, ModuleEntry) ModuleTypeList;
 
 static ModuleTypeList init_type_list[MODULE_INIT_MAX];
 
@@ -36,7 +36,7 @@ static void init_types(void)
     }
 
     for (i = 0; i < MODULE_INIT_MAX; i++) {
-        TAILQ_INIT(&init_type_list[i]);
+        QTAILQ_INIT(&init_type_list[i]);
     }
 
     inited = 1;
@@ -64,7 +64,7 @@ void register_module_init(void (*fn)(void), module_init_type type)
 
     l = find_type(type);
 
-    TAILQ_INSERT_TAIL(l, e, node);
+    QTAILQ_INSERT_TAIL(l, e, node);
 }
 
 void module_call_init(module_init_type type)
@@ -74,7 +74,7 @@ void module_call_init(module_init_type type)
 
     l = find_type(type);
 
-    TAILQ_FOREACH(e, l, node) {
+    QTAILQ_FOREACH(e, l, node) {
         e->init();
     }
 }

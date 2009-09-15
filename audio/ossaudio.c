@@ -31,6 +31,8 @@
 #include <sys/soundcard.h>
 #endif
 #include "qemu-common.h"
+#include "host-utils.h"
+#include "qemu-char.h"
 #include "audio.h"
 
 #define AUDIO_CAP "oss"
@@ -43,7 +45,6 @@ typedef struct OSSVoiceOut {
     int nfrags;
     int fragsize;
     int mmapped;
-    int old_optr;
 } OSSVoiceOut;
 
 typedef struct OSSVoiceIn {
@@ -52,7 +53,6 @@ typedef struct OSSVoiceIn {
     int fd;
     int nfrags;
     int fragsize;
-    int old_optr;
 } OSSVoiceIn;
 
 static struct {
@@ -62,13 +62,17 @@ static struct {
     const char *devpath_out;
     const char *devpath_in;
     int debug;
+    int exclusive;
+    int policy;
 } conf = {
     .try_mmap = 0,
     .nfrags = 4,
     .fragsize = 4096,
     .devpath_out = "/dev/dsp",
     .devpath_in = "/dev/dsp",
-    .debug = 0
+    .debug = 0,
+    .exclusive = 0,
+    .policy = 5
 };
 
 struct oss_params {
@@ -110,11 +114,40 @@ static void GCC_FMT_ATTR (3, 4) oss_logerr2 (
 
 static void oss_anal_close (int *fdp)
 {
-    int err = close (*fdp);
+    int err;
+
+    qemu_set_fd_handler (*fdp, NULL, NULL, NULL);
+    err = close (*fdp);
     if (err) {
         oss_logerr (errno, "Failed to close file(fd=%d)\n", *fdp);
     }
     *fdp = -1;
+}
+
+static void oss_helper_poll_out (void *opaque)
+{
+    (void) opaque;
+    audio_run ("oss_poll_out");
+}
+
+static void oss_helper_poll_in (void *opaque)
+{
+    (void) opaque;
+    audio_run ("oss_poll_in");
+}
+
+static int oss_poll_out (HWVoiceOut *hw)
+{
+    OSSVoiceOut *oss = (OSSVoiceOut *) hw;
+
+    return qemu_set_fd_handler (oss->fd, NULL, oss_helper_poll_out, NULL);
+}
+
+static int oss_poll_in (HWVoiceIn *hw)
+{
+    OSSVoiceIn *oss = (OSSVoiceIn *) hw;
+
+    return qemu_set_fd_handler (oss->fd, oss_helper_poll_in, NULL, NULL);
 }
 
 static int oss_write (SWVoiceOut *sw, void *buf, int len)
@@ -205,13 +238,17 @@ static int oss_open (int in, struct oss_params *req,
                      struct oss_params *obt, int *pfd)
 {
     int fd;
-    int mmmmssss;
+    int version;
+    int oflags = conf.exclusive ? O_EXCL : 0;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
     const char *dspname = in ? conf.devpath_in : conf.devpath_out;
     const char *typ = in ? "ADC" : "DAC";
 
-    fd = open (dspname, (in ? O_RDONLY : O_WRONLY) | O_NONBLOCK);
+    /* Kludge needed to have working mmap on Linux */
+    oflags |= conf.try_mmap ? O_RDWR : (in ? O_RDONLY : O_WRONLY);
+
+    fd = open (dspname, oflags | O_NONBLOCK);
     if (-1 == fd) {
         oss_logerr2 (errno, typ, "Failed to open `%s'\n", dspname);
         return -1;
@@ -242,11 +279,33 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
-    mmmmssss = (req->nfrags << 16) | lsbindex (req->fragsize);
-    if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
-        oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
-                     req->nfrags, req->fragsize);
-        goto err;
+    if (ioctl (fd, OSS_GETVERSION, &version)) {
+        oss_logerr2 (errno, typ, "Failed to get OSS version\n");
+        version = 0;
+    }
+
+    if (conf.debug) {
+        dolog ("OSS version = %#x\n", version);
+    }
+
+#ifdef SNDCTL_DSP_POLICY
+    if (conf.policy >= 0 && version >= 0x040000) {
+        int policy = conf.policy;
+        if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
+            oss_logerr2 (errno, typ, "Failed to set timing policy to %d\n",
+                         conf.policy);
+            goto err;
+        }
+    }
+    else
+#endif
+    {
+        int mmmmssss = (req->nfrags << 16) | ctz32 (req->fragsize);
+        if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
+            oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
+                         req->nfrags, req->fragsize);
+            goto err;
+        }
     }
 
     if (ioctl (fd, in ? SNDCTL_DSP_GETISPACE : SNDCTL_DSP_GETOSPACE, &abinfo)) {
@@ -307,7 +366,7 @@ static int oss_run_out (HWVoiceOut *hw)
     bufsize = hw->samples << hw->info.shift;
 
     if (oss->mmapped) {
-        int bytes;
+        int bytes, pos;
 
         err = ioctl (oss->fd, SNDCTL_DSP_GETOPTR, &cntinfo);
         if (err < 0) {
@@ -315,20 +374,8 @@ static int oss_run_out (HWVoiceOut *hw)
             return 0;
         }
 
-        if (cntinfo.ptr == oss->old_optr) {
-            if (abs (hw->samples - live) < 64) {
-                dolog ("warning: Overrun\n");
-            }
-            return 0;
-        }
-
-        if (cntinfo.ptr > oss->old_optr) {
-            bytes = cntinfo.ptr - oss->old_optr;
-        }
-        else {
-            bytes = bufsize + cntinfo.ptr - oss->old_optr;
-        }
-
+        pos = hw->rpos << hw->info.shift;
+        bytes = audio_ring_dist (cntinfo.ptr, pos, bufsize);
         decr = audio_MIN (bytes >> hw->info.shift, live);
     }
     else {
@@ -402,9 +449,6 @@ static int oss_run_out (HWVoiceOut *hw)
 
         rpos = (rpos + convert_samples) % hw->samples;
         samples -= convert_samples;
-    }
-    if (oss->mmapped) {
-        oss->old_optr = cntinfo.ptr;
     }
 
     hw->rpos = rpos;
@@ -491,7 +535,8 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
         if (oss->pcm_buf == MAP_FAILED) {
             oss_logerr (errno, "Failed to map %d bytes of DAC\n",
                         hw->samples << hw->info.shift);
-        } else {
+        }
+        else {
             int err;
             int trig = 0;
             if (ioctl (fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
@@ -544,15 +589,26 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
 static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
     int trig;
+    va_list ap;
+    int poll_mode;
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
 
-    if (!oss->mmapped) {
-        return 0;
-    }
+    va_start (ap, cmd);
+    poll_mode = va_arg (ap, int);
+    va_end (ap);
 
     switch (cmd) {
     case VOICE_ENABLE:
         ldebug ("enabling voice\n");
+        if (poll_mode && oss_poll_out (hw)) {
+            poll_mode = 0;
+        }
+        hw->poll_mode = poll_mode;
+
+        if (!oss->mmapped) {
+            return 0;
+        }
+
         audio_pcm_info_clear_buf (&hw->info, oss->pcm_buf, hw->samples);
         trig = PCM_ENABLE_OUTPUT;
         if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
@@ -565,6 +621,15 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
         break;
 
     case VOICE_DISABLE:
+        if (hw->poll_mode) {
+            qemu_set_fd_handler (oss->fd, NULL, NULL, NULL);
+            hw->poll_mode = 0;
+        }
+
+        if (!oss->mmapped) {
+            return 0;
+        }
+
         ldebug ("disabling voice\n");
         trig = 0;
         if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
@@ -670,7 +735,6 @@ static int oss_run_in (HWVoiceIn *hw)
         bufs[0].len = dead << hwshift;
     }
 
-
     for (i = 0; i < 2; ++i) {
         ssize_t nread;
 
@@ -720,8 +784,29 @@ static int oss_read (SWVoiceIn *sw, void *buf, int size)
 
 static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
-    (void) hw;
-    (void) cmd;
+    va_list ap;
+    int poll_mode;
+    OSSVoiceIn *oss = (OSSVoiceIn *) hw;
+
+    va_start (ap, cmd);
+    poll_mode = va_arg (ap, int);
+    va_end (ap);
+
+    switch (cmd) {
+    case VOICE_ENABLE:
+        if (poll_mode && oss_poll_in (hw)) {
+            poll_mode = 0;
+        }
+        hw->poll_mode = poll_mode;
+        break;
+
+    case VOICE_DISABLE:
+        if (hw->poll_mode) {
+            hw->poll_mode = 0;
+            qemu_set_fd_handler (oss->fd, NULL, NULL, NULL);
+        }
+        break;
+    }
     return 0;
 }
 
@@ -766,6 +851,20 @@ static struct audio_option oss_options[] = {
         .valp  = &conf.devpath_in,
         .descr = "Path to ADC device"
     },
+    {
+        .name  = "EXCLUSIVE",
+        .tag   = AUD_OPT_BOOL,
+        .valp  = &conf.exclusive,
+        .descr = "Open device in exclusive mode (vmix wont work)"
+    },
+#ifdef SNDCTL_DSP_POLICY
+    {
+        .name  = "POLICY",
+        .tag   = AUD_OPT_INT,
+        .valp  = &conf.policy,
+        .descr = "Set the timing policy of the device, -1 to use fragment mode",
+    },
+#endif
     {
         .name  = "DEBUG",
         .tag   = AUD_OPT_BOOL,

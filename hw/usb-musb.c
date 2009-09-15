@@ -511,7 +511,7 @@ static inline void musb_schedule_cb(USBPacket *packey, void *opaque, int dir)
         ep->intv_timer[dir] = qemu_new_timer(vm_clock, musb_cb_tick, opaque);
 
     qemu_mod_timer(ep->intv_timer[dir], qemu_get_clock(vm_clock) +
-                    muldiv64(timeout, ticks_per_sec, 8000));
+                   muldiv64(timeout, get_ticks_per_sec(), 8000));
 }
 
 static void musb_schedule0_cb(USBPacket *packey, void *opaque)

@@ -18,7 +18,7 @@
 #include "syscall.h"
 #include "target_signal.h"
 #include "gdbstub.h"
-#include "sys-queue.h"
+#include "qemu-queue.h"
 
 #if defined(CONFIG_USE_NPTL)
 #define THREAD __thread

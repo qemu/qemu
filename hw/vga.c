@@ -204,9 +204,9 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
 
     r->total_chars = vtotal_lines * htotal_chars;
     if (r->freq) {
-        r->ticks_per_char = ticks_per_sec / (r->total_chars * r->freq);
+        r->ticks_per_char = get_ticks_per_sec() / (r->total_chars * r->freq);
     } else {
-        r->ticks_per_char = ticks_per_sec / chars_per_sec;
+        r->ticks_per_char = get_ticks_per_sec() / chars_per_sec;
     }
 
     r->vstart = vretr_start_line;
@@ -232,7 +232,7 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
         "dots = %d\n"
         "ticks/char = %lld\n"
         "\n",
-        (double) ticks_per_sec / (r->ticks_per_char * r->total_chars),
+        (double) get_ticks_per_sec() / (r->ticks_per_char * r->total_chars),
         htotal_chars,
         hretr_start_char,
         hretr_skew_chars,

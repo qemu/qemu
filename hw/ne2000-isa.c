@@ -45,8 +45,6 @@ static void isa_ne2000_cleanup(VLANClientState *vc)
     isa_unassign_ioport(isa->iobase, 16);
     isa_unassign_ioport(isa->iobase + 0x10, 2);
     isa_unassign_ioport(isa->iobase + 0x1f, 1);
-
-    qemu_free(s);
 }
 
 static int isa_ne2000_initfn(ISADevice *dev)

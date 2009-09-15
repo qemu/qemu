@@ -66,7 +66,8 @@ static int pit_get_count(PITChannelState *s)
     uint64_t d;
     int counter;
 
-    d = muldiv64(qemu_get_clock(vm_clock) - s->count_load_time, PIT_FREQ, ticks_per_sec);
+    d = muldiv64(qemu_get_clock(vm_clock) - s->count_load_time, PIT_FREQ,
+                 get_ticks_per_sec());
     switch(s->mode) {
     case 0:
     case 1:
@@ -91,7 +92,8 @@ static int pit_get_out1(PITChannelState *s, int64_t current_time)
     uint64_t d;
     int out;
 
-    d = muldiv64(current_time - s->count_load_time, PIT_FREQ, ticks_per_sec);
+    d = muldiv64(current_time - s->count_load_time, PIT_FREQ,
+                 get_ticks_per_sec());
     switch(s->mode) {
     default:
     case 0:
@@ -130,7 +132,8 @@ static int64_t pit_get_next_transition_time(PITChannelState *s,
     uint64_t d, next_time, base;
     int period2;
 
-    d = muldiv64(current_time - s->count_load_time, PIT_FREQ, ticks_per_sec);
+    d = muldiv64(current_time - s->count_load_time, PIT_FREQ,
+                 get_ticks_per_sec());
     switch(s->mode) {
     default:
     case 0:
@@ -166,7 +169,8 @@ static int64_t pit_get_next_transition_time(PITChannelState *s,
         break;
     }
     /* convert to timer units */
-    next_time = s->count_load_time + muldiv64(next_time, ticks_per_sec, PIT_FREQ);
+    next_time = s->count_load_time + muldiv64(next_time, get_ticks_per_sec(),
+                                              PIT_FREQ);
     /* fix potential rounding problems */
     /* XXX: better solution: use a clock at PIT_FREQ Hz */
     if (next_time <= current_time)
@@ -373,7 +377,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
 #ifdef DEBUG_PIT
     printf("irq_level=%d next_delay=%f\n",
            irq_level,
-           (double)(expire_time - current_time) / ticks_per_sec);
+           (double)(expire_time - current_time) / get_ticks_per_sec());
 #endif
     s->next_transition_time = expire_time;
     if (expire_time != -1)

@@ -2306,7 +2306,7 @@ static void ar7_timer_write(unsigned timer_index, uint32_t addr, uint32_t val)
             qemu_del_timer(timer->qemu_timer);
         }
     } else if (addr == TIMER_LOAD) {
-        timer->time = val * (ticks_per_sec / io_frequency);
+        timer->time = val * (get_ticks_per_sec() / io_frequency);
     }
 }
 
@@ -2769,11 +2769,13 @@ static void watchdog_trigger(void)
         TRACE(WDOG, logout("disabled watchdog\n"));
         qemu_del_timer(ar7.wd_timer);
     } else {
-        int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) * (ticks_per_sec / io_frequency);
+        int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) *
+                    (get_ticks_per_sec() / io_frequency);
         //~ logout("change   = 0x%x\n", wdt->change);
         //~ logout("prescale = 0x%x\n", wdt->prescale);
-        TRACE(WDOG, logout("trigger value = %u ms\n", (unsigned)(t * 1000 / ticks_per_sec)));
-        //~ logout("trigger value = %u\n", (unsigned)(ticks_per_sec / 1000000));
+        TRACE(WDOG, logout("trigger value = %u ms\n",
+              (unsigned)(t * 1000 / get_ticks_per_sec())));
+        //~ logout("trigger value = %u\n", (unsigned)(get_ticks_per_sec() / 1000000));
         qemu_mod_timer(ar7.wd_timer, qemu_get_clock(vm_clock) + t);
     }
 }

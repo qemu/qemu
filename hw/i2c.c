@@ -76,7 +76,7 @@ int i2c_start_transfer(i2c_bus *bus, int address, int recv)
     DeviceState *qdev;
     i2c_slave *slave = NULL;
 
-    LIST_FOREACH(qdev, &bus->qbus.children, sibling) {
+    QLIST_FOREACH(qdev, &bus->qbus.children, sibling) {
         slave = I2C_SLAVE_FROM_QDEV(qdev);
         if (slave->address == address)
             break;

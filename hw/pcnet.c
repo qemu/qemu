@@ -726,7 +726,7 @@ static inline int64_t pcnet_get_next_poll_time(PCNetState *s, int64_t current_ti
 {
     int64_t next_time = current_time +
         muldiv64(65536 - (CSR_SPND(s) ? 0 : CSR_POLL(s)),
-                 ticks_per_sec, 33000000L);
+                 get_ticks_per_sec(), 33000000L);
     if (next_time <= current_time)
         next_time = current_time + 1;
     return next_time;
