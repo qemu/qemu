@@ -4,8 +4,8 @@
 #include "qdev.h"
 
 /* ide-isa.c */
-void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
-                  DriveInfo *hd0, DriveInfo *hd1);
+int isa_ide_init(int iobase, int iobase2, int isairq,
+                 DriveInfo *hd0, DriveInfo *hd1);
 
 /* ide-pci.c */
 void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
