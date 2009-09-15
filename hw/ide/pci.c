@@ -404,15 +404,15 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
     }
 
     pci_register_bar((PCIDevice *)d, 0, 0x8,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
+                     PCI_ADDRESS_SPACE_IO, ide_map);
     pci_register_bar((PCIDevice *)d, 1, 0x4,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
+                     PCI_ADDRESS_SPACE_IO, ide_map);
     pci_register_bar((PCIDevice *)d, 2, 0x8,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
+                     PCI_ADDRESS_SPACE_IO, ide_map);
     pci_register_bar((PCIDevice *)d, 3, 0x4,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
+                     PCI_ADDRESS_SPACE_IO, ide_map);
     pci_register_bar((PCIDevice *)d, 4, 0x10,
-                           PCI_ADDRESS_SPACE_IO, bmdma_map);
+                     PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 
@@ -466,7 +466,7 @@ void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
     piix3_reset(d);
 
     pci_register_bar((PCIDevice *)d, 4, 0x10,
-                           PCI_ADDRESS_SPACE_IO, bmdma_map);
+                     PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->bus[0], hd_table[0], hd_table[1], isa_reserve_irq(14));
     ide_init2(&d->bus[1], hd_table[2], hd_table[3], isa_reserve_irq(15));
