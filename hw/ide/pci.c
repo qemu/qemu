@@ -25,6 +25,7 @@
 #include <hw/hw.h>
 #include <hw/pc.h>
 #include <hw/pci.h>
+#include <hw/isa.h>
 #include "block.h"
 #include "block_int.h"
 #include "sysemu.h"
@@ -50,9 +51,10 @@
 
 typedef struct PCIIDEState {
     PCIDevice dev;
-    IDEBus bus[2];
+    IDEBus *bus[2];
     BMDMAState bmdma[2];
     int type; /* see IDE_TYPE_xxx */
+    uint32_t secondary;
 } PCIIDEState;
 
 static void cmd646_update_irq(PCIIDEState *d);
@@ -64,7 +66,7 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
     IDEBus *bus;
 
     if (region_num <= 3) {
-        bus = &d->bus[(region_num >> 1)];
+        bus = d->bus[(region_num >> 1)];
         if (region_num & 1) {
             register_ioport_read(addr + 2, 1, 1, ide_status_read, bus);
             register_ioport_write(addr + 2, 1, 1, ide_cmd_write, bus);
@@ -250,9 +252,9 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
 
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
-        d->bus[i].bmdma = bm;
+        d->bus[i]->bmdma = bm;
         bm->pci_dev = DO_UPCAST(PCIIDEState, dev, pci_dev);
-        bm->bus = d->bus+i;
+        bm->bus = d->bus[i];
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
@@ -292,13 +294,13 @@ static void pci_ide_save(QEMUFile* f, void *opaque)
 
     /* per IDE interface data */
     for(i = 0; i < 2; i++) {
-        idebus_save(f, &d->bus[i]);
+        idebus_save(f, d->bus[i]);
     }
 
     /* per IDE drive data */
     for(i = 0; i < 2; i++) {
-        ide_save(f, &d->bus[i].ifs[0]);
-        ide_save(f, &d->bus[i].ifs[1]);
+        ide_save(f, &d->bus[i]->ifs[0]);
+        ide_save(f, &d->bus[i]->ifs[1]);
     }
 }
 
@@ -328,15 +330,29 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
 
     /* per IDE interface data */
     for(i = 0; i < 2; i++) {
-        idebus_load(f, &d->bus[i], version_id);
+        idebus_load(f, d->bus[i], version_id);
     }
 
     /* per IDE drive data */
     for(i = 0; i < 2; i++) {
-        ide_load(f, &d->bus[i].ifs[0], version_id);
-        ide_load(f, &d->bus[i].ifs[1], version_id);
+        ide_load(f, &d->bus[i]->ifs[0], version_id);
+        ide_load(f, &d->bus[i]->ifs[1], version_id);
     }
     return 0;
+}
+
+static void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
+{
+    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+    static const int bus[4]  = { 0, 0, 1, 1 };
+    static const int unit[4] = { 0, 1, 0, 1 };
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        if (hd_table[i] == NULL)
+            continue;
+        ide_create_drive(d->bus[bus[i]], unit[i], hd_table[i]);
+    }
 }
 
 /* XXX: call it also when the MRDMODE is changed from the PCI config
@@ -375,19 +391,13 @@ static void cmd646_reset(void *opaque)
 }
 
 /* CMD646 PCI IDE controller */
-void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
-                         int secondary_ide_enabled)
+static int pci_cmd646_ide_initfn(PCIDevice *dev)
 {
-    PCIIDEState *d;
-    uint8_t *pci_conf;
+    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+    uint8_t *pci_conf = d->dev.config;
     qemu_irq *irq;
 
-    d = (PCIIDEState *)pci_register_device(bus, "CMD646 IDE",
-                                           sizeof(PCIIDEState),
-                                           -1,
-                                           NULL, NULL);
     d->type = IDE_TYPE_CMD646;
-    pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CMD);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_CMD_646);
 
@@ -398,7 +408,7 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     pci_conf[0x51] = 0x04; // enable IDE0
-    if (secondary_ide_enabled) {
+    if (d->secondary) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
         pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
@@ -417,12 +427,27 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
-    ide_init2(&d->bus[0], hd_table[0], hd_table[1], irq[0]);
-    ide_init2(&d->bus[1], hd_table[2], hd_table[3], irq[1]);
+    d->bus[0] = ide_bus_new(&d->dev.qdev);
+    d->bus[1] = ide_bus_new(&d->dev.qdev);
+    ide_init2(d->bus[0], NULL, NULL, irq[0]);
+    ide_init2(d->bus[1], NULL, NULL, irq[1]);
 
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
     qemu_register_reset(cmd646_reset, d);
     cmd646_reset(d);
+    return 0;
+}
+
+void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
+                         int secondary_ide_enabled)
+{
+    PCIDevice *dev;
+
+    dev = pci_create_noinit(bus, -1, "CMD646 IDE");
+    qdev_prop_set_uint32(&dev->qdev, "secondary", secondary_ide_enabled);
+    qdev_init(&dev->qdev);
+
+    pci_ide_create_devs(dev, hd_table);
 }
 
 static void piix3_reset(void *opaque)
@@ -441,23 +466,10 @@ static void piix3_reset(void *opaque)
     pci_conf[0x20] = 0x01; /* BMIBA: 20-23h */
 }
 
-/* hd_table must contain 4 block drivers */
-/* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
+static int pci_piix_ide_initfn(PCIIDEState *d)
 {
-    PCIIDEState *d;
-    uint8_t *pci_conf;
+    uint8_t *pci_conf = d->dev.config;
 
-    /* register a function 1 of PIIX3 */
-    d = (PCIIDEState *)pci_register_device(bus, "PIIX3 IDE",
-                                           sizeof(PCIIDEState),
-                                           devfn,
-                                           NULL, NULL);
-    d->type = IDE_TYPE_PIIX3;
-
-    pci_conf = d->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_1);
     pci_conf[0x09] = 0x80; // legacy ATA mode
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
@@ -468,46 +480,82 @@ void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
     pci_register_bar((PCIDevice *)d, 4, 0x10,
                      PCI_ADDRESS_SPACE_IO, bmdma_map);
 
-    ide_init2(&d->bus[0], hd_table[0], hd_table[1], isa_reserve_irq(14));
-    ide_init2(&d->bus[1], hd_table[2], hd_table[3], isa_reserve_irq(15));
-    ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
-    ide_init_ioport(&d->bus[1], 0x170, 0x376);
-
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
+
+    d->bus[0] = ide_bus_new(&d->dev.qdev);
+    d->bus[1] = ide_bus_new(&d->dev.qdev);
+    ide_init_ioport(d->bus[0], 0x1f0, 0x3f6);
+    ide_init_ioport(d->bus[1], 0x170, 0x376);
+
+    ide_init2(d->bus[0], NULL, NULL, isa_reserve_irq(14));
+    ide_init2(d->bus[1], NULL, NULL, isa_reserve_irq(15));
+    return 0;
+}
+
+static int pci_piix3_ide_initfn(PCIDevice *dev)
+{
+    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+
+    d->type = IDE_TYPE_PIIX3;
+    pci_config_set_vendor_id(d->dev.config, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82371SB_1);
+    return pci_piix_ide_initfn(d);
+}
+
+static int pci_piix4_ide_initfn(PCIDevice *dev)
+{
+    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+
+    d->type = IDE_TYPE_PIIX4;
+    pci_config_set_vendor_id(d->dev.config, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82371AB);
+    return pci_piix_ide_initfn(d);
+}
+
+/* hd_table must contain 4 block drivers */
+/* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
+void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
+{
+    PCIDevice *dev;
+
+    dev = pci_create_simple(bus, devfn, "PIIX3 IDE");
+    pci_ide_create_devs(dev, hd_table);
 }
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
 void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
-    PCIIDEState *d;
-    uint8_t *pci_conf;
+    PCIDevice *dev;
 
-    /* register a function 1 of PIIX4 */
-    d = (PCIIDEState *)pci_register_device(bus, "PIIX4 IDE",
-                                           sizeof(PCIIDEState),
-                                           devfn,
-                                           NULL, NULL);
-    d->type = IDE_TYPE_PIIX4;
-
-    pci_conf = d->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB);
-    pci_conf[0x09] = 0x80; // legacy ATA mode
-    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
-
-    qemu_register_reset(piix3_reset, d);
-    piix3_reset(d);
-
-    pci_register_bar((PCIDevice *)d, 4, 0x10,
-                           PCI_ADDRESS_SPACE_IO, bmdma_map);
-
-    ide_init2(&d->bus[0], hd_table[0], hd_table[1], isa_reserve_irq(14));
-    ide_init2(&d->bus[1], hd_table[2], hd_table[3], isa_reserve_irq(15));
-    ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
-    ide_init_ioport(&d->bus[1], 0x170, 0x376);
-
-    register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
+    dev = pci_create_simple(bus, devfn, "PIIX4 IDE");
+    pci_ide_create_devs(dev, hd_table);
 }
 
+static PCIDeviceInfo piix_ide_info[] = {
+    {
+        .qdev.name    = "PIIX3 IDE",
+        .qdev.size    = sizeof(PCIIDEState),
+        .init         = pci_piix3_ide_initfn,
+    },{
+        .qdev.name    = "PIIX4 IDE",
+        .qdev.size    = sizeof(PCIIDEState),
+        .init         = pci_piix4_ide_initfn,
+    },{
+        .qdev.name    = "CMD646 IDE",
+        .qdev.size    = sizeof(PCIIDEState),
+        .init         = pci_cmd646_ide_initfn,
+        .qdev.props   = (Property[]) {
+            DEFINE_PROP_UINT32("secondary", PCIIDEState, secondary, 0),
+            DEFINE_PROP_END_OF_LIST(),
+        },
+    },{
+        /* end of list */
+    }
+};
+
+static void piix_ide_register(void)
+{
+    pci_qdev_register_many(piix_ide_info);
+}
+device_init(piix_ide_register);
