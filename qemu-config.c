@@ -151,6 +151,23 @@ QemuOptsList qemu_device_opts = {
     },
 };
 
+QemuOptsList qemu_rtc_opts = {
+    .name = "rtc",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_rtc_opts.head),
+    .desc = {
+        {
+            .name = "base",
+            .type = QEMU_OPT_STRING,
+#ifdef TARGET_I386
+        },{
+            .name = "driftfix",
+            .type = QEMU_OPT_STRING,
+#endif
+        },
+        { /* end if list */ }
+    },
+};
+
 static QemuOptsList *lists[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,

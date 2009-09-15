@@ -1584,6 +1584,74 @@ int qemu_timedate_diff(struct tm *tm)
     return seconds - time(NULL);
 }
 
+static void configure_rtc_date_offset(const char *startdate, int legacy)
+{
+    time_t rtc_start_date;
+    struct tm tm;
+
+    if (!strcmp(startdate, "now") && legacy) {
+        rtc_date_offset = -1;
+    } else {
+        if (sscanf(startdate, "%d-%d-%dT%d:%d:%d",
+                   &tm.tm_year,
+                   &tm.tm_mon,
+                   &tm.tm_mday,
+                   &tm.tm_hour,
+                   &tm.tm_min,
+                   &tm.tm_sec) == 6) {
+            /* OK */
+        } else if (sscanf(startdate, "%d-%d-%d",
+                          &tm.tm_year,
+                          &tm.tm_mon,
+                          &tm.tm_mday) == 3) {
+            tm.tm_hour = 0;
+            tm.tm_min = 0;
+            tm.tm_sec = 0;
+        } else {
+            goto date_fail;
+        }
+        tm.tm_year -= 1900;
+        tm.tm_mon--;
+        rtc_start_date = mktimegm(&tm);
+        if (rtc_start_date == -1) {
+        date_fail:
+            fprintf(stderr, "Invalid date format. Valid formats are:\n"
+                            "'2006-06-17T16:01:21' or '2006-06-17'\n");
+            exit(1);
+        }
+        rtc_date_offset = time(NULL) - rtc_start_date;
+    }
+}
+
+static void configure_rtc(QemuOpts *opts)
+{
+    const char *value;
+
+    value = qemu_opt_get(opts, "base");
+    if (value) {
+        if (!strcmp(value, "utc")) {
+            rtc_utc = 1;
+        } else if (!strcmp(value, "localtime")) {
+            rtc_utc = 0;
+        } else {
+            configure_rtc_date_offset(value, 0);
+        }
+    }
+#ifdef CONFIG_TARGET_I386
+    value = qemu_opt_get(opts, "driftfix");
+    if (value) {
+        if (!strcmp(buf, "slew")) {
+            rtc_td_hack = 1;
+        } else if (!strcmp(buf, "none")) {
+            rtc_td_hack = 0;
+        } else {
+            fprintf(stderr, "qemu: invalid option value '%s'\n", value);
+            exit(1);
+        }
+    }
+#endif
+}
+
 #ifdef _WIN32
 static void socket_cleanup(void)
 {
@@ -5436,42 +5504,15 @@ int main(int argc, char **argv, char **envp)
                 configure_alarms(optarg);
                 break;
             case QEMU_OPTION_startdate:
-                {
-                    struct tm tm;
-                    time_t rtc_start_date;
-                    if (!strcmp(optarg, "now")) {
-                        rtc_date_offset = -1;
-                    } else {
-                        if (sscanf(optarg, "%d-%d-%dT%d:%d:%d",
-                               &tm.tm_year,
-                               &tm.tm_mon,
-                               &tm.tm_mday,
-                               &tm.tm_hour,
-                               &tm.tm_min,
-                               &tm.tm_sec) == 6) {
-                            /* OK */
-                        } else if (sscanf(optarg, "%d-%d-%d",
-                                          &tm.tm_year,
-                                          &tm.tm_mon,
-                                          &tm.tm_mday) == 3) {
-                            tm.tm_hour = 0;
-                            tm.tm_min = 0;
-                            tm.tm_sec = 0;
-                        } else {
-                            goto date_fail;
-                        }
-                        tm.tm_year -= 1900;
-                        tm.tm_mon--;
-                        rtc_start_date = mktimegm(&tm);
-                        if (rtc_start_date == -1) {
-                        date_fail:
-                            fprintf(stderr, "Invalid date format. Valid format are:\n"
-                                    "'now' or '2006-06-17T16:01:21' or '2006-06-17'\n");
-                            exit(1);
-                        }
-                        rtc_date_offset = time(NULL) - rtc_start_date;
-                    }
+                configure_rtc_date_offset(optarg, 1);
+                break;
+            case QEMU_OPTION_rtc:
+                opts = qemu_opts_parse(&qemu_rtc_opts, optarg, NULL);
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
                 }
+                configure_rtc(opts);
                 break;
             case QEMU_OPTION_tb_size:
                 tb_size = strtol(optarg, NULL, 0);
