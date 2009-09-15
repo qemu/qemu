@@ -15,6 +15,8 @@
 #define USE_DMA_CDROM
 
 typedef struct IDEBus IDEBus;
+typedef struct IDEDevice IDEDevice;
+typedef struct IDEDeviceInfo IDEDeviceInfo;
 typedef struct IDEState IDEState;
 typedef struct BMDMAState BMDMAState;
 
@@ -440,11 +442,27 @@ struct IDEState {
 
 struct IDEBus {
     BusState qbus;
+    IDEDevice *master;
+    IDEDevice *slave;
     BMDMAState *bmdma;
     IDEState ifs[2];
     uint8_t unit;
     uint8_t cmd;
     qemu_irq irq;
+};
+
+struct IDEDevice {
+    DeviceState qdev;
+    uint32_t unit;
+    DriveInfo *dinfo;
+};
+
+typedef int (*ide_qdev_initfn)(IDEDevice *dev);
+struct IDEDeviceInfo {
+    DeviceInfo qdev;
+    ide_qdev_initfn init;
+    uint32_t unit;
+    DriveInfo *drive;
 };
 
 #define BM_STATUS_DMAING 0x01
@@ -500,7 +518,7 @@ static inline void ide_set_irq(IDEBus *bus)
     }
 }
 
-/* ide.c */
+/* hw/ide/core.c */
 void ide_save(QEMUFile* f, IDEState *s);
 void ide_load(QEMUFile* f, IDEState *s, int version_id);
 void idebus_save(QEMUFile* f, IDEBus *bus);
@@ -531,5 +549,9 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo);
 void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
                qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2);
+
+/* hw/ide/qdev.c */
+IDEBus *ide_bus_new(DeviceState *dev);
+IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
 
 #endif /* HW_IDE_INTERNAL_H */
