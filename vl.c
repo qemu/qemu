@@ -1159,7 +1159,7 @@ static int64_t qemu_next_deadline(void)
     return delta;
 }
 
-#if defined(__linux__) || defined(_WIN32)
+#if defined(__linux__)
 static uint64_t qemu_next_deadline_dyntick(void)
 {
     int64_t delta;
@@ -1468,14 +1468,10 @@ static void win32_stop_timer(struct qemu_alarm_timer *t)
 static void win32_rearm_timer(struct qemu_alarm_timer *t)
 {
     struct qemu_alarm_win32 *data = t->priv;
-    uint64_t nearest_delta_us;
 
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
         !active_timers[QEMU_CLOCK_VIRTUAL])
         return;
-
-    nearest_delta_us = qemu_next_deadline_dyntick();
-    nearest_delta_us /= 1000;
 
     timeKillEvent(data->timerId);
 
