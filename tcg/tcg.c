@@ -155,6 +155,21 @@ int gen_new_label(void)
     return idx;
 }
 
+static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
+static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val);
+static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
+                       tcg_target_long arg2);
+static void tcg_out_mov(TCGContext *s, int ret, int arg);
+static void tcg_out_movi(TCGContext *s, TCGType type,
+                         int ret, tcg_target_long arg);
+static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
+                       const int *const_args);
+static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
+                       tcg_target_long arg2);
+static int tcg_target_const_match(tcg_target_long val,
+                                  const TCGArgConstraint *arg_ct);
+static int tcg_target_get_call_iarg_regs_count(int flags);
+
 #include "tcg-target.c"
 
 /* pool based memory allocation */
