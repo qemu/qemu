@@ -17,6 +17,13 @@ extern QEMUClock *rt_clock;
    precision clock, usually cpu cycles (use ticks_per_sec). */
 extern QEMUClock *vm_clock;
 
+/* The host clock should be use for device models that emulate accurate
+   real time sources. It will continue to run when the virtual machine
+   is suspended, and it will reflect system time changes the host may
+   undergo (e.g. due to NTP). The host clock has the same precision as
+   the virtual clock. */
+extern QEMUClock *host_clock;
+
 int64_t qemu_get_clock(QEMUClock *clock);
 
 QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque);

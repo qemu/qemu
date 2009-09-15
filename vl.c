@@ -535,6 +535,14 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 /***********************************************************/
 /* real time host monotonic timer */
 
+static int64_t get_clock_realtime(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+}
+
 #ifdef WIN32
 
 static int64_t clock_freq;
@@ -589,9 +597,7 @@ static int64_t get_clock(void)
     {
         /* XXX: using gettimeofday leads to problems if the date
            changes, so it should be avoided. */
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+        return get_clock_realtime();
     }
 }
 #endif
@@ -682,6 +688,7 @@ void cpu_disable_ticks(void)
 
 #define QEMU_CLOCK_REALTIME 0
 #define QEMU_CLOCK_VIRTUAL  1
+#define QEMU_CLOCK_HOST     2
 
 struct QEMUClock {
     int type;
@@ -908,10 +915,13 @@ next:
     }
 }
 
+#define QEMU_NUM_CLOCKS 3
+
 QEMUClock *rt_clock;
 QEMUClock *vm_clock;
+QEMUClock *host_clock;
 
-static QEMUTimer *active_timers[2];
+static QEMUTimer *active_timers[QEMU_NUM_CLOCKS];
 
 static QEMUClock *qemu_new_clock(int type)
 {
@@ -1036,6 +1046,8 @@ int64_t qemu_get_clock(QEMUClock *clock)
         } else {
             return cpu_get_clock();
         }
+    case QEMU_CLOCK_HOST:
+        return get_clock_realtime();
     }
 }
 
@@ -1044,6 +1056,7 @@ static void init_clocks(void)
     init_get_clock();
     rt_clock = qemu_new_clock(QEMU_CLOCK_REALTIME);
     vm_clock = qemu_new_clock(QEMU_CLOCK_VIRTUAL);
+    host_clock = qemu_new_clock(QEMU_CLOCK_HOST);
 }
 
 /* save a timer */
@@ -1128,7 +1141,9 @@ static void host_alarm_handler(int host_signum)
             qemu_timer_expired(active_timers[QEMU_CLOCK_VIRTUAL],
                                qemu_get_clock(vm_clock))) ||
         qemu_timer_expired(active_timers[QEMU_CLOCK_REALTIME],
-                           qemu_get_clock(rt_clock))) {
+                           qemu_get_clock(rt_clock)) ||
+        qemu_timer_expired(active_timers[QEMU_CLOCK_HOST],
+                           qemu_get_clock(host_clock))) {
         qemu_event_increment();
         if (alarm_timer) alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
@@ -1145,14 +1160,18 @@ static void host_alarm_handler(int host_signum)
 
 static int64_t qemu_next_deadline(void)
 {
-    int64_t delta;
+    /* To avoid problems with overflow limit this to 2^32.  */
+    int64_t delta = INT32_MAX;
 
     if (active_timers[QEMU_CLOCK_VIRTUAL]) {
         delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
                      qemu_get_clock(vm_clock);
-    } else {
-        /* To avoid problems with overflow limit this to 2^32.  */
-        delta = INT32_MAX;
+    }
+    if (active_timers[QEMU_CLOCK_HOST]) {
+        int64_t hdelta = active_timers[QEMU_CLOCK_HOST]->expire_time -
+                 qemu_get_clock(host_clock);
+        if (hdelta < delta)
+            delta = hdelta;
     }
 
     if (delta < 0)
@@ -1356,7 +1375,8 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
     int64_t current_us;
 
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
-        !active_timers[QEMU_CLOCK_VIRTUAL])
+        !active_timers[QEMU_CLOCK_VIRTUAL] &&
+        !active_timers[QEMU_CLOCK_HOST])
         return;
 
     nearest_delta_us = qemu_next_deadline_dyntick();
@@ -1472,7 +1492,8 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
     struct qemu_alarm_win32 *data = t->priv;
 
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
-        !active_timers[QEMU_CLOCK_VIRTUAL])
+        !active_timers[QEMU_CLOCK_VIRTUAL] &&
+        !active_timers[QEMU_CLOCK_HOST])
         return;
 
     timeKillEvent(data->timerId);
@@ -3920,6 +3941,9 @@ void main_loop_wait(int timeout)
     /* real time timers */
     qemu_run_timers(&active_timers[QEMU_CLOCK_REALTIME],
                     qemu_get_clock(rt_clock));
+
+    qemu_run_timers(&active_timers[QEMU_CLOCK_HOST],
+                    qemu_get_clock(host_clock));
 
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
