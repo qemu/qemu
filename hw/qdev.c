@@ -222,6 +222,13 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     return qdev;
 }
 
+static void qdev_reset(void *opaque)
+{
+    DeviceState *dev = opaque;
+    if (dev->info->reset)
+        dev->info->reset(dev);
+}
+
 /* Initialize a device.  Device properties should be set before calling
    this function.  IRQs and MMIO regions should be connected/mapped after
    calling this function.  */
@@ -233,8 +240,7 @@ int qdev_init(DeviceState *dev)
     rc = dev->info->init(dev, dev->info);
     if (rc < 0)
         return rc;
-    if (dev->info->reset)
-        qemu_register_reset(dev->info->reset, dev);
+    qemu_register_reset(qdev_reset, dev);
     if (dev->info->vmsd)
         vmstate_register(-1, dev->info->vmsd, dev);
     dev->state = DEV_STATE_INITIALIZED;
@@ -273,13 +279,12 @@ void qdev_free(DeviceState *dev)
         if (dev->info->vmsd)
             vmstate_unregister(dev->info->vmsd, dev);
 #endif
-        if (dev->info->reset)
-            qemu_unregister_reset(dev->info->reset, dev);
         if (dev->info->exit)
             dev->info->exit(dev);
         if (dev->opts)
             qemu_opts_del(dev->opts);
     }
+    qemu_unregister_reset(qdev_reset, dev);
     QLIST_REMOVE(dev, sibling);
     qemu_free(dev);
 }

@@ -115,6 +115,7 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
 typedef int (*qdev_event)(DeviceState *dev);
+typedef void (*qdev_resetfn)(DeviceState *dev);
 
 struct DeviceInfo {
     const char *name;
@@ -125,7 +126,7 @@ struct DeviceInfo {
     int no_user;
 
     /* callbacks */
-    QEMUResetHandler *reset;
+    qdev_resetfn reset;
 
     /* device state */
     const VMStateDescription *vmsd;
