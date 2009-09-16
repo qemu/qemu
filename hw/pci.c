@@ -85,6 +85,16 @@ static const VMStateDescription vmstate_pcibus = {
     }
 };
 
+static inline int pci_bar(int reg)
+{
+    return reg == PCI_ROM_SLOT ? PCI_ROM_ADDRESS : PCI_BASE_ADDRESS_0 + reg * 4;
+}
+
+static void pci_device_reset(PCIDevice *dev)
+{
+    memset(dev->irq_state, 0, sizeof dev->irq_state);
+}
+
 static void pci_bus_reset(void *opaque)
 {
     PCIBus *bus = opaque;
@@ -93,10 +103,10 @@ static void pci_bus_reset(void *opaque)
     for (i = 0; i < bus->nirq; i++) {
         bus->irq_count[i] = 0;
     }
-    for (i = 0; i < 256; i++) {
-        if (bus->devices[i])
-            memset(bus->devices[i]->irq_state, 0,
-                   sizeof(bus->devices[i]->irq_state));
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        if (bus->devices[i]) {
+            pci_device_reset(bus->devices[i]);
+        }
     }
 }
 
@@ -450,12 +460,10 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->map_func = map_func;
 
     wmask = ~(size - 1);
+    addr = pci_bar(region_num);
     if (region_num == PCI_ROM_SLOT) {
-        addr = 0x30;
         /* ROM enable bit is writeable */
-        wmask |= 1;
-    } else {
-        addr = 0x10 + region_num * 4;
+        wmask |= PCI_ROM_ADDRESS_ENABLE;
     }
     *(uint32_t *)(pci_dev->config + addr) = cpu_to_le32(type);
     *(uint32_t *)(pci_dev->wmask + addr) = cpu_to_le32(wmask);
@@ -466,21 +474,15 @@ static void pci_update_mappings(PCIDevice *d)
 {
     PCIIORegion *r;
     int cmd, i;
-    uint32_t last_addr, new_addr, config_ofs;
+    uint32_t last_addr, new_addr;
 
     cmd = le16_to_cpu(*(uint16_t *)(d->config + PCI_COMMAND));
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
-        if (i == PCI_ROM_SLOT) {
-            config_ofs = 0x30;
-        } else {
-            config_ofs = 0x10 + i * 4;
-        }
         if (r->size != 0) {
             if (r->type & PCI_ADDRESS_SPACE_IO) {
                 if (cmd & PCI_COMMAND_IO) {
-                    new_addr = le32_to_cpu(*(uint32_t *)(d->config +
-                                                         config_ofs));
+                    new_addr = pci_get_long(d->config + pci_bar(i));
                     new_addr = new_addr & ~(r->size - 1);
                     last_addr = new_addr + r->size - 1;
                     /* NOTE: we have only 64K ioports on PC */
@@ -493,10 +495,9 @@ static void pci_update_mappings(PCIDevice *d)
                 }
             } else {
                 if (cmd & PCI_COMMAND_MEMORY) {
-                    new_addr = le32_to_cpu(*(uint32_t *)(d->config +
-                                                         config_ofs));
+                    new_addr = pci_get_long(d->config + pci_bar(i));
                     /* the ROM slot has a specific enable bit */
-                    if (i == PCI_ROM_SLOT && !(new_addr & 1))
+                    if (i == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE))
                         goto no_mem_map;
                     new_addr = new_addr & ~(r->size - 1);
                     last_addr = new_addr + r->size - 1;
@@ -520,7 +521,7 @@ static void pci_update_mappings(PCIDevice *d)
                         int class;
                         /* NOTE: specific hack for IDE in PC case:
                            only one byte must be mapped. */
-                        class = d->config[0x0a] | (d->config[0x0b] << 8);
+                        class = pci_get_word(d->config + PCI_CLASS_DEVICE);
                         if (class == 0x0101 && r->size == 4) {
                             isa_unassign_ioport(r->addr + 2, 1);
                         } else {
