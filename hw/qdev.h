@@ -47,6 +47,7 @@ struct BusState {
     DeviceState *parent;
     BusInfo *info;
     const char *name;
+    int qdev_allocated;
     QLIST_HEAD(, DeviceState) children;
     QLIST_ENTRY(BusState) sibling;
 };
@@ -145,6 +146,8 @@ BusState *qdev_get_parent_bus(DeviceState *dev);
 
 /*** BUS API. ***/
 
+void qbus_create_inplace(BusState *bus, BusInfo *info,
+                         DeviceState *parent, const char *name);
 BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name);
 
 #define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)

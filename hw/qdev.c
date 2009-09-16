@@ -502,13 +502,12 @@ static BusState *qbus_find(const char *path)
     }
 }
 
-BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
+void qbus_create_inplace(BusState *bus, BusInfo *info,
+                         DeviceState *parent, const char *name)
 {
-    BusState *bus;
     char *buf;
     int i,len;
 
-    bus = qemu_mallocz(info->size);
     bus->info = info;
     bus->parent = parent;
 
@@ -537,6 +536,16 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
         QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
     }
+
+}
+
+BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
+{
+    BusState *bus;
+
+    bus = qemu_mallocz(info->size);
+    bus->qdev_allocated = 1;
+    qbus_create_inplace(bus, info, parent, name);
     return bus;
 }
 
