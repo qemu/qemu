@@ -281,7 +281,7 @@ typedef struct {
 
 struct MUSBState {
     qemu_irq *irqs;
-    USBBus *bus;
+    USBBus bus;
     USBPort port;
 
     int idx;
@@ -331,8 +331,8 @@ struct MUSBState {
         s->ep[i].epnum = i;
     }
 
-    s->bus = usb_bus_new(NULL /* FIXME */);
-    usb_register_port(s->bus, &s->port, s, 0, musb_attach);
+    usb_bus_new(&s->bus, NULL /* FIXME */);
+    usb_register_port(&s->bus, &s->port, s, 0, musb_attach);
 
     return s;
 }
