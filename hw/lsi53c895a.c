@@ -193,7 +193,7 @@ typedef struct {
      * 2 if processing DMA from lsi_execute_script.
      * 3 if a DMA operation is in progress.  */
     int waiting;
-    SCSIBus *bus;
+    SCSIBus bus;
     SCSIDevice *current_dev;
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
@@ -585,7 +585,7 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     id = (tag >> 8) & 0xf;
     s->ssid = id | 0x80;
     DPRINTF("Reselected target %d\n", id);
-    s->current_dev = s->bus->devs[id];
+    s->current_dev = s->bus.devs[id];
     s->current_tag = tag;
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
@@ -1041,7 +1041,7 @@ again:
                 }
                 s->sstat0 |= LSI_SSTAT0_WOA;
                 s->scntl1 &= ~LSI_SCNTL1_IARB;
-                if (id >= LSI_MAX_DEVS || !s->bus->devs[id]) {
+                if (id >= LSI_MAX_DEVS || !s->bus.devs[id]) {
                     DPRINTF("Selected absent target %d\n", id);
                     lsi_script_scsi_interrupt(s, 0, LSI_SIST1_STO);
                     lsi_disconnect(s);
@@ -1052,7 +1052,7 @@ again:
                 /* ??? Linux drivers compain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
-                s->current_dev = s->bus->devs[id];
+                s->current_dev = s->bus.devs[id];
                 s->current_tag = id << 8;
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 3)) {
@@ -2178,8 +2178,8 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     lsi_soft_reset(s);
 
-    s->bus = scsi_bus_new(&dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
-    scsi_bus_legacy_handle_cmdline(s->bus);
+    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
+    scsi_bus_legacy_handle_cmdline(&s->bus);
     register_savevm("lsiscsi", -1, 0, lsi_scsi_save, lsi_scsi_load, s);
     return 0;
 }

@@ -63,7 +63,7 @@ struct ESPState {
     uint8_t ti_buf[TI_BUFSZ];
     uint32_t sense;
     uint32_t dma;
-    SCSIBus *bus;
+    SCSIBus bus;
     SCSIDevice *current_dev;
     uint8_t cmdbuf[TI_BUFSZ];
     uint32_t cmdlen;
@@ -191,7 +191,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
         s->async_len = 0;
     }
 
-    if (target >= ESP_MAX_DEVS || !s->bus->devs[target]) {
+    if (target >= ESP_MAX_DEVS || !s->bus.devs[target]) {
         // No such drive
         s->rregs[ESP_RSTAT] = 0;
         s->rregs[ESP_RINTR] = INTR_DC;
@@ -199,7 +199,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
         esp_raise_irq(s);
         return 0;
     }
-    s->current_dev = s->bus->devs[target];
+    s->current_dev = s->bus.devs[target];
     return dmalen;
 }
 
@@ -672,8 +672,8 @@ static int esp_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
-    s->bus = scsi_bus_new(&dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
-    scsi_bus_legacy_handle_cmdline(s->bus);
+    scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
+    scsi_bus_legacy_handle_cmdline(&s->bus);
     return 0;
 }
 
