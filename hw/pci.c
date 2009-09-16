@@ -98,24 +98,47 @@ static void pci_bus_reset(void *opaque)
     }
 }
 
+void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
+                         const char *name, int devfn_min)
+{
+    static int nbus = 0;
+
+    qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
+    bus->devfn_min = devfn_min;
+    bus->next = first_bus;
+    first_bus = bus;
+    vmstate_register(nbus++, &vmstate_pcibus, bus);
+    qemu_register_reset(pci_bus_reset, bus);
+}
+
+PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min)
+{
+    PCIBus *bus;
+
+    bus = qemu_mallocz(sizeof(*bus));
+    bus->qbus.qdev_allocated = 1;
+    pci_bus_new_inplace(bus, parent, name, devfn_min);
+    return bus;
+}
+
+void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+                  void *irq_opaque, int nirq)
+{
+    bus->set_irq = set_irq;
+    bus->map_irq = map_irq;
+    bus->irq_opaque = irq_opaque;
+    bus->nirq = nirq;
+    bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
+}
+
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq)
 {
     PCIBus *bus;
-    static int nbus = 0;
 
-    bus = FROM_QBUS(PCIBus, qbus_create(&pci_bus_info, parent, name));
-    bus->set_irq = set_irq;
-    bus->map_irq = map_irq;
-    bus->irq_opaque = irq_opaque;
-    bus->devfn_min = devfn_min;
-    bus->nirq = nirq;
-    bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
-    bus->next = first_bus;
-    first_bus = bus;
-    vmstate_register(nbus++, &vmstate_pcibus, bus);
-    qemu_register_reset(pci_bus_reset, bus);
+    bus = pci_bus_new(parent, name, devfn_min);
+    pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
     return bus;
 }
 
