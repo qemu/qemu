@@ -52,8 +52,8 @@ struct SCSIBus {
     SCSIDevice *devs[8];
 };
 
-SCSIBus *scsi_bus_new(DeviceState *host, int tcq, int ndev,
-                      scsi_completionfn complete);
+void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
+                  scsi_completionfn complete);
 void scsi_qdev_register(SCSIDeviceInfo *info);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)

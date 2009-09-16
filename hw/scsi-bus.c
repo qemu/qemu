@@ -15,17 +15,14 @@ static struct BusInfo scsi_bus_info = {
 static int next_scsi_bus;
 
 /* Create a scsi bus, and attach devices to it.  */
-SCSIBus *scsi_bus_new(DeviceState *host, int tcq, int ndev,
-                      scsi_completionfn complete)
+void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
+                  scsi_completionfn complete)
 {
-    SCSIBus *bus;
-
-    bus = FROM_QBUS(SCSIBus, qbus_create(&scsi_bus_info, host, NULL));
+    qbus_create_inplace(&bus->qbus, &scsi_bus_info, host, NULL);
     bus->busnr = next_scsi_bus++;
     bus->tcq = tcq;
     bus->ndev = ndev;
     bus->complete = complete;
-    return bus;
 }
 
 static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
