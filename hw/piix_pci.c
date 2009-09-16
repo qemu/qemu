@@ -36,18 +36,14 @@ typedef PCIHostState I440FXState;
 typedef struct PIIX3State {
     PCIDevice dev;
     int pci_irq_levels[4];
-} PIIX3State;
-
-typedef struct PIIX3IrqState {
-    PIIX3State *piix3;
     qemu_irq *pic;
-} PIIX3IrqState;
+} PIIX3State;
 
 struct PCII440FXState {
     PCIDevice dev;
     target_phys_addr_t isa_page_descs[384 / 4];
     uint8_t smm_enabled;
-    PIIX3IrqState *irq_state;
+    PIIX3State *piix3;
 };
 
 static void i440fx_addr_writel(void* opaque, uint32_t addr, uint32_t val)
@@ -167,7 +163,7 @@ static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
 
     if (version_id == 2)
         for (i = 0; i < 4; i++)
-            d->irq_state->piix3->pci_irq_levels[i] = qemu_get_be32(f);
+            d->piix3->pci_irq_levels[i] = qemu_get_be32(f);
 
     return 0;
 }
@@ -232,23 +228,24 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     PCIBus *b;
     PCIDevice *d;
     I440FXState *s;
-    PIIX3IrqState *irq_state = qemu_malloc(sizeof(*irq_state));
+    PIIX3State *piix3;
 
-    irq_state->pic = pic;
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
-    b = pci_register_bus(&s->busdev.qdev, "pci.0",
-                         piix3_set_irq, pci_slot_get_pirq, irq_state, 0, 4);
+    b = pci_bus_new(&s->busdev.qdev, NULL, 0);
     s->bus = b;
     qdev_init(dev);
 
     d = pci_create_simple(b, 0, "i440FX");
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
-    (*pi440fx_state)->irq_state = irq_state;
 
-    irq_state->piix3 = DO_UPCAST(PIIX3State, dev,
+    piix3 = DO_UPCAST(PIIX3State, dev,
                                  pci_create_simple(b, -1, "PIIX3"));
-    *piix3_devfn = irq_state->piix3->dev.devfn;
+    piix3->pic = pic;
+    pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3, 4);
+    (*pi440fx_state)->piix3 = piix3;
+
+    *piix3_devfn = piix3->dev.devfn;
 
     return b;
 }
@@ -258,22 +255,22 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
 static void piix3_set_irq(void *opaque, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
-    PIIX3IrqState *irq_state = opaque;
+    PIIX3State *piix3 = opaque;
 
-    irq_state->piix3->pci_irq_levels[irq_num] = level;
+    piix3->pci_irq_levels[irq_num] = level;
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
-    pic_irq = irq_state->piix3->dev.config[0x60 + irq_num];
+    pic_irq = piix3->dev.config[0x60 + irq_num];
     if (pic_irq < 16) {
         /* The pic level is the logical OR of all the PCI irqs mapped
            to it */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == irq_state->piix3->dev.config[0x60 + i])
-                pic_level |= irq_state->piix3->pci_irq_levels[i];
+            if (pic_irq == piix3->dev.config[0x60 + i])
+                pic_level |= piix3->pci_irq_levels[i];
         }
-        qemu_set_irq(irq_state->pic[pic_irq], pic_level);
+        qemu_set_irq(piix3->pic[pic_irq], pic_level);
     }
 }
 
