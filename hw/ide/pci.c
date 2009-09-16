@@ -51,7 +51,7 @@
 
 typedef struct PCIIDEState {
     PCIDevice dev;
-    IDEBus *bus[2];
+    IDEBus bus[2];
     BMDMAState bmdma[2];
     int type; /* see IDE_TYPE_xxx */
     uint32_t secondary;
@@ -66,7 +66,7 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
     IDEBus *bus;
 
     if (region_num <= 3) {
-        bus = d->bus[(region_num >> 1)];
+        bus = &d->bus[(region_num >> 1)];
         if (region_num & 1) {
             register_ioport_read(addr + 2, 1, 1, ide_status_read, bus);
             register_ioport_write(addr + 2, 1, 1, ide_cmd_write, bus);
@@ -252,9 +252,9 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
 
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
-        d->bus[i]->bmdma = bm;
+        d->bus[i].bmdma = bm;
         bm->pci_dev = DO_UPCAST(PCIIDEState, dev, pci_dev);
-        bm->bus = d->bus[i];
+        bm->bus = d->bus+i;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
@@ -294,13 +294,13 @@ static void pci_ide_save(QEMUFile* f, void *opaque)
 
     /* per IDE interface data */
     for(i = 0; i < 2; i++) {
-        idebus_save(f, d->bus[i]);
+        idebus_save(f, d->bus+i);
     }
 
     /* per IDE drive data */
     for(i = 0; i < 2; i++) {
-        ide_save(f, &d->bus[i]->ifs[0]);
-        ide_save(f, &d->bus[i]->ifs[1]);
+        ide_save(f, &d->bus[i].ifs[0]);
+        ide_save(f, &d->bus[i].ifs[1]);
     }
 }
 
@@ -330,13 +330,13 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
 
     /* per IDE interface data */
     for(i = 0; i < 2; i++) {
-        idebus_load(f, d->bus[i], version_id);
+        idebus_load(f, d->bus+i, version_id);
     }
 
     /* per IDE drive data */
     for(i = 0; i < 2; i++) {
-        ide_load(f, &d->bus[i]->ifs[0], version_id);
-        ide_load(f, &d->bus[i]->ifs[1], version_id);
+        ide_load(f, &d->bus[i].ifs[0], version_id);
+        ide_load(f, &d->bus[i].ifs[1], version_id);
     }
     return 0;
 }
@@ -351,7 +351,7 @@ static void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
     for (i = 0; i < 4; i++) {
         if (hd_table[i] == NULL)
             continue;
-        ide_create_drive(d->bus[bus[i]], unit[i], hd_table[i]);
+        ide_create_drive(d->bus+bus[i], unit[i], hd_table[i]);
     }
 }
 
@@ -427,10 +427,10 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
-    d->bus[0] = ide_bus_new(&d->dev.qdev);
-    d->bus[1] = ide_bus_new(&d->dev.qdev);
-    ide_init2(d->bus[0], NULL, NULL, irq[0]);
-    ide_init2(d->bus[1], NULL, NULL, irq[1]);
+    ide_bus_new(&d->bus[0], &d->dev.qdev);
+    ide_bus_new(&d->bus[1], &d->dev.qdev);
+    ide_init2(&d->bus[0], NULL, NULL, irq[0]);
+    ide_init2(&d->bus[1], NULL, NULL, irq[1]);
 
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
     qemu_register_reset(cmd646_reset, d);
@@ -482,13 +482,13 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
 
-    d->bus[0] = ide_bus_new(&d->dev.qdev);
-    d->bus[1] = ide_bus_new(&d->dev.qdev);
-    ide_init_ioport(d->bus[0], 0x1f0, 0x3f6);
-    ide_init_ioport(d->bus[1], 0x170, 0x376);
+    ide_bus_new(&d->bus[0], &d->dev.qdev);
+    ide_bus_new(&d->bus[1], &d->dev.qdev);
+    ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
+    ide_init_ioport(&d->bus[1], 0x170, 0x376);
 
-    ide_init2(d->bus[0], NULL, NULL, isa_reserve_irq(14));
-    ide_init2(d->bus[1], NULL, NULL, isa_reserve_irq(15));
+    ide_init2(&d->bus[0], NULL, NULL, isa_reserve_irq(14));
+    ide_init2(&d->bus[1], NULL, NULL, isa_reserve_irq(15));
     return 0;
 }
 

@@ -37,7 +37,7 @@
 
 typedef struct ISAIDEState {
     ISADevice dev;
-    IDEBus    *bus;
+    IDEBus    bus;
     uint32_t  iobase;
     uint32_t  iobase2;
     uint32_t  isairq;
@@ -48,18 +48,18 @@ static void isa_ide_save(QEMUFile* f, void *opaque)
 {
     ISAIDEState *s = opaque;
 
-    idebus_save(f, s->bus);
-    ide_save(f, &s->bus->ifs[0]);
-    ide_save(f, &s->bus->ifs[1]);
+    idebus_save(f, &s->bus);
+    ide_save(f, &s->bus.ifs[0]);
+    ide_save(f, &s->bus.ifs[1]);
 }
 
 static int isa_ide_load(QEMUFile* f, void *opaque, int version_id)
 {
     ISAIDEState *s = opaque;
 
-    idebus_load(f, s->bus, version_id);
-    ide_load(f, &s->bus->ifs[0], version_id);
-    ide_load(f, &s->bus->ifs[1], version_id);
+    idebus_load(f, &s->bus, version_id);
+    ide_load(f, &s->bus.ifs[0], version_id);
+    ide_load(f, &s->bus.ifs[1], version_id);
     return 0;
 }
 
@@ -67,10 +67,10 @@ static int isa_ide_initfn(ISADevice *dev)
 {
     ISAIDEState *s = DO_UPCAST(ISAIDEState, dev, dev);
 
-    s->bus = ide_bus_new(&s->dev.qdev);
-    ide_init_ioport(s->bus, s->iobase, s->iobase2);
+    ide_bus_new(&s->bus, &s->dev.qdev);
+    ide_init_ioport(&s->bus, s->iobase, s->iobase2);
     isa_init_irq(dev, &s->irq, s->isairq);
-    ide_init2(s->bus, NULL, NULL, s->irq);
+    ide_init2(&s->bus, NULL, NULL, s->irq);
     register_savevm("isa-ide", 0, 3, isa_ide_save, isa_ide_load, s);
     return 0;
 };
@@ -90,9 +90,9 @@ int isa_ide_init(int iobase, int iobase2, int isairq,
 
     s = DO_UPCAST(ISAIDEState, dev, dev);
     if (hd0)
-        ide_create_drive(s->bus, 0, hd0);
+        ide_create_drive(&s->bus, 0, hd0);
     if (hd1)
-        ide_create_drive(s->bus, 1, hd1);
+        ide_create_drive(&s->bus, 1, hd1);
     return 0;
 }
 

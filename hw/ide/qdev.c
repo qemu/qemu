@@ -29,12 +29,9 @@ static struct BusInfo ide_bus_info = {
     .size  = sizeof(IDEBus),
 };
 
-IDEBus *ide_bus_new(DeviceState *dev)
+void ide_bus_new(IDEBus *idebus, DeviceState *dev)
 {
-    IDEBus *idebus;
-
-    idebus = FROM_QBUS(IDEBus, qbus_create(&ide_bus_info, dev, NULL));
-    return idebus;
+    qbus_create_inplace(&idebus->qbus, &ide_bus_info, dev, NULL);
 }
 
 static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
