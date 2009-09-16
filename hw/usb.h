@@ -303,7 +303,7 @@ struct USBBus {
     QTAILQ_ENTRY(USBBus) next;
 };
 
-USBBus *usb_bus_new(DeviceState *host);
+void usb_bus_new(USBBus *bus, DeviceState *host);
 USBBus *usb_bus_find(int busnr);
 void usb_qdev_register(USBDeviceInfo *info);
 void usb_qdev_register_many(USBDeviceInfo *info);

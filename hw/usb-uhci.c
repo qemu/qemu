@@ -122,7 +122,7 @@ typedef struct UHCIPort {
 
 typedef struct UHCIState {
     PCIDevice dev;
-    USBBus *bus;
+    USBBus bus;
     uint16_t cmd; /* cmd register */
     uint16_t status;
     uint16_t intr; /* interrupt enable register */
@@ -1083,9 +1083,9 @@ static int usb_uhci_common_initfn(UHCIState *s)
     pci_conf[0x3d] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
 
-    s->bus = usb_bus_new(&s->dev.qdev);
+    usb_bus_new(&s->bus, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(s->bus, &s->ports[i].port, s, i, uhci_attach);
+        usb_register_port(&s->bus, &s->ports[i].port, s, i, uhci_attach);
     }
     s->frame_timer = qemu_new_timer(vm_clock, uhci_frame_timer, s);
 

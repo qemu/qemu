@@ -14,16 +14,13 @@ static struct BusInfo usb_bus_info = {
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
-USBBus *usb_bus_new(DeviceState *host)
+void usb_bus_new(USBBus *bus, DeviceState *host)
 {
-    USBBus *bus;
-
-    bus = FROM_QBUS(USBBus, qbus_create(&usb_bus_info, host, NULL));
+    qbus_create_inplace(&bus->qbus, &usb_bus_info, host, NULL);
     bus->busnr = next_usb_bus++;
     QTAILQ_INIT(&bus->free);
     QTAILQ_INIT(&bus->used);
     QTAILQ_INSERT_TAIL(&busses, bus, next);
-    return bus;
 }
 
 USBBus *usb_bus_find(int busnr)
