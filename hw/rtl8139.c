@@ -1173,9 +1173,9 @@ static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
     s->RxBufAddr = 0;
 }
 
-static void rtl8139_reset(void *opaque)
+static void rtl8139_reset(DeviceState *d)
 {
-    RTL8139State *s = opaque;
+    RTL8139State *s = container_of(d, RTL8139State, dev.qdev);
     int i;
 
     /* restore MAC address */
@@ -1371,7 +1371,7 @@ static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
     if (val & CmdReset)
     {
         DEBUG_PRINT(("RTL8139: ChipCmd reset\n"));
-        rtl8139_reset(s);
+        rtl8139_reset(&s->dev.qdev);
     }
     if (val & CmdRxEnb)
     {
@@ -1544,7 +1544,7 @@ static void rtl8139_Cfg9346_write(RTL8139State *s, uint32_t val)
     } else if (opmode == 0x40) {
         /* Reset.  */
         val = 0;
-        rtl8139_reset(s);
+        rtl8139_reset(&s->dev.qdev);
     }
 
     s->Cfg9346 = val;
@@ -3464,7 +3464,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
     qdev_get_macaddr(&dev->qdev, s->macaddr);
-    rtl8139_reset(s);
+    rtl8139_reset(&s->dev.qdev);
     s->vc = qdev_get_vlan_client(&dev->qdev,
                                  rtl8139_can_receive, rtl8139_receive, NULL,
                                  rtl8139_cleanup, s);
