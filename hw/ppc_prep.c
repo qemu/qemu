@@ -710,7 +710,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
 
     for(i = 0; i < MAX_IDE_BUS; i++) {
-        isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
+        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[2 * i],
 		     hd[2 * i + 1]);
     }

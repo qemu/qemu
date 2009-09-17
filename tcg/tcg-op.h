@@ -1441,9 +1441,8 @@ static inline void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
 #ifdef TCG_TARGET_HAS_bswap64_i64
     tcg_gen_op2_i64(INDEX_op_bswap64_i64, ret, arg);
 #else
-    TCGv_i32 t0, t1;
-    t0 = tcg_temp_new_i32();
-    t1 = tcg_temp_new_i32();
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
     
     tcg_gen_shli_i64(t0, arg, 56);
     
@@ -1473,8 +1472,8 @@ static inline void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
 
     tcg_gen_shri_i64(t1, arg, 56);
     tcg_gen_or_i64(ret, t0, t1);
-    tcg_temp_free_i32(t0);
-    tcg_temp_free_i32(t1);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
 #endif
 }
 

@@ -24,6 +24,7 @@
  */
 #include <hw/hw.h>
 #include <hw/pc.h>
+#include <hw/isa.h>
 #include "block.h"
 #include "block_int.h"
 #include "sysemu.h"
@@ -35,7 +36,12 @@
 /* ISA IDE definitions */
 
 typedef struct ISAIDEState {
-    IDEBus *bus;
+    ISADevice dev;
+    IDEBus    *bus;
+    uint32_t  iobase;
+    uint32_t  iobase2;
+    uint32_t  isairq;
+    qemu_irq  irq;
 } ISAIDEState;
 
 static void isa_ide_save(QEMUFile* f, void *opaque)
@@ -57,15 +63,54 @@ static int isa_ide_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
-                  DriveInfo *hd0, DriveInfo *hd1)
+static int isa_ide_initfn(ISADevice *dev)
 {
+    ISAIDEState *s = DO_UPCAST(ISAIDEState, dev, dev);
+
+    s->bus = ide_bus_new(&s->dev.qdev);
+    ide_init_ioport(s->bus, s->iobase, s->iobase2);
+    isa_init_irq(dev, &s->irq, s->isairq);
+    ide_init2(s->bus, NULL, NULL, s->irq);
+    register_savevm("isa-ide", 0, 3, isa_ide_save, isa_ide_load, s);
+    return 0;
+};
+
+int isa_ide_init(int iobase, int iobase2, int isairq,
+                 DriveInfo *hd0, DriveInfo *hd1)
+{
+    ISADevice *dev;
     ISAIDEState *s;
 
-    s = qemu_mallocz(sizeof(*s));
-    s->bus = qemu_mallocz(sizeof(IDEBus));
+    dev = isa_create("isa-ide");
+    qdev_prop_set_uint32(&dev->qdev, "iobase",  iobase);
+    qdev_prop_set_uint32(&dev->qdev, "iobase2", iobase2);
+    qdev_prop_set_uint32(&dev->qdev, "irq",     isairq);
+    if (qdev_init(&dev->qdev) != 0)
+        return -1;
 
-    ide_init2(s->bus, hd0, hd1, irq);
-    ide_init_ioport(s->bus, iobase, iobase2);
-    register_savevm("isa-ide", 0, 3, isa_ide_save, isa_ide_load, s);
+    s = DO_UPCAST(ISAIDEState, dev, dev);
+    if (hd0)
+        ide_create_drive(s->bus, 0, hd0);
+    if (hd1)
+        ide_create_drive(s->bus, 1, hd1);
+    return 0;
 }
+
+static ISADeviceInfo isa_ide_info = {
+    .qdev.name  = "isa-ide",
+    .qdev.size  = sizeof(ISAIDEState),
+    .init       = isa_ide_initfn,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_HEX32("iobase",  ISAIDEState, iobase,  0x1f0),
+        DEFINE_PROP_HEX32("iobase2", ISAIDEState, iobase2, 0x3f6),
+        DEFINE_PROP_UINT32("irq",    ISAIDEState, isairq,  14),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void isa_ide_register_devices(void)
+{
+    isa_qdev_register(&isa_ide_info);
+}
+
+device_init(isa_ide_register_devices)
