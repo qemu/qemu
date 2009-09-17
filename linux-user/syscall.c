@@ -5311,7 +5311,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* libc does special remapping of the return value of
          * sys_getpriority() so it's just easiest to call
          * sys_getpriority() directly rather than through libc. */
-        ret = sys_getpriority(arg1, arg2);
+        ret = get_errno(sys_getpriority(arg1, arg2));
         break;
     case TARGET_NR_setpriority:
         ret = get_errno(setpriority(arg1, arg2, arg3));
