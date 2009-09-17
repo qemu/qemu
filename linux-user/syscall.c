@@ -4746,6 +4746,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_dup2:
         ret = get_errno(dup2(arg1, arg2));
         break;
+#if defined(CONFIG_DUP3) && defined(TARGET_NR_dup3)
+    case TARGET_NR_dup3:
+        ret = get_errno(dup3(arg1, arg2, arg3));
+        break;
+#endif
 #ifdef TARGET_NR_getppid /* not on alpha */
     case TARGET_NR_getppid:
         ret = get_errno(getppid());
@@ -7013,6 +7018,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 #endif /* CONFIG_EVENTFD  */
+#if defined(CONFIG_FALLOCATE) && defined(TARGET_NR_fallocate)
+    case TARGET_NR_fallocate:
+        ret = get_errno(fallocate(arg1, arg2, arg3, arg4));
+        break;
+#endif
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
