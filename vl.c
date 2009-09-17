@@ -247,6 +247,7 @@ int old_param = 0;
 #endif
 const char *qemu_name;
 int alt_grab = 0;
+int ctrl_grab = 0;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
@@ -5309,6 +5310,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_alt_grab:
                 alt_grab = 1;
+                break;
+            case QEMU_OPTION_ctrl_grab:
+                ctrl_grab = 1;
                 break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
