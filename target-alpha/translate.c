@@ -524,14 +524,15 @@ static inline void gen_ext_h(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
             else
                 tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
         } else {
-            TCGv tmp1, tmp2;
+            TCGv tmp1;
             tmp1 = tcg_temp_new();
+
             tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
             tcg_gen_shli_i64(tmp1, tmp1, 3);
-            tmp2 = tcg_const_i64(64);
-            tcg_gen_sub_i64(tmp1, tmp2, tmp1);
-            tcg_temp_free(tmp2);
+            tcg_gen_neg_i64(tmp1, tmp1);
+            tcg_gen_andi_i64(tmp1, tmp1, 0x3f);
             tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
+
             tcg_temp_free(tmp1);
         }
         if (tcg_gen_ext_i64)
@@ -1316,7 +1317,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x6A:
             /* EXTLH */
-            gen_ext_h(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
+            gen_ext_h(&tcg_gen_ext32u_i64, ra, rb, rc, islit, lit);
             break;
         case 0x72:
             /* MSKQH */
