@@ -905,11 +905,15 @@ void kvm_setup_guest_memory(void *start, size_t size)
 #ifdef KVM_CAP_SET_GUEST_DEBUG
 static void on_vcpu(CPUState *env, void (*func)(void *data), void *data)
 {
+#ifdef CONFIG_IOTHREAD
     if (env == cpu_single_env) {
         func(data);
         return;
     }
     abort();
+#else
+    func(data);
+#endif
 }
 
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
