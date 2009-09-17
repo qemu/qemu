@@ -2803,8 +2803,13 @@ void net_client_uninit(NICInfo *nd)
 {
     nd->vlan->nb_guest_devs--;
     nb_nics--;
-    nd->used = 0;
-    free((void *)nd->model);
+
+    qemu_free((void *)nd->model);
+    qemu_free((void *)nd->name);
+    qemu_free((void *)nd->devaddr);
+    qemu_free((void *)nd->id);
+
+    memset(nd, 0, sizeof(*nd));
 }
 
 static int net_host_check_device(const char *device)
