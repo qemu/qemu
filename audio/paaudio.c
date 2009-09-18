@@ -120,16 +120,15 @@ static void *qpa_thread_out (void *arg)
     return NULL;
 }
 
-static int qpa_run_out (HWVoiceOut *hw)
+static int qpa_run_out (HWVoiceOut *hw, int live)
 {
-    int live, decr;
+    int decr;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
 
     if (audio_pt_lock (&pa->pt, AUDIO_FUNC)) {
         return 0;
     }
 
-    live = audio_pcm_hw_get_live_out (hw);
     decr = audio_MIN (live, pa->decr);
     pa->decr -= decr;
     pa->live = live - decr;

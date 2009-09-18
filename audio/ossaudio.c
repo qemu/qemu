@@ -389,18 +389,13 @@ static void oss_write_pending (OSSVoiceOut *oss)
     }
 }
 
-static int oss_run_out (HWVoiceOut *hw)
+static int oss_run_out (HWVoiceOut *hw, int live)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
-    int err, live, decr;
+    int err, decr;
     struct audio_buf_info abinfo;
     struct count_info cntinfo;
     int bufsize;
-
-    live = audio_pcm_hw_get_live_out (hw);
-    if (!live) {
-        return 0;
-    }
 
     bufsize = hw->samples << hw->info.shift;
 

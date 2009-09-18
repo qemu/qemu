@@ -282,17 +282,15 @@ static int sdl_write_out (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int sdl_run_out (HWVoiceOut *hw)
+static int sdl_run_out (HWVoiceOut *hw, int live)
 {
-    int decr, live;
+    int decr;
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
     SDLAudioState *s = &glob_sdl;
 
     if (sdl_lock (s, "sdl_run_out")) {
         return 0;
     }
-
-    live = audio_pcm_hw_get_live_out (hw);
 
     if (sdl->decr > live) {
         ldebug ("sdl->decr %d live %d sdl->live %d\n",

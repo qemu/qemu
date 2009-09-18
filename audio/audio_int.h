@@ -155,7 +155,7 @@ struct audio_driver {
 struct audio_pcm_ops {
     int  (*init_out)(HWVoiceOut *hw, struct audsettings *as);
     void (*fini_out)(HWVoiceOut *hw);
-    int  (*run_out) (HWVoiceOut *hw);
+    int  (*run_out) (HWVoiceOut *hw, int live);
     int  (*write)   (SWVoiceOut *sw, void *buf, int size);
     int  (*ctl_out) (HWVoiceOut *hw, int cmd, ...);
 
@@ -218,8 +218,6 @@ int  audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int len);
 int  audio_pcm_hw_get_live_in (HWVoiceIn *hw);
 
 int  audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int len);
-int  audio_pcm_hw_get_live_out (HWVoiceOut *hw);
-int  audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live);
 
 int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
                            int live, int pending);

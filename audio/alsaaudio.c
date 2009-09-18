@@ -763,16 +763,11 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
     }
 }
 
-static int alsa_run_out (HWVoiceOut *hw)
+static int alsa_run_out (HWVoiceOut *hw, int live)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-    int live, decr;
+    int decr;
     snd_pcm_sframes_t avail;
-
-    live = audio_pcm_hw_get_live_out (hw);
-    if (!live) {
-        return 0;
-    }
 
     avail = alsa_get_avail (alsa->handle);
     if (avail < 0) {

@@ -969,16 +969,17 @@ static int audio_pcm_hw_find_min_out (HWVoiceOut *hw, int *nb_livep)
     return m;
 }
 
-int audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live)
+static int audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
 {
     int smin;
+    int nb_live1;
 
-    smin = audio_pcm_hw_find_min_out (hw, nb_live);
-
-    if (!*nb_live) {
-        return 0;
+    smin = audio_pcm_hw_find_min_out (hw, &nb_live1);
+    if (nb_live) {
+        *nb_live = nb_live1;
     }
-    else {
+
+    if (nb_live1) {
         int live = smin;
 
         if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
@@ -987,19 +988,7 @@ int audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live)
         }
         return live;
     }
-}
-
-int audio_pcm_hw_get_live_out (HWVoiceOut *hw)
-{
-    int nb_live;
-    int live;
-
-    live = audio_pcm_hw_get_live_out2 (hw, &nb_live);
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
-        dolog ("live=%d hw->samples=%d\n", live, hw->samples);
-        return 0;
-    }
-    return live;
+    return 0;
 }
 
 /*
@@ -1357,7 +1346,7 @@ static void audio_run_out (AudioState *s)
         int played;
         int live, free, nb_live, cleanup_required, prev_rpos;
 
-        live = audio_pcm_hw_get_live_out2 (hw, &nb_live);
+        live = audio_pcm_hw_get_live_out (hw, &nb_live);
         if (!nb_live) {
             live = 0;
         }
@@ -1395,7 +1384,7 @@ static void audio_run_out (AudioState *s)
         }
 
         prev_rpos = hw->rpos;
-        played = hw->pcm_ops->run_out (hw);
+        played = hw->pcm_ops->run_out (hw, live);
         if (audio_bug (AUDIO_FUNC, hw->rpos >= hw->samples)) {
             dolog ("hw->rpos=%d hw->samples=%d played=%d\n",
                    hw->rpos, hw->samples, played);
@@ -1494,7 +1483,7 @@ static void audio_run_capture (AudioState *s)
         HWVoiceOut *hw = &cap->hw;
         SWVoiceOut *sw;
 
-        captured = live = audio_pcm_hw_get_live_out (hw);
+        captured = live = audio_pcm_hw_get_live_out (hw, NULL);
         rpos = hw->rpos;
         while (live) {
             int left = hw->samples - rpos;

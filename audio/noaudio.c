@@ -38,18 +38,13 @@ typedef struct NoVoiceIn {
     int64_t old_ticks;
 } NoVoiceIn;
 
-static int no_run_out (HWVoiceOut *hw)
+static int no_run_out (HWVoiceOut *hw, int live)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
-    int live, decr, samples;
+    int decr, samples;
     int64_t now;
     int64_t ticks;
     int64_t bytes;
-
-    live = audio_pcm_hw_get_live_out (&no->hw);
-    if (!live) {
-        return 0;
-    }
 
     now = qemu_get_clock (vm_clock);
     ticks = now - no->old_ticks;
