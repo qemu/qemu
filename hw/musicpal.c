@@ -188,8 +188,9 @@ static ssize_t eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 
     for (i = 0; i < 4; i++) {
         desc_addr = s->cur_rx[i];
-        if (!desc_addr)
+        if (!desc_addr) {
             continue;
+        }
         do {
             eth_rx_desc_get(desc_addr, &desc);
             if ((desc.cmdstat & MP_ETH_RX_OWN) && desc.buffer_size >= size) {
@@ -200,8 +201,9 @@ static ssize_t eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
                 s->cur_rx[i] = desc.next;
 
                 s->icr |= MP_ETH_IRQ_RX;
-                if (s->icr & s->imr)
+                if (s->icr & s->imr) {
                     qemu_irq_raise(s->irq);
+                }
                 eth_rx_desc_put(desc_addr, &desc);
                 return size;
             }
@@ -313,12 +315,15 @@ static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
         break;
 
     case MP_ETH_SDCMR:
-        if (value & MP_ETH_CMD_TXHI)
+        if (value & MP_ETH_CMD_TXHI) {
             eth_send(s, 1);
-        if (value & MP_ETH_CMD_TXLO)
+        }
+        if (value & MP_ETH_CMD_TXLO) {
             eth_send(s, 0);
-        if (value & (MP_ETH_CMD_TXHI | MP_ETH_CMD_TXLO) && s->icr & s->imr)
+        }
+        if (value & (MP_ETH_CMD_TXHI | MP_ETH_CMD_TXLO) && s->icr & s->imr) {
             qemu_irq_raise(s->irq);
+        }
         break;
 
     case MP_ETH_ICR:
@@ -327,8 +332,9 @@ static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
 
     case MP_ETH_IMR:
         s->imr = value;
-        if (s->icr & s->imr)
+        if (s->icr & s->imr) {
             qemu_irq_raise(s->irq);
+        }
         break;
 
     case MP_ETH_FRDP0 ... MP_ETH_FRDP3:
@@ -453,12 +459,15 @@ static void lcd_refresh(void *opaque)
         col = func(scale_lcd_color(s, (MP_LCD_TEXTCOLOR >> 16) & 0xff), \
                    scale_lcd_color(s, (MP_LCD_TEXTCOLOR >> 8) & 0xff), \
                    scale_lcd_color(s, MP_LCD_TEXTCOLOR & 0xff)); \
-        for (x = 0; x < 128; x++) \
-            for (y = 0; y < 64; y++) \
-                if (s->video_ram[x + (y/8)*128] & (1 << (y % 8))) \
+        for (x = 0; x < 128; x++) { \
+            for (y = 0; y < 64; y++) { \
+                if (s->video_ram[x + (y/8)*128] & (1 << (y % 8))) { \
                     glue(set_lcd_pixel, depth)(s, x, y, col); \
-                else \
+                } else { \
                     glue(set_lcd_pixel, depth)(s, x, y, 0); \
+                } \
+            } \
+        } \
         break;
     LCD_REFRESH(8, rgb_to_pixel8)
     LCD_REFRESH(16, rgb_to_pixel16)
@@ -507,10 +516,11 @@ static void musicpal_lcd_write(void *opaque, target_phys_addr_t offset,
         break;
 
     case MP_LCD_SPICTRL:
-        if (value == MP_LCD_SPI_DATA || value == MP_LCD_SPI_CMD)
+        if (value == MP_LCD_SPI_DATA || value == MP_LCD_SPI_CMD) {
             s->mode = value;
-        else
+        } else {
             s->mode = MP_LCD_SPI_INVALID;
+        }
         break;
 
     case MP_LCD_INST:
@@ -589,10 +599,11 @@ static void mv88w8618_pic_set_irq(void *opaque, int irq, int level)
 {
     mv88w8618_pic_state *s = opaque;
 
-    if (level)
+    if (level) {
         s->level |= 1 << irq;
-    else
+    } else {
         s->level &= ~(1 << irq);
+    }
     mv88w8618_pic_update(s);
 }
 
@@ -749,8 +760,9 @@ static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
         break;
 
     case MP_BOARD_RESET:
-        if (value == MP_BOARD_RESET_MAGIC)
+        if (value == MP_BOARD_RESET_MAGIC) {
             qemu_system_reset_request();
+        }
         break;
     }
 }
@@ -838,7 +850,7 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     iomemtype = cpu_register_io_memory(mv88w8618_flashcfg_readfn,
-                       mv88w8618_flashcfg_writefn, s);
+                                       mv88w8618_flashcfg_writefn, s);
     sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
     return 0;
 }
@@ -1005,8 +1017,9 @@ static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
     }
 
     /* set lcd brightness GPIOs  */
-    for (i = 0; i <= 2; i++)
+    for (i = 0; i <= 2; i++) {
         qemu_set_irq(s->out[i], (brightness >> i) & 1);
+    }
 }
 
 static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
@@ -1185,7 +1198,7 @@ static void musicpal_key_event(void *opaque, int keycode)
         return;
     }
 
-    if (s->kbd_extended)
+    if (s->kbd_extended) {
         switch (keycode & KEY_CODE) {
         case KEYCODE_UP:
             event = MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_NAV_INV;
@@ -1203,7 +1216,7 @@ static void musicpal_key_event(void *opaque, int keycode)
             event = MP_KEY_WHEEL_VOL;
             break;
         }
-    else {
+    } else {
         switch (keycode & KEY_CODE) {
         case KEYCODE_F:
             event = MP_KEY_BTN_FAVORITS;
@@ -1294,9 +1307,9 @@ static void musicpal_init(ram_addr_t ram_size,
     DriveInfo *dinfo;
     ram_addr_t sram_off;
 
-    if (!cpu_model)
+    if (!cpu_model) {
         cpu_model = "arm926";
-
+    }
     env = cpu_init(cpu_model);
     if (!env) {
         fprintf(stderr, "Unable to find CPU definition\n");
@@ -1320,12 +1333,14 @@ static void musicpal_init(ram_addr_t ram_size,
                           pic[MP_TIMER2_IRQ], pic[MP_TIMER3_IRQ],
                           pic[MP_TIMER4_IRQ], NULL);
 
-    if (serial_hds[0])
+    if (serial_hds[0]) {
         serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], 1825000,
                    serial_hds[0], 1);
-    if (serial_hds[1])
+    }
+    if (serial_hds[1]) {
         serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], 1825000,
                    serial_hds[1], 1);
+    }
 
     /* Register flash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
@@ -1377,9 +1392,9 @@ static void musicpal_init(ram_addr_t ram_size,
     /* I2C clock */
     qdev_connect_gpio_out(dev, 4, qdev_get_gpio_in(i2c_dev, 1));
 
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++) {
         qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(lcd_dev, i));
-
+    }
     for (i = 0; i < 4; i++) {
         qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 8));
     }
