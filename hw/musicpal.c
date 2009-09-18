@@ -146,7 +146,7 @@ typedef struct mv88w8618_eth_state {
     uint32_t icr;
     uint32_t imr;
     int mmio_index;
-    int vlan_header;
+    uint32_t vlan_header;
     uint32_t tx_queue[2];
     uint32_t rx_queue[4];
     uint32_t frx_queue[4];
@@ -387,6 +387,31 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
     return 0;
 }
 
+static const VMStateDescription mv88w8618_eth_vmsd = {
+    .name = "mv88w8618_eth",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(smir, mv88w8618_eth_state),
+        VMSTATE_UINT32(icr, mv88w8618_eth_state),
+        VMSTATE_UINT32(imr, mv88w8618_eth_state),
+        VMSTATE_UINT32(vlan_header, mv88w8618_eth_state),
+        VMSTATE_UINT32_ARRAY(tx_queue, mv88w8618_eth_state, 2),
+        VMSTATE_UINT32_ARRAY(rx_queue, mv88w8618_eth_state, 4),
+        VMSTATE_UINT32_ARRAY(frx_queue, mv88w8618_eth_state, 4),
+        VMSTATE_UINT32_ARRAY(cur_rx, mv88w8618_eth_state, 4),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo mv88w8618_eth_info = {
+    .init = mv88w8618_eth_init,
+    .qdev.name = "mv88w8618_eth",
+    .qdev.size = sizeof(mv88w8618_eth_state),
+    .qdev.vmsd = &mv88w8618_eth_vmsd,
+};
+
 /* LCD register offsets */
 #define MP_LCD_IRQCTRL          0x180
 #define MP_LCD_IRQSTAT          0x184
@@ -411,8 +436,8 @@ typedef struct musicpal_lcd_state {
     uint32_t brightness;
     uint32_t mode;
     uint32_t irqctrl;
-    int page;
-    int page_off;
+    uint32_t page;
+    uint32_t page_off;
     DisplayState *ds;
     uint8_t video_ram[128*64/8];
 } musicpal_lcd_state;
@@ -577,6 +602,29 @@ static int musicpal_lcd_init(SysBusDevice *dev)
     return 0;
 }
 
+static const VMStateDescription musicpal_lcd_vmsd = {
+    .name = "musicpal_lcd",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(brightness, musicpal_lcd_state),
+        VMSTATE_UINT32(mode, musicpal_lcd_state),
+        VMSTATE_UINT32(irqctrl, musicpal_lcd_state),
+        VMSTATE_UINT32(page, musicpal_lcd_state),
+        VMSTATE_UINT32(page_off, musicpal_lcd_state),
+        VMSTATE_BUFFER(video_ram, musicpal_lcd_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo musicpal_lcd_info = {
+    .init = musicpal_lcd_init,
+    .qdev.name = "musicpal_lcd",
+    .qdev.size = sizeof(musicpal_lcd_state),
+    .qdev.vmsd = &musicpal_lcd_vmsd,
+};
+
 /* PIC register offsets */
 #define MP_PIC_STATUS           0x00
 #define MP_PIC_ENABLE_SET       0x08
@@ -638,9 +686,10 @@ static void mv88w8618_pic_write(void *opaque, target_phys_addr_t offset,
     mv88w8618_pic_update(s);
 }
 
-static void mv88w8618_pic_reset(void *opaque)
+static void mv88w8618_pic_reset(DeviceState *d)
 {
-    mv88w8618_pic_state *s = opaque;
+    mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state,
+                                         sysbus_from_qdev(d));
 
     s->level = 0;
     s->enabled = 0;
@@ -668,10 +717,28 @@ static int mv88w8618_pic_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(mv88w8618_pic_readfn,
                                        mv88w8618_pic_writefn, s);
     sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
-
-    qemu_register_reset(mv88w8618_pic_reset, s);
     return 0;
 }
+
+static const VMStateDescription mv88w8618_pic_vmsd = {
+    .name = "mv88w8618_pic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(level, mv88w8618_pic_state),
+        VMSTATE_UINT32(enabled, mv88w8618_pic_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo mv88w8618_pic_info = {
+    .init = mv88w8618_pic_init,
+    .qdev.name = "mv88w8618_pic",
+    .qdev.size = sizeof(mv88w8618_pic_state),
+    .qdev.reset = mv88w8618_pic_reset,
+    .qdev.vmsd = &mv88w8618_pic_vmsd,
+};
 
 /* PIT register offsets */
 #define MP_PIT_TIMER1_LENGTH    0x00
@@ -772,9 +839,10 @@ static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void mv88w8618_pit_reset(void *opaque)
+static void mv88w8618_pit_reset(DeviceState *d)
 {
-    mv88w8618_pit_state *s = opaque;
+    mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state,
+                                         sysbus_from_qdev(d));
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -813,11 +881,36 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
     return 0;
 }
 
+static const VMStateDescription mv88w8618_timer_vmsd = {
+    .name = "timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PTIMER(ptimer, mv88w8618_timer_state),
+        VMSTATE_UINT32(limit, mv88w8618_timer_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription mv88w8618_pit_vmsd = {
+    .name = "mv88w8618_pit",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(timer, mv88w8618_pit_state, 4, 1,
+                             mv88w8618_timer_vmsd, mv88w8618_timer_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static SysBusDeviceInfo mv88w8618_pit_info = {
     .init = mv88w8618_pit_init,
     .qdev.name  = "mv88w8618_pit",
     .qdev.size  = sizeof(mv88w8618_pit_state),
     .qdev.reset = mv88w8618_pit_reset,
+    .qdev.vmsd  = &mv88w8618_pit_vmsd,
 };
 
 /* Flash config register offsets */
@@ -877,6 +970,24 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
     return 0;
 }
+
+static const VMStateDescription mv88w8618_flashcfg_vmsd = {
+    .name = "mv88w8618_flashcfg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(cfgr0, mv88w8618_flashcfg_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo mv88w8618_flashcfg_info = {
+    .init = mv88w8618_flashcfg_init,
+    .qdev.name  = "mv88w8618_flashcfg",
+    .qdev.size  = sizeof(mv88w8618_flashcfg_state),
+    .qdev.vmsd  = &mv88w8618_flashcfg_vmsd,
+};
 
 /* Misc register offsets */
 #define MP_MISC_BOARD_REVISION  0x18
@@ -1151,9 +1262,10 @@ static CPUWriteMemoryFunc * const musicpal_gpio_writefn[] = {
     musicpal_gpio_write,
 };
 
-static void musicpal_gpio_reset(void *opaque)
+static void musicpal_gpio_reset(DeviceState *d)
 {
-    musicpal_gpio_state *s = opaque;
+    musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state,
+                                         sysbus_from_qdev(d));
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -1174,8 +1286,7 @@ static int musicpal_gpio_init(SysBusDevice *dev)
                                        musicpal_gpio_writefn, s);
     sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
 
-    qemu_register_reset(musicpal_gpio_reset, s);
-    musicpal_gpio_reset(s);
+    musicpal_gpio_reset(&dev->qdev);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
 
@@ -1184,11 +1295,28 @@ static int musicpal_gpio_init(SysBusDevice *dev)
     return 0;
 }
 
+static const VMStateDescription musicpal_gpio_vmsd = {
+    .name = "musicpal_gpio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(lcd_brightness, musicpal_gpio_state),
+        VMSTATE_UINT32(out_state, musicpal_gpio_state),
+        VMSTATE_UINT32(in_state, musicpal_gpio_state),
+        VMSTATE_UINT32(ier, musicpal_gpio_state),
+        VMSTATE_UINT32(imr, musicpal_gpio_state),
+        VMSTATE_UINT32(isr, musicpal_gpio_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static SysBusDeviceInfo musicpal_gpio_info = {
     .init = musicpal_gpio_init,
     .qdev.name  = "musicpal_gpio",
     .qdev.size  = sizeof(musicpal_gpio_state),
     .qdev.reset = musicpal_gpio_reset,
+    .qdev.vmsd  = &musicpal_gpio_vmsd,
 };
 
 /* Keyboard codes & masks */
@@ -1314,6 +1442,25 @@ static int musicpal_key_init(SysBusDevice *dev)
 
     return 0;
 }
+
+static const VMStateDescription musicpal_key_vmsd = {
+    .name = "musicpal_key",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(kbd_extended, musicpal_key_state),
+        VMSTATE_UINT32(pressed_keys, musicpal_key_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo musicpal_key_info = {
+    .init = musicpal_key_init,
+    .qdev.name  = "musicpal_key",
+    .qdev.size  = sizeof(musicpal_key_state),
+    .qdev.vmsd  = &musicpal_key_vmsd,
+};
 
 static struct arm_boot_info musicpal_binfo = {
     .loader_start = 0x0,
@@ -1469,20 +1616,15 @@ machine_init(musicpal_machine_init);
 
 static void musicpal_register_devices(void)
 {
-    sysbus_register_dev("mv88w8618_pic", sizeof(mv88w8618_pic_state),
-                        mv88w8618_pic_init);
+    sysbus_register_withprop(&mv88w8618_pic_info);
     sysbus_register_withprop(&mv88w8618_pit_info);
-    sysbus_register_dev("mv88w8618_flashcfg", sizeof(mv88w8618_flashcfg_state),
-                        mv88w8618_flashcfg_init);
-    sysbus_register_dev("mv88w8618_eth", sizeof(mv88w8618_eth_state),
-                        mv88w8618_eth_init);
+    sysbus_register_withprop(&mv88w8618_flashcfg_info);
+    sysbus_register_withprop(&mv88w8618_eth_info);
     sysbus_register_dev("mv88w8618_wlan", sizeof(SysBusDevice),
                         mv88w8618_wlan_init);
-    sysbus_register_dev("musicpal_lcd", sizeof(musicpal_lcd_state),
-                        musicpal_lcd_init);
+    sysbus_register_withprop(&musicpal_lcd_info);
     sysbus_register_withprop(&musicpal_gpio_info);
-    sysbus_register_dev("musicpal_key", sizeof(musicpal_key_state),
-                        musicpal_key_init);
+    sysbus_register_withprop(&musicpal_key_info);
 }
 
 device_init(musicpal_register_devices)

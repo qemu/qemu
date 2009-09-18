@@ -41,11 +41,11 @@ typedef struct mv88w8618_audio_state {
     uint32_t playback_mode;
     uint32_t status;
     uint32_t irq_enable;
-    unsigned long phys_buf;
+    uint32_t phys_buf;
     uint32_t target_buffer;
-    unsigned int threshold;
-    unsigned int play_pos;
-    unsigned int last_free;
+    uint32_t threshold;
+    uint32_t play_pos;
+    uint32_t last_free;
     uint32_t clock_div;
     DeviceState *wm;
 } mv88w8618_audio_state;
@@ -215,9 +215,10 @@ static void mv88w8618_audio_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void mv88w8618_audio_reset(void *opaque)
+static void mv88w8618_audio_reset(DeviceState *d)
 {
-    mv88w8618_audio_state *s = opaque;
+    mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state,
+                                           sysbus_from_qdev(d));
 
     s->playback_mode = 0;
     s->status = 0;
@@ -255,11 +256,31 @@ static int mv88w8618_audio_init(SysBusDevice *dev)
     return 0;
 }
 
+static const VMStateDescription mv88w8618_audio_vmsd = {
+    .name = "mv88w8618_audio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(playback_mode, mv88w8618_audio_state),
+        VMSTATE_UINT32(status, mv88w8618_audio_state),
+        VMSTATE_UINT32(irq_enable, mv88w8618_audio_state),
+        VMSTATE_UINT32(phys_buf, mv88w8618_audio_state),
+        VMSTATE_UINT32(target_buffer, mv88w8618_audio_state),
+        VMSTATE_UINT32(threshold, mv88w8618_audio_state),
+        VMSTATE_UINT32(play_pos, mv88w8618_audio_state),
+        VMSTATE_UINT32(last_free, mv88w8618_audio_state),
+        VMSTATE_UINT32(clock_div, mv88w8618_audio_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static SysBusDeviceInfo mv88w8618_audio_info = {
     .init = mv88w8618_audio_init,
     .qdev.name  = "mv88w8618_audio",
     .qdev.size  = sizeof(mv88w8618_audio_state),
     .qdev.reset = mv88w8618_audio_reset,
+    .qdev.vmsd  = &mv88w8618_audio_vmsd,
     .qdev.props = (Property[]) {
         {
             .name   = "wm8750",
