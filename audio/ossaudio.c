@@ -42,9 +42,11 @@ typedef struct OSSVoiceOut {
     HWVoiceOut hw;
     void *pcm_buf;
     int fd;
+    int wpos;
     int nfrags;
     int fragsize;
     int mmapped;
+    int pending;
 } OSSVoiceOut;
 
 typedef struct OSSVoiceIn {
@@ -347,13 +349,50 @@ static int oss_open (int in, struct oss_params *req,
     return -1;
 }
 
+static void oss_write_pending (OSSVoiceOut *oss)
+{
+    HWVoiceOut *hw = &oss->hw;
+
+    if (oss->mmapped) {
+        return;
+    }
+
+    while (oss->pending) {
+        int samples_written;
+        ssize_t bytes_written;
+        int samples_till_end = hw->samples - oss->wpos;
+        int samples_to_write = audio_MIN (oss->pending, samples_till_end);
+        int bytes_to_write = samples_to_write << hw->info.shift;
+        void *pcm = advance (oss->pcm_buf, oss->wpos << hw->info.shift);
+
+        bytes_written = write (oss->fd, pcm, bytes_to_write);
+        if (bytes_written < 0) {
+            if (errno != EAGAIN) {
+                oss_logerr (errno, "failed to write %d bytes\n",
+                            bytes_to_write);
+            }
+            break;
+        }
+
+        if (bytes_written & hw->info.align) {
+            dolog ("misaligned write asked for %d, but got %zd\n",
+                   bytes_to_write, bytes_written);
+            return;
+        }
+
+        samples_written = bytes_written >> hw->info.shift;
+        oss->pending -= samples_written;
+        oss->wpos = (oss->wpos + samples_written) % hw->samples;
+        if (bytes_written - bytes_to_write) {
+            break;
+        }
+    }
+}
+
 static int oss_run_out (HWVoiceOut *hw)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
-    int err, rpos, live, decr;
-    int samples;
-    uint8_t *dst;
-    struct st_sample *src;
+    int err, live, decr;
     struct audio_buf_info abinfo;
     struct count_info cntinfo;
     int bufsize;
@@ -408,50 +447,10 @@ static int oss_run_out (HWVoiceOut *hw)
         }
     }
 
-    samples = decr;
-    rpos = hw->rpos;
-    while (samples) {
-        int left_till_end_samples = hw->samples - rpos;
-        int convert_samples = audio_MIN (samples, left_till_end_samples);
+    decr = audio_pcm_hw_clip_out (hw, oss->pcm_buf, decr, oss->pending);
+    oss->pending += decr;
+    oss_write_pending (oss);
 
-        src = hw->mix_buf + rpos;
-        dst = advance (oss->pcm_buf, rpos << hw->info.shift);
-
-        hw->clip (dst, src, convert_samples);
-        if (!oss->mmapped) {
-            int written;
-
-            written = write (oss->fd, dst, convert_samples << hw->info.shift);
-            /* XXX: follow errno recommendations ? */
-            if (written == -1) {
-                oss_logerr (
-                    errno,
-                    "Failed to write %d bytes of audio data from %p\n",
-                    convert_samples << hw->info.shift,
-                    dst
-                    );
-                continue;
-            }
-
-            if (written != convert_samples << hw->info.shift) {
-                int wsamples = written >> hw->info.shift;
-                int wbytes = wsamples << hw->info.shift;
-                if (wbytes != written) {
-                    dolog ("warning: Misaligned write %d (requested %d), "
-                           "alignment %d\n",
-                           wbytes, written, hw->info.align + 1);
-                }
-                decr -= wsamples;
-                rpos = (rpos + wsamples) % hw->samples;
-                break;
-            }
-        }
-
-        rpos = (rpos + convert_samples) % hw->samples;
-        samples -= convert_samples;
-    }
-
-    hw->rpos = rpos;
     return decr;
 }
 
