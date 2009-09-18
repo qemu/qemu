@@ -221,6 +221,9 @@ int  audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int len);
 int  audio_pcm_hw_get_live_out (HWVoiceOut *hw);
 int  audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live);
 
+int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
+                           int live, int pending);
+
 int audio_bug (const char *funcname, int cond);
 void *audio_calloc (const char *funcname, int nmemb, size_t size);
 

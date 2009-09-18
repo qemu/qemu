@@ -851,6 +851,28 @@ int audio_pcm_hw_get_live_in (HWVoiceIn *hw)
     return live;
 }
 
+int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
+                           int live, int pending)
+{
+    int left = hw->samples - pending;
+    int len = audio_MIN (left, live);
+    int clipped = 0;
+
+    while (len) {
+        struct st_sample *src = hw->mix_buf + hw->rpos;
+        uint8_t *dst = advance (pcm_buf, hw->rpos << hw->info.shift);
+        int samples_till_end_of_buf = hw->samples - hw->rpos;
+        int samples_to_clip = audio_MIN (len, samples_till_end_of_buf);
+
+        hw->clip (dst, src, samples_to_clip);
+
+        hw->rpos = (hw->rpos + samples_to_clip) % hw->samples;
+        len -= samples_to_clip;
+        clipped += samples_to_clip;
+    }
+    return clipped;
+}
+
 /*
  * Soft voice (capture)
  */
