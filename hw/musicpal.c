@@ -935,16 +935,19 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
 #define MP_GPIO_OE_LO           0x008
 #define MP_GPIO_OUT_LO          0x00c
 #define MP_GPIO_IN_LO           0x010
+#define MP_GPIO_IER_LO          0x014
+#define MP_GPIO_IMR_LO          0x018
 #define MP_GPIO_ISR_LO          0x020
 #define MP_GPIO_OE_HI           0x508
 #define MP_GPIO_OUT_HI          0x50c
 #define MP_GPIO_IN_HI           0x510
+#define MP_GPIO_IER_HI          0x514
+#define MP_GPIO_IMR_HI          0x518
 #define MP_GPIO_ISR_HI          0x520
 
 /* GPIO bits & masks */
 #define MP_GPIO_LCD_BRIGHTNESS  0x00070000
 #define MP_GPIO_I2C_DATA_BIT    29
-#define MP_GPIO_I2C_DATA        (1 << MP_GPIO_I2C_DATA_BIT)
 #define MP_GPIO_I2C_CLOCK_BIT   30
 
 /* LCD brightness bits in GPIO_OE_HI */
@@ -955,12 +958,11 @@ typedef struct musicpal_gpio_state {
     uint32_t lcd_brightness;
     uint32_t out_state;
     uint32_t in_state;
+    uint32_t ier;
+    uint32_t imr;
     uint32_t isr;
-    uint32_t i2c_read_data;
-    uint32_t key_released;
-    uint32_t keys_event;    /* store the received key event */
     qemu_irq irq;
-    qemu_irq out[5];
+    qemu_irq out[5]; /* 3 brightness out + 2 lcd (data and clock ) */
 } musicpal_gpio_state;
 
 static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
@@ -1007,48 +1009,21 @@ static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
         qemu_set_irq(s->out[i], (brightness >> i) & 1);
 }
 
-static void musicpal_gpio_keys_update(musicpal_gpio_state *s)
-{
-        int gpio_mask = 0;
-
-        /* transform the key state for GPIO usage */
-        gpio_mask |= (s->keys_event & 15) << 8;
-        gpio_mask |= ((s->keys_event >> 4) & 15) << 19;
-
-        /* update GPIO state */
-        if (s->key_released) {
-            s->in_state |= gpio_mask;
-        } else {
-            s->in_state &= ~gpio_mask;
-            s->isr = gpio_mask;
-            qemu_irq_raise(s->irq);
-        }
-}
-
-static void musicpal_gpio_irq(void *opaque, int irq, int level)
+static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
 {
     musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
+    uint32_t mask = 1 << pin;
+    uint32_t delta = level << pin;
+    uint32_t old = s->in_state & mask;
 
-    if (irq == 10) {
-        s->i2c_read_data = level;
+    s->in_state &= ~mask;
+    s->in_state |= delta;
+
+    if ((old ^ delta) &&
+        ((level && (s->imr & mask)) || (!level && (s->ier & mask)))) {
+        s->isr = mask;
+        qemu_irq_raise(s->irq);
     }
-
-    /* receives keys bits */
-    if (irq <= 7) {
-        s->keys_event &= ~(1 << irq);
-        s->keys_event |= level << irq;
-        return;
-    }
-
-    /* receives key press/release */
-    if (irq == 8) {
-        s->key_released = level;
-        return;
-    }
-
-    /* a key has been transmited */
-    if (irq == 9 && level == 1)
-        musicpal_gpio_keys_update(s);
 }
 
 static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
@@ -1067,10 +1042,17 @@ static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
     case MP_GPIO_IN_LO:
         return s->in_state & 0xFFFF;
     case MP_GPIO_IN_HI:
-        /* Update received I2C data */
-        s->in_state = (s->in_state & ~MP_GPIO_I2C_DATA) |
-                        (s->i2c_read_data << MP_GPIO_I2C_DATA_BIT);
         return s->in_state >> 16;
+
+    case MP_GPIO_IER_LO:
+        return s->ier & 0xFFFF;
+    case MP_GPIO_IER_HI:
+        return s->ier >> 16;
+
+    case MP_GPIO_IMR_LO:
+        return s->imr & 0xFFFF;
+    case MP_GPIO_IMR_HI:
+        return s->imr >> 16;
 
     case MP_GPIO_ISR_LO:
         return s->isr & 0xFFFF;
@@ -1105,6 +1087,19 @@ static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
         qemu_set_irq(s->out[4], (s->out_state >> MP_GPIO_I2C_CLOCK_BIT) & 1);
         break;
 
+    case MP_GPIO_IER_LO:
+        s->ier = (s->ier & 0xFFFF0000) | (value & 0xFFFF);
+        break;
+    case MP_GPIO_IER_HI:
+        s->ier = (s->ier & 0xFFFF) | (value << 16);
+        break;
+
+    case MP_GPIO_IMR_LO:
+        s->imr = (s->imr & 0xFFFF0000) | (value & 0xFFFF);
+        break;
+    case MP_GPIO_IMR_HI:
+        s->imr = (s->imr & 0xFFFF) | (value << 16);
+        break;
     }
 }
 
@@ -1123,9 +1118,8 @@ static CPUWriteMemoryFunc * const musicpal_gpio_writefn[] = {
 static void musicpal_gpio_reset(musicpal_gpio_state *s)
 {
     s->in_state = 0xffffffff;
-    s->i2c_read_data = 1;
-    s->key_released = 0;
-    s->keys_event = 0;
+    s->ier = 0;
+    s->imr = 0;
     s->isr = 0;
 }
 
@@ -1142,10 +1136,9 @@ static int musicpal_gpio_init(SysBusDevice *dev)
 
     musicpal_gpio_reset(s);
 
-    /* 3 brightness out + 2 lcd (data and clock ) */
-    qdev_init_gpio_out(&dev->qdev, s->out, 5);
-    /* 10 gpio button input + 1 I2C data input */
-    qdev_init_gpio_in(&dev->qdev, musicpal_gpio_irq, 11);
+    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+
+    qdev_init_gpio_in(&dev->qdev, musicpal_gpio_pin_event, 32);
 
     return 0;
 }
@@ -1165,7 +1158,7 @@ static int musicpal_gpio_init(SysBusDevice *dev)
 #define KEYCODE_LEFT            0x4b
 #define KEYCODE_RIGHT           0x4d
 
-#define MP_KEY_WHEEL_VOL       (1)
+#define MP_KEY_WHEEL_VOL       (1 << 0)
 #define MP_KEY_WHEEL_VOL_INV   (1 << 1)
 #define MP_KEY_WHEEL_NAV       (1 << 2)
 #define MP_KEY_WHEEL_NAV_INV   (1 << 3)
@@ -1177,8 +1170,8 @@ static int musicpal_gpio_init(SysBusDevice *dev)
 typedef struct musicpal_key_state {
     SysBusDevice busdev;
     uint32_t kbd_extended;
-    uint32_t keys_state;
-    qemu_irq out[10];
+    uint32_t pressed_keys;
+    qemu_irq out[8];
 } musicpal_key_state;
 
 static void musicpal_key_event(void *opaque, int keycode)
@@ -1229,27 +1222,30 @@ static void musicpal_key_event(void *opaque, int keycode)
             break;
         }
         /* Do not repeat already pressed buttons */
-        if (!(keycode & KEY_RELEASED) && !(s->keys_state & event))
+        if (!(keycode & KEY_RELEASED) && (s->pressed_keys & event)) {
             event = 0;
+        }
     }
 
     if (event) {
-
-        /* transmit key event on GPIOS */
-        for (i = 0; i <= 7; i++)
-            qemu_set_irq(s->out[i], (event >> i) & 1);
-
-        /* handle key press/release */
-        if (keycode & KEY_RELEASED) {
-            s->keys_state |= event;
-            qemu_irq_raise(s->out[8]);
-        } else {
-            s->keys_state &= ~event;
-            qemu_irq_lower(s->out[8]);
+        /* Raise GPIO pin first if repeating a key */
+        if (!(keycode & KEY_RELEASED) && (s->pressed_keys & event)) {
+            for (i = 0; i <= 7; i++) {
+                if (event & (1 << i)) {
+                    qemu_set_irq(s->out[i], 1);
+                }
+            }
         }
-
-        /* signal that a key event occured */
-        qemu_irq_pulse(s->out[9]);
+        for (i = 0; i <= 7; i++) {
+            if (event & (1 << i)) {
+                qemu_set_irq(s->out[i], !!(keycode & KEY_RELEASED));
+            }
+        }
+        if (keycode & KEY_RELEASED) {
+            s->pressed_keys &= ~event;
+        } else {
+            s->pressed_keys |= event;
+        }
     }
 
     s->kbd_extended = 0;
@@ -1262,10 +1258,9 @@ static int musicpal_key_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x0, 0);
 
     s->kbd_extended = 0;
-    s->keys_state = 0;
+    s->pressed_keys = 0;
 
-    /* 8 key event GPIO + 1 key press/release + 1 strobe */
-    qdev_init_gpio_out(&dev->qdev, s->out, 10);
+    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
 
     qemu_add_kbd_event_handler(musicpal_key_event, s);
 
@@ -1375,7 +1370,8 @@ static void musicpal_init(ram_addr_t ram_size,
     key_dev = sysbus_create_simple("musicpal_key", 0, NULL);
 
     /* I2C read data */
-    qdev_connect_gpio_out(i2c_dev, 0, qdev_get_gpio_in(dev, 10));
+    qdev_connect_gpio_out(i2c_dev, 0,
+                          qdev_get_gpio_in(dev, MP_GPIO_I2C_DATA_BIT));
     /* I2C data */
     qdev_connect_gpio_out(dev, 3, qdev_get_gpio_in(i2c_dev, 0));
     /* I2C clock */
@@ -1384,8 +1380,12 @@ static void musicpal_init(ram_addr_t ram_size,
     for (i = 0; i < 3; i++)
         qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(lcd_dev, i));
 
-    for (i = 0; i < 10; i++)
-        qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i));
+    for (i = 0; i < 4; i++) {
+        qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 8));
+    }
+    for (i = 4; i < 8; i++) {
+        qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 15));
+    }
 
 #ifdef HAS_AUDIO
     wm8750_dev = i2c_create_slave(i2c, "wm8750", MP_WM_ADDR);
