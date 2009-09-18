@@ -7351,6 +7351,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 ot = OT_QUAD;
             else
                 ot = OT_LONG;
+            if ((prefixes & PREFIX_LOCK) && (reg == 0) &&
+                (s->cpuid_ext3_features & CPUID_EXT3_CR8LEG)) {
+                reg = 8;
+            }
             switch(reg) {
             case 0:
             case 2:
