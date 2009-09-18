@@ -288,7 +288,7 @@ static int sdl_run_out (HWVoiceOut *hw)
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
     SDLAudioState *s = &glob_sdl;
 
-    if (sdl_lock (s, "sdl_callback")) {
+    if (sdl_lock (s, "sdl_run_out")) {
         return 0;
     }
 
@@ -308,10 +308,10 @@ static int sdl_run_out (HWVoiceOut *hw)
     hw->rpos = sdl->rpos;
 
     if (sdl->live > 0) {
-        sdl_unlock_and_post (s, "sdl_callback");
+        sdl_unlock_and_post (s, "sdl_run_out");
     }
     else {
-        sdl_unlock (s, "sdl_callback");
+        sdl_unlock (s, "sdl_run_out");
     }
     return decr;
 }
