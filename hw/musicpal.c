@@ -238,7 +238,9 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
     uint8_t buf[2048];
     int len;
 
-
+    if (!desc_addr) {
+        return;
+    }
     do {
         eth_tx_desc_get(desc_addr, &desc);
         if (desc.cmdstat & MP_ETH_TX_OWN) {
