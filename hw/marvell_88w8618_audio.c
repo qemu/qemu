@@ -58,22 +58,22 @@ static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
     int8_t *mem_buffer;
     int pos, block_size;
 
-    if (!(s->playback_mode & MP_AUDIO_PLAYBACK_EN))
+    if (!(s->playback_mode & MP_AUDIO_PLAYBACK_EN)) {
         return;
-
-    if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE)
+    }
+    if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE) {
         free_out <<= 1;
-
-    if (!(s->playback_mode & MP_AUDIO_MONO))
+    }
+    if (!(s->playback_mode & MP_AUDIO_MONO)) {
         free_out <<= 1;
-
+    }
     block_size = s->threshold / 2;
-    if (free_out - s->last_free < block_size)
+    if (free_out - s->last_free < block_size) {
         return;
-
-    if (block_size > 4096)
+    }
+    if (block_size > 4096) {
         return;
-
+    }
     cpu_physical_memory_read(s->target_buffer + s->play_pos, (void *)buf,
                              block_size);
     mem_buffer = buf;
@@ -85,9 +85,10 @@ static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
                 *codec_buffer++ = *(int16_t *)mem_buffer;
                 mem_buffer += 2;
             }
-        } else
+        } else {
             memcpy(wm8750_dac_buffer(s->wm, block_size >> 2),
                    (uint32_t *)mem_buffer, block_size);
+        }
     } else {
         if (s->playback_mode & MP_AUDIO_MONO) {
             codec_buffer = wm8750_dac_buffer(s->wm, block_size);
@@ -115,19 +116,20 @@ static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
         s->play_pos = 0;
     }
 
-    if (s->status & s->irq_enable)
+    if (s->status & s->irq_enable) {
         qemu_irq_raise(s->irq);
+    }
 }
 
 static void mv88w8618_audio_clock_update(mv88w8618_audio_state *s)
 {
     int rate;
 
-    if (s->playback_mode & MP_AUDIO_CLOCK_24MHZ)
+    if (s->playback_mode & MP_AUDIO_CLOCK_24MHZ) {
         rate = 24576000 / 64; /* 24.576MHz */
-    else
+    } else {
         rate = 11289600 / 64; /* 11.2896MHz */
-
+    }
     rate /= ((s->clock_div >> 8) & 0xff) + 1;
 
     wm8750_set_bclk_in(s->wm, rate);
@@ -188,8 +190,9 @@ static void mv88w8618_audio_write(void *opaque, target_phys_addr_t offset,
 
     case MP_AUDIO_IRQ_ENABLE:
         s->irq_enable = value;
-        if (s->status & s->irq_enable)
+        if (s->status & s->irq_enable) {
             qemu_irq_raise(s->irq);
+        }
         break;
 
     case MP_AUDIO_TX_START_LO:
