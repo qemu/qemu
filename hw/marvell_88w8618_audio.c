@@ -222,6 +222,9 @@ static void mv88w8618_audio_reset(void *opaque)
     s->playback_mode = 0;
     s->status = 0;
     s->irq_enable = 0;
+    s->clock_div = 0;
+    s->threshold = 0;
+    s->phys_buf = 0;
 }
 
 static CPUReadMemoryFunc * const mv88w8618_audio_readfn[] = {
@@ -249,8 +252,6 @@ static int mv88w8618_audio_init(SysBusDevice *dev)
                                        mv88w8618_audio_writefn, s);
     sysbus_init_mmio(dev, MP_AUDIO_SIZE, iomemtype);
 
-    qemu_register_reset(mv88w8618_audio_reset, s);
-
     return 0;
 }
 
@@ -258,6 +259,7 @@ static SysBusDeviceInfo mv88w8618_audio_info = {
     .init = mv88w8618_audio_init,
     .qdev.name  = "mv88w8618_audio",
     .qdev.size  = sizeof(mv88w8618_audio_state),
+    .qdev.reset = mv88w8618_audio_reset,
     .qdev.props = (Property[]) {
         {
             .name   = "wm8750",
