@@ -124,7 +124,7 @@ int audio_bug (const char *funcname, int cond)
         if (!shown) {
             shown = 1;
             AUD_log (NULL, "Save all your work and restart without audio\n");
-            AUD_log (NULL, "Please send bug report to malc@pulsesoft.com\n");
+            AUD_log (NULL, "Please send bug report to av1474@comtv.ru\n");
             AUD_log (NULL, "I am sorry\n");
         }
         AUD_log (NULL, "Context:\n");

@@ -422,7 +422,7 @@ static int oss_run_out (HWVoiceOut *hw, int live)
         if (abinfo.bytes > bufsize) {
             if (conf.debug) {
                 dolog ("warning: Invalid available size, size=%d bufsize=%d\n"
-                       "please report your OS/audio hw to malc@pulsesoft.com\n",
+                       "please report your OS/audio hw to av1474@comtv.ru\n",
                        abinfo.bytes, bufsize);
             }
             abinfo.bytes = bufsize;
