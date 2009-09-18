@@ -556,7 +556,7 @@ uint64_t glue (AUD_get_elapsed_usec_, TYPE) (SW *sw, QEMUAudioTimeStamp *ts)
         return 0;
     }
 
-    return (delta * sw->hw->info.freq) / 1000000;
+    return muldiv64 (delta, sw->hw->info.freq, 1000000);
 }
 
 #undef TYPE
