@@ -478,7 +478,7 @@ static void lcd_invalidate(void *opaque)
 
 static void musicpal_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
 {
-    musicpal_lcd_state *s = (musicpal_lcd_state *) opaque;
+    musicpal_lcd_state *s = opaque;
     s->brightness &= ~(1 << irq);
     s->brightness |= level << irq;
 }
@@ -1011,7 +1011,7 @@ static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
 
 static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
 {
-    musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
+    musicpal_gpio_state *s = opaque;
     uint32_t mask = 1 << pin;
     uint32_t delta = level << pin;
     uint32_t old = s->in_state & mask;
@@ -1028,7 +1028,7 @@ static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
 
 static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 {
-    musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
+    musicpal_gpio_state *s = opaque;
 
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
@@ -1067,7 +1067,7 @@ static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
-    musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
+    musicpal_gpio_state *s = opaque;
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
         s->lcd_brightness = (s->lcd_brightness & MP_GPIO_LCD_BRIGHTNESS) |
@@ -1176,7 +1176,7 @@ typedef struct musicpal_key_state {
 
 static void musicpal_key_event(void *opaque, int keycode)
 {
-    musicpal_key_state *s = (musicpal_key_state *) opaque;
+    musicpal_key_state *s = opaque;
     uint32_t event = 0;
     int i;
 
