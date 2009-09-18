@@ -1128,8 +1128,12 @@ static CPUWriteMemoryFunc * const musicpal_gpio_writefn[] = {
     musicpal_gpio_write,
 };
 
-static void musicpal_gpio_reset(musicpal_gpio_state *s)
+static void musicpal_gpio_reset(void *opaque)
 {
+    musicpal_gpio_state *s = opaque;
+
+    s->lcd_brightness = 0;
+    s->out_state = 0;
     s->in_state = 0xffffffff;
     s->ier = 0;
     s->imr = 0;
@@ -1147,6 +1151,7 @@ static int musicpal_gpio_init(SysBusDevice *dev)
                                        musicpal_gpio_writefn, s);
     sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
 
+    qemu_register_reset(musicpal_gpio_reset, s);
     musicpal_gpio_reset(s);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
@@ -1155,6 +1160,13 @@ static int musicpal_gpio_init(SysBusDevice *dev)
 
     return 0;
 }
+
+static SysBusDeviceInfo musicpal_gpio_info = {
+    .init = musicpal_gpio_init,
+    .qdev.name  = "musicpal_gpio",
+    .qdev.size  = sizeof(musicpal_gpio_state),
+    .qdev.reset = musicpal_gpio_reset,
+};
 
 /* Keyboard codes & masks */
 #define KEY_RELEASED            0x80
@@ -1446,8 +1458,7 @@ static void musicpal_register_devices(void)
                         mv88w8618_wlan_init);
     sysbus_register_dev("musicpal_lcd", sizeof(musicpal_lcd_state),
                         musicpal_lcd_init);
-    sysbus_register_dev("musicpal_gpio", sizeof(musicpal_gpio_state),
-                        musicpal_gpio_init);
+    sysbus_register_withprop(&musicpal_gpio_info);
     sysbus_register_dev("musicpal_key", sizeof(musicpal_key_state),
                         musicpal_key_init);
 }
