@@ -5424,16 +5424,6 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    if (kvm_enabled()) {
-        int ret;
-
-        ret = kvm_init(smp_cpus);
-        if (ret < 0) {
-            fprintf(stderr, "failed to initialize KVM\n");
-            exit(1);
-        }
-    }
-
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
     if (!data_dir) {
@@ -5522,6 +5512,16 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 #endif
+
+    if (kvm_enabled()) {
+        int ret;
+
+        ret = kvm_init(smp_cpus);
+        if (ret < 0) {
+            fprintf(stderr, "failed to initialize KVM\n");
+            exit(1);
+        }
+    }
 
     if (qemu_init_main_loop()) {
         fprintf(stderr, "qemu_init_main_loop failed\n");
