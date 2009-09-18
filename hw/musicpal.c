@@ -696,7 +696,6 @@ typedef struct mv88w8618_timer_state {
 typedef struct mv88w8618_pit_state {
     SysBusDevice busdev;
     mv88w8618_timer_state timer[4];
-    uint32_t control;
 } mv88w8618_pit_state;
 
 static void mv88w8618_timer_tick(void *opaque)
@@ -744,16 +743,22 @@ static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
     case MP_PIT_TIMER1_LENGTH ... MP_PIT_TIMER4_LENGTH:
         t = &s->timer[offset >> 2];
         t->limit = value;
-        ptimer_set_limit(t->ptimer, t->limit, 1);
+        if (t->limit > 0) {
+            ptimer_set_limit(t->ptimer, t->limit, 1);
+        } else {
+            ptimer_stop(t->ptimer);
+        }
         break;
 
     case MP_PIT_CONTROL:
         for (i = 0; i < 4; i++) {
-            if (value & 0xf) {
-                t = &s->timer[i];
+            t = &s->timer[i];
+            if (value & 0xf && t->limit > 0) {
                 ptimer_set_limit(t->ptimer, t->limit, 0);
                 ptimer_set_freq(t->ptimer, t->freq);
                 ptimer_run(t->ptimer, 0);
+            } else {
+                ptimer_stop(t->ptimer);
             }
             value >>= 4;
         }
@@ -764,6 +769,17 @@ static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
             qemu_system_reset_request();
         }
         break;
+    }
+}
+
+static void mv88w8618_pit_reset(void *opaque)
+{
+    mv88w8618_pit_state *s = opaque;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        ptimer_stop(s->timer[i].ptimer);
+        s->timer[i].limit = 0;
     }
 }
 
@@ -796,6 +812,13 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, MP_PIT_SIZE, iomemtype);
     return 0;
 }
+
+static SysBusDeviceInfo mv88w8618_pit_info = {
+    .init = mv88w8618_pit_init,
+    .qdev.name  = "mv88w8618_pit",
+    .qdev.size  = sizeof(mv88w8618_pit_state),
+    .qdev.reset = mv88w8618_pit_reset,
+};
 
 /* Flash config register offsets */
 #define MP_FLASHCFG_CFGR0    0x04
@@ -1448,8 +1471,7 @@ static void musicpal_register_devices(void)
 {
     sysbus_register_dev("mv88w8618_pic", sizeof(mv88w8618_pic_state),
                         mv88w8618_pic_init);
-    sysbus_register_dev("mv88w8618_pit", sizeof(mv88w8618_pit_state),
-                        mv88w8618_pit_init);
+    sysbus_register_withprop(&mv88w8618_pit_info);
     sysbus_register_dev("mv88w8618_flashcfg", sizeof(mv88w8618_flashcfg_state),
                         mv88w8618_flashcfg_init);
     sysbus_register_dev("mv88w8618_eth", sizeof(mv88w8618_eth_state),
