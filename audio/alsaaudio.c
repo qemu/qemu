@@ -42,6 +42,8 @@ struct pollhlp {
 
 typedef struct ALSAVoiceOut {
     HWVoiceOut hw;
+    int wpos;
+    int pending;
     void *pcm_buf;
     snd_pcm_t *handle;
     struct pollhlp pollhlp;
@@ -592,7 +594,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
             goto err;
         }
 
-        if ((req->override_mask & 1) && (obt - req->period_size))
+        if (((req->override_mask & 1) && (obt - req->period_size)))
             dolog ("Requested period %s %u was rejected, using %lu\n",
                    size_in_usec ? "time" : "size", req->period_size, obt);
     }
@@ -698,13 +700,73 @@ static snd_pcm_sframes_t alsa_get_avail (snd_pcm_t *handle)
     return avail;
 }
 
+static void alsa_write_pending (ALSAVoiceOut *alsa)
+{
+    HWVoiceOut *hw = &alsa->hw;
+
+    while (alsa->pending) {
+        int left_till_end_samples = hw->samples - alsa->wpos;
+        int len = audio_MIN (alsa->pending, left_till_end_samples);
+        char *src = advance (alsa->pcm_buf, alsa->wpos << hw->info.shift);
+
+        while (len) {
+            snd_pcm_sframes_t written;
+
+            written = snd_pcm_writei (alsa->handle, src, len);
+
+            if (written <= 0) {
+                switch (written) {
+                case 0:
+                    if (conf.verbose) {
+                        dolog ("Failed to write %d frames (wrote zero)\n", len);
+                    }
+                    return;
+
+                case -EPIPE:
+                    if (alsa_recover (alsa->handle)) {
+                        alsa_logerr (written, "Failed to write %d frames\n",
+                                     len);
+                        return;
+                    }
+                    if (conf.verbose) {
+                        dolog ("Recovering from playback xrun\n");
+                    }
+                    continue;
+
+                case -ESTRPIPE:
+                    /* stream is suspended and waiting for an
+                       application recovery */
+                    if (alsa_resume (alsa->handle)) {
+                        alsa_logerr (written, "Failed to write %d frames\n",
+                                     len);
+                        return;
+                    }
+                    if (conf.verbose) {
+                        dolog ("Resuming suspended output stream\n");
+                    }
+                    continue;
+
+                case -EAGAIN:
+                    return;
+
+                default:
+                    alsa_logerr (written, "Failed to write %d frames from %p\n",
+                                 len, src);
+                    return;
+                }
+            }
+
+            alsa->wpos = (alsa->wpos + written) % hw->samples;
+            alsa->pending -= written;
+            len -= written;
+        }
+    }
+}
+
 static int alsa_run_out (HWVoiceOut *hw)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-    int rpos, live, decr;
-    int samples;
-    uint8_t *dst;
-    struct st_sample *src;
+    int live, decr;
     snd_pcm_sframes_t avail;
 
     live = audio_pcm_hw_get_live_out (hw);
@@ -719,73 +781,9 @@ static int alsa_run_out (HWVoiceOut *hw)
     }
 
     decr = audio_MIN (live, avail);
-    samples = decr;
-    rpos = hw->rpos;
-    while (samples) {
-        int left_till_end_samples = hw->samples - rpos;
-        int len = audio_MIN (samples, left_till_end_samples);
-        snd_pcm_sframes_t written;
-
-        src = hw->mix_buf + rpos;
-        dst = advance (alsa->pcm_buf, rpos << hw->info.shift);
-
-        hw->clip (dst, src, len);
-
-        while (len) {
-            written = snd_pcm_writei (alsa->handle, dst, len);
-
-            if (written <= 0) {
-                switch (written) {
-                case 0:
-                    if (conf.verbose) {
-                        dolog ("Failed to write %d frames (wrote zero)\n", len);
-                    }
-                    goto exit;
-
-                case -EPIPE:
-                    if (alsa_recover (alsa->handle)) {
-                        alsa_logerr (written, "Failed to write %d frames\n",
-                                     len);
-                        goto exit;
-                    }
-                    if (conf.verbose) {
-                        dolog ("Recovering from playback xrun\n");
-                    }
-                    continue;
-
-                case -ESTRPIPE:
-                    /* stream is suspended and waiting for an
-                       application recovery */
-                    if (alsa_resume (alsa->handle)) {
-                        alsa_logerr (written, "Failed to write %d frames\n",
-                                     len);
-                        goto exit;
-                    }
-                    if (conf.verbose) {
-                        dolog ("Resuming suspended output stream\n");
-                    }
-                    continue;
-
-                case -EAGAIN:
-                    goto exit;
-
-                default:
-                    alsa_logerr (written, "Failed to write %d frames to %p\n",
-                                 len, dst);
-                    goto exit;
-                }
-            }
-
-            rpos = (rpos + written) % hw->samples;
-            samples -= written;
-            len -= written;
-            dst = advance (dst, written << hw->info.shift);
-            src += written;
-        }
-    }
-
- exit:
-    hw->rpos = rpos;
+    decr = audio_pcm_hw_clip_out (hw, alsa->pcm_buf, decr, alsa->pending);
+    alsa->pending += decr;
+    alsa_write_pending (alsa);
     return decr;
 }
 
