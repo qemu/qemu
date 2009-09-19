@@ -1496,25 +1496,25 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     } else if (size < 64 && (s->configuration[7] & 1)) {
         /* Short frame and configuration byte 7/0 (discard short receive) set:
          * Short frame is discarded */
-        logout("%p received short frame (%d byte)\n", s, size);
+        logout("%p received short frame (%zu byte)\n", s, size);
         s->statistics.rx_short_frame_errors++;
         //~ return -1;
     } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & 8)) {
         /* Long frame and configuration byte 18/3 (long receive ok) not set:
          * Long frames are discarded. */
-        logout("%p received long frame (%d byte), ignored\n", s, size);
+        logout("%p received long frame (%zu byte), ignored\n", s, size);
         return -1;
     } else if (memcmp(buf, s->macaddr, 6) == 0) {       // !!!
         /* Frame matches individual address. */
         /* TODO: check configuration byte 15/4 (ignore U/L). */
-        TRACE(RXTX, logout("%p received frame for me, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received frame for me, len=%zu\n", s, size));
     } else if (memcmp(buf, broadcast_macaddr, 6) == 0) {
         /* Broadcast frame. */
-        TRACE(RXTX, logout("%p received broadcast, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received broadcast, len=%zu\n", s, size));
         rfd_status |= 0x0002;
     } else if (buf[0] & 0x01) { // !!!
         /* Multicast frame. */
-        TRACE(RXTX, logout("%p received multicast, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received multicast, len=%zu\n", s, size));
         /* TODO: check multicast all bit. */
         assert(!(s->configuration[21] & BIT(3)));
         int mcast_idx = compute_mcast_idx(buf);
@@ -1524,10 +1524,10 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
         rfd_status |= 0x0002;
     } else if (s->configuration[15] & 1) {
         /* Promiscuous: receive all. */
-        TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%d\n", s, size));
+        TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%zu\n", s, size));
         rfd_status |= 0x0004;
     } else {
-        TRACE(RXTX, logout("%p received frame, ignored, len=%d,%s\n", s, size,
+        TRACE(RXTX, logout("%p received frame, ignored, len=%zu,%s\n", s, size,
               nic_dump(buf, size)));
         return size;
     }
