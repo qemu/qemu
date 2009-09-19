@@ -291,7 +291,7 @@ typedef enum {
 } eeprom_id_t;
 
 /* Parameters for nic_save, nic_load. */
-static int eepro100_instance = 0;
+static int eepro100_instance = -1;
 static const int eepro100_version = 20090807;
 
 /* Default values for MDI (PHY) registers */
