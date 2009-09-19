@@ -516,10 +516,6 @@ static void nic_reset(void *opaque)
 {
     EEPRO100State *s = opaque;
     TRACE(OTHER, logout("%p\n", s));
-    static int first;
-    if (!first) {
-        first = 1;
-    }
     nic_selective_reset(s);
 }
 
