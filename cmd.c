@@ -288,9 +288,9 @@ static char *qemu_strsep(char **input, const char *delim)
 {
     char *result = *input;
     if (result != NULL) {
-    char *p = result;
-    for (p = result; *p != '\0'; p++) {
-        if (strchr(delim, *p)) {
+        char *p = result;
+        for (p = result; *p != '\0'; p++) {
+            if (strchr(delim, *p)) {
                 break;
             }
         }
