@@ -745,12 +745,8 @@ static void nic_selective_reset(EEPRO100State * s)
 
 static void nic_reset(void *opaque)
 {
-    static int first;
     EEPRO100State *s = opaque;
     TRACE(OTHER, logout("%p\n", s));
-    if (!first) {
-        first = 1;
-    }
     /* TODO: Clearing of multicast table for selective reset, too? */
     memset(&s->mult[0], 0, sizeof(s->mult));
     nic_selective_reset(s);
