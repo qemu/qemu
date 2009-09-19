@@ -78,10 +78,15 @@
 #define MAX_ETH_FRAME_SIZE 1514
 
 /* This driver supports several different devices which are declared here. */
+#define i82550          0x82550
 #define i82551          0x82551
+#define i82557A         0x82557a
 #define i82557B         0x82557b
 #define i82557C         0x82557c
+#define i82558A         0x82558a
 #define i82558B         0x82558b
+#define i82559A         0x82559a
+#define i82559B         0x82559b
 #define i82559C         0x82559c
 #define i82559ER        0x82559e
 #define i82562          0x82562
@@ -1711,9 +1716,9 @@ static void nic_cleanup(VLANClientState *vc)
     eeprom93xx_free(s->eeprom);
 }
 
-static int pci_nic_uninit(PCIDevice *dev)
+static int pci_nic_uninit(PCIDevice *pci_dev)
 {
-    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, dev);
+    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     cpu_unregister_io_memory(s->mmio_index);
 
@@ -1768,34 +1773,115 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
     return 0;
 }
 
-static int pci_i82551_init(PCIDevice *dev)
+static int pci_i82550_init(PCIDevice *pci_dev)
 {
-    return nic_init(dev, i82551);
+    return nic_init(pci_dev, i82550);
 }
 
-static int pci_i82557b_init(PCIDevice *dev)
+static int pci_i82551_init(PCIDevice *pci_dev)
 {
-    return nic_init(dev, i82557B);
+    return nic_init(pci_dev, i82551);
 }
 
-static int pci_i82559er_init(PCIDevice *dev)
+static int pci_i82557a_init(PCIDevice *pci_dev)
 {
-    return nic_init(dev, i82559ER);
+    return nic_init(pci_dev, i82557A);
+}
+
+static int pci_i82557b_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82557B);
+}
+
+static int pci_i82557c_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82557C);
+}
+
+static int pci_i82558a_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82558A);
+}
+
+static int pci_i82558b_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82558B);
+}
+
+static int pci_i82559a_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82559A);
+}
+
+static int pci_i82559b_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82559B);
+}
+
+static int pci_i82559c_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82559C);
+}
+
+static int pci_i82559er_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82559ER);
+}
+
+static int pci_i82562_init(PCIDevice *pci_dev)
+{
+    return nic_init(pci_dev, i82562);
 }
 
 static PCIDeviceInfo eepro100_info[] = {
     {
+        .qdev.name = "i82550",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82550_init,
+    },{
         .qdev.name = "i82551",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
+    },{
+        .qdev.name = "i82557a",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82557a_init,
     },{
         .qdev.name = "i82557b",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
     },{
+        .qdev.name = "i82557c",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82557c_init,
+    },{
+        .qdev.name = "i82558a",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82558a_init,
+    },{
+        .qdev.name = "i82558b",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82558b_init,
+    },{
+        .qdev.name = "i82559a",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82559a_init,
+    },{
+        .qdev.name = "i82559b",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82559b_init,
+    },{
+        .qdev.name = "i82559c",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82559c_init,
+    },{
         .qdev.name = "i82559er",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
+    },{
+        .qdev.name = "i82562",
+        .qdev.size = sizeof(EEPRO100State),
+        .init      = pci_i82562_init,
     },{
         /* end of list */
     }
