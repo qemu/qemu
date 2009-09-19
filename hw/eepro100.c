@@ -892,26 +892,34 @@ static void tx_command(EEPRO100State *s)
         logout
             ("illegal values of TBD array address and TCB byte count!\n");
     }
-    for (size = 0; size < tcb_bytes; ) {
-        uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
-        uint16_t tx_buffer_size = lduw_le_phys(tbd_address + 4);
-        //~ uint16_t tx_buffer_el = lduw_le_phys(tbd_address + 6);
-        tbd_address += 8;
-        TRACE(RXTX, logout
-            ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
-             tx_buffer_address, tx_buffer_size));
-        if (size + tx_buffer_size > sizeof(buf)) {
-            logout("bad simple TCB with size 0x%04x\n", tx_buffer_size);
-        } else {
-            cpu_physical_memory_read(tx_buffer_address, &buf[size],
-                                     tx_buffer_size);
+    if (s->tx.command & COMMAND_SF) {
+        /* No simplified mode. TODO: check code in this block. */
+        for (size = 0; size < tcb_bytes; ) {
+            uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
+            uint16_t tx_buffer_size = lduw_le_phys(tbd_address + 4);
+            //~ uint16_t tx_buffer_el = lduw_le_phys(tbd_address + 6);
+            tbd_address += 8;
+            TRACE(RXTX, logout
+                ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
+                 tx_buffer_address, tx_buffer_size));
+            if (size + tx_buffer_size > sizeof(buf)) {
+                logout("bad simple TCB with size 0x%04x\n", tx_buffer_size);
+            } else {
+                cpu_physical_memory_read(tx_buffer_address, &buf[size],
+                                         tx_buffer_size);
+            }
+            size += tx_buffer_size;
         }
-        size += tx_buffer_size;
     }
     if (!(s->tx.command & COMMAND_SF)) {
-        /* Simplified mode. Was already handled by code above. */
-        if (tbd_array != 0xffffffff) {
+        /* Simplified mode. */
+        if (tcb_bytes > sizeof(buf)) {
+            logout("bad TCB byte count 0x%04x (simplified mode)\n", tcb_bytes);
+        } else if (tbd_array != 0xffffffff) {
+            logout("bad TCB array address 0x%04x (simplified mode)\n", tbd_array);
             UNEXPECTED();
+        } else {
+            cpu_physical_memory_read(tbd_address, &buf[0], tcb_bytes);
         }
     } else if (!s->has_extended_tcb_support) {
         /* Device does not support extend TCB. */
