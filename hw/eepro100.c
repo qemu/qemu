@@ -125,7 +125,7 @@
 #define  RU_NOP         0x0000
 #define  RX_START       0x0001
 #define  RX_RESUME      0x0002
-#define  RX_ABORT       0x0004
+#define  RU_ABORT       0x0004
 #define  RX_ADDR_LOAD   0x0006
 #define  RX_RESUMENR    0x0007
 #define INT_MASK        0x0100
@@ -460,13 +460,11 @@ static void eepro100_fr_interrupt(EEPRO100State * s)
     eepro100_interrupt(s, 0x40);
 }
 
-#if 0
 static void eepro100_rnr_interrupt(EEPRO100State * s)
 {
     /* RU is not ready. */
     eepro100_interrupt(s, 0x10);
 }
-#endif
 
 static void eepro100_mdi_interrupt(EEPRO100State * s)
 {
@@ -1149,7 +1147,9 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         }
         set_ru_state(s, ru_ready);
         break;
-    case RX_ABORT:
+    case RU_ABORT:
+        /* Abort. */
+        eepro100_rnr_interrupt(s);
         set_ru_state(s, ru_idle);
         break;
     case RX_ADDR_LOAD:
@@ -1159,7 +1159,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         break;
     default:
         logout("val=0x%02x (undefined RU command)\n", val);
-        missing("Undefined SU command");
+        missing("Undefined RU command");
     }
 }
 
