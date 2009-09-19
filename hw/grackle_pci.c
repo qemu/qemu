@@ -141,7 +141,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(GrackleState, s);
-    d->host_state.bus = pci_register_bus(NULL, "pci",
+    d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_grackle_set_irq,
                                          pci_grackle_map_irq,
                                          pic, 0, 4);
