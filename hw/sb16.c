@@ -758,8 +758,8 @@ static void complete (SB16State *s)
                 freq = s->freq > 0 ? s->freq : 11025;
                 samples = dsp_get_lohi (s) + 1;
                 bytes = samples << s->fmt_stereo << (s->fmt_bits == 16);
-                ticks = (bytes * get_ticks_per_sec()) / freq;
-                if (ticks < get_ticks_per_sec() / 1024) {
+                ticks = muldiv64 (bytes, get_ticks_per_sec (), freq);
+                if (ticks < get_ticks_per_sec () / 1024) {
                     qemu_irq_raise (s->pic);
                 }
                 else {

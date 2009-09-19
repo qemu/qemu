@@ -42,6 +42,8 @@ struct pollhlp {
 
 typedef struct ALSAVoiceOut {
     HWVoiceOut hw;
+    int wpos;
+    int pending;
     void *pcm_buf;
     snd_pcm_t *handle;
     struct pollhlp pollhlp;
@@ -592,7 +594,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
             goto err;
         }
 
-        if ((req->override_mask & 1) && (obt - req->period_size))
+        if (((req->override_mask & 1) && (obt - req->period_size)))
             dolog ("Requested period %s %u was rejected, using %lu\n",
                    size_in_usec ? "time" : "size", req->period_size, obt);
     }
@@ -698,41 +700,19 @@ static snd_pcm_sframes_t alsa_get_avail (snd_pcm_t *handle)
     return avail;
 }
 
-static int alsa_run_out (HWVoiceOut *hw)
+static void alsa_write_pending (ALSAVoiceOut *alsa)
 {
-    ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-    int rpos, live, decr;
-    int samples;
-    uint8_t *dst;
-    struct st_sample *src;
-    snd_pcm_sframes_t avail;
+    HWVoiceOut *hw = &alsa->hw;
 
-    live = audio_pcm_hw_get_live_out (hw);
-    if (!live) {
-        return 0;
-    }
-
-    avail = alsa_get_avail (alsa->handle);
-    if (avail < 0) {
-        dolog ("Could not get number of available playback frames\n");
-        return 0;
-    }
-
-    decr = audio_MIN (live, avail);
-    samples = decr;
-    rpos = hw->rpos;
-    while (samples) {
-        int left_till_end_samples = hw->samples - rpos;
-        int len = audio_MIN (samples, left_till_end_samples);
-        snd_pcm_sframes_t written;
-
-        src = hw->mix_buf + rpos;
-        dst = advance (alsa->pcm_buf, rpos << hw->info.shift);
-
-        hw->clip (dst, src, len);
+    while (alsa->pending) {
+        int left_till_end_samples = hw->samples - alsa->wpos;
+        int len = audio_MIN (alsa->pending, left_till_end_samples);
+        char *src = advance (alsa->pcm_buf, alsa->wpos << hw->info.shift);
 
         while (len) {
-            written = snd_pcm_writei (alsa->handle, dst, len);
+            snd_pcm_sframes_t written;
+
+            written = snd_pcm_writei (alsa->handle, src, len);
 
             if (written <= 0) {
                 switch (written) {
@@ -740,13 +720,13 @@ static int alsa_run_out (HWVoiceOut *hw)
                     if (conf.verbose) {
                         dolog ("Failed to write %d frames (wrote zero)\n", len);
                     }
-                    goto exit;
+                    return;
 
                 case -EPIPE:
                     if (alsa_recover (alsa->handle)) {
                         alsa_logerr (written, "Failed to write %d frames\n",
                                      len);
-                        goto exit;
+                        return;
                     }
                     if (conf.verbose) {
                         dolog ("Recovering from playback xrun\n");
@@ -759,7 +739,7 @@ static int alsa_run_out (HWVoiceOut *hw)
                     if (alsa_resume (alsa->handle)) {
                         alsa_logerr (written, "Failed to write %d frames\n",
                                      len);
-                        goto exit;
+                        return;
                     }
                     if (conf.verbose) {
                         dolog ("Resuming suspended output stream\n");
@@ -767,25 +747,38 @@ static int alsa_run_out (HWVoiceOut *hw)
                     continue;
 
                 case -EAGAIN:
-                    goto exit;
+                    return;
 
                 default:
-                    alsa_logerr (written, "Failed to write %d frames to %p\n",
-                                 len, dst);
-                    goto exit;
+                    alsa_logerr (written, "Failed to write %d frames from %p\n",
+                                 len, src);
+                    return;
                 }
             }
 
-            rpos = (rpos + written) % hw->samples;
-            samples -= written;
+            alsa->wpos = (alsa->wpos + written) % hw->samples;
+            alsa->pending -= written;
             len -= written;
-            dst = advance (dst, written << hw->info.shift);
-            src += written;
         }
     }
+}
 
- exit:
-    hw->rpos = rpos;
+static int alsa_run_out (HWVoiceOut *hw, int live)
+{
+    ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
+    int decr;
+    snd_pcm_sframes_t avail;
+
+    avail = alsa_get_avail (alsa->handle);
+    if (avail < 0) {
+        dolog ("Could not get number of available playback frames\n");
+        return 0;
+    }
+
+    decr = audio_MIN (live, avail);
+    decr = audio_pcm_hw_clip_out (hw, alsa->pcm_buf, decr, alsa->pending);
+    alsa->pending += decr;
+    alsa_write_pending (alsa);
     return decr;
 }
 

@@ -190,16 +190,14 @@ static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
     return 0;
 }
 
-static int coreaudio_run_out (HWVoiceOut *hw)
+static int coreaudio_run_out (HWVoiceOut *hw, int live)
 {
-    int live, decr;
+    int decr;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
     if (coreaudio_lock (core, "coreaudio_run_out")) {
         return 0;
     }
-
-    live = audio_pcm_hw_get_live_out (hw);
 
     if (core->decr > live) {
         ldebug ("core->decr %d live %d core->live %d\n",

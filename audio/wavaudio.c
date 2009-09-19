@@ -46,26 +46,22 @@ static struct {
     .wav_path           = "qemu.wav"
 };
 
-static int wav_run_out (HWVoiceOut *hw)
+static int wav_run_out (HWVoiceOut *hw, int live)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
-    int rpos, live, decr, samples;
+    int rpos, decr, samples;
     uint8_t *dst;
     struct st_sample *src;
     int64_t now = qemu_get_clock (vm_clock);
     int64_t ticks = now - wav->old_ticks;
-    int64_t bytes = (ticks * hw->info.bytes_per_second) / get_ticks_per_sec();
+    int64_t bytes =
+        muldiv64 (ticks, hw->info.bytes_per_second, get_ticks_per_sec ());
 
     if (bytes > INT_MAX) {
         samples = INT_MAX >> hw->info.shift;
     }
     else {
         samples = bytes >> hw->info.shift;
-    }
-
-    live = audio_pcm_hw_get_live_out (hw);
-    if (!live) {
-        return 0;
     }
 
     wav->old_ticks = now;

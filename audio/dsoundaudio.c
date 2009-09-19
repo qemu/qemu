@@ -658,13 +658,13 @@ static int dsound_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int dsound_run_out (HWVoiceOut *hw)
+static int dsound_run_out (HWVoiceOut *hw, int live)
 {
     int err;
     HRESULT hr;
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
-    int live, len, hwshift;
+    int len, hwshift;
     DWORD blen1, blen2;
     DWORD len1, len2;
     DWORD decr;
@@ -679,8 +679,6 @@ static int dsound_run_out (HWVoiceOut *hw)
 
     hwshift = hw->info.shift;
     bufsize = hw->samples << hwshift;
-
-    live = audio_pcm_hw_get_live_out (hw);
 
     hr = IDirectSoundBuffer_GetCurrentPosition (
         dsb,

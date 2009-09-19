@@ -124,7 +124,7 @@ int audio_bug (const char *funcname, int cond)
         if (!shown) {
             shown = 1;
             AUD_log (NULL, "Save all your work and restart without audio\n");
-            AUD_log (NULL, "Please send bug report to malc@pulsesoft.com\n");
+            AUD_log (NULL, "Please send bug report to av1474@comtv.ru\n");
             AUD_log (NULL, "I am sorry\n");
         }
         AUD_log (NULL, "Context:\n");
@@ -851,6 +851,28 @@ int audio_pcm_hw_get_live_in (HWVoiceIn *hw)
     return live;
 }
 
+int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
+                           int live, int pending)
+{
+    int left = hw->samples - pending;
+    int len = audio_MIN (left, live);
+    int clipped = 0;
+
+    while (len) {
+        struct st_sample *src = hw->mix_buf + hw->rpos;
+        uint8_t *dst = advance (pcm_buf, hw->rpos << hw->info.shift);
+        int samples_till_end_of_buf = hw->samples - hw->rpos;
+        int samples_to_clip = audio_MIN (len, samples_till_end_of_buf);
+
+        hw->clip (dst, src, samples_to_clip);
+
+        hw->rpos = (hw->rpos + samples_to_clip) % hw->samples;
+        len -= samples_to_clip;
+        clipped += samples_to_clip;
+    }
+    return clipped;
+}
+
 /*
  * Soft voice (capture)
  */
@@ -947,16 +969,17 @@ static int audio_pcm_hw_find_min_out (HWVoiceOut *hw, int *nb_livep)
     return m;
 }
 
-int audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live)
+static int audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
 {
     int smin;
+    int nb_live1;
 
-    smin = audio_pcm_hw_find_min_out (hw, nb_live);
-
-    if (!*nb_live) {
-        return 0;
+    smin = audio_pcm_hw_find_min_out (hw, &nb_live1);
+    if (nb_live) {
+        *nb_live = nb_live1;
     }
-    else {
+
+    if (nb_live1) {
         int live = smin;
 
         if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
@@ -965,19 +988,7 @@ int audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live)
         }
         return live;
     }
-}
-
-int audio_pcm_hw_get_live_out (HWVoiceOut *hw)
-{
-    int nb_live;
-    int live;
-
-    live = audio_pcm_hw_get_live_out2 (hw, &nb_live);
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
-        dolog ("live=%d hw->samples=%d\n", live, hw->samples);
-        return 0;
-    }
-    return live;
+    return 0;
 }
 
 /*
@@ -1335,7 +1346,7 @@ static void audio_run_out (AudioState *s)
         int played;
         int live, free, nb_live, cleanup_required, prev_rpos;
 
-        live = audio_pcm_hw_get_live_out2 (hw, &nb_live);
+        live = audio_pcm_hw_get_live_out (hw, &nb_live);
         if (!nb_live) {
             live = 0;
         }
@@ -1373,7 +1384,7 @@ static void audio_run_out (AudioState *s)
         }
 
         prev_rpos = hw->rpos;
-        played = hw->pcm_ops->run_out (hw);
+        played = hw->pcm_ops->run_out (hw, live);
         if (audio_bug (AUDIO_FUNC, hw->rpos >= hw->samples)) {
             dolog ("hw->rpos=%d hw->samples=%d played=%d\n",
                    hw->rpos, hw->samples, played);
@@ -1472,7 +1483,7 @@ static void audio_run_capture (AudioState *s)
         HWVoiceOut *hw = &cap->hw;
         SWVoiceOut *sw;
 
-        captured = live = audio_pcm_hw_get_live_out (hw);
+        captured = live = audio_pcm_hw_get_live_out (hw, NULL);
         rpos = hw->rpos;
         while (live) {
             int left = hw->samples - rpos;
@@ -1878,7 +1889,8 @@ static void audio_init (void)
         }
         conf.period.ticks = 1;
     } else {
-        conf.period.ticks = get_ticks_per_sec() / conf.period.hertz;
+        conf.period.ticks =
+            muldiv64 (1, get_ticks_per_sec (), conf.period.hertz);
     }
 
     e = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);

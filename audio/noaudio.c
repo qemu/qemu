@@ -38,22 +38,17 @@ typedef struct NoVoiceIn {
     int64_t old_ticks;
 } NoVoiceIn;
 
-static int no_run_out (HWVoiceOut *hw)
+static int no_run_out (HWVoiceOut *hw, int live)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
-    int live, decr, samples;
+    int decr, samples;
     int64_t now;
     int64_t ticks;
     int64_t bytes;
 
-    live = audio_pcm_hw_get_live_out (&no->hw);
-    if (!live) {
-        return 0;
-    }
-
     now = qemu_get_clock (vm_clock);
     ticks = now - no->old_ticks;
-    bytes = (ticks * hw->info.bytes_per_second) / get_ticks_per_sec();
+    bytes = muldiv64 (ticks, hw->info.bytes_per_second, get_ticks_per_sec ());
     bytes = audio_MIN (bytes, INT_MAX);
     samples = bytes >> hw->info.shift;
 
@@ -109,7 +104,8 @@ static int no_run_in (HWVoiceIn *hw)
     if (dead) {
         int64_t now = qemu_get_clock (vm_clock);
         int64_t ticks = now - no->old_ticks;
-        int64_t bytes = (ticks * hw->info.bytes_per_second) / get_ticks_per_sec();
+        int64_t bytes =
+            muldiv64 (ticks, hw->info.bytes_per_second, get_ticks_per_sec ());
 
         no->old_ticks = now;
         bytes = audio_MIN (bytes, INT_MAX);
