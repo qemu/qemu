@@ -1148,8 +1148,10 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         set_ru_state(s, ru_ready);
         break;
     case RU_ABORT:
-        /* Abort. */
-        eepro100_rnr_interrupt(s);
+        /* RU abort. */
+        if (get_ru_state(s) == ru_ready) {
+            eepro100_rnr_interrupt(s);
+        }
         set_ru_state(s, ru_idle);
         break;
     case RX_ADDR_LOAD:
@@ -1859,6 +1861,8 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     if (get_ru_state(s) != ru_ready) {
         /* No resources available. */
         logout("no resources, state=%u\n", get_ru_state(s));
+        /* TODO: RNR interrupt only at first failed frame? */
+        eepro100_rnr_interrupt(s);
         s->statistics.rx_resource_errors++;
         //~ assert(!"no resources");
         return -1;
