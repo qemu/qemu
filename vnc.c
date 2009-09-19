@@ -909,8 +909,14 @@ static void vnc_disconnect_start(VncState *vs)
 
 static void vnc_disconnect_finish(VncState *vs)
 {
-    if (vs->input.buffer) qemu_free(vs->input.buffer);
-    if (vs->output.buffer) qemu_free(vs->output.buffer);
+    if (vs->input.buffer) {
+        qemu_free(vs->input.buffer);
+        vs->input.buffer = NULL;
+    }
+    if (vs->output.buffer) {
+        qemu_free(vs->output.buffer);
+        vs->output.buffer = NULL;
+    }
 #ifdef CONFIG_VNC_TLS
     vnc_tls_client_cleanup(vs);
 #endif /* CONFIG_VNC_TLS */
