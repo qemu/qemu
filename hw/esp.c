@@ -610,47 +610,27 @@ static CPUWriteMemoryFunc * const esp_mem_write[3] = {
     esp_mem_writeb,
 };
 
-static void esp_save(QEMUFile *f, void *opaque)
-{
-    ESPState *s = opaque;
-
-    qemu_put_buffer(f, s->rregs, ESP_REGS);
-    qemu_put_buffer(f, s->wregs, ESP_REGS);
-    qemu_put_sbe32s(f, &s->ti_size);
-    qemu_put_be32s(f, &s->ti_rptr);
-    qemu_put_be32s(f, &s->ti_wptr);
-    qemu_put_buffer(f, s->ti_buf, TI_BUFSZ);
-    qemu_put_be32s(f, &s->sense);
-    qemu_put_be32s(f, &s->dma);
-    qemu_put_buffer(f, s->cmdbuf, TI_BUFSZ);
-    qemu_put_be32s(f, &s->cmdlen);
-    qemu_put_be32s(f, &s->do_cmd);
-    qemu_put_be32s(f, &s->dma_left);
-    // There should be no transfers in progress, so dma_counter is not saved
-}
-
-static int esp_load(QEMUFile *f, void *opaque, int version_id)
-{
-    ESPState *s = opaque;
-
-    if (version_id != 3)
-        return -EINVAL; // Cannot emulate 2
-
-    qemu_get_buffer(f, s->rregs, ESP_REGS);
-    qemu_get_buffer(f, s->wregs, ESP_REGS);
-    qemu_get_sbe32s(f, &s->ti_size);
-    qemu_get_be32s(f, &s->ti_rptr);
-    qemu_get_be32s(f, &s->ti_wptr);
-    qemu_get_buffer(f, s->ti_buf, TI_BUFSZ);
-    qemu_get_be32s(f, &s->sense);
-    qemu_get_be32s(f, &s->dma);
-    qemu_get_buffer(f, s->cmdbuf, TI_BUFSZ);
-    qemu_get_be32s(f, &s->cmdlen);
-    qemu_get_be32s(f, &s->do_cmd);
-    qemu_get_be32s(f, &s->dma_left);
-
-    return 0;
-}
+static const VMStateDescription vmstate_esp = {
+    .name ="esp",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_BUFFER(rregs, ESPState),
+        VMSTATE_BUFFER(wregs, ESPState),
+        VMSTATE_INT32(ti_size, ESPState),
+        VMSTATE_UINT32(ti_rptr, ESPState),
+        VMSTATE_UINT32(ti_wptr, ESPState),
+        VMSTATE_BUFFER(ti_buf, ESPState),
+        VMSTATE_UINT32(sense, ESPState),
+        VMSTATE_UINT32(dma, ESPState),
+        VMSTATE_BUFFER(cmdbuf, ESPState),
+        VMSTATE_UINT32(cmdlen, ESPState),
+        VMSTATE_UINT32(do_cmd, ESPState),
+        VMSTATE_UINT32(dma_left, ESPState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void esp_init(target_phys_addr_t espaddr, int it_shift,
               espdma_memory_read_write dma_memory_read,
@@ -687,7 +667,7 @@ static int esp_init1(SysBusDevice *dev)
 
     esp_reset(s);
 
-    register_savevm("esp", -1, 3, esp_save, esp_load, s);
+    vmstate_register(-1, &vmstate_esp, s);
     qemu_register_reset(esp_reset, s);
 
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
