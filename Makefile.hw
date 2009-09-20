@@ -24,6 +24,9 @@ obj-y += wdt_i6300esb.o
 
 obj-y += msix.o
 
+# PCI network cards
+obj-y += ne2000.o
+
 # SCSI layer
 obj-y += lsi53c895a.o esp.o
 

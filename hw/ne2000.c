@@ -23,7 +23,6 @@
  */
 #include "hw.h"
 #include "pci.h"
-#include "pc.h"
 #include "net.h"
 #include "ne2000.h"
 
