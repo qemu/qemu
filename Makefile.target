@@ -32,7 +32,7 @@ all: $(PROGS)
 #########################################################
 # cpu emulator library
 libobj-y = exec.o translate-all.o cpu-exec.o translate.o host-utils.o
-libobj-y += tcg/tcg.o tcg/tcg-runtime.o
+libobj-y += tcg/tcg.o
 libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
 libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
@@ -83,6 +83,7 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o gdbstub-xml.o
 obj-y += envlist.o path.o
+obj-y += tcg/tcg-runtime.o
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
@@ -117,6 +118,7 @@ LIBS+=-lmx
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
         gdbstub.o gdbstub-xml.o
 obj-y += envlist.o path.o
+obj-y += tcg/tcg-runtime.o
 
 obj-i386-y += ioport-user.o
 
@@ -135,6 +137,7 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o uaccess.o
 obj-y += envlist.o path.o
+obj-y += tcg/tcg-runtime.o
 
 obj-i386-y += ioport-user.o
 
