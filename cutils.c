@@ -124,7 +124,7 @@ int qemu_fls(int i)
  */
 int qemu_fdatasync(int fd)
 {
-#ifdef _POSIX_SYNCHRONIZED_IO
+#ifdef CONFIG_FDATASYNC
     return fdatasync(fd);
 #else
     return fsync(fd);
