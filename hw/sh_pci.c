@@ -119,32 +119,32 @@ static int sh_pci_addr2port(SHPCIC *pcic, target_phys_addr_t addr)
 
 static void sh_pci_outb (void *p, target_phys_addr_t addr, uint32_t val)
 {
-    cpu_outb(NULL, sh_pci_addr2port(p, addr), val);
+    cpu_outb(sh_pci_addr2port(p, addr), val);
 }
 
 static void sh_pci_outw (void *p, target_phys_addr_t addr, uint32_t val)
 {
-    cpu_outw(NULL, sh_pci_addr2port(p, addr), val);
+    cpu_outw(sh_pci_addr2port(p, addr), val);
 }
 
 static void sh_pci_outl (void *p, target_phys_addr_t addr, uint32_t val)
 {
-    cpu_outl(NULL, sh_pci_addr2port(p, addr), val);
+    cpu_outl(sh_pci_addr2port(p, addr), val);
 }
 
 static uint32_t sh_pci_inb (void *p, target_phys_addr_t addr)
 {
-    return cpu_inb(NULL, sh_pci_addr2port(p, addr));
+    return cpu_inb(sh_pci_addr2port(p, addr));
 }
 
 static uint32_t sh_pci_inw (void *p, target_phys_addr_t addr)
 {
-    return cpu_inw(NULL, sh_pci_addr2port(p, addr));
+    return cpu_inw(sh_pci_addr2port(p, addr));
 }
 
 static uint32_t sh_pci_inl (void *p, target_phys_addr_t addr)
 {
-    return cpu_inl(NULL, sh_pci_addr2port(p, addr));
+    return cpu_inl(sh_pci_addr2port(p, addr));
 }
 
 typedef struct {

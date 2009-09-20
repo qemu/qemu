@@ -151,26 +151,26 @@ static CPUReadMemoryFunc * const pci_apb_read[] = {
 static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
-    cpu_outb(NULL, addr & IOPORTS_MASK, val);
+    cpu_outb(addr & IOPORTS_MASK, val);
 }
 
 static void pci_apb_iowritew (void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
-    cpu_outw(NULL, addr & IOPORTS_MASK, val);
+    cpu_outw(addr & IOPORTS_MASK, val);
 }
 
 static void pci_apb_iowritel (void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    cpu_outl(NULL, addr & IOPORTS_MASK, val);
+    cpu_outl(addr & IOPORTS_MASK, val);
 }
 
 static uint32_t pci_apb_ioreadb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
-    val = cpu_inb(NULL, addr & IOPORTS_MASK);
+    val = cpu_inb(addr & IOPORTS_MASK);
     return val;
 }
 
@@ -178,7 +178,7 @@ static uint32_t pci_apb_ioreadw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
-    val = cpu_inw(NULL, addr & IOPORTS_MASK);
+    val = cpu_inw(addr & IOPORTS_MASK);
     return val;
 }
 
@@ -186,7 +186,7 @@ static uint32_t pci_apb_ioreadl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
-    val = cpu_inl(NULL, addr & IOPORTS_MASK);
+    val = cpu_inl(addr & IOPORTS_MASK);
     return val;
 }
 

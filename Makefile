@@ -74,7 +74,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 obj-y = $(block-obj-y)
 obj-y += readline.o console.o
 
-obj-y += irq.o ptimer.o
+obj-y += irq.o ptimer.o ioport.o
 obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
 obj-y += ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
 obj-y += tmp105.o lm832x.o eeprom93xx.o tsc2005.o
