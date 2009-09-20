@@ -190,9 +190,6 @@ obj-y += pcnet.o
 obj-y += rtl8139.o
 obj-y += e1000.o
 
-# PCI watchdog devices
-obj-y += wdt_i6300esb.o
-
 # Hardware support
 obj-i386-y = ide/core.o ide/qdev.o ide/isa.o ide/pci.o
 obj-i386-y += pckbd.o $(sound-obj-y) dma.o
