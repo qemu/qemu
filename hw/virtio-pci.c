@@ -411,7 +411,8 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
 
     config[0x3d] = 1;
 
-    if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors, 1, 0)) {
+    if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors, 1, 0,
+                                     TARGET_PAGE_SIZE)) {
         pci_register_bar(&proxy->pci_dev, 1,
                          msix_bar_size(&proxy->pci_dev),
                          PCI_ADDRESS_SPACE_MEM,

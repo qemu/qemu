@@ -22,6 +22,8 @@ obj-y += m48t59.o escc.o
 # PCI watchdog devices
 obj-y += wdt_i6300esb.o
 
+obj-y += msix.o
+
 # SCSI layer
 obj-y += lsi53c895a.o esp.o
 

@@ -38,15 +38,6 @@
 #define MSIX_VECTOR_CTRL 12
 #define MSIX_ENTRY_SIZE 16
 #define MSIX_VECTOR_MASK 0x1
-
-/* How much space does an MSIX table need. */
-/* The spec requires giving the table structure
- * a 4K aligned region all by itself. Align it to
- * target pages so that drivers can do passthrough
- * on the rest of the region. */
-#define MSIX_PAGE_SIZE TARGET_PAGE_ALIGN(0x1000)
-/* Reserve second half of the page for pending bits */
-#define MSIX_PAGE_PENDING (MSIX_PAGE_SIZE / 2)
 #define MSIX_MAX_ENTRIES 32
 
 
@@ -61,6 +52,12 @@
 
 /* Flag for interrupt controller to declare MSI-X support */
 int msix_supported;
+
+/* Reserve second half of the page for pending bits */
+static int msix_page_pending(PCIDevice *d)
+{
+    return (d->msix_page_size / 2);
+}
 
 /* Add MSI-X capability to the config space for the device. */
 /* Given a bar and its size, add MSI-X table on top of it
@@ -80,11 +77,11 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
         return -ENOSPC;
 
     /* Add space for MSI-X structures */
-    if (!bar_size)
-        new_size = MSIX_PAGE_SIZE;
-    else if (bar_size < MSIX_PAGE_SIZE) {
-        bar_size = MSIX_PAGE_SIZE;
-        new_size = MSIX_PAGE_SIZE * 2;
+    if (!bar_size) {
+        new_size = pdev->msix_page_size;
+    } else if (bar_size < pdev->msix_page_size) {
+        bar_size = pdev->msix_page_size;
+        new_size = pdev->msix_page_size * 2;
     } else
         new_size = bar_size * 2;
 
@@ -98,8 +95,8 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     /* Table on top of BAR */
     pci_set_long(config + MSIX_TABLE_OFFSET, bar_size | bar_nr);
     /* Pending bits on top of that */
-    pci_set_long(config + MSIX_PBA_OFFSET, (bar_size + MSIX_PAGE_PENDING) |
-                 bar_nr);
+    pci_set_long(config + MSIX_PBA_OFFSET, (bar_size + msix_page_pending(pdev))
+                 | bar_nr);
     pdev->msix_cap = config_offset;
     /* Make flags bit writeable. */
     pdev->wmask[config_offset + MSIX_ENABLE_OFFSET] |= MSIX_ENABLE_MASK;
@@ -129,7 +126,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
 static uint32_t msix_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     PCIDevice *dev = opaque;
-    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1);
+    unsigned int offset = addr & (dev->msix_page_size - 1);
     void *page = dev->msix_table_page;
     uint32_t val = 0;
 
@@ -151,7 +148,7 @@ static uint8_t msix_pending_mask(int vector)
 
 static uint8_t *msix_pending_byte(PCIDevice *dev, int vector)
 {
-    return dev->msix_table_page + MSIX_PAGE_PENDING + vector / 8;
+    return dev->msix_table_page + msix_page_pending(dev) + vector / 8;
 }
 
 static int msix_is_pending(PCIDevice *dev, int vector)
@@ -179,7 +176,7 @@ static void msix_mmio_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
     PCIDevice *dev = opaque;
-    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1);
+    unsigned int offset = addr & (dev->msix_page_size - 1);
     int vector = offset / MSIX_ENTRY_SIZE;
     memcpy(dev->msix_table_page + offset, &val, 4);
     if (!msix_is_masked(dev, vector) && msix_is_pending(dev, vector)) {
@@ -208,7 +205,7 @@ void msix_mmio_map(PCIDevice *d, int region_num,
 {
     uint8_t *config = d->config + d->msix_cap;
     uint32_t table = pci_get_long(config + MSIX_TABLE_OFFSET);
-    uint32_t offset = table & ~(MSIX_PAGE_SIZE - 1);
+    uint32_t offset = table & ~(d->msix_page_size - 1);
     /* TODO: for assigned devices, we'll want to make it possible to map
      * pending bits separately in case they are in a separate bar. */
     int table_bir = table & PCI_MSIX_FLAGS_BIRMASK;
@@ -224,7 +221,7 @@ void msix_mmio_map(PCIDevice *d, int region_num,
 /* Initialize the MSI-X structures. Note: if MSI-X is supported, BAR size is
  * modified, it should be retrieved with msix_bar_size. */
 int msix_init(struct PCIDevice *dev, unsigned short nentries,
-              unsigned bar_nr, unsigned bar_size)
+              unsigned bar_nr, unsigned bar_size, target_phys_addr_t page_size)
 {
     int ret;
     /* Nothing to do if MSI is not supported by interrupt controller */
@@ -237,7 +234,8 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     dev->msix_entry_used = qemu_mallocz(MSIX_MAX_ENTRIES *
                                         sizeof *dev->msix_entry_used);
 
-    dev->msix_table_page = qemu_mallocz(MSIX_PAGE_SIZE);
+    dev->msix_page_size = page_size;
+    dev->msix_table_page = qemu_mallocz(dev->msix_page_size);
 
     dev->msix_mmio_index = cpu_register_io_memory(msix_mmio_read,
                                                   msix_mmio_write, dev);
@@ -292,7 +290,8 @@ void msix_save(PCIDevice *dev, QEMUFile *f)
     }
 
     qemu_put_buffer(f, dev->msix_table_page, n * MSIX_ENTRY_SIZE);
-    qemu_put_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING, (n + 7) / 8);
+    qemu_put_buffer(f, dev->msix_table_page + msix_page_pending(dev),
+                    (n + 7) / 8);
 }
 
 /* Should be called after restoring the config space. */
@@ -306,7 +305,8 @@ void msix_load(PCIDevice *dev, QEMUFile *f)
 
     msix_free_irq_entries(dev);
     qemu_get_buffer(f, dev->msix_table_page, n * MSIX_ENTRY_SIZE);
-    qemu_get_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING, (n + 7) / 8);
+    qemu_get_buffer(f, dev->msix_table_page + msix_page_pending(dev),
+                    (n + 7) / 8);
 }
 
 /* Does device support MSI-X? */
@@ -356,7 +356,7 @@ void msix_reset(PCIDevice *dev)
         return;
     msix_free_irq_entries(dev);
     dev->config[dev->msix_cap + MSIX_ENABLE_OFFSET] &= MSIX_ENABLE_MASK;
-    memset(dev->msix_table_page, 0, MSIX_PAGE_SIZE);
+    memset(dev->msix_table_page, 0, dev->msix_page_size);
 }
 
 /* PCI spec suggests that devices make it possible for software to configure

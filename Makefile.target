@@ -156,7 +156,7 @@ endif
 ifdef CONFIG_SOFTMMU
 
 obj-y = vl.o monitor.o pci.o isa_mmio.o machine.o \
-        gdbstub.o gdbstub-xml.o msix.o ioport.o
+        gdbstub.o gdbstub-xml.o ioport.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o virtio-pci.o
