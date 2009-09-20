@@ -18,6 +18,8 @@
 #include "qemu-log.h"
 #include "mips-bios.h"
 #include "ide.h"
+#include "loader.h"
+#include "elf.h"
 
 #define PHYS_TO_VIRT(x) ((x) | ~(target_ulong)0x7fffffff)
 
@@ -77,10 +79,16 @@ static void load_kernel (CPUState *env)
     long kernel_size, initrd_size;
     ram_addr_t initrd_offset;
     int ret;
+    int big_endian;
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    big_endian = 1;
+#else
+    big_endian = 0;
+#endif
     kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                            (uint64_t *)&entry, (uint64_t *)&kernel_low,
-                           (uint64_t *)&kernel_high);
+                           (uint64_t *)&kernel_high, big_endian, ELF_MACHINE, 1);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;

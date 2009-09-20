@@ -22,6 +22,8 @@
 #include "kvm.h"
 #include "kvm_ppc.h"
 #include "device_tree.h"
+#include "loader.h"
+#include "elf.h"
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
@@ -93,8 +95,8 @@ static void bamboo_init(ram_addr_t ram_size,
     CPUState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    target_ulong entry = 0;
-    target_ulong loadaddr = 0;
+    target_phys_addr_t entry = 0;
+    target_phys_addr_t loadaddr = 0;
     target_long kernel_size = 0;
     target_ulong initrd_base = 0;
     target_long initrd_size = 0;
@@ -126,7 +128,7 @@ static void bamboo_init(ram_addr_t ram_size,
         kernel_size = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
         if (kernel_size < 0) {
             kernel_size = load_elf(kernel_filename, 0, &elf_entry, &elf_lowaddr,
-                                   NULL);
+                                   NULL, 1, ELF_MACHINE, 0);
             entry = elf_entry;
             loadaddr = elf_lowaddr;
         }

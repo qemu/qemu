@@ -9,6 +9,8 @@
 #include "hw.h"
 #include "sysemu.h"
 #include "boards.h"
+#include "loader.h"
+#include "elf.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 
@@ -22,7 +24,7 @@ static void dummy_m68k_init(ram_addr_t ram_size,
     CPUState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_ulong entry;
+    target_phys_addr_t entry;
 
     if (!cpu_model)
         cpu_model = "cfv4e";
@@ -41,7 +43,8 @@ static void dummy_m68k_init(ram_addr_t ram_size,
 
     /* Load kernel.  */
     if (kernel_filename) {
-        kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL);
+        kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL,
+                               1, ELF_MACHINE, 0);
         entry = elf_entry;
         if (kernel_size < 0) {
             kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL);

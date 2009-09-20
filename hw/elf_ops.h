@@ -73,7 +73,8 @@ static int glue(symfind, SZ)(const void *s0, const void *s1)
     return result;
 }
 
-static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_addr)
+static const char *glue(lookup_symbol, SZ)(struct syminfo *s,
+                                           target_phys_addr_t orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
     struct elf_sym key;
@@ -98,7 +99,8 @@ static int glue(symcmp, SZ)(const void *s0, const void *s1)
         : ((sym0->st_value > sym1->st_value) ? 1 : 0);
 }
 
-static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
+static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
+                                  int clear_lsb)
 {
     struct elf_shdr *symtab, *strtab, *shdr_table = NULL;
     struct elf_sym *syms = NULL;
@@ -141,10 +143,10 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
             }
             continue;
         }
-#if defined(TARGET_ARM) || defined (TARGET_MIPS)
-        /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
-        syms[i].st_value &= ~(target_ulong)1;
-#endif
+        if (clear_lsb) {
+            /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
+            syms[i].st_value &= ~(glue(glue(Elf, SZ), _Addr))1;
+        }
         i++;
     }
     syms = qemu_realloc(syms, nsyms * sizeof(*syms));
@@ -179,7 +181,8 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
 
 static int glue(load_elf, SZ)(int fd, int64_t address_offset,
                               int must_swab, uint64_t *pentry,
-                              uint64_t *lowaddr, uint64_t *highaddr)
+                              uint64_t *lowaddr, uint64_t *highaddr,
+                              int elf_machine, int clear_lsb)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
@@ -194,7 +197,7 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
         glue(bswap_ehdr, SZ)(&ehdr);
     }
 
-    switch (ELF_MACHINE) {
+    switch (elf_machine) {
         case EM_PPC64:
             if (EM_PPC64 != ehdr.e_machine)
                 if (EM_PPC != ehdr.e_machine)
@@ -206,14 +209,14 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
                     goto fail;
             break;
         default:
-            if (ELF_MACHINE != ehdr.e_machine)
+            if (elf_machine != ehdr.e_machine)
                 goto fail;
     }
 
     if (pentry)
    	*pentry = (uint64_t)(elf_sword)ehdr.e_entry;
 
-    glue(load_symbols, SZ)(&ehdr, fd, must_swab);
+    glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb);
 
     size = ehdr.e_phnum * sizeof(phdr[0]);
     lseek(fd, ehdr.e_phoff, SEEK_SET);

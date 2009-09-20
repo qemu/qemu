@@ -3,6 +3,7 @@
 
 #include "qemu-common.h"
 
+#ifdef NEED_CPU_H
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, void *code, unsigned long size);
 void target_disas(FILE *out, target_ulong code, target_ulong size, int flags);
@@ -15,12 +16,13 @@ void monitor_disas(Monitor *mon, CPUState *env,
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
 const char *lookup_symbol(target_ulong orig_addr);
+#endif
 
 struct syminfo;
 struct elf32_sym;
 struct elf64_sym;
 
-typedef const char *(*lookup_symbol_t)(struct syminfo *s, target_ulong orig_addr);
+typedef const char *(*lookup_symbol_t)(struct syminfo *s, target_phys_addr_t orig_addr);
 
 struct syminfo {
     lookup_symbol_t lookup_symbol;

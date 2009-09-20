@@ -42,10 +42,11 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu-common.h"
+#include "hw.h"
 #include "disas.h"
 #include "sysemu.h"
 #include "uboot_image.h"
+#include "loader.h"
 
 #include <zlib.h>
 
@@ -172,7 +173,6 @@ struct exec
   uint32_t a_drsize; /* length of relocation info for data, in bytes */
 };
 
-#ifdef BSWAP_NEEDED
 static void bswap_ahdr(struct exec *e)
 {
     bswap32s(&e->a_info);
@@ -184,9 +184,6 @@ static void bswap_ahdr(struct exec *e)
     bswap32s(&e->a_trsize);
     bswap32s(&e->a_drsize);
 }
-#else
-#define bswap_ahdr(x) do { } while (0)
-#endif
 
 #define N_MAGIC(exec) ((exec).a_info & 0xffff)
 #define OMAGIC 0407
@@ -197,17 +194,18 @@ static void bswap_ahdr(struct exec *e)
 #define N_TXTOFF(x)							\
     (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct exec) :	\
      (N_MAGIC(x) == QMAGIC ? 0 : sizeof (struct exec)))
-#define N_TXTADDR(x) (N_MAGIC(x) == QMAGIC ? TARGET_PAGE_SIZE : 0)
-#define _N_SEGMENT_ROUND(x) (((x) + TARGET_PAGE_SIZE - 1) & ~(TARGET_PAGE_SIZE - 1))
+#define N_TXTADDR(x, target_page_size) (N_MAGIC(x) == QMAGIC ? target_page_size : 0)
+#define _N_SEGMENT_ROUND(x, target_page_size) (((x) + target_page_size - 1) & ~(target_page_size - 1))
 
-#define _N_TXTENDADDR(x) (N_TXTADDR(x)+(x).a_text)
+#define _N_TXTENDADDR(x, target_page_size) (N_TXTADDR(x, target_page_size)+(x).a_text)
 
-#define N_DATADDR(x) \
-    (N_MAGIC(x)==OMAGIC? (_N_TXTENDADDR(x)) \
-     : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x))))
+#define N_DATADDR(x, target_page_size) \
+    (N_MAGIC(x)==OMAGIC? (_N_TXTENDADDR(x, target_page_size)) \
+     : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x, target_page_size), target_page_size)))
 
 
-int load_aout(const char *filename, target_phys_addr_t addr, int max_sz)
+int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
+              int bswap_needed, target_phys_addr_t target_page_size)
 {
     int fd, size, ret;
     struct exec e;
@@ -221,7 +219,9 @@ int load_aout(const char *filename, target_phys_addr_t addr, int max_sz)
     if (size < 0)
         goto fail;
 
-    bswap_ahdr(&e);
+    if (bswap_needed) {
+        bswap_ahdr(&e);
+    }
 
     magic = N_MAGIC(e);
     switch (magic) {
@@ -236,13 +236,14 @@ int load_aout(const char *filename, target_phys_addr_t addr, int max_sz)
 	    goto fail;
 	break;
     case NMAGIC:
-        if (N_DATADDR(e) + e.a_data > max_sz)
+        if (N_DATADDR(e, target_page_size) + e.a_data > max_sz)
             goto fail;
 	lseek(fd, N_TXTOFF(e), SEEK_SET);
 	size = read_targphys(fd, addr, e.a_text);
 	if (size < 0)
 	    goto fail;
-	ret = read_targphys(fd, addr + N_DATADDR(e), e.a_data);
+        ret = read_targphys(fd, addr + N_DATADDR(e, target_page_size),
+                            e.a_data);
 	if (ret < 0)
 	    goto fail;
 	size += ret;
@@ -307,9 +308,10 @@ static void *load_at(int fd, int offset, int size)
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf(const char *filename, int64_t address_offset,
-             uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr)
+             uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr,
+             int big_endian, int elf_machine, int clear_lsb)
 {
-    int fd, data_order, host_data_order, must_swab, ret;
+    int fd, data_order, target_data_order, must_swab, ret;
     uint8_t e_ident[EI_NIDENT];
 
     fd = open(filename, O_RDONLY | O_BINARY);
@@ -330,22 +332,22 @@ int load_elf(const char *filename, int64_t address_offset,
     data_order = ELFDATA2LSB;
 #endif
     must_swab = data_order != e_ident[EI_DATA];
+    if (big_endian) {
+        target_data_order = ELFDATA2MSB;
+    } else {
+        target_data_order = ELFDATA2LSB;
+    }
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    host_data_order = ELFDATA2MSB;
-#else
-    host_data_order = ELFDATA2LSB;
-#endif
-    if (host_data_order != e_ident[EI_DATA])
+    if (target_data_order != e_ident[EI_DATA])
         return -1;
 
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
         ret = load_elf64(fd, address_offset, must_swab, pentry,
-                         lowaddr, highaddr);
+                         lowaddr, highaddr, elf_machine, clear_lsb);
     } else {
         ret = load_elf32(fd, address_offset, must_swab, pentry,
-                         lowaddr, highaddr);
+                         lowaddr, highaddr, elf_machine, clear_lsb);
     }
 
     close(fd);
@@ -455,8 +457,8 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 }
 
 /* Load a U-Boot image.  */
-int load_uimage(const char *filename, target_ulong *ep, target_ulong *loadaddr,
-                int *is_linux)
+int load_uimage(const char *filename, target_phys_addr_t *ep,
+                target_phys_addr_t *loadaddr, int *is_linux)
 {
     int fd;
     int size;

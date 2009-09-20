@@ -33,6 +33,7 @@
 #include "net.h"
 #include "scsi.h"
 #include "mips-bios.h"
+#include "loader.h"
 
 enum jazz_model_e
 {

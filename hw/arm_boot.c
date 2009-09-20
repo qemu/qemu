@@ -10,6 +10,8 @@
 #include "hw.h"
 #include "arm-misc.h"
 #include "sysemu.h"
+#include "loader.h"
+#include "elf.h"
 
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000
@@ -191,7 +193,8 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     int n;
     int is_linux = 0;
     uint64_t elf_entry;
-    target_ulong entry;
+    target_phys_addr_t entry;
+    int big_endian;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -206,8 +209,15 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         qemu_register_reset(main_cpu_reset, env);
     }
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    big_endian = 1;
+#else
+    big_endian = 0;
+#endif
+
     /* Assume that raw images are linux kernels, and ELF images are not.  */
-    kernel_size = load_elf(info->kernel_filename, 0, &elf_entry, NULL, NULL);
+    kernel_size = load_elf(info->kernel_filename, 0, &elf_entry, NULL, NULL,
+                           big_endian, ELF_MACHINE, 1);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,

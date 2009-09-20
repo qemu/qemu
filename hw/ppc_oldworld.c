@@ -36,6 +36,8 @@
 #include "fw_cfg.h"
 #include "escc.h"
 #include "ide.h"
+#include "loader.h"
+#include "elf.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -180,7 +182,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
 
     /* Load OpenBIOS (ELF) */
     if (filename) {
-        bios_size = load_elf(filename, 0, NULL, NULL, NULL);
+        bios_size = load_elf(filename, 0, NULL, NULL, NULL,
+                               1, ELF_MACHINE, 0);
         qemu_free(filename);
     } else {
         bios_size = -1;
@@ -222,18 +225,27 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
 
     if (linux_boot) {
         uint64_t lowaddr = 0;
+        int bswap_needed;
+
+#ifdef BSWAP_NEEDED
+        bswap_needed = 1;
+#else
+        bswap_needed = 0;
+#endif
         kernel_base = KERNEL_LOAD_ADDR;
         /* Now we can load the kernel. The first step tries to load the kernel
            supposing PhysAddr = 0x00000000. If that was wrong the kernel is
            loaded again, the new PhysAddr being computed from lowaddr. */
-        kernel_size = load_elf(kernel_filename, kernel_base, NULL, &lowaddr, NULL);
+        kernel_size = load_elf(kernel_filename, kernel_base, NULL, &lowaddr, NULL,
+                               1, ELF_MACHINE, 0);
         if (kernel_size > 0 && lowaddr != KERNEL_LOAD_ADDR) {
             kernel_size = load_elf(kernel_filename, (2 * kernel_base) - lowaddr,
-                                   NULL, NULL, NULL);
+                                   NULL, NULL, NULL, 1, ELF_MACHINE, 0);
         }
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, kernel_base,
-                                    ram_size - kernel_base);
+                                    ram_size - kernel_base, bswap_needed,
+                                    TARGET_PAGE_SIZE);
         if (kernel_size < 0)
             kernel_size = load_image_targphys(kernel_filename,
                                               kernel_base,

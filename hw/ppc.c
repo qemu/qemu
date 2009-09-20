@@ -27,6 +27,7 @@
 #include "sysemu.h"
 #include "nvram.h"
 #include "qemu-log.h"
+#include "loader.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB

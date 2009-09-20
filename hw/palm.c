@@ -24,6 +24,7 @@
 #include "boards.h"
 #include "arm-misc.h"
 #include "devices.h"
+#include "loader.h"
 
 static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
 {

@@ -11,6 +11,8 @@
 #include "sysemu.h"
 #include "net.h"
 #include "boards.h"
+#include "loader.h"
+#include "elf.h"
 
 #define SYS_FREQ 66000000
 
@@ -201,7 +203,7 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     CPUState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_ulong entry;
+    target_phys_addr_t entry;
     qemu_irq *pic;
 
     if (!cpu_model)
@@ -268,7 +270,8 @@ static void mcf5208evb_init(ram_addr_t ram_size,
         exit(1);
     }
 
-    kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL);
+    kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL,
+                           1, ELF_MACHINE, 0);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL);
