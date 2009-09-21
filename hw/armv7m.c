@@ -10,6 +10,8 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "sysemu.h"
+#include "loader.h"
+#include "elf.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -166,6 +168,7 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
     uint64_t entry;
     uint64_t lowaddr;
     int i;
+    int big_endian;
 
     flash_size *= 1024;
     sram_size *= 1024;
@@ -206,7 +209,14 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
         pic[i] = qdev_get_gpio_in(nvic, i);
     }
 
-    image_size = load_elf(kernel_filename, 0, &entry, &lowaddr, NULL);
+#ifdef TARGET_WORDS_BIGENDIAN
+    big_endian = 1;
+#else
+    big_endian = 0;
+#endif
+
+    image_size = load_elf(kernel_filename, 0, &entry, &lowaddr, NULL,
+                          big_endian, ELF_MACHINE, 1);
     if (image_size < 0) {
         image_size = load_image_targphys(kernel_filename, 0, flash_size);
 	lowaddr = 0;

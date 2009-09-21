@@ -1,5 +1,5 @@
 /*
- *  Save/restore host registrs.
+ *  Save/restore host registers.
  *
  *  Copyright (c) 2007 CodeSourcery
  *

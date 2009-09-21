@@ -256,7 +256,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     qdev_init(dev);
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(UNINState, s);
-    d->host_state.bus = pci_register_bus(NULL, "pci",
+    d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
                                          pic, 11 << 3, 4);
 

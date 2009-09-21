@@ -32,6 +32,8 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "mips-bios.h"
+#include "loader.h"
+#include "elf.h"
 
 #ifdef TARGET_MIPS64
 #define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)
@@ -54,10 +56,17 @@ static void load_kernel (CPUState *env)
     long kernel_size;
     long initrd_size;
     ram_addr_t initrd_offset;
+    int big_endian;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    big_endian = 1;
+#else
+    big_endian = 0;
+#endif
 
     kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                            (uint64_t *)&entry, (uint64_t *)&kernel_low,
-                           (uint64_t *)&kernel_high);
+                           (uint64_t *)&kernel_high, big_endian, ELF_MACHINE, 1);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;

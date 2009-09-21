@@ -21,16 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
+#include <stdint.h>
 
-#include "config.h"
-#include "osdep.h"
-#include "cpu.h" // For TARGET_LONG_BITS
-#include "tcg.h"
+#include "tcg/tcg-runtime.h"
 
 int64_t tcg_helper_shl_i64(int64_t arg1, int64_t arg2)
 {

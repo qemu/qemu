@@ -212,6 +212,12 @@ struct PCIDevice {
     uint32_t msix_bar_size;
     /* Version id needed for VMState */
     int32_t version_id;
+    /* How much space does an MSIX table need. */
+    /* The spec requires giving the table structure
+     * a 4K aligned region all by itself. Align it to
+     * target pages so that drivers can do passthrough
+     * on the rest of the region. */
+    target_phys_addr_t msix_page_size;
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,

@@ -39,6 +39,8 @@
 #include "qemu-log.h"
 #include "mips-bios.h"
 #include "ide.h"
+#include "loader.h"
+#include "elf.h"
 
 #undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)
@@ -711,10 +713,17 @@ static int64_t load_kernel (CPUState *env)
     int index = 0;
     long initrd_size;
     ram_addr_t initrd_offset;
+    int big_endian;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    big_endian = 1;
+#else
+    big_endian = 0;
+#endif
 
     if (load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                  (uint64_t *)&kernel_entry, (uint64_t *)&kernel_low,
-                 (uint64_t *)&kernel_high) < 0) {
+                 (uint64_t *)&kernel_high, big_endian, ELF_MACHINE, 1) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
         exit(1);

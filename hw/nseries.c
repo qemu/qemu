@@ -30,6 +30,7 @@
 #include "flash.h"
 #include "hw.h"
 #include "bt.h"
+#include "loader.h"
 
 /* Nokia N8x0 support */
 struct n800_s {

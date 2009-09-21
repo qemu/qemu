@@ -28,6 +28,8 @@
 #include "boards.h"
 #include "sysemu.h"
 #include "etraxfs.h"
+#include "loader.h"
+#include "elf.h"
 
 #define D(x)
 #define DNAND(x)
@@ -344,7 +346,7 @@ void axisdev88_init (ram_addr_t ram_size,
         /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
            devboard SDK.  */
         kernel_size = load_elf(kernel_filename, -0x80000000LL,
-                               &entry, NULL, &high);
+                               &entry, NULL, &high, 0, ELF_MACHINE, 0);
         bootstrap_pc = entry;
         if (kernel_size < 0) {
             /* Takes a kimage from the axis devboard SDK.  */

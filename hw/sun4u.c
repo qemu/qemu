@@ -34,6 +34,8 @@
 #include "fw_cfg.h"
 #include "sysbus.h"
 #include "ide.h"
+#include "loader.h"
+#include "elf.h"
 
 //#define DEBUG_IRQ
 
@@ -164,10 +166,19 @@ static unsigned long sun4u_load_kernel(const char *kernel_filename,
 
     kernel_size = 0;
     if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, 0, NULL, NULL, NULL);
+        int bswap_needed;
+
+#ifdef BSWAP_NEEDED
+        bswap_needed = 1;
+#else
+        bswap_needed = 0;
+#endif
+        kernel_size = load_elf(kernel_filename, 0, NULL, NULL, NULL,
+                               1, ELF_MACHINE, 0);
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, KERNEL_LOAD_ADDR,
-                                    RAM_size - KERNEL_LOAD_ADDR);
+                                    RAM_size - KERNEL_LOAD_ADDR, bswap_needed,
+                                    TARGET_PAGE_SIZE);
         if (kernel_size < 0)
             kernel_size = load_image_targphys(kernel_filename,
                                               KERNEL_LOAD_ADDR,
@@ -418,7 +429,8 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
-        ret = load_elf(filename, addr - PROM_VADDR, NULL, NULL, NULL);
+        ret = load_elf(filename, addr - PROM_VADDR, NULL, NULL, NULL,
+                       1, ELF_MACHINE, 0);
         if (ret < 0 || ret > PROM_SIZE_MAX) {
             ret = load_image_targphys(filename, addr, PROM_SIZE_MAX);
         }

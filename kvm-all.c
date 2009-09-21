@@ -517,8 +517,8 @@ err:
     return ret;
 }
 
-static int kvm_handle_io(CPUState *env, uint16_t port, void *data,
-                         int direction, int size, uint32_t count)
+static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
+                         uint32_t count)
 {
     int i;
     uint8_t *ptr = data;
@@ -527,25 +527,25 @@ static int kvm_handle_io(CPUState *env, uint16_t port, void *data,
         if (direction == KVM_EXIT_IO_IN) {
             switch (size) {
             case 1:
-                stb_p(ptr, cpu_inb(env, port));
+                stb_p(ptr, cpu_inb(port));
                 break;
             case 2:
-                stw_p(ptr, cpu_inw(env, port));
+                stw_p(ptr, cpu_inw(port));
                 break;
             case 4:
-                stl_p(ptr, cpu_inl(env, port));
+                stl_p(ptr, cpu_inl(port));
                 break;
             }
         } else {
             switch (size) {
             case 1:
-                cpu_outb(env, port, ldub_p(ptr));
+                cpu_outb(port, ldub_p(ptr));
                 break;
             case 2:
-                cpu_outw(env, port, lduw_p(ptr));
+                cpu_outw(port, lduw_p(ptr));
                 break;
             case 4:
-                cpu_outl(env, port, ldl_p(ptr));
+                cpu_outl(port, ldl_p(ptr));
                 break;
             }
         }
@@ -625,7 +625,7 @@ int kvm_cpu_exec(CPUState *env)
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             dprintf("handle_io\n");
-            ret = kvm_handle_io(env, run->io.port,
+            ret = kvm_handle_io(run->io.port,
                                 (uint8_t *)run + run->io.data_offset,
                                 run->io.direction,
                                 run->io.size,

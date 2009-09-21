@@ -74,7 +74,8 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 obj-y = $(block-obj-y)
 obj-y += readline.o console.o
 
-obj-y += irq.o ptimer.o
+obj-y += tcg-runtime.o host-utils.o
+obj-y += irq.o ptimer.o ioport.o
 obj-y += i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
 obj-y += ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
 obj-y += tmp105.o lm832x.o eeprom93xx.o tsc2005.o
@@ -89,7 +90,7 @@ obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 obj-y += qemu-char.o aio.o net-checksum.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o ssi.o
-obj-y += qint.o qstring.o qdict.o
+obj-y += qint.o qstring.o qdict.o qemu-config.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_WIN32) += tap-win32.o

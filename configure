@@ -1656,6 +1656,18 @@ if compile_prog "" "" ; then
     need_offsetof=no
 fi
 
+##########################################
+# check if we have fdatasync
+
+fdatasync=no
+cat > $TMPC << EOF
+#include <unistd.h>
+int main(void) { return fdatasync(0); }
+EOF
+if compile_prog "" "" ; then
+    fdatasync=yes
+fi
+
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -1770,6 +1782,7 @@ echo "KVM support       $kvm"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 echo "uuid support      $uuid"
+echo "fdatasync         $fdatasync"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1964,6 +1977,9 @@ if test "$fdt" = "yes" ; then
 fi
 if test "$need_offsetof" = "yes" ; then
   echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
+fi
+if test "$fdatasync" = "yes" ; then
+  echo "CONFIG_FDATASYNC=y" >> $config_host_mak
 fi
 
 # XXX: suppress that

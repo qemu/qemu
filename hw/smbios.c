@@ -13,6 +13,7 @@
 
 #include "sysemu.h"
 #include "smbios.h"
+#include "loader.h"
 
 /*
  * Structures shared with the BIOS

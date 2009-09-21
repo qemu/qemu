@@ -1200,7 +1200,7 @@ static void do_ioport_read(Monitor *mon, const QDict *qdict)
 
     if (has_index) {
         int index = qdict_get_int(qdict, "index");
-        cpu_outb(NULL, addr & IOPORTS_MASK, index & 0xff);
+        cpu_outb(addr & IOPORTS_MASK, index & 0xff);
         addr++;
     }
     addr &= 0xffff;
@@ -1208,15 +1208,15 @@ static void do_ioport_read(Monitor *mon, const QDict *qdict)
     switch(size) {
     default:
     case 1:
-        val = cpu_inb(NULL, addr);
+        val = cpu_inb(addr);
         suffix = 'b';
         break;
     case 2:
-        val = cpu_inw(NULL, addr);
+        val = cpu_inw(addr);
         suffix = 'w';
         break;
     case 4:
-        val = cpu_inl(NULL, addr);
+        val = cpu_inl(addr);
         suffix = 'l';
         break;
     }
@@ -1235,13 +1235,13 @@ static void do_ioport_write(Monitor *mon, const QDict *qdict)
     switch (size) {
     default:
     case 1:
-        cpu_outb(NULL, addr, val);
+        cpu_outb(addr, val);
         break;
     case 2:
-        cpu_outw(NULL, addr, val);
+        cpu_outw(addr, val);
         break;
     case 4:
-        cpu_outl(NULL, addr, val);
+        cpu_outl(addr, val);
         break;
     }
 }

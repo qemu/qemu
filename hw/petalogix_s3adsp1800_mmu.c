@@ -32,6 +32,8 @@
 #include "boards.h"
 #include "device_tree.h"
 #include "xilinx.h"
+#include "loader.h"
+#include "elf.h"
 
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (16 * 1024 * 1024)
@@ -155,11 +157,13 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, 0,
-                               &entry, &low, &high);
+                               &entry, &low, &high,
+                               1, ELF_MACHINE, 0);
         base32 = entry;
         if (base32 == 0xc0000000) {
             kernel_size = load_elf(kernel_filename, -0x30000000LL,
-                                   &entry, NULL, NULL);
+                                   &entry, NULL, NULL,
+                                   1, ELF_MACHINE, 0);
         }
         /* Always boot into physical ram.  */
         bootstrap_pc = ddr_base + (entry & 0x0fffffff);

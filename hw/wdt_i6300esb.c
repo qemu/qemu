@@ -25,7 +25,6 @@
 #include "qemu-timer.h"
 #include "watchdog.h"
 #include "hw.h"
-#include "pc.h"
 #include "pci.h"
 
 /*#define I6300ESB_DEBUG 1*/

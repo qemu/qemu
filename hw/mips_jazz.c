@@ -33,6 +33,7 @@
 #include "net.h"
 #include "scsi.h"
 #include "mips-bios.h"
+#include "loader.h"
 
 enum jazz_model_e
 {
@@ -48,14 +49,12 @@ static void main_cpu_reset(void *opaque)
 
 static uint32_t rtc_readb(void *opaque, target_phys_addr_t addr)
 {
-    CPUState *env = opaque;
-    return cpu_inw(env, 0x71);
+    return cpu_inw(0x71);
 }
 
 static void rtc_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    CPUState *env = opaque;
-    cpu_outw(env, 0x71, val & 0xff);
+    cpu_outw(0x71, val & 0xff);
 }
 
 static CPUReadMemoryFunc * const rtc_read[3] = {
@@ -242,7 +241,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Real time clock */
     rtc_init(1980);
-    s_rtc = cpu_register_io_memory(rtc_read, rtc_write, env);
+    s_rtc = cpu_register_io_memory(rtc_read, rtc_write, NULL);
     cpu_register_physical_memory(0x80004000, 0x00001000, s_rtc);
 
     /* Keyboard (i8042) */
