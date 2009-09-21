@@ -89,7 +89,7 @@ void helper_store_fpcr (uint64_t val)
     }
 }
 
-spinlock_t intr_cpu_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t intr_cpu_lock = SPIN_LOCK_UNLOCKED;
 
 uint64_t helper_rs(void)
 {
