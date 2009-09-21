@@ -70,6 +70,8 @@
 #include "console.h"            /* console_select */
 #include "disas.h"              /* lookup_symbol */
 #include "exec-all.h"           /* logfile */
+#include "elf.h"                /* EM_MIPS (needed by loader.h) */
+#include "loader.h"             /* load_elf, load_image_targphys */
 
 #include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
@@ -3631,8 +3633,15 @@ static int64_t load_kernel (CPUState *env)
 {
     uint64_t kernel_addr = 0;
     uint64_t kernel_low, kernel_high;
+#if defined(TARGET_WORDS_BIGENDIAN)
+    int big_endian = 1;
+#else
+    int big_endian = 0;
+#endif
     int kernel_size;
-    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr, &kernel_low, &kernel_high);
+    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
+                           &kernel_addr, &kernel_low, &kernel_high,
+                           big_endian, ELF_MACHINE, 1);
     if (kernel_size < 0) {
         kernel_size = load_image_targphys(loaderparams.kernel_filename,
                                           KERNEL_LOAD_ADDR,
