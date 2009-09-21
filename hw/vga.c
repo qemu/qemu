@@ -28,6 +28,7 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
+#include "kvm.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -1573,6 +1574,17 @@ static void vga_sync_dirty_bitmap(VGACommonState *s)
     if (s->lfb_vram_mapped) {
         cpu_physical_sync_dirty_bitmap(isa_mem_base + 0xa0000, 0xa8000);
         cpu_physical_sync_dirty_bitmap(isa_mem_base + 0xa8000, 0xb0000);
+    }
+}
+
+void vga_dirty_log_start(VGACommonState *s)
+{
+    if (kvm_enabled() && s->map_addr)
+        kvm_log_start(s->map_addr, s->map_end - s->map_addr);
+
+    if (kvm_enabled() && s->lfb_vram_mapped) {
+        kvm_log_start(isa_mem_base + 0xa0000, 0x8000);
+        kvm_log_start(isa_mem_base + 0xa8000, 0x8000);
     }
 }
 
