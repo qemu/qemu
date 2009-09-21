@@ -145,7 +145,7 @@ void helper_discard_movcal_backup(void)
 	memory_content *next = current->next;
 	free (current);
 	env->movcal_backup = current = next;
-	if (current == 0)
+	if (current == NULL)
 	    env->movcal_backup_tail = &(env->movcal_backup);
     } 
 }
@@ -161,7 +161,7 @@ void helper_ocbi(uint32_t address)
 	    memory_content *next = (*current)->next;
 	    stl(a, (*current)->value);
 	    
-	    if (next == 0)
+	    if (next == NULL)
 	    {
 		env->movcal_backup_tail = current;
 	    }

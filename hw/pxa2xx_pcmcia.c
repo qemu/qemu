@@ -193,8 +193,8 @@ int pxa2xx_pcmcia_dettach(void *opaque)
         return -ENOENT;
 
     s->card->detach(s->card->state);
-    s->card->slot = 0;
-    s->card = 0;
+    s->card->slot = NULL;
+    s->card = NULL;
 
     s->slot.attached = 0;
 

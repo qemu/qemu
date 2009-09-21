@@ -30,7 +30,7 @@
 
 #include <stdio.h>
 
-FPA11* qemufpa=0;
+FPA11* qemufpa = NULL;
 CPUARMState* user_registers;
 
 /* Reset the FPA11 chip.  Called to initialize and reset the emulator. */

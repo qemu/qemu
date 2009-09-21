@@ -80,31 +80,31 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 #include "omap_lcd_template.h"
 
 static draw_line_func draw_line_table2[33] = {
-    [0 ... 32]	= 0,
+    [0 ... 32]	= NULL,
     [8]		= draw_line2_8,
     [15]	= draw_line2_15,
     [16]	= draw_line2_16,
     [32]	= draw_line2_32,
 }, draw_line_table4[33] = {
-    [0 ... 32]	= 0,
+    [0 ... 32]	= NULL,
     [8]		= draw_line4_8,
     [15]	= draw_line4_15,
     [16]	= draw_line4_16,
     [32]	= draw_line4_32,
 }, draw_line_table8[33] = {
-    [0 ... 32]	= 0,
+    [0 ... 32]	= NULL,
     [8]		= draw_line8_8,
     [15]	= draw_line8_15,
     [16]	= draw_line8_16,
     [32]	= draw_line8_32,
 }, draw_line_table12[33] = {
-    [0 ... 32]	= 0,
+    [0 ... 32]	= NULL,
     [8]		= draw_line12_8,
     [15]	= draw_line12_15,
     [16]	= draw_line12_16,
     [32]	= draw_line12_32,
 }, draw_line_table16[33] = {
-    [0 ... 32]	= 0,
+    [0 ... 32]	= NULL,
     [8]		= draw_line16_8,
     [15]	= draw_line16_15,
     [16]	= draw_line16_16,

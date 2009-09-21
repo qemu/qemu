@@ -403,7 +403,7 @@ static void glue(pxa2xx_draw_line25_, BITS)(void *opaque,
 /* Overlay planes disabled, no transparency */
 static drawfn glue(pxa2xx_draw_fn_, BITS)[16] =
 {
-    [0 ... 0xf]       = 0,
+    [0 ... 0xf]       = NULL,
     [pxa_lcdc_2bpp]   = glue(pxa2xx_draw_line2_, BITS),
     [pxa_lcdc_4bpp]   = glue(pxa2xx_draw_line4_, BITS),
     [pxa_lcdc_8bpp]   = glue(pxa2xx_draw_line8_, BITS),
@@ -416,7 +416,7 @@ static drawfn glue(pxa2xx_draw_fn_, BITS)[16] =
 /* Overlay planes enabled, transparency used */
 static drawfn glue(glue(pxa2xx_draw_fn_, BITS), t)[16] =
 {
-    [0 ... 0xf]       = 0,
+    [0 ... 0xf]       = NULL,
     [pxa_lcdc_4bpp]   = glue(pxa2xx_draw_line4_, BITS),
     [pxa_lcdc_8bpp]   = glue(pxa2xx_draw_line8_, BITS),
     [pxa_lcdc_16bpp]  = glue(pxa2xx_draw_line16t_, BITS),

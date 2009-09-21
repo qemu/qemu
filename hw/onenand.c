@@ -426,7 +426,7 @@ static void onenand_command(OneNANDState *s, int cmd)
 
     case 0x65:	/* OTP Access */
         s->intstatus |= ONEN_INT;
-        s->bdrv_cur = 0;
+        s->bdrv_cur = NULL;
         s->current = s->otp;
         s->secs_cur = 1 << (BLOCK_SHIFT - 9);
         s->addr[ONEN_BUF_BLOCK] = 0;
@@ -624,7 +624,7 @@ void *onenand_init(uint32_t id, int regshift, qemu_irq irq)
 
     s->shift = regshift;
     s->intr = irq;
-    s->rdy = 0;
+    s->rdy = NULL;
     s->id = id;
     s->blocks = size >> BLOCK_SHIFT;
     s->secs = size >> 9;

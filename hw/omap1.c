@@ -436,7 +436,7 @@ static uint32_t omap2_inth_read(void *opaque, target_phys_addr_t addr)
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int offset = addr;
     int bank_no, line_no;
-    struct omap_intr_handler_bank_s *bank = 0;
+    struct omap_intr_handler_bank_s *bank = NULL;
 
     if ((offset & 0xf80) == 0x80) {
         bank_no = (offset & 0x60) >> 5;
@@ -514,7 +514,7 @@ static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int offset = addr;
     int bank_no, line_no;
-    struct omap_intr_handler_bank_s *bank = 0;
+    struct omap_intr_handler_bank_s *bank = NULL;
 
     if ((offset & 0xf80) == 0x80) {
         bank_no = (offset & 0x60) >> 5;
@@ -4731,12 +4731,12 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "uart2_ck"),
                     omap_findclk(s, "uart2_ck"),
                     s->drq[OMAP_DMA_UART2_TX], s->drq[OMAP_DMA_UART2_RX],
-                    serial_hds[0] ? serial_hds[1] : 0);
+                    serial_hds[0] ? serial_hds[1] : NULL);
     s->uart[2] = omap_uart_init(0xfffb9800, s->irq[0][OMAP_INT_UART3],
                     omap_findclk(s, "uart3_ck"),
                     omap_findclk(s, "uart3_ck"),
                     s->drq[OMAP_DMA_UART3_TX], s->drq[OMAP_DMA_UART3_RX],
-                    serial_hds[0] && serial_hds[1] ? serial_hds[2] : 0);
+                    serial_hds[0] && serial_hds[1] ? serial_hds[2] : NULL);
 
     omap_dpll_init(&s->dpll[0], 0xfffecf00, omap_findclk(s, "dpll1"));
     omap_dpll_init(&s->dpll[1], 0xfffed000, omap_findclk(s, "dpll2"));

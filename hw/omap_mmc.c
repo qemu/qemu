@@ -619,7 +619,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
     s->card = sd_init(bd, 0);
 
     s->cdet = qemu_allocate_irqs(omap_mmc_cover_cb, s, 1)[0];
-    sd_set_cb(s->card, 0, s->cdet);
+    sd_set_cb(s->card, NULL, s->cdet);
 
     return s;
 }
