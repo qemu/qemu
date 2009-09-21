@@ -28,7 +28,6 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
-#include "kvm.h"
 
 typedef struct PCIVGAState {
     PCIDevice dev;
@@ -57,17 +56,6 @@ static int pci_vga_load(QEMUFile *f, void *opaque, int version_id)
             return ret;
     }
     return vga_common_load(f, &s->vga, version_id);
-}
-
-void vga_dirty_log_start(VGACommonState *s)
-{
-    if (kvm_enabled() && s->map_addr)
-        kvm_log_start(s->map_addr, s->map_end - s->map_addr);
-
-    if (kvm_enabled() && s->lfb_vram_mapped) {
-        kvm_log_start(isa_mem_base + 0xa0000, 0x8000);
-        kvm_log_start(isa_mem_base + 0xa8000, 0x8000);
-    }
 }
 
 static void vga_map(PCIDevice *pci_dev, int region_num,
