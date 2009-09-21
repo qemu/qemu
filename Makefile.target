@@ -326,7 +326,7 @@ qemu-monitor.h: $(SRC_PATH)/qemu-monitor.hx
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
-	rm -f *.d */*.d tcg/*.o
+	rm -f *.d */*.d tcg/*.o ide/*.o
 	rm -f qemu-options.h qemu-monitor.h gdbstub-xml.c
 
 install: all
