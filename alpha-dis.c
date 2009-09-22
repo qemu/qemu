@@ -108,8 +108,8 @@ struct alpha_operand
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
-  unsigned (*insert) PARAMS ((unsigned instruction, int op,
-			      const char **errmsg));
+  unsigned (*insert) (unsigned instruction, int op,
+                      const char **errmsg);
 
   /* Extraction function.  This is used by the disassembler.  To
      extract this operand type from an instruction, check this field.
@@ -128,7 +128,7 @@ struct alpha_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  int (*extract) PARAMS ((unsigned instruction, int *invalid));
+  int (*extract) (unsigned instruction, int *invalid);
 };
 
 /* Elements in the table are retrieved by indexing with values from
@@ -273,23 +273,23 @@ enum bfd_reloc_code_real {
 
 /* Local insertion and extraction functions */
 
-static unsigned insert_rba PARAMS((unsigned, int, const char **));
-static unsigned insert_rca PARAMS((unsigned, int, const char **));
-static unsigned insert_za PARAMS((unsigned, int, const char **));
-static unsigned insert_zb PARAMS((unsigned, int, const char **));
-static unsigned insert_zc PARAMS((unsigned, int, const char **));
-static unsigned insert_bdisp PARAMS((unsigned, int, const char **));
-static unsigned insert_jhint PARAMS((unsigned, int, const char **));
-static unsigned insert_ev6hwjhint PARAMS((unsigned, int, const char **));
+static unsigned insert_rba (unsigned, int, const char **);
+static unsigned insert_rca (unsigned, int, const char **);
+static unsigned insert_za (unsigned, int, const char **);
+static unsigned insert_zb (unsigned, int, const char **);
+static unsigned insert_zc (unsigned, int, const char **);
+static unsigned insert_bdisp (unsigned, int, const char **);
+static unsigned insert_jhint (unsigned, int, const char **);
+static unsigned insert_ev6hwjhint (unsigned, int, const char **);
 
-static int extract_rba PARAMS((unsigned, int *));
-static int extract_rca PARAMS((unsigned, int *));
-static int extract_za PARAMS((unsigned, int *));
-static int extract_zb PARAMS((unsigned, int *));
-static int extract_zc PARAMS((unsigned, int *));
-static int extract_bdisp PARAMS((unsigned, int *));
-static int extract_jhint PARAMS((unsigned, int *));
-static int extract_ev6hwjhint PARAMS((unsigned, int *));
+static int extract_rba (unsigned, int *);
+static int extract_rca (unsigned, int *);
+static int extract_za (unsigned, int *);
+static int extract_zb (unsigned, int *);
+static int extract_zc (unsigned, int *);
+static int extract_bdisp (unsigned, int *);
+static int extract_jhint (unsigned, int *);
+static int extract_ev6hwjhint (unsigned, int *);
 
 
 /* The operands table  */

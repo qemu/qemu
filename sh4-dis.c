@@ -1164,10 +1164,10 @@ const sh_opcode_info sh_table[] =
 #endif
 
 static void print_movxy
-  PARAMS ((const sh_opcode_info *, int, int, fprintf_ftype, void *));
-static void print_insn_ddt PARAMS ((int, struct disassemble_info *));
-static void print_dsp_reg PARAMS ((int, fprintf_ftype, void *));
-static void print_insn_ppi PARAMS ((int, struct disassemble_info *));
+  (const sh_opcode_info *, int, int, fprintf_ftype, void *);
+static void print_insn_ddt (int, struct disassemble_info *);
+static void print_dsp_reg (int, fprintf_ftype, void *);
+static void print_insn_ppi (int, struct disassemble_info *);
 
 static void
 print_movxy (const sh_opcode_info *op, int rn, int rm,
