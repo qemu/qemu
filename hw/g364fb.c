@@ -396,7 +396,7 @@ static uint32_t g364fb_ctrl_readb(void *opaque, target_phys_addr_t addr)
 
 static void g364fb_update_depth(G364State *s)
 {
-    const static int depths[8] = { 1, 2, 4, 8, 15, 16, 0 };
+    static const int depths[8] = { 1, 2, 4, 8, 15, 16, 0 };
     s->depth = depths[(s->ctla & 0x00700000) >> 20];
 }
 
