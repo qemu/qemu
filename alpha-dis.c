@@ -434,18 +434,13 @@ const unsigned alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operand
 
 /*ARGSUSED*/
 static unsigned
-insert_rba(insn, value, errmsg)
-     unsigned insn;
-     int value ATTRIBUTE_UNUSED;
-     const char **errmsg ATTRIBUTE_UNUSED;
+insert_rba(unsigned insn, int value ATTRIBUTE_UNUSED, const char **errmsg ATTRIBUTE_UNUSED)
 {
   return insn | (((insn >> 21) & 0x1f) << 16);
 }
 
 static int
-extract_rba(insn, invalid)
-     unsigned insn;
-     int *invalid;
+extract_rba(unsigned insn, int *invalid)
 {
   if (invalid != (int *) NULL
       && ((insn >> 21) & 0x1f) != ((insn >> 16) & 0x1f))
@@ -458,18 +453,13 @@ extract_rba(insn, invalid)
 
 /*ARGSUSED*/
 static unsigned
-insert_rca(insn, value, errmsg)
-     unsigned insn;
-     int value ATTRIBUTE_UNUSED;
-     const char **errmsg ATTRIBUTE_UNUSED;
+insert_rca(unsigned insn, int value ATTRIBUTE_UNUSED, const char **errmsg ATTRIBUTE_UNUSED)
 {
   return insn | ((insn >> 21) & 0x1f);
 }
 
 static int
-extract_rca(insn, invalid)
-     unsigned insn;
-     int *invalid;
+extract_rca(unsigned insn, int *invalid)
 {
   if (invalid != (int *) NULL
       && ((insn >> 21) & 0x1f) != (insn & 0x1f))
@@ -482,18 +472,13 @@ extract_rca(insn, invalid)
 
 /*ARGSUSED*/
 static unsigned
-insert_za(insn, value, errmsg)
-     unsigned insn;
-     int value ATTRIBUTE_UNUSED;
-     const char **errmsg ATTRIBUTE_UNUSED;
+insert_za(unsigned insn, int value ATTRIBUTE_UNUSED, const char **errmsg ATTRIBUTE_UNUSED)
 {
   return insn | (31 << 21);
 }
 
 static int
-extract_za(insn, invalid)
-     unsigned insn;
-     int *invalid;
+extract_za(unsigned insn, int *invalid)
 {
   if (invalid != (int *) NULL && ((insn >> 21) & 0x1f) != 31)
     *invalid = 1;
@@ -502,18 +487,13 @@ extract_za(insn, invalid)
 
 /*ARGSUSED*/
 static unsigned
-insert_zb(insn, value, errmsg)
-     unsigned insn;
-     int value ATTRIBUTE_UNUSED;
-     const char **errmsg ATTRIBUTE_UNUSED;
+insert_zb(unsigned insn, int value ATTRIBUTE_UNUSED, const char **errmsg ATTRIBUTE_UNUSED)
 {
   return insn | (31 << 16);
 }
 
 static int
-extract_zb(insn, invalid)
-     unsigned insn;
-     int *invalid;
+extract_zb(unsigned insn, int *invalid)
 {
   if (invalid != (int *) NULL && ((insn >> 16) & 0x1f) != 31)
     *invalid = 1;
@@ -522,18 +502,13 @@ extract_zb(insn, invalid)
 
 /*ARGSUSED*/
 static unsigned
-insert_zc(insn, value, errmsg)
-     unsigned insn;
-     int value ATTRIBUTE_UNUSED;
-     const char **errmsg ATTRIBUTE_UNUSED;
+insert_zc(unsigned insn, int value ATTRIBUTE_UNUSED, const char **errmsg ATTRIBUTE_UNUSED)
 {
   return insn | 31;
 }
 
 static int
-extract_zc(insn, invalid)
-     unsigned insn;
-     int *invalid;
+extract_zc(unsigned insn, int *invalid)
 {
   if (invalid != (int *) NULL && (insn & 0x1f) != 31)
     *invalid = 1;
@@ -544,10 +519,7 @@ extract_zc(insn, invalid)
 /* The displacement field of a Branch format insn.  */
 
 static unsigned
-insert_bdisp(insn, value, errmsg)
-     unsigned insn;
-     int value;
-     const char **errmsg;
+insert_bdisp(unsigned insn, int value, const char **errmsg)
 {
   if (errmsg != (const char **)NULL && (value & 3))
     *errmsg = _("branch operand unaligned");
@@ -556,9 +528,7 @@ insert_bdisp(insn, value, errmsg)
 
 /*ARGSUSED*/
 static int
-extract_bdisp(insn, invalid)
-     unsigned insn;
-     int *invalid ATTRIBUTE_UNUSED;
+extract_bdisp(unsigned insn, int *invalid ATTRIBUTE_UNUSED)
 {
   return 4 * (((insn & 0x1FFFFF) ^ 0x100000) - 0x100000);
 }
@@ -567,10 +537,7 @@ extract_bdisp(insn, invalid)
 /* The hint field of a JMP/JSR insn.  */
 
 static unsigned
-insert_jhint(insn, value, errmsg)
-     unsigned insn;
-     int value;
-     const char **errmsg;
+insert_jhint(unsigned insn, int value, const char **errmsg)
 {
   if (errmsg != (const char **)NULL && (value & 3))
     *errmsg = _("jump hint unaligned");
@@ -579,9 +546,7 @@ insert_jhint(insn, value, errmsg)
 
 /*ARGSUSED*/
 static int
-extract_jhint(insn, invalid)
-     unsigned insn;
-     int *invalid ATTRIBUTE_UNUSED;
+extract_jhint(unsigned insn, int *invalid ATTRIBUTE_UNUSED)
 {
   return 4 * (((insn & 0x3FFF) ^ 0x2000) - 0x2000);
 }
@@ -589,10 +554,7 @@ extract_jhint(insn, invalid)
 /* The hint field of an EV6 HW_JMP/JSR insn.  */
 
 static unsigned
-insert_ev6hwjhint(insn, value, errmsg)
-     unsigned insn;
-     int value;
-     const char **errmsg;
+insert_ev6hwjhint(unsigned insn, int value, const char **errmsg)
 {
   if (errmsg != (const char **)NULL && (value & 3))
     *errmsg = _("jump hint unaligned");
@@ -601,9 +563,7 @@ insert_ev6hwjhint(insn, value, errmsg)
 
 /*ARGSUSED*/
 static int
-extract_ev6hwjhint(insn, invalid)
-     unsigned insn;
-     int *invalid ATTRIBUTE_UNUSED;
+extract_ev6hwjhint(unsigned insn, int *invalid ATTRIBUTE_UNUSED)
 {
   return 4 * (((insn & 0x1FFF) ^ 0x1000) - 0x1000);
 }
@@ -1804,9 +1764,7 @@ static const char * const vms_regnames[64] = {
 /* Disassemble Alpha instructions.  */
 
 int
-print_insn_alpha (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_alpha (bfd_vma memaddr, struct disassemble_info *info)
 {
   static const struct alpha_opcode *opcode_index[AXP_NOPS+1];
   const char * const * regnames;
