@@ -268,7 +268,7 @@ static void g364fb_update_display(void *opaque)
     qemu_irq_raise(s->irq);
 }
 
-static void inline g364fb_invalidate_display(void *opaque)
+static inline void g364fb_invalidate_display(void *opaque)
 {
     G364State *s = opaque;
     int i;

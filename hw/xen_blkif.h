@@ -70,7 +70,7 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
-static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_request_t *src)
+static inline void blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_request_t *src)
 {
 	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
@@ -85,7 +85,7 @@ static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_reque
 		dst->seg[i] = src->seg[i];
 }
 
-static void inline blkif_get_x86_64_req(blkif_request_t *dst, blkif_x86_64_request_t *src)
+static inline void blkif_get_x86_64_req(blkif_request_t *dst, blkif_x86_64_request_t *src)
 {
 	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 

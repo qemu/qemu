@@ -195,7 +195,7 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void inline pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
+static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
                           uint32_t value, int width)
 {
     uint8_t *p = pfl->storage;

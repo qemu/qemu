@@ -69,7 +69,7 @@ typedef struct SH7750State {
     struct intc_desc intc;
 } SH7750State;
 
-static int inline has_bcr3_and_bcr4(SH7750State * s)
+static inline int has_bcr3_and_bcr4(SH7750State * s)
 {
 	return (s->cpu->features & SH_FEATURE_BCR3_AND_BCR4);
 }

@@ -2814,7 +2814,7 @@ static void gen_std(DisasContext *ctx)
 #endif
 /***                Integer load and store with byte reverse               ***/
 /* lhbrx */
-static void inline gen_qemu_ld16ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
+static inline void gen_qemu_ld16ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
     if (likely(!ctx->le_mode)) {
@@ -2824,7 +2824,7 @@ static void inline gen_qemu_ld16ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
 
 /* lwbrx */
-static void inline gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
+static inline void gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
     if (likely(!ctx->le_mode)) {
@@ -2834,7 +2834,7 @@ static void inline gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 
 /* sthbrx */
-static void inline gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
+static inline void gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (likely(!ctx->le_mode)) {
         TCGv t0 = tcg_temp_new();
@@ -2849,7 +2849,7 @@ static void inline gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
 
 /* stwbrx */
-static void inline gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2)
+static inline void gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (likely(!ctx->le_mode)) {
         TCGv t0 = tcg_temp_new();

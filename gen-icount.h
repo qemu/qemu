@@ -40,7 +40,7 @@ static void gen_icount_end(TranslationBlock *tb, int num_insns)
     }
 }
 
-static void inline gen_io_start(void)
+static inline void gen_io_start(void)
 {
     TCGv_i32 tmp = tcg_const_i32(1);
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, can_do_io));
