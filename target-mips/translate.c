@@ -8298,8 +8298,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    /* Leave some spare opc slots for branch handling. */
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE - 16;
+    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.singlestep_enabled = env->singlestep_enabled;
