@@ -146,6 +146,13 @@ struct SerialState {
     struct QEMUTimer *modem_status_poll;
 };
 
+typedef struct ISASerialState {
+    ISADevice dev;
+    uint32_t iobase;
+    uint32_t isairq;
+    SerialState state;
+} ISASerialState;
+
 static void serial_receive1(void *opaque, const uint8_t *buf, int size);
 
 static void fifo_clear(SerialState *s, int fifo)
@@ -707,17 +714,12 @@ static void serial_reset(void *opaque)
     qemu_irq_lower(s->irq);
 }
 
-static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
-			     CharDriverState *chr)
+static void serial_init_core(SerialState *s)
 {
-    if (!chr) {
+    if (!s->chr) {
         fprintf(stderr, "Can't create serial device, empty char device\n");
 	exit(1);
     }
-
-    s->irq = irq;
-    s->baudbase = baudbase;
-    s->chr = chr;
 
     s->modem_status_poll = qemu_new_timer(vm_clock, (QEMUTimerCB *) serial_update_msl, s);
 
@@ -731,7 +733,37 @@ static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
                           serial_event, s);
 }
 
-/* If fd is zero, it means that the serial device uses the console */
+static int serial_isa_initfn(ISADevice *dev)
+{
+    ISASerialState *isa = DO_UPCAST(ISASerialState, dev, dev);
+    SerialState *s = &isa->state;
+
+    s->baudbase = 115200;
+    isa_init_irq(dev, &s->irq, isa->isairq);
+    serial_init_core(s);
+    vmstate_register(isa->iobase, &vmstate_serial, s);
+
+    register_ioport_write(isa->iobase, 8, 1, serial_ioport_write, s);
+    register_ioport_read(isa->iobase, 8, 1, serial_ioport_read, s);
+    return 0;
+}
+
+static const int isa_serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
+
+SerialState *serial_isa_init(int index, CharDriverState *chr)
+{
+    ISADevice *dev;
+
+    dev = isa_create("isa-serial");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", isa_serial_io[index]);
+    qdev_prop_set_uint32(&dev->qdev, "irq", isa_serial_irq[index]);
+    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
+    if (qdev_init(&dev->qdev) != 0)
+        return NULL;
+    return &DO_UPCAST(ISASerialState, dev, dev)->state;
+}
+
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          CharDriverState *chr)
 {
@@ -739,7 +771,10 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     s = qemu_mallocz(sizeof(SerialState));
 
-    serial_init_core(s, irq, baudbase, chr);
+    s->irq = irq;
+    s->baudbase = baudbase;
+    s->chr = chr;
+    serial_init_core(s);
 
     vmstate_register(base, &vmstate_serial, s);
 
@@ -830,8 +865,11 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     s = qemu_mallocz(sizeof(SerialState));
 
     s->it_shift = it_shift;
+    s->irq = irq;
+    s->baudbase = baudbase;
+    s->chr = chr;
 
-    serial_init_core(s, irq, baudbase, chr);
+    serial_init_core(s);
     vmstate_register(base, &vmstate_serial, s);
 
     if (ioregister) {
@@ -842,3 +880,22 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     serial_update_msl(s);
     return s;
 }
+
+static ISADeviceInfo serial_isa_info = {
+    .qdev.name  = "isa-serial",
+    .qdev.size  = sizeof(ISASerialState),
+    .init       = serial_isa_initfn,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_HEX32("iobase", ISASerialState, iobase,  0x3f8),
+        DEFINE_PROP_UINT32("irq",   ISASerialState, isairq,  4),
+        DEFINE_PROP_CHR("chardev",  ISASerialState, state.chr),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void serial_register_devices(void)
+{
+    isa_qdev_register(&serial_isa_info);
+}
+
+device_init(serial_register_devices)
