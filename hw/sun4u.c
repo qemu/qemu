@@ -610,8 +610,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(parallel_io[i], NULL/*parallel_irq[i]*/,
-                          parallel_hds[i]);
+            parallel_init(i, parallel_hds[i]);
         }
     }
 

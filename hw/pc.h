@@ -20,7 +20,7 @@ void serial_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value);
 /* parallel.c */
 
 typedef struct ParallelState ParallelState;
-ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr);
+ParallelState *parallel_init(int index, CharDriverState *chr);
 ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq, CharDriverState *chr);
 
 /* i8259.c */

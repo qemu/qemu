@@ -1340,8 +1340,7 @@ static void pc_init1(ram_addr_t ram_size,
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(parallel_io[i], isa_reserve_irq(parallel_irq[i]),
-                          parallel_hds[i]);
+            parallel_init(i, parallel_hds[i]);
         }
     }
 
