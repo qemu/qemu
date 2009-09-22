@@ -208,7 +208,7 @@ static int parse_drive(DeviceState *dev, Property *prop, const char *str)
 static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%s", (*ptr)->id);
+    return snprintf(dest, len, "%s", (*ptr) ? (*ptr)->id : "<null>");
 }
 
 PropertyInfo qdev_prop_drive = {
