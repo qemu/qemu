@@ -126,7 +126,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     int s_rtc, s_dma_dummy;
     NICInfo *nd;
     PITState *pit;
-    BlockDriverState *fds[MAX_FD];
+    DriveInfo *fds[MAX_FD];
     qemu_irq esp_reset;
     ram_addr_t ram_offset;
     ram_addr_t bios_offset;
@@ -234,8 +234,7 @@ void mips_jazz_init (ram_addr_t ram_size,
         exit(1);
     }
     for (n = 0; n < MAX_FD; n++) {
-        DriveInfo *dinfo = drive_get(IF_FLOPPY, 0, n);
-        fds[n] = dinfo ? dinfo->bdrv : NULL;
+        fds[n] = drive_get(IF_FLOPPY, 0, n);
     }
     fdctrl_init_sysbus(rc4030[1], 0, 0x80003000, fds);
 

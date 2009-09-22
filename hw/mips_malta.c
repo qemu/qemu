@@ -810,7 +810,7 @@ void mips_malta_init (ram_addr_t ram_size,
     int i;
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    BlockDriverState *fd[MAX_FD];
+    DriveInfo *fd[MAX_FD];
     int fl_idx = 0;
     int fl_sectors = 0;
 
@@ -976,8 +976,7 @@ void mips_malta_init (ram_addr_t ram_size,
     if (parallel_hds[0])
         parallel_init(0, parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
-        dinfo = drive_get(IF_FLOPPY, 0, i);
-        fd[i] = dinfo ? dinfo->bdrv : NULL;
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     floppy_controller = fdctrl_init_isa(fd);
 

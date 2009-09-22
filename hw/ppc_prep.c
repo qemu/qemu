@@ -563,9 +563,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
     PCIBus *pci_bus;
     qemu_irq *i8259;
     int ppc_boot_device;
-    DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    BlockDriverState *fd[MAX_FD];
+    DriveInfo *fd[MAX_FD];
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
 
@@ -720,8 +719,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     //    SB16_init();
 
     for(i = 0; i < MAX_FD; i++) {
-        dinfo = drive_get(IF_FLOPPY, 0, i);
-        fd[i] = dinfo ? dinfo->bdrv : NULL;
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     fdctrl_init_isa(fd);
 

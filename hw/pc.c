@@ -1133,9 +1133,8 @@ static void pc_init1(ram_addr_t ram_size,
     qemu_irq *isa_irq;
     qemu_irq *i8259;
     IsaIrqState *isa_irq_state;
-    DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    BlockDriverState *fd[MAX_FD];
+    DriveInfo *fd[MAX_FD];
     int using_vga = cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled;
     void *fw_cfg;
 
@@ -1378,8 +1377,7 @@ static void pc_init1(ram_addr_t ram_size,
 #endif
 
     for(i = 0; i < MAX_FD; i++) {
-        dinfo = drive_get(IF_FLOPPY, 0, i);
-        fd[i] = dinfo ? dinfo->bdrv : NULL;
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     floppy_controller = fdctrl_init_isa(fd);
 
