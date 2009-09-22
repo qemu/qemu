@@ -945,7 +945,7 @@ void mips_malta_init (ram_addr_t ram_size,
     serial_init(0x3f8, isa_reserve_irq(4), 115200, serial_hds[0]);
     serial_init(0x2f8, isa_reserve_irq(3), 115200, serial_hds[1]);
     if (parallel_hds[0])
-        parallel_init(0x378, isa_reserve_irq(7), parallel_hds[0]);
+        parallel_init(0, parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
         dinfo = drive_get(IF_FLOPPY, 0, i);
         fd[i] = dinfo ? dinfo->bdrv : NULL;

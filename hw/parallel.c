@@ -78,6 +78,13 @@ struct ParallelState {
     int it_shift;
 };
 
+typedef struct ISAParallelState {
+    ISADevice dev;
+    uint32_t iobase;
+    uint32_t isairq;
+    ParallelState state;
+} ISAParallelState;
+
 static void parallel_update_irq(ParallelState *s)
 {
     if (s->irq_pending)
@@ -438,19 +445,23 @@ static void parallel_reset(void *opaque)
     s->last_read_offset = ~0U;
 }
 
-/* If fd is zero, it means that the parallel device uses the console */
-ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
+static int parallel_isa_initfn(ISADevice *dev)
 {
-    ParallelState *s;
+    ISAParallelState *isa = DO_UPCAST(ISAParallelState, dev, dev);
+    ParallelState *s = &isa->state;
+    int base = isa->iobase;
     uint8_t dummy;
 
-    s = qemu_mallocz(sizeof(ParallelState));
-    s->irq = irq;
-    s->chr = chr;
+    if (!s->chr) {
+        fprintf(stderr, "Can't create parallel device, empty char device\n");
+        exit(1);
+    }
+
+    isa_init_irq(dev, &s->irq, isa->isairq);
     parallel_reset(s);
     qemu_register_reset(parallel_reset, s);
 
-    if (qemu_chr_ioctl(chr, CHR_IOCTL_PP_READ_STATUS, &dummy) == 0) {
+    if (qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_READ_STATUS, &dummy) == 0) {
         s->hw_driver = 1;
         s->status = dummy;
     }
@@ -469,7 +480,22 @@ ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
         register_ioport_write(base, 8, 1, parallel_ioport_write_sw, s);
         register_ioport_read(base, 8, 1, parallel_ioport_read_sw, s);
     }
-    return s;
+    return 0;
+}
+
+static const int isa_parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
+
+ParallelState *parallel_init(int index, CharDriverState *chr)
+{
+    ISADevice *dev;
+
+    dev = isa_create("isa-parallel");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", isa_parallel_io[index]);
+    qdev_prop_set_uint32(&dev->qdev, "irq", 7);
+    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
+    if (qdev_init(&dev->qdev) != 0)
+        return NULL;
+    return &DO_UPCAST(ISAParallelState, dev, dev)->state;
 }
 
 /* Memory mapped interface */
@@ -547,3 +573,22 @@ ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq 
     cpu_register_physical_memory(base, 8 << it_shift, io_sw);
     return s;
 }
+
+static ISADeviceInfo parallel_isa_info = {
+    .qdev.name  = "isa-parallel",
+    .qdev.size  = sizeof(ISAParallelState),
+    .init       = parallel_isa_initfn,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  0x378),
+        DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),
+        DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void parallel_register_devices(void)
+{
+    isa_qdev_register(&parallel_isa_info);
+}
+
+device_init(parallel_register_devices)
