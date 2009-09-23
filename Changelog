@@ -1,3 +1,14 @@
+version 0.11.0
+  - fix rtc polling mode (Bernhard Kauer)
+  - qcow2: order concurrent aio requests (Kevin Wolf)
+  - qemu-io: port to win32 (Stefan Weil)
+  - alpha: fix extlh instruction (Vince Weaver)
+  - tcg: fix size of local variables in tcg_gen_bswap64_i64 (Stefan Weil)
+  - net: fix send ordering (Jan Kiszka)
+  - escc: fix IRQ routing (Aurelien Jarno)
+  - versatile: fix Linux task preemption (Aurelien Jarno)
+  - curses: reduce memory usage by 250MB (Aurelien Jarno)
+
 version 0.11.0-rc2
   - mips: fix conditional move off fp conditions codes (Nath Froyd)
   - fix migration to obey -S (Paolo Bonzini)
