@@ -301,13 +301,8 @@ static size_t handle_aiocb_rw(struct qemu_paiocb *aiocb)
 static void *aio_thread(void *unused)
 {
     pid_t pid;
-    sigset_t set;
 
     pid = getpid();
-
-    /* block all signals */
-    if (sigfillset(&set)) die("sigfillset");
-    if (sigprocmask(SIG_BLOCK, &set, NULL)) die("sigprocmask");
 
     while (1) {
         struct qemu_paiocb *aiocb;
@@ -369,9 +364,18 @@ static void *aio_thread(void *unused)
 
 static void spawn_thread(void)
 {
+    sigset_t set, oldset;
+
     cur_threads++;
     idle_threads++;
+
+    /* block all signals */
+    if (sigfillset(&set)) die("sigfillset");
+    if (sigprocmask(SIG_SETMASK, &set, &oldset)) die("sigprocmask");
+
     thread_create(&thread_id, &attr, aio_thread, NULL);
+
+    if (sigprocmask(SIG_SETMASK, &oldset, NULL)) die("sigprocmask restore");
 }
 
 static void qemu_paio_submit(struct qemu_paiocb *aiocb)
