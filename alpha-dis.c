@@ -158,7 +158,7 @@ extern const unsigned alpha_num_operands;
    instructions which want their operands to look like "Ra,disp(Rb)".  */
 #define AXP_OPERAND_PARENS	02
 
-/* Used in combination with PARENS, this supresses the supression of
+/* Used in combination with PARENS, this suppresses the suppression of
    the comma.  This is used for "jmp Ra,(Rb),hint".  */
 #define AXP_OPERAND_COMMA	04
 
@@ -179,7 +179,7 @@ extern const unsigned alpha_num_operands;
    a flags value of 0 can be treated as end-of-arguments.  */
 #define AXP_OPERAND_UNSIGNED	0200
 
-/* Supress overflow detection on this field.  This is used for hints. */
+/* Suppress overflow detection on this field.  This is used for hints. */
 #define AXP_OPERAND_NOOVERFLOW	0400
 
 /* Mask for optional argument default value.  */
