@@ -46,6 +46,10 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         monitor_printf(mon, "Parameter addr not supported\n");
         return NULL;
     }
+
+    if (nd_table[ret].model && !pci_nic_supported(nd_table[ret].model))
+        return NULL;
+
     return pci_nic_init(&nd_table[ret], "rtl8139", devaddr);
 }
 

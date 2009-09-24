@@ -252,6 +252,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq);
 
+int pci_nic_supported(const char *model);
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);

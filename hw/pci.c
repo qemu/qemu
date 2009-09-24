@@ -806,6 +806,17 @@ static const char * const pci_nic_names[] = {
     NULL
 };
 
+int pci_nic_supported(const char *model)
+{
+    int i;
+
+    for (i = 0; pci_nic_names[i]; i++)
+        if (strcmp(model, pci_nic_names[i]) == 0)
+            return 1;
+
+    return 0;
+}
+
 /* Initialize a PCI NIC.  */
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr)
