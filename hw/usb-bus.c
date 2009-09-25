@@ -18,6 +18,7 @@ void usb_bus_new(USBBus *bus, DeviceState *host)
 {
     qbus_create_inplace(&bus->qbus, &usb_bus_info, host, NULL);
     bus->busnr = next_usb_bus++;
+    bus->qbus.allow_hotplug = 1; /* Yes, we can */
     QTAILQ_INIT(&bus->free);
     QTAILQ_INIT(&bus->used);
     QTAILQ_INSERT_TAIL(&busses, bus, next);
@@ -65,6 +66,7 @@ void usb_qdev_register(USBDeviceInfo *info)
 {
     info->qdev.bus_info = &usb_bus_info;
     info->qdev.init     = usb_qdev_init;
+    info->qdev.unplug   = qdev_simple_unplug_cb;
     info->qdev.exit     = usb_qdev_exit;
     qdev_register(&info->qdev);
 }
