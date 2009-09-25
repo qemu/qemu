@@ -667,7 +667,7 @@ static void pxa2xx_lcdc_dma0_redraw_horiz(PXA2xxLCDState *s,
                 target_phys_addr_t addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
-    drawfn fn = 0;
+    drawfn fn = NULL;
     if (s->dest_width)
         fn = s->line_fn[s->transp][s->bpp];
     if (!fn)
@@ -694,7 +694,7 @@ static void pxa2xx_lcdc_dma0_redraw_vert(PXA2xxLCDState *s,
                target_phys_addr_t addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
-    drawfn fn = 0;
+    drawfn fn = NULL;
     if (s->dest_width)
         fn = s->line_fn[s->transp][s->bpp];
     if (!fn)

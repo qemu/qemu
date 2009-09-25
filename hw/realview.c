@@ -196,7 +196,7 @@ static void realview_init(ram_addr_t ram_size,
     arm_load_kernel(first_cpu, &realview_binfo);
 }
 
-QEMUMachine realview_machine = {
+static QEMUMachine realview_machine = {
     .name = "realview",
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
     .init = realview_init,

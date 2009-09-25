@@ -1086,7 +1086,7 @@ static struct clk *onchip_clks[] = {
     &dss_l4_iclk,
     &omapctrl_clk,
 
-    0
+    NULL
 };
 
 void omap_clk_adduser(struct clk *clk, qemu_irq user)
@@ -1184,7 +1184,7 @@ void omap_clk_reparent(struct clk *clk, struct clk *parent)
         omap_clk_update(clk);
         omap_clk_rate_update(clk);
     } else
-        clk->sibling = 0;
+        clk->sibling = NULL;
 }
 
 void omap_clk_onoff(struct clk *clk, int on)

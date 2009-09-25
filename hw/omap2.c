@@ -1055,7 +1055,7 @@ struct omap_gpif_s *omap2_gpio_init(struct omap_target_agent_s *ta,
     s->modules = modules;
     for (i = 0; i < modules; i ++)
         omap_gpio_module_init(s->module + i, ta, region[i],
-                        irq[i], 0, 0, fclk[i], iclk);
+                              irq[i], NULL, NULL, fclk[i], iclk);
 
     omap_gpif_reset(s);
 
@@ -1615,13 +1615,13 @@ static void omap_eac_format_update(struct omap_eac_s *s)
     if (s->codec.in_voice) {
         AUD_set_active_in(s->codec.in_voice, 0);
         AUD_close_in(&s->codec.card, s->codec.in_voice);
-        s->codec.in_voice = 0;
+        s->codec.in_voice = NULL;
     }
     if (s->codec.out_voice) {
         omap_eac_out_empty(s);
         AUD_set_active_out(s->codec.out_voice, 0);
         AUD_close_out(&s->codec.card, s->codec.out_voice);
-        s->codec.out_voice = 0;
+        s->codec.out_voice = NULL;
         s->codec.txavail = 0;
     }
     /* Discard what couldn't be written */
@@ -2555,8 +2555,8 @@ static struct omap_l4_agent_info_s {
 struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus, int cs)
 {
     int i, iomemtype;
-    struct omap_target_agent_s *ta = 0;
-    struct omap_l4_agent_info_s *info = 0;
+    struct omap_target_agent_s *ta = NULL;
+    struct omap_l4_agent_info_s *info = NULL;
 
     for (i = 0; i < bus->ta_num; i ++)
         if (omap_l4_agent_info[i].ta == cs) {
@@ -3007,7 +3007,7 @@ static void omap_prcm_apll_update(struct omap_prcm_s *s)
     s->apll_lock[1] = (mode[1] == 3);
     /* TODO: update clocks */
 
-    if (mode[0] == 1 || mode[0] == 2 || mode[1] == 1 || mode[2] == 2)
+    if (mode[0] == 1 || mode[0] == 2 || mode[1] == 1 || mode[1] == 2)
         fprintf(stderr, "%s: bad EN_54M_PLL or bad EN_96M_PLL\n",
                         __FUNCTION__);
 }
@@ -4559,14 +4559,14 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "uart2_iclk"),
                     s->drq[OMAP24XX_DMA_UART2_TX],
                     s->drq[OMAP24XX_DMA_UART2_RX],
-                    serial_hds[0] ? serial_hds[1] : 0);
+                    serial_hds[0] ? serial_hds[1] : NULL);
     s->uart[2] = omap2_uart_init(omap_l4ta(s->l4, 21),
                     s->irq[0][OMAP_INT_24XX_UART3_IRQ],
                     omap_findclk(s, "uart3_fclk"),
                     omap_findclk(s, "uart3_iclk"),
                     s->drq[OMAP24XX_DMA_UART3_TX],
                     s->drq[OMAP24XX_DMA_UART3_RX],
-                    serial_hds[0] && serial_hds[1] ? serial_hds[2] : 0);
+                    serial_hds[0] && serial_hds[1] ? serial_hds[2] : NULL);
 
     s->gptimer[0] = omap_gp_timer_init(omap_l4ta(s->l4, 7),
                     s->irq[0][OMAP_INT_24XX_GPTIMER1],
@@ -4677,7 +4677,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     omap_sti_init(omap_l4ta(s->l4, 18), 0x54000000,
                     s->irq[0][OMAP_INT_24XX_STI], omap_findclk(s, "emul_ck"),
                     serial_hds[0] && serial_hds[1] && serial_hds[2] ?
-                    serial_hds[3] : 0);
+                    serial_hds[3] : NULL);
 
     s->eac = omap_eac_init(omap_l4ta(s->l4, 32),
                     s->irq[0][OMAP_INT_24XX_EAC_IRQ],

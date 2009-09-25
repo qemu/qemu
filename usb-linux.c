@@ -922,6 +922,7 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
 
     dev->bus_num = bus_num;
     dev->addr = addr;
+    dev->fd = fd;
 
     /* read the device description */
     dev->descr_len = read(fd, dev->descr, sizeof(dev->descr));
@@ -979,6 +980,7 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
 
     hostdev_link(dev);
 
+    qdev_init(&d->qdev);
     return (USBDevice *) dev;
 
 fail:

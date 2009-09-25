@@ -2112,6 +2112,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     target_ulong last_addr = addr;
 #endif
 
+    asi &= 0xff;
+
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
         || ((env->def->features & CPU_FEATURE_HYPV)
             && asi >= 0x30 && asi < 0x80
@@ -2406,6 +2408,9 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 #ifdef DEBUG_ASI
     dump_asi("write", addr, asi, size, val);
 #endif
+
+    asi &= 0xff;
+
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
         || ((env->def->features & CPU_FEATURE_HYPV)
             && asi >= 0x30 && asi < 0x80

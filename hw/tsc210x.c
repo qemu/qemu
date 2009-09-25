@@ -331,7 +331,7 @@ static void tsc2102_audio_output_update(TSC210xState *s)
         s->codec.out.size = 0;
         AUD_set_active_out(s->dac_voice[0], 0);
         AUD_close_out(&s->card, s->dac_voice[0]);
-        s->dac_voice[0] = 0;
+        s->dac_voice[0] = NULL;
     }
     s->codec.cts = 0;
 

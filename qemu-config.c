@@ -186,7 +186,7 @@ int qemu_set_option(const char *str)
         return -1;
     }
 
-    if (-1 == qemu_opt_set(opts, arg, str+offset+1)) {
+    if (qemu_opt_set(opts, arg, str+offset+1) == -1) {
         fprintf(stderr, "failed to set \"%s\" for %s \"%s\"\n",
                 arg, lists[i]->name, id);
         return -1;

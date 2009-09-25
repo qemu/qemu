@@ -382,7 +382,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     if (opc == 3)
         data_reg2 = *args++;
     else
-        data_reg2 = 0; /* surpress warning */
+        data_reg2 = 0; /* suppress warning */
     addr_reg = *args++;
 #if TARGET_LONG_BITS == 64
     addr_reg2 = *args++;
@@ -554,7 +554,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     if (opc == 3)
         data_reg2 = *args++;
     else
-        data_reg2 = 0; /* surpress warning */
+        data_reg2 = 0; /* suppress warning */
     addr_reg = *args++;
 #if TARGET_LONG_BITS == 64
     addr_reg2 = *args++;

@@ -30,7 +30,7 @@
 /* We've given up on this device. */
 #define VIRTIO_CONFIG_S_FAILED          0x80
 
-/* We notify when the ring is completely used, even if the guest is supressing
+/* We notify when the ring is completely used, even if the guest is suppressing
  * callbacks */
 #define VIRTIO_F_NOTIFY_ON_EMPTY        24
 /* We support indirect buffer descriptors */

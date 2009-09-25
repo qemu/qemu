@@ -91,7 +91,7 @@ typedef struct DisasContext {
     int singlestep_enabled;
 } DisasContext;
 
-const static char *regnames[] =
+static const char *regnames[] =
 {
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
@@ -99,7 +99,7 @@ const static char *regnames[] =
     "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
 };
 
-const static char *special_regnames[] =
+static const char *special_regnames[] =
 {
     "rpc", "rmsr", "sr2", "sr3", "sr4", "sr5", "sr6", "sr7",
     "sr8", "sr9", "sr10", "sr11", "sr12", "sr13", "sr14", "sr15",

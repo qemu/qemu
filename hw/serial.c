@@ -98,13 +98,13 @@
 #define RECV_FIFO           1
 #define MAX_XMIT_RETRY      4
 
-struct SerialFIFO {
+typedef struct SerialFIFO {
     uint8_t data[UART_FIFO_LENGTH];
     uint8_t count;
     uint8_t itl;                        /* Interrupt Trigger Level */
     uint8_t tail;
     uint8_t head;
-} typedef SerialFIFO;
+} SerialFIFO;
 
 struct SerialState {
     uint16_t divider;

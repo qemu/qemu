@@ -248,7 +248,7 @@ static void n800_tsc_kbd_setup(struct n800_s *s)
 
     /* XXX: are the three pins inverted inside the chip between the
      * tsc and the cpu (N4111)?  */
-    qemu_irq penirq = 0;	/* NC */
+    qemu_irq penirq = NULL;	/* NC */
     qemu_irq kbirq = omap2_gpio_in_get(s->cpu->gpif, N800_TSC_KP_IRQ_GPIO)[0];
     qemu_irq dav = omap2_gpio_in_get(s->cpu->gpif, N800_TSC_TS_GPIO)[0];
 
@@ -716,7 +716,7 @@ static void n800_dss_init(struct rfbi_chip_s *chip)
 
 static void n8x0_dss_setup(struct n800_s *s)
 {
-    s->blizzard.opaque = s1d13745_init(0);
+    s->blizzard.opaque = s1d13745_init(NULL);
     s->blizzard.block = s1d13745_write_block;
     s->blizzard.write = s1d13745_write;
     s->blizzard.read = s1d13745_read;
@@ -769,9 +769,9 @@ static void n8x0_usb_setup(struct n800_s *s)
 
     /* Using the NOR interface */
     omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS,
-                    tusb6010_async_io(tusb), 0, 0, tusb);
+                    tusb6010_async_io(tusb), NULL, NULL, tusb);
     omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_SYNC_CS,
-                    tusb6010_sync_io(tusb), 0, 0, tusb);
+                    tusb6010_sync_io(tusb), NULL, NULL, tusb);
 
     s->usb = tusb;
     omap2_gpio_out_set(s->cpu->gpif, N8X0_TUSB_ENABLE_GPIO, tusb_pwr);
@@ -1047,7 +1047,7 @@ static struct omap_gpiosw_info_s {
         "headphone", N8X0_HEADPHONE_GPIO,
         OMAP_GPIOSW_TYPE_CONNECTION | OMAP_GPIOSW_INVERTED,
     },
-    { 0 }
+    { NULL }
 }, n810_gpiosw_info[] = {
     {
         "gps_reset", N810_GPS_RESET_GPIO,
@@ -1068,7 +1068,7 @@ static struct omap_gpiosw_info_s {
         "slide", N810_SLIDE_GPIO,
         OMAP_GPIOSW_TYPE_COVER | OMAP_GPIOSW_INVERTED,
     },
-    { 0 }
+    { NULL }
 };
 
 static struct omap_partition_info_s {
@@ -1083,7 +1083,7 @@ static struct omap_partition_info_s {
     { 0x00280000, 0x00200000, 0x3, "initfs" },
     { 0x00480000, 0x0fb80000, 0x3, "rootfs" },
 
-    { 0, 0, 0, 0 }
+    { 0, 0, 0, NULL }
 }, n810_part_info[] = {
     { 0x00000000, 0x00020000, 0x3, "bootloader" },
     { 0x00020000, 0x00060000, 0x0, "config" },
@@ -1091,7 +1091,7 @@ static struct omap_partition_info_s {
     { 0x002a0000, 0x00400000, 0x0, "initfs" },
     { 0x006a0000, 0x0f960000, 0x0, "rootfs" },
 
-    { 0, 0, 0, 0 }
+    { 0, 0, 0, NULL }
 };
 
 static bdaddr_t n8x0_bd_addr = {{ N8X0_BD_ADDR }};

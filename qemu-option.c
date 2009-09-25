@@ -267,7 +267,7 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
     // Process parameter
     switch (list->type) {
     case OPT_FLAG:
-        if (-1 == parse_option_bool(name, value, &flag))
+        if (parse_option_bool(name, value, &flag) == -1)
             return -1;
         list->value.n = flag;
         break;
@@ -282,7 +282,7 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
         break;
 
     case OPT_SIZE:
-        if (-1 == parse_option_size(name, value, &list->value.n))
+        if (parse_option_size(name, value, &list->value.n) == -1)
             return -1;
         break;
 
@@ -745,7 +745,7 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
         }
         if (strcmp(option, "id") != 0) {
             /* store and parse */
-            if (-1 == qemu_opt_set(opts, option, value)) {
+            if (qemu_opt_set(opts, option, value) == -1) {
                 return -1;
             }
         }

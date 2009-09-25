@@ -5196,7 +5196,7 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
-                if (NULL == qemu_chr_open_opts(opts, NULL)) {
+                if (qemu_chr_open_opts(opts, NULL) == NULL) {
                     exit(1);
                 }
                 break;

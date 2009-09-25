@@ -363,7 +363,7 @@ static inline int usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
     return len;
 }
 
-static void inline usb_bt_fifo_out_enqueue(struct USBBtState *s,
+static inline void usb_bt_fifo_out_enqueue(struct USBBtState *s,
                 struct usb_hci_out_fifo_s *fifo,
                 void (*send)(struct HCIInfo *, const uint8_t *, int),
                 int (*complete)(const uint8_t *, int),

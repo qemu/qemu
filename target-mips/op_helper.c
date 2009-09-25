@@ -1871,7 +1871,7 @@ void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write,
 #define FLOAT_SNAN64 0x7fffffffffffffffULL
 
 /* convert MIPS rounding mode in FCR31 to IEEE library */
-unsigned int ieee_rm[] = {
+static unsigned int ieee_rm[] = {
     float_round_nearest_even,
     float_round_to_zero,
     float_round_up,

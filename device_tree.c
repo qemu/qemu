@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "sysemu.h"
 #include "device_tree.h"
+#include "hw/loader.h"
 
 #include <libfdt.h>
 
