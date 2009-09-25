@@ -245,6 +245,8 @@ void qdev_free(DeviceState *dev)
 #endif
         if (dev->info->reset)
             qemu_unregister_reset(dev->info->reset, dev);
+        if (dev->info->exit)
+            dev->info->exit(dev);
     }
     QLIST_REMOVE(dev, sibling);
     qemu_free(dev);
