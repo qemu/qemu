@@ -1129,7 +1129,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     qemu_format_nic_info_str(d->vc, macaddr);
 
     register_savevm(info_str, -1, 2, nic_save, nic_load, d);
-    d->dev.unregister = pci_e1000_uninit;
     qemu_register_reset(e1000_reset, d);
     e1000_reset(d);
     return 0;
@@ -1139,6 +1138,7 @@ static PCIDeviceInfo e1000_info = {
     .qdev.name = "e1000",
     .qdev.size = sizeof(E1000State),
     .init      = pci_e1000_init,
+    .exit      = pci_e1000_uninit,
 };
 
 static void e1000_register_devices(void)

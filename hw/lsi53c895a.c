@@ -2174,7 +2174,6 @@ static int lsi_scsi_init(PCIDevice *dev)
     s->queue = qemu_malloc(sizeof(lsi_queue));
     s->queue_len = 1;
     s->active_commands = 0;
-    s->dev.unregister = lsi_scsi_uninit;
 
     lsi_soft_reset(s);
 
@@ -2189,6 +2188,7 @@ static PCIDeviceInfo lsi_info = {
     .qdev.alias = "lsi",
     .qdev.size  = sizeof(LSIState),
     .init       = lsi_scsi_init,
+    .exit       = lsi_scsi_uninit,
 };
 
 static void lsi53c895a_register_devices(void)

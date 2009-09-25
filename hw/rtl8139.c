@@ -3443,8 +3443,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
     RTL8139State * s = DO_UPCAST(RTL8139State, dev, dev);
     uint8_t *pci_conf;
 
-    s->dev.unregister = pci_rtl8139_uninit;
-
     pci_conf = s->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8139);
@@ -3493,6 +3491,7 @@ static PCIDeviceInfo rtl8139_info = {
     .qdev.size  = sizeof(RTL8139State),
     .qdev.reset = rtl8139_reset,
     .init       = pci_rtl8139_init,
+    .exit       = pci_rtl8139_uninit,
 };
 
 static void rtl8139_register_devices(void)
