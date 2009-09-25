@@ -527,6 +527,7 @@ static int usb_msd_initfn(USBDevice *dev)
     s->dev.speed = USB_SPEED_FULL;
     scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, usb_msd_command_complete);
     s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, s->dinfo, 0);
+    s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
     return 0;
 }
