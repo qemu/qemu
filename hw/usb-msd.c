@@ -512,9 +512,7 @@ static void usb_msd_handle_destroy(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
 
-    s->scsi_dev->info->destroy(s->scsi_dev);
     drive_uninit(s->dinfo->bdrv);
-    qemu_free(s);
 }
 
 static int usb_msd_initfn(USBDevice *dev)

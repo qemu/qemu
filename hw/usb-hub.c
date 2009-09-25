@@ -517,8 +517,12 @@ static int usb_hub_handle_packet(USBDevice *dev, USBPacket *p)
 static void usb_hub_handle_destroy(USBDevice *dev)
 {
     USBHubState *s = (USBHubState *)dev;
+    int i;
 
-    qemu_free(s);
+    for (i = 0; i < s->nb_ports; i++) {
+        usb_unregister_port(usb_bus_from_device(dev),
+                            &s->ports[i].port);
+    }
 }
 
 static int usb_hub_initfn(USBDevice *dev)
