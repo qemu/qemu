@@ -41,6 +41,7 @@ struct PCIBus {
     int devfn_min;
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
+    pci_hotplug_fn hotplug;
     uint32_t config_reg; /* XXX: suppress */
     void *irq_opaque;
     PCIDevice *devices[256];
@@ -130,6 +131,12 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
     bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
+}
+
+void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug)
+{
+    bus->qbus.allow_hotplug = 1;
+    bus->hotplug = hotplug;
 }
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
@@ -966,19 +973,33 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceInfo *info = container_of(base, PCIDeviceInfo, qdev);
     PCIBus *bus;
-    int devfn;
+    int devfn, rc;
 
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
     devfn = pci_dev->devfn;
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write);
     assert(pci_dev);
-    return info->init(pci_dev);
+    rc = info->init(pci_dev);
+    if (rc != 0)
+        return rc;
+    if (qdev->hotplugged)
+        bus->hotplug(pci_dev, 1);
+    return 0;
+}
+
+static int pci_unplug_device(DeviceState *qdev)
+{
+    PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+
+    dev->bus->hotplug(dev, 0);
+    return 0;
 }
 
 void pci_qdev_register(PCIDeviceInfo *info)
 {
     info->qdev.init = pci_qdev_init;
+    info->qdev.unplug = pci_unplug_device;
     info->qdev.exit = pci_unregister_device;
     info->qdev.bus_info = &pci_bus_info;
     qdev_register(&info->qdev);
