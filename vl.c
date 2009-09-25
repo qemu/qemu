@@ -1981,18 +1981,12 @@ static void bdrv_format_print(void *opaque, const char *name)
     fprintf(stderr, " %s", name);
 }
 
-void drive_uninit(BlockDriverState *bdrv)
+void drive_uninit(DriveInfo *dinfo)
 {
-    DriveInfo *dinfo;
-
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (dinfo->bdrv != bdrv)
-            continue;
-        qemu_opts_del(dinfo->opts);
-        QTAILQ_REMOVE(&drives, dinfo, next);
-        qemu_free(dinfo);
-        break;
-    }
+    qemu_opts_del(dinfo->opts);
+    bdrv_delete(dinfo->bdrv);
+    QTAILQ_REMOVE(&drives, dinfo, next);
+    qemu_free(dinfo);
 }
 
 DriveInfo *drive_init(QemuOpts *opts, void *opaque,
