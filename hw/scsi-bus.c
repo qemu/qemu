@@ -23,6 +23,7 @@ void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
     bus->tcq = tcq;
     bus->ndev = ndev;
     bus->complete = complete;
+    bus->qbus.allow_hotplug = 1;
 }
 
 static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
@@ -75,6 +76,7 @@ void scsi_qdev_register(SCSIDeviceInfo *info)
 {
     info->qdev.bus_info = &scsi_bus_info;
     info->qdev.init     = scsi_qdev_init;
+    info->qdev.unplug   = qdev_simple_unplug_cb;
     info->qdev.exit     = scsi_qdev_exit;
     qdev_register(&info->qdev);
 }
