@@ -614,7 +614,6 @@ static void usb_bt_handle_destroy(USBDevice *dev)
     s->hci->opaque = NULL;
     s->hci->evt_recv = NULL;
     s->hci->acl_recv = NULL;
-    qemu_free(s);
 }
 
 static int usb_bt_initfn(USBDevice *dev)

@@ -389,7 +389,6 @@ static void usb_wacom_handle_destroy(USBDevice *dev)
     USBWacomState *s = (USBWacomState *) dev;
 
     qemu_remove_mouse_event_handler(s->eh_entry);
-    qemu_free(s);
 }
 
 static int usb_wacom_initfn(USBDevice *dev)
