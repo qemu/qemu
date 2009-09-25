@@ -218,6 +218,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev_free(qdev);
         return NULL;
     }
+    qdev->opts = opts;
     return qdev;
 }
 
@@ -276,6 +277,8 @@ void qdev_free(DeviceState *dev)
             qemu_unregister_reset(dev->info->reset, dev);
         if (dev->info->exit)
             dev->info->exit(dev);
+        if (dev->opts)
+            qemu_opts_del(dev->opts);
     }
     QLIST_REMOVE(dev, sibling);
     qemu_free(dev);
