@@ -369,8 +369,24 @@ hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
 command @code{info usb} to see the devices you can remove.
 ETEXI
 
-    { "cpu", "index:i", do_cpu_set,
-      "index", "set the default CPU" },
+    { "device_add", "config:s", do_device_add,
+      "device", "add device, like -device on the command line" },
+STEXI
+@item device_add @var{config}
+
+Add device.
+ETEXI
+
+    { "device_del", "id:s", do_device_del,
+      "device", "remove device" },
+STEXI
+@item device_del @var{id}
+
+Remove device @var{id}.
+ETEXI
+
+    { "cpu", "index:i", do_cpu_set, "index", "set the default CPU" },
+
 STEXI
 Set the default CPU.
 ETEXI

@@ -29,6 +29,7 @@ enum DevState {
 struct DeviceState {
     const char *id;
     enum DevState state;
+    int hotplugged;
     DeviceInfo *info;
     BusState *parent_bus;
     int num_gpio_out;
@@ -53,6 +54,7 @@ struct BusState {
     DeviceState *parent;
     BusInfo *info;
     const char *name;
+    int allow_hotplug;
     int qdev_allocated;
     QLIST_HEAD(, DeviceState) children;
     QLIST_ENTRY(BusState) sibling;
@@ -98,7 +100,10 @@ struct CompatProperty {
 DeviceState *qdev_create(BusState *bus, const char *name);
 DeviceState *qdev_device_add(QemuOpts *opts);
 int qdev_init(DeviceState *dev);
+int qdev_unplug(DeviceState *dev);
 void qdev_free(DeviceState *dev);
+int qdev_simple_unplug_cb(DeviceState *dev);
+void qdev_machine_creation_done(void);
 
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
@@ -108,7 +113,7 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 /*** Device API.  ***/
 
 typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
-typedef int (*qdev_exitfn)(DeviceState *dev);
+typedef int (*qdev_event)(DeviceState *dev);
 
 struct DeviceInfo {
     const char *name;
@@ -126,7 +131,8 @@ struct DeviceInfo {
 
     /* Private to qdev / bus.  */
     qdev_initfn init;
-    qdev_exitfn exit;
+    qdev_event unplug;
+    qdev_event exit;
     BusInfo *bus_info;
     struct DeviceInfo *next;
 };
@@ -165,6 +171,8 @@ void qbus_free(BusState *bus);
 
 void do_info_qtree(Monitor *mon);
 void do_info_qdm(Monitor *mon);
+void do_device_add(Monitor *mon, const QDict *qdict);
+void do_device_del(Monitor *mon, const QDict *qdict);
 
 /*** qdev-properties.c ***/
 

@@ -31,6 +31,8 @@
 #include "monitor.h"
 
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
+static int qdev_hotplug = 0;
+
 static BusState *main_system_bus;
 
 static DeviceInfo *device_info_list;
@@ -102,6 +104,10 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     qdev_prop_set_compat(dev);
     QLIST_INSERT_HEAD(&bus->children, dev, sibling);
+    if (qdev_hotplug) {
+        assert(bus->allow_hotplug);
+        dev->hotplugged = 1;
+    }
     dev->state = DEV_STATE_CREATED;
     return dev;
 }
@@ -192,6 +198,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
                    path ? path : info->bus_info->name, info->name);
         return NULL;
     }
+    if (qdev_hotplug && !bus->allow_hotplug) {
+        qemu_error("Bus %s does not support hotplugging\n",
+                   bus->name);
+        return NULL;
+    }
 
     /* create device, set properties */
     qdev = qdev_create(bus, driver);
@@ -229,6 +240,24 @@ int qdev_init(DeviceState *dev)
     return 0;
 }
 
+int qdev_unplug(DeviceState *dev)
+{
+    if (!dev->parent_bus->allow_hotplug) {
+        qemu_error("Bus %s does not support hotplugging\n",
+                   dev->parent_bus->name);
+        return -1;
+    }
+    return dev->info->unplug(dev);
+}
+
+/* can be used as ->unplug() callback for the simple cases */
+int qdev_simple_unplug_cb(DeviceState *dev)
+{
+    /* just zap it */
+    qdev_free(dev);
+    return 0;
+}
+
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
@@ -250,6 +279,15 @@ void qdev_free(DeviceState *dev)
     }
     QLIST_REMOVE(dev, sibling);
     qemu_free(dev);
+}
+
+void qdev_machine_creation_done(void)
+{
+    /*
+     * ok, initial machine setup is done, starting from now we can
+     * only create hotpluggable devices
+     */
+    qdev_hotplug = 1;
 }
 
 /* Get a character (serial) device interface.  */
@@ -362,6 +400,24 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
     QLIST_FOREACH(dev, &bus->children, sibling) {
         QLIST_FOREACH(child, &dev->child_bus, sibling) {
             ret = qbus_find_recursive(child, name, info);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
+    return NULL;
+}
+
+static DeviceState *qdev_find_recursive(BusState *bus, const char *id)
+{
+    DeviceState *dev, *ret;
+    BusState *child;
+
+    QLIST_FOREACH(dev, &bus->children, sibling) {
+        if (dev->id && strcmp(dev->id, id) == 0)
+            return dev;
+        QLIST_FOREACH(child, &dev->child_bus, sibling) {
+            ret = qdev_find_recursive(child, id);
             if (ret) {
                 return ret;
             }
@@ -646,4 +702,27 @@ void do_info_qdm(Monitor *mon)
         qdev_print_devinfo(info, msg, sizeof(msg));
         monitor_printf(mon, "%s\n", msg);
     }
+}
+
+void do_device_add(Monitor *mon, const QDict *qdict)
+{
+    QemuOpts *opts;
+
+    opts = qemu_opts_parse(&qemu_device_opts,
+                           qdict_get_str(qdict, "config"), "driver");
+    if (opts)
+        qdev_device_add(opts);
+}
+
+void do_device_del(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    DeviceState *dev;
+
+    dev = qdev_find_recursive(main_system_bus, id);
+    if (NULL == dev) {
+        qemu_error("Device '%s' not found\n", id);
+        return;
+    }
+    qdev_unplug(dev);
 }
