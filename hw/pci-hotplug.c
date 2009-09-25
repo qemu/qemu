@@ -114,6 +114,8 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
     DriveInfo *dinfo = NULL;
     int type = -1;
     char buf[128];
+    PCIBus *bus;
+    int devfn;
 
     if (get_param_value(buf, sizeof(buf), "if", opts)) {
         if (!strcmp(buf, "scsi"))
@@ -141,16 +143,22 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         dinfo = NULL;
     }
 
+    bus = pci_get_bus_devfn(&devfn, devaddr);
+    if (!bus) {
+        monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
+        return NULL;
+    }
+
     switch (type) {
     case IF_SCSI:
-        dev = pci_create("lsi53c895a", devaddr);
+        dev = pci_create_noinit(bus, devfn, "lsi53c895a");
         break;
     case IF_VIRTIO:
         if (!dinfo) {
             monitor_printf(mon, "virtio requires a backing file/device.\n");
             return NULL;
         }
-        dev = pci_create("virtio-blk-pci", devaddr);
+        dev = pci_create_noinit(bus, devfn, "virtio-blk-pci");
         qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
         break;
     default:
