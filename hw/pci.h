@@ -256,6 +256,8 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 int pci_nic_supported(const char *model);
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
+PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
+                               const char *default_devaddr);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);

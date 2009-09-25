@@ -2348,6 +2348,19 @@ static int nic_get_free_idx(void)
     return -1;
 }
 
+int qemu_show_nic_models(const char *arg, const char *const *models)
+{
+    int i;
+
+    if (!arg || strcmp(arg, "?"))
+        return 0;
+
+    fprintf(stderr, "qemu: Supported NIC models: ");
+    for (i = 0 ; models[i]; i++)
+        fprintf(stderr, "%s%c", models[i], models[i+1] ? ',' : '\n');
+    return 1;
+}
+
 void qemu_check_nic_model(NICInfo *nd, const char *model)
 {
     const char *models[2];
@@ -2355,31 +2368,27 @@ void qemu_check_nic_model(NICInfo *nd, const char *model)
     models[0] = model;
     models[1] = NULL;
 
-    qemu_check_nic_model_list(nd, models, model);
+    if (qemu_show_nic_models(nd->model, models))
+        exit(0);
+    if (qemu_find_nic_model(nd, models, model) < 0)
+        exit(1);
 }
 
-int qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
-                              const char *default_model)
+int qemu_find_nic_model(NICInfo *nd, const char * const *models,
+                        const char *default_model)
 {
-    int i, exit_status = 0;
+    int i;
 
     if (!nd->model)
         nd->model = default_model;
 
-    if (strcmp(nd->model, "?") != 0) {
-        for (i = 0 ; models[i]; i++)
-            if (strcmp(nd->model, models[i]) == 0)
-                return i;
-
-        fprintf(stderr, "qemu: Unsupported NIC model: %s\n", nd->model);
-        exit_status = 1;
+    for (i = 0 ; models[i]; i++) {
+        if (strcmp(nd->model, models[i]) == 0)
+            return i;
     }
 
-    fprintf(stderr, "qemu: Supported NIC models: ");
-    for (i = 0 ; models[i]; i++)
-        fprintf(stderr, "%s%c", models[i], models[i+1] ? ',' : '\n');
-
-    exit(exit_status);
+    qemu_error("qemu: Unsupported NIC model: %s\n", nd->model);
+    return -1;
 }
 
 static int net_handle_fd_param(Monitor *mon, const char *param)

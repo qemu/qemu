@@ -236,7 +236,7 @@ static void r2d_init(ram_addr_t ram_size,
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
-        pci_nic_init(&nd_table[i], "rtl8139", i==0 ? "2" : NULL);
+        pci_nic_init_nofail(&nd_table[i], "rtl8139", i==0 ? "2" : NULL);
 
     /* Todo: register on board registers */
     if (kernel_filename) {

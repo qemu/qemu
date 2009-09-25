@@ -333,7 +333,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                                serial_hds[1], ESCC_CLOCK, 4);
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init(&nd_table[i], "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
 
 
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {

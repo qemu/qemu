@@ -697,7 +697,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         if (strcmp(nd_table[i].model, "ne2k_isa") == 0) {
             isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
         } else {
-            pci_nic_init(&nd_table[i], "ne2k_pci", NULL);
+            pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
         }
     }
 

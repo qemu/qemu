@@ -509,7 +509,7 @@ static void network_init(void)
             /* The malta board has a PCNet card using PCI SLOT 11 */
             default_devaddr = "0b";
 
-        pci_nic_init(nd, "pcnet", default_devaddr);
+        pci_nic_init_nofail(nd, "pcnet", default_devaddr);
     }
 }
 
