@@ -936,11 +936,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
 }
 
-static void scsi_destroy(SCSIDevice *d)
-{
-    qemu_free(d);
-}
-
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
@@ -974,7 +969,6 @@ static SCSIDeviceInfo scsi_disk_info = {
     .qdev.desc    = "virtual scsi disk or cdrom",
     .qdev.size    = sizeof(SCSIDiskState),
     .init         = scsi_disk_initfn,
-    .destroy      = scsi_destroy,
     .send_command = scsi_send_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
