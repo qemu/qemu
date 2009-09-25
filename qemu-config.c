@@ -1,6 +1,7 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "sysemu.h"
 
 QemuOptsList qemu_drive_opts = {
     .name = "drive",
@@ -186,7 +187,7 @@ int qemu_set_option(const char *str)
 
     rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
     if (rc < 3 || str[offset] != '=') {
-        fprintf(stderr, "can't parse: \"%s\"\n", str);
+        qemu_error("can't parse: \"%s\"\n", str);
         return -1;
     }
 
@@ -195,19 +196,19 @@ int qemu_set_option(const char *str)
             break;
     }
     if (lists[i] == NULL) {
-        fprintf(stderr, "there is no option group \"%s\"\n", group);
+        qemu_error("there is no option group \"%s\"\n", group);
         return -1;
     }
 
     opts = qemu_opts_find(lists[i], id);
     if (!opts) {
-        fprintf(stderr, "there is no %s \"%s\" defined\n",
+        qemu_error("there is no %s \"%s\" defined\n",
                 lists[i]->name, id);
         return -1;
     }
 
     if (qemu_opt_set(opts, arg, str+offset+1) == -1) {
-        fprintf(stderr, "failed to set \"%s\" for %s \"%s\"\n",
+        qemu_error("failed to set \"%s\" for %s \"%s\"\n",
                 arg, lists[i]->name, id);
         return -1;
     }
