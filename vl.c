@@ -6017,6 +6017,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    qdev_machine_creation_done();
+
     if (loadvm) {
         if (load_vmstate(cur_mon, loadvm) < 0) {
             autostart = 0;
