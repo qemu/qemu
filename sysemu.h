@@ -199,11 +199,6 @@ BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type);
 extern QemuOpts *drive_add(const char *file, const char *fmt, ...);
 extern DriveInfo *drive_init(QemuOpts *arg, void *machine, int *fatal_error);
 
-/* acpi */
-typedef void (*qemu_system_device_hot_add_t)(int pcibus, int slot, int state);
-void qemu_system_device_hot_add_register(qemu_system_device_hot_add_t callback);
-void qemu_system_device_hot_add(int pcibus, int slot, int state);
-
 /* device-hotplug */
 
 typedef int (dev_match_fn)(void *dev_private, void *arg);
@@ -217,7 +212,7 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict);
 void drive_hot_add(Monitor *mon, const QDict *qdict);
 void pci_device_hot_remove(Monitor *mon, const char *pci_addr);
 void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
-void pci_device_hot_remove_success(int pcibus, int slot);
+void pci_device_hot_remove_success(PCIDevice *dev);
 
 /* serial ports */
 

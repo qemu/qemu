@@ -1353,8 +1353,6 @@ static void pc_init1(ram_addr_t ram_size,
             pci_nic_init(nd, "e1000", NULL);
     }
 
-    piix4_acpi_system_hot_add_init();
-
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
         fprintf(stderr, "qemu: too many IDE bus\n");
         exit(1);
@@ -1405,6 +1403,7 @@ static void pc_init1(ram_addr_t ram_size,
             qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
             qdev_init(eeprom);
         }
+        piix4_acpi_system_hot_add_init(pci_bus);
     }
 
     if (i440fx_state) {

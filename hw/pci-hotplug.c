@@ -185,8 +185,6 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "invalid type: %s\n", type);
 
     if (dev) {
-        qemu_system_device_hot_add(pci_bus_num(dev->bus),
-                                   PCI_SLOT(dev->devfn), 1);
         monitor_printf(mon, "OK domain %d, bus %d, slot %d, function %d\n",
                        0, pci_bus_num(dev->bus), PCI_SLOT(dev->devfn),
                        PCI_FUNC(dev->devfn));
@@ -210,8 +208,7 @@ void pci_device_hot_remove(Monitor *mon, const char *pci_addr)
         monitor_printf(mon, "slot %d empty\n", slot);
         return;
     }
-
-    qemu_system_device_hot_add(bus, slot, 0);
+    qdev_unplug(&d->qdev);
 }
 
 void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict)
@@ -230,15 +227,9 @@ static int pci_match_fn(void *dev_private, void *arg)
 /*
  * OS has executed _EJ0 method, we now can remove the device
  */
-void pci_device_hot_remove_success(int pcibus, int slot)
+void pci_device_hot_remove_success(PCIDevice *d)
 {
-    PCIDevice *d = pci_find_device(pcibus, slot, 0);
     int class_code;
-
-    if (!d) {
-        monitor_printf(cur_mon, "invalid slot %d\n", slot);
-        return;
-    }
 
     class_code = d->config_read(d, PCI_CLASS_DEVICE+1, 1);
 
@@ -250,7 +241,5 @@ void pci_device_hot_remove_success(int pcibus, int slot)
         destroy_nic(pci_match_fn, d);
         break;
     }
-
-    qdev_free(&d->qdev);
 }
 

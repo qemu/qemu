@@ -106,7 +106,7 @@ int acpi_table_add(const char *table_desc);
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
-void piix4_acpi_system_hot_add_init(void);
+void piix4_acpi_system_hot_add_init(PCIBus *bus);
 
 /* hpet.c */
 extern int no_hpet;
