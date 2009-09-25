@@ -76,8 +76,8 @@ void qemu_purge_queued_packets(VLANClientState *vc);
 void qemu_flush_queued_packets(VLANClientState *vc);
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
-void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
-                               const char *default_model);
+int qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
+                              const char *default_model);
 void qemu_handler_true(void *opaque);
 
 void do_info_network(Monitor *mon);

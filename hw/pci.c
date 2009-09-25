@@ -871,22 +871,15 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
     DeviceState *dev;
     int i;
 
-    qemu_check_nic_model_list(nd, pci_nic_models, default_model);
-
-    for (i = 0; pci_nic_models[i]; i++) {
-        if (strcmp(nd->model, pci_nic_models[i]) == 0) {
-            pci_dev = pci_create(pci_nic_names[i], devaddr);
-            dev = &pci_dev->qdev;
-            if (nd->id)
-                dev->id = qemu_strdup(nd->id);
-            dev->nd = nd;
-            qdev_init(dev);
-            nd->private = dev;
-            return pci_dev;
-        }
-    }
-
-    return NULL;
+    i = qemu_check_nic_model_list(nd, pci_nic_models, default_model);
+    pci_dev = pci_create(pci_nic_names[i], devaddr);
+    dev = &pci_dev->qdev;
+    if (nd->id)
+        dev->id = qemu_strdup(nd->id);
+    dev->nd = nd;
+    qdev_init(dev);
+    nd->private = dev;
+    return pci_dev;
 }
 
 typedef struct {
