@@ -867,19 +867,46 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr)
 {
     const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
+    PCIBus *bus;
+    int devfn;
     PCIDevice *pci_dev;
     DeviceState *dev;
     int i;
 
-    i = qemu_check_nic_model_list(nd, pci_nic_models, default_model);
-    pci_dev = pci_create(pci_nic_names[i], devaddr);
+    i = qemu_find_nic_model(nd, pci_nic_models, default_model);
+    if (i < 0)
+        return NULL;
+
+    bus = pci_get_bus_devfn(&devfn, devaddr);
+    if (!bus) {
+        qemu_error("Invalid PCI device address %s for device %s\n",
+                   devaddr, pci_nic_names[i]);
+        return NULL;
+    }
+
+    pci_dev = pci_create_noinit(bus, devfn, pci_nic_names[i]);
     dev = &pci_dev->qdev;
     if (nd->id)
         dev->id = qemu_strdup(nd->id);
     dev->nd = nd;
-    qdev_init(dev);
+    if (qdev_init(dev) < 0)
+        return NULL;
     nd->private = dev;
     return pci_dev;
+}
+
+PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
+                               const char *default_devaddr)
+{
+    PCIDevice *res;
+
+    if (qemu_show_nic_models(nd->model, pci_nic_models))
+        exit(0);
+
+    res = pci_nic_init(nd, default_model, default_devaddr);
+    if (!res)
+        exit(1);
+    return res;
 }
 
 typedef struct {

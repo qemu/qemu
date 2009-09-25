@@ -219,7 +219,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     if (pci_bus) {
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
-            pci_nic_init(&nd_table[i], "virtio", NULL);
+            pci_nic_init_nofail(&nd_table[i], "virtio", NULL);
         }
     }
 

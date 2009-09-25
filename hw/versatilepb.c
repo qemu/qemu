@@ -213,7 +213,7 @@ static void versatile_init(ram_addr_t ram_size,
             smc91c111_init(nd, 0x10010000, sic[25]);
             done_smc = 1;
         } else {
-            pci_nic_init(nd, "rtl8139", NULL);
+            pci_nic_init_nofail(nd, "rtl8139", NULL);
         }
     }
     if (usb_enabled) {
