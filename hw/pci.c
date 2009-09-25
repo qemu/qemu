@@ -809,24 +809,6 @@ void pci_info(Monitor *mon)
     pci_for_each_device(0, pci_info_device);
 }
 
-PCIDevice *pci_create(const char *name, const char *devaddr)
-{
-    PCIBus *bus;
-    int devfn;
-    DeviceState *dev;
-
-    bus = pci_get_bus_devfn(&devfn, devaddr);
-    if (!bus) {
-        fprintf(stderr, "Invalid PCI device address %s for device %s\n",
-                devaddr, name);
-        exit(1);
-    }
-
-    dev = qdev_create(&bus->qbus, name);
-    qdev_prop_set_uint32(dev, "addr", devfn);
-    return (PCIDevice *)dev;
-}
-
 static const char * const pci_nic_models[] = {
     "ne2k_pci",
     "i82551",
