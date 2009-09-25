@@ -91,6 +91,9 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
                        dinfo->bus,
                        dinfo->unit);
         break;
+    case IF_NONE:
+        monitor_printf(mon, "OK\n");
+        break;
     default:
         monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
         goto err;
