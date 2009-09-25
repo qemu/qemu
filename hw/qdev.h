@@ -108,6 +108,7 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 /*** Device API.  ***/
 
 typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
+typedef int (*qdev_exitfn)(DeviceState *dev);
 
 struct DeviceInfo {
     const char *name;
@@ -125,6 +126,7 @@ struct DeviceInfo {
 
     /* Private to qdev / bus.  */
     qdev_initfn init;
+    qdev_exitfn exit;
     BusInfo *bus_info;
     struct DeviceInfo *next;
 };
