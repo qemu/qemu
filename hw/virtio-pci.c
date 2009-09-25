@@ -417,7 +417,6 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
                          msix_bar_size(&proxy->pci_dev),
                          PCI_ADDRESS_SPACE_MEM,
                          msix_mmio_map);
-        proxy->pci_dev.unregister = msix_uninit;
     } else
         vdev->nvectors = 0;
 

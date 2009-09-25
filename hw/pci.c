@@ -26,6 +26,7 @@
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
+#include "msix.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI
@@ -402,13 +403,15 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
 static int pci_unregister_device(DeviceState *dev)
 {
     PCIDevice *pci_dev = DO_UPCAST(PCIDevice, qdev, dev);
+    PCIDeviceInfo *info = DO_UPCAST(PCIDeviceInfo, qdev, dev->info);
     int ret = 0;
 
-    if (pci_dev->unregister)
-        ret = pci_dev->unregister(pci_dev);
+    if (info->exit)
+        ret = info->exit(pci_dev);
     if (ret)
         return ret;
 
+    msix_uninit(pci_dev);
     pci_unregister_io_regions(pci_dev);
 
     qemu_free_irqs(pci_dev->irq);

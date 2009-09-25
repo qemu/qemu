@@ -2039,8 +2039,6 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
         sizeof(struct pcnet_RMD), sizeof(struct pcnet_TMD));
 #endif
 
-    pci_dev->unregister = pci_pcnet_uninit;
-
     pci_conf = pci_dev->config;
 
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_AMD);
@@ -2170,6 +2168,7 @@ static PCIDeviceInfo pcnet_info = {
     .qdev.name = "pcnet",
     .qdev.size = sizeof(PCIPCNetState),
     .init      = pci_pcnet_init,
+    .exit      = pci_pcnet_uninit,
 };
 
 static void pcnet_register_devices(void)
