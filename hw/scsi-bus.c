@@ -30,6 +30,7 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
     SCSIDeviceInfo *info = DO_UPCAST(SCSIDeviceInfo, qdev, base);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    int rc = -1;
 
     if (dev->id == -1) {
         for (dev->id = 0; dev->id < bus->ndev; dev->id++) {
@@ -43,21 +44,38 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     }
 
     if (bus->devs[dev->id]) {
-        bus->devs[dev->id]->info->destroy(bus->devs[dev->id]);
+        qdev_free(&bus->devs[dev->id]->qdev);
     }
     bus->devs[dev->id] = dev;
 
     dev->info = info;
-    return dev->info->init(dev);
+    rc = dev->info->init(dev);
+    if (rc != 0) {
+        bus->devs[dev->id] = NULL;
+    }
 
 err:
-    return -1;
+    return rc;
+}
+
+static int scsi_qdev_exit(DeviceState *qdev)
+{
+    SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+
+    assert(bus->devs[dev->id] != NULL);
+    if (bus->devs[dev->id]->info->destroy) {
+        bus->devs[dev->id]->info->destroy(bus->devs[dev->id]);
+    }
+    bus->devs[dev->id] = NULL;
+    return 0;
 }
 
 void scsi_qdev_register(SCSIDeviceInfo *info)
 {
     info->qdev.bus_info = &scsi_bus_info;
     info->qdev.init     = scsi_qdev_init;
+    info->qdev.exit     = scsi_qdev_exit;
     qdev_register(&info->qdev);
 }
 
