@@ -504,7 +504,6 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, DriveInfo *dinfo)
         strncpy(s->serial_str, ps, sizeof(s->serial_str));
     else
         snprintf(s->serial_str, sizeof(s->serial_str), "0");
-    s->bs->private = dev;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
     bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);
 

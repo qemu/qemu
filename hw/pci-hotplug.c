@@ -234,9 +234,6 @@ void pci_device_hot_remove_success(PCIDevice *d)
     class_code = d->config_read(d, PCI_CLASS_DEVICE+1, 1);
 
     switch(class_code) {
-    case PCI_BASE_CLASS_STORAGE:
-        destroy_bdrvs(pci_match_fn, d);
-        break;
     case PCI_BASE_CLASS_NETWORK:
         destroy_nic(pci_match_fn, d);
         break;

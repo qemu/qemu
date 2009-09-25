@@ -190,7 +190,7 @@ extern QTAILQ_HEAD(driveoptlist, DriveOpt) driveopts;
 extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 extern DriveInfo *drive_get_by_id(const char *id);
 extern int drive_get_max_bus(BlockInterfaceType type);
-extern void drive_uninit(BlockDriverState *bdrv);
+extern void drive_uninit(DriveInfo *dinfo);
 extern const char *drive_get_serial(BlockDriverState *bdrv);
 extern BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv);
 
@@ -205,7 +205,6 @@ typedef int (dev_match_fn)(void *dev_private, void *arg);
 
 DriveInfo *add_init_drive(const char *opts);
 void destroy_nic(dev_match_fn *match_fn, void *arg);
-void destroy_bdrvs(dev_match_fn *match_fn, void *arg);
 
 /* pci-hotplug */
 void pci_device_hot_add(Monitor *mon, const QDict *qdict);

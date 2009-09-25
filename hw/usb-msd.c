@@ -508,13 +508,6 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static void usb_msd_handle_destroy(USBDevice *dev)
-{
-    MSDState *s = (MSDState *)dev;
-
-    drive_uninit(s->dinfo->bdrv);
-}
-
 static int usb_msd_initfn(USBDevice *dev)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
@@ -599,7 +592,6 @@ static struct USBDeviceInfo msd_info = {
     .handle_reset   = usb_msd_handle_reset,
     .handle_control = usb_msd_handle_control,
     .handle_data    = usb_msd_handle_data,
-    .handle_destroy = usb_msd_handle_destroy,
     .qdev.props     = (Property[]) {
         DEFINE_PROP_DRIVE("drive", MSDState, dinfo),
         DEFINE_PROP_END_OF_LIST(),

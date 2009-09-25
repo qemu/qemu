@@ -458,6 +458,14 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
+static int virtio_blk_exit_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    drive_uninit(proxy->dinfo);
+    return 0;
+}
+
 static int virtio_console_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
@@ -519,6 +527,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-blk-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_blk_init_pci,
+        .exit      = virtio_blk_exit_pci,
         .qdev.props = (Property[]) {
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
             DEFINE_PROP_DRIVE("drive", VirtIOPCIProxy, dinfo),
