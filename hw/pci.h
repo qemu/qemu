@@ -262,6 +262,7 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
 PCIBus *pci_find_bus(int bus_num);
 PCIDevice *pci_find_device(int bus_num, int slot, int function);
+PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 
 int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
                      unsigned *slotp);

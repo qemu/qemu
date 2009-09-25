@@ -317,7 +317,7 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
     return 0;
 }
 
-static PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
+PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 {
     int dom, bus;
     unsigned slot;
