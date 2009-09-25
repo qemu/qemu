@@ -102,6 +102,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     qdev_prop_set_compat(dev);
     QLIST_INSERT_HEAD(&bus->children, dev, sibling);
+    dev->state = DEV_STATE_CREATED;
     return dev;
 }
 
@@ -216,6 +217,7 @@ int qdev_init(DeviceState *dev)
 {
     int rc;
 
+    assert(dev->state == DEV_STATE_CREATED);
     rc = dev->info->init(dev, dev->info);
     if (rc < 0)
         return rc;
@@ -223,18 +225,27 @@ int qdev_init(DeviceState *dev)
         qemu_register_reset(dev->info->reset, dev);
     if (dev->info->vmsd)
         vmstate_register(-1, dev->info->vmsd, dev);
+    dev->state = DEV_STATE_INITIALIZED;
     return 0;
 }
 
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
+    BusState *bus;
+
+    if (dev->state == DEV_STATE_INITIALIZED) {
+        while (dev->num_child_bus) {
+            bus = QLIST_FIRST(&dev->child_bus);
+            qbus_free(bus);
+        }
 #if 0 /* FIXME: need sane vmstate_unregister function */
-    if (dev->info->vmsd)
-        vmstate_unregister(dev->info->vmsd, dev);
+        if (dev->info->vmsd)
+            vmstate_unregister(dev->info->vmsd, dev);
 #endif
-    if (dev->info->reset)
-        qemu_unregister_reset(dev->info->reset, dev);
+        if (dev->info->reset)
+            qemu_unregister_reset(dev->info->reset, dev);
+    }
     QLIST_REMOVE(dev, sibling);
     qemu_free(dev);
 }
@@ -547,6 +558,22 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
     bus->qdev_allocated = 1;
     qbus_create_inplace(bus, info, parent, name);
     return bus;
+}
+
+void qbus_free(BusState *bus)
+{
+    DeviceState *dev;
+
+    while ((dev = QLIST_FIRST(&bus->children)) != NULL) {
+        qdev_free(dev);
+    }
+    if (bus->parent) {
+        QLIST_REMOVE(bus, sibling);
+        bus->parent->num_child_bus--;
+    }
+    if (bus->qdev_allocated) {
+        qemu_free(bus);
+    }
 }
 
 #define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
