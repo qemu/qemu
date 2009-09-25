@@ -399,8 +399,9 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
     }
 }
 
-int pci_unregister_device(PCIDevice *pci_dev)
+static int pci_unregister_device(DeviceState *dev)
 {
+    PCIDevice *pci_dev = DO_UPCAST(PCIDevice, qdev, dev);
     int ret = 0;
 
     if (pci_dev->unregister)
@@ -412,7 +413,6 @@ int pci_unregister_device(PCIDevice *pci_dev)
 
     qemu_free_irqs(pci_dev->irq);
     pci_dev->bus->devices[pci_dev->devfn] = NULL;
-    qdev_free(&pci_dev->qdev);
     return 0;
 }
 
@@ -956,6 +956,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 void pci_qdev_register(PCIDeviceInfo *info)
 {
     info->qdev.init = pci_qdev_init;
+    info->qdev.exit = pci_unregister_device;
     info->qdev.bus_info = &pci_bus_info;
     qdev_register(&info->qdev);
 }

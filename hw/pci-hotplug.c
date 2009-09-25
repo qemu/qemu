@@ -251,6 +251,6 @@ void pci_device_hot_remove_success(int pcibus, int slot)
         break;
     }
 
-    pci_unregister_device(d);
+    qdev_free(&d->qdev);
 }
 
