@@ -886,7 +886,7 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
         return NULL;
     }
 
-    pci_dev = pci_create_noinit(bus, devfn, pci_nic_names[i]);
+    pci_dev = pci_create(bus, devfn, pci_nic_names[i]);
     dev = &pci_dev->qdev;
     if (nd->id)
         dev->id = qemu_strdup(nd->id);
@@ -974,7 +974,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     PCIDevice *dev;
     PCIBridge *s;
 
-    dev = pci_create_noinit(bus, devfn, "pci-bridge");
+    dev = pci_create(bus, devfn, "pci-bridge");
     qdev_prop_set_uint32(&dev->qdev, "vendorid", vid);
     qdev_prop_set_uint32(&dev->qdev, "deviceid", did);
     qdev_init(&dev->qdev);
@@ -1029,7 +1029,7 @@ void pci_qdev_register_many(PCIDeviceInfo *info)
     }
 }
 
-PCIDevice *pci_create_noinit(PCIBus *bus, int devfn, const char *name)
+PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name)
 {
     DeviceState *dev;
 
@@ -1040,7 +1040,7 @@ PCIDevice *pci_create_noinit(PCIBus *bus, int devfn, const char *name)
 
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 {
-    PCIDevice *dev = pci_create_noinit(bus, devfn, name);
+    PCIDevice *dev = pci_create(bus, devfn, name);
     qdev_init(&dev->qdev);
     return dev;
 }
