@@ -125,7 +125,7 @@ int pci_vga_init(PCIBus *bus,
 {
     PCIDevice *dev;
 
-    dev = pci_create_noinit(bus, -1, "VGA");
+    dev = pci_create(bus, -1, "VGA");
     qdev_prop_set_uint32(&dev->qdev, "bios-offset", vga_bios_offset);
     qdev_prop_set_uint32(&dev->qdev, "bios-size", vga_bios_offset);
     qdev_init(&dev->qdev);

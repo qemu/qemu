@@ -443,7 +443,7 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
 {
     PCIDevice *dev;
 
-    dev = pci_create_noinit(bus, -1, "CMD646 IDE");
+    dev = pci_create(bus, -1, "CMD646 IDE");
     qdev_prop_set_uint32(&dev->qdev, "secondary", secondary_ide_enabled);
     qdev_init(&dev->qdev);
 
