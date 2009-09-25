@@ -918,8 +918,8 @@ static void vnc_disconnect_finish(VncState *vs)
     if (!vs->vd->clients)
         dcl->idle = 1;
 
-    qemu_free(vs);
     vnc_remove_timer(vs->vd);
+    qemu_free(vs);
 }
 
 int vnc_client_io_error(VncState *vs, int ret, int last_errno)
