@@ -1597,11 +1597,11 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1,
        fix TCG definition) */
     if (is_right) {
         tcg_gen_shr_tl(cpu_tmp4, t0, cpu_tmp0);
-        tcg_gen_sub_tl(cpu_tmp0, tcg_const_tl(data_bits), cpu_tmp0);
+        tcg_gen_subfi_tl(cpu_tmp0, data_bits, cpu_tmp0);
         tcg_gen_shl_tl(t0, t0, cpu_tmp0);
     } else {
         tcg_gen_shl_tl(cpu_tmp4, t0, cpu_tmp0);
-        tcg_gen_sub_tl(cpu_tmp0, tcg_const_tl(data_bits), cpu_tmp0);
+        tcg_gen_subfi_tl(cpu_tmp0, data_bits, cpu_tmp0);
         tcg_gen_shr_tl(t0, t0, cpu_tmp0);
     }
     tcg_gen_or_tl(t0, t0, cpu_tmp4);
@@ -1822,7 +1822,7 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
             tcg_gen_shr_tl(cpu_tmp4, t0, cpu_tmp5);
             
             /* only needed if count > 16, but a test would complicate */
-            tcg_gen_sub_tl(cpu_tmp5, tcg_const_tl(32), t2);
+            tcg_gen_subfi_tl(cpu_tmp5, 32, t2);
             tcg_gen_shl_tl(cpu_tmp0, t0, cpu_tmp5);
 
             tcg_gen_shr_tl(t0, t0, t2);
@@ -1836,12 +1836,12 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
             tcg_gen_ext32u_tl(t1, t1);
             
             tcg_gen_shl_tl(cpu_tmp4, t0, cpu_tmp5);
-            tcg_gen_sub_tl(cpu_tmp0, tcg_const_tl(32), cpu_tmp5);
+            tcg_gen_subfi_tl(cpu_tmp0, 32, cpu_tmp5);
             tcg_gen_shr_tl(cpu_tmp6, t1, cpu_tmp0);
             tcg_gen_or_tl(cpu_tmp4, cpu_tmp4, cpu_tmp6);
 
             tcg_gen_shl_tl(t0, t0, t2);
-            tcg_gen_sub_tl(cpu_tmp5, tcg_const_tl(32), t2);
+            tcg_gen_subfi_tl(cpu_tmp5, 32, t2);
             tcg_gen_shr_tl(t1, t1, cpu_tmp5);
             tcg_gen_or_tl(t0, t0, t1);
         }
@@ -1854,7 +1854,7 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
             tcg_gen_shr_tl(cpu_tmp4, t0, cpu_tmp5);
 
             tcg_gen_shr_tl(t0, t0, t2);
-            tcg_gen_sub_tl(cpu_tmp5, tcg_const_tl(data_bits), t2);
+            tcg_gen_subfi_tl(cpu_tmp5, data_bits, t2);
             tcg_gen_shl_tl(t1, t1, cpu_tmp5);
             tcg_gen_or_tl(t0, t0, t1);
             
@@ -1865,7 +1865,7 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
             tcg_gen_shl_tl(cpu_tmp4, t0, cpu_tmp5);
             
             tcg_gen_shl_tl(t0, t0, t2);
-            tcg_gen_sub_tl(cpu_tmp5, tcg_const_tl(data_bits), t2);
+            tcg_gen_subfi_tl(cpu_tmp5, data_bits, t2);
             tcg_gen_shr_tl(t1, t1, cpu_tmp5);
             tcg_gen_or_tl(t0, t0, t1);
         }
