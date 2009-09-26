@@ -51,7 +51,9 @@ extern int printf(const char *, ...);
 //~ #define NULL ((void *)0)
 #define NULL 0
 
-#if defined(__i386__)
+#if defined(CONFIG_TCG_INTERPRETER)
+/* The TCG interpreter does not use special registers. */
+#elif defined(__i386__)
 #define AREG0 "ebp"
 #define AREG1 "ebx"
 #define AREG2 "esi"

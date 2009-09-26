@@ -457,7 +457,9 @@ const TCGArg *tcg_gen_code_op(TCGContext *s, int opc, const TCGArg *args1,
                               unsigned int dead_iargs);
 
 extern uint8_t code_gen_prologue[];
-#if defined(_ARCH_PPC) && !defined(_ARCH_PPC64)
+#if defined(CONFIG_TCG_INTERPRETER)
+unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr);
+#elif defined(_ARCH_PPC) && !defined(_ARCH_PPC64)
 #define tcg_qemu_tb_exec(tb_ptr) \
     ((long REGPARM __attribute__ ((longcall)) (*)(void *))code_gen_prologue)(tb_ptr)
 #else

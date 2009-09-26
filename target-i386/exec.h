@@ -28,7 +28,11 @@
 
 #include "cpu-defs.h"
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUX86State *env;
+#else
 register struct CPUX86State *env asm(AREG0);
+#endif
 
 #include "qemu-common.h"
 #include "qemu-log.h"

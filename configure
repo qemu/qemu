@@ -206,6 +206,7 @@ linux_aio=""
 
 gprof="no"
 debug_tcg="no"
+tcg_interpreter="no"
 debug="no"
 strip_opt="yes"
 bigendian="no"
@@ -481,6 +482,10 @@ for opt do
   --disable-kvm) kvm="no"
   ;;
   --enable-kvm) kvm="yes"
+  ;;
+  --disable-tcg-interpreter) tcg_interpreter="no"
+  ;;
+  --enable-tcg-interpreter) tcg_interpreter="yes"
   ;;
   --enable-profiler) profiler="yes"
   ;;
@@ -1779,6 +1784,7 @@ echo "IO thread         $io_thread"
 echo "Linux AIO support $linux_aio"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
+echo "TCG interpreter   $tcg_interpreter"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 echo "uuid support      $uuid"
@@ -1975,6 +1981,9 @@ fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak
 fi
+if test "$tcg_interpreter" = "yes" ; then
+  echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
+fi
 if test "$need_offsetof" = "yes" ; then
   echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
 fi
@@ -2123,6 +2132,9 @@ test -f $config_h && mv $config_h ${config_h}~
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
+if test "$tcg_interpreter" = "yes"; then
+  mkdir -p $target_dir/tcg/interpreter
+fi
 mkdir -p $target_dir/ide
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
@@ -2348,6 +2360,8 @@ ldflags=""
 
 if test "$ARCH" = "sparc64" ; then
   cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
+elif test "$tcg_interpreter" = "yes"; then
+  cflags="-I\$(SRC_PATH)/tcg/interpreter $cflags"
 else
   cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
 fi

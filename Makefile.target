@@ -53,6 +53,7 @@ all: $(PROGS)
 # cpu emulator library
 libobj-y = exec.o translate-all.o cpu-exec.o translate.o
 libobj-y += tcg/tcg.o
+libobj-$(CONFIG_TCG_INTERPRETER) += tcg/interpreter/tcg-interpreter.o
 libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
 libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
@@ -374,7 +375,7 @@ qemu-monitor.h: $(SRC_PATH)/qemu-monitor.hx
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
-	rm -f *.d */*.d tcg/*.o ide/*.o
+	rm -f *.d */*.d tcg/*.o tcg/interpreter/*.[do] ide/*.o
 	rm -f qemu-options.h qemu-monitor.h gdbstub-xml.c
 
 install: all

@@ -170,6 +170,12 @@ static int tcg_target_const_match(tcg_target_long val,
                                   const TCGArgConstraint *arg_ct);
 static int tcg_target_get_call_iarg_regs_count(int flags);
 
+/* Forward declarations for functions which may be used in tcg-target.c. */
+static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
+                                 int idx);
+static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val);
+static const char * const cond_name[10];
+
 #include "tcg-target.c"
 
 /* pool based memory allocation */
@@ -711,13 +717,15 @@ static void tcg_reg_alloc_start(TCGContext *s)
 static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
                                  int idx)
 {
-    TCGTemp *ts;
+    TCGTemp *ts = NULL;
 
-    ts = &s->temps[idx];
-    if (idx < s->nb_globals) {
+    if (idx >= 0 && idx < s->nb_temps) {
+        ts = &s->temps[idx];
+    }
+    if (ts && idx < s->nb_globals) {
         pstrcpy(buf, buf_size, ts->name);
     } else {
-        if (ts->temp_local) 
+        if (ts && ts->temp_local)
             snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
         else
             snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
