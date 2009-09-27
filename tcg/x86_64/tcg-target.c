@@ -397,7 +397,13 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
 
 static inline void tgen_arithi32(TCGContext *s, int c, int r0, int32_t val)
 {
-    if (val == (int8_t)val) {
+    if ((c == ARITH_ADD && val == 1) || (c == ARITH_SUB && val == -1)) {
+        /* inc */
+        tcg_out_modrm(s, 0xff, 0, r0);
+    } else if ((c == ARITH_ADD && val == -1) || (c == ARITH_SUB && val == 1)) {
+        /* dec */
+        tcg_out_modrm(s, 0xff, 1, r0);
+    } else if (val == (int8_t)val) {
         tcg_out_modrm(s, 0x83, c, r0);
         tcg_out8(s, val);
     } else if (c == ARITH_AND && val == 0xffu) {
@@ -414,7 +420,13 @@ static inline void tgen_arithi32(TCGContext *s, int c, int r0, int32_t val)
 
 static inline void tgen_arithi64(TCGContext *s, int c, int r0, int64_t val)
 {
-    if (val == (int8_t)val) {
+    if ((c == ARITH_ADD && val == 1) || (c == ARITH_SUB && val == -1)) {
+        /* inc */
+        tcg_out_modrm(s, 0xff | P_REXW, 0, r0);
+    } else if ((c == ARITH_ADD && val == -1) || (c == ARITH_SUB && val == 1)) {
+        /* dec */
+        tcg_out_modrm(s, 0xff | P_REXW, 1, r0);
+    } else if (val == (int8_t)val) {
         tcg_out_modrm(s, 0x83 | P_REXW, c, r0);
         tcg_out8(s, val);
     } else if (c == ARITH_AND && val == 0xffu) {
