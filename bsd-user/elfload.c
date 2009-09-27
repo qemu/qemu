@@ -1107,10 +1107,10 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     s->disas_num_syms = nsyms;
 #if ELF_CLASS == ELFCLASS32
     s->disas_symtab.elf32 = syms;
-    s->lookup_symbol = lookup_symbolxx;
+    s->lookup_symbol = (lookup_symbol_t)lookup_symbolxx;
 #else
     s->disas_symtab.elf64 = syms;
-    s->lookup_symbol = lookup_symbolxx;
+    s->lookup_symbol = (lookup_symbol_t)lookup_symbolxx;
 #endif
     s->next = syminfos;
     syminfos = s;
