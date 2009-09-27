@@ -276,9 +276,15 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
     tcg_out_modrm_offset(s, 0x89, arg, arg1, arg2);
 }
 
-static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val)
+static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val, int cf)
 {
-    if (val == (int8_t)val) {
+    if (!cf && ((c == ARITH_ADD && val == 1) || (c == ARITH_SUB && val == -1))) {
+        /* inc */
+        tcg_out_opc(s, 0x40 + r0);
+    } else if (!cf && ((c == ARITH_ADD && val == -1) || (c == ARITH_SUB && val == 1))) {
+        /* dec */
+        tcg_out_opc(s, 0x48 + r0);
+    } else if (val == (int8_t)val) {
         tcg_out_modrm(s, 0x83, c, r0);
         tcg_out8(s, val);
     } else if (c == ARITH_AND && val == 0xffu && r0 < 4) {
@@ -296,7 +302,7 @@ static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val)
 static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
 {
     if (val != 0)
-        tgen_arithi(s, ARITH_ADD, reg, val);
+        tgen_arithi(s, ARITH_ADD, reg, val, 0);
 }
 
 static void tcg_out_jxx(TCGContext *s, int opc, int label_index)
@@ -344,7 +350,7 @@ static void tcg_out_brcond(TCGContext *s, int cond,
             /* test r, r */
             tcg_out_modrm(s, 0x85, arg1, arg1);
         } else {
-            tgen_arithi(s, ARITH_CMP, arg1, arg2);
+            tgen_arithi(s, ARITH_CMP, arg1, arg2, 0);
         }
     } else {
         tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3), arg2, arg1);
@@ -961,7 +967,7 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         c = ARITH_ADD;
     gen_arith:
         if (const_args[2]) {
-            tgen_arithi(s, c, args[0], args[2]);
+            tgen_arithi(s, c, args[0], args[2], 0);
         } else {
             tcg_out_modrm(s, 0x01 | (c << 3), args[2], args[0]);
         }
@@ -1019,21 +1025,21 @@ static inline void tcg_out_op(TCGContext *s, int opc,
 
     case INDEX_op_add2_i32:
         if (const_args[4]) 
-            tgen_arithi(s, ARITH_ADD, args[0], args[4]);
+            tgen_arithi(s, ARITH_ADD, args[0], args[4], 1);
         else
             tcg_out_modrm(s, 0x01 | (ARITH_ADD << 3), args[4], args[0]);
         if (const_args[5]) 
-            tgen_arithi(s, ARITH_ADC, args[1], args[5]);
+            tgen_arithi(s, ARITH_ADC, args[1], args[5], 1);
         else
             tcg_out_modrm(s, 0x01 | (ARITH_ADC << 3), args[5], args[1]);
         break;
     case INDEX_op_sub2_i32:
         if (const_args[4]) 
-            tgen_arithi(s, ARITH_SUB, args[0], args[4]);
+            tgen_arithi(s, ARITH_SUB, args[0], args[4], 1);
         else
             tcg_out_modrm(s, 0x01 | (ARITH_SUB << 3), args[4], args[0]);
         if (const_args[5]) 
-            tgen_arithi(s, ARITH_SBB, args[1], args[5]);
+            tgen_arithi(s, ARITH_SBB, args[1], args[5], 1);
         else
             tcg_out_modrm(s, 0x01 | (ARITH_SBB << 3), args[5], args[1]);
         break;
