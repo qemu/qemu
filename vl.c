@@ -3390,7 +3390,11 @@ static int qemu_event_init(void)
 
 static void qemu_event_increment(void)
 {
-    SetEvent(qemu_event_handle);
+    if (!SetEvent(qemu_event_handle)) {
+        fprintf(stderr, "qemu_event_increment: SetEvent failed: %d\n",
+                GetLastError());
+        exit (1);
+    }
 }
 #endif
 
