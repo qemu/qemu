@@ -82,7 +82,6 @@ VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o gdbstub-xml.o
-obj-y += envlist.o path.o
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
@@ -98,7 +97,8 @@ obj-arm-y += arm-semi.o
 
 obj-m68k-y += m68k-sim.o m68k-semi.o
 
-ARLIBS=libqemu.a
+ARLIBS=../libuser/libuser.a libqemu.a
+
 endif #CONFIG_LINUX_USER
 
 #########################################################
@@ -116,11 +116,10 @@ LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
         gdbstub.o gdbstub-xml.o
-obj-y += envlist.o path.o
 
 obj-i386-y += ioport-user.o
 
-ARLIBS=libqemu.a
+ARLIBS=../libuser/libuser.a libqemu.a
 
 endif #CONFIG_DARWIN_USER
 
@@ -134,23 +133,12 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
         gdbstub.o gdbstub-xml.o uaccess.o
-obj-y += envlist.o path.o
 
 obj-i386-y += ioport-user.o
 
-ARLIBS=libqemu.a
+ARLIBS=../libuser/libuser.a libqemu.a
 
 endif #CONFIG_BSD_USER
-
-ifdef CONFIG_USER_ONLY
-# hack to compile with -fpie for *-user targets
-obj-y += tcg-runtime-user.o host-utils-user.o
-obj-y += cutils-user.o cache-utils-user.o
-tcg-runtime-user.c host-utils-user.c cutils-user.c cache-utils-user.c:
-	@echo "  LN	$(TARGET_DIR)$@"
-	@ln -s $(SRC_PATH)/$(@:%-user.c=%.c) $@
-endif
-
 
 #########################################################
 # System emulator target

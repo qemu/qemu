@@ -40,6 +40,11 @@ subdir-%:
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
 
+$(filter %-user,$(SUBDIR_RULES)): libuser.a
+
+libuser.a:
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libuser V="$(V)" TARGET_DIR="$*/" all,)
+
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pc-bios/$* V="$(V)" TARGET_DIR="$*/",)
@@ -185,14 +190,14 @@ clean:
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
-	for d in $(ALL_SUBDIRS) libhw32 libhw64; do \
+	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser; do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
 distclean: clean
 	rm -f config-host.mak config-host.h config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
-	for d in $(TARGET_DIRS) libhw32 libhw64; do \
+	for d in $(TARGET_DIRS) libhw32 libhw64 libuser; do \
 	rm -rf $$d || exit 1 ; \
         done
 

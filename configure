@@ -2489,3 +2489,8 @@ for hwlib in 32 64; do
   echo "HWLIB=libqemuhw$hwlib.a" > $d/config.mak
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" >> $d/config.mak
 done
+
+d=libuser
+mkdir -p $d
+rm -f $d/Makefile
+ln -s $source_path/Makefile.user $d/Makefile
