@@ -281,6 +281,12 @@ static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val)
     if (val == (int8_t)val) {
         tcg_out_modrm(s, 0x83, c, r0);
         tcg_out8(s, val);
+    } else if (c == ARITH_AND && val == 0xffu && r0 < 4) {
+        /* movzbl */
+        tcg_out_modrm(s, 0xb6 | P_EXT, r0, r0);
+    } else if (c == ARITH_AND && val == 0xffffu) {
+        /* movzwl */
+        tcg_out_modrm(s, 0xb7 | P_EXT, r0, r0);
     } else {
         tcg_out_modrm(s, 0x81, c, r0);
         tcg_out32(s, val);
