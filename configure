@@ -2364,7 +2364,7 @@ cflags=""
 ldflags=""
 
 if test "$tcg_interpreter" = "yes"; then
-  cflags="-I\$(SRC_PATH)/tcg/interpreter $cflags"
+  cflags="-I\$(SRC_PATH)/tcg/bytecode $cflags"
 elif test "$ARCH" = "sparc64" ; then
   cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
 else
