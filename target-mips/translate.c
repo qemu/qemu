@@ -188,10 +188,10 @@ enum {
     OPC_MOVCI    = 0x01 | OPC_SPECIAL,
 
     /* Special */
-    OPC_PMON     = 0x05 | OPC_SPECIAL, /* inofficial */
+    OPC_PMON     = 0x05 | OPC_SPECIAL, /* unofficial */
     OPC_SYSCALL  = 0x0C | OPC_SPECIAL,
     OPC_BREAK    = 0x0D | OPC_SPECIAL,
-    OPC_SPIM     = 0x0E | OPC_SPECIAL, /* inofficial */
+    OPC_SPIM     = 0x0E | OPC_SPECIAL, /* unofficial */
     OPC_SYNC     = 0x0F | OPC_SPECIAL,
 
     OPC_SPECIAL15_RESERVED = 0x15 | OPC_SPECIAL,
