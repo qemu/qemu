@@ -370,4 +370,4 @@ ifneq ($(PROGS),)
 endif
 
 # Include automatically generated dependency files
--include $(wildcard *.d */*.d)
+-include $(wildcard *.d */*.d */tcg/interpreter/*.d)

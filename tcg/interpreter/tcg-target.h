@@ -47,7 +47,7 @@
 
 #ifdef CONFIG_DEBUG_TCG
 /* Enable debug output. */
-//~ #define CONFIG_DEBUG_TCG_INTERPRETER
+#define CONFIG_DEBUG_TCG_INTERPRETER
 #endif
 
 #if !defined(HOST_LONG_BITS)
