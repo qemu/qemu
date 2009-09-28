@@ -227,9 +227,9 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r13",
     "r14",
     "r15",
-    "r16",
 #endif
 #if TCG_TARGET_NB_REGS == 32
+    "r16",
     "r17",
     "r18",
     "r19",
