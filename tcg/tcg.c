@@ -995,6 +995,11 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
         op = tdefs->op;
         assert(op >= 0 && op < NB_OPS);
         def = &tcg_op_defs[op];
+#if defined(CONFIG_DEBUG_TCG)
+        /* Duplicate entry in op definitions? */
+        assert(!def->used);
+        def->used = 1;
+#endif
         nb_args = def->nb_iargs + def->nb_oargs;
         for(i = 0; i < nb_args; i++) {
             ct_str = tdefs->args_ct_str[i];
@@ -1049,6 +1054,17 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
         tdefs++;
     }
 
+#if defined(CONFIG_DEBUG_TCG)
+    for (op = 0; op < ARRAY_SIZE(tcg_op_defs); op++) {
+        if (op < INDEX_op_call || op == INDEX_op_debug_insn_start) {
+            /* Wrong entry in op definitions? */
+            assert(!tcg_op_defs[op].used);
+        } else {
+            /* Missing entry in op definitions? */
+            assert(tcg_op_defs[op].used);
+        }
+    }
+#endif
 }
 
 #ifdef USE_LIVENESS_ANALYSIS

@@ -394,6 +394,9 @@ typedef struct TCGOpDef {
     uint16_t copy_size;
     TCGArgConstraint *args_ct;
     int *sorted_args;
+#if defined(CONFIG_DEBUG_TCG)
+    int used;
+#endif
 } TCGOpDef;
         
 typedef struct TCGTargetOpDef {
