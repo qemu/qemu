@@ -95,6 +95,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu_i32, { "r", "r", "r" } },
     { INDEX_op_rem_i32, { "r", "r", "r" } },
     { INDEX_op_remu_i32, { "r", "r", "r" } },
+#else
+    { INDEX_op_div2_i32, { "r", "r", "0", "1", "r" } },
+    { INDEX_op_divu2_i32, { "r", "r", "0", "1", "r" } },
 #endif
     { INDEX_op_sub_i32, { "r", "ri", "ri" } },
     { INDEX_op_and_i32, { "r", "ri", "ri" } },
@@ -131,7 +134,15 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu_i64, { "r", "r", "r" } },
     { INDEX_op_rem_i64, { "r", "r", "r" } },
     { INDEX_op_remu_i64, { "r", "r", "r" } },
+#else
+    { INDEX_op_div2_i64, { "r", "r", "0", "1", "r" } },
+    { INDEX_op_divu2_i64, { "r", "r", "0", "1", "r" } },
+#endif
 
+#ifdef TCG_TARGET_HAS_not_i64
+    { INDEX_op_not_i64, { "r", "r" } },
+#endif
+#ifdef TCG_TARGET_HAS_neg_i64
     { INDEX_op_neg_i64, { "r", "r" } },
 #endif
 
