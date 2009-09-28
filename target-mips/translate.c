@@ -7660,6 +7660,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
     }
+
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+        tcg_gen_debug_insn_start(ctx->pc);
+
     op = MASK_OP_MAJOR(ctx->opcode);
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
