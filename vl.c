@@ -3596,9 +3596,14 @@ void qemu_cpu_kick(void *_env)
         qemu_thread_signal(env->thread, SIGUSR1);
 }
 
-int qemu_cpu_self(void *env)
+int qemu_cpu_self(void *_env)
 {
-    return (cpu_single_env != NULL);
+    CPUState *env = _env;
+    QemuThread this;
+
+    qemu_thread_self(&this);
+
+    return qemu_thread_equal(&this, env->thread);
 }
 
 static void cpu_signal(int sig)
