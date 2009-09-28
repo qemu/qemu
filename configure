@@ -689,6 +689,7 @@ echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --enable-kvm             enable KVM acceleration support"
+echo "  --enable-tcg-interpreter enable TCG with bytecode interpreter TCI"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-nptl            enable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
@@ -1817,8 +1818,14 @@ case "$cpu" in
     ARCH=arm
   ;;
   *)
-    echo "Unsupported CPU = $cpu"
-    exit 1
+    if test "$tcg_interpreter" = "yes" ; then
+        echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
+        ARCH=unknown
+        echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
+    else
+        echo "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
+        exit 1
+    fi
   ;;
 esac
 echo "ARCH=$ARCH" >> $config_host_mak
@@ -2133,9 +2140,6 @@ test -f $config_h && mv $config_h ${config_h}~
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
-if test "$tcg_interpreter" = "yes"; then
-  mkdir -p $target_dir/tcg/interpreter
-fi
 mkdir -p $target_dir/ide
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
@@ -2359,10 +2363,10 @@ fi
 cflags=""
 ldflags=""
 
-if test "$ARCH" = "sparc64" ; then
-  cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
-elif test "$tcg_interpreter" = "yes"; then
+if test "$tcg_interpreter" = "yes"; then
   cflags="-I\$(SRC_PATH)/tcg/interpreter $cflags"
+elif test "$ARCH" = "sparc64" ; then
+  cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
 else
   cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
 fi
