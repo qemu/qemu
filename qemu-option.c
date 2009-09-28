@@ -472,7 +472,7 @@ struct QemuOpt {
 
     QemuOptDesc  *desc;
     union {
-        int      bool;
+        int      boolean;
         uint64_t uint;
     } value;
 
@@ -512,7 +512,7 @@ int qemu_opt_get_bool(QemuOpts *opts, const char *name, int defval)
     if (opt == NULL)
         return defval;
     assert(opt->desc && opt->desc->type == QEMU_OPT_BOOL);
-    return opt->value.bool;
+    return opt->value.boolean;
 }
 
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval)
@@ -544,7 +544,7 @@ static int qemu_opt_parse(QemuOpt *opt)
         /* nothing */
         return 0;
     case QEMU_OPT_BOOL:
-        return parse_option_bool(opt->name, opt->str, &opt->value.bool);
+        return parse_option_bool(opt->name, opt->str, &opt->value.boolean);
     case QEMU_OPT_NUMBER:
         return parse_option_number(opt->name, opt->str, &opt->value.uint);
     case QEMU_OPT_SIZE:

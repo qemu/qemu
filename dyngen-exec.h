@@ -47,9 +47,6 @@ typedef struct FILE FILE;
 extern int fprintf(FILE *, const char *, ...);
 extern int fputs(const char *, FILE *);
 extern int printf(const char *, ...);
-#undef NULL
-//~ #define NULL ((void *)0)
-#define NULL 0
 
 #if defined(CONFIG_TCG_INTERPRETER)
 /* The TCG interpreter does not use special registers. */

@@ -729,7 +729,7 @@ static void nic_selective_reset(EEPRO100State * s)
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
     }
-    eeprom_contents[EEPROM_SIZE - 1] = (0xbaba - sum);
+    eeprom_contents[EEPROM_SIZE - 1] = 0xbaba - sum;
     TRACE(EEPROM, logout("checksum=0x%04x\n", eeprom_contents[EEPROM_SIZE - 1]));
 #endif
 
@@ -1264,7 +1264,6 @@ static const char *reg2name(uint8_t reg)
     }
     return p;
 }
-
 #endif                          /* DEBUG_EEPRO100 */
 
 static uint32_t eepro100_read_mdi(EEPRO100State * s)

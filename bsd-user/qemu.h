@@ -84,6 +84,9 @@ typedef struct TaskState {
 
 void init_task_state(TaskState *ts);
 extern const char *qemu_uname_release;
+#if defined(CONFIG_USE_GUEST_BASE)
+extern unsigned long mmap_min_addr;
+#endif
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
 /*

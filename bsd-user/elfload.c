@@ -1107,10 +1107,10 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     s->disas_num_syms = nsyms;
 #if ELF_CLASS == ELFCLASS32
     s->disas_symtab.elf32 = syms;
-    s->lookup_symbol = lookup_symbolxx;
+    s->lookup_symbol = (lookup_symbol_t)lookup_symbolxx;
 #else
     s->disas_symtab.elf64 = syms;
-    s->lookup_symbol = lookup_symbolxx;
+    s->lookup_symbol = (lookup_symbol_t)lookup_symbolxx;
 #endif
     s->next = syminfos;
     syminfos = s;
@@ -1336,6 +1336,29 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     info->start_mmap = (abi_ulong)ELF_START_MMAP;
     info->mmap = 0;
     elf_entry = (abi_ulong) elf_ex.e_entry;
+
+#if defined(CONFIG_USE_GUEST_BASE)
+    /*
+     * In case where user has not explicitly set the guest_base, we
+     * probe here that should we set it automatically.
+     */
+    if (!have_guest_base) {
+        /*
+         * Go through ELF program header table and find out whether
+	 * any of the segments drop below our current mmap_min_addr and
+         * in that case set guest_base to corresponding address.
+         */
+        for (i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum;
+            i++, elf_ppnt++) {
+            if (elf_ppnt->p_type != PT_LOAD)
+                continue;
+            if (HOST_PAGE_ALIGN(elf_ppnt->p_vaddr) < mmap_min_addr) {
+                guest_base = HOST_PAGE_ALIGN(mmap_min_addr);
+                break;
+            }
+        }
+    }
+#endif /* CONFIG_USE_GUEST_BASE */
 
     /* Do this so that we can load the interpreter, if need be.  We will
        change some of these later */
