@@ -173,45 +173,39 @@ static void tmp105_event(i2c_slave *i2c, enum i2c_event event)
     s->len = 0;
 }
 
-static void tmp105_save(QEMUFile *f, void *opaque)
+static void tmp105_post_save(void *opaque)
 {
-    TMP105State *s = (TMP105State *) opaque;
-
-    qemu_put_byte(f, s->len);
-    qemu_put_8s(f, &s->buf[0]);
-    qemu_put_8s(f, &s->buf[1]);
-
-    qemu_put_8s(f, &s->pointer);
-    qemu_put_8s(f, &s->config);
-    qemu_put_sbe16s(f, &s->temperature);
-    qemu_put_sbe16s(f, &s->limit[0]);
-    qemu_put_sbe16s(f, &s->limit[1]);
-    qemu_put_byte(f, s->alarm);
+    TMP105State *s = opaque;
     s->faults = tmp105_faultq[(s->config >> 3) & 3];		/* F */
-
-    i2c_slave_save(f, &s->i2c);
 }
 
-static int tmp105_load(QEMUFile *f, void *opaque, int version_id)
+static int tmp105_post_load(void *opaque, int version_id)
 {
-    TMP105State *s = (TMP105State *) opaque;
-
-    s->len = qemu_get_byte(f);
-    qemu_get_8s(f, &s->buf[0]);
-    qemu_get_8s(f, &s->buf[1]);
-
-    qemu_get_8s(f, &s->pointer);
-    qemu_get_8s(f, &s->config);
-    qemu_get_sbe16s(f, &s->temperature);
-    qemu_get_sbe16s(f, &s->limit[0]);
-    qemu_get_sbe16s(f, &s->limit[1]);
-    s->alarm = qemu_get_byte(f);
+    TMP105State *s = opaque;
 
     tmp105_interrupt_update(s);
-
-    i2c_slave_load(f, &s->i2c);
     return 0;
 }
+
+static const VMStateDescription vmstate_tmp105 = {
+    .name = "TMP105",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_save = tmp105_post_save,
+    .post_load = tmp105_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(len, TMP105State),
+        VMSTATE_UINT8_ARRAY(buf, TMP105State, 2),
+        VMSTATE_UINT8(pointer, TMP105State),
+        VMSTATE_UINT8(config, TMP105State),
+        VMSTATE_INT16(temperature, TMP105State),
+        VMSTATE_INT16_ARRAY(limit, TMP105State, 2),
+        VMSTATE_UINT8(alarm, TMP105State),
+        VMSTATE_I2C_SLAVE(i2c, TMP105State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void tmp105_reset(i2c_slave *i2c)
 {
@@ -234,7 +228,7 @@ static int tmp105_init(i2c_slave *i2c)
 
     tmp105_reset(&s->i2c);
 
-    register_savevm("TMP105", -1, 0, tmp105_save, tmp105_load, s);
+    vmstate_register(-1, &vmstate_tmp105, s);
     return 0;
 }
 
