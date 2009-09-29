@@ -378,7 +378,7 @@ static void tcx24_invalidate_display(void *opaque)
     qemu_console_resize(s->ds, s->width, s->height);
 }
 
-static int vmstate_tcx_post_load(void *opaque)
+static int vmstate_tcx_post_load(void *opaque, int version_id)
 {
     TCXState *s = opaque;
 

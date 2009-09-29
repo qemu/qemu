@@ -1084,7 +1084,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         field++;
     }
     if (vmsd->post_load) {
-        return vmsd->post_load(opaque);
+        return vmsd->post_load(opaque, version_id);
     }
     return 0;
 }

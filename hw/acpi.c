@@ -441,7 +441,7 @@ static void pm_write_config(PCIDevice *d,
         pm_io_space_update((PIIX4PMState *)d);
 }
 
-static int vmstate_acpi_post_load(void *opaque)
+static int vmstate_acpi_post_load(void *opaque, int version_id)
 {
     PIIX4PMState *s = opaque;
 

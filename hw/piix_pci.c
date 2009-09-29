@@ -172,7 +172,7 @@ static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static int i440fx_post_load(void *opaque)
+static int i440fx_post_load(void *opaque, int version_id)
 {
     PCII440FXState *d = opaque;
 

@@ -650,7 +650,7 @@ static void fdc_pre_save(const void *opaque)
     s->dor_vmstate = s->dor | GET_CUR_DRV(s);
 }
 
-static int fdc_post_load(void *opaque)
+static int fdc_post_load(void *opaque, int version_id)
 {
     fdctrl_t *s = opaque;
 

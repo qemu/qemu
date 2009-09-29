@@ -2957,7 +2957,7 @@ static CPUWriteMemoryFunc * const cirrus_mmio_write[3] = {
 
 /* load/save state */
 
-static int cirrus_post_load(void *opaque)
+static int cirrus_post_load(void *opaque, int version_id)
 {
     CirrusVGAState *s = opaque;
 
