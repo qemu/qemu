@@ -62,7 +62,7 @@ typedef struct {
     } rtc;
     qemu_irq out[4];
     qemu_irq *in;
-    int pwrbtn_state;
+    uint8_t pwrbtn_state;
     qemu_irq pwrbtn;
 } MenelausState;
 
