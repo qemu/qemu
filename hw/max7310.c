@@ -143,38 +143,23 @@ static void max7310_event(i2c_slave *i2c, enum i2c_event event)
     }
 }
 
-static void max7310_save(QEMUFile *f, void *opaque)
-{
-    MAX7310State *s = (MAX7310State *) opaque;
-
-    qemu_put_be32(f, s->i2c_command_byte);
-    qemu_put_be32(f, s->len);
-
-    qemu_put_8s(f, &s->level);
-    qemu_put_8s(f, &s->direction);
-    qemu_put_8s(f, &s->polarity);
-    qemu_put_8s(f, &s->status);
-    qemu_put_8s(f, &s->command);
-
-    i2c_slave_save(f, &s->i2c);
-}
-
-static int max7310_load(QEMUFile *f, void *opaque, int version_id)
-{
-    MAX7310State *s = (MAX7310State *) opaque;
-
-    s->i2c_command_byte = qemu_get_be32(f);
-    s->len = qemu_get_be32(f);
-
-    qemu_get_8s(f, &s->level);
-    qemu_get_8s(f, &s->direction);
-    qemu_get_8s(f, &s->polarity);
-    qemu_get_8s(f, &s->status);
-    qemu_get_8s(f, &s->command);
-
-    i2c_slave_load(f, &s->i2c);
-    return 0;
-}
+static const VMStateDescription vmstate_max7310 = {
+    .name = "max7310",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(i2c_command_byte, MAX7310State),
+        VMSTATE_INT32(len, MAX7310State),
+        VMSTATE_UINT8(level, MAX7310State),
+        VMSTATE_UINT8(direction, MAX7310State),
+        VMSTATE_UINT8(polarity, MAX7310State),
+        VMSTATE_UINT8(status, MAX7310State),
+        VMSTATE_UINT8(command, MAX7310State),
+        VMSTATE_I2C_SLAVE(i2c, MAX7310State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void max7310_gpio_set(void *opaque, int line, int level)
 {
@@ -199,7 +184,7 @@ static int max7310_init(i2c_slave *i2c)
 
     max7310_reset(&s->i2c);
 
-    register_savevm("max7310", -1, 0, max7310_save, max7310_load, s);
+    vmstate_register(-1, &vmstate_max7310, s);
     return 0;
 }
 
