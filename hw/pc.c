@@ -1402,7 +1402,7 @@ static void pc_init1(ram_addr_t ram_size,
         for (i = 0; i < 8; i++) {
             DeviceState *eeprom;
             eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-            qdev_prop_set_uint32(eeprom, "address", 0x50 + i);
+            qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
             qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
             qdev_init(eeprom);
         }

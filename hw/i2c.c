@@ -14,14 +14,14 @@ struct i2c_bus
     BusState qbus;
     i2c_slave *current_dev;
     i2c_slave *dev;
-    int saved_address;
+    uint8_t saved_address;
 };
 
 static struct BusInfo i2c_bus_info = {
     .name = "I2C",
     .size = sizeof(i2c_bus),
     .props = (Property[]) {
-        DEFINE_PROP_UINT32("address", struct i2c_slave, address, 0),
+        DEFINE_PROP_UINT8("address", struct i2c_slave, address, 0),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
@@ -29,8 +29,9 @@ static struct BusInfo i2c_bus_info = {
 static void i2c_bus_save(QEMUFile *f, void *opaque)
 {
     i2c_bus *bus = (i2c_bus *)opaque;
+    bus->saved_address = bus->current_dev ? bus->current_dev->address : -1;
 
-    qemu_put_byte(f, bus->current_dev ? bus->current_dev->address : -1);
+    qemu_put_8s(f, &bus->saved_address);
 }
 
 static int i2c_bus_load(QEMUFile *f, void *opaque, int version_id)
@@ -42,7 +43,7 @@ static int i2c_bus_load(QEMUFile *f, void *opaque, int version_id)
 
     /* The bus is loaded before attached devices, so load and save the
        current device id.  Devices will check themselves as loaded.  */
-    bus->saved_address = (int8_t) qemu_get_byte(f);
+    qemu_get_8s(f, &bus->saved_address);
     bus->current_dev = NULL;
 
     return 0;
@@ -58,7 +59,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
     return bus;
 }
 
-void i2c_set_slave_address(i2c_slave *dev, int address)
+void i2c_set_slave_address(i2c_slave *dev, uint8_t address)
 {
     dev->address = address;
 }
@@ -71,7 +72,7 @@ int i2c_bus_busy(i2c_bus *bus)
 
 /* Returns non-zero if the address is not valid.  */
 /* TODO: Make this handle multiple masters.  */
-int i2c_start_transfer(i2c_bus *bus, int address, int recv)
+int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv)
 {
     DeviceState *qdev;
     i2c_slave *slave = NULL;
@@ -136,14 +137,14 @@ void i2c_nack(i2c_bus *bus)
 
 void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
 {
-    qemu_put_byte(f, dev->address);
+    qemu_put_8s(f, &dev->address);
 }
 
 void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
 {
     i2c_bus *bus;
     bus = FROM_QBUS(i2c_bus, qdev_get_parent_bus(&dev->qdev));
-    dev->address = qemu_get_byte(f);
+    qemu_get_8s(f, &dev->address);
     if (bus->saved_address == dev->address) {
         bus->current_dev = dev;
     }
@@ -167,12 +168,12 @@ void i2c_register_slave(I2CSlaveInfo *info)
     qdev_register(&info->qdev);
 }
 
-DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr)
+DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr)
 {
     DeviceState *dev;
 
     dev = qdev_create(&bus->qbus, name);
-    qdev_prop_set_uint32(dev, "address", addr);
+    qdev_prop_set_uint8(dev, "address", addr);
     qdev_init(dev);
     return dev;
 }

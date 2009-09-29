@@ -40,13 +40,13 @@ struct i2c_slave
     I2CSlaveInfo *info;
 
     /* Remaining fields for internal use by the I2C code.  */
-    uint32_t address;
+    uint8_t address;
 };
 
 i2c_bus *i2c_init_bus(DeviceState *parent, const char *name);
-void i2c_set_slave_address(i2c_slave *dev, int address);
+void i2c_set_slave_address(i2c_slave *dev, uint8_t address);
 int i2c_bus_busy(i2c_bus *bus);
-int i2c_start_transfer(i2c_bus *bus, int address, int recv);
+int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv);
 void i2c_end_transfer(i2c_bus *bus);
 void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
@@ -59,7 +59,7 @@ void i2c_slave_load(QEMUFile *f, i2c_slave *dev);
 
 void i2c_register_slave(I2CSlaveInfo *type);
 
-DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, int addr);
+DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr);
 
 /* max7310.c */
 void max7310_reset(i2c_slave *i2c);
