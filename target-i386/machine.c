@@ -205,12 +205,50 @@ static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
 }
 #endif
 
+static int cpu_pre_load(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_synchronize_state(env);
+    return 0;
+}
+
+static int cpu_post_load(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+    int i;
+
+    /* XXX: restore FPU round state */
+    env->fpstt = (env->fpus_vmstate >> 11) & 7;
+    env->fpus = env->fpus_vmstate & ~0x3800;
+    env->fptag_vmstate ^= 0xff;
+    for(i = 0; i < 8; i++) {
+        env->fptags[i] = (env->fptag_vmstate >> i) & 1;
+    }
+
+    cpu_breakpoint_remove_all(env, BP_CPU);
+    cpu_watchpoint_remove_all(env, BP_CPU);
+    for (i = 0; i < 4; i++)
+        hw_breakpoint_insert(env, i);
+
+    if (version_id >= 9) {
+        memset(&env->interrupt_bitmap, 0, sizeof(env->interrupt_bitmap));
+        if (env->pending_irq_vmstate >= 0) {
+            env->interrupt_bitmap[env->pending_irq_vmstate / 64] |=
+                (uint64_t)1 << (env->pending_irq_vmstate % 64);
+        }
+    }
+
+    return cpu_post_load(env, version_id);
+}
+
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     CPUState *env = opaque;
     int i, guess_mmx;
 
-    cpu_synchronize_state(env);
+    cpu_pre_load(env);
+
     if (version_id < 3 || version_id > CPU_SAVE_VERSION)
         return -EINVAL;
     for(i = 0; i < CPU_NB_REGS; i++)
@@ -269,14 +307,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
-    /* XXX: restore FPU round state */
-    env->fpstt = (env->fpus_vmstate >> 11) & 7;
-    env->fpus = env->fpus_vmstate & ~0x3800;
-    env->fptag_vmstate ^= 0xff;
-    for(i = 0; i < 8; i++) {
-        env->fptags[i] = (env->fptag_vmstate >> i) & 1;
-    }
-
     for(i = 0; i < 6; i++)
         cpu_get_seg(f, &env->segs[i]);
     cpu_get_seg(f, &env->ldt);
@@ -300,10 +330,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     for(i = 0; i < 8; i++)
         qemu_get_betls(f, &env->dr[i]);
-    cpu_breakpoint_remove_all(env, BP_CPU);
-    cpu_watchpoint_remove_all(env, BP_CPU);
-    for (i = 0; i < 4; i++)
-        hw_breakpoint_insert(env, i);
 
     qemu_get_sbe32s(f, &env->a20_mask);
 
@@ -355,11 +381,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id >= 9) {
         qemu_get_sbe32s(f, &env->pending_irq_vmstate);
-        memset(&env->interrupt_bitmap, 0, sizeof(env->interrupt_bitmap));
-        if (env->pending_irq_vmstate >= 0) {
-            env->interrupt_bitmap[env->pending_irq_vmstate / 64] |=
-                (uint64_t)1 << (env->pending_irq_vmstate % 64);
-        }
         qemu_get_be32s(f, &env->mp_state);
         qemu_get_be64s(f, &env->tsc);
     }
