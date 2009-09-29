@@ -157,7 +157,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     if (env->mcg_cap) {
         qemu_put_be64s(f, &env->mcg_status);
         qemu_put_be64s(f, &env->mcg_ctl);
-        for (i = 0; i < (env->mcg_cap & 0xff); i++) {
+        for (i = 0; i < MCE_BANKS_DEF; i++) {
             qemu_put_be64s(f, &env->mce_banks[4*i]);
             qemu_put_be64s(f, &env->mce_banks[4*i + 1]);
             qemu_put_be64s(f, &env->mce_banks[4*i + 2]);
@@ -355,7 +355,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         if (env->mcg_cap) {
             qemu_get_be64s(f, &env->mcg_status);
             qemu_get_be64s(f, &env->mcg_ctl);
-            for (i = 0; i < (env->mcg_cap & 0xff); i++) {
+            for (i = 0; i < MCE_BANKS_DEF; i++) {
                 qemu_get_be64s(f, &env->mce_banks[4*i]);
                 qemu_get_be64s(f, &env->mce_banks[4*i + 1]);
                 qemu_get_be64s(f, &env->mce_banks[4*i + 2]);
