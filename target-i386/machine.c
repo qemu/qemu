@@ -21,15 +21,17 @@ static const VMStateDescription vmstate_segment = {
     }
 };
 
-static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
-{
-    vmstate_save_state(f, &vmstate_segment, dt);
+#define VMSTATE_SEGMENT(_field, _state) {                            \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(SegmentCache),                              \
+    .vmsd       = &vmstate_segment,                                  \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = offsetof(_state, _field)                           \
+            + type_check(SegmentCache,typeof_field(_state, _field))  \
 }
 
-static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
-{
-    vmstate_load_state(f, &vmstate_segment, dt, vmstate_segment.version_id);
-}
+#define VMSTATE_SEGMENT_ARRAY(_field, _state, _n)                    \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_segment, SegmentCache)
 
 static const VMStateDescription vmstate_xmm_reg = {
     .name = "xmm_reg",
@@ -43,15 +45,8 @@ static const VMStateDescription vmstate_xmm_reg = {
     }
 };
 
-static void cpu_put_xmm_reg(QEMUFile *f, XMMReg *xmm_reg)
-{
-    vmstate_save_state(f, &vmstate_xmm_reg, xmm_reg);
-}
-
-static void cpu_get_xmm_reg(QEMUFile *f, XMMReg *xmm_reg)
-{
-    vmstate_load_state(f, &vmstate_xmm_reg, xmm_reg, vmstate_xmm_reg.version_id);
-}
+#define VMSTATE_XMM_REGS(_field, _state, _n)                         \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_xmm_reg, XMMReg)
 
 static const VMStateDescription vmstate_mtrr_var = {
     .name = "mtrr_var",
@@ -65,14 +60,13 @@ static const VMStateDescription vmstate_mtrr_var = {
     }
 };
 
-static void cpu_put_mtrr_var(QEMUFile *f, MTRRVar *mtrr_var)
-{
-    vmstate_save_state(f, &vmstate_mtrr_var, mtrr_var);
-}
+#define VMSTATE_MTRR_VARS(_field, _state, _n, _v)                    \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_mtrr_var, MTRRVar)
 
-static void cpu_get_mtrr_var(QEMUFile *f, MTRRVar *mtrr_var)
+static void put_fpreg_error(QEMUFile *f, void *opaque, size_t size)
 {
-    vmstate_load_state(f, &vmstate_mtrr_var, mtrr_var, vmstate_mtrr_var.version_id);
+    fprintf(stderr, "call put_fpreg() with invalid arguments\n");
+    exit(0);
 }
 
 #ifdef USE_X86LDOUBLE
@@ -122,6 +116,12 @@ static void put_fpreg(QEMUFile *f, void *opaque, size_t size)
     qemu_put_be16s(f, &exp);
 }
 
+const VMStateInfo vmstate_fpreg = {
+    .name = "fpreg",
+    .get  = get_fpreg,
+    .put  = put_fpreg,
+};
+
 static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size)
 {
     union x86_longdouble *p = opaque;
@@ -133,6 +133,12 @@ static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size)
     return 0;
 }
 
+const VMStateInfo vmstate_fpreg_1_mmx = {
+    .name = "fpreg_1_mmx",
+    .get  = get_fpreg_1_mmx,
+    .put  = put_fpreg_error,
+};
+
 static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size)
 {
     union x86_longdouble *p = opaque;
@@ -142,6 +148,44 @@ static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size)
     fp64_to_fp80(p, mant);
     return 0;
 }
+
+const VMStateInfo vmstate_fpreg_1_no_mmx = {
+    .name = "fpreg_1_no_mmx",
+    .get  = get_fpreg_1_no_mmx,
+    .put  = put_fpreg_error,
+};
+
+static bool fpregs_is_0(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+
+    return (env->fpregs_format_vmstate == 0);
+}
+
+static bool fpregs_is_1_mmx(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+    int guess_mmx;
+
+    guess_mmx = ((env->fptag_vmstate == 0xff) &&
+                 (env->fpus_vmstate & 0x3800) == 0);
+    return (guess_mmx && (env->fpregs_format_vmstate == 1));
+}
+
+static bool fpregs_is_1_no_mmx(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+    int guess_mmx;
+
+    guess_mmx = ((env->fptag_vmstate == 0xff) &&
+                 (env->fpus_vmstate & 0x3800) == 0);
+    return (!guess_mmx && (env->fpregs_format_vmstate == 1));
+}
+
+#define VMSTATE_FP_REGS(_field, _state, _n)                               \
+    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_0, vmstate_fpreg, FPReg), \
+    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1_mmx, vmstate_fpreg_1_mmx, FPReg), \
+    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1_no_mmx, vmstate_fpreg_1_no_mmx, FPReg)
 
 #else
 static int get_fpreg(QEMUFile *f, void *opaque, size_t size)
@@ -162,6 +206,12 @@ static void put_fpreg(QEMUFile *f, void *opaque, size_t size)
     qemu_put_be64s(f, &fp_reg->mmx.MMX_Q(0));
 }
 
+const VMStateInfo vmstate_fpreg = {
+    .name = "fpreg",
+    .get  = get_fpreg,
+    .put  = put_fpreg,
+};
+
 static int get_fpreg_0_mmx(QEMUFile *f, void *opaque, size_t size)
 {
     FPReg *fp_reg = opaque;
@@ -173,6 +223,12 @@ static int get_fpreg_0_mmx(QEMUFile *f, void *opaque, size_t size)
     fp_reg->mmx.MMX_Q(0) = mant;
     return 0;
 }
+
+const VMStateInfo vmstate_fpreg_0_mmx = {
+    .name = "fpreg_0_mmx",
+    .get  = get_fpreg_0_mmx,
+    .put  = put_fpreg_error,
+};
 
 static int get_fpreg_0_no_mmx(QEMUFile *f, void *opaque, size_t size)
 {
@@ -187,7 +243,79 @@ static int get_fpreg_0_no_mmx(QEMUFile *f, void *opaque, size_t size)
     return 0;
 }
 
+const VMStateInfo vmstate_fpreg_0_no_mmx = {
+    .name = "fpreg_0_no_mmx",
+    .get  = get_fpreg_0_no_mmx,
+    .put  = put_fpreg_error,
+};
+
+static bool fpregs_is_1(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+
+    return env->fpregs_format_vmstate == 1;
+}
+
+static bool fpregs_is_0_mmx(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+    int guess_mmx;
+
+    guess_mmx = ((env->fptag_vmstate == 0xff) &&
+                 (env->fpus_vmstate & 0x3800) == 0);
+    return guess_mmx && env->fpregs_format_vmstate == 0;
+}
+
+static bool fpregs_is_0_no_mmx(void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+    int guess_mmx;
+
+    guess_mmx = ((env->fptag_vmstate == 0xff) &&
+                 (env->fpus_vmstate & 0x3800) == 0);
+    return !guess_mmx && env->fpregs_format_vmstate == 0;
+}
+
+#define VMSTATE_FP_REGS(_field, _state, _n)                               \
+    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_1, vmstate_fpreg, FPReg), \
+    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_0_mmx, vmstate_fpreg_0_mmx, FPReg), \
+    VMSTATE_ARRAY_TEST(_field, _state, _n, fpregs_is_0_no_mmx, vmstate_fpreg_0_no_mmx, FPReg)
+
 #endif /* USE_X86LDOUBLE */
+
+static bool version_is_5(void *opaque, int version_id)
+{
+    return version_id == 5;
+}
+
+#ifdef TARGET_X86_64
+static bool less_than_7(void *opaque, int version_id)
+{
+    return version_id < 7;
+}
+
+static int get_uint64_as_uint32(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+    *v = qemu_get_be32(f);
+    return 0;
+}
+
+static void put_uint64_as_uint32(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+    qemu_put_be32(f, *v);
+}
+
+const VMStateInfo vmstate_hack_uint64_as_uint32 = {
+    .name = "uint64_as_uint32",
+    .get  = get_uint64_as_uint32,
+    .put  = put_uint64_as_uint32,
+};
+
+#define VMSTATE_HACK_UINT32(_f, _s, _t)                                  \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, vmstate_hack_uint64_as_uint32, uint64_t)
+#endif
 
 static void cpu_pre_save(void *opaque)
 {
@@ -220,106 +348,6 @@ static void cpu_pre_save(void *opaque)
         }
     }
 }
-
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    CPUState *env = opaque;
-    int i;
-
-    cpu_pre_save(opaque);
-
-    for(i = 0; i < CPU_NB_REGS; i++)
-        qemu_put_betls(f, &env->regs[i]);
-    qemu_put_betls(f, &env->eip);
-    qemu_put_betls(f, &env->eflags);
-    qemu_put_be32s(f, &env->hflags);
-
-    /* FPU */
-    qemu_put_be16s(f, &env->fpuc);
-    qemu_put_be16s(f, &env->fpus_vmstate);
-    qemu_put_be16s(f, &env->fptag_vmstate);
-
-    qemu_put_be16s(f, &env->fpregs_format_vmstate);
-
-    for(i = 0; i < 8; i++) {
-        put_fpreg(f, &env->fpregs[i], 0);
-    }
-
-    for(i = 0; i < 6; i++)
-        cpu_put_seg(f, &env->segs[i]);
-    cpu_put_seg(f, &env->ldt);
-    cpu_put_seg(f, &env->tr);
-    cpu_put_seg(f, &env->gdt);
-    cpu_put_seg(f, &env->idt);
-
-    qemu_put_be32s(f, &env->sysenter_cs);
-    qemu_put_betls(f, &env->sysenter_esp);
-    qemu_put_betls(f, &env->sysenter_eip);
-
-    qemu_put_betls(f, &env->cr[0]);
-    qemu_put_betls(f, &env->cr[2]);
-    qemu_put_betls(f, &env->cr[3]);
-    qemu_put_betls(f, &env->cr[4]);
-
-    for(i = 0; i < 8; i++)
-        qemu_put_betls(f, &env->dr[i]);
-
-    /* MMU */
-    qemu_put_sbe32s(f, &env->a20_mask);
-
-    /* XMM */
-    qemu_put_be32s(f, &env->mxcsr);
-    for(i = 0; i < CPU_NB_REGS; i++) {
-        cpu_put_xmm_reg(f, &env->xmm_regs[i]);
-    }
-
-#ifdef TARGET_X86_64
-    qemu_put_be64s(f, &env->efer);
-    qemu_put_be64s(f, &env->star);
-    qemu_put_be64s(f, &env->lstar);
-    qemu_put_be64s(f, &env->cstar);
-    qemu_put_be64s(f, &env->fmask);
-    qemu_put_be64s(f, &env->kernelgsbase);
-#endif
-    qemu_put_be32s(f, &env->smbase);
-
-    qemu_put_be64s(f, &env->pat);
-    qemu_put_be32s(f, &env->hflags2);
-    
-    qemu_put_be64s(f, &env->vm_hsave);
-    qemu_put_be64s(f, &env->vm_vmcb);
-    qemu_put_be64s(f, &env->tsc_offset);
-    qemu_put_be64s(f, &env->intercept);
-    qemu_put_be16s(f, &env->intercept_cr_read);
-    qemu_put_be16s(f, &env->intercept_cr_write);
-    qemu_put_be16s(f, &env->intercept_dr_read);
-    qemu_put_be16s(f, &env->intercept_dr_write);
-    qemu_put_be32s(f, &env->intercept_exceptions);
-    qemu_put_8s(f, &env->v_tpr);
-
-    /* MTRRs */
-    for(i = 0; i < 11; i++)
-        qemu_put_be64s(f, &env->mtrr_fixed[i]);
-    qemu_put_be64s(f, &env->mtrr_deftype);
-    for(i = 0; i < 8; i++) {
-        cpu_put_mtrr_var(f, &env->mtrr_var[i]);
-    }
-
-    /* KVM-related states */
-
-    qemu_put_sbe32s(f, &env->pending_irq_vmstate);
-    qemu_put_be32s(f, &env->mp_state);
-    qemu_put_be64s(f, &env->tsc);
-
-    /* MCE */
-    qemu_put_be64s(f, &env->mcg_cap);
-    qemu_put_be64s(f, &env->mcg_status);
-    qemu_put_be64s(f, &env->mcg_ctl);
-    for (i = 0; i < MCE_BANKS_DEF * 4; i++) {
-        qemu_put_be64s(f, &env->mce_banks[i]);
-    }
-    qemu_put_be64s(f, &env->tsc_aux);
- }
 
 static int cpu_pre_load(void *opaque)
 {
@@ -358,151 +386,104 @@ static int cpu_post_load(void *opaque, int version_id)
     return cpu_post_load(env, version_id);
 }
 
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CPUState *env = opaque;
-    int i, guess_mmx;
+const VMStateDescription vmstate_cpu = {
+    .name = "cpu",
+    .version_id = CPU_SAVE_VERSION,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .pre_save = cpu_pre_save,
+    .pre_load = cpu_pre_load,
+    .post_load = cpu_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINTTL_ARRAY(regs, CPUState, CPU_NB_REGS),
+        VMSTATE_UINTTL(eip, CPUState),
+        VMSTATE_UINTTL(eflags, CPUState),
+        VMSTATE_UINT32(hflags, CPUState),
+        /* FPU */
+        VMSTATE_UINT16(fpuc, CPUState),
+        VMSTATE_UINT16(fpus_vmstate, CPUState),
+        VMSTATE_UINT16(fptag_vmstate, CPUState),
+        VMSTATE_UINT16(fpregs_format_vmstate, CPUState),
+        VMSTATE_FP_REGS(fpregs, CPUState, 8),
 
-    cpu_pre_load(env);
+        VMSTATE_SEGMENT_ARRAY(segs, CPUState, 6),
+        VMSTATE_SEGMENT(ldt, CPUState),
+        VMSTATE_SEGMENT(tr, CPUState),
+        VMSTATE_SEGMENT(gdt, CPUState),
+        VMSTATE_SEGMENT(idt, CPUState),
 
-    if (version_id < 3 || version_id > CPU_SAVE_VERSION)
-        return -EINVAL;
-    for(i = 0; i < CPU_NB_REGS; i++)
-        qemu_get_betls(f, &env->regs[i]);
-    qemu_get_betls(f, &env->eip);
-    qemu_get_betls(f, &env->eflags);
-    qemu_get_be32s(f, &env->hflags);
-
-    qemu_get_be16s(f, &env->fpuc);
-    qemu_get_be16s(f, &env->fpus_vmstate);
-    qemu_get_be16s(f, &env->fptag_vmstate);
-    qemu_get_be16s(f, &env->fpregs_format_vmstate);
-
-    guess_mmx = ((env->fptag_vmstate == 0xff) && (env->fpus_vmstate & 0x3800) == 0);
-
-    for(i = 0; i < 8; i++) {
-#ifdef USE_X86LDOUBLE
-        switch(env->fpregs_format_vmstate) {
-        case 0:
-            get_fpreg(f, &env->fpregs[i], 0);
-            break;
-        case 1:
-            if (guess_mmx) {
-                get_fpreg_1_mmx(f, &env->fpregs[i], 0);
-            } else {
-                get_fpreg_1_no_mmx(f, &env->fpregs[i], 0);
-            }
-            break;
-        default:
-            return -EINVAL;
-        }
+        VMSTATE_UINT32(sysenter_cs, CPUState),
+#ifdef TARGET_X86_64
+        /* Hack: In v7 size changed from 32 to 64 bits on x86_64 */
+        VMSTATE_HACK_UINT32(sysenter_esp, CPUState, less_than_7),
+        VMSTATE_HACK_UINT32(sysenter_eip, CPUState, less_than_7),
+        VMSTATE_UINTTL_V(sysenter_esp, CPUState, 7),
+        VMSTATE_UINTTL_V(sysenter_eip, CPUState, 7),
 #else
-        switch(env->fpregs_format_vmstate) {
-        case 0:
-            if (guess_mmx) {
-                get_fpreg_0_mmx(f, &env->fpregs[i], 0);
-            } else {
-                get_fpreg_0_no_mmx(f, &env->fpregs[i], 0);
-            }
-            break;
-        case 1:
-            get_fpreg(f, &env->fpregs[i], 0);
-            break;
-        default:
-            return -EINVAL;
-        }
+        VMSTATE_UINTTL(sysenter_esp, CPUState),
+        VMSTATE_UINTTL(sysenter_eip, CPUState),
 #endif
-    }
 
-    for(i = 0; i < 6; i++)
-        cpu_get_seg(f, &env->segs[i]);
-    cpu_get_seg(f, &env->ldt);
-    cpu_get_seg(f, &env->tr);
-    cpu_get_seg(f, &env->gdt);
-    cpu_get_seg(f, &env->idt);
-
-    qemu_get_be32s(f, &env->sysenter_cs);
-    if (version_id >= 7) {
-        qemu_get_betls(f, &env->sysenter_esp);
-        qemu_get_betls(f, &env->sysenter_eip);
-    } else {
-        env->sysenter_esp = qemu_get_be32(f);
-        env->sysenter_eip = qemu_get_be32(f);
-    }
-
-    qemu_get_betls(f, &env->cr[0]);
-    qemu_get_betls(f, &env->cr[2]);
-    qemu_get_betls(f, &env->cr[3]);
-    qemu_get_betls(f, &env->cr[4]);
-
-    for(i = 0; i < 8; i++)
-        qemu_get_betls(f, &env->dr[i]);
-
-    qemu_get_sbe32s(f, &env->a20_mask);
-
-    qemu_get_be32s(f, &env->mxcsr);
-    for(i = 0; i < CPU_NB_REGS; i++) {
-        cpu_get_xmm_reg(f, &env->xmm_regs[i]);
-    }
+        VMSTATE_UINTTL(cr[0], CPUState),
+        VMSTATE_UINTTL(cr[2], CPUState),
+        VMSTATE_UINTTL(cr[3], CPUState),
+        VMSTATE_UINTTL(cr[4], CPUState),
+        VMSTATE_UINTTL_ARRAY(dr, CPUState, 8),
+        /* MMU */
+        VMSTATE_INT32(a20_mask, CPUState),
+        /* XMM */
+        VMSTATE_UINT32(mxcsr, CPUState),
+        VMSTATE_XMM_REGS(xmm_regs, CPUState, CPU_NB_REGS),
 
 #ifdef TARGET_X86_64
-    qemu_get_be64s(f, &env->efer);
-    qemu_get_be64s(f, &env->star);
-    qemu_get_be64s(f, &env->lstar);
-    qemu_get_be64s(f, &env->cstar);
-    qemu_get_be64s(f, &env->fmask);
-    qemu_get_be64s(f, &env->kernelgsbase);
+        VMSTATE_UINT64(efer, CPUState),
+        VMSTATE_UINT64(star, CPUState),
+        VMSTATE_UINT64(lstar, CPUState),
+        VMSTATE_UINT64(cstar, CPUState),
+        VMSTATE_UINT64(fmask, CPUState),
+        VMSTATE_UINT64(kernelgsbase, CPUState),
 #endif
-    if (version_id >= 4) {
-        qemu_get_be32s(f, &env->smbase);
-    }
-    if (version_id >= 5) {
-        qemu_get_be64s(f, &env->pat);
-        qemu_get_be32s(f, &env->hflags2);
-        if (version_id < 6)
-            qemu_get_be32s(f, &env->halted);
+        VMSTATE_UINT32_V(smbase, CPUState, 4),
 
-        qemu_get_be64s(f, &env->vm_hsave);
-        qemu_get_be64s(f, &env->vm_vmcb);
-        qemu_get_be64s(f, &env->tsc_offset);
-        qemu_get_be64s(f, &env->intercept);
-        qemu_get_be16s(f, &env->intercept_cr_read);
-        qemu_get_be16s(f, &env->intercept_cr_write);
-        qemu_get_be16s(f, &env->intercept_dr_read);
-        qemu_get_be16s(f, &env->intercept_dr_write);
-        qemu_get_be32s(f, &env->intercept_exceptions);
-        qemu_get_8s(f, &env->v_tpr);
-    }
+        VMSTATE_UINT64_V(pat, CPUState, 5),
+        VMSTATE_UINT32_V(hflags2, CPUState, 5),
 
-    if (version_id >= 8) {
+        VMSTATE_UINT32_TEST(halted, CPUState, version_is_5),
+        VMSTATE_UINT64_V(vm_hsave, CPUState, 5),
+        VMSTATE_UINT64_V(vm_vmcb, CPUState, 5),
+        VMSTATE_UINT64_V(tsc_offset, CPUState, 5),
+        VMSTATE_UINT64_V(intercept, CPUState, 5),
+        VMSTATE_UINT16_V(intercept_cr_read, CPUState, 5),
+        VMSTATE_UINT16_V(intercept_cr_write, CPUState, 5),
+        VMSTATE_UINT16_V(intercept_dr_read, CPUState, 5),
+        VMSTATE_UINT16_V(intercept_dr_write, CPUState, 5),
+        VMSTATE_UINT32_V(intercept_exceptions, CPUState, 5),
+        VMSTATE_UINT8_V(v_tpr, CPUState, 5),
         /* MTRRs */
-        for(i = 0; i < 11; i++)
-            qemu_get_be64s(f, &env->mtrr_fixed[i]);
-        qemu_get_be64s(f, &env->mtrr_deftype);
-        for(i = 0; i < 8; i++) {
-            cpu_get_mtrr_var(f, &env->mtrr_var[i]);
-        }
+        VMSTATE_UINT64_ARRAY_V(mtrr_fixed, CPUState, 11, 8),
+        VMSTATE_UINT64_V(mtrr_deftype, CPUState, 8),
+        VMSTATE_MTRR_VARS(mtrr_var, CPUState, 8, 8),
+        /* KVM-related states */
+        VMSTATE_INT32_V(pending_irq_vmstate, CPUState, 9),
+        VMSTATE_UINT32_V(mp_state, CPUState, 9),
+        VMSTATE_UINT64_V(tsc, CPUState, 9),
+        /* MCE */
+        VMSTATE_UINT64_V(mcg_cap, CPUState, 10),
+        VMSTATE_UINT64_V(mcg_status, CPUState, 10),
+        VMSTATE_UINT64_V(mcg_ctl, CPUState, 10),
+        VMSTATE_UINT64_ARRAY_V(mce_banks, CPUState, MCE_BANKS_DEF *4, 10),
+        /* rdtscp */
+        VMSTATE_UINT64_V(tsc_aux, CPUState, 11),
+        VMSTATE_END_OF_LIST()
     }
+};
 
-    if (version_id >= 9) {
-        qemu_get_sbe32s(f, &env->pending_irq_vmstate);
-        qemu_get_be32s(f, &env->mp_state);
-        qemu_get_be64s(f, &env->tsc);
-    }
+void cpu_save(QEMUFile *f, void *opaque)
+{
+    vmstate_save_state(f, &vmstate_cpu, opaque);
+}
 
-    if (version_id >= 10) {
-        qemu_get_be64s(f, &env->mcg_cap);
-        qemu_get_be64s(f, &env->mcg_status);
-        qemu_get_be64s(f, &env->mcg_ctl);
-        for (i = 0; i < MCE_BANKS_DEF * 4; i++) {
-            qemu_get_be64s(f, &env->mce_banks[i]);
-        }
-    }
-
-    if (version_id >= 11) {
-        qemu_get_be64s(f, &env->tsc_aux);
-    }
-
-    tlb_flush(env, 1);
-    return 0;
+int cpu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    return vmstate_load_state(f, &vmstate_cpu, opaque, version_id);
 }
