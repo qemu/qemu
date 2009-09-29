@@ -387,6 +387,15 @@ extern const VMStateInfo vmstate_info_buffer;
             + type_check(_type,typeof_field(_state, _field))         \
 }
 
+#define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type) {       \
+    .name       = (stringify(_field)),                               \
+    .vmsd       = &(_vmsd),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_STRUCT|VMS_POINTER,                            \
+    .offset     = offsetof(_state, _field)                           \
+            + type_check(_type,typeof_field(_state, _field))         \
+}
+
 #define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
     .num        = (_num),                                            \
