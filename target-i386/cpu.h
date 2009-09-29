@@ -565,6 +565,11 @@ typedef union {
     MMXReg mmx;
 } FPReg;
 
+typedef struct {
+    uint64_t base;
+    uint64_t mask;
+} MTRRVar;
+
 #ifdef TARGET_X86_64
 #define CPU_NB_REGS 16
 #else
@@ -683,10 +688,7 @@ typedef struct CPUX86State {
     /* MTRRs */
     uint64_t mtrr_fixed[11];
     uint64_t mtrr_deftype;
-    struct {
-        uint64_t base;
-        uint64_t mask;
-    } mtrr_var[8];
+    MTRRVar mtrr_var[8];
 
     /* For KVM */
     uint64_t interrupt_bitmap[256 / 64];
