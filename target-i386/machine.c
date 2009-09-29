@@ -26,7 +26,6 @@ static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
 void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;
-    uint16_t fpregs_format;
     int i, bit;
 
     cpu_synchronize_state(env);
@@ -49,11 +48,11 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &env->fptag_vmstate);
 
 #ifdef USE_X86LDOUBLE
-    fpregs_format = 0;
+    env->fpregs_format_vmstate = 0;
 #else
-    fpregs_format = 1;
+    env->fpregs_format_vmstate = 1;
 #endif
-    qemu_put_be16s(f, &fpregs_format);
+    qemu_put_be16s(f, &env->fpregs_format_vmstate);
 
     for(i = 0; i < 8; i++) {
 #ifdef USE_X86LDOUBLE
@@ -196,7 +195,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     CPUState *env = opaque;
     int i, guess_mmx;
-    uint16_t fpregs_format;
 
     cpu_synchronize_state(env);
     if (version_id < 3 || version_id > CPU_SAVE_VERSION)
@@ -210,7 +208,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &env->fpuc);
     qemu_get_be16s(f, &env->fpus_vmstate);
     qemu_get_be16s(f, &env->fptag_vmstate);
-    qemu_get_be16s(f, &fpregs_format);
+    qemu_get_be16s(f, &env->fpregs_format_vmstate);
 
     /* NOTE: we cannot always restore the FPU state if the image come
        from a host with a different 'USE_X86LDOUBLE' define. We guess
@@ -220,7 +218,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         uint64_t mant;
         uint16_t exp;
 
-        switch(fpregs_format) {
+        switch(env->fpregs_format_vmstate) {
         case 0:
             mant = qemu_get_be64(f);
             exp = qemu_get_be16(f);
