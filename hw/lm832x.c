@@ -25,9 +25,9 @@
 
 typedef struct {
     i2c_slave i2c;
-    int i2c_dir;
-    int i2c_cycle;
-    int reg;
+    uint8_t i2c_dir;
+    uint8_t i2c_cycle;
+    uint8_t reg;
 
     qemu_irq nirq;
     uint16_t model;
@@ -54,8 +54,8 @@ typedef struct {
     struct {
         uint8_t dbnctime;
         uint8_t size;
-        int start;
-        int len;
+        uint8_t start;
+        uint8_t len;
         uint8_t fifo[16];
     } kbd;
 
@@ -152,6 +152,9 @@ enum {
     LM832x_CMD_PWM_WRITE	= 0x95, /* Write PWM script. */
     LM832x_CMD_PWM_START	= 0x96, /* Start PWM engine. */
     LM832x_CMD_PWM_STOP		= 0x97, /* Stop PWM engine. */
+    LM832x_GENERAL_ERROR	= 0xff, /* There was one error.
+                                           Previously was represented by -1
+                                           This is not a command */
 };
 
 #define LM832x_MAX_KPX		8
@@ -257,7 +260,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         lm_kbd_irq_update(s);
         s->kbd.len = 0;
         s->kbd.start = 0;
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         break;
 
     case LM832x_CMD_RESET:
@@ -265,7 +268,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
             lm_kbd_reset(s);
         else
             lm_kbd_error(s, ERR_BADPAR);
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         break;
 
     case LM823x_CMD_WRITE_PULL_DOWN:
@@ -274,7 +277,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         else {
             s->gpio.pull |= value << 8;
             lm_kbd_gpio_update(s);
-            s->reg = -1;
+            s->reg = LM832x_GENERAL_ERROR;
         }
         break;
     case LM832x_CMD_WRITE_PORT_SEL:
@@ -283,7 +286,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         else {
             s->gpio.dir |= value << 8;
             lm_kbd_gpio_update(s);
-            s->reg = -1;
+            s->reg = LM832x_GENERAL_ERROR;
         }
         break;
     case LM832x_CMD_WRITE_PORT_STATE:
@@ -292,25 +295,25 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         else {
             s->gpio.mask |= value << 8;
             lm_kbd_gpio_update(s);
-            s->reg = -1;
+            s->reg = LM832x_GENERAL_ERROR;
         }
         break;
 
     case LM832x_CMD_SET_ACTIVE:
         s->acttime = value;
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         break;
 
     case LM832x_CMD_SET_DEBOUNCE:
         s->kbd.dbnctime = value;
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         if (!value)
             lm_kbd_error(s, ERR_BADPAR);
         break;
 
     case LM832x_CMD_SET_KEY_SIZE:
         s->kbd.size = value;
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         if (
                         (value & 0xf) < 3 || (value & 0xf) > LM832x_MAX_KPY ||
                         (value >> 4) < 3 || (value >> 4) > LM832x_MAX_KPX)
@@ -319,7 +322,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
 
     case LM832x_CMD_WRITE_CLOCK:
         s->clock = value;
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         if ((value & 3) && (value & 3) != 3) {
             lm_kbd_error(s, ERR_BADPAR);
             fprintf(stderr, "%s: invalid clock setting in RCPWM\n",
@@ -332,7 +335,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         if (byte == 0) {
             if (!(value & 3) || (value >> 2) > 59) {
                 lm_kbd_error(s, ERR_BADPAR);
-                s->reg = -1;
+                s->reg = LM832x_GENERAL_ERROR;
                 break;
             }
 
@@ -342,11 +345,11 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
             s->pwm.file[s->pwm.faddr] |= value << 8;
         } else if (byte == 2) {
             s->pwm.file[s->pwm.faddr] |= value << 0;
-            s->reg = -1;
+            s->reg = LM832x_GENERAL_ERROR;
         }
         break;
     case LM832x_CMD_PWM_START:
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         if (!(value & 3) || (value >> 2) > 59) {
             lm_kbd_error(s, ERR_BADPAR);
             break;
@@ -356,7 +359,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         lm_kbd_pwm_start(s, (value & 3) - 1);
         break;
     case LM832x_CMD_PWM_STOP:
-        s->reg = -1;
+        s->reg = LM832x_GENERAL_ERROR;
         if (!(value & 3)) {
             lm_kbd_error(s, ERR_BADPAR);
             break;
@@ -365,7 +368,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         qemu_del_timer(s->pwm.tm[(value & 3) - 1]);
         break;
 
-    case -1:
+    case LM832x_GENERAL_ERROR:
         lm_kbd_error(s, ERR_BADPAR);
         break;
     default:
