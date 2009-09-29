@@ -75,6 +75,120 @@ static void cpu_get_mtrr_var(QEMUFile *f, MTRRVar *mtrr_var)
     vmstate_load_state(f, &vmstate_mtrr_var, mtrr_var, vmstate_mtrr_var.version_id);
 }
 
+#ifdef USE_X86LDOUBLE
+/* XXX: add that in a FPU generic layer */
+union x86_longdouble {
+    uint64_t mant;
+    uint16_t exp;
+};
+
+#define MANTD1(fp)	(fp & ((1LL << 52) - 1))
+#define EXPBIAS1 1023
+#define EXPD1(fp)	((fp >> 52) & 0x7FF)
+#define SIGND1(fp)	((fp >> 32) & 0x80000000)
+
+static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
+{
+    int e;
+    /* mantissa */
+    p->mant = (MANTD1(temp) << 11) | (1LL << 63);
+    /* exponent + sign */
+    e = EXPD1(temp) - EXPBIAS1 + 16383;
+    e |= SIGND1(temp) >> 16;
+    p->exp = e;
+}
+
+static int get_fpreg(QEMUFile *f, void *opaque, size_t size)
+{
+    FPReg *fp_reg = opaque;
+    uint64_t mant;
+    uint16_t exp;
+
+    qemu_get_be64s(f, &mant);
+    qemu_get_be16s(f, &exp);
+    fp_reg->d = cpu_set_fp80(mant, exp);
+    return 0;
+}
+
+static void put_fpreg(QEMUFile *f, void *opaque, size_t size)
+{
+    FPReg *fp_reg = opaque;
+    uint64_t mant;
+    uint16_t exp;
+    /* we save the real CPU data (in case of MMX usage only 'mant'
+       contains the MMX register */
+    cpu_get_fp80(&mant, &exp, fp_reg->d);
+    qemu_put_be64s(f, &mant);
+    qemu_put_be16s(f, &exp);
+}
+
+static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size)
+{
+    union x86_longdouble *p = opaque;
+    uint64_t mant;
+
+    qemu_get_be64s(f, &mant);
+    p->mant = mant;
+    p->exp = 0xffff;
+    return 0;
+}
+
+static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size)
+{
+    union x86_longdouble *p = opaque;
+    uint64_t mant;
+
+    qemu_get_be64s(f, &mant);
+    fp64_to_fp80(p, mant);
+    return 0;
+}
+
+#else
+static int get_fpreg(QEMUFile *f, void *opaque, size_t size)
+{
+    FPReg *fp_reg = opaque;
+
+    qemu_get_be64s(f, &fp_reg->mmx.MMX_Q(0));
+    return 0;
+}
+
+static void put_fpreg(QEMUFile *f, void *opaque, size_t size)
+{
+    FPReg *fp_reg = opaque;
+    /* if we use doubles for float emulation, we save the doubles to
+       avoid losing information in case of MMX usage. It can give
+       problems if the image is restored on a CPU where long
+       doubles are used instead. */
+    qemu_put_be64s(f, &fp_reg->mmx.MMX_Q(0));
+}
+
+static int get_fpreg_0_mmx(QEMUFile *f, void *opaque, size_t size)
+{
+    FPReg *fp_reg = opaque;
+    uint64_t mant;
+    uint16_t exp;
+
+    qemu_get_be64s(f, &mant);
+    qemu_get_be16s(f, &exp);
+    fp_reg->mmx.MMX_Q(0) = mant;
+    return 0;
+}
+
+static int get_fpreg_0_no_mmx(QEMUFile *f, void *opaque, size_t size)
+{
+    FPReg *fp_reg = opaque;
+    uint64_t mant;
+    uint16_t exp;
+
+    qemu_get_be64s(f, &mant);
+    qemu_get_be16s(f, &exp);
+
+    fp_reg->d = cpu_set_fp80(mant, exp);
+    return 0;
+}
+
+#endif /* USE_X86LDOUBLE */
+
 static void cpu_pre_save(void *opaque)
 {
     CPUState *env = opaque;
@@ -128,23 +242,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &env->fpregs_format_vmstate);
 
     for(i = 0; i < 8; i++) {
-#ifdef USE_X86LDOUBLE
-        {
-            uint64_t mant;
-            uint16_t exp;
-            /* we save the real CPU data (in case of MMX usage only 'mant'
-               contains the MMX register */
-            cpu_get_fp80(&mant, &exp, env->fpregs[i].d);
-            qemu_put_be64(f, mant);
-            qemu_put_be16(f, exp);
-        }
-#else
-        /* if we use doubles for float emulation, we save the doubles to
-           avoid losing information in case of MMX usage. It can give
-           problems if the image is restored on a CPU where long
-           doubles are used instead. */
-        qemu_put_be64(f, env->fpregs[i].mmx.MMX_Q(0));
-#endif
+        put_fpreg(f, &env->fpregs[i], 0);
     }
 
     for(i = 0; i < 6; i++)
@@ -223,30 +321,6 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be64s(f, &env->tsc_aux);
  }
 
-#ifdef USE_X86LDOUBLE
-/* XXX: add that in a FPU generic layer */
-union x86_longdouble {
-    uint64_t mant;
-    uint16_t exp;
-};
-
-#define MANTD1(fp)	(fp & ((1LL << 52) - 1))
-#define EXPBIAS1 1023
-#define EXPD1(fp)	((fp >> 52) & 0x7FF)
-#define SIGND1(fp)	((fp >> 32) & 0x80000000)
-
-static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
-{
-    int e;
-    /* mantissa */
-    p->mant = (MANTD1(temp) << 11) | (1LL << 63);
-    /* exponent + sign */
-    e = EXPD1(temp) - EXPBIAS1 + 16383;
-    e |= SIGND1(temp) >> 16;
-    p->exp = e;
-}
-#endif
-
 static int cpu_pre_load(void *opaque)
 {
     CPUState *env = opaque;
@@ -304,49 +378,40 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &env->fptag_vmstate);
     qemu_get_be16s(f, &env->fpregs_format_vmstate);
 
-    /* NOTE: we cannot always restore the FPU state if the image come
-       from a host with a different 'USE_X86LDOUBLE' define. We guess
-       if we are in an MMX state to restore correctly in that case. */
     guess_mmx = ((env->fptag_vmstate == 0xff) && (env->fpus_vmstate & 0x3800) == 0);
-    for(i = 0; i < 8; i++) {
-        uint64_t mant;
-        uint16_t exp;
 
+    for(i = 0; i < 8; i++) {
+#ifdef USE_X86LDOUBLE
         switch(env->fpregs_format_vmstate) {
         case 0:
-            mant = qemu_get_be64(f);
-            exp = qemu_get_be16(f);
-#ifdef USE_X86LDOUBLE
-            env->fpregs[i].d = cpu_set_fp80(mant, exp);
-#else
-            /* difficult case */
-            if (guess_mmx)
-                env->fpregs[i].mmx.MMX_Q(0) = mant;
-            else
-                env->fpregs[i].d = cpu_set_fp80(mant, exp);
-#endif
+            get_fpreg(f, &env->fpregs[i], 0);
             break;
         case 1:
-            mant = qemu_get_be64(f);
-#ifdef USE_X86LDOUBLE
-            {
-                union x86_longdouble *p;
-                /* difficult case */
-                p = (void *)&env->fpregs[i];
-                if (guess_mmx) {
-                    p->mant = mant;
-                    p->exp = 0xffff;
-                } else {
-                    fp64_to_fp80(p, mant);
-                }
+            if (guess_mmx) {
+                get_fpreg_1_mmx(f, &env->fpregs[i], 0);
+            } else {
+                get_fpreg_1_no_mmx(f, &env->fpregs[i], 0);
             }
-#else
-            env->fpregs[i].mmx.MMX_Q(0) = mant;
-#endif
             break;
         default:
             return -EINVAL;
         }
+#else
+        switch(env->fpregs_format_vmstate) {
+        case 0:
+            if (guess_mmx) {
+                get_fpreg_0_mmx(f, &env->fpregs[i], 0);
+            } else {
+                get_fpreg_0_no_mmx(f, &env->fpregs[i], 0);
+            }
+            break;
+        case 1:
+            get_fpreg(f, &env->fpregs[i], 0);
+            break;
+        default:
+            return -EINVAL;
+        }
+#endif
     }
 
     for(i = 0; i < 6; i++)
