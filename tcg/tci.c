@@ -125,6 +125,13 @@ static void tci_write_reg8s(uint32_t index, int8_t value)
     tci_reg[index] = value;
 }
 
+static void tci_write_reg16s(uint32_t index, int16_t value)
+{
+    assert(index < ARRAY_SIZE(tci_reg));
+    assert(index != TCG_AREG0);
+    tci_reg[index] = value;
+}
+
 static void tci_write_reg16(uint32_t index, uint16_t value)
 {
     assert(index < ARRAY_SIZE(tci_reg));
@@ -870,7 +877,14 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             break;
         case INDEX_op_qemu_ld16s:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_r(&tb_ptr);
+#ifdef CONFIG_SOFTMMU
+            t2 = tci_read_i(&tb_ptr);
+            tci_write_reg16s(t0, __ldw_mmu(t1, t2));
+#else
+            tci_write_reg16s(t0, *(int16_t *)(t1 + GUEST_BASE));
+#endif
             break;
         case INDEX_op_qemu_ld32u:
             t0 = *tb_ptr++;
