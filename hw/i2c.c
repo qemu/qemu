@@ -142,19 +142,38 @@ void i2c_nack(i2c_bus *bus)
     dev->info->event(dev, I2C_NACK);
 }
 
+static int i2c_slave_post_load(void *opaque, int version_id)
+{
+    i2c_slave *dev = opaque;
+    i2c_bus *bus;
+    bus = FROM_QBUS(i2c_bus, qdev_get_parent_bus(&dev->qdev));
+    if (bus->saved_address == dev->address) {
+        bus->current_dev = dev;
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_i2c_slave = {
+    .name = "i2c_slave",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = i2c_slave_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(address, i2c_slave),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
 {
-    qemu_put_8s(f, &dev->address);
+    vmstate_save_state(f, &vmstate_i2c_slave, dev);
 }
 
 void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
 {
-    i2c_bus *bus;
-    bus = FROM_QBUS(i2c_bus, qdev_get_parent_bus(&dev->qdev));
-    qemu_get_8s(f, &dev->address);
-    if (bus->saved_address == dev->address) {
-        bus->current_dev = dev;
-    }
+    vmstate_load_state(f, &vmstate_i2c_slave, dev,
+                       vmstate_i2c_slave.version_id);
 }
 
 static int i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
