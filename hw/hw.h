@@ -440,6 +440,17 @@ extern const VMStateDescription vmstate_pci_device;
             + type_check(PCIDevice,typeof_field(_state, _field))     \
 }
 
+extern const VMStateDescription vmstate_i2c_slave;
+
+#define VMSTATE_I2C_SLAVE(_field, _state) {                          \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(i2c_slave),                                 \
+    .vmsd       = &vmstate_i2c_slave,                                \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = offsetof(_state, _field)                           \
+            + type_check(i2c_slave,typeof_field(_state, _field))     \
+}
+
 /* _f : field name
    _f_n : num of elements field_name
    _n : num of elements
