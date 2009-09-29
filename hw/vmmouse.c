@@ -235,7 +235,7 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
     return data[0];
 }
 
-static int vmmouse_post_load(void *opaque)
+static int vmmouse_post_load(void *opaque, int version_id)
 {
     VMMouseState *s = opaque;
 

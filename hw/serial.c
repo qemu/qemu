@@ -657,7 +657,7 @@ static int serial_pre_load(void *opaque)
     return 0;
 }
 
-static int serial_post_load(void *opaque)
+static int serial_post_load(void *opaque, int version_id)
 {
     SerialState *s = opaque;
 

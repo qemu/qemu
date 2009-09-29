@@ -517,7 +517,7 @@ static const VMStateDescription vmstate_dma_regs = {
     }
 };
 
-static int dma_post_load(void *opaque)
+static int dma_post_load(void *opaque, int version_id)
 {
     DMA_run();
 

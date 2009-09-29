@@ -528,7 +528,7 @@ static int cpu_common_pre_load(void *opaque)
     return 0;
 }
 
-static int cpu_common_post_load(void *opaque)
+static int cpu_common_post_load(void *opaque, int version_id)
 {
     CPUState *env = opaque;
 

@@ -164,7 +164,7 @@ static void hpet_pre_save(const void *opaque)
     s->hpet_counter = hpet_get_ticks();
 }
 
-static int hpet_post_load(void *opaque)
+static int hpet_post_load(void *opaque, int version_id)
 {
     HPETState *s = opaque;
 

@@ -374,7 +374,7 @@ static void slavio_set_irq_all(void *opaque, int irq, int level)
     }
 }
 
-static int vmstate_intctl_post_load(void *opaque)
+static int vmstate_intctl_post_load(void *opaque, int version_id)
 {
     SLAVIO_INTCTLState *s = opaque;
 
