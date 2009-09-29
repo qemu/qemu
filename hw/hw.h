@@ -286,6 +286,7 @@ enum VMStateFlags {
     VMS_STRUCT  = 0x008,
     VMS_VARRAY  = 0x010,  /* Array with size in another field */
     VMS_BUFFER  = 0x020,  /* static sized buffer */
+    VMS_ARRAY_OF_POINTER = 0x040,
 };
 
 typedef struct {
@@ -394,6 +395,17 @@ extern const VMStateInfo vmstate_info_buffer;
     .flags      = VMS_STRUCT|VMS_POINTER,                            \
     .offset     = offsetof(_state, _field)                           \
             + type_check(_type,typeof_field(_state, _field))         \
+}
+
+#define VMSTATE_ARRAY_OF_POINTER(_field, _state, _num, _version, _info, _type) {\
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num        = (_num),                                            \
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_ARRAY|VMS_ARRAY_OF_POINTER,                    \
+    .offset     = offsetof(_state, _field)                           \
+        + type_check_array(_type,typeof_field(_state, _field),_num)  \
 }
 
 #define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) { \
@@ -517,6 +529,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_TIMER(_f, _s)                                         \
     VMSTATE_TIMER_V(_f, _s, 0)
+
+#define VMSTATE_TIMER_ARRAY(_f, _s, _n)                              \
+    VMSTATE_ARRAY_OF_POINTER(_f, _s, _n, 0, vmstate_info_timer, QEMUTimer *)
 
 #define VMSTATE_PTIMER_V(_f, _s, _v)                                  \
     VMSTATE_POINTER(_f, _s, _v, vmstate_info_ptimer, ptimer_state *)
