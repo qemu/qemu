@@ -1055,7 +1055,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             return ret;
     }
     while(field->name) {
-        if (field->version_id <= version_id) {
+        if ((field->field_exists &&
+             field->field_exists(opaque, version_id)) ||
+            (!field->field_exists &&
+             field->version_id <= version_id)) {
             void *base_addr = opaque + field->offset;
             int ret, i, n_elems = 1;
 
@@ -1101,24 +1104,27 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
         vmsd->pre_save(opaque);
     }
     while(field->name) {
-        void *base_addr = opaque + field->offset;
-        int i, n_elems = 1;
+        if (!field->field_exists ||
+            field->field_exists(opaque, vmsd->version_id)) {
+            void *base_addr = opaque + field->offset;
+            int i, n_elems = 1;
 
-        if (field->flags & VMS_ARRAY) {
-            n_elems = field->num;
-        } else if (field->flags & VMS_VARRAY) {
-            n_elems = *(size_t *)(opaque+field->num_offset);
-        }
-        if (field->flags & VMS_POINTER) {
-            base_addr = *(void **)base_addr;
-        }
-        for (i = 0; i < n_elems; i++) {
-            void *addr = base_addr + field->size * i;
+            if (field->flags & VMS_ARRAY) {
+                n_elems = field->num;
+            } else if (field->flags & VMS_VARRAY) {
+                n_elems = *(size_t *)(opaque+field->num_offset);
+            }
+            if (field->flags & VMS_POINTER) {
+                base_addr = *(void **)base_addr;
+            }
+            for (i = 0; i < n_elems; i++) {
+                void *addr = base_addr + field->size * i;
 
-            if (field->flags & VMS_STRUCT) {
-                vmstate_save_state(f, field->vmsd, addr);
-            } else {
-                field->info->put(f, addr, field->size);
+                if (field->flags & VMS_STRUCT) {
+                    vmstate_save_state(f, field->vmsd, addr);
+                } else {
+                    field->info->put(f, addr, field->size);
+                }
             }
         }
         field++;
