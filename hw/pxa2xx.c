@@ -1452,33 +1452,32 @@ static CPUWriteMemoryFunc * const pxa2xx_i2c_writefn[] = {
     pxa2xx_i2c_write,
 };
 
-static void pxa2xx_i2c_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
+static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
+    .name = "pxa2xx_i2c_slave",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_I2C_SLAVE(i2c, PXA2xxI2CSlaveState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    qemu_put_be16s(f, &s->control);
-    qemu_put_be16s(f, &s->status);
-    qemu_put_8s(f, &s->ibmr);
-    qemu_put_8s(f, &s->data);
-
-    i2c_slave_save(f, &s->slave->i2c);
-}
-
-static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_be16s(f, &s->control);
-    qemu_get_be16s(f, &s->status);
-    qemu_get_8s(f, &s->ibmr);
-    qemu_get_8s(f, &s->data);
-
-    i2c_slave_load(f, &s->slave->i2c);
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_i2c = {
+    .name = "pxa2xx_i2c",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16(control, PXA2xxI2CState),
+        VMSTATE_UINT16(status, PXA2xxI2CState),
+        VMSTATE_UINT8(ibmr, PXA2xxI2CState),
+        VMSTATE_UINT8(data, PXA2xxI2CState),
+        VMSTATE_STRUCT_POINTER(slave, PXA2xxI2CState,
+                               vmstate_pxa2xx_i2c, PXA2xxI2CSlaveState *),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int pxa2xx_i2c_slave_init(i2c_slave *i2c)
 {
@@ -1516,8 +1515,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
     cpu_register_physical_memory(base & ~region_size,
                     region_size + 1, iomemtype);
 
-    register_savevm("pxa2xx_i2c", base, 1,
-                    pxa2xx_i2c_save, pxa2xx_i2c_load, s);
+    vmstate_register(base, &vmstate_pxa2xx_i2c, s);
 
     return s;
 }
