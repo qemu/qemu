@@ -31,6 +31,28 @@ static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
     vmstate_load_state(f, &vmstate_segment, dt, vmstate_segment.version_id);
 }
 
+static const VMStateDescription vmstate_xmm_reg = {
+    .name = "xmm_reg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(XMM_Q(0), XMMReg),
+        VMSTATE_UINT64(XMM_Q(1), XMMReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void cpu_put_xmm_reg(QEMUFile *f, XMMReg *xmm_reg)
+{
+    vmstate_save_state(f, &vmstate_xmm_reg, xmm_reg);
+}
+
+static void cpu_get_xmm_reg(QEMUFile *f, XMMReg *xmm_reg)
+{
+    vmstate_load_state(f, &vmstate_xmm_reg, xmm_reg, vmstate_xmm_reg.version_id);
+}
+
 static void cpu_pre_save(void *opaque)
 {
     CPUState *env = opaque;
@@ -128,8 +150,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     /* XMM */
     qemu_put_be32s(f, &env->mxcsr);
     for(i = 0; i < CPU_NB_REGS; i++) {
-        qemu_put_be64s(f, &env->xmm_regs[i].XMM_Q(0));
-        qemu_put_be64s(f, &env->xmm_regs[i].XMM_Q(1));
+        cpu_put_xmm_reg(f, &env->xmm_regs[i]);
     }
 
 #ifdef TARGET_X86_64
@@ -335,8 +356,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_be32s(f, &env->mxcsr);
     for(i = 0; i < CPU_NB_REGS; i++) {
-        qemu_get_be64s(f, &env->xmm_regs[i].XMM_Q(0));
-        qemu_get_be64s(f, &env->xmm_regs[i].XMM_Q(1));
+        cpu_get_xmm_reg(f, &env->xmm_regs[i]);
     }
 
 #ifdef TARGET_X86_64
