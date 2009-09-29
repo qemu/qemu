@@ -53,6 +53,28 @@ static void cpu_get_xmm_reg(QEMUFile *f, XMMReg *xmm_reg)
     vmstate_load_state(f, &vmstate_xmm_reg, xmm_reg, vmstate_xmm_reg.version_id);
 }
 
+static const VMStateDescription vmstate_mtrr_var = {
+    .name = "mtrr_var",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(base, MTRRVar),
+        VMSTATE_UINT64(mask, MTRRVar),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void cpu_put_mtrr_var(QEMUFile *f, MTRRVar *mtrr_var)
+{
+    vmstate_save_state(f, &vmstate_mtrr_var, mtrr_var);
+}
+
+static void cpu_get_mtrr_var(QEMUFile *f, MTRRVar *mtrr_var)
+{
+    vmstate_load_state(f, &vmstate_mtrr_var, mtrr_var, vmstate_mtrr_var.version_id);
+}
+
 static void cpu_pre_save(void *opaque)
 {
     CPUState *env = opaque;
@@ -182,8 +204,7 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_be64s(f, &env->mtrr_fixed[i]);
     qemu_put_be64s(f, &env->mtrr_deftype);
     for(i = 0; i < 8; i++) {
-        qemu_put_be64s(f, &env->mtrr_var[i].base);
-        qemu_put_be64s(f, &env->mtrr_var[i].mask);
+        cpu_put_mtrr_var(f, &env->mtrr_var[i]);
     }
 
     /* KVM-related states */
@@ -394,8 +415,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
             qemu_get_be64s(f, &env->mtrr_fixed[i]);
         qemu_get_be64s(f, &env->mtrr_deftype);
         for(i = 0; i < 8; i++) {
-            qemu_get_be64s(f, &env->mtrr_var[i].base);
-            qemu_get_be64s(f, &env->mtrr_var[i].mask);
+            cpu_get_mtrr_var(f, &env->mtrr_var[i]);
         }
     }
 
