@@ -687,6 +687,7 @@ typedef struct CPUX86State {
 
     /* For KVM */
     uint64_t interrupt_bitmap[256 / 64];
+    int32_t pending_irq_vmstate;
     uint32_t mp_state;
 
     /* in order to simplify APIC support, we leave this pointer to the
