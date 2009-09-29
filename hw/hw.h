@@ -587,6 +587,25 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_BUFFER(_f, _s)                                        \
     VMSTATE_STATIC_BUFFER(_f, _s, 0)
 
+#ifdef NEED_CPU_H
+#if TARGET_LONG_BITS == 64
+#define VMSTATE_UINTTL_V(_f, _s, _v)                                  \
+    VMSTATE_UINT64_V(_f, _s, _v)
+#define VMSTATE_UINTTL_ARRAY_V(_f, _s, _n, _v)                        \
+    VMSTATE_UINT64_ARRAY_V(_f, _s, _n, _v)
+#else
+#define VMSTATE_UINTTL_V(_f, _s, _v)                                  \
+    VMSTATE_UINT32_V(_f, _s, _v)
+#define VMSTATE_UINTTL_ARRAY_V(_f, _s, _n, _v)                        \
+    VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)
+#endif
+#define VMSTATE_UINTTL(_f, _s)                                        \
+    VMSTATE_UINTTL_V(_f, _s, 0)
+#define VMSTATE_UINTTL_ARRAY(_f, _s, _n)                              \
+    VMSTATE_UINTTL_ARRAY_V(_f, _s, _n, 0)
+
+#endif
+
 #define VMSTATE_END_OF_LIST()                                         \
     {}
 
