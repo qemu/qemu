@@ -596,6 +596,7 @@ typedef struct CPUX86State {
     uint16_t fpus;
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
+    uint16_t fpregs_format_vmstate;
     uint16_t fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
     union {
