@@ -473,6 +473,9 @@ static int virtio_console_init_pci(PCIDevice *pci_dev)
         proxy->class_code = PCI_CLASS_COMMUNICATION_OTHER;
 
     vdev = virtio_console_init(&pci_dev->qdev);
+    if (!vdev) {
+        return -1;
+    }
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_CONSOLE,
