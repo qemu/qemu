@@ -27,7 +27,6 @@ void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;
     uint16_t fptag, fpus, fpuc, fpregs_format;
-    int32_t a20_mask;
     int32_t pending_irq;
     int i, bit;
 
@@ -98,8 +97,7 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_betls(f, &env->dr[i]);
 
     /* MMU */
-    a20_mask = (int32_t) env->a20_mask;
-    qemu_put_sbe32s(f, &a20_mask);
+    qemu_put_sbe32s(f, &env->a20_mask);
 
     /* XMM */
     qemu_put_be32s(f, &env->mxcsr);
@@ -201,7 +199,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     CPUState *env = opaque;
     int i, guess_mmx;
     uint16_t fpus, fpuc, fptag, fpregs_format;
-    int32_t a20_mask;
     int32_t pending_irq;
 
     cpu_synchronize_state(env);
@@ -300,9 +297,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 4; i++)
         hw_breakpoint_insert(env, i);
 
-    /* MMU */
-    qemu_get_sbe32s(f, &a20_mask);
-    env->a20_mask = a20_mask;
+    qemu_get_sbe32s(f, &env->a20_mask);
 
     qemu_get_be32s(f, &env->mxcsr);
     for(i = 0; i < CPU_NB_REGS; i++) {
