@@ -542,19 +542,11 @@ static const VMStateDescription vmstate_ps2_common = {
     }
 };
 
-static int ps2_kbd_load_old(QEMUFile* f, void* opaque, int version_id)
+static int ps2_kbd_post_load(void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
 
-    if (version_id != 2 && version_id != 3)
-        return -EINVAL;
-
-    vmstate_load_state(f, &vmstate_ps2_common, &s->common, version_id);
-    s->scan_enabled=qemu_get_be32(f);
-    s->translate=qemu_get_be32(f);
-    if (version_id == 3)
-        s->scancode_set=qemu_get_be32(f);
-    else
+    if (version_id == 2)
         s->scancode_set=2;
     return 0;
 }
@@ -562,9 +554,9 @@ static int ps2_kbd_load_old(QEMUFile* f, void* opaque, int version_id)
 static const VMStateDescription vmstate_ps2_keyboard = {
     .name = "ps2kbd",
     .version_id = 3,
-    .minimum_version_id = 3,
+    .minimum_version_id = 2,
     .minimum_version_id_old = 2,
-    .load_state_old = ps2_kbd_load_old,
+    .post_load = ps2_kbd_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_STRUCT(common, PS2KbdState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_INT32(scan_enabled, PS2KbdState),
