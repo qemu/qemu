@@ -643,9 +643,9 @@ static const VMStateDescription vmstate_fdrive = {
     }
 };
 
-static void fdc_pre_save(const void *opaque)
+static void fdc_pre_save(void *opaque)
 {
-    fdctrl_t *s = (void *)opaque;
+    fdctrl_t *s = opaque;
 
     s->dor_vmstate = s->dor | GET_CUR_DRV(s);
 }
