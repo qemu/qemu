@@ -556,6 +556,15 @@ typedef union {
 #endif
 #define MMX_Q(n) q
 
+typedef union {
+#ifdef USE_X86LDOUBLE
+    CPU86_LDouble d __attribute__((aligned(16)));
+#else
+    CPU86_LDouble d;
+#endif
+    MMXReg mmx;
+} FPReg;
+
 #ifdef TARGET_X86_64
 #define CPU_NB_REGS 16
 #else
@@ -599,14 +608,7 @@ typedef struct CPUX86State {
     uint16_t fpregs_format_vmstate;
     uint16_t fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
-    union {
-#ifdef USE_X86LDOUBLE
-        CPU86_LDouble d __attribute__((aligned(16)));
-#else
-        CPU86_LDouble d;
-#endif
-        MMXReg mmx;
-    } fpregs[8];
+    FPReg fpregs[8];
 
     /* emulator internal variables */
     float_status fp_status;
