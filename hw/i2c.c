@@ -153,7 +153,7 @@ static int i2c_slave_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_i2c_slave = {
+const VMStateDescription vmstate_i2c_slave = {
     .name = "i2c_slave",
     .version_id = 1,
     .minimum_version_id = 1,
