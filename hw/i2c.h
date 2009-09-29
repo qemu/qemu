@@ -51,8 +51,6 @@ void i2c_end_transfer(i2c_bus *bus);
 void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
-void i2c_slave_save(QEMUFile *f, i2c_slave *dev);
-void i2c_slave_load(QEMUFile *f, i2c_slave *dev);
 
 #define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(i2c_slave, qdev, dev)
 #define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)

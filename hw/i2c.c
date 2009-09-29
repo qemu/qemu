@@ -165,17 +165,6 @@ const VMStateDescription vmstate_i2c_slave = {
     }
 };
 
-void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
-{
-    vmstate_save_state(f, &vmstate_i2c_slave, dev);
-}
-
-void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
-{
-    vmstate_load_state(f, &vmstate_i2c_slave, dev,
-                       vmstate_i2c_slave.version_id);
-}
-
 static int i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
 {
     I2CSlaveInfo *info = container_of(base, I2CSlaveInfo, qdev);
