@@ -154,12 +154,10 @@ void cpu_save(QEMUFile *f, void *opaque)
 
     /* MCE */
     qemu_put_be64s(f, &env->mcg_cap);
-    if (env->mcg_cap) {
-        qemu_put_be64s(f, &env->mcg_status);
-        qemu_put_be64s(f, &env->mcg_ctl);
-        for (i = 0; i < MCE_BANKS_DEF * 4; i++) {
-            qemu_put_be64s(f, &env->mce_banks[i]);
-        }
+    qemu_put_be64s(f, &env->mcg_status);
+    qemu_put_be64s(f, &env->mcg_ctl);
+    for (i = 0; i < MCE_BANKS_DEF * 4; i++) {
+        qemu_put_be64s(f, &env->mce_banks[i]);
     }
     qemu_put_be64s(f, &env->tsc_aux);
  }
@@ -349,12 +347,10 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id >= 10) {
         qemu_get_be64s(f, &env->mcg_cap);
-        if (env->mcg_cap) {
-            qemu_get_be64s(f, &env->mcg_status);
-            qemu_get_be64s(f, &env->mcg_ctl);
-            for (i = 0; i < MCE_BANKS_DEF * 4; i++) {
-                qemu_get_be64s(f, &env->mce_banks[i]);
-            }
+        qemu_get_be64s(f, &env->mcg_status);
+        qemu_get_be64s(f, &env->mcg_ctl);
+        for (i = 0; i < MCE_BANKS_DEF * 4; i++) {
+            qemu_get_be64s(f, &env->mce_banks[i]);
         }
     }
 
