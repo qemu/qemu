@@ -26,28 +26,35 @@ static struct BusInfo i2c_bus_info = {
     }
 };
 
-static void i2c_bus_save(QEMUFile *f, void *opaque)
+static void i2c_bus_pre_save(void *opaque)
 {
-    i2c_bus *bus = (i2c_bus *)opaque;
-    bus->saved_address = bus->current_dev ? bus->current_dev->address : -1;
+    i2c_bus *bus = opaque;
 
-    qemu_put_8s(f, &bus->saved_address);
+    bus->saved_address = bus->current_dev ? bus->current_dev->address : -1;
 }
 
-static int i2c_bus_load(QEMUFile *f, void *opaque, int version_id)
+static int i2c_bus_post_load(void *opaque, int version_id)
 {
-    i2c_bus *bus = (i2c_bus *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
+    i2c_bus *bus = opaque;
 
     /* The bus is loaded before attached devices, so load and save the
        current device id.  Devices will check themselves as loaded.  */
-    qemu_get_8s(f, &bus->saved_address);
     bus->current_dev = NULL;
-
     return 0;
 }
+
+static const VMStateDescription vmstate_i2c_bus = {
+    .name = "i2c_bus",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = i2c_bus_pre_save,
+    .post_load = i2c_bus_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(saved_address, i2c_bus),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /* Create a new I2C bus.  */
 i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
@@ -55,7 +62,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
     i2c_bus *bus;
 
     bus = FROM_QBUS(i2c_bus, qbus_create(&i2c_bus_info, parent, name));
-    register_savevm("i2c_bus", -1, 1, i2c_bus_save, i2c_bus_load, bus);
+    vmstate_register(-1, &vmstate_i2c_bus, bus);
     return bus;
 }
 
