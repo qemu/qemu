@@ -548,6 +548,12 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_UINT64_ARRAY(_f, _s, _n)                              \
     VMSTATE_UINT64_ARRAY_V(_f, _s, _n, 0)
 
+#define VMSTATE_INT16_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_int16, int16_t)
+
+#define VMSTATE_INT16_ARRAY(_f, _s, _n)                               \
+    VMSTATE_INT16_ARRAY_V(_f, _s, _n, 0)
+
 #define VMSTATE_INT32_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_int32, int32_t)
 
