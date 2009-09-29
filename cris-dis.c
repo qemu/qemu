@@ -26,8 +26,6 @@
 
 void *qemu_malloc(size_t len); /* can't include qemu-common.h here */
 
-#define FALSE 0
-#define TRUE 1
 #define CONST_STRNEQ(STR1,STR2) (strncmp ((STR1), (STR2), sizeof (STR2) - 1) == 0)
 
 /* cris-opc.c -- Table of opcodes for the CRIS processor.
@@ -1320,7 +1318,7 @@ cris_parse_disassembler_options (disassemble_info *info,
   info->private_data = calloc (1, sizeof (struct cris_disasm_data));
   disdata = (struct cris_disasm_data *) info->private_data;
   if (disdata == NULL)
-    return FALSE;
+    return false;
 
   /* Default true.  */
   disdata->trace_case
@@ -1328,7 +1326,7 @@ cris_parse_disassembler_options (disassemble_info *info,
        || (strcmp (info->disassembler_options, "nocase") != 0));
 
   disdata->distype = distype;
-  return TRUE;
+  return true;
 }
 
 static const struct cris_spec_reg *
@@ -2779,7 +2777,7 @@ print_insn_cris_with_register_prefix (bfd_vma vma,
   if (info->private_data == NULL
       && !cris_parse_disassembler_options (info, cris_dis_v0_v10))
     return -1;
-  return print_insn_cris_generic (vma, info, TRUE);
+  return print_insn_cris_generic (vma, info, true);
 }
 #endif
 /* Disassemble, prefixing register names with `$'.  CRIS v32.  */
@@ -2791,7 +2789,7 @@ print_insn_crisv32_with_register_prefix (bfd_vma vma,
   if (info->private_data == NULL
       && !cris_parse_disassembler_options (info, cris_dis_v32))
     return -1;
-  return print_insn_cris_generic (vma, info, TRUE);
+  return print_insn_cris_generic (vma, info, true);
 }
 
 #if 0
@@ -2805,7 +2803,7 @@ print_insn_crisv10_v32_with_register_prefix (bfd_vma vma,
   if (info->private_data == NULL
       && !cris_parse_disassembler_options (info, cris_dis_common_v10_v32))
     return -1;
-  return print_insn_cris_generic (vma, info, TRUE);
+  return print_insn_cris_generic (vma, info, true);
 }
 
 /* Disassemble, no prefixes on register names.  CRIS v0..v10.  */
@@ -2817,7 +2815,7 @@ print_insn_cris_without_register_prefix (bfd_vma vma,
   if (info->private_data == NULL
       && !cris_parse_disassembler_options (info, cris_dis_v0_v10))
     return -1;
-  return print_insn_cris_generic (vma, info, FALSE);
+  return print_insn_cris_generic (vma, info, false);
 }
 
 /* Disassemble, no prefixes on register names.  CRIS v32.  */
@@ -2829,7 +2827,7 @@ print_insn_crisv32_without_register_prefix (bfd_vma vma,
   if (info->private_data == NULL
       && !cris_parse_disassembler_options (info, cris_dis_v32))
     return -1;
-  return print_insn_cris_generic (vma, info, FALSE);
+  return print_insn_cris_generic (vma, info, false);
 }
 
 /* Disassemble, no prefixes on register names.
@@ -2842,7 +2840,7 @@ print_insn_crisv10_v32_without_register_prefix (bfd_vma vma,
   if (info->private_data == NULL
       && !cris_parse_disassembler_options (info, cris_dis_common_v10_v32))
     return -1;
-  return print_insn_cris_generic (vma, info, FALSE);
+  return print_insn_cris_generic (vma, info, false);
 }
 #endif
 
