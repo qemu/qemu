@@ -156,7 +156,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 }
 
 /* just put buffer */
-static void put_pci_config_device(QEMUFile *f, const void *pv, size_t size)
+static void put_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
     const uint8_t *v = pv;
     qemu_put_buffer(f, v, size);

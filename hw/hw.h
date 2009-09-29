@@ -276,7 +276,7 @@ typedef struct VMStateDescription VMStateDescription;
 struct VMStateInfo {
     const char *name;
     int (*get)(QEMUFile *f, void *pv, size_t size);
-    void (*put)(QEMUFile *f, const void *pv, size_t size);
+    void (*put)(QEMUFile *f, void *pv, size_t size);
 };
 
 enum VMStateFlags {
@@ -534,7 +534,7 @@ extern const VMStateDescription vmstate_pci_device;
 extern int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                               void *opaque, int version_id);
 extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                               const void *opaque);
+                               void *opaque);
 extern int vmstate_register(int instance_id, const VMStateDescription *vmsd,
                             void *base);
 void vmstate_unregister(const VMStateDescription *vmsd, void *opaque);

@@ -220,9 +220,9 @@ static int get_ptimer(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_ptimer(QEMUFile *f, const void *pv, size_t size)
+static void put_ptimer(QEMUFile *f, void *pv, size_t size)
 {
-    ptimer_state *v = (void *)pv;
+    ptimer_state *v = pv;
 
     qemu_put_ptimer(f, v);
 }
