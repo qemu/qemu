@@ -27,7 +27,6 @@ void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;
     uint16_t fpregs_format;
-    int32_t pending_irq;
     int i, bit;
 
     cpu_synchronize_state(env);
@@ -142,15 +141,15 @@ void cpu_save(QEMUFile *f, void *opaque)
 
     /* There can only be one pending IRQ set in the bitmap at a time, so try
        to find it and save its number instead (-1 for none). */
-    pending_irq = -1;
+    env->pending_irq_vmstate = -1;
     for (i = 0; i < ARRAY_SIZE(env->interrupt_bitmap); i++) {
         if (env->interrupt_bitmap[i]) {
             bit = ctz64(env->interrupt_bitmap[i]);
-            pending_irq = i * 64 + bit;
+            env->pending_irq_vmstate = i * 64 + bit;
             break;
         }
     }
-    qemu_put_sbe32s(f, &pending_irq);
+    qemu_put_sbe32s(f, &env->pending_irq_vmstate);
     qemu_put_be32s(f, &env->mp_state);
     qemu_put_be64s(f, &env->tsc);
 
@@ -198,7 +197,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     CPUState *env = opaque;
     int i, guess_mmx;
     uint16_t fpregs_format;
-    int32_t pending_irq;
 
     cpu_synchronize_state(env);
     if (version_id < 3 || version_id > CPU_SAVE_VERSION)
@@ -344,11 +342,11 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     if (version_id >= 9) {
-        qemu_get_sbe32s(f, &pending_irq);
+        qemu_get_sbe32s(f, &env->pending_irq_vmstate);
         memset(&env->interrupt_bitmap, 0, sizeof(env->interrupt_bitmap));
-        if (pending_irq >= 0) {
-            env->interrupt_bitmap[pending_irq / 64] |=
-                (uint64_t)1 << (pending_irq % 64);
+        if (env->pending_irq_vmstate >= 0) {
+            env->interrupt_bitmap[env->pending_irq_vmstate / 64] |=
+                (uint64_t)1 << (env->pending_irq_vmstate % 64);
         }
         qemu_get_be32s(f, &env->mp_state);
         qemu_get_be64s(f, &env->tsc);
