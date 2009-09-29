@@ -649,9 +649,9 @@ static int get_int8(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_int8(QEMUFile *f, const void *pv, size_t size)
+static void put_int8(QEMUFile *f, void *pv, size_t size)
 {
-    const int8_t *v = pv;
+    int8_t *v = pv;
     qemu_put_s8s(f, v);
 }
 
@@ -670,9 +670,9 @@ static int get_int16(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_int16(QEMUFile *f, const void *pv, size_t size)
+static void put_int16(QEMUFile *f, void *pv, size_t size)
 {
-    const int16_t *v = pv;
+    int16_t *v = pv;
     qemu_put_sbe16s(f, v);
 }
 
@@ -691,9 +691,9 @@ static int get_int32(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_int32(QEMUFile *f, const void *pv, size_t size)
+static void put_int32(QEMUFile *f, void *pv, size_t size)
 {
-    const int32_t *v = pv;
+    int32_t *v = pv;
     qemu_put_sbe32s(f, v);
 }
 
@@ -752,9 +752,9 @@ static int get_int64(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_int64(QEMUFile *f, const void *pv, size_t size)
+static void put_int64(QEMUFile *f, void *pv, size_t size)
 {
-    const int64_t *v = pv;
+    int64_t *v = pv;
     qemu_put_sbe64s(f, v);
 }
 
@@ -773,9 +773,9 @@ static int get_uint8(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_uint8(QEMUFile *f, const void *pv, size_t size)
+static void put_uint8(QEMUFile *f, void *pv, size_t size)
 {
-    const uint8_t *v = pv;
+    uint8_t *v = pv;
     qemu_put_8s(f, v);
 }
 
@@ -794,9 +794,9 @@ static int get_uint16(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_uint16(QEMUFile *f, const void *pv, size_t size)
+static void put_uint16(QEMUFile *f, void *pv, size_t size)
 {
-    const uint16_t *v = pv;
+    uint16_t *v = pv;
     qemu_put_be16s(f, v);
 }
 
@@ -815,9 +815,9 @@ static int get_uint32(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_uint32(QEMUFile *f, const void *pv, size_t size)
+static void put_uint32(QEMUFile *f, void *pv, size_t size)
 {
-    const uint32_t *v = pv;
+    uint32_t *v = pv;
     qemu_put_be32s(f, v);
 }
 
@@ -836,9 +836,9 @@ static int get_uint64(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_uint64(QEMUFile *f, const void *pv, size_t size)
+static void put_uint64(QEMUFile *f, void *pv, size_t size)
 {
-    const uint64_t *v = pv;
+    uint64_t *v = pv;
     qemu_put_be64s(f, v);
 }
 
@@ -877,9 +877,9 @@ static int get_timer(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_timer(QEMUFile *f, const void *pv, size_t size)
+static void put_timer(QEMUFile *f, void *pv, size_t size)
 {
-    QEMUTimer *v = (void *)pv;
+    QEMUTimer *v = pv;
     qemu_put_timer(f, v);
 }
 
@@ -898,9 +898,9 @@ static int get_buffer(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_buffer(QEMUFile *f, const void *pv, size_t size)
+static void put_buffer(QEMUFile *f, void *pv, size_t size)
 {
-    uint8_t *v = (void *)pv;
+    uint8_t *v = pv;
     qemu_put_buffer(f, v, size);
 }
 
@@ -1090,7 +1090,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
 }
 
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                        const void *opaque)
+                        void *opaque)
 {
     VMStateField *field = vmsd->fields;
 
@@ -1098,7 +1098,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
         vmsd->pre_save(opaque);
     }
     while(field->name) {
-        const void *base_addr = opaque + field->offset;
+        void *base_addr = opaque + field->offset;
         int i, n_elems = 1;
 
         if (field->flags & VMS_ARRAY) {
@@ -1110,7 +1110,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             base_addr = *(void **)base_addr;
         }
         for (i = 0; i < n_elems; i++) {
-            const void *addr = base_addr + field->size * i;
+            void *addr = base_addr + field->size * i;
 
             if (field->flags & VMS_STRUCT) {
                 vmstate_save_state(f, field->vmsd, addr);
