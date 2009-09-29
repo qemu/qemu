@@ -10,6 +10,7 @@
 #include "cpu-common.h"
 #endif
 
+#include <stdbool.h>
 #include "ioport.h"
 #include "irq.h"
 
@@ -299,6 +300,7 @@ typedef struct {
     enum VMStateFlags flags;
     const VMStateDescription *vmsd;
     int version_id;
+    bool (*field_exists)(void *opaque, int version_id);
 } VMStateField;
 
 struct VMStateDescription {
@@ -345,6 +347,16 @@ extern const VMStateInfo vmstate_info_buffer;
             + type_check(_type,typeof_field(_state, _field))         \
 }
 
+#define VMSTATE_SINGLE_TEST(_field, _state, _test, _info, _type) {   \
+    .name         = (stringify(_field)),                             \
+    .field_exists = (_test),                                         \
+    .size         = sizeof(_type),                                   \
+    .info         = &(_info),                                        \
+    .flags        = VMS_SINGLE,                                      \
+    .offset       = offsetof(_state, _field)                         \
+            + type_check(_type,typeof_field(_state, _field))         \
+}
+
 #define VMSTATE_POINTER(_field, _state, _version, _info, _type) {    \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -363,6 +375,17 @@ extern const VMStateInfo vmstate_info_buffer;
     .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY,                                         \
     .offset     = offsetof(_state, _field)                           \
+        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+}
+
+#define VMSTATE_ARRAY_TEST(_field, _state, _num, _test, _info, _type) {\
+    .name         = (stringify(_field)),                              \
+    .field_exists = (_test),                                          \
+    .num          = (_num),                                           \
+    .info         = &(_info),                                         \
+    .size         = sizeof(_type),                                    \
+    .flags        = VMS_ARRAY,                                        \
+    .offset       = offsetof(_state, _field)                          \
         + type_check_array(_type,typeof_field(_state, _field),_num)  \
 }
 
@@ -523,6 +546,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_INT32_LE(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
+
+#define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, vmstate_info_uint32, uint32_t)
 
 #define VMSTATE_TIMER_V(_f, _s, _v)                                   \
     VMSTATE_POINTER(_f, _s, _v, vmstate_info_timer, QEMUTimer *)
