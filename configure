@@ -1686,6 +1686,16 @@ QEMU_CFLAGS="-U_FORTIFY_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-I. -I\$(SRC_PATH) -MMD -MP -MT \$@ $QEMU_CFLAGS"
 LDFLAGS="-g $LDFLAGS"
 
+gcc_flags="-Wold-style-declaration -Wold-style-definition"
+cat > $TMPC << EOF
+int main(void) { }
+EOF
+for flag in $gcc_flags; do
+    if compile_prog "$QEMU_CFLAGS" "$flag" ; then
+	QEMU_CFLAGS="$flag $QEMU_CFLAGS"
+    fi
+done
+
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
 if test -z "$werror" ; then
