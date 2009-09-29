@@ -3,9 +3,8 @@
 
 #include "qemu-common.h"
 
-int msix_init(struct PCIDevice *dev, unsigned short nentries,
-              unsigned bar_nr, unsigned bar_size,
-              target_phys_addr_t page_size);
+int msix_init(PCIDevice *pdev, unsigned short nentries,
+              unsigned bar_nr, unsigned bar_size);
 
 void msix_write_config(PCIDevice *pci_dev, uint32_t address,
                        uint32_t val, int len);
