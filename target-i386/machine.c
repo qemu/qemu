@@ -7,20 +7,28 @@
 #include "exec-all.h"
 #include "kvm.h"
 
+static const VMStateDescription vmstate_segment = {
+    .name = "segment",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(selector, SegmentCache),
+        VMSTATE_UINTTL(base, SegmentCache),
+        VMSTATE_UINT32(limit, SegmentCache),
+        VMSTATE_UINT32(flags, SegmentCache),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 {
-    qemu_put_be32(f, dt->selector);
-    qemu_put_betl(f, dt->base);
-    qemu_put_be32(f, dt->limit);
-    qemu_put_be32(f, dt->flags);
+    vmstate_save_state(f, &vmstate_segment, dt);
 }
 
 static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
 {
-    dt->selector = qemu_get_be32(f);
-    dt->base = qemu_get_betl(f);
-    dt->limit = qemu_get_be32(f);
-    dt->flags = qemu_get_be32(f);
+    vmstate_load_state(f, &vmstate_segment, dt, vmstate_segment.version_id);
 }
 
 void cpu_save(QEMUFile *f, void *opaque)
