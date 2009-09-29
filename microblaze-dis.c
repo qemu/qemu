@@ -543,7 +543,7 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
   unsigned long       inst, prev_inst;
   struct op_code_struct * op, *pop;
   int                 immval = 0;
-  boolean             immfound = false;
+  bfd_boolean         immfound = false;
   static bfd_vma prev_insn_addr = -1; /*init the prev insn addr */
   static int     prev_insn_vma = -1;  /*init the prev insn vma */
   int            curr_insn_vma = info->buffer_vma;
