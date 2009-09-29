@@ -513,9 +513,9 @@ void cpu_exec_init_all(unsigned long tb_size)
 
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
 
-static void cpu_common_pre_save(const void *opaque)
+static void cpu_common_pre_save(void *opaque)
 {
-    CPUState *env = (void *)opaque;
+    CPUState *env = opaque;
 
     cpu_synchronize_state(env);
 }

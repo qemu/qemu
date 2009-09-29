@@ -635,9 +635,9 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
-static void serial_pre_save(const void *opaque)
+static void serial_pre_save(void *opaque)
 {
-    SerialState *s = (void *)opaque;
+    SerialState *s = opaque;
     s->fcr_vmstate = s->fcr;
 }
 
