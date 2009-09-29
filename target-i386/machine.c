@@ -27,7 +27,6 @@ void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;
     uint16_t fptag, fpus, fpuc, fpregs_format;
-    uint32_t hflags;
     int32_t a20_mask;
     int32_t pending_irq;
     int i, bit;
@@ -38,8 +37,7 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_betls(f, &env->regs[i]);
     qemu_put_betls(f, &env->eip);
     qemu_put_betls(f, &env->eflags);
-    hflags = env->hflags; /* XXX: suppress most of the redundant hflags */
-    qemu_put_be32s(f, &hflags);
+    qemu_put_be32s(f, &env->hflags);
 
     /* FPU */
     fpuc = env->fpuc;
@@ -202,7 +200,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     CPUState *env = opaque;
     int i, guess_mmx;
-    uint32_t hflags;
     uint16_t fpus, fpuc, fptag, fpregs_format;
     int32_t a20_mask;
     int32_t pending_irq;
@@ -214,7 +211,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_betls(f, &env->regs[i]);
     qemu_get_betls(f, &env->eip);
     qemu_get_betls(f, &env->eflags);
-    qemu_get_be32s(f, &hflags);
+    qemu_get_be32s(f, &env->hflags);
 
     qemu_get_be16s(f, &fpuc);
     qemu_get_be16s(f, &fpus);
@@ -381,9 +378,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id >= 11) {
         qemu_get_be64s(f, &env->tsc_aux);
     }
-    /* XXX: ensure compatiblity for halted bit ? */
-    /* XXX: compute redundant hflags bits */
-    env->hflags = hflags;
+
     tlb_flush(env, 1);
     return 0;
 }
