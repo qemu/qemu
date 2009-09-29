@@ -23,7 +23,7 @@
 
 typedef struct {
     i2c_slave i2c;
-    int len;
+    uint8_t len;
     uint8_t buf[2];
     qemu_irq pin;
 
@@ -32,7 +32,7 @@ typedef struct {
     int16_t temperature;
     int16_t limit[2];
     int faults;
-    int alarm;
+    uint8_t alarm;
 } TMP105State;
 
 static void tmp105_interrupt_update(TMP105State *s)
