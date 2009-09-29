@@ -217,13 +217,13 @@ void smbus_register_device(SMBusDeviceInfo *info)
 }
 
 /* Master device commands.  */
-void smbus_quick_command(i2c_bus *bus, int addr, int read)
+void smbus_quick_command(i2c_bus *bus, uint8_t addr, int read)
 {
     i2c_start_transfer(bus, addr, read);
     i2c_end_transfer(bus);
 }
 
-uint8_t smbus_receive_byte(i2c_bus *bus, int addr)
+uint8_t smbus_receive_byte(i2c_bus *bus, uint8_t addr)
 {
     uint8_t data;
 
@@ -234,14 +234,14 @@ uint8_t smbus_receive_byte(i2c_bus *bus, int addr)
     return data;
 }
 
-void smbus_send_byte(i2c_bus *bus, int addr, uint8_t data)
+void smbus_send_byte(i2c_bus *bus, uint8_t addr, uint8_t data)
 {
     i2c_start_transfer(bus, addr, 0);
     i2c_send(bus, data);
     i2c_end_transfer(bus);
 }
 
-uint8_t smbus_read_byte(i2c_bus *bus, int addr, uint8_t command)
+uint8_t smbus_read_byte(i2c_bus *bus, uint8_t addr, uint8_t command)
 {
     uint8_t data;
     i2c_start_transfer(bus, addr, 0);
@@ -253,7 +253,7 @@ uint8_t smbus_read_byte(i2c_bus *bus, int addr, uint8_t command)
     return data;
 }
 
-void smbus_write_byte(i2c_bus *bus, int addr, uint8_t command, uint8_t data)
+void smbus_write_byte(i2c_bus *bus, uint8_t addr, uint8_t command, uint8_t data)
 {
     i2c_start_transfer(bus, addr, 0);
     i2c_send(bus, command);
@@ -261,7 +261,7 @@ void smbus_write_byte(i2c_bus *bus, int addr, uint8_t command, uint8_t data)
     i2c_end_transfer(bus);
 }
 
-uint16_t smbus_read_word(i2c_bus *bus, int addr, uint8_t command)
+uint16_t smbus_read_word(i2c_bus *bus, uint8_t addr, uint8_t command)
 {
     uint16_t data;
     i2c_start_transfer(bus, addr, 0);
@@ -274,7 +274,7 @@ uint16_t smbus_read_word(i2c_bus *bus, int addr, uint8_t command)
     return data;
 }
 
-void smbus_write_word(i2c_bus *bus, int addr, uint8_t command, uint16_t data)
+void smbus_write_word(i2c_bus *bus, uint8_t addr, uint8_t command, uint16_t data)
 {
     i2c_start_transfer(bus, addr, 0);
     i2c_send(bus, command);
@@ -283,7 +283,7 @@ void smbus_write_word(i2c_bus *bus, int addr, uint8_t command, uint16_t data)
     i2c_end_transfer(bus);
 }
 
-int smbus_read_block(i2c_bus *bus, int addr, uint8_t command, uint8_t *data)
+int smbus_read_block(i2c_bus *bus, uint8_t addr, uint8_t command, uint8_t *data)
 {
     int len;
     int i;
@@ -301,7 +301,7 @@ int smbus_read_block(i2c_bus *bus, int addr, uint8_t command, uint8_t *data)
     return len;
 }
 
-void smbus_write_block(i2c_bus *bus, int addr, uint8_t command, uint8_t *data,
+void smbus_write_block(i2c_bus *bus, uint8_t addr, uint8_t command, uint8_t *data,
                        int len)
 {
     int i;
