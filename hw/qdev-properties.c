@@ -8,6 +8,34 @@ void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
     return ptr;
 }
 
+/* --- 8bit integer --- */
+
+static int parse_uint8(DeviceState *dev, Property *prop, const char *str)
+{
+    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
+    const char *fmt;
+
+    /* accept both hex and decimal */
+    fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx8 : "%" PRIu8;
+    if (sscanf(str, fmt, ptr) != 1)
+        return -1;
+    return 0;
+}
+
+static int print_uint8(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "%" PRIu8, *ptr);
+}
+
+PropertyInfo qdev_prop_uint8 = {
+    .name  = "uint8",
+    .type  = PROP_TYPE_UINT8,
+    .size  = sizeof(uint8_t),
+    .parse = parse_uint8,
+    .print = print_uint8,
+};
+
 /* --- 16bit integer --- */
 
 static int parse_uint16(DeviceState *dev, Property *prop, const char *str)
@@ -389,6 +417,11 @@ void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyT
     }
     dst = qdev_get_prop_ptr(dev, prop);
     memcpy(dst, src, prop->info->size);
+}
+
+void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_UINT8);
 }
 
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)

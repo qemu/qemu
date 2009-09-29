@@ -60,6 +60,7 @@ struct Property {
 
 enum PropertyType {
     PROP_TYPE_UNSPEC = 0,
+    PROP_TYPE_UINT8,
     PROP_TYPE_UINT16,
     PROP_TYPE_UINT32,
     PROP_TYPE_INT32,
@@ -155,6 +156,7 @@ void do_info_qdm(Monitor *mon);
 
 /*** qdev-properties.c ***/
 
+extern PropertyInfo qdev_prop_uint8;
 extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
 extern PropertyInfo qdev_prop_int32;
@@ -181,6 +183,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
         .defval    = (_type[]) { _defval },                             \
         }
 
+#define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint8, uint8_t)
 #define DEFINE_PROP_UINT16(_n, _s, _f, _d)                      \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint16, uint16_t)
 #define DEFINE_PROP_UINT32(_n, _s, _f, _d)                      \
@@ -212,6 +216,7 @@ extern PropertyInfo qdev_prop_pci_devfn;
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
 void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type);
+void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value);
