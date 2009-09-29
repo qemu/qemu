@@ -26,7 +26,7 @@ static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
 void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;
-    uint16_t fptag, fpus, fpregs_format;
+    uint16_t fptag, fpregs_format;
     int32_t pending_irq;
     int i, bit;
 
@@ -39,14 +39,14 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &env->hflags);
 
     /* FPU */
-    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    env->fpus_vmstate = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
     for(i = 0; i < 8; i++) {
         fptag |= ((!env->fptags[i]) << i);
     }
 
     qemu_put_be16s(f, &env->fpuc);
-    qemu_put_be16s(f, &fpus);
+    qemu_put_be16s(f, &env->fpus_vmstate);
     qemu_put_be16s(f, &fptag);
 
 #ifdef USE_X86LDOUBLE
@@ -197,7 +197,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     CPUState *env = opaque;
     int i, guess_mmx;
-    uint16_t fpus, fptag, fpregs_format;
+    uint16_t fptag, fpregs_format;
     int32_t pending_irq;
 
     cpu_synchronize_state(env);
@@ -210,14 +210,14 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &env->hflags);
 
     qemu_get_be16s(f, &env->fpuc);
-    qemu_get_be16s(f, &fpus);
+    qemu_get_be16s(f, &env->fpus_vmstate);
     qemu_get_be16s(f, &fptag);
     qemu_get_be16s(f, &fpregs_format);
 
     /* NOTE: we cannot always restore the FPU state if the image come
        from a host with a different 'USE_X86LDOUBLE' define. We guess
        if we are in an MMX state to restore correctly in that case. */
-    guess_mmx = ((fptag == 0xff) && (fpus & 0x3800) == 0);
+    guess_mmx = ((fptag == 0xff) && (env->fpus_vmstate & 0x3800) == 0);
     for(i = 0; i < 8; i++) {
         uint64_t mant;
         uint16_t exp;
@@ -260,8 +260,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     /* XXX: restore FPU round state */
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    env->fpstt = (env->fpus_vmstate >> 11) & 7;
+    env->fpus = env->fpus_vmstate & ~0x3800;
     fptag ^= 0xff;
     for(i = 0; i < 8; i++) {
         env->fptags[i] = (fptag >> i) & 1;

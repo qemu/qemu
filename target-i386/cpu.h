@@ -593,7 +593,8 @@ typedef struct CPUX86State {
 
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
-    unsigned int fpus;
+    uint16_t fpus;
+    uint16_t fpus_vmstate;
     uint16_t fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
     union {
