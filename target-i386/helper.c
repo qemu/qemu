@@ -1597,8 +1597,7 @@ static void mce_init(CPUX86State *cenv)
         && (cenv->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)) {
         cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
         cenv->mcg_ctl = ~(uint64_t)0;
-        bank_num = cenv->mcg_cap & 0xff;
-        cenv->mce_banks = qemu_mallocz(bank_num * sizeof(uint64_t) * 4);
+        bank_num = MCE_BANKS_DEF;
         for (bank = 0; bank < bank_num; bank++)
             cenv->mce_banks[bank*4] = ~(uint64_t)0;
     }

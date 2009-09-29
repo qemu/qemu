@@ -698,7 +698,7 @@ typedef struct CPUX86State {
     uint64 mcg_cap;
     uint64 mcg_status;
     uint64 mcg_ctl;
-    uint64 *mce_banks;
+    uint64 mce_banks[MCE_BANKS_DEF*4];
 
     uint64_t tsc_aux;
 } CPUX86State;
