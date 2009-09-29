@@ -31,18 +31,12 @@ static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
     vmstate_load_state(f, &vmstate_segment, dt, vmstate_segment.version_id);
 }
 
-void cpu_save(QEMUFile *f, void *opaque)
+static void cpu_pre_save(void *opaque)
 {
     CPUState *env = opaque;
     int i, bit;
 
     cpu_synchronize_state(env);
-
-    for(i = 0; i < CPU_NB_REGS; i++)
-        qemu_put_betls(f, &env->regs[i]);
-    qemu_put_betls(f, &env->eip);
-    qemu_put_betls(f, &env->eflags);
-    qemu_put_be32s(f, &env->hflags);
 
     /* FPU */
     env->fpus_vmstate = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
@@ -51,15 +45,42 @@ void cpu_save(QEMUFile *f, void *opaque)
         env->fptag_vmstate |= ((!env->fptags[i]) << i);
     }
 
-    qemu_put_be16s(f, &env->fpuc);
-    qemu_put_be16s(f, &env->fpus_vmstate);
-    qemu_put_be16s(f, &env->fptag_vmstate);
-
 #ifdef USE_X86LDOUBLE
     env->fpregs_format_vmstate = 0;
 #else
     env->fpregs_format_vmstate = 1;
 #endif
+
+    /* There can only be one pending IRQ set in the bitmap at a time, so try
+       to find it and save its number instead (-1 for none). */
+    env->pending_irq_vmstate = -1;
+    for (i = 0; i < ARRAY_SIZE(env->interrupt_bitmap); i++) {
+        if (env->interrupt_bitmap[i]) {
+            bit = ctz64(env->interrupt_bitmap[i]);
+            env->pending_irq_vmstate = i * 64 + bit;
+            break;
+        }
+    }
+}
+
+void cpu_save(QEMUFile *f, void *opaque)
+{
+    CPUState *env = opaque;
+    int i;
+
+    cpu_pre_save(opaque);
+
+    for(i = 0; i < CPU_NB_REGS; i++)
+        qemu_put_betls(f, &env->regs[i]);
+    qemu_put_betls(f, &env->eip);
+    qemu_put_betls(f, &env->eflags);
+    qemu_put_be32s(f, &env->hflags);
+
+    /* FPU */
+    qemu_put_be16s(f, &env->fpuc);
+    qemu_put_be16s(f, &env->fpus_vmstate);
+    qemu_put_be16s(f, &env->fptag_vmstate);
+
     qemu_put_be16s(f, &env->fpregs_format_vmstate);
 
     for(i = 0; i < 8; i++) {
@@ -146,16 +167,6 @@ void cpu_save(QEMUFile *f, void *opaque)
 
     /* KVM-related states */
 
-    /* There can only be one pending IRQ set in the bitmap at a time, so try
-       to find it and save its number instead (-1 for none). */
-    env->pending_irq_vmstate = -1;
-    for (i = 0; i < ARRAY_SIZE(env->interrupt_bitmap); i++) {
-        if (env->interrupt_bitmap[i]) {
-            bit = ctz64(env->interrupt_bitmap[i]);
-            env->pending_irq_vmstate = i * 64 + bit;
-            break;
-        }
-    }
     qemu_put_sbe32s(f, &env->pending_irq_vmstate);
     qemu_put_be32s(f, &env->mp_state);
     qemu_put_be64s(f, &env->tsc);
