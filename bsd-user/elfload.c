@@ -1268,7 +1268,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
             if (retval >= 0) {
                 interp_ex = *((struct exec *) bprm->buf); /* aout exec-header */
-                interp_elf_ex=*((struct elfhdr *) bprm->buf); /* elf exec-header */
+                interp_elf_ex = *((struct elfhdr *) bprm->buf); /* elf exec-header */
             }
             if (retval < 0) {
                 perror("load_elf_binary3");
