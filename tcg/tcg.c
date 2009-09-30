@@ -1385,16 +1385,12 @@ static void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
             ts->val_type = TEMP_VAL_MEM;
             break;
         case TEMP_VAL_CONST:
+            reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
+                                allocated_regs);
             if (!ts->mem_allocated) 
                 temp_allocate_frame(s, temp);
-            if (ts->type == TCG_TYPE_I32) {
-                tcg_out_sti(s, ts->type, ts->val, ts->mem_reg, ts->mem_offset);
-            } else {
-                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type],
-                                allocated_regs);
-                tcg_out_movi(s, ts->type, reg, ts->val);
-                tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
-            }
+            tcg_out_movi(s, ts->type, reg, ts->val);
+            tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
             ts->val_type = TEMP_VAL_MEM;
             break;
         case TEMP_VAL_MEM:
