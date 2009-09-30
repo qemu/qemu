@@ -379,7 +379,7 @@ static void init_mbr(BDRVVVFATState* s)
 {
     /* TODO: if the files mbr.img and bootsect.img exist, use them */
     mbr_t* real_mbr=(mbr_t*)s->first_sectors;
-    partition_t* partition=&(real_mbr->partition[0]);
+    partition_t* partition = &(real_mbr->partition[0]);
     int lba;
 
     memset(s->first_sectors,0,512);
@@ -526,7 +526,7 @@ static uint16_t fat_datetime(time_t time,int return_time) {
     t=localtime(&time); /* this is not thread safe */
 #else
     struct tm t1;
-    t=&t1;
+    t = &t1;
     localtime_r(&time,t);
 #endif
     if(return_time)
