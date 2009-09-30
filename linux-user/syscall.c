@@ -2067,7 +2067,7 @@ static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
 
     if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1))
         return -TARGET_EFAULT;
-    target_ip=&(target_sd->sem_perm);
+    target_ip = &(target_sd->sem_perm);
     host_ip->__key = tswapl(target_ip->__key);
     host_ip->uid = tswapl(target_ip->uid);
     host_ip->gid = tswapl(target_ip->gid);
