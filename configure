@@ -899,6 +899,7 @@ fi
 ##########################################
 # zlib check
 
+if test "$tcg_interpreter" != "yes"; then
 cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
@@ -911,6 +912,7 @@ else
     echo "Make sure to have the zlib libs and headers installed."
     echo
     exit 1
+fi
 fi
 
 ##########################################
@@ -1377,12 +1379,14 @@ for pthread_lib in $PTHREADLIBS_LIST; do
   fi
 done
 
+if test "$tcg_interpreter" != "yes"; then
 if test "$mingw32" != yes -a "$pthread" = no; then
   echo
   echo "Error: pthread check failed"
   echo "Make sure to have the pthread libs and headers installed."
   echo
   exit 1
+fi
 fi
 
 ##########################################
