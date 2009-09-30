@@ -57,7 +57,6 @@
 /* Target word size (must be identical to pointer size). */
 #if HOST_LONG_BITS == 32
 # define TCG_TARGET_REG_BITS 32
-# error Untested code, please test and fix it!
 #elif HOST_LONG_BITS == 64
 # define TCG_TARGET_REG_BITS 64
 #else

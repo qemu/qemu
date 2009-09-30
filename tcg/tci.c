@@ -366,8 +366,11 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
 
     for (;;) {
+#if TCG_TARGET_REG_BITS == 32
+        uint64_t ul;
+#endif
         uint8_t opc = *(uint8_t *)tb_ptr++;
-        tcg_target_ulong t0, t1, t2;
+        tcg_target_ulong t0, t1, t2, t3;
         tcg_target_ulong label;
         TCGCond condition;
         tci_disas(opc);
@@ -543,7 +546,13 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             TODO();
             break;
         case INDEX_op_mulu2_i32:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = *tb_ptr++;
+            t2 = tci_read_r32(&tb_ptr);
+            t3 = tci_read_r32(&tb_ptr);
+            ul = (uint64_t)t2 * t3;
+            tci_write_reg32(t0, ul);
+            tci_write_reg32(t1, ul >> 32);
             break;
 #endif
 #ifdef TCG_TARGET_HAS_ext8s_i32
