@@ -588,7 +588,7 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
 #ifdef MULTI_REQ
     /* TODO: should all of this only be done if dma->update, and otherwise
      * inside omap_dma_transfer_generic below - check what's faster.  */
-    if (dma->update) {
+    if (dma->update)
 #endif
 
     /* If the channel is element synchronized, deactivate it */
@@ -668,7 +668,9 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
 
         /* TODO: if the destination port is IMIF or EMIFF, set the dirty
          * bits on it.  */
+#ifndef MULTI_REQ
     }
+#endif
 
     omap_dma_interrupts_update(s);
 }
