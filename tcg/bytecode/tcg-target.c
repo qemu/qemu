@@ -1,7 +1,6 @@
 /*
  * Tiny Code Generator for QEMU
  *
- * Copyright (c) 2008 Fabrice Bellard
  * Copyright (c) 2009 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -63,9 +62,11 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_mov_i64, { "r", "r" } },
     { INDEX_op_movi_i32, { "r" } },
+#if TCG_TARGET_REG_BITS == 64
+    { INDEX_op_mov_i64, { "r", "r" } },
     { INDEX_op_movi_i64, { "r" } },
+#endif
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
@@ -73,13 +74,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_ld16s_i32, { "r", "r" } },
     { INDEX_op_ld_i32, { "r", "r" } },
     { INDEX_op_st8_i32, { "r", "ri" } },
-    { INDEX_op_st8_i64, { "r", "ri" } },
     { INDEX_op_st16_i32, { "r", "ri" } },
-    { INDEX_op_st16_i64, { "r", "ri" } },
     { INDEX_op_st_i32, { "r", "ri" } },
-    { INDEX_op_st_i64, { "r", "ri" } },
-    { INDEX_op_st32_i64, { "r", "ri" } },
-
+#if TCG_TARGET_REG_BITS == 64
     { INDEX_op_ld8u_i64, { "r", "r" } },
     { INDEX_op_ld8s_i64, { "r", "r" } },
     { INDEX_op_ld16u_i64, { "r", "r" } },
@@ -87,6 +84,11 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_ld32u_i64, { "r", "r" } },
     { INDEX_op_ld32s_i64, { "r", "r" } },
     { INDEX_op_ld_i64, { "r", "r" } },
+    { INDEX_op_st8_i64, { "r", "ri" } },
+    { INDEX_op_st16_i64, { "r", "ri" } },
+    { INDEX_op_st32_i64, { "r", "ri" } },
+    { INDEX_op_st_i64, { "r", "ri" } },
+#endif
 
     { INDEX_op_add_i32, { "r", "ri", "ri" } },
     { INDEX_op_mul_i32, { "r", "ri", "ri" } },
@@ -109,7 +111,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
 
     { INDEX_op_brcond_i32, { "r", "ri" } },
+#if TCG_TARGET_REG_BITS == 64
     { INDEX_op_brcond_i64, { "r", "ri" } },
+#endif
 
 #if defined(TCG_TARGET_HAS_neg_i32)
     { INDEX_op_neg_i32, { "r", "r" } },
@@ -154,19 +158,31 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_ld16s, { "r", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
+#if TCG_TARGET_REG_BITS == 32
+    { INDEX_op_qemu_ld64, { "r", "r", "L" } },
+#else
     { INDEX_op_qemu_ld64, { "r", "L" } },
+#endif
 
     { INDEX_op_qemu_st8, { "S", "S" } },
     { INDEX_op_qemu_st16, { "S", "S" } },
     { INDEX_op_qemu_st32, { "S", "S" } },
     { INDEX_op_qemu_st64, { "S", "S", "S" } },
 
+#if TCG_TARGET_REG_BITS == 32
+    /* TODO: "r", "r", "r", "r", "ri", "ri" */
+    { INDEX_op_add2_i32, { "r", "r", "r", "r", "ri", "ri" } },
+    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "ri", "ri" } },
+    { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
+    { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
+#endif
 #if defined(TCG_TARGET_HAS_ext8s_i32)
     { INDEX_op_ext8s_i32, { "r", "r" } },
 #endif
 #if defined(TCG_TARGET_HAS_ext16s_i32)
     { INDEX_op_ext16s_i32, { "r", "r" } },
 #endif
+#if TCG_TARGET_REG_BITS == 64
 #if defined(TCG_TARGET_HAS_ext8s_i64)
     { INDEX_op_ext8s_i64, { "r", "r" } },
 #endif
@@ -175,6 +191,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #endif
 #if defined(TCG_TARGET_HAS_ext32s_i64)
     { INDEX_op_ext32s_i64, { "r", "r" } },
+#endif
 #endif
 
     { -1 },
@@ -516,12 +533,16 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
         tcg_out32(s, arg2);
     } else {
         assert(type == TCG_TYPE_I64);
+#if TCG_TARGET_REG_BITS == 64
         tcg_disas3(s, INDEX_op_ld_i64, args);
         tcg_out_op_t(s, INDEX_op_ld_i64);
         tcg_out_r(s, ret);
         tcg_out_r(s, arg1);
         assert(arg2 == (uint32_t)arg2);
         tcg_out32(s, arg2);
+#else
+        TODO();
+#endif
     }
 }
 
@@ -552,10 +573,14 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
         tcg_out32(s, arg32);
     } else {
         assert(type == TCG_TYPE_I64);
+#if TCG_TARGET_REG_BITS == 64
         tcg_disas3(s, INDEX_op_movi_i64, args);
         tcg_out_op_t(s, INDEX_op_movi_i64);
         tcg_out_r(s, t0);
         tcg_out64(s, arg);
+#else
+        TODO();
+#endif
     }
 }
 
@@ -729,16 +754,23 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_divu_i32:
     case INDEX_op_rem_i32:
     case INDEX_op_remu_i32:
-    case INDEX_op_mulu2_i32:
         TODO();
         break;
 #endif
-#if 0
+#if TCG_TARGET_REG_BITS == 32
     case INDEX_op_add2_i32:
         TODO();
         break;
     case INDEX_op_sub2_i32:
+    case INDEX_op_brcond2_i32:
         TODO();
+        break;
+    case INDEX_op_mulu2_i32:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        tcg_out_r(s, args[3]);
         break;
 #endif
     case INDEX_op_brcond_i32:
@@ -754,11 +786,6 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
             tcg_out64(s, 0);
         }
         break;
-#if 0
-    case INDEX_op_brcond2_i32:
-        TODO();
-        break;
-#endif
 #if defined(TCG_TARGET_HAS_neg_i32)
     case INDEX_op_neg_i32:
         tcg_out_op_t(s, opc);
@@ -812,7 +839,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext32s_i64)
+#if defined(TCG_TARGET_HAS_ext32s_i64) && (TCG_TARGET_REG_BITS == 64)
     case INDEX_op_ext32s_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
@@ -841,11 +868,15 @@ static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
         tcg_out32(s, arg2);
     } else {
         assert(type == TCG_TYPE_I64);
+#if TCG_TARGET_REG_BITS == 64
         tcg_disas3(s, INDEX_op_st_i64, args);
         tcg_out_op_t(s, INDEX_op_st_i64);
         tcg_out_r(s, arg);
         tcg_out_r(s, arg1);
         tcg_out32(s, arg2);
+#else
+        TODO();
+#endif
     }
 }
 
