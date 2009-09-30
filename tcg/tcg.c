@@ -1003,6 +1003,8 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
         nb_args = def->nb_iargs + def->nb_oargs;
         for(i = 0; i < nb_args; i++) {
             ct_str = tdefs->args_ct_str[i];
+            /* Incomplete TCGTargetOpDef entry? */
+            assert(ct_str != NULL);
             tcg_regset_clear(def->args_ct[i].u.regs);
             def->args_ct[i].ct = 0;
             if (ct_str[0] >= '0' && ct_str[0] <= '9') {
@@ -1036,6 +1038,9 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
                 }
             }
         }
+
+        /* TCGTargetOpDef entry with too much information? */
+        assert(i == TCG_MAX_OP_ARGS || tdefs->args_ct_str[i] == NULL);
 
         /* sort the constraints (XXX: this is just an heuristic) */
         sort_constraints(def, 0, def->nb_oargs);
