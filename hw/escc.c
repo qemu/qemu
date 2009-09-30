@@ -878,9 +878,9 @@ static void sunmouse_event(void *opaque,
     ch = -dy;
 
     if (ch > 127)
-        ch=127;
+        ch = 127;
     else if (ch < -127)
-        ch=-127;
+        ch = -127;
 
     put_queue(s, ch & 0xff);
 
