@@ -804,9 +804,9 @@ generate_exception (DisasContext *ctx, int excp)
 }
 
 /* Addresses computation */
-static inline void gen_op_addr_add (DisasContext *ctx, TCGv t0, TCGv t1)
+static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1)
 {
-    tcg_gen_add_tl(t0, t0, t1);
+    tcg_gen_add_tl(ret, arg0, arg1);
 
 #if defined(TARGET_MIPS64)
     /* For compatibility with 32-bit code, data reference in user mode
@@ -814,7 +814,7 @@ static inline void gen_op_addr_add (DisasContext *ctx, TCGv t0, TCGv t1)
        See the MIPS64 PRA manual, section 4.10. */
     if (((ctx->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
         !(ctx->hflags & MIPS_HFLAG_UX)) {
-        tcg_gen_ext32s_i64(t0, t0);
+        tcg_gen_ext32s_i64(ret, ret);
     }
 #endif
 }
@@ -1006,7 +1006,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         gen_load_gpr(t0, base);
     } else {
         tcg_gen_movi_tl(t0, offset);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -1164,7 +1164,7 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
         gen_load_gpr(t0, base);
     } else {
         tcg_gen_movi_tl(t0, offset);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -1203,7 +1203,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         gen_load_gpr(t0, base);
     } else {
         tcg_gen_movi_tl(t0, offset);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -7265,7 +7265,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         gen_load_gpr(t0, base);
     } else {
         gen_load_gpr(t0, index);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -7661,6 +7661,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
     }
+
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+        tcg_gen_debug_insn_start(ctx->pc);
+
     op = MASK_OP_MAJOR(ctx->opcode);
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;

@@ -213,7 +213,6 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #if 0
     qemu_log(TARGET_FMT_lx " %d %d => " TARGET_FMT_lx " %d (%d)\n",
             address, rw, access_type, *physical, *prot, ret);
-    }
 #endif
 
     return ret;

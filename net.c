@@ -2044,7 +2044,7 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan,
                                           const char *model, const char *name,
                                           int fd, int is_connected)
 {
-    int so_type=-1, optlen=sizeof(so_type);
+    int so_type = -1, optlen=sizeof(so_type);
 
     if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
         (socklen_t *)&optlen)< 0) {

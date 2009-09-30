@@ -73,14 +73,14 @@ static inline void menelaus_update(MenelausState *s)
 
 static inline void menelaus_rtc_start(MenelausState *s)
 {
-    s->rtc.next =+ qemu_get_clock(rt_clock);
+    s->rtc.next += qemu_get_clock(rt_clock);
     qemu_mod_timer(s->rtc.hz_tm, s->rtc.next);
 }
 
 static inline void menelaus_rtc_stop(MenelausState *s)
 {
     qemu_del_timer(s->rtc.hz_tm);
-    s->rtc.next =- qemu_get_clock(rt_clock);
+    s->rtc.next -= qemu_get_clock(rt_clock);
     if (s->rtc.next < 1)
         s->rtc.next = 1;
 }

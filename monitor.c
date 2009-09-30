@@ -1456,6 +1456,9 @@ static void do_info_numa(Monitor *mon)
 
 #ifdef CONFIG_PROFILER
 
+int64_t qemu_time;
+int64_t dev_time;
+
 static void do_info_profile(Monitor *mon)
 {
     int64_t total;

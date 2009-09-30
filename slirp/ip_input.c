@@ -648,8 +648,6 @@ typedef u_int32_t n_time;
 		ip_forward(m, 1);
 		return (1);
 	}
-		}
-	}
 	return (0);
 bad:
  	icmp_error(m, type, code, 0, 0);

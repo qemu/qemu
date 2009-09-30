@@ -9032,6 +9032,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
                     opc3(ctx.opcode), little_endian ? "little" : "big");
+        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+            tcg_gen_debug_insn_start(ctx.nip);
         ctx.nip += 4;
         table = env->opcodes;
         num_insns++;
