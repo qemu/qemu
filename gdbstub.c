@@ -1284,7 +1284,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
     else if (n<63) {
        uint64_t val;
 
-       val=*((uint64_t *)&env->fir[n-32]);
+       val = *((uint64_t *)&env->fir[n-32]);
        GET_REGL(val);
     }
     else if (n==63) {
