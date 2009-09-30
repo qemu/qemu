@@ -89,6 +89,12 @@ DEF2(ext8s_i32, 1, 1, 0, 0)
 #ifdef TCG_TARGET_HAS_ext16s_i32
 DEF2(ext16s_i32, 1, 1, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_ext8u_i32
+DEF2(ext8u_i32, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i32
+DEF2(ext16u_i32, 1, 1, 0, 0)
+#endif
 #ifdef TCG_TARGET_HAS_bswap16_i32
 DEF2(bswap16_i32, 1, 1, 0, 0)
 #endif
@@ -151,6 +157,15 @@ DEF2(ext16s_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext32s_i64
 DEF2(ext32s_i64, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_ext8u_i64
+DEF2(ext8u_i64, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i64
+DEF2(ext16u_i64, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_ext32u_i64
+DEF2(ext32u_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_bswap16_i64
 DEF2(bswap16_i64, 1, 1, 0, 0)
