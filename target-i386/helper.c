@@ -91,7 +91,7 @@ static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features,
     }
 }
 
-typedef struct x86_def_t {
+typedef struct x86_def {
     const char *name;
     uint32_t level;
     uint32_t vendor1, vendor2, vendor3;
@@ -102,7 +102,7 @@ typedef struct x86_def_t {
     uint32_t xlevel;
     char model_id[48];
     int vendor_override;
-} x86_def_t;
+} a_x86_def;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
 #define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
@@ -115,7 +115,7 @@ typedef struct x86_def_t {
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
           CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
           CPUID_PAE | CPUID_SEP | CPUID_APIC)
-static x86_def_t x86_defs[] = {
+static a_x86_def x86_defs[] = {
 #ifdef TARGET_X86_64
     {
         .name = "qemu64",
@@ -336,7 +336,7 @@ static int cpu_x86_fill_model_id(char *str)
     return 0;
 }
 
-static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
+static int cpu_x86_fill_host(a_x86_def *x86_cpu_def)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
@@ -366,10 +366,10 @@ static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
     return 0;
 }
 
-static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
+static int cpu_x86_find_by_name(a_x86_def *x86_cpu_def, const char *cpu_model)
 {
     unsigned int i;
-    x86_def_t *def;
+    a_x86_def *def;
 
     char *s = strdup(cpu_model);
     char *featurestr, *name = strtok(s, ",");
@@ -501,7 +501,7 @@ void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 
 static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
 {
-    x86_def_t def1, *def = &def1;
+    a_x86_def def1, *def = &def1;
 
     if (cpu_x86_find_by_name(def, cpu_model) < 0)
         return -1;
@@ -1030,7 +1030,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
@@ -1057,7 +1057,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     uint64_t ptep, pte;
     target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, ret, is_write, is_user;
-    target_phys_addr_t paddr;
+    a_target_phys_addr paddr;
     uint32_t page_offset;
     target_ulong vaddr, virt_addr;
 
@@ -1341,11 +1341,11 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
-    target_phys_addr_t paddr;
+    a_target_phys_addr paddr;
     uint32_t page_offset;
     int page_size;
 

@@ -34,12 +34,12 @@ typedef struct ds1225y_t
     QEMUFile *file;
     uint8_t *contents;
     uint8_t protection;
-} ds1225y_t;
+} a_ds1225y;
 
 
-static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t nvram_readb (void *opaque, a_target_phys_addr addr)
 {
-    ds1225y_t *s = opaque;
+    a_ds1225y *s = opaque;
     uint32_t val;
 
     val = s->contents[addr];
@@ -50,7 +50,7 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t nvram_readw (void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
     v = nvram_readb(opaque, addr);
@@ -58,7 +58,7 @@ static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t nvram_readl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
     v = nvram_readb(opaque, addr);
@@ -68,9 +68,9 @@ static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_writeb (void *opaque, a_target_phys_addr addr, uint32_t val)
 {
-    ds1225y_t *s = opaque;
+    a_ds1225y *s = opaque;
 
 #ifdef DEBUG_NVRAM
     printf("nvram: write 0x%x at " TARGET_FMT_lx "\n", val, addr);
@@ -84,13 +84,13 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_writew (void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     nvram_writeb(opaque, addr, val & 0xff);
     nvram_writeb(opaque, addr + 1, (val >> 8) & 0xff);
 }
 
-static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_writel (void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     nvram_writeb(opaque, addr, val & 0xff);
     nvram_writeb(opaque, addr + 1, (val >> 8) & 0xff);
@@ -98,9 +98,9 @@ static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
     nvram_writeb(opaque, addr + 3, (val >> 24) & 0xff);
 }
 
-static void nvram_writeb_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_writeb_protected (void *opaque, a_target_phys_addr addr, uint32_t val)
 {
-    ds1225y_t *s = opaque;
+    a_ds1225y *s = opaque;
 
     if (s->protection != 7) {
 #ifdef DEBUG_NVRAM
@@ -112,13 +112,13 @@ static void nvram_writeb_protected (void *opaque, target_phys_addr_t addr, uint3
     nvram_writeb(opaque, addr, val);
 }
 
-static void nvram_writew_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_writew_protected (void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     nvram_writeb_protected(opaque, addr, val & 0xff);
     nvram_writeb_protected(opaque, addr + 1, (val >> 8) & 0xff);
 }
 
-static void nvram_writel_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_writel_protected (void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     nvram_writeb_protected(opaque, addr, val & 0xff);
     nvram_writeb_protected(opaque, addr + 1, (val >> 8) & 0xff);
@@ -145,13 +145,13 @@ static CPUWriteMemoryFunc * const nvram_write_protected[] = {
 };
 
 /* Initialisation routine */
-void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
+void *ds1225y_init(a_target_phys_addr mem_base, const char *filename)
 {
-    ds1225y_t *s;
+    a_ds1225y *s;
     int mem_indexRW, mem_indexRP;
     QEMUFile *file;
 
-    s = qemu_mallocz(sizeof(ds1225y_t));
+    s = qemu_mallocz(sizeof(a_ds1225y));
     s->chip_size = 0x2000; /* Fixed for ds1225y chip: 8 KiB */
     s->contents = qemu_mallocz(s->chip_size);
     s->protection = 7;

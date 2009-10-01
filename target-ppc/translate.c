@@ -191,11 +191,11 @@ typedef struct DisasContext {
     int fpu_enabled;
     int altivec_enabled;
     int spe_enabled;
-    ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
+    a_ppc_spr *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
 } DisasContext;
 
-struct opc_handler_t {
+struct opc_handler {
     /* invalid bits */
     uint32_t inval;
     /* instruction type */
@@ -318,16 +318,16 @@ GEN_OPCODE(name, opc1, opc2, opc3, inval, type)
 #define GEN_HANDLER2(name, onam, opc1, opc2, opc3, inval, type)               \
 GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type)
 
-typedef struct opcode_t {
+typedef struct opcode {
     unsigned char opc1, opc2, opc3;
 #if HOST_LONG_BITS == 64 /* Explicitly align to 64 bits */
     unsigned char pad[5];
 #else
     unsigned char pad[1];
 #endif
-    opc_handler_t handler;
+    an_opc_handler handler;
     const char *oname;
-} opcode_t;
+} an_opcode;
 
 /*****************************************************************************/
 /***                           Instruction decoding                        ***/
@@ -530,7 +530,7 @@ static void gen_invalid(DisasContext *ctx)
     gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
 }
 
-static opc_handler_t invalid_handler = {
+static an_opc_handler invalid_handler = {
     .inval   = 0xFFFFFFFF,
     .type    = PPC_NONE,
     .handler = gen_invalid,
@@ -7975,7 +7975,7 @@ GEN_SPE(efdctsiz,       speundef,      0x1D, 0x0B, 0x00180000, PPC_SPE_DOUBLE); 
 GEN_SPE(efdtstgt,       efdtstlt,      0x1E, 0x0B, 0x00600000, PPC_SPE_DOUBLE); //
 GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPE_DOUBLE); //
 
-static opcode_t opcodes[] = {
+static an_opcode opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
@@ -8903,7 +8903,7 @@ void cpu_dump_statistics (CPUState *env, FILE*f,
                           int flags)
 {
 #if defined(DO_PPC_STATISTICS)
-    opc_handler_t **t1, **t2, **t3, *handler;
+    an_opc_handler **t1, **t2, **t3, *handler;
     int op1, op2, op3;
 
     t1 = env->opcodes;
@@ -8951,7 +8951,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                                                   int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
-    opc_handler_t **table, *handler;
+    an_opc_handler **table, *handler;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     CPUBreakpoint *bp;

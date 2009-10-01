@@ -40,7 +40,7 @@ typedef struct {
     qemu_irq irq;
 } SyborgRTCState;
 
-static uint32_t syborg_rtc_read(void *opaque, target_phys_addr_t offset)
+static uint32_t syborg_rtc_read(void *opaque, a_target_phys_addr offset)
 {
     SyborgRTCState *s = (SyborgRTCState *)opaque;
     offset &= 0xfff;
@@ -58,7 +58,7 @@ static uint32_t syborg_rtc_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void syborg_rtc_write(void *opaque, target_phys_addr_t offset, uint32_t value)
+static void syborg_rtc_write(void *opaque, a_target_phys_addr offset, uint32_t value)
 {
     SyborgRTCState *s = (SyborgRTCState *)opaque;
     uint64_t now;

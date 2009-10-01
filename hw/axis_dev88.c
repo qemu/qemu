@@ -44,7 +44,7 @@ struct nand_state_t
 };
 
 static struct nand_state_t nand_state;
-static uint32_t nand_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t nand_readl (void *opaque, a_target_phys_addr addr)
 {
     struct nand_state_t *s = opaque;
     uint32_t r;
@@ -59,7 +59,7 @@ static uint32_t nand_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-nand_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+nand_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
 {
     struct nand_state_t *s = opaque;
     int rdy;
@@ -168,7 +168,7 @@ static struct gpio_state_t
     uint32_t regs[0x5c / 4];
 } gpio_state;
 
-static uint32_t gpio_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t gpio_readl (void *opaque, a_target_phys_addr addr)
 {
     struct gpio_state_t *s = opaque;
     uint32_t r = 0;
@@ -197,7 +197,7 @@ static uint32_t gpio_readl (void *opaque, target_phys_addr_t addr)
     D(printf("%s %x=%x\n", __func__, addr, r));
 }
 
-static void gpio_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void gpio_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
 {
     struct gpio_state_t *s = opaque;
     D(printf("%s %x=%x\n", __func__, addr, value));
@@ -250,7 +250,7 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void axisdev88_init (ram_addr_t ram_size,
+void axisdev88_init (a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -265,8 +265,8 @@ void axisdev88_init (ram_addr_t ram_size,
     int i;
     int nand_regs;
     int gpio_regs;
-    ram_addr_t phys_ram;
-    ram_addr_t phys_intmem;
+    a_ram_addr phys_ram;
+    a_ram_addr phys_intmem;
 
     /* init CPUs */
     if (cpu_model == NULL) {

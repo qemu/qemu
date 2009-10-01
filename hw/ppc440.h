@@ -14,7 +14,7 @@
 
 #include "hw.h"
 
-CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
+CPUState *ppc440ep_init(a_ram_addr *ram_size, PCIBus **pcip,
                         const unsigned int pci_irq_nrs[4], int do_init,
                         const char *cpu_model);
 

@@ -27,8 +27,8 @@
 #if defined(DECLARE_HOST_REGS)
 
 #define DO_REG(REG)					\
-    register host_reg_t reg_AREG##REG asm(AREG##REG);	\
-    volatile host_reg_t saved_AREG##REG;
+    register a_host_reg reg_AREG##REG asm(AREG##REG);	\
+    volatile a_host_reg saved_AREG##REG;
 
 #elif defined(SAVE_HOST_REGS)
 

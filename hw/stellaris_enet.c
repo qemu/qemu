@@ -130,7 +130,7 @@ static int stellaris_enet_can_receive(VLANClientState *vc)
     return (s->np < 31);
 }
 
-static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
+static uint32_t stellaris_enet_read(void *opaque, a_target_phys_addr offset)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
     uint32_t val;
@@ -197,7 +197,7 @@ static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
+static void stellaris_enet_write(void *opaque, a_target_phys_addr offset,
                         uint32_t value)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;

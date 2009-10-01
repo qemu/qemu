@@ -155,7 +155,7 @@ static void mpcore_timer_init(mpcore_priv_state *mpcore,
 
 /* Per-CPU private memory mapped IO.  */
 
-static uint32_t mpcore_priv_read(void *opaque, target_phys_addr_t offset)
+static uint32_t mpcore_priv_read(void *opaque, a_target_phys_addr offset)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
     int id;
@@ -199,7 +199,7 @@ bad_reg:
     return 0;
 }
 
-static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
+static void mpcore_priv_write(void *opaque, a_target_phys_addr offset,
                           uint32_t value)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
@@ -255,7 +255,7 @@ static CPUWriteMemoryFunc * const mpcore_priv_writefn[] = {
    mpcore_priv_write
 };
 
-static void mpcore_priv_map(SysBusDevice *dev, target_phys_addr_t base)
+static void mpcore_priv_map(SysBusDevice *dev, a_target_phys_addr base)
 {
     mpcore_priv_state *s = FROM_SYSBUSGIC(mpcore_priv_state, dev);
     cpu_register_physical_memory(base, 0x1000, s->iomemtype);

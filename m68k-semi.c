@@ -53,13 +53,13 @@
 #define HOSTED_ISATTY 12
 #define HOSTED_SYSTEM 13
 
-typedef uint32_t gdb_mode_t;
-typedef uint32_t gdb_time_t;
+typedef uint32_t a_gdb_mode;
+typedef uint32_t a_gdb_time;
 
 struct m68k_gdb_stat {
   uint32_t    gdb_st_dev;     /* device */
   uint32_t    gdb_st_ino;     /* inode */
-  gdb_mode_t  gdb_st_mode;    /* protection */
+  a_gdb_mode  gdb_st_mode;    /* protection */
   uint32_t    gdb_st_nlink;   /* number of hard links */
   uint32_t    gdb_st_uid;     /* user ID of owner */
   uint32_t    gdb_st_gid;     /* group ID of owner */
@@ -67,13 +67,13 @@ struct m68k_gdb_stat {
   uint64_t    gdb_st_size;    /* total size, in bytes */
   uint64_t    gdb_st_blksize; /* blocksize for filesystem I/O */
   uint64_t    gdb_st_blocks;  /* number of blocks allocated */
-  gdb_time_t  gdb_st_atime;   /* time of last access */
-  gdb_time_t  gdb_st_mtime;   /* time of last modification */
-  gdb_time_t  gdb_st_ctime;   /* time of last change */
+  a_gdb_time  gdb_st_atime;   /* time of last access */
+  a_gdb_time  gdb_st_mtime;   /* time of last modification */
+  a_gdb_time  gdb_st_ctime;   /* time of last change */
 } __attribute__((packed));
 
 struct gdb_timeval {
-  gdb_time_t tv_sec;  /* second */
+  a_gdb_time tv_sec;  /* second */
   uint64_t tv_usec;   /* microsecond */
 } __attribute__((packed));
 

@@ -20,7 +20,7 @@ struct PXA2xxPCMCIAState {
 };
 
 static uint32_t pxa2xx_pcmcia_common_read(void *opaque,
-                target_phys_addr_t offset)
+                a_target_phys_addr offset)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -32,7 +32,7 @@ static uint32_t pxa2xx_pcmcia_common_read(void *opaque,
 }
 
 static void pxa2xx_pcmcia_common_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+                a_target_phys_addr offset, uint32_t value)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -42,7 +42,7 @@ static void pxa2xx_pcmcia_common_write(void *opaque,
 }
 
 static uint32_t pxa2xx_pcmcia_attr_read(void *opaque,
-                target_phys_addr_t offset)
+                a_target_phys_addr offset)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -54,7 +54,7 @@ static uint32_t pxa2xx_pcmcia_attr_read(void *opaque,
 }
 
 static void pxa2xx_pcmcia_attr_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+                a_target_phys_addr offset, uint32_t value)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -64,7 +64,7 @@ static void pxa2xx_pcmcia_attr_write(void *opaque,
 }
 
 static uint32_t pxa2xx_pcmcia_io_read(void *opaque,
-                target_phys_addr_t offset)
+                a_target_phys_addr offset)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -76,7 +76,7 @@ static uint32_t pxa2xx_pcmcia_io_read(void *opaque,
 }
 
 static void pxa2xx_pcmcia_io_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+                a_target_phys_addr offset, uint32_t value)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -130,7 +130,7 @@ static void pxa2xx_pcmcia_set_irq(void *opaque, int line, int level)
     qemu_set_irq(s->irq, level);
 }
 
-PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base)
+PXA2xxPCMCIAState *pxa2xx_pcmcia_init(a_target_phys_addr base)
 {
     int iomemtype;
     PXA2xxPCMCIAState *s;

@@ -401,7 +401,7 @@ void DMA_register_channel (int nchan,
 int DMA_read_memory (int nchan, void *buf, int pos, int len)
 {
     struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
-    target_phys_addr_t addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
+    a_target_phys_addr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
         int i;
@@ -423,7 +423,7 @@ int DMA_read_memory (int nchan, void *buf, int pos, int len)
 int DMA_write_memory (int nchan, void *buf, int pos, int len)
 {
     struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
-    target_phys_addr_t addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
+    a_target_phys_addr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
 
     if (r->mode & 0x20) {
         int i;

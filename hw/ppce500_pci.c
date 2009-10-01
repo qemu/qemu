@@ -17,7 +17,7 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppce500.h"
-typedef target_phys_addr_t pci_addr_t;
+typedef a_target_phys_addr a_pci_addr;
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
@@ -85,7 +85,7 @@ struct PPCE500PCIState {
 
 typedef struct PPCE500PCIState PPCE500PCIState;
 
-static uint32_t pcie500_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t pcie500_cfgaddr_readl(void *opaque, a_target_phys_addr addr)
 {
     PPCE500PCIState *pci = opaque;
 
@@ -100,7 +100,7 @@ static CPUReadMemoryFunc * const pcie500_cfgaddr_read[] = {
     &pcie500_cfgaddr_readl,
 };
 
-static void pcie500_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
+static void pcie500_cfgaddr_writel(void *opaque, a_target_phys_addr addr,
                                   uint32_t value)
 {
     PPCE500PCIState *controller = opaque;
@@ -128,7 +128,7 @@ static CPUWriteMemoryFunc * const pcie500_cfgdata_write[] = {
     &pci_host_data_writel,
 };
 
-static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
+static uint32_t pci_reg_read4(void *opaque, a_target_phys_addr addr)
 {
     PPCE500PCIState *pci = opaque;
     unsigned long win;
@@ -181,7 +181,7 @@ static CPUReadMemoryFunc * const e500_pci_reg_read[] = {
     &pci_reg_read4,
 };
 
-static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
+static void pci_reg_write4(void *opaque, a_target_phys_addr addr,
                                uint32_t value)
 {
     PPCE500PCIState *pci = opaque;
@@ -313,7 +313,7 @@ static int ppce500_pci_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
+PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], a_target_phys_addr registers)
 {
     PPCE500PCIState *controller;
     PCIDevice *d;

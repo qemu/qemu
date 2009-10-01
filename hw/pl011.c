@@ -53,7 +53,7 @@ static void pl011_update(pl011_state *s)
     qemu_set_irq(s->irq, flags != 0);
 }
 
-static uint32_t pl011_read(void *opaque, target_phys_addr_t offset)
+static uint32_t pl011_read(void *opaque, a_target_phys_addr offset)
 {
     pl011_state *s = (pl011_state *)opaque;
     uint32_t c;
@@ -122,7 +122,7 @@ static void pl011_set_read_trigger(pl011_state *s)
         s->read_trigger = 1;
 }
 
-static void pl011_write(void *opaque, target_phys_addr_t offset,
+static void pl011_write(void *opaque, a_target_phys_addr offset,
                           uint32_t value)
 {
     pl011_state *s = (pl011_state *)opaque;

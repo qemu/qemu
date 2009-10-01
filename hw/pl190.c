@@ -85,7 +85,7 @@ static void pl190_update_vectors(pl190_state *s)
     pl190_update(s);
 }
 
-static uint32_t pl190_read(void *opaque, target_phys_addr_t offset)
+static uint32_t pl190_read(void *opaque, a_target_phys_addr offset)
 {
     pl190_state *s = (pl190_state *)opaque;
     int i;
@@ -141,7 +141,7 @@ static uint32_t pl190_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void pl190_write(void *opaque, target_phys_addr_t offset, uint32_t val)
+static void pl190_write(void *opaque, a_target_phys_addr offset, uint32_t val)
 {
     pl190_state *s = (pl190_state *)opaque;
 

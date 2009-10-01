@@ -338,14 +338,14 @@ static void sh_serial_event(void *opaque, int event)
         sh_serial_receive_break(s);
 }
 
-static uint32_t sh_serial_read (void *opaque, target_phys_addr_t addr)
+static uint32_t sh_serial_read (void *opaque, a_target_phys_addr addr)
 {
     sh_serial_state *s = opaque;
     return sh_serial_ioport_read(s, addr);
 }
 
 static void sh_serial_write (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             a_target_phys_addr addr, uint32_t value)
 {
     sh_serial_state *s = opaque;
     sh_serial_ioport_write(s, addr, value);
@@ -363,7 +363,7 @@ static CPUWriteMemoryFunc * const sh_serial_writefn[] = {
     &sh_serial_write,
 };
 
-void sh_serial_init (target_phys_addr_t base, int feat,
+void sh_serial_init (a_target_phys_addr base, int feat,
 		     uint32_t freq, CharDriverState *chr,
 		     qemu_irq eri_source,
 		     qemu_irq rxi_source,

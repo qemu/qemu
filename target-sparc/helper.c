@@ -36,7 +36,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
 /* thread support */
 
-static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
+static a_spinlock global_cpu_lock = SPIN_LOCK_UNLOCKED;
 
 void cpu_lock(void)
 {
@@ -100,12 +100,12 @@ static const int perm_table[2][8] = {
     }
 };
 
-static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
+static int get_physical_address(CPUState *env, a_target_phys_addr *physical,
                                 int *prot, int *access_index,
                                 target_ulong address, int rw, int mmu_idx)
 {
     int access_perms = 0;
-    target_phys_addr_t pde_ptr;
+    a_target_phys_addr pde_ptr;
     uint32_t pde;
     target_ulong virt_addr;
     int error_code = 0, is_dirty, is_user;
@@ -214,7 +214,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 
     /* Even if large ptes, we map only one 4KB page in the cache to
        avoid filling it too fast */
-    *physical = ((target_phys_addr_t)(pde & PTE_ADDR_MASK) << 4) + page_offset;
+    *physical = ((a_target_phys_addr)(pde & PTE_ADDR_MASK) << 4) + page_offset;
     return error_code;
 }
 
@@ -222,7 +222,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu)
 {
-    target_phys_addr_t paddr;
+    a_target_phys_addr paddr;
     target_ulong vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
@@ -264,11 +264,11 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
 {
-    target_phys_addr_t pde_ptr;
+    a_target_phys_addr pde_ptr;
     uint32_t pde;
 
     /* Context base + context number */
-    pde_ptr = (target_phys_addr_t)(env->mmuregs[1] << 4) +
+    pde_ptr = (a_target_phys_addr)(env->mmuregs[1] << 4) +
         (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
 
@@ -330,14 +330,14 @@ void dump_mmu(CPUState *env)
 {
     target_ulong va, va1, va2;
     unsigned int n, m, o;
-    target_phys_addr_t pde_ptr, pa;
+    a_target_phys_addr pde_ptr, pa;
     uint32_t pde;
 
     printf("MMU dump:\n");
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
     printf("Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
-           (target_phys_addr_t)env->mmuregs[1] << 4, env->mmuregs[2]);
+           (a_target_phys_addr)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
         pde = mmu_probe(env, va, 2);
         if (pde) {
@@ -370,7 +370,7 @@ void dump_mmu(CPUState *env)
 #else /* !TARGET_SPARC64 */
 
 // 41 bit physical address space
-static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
+static inline a_target_phys_addr ultrasparc_truncate_physical(uint64_t x)
 {
     return x & 0x1ffffffffffULL;
 }
@@ -388,7 +388,7 @@ static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
 // requires virtual address mask value calculated from TTE entry size
 static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
                                        uint64_t address, uint64_t context,
-                                       target_phys_addr_t *physical)
+                                       a_target_phys_addr *physical)
 {
     uint64_t mask;
 
@@ -422,7 +422,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 }
 
 static int get_physical_address_data(CPUState *env,
-                                     target_phys_addr_t *physical, int *prot,
+                                     a_target_phys_addr *physical, int *prot,
                                      target_ulong address, int rw, int is_user)
 {
     unsigned int i;
@@ -481,7 +481,7 @@ static int get_physical_address_data(CPUState *env,
 }
 
 static int get_physical_address_code(CPUState *env,
-                                     target_phys_addr_t *physical, int *prot,
+                                     a_target_phys_addr *physical, int *prot,
                                      target_ulong address, int is_user)
 {
     unsigned int i;
@@ -527,7 +527,7 @@ static int get_physical_address_code(CPUState *env,
     return 1;
 }
 
-static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
+static int get_physical_address(CPUState *env, a_target_phys_addr *physical,
                                 int *prot, int *access_index,
                                 target_ulong address, int rw, int mmu_idx)
 {
@@ -546,7 +546,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu)
 {
     target_ulong virt_addr, vaddr;
-    target_phys_addr_t paddr;
+    a_target_phys_addr paddr;
     int error_code = 0, prot, ret = 0, access_index;
 
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
@@ -649,15 +649,15 @@ void dump_mmu(CPUState *env)
 
 
 #if defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
 
 #else
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    target_phys_addr_t phys_addr;
+    a_target_phys_addr phys_addr;
     int prot, access_index;
 
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,

@@ -140,7 +140,7 @@ void omap_i2c_reset(struct omap_i2c_s *s)
     s->test = 0;
 }
 
-static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
+static uint32_t omap_i2c_read(void *opaque, a_target_phys_addr addr)
 {
     struct omap_i2c_s *s = (struct omap_i2c_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
@@ -238,7 +238,7 @@ static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
+static void omap_i2c_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     struct omap_i2c_s *s = (struct omap_i2c_s *) opaque;
@@ -380,7 +380,7 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void omap_i2c_writeb(void *opaque, target_phys_addr_t addr,
+static void omap_i2c_writeb(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     struct omap_i2c_s *s = (struct omap_i2c_s *) opaque;
@@ -420,7 +420,7 @@ static CPUWriteMemoryFunc * const omap_i2c_writefn[] = {
     omap_badwidth_write16,
 };
 
-struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
+struct omap_i2c_s *omap_i2c_init(a_target_phys_addr base,
                 qemu_irq irq, qemu_irq *dma, omap_clk clk)
 {
     int iomemtype;

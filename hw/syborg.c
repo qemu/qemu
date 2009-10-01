@@ -30,7 +30,7 @@
 
 static struct arm_boot_info syborg_binfo;
 
-static void syborg_init(ram_addr_t ram_size,
+static void syborg_init(a_ram_addr ram_size,
                         const char *boot_device,
                         const char *kernel_filename, const char *kernel_cmdline,
                         const char *initrd_filename, const char *cpu_model)
@@ -38,7 +38,7 @@ static void syborg_init(ram_addr_t ram_size,
     CPUState *env;
     qemu_irq *cpu_pic;
     qemu_irq pic[64];
-    ram_addr_t ram_addr;
+    a_ram_addr ram_addr;
     DeviceState *dev;
     int i;
 

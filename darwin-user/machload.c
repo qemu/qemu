@@ -101,7 +101,7 @@ typedef struct mach_i386_thread_state {
     unsigned int    es;
     unsigned int    fs;
     unsigned int    gs;
-} mach_i386_thread_state_t;
+};
 
 void bswap_i386_thread_state(struct mach_i386_thread_state *ts)
 {

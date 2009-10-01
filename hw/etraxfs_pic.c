@@ -77,7 +77,7 @@ static void pic_update(struct etrax_pic *fs)
     qemu_set_irq(fs->parent_irq, !!vector);
 }
 
-static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t pic_readl (void *opaque, a_target_phys_addr addr)
 {
     struct etrax_pic *fs = opaque;
     uint32_t rval;
@@ -88,7 +88,7 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+pic_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
 {
     struct etrax_pic *fs = opaque;
     D(printf("%s addr=%x val=%x\n", __func__, addr, value));

@@ -78,7 +78,7 @@ struct vm86_saved_state {
 
 struct sigqueue {
     struct sigqueue *next;
-    target_siginfo_t info;
+    a_target_siginfo info;
 };
 
 struct emulated_sigtable {
@@ -207,9 +207,9 @@ extern int do_strace;
 /* signal.c */
 void process_pending_signals(CPUState *cpu_env);
 void signal_init(void);
-int queue_signal(CPUState *env, int sig, target_siginfo_t *info);
-void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
-void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
+int queue_signal(CPUState *env, int sig, a_target_siginfo *info);
+void host_to_target_siginfo(a_target_siginfo *tinfo, const siginfo_t *info);
+void target_to_host_siginfo(siginfo_t *info, const a_target_siginfo *tinfo);
 int target_to_host_signal(int sig);
 int host_to_target_signal(int sig);
 long do_sigreturn(CPUState *env);

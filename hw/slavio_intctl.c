@@ -83,7 +83,7 @@ typedef struct SLAVIO_INTCTLState {
 static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs);
 
 // per-cpu interrupt controller
-static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t slavio_intctl_mem_readl(void *opaque, a_target_phys_addr addr)
 {
     SLAVIO_CPUINTCTLState *s = opaque;
     uint32_t saddr, ret;
@@ -102,7 +102,7 @@ static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr,
+static void slavio_intctl_mem_writel(void *opaque, a_target_phys_addr addr,
                                      uint32_t val)
 {
     SLAVIO_CPUINTCTLState *s = opaque;
@@ -143,7 +143,7 @@ static CPUWriteMemoryFunc * const slavio_intctl_mem_write[3] = {
 };
 
 // master system interrupt controller
-static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t slavio_intctlm_mem_readl(void *opaque, a_target_phys_addr addr)
 {
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr, ret;
@@ -168,7 +168,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
+static void slavio_intctlm_mem_writel(void *opaque, a_target_phys_addr addr,
                                       uint32_t val)
 {
     SLAVIO_INTCTLState *s = opaque;

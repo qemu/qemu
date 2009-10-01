@@ -28,7 +28,7 @@ typedef void (*DBDMA_end)(DBDMA_io *io);
 struct DBDMA_io {
     void *opaque;
     void *channel;
-    target_phys_addr_t addr;
+    a_target_phys_addr addr;
     int len;
     int is_last;
     int is_dma_out;

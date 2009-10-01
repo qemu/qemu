@@ -25,13 +25,13 @@
 #include "hw.h"
 #include "isa.h"
 
-static void isa_mmio_writeb (void *opaque, target_phys_addr_t addr,
+static void isa_mmio_writeb (void *opaque, a_target_phys_addr addr,
                                   uint32_t val)
 {
     cpu_outb(addr & IOPORTS_MASK, val);
 }
 
-static void isa_mmio_writew (void *opaque, target_phys_addr_t addr,
+static void isa_mmio_writew (void *opaque, a_target_phys_addr addr,
                                   uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -40,7 +40,7 @@ static void isa_mmio_writew (void *opaque, target_phys_addr_t addr,
     cpu_outw(addr & IOPORTS_MASK, val);
 }
 
-static void isa_mmio_writel (void *opaque, target_phys_addr_t addr,
+static void isa_mmio_writel (void *opaque, a_target_phys_addr addr,
                                 uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -49,7 +49,7 @@ static void isa_mmio_writel (void *opaque, target_phys_addr_t addr,
     cpu_outl(addr & IOPORTS_MASK, val);
 }
 
-static uint32_t isa_mmio_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readb (void *opaque, a_target_phys_addr addr)
 {
     uint32_t val;
 
@@ -57,7 +57,7 @@ static uint32_t isa_mmio_readb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t isa_mmio_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readw (void *opaque, a_target_phys_addr addr)
 {
     uint32_t val;
 
@@ -68,7 +68,7 @@ static uint32_t isa_mmio_readw (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t isa_mmio_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t val;
 
@@ -93,7 +93,7 @@ static CPUReadMemoryFunc * const isa_mmio_read[] = {
 
 static int isa_mmio_iomemtype = 0;
 
-void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size)
+void isa_mmio_init(a_target_phys_addr base, a_target_phys_addr size)
 {
     if (!isa_mmio_iomemtype) {
         isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read,

@@ -112,7 +112,7 @@ static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
 /* PCI intack register */
 /* Read-only register (?) */
 static void _PPC_intack_write (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               a_target_phys_addr addr, uint32_t value)
 {
 #if 0
     printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
@@ -120,7 +120,7 @@ static void _PPC_intack_write (void *opaque,
 #endif
 }
 
-static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
+static inline uint32_t _PPC_intack_read(a_target_phys_addr addr)
 {
     uint32_t retval = 0;
 
@@ -134,12 +134,12 @@ static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_intack_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_intack_readb (void *opaque, a_target_phys_addr addr)
 {
     return _PPC_intack_read(addr);
 }
 
-static uint32_t PPC_intack_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_intack_readw (void *opaque, a_target_phys_addr addr)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     return bswap16(_PPC_intack_read(addr));
@@ -148,7 +148,7 @@ static uint32_t PPC_intack_readw (void *opaque, target_phys_addr_t addr)
 #endif
 }
 
-static uint32_t PPC_intack_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_intack_readl (void *opaque, a_target_phys_addr addr)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     return bswap32(_PPC_intack_read(addr));
@@ -197,14 +197,14 @@ static struct {
 } XCSR;
 
 static void PPC_XCSR_writeb (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             a_target_phys_addr addr, uint32_t value)
 {
     printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
            value);
 }
 
 static void PPC_XCSR_writew (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             a_target_phys_addr addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
@@ -214,7 +214,7 @@ static void PPC_XCSR_writew (void *opaque,
 }
 
 static void PPC_XCSR_writel (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             a_target_phys_addr addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
@@ -223,7 +223,7 @@ static void PPC_XCSR_writel (void *opaque,
            value);
 }
 
-static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readb (void *opaque, a_target_phys_addr addr)
 {
     uint32_t retval = 0;
 
@@ -233,7 +233,7 @@ static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readw (void *opaque, a_target_phys_addr addr)
 {
     uint32_t retval = 0;
 
@@ -246,7 +246,7 @@ static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t retval = 0;
 
@@ -273,25 +273,25 @@ static CPUReadMemoryFunc * const PPC_XCSR_read[] = {
 #endif
 
 /* Fake super-io ports for PREP platform (Intel 82378ZB) */
-typedef struct sysctrl_t {
+typedef struct sysctrl {
     qemu_irq reset_irq;
-    m48t59_t *nvram;
+    a_m48t59 *nvram;
     uint8_t state;
     uint8_t syscontrol;
     uint8_t fake_io[2];
     int contiguous_map;
     int endian;
-} sysctrl_t;
+} a_sysctrl;
 
 enum {
     STATE_HARDFILE = 0x01,
 };
 
-static sysctrl_t *sysctrl;
+static a_sysctrl *sysctrl;
 
 static void PREP_io_write (void *opaque, uint32_t addr, uint32_t val)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
 
     PPC_IO_DPRINTF("0x%08" PRIx32 " => 0x%02" PRIx32 "\n", addr - PPC_IO_BASE,
                    val);
@@ -300,7 +300,7 @@ static void PREP_io_write (void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t PREP_io_read (void *opaque, uint32_t addr)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
 
     PPC_IO_DPRINTF("0x%08" PRIx32 " <= 0x%02" PRIx32 "\n", addr - PPC_IO_BASE,
                    sysctrl->fake_io[addr - 0x0398]);
@@ -309,7 +309,7 @@ static uint32_t PREP_io_read (void *opaque, uint32_t addr)
 
 static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
 
     PPC_IO_DPRINTF("0x%08" PRIx32 " => 0x%02" PRIx32 "\n",
                    addr - PPC_IO_BASE, val);
@@ -376,7 +376,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
     uint32_t retval = 0xFF;
 
     switch (addr) {
@@ -440,8 +440,8 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
-static inline target_phys_addr_t prep_IO_address(sysctrl_t *sysctrl,
-                                                 target_phys_addr_t addr)
+static inline a_target_phys_addr prep_IO_address(a_sysctrl *sysctrl,
+                                                 a_target_phys_addr addr)
 {
     if (sysctrl->contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
@@ -454,18 +454,18 @@ static inline target_phys_addr_t prep_IO_address(sysctrl_t *sysctrl,
     return addr;
 }
 
-static void PPC_prep_io_writeb (void *opaque, target_phys_addr_t addr,
+static void PPC_prep_io_writeb (void *opaque, a_target_phys_addr addr,
                                 uint32_t value)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
 
     addr = prep_IO_address(sysctrl, addr);
     cpu_outb(addr, value);
 }
 
-static uint32_t PPC_prep_io_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_prep_io_readb (void *opaque, a_target_phys_addr addr)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
     uint32_t ret;
 
     addr = prep_IO_address(sysctrl, addr);
@@ -474,10 +474,10 @@ static uint32_t PPC_prep_io_readb (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
+static void PPC_prep_io_writew (void *opaque, a_target_phys_addr addr,
                                 uint32_t value)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
 
     addr = prep_IO_address(sysctrl, addr);
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -487,9 +487,9 @@ static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
     cpu_outw(addr, value);
 }
 
-static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_prep_io_readw (void *opaque, a_target_phys_addr addr)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
     uint32_t ret;
 
     addr = prep_IO_address(sysctrl, addr);
@@ -502,10 +502,10 @@ static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
+static void PPC_prep_io_writel (void *opaque, a_target_phys_addr addr,
                                 uint32_t value)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
 
     addr = prep_IO_address(sysctrl, addr);
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -515,9 +515,9 @@ static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
     cpu_outl(addr, value);
 }
 
-static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_prep_io_readl (void *opaque, a_target_phys_addr addr)
 {
-    sysctrl_t *sysctrl = opaque;
+    a_sysctrl *sysctrl = opaque;
     uint32_t ret;
 
     addr = prep_IO_address(sysctrl, addr);
@@ -545,7 +545,7 @@ static CPUReadMemoryFunc * const PPC_prep_io_read[] = {
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init (ram_addr_t ram_size,
+static void ppc_prep_init (a_ram_addr ram_size,
                            const char *boot_device,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
@@ -554,11 +554,11 @@ static void ppc_prep_init (ram_addr_t ram_size,
 {
     CPUState *env = NULL, *envs[MAX_CPUS];
     char *filename;
-    nvram_t nvram;
-    m48t59_t *m48t59;
+    a_nvram nvram;
+    a_m48t59 *m48t59;
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;
-    ram_addr_t ram_offset, bios_offset;
+    a_ram_addr ram_offset, bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     qemu_irq *i8259;
@@ -567,7 +567,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
 
-    sysctrl = qemu_mallocz(sizeof(sysctrl_t));
+    sysctrl = qemu_mallocz(sizeof(a_sysctrl));
 
     linux_boot = (kernel_filename != NULL);
 
@@ -606,7 +606,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         bios_size = -1;
     }
     if (bios_size > 0 && bios_size <= BIOS_SIZE) {
-        target_phys_addr_t bios_addr;
+        a_target_phys_addr bios_addr;
         bios_size = (bios_size + 0xfff) & ~0xfff;
         bios_addr = (uint32_t)(-bios_size);
         cpu_register_physical_memory(bios_addr, bios_size,

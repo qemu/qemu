@@ -30,7 +30,7 @@
 typedef struct {
 	const char* name;
 	int keysym;
-} name2keysym_t;
+} a_name2keysym;
 
 struct key_range {
     int start;
@@ -49,10 +49,10 @@ typedef struct {
     int extra_count;
     struct key_range *keypad_range;
     struct key_range *numlock_range;
-} kbd_layout_t;
+} a_kbd_layout;
 
 
-void *init_keyboard_layout(const name2keysym_t *table, const char *language);
+void *init_keyboard_layout(const a_name2keysym *table, const char *language);
 int keysym2scancode(void *kbd_layout, int keysym);
 int keycode_is_keypad(void *kbd_layout, int keycode);
 int keysym_is_numlock(void *kbd_layout, int keysym);

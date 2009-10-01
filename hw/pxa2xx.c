@@ -17,7 +17,7 @@
 #include "qemu-char.h"
 
 static struct {
-    target_phys_addr_t io_base;
+    a_target_phys_addr io_base;
     int irqn;
 } pxa255_serial[] = {
     { 0x40100000, PXA2XX_PIC_FFUART },
@@ -33,7 +33,7 @@ static struct {
 };
 
 typedef struct PXASSPDef {
-    target_phys_addr_t io_base;
+    a_target_phys_addr io_base;
     int irqn;
 } PXASSPDef;
 
@@ -88,7 +88,7 @@ static PXASSPDef pxa27x_ssp[] = {
 #define PCMD0	0x80	/* Power Manager I2C Command register File 0 */
 #define PCMD31	0xfc	/* Power Manager I2C Command register File 31 */
 
-static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_pm_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
 
@@ -106,7 +106,7 @@ static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_pm_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -171,7 +171,7 @@ static int pxa2xx_pm_load(QEMUFile *f, void *opaque, int version_id)
 #define OSCC	0x08	/* Oscillator Configuration register */
 #define CCSR	0x0c	/* Core Clock Status register */
 
-static uint32_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_cm_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
 
@@ -191,7 +191,7 @@ static uint32_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_cm_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_cm_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -481,7 +481,7 @@ static void pxa2xx_cp14_write(void *opaque, int op2, int reg, int crm,
 #define BSCNTR3		0x60	/* Memory Buffer Strength Control register 3 */
 #define SA1110		0x64	/* SA-1110 Memory Compatibility register */
 
-static uint32_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_mm_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
 
@@ -497,7 +497,7 @@ static uint32_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_mm_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_mm_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -656,7 +656,7 @@ static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
     pxa2xx_ssp_int_update(s);
 }
 
-static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_ssp_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
     uint32_t retval;
@@ -701,7 +701,7 @@ static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_ssp_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
@@ -1008,7 +1008,7 @@ static inline void pxa2xx_rtc_pi_tick(void *opaque)
     pxa2xx_rtc_int_update(s);
 }
 
-static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_rtc_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
 
@@ -1053,7 +1053,7 @@ static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_rtc_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -1263,7 +1263,7 @@ struct PXA2xxI2CState {
     PXA2xxI2CSlaveState *slave;
     i2c_bus *bus;
     qemu_irq irq;
-    target_phys_addr_t offset;
+    a_target_phys_addr offset;
 
     uint16_t control;
     uint16_t status;
@@ -1343,7 +1343,7 @@ static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
     return 1;
 }
 
-static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_i2c_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
 
@@ -1370,7 +1370,7 @@ static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_i2c_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
@@ -1495,7 +1495,7 @@ static I2CSlaveInfo pxa2xx_i2c_slave_info = {
     .send = pxa2xx_i2c_tx
 };
 
-PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
+PXA2xxI2CState *pxa2xx_i2c_init(a_target_phys_addr base,
                 qemu_irq irq, uint32_t region_size)
 {
     int iomemtype;
@@ -1582,7 +1582,7 @@ static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
 #define SADIV	0x60	/* Serial Audio Clock Divider register */
 #define SADR	0x80	/* Serial Audio Data register */
 
-static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_i2s_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
 
@@ -1613,7 +1613,7 @@ static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_i2s_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
@@ -1736,7 +1736,7 @@ static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
     pxa2xx_i2s_update(s);
 }
 
-static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
+static PXA2xxI2SState *pxa2xx_i2s_init(a_target_phys_addr base,
                 qemu_irq irq, PXA2xxDMAState *dma)
 {
     int iomemtype;
@@ -1830,7 +1830,7 @@ static inline void pxa2xx_fir_update(PXA2xxFIrState *s)
 #define ICSR1	0x18	/* FICP Status register 1 */
 #define ICFOR	0x1c	/* FICP FIFO Occupancy Status register */
 
-static uint32_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr)
+static uint32_t pxa2xx_fir_read(void *opaque, a_target_phys_addr addr)
 {
     PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     uint8_t ret;
@@ -1867,7 +1867,7 @@ static uint32_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_fir_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
@@ -1994,7 +1994,7 @@ static int pxa2xx_fir_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
+static PXA2xxFIrState *pxa2xx_fir_init(a_target_phys_addr base,
                 qemu_irq irq, PXA2xxDMAState *dma,
                 CharDriverState *chr)
 {

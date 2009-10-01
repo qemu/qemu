@@ -42,7 +42,7 @@ static void m5208_timer_update(m5208_timer_state *s)
         qemu_irq_lower(s->irq);
 }
 
-static void m5208_timer_write(void *opaque, target_phys_addr_t offset,
+static void m5208_timer_write(void *opaque, a_target_phys_addr offset,
                               uint32_t value)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
@@ -104,7 +104,7 @@ static void m5208_timer_trigger(void *opaque)
     m5208_timer_update(s);
 }
 
-static uint32_t m5208_timer_read(void *opaque, target_phys_addr_t addr)
+static uint32_t m5208_timer_read(void *opaque, a_target_phys_addr addr)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
     switch (addr) {
@@ -132,7 +132,7 @@ static CPUWriteMemoryFunc * const m5208_timer_writefn[] = {
    m5208_timer_write
 };
 
-static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
+static uint32_t m5208_sys_read(void *opaque, a_target_phys_addr addr)
 {
     switch (addr) {
     case 0x110: /* SDCS0 */
@@ -153,7 +153,7 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
+static void m5208_sys_write(void *opaque, a_target_phys_addr addr,
                             uint32_t value)
 {
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
@@ -195,7 +195,7 @@ static void mcf5208_sys_init(qemu_irq *pic)
     }
 }
 
-static void mcf5208evb_init(ram_addr_t ram_size,
+static void mcf5208evb_init(a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -203,7 +203,7 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     CPUState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    a_target_phys_addr entry;
     qemu_irq *pic;
 
     if (!cpu_model)

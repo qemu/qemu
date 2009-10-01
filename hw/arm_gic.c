@@ -238,7 +238,7 @@ static void gic_complete_irq(gic_state * s, int cpu, int irq)
     }
 }
 
-static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readb(void *opaque, a_target_phys_addr offset)
 {
     gic_state *s = (gic_state *)opaque;
     uint32_t res;
@@ -348,7 +348,7 @@ bad_reg:
     return 0;
 }
 
-static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readw(void *opaque, a_target_phys_addr offset)
 {
     uint32_t val;
     val = gic_dist_readb(opaque, offset);
@@ -356,7 +356,7 @@ static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readl(void *opaque, a_target_phys_addr offset)
 {
     uint32_t val;
 #ifdef NVIC
@@ -371,7 +371,7 @@ static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writeb(void *opaque, a_target_phys_addr offset,
                             uint32_t value)
 {
     gic_state *s = (gic_state *)opaque;
@@ -509,14 +509,14 @@ bad_reg:
     hw_error("gic_dist_writeb: Bad offset %x\n", (int)offset);
 }
 
-static void gic_dist_writew(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writew(void *opaque, a_target_phys_addr offset,
                             uint32_t value)
 {
     gic_dist_writeb(opaque, offset, value & 0xff);
     gic_dist_writeb(opaque, offset + 1, value >> 8);
 }
 
-static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writel(void *opaque, a_target_phys_addr offset,
                             uint32_t value)
 {
     gic_state *s = (gic_state *)opaque;

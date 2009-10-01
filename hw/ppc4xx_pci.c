@@ -23,7 +23,7 @@
 #include "ppc.h"
 #include "ppc4xx.h"
 
-typedef target_phys_addr_t pci_addr_t;
+typedef a_target_phys_addr a_pci_addr;
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
@@ -86,7 +86,7 @@ typedef struct PPC4xxPCIState PPC4xxPCIState;
 #define PCI_REG_SIZE        0x40
 
 
-static uint32_t pci4xx_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t pci4xx_cfgaddr_readl(void *opaque, a_target_phys_addr addr)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
 
@@ -99,7 +99,7 @@ static CPUReadMemoryFunc * const pci4xx_cfgaddr_read[] = {
     &pci4xx_cfgaddr_readl,
 };
 
-static void pci4xx_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
+static void pci4xx_cfgaddr_writel(void *opaque, a_target_phys_addr addr,
                                   uint32_t value)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
@@ -129,7 +129,7 @@ static CPUWriteMemoryFunc * const pci4xx_cfgdata_write[] = {
     &pci_host_data_writel,
 };
 
-static void ppc4xx_pci_reg_write4(void *opaque, target_phys_addr_t offset,
+static void ppc4xx_pci_reg_write4(void *opaque, a_target_phys_addr offset,
                                   uint32_t value)
 {
     struct PPC4xxPCIState *pci = opaque;
@@ -201,7 +201,7 @@ static void ppc4xx_pci_reg_write4(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint32_t ppc4xx_pci_reg_read4(void *opaque, target_phys_addr_t offset)
+static uint32_t ppc4xx_pci_reg_read4(void *opaque, a_target_phys_addr offset)
 {
     struct PPC4xxPCIState *pci = opaque;
     uint32_t value;
@@ -359,10 +359,10 @@ static int ppc4xx_pci_load(QEMUFile *f, void *opaque, int version_id)
 
 /* XXX Interrupt acknowledge cycles not supported. */
 PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
-                        target_phys_addr_t config_space,
-                        target_phys_addr_t int_ack,
-                        target_phys_addr_t special_cycle,
-                        target_phys_addr_t registers)
+                        a_target_phys_addr config_space,
+                        a_target_phys_addr int_ack,
+                        a_target_phys_addr special_cycle,
+                        a_target_phys_addr registers)
 {
     PPC4xxPCIState *controller;
     int index;

@@ -24,8 +24,8 @@
 struct omap_lcd_panel_s {
     qemu_irq irq;
     DisplayState *state;
-    ram_addr_t imif_base;
-    ram_addr_t emiff_base;
+    a_ram_addr imif_base;
+    a_ram_addr emiff_base;
 
     int plm;
     int tft;
@@ -117,7 +117,7 @@ static void omap_update_display(void *opaque)
     draw_line_func draw_line;
     int size, height, first, last;
     int width, linesize, step, bpp, frame_offset;
-    target_phys_addr_t frame_base;
+    a_target_phys_addr frame_base;
 
     if (!omap_lcd || omap_lcd->plm == 1 ||
                     !omap_lcd->enable || !ds_get_bits_per_pixel(omap_lcd->state))
@@ -325,7 +325,7 @@ static void omap_lcd_update(struct omap_lcd_panel_s *s) {
     }
 }
 
-static uint32_t omap_lcdc_read(void *opaque, target_phys_addr_t addr)
+static uint32_t omap_lcdc_read(void *opaque, a_target_phys_addr addr)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
 
@@ -357,7 +357,7 @@ static uint32_t omap_lcdc_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void omap_lcdc_write(void *opaque, target_phys_addr_t addr,
+static void omap_lcdc_write(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
@@ -435,9 +435,9 @@ void omap_lcdc_reset(struct omap_lcd_panel_s *s)
     s->ctrl = 0;
 }
 
-struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
+struct omap_lcd_panel_s *omap_lcdc_init(a_target_phys_addr base, qemu_irq irq,
                 struct omap_dma_lcd_channel_s *dma,
-                ram_addr_t imif_base, ram_addr_t emiff_base, omap_clk clk)
+                a_ram_addr imif_base, a_ram_addr emiff_base, omap_clk clk)
 {
     int iomemtype;
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *)

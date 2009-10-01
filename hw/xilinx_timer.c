@@ -66,7 +66,7 @@ struct timerblock
     struct xlx_timer *timers;
 };
 
-static inline unsigned int timer_from_addr(target_phys_addr_t addr)
+static inline unsigned int timer_from_addr(a_target_phys_addr addr)
 {
     /* Timers get a 4x32bit control reg area each.  */
     return addr >> 2;
@@ -86,7 +86,7 @@ static void timer_update_irq(struct timerblock *t)
     qemu_set_irq(t->irq, !!irq);
 }
 
-static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t timer_readl (void *opaque, a_target_phys_addr addr)
 {
     struct timerblock *t = opaque;
     struct xlx_timer *xt;
@@ -135,7 +135,7 @@ static void timer_enable(struct xlx_timer *xt)
 }
 
 static void
-timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+timer_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
 {
     struct timerblock *t = opaque;
     struct xlx_timer *xt;

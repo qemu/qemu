@@ -702,7 +702,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
+uint32_t vga_mem_readb(void *opaque, a_target_phys_addr addr)
 {
     VGACommonState *s = opaque;
     int memory_map_mode, plane;
@@ -758,7 +758,7 @@ uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static uint32_t vga_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t vga_mem_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -771,7 +771,7 @@ static uint32_t vga_mem_readw(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static uint32_t vga_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t vga_mem_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -789,7 +789,7 @@ static uint32_t vga_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+void vga_mem_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     VGACommonState *s = opaque;
     int memory_map_mode, plane, write_mode, b, func_select, mask;
@@ -923,7 +923,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void vga_mem_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     vga_mem_writeb(opaque, addr, (val >> 8) & 0xff);
@@ -934,7 +934,7 @@ static void vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 #endif
 }
 
-static void vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void vga_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     vga_mem_writeb(opaque, addr, (val >> 24) & 0xff);
@@ -1583,7 +1583,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 {
     int y1, y, update, linesize, y_start, double_scan, mask, depth;
     int width, height, shift_control, line_offset, bwidth, bits;
-    ram_addr_t page0, page1, page_min, page_max;
+    a_ram_addr page0, page1, page_min, page_max;
     int disp_width, multi_scan, multi_run;
     uint8_t *d;
     uint32_t v, addr1, addr;
@@ -1947,13 +1947,13 @@ static void vga_reset(void *opaque)
         ((v & 0x00000800) << 10) | ((v & 0x00007000) >> 1))
 /* relay text rendering to the display driver
  * instead of doing a full vga_update_display() */
-static void vga_update_text(void *opaque, console_ch_t *chardata)
+static void vga_update_text(void *opaque, a_console_ch *chardata)
 {
     VGACommonState *s =  opaque;
     int graphic_mode, i, cursor_offset, cursor_visible;
     int cw, cheight, width, height, size, c_min, c_max;
     uint32_t *src;
-    console_ch_t *dst, val;
+    a_console_ch *dst, val;
     char msg_buffer[80];
     int full_update = 0;
 

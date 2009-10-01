@@ -814,7 +814,7 @@ void cpu_reset(CPUState *s);
 /* Return the physical page corresponding to a virtual one. Use it
    only for debugging because no protection checks are done. Return -1
    if no page found. */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
 #define CPU_LOG_TB_IN_ASM  (1 << 1)
@@ -847,8 +847,8 @@ int cpu_str_to_log_mask(const char *str);
 
 extern int phys_ram_fd;
 extern uint8_t *phys_ram_dirty;
-extern ram_addr_t ram_size;
-extern ram_addr_t last_ram_offset;
+extern a_ram_addr ram_size;
+extern a_ram_addr last_ram_offset;
 
 /* physical memory access */
 
@@ -876,23 +876,23 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
 #define MIGRATION_DIRTY_FLAG 0x08
 
 /* read dirty bit (return 0 or 1) */
-static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
+static inline int cpu_physical_memory_is_dirty(a_ram_addr addr)
 {
     return phys_ram_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
 }
 
-static inline int cpu_physical_memory_get_dirty(ram_addr_t addr,
+static inline int cpu_physical_memory_get_dirty(a_ram_addr addr,
                                                 int dirty_flags)
 {
     return phys_ram_dirty[addr >> TARGET_PAGE_BITS] & dirty_flags;
 }
 
-static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
+static inline void cpu_physical_memory_set_dirty(a_ram_addr addr)
 {
     phys_ram_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
 }
 
-void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
+void cpu_physical_memory_reset_dirty(a_ram_addr start, a_ram_addr end,
                                      int dirty_flags);
 void cpu_tlb_update_dirty(CPUState *env);
 
@@ -900,8 +900,8 @@ int cpu_physical_memory_set_dirty_tracking(int enable);
 
 int cpu_physical_memory_get_dirty_tracking(void);
 
-int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
-                                   target_phys_addr_t end_addr);
+int cpu_physical_sync_dirty_bitmap(a_target_phys_addr start_addr,
+                                   a_target_phys_addr end_addr);
 
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
@@ -911,9 +911,9 @@ void dump_exec_info(FILE *f,
  * batching which can make a major impact on performance when using
  * virtualization.
  */
-void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
+void qemu_register_coalesced_mmio(a_target_phys_addr addr, a_ram_addr size);
 
-void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
+void qemu_unregister_coalesced_mmio(a_target_phys_addr addr, a_ram_addr size);
 
 /*******************************************/
 /* host CPU ticks (if available) */

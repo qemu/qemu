@@ -73,7 +73,7 @@ typedef struct {
 
 /* output pin */
     qemu_irq irl;
-} r2d_fpga_t;
+} a_r2d_fpga;
 
 enum r2d_fpga_irq {
     PCI_INTD, CF_IDE, CF_CD, PCI_INTC, SM501, KEY, RTC_A, RTC_T,
@@ -97,7 +97,7 @@ static const struct { short irl; uint16_t msk; } irqtab[NR_IRQS] = {
     [TP]	= { 12, 1<<15 },
 };
 
-static void update_irl(r2d_fpga_t *fpga)
+static void update_irl(a_r2d_fpga *fpga)
 {
     int i, irl = 15;
     for (i = 0; i < NR_IRQS; i++)
@@ -109,7 +109,7 @@ static void update_irl(r2d_fpga_t *fpga)
 
 static void r2d_fpga_irq_set(void *opaque, int n, int level)
 {
-    r2d_fpga_t *fpga = opaque;
+    a_r2d_fpga *fpga = opaque;
     if (level)
         fpga->irlmon |= irqtab[n].msk;
     else
@@ -117,9 +117,9 @@ static void r2d_fpga_irq_set(void *opaque, int n, int level)
     update_irl(fpga);
 }
 
-static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
+static uint32_t r2d_fpga_read(void *opaque, a_target_phys_addr addr)
 {
-    r2d_fpga_t *s = opaque;
+    a_r2d_fpga *s = opaque;
 
     switch (addr) {
     case PA_IRLMSK:
@@ -136,9 +136,9 @@ static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void
-r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+r2d_fpga_write(void *opaque, a_target_phys_addr addr, uint32_t value)
 {
-    r2d_fpga_t *s = opaque;
+    a_r2d_fpga *s = opaque;
 
     switch (addr) {
     case PA_IRLMSK:
@@ -169,12 +169,12 @@ static CPUWriteMemoryFunc * const r2d_fpga_writefn[] = {
     NULL,
 };
 
-static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
+static qemu_irq *r2d_fpga_init(a_target_phys_addr base, qemu_irq irl)
 {
     int iomemtype;
-    r2d_fpga_t *s;
+    a_r2d_fpga *s;
 
-    s = qemu_mallocz(sizeof(r2d_fpga_t));
+    s = qemu_mallocz(sizeof(a_r2d_fpga));
 
     s->irl = irl;
 
@@ -197,14 +197,14 @@ static int r2d_pci_map_irq(PCIDevice *d, int irq_num)
     return intx[d->devfn >> 3];
 }
 
-static void r2d_init(ram_addr_t ram_size,
+static void r2d_init(a_ram_addr ram_size,
               const char *boot_device,
 	      const char *kernel_filename, const char *kernel_cmdline,
 	      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
     struct SH7750State *s;
-    ram_addr_t sdram_addr;
+    a_ram_addr sdram_addr;
     qemu_irq *irq;
     PCIBus *pci;
     DriveInfo *dinfo;

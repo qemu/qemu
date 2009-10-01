@@ -243,7 +243,7 @@ static const int curses2keysym[CURSES_KEYS] = {
 
 };
 
-static const name2keysym_t name2keysym[] = {
+static const a_name2keysym name2keysym[] = {
     /* Plain ASCII */
     { "space", 0x020 },
     { "exclam", 0x021 },

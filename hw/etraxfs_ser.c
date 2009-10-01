@@ -65,7 +65,7 @@ static void ser_update_irq(struct etrax_serial *s)
     s->regs[RW_ACK_INTR] = 0;
 }
 
-static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t ser_readl (void *opaque, a_target_phys_addr addr)
 {
     struct etrax_serial *s = opaque;
     D(CPUState *env = s->env);
@@ -91,7 +91,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+ser_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
 {
     struct etrax_serial *s = opaque;
     unsigned char ch = value;

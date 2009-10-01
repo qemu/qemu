@@ -43,7 +43,7 @@ static void pl050_update(void *opaque, int level)
     qemu_set_irq(s->irq, raise);
 }
 
-static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
+static uint32_t pl050_read(void *opaque, a_target_phys_addr offset)
 {
     pl050_state *s = (pl050_state *)opaque;
     if (offset >= 0xfe0 && offset < 0x1000)
@@ -84,7 +84,7 @@ static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void pl050_write(void *opaque, target_phys_addr_t offset,
+static void pl050_write(void *opaque, a_target_phys_addr offset,
                           uint32_t value)
 {
     pl050_state *s = (pl050_state *)opaque;

@@ -61,9 +61,9 @@ static void main_cpu_reset(void *opaque)
 } while (0)
 
 static void set_kernel_args(struct arm_boot_info *info,
-                int initrd_size, target_phys_addr_t base)
+                int initrd_size, a_target_phys_addr base)
 {
-    target_phys_addr_t p;
+    a_target_phys_addr p;
 
     p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
@@ -114,9 +114,9 @@ static void set_kernel_args(struct arm_boot_info *info,
 }
 
 static void set_kernel_args_old(struct arm_boot_info *info,
-                int initrd_size, target_phys_addr_t base)
+                int initrd_size, a_target_phys_addr base)
 {
-    target_phys_addr_t p;
+    a_target_phys_addr p;
     const char *s;
 
 
@@ -193,7 +193,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     int n;
     int is_linux = 0;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    a_target_phys_addr entry;
     int big_endian;
 
     /* Load the kernel.  */

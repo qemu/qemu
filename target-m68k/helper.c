@@ -38,14 +38,14 @@ enum m68k_cpuid {
     M68K_CPUID_ANY,
 };
 
-typedef struct m68k_def_t m68k_def_t;
+typedef struct m68k_def a_m68k_def;
 
-struct m68k_def_t {
+struct m68k_def {
     const char * name;
     enum m68k_cpuid id;
 };
 
-static m68k_def_t m68k_cpu_defs[] = {
+static a_m68k_def m68k_cpu_defs[] = {
     {"m5206", M68K_CPUID_M5206},
     {"m5208", M68K_CPUID_M5208},
     {"cfv4e", M68K_CPUID_CFV4E},
@@ -96,7 +96,7 @@ static void m68k_set_feature(CPUM68KState *env, int feature)
 
 static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
 {
-    m68k_def_t *def;
+    a_m68k_def *def;
 
     for (def = m68k_cpu_defs; def->name; def++) {
         if (strcmp(def->name, name) == 0)
@@ -345,7 +345,7 @@ void m68k_switch_sp(CPUM68KState *env)
 /* MMU */
 
 /* TODO: This will need fixing once the MMU is implemented.  */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }

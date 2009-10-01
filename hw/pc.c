@@ -61,14 +61,14 @@
 
 #define MAX_IDE_BUS 2
 
-static fdctrl_t *floppy_controller;
+static a_fdctrl *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
 static PCII440FXState *i440fx_state;
 
 typedef struct rom_reset_data {
     uint8_t *data;
-    target_phys_addr_t addr;
+    a_target_phys_addr addr;
     unsigned size;
 } RomResetData;
 
@@ -79,7 +79,7 @@ static void option_rom_reset(void *_rrd)
     cpu_physical_memory_write_rom(rrd->addr, rrd->data, rrd->size);
 }
 
-static void option_rom_setup_reset(target_phys_addr_t addr, unsigned size)
+static void option_rom_setup_reset(a_target_phys_addr addr, unsigned size)
 {
     RomResetData *rrd = qemu_malloc(sizeof *rrd);
 
@@ -266,7 +266,7 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 }
 
 /* hd_table must contain 4 block drivers */
-static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
+static void cmos_init(a_ram_addr ram_size, a_ram_addr above_4g_mem_size,
                       const char *boot_device, DriveInfo **hd_table)
 {
     RTCState *s = rtc_state;
@@ -515,7 +515,7 @@ static void *bochs_bios_init(void)
 
 /* Generate an initial boot sector which sets state and jump to
    a specified vector */
-static void generate_bootsect(target_phys_addr_t option_rom,
+static void generate_bootsect(a_target_phys_addr option_rom,
                               uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
 {
     uint8_t rom[512], *p, *reloc;
@@ -819,11 +819,11 @@ static int load_multiboot(void *fw_cfg,
 }
 
 static void load_linux(void *fw_cfg,
-                       target_phys_addr_t option_rom,
+                       a_target_phys_addr option_rom,
                        const char *kernel_filename,
 		       const char *initrd_filename,
 		       const char *kernel_cmdline,
-               target_phys_addr_t max_ram_size)
+               a_target_phys_addr max_ram_size)
 {
     uint16_t protocol;
     uint32_t gpr[8];
@@ -832,7 +832,7 @@ static void load_linux(void *fw_cfg,
     int setup_size, kernel_size, initrd_size = 0, cmdline_size;
     uint32_t initrd_max;
     uint8_t header[8192];
-    target_phys_addr_t real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
+    a_target_phys_addr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f, *fi;
     char *vmode;
 
@@ -1058,8 +1058,8 @@ static void pc_init_ne2k_isa(NICInfo *nd)
     nb_ne2k++;
 }
 
-static int load_option_rom(const char *oprom, target_phys_addr_t start,
-                           target_phys_addr_t end)
+static int load_option_rom(const char *oprom, a_target_phys_addr start,
+                           a_target_phys_addr end)
 {
     int size;
     char *filename;
@@ -1112,7 +1112,7 @@ static CPUState *pc_new_cpu(const char *cpu_model)
 }
 
 /* PC hardware initialisation */
-static void pc_init1(ram_addr_t ram_size,
+static void pc_init1(a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename,
                      const char *kernel_cmdline,
@@ -1122,8 +1122,8 @@ static void pc_init1(ram_addr_t ram_size,
 {
     char *filename;
     int ret, linux_boot, i;
-    ram_addr_t ram_addr, bios_offset, option_rom_offset;
-    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
+    a_ram_addr ram_addr, bios_offset, option_rom_offset;
+    a_ram_addr below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size, oprom_area_size;
     PCIBus *pci_bus;
     ISADevice *isa_dev;
@@ -1432,7 +1432,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
 }
 
-static void pc_init_pci(ram_addr_t ram_size,
+static void pc_init_pci(a_ram_addr ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
@@ -1444,7 +1444,7 @@ static void pc_init_pci(ram_addr_t ram_size,
              initrd_filename, cpu_model, 1);
 }
 
-static void pc_init_isa(ram_addr_t ram_size,
+static void pc_init_isa(a_ram_addr ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
                         const char *kernel_cmdline,

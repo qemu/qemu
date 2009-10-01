@@ -1508,7 +1508,7 @@ static void r4k_mips_tlb_flush_extra (CPUState *env, int first)
 
 static void r4k_fill_tlb (int idx)
 {
-    r4k_tlb_t *tlb;
+    a_r4k_tlb *tlb;
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb->mmu.r4k.tlb[idx];
@@ -1554,7 +1554,7 @@ void r4k_helper_tlbwr (void)
 
 void r4k_helper_tlbp (void)
 {
-    r4k_tlb_t *tlb;
+    a_r4k_tlb *tlb;
     target_ulong mask;
     target_ulong tag;
     target_ulong VPN;
@@ -1596,7 +1596,7 @@ void r4k_helper_tlbp (void)
 
 void r4k_helper_tlbr (void)
 {
-    r4k_tlb_t *tlb;
+    a_r4k_tlb *tlb;
     uint8_t ASID;
     int idx;
 
@@ -1846,7 +1846,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+void do_unassigned_access(a_target_phys_addr addr, int is_write, int is_exec,
                           int unused, int size)
 {
     if (is_exec)

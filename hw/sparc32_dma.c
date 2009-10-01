@@ -70,7 +70,7 @@ struct DMAState {
 };
 
 /* Note: on sparc, the lance 16 bit bus is swapped */
-void ledma_memory_read(void *opaque, target_phys_addr_t addr,
+void ledma_memory_read(void *opaque, a_target_phys_addr addr,
                        uint8_t *buf, int len, int do_bswap)
 {
     DMAState *s = opaque;
@@ -91,7 +91,7 @@ void ledma_memory_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-void ledma_memory_write(void *opaque, target_phys_addr_t addr,
+void ledma_memory_write(void *opaque, a_target_phys_addr addr,
                         uint8_t *buf, int len, int do_bswap)
 {
     DMAState *s = opaque;
@@ -157,7 +157,7 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
     s->dmaregs[1] += len;
 }
 
-static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t dma_mem_readl(void *opaque, a_target_phys_addr addr)
 {
     DMAState *s = opaque;
     uint32_t saddr;
@@ -169,7 +169,7 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     return s->dmaregs[saddr];
 }
 
-static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void dma_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     DMAState *s = opaque;
     uint32_t saddr;

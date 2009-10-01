@@ -256,7 +256,7 @@ static void pl181_fifo_run(pl181_state *s)
     }
 }
 
-static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
+static uint32_t pl181_read(void *opaque, a_target_phys_addr offset)
 {
     pl181_state *s = (pl181_state *)opaque;
     uint32_t tmp;
@@ -338,7 +338,7 @@ static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void pl181_write(void *opaque, target_phys_addr_t offset,
+static void pl181_write(void *opaque, a_target_phys_addr offset,
                           uint32_t value)
 {
     pl181_state *s = (pl181_state *)opaque;

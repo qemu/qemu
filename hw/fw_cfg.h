@@ -35,7 +35,7 @@ int fw_cfg_add_i64(void *opaque, uint16_t key, uint64_t value);
 int fw_cfg_add_callback(void *opaque, uint16_t key, FWCfgCallback callback,
                         void *callback_opaque, uint8_t *data, size_t len);
 void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-		target_phys_addr_t crl_addr, target_phys_addr_t data_addr);
+		a_target_phys_addr crl_addr, a_target_phys_addr data_addr);
 
 #endif /* NO_QEMU_PROTOS */
 

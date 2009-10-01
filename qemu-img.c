@@ -31,10 +31,10 @@
 #include <windows.h>
 #endif
 
-typedef struct img_cmd_t {
+typedef struct img_cmd {
     const char *name;
     int (*handler)(int argc, char **argv);
-} img_cmd_t;
+} a_img_cmd;
 
 /* Default to cache=writeback as data integrity is not important for qemu-tcg. */
 #define BRDV_O_FLAGS BDRV_O_CACHE_WB
@@ -1035,7 +1035,7 @@ static int img_snapshot(int argc, char **argv)
     return 0;
 }
 
-static const img_cmd_t img_cmds[] = {
+static const a_img_cmd img_cmds[] = {
 #define DEF(option, callback, arg_string)        \
     { option, callback },
 #include "qemu-img-cmds.h"
@@ -1046,7 +1046,7 @@ static const img_cmd_t img_cmds[] = {
 
 int main(int argc, char **argv)
 {
-    const img_cmd_t *cmd;
+    const a_img_cmd *cmd;
     const char *cmdname;
 
     bdrv_init();

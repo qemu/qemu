@@ -28,8 +28,8 @@
 #include "ppc4xx.h"
 
 /* Bootinfo as set-up by u-boot */
-typedef struct ppc4xx_bd_info_t ppc4xx_bd_info_t;
-struct ppc4xx_bd_info_t {
+typedef struct ppc4xx_bd_info a_ppc4xx_bd_info;
+struct ppc4xx_bd_info {
     uint32_t bi_memstart;
     uint32_t bi_memsize;
     uint32_t bi_flashstart;
@@ -56,21 +56,21 @@ struct ppc4xx_bd_info_t {
 };
 
 /* PowerPC 405 core */
-ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
+a_ram_addr ppc405_set_bootinfo (CPUState *env, a_ppc4xx_bd_info *bd,
                                 uint32_t flags);
 
-CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
-                         target_phys_addr_t ram_sizes[4],
+CPUState *ppc405cr_init (a_target_phys_addr ram_bases[4],
+                         a_target_phys_addr ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
                          int do_init);
-CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
-                         target_phys_addr_t ram_sizes[2],
+CPUState *ppc405ep_init (a_target_phys_addr ram_bases[2],
+                         a_target_phys_addr ram_sizes[2],
                          uint32_t sysclk, qemu_irq **picp,
                          int do_init);
 /* IBM STBxxx microcontrollers */
-CPUState *ppc_stb025_init (target_phys_addr_t ram_bases[2],
-                           target_phys_addr_t ram_sizes[2],
+CPUState *ppc_stb025_init (a_target_phys_addr ram_bases[2],
+                           a_target_phys_addr ram_sizes[2],
                            uint32_t sysclk, qemu_irq **picp,
-                           ram_addr_t *offsetp);
+                           a_ram_addr *offsetp);
 
 #endif /* !defined(PPC_405_H) */

@@ -62,9 +62,9 @@ PCIBus *pci_pmac_init(qemu_irq *pic);
 /* Mac NVRAM */
 typedef struct MacIONVRAMState MacIONVRAMState;
 
-MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
+MacIONVRAMState *macio_nvram_init (int *mem_index, a_target_phys_addr size,
                                    unsigned int it_shift);
-void macio_nvram_map (void *opaque, target_phys_addr_t mem_base);
+void macio_nvram_map (void *opaque, a_target_phys_addr mem_base);
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 uint32_t macio_nvram_read (void *opaque, uint32_t addr);
 void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val);

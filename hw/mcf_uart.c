@@ -64,7 +64,7 @@ static void mcf_uart_update(mcf_uart_state *s)
     qemu_set_irq(s->irq, (s->isr & s->imr) != 0);
 }
 
-uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr)
+uint32_t mcf_uart_read(void *opaque, a_target_phys_addr addr)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
     switch (addr & 0x3f) {
@@ -182,7 +182,7 @@ static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
     }
 }
 
-void mcf_uart_write(void *opaque, target_phys_addr_t addr, uint32_t val)
+void mcf_uart_write(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
     switch (addr & 0x3f) {
@@ -296,7 +296,7 @@ static CPUWriteMemoryFunc * const mcf_uart_writefn[] = {
    mcf_uart_write
 };
 
-void mcf_uart_mm_init(target_phys_addr_t base, qemu_irq irq,
+void mcf_uart_mm_init(a_target_phys_addr base, qemu_irq irq,
                       CharDriverState *chr)
 {
     mcf_uart_state *s;

@@ -66,7 +66,7 @@ static void syborg_keyboard_update(SyborgKeyboardState *s)
     qemu_set_irq(s->irq, level);
 }
 
-static uint32_t syborg_keyboard_read(void *opaque, target_phys_addr_t offset)
+static uint32_t syborg_keyboard_read(void *opaque, a_target_phys_addr offset)
 {
     SyborgKeyboardState *s = (SyborgKeyboardState *)opaque;
     int c;
@@ -103,7 +103,7 @@ static uint32_t syborg_keyboard_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void syborg_keyboard_write(void *opaque, target_phys_addr_t offset,
+static void syborg_keyboard_write(void *opaque, a_target_phys_addr offset,
                                   uint32_t value)
 {
     SyborgKeyboardState *s = (SyborgKeyboardState *)opaque;

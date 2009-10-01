@@ -123,7 +123,7 @@ typedef struct KBDState {
 
     qemu_irq irq_kbd;
     qemu_irq irq_mouse;
-    target_phys_addr_t mask;
+    a_target_phys_addr mask;
 } KBDState;
 
 static KBDState kbd_state;
@@ -354,7 +354,7 @@ static const VMStateDescription vmstate_kbd = {
 };
 
 /* Memory mapped interface */
-static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t kbd_mm_readb (void *opaque, a_target_phys_addr addr)
 {
     KBDState *s = opaque;
 
@@ -364,7 +364,7 @@ static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
         return kbd_read_data(s, 0) & 0xff;
 }
 
-static void kbd_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void kbd_mm_writeb (void *opaque, a_target_phys_addr addr, uint32_t value)
 {
     KBDState *s = opaque;
 
@@ -387,8 +387,8 @@ static CPUWriteMemoryFunc * const kbd_mm_write[] = {
 };
 
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
-                   target_phys_addr_t base, ram_addr_t size,
-                   target_phys_addr_t mask)
+                   a_target_phys_addr base, a_ram_addr size,
+                   a_target_phys_addr mask)
 {
     KBDState *s = &kbd_state;
     int s_io_memory;

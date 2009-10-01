@@ -110,12 +110,12 @@ typedef enum {
     GRAPHIC_CONSOLE,
     TEXT_CONSOLE,
     TEXT_CONSOLE_FIXED_SIZE
-} console_type_t;
+} e_console_type;
 
 /* ??? This is mis-named.
    It is used for both text and graphical consoles.  */
 struct TextConsole {
-    console_type_t console_type;
+    e_console_type console_type;
     DisplayState *ds;
     /* Graphic console state.  */
     vga_hw_update_ptr hw_update;
@@ -183,7 +183,7 @@ void vga_hw_screen_dump(const char *filename)
     active_console = previous_active_console;
 }
 
-void vga_hw_text_update(console_ch_t *chardata)
+void vga_hw_text_update(a_console_ch *chardata)
 {
     if (active_console && active_console->hw_text_update)
         active_console->hw_text_update(active_console->hw, chardata);
@@ -1197,7 +1197,7 @@ static void text_console_invalidate(void *opaque)
     console_refresh(s);
 }
 
-static void text_console_update(void *opaque, console_ch_t *chardata)
+static void text_console_update(void *opaque, a_console_ch *chardata)
 {
     TextConsole *s = (TextConsole *) opaque;
     int i, j, src;
@@ -1236,7 +1236,7 @@ static TextConsole *get_graphic_console(DisplayState *ds)
     return NULL;
 }
 
-static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
+static TextConsole *new_console(DisplayState *ds, e_console_type console_type)
 {
     TextConsole *s;
     int i;

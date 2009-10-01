@@ -22,7 +22,7 @@
    
 void framebuffer_update_display(
     DisplayState *ds,
-    target_phys_addr_t base,
+    a_target_phys_addr base,
     int cols, /* Width in pixels.  */
     int rows, /* Leight in pixels.  */
     int src_width, /* Length of source line, in bytes.  */
@@ -34,16 +34,16 @@ void framebuffer_update_display(
     int *first_row, /* Input and output.  */
     int *last_row /* Output only */)
 {
-    target_phys_addr_t src_len;
+    a_target_phys_addr src_len;
     uint8_t *dest;
     uint8_t *src;
     uint8_t *src_base;
     int first, last = 0;
     int dirty;
     int i;
-    ram_addr_t addr;
-    ram_addr_t pd;
-    ram_addr_t pd2;
+    a_ram_addr addr;
+    a_ram_addr pd;
+    a_ram_addr pd2;
 
     i = *first_row;
     *first_row = -1;
@@ -86,7 +86,7 @@ void framebuffer_update_display(
     dest += i * dest_row_pitch;
 
     for (; i < rows; i++) {
-        target_phys_addr_t dirty_offset;
+        a_target_phys_addr dirty_offset;
         dirty = 0;
         dirty_offset = 0;
         while (addr + dirty_offset < TARGET_PAGE_ALIGN(addr + src_width)) {

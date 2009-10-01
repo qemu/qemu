@@ -40,7 +40,7 @@
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8
 
-static console_ch_t screen[160 * 100];
+static a_console_ch screen[160 * 100];
 static WINDOW *screenpad = NULL;
 static int width, height, gwidth, gheight, invalidate;
 static int px, py, sminx, sminy, smaxx, smaxy;
@@ -158,7 +158,7 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
 
 #include "curses_keys.h"
 
-static kbd_layout_t *kbd_layout = NULL;
+static a_kbd_layout *kbd_layout = NULL;
 static int keycode2keysym[CURSES_KEYS];
 
 static void curses_refresh(DisplayState *ds)

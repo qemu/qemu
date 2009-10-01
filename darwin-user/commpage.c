@@ -109,7 +109,7 @@ static struct commpage_entry commpage_entries[] =
     COMMPAGE_ENTRY(add_atomic_word64,     0, 0x1c0,  unimpl_commpage,       CALL_INDIRECT | HAS_PTR),
 
     COMMPAGE_ENTRY(mach_absolute_time,    0, 0x200,  unimpl_commpage,       CALL_INDIRECT),
-    COMMPAGE_ENTRY(spinlock_try,          1, 0x220,  unimpl_commpage,       CALL_INDIRECT),
+    COMMPAGE_ENTRY(a_spinlockry,          1, 0x220,  unimpl_commpage,       CALL_INDIRECT),
     COMMPAGE_ENTRY(spinlock_lock,         1, 0x260,  OSSpinLockLock,        CALL_DIRECT),
     COMMPAGE_ENTRY(spinlock_unlock,       1, 0x2a0,  OSSpinLockUnlock,      CALL_DIRECT),
     COMMPAGE_ENTRY(pthread_getspecific,   0, 0x2c0,  unimpl_commpage,       CALL_INDIRECT),

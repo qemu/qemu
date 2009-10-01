@@ -1514,21 +1514,21 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         switch(size) {
         case 1:
-            ret = ldub_phys((target_phys_addr_t)addr
-                            | ((target_phys_addr_t)(asi & 0xf) << 32));
+            ret = ldub_phys((a_target_phys_addr)addr
+                            | ((a_target_phys_addr)(asi & 0xf) << 32));
             break;
         case 2:
-            ret = lduw_phys((target_phys_addr_t)addr
-                            | ((target_phys_addr_t)(asi & 0xf) << 32));
+            ret = lduw_phys((a_target_phys_addr)addr
+                            | ((a_target_phys_addr)(asi & 0xf) << 32));
             break;
         default:
         case 4:
-            ret = ldl_phys((target_phys_addr_t)addr
-                           | ((target_phys_addr_t)(asi & 0xf) << 32));
+            ret = ldl_phys((a_target_phys_addr)addr
+                           | ((a_target_phys_addr)(asi & 0xf) << 32));
             break;
         case 8:
-            ret = ldq_phys((target_phys_addr_t)addr
-                           | ((target_phys_addr_t)(asi & 0xf) << 32));
+            ret = ldq_phys((a_target_phys_addr)addr
+                           | ((a_target_phys_addr)(asi & 0xf) << 32));
             break;
         }
         break;
@@ -1865,21 +1865,21 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
         {
             switch(size) {
             case 1:
-                stb_phys((target_phys_addr_t)addr
-                         | ((target_phys_addr_t)(asi & 0xf) << 32), val);
+                stb_phys((a_target_phys_addr)addr
+                         | ((a_target_phys_addr)(asi & 0xf) << 32), val);
                 break;
             case 2:
-                stw_phys((target_phys_addr_t)addr
-                         | ((target_phys_addr_t)(asi & 0xf) << 32), val);
+                stw_phys((a_target_phys_addr)addr
+                         | ((a_target_phys_addr)(asi & 0xf) << 32), val);
                 break;
             case 4:
             default:
-                stl_phys((target_phys_addr_t)addr
-                         | ((target_phys_addr_t)(asi & 0xf) << 32), val);
+                stl_phys((a_target_phys_addr)addr
+                         | ((a_target_phys_addr)(asi & 0xf) << 32), val);
                 break;
             case 8:
-                stq_phys((target_phys_addr_t)addr
-                         | ((target_phys_addr_t)(asi & 0xf) << 32), val);
+                stq_phys((a_target_phys_addr)addr
+                         | ((a_target_phys_addr)(asi & 0xf) << 32), val);
                 break;
             }
         }
@@ -3672,7 +3672,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 #endif
 
 #ifndef TARGET_SPARC64
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+void do_unassigned_access(a_target_phys_addr addr, int is_write, int is_exec,
                           int is_asi, int size)
 {
     CPUState *saved_env;
@@ -3714,7 +3714,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     env = saved_env;
 }
 #else
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+void do_unassigned_access(a_target_phys_addr addr, int is_write, int is_exec,
                           int is_asi, int size)
 {
 #ifdef DEBUG_UNASSIGNED

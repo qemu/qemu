@@ -1214,7 +1214,7 @@ static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
         /* Thinking about changing bank base? First, drop the dirty bitmap information
          * on the current location, otherwise we lose this pointer forever */
         if (s->vga.lfb_vram_mapped) {
-            target_phys_addr_t base_addr = isa_mem_base + 0xa0000 + bank_index * 0x8000;
+            a_target_phys_addr base_addr = isa_mem_base + 0xa0000 + bank_index * 0x8000;
             cpu_physical_sync_dirty_bitmap(base_addr, base_addr + 0x8000);
         }
 	s->cirrus_bank_base[bank_index] = offset;
@@ -1988,7 +1988,7 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
  *
  ***************************************/
 
-static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_vga_mem_readb(void *opaque, a_target_phys_addr addr)
 {
     CirrusVGAState *s = opaque;
     unsigned bank_index;
@@ -2032,7 +2032,7 @@ static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t cirrus_vga_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_vga_mem_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2045,7 +2045,7 @@ static uint32_t cirrus_vga_mem_readw(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static uint32_t cirrus_vga_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_vga_mem_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2062,7 +2062,7 @@ static uint32_t cirrus_vga_mem_readl(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void cirrus_vga_mem_writeb(void *opaque, a_target_phys_addr addr,
                                   uint32_t mem_value)
 {
     CirrusVGAState *s = opaque;
@@ -2127,7 +2127,7 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void cirrus_vga_mem_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     cirrus_vga_mem_writeb(opaque, addr, (val >> 8) & 0xff);
@@ -2138,7 +2138,7 @@ static void cirrus_vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_
 #endif
 }
 
-static void cirrus_vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void cirrus_vga_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     cirrus_vga_mem_writeb(opaque, addr, (val >> 24) & 0xff);
@@ -2341,7 +2341,7 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
  *
  ***************************************/
 
-static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_linear_readb(void *opaque, a_target_phys_addr addr)
 {
     CirrusVGAState *s = opaque;
     uint32_t ret;
@@ -2369,7 +2369,7 @@ static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static uint32_t cirrus_linear_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_linear_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2382,7 +2382,7 @@ static uint32_t cirrus_linear_readw(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static uint32_t cirrus_linear_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_linear_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2399,7 +2399,7 @@ static uint32_t cirrus_linear_readl(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_writeb(void *opaque, a_target_phys_addr addr,
 				 uint32_t val)
 {
     CirrusVGAState *s = opaque;
@@ -2440,7 +2440,7 @@ static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_linear_writew(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_writew(void *opaque, a_target_phys_addr addr,
 				 uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2452,7 +2452,7 @@ static void cirrus_linear_writew(void *opaque, target_phys_addr_t addr,
 #endif
 }
 
-static void cirrus_linear_writel(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_writel(void *opaque, a_target_phys_addr addr,
 				 uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2488,7 +2488,7 @@ static CPUWriteMemoryFunc * const cirrus_linear_write[3] = {
  ***************************************/
 
 
-static uint32_t cirrus_linear_bitblt_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_linear_bitblt_readb(void *opaque, a_target_phys_addr addr)
 {
     uint32_t ret;
 
@@ -2497,7 +2497,7 @@ static uint32_t cirrus_linear_bitblt_readb(void *opaque, target_phys_addr_t addr
     return ret;
 }
 
-static uint32_t cirrus_linear_bitblt_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_linear_bitblt_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2510,7 +2510,7 @@ static uint32_t cirrus_linear_bitblt_readw(void *opaque, target_phys_addr_t addr
     return v;
 }
 
-static uint32_t cirrus_linear_bitblt_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_linear_bitblt_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2527,7 +2527,7 @@ static uint32_t cirrus_linear_bitblt_readl(void *opaque, target_phys_addr_t addr
     return v;
 }
 
-static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_bitblt_writeb(void *opaque, a_target_phys_addr addr,
 				 uint32_t val)
 {
     CirrusVGAState *s = opaque;
@@ -2541,7 +2541,7 @@ static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_linear_bitblt_writew(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_bitblt_writew(void *opaque, a_target_phys_addr addr,
 				 uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2553,7 +2553,7 @@ static void cirrus_linear_bitblt_writew(void *opaque, target_phys_addr_t addr,
 #endif
 }
 
-static void cirrus_linear_bitblt_writel(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_bitblt_writel(void *opaque, a_target_phys_addr addr,
 				 uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2855,7 +2855,7 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
  *
  ***************************************/
 
-static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_mmio_readb(void *opaque, a_target_phys_addr addr)
 {
     CirrusVGAState *s = opaque;
 
@@ -2868,7 +2868,7 @@ static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static uint32_t cirrus_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_mmio_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2881,7 +2881,7 @@ static uint32_t cirrus_mmio_readw(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static uint32_t cirrus_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t cirrus_mmio_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2898,7 +2898,7 @@ static uint32_t cirrus_mmio_readl(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
+static void cirrus_mmio_writeb(void *opaque, a_target_phys_addr addr,
 			       uint32_t val)
 {
     CirrusVGAState *s = opaque;
@@ -2912,7 +2912,7 @@ static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_mmio_writew(void *opaque, target_phys_addr_t addr,
+static void cirrus_mmio_writew(void *opaque, a_target_phys_addr addr,
 			       uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2924,7 +2924,7 @@ static void cirrus_mmio_writew(void *opaque, target_phys_addr_t addr,
 #endif
 }
 
-static void cirrus_mmio_writel(void *opaque, target_phys_addr_t addr,
+static void cirrus_mmio_writel(void *opaque, a_target_phys_addr addr,
 			       uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN

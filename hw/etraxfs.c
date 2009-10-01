@@ -45,7 +45,7 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void bareetraxfs_init (ram_addr_t ram_size,
+void bareetraxfs_init (a_ram_addr ram_size,
                        const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -59,9 +59,9 @@ void bareetraxfs_init (ram_addr_t ram_size,
     int kernel_size;
     DriveInfo *dinfo;
     int i;
-    ram_addr_t phys_ram;
-    ram_addr_t phys_flash;
-    ram_addr_t phys_intmem;
+    a_ram_addr phys_ram;
+    a_ram_addr phys_flash;
+    a_ram_addr phys_intmem;
 
     /* init CPUs */
     if (cpu_model == NULL) {

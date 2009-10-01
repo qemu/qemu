@@ -260,8 +260,8 @@ enum {
 
 typedef struct CPUAlphaState CPUAlphaState;
 
-typedef struct pal_handler_t pal_handler_t;
-struct pal_handler_t {
+typedef struct pal_handler a_pal_handler;
+struct pal_handler {
     /* Reset */
     void (*reset)(CPUAlphaState *env);
     /* Uncorrectable hardware error */
@@ -323,7 +323,7 @@ struct CPUAlphaState {
     uint32_t features;
     uint32_t amask;
     int implver;
-    pal_handler_t *pal_handler;
+    a_pal_handler *pal_handler;
 };
 
 #define cpu_init cpu_alpha_init

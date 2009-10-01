@@ -84,13 +84,13 @@
 
 typedef enum {
     chn_a, chn_b,
-} chn_id_t;
+} e_chn_id;
 
 #define CHN_C(s) ((s)->chn == chn_b? 'b' : 'a')
 
 typedef enum {
     ser, kbd, mouse,
-} chn_type_t;
+} e_chn_type;
 
 #define SERIO_QUEUE_SIZE 256
 
@@ -104,8 +104,8 @@ typedef struct ChannelState {
     qemu_irq irq;
     uint32_t reg;
     uint32_t rxint, txint, rxint_under_svc, txint_under_svc;
-    chn_id_t chn; // this channel, A (base+4) or B (base+0)
-    chn_type_t type;
+    e_chn_id chn; // this channel, A (base+4) or B (base+0)
+    e_chn_type type;
     struct ChannelState *otherchn;
     uint8_t rx, tx, wregs[SERIAL_REGS], rregs[SERIAL_REGS];
     SERIOQueue queue;
@@ -481,7 +481,7 @@ static void escc_update_parameters(ChannelState *s)
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
-static void escc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void escc_mem_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     SerialState *serial = opaque;
     ChannelState *s;
@@ -578,7 +578,7 @@ static void escc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static uint32_t escc_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t escc_mem_readb(void *opaque, a_target_phys_addr addr)
 {
     SerialState *serial = opaque;
     ChannelState *s;
@@ -725,7 +725,7 @@ static int escc_load(QEMUFile *f, void *opaque, int version_id)
 
 }
 
-int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
+int escc_init(a_target_phys_addr base, qemu_irq irqA, qemu_irq irqB,
               CharDriverState *chrA, CharDriverState *chrB,
               int clock, int it_shift)
 {
@@ -890,7 +890,7 @@ static void sunmouse_event(void *opaque,
     put_queue(s, 0);
 }
 
-void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
+void slavio_serial_ms_kbd_init(a_target_phys_addr base, qemu_irq irq,
                                int disabled, int clock, int it_shift)
 {
     DeviceState *dev;

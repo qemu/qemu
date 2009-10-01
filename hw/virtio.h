@@ -54,7 +54,7 @@
 
 struct VirtQueue;
 
-static inline target_phys_addr_t vring_align(target_phys_addr_t addr,
+static inline a_target_phys_addr vring_align(a_target_phys_addr addr,
                                              unsigned long align)
 {
     return (addr + align - 1) & ~(align - 1);
@@ -70,7 +70,7 @@ typedef struct VirtQueueElement
     unsigned int index;
     unsigned int out_num;
     unsigned int in_num;
-    target_phys_addr_t in_addr[VIRTQUEUE_MAX_SIZE];
+    a_target_phys_addr in_addr[VIRTQUEUE_MAX_SIZE];
     struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
     struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
 } VirtQueueElement;
@@ -149,8 +149,8 @@ uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr);
 void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data);
 void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data);
 void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data);
-void virtio_queue_set_addr(VirtIODevice *vdev, int n, target_phys_addr_t addr);
-target_phys_addr_t virtio_queue_get_addr(VirtIODevice *vdev, int n);
+void virtio_queue_set_addr(VirtIODevice *vdev, int n, a_target_phys_addr addr);
+a_target_phys_addr virtio_queue_get_addr(VirtIODevice *vdev, int n);
 int virtio_queue_get_num(VirtIODevice *vdev, int n);
 void virtio_queue_notify(VirtIODevice *vdev, int n);
 uint16_t virtio_queue_vector(VirtIODevice *vdev, int n);

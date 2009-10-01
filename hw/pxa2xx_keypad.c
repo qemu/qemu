@@ -154,7 +154,7 @@ out:
     return;
 }
 
-static uint32_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset)
+static uint32_t pxa2xx_keypad_read(void *opaque, a_target_phys_addr offset)
 {
     PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
     uint32_t tmp;
@@ -216,7 +216,7 @@ static uint32_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pxa2xx_keypad_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+                a_target_phys_addr offset, uint32_t value)
 {
     PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
 
@@ -304,7 +304,7 @@ static int pxa2xx_keypad_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
+PXA2xxKeyPadState *pxa27x_keypad_init(a_target_phys_addr base,
         qemu_irq irq)
 {
     int iomemtype;

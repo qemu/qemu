@@ -270,20 +270,20 @@ static void hpet_del_timer(HPETTimer *t)
 }
 
 #ifdef HPET_DEBUG
-static uint32_t hpet_ram_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t hpet_ram_readb(void *opaque, a_target_phys_addr addr)
 {
     printf("qemu: hpet_read b at %" PRIx64 "\n", addr);
     return 0;
 }
 
-static uint32_t hpet_ram_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t hpet_ram_readw(void *opaque, a_target_phys_addr addr)
 {
     printf("qemu: hpet_read w at %" PRIx64 "\n", addr);
     return 0;
 }
 #endif
 
-static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t hpet_ram_readl(void *opaque, a_target_phys_addr addr)
 {
     HPETState *s = (HPETState *)opaque;
     uint64_t cur_tick, index;
@@ -350,14 +350,14 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
 }
 
 #ifdef HPET_DEBUG
-static void hpet_ram_writeb(void *opaque, target_phys_addr_t addr,
+static void hpet_ram_writeb(void *opaque, a_target_phys_addr addr,
                             uint32_t value)
 {
     printf("qemu: invalid hpet_write b at %" PRIx64 " = %#x\n",
            addr, value);
 }
 
-static void hpet_ram_writew(void *opaque, target_phys_addr_t addr,
+static void hpet_ram_writew(void *opaque, a_target_phys_addr addr,
                             uint32_t value)
 {
     printf("qemu: invalid hpet_write w at %" PRIx64 " = %#x\n",
@@ -365,7 +365,7 @@ static void hpet_ram_writew(void *opaque, target_phys_addr_t addr,
 }
 #endif
 
-static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
+static void hpet_ram_writel(void *opaque, a_target_phys_addr addr,
                             uint32_t value)
 {
     int i;

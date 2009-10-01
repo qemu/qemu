@@ -45,7 +45,7 @@ int cpu_mb_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
     return addr;
 }
@@ -265,7 +265,7 @@ void do_interrupt(CPUState *env)
     }
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
     target_ulong vaddr, paddr = 0;
     struct microblaze_mmu_lookup lu;

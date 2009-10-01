@@ -31,15 +31,15 @@
 
 typedef enum {
     REDRAW_NONE = 0, REDRAW_SEGMENTS = 1, REDRAW_BACKGROUND = 2,
-} screen_state_t;
+} e_screen_state;
 
 typedef struct LedState {
     uint8_t segments;
     DisplayState *ds;
-    screen_state_t state;
+    e_screen_state state;
 } LedState;
 
-static uint32_t led_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t led_readb(void *opaque, a_target_phys_addr addr)
 {
     LedState *s = opaque;
     uint32_t val;
@@ -58,7 +58,7 @@ static uint32_t led_readb(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t led_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t led_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -71,7 +71,7 @@ static uint32_t led_readw(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static uint32_t led_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t led_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -88,7 +88,7 @@ static uint32_t led_readl(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static void led_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void led_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LedState *s = opaque;
 
@@ -105,7 +105,7 @@ static void led_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void led_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void led_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     led_writeb(opaque, addr, (val >> 8) & 0xff);
@@ -116,7 +116,7 @@ static void led_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 #endif
 }
 
-static void led_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void led_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     led_writeb(opaque, addr, (val >> 24) & 0xff);
@@ -282,7 +282,7 @@ static void jazz_led_screen_dump(void *opaque, const char *filename)
     printf("jazz_led_screen_dump() not implemented\n");
 }
 
-static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
+static void jazz_led_text_update(void *opaque, a_console_ch *chardata)
 {
     LedState *s = opaque;
     char buf[2];
@@ -298,7 +298,7 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, 2, 1);
 }
 
-void jazz_led_init(target_phys_addr_t base)
+void jazz_led_init(a_target_phys_addr base)
 {
     LedState *s;
     int io;

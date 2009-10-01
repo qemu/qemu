@@ -81,10 +81,10 @@ int load_image(const char *filename, uint8_t *addr)
 }
 
 /* return the amount read, just like fread.  0 may mean error or eof */
-int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
+int fread_targphys(a_target_phys_addr dst_addr, size_t nbytes, FILE *f)
 {
     uint8_t buf[4096];
-    target_phys_addr_t dst_begin = dst_addr;
+    a_target_phys_addr dst_begin = dst_addr;
     size_t want, did;
 
     while (nbytes) {
@@ -101,16 +101,16 @@ int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
 }
 
 /* returns 0 on error, 1 if ok */
-int fread_targphys_ok(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
+int fread_targphys_ok(a_target_phys_addr dst_addr, size_t nbytes, FILE *f)
 {
     return fread_targphys(dst_addr, nbytes, f) == nbytes;
 }
 
 /* read()-like version */
-int read_targphys(int fd, target_phys_addr_t dst_addr, size_t nbytes)
+int read_targphys(int fd, a_target_phys_addr dst_addr, size_t nbytes)
 {
     uint8_t buf[4096];
-    target_phys_addr_t dst_begin = dst_addr;
+    a_target_phys_addr dst_begin = dst_addr;
     size_t want, did;
 
     while (nbytes) {
@@ -127,7 +127,7 @@ int read_targphys(int fd, target_phys_addr_t dst_addr, size_t nbytes)
 
 /* return the size or -1 if error */
 int load_image_targphys(const char *filename,
-			target_phys_addr_t addr, int max_sz)
+			a_target_phys_addr addr, int max_sz)
 {
     FILE *f;
     size_t got;
@@ -142,7 +142,7 @@ int load_image_targphys(const char *filename,
     return got;
 }
 
-void pstrcpy_targphys(target_phys_addr_t dest, int buf_size,
+void pstrcpy_targphys(a_target_phys_addr dest, int buf_size,
                       const char *source)
 {
     static const uint8_t nul_byte = 0;
@@ -204,8 +204,8 @@ static void bswap_ahdr(struct exec *e)
      : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x, target_page_size), target_page_size)))
 
 
-int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
-              int bswap_needed, target_phys_addr_t target_page_size)
+int load_aout(const char *filename, a_target_phys_addr addr, int max_sz,
+              int bswap_needed, a_target_phys_addr target_page_size)
 {
     int fd, size, ret;
     struct exec e;
@@ -358,7 +358,7 @@ int load_elf(const char *filename, int64_t address_offset,
     return -1;
 }
 
-static void bswap_uboot_header(uboot_image_header_t *hdr)
+static void bswap_uboot_header(an_uboot_image_header *hdr)
 {
 #ifndef HOST_WORDS_BIGENDIAN
     bswap32s(&hdr->ih_magic);
@@ -457,13 +457,13 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 }
 
 /* Load a U-Boot image.  */
-int load_uimage(const char *filename, target_phys_addr_t *ep,
-                target_phys_addr_t *loadaddr, int *is_linux)
+int load_uimage(const char *filename, a_target_phys_addr *ep,
+                a_target_phys_addr *loadaddr, int *is_linux)
 {
     int fd;
     int size;
-    uboot_image_header_t h;
-    uboot_image_header_t *hdr = &h;
+    an_uboot_image_header h;
+    an_uboot_image_header *hdr = &h;
     uint8_t *data = NULL;
     int ret = -1;
 
@@ -471,7 +471,7 @@ int load_uimage(const char *filename, target_phys_addr_t *ep,
     if (fd < 0)
         return -1;
 
-    size = read(fd, hdr, sizeof(uboot_image_header_t));
+    size = read(fd, hdr, sizeof(an_uboot_image_header));
     if (size < 0)
         goto out;
 

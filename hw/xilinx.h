@@ -3,7 +3,7 @@
 qemu_irq *microblaze_pic_init_cpu(CPUState *env);
 
 static inline DeviceState *
-xilinx_intc_create(target_phys_addr_t base, qemu_irq irq, int kind_of_intr)
+xilinx_intc_create(a_target_phys_addr base, qemu_irq irq, int kind_of_intr)
 {
     DeviceState *dev;
 
@@ -17,7 +17,7 @@ xilinx_intc_create(target_phys_addr_t base, qemu_irq irq, int kind_of_intr)
 
 /* OPB Timer/Counter.  */
 static inline DeviceState *
-xilinx_timer_create(target_phys_addr_t base, qemu_irq irq, int nr, int freq)
+xilinx_timer_create(a_target_phys_addr base, qemu_irq irq, int nr, int freq)
 {
     DeviceState *dev;
 
@@ -32,7 +32,7 @@ xilinx_timer_create(target_phys_addr_t base, qemu_irq irq, int nr, int freq)
 
 /* XPS Ethernet Lite MAC.  */
 static inline DeviceState *
-xilinx_ethlite_create(NICInfo *nd, target_phys_addr_t base, qemu_irq irq,
+xilinx_ethlite_create(NICInfo *nd, a_target_phys_addr base, qemu_irq irq,
                       int txpingpong, int rxpingpong)
 {
     DeviceState *dev;

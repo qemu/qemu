@@ -749,14 +749,14 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 }
 
 /* Memory mapped interface */
-static uint32_t serial_mm_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t serial_mm_readb(void *opaque, a_target_phys_addr addr)
 {
     SerialState *s = opaque;
 
     return serial_ioport_read(s, addr >> s->it_shift) & 0xFF;
 }
 
-static void serial_mm_writeb(void *opaque, target_phys_addr_t addr,
+static void serial_mm_writeb(void *opaque, a_target_phys_addr addr,
                              uint32_t value)
 {
     SerialState *s = opaque;
@@ -764,7 +764,7 @@ static void serial_mm_writeb(void *opaque, target_phys_addr_t addr,
     serial_ioport_write(s, addr >> s->it_shift, value & 0xFF);
 }
 
-static uint32_t serial_mm_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t serial_mm_readw(void *opaque, a_target_phys_addr addr)
 {
     SerialState *s = opaque;
     uint32_t val;
@@ -776,7 +776,7 @@ static uint32_t serial_mm_readw(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static void serial_mm_writew(void *opaque, target_phys_addr_t addr,
+static void serial_mm_writew(void *opaque, a_target_phys_addr addr,
                              uint32_t value)
 {
     SerialState *s = opaque;
@@ -786,7 +786,7 @@ static void serial_mm_writew(void *opaque, target_phys_addr_t addr,
     serial_ioport_write(s, addr >> s->it_shift, value & 0xFFFF);
 }
 
-static uint32_t serial_mm_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t serial_mm_readl(void *opaque, a_target_phys_addr addr)
 {
     SerialState *s = opaque;
     uint32_t val;
@@ -798,7 +798,7 @@ static uint32_t serial_mm_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static void serial_mm_writel(void *opaque, target_phys_addr_t addr,
+static void serial_mm_writel(void *opaque, a_target_phys_addr addr,
                              uint32_t value)
 {
     SerialState *s = opaque;
@@ -820,7 +820,7 @@ static CPUWriteMemoryFunc * const serial_mm_write[] = {
     &serial_mm_writel,
 };
 
-SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
+SerialState *serial_mm_init (a_target_phys_addr base, int it_shift,
                              qemu_irq irq, int baudbase,
                              CharDriverState *chr, int ioregister)
 {

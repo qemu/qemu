@@ -285,7 +285,7 @@ static void syborg_fb_invalidate_display(void * opaque)
     s->need_update = 1;
 }
 
-static uint32_t syborg_fb_read(void *opaque, target_phys_addr_t offset)
+static uint32_t syborg_fb_read(void *opaque, a_target_phys_addr offset)
 {
     SyborgFBState *s = opaque;
 
@@ -356,7 +356,7 @@ static uint32_t syborg_fb_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void syborg_fb_write(void *opaque, target_phys_addr_t offset,
+static void syborg_fb_write(void *opaque, a_target_phys_addr offset,
                             uint32_t val)
 {
     SyborgFBState *s = opaque;

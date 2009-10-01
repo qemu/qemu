@@ -377,7 +377,7 @@ void ppce500_irq_init (CPUState *env)
 }
 /*****************************************************************************/
 /* PowerPC time base and decrementer emulation */
-struct ppc_tb_t {
+struct ppc_tb {
     /* Time base management */
     int64_t  tb_offset;    /* Compensation                    */
     int64_t  atb_offset;   /* Compensation                    */
@@ -394,7 +394,7 @@ struct ppc_tb_t {
     void *opaque;
 };
 
-static inline uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk,
+static inline uint64_t cpu_ppc_get_tb(a_ppc_tb *tb_env, uint64_t vmclk,
                                       int64_t tb_offset)
 {
     /* TB time in tb periods */
@@ -403,7 +403,7 @@ static inline uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk,
 
 uint32_t cpu_ppc_load_tbl (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
@@ -414,7 +414,7 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
 
 static inline uint32_t _cpu_ppc_load_tbu(CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
@@ -428,7 +428,7 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     return _cpu_ppc_load_tbu(env);
 }
 
-static inline void cpu_ppc_store_tb(ppc_tb_t *tb_env, uint64_t vmclk,
+static inline void cpu_ppc_store_tb(a_ppc_tb *tb_env, uint64_t vmclk,
                                     int64_t *tb_offsetp, uint64_t value)
 {
     *tb_offsetp = value - muldiv64(vmclk, tb_env->tb_freq, get_ticks_per_sec());
@@ -438,7 +438,7 @@ static inline void cpu_ppc_store_tb(ppc_tb_t *tb_env, uint64_t vmclk,
 
 void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
@@ -449,7 +449,7 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
 
 static inline void _cpu_ppc_store_tbu(CPUState *env, uint32_t value)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
@@ -465,7 +465,7 @@ void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
 
 uint32_t cpu_ppc_load_atbl (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
@@ -476,7 +476,7 @@ uint32_t cpu_ppc_load_atbl (CPUState *env)
 
 uint32_t cpu_ppc_load_atbu (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
@@ -487,7 +487,7 @@ uint32_t cpu_ppc_load_atbu (CPUState *env)
 
 void cpu_ppc_store_atbl (CPUState *env, uint32_t value)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
@@ -498,7 +498,7 @@ void cpu_ppc_store_atbl (CPUState *env, uint32_t value)
 
 void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb;
 
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
@@ -509,7 +509,7 @@ void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
 
 static void cpu_ppc_tb_stop (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb, atb, vmclk;
 
     /* If the time base is already frozen, do nothing */
@@ -531,7 +531,7 @@ static void cpu_ppc_tb_stop (CPUState *env)
 
 static void cpu_ppc_tb_start (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t tb, atb, vmclk;
 
     /* If the time base is not frozen, do nothing */
@@ -552,7 +552,7 @@ static void cpu_ppc_tb_start (CPUState *env)
 
 static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint32_t decr;
     int64_t diff;
 
@@ -568,21 +568,21 @@ static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
 
 uint32_t cpu_ppc_load_decr (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     return _cpu_ppc_load_decr(env, tb_env->decr_next);
 }
 
 uint32_t cpu_ppc_load_hdecr (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     return _cpu_ppc_load_decr(env, tb_env->hdecr_next);
 }
 
 uint64_t cpu_ppc_load_purr (CPUState *env)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t diff;
 
     diff = qemu_get_clock(vm_clock) - tb_env->purr_start;
@@ -613,7 +613,7 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
                                   uint32_t decr, uint32_t value,
                                   int is_excp)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
     uint64_t now, next;
 
     LOG_TB("%s: %08" PRIx32 " => %08" PRIx32 "\n", __func__,
@@ -637,7 +637,7 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
 static inline void _cpu_ppc_store_decr(CPUState *env, uint32_t decr,
                                        uint32_t value, int is_excp)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     __cpu_ppc_store_decr(env, &tb_env->decr_next, tb_env->decr_timer,
                          &cpu_ppc_decr_excp, decr, value, is_excp);
@@ -656,7 +656,7 @@ static void cpu_ppc_decr_cb (void *opaque)
 static inline void _cpu_ppc_store_hdecr(CPUState *env, uint32_t hdecr,
                                         uint32_t value, int is_excp)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     if (tb_env->hdecr_timer != NULL) {
         __cpu_ppc_store_decr(env, &tb_env->hdecr_next, tb_env->hdecr_timer,
@@ -676,7 +676,7 @@ static void cpu_ppc_hdecr_cb (void *opaque)
 
 void cpu_ppc_store_purr (CPUState *env, uint64_t value)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     tb_env->purr_load = value;
     tb_env->purr_start = qemu_get_clock(vm_clock);
@@ -685,7 +685,7 @@ void cpu_ppc_store_purr (CPUState *env, uint64_t value)
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 {
     CPUState *env = opaque;
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     tb_env->tb_freq = freq;
     tb_env->decr_freq = freq;
@@ -701,9 +701,9 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 /* Set up (once) timebase frequency (in Hz) */
 clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
 {
-    ppc_tb_t *tb_env;
+    a_ppc_tb *tb_env;
 
-    tb_env = qemu_mallocz(sizeof(ppc_tb_t));
+    tb_env = qemu_mallocz(sizeof(a_ppc_tb));
     env->tb_env = tb_env;
     /* Create new timer */
     tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
@@ -751,8 +751,8 @@ uint32_t cpu_ppc601_load_rtcl (CPUState *env)
 /* Embedded PowerPC timers */
 
 /* PIT, FIT & WDT */
-typedef struct ppcemb_timer_t ppcemb_timer_t;
-struct ppcemb_timer_t {
+typedef struct ppcemb_timer a_ppcemb_timer;
+struct ppcemb_timer {
     uint64_t pit_reload;  /* PIT auto-reload value        */
     uint64_t fit_next;    /* Tick for next FIT interrupt  */
     struct QEMUTimer *fit_timer;
@@ -764,8 +764,8 @@ struct ppcemb_timer_t {
 static void cpu_4xx_fit_cb (void *opaque)
 {
     CPUState *env;
-    ppc_tb_t *tb_env;
-    ppcemb_timer_t *ppcemb_timer;
+    a_ppc_tb *tb_env;
+    a_ppcemb_timer *ppcemb_timer;
     uint64_t now, next;
 
     env = opaque;
@@ -802,9 +802,9 @@ static void cpu_4xx_fit_cb (void *opaque)
 }
 
 /* Programmable interval timer */
-static void start_stop_pit (CPUState *env, ppc_tb_t *tb_env, int is_excp)
+static void start_stop_pit (CPUState *env, a_ppc_tb *tb_env, int is_excp)
 {
-    ppcemb_timer_t *ppcemb_timer;
+    a_ppcemb_timer *ppcemb_timer;
     uint64_t now, next;
 
     ppcemb_timer = tb_env->opaque;
@@ -832,8 +832,8 @@ static void start_stop_pit (CPUState *env, ppc_tb_t *tb_env, int is_excp)
 static void cpu_4xx_pit_cb (void *opaque)
 {
     CPUState *env;
-    ppc_tb_t *tb_env;
-    ppcemb_timer_t *ppcemb_timer;
+    a_ppc_tb *tb_env;
+    a_ppcemb_timer *ppcemb_timer;
 
     env = opaque;
     tb_env = env->tb_env;
@@ -854,8 +854,8 @@ static void cpu_4xx_pit_cb (void *opaque)
 static void cpu_4xx_wdt_cb (void *opaque)
 {
     CPUState *env;
-    ppc_tb_t *tb_env;
-    ppcemb_timer_t *ppcemb_timer;
+    a_ppc_tb *tb_env;
+    a_ppcemb_timer *ppcemb_timer;
     uint64_t now, next;
 
     env = opaque;
@@ -920,8 +920,8 @@ static void cpu_4xx_wdt_cb (void *opaque)
 
 void store_40x_pit (CPUState *env, target_ulong val)
 {
-    ppc_tb_t *tb_env;
-    ppcemb_timer_t *ppcemb_timer;
+    a_ppc_tb *tb_env;
+    a_ppcemb_timer *ppcemb_timer;
 
     tb_env = env->tb_env;
     ppcemb_timer = tb_env->opaque;
@@ -945,7 +945,7 @@ void store_booke_tsr (CPUState *env, target_ulong val)
 
 void store_booke_tcr (CPUState *env, target_ulong val)
 {
-    ppc_tb_t *tb_env;
+    a_ppc_tb *tb_env;
 
     tb_env = env->tb_env;
     LOG_TB("%s: val " TARGET_FMT_lx "\n", __func__, val);
@@ -957,7 +957,7 @@ void store_booke_tcr (CPUState *env, target_ulong val)
 static void ppc_emb_set_tb_clk (void *opaque, uint32_t freq)
 {
     CPUState *env = opaque;
-    ppc_tb_t *tb_env = env->tb_env;
+    a_ppc_tb *tb_env = env->tb_env;
 
     LOG_TB("%s set new frequency to %" PRIu32 "\n", __func__,
                 freq);
@@ -968,12 +968,12 @@ static void ppc_emb_set_tb_clk (void *opaque, uint32_t freq)
 
 clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
 {
-    ppc_tb_t *tb_env;
-    ppcemb_timer_t *ppcemb_timer;
+    a_ppc_tb *tb_env;
+    a_ppcemb_timer *ppcemb_timer;
 
-    tb_env = qemu_mallocz(sizeof(ppc_tb_t));
+    tb_env = qemu_mallocz(sizeof(a_ppc_tb));
     env->tb_env = tb_env;
-    ppcemb_timer = qemu_mallocz(sizeof(ppcemb_timer_t));
+    ppcemb_timer = qemu_mallocz(sizeof(a_ppcemb_timer));
     tb_env->tb_freq = freq;
     tb_env->decr_freq = freq;
     tb_env->opaque = ppcemb_timer;
@@ -992,8 +992,8 @@ clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
 
 /*****************************************************************************/
 /* Embedded PowerPC Device Control Registers */
-typedef struct ppc_dcrn_t ppc_dcrn_t;
-struct ppc_dcrn_t {
+typedef struct ppc_dcrn a_ppc_dcrn;
+struct ppc_dcrn {
     dcr_read_cb dcr_read;
     dcr_write_cb dcr_write;
     void *opaque;
@@ -1003,15 +1003,15 @@ struct ppc_dcrn_t {
  *      using DCRIPR to get the 22 upper bits of the DCR address
  */
 #define DCRN_NB 1024
-struct ppc_dcr_t {
-    ppc_dcrn_t dcrn[DCRN_NB];
+struct ppc_dcr {
+    a_ppc_dcrn dcrn[DCRN_NB];
     int (*read_error)(int dcrn);
     int (*write_error)(int dcrn);
 };
 
-int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
+int ppc_dcr_read (a_ppc_dcr *dcr_env, int dcrn, target_ulong *valp)
 {
-    ppc_dcrn_t *dcr;
+    a_ppc_dcrn *dcr;
 
     if (dcrn < 0 || dcrn >= DCRN_NB)
         goto error;
@@ -1029,9 +1029,9 @@ int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
     return -1;
 }
 
-int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val)
+int ppc_dcr_write (a_ppc_dcr *dcr_env, int dcrn, target_ulong val)
 {
-    ppc_dcrn_t *dcr;
+    a_ppc_dcrn *dcr;
 
     if (dcrn < 0 || dcrn >= DCRN_NB)
         goto error;
@@ -1052,8 +1052,8 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val)
 int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
                       dcr_read_cb dcr_read, dcr_write_cb dcr_write)
 {
-    ppc_dcr_t *dcr_env;
-    ppc_dcrn_t *dcr;
+    a_ppc_dcr *dcr_env;
+    a_ppc_dcrn *dcr;
 
     dcr_env = env->dcr_env;
     if (dcr_env == NULL)
@@ -1075,9 +1075,9 @@ int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
 int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
                   int (*write_error)(int dcrn))
 {
-    ppc_dcr_t *dcr_env;
+    a_ppc_dcr *dcr_env;
 
-    dcr_env = qemu_mallocz(sizeof(ppc_dcr_t));
+    dcr_env = qemu_mallocz(sizeof(a_ppc_dcr));
     dcr_env->read_error = read_error;
     dcr_env->write_error = write_error;
     env->dcr_env = dcr_env;
@@ -1117,33 +1117,33 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
 
 /*****************************************************************************/
 /* NVRAM helpers */
-static inline uint32_t nvram_read (nvram_t *nvram, uint32_t addr)
+static inline uint32_t nvram_read (a_nvram *nvram, uint32_t addr)
 {
     return (*nvram->read_fn)(nvram->opaque, addr);;
 }
 
-static inline void nvram_write (nvram_t *nvram, uint32_t addr, uint32_t val)
+static inline void nvram_write (a_nvram *nvram, uint32_t addr, uint32_t val)
 {
     (*nvram->write_fn)(nvram->opaque, addr, val);
 }
 
-void NVRAM_set_byte (nvram_t *nvram, uint32_t addr, uint8_t value)
+void NVRAM_set_byte (a_nvram *nvram, uint32_t addr, uint8_t value)
 {
     nvram_write(nvram, addr, value);
 }
 
-uint8_t NVRAM_get_byte (nvram_t *nvram, uint32_t addr)
+uint8_t NVRAM_get_byte (a_nvram *nvram, uint32_t addr)
 {
     return nvram_read(nvram, addr);
 }
 
-void NVRAM_set_word (nvram_t *nvram, uint32_t addr, uint16_t value)
+void NVRAM_set_word (a_nvram *nvram, uint32_t addr, uint16_t value)
 {
     nvram_write(nvram, addr, value >> 8);
     nvram_write(nvram, addr + 1, value & 0xFF);
 }
 
-uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
+uint16_t NVRAM_get_word (a_nvram *nvram, uint32_t addr)
 {
     uint16_t tmp;
 
@@ -1153,7 +1153,7 @@ uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value)
+void NVRAM_set_lword (a_nvram *nvram, uint32_t addr, uint32_t value)
 {
     nvram_write(nvram, addr, value >> 24);
     nvram_write(nvram, addr + 1, (value >> 16) & 0xFF);
@@ -1161,7 +1161,7 @@ void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value)
     nvram_write(nvram, addr + 3, value & 0xFF);
 }
 
-uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr)
+uint32_t NVRAM_get_lword (a_nvram *nvram, uint32_t addr)
 {
     uint32_t tmp;
 
@@ -1173,7 +1173,7 @@ uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
+void NVRAM_set_string (a_nvram *nvram, uint32_t addr,
                        const char *str, uint32_t max)
 {
     int i;
@@ -1185,7 +1185,7 @@ void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
     nvram_write(nvram, addr + max - 1, '\0');
 }
 
-int NVRAM_get_string (nvram_t *nvram, uint8_t *dst, uint16_t addr, int max)
+int NVRAM_get_string (a_nvram *nvram, uint8_t *dst, uint16_t addr, int max)
 {
     int i;
 
@@ -1214,7 +1214,7 @@ static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
     return tmp;
 }
 
-static uint16_t NVRAM_compute_crc (nvram_t *nvram, uint32_t start, uint32_t count)
+static uint16_t NVRAM_compute_crc (a_nvram *nvram, uint32_t start, uint32_t count)
 {
     uint32_t i;
     uint16_t crc = 0xFFFF;
@@ -1234,7 +1234,7 @@ static uint16_t NVRAM_compute_crc (nvram_t *nvram, uint32_t start, uint32_t coun
 
 #define CMDLINE_ADDR 0x017ff000
 
-int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
+int PPC_NVRAM_set_params (a_nvram *nvram, uint16_t NVRAM_size,
                           const char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,

@@ -520,7 +520,7 @@ void HELPER(clrex)(CPUState *env)
     flush_mmon(env->mmon_entry->addr);
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
@@ -1230,7 +1230,7 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     uint32_t phys_addr;
     int prot;

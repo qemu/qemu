@@ -71,12 +71,12 @@ void nonono(const char* file, int line, const char* msg) {
 #endif
 
 /* dynamic array functions */
-typedef struct array_t {
+typedef struct array {
     char* pointer;
     unsigned int size,next,item_size;
-} array_t;
+} an_array;
 
-static inline void array_init(array_t* array,unsigned int item_size)
+static inline void array_init(an_array* array,unsigned int item_size)
 {
     array->pointer = NULL;
     array->size=0;
@@ -84,7 +84,7 @@ static inline void array_init(array_t* array,unsigned int item_size)
     array->item_size=item_size;
 }
 
-static inline void array_free(array_t* array)
+static inline void array_free(an_array* array)
 {
     if(array->pointer)
         free(array->pointer);
@@ -92,12 +92,12 @@ static inline void array_free(array_t* array)
 }
 
 /* does not automatically grow */
-static inline void* array_get(array_t* array,unsigned int index) {
+static inline void* array_get(an_array* array,unsigned int index) {
     assert(index < array->next);
     return array->pointer + index * array->item_size;
 }
 
-static inline int array_ensure_allocated(array_t* array, int index)
+static inline int array_ensure_allocated(an_array* array, int index)
 {
     if((index + 1) * array->item_size > array->size) {
 	int new_size = (index + 32) * array->item_size;
@@ -111,7 +111,7 @@ static inline int array_ensure_allocated(array_t* array, int index)
     return 0;
 }
 
-static inline void* array_get_next(array_t* array) {
+static inline void* array_get_next(an_array* array) {
     unsigned int next = array->next;
     void* result;
 
@@ -124,7 +124,7 @@ static inline void* array_get_next(array_t* array) {
     return result;
 }
 
-static inline void* array_insert(array_t* array,unsigned int index,unsigned int count) {
+static inline void* array_insert(an_array* array,unsigned int index,unsigned int count) {
     if((array->next+count)*array->item_size>array->size) {
 	int increment=count*array->item_size;
 	array->pointer=qemu_realloc(array->pointer,array->size+increment);
@@ -141,7 +141,7 @@ static inline void* array_insert(array_t* array,unsigned int index,unsigned int 
 
 /* this performs a "roll", so that the element which was at index_from becomes
  * index_to, but the order of all other elements is preserved. */
-static inline int array_roll(array_t* array,int index_to,int index_from,int count)
+static inline int array_roll(an_array* array,int index_to,int index_from,int count)
 {
     char* buf;
     char* from;
@@ -174,7 +174,7 @@ static inline int array_roll(array_t* array,int index_to,int index_from,int coun
     return 0;
 }
 
-static inline int array_remove_slice(array_t* array,int index, int count)
+static inline int array_remove_slice(an_array* array,int index, int count)
 {
     assert(index >=0);
     assert(count > 0);
@@ -185,13 +185,13 @@ static inline int array_remove_slice(array_t* array,int index, int count)
     return 0;
 }
 
-static int array_remove(array_t* array,int index)
+static int array_remove(an_array* array,int index)
 {
     return array_remove_slice(array, index, 1);
 }
 
 /* return the index for a given member */
-static int array_index(array_t* array, void* pointer)
+static int array_index(an_array* array, void* pointer)
 {
     size_t offset = (char*)pointer - array->pointer;
     assert((offset % array->item_size) == 0);
@@ -202,7 +202,7 @@ static int array_index(array_t* array, void* pointer)
 /* These structures are used to fake a disk and the VFAT filesystem.
  * For this reason we need to use __attribute__((packed)). */
 
-typedef struct bootsector_t {
+typedef struct bootsector {
     uint8_t jump[3];
     uint8_t name[8];
     uint16_t sector_size;
@@ -238,32 +238,32 @@ typedef struct bootsector_t {
     uint8_t fat_type[8];
     uint8_t ignored[0x1c0];
     uint8_t magic[2];
-} __attribute__((packed)) bootsector_t;
+} __attribute__((packed)) a_bootsector;
 
 typedef struct {
     uint8_t head;
     uint8_t sector;
     uint8_t cylinder;
-} mbr_chs_t;
+} a_mbr_chs;
 
-typedef struct partition_t {
+typedef struct partition {
     uint8_t attributes; /* 0x80 = bootable */
-    mbr_chs_t start_CHS;
+    a_mbr_chs start_CHS;
     uint8_t   fs_type; /* 0x1 = FAT12, 0x6 = FAT16, 0xe = FAT16_LBA, 0xb = FAT32, 0xc = FAT32_LBA */
-    mbr_chs_t end_CHS;
+    a_mbr_chs end_CHS;
     uint32_t start_sector_long;
     uint32_t length_sector_long;
-} __attribute__((packed)) partition_t;
+} __attribute__((packed)) a_partition;
 
-typedef struct mbr_t {
+typedef struct mbr {
     uint8_t ignored[0x1b8];
     uint32_t nt_id;
     uint8_t ignored2[2];
-    partition_t partition[4];
+    a_partition partition[4];
     uint8_t magic[2];
-} __attribute__((packed)) mbr_t;
+} __attribute__((packed)) a_mbr;
 
-typedef struct direntry_t {
+typedef struct direntry {
     uint8_t name[8];
     uint8_t extension[3];
     uint8_t attributes;
@@ -276,11 +276,11 @@ typedef struct direntry_t {
     uint16_t mdate;
     uint16_t begin;
     uint32_t size;
-} __attribute__((packed)) direntry_t;
+} __attribute__((packed)) a_direntry;
 
 /* this structure are used to transparently access the files */
 
-typedef struct mapping_t {
+typedef struct mapping {
     /* begin is the first cluster, end is the last+1 */
     uint32_t begin,end;
     /* as s->directory is growable, no pointer may be used here */
@@ -308,11 +308,11 @@ typedef struct mapping_t {
 	MODE_DIRECTORY = 4, MODE_FAKED = 8,
 	MODE_DELETED = 16, MODE_RENAMED = 32 } mode;
     int read_only;
-} mapping_t;
+} a_mapping;
 
 #ifdef DEBUG
-static void print_direntry(const struct direntry_t*);
-static void print_mapping(const struct mapping_t* mapping);
+static void print_direntry(const struct a_direntry*);
+static void print_mapping(const struct a_mapping* mapping);
 #endif
 
 /* here begins the real VVFAT driver */
@@ -323,7 +323,7 @@ typedef struct BDRVVVFATState {
     unsigned char first_sectors[0x40*0x200];
 
     int fat_type; /* 16 or 32 */
-    array_t fat,directory,mapping;
+    an_array fat,directory,mapping;
 
     unsigned int cluster_size;
     unsigned int sectors_per_cluster;
@@ -336,7 +336,7 @@ typedef struct BDRVVVFATState {
     uint32_t max_fat_value;
 
     int current_fd;
-    mapping_t* current_mapping;
+    a_mapping* current_mapping;
     unsigned char* cluster; /* points to current cluster */
     unsigned char* cluster_buffer; /* points to a buffer to hold temp data */
     unsigned int current_cluster;
@@ -347,7 +347,7 @@ typedef struct BDRVVVFATState {
     BlockDriverState* qcow;
     void* fat2;
     char* used_clusters;
-    array_t commits;
+    an_array commits;
     const char* path;
     int downcase_short_names;
 } BDRVVVFATState;
@@ -356,7 +356,7 @@ typedef struct BDRVVVFATState {
  * if the position is outside the specified geometry, fill maximum value for CHS
  * and return 1 to signal overflow.
  */
-static int sector2CHS(BlockDriverState* bs, mbr_chs_t * chs, int spos){
+static int sector2CHS(BlockDriverState* bs, a_mbr_chs * chs, int spos){
     int head,sector;
     sector   = spos % (bs->secs);  spos/= bs->secs;
     head     = spos % (bs->heads); spos/= bs->heads;
@@ -378,8 +378,8 @@ static int sector2CHS(BlockDriverState* bs, mbr_chs_t * chs, int spos){
 static void init_mbr(BDRVVVFATState* s)
 {
     /* TODO: if the files mbr.img and bootsect.img exist, use them */
-    mbr_t* real_mbr=(mbr_t*)s->first_sectors;
-    partition_t* partition = &(real_mbr->partition[0]);
+    a_mbr* real_mbr=(a_mbr*)s->first_sectors;
+    a_partition* partition = &(real_mbr->partition[0]);
     int lba;
 
     memset(s->first_sectors,0,512);
@@ -425,12 +425,12 @@ static inline int short2long_name(char* dest,const char* src)
     return len;
 }
 
-static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* filename)
+static inline a_direntry* create_long_filename(BDRVVVFATState* s,const char* filename)
 {
     char buffer[258];
     int length=short2long_name(buffer,filename),
         number_of_entries=(length+25)/26,i;
-    direntry_t* entry;
+    a_direntry* entry;
 
     for(i=0;i<number_of_entries;i++) {
 	entry=array_get_next(&(s->directory));
@@ -450,53 +450,53 @@ static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* fil
     return array_get(&(s->directory),s->directory.next-number_of_entries);
 }
 
-static char is_free(const direntry_t* direntry)
+static char is_free(const a_direntry* direntry)
 {
     return direntry->name[0]==0xe5 || direntry->name[0]==0x00;
 }
 
-static char is_volume_label(const direntry_t* direntry)
+static char is_volume_label(const a_direntry* direntry)
 {
     return direntry->attributes == 0x28;
 }
 
-static char is_long_name(const direntry_t* direntry)
+static char is_long_name(const a_direntry* direntry)
 {
     return direntry->attributes == 0xf;
 }
 
-static char is_short_name(const direntry_t* direntry)
+static char is_short_name(const a_direntry* direntry)
 {
     return !is_volume_label(direntry) && !is_long_name(direntry)
 	&& !is_free(direntry);
 }
 
-static char is_directory(const direntry_t* direntry)
+static char is_directory(const a_direntry* direntry)
 {
     return direntry->attributes & 0x10 && direntry->name[0] != 0xe5;
 }
 
-static inline char is_dot(const direntry_t* direntry)
+static inline char is_dot(const a_direntry* direntry)
 {
     return is_short_name(direntry) && direntry->name[0] == '.';
 }
 
-static char is_file(const direntry_t* direntry)
+static char is_file(const a_direntry* direntry)
 {
     return is_short_name(direntry) && !is_directory(direntry);
 }
 
-static inline uint32_t begin_of_direntry(const direntry_t* direntry)
+static inline uint32_t begin_of_direntry(const a_direntry* direntry)
 {
     return le16_to_cpu(direntry->begin)|(le16_to_cpu(direntry->begin_hi)<<16);
 }
 
-static inline uint32_t filesize_of_direntry(const direntry_t* direntry)
+static inline uint32_t filesize_of_direntry(const a_direntry* direntry)
 {
     return le32_to_cpu(direntry->size);
 }
 
-static void set_begin_of_direntry(direntry_t* direntry, uint32_t begin)
+static void set_begin_of_direntry(a_direntry* direntry, uint32_t begin)
 {
     direntry->begin = cpu_to_le16(begin & 0xffff);
     direntry->begin_hi = cpu_to_le16((begin >> 16) & 0xffff);
@@ -504,7 +504,7 @@ static void set_begin_of_direntry(direntry_t* direntry, uint32_t begin)
 
 /* fat functions */
 
-static inline uint8_t fat_chksum(const direntry_t* entry)
+static inline uint8_t fat_chksum(const a_direntry* entry)
 {
     uint8_t chksum=0;
     int i;
@@ -603,12 +603,12 @@ static inline void init_fat(BDRVVVFATState* s)
 
 /* TODO: in create_short_filename, 0xe5->0x05 is not yet handled! */
 /* TODO: in parse_short_filename, 0x05->0xe5 is not yet handled! */
-static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
+static inline a_direntry* create_short_and_long_name(BDRVVVFATState* s,
 	unsigned int directory_start, const char* filename, int is_dot)
 {
     int i,j,long_index=s->directory.next;
-    direntry_t* entry = NULL;
-    direntry_t* entry_long = NULL;
+    a_direntry* entry = NULL;
+    a_direntry* entry_long = NULL;
 
     if(is_dot) {
 	entry=array_get_next(&(s->directory));
@@ -646,7 +646,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 
     /* mangle duplicates */
     while(1) {
-	direntry_t* entry1=array_get(&(s->directory),directory_start);
+	a_direntry* entry1=array_get(&(s->directory),directory_start);
 	int j;
 
 	for(;entry1<entry;entry1++)
@@ -693,12 +693,12 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
  */
 static int read_directory(BDRVVVFATState* s, int mapping_index)
 {
-    mapping_t* mapping = array_get(&(s->mapping), mapping_index);
-    direntry_t* direntry;
+    a_mapping* mapping = array_get(&(s->mapping), mapping_index);
+    a_direntry* direntry;
     const char* dirname = mapping->path;
     int first_cluster = mapping->begin;
     int parent_index = mapping->info.dir.parent_mapping_index;
-    mapping_t* parent_mapping = (mapping_t*)
+    a_mapping* parent_mapping = (a_mapping*)
         (parent_index >= 0 ? array_get(&(s->mapping), parent_index) : NULL);
     int first_cluster_of_parent = parent_mapping ? parent_mapping->begin : -1;
 
@@ -720,7 +720,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
     while((entry=readdir(dir))) {
 	unsigned int length=strlen(dirname)+2+strlen(entry->d_name);
         char* buffer;
-	direntry_t* direntry;
+	a_direntry* direntry;
         struct stat st;
 	int is_dot=!strcmp(entry->d_name,".");
 	int is_dotdot=!strcmp(entry->d_name,"..");
@@ -762,7 +762,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 
 	/* create mapping for this file */
 	if(!is_dot && !is_dotdot && (S_ISDIR(st.st_mode) || st.st_size)) {
-	    s->current_mapping=(mapping_t*)array_get_next(&(s->mapping));
+	    s->current_mapping=(a_mapping*)array_get_next(&(s->mapping));
 	    s->current_mapping->begin=0;
 	    s->current_mapping->end=st.st_size;
 	    /*
@@ -788,8 +788,8 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 
     /* fill with zeroes up to the end of the cluster */
     while(s->directory.next%(0x10*s->sectors_per_cluster)) {
-	direntry_t* direntry=array_get_next(&(s->directory));
-	memset(direntry,0,sizeof(direntry_t));
+	a_direntry* direntry=array_get_next(&(s->directory));
+	memset(direntry,0,sizeof(a_direntry));
     }
 
 /* TODO: if there are more entries, bootsector has to be adjusted! */
@@ -799,16 +799,16 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	int cur = s->directory.next;
 	array_ensure_allocated(&(s->directory), ROOT_ENTRIES - 1);
 	memset(array_get(&(s->directory), cur), 0,
-		(ROOT_ENTRIES - cur) * sizeof(direntry_t));
+		(ROOT_ENTRIES - cur) * sizeof(a_direntry));
     }
 
      /* reget the mapping, since s->mapping was possibly realloc()ed */
-    mapping = (mapping_t*)array_get(&(s->mapping), mapping_index);
+    mapping = (a_mapping*)array_get(&(s->mapping), mapping_index);
     first_cluster += (s->directory.next - mapping->info.dir.first_dir_index)
 	* 0x20 / s->cluster_size;
     mapping->end = first_cluster;
 
-    direntry = (direntry_t*)array_get(&(s->directory), mapping->dir_index);
+    direntry = (a_direntry*)array_get(&(s->directory), mapping->dir_index);
     set_begin_of_direntry(direntry, mapping->begin);
 
     return 0;
@@ -830,19 +830,19 @@ static inline uint32_t sector_offset_in_cluster(BDRVVVFATState* s,off_t sector_n
 }
 
 #ifdef DBG
-static direntry_t* get_direntry_for_mapping(BDRVVVFATState* s,mapping_t* mapping)
+static a_direntry* get_direntry_for_mapping(BDRVVVFATState* s,a_mapping* mapping)
 {
     if(mapping->mode==MODE_UNDEFINED)
 	return 0;
-    return (direntry_t*)(s->directory.pointer+sizeof(direntry_t)*mapping->dir_index);
+    return (a_direntry*)(s->directory.pointer+sizeof(a_direntry)*mapping->dir_index);
 }
 #endif
 
 static int init_directories(BDRVVVFATState* s,
 	const char* dirname)
 {
-    bootsector_t* bootsector;
-    mapping_t* mapping;
+    a_bootsector* bootsector;
+    a_mapping* mapping;
     unsigned int i;
     unsigned int cluster;
 
@@ -861,12 +861,12 @@ static int init_directories(BDRVVVFATState* s,
     i = 1+s->sectors_per_cluster*0x200*8/s->fat_type;
     s->sectors_per_fat=(s->sector_count+i)/i; /* round up */
 
-    array_init(&(s->mapping),sizeof(mapping_t));
-    array_init(&(s->directory),sizeof(direntry_t));
+    array_init(&(s->mapping),sizeof(a_mapping));
+    array_init(&(s->directory),sizeof(a_direntry));
 
     /* add volume label */
     {
-	direntry_t* entry=array_get_next(&(s->directory));
+	a_direntry* entry=array_get_next(&(s->directory));
 	entry->attributes=0x28; /* archive | volume label */
 	snprintf((char*)entry->name,11,"QEMU VVFAT");
     }
@@ -910,7 +910,7 @@ static int init_directories(BDRVVVFATState* s,
 	    mapping->mode=MODE_NORMAL;
 	    mapping->begin = cluster;
 	    if (mapping->end > 0) {
-		direntry_t* direntry = array_get(&(s->directory),
+		a_direntry* direntry = array_get(&(s->directory),
 			mapping->dir_index);
 
 		mapping->end = cluster + 1 + (mapping->end-1)/s->cluster_size;
@@ -954,7 +954,7 @@ static int init_directories(BDRVVVFATState* s,
 
     s->current_mapping = NULL;
 
-    bootsector=(bootsector_t*)(s->first_sectors+(s->first_sectors_number-1)*0x200);
+    bootsector=(a_bootsector*)(s->first_sectors+(s->first_sectors_number-1)*0x200);
     bootsector->jump[0]=0xeb;
     bootsector->jump[1]=0x3e;
     bootsector->jump[2]=0x90;
@@ -1100,7 +1100,7 @@ static inline int find_mapping_for_cluster_aux(BDRVVVFATState* s,int cluster_num
 {
     int index3=index1+1;
     while(1) {
-	mapping_t* mapping;
+	a_mapping* mapping;
 	index3=(index1+index2)/2;
 	mapping=array_get(&(s->mapping),index3);
 	assert(mapping->begin < mapping->end);
@@ -1123,10 +1123,10 @@ static inline int find_mapping_for_cluster_aux(BDRVVVFATState* s,int cluster_num
     }
 }
 
-static inline mapping_t* find_mapping_for_cluster(BDRVVVFATState* s,int cluster_num)
+static inline a_mapping* find_mapping_for_cluster(BDRVVVFATState* s,int cluster_num)
 {
     int index=find_mapping_for_cluster_aux(s,cluster_num,0,s->mapping.next);
-    mapping_t* mapping;
+    a_mapping* mapping;
     if(index>=s->mapping.next)
         return NULL;
     mapping=array_get(&(s->mapping),index);
@@ -1140,13 +1140,13 @@ static inline mapping_t* find_mapping_for_cluster(BDRVVVFATState* s,int cluster_
  * This function simply compares path == mapping->path. Since the mappings
  * are sorted by cluster, this is expensive: O(n).
  */
-static inline mapping_t* find_mapping_for_path(BDRVVVFATState* s,
+static inline a_mapping* find_mapping_for_path(BDRVVVFATState* s,
 	const char* path)
 {
     int i;
 
     for (i = 0; i < s->mapping.next; i++) {
-	mapping_t* mapping = array_get(&(s->mapping), i);
+	a_mapping* mapping = array_get(&(s->mapping), i);
 	if (mapping->first_mapping_index < 0 &&
 		!strcmp(path, mapping->path))
 	    return mapping;
@@ -1155,7 +1155,7 @@ static inline mapping_t* find_mapping_for_path(BDRVVVFATState* s,
     return NULL;
 }
 
-static int open_file(BDRVVVFATState* s,mapping_t* mapping)
+static int open_file(BDRVVVFATState* s,a_mapping* mapping)
 {
     if(!mapping)
 	return -1;
@@ -1182,7 +1182,7 @@ static inline int read_cluster(BDRVVVFATState *s,int cluster_num)
 		|| s->current_mapping->begin>cluster_num
 		|| s->current_mapping->end<=cluster_num) {
 	    /* binary search of mappings for file */
-	    mapping_t* mapping=find_mapping_for_cluster(s,cluster_num);
+	    a_mapping* mapping=find_mapping_for_cluster(s,cluster_num);
 
 	    assert(!mapping || (cluster_num>=mapping->begin && cluster_num<mapping->end));
 
@@ -1238,7 +1238,7 @@ static void hexdump(const void* address, uint32_t len)
     }
 }
 
-static void print_direntry(const direntry_t* direntry)
+static void print_direntry(const a_direntry* direntry)
 {
     int j = 0;
     char buffer[1024];
@@ -1270,7 +1270,7 @@ static void print_direntry(const direntry_t* direntry)
     }
 }
 
-static void print_mapping(const mapping_t* mapping)
+static void print_mapping(const a_mapping* mapping)
 {
     fprintf(stderr, "mapping (0x%x): begin, end = %d, %d, dir_index = %d, first_mapping_index = %d, name = %s, mode = 0x%x, " , (int)mapping, mapping->begin, mapping->end, mapping->dir_index, mapping->first_mapping_index, mapping->path, mapping->mode);
     if (mapping->mode & MODE_DIRECTORY)
@@ -1346,7 +1346,7 @@ DLOG(fprintf(stderr, "sector %d not allocated\n", (int)sector_num));
  *
  */
 
-typedef struct commit_t {
+typedef struct commit {
     char* path;
     union {
 	struct { uint32_t cluster; } rename;
@@ -1358,14 +1358,14 @@ typedef struct commit_t {
     enum {
 	ACTION_RENAME, ACTION_WRITEOUT, ACTION_NEW_FILE, ACTION_MKDIR
     } action;
-} commit_t;
+} a_commit;
 
 static void clear_commits(BDRVVVFATState* s)
 {
     int i;
 DLOG(fprintf(stderr, "clear_commits (%d commits)\n", s->commits.next));
     for (i = 0; i < s->commits.next; i++) {
-	commit_t* commit = array_get(&(s->commits), i);
+	a_commit* commit = array_get(&(s->commits), i);
 	assert(commit->path || commit->action == ACTION_WRITEOUT);
 	if (commit->action != ACTION_WRITEOUT) {
 	    assert(commit->path);
@@ -1379,7 +1379,7 @@ DLOG(fprintf(stderr, "clear_commits (%d commits)\n", s->commits.next));
 static void schedule_rename(BDRVVVFATState* s,
 	uint32_t cluster, char* new_path)
 {
-    commit_t* commit = array_get_next(&(s->commits));
+    a_commit* commit = array_get_next(&(s->commits));
     commit->path = new_path;
     commit->param.rename.cluster = cluster;
     commit->action = ACTION_RENAME;
@@ -1388,7 +1388,7 @@ static void schedule_rename(BDRVVVFATState* s,
 static void schedule_writeout(BDRVVVFATState* s,
 	int dir_index, uint32_t modified_offset)
 {
-    commit_t* commit = array_get_next(&(s->commits));
+    a_commit* commit = array_get_next(&(s->commits));
     commit->path = NULL;
     commit->param.writeout.dir_index = dir_index;
     commit->param.writeout.modified_offset = modified_offset;
@@ -1398,7 +1398,7 @@ static void schedule_writeout(BDRVVVFATState* s,
 static void schedule_new_file(BDRVVVFATState* s,
 	char* path, uint32_t first_cluster)
 {
-    commit_t* commit = array_get_next(&(s->commits));
+    a_commit* commit = array_get_next(&(s->commits));
     commit->path = path;
     commit->param.new_file.first_cluster = first_cluster;
     commit->action = ACTION_NEW_FILE;
@@ -1406,7 +1406,7 @@ static void schedule_new_file(BDRVVVFATState* s,
 
 static void schedule_mkdir(BDRVVVFATState* s, uint32_t cluster, char* path)
 {
-    commit_t* commit = array_get_next(&(s->commits));
+    a_commit* commit = array_get_next(&(s->commits));
     commit->path = path;
     commit->param.mkdir.cluster = cluster;
     commit->action = ACTION_MKDIR;
@@ -1431,7 +1431,7 @@ static void lfn_init(long_file_name* lfn)
 
 /* return 0 if parsed successfully, > 0 if no long name, < 0 if error */
 static int parse_long_name(long_file_name* lfn,
-	const direntry_t* direntry)
+	const a_direntry* direntry)
 {
     int i, j, offset;
     const unsigned char* pointer = (const unsigned char*)direntry;
@@ -1474,7 +1474,7 @@ static int parse_long_name(long_file_name* lfn,
 
 /* returns 0 if successful, >0 if no short_name, and <0 on error */
 static int parse_short_name(BDRVVVFATState* s,
-	long_file_name* lfn, direntry_t* direntry)
+	long_file_name* lfn, a_direntry* direntry)
 {
     int i, j;
 
@@ -1566,7 +1566,7 @@ static const char* get_basename(const char* path)
  */
 typedef enum {
      USED_DIRECTORY = 1, USED_FILE = 2, USED_ANY = 3, USED_ALLOCATED = 4
-} used_t;
+} e_used;
 
 /*
  * get_cluster_count_for_direntry() not only determines how many clusters
@@ -1579,7 +1579,7 @@ typedef enum {
  * assumed to be *not* deleted (and *only* those).
  */
 static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
-	direntry_t* direntry, const char* path)
+	a_direntry* direntry, const char* path)
 {
     /*
      * This is a little bit tricky:
@@ -1605,7 +1605,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
     uint32_t cluster_num = begin_of_direntry(direntry);
     uint32_t offset = 0;
     int first_mapping_index = -1;
-    mapping_t* mapping = NULL;
+    a_mapping* mapping = NULL;
     const char* basename2 = NULL;
 
     vvfat_close_current_file(s);
@@ -1730,8 +1730,8 @@ static int check_directory_consistency(BDRVVVFATState *s,
 {
     int ret = 0;
     unsigned char* cluster = qemu_malloc(s->cluster_size);
-    direntry_t* direntries = (direntry_t*)cluster;
-    mapping_t* mapping = find_mapping_for_cluster(s, cluster_num);
+    a_direntry* direntries = (a_direntry*)cluster;
+    a_mapping* mapping = find_mapping_for_cluster(s, cluster_num);
 
     long_file_name lfn;
     int path_len = strlen(path);
@@ -1889,7 +1889,7 @@ DLOG(checkpoint());
      * (check_directory_consistency() will unmark those still present). */
     if (s->qcow)
 	for (i = 0; i < s->mapping.next; i++) {
-	    mapping_t* mapping = array_get(&(s->mapping), i);
+	    a_mapping* mapping = array_get(&(s->mapping), i);
 	    if (mapping->first_mapping_index < 0)
 		mapping->mode |= MODE_DELETED;
 	}
@@ -1929,7 +1929,7 @@ static inline void adjust_mapping_indices(BDRVVVFATState* s,
     int i;
 
     for (i = 0; i < s->mapping.next; i++) {
-	mapping_t* mapping = array_get(&(s->mapping), i);
+	a_mapping* mapping = array_get(&(s->mapping), i);
 
 #define ADJUST_MAPPING_INDEX(name) \
 	if (mapping->name >= offset) \
@@ -1942,7 +1942,7 @@ static inline void adjust_mapping_indices(BDRVVVFATState* s,
 }
 
 /* insert or update mapping */
-static mapping_t* insert_mapping(BDRVVVFATState* s,
+static a_mapping* insert_mapping(BDRVVVFATState* s,
 	uint32_t begin, uint32_t end)
 {
     /*
@@ -1953,8 +1953,8 @@ static mapping_t* insert_mapping(BDRVVVFATState* s,
      * - replace name
      */
     int index = find_mapping_for_cluster_aux(s, begin, 0, s->mapping.next);
-    mapping_t* mapping = NULL;
-    mapping_t* first_mapping = array_get(&(s->mapping), 0);
+    a_mapping* mapping = NULL;
+    a_mapping* first_mapping = array_get(&(s->mapping), 0);
 
     if (index < s->mapping.next && (mapping = array_get(&(s->mapping), index))
 	    && mapping->begin < begin) {
@@ -1971,12 +1971,12 @@ static mapping_t* insert_mapping(BDRVVVFATState* s,
     mapping->begin = begin;
     mapping->end = end;
 
-DLOG(mapping_t* next_mapping;
+DLOG(a_mapping* next_mapping;
 assert(index + 1 >= s->mapping.next ||
 ((next_mapping = array_get(&(s->mapping), index + 1)) &&
  next_mapping->begin >= end)));
 
-    if (s->current_mapping && first_mapping != (mapping_t*)s->mapping.pointer)
+    if (s->current_mapping && first_mapping != (a_mapping*)s->mapping.pointer)
 	s->current_mapping = array_get(&(s->mapping),
 		s->current_mapping - first_mapping);
 
@@ -1985,8 +1985,8 @@ assert(index + 1 >= s->mapping.next ||
 
 static int remove_mapping(BDRVVVFATState* s, int mapping_index)
 {
-    mapping_t* mapping = array_get(&(s->mapping), mapping_index);
-    mapping_t* first_mapping = array_get(&(s->mapping), 0);
+    a_mapping* mapping = array_get(&(s->mapping), mapping_index);
+    a_mapping* first_mapping = array_get(&(s->mapping), 0);
 
     /* free mapping */
     if (mapping->first_mapping_index < 0)
@@ -1998,7 +1998,7 @@ static int remove_mapping(BDRVVVFATState* s, int mapping_index)
     /* adjust all references to mappings */
     adjust_mapping_indices(s, mapping_index, -1);
 
-    if (s->current_mapping && first_mapping != (mapping_t*)s->mapping.pointer)
+    if (s->current_mapping && first_mapping != (a_mapping*)s->mapping.pointer)
 	s->current_mapping = array_get(&(s->mapping),
 		s->current_mapping - first_mapping);
 
@@ -2009,7 +2009,7 @@ static void adjust_dirindices(BDRVVVFATState* s, int offset, int adjust)
 {
     int i;
     for (i = 0; i < s->mapping.next; i++) {
-	mapping_t* mapping = array_get(&(s->mapping), i);
+	a_mapping* mapping = array_get(&(s->mapping), i);
 	if (mapping->dir_index >= offset)
 	    mapping->dir_index += adjust;
 	if ((mapping->mode & MODE_DIRECTORY) &&
@@ -2018,14 +2018,14 @@ static void adjust_dirindices(BDRVVVFATState* s, int offset, int adjust)
     }
 }
 
-static direntry_t* insert_direntries(BDRVVVFATState* s,
+static a_direntry* insert_direntries(BDRVVVFATState* s,
 	int dir_index, int count)
 {
     /*
      * make room in s->directory,
      * adjust_dirindices
      */
-    direntry_t* result = array_insert(&(s->directory), dir_index, count);
+    a_direntry* result = array_insert(&(s->directory), dir_index, count);
     if (result == NULL)
 	return NULL;
     adjust_dirindices(s, dir_index, count);
@@ -2050,8 +2050,8 @@ static int remove_direntries(BDRVVVFATState* s, int dir_index, int count)
 static int commit_mappings(BDRVVVFATState* s,
 	uint32_t first_cluster, int dir_index)
 {
-    mapping_t* mapping = find_mapping_for_cluster(s, first_cluster);
-    direntry_t* direntry = array_get(&(s->directory), dir_index);
+    a_mapping* mapping = find_mapping_for_cluster(s, first_cluster);
+    a_direntry* direntry = array_get(&(s->directory), dir_index);
     uint32_t cluster = first_cluster;
 
     vvfat_close_current_file(s);
@@ -2083,7 +2083,7 @@ static int commit_mappings(BDRVVVFATState* s,
 
 	if (!fat_eof(s, c1)) {
 	    int i = find_mapping_for_cluster_aux(s, c1, 0, s->mapping.next);
-	    mapping_t* next_mapping = i >= s->mapping.next ? NULL :
+	    a_mapping* next_mapping = i >= s->mapping.next ? NULL :
 		array_get(&(s->mapping), i);
 
 	    if (next_mapping == NULL || next_mapping->begin > c1) {
@@ -2127,9 +2127,9 @@ static int commit_mappings(BDRVVVFATState* s,
 static int commit_direntries(BDRVVVFATState* s,
 	int dir_index, int parent_mapping_index)
 {
-    direntry_t* direntry = array_get(&(s->directory), dir_index);
+    a_direntry* direntry = array_get(&(s->directory), dir_index);
     uint32_t first_cluster = dir_index == 0 ? 0 : begin_of_direntry(direntry);
-    mapping_t* mapping = find_mapping_for_cluster(s, first_cluster);
+    a_mapping* mapping = find_mapping_for_cluster(s, first_cluster);
 
     int factor = 0x10 * s->sectors_per_cluster;
     int old_cluster_count, new_cluster_count;
@@ -2207,10 +2207,10 @@ DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n", mapp
 static int commit_one_file(BDRVVVFATState* s,
 	int dir_index, uint32_t offset)
 {
-    direntry_t* direntry = array_get(&(s->directory), dir_index);
+    a_direntry* direntry = array_get(&(s->directory), dir_index);
     uint32_t c = begin_of_direntry(direntry);
     uint32_t first_cluster = c;
-    mapping_t* mapping = find_mapping_for_cluster(s, c);
+    a_mapping* mapping = find_mapping_for_cluster(s, c);
     uint32_t size = filesize_of_direntry(direntry);
     char* cluster = qemu_malloc(s->cluster_size);
     uint32_t i;
@@ -2268,14 +2268,14 @@ static void check1(BDRVVVFATState* s)
 {
     int i;
     for (i = 0; i < s->mapping.next; i++) {
-	mapping_t* mapping = array_get(&(s->mapping), i);
+	a_mapping* mapping = array_get(&(s->mapping), i);
 	if (mapping->mode & MODE_DELETED) {
 	    fprintf(stderr, "deleted\n");
 	    continue;
 	}
 	assert(mapping->dir_index >= 0);
 	assert(mapping->dir_index < s->directory.next);
-	direntry_t* direntry = array_get(&(s->directory), mapping->dir_index);
+	a_direntry* direntry = array_get(&(s->directory), mapping->dir_index);
 	assert(mapping->begin == begin_of_direntry(direntry) || mapping->first_mapping_index >= 0);
 	if (mapping->mode & MODE_DIRECTORY) {
 	    assert(mapping->info.dir.first_dir_index + 0x10 * s->sectors_per_cluster * (mapping->end - mapping->begin) <= s->directory.next);
@@ -2291,10 +2291,10 @@ static void check2(BDRVVVFATState* s)
     int first_mapping = -1;
 
     for (i = 0; i < s->directory.next; i++) {
-	direntry_t* direntry = array_get(&(s->directory), i);
+	a_direntry* direntry = array_get(&(s->directory), i);
 
 	if (is_short_name(direntry) && begin_of_direntry(direntry)) {
-	    mapping_t* mapping = find_mapping_for_cluster(s, begin_of_direntry(direntry));
+	    a_mapping* mapping = find_mapping_for_cluster(s, begin_of_direntry(direntry));
 	    assert(mapping);
 	    assert(mapping->dir_index == i || is_dot(direntry));
 	    assert(mapping->begin == begin_of_direntry(direntry) || is_dot(direntry));
@@ -2305,7 +2305,7 @@ static void check2(BDRVVVFATState* s)
 	    int j, count = 0;
 
 	    for (j = 0; j < s->mapping.next; j++) {
-		mapping_t* mapping = array_get(&(s->mapping), j);
+		a_mapping* mapping = array_get(&(s->mapping), j);
 		if (mapping->mode & MODE_DELETED)
 		    continue;
 		if (mapping->mode & MODE_DIRECTORY) {
@@ -2318,7 +2318,7 @@ static void check2(BDRVVVFATState* s)
 			if (mapping->info.dir.parent_mapping_index < 0)
 			    assert(j == 0);
 			else {
-			    mapping_t* parent = array_get(&(s->mapping), mapping->info.dir.parent_mapping_index);
+			    a_mapping* parent = array_get(&(s->mapping), mapping->info.dir.parent_mapping_index);
 			    assert(parent->mode & MODE_DIRECTORY);
 			    assert(parent->info.dir.first_dir_index < mapping->info.dir.first_dir_index);
 			}
@@ -2339,15 +2339,15 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 #ifdef DEBUG
     fprintf(stderr, "handle_renames\n");
     for (i = 0; i < s->commits.next; i++) {
-	commit_t* commit = array_get(&(s->commits), i);
+	a_commit* commit = array_get(&(s->commits), i);
 	fprintf(stderr, "%d, %s (%d, %d)\n", i, commit->path ? commit->path : "(null)", commit->param.rename.cluster, commit->action);
     }
 #endif
 
     for (i = 0; i < s->commits.next;) {
-	commit_t* commit = array_get(&(s->commits), i);
+	a_commit* commit = array_get(&(s->commits), i);
 	if (commit->action == ACTION_RENAME) {
-	    mapping_t* mapping = find_mapping_for_cluster(s,
+	    a_mapping* mapping = find_mapping_for_cluster(s,
 		    commit->param.rename.cluster);
 	    char* old_path = mapping->path;
 
@@ -2360,7 +2360,7 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 		int l1 = strlen(mapping->path);
 		int l2 = strlen(old_path);
 		int diff = l1 - l2;
-		direntry_t* direntry = array_get(&(s->directory),
+		a_direntry* direntry = array_get(&(s->directory),
 			mapping->info.dir.first_dir_index);
 		uint32_t c = mapping->begin;
 		int i = 0;
@@ -2368,10 +2368,10 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 		/* recurse */
 		while (!fat_eof(s, c)) {
 		    do {
-			direntry_t* d = direntry + i;
+			a_direntry* d = direntry + i;
 
 			if (is_file(d) || (is_directory(d) && !is_dot(d))) {
-			    mapping_t* m = find_mapping_for_cluster(s,
+			    a_mapping* m = find_mapping_for_cluster(s,
 				    begin_of_direntry(d));
 			    int l = strlen(m->path);
 			    char* new_path = qemu_malloc(l + diff + 1);
@@ -2394,7 +2394,7 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 	    array_remove(&(s->commits), i);
 	    continue;
 	} else if (commit->action == ACTION_MKDIR) {
-	    mapping_t* mapping;
+	    a_mapping* mapping;
 	    int j, parent_path_len;
 
 #ifdef __MINGW32__
@@ -2422,7 +2422,7 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 	    parent_path_len = strlen(commit->path)
 		- strlen(get_basename(commit->path)) - 1;
 	    for (j = 0; j < s->mapping.next; j++) {
-		mapping_t* m = array_get(&(s->mapping), j);
+		a_mapping* m = array_get(&(s->mapping), j);
 		if (m->first_mapping_index < 0 && m != mapping &&
 			!strncmp(m->path, mapping->path, parent_path_len) &&
 			strlen(m->path) == parent_path_len)
@@ -2450,17 +2450,17 @@ static int handle_commits(BDRVVVFATState* s)
     vvfat_close_current_file(s);
 
     for (i = 0; !fail && i < s->commits.next; i++) {
-	commit_t* commit = array_get(&(s->commits), i);
+	a_commit* commit = array_get(&(s->commits), i);
 	switch(commit->action) {
 	case ACTION_RENAME: case ACTION_MKDIR:
 	    assert(0);
 	    fail = -2;
 	    break;
 	case ACTION_WRITEOUT: {
-	    direntry_t* entry = array_get(&(s->directory),
+	    a_direntry* entry = array_get(&(s->directory),
 		    commit->param.writeout.dir_index);
 	    uint32_t begin = begin_of_direntry(entry);
-	    mapping_t* mapping = find_mapping_for_cluster(s, begin);
+	    a_mapping* mapping = find_mapping_for_cluster(s, begin);
 
 	    assert(mapping);
 	    assert(mapping->begin == begin);
@@ -2474,8 +2474,8 @@ static int handle_commits(BDRVVVFATState* s)
 	}
 	case ACTION_NEW_FILE: {
 	    int begin = commit->param.new_file.first_cluster;
-	    mapping_t* mapping = find_mapping_for_cluster(s, begin);
-	    direntry_t* entry;
+	    a_mapping* mapping = find_mapping_for_cluster(s, begin);
+	    a_direntry* entry;
 	    int i;
 
 	    /* find direntry */
@@ -2530,9 +2530,9 @@ static int handle_deletes(BDRVVVFATState* s)
 	deleted = 0;
 
 	for (i = 1; i < s->mapping.next; i++) {
-	    mapping_t* mapping = array_get(&(s->mapping), i);
+	    a_mapping* mapping = array_get(&(s->mapping), i);
 	    if (mapping->mode & MODE_DELETED) {
-		direntry_t* entry = array_get(&(s->directory),
+		a_direntry* entry = array_get(&(s->directory),
 			mapping->dir_index);
 
 		if (is_free(entry)) {
@@ -2550,7 +2550,7 @@ static int handle_deletes(BDRVVVFATState* s)
 			}
 
 			for (j = 1; j < s->mapping.next; j++) {
-			    mapping_t* m = array_get(&(s->mapping), j);
+			    a_mapping* m = array_get(&(s->mapping), j);
 			    if (m->mode & MODE_DIRECTORY &&
 				    m->info.dir.first_dir_index >
 				    first_dir_index &&
@@ -2666,7 +2666,7 @@ DLOG(checkpoint());
 
     for (i = sector2cluster(s, sector_num);
 	    i <= sector2cluster(s, sector_num + nb_sectors - 1);) {
-	mapping_t* mapping = find_mapping_for_cluster(s, i);
+	a_mapping* mapping = find_mapping_for_cluster(s, i);
 	if (mapping) {
 	    if (mapping->read_only) {
 		fprintf(stderr, "Tried to write to write-protected file %s\n",
@@ -2678,7 +2678,7 @@ DLOG(checkpoint());
 		int begin = cluster2sector(s, i);
 		int end = begin + s->sectors_per_cluster, k;
 		int dir_index;
-		const direntry_t* direntries;
+		const a_direntry* direntries;
 		long_file_name lfn;
 
 		lfn_init(&lfn);
@@ -2689,7 +2689,7 @@ DLOG(checkpoint());
 		    end = sector_num + nb_sectors;
 		dir_index  = mapping->dir_index +
 		    0x10 * (begin - mapping->begin * s->sectors_per_cluster);
-		direntries = (direntry_t*)(buf + 0x200 * (begin - sector_num));
+		direntries = (a_direntry*)(buf + 0x200 * (begin - sector_num));
 
 		for (k = 0; k < (end - begin) * 0x10; k++) {
 		    /* do not allow non-ASCII filenames */
@@ -2702,7 +2702,7 @@ DLOG(checkpoint());
 			    (direntries[k].attributes & 1)) {
 			if (memcmp(direntries + k,
 				    array_get(&(s->directory), dir_index + k),
-				    sizeof(direntry_t))) {
+				    sizeof(a_direntry))) {
 			    fprintf(stderr, "Warning: tried to write to write-protected file\n");
 			    return -1;
 			}
@@ -2774,7 +2774,7 @@ static int enable_write_target(BDRVVVFATState *s)
     int size = sector2cluster(s, s->sector_count);
     s->used_clusters = calloc(size, 1);
 
-    array_init(&(s->commits), sizeof(commit_t));
+    array_init(&(s->commits), sizeof(a_commit));
 
     s->qcow_filename = qemu_malloc(1024);
     get_tmp_filename(s->qcow_filename, 1024);
@@ -2833,15 +2833,15 @@ block_init(bdrv_vvfat_init);
 
 #ifdef DEBUG
 static void checkpoint(void) {
-    assert(((mapping_t*)array_get(&(vvv->mapping), 0))->end == 2);
+    assert(((a_mapping*)array_get(&(vvv->mapping), 0))->end == 2);
     check1(vvv);
     check2(vvv);
     assert(!vvv->current_mapping || vvv->current_fd || (vvv->current_mapping->mode & MODE_DIRECTORY));
 #if 0
-    if (((direntry_t*)vvv->directory.pointer)[1].attributes != 0xf)
+    if (((a_direntry*)vvv->directory.pointer)[1].attributes != 0xf)
 	fprintf(stderr, "Nonono!\n");
-    mapping_t* mapping;
-    direntry_t* direntry;
+    a_mapping* mapping;
+    a_direntry* direntry;
     assert(vvv->mapping.size >= vvv->mapping.item_size * vvv->mapping.next);
     assert(vvv->directory.size >= vvv->directory.item_size * vvv->directory.next);
     if (vvv->mapping.next<47)

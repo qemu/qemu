@@ -133,7 +133,7 @@ typedef struct ECCState {
     uint32_t version;
 } ECCState;
 
-static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void ecc_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     ECCState *s = opaque;
 
@@ -175,7 +175,7 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t ecc_mem_readl(void *opaque, a_target_phys_addr addr)
 {
     ECCState *s = opaque;
     uint32_t ret = 0;
@@ -233,7 +233,7 @@ static CPUWriteMemoryFunc * const ecc_mem_write[3] = {
     ecc_mem_writel,
 };
 
-static void ecc_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void ecc_diag_mem_writeb(void *opaque, a_target_phys_addr addr,
                                 uint32_t val)
 {
     ECCState *s = opaque;
@@ -242,7 +242,7 @@ static void ecc_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->diag[addr & ECC_DIAG_MASK] = val;
 }
 
-static uint32_t ecc_diag_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t ecc_diag_mem_readb(void *opaque, a_target_phys_addr addr)
 {
     ECCState *s = opaque;
     uint32_t ret = s->diag[(int)addr];

@@ -22,7 +22,7 @@ struct syminfo;
 struct elf32_sym;
 struct elf64_sym;
 
-typedef const char *(*lookup_symbol_t)(struct syminfo *s, target_phys_addr_t orig_addr);
+typedef const char *(*lookup_symbol_t)(struct syminfo *s, a_target_phys_addr orig_addr);
 
 struct syminfo {
     lookup_symbol_t lookup_symbol;

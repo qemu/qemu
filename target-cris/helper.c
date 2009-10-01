@@ -56,7 +56,7 @@ int cpu_cris_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 	return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
 	return addr;
 }
@@ -187,7 +187,7 @@ void do_interrupt(CPUState *env)
 		   env->pregs[PR_ERP]);
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
+a_target_phys_addr cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
 	uint32_t phy = addr;
 	struct cris_mmu_result res;

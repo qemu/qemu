@@ -25,4 +25,4 @@
 #include "etraxfs_dma.h"
 
 qemu_irq *cris_pic_init_cpu(CPUState *env);
-void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr);
+void *etraxfs_eth_init(NICInfo *nd, a_target_phys_addr base, int phyaddr);

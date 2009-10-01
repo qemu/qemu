@@ -10,7 +10,7 @@
 
 #include "gdbstub.h"
 
-typedef siginfo_t target_siginfo_t;
+typedef siginfo_t a_target_siginfo;
 #define target_sigaction	sigaction
 #ifdef TARGET_I386
 struct target_pt_regs {

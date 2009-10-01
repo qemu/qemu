@@ -52,15 +52,15 @@
  * - NVRAM (0xF0000000)
  * - FPGA  (0xF0300000)
  */
-typedef struct ref405ep_fpga_t ref405ep_fpga_t;
-struct ref405ep_fpga_t {
+typedef struct ref405ep_fpga a_ref405ep_fpga;
+struct ref405ep_fpga {
     uint8_t reg0;
     uint8_t reg1;
 };
 
-static uint32_t ref405ep_fpga_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t ref405ep_fpga_readb (void *opaque, a_target_phys_addr addr)
 {
-    ref405ep_fpga_t *fpga;
+    a_ref405ep_fpga *fpga;
     uint32_t ret;
 
     fpga = opaque;
@@ -80,9 +80,9 @@ static uint32_t ref405ep_fpga_readb (void *opaque, target_phys_addr_t addr)
 }
 
 static void ref405ep_fpga_writeb (void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+                                  a_target_phys_addr addr, uint32_t value)
 {
-    ref405ep_fpga_t *fpga;
+    a_ref405ep_fpga *fpga;
 
     fpga = opaque;
     switch (addr) {
@@ -97,7 +97,7 @@ static void ref405ep_fpga_writeb (void *opaque,
     }
 }
 
-static uint32_t ref405ep_fpga_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t ref405ep_fpga_readw (void *opaque, a_target_phys_addr addr)
 {
     uint32_t ret;
 
@@ -108,13 +108,13 @@ static uint32_t ref405ep_fpga_readw (void *opaque, target_phys_addr_t addr)
 }
 
 static void ref405ep_fpga_writew (void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+                                  a_target_phys_addr addr, uint32_t value)
 {
     ref405ep_fpga_writeb(opaque, addr, (value >> 8) & 0xFF);
     ref405ep_fpga_writeb(opaque, addr + 1, value & 0xFF);
 }
 
-static uint32_t ref405ep_fpga_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t ref405ep_fpga_readl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t ret;
 
@@ -127,7 +127,7 @@ static uint32_t ref405ep_fpga_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void ref405ep_fpga_writel (void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+                                  a_target_phys_addr addr, uint32_t value)
 {
     ref405ep_fpga_writeb(opaque, addr, (value >> 24) & 0xFF);
     ref405ep_fpga_writeb(opaque, addr + 1, (value >> 16) & 0xFF);
@@ -149,7 +149,7 @@ static CPUWriteMemoryFunc * const ref405ep_fpga_write[] = {
 
 static void ref405ep_fpga_reset (void *opaque)
 {
-    ref405ep_fpga_t *fpga;
+    a_ref405ep_fpga *fpga;
 
     fpga = opaque;
     fpga->reg0 = 0x00;
@@ -158,10 +158,10 @@ static void ref405ep_fpga_reset (void *opaque)
 
 static void ref405ep_fpga_init (uint32_t base)
 {
-    ref405ep_fpga_t *fpga;
+    a_ref405ep_fpga *fpga;
     int fpga_memory;
 
-    fpga = qemu_mallocz(sizeof(ref405ep_fpga_t));
+    fpga = qemu_mallocz(sizeof(a_ref405ep_fpga));
     fpga_memory = cpu_register_io_memory(ref405ep_fpga_read,
                                          ref405ep_fpga_write, fpga);
     cpu_register_physical_memory(base, 0x00000100, fpga_memory);
@@ -169,7 +169,7 @@ static void ref405ep_fpga_init (uint32_t base)
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
 }
 
-static void ref405ep_init (ram_addr_t ram_size,
+static void ref405ep_init (a_ram_addr ram_size,
                            const char *boot_device,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
@@ -177,11 +177,11 @@ static void ref405ep_init (ram_addr_t ram_size,
                            const char *cpu_model)
 {
     char *filename;
-    ppc4xx_bd_info_t bd;
+    a_ppc4xx_bd_info bd;
     CPUPPCState *env;
     qemu_irq *pic;
-    ram_addr_t sram_offset, bios_offset, bdloc;
-    target_phys_addr_t ram_bases[2], ram_sizes[2];
+    a_ram_addr sram_offset, bios_offset, bdloc;
+    a_target_phys_addr ram_bases[2], ram_sizes[2];
     target_ulong sram_size, bios_size;
     //int phy_addr = 0;
     //static int phy_addr = 1;
@@ -382,7 +382,7 @@ struct taihu_cpld_t {
     uint8_t reg1;
 };
 
-static uint32_t taihu_cpld_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t taihu_cpld_readb (void *opaque, a_target_phys_addr addr)
 {
     taihu_cpld_t *cpld;
     uint32_t ret;
@@ -404,7 +404,7 @@ static uint32_t taihu_cpld_readb (void *opaque, target_phys_addr_t addr)
 }
 
 static void taihu_cpld_writeb (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               a_target_phys_addr addr, uint32_t value)
 {
     taihu_cpld_t *cpld;
 
@@ -421,7 +421,7 @@ static void taihu_cpld_writeb (void *opaque,
     }
 }
 
-static uint32_t taihu_cpld_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t taihu_cpld_readw (void *opaque, a_target_phys_addr addr)
 {
     uint32_t ret;
 
@@ -432,13 +432,13 @@ static uint32_t taihu_cpld_readw (void *opaque, target_phys_addr_t addr)
 }
 
 static void taihu_cpld_writew (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               a_target_phys_addr addr, uint32_t value)
 {
     taihu_cpld_writeb(opaque, addr, (value >> 8) & 0xFF);
     taihu_cpld_writeb(opaque, addr + 1, value & 0xFF);
 }
 
-static uint32_t taihu_cpld_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t taihu_cpld_readl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t ret;
 
@@ -451,7 +451,7 @@ static uint32_t taihu_cpld_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void taihu_cpld_writel (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               a_target_phys_addr addr, uint32_t value)
 {
     taihu_cpld_writel(opaque, addr, (value >> 24) & 0xFF);
     taihu_cpld_writel(opaque, addr + 1, (value >> 16) & 0xFF);
@@ -493,7 +493,7 @@ static void taihu_cpld_init (uint32_t base)
     qemu_register_reset(&taihu_cpld_reset, cpld);
 }
 
-static void taihu_405ep_init(ram_addr_t ram_size,
+static void taihu_405ep_init(a_ram_addr ram_size,
                              const char *boot_device,
                              const char *kernel_filename,
                              const char *kernel_cmdline,
@@ -503,8 +503,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
     char *filename;
     CPUPPCState *env;
     qemu_irq *pic;
-    ram_addr_t bios_offset;
-    target_phys_addr_t ram_bases[2], ram_sizes[2];
+    a_ram_addr bios_offset;
+    a_target_phys_addr ram_bases[2], ram_sizes[2];
     target_ulong bios_size;
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;

@@ -16,7 +16,7 @@
 
 /* Board init.  */
 
-static void dummy_m68k_init(ram_addr_t ram_size,
+static void dummy_m68k_init(a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -24,7 +24,7 @@ static void dummy_m68k_init(ram_addr_t ram_size,
     CPUState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    a_target_phys_addr entry;
 
     if (!cpu_model)
         cpu_model = "cfv4e";

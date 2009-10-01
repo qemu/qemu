@@ -134,13 +134,13 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->rip = infop->entry;
 }
 
-typedef target_ulong    target_elf_greg_t;
-typedef uint32_t        target_uid_t;
-typedef uint32_t        target_gid_t;
-typedef int32_t         target_pid_t;
+typedef target_ulong    a_target_elf_greg;
+typedef uint32_t        a_target_uid;
+typedef uint32_t        a_target_gid;
+typedef int32_t         a_target_pid;
 
 #define ELF_NREG    27
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef a_target_elf_greg  a_target_elf_gregset[ELF_NREG];
 
 /*
  * Note that ELF_NREG should be 29 as there should be place for
@@ -149,7 +149,7 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(a_target_elf_gregset *regs, const CPUState *env)
 {
     (*regs)[0] = env->regs[15];
     (*regs)[1] = env->regs[14];
@@ -211,13 +211,13 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->edx = 0;
 }
 
-typedef target_ulong    target_elf_greg_t;
-typedef uint16_t        target_uid_t;
-typedef uint16_t        target_gid_t;
-typedef int32_t         target_pid_t;
+typedef target_ulong    a_target_elf_greg;
+typedef uint16_t        a_target_uid;
+typedef uint16_t        a_target_gid;
+typedef int32_t         a_target_pid;
 
 #define ELF_NREG    17
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef a_target_elf_greg  a_target_elf_gregset[ELF_NREG];
 
 /*
  * Note that ELF_NREG should be 19 as there should be place for
@@ -226,7 +226,7 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(a_target_elf_gregset *regs, const CPUState *env)
 {
     (*regs)[0] = env->regs[R_EBX];
     (*regs)[1] = env->regs[R_ECX];
@@ -286,15 +286,15 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->ARM_r10 = infop->start_data;
 }
 
-typedef uint32_t target_elf_greg_t;
-typedef uint16_t target_uid_t;
-typedef uint16_t target_gid_t;
-typedef int32_t  target_pid_t;
+typedef uint32_t a_target_elf_greg;
+typedef uint16_t a_target_uid;
+typedef uint16_t a_target_gid;
+typedef int32_t  a_target_pid;
 
 #define ELF_NREG    18
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef a_target_elf_greg  a_target_elf_gregset[ELF_NREG];
 
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(a_target_elf_gregset *regs, const CPUState *env)
 {
     (*regs)[0] = env->regs[0];
     (*regs)[1] = env->regs[1];
@@ -1768,21 +1768,21 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
  * Next you define type of register set used for dumping.  ELF specification
  * says that it needs to be array of elf_greg_t that has size of ELF_NREG.
  *
- * typedef <target_regtype> target_elf_greg_t;
+ * typedef <target_regtype> a_target_elf_greg;
  * #define ELF_NREG <number of registers>
- * typedef taret_elf_greg_t target_elf_gregset_t[ELF_NREG];
+ * typedef a_taret_elf_greg a_target_elf_gregset[ELF_NREG];
  *
  * Then define following types to match target types.  Actual types can
  * be found from linux kernel (arch/<ARCH>/include/asm/posix_types.h):
  *
- * typedef <target_uid_type> target_uid_t;
- * typedef <target_gid_type> target_gid_t;
- * typedef <target_pid_type> target_pid_t;
+ * typedef <target_uid_type> a_target_uid;
+ * typedef <target_gid_type> a_target_gid;
+ * typedef <target_pid_type> a_target_pid;
  *
  * Last step is to implement target specific function that copies registers
  * from given cpu into just specified register set.  Prototype is:
  *
- * static void elf_core_copy_regs(taret_elf_gregset_t *regs,
+ * static void elf_core_copy_regs(a_taret_elf_gregset *regs,
  *                                const CPUState *env);
  *
  * Parameters:
@@ -1814,15 +1814,15 @@ struct target_elf_prstatus {
     short              pr_cursig;    /* Current signal */
     target_ulong       pr_sigpend;   /* XXX */
     target_ulong       pr_sighold;   /* XXX */
-    target_pid_t       pr_pid;
-    target_pid_t       pr_ppid;
-    target_pid_t       pr_pgrp;
-    target_pid_t       pr_sid;
+    a_target_pid       pr_pid;
+    a_target_pid       pr_ppid;
+    a_target_pid       pr_pgrp;
+    a_target_pid       pr_sid;
     struct target_timeval pr_utime;  /* XXX User time */
     struct target_timeval pr_stime;  /* XXX System time */
     struct target_timeval pr_cutime; /* XXX Cumulative user time */
     struct target_timeval pr_cstime; /* XXX Cumulative system time */
-    target_elf_gregset_t      pr_reg;       /* GP registers */
+    a_target_elf_gregset      pr_reg;       /* GP registers */
     int                pr_fpvalid;   /* XXX */
 };
 
@@ -1834,9 +1834,9 @@ struct target_elf_prpsinfo {
     char         pr_zomb;        /* zombie */
     char         pr_nice;        /* nice val */
     target_ulong pr_flag;        /* flags */
-    target_uid_t pr_uid;
-    target_gid_t pr_gid;
-    target_pid_t pr_pid, pr_ppid, pr_pgrp, pr_sid;
+    a_target_uid pr_uid;
+    a_target_gid pr_gid;
+    a_target_pid pr_pid, pr_ppid, pr_pgrp, pr_sid;
     /* Lots missing */
     char    pr_fname[16];           /* filename of executable */
     char    pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */

@@ -48,10 +48,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 #define BINARY_DEVICE_TREE_FILE "petalogix-s3adsp1800.dtb"
-static int petalogix_load_device_tree(target_phys_addr_t addr,
+static int petalogix_load_device_tree(a_target_phys_addr addr,
                                       uint32_t ramsize,
-                                      target_phys_addr_t initrd_base,
-                                      target_phys_addr_t initrd_size,
+                                      a_target_phys_addr initrd_base,
+                                      a_target_phys_addr initrd_size,
                                       const char *kernel_cmdline)
 {
     char *path;
@@ -97,7 +97,7 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
 }
 
 static void
-petalogix_s3adsp1800_init(ram_addr_t ram_size,
+petalogix_s3adsp1800_init(a_ram_addr ram_size,
                           const char *boot_device,
                           const char *kernel_filename,
                           const char *kernel_cmdline,
@@ -108,10 +108,10 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     int kernel_size;
     DriveInfo *dinfo;
     int i;
-    target_phys_addr_t ddr_base = 0x90000000;
-    ram_addr_t phys_lmb_bram;
-    ram_addr_t phys_ram;
-    ram_addr_t phys_flash;
+    a_target_phys_addr ddr_base = 0x90000000;
+    a_ram_addr phys_lmb_bram;
+    a_ram_addr phys_ram;
+    a_ram_addr phys_flash;
     qemu_irq irq[32], *cpu_irq;
 
     /* init CPUs */

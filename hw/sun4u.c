@@ -102,9 +102,9 @@ static int fw_cfg_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
+static int sun4u_NVRAM_set_params (a_m48t59 *nvram, uint16_t NVRAM_size,
                                    const char *arch,
-                                   ram_addr_t RAM_size,
+                                   a_ram_addr RAM_size,
                                    const char *boot_devices,
                                    uint32_t kernel_image, uint32_t kernel_size,
                                    const char *cmdline,
@@ -156,7 +156,7 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
 }
 static unsigned long sun4u_load_kernel(const char *kernel_filename,
                                        const char *initrd_filename,
-                                       ram_addr_t RAM_size, long *initrd_size)
+                                       a_ram_addr RAM_size, long *initrd_size)
 {
     int linux_boot;
     unsigned int i;
@@ -410,7 +410,7 @@ static void pci_ebus_register(void)
 device_init(pci_ebus_register);
 
 /* Boot PROM (OpenBIOS) */
-static void prom_init(target_phys_addr_t addr, const char *bios_name)
+static void prom_init(a_target_phys_addr addr, const char *bios_name)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -446,7 +446,7 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
 
 static int prom_init1(SysBusDevice *dev)
 {
-    ram_addr_t prom_offset;
+    a_ram_addr prom_offset;
 
     prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     sysbus_init_mmio(dev, PROM_SIZE_MAX, prom_offset | IO_MEM_ROM);
@@ -479,7 +479,7 @@ typedef struct RamDevice
 /* System RAM */
 static int ram_init1(SysBusDevice *dev)
 {
-    ram_addr_t RAM_size, ram_offset;
+    a_ram_addr RAM_size, ram_offset;
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
 
     RAM_size = d->size;
@@ -489,7 +489,7 @@ static int ram_init1(SysBusDevice *dev)
     return 0;
 }
 
-static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size)
+static void ram_init(a_target_phys_addr addr, a_ram_addr RAM_size)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -560,14 +560,14 @@ static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
     return env;
 }
 
-static void sun4uv_init(ram_addr_t RAM_size,
+static void sun4uv_init(a_ram_addr RAM_size,
                         const char *boot_devices,
                         const char *kernel_filename, const char *kernel_cmdline,
                         const char *initrd_filename, const char *cpu_model,
                         const struct hwdef *hwdef)
 {
     CPUState *env;
-    m48t59_t *nvram;
+    a_m48t59 *nvram;
     unsigned int i;
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
@@ -704,7 +704,7 @@ static const struct hwdef hwdefs[] = {
 };
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(ram_addr_t RAM_size,
+static void sun4u_init(a_ram_addr RAM_size,
                        const char *boot_devices,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -714,7 +714,7 @@ static void sun4u_init(ram_addr_t RAM_size,
 }
 
 /* Sun4v hardware initialisation */
-static void sun4v_init(ram_addr_t RAM_size,
+static void sun4v_init(a_ram_addr RAM_size,
                        const char *boot_devices,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -724,7 +724,7 @@ static void sun4v_init(ram_addr_t RAM_size,
 }
 
 /* Niagara hardware initialisation */
-static void niagara_init(ram_addr_t RAM_size,
+static void niagara_init(a_ram_addr RAM_size,
                          const char *boot_devices,
                          const char *kernel_filename, const char *kernel_cmdline,
                          const char *initrd_filename, const char *cpu_model)

@@ -109,7 +109,7 @@ static void set_next_tick(rc4030State *s)
 }
 
 /* called for accesses to rc4030 */
-static uint32_t rc4030_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t rc4030_readl(void *opaque, a_target_phys_addr addr)
 {
     rc4030State *s = opaque;
     uint32_t val;
@@ -246,7 +246,7 @@ static uint32_t rc4030_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t rc4030_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t rc4030_readw(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v = rc4030_readl(opaque, addr & ~0x3);
     if (addr & 0x2)
@@ -255,13 +255,13 @@ static uint32_t rc4030_readw(void *opaque, target_phys_addr_t addr)
         return v & 0xffff;
 }
 
-static uint32_t rc4030_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t rc4030_readb(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v = rc4030_readl(opaque, addr & ~0x3);
     return (v >> (8 * (addr & 0x3))) & 0xff;
 }
 
-static void rc4030_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rc4030_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     rc4030State *s = opaque;
     addr &= 0x3fff;
@@ -304,7 +304,7 @@ static void rc4030_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     case 0x0060:
         /* HACK */
         if (s->cache_ltag == 0x80000001 && s->cache_bmask == 0xf0f0f0f) {
-            target_phys_addr_t dest = s->cache_ptag & ~0x1;
+            a_target_phys_addr dest = s->cache_ptag & ~0x1;
             dest += (s->cache_maint & 0x3) << 3;
             cpu_physical_memory_rw(dest, (uint8_t*)&val, 4, 1);
         }
@@ -386,7 +386,7 @@ static void rc4030_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void rc4030_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rc4030_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     uint32_t old_val = rc4030_readl(opaque, addr & ~0x3);
 
@@ -397,7 +397,7 @@ static void rc4030_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
     rc4030_writel(opaque, addr & ~0x3, val);
 }
 
-static void rc4030_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rc4030_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     uint32_t old_val = rc4030_readl(opaque, addr & ~0x3);
 
@@ -479,7 +479,7 @@ static void rc4030_periodic_timer(void *opaque)
     qemu_irq_raise(s->timer_irq);
 }
 
-static uint32_t jazzio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t jazzio_readw(void *opaque, a_target_phys_addr addr)
 {
     rc4030State *s = opaque;
     uint32_t val;
@@ -517,14 +517,14 @@ static uint32_t jazzio_readw(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t jazzio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t jazzio_readb(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
     v = jazzio_readw(opaque, addr & ~0x1);
     return (v >> (8 * (addr & 0x1))) & 0xff;
 }
 
-static uint32_t jazzio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t jazzio_readl(void *opaque, a_target_phys_addr addr)
 {
     uint32_t v;
     v = jazzio_readw(opaque, addr);
@@ -532,7 +532,7 @@ static uint32_t jazzio_readl(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-static void jazzio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void jazzio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     rc4030State *s = opaque;
     addr &= 0xfff;
@@ -551,7 +551,7 @@ static void jazzio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void jazzio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void jazzio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     uint32_t old_val = jazzio_readw(opaque, addr & ~0x1);
 
@@ -566,7 +566,7 @@ static void jazzio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     jazzio_writew(opaque, addr & ~0x1, val);
 }
 
-static void jazzio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void jazzio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     jazzio_writew(opaque, addr, val & 0xffff);
     jazzio_writew(opaque, addr + 2, (val >> 16) & 0xffff);
@@ -676,11 +676,11 @@ static void rc4030_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->itr);
 }
 
-void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write)
+void rc4030_dma_memory_rw(void *opaque, a_target_phys_addr addr, uint8_t *buf, int len, int is_write)
 {
     rc4030State *s = opaque;
-    target_phys_addr_t entry_addr;
-    target_phys_addr_t phys_addr;
+    a_target_phys_addr entry_addr;
+    a_target_phys_addr phys_addr;
     dma_pagetable_entry entry;
     int index;
     int ncpy, i;
@@ -717,7 +717,7 @@ void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, i
 static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_write)
 {
     rc4030State *s = opaque;
-    target_phys_addr_t dma_addr;
+    a_target_phys_addr dma_addr;
     int dev_to_mem;
 
     s->dma_regs[n][DMA_REG_ENABLE] &= ~(DMA_FLAG_TC_INTR | DMA_FLAG_MEM_INTR | DMA_FLAG_ADDR_INTR);

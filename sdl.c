@@ -235,7 +235,7 @@ static DisplaySurface* sdl_resize_displaysurface(DisplaySurface *surface, int wi
 
 #include "sdl_keysym.h"
 
-static kbd_layout_t *kbd_layout = NULL;
+static a_kbd_layout *kbd_layout = NULL;
 
 static uint8_t sdl_keyevent_to_keycode_generic(const SDL_KeyboardEvent *ev)
 {

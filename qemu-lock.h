@@ -28,29 +28,29 @@
 #include <pthread.h>
 #define spin_lock pthread_mutex_lock
 #define spin_unlock pthread_mutex_unlock
-#define spinlock_t pthread_mutex_t
+#define a_spinlock pthread_mutex_t
 #define SPIN_LOCK_UNLOCKED PTHREAD_MUTEX_INITIALIZER
 
 #else
 
 #if defined(__hppa__)
 
-typedef int spinlock_t[4];
+typedef int a_spinlock[4];
 
 #define SPIN_LOCK_UNLOCKED { 1, 1, 1, 1 }
 
-static inline void resetlock (spinlock_t *p)
+static inline void resetlock (a_spinlock *p)
 {
     (*p)[0] = (*p)[1] = (*p)[2] = (*p)[3] = 1;
 }
 
 #else
 
-typedef int spinlock_t;
+typedef int a_spinlock;
 
 #define SPIN_LOCK_UNLOCKED 0
 
-static inline void resetlock (spinlock_t *p)
+static inline void resetlock (a_spinlock *p)
 {
     *p = SPIN_LOCK_UNLOCKED;
 }
@@ -171,7 +171,7 @@ static inline void *ldcw_align (void *p) {
     return (void *)a;
 }
 
-static inline int testandset (spinlock_t *p)
+static inline int testandset (a_spinlock *p)
 {
     unsigned int ret;
     p = ldcw_align(p);
@@ -215,30 +215,30 @@ static inline int testandset (int *p)
 #endif
 
 #if defined(CONFIG_USER_ONLY)
-static inline void spin_lock(spinlock_t *lock)
+static inline void spin_lock(a_spinlock *lock)
 {
     while (testandset(lock));
 }
 
-static inline void spin_unlock(spinlock_t *lock)
+static inline void spin_unlock(a_spinlock *lock)
 {
     resetlock(lock);
 }
 
-static inline int spin_trylock(spinlock_t *lock)
+static inline int spin_trylock(a_spinlock *lock)
 {
     return !testandset(lock);
 }
 #else
-static inline void spin_lock(spinlock_t *lock)
+static inline void spin_lock(a_spinlock *lock)
 {
 }
 
-static inline void spin_unlock(spinlock_t *lock)
+static inline void spin_unlock(a_spinlock *lock)
 {
 }
 
-static inline int spin_trylock(spinlock_t *lock)
+static inline int spin_trylock(a_spinlock *lock)
 {
     return 1;
 }

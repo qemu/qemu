@@ -451,10 +451,10 @@ typedef struct SM501State {
     DisplayState *ds;
 
     /* status & internal resources */
-    target_phys_addr_t base;
+    a_target_phys_addr base;
     uint32_t local_mem_size_index;
     uint8_t * local_mem;
-    ram_addr_t local_mem_offset;
+    a_ram_addr local_mem_offset;
     uint32_t last_width;
     uint32_t last_height;
 
@@ -526,7 +526,7 @@ static uint32_t get_local_mem_size_index(uint32_t size)
     return index;
 }
 
-static uint32_t sm501_system_config_read(void *opaque, target_phys_addr_t addr)
+static uint32_t sm501_system_config_read(void *opaque, a_target_phys_addr addr)
 {
     SM501State * s = (SM501State *)opaque;
     uint32_t ret = 0;
@@ -579,7 +579,7 @@ static uint32_t sm501_system_config_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void sm501_system_config_write(void *opaque,
-				      target_phys_addr_t addr, uint32_t value)
+				      a_target_phys_addr addr, uint32_t value)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 system config regs : write addr=%x, val=%x\n",
@@ -638,7 +638,7 @@ static CPUWriteMemoryFunc * const sm501_system_config_writefn[] = {
     &sm501_system_config_write,
 };
 
-static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
+static uint32_t sm501_palette_read(void *opaque, a_target_phys_addr addr)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 palette read addr=%x\n", (int)addr);
@@ -651,7 +651,7 @@ static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void sm501_palette_write(void *opaque,
-				target_phys_addr_t addr, uint32_t value)
+				a_target_phys_addr addr, uint32_t value)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 palette write addr=%x, val=%x\n",
@@ -664,7 +664,7 @@ static void sm501_palette_write(void *opaque,
     *(uint32_t*)&s->dc_palette[addr] = value;
 }
 
-static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
+static uint32_t sm501_disp_ctrl_read(void *opaque, a_target_phys_addr addr)
 {
     SM501State * s = (SM501State *)opaque;
     uint32_t ret = 0;
@@ -759,7 +759,7 @@ static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void sm501_disp_ctrl_write(void *opaque,
-					   target_phys_addr_t addr,
+					   a_target_phys_addr addr,
 					   uint32_t value)
 {
     SM501State * s = (SM501State *)opaque;
@@ -972,7 +972,7 @@ static void sm501_draw_crt(SM501State * s)
     int y_start = -1;
     int page_min = 0x7fffffff;
     int page_max = -1;
-    ram_addr_t offset = s->local_mem_offset;
+    a_ram_addr offset = s->local_mem_offset;
 
     /* choose draw_line function */
     switch (s->dc_crt_control & 3) {
@@ -1006,9 +1006,9 @@ static void sm501_draw_crt(SM501State * s)
     /* draw each line according to conditions */
     for (y = 0; y < height; y++) {
 	int update = full_update;
-	ram_addr_t page0 = offset & TARGET_PAGE_MASK;
-	ram_addr_t page1 = (offset + width * src_bpp - 1) & TARGET_PAGE_MASK;
-	ram_addr_t page;
+	a_ram_addr page0 = offset & TARGET_PAGE_MASK;
+	a_ram_addr page1 = (offset + width * src_bpp - 1) & TARGET_PAGE_MASK;
+	a_ram_addr page;
 
 	/* check dirty flags for each line */
 	for (page = page0; page <= page1; page += TARGET_PAGE_SIZE)

@@ -41,7 +41,7 @@ typedef struct {
     int shift;
 } MMIOState;
 
-static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mmio_ide_read (void *opaque, a_target_phys_addr addr)
 {
     MMIOState *s = (MMIOState*)opaque;
     IDEBus *bus = s->bus;
@@ -52,7 +52,7 @@ static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
         return ide_data_readw(bus, 0);
 }
 
-static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
+static void mmio_ide_write (void *opaque, a_target_phys_addr addr,
 	uint32_t val)
 {
     MMIOState *s = (MMIOState*)opaque;
@@ -76,14 +76,14 @@ static CPUWriteMemoryFunc * const mmio_ide_writes[] = {
     mmio_ide_write,
 };
 
-static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mmio_ide_status_read (void *opaque, a_target_phys_addr addr)
 {
     MMIOState *s= (MMIOState*)opaque;
     IDEBus *bus = s->bus;
     return ide_status_read(bus, 0);
 }
 
-static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
+static void mmio_ide_cmd_write (void *opaque, a_target_phys_addr addr,
 	uint32_t val)
 {
     MMIOState *s = (MMIOState*)opaque;
@@ -122,7 +122,7 @@ static int mmio_ide_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
+void mmio_ide_init (a_target_phys_addr membase, a_target_phys_addr membase2,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1)
 {

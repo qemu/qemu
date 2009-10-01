@@ -26,7 +26,7 @@
 
 #include "qemu-common.h"
 
-typedef uint32_t pio_addr_t;
+typedef uint32_t a_pio_addr;
 #define FMT_pioaddr     PRIx32
 
 #define MAX_IOPORTS     (64 * 1024)
@@ -36,18 +36,18 @@ typedef uint32_t pio_addr_t;
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
 
-int register_ioport_read(pio_addr_t start, int length, int size,
+int register_ioport_read(a_pio_addr start, int length, int size,
                          IOPortReadFunc *func, void *opaque);
-int register_ioport_write(pio_addr_t start, int length, int size,
+int register_ioport_write(a_pio_addr start, int length, int size,
                           IOPortWriteFunc *func, void *opaque);
-void isa_unassign_ioport(pio_addr_t start, int length);
+void isa_unassign_ioport(a_pio_addr start, int length);
 
 
-void cpu_outb(pio_addr_t addr, uint8_t val);
-void cpu_outw(pio_addr_t addr, uint16_t val);
-void cpu_outl(pio_addr_t addr, uint32_t val);
-uint8_t cpu_inb(pio_addr_t addr);
-uint16_t cpu_inw(pio_addr_t addr);
-uint32_t cpu_inl(pio_addr_t addr);
+void cpu_outb(a_pio_addr addr, uint8_t val);
+void cpu_outw(a_pio_addr addr, uint16_t val);
+void cpu_outl(a_pio_addr addr, uint32_t val);
+uint8_t cpu_inb(a_pio_addr addr);
+uint16_t cpu_inw(a_pio_addr addr);
+uint32_t cpu_inl(a_pio_addr addr);
 
 #endif /* IOPORT_H */

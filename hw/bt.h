@@ -26,20 +26,20 @@
 /* BD Address */
 typedef struct {
     uint8_t b[6];
-} __attribute__((packed)) bdaddr_t;
+} __attribute__((packed)) a_bdaddr;
 
-#define BDADDR_ANY	(&(bdaddr_t) {{0, 0, 0, 0, 0, 0}})
-#define BDADDR_ALL	(&(bdaddr_t) {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}})
-#define BDADDR_LOCAL	(&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff}})
+#define BDADDR_ANY	(&(a_bdaddr) {{0, 0, 0, 0, 0, 0}})
+#define BDADDR_ALL	(&(a_bdaddr) {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}})
+#define BDADDR_LOCAL	(&(a_bdaddr) {{0, 0, 0, 0xff, 0xff, 0xff}})
 
 /* Copy, swap, convert BD Address */
-static inline int bacmp(const bdaddr_t *ba1, const bdaddr_t *ba2)
+static inline int bacmp(const a_bdaddr *ba1, const a_bdaddr *ba2)
 {
-    return memcmp(ba1, ba2, sizeof(bdaddr_t));
+    return memcmp(ba1, ba2, sizeof(a_bdaddr));
 }
-static inline void bacpy(bdaddr_t *dst, const bdaddr_t *src)
+static inline void bacpy(a_bdaddr *dst, const a_bdaddr *src)
 {
-    memcpy(dst, src, sizeof(bdaddr_t));
+    memcpy(dst, src, sizeof(a_bdaddr));
 }
 
 #define BAINIT(orig)	{ .b = {		\
@@ -71,7 +71,7 @@ struct bt_link_s {
 
 struct bt_device_s {
     int lt_addr;
-    bdaddr_t bd_addr;
+    a_bdaddr bd_addr;
     int mtu;
     int setup;
     struct bt_scatternet_s *net;
@@ -451,7 +451,7 @@ typedef struct {
 
 typedef struct {
     uint8_t		status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) status_bdaddr_rp;
 #define STATUS_BDADDR_RP_SIZE 7
 
@@ -471,7 +471,7 @@ typedef struct {
 
 #define OCF_CREATE_CONN			0x0005
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint16_t	pkt_type;
     uint8_t	pscan_rep_mode;
     uint8_t	pscan_mode;
@@ -497,33 +497,33 @@ typedef struct {
 #define OCF_CREATE_CONN_CANCEL		0x0008
 typedef struct {
     uint8_t	status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) create_conn_cancel_cp;
 #define CREATE_CONN_CANCEL_CP_SIZE 6
 
 typedef struct {
     uint8_t	status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) create_conn_cancel_rp;
 #define CREATE_CONN_CANCEL_RP_SIZE 7
 
 #define OCF_ACCEPT_CONN_REQ		0x0009
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	role;
 } __attribute__ ((packed)) accept_conn_req_cp;
 #define ACCEPT_CONN_REQ_CP_SIZE	7
 
 #define OCF_REJECT_CONN_REQ		0x000A
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	reason;
 } __attribute__ ((packed)) reject_conn_req_cp;
 #define REJECT_CONN_REQ_CP_SIZE	7
 
 #define OCF_LINK_KEY_REPLY		0x000B
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	link_key[16];
 } __attribute__ ((packed)) link_key_reply_cp;
 #define LINK_KEY_REPLY_CP_SIZE 22
@@ -532,7 +532,7 @@ typedef struct {
 
 #define OCF_PIN_CODE_REPLY		0x000D
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pin_len;
     uint8_t	pin_code[16];
 } __attribute__ ((packed)) pin_code_reply_cp;
@@ -574,7 +574,7 @@ typedef struct {
 
 #define OCF_REMOTE_NAME_REQ		0x0019
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pscan_rep_mode;
     uint8_t	pscan_mode;
     uint16_t	clock_offset;
@@ -583,13 +583,13 @@ typedef struct {
 
 #define OCF_REMOTE_NAME_REQ_CANCEL	0x001A
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) remote_name_req_cancel_cp;
 #define REMOTE_NAME_REQ_CANCEL_CP_SIZE 6
 
 typedef struct {
     uint8_t		status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) remote_name_req_cancel_rp;
 #define REMOTE_NAME_REQ_CANCEL_RP_SIZE 7
 
@@ -646,7 +646,7 @@ typedef struct {
 
 #define OCF_ACCEPT_SYNC_CONN_REQ	0x0029
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint32_t	tx_bandwith;
     uint32_t	rx_bandwith;
     uint16_t	max_latency;
@@ -658,7 +658,7 @@ typedef struct {
 
 #define OCF_REJECT_SYNC_CONN_REQ	0x002A
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	reason;
 } __attribute__ ((packed)) reject_sync_conn_req_cp;
 #define REJECT_SYNC_CONN_REQ_CP_SIZE 7
@@ -734,7 +734,7 @@ typedef struct {
 
 #define OCF_SWITCH_ROLE			0x000B
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	role;
 } __attribute__ ((packed)) switch_role_cp;
 #define SWITCH_ROLE_CP_SIZE 7
@@ -847,7 +847,7 @@ typedef struct {
 
 #define OCF_READ_STORED_LINK_KEY	0x000D
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	read_all;
 } __attribute__ ((packed)) read_stored_link_key_cp;
 #define READ_STORED_LINK_KEY_CP_SIZE 7
@@ -872,7 +872,7 @@ typedef struct {
 
 #define OCF_DELETE_STORED_LINK_KEY	0x0012
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	delete_all;
 } __attribute__ ((packed)) delete_stored_link_key_cp;
 #define DELETE_STORED_LINK_KEY_CP_SIZE 7
@@ -1238,7 +1238,7 @@ typedef struct {
 #define OCF_READ_BD_ADDR		0x0009
 typedef struct {
     uint8_t	status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) read_bd_addr_rp;
 #define READ_BD_ADDR_RP_SIZE 7
 
@@ -1317,7 +1317,7 @@ typedef struct {
 #define EVT_INQUIRY_RESULT		0x02
 typedef struct {
     uint8_t	num_responses;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pscan_rep_mode;
     uint8_t	pscan_period_mode;
     uint8_t	pscan_mode;
@@ -1330,7 +1330,7 @@ typedef struct {
 typedef struct {
     uint8_t	status;
     uint16_t	handle;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	link_type;
     uint8_t	encr_mode;
 } __attribute__ ((packed)) evt_conn_complete;
@@ -1338,7 +1338,7 @@ typedef struct {
 
 #define EVT_CONN_REQUEST		0x04
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	dev_class[3];
     uint8_t	link_type;
 } __attribute__ ((packed)) evt_conn_request;
@@ -1362,7 +1362,7 @@ typedef struct {
 #define EVT_REMOTE_NAME_REQ_COMPLETE	0x07
 typedef struct {
     uint8_t	status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     char	name[248];
 } __attribute__ ((packed)) evt_remote_name_req_complete;
 #define EVT_REMOTE_NAME_REQ_COMPLETE_SIZE 255
@@ -1447,7 +1447,7 @@ typedef struct {
 #define EVT_ROLE_CHANGE			0x12
 typedef struct {
     uint8_t	status;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	role;
 } __attribute__ ((packed)) evt_role_change;
 #define EVT_ROLE_CHANGE_SIZE 8
@@ -1480,19 +1480,19 @@ typedef struct {
 
 #define EVT_PIN_CODE_REQ		0x16
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) evt_pin_code_req;
 #define EVT_PIN_CODE_REQ_SIZE 6
 
 #define EVT_LINK_KEY_REQ		0x17
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
 } __attribute__ ((packed)) evt_link_key_req;
 #define EVT_LINK_KEY_REQ_SIZE 6
 
 #define EVT_LINK_KEY_NOTIFY		0x18
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	link_key[16];
     uint8_t	key_type;
 } __attribute__ ((packed)) evt_link_key_notify;
@@ -1537,7 +1537,7 @@ typedef struct {
 
 #define EVT_PSCAN_REP_MODE_CHANGE	0x20
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pscan_rep_mode;
 } __attribute__ ((packed)) evt_pscan_rep_mode_change;
 #define EVT_PSCAN_REP_MODE_CHANGE_SIZE 7
@@ -1555,7 +1555,7 @@ typedef struct {
 #define EVT_INQUIRY_RESULT_WITH_RSSI	0x22
 typedef struct {
     uint8_t	num_responses;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pscan_rep_mode;
     uint8_t	pscan_period_mode;
     uint8_t	dev_class[3];
@@ -1565,7 +1565,7 @@ typedef struct {
 #define INQUIRY_INFO_WITH_RSSI_SIZE 15
 typedef struct {
     uint8_t	num_responses;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pscan_rep_mode;
     uint8_t	pscan_period_mode;
     uint8_t	pscan_mode;
@@ -1589,7 +1589,7 @@ typedef struct {
 typedef struct {
     uint8_t	status;
     uint16_t	handle;
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	link_type;
     uint8_t	trans_interval;
     uint8_t	retrans_window;
@@ -1623,7 +1623,7 @@ typedef struct {
 
 #define EVT_EXTENDED_INQUIRY_RESULT	0x2F
 typedef struct {
-    bdaddr_t	bdaddr;
+    a_bdaddr	bdaddr;
     uint8_t	pscan_rep_mode;
     uint8_t	pscan_period_mode;
     uint8_t	dev_class[3];

@@ -47,12 +47,12 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(env);
 }
 
-static uint32_t rtc_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t rtc_readb(void *opaque, a_target_phys_addr addr)
 {
     return cpu_inw(0x71);
 }
 
-static void rtc_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rtc_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     cpu_outw(0x71, val & 0xff);
 }
@@ -69,7 +69,7 @@ static CPUWriteMemoryFunc * const rtc_write[3] = {
     rtc_writeb,
 };
 
-static void dma_dummy_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void dma_dummy_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     /* Nothing to do. That is only to ensure that
      * the current DMA acknowledge cycle is completed. */
@@ -113,7 +113,7 @@ static void audio_init(qemu_irq *pic)
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
 static
-void mips_jazz_init (ram_addr_t ram_size,
+void mips_jazz_init (a_ram_addr ram_size,
                      const char *cpu_model,
                      enum jazz_model_e jazz_model)
 {
@@ -128,8 +128,8 @@ void mips_jazz_init (ram_addr_t ram_size,
     PITState *pit;
     BlockDriverState *fds[MAX_FD];
     qemu_irq esp_reset;
-    ram_addr_t ram_offset;
-    ram_addr_t bios_offset;
+    a_ram_addr ram_offset;
+    a_ram_addr bios_offset;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -271,7 +271,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 }
 
 static
-void mips_magnum_init (ram_addr_t ram_size,
+void mips_magnum_init (a_ram_addr ram_size,
                        const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -280,7 +280,7 @@ void mips_magnum_init (ram_addr_t ram_size,
 }
 
 static
-void mips_pica61_init (ram_addr_t ram_size,
+void mips_pica61_init (a_ram_addr ram_size,
                        const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)

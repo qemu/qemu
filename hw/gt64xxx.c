@@ -27,7 +27,7 @@
 #include "pci.h"
 #include "pc.h"
 
-typedef target_phys_addr_t pci_addr_t;
+typedef a_target_phys_addr a_pci_addr;
 #include "pci_host.h"
 
 //#define DEBUG
@@ -229,8 +229,8 @@ typedef target_phys_addr_t pci_addr_t;
 typedef PCIHostState GT64120PCIState;
 
 #define PCI_MAPPING_ENTRY(regname)            \
-    target_phys_addr_t regname ##_start;      \
-    target_phys_addr_t regname ##_length;     \
+    a_target_phys_addr regname ##_start;      \
+    a_target_phys_addr regname ##_length;     \
     int regname ##_handle
 
 typedef struct GT64120State {
@@ -243,11 +243,11 @@ typedef struct GT64120State {
 /* Adjust range to avoid touching space which isn't mappable via PCI */
 /* XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
                                     0x1fc00000 - 0x1fd00000  */
-static void check_reserved_space (target_phys_addr_t *start,
-                                  target_phys_addr_t *length)
+static void check_reserved_space (a_target_phys_addr *start,
+                                  a_target_phys_addr *length)
 {
-    target_phys_addr_t begin = *start;
-    target_phys_addr_t end = *start + *length;
+    a_target_phys_addr begin = *start;
+    a_target_phys_addr end = *start + *length;
 
     if (end >= 0x1e000000LL && end < 0x1f100000LL)
         end = 0x1e000000LL;
@@ -269,8 +269,8 @@ static void check_reserved_space (target_phys_addr_t *start,
 
 static void gt64120_isd_mapping(GT64120State *s)
 {
-    target_phys_addr_t start = s->regs[GT_ISD] << 21;
-    target_phys_addr_t length = 0x1000;
+    a_target_phys_addr start = s->regs[GT_ISD] << 21;
+    a_target_phys_addr length = 0x1000;
 
     if (s->ISD_length)
         cpu_register_physical_memory(s->ISD_start, s->ISD_length,
@@ -303,7 +303,7 @@ static void gt64120_pci_mapping(GT64120State *s)
     }
 }
 
-static void gt64120_writel (void *opaque, target_phys_addr_t addr,
+static void gt64120_writel (void *opaque, a_target_phys_addr addr,
                             uint32_t val)
 {
     GT64120State *s = opaque;
@@ -583,7 +583,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
 }
 
 static uint32_t gt64120_readl (void *opaque,
-                               target_phys_addr_t addr)
+                               a_target_phys_addr addr)
 {
     GT64120State *s = opaque;
     uint32_t val;

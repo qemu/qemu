@@ -144,7 +144,7 @@ typedef struct {
     //~ int32_t  tx_buf_size0;  /* Length of Tx hdr. */
     //~ uint32_t tx_buf_addr1;  /* void *, data to be transmitted.  */
     //~ int32_t  tx_buf_size1;  /* Length of Tx data. */
-} eepro100_tx_t;
+} a_eepro100_tx;
 
 /* Receive frame descriptor. */
 typedef struct {
@@ -155,7 +155,7 @@ typedef struct {
     uint16_t count;
     uint16_t size;
     char packet[MAX_ETH_FRAME_SIZE + 4];
-} eepro100_rx_t;
+} a_eepro100_rx;
 
 typedef struct {
     uint32_t tx_good_frames, tx_max_collisions, tx_late_collisions,
@@ -167,7 +167,7 @@ typedef struct {
     uint32_t fc_xmt_pause, fc_rcv_pause, fc_rcv_unsupported;
     uint16_t xmt_tco_frames, rcv_tco_frames;
     uint32_t complete;
-} eepro100_stats_t;
+} a_eepro100_stats;
 
 typedef enum {
     cu_idle = 0,
@@ -175,14 +175,14 @@ typedef enum {
     cu_active = 2,
     cu_lpq_active = 2,
     cu_hqp_active = 3
-} cu_state_t;
+} a_cu_state;
 
 typedef enum {
     ru_idle = 0,
     ru_suspended = 1,
     ru_no_resources = 2,
     ru_ready = 4
-} ru_state_t;
+} a_ru_state;
 
 typedef struct {
     PCIDevice dev;
@@ -213,7 +213,7 @@ typedef struct {
     uint8_t macaddr[6];
     uint32_t statcounter[19];
     uint16_t mdimem[32];
-    eeprom_t *eeprom;
+    a_eeprom *eeprom;
     uint32_t device;            /* device variant */
     uint32_t pointer;
     /* (cu_base + cu_offset) address the next command block in the command block list. */
@@ -222,8 +222,8 @@ typedef struct {
     /* (ru_base + ru_offset) address the RFD in the Receive Frame Area. */
     uint32_t ru_base;           /* RU base address */
     uint32_t ru_offset;         /* RU address offset */
-    uint32_t statsaddr;         /* pointer to eepro100_stats_t */
-    eepro100_stats_t statistics;        /* statistical counters */
+    uint32_t statsaddr;         /* pointer to a_eepro100_stats */
+    a_eepro100_stats statistics;        /* statistical counters */
 #if 0
     uint16_t status;
 #endif
@@ -600,22 +600,22 @@ enum commands {
     CmdTxFlex = 0x0008,         /* Use "Flexible mode" for CmdTx command. */
 };
 
-static cu_state_t get_cu_state(EEPRO100State * s)
+static a_cu_state get_cu_state(EEPRO100State * s)
 {
     return ((s->mem[SCBStatus] >> 6) & 0x03);
 }
 
-static void set_cu_state(EEPRO100State * s, cu_state_t state)
+static void set_cu_state(EEPRO100State * s, a_cu_state state)
 {
     s->mem[SCBStatus] = (s->mem[SCBStatus] & 0x3f) + (state << 6);
 }
 
-static ru_state_t get_ru_state(EEPRO100State * s)
+static a_ru_state get_ru_state(EEPRO100State * s)
 {
     return ((s->mem[SCBStatus] >> 2) & 0x0f);
 }
 
-static void set_ru_state(EEPRO100State * s, ru_state_t state)
+static void set_ru_state(EEPRO100State * s, a_ru_state state)
 {
     s->mem[SCBStatus] = (s->mem[SCBStatus] & 0xc3) + (state << 2);
 }
@@ -639,7 +639,7 @@ static void dump_statistics(EEPRO100State * s)
 
 static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
 {
-    eepro100_tx_t tx;
+    a_eepro100_tx tx;
     uint32_t cb_address;
     switch (val) {
     case CU_NOP:
@@ -915,7 +915,7 @@ static uint16_t eepro100_read_eeprom(EEPRO100State * s)
     return val;
 }
 
-static void eepro100_write_eeprom(eeprom_t * eeprom, uint8_t val)
+static void eepro100_write_eeprom(a_eeprom * eeprom, uint8_t val)
 {
     TRACE(EEPROM, logout("val=0x%02x\n", val));
 
@@ -1099,7 +1099,7 @@ static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
 typedef struct {
     uint32_t st_sign;           /* Self Test Signature */
     uint32_t st_result;         /* Self Test Results */
-} eepro100_selftest_t;
+} a_eepro100_selftest;
 
 static uint32_t eepro100_read_port(EEPRO100State * s)
 {
@@ -1117,7 +1117,7 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
         break;
     case PORT_SELFTEST:
         TRACE(OTHER, logout("selftest address=0x%08x\n", address));
-        eepro100_selftest_t data;
+        a_eepro100_selftest data;
         cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
         data.st_sign = 0xffffffff;
         data.st_result = 0;
@@ -1398,42 +1398,42 @@ static void pci_map(PCIDevice * pci_dev, int region_num,
  *
  ****************************************************************************/
 
-static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pci_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
     //~ logout("addr=%s val=0x%02x\n", regname(addr), val);
     eepro100_write1(s, addr, val);
 }
 
-static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pci_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
     //~ logout("addr=%s val=0x%02x\n", regname(addr), val);
     eepro100_write2(s, addr, val);
 }
 
-static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pci_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
     //~ logout("addr=%s val=0x%02x\n", regname(addr), val);
     eepro100_write4(s, addr, val);
 }
 
-static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t pci_mmio_readb(void *opaque, a_target_phys_addr addr)
 {
     EEPRO100State *s = opaque;
     //~ logout("addr=%s\n", regname(addr));
     return eepro100_read1(s, addr);
 }
 
-static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t pci_mmio_readw(void *opaque, a_target_phys_addr addr)
 {
     EEPRO100State *s = opaque;
     //~ logout("addr=%s\n", regname(addr));
     return eepro100_read2(s, addr);
 }
 
-static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t pci_mmio_readl(void *opaque, a_target_phys_addr addr)
 {
     EEPRO100State *s = opaque;
     //~ logout("addr=%s\n", regname(addr));
@@ -1541,9 +1541,9 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     }
     //~ !!!
 //~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
-    eepro100_rx_t rx;
+    a_eepro100_rx rx;
     cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *) & rx,
-                             offsetof(eepro100_rx_t, packet));
+                             offsetof(a_eepro100_rx, packet));
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
     assert(size <= rfd_size);
@@ -1552,9 +1552,9 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     }
     TRACE(OTHER, logout("command 0x%04x, link 0x%08x, addr 0x%08x, size %u\n",
           rfd_command, rx.link, rx.rx_buf_addr, rfd_size));
-    stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, status),
+    stw_phys(s->ru_base + s->ru_offset + offsetof(a_eepro100_rx, status),
              rfd_status);
-    stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, count), size);
+    stw_phys(s->ru_base + s->ru_offset + offsetof(a_eepro100_rx, count), size);
     /* Early receive interrupt not supported. */
     //~ eepro100_er_interrupt(s);
     /* Receive CRC Transfer not supported. */
@@ -1562,7 +1562,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     /* TODO: check stripping enable bit. */
     //~ assert(!(s->configuration[17] & 1));
     cpu_physical_memory_write(s->ru_base + s->ru_offset +
-                              offsetof(eepro100_rx_t, packet), buf, size);
+                              offsetof(a_eepro100_rx, packet), buf, size);
     s->statistics.rx_good_frames++;
     eepro100_fr_interrupt(s);
     s->ru_offset = le32_to_cpu(rx.link);

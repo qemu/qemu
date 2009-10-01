@@ -484,7 +484,7 @@ static void lsi_resume_script(LSIState *s)
 static void lsi_do_dma(LSIState *s, int out)
 {
     uint32_t count;
-    target_phys_addr_t addr;
+    a_target_phys_addr addr;
 
     if (!s->current_dma_len) {
         /* Wait until data is available.  */
@@ -1723,14 +1723,14 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 #undef CASE_SET_REG32
 }
 
-static void lsi_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void lsi_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LSIState *s = opaque;
 
     lsi_reg_writeb(s, addr & 0xff, val);
 }
 
-static void lsi_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void lsi_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LSIState *s = opaque;
 
@@ -1739,7 +1739,7 @@ static void lsi_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
     lsi_reg_writeb(s, addr + 1, (val >> 8) & 0xff);
 }
 
-static void lsi_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void lsi_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LSIState *s = opaque;
 
@@ -1750,14 +1750,14 @@ static void lsi_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     lsi_reg_writeb(s, addr + 3, (val >> 24) & 0xff);
 }
 
-static uint32_t lsi_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t lsi_mmio_readb(void *opaque, a_target_phys_addr addr)
 {
     LSIState *s = opaque;
 
     return lsi_reg_readb(s, addr & 0xff);
 }
 
-static uint32_t lsi_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t lsi_mmio_readw(void *opaque, a_target_phys_addr addr)
 {
     LSIState *s = opaque;
     uint32_t val;
@@ -1768,7 +1768,7 @@ static uint32_t lsi_mmio_readw(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t lsi_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t lsi_mmio_readl(void *opaque, a_target_phys_addr addr)
 {
     LSIState *s = opaque;
     uint32_t val;
@@ -1792,7 +1792,7 @@ static CPUWriteMemoryFunc * const lsi_mmio_writefn[3] = {
     lsi_mmio_writel,
 };
 
-static void lsi_ram_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void lsi_ram_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LSIState *s = opaque;
     uint32_t newval;
@@ -1806,7 +1806,7 @@ static void lsi_ram_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     s->script_ram[addr >> 2] = newval;
 }
 
-static void lsi_ram_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void lsi_ram_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LSIState *s = opaque;
     uint32_t newval;
@@ -1822,7 +1822,7 @@ static void lsi_ram_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 }
 
 
-static void lsi_ram_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void lsi_ram_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 {
     LSIState *s = opaque;
 
@@ -1830,7 +1830,7 @@ static void lsi_ram_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     s->script_ram[addr >> 2] = val;
 }
 
-static uint32_t lsi_ram_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t lsi_ram_readb(void *opaque, a_target_phys_addr addr)
 {
     LSIState *s = opaque;
     uint32_t val;
@@ -1841,7 +1841,7 @@ static uint32_t lsi_ram_readb(void *opaque, target_phys_addr_t addr)
     return val & 0xff;
 }
 
-static uint32_t lsi_ram_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t lsi_ram_readw(void *opaque, a_target_phys_addr addr)
 {
     LSIState *s = opaque;
     uint32_t val;
@@ -1853,7 +1853,7 @@ static uint32_t lsi_ram_readw(void *opaque, target_phys_addr_t addr)
     return le16_to_cpu(val);
 }
 
-static uint32_t lsi_ram_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t lsi_ram_readl(void *opaque, a_target_phys_addr addr)
 {
     LSIState *s = opaque;
 

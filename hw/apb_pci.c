@@ -39,7 +39,7 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #define APB_DPRINTF(fmt, ...)
 #endif
 
-typedef target_phys_addr_t pci_addr_t;
+typedef a_target_phys_addr a_pci_addr;
 #include "pci_host.h"
 
 typedef struct APBState {
@@ -47,7 +47,7 @@ typedef struct APBState {
     PCIHostState host_state;
 } APBState;
 
-static void pci_apb_config_writel (void *opaque, target_phys_addr_t addr,
+static void pci_apb_config_writel (void *opaque, a_target_phys_addr addr,
                                          uint32_t val)
 {
     APBState *s = opaque;
@@ -61,7 +61,7 @@ static void pci_apb_config_writel (void *opaque, target_phys_addr_t addr,
 }
 
 static uint32_t pci_apb_config_readl (void *opaque,
-                                            target_phys_addr_t addr)
+                                            a_target_phys_addr addr)
 {
     APBState *s = opaque;
     uint32_t val;
@@ -87,7 +87,7 @@ static CPUReadMemoryFunc * const pci_apb_config_read[] = {
     &pci_apb_config_readl,
 };
 
-static void apb_config_writel (void *opaque, target_phys_addr_t addr,
+static void apb_config_writel (void *opaque, a_target_phys_addr addr,
                                uint32_t val)
 {
     //PCIBus *s = opaque;
@@ -105,7 +105,7 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
 }
 
 static uint32_t apb_config_readl (void *opaque,
-                                  target_phys_addr_t addr)
+                                  a_target_phys_addr addr)
 {
     //PCIBus *s = opaque;
     uint32_t val;
@@ -148,25 +148,25 @@ static CPUReadMemoryFunc * const pci_apb_read[] = {
     &pci_host_data_readl,
 };
 
-static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
+static void pci_apb_iowriteb (void *opaque, a_target_phys_addr addr,
                                   uint32_t val)
 {
     cpu_outb(addr & IOPORTS_MASK, val);
 }
 
-static void pci_apb_iowritew (void *opaque, target_phys_addr_t addr,
+static void pci_apb_iowritew (void *opaque, a_target_phys_addr addr,
                                   uint32_t val)
 {
     cpu_outw(addr & IOPORTS_MASK, val);
 }
 
-static void pci_apb_iowritel (void *opaque, target_phys_addr_t addr,
+static void pci_apb_iowritel (void *opaque, a_target_phys_addr addr,
                                 uint32_t val)
 {
     cpu_outl(addr & IOPORTS_MASK, val);
 }
 
-static uint32_t pci_apb_ioreadb (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_apb_ioreadb (void *opaque, a_target_phys_addr addr)
 {
     uint32_t val;
 
@@ -174,7 +174,7 @@ static uint32_t pci_apb_ioreadb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_apb_ioreadw (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_apb_ioreadw (void *opaque, a_target_phys_addr addr)
 {
     uint32_t val;
 
@@ -182,7 +182,7 @@ static uint32_t pci_apb_ioreadw (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_apb_ioreadl (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_apb_ioreadl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t val;
 
@@ -226,8 +226,8 @@ static void pci_apb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-PCIBus *pci_apb_init(target_phys_addr_t special_base,
-                     target_phys_addr_t mem_base,
+PCIBus *pci_apb_init(a_target_phys_addr special_base,
+                     a_target_phys_addr mem_base,
                      qemu_irq *pic, PCIBus **bus2, PCIBus **bus3)
 {
     DeviceState *dev;

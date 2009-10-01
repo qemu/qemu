@@ -245,7 +245,7 @@ static void smc91c111_reset(smc91c111_state *s)
 #define SET_LOW(name, val) s->name = (s->name & 0xff00) | val
 #define SET_HIGH(name, val) s->name = (s->name & 0xff) | (val << 8)
 
-static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
+static void smc91c111_writeb(void *opaque, a_target_phys_addr offset,
                              uint32_t value)
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
@@ -417,7 +417,7 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
     hw_error("smc91c111_write: Bad reg %d:%x\n", s->bank, (int)offset);
 }
 
-static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t smc91c111_readb(void *opaque, a_target_phys_addr offset)
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
 
@@ -558,14 +558,14 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void smc91c111_writew(void *opaque, target_phys_addr_t offset,
+static void smc91c111_writew(void *opaque, a_target_phys_addr offset,
                              uint32_t value)
 {
     smc91c111_writeb(opaque, offset, value & 0xff);
     smc91c111_writeb(opaque, offset + 1, value >> 8);
 }
 
-static void smc91c111_writel(void *opaque, target_phys_addr_t offset,
+static void smc91c111_writel(void *opaque, a_target_phys_addr offset,
                              uint32_t value)
 {
     /* 32-bit writes to offset 0xc only actually write to the bank select
@@ -575,7 +575,7 @@ static void smc91c111_writel(void *opaque, target_phys_addr_t offset,
     smc91c111_writew(opaque, offset + 2, value >> 16);
 }
 
-static uint32_t smc91c111_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t smc91c111_readw(void *opaque, a_target_phys_addr offset)
 {
     uint32_t val;
     val = smc91c111_readb(opaque, offset);
@@ -583,7 +583,7 @@ static uint32_t smc91c111_readw(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static uint32_t smc91c111_readl(void *opaque, target_phys_addr_t offset)
+static uint32_t smc91c111_readl(void *opaque, a_target_phys_addr offset)
 {
     uint32_t val;
     val = smc91c111_readw(opaque, offset);

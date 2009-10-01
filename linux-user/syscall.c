@@ -4255,10 +4255,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             info.si_pid = 0;
             ret = get_errno(waitid(arg1, arg2, &info, arg4));
             if (!is_error(ret) && arg3 && info.si_pid != 0) {
-                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(a_target_siginfo), 0)))
                     goto efault;
                 host_to_target_siginfo(p, &info);
-                unlock_user(p, arg3, sizeof(target_siginfo_t));
+                unlock_user(p, arg3, sizeof(a_target_siginfo));
             }
         }
         break;
@@ -4888,7 +4888,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     ret = -TARGET_EINVAL;
                     goto fail;
                 }
-                if (!(p = lock_user(VERIFY_READ, arg2, sizeof(target_sigset_t), 1)))
+                if (!(p = lock_user(VERIFY_READ, arg2, sizeof(a_target_sigset), 1)))
                     goto efault;
                 target_to_host_old_sigset(&set, p);
                 unlock_user(p, arg2, 0);
@@ -4899,10 +4899,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             ret = get_errno(sigprocmask(arg1, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
-                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(a_target_sigset), 0)))
                     goto efault;
                 host_to_target_old_sigset(p, &oldset);
-                unlock_user(p, arg3, sizeof(target_sigset_t));
+                unlock_user(p, arg3, sizeof(a_target_sigset));
             }
         }
         break;
@@ -4927,7 +4927,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     ret = -TARGET_EINVAL;
                     goto fail;
                 }
-                if (!(p = lock_user(VERIFY_READ, arg2, sizeof(target_sigset_t), 1)))
+                if (!(p = lock_user(VERIFY_READ, arg2, sizeof(a_target_sigset), 1)))
                     goto efault;
                 target_to_host_sigset(&set, p);
                 unlock_user(p, arg2, 0);
@@ -4938,10 +4938,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             ret = get_errno(sigprocmask(how, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
-                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(a_target_sigset), 0)))
                     goto efault;
                 host_to_target_sigset(p, &oldset);
-                unlock_user(p, arg3, sizeof(target_sigset_t));
+                unlock_user(p, arg3, sizeof(a_target_sigset));
             }
         }
         break;
@@ -4951,10 +4951,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             sigset_t set;
             ret = get_errno(sigpending(&set));
             if (!is_error(ret)) {
-                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(a_target_sigset), 0)))
                     goto efault;
                 host_to_target_old_sigset(p, &set);
-                unlock_user(p, arg1, sizeof(target_sigset_t));
+                unlock_user(p, arg1, sizeof(a_target_sigset));
             }
         }
         break;
@@ -4964,10 +4964,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             sigset_t set;
             ret = get_errno(sigpending(&set));
             if (!is_error(ret)) {
-                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(a_target_sigset), 0)))
                     goto efault;
                 host_to_target_sigset(p, &set);
-                unlock_user(p, arg1, sizeof(target_sigset_t));
+                unlock_user(p, arg1, sizeof(a_target_sigset));
             }
         }
         break;
@@ -4975,7 +4975,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_sigsuspend:
         {
             sigset_t set;
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
+            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(a_target_sigset), 1)))
                 goto efault;
             target_to_host_old_sigset(&set, p);
             unlock_user(p, arg1, 0);
@@ -4986,7 +4986,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_rt_sigsuspend:
         {
             sigset_t set;
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
+            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(a_target_sigset), 1)))
                 goto efault;
             target_to_host_sigset(&set, p);
             unlock_user(p, arg1, 0);
@@ -4999,7 +4999,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct timespec uts, *puts;
             siginfo_t uinfo;
 
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
+            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(a_target_sigset), 1)))
                 goto efault;
             target_to_host_sigset(&set, p);
             unlock_user(p, arg1, 0);
@@ -5011,17 +5011,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             ret = get_errno(sigtimedwait(&set, &uinfo, puts));
             if (!is_error(ret) && arg2) {
-                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(a_target_siginfo), 0)))
                     goto efault;
                 host_to_target_siginfo(p, &uinfo);
-                unlock_user(p, arg2, sizeof(target_siginfo_t));
+                unlock_user(p, arg2, sizeof(a_target_siginfo));
             }
         }
         break;
     case TARGET_NR_rt_sigqueueinfo:
         {
             siginfo_t uinfo;
-            if (!(p = lock_user(VERIFY_READ, arg3, sizeof(target_sigset_t), 1)))
+            if (!(p = lock_user(VERIFY_READ, arg3, sizeof(a_target_sigset), 1)))
                 goto efault;
             target_to_host_siginfo(&uinfo, p);
             unlock_user(p, arg1, 0);

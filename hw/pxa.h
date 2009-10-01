@@ -63,15 +63,15 @@
 # define PXA2XX_INTERNAL_SIZE	0x40000
 
 /* pxa2xx_pic.c */
-qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
+qemu_irq *pxa2xx_pic_init(a_target_phys_addr base, CPUState *env);
 
 /* pxa2xx_timer.c */
-void pxa25x_timer_init(target_phys_addr_t base, qemu_irq *irqs);
-void pxa27x_timer_init(target_phys_addr_t base, qemu_irq *irqs, qemu_irq irq4);
+void pxa25x_timer_init(a_target_phys_addr base, qemu_irq *irqs);
+void pxa27x_timer_init(a_target_phys_addr base, qemu_irq *irqs, qemu_irq irq4);
 
 /* pxa2xx_gpio.c */
 typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
-PXA2xxGPIOInfo *pxa2xx_gpio_init(target_phys_addr_t base,
+PXA2xxGPIOInfo *pxa2xx_gpio_init(a_target_phys_addr base,
                 CPUState *env, qemu_irq *pic, int lines);
 qemu_irq *pxa2xx_gpio_in_get(PXA2xxGPIOInfo *s);
 void pxa2xx_gpio_out_set(PXA2xxGPIOInfo *s,
@@ -80,29 +80,29 @@ void pxa2xx_gpio_read_notifier(PXA2xxGPIOInfo *s, qemu_irq handler);
 
 /* pxa2xx_dma.c */
 typedef struct PXA2xxDMAState PXA2xxDMAState;
-PXA2xxDMAState *pxa255_dma_init(target_phys_addr_t base,
+PXA2xxDMAState *pxa255_dma_init(a_target_phys_addr base,
                 qemu_irq irq);
-PXA2xxDMAState *pxa27x_dma_init(target_phys_addr_t base,
+PXA2xxDMAState *pxa27x_dma_init(a_target_phys_addr base,
                 qemu_irq irq);
 void pxa2xx_dma_request(PXA2xxDMAState *s, int req_num, int on);
 
 /* pxa2xx_lcd.c */
 typedef struct PXA2xxLCDState PXA2xxLCDState;
-PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base,
+PXA2xxLCDState *pxa2xx_lcdc_init(a_target_phys_addr base,
                 qemu_irq irq);
 void pxa2xx_lcd_vsync_notifier(PXA2xxLCDState *s, qemu_irq handler);
 void pxa2xx_lcdc_oritentation(void *opaque, int angle);
 
 /* pxa2xx_mmci.c */
 typedef struct PXA2xxMMCIState PXA2xxMMCIState;
-PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
+PXA2xxMMCIState *pxa2xx_mmci_init(a_target_phys_addr base,
                 BlockDriverState *bd, qemu_irq irq, void *dma);
 void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
                 qemu_irq coverswitch);
 
 /* pxa2xx_pcmcia.c */
 typedef struct PXA2xxPCMCIAState PXA2xxPCMCIAState;
-PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base);
+PXA2xxPCMCIAState *pxa2xx_pcmcia_init(a_target_phys_addr base);
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card);
 int pxa2xx_pcmcia_dettach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
@@ -113,14 +113,14 @@ struct  keymap {
     int row;
 };
 typedef struct PXA2xxKeyPadState PXA2xxKeyPadState;
-PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
+PXA2xxKeyPadState *pxa27x_keypad_init(a_target_phys_addr base,
                 qemu_irq irq);
 void pxa27x_register_keypad(PXA2xxKeyPadState *kp, struct keymap *map,
                 int size);
 
 /* pxa2xx.c */
 typedef struct PXA2xxI2CState PXA2xxI2CState;
-PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
+PXA2xxI2CState *pxa2xx_i2c_init(a_target_phys_addr base,
                 qemu_irq irq, uint32_t page_size);
 i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
 
@@ -143,23 +143,23 @@ typedef struct {
     PXA2xxKeyPadState *kp;
 
     /* Power management */
-    target_phys_addr_t pm_base;
+    a_target_phys_addr pm_base;
     uint32_t pm_regs[0x40];
 
     /* Clock management */
-    target_phys_addr_t cm_base;
+    a_target_phys_addr cm_base;
     uint32_t cm_regs[4];
     uint32_t clkcfg;
 
     /* Memory management */
-    target_phys_addr_t mm_base;
+    a_target_phys_addr mm_base;
     uint32_t mm_regs[0x1a];
 
     /* Performance monitoring */
     uint32_t pmnc;
 
     /* Real-Time clock */
-    target_phys_addr_t rtc_base;
+    a_target_phys_addr rtc_base;
     uint32_t rttr;
     uint32_t rtsr;
     uint32_t rtar;
@@ -214,7 +214,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision);
 PXA2xxState *pxa255_init(unsigned int sdram_size);
 
 /* usb-ohci.c */
-void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
+void usb_ohci_init_pxa(a_target_phys_addr base, int num_ports, int devfn,
                        qemu_irq irq);
 
 #endif	/* PXA_H */

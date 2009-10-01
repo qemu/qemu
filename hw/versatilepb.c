@@ -61,7 +61,7 @@ static void vpb_sic_set_irq(void *opaque, int irq, int level)
     vpb_sic_update(s);
 }
 
-static uint32_t vpb_sic_read(void *opaque, target_phys_addr_t offset)
+static uint32_t vpb_sic_read(void *opaque, a_target_phys_addr offset)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
 
@@ -82,7 +82,7 @@ static uint32_t vpb_sic_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void vpb_sic_write(void *opaque, target_phys_addr_t offset,
+static void vpb_sic_write(void *opaque, a_target_phys_addr offset,
                           uint32_t value)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
@@ -155,14 +155,14 @@ static int vpb_sic_init(SysBusDevice *dev)
 
 static struct arm_boot_info versatile_binfo;
 
-static void versatile_init(ram_addr_t ram_size,
+static void versatile_init(a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model,
                      int board_id)
 {
     CPUState *env;
-    ram_addr_t ram_offset;
+    a_ram_addr ram_offset;
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     qemu_irq sic[32];
@@ -288,7 +288,7 @@ static void versatile_init(ram_addr_t ram_size,
     arm_load_kernel(env, &versatile_binfo);
 }
 
-static void vpb_init(ram_addr_t ram_size,
+static void vpb_init(a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -299,7 +299,7 @@ static void vpb_init(ram_addr_t ram_size,
                    initrd_filename, cpu_model, 0x183);
 }
 
-static void vab_init(ram_addr_t ram_size,
+static void vab_init(a_ram_addr ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)

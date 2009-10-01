@@ -45,7 +45,7 @@ static struct _loaderparams {
     const char *initrd_filename;
 } loaderparams;
 
-static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
+static void mips_qemu_writel (void *opaque, a_target_phys_addr addr,
 			      uint32_t val)
 {
     if ((addr & 0xffff) == 0 && val == 42)
@@ -54,7 +54,7 @@ static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
         qemu_system_shutdown_request ();
 }
 
-static uint32_t mips_qemu_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t mips_qemu_readl (void *opaque, a_target_phys_addr addr)
 {
     return 0;
 }
@@ -77,7 +77,7 @@ static void load_kernel (CPUState *env)
 {
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
-    ram_addr_t initrd_offset;
+    a_ram_addr initrd_offset;
     int ret;
     int big_endian;
 
@@ -151,14 +151,14 @@ static void main_cpu_reset(void *opaque)
 
 static const int sector_len = 32 * 1024;
 static
-void mips_r4k_init (ram_addr_t ram_size,
+void mips_r4k_init (a_ram_addr ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    ram_addr_t ram_offset;
-    ram_addr_t bios_offset;
+    a_ram_addr ram_offset;
+    a_ram_addr bios_offset;
     int bios_size;
     CPUState *env;
     RTCState *rtc_state;

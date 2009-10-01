@@ -84,7 +84,7 @@ typedef struct tun_buffer_s {
     unsigned char buffer [TUN_BUFFER_SIZE];
     unsigned long read_size;
     struct tun_buffer_s* next;
-} tun_buffer_t;
+} a_tun_buffer;
 
 typedef struct tap_win32_overlapped {
     HANDLE handle;
@@ -97,17 +97,17 @@ typedef struct tap_win32_overlapped {
     CRITICAL_SECTION free_list_cs;
     OVERLAPPED read_overlapped;
     OVERLAPPED write_overlapped;
-    tun_buffer_t buffers[TUN_MAX_BUFFER_COUNT];
-    tun_buffer_t* free_list;
-    tun_buffer_t* output_queue_front;
-    tun_buffer_t* output_queue_back;
-} tap_win32_overlapped_t;
+    a_tun_buffer buffers[TUN_MAX_BUFFER_COUNT];
+    a_tun_buffer* free_list;
+    a_tun_buffer* output_queue_front;
+    a_tun_buffer* output_queue_back;
+} a_tap_win32_overlapped;
 
-static tap_win32_overlapped_t tap_overlapped;
+static a_tap_win32_overlapped tap_overlapped;
 
-static tun_buffer_t* get_buffer_from_free_list(tap_win32_overlapped_t* const overlapped)
+static a_tun_buffer* get_buffer_from_free_list(a_tap_win32_overlapped* const overlapped)
 {
-    tun_buffer_t* buffer = NULL;
+    a_tun_buffer* buffer = NULL;
     WaitForSingleObject(overlapped->free_list_semaphore, INFINITE);
     EnterCriticalSection(&overlapped->free_list_cs);
     buffer = overlapped->free_list;
@@ -118,7 +118,7 @@ static tun_buffer_t* get_buffer_from_free_list(tap_win32_overlapped_t* const ove
     return buffer;
 }
 
-static void put_buffer_on_free_list(tap_win32_overlapped_t* const overlapped, tun_buffer_t* const buffer)
+static void put_buffer_on_free_list(a_tap_win32_overlapped* const overlapped, a_tun_buffer* const buffer)
 {
     EnterCriticalSection(&overlapped->free_list_cs);
     buffer->next = overlapped->free_list;
@@ -127,9 +127,9 @@ static void put_buffer_on_free_list(tap_win32_overlapped_t* const overlapped, tu
     ReleaseSemaphore(overlapped->free_list_semaphore, 1, NULL);
 }
 
-static tun_buffer_t* get_buffer_from_output_queue(tap_win32_overlapped_t* const overlapped, const int block)
+static a_tun_buffer* get_buffer_from_output_queue(a_tap_win32_overlapped* const overlapped, const int block)
 {
-    tun_buffer_t* buffer = NULL;
+    a_tun_buffer* buffer = NULL;
     DWORD result, timeout = block ? INFINITE : 0L;
 
     // Non-blocking call
@@ -160,12 +160,12 @@ static tun_buffer_t* get_buffer_from_output_queue(tap_win32_overlapped_t* const 
     return buffer;
 }
 
-static tun_buffer_t* get_buffer_from_output_queue_immediate (tap_win32_overlapped_t* const overlapped)
+static a_tun_buffer* get_buffer_from_output_queue_immediate (a_tap_win32_overlapped* const overlapped)
 {
     return get_buffer_from_output_queue(overlapped, 0);
 }
 
-static void put_buffer_on_output_queue(tap_win32_overlapped_t* const overlapped, tun_buffer_t* const buffer)
+static void put_buffer_on_output_queue(a_tap_win32_overlapped* const overlapped, a_tun_buffer* const buffer)
 {
     EnterCriticalSection(&overlapped->output_queue_cs);
 
@@ -393,7 +393,7 @@ static int tap_win32_set_status(HANDLE handle, int status)
                 &status, sizeof (status), &len, NULL);
 }
 
-static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, const HANDLE handle)
+static void tap_win32_overlapped_init(a_tap_win32_overlapped* const overlapped, const HANDLE handle)
 {
     overlapped->handle = handle;
 
@@ -436,7 +436,7 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
     {
         unsigned index;
         for(index = 0; index < TUN_MAX_BUFFER_COUNT; index++) {
-            tun_buffer_t* element = &overlapped->buffers[index];
+            a_tun_buffer* element = &overlapped->buffers[index];
             element->next = overlapped->free_list;
             overlapped->free_list = element;
         }
@@ -447,7 +447,7 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
         fprintf(stderr, "error creating tap_semaphore.\n");
 }
 
-static int tap_win32_write(tap_win32_overlapped_t *overlapped,
+static int tap_win32_write(a_tap_win32_overlapped *overlapped,
                            const void *buffer, unsigned long size)
 {
     unsigned long write_size;
@@ -481,11 +481,11 @@ static int tap_win32_write(tap_win32_overlapped_t *overlapped,
 
 static DWORD WINAPI tap_win32_thread_entry(LPVOID param)
 {
-    tap_win32_overlapped_t *overlapped = (tap_win32_overlapped_t*)param;
+    a_tap_win32_overlapped *overlapped = (a_tap_win32_overlapped*)param;
     unsigned long read_size;
     BOOL result;
     DWORD dwError;
-    tun_buffer_t* buffer = get_buffer_from_free_list(overlapped);
+    a_tun_buffer* buffer = get_buffer_from_free_list(overlapped);
 
 
     for (;;) {
@@ -534,12 +534,12 @@ static DWORD WINAPI tap_win32_thread_entry(LPVOID param)
     return 0;
 }
 
-static int tap_win32_read(tap_win32_overlapped_t *overlapped,
+static int tap_win32_read(a_tap_win32_overlapped *overlapped,
                           uint8_t **pbuf, int max_size)
 {
     int size = 0;
 
-    tun_buffer_t* buffer = get_buffer_from_output_queue_immediate(overlapped);
+    a_tun_buffer* buffer = get_buffer_from_output_queue_immediate(overlapped);
 
     if(buffer != NULL) {
         *pbuf = buffer->buffer;
@@ -552,14 +552,14 @@ static int tap_win32_read(tap_win32_overlapped_t *overlapped,
     return size;
 }
 
-static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
+static void tap_win32_free_buffer(a_tap_win32_overlapped *overlapped,
                                   uint8_t *pbuf)
 {
-    tun_buffer_t* buffer = (tun_buffer_t*)pbuf;
+    a_tun_buffer* buffer = (a_tun_buffer*)pbuf;
     put_buffer_on_free_list(overlapped, buffer);
 }
 
-static int tap_win32_open(tap_win32_overlapped_t **phandle,
+static int tap_win32_open(a_tap_win32_overlapped **phandle,
                           const char *prefered_name)
 {
     char device_path[256];
@@ -628,7 +628,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
 
  typedef struct TAPState {
      VLANClientState *vc;
-     tap_win32_overlapped_t *handle;
+     a_tap_win32_overlapped *handle;
  } TAPState;
 
 static void tap_cleanup(VLANClientState *vc)

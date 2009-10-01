@@ -693,7 +693,7 @@ dbdma_control_write(DBDMA_channel *ch)
 }
 
 static void dbdma_writel (void *opaque,
-                          target_phys_addr_t addr, uint32_t value)
+                          a_target_phys_addr addr, uint32_t value)
 {
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
     DBDMA_channel *ch = (DBDMA_channel *)opaque + channel;
@@ -741,7 +741,7 @@ static void dbdma_writel (void *opaque,
     }
 }
 
-static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t dbdma_readl (void *opaque, a_target_phys_addr addr)
 {
     uint32_t value;
     int channel = addr >> DBDMA_CHANNEL_SHIFT;

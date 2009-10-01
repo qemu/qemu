@@ -219,7 +219,7 @@ static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
 #endif
 }
 
-static uint32_t sh_intc_read(void *opaque, target_phys_addr_t offset)
+static uint32_t sh_intc_read(void *opaque, a_target_phys_addr offset)
 {
     struct intc_desc *desc = opaque;
     intc_enum *enum_ids = NULL;
@@ -237,7 +237,7 @@ static uint32_t sh_intc_read(void *opaque, target_phys_addr_t offset)
     return *valuep;
 }
 
-static void sh_intc_write(void *opaque, target_phys_addr_t offset,
+static void sh_intc_write(void *opaque, a_target_phys_addr offset,
 			  uint32_t value)
 {
     struct intc_desc *desc = opaque;

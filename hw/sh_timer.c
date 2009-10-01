@@ -57,7 +57,7 @@ static void sh_timer_update(sh_timer_state *s)
     s->int_level = new_level;
 }
 
-static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
+static uint32_t sh_timer_read(void *opaque, a_target_phys_addr offset)
 {
     sh_timer_state *s = (sh_timer_state *)opaque;
 
@@ -77,7 +77,7 @@ static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void sh_timer_write(void *opaque, target_phys_addr_t offset,
+static void sh_timer_write(void *opaque, a_target_phys_addr offset,
                             uint32_t value)
 {
     sh_timer_state *s = (sh_timer_state *)opaque;
@@ -217,7 +217,7 @@ typedef struct {
     int feat;
 } tmu012_state;
 
-static uint32_t tmu012_read(void *opaque, target_phys_addr_t offset)
+static uint32_t tmu012_read(void *opaque, a_target_phys_addr offset)
 {
     tmu012_state *s = (tmu012_state *)opaque;
 
@@ -247,7 +247,7 @@ static uint32_t tmu012_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void tmu012_write(void *opaque, target_phys_addr_t offset,
+static void tmu012_write(void *opaque, a_target_phys_addr offset,
                         uint32_t value)
 {
     tmu012_state *s = (tmu012_state *)opaque;
@@ -303,7 +303,7 @@ static CPUWriteMemoryFunc * const tmu012_writefn[] = {
     tmu012_write
 };
 
-void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
+void tmu012_init(a_target_phys_addr base, int feat, uint32_t freq,
 		 qemu_irq ch0_irq, qemu_irq ch1_irq,
 		 qemu_irq ch2_irq0, qemu_irq ch2_irq1)
 {

@@ -289,7 +289,7 @@ static void tusb_gpio_intr_update(TUSBState *s)
 extern CPUReadMemoryFunc * const musb_read[];
 extern CPUWriteMemoryFunc * const musb_write[];
 
-static uint32_t tusb_async_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t tusb_async_readb(void *opaque, a_target_phys_addr addr)
 {
     TUSBState *s = (TUSBState *) opaque;
 
@@ -306,7 +306,7 @@ static uint32_t tusb_async_readb(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static uint32_t tusb_async_readh(void *opaque, target_phys_addr_t addr)
+static uint32_t tusb_async_readh(void *opaque, a_target_phys_addr addr)
 {
     TUSBState *s = (TUSBState *) opaque;
 
@@ -323,7 +323,7 @@ static uint32_t tusb_async_readh(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static uint32_t tusb_async_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t tusb_async_readw(void *opaque, a_target_phys_addr addr)
 {
     TUSBState *s = (TUSBState *) opaque;
     int offset = addr & 0xfff;
@@ -447,7 +447,7 @@ static uint32_t tusb_async_readw(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void tusb_async_writeb(void *opaque, target_phys_addr_t addr,
+static void tusb_async_writeb(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     TUSBState *s = (TUSBState *) opaque;
@@ -468,7 +468,7 @@ static void tusb_async_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void tusb_async_writeh(void *opaque, target_phys_addr_t addr,
+static void tusb_async_writeh(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     TUSBState *s = (TUSBState *) opaque;
@@ -489,7 +489,7 @@ static void tusb_async_writeh(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void tusb_async_writew(void *opaque, target_phys_addr_t addr,
+static void tusb_async_writew(void *opaque, a_target_phys_addr addr,
                 uint32_t value)
 {
     TUSBState *s = (TUSBState *) opaque;

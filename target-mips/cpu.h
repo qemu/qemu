@@ -21,8 +21,8 @@ typedef unsigned int            uint_fast16_t;
 
 struct CPUMIPSState;
 
-typedef struct r4k_tlb_t r4k_tlb_t;
-struct r4k_tlb_t {
+typedef struct r4k_tlb a_r4k_tlb;
+struct r4k_tlb {
     target_ulong VPN;
     uint32_t PageMask;
     uint_fast8_t ASID;
@@ -47,13 +47,12 @@ struct CPUMIPSTLBContext {
     void (*helper_tlbr) (void);
     union {
         struct {
-            r4k_tlb_t tlb[MIPS_TLB_MAX];
+            a_r4k_tlb tlb[MIPS_TLB_MAX];
         } r4k;
     } mmu;
 };
 
-typedef union fpr_t fpr_t;
-union fpr_t {
+union fpr {
     float64  fd;   /* ieee double precision */
     float32  fs[2];/* ieee single precision */
     uint64_t d;    /* binary double fixed-point */
@@ -71,7 +70,7 @@ union fpr_t {
 typedef struct CPUMIPSFPUContext CPUMIPSFPUContext;
 struct CPUMIPSFPUContext {
     /* Floating point registers */
-    fpr_t fpr[32];
+    union fpr fpr[32];
     float_status fp_status;
     /* fpu implementation/revision register (fir) */
     uint32_t fcr0;
@@ -130,7 +129,7 @@ struct CPUMIPSMVPContext {
 #define CP0MVPC1_PCP1	0
 };
 
-typedef struct mips_def_t mips_def_t;
+typedef struct mips_def a_mips_def;
 
 #define MIPS_SHADOW_SET_MAX 16
 #define MIPS_TC_MAX 5
@@ -458,7 +457,7 @@ struct CPUMIPSState {
 
     CPU_COMMON
 
-    const mips_def_t *cpu_model;
+    const a_mips_def *cpu_model;
     void *irq[8];
     struct QEMUTimer *timer; /* Internal timer */
 };
@@ -475,7 +474,7 @@ void r4k_helper_tlbp (void);
 void r4k_helper_tlbr (void);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+void do_unassigned_access(a_target_phys_addr addr, int is_write, int is_exec,
                           int unused, int size);
 
 #define cpu_init cpu_mips_init

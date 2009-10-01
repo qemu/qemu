@@ -20,21 +20,21 @@
 #ifndef EEPROM93XX_H
 #define EEPROM93XX_H
 
-typedef struct _eeprom_t eeprom_t;
+typedef struct eeprom a_eeprom;
 
 /* Create a new EEPROM with (nwords * 2) bytes. */
-eeprom_t *eeprom93xx_new(uint16_t nwords);
+a_eeprom *eeprom93xx_new(uint16_t nwords);
 
 /* Destroy an existing EEPROM. */
-void eeprom93xx_free(eeprom_t *eeprom);
+void eeprom93xx_free(a_eeprom *eeprom);
 
 /* Read from the EEPROM. */
-uint16_t eeprom93xx_read(eeprom_t *eeprom);
+uint16_t eeprom93xx_read(a_eeprom *eeprom);
 
 /* Write to the EEPROM. */
-void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi);
+void eeprom93xx_write(a_eeprom *eeprom, int eecs, int eesk, int eedi);
 
 /* Get EEPROM data array. */
-uint16_t *eeprom93xx_data(eeprom_t *eeprom);
+uint16_t *eeprom93xx_data(a_eeprom *eeprom);
 
 #endif /* EEPROM93XX_H */

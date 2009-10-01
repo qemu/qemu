@@ -34,7 +34,7 @@ typedef struct {
     uint32_t iobr;
 } SHPCIC;
 
-static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_reg_write (void *p, a_target_phys_addr addr, uint32_t val)
 {
     SHPCIC *pcic = p;
     switch(addr) {
@@ -56,7 +56,7 @@ static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static uint32_t sh_pci_reg_read (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_reg_read (void *p, a_target_phys_addr addr)
 {
     SHPCIC *pcic = p;
     switch(addr) {
@@ -70,79 +70,79 @@ static uint32_t sh_pci_reg_read (void *p, target_phys_addr_t addr)
     return 0;
 }
 
-static void sh_pci_data_write (SHPCIC *pcic, target_phys_addr_t addr,
+static void sh_pci_data_write (SHPCIC *pcic, a_target_phys_addr addr,
                                uint32_t val, int size)
 {
     pci_data_write(pcic->bus, addr + pcic->mbr, val, size);
 }
 
-static uint32_t sh_pci_mem_read (SHPCIC *pcic, target_phys_addr_t addr,
+static uint32_t sh_pci_mem_read (SHPCIC *pcic, a_target_phys_addr addr,
                                  int size)
 {
     return pci_data_read(pcic->bus, addr + pcic->mbr, size);
 }
 
-static void sh_pci_writeb (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_writeb (void *p, a_target_phys_addr addr, uint32_t val)
 {
     sh_pci_data_write(p, addr, val, 1);
 }
 
-static void sh_pci_writew (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_writew (void *p, a_target_phys_addr addr, uint32_t val)
 {
     sh_pci_data_write(p, addr, val, 2);
 }
 
-static void sh_pci_writel (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_writel (void *p, a_target_phys_addr addr, uint32_t val)
 {
     sh_pci_data_write(p, addr, val, 4);
 }
 
-static uint32_t sh_pci_readb (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_readb (void *p, a_target_phys_addr addr)
 {
     return sh_pci_mem_read(p, addr, 1);
 }
 
-static uint32_t sh_pci_readw (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_readw (void *p, a_target_phys_addr addr)
 {
     return sh_pci_mem_read(p, addr, 2);
 }
 
-static uint32_t sh_pci_readl (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_readl (void *p, a_target_phys_addr addr)
 {
     return sh_pci_mem_read(p, addr, 4);
 }
 
-static int sh_pci_addr2port(SHPCIC *pcic, target_phys_addr_t addr)
+static int sh_pci_addr2port(SHPCIC *pcic, a_target_phys_addr addr)
 {
     return addr + pcic->iobr;
 }
 
-static void sh_pci_outb (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_outb (void *p, a_target_phys_addr addr, uint32_t val)
 {
     cpu_outb(sh_pci_addr2port(p, addr), val);
 }
 
-static void sh_pci_outw (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_outw (void *p, a_target_phys_addr addr, uint32_t val)
 {
     cpu_outw(sh_pci_addr2port(p, addr), val);
 }
 
-static void sh_pci_outl (void *p, target_phys_addr_t addr, uint32_t val)
+static void sh_pci_outl (void *p, a_target_phys_addr addr, uint32_t val)
 {
     cpu_outl(sh_pci_addr2port(p, addr), val);
 }
 
-static uint32_t sh_pci_inb (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_inb (void *p, a_target_phys_addr addr)
 {
     return cpu_inb(sh_pci_addr2port(p, addr));
 }
 
-static uint32_t sh_pci_inw (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_inw (void *p, a_target_phys_addr addr)
 {
     return cpu_inw(sh_pci_addr2port(p, addr));
 }
 
-static uint32_t sh_pci_inl (void *p, target_phys_addr_t addr)
+static uint32_t sh_pci_inl (void *p, a_target_phys_addr addr)
 {
     return cpu_inl(sh_pci_addr2port(p, addr));
 }

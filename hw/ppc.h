@@ -1,11 +1,11 @@
 /* PowerPC hardware exceptions management helpers */
 typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
-typedef struct clk_setup_t clk_setup_t;
-struct clk_setup_t {
+typedef struct clk_setup a_clk_setup;
+struct clk_setup {
     clk_setup_cb cb;
     void *opaque;
 };
-static inline void clk_setup (clk_setup_t *clk, uint32_t freq)
+static inline void clk_setup (a_clk_setup *clk, uint32_t freq)
 {
     if (clk->cb != NULL)
         (*clk->cb)(clk->opaque, freq);

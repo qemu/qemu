@@ -180,7 +180,7 @@ again:
     }
 }
 
-static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
+static uint32_t pl080_read(void *opaque, a_target_phys_addr offset)
 {
     pl080_state *s = (pl080_state *)opaque;
     uint32_t i;
@@ -247,7 +247,7 @@ static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void pl080_write(void *opaque, target_phys_addr_t offset,
+static void pl080_write(void *opaque, a_target_phys_addr offset,
                           uint32_t value)
 {
     pl080_state *s = (pl080_state *)opaque;

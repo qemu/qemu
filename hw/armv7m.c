@@ -26,14 +26,14 @@ static inline uint32_t bitband_addr(void * opaque, uint32_t addr)
 
 }
 
-static uint32_t bitband_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t bitband_readb(void *opaque, a_target_phys_addr offset)
 {
     uint8_t v;
     cpu_physical_memory_read(bitband_addr(opaque, offset), &v, 1);
     return (v & (1 << ((offset >> 2) & 7))) != 0;
 }
 
-static void bitband_writeb(void *opaque, target_phys_addr_t offset,
+static void bitband_writeb(void *opaque, a_target_phys_addr offset,
                            uint32_t value)
 {
     uint32_t addr;
@@ -49,7 +49,7 @@ static void bitband_writeb(void *opaque, target_phys_addr_t offset,
     cpu_physical_memory_write(addr, &v, 1);
 }
 
-static uint32_t bitband_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t bitband_readw(void *opaque, a_target_phys_addr offset)
 {
     uint32_t addr;
     uint16_t mask;
@@ -61,7 +61,7 @@ static uint32_t bitband_readw(void *opaque, target_phys_addr_t offset)
     return (v & mask) != 0;
 }
 
-static void bitband_writew(void *opaque, target_phys_addr_t offset,
+static void bitband_writew(void *opaque, a_target_phys_addr offset,
                            uint32_t value)
 {
     uint32_t addr;
@@ -78,7 +78,7 @@ static void bitband_writew(void *opaque, target_phys_addr_t offset,
     cpu_physical_memory_write(addr, (uint8_t *)&v, 2);
 }
 
-static uint32_t bitband_readl(void *opaque, target_phys_addr_t offset)
+static uint32_t bitband_readl(void *opaque, a_target_phys_addr offset)
 {
     uint32_t addr;
     uint32_t mask;
@@ -90,7 +90,7 @@ static uint32_t bitband_readl(void *opaque, target_phys_addr_t offset)
     return (v & mask) != 0;
 }
 
-static void bitband_writel(void *opaque, target_phys_addr_t offset,
+static void bitband_writel(void *opaque, a_target_phys_addr offset,
                            uint32_t value)
 {
     uint32_t addr;
