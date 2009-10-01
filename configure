@@ -198,6 +198,7 @@ kvm=""
 nptl=""
 sdl=""
 sparse="no"
+uuid=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
@@ -463,6 +464,10 @@ for opt do
   ;;
   --disable-slirp) slirp="no"
   ;;
+  --disable-uuid) uuid="no"
+  ;;
+  --enable-uuid) uuid="yes"
+  ;;
   --disable-vde) vde="no"
   ;;
   --enable-vde) vde="yes"
@@ -712,6 +717,8 @@ echo "  --fmod-inc               path to FMOD includes"
 echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
+echo "  --disable-uuid           disable uuid support"
+echo "  --enable-uuid            enable uuid support"
 echo "  --disable-vde            disable support for vde network"
 echo "  --enable-vde             enable support for vde network"
 echo "  --disable-linux-aio      disable Linux AIO support"
@@ -1071,8 +1078,9 @@ fi
 
 ##########################################
 # uuid_generate() probe, used for vdi block driver
-uuid="no"
-cat > $TMPC << EOF
+if test "$uuid" != "no" ; then
+  uuid_libs="-luuid"
+  cat > $TMPC << EOF
 #include <uuid/uuid.h>
 int main(void)
 {
@@ -1081,8 +1089,16 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC -luuid >/dev/null 2>&1; then
-   uuid="yes"
+  if compile_prog "" "$uuid_libs" ; then
+    uuid="yes"
+    libs_softmmu="$uuid_libs $libs_softmmu"
+    libs_tools="$uuid_libs $libs_tools"
+  else
+    if test "$uuid" = "yes" ; then
+      feature_not_found "uuid"
+    fi
+    uuid=no
+  fi
 fi
 
 ##########################################
@@ -1792,8 +1808,8 @@ echo "KVM support       $kvm"
 echo "TCG interpreter   $tcg_interpreter"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
-echo "uuid support      $uuid"
 echo "fdatasync         $fdatasync"
+echo "uuid support      $uuid"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1912,8 +1928,7 @@ if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
 fi
 if test "$uuid" = "yes" ; then
-  echo "#define HAVE_UUID_H 1" >> $config_host_h
-  echo "UUID_LIBS=-luuid" >> $config_host_mak
+  echo "CONFIG_UUID=y" >> $config_host_mak
 fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_host_mak
