@@ -13,11 +13,11 @@
 #define RDY2 0x8000
 #define RDY(n) ((n) == 0 ? RDY1 : RDY2)
 
-typedef enum { WAIT, READ1, READ2, READ3 } e_state;
+typedef enum { WAIT, READ1, READ2, READ3 } state_t;
 
 typedef struct {
     uint8_t *flash_contents;
-    e_state state;
+    state_t state;
     uint32_t address;
     uint8_t address_cycle;
 } tc58128_dev;

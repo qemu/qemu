@@ -122,7 +122,7 @@ struct TC6393xbState {
     ECCState ecc;
 
     DisplayState *ds;
-    a_ram_addr vram_addr;
+    ram_addr_t vram_addr;
     uint16_t *vram_ptr;
     uint32_t scr_width, scr_height; /* in pixels */
     qemu_irq l3v;
@@ -211,7 +211,7 @@ static void tc6393xb_sub_irq(void *opaque, int line, int level) {
     case SCR_ ##N(1): return s->scr.N[1];       \
     case SCR_ ##N(2): return s->scr.N[2]
 
-static uint32_t tc6393xb_scr_readb(TC6393xbState *s, a_target_phys_addr addr)
+static uint32_t tc6393xb_scr_readb(TC6393xbState *s, target_phys_addr_t addr)
 {
     switch (addr) {
         case SCR_REVID:
@@ -272,7 +272,7 @@ static uint32_t tc6393xb_scr_readb(TC6393xbState *s, a_target_phys_addr addr)
     case SCR_ ##N(1): s->scr.N[1] = value; return;   \
     case SCR_ ##N(2): s->scr.N[2] = value; return
 
-static void tc6393xb_scr_writeb(TC6393xbState *s, a_target_phys_addr addr, uint32_t value)
+static void tc6393xb_scr_writeb(TC6393xbState *s, target_phys_addr_t addr, uint32_t value)
 {
     switch (addr) {
         SCR_REG_B(ISR);
@@ -323,7 +323,7 @@ static void tc6393xb_nand_irq(TC6393xbState *s) {
             (s->nand.imr & 0x80) && (s->nand.imr & s->nand.isr));
 }
 
-static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, a_target_phys_addr addr) {
+static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, target_phys_addr_t addr) {
     switch (addr) {
         case NAND_CFG_COMMAND:
             return s->nand_enable ? 2 : 0;
@@ -336,7 +336,7 @@ static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, a_target_phys_addr add
     fprintf(stderr, "tc6393xb_nand_cfg: unhandled read at %08x\n", (uint32_t) addr);
     return 0;
 }
-static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, a_target_phys_addr addr, uint32_t value) {
+static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, target_phys_addr_t addr, uint32_t value) {
     switch (addr) {
         case NAND_CFG_COMMAND:
             s->nand_enable = (value & 0x2);
@@ -353,7 +353,7 @@ static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, a_target_phys_addr addr, 
 					(uint32_t) addr, value & 0xff);
 }
 
-static uint32_t tc6393xb_nand_readb(TC6393xbState *s, a_target_phys_addr addr) {
+static uint32_t tc6393xb_nand_readb(TC6393xbState *s, target_phys_addr_t addr) {
     switch (addr) {
         case NAND_DATA + 0:
         case NAND_DATA + 1:
@@ -372,7 +372,7 @@ static uint32_t tc6393xb_nand_readb(TC6393xbState *s, a_target_phys_addr addr) {
     fprintf(stderr, "tc6393xb_nand: unhandled read at %08x\n", (uint32_t) addr);
     return 0;
 }
-static void tc6393xb_nand_writeb(TC6393xbState *s, a_target_phys_addr addr, uint32_t value) {
+static void tc6393xb_nand_writeb(TC6393xbState *s, target_phys_addr_t addr, uint32_t value) {
 //    fprintf(stderr, "tc6393xb_nand: write at %08x: %02x\n",
 //					(uint32_t) addr, value & 0xff);
     switch (addr) {
@@ -495,7 +495,7 @@ static void tc6393xb_update_display(void *opaque)
 }
 
 
-static uint32_t tc6393xb_readb(void *opaque, a_target_phys_addr addr) {
+static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
     TC6393xbState *s = opaque;
 
     switch (addr >> 8) {
@@ -516,7 +516,7 @@ static uint32_t tc6393xb_readb(void *opaque, a_target_phys_addr addr) {
     return 0;
 }
 
-static void tc6393xb_writeb(void *opaque, a_target_phys_addr addr, uint32_t value) {
+static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value) {
     TC6393xbState *s = opaque;
 
     switch (addr >> 8) {
@@ -535,13 +535,13 @@ static void tc6393xb_writeb(void *opaque, a_target_phys_addr addr, uint32_t valu
 					(uint32_t) addr, value & 0xff);
 }
 
-static uint32_t tc6393xb_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t tc6393xb_readw(void *opaque, target_phys_addr_t addr)
 {
     return (tc6393xb_readb(opaque, addr) & 0xff) |
         (tc6393xb_readb(opaque, addr + 1) << 8);
 }
 
-static uint32_t tc6393xb_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t tc6393xb_readl(void *opaque, target_phys_addr_t addr)
 {
     return (tc6393xb_readb(opaque, addr) & 0xff) |
         ((tc6393xb_readb(opaque, addr + 1) & 0xff) << 8) |
@@ -549,13 +549,13 @@ static uint32_t tc6393xb_readl(void *opaque, a_target_phys_addr addr)
         ((tc6393xb_readb(opaque, addr + 3) & 0xff) << 24);
 }
 
-static void tc6393xb_writew(void *opaque, a_target_phys_addr addr, uint32_t value)
+static void tc6393xb_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     tc6393xb_writeb(opaque, addr, value);
     tc6393xb_writeb(opaque, addr + 1, value >> 8);
 }
 
-static void tc6393xb_writel(void *opaque, a_target_phys_addr addr, uint32_t value)
+static void tc6393xb_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     tc6393xb_writeb(opaque, addr, value);
     tc6393xb_writeb(opaque, addr + 1, value >> 8);

@@ -335,7 +335,7 @@ typedef enum {
     CH_8100,
     CH_8100B_8139D,
     CH_8101,
-} e_chip;
+} chip_t;
 
 enum chip_flags {
     HasHltClk = (1 << 0),
@@ -414,7 +414,7 @@ typedef struct RTL8139TallyCounters
 static void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters);
 
 /* Writes tally counters to specified physical memory address */
-static void RTL8139TallyCounters_physical_memory_write(a_target_phys_addr tc_addr, RTL8139TallyCounters* counters);
+static void RTL8139TallyCounters_physical_memory_write(target_phys_addr_t tc_addr, RTL8139TallyCounters* counters);
 
 /* Loads values of tally counters from VM state file */
 static void RTL8139TallyCounters_load(QEMUFile* f, RTL8139TallyCounters *tally_counters);
@@ -781,10 +781,10 @@ static void rtl8139_write_buffer(RTL8139State *s, const void *buf, int size)
 }
 
 #define MIN_BUF_SIZE 60
-static inline a_target_phys_addr rtl8139_addr64(uint32_t low, uint32_t high)
+static inline target_phys_addr_t rtl8139_addr64(uint32_t low, uint32_t high)
 {
 #if TARGET_PHYS_ADDR_BITS > 32
-    return low | ((a_target_phys_addr)high << 32);
+    return low | ((target_phys_addr_t)high << 32);
 #else
     return low;
 #endif
@@ -959,7 +959,7 @@ static ssize_t rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, size_
 /* w3 high 32bit of Rx buffer ptr */
 
         int descriptor = s->currCPlusRxDesc;
-        a_target_phys_addr cplus_rx_ring_desc;
+        target_phys_addr_t cplus_rx_ring_desc;
 
         cplus_rx_ring_desc = rtl8139_addr64(s->RxRingAddrLO, s->RxRingAddrHI);
         cplus_rx_ring_desc += 16 * descriptor;
@@ -1017,7 +1017,7 @@ static ssize_t rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, size_
             return size_;
         }
 
-        a_target_phys_addr rx_addr = rtl8139_addr64(rxbufLO, rxbufHI);
+        target_phys_addr_t rx_addr = rtl8139_addr64(rxbufLO, rxbufHI);
 
         /* receive/copy to target memory */
         cpu_physical_memory_write( rx_addr, buf, size );
@@ -1280,7 +1280,7 @@ static void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters)
     counters->TxUndrn = 0;
 }
 
-static void RTL8139TallyCounters_physical_memory_write(a_target_phys_addr tc_addr, RTL8139TallyCounters* tally_counters)
+static void RTL8139TallyCounters_physical_memory_write(target_phys_addr_t tc_addr, RTL8139TallyCounters* tally_counters)
 {
     uint16_t val16;
     uint32_t val32;
@@ -1913,7 +1913,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
     int descriptor = s->currCPlusTxDesc;
 
-    a_target_phys_addr cplus_tx_ring_desc =
+    target_phys_addr_t cplus_tx_ring_desc =
         rtl8139_addr64(s->TxAddr[0], s->TxAddr[1]);
 
     /* Normal priority ring */
@@ -1996,7 +1996,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     }
 
     int txsize = txdw0 & CP_TX_BUFFER_SIZE_MASK;
-    a_target_phys_addr tx_addr = rtl8139_addr64(txbufLO, txbufHI);
+    target_phys_addr_t tx_addr = rtl8139_addr64(txbufLO, txbufHI);
 
     /* make sure we have enough space to assemble the packet */
     if (!s->cplus_txbuffer)
@@ -2386,7 +2386,7 @@ static void rtl8139_TxStatus_write(RTL8139State *s, uint32_t txRegOffset, uint32
 
         if (descriptor == 0 && (val & 0x8))
         {
-            a_target_phys_addr tc_addr = rtl8139_addr64(s->TxStatus[0] & ~0x3f, s->TxStatus[1]);
+            target_phys_addr_t tc_addr = rtl8139_addr64(s->TxStatus[0] & ~0x3f, s->TxStatus[1]);
 
             /* dump tally counters to specified memory location */
             RTL8139TallyCounters_physical_memory_write( tc_addr, &s->tally_counters);
@@ -3070,12 +3070,12 @@ static uint32_t rtl8139_ioport_readl(void *opaque, uint32_t addr)
 
 /* */
 
-static void rtl8139_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void rtl8139_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     rtl8139_io_writeb(opaque, addr & 0xFF, val);
 }
 
-static void rtl8139_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void rtl8139_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
@@ -3083,7 +3083,7 @@ static void rtl8139_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t 
     rtl8139_io_writew(opaque, addr & 0xFF, val);
 }
 
-static void rtl8139_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void rtl8139_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
@@ -3091,12 +3091,12 @@ static void rtl8139_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t 
     rtl8139_io_writel(opaque, addr & 0xFF, val);
 }
 
-static uint32_t rtl8139_mmio_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t rtl8139_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
     return rtl8139_io_readb(opaque, addr & 0xFF);
 }
 
-static uint32_t rtl8139_mmio_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t rtl8139_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t val = rtl8139_io_readw(opaque, addr & 0xFF);
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -3105,7 +3105,7 @@ static uint32_t rtl8139_mmio_readw(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static uint32_t rtl8139_mmio_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t rtl8139_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t val = rtl8139_io_readl(opaque, addr & 0xFF);
 #ifdef TARGET_WORDS_BIGENDIAN

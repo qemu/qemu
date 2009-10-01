@@ -123,7 +123,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
         qemu_set_irq(dev->irq[0], 0);
 }
 
-static uint32_t msix_mmio_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t msix_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     PCIDevice *dev = opaque;
     unsigned int offset = addr & (dev->msix_page_size - 1);
@@ -135,7 +135,7 @@ static uint32_t msix_mmio_readl(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static uint32_t msix_mmio_read_unallowed(void *opaque, a_target_phys_addr addr)
+static uint32_t msix_mmio_read_unallowed(void *opaque, target_phys_addr_t addr)
 {
     fprintf(stderr, "MSI-X: only dword read is allowed!\n");
     return 0;
@@ -172,7 +172,7 @@ static int msix_is_masked(PCIDevice *dev, int vector)
     return dev->msix_table_page[offset] & MSIX_VECTOR_MASK;
 }
 
-static void msix_mmio_writel(void *opaque, a_target_phys_addr addr,
+static void msix_mmio_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
     PCIDevice *dev = opaque;
@@ -185,7 +185,7 @@ static void msix_mmio_writel(void *opaque, a_target_phys_addr addr,
     }
 }
 
-static void msix_mmio_write_unallowed(void *opaque, a_target_phys_addr addr,
+static void msix_mmio_write_unallowed(void *opaque, target_phys_addr_t addr,
                                       uint32_t val)
 {
     fprintf(stderr, "MSI-X: only dword write is allowed!\n");
@@ -221,7 +221,7 @@ void msix_mmio_map(PCIDevice *d, int region_num,
 /* Initialize the MSI-X structures. Note: if MSI-X is supported, BAR size is
  * modified, it should be retrieved with msix_bar_size. */
 int msix_init(struct PCIDevice *dev, unsigned short nentries,
-              unsigned bar_nr, unsigned bar_size, a_target_phys_addr page_size)
+              unsigned bar_nr, unsigned bar_size, target_phys_addr_t page_size)
 {
     int ret;
     /* Nothing to do if MSI is not supported by interrupt controller */

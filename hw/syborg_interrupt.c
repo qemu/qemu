@@ -84,7 +84,7 @@ static void syborg_int_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static uint32_t syborg_int_read(void *opaque, a_target_phys_addr offset)
+static uint32_t syborg_int_read(void *opaque, target_phys_addr_t offset)
 {
     SyborgIntState *s = (SyborgIntState *)opaque;
     int i;
@@ -114,7 +114,7 @@ static uint32_t syborg_int_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void syborg_int_write(void *opaque, a_target_phys_addr offset, uint32_t value)
+static void syborg_int_write(void *opaque, target_phys_addr_t offset, uint32_t value)
 {
     SyborgIntState *s = (SyborgIntState *)opaque;
     int i;

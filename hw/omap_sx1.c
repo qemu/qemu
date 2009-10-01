@@ -58,28 +58,28 @@
  * - 1 RTC
  */
 
-static uint32_t static_readb(void *opaque, a_target_phys_addr offset)
+static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
 {
     uint32_t *val = (uint32_t *) opaque;
 
     return *val >> ((offset & 3) << 3);
 }
 
-static uint32_t static_readh(void *opaque, a_target_phys_addr offset)
+static uint32_t static_readh(void *opaque, target_phys_addr_t offset)
 {
     uint32_t *val = (uint32_t *) opaque;
 
     return *val >> ((offset & 1) << 3);
 }
 
-static uint32_t static_readw(void *opaque, a_target_phys_addr offset)
+static uint32_t static_readw(void *opaque, target_phys_addr_t offset)
 {
     uint32_t *val = (uint32_t *) opaque;
 
     return *val >> ((offset & 0) << 3);
 }
 
-static void static_write(void *opaque, a_target_phys_addr offset,
+static void static_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
 #ifdef SPY
@@ -114,7 +114,7 @@ static struct arm_boot_info sx1_binfo = {
     .board_id = 0x265,
 };
 
-static void sx1_init(a_ram_addr ram_size,
+static void sx1_init(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model,
@@ -126,7 +126,7 @@ static void sx1_init(a_ram_addr ram_size,
     static uint32_t cs1val = 0x00215070;
     static uint32_t cs2val = 0x00001139;
     static uint32_t cs3val = 0x00001139;
-    a_ram_addr phys_flash;
+    ram_addr_t phys_flash;
     DriveInfo *dinfo;
     int fl_idx;
     uint32_t flash_size = flash0_size;
@@ -204,7 +204,7 @@ static void sx1_init(a_ram_addr ram_size,
     //~ qemu_console_resize(ds, 640, 480);
 }
 
-static void sx1_init_v1(a_ram_addr ram_size,
+static void sx1_init_v1(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
@@ -213,7 +213,7 @@ static void sx1_init_v1(a_ram_addr ram_size,
                 kernel_cmdline, initrd_filename, cpu_model, 1);
 }
 
-static void sx1_init_v2(a_ram_addr ram_size,
+static void sx1_init_v2(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)

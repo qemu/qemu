@@ -247,14 +247,14 @@ static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
     }
 }
 
-static uint32_t i6300esb_mem_readb(void *vp, a_target_phys_addr addr)
+static uint32_t i6300esb_mem_readb(void *vp, target_phys_addr_t addr)
 {
     i6300esb_debug ("addr = %x\n", (int) addr);
 
     return 0;
 }
 
-static uint32_t i6300esb_mem_readw(void *vp, a_target_phys_addr addr)
+static uint32_t i6300esb_mem_readw(void *vp, target_phys_addr_t addr)
 {
     uint32_t data = 0;
     I6300State *d = (I6300State *) vp;
@@ -272,14 +272,14 @@ static uint32_t i6300esb_mem_readw(void *vp, a_target_phys_addr addr)
     return data;
 }
 
-static uint32_t i6300esb_mem_readl(void *vp, a_target_phys_addr addr)
+static uint32_t i6300esb_mem_readl(void *vp, target_phys_addr_t addr)
 {
     i6300esb_debug("addr = %x\n", (int) addr);
 
     return 0;
 }
 
-static void i6300esb_mem_writeb(void *vp, a_target_phys_addr addr, uint32_t val)
+static void i6300esb_mem_writeb(void *vp, target_phys_addr_t addr, uint32_t val)
 {
     I6300State *d = (I6300State *) vp;
 
@@ -291,7 +291,7 @@ static void i6300esb_mem_writeb(void *vp, a_target_phys_addr addr, uint32_t val)
         d->unlock_state = 2;
 }
 
-static void i6300esb_mem_writew(void *vp, a_target_phys_addr addr, uint32_t val)
+static void i6300esb_mem_writew(void *vp, target_phys_addr_t addr, uint32_t val)
 {
     I6300State *d = (I6300State *) vp;
 
@@ -324,7 +324,7 @@ static void i6300esb_mem_writew(void *vp, a_target_phys_addr addr, uint32_t val)
     }
 }
 
-static void i6300esb_mem_writel(void *vp, a_target_phys_addr addr, uint32_t val)
+static void i6300esb_mem_writel(void *vp, target_phys_addr_t addr, uint32_t val)
 {
     I6300State *d = (I6300State *) vp;
 

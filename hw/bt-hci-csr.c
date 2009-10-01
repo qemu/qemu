@@ -44,7 +44,7 @@ struct csrhci_s {
     QEMUTimer *out_tm;
     int64_t baud_delay;
 
-    a_bdaddr bd_addr;
+    bdaddr_t bd_addr;
     struct HCIInfo *hci;
 };
 
@@ -398,7 +398,7 @@ static void csrhci_reset(struct csrhci_s *s)
     /* After a while... (but sooner than 10ms) */
     s->modem_state |= CHR_TIOCM_CTS;
 
-    memset(&s->bd_addr, 0, sizeof(a_bdaddr));
+    memset(&s->bd_addr, 0, sizeof(bdaddr_t));
 }
 
 static void csrhci_out_tick(void *opaque)

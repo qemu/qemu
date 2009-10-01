@@ -61,7 +61,7 @@ enum mips_mmu_types {
     MMU_TYPE_R8000
 };
 
-struct mips_def {
+struct mips_def_t {
     const char *name;
     int32_t CP0_PRid;
     int32_t CP0_Config0;
@@ -94,7 +94,7 @@ struct mips_def {
 
 /*****************************************************************************/
 /* MIPS CPU definitions */
-static const a_mips_def mips_defs[] =
+static const mips_def_t mips_defs[] =
 {
     {
         .name = "4Kc",
@@ -416,7 +416,7 @@ static const a_mips_def mips_defs[] =
 #endif
 };
 
-static const a_mips_def *cpu_mips_find_by_name (const char *name)
+static const mips_def_t *cpu_mips_find_by_name (const char *name)
 {
     int i;
 
@@ -439,19 +439,19 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 }
 
 #ifndef CONFIG_USER_ONLY
-static void no_mmu_init (CPUMIPSState *env, const a_mips_def *def)
+static void no_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1;
     env->tlb->map_address = &no_mmu_map_address;
 }
 
-static void fixed_mmu_init (CPUMIPSState *env, const a_mips_def *def)
+static void fixed_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1;
     env->tlb->map_address = &fixed_mmu_map_address;
 }
 
-static void r4k_mmu_init (CPUMIPSState *env, const a_mips_def *def)
+static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
     env->tlb->map_address = &r4k_map_address;
@@ -461,7 +461,7 @@ static void r4k_mmu_init (CPUMIPSState *env, const a_mips_def *def)
     env->tlb->helper_tlbr = r4k_helper_tlbr;
 }
 
-static void mmu_init (CPUMIPSState *env, const a_mips_def *def)
+static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb = qemu_mallocz(sizeof(CPUMIPSTLBContext));
 
@@ -486,7 +486,7 @@ static void mmu_init (CPUMIPSState *env, const a_mips_def *def)
 }
 #endif /* CONFIG_USER_ONLY */
 
-static void fpu_init (CPUMIPSState *env, const a_mips_def *def)
+static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     int i;
 
@@ -504,7 +504,7 @@ static void fpu_init (CPUMIPSState *env, const a_mips_def *def)
 #endif
 }
 
-static void mvp_init (CPUMIPSState *env, const a_mips_def *def)
+static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->mvp = qemu_mallocz(sizeof(CPUMIPSMVPContext));
 
@@ -531,7 +531,7 @@ static void mvp_init (CPUMIPSState *env, const a_mips_def *def)
                              (0x1 << CP0MVPC1_PCP1);
 }
 
-static int cpu_mips_register (CPUMIPSState *env, const a_mips_def *def)
+static int cpu_mips_register (CPUMIPSState *env, const mips_def_t *def)
 {
     env->CP0_PRid = def->CP0_PRid;
     env->CP0_Config0 = def->CP0_Config0;

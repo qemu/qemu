@@ -303,7 +303,7 @@ void cpu_loop(CPUX86State *env)
 {
     int trapnr;
     abi_ulong pc;
-    a_target_siginfo info;
+    target_siginfo_t info;
 
     for(;;) {
         trapnr = cpu_x86_exec(env);
@@ -528,7 +528,7 @@ void cpu_loop(CPUARMState *env)
 {
     int trapnr;
     unsigned int n, insn;
-    a_target_siginfo info;
+    target_siginfo_t info;
     uint32_t addr;
 
     for(;;) {
@@ -856,7 +856,7 @@ static void flush_windows(CPUSPARCState *env)
 void cpu_loop (CPUSPARCState *env)
 {
     int trapnr, ret;
-    a_target_siginfo info;
+    target_siginfo_t info;
 
     while (1) {
         trapnr = cpu_sparc_exec (env);
@@ -1015,12 +1015,12 @@ uint32_t cpu_ppc601_load_rtcl (CPUState *env)
 }
 
 /* XXX: to be fixed */
-int ppc_dcr_read (a_ppc_dcr *dcr_env, int dcrn, target_ulong *valp)
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
 {
     return -1;
 }
 
-int ppc_dcr_write (a_ppc_dcr *dcr_env, int dcrn, target_ulong val)
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val)
 {
     return -1;
 }
@@ -1093,7 +1093,7 @@ static int do_store_exclusive(CPUPPCState *env)
 
 void cpu_loop(CPUPPCState *env)
 {
-    a_target_siginfo info;
+    target_siginfo_t info;
     int trapnr;
     uint32_t ret;
 
@@ -1890,7 +1890,7 @@ static int do_store_exclusive(CPUMIPSState *env)
 
 void cpu_loop(CPUMIPSState *env)
 {
-    a_target_siginfo info;
+    target_siginfo_t info;
     int trapnr, ret;
     unsigned int syscall_num;
 
@@ -1999,7 +1999,7 @@ void cpu_loop(CPUMIPSState *env)
 void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
-    a_target_siginfo info;
+    target_siginfo_t info;
 
     while (1) {
         trapnr = cpu_sh4_exec (env);
@@ -2057,7 +2057,7 @@ void cpu_loop (CPUState *env)
 void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
-    a_target_siginfo info;
+    target_siginfo_t info;
     
     while (1) {
         trapnr = cpu_cris_exec (env);
@@ -2114,7 +2114,7 @@ void cpu_loop (CPUState *env)
 void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
-    a_target_siginfo info;
+    target_siginfo_t info;
     
     while (1) {
         trapnr = cpu_mb_exec (env);
@@ -2176,7 +2176,7 @@ void cpu_loop(CPUM68KState *env)
 {
     int trapnr;
     unsigned int n;
-    a_target_siginfo info;
+    target_siginfo_t info;
     TaskState *ts = env->opaque;
 
     for(;;) {
@@ -2266,7 +2266,7 @@ void cpu_loop(CPUM68KState *env)
 void cpu_loop (CPUState *env)
 {
     int trapnr;
-    a_target_siginfo info;
+    target_siginfo_t info;
 
     while (1) {
         trapnr = cpu_alpha_exec (env);

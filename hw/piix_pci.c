@@ -28,7 +28,7 @@
 #include "isa.h"
 #include "sysbus.h"
 
-typedef uint32_t a_pci_addr;
+typedef uint32_t pci_addr_t;
 #include "pci_host.h"
 
 typedef PCIHostState I440FXState;
@@ -45,7 +45,7 @@ typedef struct PIIX3IrqState {
 
 struct PCII440FXState {
     PCIDevice dev;
-    a_target_phys_addr isa_page_descs[384 / 4];
+    target_phys_addr_t isa_page_descs[384 / 4];
     uint8_t smm_enabled;
     PIIX3IrqState *irq_state;
 };

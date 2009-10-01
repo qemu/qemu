@@ -27,8 +27,8 @@
 #include "pci.h"
 #include "escc.h"
 
-typedef struct macio_state a_macio_state;
-struct macio_state {
+typedef struct macio_state_t macio_state_t;
+struct macio_state_t {
     int is_oldworld;
     int pic_mem_index;
     int dbdma_mem_index;
@@ -42,10 +42,10 @@ struct macio_state {
 static void macio_map (PCIDevice *pci_dev, int region_num,
                        uint32_t addr, uint32_t size, int type)
 {
-    a_macio_state *macio_state;
+    macio_state_t *macio_state;
     int i;
 
-    macio_state = (a_macio_state *)(pci_dev + 1);
+    macio_state = (macio_state_t *)(pci_dev + 1);
     if (macio_state->pic_mem_index >= 0) {
         if (macio_state->is_oldworld) {
             /* Heathrow PIC */
@@ -84,13 +84,13 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
                  int nb_ide, int *ide_mem_index, int escc_mem_index)
 {
     PCIDevice *d;
-    a_macio_state *macio_state;
+    macio_state_t *macio_state;
     int i;
 
     d = pci_register_device(bus, "macio",
-                            sizeof(PCIDevice) + sizeof(a_macio_state),
+                            sizeof(PCIDevice) + sizeof(macio_state_t),
                             -1, NULL, NULL);
-    macio_state = (a_macio_state *)(d + 1);
+    macio_state = (macio_state_t *)(d + 1);
     macio_state->is_oldworld = is_oldworld;
     macio_state->pic_mem_index = pic_mem_index;
     macio_state->dbdma_mem_index = dbdma_mem_index;

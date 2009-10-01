@@ -38,7 +38,7 @@
 #endif
 
 struct MacIONVRAMState {
-    a_target_phys_addr size;
+    target_phys_addr_t size;
     int mem_index;
     unsigned int it_shift;
     uint8_t *data;
@@ -72,7 +72,7 @@ void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val)
 
 /* macio style NVRAM device */
 static void macio_nvram_writeb (void *opaque,
-                                a_target_phys_addr addr, uint32_t value)
+                                target_phys_addr_t addr, uint32_t value)
 {
     MacIONVRAMState *s = opaque;
 
@@ -81,7 +81,7 @@ static void macio_nvram_writeb (void *opaque,
     NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
 }
 
-static uint32_t macio_nvram_readb (void *opaque, a_target_phys_addr addr)
+static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
 {
     MacIONVRAMState *s = opaque;
     uint32_t value;
@@ -128,7 +128,7 @@ static void macio_nvram_reset(void *opaque)
 {
 }
 
-MacIONVRAMState *macio_nvram_init (int *mem_index, a_target_phys_addr size,
+MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
                                    unsigned int it_shift)
 {
     MacIONVRAMState *s;
@@ -148,7 +148,7 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, a_target_phys_addr size,
     return s;
 }
 
-void macio_nvram_map (void *opaque, a_target_phys_addr mem_base)
+void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
 {
     MacIONVRAMState *s;
 

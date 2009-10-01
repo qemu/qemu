@@ -5,7 +5,7 @@
 
 #include "qdev.h"
 
-typedef void QEMUMachineInitFunc(a_ram_addr ram_size,
+typedef void QEMUMachineInitFunc(ram_addr_t ram_size,
                                  const char *boot_device,
                                  const char *kernel_filename,
                                  const char *kernel_cmdline,

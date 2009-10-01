@@ -62,7 +62,7 @@ struct bt_hci_s {
         uint32_t role_bmp;
         int last_handle;
         int connecting;
-        a_bdaddr awaiting_bdaddr[HCI_HANDLES_MAX];
+        bdaddr_t awaiting_bdaddr[HCI_HANDLES_MAX];
     } lm;
 
     uint8_t event_mask[8];
@@ -672,7 +672,7 @@ static void bt_hci_lmp_link_teardown(struct bt_hci_s *hci, uint16_t handle)
     }
 }
 
-static int bt_hci_connect(struct bt_hci_s *hci, a_bdaddr *bdaddr)
+static int bt_hci_connect(struct bt_hci_s *hci, bdaddr_t *bdaddr)
 {
     struct bt_device_s *slave;
     struct bt_link_s link;
@@ -706,7 +706,7 @@ static void bt_hci_connection_reject(struct bt_hci_s *hci,
 }
 
 static void bt_hci_connection_reject_event(struct bt_hci_s *hci,
-                a_bdaddr *bdaddr)
+                bdaddr_t *bdaddr)
 {
     evt_conn_complete params;
 
@@ -808,7 +808,7 @@ static void bt_hci_conn_accept_timeout(void *opaque)
  * that's been cancelled by the host in the meantime and immediately
  * try to detach the link and send a Connection Complete.  */
 static int bt_hci_lmp_connection_ready(struct bt_hci_s *hci,
-                a_bdaddr *bdaddr)
+                bdaddr_t *bdaddr)
 {
     int i;
 
@@ -939,7 +939,7 @@ static void bt_hci_lmp_disconnect_slave(struct bt_link_s *btlink)
                     &params, EVT_DISCONN_COMPLETE_SIZE);
 }
 
-static int bt_hci_name_req(struct bt_hci_s *hci, a_bdaddr *bdaddr)
+static int bt_hci_name_req(struct bt_hci_s *hci, bdaddr_t *bdaddr)
 {
     struct bt_device_s *slave;
     evt_remote_name_req_complete params;
@@ -1290,7 +1290,7 @@ static inline void bt_hci_event_complete_status(struct bt_hci_s *hci,
 }
 
 static inline void bt_hci_event_complete_conn_cancel(struct bt_hci_s *hci,
-                uint8_t status, a_bdaddr *bd_addr)
+                uint8_t status, bdaddr_t *bd_addr)
 {
     create_conn_cancel_rp params = {
         .status = status,
@@ -1324,7 +1324,7 @@ static inline void bt_hci_event_encrypt_change(struct bt_hci_s *hci,
 }
 
 static inline void bt_hci_event_complete_name_cancel(struct bt_hci_s *hci,
-                a_bdaddr *bd_addr)
+                bdaddr_t *bd_addr)
 {
     remote_name_req_cancel_rp params = {
         .status = HCI_INVALID_PARAMETERS,
@@ -2134,7 +2134,7 @@ static int bt_hci_bdaddr_set(struct HCIInfo *info, const uint8_t *bd_addr)
 {
     struct bt_hci_s *hci = hci_from_info(info);
 
-    bacpy(&hci->device.bd_addr, (const a_bdaddr *) bd_addr);
+    bacpy(&hci->device.bd_addr, (const bdaddr_t *) bd_addr);
     return 0;
 }
 

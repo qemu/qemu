@@ -211,7 +211,7 @@ static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
     pxa2xx_mmci_fifo_update(s);
 }
 
-static uint32_t pxa2xx_mmci_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_mmci_read(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     uint32_t ret;
@@ -273,7 +273,7 @@ static uint32_t pxa2xx_mmci_read(void *opaque, a_target_phys_addr offset)
 }
 
 static void pxa2xx_mmci_write(void *opaque,
-                a_target_phys_addr offset, uint32_t value)
+                target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
 
@@ -382,21 +382,21 @@ static void pxa2xx_mmci_write(void *opaque,
     }
 }
 
-static uint32_t pxa2xx_mmci_readb(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_mmci_readb(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 1;
     return pxa2xx_mmci_read(opaque, offset);
 }
 
-static uint32_t pxa2xx_mmci_readh(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_mmci_readh(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 2;
     return pxa2xx_mmci_read(opaque, offset);
 }
 
-static uint32_t pxa2xx_mmci_readw(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_mmci_readw(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 4;
@@ -410,7 +410,7 @@ static CPUReadMemoryFunc * const pxa2xx_mmci_readfn[] = {
 };
 
 static void pxa2xx_mmci_writeb(void *opaque,
-                a_target_phys_addr offset, uint32_t value)
+                target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 1;
@@ -418,7 +418,7 @@ static void pxa2xx_mmci_writeb(void *opaque,
 }
 
 static void pxa2xx_mmci_writeh(void *opaque,
-                a_target_phys_addr offset, uint32_t value)
+                target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 2;
@@ -426,7 +426,7 @@ static void pxa2xx_mmci_writeh(void *opaque,
 }
 
 static void pxa2xx_mmci_writew(void *opaque,
-                a_target_phys_addr offset, uint32_t value)
+                target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     s->ac_width = 4;
@@ -517,7 +517,7 @@ static int pxa2xx_mmci_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-PXA2xxMMCIState *pxa2xx_mmci_init(a_target_phys_addr base,
+PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
                 BlockDriverState *bd, qemu_irq irq, void *dma)
 {
     int iomemtype;

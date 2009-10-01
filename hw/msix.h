@@ -5,7 +5,7 @@
 
 int msix_init(struct PCIDevice *dev, unsigned short nentries,
               unsigned bar_nr, unsigned bar_size,
-              a_target_phys_addr page_size);
+              target_phys_addr_t page_size);
 
 void msix_write_config(PCIDevice *pci_dev, uint32_t address,
                        uint32_t val, int len);

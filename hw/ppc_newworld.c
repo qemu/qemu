@@ -54,12 +54,12 @@
 #endif
 
 /* UniN device */
-static void unin_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     UNIN_DPRINTF("writel addr " TARGET_FMT_plx " val %x\n", addr, value);
 }
 
-static uint32_t unin_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t unin_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t value;
 
@@ -88,7 +88,7 @@ static int fw_cfg_boot_set(void *opaque, const char *boot_device)
 }
 
 /* PowerPC Mac99 hardware initialisation */
-static void ppc_core99_init (a_ram_addr ram_size,
+static void ppc_core99_init (ram_addr_t ram_size,
                              const char *boot_device,
                              const char *kernel_filename,
                              const char *kernel_cmdline,
@@ -100,7 +100,7 @@ static void ppc_core99_init (a_ram_addr ram_size,
     qemu_irq *pic, **openpic_irqs;
     int unin_memory;
     int linux_boot, i;
-    a_ram_addr ram_offset, bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;

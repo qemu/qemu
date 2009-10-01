@@ -1,15 +1,15 @@
 /* NOR flash devices */
-typedef struct pflash a_pflash;
+typedef struct pflash_t pflash_t;
 
 /* pflash_cfi01.c */
-a_pflash *pflash_cfi01_register(a_target_phys_addr base, a_ram_addr off,
+pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
                                 BlockDriverState *bs,
                                 uint32_t sector_len, int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3);
 
 /* pflash_cfi02.c */
-a_pflash *pflash_cfi02_register(a_target_phys_addr base, a_ram_addr off,
+pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
@@ -36,7 +36,7 @@ uint8_t nand_getio(NANDFlashState *s);
 #define NAND_MFR_MICRON		0x2c
 
 /* onenand.c */
-void onenand_base_update(void *opaque, a_target_phys_addr new);
+void onenand_base_update(void *opaque, target_phys_addr_t new);
 void onenand_base_unmap(void *opaque);
 void *onenand_init(uint32_t id, int regshift, qemu_irq irq);
 void *onenand_raw_otp(void *opaque);

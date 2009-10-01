@@ -41,7 +41,7 @@
 /*****************************************************************************/
 /* Generic PowerPC 4xx processor instanciation */
 CPUState *ppc4xx_init (const char *cpu_model,
-                       a_clk_setup *cpu_clk, a_clk_setup *tb_clk,
+                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                        uint32_t sysclk)
 {
     CPUState *env;
@@ -81,8 +81,8 @@ enum {
 };
 
 #define UIC_MAX_IRQ 32
-typedef struct ppcuic a_ppcuic;
-struct ppcuic {
+typedef struct ppcuic_t ppcuic_t;
+struct ppcuic_t {
     uint32_t dcr_base;
     int use_vectors;
     uint32_t level;  /* Remembers the state of level-triggered interrupts. */
@@ -96,7 +96,7 @@ struct ppcuic {
     qemu_irq *irqs;
 };
 
-static void ppcuic_trigger_irq (a_ppcuic *uic)
+static void ppcuic_trigger_irq (ppcuic_t *uic)
 {
     uint32_t ir, cr;
     int start, end, inc, i;
@@ -149,7 +149,7 @@ static void ppcuic_trigger_irq (a_ppcuic *uic)
 
 static void ppcuic_set_irq (void *opaque, int irq_num, int level)
 {
-    a_ppcuic *uic;
+    ppcuic_t *uic;
     uint32_t mask, sr;
 
     uic = opaque;
@@ -185,7 +185,7 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
 
 static target_ulong dcr_read_uic (void *opaque, int dcrn)
 {
-    a_ppcuic *uic;
+    ppcuic_t *uic;
     target_ulong ret;
 
     uic = opaque;
@@ -231,7 +231,7 @@ static target_ulong dcr_read_uic (void *opaque, int dcrn)
 
 static void dcr_write_uic (void *opaque, int dcrn, target_ulong val)
 {
-    a_ppcuic *uic;
+    ppcuic_t *uic;
 
     uic = opaque;
     dcrn -= uic->dcr_base;
@@ -274,7 +274,7 @@ static void dcr_write_uic (void *opaque, int dcrn, target_ulong val)
 
 static void ppcuic_reset (void *opaque)
 {
-    a_ppcuic *uic;
+    ppcuic_t *uic;
 
     uic = opaque;
     uic->uiccr = 0x00000000;
@@ -291,10 +291,10 @@ static void ppcuic_reset (void *opaque)
 qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr)
 {
-    a_ppcuic *uic;
+    ppcuic_t *uic;
     int i;
 
-    uic = qemu_mallocz(sizeof(a_ppcuic));
+    uic = qemu_mallocz(sizeof(ppcuic_t));
     uic->dcr_base = dcr_base;
     uic->irqs = irqs;
     if (has_vr)
@@ -311,12 +311,12 @@ qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
 
 /*****************************************************************************/
 /* SDRAM controller */
-typedef struct ppc4xx_sdram a_ppc4xx_sdram;
-struct ppc4xx_sdram {
+typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
+struct ppc4xx_sdram_t {
     uint32_t addr;
     int nbanks;
-    a_target_phys_addr ram_bases[4];
-    a_target_phys_addr ram_sizes[4];
+    target_phys_addr_t ram_bases[4];
+    target_phys_addr_t ram_sizes[4];
     uint32_t besr0;
     uint32_t besr1;
     uint32_t bear;
@@ -337,11 +337,11 @@ enum {
 };
 
 /* XXX: TOFIX: some patches have made this code become inconsistent:
- *      there are type inconsistencies, mixing a_target_phys_addr, target_ulong
+ *      there are type inconsistencies, mixing target_phys_addr_t, target_ulong
  *      and uint32_t
  */
-static uint32_t sdram_bcr (a_target_phys_addr ram_base,
-                           a_target_phys_addr ram_size)
+static uint32_t sdram_bcr (target_phys_addr_t ram_base,
+                           target_phys_addr_t ram_size)
 {
     uint32_t bcr;
 
@@ -378,7 +378,7 @@ static uint32_t sdram_bcr (a_target_phys_addr ram_base,
     return bcr;
 }
 
-static inline a_target_phys_addr sdram_base(uint32_t bcr)
+static inline target_phys_addr_t sdram_base(uint32_t bcr)
 {
     return bcr & 0xFF800000;
 }
@@ -419,7 +419,7 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     }
 }
 
-static void sdram_map_bcr (a_ppc4xx_sdram *sdram)
+static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
 {
     int i;
 
@@ -434,7 +434,7 @@ static void sdram_map_bcr (a_ppc4xx_sdram *sdram)
     }
 }
 
-static void sdram_unmap_bcr (a_ppc4xx_sdram *sdram)
+static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
 {
     int i;
 
@@ -451,7 +451,7 @@ static void sdram_unmap_bcr (a_ppc4xx_sdram *sdram)
 
 static target_ulong dcr_read_sdram (void *opaque, int dcrn)
 {
-    a_ppc4xx_sdram *sdram;
+    ppc4xx_sdram_t *sdram;
     target_ulong ret;
 
     sdram = opaque;
@@ -519,7 +519,7 @@ static target_ulong dcr_read_sdram (void *opaque, int dcrn)
 
 static void dcr_write_sdram (void *opaque, int dcrn, target_ulong val)
 {
-    a_ppc4xx_sdram *sdram;
+    ppc4xx_sdram_t *sdram;
 
     sdram = opaque;
     switch (dcrn) {
@@ -604,7 +604,7 @@ static void dcr_write_sdram (void *opaque, int dcrn, target_ulong val)
 
 static void sdram_reset (void *opaque)
 {
-    a_ppc4xx_sdram *sdram;
+    ppc4xx_sdram_t *sdram;
 
     sdram = opaque;
     sdram->addr = 0x00000000;
@@ -624,21 +624,21 @@ static void sdram_reset (void *opaque)
 }
 
 void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
-                        a_target_phys_addr *ram_bases,
-                        a_target_phys_addr *ram_sizes,
+                        target_phys_addr_t *ram_bases,
+                        target_phys_addr_t *ram_sizes,
                         int do_init)
 {
-    a_ppc4xx_sdram *sdram;
+    ppc4xx_sdram_t *sdram;
 
-    sdram = qemu_mallocz(sizeof(a_ppc4xx_sdram));
+    sdram = qemu_mallocz(sizeof(ppc4xx_sdram_t));
     sdram->irq = irq;
     sdram->nbanks = nbanks;
-    memset(sdram->ram_bases, 0, 4 * sizeof(a_target_phys_addr));
+    memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
     memcpy(sdram->ram_bases, ram_bases,
-           nbanks * sizeof(a_target_phys_addr));
-    memset(sdram->ram_sizes, 0, 4 * sizeof(a_target_phys_addr));
+           nbanks * sizeof(target_phys_addr_t));
+    memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
     memcpy(sdram->ram_sizes, ram_sizes,
-           nbanks * sizeof(a_target_phys_addr));
+           nbanks * sizeof(target_phys_addr_t));
     sdram_reset(sdram);
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
@@ -656,12 +656,12 @@ void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
  * The 4xx SDRAM controller supports a small number of banks, and each bank
  * must be one of a small set of sizes. The number of banks and the supported
  * sizes varies by SoC. */
-a_ram_addr ppc4xx_sdram_adjust(a_ram_addr ram_size, int nr_banks,
-                               a_target_phys_addr ram_bases[],
-                               a_target_phys_addr ram_sizes[],
+ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
+                               target_phys_addr_t ram_bases[],
+                               target_phys_addr_t ram_sizes[],
                                const unsigned int sdram_bank_sizes[])
 {
-    a_ram_addr size_left = ram_size;
+    ram_addr_t size_left = ram_size;
     int i;
     int j;
 

@@ -26,25 +26,25 @@
 #include "devices.h"
 #include "loader.h"
 
-static uint32_t static_readb(void *opaque, a_target_phys_addr offset)
+static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 3) << 3);
 }
 
-static uint32_t static_readh(void *opaque, a_target_phys_addr offset)
+static uint32_t static_readh(void *opaque, target_phys_addr_t offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 1) << 3);
 }
 
-static uint32_t static_readw(void *opaque, a_target_phys_addr offset)
+static uint32_t static_readw(void *opaque, target_phys_addr_t offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 0) << 3);
 }
 
-static void static_write(void *opaque, a_target_phys_addr offset,
+static void static_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
 #ifdef SPY
@@ -193,7 +193,7 @@ static struct arm_boot_info palmte_binfo = {
     .board_id = 0x331,
 };
 
-static void palmte_init(a_ram_addr ram_size,
+static void palmte_init(ram_addr_t ram_size,
                 const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
@@ -206,7 +206,7 @@ static void palmte_init(a_ram_addr ram_size,
     static uint32_t cs1val = 0x0000e1a0;
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
-    a_ram_addr phys_flash;
+    ram_addr_t phys_flash;
     int rom_size, rom_loaded = 0;
     DisplayState *ds = get_displaystate();
 

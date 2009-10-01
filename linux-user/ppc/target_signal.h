@@ -9,7 +9,7 @@ typedef struct target_sigaltstack {
 	abi_ulong ss_sp;
 	int ss_flags;
 	abi_ulong ss_size;
-} a_target_stack;
+} target_stack_t;
 
 
 /*

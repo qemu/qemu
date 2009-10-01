@@ -16,12 +16,12 @@
 
 #include "cpu-defs.h"
 
-typedef a_ram_addr (QEMUBalloonEvent)(void *opaque, a_ram_addr target);
+typedef ram_addr_t (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
 
 void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque);
 
-void qemu_balloon(a_ram_addr target);
+void qemu_balloon(ram_addr_t target);
 
-a_ram_addr qemu_balloon_status(void);
+ram_addr_t qemu_balloon_status(void);
 
 #endif

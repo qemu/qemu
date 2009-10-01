@@ -255,7 +255,7 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
     } while (desc_addr != s->tx_queue[queue_index]);
 }
 
-static uint32_t mv88w8618_eth_read(void *opaque, a_target_phys_addr offset)
+static uint32_t mv88w8618_eth_read(void *opaque, target_phys_addr_t offset)
 {
     mv88w8618_eth_state *s = opaque;
 
@@ -296,7 +296,7 @@ static uint32_t mv88w8618_eth_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void mv88w8618_eth_write(void *opaque, a_target_phys_addr offset,
+static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     mv88w8618_eth_state *s = opaque;
@@ -481,7 +481,7 @@ static void musicpal_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
     s->brightness |= level << irq;
 }
 
-static uint32_t musicpal_lcd_read(void *opaque, a_target_phys_addr offset)
+static uint32_t musicpal_lcd_read(void *opaque, target_phys_addr_t offset)
 {
     musicpal_lcd_state *s = opaque;
 
@@ -494,7 +494,7 @@ static uint32_t musicpal_lcd_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void musicpal_lcd_write(void *opaque, a_target_phys_addr offset,
+static void musicpal_lcd_write(void *opaque, target_phys_addr_t offset,
                                uint32_t value)
 {
     musicpal_lcd_state *s = opaque;
@@ -594,7 +594,7 @@ static void mv88w8618_pic_set_irq(void *opaque, int irq, int level)
     mv88w8618_pic_update(s);
 }
 
-static uint32_t mv88w8618_pic_read(void *opaque, a_target_phys_addr offset)
+static uint32_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset)
 {
     mv88w8618_pic_state *s = opaque;
 
@@ -607,7 +607,7 @@ static uint32_t mv88w8618_pic_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void mv88w8618_pic_write(void *opaque, a_target_phys_addr offset,
+static void mv88w8618_pic_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     mv88w8618_pic_state *s = opaque;
@@ -705,7 +705,7 @@ static void mv88w8618_timer_init(SysBusDevice *dev, mv88w8618_timer_state *s,
     s->ptimer = ptimer_init(bh);
 }
 
-static uint32_t mv88w8618_pit_read(void *opaque, a_target_phys_addr offset)
+static uint32_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset)
 {
     mv88w8618_pit_state *s = opaque;
     mv88w8618_timer_state *t;
@@ -720,7 +720,7 @@ static uint32_t mv88w8618_pit_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void mv88w8618_pit_write(void *opaque, a_target_phys_addr offset,
+static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     mv88w8618_pit_state *s = opaque;
@@ -792,7 +792,7 @@ typedef struct mv88w8618_flashcfg_state {
 } mv88w8618_flashcfg_state;
 
 static uint32_t mv88w8618_flashcfg_read(void *opaque,
-                                        a_target_phys_addr offset)
+                                        target_phys_addr_t offset)
 {
     mv88w8618_flashcfg_state *s = opaque;
 
@@ -805,7 +805,7 @@ static uint32_t mv88w8618_flashcfg_read(void *opaque,
     }
 }
 
-static void mv88w8618_flashcfg_write(void *opaque, a_target_phys_addr offset,
+static void mv88w8618_flashcfg_write(void *opaque, target_phys_addr_t offset,
                                      uint32_t value)
 {
     mv88w8618_flashcfg_state *s = opaque;
@@ -846,7 +846,7 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 
 #define MP_BOARD_REVISION       0x31
 
-static uint32_t musicpal_misc_read(void *opaque, a_target_phys_addr offset)
+static uint32_t musicpal_misc_read(void *opaque, target_phys_addr_t offset)
 {
     switch (offset) {
     case MP_MISC_BOARD_REVISION:
@@ -857,7 +857,7 @@ static uint32_t musicpal_misc_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void musicpal_misc_write(void *opaque, a_target_phys_addr offset,
+static void musicpal_misc_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
 }
@@ -887,7 +887,7 @@ static void musicpal_misc_init(void)
 #define MP_WLAN_MAGIC1          0x11c
 #define MP_WLAN_MAGIC2          0x124
 
-static uint32_t mv88w8618_wlan_read(void *opaque, a_target_phys_addr offset)
+static uint32_t mv88w8618_wlan_read(void *opaque, target_phys_addr_t offset)
 {
     switch (offset) {
     /* Workaround to allow loading the binary-only wlandrv.ko crap
@@ -902,7 +902,7 @@ static uint32_t mv88w8618_wlan_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void mv88w8618_wlan_write(void *opaque, a_target_phys_addr offset,
+static void mv88w8618_wlan_write(void *opaque, target_phys_addr_t offset,
                                  uint32_t value)
 {
 }
@@ -1049,7 +1049,7 @@ static void musicpal_gpio_irq(void *opaque, int irq, int level)
         musicpal_gpio_keys_update(s);
 }
 
-static uint32_t musicpal_gpio_read(void *opaque, a_target_phys_addr offset)
+static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 {
     musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
 
@@ -1080,7 +1080,7 @@ static uint32_t musicpal_gpio_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void musicpal_gpio_write(void *opaque, a_target_phys_addr offset,
+static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     musicpal_gpio_state *s = (musicpal_gpio_state *) opaque;
@@ -1275,7 +1275,7 @@ static struct arm_boot_info musicpal_binfo = {
     .board_id = 0x20e,
 };
 
-static void musicpal_init(a_ram_addr ram_size,
+static void musicpal_init(ram_addr_t ram_size,
                const char *boot_device,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
@@ -1295,7 +1295,7 @@ static void musicpal_init(a_ram_addr ram_size,
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
-    a_ram_addr sram_off;
+    ram_addr_t sram_off;
 
     if (!cpu_model)
         cpu_model = "arm926";

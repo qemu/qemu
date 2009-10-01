@@ -90,7 +90,7 @@ static void pl031_set_alarm(pl031_state *s)
     }
 }
 
-static uint32_t pl031_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pl031_read(void *opaque, target_phys_addr_t offset)
 {
     pl031_state *s = (pl031_state *)opaque;
 
@@ -125,7 +125,7 @@ static uint32_t pl031_read(void *opaque, a_target_phys_addr offset)
     return 0;
 }
 
-static void pl031_write(void * opaque, a_target_phys_addr offset,
+static void pl031_write(void * opaque, target_phys_addr_t offset,
                         uint32_t value)
 {
     pl031_state *s = (pl031_state *)opaque;

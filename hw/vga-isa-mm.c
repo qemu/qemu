@@ -34,7 +34,7 @@ typedef struct ISAVGAMMState {
 } ISAVGAMMState;
 
 /* Memory mapped interface */
-static uint32_t vga_mm_readb (void *opaque, a_target_phys_addr addr)
+static uint32_t vga_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     ISAVGAMMState *s = opaque;
 
@@ -42,14 +42,14 @@ static uint32_t vga_mm_readb (void *opaque, a_target_phys_addr addr)
 }
 
 static void vga_mm_writeb (void *opaque,
-                           a_target_phys_addr addr, uint32_t value)
+                           target_phys_addr_t addr, uint32_t value)
 {
     ISAVGAMMState *s = opaque;
 
     vga_ioport_write(&s->vga, addr >> s->it_shift, value & 0xff);
 }
 
-static uint32_t vga_mm_readw (void *opaque, a_target_phys_addr addr)
+static uint32_t vga_mm_readw (void *opaque, target_phys_addr_t addr)
 {
     ISAVGAMMState *s = opaque;
 
@@ -57,14 +57,14 @@ static uint32_t vga_mm_readw (void *opaque, a_target_phys_addr addr)
 }
 
 static void vga_mm_writew (void *opaque,
-                           a_target_phys_addr addr, uint32_t value)
+                           target_phys_addr_t addr, uint32_t value)
 {
     ISAVGAMMState *s = opaque;
 
     vga_ioport_write(&s->vga, addr >> s->it_shift, value & 0xffff);
 }
 
-static uint32_t vga_mm_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t vga_mm_readl (void *opaque, target_phys_addr_t addr)
 {
     ISAVGAMMState *s = opaque;
 
@@ -72,7 +72,7 @@ static uint32_t vga_mm_readl (void *opaque, a_target_phys_addr addr)
 }
 
 static void vga_mm_writel (void *opaque,
-                           a_target_phys_addr addr, uint32_t value)
+                           target_phys_addr_t addr, uint32_t value)
 {
     ISAVGAMMState *s = opaque;
 
@@ -91,8 +91,8 @@ static CPUWriteMemoryFunc * const vga_mm_write_ctrl[] = {
     &vga_mm_writel,
 };
 
-static void vga_mm_init(ISAVGAMMState *s, a_target_phys_addr vram_base,
-                        a_target_phys_addr ctrl_base, int it_shift)
+static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
+                        target_phys_addr_t ctrl_base, int it_shift)
 {
     int s_ioport_ctrl, vga_io_memory;
 
@@ -108,8 +108,8 @@ static void vga_mm_init(ISAVGAMMState *s, a_target_phys_addr vram_base,
     qemu_register_coalesced_mmio(vram_base + 0x000a0000, 0x20000);
 }
 
-int isa_vga_mm_init(a_target_phys_addr vram_base,
-                    a_target_phys_addr ctrl_base, int it_shift)
+int isa_vga_mm_init(target_phys_addr_t vram_base,
+                    target_phys_addr_t ctrl_base, int it_shift)
 {
     ISAVGAMMState *s;
 

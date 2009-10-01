@@ -70,8 +70,8 @@
 
 /*****************************************************************************/
 /* MMU model                                                                 */
-typedef enum powerpc_mmu e_powerpc_mmu;
-enum powerpc_mmu {
+typedef enum powerpc_mmu_t powerpc_mmu_t;
+enum powerpc_mmu_t {
     POWERPC_MMU_UNKNOWN    = 0x00000000,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B        = 0x00000001,
@@ -104,8 +104,8 @@ enum powerpc_mmu {
 
 /*****************************************************************************/
 /* Exception model                                                           */
-typedef enum powerpc_excp e_powerpc_excp;
-enum powerpc_excp {
+typedef enum powerpc_excp_t powerpc_excp_t;
+enum powerpc_excp_t {
     POWERPC_EXCP_UNKNOWN   = 0,
     /* Standard PowerPC exception model */
     POWERPC_EXCP_STD,
@@ -258,8 +258,8 @@ enum {
 
 /*****************************************************************************/
 /* Input pins model                                                          */
-typedef enum powerpc_input e_powerpc_input;
-enum powerpc_input {
+typedef enum powerpc_input_t powerpc_input_t;
+enum powerpc_input_t {
     PPC_FLAGS_INPUT_UNKNOWN = 0,
     /* PowerPC 6xx bus                  */
     PPC_FLAGS_INPUT_6xx,
@@ -278,18 +278,20 @@ enum powerpc_input {
 #define PPC_INPUT(env) (env->bus_model)
 
 /*****************************************************************************/
-typedef struct ppc_def a_ppc_def;
-typedef struct opc_handler an_opc_handler;
+typedef struct ppc_def_t ppc_def_t;
+typedef struct opc_handler_t opc_handler_t;
 
 /*****************************************************************************/
 /* Types used to describe some PowerPC registers */
 typedef struct CPUPPCState CPUPPCState;
-typedef struct ppc_tb a_ppc_tb;
-typedef struct ppc_spr a_ppc_spr;
-typedef struct ppc_dcr a_ppc_dcr;
+typedef struct ppc_tb_t ppc_tb_t;
+typedef struct ppc_spr_t ppc_spr_t;
+typedef struct ppc_dcr_t ppc_dcr_t;
+typedef union ppc_avr_t ppc_avr_t;
+typedef union ppc_tlb_t ppc_tlb_t;
 
 /* SPR access micro-ops generations callbacks */
-struct ppc_spr {
+struct ppc_spr_t {
     void (*uea_read)(void *opaque, int gpr_num, int spr_num);
     void (*uea_write)(void *opaque, int spr_num, int gpr_num);
 #if !defined(CONFIG_USER_ONLY)
@@ -302,7 +304,7 @@ struct ppc_spr {
 };
 
 /* Altivec registers (128 bits) */
-union ppc_avr {
+union ppc_avr_t {
     float32 f[4];
     uint8_t u8[16];
     uint16_t u16[8];
@@ -314,16 +316,16 @@ union ppc_avr {
 };
 
 /* Software TLB cache */
-typedef struct ppc6xx_tlb a_ppc6xx_tlb;
-struct ppc6xx_tlb {
+typedef struct ppc6xx_tlb_t ppc6xx_tlb_t;
+struct ppc6xx_tlb_t {
     target_ulong pte0;
     target_ulong pte1;
     target_ulong EPN;
 };
 
-typedef struct ppcemb_tlb a_ppcemb_tlb;
-struct ppcemb_tlb {
-    a_target_phys_addr RPN;
+typedef struct ppcemb_tlb_t ppcemb_tlb_t;
+struct ppcemb_tlb_t {
+    target_phys_addr_t RPN;
     target_ulong EPN;
     target_ulong PID;
     target_ulong size;
@@ -331,13 +333,13 @@ struct ppcemb_tlb {
     uint32_t attr; /* Storage attributes */
 };
 
-union ppc_tlb {
-    a_ppc6xx_tlb tlb6;
-    a_ppcemb_tlb tlbe;
+union ppc_tlb_t {
+    ppc6xx_tlb_t tlb6;
+    ppcemb_tlb_t tlbe;
 };
 
-typedef struct ppc_slb a_ppc_slb;
-struct ppc_slb {
+typedef struct ppc_slb_t ppc_slb_t;
+struct ppc_slb_t {
     uint64_t tmp64;
     uint32_t tmp;
 };
@@ -588,7 +590,7 @@ struct CPUPPCState {
     /* Address space register */
     target_ulong asr;
     /* PowerPC 64 SLB area */
-    a_ppc_slb slb[64];
+    ppc_slb_t slb[64];
     int slb_nr;
 #endif
     /* segment registers */
@@ -605,7 +607,7 @@ struct CPUPPCState {
     int last_way;    /* Last used way used to allocate TLB in a LRU way      */
     int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
     int nb_pids;     /* Number of available PID registers                    */
-    union ppc_tlb *tlb;  /* TLB is optional. Allocate them only if needed        */
+    ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
 #endif
@@ -613,9 +615,9 @@ struct CPUPPCState {
     /* Other registers */
     /* Special purpose registers */
     target_ulong spr[1024];
-    a_ppc_spr spr_cb[1024];
+    ppc_spr_t spr_cb[1024];
     /* Altivec registers */
-    union ppc_avr avr[32];
+    ppc_avr_t avr[32];
     uint32_t vscr;
     /* SPE registers */
     uint64_t spe_acc;
@@ -626,9 +628,9 @@ struct CPUPPCState {
 
     /* Internal devices resources */
     /* Time base and decrementer */
-    a_ppc_tb *tb_env;
+    ppc_tb_t *tb_env;
     /* Device control registers */
-    a_ppc_dcr *dcr_env;
+    ppc_dcr_t *dcr_env;
 
     int dcache_line_size;
     int icache_line_size;
@@ -636,9 +638,9 @@ struct CPUPPCState {
     /* Those resources are used during exception processing */
     /* CPU model definition */
     target_ulong msr_mask;
-    e_powerpc_mmu mmu_model;
-    e_powerpc_excp excp_model;
-    e_powerpc_input bus_model;
+    powerpc_mmu_t mmu_model;
+    powerpc_excp_t excp_model;
+    powerpc_input_t bus_model;
     int bfd_mach;
     uint32_t flags;
     uint64_t insns_flags;
@@ -665,7 +667,7 @@ struct CPUPPCState {
     target_ulong nip;
 
     /* opcode handlers */
-    an_opc_handler *opcodes[0x40];
+    opc_handler_t *opcodes[0x40];
 
     /* Those resources are used only in Qemu core */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
@@ -681,12 +683,12 @@ struct CPUPPCState {
 };
 
 /* Context used internally during MMU translations */
-typedef struct mmu_ctx a_mmu_ctx;
-struct mmu_ctx {
-    a_target_phys_addr raddr;      /* Real address              */
-    a_target_phys_addr eaddr;      /* Effective address         */
+typedef struct mmu_ctx_t mmu_ctx_t;
+struct mmu_ctx_t {
+    target_phys_addr_t raddr;      /* Real address              */
+    target_phys_addr_t eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
-    a_target_phys_addr pg_addr[2]; /* PTE tables base addresses */
+    target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
@@ -705,7 +707,7 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu);
 #define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
-int get_physical_address (CPUPPCState *env, a_mmu_ctx *ctx, target_ulong vaddr,
+int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
                           int rw, int access_type);
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
@@ -736,8 +738,8 @@ void cpu_ppc_reset (void *opaque);
 
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
-const a_ppc_def *cpu_ppc_find_by_name (const char *name);
-int cpu_ppc_register_internal (CPUPPCState *env, const a_ppc_def *def);
+const ppc_def_t *cpu_ppc_find_by_name (const char *name);
+int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
@@ -795,8 +797,8 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 }
 
 /* Device control registers */
-int ppc_dcr_read (a_ppc_dcr *dcr_env, int dcrn, target_ulong *valp);
-int ppc_dcr_write (a_ppc_dcr *dcr_env, int dcrn, target_ulong val);
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
 #define cpu_init cpu_ppc_init
 #define cpu_exec cpu_ppc_exec

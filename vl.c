@@ -186,7 +186,7 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
-a_ram_addr ram_size;
+ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
@@ -273,7 +273,7 @@ static void *boot_set_opaque;
 /***********************************************************/
 /* x86 ISA bus support */
 
-a_target_phys_addr isa_mem_base = 0;
+target_phys_addr_t isa_mem_base = 0;
 PicState2 *isa_pic;
 
 /***********************************************************/
@@ -324,13 +324,13 @@ void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
     qemu_balloon_event_opaque = opaque;
 }
 
-void qemu_balloon(a_ram_addr target)
+void qemu_balloon(ram_addr_t target)
 {
     if (qemu_balloon_event)
         qemu_balloon_event(qemu_balloon_event_opaque, target);
 }
 
-a_ram_addr qemu_balloon_status(void)
+ram_addr_t qemu_balloon_status(void)
 {
     if (qemu_balloon_event)
         return qemu_balloon_event(qemu_balloon_event_opaque, 0);
@@ -1670,7 +1670,7 @@ static struct HCIInfo *hci_init(const char *str)
 static int bt_hci_parse(const char *str)
 {
     struct HCIInfo *hci;
-    a_bdaddr bdaddr;
+    bdaddr_t bdaddr;
 
     if (nb_hcis >= MAX_NICS) {
         fprintf(stderr, "qemu: Too many bluetooth HCIs (max %i).\n", MAX_NICS);
@@ -2805,9 +2805,9 @@ static int is_dup_page(uint8_t *page, uint8_t ch)
 
 static int ram_save_block(QEMUFile *f)
 {
-    static a_ram_addr current_addr = 0;
-    a_ram_addr saved_addr = current_addr;
-    a_ram_addr addr = 0;
+    static ram_addr_t current_addr = 0;
+    ram_addr_t saved_addr = current_addr;
+    ram_addr_t addr = 0;
     int found = 0;
 
     while (addr < last_ram_offset) {
@@ -2840,10 +2840,10 @@ static int ram_save_block(QEMUFile *f)
 
 static uint64_t bytes_transferred = 0;
 
-static a_ram_addr ram_save_remaining(void)
+static ram_addr_t ram_save_remaining(void)
 {
-    a_ram_addr addr;
-    a_ram_addr count = 0;
+    ram_addr_t addr;
+    ram_addr_t count = 0;
 
     for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
         if (cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG))
@@ -2870,7 +2870,7 @@ uint64_t ram_bytes_total(void)
 
 static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
-    a_ram_addr addr;
+    ram_addr_t addr;
     uint64_t bytes_transferred_last;
     double bwidth = 0;
     uint64_t expected_time = 0;
@@ -2933,7 +2933,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
-    a_ram_addr addr;
+    ram_addr_t addr;
     int flags;
 
     if (version_id != 3)
@@ -5038,7 +5038,7 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
                     exit(1);
                 }
-                if (value != (uint64_t)(a_ram_addr)value) {
+                if (value != (uint64_t)(ram_addr_t)value) {
                     fprintf(stderr, "qemu: ram size too large\n");
                     exit(1);
                 }

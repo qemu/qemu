@@ -166,7 +166,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = proxy->vdev;
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
 
     switch (addr) {
     case VIRTIO_PCI_GUEST_FEATURES:
@@ -182,7 +182,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         vdev->features = val;
         break;
     case VIRTIO_PCI_QUEUE_PFN:
-        pa = (a_target_phys_addr)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
+        pa = (target_phys_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
         if (pa == 0)
             virtio_pci_reset(proxy);
         else

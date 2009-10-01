@@ -367,10 +367,10 @@ static const int m5206_mbar_width[] =
   /* 1c0-200 */ 1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,
 };
 
-static uint32_t m5206_mbar_readw(void *opaque, a_target_phys_addr offset);
-static uint32_t m5206_mbar_readl(void *opaque, a_target_phys_addr offset);
+static uint32_t m5206_mbar_readw(void *opaque, target_phys_addr_t offset);
+static uint32_t m5206_mbar_readl(void *opaque, target_phys_addr_t offset);
 
-static uint32_t m5206_mbar_readb(void *opaque, a_target_phys_addr offset)
+static uint32_t m5206_mbar_readb(void *opaque, target_phys_addr_t offset)
 {
     m5206_mbar_state *s = (m5206_mbar_state *)opaque;
     offset &= 0x3ff;
@@ -388,7 +388,7 @@ static uint32_t m5206_mbar_readb(void *opaque, a_target_phys_addr offset)
     return m5206_mbar_read(s, offset);
 }
 
-static uint32_t m5206_mbar_readw(void *opaque, a_target_phys_addr offset)
+static uint32_t m5206_mbar_readw(void *opaque, target_phys_addr_t offset)
 {
     m5206_mbar_state *s = (m5206_mbar_state *)opaque;
     int width;
@@ -412,7 +412,7 @@ static uint32_t m5206_mbar_readw(void *opaque, a_target_phys_addr offset)
     return m5206_mbar_read(s, offset);
 }
 
-static uint32_t m5206_mbar_readl(void *opaque, a_target_phys_addr offset)
+static uint32_t m5206_mbar_readl(void *opaque, target_phys_addr_t offset)
 {
     m5206_mbar_state *s = (m5206_mbar_state *)opaque;
     int width;
@@ -430,12 +430,12 @@ static uint32_t m5206_mbar_readl(void *opaque, a_target_phys_addr offset)
     return m5206_mbar_read(s, offset);
 }
 
-static void m5206_mbar_writew(void *opaque, a_target_phys_addr offset,
+static void m5206_mbar_writew(void *opaque, target_phys_addr_t offset,
                               uint32_t value);
-static void m5206_mbar_writel(void *opaque, a_target_phys_addr offset,
+static void m5206_mbar_writel(void *opaque, target_phys_addr_t offset,
                               uint32_t value);
 
-static void m5206_mbar_writeb(void *opaque, a_target_phys_addr offset,
+static void m5206_mbar_writeb(void *opaque, target_phys_addr_t offset,
                               uint32_t value)
 {
     m5206_mbar_state *s = (m5206_mbar_state *)opaque;
@@ -459,7 +459,7 @@ static void m5206_mbar_writeb(void *opaque, a_target_phys_addr offset,
     m5206_mbar_write(s, offset, value);
 }
 
-static void m5206_mbar_writew(void *opaque, a_target_phys_addr offset,
+static void m5206_mbar_writew(void *opaque, target_phys_addr_t offset,
                               uint32_t value)
 {
     m5206_mbar_state *s = (m5206_mbar_state *)opaque;
@@ -487,7 +487,7 @@ static void m5206_mbar_writew(void *opaque, a_target_phys_addr offset,
     m5206_mbar_write(s, offset, value);
 }
 
-static void m5206_mbar_writel(void *opaque, a_target_phys_addr offset,
+static void m5206_mbar_writel(void *opaque, target_phys_addr_t offset,
                               uint32_t value)
 {
     m5206_mbar_state *s = (m5206_mbar_state *)opaque;

@@ -95,15 +95,15 @@ typedef struct CPUTLBEntry {
        use the corresponding iotlb value.  */
 #if TARGET_PHYS_ADDR_BITS == 64
     /* on i386 Linux make sure it is aligned */
-    a_target_phys_addr addend __attribute__((aligned(8)));
+    target_phys_addr_t addend __attribute__((aligned(8)));
 #else
-    a_target_phys_addr addend;
+    target_phys_addr_t addend;
 #endif
     /* padding to get a power of two size */
     uint8_t dummy[(1 << CPU_TLB_ENTRY_BITS) - 
                   (sizeof(target_ulong) * 3 + 
-                   ((-sizeof(target_ulong) * 3) & (sizeof(a_target_phys_addr) - 1)) + 
-                   sizeof(a_target_phys_addr))];
+                   ((-sizeof(target_ulong) * 3) & (sizeof(target_phys_addr_t) - 1)) + 
+                   sizeof(target_phys_addr_t))];
 } CPUTLBEntry;
 
 #ifdef HOST_WORDS_BIGENDIAN
@@ -152,7 +152,7 @@ typedef struct CPUWatchpoint {
     volatile sig_atomic_t exit_request;                                 \
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
-    a_target_phys_addr iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
+    target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
     /* buffer for temporaries in the code generator */                  \
     long temp_buf[CPU_TEMP_BUF_NLONGS];                                 \

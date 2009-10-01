@@ -73,9 +73,9 @@ struct PCNetState_st {
     uint8_t buffer[4096];
     int tx_busy;
     qemu_irq irq;
-    void (*phys_mem_read)(void *dma_opaque, a_target_phys_addr addr,
+    void (*phys_mem_read)(void *dma_opaque, target_phys_addr_t addr,
                          uint8_t *buf, int len, int do_bswap);
-    void (*phys_mem_write)(void *dma_opaque, a_target_phys_addr addr,
+    void (*phys_mem_write)(void *dma_opaque, target_phys_addr_t addr,
                           uint8_t *buf, int len, int do_bswap);
     void *dma_opaque;
     int looptest;
@@ -349,7 +349,7 @@ struct pcnet_RMD {
         GET_FIELD((R)->msg_length, RMDM, ZEROS))
 
 static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
-                                  a_target_phys_addr addr)
+                                  target_phys_addr_t addr)
 {
     if (!BCR_SSIZE32(s)) {
         struct {
@@ -379,7 +379,7 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
 }
 
 static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
-                                   a_target_phys_addr addr)
+                                   target_phys_addr_t addr)
 {
     if (!BCR_SSIZE32(s)) {
         struct {
@@ -415,7 +415,7 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
 }
 
 static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
-                                  a_target_phys_addr addr)
+                                  target_phys_addr_t addr)
 {
     if (!BCR_SSIZE32(s)) {
         struct {
@@ -445,7 +445,7 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
 }
 
 static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
-                                   a_target_phys_addr addr)
+                                   target_phys_addr_t addr)
 {
     if (!BCR_SSIZE32(s)) {
         struct {
@@ -716,7 +716,7 @@ static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
     return 0;
 }
 
-static inline a_target_phys_addr pcnet_rdra_addr(PCNetState *s, int idx)
+static inline target_phys_addr_t pcnet_rdra_addr(PCNetState *s, int idx)
 {
     while (idx < 1) idx += CSR_RCVRL(s);
     return s->rdra + ((CSR_RCVRL(s) - idx) * (BCR_SWSTYLE(s) ? 16 : 8));
@@ -955,19 +955,19 @@ static void pcnet_rdte_poll(PCNetState *s)
     if (s->rdra) {
         int bad = 0;
 #if 1
-        a_target_phys_addr crda = pcnet_rdra_addr(s, CSR_RCVRC(s));
-        a_target_phys_addr nrda = pcnet_rdra_addr(s, -1 + CSR_RCVRC(s));
-        a_target_phys_addr nnrd = pcnet_rdra_addr(s, -2 + CSR_RCVRC(s));
+        target_phys_addr_t crda = pcnet_rdra_addr(s, CSR_RCVRC(s));
+        target_phys_addr_t nrda = pcnet_rdra_addr(s, -1 + CSR_RCVRC(s));
+        target_phys_addr_t nnrd = pcnet_rdra_addr(s, -2 + CSR_RCVRC(s));
 #else
-        a_target_phys_addr crda = s->rdra +
+        target_phys_addr_t crda = s->rdra +
             (CSR_RCVRL(s) - CSR_RCVRC(s)) *
             (BCR_SWSTYLE(s) ? 16 : 8 );
         int nrdc = CSR_RCVRC(s)<=1 ? CSR_RCVRL(s) : CSR_RCVRC(s)-1;
-        a_target_phys_addr nrda = s->rdra +
+        target_phys_addr_t nrda = s->rdra +
             (CSR_RCVRL(s) - nrdc) *
             (BCR_SWSTYLE(s) ? 16 : 8 );
         int nnrc = nrdc<=1 ? CSR_RCVRL(s) : nrdc-1;
-        a_target_phys_addr nnrd = s->rdra +
+        target_phys_addr_t nnrd = s->rdra +
             (CSR_RCVRL(s) - nnrc) *
             (BCR_SWSTYLE(s) ? 16 : 8 );
 #endif
@@ -1027,7 +1027,7 @@ static int pcnet_tdte_poll(PCNetState *s)
 {
     s->csr[34] = s->csr[35] = 0;
     if (s->tdra) {
-        a_target_phys_addr cxda = s->tdra +
+        target_phys_addr_t cxda = s->tdra +
             (CSR_XMTRL(s) - CSR_XMTRC(s)) *
             (BCR_SWSTYLE(s) ? 16 : 8);
         int bad = 0;
@@ -1109,7 +1109,7 @@ static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t siz
         if (!(CSR_CRST(s) & 0x8000) && s->rdra) {
             struct pcnet_RMD rmd;
             int rcvrc = CSR_RCVRC(s)-1,i;
-            a_target_phys_addr nrda;
+            target_phys_addr_t nrda;
             for (i = CSR_RCVRL(s)-1; i > 0; i--, rcvrc--) {
                 if (rcvrc <= 1)
                     rcvrc = CSR_RCVRL(s);
@@ -1137,7 +1137,7 @@ static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t siz
             CSR_MISSC(s)++;
         } else {
             uint8_t *src = s->buffer;
-            a_target_phys_addr crda = CSR_CRDA(s);
+            target_phys_addr_t crda = CSR_CRDA(s);
             struct pcnet_RMD rmd;
             int pktcount = 0;
 
@@ -1177,7 +1177,7 @@ static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t siz
 
 #define PCNET_RECV_STORE() do {                                 \
     int count = MIN(4096 - GET_FIELD(rmd.buf_length, RMDL, BCNT),remaining); \
-    a_target_phys_addr rbadr = PHYSADDR(s, rmd.rbadr);          \
+    target_phys_addr_t rbadr = PHYSADDR(s, rmd.rbadr);          \
     s->phys_mem_write(s->dma_opaque, rbadr, src, count, CSR_BSWP(s)); \
     src += count; remaining -= count;                           \
     SET_FIELD(&rmd.status, RMDS, OWN, 0);                       \
@@ -1188,7 +1188,7 @@ static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t siz
             remaining = size;
             PCNET_RECV_STORE();
             if ((remaining > 0) && CSR_NRDA(s)) {
-                a_target_phys_addr nrda = CSR_NRDA(s);
+                target_phys_addr_t nrda = CSR_NRDA(s);
 #ifdef PCNET_DEBUG_RMD
                 PRINT_RMD(&rmd);
 #endif
@@ -1258,7 +1258,7 @@ static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t siz
 
 static void pcnet_transmit(PCNetState *s)
 {
-    a_target_phys_addr xmit_cxda = 0;
+    target_phys_addr_t xmit_cxda = 0;
     int count = CSR_XMTRL(s)-1;
     int add_crc = 0;
 
@@ -1778,7 +1778,7 @@ static void pcnet_ioport_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x10, 0x10, 4, pcnet_ioport_readl, d);
 }
 
-static void pcnet_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void pcnet_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
@@ -1789,7 +1789,7 @@ static void pcnet_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t va
         pcnet_aprom_writeb(d, addr & 0x0f, val);
 }
 
-static uint32_t pcnet_mmio_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t pcnet_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
     PCNetState *d = opaque;
     uint32_t val = -1;
@@ -1802,7 +1802,7 @@ static uint32_t pcnet_mmio_readb(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static void pcnet_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void pcnet_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
@@ -1818,7 +1818,7 @@ static void pcnet_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t va
     }
 }
 
-static uint32_t pcnet_mmio_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t pcnet_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     PCNetState *d = opaque;
     uint32_t val = -1;
@@ -1837,7 +1837,7 @@ static uint32_t pcnet_mmio_readw(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static void pcnet_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void pcnet_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
@@ -1855,7 +1855,7 @@ static void pcnet_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t va
     }
 }
 
-static uint32_t pcnet_mmio_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t pcnet_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     PCNetState *d = opaque;
     uint32_t val;
@@ -2000,13 +2000,13 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->state.mmio_index);
 }
 
-static void pci_physical_memory_write(void *dma_opaque, a_target_phys_addr addr,
+static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
     cpu_physical_memory_write(addr, buf, len);
 }
 
-static void pci_physical_memory_read(void *dma_opaque, a_target_phys_addr addr,
+static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
                                      uint8_t *buf, int len, int do_bswap)
 {
     cpu_physical_memory_read(addr, buf, len);
@@ -2089,7 +2089,7 @@ static void parent_lance_reset(void *opaque, int irq, int level)
         pcnet_h_reset(&d->state);
 }
 
-static void lance_mem_writew(void *opaque, a_target_phys_addr addr,
+static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
     SysBusPCNetState *d = opaque;
@@ -2100,7 +2100,7 @@ static void lance_mem_writew(void *opaque, a_target_phys_addr addr,
     pcnet_ioport_writew(&d->state, addr, val & 0xffff);
 }
 
-static uint32_t lance_mem_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     SysBusPCNetState *d = opaque;
     uint32_t val;

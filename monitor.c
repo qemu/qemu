@@ -67,20 +67,20 @@
  *
  */
 
-typedef struct mon_cmd {
+typedef struct mon_cmd_t {
     const char *name;
     const char *args_type;
     void *handler;
     const char *params;
     const char *help;
-} a_mon_cmd;
+} mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
-typedef struct mon_fd a_mon_fd;
-struct mon_fd {
+typedef struct mon_fd_t mon_fd_t;
+struct mon_fd_t {
     char *name;
     int fd;
-    QLIST_ENTRY(mon_fd) next;
+    QLIST_ENTRY(mon_fd_t) next;
 };
 
 struct Monitor {
@@ -95,14 +95,14 @@ struct Monitor {
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
-    QLIST_HEAD(,mon_fd) fds;
+    QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
 };
 
 static QLIST_HEAD(mon_list, Monitor) mon_list;
 
-static const a_mon_cmd mon_cmds[];
-static const a_mon_cmd info_cmds[];
+static const mon_cmd_t mon_cmds[];
+static const mon_cmd_t info_cmds[];
 
 Monitor *cur_mon = NULL;
 
@@ -229,10 +229,10 @@ static int compare_cmd(const char *name, const char *list)
     return 0;
 }
 
-static void help_cmd_dump(Monitor *mon, const a_mon_cmd *cmds,
+static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
                           const char *prefix, const char *name)
 {
-    const a_mon_cmd *cmd;
+    const mon_cmd_t *cmd;
 
     for(cmd = cmds; cmd->name != NULL; cmd++) {
         if (!name || !strcmp(name, cmd->name))
@@ -280,7 +280,7 @@ static void do_commit(Monitor *mon, const QDict *qdict)
 
 static void do_info(Monitor *mon, const QDict *qdict)
 {
-    const a_mon_cmd *cmd;
+    const mon_cmd_t *cmd;
     const char *item = qdict_get_try_str(qdict, "item");
     void (*handler)(Monitor *);
 
@@ -666,7 +666,7 @@ static void monitor_printc(Monitor *mon, int c)
 }
 
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
-                        a_target_phys_addr addr, int is_physical)
+                        target_phys_addr_t addr, int is_physical)
 {
     CPUState *env;
     int nb_per_line, l, line_size, i, max_digits, len;
@@ -805,7 +805,7 @@ static void do_physical_memory_dump(Monitor *mon, const QDict *qdict)
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
     int size = qdict_get_int(qdict, "size");
-    a_target_phys_addr addr = qdict_get_int(qdict, "addr");
+    target_phys_addr_t addr = qdict_get_int(qdict, "addr");
 
     memory_dump(mon, count, format, size, addr, 1);
 }
@@ -813,7 +813,7 @@ static void do_physical_memory_dump(Monitor *mon, const QDict *qdict)
 static void do_print(Monitor *mon, const QDict *qdict)
 {
     int format = qdict_get_int(qdict, "format");
-    a_target_phys_addr val = qdict_get_int(qdict, "val");
+    target_phys_addr_t val = qdict_get_int(qdict, "val");
 
 #if TARGET_PHYS_ADDR_BITS == 32
     switch(format) {
@@ -895,7 +895,7 @@ static void do_physical_memory_save(Monitor *mon, const QDict *qdict)
     uint8_t buf[1024];
     uint32_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
-    a_target_phys_addr addr = qdict_get_int(qdict, "val");
+    target_phys_addr_t addr = qdict_get_int(qdict, "val");
 
     f = fopen(filename, "wb");
     if (!f) {
@@ -1565,13 +1565,13 @@ static void do_info_status(Monitor *mon)
 static void do_balloon(Monitor *mon, const QDict *qdict)
 {
     int value = qdict_get_int(qdict, "value");
-    a_ram_addr target = value;
+    ram_addr_t target = value;
     qemu_balloon(target << 20);
 }
 
 static void do_info_balloon(Monitor *mon)
 {
-    a_ram_addr actual;
+    ram_addr_t actual;
 
     actual = qemu_balloon_status();
     if (kvm_enabled() && !kvm_has_sync_mmu())
@@ -1711,7 +1711,7 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
 static void do_getfd(Monitor *mon, const QDict *qdict)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
-    a_mon_fd *monfd;
+    mon_fd_t *monfd;
     int fd;
 
     fd = qemu_chr_get_msgfd(mon->chr);
@@ -1742,7 +1742,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monfd = qemu_mallocz(sizeof(a_mon_fd));
+    monfd = qemu_mallocz(sizeof(mon_fd_t));
     monfd->name = qemu_strdup(fdname);
     monfd->fd = fd;
 
@@ -1752,7 +1752,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
 static void do_closefd(Monitor *mon, const QDict *qdict)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
-    a_mon_fd *monfd;
+    mon_fd_t *monfd;
 
     QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
@@ -1783,7 +1783,7 @@ static void do_loadvm(Monitor *mon, const QDict *qdict)
 
 int monitor_get_fd(Monitor *mon, const char *fdname)
 {
-    a_mon_fd *monfd;
+    mon_fd_t *monfd;
 
     QLIST_FOREACH(monfd, &mon->fds, next) {
         int fd;
@@ -1805,13 +1805,13 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
     return -1;
 }
 
-static const a_mon_cmd mon_cmds[] = {
+static const mon_cmd_t mon_cmds[] = {
 #include "qemu-monitor.h"
     { NULL, NULL, },
 };
 
 /* Please update qemu-monitor.hx when adding or changing commands */
-static const a_mon_cmd info_cmds[] = {
+static const mon_cmd_t info_cmds[] = {
     { "version", "", do_info_version,
       "", "show the version of QEMU" },
     { "network", "", do_info_network,
@@ -2585,13 +2585,13 @@ static int default_fmt_size = 4;
 
 #define MAX_ARGS 16
 
-static const a_mon_cmd *monitor_parse_command(Monitor *mon,
+static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdline,
                                               QDict *qdict)
 {
     const char *p, *typestr;
     int c;
-    const a_mon_cmd *cmd;
+    const mon_cmd_t *cmd;
     char cmdname[256];
     char buf[1024];
     char *key;
@@ -2826,7 +2826,7 @@ fail:
 static void monitor_handle_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
-    const a_mon_cmd *cmd;
+    const mon_cmd_t *cmd;
 
     qdict = qdict_new();
 
@@ -2971,7 +2971,7 @@ static void monitor_find_completion(const char *cmdline)
     char *args[MAX_ARGS];
     int nb_args, i, len;
     const char *ptype, *str;
-    const a_mon_cmd *cmd;
+    const mon_cmd_t *cmd;
     const KeyDef *key;
 
     parse_cmdline(cmdline, &nb_args, args);

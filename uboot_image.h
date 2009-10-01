@@ -152,7 +152,7 @@ typedef struct uboot_image_header {
 	uint8_t		ih_type;	/* Image Type			*/
 	uint8_t		ih_comp;	/* Compression Type		*/
 	uint8_t		ih_name[IH_NMLEN];	/* Image Name		*/
-} an_uboot_image_header;
+} uboot_image_header_t;
 
 
 #endif	/* __IMAGE_H__ */

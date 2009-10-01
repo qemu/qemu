@@ -478,7 +478,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 }
 
 static uint32_t
-txdesc_writeback(a_target_phys_addr base, struct e1000_tx_desc *dp)
+txdesc_writeback(target_phys_addr_t base, struct e1000_tx_desc *dp)
 {
     uint32_t txd_upper, txd_lower = le32_to_cpu(dp->lower.data);
 
@@ -495,7 +495,7 @@ txdesc_writeback(a_target_phys_addr base, struct e1000_tx_desc *dp)
 static void
 start_xmit(E1000State *s)
 {
-    a_target_phys_addr base;
+    target_phys_addr_t base;
     struct e1000_tx_desc desc;
     uint32_t tdh_start = s->mac_reg[TDH], cause = E1000_ICS_TXQE;
 
@@ -613,7 +613,7 @@ e1000_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     E1000State *s = vc->opaque;
     struct e1000_rx_desc desc;
-    a_target_phys_addr base;
+    target_phys_addr_t base;
     unsigned int n, rdt;
     uint32_t rdh_start;
     uint16_t vlan_special = 0;
@@ -814,7 +814,7 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 static void
-e1000_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
@@ -832,7 +832,7 @@ e1000_mmio_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
 }
 
 static void
-e1000_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
+e1000_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     // emulate hw without byte enables: no RMW
     e1000_mmio_writel(opaque, addr & ~3,
@@ -840,7 +840,7 @@ e1000_mmio_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
 }
 
 static void
-e1000_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+e1000_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     // emulate hw without byte enables: no RMW
     e1000_mmio_writel(opaque, addr & ~3,
@@ -848,7 +848,7 @@ e1000_mmio_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
 }
 
 static uint32_t
-e1000_mmio_readl(void *opaque, a_target_phys_addr addr)
+e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
@@ -866,14 +866,14 @@ e1000_mmio_readl(void *opaque, a_target_phys_addr addr)
 }
 
 static uint32_t
-e1000_mmio_readb(void *opaque, a_target_phys_addr addr)
+e1000_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
     return ((e1000_mmio_readl(opaque, addr & ~3)) >>
             (8 * (addr & 3))) & 0xff;
 }
 
 static uint32_t
-e1000_mmio_readw(void *opaque, a_target_phys_addr addr)
+e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     return ((e1000_mmio_readl(opaque, addr & ~3)) >>
             (8 * (addr & 3))) & 0xffff;

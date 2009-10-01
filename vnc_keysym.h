@@ -1,7 +1,7 @@
 
 #include "keymaps.h"
 
-static const a_name2keysym name2keysym[]={
+static const name2keysym_t name2keysym[]={
 /* ascii */
     { "space",                0x020},
     { "exclam",               0x021},

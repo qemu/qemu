@@ -13,7 +13,7 @@ struct etraxfs_dma_client
 	} client;
 };
 
-void *etraxfs_dmac_init(a_target_phys_addr base, int nr_channels);
+void *etraxfs_dmac_init(target_phys_addr_t base, int nr_channels);
 void etraxfs_dmac_connect(void *opaque, int channel, qemu_irq *line,
 			  int input);
 void etraxfs_dmac_connect_client(void *opaque, int c, 

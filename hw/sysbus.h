@@ -9,7 +9,7 @@
 #define QDEV_MAX_IRQ 256
 
 typedef struct SysBusDevice SysBusDevice;
-typedef void (*mmio_mapfunc)(SysBusDevice *dev, a_target_phys_addr addr);
+typedef void (*mmio_mapfunc)(SysBusDevice *dev, target_phys_addr_t addr);
 
 struct SysBusDevice {
     DeviceState qdev;
@@ -18,8 +18,8 @@ struct SysBusDevice {
     qemu_irq *irqp[QDEV_MAX_IRQ];
     int num_mmio;
     struct {
-        a_target_phys_addr addr;
-        a_target_phys_addr size;
+        target_phys_addr_t addr;
+        target_phys_addr_t size;
         mmio_mapfunc cb;
         int iofunc;
     } mmio[QDEV_MAX_MMIO];
@@ -39,21 +39,21 @@ typedef struct {
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init);
 void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
-void sysbus_init_mmio(SysBusDevice *dev, a_target_phys_addr size, int iofunc);
-void sysbus_init_mmio_cb(SysBusDevice *dev, a_target_phys_addr size,
+void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size, int iofunc);
+void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
                             mmio_mapfunc cb);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
 void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
 
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
-void sysbus_mmio_map(SysBusDevice *dev, int n, a_target_phys_addr addr);
+void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr);
 
 /* Legacy helper function for creating devices.  */
 DeviceState *sysbus_create_varargs(const char *name,
-                                 a_target_phys_addr addr, ...);
+                                 target_phys_addr_t addr, ...);
 static inline DeviceState *sysbus_create_simple(const char *name,
-                                              a_target_phys_addr addr,
+                                              target_phys_addr_t addr,
                                               qemu_irq irq)
 {
     return sysbus_create_varargs(name, addr, irq, NULL);

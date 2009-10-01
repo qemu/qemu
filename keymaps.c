@@ -25,10 +25,10 @@
 #include "keymaps.h"
 #include "sysemu.h"
 
-static int get_keysym(const a_name2keysym *table,
+static int get_keysym(const name2keysym_t *table,
 		      const char *name)
 {
-    const a_name2keysym *p;
+    const name2keysym_t *p;
     for(p = table; p->name != NULL; p++) {
         if (!strcmp(p->name, name))
             return p->keysym;
@@ -59,9 +59,9 @@ static void add_to_key_range(struct key_range **krp, int code) {
     }
 }
 
-static a_kbd_layout *parse_keyboard_layout(const a_name2keysym *table,
+static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 					   const char *language,
-					   a_kbd_layout * k)
+					   kbd_layout_t * k)
 {
     FILE *f;
     char * filename;
@@ -71,7 +71,7 @@ static a_kbd_layout *parse_keyboard_layout(const a_name2keysym *table,
     filename = qemu_find_file(QEMU_FILE_TYPE_KEYMAP, language);
 
     if (!k)
-	k = qemu_mallocz(sizeof(a_kbd_layout));
+	k = qemu_mallocz(sizeof(kbd_layout_t));
     if (!(filename && (f = fopen(filename, "r")))) {
 	fprintf(stderr,
 		"Could not read keymap file: '%s'\n", language);
@@ -142,7 +142,7 @@ static a_kbd_layout *parse_keyboard_layout(const a_name2keysym *table,
 }
 
 
-void *init_keyboard_layout(const a_name2keysym *table, const char *language)
+void *init_keyboard_layout(const name2keysym_t *table, const char *language)
 {
     return parse_keyboard_layout(table, language, NULL);
 }
@@ -150,7 +150,7 @@ void *init_keyboard_layout(const a_name2keysym *table, const char *language)
 
 int keysym2scancode(void *kbd_layout, int keysym)
 {
-    a_kbd_layout *k = kbd_layout;
+    kbd_layout_t *k = kbd_layout;
     if (keysym < MAX_NORMAL_KEYCODE) {
 	if (k->keysym2keycode[keysym] == 0)
 	    fprintf(stderr, "Warning: no scancode found for keysym %d\n",
@@ -171,7 +171,7 @@ int keysym2scancode(void *kbd_layout, int keysym)
 
 int keycode_is_keypad(void *kbd_layout, int keycode)
 {
-    a_kbd_layout *k = kbd_layout;
+    kbd_layout_t *k = kbd_layout;
     struct key_range *kr;
 
     for (kr = k->keypad_range; kr; kr = kr->next)
@@ -182,7 +182,7 @@ int keycode_is_keypad(void *kbd_layout, int keycode)
 
 int keysym_is_numlock(void *kbd_layout, int keysym)
 {
-    a_kbd_layout *k = kbd_layout;
+    kbd_layout_t *k = kbd_layout;
     struct key_range *kr;
 
     for (kr = k->numlock_range; kr; kr = kr->next)

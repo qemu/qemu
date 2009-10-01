@@ -134,7 +134,7 @@ static void pxa2xx_gpio_handler_update(PXA2xxGPIOInfo *s) {
     }
 }
 
-static uint32_t pxa2xx_gpio_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
     uint32_t ret;
@@ -186,7 +186,7 @@ static uint32_t pxa2xx_gpio_read(void *opaque, a_target_phys_addr offset)
 }
 
 static void pxa2xx_gpio_write(void *opaque,
-                a_target_phys_addr offset, uint32_t value)
+                target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
     int bank;
@@ -294,7 +294,7 @@ static int pxa2xx_gpio_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-PXA2xxGPIOInfo *pxa2xx_gpio_init(a_target_phys_addr base,
+PXA2xxGPIOInfo *pxa2xx_gpio_init(target_phys_addr_t base,
                 CPUState *env, qemu_irq *pic, int lines)
 {
     int iomemtype;

@@ -41,7 +41,7 @@ static void mcf_intc_update(mcf_intc_state *s)
     m68k_set_irq_level(s->env, best_level, s->active_vector);
 }
 
-static uint32_t mcf_intc_read(void *opaque, a_target_phys_addr addr)
+static uint32_t mcf_intc_read(void *opaque, target_phys_addr_t addr)
 {
     int offset;
     mcf_intc_state *s = (mcf_intc_state *)opaque;
@@ -73,7 +73,7 @@ static uint32_t mcf_intc_read(void *opaque, a_target_phys_addr addr)
     }
 }
 
-static void mcf_intc_write(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void mcf_intc_write(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     int offset;
     mcf_intc_state *s = (mcf_intc_state *)opaque;
@@ -139,7 +139,7 @@ static CPUWriteMemoryFunc * const mcf_intc_writefn[] = {
    mcf_intc_write
 };
 
-qemu_irq *mcf_intc_init(a_target_phys_addr base, CPUState *env)
+qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env)
 {
     mcf_intc_state *s;
     int iomemtype;

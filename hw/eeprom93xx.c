@@ -71,7 +71,7 @@ static const char *opstring[] = {
 };
 #endif
 
-struct eeprom {
+struct _eeprom_t {
     uint8_t  tick;
     uint8_t  address;
     uint8_t  command;
@@ -93,7 +93,7 @@ static void eeprom_save(QEMUFile *f, void *opaque)
 {
     /* Save EEPROM data. */
     unsigned address;
-    a_eeprom *eeprom = (a_eeprom *)opaque;
+    eeprom_t *eeprom = (eeprom_t *)opaque;
 
     qemu_put_byte(f, eeprom->tick);
     qemu_put_byte(f, eeprom->address);
@@ -116,7 +116,7 @@ static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
 {
     /* Load EEPROM data from saved data if version and EEPROM size
        of data and current EEPROM are identical. */
-    a_eeprom *eeprom = (a_eeprom *)opaque;
+    eeprom_t *eeprom = (eeprom_t *)opaque;
     int result = -EINVAL;
     if (version_id >= OLD_EEPROM_VERSION) {
         unsigned address;
@@ -150,7 +150,7 @@ static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
     return result;
 }
 
-void eeprom93xx_write(a_eeprom *eeprom, int eecs, int eesk, int eedi)
+void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
 {
     uint8_t tick = eeprom->tick;
     uint8_t eedo = eeprom->eedo;
@@ -275,7 +275,7 @@ void eeprom93xx_write(a_eeprom *eeprom, int eecs, int eesk, int eedi)
     eeprom->command = command;
 }
 
-uint16_t eeprom93xx_read(a_eeprom *eeprom)
+uint16_t eeprom93xx_read(eeprom_t *eeprom)
 {
     /* Return status of pin DO (0 or 1). */
     logout("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
@@ -292,10 +292,10 @@ void eeprom93xx_reset(eeprom_t *eeprom)
 }
 #endif
 
-a_eeprom *eeprom93xx_new(uint16_t nwords)
+eeprom_t *eeprom93xx_new(uint16_t nwords)
 {
     /* Add a new EEPROM (with 16, 64 or 256 words). */
-    a_eeprom *eeprom;
+    eeprom_t *eeprom;
     uint8_t addrbits;
 
     switch (nwords) {
@@ -313,7 +313,7 @@ a_eeprom *eeprom93xx_new(uint16_t nwords)
             addrbits = 6;
     }
 
-    eeprom = (a_eeprom *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
+    eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
     eeprom->size = nwords;
     eeprom->addrbits = addrbits;
     /* Output DO is tristate, read results in 1. */
@@ -324,7 +324,7 @@ a_eeprom *eeprom93xx_new(uint16_t nwords)
     return eeprom;
 }
 
-void eeprom93xx_free(a_eeprom *eeprom)
+void eeprom93xx_free(eeprom_t *eeprom)
 {
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
@@ -332,7 +332,7 @@ void eeprom93xx_free(a_eeprom *eeprom)
     qemu_free(eeprom);
 }
 
-uint16_t *eeprom93xx_data(a_eeprom *eeprom)
+uint16_t *eeprom93xx_data(eeprom_t *eeprom)
 {
     /* Get EEPROM data array. */
     return &eeprom->contents[0];

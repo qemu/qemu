@@ -113,7 +113,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
     return ichp;
 }
 
-static uint32_t pxa2xx_pic_mem_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
 
@@ -152,7 +152,7 @@ static uint32_t pxa2xx_pic_mem_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void pxa2xx_pic_mem_write(void *opaque, a_target_phys_addr offset,
+static void pxa2xx_pic_mem_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
@@ -204,7 +204,7 @@ static const int pxa2xx_cp_reg_map[0x10] = {
 
 static uint32_t pxa2xx_pic_cp_read(void *opaque, int op2, int reg, int crm)
 {
-    a_target_phys_addr offset;
+    target_phys_addr_t offset;
 
     if (pxa2xx_cp_reg_map[reg] == -1) {
         printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
@@ -218,7 +218,7 @@ static uint32_t pxa2xx_pic_cp_read(void *opaque, int op2, int reg, int crm)
 static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
                 uint32_t value)
 {
-    a_target_phys_addr offset;
+    target_phys_addr_t offset;
 
     if (pxa2xx_cp_reg_map[reg] == -1) {
         printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
@@ -276,7 +276,7 @@ static int pxa2xx_pic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-qemu_irq *pxa2xx_pic_init(a_target_phys_addr base, CPUState *env)
+qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
 {
     PXA2xxPICState *s;
     int iomemtype;

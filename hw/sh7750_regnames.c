@@ -8,9 +8,9 @@
 typedef struct {
     uint32_t regaddr;
     const char *regname;
-} a_regname;
+} regname_t;
 
-static a_regname regnames[] = {
+static regname_t regnames[] = {
     REGNAME(SH7750_PTEH_A7)
 	REGNAME(SH7750_PTEL_A7)
 	REGNAME(SH7750_PTEA_A7)

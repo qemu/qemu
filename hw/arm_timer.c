@@ -42,7 +42,7 @@ static void arm_timer_update(arm_timer_state *s)
     }
 }
 
-static uint32_t arm_timer_read(void *opaque, a_target_phys_addr offset)
+static uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
 {
     arm_timer_state *s = (arm_timer_state *)opaque;
 
@@ -84,7 +84,7 @@ static void arm_timer_recalibrate(arm_timer_state *s, int reload)
     ptimer_set_limit(s->timer, limit, reload);
 }
 
-static void arm_timer_write(void *opaque, a_target_phys_addr offset,
+static void arm_timer_write(void *opaque, target_phys_addr_t offset,
                             uint32_t value)
 {
     arm_timer_state *s = (arm_timer_state *)opaque;
@@ -199,7 +199,7 @@ static void sp804_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
 }
 
-static uint32_t sp804_read(void *opaque, a_target_phys_addr offset)
+static uint32_t sp804_read(void *opaque, target_phys_addr_t offset)
 {
     sp804_state *s = (sp804_state *)opaque;
 
@@ -211,7 +211,7 @@ static uint32_t sp804_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void sp804_write(void *opaque, a_target_phys_addr offset,
+static void sp804_write(void *opaque, target_phys_addr_t offset,
                         uint32_t value)
 {
     sp804_state *s = (sp804_state *)opaque;
@@ -283,7 +283,7 @@ typedef struct {
     arm_timer_state *timer[3];
 } icp_pit_state;
 
-static uint32_t icp_pit_read(void *opaque, a_target_phys_addr offset)
+static uint32_t icp_pit_read(void *opaque, target_phys_addr_t offset)
 {
     icp_pit_state *s = (icp_pit_state *)opaque;
     int n;
@@ -297,7 +297,7 @@ static uint32_t icp_pit_read(void *opaque, a_target_phys_addr offset)
     return arm_timer_read(s->timer[n], offset & 0xff);
 }
 
-static void icp_pit_write(void *opaque, a_target_phys_addr offset,
+static void icp_pit_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     icp_pit_state *s = (icp_pit_state *)opaque;

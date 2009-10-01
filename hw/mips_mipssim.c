@@ -55,7 +55,7 @@ static void load_kernel (CPUState *env)
     int64_t entry, kernel_low, kernel_high;
     long kernel_size;
     long initrd_size;
-    a_ram_addr initrd_offset;
+    ram_addr_t initrd_offset;
     int big_endian;
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -111,14 +111,14 @@ static void main_cpu_reset(void *opaque)
 }
 
 static void
-mips_mipssim_init (a_ram_addr ram_size,
+mips_mipssim_init (ram_addr_t ram_size,
                    const char *boot_device,
                    const char *kernel_filename, const char *kernel_cmdline,
                    const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    a_ram_addr ram_offset;
-    a_ram_addr bios_offset;
+    ram_addr_t ram_offset;
+    ram_addr_t bios_offset;
     CPUState *env;
     int bios_size;
 

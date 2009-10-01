@@ -37,7 +37,7 @@
 #define GRACKLE_DPRINTF(fmt, ...)
 #endif
 
-typedef a_target_phys_addr a_pci_addr;
+typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
 typedef struct GrackleState {
@@ -45,7 +45,7 @@ typedef struct GrackleState {
     PCIHostState host_state;
 } GrackleState;
 
-static void pci_grackle_config_writel (void *opaque, a_target_phys_addr addr,
+static void pci_grackle_config_writel (void *opaque, target_phys_addr_t addr,
                                        uint32_t val)
 {
     GrackleState *s = opaque;
@@ -58,7 +58,7 @@ static void pci_grackle_config_writel (void *opaque, a_target_phys_addr addr,
     s->host_state.config_reg = val;
 }
 
-static uint32_t pci_grackle_config_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t pci_grackle_config_readl (void *opaque, target_phys_addr_t addr)
 {
     GrackleState *s = opaque;
     uint32_t val;

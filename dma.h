@@ -16,20 +16,20 @@
 #include "block.h"
 
 typedef struct {
-    a_target_phys_addr base;
-    a_target_phys_addr len;
+    target_phys_addr_t base;
+    target_phys_addr_t len;
 } ScatterGatherEntry;
 
 typedef struct {
     ScatterGatherEntry *sg;
     int nsg;
     int nalloc;
-    a_target_phys_addr size;
+    target_phys_addr_t size;
 } QEMUSGList;
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
-void qemu_sglist_add(QEMUSGList *qsg, a_target_phys_addr base,
-                     a_target_phys_addr len);
+void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
+                     target_phys_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 
 BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,

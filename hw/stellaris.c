@@ -140,7 +140,7 @@ static void gptm_tick(void *opaque)
     gptm_update_irq(s);
 }
 
-static uint32_t gptm_read(void *opaque, a_target_phys_addr offset)
+static uint32_t gptm_read(void *opaque, target_phys_addr_t offset)
 {
     gptm_state *s = (gptm_state *)opaque;
 
@@ -188,7 +188,7 @@ static uint32_t gptm_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void gptm_write(void *opaque, a_target_phys_addr offset, uint32_t value)
+static void gptm_write(void *opaque, target_phys_addr_t offset, uint32_t value)
 {
     gptm_state *s = (gptm_state *)opaque;
     uint32_t oldval;
@@ -422,7 +422,7 @@ static uint32_t pllcfg_fury[16] = {
     0xb11c /* 8.192 Mhz */
 };
 
-static uint32_t ssys_read(void *opaque, a_target_phys_addr offset)
+static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
 {
     ssys_state *s = (ssys_state *)opaque;
 
@@ -508,7 +508,7 @@ static void ssys_calculate_system_clock(ssys_state *s)
     system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
 }
 
-static void ssys_write(void *opaque, a_target_phys_addr offset, uint32_t value)
+static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
 {
     ssys_state *s = (ssys_state *)opaque;
 
@@ -701,7 +701,7 @@ typedef struct {
 #define STELLARIS_I2C_MCS_IDLE    0x20
 #define STELLARIS_I2C_MCS_BUSBSY  0x40
 
-static uint32_t stellaris_i2c_read(void *opaque, a_target_phys_addr offset)
+static uint32_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
 
@@ -737,7 +737,7 @@ static void stellaris_i2c_update(stellaris_i2c_state *s)
     qemu_set_irq(s->irq, level);
 }
 
-static void stellaris_i2c_write(void *opaque, a_target_phys_addr offset,
+static void stellaris_i2c_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
@@ -1009,7 +1009,7 @@ static void stellaris_adc_reset(stellaris_adc_state *s)
     }
 }
 
-static uint32_t stellaris_adc_read(void *opaque, a_target_phys_addr offset)
+static uint32_t stellaris_adc_read(void *opaque, target_phys_addr_t offset)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
 
@@ -1056,7 +1056,7 @@ static uint32_t stellaris_adc_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void stellaris_adc_write(void *opaque, a_target_phys_addr offset,
+static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
@@ -1412,7 +1412,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
-static void lm3s811evb_init(a_ram_addr ram_size,
+static void lm3s811evb_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -1420,7 +1420,7 @@ static void lm3s811evb_init(a_ram_addr ram_size,
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[0]);
 }
 
-static void lm3s6965evb_init(a_ram_addr ram_size,
+static void lm3s6965evb_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)

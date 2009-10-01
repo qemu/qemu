@@ -54,7 +54,7 @@ static void sbi_set_irq(void *opaque, int irq, int level)
 {
 }
 
-static uint32_t sbi_mem_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t sbi_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     SBIState *s = opaque;
     uint32_t saddr, ret;
@@ -70,7 +70,7 @@ static uint32_t sbi_mem_readl(void *opaque, a_target_phys_addr addr)
     return ret;
 }
 
-static void sbi_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void sbi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     SBIState *s = opaque;
     uint32_t saddr;

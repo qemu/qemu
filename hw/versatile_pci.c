@@ -17,18 +17,18 @@ typedef struct {
     int mem_config;
 } PCIVPBState;
 
-static inline uint32_t vpb_pci_config_addr(a_target_phys_addr addr)
+static inline uint32_t vpb_pci_config_addr(target_phys_addr_t addr)
 {
     return addr & 0xffffff;
 }
 
-static void pci_vpb_config_writeb (void *opaque, a_target_phys_addr addr,
+static void pci_vpb_config_writeb (void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
     pci_data_write(opaque, vpb_pci_config_addr (addr), val, 1);
 }
 
-static void pci_vpb_config_writew (void *opaque, a_target_phys_addr addr,
+static void pci_vpb_config_writew (void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -37,7 +37,7 @@ static void pci_vpb_config_writew (void *opaque, a_target_phys_addr addr,
     pci_data_write(opaque, vpb_pci_config_addr (addr), val, 2);
 }
 
-static void pci_vpb_config_writel (void *opaque, a_target_phys_addr addr,
+static void pci_vpb_config_writel (void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -46,14 +46,14 @@ static void pci_vpb_config_writel (void *opaque, a_target_phys_addr addr,
     pci_data_write(opaque, vpb_pci_config_addr (addr), val, 4);
 }
 
-static uint32_t pci_vpb_config_readb (void *opaque, a_target_phys_addr addr)
+static uint32_t pci_vpb_config_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
     val = pci_data_read(opaque, vpb_pci_config_addr (addr), 1);
     return val;
 }
 
-static uint32_t pci_vpb_config_readw (void *opaque, a_target_phys_addr addr)
+static uint32_t pci_vpb_config_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
     val = pci_data_read(opaque, vpb_pci_config_addr (addr), 2);
@@ -63,7 +63,7 @@ static uint32_t pci_vpb_config_readw (void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static uint32_t pci_vpb_config_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t pci_vpb_config_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
     val = pci_data_read(opaque, vpb_pci_config_addr (addr), 4);
@@ -97,7 +97,7 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-static void pci_vpb_map(SysBusDevice *dev, a_target_phys_addr base)
+static void pci_vpb_map(SysBusDevice *dev, target_phys_addr_t base)
 {
     PCIVPBState *s = (PCIVPBState *)dev;
     /* Selfconfig area.  */

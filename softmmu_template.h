@@ -49,7 +49,7 @@
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                         int mmu_idx,
                                                         void *retaddr);
-static inline DATA_TYPE glue(io_read, SUFFIX)(a_target_phys_addr physaddr,
+static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
                                               target_ulong addr,
                                               void *retaddr)
 {
@@ -85,7 +85,7 @@ DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
     DATA_TYPE res;
     int index;
     target_ulong tlb_addr;
-    a_target_phys_addr addend;
+    target_phys_addr_t addend;
     void *retaddr;
 
     /* test if there is match for unaligned or IO access */
@@ -141,7 +141,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 {
     DATA_TYPE res, res1, res2;
     int index, shift;
-    a_target_phys_addr addend;
+    target_phys_addr_t addend;
     target_ulong tlb_addr, addr1, addr2;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -191,7 +191,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    int mmu_idx,
                                                    void *retaddr);
 
-static inline void glue(io_write, SUFFIX)(a_target_phys_addr physaddr,
+static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
                                           DATA_TYPE val,
                                           target_ulong addr,
                                           void *retaddr)
@@ -223,7 +223,7 @@ void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                  DATA_TYPE val,
                                                  int mmu_idx)
 {
-    a_target_phys_addr addend;
+    target_phys_addr_t addend;
     target_ulong tlb_addr;
     void *retaddr;
     int index;
@@ -276,7 +276,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    int mmu_idx,
                                                    void *retaddr)
 {
-    a_target_phys_addr addend;
+    target_phys_addr_t addend;
     target_ulong tlb_addr;
     int index, i;
 

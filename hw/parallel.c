@@ -473,7 +473,7 @@ ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
 }
 
 /* Memory mapped interface */
-static uint32_t parallel_mm_readb (void *opaque, a_target_phys_addr addr)
+static uint32_t parallel_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     ParallelState *s = opaque;
 
@@ -481,14 +481,14 @@ static uint32_t parallel_mm_readb (void *opaque, a_target_phys_addr addr)
 }
 
 static void parallel_mm_writeb (void *opaque,
-                                a_target_phys_addr addr, uint32_t value)
+                                target_phys_addr_t addr, uint32_t value)
 {
     ParallelState *s = opaque;
 
     parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFF);
 }
 
-static uint32_t parallel_mm_readw (void *opaque, a_target_phys_addr addr)
+static uint32_t parallel_mm_readw (void *opaque, target_phys_addr_t addr)
 {
     ParallelState *s = opaque;
 
@@ -496,14 +496,14 @@ static uint32_t parallel_mm_readw (void *opaque, a_target_phys_addr addr)
 }
 
 static void parallel_mm_writew (void *opaque,
-                                a_target_phys_addr addr, uint32_t value)
+                                target_phys_addr_t addr, uint32_t value)
 {
     ParallelState *s = opaque;
 
     parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFFFF);
 }
 
-static uint32_t parallel_mm_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t parallel_mm_readl (void *opaque, target_phys_addr_t addr)
 {
     ParallelState *s = opaque;
 
@@ -511,7 +511,7 @@ static uint32_t parallel_mm_readl (void *opaque, a_target_phys_addr addr)
 }
 
 static void parallel_mm_writel (void *opaque,
-                                a_target_phys_addr addr, uint32_t value)
+                                target_phys_addr_t addr, uint32_t value)
 {
     ParallelState *s = opaque;
 
@@ -531,7 +531,7 @@ static CPUWriteMemoryFunc * const parallel_mm_write_sw[] = {
 };
 
 /* If fd is zero, it means that the parallel device uses the console */
-ParallelState *parallel_mm_init(a_target_phys_addr base, int it_shift, qemu_irq irq, CharDriverState *chr)
+ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq, CharDriverState *chr)
 {
     ParallelState *s;
     int io_sw;

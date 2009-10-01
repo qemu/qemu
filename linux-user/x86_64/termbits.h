@@ -1,15 +1,15 @@
 #define TARGET_NCCS 19
 
-typedef unsigned char	a_target_cc;
-typedef unsigned int	a_target_speed;
-typedef unsigned int	a_target_tcflag;
+typedef unsigned char	target_cc_t;
+typedef unsigned int	target_speed_t;
+typedef unsigned int	target_tcflag_t;
 struct target_termios {
-	a_target_tcflag c_iflag;		/* input mode flags */
-	a_target_tcflag c_oflag;		/* output mode flags */
-	a_target_tcflag c_cflag;		/* control mode flags */
-	a_target_tcflag c_lflag;		/* local mode flags */
-	a_target_cc c_line;			/* line discipline */
-	a_target_cc c_cc[TARGET_NCCS];		/* control characters */
+	target_tcflag_t c_iflag;		/* input mode flags */
+	target_tcflag_t c_oflag;		/* output mode flags */
+	target_tcflag_t c_cflag;		/* control mode flags */
+	target_tcflag_t c_lflag;		/* local mode flags */
+	target_cc_t c_line;			/* line discipline */
+	target_cc_t c_cc[TARGET_NCCS];		/* control characters */
 };
 
 /* c_cc characters */

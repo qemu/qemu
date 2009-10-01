@@ -106,7 +106,7 @@ static const CPU86_LDouble f15rk[7] =
 
 /* broken thread support */
 
-static a_spinlock global_cpu_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
 
 void helper_lock(void)
 {
@@ -4855,7 +4855,7 @@ void helper_svm_check_io(uint32_t port, uint32_t param,
 }
 #else
 
-static inline void svm_save_seg(a_target_phys_addr addr,
+static inline void svm_save_seg(target_phys_addr_t addr,
                                 const SegmentCache *sc)
 {
     stw_phys(addr + offsetof(struct vmcb_seg, selector), 
@@ -4868,7 +4868,7 @@ static inline void svm_save_seg(a_target_phys_addr addr,
              ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
 }
                                 
-static inline void svm_load_seg(a_target_phys_addr addr, SegmentCache *sc)
+static inline void svm_load_seg(target_phys_addr_t addr, SegmentCache *sc)
 {
     unsigned int flags;
 
@@ -4879,7 +4879,7 @@ static inline void svm_load_seg(a_target_phys_addr addr, SegmentCache *sc)
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
 }
 
-static inline void svm_load_seg_cache(a_target_phys_addr addr,
+static inline void svm_load_seg_cache(target_phys_addr_t addr, 
                                       CPUState *env, int seg_reg)
 {
     SegmentCache sc1, *sc = &sc1;

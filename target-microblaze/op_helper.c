@@ -238,7 +238,7 @@ void helper_mmu_write(uint32_t rn, uint32_t v)
 }
 #endif
 
-void do_unassigned_access(a_target_phys_addr addr, int is_write, int is_exec,
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size)
 {
     CPUState *saved_env;

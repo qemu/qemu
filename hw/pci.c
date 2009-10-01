@@ -66,7 +66,7 @@ static struct BusInfo pci_bus_info = {
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
 
-a_target_phys_addr pci_mem_base;
+target_phys_addr_t pci_mem_base;
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 static PCIBus *first_bus;
@@ -354,7 +354,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                      config_read, config_write);
     return pci_dev;
 }
-static a_target_phys_addr pci_to_cpu_addr(a_target_phys_addr addr)
+static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
 {
     return addr + pci_mem_base;
 }

@@ -33,7 +33,7 @@
 typedef struct {
     uint32_t id;
     int shift;
-    a_target_phys_addr base;
+    target_phys_addr_t base;
     qemu_irq intr;
     qemu_irq rdy;
     BlockDriverState *bdrv;
@@ -41,7 +41,7 @@ typedef struct {
     uint8_t *image;
     uint8_t *otp;
     uint8_t *current;
-    a_ram_addr ram;
+    ram_addr_t ram;
     uint8_t *boot[2];
     uint8_t *data[2][2];
     int iomemtype;
@@ -96,7 +96,7 @@ enum {
     ONEN_LOCK_UNLOCKED = 1 << 2,
 };
 
-void onenand_base_update(void *opaque, a_target_phys_addr new)
+void onenand_base_update(void *opaque, target_phys_addr_t new)
 {
     OneNANDState *s = (OneNANDState *) opaque;
 
@@ -443,7 +443,7 @@ static void onenand_command(OneNANDState *s, int cmd)
     onenand_intr_update(s);
 }
 
-static uint32_t onenand_read(void *opaque, a_target_phys_addr addr)
+static uint32_t onenand_read(void *opaque, target_phys_addr_t addr)
 {
     OneNANDState *s = (OneNANDState *) opaque;
     int offset = addr >> s->shift;
@@ -507,7 +507,7 @@ static uint32_t onenand_read(void *opaque, a_target_phys_addr addr)
     return 0;
 }
 
-static void onenand_write(void *opaque, a_target_phys_addr addr,
+static void onenand_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     OneNANDState *s = (OneNANDState *) opaque;

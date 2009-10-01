@@ -178,7 +178,7 @@ static void pmac_ide_flush(DBDMA_io *io)
 
 /* PowerMac IDE memory IO */
 static void pmac_ide_writeb (void *opaque,
-                             a_target_phys_addr addr, uint32_t val)
+                             target_phys_addr_t addr, uint32_t val)
 {
     MACIOIDEState *d = opaque;
 
@@ -196,7 +196,7 @@ static void pmac_ide_writeb (void *opaque,
     }
 }
 
-static uint32_t pmac_ide_readb (void *opaque,a_target_phys_addr addr)
+static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
 {
     uint8_t retval;
     MACIOIDEState *d = opaque;
@@ -218,7 +218,7 @@ static uint32_t pmac_ide_readb (void *opaque,a_target_phys_addr addr)
 }
 
 static void pmac_ide_writew (void *opaque,
-                             a_target_phys_addr addr, uint32_t val)
+                             target_phys_addr_t addr, uint32_t val)
 {
     MACIOIDEState *d = opaque;
 
@@ -231,7 +231,7 @@ static void pmac_ide_writew (void *opaque,
     }
 }
 
-static uint32_t pmac_ide_readw (void *opaque,a_target_phys_addr addr)
+static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
 {
     uint16_t retval;
     MACIOIDEState *d = opaque;
@@ -249,7 +249,7 @@ static uint32_t pmac_ide_readw (void *opaque,a_target_phys_addr addr)
 }
 
 static void pmac_ide_writel (void *opaque,
-                             a_target_phys_addr addr, uint32_t val)
+                             target_phys_addr_t addr, uint32_t val)
 {
     MACIOIDEState *d = opaque;
 
@@ -262,7 +262,7 @@ static void pmac_ide_writel (void *opaque,
     }
 }
 
-static uint32_t pmac_ide_readl (void *opaque,a_target_phys_addr addr)
+static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
 {
     uint32_t retval;
     MACIOIDEState *d = opaque;

@@ -214,7 +214,7 @@ static void mcf_fec_reset(mcf_fec_state *s)
     s->rfsr = 0x500;
 }
 
-static uint32_t mcf_fec_read(void *opaque, a_target_phys_addr addr)
+static uint32_t mcf_fec_read(void *opaque, target_phys_addr_t addr)
 {
     mcf_fec_state *s = (mcf_fec_state *)opaque;
     switch (addr & 0x3ff) {
@@ -251,7 +251,7 @@ static uint32_t mcf_fec_read(void *opaque, a_target_phys_addr addr)
     }
 }
 
-static void mcf_fec_write(void *opaque, a_target_phys_addr addr, uint32_t value)
+static void mcf_fec_write(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     mcf_fec_state *s = (mcf_fec_state *)opaque;
     switch (addr & 0x3ff) {
@@ -450,7 +450,7 @@ static void mcf_fec_cleanup(VLANClientState *vc)
     qemu_free(s);
 }
 
-void mcf_fec_init(NICInfo *nd, a_target_phys_addr base, qemu_irq *irq)
+void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
 {
     mcf_fec_state *s;
 

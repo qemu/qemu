@@ -34,12 +34,12 @@ static const unsigned int ppc440ep_sdram_bank_sizes[] = {
     256<<20, 128<<20, 64<<20, 32<<20, 16<<20, 8<<20, 0
 };
 
-CPUState *ppc440ep_init(a_ram_addr *ram_size, PCIBus **pcip,
+CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
                         const unsigned int pci_irq_nrs[4], int do_init,
                         const char *cpu_model)
 {
-    a_target_phys_addr ram_bases[PPC440EP_SDRAM_NR_BANKS];
-    a_target_phys_addr ram_sizes[PPC440EP_SDRAM_NR_BANKS];
+    target_phys_addr_t ram_bases[PPC440EP_SDRAM_NR_BANKS];
+    target_phys_addr_t ram_sizes[PPC440EP_SDRAM_NR_BANKS];
     CPUState *env;
     qemu_irq *pic;
     qemu_irq *irqs;

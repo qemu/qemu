@@ -64,7 +64,7 @@ static void cs_reset(void *opaque)
     s->dregs[25] = CS_VER;
 }
 
-static uint32_t cs_mem_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t cs_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     CSState *s = opaque;
     uint32_t saddr, ret;
@@ -90,7 +90,7 @@ static uint32_t cs_mem_readl(void *opaque, a_target_phys_addr addr)
     return ret;
 }
 
-static void cs_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     CSState *s = opaque;
     uint32_t saddr;

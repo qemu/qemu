@@ -8451,7 +8451,7 @@ static void fpu_dump_state(CPUState *env, FILE *f,
                         (fp)->w[FP_ENDIAN_IDX], (fp)->d, (fp)->fd,          \
                         (fp)->fs[FP_ENDIAN_IDX], (fp)->fs[!FP_ENDIAN_IDX]); \
         else {                                                              \
-            union fpr tmp;                                                  \
+            fpr_t tmp;                                                      \
             tmp.w[FP_ENDIAN_IDX] = (fp)->w[FP_ENDIAN_IDX];                  \
             tmp.w[!FP_ENDIAN_IDX] = ((fp) + 1)->w[FP_ENDIAN_IDX];           \
             fpu_fprintf(f, "w:%08x d:%016lx fd:%13g fs:%13g psu:%13g\n",    \
@@ -8591,7 +8591,7 @@ static void mips_tcg_init(void)
 CPUMIPSState *cpu_mips_init (const char *cpu_model)
 {
     CPUMIPSState *env;
-    const a_mips_def *def;
+    const mips_def_t *def;
 
     def = cpu_mips_find_by_name(cpu_model);
     if (!def)

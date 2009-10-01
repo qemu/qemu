@@ -37,11 +37,11 @@
 
 typedef struct TCXState {
     SysBusDevice busdev;
-    a_target_phys_addr addr;
+    target_phys_addr_t addr;
     DisplayState *ds;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
-    a_ram_addr vram_offset, vram24_offset, cplane_offset;
+    ram_addr_t vram_offset, vram24_offset, cplane_offset;
     uint32_t vram_size;
     uint16_t width, height, depth;
     uint8_t r[256], g[256], b[256];
@@ -175,8 +175,8 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
     }
 }
 
-static inline int check_dirty(a_ram_addr page, a_ram_addr page24,
-                              a_ram_addr cpage)
+static inline int check_dirty(ram_addr_t page, ram_addr_t page24,
+                              ram_addr_t cpage)
 {
     int ret;
     unsigned int off;
@@ -189,9 +189,9 @@ static inline int check_dirty(a_ram_addr page, a_ram_addr page24,
     return ret;
 }
 
-static inline void reset_dirty(TCXState *ts, a_ram_addr page_min,
-                               a_ram_addr page_max, a_ram_addr page24,
-                              a_ram_addr cpage)
+static inline void reset_dirty(TCXState *ts, ram_addr_t page_min,
+                               ram_addr_t page_max, ram_addr_t page24,
+                              ram_addr_t cpage)
 {
     cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
                                     VGA_DIRTY_FLAG);
@@ -210,7 +210,7 @@ static inline void reset_dirty(TCXState *ts, a_ram_addr page_min,
 static void tcx_update_display(void *opaque)
 {
     TCXState *ts = opaque;
-    a_ram_addr page, page_min, page_max;
+    ram_addr_t page, page_min, page_max;
     int y, y_start, dd, ds;
     uint8_t *d, *s;
     void (*f)(TCXState *s1, uint8_t *dst, const uint8_t *src, int width);
@@ -288,7 +288,7 @@ static void tcx_update_display(void *opaque)
 static void tcx24_update_display(void *opaque)
 {
     TCXState *ts = opaque;
-    a_ram_addr page, page_min, page_max, cpage, page24;
+    ram_addr_t page, page_min, page_max, cpage, page24;
     int y, y_start, dd, ds;
     uint8_t *d, *s;
     uint32_t *cptr, *s24;
@@ -428,12 +428,12 @@ static void tcx_reset(void *opaque)
     s->dac_state = 0;
 }
 
-static uint32_t tcx_dac_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t tcx_dac_readl(void *opaque, target_phys_addr_t addr)
 {
     return 0;
 }
 
-static void tcx_dac_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     TCXState *s = opaque;
 
@@ -481,12 +481,12 @@ static CPUWriteMemoryFunc * const tcx_dac_write[3] = {
     tcx_dac_writel,
 };
 
-static uint32_t tcx_dummy_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t tcx_dummy_readl(void *opaque, target_phys_addr_t addr)
 {
     return 0;
 }
 
-static void tcx_dummy_writel(void *opaque, a_target_phys_addr addr,
+static void tcx_dummy_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
 }
@@ -507,7 +507,7 @@ static int tcx_init1(SysBusDevice *dev)
 {
     TCXState *s = FROM_SYSBUS(TCXState, dev);
     int io_memory, dummy_memory;
-    a_ram_addr vram_offset;
+    ram_addr_t vram_offset;
     int size;
     uint8_t *vram_base;
 

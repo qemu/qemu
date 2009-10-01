@@ -6,17 +6,17 @@
 /* Devices used by sparc32 system.  */
 
 /* iommu.c */
-void sparc_iommu_memory_rw(void *opaque, a_target_phys_addr addr,
+void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                                  uint8_t *buf, int len, int is_write);
 static inline void sparc_iommu_memory_read(void *opaque,
-                                           a_target_phys_addr addr,
+                                           target_phys_addr_t addr,
                                            uint8_t *buf, int len)
 {
     sparc_iommu_memory_rw(opaque, addr, buf, len, 0);
 }
 
 static inline void sparc_iommu_memory_write(void *opaque,
-                                            a_target_phys_addr addr,
+                                            target_phys_addr_t addr,
                                             uint8_t *buf, int len)
 {
     sparc_iommu_memory_rw(opaque, addr, buf, len, 1);

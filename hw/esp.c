@@ -439,7 +439,7 @@ static void parent_esp_reset(void *opaque, int irq, int level)
         esp_reset(opaque);
 }
 
-static uint32_t esp_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     ESPState *s = opaque;
     uint32_t saddr, old_val;
@@ -480,7 +480,7 @@ static uint32_t esp_mem_readb(void *opaque, a_target_phys_addr addr)
     return s->rregs[saddr];
 }
 
-static void esp_mem_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     ESPState *s = opaque;
     uint32_t saddr;
@@ -632,7 +632,7 @@ static const VMStateDescription vmstate_esp = {
     }
 };
 
-void esp_init(a_target_phys_addr espaddr, int it_shift,
+void esp_init(target_phys_addr_t espaddr, int it_shift,
               espdma_memory_read_write dma_memory_read,
               espdma_memory_read_write dma_memory_write,
               void *dma_opaque, qemu_irq irq, qemu_irq *reset)

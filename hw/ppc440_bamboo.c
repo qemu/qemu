@@ -27,10 +27,10 @@
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
-static void *bamboo_load_device_tree(a_target_phys_addr addr,
+static void *bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
-                                     a_target_phys_addr initrd_base,
-                                     a_target_phys_addr initrd_size,
+                                     target_phys_addr_t initrd_base,
+                                     target_phys_addr_t initrd_size,
                                      const char *kernel_cmdline)
 {
     void *fdt = NULL;
@@ -83,7 +83,7 @@ out:
     return fdt;
 }
 
-static void bamboo_init(a_ram_addr ram_size,
+static void bamboo_init(ram_addr_t ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
@@ -95,8 +95,8 @@ static void bamboo_init(a_ram_addr ram_size,
     CPUState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    a_target_phys_addr entry = 0;
-    a_target_phys_addr loadaddr = 0;
+    target_phys_addr_t entry = 0;
+    target_phys_addr_t loadaddr = 0;
     target_long kernel_size = 0;
     target_ulong initrd_base = 0;
     target_long initrd_size = 0;

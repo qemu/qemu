@@ -116,18 +116,18 @@ static void fw_cfg_io_writew(void *opaque, uint32_t addr, uint32_t value)
     fw_cfg_select(opaque, (uint16_t)value);
 }
 
-static uint32_t fw_cfg_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t fw_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_mem_writeb(void *opaque, a_target_phys_addr addr,
+static void fw_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
                               uint32_t value)
 {
     fw_cfg_write(opaque, (uint8_t)value);
 }
 
-static void fw_cfg_mem_writew(void *opaque, a_target_phys_addr addr,
+static void fw_cfg_mem_writew(void *opaque, target_phys_addr_t addr,
                               uint32_t value)
 {
     fw_cfg_select(opaque, (uint16_t)value);
@@ -242,7 +242,7 @@ int fw_cfg_add_callback(void *opaque, uint16_t key, FWCfgCallback callback,
 }
 
 void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-		a_target_phys_addr ctl_addr, a_target_phys_addr data_addr)
+		target_phys_addr_t ctl_addr, target_phys_addr_t data_addr)
 {
     FWCfgState *s;
     int io_ctl_memory, io_data_memory;

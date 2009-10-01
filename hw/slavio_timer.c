@@ -133,7 +133,7 @@ static void slavio_timer_irq(void *opaque)
     }
 }
 
-static uint32_t slavio_timer_mem_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     TimerContext *tc = opaque;
     SLAVIO_TIMERState *s = tc->s;
@@ -193,7 +193,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, a_target_phys_addr addr)
     return ret;
 }
 
-static void slavio_timer_mem_writel(void *opaque, a_target_phys_addr addr,
+static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                                     uint32_t val)
 {
     TimerContext *tc = opaque;

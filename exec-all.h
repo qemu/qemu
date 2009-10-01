@@ -81,16 +81,16 @@ TranslationBlock *tb_gen_code(CPUState *env,
 void cpu_exec_init(CPUState *env);
 void QEMU_NORETURN cpu_loop_exit(void);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
-void tb_invalidate_phys_page_range(a_target_phys_addr start, a_target_phys_addr end,
+void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
                                    int is_cpu_write_access);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, target_ulong addr);
 void tlb_flush(CPUState *env, int flush_global);
 int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
-                      a_target_phys_addr paddr, int prot,
+                      target_phys_addr_t paddr, int prot,
                       int mmu_idx, int is_softmmu);
 static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
-                               a_target_phys_addr paddr, int prot,
+                               target_phys_addr_t paddr, int prot,
                                int mmu_idx, int is_softmmu)
 {
     if (prot & PAGE_READ)
@@ -269,7 +269,7 @@ extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
 #include "qemu-lock.h"
 
-extern a_spinlock tb_lock;
+extern spinlock_t tb_lock;
 
 extern int tb_invalidated_flag;
 

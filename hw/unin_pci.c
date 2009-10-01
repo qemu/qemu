@@ -35,7 +35,7 @@
 #define UNIN_DPRINTF(fmt, ...)
 #endif
 
-typedef a_target_phys_addr a_pci_addr;
+typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
 typedef struct UNINState {
@@ -43,7 +43,7 @@ typedef struct UNINState {
     PCIHostState host_state;
 } UNINState;
 
-static void pci_unin_main_config_writel (void *opaque, a_target_phys_addr addr,
+static void pci_unin_main_config_writel (void *opaque, target_phys_addr_t addr,
                                          uint32_t val)
 {
     UNINState *s = opaque;
@@ -57,7 +57,7 @@ static void pci_unin_main_config_writel (void *opaque, a_target_phys_addr addr,
 }
 
 static uint32_t pci_unin_main_config_readl (void *opaque,
-                                            a_target_phys_addr addr)
+                                            target_phys_addr_t addr)
 {
     UNINState *s = opaque;
     uint32_t val;
@@ -95,7 +95,7 @@ static CPUReadMemoryFunc * const pci_unin_main_read[] = {
     &pci_host_data_readl,
 };
 
-static void pci_unin_config_writel (void *opaque, a_target_phys_addr addr,
+static void pci_unin_config_writel (void *opaque, target_phys_addr_t addr,
                                     uint32_t val)
 {
     UNINState *s = opaque;
@@ -104,7 +104,7 @@ static void pci_unin_config_writel (void *opaque, a_target_phys_addr addr,
 }
 
 static uint32_t pci_unin_config_readl (void *opaque,
-                                       a_target_phys_addr addr)
+                                       target_phys_addr_t addr)
 {
     UNINState *s = opaque;
 

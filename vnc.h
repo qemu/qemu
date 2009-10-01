@@ -97,7 +97,7 @@ struct VncDisplay
     int lsock;
     DisplayState *ds;
     VncState *clients;
-    a_kbd_layout *kbd_layout;
+    kbd_layout_t *kbd_layout;
 
     struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
     DisplaySurface *server;  /* vnc server surface */

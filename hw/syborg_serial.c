@@ -152,7 +152,7 @@ static void dma_rx_start(SyborgSerialState *s, uint32_t len)
     syborg_serial_update(s);
 }
 
-static uint32_t syborg_serial_read(void *opaque, a_target_phys_addr offset)
+static uint32_t syborg_serial_read(void *opaque, target_phys_addr_t offset)
 {
     SyborgSerialState *s = (SyborgSerialState *)opaque;
     uint32_t c;
@@ -191,7 +191,7 @@ static uint32_t syborg_serial_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void syborg_serial_write(void *opaque, a_target_phys_addr offset,
+static void syborg_serial_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
     SyborgSerialState *s = (SyborgSerialState *)opaque;

@@ -83,7 +83,7 @@ static void syborg_timer_tick(void *opaque)
     syborg_timer_update(s);
 }
 
-static uint32_t syborg_timer_read(void *opaque, a_target_phys_addr offset)
+static uint32_t syborg_timer_read(void *opaque, target_phys_addr_t offset)
 {
     SyborgTimerState *s = (SyborgTimerState *)opaque;
 
@@ -113,7 +113,7 @@ static uint32_t syborg_timer_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void syborg_timer_write(void *opaque, a_target_phys_addr offset,
+static void syborg_timer_write(void *opaque, target_phys_addr_t offset,
                                uint32_t value)
 {
     SyborgTimerState *s = (SyborgTimerState *)opaque;

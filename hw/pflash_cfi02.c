@@ -50,9 +50,9 @@ do {                                               \
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-struct pflash {
+struct pflash_t {
     BlockDriverState *bs;
-    a_target_phys_addr base;
+    target_phys_addr_t base;
     uint32_t sector_len;
     uint32_t chip_len;
     int mappings;
@@ -67,13 +67,13 @@ struct pflash {
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
     QEMUTimer *timer;
-    a_ram_addr off;
+    ram_addr_t off;
     int fl_mem;
     int rom_mode;
     void *storage;
 };
 
-static void pflash_register_memory(a_pflash *pfl, int rom_mode)
+static void pflash_register_memory(pflash_t *pfl, int rom_mode)
 {
     unsigned long phys_offset = pfl->fl_mem;
     int i;
@@ -89,7 +89,7 @@ static void pflash_register_memory(a_pflash *pfl, int rom_mode)
 
 static void pflash_timer (void *opaque)
 {
-    a_pflash *pfl = opaque;
+    pflash_t *pfl = opaque;
 
     DPRINTF("%s: command %02x done\n", __func__, pfl->cmd);
     /* Reset flash */
@@ -103,7 +103,7 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (a_pflash *pfl, uint32_t offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 {
     uint32_t boff;
     uint32_t ret;
@@ -208,7 +208,7 @@ static uint32_t pflash_read (a_pflash *pfl, uint32_t offset, int width)
 }
 
 /* update flash content on disk */
-static void pflash_update(a_pflash *pfl, int offset,
+static void pflash_update(pflash_t *pfl, int offset,
                           int size)
 {
     int offset_end;
@@ -222,7 +222,7 @@ static void pflash_update(a_pflash *pfl, int offset,
     }
 }
 
-static void pflash_write (a_pflash *pfl, uint32_t offset, uint32_t value,
+static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
                           int width)
 {
     uint32_t boff;
@@ -451,43 +451,43 @@ static void pflash_write (a_pflash *pfl, uint32_t offset, uint32_t value,
 }
 
 
-static uint32_t pflash_readb (void *opaque, a_target_phys_addr addr)
+static uint32_t pflash_readb (void *opaque, target_phys_addr_t addr)
 {
     return pflash_read(opaque, addr, 1);
 }
 
-static uint32_t pflash_readw (void *opaque, a_target_phys_addr addr)
+static uint32_t pflash_readw (void *opaque, target_phys_addr_t addr)
 {
-    a_pflash *pfl = opaque;
+    pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 2);
 }
 
-static uint32_t pflash_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t pflash_readl (void *opaque, target_phys_addr_t addr)
 {
-    a_pflash *pfl = opaque;
+    pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 4);
 }
 
-static void pflash_writeb (void *opaque, a_target_phys_addr addr,
+static void pflash_writeb (void *opaque, target_phys_addr_t addr,
                            uint32_t value)
 {
     pflash_write(opaque, addr, value, 1);
 }
 
-static void pflash_writew (void *opaque, a_target_phys_addr addr,
+static void pflash_writew (void *opaque, target_phys_addr_t addr,
                            uint32_t value)
 {
-    a_pflash *pfl = opaque;
+    pflash_t *pfl = opaque;
 
     pflash_write(pfl, addr, value, 2);
 }
 
-static void pflash_writel (void *opaque, a_target_phys_addr addr,
+static void pflash_writel (void *opaque, target_phys_addr_t addr,
                            uint32_t value)
 {
-    a_pflash *pfl = opaque;
+    pflash_t *pfl = opaque;
 
     pflash_write(pfl, addr, value, 4);
 }
@@ -538,14 +538,14 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
-a_pflash *pflash_cfi02_register(a_target_phys_addr base, a_ram_addr off,
+pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3,
                                 uint16_t unlock_addr0, uint16_t unlock_addr1)
 {
-    a_pflash *pfl;
+    pflash_t *pfl;
     int32_t chip_len;
     int ret;
 
@@ -556,7 +556,7 @@ a_pflash *pflash_cfi02_register(a_target_phys_addr base, a_ram_addr off,
         total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
         return NULL;
 #endif
-    pfl = qemu_mallocz(sizeof(a_pflash));
+    pfl = qemu_mallocz(sizeof(pflash_t));
     /* FIXME: Allocate ram ourselves.  */
     pfl->storage = qemu_get_ram_ptr(off);
     pfl->fl_mem = cpu_register_io_memory(pflash_read_ops, pflash_write_ops,

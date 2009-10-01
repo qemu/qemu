@@ -31,8 +31,8 @@ struct omap_dma_channel_s {
     int endian_lock[2];
     int translate[2];
     enum omap_dma_port port[2];
-    a_target_phys_addr addr[2];
-    e_omap_dma_addressing mode[2];
+    target_phys_addr_t addr[2];
+    omap_dma_addressing_t mode[2];
     uint32_t elements;
     uint16_t frames;
     int32_t frame_index[2];
@@ -78,7 +78,7 @@ struct omap_dma_channel_s {
     struct omap_dma_channel_s *sibling;
 
     struct omap_dma_reg_set_s {
-        a_target_phys_addr src, dest;
+        target_phys_addr_t src, dest;
         int frame;
         int element;
         int pck_element;
@@ -885,8 +885,8 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         break;
 
     case 0x02:	/* SYS_DMA_CCR_CH0 */
-        ch->mode[1] = (e_omap_dma_addressing) ((value & 0xc000) >> 14);
-        ch->mode[0] = (e_omap_dma_addressing) ((value & 0x3000) >> 12);
+        ch->mode[1] = (omap_dma_addressing_t) ((value & 0xc000) >> 14);
+        ch->mode[0] = (omap_dma_addressing_t) ((value & 0x3000) >> 12);
         ch->end_prog = (value & 0x0800) >> 11;
         if (s->model >= omap_dma_3_2)
             ch->omap_3_1_compatible_disable  = (value >> 10) & 0x1;
@@ -911,7 +911,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         break;
 
     case 0x06:	/* SYS_DMA_CSR_CH0 */
-        OMAP_RO_REG((a_target_phys_addr) reg);
+        OMAP_RO_REG((target_phys_addr_t) reg);
         break;
 
     case 0x08:	/* SYS_DMA_CSSA_L_CH0 */
@@ -951,7 +951,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         break;
 
     case 0x18:	/* SYS_DMA_CPC_CH0 or DMA_CSAC */
-        OMAP_RO_REG((a_target_phys_addr) reg);
+        OMAP_RO_REG((target_phys_addr_t) reg);
         break;
 
     case 0x1c:	/* DMA_CDEI */
@@ -1443,7 +1443,7 @@ static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
     return 0;
 }
 
-static uint32_t omap_dma_read(void *opaque, a_target_phys_addr addr)
+static uint32_t omap_dma_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     int reg, ch;
@@ -1486,7 +1486,7 @@ static uint32_t omap_dma_read(void *opaque, a_target_phys_addr addr)
     return 0;
 }
 
-static void omap_dma_write(void *opaque, a_target_phys_addr addr,
+static void omap_dma_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
@@ -1612,7 +1612,7 @@ static void omap_dma_setcaps(struct omap_dma_s *s)
     }
 }
 
-struct soc_dma_s *omap_dma_init(a_target_phys_addr base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
                 qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
                 enum omap_dma_model model)
 {
@@ -1686,7 +1686,7 @@ static void omap_dma_interrupts_4_update(struct omap_dma_s *s)
         qemu_irq_raise(s->irq[3]);
 }
 
-static uint32_t omap_dma4_read(void *opaque, a_target_phys_addr addr)
+static uint32_t omap_dma4_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     int irqn = 0, chnum;
@@ -1831,7 +1831,7 @@ static uint32_t omap_dma4_read(void *opaque, a_target_phys_addr addr)
     }
 }
 
-static void omap_dma4_write(void *opaque, a_target_phys_addr addr,
+static void omap_dma4_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
@@ -1908,8 +1908,8 @@ static void omap_dma4_write(void *opaque, a_target_phys_addr addr,
         ch->bs = (value >> 18) & 1;
         ch->transparent_copy = (value >> 17) & 1;
         ch->constant_fill = (value >> 16) & 1;
-        ch->mode[1] = (e_omap_dma_addressing) ((value & 0xc000) >> 14);
-        ch->mode[0] = (e_omap_dma_addressing) ((value & 0x3000) >> 12);
+        ch->mode[1] = (omap_dma_addressing_t) ((value & 0xc000) >> 14);
+        ch->mode[0] = (omap_dma_addressing_t) ((value & 0x3000) >> 12);
         ch->suspend = (value & 0x0100) >> 8;
         ch->priority = (value & 0x0040) >> 6;
         ch->fs = (value & 0x0020) >> 5;
@@ -1973,12 +1973,12 @@ static void omap_dma4_write(void *opaque, a_target_phys_addr addr,
         break;
 
     case 0x1c:	/* DMA4_CSSA */
-        ch->addr[0] = (a_target_phys_addr) (uint32_t) value;
+        ch->addr[0] = (target_phys_addr_t) (uint32_t) value;
         ch->set_update = 1;
         break;
 
     case 0x20:	/* DMA4_CDSA */
-        ch->addr[1] = (a_target_phys_addr) (uint32_t) value;
+        ch->addr[1] = (target_phys_addr_t) (uint32_t) value;
         ch->set_update = 1;
         break;
 
@@ -2031,7 +2031,7 @@ static CPUWriteMemoryFunc * const omap_dma4_writefn[] = {
     omap_dma4_write,
 };
 
-struct soc_dma_s *omap_dma4_init(a_target_phys_addr base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
                 struct omap_mpu_state_s *mpu, int fifo,
                 int chans, omap_clk iclk, omap_clk fclk)
 {

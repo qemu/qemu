@@ -30,9 +30,9 @@ void isa_qdev_register(ISADeviceInfo *info);
 ISADevice *isa_create(const char *name);
 ISADevice *isa_create_simple(const char *name);
 
-extern a_target_phys_addr isa_mem_base;
+extern target_phys_addr_t isa_mem_base;
 
-void isa_mmio_init(a_target_phys_addr base, a_target_phys_addr size);
+void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size);
 
 /* dma.c */
 int DMA_get_channel_mode (int nchan);

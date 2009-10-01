@@ -7,7 +7,7 @@ typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
 
 void framebuffer_update_display(
     DisplayState *ds,
-    a_target_phys_addr base,
+    target_phys_addr_t base,
     int cols,
     int rows,
     int src_width,

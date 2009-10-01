@@ -12,13 +12,13 @@
 /* zaurus.c */
 typedef struct ScoopInfo ScoopInfo;
 ScoopInfo *scoop_init(PXA2xxState *cpu,
-                int instance, a_target_phys_addr target_base);
+                int instance, target_phys_addr_t target_base);
 void scoop_gpio_set(void *opaque, int line, int level);
 qemu_irq *scoop_gpio_in_get(ScoopInfo *s);
 void scoop_gpio_out_set(ScoopInfo *s, int line,
                 qemu_irq handler);
 
 #define SL_PXA_PARAM_BASE	0xa0000a00
-void sl_bootparam_write(a_target_phys_addr ptr);
+void sl_bootparam_write(target_phys_addr_t ptr);
 
 #endif

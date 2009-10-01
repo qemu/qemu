@@ -119,7 +119,7 @@ static int fw_cfg_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-static void ppc_heathrow_init (a_ram_addr ram_size,
+static void ppc_heathrow_init (ram_addr_t ram_size,
                                const char *boot_device,
                                const char *kernel_filename,
                                const char *kernel_cmdline,
@@ -130,7 +130,7 @@ static void ppc_heathrow_init (a_ram_addr ram_size,
     char *filename;
     qemu_irq *pic, **heathrow_irqs;
     int linux_boot, i;
-    a_ram_addr ram_offset, bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, initrd_base;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;

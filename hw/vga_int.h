@@ -100,7 +100,7 @@ typedef void (* vga_update_retrace_info_fn)(struct VGACommonState *s);
 
 typedef struct VGACommonState {
     uint8_t *vram_ptr;
-    a_ram_addr vram_offset;
+    ram_addr_t vram_offset;
     unsigned int vram_size;
     uint32_t lfb_addr;
     uint32_t lfb_end;
@@ -196,8 +196,8 @@ void vga_common_save(QEMUFile *f, void *opaque);
 int vga_common_load(QEMUFile *f, void *opaque, int version_id);
 uint32_t vga_ioport_read(void *opaque, uint32_t addr);
 void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val);
-uint32_t vga_mem_readb(void *opaque, a_target_phys_addr addr);
-void vga_mem_writeb(void *opaque, a_target_phys_addr addr, uint32_t val);
+uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
+void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
 int ppm_save(const char *filename, struct DisplaySurface *ds);
 

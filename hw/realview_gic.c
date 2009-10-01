@@ -26,13 +26,13 @@ typedef struct {
     int iomemtype;
 } RealViewGICState;
 
-static uint32_t realview_gic_cpu_read(void *opaque, a_target_phys_addr offset)
+static uint32_t realview_gic_cpu_read(void *opaque, target_phys_addr_t offset)
 {
     gic_state *s = (gic_state *)opaque;
     return gic_cpu_read(s, gic_get_current_cpu(), offset);
 }
 
-static void realview_gic_cpu_write(void *opaque, a_target_phys_addr offset,
+static void realview_gic_cpu_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     gic_state *s = (gic_state *)opaque;
@@ -51,7 +51,7 @@ static CPUWriteMemoryFunc * const realview_gic_cpu_writefn[] = {
    realview_gic_cpu_write
 };
 
-static void realview_gic_map(SysBusDevice *dev, a_target_phys_addr base)
+static void realview_gic_map(SysBusDevice *dev, target_phys_addr_t base)
 {
     RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
     cpu_register_physical_memory(base, 0x1000, s->iomemtype);

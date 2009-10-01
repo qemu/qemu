@@ -148,15 +148,15 @@ struct target_itimerval {
     struct target_timeval it_value;
 };
 
-typedef abi_long a_target_clock;
+typedef abi_long target_clock_t;
 
 #define TARGET_HZ 100
 
 struct target_tms {
-    a_target_clock tms_utime;
-    a_target_clock tms_stime;
-    a_target_clock tms_cutime;
-    a_target_clock tms_cstime;
+    target_clock_t tms_utime;
+    target_clock_t tms_stime;
+    target_clock_t tms_cutime;
+    target_clock_t tms_cstime;
 };
 
 struct target_utimbuf {
@@ -235,7 +235,7 @@ struct  target_rusage {
 
 typedef struct {
         int     val[2];
-} a_kernel_fsid;
+} kernel_fsid_t;
 
 struct kernel_statfs {
 	int f_type;
@@ -245,7 +245,7 @@ struct kernel_statfs {
 	int f_bavail;
 	int f_files;
 	int f_ffree;
-        a_kernel_fsid f_fsid;
+        kernel_fsid_t f_fsid;
 	int f_namelen;
 	int f_spare[6];
 };
@@ -281,23 +281,23 @@ struct target_dirent64 {
 
 typedef struct {
     abi_ulong sig[TARGET_NSIG_WORDS];
-} a_target_sigset;
+} target_sigset_t;
 
 #ifdef BSWAP_NEEDED
-static inline void tswap_sigset(a_target_sigset *d, const a_target_sigset *s)
+static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
 {
     int i;
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
         d->sig[i] = tswapl(s->sig[i]);
 }
 #else
-static inline void tswap_sigset(a_target_sigset *d, const a_target_sigset *s)
+static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
 {
     *d = *s;
 }
 #endif
 
-static inline void target_siginitset(a_target_sigset *d, abi_ulong set)
+static inline void target_siginitset(target_sigset_t *d, abi_ulong set)
 {
     int i;
     d->sig[0] = set;
@@ -305,8 +305,8 @@ static inline void target_siginitset(a_target_sigset *d, abi_ulong set)
         d->sig[i] = 0;
 }
 
-void host_to_target_sigset(a_target_sigset *d, const sigset_t *s);
-void target_to_host_sigset(sigset_t *d, const a_target_sigset *s);
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
 void host_to_target_old_sigset(abi_ulong *old_sigset,
                                const sigset_t *sigset);
 void target_to_host_old_sigset(sigset_t *sigset,
@@ -481,7 +481,7 @@ struct target_sigaction {
 #else
 	abi_ulong	_sa_handler;
 #endif
-	a_target_sigset	sa_mask;
+	target_sigset_t	sa_mask;
 };
 
 #else
@@ -496,14 +496,14 @@ struct target_sigaction {
         abi_ulong _sa_handler;
         abi_ulong sa_flags;
         abi_ulong sa_restorer;
-        a_target_sigset sa_mask;
+        target_sigset_t sa_mask;
 };
 #endif
 
 typedef union target_sigval {
 	int sival_int;
         abi_ulong sival_ptr;
-} a_target_sigval;
+} target_sigval_t;
 #if 0
 #if defined (TARGET_SPARC)
 typedef struct {
@@ -562,7 +562,7 @@ typedef struct target_siginfo {
 		struct {
 			pid_t _pid;		/* sender's pid */
 			uid_t _uid;		/* sender's uid */
-			a_target_sigval _sigval;
+			target_sigval_t _sigval;
 		} _rt;
 
 		/* SIGCHLD */
@@ -570,8 +570,8 @@ typedef struct target_siginfo {
 			pid_t _pid;		/* which child */
 			uid_t _uid;		/* sender's uid */
 			int _status;		/* exit code */
-			a_target_clock _utime;
-                        a_target_clock _stime;
+			target_clock_t _utime;
+                        target_clock_t _stime;
 		} _sigchld;
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
@@ -585,7 +585,7 @@ typedef struct target_siginfo {
 			int _fd;
 		} _sigpoll;
 	} _sifields;
-} a_target_siginfo;
+} target_siginfo_t;
 
 /*
  * si_code values
@@ -1623,7 +1623,7 @@ struct target_stat {
 
 typedef struct {
         int     val[2];
-} a_target_fsid;
+} target_fsid_t;
 
 #ifdef TARGET_MIPS
 #ifdef TARGET_ABI_MIPSN32
@@ -1638,7 +1638,7 @@ struct target_statfs {
 	int32_t			f_bavail;
 
 	/* Linux specials */
-	a_target_fsid		f_fsid;
+	target_fsid_t		f_fsid;
 	int32_t			f_namelen;
 	int32_t			f_spare[6];
 };
@@ -1654,7 +1654,7 @@ struct target_statfs {
 	abi_long		f_bavail;
 
 	/* Linux specials */
-	a_target_fsid		f_fsid;
+	target_fsid_t		f_fsid;
 	abi_long		f_namelen;
 	abi_long		f_spare[6];
 };
@@ -1670,7 +1670,7 @@ struct target_statfs64 {
 	uint64_t	f_files;
 	uint64_t	f_ffree;
 	uint64_t	f_bavail;
-	a_target_fsid	f_fsid;
+	target_fsid_t	f_fsid;
 	uint32_t	f_namelen;
 	uint32_t	f_spare[6];
 };
@@ -1684,7 +1684,7 @@ struct target_statfs {
 	abi_long f_bavail;
 	abi_long f_files;
 	abi_long f_ffree;
-	a_target_fsid f_fsid;
+	target_fsid_t f_fsid;
 	abi_long f_namelen;
 	abi_long f_frsize;
 	abi_long f_spare[5];
@@ -1698,7 +1698,7 @@ struct target_statfs64 {
 	abi_long f_bavail;
 	abi_long f_files;
 	abi_long f_ffree;
-	a_target_fsid f_fsid;
+	target_fsid_t f_fsid;
 	abi_long f_namelen;
 	abi_long f_frsize;
 	abi_long f_spare[5];
@@ -1712,7 +1712,7 @@ struct target_statfs {
 	uint32_t f_bavail;
 	uint32_t f_files;
 	uint32_t f_ffree;
-	a_target_fsid f_fsid;
+	target_fsid_t f_fsid;
 	uint32_t f_namelen;
 	uint32_t f_frsize;
 	uint32_t f_spare[5];
@@ -1726,7 +1726,7 @@ struct target_statfs64 {
 	uint64_t f_bavail;
 	uint64_t f_files;
 	uint64_t f_ffree;
-	a_target_fsid f_fsid;
+	target_fsid_t f_fsid;
         uint32_t f_namelen;
 	uint32_t f_frsize;
 	uint32_t f_spare[5];

@@ -36,7 +36,7 @@ do { fprintf(stderr, "g364 ERROR: " fmt , ## __VA_ARGS__);} while (0)
 typedef struct G364State {
     /* hardware */
     uint8_t *vram;
-    a_ram_addr vram_offset;
+    ram_addr_t vram_offset;
     int vram_size;
     qemu_irq irq;
     /* registers */
@@ -68,13 +68,13 @@ typedef struct G364State {
 #define CTLA_FORCE_BLANK 0x00000400
 #define CTLA_NO_CURSOR   0x00800000
 
-static inline int check_dirty(a_ram_addr page)
+static inline int check_dirty(ram_addr_t page)
 {
     return cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG);
 }
 
 static inline void reset_dirty(G364State *s,
-                               a_ram_addr page_min, a_ram_addr page_max)
+                               ram_addr_t page_min, ram_addr_t page_max)
 {
     cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE - 1,
                                     VGA_DIRTY_FLAG);
@@ -85,7 +85,7 @@ static void g364fb_draw_graphic8(G364State *s)
     int i, w;
     uint8_t *vram;
     uint8_t *data_display, *dd;
-    a_ram_addr page, page_min, page_max;
+    ram_addr_t page, page_min, page_max;
     int x, y;
     int xmin, xmax;
     int ymin, ymax;
@@ -115,7 +115,7 @@ static void g364fb_draw_graphic8(G364State *s)
     }
 
     page = s->vram_offset;
-    page_min = (a_ram_addr)-1;
+    page_min = (ram_addr_t)-1;
     page_max = 0;
 
     x = y = 0;
@@ -138,7 +138,7 @@ static void g364fb_draw_graphic8(G364State *s)
         if (check_dirty(page)) {
             if (y < ymin)
                 ymin = ymax = y;
-            if (page_min == (a_ram_addr)-1)
+            if (page_min == (ram_addr_t)-1)
                 page_min = page;
             page_max = page;
             if (x < xmin)
@@ -197,9 +197,9 @@ static void g364fb_draw_graphic8(G364State *s)
                 ymax = y;
         } else {
             int dy;
-            if (page_min != (a_ram_addr)-1) {
+            if (page_min != (ram_addr_t)-1) {
                 reset_dirty(s, page_min, page_max);
-                page_min = (a_ram_addr)-1;
+                page_min = (ram_addr_t)-1;
                 page_max = 0;
                 dpy_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
                 xmin = s->width;
@@ -219,7 +219,7 @@ static void g364fb_draw_graphic8(G364State *s)
     }
 
 done:
-    if (page_min != (a_ram_addr)-1) {
+    if (page_min != (ram_addr_t)-1) {
         dpy_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
         reset_dirty(s, page_min, page_max);
     }
@@ -336,7 +336,7 @@ static void g364fb_screen_dump(void *opaque, const char *filename)
 }
 
 /* called for accesses to io ports */
-static uint32_t g364fb_ctrl_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t g364fb_ctrl_readl(void *opaque, target_phys_addr_t addr)
 {
     G364State *s = opaque;
     uint32_t val;
@@ -379,7 +379,7 @@ static uint32_t g364fb_ctrl_readl(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static uint32_t g364fb_ctrl_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t g364fb_ctrl_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v = g364fb_ctrl_readl(opaque, addr & ~0x3);
     if (addr & 0x2)
@@ -388,7 +388,7 @@ static uint32_t g364fb_ctrl_readw(void *opaque, a_target_phys_addr addr)
         return v & 0xffff;
 }
 
-static uint32_t g364fb_ctrl_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t g364fb_ctrl_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v = g364fb_ctrl_readl(opaque, addr & ~0x3);
     return (v >> (8 * (addr & 0x3))) & 0xff;
@@ -415,7 +415,7 @@ static void g364_invalidate_cursor_position(G364State *s)
     }
 }
 
-static void g364fb_ctrl_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void g364fb_ctrl_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     G364State *s = opaque;
 
@@ -490,7 +490,7 @@ static void g364fb_ctrl_writel(void *opaque, a_target_phys_addr addr, uint32_t v
     qemu_irq_lower(s->irq);
 }
 
-static void g364fb_ctrl_writew(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void g364fb_ctrl_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     uint32_t old_val = g364fb_ctrl_readl(opaque, addr & ~0x3);
 
@@ -501,7 +501,7 @@ static void g364fb_ctrl_writew(void *opaque, a_target_phys_addr addr, uint32_t v
     g364fb_ctrl_writel(opaque, addr & ~0x3, val);
 }
 
-static void g364fb_ctrl_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void g364fb_ctrl_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     uint32_t old_val = g364fb_ctrl_readl(opaque, addr & ~0x3);
 
@@ -583,8 +583,8 @@ static void g364fb_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->height);
 }
 
-int g364fb_mm_init(a_target_phys_addr vram_base,
-                   a_target_phys_addr ctrl_base, int it_shift,
+int g364fb_mm_init(target_phys_addr_t vram_base,
+                   target_phys_addr_t ctrl_base, int it_shift,
                    qemu_irq irq)
 {
     G364State *s;

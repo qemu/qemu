@@ -37,7 +37,7 @@ static uint8_t integrator_spd[128] = {
    0xe, 4, 0x1c, 1, 2, 0x20, 0xc0, 0, 0, 0, 0, 0x30, 0x28, 0x30, 0x28, 0x40
 };
 
-static uint32_t integratorcm_read(void *opaque, a_target_phys_addr offset)
+static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
     if (offset >= 0x100 && offset < 0x200) {
@@ -138,7 +138,7 @@ static void integratorcm_update(integratorcm_state *s)
         hw_error("Core module interrupt\n");
 }
 
-static void integratorcm_write(void *opaque, a_target_phys_addr offset,
+static void integratorcm_write(void *opaque, target_phys_addr_t offset,
                                uint32_t value)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
@@ -296,7 +296,7 @@ static void icp_pic_set_irq(void *opaque, int irq, int level)
     icp_pic_update(s);
 }
 
-static uint32_t icp_pic_read(void *opaque, a_target_phys_addr offset)
+static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
 
@@ -324,7 +324,7 @@ static uint32_t icp_pic_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void icp_pic_write(void *opaque, a_target_phys_addr offset,
+static void icp_pic_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
@@ -388,7 +388,7 @@ static int icp_pic_init(SysBusDevice *dev)
 }
 
 /* CP control registers.  */
-static uint32_t icp_control_read(void *opaque, a_target_phys_addr offset)
+static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
 {
     switch (offset >> 2) {
     case 0: /* CP_IDFIELD */
@@ -405,7 +405,7 @@ static uint32_t icp_control_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void icp_control_write(void *opaque, a_target_phys_addr offset,
+static void icp_control_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     switch (offset >> 2) {
@@ -448,13 +448,13 @@ static struct arm_boot_info integrator_binfo = {
     .board_id = 0x113,
 };
 
-static void integratorcp_init(a_ram_addr ram_size,
+static void integratorcp_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    a_ram_addr ram_offset;
+    ram_addr_t ram_offset;
     qemu_irq pic[32];
     qemu_irq *cpu_pic;
     DeviceState *dev;

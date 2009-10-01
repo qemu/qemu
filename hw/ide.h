@@ -18,7 +18,7 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
 		   void *dbdma, int channel, qemu_irq dma_irq);
 
 /* ide-mmio.c */
-void mmio_ide_init (a_target_phys_addr membase, a_target_phys_addr membase2,
+void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1);
 

@@ -32,7 +32,7 @@
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 
-static void xen_init_pv(a_ram_addr ram_size,
+static void xen_init_pv(ram_addr_t ram_size,
 			const char *boot_device,
 			const char *kernel_filename,
 			const char *kernel_cmdline,

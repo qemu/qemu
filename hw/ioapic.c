@@ -119,7 +119,7 @@ void ioapic_set_irq(void *opaque, int vector, int level)
     }
 }
 
-static uint32_t ioapic_mem_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t ioapic_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     IOAPICState *s = opaque;
     int index;
@@ -155,7 +155,7 @@ static uint32_t ioapic_mem_readl(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static void ioapic_mem_writel(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void ioapic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     IOAPICState *s = opaque;
     int index;

@@ -72,7 +72,7 @@ static void update_irq(struct xlx_pic *p)
     }
 }
 
-static uint32_t pic_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 {
     struct xlx_pic *p = opaque;
     uint32_t r = 0;
@@ -91,7 +91,7 @@ static uint32_t pic_readl (void *opaque, a_target_phys_addr addr)
 }
 
 static void
-pic_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     struct xlx_pic *p = opaque;
 

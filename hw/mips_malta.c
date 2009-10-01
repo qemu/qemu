@@ -117,7 +117,7 @@ static void malta_fpga_update_display(void *opaque)
 #  define logout(fmt, ...) ((void)0)
 #endif
 
-struct eeprom24c0x {
+struct _eeprom24c0x_t {
   uint8_t tick;
   uint8_t address;
   uint8_t command;
@@ -129,9 +129,9 @@ struct eeprom24c0x {
   uint8_t contents[256];
 };
 
-typedef struct eeprom24c0x a_eeprom24c0x;
+typedef struct _eeprom24c0x_t eeprom24c0x_t;
 
-static a_eeprom24c0x eeprom = {
+static eeprom24c0x_t eeprom = {
     .contents = {
         /* 00000000: */ 0x80,0x08,0x04,0x0D,0x0A,0x01,0x40,0x00,
         /* 00000008: */ 0x01,0x75,0x54,0x00,0x82,0x08,0x00,0x01,
@@ -217,7 +217,7 @@ static void eeprom24c0x_write(int scl, int sda)
     eeprom.sda = sda;
 }
 
-static uint32_t malta_fpga_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 {
     MaltaFPGAState *s = opaque;
     uint32_t val = 0;
@@ -304,7 +304,7 @@ static uint32_t malta_fpga_readl(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static void malta_fpga_writel(void *opaque, a_target_phys_addr addr,
+static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
                               uint32_t val)
 {
     MaltaFPGAState *s = opaque;
@@ -431,7 +431,7 @@ static void malta_fpga_led_init(CharDriverState *chr)
     qemu_chr_printf(chr, "+--------+\r\n");
 }
 
-static MaltaFPGAState *malta_fpga_init(a_target_phys_addr base, qemu_irq uart_irq, CharDriverState *uart_chr)
+static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)
 {
     MaltaFPGAState *s;
     int malta;
@@ -658,7 +658,7 @@ static void write_bootloader (CPUState *env, uint8_t *base,
 static void prom_set(int index, const char *string, ...)
 {
     char buf[ENVP_ENTRY_SIZE];
-    a_target_phys_addr p;
+    target_phys_addr_t p;
     va_list ap;
     int32_t table_addr;
 
@@ -688,7 +688,7 @@ static int64_t load_kernel (CPUState *env)
     int64_t kernel_entry, kernel_low, kernel_high;
     int index = 0;
     long initrd_size;
-    a_ram_addr initrd_offset;
+    ram_addr_t initrd_offset;
     int big_endian;
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -763,21 +763,21 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void mips_malta_init (a_ram_addr ram_size,
+void mips_malta_init (ram_addr_t ram_size,
                       const char *boot_device,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    a_ram_addr ram_offset;
-    a_ram_addr bios_offset;
+    ram_addr_t ram_offset;
+    ram_addr_t bios_offset;
     target_long bios_size;
     int64_t kernel_entry;
     PCIBus *pci_bus;
     ISADevice *isa_dev;
     CPUState *env;
     RTCState *rtc_state;
-    a_fdctrl *floppy_controller;
+    fdctrl_t *floppy_controller;
     MaltaFPGAState *malta_fpga;
     qemu_irq *i8259;
     int piix4_devfn;

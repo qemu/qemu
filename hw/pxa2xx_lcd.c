@@ -51,15 +51,15 @@ struct PXA2xxLCDState {
     uint8_t bscntr;
 
     struct {
-        a_target_phys_addr branch;
+        target_phys_addr_t branch;
         int up;
         uint8_t palette[1024];
         uint8_t pbuffer[1024];
-        void (*redraw)(PXA2xxLCDState *s, a_target_phys_addr addr,
+        void (*redraw)(PXA2xxLCDState *s, target_phys_addr_t addr,
                         int *miny, int *maxy);
 
-        a_target_phys_addr descriptor;
-        a_target_phys_addr source;
+        target_phys_addr_t descriptor;
+        target_phys_addr_t source;
         uint32_t id;
         uint32_t command;
     } dma_ch[7];
@@ -284,7 +284,7 @@ static inline void pxa2xx_dma_rdst_set(PXA2xxLCDState *s)
 static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
 {
     PXAFrameDescriptor desc;
-    a_target_phys_addr descptr;
+    target_phys_addr_t descptr;
     int i;
 
     for (i = 0; i < PXA_LCDDMA_CHANS; i ++) {
@@ -313,7 +313,7 @@ static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
     }
 }
 
-static uint32_t pxa2xx_lcdc_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
     int ch;
@@ -407,7 +407,7 @@ static uint32_t pxa2xx_lcdc_read(void *opaque, a_target_phys_addr offset)
 }
 
 static void pxa2xx_lcdc_write(void *opaque,
-                a_target_phys_addr offset, uint32_t value)
+                target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
     int ch;
@@ -664,7 +664,7 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
 }
 
 static void pxa2xx_lcdc_dma0_redraw_horiz(PXA2xxLCDState *s,
-                a_target_phys_addr addr, int *miny, int *maxy)
+                target_phys_addr_t addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
     drawfn fn = NULL;
@@ -691,7 +691,7 @@ static void pxa2xx_lcdc_dma0_redraw_horiz(PXA2xxLCDState *s,
 }
 
 static void pxa2xx_lcdc_dma0_redraw_vert(PXA2xxLCDState *s,
-               a_target_phys_addr addr, int *miny, int *maxy)
+               target_phys_addr_t addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
     drawfn fn = NULL;
@@ -741,7 +741,7 @@ static void pxa2xx_lcdc_resize(PXA2xxLCDState *s)
 static void pxa2xx_update_display(void *opaque)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
-    a_target_phys_addr fbptr;
+    target_phys_addr_t fbptr;
     int miny, maxy;
     int ch;
     if (!(s->control[0] & LCCR0_ENB))
@@ -917,7 +917,7 @@ static int pxa2xx_lcdc_load(QEMUFile *f, void *opaque, int version_id)
 #define BITS 32
 #include "pxa2xx_template.h"
 
-PXA2xxLCDState *pxa2xx_lcdc_init(a_target_phys_addr base, qemu_irq irq)
+PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq)
 {
     int iomemtype;
     PXA2xxLCDState *s;

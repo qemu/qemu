@@ -51,7 +51,7 @@ typedef enum {
     sd_r6 = 6,    /* Published RCA response */
     sd_r7,        /* Operating voltage */
     sd_r1b = -1,
-} e_sd_rsp_type;
+} sd_rsp_type_t;
 
 struct SDState {
     enum {
@@ -130,7 +130,7 @@ static void sd_set_status(SDState *sd)
     sd->card_status |= sd->state << 9;
 }
 
-static const e_sd_cmd_type sd_cmd_type[64] = {
+static const sd_cmd_type_t sd_cmd_type[64] = {
     sd_bc,   sd_none, sd_bcr,  sd_bcr,  sd_none, sd_none, sd_none, sd_ac,
     sd_bcr,  sd_ac,   sd_ac,   sd_adtc, sd_ac,   sd_ac,   sd_none, sd_ac,
     sd_ac,   sd_adtc, sd_adtc, sd_none, sd_none, sd_none, sd_none, sd_none,
@@ -141,7 +141,7 @@ static const e_sd_cmd_type sd_cmd_type[64] = {
     sd_adtc, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none,
 };
 
-static const e_sd_cmd_type sd_acmd_type[64] = {
+static const sd_cmd_type_t sd_acmd_type[64] = {
     sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_ac,   sd_none,
     sd_none, sd_none, sd_none, sd_none, sd_none, sd_adtc, sd_none, sd_none,
     sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_adtc, sd_ac,
@@ -579,7 +579,7 @@ static void sd_lock_command(SDState *sd)
         sd->card_status &= ~CARD_IS_LOCKED;
 }
 
-static e_sd_rsp_type sd_normal_command(SDState *sd,
+static sd_rsp_type_t sd_normal_command(SDState *sd,
                                        SDRequest req)
 {
     uint32_t rca = 0x0000;
@@ -1118,7 +1118,7 @@ static e_sd_rsp_type sd_normal_command(SDState *sd,
     return sd_r0;
 }
 
-static e_sd_rsp_type sd_app_command(SDState *sd,
+static sd_rsp_type_t sd_app_command(SDState *sd,
                                     SDRequest req) {
     uint32_t rca;
 
@@ -1231,7 +1231,7 @@ static e_sd_rsp_type sd_app_command(SDState *sd,
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
     uint32_t last_status = sd->card_status;
-    e_sd_rsp_type rtype;
+    sd_rsp_type_t rtype;
     int rsplen;
 
     if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv) || !sd->enable) {

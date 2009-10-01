@@ -211,7 +211,7 @@ static inline int channel_en(struct fs_dma_ctrl *ctrl, int c)
 		&& ctrl->channels[c].client;
 }
 
-static inline int fs_channel(a_target_phys_addr addr)
+static inline int fs_channel(target_phys_addr_t addr)
 {
 	/* Every channel has a 0x2000 ctrl register map.  */
 	return addr >> 13;
@@ -220,7 +220,7 @@ static inline int fs_channel(a_target_phys_addr addr)
 #ifdef USE_THIS_DEAD_CODE
 static void channel_load_g(struct fs_dma_ctrl *ctrl, int c)
 {
-	a_target_phys_addr addr = channel_reg(ctrl, c, RW_GROUP);
+	target_phys_addr_t addr = channel_reg(ctrl, c, RW_GROUP);
 
 	/* Load and decode. FIXME: handle endianness.  */
 	cpu_physical_memory_read (addr, 
@@ -252,7 +252,7 @@ static void dump_d(int ch, struct dma_descr_data *d)
 
 static void channel_load_c(struct fs_dma_ctrl *ctrl, int c)
 {
-	a_target_phys_addr addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
+	target_phys_addr_t addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
 
 	/* Load and decode. FIXME: handle endianness.  */
 	cpu_physical_memory_read (addr, 
@@ -269,7 +269,7 @@ static void channel_load_c(struct fs_dma_ctrl *ctrl, int c)
 
 static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
 {
-	a_target_phys_addr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
+	target_phys_addr_t addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
 	/* Load and decode. FIXME: handle endianness.  */
 	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
@@ -283,7 +283,7 @@ static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
 
 static void channel_store_c(struct fs_dma_ctrl *ctrl, int c)
 {
-	a_target_phys_addr addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
+	target_phys_addr_t addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
 
 	/* Encode and store. FIXME: handle endianness.  */
 	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
@@ -295,7 +295,7 @@ static void channel_store_c(struct fs_dma_ctrl *ctrl, int c)
 
 static void channel_store_d(struct fs_dma_ctrl *ctrl, int c)
 {
-	a_target_phys_addr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
+	target_phys_addr_t addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
 	/* Encode and store. FIXME: handle endianness.  */
 	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
@@ -556,14 +556,14 @@ static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 		return 0;
 }
 
-static uint32_t dma_rinvalid (void *opaque, a_target_phys_addr addr)
+static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
 {
         hw_error("Unsupported short raccess. reg=" TARGET_FMT_plx "\n", addr);
         return 0;
 }
 
 static uint32_t
-dma_readl (void *opaque, a_target_phys_addr addr)
+dma_readl (void *opaque, target_phys_addr_t addr)
 {
         struct fs_dma_ctrl *ctrl = opaque;
 	int c;
@@ -591,7 +591,7 @@ dma_readl (void *opaque, a_target_phys_addr addr)
 }
 
 static void
-dma_winvalid (void *opaque, a_target_phys_addr addr, uint32_t value)
+dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
         hw_error("Unsupported short waccess. reg=" TARGET_FMT_plx "\n", addr);
 }
@@ -608,7 +608,7 @@ dma_update_state(struct fs_dma_ctrl *ctrl, int c)
 }
 
 static void
-dma_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
         struct fs_dma_ctrl *ctrl = opaque;
 	int c;
@@ -739,7 +739,7 @@ static void DMA_run(void *opaque)
         qemu_bh_schedule_idle(etraxfs_dmac->bh);
 }
 
-void *etraxfs_dmac_init(a_target_phys_addr base, int nr_channels)
+void *etraxfs_dmac_init(target_phys_addr_t base, int nr_channels)
 {
 	struct fs_dma_ctrl *ctrl = NULL;
 

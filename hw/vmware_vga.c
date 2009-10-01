@@ -58,10 +58,10 @@ struct vmsvga_state_s {
 #ifndef EMBED_STDVGA
     DisplayState *ds;
     int vram_size;
-    a_ram_addr vram_offset;
+    ram_addr_t vram_offset;
     uint8_t *vram_ptr;
 #endif
-    a_target_phys_addr vram_base;
+    target_phys_addr_t vram_base;
 
     int index;
     int scratch_size;
@@ -991,7 +991,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
     }
 }
 
-static void vmsvga_text_update(void *opaque, a_console_ch *chardata)
+static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
 
@@ -1000,7 +1000,7 @@ static void vmsvga_text_update(void *opaque, a_console_ch *chardata)
 }
 
 #ifdef DIRECT_VRAM
-static uint32_t vmsvga_vram_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     if (addr < s->fb_size)
@@ -1009,7 +1009,7 @@ static uint32_t vmsvga_vram_readb(void *opaque, a_target_phys_addr addr)
         return *(uint8_t *) (s->vram_ptr + addr);
 }
 
-static uint32_t vmsvga_vram_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     if (addr < s->fb_size)
@@ -1018,7 +1018,7 @@ static uint32_t vmsvga_vram_readw(void *opaque, a_target_phys_addr addr)
         return *(uint16_t *) (s->vram_ptr + addr);
 }
 
-static uint32_t vmsvga_vram_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t vmsvga_vram_readl(void *opaque, target_phys_addr_t addr)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     if (addr < s->fb_size)
@@ -1027,7 +1027,7 @@ static uint32_t vmsvga_vram_readl(void *opaque, a_target_phys_addr addr)
         return *(uint32_t *) (s->vram_ptr + addr);
 }
 
-static void vmsvga_vram_writeb(void *opaque, a_target_phys_addr addr,
+static void vmsvga_vram_writeb(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
@@ -1037,7 +1037,7 @@ static void vmsvga_vram_writeb(void *opaque, a_target_phys_addr addr,
         *(uint8_t *) (s->vram_ptr + addr) = value;
 }
 
-static void vmsvga_vram_writew(void *opaque, a_target_phys_addr addr,
+static void vmsvga_vram_writew(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
@@ -1047,7 +1047,7 @@ static void vmsvga_vram_writew(void *opaque, a_target_phys_addr addr,
         *(uint16_t *) (s->vram_ptr + addr) = value;
 }
 
-static void vmsvga_vram_writel(void *opaque, a_target_phys_addr addr,
+static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
@@ -1198,7 +1198,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;
-    a_ram_addr iomemtype;
+    ram_addr_t iomemtype;
 
     s->vram_base = addr;
 #ifdef DIRECT_VRAM

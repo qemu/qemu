@@ -82,7 +82,7 @@ static void uart_update_status(struct xlx_uartlite *s)
     s->regs[R_STATUS] = r;
 }
 
-static uint32_t uart_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t uart_readl (void *opaque, target_phys_addr_t addr)
 {
     struct xlx_uartlite *s = opaque;
     uint32_t r = 0;
@@ -107,7 +107,7 @@ static uint32_t uart_readl (void *opaque, a_target_phys_addr addr)
 }
 
 static void
-uart_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+uart_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     struct xlx_uartlite *s = opaque;
     unsigned char ch = value;

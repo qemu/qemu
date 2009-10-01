@@ -279,8 +279,8 @@ static inline int ds_get_bytes_per_pixel(DisplayState *ds)
     return ds->surface->pf.bytes_per_pixel;
 }
 
-typedef unsigned long a_console_ch;
-static inline void console_write_ch(a_console_ch *dest, uint32_t ch)
+typedef unsigned long console_ch_t;
+static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {
     cpu_to_le32wu((uint32_t *) dest, ch);
 }
@@ -288,7 +288,7 @@ static inline void console_write_ch(a_console_ch *dest, uint32_t ch)
 typedef void (*vga_hw_update_ptr)(void *);
 typedef void (*vga_hw_invalidate_ptr)(void *);
 typedef void (*vga_hw_screen_dump_ptr)(void *, const char *);
-typedef void (*vga_hw_text_update_ptr)(void *, a_console_ch *);
+typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
 
 DisplayState *graphic_console_init(vga_hw_update_ptr update,
                                    vga_hw_invalidate_ptr invalidate,
@@ -299,7 +299,7 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
 void vga_hw_update(void);
 void vga_hw_invalidate(void);
 void vga_hw_screen_dump(const char *filename);
-void vga_hw_text_update(a_console_ch *chardata);
+void vga_hw_text_update(console_ch_t *chardata);
 
 int is_graphic_console(void);
 int is_fixedsize_console(void);

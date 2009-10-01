@@ -32,15 +32,15 @@
 #define TODO_USER_ONLY 1
 #endif
 
-struct ppc_def {
+struct ppc_def_t {
     const char *name;
     uint32_t pvr;
     uint32_t svr;
     uint64_t insns_flags;
     uint64_t msr_mask;
-    e_powerpc_mmu   mmu_model;
-    e_powerpc_excp  excp_model;
-    e_powerpc_input bus_model;
+    powerpc_mmu_t   mmu_model;
+    powerpc_excp_t  excp_model;
+    powerpc_input_t bus_model;
     uint32_t flags;
     int bfd_mach;
     void (*init_proc)(CPUPPCState *env);
@@ -531,7 +531,7 @@ static inline void spr_register (CPUPPCState *env, int num,
                                  target_ulong initial_value)
 #endif
 {
-    a_ppc_spr *spr;
+    ppc_spr_t *spr;
 
     spr = &env->spr_cb[num];
     if (spr->name != NULL ||env-> spr[num] != 0x00000000 ||
@@ -7228,7 +7228,7 @@ enum {
 #define POWERPC_DEF(_name, _pvr, _type)                                       \
 POWERPC_DEF_SVR(_name, _pvr, POWERPC_SVR_NONE, _type)
 
-static const a_ppc_def ppc_defs[] = {
+static const ppc_def_t ppc_defs[] = {
     /* Embedded PowerPC                                                      */
     /* PowerPC 401 family                                                    */
     /* Generic PowerPC 401 */
@@ -8882,7 +8882,7 @@ static const a_ppc_def ppc_defs[] = {
 
 /*****************************************************************************/
 /* Generic CPU instanciation routine                                         */
-static void init_ppc_proc (CPUPPCState *env, const a_ppc_def *def)
+static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
 {
 #if !defined(CONFIG_USER_ONLY)
     int i;
@@ -9022,7 +9022,7 @@ static void init_ppc_proc (CPUPPCState *env, const a_ppc_def *def)
         int nb_tlb = env->nb_tlb;
         if (env->id_tlbs != 0)
             nb_tlb *= 2;
-        env->tlb = qemu_mallocz(nb_tlb * sizeof(union ppc_tlb));
+        env->tlb = qemu_mallocz(nb_tlb * sizeof(ppc_tlb_t));
         /* Pre-compute some useful values */
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
     }
@@ -9093,14 +9093,14 @@ static inline int is_indirect_opcode (void *handler)
     return ((unsigned long)handler & 0x03) == PPC_INDIRECT;
 }
 
-static inline an_opc_handler **ind_table(void *handler)
+static inline opc_handler_t **ind_table(void *handler)
 {
-    return (an_opc_handler **)((unsigned long)handler & ~3);
+    return (opc_handler_t **)((unsigned long)handler & ~3);
 }
 
 /* Instruction table creation */
 /* Opcodes tables creation */
-static void fill_new_table (an_opc_handler **table, int len)
+static void fill_new_table (opc_handler_t **table, int len)
 {
     int i;
 
@@ -9108,19 +9108,19 @@ static void fill_new_table (an_opc_handler **table, int len)
         table[i] = &invalid_handler;
 }
 
-static int create_new_table (an_opc_handler **table, unsigned char idx)
+static int create_new_table (opc_handler_t **table, unsigned char idx)
 {
-    an_opc_handler **tmp;
+    opc_handler_t **tmp;
 
-    tmp = malloc(0x20 * sizeof(an_opc_handler));
+    tmp = malloc(0x20 * sizeof(opc_handler_t));
     fill_new_table(tmp, 0x20);
-    table[idx] = (an_opc_handler *)((unsigned long)tmp | PPC_INDIRECT);
+    table[idx] = (opc_handler_t *)((unsigned long)tmp | PPC_INDIRECT);
 
     return 0;
 }
 
-static int insert_in_table (an_opc_handler **table, unsigned char idx,
-                            an_opc_handler *handler)
+static int insert_in_table (opc_handler_t **table, unsigned char idx,
+                            opc_handler_t *handler)
 {
     if (table[idx] != &invalid_handler)
         return -1;
@@ -9129,8 +9129,8 @@ static int insert_in_table (an_opc_handler **table, unsigned char idx,
     return 0;
 }
 
-static int register_direct_insn (an_opc_handler **ppc_opcodes,
-                                 unsigned char idx, an_opc_handler *handler)
+static int register_direct_insn (opc_handler_t **ppc_opcodes,
+                                 unsigned char idx, opc_handler_t *handler)
 {
     if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
         printf("*** ERROR: opcode %02x already assigned in main "
@@ -9145,9 +9145,9 @@ static int register_direct_insn (an_opc_handler **ppc_opcodes,
     return 0;
 }
 
-static int register_ind_in_table (an_opc_handler **table,
+static int register_ind_in_table (opc_handler_t **table,
                                   unsigned char idx1, unsigned char idx2,
-                                  an_opc_handler *handler)
+                                  opc_handler_t *handler)
 {
     if (table[idx1] == &invalid_handler) {
         if (create_new_table(table, idx1) < 0) {
@@ -9180,9 +9180,9 @@ static int register_ind_in_table (an_opc_handler **table,
     return 0;
 }
 
-static int register_ind_insn (an_opc_handler **ppc_opcodes,
+static int register_ind_insn (opc_handler_t **ppc_opcodes,
                               unsigned char idx1, unsigned char idx2,
-                              an_opc_handler *handler)
+                              opc_handler_t *handler)
 {
     int ret;
 
@@ -9191,9 +9191,9 @@ static int register_ind_insn (an_opc_handler **ppc_opcodes,
     return ret;
 }
 
-static int register_dblind_insn (an_opc_handler **ppc_opcodes,
+static int register_dblind_insn (opc_handler_t **ppc_opcodes,
                                  unsigned char idx1, unsigned char idx2,
-                                 unsigned char idx3, an_opc_handler *handler)
+                                 unsigned char idx3, opc_handler_t *handler)
 {
     if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
         printf("*** ERROR: unable to join indirect table idx "
@@ -9210,7 +9210,7 @@ static int register_dblind_insn (an_opc_handler **ppc_opcodes,
     return 0;
 }
 
-static int register_insn (an_opc_handler **ppc_opcodes, an_opcode *insn)
+static int register_insn (opc_handler_t **ppc_opcodes, opcode_t *insn)
 {
     if (insn->opc2 != 0xFF) {
         if (insn->opc3 != 0xFF) {
@@ -9230,7 +9230,7 @@ static int register_insn (an_opc_handler **ppc_opcodes, an_opcode *insn)
     return 0;
 }
 
-static int test_an_opcodeable (an_opc_handler **table, int len)
+static int test_opcode_table (opc_handler_t **table, int len)
 {
     int i, count, tmp;
 
@@ -9240,7 +9240,7 @@ static int test_an_opcodeable (an_opc_handler **table, int len)
             table[i] = &invalid_handler;
         if (table[i] != &invalid_handler) {
             if (is_indirect_opcode(table[i])) {
-                tmp = test_an_opcodeable(ind_table(table[i]), 0x20);
+                tmp = test_opcode_table(ind_table(table[i]), 0x20);
                 if (tmp == 0) {
                     free(table[i]);
                     table[i] = &invalid_handler;
@@ -9256,16 +9256,16 @@ static int test_an_opcodeable (an_opc_handler **table, int len)
     return count;
 }
 
-static void fix_an_opcodeables (an_opc_handler **ppc_opcodes)
+static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
 {
-    if (test_an_opcodeable(ppc_opcodes, 0x40) == 0)
+    if (test_opcode_table(ppc_opcodes, 0x40) == 0)
         printf("*** WARNING: no opcode defined !\n");
 }
 
 /*****************************************************************************/
-static int create_ppc_opcodes (CPUPPCState *env, const a_ppc_def *def)
+static int create_ppc_opcodes (CPUPPCState *env, const ppc_def_t *def)
 {
-    an_opcode *opc;
+    opcode_t *opc;
 
     fill_new_table(env->opcodes, 0x40);
     for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
@@ -9278,7 +9278,7 @@ static int create_ppc_opcodes (CPUPPCState *env, const a_ppc_def *def)
             }
         }
     }
-    fix_an_opcodeables(env->opcodes);
+    fix_opcode_tables(env->opcodes);
     fflush(stdout);
     fflush(stderr);
 
@@ -9288,7 +9288,7 @@ static int create_ppc_opcodes (CPUPPCState *env, const a_ppc_def *def)
 #if defined(PPC_DUMP_CPU)
 static void dump_ppc_insns (CPUPPCState *env)
 {
-    an_opc_handler **table, *handler;
+    opc_handler_t **table, *handler;
     const char *p, *q;
     uint8_t opc1, opc2, opc3;
 
@@ -9475,7 +9475,7 @@ static int gdb_set_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-int cpu_ppc_register_internal (CPUPPCState *env, const a_ppc_def *def)
+int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 {
     env->msr_mask = def->msr_mask;
     env->mmu_model = def->mmu_model;
@@ -9667,9 +9667,9 @@ int cpu_ppc_register_internal (CPUPPCState *env, const a_ppc_def *def)
     return 0;
 }
 
-static const a_ppc_def *ppc_find_by_pvr (uint32_t pvr)
+static const ppc_def_t *ppc_find_by_pvr (uint32_t pvr)
 {
-    const a_ppc_def *ret;
+    const ppc_def_t *ret;
     uint32_t pvr_rev;
     int i, best, match, best_match, max;
 
@@ -9707,9 +9707,9 @@ static const a_ppc_def *ppc_find_by_pvr (uint32_t pvr)
 
 #include <ctype.h>
 
-const a_ppc_def *cpu_ppc_find_by_name (const char *name)
+const ppc_def_t *cpu_ppc_find_by_name (const char *name)
 {
-    const a_ppc_def *ret;
+    const ppc_def_t *ret;
     const char *p;
     int i, max, len;
 

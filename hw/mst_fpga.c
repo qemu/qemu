@@ -78,7 +78,7 @@ mst_fpga_set_irq(void *opaque, int irq, int level)
 
 
 static uint32_t
-mst_fpga_readb(void *opaque, a_target_phys_addr addr)
+mst_fpga_readb(void *opaque, target_phys_addr_t addr)
 {
 	mst_irq_state *s = (mst_irq_state *) opaque;
 
@@ -115,7 +115,7 @@ mst_fpga_readb(void *opaque, a_target_phys_addr addr)
 }
 
 static void
-mst_fpga_writeb(void *opaque, a_target_phys_addr addr, uint32_t value)
+mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	mst_irq_state *s = (mst_irq_state *) opaque;
 	value &= 0xffffffff;

@@ -57,7 +57,7 @@ typedef enum {
     sd_bcr,	/* broadcast with response */
     sd_ac,	/* addressed -- no data transfer */
     sd_adtc,	/* addressed with data transfer */
-} e_sd_cmd_type;
+} sd_cmd_type_t;
 
 typedef struct {
     uint8_t cmd;

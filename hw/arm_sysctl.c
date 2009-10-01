@@ -27,7 +27,7 @@ typedef struct {
     uint32_t resetlevel;
 } arm_sysctl_state;
 
-static uint32_t arm_sysctl_read(void *opaque, a_target_phys_addr offset)
+static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
 
@@ -104,7 +104,7 @@ static uint32_t arm_sysctl_read(void *opaque, a_target_phys_addr offset)
     }
 }
 
-static void arm_sysctl_write(void *opaque, a_target_phys_addr offset,
+static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
                           uint32_t val)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;

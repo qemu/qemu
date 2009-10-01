@@ -12,9 +12,9 @@
 #include "pxa.h"
 
 typedef struct {
-    a_target_phys_addr descr;
-    a_target_phys_addr src;
-    a_target_phys_addr dest;
+    target_phys_addr_t descr;
+    target_phys_addr_t src;
+    target_phys_addr_t dest;
     uint32_t cmd;
     uint32_t state;
     int request;
@@ -148,7 +148,7 @@ static inline void pxa2xx_dma_descriptor_fetch(
                 PXA2xxDMAState *s, int ch)
 {
     uint32_t desc[4];
-    a_target_phys_addr daddr = s->chan[ch].descr & ~0xf;
+    target_phys_addr_t daddr = s->chan[ch].descr & ~0xf;
     if ((s->chan[ch].descr & DDADR_BREN) && (s->chan[ch].state & DCSR_CMPST))
         daddr += 32;
 
@@ -252,7 +252,7 @@ static void pxa2xx_dma_run(PXA2xxDMAState *s)
     }
 }
 
-static uint32_t pxa2xx_dma_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_dma_read(void *opaque, target_phys_addr_t offset)
 {
     PXA2xxDMAState *s = (PXA2xxDMAState *) opaque;
     unsigned int channel;
@@ -306,7 +306,7 @@ static uint32_t pxa2xx_dma_read(void *opaque, a_target_phys_addr offset)
 }
 
 static void pxa2xx_dma_write(void *opaque,
-                 a_target_phys_addr offset, uint32_t value)
+                 target_phys_addr_t offset, uint32_t value)
 {
     PXA2xxDMAState *s = (PXA2xxDMAState *) opaque;
     unsigned int channel;
@@ -404,14 +404,14 @@ static void pxa2xx_dma_write(void *opaque,
     }
 }
 
-static uint32_t pxa2xx_dma_readbad(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_dma_readbad(void *opaque, target_phys_addr_t offset)
 {
     hw_error("%s: Bad access width\n", __FUNCTION__);
     return 5;
 }
 
 static void pxa2xx_dma_writebad(void *opaque,
-                 a_target_phys_addr offset, uint32_t value)
+                 target_phys_addr_t offset, uint32_t value)
 {
     hw_error("%s: Bad access width\n", __FUNCTION__);
 }
@@ -483,7 +483,7 @@ static int pxa2xx_dma_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static PXA2xxDMAState *pxa2xx_dma_init(a_target_phys_addr base,
+static PXA2xxDMAState *pxa2xx_dma_init(target_phys_addr_t base,
                 qemu_irq irq, int channels)
 {
     int i, iomemtype;
@@ -512,13 +512,13 @@ static PXA2xxDMAState *pxa2xx_dma_init(a_target_phys_addr base,
     return s;
 }
 
-PXA2xxDMAState *pxa27x_dma_init(a_target_phys_addr base,
+PXA2xxDMAState *pxa27x_dma_init(target_phys_addr_t base,
                 qemu_irq irq)
 {
     return pxa2xx_dma_init(base, irq, PXA27X_DMA_NUM_CHANNELS);
 }
 
-PXA2xxDMAState *pxa255_dma_init(a_target_phys_addr base,
+PXA2xxDMAState *pxa255_dma_init(target_phys_addr_t base,
                 qemu_irq irq)
 {
     return pxa2xx_dma_init(base, irq, PXA255_DMA_NUM_CHANNELS);

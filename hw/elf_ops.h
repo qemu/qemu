@@ -74,7 +74,7 @@ static int glue(symfind, SZ)(const void *s0, const void *s1)
 }
 
 static const char *glue(lookup_symbol, SZ)(struct syminfo *s,
-                                           a_target_phys_addr orig_addr)
+                                           target_phys_addr_t orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
     struct elf_sym key;

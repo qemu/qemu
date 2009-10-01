@@ -40,10 +40,14 @@ Rationale:
 
 3. Naming
 
-Variables are lower_case_with_underscores; easy to type and read.
-Structured type names are in CamelCase; harder to type but standing
-out.  Scalar type names are a_lower_case_beginning_with_an a or an.
-Do not use _t suffix if you are including any headers.
+Variables are lower_case_with_underscores; easy to type and read.  Structured
+type names are in CamelCase; harder to type but standing out.  Scalar type
+names are lower_case_with_underscores_ending_with_a_t, like the POSIX
+uint64_t and family.  Note that this last convention contradicts POSIX
+and is therefore likely to be changed.
+
+Typedefs are used to eliminate the redundant 'struct' keyword.  It is the
+QEMU coding style.
 
 4. Block structure
 

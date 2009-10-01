@@ -69,7 +69,7 @@ int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
     int i;
 
     for (i = 0; i < env->tlb->tlb_in_use; i++) {
-        a_r4k_tlb *tlb = &env->tlb->mmu.r4k.tlb[i];
+        r4k_tlb_t *tlb = &env->tlb->mmu.r4k.tlb[i];
         /* 1k pages are not supported. */
         target_ulong mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
         target_ulong tag = address & ~mask;
@@ -201,7 +201,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 }
 #endif
 
-a_target_phys_addr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
 #if defined(CONFIG_USER_ONLY)
     return addr;
@@ -564,7 +564,7 @@ void do_interrupt (CPUState *env)
 
 void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 {
-    a_r4k_tlb *tlb;
+    r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
     uint8_t ASID = env->CP0_EntryHi & 0xFF;

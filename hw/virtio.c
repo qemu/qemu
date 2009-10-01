@@ -57,15 +57,15 @@ typedef struct VRingUsed
 typedef struct VRing
 {
     unsigned int num;
-    a_target_phys_addr desc;
-    a_target_phys_addr avail;
-    a_target_phys_addr used;
+    target_phys_addr_t desc;
+    target_phys_addr_t avail;
+    target_phys_addr_t used;
 } VRing;
 
 struct VirtQueue
 {
     VRing vring;
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     uint16_t last_avail_idx;
     int inuse;
     uint16_t vector;
@@ -77,7 +77,7 @@ struct VirtQueue
 /* virt queue functions */
 static void virtqueue_init(VirtQueue *vq)
 {
-    a_target_phys_addr pa = vq->pa;
+    target_phys_addr_t pa = vq->pa;
 
     vq->vring.desc = pa;
     vq->vring.avail = pa + vq->vring.num * sizeof(VRingDesc);
@@ -86,93 +86,93 @@ static void virtqueue_init(VirtQueue *vq)
                                  VIRTIO_PCI_VRING_ALIGN);
 }
 
-static inline uint64_t vring_desc_addr(a_target_phys_addr desc_pa, int i)
+static inline uint64_t vring_desc_addr(target_phys_addr_t desc_pa, int i)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = desc_pa + sizeof(VRingDesc) * i + offsetof(VRingDesc, addr);
     return ldq_phys(pa);
 }
 
-static inline uint32_t vring_desc_len(a_target_phys_addr desc_pa, int i)
+static inline uint32_t vring_desc_len(target_phys_addr_t desc_pa, int i)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = desc_pa + sizeof(VRingDesc) * i + offsetof(VRingDesc, len);
     return ldl_phys(pa);
 }
 
-static inline uint16_t vring_desc_flags(a_target_phys_addr desc_pa, int i)
+static inline uint16_t vring_desc_flags(target_phys_addr_t desc_pa, int i)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = desc_pa + sizeof(VRingDesc) * i + offsetof(VRingDesc, flags);
     return lduw_phys(pa);
 }
 
-static inline uint16_t vring_desc_next(a_target_phys_addr desc_pa, int i)
+static inline uint16_t vring_desc_next(target_phys_addr_t desc_pa, int i)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = desc_pa + sizeof(VRingDesc) * i + offsetof(VRingDesc, next);
     return lduw_phys(pa);
 }
 
 static inline uint16_t vring_avail_flags(VirtQueue *vq)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.avail + offsetof(VRingAvail, flags);
     return lduw_phys(pa);
 }
 
 static inline uint16_t vring_avail_idx(VirtQueue *vq)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.avail + offsetof(VRingAvail, idx);
     return lduw_phys(pa);
 }
 
 static inline uint16_t vring_avail_ring(VirtQueue *vq, int i)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.avail + offsetof(VRingAvail, ring[i]);
     return lduw_phys(pa);
 }
 
 static inline void vring_used_ring_id(VirtQueue *vq, int i, uint32_t val)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, ring[i].id);
     stl_phys(pa, val);
 }
 
 static inline void vring_used_ring_len(VirtQueue *vq, int i, uint32_t val)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, ring[i].len);
     stl_phys(pa, val);
 }
 
 static uint16_t vring_used_idx(VirtQueue *vq)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, idx);
     return lduw_phys(pa);
 }
 
 static inline void vring_used_idx_increment(VirtQueue *vq, uint16_t val)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, idx);
     stw_phys(pa, vring_used_idx(vq) + val);
 }
 
 static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, flags);
     stw_phys(pa, lduw_phys(pa) | mask);
 }
 
 static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
 {
-    a_target_phys_addr pa;
+    target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, flags);
     stw_phys(pa, lduw_phys(pa) & ~mask);
 }
@@ -270,7 +270,7 @@ static unsigned int virtqueue_get_head(VirtQueue *vq, unsigned int idx)
     return head;
 }
 
-static unsigned virtqueue_next_desc(a_target_phys_addr desc_pa,
+static unsigned virtqueue_next_desc(target_phys_addr_t desc_pa,
                                     unsigned int i, unsigned int max)
 {
     unsigned int next;
@@ -302,7 +302,7 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
     total_bufs = in_total = out_total = 0;
     while (virtqueue_num_heads(vq, idx)) {
         unsigned int max, num_bufs, indirect = 0;
-        a_target_phys_addr desc_pa;
+        target_phys_addr_t desc_pa;
         int i;
 
         max = vq->vring.num;
@@ -359,8 +359,8 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
 int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 {
     unsigned int i, head, max;
-    a_target_phys_addr desc_pa = vq->vring.desc;
-    a_target_phys_addr len;
+    target_phys_addr_t desc_pa = vq->vring.desc;
+    target_phys_addr_t len;
 
     if (!virtqueue_num_heads(vq, vq->last_avail_idx))
         return 0;
@@ -537,13 +537,13 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
         vdev->set_config(vdev, vdev->config);
 }
 
-void virtio_queue_set_addr(VirtIODevice *vdev, int n, a_target_phys_addr addr)
+void virtio_queue_set_addr(VirtIODevice *vdev, int n, target_phys_addr_t addr)
 {
     vdev->vq[n].pa = addr;
     virtqueue_init(&vdev->vq[n]);
 }
 
-a_target_phys_addr virtio_queue_get_addr(VirtIODevice *vdev, int n)
+target_phys_addr_t virtio_queue_get_addr(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].pa;
 }

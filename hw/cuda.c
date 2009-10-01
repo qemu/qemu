@@ -250,7 +250,7 @@ static void cuda_timer1(void *opaque)
     cuda_update_irq(s);
 }
 
-static uint32_t cuda_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
 {
     CUDAState *s = opaque;
     uint32_t val;
@@ -321,7 +321,7 @@ static uint32_t cuda_readb(void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static void cuda_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     CUDAState *s = opaque;
 
@@ -612,20 +612,20 @@ static void cuda_receive_packet_from_host(CUDAState *s,
     }
 }
 
-static void cuda_writew (void *opaque, a_target_phys_addr addr, uint32_t value)
+static void cuda_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 }
 
-static void cuda_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+static void cuda_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 }
 
-static uint32_t cuda_readw (void *opaque, a_target_phys_addr addr)
+static uint32_t cuda_readw (void *opaque, target_phys_addr_t addr)
 {
     return 0;
 }
 
-static uint32_t cuda_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t cuda_readl (void *opaque, target_phys_addr_t addr)
 {
     return 0;
 }

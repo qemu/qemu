@@ -84,10 +84,10 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
         while (memcpy_from_iovector(&pfn, offset, 4,
                                     elem.out_sg, elem.out_num) == 4) {
-            a_ram_addr pa;
-            a_ram_addr addr;
+            ram_addr_t pa;
+            ram_addr_t addr;
 
-            pa = (a_ram_addr)ldl_p(&pfn) << VIRTIO_BALLOON_PFN_SHIFT;
+            pa = (ram_addr_t)ldl_p(&pfn) << VIRTIO_BALLOON_PFN_SHIFT;
             offset += 4;
 
             addr = cpu_get_physical_page_desc(pa);
@@ -129,7 +129,7 @@ static uint32_t virtio_balloon_get_features(VirtIODevice *vdev)
     return 0;
 }
 
-static a_ram_addr virtio_balloon_to_target(void *opaque, a_ram_addr target)
+static ram_addr_t virtio_balloon_to_target(void *opaque, ram_addr_t target)
 {
     VirtIOBalloon *dev = opaque;
 

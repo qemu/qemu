@@ -17,6 +17,6 @@
 #if !defined(PPC_E500_H)
 #define PPC_E500_H
 
-PCIBus *ppce500_pci_init(qemu_irq *pic, a_target_phys_addr registers);
+PCIBus *ppce500_pci_init(qemu_irq *pic, target_phys_addr_t registers);
 
 #endif /* !defined(PPC_E500_H) */

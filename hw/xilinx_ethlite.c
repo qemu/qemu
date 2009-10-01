@@ -70,7 +70,7 @@ static inline void eth_pulse_irq(struct xlx_ethlite *s)
     }
 }
 
-static uint32_t eth_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 {
     struct xlx_ethlite *s = opaque;
     uint32_t r = 0;
@@ -103,7 +103,7 @@ static uint32_t eth_readl (void *opaque, a_target_phys_addr addr)
 }
 
 static void
-eth_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     struct xlx_ethlite *s = opaque;
     unsigned int base = 0;

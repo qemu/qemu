@@ -18,8 +18,8 @@ void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint)
     qsg->size = 0;
 }
 
-void qemu_sglist_add(QEMUSGList *qsg, a_target_phys_addr base,
-                     a_target_phys_addr len)
+void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
+                     target_phys_addr_t len)
 {
     if (qsg->nsg == qsg->nalloc) {
         qsg->nalloc = 2 * qsg->nalloc + 1;
@@ -44,7 +44,7 @@ typedef struct {
     uint64_t sector_num;
     int is_write;
     int sg_cur_index;
-    a_target_phys_addr sg_cur_byte;
+    target_phys_addr_t sg_cur_byte;
     QEMUIOVector iov;
     QEMUBH *bh;
 } DMAAIOCB;
@@ -82,7 +82,7 @@ static void dma_bdrv_unmap(DMAAIOCB *dbs)
 static void dma_bdrv_cb(void *opaque, int ret)
 {
     DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-    a_target_phys_addr cur_addr, cur_len;
+    target_phys_addr_t cur_addr, cur_len;
     void *mem;
 
     dbs->acb = NULL;

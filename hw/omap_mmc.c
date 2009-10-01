@@ -104,10 +104,10 @@ typedef enum {
     sd_r3,		/* OCR register */
     sd_r6 = 6,		/* Published RCA response */
     sd_r1b = -1,
-} e_sd_rsp_type;
+} sd_rsp_type_t;
 
 static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
-                e_sd_cmd_type type, int busy, e_sd_rsp_type resptype, int init)
+                sd_cmd_type_t type, int busy, sd_rsp_type_t resptype, int init)
 {
     uint32_t rspstatus, mask;
     int rsplen, timeout;
@@ -305,7 +305,7 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->clkdiv = 0;
 }
 
-static uint32_t omap_mmc_read(void *opaque, a_target_phys_addr offset)
+static uint32_t omap_mmc_read(void *opaque, target_phys_addr_t offset)
 {
     uint16_t i;
     struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
@@ -394,7 +394,7 @@ static uint32_t omap_mmc_read(void *opaque, a_target_phys_addr offset)
     return 0;
 }
 
-static void omap_mmc_write(void *opaque, a_target_phys_addr offset,
+static void omap_mmc_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
     int i;
@@ -410,9 +410,9 @@ static void omap_mmc_write(void *opaque, a_target_phys_addr offset,
         for (i = 0; i < 8; i ++)
             s->rsp[i] = 0x0000;
         omap_mmc_command(s, value & 63, (value >> 15) & 1,
-                (e_sd_cmd_type) ((value >> 12) & 3),
+                (sd_cmd_type_t) ((value >> 12) & 3),
                 (value >> 11) & 1,
-                (e_sd_rsp_type) ((value >> 8) & 7),
+                (sd_rsp_type_t) ((value >> 8) & 7),
                 (value >> 7) & 1);
         omap_mmc_update(s);
         break;
@@ -569,7 +569,7 @@ static void omap_mmc_cover_cb(void *opaque, int line, int level)
     }
 }
 
-struct omap_mmc_s *omap_mmc_init(a_target_phys_addr base,
+struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
                 BlockDriverState *bd,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk)
 {

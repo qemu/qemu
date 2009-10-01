@@ -109,7 +109,7 @@ static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
     slavio_misc_update_irq(s);
 }
 
-static void slavio_cfg_mem_writeb(void *opaque, a_target_phys_addr addr,
+static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
     MiscState *s = opaque;
@@ -119,7 +119,7 @@ static void slavio_cfg_mem_writeb(void *opaque, a_target_phys_addr addr,
     slavio_misc_update_irq(s);
 }
 
-static uint32_t slavio_cfg_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -141,7 +141,7 @@ static CPUWriteMemoryFunc * const slavio_cfg_mem_write[3] = {
     NULL,
 };
 
-static void slavio_diag_mem_writeb(void *opaque, a_target_phys_addr addr,
+static void slavio_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
     MiscState *s = opaque;
@@ -150,7 +150,7 @@ static void slavio_diag_mem_writeb(void *opaque, a_target_phys_addr addr,
     s->diag = val & 0xff;
 }
 
-static uint32_t slavio_diag_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_diag_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -172,7 +172,7 @@ static CPUWriteMemoryFunc * const slavio_diag_mem_write[3] = {
     NULL,
 };
 
-static void slavio_mdm_mem_writeb(void *opaque, a_target_phys_addr addr,
+static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
     MiscState *s = opaque;
@@ -181,7 +181,7 @@ static void slavio_mdm_mem_writeb(void *opaque, a_target_phys_addr addr,
     s->mctrl = val & 0xff;
 }
 
-static uint32_t slavio_mdm_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -203,7 +203,7 @@ static CPUWriteMemoryFunc * const slavio_mdm_mem_write[3] = {
     NULL,
 };
 
-static void slavio_aux1_mem_writeb(void *opaque, a_target_phys_addr addr,
+static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
     MiscState *s = opaque;
@@ -220,7 +220,7 @@ static void slavio_aux1_mem_writeb(void *opaque, a_target_phys_addr addr,
     s->aux1 = val & 0xff;
 }
 
-static uint32_t slavio_aux1_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -243,7 +243,7 @@ static CPUWriteMemoryFunc * const slavio_aux1_mem_write[3] = {
     NULL,
 };
 
-static void slavio_aux2_mem_writeb(void *opaque, a_target_phys_addr addr,
+static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
     MiscState *s = opaque;
@@ -259,7 +259,7 @@ static void slavio_aux2_mem_writeb(void *opaque, a_target_phys_addr addr,
     slavio_misc_update_irq(s);
 }
 
-static uint32_t slavio_aux2_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -282,7 +282,7 @@ static CPUWriteMemoryFunc * const slavio_aux2_mem_write[3] = {
     NULL,
 };
 
-static void apc_mem_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
+static void apc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     APCState *s = opaque;
 
@@ -290,7 +290,7 @@ static void apc_mem_writeb(void *opaque, a_target_phys_addr addr, uint32_t val)
     qemu_irq_raise(s->cpu_halt);
 }
 
-static uint32_t apc_mem_readb(void *opaque, a_target_phys_addr addr)
+static uint32_t apc_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = 0;
 
@@ -310,7 +310,7 @@ static CPUWriteMemoryFunc * const apc_mem_write[3] = {
     NULL,
 };
 
-static uint32_t slavio_sysctrl_mem_readl(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -326,7 +326,7 @@ static uint32_t slavio_sysctrl_mem_readl(void *opaque, a_target_phys_addr addr)
     return ret;
 }
 
-static void slavio_sysctrl_mem_writel(void *opaque, a_target_phys_addr addr,
+static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
                                       uint32_t val)
 {
     MiscState *s = opaque;
@@ -356,7 +356,7 @@ static CPUWriteMemoryFunc * const slavio_sysctrl_mem_write[3] = {
     slavio_sysctrl_mem_writel,
 };
 
-static uint32_t slavio_led_mem_readw(void *opaque, a_target_phys_addr addr)
+static uint32_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -372,7 +372,7 @@ static uint32_t slavio_led_mem_readw(void *opaque, a_target_phys_addr addr)
     return ret;
 }
 
-static void slavio_led_mem_writew(void *opaque, a_target_phys_addr addr,
+static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
     MiscState *s = opaque;

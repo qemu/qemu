@@ -49,7 +49,7 @@ struct soc_dma_ch_s {
     int bytes;
     /* Initialised by the DMA module, call soc_dma_ch_update after writing.  */
     enum soc_dma_access_type type[2];
-    a_target_phys_addr vaddr[2];	/* Updated by .transfer_fn().  */
+    target_phys_addr_t vaddr[2];	/* Updated by .transfer_fn().  */
     /* Private */
     void *paddr[2];
     soc_dma_io_t io_fn[2];
@@ -89,25 +89,25 @@ void soc_dma_ch_update(struct soc_dma_ch_s *ch);
 void soc_dma_reset(struct soc_dma_s *s);
 struct soc_dma_s *soc_dma_init(int n);
 
-void soc_dma_port_add_fifo(struct soc_dma_s *dma, a_target_phys_addr virt_base,
+void soc_dma_port_add_fifo(struct soc_dma_s *dma, target_phys_addr_t virt_base,
                 soc_dma_io_t fn, void *opaque, int out);
 void soc_dma_port_add_mem(struct soc_dma_s *dma, uint8_t *phys_base,
-                a_target_phys_addr virt_base, size_t size);
+                target_phys_addr_t virt_base, size_t size);
 
 static inline void soc_dma_port_add_fifo_in(struct soc_dma_s *dma,
-                a_target_phys_addr virt_base, soc_dma_io_t fn, void *opaque)
+                target_phys_addr_t virt_base, soc_dma_io_t fn, void *opaque)
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 0);
 }
 
 static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
-                a_target_phys_addr virt_base, soc_dma_io_t fn, void *opaque)
+                target_phys_addr_t virt_base, soc_dma_io_t fn, void *opaque)
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
 }
 
 static inline void soc_dma_port_add_mem_ram(struct soc_dma_s *dma,
-                a_ram_addr offset, a_target_phys_addr virt_base, size_t size)
+                ram_addr_t offset, target_phys_addr_t virt_base, size_t size)
 {
     return soc_dma_port_add_mem(dma, qemu_get_ram_ptr(offset), virt_base, size);
 }

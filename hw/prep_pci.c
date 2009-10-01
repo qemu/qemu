@@ -25,7 +25,7 @@
 #include "hw.h"
 #include "pci.h"
 
-typedef uint32_t a_pci_addr;
+typedef uint32_t pci_addr_t;
 #include "pci_host.h"
 
 typedef PCIHostState PREPPCIState;
@@ -42,7 +42,7 @@ static uint32_t pci_prep_addr_readl(void* opaque, uint32_t addr)
     return s->config_reg;
 }
 
-static inline uint32_t PPC_PCIIO_config(a_target_phys_addr addr)
+static inline uint32_t PPC_PCIIO_config(target_phys_addr_t addr)
 {
     int i;
 
@@ -53,13 +53,13 @@ static inline uint32_t PPC_PCIIO_config(a_target_phys_addr addr)
     return (addr & 0x7ff) |  (i << 11);
 }
 
-static void PPC_PCIIO_writeb (void *opaque, a_target_phys_addr addr, uint32_t val)
+static void PPC_PCIIO_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 1);
 }
 
-static void PPC_PCIIO_writew (void *opaque, a_target_phys_addr addr, uint32_t val)
+static void PPC_PCIIO_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -68,7 +68,7 @@ static void PPC_PCIIO_writew (void *opaque, a_target_phys_addr addr, uint32_t va
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 2);
 }
 
-static void PPC_PCIIO_writel (void *opaque, a_target_phys_addr addr, uint32_t val)
+static void PPC_PCIIO_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -77,7 +77,7 @@ static void PPC_PCIIO_writel (void *opaque, a_target_phys_addr addr, uint32_t va
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 4);
 }
 
-static uint32_t PPC_PCIIO_readb (void *opaque, a_target_phys_addr addr)
+static uint32_t PPC_PCIIO_readb (void *opaque, target_phys_addr_t addr)
 {
     PREPPCIState *s = opaque;
     uint32_t val;
@@ -85,7 +85,7 @@ static uint32_t PPC_PCIIO_readb (void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static uint32_t PPC_PCIIO_readw (void *opaque, a_target_phys_addr addr)
+static uint32_t PPC_PCIIO_readw (void *opaque, target_phys_addr_t addr)
 {
     PREPPCIState *s = opaque;
     uint32_t val;
@@ -96,7 +96,7 @@ static uint32_t PPC_PCIIO_readw (void *opaque, a_target_phys_addr addr)
     return val;
 }
 
-static uint32_t PPC_PCIIO_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
 {
     PREPPCIState *s = opaque;
     uint32_t val;

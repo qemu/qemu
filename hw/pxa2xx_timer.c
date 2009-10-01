@@ -134,7 +134,7 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
     qemu_mod_timer(s->tm4[n].tm.qtimer, new_qemu);
 }
 
-static uint32_t pxa2xx_timer_read(void *opaque, a_target_phys_addr offset)
+static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
 {
     pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
     int tm = 0;
@@ -211,7 +211,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, a_target_phys_addr offset)
     return 0;
 }
 
-static void pxa2xx_timer_write(void *opaque, a_target_phys_addr offset,
+static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
     int i, tm = 0;
@@ -427,7 +427,7 @@ static int pxa2xx_timer_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static pxa2xx_timer_info *pxa2xx_timer_init(a_target_phys_addr base,
+static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
                 qemu_irq *irqs)
 {
     int i;
@@ -461,14 +461,14 @@ static pxa2xx_timer_info *pxa2xx_timer_init(a_target_phys_addr base,
     return s;
 }
 
-void pxa25x_timer_init(a_target_phys_addr base, qemu_irq *irqs)
+void pxa25x_timer_init(target_phys_addr_t base, qemu_irq *irqs)
 {
     pxa2xx_timer_info *s = pxa2xx_timer_init(base, irqs);
     s->freq = PXA25X_FREQ;
     s->tm4 = NULL;
 }
 
-void pxa27x_timer_init(a_target_phys_addr base,
+void pxa27x_timer_init(target_phys_addr_t base,
                 qemu_irq *irqs, qemu_irq irq4)
 {
     pxa2xx_timer_info *s = pxa2xx_timer_init(base, irqs);

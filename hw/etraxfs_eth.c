@@ -365,7 +365,7 @@ static void eth_validate_duplex(struct fs_eth *eth)
 	}
 }
 
-static uint32_t eth_readl (void *opaque, a_target_phys_addr addr)
+static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 {
 	struct fs_eth *eth = opaque;
 	uint32_t r = 0;
@@ -409,7 +409,7 @@ static void eth_update_ma(struct fs_eth *eth, int ma)
 }
 
 static void
-eth_writel (void *opaque, a_target_phys_addr addr, uint32_t value)
+eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_eth *eth = opaque;
 
@@ -564,7 +564,7 @@ static void eth_cleanup(VLANClientState *vc)
         qemu_free(eth);
 }
 
-void *etraxfs_eth_init(NICInfo *nd, a_target_phys_addr base, int phyaddr)
+void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
 {
 	struct etraxfs_dma_client *dma = NULL;	
 	struct fs_eth *eth = NULL;
