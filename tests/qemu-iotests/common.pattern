@@ -63,69 +63,77 @@ function io_zero() {
 function io_test() {
     local op=$1
     local offset=$2
+    local cluster_size=$3
 
-    # Complete clusters (size = 4k)
-    io "$op" $offset 4096 4096 256
-    offset=$((offset + 256 * 4096))
+    local num_large=$4
+    local num_medium=$((num_large * num_large))
+    local num_small=$((4 * num_medium))
+
+    local half_cluster=$((cluster_size / 2))
+    local quarter_cluster=$((cluster_size / 4))
+    local l2_size=$((cluster_size * cluster_size / 8))
+
+    # Complete clusters
+    io "$op" $offset $cluster_size $cluster_size $num_small
+    offset=$((offset + num_small * $cluster_size))
 
     # From somewhere in the middle to the end of a cluster
-    io "$op" $((offset + 2048)) 2048 4096 256
-    offset=$((offset + 256 * 4096))
+    io "$op" $((offset + $half_cluster)) $half_cluster $cluster_size $num_small
+    offset=$((offset + num_small * $cluster_size))
 
     # From the start to somewhere in the middle of a cluster
-    io "$op" $offset 2048 4096 256
-    offset=$((offset + 256 * 4096))
+    io "$op" $offset $half_cluster $cluster_size $num_small
+    offset=$((offset + num_small * $cluster_size))
 
     # Completely misaligned (and small)
-    io "$op" $((offset + 1024)) 2048 4096 256
-    offset=$((offset + 256 * 4096))
+    io "$op" $((offset + $quarter_cluster)) $half_cluster $cluster_size $num_small
+    offset=$((offset + num_small * $cluster_size))
 
     # Spanning multiple clusters
-    io "$op" $((offset + 2048)) 8192 12288 64
-    offset=$((offset + 64 * 12288))
+    io "$op" $((offset + $half_cluster)) $((cluster_size * 2)) $((cluster_size * 3)) $num_medium
+    offset=$((offset + num_medium * 3 * $cluster_size))
 
     # Spanning multiple L2 tables
     # L2 table size: 512 clusters of 4k = 2M
-    io "$op" $((offset + 2048)) 4194304 4999680 8
-    offset=$((offset + 8 * 4999680))
-
-    if false; then
-        true
-    fi
+    io "$op" $((offset + $half_cluster)) $((2 * l2_size)) 4999680 $num_large
+    offset=$((offset + num_large * (2 * l2_size + 512 * 1573)))
 }
 
 function io_test2() {
     local orig_offset=$1
+    local cluster_size=$2
+    local num=$3
 
     # Pattern (repeat after 9 clusters):
-    # used - used - free - used - compressed - compressed - free - free - compressed
+    #	used - used - free - used - compressed - compressed -
+    #	free - free - compressed
 
     # Write the clusters to be compressed
     echo === Clusters to be compressed [1]
-    io_pattern writev $((offset + 4 * 4096)) 4096 $((9 * 4096)) 256 165
+    io_pattern writev $((offset + 4 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
     echo === Clusters to be compressed [2]
-    io_pattern writev $((offset + 5 * 4096)) 4096 $((9 * 4096)) 256 165
+    io_pattern writev $((offset + 5 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
     echo === Clusters to be compressed [3]
-    io_pattern writev $((offset + 8 * 4096)) 4096 $((9 * 4096)) 256 165
+    io_pattern writev $((offset + 8 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
 
     mv $TEST_IMG $TEST_IMG.orig
     $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c $TEST_IMG.orig $TEST_IMG
 
     # Write the used clusters
     echo === Used clusters [1]
-    io_pattern writev $((offset + 0 * 4096)) 4096 $((9 * 4096)) 256 165
+    io_pattern writev $((offset + 0 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
     echo === Used clusters [2]
-    io_pattern writev $((offset + 1 * 4096)) 4096 $((9 * 4096)) 256 165
+    io_pattern writev $((offset + 1 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
     echo === Used clusters [3]
-    io_pattern writev $((offset + 3 * 4096)) 4096 $((9 * 4096)) 256 165
+    io_pattern writev $((offset + 3 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
 
     # Read them
     echo === Read used/compressed clusters
-    io_pattern readv $((offset + 0 * 4096)) $((2 * 4096)) $((9 * 4096)) 256 165
-    io_pattern readv $((offset + 3 * 4096)) $((3 * 4096)) $((9 * 4096)) 256 165
-    io_pattern readv $((offset + 8 * 4096)) $((1 * 4096)) $((9 * 4096)) 256 165
+    io_pattern readv $((offset + 0 * $cluster_size)) $((2 * $cluster_size)) $((9 * $cluster_size)) $num 165
+    io_pattern readv $((offset + 3 * $cluster_size)) $((3 * $cluster_size)) $((9 * $cluster_size)) $num 165
+    io_pattern readv $((offset + 8 * $cluster_size)) $((1 * $cluster_size)) $((9 * $cluster_size)) $num 165
 
     echo === Read zeros
-    io_zero readv $((offset + 2 * 4096)) $((1 * 4096)) $((9 * 4096)) 256
-    io_zero readv $((offset + 6 * 4096)) $((2 * 4096)) $((9 * 4096)) 256
+    io_zero readv $((offset + 2 * $cluster_size)) $((1 * $cluster_size)) $((9 * $cluster_size)) $num
+    io_zero readv $((offset + 6 * $cluster_size)) $((2 * $cluster_size)) $((9 * $cluster_size)) $num
 }

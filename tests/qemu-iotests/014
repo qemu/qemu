@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # qcow2 pattern test, complex patterns including compression and snapshots
+# Using patterns for 4k cluster size.
 #
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -46,13 +47,14 @@ _supported_os Linux
 
 TEST_OFFSETS="0 4294967296"
 TEST_OPS="writev read write readv"
+CLUSTER_SIZE=4096
 
 _make_test_img 6G
 
 echo "Testing empty image:"
 for offset in $TEST_OFFSETS; do
     echo test2: With offset $offset
-    io_test2 $offset
+    io_test2 $offset $CLUSTER_SIZE 256
     _check_test_img
 done
 
@@ -62,7 +64,7 @@ for i in `seq 1 3`; do
     for offset in $TEST_OFFSETS; do
         echo With snapshot test$i, offset $offset
         for op in $TEST_OPS; do
-            io_test $op $offset
+            io_test $op $offset $CLUSTER_SIZE 8
         done
         _check_test_img
     done

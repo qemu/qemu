@@ -55,6 +55,10 @@ _make_test_img()
     # at least one argument (the image size) needs to be added
     local extra_img_options=$*
 
+    if [ "$IMGFMT" = "qcow2" -a -n "$CLUSTER_SIZE" ]; then
+        extra_img_options="-o cluster_size=$CLUSTER_SIZE $extra_img_options"
+    fi
+
     # XXX(hch): have global image options?
     $QEMU_IMG create -f $IMGFMT $TEST_IMG $extra_img_options | \
     	sed -e "s#$TEST_DIR#TEST_DIR#g" | \
