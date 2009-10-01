@@ -156,7 +156,7 @@ static void tci_write_reg64(uint32_t index, uint64_t value)
 }
 #endif
 
-#if TCG_TARGET_REG_BITS == 64
+#if defined(CONFIG_SOFTMMU) || TCG_TARGET_REG_BITS == 64
 /* Read constant (native size) from bytecode. */
 static tcg_target_ulong tci_read_i(uint8_t **tb_ptr)
 {
@@ -370,7 +370,12 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         uint64_t ul;
 #endif
         uint8_t opc = *(uint8_t *)tb_ptr++;
-        tcg_target_ulong t0, t1, t2, t3;
+        tcg_target_ulong t0;
+        tcg_target_ulong t1;
+        tcg_target_ulong t2;
+#if TCG_TARGET_REG_BITS == 32
+        tcg_target_ulong t3;
+#endif
         tcg_target_ulong label;
         TCGCond condition;
         tci_disas(opc);
@@ -965,6 +970,19 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             break;
         case INDEX_op_qemu_st64:
+#if TCG_TARGET_REG_BITS == 32
+            t0 = tci_read_r32(&tb_ptr);
+            t1 = tci_read_r32(&tb_ptr);
+            t2 = tci_read_r(&tb_ptr);
+#ifdef CONFIG_SOFTMMU
+            t3 = tci_read_i(&tb_ptr);
+            /* TODO: byte order. */
+            __stq_mmu(t2, t0 + ((uint64_t)t1 << 32), t3);
+#else
+            /* TODO: byte order. */
+            *(uint64_t *)(t1 + GUEST_BASE) = t0 + ((uint64_t)t1 << 32);
+#endif
+#else /* TCG_TARGET_REG_BITS == 32 */
             t0 = tci_read_r64(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
@@ -973,6 +991,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #else
             *(uint64_t *)(t1 + GUEST_BASE) = t0;
 #endif
+#endif /* TCG_TARGET_REG_BITS == 32 */
             break;
         default:
             TODO();

@@ -167,7 +167,11 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_st8, { "S", "S" } },
     { INDEX_op_qemu_st16, { "S", "S" } },
     { INDEX_op_qemu_st32, { "S", "S" } },
+#if TCG_TARGET_REG_BITS == 32
     { INDEX_op_qemu_st64, { "S", "S", "S" } },
+#else
+    { INDEX_op_qemu_st64, { "S", "S" } },
+#endif
 
 #if TCG_TARGET_REG_BITS == 32
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
@@ -821,8 +825,15 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
+#if TCG_TARGET_REG_BITS == 32
+        tcg_out_r(s, args[2]);
+#ifdef CONFIG_SOFTMMU
+        tcg_out_i(s, args[3]);
+#endif
+#else
 #ifdef CONFIG_SOFTMMU
         tcg_out_i(s, args[2]);
+#endif
 #endif
         break;
 #if defined(TCG_TARGET_HAS_ext8s_i32)
