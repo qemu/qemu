@@ -538,6 +538,25 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
 
 }
 
+#define ZALLOC_ALIGNMENT 16
+
+static void *zalloc(void *x, unsigned items, unsigned size)
+{
+    void *p;
+
+    size *= items;
+    size = (size + ZALLOC_ALIGNMENT - 1) & ~(ZALLOC_ALIGNMENT - 1);
+
+    p = qemu_mallocz(size);
+
+    return (p);
+}
+
+static void zfree(void *x, void *addr)
+{
+    qemu_free(addr);
+}
+
 static void vnc_zlib_init(VncState *vs)
 {
     int i;
@@ -572,8 +591,8 @@ static int vnc_zlib_stop(VncState *vs, int stream_id)
 
         VNC_DEBUG("VNC: initializing zlib stream %d\n", stream_id);
         VNC_DEBUG("VNC: opaque = %p | vs = %p\n", zstream->opaque, vs);
-        zstream->zalloc = Z_NULL;
-        zstream->zfree = Z_NULL;
+        zstream->zalloc = zalloc;
+        zstream->zfree = zfree;
 
         err = deflateInit2(zstream, vs->tight_compression, Z_DEFLATED, MAX_WBITS,
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
