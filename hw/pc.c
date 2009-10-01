@@ -844,8 +844,8 @@ static void load_linux(void *fw_cfg,
     if (!f || !(kernel_size = get_file_size(f)) ||
 	fread(header, 1, MIN(ARRAY_SIZE(header), kernel_size), f) !=
 	MIN(ARRAY_SIZE(header), kernel_size)) {
-	fprintf(stderr, "qemu: could not load kernel '%s'\n",
-		kernel_filename);
+	fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
+		kernel_filename, strerror(errno));
 	exit(1);
     }
 
@@ -950,8 +950,8 @@ static void load_linux(void *fw_cfg,
 
 	fi = fopen(initrd_filename, "rb");
 	if (!fi) {
-	    fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-		    initrd_filename);
+	    fprintf(stderr, "qemu: could not load initial ram disk '%s': %s\n",
+		    initrd_filename, strerror(errno));
 	    exit(1);
 	}
 
@@ -959,8 +959,8 @@ static void load_linux(void *fw_cfg,
 	initrd_addr = (initrd_max-initrd_size) & ~4095;
 
 	if (!fread_targphys_ok(initrd_addr, initrd_size, fi)) {
-	    fprintf(stderr, "qemu: read error on initial ram disk '%s'\n",
-		    initrd_filename);
+	    fprintf(stderr, "qemu: read error on initial ram disk '%s': %s\n",
+		    initrd_filename, strerror(errno));
 	    exit(1);
 	}
 	fclose(fi);
