@@ -95,8 +95,9 @@ function io_test() {
 
     # Spanning multiple L2 tables
     # L2 table size: 512 clusters of 4k = 2M
-    io "$op" $((offset + $half_cluster)) $((2 * l2_size)) 4999680 $num_large
-    offset=$((offset + num_large * (2 * l2_size + 512 * 1573)))
+    offset=$(( ((offset + l2_size - 1) & ~(l2_size - 1)) - (3 * half_cluster) ))
+    io "$op" $offset $((6 * half_cluster)) $(( l2_size + half_cluster )) $num_large
+    offset=$((offset + num_large * ( l2_size + half_cluster )))
 }
 
 function io_test2() {
