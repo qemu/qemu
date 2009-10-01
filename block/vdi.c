@@ -53,7 +53,7 @@
 #include "block_int.h"
 #include "module.h"
 
-#if defined(HAVE_UUID_H)
+#if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #else
 /* TODO: move uuid emulation to some central place in QEMU. */
@@ -116,7 +116,7 @@ void uuid_unparse(const uuid_t uu, char *out);
 /* Unallocated blocks use this index (no need to convert endianess). */
 #define VDI_UNALLOCATED UINT32_MAX
 
-#if !defined(HAVE_UUID_H)
+#if !defined(CONFIG_UUID)
 void uuid_generate(uuid_t out)
 {
     memset(out, 0, sizeof(out));
