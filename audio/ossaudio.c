@@ -583,34 +583,37 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
 static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
     int trig;
-    va_list ap;
-    int poll_mode;
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
-
-    va_start (ap, cmd);
-    poll_mode = va_arg (ap, int);
-    va_end (ap);
 
     switch (cmd) {
     case VOICE_ENABLE:
-        ldebug ("enabling voice\n");
-        if (poll_mode && oss_poll_out (hw)) {
-            poll_mode = 0;
-        }
-        hw->poll_mode = poll_mode;
+        {
+            va_list ap;
+            int poll_mode;
 
-        if (!oss->mmapped) {
-            return 0;
-        }
+            va_start (ap, cmd);
+            poll_mode = va_arg (ap, int);
+            va_end (ap);
 
-        audio_pcm_info_clear_buf (&hw->info, oss->pcm_buf, hw->samples);
-        trig = PCM_ENABLE_OUTPUT;
-        if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
-            oss_logerr (
-                errno,
-                "SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n"
-                );
-            return -1;
+            ldebug ("enabling voice\n");
+            if (poll_mode && oss_poll_out (hw)) {
+                poll_mode = 0;
+            }
+            hw->poll_mode = poll_mode;
+
+            if (!oss->mmapped) {
+                return 0;
+            }
+
+            audio_pcm_info_clear_buf (&hw->info, oss->pcm_buf, hw->samples);
+            trig = PCM_ENABLE_OUTPUT;
+            if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
+                oss_logerr (
+                    errno,
+                    "SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n"
+                    );
+                return -1;
+            }
         }
         break;
 
