@@ -143,6 +143,7 @@ int main(int argc, char **argv)
 #include "hw/smbios.h"
 #include "hw/xen.h"
 #include "hw/qdev.h"
+#include "hw/loader.h"
 #include "bt-host.h"
 #include "net.h"
 #include "monitor.h"
@@ -5954,6 +5955,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     qdev_machine_creation_done();
+
+    rom_load_all();
 
     if (loadvm) {
         if (load_vmstate(cur_mon, loadvm) < 0) {

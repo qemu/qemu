@@ -13,9 +13,32 @@ int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
 int load_uimage(const char *filename, target_phys_addr_t *ep,
                 target_phys_addr_t *loadaddr, int *is_linux);
 
-int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f);
-int fread_targphys_ok(target_phys_addr_t dst_addr, size_t nbytes, FILE *f);
-int read_targphys(int fd, target_phys_addr_t dst_addr, size_t nbytes);
+int read_targphys(const char *name,
+                  int fd, target_phys_addr_t dst_addr, size_t nbytes);
 void pstrcpy_targphys(target_phys_addr_t dest, int buf_size,
                       const char *source);
+
+int rom_add_file(const char *file,
+                 target_phys_addr_t min, target_phys_addr_t max, int align);
+int rom_add_blob(const char *name, const void *blob, size_t len,
+                 target_phys_addr_t min, target_phys_addr_t max, int align);
+int rom_load_all(void);
+void do_info_roms(Monitor *mon);
+
+#define rom_add_file_fixed(_f, _a)              \
+    rom_add_file(_f, _a, 0, 0)
+#define rom_add_blob_fixed(_f, _b, _l, _a)      \
+    rom_add_blob(_f, _b, _l, _a, 0, 0)
+
+#define PC_ROM_MIN_VGA     0xc0000
+#define PC_ROM_MIN_OPTION  0xc8000
+#define PC_ROM_MAX         0xe0000
+#define PC_ROM_ALIGN       0x800
+#define PC_ROM_SIZE        (PC_ROM_MAX - PC_ROM_MIN_VGA)
+
+#define rom_add_vga(_f)                                                 \
+    rom_add_file(_f, PC_ROM_MIN_VGA,    PC_ROM_MAX, PC_ROM_ALIGN)
+#define rom_add_option(_f)                                              \
+    rom_add_file(_f, PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN)
+
 #endif

@@ -66,30 +66,6 @@ static RTCState *rtc_state;
 static PITState *pit;
 static PCII440FXState *i440fx_state;
 
-typedef struct rom_reset_data {
-    uint8_t *data;
-    target_phys_addr_t addr;
-    unsigned size;
-} RomResetData;
-
-static void option_rom_reset(void *_rrd)
-{
-    RomResetData *rrd = _rrd;
-
-    cpu_physical_memory_write_rom(rrd->addr, rrd->data, rrd->size);
-}
-
-static void option_rom_setup_reset(target_phys_addr_t addr, unsigned size)
-{
-    RomResetData *rrd = qemu_malloc(sizeof *rrd);
-
-    rrd->data = qemu_malloc(size);
-    cpu_physical_memory_read(addr, rrd->data, size);
-    rrd->addr = addr;
-    rrd->size = size;
-    qemu_register_reset(option_rom_reset, rrd);
-}
-
 typedef struct isa_irq_state {
     qemu_irq *i8259;
     qemu_irq *ioapic;
@@ -515,8 +491,7 @@ static void *bochs_bios_init(void)
 
 /* Generate an initial boot sector which sets state and jump to
    a specified vector */
-static void generate_bootsect(target_phys_addr_t option_rom,
-                              uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
+static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
 {
     uint8_t rom[512], *p, *reloc;
     uint8_t sum;
@@ -589,8 +564,8 @@ static void generate_bootsect(target_phys_addr_t option_rom,
         sum += rom[i];
     rom[sizeof(rom) - 1] = -sum;
 
-    cpu_physical_memory_write_rom(option_rom, rom, sizeof(rom));
-    option_rom_setup_reset(option_rom, sizeof (rom));
+    rom_add_blob("linux-bootsect", rom, sizeof(rom),
+                 PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN);
 }
 
 static long get_file_size(FILE *f)
@@ -620,15 +595,16 @@ static int load_multiboot(void *fw_cfg,
                           const char *kernel_cmdline,
                           uint8_t *header)
 {
-    int i, t, is_multiboot = 0;
+    int i, is_multiboot = 0;
     uint32_t flags = 0;
     uint32_t mh_entry_addr;
     uint32_t mh_load_addr;
     uint32_t mb_kernel_size;
     uint32_t mmap_addr = MULTIBOOT_STRUCT_ADDR;
     uint32_t mb_bootinfo = MULTIBOOT_STRUCT_ADDR + 0x500;
-    uint32_t mb_cmdline = mb_bootinfo + 0x200;
     uint32_t mb_mod_end;
+    uint8_t bootinfo[0x500];
+    uint32_t cmdline = 0x200;
 
     /* Ok, let's see if it is a multiboot image.
        The header is 12x32bit long, so the latest entry may be 8192 - 48. */
@@ -651,6 +627,7 @@ static int load_multiboot(void *fw_cfg,
 #ifdef DEBUG_MULTIBOOT
     fprintf(stderr, "qemu: I believe we found a multiboot image!\n");
 #endif
+    memset(bootinfo, 0, sizeof(bootinfo));
 
     if (flags & 0x00000004) { /* MULTIBOOT_HEADER_HAS_VBE */
         fprintf(stderr, "qemu: multiboot knows VBE. we don't.\n");
@@ -681,6 +658,7 @@ static int load_multiboot(void *fw_cfg,
         uint32_t mh_bss_end_addr = ldl_p(header+i+24);
 #endif
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
+        uint8_t *kernel;
 
         mh_entry_addr = ldl_p(header+i+28);
         mb_kernel_size = get_file_size(f) - mb_kernel_text_offset;
@@ -696,20 +674,16 @@ static int load_multiboot(void *fw_cfg,
         fprintf(stderr, "multiboot: mh_load_addr = %#x\n", mh_load_addr);
         fprintf(stderr, "multiboot: mh_load_end_addr = %#x\n", mh_load_end_addr);
         fprintf(stderr, "multiboot: mh_bss_end_addr = %#x\n", mh_bss_end_addr);
-#endif
-
-        fseek(f, mb_kernel_text_offset, SEEK_SET);
-
-#ifdef DEBUG_MULTIBOOT
         fprintf(stderr, "qemu: loading multiboot kernel (%#x bytes) at %#x\n",
                 mb_kernel_size, mh_load_addr);
 #endif
 
-        if (!fread_targphys_ok(mh_load_addr, mb_kernel_size, f)) {
-            fprintf(stderr, "qemu: read error on multiboot kernel '%s' (%#x)\n",
-                    kernel_filename, mb_kernel_size);
-            exit(1);
-        }
+        kernel = qemu_malloc(mb_kernel_size);
+        fseek(f, mb_kernel_text_offset, SEEK_SET);
+        fread(kernel, 1, mb_kernel_size, f);
+        rom_add_blob_fixed(kernel_filename, kernel, mb_kernel_size,
+                           mh_load_addr);
+        qemu_free(kernel);
         fclose(f);
     }
 
@@ -717,10 +691,10 @@ static int load_multiboot(void *fw_cfg,
     mb_mod_end = mh_load_addr + mb_kernel_size;
 
     /* load modules */
-    stl_phys(mb_bootinfo + 20, 0x0); /* mods_count */
+    stl_p(bootinfo + 20, 0x0); /* mods_count */
     if (initrd_filename) {
-        uint32_t mb_mod_info = mb_bootinfo + 0x100;
-        uint32_t mb_mod_cmdline = mb_bootinfo + 0x300;
+        uint32_t mb_mod_info = 0x100;
+        uint32_t mb_mod_cmdline = 0x300;
         uint32_t mb_mod_start = mh_load_addr;
         uint32_t mb_mod_length = mb_kernel_size;
         char *next_initrd;
@@ -733,72 +707,63 @@ static int load_multiboot(void *fw_cfg,
                 *next_initrd = '\0';
             /* if a space comes after the module filename, treat everything
                after that as parameters */
-            cpu_physical_memory_write(mb_mod_cmdline, (uint8_t*)initrd_filename,
-                                      strlen(initrd_filename) + 1);
-            stl_phys(mb_mod_info + 8, mb_mod_cmdline); /* string */
+            pstrcpy((char*)bootinfo + mb_mod_cmdline,
+                    sizeof(bootinfo) - mb_mod_cmdline,
+                    initrd_filename);
+            stl_p(bootinfo + mb_mod_info + 8, mb_mod_cmdline); /* string */
             mb_mod_cmdline += strlen(initrd_filename) + 1;
+            if (mb_mod_cmdline > sizeof(bootinfo))
+                mb_mod_cmdline = sizeof(bootinfo);
             if ((next_space = strchr(initrd_filename, ' ')))
                 *next_space = '\0';
 #ifdef DEBUG_MULTIBOOT
             printf("multiboot loading module: %s\n", initrd_filename);
 #endif
-            f = fopen(initrd_filename, "rb");
-            if (f) {
-                mb_mod_start = (mb_mod_start + mb_mod_length + (TARGET_PAGE_SIZE - 1))
-                             & (TARGET_PAGE_MASK);
-                mb_mod_length = get_file_size(f);
-                mb_mod_end = mb_mod_start + mb_mod_length;
-
-                if (!fread_targphys_ok(mb_mod_start, mb_mod_length, f)) {
-                    fprintf(stderr, "qemu: read error on multiboot module '%s' (%#x)\n",
-                            initrd_filename, mb_mod_length);
-                    exit(1);
-                }
-
-                mb_mod_count++;
-                stl_phys(mb_mod_info + 0, mb_mod_start);
-                stl_phys(mb_mod_info + 4, mb_mod_start + mb_mod_length);
-#ifdef DEBUG_MULTIBOOT
-                printf("mod_start: %#x\nmod_end:   %#x\n", mb_mod_start,
-                       mb_mod_start + mb_mod_length);
-#endif
-                stl_phys(mb_mod_info + 12, 0x0); /* reserved */
+            mb_mod_start = (mb_mod_start + mb_mod_length + (TARGET_PAGE_SIZE - 1))
+                         & (TARGET_PAGE_MASK);
+            mb_mod_length = get_image_size(initrd_filename);
+            if (mb_mod_length < 0) {
+                fprintf(stderr, "failed to get %s image size\n", initrd_filename);
+                exit(1);
             }
+            mb_mod_end = mb_mod_start + mb_mod_length;
+            rom_add_file_fixed(initrd_filename, mb_mod_start);
+
+            mb_mod_count++;
+            stl_p(bootinfo + mb_mod_info + 0, mb_mod_start);
+            stl_p(bootinfo + mb_mod_info + 4, mb_mod_start + mb_mod_length);
+            stl_p(bootinfo + mb_mod_info + 12, 0x0); /* reserved */
+#ifdef DEBUG_MULTIBOOT
+            printf("mod_start: %#x\nmod_end:   %#x\n", mb_mod_start,
+                   mb_mod_start + mb_mod_length);
+#endif
             initrd_filename = next_initrd+1;
             mb_mod_info += 16;
         } while (next_initrd);
-        stl_phys(mb_bootinfo + 20, mb_mod_count); /* mods_count */
-        stl_phys(mb_bootinfo + 24, mb_bootinfo + 0x100); /* mods_addr */
+        stl_p(bootinfo + 20, mb_mod_count); /* mods_count */
+        stl_p(bootinfo + 24, mb_bootinfo + 0x100); /* mods_addr */
     }
 
-    /* Make sure we're getting kernel + modules back after reset */
-    option_rom_setup_reset(mh_load_addr, mb_mod_end - mh_load_addr);
-
     /* Commandline support */
-    stl_phys(mb_bootinfo + 16, mb_cmdline);
-    t = strlen(kernel_filename);
-    cpu_physical_memory_write(mb_cmdline, (uint8_t*)kernel_filename, t);
-    mb_cmdline += t;
-    stb_phys(mb_cmdline++, ' ');
-    t = strlen(kernel_cmdline) + 1;
-    cpu_physical_memory_write(mb_cmdline, (uint8_t*)kernel_cmdline, t);
+    stl_p(bootinfo + 16, mb_bootinfo + cmdline);
+    snprintf((char*)bootinfo + cmdline, 0x100, "%s %s",
+             kernel_filename, kernel_cmdline);
 
     /* the kernel is where we want it to be now */
-
 #define MULTIBOOT_FLAGS_MEMORY (1 << 0)
 #define MULTIBOOT_FLAGS_BOOT_DEVICE (1 << 1)
 #define MULTIBOOT_FLAGS_CMDLINE (1 << 2)
 #define MULTIBOOT_FLAGS_MODULES (1 << 3)
 #define MULTIBOOT_FLAGS_MMAP (1 << 6)
-    stl_phys(mb_bootinfo, MULTIBOOT_FLAGS_MEMORY
-                        | MULTIBOOT_FLAGS_BOOT_DEVICE
-                        | MULTIBOOT_FLAGS_CMDLINE
-                        | MULTIBOOT_FLAGS_MODULES
-                        | MULTIBOOT_FLAGS_MMAP);
-    stl_phys(mb_bootinfo + 4, 640); /* mem_lower */
-    stl_phys(mb_bootinfo + 8, ram_size / 1024); /* mem_upper */
-    stl_phys(mb_bootinfo + 12, 0x8001ffff); /* XXX: use the -boot switch? */
-    stl_phys(mb_bootinfo + 48, mmap_addr); /* mmap_addr */
+    stl_p(bootinfo, MULTIBOOT_FLAGS_MEMORY
+                  | MULTIBOOT_FLAGS_BOOT_DEVICE
+                  | MULTIBOOT_FLAGS_CMDLINE
+                  | MULTIBOOT_FLAGS_MODULES
+                  | MULTIBOOT_FLAGS_MMAP);
+    stl_p(bootinfo + 4, 640); /* mem_lower */
+    stl_p(bootinfo + 8, ram_size / 1024); /* mem_upper */
+    stl_p(bootinfo + 12, 0x8001ffff); /* XXX: use the -boot switch? */
+    stl_p(bootinfo + 48, mmap_addr); /* mmap_addr */
 
 #ifdef DEBUG_MULTIBOOT
     fprintf(stderr, "multiboot: mh_entry_addr = %#x\n", mh_entry_addr);
@@ -809,8 +774,8 @@ static int load_multiboot(void *fw_cfg,
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, mb_bootinfo);
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, mmap_addr);
 
-    /* Make sure we're getting the config space back after reset */
-    option_rom_setup_reset(mb_bootinfo, 0x500);
+    rom_add_blob_fixed("multiboot-info", bootinfo, sizeof(bootinfo),
+                       mb_bootinfo);
 
     option_rom[nb_option_roms] = "multiboot.bin";
     nb_option_roms++;
@@ -819,11 +784,10 @@ static int load_multiboot(void *fw_cfg,
 }
 
 static void load_linux(void *fw_cfg,
-                       target_phys_addr_t option_rom,
                        const char *kernel_filename,
 		       const char *initrd_filename,
 		       const char *kernel_cmdline,
-               target_phys_addr_t max_ram_size)
+                       target_phys_addr_t max_ram_size)
 {
     uint16_t protocol;
     uint32_t gpr[8];
@@ -831,9 +795,9 @@ static void load_linux(void *fw_cfg,
     uint16_t real_seg;
     int setup_size, kernel_size, initrd_size = 0, cmdline_size;
     uint32_t initrd_max;
-    uint8_t header[8192];
+    uint8_t header[8192], *setup, *kernel;
     target_phys_addr_t real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
-    FILE *f, *fi;
+    FILE *f;
     char *vmode;
 
     /* Align to 16 bytes as a paranoia measure */
@@ -901,7 +865,8 @@ static void load_linux(void *fw_cfg,
     	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
 
     /* kernel command line */
-    pstrcpy_targphys(cmdline_addr, 4096, kernel_cmdline);
+    rom_add_blob_fixed("linux-cmdline", kernel_cmdline,
+                       strlen(kernel_cmdline)+1, cmdline_addr);
 
     if (protocol >= 0x202) {
 	stl_p(header+0x228, cmdline_addr);
@@ -948,53 +913,34 @@ static void load_linux(void *fw_cfg,
 	    exit(1);
 	}
 
-	fi = fopen(initrd_filename, "rb");
-	if (!fi) {
-	    fprintf(stderr, "qemu: could not load initial ram disk '%s': %s\n",
-		    initrd_filename, strerror(errno));
-	    exit(1);
-	}
-
-	initrd_size = get_file_size(fi);
-	initrd_addr = (initrd_max-initrd_size) & ~4095;
-
-	if (!fread_targphys_ok(initrd_addr, initrd_size, fi)) {
-	    fprintf(stderr, "qemu: read error on initial ram disk '%s': %s\n",
-		    initrd_filename, strerror(errno));
-	    exit(1);
-	}
-	fclose(fi);
+	initrd_size = get_image_size(initrd_filename);
+        initrd_addr = (initrd_max-initrd_size) & ~4095;
+        rom_add_file_fixed(initrd_filename, initrd_addr);
 
 	stl_p(header+0x218, initrd_addr);
 	stl_p(header+0x21c, initrd_size);
     }
 
-    /* store the finalized header and load the rest of the kernel */
-    cpu_physical_memory_write(real_addr, header, ARRAY_SIZE(header));
-
+    /* load kernel and setup */
     setup_size = header[0x1f1];
     if (setup_size == 0)
 	setup_size = 4;
-
     setup_size = (setup_size+1)*512;
-    /* Size of protected-mode code */
-    kernel_size -= (setup_size > ARRAY_SIZE(header)) ? setup_size : ARRAY_SIZE(header);
+    kernel_size -= setup_size;
 
-    /* In case we have read too much already, copy that over */
-    if (setup_size < ARRAY_SIZE(header)) {
-        cpu_physical_memory_write(prot_addr, header + setup_size, ARRAY_SIZE(header) - setup_size);
-        prot_addr += (ARRAY_SIZE(header) - setup_size);
-        setup_size = ARRAY_SIZE(header);
-    }
-
-    if (!fread_targphys_ok(real_addr + ARRAY_SIZE(header),
-                           setup_size - ARRAY_SIZE(header), f) ||
-	!fread_targphys_ok(prot_addr, kernel_size, f)) {
-	fprintf(stderr, "qemu: read error on kernel '%s'\n",
-		kernel_filename);
-	exit(1);
-    }
+    setup  = qemu_malloc(setup_size);
+    kernel = qemu_malloc(kernel_size);
+    fseek(f, 0, SEEK_SET);
+    fread(setup, 1, setup_size, f);
+    fread(kernel, 1, kernel_size, f);
     fclose(f);
+    memcpy(setup, header, MIN(sizeof(header), setup_size));
+    rom_add_blob_fixed("linux-setup", setup,
+                       setup_size, real_addr);
+    rom_add_blob_fixed(kernel_filename, kernel,
+                       kernel_size, prot_addr);
+    qemu_free(setup);
+    qemu_free(kernel);
 
     /* generate bootsector to set up the initial register state */
     real_seg = real_addr >> 4;
@@ -1003,13 +949,7 @@ static void load_linux(void *fw_cfg,
     memset(gpr, 0, sizeof gpr);
     gpr[4] = cmdline_addr-real_addr-16;	/* SP (-16 is paranoia) */
 
-    option_rom_setup_reset(real_addr, setup_size);
-    option_rom_setup_reset(prot_addr, kernel_size);
-    option_rom_setup_reset(cmdline_addr, cmdline_size);
-    if (initrd_filename)
-        option_rom_setup_reset(initrd_addr, initrd_size);
-
-    generate_bootsect(option_rom, gpr, seg, 0);
+    generate_bootsect(gpr, seg, 0);
 }
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
@@ -1055,35 +995,6 @@ static void pc_init_ne2k_isa(NICInfo *nd)
     nb_ne2k++;
 }
 
-static int load_option_rom(const char *oprom, target_phys_addr_t start,
-                           target_phys_addr_t end)
-{
-    int size;
-    char *filename;
-
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, oprom);
-    if (filename) {
-        size = get_image_size(filename);
-        if (size > 0 && start + size > end) {
-            fprintf(stderr, "Not enough space to load option rom '%s'\n",
-                    oprom);
-            exit(1);
-        }
-        size = load_image_targphys(filename, start, end - start);
-        qemu_free(filename);
-    } else {
-        size = -1;
-    }
-    if (size < 0) {
-        fprintf(stderr, "Could not load option rom '%s'\n", oprom);
-        exit(1);
-    }
-    /* Round up optiom rom size to the next 2k boundary */
-    size = (size + 2047) & ~2047;
-    option_rom_setup_reset(start, size);
-    return size;
-}
-
 int cpu_is_bsp(CPUState *env)
 {
     return env->cpuid_apic_id == 0;
@@ -1121,7 +1032,7 @@ static void pc_init1(ram_addr_t ram_size,
     int ret, linux_boot, i;
     ram_addr_t ram_addr, bios_offset, option_rom_offset;
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
-    int bios_size, isa_bios_size, oprom_area_size;
+    int bios_size, isa_bios_size;
     PCIBus *pci_bus;
     ISADevice *isa_dev;
     int piix3_devfn = -1;
@@ -1219,25 +1130,17 @@ static void pc_init1(ram_addr_t ram_size,
 
 
 
-    option_rom_offset = qemu_ram_alloc(0x20000);
-    oprom_area_size = 0;
-    cpu_register_physical_memory(0xc0000, 0x20000, option_rom_offset);
+    option_rom_offset = qemu_ram_alloc(PC_ROM_SIZE);
+    cpu_register_physical_memory(PC_ROM_MIN_VGA, PC_ROM_SIZE, option_rom_offset);
 
     if (using_vga) {
-        const char *vgabios_filename;
         /* VGA BIOS load */
         if (cirrus_vga_enabled) {
-            vgabios_filename = VGABIOS_CIRRUS_FILENAME;
+            rom_add_vga(VGABIOS_CIRRUS_FILENAME);
         } else {
-            vgabios_filename = VGABIOS_FILENAME;
+            rom_add_vga(VGABIOS_FILENAME);
         }
-        oprom_area_size = load_option_rom(vgabios_filename, 0xc0000, 0xe0000);
     }
-    /* Although video roms can grow larger than 0x8000, the area between
-     * 0xc0000 - 0xc8000 is reserved for them. It means we won't be looking
-     * for any other kind of option rom inside this area */
-    if (oprom_area_size < 0x8000)
-        oprom_area_size = 0x8000;
 
     /* map all the bios at the top of memory */
     cpu_register_physical_memory((uint32_t)(-bios_size),
@@ -1246,14 +1149,11 @@ static void pc_init1(ram_addr_t ram_size,
     fw_cfg = bochs_bios_init();
 
     if (linux_boot) {
-        load_linux(fw_cfg, 0xc0000 + oprom_area_size,
-                   kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
-        oprom_area_size += 2048;
+        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
-        oprom_area_size += load_option_rom(option_rom[i], 0xc0000 + oprom_area_size,
-                                           0xe0000);
+        rom_add_option(option_rom[i]);
     }
 
     for (i = 0; i < nb_nics; i++) {
@@ -1267,8 +1167,7 @@ static void pc_init1(ram_addr_t ram_size,
             model = "e1000";
         snprintf(nic_oprom, sizeof(nic_oprom), "pxe-%s.bin", model);
 
-        oprom_area_size += load_option_rom(nic_oprom, 0xc0000 + oprom_area_size,
-                                           0xe0000);
+        rom_add_option(nic_oprom);
     }
 
     cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);

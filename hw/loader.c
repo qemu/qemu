@@ -44,6 +44,7 @@
 
 #include "hw.h"
 #include "disas.h"
+#include "monitor.h"
 #include "sysemu.h"
 #include "uboot_image.h"
 #include "loader.h"
@@ -80,66 +81,31 @@ int load_image(const char *filename, uint8_t *addr)
     return size;
 }
 
-/* return the amount read, just like fread.  0 may mean error or eof */
-int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
-{
-    uint8_t buf[4096];
-    target_phys_addr_t dst_begin = dst_addr;
-    size_t want, did;
-
-    while (nbytes) {
-	want = nbytes > sizeof(buf) ? sizeof(buf) : nbytes;
-	did = fread(buf, 1, want, f);
-
-	cpu_physical_memory_write_rom(dst_addr, buf, did);
-	dst_addr += did;
-	nbytes -= did;
-	if (did != want)
-	    break;
-    }
-    return dst_addr - dst_begin;
-}
-
-/* returns 0 on error, 1 if ok */
-int fread_targphys_ok(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
-{
-    return fread_targphys(dst_addr, nbytes, f) == nbytes;
-}
-
 /* read()-like version */
-int read_targphys(int fd, target_phys_addr_t dst_addr, size_t nbytes)
+int read_targphys(const char *name,
+                  int fd, target_phys_addr_t dst_addr, size_t nbytes)
 {
-    uint8_t buf[4096];
-    target_phys_addr_t dst_begin = dst_addr;
-    size_t want, did;
+    uint8_t *buf;
+    size_t did;
 
-    while (nbytes) {
-	want = nbytes > sizeof(buf) ? sizeof(buf) : nbytes;
-	did = read(fd, buf, want);
-	if (did != want) break;
-
-	cpu_physical_memory_write_rom(dst_addr, buf, did);
-	dst_addr += did;
-	nbytes -= did;
-    }
-    return dst_addr - dst_begin;
+    buf = qemu_malloc(nbytes);
+    did = read(fd, buf, nbytes);
+    if (did > 0)
+        rom_add_blob_fixed("read", buf, did, dst_addr);
+    qemu_free(buf);
+    return did;
 }
 
 /* return the size or -1 if error */
 int load_image_targphys(const char *filename,
 			target_phys_addr_t addr, int max_sz)
 {
-    FILE *f;
-    size_t got;
+    int size;
 
-    f = fopen(filename, "rb");
-    if (!f) return -1;
-
-    got = fread_targphys(addr, max_sz, f);
-    if (ferror(f)) { fclose(f); return -1; }
-    fclose(f);
-
-    return got;
+    size = get_image_size(filename);
+    if (size > 0)
+        rom_add_file_fixed(filename, addr);
+    return size;
 }
 
 void pstrcpy_targphys(target_phys_addr_t dest, int buf_size,
@@ -231,7 +197,7 @@ int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
         if (e.a_text + e.a_data > max_sz)
             goto fail;
 	lseek(fd, N_TXTOFF(e), SEEK_SET);
-	size = read_targphys(fd, addr, e.a_text + e.a_data);
+	size = read_targphys(filename, fd, addr, e.a_text + e.a_data);
 	if (size < 0)
 	    goto fail;
 	break;
@@ -239,10 +205,10 @@ int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
         if (N_DATADDR(e, target_page_size) + e.a_data > max_sz)
             goto fail;
 	lseek(fd, N_TXTOFF(e), SEEK_SET);
-	size = read_targphys(fd, addr, e.a_text);
+	size = read_targphys(filename, fd, addr, e.a_text);
 	if (size < 0)
 	    goto fail;
-        ret = read_targphys(fd, addr + N_DATADDR(e, target_page_size),
+        ret = read_targphys(filename, fd, addr + N_DATADDR(e, target_page_size),
                             e.a_data);
 	if (ret < 0)
 	    goto fail;
@@ -343,10 +309,10 @@ int load_elf(const char *filename, int64_t address_offset,
 
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
-        ret = load_elf64(fd, address_offset, must_swab, pentry,
+        ret = load_elf64(filename, fd, address_offset, must_swab, pentry,
                          lowaddr, highaddr, elf_machine, clear_lsb);
     } else {
-        ret = load_elf32(fd, address_offset, must_swab, pentry,
+        ret = load_elf32(filename, fd, address_offset, must_swab, pentry,
                          lowaddr, highaddr, elf_machine, clear_lsb);
     }
 
@@ -531,7 +497,7 @@ int load_uimage(const char *filename, target_phys_addr_t *ep,
         hdr->ih_size = bytes;
     }
 
-    cpu_physical_memory_write_rom(hdr->ih_load, data, hdr->ih_size);
+    rom_add_blob_fixed(filename, data, hdr->ih_size, hdr->ih_load);
 
     if (loadaddr)
         *loadaddr = hdr->ih_load;
@@ -543,4 +509,178 @@ out:
         qemu_free(data);
     close(fd);
     return ret;
+}
+
+/*
+ * Functions for reboot-persistent memory regions.
+ *  - used for vga bios and option roms.
+ *  - also linux kernel (-kernel / -initrd).
+ */
+
+typedef struct Rom Rom;
+
+struct Rom {
+    char *name;
+    char *path;
+    size_t romsize;
+    uint8_t *data;
+    int align;
+    int isrom;
+
+    target_phys_addr_t min;
+    target_phys_addr_t max;
+    target_phys_addr_t addr;
+    QTAILQ_ENTRY(Rom) next;
+};
+
+static QTAILQ_HEAD(, Rom) roms = QTAILQ_HEAD_INITIALIZER(roms);
+
+static void rom_insert(Rom *rom)
+{
+    Rom *item;
+
+    /* list is ordered by load address */
+    QTAILQ_FOREACH(item, &roms, next) {
+        if (rom->min >= item->min)
+            continue;
+        QTAILQ_INSERT_BEFORE(item, rom, next);
+        return;
+    }
+    QTAILQ_INSERT_TAIL(&roms, rom, next);
+}
+
+int rom_add_file(const char *file,
+                 target_phys_addr_t min, target_phys_addr_t max, int align)
+{
+    Rom *rom;
+    int rc, fd = -1;
+
+    rom = qemu_mallocz(sizeof(*rom));
+    rom->name = qemu_strdup(file);
+    rom->path = qemu_find_file(QEMU_FILE_TYPE_BIOS, rom->name);
+    if (rom->path == NULL) {
+        fprintf(stderr, "Could not find option rom '%s'\n", rom->name);
+        goto err;
+    }
+
+    fd = open(rom->path, O_RDONLY);
+    if (fd == -1) {
+        fprintf(stderr, "Could not open option rom '%s': %s\n",
+                rom->path, strerror(errno));
+        goto err;
+    }
+
+    rom->align   = align;
+    rom->min     = min;
+    rom->max     = max;
+    rom->romsize = lseek(fd, 0, SEEK_END);
+    rom->data    = qemu_mallocz(rom->romsize);
+    lseek(fd, 0, SEEK_SET);
+    rc = read(fd, rom->data, rom->romsize);
+    if (rc != rom->romsize) {
+        fprintf(stderr, "rom: file %-20s: read error: rc=%d (expected %zd)\n",
+                rom->name, rc, rom->romsize);
+        goto err;
+    }
+    close(fd);
+    rom_insert(rom);
+    return 0;
+
+err:
+    if (fd != -1)
+        close(fd);
+    qemu_free(rom->data);
+    qemu_free(rom->path);
+    qemu_free(rom->name);
+    qemu_free(rom);
+    return -1;
+}
+
+int rom_add_blob(const char *name, const void *blob, size_t len,
+                 target_phys_addr_t min, target_phys_addr_t max, int align)
+{
+    Rom *rom;
+
+    rom = qemu_mallocz(sizeof(*rom));
+    rom->name    = qemu_strdup(name);
+    rom->align   = align;
+    rom->min     = min;
+    rom->max     = max;
+    rom->romsize = len;
+    rom->data    = qemu_mallocz(rom->romsize);
+    memcpy(rom->data, blob, len);
+    rom_insert(rom);
+    return 0;
+}
+
+static void rom_reset(void *unused)
+{
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->data == NULL)
+            continue;
+        cpu_physical_memory_write_rom(rom->addr, rom->data, rom->romsize);
+        if (rom->isrom) {
+            /* rom needs to be written only once */
+            qemu_free(rom->data);
+            rom->data = NULL;
+        }
+    }
+}
+
+int rom_load_all(void)
+{
+    target_phys_addr_t addr = 0;
+    int memtype;
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (addr < rom->min)
+            addr = rom->min;
+        if (rom->max) {
+            /* load address range */
+            if (rom->align) {
+                addr += (rom->align-1);
+                addr &= ~(rom->align-1);
+            }
+            if (addr + rom->romsize > rom->max) {
+                fprintf(stderr, "rom: out of memory (rom %s, "
+                        "addr 0x" TARGET_FMT_plx
+                        ", size 0x%zx, max 0x" TARGET_FMT_plx ")\n",
+                        rom->name, addr, rom->romsize, rom->max);
+                return -1;
+            }
+        } else {
+            /* fixed address requested */
+            if (addr != rom->min) {
+                fprintf(stderr, "rom: requested regions overlap "
+                        "(rom %s. free=0x" TARGET_FMT_plx
+                        ", addr=0x" TARGET_FMT_plx ")\n",
+                        rom->name, addr, rom->min);
+                return -1;
+            }
+        }
+        rom->addr = addr;
+        addr += rom->romsize;
+        memtype = cpu_get_physical_page_desc(rom->addr) & (3 << IO_MEM_SHIFT);
+        if (memtype == IO_MEM_ROM)
+            rom->isrom = 1;
+    }
+    qemu_register_reset(rom_reset, NULL);
+    rom_reset(NULL);
+    return 0;
+}
+
+void do_info_roms(Monitor *mon)
+{
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        monitor_printf(mon, "addr=" TARGET_FMT_plx
+                       " size=0x%06zx mem=%s name=\"%s\" \n",
+                       rom->addr, rom->romsize,
+                       rom->isrom ? "rom" : "ram",
+                       rom->name);
+    }
 }
