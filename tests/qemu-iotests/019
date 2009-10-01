@@ -60,7 +60,7 @@ for offset in $TEST_OFFSETS; do
     io writev $(( offset )) 512 1024 64
 
     # Complete backing clusters
-    io writev $(( offset  + 1024 * 1024))  65536 65536 1
+    io writev $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
 done
 _check_test_img
 
@@ -78,7 +78,7 @@ for offset in $TEST_OFFSETS; do
     io writev $(( offset + 512 )) 512 1024 64
 
     # Complete test image clusters
-    io writev $(( offset + 1024 * 1024 + 65536))  65536 65536 1
+    io writev $(( offset + 1024 * 1024 + $CLUSTER_SIZE))  $CLUSTER_SIZE $CLUSTER_SIZE 1
 done
 _check_test_img
 
@@ -89,7 +89,7 @@ echo "Checking if backing clusters are allocated when they shouldn't"
 echo
 for offset in $TEST_OFFSETS; do
     # Complete backing clusters
-    is_allocated $(( offset  + 1024 * 1024))  65536 65536 1
+    is_allocated $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
 done
 
 echo "Reading"
@@ -101,11 +101,11 @@ for offset in $TEST_OFFSETS; do
     io readv $(( offset + 512 )) 512 1024 64
 
     # Complete test image clusters
-    io readv $(( offset  + 1024 * 1024))  65536 65536 1
-    io readv $(( offset + 1024 * 1024 + 65536))  65536 65536 1
+    io readv $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
+    io readv $(( offset + 1024 * 1024 + $CLUSTER_SIZE))  $CLUSTER_SIZE $CLUSTER_SIZE 1
 
     # Empty sectors
-    io_zero readv $(( offset + 1024 * 1024 + 65536 * 4 )) 65536 65536 1
+    io_zero readv $(( offset + 1024 * 1024 + $CLUSTER_SIZE * 4 )) $CLUSTER_SIZE $CLUSTER_SIZE 1
 done
 _check_test_img
 
