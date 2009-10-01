@@ -1005,13 +1005,14 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 }
 
 static BlockDriver bdrv_host_device = {
-    .format_name	= "host_device",
-    .instance_size	= sizeof(BDRVRawState),
-    .bdrv_probe_device	= hdev_probe_device,
-    .bdrv_open		= hdev_open,
-    .bdrv_close		= raw_close,
+    .format_name        = "host_device",
+    .instance_size      = sizeof(BDRVRawState),
+    .bdrv_probe_device  = hdev_probe_device,
+    .bdrv_open          = hdev_open,
+    .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
-    .bdrv_flush		= raw_flush,
+    .create_options     = raw_create_options,
+    .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,
@@ -1106,6 +1107,7 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_open          = floppy_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
+    .create_options     = raw_create_options,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
@@ -1187,6 +1189,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_open          = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
+    .create_options     = raw_create_options,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
@@ -1307,6 +1310,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_open          = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
+    .create_options     = raw_create_options,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
