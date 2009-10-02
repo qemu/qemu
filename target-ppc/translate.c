@@ -762,7 +762,7 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
                                     TCGv arg2, int add_ca, int compute_ca,
                                     int compute_ov)
 {
-    TCGv t0, t1 = 0;
+    TCGv t0, t1;
 
     if ((!compute_ca && !compute_ov) ||
         (!TCGV_EQUAL(ret,arg1) && !TCGV_EQUAL(ret, arg2)))  {
@@ -1183,7 +1183,7 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int add_ca, int compute_ca,
                                      int compute_ov)
 {
-    TCGv t0, t1 = 0;
+    TCGv t0, t1;
 
     if ((!compute_ca && !compute_ov) ||
         (!TCGV_EQUAL(ret, arg1) && !TCGV_EQUAL(ret, arg2)))  {
@@ -3399,7 +3399,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 {
     uint32_t bo = BO(ctx->opcode);
     int l1 = gen_new_label();
-    TCGv target = 0;
+    TCGv target;
 
     ctx->exception = POWERPC_EXCP_BRANCH;
     if (type == BCOND_LR || type == BCOND_CTR) {
