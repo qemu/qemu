@@ -74,7 +74,8 @@ static struct {
     int period_size_out_overridden;
     int verbose;
 } conf = {
-    .buffer_size_out = 1024,
+    .buffer_size_out = 4096,
+    .period_size_out = 1024,
     .pcm_name_out = "default",
     .pcm_name_in = "default",
 };
@@ -861,22 +862,25 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int pause)
 
 static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
-    va_list ap;
-    int poll_mode;
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-
-    va_start (ap, cmd);
-    poll_mode = va_arg (ap, int);
-    va_end (ap);
 
     switch (cmd) {
     case VOICE_ENABLE:
-        ldebug ("enabling voice\n");
-        if (poll_mode && alsa_poll_out (hw)) {
-            poll_mode = 0;
+        {
+            va_list ap;
+            int poll_mode;
+
+            va_start (ap, cmd);
+            poll_mode = va_arg (ap, int);
+            va_end (ap);
+
+            ldebug ("enabling voice\n");
+            if (poll_mode && alsa_poll_out (hw)) {
+                poll_mode = 0;
+            }
+            hw->poll_mode = poll_mode;
+            return alsa_voice_ctl (alsa->handle, "playback", 0);
         }
-        hw->poll_mode = poll_mode;
-        return alsa_voice_ctl (alsa->handle, "playback", 0);
 
     case VOICE_DISABLE:
         ldebug ("disabling voice\n");
