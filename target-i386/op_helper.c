@@ -4350,6 +4350,11 @@ void helper_fxsave(target_ulong ptr, int data64)
     CPU86_LDouble tmp;
     target_ulong addr;
 
+    /* The operand must be 16 byte aligned */
+    if (ptr & 0xf) {
+        raise_exception(EXCP0D_GPF);
+    }
+
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
     for(i = 0; i < 8; i++) {
@@ -4405,6 +4410,11 @@ void helper_fxrstor(target_ulong ptr, int data64)
     int i, fpus, fptag, nb_xmm_regs;
     CPU86_LDouble tmp;
     target_ulong addr;
+
+    /* The operand must be 16 byte aligned */
+    if (ptr & 0xf) {
+        raise_exception(EXCP0D_GPF);
+    }
 
     env->fpuc = lduw(ptr);
     fpus = lduw(ptr + 2);
