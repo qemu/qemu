@@ -190,7 +190,7 @@ unsigned char c;
 	int j;
 
 	for (j = 0; j < 4; t >>= 8, j++)
-	    *--fcp = (unsigned char) t
+	    *--fcp = (unsigned char) t;
     }
 #else
     for (i = 0; i < 8; i++) {
