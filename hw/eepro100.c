@@ -1211,6 +1211,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
     switch (addr) {
     case SCBStatus:
         //~ val = eepro100_read_status(s);
+    case SCBCmd:
         TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         break;
     case SCBeeprom:
