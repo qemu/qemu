@@ -43,7 +43,41 @@ qemu.log files. This is also useful to see the effects of additional
 registers or additional opcodes (it is easy to modify the virtual machine).
 It can also be used to verify native TCGs.
 
-4) Todo list
+4) Status
+
+TCI needs special implementation for 32 and 64 bit host, 32 and 64 bit target,
+host and target with same or different endianess.
+
+            | host (le)                     host (be)
+            | 32             64             32             64
+------------+------------------------------------------------------------
+target (le) | s?, u?         s1, u1         s?, u?         s?, u?
+32 bit      |
+            |
+target (le) | s?, u?         s1, u1         s?, u?         s?, u?
+64 bit      |
+            |
+target (be) | s?, u?         s?, u?         s?, u?         s?, u?
+32 bit      |
+            |
+target (be) | s?, u?         s?, u?         s?, u?         s?, u?
+64 bit      |
+            |
+
+System emulation
+s? = untested
+sc = compiles
+s0 = bios works
+s1 = grub works
+s2 = linux boots
+
+Linux user mode emulation
+u? = untested
+uc = compiles
+u0 = static hello works
+u1 = linux-user-test works
+
+5) Todo list
 
 * TCI is still highly experimental. It is written and tested on a x86_64 host
   running i386 guests. Host / guest combinations will fail (missing
