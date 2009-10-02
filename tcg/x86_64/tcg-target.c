@@ -1367,7 +1367,7 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
     { INDEX_op_qemu_st8, { "L", "L" } },
     { INDEX_op_qemu_st16, { "L", "L" } },
     { INDEX_op_qemu_st32, { "L", "L" } },
-    { INDEX_op_qemu_st64, { "L", "L", "L" } },
+    { INDEX_op_qemu_st64, { "L", "L" } },
 
     { -1 },
 };
