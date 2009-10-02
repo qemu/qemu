@@ -7502,9 +7502,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         switch(op) {
         case 0: /* fxsave */
             if (mod == 3 || !(s->cpuid_features & CPUID_FXSR) ||
-                (s->flags & HF_EM_MASK))
+                (s->prefix & PREFIX_LOCK))
                 goto illegal_op;
-            if (s->flags & HF_TS_MASK) {
+            if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
                 gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
                 break;
             }
@@ -7516,9 +7516,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         case 1: /* fxrstor */
             if (mod == 3 || !(s->cpuid_features & CPUID_FXSR) ||
-                (s->flags & HF_EM_MASK))
+                (s->prefix & PREFIX_LOCK))
                 goto illegal_op;
-            if (s->flags & HF_TS_MASK) {
+            if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
                 gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
                 break;
             }
