@@ -152,23 +152,46 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+    { INDEX_op_qemu_ld8u, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld8s, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld32u, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld32s, { "r", "L", "L" } },
+#else
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
     { INDEX_op_qemu_ld16u, { "r", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
+#endif
 #if TCG_TARGET_REG_BITS == 32
+#if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld64, { "r", "r", "L" } },
+#else
+    { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
+#endif
 #else
     { INDEX_op_qemu_ld64, { "r", "L" } },
 #endif
 
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+    { INDEX_op_qemu_st8, { "S", "S", "S" } },
+    { INDEX_op_qemu_st16, { "S", "S", "S" } },
+    { INDEX_op_qemu_st32, { "S", "S", "S" } },
+#else
     { INDEX_op_qemu_st8, { "S", "S" } },
     { INDEX_op_qemu_st16, { "S", "S" } },
     { INDEX_op_qemu_st32, { "S", "S" } },
+#endif
 #if TCG_TARGET_REG_BITS == 32
+#if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_st64, { "S", "S", "S" } },
+#else
+    { INDEX_op_qemu_st64, { "S", "S", "S", "S" } },
+#endif
 #else
     { INDEX_op_qemu_st64, { "S", "S" } },
 #endif
@@ -763,11 +786,21 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 #endif
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_add2_i32:
-        TODO();
-        break;
     case INDEX_op_sub2_i32:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        tcg_out_r(s, args[3]);
+        tcg_out_ri32(s, const_args[4], args[4]);
+        tcg_out_ri32(s, const_args[5], args[5]);
+        break;
     case INDEX_op_brcond2_i32:
-        TODO();
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_ri32(s, const_args[2], args[2]);
+        tcg_out_ri32(s, const_args[3], args[3]);
         break;
     case INDEX_op_mulu2_i32:
         tcg_out_op_t(s, opc);
