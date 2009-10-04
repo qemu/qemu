@@ -588,87 +588,89 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
 #ifdef MULTI_REQ
     /* TODO: should all of this only be done if dma->update, and otherwise
      * inside omap_dma_transfer_generic below - check what's faster.  */
-    if (dma->update)
-#endif
-
-    /* If the channel is element synchronized, deactivate it */
-    if (min_elems == elements[omap_dma_intr_element_sync])
-        omap_dma_deactivate_channel(s, ch);
-
-    /* If it is the last frame, set the LAST_FRAME interrupt */
-    if (min_elems == elements[omap_dma_intr_last_frame])
-        ch->status |= LAST_FRAME_INTR;
-
-    /* If exactly half of the frame was reached, set the HALF_FRAME
-       interrupt */
-    if (min_elems == elements[omap_dma_intr_half_frame])
-        ch->status |= HALF_FRAME_INTR;
-
-    /* If a full packet has been transferred, set the END_PKT interrupt */
-    if (min_elems == elements[omap_dma_intr_packet])
-        ch->status |= END_PKT_INTR;
-
-    /* If the channel is packet-synchronized, deactivate it */
-    if (min_elems == elements[omap_dma_intr_packet_sync])
-        omap_dma_deactivate_channel(s, ch);
-
-    /* If the channel is frame synchronized, deactivate it */
-    if (min_elems == elements[omap_dma_intr_frame_sync])
-        omap_dma_deactivate_channel(s, ch);
-
-    /* Set the END_FRAME interrupt */
-    if (min_elems == elements[omap_dma_intr_frame])
-        ch->status |= END_FRAME_INTR;
-
-    if (min_elems == elements[omap_dma_intr_block]) {
-        /* End of Block */
-        /* Disable the channel */
-
-        if (ch->omap_3_1_compatible_disable) {
-            omap_dma_disable_channel(s, ch);
-            if (ch->link_enabled)
-                omap_dma_enable_channel(s, &s->ch[ch->link_next_ch]);
-        } else {
-            if (!ch->auto_init)
-                omap_dma_disable_channel(s, ch);
-            else if (ch->repeat || ch->end_prog)
-                omap_dma_channel_load(ch);
-            else {
-                ch->waiting_end_prog = 1;
-                omap_dma_deactivate_channel(s, ch);
-            }
-        }
-
-        if (ch->interrupts & END_BLOCK_INTR)
-            ch->status |= END_BLOCK_INTR;
-    }
-
-    /* Update packet number */
-    if (ch->fs && ch->bs) {
-        a->pck_element += min_elems;
-        a->pck_element %= a->pck_elements;
-    }
-
-    /* TODO: check if we really need to update anything here or perhaps we
-     * can skip part of this.  */
-#ifndef MULTI_REQ
     if (dma->update) {
 #endif
-        a->element += min_elems;
 
-        frames     = a->element / a->elements;
-        a->element = a->element % a->elements;
-        a->frame  += frames;
-        a->src    += min_elems * a->elem_delta[0] + frames * a->frame_delta[0];
-        a->dest   += min_elems * a->elem_delta[1] + frames * a->frame_delta[1];
+        /* If the channel is element synchronized, deactivate it */
+        if (min_elems == elements[omap_dma_intr_element_sync])
+            omap_dma_deactivate_channel(s, ch);
 
-        /* If the channel is async, update cpc */
-        if (!ch->sync && frames)
-            ch->cpc = a->dest & 0xffff;
+        /* If it is the last frame, set the LAST_FRAME interrupt */
+        if (min_elems == elements[omap_dma_intr_last_frame])
+            ch->status |= LAST_FRAME_INTR;
 
-        /* TODO: if the destination port is IMIF or EMIFF, set the dirty
-         * bits on it.  */
+        /* If exactly half of the frame was reached, set the HALF_FRAME
+           interrupt */
+        if (min_elems == elements[omap_dma_intr_half_frame])
+            ch->status |= HALF_FRAME_INTR;
+
+        /* If a full packet has been transferred, set the END_PKT interrupt */
+        if (min_elems == elements[omap_dma_intr_packet])
+            ch->status |= END_PKT_INTR;
+
+        /* If the channel is packet-synchronized, deactivate it */
+        if (min_elems == elements[omap_dma_intr_packet_sync])
+            omap_dma_deactivate_channel(s, ch);
+
+        /* If the channel is frame synchronized, deactivate it */
+        if (min_elems == elements[omap_dma_intr_frame_sync])
+            omap_dma_deactivate_channel(s, ch);
+
+        /* Set the END_FRAME interrupt */
+        if (min_elems == elements[omap_dma_intr_frame])
+            ch->status |= END_FRAME_INTR;
+
+        if (min_elems == elements[omap_dma_intr_block]) {
+            /* End of Block */
+            /* Disable the channel */
+
+            if (ch->omap_3_1_compatible_disable) {
+                omap_dma_disable_channel(s, ch);
+                if (ch->link_enabled)
+                    omap_dma_enable_channel(s, &s->ch[ch->link_next_ch]);
+            } else {
+                if (!ch->auto_init)
+                    omap_dma_disable_channel(s, ch);
+                else if (ch->repeat || ch->end_prog)
+                    omap_dma_channel_load(ch);
+                else {
+                    ch->waiting_end_prog = 1;
+                    omap_dma_deactivate_channel(s, ch);
+                }
+            }
+
+            if (ch->interrupts & END_BLOCK_INTR)
+                ch->status |= END_BLOCK_INTR;
+        }
+
+        /* Update packet number */
+        if (ch->fs && ch->bs) {
+            a->pck_element += min_elems;
+            a->pck_element %= a->pck_elements;
+        }
+
+        /* TODO: check if we really need to update anything here or perhaps we
+         * can skip part of this.  */
 #ifndef MULTI_REQ
+        if (dma->update) {
+#endif
+            a->element += min_elems;
+
+            frames = a->element / a->elements;
+            a->element = a->element % a->elements;
+            a->frame += frames;
+            a->src += min_elems * a->elem_delta[0] + frames * a->frame_delta[0];
+            a->dest += min_elems * a->elem_delta[1] + frames * a->frame_delta[1];
+
+            /* If the channel is async, update cpc */
+            if (!ch->sync && frames)
+                ch->cpc = a->dest & 0xffff;
+
+            /* TODO: if the destination port is IMIF or EMIFF, set the dirty
+             * bits on it.  */
+#ifndef MULTI_REQ
+        }
+#else
     }
 #endif
 

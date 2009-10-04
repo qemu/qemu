@@ -1130,8 +1130,7 @@ static void tcg_liveness_analysis(TCGContext *s)
 
     nb_ops = gen_opc_ptr - gen_opc_buf;
 
-    /* XXX: make it really dynamic */
-    s->op_dead_iargs = tcg_malloc(OPC_BUF_SIZE * sizeof(uint16_t));
+    s->op_dead_iargs = tcg_malloc(nb_ops * sizeof(uint16_t));
     
     dead_temps = tcg_malloc(s->nb_temps);
     memset(dead_temps, 1, s->nb_temps);

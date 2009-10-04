@@ -2827,7 +2827,7 @@ static void *sse_op_table1[256][4] = {
     [0x28] = { SSE_SPECIAL, SSE_SPECIAL },  /* movaps, movapd */
     [0x29] = { SSE_SPECIAL, SSE_SPECIAL },  /* movaps, movapd */
     [0x2a] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* cvtpi2ps, cvtpi2pd, cvtsi2ss, cvtsi2sd */
-    [0x2b] = { SSE_SPECIAL, SSE_SPECIAL },  /* movntps, movntpd */
+    [0x2b] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movntps, movntpd, movntss, movntsd */
     [0x2c] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* cvttps2pi, cvttpd2pi, cvttsd2si, cvttss2si */
     [0x2d] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* cvtps2pi, cvtpd2pi, cvtsd2si, cvtss2si */
     [0x2e] = { gen_helper_ucomiss, gen_helper_ucomisd },
@@ -2884,6 +2884,8 @@ static void *sse_op_table1[256][4] = {
     [0x75] = MMX_OP2(pcmpeqw),
     [0x76] = MMX_OP2(pcmpeql),
     [0x77] = { SSE_DUMMY }, /* emms */
+    [0x78] = { NULL, SSE_SPECIAL, NULL, SSE_SPECIAL }, /* extrq_i, insertq_i */
+    [0x79] = { NULL, gen_helper_extrq_r, NULL, gen_helper_insertq_r },
     [0x7c] = { NULL, gen_helper_haddpd, NULL, gen_helper_haddps },
     [0x7d] = { NULL, gen_helper_hsubpd, NULL, gen_helper_hsubps },
     [0x7e] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movd, movd, , movq */
@@ -3170,6 +3172,20 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_sto_env_A0(s->mem_index, offsetof(CPUX86State,xmm_regs[reg]));
             break;
+        case 0x22b: /* movntss */
+        case 0x32b: /* movntsd */
+            if (mod == 3)
+                goto illegal_op;
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            if (b1 & 1) {
+                gen_stq_env_A0(s->mem_index, offsetof(CPUX86State,
+                    xmm_regs[reg]));
+            } else {
+                tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
+                    xmm_regs[reg].XMM_L(0)));
+                gen_op_st_T0_A0(OT_LONG + s->mem_index);
+            }
+            break;
         case 0x6e: /* movd mm, ea */
 #ifdef TARGET_X86_64
             if (s->dflag == 2) {
@@ -3324,6 +3340,25 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                         offsetof(CPUX86State,xmm_regs[reg].XMM_L(1)));
             gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(2)),
                         offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)));
+            break;
+        case 0x178:
+        case 0x378:
+            {
+                int bit_index, field_length;
+
+                if (b1 == 1 && reg != 0)
+                    goto illegal_op;
+                field_length = ldub_code(s->pc++) & 0x3F;
+                bit_index = ldub_code(s->pc++) & 0x3F;
+                tcg_gen_addi_ptr(cpu_ptr0, cpu_env,
+                    offsetof(CPUX86State,xmm_regs[reg]));
+                if (b1 == 1)
+                    gen_helper_extrq_i(cpu_ptr0, tcg_const_i32(bit_index),
+                        tcg_const_i32(field_length));
+                else
+                    gen_helper_insertq_i(cpu_ptr0, tcg_const_i32(bit_index),
+                        tcg_const_i32(field_length));
+            }
             break;
         case 0x7e: /* movd ea, mm */
 #ifdef TARGET_X86_64
@@ -7172,23 +7207,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_eob(s);
             }
             break;
-        case 7: /* invlpg */
-            if (s->cpl != 0) {
-                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-            } else {
-                if (mod == 3) {
-#ifdef TARGET_X86_64
-                    if (CODE64(s) && rm == 0) {
-                        /* swapgs */
-                        tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,segs[R_GS].base));
-                        tcg_gen_ld_tl(cpu_T[1], cpu_env, offsetof(CPUX86State,kernelgsbase));
-                        tcg_gen_st_tl(cpu_T[1], cpu_env, offsetof(CPUX86State,segs[R_GS].base));
-                        tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,kernelgsbase));
-                    } else
-#endif
-                    {
-                        goto illegal_op;
-                    }
+        case 7:
+            if (mod != 3) { /* invlpg */
+                if (s->cpl != 0) {
+                    gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                 } else {
                     if (s->cc_op != CC_OP_DYNAMIC)
                         gen_op_set_cc_op(s->cc_op);
@@ -7197,6 +7219,46 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_helper_invlpg(cpu_A0);
                     gen_jmp_im(s->pc - s->cs_base);
                     gen_eob(s);
+                }
+            } else {
+                switch (rm) {
+                case 0: /* swapgs */
+#ifdef TARGET_X86_64
+                    if (CODE64(s)) {
+                        if (s->cpl != 0) {
+                            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                        } else {
+                            tcg_gen_ld_tl(cpu_T[0], cpu_env,
+                                offsetof(CPUX86State,segs[R_GS].base));
+                            tcg_gen_ld_tl(cpu_T[1], cpu_env,
+                                offsetof(CPUX86State,kernelgsbase));
+                            tcg_gen_st_tl(cpu_T[1], cpu_env,
+                                offsetof(CPUX86State,segs[R_GS].base));
+                            tcg_gen_st_tl(cpu_T[0], cpu_env,
+                                offsetof(CPUX86State,kernelgsbase));
+                        }
+                    } else
+#endif
+                    {
+                        goto illegal_op;
+                    }
+                    break;
+                case 1: /* rdtscp */
+                    if (!(s->cpuid_ext2_features & CPUID_EXT2_RDTSCP))
+                        goto illegal_op;
+                    if (s->cc_op != CC_OP_DYNAMIC)
+                        gen_op_set_cc_op(s->cc_op);
+                    gen_jmp_im(pc_start - s->cs_base);
+                    if (use_icount)
+                        gen_io_start();
+                    gen_helper_rdtscp();
+                    if (use_icount) {
+                        gen_io_end();
+                        gen_jmp(s, s->pc - s->cs_base);
+                    }
+                    break;
+                default:
+                    goto illegal_op;
                 }
             }
             break;
@@ -7352,6 +7414,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 ot = OT_QUAD;
             else
                 ot = OT_LONG;
+            if ((prefixes & PREFIX_LOCK) && (reg == 0) &&
+                (s->cpuid_ext3_features & CPUID_EXT3_CR8LEG)) {
+                reg = 8;
+            }
             switch(reg) {
             case 0:
             case 2:
@@ -7552,7 +7618,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
     case 0x138 ... 0x13a:
-    case 0x150 ... 0x177:
+    case 0x150 ... 0x179:
     case 0x17c ... 0x17f:
     case 0x1c2:
     case 0x1c4 ... 0x1c6:

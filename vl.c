@@ -92,6 +92,9 @@
 #include <net/if.h>
 #include <syslog.h>
 #include <stropts.h>
+/* See MySQL bug #7156 (http://bugs.mysql.com/bug.php?id=7156) for
+   discussion about Solaris header problems */
+extern int madvise(caddr_t, size_t, int);
 #endif
 #endif
 #endif

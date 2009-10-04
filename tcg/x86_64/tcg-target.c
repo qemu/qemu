@@ -1181,6 +1181,21 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_ext32s_i64:
         tcg_out_modrm(s, 0x63 | P_REXW, args[0], args[1]);
         break;
+    case INDEX_op_ext8u_i32:
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, args[0], args[1]);
+        break;
+    case INDEX_op_ext16u_i32:
+        tcg_out_modrm(s, 0xb7 | P_EXT, args[0], args[1]);
+        break;
+    case INDEX_op_ext8u_i64:
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXW, args[0], args[1]);
+        break;
+    case INDEX_op_ext16u_i64:
+        tcg_out_modrm(s, 0xb7 | P_EXT | P_REXW, args[0], args[1]);
+        break;
+    case INDEX_op_ext32u_i64:
+        tcg_out_modrm(s, 0x8b, args[0], args[1]);
+        break;
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
@@ -1355,6 +1370,11 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
     { INDEX_op_ext8s_i64, { "r", "r"} },
     { INDEX_op_ext16s_i64, { "r", "r"} },
     { INDEX_op_ext32s_i64, { "r", "r"} },
+    { INDEX_op_ext8u_i32, { "r", "r"} },
+    { INDEX_op_ext16u_i32, { "r", "r"} },
+    { INDEX_op_ext8u_i64, { "r", "r"} },
+    { INDEX_op_ext16u_i64, { "r", "r"} },
+    { INDEX_op_ext32u_i64, { "r", "r"} },
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },

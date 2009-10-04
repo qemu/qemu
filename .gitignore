@@ -6,6 +6,7 @@ i386
 *-bsd-user
 libhw32
 libhw64
+libuser
 qemu-doc.html
 qemu-tech.html
 qemu-doc.info

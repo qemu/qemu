@@ -1073,6 +1073,12 @@ static inline void tcg_out_op(TCGContext *s, int opc,
     case INDEX_op_ext16s_i32:
         tcg_out_modrm(s, 0xbf | P_EXT, args[0], args[1]);
         break;
+    case INDEX_op_ext8u_i32:
+        tcg_out_modrm(s, 0xb6 | P_EXT, args[0], args[1]);
+        break;
+    case INDEX_op_ext16u_i32:
+        tcg_out_modrm(s, 0xb7 | P_EXT, args[0], args[1]);
+        break;
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
@@ -1160,6 +1166,8 @@ static const TCGTargetOpDef x86_op_defs[] = {
 
     { INDEX_op_ext8s_i32, { "r", "q" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
+    { INDEX_op_ext8u_i32, { "r", "q"} },
+    { INDEX_op_ext16u_i32, { "r", "r"} },
 
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "L" } },

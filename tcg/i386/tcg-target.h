@@ -52,6 +52,8 @@ enum {
 #define TCG_TARGET_HAS_ext8s_i32
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_rot_i32
+#define TCG_TARGET_HAS_ext8u_i32
+#define TCG_TARGET_HAS_ext16u_i32
 
 #define TCG_TARGET_HAS_GUEST_BASE
 

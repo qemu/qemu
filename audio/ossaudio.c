@@ -781,20 +781,23 @@ static int oss_read (SWVoiceIn *sw, void *buf, int size)
 
 static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
-    va_list ap;
-    int poll_mode;
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
-
-    va_start (ap, cmd);
-    poll_mode = va_arg (ap, int);
-    va_end (ap);
 
     switch (cmd) {
     case VOICE_ENABLE:
-        if (poll_mode && oss_poll_in (hw)) {
-            poll_mode = 0;
+        {
+            va_list ap;
+            int poll_mode;
+
+            va_start (ap, cmd);
+            poll_mode = va_arg (ap, int);
+            va_end (ap);
+
+            if (poll_mode && oss_poll_in (hw)) {
+                poll_mode = 0;
+            }
+            hw->poll_mode = poll_mode;
         }
-        hw->poll_mode = poll_mode;
         break;
 
     case VOICE_DISABLE:

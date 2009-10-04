@@ -322,6 +322,7 @@
 #define MSR_FSBASE                      0xc0000100
 #define MSR_GSBASE                      0xc0000101
 #define MSR_KERNELGSBASE                0xc0000102
+#define MSR_TSC_AUX                     0xc0000103
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
@@ -694,6 +695,8 @@ typedef struct CPUX86State {
     uint64 mcg_status;
     uint64 mcg_ctl;
     uint64 *mce_banks;
+
+    uint64_t tsc_aux;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(const char *cpu_model);
@@ -854,7 +857,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 10
+#define CPU_SAVE_VERSION 11
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

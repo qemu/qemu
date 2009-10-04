@@ -171,6 +171,7 @@ void cpu_save(QEMUFile *f, void *opaque)
             qemu_put_be64s(f, &env->mce_banks[4*i + 3]);
         }
     }
+    qemu_put_be64s(f, &env->tsc_aux);
  }
 
 #ifdef USE_X86LDOUBLE
@@ -377,6 +378,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
+    if (version_id >= 11) {
+        qemu_get_be64s(f, &env->tsc_aux);
+    }
     /* XXX: ensure compatiblity for halted bit ? */
     /* XXX: compute redundant hflags bits */
     env->hflags = hflags;
