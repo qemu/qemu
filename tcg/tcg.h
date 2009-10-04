@@ -453,8 +453,6 @@ TCGv_i64 tcg_const_local_i64(int64_t val);
 
 void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type, 
                    int label_index, long addend);
-const TCGArg *tcg_gen_code_op(TCGContext *s, int opc, const TCGArg *args1,
-                              unsigned int dead_iargs);
 
 extern uint8_t code_gen_prologue[];
 #if defined(_ARCH_PPC) && !defined(_ARCH_PPC64)
