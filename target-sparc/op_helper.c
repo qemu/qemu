@@ -3318,7 +3318,7 @@ void helper_done(void)
 {
     trap_state* tsptr = cpu_tsptr(env);
 
-    env->pc = tsptr->tpc;
+    env->pc = tsptr->tnpc;
     env->npc = tsptr->tnpc + 4;
     PUT_CCR(env, tsptr->tstate >> 32);
     env->asi = (tsptr->tstate >> 24) & 0xff;
