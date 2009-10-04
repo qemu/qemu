@@ -858,7 +858,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
-#if TCG_TARGET_REG_BITS == 32
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
         tcg_out_r(s, args[2]);
 #ifdef CONFIG_SOFTMMU
         tcg_out_i(s, args[3]);

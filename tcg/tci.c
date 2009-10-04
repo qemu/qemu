@@ -962,11 +962,16 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         case INDEX_op_qemu_st32:
             t0 = tci_read_r32(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+            t2 = tci_read_r(&tb_ptr);
+            TODO();
+#else
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
             __stl_mmu(t1, t0, t2);
 #else
             *(uint32_t *)(t1 + GUEST_BASE) = t0;
+#endif
 #endif
             break;
         case INDEX_op_qemu_st64:
