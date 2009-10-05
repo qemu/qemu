@@ -195,6 +195,19 @@ typedef struct {
     uint8_t cmd;
     uint32_t start;
     uint32_t stop;
+    uint8_t boundary;
+    uint8_t tsr;
+    uint8_t tpsr;
+    uint16_t tcnt;
+    uint16_t rcnt;
+    uint32_t rsar;
+    uint8_t rsr;
+    uint8_t rxcr;
+    uint8_t isr;
+    uint8_t dcfg;
+    uint8_t imr;
+    uint8_t phys[6];            /* mac address */
+    uint8_t curpag;
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
     VLANClientState *vc;
@@ -203,6 +216,7 @@ typedef struct {
     uint8_t int_stat;           /* PCI interrupt status */
     uint32_t region[3];         /* PCI region addresses */
     uint8_t macaddr[6];
+    uint32_t statcounter[19];
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
@@ -214,8 +228,7 @@ typedef struct {
     uint32_t ru_base;           /* RU base address */
     uint32_t ru_offset;         /* RU address offset */
     uint32_t statsaddr;         /* pointer to eepro100_stats_t */
-    /* Statistical counters. Also used for wake-up packet (i82559). */
-    eepro100_stats_t statistics;
+    eepro100_stats_t statistics;        /* statistical counters */
 #if 0
     uint16_t status;
 #endif
@@ -226,10 +239,6 @@ typedef struct {
     /* Data in mem is always in the byte order of the controller (le). */
     uint8_t mem[PCI_MEM_SIZE];
 } EEPRO100State;
-
-/* Parameters for nic_save, nic_load. */
-static const int eepro100_instance = -1;
-static const int eepro100_version = 20090807;
 
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
@@ -1579,29 +1588,50 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     int i;
     int ret;
 
-    if (version_id != eepro100_version) {
+    if (version_id > 3)
         return -EINVAL;
+
+    if (version_id >= 3) {
+        ret = pci_device_load(&s->dev, f);
+        if (ret < 0)
+            return ret;
     }
 
-    ret = pci_device_load(&s->dev, f);
-    if (ret < 0) {
-        return ret;
+    if (version_id >= 2) {
+        qemu_get_8s(f, &s->rxcr);
+    } else {
+        s->rxcr = 0x0c;
     }
 
     qemu_get_8s(f, &s->cmd);
     qemu_get_be32s(f, &s->start);
     qemu_get_be32s(f, &s->stop);
+    qemu_get_8s(f, &s->boundary);
+    qemu_get_8s(f, &s->tsr);
+    qemu_get_8s(f, &s->tpsr);
+    qemu_get_be16s(f, &s->tcnt);
+    qemu_get_be16s(f, &s->rcnt);
+    qemu_get_be32s(f, &s->rsar);
+    qemu_get_8s(f, &s->rsr);
+    qemu_get_8s(f, &s->isr);
+    qemu_get_8s(f, &s->dcfg);
+    qemu_get_8s(f, &s->imr);
+    qemu_get_buffer(f, s->phys, 6);
+    qemu_get_8s(f, &s->curpag);
     qemu_get_buffer(f, s->mult, 8);
     qemu_get_buffer(f, s->mem, sizeof(s->mem));
 
     /* Restore all members of struct between scv_stat and mem. */
     qemu_get_8s(f, &s->scb_stat);
     qemu_get_8s(f, &s->int_stat);
-    for (i = 0; i < ARRAY_SIZE(s->region); i++) {
+    for (i = 0; i < 3; i++) {
         qemu_get_be32s(f, &s->region[i]);
     }
     qemu_get_buffer(f, s->macaddr, 6);
-    for (i = 0; i < ARRAY_SIZE(s->mdimem); i++) {
+    for (i = 0; i < 19; i++) {
+        qemu_get_be32s(f, &s->statcounter[i]);
+    }
+    for (i = 0; i < 32; i++) {
         qemu_get_be16s(f, &s->mdimem[i]);
     }
     /* The eeprom should be saved and restored by its own routines. */
@@ -1652,20 +1682,37 @@ static void nic_save(QEMUFile * f, void *opaque)
 
     pci_device_save(&s->dev, f);
 
+    qemu_put_8s(f, &s->rxcr);
+
     qemu_put_8s(f, &s->cmd);
     qemu_put_be32s(f, &s->start);
     qemu_put_be32s(f, &s->stop);
+    qemu_put_8s(f, &s->boundary);
+    qemu_put_8s(f, &s->tsr);
+    qemu_put_8s(f, &s->tpsr);
+    qemu_put_be16s(f, &s->tcnt);
+    qemu_put_be16s(f, &s->rcnt);
+    qemu_put_be32s(f, &s->rsar);
+    qemu_put_8s(f, &s->rsr);
+    qemu_put_8s(f, &s->isr);
+    qemu_put_8s(f, &s->dcfg);
+    qemu_put_8s(f, &s->imr);
+    qemu_put_buffer(f, s->phys, 6);
+    qemu_put_8s(f, &s->curpag);
     qemu_put_buffer(f, s->mult, 8);
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 
     /* Save all members of struct between scv_stat and mem. */
     qemu_put_8s(f, &s->scb_stat);
     qemu_put_8s(f, &s->int_stat);
-    for (i = 0; i < ARRAY_SIZE(s->region); i++) {
+    for (i = 0; i < 3; i++) {
         qemu_put_be32s(f, &s->region[i]);
     }
     qemu_put_buffer(f, s->macaddr, 6);
-    for (i = 0; i < ARRAY_SIZE(s->mdimem); i++) {
+    for (i = 0; i < 19; i++) {
+        qemu_put_be32s(f, &s->statcounter[i]);
+    }
+    for (i = 0; i < 32; i++) {
         qemu_put_be16s(f, &s->mdimem[i]);
     }
     /* The eeprom should be saved and restored by its own routines. */
@@ -1768,8 +1815,7 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
 
     qemu_register_reset(nic_reset, s);
 
-    register_savevm(s->vc->model, eepro100_instance, eepro100_version,
-                    nic_save, nic_load, s);
+    register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
     return 0;
 }
 
