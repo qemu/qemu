@@ -454,12 +454,17 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
+static int virtio_exit_pci(PCIDevice *pci_dev)
+{
+    return msix_uninit(pci_dev);
+}
+
 static int virtio_blk_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     drive_uninit(proxy->dinfo);
-    return 0;
+    return virtio_exit_pci(pci_dev);
 }
 
 static int virtio_console_init_pci(PCIDevice *pci_dev)
@@ -538,6 +543,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name  = "virtio-net-pci",
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
+        .exit       = virtio_exit_pci,
         .qdev.props = (Property[]) {
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                                NIC_NVECTORS_UNSPECIFIED),
@@ -548,6 +554,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-console-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_console_init_pci,
+        .exit      = virtio_exit_pci,
         .qdev.props = (Property[]) {
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
             DEFINE_PROP_END_OF_LIST(),
@@ -557,6 +564,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name = "virtio-balloon-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_balloon_init_pci,
+        .exit      = virtio_exit_pci,
         .qdev.reset = virtio_pci_reset,
     },{
         /* end of list */

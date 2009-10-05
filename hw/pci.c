@@ -26,7 +26,6 @@
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
-#include "msix.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI
@@ -442,7 +441,6 @@ static int pci_unregister_device(DeviceState *dev)
     if (ret)
         return ret;
 
-    msix_uninit(pci_dev);
     pci_unregister_io_regions(pci_dev);
 
     qemu_free_irqs(pci_dev->irq);
