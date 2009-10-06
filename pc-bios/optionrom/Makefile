@@ -6,6 +6,7 @@ include ../../config-host.mak
 include $(SRC_PATH)/rules.mak
 
 VPATH=$(SRC_PATH)/pc-bios/optionrom
+.PHONY : all clean build-all
 
 CFLAGS := -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
 CFLAGS += -I$(SRC_PATH)
