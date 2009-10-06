@@ -24,4 +24,4 @@ build-all: multiboot.bin
 	$(call quiet-command,$(SHELL) $(SRC_PATH)/pc-bios/optionrom/signrom.sh $< $@,"  Signing $(TARGET_DIR)$@")
 
 clean:
-	$(RM) *.o *.d *.raw *.img *.bin *~
+	rm -f *.o *.d *.raw *.img *.bin *~
