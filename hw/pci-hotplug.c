@@ -32,14 +32,26 @@
 #include "block_int.h"
 #include "scsi-disk.h"
 #include "virtio-blk.h"
+#include "qemu-config.h"
 
 #if defined(TARGET_I386) || defined(TARGET_X86_64)
 static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
-                                       const char *devaddr, const char *opts)
+                                       const char *devaddr,
+                                       const char *opts_str)
 {
+    QemuOpts *opts;
     int ret;
 
-    ret = net_client_init(mon, "nic", opts);
+    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", NULL);
+    if (!opts) {
+        monitor_printf(mon, "parsing network options '%s' failed\n",
+                       opts_str ? opts_str : "");
+        return NULL;
+    }
+
+    qemu_opt_set(opts, "type", "nic");
+
+    ret = net_client_init_from_opts(mon, opts);
     if (ret < 0)
         return NULL;
     if (nd_table[ret].devaddr) {
