@@ -209,8 +209,6 @@ int qemu_set_option(const char *str)
     }
 
     if (qemu_opt_set(opts, arg, str+offset+1) == -1) {
-        qemu_error("failed to set \"%s\" for %s \"%s\"\n",
-                arg, lists[i]->name, id);
         return -1;
     }
     return 0;
