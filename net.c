@@ -2458,6 +2458,102 @@ static int net_init_nic(QemuOpts *opts, Monitor *mon)
     return idx;
 }
 
+static int net_init_slirp_configs(const char *name, const char *value, void *opaque)
+{
+    struct slirp_config_str *config;
+
+    if (strcmp(name, "hostfwd") != 0 && strcmp(name, "guestfwd") != 0) {
+        return 0;
+    }
+
+    config = qemu_mallocz(sizeof(*config));
+
+    pstrcpy(config->str, sizeof(config->str), value);
+
+    if (!strcmp(name, "hostfwd")) {
+        config->flags = SLIRP_CFG_HOSTFWD;
+    }
+
+    config->next = slirp_configs;
+    slirp_configs = config;
+
+    return 0;
+}
+
+static int net_init_slirp(QemuOpts *opts, Monitor *mon)
+{
+    VLANState *vlan;
+    struct slirp_config_str *config;
+    const char *name;
+    const char *vhost;
+    const char *vhostname;
+    const char *vdhcp_start;
+    const char *vnamesrv;
+    const char *tftp_export;
+    const char *bootfile;
+    const char *smb_export;
+    const char *vsmbsrv;
+    char *vnet = NULL;
+    int restricted = 0;
+    int ret;
+
+    vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    name = qemu_opt_get(opts, "name");
+
+    vhost       = qemu_opt_get(opts, "host");
+    vhostname   = qemu_opt_get(opts, "hostname");
+    vdhcp_start = qemu_opt_get(opts, "dhcpstart");
+    vnamesrv    = qemu_opt_get(opts, "dns");
+    tftp_export = qemu_opt_get(opts, "tftp");
+    bootfile    = qemu_opt_get(opts, "bootfile");
+    smb_export  = qemu_opt_get(opts, "smb");
+    vsmbsrv     = qemu_opt_get(opts, "smbserver");
+
+    if (qemu_opt_get(opts, "ip")) {
+        const char *ip = qemu_opt_get(opts, "ip");
+        int l = strlen(ip) + strlen("/24") + 1;
+
+        vnet = qemu_malloc(l);
+
+        /* emulate legacy ip= parameter */
+        pstrcpy(vnet, l, ip);
+        pstrcat(vnet, l, "/24");
+    }
+
+    if (qemu_opt_get(opts, "net")) {
+        if (vnet) {
+            qemu_free(vnet);
+        }
+        vnet = qemu_strdup(qemu_opt_get(opts, "net"));
+    }
+
+    if (qemu_opt_get(opts, "restrict") &&
+        qemu_opt_get(opts, "restrict")[0] == 'y') {
+        restricted = 1;
+    }
+
+    qemu_opt_foreach(opts, net_init_slirp_configs, NULL, 0);
+
+    ret = net_slirp_init(vlan, "user", name, restricted, vnet, vhost,
+                         vhostname, tftp_export, bootfile, vdhcp_start,
+                         vnamesrv, smb_export, vsmbsrv);
+
+    while (slirp_configs) {
+        config = slirp_configs;
+        slirp_configs = config->next;
+        qemu_free(config);
+    }
+
+    if (ret != -1) {
+        vlan->nb_host_devs++;
+    }
+
+    qemu_free(vnet);
+
+    return ret;
+}
+
 #define NET_COMMON_PARAMS_DESC                     \
     {                                              \
         .name = "type",                            \
@@ -2513,6 +2609,68 @@ static struct {
             },
             { /* end of list */ }
         },
+#ifdef CONFIG_SLIRP
+    }, {
+        .type = "user",
+        .init = net_init_slirp,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "hostname",
+                .type = QEMU_OPT_STRING,
+                .help = "client hostname reported by the builtin DHCP server",
+            }, {
+                .name = "restrict",
+                .type = QEMU_OPT_STRING,
+                .help = "isolate the guest from the host (y|yes|n|no)",
+            }, {
+                .name = "ip",
+                .type = QEMU_OPT_STRING,
+                .help = "legacy parameter, use net= instead",
+            }, {
+                .name = "net",
+                .type = QEMU_OPT_STRING,
+                .help = "IP address and optional netmask",
+            }, {
+                .name = "host",
+                .type = QEMU_OPT_STRING,
+                .help = "guest-visible address of the host",
+            }, {
+                .name = "tftp",
+                .type = QEMU_OPT_STRING,
+                .help = "root directory of the built-in TFTP server",
+            }, {
+                .name = "bootfile",
+                .type = QEMU_OPT_STRING,
+                .help = "BOOTP filename, for use with tftp=",
+            }, {
+                .name = "dhcpstart",
+                .type = QEMU_OPT_STRING,
+                .help = "the first of the 16 IPs the built-in DHCP server can assign",
+            }, {
+                .name = "dns",
+                .type = QEMU_OPT_STRING,
+                .help = "guest-visible address of the virtual nameserver",
+            }, {
+                .name = "smb",
+                .type = QEMU_OPT_STRING,
+                .help = "root directory of the built-in SMB server",
+            }, {
+                .name = "smbserver",
+                .type = QEMU_OPT_STRING,
+                .help = "IP address of the built-in SMB server",
+            }, {
+                .name = "hostfwd",
+                .type = QEMU_OPT_STRING,
+                .help = "guest port number to forward incoming TCP or UDP connections",
+            }, {
+                .name = "guestfwd",
+                .type = QEMU_OPT_STRING,
+                .help = "IP address and port to forward guest TCP connections",
+            },
+            { /* end of list */ }
+        },
+#endif
     },
     { /* end of list */ }
 };
@@ -2554,7 +2712,8 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     char *name = NULL;
 
     if (!strcmp(device, "none") ||
-        !strcmp(device, "nic")) {
+        !strcmp(device, "nic") ||
+        !strcmp(device, "user")) {
         QemuOpts *opts;
 
         opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
@@ -2578,111 +2737,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     }
 
 #ifdef CONFIG_SLIRP
-    if (!strcmp(device, "user")) {
-        static const char * const slirp_params[] = {
-            "vlan", "name", "hostname", "restrict", "ip", "net", "host",
-            "tftp", "bootfile", "dhcpstart", "dns", "smb", "smbserver",
-            "hostfwd", "guestfwd", NULL
-        };
-        struct slirp_config_str *config;
-        int restricted = 0;
-        char *vnet = NULL;
-        char *vhost = NULL;
-        char *vhostname = NULL;
-        char *tftp_export = NULL;
-        char *bootfile = NULL;
-        char *vdhcp_start = NULL;
-        char *vnamesrv = NULL;
-        char *smb_export = NULL;
-        char *vsmbsrv = NULL;
-        const char *q;
-
-        if (check_params(buf, sizeof(buf), slirp_params, p) < 0) {
-            qemu_error("invalid parameter '%s' in '%s'\n", buf, p);
-            ret = -1;
-            goto out;
-        }
-        if (get_param_value(buf, sizeof(buf), "ip", p)) {
-            int vnet_buflen = strlen(buf) + strlen("/24") + 1;
-            /* emulate legacy parameter */
-            vnet = qemu_malloc(vnet_buflen);
-            pstrcpy(vnet, vnet_buflen, buf);
-            pstrcat(vnet, vnet_buflen, "/24");
-        }
-        if (get_param_value(buf, sizeof(buf), "net", p)) {
-            vnet = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "host", p)) {
-            vhost = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "hostname", p)) {
-            vhostname = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "restrict", p)) {
-            restricted = (buf[0] == 'y') ? 1 : 0;
-        }
-        if (get_param_value(buf, sizeof(buf), "dhcpstart", p)) {
-            vdhcp_start = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "dns", p)) {
-            vnamesrv = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "tftp", p)) {
-            tftp_export = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "bootfile", p)) {
-            bootfile = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "smb", p)) {
-            smb_export = qemu_strdup(buf);
-            if (get_param_value(buf, sizeof(buf), "smbserver", p)) {
-                vsmbsrv = qemu_strdup(buf);
-            }
-        }
-        q = p;
-        while (1) {
-            config = qemu_malloc(sizeof(*config));
-            if (!get_next_param_value(config->str, sizeof(config->str),
-                                      "hostfwd", &q)) {
-                break;
-            }
-            config->flags = SLIRP_CFG_HOSTFWD;
-            config->next = slirp_configs;
-            slirp_configs = config;
-            config = NULL;
-        }
-        q = p;
-        while (1) {
-            config = qemu_malloc(sizeof(*config));
-            if (!get_next_param_value(config->str, sizeof(config->str),
-                                      "guestfwd", &q)) {
-                break;
-            }
-            config->flags = 0;
-            config->next = slirp_configs;
-            slirp_configs = config;
-            config = NULL;
-        }
-        qemu_free(config);
-        vlan->nb_host_devs++;
-        ret = net_slirp_init(vlan, device, name, restricted, vnet, vhost,
-                             vhostname, tftp_export, bootfile, vdhcp_start,
-                             vnamesrv, smb_export, vsmbsrv);
-        while (slirp_configs) {
-            config = slirp_configs;
-            slirp_configs = config->next;
-            qemu_free(config);
-        }
-        qemu_free(vnet);
-        qemu_free(vhost);
-        qemu_free(vhostname);
-        qemu_free(tftp_export);
-        qemu_free(bootfile);
-        qemu_free(vdhcp_start);
-        qemu_free(vnamesrv);
-        qemu_free(smb_export);
-        qemu_free(vsmbsrv);
-    } else if (!strcmp(device, "channel")) {
+    if (!strcmp(device, "channel")) {
         if (QTAILQ_EMPTY(&slirp_stacks)) {
             struct slirp_config_str *config;
 
