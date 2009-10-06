@@ -1732,8 +1732,8 @@ static int net_vde_init(VLANState *vlan, const char *model,
                         int port, const char *group, int mode)
 {
     VDEState *s;
-    char *init_group = strlen(group) ? (char *)group : NULL;
-    char *init_sock = strlen(sock) ? (char *)sock : NULL;
+    char *init_group = (char *)group;
+    char *init_sock = (char *)sock;
 
     struct vde_open_args args = {
         .port = port,
@@ -2718,6 +2718,34 @@ static int net_init_socket(QemuOpts *opts, Monitor *mon)
     return 0;
 }
 
+#ifdef CONFIG_VDE
+static int net_init_vde(QemuOpts *opts, Monitor *mon)
+{
+    VLANState *vlan;
+    const char *name;
+    const char *sock;
+    const char *group;
+    int port, mode;
+
+    vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    name  = qemu_opt_get(opts, "name");
+    sock  = qemu_opt_get(opts, "sock");
+    group = qemu_opt_get(opts, "group");
+
+    port = qemu_opt_get_number(opts, "port", 0);
+    mode = qemu_opt_get_number(opts, "mode", 0700);
+
+    if (net_vde_init(vlan, "vde", name, sock, port, group, mode) == -1) {
+        return -1;
+    }
+
+    vlan->nb_host_devs++;
+
+    return 0;
+}
+#endif
+
 #define NET_COMMON_PARAMS_DESC                     \
     {                                              \
         .name = "type",                            \
@@ -2904,6 +2932,32 @@ static struct {
             },
             { /* end of list */ }
         },
+#ifdef CONFIG_VDE
+    }, {
+        .type = "vde",
+        .init = net_init_vde,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "sock",
+                .type = QEMU_OPT_STRING,
+                .help = "socket path",
+            }, {
+                .name = "port",
+                .type = QEMU_OPT_NUMBER,
+                .help = "port number",
+            }, {
+                .name = "group",
+                .type = QEMU_OPT_STRING,
+                .help = "group owner of socket",
+            }, {
+                .name = "mode",
+                .type = QEMU_OPT_NUMBER,
+                .help = "permissions for socket",
+            },
+            { /* end of list */ }
+        },
+#endif
     },
     { /* end of list */ }
 };
@@ -2948,7 +3002,8 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         !strcmp(device, "nic") ||
         !strcmp(device, "user") ||
         !strcmp(device, "tap") ||
-        !strcmp(device, "socket")) {
+        !strcmp(device, "socket") ||
+        !strcmp(device, "vde")) {
         QemuOpts *opts;
 
         opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
@@ -2985,39 +3040,6 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         } else {
             ret = slirp_guestfwd(QTAILQ_FIRST(&slirp_stacks), p, 1);
         }
-    } else
-#endif
-#ifdef CONFIG_VDE
-    if (!strcmp(device, "vde")) {
-        static const char * const vde_params[] = {
-            "vlan", "name", "sock", "port", "group", "mode", NULL
-        };
-        char vde_sock[1024], vde_group[512];
-	int vde_port, vde_mode;
-
-        if (check_params(buf, sizeof(buf), vde_params, p) < 0) {
-            qemu_error("invalid parameter '%s' in '%s'\n", buf, p);
-            ret = -1;
-            goto out;
-        }
-        vlan->nb_host_devs++;
-        if (get_param_value(vde_sock, sizeof(vde_sock), "sock", p) <= 0) {
-	    vde_sock[0] = '\0';
-	}
-	if (get_param_value(buf, sizeof(buf), "port", p) > 0) {
-	    vde_port = strtol(buf, NULL, 10);
-	} else {
-	    vde_port = 0;
-	}
-	if (get_param_value(vde_group, sizeof(vde_group), "group", p) <= 0) {
-	    vde_group[0] = '\0';
-	}
-	if (get_param_value(buf, sizeof(buf), "mode", p) > 0) {
-	    vde_mode = strtol(buf, NULL, 8);
-	} else {
-	    vde_mode = 0700;
-	}
-	ret = net_vde_init(vlan, device, name, vde_sock, vde_port, vde_group, vde_mode);
     } else
 #endif
     if (!strcmp(device, "dump")) {
