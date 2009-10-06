@@ -85,7 +85,7 @@ int isa_ide_init(int iobase, int iobase2, int isairq,
     qdev_prop_set_uint32(&dev->qdev, "iobase",  iobase);
     qdev_prop_set_uint32(&dev->qdev, "iobase2", iobase2);
     qdev_prop_set_uint32(&dev->qdev, "irq",     isairq);
-    if (qdev_init(&dev->qdev) != 0)
+    if (qdev_init(&dev->qdev) < 0)
         return -1;
 
     s = DO_UPCAST(ISAIDEState, dev, dev);

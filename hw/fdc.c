@@ -1847,7 +1847,7 @@ fdctrl_t *fdctrl_init_isa(DriveInfo **fds)
     dev = isa_create("isa-fdc");
     qdev_prop_set_drive(&dev->qdev, "driveA", fds[0]);
     qdev_prop_set_drive(&dev->qdev, "driveB", fds[1]);
-    if (qdev_init(&dev->qdev) != 0)
+    if (qdev_init(&dev->qdev) < 0)
         return NULL;
     return &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
 }

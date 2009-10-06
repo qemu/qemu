@@ -759,7 +759,7 @@ SerialState *serial_isa_init(int index, CharDriverState *chr)
     qdev_prop_set_uint32(&dev->qdev, "iobase", isa_serial_io[index]);
     qdev_prop_set_uint32(&dev->qdev, "irq", isa_serial_irq[index]);
     qdev_prop_set_chr(&dev->qdev, "chardev", chr);
-    if (qdev_init(&dev->qdev) != 0)
+    if (qdev_init(&dev->qdev) < 0)
         return NULL;
     return &DO_UPCAST(ISASerialState, dev, dev)->state;
 }

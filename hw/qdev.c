@@ -214,7 +214,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev_free(qdev);
         return NULL;
     }
-    if (qdev_init(qdev) != 0) {
+    if (qdev_init(qdev) < 0) {
         qemu_error("Error initializing device %s\n", driver);
         return NULL;
     }
