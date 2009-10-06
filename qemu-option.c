@@ -778,6 +778,39 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
     return opts;
 }
 
+/* Validate parsed opts against descriptions where no
+ * descriptions were provided in the QemuOptsList.
+ */
+int qemu_opts_validate(QemuOpts *opts, QemuOptDesc *desc)
+{
+    QemuOpt *opt;
+
+    assert(opts->list->desc[0].name == NULL);
+
+    QTAILQ_FOREACH(opt, &opts->head, next) {
+        int i;
+
+        for (i = 0; desc[i].name != NULL; i++) {
+            if (strcmp(desc[i].name, opt->name) == 0) {
+                break;
+            }
+        }
+        if (desc[i].name == NULL) {
+            fprintf(stderr, "option \"%s\" is not valid for %s\n",
+                    opt->name, opts->list->name);
+            return -1;
+        }
+
+        opt->desc = &desc[i];
+
+        if (qemu_opt_parse(opt) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
                       int abort_on_failure)
 {
