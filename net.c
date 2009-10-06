@@ -761,6 +761,7 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
     uint32_t addr;
     int shift;
     char *end;
+    struct slirp_config_str *config;
 
     if (!tftp_export) {
         tftp_export = legacy_tftp_prefix;
@@ -845,9 +846,7 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
                           tftp_export, bootfile, dhcp, dns, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
-    while (slirp_configs) {
-        struct slirp_config_str *config = slirp_configs;
-
+    for (config = slirp_configs; config; config = config->next) {
         if (config->flags & SLIRP_CFG_HOSTFWD) {
             slirp_hostfwd(s, mon, config->str,
                           config->flags & SLIRP_CFG_LEGACY);
@@ -855,8 +854,6 @@ static int net_slirp_init(Monitor *mon, VLANState *vlan, const char *model,
             slirp_guestfwd(s, mon, config->str,
                            config->flags & SLIRP_CFG_LEGACY);
         }
-        slirp_configs = config->next;
-        qemu_free(config);
     }
 #ifndef _WIN32
     if (!smb_export) {
@@ -2593,6 +2590,11 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         ret = net_slirp_init(mon, vlan, device, name, restricted, vnet, vhost,
                              vhostname, tftp_export, bootfile, vdhcp_start,
                              vnamesrv, smb_export, vsmbsrv);
+        while (slirp_configs) {
+            config = slirp_configs;
+            slirp_configs = config->next;
+            qemu_free(config);
+        }
         qemu_free(vnet);
         qemu_free(vhost);
         qemu_free(vhostname);
