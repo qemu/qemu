@@ -712,8 +712,7 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
     char option[128], value[128];
     const char *p,*pe,*pc;
 
-    p = params;
-    for(;;) {
+    for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');
         pc = strchr(p, ',');
         if (!pe || (pc && pc < pe)) {
@@ -750,7 +749,6 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
         if (*p != ',') {
             break;
         }
-        p++;
     }
     return 0;
 }
