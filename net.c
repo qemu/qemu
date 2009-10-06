@@ -3032,42 +3032,12 @@ static int net_client_init_from_opts(Monitor *mon, QemuOpts *opts)
 
 int net_client_init(Monitor *mon, const char *device, const char *p)
 {
-    char buf[1024];
-    int vlan_id, ret;
-    VLANState *vlan;
-    char *name = NULL;
-
-    if (!strcmp(device, "none") ||
-        !strcmp(device, "nic") ||
-        !strcmp(device, "user") ||
-        !strcmp(device, "tap") ||
-        !strcmp(device, "socket") ||
-        !strcmp(device, "vde") ||
-        !strcmp(device, "dump")) {
-        QemuOpts *opts;
-
-        opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
-        if (!opts) {
-            return -1;
-        }
-
-        qemu_opt_set(opts, "type", device);
-
-        return net_client_init_from_opts(mon, opts);
-    }
-
-    vlan_id = 0;
-    if (get_param_value(buf, sizeof(buf), "vlan", p)) {
-        vlan_id = strtol(buf, NULL, 0);
-    }
-    vlan = qemu_find_vlan(vlan_id, 1);
-
-    if (get_param_value(buf, sizeof(buf), "name", p)) {
-        name = qemu_strdup(buf);
-    }
+    QemuOpts *opts;
 
 #ifdef CONFIG_SLIRP
     if (!strcmp(device, "channel")) {
+        int ret;
+
         if (QTAILQ_EMPTY(&slirp_stacks)) {
             struct slirp_config_str *config;
 
@@ -3080,19 +3050,19 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         } else {
             ret = slirp_guestfwd(QTAILQ_FIRST(&slirp_stacks), p, 1);
         }
-    } else
+
+        return ret;
+    }
 #endif
-    {
-        qemu_error("Unknown network device: %s\n", device);
-        ret = -1;
-        goto out;
+
+    opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
+    if (!opts) {
+      return -1;
     }
-    if (ret < 0) {
-        qemu_error("Could not initialize device '%s'\n", device);
-    }
-out:
-    qemu_free(name);
-    return ret;
+
+    qemu_opt_set(opts, "type", device);
+
+    return net_client_init_from_opts(mon, opts);
 }
 
 void net_client_uninit(NICInfo *nd)
