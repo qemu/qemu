@@ -1383,7 +1383,6 @@ fi
 
 ##########################################
 # linux-aio probe
-AIOLIBS=""
 
 if test "$linux_aio" != "no" ; then
   cat > $TMPC <<EOF
