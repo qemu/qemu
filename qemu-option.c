@@ -670,8 +670,6 @@ int qemu_opts_set(QemuOptsList *list, const char *id,
 
     opts = qemu_opts_create(list, id, 1);
     if (opts == NULL) {
-        fprintf(stderr, "id \"%s\" not found for \"%s\"\n",
-                id, list->name);
         return -1;
     }
     return qemu_opt_set(opts, name, value);
