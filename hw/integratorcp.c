@@ -477,7 +477,7 @@ static void integratorcp_init(ram_addr_t ram_size,
 
     dev = qdev_create(NULL, "integrator_core");
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
     cpu_pic = arm_pic_init_cpu(env);

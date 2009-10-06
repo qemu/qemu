@@ -636,7 +636,7 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     qdev_prop_set_uint32(dev, "type", type);
     qdev_prop_set_uint32(dev, "size", size);
     qdev_prop_set_uint32(dev, "io_base", io_base);
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, IRQ);
     if (io_base != 0) {
@@ -662,7 +662,7 @@ m48t59_t *m48t59_init_isa(uint32_t io_base, uint16_t size, int type)
     qdev_prop_set_uint32(&dev->qdev, "type", type);
     qdev_prop_set_uint32(&dev->qdev, "size", size);
     qdev_prop_set_uint32(&dev->qdev, "io_base", io_base);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
     d = DO_UPCAST(M48t59ISAState, busdev, dev);
     s = &d->state;
 

@@ -647,7 +647,7 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
     esp->dma_memory_write = dma_memory_write;
     esp->dma_opaque = dma_opaque;
     esp->it_shift = it_shift;
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
     sysbus_mmio_map(s, 0, espaddr);

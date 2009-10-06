@@ -933,7 +933,7 @@ void mips_malta_init (ram_addr_t ram_size,
         eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
         qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
         qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-        qdev_init(eeprom);
+        qdev_init_nofail(eeprom);
     }
     pit = pit_init(0x40, isa_reserve_irq(0));
     DMA_init(0);

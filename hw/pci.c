@@ -946,7 +946,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     dev = pci_create(bus, devfn, "pci-bridge");
     qdev_prop_set_uint32(&dev->qdev, "vendorid", vid);
     qdev_prop_set_uint32(&dev->qdev, "deviceid", did);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
 
     s = DO_UPCAST(PCIBridge, dev, dev);
     pci_register_secondary_bus(&s->bus, &s->dev, map_irq, name);
@@ -1010,7 +1010,7 @@ PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name)
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 {
     PCIDevice *dev = pci_create(bus, devfn, name);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
     return dev;
 }
 

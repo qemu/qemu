@@ -101,6 +101,7 @@ struct CompatProperty {
 DeviceState *qdev_create(BusState *bus, const char *name);
 DeviceState *qdev_device_add(QemuOpts *opts);
 int qdev_init(DeviceState *dev);
+void qdev_init_nofail(DeviceState *dev);
 int qdev_unplug(DeviceState *dev);
 void qdev_free(DeviceState *dev);
 int qdev_simple_unplug_cb(DeviceState *dev);

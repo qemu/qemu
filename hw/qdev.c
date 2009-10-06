@@ -269,6 +269,21 @@ int qdev_simple_unplug_cb(DeviceState *dev)
     return 0;
 }
 
+/* Like qdev_init(), but terminate program via hw_error() instead of
+   returning an error value.  This is okay during machine creation.
+   Don't use for hotplug, because there callers need to recover from
+   failure.  Exception: if you know the device's init() callback can't
+   fail, then qdev_init_nofail() can't fail either, and is therefore
+   usable even then.  But relying on the device implementation that
+   way is somewhat unclean, and best avoided.  */
+void qdev_init_nofail(DeviceState *dev)
+{
+    DeviceInfo *info = dev->info;
+
+    if (qdev_init(dev) < 0)
+        hw_error("Initialization of device %s failed\n", info->name);
+}
+
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {

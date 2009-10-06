@@ -87,7 +87,7 @@ void isa_ne2000_init(int base, int irq, NICInfo *nd)
     dev->qdev.nd = nd; /* hack alert */
     qdev_prop_set_uint32(&dev->qdev, "iobase", base);
     qdev_prop_set_uint32(&dev->qdev, "irq",    irq);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
 }
 
 static ISADeviceInfo ne2000_isa_info = {
