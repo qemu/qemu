@@ -3001,7 +3001,7 @@ static struct {
     { /* end of list */ }
 };
 
-static int net_client_init_from_opts(Monitor *mon, QemuOpts *opts)
+int net_client_init_from_opts(Monitor *mon, QemuOpts *opts)
 {
     const char *type;
     int i;

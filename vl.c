@@ -2595,12 +2595,23 @@ static int usb_device_add(const char *devname, int is_hotplug)
         dev = usb_baum_init();
 #endif
     } else if (strstart(devname, "net:", &p)) {
-        int nic = nb_nics;
+        QemuOpts *opts;
+        int idx;
 
-        if (net_client_init(NULL, "nic", p) < 0)
+        opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
+        if (!opts) {
             return -1;
-        nd_table[nic].model = qemu_strdup("usb");
-        dev = usb_net_init(&nd_table[nic]);
+        }
+
+        qemu_opt_set(opts, "type", "nic");
+        qemu_opt_set(opts, "model", "usb");
+
+        idx = net_client_init_from_opts(NULL, opts);
+        if (idx == -1) {
+            return -1;
+        }
+
+        dev = usb_net_init(&nd_table[idx]);
     } else if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
         dev = usb_bt_init(devname[2] ? hci_init(p) :
                         bt_new_hci(qemu_find_bt_vlan(0)));

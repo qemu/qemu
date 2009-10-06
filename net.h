@@ -4,6 +4,7 @@
 #include "qemu-queue.h"
 #include "qemu-common.h"
 #include "qdict.h"
+#include "qemu-option.h"
 
 /* VLANs support */
 
@@ -136,6 +137,7 @@ extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
 int net_client_init(Monitor *mon, const char *device, const char *p);
+int net_client_init_from_opts(Monitor *mon, QemuOpts *opts);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);
 int net_slirp_smb(const char *exported_dir);
