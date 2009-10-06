@@ -2635,6 +2635,89 @@ static int net_init_tap(QemuOpts *opts, Monitor *mon)
 }
 #endif
 
+static int net_init_socket(QemuOpts *opts, Monitor *mon)
+{
+    VLANState *vlan;
+    const char *name;
+
+    vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    name = qemu_opt_get(opts, "name");
+
+    if (qemu_opt_get(opts, "fd")) {
+        int fd;
+
+        if (qemu_opt_get(opts, "listen") ||
+            qemu_opt_get(opts, "connect") ||
+            qemu_opt_get(opts, "mcast")) {
+            qemu_error("listen=, connect= and mcast= is invalid with fd=\n");
+            return -1;
+        }
+
+        fd = net_handle_fd_param(mon, qemu_opt_get(opts, "fd"));
+        if (fd == -1) {
+            return -1;
+        }
+
+        if (!net_socket_fd_init(vlan, "socket", name, fd, 1)) {
+            close(fd);
+            return -1;
+        }
+    } else if (qemu_opt_get(opts, "listen")) {
+        const char *listen;
+
+        if (qemu_opt_get(opts, "fd") ||
+            qemu_opt_get(opts, "connect") ||
+            qemu_opt_get(opts, "mcast")) {
+            qemu_error("fd=, connect= and mcast= is invalid with listen=\n");
+            return -1;
+        }
+
+        listen = qemu_opt_get(opts, "listen");
+
+        if (net_socket_listen_init(vlan, "socket", name, listen) == -1) {
+            return -1;
+        }
+    } else if (qemu_opt_get(opts, "connect")) {
+        const char *connect;
+
+        if (qemu_opt_get(opts, "fd") ||
+            qemu_opt_get(opts, "listen") ||
+            qemu_opt_get(opts, "mcast")) {
+            qemu_error("fd=, listen= and mcast= is invalid with connect=\n");
+            return -1;
+        }
+
+        connect = qemu_opt_get(opts, "connect");
+
+        if (net_socket_connect_init(vlan, "socket", name, connect) == -1) {
+            return -1;
+        }
+    } else if (qemu_opt_get(opts, "mcast")) {
+        const char *mcast;
+
+        if (qemu_opt_get(opts, "fd") ||
+            qemu_opt_get(opts, "connect") ||
+            qemu_opt_get(opts, "listen")) {
+            qemu_error("fd=, connect= and listen= is invalid with mcast=\n");
+            return -1;
+        }
+
+        mcast = qemu_opt_get(opts, "mcast");
+
+        if (net_socket_mcast_init(vlan, "socket", name, mcast) == -1) {
+            return -1;
+        }
+    } else {
+        qemu_error("-socket requires fd=, listen=, connect= or mcast=\n");
+        return -1;
+    }
+
+    vlan->nb_host_devs++;
+
+    return 0;
+}
+
 #define NET_COMMON_PARAMS_DESC                     \
     {                                              \
         .name = "type",                            \
@@ -2797,6 +2880,30 @@ static struct {
             { /* end of list */ }
         },
 #endif
+    }, {
+        .type = "socket",
+        .init = net_init_socket,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "fd",
+                .type = QEMU_OPT_STRING,
+                .help = "file descriptor of an already opened socket",
+            }, {
+                .name = "listen",
+                .type = QEMU_OPT_STRING,
+                .help = "port number, and optional hostname, to listen on",
+            }, {
+                .name = "connect",
+                .type = QEMU_OPT_STRING,
+                .help = "port number, and optional hostname, to connect to",
+            }, {
+                .name = "mcast",
+                .type = QEMU_OPT_STRING,
+                .help = "UDP multicast address and port number",
+            },
+            { /* end of list */ }
+        },
     },
     { /* end of list */ }
 };
@@ -2840,7 +2947,8 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     if (!strcmp(device, "none") ||
         !strcmp(device, "nic") ||
         !strcmp(device, "user") ||
-        !strcmp(device, "tap")) {
+        !strcmp(device, "tap") ||
+        !strcmp(device, "socket")) {
         QemuOpts *opts;
 
         opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
@@ -2879,64 +2987,6 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         }
     } else
 #endif
-    if (!strcmp(device, "socket")) {
-        char chkbuf[64];
-        if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
-            static const char * const fd_params[] = {
-                "vlan", "name", "fd", NULL
-            };
-            int fd;
-            ret = -1;
-            if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
-                qemu_error("invalid parameter '%s' in '%s'\n", chkbuf, p);
-                goto out;
-            }
-            fd = net_handle_fd_param(mon, buf);
-            if (fd == -1) {
-                goto out;
-            }
-            if (!net_socket_fd_init(vlan, device, name, fd, 1)) {
-                close(fd);
-                goto out;
-            }
-            ret = 0;
-        } else if (get_param_value(buf, sizeof(buf), "listen", p) > 0) {
-            static const char * const listen_params[] = {
-                "vlan", "name", "listen", NULL
-            };
-            if (check_params(chkbuf, sizeof(chkbuf), listen_params, p) < 0) {
-                qemu_error("invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
-                goto out;
-            }
-            ret = net_socket_listen_init(vlan, device, name, buf);
-        } else if (get_param_value(buf, sizeof(buf), "connect", p) > 0) {
-            static const char * const connect_params[] = {
-                "vlan", "name", "connect", NULL
-            };
-            if (check_params(chkbuf, sizeof(chkbuf), connect_params, p) < 0) {
-                qemu_error("invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
-                goto out;
-            }
-            ret = net_socket_connect_init(vlan, device, name, buf);
-        } else if (get_param_value(buf, sizeof(buf), "mcast", p) > 0) {
-            static const char * const mcast_params[] = {
-                "vlan", "name", "mcast", NULL
-            };
-            if (check_params(chkbuf, sizeof(chkbuf), mcast_params, p) < 0) {
-                qemu_error("invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
-                goto out;
-            }
-            ret = net_socket_mcast_init(vlan, device, name, buf);
-        } else {
-            qemu_error("Unknown socket options: %s\n", p);
-            ret = -1;
-            goto out;
-        }
-        vlan->nb_host_devs++;
-    } else
 #ifdef CONFIG_VDE
     if (!strcmp(device, "vde")) {
         static const char * const vde_params[] = {
