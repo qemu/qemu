@@ -30,9 +30,9 @@
 #include "sysemu.h"
 #include "monitor.h"
 
-/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 static int qdev_hotplug = 0;
 
+/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 static BusState *main_system_bus;
 
 static DeviceInfo *device_info_list;
