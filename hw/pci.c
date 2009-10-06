@@ -833,6 +833,7 @@ static const char * const pci_nic_names[] = {
 };
 
 /* Initialize a PCI NIC.  */
+/* FIXME callers should check for failure, but don't */
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr)
 {
