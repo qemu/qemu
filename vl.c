@@ -5359,9 +5359,7 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
-                opts = qemu_opts_parse(&qemu_device_opts, optarg, "driver");
-                if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
+                if (!qemu_opts_parse(&qemu_device_opts, optarg, "driver")) {
                     exit(1);
                 }
                 break;
