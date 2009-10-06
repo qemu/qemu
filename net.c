@@ -110,6 +110,7 @@
 #include "audio/audio.h"
 #include "qemu_socket.h"
 #include "qemu-log.h"
+#include "qemu-config.h"
 
 #include "slirp/libslirp.h"
 #include "qemu-queue.h"
@@ -2400,12 +2401,171 @@ static int net_handle_fd_param(Monitor *mon, const char *param)
     }
 }
 
+static int net_init_nic(QemuOpts *opts, Monitor *mon)
+{
+    int idx;
+    NICInfo *nd;
+
+    idx = nic_get_free_idx();
+    if (idx == -1 || nb_nics >= MAX_NICS) {
+        qemu_error("Too Many NICs\n");
+        return -1;
+    }
+
+    nd = &nd_table[idx];
+
+    memset(nd, 0, sizeof(*nd));
+
+    nd->vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    if (qemu_opts_id(opts)) {
+        nd->id = qemu_strdup(qemu_opts_id(opts));
+    }
+    if (qemu_opt_get(opts, "name")) {
+        nd->name = qemu_strdup(qemu_opt_get(opts, "name"));
+    }
+    if (qemu_opt_get(opts, "model")) {
+        nd->model = qemu_strdup(qemu_opt_get(opts, "model"));
+    }
+    if (qemu_opt_get(opts, "addr")) {
+        nd->devaddr = qemu_strdup(qemu_opt_get(opts, "addr"));
+    }
+
+    nd->macaddr[0] = 0x52;
+    nd->macaddr[1] = 0x54;
+    nd->macaddr[2] = 0x00;
+    nd->macaddr[3] = 0x12;
+    nd->macaddr[4] = 0x34;
+    nd->macaddr[5] = 0x56 + idx;
+
+    if (qemu_opt_get(opts, "macaddr") &&
+        parse_macaddr(nd->macaddr, qemu_opt_get(opts, "macaddr")) < 0) {
+        qemu_error("invalid syntax for ethernet address\n");
+        return -1;
+    }
+
+    nd->nvectors = qemu_opt_get_number(opts, "vectors", NIC_NVECTORS_UNSPECIFIED);
+    if (nd->nvectors != NIC_NVECTORS_UNSPECIFIED &&
+        (nd->nvectors < 0 || nd->nvectors > 0x7ffffff)) {
+        qemu_error("invalid # of vectors: %d\n", nd->nvectors);
+        return -1;
+    }
+
+    nd->used = 1;
+    nd->vlan->nb_guest_devs++;
+    nb_nics++;
+
+    return idx;
+}
+
+#define NET_COMMON_PARAMS_DESC                     \
+    {                                              \
+        .name = "type",                            \
+        .type = QEMU_OPT_STRING,                   \
+        .help = "net client type (nic, tap etc.)", \
+     }, {                                          \
+        .name = "vlan",                            \
+        .type = QEMU_OPT_NUMBER,                   \
+        .help = "vlan number",                     \
+     }, {                                          \
+        .name = "name",                            \
+        .type = QEMU_OPT_STRING,                   \
+        .help = "identifier for monitor commands", \
+     }
+
+typedef int (*net_client_init_func)(QemuOpts *opts, Monitor *mon);
+
+/* magic number, but compiler will warn if too small */
+#define NET_MAX_DESC 20
+
+static struct {
+    const char *type;
+    net_client_init_func init;
+    QemuOptDesc desc[NET_MAX_DESC];
+} net_client_types[] = {
+    {
+        .type = "none",
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            { /* end of list */ }
+        },
+    }, {
+        .type = "nic",
+        .init = net_init_nic,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "macaddr",
+                .type = QEMU_OPT_STRING,
+                .help = "MAC address",
+            }, {
+                .name = "model",
+                .type = QEMU_OPT_STRING,
+                .help = "device model (e1000, rtl8139, virtio etc.)",
+            }, {
+                .name = "addr",
+                .type = QEMU_OPT_STRING,
+                .help = "PCI device address",
+            }, {
+                .name = "vectors",
+                .type = QEMU_OPT_NUMBER,
+                .help = "number of MSI-x vectors, 0 to disable MSI-X",
+            },
+            { /* end of list */ }
+        },
+    },
+    { /* end of list */ }
+};
+
+static int net_client_init_from_opts(Monitor *mon, QemuOpts *opts)
+{
+    const char *type;
+    int i;
+
+    type = qemu_opt_get(opts, "type");
+    if (!type) {
+        qemu_error("No type specified for -net\n");
+        return -1;
+    }
+
+    for (i = 0; net_client_types[i].type != NULL; i++) {
+        if (!strcmp(net_client_types[i].type, type)) {
+            if (qemu_opts_validate(opts, &net_client_types[i].desc[0]) == -1) {
+                return -1;
+            }
+
+            if (net_client_types[i].init) {
+                return net_client_types[i].init(opts, NULL);
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    qemu_error("Invalid -net type '%s'\n", type);
+    return -1;
+}
+
 int net_client_init(Monitor *mon, const char *device, const char *p)
 {
     char buf[1024];
     int vlan_id, ret;
     VLANState *vlan;
     char *name = NULL;
+
+    if (!strcmp(device, "none") ||
+        !strcmp(device, "nic")) {
+        QemuOpts *opts;
+
+        opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
+        if (!opts) {
+            return -1;
+        }
+
+        qemu_opt_set(opts, "type", device);
+
+        return net_client_init_from_opts(mon, opts);
+    }
 
     vlan_id = 0;
     if (get_param_value(buf, sizeof(buf), "vlan", p)) {
@@ -2416,84 +2576,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
     if (get_param_value(buf, sizeof(buf), "name", p)) {
         name = qemu_strdup(buf);
     }
-    if (!strcmp(device, "nic")) {
-        static const char * const nic_params[] = {
-            "vlan", "name", "macaddr", "model", "addr", "id", "vectors", NULL
-        };
-        NICInfo *nd;
-        uint8_t *macaddr;
-        int idx = nic_get_free_idx();
 
-        if (check_params(buf, sizeof(buf), nic_params, p) < 0) {
-            qemu_error("invalid parameter '%s' in '%s'\n", buf, p);
-            ret = -1;
-            goto out;
-        }
-        if (idx == -1 || nb_nics >= MAX_NICS) {
-            qemu_error("Too Many NICs\n");
-            ret = -1;
-            goto out;
-        }
-        nd = &nd_table[idx];
-        memset(nd, 0, sizeof(*nd));
-        macaddr = nd->macaddr;
-        macaddr[0] = 0x52;
-        macaddr[1] = 0x54;
-        macaddr[2] = 0x00;
-        macaddr[3] = 0x12;
-        macaddr[4] = 0x34;
-        macaddr[5] = 0x56 + idx;
-
-        if (get_param_value(buf, sizeof(buf), "macaddr", p)) {
-            if (parse_macaddr(macaddr, buf) < 0) {
-                qemu_error("invalid syntax for ethernet address\n");
-                ret = -1;
-                goto out;
-            }
-        }
-        if (get_param_value(buf, sizeof(buf), "model", p)) {
-            nd->model = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "addr", p)) {
-            nd->devaddr = qemu_strdup(buf);
-        }
-        if (get_param_value(buf, sizeof(buf), "id", p)) {
-            nd->id = qemu_strdup(buf);
-        }
-        nd->nvectors = NIC_NVECTORS_UNSPECIFIED;
-        if (get_param_value(buf, sizeof(buf), "vectors", p)) {
-            char *endptr;
-            long vectors = strtol(buf, &endptr, 0);
-            if (*endptr) {
-                qemu_error("invalid syntax for # of vectors\n");
-                ret = -1;
-                goto out;
-            }
-            if (vectors < 0 || vectors > 0x7ffffff) {
-                qemu_error("invalid # of vectors\n");
-                ret = -1;
-                goto out;
-            }
-            nd->nvectors = vectors;
-        }
-        nd->vlan = vlan;
-        nd->name = name;
-        nd->used = 1;
-        name = NULL;
-        nb_nics++;
-        vlan->nb_guest_devs++;
-        ret = idx;
-    } else
-    if (!strcmp(device, "none")) {
-        if (*p != '\0') {
-            qemu_error("'none' takes no parameters\n");
-            ret = -1;
-            goto out;
-        }
-        /* does nothing. It is needed to signal that no network cards
-           are wanted */
-        ret = 0;
-    } else
 #ifdef CONFIG_SLIRP
     if (!strcmp(device, "user")) {
         static const char * const slirp_params[] = {
