@@ -2746,6 +2746,29 @@ static int net_init_vde(QemuOpts *opts, Monitor *mon)
 }
 #endif
 
+static int net_init_dump(QemuOpts *opts, Monitor *mon)
+{
+    VLANState *vlan;
+    int len;
+    const char *file;
+    const char *name;
+    char def_file[128];
+
+    vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    name = qemu_opt_get(opts, "name");
+
+    file = qemu_opt_get(opts, "file");
+    if (!file) {
+        snprintf(def_file, sizeof(def_file), "qemu-vlan%d.pcap", vlan->id);
+        file = def_file;
+    }
+
+    len = qemu_opt_get_size(opts, "len", 65536);
+
+    return net_dump_init(vlan, "dump", name, file, len);
+}
+
 #define NET_COMMON_PARAMS_DESC                     \
     {                                              \
         .name = "type",                            \
@@ -2958,6 +2981,22 @@ static struct {
             { /* end of list */ }
         },
 #endif
+    }, {
+        .type = "dump",
+        .init = net_init_dump,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "len",
+                .type = QEMU_OPT_SIZE,
+                .help = "per-packet size limit (64k default)",
+            }, {
+                .name = "file",
+                .type = QEMU_OPT_STRING,
+                .help = "dump file path (default is qemu-vlan0.pcap)",
+            },
+            { /* end of list */ }
+        },
     },
     { /* end of list */ }
 };
@@ -3003,7 +3042,8 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         !strcmp(device, "user") ||
         !strcmp(device, "tap") ||
         !strcmp(device, "socket") ||
-        !strcmp(device, "vde")) {
+        !strcmp(device, "vde") ||
+        !strcmp(device, "dump")) {
         QemuOpts *opts;
 
         opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
@@ -3042,17 +3082,7 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
         }
     } else
 #endif
-    if (!strcmp(device, "dump")) {
-        int len = 65536;
-
-        if (get_param_value(buf, sizeof(buf), "len", p) > 0) {
-            len = strtol(buf, NULL, 0);
-        }
-        if (!get_param_value(buf, sizeof(buf), "file", p)) {
-            snprintf(buf, sizeof(buf), "qemu-vlan%d.pcap", vlan_id);
-        }
-        ret = net_dump_init(vlan, device, name, buf, len);
-    } else {
+    {
         qemu_error("Unknown network device: %s\n", device);
         ret = -1;
         goto out;
