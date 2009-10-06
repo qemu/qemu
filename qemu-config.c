@@ -176,6 +176,7 @@ static QemuOptsList *lists[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
     &qemu_device_opts,
+    &qemu_rtc_opts,
     NULL,
 };
 
