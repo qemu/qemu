@@ -3101,13 +3101,24 @@ static int net_host_check_device(const char *device)
 void net_host_device_add(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
-    const char *opts = qdict_get_try_str(qdict, "opts");
+    const char *opts_str = qdict_get_try_str(qdict, "opts");
+    QemuOpts *opts;
 
     if (!net_host_check_device(device)) {
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
     }
-    if (net_client_init(mon, device, opts ? opts : "") < 0) {
+
+    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", NULL);
+    if (!opts) {
+        monitor_printf(mon, "parsing network options '%s' failed\n",
+                       opts_str ? opts_str : "");
+        return;
+    }
+
+    qemu_opt_set(opts, "type", device);
+
+    if (net_client_init_from_opts(mon, opts) < 0) {
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
