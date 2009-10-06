@@ -2813,10 +2813,10 @@ void net_client_uninit(NICInfo *nd)
     nd->vlan->nb_guest_devs--;
     nb_nics--;
 
-    qemu_free((void *)nd->model);
-    qemu_free((void *)nd->name);
-    qemu_free((void *)nd->devaddr);
-    qemu_free((void *)nd->id);
+    qemu_free(nd->model);
+    qemu_free(nd->name);
+    qemu_free(nd->devaddr);
+    qemu_free(nd->id);
 
     memset(nd, 0, sizeof(*nd));
 }

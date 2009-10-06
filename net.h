@@ -95,10 +95,10 @@ enum {
 
 struct NICInfo {
     uint8_t macaddr[6];
-    const char *model;
-    const char *name;
-    const char *devaddr;
-    const char *id;
+    char *model;
+    char *name;
+    char *devaddr;
+    char *id;
     VLANState *vlan;
     VLANClientState *vc;
     void *private;
