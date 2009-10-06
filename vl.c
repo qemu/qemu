@@ -2599,7 +2599,7 @@ static int usb_device_add(const char *devname, int is_hotplug)
 
         if (net_client_init(NULL, "nic", p) < 0)
             return -1;
-        nd_table[nic].model = "usb";
+        nd_table[nic].model = qemu_strdup("usb");
         dev = usb_net_init(&nd_table[nic]);
     } else if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
         dev = usb_bt_init(devname[2] ? hci_init(p) :
