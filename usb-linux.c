@@ -1396,8 +1396,6 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
         dprintf("husb: auto open: bus_num %d addr %d\n", bus_num, addr);
 
 	dev = usb_host_device_open_addr(bus_num, addr, product_name);
-	if (dev)
-            qdev_init(&dev->qdev);
     }
 
     return 0;
