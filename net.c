@@ -1365,31 +1365,24 @@ static void tap_send(void *opaque)
  */
 #define TAP_DEFAULT_SNDBUF 1024*1024
 
-static int tap_set_sndbuf(TAPState *s, const char *sndbuf_str)
+static int tap_set_sndbuf(TAPState *s, QemuOpts *opts)
 {
-    int sndbuf = TAP_DEFAULT_SNDBUF;
+    int sndbuf;
 
-    if (sndbuf_str) {
-        sndbuf = atoi(sndbuf_str);
-    }
-
+    sndbuf = qemu_opt_get_size(opts, "sndbuf", TAP_DEFAULT_SNDBUF);
     if (!sndbuf) {
         sndbuf = INT_MAX;
     }
 
-    if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1 && sndbuf_str) {
+    if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1 && qemu_opt_get(opts, "sndbuf")) {
         qemu_error("TUNSETSNDBUF ioctl failed: %s\n", strerror(errno));
         return -1;
     }
     return 0;
 }
 #else
-static int tap_set_sndbuf(TAPState *s, const char *sndbuf_str)
+static int tap_set_sndbuf(TAPState *s, QemuOpts *opts)
 {
-    if (sndbuf_str) {
-        qemu_error("No '-net tap,sndbuf=<nbytes>' support available\n");
-        return -1;
-    }
     return 0;
 }
 #endif /* TUNSETSNDBUF */
@@ -2554,6 +2547,94 @@ static int net_init_slirp(QemuOpts *opts, Monitor *mon)
     return ret;
 }
 
+#ifdef _WIN32
+static int net_init_tap_win32(QemuOpts *opts, Monitor *mon)
+{
+    VLANState *vlan;
+    const char *name;
+    const char *ifname;
+
+    vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    name   = qemu_opt_get(opts, "name");
+    ifname = qemu_opt_get(opts, "ifname");
+
+    if (!ifname) {
+        qemu_error("tap: no interface name\n");
+        return -1;
+    }
+
+    if (tap_win32_init(vlan, "tap", name, ifname) == -1) {
+        return -1;
+    }
+
+    vlan->nb_host_devs++;
+
+    return 0;
+}
+#elif !defined(_AIX)
+static int net_init_tap(QemuOpts *opts, Monitor *mon)
+{
+    VLANState *vlan;
+    const char *name;
+    TAPState *s;
+
+    vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
+
+    name = qemu_opt_get(opts, "name");
+
+    if (qemu_opt_get(opts, "fd")) {
+        int fd;
+
+        if (qemu_opt_get(opts, "ifname") ||
+            qemu_opt_get(opts, "script") ||
+            qemu_opt_get(opts, "downscript")) {
+            qemu_error("ifname=, script= and downscript= is invalid with fd=\n");
+            return -1;
+        }
+
+        fd = net_handle_fd_param(mon, qemu_opt_get(opts, "fd"));
+        if (fd == -1) {
+            return -1;
+        }
+
+        fcntl(fd, F_SETFL, O_NONBLOCK);
+
+        s = net_tap_fd_init(vlan, "tap", name, fd);
+        if (!s) {
+            close(fd);
+        }
+    } else {
+        const char *ifname, *script, *downscript;
+
+        ifname     = qemu_opt_get(opts, "ifname");
+        script     = qemu_opt_get(opts, "script");
+        downscript = qemu_opt_get(opts, "downscript");
+
+        if (!script) {
+            script = DEFAULT_NETWORK_SCRIPT;
+        }
+        if (!downscript) {
+            downscript = DEFAULT_NETWORK_DOWN_SCRIPT;
+        }
+
+        s = net_tap_init(vlan, "tap", name, ifname, script, downscript);
+    }
+
+    if (!s) {
+        return -1;
+    }
+
+    if (tap_set_sndbuf(s, opts) < 0) {
+        return -1;
+    }
+
+    vlan->nb_host_devs++;
+
+    return 0;
+}
+#endif
+
 #define NET_COMMON_PARAMS_DESC                     \
     {                                              \
         .name = "type",                            \
@@ -2671,6 +2752,51 @@ static struct {
             { /* end of list */ }
         },
 #endif
+#ifdef _WIN32
+    }, {
+        .type = "tap",
+        .init = net_init_tap_win32,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "ifname",
+                .type = QEMU_OPT_STRING,
+                .help = "interface name",
+            },
+            { /* end of list */ }
+        },
+#elif !defined(_AIX)
+    }, {
+        .type = "tap",
+        .init = net_init_tap,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "fd",
+                .type = QEMU_OPT_STRING,
+                .help = "file descriptor of an already opened tap",
+            }, {
+                .name = "ifname",
+                .type = QEMU_OPT_STRING,
+                .help = "interface name",
+            }, {
+                .name = "script",
+                .type = QEMU_OPT_STRING,
+                .help = "script to initialize the interface",
+            }, {
+                .name = "downscript",
+                .type = QEMU_OPT_STRING,
+                .help = "script to shut down the interface",
+#ifdef TUNSETSNDBUF
+            }, {
+                .name = "sndbuf",
+                .type = QEMU_OPT_SIZE,
+                .help = "send buffer limit"
+#endif
+            },
+            { /* end of list */ }
+        },
+#endif
     },
     { /* end of list */ }
 };
@@ -2713,7 +2839,8 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
 
     if (!strcmp(device, "none") ||
         !strcmp(device, "nic") ||
-        !strcmp(device, "user")) {
+        !strcmp(device, "user") ||
+        !strcmp(device, "tap")) {
         QemuOpts *opts;
 
         opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
@@ -2749,83 +2876,6 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             ret = 0;
         } else {
             ret = slirp_guestfwd(QTAILQ_FIRST(&slirp_stacks), p, 1);
-        }
-    } else
-#endif
-#ifdef _WIN32
-    if (!strcmp(device, "tap")) {
-        static const char * const tap_params[] = {
-            "vlan", "name", "ifname", NULL
-        };
-        char ifname[64];
-
-        if (check_params(buf, sizeof(buf), tap_params, p) < 0) {
-            qemu_error("invalid parameter '%s' in '%s'\n", buf, p);
-            ret = -1;
-            goto out;
-        }
-        if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
-            qemu_error("tap: no interface name\n");
-            ret = -1;
-            goto out;
-        }
-        vlan->nb_host_devs++;
-        ret = tap_win32_init(vlan, device, name, ifname);
-    } else
-#elif defined (_AIX)
-#else
-    if (!strcmp(device, "tap")) {
-        char ifname[64], chkbuf[64];
-        char setup_script[1024], down_script[1024];
-        TAPState *s;
-        int fd;
-        vlan->nb_host_devs++;
-        if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
-            static const char * const fd_params[] = {
-                "vlan", "name", "fd", "sndbuf", NULL
-            };
-            ret = -1;
-            if (check_params(chkbuf, sizeof(chkbuf), fd_params, p) < 0) {
-                qemu_error("invalid parameter '%s' in '%s'\n", chkbuf, p);
-                goto out;
-            }
-            fd = net_handle_fd_param(mon, buf);
-            if (fd == -1) {
-                goto out;
-            }
-            fcntl(fd, F_SETFL, O_NONBLOCK);
-            s = net_tap_fd_init(vlan, device, name, fd);
-            if (!s) {
-                close(fd);
-            }
-        } else {
-            static const char * const tap_params[] = {
-                "vlan", "name", "ifname", "script", "downscript", "sndbuf", NULL
-            };
-            if (check_params(chkbuf, sizeof(chkbuf), tap_params, p) < 0) {
-                qemu_error("invalid parameter '%s' in '%s'\n", chkbuf, p);
-                ret = -1;
-                goto out;
-            }
-            if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
-                ifname[0] = '\0';
-            }
-            if (get_param_value(setup_script, sizeof(setup_script), "script", p) == 0) {
-                pstrcpy(setup_script, sizeof(setup_script), DEFAULT_NETWORK_SCRIPT);
-            }
-            if (get_param_value(down_script, sizeof(down_script), "downscript", p) == 0) {
-                pstrcpy(down_script, sizeof(down_script), DEFAULT_NETWORK_DOWN_SCRIPT);
-            }
-            s = net_tap_init(vlan, device, name, ifname, setup_script, down_script);
-        }
-        if (s != NULL) {
-            const char *sndbuf_str = NULL;
-            if (get_param_value(buf, sizeof(buf), "sndbuf", p)) {
-                sndbuf_str = buf;
-            }
-            ret = tap_set_sndbuf(s, sndbuf_str);
-        } else {
-            ret = -1;
         }
     } else
 #endif
