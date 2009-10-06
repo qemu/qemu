@@ -296,7 +296,7 @@ static char *assign_name(VLANClientState *vc1, const char *model)
 
     snprintf(buf, sizeof(buf), "%s.%d", model, id);
 
-    return strdup(buf);
+    return qemu_strdup(buf);
 }
 
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
@@ -310,9 +310,9 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
 {
     VLANClientState *vc, **pvc;
     vc = qemu_mallocz(sizeof(VLANClientState));
-    vc->model = strdup(model);
+    vc->model = qemu_strdup(model);
     if (name)
-        vc->name = strdup(name);
+        vc->name = qemu_strdup(name);
     else
         vc->name = assign_name(vc, model);
     vc->can_receive = can_receive;
@@ -340,8 +340,8 @@ void qemu_del_vlan_client(VLANClientState *vc)
             if (vc->cleanup) {
                 vc->cleanup(vc);
             }
-            free(vc->name);
-            free(vc->model);
+            qemu_free(vc->name);
+            qemu_free(vc->model);
             qemu_free(vc);
             break;
         } else
@@ -2127,8 +2127,8 @@ static int net_socket_listen_init(VLANState *vlan,
         return -1;
     }
     s->vlan = vlan;
-    s->model = strdup(model);
-    s->name = name ? strdup(name) : NULL;
+    s->model = qemu_strdup(model);
+    s->name = name ? qemu_strdup(name) : NULL;
     s->fd = fd;
     qemu_set_fd_handler(fd, net_socket_accept, NULL, s);
     return 0;
