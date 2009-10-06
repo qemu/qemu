@@ -3001,7 +3001,7 @@ static struct {
     { /* end of list */ }
 };
 
-int net_client_init_from_opts(Monitor *mon, QemuOpts *opts)
+int net_client_init(Monitor *mon, QemuOpts *opts)
 {
     const char *type;
     int i;
@@ -3028,41 +3028,6 @@ int net_client_init_from_opts(Monitor *mon, QemuOpts *opts)
 
     qemu_error("Invalid -net type '%s'\n", type);
     return -1;
-}
-
-int net_client_init(Monitor *mon, const char *device, const char *p)
-{
-    QemuOpts *opts;
-
-#ifdef CONFIG_SLIRP
-    if (!strcmp(device, "channel")) {
-        int ret;
-
-        if (QTAILQ_EMPTY(&slirp_stacks)) {
-            struct slirp_config_str *config;
-
-            config = qemu_malloc(sizeof(*config));
-            pstrcpy(config->str, sizeof(config->str), p);
-            config->flags = SLIRP_CFG_LEGACY;
-            config->next = slirp_configs;
-            slirp_configs = config;
-            ret = 0;
-        } else {
-            ret = slirp_guestfwd(QTAILQ_FIRST(&slirp_stacks), p, 1);
-        }
-
-        return ret;
-    }
-#endif
-
-    opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
-    if (!opts) {
-      return -1;
-    }
-
-    qemu_opt_set(opts, "type", device);
-
-    return net_client_init_from_opts(mon, opts);
 }
 
 void net_client_uninit(NICInfo *nd)
@@ -3118,7 +3083,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
 
     qemu_opt_set(opts, "type", device);
 
-    if (net_client_init_from_opts(mon, opts) < 0) {
+    if (net_client_init(mon, opts) < 0) {
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
@@ -3138,26 +3103,6 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
         return;
     }
     qemu_del_vlan_client(vc);
-}
-
-int net_client_parse(const char *str)
-{
-    const char *p;
-    char *q;
-    char device[64];
-
-    p = str;
-    q = device;
-    while (*p != '\0' && *p != ',') {
-        if ((q - device) < sizeof(device) - 1)
-            *q++ = *p;
-        p++;
-    }
-    *q = '\0';
-    if (*p == ',')
-        p++;
-
-    return net_client_init(NULL, device, p);
 }
 
 void net_set_boot_mask(int net_boot_mask)
@@ -3240,7 +3185,7 @@ void net_cleanup(void)
     }
 }
 
-void net_client_check(void)
+static void net_check_clients(void)
 {
     VLANState *vlan;
 
@@ -3254,4 +3199,59 @@ void net_client_check(void)
                     "Warning: vlan %d is not connected to host network\n",
                     vlan->id);
     }
+}
+
+static int net_init_client(QemuOpts *opts, void *dummy)
+{
+    return net_client_init(NULL, opts);
+}
+
+int net_init_clients(void)
+{
+    if (QTAILQ_EMPTY(&qemu_net_opts.head)) {
+        /* if no clients, we use a default config */
+        qemu_opts_set(&qemu_net_opts, NULL, "type", "nic");
+#ifdef CONFIG_SLIRP
+        qemu_opts_set(&qemu_net_opts, NULL, "type", "user");
+#endif
+    }
+
+    if (qemu_opts_foreach(&qemu_net_opts, net_init_client, NULL, 1) == -1) {
+        return -1;
+    }
+
+    net_check_clients();
+
+    return 0;
+}
+
+int net_client_parse(const char *optarg)
+{
+    /* handle legacy -net channel,port:chr */
+    if (!strncmp(optarg, "channel,", strlen("channel,"))) {
+        int ret;
+
+        optarg += strlen("channel,");
+
+        if (QTAILQ_EMPTY(&slirp_stacks)) {
+            struct slirp_config_str *config;
+
+            config = qemu_malloc(sizeof(*config));
+            pstrcpy(config->str, sizeof(config->str), optarg);
+            config->flags = SLIRP_CFG_LEGACY;
+            config->next = slirp_configs;
+            slirp_configs = config;
+            ret = 0;
+        } else {
+            ret = slirp_guestfwd(QTAILQ_FIRST(&slirp_stacks), optarg, 1);
+        }
+
+        return ret;
+    }
+
+    if (!qemu_opts_parse(&qemu_net_opts, optarg, "type")) {
+        return -1;
+    }
+
+    return 0;
 }

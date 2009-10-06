@@ -2606,7 +2606,7 @@ static int usb_device_add(const char *devname, int is_hotplug)
         qemu_opt_set(opts, "type", "nic");
         qemu_opt_set(opts, "model", "usb");
 
-        idx = net_client_init_from_opts(NULL, opts);
+        idx = net_client_init(NULL, opts);
         if (idx == -1) {
             return -1;
         }
@@ -4538,8 +4538,6 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid)
     return 0;
 }
 
-#define MAX_NET_CLIENTS 32
-
 #ifndef _WIN32
 
 static void termsig_handler(int signal)
@@ -4743,8 +4741,6 @@ int main(int argc, char **argv, char **envp)
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
-    const char *net_clients[MAX_NET_CLIENTS];
-    int nb_net_clients;
     QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
@@ -4847,7 +4843,6 @@ int main(int argc, char **argv, char **envp)
         node_cpumask[i] = 0;
     }
 
-    nb_net_clients = 0;
     nb_numa_nodes = 0;
     nb_nics = 0;
 
@@ -5093,12 +5088,9 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_net:
-                if (nb_net_clients >= MAX_NET_CLIENTS) {
-                    fprintf(stderr, "qemu: too many network clients\n");
+                if (net_client_parse(optarg) == -1) {
                     exit(1);
                 }
-                net_clients[nb_net_clients] = optarg;
-                nb_net_clients++;
                 break;
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
@@ -5661,24 +5653,12 @@ int main(int argc, char **argv, char **envp)
     socket_init();
 #endif
 
-    /* init network clients */
-    if (nb_net_clients == 0) {
-        /* if no clients, we use a default config */
-        net_clients[nb_net_clients++] = "nic";
-#ifdef CONFIG_SLIRP
-        net_clients[nb_net_clients++] = "user";
-#endif
-    }
-
-    for(i = 0;i < nb_net_clients; i++) {
-        if (net_client_parse(net_clients[i]) < 0)
-            exit(1);
+    if (net_init_clients() < 0) {
+        exit(1);
     }
 
     net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
     net_set_boot_mask(net_boot);
-
-    net_client_check();
 
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))

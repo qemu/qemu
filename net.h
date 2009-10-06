@@ -136,16 +136,15 @@ void net_checksum_calculate(uint8_t *data, int length);
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
-int net_client_init(Monitor *mon, const char *device, const char *p);
-int net_client_init_from_opts(Monitor *mon, QemuOpts *opts);
+int net_client_init(Monitor *mon, QemuOpts *opts);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);
+int net_init_clients(void);
 int net_slirp_smb(const char *exported_dir);
 void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
 void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict);
 int net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
-void net_client_check(void);
 void net_set_boot_mask(int boot_mask);
 void net_host_device_add(Monitor *mon, const QDict *qdict);
 void net_host_device_remove(Monitor *mon, const QDict *qdict);
