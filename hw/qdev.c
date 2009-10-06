@@ -216,7 +216,6 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
     if (qdev_init(qdev) != 0) {
         qemu_error("Error initializing device %s\n", driver);
-        qdev_free(qdev);
         return NULL;
     }
     qdev->opts = opts;
@@ -232,15 +231,19 @@ static void qdev_reset(void *opaque)
 
 /* Initialize a device.  Device properties should be set before calling
    this function.  IRQs and MMIO regions should be connected/mapped after
-   calling this function.  */
+   calling this function.
+   On failure, destroy the device and return negative value.
+   Return 0 on success.  */
 int qdev_init(DeviceState *dev)
 {
     int rc;
 
     assert(dev->state == DEV_STATE_CREATED);
     rc = dev->info->init(dev, dev->info);
-    if (rc < 0)
+    if (rc < 0) {
+        qdev_free(dev);
         return rc;
+    }
     qemu_register_reset(qdev_reset, dev);
     if (dev->info->vmsd)
         vmstate_register(-1, dev->info->vmsd, dev);

@@ -127,7 +127,6 @@ ISADevice *isa_create_simple(const char *name)
 
     dev = isa_create(name);
     if (qdev_init(&dev->qdev) != 0) {
-        qdev_free(&dev->qdev);
         return NULL;
     }
     return dev;
