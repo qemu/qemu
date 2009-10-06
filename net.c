@@ -2380,7 +2380,7 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
     int i;
 
     if (!nd->model)
-        nd->model = strdup(default_model);
+        nd->model = qemu_strdup(default_model);
 
     for (i = 0 ; models[i]; i++) {
         if (strcmp(nd->model, models[i]) == 0)
@@ -2459,13 +2459,13 @@ int net_client_init(Monitor *mon, const char *device, const char *p)
             }
         }
         if (get_param_value(buf, sizeof(buf), "model", p)) {
-            nd->model = strdup(buf);
+            nd->model = qemu_strdup(buf);
         }
         if (get_param_value(buf, sizeof(buf), "addr", p)) {
-            nd->devaddr = strdup(buf);
+            nd->devaddr = qemu_strdup(buf);
         }
         if (get_param_value(buf, sizeof(buf), "id", p)) {
-            nd->id = strdup(buf);
+            nd->id = qemu_strdup(buf);
         }
         nd->nvectors = NIC_NVECTORS_UNSPECIFIED;
         if (get_param_value(buf, sizeof(buf), "vectors", p)) {
