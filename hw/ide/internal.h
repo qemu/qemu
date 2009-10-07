@@ -517,6 +517,9 @@ extern const VMStateDescription vmstate_ide_bus;
 #define VMSTATE_IDE_BUS(_field, _state)                          \
     VMSTATE_STRUCT(_field, _state, 1, vmstate_ide_bus, IDEBus)
 
+#define VMSTATE_IDE_BUS_ARRAY(_field, _state, _num)              \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _num, 1, vmstate_ide_bus, IDEBus)
+
 extern const VMStateDescription vmstate_ide_drive;
 
 #define VMSTATE_IDE_DRIVES(_field, _state) \
