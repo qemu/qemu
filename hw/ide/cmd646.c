@@ -94,7 +94,7 @@ static uint32_t bmdma_readb(void *opaque, uint32_t addr)
         val = bm->status;
         break;
     case 3:
-        if (bm == &pci_dev->bmdma[0]) {
+        if (bm->unit == 0) {
             val = pci_dev->dev.config[UDIDETCR0];
         } else {
             val = pci_dev->dev.config[UDIDETCR1];
@@ -127,7 +127,7 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
         break;
     case 3:
-        if (bm == &pci_dev->bmdma[0])
+        if (bm->unit == 0)
             pci_dev->dev.config[UDIDETCR0] = val;
         else
             pci_dev->dev.config[UDIDETCR1] = val;
