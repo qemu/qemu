@@ -51,7 +51,7 @@ typedef struct {
 
     uint8_t ctrl;
     uint16_t io;
-    int cycle;
+    uint8_t cycle;
 } MicroDriveState;
 
 /* Register bitfields */
