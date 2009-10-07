@@ -287,7 +287,8 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "stop emulation",
-        .mhandler.cmd = do_stop,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_stop,
     },
 
 STEXI

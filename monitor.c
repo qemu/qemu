@@ -599,7 +599,10 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_stop(Monitor *mon, const QDict *qdict)
+/**
+ * do_stop(): Stop VM execution
+ */
+static void do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     vm_stop(EXCP_INTERRUPT);
 }
