@@ -80,24 +80,17 @@ static uint32_t bmdma_readb(void *opaque, uint32_t addr)
         break;
     case 1:
         pci_dev = bm->pci_dev;
-        if (pci_dev->type == IDE_TYPE_CMD646) {
-            val = pci_dev->dev.config[MRDMODE];
-        } else {
-            val = 0xff;
-        }
+        val = pci_dev->dev.config[MRDMODE];
         break;
     case 2:
         val = bm->status;
         break;
     case 3:
         pci_dev = bm->pci_dev;
-        if (pci_dev->type == IDE_TYPE_CMD646) {
-            if (bm == &pci_dev->bmdma[0])
-                val = pci_dev->dev.config[UDIDETCR0];
-            else
-                val = pci_dev->dev.config[UDIDETCR1];
+        if (bm == &pci_dev->bmdma[0]) {
+            val = pci_dev->dev.config[UDIDETCR0];
         } else {
-            val = 0xff;
+            val = pci_dev->dev.config[UDIDETCR1];
         }
         break;
     default:
@@ -120,23 +113,19 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
     switch(addr & 3) {
     case 1:
         pci_dev = bm->pci_dev;
-        if (pci_dev->type == IDE_TYPE_CMD646) {
-            pci_dev->dev.config[MRDMODE] =
-                (pci_dev->dev.config[MRDMODE] & ~0x30) | (val & 0x30);
-            cmd646_update_irq(pci_dev);
-        }
+        pci_dev->dev.config[MRDMODE] =
+            (pci_dev->dev.config[MRDMODE] & ~0x30) | (val & 0x30);
+        cmd646_update_irq(pci_dev);
         break;
     case 2:
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
         break;
     case 3:
         pci_dev = bm->pci_dev;
-        if (pci_dev->type == IDE_TYPE_CMD646) {
-            if (bm == &pci_dev->bmdma[0])
-                pci_dev->dev.config[UDIDETCR0] = val;
-            else
-                pci_dev->dev.config[UDIDETCR1] = val;
-        }
+        if (bm == &pci_dev->bmdma[0])
+            pci_dev->dev.config[UDIDETCR0] = val;
+        else
+            pci_dev->dev.config[UDIDETCR1] = val;
         break;
     }
 }
@@ -211,7 +200,6 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     uint8_t *pci_conf = d->dev.config;
     qemu_irq *irq;
 
-    d->type = IDE_TYPE_CMD646;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CMD);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_CMD_646);
 
