@@ -119,7 +119,8 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "quit the emulator",
-        .mhandler.cmd = do_quit,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_quit,
     },
 
 STEXI

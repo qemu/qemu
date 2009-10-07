@@ -457,7 +457,10 @@ static void do_info_cpu_stats(Monitor *mon)
 }
 #endif
 
-static void do_quit(Monitor *mon, const QDict *qdict)
+/**
+ * do_quit(): Quit QEMU execution
+ */
+static void do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     exit(0);
 }
