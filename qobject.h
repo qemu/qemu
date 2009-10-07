@@ -63,12 +63,10 @@ typedef struct QObject {
 
 /* High-level interface for qobject_incref() */
 #define QINCREF(obj)      \
-    assert(obj != NULL);  \
     qobject_incref(QOBJECT(obj))
 
 /* High-level interface for qobject_decref() */
 #define QDECREF(obj)              \
-    assert(obj != NULL);          \
     qobject_decref(QOBJECT(obj))
 
 /* Initialize an object to default values */
@@ -81,7 +79,8 @@ typedef struct QObject {
  */
 static inline void qobject_incref(QObject *obj)
 {
-    obj->refcnt++;
+    if (obj)
+        obj->refcnt++;
 }
 
 /**
@@ -90,7 +89,7 @@ static inline void qobject_incref(QObject *obj)
  */
 static inline void qobject_decref(QObject *obj)
 {
-    if (--obj->refcnt == 0) {
+    if (obj && --obj->refcnt == 0) {
         assert(obj->type != NULL);
         assert(obj->type->destroy != NULL);
         obj->type->destroy(obj);
