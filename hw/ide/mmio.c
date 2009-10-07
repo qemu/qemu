@@ -43,7 +43,7 @@ typedef struct {
 
 static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
 {
-    MMIOState *s = (MMIOState*)opaque;
+    MMIOState *s = opaque;
     IDEBus *bus = s->bus;
     addr >>= s->shift;
     if (addr & 7)
@@ -55,7 +55,7 @@ static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
 static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
 	uint32_t val)
 {
-    MMIOState *s = (MMIOState*)opaque;
+    MMIOState *s = opaque;
     IDEBus *bus = s->bus;
     addr >>= s->shift;
     if (addr & 7)
@@ -78,7 +78,7 @@ static CPUWriteMemoryFunc * const mmio_ide_writes[] = {
 
 static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
 {
-    MMIOState *s= (MMIOState*)opaque;
+    MMIOState *s= opaque;
     IDEBus *bus = s->bus;
     return ide_status_read(bus, 0);
 }
@@ -86,7 +86,7 @@ static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
 static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
 	uint32_t val)
 {
-    MMIOState *s = (MMIOState*)opaque;
+    MMIOState *s = opaque;
     IDEBus *bus = s->bus;
     ide_cmd_write(bus, 0, val);
 }
