@@ -77,7 +77,6 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
         d->bus[i].bmdma = bm;
-        bm->pci_dev = DO_UPCAST(PCIIDEState, dev, pci_dev);
         bm->bus = d->bus+i;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 

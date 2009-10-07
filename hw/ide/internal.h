@@ -473,7 +473,6 @@ struct BMDMAState {
     uint8_t status;
     uint32_t addr;
 
-    struct PCIIDEState *pci_dev;
     IDEBus *bus;
     /* current transfer state */
     uint32_t cur_addr;
