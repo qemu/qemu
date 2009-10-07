@@ -19,7 +19,7 @@ obj-y += watchdog.o
 obj-$(CONFIG_ECC) += ecc.o
 obj-$(CONFIG_NAND) += nand.o
 
-obj-y += m48t59.o
+obj-$(CONFIG_M48T59) += m48t59.o
 obj-$(CONFIG_ESCC) += escc.o
 
 # PCI watchdog devices
