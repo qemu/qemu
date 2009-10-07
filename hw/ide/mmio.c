@@ -37,31 +37,29 @@
  */
 
 typedef struct {
-    IDEBus *bus;
+    IDEBus bus;
     int shift;
 } MMIOState;
 
 static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
 {
     MMIOState *s = opaque;
-    IDEBus *bus = s->bus;
     addr >>= s->shift;
     if (addr & 7)
-        return ide_ioport_read(bus, addr);
+        return ide_ioport_read(&s->bus, addr);
     else
-        return ide_data_readw(bus, 0);
+        return ide_data_readw(&s->bus, 0);
 }
 
 static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
 	uint32_t val)
 {
     MMIOState *s = opaque;
-    IDEBus *bus = s->bus;
     addr >>= s->shift;
     if (addr & 7)
-        ide_ioport_write(bus, addr, val);
+        ide_ioport_write(&s->bus, addr, val);
     else
-        ide_data_writew(bus, 0, val);
+        ide_data_writew(&s->bus, 0, val);
 }
 
 static CPUReadMemoryFunc * const mmio_ide_reads[] = {
@@ -79,16 +77,14 @@ static CPUWriteMemoryFunc * const mmio_ide_writes[] = {
 static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
 {
     MMIOState *s= opaque;
-    IDEBus *bus = s->bus;
-    return ide_status_read(bus, 0);
+    return ide_status_read(&s->bus, 0);
 }
 
 static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
 	uint32_t val)
 {
     MMIOState *s = opaque;
-    IDEBus *bus = s->bus;
-    ide_cmd_write(bus, 0, val);
+    ide_cmd_write(&s->bus, 0, val);
 }
 
 static CPUReadMemoryFunc * const mmio_ide_status[] = {
@@ -107,18 +103,18 @@ static void mmio_ide_save(QEMUFile* f, void *opaque)
 {
     MMIOState *s = opaque;
 
-    idebus_save(f, s->bus);
-    ide_save(f, &s->bus->ifs[0]);
-    ide_save(f, &s->bus->ifs[1]);
+    idebus_save(f, &s->bus);
+    ide_save(f, &s->bus.ifs[0]);
+    ide_save(f, &s->bus.ifs[1]);
 }
 
 static int mmio_ide_load(QEMUFile* f, void *opaque, int version_id)
 {
     MMIOState *s = opaque;
 
-    idebus_load(f, s->bus, version_id);
-    ide_load(f, &s->bus->ifs[0], version_id);
-    ide_load(f, &s->bus->ifs[1], version_id);
+    idebus_load(f, &s->bus, version_id);
+    ide_load(f, &s->bus.ifs[0], version_id);
+    ide_load(f, &s->bus.ifs[1], version_id);
     return 0;
 }
 
@@ -127,12 +123,10 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     DriveInfo *hd0, DriveInfo *hd1)
 {
     MMIOState *s = qemu_mallocz(sizeof(MMIOState));
-    IDEBus *bus = qemu_mallocz(sizeof(*bus));
     int mem1, mem2;
 
-    ide_init2(bus, hd0, hd1, irq);
+    ide_init2(&s->bus, hd0, hd1, irq);
 
-    s->bus = bus;
     s->shift = shift;
 
     mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s);
