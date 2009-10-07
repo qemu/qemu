@@ -223,6 +223,24 @@ static inline int monitor_handler_ported(const mon_cmd_t *cmd)
     return cmd->user_print != NULL;
 }
 
+static void monitor_print_qobject(Monitor *mon, const QObject *data)
+{
+    switch (qobject_type(data)) {
+        case QTYPE_QSTRING:
+            monitor_printf(mon, "%s",qstring_get_str(qobject_to_qstring(data)));
+            break;
+        case QTYPE_QINT:
+            monitor_printf(mon, "%" PRId64,qint_get_int(qobject_to_qint(data)));
+            break;
+        default:
+            monitor_printf(mon, "ERROR: unsupported type: %d",
+                                                        qobject_type(data));
+            break;
+    }
+
+    monitor_puts(mon, "\n");
+}
+
 static int compare_cmd(const char *name, const char *list)
 {
     const char *p, *pstart;
@@ -322,9 +340,12 @@ help:
     help_cmd(mon, "info");
 }
 
-static void do_info_version(Monitor *mon)
+/**
+ * do_info_version(): Show QEMU version
+ */
+static void do_info_version(Monitor *mon, QObject **ret_data)
 {
-    monitor_printf(mon, "%s\n", QEMU_VERSION QEMU_PKGVERSION);
+    *ret_data = QOBJECT(qstring_from_str(QEMU_VERSION QEMU_PKGVERSION));
 }
 
 static void do_info_name(Monitor *mon)
@@ -1860,7 +1881,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the version of QEMU",
-        .mhandler.info = do_info_version,
+        .user_print = monitor_print_qobject,
+        .mhandler.info_new = do_info_version,
     },
     {
         .name       = "network",
