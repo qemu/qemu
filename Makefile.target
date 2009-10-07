@@ -91,7 +91,7 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
-      elfload.o linuxload.o uaccess.o gdbstub.o gdbstub-xml.o
+      elfload.o linuxload.o uaccess.o gdbstub.o
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
@@ -125,7 +125,7 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o gdbstub-xml.o
+        gdbstub.o
 
 obj-i386-y += ioport-user.o
 
@@ -142,7 +142,7 @@ VPATH+=:$(SRC_PATH)/bsd-user
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-        gdbstub.o gdbstub-xml.o uaccess.o
+        gdbstub.o uaccess.o
 
 obj-i386-y += ioport-user.o
 
@@ -155,7 +155,7 @@ endif #CONFIG_BSD_USER
 ifdef CONFIG_SOFTMMU
 
 obj-y = vl.o monitor.o pci.o isa_mmio.o machine.o \
-        gdbstub.o gdbstub-xml.o
+        gdbstub.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o virtio-pci.o
@@ -306,16 +306,14 @@ ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # CONFIG_SOFTMMU
 
+obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
+
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) $(ARLIBS)
 	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
 
 
 gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
-ifeq ($(TARGET_XML_FILES),)
-	$(call quiet-command,rm -f $@ && echo > $@,"  GEN   $(TARGET_DIR)$@")
-else
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
-endif
 
 qemu-options.h: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")

@@ -2302,8 +2302,8 @@ if test ! -z "$gdb_xml_files" ; then
   for x in $gdb_xml_files; do
     list="$list $source_path/gdb-xml/$x"
   done
+  echo "TARGET_XML_FILES=$list" >> $config_target_mak
 fi
-echo "TARGET_XML_FILES=$list" >> $config_target_mak
 
 case "$target_arch2" in
   arm|armeb|m68k|microblaze|mips|mipsel|mipsn32|mipsn32el|mips64|mips64el|ppc|ppc64|ppc64abi32|ppcemb|sparc|sparc64|sparc32plus)
