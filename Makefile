@@ -115,6 +115,7 @@ obj-y += scsi-disk.o cdrom.o
 obj-y += scsi-generic.o scsi-bus.o
 obj-y += usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
 obj-y += usb-serial.o usb-net.o usb-bus.o
+obj-$(CONFIG_SSI) += ssi.o
 obj-$(CONFIG_SSI_SD) += ssi-sd.o
 obj-$(CONFIG_SD) += sd.o
 obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
@@ -122,7 +123,7 @@ obj-y += bt-hci-csr.o
 obj-y += buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 obj-y += qemu-char.o aio.o net-checksum.o savevm.o
 obj-y += msmouse.o ps2.o
-obj-y += qdev.o qdev-properties.o ssi.o
+obj-y += qdev.o qdev-properties.o
 obj-y += qint.o qstring.o qdict.o qemu-config.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
