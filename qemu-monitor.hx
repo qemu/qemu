@@ -874,7 +874,8 @@ ETEXI
         .args_type  = "value:i",
         .params     = "target",
         .help       = "request VM to change it's memory allocation (in MB)",
-        .mhandler.cmd = do_balloon,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_balloon,
     },
 
 STEXI

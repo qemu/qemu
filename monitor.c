@@ -1602,8 +1602,10 @@ static void do_info_status(Monitor *mon)
        monitor_printf(mon, "VM status: paused\n");
 }
 
-
-static void do_balloon(Monitor *mon, const QDict *qdict)
+/**
+ * do_balloon(): Request VM to change its memory allocation
+ */
+static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int value = qdict_get_int(qdict, "value");
     ram_addr_t target = value;
