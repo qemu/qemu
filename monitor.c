@@ -3470,7 +3470,7 @@ static void monitor_event(void *opaque, int event)
         mon->mux_out = 1;
         break;
 
-    case CHR_EVENT_RESET:
+    case CHR_EVENT_OPENED:
         monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
                        "information\n", QEMU_VERSION);
         if (!mon->mux_out) {

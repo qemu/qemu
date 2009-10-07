@@ -475,7 +475,7 @@ static void baum_send_event(CharDriverState *chr, int event)
     switch (event) {
     case CHR_EVENT_BREAK:
         break;
-    case CHR_EVENT_RESET:
+    case CHR_EVENT_OPENED:
         /* Reset state */
         baum->in_buf_used = 0;
         break;

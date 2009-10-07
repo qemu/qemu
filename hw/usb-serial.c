@@ -516,7 +516,7 @@ static void usb_serial_event(void *opaque, int event)
             break;
         case CHR_EVENT_FOCUS:
             break;
-        case CHR_EVENT_RESET:
+        case CHR_EVENT_OPENED:
             usb_serial_reset(s);
             /* TODO: Reset USB port */
             break;
