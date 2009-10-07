@@ -512,6 +512,16 @@ static inline void ide_set_irq(IDEBus *bus)
 }
 
 /* hw/ide/core.c */
+extern const VMStateDescription vmstate_ide_bus;
+
+#define VMSTATE_IDE_BUS(_field, _state)                          \
+    VMSTATE_STRUCT(_field, _state, 1, vmstate_ide_bus, IDEBus)
+
+extern const VMStateDescription vmstate_ide_drive;
+
+#define VMSTATE_IDE_DRIVES(_field, _state) \
+    VMSTATE_STRUCT_ARRAY(_field, _state, 2, 3, vmstate_ide_drive, IDEState)
+
 void ide_save(QEMUFile* f, IDEState *s);
 void ide_load(QEMUFile* f, IDEState *s, int version_id);
 void idebus_save(QEMUFile* f, IDEBus *bus);
