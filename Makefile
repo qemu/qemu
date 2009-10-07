@@ -5,6 +5,9 @@ ifneq ($(wildcard config-host.mak),)
 all: build-all
 include config-host.mak
 include $(SRC_PATH)/rules.mak
+config-host.mak: configure
+	@echo $@ is out-of-date, running configure
+	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
 else
 config-host.mak:
 	@echo "Please call configure before running make!"
@@ -33,12 +36,6 @@ SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
 
 build-all: config-host.h
 	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) $(TOOLS) $(DOCS) recurse-all,)
-
-config-host.mak: configure
-ifneq ($(wildcard config-host.mak),)
-	@echo $@ is out-of-date, running configure
-	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
-endif
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
