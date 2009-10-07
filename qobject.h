@@ -40,6 +40,7 @@ typedef enum {
     QTYPE_QINT,
     QTYPE_QSTRING,
     QTYPE_QDICT,
+    QTYPE_QLIST,
 } qtype_code;
 
 struct QObject;
