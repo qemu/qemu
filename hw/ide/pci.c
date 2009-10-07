@@ -413,16 +413,11 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
         pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
-    pci_register_bar((PCIDevice *)d, 0, 0x8,
-                     PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar((PCIDevice *)d, 1, 0x4,
-                     PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar((PCIDevice *)d, 2, 0x8,
-                     PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar((PCIDevice *)d, 3, 0x4,
-                     PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar((PCIDevice *)d, 4, 0x10,
-                     PCI_ADDRESS_SPACE_IO, bmdma_map);
+    pci_register_bar(dev, 0, 0x8, PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 1, 0x4, PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 2, 0x8, PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 3, 0x4, PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 4, 0x10, PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 
@@ -477,8 +472,7 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
     qemu_register_reset(piix3_reset, d);
     piix3_reset(d);
 
-    pci_register_bar((PCIDevice *)d, 4, 0x10,
-                     PCI_ADDRESS_SPACE_IO, bmdma_map);
+    pci_register_bar(&d->dev, 4, 0x10, PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     register_savevm("ide", 0, 3, pci_ide_save, pci_ide_load, d);
 
