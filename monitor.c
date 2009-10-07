@@ -73,6 +73,7 @@ typedef struct mon_cmd_t {
     const char *args_type;
     const char *params;
     const char *help;
+    void (*user_print)(Monitor *mon, const QObject *data);
     union {
         void (*info)(Monitor *mon);
         void (*cmd)(Monitor *mon, const QDict *qdict);
