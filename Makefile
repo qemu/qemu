@@ -29,7 +29,10 @@ else
 DOCS=
 endif
 
-build-all: $(TOOLS) $(DOCS) recurse-all
+SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
+
+build-all: config-host.h
+	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) $(TOOLS) $(DOCS) recurse-all,)
 
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
@@ -37,10 +40,12 @@ ifneq ($(wildcard config-host.mak),)
 	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
 endif
 
-SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
+config-host.h: config-host.h-timestamp
+config-host.h-timestamp: config-host.mak
+
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
-subdir-%:
+subdir-%: config-host.h
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
@@ -200,7 +205,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi
+	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS) libhw32 libhw64 libuser; do \
 	rm -rf $$d || exit 1 ; \
