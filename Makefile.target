@@ -30,7 +30,10 @@ kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
-all: config-target.h
+config-devices.h: config-devices.h-timestamp
+config-devices.h-timestamp: config-devices.mak
+
+all: config-target.h config-devices.h
 	$(call quiet-command, $(MAKE) $(PROGS),)
 
 # Dummy command so that make thinks it has done something

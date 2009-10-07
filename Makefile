@@ -40,15 +40,18 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 
 -include config-all-devices.mak
 
-build-all: config-host.h
+build-all: config-host.h config-all-devices.h
 	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) $(TOOLS) $(DOCS) recurse-all,)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
 
+config-all-devices.h: config-all-devices.h-timestamp
+config-all-devices.h-timestamp: config-all-devices.mak
+
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
-subdir-%: config-host.h
+subdir-%: config-host.h config-all-devices.h
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
