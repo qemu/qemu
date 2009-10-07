@@ -2654,16 +2654,26 @@ void ide_load(QEMUFile* f, IDEState *s, int version_id)
     /* XXX: if a transfer is pending, we do not save it yet */
 }
 
+const VMStateDescription vmstate_ide_bus = {
+    .name = "ide_bus",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(cmd, IDEBus),
+        VMSTATE_UINT8(unit, IDEBus),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 void idebus_save(QEMUFile* f, IDEBus *bus)
 {
-    qemu_put_8s(f, &bus->cmd);
-    qemu_put_8s(f, &bus->unit);
+    vmstate_save_state(f, &vmstate_ide_bus, bus);
 }
 
 void idebus_load(QEMUFile* f, IDEBus *bus, int version_id)
 {
-    qemu_get_8s(f, &bus->cmd);
-    qemu_get_8s(f, &bus->unit);
+    vmstate_load_state(f, &vmstate_ide_bus, bus, vmstate_ide_bus.version_id);
 }
 
 /***********************************************************/
