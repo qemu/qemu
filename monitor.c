@@ -74,6 +74,9 @@ typedef struct mon_cmd_t {
     void *handler;
     const char *params;
     const char *help;
+    union {
+        void (*info)(Monitor *mon);
+    } mhandler;
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -283,7 +286,6 @@ static void do_info(Monitor *mon, const QDict *qdict)
 {
     const mon_cmd_t *cmd;
     const char *item = qdict_get_try_str(qdict, "item");
-    void (*handler)(Monitor *);
 
     if (!item)
         goto help;
@@ -295,8 +297,7 @@ static void do_info(Monitor *mon, const QDict *qdict)
     help_cmd(mon, "info");
     return;
  found:
-    handler = cmd->handler;
-    handler(mon);
+    cmd->mhandler.info(mon);
 }
 
 static void do_info_version(Monitor *mon)
@@ -1816,255 +1817,255 @@ static const mon_cmd_t info_cmds[] = {
     {
         .name       = "version",
         .args_type  = "",
-        .handler    = do_info_version,
         .params     = "",
         .help       = "show the version of QEMU",
+        .mhandler.info = do_info_version,
     },
     {
         .name       = "network",
         .args_type  = "",
-        .handler    = do_info_network,
         .params     = "",
         .help       = "show the network state",
+        .mhandler.info = do_info_network,
     },
     {
         .name       = "chardev",
         .args_type  = "",
-        .handler    = qemu_chr_info,
         .params     = "",
         .help       = "show the character devices",
+        .mhandler.info = qemu_chr_info,
     },
     {
         .name       = "block",
         .args_type  = "",
-        .handler    = bdrv_info,
         .params     = "",
         .help       = "show the block devices",
+        .mhandler.info = bdrv_info,
     },
     {
         .name       = "blockstats",
         .args_type  = "",
-        .handler    = bdrv_info_stats,
         .params     = "",
         .help       = "show block device statistics",
+        .mhandler.info = bdrv_info_stats,
     },
     {
         .name       = "registers",
         .args_type  = "",
-        .handler    = do_info_registers,
         .params     = "",
         .help       = "show the cpu registers",
+        .mhandler.info = do_info_registers,
     },
     {
         .name       = "cpus",
         .args_type  = "",
-        .handler    = do_info_cpus,
         .params     = "",
         .help       = "show infos for each CPU",
+        .mhandler.info = do_info_cpus,
     },
     {
         .name       = "history",
         .args_type  = "",
-        .handler    = do_info_history,
         .params     = "",
         .help       = "show the command line history",
+        .mhandler.info = do_info_history,
     },
     {
         .name       = "irq",
         .args_type  = "",
-        .handler    = irq_info,
         .params     = "",
         .help       = "show the interrupts statistics (if available)",
+        .mhandler.info = irq_info,
     },
     {
         .name       = "pic",
         .args_type  = "",
-        .handler    = pic_info,
         .params     = "",
         .help       = "show i8259 (PIC) state",
+        .mhandler.info = pic_info,
     },
     {
         .name       = "pci",
         .args_type  = "",
-        .handler    = pci_info,
         .params     = "",
         .help       = "show PCI info",
+        .mhandler.info = pci_info,
     },
 #if defined(TARGET_I386) || defined(TARGET_SH4)
     {
         .name       = "tlb",
         .args_type  = "",
-        .handler    = tlb_info,
         .params     = "",
         .help       = "show virtual to physical memory mappings",
+        .mhandler.info = tlb_info,
     },
 #endif
 #if defined(TARGET_I386)
     {
         .name       = "mem",
         .args_type  = "",
-        .handler    = mem_info,
         .params     = "",
         .help       = "show the active virtual memory mappings",
+        .mhandler.info = mem_info,
     },
     {
         .name       = "hpet",
         .args_type  = "",
-        .handler    = do_info_hpet,
         .params     = "",
         .help       = "show state of HPET",
+        .mhandler.info = do_info_hpet,
     },
 #endif
     {
         .name       = "jit",
         .args_type  = "",
-        .handler    = do_info_jit,
         .params     = "",
         .help       = "show dynamic compiler info",
+        .mhandler.info = do_info_jit,
     },
     {
         .name       = "kvm",
         .args_type  = "",
-        .handler    = do_info_kvm,
         .params     = "",
         .help       = "show KVM information",
+        .mhandler.info = do_info_kvm,
     },
     {
         .name       = "numa",
         .args_type  = "",
-        .handler    = do_info_numa,
         .params     = "",
         .help       = "show NUMA information",
+        .mhandler.info = do_info_numa,
     },
     {
         .name       = "usb",
         .args_type  = "",
-        .handler    = usb_info,
         .params     = "",
         .help       = "show guest USB devices",
+        .mhandler.info = usb_info,
     },
     {
         .name       = "usbhost",
         .args_type  = "",
-        .handler    = usb_host_info,
         .params     = "",
         .help       = "show host USB devices",
+        .mhandler.info = usb_host_info,
     },
     {
         .name       = "profile",
         .args_type  = "",
-        .handler    = do_info_profile,
         .params     = "",
         .help       = "show profiling information",
+        .mhandler.info = do_info_profile,
     },
     {
         .name       = "capture",
         .args_type  = "",
-        .handler    = do_info_capture,
         .params     = "",
         .help       = "show capture information",
+        .mhandler.info = do_info_capture,
     },
     {
         .name       = "snapshots",
         .args_type  = "",
-        .handler    = do_info_snapshots,
         .params     = "",
         .help       = "show the currently saved VM snapshots",
+        .mhandler.info = do_info_snapshots,
     },
     {
         .name       = "status",
         .args_type  = "",
-        .handler    = do_info_status,
         .params     = "",
         .help       = "show the current VM status (running|paused)",
+        .mhandler.info = do_info_status,
     },
     {
         .name       = "pcmcia",
         .args_type  = "",
-        .handler    = pcmcia_info,
         .params     = "",
         .help       = "show guest PCMCIA status",
+        .mhandler.info = pcmcia_info,
     },
     {
         .name       = "mice",
         .args_type  = "",
-        .handler    = do_info_mice,
         .params     = "",
         .help       = "show which guest mouse is receiving events",
+        .mhandler.info = do_info_mice,
     },
     {
         .name       = "vnc",
         .args_type  = "",
-        .handler    = do_info_vnc,
         .params     = "",
         .help       = "show the vnc server status",
+        .mhandler.info = do_info_vnc,
     },
     {
         .name       = "name",
         .args_type  = "",
-        .handler    = do_info_name,
         .params     = "",
         .help       = "show the current VM name",
+        .mhandler.info = do_info_name,
     },
     {
         .name       = "uuid",
         .args_type  = "",
-        .handler    = do_info_uuid,
         .params     = "",
         .help       = "show the current VM UUID",
+        .mhandler.info = do_info_uuid,
     },
 #if defined(TARGET_PPC)
     {
         .name       = "cpustats",
         .args_type  = "",
-        .handler    = do_info_cpu_stats,
         .params     = "",
         .help       = "show CPU statistics",
+        .mhandler.info = do_info_cpu_stats,
     },
 #endif
 #if defined(CONFIG_SLIRP)
     {
         .name       = "usernet",
         .args_type  = "",
-        .handler    = do_info_usernet,
         .params     = "",
         .help       = "show user network stack connection states",
+        .mhandler.info = do_info_usernet,
     },
 #endif
     {
         .name       = "migrate",
         .args_type  = "",
-        .handler    = do_info_migrate,
         .params     = "",
         .help       = "show migration status",
+        .mhandler.info = do_info_migrate,
     },
     {
         .name       = "balloon",
         .args_type  = "",
-        .handler    = do_info_balloon,
         .params     = "",
         .help       = "show balloon information",
+        .mhandler.info = do_info_balloon,
     },
     {
         .name       = "qtree",
         .args_type  = "",
-        .handler    = do_info_qtree,
         .params     = "",
         .help       = "show device tree",
+        .mhandler.info = do_info_qtree,
     },
     {
         .name       = "qdm",
         .args_type  = "",
-        .handler    = do_info_qdm,
         .params     = "",
         .help       = "show qdev device model list",
+        .mhandler.info = do_info_qdm,
     },
     {
         .name       = "roms",
         .args_type  = "",
-        .handler    = do_info_roms,
         .params     = "",
         .help       = "show roms",
+        .mhandler.info = do_info_roms,
     },
     {
         .name       = NULL,
