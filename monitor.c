@@ -1633,7 +1633,16 @@ static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
     qemu_balloon(target << 20);
 }
 
-static void do_info_balloon(Monitor *mon)
+static void monitor_print_balloon(Monitor *mon, const QObject *data)
+{
+    monitor_printf(mon, "balloon: actual=%d\n",
+                                     (int)qint_get_int(qobject_to_qint(data)));
+}
+
+/**
+ * do_info_balloon(): Balloon information
+ */
+static void do_info_balloon(Monitor *mon, QObject **ret_data)
 {
     ram_addr_t actual;
 
@@ -1644,7 +1653,7 @@ static void do_info_balloon(Monitor *mon)
     else if (actual == 0)
         monitor_printf(mon, "Ballooning not activated in VM\n");
     else
-        monitor_printf(mon, "balloon: actual=%d\n", (int)(actual >> 20));
+        *ret_data = QOBJECT(qint_from_int((int)(actual >> 20)));
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
@@ -2107,7 +2116,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show balloon information",
-        .mhandler.info = do_info_balloon,
+        .user_print = monitor_print_balloon,
+        .mhandler.info_new = do_info_balloon,
     },
     {
         .name       = "qtree",
