@@ -501,67 +501,46 @@ static void rtc_set_date_from_host(RTCState *s)
     rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
 }
 
-static void rtc_save(QEMUFile *f, void *opaque)
+static int rtc_post_load(void *opaque, int version_id)
 {
+#ifdef TARGET_I386
     RTCState *s = opaque;
-
-    qemu_put_buffer(f, s->cmos_data, 128);
-    qemu_put_8s(f, &s->cmos_index);
-
-    qemu_put_be32(f, s->current_tm.tm_sec);
-    qemu_put_be32(f, s->current_tm.tm_min);
-    qemu_put_be32(f, s->current_tm.tm_hour);
-    qemu_put_be32(f, s->current_tm.tm_wday);
-    qemu_put_be32(f, s->current_tm.tm_mday);
-    qemu_put_be32(f, s->current_tm.tm_mon);
-    qemu_put_be32(f, s->current_tm.tm_year);
-
-    qemu_put_timer(f, s->periodic_timer);
-    qemu_put_be64(f, s->next_periodic_time);
-
-    qemu_put_be64(f, s->next_second_time);
-    qemu_put_timer(f, s->second_timer);
-    qemu_put_timer(f, s->second_timer2);
-    qemu_put_be32(f, s->irq_coalesced);
-    qemu_put_be32(f, s->period);
-}
-
-static int rtc_load(QEMUFile *f, void *opaque, int version_id)
-{
-    RTCState *s = opaque;
-
-    if (version_id < 1 || version_id > 2)
-        return -EINVAL;
-
-    qemu_get_buffer(f, s->cmos_data, 128);
-    qemu_get_8s(f, &s->cmos_index);
-
-    s->current_tm.tm_sec=qemu_get_be32(f);
-    s->current_tm.tm_min=qemu_get_be32(f);
-    s->current_tm.tm_hour=qemu_get_be32(f);
-    s->current_tm.tm_wday=qemu_get_be32(f);
-    s->current_tm.tm_mday=qemu_get_be32(f);
-    s->current_tm.tm_mon=qemu_get_be32(f);
-    s->current_tm.tm_year=qemu_get_be32(f);
-
-    qemu_get_timer(f, s->periodic_timer);
-    s->next_periodic_time=qemu_get_be64(f);
-
-    s->next_second_time=qemu_get_be64(f);
-    qemu_get_timer(f, s->second_timer);
-    qemu_get_timer(f, s->second_timer2);
 
     if (version_id >= 2) {
-        s->irq_coalesced = qemu_get_be32(f);
-        s->period = qemu_get_be32(f);
-#ifdef TARGET_I386
         if (rtc_td_hack) {
             rtc_coalesced_timer_update(s);
         }
-#endif
     }
+#endif
     return 0;
 }
+
+static const VMStateDescription vmstate_rtc = {
+    .name = "mc146818rtc",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = rtc_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_BUFFER(cmos_data, RTCState),
+        VMSTATE_UINT8(cmos_index, RTCState),
+        VMSTATE_INT32(current_tm.tm_sec, RTCState),
+        VMSTATE_INT32(current_tm.tm_min, RTCState),
+        VMSTATE_INT32(current_tm.tm_hour, RTCState),
+        VMSTATE_INT32(current_tm.tm_wday, RTCState),
+        VMSTATE_INT32(current_tm.tm_mday, RTCState),
+        VMSTATE_INT32(current_tm.tm_mon, RTCState),
+        VMSTATE_INT32(current_tm.tm_year, RTCState),
+        VMSTATE_TIMER(periodic_timer, RTCState),
+        VMSTATE_INT64(next_periodic_time, RTCState),
+        VMSTATE_INT64(next_second_time, RTCState),
+        VMSTATE_TIMER(second_timer, RTCState),
+        VMSTATE_TIMER(second_timer2, RTCState),
+        VMSTATE_UINT32_V(irq_coalesced, RTCState, 2),
+        VMSTATE_UINT32_V(period, RTCState, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void rtc_reset(void *opaque)
 {
@@ -609,7 +588,7 @@ static int rtc_initfn(ISADevice *dev)
     register_ioport_write(base, 2, 1, cmos_ioport_write, s);
     register_ioport_read(base, 2, 1, cmos_ioport_read, s);
 
-    register_savevm("mc146818rtc", base, 2, rtc_save, rtc_load, s);
+    vmstate_register(base, &vmstate_rtc, s);
     qemu_register_reset(rtc_reset, s);
     return 0;
 }
@@ -741,7 +720,7 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     io_memory = cpu_register_io_memory(rtc_mm_read, rtc_mm_write, s);
     cpu_register_physical_memory(base, 2 << it_shift, io_memory);
 
-    register_savevm("mc146818rtc", base, 2, rtc_save, rtc_load, s);
+    vmstate_register(base, &vmstate_rtc, s);
     qemu_register_reset(rtc_reset, s);
     return s;
 }
