@@ -2643,17 +2643,6 @@ const VMStateDescription vmstate_ide_drive = {
     }
 };
 
-void ide_save(QEMUFile* f, IDEState *s)
-{
-    vmstate_save_state(f, &vmstate_ide_drive, s);
-}
-
-void ide_load(QEMUFile* f, IDEState *s, int version_id)
-{
-    vmstate_load_state(f, &vmstate_ide_drive, s, vmstate_ide_drive.version_id);
-}
-
-
 const VMStateDescription vmstate_ide_bus = {
     .name = "ide_bus",
     .version_id = 1,
@@ -2665,16 +2654,6 @@ const VMStateDescription vmstate_ide_bus = {
         VMSTATE_END_OF_LIST()
     }
 };
-
-void idebus_save(QEMUFile* f, IDEBus *bus)
-{
-    vmstate_save_state(f, &vmstate_ide_bus, bus);
-}
-
-void idebus_load(QEMUFile* f, IDEBus *bus, int version_id)
-{
-    vmstate_load_state(f, &vmstate_ide_bus, bus, vmstate_ide_bus.version_id);
-}
 
 /***********************************************************/
 /* PCI IDE definitions */
