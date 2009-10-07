@@ -31,7 +31,7 @@
 #include "sysemu.h"
 #include "dma.h"
 
-#include <hw/ide/internal.h>
+#include <hw/ide/pci.h>
 
 /***********************************************************/
 /* PCI IDE definitions */
@@ -44,18 +44,6 @@
 #define   MRDMODE_BLK_CH1	0x20
 #define UDIDETCR0	0x73
 #define UDIDETCR1	0x7B
-
-#define IDE_TYPE_PIIX3   0
-#define IDE_TYPE_CMD646  1
-#define IDE_TYPE_PIIX4   2
-
-typedef struct PCIIDEState {
-    PCIDevice dev;
-    IDEBus bus[2];
-    BMDMAState bmdma[2];
-    int type; /* see IDE_TYPE_xxx */
-    uint32_t secondary;
-} PCIIDEState;
 
 static void cmd646_update_irq(PCIIDEState *d);
 
