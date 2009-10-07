@@ -74,7 +74,7 @@ typedef struct HPETState {
     uint64_t hpet_counter;      /* main counter */
 } HPETState;
 
-#if defined TARGET_I386 || defined TARGET_X86_64
+#if defined TARGET_I386
 extern uint32_t hpet_in_legacy_mode(void);
 extern void hpet_init(qemu_irq *irq);
 #endif
