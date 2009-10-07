@@ -46,6 +46,7 @@
 #include "kvm.h"
 #include "acl.h"
 #include "qint.h"
+#include "qlist.h"
 #include "qdict.h"
 #include "qstring.h"
 
@@ -409,33 +410,98 @@ static void do_info_registers(Monitor *mon)
 #endif
 }
 
-static void do_info_cpus(Monitor *mon)
+static void print_cpu_iter(QObject *obj, void *opaque)
+{
+    QDict *cpu;
+    int active = ' ';
+    Monitor *mon = opaque;
+
+    assert(qobject_type(obj) == QTYPE_QDICT);
+    cpu = qobject_to_qdict(obj);
+
+    if (strcmp(qdict_get_str(cpu, "current"), "yes") == 0)
+        active = '*';
+
+    monitor_printf(mon, "%c CPU #%d: ", active, (int)qdict_get_int(cpu, "CPU"));
+
+#if defined(TARGET_I386)
+    monitor_printf(mon, "pc=0x" TARGET_FMT_lx,
+                   (target_ulong) qdict_get_int(cpu, "pc"));
+#elif defined(TARGET_PPC)
+    monitor_printf(mon, "nip=0x" TARGET_FMT_lx,
+                   (target_long) qdict_get_int(cpu, "nip"));
+#elif defined(TARGET_SPARC)
+    monitor_printf(mon, "pc=0x " TARGET_FMT_lx,
+                   (target_long) qdict_get_int(cpu, "pc"));
+    monitor_printf(mon, "npc=0x" TARGET_FMT_lx,
+                   (target_long) qdict_get_int(cpu, "npc"));
+#elif defined(TARGET_MIPS)
+    monitor_printf(mon, "PC=0x" TARGET_FMT_lx,
+                   (target_long) qdict_get_int(cpu, "PC"));
+#endif
+
+    if (strcmp(qdict_get_str(cpu, "halted"), "yes") == 0)
+        monitor_printf(mon, " (halted)");
+
+    monitor_printf(mon, "\n");
+}
+
+static void monitor_print_cpus(Monitor *mon, const QObject *data)
+{
+    QList *cpu_list;
+
+    assert(qobject_type(data) == QTYPE_QLIST);
+    cpu_list = qobject_to_qlist(data);
+    qlist_iter(cpu_list, print_cpu_iter, mon);
+}
+
+/**
+ * do_info_cpus(): Show CPU information
+ *
+ * Return a QList with a QDict for each CPU.
+ *
+ * For example:
+ *
+ * [ { "CPU": 0, "current": "yes", "pc": 0x..., "halted": "no" },
+ *   { "CPU": 1, "current": "no",  "pc": 0x..., "halted": "yes" } ]
+ */
+static void do_info_cpus(Monitor *mon, QObject **ret_data)
 {
     CPUState *env;
+    QList *cpu_list;
+
+    cpu_list = qlist_new();
 
     /* just to set the default cpu if not already done */
     mon_get_cpu();
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        const char *answer;
+        QDict *cpu = qdict_new();
+
         cpu_synchronize_state(env);
-        monitor_printf(mon, "%c CPU #%d:",
-                       (env == mon->mon_cpu) ? '*' : ' ',
-                       env->cpu_index);
+
+        qdict_put(cpu, "CPU", qint_from_int(env->cpu_index));
+        answer = (env == mon->mon_cpu) ? "yes" : "no";
+        qdict_put(cpu, "current", qstring_from_str(answer));
+
 #if defined(TARGET_I386)
-        monitor_printf(mon, " pc=0x" TARGET_FMT_lx,
-                       env->eip + env->segs[R_CS].base);
+        qdict_put(cpu, "pc", qint_from_int(env->eip + env->segs[R_CS].base));
 #elif defined(TARGET_PPC)
-        monitor_printf(mon, " nip=0x" TARGET_FMT_lx, env->nip);
+        qdict_put(cpu, "nip", qint_from_int(env->nip));
 #elif defined(TARGET_SPARC)
-        monitor_printf(mon, " pc=0x" TARGET_FMT_lx " npc=0x" TARGET_FMT_lx,
-                       env->pc, env->npc);
+        qdict_put(cpu, "pc", qint_from_int(env->pc));
+        qdict_put(cpu, "npc", qint_from_int(env->npc));
 #elif defined(TARGET_MIPS)
-        monitor_printf(mon, " PC=0x" TARGET_FMT_lx, env->active_tc.PC);
+        qdict_put(cpu, "PC", qint_from_int(env->active_tc.PC));
 #endif
-        if (env->halted)
-            monitor_printf(mon, " (halted)");
-        monitor_printf(mon, "\n");
+        answer = env->halted ? "yes" : "no";
+        qdict_put(cpu, "halted", qstring_from_str(answer));
+
+        qlist_append(cpu_list, cpu);
     }
+
+    *ret_data = QOBJECT(cpu_list);
 }
 
 static void do_cpu_set(Monitor *mon, const QDict *qdict)
@@ -1933,7 +1999,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show infos for each CPU",
-        .mhandler.info = do_info_cpus,
+        .user_print = monitor_print_cpus,
+        .mhandler.info_new = do_info_cpus,
     },
     {
         .name       = "history",
