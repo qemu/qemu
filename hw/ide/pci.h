@@ -7,7 +7,7 @@ typedef struct PCIIDEState {
     PCIDevice dev;
     IDEBus bus[2];
     BMDMAState bmdma[2];
-    uint32_t secondary;
+    uint32_t secondary; /* used only for cmd646 */
 } PCIIDEState;
 
 void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val);
