@@ -108,7 +108,6 @@
 
 static QTAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs =
     QTAILQ_HEAD_INITIALIZER(chardevs);
-static int initial_reset_issued;
 
 static void qemu_chr_event(CharDriverState *s, int event)
 {
@@ -127,7 +126,7 @@ static void qemu_chr_reset_bh(void *opaque)
 
 void qemu_chr_reset(CharDriverState *s)
 {
-    if (s->bh == NULL && initial_reset_issued) {
+    if (s->bh == NULL) {
 	s->bh = qemu_bh_new(qemu_chr_reset_bh, s);
 	qemu_bh_schedule(s->bh);
     }
@@ -136,8 +135,6 @@ void qemu_chr_reset(CharDriverState *s)
 void qemu_chr_initial_reset(void)
 {
     CharDriverState *chr;
-
-    initial_reset_issued = 1;
 
     QTAILQ_FOREACH(chr, &chardevs, next) {
         qemu_chr_reset(chr);
