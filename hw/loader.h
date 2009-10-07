@@ -15,7 +15,8 @@ int load_uimage(const char *filename, target_phys_addr_t *ep,
 
 int read_targphys(const char *name,
                   int fd, target_phys_addr_t dst_addr, size_t nbytes);
-void pstrcpy_targphys(target_phys_addr_t dest, int buf_size,
+void pstrcpy_targphys(const char *name,
+                      target_phys_addr_t dest, int buf_size,
                       const char *source);
 
 int rom_add_file(const char *file,
@@ -23,6 +24,7 @@ int rom_add_file(const char *file,
 int rom_add_blob(const char *name, const void *blob, size_t len,
                  target_phys_addr_t min, target_phys_addr_t max, int align);
 int rom_load_all(void);
+void *rom_ptr(target_phys_addr_t addr);
 void do_info_roms(Monitor *mon);
 
 #define rom_add_file_fixed(_f, _a)              \

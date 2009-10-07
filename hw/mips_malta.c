@@ -679,7 +679,7 @@ static void prom_set(int index, const char *string, ...)
     va_start(ap, string);
     vsnprintf(buf, ENVP_ENTRY_SIZE, string, ap);
     va_end(ap);
-    pstrcpy_targphys(table_addr + VIRT_TO_PHYS_ADDEND, ENVP_ENTRY_SIZE, buf);
+    pstrcpy_targphys("prom", table_addr + VIRT_TO_PHYS_ADDEND, ENVP_ENTRY_SIZE, buf);
 }
 
 /* Kernel */
