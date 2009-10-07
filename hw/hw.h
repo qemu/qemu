@@ -464,6 +464,15 @@ extern const VMStateInfo vmstate_info_buffer;
         + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
 }
 
+#define VMSTATE_STATIC_BUFFER_TEST(_field, _state, _test) {          \
+    .name         = (stringify(_field)),                             \
+    .field_exists = (_test),                                         \
+    .size         = sizeof(typeof_field(_state,_field)),             \
+    .info         = &vmstate_info_buffer,                            \
+    .flags        = VMS_BUFFER,                                      \
+    .offset       = offsetof(_state, _field)                         \
+        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+}
 #define VMSTATE_BUFFER_START_MIDDLE(_field, _state, start) {         \
     .name       = (stringify(_field)),                               \
     .size       = sizeof(typeof_field(_state,_field)) - start,       \
@@ -612,6 +621,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_BUFFER(_f, _s)                                        \
     VMSTATE_STATIC_BUFFER(_f, _s, 0)
+
+#define VMSTATE_BUFFER_TEST(_f, _s, _t)                               \
+    VMSTATE_STATIC_BUFFER_TEST(_f, _s, _t)
 
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64
