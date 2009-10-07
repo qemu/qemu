@@ -935,6 +935,7 @@ static void pcnet_start(PCNetState *s)
 
     s->csr[0] &= ~0x0004;       /* clear STOP bit */
     s->csr[0] |= 0x0002;
+    pcnet_poll_timer(s);
 }
 
 static void pcnet_stop(PCNetState *s)
