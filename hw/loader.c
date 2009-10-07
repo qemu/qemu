@@ -559,8 +559,7 @@ int rom_add_file(const char *file,
     rom->name = qemu_strdup(file);
     rom->path = qemu_find_file(QEMU_FILE_TYPE_BIOS, rom->name);
     if (rom->path == NULL) {
-        fprintf(stderr, "Could not find option rom '%s'\n", rom->name);
-        goto err;
+        rom->path = strdup(file);
     }
 
     fd = open(rom->path, O_RDONLY | O_BINARY);
