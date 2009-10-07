@@ -1,5 +1,6 @@
 # -*- Mode: makefile -*-
 
+include ../config-host.mak
 include config.mak
 include $(SRC_PATH)/rules.mak
 
