@@ -220,14 +220,12 @@ typedef enum {
 
 typedef struct {
     PCIDevice dev;
-    uint8_t cmd;
-    uint32_t start;
-    uint32_t stop;
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
     VLANClientState *vc;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
+    /* region must not be saved be nic_save. */
     uint32_t region[3];         /* PCI region addresses */
     uint8_t macaddr[6];
     uint16_t mdimem[32];
@@ -291,7 +289,7 @@ typedef enum {
 
 /* Parameters for nic_save, nic_load. */
 static int eepro100_instance = -1;
-static const int eepro100_version = 20090807;
+static const int eepro100_version = 20091007;
 
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
@@ -1790,8 +1788,9 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
     TRACE(OTHER, logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
           region_num, addr, size, type));
 
-    if (region_num == 0) {
-        /* Map control / status registers. */
+    assert(region_num == 0 || region_num == 2);
+    if (region_num == 0 || region_num == 2) {
+        /* Map control / status registers and flash. */
         cpu_register_physical_memory(addr, size, s->mmio_index);
         s->region[region_num] = addr;
     }
@@ -1950,18 +1949,12 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
         return ret;
     }
 
-    qemu_get_8s(f, &s->cmd);
-    qemu_get_be32s(f, &s->start);
-    qemu_get_be32s(f, &s->stop);
     qemu_get_buffer(f, s->mult, 8);
     qemu_get_buffer(f, s->mem, sizeof(s->mem));
 
-    /* Restore all members of struct between scv_stat and mem. */
+    /* Restore all members of struct between scb_stat and mem. */
     qemu_get_8s(f, &s->scb_stat);
     qemu_get_8s(f, &s->int_stat);
-    for (i = 0; i < ARRAY_SIZE(s->region); i++) {
-        qemu_get_be32s(f, &s->region[i]);
-    }
     qemu_get_buffer(f, s->macaddr, 6);
     for (i = 0; i < ARRAY_SIZE(s->mdimem); i++) {
         qemu_get_be16s(f, &s->mdimem[i]);
@@ -2013,18 +2006,12 @@ static void nic_save(QEMUFile * f, void *opaque)
 
     pci_device_save(&s->dev, f);
 
-    qemu_put_8s(f, &s->cmd);
-    qemu_put_be32s(f, &s->start);
-    qemu_put_be32s(f, &s->stop);
     qemu_put_buffer(f, s->mult, 8);
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 
-    /* Save all members of struct between scv_stat and mem. */
+    /* Save all members of struct between scb_stat and mem. */
     qemu_put_8s(f, &s->scb_stat);
     qemu_put_8s(f, &s->int_stat);
-    for (i = 0; i < ARRAY_SIZE(s->region); i++) {
-        qemu_put_be32s(f, &s->region[i]);
-    }
     qemu_put_buffer(f, s->macaddr, 6);
     for (i = 0; i < ARRAY_SIZE(s->mdimem); i++) {
         qemu_put_be16s(f, &s->mdimem[i]);
