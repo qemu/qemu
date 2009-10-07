@@ -16,7 +16,8 @@ obj-y += loader.o
 obj-y += virtio.o
 obj-y += fw_cfg.o
 obj-y += watchdog.o
-obj-y += nand.o ecc.o
+obj-y += ecc.o
+obj-$(CONFIG_NAND) += nand.o
 
 obj-y += m48t59.o escc.o
 
