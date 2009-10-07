@@ -99,24 +99,17 @@ static CPUWriteMemoryFunc * const mmio_ide_cmd[] = {
     mmio_ide_cmd_write,
 };
 
-static void mmio_ide_save(QEMUFile* f, void *opaque)
-{
-    MMIOState *s = opaque;
-
-    idebus_save(f, &s->bus);
-    ide_save(f, &s->bus.ifs[0]);
-    ide_save(f, &s->bus.ifs[1]);
-}
-
-static int mmio_ide_load(QEMUFile* f, void *opaque, int version_id)
-{
-    MMIOState *s = opaque;
-
-    idebus_load(f, &s->bus, version_id);
-    ide_load(f, &s->bus.ifs[0], version_id);
-    ide_load(f, &s->bus.ifs[1], version_id);
-    return 0;
-}
+static const VMStateDescription vmstate_ide_mmio = {
+    .name = "mmio-ide",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_IDE_BUS(bus, MMIOState),
+        VMSTATE_IDE_DRIVES(bus.ifs, MMIOState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     qemu_irq irq, int shift,
@@ -133,6 +126,6 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
     mem2 = cpu_register_io_memory(mmio_ide_status, mmio_ide_cmd, s);
     cpu_register_physical_memory(membase, 16 << shift, mem1);
     cpu_register_physical_memory(membase2, 2 << shift, mem2);
-    register_savevm("mmio-ide", 0, 3, mmio_ide_save, mmio_ide_load, s);
+    vmstate_register(0, &vmstate_ide_mmio, s);
 }
 
