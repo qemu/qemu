@@ -2074,7 +2074,6 @@ fi
 for target in $target_list; do
 target_dir="$target"
 config_target_mak=$target_dir/config-target.mak
-config_target_h=$target_dir/config-target.h
 target_arch2=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 case "$target_arch2" in
@@ -2108,10 +2107,6 @@ case "$target" in
     exit 1
     ;;
 esac
-
-#echo "Creating $config_target_mak, $config_target_h and $target_dir/Makefile"
-
-test -f $config_target_h && mv $config_target_h ${config_target_h}~
 
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
@@ -2456,18 +2451,6 @@ fi
 
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
-
-echo "#include \"../config-host.h\"" > $config_target_h
-
-/bin/sh $source_path/create_config < $config_target_mak >> $config_target_h
-
-if test -f ${config_target_h}~ ; then
-  if cmp -s $config_target_h ${config_target_h}~ ; then
-    mv ${config_target_h}~ $config_target_h
-  else
-    rm ${config_target_h}~
-  fi
-fi
 
 done # for target in $targets
 
