@@ -20,12 +20,6 @@ typedef struct IDEDeviceInfo IDEDeviceInfo;
 typedef struct IDEState IDEState;
 typedef struct BMDMAState BMDMAState;
 
-/* debug IDE devices */
-//#define DEBUG_IDE
-//#define DEBUG_IDE_ATAPI
-//#define DEBUG_AIO
-#define USE_DMA_CDROM
-
 /* Bits of HD_STATUS */
 #define ERR_STAT		0x01
 #define INDEX_STAT		0x02
