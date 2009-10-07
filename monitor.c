@@ -77,6 +77,7 @@ typedef struct mon_cmd_t {
     union {
         void (*info)(Monitor *mon);
         void (*cmd)(Monitor *mon, const QDict *qdict);
+        void (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
     } mhandler;
 } mon_cmd_t;
 
@@ -212,6 +213,11 @@ static int monitor_fprintf(FILE *stream, const char *fmt, ...)
     monitor_vprintf((Monitor *)stream, fmt, ap);
     va_end(ap);
     return 0;
+}
+
+static inline int monitor_handler_ported(const mon_cmd_t *cmd)
+{
+    return cmd->user_print != NULL;
 }
 
 static int compare_cmd(const char *name, const char *list)
@@ -3014,12 +3020,26 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
     qdict = qdict_new();
 
     cmd = monitor_parse_command(mon, cmdline, qdict);
-    if (cmd) {
-        qemu_errors_to_mon(mon);
+    if (!cmd)
+        goto out;
+
+    qemu_errors_to_mon(mon);
+
+    if (monitor_handler_ported(cmd)) {
+        QObject *data = NULL;
+
+        cmd->mhandler.cmd_new(mon, qdict, &data);
+        if (data)
+            cmd->user_print(mon, data);
+
+        qobject_decref(data);
+    } else {
         cmd->mhandler.cmd(mon, qdict);
-        qemu_errors_to_previous();
     }
 
+   qemu_errors_to_previous();
+
+out:
     QDECREF(qdict);
 }
 
