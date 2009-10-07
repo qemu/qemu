@@ -383,7 +383,8 @@ static int cpu_post_load(void *opaque, int version_id)
         }
     }
 
-    return cpu_post_load(env, version_id);
+    tlb_flush(env, 1);
+    return 0;
 }
 
 const VMStateDescription vmstate_cpu = {

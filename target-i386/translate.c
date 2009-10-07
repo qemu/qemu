@@ -7306,7 +7306,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 #endif
         {
             int label1;
-            TCGv t0, t1, t2;
+            TCGv t0, t1, t2, a0;
 
             if (!s->pe || s->vm86)
                 goto illegal_op;
@@ -7321,8 +7321,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (mod != 3) {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 gen_op_ld_v(ot + s->mem_index, t0, cpu_A0);
+                a0 = tcg_temp_local_new();
+                tcg_gen_mov_tl(a0, cpu_A0);
             } else {
                 gen_op_mov_v_reg(ot, t0, rm);
+                TCGV_UNUSED(a0);
             }
             gen_op_mov_v_reg(ot, t1, reg);
             tcg_gen_andi_tl(cpu_tmp0, t0, 3);
@@ -7335,8 +7338,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             tcg_gen_movi_tl(t2, CC_Z);
             gen_set_label(label1);
             if (mod != 3) {
-                gen_op_st_v(ot + s->mem_index, t0, cpu_A0);
-            } else {
+                gen_op_st_v(ot + s->mem_index, t0, a0);
+                tcg_temp_free(a0);
+           } else {
                 gen_op_mov_reg_v(ot, rm, t0);
             }
             if (s->cc_op != CC_OP_DYNAMIC)

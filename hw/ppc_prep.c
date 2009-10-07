@@ -692,7 +692,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         nb_nics1 = NE2000_NB_MAX;
     for(i = 0; i < nb_nics1; i++) {
         if (nd_table[i].model == NULL) {
-	    nd_table[i].model = "ne2k_isa";
+	    nd_table[i].model = qemu_strdup("ne2k_isa");
         }
         if (strcmp(nd_table[i].model, "ne2k_isa") == 0) {
             isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);

@@ -1,4 +1,16 @@
 
+# Don't use implicit rules or variables
+# we have explicit rules for everything
+MAKEFLAGS += -rR
+
+# Files with this suffixes are final, don't try to generate them
+# using implicit rules
+%.d:
+%.h:
+%.c:
+%.m:
+%.mak:
+
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 

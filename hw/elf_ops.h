@@ -179,7 +179,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     return -1;
 }
 
-static int glue(load_elf, SZ)(int fd, int64_t address_offset,
+static int glue(load_elf, SZ)(const char *name, int fd, int64_t address_offset,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr,
                               int elf_machine, int clear_lsb)
@@ -190,6 +190,7 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
     elf_word mem_size;
     uint64_t addr, low = (uint64_t)-1, high = 0;
     uint8_t *data = NULL;
+    char label[128];
 
     if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
         goto fail;
@@ -249,7 +250,8 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
                linked at the wrong physical address.  */
             addr = ph->p_paddr + address_offset;
 
-            cpu_physical_memory_write_rom(addr, data, mem_size);
+            snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
+            rom_add_blob_fixed(label, data, mem_size, addr);
 
             total_size += mem_size;
             if (addr < low)

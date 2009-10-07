@@ -542,10 +542,14 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
 
 static void *zalloc(void *x, unsigned items, unsigned size)
 {
+    void *p;
+
     size *= items;
     size = (size + ZALLOC_ALIGNMENT - 1) & ~(ZALLOC_ALIGNMENT - 1);
 
-    return qemu_mallocz(size);
+    p = qemu_mallocz(size);
+
+    return (p);
 }
 
 static void zfree(void *x, void *addr)

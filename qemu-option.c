@@ -483,7 +483,7 @@ struct QemuOpt {
 struct QemuOpts {
     const char *id;
     QemuOptsList *list;
-    QTAILQ_HEAD(, QemuOpt) head;
+    QTAILQ_HEAD(QemuOptHead, QemuOpt) head;
     QTAILQ_ENTRY(QemuOpts) next;
 };
 
@@ -491,7 +491,7 @@ static QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
 
-    QTAILQ_FOREACH(opt, &opts->head, next) {
+    QTAILQ_FOREACH_REVERSE(opt, &opts->head, QemuOptHead, next) {
         if (strcmp(opt->name, name) != 0)
             continue;
         return opt;
@@ -565,36 +565,31 @@ static void qemu_opt_del(QemuOpt *opt)
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
 {
     QemuOpt *opt;
+    QemuOptDesc *desc = opts->list->desc;
+    int i;
 
-    opt = qemu_opt_find(opts, name);
-    if (!opt) {
-        QemuOptDesc *desc = opts->list->desc;
-        int i;
-
-        for (i = 0; desc[i].name != NULL; i++) {
-            if (strcmp(desc[i].name, name) == 0) {
-                break;
-            }
-        }
-        if (desc[i].name == NULL) {
-            if (i == 0) {
-                /* empty list -> allow any */;
-            } else {
-                fprintf(stderr, "option \"%s\" is not valid for %s\n",
-                        name, opts->list->name);
-                return -1;
-            }
-        }
-        opt = qemu_mallocz(sizeof(*opt));
-        opt->name = qemu_strdup(name);
-        opt->opts = opts;
-        QTAILQ_INSERT_TAIL(&opts->head, opt, next);
-        if (desc[i].name != NULL) {
-            opt->desc = desc+i;
+    for (i = 0; desc[i].name != NULL; i++) {
+        if (strcmp(desc[i].name, name) == 0) {
+            break;
         }
     }
-    qemu_free((/* !const */ char*)opt->str);
-    opt->str = NULL;
+    if (desc[i].name == NULL) {
+        if (i == 0) {
+            /* empty list -> allow any */;
+        } else {
+            fprintf(stderr, "option \"%s\" is not valid for %s\n",
+                    name, opts->list->name);
+            return -1;
+        }
+    }
+
+    opt = qemu_mallocz(sizeof(*opt));
+    opt->name = qemu_strdup(name);
+    opt->opts = opts;
+    QTAILQ_INSERT_TAIL(&opts->head, opt, next);
+    if (desc[i].name != NULL) {
+        opt->desc = desc+i;
+    }
     if (value) {
         opt->str = qemu_strdup(value);
     }
@@ -670,8 +665,6 @@ int qemu_opts_set(QemuOptsList *list, const char *id,
 
     opts = qemu_opts_create(list, id, 1);
     if (opts == NULL) {
-        fprintf(stderr, "id \"%s\" not found for \"%s\"\n",
-                id, list->name);
         return -1;
     }
     return qemu_opt_set(opts, name, value);
@@ -714,8 +707,7 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
     char option[128], value[128];
     const char *p,*pe,*pc;
 
-    p = params;
-    for(;;) {
+    for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');
         pc = strchr(p, ',');
         if (!pe || (pc && pc < pe)) {
@@ -752,7 +744,6 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
         if (*p != ',') {
             break;
         }
-        p++;
     }
     return 0;
 }
@@ -780,6 +771,39 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
     }
 
     return opts;
+}
+
+/* Validate parsed opts against descriptions where no
+ * descriptions were provided in the QemuOptsList.
+ */
+int qemu_opts_validate(QemuOpts *opts, QemuOptDesc *desc)
+{
+    QemuOpt *opt;
+
+    assert(opts->list->desc[0].name == NULL);
+
+    QTAILQ_FOREACH(opt, &opts->head, next) {
+        int i;
+
+        for (i = 0; desc[i].name != NULL; i++) {
+            if (strcmp(desc[i].name, opt->name) == 0) {
+                break;
+            }
+        }
+        if (desc[i].name == NULL) {
+            fprintf(stderr, "option \"%s\" is not valid for %s\n",
+                    opt->name, opts->list->name);
+            return -1;
+        }
+
+        opt->desc = &desc[i];
+
+        if (qemu_opt_parse(opt) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,

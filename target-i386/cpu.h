@@ -611,9 +611,6 @@ typedef struct CPUX86State {
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
     uint16_t fpus;
-    uint16_t fpus_vmstate;
-    uint16_t fptag_vmstate;
-    uint16_t fpregs_format_vmstate;
     uint16_t fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
     FPReg fpregs[8];
@@ -695,7 +692,6 @@ typedef struct CPUX86State {
 
     /* For KVM */
     uint64_t interrupt_bitmap[256 / 64];
-    int32_t pending_irq_vmstate;
     uint32_t mp_state;
 
     /* in order to simplify APIC support, we leave this pointer to the
@@ -708,6 +704,12 @@ typedef struct CPUX86State {
     uint64 mce_banks[MCE_BANKS_DEF*4];
 
     uint64_t tsc_aux;
+
+    /* vmstate */
+    uint16_t fpus_vmstate;
+    uint16_t fptag_vmstate;
+    uint16_t fpregs_format_vmstate;
+    int32_t pending_irq_vmstate;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(const char *cpu_model);

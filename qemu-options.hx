@@ -478,6 +478,16 @@ Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt).
 ETEXI
 
 #ifdef CONFIG_SDL
+DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
+    "-ctrl-grab       use Right-Ctrl to grab mouse (instead of Ctrl-Alt)\n")
+#endif
+STEXI
+@item -ctrl-grab
+
+Use Right-Ctrl to grab mouse (instead of Ctrl-Alt).
+ETEXI
+
+#ifdef CONFIG_SDL
 DEF("no-quit", 0, QEMU_OPTION_no_quit,
     "-no-quit        disable SDL window close capability\n")
 #endif

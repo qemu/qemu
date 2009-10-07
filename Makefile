@@ -11,8 +11,13 @@ config-host.mak:
 	@exit 1
 endif
 
+# Don't try to regenerate Makefile or configure
+# We don't generate any of them
+Makefile: ;
+configure: ;
+
 .PHONY: all clean cscope distclean dvi html info install install-doc \
-	recurse-all speed tar tarbin test
+	recurse-all speed tar tarbin test build-all
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 

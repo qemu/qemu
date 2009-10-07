@@ -147,6 +147,7 @@ int main(int argc, char **argv)
 #include "hw/smbios.h"
 #include "hw/xen.h"
 #include "hw/qdev.h"
+#include "hw/loader.h"
 #include "bt-host.h"
 #include "net.h"
 #include "monitor.h"
@@ -250,6 +251,7 @@ int old_param = 0;
 #endif
 const char *qemu_name;
 int alt_grab = 0;
+int ctrl_grab = 0;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
@@ -2330,8 +2332,8 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     }
 
     if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
-        fprintf(stderr, "qemu: could not open disk image %s\n",
-                        file);
+        fprintf(stderr, "qemu: could not open disk image %s: %s\n",
+                        file, strerror(errno));
         return NULL;
     }
 
@@ -2595,12 +2597,23 @@ static int usb_device_add(const char *devname, int is_hotplug)
         dev = usb_baum_init();
 #endif
     } else if (strstart(devname, "net:", &p)) {
-        int nic = nb_nics;
+        QemuOpts *opts;
+        int idx;
 
-        if (net_client_init(NULL, "nic", p) < 0)
+        opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
+        if (!opts) {
             return -1;
-        nd_table[nic].model = "usb";
-        dev = usb_net_init(&nd_table[nic]);
+        }
+
+        qemu_opt_set(opts, "type", "nic");
+        qemu_opt_set(opts, "model", "usb");
+
+        idx = net_client_init(NULL, opts);
+        if (idx == -1) {
+            return -1;
+        }
+
+        dev = usb_net_init(&nd_table[idx]);
     } else if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
         dev = usb_bt_init(devname[2] ? hci_init(p) :
                         bt_new_hci(qemu_find_bt_vlan(0)));
@@ -4770,8 +4783,6 @@ int main(int argc, char **argv, char **envp)
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
-    const char *net_clients[MAX_NET_CLIENTS];
-    int nb_net_clients;
     QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
@@ -4886,7 +4897,6 @@ int main(int argc, char **argv, char **envp)
         node_cpumask[i] = 0;
     }
 
-    nb_net_clients = 0;
     nb_numa_nodes = 0;
     nb_nics = 0;
 
@@ -5134,12 +5144,9 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_net:
-                if (nb_net_clients >= MAX_NET_CLIENTS) {
-                    fprintf(stderr, "qemu: too many network clients\n");
+                if (net_client_parse(optarg) == -1) {
                     exit(1);
                 }
-                net_clients[nb_net_clients] = optarg;
-                nb_net_clients++;
                 break;
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
@@ -5150,11 +5157,13 @@ int main(int argc, char **argv, char **envp)
                 break;
 #ifndef _WIN32
             case QEMU_OPTION_smb:
-                net_slirp_smb(optarg);
+                if (net_slirp_smb(optarg) < 0)
+                    exit(1);
                 break;
 #endif
             case QEMU_OPTION_redir:
-                net_slirp_redir(optarg);
+                if (net_slirp_redir(optarg) < 0)
+                    exit(1);
                 break;
 #endif
             case QEMU_OPTION_bt:
@@ -5363,6 +5372,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_alt_grab:
                 alt_grab = 1;
                 break;
+            case QEMU_OPTION_ctrl_grab:
+                ctrl_grab = 1;
+                break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
                 break;
@@ -5406,9 +5418,7 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
-                opts = qemu_opts_parse(&qemu_device_opts, optarg, "driver");
-                if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
+                if (!qemu_opts_parse(&qemu_device_opts, optarg, "driver")) {
                     exit(1);
                 }
                 break;
@@ -5620,7 +5630,7 @@ int main(int argc, char **argv, char **envp)
             if (len != 1)
                 exit(1);
             else if (status == 1) {
-                fprintf(stderr, "Could not acquire pidfile\n");
+                fprintf(stderr, "Could not acquire pidfile: %s\n", strerror(errno));
                 exit(1);
             } else
                 exit(0);
@@ -5647,7 +5657,7 @@ int main(int argc, char **argv, char **envp)
             uint8_t status = 1;
             write(fds[1], &status, 1);
         } else
-            fprintf(stderr, "Could not acquire pid file\n");
+            fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
         exit(1);
     }
 #endif
@@ -5700,24 +5710,12 @@ int main(int argc, char **argv, char **envp)
     socket_init();
 #endif
 
-    /* init network clients */
-    if (nb_net_clients == 0) {
-        /* if no clients, we use a default config */
-        net_clients[nb_net_clients++] = "nic";
-#ifdef CONFIG_SLIRP
-        net_clients[nb_net_clients++] = "user";
-#endif
-    }
-
-    for(i = 0;i < nb_net_clients; i++) {
-        if (net_client_parse(net_clients[i]) < 0)
-            exit(1);
+    if (net_init_clients() < 0) {
+        exit(1);
     }
 
     net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
     net_set_boot_mask(net_boot);
-
-    net_client_check();
 
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))
@@ -5832,8 +5830,8 @@ int main(int argc, char **argv, char **envp)
             snprintf(label, sizeof(label), "serial%d", i);
             serial_hds[i] = qemu_chr_open(label, devname, NULL);
             if (!serial_hds[i]) {
-                fprintf(stderr, "qemu: could not open serial device '%s'\n",
-                        devname);
+                fprintf(stderr, "qemu: could not open serial device '%s': %s\n",
+                        devname, strerror(errno));
                 exit(1);
             }
         }
@@ -5846,8 +5844,8 @@ int main(int argc, char **argv, char **envp)
             snprintf(label, sizeof(label), "parallel%d", i);
             parallel_hds[i] = qemu_chr_open(label, devname, NULL);
             if (!parallel_hds[i]) {
-                fprintf(stderr, "qemu: could not open parallel device '%s'\n",
-                        devname);
+                fprintf(stderr, "qemu: could not open parallel device '%s': %s\n",
+                        devname, strerror(errno));
                 exit(1);
             }
         }
@@ -5860,8 +5858,8 @@ int main(int argc, char **argv, char **envp)
             snprintf(label, sizeof(label), "virtcon%d", i);
             virtcon_hds[i] = qemu_chr_open(label, devname, NULL);
             if (!virtcon_hds[i]) {
-                fprintf(stderr, "qemu: could not open virtio console '%s'\n",
-                        devname);
+                fprintf(stderr, "qemu: could not open virtio console '%s': %s\n",
+                        devname, strerror(errno));
                 exit(1);
             }
         }
@@ -5899,7 +5897,8 @@ int main(int argc, char **argv, char **envp)
 
     /* init USB devices */
     if (usb_enabled) {
-        foreach_device_config(DEV_USB, usb_parse);
+        if (foreach_device_config(DEV_USB, usb_parse) < 0)
+            exit(1);
     }
 
     /* init generic devices */
@@ -6012,6 +6011,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     qdev_machine_creation_done();
+
+    rom_load_all();
 
     if (loadvm) {
         if (load_vmstate(cur_mon, loadvm) < 0) {
