@@ -40,7 +40,8 @@ ETEXI
         .args_type  = "item:s?",
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
-        .mhandler.cmd = do_info,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_info,
     },
 
 STEXI

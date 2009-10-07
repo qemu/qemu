@@ -76,6 +76,7 @@ typedef struct mon_cmd_t {
     void (*user_print)(Monitor *mon, const QObject *data);
     union {
         void (*info)(Monitor *mon);
+        void (*info_new)(Monitor *mon, QObject **ret_data);
         void (*cmd)(Monitor *mon, const QDict *qdict);
         void (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
     } mhandler;
@@ -215,6 +216,8 @@ static int monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
+static void monitor_user_noop(Monitor *mon, const QObject *data) { }
+
 static inline int monitor_handler_ported(const mon_cmd_t *cmd)
 {
     return cmd->user_print != NULL;
@@ -289,22 +292,34 @@ static void do_commit(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_info(Monitor *mon, const QDict *qdict)
+static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const mon_cmd_t *cmd;
     const char *item = qdict_get_try_str(qdict, "item");
 
     if (!item)
         goto help;
-    for(cmd = info_cmds; cmd->name != NULL; cmd++) {
+
+    for (cmd = info_cmds; cmd->name != NULL; cmd++) {
         if (compare_cmd(item, cmd->name))
-            goto found;
+            break;
     }
- help:
-    help_cmd(mon, "info");
+
+    if (cmd->name == NULL)
+        goto help;
+
+    if (monitor_handler_ported(cmd)) {
+        cmd->mhandler.info_new(mon, ret_data);
+        if (*ret_data)
+            cmd->user_print(mon, *ret_data);
+    } else {
+        cmd->mhandler.info(mon);
+    }
+
     return;
- found:
-    cmd->mhandler.info(mon);
+
+help:
+    help_cmd(mon, "info");
 }
 
 static void do_info_version(Monitor *mon)
