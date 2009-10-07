@@ -1,6 +1,7 @@
 # Makefile for qemu target independent devices.
 
 include ../config-host.mak
+include ../config-all-devices.mak
 include config.mak
 include $(SRC_PATH)/rules.mak
 

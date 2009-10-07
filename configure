@@ -2076,6 +2076,7 @@ target_dir="$target"
 config_target_mak=$target_dir/config-target.mak
 target_arch2=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
+
 case "$target_arch2" in
   armeb|m68k|microblaze|mips|mipsn32|mips64|ppc|ppcemb|ppc64|ppc64abi32|sh4eb|sparc|sparc64|sparc32plus)
   target_bigendian=yes
@@ -2114,6 +2115,10 @@ mkdir -p $target_dir/tcg
 mkdir -p $target_dir/ide
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
+fi
+
+if test ! -f $target_dir/config-devices.mak ; then
+  cp $source_path/default-configs/${target}.mak $target_dir/config-devices.mak
 fi
 
 #
