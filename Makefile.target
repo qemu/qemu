@@ -154,13 +154,12 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o monitor.o pci.o isa_mmio.o machine.o \
-        gdbstub.o
+obj-y = vl.o monitor.o pci.o machine.o gdbstub.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o virtio-pci.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
-
+obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 LIBS+=-lz
 
 sound-obj-y =
