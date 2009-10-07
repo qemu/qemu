@@ -192,7 +192,7 @@ check-qdict: check-qdict.o qdict.o qint.o qstring.o qemu-malloc.o
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
-	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
+	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
 	rm -f qemu-img-cmds.h

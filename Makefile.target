@@ -1,7 +1,7 @@
 # -*- Mode: makefile -*-
 
 include ../config-host.mak
-include config.mak
+include config-target.mak
 include $(SRC_PATH)/rules.mak
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)

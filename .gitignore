@@ -1,4 +1,5 @@
 config-host.*
+config-target.*
 i386
 *-softmmu
 *-darwin-user
