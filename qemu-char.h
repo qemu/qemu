@@ -1,6 +1,7 @@
 #ifndef QEMU_CHAR_H
 #define QEMU_CHAR_H
 
+#include <stdbool.h>
 #include "qemu-common.h"
 #include "qemu-queue.h"
 #include "qemu-option.h"
@@ -66,6 +67,7 @@ struct CharDriverState {
     QEMUBH *bh;
     char *label;
     char *filename;
+    bool initial_reset_issued;
     QTAILQ_ENTRY(CharDriverState) next;
 };
 
