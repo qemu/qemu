@@ -614,7 +614,10 @@ struct bdrv_iterate_context {
     int err;
 };
 
-static void do_cont(Monitor *mon, const QDict *qdict)
+/**
+ * do_cont(): Resume emulation.
+ */
+static void do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     struct bdrv_iterate_context context = { mon, 0 };
 
@@ -630,7 +633,7 @@ static void bdrv_key_cb(void *opaque, int err)
 
     /* another key was set successfully, retry to continue */
     if (!err)
-        do_cont(mon, NULL);
+        do_cont(mon, NULL, NULL);
 }
 
 static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
