@@ -1942,28 +1942,29 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 break;
             case 0x03: { /* set transfer mode */
 		uint8_t val = s->nsector & 0x07;
+                uint16_t *identify_data = (uint16_t *)s->identify_data;
 
 		switch (s->nsector >> 3) {
 		    case 0x00: /* pio default */
 		    case 0x01: /* pio mode */
-			put_le16(s->identify_data + 62,0x07);
-			put_le16(s->identify_data + 63,0x07);
-			put_le16(s->identify_data + 88,0x3f);
+			put_le16(identify_data + 62,0x07);
+			put_le16(identify_data + 63,0x07);
+			put_le16(identify_data + 88,0x3f);
 			break;
                     case 0x02: /* sigle word dma mode*/
-			put_le16(s->identify_data + 62,0x07 | (1 << (val + 8)));
-			put_le16(s->identify_data + 63,0x07);
-			put_le16(s->identify_data + 88,0x3f);
+			put_le16(identify_data + 62,0x07 | (1 << (val + 8)));
+			put_le16(identify_data + 63,0x07);
+			put_le16(identify_data + 88,0x3f);
 			break;
 		    case 0x04: /* mdma mode */
-			put_le16(s->identify_data + 62,0x07);
-			put_le16(s->identify_data + 63,0x07 | (1 << (val + 8)));
-			put_le16(s->identify_data + 88,0x3f);
+			put_le16(identify_data + 62,0x07);
+			put_le16(identify_data + 63,0x07 | (1 << (val + 8)));
+			put_le16(identify_data + 88,0x3f);
 			break;
 		    case 0x08: /* udma mode */
-			put_le16(s->identify_data + 62,0x07);
-			put_le16(s->identify_data + 63,0x07);
-			put_le16(s->identify_data + 88,0x3f | (1 << (val + 8)));
+			put_le16(identify_data + 62,0x07);
+			put_le16(identify_data + 63,0x07);
+			put_le16(identify_data + 88,0x3f | (1 << (val + 8)));
 			break;
 		    default:
 			goto abort_cmd;

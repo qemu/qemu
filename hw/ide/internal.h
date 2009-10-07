@@ -374,7 +374,7 @@ struct IDEState {
     int64_t nb_sectors;
     int mult_sectors;
     int identify_set;
-    uint16_t identify_data[256];
+    uint8_t identify_data[512];
     int drive_serial;
     char drive_serial_str[21];
     /* ide regs */
