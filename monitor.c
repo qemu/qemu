@@ -71,11 +71,11 @@
 typedef struct mon_cmd_t {
     const char *name;
     const char *args_type;
-    void *handler;
     const char *params;
     const char *help;
     union {
         void (*info)(Monitor *mon);
+        void (*cmd)(Monitor *mon, const QDict *qdict);
     } mhandler;
 } mon_cmd_t;
 
@@ -3014,13 +3014,8 @@ static void monitor_handle_command(Monitor *mon, const char *cmdline)
 
     cmd = monitor_parse_command(mon, cmdline, qdict);
     if (cmd) {
-        void (*handler)(Monitor *mon, const QDict *qdict);
-
         qemu_errors_to_mon(mon);
-
-        handler = cmd->handler;
-        handler(mon, qdict);
-
+        cmd->mhandler.cmd(mon, qdict);
         qemu_errors_to_previous();
     }
 
