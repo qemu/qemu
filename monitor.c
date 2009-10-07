@@ -1301,7 +1301,11 @@ static void do_system_reset(Monitor *mon, const QDict *qdict,
     qemu_system_reset_request();
 }
 
-static void do_system_powerdown(Monitor *mon, const QDict *qdict)
+/**
+ * do_system_powerdown(): Issue a machine powerdown
+ */
+static void do_system_powerdown(Monitor *mon, const QDict *qdict,
+                                QObject **ret_data)
 {
     qemu_system_powerdown_request();
 }

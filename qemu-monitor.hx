@@ -482,7 +482,8 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "send system power down event",
-        .mhandler.cmd = do_system_powerdown,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_system_powerdown,
     },
 
 STEXI
