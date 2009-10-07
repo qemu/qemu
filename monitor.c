@@ -1292,7 +1292,11 @@ static void do_boot_set(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_system_reset(Monitor *mon, const QDict *qdict)
+/**
+ * do_system_reset(): Issue a machine reset
+ */
+static void do_system_reset(Monitor *mon, const QDict *qdict,
+                            QObject **ret_data)
 {
     qemu_system_reset_request();
 }

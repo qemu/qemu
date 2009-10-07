@@ -467,7 +467,8 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "reset the system",
-        .mhandler.cmd = do_system_reset,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_system_reset,
     },
 
 STEXI
