@@ -83,7 +83,8 @@ struct RTCState {
     QEMUTimer *second_timer2;
 };
 
-static void rtc_irq_raise(qemu_irq irq) {
+static void rtc_irq_raise(qemu_irq irq)
+{
     /* When HPET is operating in legacy mode, RTC interrupts are disabled
      * We block qemu_irq_raise, but not qemu_irq_lower, in case legacy
      * mode is established while interrupt is raised. We want it to
