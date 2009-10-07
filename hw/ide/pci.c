@@ -71,7 +71,7 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
+void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
 #ifdef DEBUG_IDE
@@ -165,7 +165,7 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t bmdma_addr_readb(void *opaque, uint32_t addr)
+uint32_t bmdma_addr_readb(void *opaque, uint32_t addr)
 {
     BMDMAState *bm = opaque;
     uint32_t val;
@@ -176,7 +176,7 @@ static uint32_t bmdma_addr_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static void bmdma_addr_writeb(void *opaque, uint32_t addr, uint32_t val)
+void bmdma_addr_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
     int shift = (addr & 3) * 8;
@@ -188,7 +188,7 @@ static void bmdma_addr_writeb(void *opaque, uint32_t addr, uint32_t val)
     bm->cur_addr = bm->addr;
 }
 
-static uint32_t bmdma_addr_readw(void *opaque, uint32_t addr)
+uint32_t bmdma_addr_readw(void *opaque, uint32_t addr)
 {
     BMDMAState *bm = opaque;
     uint32_t val;
@@ -199,7 +199,7 @@ static uint32_t bmdma_addr_readw(void *opaque, uint32_t addr)
     return val;
 }
 
-static void bmdma_addr_writew(void *opaque, uint32_t addr, uint32_t val)
+void bmdma_addr_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
     int shift = (addr & 3) * 8;
@@ -211,7 +211,7 @@ static void bmdma_addr_writew(void *opaque, uint32_t addr, uint32_t val)
     bm->cur_addr = bm->addr;
 }
 
-static uint32_t bmdma_addr_readl(void *opaque, uint32_t addr)
+uint32_t bmdma_addr_readl(void *opaque, uint32_t addr)
 {
     BMDMAState *bm = opaque;
     uint32_t val;
@@ -222,7 +222,7 @@ static uint32_t bmdma_addr_readl(void *opaque, uint32_t addr)
     return val;
 }
 
-static void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val)
+void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
 #ifdef DEBUG_IDE
@@ -260,7 +260,7 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-static void pci_ide_save(QEMUFile* f, void *opaque)
+void pci_ide_save(QEMUFile* f, void *opaque)
 {
     PCIIDEState *d = opaque;
     int i;
@@ -292,7 +292,7 @@ static void pci_ide_save(QEMUFile* f, void *opaque)
     }
 }
 
-static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
+int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
 {
     PCIIDEState *d = opaque;
     int ret, i;
@@ -329,7 +329,7 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
+void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
 {
     PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
     static const int bus[4]  = { 0, 0, 1, 1 };
