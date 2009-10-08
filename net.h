@@ -5,10 +5,9 @@
 #include "qemu-common.h"
 #include "qdict.h"
 #include "qemu-option.h"
+#include "net-queue.h"
 
 /* VLANs support */
-
-typedef struct VLANClientState VLANClientState;
 
 typedef int (NetCanReceive)(VLANClientState *);
 typedef ssize_t (NetReceive)(VLANClientState *, const uint8_t *, size_t);
@@ -34,25 +33,12 @@ struct VLANClientState {
     char info_str[256];
 };
 
-typedef struct VLANPacket VLANPacket;
-
-typedef void (NetPacketSent) (VLANClientState *, ssize_t);
-
-struct VLANPacket {
-    QTAILQ_ENTRY(VLANPacket) entry;
-    VLANClientState *sender;
-    int size;
-    NetPacketSent *sent_cb;
-    uint8_t data[0];
-};
-
 struct VLANState {
     int id;
     QTAILQ_HEAD(, VLANClientState) clients;
     QTAILQ_ENTRY(VLANState) next;
     unsigned int nb_guest_devs, nb_host_devs;
-    QTAILQ_HEAD(send_queue, VLANPacket) send_queue;
-    int delivering;
+    NetQueue *send_queue;
 };
 
 VLANState *qemu_find_vlan(int id, int allocate);

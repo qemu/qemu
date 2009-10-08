@@ -422,15 +422,16 @@ int qemu_can_send_packet(VLANClientState *sender)
     return 0;
 }
 
-static int
-qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
+static ssize_t qemu_vlan_deliver_packet(VLANClientState *sender,
+                                        const uint8_t *buf,
+                                        size_t size,
+                                        void *opaque)
 {
+    VLANState *vlan = opaque;
     VLANClientState *vc;
     int ret = -1;
 
-    sender->vlan->delivering = 1;
-
-    QTAILQ_FOREACH(vc, &sender->vlan->clients, next) {
+    QTAILQ_FOREACH(vc, &vlan->clients, next) {
         ssize_t len;
 
         if (vc == sender) {
@@ -447,24 +448,15 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
         ret = (ret >= 0) ? ret : len;
     }
 
-    sender->vlan->delivering = 0;
-
     return ret;
 }
 
 void qemu_purge_queued_packets(VLANClientState *vc)
 {
-    VLANPacket *packet, *next;
-
     if (!vc->vlan)
         return;
 
-    QTAILQ_FOREACH_SAFE(packet, &vc->vlan->send_queue, entry, next) {
-        if (packet->sender == vc) {
-            QTAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
-            qemu_free(packet);
-        }
-    }
+    qemu_net_queue_purge(vc->vlan->send_queue, vc);
 }
 
 void qemu_flush_queued_packets(VLANClientState *vc)
@@ -472,47 +464,13 @@ void qemu_flush_queued_packets(VLANClientState *vc)
     if (!vc->vlan)
         return;
 
-    while (!QTAILQ_EMPTY(&vc->vlan->send_queue)) {
-        VLANPacket *packet;
-        int ret;
-
-        packet = QTAILQ_FIRST(&vc->vlan->send_queue);
-        QTAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
-
-        ret = qemu_deliver_packet(packet->sender, packet->data, packet->size);
-        if (ret == 0 && packet->sent_cb != NULL) {
-            QTAILQ_INSERT_HEAD(&vc->vlan->send_queue, packet, entry);
-            break;
-        }
-
-        if (packet->sent_cb)
-            packet->sent_cb(packet->sender, ret);
-
-        qemu_free(packet);
-    }
-}
-
-static void qemu_enqueue_packet(VLANClientState *sender,
-                                const uint8_t *buf, int size,
-                                NetPacketSent *sent_cb)
-{
-    VLANPacket *packet;
-
-    packet = qemu_malloc(sizeof(VLANPacket) + size);
-    packet->sender = sender;
-    packet->size = size;
-    packet->sent_cb = sent_cb;
-    memcpy(packet->data, buf, size);
-
-    QTAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
+    qemu_net_queue_flush(vc->vlan->send_queue);
 }
 
 ssize_t qemu_send_packet_async(VLANClientState *sender,
                                const uint8_t *buf, int size,
                                NetPacketSent *sent_cb)
 {
-    int ret;
-
     if (sender->link_down || !sender->vlan) {
         return size;
     }
@@ -522,20 +480,8 @@ ssize_t qemu_send_packet_async(VLANClientState *sender,
     hex_dump(stdout, buf, size);
 #endif
 
-    if (sender->vlan->delivering) {
-        qemu_enqueue_packet(sender, buf, size, NULL);
-        return size;
-    }
-
-    ret = qemu_deliver_packet(sender, buf, size);
-    if (ret == 0 && sent_cb != NULL) {
-        qemu_enqueue_packet(sender, buf, size, sent_cb);
-        return 0;
-    }
-
-    qemu_flush_queued_packets(sender);
-
-    return ret;
+    return qemu_net_queue_send(sender->vlan->send_queue,
+                               sender, buf, size, sent_cb);
 }
 
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size)
@@ -571,15 +517,16 @@ static ssize_t calc_iov_length(const struct iovec *iov, int iovcnt)
     return offset;
 }
 
-static int qemu_deliver_packet_iov(VLANClientState *sender,
-                                   const struct iovec *iov, int iovcnt)
+static ssize_t qemu_vlan_deliver_packet_iov(VLANClientState *sender,
+                                            const struct iovec *iov,
+                                            int iovcnt,
+                                            void *opaque)
 {
+    VLANState *vlan = opaque;
     VLANClientState *vc;
-    int ret = -1;
+    ssize_t ret = -1;
 
-    sender->vlan->delivering = 1;
-
-    QTAILQ_FOREACH(vc, &sender->vlan->clients, next) {
+    QTAILQ_FOREACH(vc, &vlan->clients, next) {
         ssize_t len;
 
         if (vc == sender) {
@@ -600,61 +547,19 @@ static int qemu_deliver_packet_iov(VLANClientState *sender,
         ret = (ret >= 0) ? ret : len;
     }
 
-    sender->vlan->delivering = 0;
-
     return ret;
-}
-
-static ssize_t qemu_enqueue_packet_iov(VLANClientState *sender,
-                                       const struct iovec *iov, int iovcnt,
-                                       NetPacketSent *sent_cb)
-{
-    VLANPacket *packet;
-    size_t max_len = 0;
-    int i;
-
-    max_len = calc_iov_length(iov, iovcnt);
-
-    packet = qemu_malloc(sizeof(VLANPacket) + max_len);
-    packet->sender = sender;
-    packet->sent_cb = sent_cb;
-    packet->size = 0;
-
-    for (i = 0; i < iovcnt; i++) {
-        size_t len = iov[i].iov_len;
-
-        memcpy(packet->data + packet->size, iov[i].iov_base, len);
-        packet->size += len;
-    }
-
-    QTAILQ_INSERT_TAIL(&sender->vlan->send_queue, packet, entry);
-
-    return packet->size;
 }
 
 ssize_t qemu_sendv_packet_async(VLANClientState *sender,
                                 const struct iovec *iov, int iovcnt,
                                 NetPacketSent *sent_cb)
 {
-    int ret;
-
     if (sender->link_down || !sender->vlan) {
         return calc_iov_length(iov, iovcnt);
     }
 
-    if (sender->vlan->delivering) {
-        return qemu_enqueue_packet_iov(sender, iov, iovcnt, NULL);
-    }
-
-    ret = qemu_deliver_packet_iov(sender, iov, iovcnt);
-    if (ret == 0 && sent_cb != NULL) {
-        qemu_enqueue_packet_iov(sender, iov, iovcnt, sent_cb);
-        return 0;
-    }
-
-    qemu_flush_queued_packets(sender);
-
-    return ret;
+    return qemu_net_queue_send_iov(sender->vlan->send_queue,
+                                   sender, iov, iovcnt, sent_cb);
 }
 
 ssize_t
@@ -2348,7 +2253,10 @@ VLANState *qemu_find_vlan(int id, int allocate)
     vlan = qemu_mallocz(sizeof(VLANState));
     vlan->id = id;
     QTAILQ_INIT(&vlan->clients);
-    QTAILQ_INIT(&vlan->send_queue);
+
+    vlan->send_queue = qemu_new_net_queue(qemu_vlan_deliver_packet,
+                                          qemu_vlan_deliver_packet_iov,
+                                          vlan);
 
     QTAILQ_INSERT_TAIL(&vlans, vlan, next);
 

@@ -181,6 +181,7 @@ typedef struct TextConsole TextConsole;
 typedef TextConsole QEMUConsole;
 typedef struct CharDriverState CharDriverState;
 typedef struct VLANState VLANState;
+typedef struct VLANClientState VLANClientState;
 typedef struct QEMUFile QEMUFile;
 typedef struct i2c_bus i2c_bus;
 typedef struct i2c_slave i2c_slave;
