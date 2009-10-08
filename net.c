@@ -115,6 +115,7 @@
 #include "slirp/libslirp.h"
 
 static QTAILQ_HEAD(, VLANState) vlans;
+static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
 
 /***********************************************************/
 /* network device redirectors */
@@ -327,6 +328,8 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
     if (vlan) {
         vc->vlan = vlan;
         QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
+    } else {
+        QTAILQ_INSERT_TAIL(&non_vlan_clients, vc, next);
     }
 
     return vc;
@@ -336,6 +339,8 @@ void qemu_del_vlan_client(VLANClientState *vc)
 {
     if (vc->vlan) {
         QTAILQ_REMOVE(&vc->vlan->clients, vc, next);
+    } else {
+        QTAILQ_REMOVE(&non_vlan_clients, vc, next);
     }
 
     if (vc->cleanup) {
@@ -3227,13 +3232,16 @@ done:
 void net_cleanup(void)
 {
     VLANState *vlan;
+    VLANClientState *vc, *next_vc;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
-        VLANClientState *vc, *next_vc;
-
         QTAILQ_FOREACH_SAFE(vc, &vlan->clients, next, next_vc) {
             qemu_del_vlan_client(vc);
         }
+    }
+
+    QTAILQ_FOREACH_SAFE(vc, &non_vlan_clients, next, next_vc) {
+        qemu_del_vlan_client(vc);
     }
 }
 
@@ -3274,6 +3282,7 @@ int net_init_clients(void)
     }
 
     QTAILQ_INIT(&vlans);
+    QTAILQ_INIT(&non_vlan_clients);
 
     if (qemu_opts_foreach(&qemu_netdev_opts, net_init_netdev, NULL, 1) == -1)
         return -1;
