@@ -2606,7 +2606,7 @@ static int usb_device_add(const char *devname, int is_hotplug)
         qemu_opt_set(opts, "type", "nic");
         qemu_opt_set(opts, "model", "usb");
 
-        idx = net_client_init(NULL, opts);
+        idx = net_client_init(NULL, opts, 0);
         if (idx == -1) {
             return -1;
         }
