@@ -695,11 +695,11 @@ static uint32_t pciej_read(void *opaque, uint32_t addr)
 static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
 {
     BusState *bus = opaque;
-    DeviceState *qdev;
+    DeviceState *qdev, *next;
     PCIDevice *dev;
     int slot = ffs(val) - 1;
 
-    QLIST_FOREACH(qdev, &bus->children, sibling) {
+    QLIST_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
         dev = DO_UPCAST(PCIDevice, qdev, qdev);
         if (PCI_SLOT(dev->devfn) == slot) {
 #if defined (TARGET_I386)
