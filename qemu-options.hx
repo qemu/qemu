@@ -839,6 +839,16 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
+DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
+    "-netdev ["
+#ifdef CONFIG_SLIRP
+    "user|"
+#endif
+    "tap|"
+#ifdef CONFIG_VDE
+    "vde|"
+#endif
+    "socket],id=str[,option][,option][,...]\n")
 STEXI
 @item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
