@@ -28,6 +28,7 @@ struct VLANClientState {
     QTAILQ_ENTRY(VLANClientState) next;
     struct VLANState *vlan;
     VLANClientState *peer;
+    NetQueue *send_queue;
     char *model;
     char *name;
     char info_str[256];
