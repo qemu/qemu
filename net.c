@@ -3021,7 +3021,7 @@ int net_client_init(Monitor *mon, QemuOpts *opts)
             }
 
             if (net_client_types[i].init) {
-                return net_client_types[i].init(opts, NULL);
+                return net_client_types[i].init(opts, mon);
             } else {
                 return 0;
             }
