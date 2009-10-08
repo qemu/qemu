@@ -324,15 +324,19 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
     vc->cleanup = cleanup;
     vc->opaque = opaque;
 
-    vc->vlan = vlan;
-    QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
+    if (vlan) {
+        vc->vlan = vlan;
+        QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
+    }
 
     return vc;
 }
 
 void qemu_del_vlan_client(VLANClientState *vc)
 {
-    QTAILQ_REMOVE(&vc->vlan->clients, vc, next);
+    if (vc->vlan) {
+        QTAILQ_REMOVE(&vc->vlan->clients, vc, next);
+    }
 
     if (vc->cleanup) {
         vc->cleanup(vc);
@@ -387,6 +391,10 @@ int qemu_can_send_packet(VLANClientState *sender)
     VLANState *vlan = sender->vlan;
     VLANClientState *vc;
 
+    if (!sender->vlan) {
+        return 1;
+    }
+
     QTAILQ_FOREACH(vc, &vlan->clients, next) {
         if (vc == sender) {
             continue;
@@ -434,6 +442,9 @@ void qemu_purge_queued_packets(VLANClientState *vc)
 {
     VLANPacket *packet, *next;
 
+    if (!vc->vlan)
+        return;
+
     QTAILQ_FOREACH_SAFE(packet, &vc->vlan->send_queue, entry, next) {
         if (packet->sender == vc) {
             QTAILQ_REMOVE(&vc->vlan->send_queue, packet, entry);
@@ -444,6 +455,9 @@ void qemu_purge_queued_packets(VLANClientState *vc)
 
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
+    if (!vc->vlan)
+        return;
+
     while (!QTAILQ_EMPTY(&vc->vlan->send_queue)) {
         VLANPacket *packet;
         int ret;
@@ -485,12 +499,12 @@ ssize_t qemu_send_packet_async(VLANClientState *sender,
 {
     int ret;
 
-    if (sender->link_down) {
+    if (sender->link_down || !sender->vlan) {
         return size;
     }
 
 #ifdef DEBUG_NET
-    printf("vlan %d send:\n", sender->vlan->id);
+    printf("qemu_send_packet_async:\n");
     hex_dump(stdout, buf, size);
 #endif
 
@@ -610,7 +624,7 @@ ssize_t qemu_sendv_packet_async(VLANClientState *sender,
 {
     int ret;
 
-    if (sender->link_down) {
+    if (sender->link_down || !sender->vlan) {
         return calc_iov_length(iov, iovcnt);
     }
 
@@ -3020,7 +3034,9 @@ int net_client_init(Monitor *mon, QemuOpts *opts)
 
 void net_client_uninit(NICInfo *nd)
 {
-    nd->vlan->nb_guest_devs--;
+    if (nd->vlan) {
+        nd->vlan->nb_guest_devs--;
+    }
     nb_nics--;
 
     qemu_free(nd->model);
