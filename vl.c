@@ -5088,7 +5088,7 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_net:
-                if (net_client_parse(optarg) == -1) {
+                if (net_client_parse(&qemu_net_opts, optarg) == -1) {
                     exit(1);
                 }
                 break;

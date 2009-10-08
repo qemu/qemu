@@ -3231,11 +3231,12 @@ int net_init_clients(void)
     return 0;
 }
 
-int net_client_parse(const char *optarg)
+int net_client_parse(QemuOptsList *opts_list, const char *optarg)
 {
 #if defined(CONFIG_SLIRP)
     /* handle legacy -net channel,port:chr */
-    if (!strncmp(optarg, "channel,", strlen("channel,"))) {
+    if (!strcmp(opts_list->name, "net") &&
+        !strncmp(optarg, "channel,", strlen("channel,"))) {
         int ret;
 
         optarg += strlen("channel,");
@@ -3256,7 +3257,7 @@ int net_client_parse(const char *optarg)
         return ret;
     }
 #endif
-    if (!qemu_opts_parse(&qemu_net_opts, optarg, "type")) {
+    if (!qemu_opts_parse(opts_list, optarg, "type")) {
         return -1;
     }
 

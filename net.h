@@ -136,7 +136,7 @@ extern const char *legacy_bootp_filename;
 
 int net_client_init(Monitor *mon, QemuOpts *opts);
 void net_client_uninit(NICInfo *nd);
-int net_client_parse(const char *str);
+int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
 int net_slirp_smb(const char *exported_dir);
 void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
