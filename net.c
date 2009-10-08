@@ -113,10 +113,8 @@
 #include "qemu-config.h"
 
 #include "slirp/libslirp.h"
-#include "qemu-queue.h"
 
-
-static VLANState *first_vlan;
+static QTAILQ_HEAD(, VLANState) vlans;
 
 /***********************************************************/
 /* network device redirectors */
@@ -287,12 +285,14 @@ static char *assign_name(VLANClientState *vc1, const char *model)
     char buf[256];
     int id = 0;
 
-    for (vlan = first_vlan; vlan; vlan = vlan->next) {
+    QTAILQ_FOREACH(vlan, &vlans, next) {
         VLANClientState *vc;
 
-        for (vc = vlan->first_client; vc; vc = vc->next)
-            if (vc != vc1 && strcmp(vc->model, model) == 0)
+        QTAILQ_FOREACH(vc, &vlan->clients, next) {
+            if (vc != vc1 && strcmp(vc->model, model) == 0) {
                 id++;
+            }
+        }
     }
 
     snprintf(buf, sizeof(buf), "%s.%d", model, id);
@@ -309,8 +309,10 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       NetCleanup *cleanup,
                                       void *opaque)
 {
-    VLANClientState *vc, **pvc;
+    VLANClientState *vc;
+
     vc = qemu_mallocz(sizeof(VLANClientState));
+
     vc->model = qemu_strdup(model);
     if (name)
         vc->name = qemu_strdup(name);
@@ -321,43 +323,35 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
     vc->receive_iov = receive_iov;
     vc->cleanup = cleanup;
     vc->opaque = opaque;
-    vc->vlan = vlan;
 
-    vc->next = NULL;
-    pvc = &vlan->first_client;
-    while (*pvc != NULL)
-        pvc = &(*pvc)->next;
-    *pvc = vc;
+    vc->vlan = vlan;
+    QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
+
     return vc;
 }
 
 void qemu_del_vlan_client(VLANClientState *vc)
 {
-    VLANClientState **pvc = &vc->vlan->first_client;
+    QTAILQ_REMOVE(&vc->vlan->clients, vc, next);
 
-    while (*pvc != NULL)
-        if (*pvc == vc) {
-            *pvc = vc->next;
-            if (vc->cleanup) {
-                vc->cleanup(vc);
-            }
-            qemu_free(vc->name);
-            qemu_free(vc->model);
-            qemu_free(vc);
-            break;
-        } else
-            pvc = &(*pvc)->next;
+    if (vc->cleanup) {
+        vc->cleanup(vc);
+    }
+
+    qemu_free(vc->name);
+    qemu_free(vc->model);
+    qemu_free(vc);
 }
 
 VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque)
 {
-    VLANClientState **pvc = &vlan->first_client;
+    VLANClientState *vc;
 
-    while (*pvc != NULL)
-        if ((*pvc)->opaque == opaque)
-            return *pvc;
-        else
-            pvc = &(*pvc)->next;
+    QTAILQ_FOREACH(vc, &vlan->clients, next) {
+        if (vc->opaque == opaque) {
+            return vc;
+        }
+    }
 
     return NULL;
 }
@@ -375,7 +369,7 @@ qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
         return NULL;
     }
 
-    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
+    QTAILQ_FOREACH(vc, &vlan->clients, next) {
         if (!strcmp(vc->name, client_str)) {
             break;
         }
@@ -393,7 +387,7 @@ int qemu_can_send_packet(VLANClientState *sender)
     VLANState *vlan = sender->vlan;
     VLANClientState *vc;
 
-    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
+    QTAILQ_FOREACH(vc, &vlan->clients, next) {
         if (vc == sender) {
             continue;
         }
@@ -414,7 +408,7 @@ qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
 
     sender->vlan->delivering = 1;
 
-    for (vc = sender->vlan->first_client; vc != NULL; vc = vc->next) {
+    QTAILQ_FOREACH(vc, &sender->vlan->clients, next) {
         ssize_t len;
 
         if (vc == sender) {
@@ -557,7 +551,7 @@ static int qemu_deliver_packet_iov(VLANClientState *sender,
 
     sender->vlan->delivering = 1;
 
-    for (vc = sender->vlan->first_client; vc != NULL; vc = vc->next) {
+    QTAILQ_FOREACH(vc, &sender->vlan->clients, next) {
         ssize_t len;
 
         if (vc == sender) {
@@ -2305,22 +2299,25 @@ static int net_dump_init(VLANState *vlan, const char *device,
 /* find or alloc a new VLAN */
 VLANState *qemu_find_vlan(int id, int allocate)
 {
-    VLANState **pvlan, *vlan;
-    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
-        if (vlan->id == id)
+    VLANState *vlan;
+
+    QTAILQ_FOREACH(vlan, &vlans, next) {
+        if (vlan->id == id) {
             return vlan;
+        }
     }
+
     if (!allocate) {
         return NULL;
     }
+
     vlan = qemu_mallocz(sizeof(VLANState));
     vlan->id = id;
+    QTAILQ_INIT(&vlan->clients);
     QTAILQ_INIT(&vlan->send_queue);
-    vlan->next = NULL;
-    pvlan = &first_vlan;
-    while (*pvlan != NULL)
-        pvlan = &(*pvlan)->next;
-    *pvlan = vlan;
+
+    QTAILQ_INSERT_TAIL(&vlans, vlan, next);
+
     return vlan;
 }
 
@@ -3118,12 +3115,15 @@ void net_set_boot_mask(int net_boot_mask)
 void do_info_network(Monitor *mon)
 {
     VLANState *vlan;
-    VLANClientState *vc;
 
-    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
+    QTAILQ_FOREACH(vlan, &vlans, next) {
+        VLANClientState *vc;
+
         monitor_printf(mon, "VLAN %d devices:\n", vlan->id);
-        for(vc = vlan->first_client; vc != NULL; vc = vc->next)
+
+        QTAILQ_FOREACH(vc, &vlan->clients, next) {
             monitor_printf(mon, "  %s: %s\n", vc->name, vc->info_str);
+        }
     }
 }
 
@@ -3134,10 +3134,13 @@ void do_set_link(Monitor *mon, const QDict *qdict)
     const char *name = qdict_get_str(qdict, "name");
     const char *up_or_down = qdict_get_str(qdict, "up_or_down");
 
-    for (vlan = first_vlan; vlan != NULL; vlan = vlan->next)
-        for (vc = vlan->first_client; vc != NULL; vc = vc->next)
-            if (strcmp(vc->name, name) == 0)
+    QTAILQ_FOREACH(vlan, &vlans, next) {
+        QTAILQ_FOREACH(vc, &vlan->clients, next) {
+            if (strcmp(vc->name, name) == 0) {
                 goto done;
+            }
+        }
+    }
 done:
 
     if (!vc) {
@@ -3161,16 +3164,11 @@ void net_cleanup(void)
 {
     VLANState *vlan;
 
-    /* close network clients */
-    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
-        VLANClientState *vc = vlan->first_client;
+    QTAILQ_FOREACH(vlan, &vlans, next) {
+        VLANClientState *vc, *next_vc;
 
-        while (vc) {
-            VLANClientState *next = vc->next;
-
+        QTAILQ_FOREACH_SAFE(vc, &vlan->clients, next, next_vc) {
             qemu_del_vlan_client(vc);
-
-            vc = next;
         }
     }
 }
@@ -3179,7 +3177,7 @@ static void net_check_clients(void)
 {
     VLANState *vlan;
 
-    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
+    QTAILQ_FOREACH(vlan, &vlans, next) {
         if (vlan->nb_guest_devs == 0 && vlan->nb_host_devs == 0)
             continue;
         if (vlan->nb_guest_devs == 0)
@@ -3205,6 +3203,8 @@ int net_init_clients(void)
         qemu_opts_set(&qemu_net_opts, NULL, "type", "user");
 #endif
     }
+
+    QTAILQ_INIT(&vlans);
 
     if (qemu_opts_foreach(&qemu_net_opts, net_init_client, NULL, 1) == -1) {
         return -1;
