@@ -1624,6 +1624,8 @@ static void pcnet_h_reset(void *opaque)
     s->bcr[BCR_PLAT ] = 0xff06;
 
     pcnet_s_reset(s);
+    pcnet_update_irq(s);
+    pcnet_poll_timer(s);
 }
 
 static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
@@ -1966,6 +1968,7 @@ static int pcnet_common_init(DeviceState *dev, PCNetState *s,
     s->vc = qdev_get_vlan_client(dev,
                                  pcnet_can_receive, pcnet_receive, NULL,
                                  cleanup, s);
+    qemu_register_reset(pcnet_h_reset, s);
     pcnet_h_reset(s);
     return 0;
 }
