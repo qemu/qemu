@@ -198,8 +198,8 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 
 #if TCG_TARGET_REG_BITS == 32
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
-    { INDEX_op_add2_i32, { "r", "r", "r", "r", "ri", "ri" } },
-    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "ri", "ri" } },
+    { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
+    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
 #endif
@@ -302,14 +302,8 @@ static void patch_reloc(uint8_t *code_ptr, int type,
                         tcg_target_long value, tcg_target_long addend)
 {
     TRACE();
-    switch (type) {
-    /* TODO: 32 bit relocation is missing. */
-    case 8:
-        *(uint64_t *)code_ptr = value;
-        break;
-    default:
-        TODO();
-    }
+    assert(type == sizeof(tcg_target_long));
+    *(tcg_target_long *)code_ptr = value;
 }
 
 /* Parse target specific constraints. */
@@ -489,14 +483,12 @@ static void tcg_disas3(TCGContext *s, uint8_t c, const TCGArg *args)
 #endif
 }
 
-#ifdef CONFIG_SOFTMMU
 /* Write value (native size). */
 static void tcg_out_i(TCGContext *s, tcg_target_ulong v)
 {
     *(tcg_target_ulong *)s->code_ptr = v;
     s->code_ptr += sizeof(tcg_target_ulong);
 }
-#endif
 
 /* Write 64 bit value. */
 static void tcg_out64(TCGContext *s, uint64_t v)
@@ -538,6 +530,18 @@ static void tcg_out_ri64(TCGContext *s, int const_arg, TCGArg arg)
         tcg_out64(s, arg);
     } else {
         tcg_out_r(s, arg);
+    }
+}
+
+/* Write label. */
+static void tci_out_label(TCGContext *s, TCGArg arg)
+{
+    TCGLabel *label = &s->labels[arg];
+    if (label->has_value) {
+        tcg_out_i(s, label->u.value);
+    } else {
+        tcg_out_reloc(s, s->code_ptr, sizeof(tcg_target_ulong), arg, 0);
+        tcg_out_i(s, 0);
     }
 }
 
@@ -614,7 +618,6 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
 static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                        const int *const_args)
 {
-    TCGLabel *label;
     tcg_disas3(s, opc, args);
     switch (opc) {
     case INDEX_op_exit_tb:
@@ -637,13 +640,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_br:
         tcg_out_op_t(s, opc);
-        label = &s->labels[args[0]];
-        if (label->has_value) {
-            tcg_out64(s, label->u.value);
-        } else {
-            tcg_out_reloc(s, s->code_ptr, 8, args[0], 0);
-            tcg_out64(s, 0);
-        }
+        tci_out_label(s, args[0]);
         break;
     case INDEX_op_call:
         tcg_out_op_t(s, opc);
@@ -756,13 +753,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out8(s, args[2]);           /* condition */
-        label = &s->labels[args[3]];
-        if (label->has_value) {
-            tcg_out64(s, label->u.value);   /* label index */
-        } else {
-            tcg_out_reloc(s, s->code_ptr, 8, args[3], 0);
-            tcg_out64(s, 0);
-        }
+        tci_out_label(s, args[3]);
         break;
 #ifdef TCG_TARGET_HAS_not_i64
     case INDEX_op_not_i64:
@@ -792,8 +783,8 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_r(s, args[1]);
         tcg_out_r(s, args[2]);
         tcg_out_r(s, args[3]);
-        tcg_out_ri32(s, const_args[4], args[4]);
-        tcg_out_ri32(s, const_args[5], args[5]);
+        tcg_out_r(s, args[4]);
+        tcg_out_r(s, args[5]);
         break;
     case INDEX_op_brcond2_i32:
         tcg_out_op_t(s, opc);
@@ -801,6 +792,8 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_r(s, args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
         tcg_out_ri32(s, const_args[3], args[3]);
+        tcg_out8(s, args[4]);           /* condition */
+        tci_out_label(s, args[5]);
         break;
     case INDEX_op_mulu2_i32:
         tcg_out_op_t(s, opc);
@@ -815,13 +808,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out8(s, args[2]);           /* condition */
-        label = &s->labels[args[3]];
-        if (label->has_value) {
-            tcg_out64(s, label->u.value);   /* label index */
-        } else {
-            tcg_out_reloc(s, s->code_ptr, 8, args[3], 0);
-            tcg_out64(s, 0);
-        }
+        tci_out_label(s, args[3]);
         break;
 #if defined(TCG_TARGET_HAS_neg_i32)
     case INDEX_op_neg_i32:
@@ -843,12 +830,28 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_qemu_ld16s:
     case INDEX_op_qemu_ld32u:
     case INDEX_op_qemu_ld32s:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, *args++);
+        tcg_out_r(s, *args++);
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+        tcg_out_r(s, *args++);
+#endif
+#ifdef CONFIG_SOFTMMU
+        tcg_out_i(s, *args);
+#endif
+        break;
     case INDEX_op_qemu_ld64:
         tcg_out_op_t(s, opc);
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
+        tcg_out_r(s, *args++);
+        tcg_out_r(s, *args++);
+#if TCG_TARGET_REG_BITS == 32
+        tcg_out_r(s, *args++);
+#endif
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+        tcg_out_r(s, *args++);
+#endif
 #ifdef CONFIG_SOFTMMU
-        tcg_out_i(s, args[2]);
+        tcg_out_i(s, *args);
 #endif
         break;
     case INDEX_op_qemu_st8:
@@ -856,17 +859,13 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_qemu_st32:
     case INDEX_op_qemu_st64:
         tcg_out_op_t(s, opc);
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
+        tcg_out_r(s, *args++);
+        tcg_out_r(s, *args++);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        tcg_out_r(s, args[2]);
-#ifdef CONFIG_SOFTMMU
-        tcg_out_i(s, args[3]);
+        tcg_out_r(s, *args++);
 #endif
-#else
 #ifdef CONFIG_SOFTMMU
-        tcg_out_i(s, args[2]);
-#endif
+        tcg_out_i(s, *args);
 #endif
         break;
 #if defined(TCG_TARGET_HAS_ext8s_i32)
