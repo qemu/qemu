@@ -889,7 +889,8 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->watchdog = qemu_new_timer(vm_clock, dp8393x_watchdog, s);
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
-    s->vc = nd->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+    s->vc = nd->vc = qemu_new_vlan_client(nd->vlan, nd->netdev,
+                                          nd->model, nd->name,
                                           nic_can_receive, nic_receive, NULL,
                                           nic_cleanup, s);
 

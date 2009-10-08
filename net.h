@@ -28,6 +28,7 @@ struct VLANClientState {
     void *opaque;
     QTAILQ_ENTRY(VLANClientState) next;
     struct VLANState *vlan;
+    VLANClientState *peer;
     char *model;
     char *name;
     char info_str[256];
@@ -56,6 +57,7 @@ struct VLANState {
 
 VLANState *qemu_find_vlan(int id, int allocate);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
+                                      VLANClientState *peer,
                                       const char *model,
                                       const char *name,
                                       NetCanReceive *can_receive,
