@@ -2414,9 +2414,6 @@ static int net_init_nic(QemuOpts *opts, Monitor *mon, const char *name)
     if (name) {
         nd->name = qemu_strdup(name);
     }
-    if (qemu_opts_id(opts)) {
-        nd->id = qemu_strdup(qemu_opts_id(opts));
-    }
     if (qemu_opt_get(opts, "model")) {
         nd->model = qemu_strdup(qemu_opt_get(opts, "model"));
     }
@@ -3032,7 +3029,6 @@ void net_client_uninit(NICInfo *nd)
     qemu_free(nd->model);
     qemu_free(nd->name);
     qemu_free(nd->devaddr);
-    qemu_free(nd->id);
 
     nd->used = 0;
 }

@@ -98,7 +98,6 @@ struct NICInfo {
     char *model;
     char *name;
     char *devaddr;
-    char *id;
     VLANState *vlan;
     VLANClientState *vc;
     void *private;
