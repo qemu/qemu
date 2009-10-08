@@ -980,12 +980,14 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
 
     hostdev_link(dev);
 
-    qdev_init(&d->qdev);
+    if (qdev_init(&d->qdev) < 0)
+        goto fail_no_qdev;
     return (USBDevice *) dev;
 
 fail:
     if (d)
         qdev_free(&d->qdev);
+fail_no_qdev:
     if (fd != -1)
         close(fd);
     return NULL;
@@ -1389,15 +1391,13 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
 
         /* We got a match */
 
-        /* Allredy attached ? */
+        /* Already attached ? */
         if (hostdev_find(bus_num, addr))
             return 0;
 
         dprintf("husb: auto open: bus_num %d addr %d\n", bus_num, addr);
 
 	dev = usb_host_device_open_addr(bus_num, addr, product_name);
-	if (dev)
-            qdev_init(&dev->qdev);
     }
 
     return 0;

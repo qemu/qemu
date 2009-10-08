@@ -45,7 +45,7 @@ ISABus *isa_bus_new(DeviceState *dev)
     }
     if (NULL == dev) {
         dev = qdev_create(NULL, "isabus-bridge");
-        qdev_init(dev);
+        qdev_init_nofail(dev);
     }
 
     isabus = FROM_QBUS(ISABus, qbus_create(&isa_bus_info, dev, NULL));
@@ -114,8 +114,8 @@ ISADevice *isa_create(const char *name)
     DeviceState *dev;
 
     if (!isabus) {
-        fprintf(stderr, "Tried to create isa device %s with no isa bus present.\n", name);
-        return NULL;
+        hw_error("Tried to create isa device %s with no isa bus present.\n",
+                 name);
     }
     dev = qdev_create(&isabus->qbus, name);
     return DO_UPCAST(ISADevice, qdev, dev);
@@ -126,10 +126,7 @@ ISADevice *isa_create_simple(const char *name)
     ISADevice *dev;
 
     dev = isa_create(name);
-    if (qdev_init(&dev->qdev) != 0) {
-        qdev_free(&dev->qdev);
-        return NULL;
-    }
+    qdev_init_nofail(&dev->qdev);
     return dev;
 }
 

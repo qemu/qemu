@@ -253,7 +253,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
     dev = qdev_create(NULL, "Uni-north main");
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(UNINState, s);
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",

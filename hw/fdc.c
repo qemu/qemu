@@ -1847,7 +1847,7 @@ fdctrl_t *fdctrl_init_isa(DriveInfo **fds)
     dev = isa_create("isa-fdc");
     qdev_prop_set_drive(&dev->qdev, "driveA", fds[0]);
     qdev_prop_set_drive(&dev->qdev, "driveB", fds[1]);
-    if (qdev_init(&dev->qdev) != 0)
+    if (qdev_init(&dev->qdev) < 0)
         return NULL;
     return &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
 }
@@ -1866,8 +1866,7 @@ fdctrl_t *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     fdctrl->dma_chann = dma_chann; /* FIXME */
     qdev_prop_set_drive(dev, "driveA", fds[0]);
     qdev_prop_set_drive(dev, "driveB", fds[1]);
-    if (qdev_init(dev) != 0)
-        return NULL;
+    qdev_init_nofail(dev);
     sysbus_connect_irq(&sys->busdev, 0, irq);
     sysbus_mmio_map(&sys->busdev, 0, mmio_base);
 
@@ -1883,8 +1882,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
 
     dev = qdev_create(NULL, "SUNW,fdtwo");
     qdev_prop_set_drive(dev, "drive", fds[0]);
-    if (qdev_init(dev) != 0)
-        return NULL;
+    qdev_init_nofail(dev);
     sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
     fdctrl = &sys->state;
     sysbus_connect_irq(&sys->busdev, 0, irq);

@@ -234,7 +234,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
     b = pci_bus_new(&s->busdev.qdev, NULL, 0);
     s->bus = b;
-    qdev_init(dev);
+    qdev_init_nofail(dev);
 
     d = pci_create_simple(b, 0, "i440FX");
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);

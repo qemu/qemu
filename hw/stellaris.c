@@ -1384,7 +1384,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
         enet = qdev_create(NULL, "stellaris_enet");
         enet->nd = &nd_table[0];
-        qdev_init(enet);
+        qdev_init_nofail(enet);
         sysbus_mmio_map(sysbus_from_qdev(enet), 0, 0x40048000);
         sysbus_connect_irq(sysbus_from_qdev(enet), 0, pic[42]);
     }

@@ -1294,7 +1294,7 @@ static void pc_init1(ram_addr_t ram_size,
             eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
             qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
             qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-            qdev_init(eeprom);
+            qdev_init_nofail(eeprom);
         }
         piix4_acpi_system_hot_add_init(pci_bus);
     }

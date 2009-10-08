@@ -143,7 +143,7 @@ DeviceState *sysbus_create_varargs(const char *name,
 
     dev = qdev_create(NULL, name);
     s = sysbus_from_qdev(dev);
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     if (addr != (target_phys_addr_t)-1) {
         sysbus_mmio_map(s, 0, addr);
     }

@@ -214,9 +214,8 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev_free(qdev);
         return NULL;
     }
-    if (qdev_init(qdev) != 0) {
+    if (qdev_init(qdev) < 0) {
         qemu_error("Error initializing device %s\n", driver);
-        qdev_free(qdev);
         return NULL;
     }
     qdev->opts = opts;
@@ -232,15 +231,19 @@ static void qdev_reset(void *opaque)
 
 /* Initialize a device.  Device properties should be set before calling
    this function.  IRQs and MMIO regions should be connected/mapped after
-   calling this function.  */
+   calling this function.
+   On failure, destroy the device and return negative value.
+   Return 0 on success.  */
 int qdev_init(DeviceState *dev)
 {
     int rc;
 
     assert(dev->state == DEV_STATE_CREATED);
     rc = dev->info->init(dev, dev->info);
-    if (rc < 0)
+    if (rc < 0) {
+        qdev_free(dev);
         return rc;
+    }
     qemu_register_reset(qdev_reset, dev);
     if (dev->info->vmsd)
         vmstate_register(-1, dev->info->vmsd, dev);
@@ -264,6 +267,21 @@ int qdev_simple_unplug_cb(DeviceState *dev)
     /* just zap it */
     qdev_free(dev);
     return 0;
+}
+
+/* Like qdev_init(), but terminate program via hw_error() instead of
+   returning an error value.  This is okay during machine creation.
+   Don't use for hotplug, because there callers need to recover from
+   failure.  Exception: if you know the device's init() callback can't
+   fail, then qdev_init_nofail() can't fail either, and is therefore
+   usable even then.  But relying on the device implementation that
+   way is somewhat unclean, and best avoided.  */
+void qdev_init_nofail(DeviceState *dev)
+{
+    DeviceInfo *info = dev->info;
+
+    if (qdev_init(dev) < 0)
+        hw_error("Initialization of device %s failed\n", info->name);
 }
 
 /* Unlink device from bus and free the structure.  */

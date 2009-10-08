@@ -176,8 +176,8 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
     default:
         dev = NULL;
     }
-    if (dev)
-        qdev_init(&dev->qdev);
+    if (!dev || qdev_init(&dev->qdev) < 0)
+        return NULL;
     return dev;
 }
 

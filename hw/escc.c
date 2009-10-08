@@ -741,7 +741,7 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
     qdev_prop_set_chr(dev, "chrA", chrA);
     qdev_prop_set_uint32(dev, "chnBtype", ser);
     qdev_prop_set_uint32(dev, "chnAtype", ser);
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irqB);
     sysbus_connect_irq(s, 1, irqA);
@@ -904,7 +904,7 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
     qdev_prop_set_chr(dev, "chrA", NULL);
     qdev_prop_set_uint32(dev, "chnBtype", mouse);
     qdev_prop_set_uint32(dev, "chnAtype", kbd);
-    qdev_init(dev);
+    qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
     sysbus_connect_irq(s, 1, irq);

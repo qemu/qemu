@@ -82,6 +82,7 @@ void scsi_qdev_register(SCSIDeviceInfo *info)
 }
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
+/* FIXME callers should check for failure, but don't */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit)
 {
     const char *driver;
@@ -91,7 +92,8 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit)
     dev = qdev_create(&bus->qbus, driver);
     qdev_prop_set_uint32(dev, "scsi-id", unit);
     qdev_prop_set_drive(dev, "drive", dinfo);
-    qdev_init(dev);
+    if (qdev_init(dev) < 0)
+        return NULL;
     return DO_UPCAST(SCSIDevice, qdev, dev);
 }
 
