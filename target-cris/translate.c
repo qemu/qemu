@@ -197,10 +197,6 @@ static inline void t_gen_mov_TN_preg(TCGv tn, int r)
 		tcg_gen_mov_tl(tn, tcg_const_tl(0));
 	else if (r == PR_VR)
 		tcg_gen_mov_tl(tn, tcg_const_tl(32));
-	else if (r == PR_EDA) {
-		printf("read from EDA!\n");
-		tcg_gen_mov_tl(tn, cpu_PR[r]);
-	}
 	else
 		tcg_gen_mov_tl(tn, cpu_PR[r]);
 }

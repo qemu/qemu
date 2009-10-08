@@ -82,8 +82,8 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	target_ulong phy;
 
 	D(printf ("%s addr=%x pc=%x rw=%x\n", __func__, address, env->pc, rw));
-	address &= TARGET_PAGE_MASK;
-	miss = cris_mmu_translate(&res, env, address, rw, mmu_idx);
+	miss = cris_mmu_translate(&res, env, address & TARGET_PAGE_MASK,
+				  rw, mmu_idx);
 	if (miss)
 	{
 		if (env->exception_index == EXCP_BUSFAULT)
@@ -92,6 +92,7 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 				  "addr=%x rw=%d\n",
 				  address, rw);
 
+		env->pregs[PR_EDA] = address;
 		env->exception_index = EXCP_BUSFAULT;
 		env->fault_vector = res.bf_vec;
 		r = 1;
@@ -104,7 +105,8 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 		 */
 		phy = res.phy & ~0x80000000;
 		prot = res.prot;
-		r = tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
+		r = tlb_set_page(env, address & TARGET_PAGE_MASK,
+				 phy, prot, mmu_idx, is_softmmu);
 	}
 	if (r > 0)
 		D_LOG("%s returns %d irqreq=%x addr=%x"
