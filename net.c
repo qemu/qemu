@@ -2340,6 +2340,19 @@ VLANState *qemu_find_vlan(int id, int allocate)
     return vlan;
 }
 
+static VLANClientState *qemu_find_netdev(const char *id)
+{
+    VLANClientState *vc;
+
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (!strcmp(vc->name, id)) {
+            return vc;
+        }
+    }
+
+    return NULL;
+}
+
 static int nic_get_free_idx(void)
 {
     int index;
@@ -2417,6 +2430,7 @@ static int net_init_nic(QemuOpts *opts,
 {
     int idx;
     NICInfo *nd;
+    const char *netdev;
 
     idx = nic_get_free_idx();
     if (idx == -1 || nb_nics >= MAX_NICS) {
@@ -2428,9 +2442,16 @@ static int net_init_nic(QemuOpts *opts,
 
     memset(nd, 0, sizeof(*nd));
 
-    assert(vlan);
-    nd->vlan = vlan;
-
+    if ((netdev = qemu_opt_get(opts, "netdev"))) {
+        nd->netdev = qemu_find_netdev(netdev);
+        if (!nd->netdev) {
+            qemu_error("netdev '%s' not found\n", netdev);
+            return -1;
+        }
+    } else {
+        assert(vlan);
+        nd->vlan = vlan;
+    }
     if (name) {
         nd->name = qemu_strdup(name);
     }
@@ -2462,7 +2483,9 @@ static int net_init_nic(QemuOpts *opts,
     }
 
     nd->used = 1;
-    nd->vlan->nb_guest_devs++;
+    if (vlan) {
+        nd->vlan->nb_guest_devs++;
+    }
     nb_nics++;
 
     return idx;
@@ -2821,6 +2844,11 @@ static struct {
         .desc = {
             NET_COMMON_PARAMS_DESC,
             {
+                .name = "netdev",
+                .type = QEMU_OPT_STRING,
+                .help = "id of -netdev to connect to",
+            },
+            {
                 .name = "macaddr",
                 .type = QEMU_OPT_STRING,
                 .help = "MAC address",
@@ -3069,7 +3097,10 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
                 return -1;
             }
 
-            if (!is_netdev) {
+            /* Do not add to a vlan if it's a -netdev or a nic with a
+             * netdev= parameter. */
+            if (!(is_netdev ||
+                  (strcmp(type, "nic") == 0 && qemu_opt_get(opts, "netdev")))) {
                 vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
             }
 
