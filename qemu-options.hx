@@ -1261,8 +1261,6 @@ This implements UDP Net Console.
 When @var{remote_host} or @var{src_ip} are not specified
 they default to @code{0.0.0.0}.
 When not using a specified @var{src_port} a random port is automatically chosen.
-@item msmouse
-Three button serial mouse. Configure the guest to use Microsoft protocol.
 
 If you just want a simple readonly console you can use @code{netcat} or
 @code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
@@ -1336,6 +1334,8 @@ listening on port 4444 would be:
 Braille device.  This will use BrlAPI to display the braille output on a real
 or fake device.
 
+@item msmouse
+Three button serial mouse. Configure the guest to use Microsoft protocol.
 @end table
 ETEXI
 
