@@ -191,32 +191,14 @@ typedef enum {
 
 typedef struct {
     PCIDevice dev;
-#if 1
-    uint8_t cmd;
-    uint32_t start;
-    uint32_t stop;
-    uint8_t boundary;
-    uint8_t tsr;
-    uint8_t tpsr;
-    uint16_t tcnt;
-    uint16_t rcnt;
-    uint32_t rsar;
-    uint8_t rsr;
-    uint8_t rxcr;
-    uint8_t isr;
-    uint8_t dcfg;
-    uint8_t imr;
-    uint8_t phys[6];            /* mac address */
-    uint8_t curpag;
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
     VLANClientState *vc;
-#endif
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
+    /* region must not be saved by nic_save. */
     uint32_t region[3];         /* PCI region addresses */
     uint8_t macaddr[6];
-    uint32_t statcounter[19];
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
@@ -1618,51 +1600,31 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     if (version_id > 3)
         return -EINVAL;
 
-    if (version_id >= 3) {
-        ret = pci_device_load(&s->dev, f);
-        if (ret < 0)
-            return ret;
+    ret = pci_device_load(&s->dev, f);
+    if (ret < 0) {
+        return ret;
     }
 
-    if (version_id >= 2) {
-        qemu_get_8s(f, &s->rxcr);
-    } else {
-        s->rxcr = 0x0c;
-    }
+    /* Skip unused entries. */
+    qemu_fseek(f, 32, SEEK_CUR);
 
-    qemu_get_8s(f, &s->cmd);
-    qemu_get_be32s(f, &s->start);
-    qemu_get_be32s(f, &s->stop);
-    qemu_get_8s(f, &s->boundary);
-    qemu_get_8s(f, &s->tsr);
-    qemu_get_8s(f, &s->tpsr);
-    qemu_get_be16s(f, &s->tcnt);
-    qemu_get_be16s(f, &s->rcnt);
-    qemu_get_be32s(f, &s->rsar);
-    qemu_get_8s(f, &s->rsr);
-    qemu_get_8s(f, &s->isr);
-    qemu_get_8s(f, &s->dcfg);
-    qemu_get_8s(f, &s->imr);
-    qemu_get_buffer(f, s->phys, 6);
-    qemu_get_8s(f, &s->curpag);
     qemu_get_buffer(f, s->mult, 8);
     qemu_get_buffer(f, s->mem, sizeof(s->mem));
 
-    /* Restore all members of struct between scv_stat and mem. */
+    /* Restore all members of struct between scb_stat and mem. */
     qemu_get_8s(f, &s->scb_stat);
     qemu_get_8s(f, &s->int_stat);
-    for (i = 0; i < 3; i++) {
-        qemu_get_be32s(f, &s->region[i]);
-    }
+    /* Skip unused entries. */
+    qemu_fseek(f, 3 * 4, SEEK_CUR);
     qemu_get_buffer(f, s->macaddr, 6);
-    for (i = 0; i < 19; i++) {
-        qemu_get_be32s(f, &s->statcounter[i]);
-    }
+    /* Skip unused entries. */
+    qemu_fseek(f, 19 * 4, SEEK_CUR);
     for (i = 0; i < 32; i++) {
         qemu_get_be16s(f, &s->mdimem[i]);
     }
     /* The eeprom should be saved and restored by its own routines. */
     qemu_get_be32s(f, &s->device);
+    // TODO check device.
     qemu_get_be32s(f, &s->pointer);
     qemu_get_be32s(f, &s->cu_base);
     qemu_get_be32s(f, &s->cu_offset);
@@ -1709,36 +1671,20 @@ static void nic_save(QEMUFile * f, void *opaque)
 
     pci_device_save(&s->dev, f);
 
-    qemu_put_8s(f, &s->rxcr);
+    /* Skip unused entries. */
+    qemu_fseek(f, 32, SEEK_CUR);
 
-    qemu_put_8s(f, &s->cmd);
-    qemu_put_be32s(f, &s->start);
-    qemu_put_be32s(f, &s->stop);
-    qemu_put_8s(f, &s->boundary);
-    qemu_put_8s(f, &s->tsr);
-    qemu_put_8s(f, &s->tpsr);
-    qemu_put_be16s(f, &s->tcnt);
-    qemu_put_be16s(f, &s->rcnt);
-    qemu_put_be32s(f, &s->rsar);
-    qemu_put_8s(f, &s->rsr);
-    qemu_put_8s(f, &s->isr);
-    qemu_put_8s(f, &s->dcfg);
-    qemu_put_8s(f, &s->imr);
-    qemu_put_buffer(f, s->phys, 6);
-    qemu_put_8s(f, &s->curpag);
     qemu_put_buffer(f, s->mult, 8);
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 
-    /* Save all members of struct between scv_stat and mem. */
+    /* Save all members of struct between scb_stat and mem. */
     qemu_put_8s(f, &s->scb_stat);
     qemu_put_8s(f, &s->int_stat);
-    for (i = 0; i < 3; i++) {
-        qemu_put_be32s(f, &s->region[i]);
-    }
+    /* Skip unused entries. */
+    qemu_fseek(f, 3 * 4, SEEK_CUR);
     qemu_put_buffer(f, s->macaddr, 6);
-    for (i = 0; i < 19; i++) {
-        qemu_put_be32s(f, &s->statcounter[i]);
-    }
+    /* Skip unused entries. */
+    qemu_fseek(f, 19 * 4, SEEK_CUR);
     for (i = 0; i < 32; i++) {
         qemu_put_be16s(f, &s->mdimem[i]);
     }
