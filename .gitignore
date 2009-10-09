@@ -1,4 +1,7 @@
+config-devices.*
+config-all-devices.*
 config-host.*
+config-target.*
 i386
 *-softmmu
 *-darwin-user

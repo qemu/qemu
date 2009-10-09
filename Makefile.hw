@@ -1,6 +1,7 @@
 # Makefile for qemu target independent devices.
 
 include ../config-host.mak
+include ../config-all-devices.mak
 include config.mak
 include $(SRC_PATH)/rules.mak
 
@@ -15,9 +16,11 @@ obj-y += loader.o
 obj-y += virtio.o
 obj-y += fw_cfg.o
 obj-y += watchdog.o
-obj-y += nand.o ecc.o
+obj-$(CONFIG_ECC) += ecc.o
+obj-$(CONFIG_NAND) += nand.o
 
-obj-y += m48t59.o escc.o
+obj-$(CONFIG_M48T59) += m48t59.o
+obj-$(CONFIG_ESCC) += escc.o
 
 # PCI watchdog devices
 obj-y += wdt_i6300esb.o
@@ -28,9 +31,11 @@ obj-y += msix.o
 obj-y += ne2000.o
 
 # SCSI layer
-obj-y += lsi53c895a.o esp.o
+obj-y += lsi53c895a.o
+obj-$(CONFIG_ESP) += esp.o
 
-obj-y += dma-helpers.o sysbus.o qdev-addr.o isa-bus.o
+obj-y += dma-helpers.o sysbus.o isa-bus.o
+obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
 
 all: $(HWLIB)
 # Dummy command so that make thinks it has done something

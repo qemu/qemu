@@ -1,6 +1,8 @@
 # -*- Mode: makefile -*-
 
-include config.mak
+include ../config-host.mak
+include config-devices.mak
+include config-target.mak
 include $(SRC_PATH)/rules.mak
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
@@ -45,7 +47,15 @@ LIBS+=-lm
 
 kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
-all: $(PROGS)
+config-target.h: config-target.h-timestamp
+config-target.h-timestamp: config-target.mak
+
+config-devices.h: config-devices.h-timestamp
+config-devices.h-timestamp: config-devices.mak
+
+all: config-target.h config-devices.h
+	$(call quiet-command, $(MAKE) $(PROGS),)
+
 # Dummy command so that make thinks it has done something
 	@true
 
@@ -107,7 +117,7 @@ ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
-      elfload.o linuxload.o uaccess.o gdbstub.o gdbstub-xml.o
+      elfload.o linuxload.o uaccess.o gdbstub.o
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
@@ -141,7 +151,7 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o gdbstub-xml.o
+        gdbstub.o
 
 obj-i386-y += ioport-user.o
 
@@ -158,7 +168,7 @@ VPATH+=:$(SRC_PATH)/bsd-user
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-        gdbstub.o gdbstub-xml.o uaccess.o
+        gdbstub.o uaccess.o
 
 obj-i386-y += ioport-user.o
 
@@ -170,13 +180,12 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o monitor.o pci.o isa_mmio.o machine.o \
-        gdbstub.o gdbstub-xml.o
+obj-y = vl.o monitor.o pci.o machine.o gdbstub.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o virtio-pci.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
-
+obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 LIBS+=-lz
 
 sound-obj-y =
@@ -198,7 +207,7 @@ LIBS += $(UUID_LIBS)
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
 # USB layer
-obj-y += usb-ohci.o
+obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 
 # PCI network cards
 obj-y += dp8381x.o
@@ -342,16 +351,14 @@ ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
 
 endif # CONFIG_SOFTMMU
 
+obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
+
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) $(ARLIBS)
 	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
 
 
 gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
-ifeq ($(TARGET_XML_FILES),)
-	$(call quiet-command,rm -f $@ && echo > $@,"  GEN   $(TARGET_DIR)$@")
-else
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
-endif
 
 qemu-options.h: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
