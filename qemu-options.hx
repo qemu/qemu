@@ -114,7 +114,7 @@ STEXI
 
 Define a new drive. Valid options are:
 
-@table @code
+@table @option
 @item file=@var{file}
 This option defines which disk image (@pxref{disk_images}) to use with
 this drive. If the filename contains comma, you must double it
@@ -363,7 +363,7 @@ STEXI
 @item -usbdevice @var{devname}
 Add the USB device @var{devname}. @xref{usb_devices}.
 
-@table @code
+@table @option
 
 @item mouse
 Virtual Mouse. This will override the PS/2 mouse emulation when activated.
@@ -521,7 +521,7 @@ DEF("vga", HAS_ARG, QEMU_OPTION_vga,
 STEXI
 @item -vga @var{type}
 Select type of VGA card to emulate. Valid values for @var{type} are
-@table @code
+@table @option
 @item cirrus
 Cirrus Logic GD5446 Video card. All Windows versions starting from
 Windows 95 should recognize and use this graphic card. For optimal
@@ -568,7 +568,7 @@ tablet}). When using the VNC display, you must use the @option{-k}
 parameter to set the keyboard layout if you are not using en-us. Valid
 syntax for the @var{display} is
 
-@table @code
+@table @option
 
 @item @var{host}:@var{d}
 
@@ -591,7 +591,7 @@ can be used to later start the VNC server.
 Following the @var{display} value there may be one or more @var{option} flags
 separated by commas. Valid options are
 
-@table @code
+@table @option
 
 @item reverse
 
@@ -871,7 +871,7 @@ for a list of available devices for your target.
 Use the user mode network stack which requires no administrator
 privilege to run. Valid options are:
 
-@table @code
+@table @option
 @item vlan=@var{n}
 Connect user mode stack to VLAN @var{n} (@var{n} = 0 is the default).
 
@@ -1115,7 +1115,7 @@ machines have none.
 @anchor{bt-hcis}
 The following three types are recognized:
 
-@table @code
+@table @option
 @item -bt hci,null
 (default) The corresponding Bluetooth HCI assumes no internal logic
 and will not respond to any HCI commands or emit events.
@@ -1149,7 +1149,7 @@ Emulate a bluetooth device @var{dev} and place it in network @var{n}
 (default @code{0}).  QEMU can only emulate one type of bluetooth devices
 currently:
 
-@table @code
+@table @option
 @item keyboard
 Virtual wireless keyboard implementing the HIDP bluetooth profile.
 @end table
@@ -1225,7 +1225,7 @@ ports.
 Use @code{-serial none} to disable all serial ports.
 
 Available character devices are:
-@table @code
+@table @option
 @item vc[:WxH]
 Virtual console. Optionally, a width and height can be given in pixel with
 @example
