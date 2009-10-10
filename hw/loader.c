@@ -563,7 +563,7 @@ int rom_add_file(const char *file,
         goto err;
     }
 
-    fd = open(rom->path, O_RDONLY);
+    fd = open(rom->path, O_RDONLY | O_BINARY);
     if (fd == -1) {
         fprintf(stderr, "Could not open option rom '%s': %s\n",
                 rom->path, strerror(errno));

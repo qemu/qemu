@@ -172,8 +172,6 @@ void do_interrupt(CPUState *env)
 		env->dslot = 0;
 	}
 	
-	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
-
 	if (env->pregs[PR_CCS] & U_FLAG) {
 		/* Swap stack pointers.  */
 		env->pregs[PR_USP] = env->regs[R_SP];
@@ -182,6 +180,10 @@ void do_interrupt(CPUState *env)
 
 	/* Apply the CRIS CCS shift. Clears U if set.  */
 	cris_shift_ccs(env);
+
+	/* Now that we are in kernel mode, load the handlers address.  */
+	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+
 	D_LOG("%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n", 
 		   __func__, env->pc, ex_vec, 
 		   env->pregs[PR_CCS],
