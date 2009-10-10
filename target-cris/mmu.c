@@ -345,7 +345,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 	}
 
 	seg = vaddr >> 28;
-	if (cris_mmu_segmented_addr(seg, env->sregs[SFR_RW_MM_CFG]))
+	if (!is_user && cris_mmu_segmented_addr(seg, env->sregs[SFR_RW_MM_CFG]))
 	{
 		uint32_t base;
 
