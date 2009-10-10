@@ -49,6 +49,7 @@ helper_cflags=""
 libs_softmmu=""
 libs_tools=""
 audio_pt_int=""
+audio_win_int=""
 
 # parse CC options first
 for opt do
@@ -254,11 +255,13 @@ case $targetos in
 CYGWIN*)
   mingw32="yes"
   QEMU_CFLAGS="-mno-cygwin $QEMU_CFLAGS"
-  audio_possible_drivers="sdl"
+  audio_possible_drivers="winwave sdl"
+  audio_drv_list="winwave"
 ;;
 MINGW32*)
   mingw32="yes"
-  audio_possible_drivers="dsound sdl fmod"
+  audio_possible_drivers="winwave dsound sdl fmod"
+  audio_drv_list="winwave"
 ;;
 GNU/kFreeBSD)
   audio_drv_list="oss"
@@ -1192,6 +1195,7 @@ for drv in $audio_drv_list; do
 
     dsound)
       libs_softmmu="-lole32 -ldxguid $libs_softmmu"
+      audio_win_int="yes"
     ;;
 
     oss)
@@ -1200,6 +1204,11 @@ for drv in $audio_drv_list; do
 
     sdl|wav)
     # XXX: Probes for CoreAudio, DirectSound, SDL(?)
+    ;;
+
+    winwave)
+      libs_softmmu="-lwinmm $libs_softmmu"
+      audio_win_int="yes"
     ;;
 
     *)
@@ -1917,6 +1926,9 @@ for drv in $audio_drv_list; do
 done
 if test "$audio_pt_int" = "yes" ; then
   echo "CONFIG_AUDIO_PT_INT=y" >> $config_host_mak
+fi
+if test "$audio_win_int" = "yes" ; then
+  echo "CONFIG_AUDIO_WIN_INT=y" >> $config_host_mak
 fi
 if test "$mixemu" = "yes" ; then
   echo "CONFIG_MIXEMU=y" >> $config_host_mak
