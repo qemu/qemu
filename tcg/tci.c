@@ -589,6 +589,20 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             TODO();
             break;
 #endif
+#ifdef TCG_TARGET_HAS_ext8u_i32
+        case INDEX_op_ext8u_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r8(&tb_ptr);
+            tci_write_reg32(t0, t1);
+            break;
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i32
+        case INDEX_op_ext16u_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r16(&tb_ptr);
+            tci_write_reg32(t0, t1);
+            break;
+#endif
 #ifdef TCG_TARGET_HAS_bswap16_i32
         case INDEX_op_bswap16_i32:
             TODO();

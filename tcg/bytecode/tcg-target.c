@@ -209,7 +209,12 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #if defined(TCG_TARGET_HAS_ext16s_i32)
     { INDEX_op_ext16s_i32, { "r", "r" } },
 #endif
-#if TCG_TARGET_REG_BITS == 64
+#if defined(TCG_TARGET_HAS_ext8u_i32)
+    { INDEX_op_ext8u_i32, { "r", "r" } },
+#endif
+#if defined(TCG_TARGET_HAS_ext16u_i32)
+    { INDEX_op_ext16u_i32, { "r", "r" } },
+#endif
 #if defined(TCG_TARGET_HAS_ext8s_i64)
     { INDEX_op_ext8s_i64, { "r", "r" } },
 #endif
@@ -219,6 +224,14 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #if defined(TCG_TARGET_HAS_ext32s_i64)
     { INDEX_op_ext32s_i64, { "r", "r" } },
 #endif
+#if defined(TCG_TARGET_HAS_ext8u_i64)
+    { INDEX_op_ext8u_i64, { "r", "r" } },
+#endif
+#if defined(TCG_TARGET_HAS_ext16u_i64)
+    { INDEX_op_ext16u_i64, { "r", "r" } },
+#endif
+#if defined(TCG_TARGET_HAS_ext32u_i64)
+    { INDEX_op_ext32u_i64, { "r", "r" } },
 #endif
 
     { -1 },
@@ -877,6 +890,20 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 #endif
 #if defined(TCG_TARGET_HAS_ext16s_i32)
     case INDEX_op_ext16s_i32:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
+#if defined(TCG_TARGET_HAS_ext8u_i32)
+    case INDEX_op_ext8u_i32:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
+#if defined(TCG_TARGET_HAS_ext16u_i32)
+    case INDEX_op_ext16u_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
