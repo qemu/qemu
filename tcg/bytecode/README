@@ -51,16 +51,16 @@ host and target with same or different endianess.
             | host (le)                     host (be)
             | 32             64             32             64
 ------------+------------------------------------------------------------
-target (le) | s?, u?         s1, u1         s?, u?         s?, u?
+target (le) | s0, u0         s1, u1         s?, u?         s?, u?
 32 bit      |
             |
-target (le) | s?, u?         s1, u1         s?, u?         s?, u?
+target (le) | sc, uc         s1, u1         s?, u?         s?, u?
 64 bit      |
             |
-target (be) | s?, u?         s?, u?         s?, u?         s?, u?
+target (be) | sc, uc         sc, uc         s?, u?         s?, u?
 32 bit      |
             |
-target (be) | s?, u?         s?, u?         s?, u?         s?, u?
+target (be) | sc, uc         sc, uc         s?, u?         s?, u?
 64 bit      |
             |
 
