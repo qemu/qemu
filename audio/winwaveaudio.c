@@ -1,6 +1,7 @@
 /* public domain */
 
 #include "qemu-common.h"
+#include "sysemu.h"
 #include "audio.h"
 
 #define AUDIO_CAP "winwave"
@@ -23,6 +24,7 @@ typedef struct {
     HWVoiceOut hw;
     HWAVEOUT hwo;
     WAVEHDR *hdrs;
+    HANDLE event;
     void *pcm_buf;
     int avail;
     int pending;
@@ -120,6 +122,12 @@ static void CALLBACK winwave_callback (
                     wave->avail += conf.dac_samples;
                 }
                 LeaveCriticalSection (&wave->crit_sect);
+                if (wave->hw.poll_mode) {
+                    if (!SetEvent (wave->event)) {
+                        AUD_log (AUDIO_CAP, "SetEvent failed %lx\n",
+                                 GetLastError ());
+                    }
+                }
             }
         }
         break;
@@ -211,6 +219,7 @@ static int winwave_run_out (HWVoiceOut *hw, int live)
 {
     WaveVoiceOut *wave = (WaveVoiceOut *) hw;
     int decr;
+    int doreset;
 
     EnterCriticalSection (&wave->crit_sect);
     {
@@ -220,6 +229,11 @@ static int winwave_run_out (HWVoiceOut *hw, int live)
         wave->avail -= decr;
     }
     LeaveCriticalSection (&wave->crit_sect);
+
+    doreset = hw->poll_mode && (wave->pending >= conf.dac_samples);
+    if (doreset && !ResetEvent (wave->event)) {
+        AUD_log (AUDIO_CAP, "ResetEvent failed %lx\n", GetLastError ());
+    }
 
     while (wave->pending >= conf.dac_samples) {
         MMRESULT mr;
@@ -235,6 +249,7 @@ static int winwave_run_out (HWVoiceOut *hw, int live)
         wave->pending -= conf.dac_samples;
         wave->curhdr = (wave->curhdr + 1) % conf.dac_headers;
     }
+
     return decr;
 }
 
@@ -249,15 +264,61 @@ static void winwave_fini_out (HWVoiceOut *hw)
 
     qemu_free (wave->hdrs);
     wave->hdrs = NULL;
+
+    if (wave->event) {
+        if (!CloseHandle (wave->event)) {
+            AUD_log (AUDIO_CAP, "CloseHandle failed %lx\n", GetLastError ());
+        }
+        wave->event = NULL;
+    }
+}
+
+static void winwave_poll_out (void *opaque)
+{
+    (void) opaque;
+    audio_run ("winwave_poll_out");
 }
 
 static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
+    WaveVoiceOut *wave = (WaveVoiceOut *) hw;
+
     switch (cmd) {
     case VOICE_ENABLE:
+        {
+            va_list ap;
+            int poll_mode;
+
+            va_start (ap, cmd);
+            poll_mode = va_arg (ap, int);
+            va_end (ap);
+
+            if (poll_mode && !wave->event) {
+                wave->event = CreateEvent (NULL, TRUE, TRUE, NULL);
+                if (!wave->event) {
+                    AUD_log (AUDIO_CAP,
+                             "CreateEvent: %lx, poll mode will be disabled\n",
+                             GetLastError ());
+                }
+            }
+
+            if (wave->event) {
+                int ret;
+
+                ret = qemu_add_wait_object (wave->event, winwave_poll_out,
+                                            wave);
+                hw->poll_mode = (ret == 0);
+            }
+            else {
+                hw->poll_mode = 0;
+            }
+        }
         return 0;
 
     case VOICE_DISABLE:
+        if (wave->event) {
+            qemu_del_wait_object (wave->event, winwave_poll_out, wave);
+        }
         return 0;
     }
     return -1;
