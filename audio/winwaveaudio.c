@@ -253,9 +253,23 @@ static int winwave_run_out (HWVoiceOut *hw, int live)
     return decr;
 }
 
+static void winwave_poll_out (void *opaque)
+{
+    (void) opaque;
+    audio_run ("winwave_poll_out");
+}
+
 static void winwave_fini_out (HWVoiceOut *hw)
 {
     WaveVoiceOut *wave = (WaveVoiceOut *) hw;
+
+    if (wave->event) {
+        qemu_del_wait_object (wave->event, winwave_poll_out, wave);
+        if (!CloseHandle (wave->event)) {
+            AUD_log (AUDIO_CAP, "CloseHandle failed %lx\n", GetLastError ());
+        }
+        wave->event = NULL;
+    }
 
     winwave_anal_close_out (wave);
 
@@ -264,19 +278,6 @@ static void winwave_fini_out (HWVoiceOut *hw)
 
     qemu_free (wave->hdrs);
     wave->hdrs = NULL;
-
-    if (wave->event) {
-        if (!CloseHandle (wave->event)) {
-            AUD_log (AUDIO_CAP, "CloseHandle failed %lx\n", GetLastError ());
-        }
-        wave->event = NULL;
-    }
-}
-
-static void winwave_poll_out (void *opaque)
-{
-    (void) opaque;
-    audio_run ("winwave_poll_out");
 }
 
 static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
