@@ -116,6 +116,8 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 
 #if defined(_ARCH_PPC) || defined(__x86_64__) || defined(__arm__) || defined(__i386__)
 #define USE_DIRECT_JUMP
+#elif defined(CONFIG_TCG_INTERPRETER)
+#define USE_DIRECT_JUMP
 #endif
 
 struct TranslationBlock {
@@ -222,6 +224,15 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 #endif
 }
+#elif defined(CONFIG_TCG_INTERPRETER)
+static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+{
+    /* patch the branch destination */
+    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
+    /* no need to flush icache explicitly */
+}
+#else
+#error tb_set_jmp_target1 is missing
 #endif
 
 static inline void tb_set_jmp_target(TranslationBlock *tb,
