@@ -1582,7 +1582,7 @@ if test "$docs" != "no" ; then
   fi
 fi
 
-# Search for bsawp_32 function
+# Search for bswap_32 function
 byteswap_h=no
 cat > $TMPC << EOF
 #include <byteswap.h>
@@ -1592,7 +1592,7 @@ if compile_prog "" "" ; then
   byteswap_h=yes
 fi
 
-# Search for bsawp_32 function
+# Search for bswap_32 function
 bswap_h=no
 cat > $TMPC << EOF
 #include <sys/endian.h>
