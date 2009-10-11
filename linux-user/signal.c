@@ -45,7 +45,7 @@ static struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc);
 
-static uint8_t host_to_target_signal_table[65] = {
+static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGHUP] = TARGET_SIGHUP,
     [SIGINT] = TARGET_SIGINT,
     [SIGQUIT] = TARGET_SIGQUIT,
