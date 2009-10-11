@@ -263,6 +263,8 @@ static void winwave_fini_out (HWVoiceOut *hw)
 {
     WaveVoiceOut *wave = (WaveVoiceOut *) hw;
 
+    winwave_anal_close_out (wave);
+
     if (wave->event) {
         qemu_del_wait_object (wave->event, winwave_poll_out, wave);
         if (!CloseHandle (wave->event)) {
@@ -270,8 +272,6 @@ static void winwave_fini_out (HWVoiceOut *hw)
         }
         wave->event = NULL;
     }
-
-    winwave_anal_close_out (wave);
 
     qemu_free (wave->pcm_buf);
     wave->pcm_buf = NULL;
