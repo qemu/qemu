@@ -147,7 +147,7 @@ fi
 
 target_list=""
 case "$cpu" in
-  alpha|cris|ia64|m68k|microblaze|mips|mips64|ppc|ppc64|sparc64)
+  alpha|cris|ia64|m68k|microblaze|ppc|ppc64|sparc64)
     cpu="$cpu"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
@@ -161,6 +161,12 @@ case "$cpu" in
   ;;
   armv*l)
     cpu="armv4l"
+  ;;
+  mips|mips64)
+    cpu="$cpu"
+    if check_define __MIPSEL__ ; then
+      cpu+="el"
+    fi
   ;;
   parisc|parisc64)
     cpu="hppa"
@@ -869,14 +875,21 @@ esac
 
 fi
 
-if test "$cpu" = "mipsel"; then
+case "$cpu" in
+  mips|mipsel)
     cpu="mips"
-fi
+    tcg_interpreter="yes"
+  ;;
+  mips64|mips64el)
+    cpu="mips64"
+    tcg_interpreter="yes"
+  ;;
+esac
 
 # host long bits test
 hostlongbits="32"
 case "$cpu" in
-  x86_64|alpha|ia64|sparc64|ppc64)
+  x86_64|alpha|ia64|mips64|sparc64|ppc64)
     hostlongbits=64
   ;;
 esac
@@ -1607,7 +1620,7 @@ if test "$docs" != "no" ; then
   fi
 fi
 
-# Search for bsawp_32 function
+# Search for bswap_32 function
 byteswap_h=no
 cat > $TMPC << EOF
 #include <byteswap.h>
@@ -1617,7 +1630,7 @@ if compile_prog "" "" ; then
   byteswap_h=yes
 fi
 
-# Search for bsawp_32 function
+# Search for bswap_32 function
 bswap_h=no
 cat > $TMPC << EOF
 #include <sys/endian.h>
