@@ -710,7 +710,7 @@ static int load_multiboot(void *fw_cfg,
             pstrcpy((char*)bootinfo + mb_mod_cmdline,
                     sizeof(bootinfo) - mb_mod_cmdline,
                     initrd_filename);
-            stl_p(bootinfo + mb_mod_info + 8, mb_mod_cmdline); /* string */
+            stl_p(bootinfo + mb_mod_info + 8, mb_bootinfo + mb_mod_cmdline); /* string */
             mb_mod_cmdline += strlen(initrd_filename) + 1;
             if (mb_mod_cmdline > sizeof(bootinfo))
                 mb_mod_cmdline = sizeof(bootinfo);
