@@ -29,6 +29,7 @@ typedef struct {
     int avail;
     int pending;
     int curhdr;
+    int paused;
     CRITICAL_SECTION crit_sect;
 } WaveVoiceOut;
 
@@ -282,6 +283,7 @@ static void winwave_fini_out (HWVoiceOut *hw)
 
 static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
+    MMRESULT mr;
     WaveVoiceOut *wave = (WaveVoiceOut *) hw;
 
     switch (cmd) {
@@ -313,10 +315,26 @@ static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
             else {
                 hw->poll_mode = 0;
             }
+            if (wave->paused) {
+                mr = waveOutRestart (wave->hwo);
+                if (mr != MMSYSERR_NOERROR) {
+                    winwave_logerr (mr, "waveOutRestart");
+                }
+                wave->paused = 0;
+            }
         }
         return 0;
 
     case VOICE_DISABLE:
+        if (!wave->paused) {
+            mr = waveOutPause (wave->hwo);
+            if (mr != MMSYSERR_NOERROR) {
+                winwave_logerr (mr, "waveOutPause");
+            }
+            else {
+                wave->paused = 1;
+            }
+        }
         if (wave->event) {
             qemu_del_wait_object (wave->event, winwave_poll_out, wave);
         }
