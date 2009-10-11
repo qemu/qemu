@@ -1019,8 +1019,7 @@ static inline int64_t cpu_get_real_ticks (void)
 
 #elif defined(__mips__)
 
-int64_t qemu_real_ticks;
-uint32_t qemu_real_last;
+#include <time.h>       /* clock */
 
 static inline int64_t cpu_get_real_ticks(void)
 {
@@ -1034,6 +1033,9 @@ static inline int64_t cpu_get_real_ticks(void)
     __asm__ __volatile__("rdhwr %1, $2" : "=r" (count));
     return (int64_t)(count * cyc_per_count);
 #elif 1
+    static int64_t qemu_real_ticks;
+    static uint32_t qemu_real_last;
+
     register uint32_t count = clock();
     qemu_real_ticks += (count - qemu_real_last);
     qemu_real_last = count;
