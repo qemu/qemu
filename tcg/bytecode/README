@@ -57,7 +57,7 @@ target (le) | s0, u0         s1, u1         s?, u?         s?, u?
 target (le) | sc, uc         s1, u1         s?, u?         s?, u?
 64 bit      |
             |
-target (be) | sc, uc         sc, uc         s?, u?         s?, u?
+target (be) | sc, u0         sc, uc         s?, u?         s?, u?
 32 bit      |
             |
 target (be) | sc, uc         sc, uc         s?, u?         s?, u?
@@ -79,15 +79,18 @@ u1 = linux-user-test works
 
 5) Todo list
 
-* TCI is still highly experimental. It is written and tested on a x86_64 host
-  running i386 guests. Host / guest combinations will fail (missing
-  byte swap) with the current version. 32 bit hosts need code fixes, too.
+* TCI is still experimental. It was written and tested on a x86_64 host
+  running i386 and x86_64 system emulation and linux user mode.
+  A cross compiled qemu for i386 host also works with the same basic tests.
+  A cross compiled qemu for mipsel host works, too. It is terribly slow
+  because I run it in a mips malta emulation, so it is an interpreted
+  emulation in an emulation.
 
-* A lot of TCG codes are either missing in the code generator and/or
-  in the interpreter. These codes raise a runtime exception, so it is
+* A lot of TCG opcodes are either missing in the code generator and/or
+  in the interpreter. These opcodes raise a runtime exception, so it is
   possible to see which parts of the code need to be fixed.
 
-* The pseudo code is not optimized and rather ugly (no clear rules how
+* The pseudo code is not optimized and still ugly (no clear rules how
   arguments are written).
 
 * A better disassembler for the pseudo code would be nice (a very primitive

@@ -380,7 +380,6 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
 
     for (;;) {
-        uint64_t ul;
         uint8_t opc = *(uint8_t *)tb_ptr++;
         tcg_target_ulong t0;
         tcg_target_ulong t1;
@@ -396,6 +395,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #ifndef CONFIG_SOFTMMU
         tcg_target_ulong host_addr;
 #endif
+        uint16_t i16, u16;
+        uint32_t i32, u32;
+        uint64_t u64;
 
         tci_disas(opc);
 
@@ -571,9 +573,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t3 = tci_read_r32(&tb_ptr);
             t4 = tci_read_r32(&tb_ptr);
             t5 = tci_read_r32(&tb_ptr);
-            ul = tci_uint64(t3, t2) + tci_uint64(t5, t4);
-            tci_write_reg(t0, ul);
-            tci_write_reg(t1, ul >> 32);
+            u64 = tci_uint64(t3, t2) + tci_uint64(t5, t4);
+            tci_write_reg(t0, u64);
+            tci_write_reg(t1, u64 >> 32);
             break;
         case INDEX_op_sub2_i32:
             t0 = *tb_ptr++;
@@ -582,9 +584,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t3 = tci_read_r32(&tb_ptr);
             t4 = tci_read_r32(&tb_ptr);
             t5 = tci_read_r32(&tb_ptr);
-            ul = tci_uint64(t3, t2) - tci_uint64(t5, t4);
-            tci_write_reg(t0, ul);
-            tci_write_reg(t1, ul >> 32);
+            u64 = tci_uint64(t3, t2) - tci_uint64(t5, t4);
+            tci_write_reg(t0, u64);
+            tci_write_reg(t1, u64 >> 32);
             break;
         case INDEX_op_brcond2_i32:
             t0 = tci_read_r32(&tb_ptr);
@@ -602,9 +604,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t1 = *tb_ptr++;
             t2 = tci_read_r32(&tb_ptr);
             t3 = tci_read_r32(&tb_ptr);
-            ul = (uint64_t)t2 * t3;
-            tci_write_reg(t0, ul);
-            tci_write_reg(t1, ul >> 32);
+            u64 = (uint64_t)t2 * t3;
+            tci_write_reg(t0, u64);
+            tci_write_reg(t1, u64 >> 32);
             break;
 #endif /* TCG_TARGET_REG_BITS == 32 */
 #ifdef TCG_TARGET_HAS_ext8s_i32
@@ -932,12 +934,13 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
 #endif
 #ifdef CONFIG_SOFTMMU
-            tci_write_reg16(t0, __ldw_mmu(taddr, tci_read_i(&tb_ptr)));
+            u16 = __ldw_mmu(taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            tci_write_reg16(t0, *(uint16_t *)(host_addr + GUEST_BASE));
+            u16 = *(uint16_t *)(host_addr + GUEST_BASE);
 #endif
+            tci_write_reg16(t0, tswap16(u16));
             break;
         case INDEX_op_qemu_ld16s:
             t0 = *tb_ptr++;
@@ -946,12 +949,13 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
 #endif
 #ifdef CONFIG_SOFTMMU
-            tci_write_reg16s(t0, __ldw_mmu(taddr, tci_read_i(&tb_ptr)));
+            i16 = __ldw_mmu(taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            tci_write_reg16s(t0, *(int16_t *)(host_addr + GUEST_BASE));
+            i16 = *(uint16_t *)(host_addr + GUEST_BASE);
 #endif
+            tci_write_reg16s(t0, tswap16(i16));
             break;
         case INDEX_op_qemu_ld32u:
             t0 = *tb_ptr++;
@@ -960,12 +964,13 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
 #endif
 #ifdef CONFIG_SOFTMMU
-            tci_write_reg32(t0, __ldl_mmu(taddr, tci_read_i(&tb_ptr)));
+            u32 = __ldl_mmu(taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            tci_write_reg32(t0, *(uint32_t *)(host_addr + GUEST_BASE));
+            u32 = *(uint32_t *)(host_addr + GUEST_BASE);
 #endif
+            tci_write_reg32(t0, tswap32(u32));
             break;
         case INDEX_op_qemu_ld32s:
             t0 = *tb_ptr++;
@@ -974,12 +979,13 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
 #endif
 #ifdef CONFIG_SOFTMMU
-            tci_write_reg32s(t0, __ldl_mmu(taddr, tci_read_i(&tb_ptr)));
+            i32 = __ldl_mmu(taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            tci_write_reg32s(t0, *(int32_t *)(host_addr + GUEST_BASE));
+            i32 = *(int32_t *)(host_addr + GUEST_BASE);
 #endif
+            tci_write_reg32s(t0, tswap32(i32));
             break;
         case INDEX_op_qemu_ld64:
             t0 = *tb_ptr++;
@@ -991,15 +997,16 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
 #endif
 #ifdef CONFIG_SOFTMMU
-            ul = __ldq_mmu(taddr, tci_read_i(&tb_ptr));
+            u64 = __ldq_mmu(taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            ul = *(uint64_t *)(host_addr + GUEST_BASE);
+            u64 = *(uint64_t *)(host_addr + GUEST_BASE);
 #endif
-            tci_write_reg(t0, ul);
+            u64 = tswap64(u64);
+            tci_write_reg(t0, u64);
 #if TCG_TARGET_REG_BITS == 32
-            tci_write_reg(t1, ul >> 32);
+            tci_write_reg(t1, u64 >> 32);
 #endif
             break;
         case INDEX_op_qemu_st8:
@@ -1018,7 +1025,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             break;
         case INDEX_op_qemu_st16:
-            t0 = tci_read_r16(&tb_ptr);
+            t0 = tswap16(tci_read_r16(&tb_ptr));
             taddr = tci_read_r(&tb_ptr);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
@@ -1033,7 +1040,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             break;
         case INDEX_op_qemu_st32:
-            t0 = tci_read_r32(&tb_ptr);
+            t0 = tswap32(tci_read_r32(&tb_ptr));
             taddr = tci_read_r(&tb_ptr);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
@@ -1048,10 +1055,11 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             break;
         case INDEX_op_qemu_st64:
-            ul = tci_read_r(&tb_ptr);
+            u64 = tci_read_r(&tb_ptr);
 #if TCG_TARGET_REG_BITS == 32
-            ul += (uint64_t)tci_read_r(&tb_ptr) << 32;
+            u64 += (uint64_t)tci_read_r(&tb_ptr) << 32;
 #endif
+            u64 = tswap64(u64);
             taddr = tci_read_r(&tb_ptr);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
             taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
@@ -1059,12 +1067,12 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
             /* TODO: byte order. */
-            __stq_mmu(taddr, ul, t2);
+            __stq_mmu(taddr, u64, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
             /* TODO: byte order. */
-            *(uint64_t *)(host_addr + GUEST_BASE) = ul;
+            *(uint64_t *)(host_addr + GUEST_BASE) = u64;
 #endif
             break;
         default:

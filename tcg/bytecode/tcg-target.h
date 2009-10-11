@@ -63,15 +63,6 @@
 # error Only 32 or 64 bit long support for host
 #endif
 
-#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
-# error Code (qemu_st, qemu_ld) needs bswap, please fix it!
-#endif
-
-#if defined(HOST_WORDS_BIGENDIAN)
-# define TCG_TARGET_WORDS_BIGENDIAN
-# error Untested code, please test and fix it!
-#endif
-
 /* Optional instructions. */
 
 #define TCG_TARGET_HAS_bswap16_i32
