@@ -234,7 +234,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     cpu_register_physical_memory(0xf0c00000, 0x1000, pci_mem_data);
 
     d = pci_register_device(s->bus, "Uni-north AGP", sizeof(PCIDevice),
-                            11 << 3, NULL, NULL);
+                            12 << 3, NULL, NULL);
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_APPLE_UNI_N_AGP);
     d->config[0x08] = 0x00; // revision
