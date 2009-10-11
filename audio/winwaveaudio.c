@@ -29,6 +29,7 @@ typedef struct {
     int avail;
     int pending;
     int curhdr;
+    int paused;
     CRITICAL_SECTION crit_sect;
 } WaveVoiceOut;
 
@@ -253,34 +254,36 @@ static int winwave_run_out (HWVoiceOut *hw, int live)
     return decr;
 }
 
-static void winwave_fini_out (HWVoiceOut *hw)
-{
-    WaveVoiceOut *wave = (WaveVoiceOut *) hw;
-
-    winwave_anal_close_out (wave);
-
-    qemu_free (wave->pcm_buf);
-    wave->pcm_buf = NULL;
-
-    qemu_free (wave->hdrs);
-    wave->hdrs = NULL;
-
-    if (wave->event) {
-        if (!CloseHandle (wave->event)) {
-            AUD_log (AUDIO_CAP, "CloseHandle failed %lx\n", GetLastError ());
-        }
-        wave->event = NULL;
-    }
-}
-
 static void winwave_poll_out (void *opaque)
 {
     (void) opaque;
     audio_run ("winwave_poll_out");
 }
 
+static void winwave_fini_out (HWVoiceOut *hw)
+{
+    WaveVoiceOut *wave = (WaveVoiceOut *) hw;
+
+    winwave_anal_close_out (wave);
+
+    if (wave->event) {
+        qemu_del_wait_object (wave->event, winwave_poll_out, wave);
+        if (!CloseHandle (wave->event)) {
+            AUD_log (AUDIO_CAP, "CloseHandle failed %lx\n", GetLastError ());
+        }
+        wave->event = NULL;
+    }
+
+    qemu_free (wave->pcm_buf);
+    wave->pcm_buf = NULL;
+
+    qemu_free (wave->hdrs);
+    wave->hdrs = NULL;
+}
+
 static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
+    MMRESULT mr;
     WaveVoiceOut *wave = (WaveVoiceOut *) hw;
 
     switch (cmd) {
@@ -312,10 +315,26 @@ static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
             else {
                 hw->poll_mode = 0;
             }
+            if (wave->paused) {
+                mr = waveOutRestart (wave->hwo);
+                if (mr != MMSYSERR_NOERROR) {
+                    winwave_logerr (mr, "waveOutRestart");
+                }
+                wave->paused = 0;
+            }
         }
         return 0;
 
     case VOICE_DISABLE:
+        if (!wave->paused) {
+            mr = waveOutPause (wave->hwo);
+            if (mr != MMSYSERR_NOERROR) {
+                winwave_logerr (mr, "waveOutPause");
+            }
+            else {
+                wave->paused = 1;
+            }
+        }
         if (wave->event) {
             qemu_del_wait_object (wave->event, winwave_poll_out, wave);
         }

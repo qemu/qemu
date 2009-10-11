@@ -11,6 +11,8 @@ MAKEFLAGS += -rR
 %.m:
 %.mak:
 
+QEMU_CFLAGS += -MMD -MP -MT $@
+
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
