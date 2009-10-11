@@ -14,8 +14,9 @@ fi
 TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
+TMPD="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.d"
 
-trap "rm -f $TMPC $TMPO $TMPE ; exit" 0 2 3 15
+trap "rm -f $TMPC $TMPO $TMPE $TMPD ; exit" 0 2 3 15
 
 compile_object() {
   $cc $QEMU_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
