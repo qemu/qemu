@@ -3302,7 +3302,9 @@ static void net_check_clients(void)
 
 static int net_init_client(QemuOpts *opts, void *dummy)
 {
-    return net_client_init(NULL, opts, 0);
+    if (net_client_init(NULL, opts, 0) < 0)
+        return -1;
+    return 0;
 }
 
 static int net_init_netdev(QemuOpts *opts, void *dummy)
