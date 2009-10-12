@@ -193,6 +193,34 @@ PropertyInfo qdev_prop_hex64 = {
     .print = print_hex64,
 };
 
+/* --- string --- */
+
+static int parse_string(DeviceState *dev, Property *prop, const char *str)
+{
+    char **ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (*ptr)
+        qemu_free(*ptr);
+    *ptr = qemu_strdup(str);
+    return 0;
+}
+
+static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    char **ptr = qdev_get_prop_ptr(dev, prop);
+    if (!*ptr)
+        return snprintf(dest, len, "<null>");
+    return snprintf(dest, len, "\"%s\"", *ptr);
+}
+
+PropertyInfo qdev_prop_string = {
+    .name  = "string",
+    .type  = PROP_TYPE_STRING,
+    .size  = sizeof(char*),
+    .parse = parse_string,
+    .print = print_string,
+};
+
 /* --- drive --- */
 
 static int parse_drive(DeviceState *dev, Property *prop, const char *str)
