@@ -159,7 +159,18 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
 
     switch (type) {
     case IF_SCSI:
+        if (!dinfo) {
+            monitor_printf(mon, "scsi requires a backing file/device.\n");
+            return NULL;
+        }
         dev = pci_create(bus, devfn, "lsi53c895a");
+        if (qdev_init(&dev->qdev) < 0)
+            dev = NULL;
+        if (dev) {
+            BusState *scsibus = QLIST_FIRST(&dev->qdev.child_bus);
+            scsi_bus_legacy_add_drive(DO_UPCAST(SCSIBus, qbus, scsibus),
+                                      dinfo, dinfo->unit);
+        }
         break;
     case IF_VIRTIO:
         if (!dinfo) {
@@ -168,12 +179,12 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         }
         dev = pci_create(bus, devfn, "virtio-blk-pci");
         qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
+        if (qdev_init(&dev->qdev) < 0)
+            dev = NULL;
         break;
     default:
         dev = NULL;
     }
-    if (!dev || qdev_init(&dev->qdev) < 0)
-        return NULL;
     return dev;
 }
 

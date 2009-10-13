@@ -2178,7 +2178,9 @@ static int lsi_scsi_init(PCIDevice *dev)
     lsi_soft_reset(s);
 
     scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
-    scsi_bus_legacy_handle_cmdline(&s->bus);
+    if (!dev->qdev.hotplugged) {
+        scsi_bus_legacy_handle_cmdline(&s->bus);
+    }
     register_savevm("lsiscsi", -1, 0, lsi_scsi_save, lsi_scsi_load, s);
     return 0;
 }
