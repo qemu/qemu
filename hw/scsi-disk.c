@@ -624,7 +624,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         {
             uint8_t *p;
             int page;
-
+            int dbd;
+            
+            dbd = buf[1]  & 0x8;
             page = buf[2] & 0x3f;
             DPRINTF("Mode Sense (page %d, len %d)\n", page, len);
             p = outbuf;
@@ -635,6 +637,24 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                 outbuf[2] = 0x80; /* Readonly.  */
             }
             p += 4;
+            bdrv_get_geometry(s->dinfo->bdrv, &nb_sectors);
+            if ((~dbd) & nb_sectors) {
+                nb_sectors /= s->cluster_size;
+                nb_sectors--;
+                if (nb_sectors > 0xffffff)
+                    nb_sectors = 0xffffff;
+                outbuf[3] = 8; /* Block descriptor length  */
+                p[0] = 0; /* media density code */
+                p[1] = (nb_sectors >> 16) & 0xff;
+                p[2] = (nb_sectors >> 8) & 0xff;
+                p[3] = nb_sectors & 0xff;
+                p[4] = 0; /* reserved */
+                p[5] = 0; /* bytes 5-7 are the sector size in bytes */
+                p[6] = s->cluster_size * 2;
+                p[7] = 0;
+                p += 8;
+            }
+
             if (page == 4) {
                 int cylinders, heads, secs;
 
