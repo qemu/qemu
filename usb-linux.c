@@ -275,7 +275,9 @@ static void async_complete(void *opaque)
 
             case -EPIPE:
                 set_halt(s, p->devep);
-                /* fall through */
+		p->len = USB_RET_STALL;
+		break;
+
             default:
                 p->len = USB_RET_NAK;
                 break;
