@@ -80,6 +80,7 @@ struct ParallelState {
 
 typedef struct ISAParallelState {
     ISADevice dev;
+    uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
     ParallelState state;
@@ -445,11 +446,14 @@ static void parallel_reset(void *opaque)
     s->last_read_offset = ~0U;
 }
 
+static const int isa_parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
+
 static int parallel_isa_initfn(ISADevice *dev)
 {
+    static int index;
     ISAParallelState *isa = DO_UPCAST(ISAParallelState, dev, dev);
     ParallelState *s = &isa->state;
-    int base = isa->iobase;
+    int base;
     uint8_t dummy;
 
     if (!s->chr) {
@@ -457,6 +461,15 @@ static int parallel_isa_initfn(ISADevice *dev)
         exit(1);
     }
 
+    if (isa->index == -1)
+        isa->index = index;
+    if (isa->index >= MAX_PARALLEL_PORTS)
+        return -1;
+    if (isa->iobase == -1)
+        isa->iobase = isa_parallel_io[isa->index];
+    index++;
+
+    base = isa->iobase;
     isa_init_irq(dev, &s->irq, isa->isairq);
     parallel_reset(s);
     qemu_register_reset(parallel_reset, s);
@@ -483,15 +496,12 @@ static int parallel_isa_initfn(ISADevice *dev)
     return 0;
 }
 
-static const int isa_parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
-
 ParallelState *parallel_init(int index, CharDriverState *chr)
 {
     ISADevice *dev;
 
     dev = isa_create("isa-parallel");
-    qdev_prop_set_uint32(&dev->qdev, "iobase", isa_parallel_io[index]);
-    qdev_prop_set_uint32(&dev->qdev, "irq", 7);
+    qdev_prop_set_uint32(&dev->qdev, "index", index);
     qdev_prop_set_chr(&dev->qdev, "chardev", chr);
     if (qdev_init(&dev->qdev) < 0)
         return NULL;
@@ -579,7 +589,8 @@ static ISADeviceInfo parallel_isa_info = {
     .qdev.size  = sizeof(ISAParallelState),
     .init       = parallel_isa_initfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  0x378),
+        DEFINE_PROP_HEX32("index",  ISAParallelState, index,   -1),
+        DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  -1),
         DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),
         DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
         DEFINE_PROP_END_OF_LIST(),
