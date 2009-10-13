@@ -27,6 +27,9 @@ void qdict_del(QDict *qdict, const char *key);
 int qdict_haskey(const QDict *qdict, const char *key);
 QObject *qdict_get(const QDict *qdict, const char *key);
 QDict *qobject_to_qdict(const QObject *obj);
+void qdict_iter(const QDict *qdict,
+                void (*iter)(const char *key, QObject *obj, void *opaque),
+                void *opaque);
 
 /* Helper to qdict_put_obj(), accepts any object */
 #define qdict_put(qdict, key, obj) \

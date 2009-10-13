@@ -242,6 +242,25 @@ const char *qdict_get_try_str(const QDict *qdict, const char *key)
 }
 
 /**
+ * qdict_iter(): Iterate over all the dictionary's stored values.
+ *
+ * This function allows the user to provide an iterator, which will be
+ * called for each stored value in the dictionary.
+ */
+void qdict_iter(const QDict *qdict,
+                void (*iter)(const char *key, QObject *obj, void *opaque),
+                void *opaque)
+{
+    int i;
+    QDictEntry *entry;
+
+    for (i = 0; i < QDICT_HASH_SIZE; i++) {
+        QLIST_FOREACH(entry, &qdict->table[i], next)
+            iter(entry->key, entry->value, opaque);
+    }
+}
+
+/**
  * qentry_destroy(): Free all the memory allocated by a QDictEntry
  */
 static void qentry_destroy(QDictEntry *e)
