@@ -1141,7 +1141,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     s->vga.ds = graphic_console_init(vmsvga_update_display,
                                      vmsvga_invalidate_display,
                                      vmsvga_screen_dump,
-                                     vmsvga_text_update, &s->vga);
+                                     vmsvga_text_update, s);
 
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
