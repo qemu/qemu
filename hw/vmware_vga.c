@@ -1051,55 +1051,9 @@ static CPUWriteMemoryFunc * const vmsvga_vram_write[] = {
 };
 #endif
 
-static void vmsvga_save(struct vmsvga_state_s *s, QEMUFile *f)
+static int vmsvga_post_load(void *opaque, int version_id)
 {
-    int i;
-    qemu_put_be32(f, s->depth);
-    qemu_put_be32(f, s->enable);
-    qemu_put_be32(f, s->config);
-    qemu_put_be32(f, s->cursor.id);
-    qemu_put_be32(f, s->cursor.x);
-    qemu_put_be32(f, s->cursor.y);
-    qemu_put_be32(f, s->cursor.on);
-    qemu_put_be32(f, s->index);
-    for (i = 0; i < s->scratch_size; i++) {
-        qemu_put_be32s(f, &s->scratch[i]);
-    }
-    qemu_put_be32(f, s->new_width);
-    qemu_put_be32(f, s->new_height);
-    qemu_put_be32s(f, &s->guest);
-    qemu_put_be32s(f, &s->svgaid);
-    qemu_put_be32(f, s->syncing);
-    qemu_put_be32(f, s->fb_size);
-}
-
-static int vmsvga_load(struct vmsvga_state_s *s, QEMUFile *f)
-{
-    int depth;
-    int i;
-    depth=qemu_get_be32(f);
-    s->enable=qemu_get_be32(f);
-    s->config=qemu_get_be32(f);
-    s->cursor.id=qemu_get_be32(f);
-    s->cursor.x=qemu_get_be32(f);
-    s->cursor.y=qemu_get_be32(f);
-    s->cursor.on=qemu_get_be32(f);
-    s->index=qemu_get_be32(f);
-    for (i = 0; i < s->scratch_size; i++) {
-        qemu_get_be32s(f, &s->scratch[i]);
-    }
-    s->new_width=qemu_get_be32(f);
-    s->new_height=qemu_get_be32(f);
-    qemu_get_be32s(f, &s->guest);
-    qemu_get_be32s(f, &s->svgaid);
-    s->syncing=qemu_get_be32(f);
-    s->fb_size=qemu_get_be32(f);
-
-    if (depth != s->depth) {
-        printf("%s: need colour depth of %i bits to resume operation.\n",
-                        __FUNCTION__, depth);
-        return -EINVAL;
-    }
+    struct vmsvga_state_s *s = opaque;
 
     s->invalidated = 1;
     if (s->config)
@@ -1107,6 +1061,46 @@ static int vmsvga_load(struct vmsvga_state_s *s, QEMUFile *f)
 
     return 0;
 }
+
+const VMStateDescription vmstate_vmware_vga_internal = {
+    .name = "vmware_vga_internal",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = vmsvga_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_EQUAL(depth, struct vmsvga_state_s),
+        VMSTATE_INT32(enable, struct vmsvga_state_s),
+        VMSTATE_INT32(config, struct vmsvga_state_s),
+        VMSTATE_INT32(cursor.id, struct vmsvga_state_s),
+        VMSTATE_INT32(cursor.x, struct vmsvga_state_s),
+        VMSTATE_INT32(cursor.y, struct vmsvga_state_s),
+        VMSTATE_INT32(cursor.on, struct vmsvga_state_s),
+        VMSTATE_INT32(index, struct vmsvga_state_s),
+        VMSTATE_VARRAY_INT32(scratch, struct vmsvga_state_s,
+                             scratch_size, 0, vmstate_info_uint32, uint32_t),
+        VMSTATE_INT32(new_width, struct vmsvga_state_s),
+        VMSTATE_INT32(new_height, struct vmsvga_state_s),
+        VMSTATE_UINT32(guest, struct vmsvga_state_s),
+        VMSTATE_UINT32(svgaid, struct vmsvga_state_s),
+        VMSTATE_INT32(syncing, struct vmsvga_state_s),
+        VMSTATE_INT32(fb_size, struct vmsvga_state_s),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_vmware_vga = {
+    .name = "vmware_vga",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(card, struct pci_vmsvga_state_s),
+        VMSTATE_STRUCT(chip, struct pci_vmsvga_state_s, 0,
+                       vmstate_vmware_vga_internal, struct vmsvga_state_s),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 {
@@ -1129,29 +1123,6 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                  vga_ram_size, s->vga.vram_offset);
 #endif
-}
-
-static void pci_vmsvga_save(QEMUFile *f, void *opaque)
-{
-    struct pci_vmsvga_state_s *s = opaque;
-    pci_device_save(&s->card, f);
-    vmsvga_save(&s->chip, f);
-}
-
-static int pci_vmsvga_load(QEMUFile *f, void *opaque, int version_id)
-{
-    struct pci_vmsvga_state_s *s = opaque;
-    int ret;
-
-    ret = pci_device_load(&s->card, f);
-    if (ret < 0)
-        return ret;
-
-    ret = vmsvga_load(&s->chip, f);
-    if (ret < 0)
-        return ret;
-
-    return 0;
 }
 
 static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
@@ -1217,7 +1188,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
-    register_savevm("vmware_vga", 0, 0, pci_vmsvga_save, pci_vmsvga_load, s);
+    vmstate_register(0, &vmstate_vmware_vga, s);
     return 0;
 }
 
