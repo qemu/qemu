@@ -1095,7 +1095,7 @@ static int vmsvga_load(struct vmsvga_state_s *s, QEMUFile *f)
     s->syncing=qemu_get_be32(f);
     s->fb_size=qemu_get_be32(f);
 
-    if (s->enable && depth != s->depth) {
+    if (depth != s->depth) {
         printf("%s: need colour depth of %i bits to resume operation.\n",
                         __FUNCTION__, depth);
         return -EINVAL;
