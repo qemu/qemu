@@ -1124,7 +1124,7 @@ static int vmsvga_load(struct vmsvga_state_s *s, QEMUFile *f)
 static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
-    s->scratch = (uint32_t *) qemu_malloc(s->scratch_size * 4);
+    s->scratch = qemu_malloc(s->scratch_size * 4);
 
     vmsvga_reset(s);
 
