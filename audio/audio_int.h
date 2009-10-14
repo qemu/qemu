@@ -50,7 +50,7 @@ struct audio_option {
 
 struct audio_callback {
     void *opaque;
-    audio_callback_fn_t fn;
+    audio_callback_fn fn;
 };
 
 struct audio_pcm_info {
