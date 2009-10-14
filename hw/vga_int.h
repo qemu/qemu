@@ -21,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include <hw/hw.h>
+
 #define MSR_COLOR_EMULATION 0x01
 #define MSR_PAGE_SELECT     0x20
 
@@ -193,6 +196,7 @@ void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
 
+extern const VMStateDescription vmstate_vga_common;
 void vga_common_save(QEMUFile *f, void *opaque);
 int vga_common_load(QEMUFile *f, void *opaque, int version_id);
 uint32_t vga_ioport_read(void *opaque, uint32_t addr);
