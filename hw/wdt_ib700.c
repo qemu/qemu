@@ -35,6 +35,10 @@
 #define ib700_debug(fs,...)
 #endif
 
+typedef struct IB700state {
+    ISADevice dev;
+} IB700State;
+
 /* This is the timer.  We use a global here because the watchdog
  * code ensures there is only one watchdog (it is located at a fixed,
  * unchangable IO port, so there could only ever be one anyway).
@@ -90,10 +94,12 @@ static int ib700_load(QEMUFile *f, void *vp, int version)
 
 static int wdt_ib700_init(ISADevice *dev)
 {
-    timer = qemu_new_timer(vm_clock, ib700_timer_expired, NULL);
-    register_savevm("ib700_wdt", -1, 0, ib700_save, ib700_load, NULL);
-    register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, NULL);
-    register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, NULL);
+    IB700State *s = DO_UPCAST(IB700State, dev, dev);
+
+    timer = qemu_new_timer(vm_clock, ib700_timer_expired, s);
+    register_savevm("ib700_wdt", -1, 0, ib700_save, ib700_load, s);
+    register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, s);
+    register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, s);
 
     return 0;
 }
@@ -105,7 +111,7 @@ static WatchdogTimerModel model = {
 
 static ISADeviceInfo wdt_ib700_info = {
     .qdev.name = "ib700",
-    .qdev.size = sizeof(ISADevice),
+    .qdev.size = sizeof(IB700State),
     .init      = wdt_ib700_init,
 };
 
