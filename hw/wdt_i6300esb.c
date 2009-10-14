@@ -36,10 +36,6 @@
 #define i6300esb_debug(fs,...)
 #endif
 
-#ifndef PCI_DEVICE_ID_INTEL_ESB_9
-#define PCI_DEVICE_ID_INTEL_ESB_9 0x25ab
-#endif
-
 /* PCI configuration registers */
 #define ESB_CONFIG_REG  0x60            /* Config register                   */
 #define ESB_LOCK_REG    0x68            /* WDT lock register                 */
