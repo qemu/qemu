@@ -92,6 +92,7 @@ static void GCC_FMT_ATTR (2, 3) winwave_logerr (
     AUD_vlog (AUDIO_CAP, fmt, ap);
     va_end (ap);
 
+    AUD_log (NULL, " failed\n");
     winwave_log_mmresult (mr);
 }
 
@@ -101,7 +102,7 @@ static void winwave_anal_close_out (WaveVoiceOut *wave)
 
     mr = waveOutClose (wave->hwo);
     if (mr != MMSYSERR_NOERROR) {
-        winwave_logerr (mr, "waveOutClose\n");
+        winwave_logerr (mr, "waveOutClose");
     }
     wave->hwo = NULL;
 }
@@ -167,7 +168,7 @@ static int winwave_init_out (HWVoiceOut *hw, struct audsettings *as)
                       (DWORD_PTR) winwave_callback,
                       (DWORD_PTR) wave, CALLBACK_FUNCTION);
     if (mr != MMSYSERR_NOERROR) {
-        winwave_logerr (mr, "waveOutOpen\n");
+        winwave_logerr (mr, "waveOutOpen");
         goto err1;
     }
 
@@ -197,7 +198,7 @@ static int winwave_init_out (HWVoiceOut *hw, struct audsettings *as)
 
         mr = waveOutPrepareHeader (wave->hwo, h, sizeof (*h));
         if (mr != MMSYSERR_NOERROR) {
-            winwave_logerr (mr, "waveOutPrepareHeader(%d)\n", wave->curhdr);
+            winwave_logerr (mr, "waveOutPrepareHeader(%d)", wave->curhdr);
             goto err4;
         }
     }
@@ -247,7 +248,7 @@ static int winwave_run_out (HWVoiceOut *hw, int live)
         h->dwUser = 0;
         mr = waveOutWrite (wave->hwo, h, sizeof (*h));
         if (mr != MMSYSERR_NOERROR) {
-            winwave_logerr (mr, "waveOutWrite(%d)\n", wave->curhdr);
+            winwave_logerr (mr, "waveOutWrite(%d)", wave->curhdr);
             break;
         }
 
@@ -272,14 +273,14 @@ static void winwave_fini_out (HWVoiceOut *hw)
 
     mr = waveOutReset (wave->hwo);
     if (mr != MMSYSERR_NOERROR) {
-        winwave_logerr (mr, "waveOutReset\n");
+        winwave_logerr (mr, "waveOutReset");
     }
 
     for (i = 0; i < conf.dac_headers; ++i) {
         mr = waveOutUnprepareHeader (wave->hwo, &wave->hdrs[i],
                                      sizeof (wave->hdrs[i]));
         if (mr != MMSYSERR_NOERROR) {
-            winwave_logerr (mr, "waveOutUnprepareHeader(%d)\n", i);
+            winwave_logerr (mr, "waveOutUnprepareHeader(%d)", i);
         }
     }
 
