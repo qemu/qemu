@@ -369,48 +369,28 @@ static void i6300esb_map(PCIDevice *dev, int region_num,
     /* qemu_register_coalesced_mmio (addr, 0x10); ? */
 }
 
-static void i6300esb_save(QEMUFile *f, void *vp)
-{
-    I6300State *d = (I6300State *) vp;
-
-    pci_device_save(&d->dev, f);
-    qemu_put_be32(f, d->reboot_enabled);
-    qemu_put_be32(f, d->clock_scale);
-    qemu_put_be32(f, d->int_type);
-    qemu_put_be32(f, d->free_run);
-    qemu_put_be32(f, d->locked);
-    qemu_put_be32(f, d->enabled);
-    qemu_put_timer(f, d->timer);
-    qemu_put_be32(f, d->timer1_preload);
-    qemu_put_be32(f, d->timer2_preload);
-    qemu_put_be32(f, d->stage);
-    qemu_put_be32(f, d->unlock_state);
-    qemu_put_be32(f, d->previous_reboot_flag);
-}
-
-static int i6300esb_load(QEMUFile *f, void *vp, int version)
-{
-    I6300State *d = (I6300State *) vp;
-
-    if (version != sizeof (I6300State))
-        return -EINVAL;
-
-    pci_device_load(&d->dev, f);
-    d->reboot_enabled = qemu_get_be32(f);
-    d->clock_scale = qemu_get_be32(f);
-    d->int_type = qemu_get_be32(f);
-    d->free_run = qemu_get_be32(f);
-    d->locked = qemu_get_be32(f);
-    d->enabled = qemu_get_be32(f);
-    qemu_get_timer(f, d->timer);
-    d->timer1_preload = qemu_get_be32(f);
-    d->timer2_preload = qemu_get_be32(f);
-    d->stage = qemu_get_be32(f);
-    d->unlock_state = qemu_get_be32(f);
-    d->previous_reboot_flag = qemu_get_be32(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_i6300esb = {
+    .name = "i6300esb_wdt",
+    .version_id = sizeof(I6300State),
+    .minimum_version_id = sizeof(I6300State),
+    .minimum_version_id_old = sizeof(I6300State),
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, I6300State),
+        VMSTATE_INT32(reboot_enabled, I6300State),
+        VMSTATE_INT32(clock_scale, I6300State),
+        VMSTATE_INT32(int_type, I6300State),
+        VMSTATE_INT32(free_run, I6300State),
+        VMSTATE_INT32(locked, I6300State),
+        VMSTATE_INT32(enabled, I6300State),
+        VMSTATE_TIMER(timer, I6300State),
+        VMSTATE_UINT32(timer1_preload, I6300State),
+        VMSTATE_UINT32(timer2_preload, I6300State),
+        VMSTATE_INT32(stage, I6300State),
+        VMSTATE_INT32(unlock_state, I6300State),
+        VMSTATE_INT32(previous_reboot_flag, I6300State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int i6300esb_init(PCIDevice *dev)
 {
@@ -439,8 +419,7 @@ static int i6300esb_init(PCIDevice *dev)
     pci_register_bar(&d->dev, 0, 0x10,
                             PCI_ADDRESS_SPACE_MEM, i6300esb_map);
 
-    register_savevm("i6300esb_wdt", -1, sizeof(I6300State),
-                     i6300esb_save, i6300esb_load, d);
+    vmstate_register(-1, &vmstate_i6300esb, d);
 
     return 0;
 }
