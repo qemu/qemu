@@ -212,17 +212,9 @@ static QemuOptsList *lists[] = {
     NULL,
 };
 
-int qemu_set_option(const char *str)
+static QemuOptsList *find_list(const char *group)
 {
-    char group[64], id[64], arg[64];
-    QemuOpts *opts;
-    int i, rc, offset;
-
-    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
-    if (rc < 3 || str[offset] != '=') {
-        qemu_error("can't parse: \"%s\"\n", str);
-        return -1;
-    }
+    int i;
 
     for (i = 0; lists[i] != NULL; i++) {
         if (strcmp(lists[i]->name, group) == 0)
@@ -230,13 +222,32 @@ int qemu_set_option(const char *str)
     }
     if (lists[i] == NULL) {
         qemu_error("there is no option group \"%s\"\n", group);
+    }
+    return lists[i];
+}
+
+int qemu_set_option(const char *str)
+{
+    char group[64], id[64], arg[64];
+    QemuOptsList *list;
+    QemuOpts *opts;
+    int rc, offset;
+
+    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
+    if (rc < 3 || str[offset] != '=') {
+        qemu_error("can't parse: \"%s\"\n", str);
         return -1;
     }
 
-    opts = qemu_opts_find(lists[i], id);
+    list = find_list(group);
+    if (list == NULL) {
+        return -1;
+    }
+
+    opts = qemu_opts_find(list, id);
     if (!opts) {
         qemu_error("there is no %s \"%s\" defined\n",
-                lists[i]->name, id);
+                   list->name, id);
         return -1;
     }
 
