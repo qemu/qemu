@@ -108,20 +108,20 @@ int load_image_targphys(const char *filename,
     return size;
 }
 
-void pstrcpy_targphys(target_phys_addr_t dest, int buf_size,
+void pstrcpy_targphys(const char *name, target_phys_addr_t dest, int buf_size,
                       const char *source)
 {
-    static const uint8_t nul_byte = 0;
     const char *nulp;
+    char *ptr;
 
     if (buf_size <= 0) return;
     nulp = memchr(source, 0, buf_size);
     if (nulp) {
-	cpu_physical_memory_write_rom(dest, (uint8_t *)source,
-                                      (nulp - source) + 1);
+        rom_add_blob_fixed(name, source, (nulp - source) + 1, dest);
     } else {
-	cpu_physical_memory_write_rom(dest, (uint8_t *)source, buf_size - 1);
-	cpu_physical_memory_write_rom(dest, &nul_byte, 1);
+        rom_add_blob_fixed(name, source, buf_size, dest);
+        ptr = rom_ptr(dest + buf_size - 1);
+        *ptr = 0;
     }
 }
 
@@ -559,8 +559,7 @@ int rom_add_file(const char *file,
     rom->name = qemu_strdup(file);
     rom->path = qemu_find_file(QEMU_FILE_TYPE_BIOS, rom->name);
     if (rom->path == NULL) {
-        fprintf(stderr, "Could not find option rom '%s'\n", rom->name);
-        goto err;
+        rom->path = strdup(file);
     }
 
     fd = open(rom->path, O_RDONLY | O_BINARY);
@@ -670,6 +669,32 @@ int rom_load_all(void)
     qemu_register_reset(rom_reset, NULL);
     rom_reset(NULL);
     return 0;
+}
+
+static Rom *find_rom(target_phys_addr_t addr)
+{
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->max)
+            continue;
+        if (rom->min > addr)
+            continue;
+        if (rom->min + rom->romsize < addr)
+            continue;
+        return rom;
+    }
+    return NULL;
+}
+
+void *rom_ptr(target_phys_addr_t addr)
+{
+    Rom *rom;
+
+    rom = find_rom(addr);
+    if (!rom || !rom->data)
+        return NULL;
+    return rom->data + (addr - rom->min);
 }
 
 void do_info_roms(Monitor *mon)

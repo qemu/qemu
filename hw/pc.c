@@ -865,7 +865,7 @@ static void load_linux(void *fw_cfg,
     	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
 
     /* kernel command line */
-    rom_add_blob_fixed("linux-cmdline", kernel_cmdline,
+    rom_add_blob_fixed("cmdline", kernel_cmdline,
                        strlen(kernel_cmdline)+1, cmdline_addr);
 
     if (protocol >= 0x202) {

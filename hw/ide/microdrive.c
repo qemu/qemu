@@ -94,7 +94,7 @@ static inline void md_interrupt_update(MicroDriveState *s)
 
 static void md_set_irq(void *opaque, int irq, int level)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     if (level)
         s->stat |= STAT_INT;
     else
@@ -115,7 +115,7 @@ static void md_reset(MicroDriveState *s)
 
 static uint8_t md_attr_read(void *opaque, uint32_t at)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     if (at < s->attr_base) {
         if (at < s->card.cis_len)
             return s->card.cis[at];
@@ -148,7 +148,7 @@ static uint8_t md_attr_read(void *opaque, uint32_t at)
 
 static void md_attr_write(void *opaque, uint32_t at, uint8_t value)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     at -= s->attr_base;
 
     switch (at) {
@@ -179,7 +179,7 @@ static void md_attr_write(void *opaque, uint32_t at, uint8_t value)
 
 static uint16_t md_common_read(void *opaque, uint32_t at)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     IDEState *ifs;
     uint16_t ret;
     at -= s->io_base;
@@ -241,7 +241,7 @@ static uint16_t md_common_read(void *opaque, uint32_t at)
 
 static void md_common_write(void *opaque, uint32_t at, uint16_t value)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     at -= s->io_base;
 
     switch (s->opt & OPT_MODE) {
@@ -302,7 +302,7 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
 
 static void md_save(QEMUFile *f, void *opaque)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     int i;
 
     qemu_put_8s(f, &s->opt);
@@ -321,7 +321,7 @@ static void md_save(QEMUFile *f, void *opaque)
 
 static int md_load(QEMUFile *f, void *opaque, int version_id)
 {
-    MicroDriveState *s = (MicroDriveState *) opaque;
+    MicroDriveState *s = opaque;
     int i;
 
     if (version_id != 0 && version_id != 3)
@@ -530,7 +530,7 @@ static const uint8_t dscm1xxxx_cis[0x14a] = {
 
 static int dscm1xxxx_attach(void *opaque)
 {
-    MicroDriveState *md = (MicroDriveState *) opaque;
+    MicroDriveState *md = opaque;
     md->card.attr_read = md_attr_read;
     md->card.attr_write = md_attr_write;
     md->card.common_read = md_common_read;
@@ -550,7 +550,7 @@ static int dscm1xxxx_attach(void *opaque)
 
 static int dscm1xxxx_detach(void *opaque)
 {
-    MicroDriveState *md = (MicroDriveState *) opaque;
+    MicroDriveState *md = opaque;
     md_reset(md);
     return 0;
 }

@@ -137,7 +137,7 @@ static void load_kernel (CPUState *env)
     } else {
         ret = 0;
     }
-    pstrcpy_targphys((16 << 20) - 256 + ret, 256,
+    pstrcpy_targphys("cmdline", (16 << 20) - 256 + ret, 256,
                      loaderparams.kernel_cmdline);
 
     stl_phys((16 << 20) - 260, 0x12345678);

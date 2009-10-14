@@ -41,6 +41,14 @@
  * alarm and a watchdog timer and related control registers. In the
  * PPC platform there is also a nvram lock function.
  */
+
+/*
+ * Chipset docs:
+ * http://www.st.com/stonline/products/literature/ds/2410/m48t02.pdf
+ * http://www.st.com/stonline/products/literature/ds/2411/m48t08.pdf
+ * http://www.st.com/stonline/products/literature/od/7001/m48t59y.pdf
+ */
+
 struct m48t59_t {
     /* Model parameters */
     uint32_t type; // 2 = m48t02, 8 = m48t08, 59 = m48t59

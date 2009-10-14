@@ -20,12 +20,6 @@ typedef struct IDEDeviceInfo IDEDeviceInfo;
 typedef struct IDEState IDEState;
 typedef struct BMDMAState BMDMAState;
 
-/* debug IDE devices */
-//#define DEBUG_IDE
-//#define DEBUG_IDE_ATAPI
-//#define DEBUG_AIO
-#define USE_DMA_CDROM
-
 /* Bits of HD_STATUS */
 #define ERR_STAT		0x01
 #define INDEX_STAT		0x02
@@ -479,7 +473,6 @@ struct BMDMAState {
     uint8_t status;
     uint32_t addr;
 
-    struct PCIIDEState *pci_dev;
     IDEBus *bus;
     /* current transfer state */
     uint32_t cur_addr;

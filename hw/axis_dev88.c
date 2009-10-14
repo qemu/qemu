@@ -365,7 +365,7 @@ void axisdev88_init (ram_addr_t ram_size,
             /* Let the kernel know we are modifying the cmdline.  */
             env->regs[10] = 0x87109563;
             env->regs[11] = 0x40000000;
-            pstrcpy_targphys(env->regs[11], 256, kernel_cmdline);
+            pstrcpy_targphys("cmdline", env->regs[11], 256, kernel_cmdline);
         }
     }
     env->pc = bootstrap_pc;

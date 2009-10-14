@@ -2451,6 +2451,7 @@ static int net_init_nic(QemuOpts *opts, Monitor *mon)
     return idx;
 }
 
+#if defined(CONFIG_SLIRP)
 static int net_init_slirp_configs(const char *name, const char *value, void *opaque)
 {
     struct slirp_config_str *config;
@@ -2546,6 +2547,7 @@ static int net_init_slirp(QemuOpts *opts, Monitor *mon)
 
     return ret;
 }
+#endif /* CONFIG_SLIRP */
 
 #ifdef _WIN32
 static int net_init_tap_win32(QemuOpts *opts, Monitor *mon)
@@ -3227,6 +3229,7 @@ int net_init_clients(void)
 
 int net_client_parse(const char *optarg)
 {
+#if defined(CONFIG_SLIRP)
     /* handle legacy -net channel,port:chr */
     if (!strncmp(optarg, "channel,", strlen("channel,"))) {
         int ret;
@@ -3248,7 +3251,7 @@ int net_client_parse(const char *optarg)
 
         return ret;
     }
-
+#endif
     if (!qemu_opts_parse(&qemu_net_opts, optarg, "type")) {
         return -1;
     }

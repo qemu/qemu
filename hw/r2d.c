@@ -250,7 +250,7 @@ static void r2d_init(ram_addr_t ram_size,
 				   SDRAM_BASE + LINUX_LOAD_OFFSET,
 				   SDRAM_SIZE - LINUX_LOAD_OFFSET);
           env->pc = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000;
-          pstrcpy_targphys(SDRAM_BASE + 0x10100, 256, kernel_cmdline);
+          pstrcpy_targphys("cmdline", SDRAM_BASE + 0x10100, 256, kernel_cmdline);
       } else {
           kernel_size = load_image_targphys(kernel_filename, SDRAM_BASE, SDRAM_SIZE);
           env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */

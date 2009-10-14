@@ -91,7 +91,7 @@ static void rtc_irq_raise(qemu_irq irq) {
      * mode is established while interrupt is raised. We want it to
      * be lowered in any case
      */
-#if defined TARGET_I386 || defined TARGET_X86_64
+#if defined TARGET_I386
     if (!hpet_in_legacy_mode())
 #endif
         qemu_irq_raise(irq);
@@ -138,7 +138,7 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
     int enable_pie;
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
-#if defined TARGET_I386 || defined TARGET_X86_64
+#if defined TARGET_I386
     /* disable periodic timer if hpet is in legacy mode, since interrupts are
      * disabled anyway.
      */

@@ -3565,8 +3565,8 @@ void qemu_notify_event(void)
     }
 }
 
-#define qemu_mutex_lock_iothread() do { } while (0)
-#define qemu_mutex_unlock_iothread() do { } while (0)
+void qemu_mutex_lock_iothread(void) {}
+void qemu_mutex_unlock_iothread(void) {}
 
 void vm_stop(int reason)
 {
@@ -3765,7 +3765,7 @@ static void qemu_signal_lock(unsigned int msecs)
     qemu_mutex_unlock(&qemu_fair_mutex);
 }
 
-static void qemu_mutex_lock_iothread(void)
+void qemu_mutex_lock_iothread(void)
 {
     if (kvm_enabled()) {
         qemu_mutex_lock(&qemu_fair_mutex);
@@ -3775,7 +3775,7 @@ static void qemu_mutex_lock_iothread(void)
         qemu_signal_lock(100);
 }
 
-static void qemu_mutex_unlock_iothread(void)
+void qemu_mutex_unlock_iothread(void)
 {
     qemu_mutex_unlock(&qemu_global_mutex);
 }
