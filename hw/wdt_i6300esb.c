@@ -163,7 +163,7 @@ static void i6300esb_reset(I6300State *d)
  */
 static void i6300esb_timer_expired(void *vp)
 {
-    I6300State *d = (I6300State *) vp;
+    I6300State *d = vp;
 
     i6300esb_debug("stage %d\n", d->stage);
 
@@ -257,7 +257,7 @@ static uint32_t i6300esb_mem_readb(void *vp, target_phys_addr_t addr)
 static uint32_t i6300esb_mem_readw(void *vp, target_phys_addr_t addr)
 {
     uint32_t data = 0;
-    I6300State *d = (I6300State *) vp;
+    I6300State *d = vp;
 
     i6300esb_debug("addr = %x\n", (int) addr);
 
@@ -281,7 +281,7 @@ static uint32_t i6300esb_mem_readl(void *vp, target_phys_addr_t addr)
 
 static void i6300esb_mem_writeb(void *vp, target_phys_addr_t addr, uint32_t val)
 {
-    I6300State *d = (I6300State *) vp;
+    I6300State *d = vp;
 
     i6300esb_debug("addr = %x, val = %x\n", (int) addr, val);
 
@@ -293,7 +293,7 @@ static void i6300esb_mem_writeb(void *vp, target_phys_addr_t addr, uint32_t val)
 
 static void i6300esb_mem_writew(void *vp, target_phys_addr_t addr, uint32_t val)
 {
-    I6300State *d = (I6300State *) vp;
+    I6300State *d = vp;
 
     i6300esb_debug("addr = %x, val = %x\n", (int) addr, val);
 
@@ -326,7 +326,7 @@ static void i6300esb_mem_writew(void *vp, target_phys_addr_t addr, uint32_t val)
 
 static void i6300esb_mem_writel(void *vp, target_phys_addr_t addr, uint32_t val)
 {
-    I6300State *d = (I6300State *) vp;
+    I6300State *d = vp;
 
     i6300esb_debug ("addr = %x, val = %x\n", (int) addr, val);
 
