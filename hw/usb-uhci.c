@@ -139,6 +139,7 @@ typedef struct UHCIState {
     /* Active packets */
     UHCIAsync *async_pending;
     UHCIAsync *async_pool;
+    uint8_t num_ports_vmstate;
 } UHCIState;
 
 typedef struct UHCI_TD {
@@ -353,15 +354,14 @@ static void uhci_reset(void *opaque)
 static void uhci_save(QEMUFile *f, void *opaque)
 {
     UHCIState *s = opaque;
-    uint8_t num_ports = NB_PORTS;
     int i;
 
     uhci_async_cancel_all(s);
 
     pci_device_save(&s->dev, f);
 
-    qemu_put_8s(f, &num_ports);
-    for (i = 0; i < num_ports; ++i)
+    qemu_put_8s(f, &s->num_ports_vmstate);
+    for (i = 0; i < s->num_ports_vmstate; ++i)
         qemu_put_be16s(f, &s->ports[i].ctrl);
     qemu_put_be16s(f, &s->cmd);
     qemu_put_be16s(f, &s->status);
@@ -376,7 +376,6 @@ static void uhci_save(QEMUFile *f, void *opaque)
 static int uhci_load(QEMUFile *f, void *opaque, int version_id)
 {
     UHCIState *s = opaque;
-    uint8_t num_ports;
     int i, ret;
 
     if (version_id > 1)
@@ -386,11 +385,11 @@ static int uhci_load(QEMUFile *f, void *opaque, int version_id)
     if (ret < 0)
         return ret;
 
-    qemu_get_8s(f, &num_ports);
-    if (num_ports != NB_PORTS)
+    qemu_get_8s(f, &s->num_ports_vmstate);
+    if (s->num_ports_vmstate != NB_PORTS)
         return -EINVAL;
 
-    for (i = 0; i < num_ports; ++i)
+    for (i = 0; i < s->num_ports_vmstate; ++i)
         qemu_get_be16s(f, &s->ports[i].ctrl);
     qemu_get_be16s(f, &s->cmd);
     qemu_get_be16s(f, &s->status);
@@ -1088,6 +1087,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
         usb_register_port(&s->bus, &s->ports[i].port, s, i, uhci_attach);
     }
     s->frame_timer = qemu_new_timer(vm_clock, uhci_frame_timer, s);
+    s->num_ports_vmstate = NB_PORTS;
 
     qemu_register_reset(uhci_reset, s);
     uhci_reset(s);
