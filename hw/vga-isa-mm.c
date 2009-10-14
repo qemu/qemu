@@ -100,7 +100,7 @@ static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
     s_ioport_ctrl = cpu_register_io_memory(vga_mm_read_ctrl, vga_mm_write_ctrl, s);
     vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s);
 
-    register_savevm("vga", 0, 2, vga_common_save, vga_common_load, s);
+    vmstate_register(0, &vmstate_vga_common, s);
 
     cpu_register_physical_memory(ctrl_base, 0x100000, s_ioport_ctrl);
     s->vga.bank_offset = 0;
