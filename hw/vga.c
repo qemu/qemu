@@ -2159,23 +2159,21 @@ void vga_common_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, s->palette, 768);
 
     qemu_put_be32(f, s->bank_offset);
+    qemu_put_byte(f, s->is_vbe_vmstate);
 #ifdef CONFIG_BOCHS_VBE
-    qemu_put_byte(f, 1);
     qemu_put_be16s(f, &s->vbe_index);
     for(i = 0; i < VBE_DISPI_INDEX_NB; i++)
         qemu_put_be16s(f, &s->vbe_regs[i]);
     qemu_put_be32s(f, &s->vbe_start_addr);
     qemu_put_be32s(f, &s->vbe_line_offset);
     qemu_put_be32s(f, &s->vbe_bank_mask);
-#else
-    qemu_put_byte(f, 0);
 #endif
 }
 
 int vga_common_load(QEMUFile *f, void *opaque, int version_id)
 {
     VGACommonState *s = opaque;
-    int is_vbe, i;
+    int i;
 
     if (version_id > 2)
         return -EINVAL;
@@ -2203,9 +2201,9 @@ int vga_common_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer(f, s->palette, 768);
 
     s->bank_offset=qemu_get_be32(f);
-    is_vbe = qemu_get_byte(f);
+    s->is_vbe_vmstate = qemu_get_byte(f);
 #ifdef CONFIG_BOCHS_VBE
-    if (!is_vbe)
+    if (!s->is_vbe_vmstate)
         return -EINVAL;
     qemu_get_be16s(f, &s->vbe_index);
     for(i = 0; i < VBE_DISPI_INDEX_NB; i++)
@@ -2214,7 +2212,7 @@ int vga_common_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->vbe_line_offset);
     qemu_get_be32s(f, &s->vbe_bank_mask);
 #else
-    if (is_vbe)
+    if (s->is_vbe_vmstate)
         return -EINVAL;
 #endif
 
@@ -2250,6 +2248,11 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
         expand4to8[i] = v;
     }
 
+#ifdef CONFIG_BOCHS_VBE
+    s->is_vbe_vmstate = 1;
+#else
+    s->is_vbe_vmstate = 0;
+#endif
     s->vram_offset = qemu_ram_alloc(vga_ram_size);
     s->vram_ptr = qemu_get_ram_ptr(s->vram_offset);
     s->vram_size = vga_ram_size;
