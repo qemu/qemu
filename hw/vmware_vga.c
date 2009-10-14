@@ -630,20 +630,20 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
 
 static uint32_t vmsvga_index_read(void *opaque, uint32_t address)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     return s->index;
 }
 
 static void vmsvga_index_write(void *opaque, uint32_t address, uint32_t index)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     s->index = index;
 }
 
 static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
 {
     uint32_t caps;
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     switch (s->index) {
     case SVGA_REG_ID:
         return s->svgaid;
@@ -761,7 +761,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
 
 static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     switch (s->index) {
     case SVGA_REG_ID:
         if (value == SVGA_ID_2 || value == SVGA_ID_1 || value == SVGA_ID_0)
@@ -892,7 +892,7 @@ static inline void vmsvga_size(struct vmsvga_state_s *s)
 
 static void vmsvga_update_display(void *opaque)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
 #ifdef EMBED_STDVGA
         s->vga.update(&s->vga);
@@ -960,7 +960,7 @@ static void vmsvga_reset(struct vmsvga_state_s *s)
 
 static void vmsvga_invalidate_display(void *opaque)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
 #ifdef EMBED_STDVGA
         s->vga.invalidate(&s->vga);
@@ -975,7 +975,7 @@ static void vmsvga_invalidate_display(void *opaque)
    available */
 static void vmsvga_screen_dump(void *opaque, const char *filename)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
 #ifdef EMBED_STDVGA
         s->vga.screen_dump(&s->vga, filename);
@@ -993,7 +993,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
 
 static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
 
     if (s->vga.text_update)
         s->vga.text_update(&s->vga, chardata);
@@ -1002,7 +1002,7 @@ static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 #ifdef DIRECT_VRAM
 static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (addr < s->fb_size)
         return *(uint8_t *) (ds_get_data(s->ds) + addr);
     else
@@ -1011,7 +1011,7 @@ static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
 
 static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (addr < s->fb_size)
         return *(uint16_t *) (ds_get_data(s->ds) + addr);
     else
@@ -1020,7 +1020,7 @@ static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
 
 static uint32_t vmsvga_vram_readl(void *opaque, target_phys_addr_t addr)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (addr < s->fb_size)
         return *(uint32_t *) (ds_get_data(s->ds) + addr);
     else
@@ -1030,7 +1030,7 @@ static uint32_t vmsvga_vram_readl(void *opaque, target_phys_addr_t addr)
 static void vmsvga_vram_writeb(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (addr < s->fb_size)
         *(uint8_t *) (ds_get_data(s->ds) + addr) = value;
     else
@@ -1040,7 +1040,7 @@ static void vmsvga_vram_writeb(void *opaque, target_phys_addr_t addr,
 static void vmsvga_vram_writew(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (addr < s->fb_size)
         *(uint16_t *) (ds_get_data(s->ds) + addr) = value;
     else
@@ -1050,7 +1050,7 @@ static void vmsvga_vram_writew(void *opaque, target_phys_addr_t addr,
 static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+    struct vmsvga_state_s *s = opaque;
     if (addr < s->fb_size)
         *(uint32_t *) (ds_get_data(s->ds) + addr) = value;
     else
@@ -1152,14 +1152,14 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 
 static void pci_vmsvga_save(QEMUFile *f, void *opaque)
 {
-    struct pci_vmsvga_state_s *s = (struct pci_vmsvga_state_s *) opaque;
+    struct pci_vmsvga_state_s *s = opaque;
     pci_device_save(&s->card, f);
     vmsvga_save(&s->chip, f);
 }
 
 static int pci_vmsvga_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct pci_vmsvga_state_s *s = (struct pci_vmsvga_state_s *) opaque;
+    struct pci_vmsvga_state_s *s = opaque;
     int ret;
 
     ret = pci_device_load(&s->card, f);
