@@ -10,4 +10,6 @@ extern QemuOptsList qemu_rtc_opts;
 
 int qemu_set_option(const char *str);
 
+void qemu_config_write(FILE *fp);
+
 #endif /* QEMU_CONFIG_H */
