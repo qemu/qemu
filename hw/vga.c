@@ -2182,16 +2182,6 @@ const VMStateDescription vmstate_vga_common = {
     }
 };
 
-void vga_common_save(QEMUFile *f, void *opaque)
-{
-    vmstate_save_state(f, &vmstate_vga_common, opaque);
-}
-
-int vga_common_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return vmstate_load_state(f, &vmstate_vga_common, opaque, vmstate_vga_common.version_id);
-}
-
 void vga_common_init(VGACommonState *s, int vga_ram_size)
 {
     int i, j, v, b;
