@@ -82,31 +82,23 @@ static void ib700_timer_expired(void *vp)
     qemu_del_timer(s->timer);
 }
 
-static void ib700_save(QEMUFile *f, void *vp)
-{
-    IB700State *s = vp;
-
-    qemu_put_timer(f, s->timer);
-}
-
-static int ib700_load(QEMUFile *f, void *vp, int version)
-{
-    IB700State *s = vp;
-
-    if (version != 0)
-        return -EINVAL;
-
-    qemu_get_timer(f, s->timer);
-
-    return 0;
-}
+static const VMStateDescription vmstate_ib700 = {
+    .name = "ib700_wdt",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_TIMER(timer, IB700State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int wdt_ib700_init(ISADevice *dev)
 {
     IB700State *s = DO_UPCAST(IB700State, dev, dev);
 
     s->timer = qemu_new_timer(vm_clock, ib700_timer_expired, s);
-    register_savevm("ib700_wdt", -1, 0, ib700_save, ib700_load, s);
+    vmstate_register(-1, &vmstate_ib700, s);
     register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, s);
     register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, s);
 
