@@ -68,6 +68,10 @@ static void winwave_log_mmresult (MMRESULT mr)
             "hasn't been prepared";
         break;
 
+    case WAVERR_STILLPLAYING:
+        str = "There are still buffers in the queue";
+        break;
+
     default:
         AUD_log (AUDIO_CAP, "Reason: Unknown (MMRESULT %#x)\n", mr);
         return;
@@ -262,7 +266,22 @@ static void winwave_poll_out (void *opaque)
 
 static void winwave_fini_out (HWVoiceOut *hw)
 {
+    int i;
+    MMRESULT mr;
     WaveVoiceOut *wave = (WaveVoiceOut *) hw;
+
+    mr = waveOutReset (wave->hwo);
+    if (mr != MMSYSERR_NOERROR) {
+        winwave_logerr (mr, "waveOutReset\n");
+    }
+
+    for (i = 0; i < conf.dac_headers; ++i) {
+        mr = waveOutUnprepareHeader (wave->hwo, &wave->hdrs[i],
+                                     sizeof (wave->hdrs[i]));
+        if (mr != MMSYSERR_NOERROR) {
+            winwave_logerr (mr, "waveOutUnprepareHeader(%d)\n", i);
+        }
+    }
 
     winwave_anal_close_out (wave);
 
