@@ -1915,3 +1915,8 @@ DEF("semihosting", 0, QEMU_OPTION_semihosting,
 DEF("old-param", 0, QEMU_OPTION_old_param,
     "-old-param      old param mode\n")
 #endif
+DEF("readconfig", HAS_ARG, QEMU_OPTION_readconfig,
+    "-readconfig <file>\n")
+DEF("writeconfig", HAS_ARG, QEMU_OPTION_writeconfig,
+    "-writeconfig <file>\n"
+    "                read/write config file")

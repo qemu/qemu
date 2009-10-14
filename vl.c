@@ -5364,6 +5364,36 @@ int main(int argc, char **argv, char **envp)
                 xen_mode = XEN_ATTACH;
                 break;
 #endif
+            case QEMU_OPTION_readconfig:
+                {
+                    FILE *fp;
+                    fp = fopen(optarg, "r");
+                    if (fp == NULL) {
+                        fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
+                        exit(1);
+                    }
+                    if (qemu_config_parse(fp) != 0) {
+                        exit(1);
+                    }
+                    fclose(fp);
+                    break;
+                }
+            case QEMU_OPTION_writeconfig:
+                {
+                    FILE *fp;
+                    if (strcmp(optarg, "-") == 0) {
+                        fp = stdout;
+                    } else {
+                        fp = fopen(optarg, "w");
+                        if (fp == NULL) {
+                            fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
+                            exit(1);
+                        }
+                    }
+                    qemu_config_write(fp);
+                    fclose(fp);
+                    break;
+                }
             }
         }
     }
