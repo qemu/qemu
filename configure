@@ -13,7 +13,7 @@ fi
 
 TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
-TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
+TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.exe"
 
 trap "rm -f $TMPC $TMPO $TMPE ; exit" 0 2 3 15
 
