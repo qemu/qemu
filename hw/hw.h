@@ -473,6 +473,16 @@ extern const VMStateInfo vmstate_info_buffer;
     .offset       = offsetof(_state, _field)                         \
         + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
 }
+
+#define VMSTATE_PARTIAL_BUFFER(_field, _state, _size) {              \
+    .name       = (stringify(_field)),                               \
+    .size       = (_size),                                           \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = offsetof(_state, _field)                           \
+        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+}
+
 #define VMSTATE_BUFFER_START_MIDDLE(_field, _state, start) {         \
     .name       = (stringify(_field)),                               \
     .size       = sizeof(typeof_field(_state,_field)) - start,       \
