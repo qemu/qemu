@@ -61,6 +61,33 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
     return pci_nic_init(&nd_table[ret], "rtl8139", devaddr);
 }
 
+static int scsi_hot_add(DeviceState *adapter, DriveInfo *dinfo, int printinfo)
+{
+    SCSIBus *scsibus;
+    SCSIDevice *scsidev;
+
+    scsibus = DO_UPCAST(SCSIBus, qbus, QLIST_FIRST(&adapter->child_bus));
+    if (!scsibus || strcmp(scsibus->qbus.info->name, "SCSI") != 0) {
+        qemu_error("Device is not a SCSI adapter\n");
+        return -1;
+    }
+
+    /*
+     * drive_init() tries to find a default for dinfo->unit.  Doesn't
+     * work at all for hotplug though as we assign the device to a
+     * specific bus instead of the first bus with spare scsi ids.
+     *
+     * Ditch the calculated value and reload from option string (if
+     * specified).
+     */
+    dinfo->unit = qemu_opt_get_number(dinfo->opts, "unit", -1);
+    scsidev = scsi_bus_legacy_add_drive(scsibus, dinfo, dinfo->unit);
+
+    if (printinfo)
+        qemu_error("OK bus %d, unit %d\n", scsibus->busnr, scsidev->id);
+    return 0;
+}
+
 void drive_hot_add(Monitor *mon, const QDict *qdict)
 {
     int dom, pci_bus;
@@ -70,7 +97,6 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
     DriveInfo *dinfo = NULL;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
     const char *opts = qdict_get_str(qdict, "opts");
-    BusState *scsibus;
 
     dinfo = add_init_drive(opts);
     if (!dinfo)
@@ -92,12 +118,9 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "no pci device with address %s\n", pci_addr);
             goto err;
         }
-        scsibus = QLIST_FIRST(&dev->qdev.child_bus);
-        scsi_bus_legacy_add_drive(DO_UPCAST(SCSIBus, qbus, scsibus),
-                                  dinfo, dinfo->unit);
-        monitor_printf(mon, "OK bus %d, unit %d\n",
-                       dinfo->bus,
-                       dinfo->unit);
+        if (scsi_hot_add(&dev->qdev, dinfo, 1) != 0) {
+            goto err;
+        }
         break;
     case IF_NONE:
         monitor_printf(mon, "OK\n");
@@ -167,9 +190,10 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         if (qdev_init(&dev->qdev) < 0)
             dev = NULL;
         if (dev) {
-            BusState *scsibus = QLIST_FIRST(&dev->qdev.child_bus);
-            scsi_bus_legacy_add_drive(DO_UPCAST(SCSIBus, qbus, scsibus),
-                                      dinfo, dinfo->unit);
+            if (scsi_hot_add(&dev->qdev, dinfo, 0) != 0) {
+                qdev_unplug(&dev->qdev);
+                dev = NULL;
+            }
         }
         break;
     case IF_VIRTIO:
