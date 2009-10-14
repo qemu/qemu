@@ -26,20 +26,15 @@
 #include "pci.h"
 
 #define VERBOSE
-#define EMBED_STDVGA
 #undef DIRECT_VRAM
 #define HW_RECT_ACCEL
 #define HW_FILL_ACCEL
 #define HW_MOUSE_ACCEL
 
-#ifdef EMBED_STDVGA
 # include "vga_int.h"
-#endif
 
 struct vmsvga_state_s {
-#ifdef EMBED_STDVGA
     VGACommonState vga;
-#endif
 
     int width;
     int height;
@@ -55,12 +50,6 @@ struct vmsvga_state_s {
         int on;
     } cursor;
 
-#ifndef EMBED_STDVGA
-    DisplayState *ds;
-    int vram_size;
-    ram_addr_t vram_offset;
-    uint8_t *vram_ptr;
-#endif
     target_phys_addr_t vram_base;
 
     int index;
@@ -774,9 +763,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         s->width = -1;
         s->height = -1;
         s->invalidated = 1;
-#ifdef EMBED_STDVGA
         s->vga.invalidate(&s->vga);
-#endif
         if (s->enable)
             s->fb_size = ((s->depth + 7) >> 3) * s->new_width * s->new_height;
         break;
@@ -894,9 +881,7 @@ static void vmsvga_update_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
-#ifdef EMBED_STDVGA
         s->vga.update(&s->vga);
-#endif
         return;
     }
 
@@ -962,9 +947,7 @@ static void vmsvga_invalidate_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
-#ifdef EMBED_STDVGA
         s->vga.invalidate(&s->vga);
-#endif
         return;
     }
 
@@ -977,9 +960,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
 {
     struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
-#ifdef EMBED_STDVGA
         s->vga.screen_dump(&s->vga, filename);
-#endif
         return;
     }
 
@@ -1128,15 +1109,9 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 
     vmsvga_reset(s);
 
-#ifdef EMBED_STDVGA
     vga_common_init(&s->vga, vga_ram_size);
     vga_init(&s->vga);
     vmstate_register(0, &vmstate_vga_common, &s->vga);
-#else
-    s->vram_size = vga_ram_size;
-    s->vram_offset = qemu_ram_alloc(vga_ram_size);
-    s->vram_ptr = qemu_get_ram_ptr(s->vram_offset);
-#endif
 
     s->vga.ds = graphic_console_init(vmsvga_update_display,
                                      vmsvga_invalidate_display,
