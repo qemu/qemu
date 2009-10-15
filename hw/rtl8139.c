@@ -1328,39 +1328,37 @@ static void RTL8139TallyCounters_physical_memory_write(target_phys_addr_t tc_add
 }
 
 /* Loads values of tally counters from VM state file */
+
+static const VMStateDescription vmstate_tally_counters = {
+    .name = "tally_counters",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(TxOk, RTL8139TallyCounters),
+        VMSTATE_UINT64(RxOk, RTL8139TallyCounters),
+        VMSTATE_UINT64(TxERR, RTL8139TallyCounters),
+        VMSTATE_UINT32(RxERR, RTL8139TallyCounters),
+        VMSTATE_UINT16(MissPkt, RTL8139TallyCounters),
+        VMSTATE_UINT16(FAE, RTL8139TallyCounters),
+        VMSTATE_UINT32(Tx1Col, RTL8139TallyCounters),
+        VMSTATE_UINT32(TxMCol, RTL8139TallyCounters),
+        VMSTATE_UINT64(RxOkPhy, RTL8139TallyCounters),
+        VMSTATE_UINT64(RxOkBrd, RTL8139TallyCounters),
+        VMSTATE_UINT16(TxAbt, RTL8139TallyCounters),
+        VMSTATE_UINT16(TxUndrn, RTL8139TallyCounters),
+        VMSTATE_END_OF_LIST()
+    }
+};
 static void RTL8139TallyCounters_load(QEMUFile* f, RTL8139TallyCounters *tally_counters)
 {
-    qemu_get_be64s(f, &tally_counters->TxOk);
-    qemu_get_be64s(f, &tally_counters->RxOk);
-    qemu_get_be64s(f, &tally_counters->TxERR);
-    qemu_get_be32s(f, &tally_counters->RxERR);
-    qemu_get_be16s(f, &tally_counters->MissPkt);
-    qemu_get_be16s(f, &tally_counters->FAE);
-    qemu_get_be32s(f, &tally_counters->Tx1Col);
-    qemu_get_be32s(f, &tally_counters->TxMCol);
-    qemu_get_be64s(f, &tally_counters->RxOkPhy);
-    qemu_get_be64s(f, &tally_counters->RxOkBrd);
-    qemu_get_be32s(f, &tally_counters->RxOkMul);
-    qemu_get_be16s(f, &tally_counters->TxAbt);
-    qemu_get_be16s(f, &tally_counters->TxUndrn);
+    vmstate_load_state(f, &vmstate_tally_counters, tally_counters, vmstate_tally_counters.version_id);
 }
 
 /* Saves values of tally counters to VM state file */
 static void RTL8139TallyCounters_save(QEMUFile* f, RTL8139TallyCounters *tally_counters)
 {
-    qemu_put_be64s(f, &tally_counters->TxOk);
-    qemu_put_be64s(f, &tally_counters->RxOk);
-    qemu_put_be64s(f, &tally_counters->TxERR);
-    qemu_put_be32s(f, &tally_counters->RxERR);
-    qemu_put_be16s(f, &tally_counters->MissPkt);
-    qemu_put_be16s(f, &tally_counters->FAE);
-    qemu_put_be32s(f, &tally_counters->Tx1Col);
-    qemu_put_be32s(f, &tally_counters->TxMCol);
-    qemu_put_be64s(f, &tally_counters->RxOkPhy);
-    qemu_put_be64s(f, &tally_counters->RxOkBrd);
-    qemu_put_be32s(f, &tally_counters->RxOkMul);
-    qemu_put_be16s(f, &tally_counters->TxAbt);
-    qemu_put_be16s(f, &tally_counters->TxUndrn);
+    vmstate_save_state(f, &vmstate_tally_counters, tally_counters);
 }
 
 static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
