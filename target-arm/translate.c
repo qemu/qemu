@@ -898,8 +898,7 @@ static inline void gen_movl_reg_T1(DisasContext *s, int reg)
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 static inline void gen_lookup_tb(DisasContext *s)
 {
-    gen_op_movl_T0_im(s->pc);
-    gen_movl_reg_T0(s, 15);
+    tcg_gen_movi_i32(cpu_R[15], s->pc & ~1);
     s->is_jmp = DISAS_UPDATE;
 }
 
