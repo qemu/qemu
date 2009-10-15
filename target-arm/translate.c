@@ -864,11 +864,6 @@ static inline void gen_movl_T1_reg(DisasContext *s, int reg)
     load_reg_var(s, cpu_T[1], reg);
 }
 
-static inline void gen_movl_T2_reg(DisasContext *s, int reg)
-{
-    load_reg_var(s, cpu_T[2], reg);
-}
-
 static inline void gen_set_pc_im(uint32_t val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
