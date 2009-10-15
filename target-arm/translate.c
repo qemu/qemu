@@ -5749,7 +5749,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             }
         } else if ((insn & 0x0e5fffe0) == 0x084d0500) {
             /* srs */
-            uint32_t offset;
+            int32_t offset;
             if (IS_USER(s))
                 goto illegal_op;
             ARCH(6);
@@ -5763,8 +5763,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             i = (insn >> 23) & 3;
             switch (i) {
             case 0: offset = -4; break; /* DA */
-            case 1: offset = -8; break; /* DB */
-            case 2: offset = 0; break; /* IA */
+            case 1: offset = 0; break; /* IA */
+            case 2: offset = -8; break; /* DB */
             case 3: offset = 4; break; /* IB */
             default: abort();
             }
@@ -5772,32 +5772,32 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 tcg_gen_addi_i32(addr, addr, offset);
             tmp = load_reg(s, 14);
             gen_st32(tmp, addr, 0);
-            tmp = new_tmp();
-            gen_helper_cpsr_read(tmp);
+            tmp = load_cpu_field(spsr);
             tcg_gen_addi_i32(addr, addr, 4);
             gen_st32(tmp, addr, 0);
             if (insn & (1 << 21)) {
                 /* Base writeback.  */
                 switch (i) {
                 case 0: offset = -8; break;
-                case 1: offset = -4; break;
-                case 2: offset = 4; break;
+                case 1: offset = 4; break;
+                case 2: offset = -4; break;
                 case 3: offset = 0; break;
                 default: abort();
                 }
                 if (offset)
-                    tcg_gen_addi_i32(addr, tmp, offset);
+                    tcg_gen_addi_i32(addr, addr, offset);
                 if (op1 == (env->uncached_cpsr & CPSR_M)) {
-                    gen_movl_reg_T1(s, 13);
+                    store_reg(s, 13, addr);
                 } else {
-                    gen_helper_set_r13_banked(cpu_env, tcg_const_i32(op1), cpu_T[1]);
+                    gen_helper_set_r13_banked(cpu_env, tcg_const_i32(op1), addr);
+                    dead_tmp(addr);
                 }
             } else {
                 dead_tmp(addr);
             }
         } else if ((insn & 0x0e5fffe0) == 0x081d0a00) {
             /* rfe */
-            uint32_t offset;
+            int32_t offset;
             if (IS_USER(s))
                 goto illegal_op;
             ARCH(6);
@@ -5806,8 +5806,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             i = (insn >> 23) & 3;
             switch (i) {
             case 0: offset = -4; break; /* DA */
-            case 1: offset = -8; break; /* DB */
-            case 2: offset = 0; break; /* IA */
+            case 1: offset = 0; break; /* IA */
+            case 2: offset = -8; break; /* DB */
             case 3: offset = 4; break; /* IB */
             default: abort();
             }
@@ -5821,8 +5821,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 /* Base writeback.  */
                 switch (i) {
                 case 0: offset = -8; break;
-                case 1: offset = -4; break;
-                case 2: offset = 4; break;
+                case 1: offset = 4; break;
+                case 2: offset = -4; break;
                 case 3: offset = 0; break;
                 default: abort();
                 }
@@ -5833,6 +5833,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 dead_tmp(addr);
             }
             gen_rfe(s, tmp, tmp2);
+            return;
         } else if ((insn & 0x0e000000) == 0x0a000000) {
             /* branch link and change to thumb (blx <offset>) */
             int32_t offset;
