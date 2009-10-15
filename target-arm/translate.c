@@ -6444,10 +6444,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             ARCH(6K);
                         else
                             ARCH(6);
-                        gen_movl_T1_reg(s, rn);
-                        addr = cpu_T[1];
+                        addr = tcg_temp_local_new_i32();
+                        tcg_gen_mov_i32(addr, cpu_R[rn]);
                         if (insn & (1 << 20)) {
-                            gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
+                            gen_helper_mark_exclusive(cpu_env, addr);
                             switch (op1) {
                             case 0: /* ldrex */
                                 tmp = gen_ld32(addr, IS_USER(s));
@@ -6472,9 +6472,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         } else {
                             int label = gen_new_label();
                             rm = insn & 0xf;
-                            gen_helper_test_exclusive(cpu_T[0], cpu_env, addr);
-                            tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0],
-                                                0, label);
+                            tmp2 = tcg_temp_local_new_i32();
+                            gen_helper_test_exclusive(tmp2, cpu_env, addr);
+                            tcg_gen_brcondi_i32(TCG_COND_NE, tmp2, 0, label);
                             tmp = load_reg(s,rm);
                             switch (op1) {
                             case 0:  /*  strex */
@@ -6496,8 +6496,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                 abort();
                             }
                             gen_set_label(label);
-                            gen_movl_reg_T0(s, rd);
+                            tcg_gen_mov_i32(cpu_R[rd], tmp2);
+                            tcg_temp_free(tmp2);
                         }
+                        tcg_temp_free(addr);
                     } else {
                         /* SWP instruction */
                         rm = (insn) & 0xf;
@@ -7238,22 +7240,24 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 }
             } else if ((insn & (1 << 23)) == 0) {
                 /* Load/store exclusive word.  */
-                gen_movl_T1_reg(s, rn);
-                addr = cpu_T[1];
+                addr = tcg_temp_local_new();
+                tcg_gen_mov_i32(addr, cpu_R[rn]);
                 if (insn & (1 << 20)) {
-                    gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
+                    gen_helper_mark_exclusive(cpu_env, addr);
                     tmp = gen_ld32(addr, IS_USER(s));
                     store_reg(s, rd, tmp);
                 } else {
                     int label = gen_new_label();
-                    gen_helper_test_exclusive(cpu_T[0], cpu_env, addr);
-                    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0],
-                                        0, label);
+                    tmp2 = tcg_temp_local_new();
+                    gen_helper_test_exclusive(tmp2, cpu_env, addr);
+                    tcg_gen_brcondi_i32(TCG_COND_NE, tmp2, 0, label);
                     tmp = load_reg(s, rs);
-                    gen_st32(tmp, cpu_T[1], IS_USER(s));
+                    gen_st32(tmp, addr, IS_USER(s));
                     gen_set_label(label);
-                    gen_movl_reg_T0(s, rd);
+                    tcg_gen_mov_i32(cpu_R[rd], tmp2);
+                    tcg_temp_free(tmp2);
                 }
+                tcg_temp_free(addr);
             } else if ((insn & (1 << 6)) == 0) {
                 /* Table Branch.  */
                 if (rn == 15) {
@@ -7283,10 +7287,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                    we never have multiple CPUs running in parallel,
                    so it is good enough.  */
                 op = (insn >> 4) & 0x3;
-                /* Must use a global reg for the address because we have
-                   a conditional branch in the store instruction.  */
-                gen_movl_T1_reg(s, rn);
-                addr = cpu_T[1];
+                addr = tcg_temp_local_new();
+                tcg_gen_mov_i32(addr, cpu_R[rn]);
                 if (insn & (1 << 20)) {
                     gen_helper_mark_exclusive(cpu_env, addr);
                     switch (op) {
@@ -7308,9 +7310,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     store_reg(s, rs, tmp);
                 } else {
                     int label = gen_new_label();
-                    /* Must use a global that is not killed by the branch.  */
-                    gen_helper_test_exclusive(cpu_T[0], cpu_env, addr);
-                    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0], 0, label);
+                    tmp2 = tcg_temp_local_new();
+                    gen_helper_test_exclusive(tmp2, cpu_env, addr);
+                    tcg_gen_brcondi_i32(TCG_COND_NE, tmp2, 0, label);
                     tmp = load_reg(s, rs);
                     switch (op) {
                     case 0:
@@ -7329,8 +7331,10 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         goto illegal_op;
                     }
                     gen_set_label(label);
-                    gen_movl_reg_T0(s, rm);
+                    tcg_gen_mov_i32(cpu_R[rm], tmp2);
+                    tcg_temp_free(tmp2);
                 }
+                tcg_temp_free(addr);
             }
         } else {
             /* Load/store multiple, RFE, SRS.  */
@@ -7440,21 +7444,27 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
         }
         break;
     case 5: /* Data processing register constant shift.  */
-        if (rn == 15)
-            gen_op_movl_T0_im(0);
-        else
-            gen_movl_T0_reg(s, rn);
-        gen_movl_T1_reg(s, rm);
+        if (rn == 15) {
+            tmp = new_tmp();
+            tcg_gen_movi_i32(tmp, 0);
+        } else {
+            tmp = load_reg(s, rn);
+        }
+        tmp2 = load_reg(s, rm);
         op = (insn >> 21) & 0xf;
         shiftop = (insn >> 4) & 3;
         shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
         conds = (insn & (1 << 20)) != 0;
         logic_cc = (conds && thumb2_logic_op(op));
-        gen_arm_shift_im(cpu_T[1], shiftop, shift, logic_cc);
-        if (gen_thumb2_data_op(s, op, conds, 0, cpu_T[0], cpu_T[1]))
+        gen_arm_shift_im(tmp2, shiftop, shift, logic_cc);
+        if (gen_thumb2_data_op(s, op, conds, 0, tmp, tmp2))
             goto illegal_op;
-        if (rd != 15)
-            gen_movl_reg_T0(s, rd);
+        dead_tmp(tmp2);
+        if (rd != 15) {
+            store_reg(s, rd, tmp);
+        } else {
+            dead_tmp(tmp);
+        }
         break;
     case 13: /* Misc data processing.  */
         op = ((insn >> 22) & 6) | ((insn >> 7) & 1);
@@ -7741,8 +7751,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
 
                 if (insn & (1 << 14)) {
                     /* Branch and link.  */
-                    gen_op_movl_T1_im(s->pc | 1);
-                    gen_movl_reg_T1(s, 14);
+                    tcg_gen_movi_i32(cpu_R[14], s->pc | 1);
                 }
 
                 offset += s->pc;
@@ -8005,19 +8014,25 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     shifter_out = 1;
                     break;
                 }
-                gen_op_movl_T1_im(imm);
+                tmp2 = new_tmp();
+                tcg_gen_movi_i32(tmp2, imm);
                 rn = (insn >> 16) & 0xf;
-                if (rn == 15)
-                    gen_op_movl_T0_im(0);
-                else
-                    gen_movl_T0_reg(s, rn);
+                if (rn == 15) {
+                    tmp = new_tmp();
+                    tcg_gen_movi_i32(tmp, 0);
+                } else {
+                    tmp = load_reg(s, rn);
+                }
                 op = (insn >> 21) & 0xf;
                 if (gen_thumb2_data_op(s, op, (insn & (1 << 20)) != 0,
-                                       shifter_out, cpu_T[0], cpu_T[1]))
+                                       shifter_out, tmp, tmp2))
                     goto illegal_op;
+                dead_tmp(tmp2);
                 rd = (insn >> 8) & 0xf;
                 if (rd != 15) {
-                    gen_movl_reg_T0(s, rd);
+                    store_reg(s, rd, tmp);
+                } else {
+                    dead_tmp(tmp);
                 }
             }
         }
