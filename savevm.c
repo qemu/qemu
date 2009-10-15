@@ -96,25 +96,37 @@
 static BlockDriverState *bs_snapshots;
 
 #define SELF_ANNOUNCE_ROUNDS 5
-#define ETH_P_EXPERIMENTAL 0x01F1 /* just a number */
-//#define ETH_P_EXPERIMENTAL 0x0012 /* make it the size of the packet */
-#define EXPERIMENTAL_MAGIC 0xf1f23f4f
 
-static int announce_self_create(uint8_t *buf, 
+#ifndef ETH_P_RARP
+#define ETH_P_RARP 0x0835
+#endif
+#define ARP_HTYPE_ETH 0x0001
+#define ARP_PTYPE_IP 0x0800
+#define ARP_OP_REQUEST_REV 0x3
+
+static int announce_self_create(uint8_t *buf,
 				uint8_t *mac_addr)
 {
-    uint32_t magic = EXPERIMENTAL_MAGIC;
-    uint16_t proto = htons(ETH_P_EXPERIMENTAL);
+    /* Ethernet header. */
+    memset(buf, 0xff, 6);         /* destination MAC addr */
+    memcpy(buf + 6, mac_addr, 6); /* source MAC addr */
+    *(uint16_t *)(buf + 12) = htons(ETH_P_RARP); /* ethertype */
 
-    /* FIXME: should we send a different packet (arp/rarp/ping)? */
+    /* RARP header. */
+    *(uint16_t *)(buf + 14) = htons(ARP_HTYPE_ETH); /* hardware addr space */
+    *(uint16_t *)(buf + 16) = htons(ARP_PTYPE_IP); /* protocol addr space */
+    *(buf + 18) = 6; /* hardware addr length (ethernet) */
+    *(buf + 19) = 4; /* protocol addr length (IPv4) */
+    *(uint16_t *)(buf + 20) = htons(ARP_OP_REQUEST_REV); /* opcode */
+    memcpy(buf + 22, mac_addr, 6); /* source hw addr */
+    memset(buf + 28, 0x00, 4);     /* source protocol addr */
+    memcpy(buf + 32, mac_addr, 6); /* target hw addr */
+    memset(buf + 38, 0x00, 4);     /* target protocol addr */
 
-    memset(buf, 0, 64);
-    memset(buf, 0xff, 6);         /* h_dst */
-    memcpy(buf + 6, mac_addr, 6); /* h_src */
-    memcpy(buf + 12, &proto, 2);  /* h_proto */
-    memcpy(buf + 14, &magic, 4);  /* magic */
+    /* Padding to get up to 60 bytes (ethernet min packet size, minus FCS). */
+    memset(buf + 42, 0x00, 18);
 
-    return 64; /* len */
+    return 60; /* len (FCS will be added by hardware) */
 }
 
 static void qemu_announce_self_once(void *opaque)
@@ -122,7 +134,7 @@ static void qemu_announce_self_once(void *opaque)
     int i, len;
     VLANState *vlan;
     VLANClientState *vc;
-    uint8_t buf[256];
+    uint8_t buf[60];
     static int count = SELF_ANNOUNCE_ROUNDS;
     QEMUTimer *timer = *(QEMUTimer **)opaque;
 
@@ -135,8 +147,10 @@ static void qemu_announce_self_once(void *opaque)
             vc->receive(vc, buf, len);
         }
     }
-    if (count--) {
-	    qemu_mod_timer(timer, qemu_get_clock(rt_clock) + 100);
+    if (--count) {
+        /* delay 50ms, 150ms, 250ms, ... */
+        qemu_mod_timer(timer, qemu_get_clock(rt_clock) +
+                       50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
     } else {
 	    qemu_del_timer(timer);
 	    qemu_free_timer(timer);
