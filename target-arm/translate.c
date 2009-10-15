@@ -109,44 +109,20 @@ void arm_translate_init(void)
 #include "helpers.h"
 }
 
-/* The code generator doesn't like lots of temporaries, so maintain our own
-   cache for reuse within a function.  */
-#define MAX_TEMPS 8
 static int num_temps;
-static TCGv temps[MAX_TEMPS];
 
 /* Allocate a temporary variable.  */
 static TCGv_i32 new_tmp(void)
 {
-    TCGv tmp;
-    if (num_temps == MAX_TEMPS)
-        abort();
-
-    if (GET_TCGV_I32(temps[num_temps]))
-      return temps[num_temps++];
-
-    tmp = tcg_temp_new_i32();
-    temps[num_temps++] = tmp;
-    return tmp;
+    num_temps++;
+    return tcg_temp_new_i32();
 }
 
 /* Release a temporary variable.  */
 static void dead_tmp(TCGv tmp)
 {
-    int i;
+    tcg_temp_free(tmp);
     num_temps--;
-    i = num_temps;
-    if (TCGV_EQUAL(temps[i], tmp))
-        return;
-
-    /* Shuffle this temp to the last slot.  */
-    while (!TCGV_EQUAL(temps[i], tmp))
-        i--;
-    while (i < num_temps) {
-        temps[i] = temps[i + 1];
-        i++;
-    }
-    temps[i] = tmp;
 }
 
 static inline TCGv load_cpu_offset(int offset)
@@ -8710,7 +8686,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     /* generate intermediate code */
     num_temps = 0;
-    memset(temps, 0, sizeof(temps));
 
     pc_start = tb->pc;
 
