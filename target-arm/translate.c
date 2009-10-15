@@ -75,6 +75,7 @@ typedef struct DisasContext {
 static TCGv_ptr cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
+static TCGv_i32 cpu_R[16];
 
 /* FIXME:  These should be removed.  */
 static TCGv cpu_T[2];
@@ -84,13 +85,25 @@ static TCGv_i64 cpu_F0d, cpu_F1d;
 #define ICOUNT_TEMP cpu_T[0]
 #include "gen-icount.h"
 
+static const char *regnames[] =
+    { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+      "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc" };
+
 /* initialize TCG globals.  */
 void arm_translate_init(void)
 {
+    int i;
+
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     cpu_T[0] = tcg_global_reg_new_i32(TCG_AREG1, "T0");
     cpu_T[1] = tcg_global_reg_new_i32(TCG_AREG2, "T1");
+
+    for (i = 0; i < 16; i++) {
+        cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
+                                          offsetof(CPUState, regs[i]),
+                                          regnames[i]);
+    }
 
 #define GEN_HELPER 2
 #include "helpers.h"
@@ -166,7 +179,7 @@ static void load_reg_var(DisasContext *s, TCGv var, int reg)
             addr = (long)s->pc + 4;
         tcg_gen_movi_i32(var, addr);
     } else {
-        tcg_gen_ld_i32(var, cpu_env, offsetof(CPUState, regs[reg]));
+        tcg_gen_mov_i32(var, cpu_R[reg]);
     }
 }
 
@@ -186,7 +199,7 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
         tcg_gen_andi_i32(var, var, ~1);
         s->is_jmp = DISAS_JUMP;
     }
-    tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, regs[reg]));
+    tcg_gen_mov_i32(cpu_R[reg], var);
     dead_tmp(var);
 }
 
@@ -788,27 +801,22 @@ static inline void gen_bx_im(DisasContext *s, uint32_t addr)
     TCGv tmp;
 
     s->is_jmp = DISAS_UPDATE;
-    tmp = new_tmp();
     if (s->thumb != (addr & 1)) {
+        tmp = new_tmp();
         tcg_gen_movi_i32(tmp, addr & 1);
         tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, thumb));
+        dead_tmp(tmp);
     }
-    tcg_gen_movi_i32(tmp, addr & ~1);
-    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, regs[15]));
-    dead_tmp(tmp);
+    tcg_gen_movi_i32(cpu_R[15], addr & ~1);
 }
 
 /* Set PC and Thumb state from var.  var is marked as dead.  */
 static inline void gen_bx(DisasContext *s, TCGv var)
 {
-    TCGv tmp;
-
     s->is_jmp = DISAS_UPDATE;
-    tmp = new_tmp();
-    tcg_gen_andi_i32(tmp, var, 1);
-    store_cpu_field(tmp, thumb);
-    tcg_gen_andi_i32(var, var, ~1);
-    store_cpu_field(var, regs[15]);
+    tcg_gen_andi_i32(cpu_R[15], var, ~1);
+    tcg_gen_andi_i32(var, var, 1);
+    store_cpu_field(var, thumb);
 }
 
 /* Variant of store_reg which uses branch&exchange logic when storing
@@ -887,9 +895,7 @@ static inline void gen_movl_T2_reg(DisasContext *s, int reg)
 
 static inline void gen_set_pc_im(uint32_t val)
 {
-    TCGv tmp = new_tmp();
-    tcg_gen_movi_i32(tmp, val);
-    store_cpu_field(tmp, regs[15]);
+    tcg_gen_movi_i32(cpu_R[15], val);
 }
 
 static inline void gen_movl_reg_TN(DisasContext *s, int reg, int t)
@@ -901,7 +907,7 @@ static inline void gen_movl_reg_TN(DisasContext *s, int reg, int t)
     } else {
         tmp = cpu_T[t];
     }
-    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, regs[reg]));
+    tcg_gen_mov_i32(cpu_R[reg], tmp);
     if (reg == 15) {
         dead_tmp(tmp);
         s->is_jmp = DISAS_JUMP;
