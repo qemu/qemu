@@ -8626,7 +8626,6 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
         s->condlabel = gen_new_label();
         gen_test_cc(cond ^ 1, s->condlabel);
         s->condjmp = 1;
-        gen_movl_T1_reg(s, 15);
 
         /* jump to the offset */
         val = (uint32_t)s->pc + 2;
