@@ -185,6 +185,8 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* ISA devices */
     i8259 = i8259_init(env->irq[4]);
+    isa_bus_new(NULL);
+    isa_bus_irqs(i8259);
     DMA_init(0);
     pit = pit_init(0x40, i8259[0]);
     pcspk_init(pit);
