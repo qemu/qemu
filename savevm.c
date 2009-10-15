@@ -882,6 +882,26 @@ const VMStateInfo vmstate_info_uint8_equal = {
     .put  = put_uint8,
 };
 
+/* 16 bit unsigned int int. See that the received value is the same than the one
+   in the field */
+
+static int get_uint16_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint16_t *v = pv;
+    uint16_t v2;
+    qemu_get_be16s(f, &v2);
+
+    if (*v == v2)
+        return 0;
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint16_equal = {
+    .name = "uint16 equal",
+    .get  = get_uint16_equal,
+    .put  = put_uint16,
+};
+
 /* timers  */
 
 static int get_timer(QEMUFile *f, void *pv, size_t size)

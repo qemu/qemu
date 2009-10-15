@@ -322,6 +322,7 @@ extern const VMStateInfo vmstate_info_int32;
 extern const VMStateInfo vmstate_info_int64;
 
 extern const VMStateInfo vmstate_info_uint8_equal;
+extern const VMStateInfo vmstate_info_uint16_equal;
 extern const VMStateInfo vmstate_info_int32_equal;
 extern const VMStateInfo vmstate_info_int32_le;
 
@@ -559,6 +560,12 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_UINT8_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint8_equal, uint8_t)
+
+#define VMSTATE_UINT16_EQUAL(_f, _s)                                  \
+    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint16_equal, uint16_t)
+
+#define VMSTATE_UINT16_EQUAL_V(_f, _s, _v)                            \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint16_equal, uint16_t)
 
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
