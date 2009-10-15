@@ -877,7 +877,7 @@ static int get_uint8_equal(QEMUFile *f, void *pv, size_t size)
 }
 
 const VMStateInfo vmstate_info_uint8_equal = {
-    .name = "int32 equal",
+    .name = "uint8 equal",
     .get  = get_uint8_equal,
     .put  = put_uint8,
 };
