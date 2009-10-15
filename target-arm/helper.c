@@ -402,6 +402,8 @@ int32_t HELPER(sdiv)(int32_t num, int32_t den)
 {
     if (den == 0)
       return 0;
+    if (num == INT_MIN && den == -1)
+      return INT_MIN;
     return num / den;
 }
 
