@@ -3415,8 +3415,8 @@ static uint32_t msr_mask(CPUState *env, DisasContext *s, int flags, int spsr) {
     return mask;
 }
 
-/* Returns nonzero if access to the PSR is not permitted.  */
-static int gen_set_psr_T0(DisasContext *s, uint32_t mask, int spsr)
+/* Returns nonzero if access to the PSR is not permitted. Marks t0 as dead. */
+static int gen_set_psr(DisasContext *s, uint32_t mask, int spsr, TCGv t0)
 {
     TCGv tmp;
     if (spsr) {
@@ -3426,14 +3426,24 @@ static int gen_set_psr_T0(DisasContext *s, uint32_t mask, int spsr)
 
         tmp = load_cpu_field(spsr);
         tcg_gen_andi_i32(tmp, tmp, ~mask);
-        tcg_gen_andi_i32(cpu_T[0], cpu_T[0], mask);
-        tcg_gen_or_i32(tmp, tmp, cpu_T[0]);
+        tcg_gen_andi_i32(t0, t0, mask);
+        tcg_gen_or_i32(tmp, tmp, t0);
         store_cpu_field(tmp, spsr);
     } else {
-        gen_set_cpsr(cpu_T[0], mask);
+        gen_set_cpsr(t0, mask);
     }
+    dead_tmp(t0);
     gen_lookup_tb(s);
     return 0;
+}
+
+/* Returns nonzero if access to the PSR is not permitted.  */
+static int gen_set_psr_im(DisasContext *s, uint32_t mask, int spsr, uint32_t val)
+{
+    TCGv tmp;
+    tmp = new_tmp();
+    tcg_gen_movi_i32(tmp, val);
+    return gen_set_psr(s, mask, spsr, tmp);
 }
 
 /* Generate an old-style exception return. Marks pc as dead. */
@@ -5883,8 +5893,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 val |= (insn & 0x1f);
             }
             if (mask) {
-                gen_op_movl_T0_im(val);
-                gen_set_psr_T0(s, mask, 0);
+                gen_set_psr_im(s, mask, 0, val);
             }
             return;
         }
@@ -5924,9 +5933,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 shift = ((insn >> 8) & 0xf) * 2;
                 if (shift)
                     val = (val >> shift) | (val << (32 - shift));
-                gen_op_movl_T0_im(val);
                 i = ((insn & (1 << 22)) != 0);
-                if (gen_set_psr_T0(s, msr_mask(env, s, (insn >> 16) & 0xf, i), i))
+                if (gen_set_psr_im(s, msr_mask(env, s, (insn >> 16) & 0xf, i), i, val))
                     goto illegal_op;
             }
         }
@@ -5940,9 +5948,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x0: /* move program status register */
             if (op1 & 1) {
                 /* PSR = reg */
-                gen_movl_T0_reg(s, rm);
+                tmp = load_reg(s, rm);
                 i = ((op1 & 2) != 0);
-                if (gen_set_psr_T0(s, msr_mask(env, s, (insn >> 16) & 0xf, i), i))
+                if (gen_set_psr(s, msr_mask(env, s, (insn >> 16) & 0xf, i), i, tmp))
                     goto illegal_op;
             } else {
                 /* reg = PSR */
@@ -7647,10 +7655,10 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     case 1: /* msr spsr.  */
                         if (IS_M(env))
                             goto illegal_op;
-                        gen_movl_T0_reg(s, rn);
-                        if (gen_set_psr_T0(s,
+                        tmp = load_reg(s, rn);
+                        if (gen_set_psr(s,
                               msr_mask(env, s, (insn >> 8) & 0xf, op == 1),
-                              op == 1))
+                              op == 1, tmp))
                             goto illegal_op;
                         break;
                     case 2: /* cps, nop-hint.  */
@@ -7677,8 +7685,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                             imm |= (insn & 0x1f);
                         }
                         if (offset) {
-                            gen_op_movl_T0_im(imm);
-                            gen_set_psr_T0(s, offset, 0);
+                            gen_set_psr_im(s, offset, 0, imm);
                         }
                         break;
                     case 3: /* Special control operations.  */
@@ -8566,10 +8573,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                     shift = CPSR_A | CPSR_I | CPSR_F;
                 else
                     shift = 0;
-
-                val = ((insn & 7) << 6) & shift;
-                gen_op_movl_T0_im(val);
-                gen_set_psr_T0(s, shift, 0);
+                gen_set_psr_im(s, shift, 0, ((insn & 7) << 6) & shift);
             }
             break;
 
