@@ -233,7 +233,7 @@ static void spr_write_ibatu (void *opaque, int sprn, int gprn)
 
 static void spr_write_ibatu_h (void *opaque, int sprn, int gprn)
 {
-    TCGv_i32 t0 = tcg_const_i32((sprn - SPR_IBAT4U) / 2);
+    TCGv_i32 t0 = tcg_const_i32(((sprn - SPR_IBAT4U) / 2) + 4);
     gen_helper_store_ibatu(t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
@@ -247,7 +247,7 @@ static void spr_write_ibatl (void *opaque, int sprn, int gprn)
 
 static void spr_write_ibatl_h (void *opaque, int sprn, int gprn)
 {
-    TCGv_i32 t0 = tcg_const_i32((sprn - SPR_IBAT4L) / 2);
+    TCGv_i32 t0 = tcg_const_i32(((sprn - SPR_IBAT4L) / 2) + 4);
     gen_helper_store_ibatl(t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
@@ -4166,8 +4166,14 @@ static void init_proc_e300 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_HID2, "HID2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
     /* Memory management */
     gen_low_BATs(env);
+    gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
     init_excp_603(env);
     env->dcache_line_size = 32;
