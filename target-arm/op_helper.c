@@ -379,14 +379,6 @@ uint32_t HELPER(sar)(uint32_t x, uint32_t i)
     return (int32_t)x >> shift;
 }
 
-uint32_t HELPER(ror)(uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift == 0)
-        return x;
-    return (x >> shift) | (x << (32 - shift));
-}
-
 uint32_t HELPER(shl_cc)(uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
