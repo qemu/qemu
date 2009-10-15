@@ -3627,23 +3627,156 @@ static inline void gen_neon_get_scalar(int size, int reg)
     }
 }
 
+static void gen_neon_unzip_u8(TCGv t0, TCGv t1)
+{
+    TCGv rd, rm, tmp;
+
+    rd = new_tmp();
+    rm = new_tmp();
+    tmp = new_tmp();
+
+    tcg_gen_andi_i32(rd, t0, 0xff);
+    tcg_gen_shri_i32(tmp, t0, 8);
+    tcg_gen_andi_i32(tmp, tmp, 0xff00);
+    tcg_gen_or_i32(rd, rd, tmp);
+    tcg_gen_shli_i32(tmp, t1, 16);
+    tcg_gen_andi_i32(tmp, tmp, 0xff0000);
+    tcg_gen_or_i32(rd, rd, tmp);
+    tcg_gen_shli_i32(tmp, t1, 8);
+    tcg_gen_andi_i32(tmp, tmp, 0xff000000);
+    tcg_gen_or_i32(rd, rd, tmp);
+
+    tcg_gen_shri_i32(rm, t0, 8);
+    tcg_gen_andi_i32(rm, rm, 0xff);
+    tcg_gen_shri_i32(tmp, t0, 16);
+    tcg_gen_andi_i32(tmp, tmp, 0xff00);
+    tcg_gen_or_i32(rm, rm, tmp);
+    tcg_gen_shli_i32(tmp, t1, 8);
+    tcg_gen_andi_i32(tmp, tmp, 0xff0000);
+    tcg_gen_or_i32(rm, rm, tmp);
+    tcg_gen_andi_i32(tmp, t1, 0xff000000);
+    tcg_gen_or_i32(t1, rm, tmp);
+    tcg_gen_mov_i32(t0, rd);
+
+    dead_tmp(tmp);
+    dead_tmp(rm);
+    dead_tmp(rd);
+}
+
+static void gen_neon_zip_u8(TCGv t0, TCGv t1)
+{
+    TCGv rd, rm, tmp;
+
+    rd = new_tmp();
+    rm = new_tmp();
+    tmp = new_tmp();
+
+    tcg_gen_andi_i32(rd, t0, 0xff);
+    tcg_gen_shli_i32(tmp, t1, 8);
+    tcg_gen_andi_i32(tmp, tmp, 0xff00);
+    tcg_gen_or_i32(rd, rd, tmp);
+    tcg_gen_shli_i32(tmp, t0, 16);
+    tcg_gen_andi_i32(tmp, tmp, 0xff0000);
+    tcg_gen_or_i32(rd, rd, tmp);
+    tcg_gen_shli_i32(tmp, t1, 24);
+    tcg_gen_andi_i32(tmp, tmp, 0xff000000);
+    tcg_gen_or_i32(rd, rd, tmp);
+
+    tcg_gen_andi_i32(rm, t1, 0xff000000);
+    tcg_gen_shri_i32(tmp, t0, 8);
+    tcg_gen_andi_i32(tmp, tmp, 0xff0000);
+    tcg_gen_or_i32(rm, rm, tmp);
+    tcg_gen_shri_i32(tmp, t1, 8);
+    tcg_gen_andi_i32(tmp, tmp, 0xff00);
+    tcg_gen_or_i32(rm, rm, tmp);
+    tcg_gen_shri_i32(tmp, t0, 16);
+    tcg_gen_andi_i32(tmp, tmp, 0xff);
+    tcg_gen_or_i32(t1, rm, tmp);
+    tcg_gen_mov_i32(t0, rd);
+
+    dead_tmp(tmp);
+    dead_tmp(rm);
+    dead_tmp(rd);
+}
+
+static void gen_neon_zip_u16(TCGv t0, TCGv t1)
+{
+    TCGv tmp, tmp2;
+
+    tmp = new_tmp();
+    tmp2 = new_tmp();
+
+    tcg_gen_andi_i32(tmp, t0, 0xffff);
+    tcg_gen_shli_i32(tmp2, t1, 16);
+    tcg_gen_or_i32(tmp, tmp, tmp2);
+    tcg_gen_andi_i32(t1, t1, 0xffff0000);
+    tcg_gen_shri_i32(tmp2, t0, 16);
+    tcg_gen_or_i32(t1, t1, tmp2);
+    tcg_gen_mov_i32(t0, tmp);
+
+    dead_tmp(tmp2);
+    dead_tmp(tmp);
+}
+
 static void gen_neon_unzip(int reg, int q, int tmp, int size)
 {
     int n;
 
     for (n = 0; n < q + 1; n += 2) {
         NEON_GET_REG(T0, reg, n);
-        NEON_GET_REG(T0, reg, n + n);
+        NEON_GET_REG(T1, reg, n + 1);
         switch (size) {
-        case 0: gen_helper_neon_unzip_u8(); break;
-        case 1: gen_helper_neon_zip_u16(); break; /* zip and unzip are the same.  */
+        case 0: gen_neon_unzip_u8(cpu_T[0], cpu_T[1]); break;
+        case 1: gen_neon_zip_u16(cpu_T[0], cpu_T[1]); break; /* zip and unzip are the same.  */
         case 2: /* no-op */; break;
         default: abort();
         }
-        gen_neon_movl_scratch_T0(tmp + n);
-        gen_neon_movl_scratch_T1(tmp + n + 1);
+        gen_neon_movl_T0_scratch(tmp + n);
+        gen_neon_movl_T1_scratch(tmp + n + 1);
     }
 }
+
+static void gen_neon_trn_u8(TCGv t0, TCGv t1)
+{
+    TCGv rd, tmp;
+
+    rd = new_tmp();
+    tmp = new_tmp();
+
+    tcg_gen_shli_i32(rd, t0, 8);
+    tcg_gen_andi_i32(rd, rd, 0xff00ff00);
+    tcg_gen_andi_i32(tmp, t1, 0x00ff00ff);
+    tcg_gen_or_i32(rd, rd, tmp);
+
+    tcg_gen_shri_i32(t1, t1, 8);
+    tcg_gen_andi_i32(t1, t1, 0x00ff00ff);
+    tcg_gen_andi_i32(tmp, t0, 0xff00ff00);
+    tcg_gen_or_i32(t1, t1, tmp);
+    tcg_gen_mov_i32(t0, rd);
+
+    dead_tmp(tmp);
+    dead_tmp(rd);
+}
+
+static void gen_neon_trn_u16(TCGv t0, TCGv t1)
+{
+    TCGv rd, tmp;
+
+    rd = new_tmp();
+    tmp = new_tmp();
+
+    tcg_gen_shli_i32(rd, t0, 16);
+    tcg_gen_andi_i32(tmp, t1, 0xffff);
+    tcg_gen_or_i32(rd, rd, tmp);
+    tcg_gen_shri_i32(t1, t1, 16);
+    tcg_gen_andi_i32(tmp, t0, 0xffff0000);
+    tcg_gen_or_i32(t1, t1, tmp);
+    tcg_gen_mov_i32(t0, rd);
+
+    dead_tmp(tmp);
+    dead_tmp(rd);
+}
+
 
 static struct {
     int nregs;
@@ -5256,8 +5389,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         NEON_GET_REG(T0, rd, n);
                         NEON_GET_REG(T1, rd, n);
                         switch (size) {
-                        case 0: gen_helper_neon_zip_u8(); break;
-                        case 1: gen_helper_neon_zip_u16(); break;
+                        case 0: gen_neon_zip_u8(cpu_T[0], cpu_T[1]); break;
+                        case 1: gen_neon_zip_u16(cpu_T[0], cpu_T[1]); break;
                         case 2: /* no-op */; break;
                         default: abort();
                         }
@@ -5442,8 +5575,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         case 33: /* VTRN */
                             NEON_GET_REG(T1, rd, pass);
                             switch (size) {
-                            case 0: gen_helper_neon_trn_u8(); break;
-                            case 1: gen_helper_neon_trn_u16(); break;
+                            case 0: gen_neon_trn_u8(cpu_T[0], cpu_T[1]); break;
+                            case 1: gen_neon_trn_u16(cpu_T[0], cpu_T[1]); break;
                             case 2: abort();
                             default: return 1;
                             }

@@ -338,12 +338,6 @@ DEF_HELPER_2(neon_qneg_s8, i32, env, i32)
 DEF_HELPER_2(neon_qneg_s16, i32, env, i32)
 DEF_HELPER_2(neon_qneg_s32, i32, env, i32)
 
-DEF_HELPER_0(neon_trn_u8, void)
-DEF_HELPER_0(neon_trn_u16, void)
-DEF_HELPER_0(neon_unzip_u8, void)
-DEF_HELPER_0(neon_zip_u8, void)
-DEF_HELPER_0(neon_zip_u16, void)
-
 DEF_HELPER_2(neon_min_f32, i32, i32, i32)
 DEF_HELPER_2(neon_max_f32, i32, i32, i32)
 DEF_HELPER_2(neon_abd_f32, i32, i32, i32)
