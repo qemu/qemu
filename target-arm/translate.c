@@ -1898,6 +1898,7 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         if ((insn & 0x000ff00f) != 0x0003f000)
             return 1;
         gen_op_iwmmxt_movl_T1_wCx(ARM_IWMMXT_wCASF);
+        gen_op_movl_T0_T1();
         switch ((insn >> 22) & 3) {
         case 0:
             for (i = 0; i < 7; i ++) {
@@ -1944,6 +1945,7 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         if ((insn & 0x000ff00f) != 0x0003f000)
             return 1;
         gen_op_iwmmxt_movl_T1_wCx(ARM_IWMMXT_wCASF);
+        gen_op_movl_T0_T1();
         switch ((insn >> 22) & 3) {
         case 0:
             for (i = 0; i < 7; i ++) {
