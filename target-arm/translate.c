@@ -78,11 +78,9 @@ static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 static TCGv_i32 cpu_R[16];
 
 /* FIXME:  These should be removed.  */
-static TCGv cpu_T[2];
 static TCGv cpu_F0s, cpu_F1s;
 static TCGv_i64 cpu_F0d, cpu_F1d;
 
-#define ICOUNT_TEMP cpu_T[0]
 #include "gen-icount.h"
 
 static const char *regnames[] =
@@ -95,9 +93,6 @@ void arm_translate_init(void)
     int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-
-    cpu_T[0] = tcg_global_reg_new_i32(TCG_AREG1, "T0");
-    cpu_T[1] = tcg_global_reg_new_i32(TCG_AREG2, "T1");
 
     for (i = 0; i < 16; i++) {
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
@@ -820,27 +815,6 @@ static inline void gen_st32(TCGv val, TCGv addr, int index)
 static inline void gen_set_pc_im(uint32_t val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
-}
-
-static inline void gen_movl_reg_TN(DisasContext *s, int reg, int t)
-{
-    TCGv tmp;
-    if (reg == 15) {
-        tmp = new_tmp();
-        tcg_gen_andi_i32(tmp, cpu_T[t], ~1);
-    } else {
-        tmp = cpu_T[t];
-    }
-    tcg_gen_mov_i32(cpu_R[reg], tmp);
-    if (reg == 15) {
-        dead_tmp(tmp);
-        s->is_jmp = DISAS_JUMP;
-    }
-}
-
-static inline void gen_movl_reg_T1(DisasContext *s, int reg)
-{
-    gen_movl_reg_TN(s, reg, 1);
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
