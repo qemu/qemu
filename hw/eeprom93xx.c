@@ -89,66 +89,63 @@ struct _eeprom_t {
 
 /* Code for saving and restoring of EEPROM state. */
 
-static void eeprom_save(QEMUFile *f, void *opaque)
+/* Restore an uint16_t from an uint8_t
+   This is a Big hack, but it is how the old state did it.
+ */
+
+static int get_uint16_from_uint8(QEMUFile *f, void *pv, size_t size)
 {
-    /* Save EEPROM data. */
-    unsigned address;
-    eeprom_t *eeprom = (eeprom_t *)opaque;
-
-    qemu_put_byte(f, eeprom->tick);
-    qemu_put_byte(f, eeprom->address);
-    qemu_put_byte(f, eeprom->command);
-    qemu_put_byte(f, eeprom->writeable);
-
-    qemu_put_byte(f, eeprom->eecs);
-    qemu_put_byte(f, eeprom->eesk);
-    qemu_put_byte(f, eeprom->eedo);
-
-    qemu_put_byte(f, eeprom->addrbits);
-    qemu_put_be16(f, eeprom->size);
-    qemu_put_be16(f, eeprom->data);
-    for (address = 0; address < eeprom->size; address++) {
-        qemu_put_be16(f, eeprom->contents[address]);
-    }
+    uint16_t *v = pv;
+    *v = qemu_get_ubyte(f);
+    return 0;
 }
 
-static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
+static void put_unused(QEMUFile *f, void *pv, size_t size)
 {
-    /* Load EEPROM data from saved data if version and EEPROM size
-       of data and current EEPROM are identical. */
-    eeprom_t *eeprom = (eeprom_t *)opaque;
-    int result = -EINVAL;
-    if (version_id >= OLD_EEPROM_VERSION) {
-        unsigned address;
-        int size = eeprom->size;
-
-        eeprom->tick = qemu_get_byte(f);
-        eeprom->address = qemu_get_byte(f);
-        eeprom->command = qemu_get_byte(f);
-        eeprom->writeable = qemu_get_byte(f);
-
-        eeprom->eecs = qemu_get_byte(f);
-        eeprom->eesk = qemu_get_byte(f);
-        eeprom->eedo = qemu_get_byte(f);
-
-        eeprom->addrbits = qemu_get_byte(f);
-        if (version_id == OLD_EEPROM_VERSION) {
-            eeprom->size = qemu_get_byte(f);
-            qemu_get_byte(f);
-        } else {
-            eeprom->size = qemu_get_be16(f);
-        }
-
-        if (eeprom->size == size) {
-            eeprom->data = qemu_get_be16(f);
-            for (address = 0; address < eeprom->size; address++) {
-                eeprom->contents[address] = qemu_get_be16(f);
-            }
-            result = 0;
-        }
-    }
-    return result;
+    fprintf(stderr, "uint16_from_uint8 is used only for backwards compatibility.\n");
+    fprintf(stderr, "Never should be used to write a new state.\n");
+    exit(0);
 }
+
+const VMStateInfo vmstate_hack_uint16_from_uint8 = {
+    .name = "uint16_from_uint8",
+    .get  = get_uint16_from_uint8,
+    .put  = put_unused,
+};
+
+#define VMSTATE_UINT16_HACK_TEST(_f, _s, _t)                           \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_hack_uint16_from_uint8, uint16_t)
+
+static bool is_old_eeprom_version(void *opaque, int version_id)
+{
+    return version_id == OLD_EEPROM_VERSION;
+}
+
+static const VMStateDescription vmstate_eeprom = {
+    .name = "eeprom",
+    .version_id = EEPROM_VERSION,
+    .minimum_version_id = OLD_EEPROM_VERSION,
+    .minimum_version_id_old = OLD_EEPROM_VERSION,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(tick, eeprom_t),
+        VMSTATE_UINT8(address, eeprom_t),
+        VMSTATE_UINT8(command, eeprom_t),
+        VMSTATE_UINT8(writeable, eeprom_t),
+
+        VMSTATE_UINT8(eecs, eeprom_t),
+        VMSTATE_UINT8(eesk, eeprom_t),
+        VMSTATE_UINT8(eedo, eeprom_t),
+
+        VMSTATE_UINT8(addrbits, eeprom_t),
+        VMSTATE_UINT16_HACK_TEST(size, eeprom_t, is_old_eeprom_version),
+        VMSTATE_UNUSED_TEST(is_old_eeprom_version, 1),
+        VMSTATE_UINT16_EQUAL_V(size, eeprom_t, EEPROM_VERSION),
+        VMSTATE_UINT16(data, eeprom_t),
+        VMSTATE_VARRAY_UINT16_UNSAFE(contents, eeprom_t, size, 0,
+                                     vmstate_info_uint16, uint16_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
 {
@@ -319,8 +316,7 @@ eeprom_t *eeprom93xx_new(uint16_t nwords)
     /* Output DO is tristate, read results in 1. */
     eeprom->eedo = 1;
     logout("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
-    register_savevm("eeprom", EEPROM_INSTANCE, EEPROM_VERSION,
-                    eeprom_save, eeprom_load, eeprom);
+    vmstate_register(0, &vmstate_eeprom, eeprom);
     return eeprom;
 }
 
@@ -328,7 +324,7 @@ void eeprom93xx_free(eeprom_t *eeprom)
 {
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
-    unregister_savevm("eeprom", eeprom);
+    vmstate_unregister(&vmstate_eeprom, eeprom);
     qemu_free(eeprom);
 }
 
