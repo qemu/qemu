@@ -114,3 +114,54 @@ STRUCT(mtop, TYPE_SHORT, TYPE_INT)
 STRUCT(mtget, TYPE_LONG, TYPE_LONG, TYPE_LONG, TYPE_LONG, TYPE_LONG,
        TYPE_INT, TYPE_INT)
 STRUCT(mtpos, TYPE_LONG)
+
+STRUCT(fb_fix_screeninfo,
+       MK_ARRAY(TYPE_CHAR, 16), /* id */
+       TYPE_ULONG, /* smem_start */
+       TYPE_INT, /* smem_len */
+       TYPE_INT, /* type */
+       TYPE_INT, /* type_aux */
+       TYPE_INT, /* visual */
+       TYPE_SHORT, /* xpanstep */
+       TYPE_SHORT, /* ypanstep */
+       TYPE_SHORT, /* ywrapstep */
+       TYPE_INT, /* line_length */
+       TYPE_ULONG, /* mmio_start */
+       TYPE_INT, /* mmio_len */
+       TYPE_INT, /* accel */
+       MK_ARRAY(TYPE_CHAR, 3)) /* reserved */
+
+STRUCT(fb_var_screeninfo,
+       TYPE_INT, /* xres */
+       TYPE_INT, /* yres */
+       TYPE_INT, /* xres_virtual */
+       TYPE_INT, /* yres_virtual */
+       TYPE_INT, /* xoffset */
+       TYPE_INT, /* yoffset */
+       TYPE_INT, /* bits_per_pixel */
+       TYPE_INT, /* grayscale */
+       MK_ARRAY(TYPE_INT, 3), /* red */
+       MK_ARRAY(TYPE_INT, 3), /* green */
+       MK_ARRAY(TYPE_INT, 3), /* blue */
+       MK_ARRAY(TYPE_INT, 3), /* transp */
+       TYPE_INT, /* nonstd */
+       TYPE_INT, /* activate */
+       TYPE_INT, /* height */
+       TYPE_INT, /* width */
+       TYPE_INT, /* accel_flags */
+       TYPE_INT, /* pixclock */
+       TYPE_INT, /* left_margin */
+       TYPE_INT, /* right_margin */
+       TYPE_INT, /* upper_margin */
+       TYPE_INT, /* lower_margin */
+       TYPE_INT, /* hsync_len */
+       TYPE_INT, /* vsync_len */
+       TYPE_INT, /* sync */
+       TYPE_INT, /* vmode */
+       TYPE_INT, /* rotate */
+       MK_ARRAY(TYPE_INT, 5)) /* reserved */
+
+STRUCT(vt_stat,
+       TYPE_SHORT, /* v_active */
+       TYPE_SHORT, /* v_signal */
+       TYPE_SHORT) /* v_state */

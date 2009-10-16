@@ -79,6 +79,8 @@
 #include <linux/kd.h>
 #include <linux/mtio.h>
 #include <linux/fs.h>
+#include <linux/fb.h>
+#include <linux/vt.h>
 #include "linux_loop.h"
 
 #include "qemu.h"
