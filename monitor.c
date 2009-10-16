@@ -1848,7 +1848,7 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-static void do_getfd(Monitor *mon, const QDict *qdict)
+static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
