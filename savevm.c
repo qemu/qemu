@@ -1098,8 +1098,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
 
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
-            } else if (field->flags & VMS_VARRAY) {
-                n_elems = *(size_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_INT32) {
+                n_elems = *(int32_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
                 base_addr = *(void **)base_addr;
@@ -1145,8 +1145,8 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
-            } else if (field->flags & VMS_VARRAY) {
-                n_elems = *(size_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_INT32) {
+                n_elems = *(int32_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
                 base_addr = *(void **)base_addr;
