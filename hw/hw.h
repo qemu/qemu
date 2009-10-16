@@ -342,6 +342,10 @@ extern const VMStateInfo vmstate_info_buffer;
     (offsetof(_state, _field) +                                      \
      type_check(_type, typeof_field(_state, _field)))
 
+#define vmstate_offset_pointer(_state, _field, _type)                \
+    (offsetof(_state, _field) +                                      \
+     type_check_pointer(_type, typeof_field(_state, _field)))
+
 #define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -398,8 +402,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_INT32|VMS_POINTER,                      \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_pointer(_type,typeof_field(_state, _field))     \
+    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
 }
 
 #define VMSTATE_STRUCT(_field, _state, _version, _vmsd, _type) {     \
