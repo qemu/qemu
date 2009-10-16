@@ -1008,7 +1008,8 @@ static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
     fclose(f);
 }
 
-static void do_physical_memory_save(Monitor *mon, const QDict *qdict)
+static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
+                                    QObject **ret_data)
 {
     FILE *f;
     uint32_t l;
