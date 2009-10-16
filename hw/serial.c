@@ -649,17 +649,13 @@ static void serial_pre_save(void *opaque)
     s->fcr_vmstate = s->fcr;
 }
 
-static int serial_pre_load(void *opaque)
-{
-    SerialState *s = opaque;
-    s->fcr_vmstate = 0;
-    return 0;
-}
-
 static int serial_post_load(void *opaque, int version_id)
 {
     SerialState *s = opaque;
 
+    if (version_id < 3) {
+        s->fcr_vmstate = 0;
+    }
     /* Initialize fcr via setter to perform essential side-effects */
     serial_ioport_write(s, 0x02, s->fcr_vmstate);
     return 0;
@@ -670,7 +666,6 @@ static const VMStateDescription vmstate_serial = {
     .version_id = 3,
     .minimum_version_id = 2,
     .pre_save = serial_pre_save,
-    .pre_load = serial_pre_load,
     .post_load = serial_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT16_V(divider, SerialState, 2),
