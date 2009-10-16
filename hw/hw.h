@@ -350,6 +350,10 @@ extern const VMStateInfo vmstate_info_buffer;
     (offsetof(_state, _field) +                                      \
      type_check_array(_type, typeof_field(_state, _field), _num))
 
+#define vmstate_offset_buffer(_state, _field)                        \
+    vmstate_offset_array(_state, _field, uint8_t,                    \
+                         sizeof(typeof_field(_state, _field)))
+
 #define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -460,8 +464,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .size       = sizeof(typeof_field(_state,_field)),               \
     .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER,                                        \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+    .offset     = vmstate_offset_buffer(_state, _field),             \
 }
 
 #define VMSTATE_STATIC_BUFFER_TEST(_field, _state, _test) {          \
@@ -479,8 +482,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .size       = (_size),                                           \
     .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER,                                        \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+    .offset     = vmstate_offset_buffer(_state, _field),             \
 }
 
 #define VMSTATE_BUFFER_START_MIDDLE(_field, _state, start) {         \
@@ -488,8 +490,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .size       = sizeof(typeof_field(_state,_field)) - start,       \
     .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER,                                        \
-    .offset     = offsetof(_state, _field) + start                   \
-        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+    .offset     = vmstate_offset_buffer(_state, _field) + start,     \
 }
 
 extern const VMStateDescription vmstate_pci_device;
