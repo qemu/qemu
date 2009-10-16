@@ -346,6 +346,10 @@ extern const VMStateInfo vmstate_info_buffer;
     (offsetof(_state, _field) +                                      \
      type_check_pointer(_type, typeof_field(_state, _field)))
 
+#define vmstate_offset_array(_state, _field, _type, _num)            \
+    (offsetof(_state, _field) +                                      \
+     type_check_array(_type, typeof_field(_state, _field), _num))
+
 #define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -380,8 +384,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY,                                         \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_ARRAY_TEST(_field, _state, _num, _test, _info, _type) {\
@@ -391,8 +394,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info         = &(_info),                                         \
     .size         = sizeof(_type),                                    \
     .flags        = VMS_ARRAY,                                        \
-    .offset       = offsetof(_state, _field)                          \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset       = vmstate_offset_array(_state, _field, _type, _num),\
 }
 
 #define VMSTATE_VARRAY_INT32(_field, _state, _field_num, _version, _info, _type) {\
@@ -429,8 +431,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY|VMS_ARRAY_OF_POINTER,                    \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) { \
@@ -440,8 +441,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_ARRAY,                              \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_STRUCT_ARRAY_SIZE_UINT8(_field, _state, _field__num, _version, _vmsd, _type) { \
@@ -451,8 +451,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_ARRAY,                              \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_STATIC_BUFFER(_field, _state, _version) {            \
