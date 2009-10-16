@@ -1029,7 +1029,8 @@ ETEXI
         .args_type  = "fdname:s",
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
-        .mhandler.cmd = do_closefd,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_closefd,
     },
 
 STEXI

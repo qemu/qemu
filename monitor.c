@@ -1889,7 +1889,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     QLIST_INSERT_HEAD(&mon->fds, monfd, next);
 }
 
-static void do_closefd(Monitor *mon, const QDict *qdict)
+static void do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
