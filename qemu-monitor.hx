@@ -133,7 +133,8 @@ ETEXI
         .args_type  = "force:-f,filename:B",
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
-        .mhandler.cmd = do_eject,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_eject,
     },
 
 STEXI

@@ -570,7 +570,7 @@ static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
     return 0;
 }
 
-static void do_eject(Monitor *mon, const QDict *qdict)
+static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     BlockDriverState *bs;
     int force = qdict_get_int(qdict, "force");
