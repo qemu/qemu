@@ -106,3 +106,9 @@
 #include "freebsd/syscall_nr.h"
 #include "netbsd/syscall_nr.h"
 #include "openbsd/syscall_nr.h"
+
+struct target_iovec {
+    abi_long iov_base;   /* Starting address */
+    abi_long iov_len;   /* Number of bytes */
+};
+
