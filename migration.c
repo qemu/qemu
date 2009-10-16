@@ -52,7 +52,7 @@ void qemu_start_incoming_migration(const char *uri)
         fprintf(stderr, "unknown migration protocol: %s\n", uri);
 }
 
-void do_migrate(Monitor *mon, const QDict *qdict)
+void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = NULL;
     const char *p;

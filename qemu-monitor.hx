@@ -726,7 +726,8 @@ ETEXI
         .args_type  = "detach:-d,uri:s",
         .params     = "[-d] uri",
         .help       = "migrate to URI (using -d to not wait for completion)",
-        .mhandler.cmd = do_migrate,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate,
     },
 
 STEXI
