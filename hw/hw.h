@@ -600,12 +600,6 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_INT32_ARRAY(_f, _s, _n)                               \
     VMSTATE_INT32_ARRAY_V(_f, _s, _n, 0)
 
-#define VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, _v)                      \
-    VMSTATE_VARRAY_INT32(_f, _s, _f_n, _v, vmstate_info_int32, int32_t)
-
-#define VMSTATE_INT32_VARRAY(_f, _s, _f_n)                            \
-    VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, 0)
-
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
     VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))
 

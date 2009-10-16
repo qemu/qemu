@@ -79,7 +79,7 @@ static const VMStateDescription vmstate_pcibus = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_INT32_EQUAL(nirq, PCIBus),
-        VMSTATE_INT32_VARRAY(irq_count, PCIBus, nirq),
+        VMSTATE_VARRAY_INT32(irq_count, PCIBus, nirq, 0, vmstate_info_int32, int32_t),
         VMSTATE_END_OF_LIST()
     }
 };
