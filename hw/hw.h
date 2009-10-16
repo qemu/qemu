@@ -355,17 +355,9 @@ extern const VMStateInfo vmstate_info_buffer;
     vmstate_offset_array(_state, _field, uint8_t,                    \
                          sizeof(typeof_field(_state, _field)))
 
-#define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
-    .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
-    .size       = sizeof(_type),                                     \
-    .info       = &(_info),                                          \
-    .flags      = VMS_SINGLE,                                        \
-    .offset     = vmstate_offset_value(_state, _field, _type),       \
-}
-
-#define VMSTATE_SINGLE_TEST(_field, _state, _test, _info, _type) {   \
+#define VMSTATE_SINGLE_TEST(_field, _state, _test, _version, _info, _type) { \
     .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
     .size         = sizeof(_type),                                   \
     .info         = &(_info),                                        \
@@ -506,6 +498,9 @@ extern const VMStateDescription vmstate_i2c_slave;
    _v : version
 */
 
+#define VMSTATE_SINGLE(_field, _state, _version, _info, _type)        \
+    VMSTATE_SINGLE_TEST(_field, _state, NULL, _version, _info, _type)
+
 #define VMSTATE_INT8_V(_f, _s, _v)                                    \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int8, int8_t)
 #define VMSTATE_INT16_V(_f, _s, _v)                                   \
@@ -558,7 +553,7 @@ extern const VMStateDescription vmstate_i2c_slave;
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
 
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
-    VMSTATE_SINGLE_TEST(_f, _s, _t, vmstate_info_uint32, uint32_t)
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
 
 #define VMSTATE_TIMER_V(_f, _s, _v)                                   \
     VMSTATE_POINTER(_f, _s, _v, vmstate_info_timer, QEMUTimer *)

@@ -314,7 +314,7 @@ static const VMStateInfo vmstate_hack_uint64_as_uint32 = {
 };
 
 #define VMSTATE_HACK_UINT32(_f, _s, _t)                                  \
-    VMSTATE_SINGLE_TEST(_f, _s, _t, vmstate_hack_uint64_as_uint32, uint64_t)
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_hack_uint64_as_uint32, uint64_t)
 #endif
 
 static void cpu_pre_save(void *opaque)
