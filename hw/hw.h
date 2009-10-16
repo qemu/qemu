@@ -281,12 +281,12 @@ struct VMStateInfo {
 };
 
 enum VMStateFlags {
-    VMS_SINGLE  = 0x001,
-    VMS_POINTER = 0x002,
-    VMS_ARRAY   = 0x004,
-    VMS_STRUCT  = 0x008,
-    VMS_VARRAY_INT32  = 0x010,  /* Array with size in another field */
-    VMS_BUFFER  = 0x020,  /* static sized buffer */
+    VMS_SINGLE           = 0x001,
+    VMS_POINTER          = 0x002,
+    VMS_ARRAY            = 0x004,
+    VMS_STRUCT           = 0x008,
+    VMS_VARRAY_INT32     = 0x010,  /* Array with size in another field */
+    VMS_BUFFER           = 0x020,  /* static sized buffer */
     VMS_ARRAY_OF_POINTER = 0x040,
 };
 
