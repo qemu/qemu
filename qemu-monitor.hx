@@ -666,7 +666,8 @@ ETEXI
         .args_type  = "val:l,size:i,filename:s",
         .params     = "addr size file",
         .help       = "save to disk virtual memory dump starting at 'addr' of size 'size'",
-        .mhandler.cmd = do_memory_save,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_memory_save,
     },
 
 STEXI

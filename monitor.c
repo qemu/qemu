@@ -977,7 +977,7 @@ static void do_print(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "\n");
 }
 
-static void do_memory_save(Monitor *mon, const QDict *qdict)
+static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     FILE *f;
     uint32_t size = qdict_get_int(qdict, "size");
