@@ -816,7 +816,8 @@ ETEXI
         .args_type  = "pci_addr:s",
         .params     = "[[<domain>:]<bus>:]<slot>",
         .help       = "hot remove PCI device",
-        .mhandler.cmd = do_pci_device_hot_remove,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_pci_device_hot_remove,
     },
 #endif
 

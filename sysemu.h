@@ -208,7 +208,8 @@ DriveInfo *add_init_drive(const char *opts);
 void pci_device_hot_add(Monitor *mon, const QDict *qdict);
 void drive_hot_add(Monitor *mon, const QDict *qdict);
 void pci_device_hot_remove(Monitor *mon, const char *pci_addr);
-void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
+void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict,
+                              QObject **ret_data);
 
 /* serial ports */
 
