@@ -134,6 +134,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "mux",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "signal",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },

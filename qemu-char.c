@@ -729,7 +729,7 @@ static void term_exit(void)
     fcntl(0, F_SETFL, old_fd0_flags);
 }
 
-static void term_init(void)
+static void term_init(QemuOpts *opts)
 {
     struct termios tty;
 
@@ -742,7 +742,7 @@ static void term_init(void)
     tty.c_oflag |= OPOST;
     tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
     /* if graphical mode, we allow Ctrl-C handling */
-    if (display_type == DT_NOGRAPHIC)
+    if (!qemu_opt_get_bool(opts, "signal", display_type != DT_NOGRAPHIC))
         tty.c_lflag &= ~ISIG;
     tty.c_cflag &= ~(CSIZE|PARENB);
     tty.c_cflag |= CS8;
@@ -775,7 +775,7 @@ static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
     chr->chr_close = qemu_chr_close_stdio;
     qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
     stdio_nb_clients++;
-    term_init();
+    term_init(opts);
 
     return chr;
 }
