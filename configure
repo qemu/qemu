@@ -134,13 +134,15 @@ elif check_define _ARCH_PPC ; then
   else
     cpu="ppc"
   fi
+elif check_define __mips__ ; then
+  cpu="mips"
 else
   cpu=`uname -m`
 fi
 
 target_list=""
 case "$cpu" in
-  alpha|cris|ia64|m68k|microblaze|mips|mips64|ppc|ppc64|sparc64)
+  alpha|cris|ia64|m68k|microblaze|ppc|ppc64|sparc64)
     cpu="$cpu"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
@@ -157,6 +159,9 @@ case "$cpu" in
   ;;
   parisc|parisc64)
     cpu="hppa"
+  ;;
+  mips*)
+    cpu="mips"
   ;;
   s390*)
     cpu="s390"
