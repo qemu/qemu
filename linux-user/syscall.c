@@ -4463,12 +4463,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 			p3 = lock_user_string(arg3);
                         if (!p || !p2 || !p3)
                             ret = -TARGET_EFAULT;
-                        else
+                        else {
                             /* FIXME - arg5 should be locked, but it isn't clear how to
                              * do that since it's not guaranteed to be a NULL-terminated
                              * string.
                              */
-                            ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, g2h(arg5)));
+                            if ( ! arg5 )
+                                ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, NULL));
+                            else
+                                ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, g2h(arg5)));
+                        }
                         unlock_user(p, arg1, 0);
                         unlock_user(p2, arg2, 0);
                         unlock_user(p3, arg3, 0);
