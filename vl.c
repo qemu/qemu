@@ -2078,15 +2078,15 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     }
 
     if (cyls || heads || secs) {
-        if (cyls < 1 || cyls > 16383) {
+        if (cyls < 1 || (type == IF_IDE && cyls > 16383)) {
             fprintf(stderr, "qemu: '%s' invalid physical cyls number\n", buf);
 	    return NULL;
 	}
-        if (heads < 1 || heads > 16) {
+        if (heads < 1 || (type == IF_IDE && heads > 16)) {
             fprintf(stderr, "qemu: '%s' invalid physical heads number\n", buf);
 	    return NULL;
 	}
-        if (secs < 1 || secs > 63) {
+        if (secs < 1 || (type == IF_IDE && secs > 63)) {
             fprintf(stderr, "qemu: '%s' invalid physical secs number\n", buf);
 	    return NULL;
 	}
