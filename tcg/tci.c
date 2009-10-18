@@ -426,7 +426,8 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
                                        tci_read_reg(TCG_REG_R1),
                                        tci_read_reg(TCG_REG_R2),
                                        tci_read_reg(TCG_REG_R3));
-            tci_write_reg32(TCG_REG_R0, t0); // TODO: fix size
+            // TODO: fix for 32 bit host / 64 bit target.
+            tci_write_reg(TCG_REG_R0, t0);
             break;
         case INDEX_op_jmp:
         case INDEX_op_br:
