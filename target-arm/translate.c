@@ -6337,7 +6337,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         else
                             ARCH(6);
                         addr = tcg_temp_local_new_i32();
-                        tcg_gen_mov_i32(addr, cpu_R[rn]);
+                        load_reg_var(s, addr, rn);
                         if (insn & (1 << 20)) {
                             gen_helper_mark_exclusive(cpu_env, addr);
                             switch (op1) {
@@ -7133,7 +7133,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             } else if ((insn & (1 << 23)) == 0) {
                 /* Load/store exclusive word.  */
                 addr = tcg_temp_local_new();
-                tcg_gen_mov_i32(addr, cpu_R[rn]);
+                load_reg_var(s, addr, rn);
                 if (insn & (1 << 20)) {
                     gen_helper_mark_exclusive(cpu_env, addr);
                     tmp = gen_ld32(addr, IS_USER(s));
@@ -7180,7 +7180,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                    so it is good enough.  */
                 op = (insn >> 4) & 0x3;
                 addr = tcg_temp_local_new();
-                tcg_gen_mov_i32(addr, cpu_R[rn]);
+                load_reg_var(s, addr, rn);
                 if (insn & (1 << 20)) {
                     gen_helper_mark_exclusive(cpu_env, addr);
                     switch (op) {
