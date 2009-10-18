@@ -3699,13 +3699,15 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
             return 1;
         nregs = neon_ls_element_type[op].nregs;
         interleave = neon_ls_element_type[op].interleave;
-        tcg_gen_mov_i32(addr, cpu_R[rn]);
+        load_reg_var(s, addr, rn);
         stride = (1 << size) * interleave;
         for (reg = 0; reg < nregs; reg++) {
             if (interleave > 2 || (interleave == 2 && nregs == 2)) {
-                tcg_gen_addi_i32(addr, cpu_R[rn], (1 << size) * reg);
+                load_reg_var(s, addr, rn);
+                tcg_gen_addi_i32(addr, addr, (1 << size) * reg);
             } else if (interleave == 2 && nregs == 4 && reg == 2) {
-                tcg_gen_addi_i32(addr, cpu_R[rn], 1 << size);
+                load_reg_var(s, addr, rn);
+                tcg_gen_addi_i32(addr, addr, 1 << size);
             }
             for (pass = 0; pass < 2; pass++) {
                 if (size == 2) {
@@ -3777,7 +3779,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
             size = (insn >> 6) & 3;
             nregs = ((insn >> 8) & 3) + 1;
             stride = (insn & (1 << 5)) ? 2 : 1;
-            tcg_gen_mov_i32(addr, cpu_R[rn]);
+            load_reg_var(s, addr, rn);
             for (reg = 0; reg < nregs; reg++) {
                 switch (size) {
                 case 0:
@@ -3824,7 +3826,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 abort();
             }
             nregs = ((insn >> 8) & 3) + 1;
-            tcg_gen_mov_i32(addr, cpu_R[rn]);
+            load_reg_var(s, addr, rn);
             for (reg = 0; reg < nregs; reg++) {
                 if (load) {
                     switch (size) {
