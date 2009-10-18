@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <signal.h>
 #include <utime.h>
