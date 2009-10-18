@@ -126,6 +126,9 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->rax = 0;
     regs->rsp = infop->start_stack;
     regs->rip = infop->entry;
+    if (bsd_type == target_freebsd) {
+        regs->rdi = infop->start_stack;
+    }
 }
 
 #else
@@ -249,8 +252,13 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #else
     if (personality(infop->personality) == PER_LINUX32)
         regs->u_regs[14] = infop->start_stack - 16 * 4;
-    else
+    else {
         regs->u_regs[14] = infop->start_stack - 16 * 8 - STACK_BIAS;
+        if (bsd_type == target_freebsd) {
+            regs->u_regs[8] = infop->start_stack;
+            regs->u_regs[11] = infop->start_stack;
+        }
+    }
 #endif
 }
 

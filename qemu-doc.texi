@@ -1343,11 +1343,11 @@ The following options are specific to the PowerPC emulation:
 
 @table @option
 
-@item -g WxH[xDEPTH]
+@item -g @var{W}x@var{H}[x@var{DEPTH}]
 
 Set the initial VGA graphic mode. The default is 800x600x15.
 
-@item -prom-env string
+@item -prom-env @var{string}
 
 Set OpenBIOS variables in NVRAM, for example:
 
@@ -1439,12 +1439,12 @@ The following options are specific to the Sparc32 emulation:
 
 @table @option
 
-@item -g WxHx[xDEPTH]
+@item -g @var{W}x@var{H}x[x@var{DEPTH}]
 
 Set the initial TCX graphic mode. The default is 1024x768x8, currently
 the only other possible mode is 1024x768x24.
 
-@item -prom-env string
+@item -prom-env @var{string}
 
 Set OpenBIOS variables in NVRAM, for example:
 
@@ -1494,7 +1494,7 @@ The following options are specific to the Sparc64 emulation:
 
 @table @option
 
-@item -prom-env string
+@item -prom-env @var{string}
 
 Set OpenBIOS variables in NVRAM, for example:
 

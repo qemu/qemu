@@ -39,6 +39,7 @@
 { TARGET_FREEBSD_NR_ftruncate, "ftruncate", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR_futimes, "futimes", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR_getdirentries, "getdirentries", NULL, NULL, NULL },
+{ TARGET_FREEBSD_NR_freebsd6_mmap, "freebsd6_mmap", NULL, NULL, NULL },
 { TARGET_FREEBSD_NR_getegid, "getegid", "%s()", NULL, NULL },
 { TARGET_FREEBSD_NR_geteuid, "geteuid", "%s()", NULL, NULL },
 { TARGET_FREEBSD_NR_getfh, "getfh", NULL, NULL, NULL },

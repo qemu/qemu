@@ -20,8 +20,6 @@
 #include "dyngen-exec.h"
 
 register struct CPUARMState *env asm(AREG0);
-register uint32_t T0 asm(AREG1);
-register uint32_t T1 asm(AREG2);
 
 #define M0   env->iwmmxt.val
 

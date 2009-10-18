@@ -143,5 +143,19 @@ struct target_vm86plus_struct {
 	struct target_vm86plus_info_struct vm86plus;
 };
 
+/* FreeBSD sysarch(2) */
+#define TARGET_FREEBSD_I386_GET_LDT	0
+#define TARGET_FREEBSD_I386_SET_LDT	1
+				/* I386_IOPL */
+#define TARGET_FREEBSD_I386_GET_IOPERM	3
+#define TARGET_FREEBSD_I386_SET_IOPERM	4
+				/* xxxxx */
+#define TARGET_FREEBSD_I386_VM86	6
+#define TARGET_FREEBSD_I386_GET_FSBASE	7
+#define TARGET_FREEBSD_I386_SET_FSBASE	8
+#define TARGET_FREEBSD_I386_GET_GSBASE	9
+#define TARGET_FREEBSD_I386_SET_GSBASE	10
+
+
 #define UNAME_MACHINE "i386"
 

@@ -370,8 +370,10 @@ VLANClientState *qdev_get_vlan_client(DeviceState *dev,
 {
     NICInfo *nd = dev->nd;
     assert(nd);
-    nd->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name, can_receive,
-                                  receive, receive_iov, cleanup, opaque);
+    nd->vc = qemu_new_vlan_client(nd->vlan, nd->netdev,
+                                  nd->model, nd->name,
+                                  can_receive, receive, receive_iov,
+                                  cleanup, opaque);
     return nd->vc;
 }
 

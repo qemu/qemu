@@ -225,7 +225,7 @@ typedef struct {
     VLANClientState *vc;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
-    /* region must not be saved be nic_save. */
+    /* region must not be saved by nic_save. */
     uint32_t region[3];         /* PCI region addresses */
     uint8_t macaddr[6];
     uint16_t mdimem[32];
@@ -1961,6 +1961,7 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     }
     /* The eeprom should be saved and restored by its own routines. */
     qemu_get_be32s(f, &s->device);
+    // TODO check device.
     qemu_get_be32s(f, &s->pointer);
     qemu_get_be32s(f, &s->cu_base);
     qemu_get_be32s(f, &s->cu_offset);

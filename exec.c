@@ -2448,6 +2448,9 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
     new_block = qemu_malloc(sizeof(*new_block));
 
     new_block->host = qemu_vmalloc(size);
+#ifdef MADV_MERGEABLE
+    madvise(new_block->host, size, MADV_MERGEABLE);
+#endif
     new_block->offset = last_ram_offset;
     new_block->length = size;
 

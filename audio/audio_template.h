@@ -402,7 +402,7 @@ SW *glue (AUD_open_, TYPE) (
     SW *sw,
     const char *name,
     void *callback_opaque ,
-    audio_callback_fn_t callback_fn,
+    audio_callback_fn callback_fn,
     struct audsettings *as
     )
 {

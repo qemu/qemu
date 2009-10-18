@@ -152,6 +152,18 @@ QemuOptsList qemu_device_opts = {
     },
 };
 
+QemuOptsList qemu_netdev_opts = {
+    .name = "netdev",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_netdev_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};
+
 QemuOptsList qemu_net_opts = {
     .name = "net",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_net_opts.head),
@@ -188,6 +200,7 @@ static QemuOptsList *lists[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
     &qemu_device_opts,
+    &qemu_netdev_opts,
     &qemu_net_opts,
     &qemu_rtc_opts,
     NULL,

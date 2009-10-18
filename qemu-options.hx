@@ -114,7 +114,7 @@ STEXI
 
 Define a new drive. Valid options are:
 
-@table @code
+@table @option
 @item file=@var{file}
 This option defines which disk image (@pxref{disk_images}) to use with
 this drive. If the filename contains comma, you must double it
@@ -217,22 +217,22 @@ DEF("mtdblock", HAS_ARG, QEMU_OPTION_mtdblock,
     "-mtdblock file  use 'file' as on-board Flash memory image\n")
 STEXI
 
-@item -mtdblock file
-Use 'file' as on-board Flash memory image.
+@item -mtdblock @var{file}
+Use @var{file} as on-board Flash memory image.
 ETEXI
 
 DEF("sd", HAS_ARG, QEMU_OPTION_sd,
     "-sd file        use 'file' as SecureDigital card image\n")
 STEXI
-@item -sd file
-Use 'file' as SecureDigital card image.
+@item -sd @var{file}
+Use @var{file} as SecureDigital card image.
 ETEXI
 
 DEF("pflash", HAS_ARG, QEMU_OPTION_pflash,
     "-pflash file    use 'file' as a parallel flash image\n")
 STEXI
-@item -pflash file
-Use 'file' as a parallel flash image.
+@item -pflash @var{file}
+Use @var{file} as a parallel flash image.
 ETEXI
 
 DEF("boot", HAS_ARG, QEMU_OPTION_boot,
@@ -363,7 +363,7 @@ STEXI
 @item -usbdevice @var{devname}
 Add the USB device @var{devname}. @xref{usb_devices}.
 
-@table @code
+@table @option
 
 @item mouse
 Virtual Mouse. This will override the PS/2 mouse emulation when activated.
@@ -373,16 +373,17 @@ Pointer device that uses absolute coordinates (like a touchscreen). This
 means qemu is able to report the mouse position without having to grab the
 mouse. Also overrides the PS/2 mouse emulation when activated.
 
-@item disk:[format=@var{format}]:file
+@item disk:[format=@var{format}]:@var{file}
 Mass storage device based on file. The optional @var{format} argument
 will be used rather than detecting the format. Can be used to specifiy
-format=raw to avoid interpreting an untrusted format header.
+@code{format=raw} to avoid interpreting an untrusted format header.
 
-@item host:bus.addr
-Pass through the host device identified by bus.addr (Linux only).
+@item host:@var{bus}.@var{addr}
+Pass through the host device identified by @var{bus}.@var{addr} (Linux only).
 
-@item host:vendor_id:product_id
-Pass through the host device identified by vendor_id:product_id (Linux only).
+@item host:@var{vendor_id}:@var{product_id}
+Pass through the host device identified by @var{vendor_id}:@var{product_id}
+(Linux only).
 
 @item serial:[vendorid=@var{vendor_id}][,productid=@var{product_id}]:@var{dev}
 Serial converter to host character device @var{dev}, see @code{-serial} for the
@@ -392,7 +393,7 @@ available devices.
 Braille device.  This will use BrlAPI to display the braille output on a real
 or fake device.
 
-@item net:options
+@item net:@var{options}
 Network adapter that supports CDC ethernet and RNDIS protocols.
 
 @end table
@@ -521,7 +522,7 @@ DEF("vga", HAS_ARG, QEMU_OPTION_vga,
 STEXI
 @item -vga @var{type}
 Select type of VGA card to emulate. Valid values for @var{type} are
-@table @code
+@table @option
 @item cirrus
 Cirrus Logic GD5446 Video card. All Windows versions starting from
 Windows 95 should recognize and use this graphic card. For optimal
@@ -568,7 +569,7 @@ tablet}). When using the VNC display, you must use the @option{-k}
 parameter to set the keyboard layout if you are not using en-us. Valid
 syntax for the @var{display} is
 
-@table @code
+@table @option
 
 @item @var{host}:@var{d}
 
@@ -576,7 +577,7 @@ TCP connections will only be allowed from @var{host} on display @var{d}.
 By convention the TCP port is 5900+@var{d}. Optionally, @var{host} can
 be omitted in which case the server will accept connections from any host.
 
-@item @code{unix}:@var{path}
+@item unix:@var{path}
 
 Connections will be allowed over UNIX domain sockets where @var{path} is the
 location of a unix socket to listen for connections on.
@@ -591,7 +592,7 @@ can be used to later start the VNC server.
 Following the @var{display} value there may be one or more @var{option} flags
 separated by commas. Valid options are
 
-@table @code
+@table @option
 
 @item reverse
 
@@ -611,7 +612,7 @@ The password must be set separately using the @code{change} command in the
 Require that client use TLS when communicating with the VNC server. This
 uses anonymous TLS credentials so is susceptible to a man-in-the-middle
 attack. It is recommended that this option be combined with either the
-@var{x509} or @var{x509verify} options.
+@option{x509} or @option{x509verify} options.
 
 @item x509=@var{/path/to/certificate/dir}
 
@@ -839,6 +840,16 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
+DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
+    "-netdev ["
+#ifdef CONFIG_SLIRP
+    "user|"
+#endif
+    "tap|"
+#ifdef CONFIG_VDE
+    "vde|"
+#endif
+    "socket],id=str[,option][,option][,...]\n")
 STEXI
 @item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}][,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
@@ -861,7 +872,7 @@ for a list of available devices for your target.
 Use the user mode network stack which requires no administrator
 privilege to run. Valid options are:
 
-@table @code
+@table @option
 @item vlan=@var{n}
 Connect user mode stack to VLAN @var{n} (@var{n} = 0 is the default).
 
@@ -1105,7 +1116,7 @@ machines have none.
 @anchor{bt-hcis}
 The following three types are recognized:
 
-@table @code
+@table @option
 @item -bt hci,null
 (default) The corresponding Bluetooth HCI assumes no internal logic
 and will not respond to any HCI commands or emit events.
@@ -1139,7 +1150,7 @@ Emulate a bluetooth device @var{dev} and place it in network @var{n}
 (default @code{0}).  QEMU can only emulate one type of bluetooth devices
 currently:
 
-@table @code
+@table @option
 @item keyboard
 Virtual wireless keyboard implementing the HIDP bluetooth profile.
 @end table
@@ -1215,8 +1226,8 @@ ports.
 Use @code{-serial none} to disable all serial ports.
 
 Available character devices are:
-@table @code
-@item vc[:WxH]
+@table @option
+@item vc[:@var{W}x@var{H}]
 Virtual console. Optionally, a width and height can be given in pixel with
 @example
 vc:800x600
@@ -1250,8 +1261,6 @@ This implements UDP Net Console.
 When @var{remote_host} or @var{src_ip} are not specified
 they default to @code{0.0.0.0}.
 When not using a specified @var{src_port} a random port is automatically chosen.
-@item msmouse
-Three button serial mouse. Configure the guest to use Microsoft protocol.
 
 If you just want a simple readonly console you can use @code{netcat} or
 @code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
@@ -1325,6 +1334,8 @@ listening on port 4444 would be:
 Braille device.  This will use BrlAPI to display the braille output on a real
 or fake device.
 
+@item msmouse
+Three button serial mouse. Configure the guest to use Microsoft protocol.
 @end table
 ETEXI
 
@@ -1543,9 +1554,9 @@ DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
     "                instruction\n")
 STEXI
-@item -icount [N|auto]
+@item -icount [@var{N}|auto]
 Enable virtual instruction counter.  The virtual cpu will execute one
-instruction every 2^N ns of virtual time.  If @code{auto} is specified
+instruction every 2^@var{N} ns of virtual time.  If @code{auto} is specified
 then the virtual cpu speed will be automatically adjusted to keep virtual
 time within a few seconds of real time.
 
@@ -1608,7 +1619,7 @@ DEF("echr", HAS_ARG, QEMU_OPTION_echr, \
     "-echr chr       set terminal escape character instead of ctrl-a\n")
 STEXI
 
-@item -echr numeric_ascii_value
+@item -echr @var{numeric_ascii_value}
 Change the escape character used for switching to the monitor when using
 monitor and serial sharing.  The default is @code{0x01} when using the
 @code{-nographic} option.  @code{0x01} is equal to pressing
@@ -1650,7 +1661,7 @@ DEF("chroot", HAS_ARG, QEMU_OPTION_chroot, \
     "-chroot dir     Chroot to dir just before starting the VM.\n")
 #endif
 STEXI
-@item -chroot dir
+@item -chroot @var{dir}
 Immediately before starting guest execution, chroot to the specified
 directory.  Especially useful in combination with -runas.
 This option is not supported for Windows hosts.
@@ -1661,7 +1672,7 @@ DEF("runas", HAS_ARG, QEMU_OPTION_runas, \
     "-runas user     Change to user id user just before starting the VM.\n")
 #endif
 STEXI
-@item -runas user
+@item -runas @var{user}
 Immediately before starting guest execution, drop root privileges, switching
 to the specified user.
 ETEXI

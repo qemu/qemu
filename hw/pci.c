@@ -890,8 +890,8 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
 
     pci_dev = pci_create(bus, devfn, pci_nic_names[i]);
     dev = &pci_dev->qdev;
-    if (nd->id)
-        dev->id = qemu_strdup(nd->id);
+    if (nd->name)
+        dev->id = qemu_strdup(nd->name);
     dev->nd = nd;
     if (qdev_init(dev) < 0)
         return NULL;

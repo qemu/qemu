@@ -2080,15 +2080,15 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     }
 
     if (cyls || heads || secs) {
-        if (cyls < 1 || cyls > 16383) {
+        if (cyls < 1 || (type == IF_IDE && cyls > 16383)) {
             fprintf(stderr, "qemu: '%s' invalid physical cyls number\n", buf);
 	    return NULL;
 	}
-        if (heads < 1 || heads > 16) {
+        if (heads < 1 || (type == IF_IDE && heads > 16)) {
             fprintf(stderr, "qemu: '%s' invalid physical heads number\n", buf);
 	    return NULL;
 	}
-        if (secs < 1 || secs > 63) {
+        if (secs < 1 || (type == IF_IDE && secs > 63)) {
             fprintf(stderr, "qemu: '%s' invalid physical secs number\n", buf);
 	    return NULL;
 	}
@@ -2608,7 +2608,7 @@ static int usb_device_add(const char *devname, int is_hotplug)
         qemu_opt_set(opts, "type", "nic");
         qemu_opt_set(opts, "model", "usb");
 
-        idx = net_client_init(NULL, opts);
+        idx = net_client_init(NULL, opts, 0);
         if (idx == -1) {
             return -1;
         }
@@ -5143,8 +5143,13 @@ int main(int argc, char **argv, char **envp)
                 fd_bootchk = 0;
                 break;
 #endif
+            case QEMU_OPTION_netdev:
+                if (net_client_parse(&qemu_netdev_opts, optarg) == -1) {
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_net:
-                if (net_client_parse(optarg) == -1) {
+                if (net_client_parse(&qemu_net_opts, optarg) == -1) {
                     exit(1);
                 }
                 break;

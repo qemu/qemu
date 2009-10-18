@@ -5,10 +5,9 @@
 #include "qemu-common.h"
 #include "qdict.h"
 #include "qemu-option.h"
+#include "net-queue.h"
 
 /* VLANs support */
-
-typedef struct VLANClientState VLANClientState;
 
 typedef int (NetCanReceive)(VLANClientState *);
 typedef ssize_t (NetReceive)(VLANClientState *, const uint8_t *, size_t);
@@ -26,36 +25,26 @@ struct VLANClientState {
     LinkStatusChanged *link_status_changed;
     int link_down;
     void *opaque;
-    struct VLANClientState *next;
+    QTAILQ_ENTRY(VLANClientState) next;
     struct VLANState *vlan;
+    VLANClientState *peer;
+    NetQueue *send_queue;
     char *model;
     char *name;
     char info_str[256];
 };
 
-typedef struct VLANPacket VLANPacket;
-
-typedef void (NetPacketSent) (VLANClientState *, ssize_t);
-
-struct VLANPacket {
-    QTAILQ_ENTRY(VLANPacket) entry;
-    VLANClientState *sender;
-    int size;
-    NetPacketSent *sent_cb;
-    uint8_t data[0];
-};
-
 struct VLANState {
     int id;
-    VLANClientState *first_client;
-    struct VLANState *next;
+    QTAILQ_HEAD(, VLANClientState) clients;
+    QTAILQ_ENTRY(VLANState) next;
     unsigned int nb_guest_devs, nb_host_devs;
-    QTAILQ_HEAD(send_queue, VLANPacket) send_queue;
-    int delivering;
+    NetQueue *send_queue;
 };
 
 VLANState *qemu_find_vlan(int id, int allocate);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
+                                      VLANClientState *peer,
                                       const char *model,
                                       const char *name,
                                       NetCanReceive *can_receive,
@@ -80,7 +69,6 @@ int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
-void qemu_handler_true(void *opaque);
 
 void do_info_network(Monitor *mon);
 void do_set_link(Monitor *mon, const QDict *qdict);
@@ -99,8 +87,8 @@ struct NICInfo {
     char *model;
     char *name;
     char *devaddr;
-    char *id;
     VLANState *vlan;
+    VLANClientState *netdev;
     VLANClientState *vc;
     void *private;
     int used;
@@ -136,9 +124,9 @@ void net_checksum_calculate(uint8_t *data, int length);
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
-int net_client_init(Monitor *mon, QemuOpts *opts);
+int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev);
 void net_client_uninit(NICInfo *nd);
-int net_client_parse(const char *str);
+int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
 int net_slirp_smb(const char *exported_dir);
 void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
