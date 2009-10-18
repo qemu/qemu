@@ -3,6 +3,11 @@
 #define QEMU_COMMON_H
 
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
+#ifdef CONFIG_GCC_ATTRIBUTE_WARN_UNUSED_RESULT
+#define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define QEMU_WARN_UNUSED_RESULT
+#endif
 
 /* Hack around the mess dyngen-exec.h causes: We need QEMU_NORETURN in files that
    cannot include the following headers without conflicts. This condition has
