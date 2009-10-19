@@ -1844,78 +1844,46 @@ static uint32_t pcnet_mmio_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-
-void pcnet_save(QEMUFile *f, void *opaque)
+static bool is_version_2(void *opaque, int version_id)
 {
-    PCNetState *s = opaque;
-    unsigned int i;
-
-    qemu_put_sbe32(f, s->rap);
-    qemu_put_sbe32(f, s->isr);
-    qemu_put_sbe32(f, s->lnkst);
-    qemu_put_be32s(f, &s->rdra);
-    qemu_put_be32s(f, &s->tdra);
-    qemu_put_buffer(f, s->prom, 16);
-    for (i = 0; i < 128; i++)
-        qemu_put_be16s(f, &s->csr[i]);
-    for (i = 0; i < 32; i++)
-        qemu_put_be16s(f, &s->bcr[i]);
-    qemu_put_be64s(f, &s->timer);
-    qemu_put_sbe32(f, s->xmit_pos);
-    qemu_put_buffer(f, s->buffer, 4096);
-    qemu_put_sbe32(f, s->tx_busy);
-    qemu_put_timer(f, s->poll_timer);
+    return version_id == 2;
 }
 
-int pcnet_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCNetState *s = opaque;
-    int i, dummy;
-
-    if (version_id < 2 || version_id > 3)
-        return -EINVAL;
-
-    qemu_get_sbe32s(f, &s->rap);
-    qemu_get_sbe32s(f, &s->isr);
-    qemu_get_sbe32s(f, &s->lnkst);
-    qemu_get_be32s(f, &s->rdra);
-    qemu_get_be32s(f, &s->tdra);
-    qemu_get_buffer(f, s->prom, 16);
-    for (i = 0; i < 128; i++)
-        qemu_get_be16s(f, &s->csr[i]);
-    for (i = 0; i < 32; i++)
-        qemu_get_be16s(f, &s->bcr[i]);
-    qemu_get_be64s(f, &s->timer);
-    qemu_get_sbe32s(f, &s->xmit_pos);
-    if (version_id == 2) {
-        qemu_get_sbe32s(f, &dummy);
+const VMStateDescription vmstate_pcnet = {
+    .name = "pcnet",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(rap, PCNetState),
+        VMSTATE_INT32(isr, PCNetState),
+        VMSTATE_INT32(lnkst, PCNetState),
+        VMSTATE_UINT32(rdra, PCNetState),
+        VMSTATE_UINT32(tdra, PCNetState),
+        VMSTATE_BUFFER(prom, PCNetState),
+        VMSTATE_UINT16_ARRAY(csr, PCNetState, 128),
+        VMSTATE_UINT16_ARRAY(bcr, PCNetState, 32),
+        VMSTATE_UINT64(timer, PCNetState),
+        VMSTATE_INT32(xmit_pos, PCNetState),
+        VMSTATE_BUFFER(buffer, PCNetState),
+        VMSTATE_UNUSED_TEST(is_version_2, 4),
+        VMSTATE_INT32(tx_busy, PCNetState),
+        VMSTATE_TIMER(poll_timer, PCNetState),
+        VMSTATE_END_OF_LIST()
     }
-    qemu_get_buffer(f, s->buffer, 4096);
-    qemu_get_sbe32s(f, &s->tx_busy);
-    qemu_get_timer(f, s->poll_timer);
+};
 
-    return 0;
-}
-
-static void pci_pcnet_save(QEMUFile *f, void *opaque)
-{
-    PCIPCNetState *s = opaque;
-
-    pci_device_save(&s->pci_dev, f);
-    pcnet_save(f, &s->state);
-}
-
-static int pci_pcnet_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCIPCNetState *s = opaque;
-    int ret;
-
-    ret = pci_device_load(&s->pci_dev, f);
-    if (ret < 0)
-        return ret;
-
-    return pcnet_load(f, &s->state, version_id);
-}
+static const VMStateDescription vmstate_pci_pcnet = {
+    .name = "pcnet",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(pci_dev, PCIPCNetState),
+        VMSTATE_STRUCT(state, PCIPCNetState, 0, vmstate_pcnet, PCNetState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void pcnet_common_cleanup(PCNetState *d)
 {
@@ -1988,7 +1956,7 @@ static int pci_pcnet_uninit(PCIDevice *dev)
     PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, dev);
 
     cpu_unregister_io_memory(d->state.mmio_index);
-    unregister_savevm("pcnet", d);
+    vmstate_unregister(&vmstate_pci_pcnet, d);
     qemu_del_timer(d->state.poll_timer);
     qemu_free_timer(d->state.poll_timer);
     qemu_del_vlan_client(d->state.vc);
@@ -2038,7 +2006,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
 
-    register_savevm("pcnet", -1, 3, pci_pcnet_save, pci_pcnet_load, d);
+    vmstate_register(-1, &vmstate_pci_pcnet, d);
 
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;

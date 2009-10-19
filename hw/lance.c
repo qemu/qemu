@@ -96,6 +96,7 @@ static void lance_cleanup(VLANClientState *vc)
 {
     PCNetState *d = vc->opaque;
 
+    vmstate_unregister(&vmstate_pcnet, d);
     pcnet_common_cleanup(d);
 }
 
@@ -116,7 +117,7 @@ static int lance_init(SysBusDevice *dev)
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
 
-    register_savevm("pcnet", -1, 3, pcnet_save, pcnet_load, s);
+    vmstate_register(-1, &vmstate_pcnet, d);
     return pcnet_common_init(&dev->qdev, s, lance_cleanup);
 }
 

@@ -35,5 +35,4 @@ uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr);
 void pcnet_common_cleanup(PCNetState *d);
 int pcnet_common_init(DeviceState *dev, PCNetState *s,
                       NetCleanup *cleanup);
-void pcnet_save(QEMUFile *f, void *opaque);
-int pcnet_load(QEMUFile *f, void *opaque, int version_id);
+extern const VMStateDescription vmstate_pcnet;
