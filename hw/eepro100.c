@@ -626,26 +626,11 @@ static void dump_statistics(EEPRO100State * s)
     //~ missing("CU dump statistical counters");
 }
 
-static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
+static void action_command(EEPRO100State *s)
 {
-    eepro100_tx_t tx;
-    uint32_t cb_address;
-    switch (val) {
-    case CU_NOP:
-        /* No operation. */
-        break;
-    case CU_START:
-        if (get_cu_state(s) != cu_idle) {
-            /* Intel documentation says that CU must be idle for the CU
-             * start command. Intel driver for Linux also starts the CU
-             * from suspended state. */
-            logout("CU state is %u, should be %u\n", get_cu_state(s), cu_idle);
-            //~ assert(!"wrong CU state");
-        }
-        set_cu_state(s, cu_active);
-        s->cu_offset = s->pointer;
-      next_command:
-        cb_address = s->cu_base + s->cu_offset;
+    for (;;) {
+        uint32_t cb_address = s->cu_base + s->cu_offset;
+        eepro100_tx_t tx;
         cpu_physical_memory_read(cb_address, (uint8_t *) & tx, sizeof(tx));
         uint16_t status = le16_to_cpu(tx.status);
         uint16_t command = le16_to_cpu(tx.command);
@@ -787,17 +772,38 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             /* CU becomes idle. Terminate command loop. */
             set_cu_state(s, cu_idle);
             eepro100_cna_interrupt(s);
+            break;
         } else if (bit_s) {
-            /* CU becomes suspended. */
+            /* CU becomes suspended. Terminate command loop. */
             set_cu_state(s, cu_suspended);
             eepro100_cna_interrupt(s);
+            break;
         } else {
             /* More entries in list. */
             TRACE(OTHER, logout("CU list with at least one more entry\n"));
-            goto next_command;
         }
-        TRACE(OTHER, logout("CU list empty\n"));
-        /* List is empty. Now CU is idle or suspended. */
+    }
+    TRACE(OTHER, logout("CU list empty\n"));
+    /* List is empty. Now CU is idle or suspended. */
+}
+
+static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
+{
+    switch (val) {
+    case CU_NOP:
+        /* No operation. */
+        break;
+    case CU_START:
+        if (get_cu_state(s) != cu_idle) {
+            /* Intel documentation says that CU must be idle for the CU
+             * start command. Intel driver for Linux also starts the CU
+             * from suspended state. */
+            logout("CU state is %u, should be %u\n", get_cu_state(s), cu_idle);
+            //~ assert(!"wrong CU state");
+        }
+        set_cu_state(s, cu_active);
+        s->cu_offset = s->pointer;
+        action_command(s);
         break;
     case CU_RESUME:
         if (get_cu_state(s) != cu_suspended) {
@@ -810,7 +816,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         if (get_cu_state(s) == cu_suspended) {
             TRACE(OTHER, logout("CU resuming\n"));
             set_cu_state(s, cu_active);
-            goto next_command;
+            action_command(s);
         }
         break;
     case CU_STATSADDR:
