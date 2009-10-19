@@ -352,6 +352,9 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     (offsetof(_state, _field) +                                      \
      type_check_array(_type, typeof_field(_state, _field), _num))
 
+#define vmstate_offset_sub_array(_state, _field, _type, _start)      \
+    (offsetof(_state, _field[_start]))
+
 #define vmstate_offset_buffer(_state, _field)                        \
     vmstate_offset_array(_state, _field, uint8_t,                    \
                          sizeof(typeof_field(_state, _field)))
@@ -393,6 +396,16 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .size         = sizeof(_type),                                    \
     .flags        = VMS_ARRAY,                                        \
     .offset       = vmstate_offset_array(_state, _field, _type, _num),\
+}
+
+#define VMSTATE_SUB_ARRAY(_field, _state, _start, _num, _version, _info, _type) { \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num        = (_num),                                            \
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_ARRAY,                                         \
+    .offset     = vmstate_offset_sub_array(_state, _field, _type, _start), \
 }
 
 #define VMSTATE_VARRAY_INT32(_field, _state, _field_num, _version, _info, _type) {\
@@ -626,6 +639,12 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_INT32_ARRAY(_f, _s, _n)                               \
     VMSTATE_INT32_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_UINT32_SUB_ARRAY(_f, _s, _start, _num)                \
+    VMSTATE_SUB_ARRAY(_f, _s, _start, _num, 0, vmstate_info_uint32, uint32_t)
+
+#define VMSTATE_UINT32_ARRAY(_f, _s, _n)                              \
+    VMSTATE_UINT32_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
     VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))
