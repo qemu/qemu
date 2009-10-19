@@ -69,7 +69,7 @@ static int isa_ne2000_initfn(ISADevice *dev)
                                  NULL, isa_ne2000_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->c.macaddr.a);
 
-    register_savevm("ne2000", -1, 2, ne2000_save, ne2000_load, s);
+    vmstate_register(-1, &vmstate_ne2000, s);
     return 0;
 }
 
