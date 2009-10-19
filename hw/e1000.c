@@ -881,15 +881,6 @@ e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
             (8 * (addr & 3))) & 0xffff;
 }
 
-static const int mac_regtosave[] = {
-    CTRL,	EECD,	EERD,	GPRC,	GPTC,	ICR,	ICS,	IMC,	IMS,
-    LEDCTL,	MANC,	MDIC,	MPC,	PBA,	RCTL,	RDBAH,	RDBAL,	RDH,
-    RDLEN,	RDT,	STATUS,	SWSM,	TCTL,	TDBAH,	TDBAL,	TDH,	TDLEN,
-    TDT,	TORH,	TORL,	TOTH,	TOTL,	TPR,	TPT,	TXDCTL,	WUFC,
-    VET,
-};
-enum { MAC_NSAVE = ARRAY_SIZE(mac_regtosave) };
-
 static const struct {
     int size;
     int array0;
@@ -931,8 +922,43 @@ nic_save(QEMUFile *f, void *opaque)
         qemu_put_be16s(f, s->eeprom_data + i);
     for (i = 0; i < 0x20; i++)
         qemu_put_be16s(f, s->phy_reg + i);
-    for (i = 0; i < MAC_NSAVE; i++)
-        qemu_put_be32s(f, s->mac_reg + mac_regtosave[i]);
+    qemu_put_be32s(f, &s->mac_reg[CTRL]);
+    qemu_put_be32s(f, &s->mac_reg[EECD]);
+    qemu_put_be32s(f, &s->mac_reg[EERD]);
+    qemu_put_be32s(f, &s->mac_reg[GPRC]);
+    qemu_put_be32s(f, &s->mac_reg[GPTC]);
+    qemu_put_be32s(f, &s->mac_reg[ICR]);
+    qemu_put_be32s(f, &s->mac_reg[ICS]);
+    qemu_put_be32s(f, &s->mac_reg[IMC]);
+    qemu_put_be32s(f, &s->mac_reg[IMS]);
+    qemu_put_be32s(f, &s->mac_reg[LEDCTL]);
+    qemu_put_be32s(f, &s->mac_reg[MANC]);
+    qemu_put_be32s(f, &s->mac_reg[MDIC]);
+    qemu_put_be32s(f, &s->mac_reg[MPC]);
+    qemu_put_be32s(f, &s->mac_reg[PBA]);
+    qemu_put_be32s(f, &s->mac_reg[RCTL]);
+    qemu_put_be32s(f, &s->mac_reg[RDBAH]);
+    qemu_put_be32s(f, &s->mac_reg[RDBAL]);
+    qemu_put_be32s(f, &s->mac_reg[RDH]);
+    qemu_put_be32s(f, &s->mac_reg[RDLEN]);
+    qemu_put_be32s(f, &s->mac_reg[RDT]);
+    qemu_put_be32s(f, &s->mac_reg[STATUS]);
+    qemu_put_be32s(f, &s->mac_reg[SWSM]);
+    qemu_put_be32s(f, &s->mac_reg[TCTL]);
+    qemu_put_be32s(f, &s->mac_reg[TDBAH]);
+    qemu_put_be32s(f, &s->mac_reg[TDBAL]);
+    qemu_put_be32s(f, &s->mac_reg[TDH]);
+    qemu_put_be32s(f, &s->mac_reg[TDLEN]);
+    qemu_put_be32s(f, &s->mac_reg[TDT]);
+    qemu_put_be32s(f, &s->mac_reg[TORH]);
+    qemu_put_be32s(f, &s->mac_reg[TORL]);
+    qemu_put_be32s(f, &s->mac_reg[TOTH]);
+    qemu_put_be32s(f, &s->mac_reg[TOTL]);
+    qemu_put_be32s(f, &s->mac_reg[TPR]);
+    qemu_put_be32s(f, &s->mac_reg[TPT]);
+    qemu_put_be32s(f, &s->mac_reg[TXDCTL]);
+    qemu_put_be32s(f, &s->mac_reg[WUFC]);
+    qemu_put_be32s(f, &s->mac_reg[VET]);
     for (i = 0; i < MAC_NARRAYS; i++)
         for (j = 0; j < mac_regarraystosave[i].size; j++)
             qemu_put_be32s(f,
@@ -977,8 +1003,43 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be16s(f, s->eeprom_data + i);
     for (i = 0; i < 0x20; i++)
         qemu_get_be16s(f, s->phy_reg + i);
-    for (i = 0; i < MAC_NSAVE; i++)
-        qemu_get_be32s(f, s->mac_reg + mac_regtosave[i]);
+    qemu_get_be32s(f, &s->mac_reg[CTRL]);
+    qemu_get_be32s(f, &s->mac_reg[EECD]);
+    qemu_get_be32s(f, &s->mac_reg[EERD]);
+    qemu_get_be32s(f, &s->mac_reg[GPRC]);
+    qemu_get_be32s(f, &s->mac_reg[GPTC]);
+    qemu_get_be32s(f, &s->mac_reg[ICR]);
+    qemu_get_be32s(f, &s->mac_reg[ICS]);
+    qemu_get_be32s(f, &s->mac_reg[IMC]);
+    qemu_get_be32s(f, &s->mac_reg[IMS]);
+    qemu_get_be32s(f, &s->mac_reg[LEDCTL]);
+    qemu_get_be32s(f, &s->mac_reg[MANC]);
+    qemu_get_be32s(f, &s->mac_reg[MDIC]);
+    qemu_get_be32s(f, &s->mac_reg[MPC]);
+    qemu_get_be32s(f, &s->mac_reg[PBA]);
+    qemu_get_be32s(f, &s->mac_reg[RCTL]);
+    qemu_get_be32s(f, &s->mac_reg[RDBAH]);
+    qemu_get_be32s(f, &s->mac_reg[RDBAL]);
+    qemu_get_be32s(f, &s->mac_reg[RDH]);
+    qemu_get_be32s(f, &s->mac_reg[RDLEN]);
+    qemu_get_be32s(f, &s->mac_reg[RDT]);
+    qemu_get_be32s(f, &s->mac_reg[STATUS]);
+    qemu_get_be32s(f, &s->mac_reg[SWSM]);
+    qemu_get_be32s(f, &s->mac_reg[TCTL]);
+    qemu_get_be32s(f, &s->mac_reg[TDBAH]);
+    qemu_get_be32s(f, &s->mac_reg[TDBAL]);
+    qemu_get_be32s(f, &s->mac_reg[TDH]);
+    qemu_get_be32s(f, &s->mac_reg[TDLEN]);
+    qemu_get_be32s(f, &s->mac_reg[TDT]);
+    qemu_get_be32s(f, &s->mac_reg[TORH]);
+    qemu_get_be32s(f, &s->mac_reg[TORL]);
+    qemu_get_be32s(f, &s->mac_reg[TOTH]);
+    qemu_get_be32s(f, &s->mac_reg[TOTL]);
+    qemu_get_be32s(f, &s->mac_reg[TPR]);
+    qemu_get_be32s(f, &s->mac_reg[TPT]);
+    qemu_get_be32s(f, &s->mac_reg[TXDCTL]);
+    qemu_get_be32s(f, &s->mac_reg[WUFC]);
+    qemu_get_be32s(f, &s->mac_reg[VET]);
     for (i = 0; i < MAC_NARRAYS; i++)
         for (j = 0; j < mac_regarraystosave[i].size; j++)
             qemu_get_be32s(f,
