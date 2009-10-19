@@ -220,6 +220,8 @@ typedef struct {
 
     /* Data in mem is always in the byte order of the controller (le). */
     uint8_t mem[PCI_MEM_SIZE];
+    /* vmstate for each particular nic */
+    VMStateDescription *vmstate;
 } EEPRO100State;
 
 /* Default values for MDI (PHY) registers */
@@ -1597,141 +1599,62 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     return size;
 }
 
-static int nic_load(QEMUFile * f, void *opaque, int version_id)
-{
-    EEPRO100State *s = opaque;
-    int i;
-    int ret;
-
-    if (version_id > 3)
-        return -EINVAL;
-
-    ret = pci_device_load(&s->dev, f);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /* Skip unused entries. */
-    qemu_fseek(f, 32, SEEK_CUR);
-
-    qemu_get_buffer(f, s->mult, 8);
-    qemu_get_buffer(f, s->mem, sizeof(s->mem));
-
-    /* Restore all members of struct between scb_stat and mem. */
-    qemu_get_8s(f, &s->scb_stat);
-    qemu_get_8s(f, &s->int_stat);
-    /* Skip unused entries. */
-    qemu_fseek(f, 3 * 4, SEEK_CUR);
-    qemu_get_buffer(f, s->conf.macaddr.a, 6);
-    /* Skip unused entries. */
-    qemu_fseek(f, 19 * 4, SEEK_CUR);
-    for (i = 0; i < 32; i++) {
-        qemu_get_be16s(f, &s->mdimem[i]);
-    }
-    /* The eeprom should be saved and restored by its own routines. */
-    qemu_get_be32s(f, &s->device);
-    // TODO check device.
-    qemu_get_be32s(f, &s->pointer);
-    qemu_get_be32s(f, &s->cu_base);
-    qemu_get_be32s(f, &s->cu_offset);
-    qemu_get_be32s(f, &s->ru_base);
-    qemu_get_be32s(f, &s->ru_offset);
-    qemu_get_be32s(f, &s->statsaddr);
-    /* Restore epro100_stats_t statistics. */
-    qemu_get_be32s(f, &s->statistics.tx_good_frames);
-    qemu_get_be32s(f, &s->statistics.tx_max_collisions);
-    qemu_get_be32s(f, &s->statistics.tx_late_collisions);
-    qemu_get_be32s(f, &s->statistics.tx_underruns);
-    qemu_get_be32s(f, &s->statistics.tx_lost_crs);
-    qemu_get_be32s(f, &s->statistics.tx_deferred);
-    qemu_get_be32s(f, &s->statistics.tx_single_collisions);
-    qemu_get_be32s(f, &s->statistics.tx_multiple_collisions);
-    qemu_get_be32s(f, &s->statistics.tx_total_collisions);
-    qemu_get_be32s(f, &s->statistics.rx_good_frames);
-    qemu_get_be32s(f, &s->statistics.rx_crc_errors);
-    qemu_get_be32s(f, &s->statistics.rx_alignment_errors);
-    qemu_get_be32s(f, &s->statistics.rx_resource_errors);
-    qemu_get_be32s(f, &s->statistics.rx_overrun_errors);
-    qemu_get_be32s(f, &s->statistics.rx_cdt_errors);
-    qemu_get_be32s(f, &s->statistics.rx_short_frame_errors);
-    qemu_get_be32s(f, &s->statistics.fc_xmt_pause);
-    qemu_get_be32s(f, &s->statistics.fc_rcv_pause);
-    qemu_get_be32s(f, &s->statistics.fc_rcv_unsupported);
-    qemu_get_be16s(f, &s->statistics.xmt_tco_frames);
-    qemu_get_be16s(f, &s->statistics.rcv_tco_frames);
-    qemu_get_be32s(f, &s->statistics.complete);
+static const VMStateDescription vmstate_eepro100 = {
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, EEPRO100State),
+        VMSTATE_UNUSED(32),
+        VMSTATE_BUFFER(mult, EEPRO100State),
+        VMSTATE_BUFFER(mem, EEPRO100State),
+        /* Save all members of struct between scb_stat and mem. */
+        VMSTATE_UINT8(scb_stat, EEPRO100State),
+        VMSTATE_UINT8(int_stat, EEPRO100State),
+        VMSTATE_UNUSED(3*4),
+        VMSTATE_MACADDR(conf.macaddr, EEPRO100State),
+        VMSTATE_UNUSED(19*4),
+        VMSTATE_UINT16_ARRAY(mdimem, EEPRO100State, 32),
+        /* The eeprom should be saved and restored by its own routines. */
+        VMSTATE_UINT32(device, EEPRO100State),
+        /* TODO check device. */
+        VMSTATE_UINT32(pointer, EEPRO100State),
+        VMSTATE_UINT32(cu_base, EEPRO100State),
+        VMSTATE_UINT32(cu_offset, EEPRO100State),
+        VMSTATE_UINT32(ru_base, EEPRO100State),
+        VMSTATE_UINT32(ru_offset, EEPRO100State),
+        VMSTATE_UINT32(statsaddr, EEPRO100State),
+        /* Save epro100_stats_t statistics. */
+        VMSTATE_UINT32(statistics.tx_good_frames, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_max_collisions, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_late_collisions, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_underruns, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_lost_crs, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_deferred, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_single_collisions, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_multiple_collisions, EEPRO100State),
+        VMSTATE_UINT32(statistics.tx_total_collisions, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_good_frames, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_crc_errors, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_alignment_errors, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_resource_errors, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_overrun_errors, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_cdt_errors, EEPRO100State),
+        VMSTATE_UINT32(statistics.rx_short_frame_errors, EEPRO100State),
+        VMSTATE_UINT32(statistics.fc_xmt_pause, EEPRO100State),
+        VMSTATE_UINT32(statistics.fc_rcv_pause, EEPRO100State),
+        VMSTATE_UINT32(statistics.fc_rcv_unsupported, EEPRO100State),
+        VMSTATE_UINT16(statistics.xmt_tco_frames, EEPRO100State),
+        VMSTATE_UINT16(statistics.rcv_tco_frames, EEPRO100State),
+        VMSTATE_UINT32(statistics.complete, EEPRO100State),
 #if 0
-    qemu_get_be16s(f, &s->status);
+        VMSTATE_UINT16(status, EEPRO100State),
 #endif
-
-    /* Configuration bytes. */
-    qemu_get_buffer(f, s->configuration, sizeof(s->configuration));
-
-    return 0;
-}
-
-static void nic_save(QEMUFile * f, void *opaque)
-{
-    EEPRO100State *s = opaque;
-    int i;
-
-    pci_device_save(&s->dev, f);
-
-    /* Skip unused entries. */
-    qemu_fseek(f, 32, SEEK_CUR);
-
-    qemu_put_buffer(f, s->mult, 8);
-    qemu_put_buffer(f, s->mem, sizeof(s->mem));
-
-    /* Save all members of struct between scb_stat and mem. */
-    qemu_put_8s(f, &s->scb_stat);
-    qemu_put_8s(f, &s->int_stat);
-    /* Skip unused entries. */
-    qemu_fseek(f, 3 * 4, SEEK_CUR);
-    qemu_put_buffer(f, s->conf.macaddr.a, 6);
-    /* Skip unused entries. */
-    qemu_fseek(f, 19 * 4, SEEK_CUR);
-    for (i = 0; i < 32; i++) {
-        qemu_put_be16s(f, &s->mdimem[i]);
+        /* Configuration bytes. */
+        VMSTATE_BUFFER(configuration, EEPRO100State),
+        VMSTATE_END_OF_LIST()
     }
-    /* The eeprom should be saved and restored by its own routines. */
-    qemu_put_be32s(f, &s->device);
-    qemu_put_be32s(f, &s->pointer);
-    qemu_put_be32s(f, &s->cu_base);
-    qemu_put_be32s(f, &s->cu_offset);
-    qemu_put_be32s(f, &s->ru_base);
-    qemu_put_be32s(f, &s->ru_offset);
-    qemu_put_be32s(f, &s->statsaddr);
-    /* Save epro100_stats_t statistics. */
-    qemu_put_be32s(f, &s->statistics.tx_good_frames);
-    qemu_put_be32s(f, &s->statistics.tx_max_collisions);
-    qemu_put_be32s(f, &s->statistics.tx_late_collisions);
-    qemu_put_be32s(f, &s->statistics.tx_underruns);
-    qemu_put_be32s(f, &s->statistics.tx_lost_crs);
-    qemu_put_be32s(f, &s->statistics.tx_deferred);
-    qemu_put_be32s(f, &s->statistics.tx_single_collisions);
-    qemu_put_be32s(f, &s->statistics.tx_multiple_collisions);
-    qemu_put_be32s(f, &s->statistics.tx_total_collisions);
-    qemu_put_be32s(f, &s->statistics.rx_good_frames);
-    qemu_put_be32s(f, &s->statistics.rx_crc_errors);
-    qemu_put_be32s(f, &s->statistics.rx_alignment_errors);
-    qemu_put_be32s(f, &s->statistics.rx_resource_errors);
-    qemu_put_be32s(f, &s->statistics.rx_overrun_errors);
-    qemu_put_be32s(f, &s->statistics.rx_cdt_errors);
-    qemu_put_be32s(f, &s->statistics.rx_short_frame_errors);
-    qemu_put_be32s(f, &s->statistics.fc_xmt_pause);
-    qemu_put_be32s(f, &s->statistics.fc_rcv_pause);
-    qemu_put_be32s(f, &s->statistics.fc_rcv_unsupported);
-    qemu_put_be16s(f, &s->statistics.xmt_tco_frames);
-    qemu_put_be16s(f, &s->statistics.rcv_tco_frames);
-    qemu_put_be32s(f, &s->statistics.complete);
-#if 0
-    qemu_put_be16s(f, &s->status);
-#endif
-
-    /* Configuration bytes. */
-    qemu_put_buffer(f, s->configuration, sizeof(s->configuration));
-}
+};
 
 static void nic_cleanup(VLANClientState *vc)
 {
@@ -1745,7 +1668,7 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     cpu_unregister_io_memory(s->mmio_index);
-    unregister_savevm(s->vc->model, s);
+    vmstate_unregister(s->vmstate, s);
     eeprom93xx_free(s->eeprom);
     qemu_del_vlan_client(s->vc);
     return 0;
@@ -1794,7 +1717,10 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
 
     qemu_register_reset(nic_reset, s);
 
-    register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
+    s->vmstate = qemu_malloc(sizeof(vmstate_eepro100));
+    memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
+    s->vmstate->name = s->vc->model;
+    vmstate_register(-1, s->vmstate, s);
     return 0;
 }
 
