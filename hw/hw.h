@@ -335,6 +335,7 @@ extern const VMStateInfo vmstate_info_uint64;
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_ptimer;
 extern const VMStateInfo vmstate_info_buffer;
+extern const VMStateInfo vmstate_info_unused_buffer;
 
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
 #define type_check_pointer(t1,t2) ((t1**)0 - (t2*)0)
@@ -471,6 +472,14 @@ extern const VMStateInfo vmstate_info_buffer;
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
 }
 
+#define VMSTATE_UNUSED_BUFFER(_test, _version, _size) {              \
+    .name         = "unused",                                        \
+    .field_exists = (_test),                                         \
+    .version_id   = (_version),                                      \
+    .size         = (_size),                                         \
+    .info         = &vmstate_info_unused_buffer,                     \
+    .flags        = VMS_BUFFER,                                      \
+}
 extern const VMStateDescription vmstate_pci_device;
 
 #define VMSTATE_PCI_DEVICE(_field, _state) {                         \
@@ -620,6 +629,15 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_BUFFER_TEST(_f, _s, _test)                            \
     VMSTATE_STATIC_BUFFER(_f, _s, 0, _test, 0, sizeof(typeof_field(_s, _f)))
+
+#define VMSTATE_UNUSED_V(_v, _size)                                   \
+    VMSTATE_UNUSED_BUFFER(NULL, _v, _size)
+
+#define VMSTATE_UNUSED(_size)                                         \
+    VMSTATE_UNUSED_V(0, _size)
+
+#define VMSTATE_UNUSED_TEST(_test, _size)                             \
+    VMSTATE_UNUSED_BUFFER(_test, 0, _size)
 
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64

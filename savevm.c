@@ -944,6 +944,26 @@ const VMStateInfo vmstate_info_buffer = {
     .put  = put_buffer,
 };
 
+/* unused buffers: space that was used for some fields that are
+   not usefull anymore */
+
+static int get_unused_buffer(QEMUFile *f, void *pv, size_t size)
+{
+    qemu_fseek(f, size, SEEK_CUR);
+    return 0;
+}
+
+static void put_unused_buffer(QEMUFile *f, void *pv, size_t size)
+{
+    qemu_fseek(f, size, SEEK_CUR);
+}
+
+const VMStateInfo vmstate_info_unused_buffer = {
+    .name = "unused_buffer",
+    .get  = get_unused_buffer,
+    .put  = put_unused_buffer,
+};
+
 typedef struct SaveStateEntry {
     QTAILQ_ENTRY(SaveStateEntry) entry;
     char idstr[256];
