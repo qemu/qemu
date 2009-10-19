@@ -881,169 +881,88 @@ e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
             (8 * (addr & 3))) & 0xffff;
 }
 
-static void
-nic_save(QEMUFile *f, void *opaque)
+static bool is_version_1(void *opaque, int version_id)
 {
-    E1000State *s = opaque;
-    int i;
-
-    pci_device_save(&s->dev, f);
-    qemu_put_be32(f, 0);
-    qemu_put_be32s(f, &s->rxbuf_size);
-    qemu_put_be32s(f, &s->rxbuf_min_shift);
-    qemu_put_be32s(f, &s->eecd_state.val_in);
-    qemu_put_be16s(f, &s->eecd_state.bitnum_in);
-    qemu_put_be16s(f, &s->eecd_state.bitnum_out);
-    qemu_put_be16s(f, &s->eecd_state.reading);
-    qemu_put_be32s(f, &s->eecd_state.old_eecd);
-    qemu_put_8s(f, &s->tx.ipcss);
-    qemu_put_8s(f, &s->tx.ipcso);
-    qemu_put_be16s(f, &s->tx.ipcse);
-    qemu_put_8s(f, &s->tx.tucss);
-    qemu_put_8s(f, &s->tx.tucso);
-    qemu_put_be16s(f, &s->tx.tucse);
-    qemu_put_be32s(f, &s->tx.paylen);
-    qemu_put_8s(f, &s->tx.hdr_len);
-    qemu_put_be16s(f, &s->tx.mss);
-    qemu_put_be16s(f, &s->tx.size);
-    qemu_put_be16s(f, &s->tx.tso_frames);
-    qemu_put_8s(f, &s->tx.sum_needed);
-    qemu_put_s8s(f, &s->tx.ip);
-    qemu_put_s8s(f, &s->tx.tcp);
-    qemu_put_buffer(f, s->tx.header, sizeof s->tx.header);
-    qemu_put_buffer(f, s->tx.data, sizeof s->tx.data);
-    for (i = 0; i < 64; i++)
-        qemu_put_be16s(f, s->eeprom_data + i);
-    for (i = 0; i < 0x20; i++)
-        qemu_put_be16s(f, s->phy_reg + i);
-    qemu_put_be32s(f, &s->mac_reg[CTRL]);
-    qemu_put_be32s(f, &s->mac_reg[EECD]);
-    qemu_put_be32s(f, &s->mac_reg[EERD]);
-    qemu_put_be32s(f, &s->mac_reg[GPRC]);
-    qemu_put_be32s(f, &s->mac_reg[GPTC]);
-    qemu_put_be32s(f, &s->mac_reg[ICR]);
-    qemu_put_be32s(f, &s->mac_reg[ICS]);
-    qemu_put_be32s(f, &s->mac_reg[IMC]);
-    qemu_put_be32s(f, &s->mac_reg[IMS]);
-    qemu_put_be32s(f, &s->mac_reg[LEDCTL]);
-    qemu_put_be32s(f, &s->mac_reg[MANC]);
-    qemu_put_be32s(f, &s->mac_reg[MDIC]);
-    qemu_put_be32s(f, &s->mac_reg[MPC]);
-    qemu_put_be32s(f, &s->mac_reg[PBA]);
-    qemu_put_be32s(f, &s->mac_reg[RCTL]);
-    qemu_put_be32s(f, &s->mac_reg[RDBAH]);
-    qemu_put_be32s(f, &s->mac_reg[RDBAL]);
-    qemu_put_be32s(f, &s->mac_reg[RDH]);
-    qemu_put_be32s(f, &s->mac_reg[RDLEN]);
-    qemu_put_be32s(f, &s->mac_reg[RDT]);
-    qemu_put_be32s(f, &s->mac_reg[STATUS]);
-    qemu_put_be32s(f, &s->mac_reg[SWSM]);
-    qemu_put_be32s(f, &s->mac_reg[TCTL]);
-    qemu_put_be32s(f, &s->mac_reg[TDBAH]);
-    qemu_put_be32s(f, &s->mac_reg[TDBAL]);
-    qemu_put_be32s(f, &s->mac_reg[TDH]);
-    qemu_put_be32s(f, &s->mac_reg[TDLEN]);
-    qemu_put_be32s(f, &s->mac_reg[TDT]);
-    qemu_put_be32s(f, &s->mac_reg[TORH]);
-    qemu_put_be32s(f, &s->mac_reg[TORL]);
-    qemu_put_be32s(f, &s->mac_reg[TOTH]);
-    qemu_put_be32s(f, &s->mac_reg[TOTL]);
-    qemu_put_be32s(f, &s->mac_reg[TPR]);
-    qemu_put_be32s(f, &s->mac_reg[TPT]);
-    qemu_put_be32s(f, &s->mac_reg[TXDCTL]);
-    qemu_put_be32s(f, &s->mac_reg[WUFC]);
-    qemu_put_be32s(f, &s->mac_reg[VET]);
-    for (i = RA; i < RA + 32; i++)
-        qemu_put_be32s(f, &s->mac_reg[i]);
-    for (i = MTA; i < MTA + 128; i++)
-        qemu_put_be32s(f, &s->mac_reg[i]);
-    for (i = VFTA; i < VFTA + 128; i++)
-        qemu_put_be32s(f, &s->mac_reg[i]);
+    return version_id == 1;
 }
 
-static int
-nic_load(QEMUFile *f, void *opaque, int version_id)
-{
-    E1000State *s = opaque;
-    int i, ret;
-
-    if ((ret = pci_device_load(&s->dev, f)) < 0)
-        return ret;
-    if (version_id == 1)
-        qemu_get_sbe32s(f, &i); /* once some unused instance id */
-    qemu_get_be32(f); /* Ignored.  Was mmio_base.  */
-    qemu_get_be32s(f, &s->rxbuf_size);
-    qemu_get_be32s(f, &s->rxbuf_min_shift);
-    qemu_get_be32s(f, &s->eecd_state.val_in);
-    qemu_get_be16s(f, &s->eecd_state.bitnum_in);
-    qemu_get_be16s(f, &s->eecd_state.bitnum_out);
-    qemu_get_be16s(f, &s->eecd_state.reading);
-    qemu_get_be32s(f, &s->eecd_state.old_eecd);
-    qemu_get_8s(f, &s->tx.ipcss);
-    qemu_get_8s(f, &s->tx.ipcso);
-    qemu_get_be16s(f, &s->tx.ipcse);
-    qemu_get_8s(f, &s->tx.tucss);
-    qemu_get_8s(f, &s->tx.tucso);
-    qemu_get_be16s(f, &s->tx.tucse);
-    qemu_get_be32s(f, &s->tx.paylen);
-    qemu_get_8s(f, &s->tx.hdr_len);
-    qemu_get_be16s(f, &s->tx.mss);
-    qemu_get_be16s(f, &s->tx.size);
-    qemu_get_be16s(f, &s->tx.tso_frames);
-    qemu_get_8s(f, &s->tx.sum_needed);
-    qemu_get_s8s(f, &s->tx.ip);
-    qemu_get_s8s(f, &s->tx.tcp);
-    qemu_get_buffer(f, s->tx.header, sizeof s->tx.header);
-    qemu_get_buffer(f, s->tx.data, sizeof s->tx.data);
-    for (i = 0; i < 64; i++)
-        qemu_get_be16s(f, s->eeprom_data + i);
-    for (i = 0; i < 0x20; i++)
-        qemu_get_be16s(f, s->phy_reg + i);
-    qemu_get_be32s(f, &s->mac_reg[CTRL]);
-    qemu_get_be32s(f, &s->mac_reg[EECD]);
-    qemu_get_be32s(f, &s->mac_reg[EERD]);
-    qemu_get_be32s(f, &s->mac_reg[GPRC]);
-    qemu_get_be32s(f, &s->mac_reg[GPTC]);
-    qemu_get_be32s(f, &s->mac_reg[ICR]);
-    qemu_get_be32s(f, &s->mac_reg[ICS]);
-    qemu_get_be32s(f, &s->mac_reg[IMC]);
-    qemu_get_be32s(f, &s->mac_reg[IMS]);
-    qemu_get_be32s(f, &s->mac_reg[LEDCTL]);
-    qemu_get_be32s(f, &s->mac_reg[MANC]);
-    qemu_get_be32s(f, &s->mac_reg[MDIC]);
-    qemu_get_be32s(f, &s->mac_reg[MPC]);
-    qemu_get_be32s(f, &s->mac_reg[PBA]);
-    qemu_get_be32s(f, &s->mac_reg[RCTL]);
-    qemu_get_be32s(f, &s->mac_reg[RDBAH]);
-    qemu_get_be32s(f, &s->mac_reg[RDBAL]);
-    qemu_get_be32s(f, &s->mac_reg[RDH]);
-    qemu_get_be32s(f, &s->mac_reg[RDLEN]);
-    qemu_get_be32s(f, &s->mac_reg[RDT]);
-    qemu_get_be32s(f, &s->mac_reg[STATUS]);
-    qemu_get_be32s(f, &s->mac_reg[SWSM]);
-    qemu_get_be32s(f, &s->mac_reg[TCTL]);
-    qemu_get_be32s(f, &s->mac_reg[TDBAH]);
-    qemu_get_be32s(f, &s->mac_reg[TDBAL]);
-    qemu_get_be32s(f, &s->mac_reg[TDH]);
-    qemu_get_be32s(f, &s->mac_reg[TDLEN]);
-    qemu_get_be32s(f, &s->mac_reg[TDT]);
-    qemu_get_be32s(f, &s->mac_reg[TORH]);
-    qemu_get_be32s(f, &s->mac_reg[TORL]);
-    qemu_get_be32s(f, &s->mac_reg[TOTH]);
-    qemu_get_be32s(f, &s->mac_reg[TOTL]);
-    qemu_get_be32s(f, &s->mac_reg[TPR]);
-    qemu_get_be32s(f, &s->mac_reg[TPT]);
-    qemu_get_be32s(f, &s->mac_reg[TXDCTL]);
-    qemu_get_be32s(f, &s->mac_reg[WUFC]);
-    qemu_get_be32s(f, &s->mac_reg[VET]);
-    for (i = RA; i < RA + 32; i++)
-        qemu_get_be32s(f, &s->mac_reg[i]);
-    for (i = MTA; i < MTA + 128; i++)
-        qemu_get_be32s(f, &s->mac_reg[i]);
-    for (i = VFTA; i < VFTA + 128; i++)
-        qemu_get_be32s(f, &s->mac_reg[i]);
-    return 0;
-}
+static const VMStateDescription vmstate_e1000 = {
+    .name = "e1000",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, E1000State),
+        VMSTATE_UNUSED_TEST(is_version_1, 4), /* was instance id */
+        VMSTATE_UNUSED(4), /* Was mmio_base.  */
+        VMSTATE_UINT32(rxbuf_size, E1000State),
+        VMSTATE_UINT32(rxbuf_min_shift, E1000State),
+        VMSTATE_UINT32(eecd_state.val_in, E1000State),
+        VMSTATE_UINT16(eecd_state.bitnum_in, E1000State),
+        VMSTATE_UINT16(eecd_state.bitnum_out, E1000State),
+        VMSTATE_UINT16(eecd_state.reading, E1000State),
+        VMSTATE_UINT32(eecd_state.old_eecd, E1000State),
+        VMSTATE_UINT8(tx.ipcss, E1000State),
+        VMSTATE_UINT8(tx.ipcso, E1000State),
+        VMSTATE_UINT16(tx.ipcse, E1000State),
+        VMSTATE_UINT8(tx.tucss, E1000State),
+        VMSTATE_UINT8(tx.tucso, E1000State),
+        VMSTATE_UINT16(tx.tucse, E1000State),
+        VMSTATE_UINT32(tx.paylen, E1000State),
+        VMSTATE_UINT8(tx.hdr_len, E1000State),
+        VMSTATE_UINT16(tx.mss, E1000State),
+        VMSTATE_UINT16(tx.size, E1000State),
+        VMSTATE_UINT16(tx.tso_frames, E1000State),
+        VMSTATE_UINT8(tx.sum_needed, E1000State),
+        VMSTATE_INT8(tx.ip, E1000State),
+        VMSTATE_INT8(tx.tcp, E1000State),
+        VMSTATE_BUFFER(tx.header, E1000State),
+        VMSTATE_BUFFER(tx.data, E1000State),
+        VMSTATE_UINT16_ARRAY(eeprom_data, E1000State, 64),
+        VMSTATE_UINT16_ARRAY(phy_reg, E1000State, 0x20),
+        VMSTATE_UINT32(mac_reg[CTRL], E1000State),
+        VMSTATE_UINT32(mac_reg[EECD], E1000State),
+        VMSTATE_UINT32(mac_reg[EERD], E1000State),
+        VMSTATE_UINT32(mac_reg[GPRC], E1000State),
+        VMSTATE_UINT32(mac_reg[GPTC], E1000State),
+        VMSTATE_UINT32(mac_reg[ICR], E1000State),
+        VMSTATE_UINT32(mac_reg[ICS], E1000State),
+        VMSTATE_UINT32(mac_reg[IMC], E1000State),
+        VMSTATE_UINT32(mac_reg[IMS], E1000State),
+        VMSTATE_UINT32(mac_reg[LEDCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[MANC], E1000State),
+        VMSTATE_UINT32(mac_reg[MDIC], E1000State),
+        VMSTATE_UINT32(mac_reg[MPC], E1000State),
+        VMSTATE_UINT32(mac_reg[PBA], E1000State),
+        VMSTATE_UINT32(mac_reg[RCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[RDBAH], E1000State),
+        VMSTATE_UINT32(mac_reg[RDBAL], E1000State),
+        VMSTATE_UINT32(mac_reg[RDH], E1000State),
+        VMSTATE_UINT32(mac_reg[RDLEN], E1000State),
+        VMSTATE_UINT32(mac_reg[RDT], E1000State),
+        VMSTATE_UINT32(mac_reg[STATUS], E1000State),
+        VMSTATE_UINT32(mac_reg[SWSM], E1000State),
+        VMSTATE_UINT32(mac_reg[TCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[TDBAH], E1000State),
+        VMSTATE_UINT32(mac_reg[TDBAL], E1000State),
+        VMSTATE_UINT32(mac_reg[TDH], E1000State),
+        VMSTATE_UINT32(mac_reg[TDLEN], E1000State),
+        VMSTATE_UINT32(mac_reg[TDT], E1000State),
+        VMSTATE_UINT32(mac_reg[TORH], E1000State),
+        VMSTATE_UINT32(mac_reg[TORL], E1000State),
+        VMSTATE_UINT32(mac_reg[TOTH], E1000State),
+        VMSTATE_UINT32(mac_reg[TOTL], E1000State),
+        VMSTATE_UINT32(mac_reg[TPR], E1000State),
+        VMSTATE_UINT32(mac_reg[TPT], E1000State),
+        VMSTATE_UINT32(mac_reg[TXDCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[WUFC], E1000State),
+        VMSTATE_UINT32(mac_reg[VET], E1000State),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, RA, 32),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const uint16_t e1000_eeprom_template[64] = {
     0x0000, 0x0000, 0x0000, 0x0000,      0xffff, 0x0000,      0x0000, 0x0000,
@@ -1127,7 +1046,7 @@ pci_e1000_uninit(PCIDevice *dev)
 
     cpu_unregister_io_memory(d->mmio_index);
     qemu_del_vlan_client(d->vc);
-    unregister_savevm("e1000", d);
+    vmstate_unregister(&vmstate_e1000, d);
     return 0;
 }
 
@@ -1148,7 +1067,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
     uint8_t *pci_conf;
     uint16_t checksum = 0;
-    static const char info_str[] = "e1000";
     int i;
     uint8_t *macaddr;
 
@@ -1193,7 +1111,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     qemu_format_nic_info_str(d->vc, macaddr);
 
-    register_savevm(info_str, -1, 2, nic_save, nic_load, d);
+    vmstate_register(-1, &vmstate_e1000, d);
     e1000_reset(d);
 
 #if 0 /* rom bev support is broken -> can't load unconditionally */
