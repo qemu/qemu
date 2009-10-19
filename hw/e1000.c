@@ -881,17 +881,11 @@ e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
             (8 * (addr & 3))) & 0xffff;
 }
 
-static const struct {
-    int size;
-    int array0;
-} mac_regarraystosave[] = { {32, RA}, {128, MTA}, {128, VFTA} };
-enum { MAC_NARRAYS = ARRAY_SIZE(mac_regarraystosave) };
-
 static void
 nic_save(QEMUFile *f, void *opaque)
 {
     E1000State *s = opaque;
-    int i, j;
+    int i;
 
     pci_device_save(&s->dev, f);
     qemu_put_be32(f, 0);
@@ -959,17 +953,19 @@ nic_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &s->mac_reg[TXDCTL]);
     qemu_put_be32s(f, &s->mac_reg[WUFC]);
     qemu_put_be32s(f, &s->mac_reg[VET]);
-    for (i = 0; i < MAC_NARRAYS; i++)
-        for (j = 0; j < mac_regarraystosave[i].size; j++)
-            qemu_put_be32s(f,
-                           s->mac_reg + mac_regarraystosave[i].array0 + j);
+    for (i = RA; i < RA + 32; i++)
+        qemu_put_be32s(f, &s->mac_reg[i]);
+    for (i = MTA; i < MTA + 128; i++)
+        qemu_put_be32s(f, &s->mac_reg[i]);
+    for (i = VFTA; i < VFTA + 128; i++)
+        qemu_put_be32s(f, &s->mac_reg[i]);
 }
 
 static int
 nic_load(QEMUFile *f, void *opaque, int version_id)
 {
     E1000State *s = opaque;
-    int i, j, ret;
+    int i, ret;
 
     if ((ret = pci_device_load(&s->dev, f)) < 0)
         return ret;
@@ -1040,10 +1036,12 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->mac_reg[TXDCTL]);
     qemu_get_be32s(f, &s->mac_reg[WUFC]);
     qemu_get_be32s(f, &s->mac_reg[VET]);
-    for (i = 0; i < MAC_NARRAYS; i++)
-        for (j = 0; j < mac_regarraystosave[i].size; j++)
-            qemu_get_be32s(f,
-                           s->mac_reg + mac_regarraystosave[i].array0 + j);
+    for (i = RA; i < RA + 32; i++)
+        qemu_get_be32s(f, &s->mac_reg[i]);
+    for (i = MTA; i < MTA + 128; i++)
+        qemu_get_be32s(f, &s->mac_reg[i]);
+    for (i = VFTA; i < VFTA + 128; i++)
+        qemu_get_be32s(f, &s->mac_reg[i]);
     return 0;
 }
 
