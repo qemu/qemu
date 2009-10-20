@@ -485,6 +485,15 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
 }
 
+#define VMSTATE_BUFFER_UNSAFE(_field, _state, _version, _size) {     \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .size       = (_size),                                           \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = offsetof(_state, _field),                          \
+}
+
 #define VMSTATE_UNUSED_BUFFER(_test, _version, _size) {              \
     .name         = "unused",                                        \
     .field_exists = (_test),                                         \
