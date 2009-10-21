@@ -310,22 +310,6 @@ static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
     return tmp1;
 }
 
-/* Unsigned 32x32->64 multiply.  */
-static void gen_mull(TCGv a, TCGv b)
-{
-    TCGv_i64 tmp1 = tcg_temp_new_i64();
-    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(tmp1, a);
-    tcg_gen_extu_i32_i64(tmp2, b);
-    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-    tcg_temp_free_i64(tmp2);
-    tcg_gen_trunc_i64_i32(a, tmp1);
-    tcg_gen_shri_i64(tmp1, tmp1, 32);
-    tcg_gen_trunc_i64_i32(b, tmp1);
-    tcg_temp_free_i64(tmp1);
-}
-
 /* Signed 32x32->64 multiply.  */
 static void gen_imull(TCGv a, TCGv b)
 {
@@ -8363,7 +8347,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                 gen_logic_CC(tmp);
             break;
         case 0xd: /* mul */
-            gen_mull(tmp, tmp2);
+            tcg_gen_mul_i32(tmp, tmp, tmp2);
             if (!s->condexec_mask)
                 gen_logic_CC(tmp);
             break;
