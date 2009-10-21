@@ -234,28 +234,3 @@ void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict)
 {
     pci_device_hot_remove(mon, qdict_get_str(qdict, "pci_addr"));
 }
-
-static int pci_match_fn(void *dev_private, void *arg)
-{
-    PCIDevice *dev = dev_private;
-    PCIDevice *match = arg;
-
-    return (dev == match);
-}
-
-/*
- * OS has executed _EJ0 method, we now can remove the device
- */
-void pci_device_hot_remove_success(PCIDevice *d)
-{
-    int class_code;
-
-    class_code = d->config_read(d, PCI_CLASS_DEVICE+1, 1);
-
-    switch(class_code) {
-    case PCI_BASE_CLASS_NETWORK:
-        destroy_nic(pci_match_fn, d);
-        break;
-    }
-}
-
