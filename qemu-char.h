@@ -1,6 +1,7 @@
 #ifndef QEMU_CHAR_H
 #define QEMU_CHAR_H
 
+#include <stdbool.h>
 #include "qemu-common.h"
 #include "qemu-queue.h"
 #include "qemu-option.h"
@@ -10,7 +11,7 @@
 
 #define CHR_EVENT_BREAK   0 /* serial break char */
 #define CHR_EVENT_FOCUS   1 /* focus to this terminal (modal input needed) */
-#define CHR_EVENT_RESET   2 /* new connection established */
+#define CHR_EVENT_OPENED  2 /* new connection established */
 #define CHR_EVENT_MUX_IN  3 /* mux-focus was set to this terminal */
 #define CHR_EVENT_MUX_OUT 4 /* mux-focus will move on */
 #define CHR_EVENT_CLOSED  5 /* connection closed */
@@ -66,6 +67,7 @@ struct CharDriverState {
     QEMUBH *bh;
     char *label;
     char *filename;
+    bool initial_reset_issued;
     QTAILQ_ENTRY(CharDriverState) next;
 };
 

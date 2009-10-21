@@ -2447,7 +2447,7 @@ static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
 static void gdb_chr_event(void *opaque, int event)
 {
     switch (event) {
-    case CHR_EVENT_RESET:
+    case CHR_EVENT_OPENED:
         vm_stop(EXCP_INTERRUPT);
         gdb_has_xml = 0;
         break;

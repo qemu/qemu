@@ -79,6 +79,8 @@
 #include <linux/kd.h>
 #include <linux/mtio.h>
 #include <linux/fs.h>
+#include <linux/fb.h>
+#include <linux/vt.h>
 #include "linux_loop.h"
 
 #include "qemu.h"
@@ -4459,12 +4461,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 			p3 = lock_user_string(arg3);
                         if (!p || !p2 || !p3)
                             ret = -TARGET_EFAULT;
-                        else
+                        else {
                             /* FIXME - arg5 should be locked, but it isn't clear how to
                              * do that since it's not guaranteed to be a NULL-terminated
                              * string.
                              */
-                            ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, g2h(arg5)));
+                            if ( ! arg5 )
+                                ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, NULL));
+                            else
+                                ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, g2h(arg5)));
+                        }
                         unlock_user(p, arg1, 0);
                         unlock_user(p2, arg2, 0);
                         unlock_user(p3, arg3, 0);
@@ -4744,6 +4750,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_dup2:
         ret = get_errno(dup2(arg1, arg2));
         break;
+#if defined(CONFIG_DUP3) && defined(TARGET_NR_dup3)
+    case TARGET_NR_dup3:
+        ret = get_errno(dup3(arg1, arg2, arg3));
+        break;
+#endif
 #ifdef TARGET_NR_getppid /* not on alpha */
     case TARGET_NR_getppid:
         ret = get_errno(getppid());
@@ -5304,7 +5315,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* libc does special remapping of the return value of
          * sys_getpriority() so it's just easiest to call
          * sys_getpriority() directly rather than through libc. */
-        ret = sys_getpriority(arg1, arg2);
+        ret = get_errno(sys_getpriority(arg1, arg2));
         break;
     case TARGET_NR_setpriority:
         ret = get_errno(setpriority(arg1, arg2, arg3));
@@ -7011,6 +7022,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 #endif /* CONFIG_EVENTFD  */
+#if defined(CONFIG_FALLOCATE) && defined(TARGET_NR_fallocate)
+    case TARGET_NR_fallocate:
+        ret = get_errno(fallocate(arg1, arg2, arg3, arg4));
+        break;
+#endif
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
