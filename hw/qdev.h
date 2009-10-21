@@ -39,7 +39,6 @@ struct DeviceState {
     qemu_irq *gpio_in;
     QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
-    NICInfo *nd;
     QLIST_ENTRY(DeviceState) sibling;
 };
 

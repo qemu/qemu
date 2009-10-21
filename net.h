@@ -164,13 +164,6 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict);
 #define SMBD_COMMAND "/usr/sbin/smbd"
 #endif
 
-void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr);
-VLANClientState *qdev_get_vlan_client(DeviceState *dev,
-                                      NetCanReceive *can_receive,
-                                      NetReceive *receive,
-                                      NetReceiveIOV *receive_iov,
-                                      NetCleanup *cleanup,
-                                      void *opaque);
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
 #endif
