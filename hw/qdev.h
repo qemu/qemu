@@ -234,7 +234,7 @@ extern PropertyInfo qdev_prop_pci_devfn;
 #define DEFINE_PROP_DRIVE(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, DriveInfo*)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, uint8_t[6])
+    DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
 
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
@@ -250,6 +250,7 @@ void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value);
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value);
 void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value);
+void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);

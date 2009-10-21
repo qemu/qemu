@@ -1,4 +1,5 @@
 #include "sysemu.h"
+#include "net.h"
 #include "qdev.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
@@ -302,7 +303,7 @@ PropertyInfo qdev_prop_ptr = {
  */
 static int parse_mac(DeviceState *dev, Property *prop, const char *str)
 {
-    uint8_t *mac = qdev_get_prop_ptr(dev, prop);
+    MACAddr *mac = qdev_get_prop_ptr(dev, prop);
     int i, pos;
     char *p;
 
@@ -311,26 +312,31 @@ static int parse_mac(DeviceState *dev, Property *prop, const char *str)
             return -1;
         if (!qemu_isxdigit(str[pos+1]))
             return -1;
-        if (i == 5 && str[pos+2] != '\0')
-            return -1;
-        if (str[pos+2] != ':' && str[pos+2] != '-')
-            return -1;
-        mac[i] = strtol(str+pos, &p, 16);
+        if (i == 5) {
+            if (str[pos+2] != '\0')
+                return -1;
+        } else {
+            if (str[pos+2] != ':' && str[pos+2] != '-')
+                return -1;
+        }
+        mac->a[i] = strtol(str+pos, &p, 16);
     }
     return 0;
 }
 
 static int print_mac(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    uint8_t *mac = qdev_get_prop_ptr(dev, prop);
+    MACAddr *mac = qdev_get_prop_ptr(dev, prop);
+
     return snprintf(dest, len, "%02x:%02x:%02x:%02x:%02x:%02x",
-                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                    mac->a[0], mac->a[1], mac->a[2],
+                    mac->a[3], mac->a[4], mac->a[5]);
 }
 
 PropertyInfo qdev_prop_macaddr = {
-    .name  = "mac-addr",
+    .name  = "macaddr",
     .type  = PROP_TYPE_MACADDR,
-    .size  = 6,
+    .size  = sizeof(MACAddr),
     .parse = parse_mac,
     .print = print_mac,
 };
@@ -480,6 +486,11 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_CHR);
+}
+
+void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
+{
+    qdev_prop_set(dev, name, value, PROP_TYPE_MACADDR);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
