@@ -279,6 +279,37 @@ PropertyInfo qdev_prop_chr = {
     .print = print_chr,
 };
 
+/* --- netdev device --- */
+
+static int parse_netdev(DeviceState *dev, Property *prop, const char *str)
+{
+    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+
+    *ptr = qemu_find_netdev(str);
+    if (*ptr == NULL)
+        return -1;
+    return 0;
+}
+
+static int print_netdev(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (*ptr && (*ptr)->name) {
+        return snprintf(dest, len, "%s", (*ptr)->name);
+    } else {
+        return snprintf(dest, len, "<null>");
+    }
+}
+
+PropertyInfo qdev_prop_netdev = {
+    .name  = "netdev",
+    .type  = PROP_TYPE_NETDEV,
+    .size  = sizeof(VLANClientState*),
+    .parse = parse_netdev,
+    .print = print_netdev,
+};
+
 /* --- pointer --- */
 
 static int print_ptr(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -486,6 +517,11 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_CHR);
+}
+
+void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_NETDEV);
 }
 
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)

@@ -2363,7 +2363,7 @@ VLANState *qemu_find_vlan(int id, int allocate)
     return vlan;
 }
 
-static VLANClientState *qemu_find_netdev(const char *id)
+VLANClientState *qemu_find_netdev(const char *id)
 {
     VLANClientState *vc;
 

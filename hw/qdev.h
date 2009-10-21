@@ -80,6 +80,7 @@ enum PropertyType {
     PROP_TYPE_DRIVE,
     PROP_TYPE_CHR,
     PROP_TYPE_STRING,
+    PROP_TYPE_NETDEV,
     PROP_TYPE_PTR,
 };
 
@@ -231,6 +232,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
     DEFINE_PROP(_n, _s, _f, qdev_prop_chr, CharDriverState*)
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_string, char*)
+#define DEFINE_PROP_NETDEV(_n, _s, _f)             \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_netdev, VLANClientState*)
 #define DEFINE_PROP_DRIVE(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, DriveInfo*)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
@@ -249,6 +252,7 @@ void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value);
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value);
+void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value);
 void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 /* FIXME: Remove opaque pointer properties.  */
