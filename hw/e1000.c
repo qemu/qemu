@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "pci.h"
 #include "net.h"
+#include "loader.h"
 
 #include "e1000_hw.h"
 
@@ -74,6 +75,7 @@ enum {
 typedef struct E1000State_st {
     PCIDevice dev;
     VLANClientState *vc;
+    NICConf conf;
     int mmio_index;
 
     uint32_t mac_reg[0x8000];
@@ -1056,7 +1058,7 @@ e1000_cleanup(VLANClientState *vc)
 {
     E1000State *d = vc->opaque;
 
-    unregister_savevm("e1000", d);
+    d->vc = NULL;
 }
 
 static int
@@ -1065,7 +1067,8 @@ pci_e1000_uninit(PCIDevice *dev)
     E1000State *d = DO_UPCAST(E1000State, dev, dev);
 
     cpu_unregister_io_memory(d->mmio_index);
-
+    qemu_del_vlan_client(d->vc);
+    unregister_savevm("e1000", d);
     return 0;
 }
 
@@ -1088,7 +1091,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     uint16_t checksum = 0;
     static const char info_str[] = "e1000";
     int i;
-    uint8_t macaddr[6];
+    uint8_t *macaddr;
 
     pci_conf = d->dev.config;
 
@@ -1113,7 +1116,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     memmove(d->eeprom_data, e1000_eeprom_template,
         sizeof e1000_eeprom_template);
-    qdev_get_macaddr(&d->dev.qdev, macaddr);
+    qemu_macaddr_default_if_unset(&d->conf.macaddr);
+    macaddr = d->conf.macaddr.a;
     for (i = 0; i < 3; i++)
         d->eeprom_data[i] = (macaddr[2*i+1]<<8) | macaddr[2*i];
     for (i = 0; i < EEPROM_CHECKSUM_REG; i++)
@@ -1121,24 +1125,47 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     checksum = (uint16_t) EEPROM_SUM - checksum;
     d->eeprom_data[EEPROM_CHECKSUM_REG] = checksum;
 
-    d->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 e1000_can_receive, e1000_receive,
+    d->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 d->conf.vlan, d->conf.peer,
+                                 d->dev.qdev.info->name, d->dev.qdev.id,
+                                 e1000_can_receive, e1000_receive, NULL,
                                  NULL, e1000_cleanup, d);
     d->vc->link_status_changed = e1000_set_link_status;
 
     qemu_format_nic_info_str(d->vc, macaddr);
 
     register_savevm(info_str, -1, 2, nic_save, nic_load, d);
-    qemu_register_reset(e1000_reset, d);
     e1000_reset(d);
+
+#if 0 /* rom bev support is broken -> can't load unconditionally */
+    if (!pci_dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-e1000.bin");
+            loaded = 1;
+        }
+    }
+#endif
     return 0;
 }
 
+static void qdev_e1000_reset(DeviceState *dev)
+{
+    E1000State *d = DO_UPCAST(E1000State, dev.qdev, dev);
+    e1000_reset(d);
+}
+
 static PCIDeviceInfo e1000_info = {
-    .qdev.name = "e1000",
-    .qdev.size = sizeof(E1000State),
-    .init      = pci_e1000_init,
-    .exit      = pci_e1000_uninit,
+    .qdev.name  = "e1000",
+    .qdev.desc  = "Intel Gigabit Ethernet",
+    .qdev.size  = sizeof(E1000State),
+    .qdev.reset = qdev_e1000_reset,
+    .init       = pci_e1000_init,
+    .exit       = pci_e1000_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(E1000State, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void e1000_register_devices(void)
