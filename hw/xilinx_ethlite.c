@@ -52,13 +52,13 @@ struct xlx_ethlite
     SysBusDevice busdev;
     qemu_irq irq;
     VLANClientState *vc;
+    NICConf conf;
 
     uint32_t c_tx_pingpong;
     uint32_t c_rx_pingpong;
     unsigned int txbuf;
     unsigned int rxbuf;
 
-    uint8_t macaddr[6];
     uint32_t regs[R_MAX];
 };
 
@@ -125,7 +125,7 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
                 if (s->regs[base + R_TX_CTRL0] & CTRL_I)
                     eth_pulse_irq(s);
             } else if ((value & (CTRL_P | CTRL_S)) == (CTRL_P | CTRL_S)) {
-                memcpy(&s->macaddr[0], &s->regs[base], 6);
+                memcpy(&s->conf.macaddr.a[0], &s->regs[base], 6);
                 if (s->regs[base + R_TX_CTRL0] & CTRL_I)
                     eth_pulse_irq(s);
             }
@@ -175,7 +175,7 @@ static ssize_t eth_rx(VLANClientState *vc, const uint8_t *buf, size_t size)
     int i;
 
     /* DA filter.  */
-    if (!(buf[0] & 0x80) && memcmp(&s->macaddr[0], buf, 6))
+    if (!(buf[0] & 0x80) && memcmp(&s->conf.macaddr.a[0], buf, 6))
         return size;
 
     if (s->regs[rxbase + R_RX_CTRL0] & CTRL_S) {
@@ -204,7 +204,8 @@ static ssize_t eth_rx(VLANClientState *vc, const uint8_t *buf, size_t size)
 static void eth_cleanup(VLANClientState *vc)
 {
     struct xlx_ethlite *s = vc->opaque;
-    qemu_free(s);
+
+    s->vc = NULL;
 }
 
 static int xilinx_ethlite_init(SysBusDevice *dev)
@@ -218,9 +219,13 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     regs = cpu_register_io_memory(eth_read, eth_write, s);
     sysbus_init_mmio(dev, R_MAX * 4, regs);
 
-    qdev_get_macaddr(&dev->qdev, s->macaddr);
-    s->vc = qdev_get_vlan_client(&dev->qdev,
-                                 eth_can_rx, eth_rx, NULL, eth_cleanup, s);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 dev->qdev.info->name, dev->qdev.id,
+                                 eth_can_rx, eth_rx, NULL,
+                                 NULL, eth_cleanup, s);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
     return 0;
 }
 
@@ -231,6 +236,7 @@ static SysBusDeviceInfo xilinx_ethlite_info = {
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("txpingpong", struct xlx_ethlite, c_tx_pingpong, 1),
         DEFINE_PROP_UINT32("rxpingpong", struct xlx_ethlite, c_rx_pingpong, 1),
+        DEFINE_NIC_PROPERTIES(struct xlx_ethlite, conf),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
