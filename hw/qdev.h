@@ -249,6 +249,7 @@ extern PropertyInfo qdev_prop_pci_devfn;
 
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
+int qdev_prop_exists(DeviceState *dev, const char *name);
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
 void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);

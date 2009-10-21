@@ -480,6 +480,11 @@ static Property *qdev_prop_find(DeviceState *dev, const char *name)
     return NULL;
 }
 
+int qdev_prop_exists(DeviceState *dev, const char *name)
+{
+    return qdev_prop_find(dev, name) ? true : false;
+}
+
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 {
     Property *prop;
