@@ -47,6 +47,7 @@
 #include "pci.h"
 #include "qemu-timer.h"
 #include "net.h"
+#include "loader.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
@@ -465,7 +466,7 @@ typedef struct RTL8139State {
     uint8_t  TxThresh;
 
     VLANClientState *vc;
-    uint8_t macaddr[6];
+    NICConf conf;
     int rtl8139_mmio_io_addr;
 
     /* C ring mode */
@@ -1179,7 +1180,7 @@ static void rtl8139_reset(DeviceState *d)
     int i;
 
     /* restore MAC address */
-    memcpy(s->phys, s->macaddr, 6);
+    memcpy(s->phys, s->conf.macaddr.a, 6);
 
     /* reset interrupt mask */
     s->IntrStatus = 0;
@@ -1195,9 +1196,9 @@ static void rtl8139_reset(DeviceState *d)
     s->eeprom.contents[2] = PCI_DEVICE_ID_REALTEK_8139;
 #endif
 
-    s->eeprom.contents[7] = s->macaddr[0] | s->macaddr[1] << 8;
-    s->eeprom.contents[8] = s->macaddr[2] | s->macaddr[3] << 8;
-    s->eeprom.contents[9] = s->macaddr[4] | s->macaddr[5] << 8;
+    s->eeprom.contents[7] = s->conf.macaddr.a[0] | s->conf.macaddr.a[1] << 8;
+    s->eeprom.contents[8] = s->conf.macaddr.a[2] | s->conf.macaddr.a[3] << 8;
+    s->eeprom.contents[9] = s->conf.macaddr.a[4] | s->conf.macaddr.a[5] << 8;
 
     /* mark all status registers as owned by host */
     for (i = 0; i < 4; ++i)
@@ -3171,7 +3172,7 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
 
     i = 0;
     qemu_put_be32s(f, &i); /* unused.  */
-    qemu_put_buffer(f, s->macaddr, 6);
+    qemu_put_buffer(f, s->conf.macaddr.a, 6);
     qemu_put_be32(f, s->rtl8139_mmio_io_addr);
 
     qemu_put_be32s(f, &s->currTxDesc);
@@ -3268,7 +3269,7 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
     qemu_get_8s(f, &s->TxThresh);
 
     qemu_get_be32s(f, &i); /* unused.  */
-    qemu_get_buffer(f, s->macaddr, 6);
+    qemu_get_buffer(f, s->conf.macaddr.a, 6);
     s->rtl8139_mmio_io_addr=qemu_get_be32(f);
 
     qemu_get_be32s(f, &s->currTxDesc);
@@ -3416,17 +3417,7 @@ static void rtl8139_cleanup(VLANClientState *vc)
 {
     RTL8139State *s = vc->opaque;
 
-    if (s->cplus_txbuffer) {
-        qemu_free(s->cplus_txbuffer);
-        s->cplus_txbuffer = NULL;
-    }
-
-#ifdef RTL8139_ONBOARD_TIMER
-    qemu_del_timer(s->timer);
-    qemu_free_timer(s->timer);
-#endif
-
-    unregister_savevm("rtl8139", s);
+    s->vc = NULL;
 }
 
 static int pci_rtl8139_uninit(PCIDevice *dev)
@@ -3434,7 +3425,16 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     RTL8139State *s = DO_UPCAST(RTL8139State, dev, dev);
 
     cpu_unregister_io_memory(s->rtl8139_mmio_io_addr);
-
+    if (s->cplus_txbuffer) {
+        qemu_free(s->cplus_txbuffer);
+        s->cplus_txbuffer = NULL;
+    }
+#ifdef RTL8139_ONBOARD_TIMER
+    qemu_del_timer(s->timer);
+    qemu_free_timer(s->timer);
+#endif
+    unregister_savevm("rtl8139", s);
+    qemu_del_vlan_client(s->vc);
     return 0;
 }
 
@@ -3463,13 +3463,14 @@ static int pci_rtl8139_init(PCIDevice *dev)
     pci_register_bar(&s->dev, 1, 0x100,
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
-    qdev_get_macaddr(&dev->qdev, s->macaddr);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
     rtl8139_reset(&s->dev.qdev);
-    s->vc = qdev_get_vlan_client(&dev->qdev,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 dev->qdev.info->name, dev->qdev.id,
                                  rtl8139_can_receive, rtl8139_receive, NULL,
-                                 rtl8139_cleanup, s);
-
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+                                 NULL, rtl8139_cleanup, s);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
 
     s->cplus_txbuffer = NULL;
     s->cplus_txbuffer_len = 0;
@@ -3483,6 +3484,14 @@ static int pci_rtl8139_init(PCIDevice *dev)
     qemu_mod_timer(s->timer,
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
+
+    if (!dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-rtl8139.bin");
+            loaded = 1;
+        }
+    }
     return 0;
 }
 
@@ -3492,6 +3501,10 @@ static PCIDeviceInfo rtl8139_info = {
     .qdev.reset = rtl8139_reset,
     .init       = pci_rtl8139_init,
     .exit       = pci_rtl8139_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(RTL8139State, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void rtl8139_register_devices(void)
