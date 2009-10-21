@@ -35,12 +35,13 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-#include "sysbus.h"
 #include "pci.h"
 #include "net.h"
 #include "loader.h"
 #include "qemu-timer.h"
 #include "qemu_socket.h"
+
+#include "pcnet.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO
@@ -51,46 +52,10 @@
 //#define PCNET_DEBUG_MATCH
 
 
-#define PCNET_IOPORT_SIZE       0x20
-#define PCNET_PNPMMIO_SIZE      0x20
-
-#define PCNET_LOOPTEST_CRC	1
-#define PCNET_LOOPTEST_NOCRC	2
-
-
-typedef struct PCNetState_st PCNetState;
-
-struct PCNetState_st {
-    VLANClientState *vc;
-    NICConf conf;
-    QEMUTimer *poll_timer;
-    int rap, isr, lnkst;
-    uint32_t rdra, tdra;
-    uint8_t prom[16];
-    uint16_t csr[128];
-    uint16_t bcr[32];
-    uint64_t timer;
-    int mmio_index, xmit_pos;
-    uint8_t buffer[4096];
-    int tx_busy;
-    qemu_irq irq;
-    void (*phys_mem_read)(void *dma_opaque, target_phys_addr_t addr,
-                         uint8_t *buf, int len, int do_bswap);
-    void (*phys_mem_write)(void *dma_opaque, target_phys_addr_t addr,
-                          uint8_t *buf, int len, int do_bswap);
-    void *dma_opaque;
-    int looptest;
-};
-
 typedef struct {
     PCIDevice pci_dev;
     PCNetState state;
 } PCIPCNetState;
-
-typedef struct {
-    SysBusDevice busdev;
-    PCNetState state;
-} SysBusPCNetState;
 
 struct qemu_ether_header {
     uint8_t ether_dhost[6];
@@ -1594,7 +1559,7 @@ static uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap)
     return val;
 }
 
-static void pcnet_h_reset(void *opaque)
+void pcnet_h_reset(void *opaque)
 {
     PCNetState *s = opaque;
     int i;
@@ -1650,7 +1615,7 @@ static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
+void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     PCNetState *s = opaque;
     pcnet_poll_timer(s);
@@ -1673,7 +1638,7 @@ static void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     pcnet_update_irq(s);
 }
 
-static uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
+uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
 {
     PCNetState *s = opaque;
     uint32_t val = -1;
@@ -1880,7 +1845,7 @@ static uint32_t pcnet_mmio_readl(void *opaque, target_phys_addr_t addr)
 }
 
 
-static void pcnet_save(QEMUFile *f, void *opaque)
+void pcnet_save(QEMUFile *f, void *opaque)
 {
     PCNetState *s = opaque;
     unsigned int i;
@@ -1902,7 +1867,7 @@ static void pcnet_save(QEMUFile *f, void *opaque)
     qemu_put_timer(f, s->poll_timer);
 }
 
-static int pcnet_load(QEMUFile *f, void *opaque, int version_id)
+int pcnet_load(QEMUFile *f, void *opaque, int version_id)
 {
     PCNetState *s = opaque;
     int i, dummy;
@@ -1952,12 +1917,12 @@ static int pci_pcnet_load(QEMUFile *f, void *opaque, int version_id)
     return pcnet_load(f, &s->state, version_id);
 }
 
-static void pcnet_common_cleanup(PCNetState *d)
+void pcnet_common_cleanup(PCNetState *d)
 {
     d->vc = NULL;
 }
 
-static int pcnet_common_init(DeviceState *dev, PCNetState *s,
+int pcnet_common_init(DeviceState *dev, PCNetState *s,
                              NetCleanup *cleanup)
 {
     s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
@@ -2093,104 +2058,6 @@ static void pci_reset(DeviceState *dev)
     pcnet_h_reset(&d->state);
 }
 
-/* SPARC32 interface */
-
-#if defined (TARGET_SPARC) && !defined(TARGET_SPARC64) // Avoid compile failure
-#include "sun4m.h"
-
-static void parent_lance_reset(void *opaque, int irq, int level)
-{
-    SysBusPCNetState *d = opaque;
-    if (level)
-        pcnet_h_reset(&d->state);
-}
-
-static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
-{
-    SysBusPCNetState *d = opaque;
-#ifdef PCNET_DEBUG_IO
-    printf("lance_mem_writew addr=" TARGET_FMT_plx " val=0x%04x\n", addr,
-           val & 0xffff);
-#endif
-    pcnet_ioport_writew(&d->state, addr, val & 0xffff);
-}
-
-static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
-{
-    SysBusPCNetState *d = opaque;
-    uint32_t val;
-
-    val = pcnet_ioport_readw(&d->state, addr);
-#ifdef PCNET_DEBUG_IO
-    printf("lance_mem_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
-           val & 0xffff);
-#endif
-
-    return val & 0xffff;
-}
-
-static CPUReadMemoryFunc * const lance_mem_read[3] = {
-    NULL,
-    lance_mem_readw,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const lance_mem_write[3] = {
-    NULL,
-    lance_mem_writew,
-    NULL,
-};
-
-static void lance_cleanup(VLANClientState *vc)
-{
-    PCNetState *d = vc->opaque;
-
-    pcnet_common_cleanup(d);
-}
-
-static int lance_init(SysBusDevice *dev)
-{
-    SysBusPCNetState *d = FROM_SYSBUS(SysBusPCNetState, dev);
-    PCNetState *s = &d->state;
-
-    s->mmio_index =
-        cpu_register_io_memory(lance_mem_read, lance_mem_write, d);
-
-    qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
-
-    sysbus_init_mmio(dev, 4, s->mmio_index);
-
-    sysbus_init_irq(dev, &s->irq);
-
-    s->phys_mem_read = ledma_memory_read;
-    s->phys_mem_write = ledma_memory_write;
-
-    register_savevm("pcnet", -1, 3, pcnet_save, pcnet_load, s);
-    return pcnet_common_init(&dev->qdev, s, lance_cleanup);
-}
-
-static void lance_reset(DeviceState *dev)
-{
-    SysBusPCNetState *d = DO_UPCAST(SysBusPCNetState, busdev.qdev, dev);
-
-    pcnet_h_reset(&d->state);
-}
-
-static SysBusDeviceInfo lance_info = {
-    .init       = lance_init,
-    .qdev.name  = "lance",
-    .qdev.size  = sizeof(SysBusPCNetState),
-    .qdev.reset = lance_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
-        DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
-};
-
-#endif /* TARGET_SPARC */
-
 static PCIDeviceInfo pcnet_info = {
     .qdev.name  = "pcnet",
     .qdev.size  = sizeof(PCIPCNetState),
@@ -2206,9 +2073,6 @@ static PCIDeviceInfo pcnet_info = {
 static void pcnet_register_devices(void)
 {
     pci_qdev_register(&pcnet_info);
-#if defined (TARGET_SPARC) && !defined(TARGET_SPARC64)
-    sysbus_register_withprop(&lance_info);
-#endif
 }
 
 device_init(pcnet_register_devices)
