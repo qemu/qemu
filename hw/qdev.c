@@ -383,6 +383,15 @@ void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr)
     memcpy(macaddr, dev->nd->macaddr, 6);
 }
 
+void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
+{
+    qdev_prop_set_macaddr(dev, "mac", nd->macaddr);
+    if (nd->vlan)
+        qdev_prop_set_vlan(dev, "vlan", nd->vlan);
+    if (nd->netdev)
+        qdev_prop_set_netdev(dev, "netdev", nd->netdev);
+}
+
 static int next_block_unit[IF_COUNT];
 
 /* Get a block device.  This should only be used for single-drive devices

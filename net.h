@@ -11,6 +11,19 @@ struct MACAddr {
     uint8_t a[6];
 };
 
+/* qdev nic properties */
+
+typedef struct NICConf {
+    MACAddr macaddr;
+    VLANState *vlan;
+    VLANClientState *peer;
+} NICConf;
+
+#define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
+    DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
+    DEFINE_PROP_VLAN("vlan",     _state, _conf.vlan),                   \
+    DEFINE_PROP_NETDEV("netdev", _state, _conf.peer)
+
 /* VLANs support */
 
 typedef int (NetCanReceive)(VLANClientState *);
@@ -158,5 +171,6 @@ VLANClientState *qdev_get_vlan_client(DeviceState *dev,
                                       NetReceiveIOV *receive_iov,
                                       NetCleanup *cleanup,
                                       void *opaque);
+void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
 #endif
