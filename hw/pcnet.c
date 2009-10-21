@@ -38,6 +38,7 @@
 #include "sysbus.h"
 #include "pci.h"
 #include "net.h"
+#include "loader.h"
 #include "qemu-timer.h"
 #include "qemu_socket.h"
 
@@ -61,7 +62,7 @@ typedef struct PCNetState_st PCNetState;
 
 struct PCNetState_st {
     VLANClientState *vc;
-    uint8_t macaddr[6];
+    NICConf conf;
     QEMUTimer *poll_timer;
     int rap, isr, lnkst;
     uint32_t rdra, tdra;
@@ -1601,7 +1602,7 @@ static void pcnet_h_reset(void *opaque)
 
     /* Initialize the PROM */
 
-    memcpy(s->prom, s->macaddr, 6);
+    memcpy(s->prom, s->conf.macaddr.a, 6);
     s->prom[12] = s->prom[13] = 0x00;
     s->prom[14] = s->prom[15] = 0x57;
 
@@ -1953,22 +1954,21 @@ static int pci_pcnet_load(QEMUFile *f, void *opaque, int version_id)
 
 static void pcnet_common_cleanup(PCNetState *d)
 {
-    unregister_savevm("pcnet", d);
-
-    qemu_del_timer(d->poll_timer);
-    qemu_free_timer(d->poll_timer);
+    d->vc = NULL;
 }
 
 static int pcnet_common_init(DeviceState *dev, PCNetState *s,
-                              NetCleanup *cleanup)
+                             NetCleanup *cleanup)
 {
     s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
 
-    qdev_get_macaddr(dev, s->macaddr);
-    s->vc = qdev_get_vlan_client(dev,
-                                 pcnet_can_receive, pcnet_receive, NULL,
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 dev->info->name, dev->id,
+                                 pcnet_can_receive, pcnet_receive, NULL, NULL,
                                  cleanup, s);
-    qemu_register_reset(pcnet_h_reset, s);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
     pcnet_h_reset(s);
     return 0;
 }
@@ -2023,7 +2023,10 @@ static int pci_pcnet_uninit(PCIDevice *dev)
     PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, dev);
 
     cpu_unregister_io_memory(d->state.mmio_index);
-
+    unregister_savevm("pcnet", d);
+    qemu_del_timer(d->state.poll_timer);
+    qemu_free_timer(d->state.poll_timer);
+    qemu_del_vlan_client(d->state.vc);
     return 0;
 }
 
@@ -2071,7 +2074,23 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_write = pci_physical_memory_write;
 
     register_savevm("pcnet", -1, 3, pci_pcnet_save, pci_pcnet_load, d);
+
+    if (!pci_dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-pcnet.bin");
+            loaded = 1;
+        }
+    }
+
     return pcnet_common_init(&pci_dev->qdev, s, pci_pcnet_cleanup);
+}
+
+static void pci_reset(DeviceState *dev)
+{
+    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev.qdev, dev);
+
+    pcnet_h_reset(&d->state);
 }
 
 /* SPARC32 interface */
@@ -2151,12 +2170,21 @@ static int lance_init(SysBusDevice *dev)
     return pcnet_common_init(&dev->qdev, s, lance_cleanup);
 }
 
+static void lance_reset(DeviceState *dev)
+{
+    SysBusPCNetState *d = DO_UPCAST(SysBusPCNetState, busdev.qdev, dev);
+
+    pcnet_h_reset(&d->state);
+}
+
 static SysBusDeviceInfo lance_info = {
-    .init = lance_init,
+    .init       = lance_init,
     .qdev.name  = "lance",
     .qdev.size  = sizeof(SysBusPCNetState),
+    .qdev.reset = lance_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
+        DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
@@ -2164,10 +2192,15 @@ static SysBusDeviceInfo lance_info = {
 #endif /* TARGET_SPARC */
 
 static PCIDeviceInfo pcnet_info = {
-    .qdev.name = "pcnet",
-    .qdev.size = sizeof(PCIPCNetState),
-    .init      = pci_pcnet_init,
-    .exit      = pci_pcnet_uninit,
+    .qdev.name  = "pcnet",
+    .qdev.size  = sizeof(PCIPCNetState),
+    .qdev.reset = pci_reset,
+    .init       = pci_pcnet_init,
+    .exit       = pci_pcnet_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void pcnet_register_devices(void)
