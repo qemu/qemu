@@ -194,11 +194,11 @@ typedef struct {
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
     VLANClientState *vc;
+    NICConf conf;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
     /* region must not be saved by nic_save. */
     uint32_t region[3];         /* PCI region addresses */
-    uint8_t macaddr[6];
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
@@ -482,7 +482,7 @@ static void nic_selective_reset(EEPRO100State * s)
     size_t i;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
     //~ eeprom93xx_reset(s->eeprom);
-    memcpy(eeprom_contents, s->macaddr, 6);
+    memcpy(eeprom_contents, s->conf.macaddr.a, 6);
     eeprom_contents[0xa] = 0x4000;
     if (s->device == i82557B || s->device == i82557C)
         eeprom_contents[5] = 0x0100;
@@ -650,7 +650,7 @@ static void action_command(EEPRO100State *s)
             /* Do nothing. */
             break;
         case CmdIASetup:
-            cpu_physical_memory_read(cb_address + 8, &s->macaddr[0], 6);
+            cpu_physical_memory_read(cb_address + 8, &s->conf.macaddr.a[0], 6);
             TRACE(OTHER, logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6)));
             break;
         case CmdConfigure:
@@ -1513,7 +1513,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
          * Long frames are discarded. */
         logout("%p received long frame (%zu byte), ignored\n", s, size);
         return -1;
-    } else if (memcmp(buf, s->macaddr, 6) == 0) {       // !!!
+    } else if (memcmp(buf, s->conf.macaddr.a, 6) == 0) {       // !!!
         /* Frame matches individual address. */
         /* TODO: check configuration byte 15/4 (ignore U/L). */
         TRACE(RXTX, logout("%p received frame for me, len=%zu\n", s, size));
@@ -1622,7 +1622,7 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     qemu_get_8s(f, &s->int_stat);
     /* Skip unused entries. */
     qemu_fseek(f, 3 * 4, SEEK_CUR);
-    qemu_get_buffer(f, s->macaddr, 6);
+    qemu_get_buffer(f, s->conf.macaddr.a, 6);
     /* Skip unused entries. */
     qemu_fseek(f, 19 * 4, SEEK_CUR);
     for (i = 0; i < 32; i++) {
@@ -1688,7 +1688,7 @@ static void nic_save(QEMUFile * f, void *opaque)
     qemu_put_8s(f, &s->int_stat);
     /* Skip unused entries. */
     qemu_fseek(f, 3 * 4, SEEK_CUR);
-    qemu_put_buffer(f, s->macaddr, 6);
+    qemu_put_buffer(f, s->conf.macaddr.a, 6);
     /* Skip unused entries. */
     qemu_fseek(f, 19 * 4, SEEK_CUR);
     for (i = 0; i < 32; i++) {
@@ -1737,9 +1737,7 @@ static void nic_cleanup(VLANClientState *vc)
 {
     EEPRO100State *s = vc->opaque;
 
-    unregister_savevm(vc->model, s);
-
-    eeprom93xx_free(s->eeprom);
+    s->vc = NULL;
 }
 
 static int pci_nic_uninit(PCIDevice *pci_dev)
@@ -1747,7 +1745,9 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     cpu_unregister_io_memory(s->mmio_index);
-
+    unregister_savevm(s->vc->model, s);
+    eeprom93xx_free(s->eeprom);
+    qemu_del_vlan_client(s->vc);
     return 0;
 }
 
@@ -1777,17 +1777,19 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
     pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
                            pci_mmio_map);
 
-    qdev_get_macaddr(&s->dev.qdev, s->macaddr);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
     logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
     assert(s->region[1] == 0);
 
     nic_reset(s);
 
-    s->vc = qdev_get_vlan_client(&s->dev.qdev,
-                                 nic_can_receive, nic_receive, NULL,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
+                                 nic_can_receive, nic_receive, NULL, NULL,
                                  nic_cleanup, s);
 
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
     TRACE(OTHER, logout("%s\n", s->vc->info_str));
 
     qemu_register_reset(nic_reset, s);
@@ -1861,53 +1863,101 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.name = "i82550",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82550_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82551",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
         .exit      = pci_nic_uninit,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82557a",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557a_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82557b",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
         .exit      = pci_nic_uninit,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82557c",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557c_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82558a",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558a_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82558b",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558b_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82559a",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559a_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82559b",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559b_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82559c",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559c_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82559er",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
         .exit      = pci_nic_uninit,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name = "i82562",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82562_init,
+        .qdev.props = (Property[]) {
+            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         /* end of list */
     }
