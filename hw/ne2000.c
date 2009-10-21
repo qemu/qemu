@@ -25,6 +25,7 @@
 #include "pci.h"
 #include "net.h"
 #include "ne2000.h"
+#include "loader.h"
 
 /* debug NE2000 card */
 //#define DEBUG_NE2000
@@ -738,7 +739,7 @@ static void ne2000_cleanup(VLANClientState *vc)
 {
     NE2000State *s = vc->opaque;
 
-    unregister_savevm("ne2000", s);
+    s->vc = NULL;
 }
 
 static int pci_ne2000_init(PCIDevice *pci_dev)
@@ -758,22 +759,46 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = d->dev.irq[0];
-    qdev_get_macaddr(&d->dev.qdev, s->c.macaddr.a);
-    ne2000_reset(s);
-    s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 ne2000_can_receive, ne2000_receive, NULL,
-                                 ne2000_cleanup, s);
 
+    qemu_macaddr_default_if_unset(&s->c.macaddr);
+    ne2000_reset(s);
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC, s->c.vlan, s->c.peer,
+                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
+                                 ne2000_can_receive, ne2000_receive, NULL,
+                                 NULL, ne2000_cleanup, s);
     qemu_format_nic_info_str(s->vc, s->c.macaddr.a);
+
+    if (!pci_dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-ne2k_pci.bin");
+            loaded = 1;
+        }
+    }
 
     register_savevm("ne2000", -1, 3, pci_ne2000_save, pci_ne2000_load, d);
     return 0;
 }
 
+static int pci_ne2000_exit(PCIDevice *pci_dev)
+{
+    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    NE2000State *s = &d->ne2000;
+
+    unregister_savevm("ne2000", s);
+    qemu_del_vlan_client(s->vc);
+    return 0;
+}
+
 static PCIDeviceInfo ne2000_info = {
-    .qdev.name = "ne2k_pci",
-    .qdev.size = sizeof(PCINE2000State),
-    .init      = pci_ne2000_init,
+    .qdev.name  = "ne2k_pci",
+    .qdev.size  = sizeof(PCINE2000State),
+    .init       = pci_ne2000_init,
+    .exit       = pci_ne2000_exit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void ne2000_register_devices(void)
