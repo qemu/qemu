@@ -310,6 +310,40 @@ PropertyInfo qdev_prop_netdev = {
     .print = print_netdev,
 };
 
+/* --- vlan --- */
+
+static int parse_vlan(DeviceState *dev, Property *prop, const char *str)
+{
+    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
+    int id;
+
+    if (sscanf(str, "%d", &id) != 1)
+        return -1;
+    *ptr = qemu_find_vlan(id, 1);
+    if (*ptr == NULL)
+        return -1;
+    return 0;
+}
+
+static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (*ptr) {
+        return snprintf(dest, len, "%d", (*ptr)->id);
+    } else {
+        return snprintf(dest, len, "<null>");
+    }
+}
+
+PropertyInfo qdev_prop_vlan = {
+    .name  = "vlan",
+    .type  = PROP_TYPE_VLAN,
+    .size  = sizeof(VLANClientState*),
+    .parse = parse_vlan,
+    .print = print_vlan,
+};
+
 /* --- pointer --- */
 
 static int print_ptr(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -522,6 +556,11 @@ void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *valu
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_NETDEV);
+}
+
+void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_VLAN);
 }
 
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
