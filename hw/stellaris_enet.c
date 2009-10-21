@@ -67,8 +67,8 @@ typedef struct {
     int rx_fifo_len;
     int next_packet;
     VLANClientState *vc;
+    NICConf conf;
     qemu_irq irq;
-    uint8_t macaddr[6];
     int mmio_index;
 } stellaris_enet_state;
 
@@ -169,10 +169,10 @@ static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
         }
         return val;
     case 0x14: /* IA0 */
-        return s->macaddr[0] | (s->macaddr[1] << 8)
-               | (s->macaddr[2] << 16) | (s->macaddr[3] << 24);
+        return s->conf.macaddr.a[0] | (s->conf.macaddr.a[1] << 8)
+               | (s->conf.macaddr.a[2] << 16) | (s->conf.macaddr.a[3] << 24);
     case 0x18: /* IA1 */
-        return s->macaddr[4] | (s->macaddr[5] << 8);
+        return s->conf.macaddr.a[4] | (s->conf.macaddr.a[5] << 8);
     case 0x1c: /* THR */
         return s->thr;
     case 0x20: /* MCTL */
@@ -267,14 +267,14 @@ static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
         }
         break;
     case 0x14: /* IA0 */
-        s->macaddr[0] = value;
-        s->macaddr[1] = value >> 8;
-        s->macaddr[2] = value >> 16;
-        s->macaddr[3] = value >> 24;
+        s->conf.macaddr.a[0] = value;
+        s->conf.macaddr.a[1] = value >> 8;
+        s->conf.macaddr.a[2] = value >> 16;
+        s->conf.macaddr.a[3] = value >> 24;
         break;
     case 0x18: /* IA1 */
-        s->macaddr[4] = value;
-        s->macaddr[5] = value >> 8;
+        s->conf.macaddr.a[4] = value;
+        s->conf.macaddr.a[5] = value >> 8;
         break;
     case 0x1c: /* THR */
         s->thr = value;
@@ -404,13 +404,15 @@ static int stellaris_enet_init(SysBusDevice *dev)
                                            stellaris_enet_writefn, s);
     sysbus_init_mmio(dev, 0x1000, s->mmio_index);
     sysbus_init_irq(dev, &s->irq);
-    qdev_get_macaddr(&dev->qdev, s->macaddr);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
-    s->vc = qdev_get_vlan_client(&dev->qdev,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 dev->qdev.info->name, dev->qdev.id,
                                  stellaris_enet_can_receive,
-                                 stellaris_enet_receive, NULL,
+                                 stellaris_enet_receive, NULL, NULL,
                                  stellaris_enet_cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
 
     stellaris_enet_reset(s);
     register_savevm("stellaris_enet", -1, 1,
@@ -418,10 +420,19 @@ static int stellaris_enet_init(SysBusDevice *dev)
     return 0;
 }
 
+static SysBusDeviceInfo stellaris_enet_info = {
+    .init = stellaris_enet_init,
+    .qdev.name  = "stellaris_enet",
+    .qdev.size  = sizeof(stellaris_enet_state),
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void stellaris_enet_register_devices(void)
 {
-    sysbus_register_dev("stellaris_enet", sizeof(stellaris_enet_state),
-                        stellaris_enet_init);
+    sysbus_register_withprop(&stellaris_enet_info);
 }
 
 device_init(stellaris_enet_register_devices)
