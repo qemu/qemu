@@ -859,10 +859,16 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
     dev = &pci_dev->qdev;
     if (nd->name)
         dev->id = qemu_strdup(nd->name);
-    dev->nd = nd;
+    if (qdev_prop_exists(dev, "mac")) {
+        /* qdev-ified */
+        qdev_set_nic_properties(dev, nd);
+    } else {
+        /* legacy */
+        dev->nd = nd;
+        nd->private = dev;
+    }
     if (qdev_init(dev) < 0)
         return NULL;
-    nd->private = dev;
     return pci_dev;
 }
 
