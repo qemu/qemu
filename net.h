@@ -7,6 +7,10 @@
 #include "qemu-option.h"
 #include "net-queue.h"
 
+struct MACAddr {
+    uint8_t a[6];
+};
+
 /* VLANs support */
 
 typedef int (NetCanReceive)(VLANClientState *);
@@ -65,6 +69,7 @@ ssize_t qemu_send_packet_async(VLANClientState *vc, const uint8_t *buf,
 void qemu_purge_queued_packets(VLANClientState *vc);
 void qemu_flush_queued_packets(VLANClientState *vc);
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
+void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
