@@ -126,7 +126,7 @@ void ne2000_reset(NE2000State *s)
     int i;
 
     s->isr = ENISR_RESET;
-    memcpy(s->mem, s->macaddr, 6);
+    memcpy(s->mem, &s->c.macaddr, 6);
     s->mem[14] = 0x57;
     s->mem[15] = 0x57;
 
@@ -758,13 +758,13 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = d->dev.irq[0];
-    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
+    qdev_get_macaddr(&d->dev.qdev, s->c.macaddr.a);
     ne2000_reset(s);
     s->vc = qdev_get_vlan_client(&d->dev.qdev,
                                  ne2000_can_receive, ne2000_receive, NULL,
                                  ne2000_cleanup, s);
 
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(s->vc, s->c.macaddr.a);
 
     register_savevm("ne2000", -1, 3, pci_ne2000_save, pci_ne2000_load, d);
     return 0;

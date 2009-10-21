@@ -23,7 +23,7 @@ typedef struct NE2000State {
     uint8_t mult[8]; /* multicast mask array */
     qemu_irq irq;
     VLANClientState *vc;
-    uint8_t macaddr[6];
+    NICConf c;
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
 
