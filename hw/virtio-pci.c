@@ -20,6 +20,7 @@
 #include "sysemu.h"
 #include "msix.h"
 #include "net.h"
+#include "loader.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -90,6 +91,7 @@ typedef struct {
     uint32_t class_code;
     uint32_t nvectors;
     DriveInfo *dinfo;
+    NICConf nic;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -493,14 +495,9 @@ static int virtio_net_init_pci(PCIDevice *pci_dev)
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
 
-    vdev = virtio_net_init(&pci_dev->qdev);
+    vdev = virtio_net_init(&pci_dev->qdev, &proxy->nic);
 
-    /* set nvectors from property, unless the user specified something
-     * via -net nic,model=virtio,vectors=n command line option */
-    if (pci_dev->qdev.nd->nvectors == NIC_NVECTORS_UNSPECIFIED)
-        if (proxy->nvectors != NIC_NVECTORS_UNSPECIFIED)
-            vdev->nvectors = proxy->nvectors;
-
+    vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_NET,
@@ -509,7 +506,23 @@ static int virtio_net_init_pci(PCIDevice *pci_dev)
 
     /* make the actual value visible */
     proxy->nvectors = vdev->nvectors;
+
+    if (!pci_dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-virtio.bin");
+            loaded = 1;
+        }
+    }
     return 0;
+}
+
+static int virtio_net_exit_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    virtio_net_exit(proxy->vdev);
+    return virtio_exit_pci(pci_dev);
 }
 
 static int virtio_balloon_init_pci(PCIDevice *pci_dev)
@@ -543,10 +556,10 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.name  = "virtio-net-pci",
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
-        .exit       = virtio_exit_pci,
+        .exit       = virtio_net_exit_pci,
         .qdev.props = (Property[]) {
-            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
-                               NIC_NVECTORS_UNSPECIFIED),
+            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
+            DEFINE_NIC_PROPERTIES(VirtIOPCIProxy, nic),
             DEFINE_PROP_END_OF_LIST(),
         },
         .qdev.reset = virtio_pci_reset,

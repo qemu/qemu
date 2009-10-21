@@ -700,20 +700,10 @@ static void virtio_net_cleanup(VLANClientState *vc)
 {
     VirtIONet *n = vc->opaque;
 
-    qemu_purge_queued_packets(vc);
-
-    unregister_savevm("virtio-net", n);
-
-    qemu_free(n->mac_table.macs);
-    qemu_free(n->vlans);
-
-    qemu_del_timer(n->tx_timer);
-    qemu_free_timer(n->tx_timer);
-
-    virtio_cleanup(&n->vdev);
+    n->vc = NULL;
 }
 
-VirtIODevice *virtio_net_init(DeviceState *dev)
+VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
 {
     VirtIONet *n;
     static int virtio_net_id;
@@ -731,15 +721,16 @@ VirtIODevice *virtio_net_init(DeviceState *dev)
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
     n->ctrl_vq = virtio_add_queue(&n->vdev, 64, virtio_net_handle_ctrl);
-    qdev_get_macaddr(dev, n->mac);
+    qemu_macaddr_default_if_unset(&conf->macaddr);
     n->status = VIRTIO_NET_S_LINK_UP;
-    n->vc = qdev_get_vlan_client(dev,
+    n->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC, conf->vlan, conf->peer,
+                                 dev->info->name, dev->id,
                                  virtio_net_can_receive,
-                                 virtio_net_receive, NULL,
+                                 virtio_net_receive, NULL, NULL,
                                  virtio_net_cleanup, n);
     n->vc->link_status_changed = virtio_net_set_link_status;
 
-    qemu_format_nic_info_str(n->vc, n->mac);
+    qemu_format_nic_info_str(n->vc, conf->macaddr.a);
 
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
@@ -749,13 +740,27 @@ VirtIODevice *virtio_net_init(DeviceState *dev)
     n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
 
     n->vlans = qemu_mallocz(MAX_VLAN >> 3);
-    if (dev->nd->nvectors == NIC_NVECTORS_UNSPECIFIED)
-        n->vdev.nvectors = 3;
-    else
-        n->vdev.nvectors = dev->nd->nvectors;
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
 
     return &n->vdev;
+}
+
+void virtio_net_exit(VirtIODevice *vdev)
+{
+    VirtIONet *n = DO_UPCAST(VirtIONet, vdev, vdev);
+
+    qemu_purge_queued_packets(n->vc);
+
+    unregister_savevm("virtio-net", n);
+
+    qemu_free(n->mac_table.macs);
+    qemu_free(n->vlans);
+
+    qemu_del_timer(n->tx_timer);
+    qemu_free_timer(n->tx_timer);
+
+    virtio_cleanup(&n->vdev);
+    qemu_del_vlan_client(n->vc);
 }
