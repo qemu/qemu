@@ -1163,6 +1163,11 @@ static void pc_init1(ram_addr_t ram_size,
         rom_add_option(option_rom[i]);
     }
 
+#if 1
+    /*
+     * Needed for the e1000 rom only.  The rom doesn't do proper BEV
+     * and thus we can't load it unconditionally.
+     */
     for (i = 0; i < nb_nics; i++) {
         char nic_oprom[1024];
         const char *model = nd_table[i].model;
@@ -1172,10 +1177,12 @@ static void pc_init1(ram_addr_t ram_size,
 
         if (model == NULL)
             model = "e1000";
+        if (strcmp(model,"e1000") != 0)
+            continue;
         snprintf(nic_oprom, sizeof(nic_oprom), "pxe-%s.bin", model);
-
         rom_add_option(nic_oprom);
     }
+#endif
 
     cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
     i8259 = i8259_init(cpu_irq[0]);
