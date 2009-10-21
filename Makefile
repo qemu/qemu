@@ -40,8 +40,8 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 
 -include config-all-devices.mak
 
-build-all: config-host.h config-all-devices.h
-	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) $(TOOLS) $(DOCS) recurse-all,)
+build-all: config-host.h config-all-devices.h $(DOCS) $(TOOLS)
+	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) recurse-all,)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
