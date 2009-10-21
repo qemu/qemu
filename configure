@@ -1569,6 +1569,36 @@ if compile_prog "" "" ; then
   eventfd=yes
 fi
 
+# check for fallocate
+fallocate=no
+cat > $TMPC << EOF
+#include <fcntl.h>
+
+int main(void)
+{
+    fallocate(0, 0, 0, 0);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  fallocate=yes
+fi
+
+# check for dup3
+dup3=no
+cat > $TMPC << EOF
+#include <unistd.h>
+
+int main(void)
+{
+    dup3(0, 0, 0);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  dup3=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if test -x "`which texi2html 2>/dev/null`" -a \
@@ -1966,6 +1996,12 @@ if test "$splice" = "yes" ; then
 fi
 if test "$eventfd" = "yes" ; then
   echo "CONFIG_EVENTFD=y" >> $config_host_mak
+fi
+if test "$fallocate" = "yes" ; then
+  echo "CONFIG_FALLOCATE=y" >> $config_host_mak
+fi
+if test "$dup3" = "yes" ; then
+  echo "CONFIG_DUP3=y" >> $config_host_mak
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak

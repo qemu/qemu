@@ -660,6 +660,9 @@ struct target_pollfd {
 #define TARGET_KIOCSOUND       0x4B2F	/* start sound generation (0 for off) */
 #define TARGET_KDMKTONE	       0x4B30	/* generate tone */
 #define TARGET_KDGKBTYPE       0x4b33
+#define TARGET_KDSETMODE       0x4b3a
+#define TARGET_KDGKBMODE       0x4b44
+#define TARGET_KDSKBMODE       0x4b45
 #define TARGET_KDGKBENT	       0x4B46	/* gets one entry in translation table */
 #define TARGET_KDGKBSENT       0x4B48	/* gets one function key string entry */
 
@@ -873,6 +876,19 @@ struct target_pollfd {
 #define TARGET_LOOP_SET_STATUS64      0x4C04
 #define TARGET_LOOP_GET_STATUS64      0x4C05
 #define TARGET_LOOP_CHANGE_FD         0x4C06
+
+/* fb ioctls */
+#define TARGET_FBIOGET_VSCREENINFO    0x4600
+#define TARGET_FBIOPUT_VSCREENINFO    0x4601
+#define TARGET_FBIOGET_FSCREENINFO    0x4602
+
+/* vt ioctls */
+#define TARGET_VT_OPENQRY             0x5600
+#define TARGET_VT_GETSTATE            0x5603
+#define TARGET_VT_ACTIVATE            0x5606
+#define TARGET_VT_WAITACTIVE          0x5607
+#define TARGET_VT_LOCKSWITCH          0x560b
+#define TARGET_VT_UNLOCKSWITCH        0x560c
 
 /* from asm/termbits.h */
 
@@ -1187,8 +1203,8 @@ struct __attribute__((__packed__)) target_stat64 {
 	unsigned long long __pad0;
 	long long      st_size;
 	int	       st_blksize;
-	long long      st_blocks;	/* Number 512-byte blocks allocated. */
 	unsigned int   __pad1;
+	long long      st_blocks;	/* Number 512-byte blocks allocated. */
 	int	       target_st_atime;
         unsigned int   target_st_atime_nsec;
 	int	       target_st_mtime;

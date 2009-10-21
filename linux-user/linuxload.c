@@ -96,7 +96,6 @@ static int prepare_binprm(struct linux_binprm *bprm)
 	}
     }
 
-    memset(bprm->buf, 0, sizeof(bprm->buf));
     retval = lseek(bprm->fd, 0L, SEEK_SET);
     if(retval >= 0) {
         retval = read(bprm->fd, bprm->buf, 128);
