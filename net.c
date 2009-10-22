@@ -1261,7 +1261,15 @@ void do_info_usernet(Monitor *mon)
 
 #endif /* CONFIG_SLIRP */
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+int tap_has_vnet_hdr(VLANClientState *vc)
+{
+    return 0;
+}
+void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
+{
+}
+#else /* !defined(_WIN32) */
 
 /* Maximum GSO packet size (64k) plus plenty of room for
  * the ethernet and virtio_net headers
@@ -1277,6 +1285,7 @@ typedef struct TAPState {
     unsigned int read_poll : 1;
     unsigned int write_poll : 1;
     unsigned int has_vnet_hdr : 1;
+    unsigned int using_vnet_hdr : 1;
 } TAPState;
 
 static int launch_script(const char *setup_script, const char *ifname, int fd);
@@ -1339,7 +1348,7 @@ static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
     struct iovec iov_copy[iovcnt + 1];
     struct virtio_net_hdr hdr = { 0, };
 
-    if (s->has_vnet_hdr) {
+    if (s->has_vnet_hdr && !s->using_vnet_hdr) {
         iov_copy[0].iov_base = &hdr;
         iov_copy[0].iov_len =  sizeof(hdr);
         memcpy(&iov_copy[1], iov, iovcnt * sizeof(*iov));
@@ -1357,7 +1366,7 @@ static ssize_t tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
     int iovcnt = 0;
     struct virtio_net_hdr hdr = { 0, };
 
-    if (s->has_vnet_hdr) {
+    if (s->has_vnet_hdr && !s->using_vnet_hdr) {
         iov[iovcnt].iov_base = &hdr;
         iov[iovcnt].iov_len  = sizeof(hdr);
         iovcnt++;
@@ -1414,7 +1423,7 @@ static void tap_send(void *opaque)
             break;
         }
 
-        if (s->has_vnet_hdr) {
+        if (s->has_vnet_hdr && !s->using_vnet_hdr) {
             buf  += sizeof(struct virtio_net_hdr);
             size -= sizeof(struct virtio_net_hdr);
         }
@@ -1447,6 +1456,27 @@ static int tap_set_sndbuf(TAPState *s, QemuOpts *opts)
         return -1;
     }
     return 0;
+}
+
+int tap_has_vnet_hdr(VLANClientState *vc)
+{
+    TAPState *s = vc->opaque;
+
+    assert(vc->type == NET_CLIENT_TYPE_TAP);
+
+    return s->has_vnet_hdr;
+}
+
+void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
+{
+    TAPState *s = vc->opaque;
+
+    using_vnet_hdr = using_vnet_hdr != 0;
+
+    assert(vc->type == NET_CLIENT_TYPE_TAP);
+    assert(s->has_vnet_hdr == using_vnet_hdr);
+
+    s->using_vnet_hdr = using_vnet_hdr;
 }
 
 static int tap_probe_vnet_hdr(int fd)
@@ -1489,6 +1519,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     s = qemu_mallocz(sizeof(TAPState));
     s->fd = fd;
     s->has_vnet_hdr = vnet_hdr != 0;
+    s->using_vnet_hdr = 0;
     s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_TAP,
                                  vlan, NULL, model, name, NULL,
                                  tap_receive, tap_receive_iov,

@@ -177,4 +177,7 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict);
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
+int tap_has_vnet_hdr(VLANClientState *vc);
+void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
+
 #endif
