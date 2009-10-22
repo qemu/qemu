@@ -79,6 +79,7 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *name,
                                       NetCanReceive *can_receive,
                                       NetReceive *receive,
+                                      NetReceive *receive_raw,
                                       NetReceiveIOV *receive_iov,
                                       NetCleanup *cleanup,
                                       void *opaque);

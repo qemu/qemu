@@ -1465,7 +1465,7 @@ USBDevice *usb_net_init(NICInfo *nd)
                                           nd->model, nd->name,
                                           usbnet_can_receive,
                                           usbnet_receive,
-                                          NULL,
+                                          NULL, NULL,
                                           usbnet_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->mac);

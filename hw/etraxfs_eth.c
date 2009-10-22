@@ -594,7 +594,7 @@ void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
                                                 nd->vlan, nd->netdev,
                                                 nd->model, nd->name,
                                                 eth_can_receive, eth_receive,
-                                                NULL, eth_cleanup, eth);
+                                                NULL, NULL, eth_cleanup, eth);
 	eth->vc->opaque = eth;
 	eth->vc->link_status_changed = eth_set_link;
 

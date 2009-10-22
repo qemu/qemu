@@ -466,7 +466,7 @@ void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
                                           nd->vlan, nd->netdev,
                                           nd->model, nd->name,
                                           mcf_fec_can_receive, mcf_fec_receive,
-                                          NULL, mcf_fec_cleanup, s);
+                                          NULL, NULL, mcf_fec_cleanup, s);
     memcpy(s->macaddr, nd->macaddr, 6);
     qemu_format_nic_info_str(s->vc, s->macaddr);
 }

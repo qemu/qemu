@@ -892,7 +892,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->vc = nd->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
                                           nd->vlan, nd->netdev,
                                           nd->model, nd->name,
-                                          nic_can_receive, nic_receive, NULL,
+                                          nic_can_receive, nic_receive, NULL, NULL,
                                           nic_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, nd->macaddr);
