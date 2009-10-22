@@ -70,3 +70,8 @@ int tap_probe_vnet_hdr(int fd)
 {
     return 0;
 }
+
+void tap_fd_set_offload(int fd, int csum, int tso4,
+                        int tso6, int ecn, int ufo)
+{
+}
