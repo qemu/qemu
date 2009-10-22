@@ -677,7 +677,8 @@ int tap_win32_init(VLANState *vlan, const char *model,
         return -1;
     }
 
-    s->vc = qemu_new_vlan_client(vlan, NULL, model, name,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_TAP,
+                                 vlan, NULL, model, name,
                                  NULL, tap_receive,
                                  NULL, tap_cleanup, s);
 
