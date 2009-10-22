@@ -1302,6 +1302,9 @@ int tap_has_vnet_hdr(VLANClientState *vc)
 void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
 {
 }
+void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn)
+{
+}
 #else /* !defined(_WIN32) */
 
 /* Maximum GSO packet size (64k) plus plenty of room for
@@ -1537,6 +1540,27 @@ static int tap_probe_vnet_hdr(int fd)
     }
 
     return ifr.ifr_flags & IFF_VNET_HDR;
+}
+
+void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn)
+{
+    TAPState *s = vc->opaque;
+    unsigned int offload = 0;
+
+    if (csum) {
+        offload |= TUN_F_CSUM;
+        if (tso4)
+            offload |= TUN_F_TSO4;
+        if (tso6)
+            offload |= TUN_F_TSO6;
+        if ((tso4 || tso6) && ecn)
+            offload |= TUN_F_TSO_ECN;
+    }
+
+    if (ioctl(s->fd, TUNSETOFFLOAD, offload) != 0) {
+        fprintf(stderr, "TUNSETOFFLOAD ioctl() failed: %s\n",
+                strerror(errno));
+    }
 }
 
 static void tap_cleanup(VLANClientState *vc)

@@ -182,5 +182,6 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
 int tap_has_vnet_hdr(VLANClientState *vc);
 void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
+void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn);
 
 #endif
