@@ -1494,7 +1494,8 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
 }
 
 #if defined (CONFIG_BSD) || defined (__FreeBSD_kernel__)
-static int tap_open(char *ifname, int ifname_size, int *vnet_hdr)
+static int tap_open(char *ifname, int ifname_size,
+                    int *vnet_hdr, int vnet_hdr_required)
 {
     int fd;
     char *dev;
@@ -1636,7 +1637,8 @@ static int tap_alloc(char *dev, size_t dev_size)
     return tap_fd;
 }
 
-static int tap_open(char *ifname, int ifname_size, int *vnet_hdr)
+static int tap_open(char *ifname, int ifname_size,
+                    int *vnet_hdr, int vnet_hdr_required)
 {
     char  dev[10]="";
     int fd;
@@ -1649,13 +1651,15 @@ static int tap_open(char *ifname, int ifname_size, int *vnet_hdr)
     return fd;
 }
 #elif defined (_AIX)
-static int tap_open(char *ifname, int ifname_size, int *vnet_hdr)
+static int tap_open(char *ifname, int ifname_size,
+                    int *vnet_hdr, int vnet_hdr_required)
 {
     fprintf (stderr, "no tap on AIX\n");
     return -1;
 }
 #else
-static int tap_open(char *ifname, int ifname_size, int *vnet_hdr)
+static int tap_open(char *ifname, int ifname_size,
+                    int *vnet_hdr, int vnet_hdr_required)
 {
     struct ifreq ifr;
     int fd, ret;
@@ -1668,13 +1672,20 @@ static int tap_open(char *ifname, int ifname_size, int *vnet_hdr)
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
-    {
+    if (*vnet_hdr) {
         unsigned int features;
 
         if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
             features & IFF_VNET_HDR) {
             *vnet_hdr = 1;
             ifr.ifr_flags |= IFF_VNET_HDR;
+        }
+
+        if (vnet_hdr_required && !*vnet_hdr) {
+            qemu_error("vnet_hdr=1 requested, but no kernel "
+                       "support for IFF_VNET_HDR available");
+            close(fd);
+            return -1;
         }
     }
 
@@ -1740,7 +1751,7 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
 
 static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
 {
-    int fd;
+    int fd, vnet_hdr_required;
     char ifname[128] = {0,};
     const char *setup_script;
 
@@ -1748,8 +1759,14 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
         pstrcpy(ifname, sizeof(ifname), qemu_opt_get(opts, "ifname"));
     }
 
-    *vnet_hdr = 0;
-    TFR(fd = tap_open(ifname, sizeof(ifname), vnet_hdr));
+    *vnet_hdr = qemu_opt_get_bool(opts, "vnet_hdr", 1);
+    if (qemu_opt_get(opts, "vnet_hdr")) {
+        vnet_hdr_required = *vnet_hdr;
+    } else {
+        vnet_hdr_required = 0;
+    }
+
+    TFR(fd = tap_open(ifname, sizeof(ifname), vnet_hdr, vnet_hdr_required));
     if (fd < 0) {
         return -1;
     }
@@ -2698,8 +2715,9 @@ static int net_init_tap(QemuOpts *opts,
     if (qemu_opt_get(opts, "fd")) {
         if (qemu_opt_get(opts, "ifname") ||
             qemu_opt_get(opts, "script") ||
-            qemu_opt_get(opts, "downscript")) {
-            qemu_error("ifname=, script= and downscript= is invalid with fd=\n");
+            qemu_opt_get(opts, "downscript") ||
+            qemu_opt_get(opts, "vnet_hdr")) {
+            qemu_error("ifname=, script=, downscript= and vnet_hdr= is invalid with fd=\n");
             return -1;
         }
 
@@ -3055,6 +3073,10 @@ static struct {
                 .name = "sndbuf",
                 .type = QEMU_OPT_SIZE,
                 .help = "send buffer limit"
+            }, {
+                .name = "vnet_hdr",
+                .type = QEMU_OPT_BOOL,
+                .help = "enable the IFF_VNET_HDR flag on the tap interface"
             },
             { /* end of list */ }
         },
