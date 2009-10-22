@@ -1897,6 +1897,10 @@ else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
 
+if test "$linux" = "yes" ; then
+  echo "CONFIG_LINUX=y" >> $config_host_mak
+fi
+
 if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=y" >> $config_host_mak
 fi
