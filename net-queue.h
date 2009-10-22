@@ -44,6 +44,7 @@ typedef ssize_t (NetPacketDeliverIOV) (VLANClientState *sender,
                                        void *opaque);
 
 #define QEMU_NET_PACKET_FLAG_NONE  0
+#define QEMU_NET_PACKET_FLAG_RAW  (1<<0)
 
 NetQueue *qemu_new_net_queue(NetPacketDeliver *deliver,
                              NetPacketDeliverIOV *deliver_iov,

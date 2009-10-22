@@ -45,6 +45,7 @@ typedef void (LinkStatusChanged)(VLANClientState *);
 struct VLANClientState {
     net_client_type type;
     NetReceive *receive;
+    NetReceive *receive_raw;
     NetReceiveIOV *receive_iov;
     /* Packets may still be sent if this returns zero.  It's used to
        rate-limit the slirp code.  */
@@ -89,6 +90,7 @@ ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
 ssize_t qemu_sendv_packet_async(VLANClientState *vc, const struct iovec *iov,
                                 int iovcnt, NetPacketSent *sent_cb);
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
+ssize_t qemu_send_packet_raw(VLANClientState *vc, const uint8_t *buf, int size);
 ssize_t qemu_send_packet_async(VLANClientState *vc, const uint8_t *buf,
                                int size, NetPacketSent *sent_cb);
 void qemu_purge_queued_packets(VLANClientState *vc);
