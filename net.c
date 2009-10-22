@@ -2440,7 +2440,6 @@ static struct {
             { /* end of list */ }
         },
 #endif
-#ifndef _AIX
     }, {
         .type = "tap",
         .init = net_init_tap,
@@ -2476,7 +2475,6 @@ static struct {
 #endif /* _WIN32 */
             { /* end of list */ }
         },
-#endif /* _AIX */
     }, {
         .type = "socket",
         .init = net_init_socket,

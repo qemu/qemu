@@ -42,8 +42,6 @@
 #include "net/tap-linux.h"
 #endif
 
-#if !defined(_AIX)
-
 /* Maximum GSO packet size (64k) plus plenty of room for
  * the ethernet and virtio_net headers
  */
@@ -349,13 +347,6 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     return s;
 }
 
-#ifdef _AIX
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
-{
-    fprintf (stderr, "no tap on AIX\n");
-    return -1;
-}
-#else
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
     struct ifreq ifr;
@@ -400,7 +391,6 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
 }
-#endif
 
 static int launch_script(const char *setup_script, const char *ifname, int fd)
 {
@@ -551,5 +541,3 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
 
     return 0;
 }
-
-#endif /* !defined(_AIX) */
