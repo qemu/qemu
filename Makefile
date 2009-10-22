@@ -88,6 +88,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
 net-obj-y = net.o
 net-nested-y = queue.o checksum.o
+net-nested-$(CONFIG_WIN32) += tap-win32.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
 ######################################################################
@@ -132,7 +133,6 @@ obj-y += qdev.o qdev-properties.o
 obj-y += qint.o qstring.o qdict.o qlist.o qemu-config.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
-obj-$(CONFIG_WIN32) += tap-win32.o
 obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
 
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
