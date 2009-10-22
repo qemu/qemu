@@ -152,6 +152,11 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev)
         features |= (1 << VIRTIO_NET_F_HOST_TSO4);
         features |= (1 << VIRTIO_NET_F_HOST_TSO6);
         features |= (1 << VIRTIO_NET_F_HOST_ECN);
+
+        features |= (1 << VIRTIO_NET_F_GUEST_CSUM);
+        features |= (1 << VIRTIO_NET_F_GUEST_TSO4);
+        features |= (1 << VIRTIO_NET_F_GUEST_TSO6);
+        features |= (1 << VIRTIO_NET_F_GUEST_ECN);
     }
 
     return features;
@@ -177,6 +182,14 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = to_virtio_net(vdev);
 
     n->mergeable_rx_bufs = !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF));
+
+    if (n->has_vnet_hdr) {
+        tap_set_offload(n->vc->peer,
+                        (features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
+                        (features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
+                        (features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
+                        (features >> VIRTIO_NET_F_GUEST_ECN)  & 1);
+    }
 }
 
 static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
@@ -702,6 +715,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
         if (n->has_vnet_hdr) {
             tap_using_vnet_hdr(n->vc->peer, 1);
+            tap_set_offload(n->vc->peer,
+                            (n->vdev.features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
+                            (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
+                            (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
+                            (n->vdev.features >> VIRTIO_NET_F_GUEST_ECN)  & 1);
         }
     }
 
