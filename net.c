@@ -46,7 +46,7 @@
 #include <net/if_tap.h>
 #endif
 #ifdef __linux__
-#include <linux/if_tun.h>
+#include "tap-linux.h"
 #endif
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -1385,7 +1385,6 @@ static void tap_send(void *opaque)
     } while (size > 0);
 }
 
-#ifdef TUNSETSNDBUF
 /* sndbuf should be set to a value lower than the tx queue
  * capacity of any destination network interface.
  * Ethernet NICs generally have txqueuelen=1000, so 1Mb is
@@ -1408,12 +1407,6 @@ static int tap_set_sndbuf(TAPState *s, QemuOpts *opts)
     }
     return 0;
 }
-#else
-static int tap_set_sndbuf(TAPState *s, QemuOpts *opts)
-{
-    return 0;
-}
-#endif /* TUNSETSNDBUF */
 
 static void tap_cleanup(VLANClientState *vc)
 {
@@ -2987,12 +2980,10 @@ static struct {
                 .name = "downscript",
                 .type = QEMU_OPT_STRING,
                 .help = "script to shut down the interface",
-#ifdef TUNSETSNDBUF
             }, {
                 .name = "sndbuf",
                 .type = QEMU_OPT_SIZE,
                 .help = "send buffer limit"
-#endif
             },
             { /* end of list */ }
         },
