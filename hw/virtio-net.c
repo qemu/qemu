@@ -372,6 +372,34 @@ static int virtio_net_can_receive(VLANClientState *vc)
     return do_virtio_net_can_receive(n, VIRTIO_NET_MAX_BUFSIZE);
 }
 
+/* dhclient uses AF_PACKET but doesn't pass auxdata to the kernel so
+ * it never finds out that the packets don't have valid checksums.  This
+ * causes dhclient to get upset.  Fedora's carried a patch for ages to
+ * fix this with Xen but it hasn't appeared in an upstream release of
+ * dhclient yet.
+ *
+ * To avoid breaking existing guests, we catch udp packets and add
+ * checksums.  This is terrible but it's better than hacking the guest
+ * kernels.
+ *
+ * N.B. if we introduce a zero-copy API, this operation is no longer free so
+ * we should provide a mechanism to disable it to avoid polluting the host
+ * cache.
+ */
+static void work_around_broken_dhclient(struct virtio_net_hdr *hdr,
+                                        const uint8_t *buf, size_t size)
+{
+    if ((hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) && /* missing csum */
+        (size > 27 && size < 1500) && /* normal sized MTU */
+        (buf[12] == 0x08 && buf[13] == 0x00) && /* ethertype == IPv4 */
+        (buf[23] == 17) && /* ip.protocol == UDP */
+        (buf[34] == 0 && buf[35] == 67)) { /* udp.srcport == bootps */
+        /* FIXME this cast is evil */
+        net_checksum_calculate((uint8_t *)buf, size);
+        hdr->flags &= ~VIRTIO_NET_HDR_F_NEEDS_CSUM;
+    }
+}
+
 static int iov_fill(struct iovec *iov, int iovcnt, const void *buf, int count)
 {
     int offset, i;
@@ -399,6 +427,7 @@ static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
     if (n->has_vnet_hdr) {
         memcpy(hdr, buf, sizeof(*hdr));
         offset = sizeof(*hdr);
+        work_around_broken_dhclient(hdr, buf + offset, size - offset);
     }
 
     /* We only ever receive a struct virtio_net_hdr from the tapfd,
