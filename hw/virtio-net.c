@@ -14,6 +14,7 @@
 #include "virtio.h"
 #include "net.h"
 #include "net/checksum.h"
+#include "net/tap.h"
 #include "qemu-timer.h"
 #include "virtio-net.h"
 

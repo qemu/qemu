@@ -88,10 +88,6 @@ int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 #endif
 
-/* TAP win32 */
-int tap_win32_init(VLANState *vlan, const char *model,
-                   const char *name, const char *ifname);
-
 /* SLIRP */
 void do_info_slirp(Monitor *mon);
 

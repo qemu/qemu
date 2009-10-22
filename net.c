@@ -103,6 +103,7 @@
 
 #include "qemu-common.h"
 #include "net.h"
+#include "net/tap.h"
 #include "monitor.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
@@ -1294,23 +1295,7 @@ void do_info_usernet(Monitor *mon)
 
 #endif /* CONFIG_SLIRP */
 
-#if defined(_WIN32)
-int tap_has_ufo(VLANClientState *vc)
-{
-    return 0;
-}
-int tap_has_vnet_hdr(VLANClientState *vc)
-{
-    return 0;
-}
-void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
-{
-}
-void tap_set_offload(VLANClientState *vc, int csum, int tso4,
-                     int tso6, int ecn, int ufo)
-{
-}
-#else /* !defined(_WIN32) */
+#if !defined(_WIN32) && !defined(_AIX)
 
 /* Maximum GSO packet size (64k) plus plenty of room for
  * the ethernet and virtio_net headers
@@ -1920,7 +1905,7 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
     return fd;
 }
 
-#endif /* !_WIN32 */
+#endif /* !defined(_WIN32) && !defined(_AIX) */
 
 #if defined(CONFIG_VDE)
 typedef struct VDEState {
@@ -2817,36 +2802,8 @@ static int net_init_slirp(QemuOpts *opts,
 }
 #endif /* CONFIG_SLIRP */
 
-#ifdef _WIN32
-static int net_init_tap_win32(QemuOpts *opts,
-                              Monitor *mon,
-                              const char *name,
-                              VLANState *vlan)
-{
-    const char *ifname;
-
-    ifname = qemu_opt_get(opts, "ifname");
-
-    if (!ifname) {
-        qemu_error("tap: no interface name\n");
-        return -1;
-    }
-
-    if (tap_win32_init(vlan, "tap", name, ifname) == -1) {
-        return -1;
-    }
-
-    if (vlan) {
-        vlan->nb_host_devs++;
-    }
-
-    return 0;
-}
-#elif !defined(_AIX)
-static int net_init_tap(QemuOpts *opts,
-                        Monitor *mon,
-                        const char *name,
-                        VLANState *vlan)
+#if !defined(_WIN32) && !defined(_AIX)
+int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
 {
     TAPState *s;
     int fd, vnet_hdr;
@@ -2915,7 +2872,7 @@ static int net_init_tap(QemuOpts *opts,
 
     return 0;
 }
-#endif
+#endif /* !defined(_WIN32) && !defined(_AIX) */
 
 static int net_init_socket(QemuOpts *opts,
                            Monitor *mon,
@@ -3173,10 +3130,10 @@ static struct {
             { /* end of list */ }
         },
 #endif
-#ifdef _WIN32
+#ifndef _AIX
     }, {
         .type = "tap",
-        .init = net_init_tap_win32,
+        .init = net_init_tap,
         .desc = {
             NET_COMMON_PARAMS_DESC,
             {
@@ -3184,22 +3141,11 @@ static struct {
                 .type = QEMU_OPT_STRING,
                 .help = "interface name",
             },
-            { /* end of list */ }
-        },
-#elif !defined(_AIX)
-    }, {
-        .type = "tap",
-        .init = net_init_tap,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
+#ifndef _WIN32
             {
                 .name = "fd",
                 .type = QEMU_OPT_STRING,
                 .help = "file descriptor of an already opened tap",
-            }, {
-                .name = "ifname",
-                .type = QEMU_OPT_STRING,
-                .help = "interface name",
             }, {
                 .name = "script",
                 .type = QEMU_OPT_STRING,
@@ -3217,9 +3163,10 @@ static struct {
                 .type = QEMU_OPT_BOOL,
                 .help = "enable the IFF_VNET_HDR flag on the tap interface"
             },
+#endif /* _WIN32 */
             { /* end of list */ }
         },
-#endif
+#endif /* _AIX */
     }, {
         .type = "socket",
         .init = net_init_socket,

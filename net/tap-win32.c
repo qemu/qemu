@@ -25,6 +25,9 @@
  *  along with this program (see the file COPYING included with this
  *  distribution); if not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "net/tap.h"
+
 #include "qemu-common.h"
 #include "net.h"
 #include "sysemu.h"
@@ -664,8 +667,8 @@ static void tap_win32_send(void *opaque)
     }
 }
 
-int tap_win32_init(VLANState *vlan, const char *model,
-                   const char *name, const char *ifname)
+static int tap_win32_init(VLANState *vlan, const char *model,
+                          const char *name, const char *ifname)
 {
     TAPState *s;
 
@@ -687,4 +690,45 @@ int tap_win32_init(VLANState *vlan, const char *model,
 
     qemu_add_wait_object(s->handle->tap_semaphore, tap_win32_send, s);
     return 0;
+}
+
+int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
+{
+    const char *ifname;
+
+    ifname = qemu_opt_get(opts, "ifname");
+
+    if (!ifname) {
+        qemu_error("tap: no interface name\n");
+        return -1;
+    }
+
+    if (tap_win32_init(vlan, "tap", name, ifname) == -1) {
+        return -1;
+    }
+
+    if (vlan) {
+        vlan->nb_host_devs++;
+    }
+
+    return 0;
+}
+
+int tap_has_ufo(VLANClientState *vc)
+{
+    return 0;
+}
+
+int tap_has_vnet_hdr(VLANClientState *vc)
+{
+    return 0;
+}
+
+void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
+{
+}
+
+void tap_set_offload(VLANClientState *vc, int csum, int tso4,
+                     int tso6, int ecn, int ufo)
+{
 }
