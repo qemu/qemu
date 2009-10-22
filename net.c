@@ -46,7 +46,7 @@
 #include <net/if_tap.h>
 #endif
 #ifdef __linux__
-#include "tap-linux.h"
+#include "net/tap-linux.h"
 #endif
 #include <arpa/inet.h>
 #include <dirent.h>
