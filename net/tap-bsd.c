@@ -2,7 +2,6 @@
  * QEMU System Emulator
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
- * Copyright (c) 2009 Red Hat, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,22 +22,41 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_NET_TAP_H
-#define QEMU_NET_TAP_H
+#include "net/tap.h"
+#incude "qemu-common.h"
 
-#include "qemu-common.h"
-#include "qemu-option.h"
+#ifdef __NetBSD__
+#include <net/if_tap.h>
+#endif
 
-#define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
-#define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+#include <libutil.h>
+#else
+#include <util.h>
+#endif
+#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
+#include <freebsd/stdlib.h>
 
-int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan);
+#if defined(__OpenBSD__)
+#include <util.h>
+#endif
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required);
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
+{
+    int fd;
+    char *dev;
+    struct stat s;
 
-int tap_has_ufo(VLANClientState *vc);
-int tap_has_vnet_hdr(VLANClientState *vc);
-void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
-void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn, int ufo);
+    TFR(fd = open("/dev/tap", O_RDWR));
+    if (fd < 0) {
+        fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
+        return -1;
+    }
 
-#endif /* QEMU_NET_TAP_H */
+    fstat(fd, &s);
+    dev = devname(s.st_rdev, S_IFCHR);
+    pstrcpy(ifname, ifname_size, dev);
+
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    return fd;
+}

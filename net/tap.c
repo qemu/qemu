@@ -42,24 +42,6 @@
 #include "net/tap-linux.h"
 #endif
 
-#ifdef __NetBSD__
-#include <net/if_tap.h>
-#endif
-
-#ifdef CONFIG_BSD
-#if defined(__FreeBSD__) || defined(__DragonFly__)
-#include <libutil.h>
-#else
-#include <util.h>
-#endif
-#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
-#include <freebsd/stdlib.h>
-#endif
-
-#if defined(__OpenBSD__)
-#include <util.h>
-#endif
-
 #ifdef __sun__
 #include <sys/stat.h>
 #include <sys/ethernet.h>
@@ -394,28 +376,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     return s;
 }
 
-#if defined (CONFIG_BSD) || defined (__FreeBSD_kernel__)
-static int tap_open(char *ifname, int ifname_size,
-                    int *vnet_hdr, int vnet_hdr_required)
-{
-    int fd;
-    char *dev;
-    struct stat s;
-
-    TFR(fd = open("/dev/tap", O_RDWR));
-    if (fd < 0) {
-        fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
-        return -1;
-    }
-
-    fstat(fd, &s);
-    dev = devname(s.st_rdev, S_IFCHR);
-    pstrcpy(ifname, ifname_size, dev);
-
-    fcntl(fd, F_SETFL, O_NONBLOCK);
-    return fd;
-}
-#elif defined(__sun__)
+#ifdef __sun__
 #define TUNNEWPPA       (('T'<<16) | 0x0001)
 /*
  * Allocate TAP device, returns opened fd.
@@ -538,8 +499,7 @@ static int tap_alloc(char *dev, size_t dev_size)
     return tap_fd;
 }
 
-static int tap_open(char *ifname, int ifname_size,
-                    int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
     char  dev[10]="";
     int fd;
@@ -552,15 +512,13 @@ static int tap_open(char *ifname, int ifname_size,
     return fd;
 }
 #elif defined (_AIX)
-static int tap_open(char *ifname, int ifname_size,
-                    int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
     fprintf (stderr, "no tap on AIX\n");
     return -1;
 }
 #else
-static int tap_open(char *ifname, int ifname_size,
-                    int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
     struct ifreq ifr;
     int fd, ret;
