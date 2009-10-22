@@ -36,6 +36,8 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required);
 
+ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen);
+
 int tap_has_ufo(VLANClientState *vc);
 int tap_has_vnet_hdr(VLANClientState *vc);
 void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);

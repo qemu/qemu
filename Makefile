@@ -91,6 +91,7 @@ net-nested-y = queue.o checksum.o
 net-nested-$(CONFIG_POSIX) += tap.o
 net-nested-$(CONFIG_WIN32) += tap-win32.o
 net-nested-$(CONFIG_BSD) += tap-bsd.o
+net-nested-$(CONFIG_SOLARIS) += tap-solaris.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
 ######################################################################
