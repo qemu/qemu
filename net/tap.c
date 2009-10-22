@@ -38,9 +38,7 @@
 #include "qemu-char.h"
 #include "qemu-common.h"
 
-#ifdef __linux__
 #include "net/tap-linux.h"
-#endif
 
 /* Maximum GSO packet size (64k) plus plenty of room for
  * the ethernet and virtio_net headers
@@ -345,51 +343,6 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     tap_set_offload(s->vc, 0, 0, 0, 0, 0);
     tap_read_poll(s, 1);
     return s;
-}
-
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
-{
-    struct ifreq ifr;
-    int fd, ret;
-
-    TFR(fd = open("/dev/net/tun", O_RDWR));
-    if (fd < 0) {
-        fprintf(stderr, "warning: could not open /dev/net/tun: no virtual network emulation\n");
-        return -1;
-    }
-    memset(&ifr, 0, sizeof(ifr));
-    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-
-    if (*vnet_hdr) {
-        unsigned int features;
-
-        if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
-            features & IFF_VNET_HDR) {
-            *vnet_hdr = 1;
-            ifr.ifr_flags |= IFF_VNET_HDR;
-        }
-
-        if (vnet_hdr_required && !*vnet_hdr) {
-            qemu_error("vnet_hdr=1 requested, but no kernel "
-                       "support for IFF_VNET_HDR available");
-            close(fd);
-            return -1;
-        }
-    }
-
-    if (ifname[0] != '\0')
-        pstrcpy(ifr.ifr_name, IFNAMSIZ, ifname);
-    else
-        pstrcpy(ifr.ifr_name, IFNAMSIZ, "tap%d");
-    ret = ioctl(fd, TUNSETIFF, (void *) &ifr);
-    if (ret != 0) {
-        fprintf(stderr, "warning: could not configure /dev/net/tun: no virtual network emulation\n");
-        close(fd);
-        return -1;
-    }
-    pstrcpy(ifname, ifname_size, ifr.ifr_name);
-    fcntl(fd, F_SETFL, O_NONBLOCK);
-    return fd;
 }
 
 static int launch_script(const char *setup_script, const char *ifname, int fd)

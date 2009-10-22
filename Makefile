@@ -89,6 +89,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 net-obj-y = net.o
 net-nested-y = queue.o checksum.o
 net-nested-$(CONFIG_POSIX) += tap.o
+net-nested-$(CONFIG_LINUX) += tap-linux.o
 net-nested-$(CONFIG_WIN32) += tap-win32.o
 net-nested-$(CONFIG_BSD) += tap-bsd.o
 net-nested-$(CONFIG_SOLARIS) += tap-solaris.o
