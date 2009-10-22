@@ -126,8 +126,6 @@ static int announce_self_create(uint8_t *buf,
 static void qemu_announce_self_once(void *opaque)
 {
     int i, len;
-    VLANState *vlan;
-    VLANClientState *vc;
     uint8_t buf[60];
     static int count = SELF_ANNOUNCE_ROUNDS;
     QEMUTimer *timer = *(QEMUTimer **)opaque;
@@ -136,10 +134,7 @@ static void qemu_announce_self_once(void *opaque)
         if (!nd_table[i].used)
             continue;
         len = announce_self_create(buf, nd_table[i].macaddr);
-        vlan = nd_table[i].vlan;
-        QTAILQ_FOREACH(vc, &vlan->clients, next) {
-            vc->receive(vc, buf, len);
-        }
+        qemu_send_packet_raw(nd_table[i].vc, buf, len);
     }
     if (--count) {
         /* delay 50ms, 150ms, 250ms, ... */
