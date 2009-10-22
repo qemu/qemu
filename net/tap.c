@@ -209,29 +209,6 @@ static void tap_send(void *opaque)
     } while (size > 0);
 }
 
-/* sndbuf should be set to a value lower than the tx queue
- * capacity of any destination network interface.
- * Ethernet NICs generally have txqueuelen=1000, so 1Mb is
- * a good default, given a 1500 byte MTU.
- */
-#define TAP_DEFAULT_SNDBUF 1024*1024
-
-static int tap_set_sndbuf(TAPState *s, QemuOpts *opts)
-{
-    int sndbuf;
-
-    sndbuf = qemu_opt_get_size(opts, "sndbuf", TAP_DEFAULT_SNDBUF);
-    if (!sndbuf) {
-        sndbuf = INT_MAX;
-    }
-
-    if (ioctl(s->fd, TUNSETSNDBUF, &sndbuf) == -1 && qemu_opt_get(opts, "sndbuf")) {
-        qemu_error("TUNSETSNDBUF ioctl failed: %s\n", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
 int tap_has_ufo(VLANClientState *vc)
 {
     TAPState *s = vc->opaque;
@@ -465,7 +442,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         return -1;
     }
 
-    if (tap_set_sndbuf(s, opts) < 0) {
+    if (tap_set_sndbuf(s->fd, opts) < 0) {
         return -1;
     }
 

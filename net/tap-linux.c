@@ -76,3 +76,26 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
 }
+
+/* sndbuf should be set to a value lower than the tx queue
+ * capacity of any destination network interface.
+ * Ethernet NICs generally have txqueuelen=1000, so 1Mb is
+ * a good default, given a 1500 byte MTU.
+ */
+#define TAP_DEFAULT_SNDBUF 1024*1024
+
+int tap_set_sndbuf(int fd, QemuOpts *opts)
+{
+    int sndbuf;
+
+    sndbuf = qemu_opt_get_size(opts, "sndbuf", TAP_DEFAULT_SNDBUF);
+    if (!sndbuf) {
+        sndbuf = INT_MAX;
+    }
+
+    if (ioctl(fd, TUNSETSNDBUF, &sndbuf) == -1 && qemu_opt_get(opts, "sndbuf")) {
+        qemu_error("TUNSETSNDBUF ioctl failed: %s\n", strerror(errno));
+        return -1;
+    }
+    return 0;
+}

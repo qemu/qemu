@@ -30,3 +30,9 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     fprintf(stderr, "no tap on AIX\n");
     return -1;
 }
+
+int tap_set_sndbuf(int fd, QemuOpts *opts)
+{
+    return 0;
+}
+
