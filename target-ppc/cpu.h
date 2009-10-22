@@ -579,10 +579,13 @@ struct CPUPPCState {
     /* floating point status and control register */
     uint32_t fpscr;
 
-    CPU_COMMON
+    /* Next instruction pointer */
+    target_ulong nip;
 
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
+
+    CPU_COMMON
 
     /* MMU context - only relevant for full system emulation */
 #if !defined(CONFIG_USER_ONLY)
@@ -663,9 +666,6 @@ struct CPUPPCState {
 #endif
 
     /* Those resources are used only during code translation */
-    /* Next instruction pointer */
-    target_ulong nip;
-
     /* opcode handlers */
     opc_handler_t *opcodes[0x40];
 
