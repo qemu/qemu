@@ -1306,10 +1306,8 @@ static void tap_writable(void *opaque)
     qemu_flush_queued_packets(s->vc);
 }
 
-static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
-                               int iovcnt)
+static ssize_t tap_write_packet(TAPState *s, const struct iovec *iov, int iovcnt)
 {
-    TAPState *s = vc->opaque;
     ssize_t len;
 
     do {
@@ -1324,16 +1322,25 @@ static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
     return len;
 }
 
+static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
+                               int iovcnt)
+{
+    TAPState *s = vc->opaque;
+
+    return tap_write_packet(s, iov, iovcnt);
+}
+
 static ssize_t tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
 {
     TAPState *s = vc->opaque;
-    ssize_t len;
+    struct iovec iov[1];
+    int iovcnt = 0;
 
-    do {
-        len = write(s->fd, buf, size);
-    } while (len == -1 && (errno == EINTR || errno == EAGAIN));
+    iov[iovcnt].iov_base = (char *)buf;
+    iov[iovcnt].iov_len  = size;
+    iovcnt++;
 
-    return len;
+    return tap_write_packet(s, iov, iovcnt);
 }
 
 static int tap_can_send(void *opaque)
