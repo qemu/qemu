@@ -48,6 +48,8 @@ struct qemu_paiocb {
     ssize_t ret;
     int active;
     struct qemu_paiocb *next;
+
+    int async_context_id;
 };
 
 typedef struct PosixAioState {
@@ -419,6 +421,7 @@ static int posix_aio_process_queue(void *opaque)
     struct qemu_paiocb *acb, **pacb;
     int ret;
     int result = 0;
+    int async_context_id = get_async_context_id();
 
     for(;;) {
         pacb = &s->first_aio;
@@ -426,6 +429,13 @@ static int posix_aio_process_queue(void *opaque)
             acb = *pacb;
             if (!acb)
                 return result;
+
+            /* we're only interested in requests in the right context */
+            if (acb->async_context_id != async_context_id) {
+                pacb = &acb->next;
+                continue;
+            }
+
             ret = qemu_paio_error(acb);
             if (ret == ECANCELED) {
                 /* remove the request */
@@ -558,6 +568,8 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
     acb->ev_signo = SIGUSR2;
+    acb->async_context_id = get_async_context_id();
+
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
