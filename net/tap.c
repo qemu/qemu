@@ -271,7 +271,6 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
                                  int vnet_hdr)
 {
     TAPState *s;
-    unsigned int offload;
 
     s = qemu_mallocz(sizeof(TAPState));
     s->fd = fd;
@@ -281,11 +280,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
                                  vlan, NULL, model, name, NULL,
                                  tap_receive, tap_receive_raw,
                                  tap_receive_iov, tap_cleanup, s);
-    s->has_ufo = 0;
-    /* Check if tap supports UFO */
-    offload = TUN_F_CSUM | TUN_F_UFO;
-    if (ioctl(s->fd, TUNSETOFFLOAD, offload) == 0)
-       s->has_ufo = 1;
+    s->has_ufo = tap_probe_has_ufo(s->fd);
     tap_set_offload(s->vc, 0, 0, 0, 0, 0);
     tap_read_poll(s, 1);
     return s;

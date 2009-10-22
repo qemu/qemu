@@ -112,6 +112,18 @@ int tap_probe_vnet_hdr(int fd)
     return ifr.ifr_flags & IFF_VNET_HDR;
 }
 
+int tap_probe_has_ufo(int fd)
+{
+    unsigned offload;
+
+    offload = TUN_F_CSUM | TUN_F_UFO;
+
+    if (ioctl(fd, TUNSETOFFLOAD, offload) < 0)
+        return 0;
+
+    return 1;
+}
+
 void tap_fd_set_offload(int fd, int csum, int tso4,
                         int tso6, int ecn, int ufo)
 {
