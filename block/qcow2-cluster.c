@@ -306,8 +306,8 @@ void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
 }
 
 
-int qcow2_read(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
-    int nb_sectors)
+static int qcow_read(BlockDriverState *bs, int64_t sector_num,
+                     uint8_t *buf, int nb_sectors)
 {
     BDRVQcowState *s = bs->opaque;
     int ret, index_in_cluster, n, n1;
@@ -358,7 +358,7 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
     n = n_end - n_start;
     if (n <= 0)
         return 0;
-    ret = qcow2_read(bs, start_sect + n_start, s->cluster_data, n);
+    ret = qcow_read(bs, start_sect + n_start, s->cluster_data, n);
     if (ret < 0)
         return ret;
     if (s->crypt_method) {
