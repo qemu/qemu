@@ -188,3 +188,8 @@ int tap_set_sndbuf(int fd, QemuOpts *opts)
 {
     return 0;
 }
+
+int tap_probe_vnet_hdr(int fd)
+{
+    return 0;
+}

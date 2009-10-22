@@ -44,5 +44,6 @@ void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
 void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn, int ufo);
 
 int tap_set_sndbuf(int fd, QemuOpts *opts);
+int tap_probe_vnet_hdr(int fd);
 
 #endif /* QEMU_NET_TAP_H */

@@ -239,18 +239,6 @@ void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
     s->using_vnet_hdr = using_vnet_hdr;
 }
 
-static int tap_probe_vnet_hdr(int fd)
-{
-    struct ifreq ifr;
-
-    if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
-        qemu_error("TUNGETIFF ioctl() failed: %s\n", strerror(errno));
-        return 0;
-    }
-
-    return ifr.ifr_flags & IFF_VNET_HDR;
-}
-
 void tap_set_offload(VLANClientState *vc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {

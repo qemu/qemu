@@ -99,3 +99,15 @@ int tap_set_sndbuf(int fd, QemuOpts *opts)
     }
     return 0;
 }
+
+int tap_probe_vnet_hdr(int fd)
+{
+    struct ifreq ifr;
+
+    if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
+        qemu_error("TUNGETIFF ioctl() failed: %s\n", strerror(errno));
+        return 0;
+    }
+
+    return ifr.ifr_flags & IFF_VNET_HDR;
+}
