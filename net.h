@@ -174,4 +174,6 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict);
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
+int net_handle_fd_param(Monitor *mon, const char *param);
+
 #endif
