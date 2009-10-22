@@ -87,7 +87,7 @@ block-nested-$(CONFIG_CURL) += curl.o
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
 net-obj-y = net.o
-net-nested-y = queue.o
+net-nested-y = queue.o checksum.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
 ######################################################################
@@ -126,7 +126,7 @@ obj-$(CONFIG_SD) += sd.o
 obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 obj-y += bt-hci-csr.o
 obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
-obj-y += qemu-char.o aio.o net-checksum.o savevm.o
+obj-y += qemu-char.o aio.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
 obj-y += qint.o qstring.o qdict.o qlist.o qemu-config.o

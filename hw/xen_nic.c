@@ -40,6 +40,7 @@
 
 #include "hw.h"
 #include "net.h"
+#include "net/checksum.h"
 #include "qemu-char.h"
 #include "xen_backend.h"
 

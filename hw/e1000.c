@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "pci.h"
 #include "net.h"
+#include "net/checksum.h"
 #include "loader.h"
 
 #include "e1000_hw.h"

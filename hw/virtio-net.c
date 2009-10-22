@@ -13,6 +13,7 @@
 
 #include "virtio.h"
 #include "net.h"
+#include "net/checksum.h"
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
