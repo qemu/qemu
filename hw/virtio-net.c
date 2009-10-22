@@ -16,7 +16,7 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    10
+#define VIRTIO_NET_VM_VERSION    11
 
 #define MAC_TABLE_ENTRIES    64
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
@@ -33,6 +33,7 @@ typedef struct VirtIONet
     QEMUTimer *tx_timer;
     int tx_timer_active;
     uint32_t has_vnet_hdr;
+    uint8_t has_ufo;
     struct {
         VirtQueueElement elem;
         ssize_t len;
@@ -134,6 +135,16 @@ static int peer_has_vnet_hdr(VirtIONet *n)
     return n->has_vnet_hdr;
 }
 
+static int peer_has_ufo(VirtIONet *n)
+{
+    if (!peer_has_vnet_hdr(n))
+        return 0;
+
+    n->has_ufo = tap_has_ufo(n->vc->peer);
+
+    return n->has_ufo;
+}
+
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
 {
     VirtIONet *n = to_virtio_net(vdev);
@@ -158,7 +169,7 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev)
         features |= (1 << VIRTIO_NET_F_GUEST_TSO6);
         features |= (1 << VIRTIO_NET_F_GUEST_ECN);
 
-        if (tap_has_ufo(n->vc->peer)) {
+        if (peer_has_ufo(n)) {
             features |= (1 << VIRTIO_NET_F_GUEST_UFO);
             features |= (1 << VIRTIO_NET_F_HOST_UFO);
         }
@@ -697,6 +708,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_byte(f, n->nomulti);
     qemu_put_byte(f, n->nouni);
     qemu_put_byte(f, n->nobcast);
+    qemu_put_byte(f, n->has_ufo);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -769,6 +781,13 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         n->nomulti = qemu_get_byte(f);
         n->nouni = qemu_get_byte(f);
         n->nobcast = qemu_get_byte(f);
+    }
+
+    if (version_id >= 11) {
+        if (qemu_get_byte(f) && !peer_has_ufo(n)) {
+            qemu_error("virtio-net: saved image requires TUN_F_UFO support\n");
+            return -1;
+        }
     }
 
     /* Find the first multicast entry in the saved MAC filter */
