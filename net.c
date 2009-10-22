@@ -1490,7 +1490,6 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
                                  tap_receive, tap_receive_iov,
                                  tap_cleanup, s);
     tap_read_poll(s, 1);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     return s;
 }
 
@@ -1739,38 +1738,34 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
     return -1;
 }
 
-static TAPState *net_tap_init(VLANState *vlan, const char *model,
-                              const char *name, const char *ifname1,
-                              const char *setup_script, const char *down_script)
+static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
 {
-    TAPState *s;
-    int fd, vnet_hdr;
-    char ifname[128];
+    int fd;
+    char ifname[128] = {0,};
+    const char *setup_script;
 
-    if (ifname1 != NULL)
-        pstrcpy(ifname, sizeof(ifname), ifname1);
-    else
-        ifname[0] = '\0';
-    vnet_hdr = 0;
-    TFR(fd = tap_open(ifname, sizeof(ifname), &vnet_hdr));
-    if (fd < 0)
-        return NULL;
+    if (qemu_opt_get(opts, "ifname")) {
+        pstrcpy(ifname, sizeof(ifname), qemu_opt_get(opts, "ifname"));
+    }
 
-    if (!setup_script || !strcmp(setup_script, "no"))
-        setup_script = "";
-    if (setup_script[0] != '\0' &&
+    *vnet_hdr = 0;
+    TFR(fd = tap_open(ifname, sizeof(ifname), vnet_hdr));
+    if (fd < 0) {
+        return -1;
+    }
+
+    setup_script = qemu_opt_get(opts, "script");
+    if (setup_script &&
+        setup_script[0] != '\0' &&
+        strcmp(setup_script, "no") != 0 &&
         launch_script(setup_script, ifname, fd)) {
-        return NULL;
+        close(fd);
+        return -1;
     }
-    s = net_tap_fd_init(vlan, model, name, fd, vnet_hdr);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "ifname=%s,script=%s,downscript=%s",
-             ifname, setup_script, down_script);
-    if (down_script && strcmp(down_script, "no")) {
-        snprintf(s->down_script, sizeof(s->down_script), "%s", down_script);
-        snprintf(s->down_script_arg, sizeof(s->down_script_arg), "%s", ifname);
-    }
-    return s;
+
+    qemu_opt_set(opts, "ifname", ifname);
+
+    return fd;
 }
 
 #endif /* !_WIN32 */
@@ -2698,10 +2693,9 @@ static int net_init_tap(QemuOpts *opts,
                         VLANState *vlan)
 {
     TAPState *s;
+    int fd, vnet_hdr;
 
     if (qemu_opt_get(opts, "fd")) {
-        int fd;
-
         if (qemu_opt_get(opts, "ifname") ||
             qemu_opt_get(opts, "script") ||
             qemu_opt_get(opts, "downscript")) {
@@ -2716,10 +2710,31 @@ static int net_init_tap(QemuOpts *opts,
 
         fcntl(fd, F_SETFL, O_NONBLOCK);
 
-        s = net_tap_fd_init(vlan, "tap", name, fd, tap_probe_vnet_hdr(fd));
-        if (!s) {
-            close(fd);
+        vnet_hdr = tap_probe_vnet_hdr(fd);
+    } else {
+        if (!qemu_opt_get(opts, "script")) {
+            qemu_opt_set(opts, "script", DEFAULT_NETWORK_SCRIPT);
         }
+
+        if (!qemu_opt_get(opts, "downscript")) {
+            qemu_opt_set(opts, "downscript", DEFAULT_NETWORK_DOWN_SCRIPT);
+        }
+
+        fd = net_tap_init(opts, &vnet_hdr);
+    }
+
+    s = net_tap_fd_init(vlan, "tap", name, fd, vnet_hdr);
+    if (!s) {
+        close(fd);
+        return -1;
+    }
+
+    if (tap_set_sndbuf(s, opts) < 0) {
+        return -1;
+    }
+
+    if (qemu_opt_get(opts, "fd")) {
+        snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     } else {
         const char *ifname, *script, *downscript;
 
@@ -2727,22 +2742,14 @@ static int net_init_tap(QemuOpts *opts,
         script     = qemu_opt_get(opts, "script");
         downscript = qemu_opt_get(opts, "downscript");
 
-        if (!script) {
-            script = DEFAULT_NETWORK_SCRIPT;
+        snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+                 "ifname=%s,script=%s,downscript=%s",
+                 ifname, script, downscript);
+
+        if (strcmp(downscript, "no") != 0) {
+            snprintf(s->down_script, sizeof(s->down_script), "%s", downscript);
+            snprintf(s->down_script_arg, sizeof(s->down_script_arg), "%s", ifname);
         }
-        if (!downscript) {
-            downscript = DEFAULT_NETWORK_DOWN_SCRIPT;
-        }
-
-        s = net_tap_init(vlan, "tap", name, ifname, script, downscript);
-    }
-
-    if (!s) {
-        return -1;
-    }
-
-    if (tap_set_sndbuf(s, opts) < 0) {
-        return -1;
     }
 
     if (vlan) {
