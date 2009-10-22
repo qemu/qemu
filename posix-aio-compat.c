@@ -413,36 +413,25 @@ static int qemu_paio_error(struct qemu_paiocb *aiocb)
     return ret;
 }
 
-static void posix_aio_read(void *opaque)
+static int posix_aio_process_queue(void *opaque)
 {
     PosixAioState *s = opaque;
     struct qemu_paiocb *acb, **pacb;
     int ret;
-    ssize_t len;
-
-    /* read all bytes from signal pipe */
-    for (;;) {
-        char bytes[16];
-
-        len = read(s->rfd, bytes, sizeof(bytes));
-        if (len == -1 && errno == EINTR)
-            continue; /* try again */
-        if (len == sizeof(bytes))
-            continue; /* more to read */
-        break;
-    }
+    int result = 0;
 
     for(;;) {
         pacb = &s->first_aio;
         for(;;) {
             acb = *pacb;
             if (!acb)
-                goto the_end;
+                return result;
             ret = qemu_paio_error(acb);
             if (ret == ECANCELED) {
                 /* remove the request */
                 *pacb = acb->next;
                 qemu_aio_release(acb);
+                result = 1;
             } else if (ret != EINPROGRESS) {
                 /* end of aio */
                 if (ret == 0) {
@@ -459,13 +448,35 @@ static void posix_aio_read(void *opaque)
                 /* call the callback */
                 acb->common.cb(acb->common.opaque, ret);
                 qemu_aio_release(acb);
+                result = 1;
                 break;
             } else {
                 pacb = &acb->next;
             }
         }
     }
- the_end: ;
+
+    return result;
+}
+
+static void posix_aio_read(void *opaque)
+{
+    PosixAioState *s = opaque;
+    ssize_t len;
+
+    /* read all bytes from signal pipe */
+    for (;;) {
+        char bytes[16];
+
+        len = read(s->rfd, bytes, sizeof(bytes));
+        if (len == -1 && errno == EINTR)
+            continue; /* try again */
+        if (len == sizeof(bytes))
+            continue; /* more to read */
+        break;
+    }
+
+    posix_aio_process_queue(s);
 }
 
 static int posix_aio_flush(void *opaque)
