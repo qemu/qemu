@@ -93,6 +93,10 @@ typedef struct QEMUBH QEMUBH;
 
 typedef void QEMUBHFunc(void *opaque);
 
+void async_context_push(void);
+void async_context_pop(void);
+int get_async_context_id(void);
+
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule(QEMUBH *bh);
 /* Bottom halfs that are scheduled from a bottom half handler are instantly

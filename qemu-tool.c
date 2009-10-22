@@ -43,6 +43,19 @@ void monitor_print_filename(Monitor *mon, const char *filename)
 {
 }
 
+void async_context_push(void)
+{
+}
+
+void async_context_pop(void)
+{
+}
+
+int get_async_context_id(void)
+{
+    return 0;
+}
+
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;

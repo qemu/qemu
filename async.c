@@ -23,6 +23,94 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-aio.h"
+
+/*
+ * An AsyncContext protects the callbacks of AIO requests and Bottom Halves
+ * against interfering with each other. A typical example is qcow2 that accepts
+ * asynchronous requests, but relies for manipulation of its metadata on
+ * synchronous bdrv_read/write that doesn't trigger any callbacks.
+ *
+ * However, these functions are often emulated using AIO which means that AIO
+ * callbacks must be run - but at the same time we must not run callbacks of
+ * other requests as they might start to modify metadata and corrupt the
+ * internal state of the caller of bdrv_read/write.
+ *
+ * To achieve the desired semantics we switch into a new AsyncContext.
+ * Callbacks must only be run if they belong to the current AsyncContext.
+ * Otherwise they need to be queued until their own context is active again.
+ * This is how you can make qemu_aio_wait() wait only for your own callbacks.
+ *
+ * The AsyncContexts form a stack. When you leave a AsyncContexts, you always
+ * return to the old ("parent") context.
+ */
+struct AsyncContext {
+    /* Consecutive number of the AsyncContext (position in the stack) */
+    int id;
+
+    /* Anchor of the list of Bottom Halves belonging to the context */
+    struct QEMUBH *first_bh;
+
+    /* Link to parent context */
+    struct AsyncContext *parent;
+};
+
+/* The currently active AsyncContext */
+static struct AsyncContext *async_context = &(struct AsyncContext) { 0 };
+
+/*
+ * Enter a new AsyncContext. Already scheduled Bottom Halves and AIO callbacks
+ * won't be called until this context is left again.
+ */
+void async_context_push(void)
+{
+    struct AsyncContext *new = qemu_mallocz(sizeof(*new));
+    new->parent = async_context;
+    new->id = async_context->id + 1;
+    async_context = new;
+}
+
+/* Run queued AIO completions and destroy Bottom Half */
+static void bh_run_aio_completions(void *opaque)
+{
+    QEMUBH **bh = opaque;
+    qemu_bh_delete(*bh);
+    qemu_free(bh);
+    qemu_aio_process_queue();
+}
+/*
+ * Leave the currently active AsyncContext. All Bottom Halves belonging to the
+ * old context are executed before changing the context.
+ */
+void async_context_pop(void)
+{
+    struct AsyncContext *old = async_context;
+    QEMUBH **bh;
+
+    /* Flush the bottom halves, we don't want to lose them */
+    while (qemu_bh_poll());
+
+    /* Switch back to the parent context */
+    async_context = async_context->parent;
+    qemu_free(old);
+
+    if (async_context == NULL) {
+        abort();
+    }
+
+    /* Schedule BH to run any queued AIO completions as soon as possible */
+    bh = qemu_malloc(sizeof(*bh));
+    *bh = qemu_bh_new(bh_run_aio_completions, bh);
+    qemu_bh_schedule(*bh);
+}
+
+/*
+ * Returns the ID of the currently active AsyncContext
+ */
+int get_async_context_id(void)
+{
+    return async_context->id;
+}
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
@@ -36,16 +124,14 @@ struct QEMUBH {
     QEMUBH *next;
 };
 
-static QEMUBH *first_bh = NULL;
-
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
     bh = qemu_mallocz(sizeof(QEMUBH));
     bh->cb = cb;
     bh->opaque = opaque;
-    bh->next = first_bh;
-    first_bh = bh;
+    bh->next = async_context->first_bh;
+    async_context->first_bh = bh;
     return bh;
 }
 
@@ -55,7 +141,7 @@ int qemu_bh_poll(void)
     int ret;
 
     ret = 0;
-    for (bh = first_bh; bh; bh = bh->next) {
+    for (bh = async_context->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             bh->scheduled = 0;
             if (!bh->idle)
@@ -66,7 +152,7 @@ int qemu_bh_poll(void)
     }
 
     /* remove deleted bhs */
-    bhp = &first_bh;
+    bhp = &async_context->first_bh;
     while (*bhp) {
         bh = *bhp;
         if (bh->deleted) {
@@ -112,7 +198,7 @@ void qemu_bh_update_timeout(int *timeout)
 {
     QEMUBH *bh;
 
-    for (bh = first_bh; bh; bh = bh->next) {
+    for (bh = async_context->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             if (bh->idle) {
                 /* idle bottom halves will be polled at least
