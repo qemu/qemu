@@ -500,6 +500,18 @@ extern const VMStateDescription vmstate_i2c_slave;
     .offset     = vmstate_offset_value(_state, _field, i2c_slave),   \
 }
 
+#define vmstate_offset_macaddr(_state, _field)                       \
+    vmstate_offset_array(_state, _field.a, uint8_t,                \
+                         sizeof(typeof_field(_state, _field)))
+
+#define VMSTATE_MACADDR(_field, _state) {                            \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(MACAddr),                                   \
+    .info       = &vmstate_info_uint8,                               \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = vmstate_offset_macaddr(_state, _field),            \
+}
+
 /* _f : field name
    _f_n : num of elements field_name
    _n : num of elements
