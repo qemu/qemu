@@ -651,6 +651,8 @@ typedef struct CPUX86State {
     target_ulong fmask;
     target_ulong kernelgsbase;
 #endif
+    uint64_t system_time_msr;
+    uint64_t wall_clock_msr;
 
     uint64_t tsc;
 
