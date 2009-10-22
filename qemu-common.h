@@ -105,6 +105,7 @@ void qemu_bh_schedule_idle(QEMUBH *bh);
 void qemu_bh_cancel(QEMUBH *bh);
 void qemu_bh_delete(QEMUBH *bh);
 int qemu_bh_poll(void);
+void qemu_bh_update_timeout(int *timeout);
 
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
