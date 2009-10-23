@@ -878,11 +878,9 @@ fi
 case "$cpu" in
   mips|mipsel)
     cpu="mips"
-    tcg_interpreter="yes"
   ;;
   mips64|mips64el)
     cpu="mips64"
-    tcg_interpreter="yes"
   ;;
 esac
 
@@ -1905,11 +1903,14 @@ echo >> $config_host_mak
 echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
 
 case "$cpu" in
-  i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|mips|mips64|ppc|ppc64|s390|sparc|sparc64)
+  i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|ppc|ppc64|s390|sparc|sparc64)
     ARCH=$cpu
   ;;
   armv4b|armv4l)
     ARCH=arm
+  ;;
+  mips*)
+    ARCH=mips
   ;;
   *)
     if test "$tcg_interpreter" = "yes" ; then
