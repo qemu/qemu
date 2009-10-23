@@ -722,6 +722,10 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
+#ifdef TCG_TARGET_HAS_rot_i32
+    case INDEX_op_rotl_i32:
+    case INDEX_op_rotr_i32:
+#endif
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
@@ -816,7 +820,10 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_divu_i32:
     case INDEX_op_rem_i32:
     case INDEX_op_remu_i32:
-        TODO();
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_ri32(s, const_args[1], args[1]);
+        tcg_out_ri32(s, const_args[2], args[2]);
         break;
 #else
     case INDEX_op_div2_i32:
@@ -1002,6 +1009,21 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
+#if defined(TCG_TARGET_HAS_bswap32_i32)
+    case INDEX_op_bswap32_i32:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
+#if defined(TCG_TARGET_HAS_bswap16_i32)
+    case INDEX_op_bswap16_i32:
+        tcg_dump_ops(s, stderr);
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
     case INDEX_op_end:
         TODO();
         break;

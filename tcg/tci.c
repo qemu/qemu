@@ -503,10 +503,28 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
 #ifdef TCG_TARGET_HAS_div_i32
         case INDEX_op_div_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            tci_write_reg32(t0, (int32_t)t1 / (int32_t)t2);
+            break;
         case INDEX_op_divu_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            tci_write_reg32(t0, t1 / t2);
+            break;
         case INDEX_op_rem_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            tci_write_reg32(t0, (int32_t)t1 % (int32_t)t2);
+            break;
         case INDEX_op_remu_i32:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            tci_write_reg32(t0, t1 % t2);
             break;
 #else
         case INDEX_op_div2_i32:
@@ -553,8 +571,16 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
 #ifdef TCG_TARGET_HAS_rot_i32
         case INDEX_op_rotl_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            tci_write_reg32(t0, (t1 << t2) | (t1 >> (32 - t2)));
+            break;
         case INDEX_op_rotr_i32:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            tci_write_reg32(t0, (t1 >> t2) | (t1 << (32 - t2)));
             break;
 #endif
         case INDEX_op_brcond_i32:
@@ -640,12 +666,16 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
 #ifdef TCG_TARGET_HAS_bswap16_i32
         case INDEX_op_bswap16_i32:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_r16(&tb_ptr);
+            tci_write_reg32(t0, bswap16(t1));
             break;
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i32
         case INDEX_op_bswap32_i32:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_r32(&tb_ptr);
+            tci_write_reg32(t0, bswap32(t1));
             break;
 #endif
 #ifdef TCG_TARGET_HAS_not_i32
