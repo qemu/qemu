@@ -2529,7 +2529,7 @@ done # for target in $targets
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
-    DIRS="tests tests/cris slirp audio block pc-bios/optionrom"
+    DIRS="tests tests/cris slirp audio block net pc-bios/optionrom"
     DIRS="$DIRS roms/pcbios roms/seabios roms/vgabios"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"

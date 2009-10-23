@@ -86,6 +86,10 @@ block-nested-$(CONFIG_CURL) += curl.o
 
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
+net-obj-y = net.o
+net-nested-y = queue.o
+net-obj-y += $(addprefix net/, $(net-nested-y))
+
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of
@@ -93,6 +97,7 @@ block-obj-y +=  $(addprefix block/, $(block-nested-y))
 # CPUs and machines.
 
 obj-y = $(block-obj-y)
+obj-y += $(net-obj-y)
 obj-y += readline.o console.o
 
 obj-y += tcg-runtime.o host-utils.o
@@ -121,7 +126,6 @@ obj-$(CONFIG_SD) += sd.o
 obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 obj-y += bt-hci-csr.o
 obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
-obj-y += net.o net-queue.o
 obj-y += qemu-char.o aio.o net-checksum.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
@@ -220,7 +224,7 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
-	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d
+	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser; do \
@@ -404,4 +408,4 @@ tarbin:
 	$(mandir)/man8/qemu-nbd.8
 
 # Include automatically generated dependency files
--include $(wildcard *.d audio/*.d slirp/*.d block/*.d)
+-include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d)
