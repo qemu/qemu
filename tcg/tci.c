@@ -206,9 +206,9 @@ static uint16_t tci_read_r16(uint8_t **tb_ptr)
 }
 
 /* Read indexed register (16 bit signed) from bytecode. */
-static uint16_t tci_read_r16s(uint8_t **tb_ptr)
+static int16_t tci_read_r16s(uint8_t **tb_ptr)
 {
-    uint16_t value = tci_read_reg16s(**tb_ptr);
+    int16_t value = tci_read_reg16s(**tb_ptr);
     *tb_ptr += 1;
     return value;
 }
