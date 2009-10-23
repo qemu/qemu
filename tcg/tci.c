@@ -549,7 +549,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             t1 = tci_read_ri32(&tb_ptr);
             t2 = tci_read_ri32(&tb_ptr);
-            tci_write_reg32(t0, (t1 >> t2) | (t1 & (1UL << 31)));
+            tci_write_reg32(t0, ((int32_t)t1 >> t2));
             break;
 #ifdef TCG_TARGET_HAS_rot_i32
         case INDEX_op_rotl_i32:
@@ -794,7 +794,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             t1 = tci_read_ri64(&tb_ptr);
             t2 = tci_read_ri64(&tb_ptr);
-            tci_write_reg64(t0, (t1 >> t2) | (t1 & (1ULL << 63)));
+            tci_write_reg64(t0, ((int64_t)t1 >> t2));
             break;
 #ifdef TCG_TARGET_HAS_rot_i64
         case INDEX_op_rotl_i64:
