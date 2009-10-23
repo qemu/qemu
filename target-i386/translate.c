@@ -6573,23 +6573,36 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = dflag + OT_WORD;
             modrm = ldub_code(s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
-            gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+            gen_ldst_modrm(s,modrm, ot, OR_TMP0, 0);
             gen_extu(ot, cpu_T[0]);
-            label1 = gen_new_label();
-            tcg_gen_movi_tl(cpu_cc_dst, 0);
             t0 = tcg_temp_local_new();
             tcg_gen_mov_tl(t0, cpu_T[0]);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, label1);
-            if (b & 1) {
-                gen_helper_bsr(cpu_T[0], t0);
+            if ((b & 1) && (prefixes & PREFIX_REPZ) &&
+                (s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
+                switch(ot) {
+                case OT_WORD: gen_helper_lzcnt(cpu_T[0], t0,
+                    tcg_const_i32(16)); break;
+                case OT_LONG: gen_helper_lzcnt(cpu_T[0], t0,
+                    tcg_const_i32(32)); break;
+                case OT_QUAD: gen_helper_lzcnt(cpu_T[0], t0,
+                    tcg_const_i32(64)); break;
+                }
+                gen_op_mov_reg_T0(ot, reg);
             } else {
-                gen_helper_bsf(cpu_T[0], t0);
+                label1 = gen_new_label();
+                tcg_gen_movi_tl(cpu_cc_dst, 0);
+                tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, label1);
+                if (b & 1) {
+                    gen_helper_bsr(cpu_T[0], t0);
+                } else {
+                    gen_helper_bsf(cpu_T[0], t0);
+                }
+                gen_op_mov_reg_T0(ot, reg);
+                tcg_gen_movi_tl(cpu_cc_dst, 1);
+                gen_set_label(label1);
+                tcg_gen_discard_tl(cpu_cc_src);
+                s->cc_op = CC_OP_LOGICB + ot;
             }
-            gen_op_mov_reg_T0(ot, reg);
-            tcg_gen_movi_tl(cpu_cc_dst, 1);
-            gen_set_label(label1);
-            tcg_gen_discard_tl(cpu_cc_src);
-            s->cc_op = CC_OP_LOGICB + ot;
             tcg_temp_free(t0);
         }
         break;

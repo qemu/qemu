@@ -5479,11 +5479,14 @@ target_ulong helper_bsf(target_ulong t0)
     return count;
 }
 
-target_ulong helper_bsr(target_ulong t0)
+target_ulong helper_lzcnt(target_ulong t0, int wordsize)
 {
     int count;
     target_ulong res, mask;
-    
+
+    if (wordsize > 0 && t0 == 0) {
+        return wordsize;
+    }
     res = t0;
     count = TARGET_LONG_BITS - 1;
     mask = (target_ulong)1 << (TARGET_LONG_BITS - 1);
@@ -5491,9 +5494,16 @@ target_ulong helper_bsr(target_ulong t0)
         count--;
         res <<= 1;
     }
+    if (wordsize > 0) {
+        return wordsize - 1 - count;
+    }
     return count;
 }
 
+target_ulong helper_bsr(target_ulong t0)
+{
+	return helper_lzcnt(t0, 0);
+}
 
 static int compute_all_eflags(void)
 {
