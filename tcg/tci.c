@@ -50,6 +50,10 @@ struct CPUX86State *env;
 #error Target support missing, please fix!
 #endif
 
+#ifdef CONFIG_SOFTMMU
+uint8_t * tci_tb_ptr;
+#endif
+
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
 
 static tcg_target_ulong tci_read_reg(uint32_t index)
@@ -380,6 +384,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
 
     for (;;) {
+#ifdef CONFIG_SOFTMMU
+        tci_tb_ptr=tb_ptr;
+#endif
         uint8_t opc = *(uint8_t *)tb_ptr++;
         tcg_target_ulong t0;
         tcg_target_ulong t1;
