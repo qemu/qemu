@@ -409,9 +409,9 @@ static const VMStateDescription vmstate_intctl = {
     }
 };
 
-static void slavio_intctl_reset(void *opaque)
+static void slavio_intctl_reset(DeviceState *d)
 {
-    SLAVIO_INTCTLState *s = opaque;
+    SLAVIO_INTCTLState *s = container_of(d, SLAVIO_INTCTLState, busdev.qdev);
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -446,9 +446,9 @@ static int slavio_intctl_init1(SysBusDevice *dev)
         s->slaves[i].cpu = i;
         s->slaves[i].master = s;
     }
-    vmstate_register(-1, &vmstate_intctl, s);
-    qemu_register_reset(slavio_intctl_reset, s);
-    slavio_intctl_reset(s);
+
+    slavio_intctl_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -456,6 +456,8 @@ static SysBusDeviceInfo slavio_intctl_info = {
     .init = slavio_intctl_init1,
     .qdev.name  = "slavio_intctl",
     .qdev.size  = sizeof(SLAVIO_INTCTLState),
+    .qdev.vmsd  = &vmstate_intctl,
+    .qdev.reset = slavio_intctl_reset,
 };
 
 static void slavio_intctl_register_devices(void)
