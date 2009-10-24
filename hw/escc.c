@@ -113,6 +113,7 @@ typedef struct ChannelState {
     int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
     int disabled;
     int clock;
+    uint32_t vmstate_dummy;
 } ChannelState;
 
 struct SerialState {
@@ -326,9 +327,10 @@ static void escc_reset_chn(ChannelState *s)
     clear_queue(s);
 }
 
-static void escc_reset(void *opaque)
+static void escc_reset(DeviceState *d)
 {
-    SerialState *s = opaque;
+    SerialState *s = container_of(d, SerialState, busdev.qdev);
+
     escc_reset_chn(&s->chn[0]);
     escc_reset_chn(&s->chn[1]);
 }
@@ -547,7 +549,7 @@ static void escc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
                 escc_reset_chn(&serial->chn[1]);
                 return;
             case MINTR_RST_ALL:
-                escc_reset(serial);
+                escc_reset(&serial->busdev.qdev);
                 return;
             }
             break;
@@ -666,64 +668,37 @@ static CPUWriteMemoryFunc * const escc_mem_write[3] = {
     NULL,
 };
 
-static void escc_save_chn(QEMUFile *f, ChannelState *s)
-{
-    uint32_t tmp = 0;
-
-    qemu_put_be32s(f, &tmp); /* unused, was IRQ.  */
-    qemu_put_be32s(f, &s->reg);
-    qemu_put_be32s(f, &s->rxint);
-    qemu_put_be32s(f, &s->txint);
-    qemu_put_be32s(f, &s->rxint_under_svc);
-    qemu_put_be32s(f, &s->txint_under_svc);
-    qemu_put_8s(f, &s->rx);
-    qemu_put_8s(f, &s->tx);
-    qemu_put_buffer(f, s->wregs, SERIAL_REGS);
-    qemu_put_buffer(f, s->rregs, SERIAL_REGS);
-}
-
-static void escc_save(QEMUFile *f, void *opaque)
-{
-    SerialState *s = opaque;
-
-    escc_save_chn(f, &s->chn[0]);
-    escc_save_chn(f, &s->chn[1]);
-}
-
-static int escc_load_chn(QEMUFile *f, ChannelState *s, int version_id)
-{
-    uint32_t tmp;
-
-    if (version_id > 2)
-        return -EINVAL;
-
-    qemu_get_be32s(f, &tmp); /* unused */
-    qemu_get_be32s(f, &s->reg);
-    qemu_get_be32s(f, &s->rxint);
-    qemu_get_be32s(f, &s->txint);
-    if (version_id >= 2) {
-        qemu_get_be32s(f, &s->rxint_under_svc);
-        qemu_get_be32s(f, &s->txint_under_svc);
+static const VMStateDescription vmstate_escc_chn = {
+    .name ="escc_chn",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(vmstate_dummy, ChannelState),
+        VMSTATE_UINT32(reg, ChannelState),
+        VMSTATE_UINT32(rxint, ChannelState),
+        VMSTATE_UINT32(txint, ChannelState),
+        VMSTATE_UINT32(rxint_under_svc, ChannelState),
+        VMSTATE_UINT32(txint_under_svc, ChannelState),
+        VMSTATE_UINT8(rx, ChannelState),
+        VMSTATE_UINT8(tx, ChannelState),
+        VMSTATE_BUFFER(wregs, ChannelState),
+        VMSTATE_BUFFER(rregs, ChannelState),
+        VMSTATE_END_OF_LIST()
     }
-    qemu_get_8s(f, &s->rx);
-    qemu_get_8s(f, &s->tx);
-    qemu_get_buffer(f, s->wregs, SERIAL_REGS);
-    qemu_get_buffer(f, s->rregs, SERIAL_REGS);
-    return 0;
-}
+};
 
-static int escc_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SerialState *s = opaque;
-    int ret;
-
-    ret = escc_load_chn(f, &s->chn[0], version_id);
-    if (ret != 0)
-        return ret;
-    ret = escc_load_chn(f, &s->chn[1], version_id);
-    return ret;
-
-}
+static const VMStateDescription vmstate_escc = {
+    .name ="escc",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_STRUCT_ARRAY(chn, SerialState, 2, 2, vmstate_escc_chn,
+                             ChannelState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
               CharDriverState *chrA, CharDriverState *chrB,
@@ -942,9 +917,8 @@ static int escc_init1(SysBusDevice *dev)
     if (s->chn[1].type == kbd) {
         qemu_add_kbd_event_handler(sunkbd_event, &s->chn[1]);
     }
-    register_savevm("escc", -1, 2, escc_save, escc_load, s);
-    qemu_register_reset(escc_reset, s);
-    escc_reset(s);
+    escc_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -952,6 +926,8 @@ static SysBusDeviceInfo escc_info = {
     .init = escc_init1,
     .qdev.name  = "escc",
     .qdev.size  = sizeof(SerialState),
+    .qdev.vmsd  = &vmstate_escc,
+    .qdev.reset = escc_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("frequency", SerialState, frequency,   0),
         DEFINE_PROP_UINT32("it_shift",  SerialState, it_shift,    0),
