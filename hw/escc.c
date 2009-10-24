@@ -38,6 +38,10 @@
 //#define DEBUG_MOUSE
 
 /*
+ * Chipset docs:
+ * "Z80C30/Z85C30/Z80230/Z85230/Z85233 SCC/ESCC User Manual",
+ * http://www.zilog.com/docs/serial/scc_escc_um.pdf
+ *
  * On Sparc32 this is the serial port, mouse and keyboard part of chip STP2001
  * (Slave I/O), also produced as NCR89C105. See
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR89C105.txt
