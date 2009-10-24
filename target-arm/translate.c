@@ -4680,18 +4680,12 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         else
                             gen_neon_narrow_satu(size - 1, tmp, cpu_V0);
                     }
-                    if (pass == 0) {
-                        if (size != 3) {
-                            dead_tmp(tmp2);
-                        }
-                        tmp2 = tmp;
-                    } else {
-                        neon_store_reg(rd, 0, tmp2);
-                        neon_store_reg(rd, 1, tmp);
-                    }
+                    neon_store_reg(rd, pass, tmp);
                 } /* for pass */
                 if (size == 3) {
                     tcg_temp_free_i64(tmp64);
+                } else {
+                    dead_tmp(tmp2);
                 }
             } else if (op == 10) {
                 /* VSHLL */
