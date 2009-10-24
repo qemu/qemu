@@ -214,9 +214,9 @@ static CPUWriteMemoryFunc * const dma_mem_write[3] = {
     dma_mem_writel,
 };
 
-static void dma_reset(void *opaque)
+static void dma_reset(DeviceState *d)
 {
-    DMAState *s = opaque;
+    DMAState *s = container_of(d, DMAState, busdev.qdev);
 
     memset(s->dmaregs, 0, DMA_SIZE);
     s->dmaregs[0] = DMA_VER;
@@ -243,11 +243,10 @@ static int sparc32_dma_init1(SysBusDevice *dev)
     dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s);
     sysbus_init_mmio(dev, DMA_SIZE, dma_io_memory);
 
-    vmstate_register(-1, &vmstate_dma, s);
-    qemu_register_reset(dma_reset, s);
-
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
     qdev_init_gpio_out(&dev->qdev, &s->dev_reset, 1);
+    dma_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -255,6 +254,8 @@ static SysBusDeviceInfo sparc32_dma_info = {
     .init = sparc32_dma_init1,
     .qdev.name  = "sparc32_dma",
     .qdev.size  = sizeof(DMAState),
+    .qdev.vmsd  = &vmstate_dma,
+    .qdev.reset = dma_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_PTR("iommu_opaque", DMAState, iommu),
         DEFINE_PROP_END_OF_LIST(),
