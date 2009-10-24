@@ -4096,7 +4096,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
     int pairwise;
     int u;
     int n;
-    uint32_t imm;
+    uint32_t imm, mask;
     TCGv tmp, tmp2, tmp3, tmp4, tmp5;
     TCGv_i64 tmp64;
 
@@ -4624,31 +4624,35 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             switch (size) {
                             case 0:
                                 if (op == 4)
-                                    imm = 0xff >> -shift;
+                                    mask = 0xff >> -shift;
                                 else
-                                    imm = (uint8_t)(0xff << shift);
-                                imm |= imm << 8;
-                                imm |= imm << 16;
+                                    mask = (uint8_t)(0xff << shift);
+                                mask |= mask << 8;
+                                mask |= mask << 16;
                                 break;
                             case 1:
                                 if (op == 4)
-                                    imm = 0xffff >> -shift;
+                                    mask = 0xffff >> -shift;
                                 else
-                                    imm = (uint16_t)(0xffff << shift);
-                                imm |= imm << 16;
+                                    mask = (uint16_t)(0xffff << shift);
+                                mask |= mask << 16;
                                 break;
                             case 2:
-                                if (op == 4)
-                                    imm = 0xffffffffu >> -shift;
-                                else
-                                    imm = 0xffffffffu << shift;
+                                if (shift < -31 || shift > 31) {
+                                    mask = 0;
+                                } else {
+                                    if (op == 4)
+                                        mask = 0xffffffffu >> -shift;
+                                    else
+                                        mask = 0xffffffffu << shift;
+                                }
                                 break;
                             default:
                                 abort();
                             }
                             tmp2 = neon_load_reg(rd, pass);
-                            tcg_gen_andi_i32(tmp, tmp, imm);
-                            tcg_gen_andi_i32(tmp2, tmp2, ~imm);
+                            tcg_gen_andi_i32(tmp, tmp, mask);
+                            tcg_gen_andi_i32(tmp2, tmp2, ~mask);
                             tcg_gen_or_i32(tmp, tmp, tmp2);
                             dead_tmp(tmp2);
                         }
