@@ -37,6 +37,10 @@
  * MCC (version 0, implementation 0) SS-600MP
  * EMC (version 0, implementation 1) SS-10
  * SMC (version 0, implementation 2) SS-10SX and SS-20
+ *
+ * Chipset docs:
+ * "Sun-4M System Architecture (revision 2.0) by Chuck Narad", 950-1373-01,
+ * http://mediacast.sun.com/users/Barton808/media/Sun4M_SystemArchitecture_edited2.pdf
  */
 
 #define ECC_MCC        0x00000000
