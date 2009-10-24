@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
 #include "sysemu.h"
 #include "sysbus.h"
 
@@ -88,9 +87,9 @@ static void slavio_misc_update_irq(void *opaque)
     }
 }
 
-static void slavio_misc_reset(void *opaque)
+static void slavio_misc_reset(DeviceState *d)
 {
-    MiscState *s = opaque;
+    MiscState *s = container_of(d, MiscState, busdev.qdev);
 
     // Diagnostic and system control registers not cleared in reset
     s->config = s->aux1 = s->aux2 = s->mctrl = 0;
@@ -477,9 +476,8 @@ static int slavio_misc_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
 
-    vmstate_register(-1, &vmstate_misc, s);
-    qemu_register_reset(slavio_misc_reset, s);
-    slavio_misc_reset(s);
+    slavio_misc_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -487,6 +485,8 @@ static SysBusDeviceInfo slavio_misc_info = {
     .init = slavio_misc_init1,
     .qdev.name  = "slavio_misc",
     .qdev.size  = sizeof(MiscState),
+    .qdev.vmsd  = &vmstate_misc,
+    .qdev.reset  = slavio_misc_reset,
 };
 
 static SysBusDeviceInfo apc_info = {
