@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "sun4m.h"
-#include "console.h"
 #include "sysbus.h"
 
 //#define DEBUG_IRQ
@@ -96,34 +93,20 @@ static CPUWriteMemoryFunc * const sbi_mem_write[3] = {
     sbi_mem_writel,
 };
 
-static void sbi_save(QEMUFile *f, void *opaque)
-{
-    SBIState *s = opaque;
-    unsigned int i;
-
-    for (i = 0; i < MAX_CPUS; i++) {
-        qemu_put_be32s(f, &s->intreg_pending[i]);
+static const VMStateDescription vmstate_sbi = {
+    .name ="sbi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(intreg_pending, SBIState, MAX_CPUS),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-static int sbi_load(QEMUFile *f, void *opaque, int version_id)
+static void sbi_reset(DeviceState *d)
 {
-    SBIState *s = opaque;
-    unsigned int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    for (i = 0; i < MAX_CPUS; i++) {
-        qemu_get_be32s(f, &s->intreg_pending[i]);
-    }
-
-    return 0;
-}
-
-static void sbi_reset(void *opaque)
-{
-    SBIState *s = opaque;
+    SBIState *s = container_of(d, SBIState, busdev.qdev);
     unsigned int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -145,9 +128,8 @@ static int sbi_init1(SysBusDevice *dev)
     sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s);
     sysbus_init_mmio(dev, SBI_SIZE, sbi_io_memory);
 
-    register_savevm("sbi", -1, 1, sbi_save, sbi_load, s);
-    qemu_register_reset(sbi_reset, s);
-    sbi_reset(s);
+    sbi_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -155,6 +137,8 @@ static SysBusDeviceInfo sbi_info = {
     .init = sbi_init1,
     .qdev.name  = "sbi",
     .qdev.size  = sizeof(SBIState),
+    .qdev.vmsd  = &vmstate_sbi,
+    .qdev.reset = sbi_reset,
 };
 
 static void sbi_register_devices(void)
