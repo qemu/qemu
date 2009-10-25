@@ -232,15 +232,16 @@ static void serial_update_parameters(SerialState *s)
     if (s->divider == 0)
         return;
 
+    /* start bit */
     frame_size = 1;
     if (s->lcr & 0x08) {
+        frame_size++;
         if (s->lcr & 0x10)
             parity = 'E';
         else
             parity = 'O';
     } else {
             parity = 'N';
-            frame_size = 0;
     }
     if (s->lcr & 0x04)
         stop_bits = 2;
@@ -668,6 +669,8 @@ static int serial_post_load(void *opaque, int version_id)
 {
     SerialState *s = opaque;
 
+    serial_update_parameters(s);
+
     /* Initialize fcr via setter to perform essential side-effects */
     serial_ioport_write(s, s->base + (0x02 << s->it_shift), s->fcr_vmstate);
     return 0;
@@ -705,13 +708,12 @@ static void serial_reset(void *opaque)
     s->lcr = 0;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
-    /* Default to 9600 baud, no parity, one stop bit */
     s->divider = 0x0C;
     s->mcr = UART_MCR_OUT2;
     s->scr = 0;
     s->tsr_retry = 0;
-    s->char_transmit_time = (get_ticks_per_sec() / 9600) * 9;
     s->poll_msl = 0;
+    serial_update_parameters(s);
 
     fifo_clear(s,RECV_FIFO);
     fifo_clear(s,XMIT_FIFO);
@@ -742,9 +744,11 @@ static void serial_init_core(SerialState *s)
                           serial_event, s);
 }
 
+/* Change the main reference oscillator frequency. */
 void serial_frequency(SerialState *s, uint32_t frequency)
 {
     s->baudbase = frequency;
+    serial_update_parameters(s);
 }
 
 /* If fd is zero, it means that the serial device uses the console */
