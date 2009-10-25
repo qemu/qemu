@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
 #include "console.h"
 #include "pixel_ops.h"
 #include "sysbus.h"
