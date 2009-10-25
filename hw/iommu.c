@@ -340,9 +340,9 @@ static const VMStateDescription vmstate_iommu = {
     }
 };
 
-static void iommu_reset(void *opaque)
+static void iommu_reset(DeviceState *d)
 {
-    IOMMUState *s = opaque;
+    IOMMUState *s = container_of(d, IOMMUState, busdev.qdev);
 
     memset(s->regs, 0, IOMMU_NREGS * 4);
     s->iostart = 0;
@@ -363,9 +363,8 @@ static int iommu_init1(SysBusDevice *dev)
     io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s);
     sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
 
-    vmstate_register(-1, &vmstate_iommu, s);
-    qemu_register_reset(iommu_reset, s);
-    iommu_reset(s);
+    iommu_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -373,6 +372,8 @@ static SysBusDeviceInfo iommu_info = {
     .init = iommu_init1,
     .qdev.name  = "iommu",
     .qdev.size  = sizeof(IOMMUState),
+    .qdev.vmsd  = &vmstate_iommu,
+    .qdev.reset = iommu_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_HEX32("version", IOMMUState, version, 0),
         DEFINE_PROP_END_OF_LIST(),

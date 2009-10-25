@@ -618,10 +618,8 @@ static int m48t59_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void m48t59_reset(void *opaque)
+static void m48t59_reset_common(m48t59_t *NVRAM)
 {
-    m48t59_t *NVRAM = opaque;
-
     NVRAM->addr = 0;
     NVRAM->lock = 0;
     if (NVRAM->alrm_timer != NULL)
@@ -629,6 +627,22 @@ static void m48t59_reset(void *opaque)
 
     if (NVRAM->wd_timer != NULL)
         qemu_del_timer(NVRAM->wd_timer);
+}
+
+static void m48t59_reset_isa(DeviceState *d)
+{
+    M48t59ISAState *isa = container_of(d, M48t59ISAState, busdev.qdev);
+    m48t59_t *NVRAM = &isa->state;
+
+    m48t59_reset_common(NVRAM);
+}
+
+static void m48t59_reset_sysbus(DeviceState *d)
+{
+    M48t59SysBusState *sys = container_of(d, M48t59SysBusState, busdev.qdev);
+    m48t59_t *NVRAM = &sys->state;
+
+    m48t59_reset_common(NVRAM);
 }
 
 /* Initialisation routine */
@@ -691,7 +705,6 @@ static void m48t59_init_common(m48t59_t *s)
     }
     qemu_get_timedate(&s->alarm, 0);
 
-    qemu_register_reset(m48t59_reset, s);
     register_savevm("m48t59", -1, 1, m48t59_save, m48t59_load, s);
 }
 
@@ -725,6 +738,7 @@ static ISADeviceInfo m48t59_isa_info = {
     .init = m48t59_init_isa1,
     .qdev.name = "m48t59_isa",
     .qdev.size = sizeof(M48t59ISAState),
+    .qdev.reset = m48t59_reset_isa,
     .qdev.no_user = 1,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("size",    M48t59ISAState, state.size,    -1),
@@ -738,6 +752,7 @@ static SysBusDeviceInfo m48t59_info = {
     .init = m48t59_init1,
     .qdev.name  = "m48t59",
     .qdev.size = sizeof(M48t59SysBusState),
+    .qdev.reset = m48t59_reset_sysbus,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("size",    M48t59SysBusState, state.size,    -1),
         DEFINE_PROP_UINT32("type",    M48t59SysBusState, state.type,    -1),

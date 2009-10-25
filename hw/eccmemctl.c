@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
 #include "sysbus.h"
 
 //#define DEBUG_ECC
@@ -38,6 +37,10 @@
  * MCC (version 0, implementation 0) SS-600MP
  * EMC (version 0, implementation 1) SS-10
  * SMC (version 0, implementation 2) SS-10SX and SS-20
+ *
+ * Chipset docs:
+ * "Sun-4M System Architecture (revision 2.0) by Chuck Narad", 950-1373-01,
+ * http://mediacast.sun.com/users/Barton808/media/Sun4M_SystemArchitecture_edited2.pdf
  */
 
 #define ECC_MCC        0x00000000
@@ -276,9 +279,9 @@ static const VMStateDescription vmstate_ecc = {
     }
 };
 
-static void ecc_reset(void *opaque)
+static void ecc_reset(DeviceState *d)
 {
-    ECCState *s = opaque;
+    ECCState *s = container_of(d, ECCState, busdev.qdev);
 
     if (s->version == ECC_MCC)
         s->regs[ECC_MER] &= ECC_MER_REU;
@@ -310,9 +313,8 @@ static int ecc_init1(SysBusDevice *dev)
                                                ecc_diag_mem_write, s);
         sysbus_init_mmio(dev, ECC_DIAG_SIZE, ecc_io_memory);
     }
-    vmstate_register(-1, &vmstate_ecc, s);
-    qemu_register_reset(ecc_reset, s);
-    ecc_reset(s);
+    ecc_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -320,6 +322,8 @@ static SysBusDeviceInfo ecc_info = {
     .init = ecc_init1,
     .qdev.name  = "eccmemctl",
     .qdev.size  = sizeof(ECCState),
+    .qdev.vmsd  = &vmstate_ecc,
+    .qdev.reset = ecc_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_HEX32("version", ECCState, version, -1),
         DEFINE_PROP_END_OF_LIST(),

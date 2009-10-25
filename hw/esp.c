@@ -417,9 +417,9 @@ static void handle_ti(ESPState *s)
     }
 }
 
-static void esp_reset(void *opaque)
+static void esp_reset(DeviceState *d)
 {
-    ESPState *s = opaque;
+    ESPState *s = container_of(d, ESPState, busdev.qdev);
 
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
@@ -526,7 +526,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             break;
         case CMD_RESET:
             DPRINTF("Chip reset (%2.2x)\n", val);
-            esp_reset(s);
+            esp_reset(&s->busdev.qdev);
             break;
         case CMD_BUSRESET:
             DPRINTF("Bus reset (%2.2x)\n", val);
@@ -665,10 +665,7 @@ static int esp_init1(SysBusDevice *dev)
     esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s);
     sysbus_init_mmio(dev, ESP_REGS << s->it_shift, esp_io_memory);
 
-    esp_reset(s);
-
-    vmstate_register(-1, &vmstate_esp, s);
-    qemu_register_reset(esp_reset, s);
+    esp_reset(&s->busdev.qdev);
 
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
@@ -677,9 +674,20 @@ static int esp_init1(SysBusDevice *dev)
     return 0;
 }
 
+static SysBusDeviceInfo esp_info = {
+    .init = esp_init1,
+    .qdev.name  = "esp",
+    .qdev.size  = sizeof(ESPState),
+    .qdev.vmsd  = &vmstate_esp,
+    .qdev.reset = esp_reset,
+    .qdev.props = (Property[]) {
+        {.name = NULL}
+    }
+};
+
 static void esp_register_devices(void)
 {
-    sysbus_register_dev("esp", sizeof(ESPState), esp_init1);
+    sysbus_register_withprop(&esp_info);
 }
 
 device_init(esp_register_devices)

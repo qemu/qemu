@@ -362,9 +362,9 @@ static const VMStateDescription vmstate_slavio_timer = {
     }
 };
 
-static void slavio_timer_reset(void *opaque)
+static void slavio_timer_reset(DeviceState *d)
 {
-    SLAVIO_TIMERState *s = opaque;
+    SLAVIO_TIMERState *s = container_of(d, SLAVIO_TIMERState, busdev.qdev);
     unsigned int i;
     CPUTimerState *curr_timer;
 
@@ -411,9 +411,8 @@ static int slavio_timer_init1(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cputimer[i].irq);
     }
 
-    vmstate_register(-1, &vmstate_slavio_timer, s);
-    qemu_register_reset(slavio_timer_reset, s);
-    slavio_timer_reset(s);
+    slavio_timer_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -421,6 +420,8 @@ static SysBusDeviceInfo slavio_timer_info = {
     .init = slavio_timer_init1,
     .qdev.name  = "slavio_timer",
     .qdev.size  = sizeof(SLAVIO_TIMERState),
+    .qdev.vmsd  = &vmstate_slavio_timer,
+    .qdev.reset = slavio_timer_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
         DEFINE_PROP_END_OF_LIST(),

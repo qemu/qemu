@@ -181,9 +181,9 @@ static const VMStateDescription vmstate_sun4c_intctl = {
     }
 };
 
-static void sun4c_intctl_reset(void *opaque)
+static void sun4c_intctl_reset(DeviceState *d)
 {
-    Sun4c_INTCTLState *s = opaque;
+    Sun4c_INTCTLState *s = container_of(d, Sun4c_INTCTLState, busdev.qdev);
 
     s->reg = 1;
     s->pending = 0;
@@ -203,9 +203,9 @@ static int sun4c_intctl_init1(SysBusDevice *dev)
     for (i = 0; i < MAX_PILS; i++) {
         sysbus_init_irq(dev, &s->cpu_irqs[i]);
     }
-    vmstate_register(-1, &vmstate_sun4c_intctl, s);
-    qemu_register_reset(sun4c_intctl_reset, s);
-    sun4c_intctl_reset(s);
+
+    sun4c_intctl_reset(&s->busdev.qdev);
+
     return 0;
 }
 
@@ -213,6 +213,8 @@ static SysBusDeviceInfo sun4c_intctl_info = {
     .init = sun4c_intctl_init1,
     .qdev.name  = "sun4c_intctl",
     .qdev.size  = sizeof(Sun4c_INTCTLState),
+    .qdev.vmsd  = &vmstate_sun4c_intctl,
+    .qdev.reset = sun4c_intctl_reset,
 };
 
 static void sun4c_intctl_register_devices(void)

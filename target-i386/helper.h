@@ -193,6 +193,7 @@ DEF_HELPER_2(fxsave, void, tl, int)
 DEF_HELPER_2(fxrstor, void, tl, int)
 DEF_HELPER_1(bsf, tl, tl)
 DEF_HELPER_1(bsr, tl, tl)
+DEF_HELPER_2(lzcnt, tl, tl, int)
 
 /* MMX/SSE */
 

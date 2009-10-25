@@ -337,9 +337,6 @@ void cpu_tick_set_limit(void *opaque, uint64_t limit)
     ptimer_set_limit(opaque, -limit, 0);
 }
 
-static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
-static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
-
 static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                               uint32_t addr, uint32_t size, int type)
 {
