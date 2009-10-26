@@ -226,9 +226,10 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
     USBBus *bus = usb_bus_from_device(dev);
 
-    monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s\n", indent, "",
-                   bus->busnr, dev->addr,
-                   usb_speed(dev->speed), dev->devname);
+    monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s%s\n",
+                   indent, "", bus->busnr, dev->addr,
+                   usb_speed(dev->speed), dev->devname,
+                   dev->attached ? ", attached" : "");
 }
 
 void usb_info(Monitor *mon)
