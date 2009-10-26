@@ -1005,6 +1005,7 @@ static void action_command(EEPRO100State *s)
         read_cb(s);
         bool bit_el = ((s->tx.command & COMMAND_EL) != 0);
         bool bit_s = ((s->tx.command & COMMAND_S) != 0);
+        bool bit_i = ((s->tx.command & COMMAND_I) != 0);
         s->cu_offset = s->tx.link;
         TRACE(OTHER, logout
             ("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
@@ -1046,7 +1047,7 @@ static void action_command(EEPRO100State *s)
         }
         /* Write new status (success). */
         stw_le_phys(s->cb_address, s->tx.status | ok_status | STATUS_C);
-        if (s->tx.command & COMMAND_I) {
+        if (bit_i) {
             /* CU completed action. */
             eepro100_cx_interrupt(s);
         }
