@@ -75,6 +75,7 @@
 
 #include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
+#include "hw/sysbus.h"          /* sysbus_register_withprop */
 #include "hw/tnetw1130.h"       /* vlynq_tnetw1130_init */
 
 #include "target-mips/cpu.h"    /* do_interrupt */
@@ -358,6 +359,7 @@ typedef struct {
 
 /* Emulation registers of the AR7. */
 typedef struct {
+    SysBusDevice busdev;
     CPUState *cpu_env;
     QEMUTimer *wd_timer;
     qemu_irq *primary_irq;
@@ -365,9 +367,9 @@ typedef struct {
     NICState nic[2];
     /* Address of phy device (0...31). Only one phy device is supported.
        The internal phy has address 31. */
-    unsigned phyaddr;
+    uint8_t phyaddr;
     /* VLYNQ index for TNETW1130. Set to >1 to disable WLAN. */
-    unsigned vlynq_tnetw1130;
+    uint8_t vlynq_tnetw1130;
     CharDriverState *gpio_display;
     SerialState *serial[2];
     uint8_t *cpmac[2];
@@ -3548,8 +3550,11 @@ static void ar7_save(QEMUFile * f, void *opaque)
     qemu_put_buffer(f, (uint8_t *) & av, sizeof(av));
 }
 
-static void ar7_reset(void *opaque)
+static void ar7_reset(DeviceState *d)
 {
+    /* TODO: fix code. */
+    ar7_status_t *s = container_of(d, ar7_status_t, busdev.qdev);
+    (void)s;
     //~ CPUState *env = opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
@@ -3625,7 +3630,8 @@ static void ar7_init(CPUState * env)
     //~ }
 #define ar7_instance 0
 #define ar7_version 0
-    qemu_register_reset(ar7_reset, env);
+    /* TODO: fix code. */
+    //~ qemu_register_reset(ar7_reset, env);
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
@@ -3771,14 +3777,16 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void mips_ar7_common_init (ram_addr_t machine_ram_size,
-                    uint16_t flash_manufacturer, uint16_t flash_type,
-                    int flash_size,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
+static void ar7_common_init(ram_addr_t machine_ram_size,
+                            uint16_t flash_manufacturer, uint16_t flash_type,
+                            int flash_size,
+                            const char *kernel_filename,
+                            const char *kernel_cmdline,
+                            const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
     CPUState *env;
+    DeviceState *dev;
     DriveInfo *dinfo;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
@@ -3808,7 +3816,13 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     }
 
     qemu_register_reset(main_cpu_reset, env);
+    //~ ar7_reset(&s->busdev.qdev);
     ar7_mips_init(env);
+
+    dev = qdev_create(NULL, "mips ar7");
+    qdev_prop_set_uint8(dev, "phy addr", 31);
+    qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
+    qdev_init_nofail(dev);
 
     loaderparams.ram_size = machine_ram_size;
     loaderparams.kernel_filename = kernel_filename;
@@ -3917,14 +3931,22 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     ar7_init(env);
 }
 
+static int ar7_sysbus_device_init(SysBusDevice *sysbusdev)
+{
+    /* TODO */
+    ar7_status_t *s = FROM_SYSBUS(ar7_status_t, sysbusdev);
+    (void)s;
+    return 0;
+}
+
 static void mips_ar7_init(ram_addr_t machine_ram_size,
                     const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 static void ar7_amd_init(ram_addr_t machine_ram_size,
@@ -3932,10 +3954,9 @@ static void ar7_amd_init(ram_addr_t machine_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_AMD, AM29LV160DB, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_AMD, AM29LV160DB,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 static void mips_tnetd7200_init(ram_addr_t machine_ram_size,
@@ -3943,9 +3964,9 @@ static void mips_tnetd7200_init(ram_addr_t machine_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
@@ -3954,9 +3975,9 @@ static void mips_tnetd7300_init(ram_addr_t machine_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3972,10 +3993,9 @@ static void zyxel_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 8 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_INTEL, I28F160C3B, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 #else
@@ -3991,10 +4011,9 @@ static void fbox4_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_MACRONIX, MX29LV320CT, 4 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
+                    4 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 static void fbox8_init(ram_addr_t machine_ram_size,
@@ -4008,10 +4027,9 @@ static void fbox8_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_MACRONIX, MX29LV640BT, 8 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
+                    8 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 static void sinus_basic_3_init(ram_addr_t machine_ram_size,
@@ -4025,10 +4043,9 @@ static void sinus_basic_3_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_004A, ES29LV160DB, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_004A, ES29LV160DB,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 static void sinus_basic_se_init(ram_addr_t machine_ram_size,
@@ -4042,10 +4059,9 @@ static void sinus_basic_se_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_INTEL, I28F160C3B, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
 }
 
 static void sinus_se_init(ram_addr_t machine_ram_size,
@@ -4059,10 +4075,9 @@ static void sinus_se_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_INTEL, I28F160C3B, 2 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
+                    2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
     /* Emulate external phy 0. */
     ar7.phyaddr = 0;
 }
@@ -4078,10 +4093,9 @@ static void speedport_init(ram_addr_t machine_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init(machine_ram_size,
-                         MANUFACTURER_MACRONIX, MX29LV320CT, 4 * MiB,
-                         kernel_filename, kernel_cmdline, initrd_filename,
-                         cpu_model);
+    ar7_common_init(machine_ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
+                    4 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model);
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
@@ -4161,6 +4175,54 @@ static QEMUMachine ar7_machines[] = {
 #endif
 };
 
+static const VMStateDescription vmstate_ar7 = {
+    .name ="ar7",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(adsl, ar7_register_t, ARRAY_SIZE(av.adsl)),
+        VMSTATE_UINT32_ARRAY(bbif, ar7_register_t, ARRAY_SIZE(av.bbif)),
+        VMSTATE_UINT32_ARRAY(atmsar, ar7_register_t, ARRAY_SIZE(av.atmsar)),
+        VMSTATE_UINT32_ARRAY(usbslave, ar7_register_t, ARRAY_SIZE(av.usbslave)),
+        VMSTATE_UINT32_ARRAY(vlynq1region0, ar7_register_t, ARRAY_SIZE(av.vlynq1region0)),
+        VMSTATE_UINT32_ARRAY(vlynq1region1, ar7_register_t, ARRAY_SIZE(av.vlynq1region1)),
+        VMSTATE_UINT8_ARRAY(cpmac0, ar7_register_t, ARRAY_SIZE(av.cpmac0)),
+        VMSTATE_UINT8_ARRAY(cpmac1, ar7_register_t, ARRAY_SIZE(av.cpmac1)),
+        VMSTATE_UINT8_ARRAY(emif, ar7_register_t, ARRAY_SIZE(av.emif)),
+        VMSTATE_UINT8_ARRAY(gpio, ar7_register_t, ARRAY_SIZE(av.gpio)),
+        VMSTATE_UINT8_ARRAY(clock_control, ar7_register_t, ARRAY_SIZE(av.clock_control)),
+        VMSTATE_UINT32_ARRAY(watchdog, ar7_register_t, ARRAY_SIZE(av.watchdog)),
+        VMSTATE_UINT8_ARRAY(timer0, ar7_register_t, ARRAY_SIZE(av.timer0)),
+        VMSTATE_UINT8_ARRAY(timer1, ar7_register_t, ARRAY_SIZE(av.timer1)),
+        VMSTATE_UINT32_ARRAY(uart0, ar7_register_t, ARRAY_SIZE(av.uart0)),
+        VMSTATE_UINT32_ARRAY(uart1, ar7_register_t, ARRAY_SIZE(av.uart1)),
+        VMSTATE_UINT32_ARRAY(usb, ar7_register_t, ARRAY_SIZE(av.usb)),
+        //~ VMSTATE_UINT32_ARRAY(mc_dma[0], ar7_register_t, ARRAY_SIZE(av.mc_dma) * ARRAY_SIZE(av.mc_dma[0])),
+        VMSTATE_UINT32_ARRAY(reset_control, ar7_register_t, ARRAY_SIZE(av.reset_control)),
+        VMSTATE_UINT8_ARRAY(vlynq0, ar7_register_t, ARRAY_SIZE(av.vlynq0)),
+        VMSTATE_UINT8_ARRAY(vlynq1, ar7_register_t, ARRAY_SIZE(av.vlynq1)),
+        VMSTATE_UINT8_ARRAY(dcl, ar7_register_t, ARRAY_SIZE(av.dcl)),
+        VMSTATE_UINT8_ARRAY(mdio, ar7_register_t, ARRAY_SIZE(av.mdio)),
+        VMSTATE_UINT32_ARRAY(wdt, ar7_register_t, ARRAY_SIZE(av.wdt)),
+        VMSTATE_UINT8_ARRAY(intc, ar7_register_t, ARRAY_SIZE(av.intc)),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo ar7_info = {
+    .init = ar7_sysbus_device_init,
+    .qdev.name  = "mips ar7",
+    .qdev.size  = sizeof(ar7_status_t),
+    .qdev.vmsd  = &vmstate_ar7,
+    .qdev.reset = ar7_reset,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT8("phy addr", ar7_status_t, phyaddr, 31),
+        DEFINE_PROP_UINT8("vlynq tnetw1130", ar7_status_t, vlynq_tnetw1130, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void ar7_machine_init(void)
 {
     size_t i;
@@ -4169,6 +4231,12 @@ static void ar7_machine_init(void)
     }
 }
 
+static void ar7_device_init(void)
+{
+    sysbus_register_withprop(&ar7_info);
+}
+
 machine_init(ar7_machine_init);
+device_init(ar7_device_init);
 
 /* eof */
