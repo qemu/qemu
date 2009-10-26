@@ -27,6 +27,7 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
+#include "loader.h"
 
 int isa_vga_init(void)
 {
@@ -46,5 +47,7 @@ int isa_vga_init(void)
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                  VGA_RAM_SIZE, s->vram_offset);
 #endif
+    /* ROM BIOS */
+    rom_add_vga(VGABIOS_FILENAME);
     return 0;
 }

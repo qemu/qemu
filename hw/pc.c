@@ -47,8 +47,6 @@
 //#define DEBUG_MULTIBOOT
 
 #define BIOS_FILENAME "bios.bin"
-#define VGABIOS_FILENAME "vgabios.bin"
-#define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 
 #define PC_MAX_BIOS_SIZE (4 * 1024 * 1024)
 
@@ -1050,7 +1048,6 @@ static void pc_init1(ram_addr_t ram_size,
     IsaIrqState *isa_irq_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
-    int using_vga = cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled;
     void *fw_cfg;
 
     if (ram_size >= 0xe0000000 ) {
@@ -1140,15 +1137,6 @@ static void pc_init1(ram_addr_t ram_size,
     rom_enable_driver_roms = 1;
     option_rom_offset = qemu_ram_alloc(PC_ROM_SIZE);
     cpu_register_physical_memory(PC_ROM_MIN_VGA, PC_ROM_SIZE, option_rom_offset);
-
-    if (using_vga) {
-        /* VGA BIOS load */
-        if (cirrus_vga_enabled) {
-            rom_add_vga(VGABIOS_CIRRUS_FILENAME);
-        } else {
-            rom_add_vga(VGABIOS_FILENAME);
-        }
-    }
 
     /* map all the bios at the top of memory */
     cpu_register_physical_memory((uint32_t)(-bios_size),

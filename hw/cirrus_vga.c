@@ -32,6 +32,7 @@
 #include "console.h"
 #include "vga_int.h"
 #include "kvm.h"
+#include "loader.h"
 
 /*
  * TODO:
@@ -3162,6 +3163,7 @@ void isa_cirrus_vga_init(void)
                                      s->vga.screen_dump, s->vga.text_update,
                                      &s->vga);
     vmstate_register(0, &vmstate_cirrus_vga, s);
+    rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
 }
 
@@ -3245,7 +3247,9 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
                           PCI_ADDRESS_SPACE_MEM, cirrus_pci_mmio_map);
      }
      vmstate_register(0, &vmstate_pci_cirrus_vga, d);
-     /* XXX: ROM BIOS */
+
+     /* ROM BIOS */
+     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
      return 0;
 }
 

@@ -223,6 +223,8 @@ extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];
 
 #define VGA_RAM_SIZE (8192 * 1024)
+#define VGABIOS_FILENAME "vgabios.bin"
+#define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 
 extern CPUReadMemoryFunc * const vga_mem_read[3];
 extern CPUWriteMemoryFunc * const vga_mem_write[3];

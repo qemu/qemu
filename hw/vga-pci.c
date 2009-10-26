@@ -28,6 +28,7 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
+#include "loader.h"
 
 typedef struct PCIVGAState {
     PCIDevice dev;
@@ -105,6 +106,9 @@ static int pci_vga_initfn(PCIDevice *dev)
         pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
                          PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
      }
+
+     /* ROM BIOS */
+     rom_add_vga(VGABIOS_FILENAME);
      return 0;
 }
 
