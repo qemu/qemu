@@ -2527,31 +2527,10 @@ static void usb_msd_password_cb(void *opaque, int err)
         dev->info->handle_destroy(dev);
 }
 
-static struct {
-    const char *name;
-    const char *qdev;
-} usbdevs[] = {
-    {
-        .name = "mouse",
-        .qdev = "QEMU USB Mouse",
-    },{
-        .name = "tablet",
-        .qdev = "QEMU USB Tablet",
-    },{
-        .name = "keyboard",
-        .qdev = "QEMU USB Keyboard",
-    },{
-        .name = "wacom-tablet",
-        .qdev = "QEMU PenPartner Tablet",
-    }
-};
-
 static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
-    USBBus *bus = usb_bus_find(-1 /* any */);
     USBDevice *dev = NULL;
-    int i;
 
     if (!usb_enabled)
         return -1;
@@ -2560,14 +2539,6 @@ static int usb_device_add(const char *devname, int is_hotplug)
     dev = usbdevice_create(devname);
     if (dev)
         goto done;
-
-    /* simple devices which don't need extra care */
-    for (i = 0; i < ARRAY_SIZE(usbdevs); i++) {
-        if (strcmp(devname, usbdevs[i].name) != 0)
-            continue;
-        dev = usb_create_simple(bus, usbdevs[i].qdev);
-        goto done;
-    }
 
     /* the other ones */
     if (strstart(devname, "host:", &p)) {

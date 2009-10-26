@@ -882,6 +882,7 @@ static struct USBDeviceInfo hid_info[] = {
     {
         .qdev.name      = "QEMU USB Tablet",
         .qdev.alias     = "usb-tablet",
+        .usbdevice_name = "tablet",
         .qdev.size      = sizeof(USBHIDState),
         .init           = usb_tablet_initfn,
         .handle_packet  = usb_generic_handle_packet,
@@ -892,6 +893,7 @@ static struct USBDeviceInfo hid_info[] = {
     },{
         .qdev.name      = "QEMU USB Mouse",
         .qdev.alias     = "usb-mouse",
+        .usbdevice_name = "mouse",
         .qdev.size      = sizeof(USBHIDState),
         .init           = usb_mouse_initfn,
         .handle_packet  = usb_generic_handle_packet,
@@ -902,6 +904,7 @@ static struct USBDeviceInfo hid_info[] = {
     },{
         .qdev.name      = "QEMU USB Keyboard",
         .qdev.alias     = "usb-kbd",
+        .usbdevice_name = "keyboard",
         .qdev.size      = sizeof(USBHIDState),
         .init           = usb_keyboard_initfn,
         .handle_packet  = usb_generic_handle_packet,
