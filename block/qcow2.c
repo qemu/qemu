@@ -168,8 +168,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
 
     if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION)
         goto fail;
-    if (header.size <= 1 ||
-        header.cluster_bits < MIN_CLUSTER_BITS ||
+    if (header.cluster_bits < MIN_CLUSTER_BITS ||
         header.cluster_bits > MAX_CLUSTER_BITS)
         goto fail;
     if (header.crypt_method > QCOW_CRYPT_AES)
@@ -202,13 +201,15 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (s->l1_size < s->l1_vm_state_index)
         goto fail;
     s->l1_table_offset = header.l1_table_offset;
-    s->l1_table = qemu_mallocz(
-        align_offset(s->l1_size * sizeof(uint64_t), 512));
-    if (bdrv_pread(s->hd, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
-        s->l1_size * sizeof(uint64_t))
-        goto fail;
-    for(i = 0;i < s->l1_size; i++) {
-        be64_to_cpus(&s->l1_table[i]);
+    if (s->l1_size > 0) {
+        s->l1_table = qemu_mallocz(
+            align_offset(s->l1_size * sizeof(uint64_t), 512));
+        if (bdrv_pread(s->hd, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
+            s->l1_size * sizeof(uint64_t))
+            goto fail;
+        for(i = 0;i < s->l1_size; i++) {
+            be64_to_cpus(&s->l1_table[i]);
+        }
     }
     /* alloc L2 cache */
     s->l2_cache = qemu_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
