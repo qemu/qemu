@@ -45,8 +45,9 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
     pstrcpy(dev->devname, sizeof(dev->devname), qdev->info->name);
     dev->info = info;
+    dev->auto_attach = 1;
     rc = dev->info->init(dev);
-    if (rc == 0)
+    if (rc == 0 && dev->auto_attach)
         usb_device_attach(dev);
     return rc;
 }
