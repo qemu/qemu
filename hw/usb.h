@@ -256,10 +256,6 @@ void usb_host_info(Monitor *mon);
 /* usb-hid.c */
 void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *));
 
-/* usb-msd.c */
-USBDevice *usb_msd_init(const char *filename);
-BlockDriverState *usb_msd_get_bdrv(USBDevice *dev);
-
 /* usb-net.c */
 USBDevice *usb_net_init(NICInfo *nd);
 

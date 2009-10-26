@@ -2517,16 +2517,6 @@ static void smp_parse(const char *optarg)
 /***********************************************************/
 /* USB devices */
 
-static void usb_msd_password_cb(void *opaque, int err)
-{
-    USBDevice *dev = opaque;
-
-    if (!err)
-        usb_device_attach(dev);
-    else
-        dev->info->handle_destroy(dev);
-}
-
 static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
@@ -2543,21 +2533,6 @@ static int usb_device_add(const char *devname, int is_hotplug)
     /* the other ones */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-    } else if (strstart(devname, "disk:", &p)) {
-        BlockDriverState *bs;
-
-        dev = usb_msd_init(p);
-        if (!dev)
-            return -1;
-        bs = usb_msd_get_bdrv(dev);
-        if (bdrv_key_required(bs)) {
-            autostart = 0;
-            if (is_hotplug) {
-                monitor_read_bdrv_key_start(cur_mon, bs, usb_msd_password_cb,
-                                            dev);
-                return 0;
-            }
-        }
     } else if (strstart(devname, "net:", &p)) {
         QemuOpts *opts;
         int idx;
