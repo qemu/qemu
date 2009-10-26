@@ -1007,33 +1007,68 @@ static void tty_serial_init(int fd, int speed,
 #endif
     tcgetattr (fd, &tty);
 
-#define MARGIN 1.1
-    if (speed <= 50 * MARGIN)
-        spd = B50;
-    else if (speed <= 75 * MARGIN)
-        spd = B75;
-    else if (speed <= 300 * MARGIN)
-        spd = B300;
-    else if (speed <= 600 * MARGIN)
-        spd = B600;
-    else if (speed <= 1200 * MARGIN)
-        spd = B1200;
-    else if (speed <= 2400 * MARGIN)
-        spd = B2400;
-    else if (speed <= 4800 * MARGIN)
-        spd = B4800;
-    else if (speed <= 9600 * MARGIN)
-        spd = B9600;
-    else if (speed <= 19200 * MARGIN)
-        spd = B19200;
-    else if (speed <= 38400 * MARGIN)
-        spd = B38400;
-    else if (speed <= 57600 * MARGIN)
-        spd = B57600;
-    else if (speed <= 115200 * MARGIN)
+#define check_speed(val) if (speed <= val) { spd = B##val; break; }
+    speed = speed * 10 / 11;
+    do {
+        check_speed(50);
+        check_speed(75);
+        check_speed(110);
+        check_speed(134);
+        check_speed(150);
+        check_speed(200);
+        check_speed(300);
+        check_speed(600);
+        check_speed(1200);
+        check_speed(1800);
+        check_speed(2400);
+        check_speed(4800);
+        check_speed(9600);
+        check_speed(19200);
+        check_speed(38400);
+        /* Non-Posix values follow. They may be unsupported on some systems. */
+        check_speed(57600);
+        check_speed(115200);
+#ifdef B230400
+        check_speed(230400);
+#endif
+#ifdef B460800
+        check_speed(460800);
+#endif
+#ifdef B500000
+        check_speed(500000);
+#endif
+#ifdef B576000
+        check_speed(576000);
+#endif
+#ifdef B921600
+        check_speed(921600);
+#endif
+#ifdef B1000000
+        check_speed(1000000);
+#endif
+#ifdef B1152000
+        check_speed(1152000);
+#endif
+#ifdef B1500000
+        check_speed(1500000);
+#endif
+#ifdef B2000000
+        check_speed(2000000);
+#endif
+#ifdef B2500000
+        check_speed(2500000);
+#endif
+#ifdef B3000000
+        check_speed(3000000);
+#endif
+#ifdef B3500000
+        check_speed(3500000);
+#endif
+#ifdef B4000000
+        check_speed(4000000);
+#endif
         spd = B115200;
-    else
-        spd = B115200;
+    } while (0);
 
     cfsetispeed(&tty, spd);
     cfsetospeed(&tty, spd);
