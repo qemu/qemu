@@ -5535,8 +5535,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
                 tmp3 = neon_load_reg(rm, 1);
                 gen_helper_neon_tbl(tmp3, tmp3, tmp, tmp4, tmp5);
-                dead_tmp(tmp5);
-                dead_tmp(tmp4);
+                tcg_temp_free_i32(tmp5);
+                tcg_temp_free_i32(tmp4);
                 neon_store_reg(rd, 0, tmp2);
                 neon_store_reg(rd, 1, tmp3);
                 dead_tmp(tmp);
