@@ -183,6 +183,10 @@ struct USBDeviceInfo {
      * Returns length or one of the USB_RET_ codes.
      */
     int (*handle_data)(USBDevice *dev, USBPacket *p);
+
+    /* handle legacy -usbdevice command line options */
+    const char *usbdevice_name;
+    USBDevice *(*usbdevice_init)(const char *params);
 };
 
 typedef void (*usb_attachfn)(USBPort *port, USBDevice *dev);
@@ -309,6 +313,7 @@ void usb_qdev_register(USBDeviceInfo *info);
 void usb_qdev_register_many(USBDeviceInfo *info);
 USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
+USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
                        usb_attachfn attach);
 void usb_unregister_port(USBBus *bus, USBPort *port);

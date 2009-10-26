@@ -2556,6 +2556,11 @@ static int usb_device_add(const char *devname, int is_hotplug)
     if (!usb_enabled)
         return -1;
 
+    /* drivers with .usbdevice_name entry in USBDeviceInfo */
+    dev = usbdevice_create(devname);
+    if (dev)
+        goto done;
+
     /* simple devices which don't need extra care */
     for (i = 0; i < ARRAY_SIZE(usbdevs); i++) {
         if (strcmp(devname, usbdevs[i].name) != 0)
