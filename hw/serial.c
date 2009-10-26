@@ -232,15 +232,17 @@ static void serial_update_parameters(SerialState *s)
     if (s->divider == 0)
         return;
 
+    /* Start bit. */
     frame_size = 1;
     if (s->lcr & 0x08) {
+        /* Parity bit. */
+        frame_size++;
         if (s->lcr & 0x10)
             parity = 'E';
         else
             parity = 'O';
     } else {
             parity = 'N';
-            frame_size = 0;
     }
     if (s->lcr & 0x04)
         stop_bits = 2;
@@ -692,12 +694,12 @@ static void serial_reset(void *opaque)
     s->lcr = 0;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
-    /* Default to 9600 baud, no parity, one stop bit */
+    /* Default to 9600 baud, 1 start bit, 8 data bits, 1 stop bit, no parity. */
     s->divider = 0x0C;
     s->mcr = UART_MCR_OUT2;
     s->scr = 0;
     s->tsr_retry = 0;
-    s->char_transmit_time = (get_ticks_per_sec() / 9600) * 9;
+    s->char_transmit_time = (get_ticks_per_sec() / 9600) * 10;
     s->poll_msl = 0;
 
     fifo_clear(s,RECV_FIFO);
