@@ -39,6 +39,9 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
     new_l1_size = s->l1_size;
     if (min_size <= new_l1_size)
         return 0;
+    if (new_l1_size == 0) {
+        new_l1_size = 1;
+    }
     while (min_size > new_l1_size) {
         new_l1_size = (new_l1_size * 3 + 1) / 2;
     }
