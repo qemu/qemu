@@ -2788,6 +2788,9 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         case ARM_VFP_FPEXC:
                             if (IS_USER(s))
                                 return 1;
+                            /* TODO: VFP subarchitecture support.
+                             * For now, keep the EN bit only */
+                            tcg_gen_andi_i32(tmp, tmp, 1 << 30);
                             store_cpu_field(tmp, vfp.xregs[rn]);
                             gen_lookup_tb(s);
                             break;
