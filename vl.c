@@ -2001,6 +2001,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     int index;
     int cache;
     int aio = 0;
+    int ro = 0;
     int bdrv_flags, onerror;
     const char *devaddr;
     DriveInfo *dinfo;
@@ -2032,6 +2033,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     secs  = qemu_opt_get_number(opts, "secs", 0);
 
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
+    ro = qemu_opt_get_bool(opts, "readonly", 0);
 
     file = qemu_opt_get(opts, "file");
     serial = qemu_opt_get(opts, "serial");
@@ -2321,6 +2323,14 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         bdrv_flags |= BDRV_O_NATIVE_AIO;
     } else {
         bdrv_flags &= ~BDRV_O_NATIVE_AIO;
+    }
+
+    if (ro == 1) {
+        if (type == IF_IDE) {
+            fprintf(stderr, "qemu: readonly flag not supported for drive with ide interface\n");
+            return NULL;
+        }
+        (void)bdrv_set_read_only(dinfo->bdrv, 1);
     }
 
     if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {

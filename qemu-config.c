@@ -71,6 +71,9 @@ QemuOptsList qemu_drive_opts = {
             .name = "addr",
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
+        },{
+            .name = "readonly",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },
