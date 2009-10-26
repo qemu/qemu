@@ -1137,6 +1137,7 @@ static void pc_init1(ram_addr_t ram_size,
 
 
 
+    rom_enable_driver_roms = 1;
     option_rom_offset = qemu_ram_alloc(PC_ROM_SIZE);
     cpu_register_physical_memory(PC_ROM_MIN_VGA, PC_ROM_SIZE, option_rom_offset);
 
