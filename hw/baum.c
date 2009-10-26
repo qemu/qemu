@@ -627,9 +627,3 @@ fail_handle:
     free(baum);
     return NULL;
 }
-
-USBDevice *usb_baum_init(void)
-{
-    /* USB Product ID of Super Vario 40 */
-    return usb_serial_init("productid=FE72:braille");
-}

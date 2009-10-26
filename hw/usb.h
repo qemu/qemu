@@ -265,9 +265,6 @@ USBDevice *usb_net_init(NICInfo *nd);
 /* usb-bt.c */
 USBDevice *usb_bt_init(HCIInfo *hci);
 
-/* usb-serial.c */
-USBDevice *usb_serial_init(const char *filename);
-
 /* usb ports of the VM */
 
 #define VM_USB_HUB_SIZE 8

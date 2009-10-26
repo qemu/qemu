@@ -2558,12 +2558,6 @@ static int usb_device_add(const char *devname, int is_hotplug)
                 return 0;
             }
         }
-    } else if (strstart(devname, "serial:", &p)) {
-        dev = usb_serial_init(p);
-#ifdef CONFIG_BRLAPI
-    } else if (!strcmp(devname, "braille")) {
-        dev = usb_baum_init();
-#endif
     } else if (strstart(devname, "net:", &p)) {
         QemuOpts *opts;
         int idx;
