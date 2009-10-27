@@ -2156,7 +2156,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
             fprintf(stderr, "\n");
 	    return NULL;
         }
-        drv = bdrv_find_format(buf);
+        drv = bdrv_find_whitelisted_format(buf);
         if (!drv) {
             fprintf(stderr, "qemu: '%s' invalid format\n", buf);
             return NULL;
@@ -5522,7 +5522,7 @@ int main(int argc, char **argv, char **envp)
     /* init the dynamic translator */
     cpu_exec_init_all(tb_size * 1024 * 1024);
 
-    bdrv_init();
+    bdrv_init_with_whitelist();
 
     /* we always create the cdrom drive, even if no disk is there */
     drive_add(NULL, CDROM_ALIAS);

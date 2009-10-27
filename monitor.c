@@ -596,7 +596,7 @@ static void do_change_block(Monitor *mon, const char *device,
         return;
     }
     if (fmt) {
-        drv = bdrv_find_format(fmt);
+        drv = bdrv_find_whitelisted_format(fmt);
         if (!drv) {
             monitor_printf(mon, "invalid format %s\n", fmt);
             return;

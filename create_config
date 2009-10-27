@@ -26,6 +26,13 @@ case $line in
     done
     echo ""
     ;;
+ CONFIG_BDRV_WHITELIST=*)
+    echo "#define CONFIG_BDRV_WHITELIST \\"
+    for drv in ${line#*=}; do
+      echo "    \"${drv}\",\\"
+    done
+    echo "    NULL"
+    ;;
  CONFIG_*=y) # configuration
     name=${line%=*}
     echo "#define $name 1"
