@@ -1997,6 +1997,7 @@ static ISADeviceInfo isa_fdc_info = {
     .init = isabus_fdc_init1,
     .qdev.name  = "isa-fdc",
     .qdev.size  = sizeof(fdctrl_isabus_t),
+    .qdev.no_user = 1,
     .qdev.vmsd  = &vmstate_fdc,
     .qdev.reset = fdctrl_external_reset_isa,
     .qdev.props = (Property[]) {
