@@ -113,12 +113,7 @@ static void qemu_chr_event(CharDriverState *s, int event)
 static void qemu_chr_reset_bh(void *opaque)
 {
     CharDriverState *s = opaque;
-
-    if (s->initial_reset_issued) {
-        qemu_chr_event(s, CHR_EVENT_OPENED);
-    } else {
-        s->initial_reset_issued = true;
-    }
+    qemu_chr_event(s, CHR_EVENT_OPENED);
     qemu_bh_delete(s->bh);
     s->bh = NULL;
 }
