@@ -188,23 +188,26 @@ static void tap_send_completed(VLANClientState *vc, ssize_t len)
 static void tap_send(void *opaque)
 {
     TAPState *s = opaque;
-    uint8_t *buf = s->buf;
     int size;
 
-    size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
-    if (size <= 0) {
-        return;
-    }
+    do {
+        uint8_t *buf = s->buf;
 
-    if (s->has_vnet_hdr && !s->using_vnet_hdr) {
-        buf  += sizeof(struct virtio_net_hdr);
-        size -= sizeof(struct virtio_net_hdr);
-    }
+        size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
+        if (size <= 0) {
+            break;
+        }
 
-    size = qemu_send_packet_async(s->vc, buf, size, tap_send_completed);
-    if (size == 0) {
-        tap_read_poll(s, 0);
-    }
+        if (s->has_vnet_hdr && !s->using_vnet_hdr) {
+            buf  += sizeof(struct virtio_net_hdr);
+            size -= sizeof(struct virtio_net_hdr);
+        }
+
+        size = qemu_send_packet_async(s->vc, buf, size, tap_send_completed);
+        if (size == 0) {
+            tap_read_poll(s, 0);
+        }
+    } while (size > 0 && qemu_can_send_packet(s->vc));
 }
 
 int tap_has_ufo(VLANClientState *vc)
