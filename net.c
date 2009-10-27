@@ -1378,17 +1378,15 @@ static void tap_send(void *opaque)
     TAPState *s = opaque;
     int size;
 
-    do {
-        size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
-        if (size <= 0) {
-            break;
-        }
+    size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
+    if (size <= 0) {
+        return;
+    }
 
-        size = qemu_send_packet_async(s->vc, s->buf, size, tap_send_completed);
-        if (size == 0) {
-            tap_read_poll(s, 0);
-        }
-    } while (size > 0);
+    size = qemu_send_packet_async(s->vc, s->buf, size, tap_send_completed);
+    if (size == 0) {
+        tap_read_poll(s, 0);
+    }
 }
 
 #ifdef TUNSETSNDBUF
