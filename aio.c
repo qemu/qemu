@@ -33,6 +33,7 @@ struct AioHandler
     IOHandler *io_read;
     IOHandler *io_write;
     AioFlushHandler *io_flush;
+    AioProcessQueue *io_process_queue;
     int deleted;
     void *opaque;
     QLIST_ENTRY(AioHandler) node;
@@ -55,6 +56,7 @@ int qemu_aio_set_fd_handler(int fd,
                             IOHandler *io_read,
                             IOHandler *io_write,
                             AioFlushHandler *io_flush,
+                            AioProcessQueue *io_process_queue,
                             void *opaque)
 {
     AioHandler *node;
@@ -87,6 +89,7 @@ int qemu_aio_set_fd_handler(int fd,
         node->io_read = io_read;
         node->io_write = io_write;
         node->io_flush = io_flush;
+        node->io_process_queue = io_process_queue;
         node->opaque = opaque;
     }
 
@@ -115,11 +118,38 @@ void qemu_aio_flush(void)
     } while (qemu_bh_poll() || ret > 0);
 }
 
+int qemu_aio_process_queue(void)
+{
+    AioHandler *node;
+    int ret = 0;
+
+    walking_handlers = 1;
+
+    QLIST_FOREACH(node, &aio_handlers, node) {
+        if (node->io_process_queue) {
+            if (node->io_process_queue(node->opaque)) {
+                ret = 1;
+            }
+        }
+    }
+
+    walking_handlers = 0;
+
+    return ret;
+}
+
 void qemu_aio_wait(void)
 {
     int ret;
 
     if (qemu_bh_poll())
+        return;
+
+    /*
+     * If there are callbacks left that have been queued, we need to call then.
+     * Return afterwards to avoid waiting needlessly in select().
+     */
+    if (qemu_aio_process_queue())
         return;
 
     do {

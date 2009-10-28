@@ -42,12 +42,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#if defined(__NetBSD__)
-#include <net/if_tap.h>
-#endif
-#ifdef __linux__
-#include <linux/if_tun.h>
-#endif
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <netdb.h>
@@ -96,33 +90,43 @@
 static BlockDriverState *bs_snapshots;
 
 #define SELF_ANNOUNCE_ROUNDS 5
-#define ETH_P_EXPERIMENTAL 0x01F1 /* just a number */
-//#define ETH_P_EXPERIMENTAL 0x0012 /* make it the size of the packet */
-#define EXPERIMENTAL_MAGIC 0xf1f23f4f
 
-static int announce_self_create(uint8_t *buf, 
+#ifndef ETH_P_RARP
+#define ETH_P_RARP 0x0835
+#endif
+#define ARP_HTYPE_ETH 0x0001
+#define ARP_PTYPE_IP 0x0800
+#define ARP_OP_REQUEST_REV 0x3
+
+static int announce_self_create(uint8_t *buf,
 				uint8_t *mac_addr)
 {
-    uint32_t magic = EXPERIMENTAL_MAGIC;
-    uint16_t proto = htons(ETH_P_EXPERIMENTAL);
+    /* Ethernet header. */
+    memset(buf, 0xff, 6);         /* destination MAC addr */
+    memcpy(buf + 6, mac_addr, 6); /* source MAC addr */
+    *(uint16_t *)(buf + 12) = htons(ETH_P_RARP); /* ethertype */
 
-    /* FIXME: should we send a different packet (arp/rarp/ping)? */
+    /* RARP header. */
+    *(uint16_t *)(buf + 14) = htons(ARP_HTYPE_ETH); /* hardware addr space */
+    *(uint16_t *)(buf + 16) = htons(ARP_PTYPE_IP); /* protocol addr space */
+    *(buf + 18) = 6; /* hardware addr length (ethernet) */
+    *(buf + 19) = 4; /* protocol addr length (IPv4) */
+    *(uint16_t *)(buf + 20) = htons(ARP_OP_REQUEST_REV); /* opcode */
+    memcpy(buf + 22, mac_addr, 6); /* source hw addr */
+    memset(buf + 28, 0x00, 4);     /* source protocol addr */
+    memcpy(buf + 32, mac_addr, 6); /* target hw addr */
+    memset(buf + 38, 0x00, 4);     /* target protocol addr */
 
-    memset(buf, 0, 64);
-    memset(buf, 0xff, 6);         /* h_dst */
-    memcpy(buf + 6, mac_addr, 6); /* h_src */
-    memcpy(buf + 12, &proto, 2);  /* h_proto */
-    memcpy(buf + 14, &magic, 4);  /* magic */
+    /* Padding to get up to 60 bytes (ethernet min packet size, minus FCS). */
+    memset(buf + 42, 0x00, 18);
 
-    return 64; /* len */
+    return 60; /* len (FCS will be added by hardware) */
 }
 
 static void qemu_announce_self_once(void *opaque)
 {
     int i, len;
-    VLANState *vlan;
-    VLANClientState *vc;
-    uint8_t buf[256];
+    uint8_t buf[60];
     static int count = SELF_ANNOUNCE_ROUNDS;
     QEMUTimer *timer = *(QEMUTimer **)opaque;
 
@@ -130,13 +134,12 @@ static void qemu_announce_self_once(void *opaque)
         if (!nd_table[i].used)
             continue;
         len = announce_self_create(buf, nd_table[i].macaddr);
-        vlan = nd_table[i].vlan;
-        QTAILQ_FOREACH(vc, &vlan->clients, next) {
-            vc->receive(vc, buf, len);
-        }
+        qemu_send_packet_raw(nd_table[i].vc, buf, len);
     }
-    if (count--) {
-	    qemu_mod_timer(timer, qemu_get_clock(rt_clock) + 100);
+    if (--count) {
+        /* delay 50ms, 150ms, 250ms, ... */
+        qemu_mod_timer(timer, qemu_get_clock(rt_clock) +
+                       50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
     } else {
 	    qemu_del_timer(timer);
 	    qemu_free_timer(timer);
@@ -863,9 +866,29 @@ static int get_uint8_equal(QEMUFile *f, void *pv, size_t size)
 }
 
 const VMStateInfo vmstate_info_uint8_equal = {
-    .name = "int32 equal",
+    .name = "uint8 equal",
     .get  = get_uint8_equal,
     .put  = put_uint8,
+};
+
+/* 16 bit unsigned int int. See that the received value is the same than the one
+   in the field */
+
+static int get_uint16_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint16_t *v = pv;
+    uint16_t v2;
+    qemu_get_be16s(f, &v2);
+
+    if (*v == v2)
+        return 0;
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint16_equal = {
+    .name = "uint16 equal",
+    .get  = get_uint16_equal,
+    .put  = put_uint16,
 };
 
 /* timers  */
@@ -908,6 +931,26 @@ const VMStateInfo vmstate_info_buffer = {
     .name = "buffer",
     .get  = get_buffer,
     .put  = put_buffer,
+};
+
+/* unused buffers: space that was used for some fields that are
+   not usefull anymore */
+
+static int get_unused_buffer(QEMUFile *f, void *pv, size_t size)
+{
+    qemu_fseek(f, size, SEEK_CUR);
+    return 0;
+}
+
+static void put_unused_buffer(QEMUFile *f, void *pv, size_t size)
+{
+    qemu_fseek(f, size, SEEK_CUR);
+}
+
+const VMStateInfo vmstate_info_unused_buffer = {
+    .name = "unused_buffer",
+    .get  = get_unused_buffer,
+    .put  = put_unused_buffer,
 };
 
 typedef struct SaveStateEntry {
@@ -1064,8 +1107,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
 
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
-            } else if (field->flags & VMS_VARRAY) {
-                n_elems = *(size_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_INT32) {
+                n_elems = *(int32_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_UINT16) {
+                n_elems = *(uint16_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
                 base_addr = *(void **)base_addr;
@@ -1111,8 +1156,10 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
-            } else if (field->flags & VMS_VARRAY) {
-                n_elems = *(size_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_INT32) {
+                n_elems = *(int32_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_UINT16) {
+                n_elems = *(uint16_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
                 base_addr = *(void **)base_addr;

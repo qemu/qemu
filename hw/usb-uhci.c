@@ -139,6 +139,7 @@ typedef struct UHCIState {
     /* Active packets */
     UHCIAsync *async_pending;
     UHCIAsync *async_pool;
+    uint8_t num_ports_vmstate;
 } UHCIState;
 
 typedef struct UHCI_TD {
@@ -350,59 +351,46 @@ static void uhci_reset(void *opaque)
     uhci_async_cancel_all(s);
 }
 
-static void uhci_save(QEMUFile *f, void *opaque)
+static void uhci_pre_save(void *opaque)
 {
     UHCIState *s = opaque;
-    uint8_t num_ports = NB_PORTS;
-    int i;
 
     uhci_async_cancel_all(s);
-
-    pci_device_save(&s->dev, f);
-
-    qemu_put_8s(f, &num_ports);
-    for (i = 0; i < num_ports; ++i)
-        qemu_put_be16s(f, &s->ports[i].ctrl);
-    qemu_put_be16s(f, &s->cmd);
-    qemu_put_be16s(f, &s->status);
-    qemu_put_be16s(f, &s->intr);
-    qemu_put_be16s(f, &s->frnum);
-    qemu_put_be32s(f, &s->fl_base_addr);
-    qemu_put_8s(f, &s->sof_timing);
-    qemu_put_8s(f, &s->status2);
-    qemu_put_timer(f, s->frame_timer);
 }
 
-static int uhci_load(QEMUFile *f, void *opaque, int version_id)
-{
-    UHCIState *s = opaque;
-    uint8_t num_ports;
-    int i, ret;
+static const VMStateDescription vmstate_uhci_port = {
+    .name = "uhci port",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16(ctrl, UHCIPort),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    if (version_id > 1)
-        return -EINVAL;
-
-    ret = pci_device_load(&s->dev, f);
-    if (ret < 0)
-        return ret;
-
-    qemu_get_8s(f, &num_ports);
-    if (num_ports != NB_PORTS)
-        return -EINVAL;
-
-    for (i = 0; i < num_ports; ++i)
-        qemu_get_be16s(f, &s->ports[i].ctrl);
-    qemu_get_be16s(f, &s->cmd);
-    qemu_get_be16s(f, &s->status);
-    qemu_get_be16s(f, &s->intr);
-    qemu_get_be16s(f, &s->frnum);
-    qemu_get_be32s(f, &s->fl_base_addr);
-    qemu_get_8s(f, &s->sof_timing);
-    qemu_get_8s(f, &s->status2);
-    qemu_get_timer(f, s->frame_timer);
-
-    return 0;
-}
+static const VMStateDescription vmstate_uhci = {
+    .name = "uhci",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = uhci_pre_save,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, UHCIState),
+        VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState),
+        VMSTATE_STRUCT_ARRAY(ports, UHCIState, NB_PORTS, 1,
+                             vmstate_uhci_port, UHCIPort),
+        VMSTATE_UINT16(cmd, UHCIState),
+        VMSTATE_UINT16(status, UHCIState),
+        VMSTATE_UINT16(intr, UHCIState),
+        VMSTATE_UINT16(frnum, UHCIState),
+        VMSTATE_UINT32(fl_base_addr, UHCIState),
+        VMSTATE_UINT8(sof_timing, UHCIState),
+        VMSTATE_UINT8(status2, UHCIState),
+        VMSTATE_TIMER(frame_timer, UHCIState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
@@ -1088,6 +1076,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
         usb_register_port(&s->bus, &s->ports[i].port, s, i, uhci_attach);
     }
     s->frame_timer = qemu_new_timer(vm_clock, uhci_frame_timer, s);
+    s->num_ports_vmstate = NB_PORTS;
 
     qemu_register_reset(uhci_reset, s);
     uhci_reset(s);
@@ -1097,7 +1086,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
     pci_register_bar(&s->dev, 4, 0x20,
                            PCI_ADDRESS_SPACE_IO, uhci_map);
 
-    register_savevm("uhci", 0, 1, uhci_save, uhci_load, s);
+    vmstate_register(0, &vmstate_uhci, s);
     return 0;
 }
 

@@ -48,6 +48,8 @@ struct qemu_paiocb {
     ssize_t ret;
     int active;
     struct qemu_paiocb *next;
+
+    int async_context_id;
 };
 
 typedef struct PosixAioState {
@@ -413,36 +415,33 @@ static int qemu_paio_error(struct qemu_paiocb *aiocb)
     return ret;
 }
 
-static void posix_aio_read(void *opaque)
+static int posix_aio_process_queue(void *opaque)
 {
     PosixAioState *s = opaque;
     struct qemu_paiocb *acb, **pacb;
     int ret;
-    ssize_t len;
-
-    /* read all bytes from signal pipe */
-    for (;;) {
-        char bytes[16];
-
-        len = read(s->rfd, bytes, sizeof(bytes));
-        if (len == -1 && errno == EINTR)
-            continue; /* try again */
-        if (len == sizeof(bytes))
-            continue; /* more to read */
-        break;
-    }
+    int result = 0;
+    int async_context_id = get_async_context_id();
 
     for(;;) {
         pacb = &s->first_aio;
         for(;;) {
             acb = *pacb;
             if (!acb)
-                goto the_end;
+                return result;
+
+            /* we're only interested in requests in the right context */
+            if (acb->async_context_id != async_context_id) {
+                pacb = &acb->next;
+                continue;
+            }
+
             ret = qemu_paio_error(acb);
             if (ret == ECANCELED) {
                 /* remove the request */
                 *pacb = acb->next;
                 qemu_aio_release(acb);
+                result = 1;
             } else if (ret != EINPROGRESS) {
                 /* end of aio */
                 if (ret == 0) {
@@ -459,13 +458,35 @@ static void posix_aio_read(void *opaque)
                 /* call the callback */
                 acb->common.cb(acb->common.opaque, ret);
                 qemu_aio_release(acb);
+                result = 1;
                 break;
             } else {
                 pacb = &acb->next;
             }
         }
     }
- the_end: ;
+
+    return result;
+}
+
+static void posix_aio_read(void *opaque)
+{
+    PosixAioState *s = opaque;
+    ssize_t len;
+
+    /* read all bytes from signal pipe */
+    for (;;) {
+        char bytes[16];
+
+        len = read(s->rfd, bytes, sizeof(bytes));
+        if (len == -1 && errno == EINTR)
+            continue; /* try again */
+        if (len == sizeof(bytes))
+            continue; /* more to read */
+        break;
+    }
+
+    posix_aio_process_queue(s);
 }
 
 static int posix_aio_flush(void *opaque)
@@ -547,6 +568,8 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
     acb->ev_signo = SIGUSR2;
+    acb->async_context_id = get_async_context_id();
+
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
@@ -613,7 +636,8 @@ void *paio_init(void)
     fcntl(s->rfd, F_SETFL, O_NONBLOCK);
     fcntl(s->wfd, F_SETFL, O_NONBLOCK);
 
-    qemu_aio_set_fd_handler(s->rfd, posix_aio_read, NULL, posix_aio_flush, s);
+    qemu_aio_set_fd_handler(s->rfd, posix_aio_read, NULL, posix_aio_flush,
+        posix_aio_process_queue, s);
 
     ret = pthread_attr_init(&attr);
     if (ret)

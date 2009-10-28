@@ -361,26 +361,17 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
     dev->gpio_out[n] = pin;
 }
 
-VLANClientState *qdev_get_vlan_client(DeviceState *dev,
-                                      NetCanReceive *can_receive,
-                                      NetReceive *receive,
-                                      NetReceiveIOV *receive_iov,
-                                      NetCleanup *cleanup,
-                                      void *opaque)
+void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
 {
-    NICInfo *nd = dev->nd;
-    assert(nd);
-    nd->vc = qemu_new_vlan_client(nd->vlan, nd->netdev,
-                                  nd->model, nd->name,
-                                  can_receive, receive, receive_iov,
-                                  cleanup, opaque);
-    return nd->vc;
-}
-
-
-void qdev_get_macaddr(DeviceState *dev, uint8_t *macaddr)
-{
-    memcpy(macaddr, dev->nd->macaddr, 6);
+    qdev_prop_set_macaddr(dev, "mac", nd->macaddr);
+    if (nd->vlan)
+        qdev_prop_set_vlan(dev, "vlan", nd->vlan);
+    if (nd->netdev)
+        qdev_prop_set_netdev(dev, "netdev", nd->netdev);
+    if (nd->nvectors != NIC_NVECTORS_UNSPECIFIED &&
+        qdev_prop_exists(dev, "vectors")) {
+        qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
+    }
 }
 
 static int next_block_unit[IF_COUNT];

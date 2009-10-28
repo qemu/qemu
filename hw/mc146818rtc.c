@@ -76,16 +76,15 @@ struct RTCState {
     int64_t next_periodic_time;
     /* second update */
     int64_t next_second_time;
-#ifdef TARGET_I386
     uint32_t irq_coalesced;
     uint32_t period;
     QEMUTimer *coalesced_timer;
-#endif
     QEMUTimer *second_timer;
     QEMUTimer *second_timer2;
 };
 
-static void rtc_irq_raise(qemu_irq irq) {
+static void rtc_irq_raise(qemu_irq irq)
+{
     /* When HPET is operating in legacy mode, RTC interrupts are disabled
      * We block qemu_irq_raise, but not qemu_irq_lower, in case legacy
      * mode is established while interrupt is raised. We want it to
@@ -503,78 +502,46 @@ static void rtc_set_date_from_host(RTCState *s)
     rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
 }
 
-static void rtc_save(QEMUFile *f, void *opaque)
+static int rtc_post_load(void *opaque, int version_id)
 {
-    RTCState *s = opaque;
-
-    qemu_put_buffer(f, s->cmos_data, 128);
-    qemu_put_8s(f, &s->cmos_index);
-
-    qemu_put_be32(f, s->current_tm.tm_sec);
-    qemu_put_be32(f, s->current_tm.tm_min);
-    qemu_put_be32(f, s->current_tm.tm_hour);
-    qemu_put_be32(f, s->current_tm.tm_wday);
-    qemu_put_be32(f, s->current_tm.tm_mday);
-    qemu_put_be32(f, s->current_tm.tm_mon);
-    qemu_put_be32(f, s->current_tm.tm_year);
-
-    qemu_put_timer(f, s->periodic_timer);
-    qemu_put_be64(f, s->next_periodic_time);
-
-    qemu_put_be64(f, s->next_second_time);
-    qemu_put_timer(f, s->second_timer);
-    qemu_put_timer(f, s->second_timer2);
-}
-
-static int rtc_load(QEMUFile *f, void *opaque, int version_id)
-{
-    RTCState *s = opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_buffer(f, s->cmos_data, 128);
-    qemu_get_8s(f, &s->cmos_index);
-
-    s->current_tm.tm_sec=qemu_get_be32(f);
-    s->current_tm.tm_min=qemu_get_be32(f);
-    s->current_tm.tm_hour=qemu_get_be32(f);
-    s->current_tm.tm_wday=qemu_get_be32(f);
-    s->current_tm.tm_mday=qemu_get_be32(f);
-    s->current_tm.tm_mon=qemu_get_be32(f);
-    s->current_tm.tm_year=qemu_get_be32(f);
-
-    qemu_get_timer(f, s->periodic_timer);
-    s->next_periodic_time=qemu_get_be64(f);
-
-    s->next_second_time=qemu_get_be64(f);
-    qemu_get_timer(f, s->second_timer);
-    qemu_get_timer(f, s->second_timer2);
-    return 0;
-}
-
 #ifdef TARGET_I386
-static void rtc_save_td(QEMUFile *f, void *opaque)
-{
     RTCState *s = opaque;
 
-    qemu_put_be32(f, s->irq_coalesced);
-    qemu_put_be32(f, s->period);
-}
-
-static int rtc_load_td(QEMUFile *f, void *opaque, int version_id)
-{
-    RTCState *s = opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->irq_coalesced = qemu_get_be32(f);
-    s->period = qemu_get_be32(f);
-    rtc_coalesced_timer_update(s);
+    if (version_id >= 2) {
+        if (rtc_td_hack) {
+            rtc_coalesced_timer_update(s);
+        }
+    }
+#endif
     return 0;
 }
-#endif
+
+static const VMStateDescription vmstate_rtc = {
+    .name = "mc146818rtc",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = rtc_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_BUFFER(cmos_data, RTCState),
+        VMSTATE_UINT8(cmos_index, RTCState),
+        VMSTATE_INT32(current_tm.tm_sec, RTCState),
+        VMSTATE_INT32(current_tm.tm_min, RTCState),
+        VMSTATE_INT32(current_tm.tm_hour, RTCState),
+        VMSTATE_INT32(current_tm.tm_wday, RTCState),
+        VMSTATE_INT32(current_tm.tm_mday, RTCState),
+        VMSTATE_INT32(current_tm.tm_mon, RTCState),
+        VMSTATE_INT32(current_tm.tm_year, RTCState),
+        VMSTATE_TIMER(periodic_timer, RTCState),
+        VMSTATE_INT64(next_periodic_time, RTCState),
+        VMSTATE_INT64(next_second_time, RTCState),
+        VMSTATE_TIMER(second_timer, RTCState),
+        VMSTATE_TIMER(second_timer2, RTCState),
+        VMSTATE_UINT32_V(irq_coalesced, RTCState, 2),
+        VMSTATE_UINT32_V(period, RTCState, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void rtc_reset(void *opaque)
 {
@@ -622,11 +589,7 @@ static int rtc_initfn(ISADevice *dev)
     register_ioport_write(base, 2, 1, cmos_ioport_write, s);
     register_ioport_read(base, 2, 1, cmos_ioport_read, s);
 
-    register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);
-#ifdef TARGET_I386
-    if (rtc_td_hack)
-        register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
-#endif
+    vmstate_register(base, &vmstate_rtc, s);
     qemu_register_reset(rtc_reset, s);
     return 0;
 }
@@ -657,112 +620,3 @@ static void mc146818rtc_register(void)
     isa_qdev_register(&mc146818rtc_info);
 }
 device_init(mc146818rtc_register)
-
-/* Memory mapped interface */
-static uint32_t cmos_mm_readb (void *opaque, target_phys_addr_t addr)
-{
-    RTCState *s = opaque;
-
-    return cmos_ioport_read(s, addr >> s->it_shift) & 0xFF;
-}
-
-static void cmos_mm_writeb (void *opaque,
-                            target_phys_addr_t addr, uint32_t value)
-{
-    RTCState *s = opaque;
-
-    cmos_ioport_write(s, addr >> s->it_shift, value & 0xFF);
-}
-
-static uint32_t cmos_mm_readw (void *opaque, target_phys_addr_t addr)
-{
-    RTCState *s = opaque;
-    uint32_t val;
-
-    val = cmos_ioport_read(s, addr >> s->it_shift) & 0xFFFF;
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap16(val);
-#endif
-    return val;
-}
-
-static void cmos_mm_writew (void *opaque,
-                            target_phys_addr_t addr, uint32_t value)
-{
-    RTCState *s = opaque;
-#ifdef TARGET_WORDS_BIGENDIAN
-    value = bswap16(value);
-#endif
-    cmos_ioport_write(s, addr >> s->it_shift, value & 0xFFFF);
-}
-
-static uint32_t cmos_mm_readl (void *opaque, target_phys_addr_t addr)
-{
-    RTCState *s = opaque;
-    uint32_t val;
-
-    val = cmos_ioport_read(s, addr >> s->it_shift);
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    return val;
-}
-
-static void cmos_mm_writel (void *opaque,
-                            target_phys_addr_t addr, uint32_t value)
-{
-    RTCState *s = opaque;
-#ifdef TARGET_WORDS_BIGENDIAN
-    value = bswap32(value);
-#endif
-    cmos_ioport_write(s, addr >> s->it_shift, value);
-}
-
-static CPUReadMemoryFunc * const rtc_mm_read[] = {
-    &cmos_mm_readb,
-    &cmos_mm_readw,
-    &cmos_mm_readl,
-};
-
-static CPUWriteMemoryFunc * const rtc_mm_write[] = {
-    &cmos_mm_writeb,
-    &cmos_mm_writew,
-    &cmos_mm_writel,
-};
-
-RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
-                      int base_year)
-{
-    RTCState *s;
-    int io_memory;
-
-    s = qemu_mallocz(sizeof(RTCState));
-
-    s->irq = irq;
-    s->cmos_data[RTC_REG_A] = 0x26;
-    s->cmos_data[RTC_REG_B] = 0x02;
-    s->cmos_data[RTC_REG_C] = 0x00;
-    s->cmos_data[RTC_REG_D] = 0x80;
-
-    s->base_year = base_year;
-    rtc_set_date_from_host(s);
-
-    s->periodic_timer = qemu_new_timer(rtc_clock, rtc_periodic_timer, s);
-    s->second_timer = qemu_new_timer(rtc_clock, rtc_update_second, s);
-    s->second_timer2 = qemu_new_timer(rtc_clock, rtc_update_second2, s);
-
-    s->next_second_time =
-        qemu_get_clock(rtc_clock) + (get_ticks_per_sec() * 99) / 100;
-    qemu_mod_timer(s->second_timer2, s->next_second_time);
-
-    io_memory = cpu_register_io_memory(rtc_mm_read, rtc_mm_write, s);
-    cpu_register_physical_memory(base, 2 << it_shift, io_memory);
-
-    register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);
-#ifdef TARGET_I386
-    if (rtc_td_hack)
-        register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
-#endif
-    qemu_register_reset(rtc_reset, s);
-    return s;
-}

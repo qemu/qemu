@@ -1959,173 +1959,97 @@ static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
 }
 
-static void lsi_scsi_save(QEMUFile *f, void *opaque)
+static void lsi_pre_save(void *opaque)
 {
     LSIState *s = opaque;
 
     assert(s->dma_buf == NULL);
     assert(s->current_dma_len == 0);
     assert(s->active_commands == 0);
-
-    pci_device_save(&s->dev, f);
-
-    qemu_put_sbe32s(f, &s->carry);
-    qemu_put_sbe32s(f, &s->sense);
-    qemu_put_sbe32s(f, &s->msg_action);
-    qemu_put_sbe32s(f, &s->msg_len);
-    qemu_put_buffer(f, s->msg, sizeof (s->msg));
-    qemu_put_sbe32s(f, &s->waiting);
-
-    qemu_put_be32s(f, &s->dsa);
-    qemu_put_be32s(f, &s->temp);
-    qemu_put_be32s(f, &s->dnad);
-    qemu_put_be32s(f, &s->dbc);
-    qemu_put_8s(f, &s->istat0);
-    qemu_put_8s(f, &s->istat1);
-    qemu_put_8s(f, &s->dcmd);
-    qemu_put_8s(f, &s->dstat);
-    qemu_put_8s(f, &s->dien);
-    qemu_put_8s(f, &s->sist0);
-    qemu_put_8s(f, &s->sist1);
-    qemu_put_8s(f, &s->sien0);
-    qemu_put_8s(f, &s->sien1);
-    qemu_put_8s(f, &s->mbox0);
-    qemu_put_8s(f, &s->mbox1);
-    qemu_put_8s(f, &s->dfifo);
-    qemu_put_8s(f, &s->ctest2);
-    qemu_put_8s(f, &s->ctest3);
-    qemu_put_8s(f, &s->ctest4);
-    qemu_put_8s(f, &s->ctest5);
-    qemu_put_8s(f, &s->ccntl0);
-    qemu_put_8s(f, &s->ccntl1);
-    qemu_put_be32s(f, &s->dsp);
-    qemu_put_be32s(f, &s->dsps);
-    qemu_put_8s(f, &s->dmode);
-    qemu_put_8s(f, &s->dcntl);
-    qemu_put_8s(f, &s->scntl0);
-    qemu_put_8s(f, &s->scntl1);
-    qemu_put_8s(f, &s->scntl2);
-    qemu_put_8s(f, &s->scntl3);
-    qemu_put_8s(f, &s->sstat0);
-    qemu_put_8s(f, &s->sstat1);
-    qemu_put_8s(f, &s->scid);
-    qemu_put_8s(f, &s->sxfer);
-    qemu_put_8s(f, &s->socl);
-    qemu_put_8s(f, &s->sdid);
-    qemu_put_8s(f, &s->ssid);
-    qemu_put_8s(f, &s->sfbr);
-    qemu_put_8s(f, &s->stest1);
-    qemu_put_8s(f, &s->stest2);
-    qemu_put_8s(f, &s->stest3);
-    qemu_put_8s(f, &s->sidl);
-    qemu_put_8s(f, &s->stime0);
-    qemu_put_8s(f, &s->respid0);
-    qemu_put_8s(f, &s->respid1);
-    qemu_put_be32s(f, &s->mmrs);
-    qemu_put_be32s(f, &s->mmws);
-    qemu_put_be32s(f, &s->sfs);
-    qemu_put_be32s(f, &s->drs);
-    qemu_put_be32s(f, &s->sbms);
-    qemu_put_be32s(f, &s->dbms);
-    qemu_put_be32s(f, &s->dnad64);
-    qemu_put_be32s(f, &s->pmjad1);
-    qemu_put_be32s(f, &s->pmjad2);
-    qemu_put_be32s(f, &s->rbc);
-    qemu_put_be32s(f, &s->ua);
-    qemu_put_be32s(f, &s->ia);
-    qemu_put_be32s(f, &s->sbc);
-    qemu_put_be32s(f, &s->csbc);
-    qemu_put_buffer(f, (uint8_t *)s->scratch, sizeof (s->scratch));
-    qemu_put_8s(f, &s->sbr);
-
-    qemu_put_buffer(f, (uint8_t *)s->script_ram, sizeof (s->script_ram));
 }
 
-static int lsi_scsi_load(QEMUFile *f, void *opaque, int version_id)
-{
-    LSIState *s = opaque;
-    int ret;
+static const VMStateDescription vmstate_lsi_scsi = {
+    .name = "lsiscsi",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .pre_save = lsi_pre_save,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, LSIState),
 
-    if (version_id > 0) {
-        return -EINVAL;
+        VMSTATE_INT32(carry, LSIState),
+        VMSTATE_INT32(sense, LSIState),
+        VMSTATE_INT32(msg_action, LSIState),
+        VMSTATE_INT32(msg_len, LSIState),
+        VMSTATE_BUFFER(msg, LSIState),
+        VMSTATE_INT32(waiting, LSIState),
+
+        VMSTATE_UINT32(dsa, LSIState),
+        VMSTATE_UINT32(temp, LSIState),
+        VMSTATE_UINT32(dnad, LSIState),
+        VMSTATE_UINT32(dbc, LSIState),
+        VMSTATE_UINT8(istat0, LSIState),
+        VMSTATE_UINT8(istat1, LSIState),
+        VMSTATE_UINT8(dcmd, LSIState),
+        VMSTATE_UINT8(dstat, LSIState),
+        VMSTATE_UINT8(dien, LSIState),
+        VMSTATE_UINT8(sist0, LSIState),
+        VMSTATE_UINT8(sist1, LSIState),
+        VMSTATE_UINT8(sien0, LSIState),
+        VMSTATE_UINT8(sien1, LSIState),
+        VMSTATE_UINT8(mbox0, LSIState),
+        VMSTATE_UINT8(mbox1, LSIState),
+        VMSTATE_UINT8(dfifo, LSIState),
+        VMSTATE_UINT8(ctest2, LSIState),
+        VMSTATE_UINT8(ctest3, LSIState),
+        VMSTATE_UINT8(ctest4, LSIState),
+        VMSTATE_UINT8(ctest5, LSIState),
+        VMSTATE_UINT8(ccntl0, LSIState),
+        VMSTATE_UINT8(ccntl1, LSIState),
+        VMSTATE_UINT32(dsp, LSIState),
+        VMSTATE_UINT32(dsps, LSIState),
+        VMSTATE_UINT8(dmode, LSIState),
+        VMSTATE_UINT8(dcntl, LSIState),
+        VMSTATE_UINT8(scntl0, LSIState),
+        VMSTATE_UINT8(scntl1, LSIState),
+        VMSTATE_UINT8(scntl2, LSIState),
+        VMSTATE_UINT8(scntl3, LSIState),
+        VMSTATE_UINT8(sstat0, LSIState),
+        VMSTATE_UINT8(sstat1, LSIState),
+        VMSTATE_UINT8(scid, LSIState),
+        VMSTATE_UINT8(sxfer, LSIState),
+        VMSTATE_UINT8(socl, LSIState),
+        VMSTATE_UINT8(sdid, LSIState),
+        VMSTATE_UINT8(ssid, LSIState),
+        VMSTATE_UINT8(sfbr, LSIState),
+        VMSTATE_UINT8(stest1, LSIState),
+        VMSTATE_UINT8(stest2, LSIState),
+        VMSTATE_UINT8(stest3, LSIState),
+        VMSTATE_UINT8(sidl, LSIState),
+        VMSTATE_UINT8(stime0, LSIState),
+        VMSTATE_UINT8(respid0, LSIState),
+        VMSTATE_UINT8(respid1, LSIState),
+        VMSTATE_UINT32(mmrs, LSIState),
+        VMSTATE_UINT32(mmws, LSIState),
+        VMSTATE_UINT32(sfs, LSIState),
+        VMSTATE_UINT32(drs, LSIState),
+        VMSTATE_UINT32(sbms, LSIState),
+        VMSTATE_UINT32(dbms, LSIState),
+        VMSTATE_UINT32(dnad64, LSIState),
+        VMSTATE_UINT32(pmjad1, LSIState),
+        VMSTATE_UINT32(pmjad2, LSIState),
+        VMSTATE_UINT32(rbc, LSIState),
+        VMSTATE_UINT32(ua, LSIState),
+        VMSTATE_UINT32(ia, LSIState),
+        VMSTATE_UINT32(sbc, LSIState),
+        VMSTATE_UINT32(csbc, LSIState),
+        VMSTATE_BUFFER_UNSAFE(scratch, LSIState, 0, 18 * sizeof(uint32_t)),
+        VMSTATE_UINT8(sbr, LSIState),
+
+        VMSTATE_BUFFER_UNSAFE(script_ram, LSIState, 0, 2048 * sizeof(uint32_t)),
+        VMSTATE_END_OF_LIST()
     }
-
-    if ((ret = pci_device_load(&s->dev, f)) < 0)
-        return ret;
-
-    qemu_get_sbe32s(f, &s->carry);
-    qemu_get_sbe32s(f, &s->sense);
-    qemu_get_sbe32s(f, &s->msg_action);
-    qemu_get_sbe32s(f, &s->msg_len);
-    qemu_get_buffer(f, s->msg, sizeof (s->msg));
-    qemu_get_sbe32s(f, &s->waiting);
-
-    qemu_get_be32s(f, &s->dsa);
-    qemu_get_be32s(f, &s->temp);
-    qemu_get_be32s(f, &s->dnad);
-    qemu_get_be32s(f, &s->dbc);
-    qemu_get_8s(f, &s->istat0);
-    qemu_get_8s(f, &s->istat1);
-    qemu_get_8s(f, &s->dcmd);
-    qemu_get_8s(f, &s->dstat);
-    qemu_get_8s(f, &s->dien);
-    qemu_get_8s(f, &s->sist0);
-    qemu_get_8s(f, &s->sist1);
-    qemu_get_8s(f, &s->sien0);
-    qemu_get_8s(f, &s->sien1);
-    qemu_get_8s(f, &s->mbox0);
-    qemu_get_8s(f, &s->mbox1);
-    qemu_get_8s(f, &s->dfifo);
-    qemu_get_8s(f, &s->ctest2);
-    qemu_get_8s(f, &s->ctest3);
-    qemu_get_8s(f, &s->ctest4);
-    qemu_get_8s(f, &s->ctest5);
-    qemu_get_8s(f, &s->ccntl0);
-    qemu_get_8s(f, &s->ccntl1);
-    qemu_get_be32s(f, &s->dsp);
-    qemu_get_be32s(f, &s->dsps);
-    qemu_get_8s(f, &s->dmode);
-    qemu_get_8s(f, &s->dcntl);
-    qemu_get_8s(f, &s->scntl0);
-    qemu_get_8s(f, &s->scntl1);
-    qemu_get_8s(f, &s->scntl2);
-    qemu_get_8s(f, &s->scntl3);
-    qemu_get_8s(f, &s->sstat0);
-    qemu_get_8s(f, &s->sstat1);
-    qemu_get_8s(f, &s->scid);
-    qemu_get_8s(f, &s->sxfer);
-    qemu_get_8s(f, &s->socl);
-    qemu_get_8s(f, &s->sdid);
-    qemu_get_8s(f, &s->ssid);
-    qemu_get_8s(f, &s->sfbr);
-    qemu_get_8s(f, &s->stest1);
-    qemu_get_8s(f, &s->stest2);
-    qemu_get_8s(f, &s->stest3);
-    qemu_get_8s(f, &s->sidl);
-    qemu_get_8s(f, &s->stime0);
-    qemu_get_8s(f, &s->respid0);
-    qemu_get_8s(f, &s->respid1);
-    qemu_get_be32s(f, &s->mmrs);
-    qemu_get_be32s(f, &s->mmws);
-    qemu_get_be32s(f, &s->sfs);
-    qemu_get_be32s(f, &s->drs);
-    qemu_get_be32s(f, &s->sbms);
-    qemu_get_be32s(f, &s->dbms);
-    qemu_get_be32s(f, &s->dnad64);
-    qemu_get_be32s(f, &s->pmjad1);
-    qemu_get_be32s(f, &s->pmjad2);
-    qemu_get_be32s(f, &s->rbc);
-    qemu_get_be32s(f, &s->ua);
-    qemu_get_be32s(f, &s->ia);
-    qemu_get_be32s(f, &s->sbc);
-    qemu_get_be32s(f, &s->csbc);
-    qemu_get_buffer(f, (uint8_t *)s->scratch, sizeof (s->scratch));
-    qemu_get_8s(f, &s->sbr);
-
-    qemu_get_buffer(f, (uint8_t *)s->script_ram, sizeof (s->script_ram));
-
-    return 0;
-}
+};
 
 static int lsi_scsi_uninit(PCIDevice *d)
 {
@@ -2178,8 +2102,10 @@ static int lsi_scsi_init(PCIDevice *dev)
     lsi_soft_reset(s);
 
     scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
-    scsi_bus_legacy_handle_cmdline(&s->bus);
-    register_savevm("lsiscsi", -1, 0, lsi_scsi_save, lsi_scsi_load, s);
+    if (!dev->qdev.hotplugged) {
+        scsi_bus_legacy_handle_cmdline(&s->bus);
+    }
+    vmstate_register(-1, &vmstate_lsi_scsi, s);
     return 0;
 }
 

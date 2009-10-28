@@ -173,6 +173,10 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 #ifdef CONFIG_LINUX_AIO
     if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
                       (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
+
+        /* We're falling back to POSIX AIO in some cases */
+        paio_init();
+
         s->aio_ctx = laio_init();
         if (!s->aio_ctx) {
             goto out_free_buf;

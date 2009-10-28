@@ -590,10 +590,11 @@ void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
 	eth->ethregs = cpu_register_io_memory(eth_read, eth_write, eth);
 	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
 
-	eth->vc = nd->vc = qemu_new_vlan_client(nd->vlan, nd->netdev,
+	eth->vc = nd->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                                nd->vlan, nd->netdev,
                                                 nd->model, nd->name,
                                                 eth_can_receive, eth_receive,
-                                                NULL, eth_cleanup, eth);
+                                                NULL, NULL, eth_cleanup, eth);
 	eth->vc->opaque = eth;
 	eth->vc->link_status_changed = eth_set_link;
 

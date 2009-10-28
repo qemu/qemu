@@ -34,29 +34,17 @@ typedef struct PCIVGAState {
     VGACommonState vga;
 } PCIVGAState;
 
-static void pci_vga_save(QEMUFile *f, void *opaque)
-{
-    PCIVGAState *s = opaque;
-
-    pci_device_save(&s->dev, f);
-    vga_common_save(f, &s->vga);
-}
-
-static int pci_vga_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PCIVGAState *s = opaque;
-    int ret;
-
-    if (version_id > 2)
-        return -EINVAL;
-
-    if (version_id >= 2) {
-        ret = pci_device_load(&s->dev, f);
-        if (ret < 0)
-            return ret;
+static const VMStateDescription vmstate_vga_pci = {
+    .name = "vga",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, PCIVGAState),
+        VMSTATE_STRUCT(vga, PCIVGAState, 0, vmstate_vga_common, VGACommonState),
+        VMSTATE_END_OF_LIST()
     }
-    return vga_common_load(f, &s->vga, version_id);
-}
+};
 
 static void vga_map(PCIDevice *pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
@@ -93,7 +81,7 @@ static int pci_vga_initfn(PCIDevice *dev)
      // vga + console init
      vga_common_init(s, VGA_RAM_SIZE);
      vga_init(s);
-     register_savevm("vga", 0, 2, pci_vga_save, pci_vga_load, d);
+     vmstate_register(0, &vmstate_vga_pci, d);
 
      s->ds = graphic_console_init(s->update, s->invalidate,
                                   s->screen_dump, s->text_update, s);

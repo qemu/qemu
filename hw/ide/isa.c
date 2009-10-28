@@ -44,24 +44,17 @@ typedef struct ISAIDEState {
     qemu_irq  irq;
 } ISAIDEState;
 
-static void isa_ide_save(QEMUFile* f, void *opaque)
-{
-    ISAIDEState *s = opaque;
-
-    idebus_save(f, &s->bus);
-    ide_save(f, &s->bus.ifs[0]);
-    ide_save(f, &s->bus.ifs[1]);
-}
-
-static int isa_ide_load(QEMUFile* f, void *opaque, int version_id)
-{
-    ISAIDEState *s = opaque;
-
-    idebus_load(f, &s->bus, version_id);
-    ide_load(f, &s->bus.ifs[0], version_id);
-    ide_load(f, &s->bus.ifs[1], version_id);
-    return 0;
-}
+static const VMStateDescription vmstate_ide_isa = {
+    .name = "isa-ide",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_IDE_BUS(bus, ISAIDEState),
+        VMSTATE_IDE_DRIVES(bus.ifs, ISAIDEState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int isa_ide_initfn(ISADevice *dev)
 {
@@ -71,7 +64,7 @@ static int isa_ide_initfn(ISADevice *dev)
     ide_init_ioport(&s->bus, s->iobase, s->iobase2);
     isa_init_irq(dev, &s->irq, s->isairq);
     ide_init2(&s->bus, NULL, NULL, s->irq);
-    register_savevm("isa-ide", 0, 3, isa_ide_save, isa_ide_load, s);
+    vmstate_register(0, &vmstate_ide_isa, s);
     return 0;
 };
 

@@ -23,7 +23,7 @@ typedef struct NE2000State {
     uint8_t mult[8]; /* multicast mask array */
     qemu_irq irq;
     VLANClientState *vc;
-    uint8_t macaddr[6];
+    NICConf c;
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
 
@@ -33,8 +33,7 @@ void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr);
 void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr);
-void ne2000_save(QEMUFile* f, void* opaque);
-int ne2000_load(QEMUFile* f, void* opaque, int version_id);
+extern const VMStateDescription vmstate_ne2000;
 void ne2000_reset(NE2000State *s);
 int ne2000_can_receive(VLANClientState *vc);
 ssize_t ne2000_receive(VLANClientState *vc, const uint8_t *buf, size_t size_);

@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "pci.h"
 #include "net.h"
+#include "loader.h"
 
 #include "e1000_hw.h"
 
@@ -74,6 +75,7 @@ enum {
 typedef struct E1000State_st {
     PCIDevice dev;
     VLANClientState *vc;
+    NICConf conf;
     int mmio_index;
 
     uint32_t mac_reg[0x8000];
@@ -879,110 +881,88 @@ e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
             (8 * (addr & 3))) & 0xffff;
 }
 
-static const int mac_regtosave[] = {
-    CTRL,	EECD,	EERD,	GPRC,	GPTC,	ICR,	ICS,	IMC,	IMS,
-    LEDCTL,	MANC,	MDIC,	MPC,	PBA,	RCTL,	RDBAH,	RDBAL,	RDH,
-    RDLEN,	RDT,	STATUS,	SWSM,	TCTL,	TDBAH,	TDBAL,	TDH,	TDLEN,
-    TDT,	TORH,	TORL,	TOTH,	TOTL,	TPR,	TPT,	TXDCTL,	WUFC,
-    VET,
+static bool is_version_1(void *opaque, int version_id)
+{
+    return version_id == 1;
+}
+
+static const VMStateDescription vmstate_e1000 = {
+    .name = "e1000",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, E1000State),
+        VMSTATE_UNUSED_TEST(is_version_1, 4), /* was instance id */
+        VMSTATE_UNUSED(4), /* Was mmio_base.  */
+        VMSTATE_UINT32(rxbuf_size, E1000State),
+        VMSTATE_UINT32(rxbuf_min_shift, E1000State),
+        VMSTATE_UINT32(eecd_state.val_in, E1000State),
+        VMSTATE_UINT16(eecd_state.bitnum_in, E1000State),
+        VMSTATE_UINT16(eecd_state.bitnum_out, E1000State),
+        VMSTATE_UINT16(eecd_state.reading, E1000State),
+        VMSTATE_UINT32(eecd_state.old_eecd, E1000State),
+        VMSTATE_UINT8(tx.ipcss, E1000State),
+        VMSTATE_UINT8(tx.ipcso, E1000State),
+        VMSTATE_UINT16(tx.ipcse, E1000State),
+        VMSTATE_UINT8(tx.tucss, E1000State),
+        VMSTATE_UINT8(tx.tucso, E1000State),
+        VMSTATE_UINT16(tx.tucse, E1000State),
+        VMSTATE_UINT32(tx.paylen, E1000State),
+        VMSTATE_UINT8(tx.hdr_len, E1000State),
+        VMSTATE_UINT16(tx.mss, E1000State),
+        VMSTATE_UINT16(tx.size, E1000State),
+        VMSTATE_UINT16(tx.tso_frames, E1000State),
+        VMSTATE_UINT8(tx.sum_needed, E1000State),
+        VMSTATE_INT8(tx.ip, E1000State),
+        VMSTATE_INT8(tx.tcp, E1000State),
+        VMSTATE_BUFFER(tx.header, E1000State),
+        VMSTATE_BUFFER(tx.data, E1000State),
+        VMSTATE_UINT16_ARRAY(eeprom_data, E1000State, 64),
+        VMSTATE_UINT16_ARRAY(phy_reg, E1000State, 0x20),
+        VMSTATE_UINT32(mac_reg[CTRL], E1000State),
+        VMSTATE_UINT32(mac_reg[EECD], E1000State),
+        VMSTATE_UINT32(mac_reg[EERD], E1000State),
+        VMSTATE_UINT32(mac_reg[GPRC], E1000State),
+        VMSTATE_UINT32(mac_reg[GPTC], E1000State),
+        VMSTATE_UINT32(mac_reg[ICR], E1000State),
+        VMSTATE_UINT32(mac_reg[ICS], E1000State),
+        VMSTATE_UINT32(mac_reg[IMC], E1000State),
+        VMSTATE_UINT32(mac_reg[IMS], E1000State),
+        VMSTATE_UINT32(mac_reg[LEDCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[MANC], E1000State),
+        VMSTATE_UINT32(mac_reg[MDIC], E1000State),
+        VMSTATE_UINT32(mac_reg[MPC], E1000State),
+        VMSTATE_UINT32(mac_reg[PBA], E1000State),
+        VMSTATE_UINT32(mac_reg[RCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[RDBAH], E1000State),
+        VMSTATE_UINT32(mac_reg[RDBAL], E1000State),
+        VMSTATE_UINT32(mac_reg[RDH], E1000State),
+        VMSTATE_UINT32(mac_reg[RDLEN], E1000State),
+        VMSTATE_UINT32(mac_reg[RDT], E1000State),
+        VMSTATE_UINT32(mac_reg[STATUS], E1000State),
+        VMSTATE_UINT32(mac_reg[SWSM], E1000State),
+        VMSTATE_UINT32(mac_reg[TCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[TDBAH], E1000State),
+        VMSTATE_UINT32(mac_reg[TDBAL], E1000State),
+        VMSTATE_UINT32(mac_reg[TDH], E1000State),
+        VMSTATE_UINT32(mac_reg[TDLEN], E1000State),
+        VMSTATE_UINT32(mac_reg[TDT], E1000State),
+        VMSTATE_UINT32(mac_reg[TORH], E1000State),
+        VMSTATE_UINT32(mac_reg[TORL], E1000State),
+        VMSTATE_UINT32(mac_reg[TOTH], E1000State),
+        VMSTATE_UINT32(mac_reg[TOTL], E1000State),
+        VMSTATE_UINT32(mac_reg[TPR], E1000State),
+        VMSTATE_UINT32(mac_reg[TPT], E1000State),
+        VMSTATE_UINT32(mac_reg[TXDCTL], E1000State),
+        VMSTATE_UINT32(mac_reg[WUFC], E1000State),
+        VMSTATE_UINT32(mac_reg[VET], E1000State),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, RA, 32),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
+        VMSTATE_END_OF_LIST()
+    }
 };
-enum { MAC_NSAVE = ARRAY_SIZE(mac_regtosave) };
-
-static const struct {
-    int size;
-    int array0;
-} mac_regarraystosave[] = { {32, RA}, {128, MTA}, {128, VFTA} };
-enum { MAC_NARRAYS = ARRAY_SIZE(mac_regarraystosave) };
-
-static void
-nic_save(QEMUFile *f, void *opaque)
-{
-    E1000State *s = opaque;
-    int i, j;
-
-    pci_device_save(&s->dev, f);
-    qemu_put_be32(f, 0);
-    qemu_put_be32s(f, &s->rxbuf_size);
-    qemu_put_be32s(f, &s->rxbuf_min_shift);
-    qemu_put_be32s(f, &s->eecd_state.val_in);
-    qemu_put_be16s(f, &s->eecd_state.bitnum_in);
-    qemu_put_be16s(f, &s->eecd_state.bitnum_out);
-    qemu_put_be16s(f, &s->eecd_state.reading);
-    qemu_put_be32s(f, &s->eecd_state.old_eecd);
-    qemu_put_8s(f, &s->tx.ipcss);
-    qemu_put_8s(f, &s->tx.ipcso);
-    qemu_put_be16s(f, &s->tx.ipcse);
-    qemu_put_8s(f, &s->tx.tucss);
-    qemu_put_8s(f, &s->tx.tucso);
-    qemu_put_be16s(f, &s->tx.tucse);
-    qemu_put_be32s(f, &s->tx.paylen);
-    qemu_put_8s(f, &s->tx.hdr_len);
-    qemu_put_be16s(f, &s->tx.mss);
-    qemu_put_be16s(f, &s->tx.size);
-    qemu_put_be16s(f, &s->tx.tso_frames);
-    qemu_put_8s(f, &s->tx.sum_needed);
-    qemu_put_s8s(f, &s->tx.ip);
-    qemu_put_s8s(f, &s->tx.tcp);
-    qemu_put_buffer(f, s->tx.header, sizeof s->tx.header);
-    qemu_put_buffer(f, s->tx.data, sizeof s->tx.data);
-    for (i = 0; i < 64; i++)
-        qemu_put_be16s(f, s->eeprom_data + i);
-    for (i = 0; i < 0x20; i++)
-        qemu_put_be16s(f, s->phy_reg + i);
-    for (i = 0; i < MAC_NSAVE; i++)
-        qemu_put_be32s(f, s->mac_reg + mac_regtosave[i]);
-    for (i = 0; i < MAC_NARRAYS; i++)
-        for (j = 0; j < mac_regarraystosave[i].size; j++)
-            qemu_put_be32s(f,
-                           s->mac_reg + mac_regarraystosave[i].array0 + j);
-}
-
-static int
-nic_load(QEMUFile *f, void *opaque, int version_id)
-{
-    E1000State *s = opaque;
-    int i, j, ret;
-
-    if ((ret = pci_device_load(&s->dev, f)) < 0)
-        return ret;
-    if (version_id == 1)
-        qemu_get_sbe32s(f, &i); /* once some unused instance id */
-    qemu_get_be32(f); /* Ignored.  Was mmio_base.  */
-    qemu_get_be32s(f, &s->rxbuf_size);
-    qemu_get_be32s(f, &s->rxbuf_min_shift);
-    qemu_get_be32s(f, &s->eecd_state.val_in);
-    qemu_get_be16s(f, &s->eecd_state.bitnum_in);
-    qemu_get_be16s(f, &s->eecd_state.bitnum_out);
-    qemu_get_be16s(f, &s->eecd_state.reading);
-    qemu_get_be32s(f, &s->eecd_state.old_eecd);
-    qemu_get_8s(f, &s->tx.ipcss);
-    qemu_get_8s(f, &s->tx.ipcso);
-    qemu_get_be16s(f, &s->tx.ipcse);
-    qemu_get_8s(f, &s->tx.tucss);
-    qemu_get_8s(f, &s->tx.tucso);
-    qemu_get_be16s(f, &s->tx.tucse);
-    qemu_get_be32s(f, &s->tx.paylen);
-    qemu_get_8s(f, &s->tx.hdr_len);
-    qemu_get_be16s(f, &s->tx.mss);
-    qemu_get_be16s(f, &s->tx.size);
-    qemu_get_be16s(f, &s->tx.tso_frames);
-    qemu_get_8s(f, &s->tx.sum_needed);
-    qemu_get_s8s(f, &s->tx.ip);
-    qemu_get_s8s(f, &s->tx.tcp);
-    qemu_get_buffer(f, s->tx.header, sizeof s->tx.header);
-    qemu_get_buffer(f, s->tx.data, sizeof s->tx.data);
-    for (i = 0; i < 64; i++)
-        qemu_get_be16s(f, s->eeprom_data + i);
-    for (i = 0; i < 0x20; i++)
-        qemu_get_be16s(f, s->phy_reg + i);
-    for (i = 0; i < MAC_NSAVE; i++)
-        qemu_get_be32s(f, s->mac_reg + mac_regtosave[i]);
-    for (i = 0; i < MAC_NARRAYS; i++)
-        for (j = 0; j < mac_regarraystosave[i].size; j++)
-            qemu_get_be32s(f,
-                           s->mac_reg + mac_regarraystosave[i].array0 + j);
-    return 0;
-}
 
 static const uint16_t e1000_eeprom_template[64] = {
     0x0000, 0x0000, 0x0000, 0x0000,      0xffff, 0x0000,      0x0000, 0x0000,
@@ -1056,7 +1036,7 @@ e1000_cleanup(VLANClientState *vc)
 {
     E1000State *d = vc->opaque;
 
-    unregister_savevm("e1000", d);
+    d->vc = NULL;
 }
 
 static int
@@ -1065,7 +1045,8 @@ pci_e1000_uninit(PCIDevice *dev)
     E1000State *d = DO_UPCAST(E1000State, dev, dev);
 
     cpu_unregister_io_memory(d->mmio_index);
-
+    qemu_del_vlan_client(d->vc);
+    vmstate_unregister(&vmstate_e1000, d);
     return 0;
 }
 
@@ -1086,9 +1067,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
     uint8_t *pci_conf;
     uint16_t checksum = 0;
-    static const char info_str[] = "e1000";
     int i;
-    uint8_t macaddr[6];
+    uint8_t *macaddr;
 
     pci_conf = d->dev.config;
 
@@ -1113,7 +1093,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     memmove(d->eeprom_data, e1000_eeprom_template,
         sizeof e1000_eeprom_template);
-    qdev_get_macaddr(&d->dev.qdev, macaddr);
+    qemu_macaddr_default_if_unset(&d->conf.macaddr);
+    macaddr = d->conf.macaddr.a;
     for (i = 0; i < 3; i++)
         d->eeprom_data[i] = (macaddr[2*i+1]<<8) | macaddr[2*i];
     for (i = 0; i < EEPROM_CHECKSUM_REG; i++)
@@ -1121,24 +1102,47 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     checksum = (uint16_t) EEPROM_SUM - checksum;
     d->eeprom_data[EEPROM_CHECKSUM_REG] = checksum;
 
-    d->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 e1000_can_receive, e1000_receive,
+    d->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 d->conf.vlan, d->conf.peer,
+                                 d->dev.qdev.info->name, d->dev.qdev.id,
+                                 e1000_can_receive, e1000_receive, NULL,
                                  NULL, e1000_cleanup, d);
     d->vc->link_status_changed = e1000_set_link_status;
 
     qemu_format_nic_info_str(d->vc, macaddr);
 
-    register_savevm(info_str, -1, 2, nic_save, nic_load, d);
-    qemu_register_reset(e1000_reset, d);
+    vmstate_register(-1, &vmstate_e1000, d);
     e1000_reset(d);
+
+#if 0 /* rom bev support is broken -> can't load unconditionally */
+    if (!pci_dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-e1000.bin");
+            loaded = 1;
+        }
+    }
+#endif
     return 0;
 }
 
+static void qdev_e1000_reset(DeviceState *dev)
+{
+    E1000State *d = DO_UPCAST(E1000State, dev.qdev, dev);
+    e1000_reset(d);
+}
+
 static PCIDeviceInfo e1000_info = {
-    .qdev.name = "e1000",
-    .qdev.size = sizeof(E1000State),
-    .init      = pci_e1000_init,
-    .exit      = pci_e1000_uninit,
+    .qdev.name  = "e1000",
+    .qdev.desc  = "Intel Gigabit Ethernet",
+    .qdev.size  = sizeof(E1000State),
+    .qdev.reset = qdev_e1000_reset,
+    .init       = pci_e1000_init,
+    .exit       = pci_e1000_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(E1000State, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void e1000_register_devices(void)

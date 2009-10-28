@@ -1942,28 +1942,29 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 break;
             case 0x03: { /* set transfer mode */
 		uint8_t val = s->nsector & 0x07;
+                uint16_t *identify_data = (uint16_t *)s->identify_data;
 
 		switch (s->nsector >> 3) {
 		    case 0x00: /* pio default */
 		    case 0x01: /* pio mode */
-			put_le16(s->identify_data + 62,0x07);
-			put_le16(s->identify_data + 63,0x07);
-			put_le16(s->identify_data + 88,0x3f);
+			put_le16(identify_data + 62,0x07);
+			put_le16(identify_data + 63,0x07);
+			put_le16(identify_data + 88,0x3f);
 			break;
                     case 0x02: /* sigle word dma mode*/
-			put_le16(s->identify_data + 62,0x07 | (1 << (val + 8)));
-			put_le16(s->identify_data + 63,0x07);
-			put_le16(s->identify_data + 88,0x3f);
+			put_le16(identify_data + 62,0x07 | (1 << (val + 8)));
+			put_le16(identify_data + 63,0x07);
+			put_le16(identify_data + 88,0x3f);
 			break;
 		    case 0x04: /* mdma mode */
-			put_le16(s->identify_data + 62,0x07);
-			put_le16(s->identify_data + 63,0x07 | (1 << (val + 8)));
-			put_le16(s->identify_data + 88,0x3f);
+			put_le16(identify_data + 62,0x07);
+			put_le16(identify_data + 63,0x07 | (1 << (val + 8)));
+			put_le16(identify_data + 88,0x3f);
 			break;
 		    case 0x08: /* udma mode */
-			put_le16(s->identify_data + 62,0x07);
-			put_le16(s->identify_data + 63,0x07);
-			put_le16(s->identify_data + 88,0x3f | (1 << (val + 8)));
+			put_le16(identify_data + 62,0x07);
+			put_le16(identify_data + 63,0x07);
+			put_le16(identify_data + 88,0x3f | (1 << (val + 8)));
 			break;
 		    default:
 			goto abort_cmd;
@@ -2590,81 +2591,69 @@ void ide_init_ioport(IDEBus *bus, int iobase, int iobase2)
     register_ioport_read(iobase, 4, 4, ide_data_readl, bus);
 }
 
-/* save per IDE drive data */
-void ide_save(QEMUFile* f, IDEState *s)
+static bool is_identify_set(void *opaque, int version_id)
 {
-    qemu_put_be32(f, s->mult_sectors);
-    qemu_put_be32(f, s->identify_set);
-    if (s->identify_set) {
-        qemu_put_buffer(f, (const uint8_t *)s->identify_data, 512);
-    }
-    qemu_put_8s(f, &s->feature);
-    qemu_put_8s(f, &s->error);
-    qemu_put_be32s(f, &s->nsector);
-    qemu_put_8s(f, &s->sector);
-    qemu_put_8s(f, &s->lcyl);
-    qemu_put_8s(f, &s->hcyl);
-    qemu_put_8s(f, &s->hob_feature);
-    qemu_put_8s(f, &s->hob_nsector);
-    qemu_put_8s(f, &s->hob_sector);
-    qemu_put_8s(f, &s->hob_lcyl);
-    qemu_put_8s(f, &s->hob_hcyl);
-    qemu_put_8s(f, &s->select);
-    qemu_put_8s(f, &s->status);
-    qemu_put_8s(f, &s->lba48);
+    IDEState *s = opaque;
 
-    qemu_put_8s(f, &s->sense_key);
-    qemu_put_8s(f, &s->asc);
-    qemu_put_8s(f, &s->cdrom_changed);
-    /* XXX: if a transfer is pending, we do not save it yet */
+    return s->identify_set != 0;
 }
 
-/* load per IDE drive data */
-void ide_load(QEMUFile* f, IDEState *s, int version_id)
+static int ide_drive_post_load(void *opaque, int version_id)
 {
-    s->mult_sectors=qemu_get_be32(f);
-    s->identify_set=qemu_get_be32(f);
-    if (s->identify_set) {
-        qemu_get_buffer(f, (uint8_t *)s->identify_data, 512);
-    }
-    qemu_get_8s(f, &s->feature);
-    qemu_get_8s(f, &s->error);
-    qemu_get_be32s(f, &s->nsector);
-    qemu_get_8s(f, &s->sector);
-    qemu_get_8s(f, &s->lcyl);
-    qemu_get_8s(f, &s->hcyl);
-    qemu_get_8s(f, &s->hob_feature);
-    qemu_get_8s(f, &s->hob_nsector);
-    qemu_get_8s(f, &s->hob_sector);
-    qemu_get_8s(f, &s->hob_lcyl);
-    qemu_get_8s(f, &s->hob_hcyl);
-    qemu_get_8s(f, &s->select);
-    qemu_get_8s(f, &s->status);
-    qemu_get_8s(f, &s->lba48);
+    IDEState *s = opaque;
 
-    qemu_get_8s(f, &s->sense_key);
-    qemu_get_8s(f, &s->asc);
-    if (version_id == 3) {
-        qemu_get_8s(f, &s->cdrom_changed);
-    } else {
+    if (version_id < 3) {
         if (s->sense_key == SENSE_UNIT_ATTENTION &&
-                       s->asc == ASC_MEDIUM_MAY_HAVE_CHANGED)
+            s->asc == ASC_MEDIUM_MAY_HAVE_CHANGED) {
             s->cdrom_changed = 1;
+        }
     }
-    /* XXX: if a transfer is pending, we do not save it yet */
+    return 0;
 }
 
-void idebus_save(QEMUFile* f, IDEBus *bus)
-{
-    qemu_put_8s(f, &bus->cmd);
-    qemu_put_8s(f, &bus->unit);
-}
+const VMStateDescription vmstate_ide_drive = {
+    .name = "ide_drive",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = ide_drive_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(mult_sectors, IDEState),
+        VMSTATE_INT32(identify_set, IDEState),
+        VMSTATE_BUFFER_TEST(identify_data, IDEState, is_identify_set),
+        VMSTATE_UINT8(feature, IDEState),
+        VMSTATE_UINT8(error, IDEState),
+        VMSTATE_UINT32(nsector, IDEState),
+        VMSTATE_UINT8(sector, IDEState),
+        VMSTATE_UINT8(lcyl, IDEState),
+        VMSTATE_UINT8(hcyl, IDEState),
+        VMSTATE_UINT8(hob_feature, IDEState),
+        VMSTATE_UINT8(hob_sector, IDEState),
+        VMSTATE_UINT8(hob_nsector, IDEState),
+        VMSTATE_UINT8(hob_lcyl, IDEState),
+        VMSTATE_UINT8(hob_hcyl, IDEState),
+        VMSTATE_UINT8(select, IDEState),
+        VMSTATE_UINT8(status, IDEState),
+        VMSTATE_UINT8(lba48, IDEState),
+        VMSTATE_UINT8(sense_key, IDEState),
+        VMSTATE_UINT8(asc, IDEState),
+        VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
+        /* XXX: if a transfer is pending, we do not save it yet */
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-void idebus_load(QEMUFile* f, IDEBus *bus, int version_id)
-{
-    qemu_get_8s(f, &bus->cmd);
-    qemu_get_8s(f, &bus->unit);
-}
+const VMStateDescription vmstate_ide_bus = {
+    .name = "ide_bus",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(cmd, IDEBus),
+        VMSTATE_UINT8(unit, IDEBus),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /***********************************************************/
 /* PCI IDE definitions */

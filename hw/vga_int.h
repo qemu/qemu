@@ -21,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include <hw/hw.h>
+
 #define MSR_COLOR_EMULATION 0x01
 #define MSR_PAGE_SELECT     0x20
 
@@ -176,6 +179,7 @@ typedef struct VGACommonState {
     vga_retrace_fn retrace;
     vga_update_retrace_info_fn update_retrace_info;
     union vga_retrace retrace_info;
+    uint8_t is_vbe_vmstate;
 } VGACommonState;
 
 static inline int c6_to_8(int v)
@@ -192,8 +196,7 @@ void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
 
-void vga_common_save(QEMUFile *f, void *opaque);
-int vga_common_load(QEMUFile *f, void *opaque, int version_id);
+extern const VMStateDescription vmstate_vga_common;
 uint32_t vga_ioport_read(void *opaque, uint32_t addr);
 void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);

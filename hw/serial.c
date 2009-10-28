@@ -149,6 +149,7 @@ struct SerialState {
 
 typedef struct ISASerialState {
     ISADevice dev;
+    uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
     SerialState state;
@@ -658,19 +659,15 @@ static void serial_pre_save(void *opaque)
     s->fcr_vmstate = s->fcr;
 }
 
-static int serial_pre_load(void *opaque)
-{
-    SerialState *s = opaque;
-    s->fcr_vmstate = 0;
-    return 0;
-}
-
 static int serial_post_load(void *opaque, int version_id)
 {
     SerialState *s = opaque;
 
     serial_update_parameters(s);
 
+    if (version_id < 3) {
+        s->fcr_vmstate = 0;
+    }
     /* Initialize fcr via setter to perform essential side-effects */
     serial_ioport_write(s, s->base + (0x02 << s->it_shift), s->fcr_vmstate);
     return 0;
@@ -681,7 +678,6 @@ static const VMStateDescription vmstate_serial = {
     .version_id = 3,
     .minimum_version_id = 2,
     .pre_save = serial_pre_save,
-    .pre_load = serial_pre_load,
     .post_load = serial_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT16_V(divider, SerialState, 2),
@@ -751,11 +747,24 @@ void serial_frequency(SerialState *s, uint32_t frequency)
     serial_update_parameters(s);
 }
 
-/* If fd is zero, it means that the serial device uses the console */
+static const int isa_serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
+
 static int serial_isa_initfn(ISADevice *dev)
 {
+    static int index;
     ISASerialState *isa = DO_UPCAST(ISASerialState, dev, dev);
     SerialState *s = &isa->state;
+
+    if (isa->index == -1)
+        isa->index = index;
+    if (isa->index >= MAX_SERIAL_PORTS)
+        return -1;
+    if (isa->iobase == -1)
+        isa->iobase = isa_serial_io[isa->index];
+    if (isa->isairq == -1)
+        isa->isairq = isa_serial_irq[isa->index];
+    index++;
 
     s->base = isa->iobase;
     s->it_shift = 0;
@@ -769,16 +778,12 @@ static int serial_isa_initfn(ISADevice *dev)
     return 0;
 }
 
-static const int isa_serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
-static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
-
 SerialState *serial_isa_init(int index, CharDriverState *chr)
 {
     ISADevice *dev;
 
     dev = isa_create("isa-serial");
-    qdev_prop_set_uint32(&dev->qdev, "iobase", isa_serial_io[index]);
-    qdev_prop_set_uint32(&dev->qdev, "irq", isa_serial_irq[index]);
+    qdev_prop_set_uint32(&dev->qdev, "index", index);
     qdev_prop_set_chr(&dev->qdev, "chardev", chr);
     if (qdev_init(&dev->qdev) < 0)
         return NULL;
@@ -916,8 +921,9 @@ static ISADeviceInfo serial_isa_info = {
     .qdev.size  = sizeof(ISASerialState),
     .init       = serial_isa_initfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("iobase", ISASerialState, iobase,  0x3f8),
-        DEFINE_PROP_UINT32("irq",   ISASerialState, isairq,  4),
+        DEFINE_PROP_HEX32("index",  ISASerialState, index,   -1),
+        DEFINE_PROP_HEX32("iobase", ISASerialState, iobase,  -1),
+        DEFINE_PROP_UINT32("irq",   ISASerialState, isairq,  -1),
         DEFINE_PROP_CHR("chardev",  ISASerialState, state.chr),
         DEFINE_PROP_END_OF_LIST(),
     },

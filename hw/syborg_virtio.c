@@ -65,6 +65,7 @@ typedef struct {
     qemu_irq irq;
     uint32_t int_enable;
     uint32_t id;
+    NICConf nic;
 } SyborgVirtIOProxy;
 
 static uint32_t syborg_virtio_readl(void *opaque, target_phys_addr_t offset)
@@ -273,14 +274,23 @@ static int syborg_virtio_net_init(SysBusDevice *dev)
     VirtIODevice *vdev;
     SyborgVirtIOProxy *proxy = FROM_SYSBUS(SyborgVirtIOProxy, dev);
 
-    vdev = virtio_net_init(&dev->qdev);
+    vdev = virtio_net_init(&dev->qdev, &proxy->nic);
     return syborg_virtio_init(proxy, vdev);
 }
 
+static SysBusDeviceInfo syborg_virtio_net_info = {
+    .init = syborg_virtio_net_init,
+    .qdev.name  = "syborg,virtio-net",
+    .qdev.size  = sizeof(SyborgVirtIOProxy),
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(SyborgVirtIOProxy, nic),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void syborg_virtio_register_devices(void)
 {
-    sysbus_register_dev("syborg,virtio-net", sizeof(SyborgVirtIOProxy),
-                        syborg_virtio_net_init);
+    sysbus_register_withprop(&syborg_virtio_net_info);
 }
 
 device_init(syborg_virtio_register_devices)

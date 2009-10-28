@@ -702,9 +702,6 @@ static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
     QLIST_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
         dev = DO_UPCAST(PCIDevice, qdev, qdev);
         if (PCI_SLOT(dev->devfn) == slot) {
-#if defined (TARGET_I386)
-            pci_device_hot_remove_success(dev);
-#endif
             qdev_free(qdev);
         }
     }

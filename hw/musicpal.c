@@ -152,6 +152,7 @@ typedef struct mv88w8618_eth_state {
     uint32_t frx_queue[4];
     uint32_t cur_rx[4];
     VLANClientState *vc;
+    NICConf conf;
 } mv88w8618_eth_state;
 
 static void eth_rx_desc_put(uint32_t addr, mv88w8618_rx_desc *desc)
@@ -368,9 +369,7 @@ static void eth_cleanup(VLANClientState *vc)
 {
     mv88w8618_eth_state *s = vc->opaque;
 
-    cpu_unregister_io_memory(s->mmio_index);
-
-    qemu_free(s);
+    s->vc = NULL;
 }
 
 static int mv88w8618_eth_init(SysBusDevice *dev)
@@ -378,9 +377,11 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
     mv88w8618_eth_state *s = FROM_SYSBUS(mv88w8618_eth_state, dev);
 
     sysbus_init_irq(dev, &s->irq);
-    s->vc = qdev_get_vlan_client(&dev->qdev,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 dev->qdev.info->name, dev->qdev.id,
                                  eth_can_receive, eth_receive, NULL,
-                                 eth_cleanup, s);
+                                 NULL, eth_cleanup, s);
     s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
                                            mv88w8618_eth_writefn, s);
     sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
@@ -410,6 +411,10 @@ static SysBusDeviceInfo mv88w8618_eth_info = {
     .qdev.name = "mv88w8618_eth",
     .qdev.size = sizeof(mv88w8618_eth_state),
     .qdev.vmsd = &mv88w8618_eth_vmsd,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(mv88w8618_eth_state, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 /* LCD register offsets */
@@ -1550,7 +1555,7 @@ static void musicpal_init(ram_addr_t ram_size,
 
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
     dev = qdev_create(NULL, "mv88w8618_eth");
-    dev->nd = &nd_table[0];
+    qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, MP_ETH_BASE);
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[MP_ETH_IRQ]);

@@ -182,7 +182,6 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     qcow2_free_clusters(bs, old_table_offset, old_table_size * sizeof(uint64_t));
     return 0;
  fail:
-    qcow2_free_clusters(bs, table_offset, new_table_size2);
     qemu_free(new_table);
     return -EIO;
 }

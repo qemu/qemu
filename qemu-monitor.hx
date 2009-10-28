@@ -133,7 +133,8 @@ ETEXI
         .args_type  = "force:-f,filename:B",
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
-        .mhandler.cmd = do_eject,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_eject,
     },
 
 STEXI
@@ -666,7 +667,8 @@ ETEXI
         .args_type  = "val:l,size:i,filename:s",
         .params     = "addr size file",
         .help       = "save to disk virtual memory dump starting at 'addr' of size 'size'",
-        .mhandler.cmd = do_memory_save,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_memory_save,
     },
 
 STEXI
@@ -679,7 +681,8 @@ ETEXI
         .args_type  = "val:l,size:i,filename:s",
         .params     = "addr size file",
         .help       = "save to disk physical memory dump starting at 'addr' of size 'size'",
-        .mhandler.cmd = do_physical_memory_save,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_physical_memory_save,
     },
 
 STEXI
@@ -724,7 +727,8 @@ ETEXI
         .args_type  = "detach:-d,uri:s",
         .params     = "[-d] uri",
         .help       = "migrate to URI (using -d to not wait for completion)",
-        .mhandler.cmd = do_migrate,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate,
     },
 
 STEXI
@@ -737,7 +741,8 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "cancel the current VM migration",
-        .mhandler.cmd = do_migrate_cancel,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate_cancel,
     },
 
 STEXI
@@ -750,7 +755,8 @@ ETEXI
         .args_type  = "value:s",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
-        .mhandler.cmd = do_migrate_set_speed,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate_set_speed,
     },
 
 STEXI
@@ -811,7 +817,8 @@ ETEXI
         .args_type  = "pci_addr:s",
         .params     = "[[<domain>:]<bus>:]<slot>",
         .help       = "hot remove PCI device",
-        .mhandler.cmd = do_pci_device_hot_remove,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_pci_device_hot_remove,
     },
 #endif
 
@@ -1006,7 +1013,8 @@ ETEXI
         .args_type  = "fdname:s",
         .params     = "getfd name",
         .help       = "receive a file descriptor via SCM rights and assign it a name",
-        .mhandler.cmd = do_getfd,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_getfd,
     },
 
 STEXI
@@ -1021,7 +1029,8 @@ ETEXI
         .args_type  = "fdname:s",
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
-        .mhandler.cmd = do_closefd,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_closefd,
     },
 
 STEXI

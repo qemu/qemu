@@ -3454,11 +3454,12 @@ static void ar7_nic_init(void)
             if (n < 2 /*&& (strcmp(nd->model, "ar7") == 0)*/) {
                 TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
                 ar7.nic[n].vc =
-                    qemu_new_vlan_client(nd->vlan, nd->netdev,
+                    qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                         nd->vlan, nd->netdev,
                                          nd->model, nd->name,
                                          ar7_nic_can_receive,
                                          ar7_nic_receive,
-                                         NULL,
+                                         NULL, NULL,
                                          ar7_nic_cleanup, uint2ptr(n));
                 //~ qemu_format_nic_info_str(ar7.nic[n].vc, ar7.nic[n].mac);
                 n++;

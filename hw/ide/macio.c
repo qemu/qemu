@@ -291,37 +291,17 @@ static CPUReadMemoryFunc * const pmac_ide_read[] = {
     pmac_ide_readl,
 };
 
-static void pmac_ide_save(QEMUFile *f, void *opaque)
-{
-    MACIOIDEState *d = opaque;
-    unsigned int i;
-
-    /* per IDE interface data */
-    idebus_save(f, &d->bus);
-
-    /* per IDE drive data */
-    for(i = 0; i < 2; i++) {
-        ide_save(f, &d->bus.ifs[i]);
+static const VMStateDescription vmstate_pmac = {
+    .name = "ide",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_IDE_BUS(bus, MACIOIDEState),
+        VMSTATE_IDE_DRIVES(bus.ifs, MACIOIDEState),
+        VMSTATE_END_OF_LIST()
     }
-}
-
-static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
-{
-    MACIOIDEState *d = opaque;
-    unsigned int i;
-
-    if (version_id != 1 && version_id != 3)
-        return -EINVAL;
-
-    /* per IDE interface data */
-    idebus_load(f, &d->bus, version_id);
-
-    /* per IDE drive data */
-    for(i = 0; i < 2; i++) {
-        ide_load(f, &d->bus.ifs[i], version_id);
-    }
-    return 0;
-}
+};
 
 static void pmac_ide_reset(void *opaque)
 {
@@ -348,7 +328,7 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
 
     pmac_ide_memory = cpu_register_io_memory(pmac_ide_read,
                                              pmac_ide_write, d);
-    register_savevm("ide", 0, 3, pmac_ide_save, pmac_ide_load, d);
+    vmstate_register(0, &vmstate_pmac, d);
     qemu_register_reset(pmac_ide_reset, d);
     pmac_ide_reset(d);
 

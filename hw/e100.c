@@ -501,7 +501,7 @@ typedef struct {
     int mmio_index;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint32_t region_base_addr[REGION_NUM];         /* PCI region addresses */
-    uint8_t macaddr[6];
+    NICConf conf;
     uint16_t mdimem[32];
     eeprom_t eeprom;
     uint32_t device;            /* device variant */
@@ -1325,8 +1325,9 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
                 /* Do nothing */
                 break;
             case CBL_IASETUP:
-                cpu_physical_memory_read(cb_addr + 8, &s->macaddr[0], sizeof(s->macaddr));
-                e100_dump("Setup Individual Address:", &s->macaddr[0], 6);
+                cpu_physical_memory_read(cb_addr + 8, &s->conf.macaddr.a[0],
+                                         sizeof(s->conf.macaddr.a));
+                e100_dump("Setup Individual Address:", &s->conf.macaddr.a[0], 6);
                 break;
             case CBL_CONFIGURE:
                 {
@@ -2334,7 +2335,7 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
 
         return -1;
     }
-    else if ( !memcmp(buf, s->macaddr, sizeof(s->macaddr)) )
+    else if ( !memcmp(buf, s->conf.macaddr.a, sizeof(s->conf.macaddr.a)) )
     {
         /* The frame is for me */
         logout("Receive a frame for me(size=%zu)\n", size);
@@ -2452,7 +2453,7 @@ static void eeprom_init(E100State *s)
     s->eeprom.addr_len = EEPROM_I82557_ADDRBIT;
     memcpy(s->eeprom.contents, eeprom_i82557, sizeof(eeprom_i82557));
     /* Driver is going to get MAC from eeprom*/
-    memcpy(s->eeprom.contents, s->macaddr, sizeof(s->macaddr));
+    memcpy(s->eeprom.contents, s->conf.macaddr.a, sizeof(s->conf.macaddr.a));
 
     /* The last word in eeprom saving checksum value.
      * After we update MAC in eeprom, the checksum need be re-calculate
@@ -2491,18 +2492,20 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
     pci_register_bar(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
                      pci_mmio_map);
 
-    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
-    e100_dump("MAC ADDR", (uint8_t *)&s->macaddr[0], 6);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    e100_dump("MAC ADDR", (uint8_t *)&s->conf.macaddr.a[0], 6);
 
     eeprom_init(s);
 
     e100_reset(s);
 
-    s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 e100_can_receive, e100_receive, NULL,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
+                                 e100_can_receive, e100_receive, NULL, NULL,
                                  e100_cleanup, s);
 
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
 
     qemu_register_reset(e100_reset, s);
 

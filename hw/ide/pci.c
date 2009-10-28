@@ -121,74 +121,51 @@ void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val)
     bm->cur_addr = bm->addr;
 }
 
-void pci_ide_save(QEMUFile* f, void *opaque)
+static const VMStateDescription vmstate_bmdma = {
+    .name = "ide bmdma",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(cmd, BMDMAState),
+        VMSTATE_UINT8(status, BMDMAState),
+        VMSTATE_UINT32(addr, BMDMAState),
+        VMSTATE_INT64(sector_num, BMDMAState),
+        VMSTATE_UINT32(nsector, BMDMAState),
+        VMSTATE_UINT8(unit, BMDMAState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int ide_pci_post_load(void *opaque, int version_id)
 {
     PCIIDEState *d = opaque;
     int i;
 
-    pci_device_save(&d->dev, f);
-
     for(i = 0; i < 2; i++) {
-        BMDMAState *bm = &d->bmdma[i];
-        uint8_t ifidx;
-        qemu_put_8s(f, &bm->cmd);
-        qemu_put_8s(f, &bm->status);
-        qemu_put_be32s(f, &bm->addr);
-        qemu_put_sbe64s(f, &bm->sector_num);
-        qemu_put_be32s(f, &bm->nsector);
-        ifidx = bm->unit + 2*i;
-        qemu_put_8s(f, &ifidx);
-        /* XXX: if a transfer is pending, we do not save it yet */
-    }
-
-    /* per IDE interface data */
-    for(i = 0; i < 2; i++) {
-        idebus_save(f, d->bus+i);
-    }
-
-    /* per IDE drive data */
-    for(i = 0; i < 2; i++) {
-        ide_save(f, &d->bus[i].ifs[0]);
-        ide_save(f, &d->bus[i].ifs[1]);
-    }
-}
-
-int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
-{
-    PCIIDEState *d = opaque;
-    int ret, i;
-
-    if (version_id != 2 && version_id != 3)
-        return -EINVAL;
-    ret = pci_device_load(&d->dev, f);
-    if (ret < 0)
-        return ret;
-
-    for(i = 0; i < 2; i++) {
-        BMDMAState *bm = &d->bmdma[i];
-        uint8_t ifidx;
-        qemu_get_8s(f, &bm->cmd);
-        qemu_get_8s(f, &bm->status);
-        qemu_get_be32s(f, &bm->addr);
-        qemu_get_sbe64s(f, &bm->sector_num);
-        qemu_get_be32s(f, &bm->nsector);
-        qemu_get_8s(f, &ifidx);
-        bm->unit = ifidx & 1;
-        /* XXX: if a transfer is pending, we do not save it yet */
-    }
-
-    /* per IDE interface data */
-    for(i = 0; i < 2; i++) {
-        idebus_load(f, d->bus+i, version_id);
-    }
-
-    /* per IDE drive data */
-    for(i = 0; i < 2; i++) {
-        ide_load(f, &d->bus[i].ifs[0], version_id);
-        ide_load(f, &d->bus[i].ifs[1], version_id);
+        /* current versions always store 0/1, but older version
+           stored bigger values. We only need last bit */
+        d->bmdma[i].unit &= 1;
     }
     return 0;
 }
+
+const VMStateDescription vmstate_ide_pci = {
+    .name = "ide",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = ide_pci_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, PCIIDEState),
+        VMSTATE_STRUCT_ARRAY(bmdma, PCIIDEState, 2, 0,
+                             vmstate_bmdma, BMDMAState),
+        VMSTATE_IDE_BUS_ARRAY(bus, PCIIDEState, 2),
+        VMSTATE_IDE_DRIVES(bus[0].ifs, PCIIDEState),
+        VMSTATE_IDE_DRIVES(bus[1].ifs, PCIIDEState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
 {

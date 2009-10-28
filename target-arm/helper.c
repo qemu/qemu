@@ -235,7 +235,7 @@ static int vfp_gdb_set_reg(CPUState *env, uint8_t *buf, int reg)
     switch (reg - nregs) {
     case 0: env->vfp.xregs[ARM_VFP_FPSID] = ldl_p(buf); return 4;
     case 1: env->vfp.xregs[ARM_VFP_FPSCR] = ldl_p(buf); return 4;
-    case 2: env->vfp.xregs[ARM_VFP_FPEXC] = ldl_p(buf); return 4;
+    case 2: env->vfp.xregs[ARM_VFP_FPEXC] = ldl_p(buf) & (1 << 30); return 4;
     }
     return 0;
 }

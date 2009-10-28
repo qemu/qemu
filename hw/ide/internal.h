@@ -374,7 +374,7 @@ struct IDEState {
     int64_t nb_sectors;
     int mult_sectors;
     int identify_set;
-    uint16_t identify_data[256];
+    uint8_t identify_data[512];
     int drive_serial;
     char drive_serial_str[21];
     /* ide regs */
@@ -512,10 +512,18 @@ static inline void ide_set_irq(IDEBus *bus)
 }
 
 /* hw/ide/core.c */
-void ide_save(QEMUFile* f, IDEState *s);
-void ide_load(QEMUFile* f, IDEState *s, int version_id);
-void idebus_save(QEMUFile* f, IDEBus *bus);
-void idebus_load(QEMUFile* f, IDEBus *bus, int version_id);
+extern const VMStateDescription vmstate_ide_bus;
+
+#define VMSTATE_IDE_BUS(_field, _state)                          \
+    VMSTATE_STRUCT(_field, _state, 1, vmstate_ide_bus, IDEBus)
+
+#define VMSTATE_IDE_BUS_ARRAY(_field, _state, _num)              \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _num, 1, vmstate_ide_bus, IDEBus)
+
+extern const VMStateDescription vmstate_ide_drive;
+
+#define VMSTATE_IDE_DRIVES(_field, _state) \
+    VMSTATE_STRUCT_ARRAY(_field, _state, 2, 3, vmstate_ide_drive, IDEState)
 
 void ide_reset(IDEState *s);
 int64_t ide_get_sector(IDEState *s);

@@ -570,7 +570,7 @@ static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
     return 0;
 }
 
-static void do_eject(Monitor *mon, const QDict *qdict)
+static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     BlockDriverState *bs;
     int force = qdict_get_int(qdict, "force");
@@ -977,7 +977,7 @@ static void do_print(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "\n");
 }
 
-static void do_memory_save(Monitor *mon, const QDict *qdict)
+static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     FILE *f;
     uint32_t size = qdict_get_int(qdict, "size");
@@ -1008,7 +1008,8 @@ static void do_memory_save(Monitor *mon, const QDict *qdict)
     fclose(f);
 }
 
-static void do_physical_memory_save(Monitor *mon, const QDict *qdict)
+static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
+                                    QObject **ret_data)
 {
     FILE *f;
     uint32_t l;
@@ -1847,7 +1848,7 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-static void do_getfd(Monitor *mon, const QDict *qdict)
+static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
@@ -1888,7 +1889,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict)
     QLIST_INSERT_HEAD(&mon->fds, monfd, next);
 }
 
-static void do_closefd(Monitor *mon, const QDict *qdict)
+static void do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;

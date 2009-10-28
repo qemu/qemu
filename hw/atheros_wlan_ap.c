@@ -313,10 +313,13 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 	// it when necessary...
 	s->inject_timer = qemu_new_timer(rt_clock, Atheros_WLAN_inject_timer, s);
 
-    s->vc = qdev_get_vlan_client(&d->dev.qdev,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 //~ nd->vlan, nd->netdev,
+                                 nd->model, nd->name,
                                  Atheros_WLAN_can_receive,
                                  Atheros_WLAN_receive,
-                                 NULL,
+                                 NULL, NULL,
                                  Atheros_WLAN_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

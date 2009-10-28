@@ -137,8 +137,7 @@ typedef struct {
     uint32_t region[2];         /* PCI region addresses */
     VLANClientState *vc;
     eeprom_t *eeprom;
-
-    uint8_t macaddr[6];
+    NICConf conf;
     uint8_t mem[DP8381X_IO_SIZE];
     uint8_t filter[1024];
     uint32_t silicon_revision;
@@ -392,7 +391,7 @@ static void dp8381x_reset(dp8381x_t * s)
     s->rx_state = idle;
     s->tx_state = idle;
     for (i = 0; i < 6; i++) {
-        s->filter[2 * i] = s->macaddr[i];
+        s->filter[2 * i] = s->conf.macaddr.a[i];
     }
 }
 
@@ -501,7 +500,7 @@ static ssize_t dp8381x_receive(VLANClientState *vc, const uint8_t * buf, size_t 
     if (0 /*PME!!! */ ) {
         /* Packet filters enabled. */
         missing("mode only used for wake-on-lan");
-    } else if (!memcmp(buf, s->macaddr, 6)) {
+    } else if (!memcmp(buf, s->conf.macaddr.a, 6)) {
         /* my address */
         TRACE(LOG_RX, logout("my mac address\n"));
     } else if (!memcmp(buf, broadcast_macaddr, 6)) {
@@ -1452,15 +1451,15 @@ static void eeprom_init(dp8381x_t * s)
 
     /* Patch MAC address into EEPROM data. */
     eeprom_contents[6] =
-        (eeprom_contents[6] & 0x7fff) + ((s->macaddr[0] & 1) << 15);
+        (eeprom_contents[6] & 0x7fff) + ((s->conf.macaddr.a[0] & 1) << 15);
     eeprom_contents[7] =
-        (s->macaddr[0] >> 1) + (s->macaddr[1] << 7) +
-        ((s->macaddr[2] & 1) << 15);
+        (s->conf.macaddr.a[0] >> 1) + (s->conf.macaddr.a[1] << 7) +
+        ((s->conf.macaddr.a[2] & 1) << 15);
     eeprom_contents[8] =
-        (s->macaddr[2] >> 1) + (s->macaddr[3] << 7) +
-        ((s->macaddr[4] & 1) << 15);
+        (s->conf.macaddr.a[2] >> 1) + (s->conf.macaddr.a[3] << 7) +
+        ((s->conf.macaddr.a[4] & 1) << 15);
     eeprom_contents[9] =
-        (s->macaddr[4] >> 1) + (s->macaddr[5] << 7) +
+        (s->conf.macaddr.a[4] >> 1) + (s->conf.macaddr.a[5] << 7) +
         (eeprom_contents[9] & 0x8000);
 
     /* The Linux driver natsemi.c is buggy because it reads the bits from
@@ -1536,7 +1535,7 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
                      PCI_ADDRESS_SPACE_MEM, dp8381x_mem_map);
 
     s->pci_dev = &d->dev;
-    qdev_get_macaddr(&d->dev.qdev, s->macaddr);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
     dp8381x_reset(s);
 
 #if defined(CONFIG_EEPROM)
@@ -1545,11 +1544,14 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     eeprom_init(s);
 #endif
 
-    s->vc = qdev_get_vlan_client(&d->dev.qdev,
-                                 dp8381x_can_receive, dp8381x_receive, NULL,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
+                                 dp8381x_can_receive, dp8381x_receive,
+                                 NULL, NULL,
                                  dp8381x_cleanup, s);
 
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
 
     qemu_register_reset(nic_reset, d);
 

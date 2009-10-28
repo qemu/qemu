@@ -288,6 +288,8 @@ typedef struct Atheros_WLANState
 
 	uint32_t device_driver_type;
 
+    NICConf conf;
+
 	uint8_t ipaddr[4];				// currently unused
 	uint8_t macaddr[6];				// mac address
 

@@ -301,8 +301,9 @@ static int net_init(struct XenDevice *xendev)
 	return -1;
 
     vlan = qemu_find_vlan(netdev->xendev.dev, 1);
-    netdev->vs = qemu_new_vlan_client(vlan, NULL, "xen", NULL,
-                                      net_rx_ok, net_rx_packet, NULL,
+    netdev->vs = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                      vlan, NULL, "xen", NULL,
+                                      net_rx_ok, net_rx_packet, NULL, NULL,
                                       NULL, netdev);
     snprintf(netdev->vs->info_str, sizeof(netdev->vs->info_str),
              "nic: xenbus vif macaddr=%s", netdev->mac);

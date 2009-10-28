@@ -2133,97 +2133,56 @@ CPUWriteMemoryFunc * const vga_mem_write[3] = {
     vga_mem_writel,
 };
 
-void vga_common_save(QEMUFile *f, void *opaque)
+static int vga_common_post_load(void *opaque, int version_id)
 {
     VGACommonState *s = opaque;
-    int i;
-
-    qemu_put_be32s(f, &s->latch);
-    qemu_put_8s(f, &s->sr_index);
-    qemu_put_buffer(f, s->sr, 8);
-    qemu_put_8s(f, &s->gr_index);
-    qemu_put_buffer(f, s->gr, 16);
-    qemu_put_8s(f, &s->ar_index);
-    qemu_put_buffer(f, s->ar, 21);
-    qemu_put_be32(f, s->ar_flip_flop);
-    qemu_put_8s(f, &s->cr_index);
-    qemu_put_buffer(f, s->cr, 256);
-    qemu_put_8s(f, &s->msr);
-    qemu_put_8s(f, &s->fcr);
-    qemu_put_byte(f, s->st00);
-    qemu_put_8s(f, &s->st01);
-
-    qemu_put_8s(f, &s->dac_state);
-    qemu_put_8s(f, &s->dac_sub_index);
-    qemu_put_8s(f, &s->dac_read_index);
-    qemu_put_8s(f, &s->dac_write_index);
-    qemu_put_buffer(f, s->dac_cache, 3);
-    qemu_put_buffer(f, s->palette, 768);
-
-    qemu_put_be32(f, s->bank_offset);
-#ifdef CONFIG_BOCHS_VBE
-    qemu_put_byte(f, 1);
-    qemu_put_be16s(f, &s->vbe_index);
-    for(i = 0; i < VBE_DISPI_INDEX_NB; i++)
-        qemu_put_be16s(f, &s->vbe_regs[i]);
-    qemu_put_be32s(f, &s->vbe_start_addr);
-    qemu_put_be32s(f, &s->vbe_line_offset);
-    qemu_put_be32s(f, &s->vbe_bank_mask);
-#else
-    qemu_put_byte(f, 0);
-#endif
-}
-
-int vga_common_load(QEMUFile *f, void *opaque, int version_id)
-{
-    VGACommonState *s = opaque;
-    int is_vbe, i;
-
-    if (version_id > 2)
-        return -EINVAL;
-
-    qemu_get_be32s(f, &s->latch);
-    qemu_get_8s(f, &s->sr_index);
-    qemu_get_buffer(f, s->sr, 8);
-    qemu_get_8s(f, &s->gr_index);
-    qemu_get_buffer(f, s->gr, 16);
-    qemu_get_8s(f, &s->ar_index);
-    qemu_get_buffer(f, s->ar, 21);
-    s->ar_flip_flop=qemu_get_be32(f);
-    qemu_get_8s(f, &s->cr_index);
-    qemu_get_buffer(f, s->cr, 256);
-    qemu_get_8s(f, &s->msr);
-    qemu_get_8s(f, &s->fcr);
-    qemu_get_8s(f, &s->st00);
-    qemu_get_8s(f, &s->st01);
-
-    qemu_get_8s(f, &s->dac_state);
-    qemu_get_8s(f, &s->dac_sub_index);
-    qemu_get_8s(f, &s->dac_read_index);
-    qemu_get_8s(f, &s->dac_write_index);
-    qemu_get_buffer(f, s->dac_cache, 3);
-    qemu_get_buffer(f, s->palette, 768);
-
-    s->bank_offset=qemu_get_be32(f);
-    is_vbe = qemu_get_byte(f);
-#ifdef CONFIG_BOCHS_VBE
-    if (!is_vbe)
-        return -EINVAL;
-    qemu_get_be16s(f, &s->vbe_index);
-    for(i = 0; i < VBE_DISPI_INDEX_NB; i++)
-        qemu_get_be16s(f, &s->vbe_regs[i]);
-    qemu_get_be32s(f, &s->vbe_start_addr);
-    qemu_get_be32s(f, &s->vbe_line_offset);
-    qemu_get_be32s(f, &s->vbe_bank_mask);
-#else
-    if (is_vbe)
-        return -EINVAL;
-#endif
 
     /* force refresh */
     s->graphic_mode = -1;
     return 0;
 }
+
+const VMStateDescription vmstate_vga_common = {
+    .name = "vga",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .post_load = vga_common_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(latch, VGACommonState),
+        VMSTATE_UINT8(sr_index, VGACommonState),
+        VMSTATE_PARTIAL_BUFFER(sr, VGACommonState, 8),
+        VMSTATE_UINT8(gr_index, VGACommonState),
+        VMSTATE_PARTIAL_BUFFER(gr, VGACommonState, 16),
+        VMSTATE_UINT8(ar_index, VGACommonState),
+        VMSTATE_BUFFER(ar, VGACommonState),
+        VMSTATE_INT32(ar_flip_flop, VGACommonState),
+        VMSTATE_UINT8(cr_index, VGACommonState),
+        VMSTATE_BUFFER(cr, VGACommonState),
+        VMSTATE_UINT8(msr, VGACommonState),
+        VMSTATE_UINT8(fcr, VGACommonState),
+        VMSTATE_UINT8(st00, VGACommonState),
+        VMSTATE_UINT8(st01, VGACommonState),
+
+        VMSTATE_UINT8(dac_state, VGACommonState),
+        VMSTATE_UINT8(dac_sub_index, VGACommonState),
+        VMSTATE_UINT8(dac_read_index, VGACommonState),
+        VMSTATE_UINT8(dac_write_index, VGACommonState),
+        VMSTATE_BUFFER(dac_cache, VGACommonState),
+        VMSTATE_BUFFER(palette, VGACommonState),
+
+        VMSTATE_INT32(bank_offset, VGACommonState),
+        VMSTATE_UINT8_EQUAL(is_vbe_vmstate, VGACommonState),
+#ifdef CONFIG_BOCHS_VBE
+        VMSTATE_UINT16(vbe_index, VGACommonState),
+        VMSTATE_UINT16_ARRAY(vbe_regs, VGACommonState, VBE_DISPI_INDEX_NB),
+        VMSTATE_UINT32(vbe_start_addr, VGACommonState),
+        VMSTATE_UINT32(vbe_line_offset, VGACommonState),
+        VMSTATE_UINT32(vbe_bank_mask, VGACommonState),
+#endif
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void vga_common_init(VGACommonState *s, int vga_ram_size)
 {
@@ -2252,6 +2211,11 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
         expand4to8[i] = v;
     }
 
+#ifdef CONFIG_BOCHS_VBE
+    s->is_vbe_vmstate = 1;
+#else
+    s->is_vbe_vmstate = 0;
+#endif
     s->vram_offset = qemu_ram_alloc(vga_ram_size);
     s->vram_ptr = qemu_get_ram_ptr(s->vram_offset);
     s->vram_size = vga_ram_size;

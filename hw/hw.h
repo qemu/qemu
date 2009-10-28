@@ -281,13 +281,14 @@ struct VMStateInfo {
 };
 
 enum VMStateFlags {
-    VMS_SINGLE  = 0x001,
-    VMS_POINTER = 0x002,
-    VMS_ARRAY   = 0x004,
-    VMS_STRUCT  = 0x008,
-    VMS_VARRAY  = 0x010,  /* Array with size in another field */
-    VMS_BUFFER  = 0x020,  /* static sized buffer */
+    VMS_SINGLE           = 0x001,
+    VMS_POINTER          = 0x002,
+    VMS_ARRAY            = 0x004,
+    VMS_STRUCT           = 0x008,
+    VMS_VARRAY_INT32     = 0x010,  /* Array with size in int32_t field*/
+    VMS_BUFFER           = 0x020,  /* static sized buffer */
     VMS_ARRAY_OF_POINTER = 0x040,
+    VMS_VARRAY_UINT16    = 0x080,  /* Array with size in uint16_t field */
 };
 
 typedef struct {
@@ -322,6 +323,7 @@ extern const VMStateInfo vmstate_info_int32;
 extern const VMStateInfo vmstate_info_int64;
 
 extern const VMStateInfo vmstate_info_uint8_equal;
+extern const VMStateInfo vmstate_info_uint16_equal;
 extern const VMStateInfo vmstate_info_int32_equal;
 extern const VMStateInfo vmstate_info_int32_le;
 
@@ -333,28 +335,38 @@ extern const VMStateInfo vmstate_info_uint64;
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_ptimer;
 extern const VMStateInfo vmstate_info_buffer;
+extern const VMStateInfo vmstate_info_unused_buffer;
 
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
 #define type_check_pointer(t1,t2) ((t1**)0 - (t2*)0)
 
-#define VMSTATE_SINGLE(_field, _state, _version, _info, _type) {     \
-    .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
-    .size       = sizeof(_type),                                     \
-    .info       = &(_info),                                          \
-    .flags      = VMS_SINGLE,                                        \
-    .offset     = offsetof(_state, _field)                           \
-            + type_check(_type,typeof_field(_state, _field))         \
-}
+#define vmstate_offset_value(_state, _field, _type)                  \
+    (offsetof(_state, _field) +                                      \
+     type_check(_type, typeof_field(_state, _field)))
 
-#define VMSTATE_SINGLE_TEST(_field, _state, _test, _info, _type) {   \
+#define vmstate_offset_pointer(_state, _field, _type)                \
+    (offsetof(_state, _field) +                                      \
+     type_check_pointer(_type, typeof_field(_state, _field)))
+
+#define vmstate_offset_array(_state, _field, _type, _num)            \
+    (offsetof(_state, _field) +                                      \
+     type_check_array(_type, typeof_field(_state, _field), _num))
+
+#define vmstate_offset_sub_array(_state, _field, _type, _start)      \
+    (offsetof(_state, _field[_start]))
+
+#define vmstate_offset_buffer(_state, _field)                        \
+    vmstate_offset_array(_state, _field, uint8_t,                    \
+                         sizeof(typeof_field(_state, _field)))
+
+#define VMSTATE_SINGLE_TEST(_field, _state, _test, _version, _info, _type) { \
     .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
     .size         = sizeof(_type),                                   \
     .info         = &(_info),                                        \
     .flags        = VMS_SINGLE,                                      \
-    .offset       = offsetof(_state, _field)                         \
-            + type_check(_type,typeof_field(_state, _field))         \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
 }
 
 #define VMSTATE_POINTER(_field, _state, _version, _info, _type) {    \
@@ -363,8 +375,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_SINGLE|VMS_POINTER,                            \
-    .offset     = offsetof(_state, _field)                           \
-            + type_check(_type,typeof_field(_state, _field))         \
+    .offset     = vmstate_offset_value(_state, _field, _type),       \
 }
 
 #define VMSTATE_ARRAY(_field, _state, _num, _version, _info, _type) {\
@@ -374,8 +385,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY,                                         \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_ARRAY_TEST(_field, _state, _num, _test, _info, _type) {\
@@ -385,20 +395,37 @@ extern const VMStateInfo vmstate_info_buffer;
     .info         = &(_info),                                         \
     .size         = sizeof(_type),                                    \
     .flags        = VMS_ARRAY,                                        \
-    .offset       = offsetof(_state, _field)                          \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset       = vmstate_offset_array(_state, _field, _type, _num),\
 }
 
-#define VMSTATE_VARRAY(_field, _state, _field_num, _version, _info, _type) {\
+#define VMSTATE_SUB_ARRAY(_field, _state, _start, _num, _version, _info, _type) { \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .num_offset = offsetof(_state, _field_num)                       \
-        + type_check(int32_t,typeof_field(_state, _field_num)),      \
+    .num        = (_num),                                            \
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
-    .flags      = VMS_VARRAY|VMS_POINTER,                            \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_pointer(_type,typeof_field(_state, _field))     \
+    .flags      = VMS_ARRAY,                                         \
+    .offset     = vmstate_offset_sub_array(_state, _field, _type, _start), \
+}
+
+#define VMSTATE_VARRAY_INT32(_field, _state, _field_num, _version, _info, _type) {\
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_VARRAY_INT32|VMS_POINTER,                      \
+    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+}
+
+#define VMSTATE_VARRAY_UINT16_UNSAFE(_field, _state, _field_num, _version, _info, _type) {\
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),\
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_VARRAY_UINT16,                                 \
+    .offset     = offsetof(_state, _field),                          \
 }
 
 #define VMSTATE_STRUCT(_field, _state, _version, _vmsd, _type) {     \
@@ -407,8 +434,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT,                                        \
-    .offset     = offsetof(_state, _field)                           \
-            + type_check(_type,typeof_field(_state, _field))         \
+    .offset     = vmstate_offset_value(_state, _field, _type),       \
 }
 
 #define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type) {       \
@@ -416,8 +442,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_POINTER,                            \
-    .offset     = offsetof(_state, _field)                           \
-            + type_check(_type,typeof_field(_state, _field))         \
+    .offset     = vmstate_offset_value(_state, _field, _type),       \
 }
 
 #define VMSTATE_ARRAY_OF_POINTER(_field, _state, _num, _version, _info, _type) {\
@@ -427,8 +452,7 @@ extern const VMStateInfo vmstate_info_buffer;
     .info       = &(_info),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY|VMS_ARRAY_OF_POINTER,                    \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) { \
@@ -438,41 +462,46 @@ extern const VMStateInfo vmstate_info_buffer;
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_ARRAY,                              \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
 #define VMSTATE_STRUCT_ARRAY_SIZE_UINT8(_field, _state, _field__num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = offsetof(_state, _field_num)                       \
-        + type_check(uint8_t,typeof_field(_state, _field_num)),       \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
     .version_id = (_version),                                        \
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_ARRAY,                              \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(_type,typeof_field(_state, _field),_num)  \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
-#define VMSTATE_STATIC_BUFFER(_field, _state, _version) {            \
+#define VMSTATE_STATIC_BUFFER(_field, _state, _version, _test, _start, _size) { \
+    .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
+    .size         = (_size - _start),                                \
+    .info         = &vmstate_info_buffer,                            \
+    .flags        = VMS_BUFFER,                                      \
+    .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
+}
+
+#define VMSTATE_BUFFER_UNSAFE(_field, _state, _version, _size) {     \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
-    .size       = sizeof(typeof_field(_state,_field)),               \
+    .size       = (_size),                                           \
     .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER,                                        \
-    .offset     = offsetof(_state, _field)                           \
-        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+    .offset     = offsetof(_state, _field),                          \
 }
 
-#define VMSTATE_BUFFER_START_MIDDLE(_field, _state, start) {         \
-    .name       = (stringify(_field)),                               \
-    .size       = sizeof(typeof_field(_state,_field)) - start,       \
-    .info       = &vmstate_info_buffer,                              \
-    .flags      = VMS_BUFFER,                                        \
-    .offset     = offsetof(_state, _field) + start                   \
-        + type_check_array(uint8_t,typeof_field(_state, _field),sizeof(typeof_field(_state,_field))) \
+#define VMSTATE_UNUSED_BUFFER(_test, _version, _size) {              \
+    .name         = "unused",                                        \
+    .field_exists = (_test),                                         \
+    .version_id   = (_version),                                      \
+    .size         = (_size),                                         \
+    .info         = &vmstate_info_unused_buffer,                     \
+    .flags        = VMS_BUFFER,                                      \
 }
-
 extern const VMStateDescription vmstate_pci_device;
 
 #define VMSTATE_PCI_DEVICE(_field, _state) {                         \
@@ -480,8 +509,7 @@ extern const VMStateDescription vmstate_pci_device;
     .size       = sizeof(PCIDevice),                                 \
     .vmsd       = &vmstate_pci_device,                               \
     .flags      = VMS_STRUCT,                                        \
-    .offset     = offsetof(_state, _field)                           \
-            + type_check(PCIDevice,typeof_field(_state, _field))     \
+    .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
 }
 
 extern const VMStateDescription vmstate_i2c_slave;
@@ -491,8 +519,19 @@ extern const VMStateDescription vmstate_i2c_slave;
     .size       = sizeof(i2c_slave),                                 \
     .vmsd       = &vmstate_i2c_slave,                                \
     .flags      = VMS_STRUCT,                                        \
-    .offset     = offsetof(_state, _field)                           \
-            + type_check(i2c_slave,typeof_field(_state, _field))     \
+    .offset     = vmstate_offset_value(_state, _field, i2c_slave),   \
+}
+
+#define vmstate_offset_macaddr(_state, _field)                       \
+    vmstate_offset_array(_state, _field.a, uint8_t,                \
+                         sizeof(typeof_field(_state, _field)))
+
+#define VMSTATE_MACADDR(_field, _state) {                            \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(MACAddr),                                   \
+    .info       = &vmstate_info_uint8,                               \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = vmstate_offset_macaddr(_state, _field),            \
 }
 
 /* _f : field name
@@ -501,6 +540,9 @@ extern const VMStateDescription vmstate_i2c_slave;
    _s : struct state name
    _v : version
 */
+
+#define VMSTATE_SINGLE(_field, _state, _version, _info, _type)        \
+    VMSTATE_SINGLE_TEST(_field, _state, NULL, _version, _info, _type)
 
 #define VMSTATE_INT8_V(_f, _s, _v)                                    \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int8, int8_t)
@@ -541,6 +583,12 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_UINT8_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint8_equal, uint8_t)
 
+#define VMSTATE_UINT16_EQUAL(_f, _s)                                  \
+    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint16_equal, uint16_t)
+
+#define VMSTATE_UINT16_EQUAL_V(_f, _s, _v)                            \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint16_equal, uint16_t)
+
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
 
@@ -548,7 +596,7 @@ extern const VMStateDescription vmstate_i2c_slave;
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
 
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
-    VMSTATE_SINGLE_TEST(_f, _s, _t, vmstate_info_uint32, uint32_t)
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
 
 #define VMSTATE_TIMER_V(_f, _s, _v)                                   \
     VMSTATE_POINTER(_f, _s, _v, vmstate_info_timer, QEMUTimer *)
@@ -601,17 +649,35 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_INT32_ARRAY(_f, _s, _n)                               \
     VMSTATE_INT32_ARRAY_V(_f, _s, _n, 0)
 
-#define VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, _v)                      \
-    VMSTATE_VARRAY(_f, _s, _f_n, _v, vmstate_info_int32, int32_t)
+#define VMSTATE_UINT32_SUB_ARRAY(_f, _s, _start, _num)                \
+    VMSTATE_SUB_ARRAY(_f, _s, _start, _num, 0, vmstate_info_uint32, uint32_t)
 
-#define VMSTATE_INT32_VARRAY(_f, _s, _f_n)                            \
-    VMSTATE_INT32_VARRAY_V(_f, _s, _f_n, 0)
+#define VMSTATE_UINT32_ARRAY(_f, _s, _n)                              \
+    VMSTATE_UINT32_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
-    VMSTATE_STATIC_BUFFER(_f, _s, _v)
+    VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))
 
 #define VMSTATE_BUFFER(_f, _s)                                        \
-    VMSTATE_STATIC_BUFFER(_f, _s, 0)
+    VMSTATE_BUFFER_V(_f, _s, 0)
+
+#define VMSTATE_PARTIAL_BUFFER(_f, _s, _size)                         \
+    VMSTATE_STATIC_BUFFER(_f, _s, 0, NULL, 0, _size)
+
+#define VMSTATE_BUFFER_START_MIDDLE(_f, _s, _start) \
+    VMSTATE_STATIC_BUFFER(_f, _s, 0, NULL, _start, sizeof(typeof_field(_s, _f)))
+
+#define VMSTATE_BUFFER_TEST(_f, _s, _test)                            \
+    VMSTATE_STATIC_BUFFER(_f, _s, 0, _test, 0, sizeof(typeof_field(_s, _f)))
+
+#define VMSTATE_UNUSED_V(_v, _size)                                   \
+    VMSTATE_UNUSED_BUFFER(NULL, _v, _size)
+
+#define VMSTATE_UNUSED(_size)                                         \
+    VMSTATE_UNUSED_V(0, _size)
+
+#define VMSTATE_UNUSED_TEST(_test, _size)                             \
+    VMSTATE_UNUSED_BUFFER(_test, 0, _size)
 
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64

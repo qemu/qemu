@@ -47,6 +47,7 @@
 #include "pci.h"
 #include "qemu-timer.h"
 #include "net.h"
+#include "loader.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
@@ -416,12 +417,6 @@ static void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters);
 /* Writes tally counters to specified physical memory address */
 static void RTL8139TallyCounters_physical_memory_write(target_phys_addr_t tc_addr, RTL8139TallyCounters* counters);
 
-/* Loads values of tally counters from VM state file */
-static void RTL8139TallyCounters_load(QEMUFile* f, RTL8139TallyCounters *tally_counters);
-
-/* Saves values of tally counters to VM state file */
-static void RTL8139TallyCounters_save(QEMUFile* f, RTL8139TallyCounters *tally_counters);
-
 typedef struct RTL8139State {
     PCIDevice dev;
     uint8_t phys[8]; /* mac address */
@@ -465,7 +460,7 @@ typedef struct RTL8139State {
     uint8_t  TxThresh;
 
     VLANClientState *vc;
-    uint8_t macaddr[6];
+    NICConf conf;
     int rtl8139_mmio_io_addr;
 
     /* C ring mode */
@@ -1179,7 +1174,7 @@ static void rtl8139_reset(DeviceState *d)
     int i;
 
     /* restore MAC address */
-    memcpy(s->phys, s->macaddr, 6);
+    memcpy(s->phys, s->conf.macaddr.a, 6);
 
     /* reset interrupt mask */
     s->IntrStatus = 0;
@@ -1195,9 +1190,9 @@ static void rtl8139_reset(DeviceState *d)
     s->eeprom.contents[2] = PCI_DEVICE_ID_REALTEK_8139;
 #endif
 
-    s->eeprom.contents[7] = s->macaddr[0] | s->macaddr[1] << 8;
-    s->eeprom.contents[8] = s->macaddr[2] | s->macaddr[3] << 8;
-    s->eeprom.contents[9] = s->macaddr[4] | s->macaddr[5] << 8;
+    s->eeprom.contents[7] = s->conf.macaddr.a[0] | s->conf.macaddr.a[1] << 8;
+    s->eeprom.contents[8] = s->conf.macaddr.a[2] | s->conf.macaddr.a[3] << 8;
+    s->eeprom.contents[9] = s->conf.macaddr.a[4] | s->conf.macaddr.a[5] << 8;
 
     /* mark all status registers as owned by host */
     for (i = 0; i < 4; ++i)
@@ -1327,40 +1322,28 @@ static void RTL8139TallyCounters_physical_memory_write(target_phys_addr_t tc_add
 }
 
 /* Loads values of tally counters from VM state file */
-static void RTL8139TallyCounters_load(QEMUFile* f, RTL8139TallyCounters *tally_counters)
-{
-    qemu_get_be64s(f, &tally_counters->TxOk);
-    qemu_get_be64s(f, &tally_counters->RxOk);
-    qemu_get_be64s(f, &tally_counters->TxERR);
-    qemu_get_be32s(f, &tally_counters->RxERR);
-    qemu_get_be16s(f, &tally_counters->MissPkt);
-    qemu_get_be16s(f, &tally_counters->FAE);
-    qemu_get_be32s(f, &tally_counters->Tx1Col);
-    qemu_get_be32s(f, &tally_counters->TxMCol);
-    qemu_get_be64s(f, &tally_counters->RxOkPhy);
-    qemu_get_be64s(f, &tally_counters->RxOkBrd);
-    qemu_get_be32s(f, &tally_counters->RxOkMul);
-    qemu_get_be16s(f, &tally_counters->TxAbt);
-    qemu_get_be16s(f, &tally_counters->TxUndrn);
-}
 
-/* Saves values of tally counters to VM state file */
-static void RTL8139TallyCounters_save(QEMUFile* f, RTL8139TallyCounters *tally_counters)
-{
-    qemu_put_be64s(f, &tally_counters->TxOk);
-    qemu_put_be64s(f, &tally_counters->RxOk);
-    qemu_put_be64s(f, &tally_counters->TxERR);
-    qemu_put_be32s(f, &tally_counters->RxERR);
-    qemu_put_be16s(f, &tally_counters->MissPkt);
-    qemu_put_be16s(f, &tally_counters->FAE);
-    qemu_put_be32s(f, &tally_counters->Tx1Col);
-    qemu_put_be32s(f, &tally_counters->TxMCol);
-    qemu_put_be64s(f, &tally_counters->RxOkPhy);
-    qemu_put_be64s(f, &tally_counters->RxOkBrd);
-    qemu_put_be32s(f, &tally_counters->RxOkMul);
-    qemu_put_be16s(f, &tally_counters->TxAbt);
-    qemu_put_be16s(f, &tally_counters->TxUndrn);
-}
+static const VMStateDescription vmstate_tally_counters = {
+    .name = "tally_counters",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(TxOk, RTL8139TallyCounters),
+        VMSTATE_UINT64(RxOk, RTL8139TallyCounters),
+        VMSTATE_UINT64(TxERR, RTL8139TallyCounters),
+        VMSTATE_UINT32(RxERR, RTL8139TallyCounters),
+        VMSTATE_UINT16(MissPkt, RTL8139TallyCounters),
+        VMSTATE_UINT16(FAE, RTL8139TallyCounters),
+        VMSTATE_UINT32(Tx1Col, RTL8139TallyCounters),
+        VMSTATE_UINT32(TxMCol, RTL8139TallyCounters),
+        VMSTATE_UINT64(RxOkPhy, RTL8139TallyCounters),
+        VMSTATE_UINT64(RxOkBrd, RTL8139TallyCounters),
+        VMSTATE_UINT16(TxAbt, RTL8139TallyCounters),
+        VMSTATE_UINT16(TxUndrn, RTL8139TallyCounters),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
 {
@@ -3114,211 +3097,96 @@ static uint32_t rtl8139_mmio_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-/* */
-
-static void rtl8139_save(QEMUFile* f,void* opaque)
+static int rtl8139_post_load(void *opaque, int version_id)
 {
     RTL8139State* s = opaque;
-    unsigned int i;
-
-    pci_device_save(&s->dev, f);
-
-    qemu_put_buffer(f, s->phys, 6);
-    qemu_put_buffer(f, s->mult, 8);
-
-    for (i=0; i<4; ++i)
-    {
-        qemu_put_be32s(f, &s->TxStatus[i]); /* TxStatus0 */
-    }
-    for (i=0; i<4; ++i)
-    {
-        qemu_put_be32s(f, &s->TxAddr[i]); /* TxAddr0 */
-    }
-
-    qemu_put_be32s(f, &s->RxBuf); /* Receive buffer */
-    qemu_put_be32s(f, &s->RxBufferSize);/* internal variable, receive ring buffer size in C mode */
-    qemu_put_be32s(f, &s->RxBufPtr);
-    qemu_put_be32s(f, &s->RxBufAddr);
-
-    qemu_put_be16s(f, &s->IntrStatus);
-    qemu_put_be16s(f, &s->IntrMask);
-
-    qemu_put_be32s(f, &s->TxConfig);
-    qemu_put_be32s(f, &s->RxConfig);
-    qemu_put_be32s(f, &s->RxMissed);
-    qemu_put_be16s(f, &s->CSCR);
-
-    qemu_put_8s(f, &s->Cfg9346);
-    qemu_put_8s(f, &s->Config0);
-    qemu_put_8s(f, &s->Config1);
-    qemu_put_8s(f, &s->Config3);
-    qemu_put_8s(f, &s->Config4);
-    qemu_put_8s(f, &s->Config5);
-
-    qemu_put_8s(f, &s->clock_enabled);
-    qemu_put_8s(f, &s->bChipCmdState);
-
-    qemu_put_be16s(f, &s->MultiIntr);
-
-    qemu_put_be16s(f, &s->BasicModeCtrl);
-    qemu_put_be16s(f, &s->BasicModeStatus);
-    qemu_put_be16s(f, &s->NWayAdvert);
-    qemu_put_be16s(f, &s->NWayLPAR);
-    qemu_put_be16s(f, &s->NWayExpansion);
-
-    qemu_put_be16s(f, &s->CpCmd);
-    qemu_put_8s(f, &s->TxThresh);
-
-    i = 0;
-    qemu_put_be32s(f, &i); /* unused.  */
-    qemu_put_buffer(f, s->macaddr, 6);
-    qemu_put_be32(f, s->rtl8139_mmio_io_addr);
-
-    qemu_put_be32s(f, &s->currTxDesc);
-    qemu_put_be32s(f, &s->currCPlusRxDesc);
-    qemu_put_be32s(f, &s->currCPlusTxDesc);
-    qemu_put_be32s(f, &s->RxRingAddrLO);
-    qemu_put_be32s(f, &s->RxRingAddrHI);
-
-    for (i=0; i<EEPROM_9346_SIZE; ++i)
-    {
-        qemu_put_be16s(f, &s->eeprom.contents[i]);
-    }
-    qemu_put_be32(f, s->eeprom.mode);
-    qemu_put_be32s(f, &s->eeprom.tick);
-    qemu_put_8s(f, &s->eeprom.address);
-    qemu_put_be16s(f, &s->eeprom.input);
-    qemu_put_be16s(f, &s->eeprom.output);
-
-    qemu_put_8s(f, &s->eeprom.eecs);
-    qemu_put_8s(f, &s->eeprom.eesk);
-    qemu_put_8s(f, &s->eeprom.eedi);
-    qemu_put_8s(f, &s->eeprom.eedo);
-
-    qemu_put_be32s(f, &s->TCTR);
-    qemu_put_be32s(f, &s->TimerInt);
-    qemu_put_be64(f, s->TCTR_base);
-
-    RTL8139TallyCounters_save(f, &s->tally_counters);
-
-    qemu_put_be32s(f, &s->cplus_enabled);
-}
-
-static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
-{
-    RTL8139State* s = opaque;
-    unsigned int i;
-    int ret;
-
-    /* just 2 versions for now */
-    if (version_id > 4)
-            return -EINVAL;
-
-    if (version_id >= 3) {
-        ret = pci_device_load(&s->dev, f);
-        if (ret < 0)
-            return ret;
-    }
-
-    /* saved since version 1 */
-    qemu_get_buffer(f, s->phys, 6);
-    qemu_get_buffer(f, s->mult, 8);
-
-    for (i=0; i<4; ++i)
-    {
-        qemu_get_be32s(f, &s->TxStatus[i]); /* TxStatus0 */
-    }
-    for (i=0; i<4; ++i)
-    {
-        qemu_get_be32s(f, &s->TxAddr[i]); /* TxAddr0 */
-    }
-
-    qemu_get_be32s(f, &s->RxBuf); /* Receive buffer */
-    qemu_get_be32s(f, &s->RxBufferSize);/* internal variable, receive ring buffer size in C mode */
-    qemu_get_be32s(f, &s->RxBufPtr);
-    qemu_get_be32s(f, &s->RxBufAddr);
-
-    qemu_get_be16s(f, &s->IntrStatus);
-    qemu_get_be16s(f, &s->IntrMask);
-
-    qemu_get_be32s(f, &s->TxConfig);
-    qemu_get_be32s(f, &s->RxConfig);
-    qemu_get_be32s(f, &s->RxMissed);
-    qemu_get_be16s(f, &s->CSCR);
-
-    qemu_get_8s(f, &s->Cfg9346);
-    qemu_get_8s(f, &s->Config0);
-    qemu_get_8s(f, &s->Config1);
-    qemu_get_8s(f, &s->Config3);
-    qemu_get_8s(f, &s->Config4);
-    qemu_get_8s(f, &s->Config5);
-
-    qemu_get_8s(f, &s->clock_enabled);
-    qemu_get_8s(f, &s->bChipCmdState);
-
-    qemu_get_be16s(f, &s->MultiIntr);
-
-    qemu_get_be16s(f, &s->BasicModeCtrl);
-    qemu_get_be16s(f, &s->BasicModeStatus);
-    qemu_get_be16s(f, &s->NWayAdvert);
-    qemu_get_be16s(f, &s->NWayLPAR);
-    qemu_get_be16s(f, &s->NWayExpansion);
-
-    qemu_get_be16s(f, &s->CpCmd);
-    qemu_get_8s(f, &s->TxThresh);
-
-    qemu_get_be32s(f, &i); /* unused.  */
-    qemu_get_buffer(f, s->macaddr, 6);
-    s->rtl8139_mmio_io_addr=qemu_get_be32(f);
-
-    qemu_get_be32s(f, &s->currTxDesc);
-    qemu_get_be32s(f, &s->currCPlusRxDesc);
-    qemu_get_be32s(f, &s->currCPlusTxDesc);
-    qemu_get_be32s(f, &s->RxRingAddrLO);
-    qemu_get_be32s(f, &s->RxRingAddrHI);
-
-    for (i=0; i<EEPROM_9346_SIZE; ++i)
-    {
-        qemu_get_be16s(f, &s->eeprom.contents[i]);
-    }
-    s->eeprom.mode=qemu_get_be32(f);
-    qemu_get_be32s(f, &s->eeprom.tick);
-    qemu_get_8s(f, &s->eeprom.address);
-    qemu_get_be16s(f, &s->eeprom.input);
-    qemu_get_be16s(f, &s->eeprom.output);
-
-    qemu_get_8s(f, &s->eeprom.eecs);
-    qemu_get_8s(f, &s->eeprom.eesk);
-    qemu_get_8s(f, &s->eeprom.eedi);
-    qemu_get_8s(f, &s->eeprom.eedo);
-
-    /* saved since version 2 */
-    if (version_id >= 2)
-    {
-        qemu_get_be32s(f, &s->TCTR);
-        qemu_get_be32s(f, &s->TimerInt);
-        s->TCTR_base=qemu_get_be64(f);
-
-        RTL8139TallyCounters_load(f, &s->tally_counters);
-    }
-    else
-    {
-        /* not saved, use default */
-        s->TCTR = 0;
-        s->TimerInt = 0;
-        s->TCTR_base = 0;
-
-        RTL8139TallyCounters_clear(&s->tally_counters);
-    }
-
-    if (version_id >= 4) {
-        qemu_get_be32s(f, &s->cplus_enabled);
-    } else {
+    if (version_id < 4) {
         s->cplus_enabled = s->CpCmd != 0;
     }
 
     return 0;
 }
+
+static const VMStateDescription vmstate_rtl8139 = {
+    .name = "rtl8139",
+    .version_id = 4,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .post_load = rtl8139_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, RTL8139State),
+        VMSTATE_PARTIAL_BUFFER(phys, RTL8139State, 6),
+        VMSTATE_BUFFER(mult, RTL8139State),
+        VMSTATE_UINT32_ARRAY(TxStatus, RTL8139State, 4),
+        VMSTATE_UINT32_ARRAY(TxAddr, RTL8139State, 4),
+
+        VMSTATE_UINT32(RxBuf, RTL8139State),
+        VMSTATE_UINT32(RxBufferSize, RTL8139State),
+        VMSTATE_UINT32(RxBufPtr, RTL8139State),
+        VMSTATE_UINT32(RxBufAddr, RTL8139State),
+
+        VMSTATE_UINT16(IntrStatus, RTL8139State),
+        VMSTATE_UINT16(IntrMask, RTL8139State),
+
+        VMSTATE_UINT32(TxConfig, RTL8139State),
+        VMSTATE_UINT32(RxConfig, RTL8139State),
+        VMSTATE_UINT32(RxMissed, RTL8139State),
+        VMSTATE_UINT16(CSCR, RTL8139State),
+
+        VMSTATE_UINT8(Cfg9346, RTL8139State),
+        VMSTATE_UINT8(Config0, RTL8139State),
+        VMSTATE_UINT8(Config1, RTL8139State),
+        VMSTATE_UINT8(Config3, RTL8139State),
+        VMSTATE_UINT8(Config4, RTL8139State),
+        VMSTATE_UINT8(Config5, RTL8139State),
+
+        VMSTATE_UINT8(clock_enabled, RTL8139State),
+        VMSTATE_UINT8(bChipCmdState, RTL8139State),
+
+        VMSTATE_UINT16(MultiIntr, RTL8139State),
+
+        VMSTATE_UINT16(BasicModeCtrl, RTL8139State),
+        VMSTATE_UINT16(BasicModeStatus, RTL8139State),
+        VMSTATE_UINT16(NWayAdvert, RTL8139State),
+        VMSTATE_UINT16(NWayLPAR, RTL8139State),
+        VMSTATE_UINT16(NWayExpansion, RTL8139State),
+
+        VMSTATE_UINT16(CpCmd, RTL8139State),
+        VMSTATE_UINT8(TxThresh, RTL8139State),
+
+        VMSTATE_UNUSED(4),
+        VMSTATE_MACADDR(conf.macaddr, RTL8139State),
+        VMSTATE_INT32(rtl8139_mmio_io_addr, RTL8139State),
+
+        VMSTATE_UINT32(currTxDesc, RTL8139State),
+        VMSTATE_UINT32(currCPlusRxDesc, RTL8139State),
+        VMSTATE_UINT32(currCPlusTxDesc, RTL8139State),
+        VMSTATE_UINT32(RxRingAddrLO, RTL8139State),
+        VMSTATE_UINT32(RxRingAddrHI, RTL8139State),
+
+        VMSTATE_UINT16_ARRAY(eeprom.contents, RTL8139State, EEPROM_9346_SIZE),
+        VMSTATE_INT32(eeprom.mode, RTL8139State),
+        VMSTATE_UINT32(eeprom.tick, RTL8139State),
+        VMSTATE_UINT8(eeprom.address, RTL8139State),
+        VMSTATE_UINT16(eeprom.input, RTL8139State),
+        VMSTATE_UINT16(eeprom.output, RTL8139State),
+
+        VMSTATE_UINT8(eeprom.eecs, RTL8139State),
+        VMSTATE_UINT8(eeprom.eesk, RTL8139State),
+        VMSTATE_UINT8(eeprom.eedi, RTL8139State),
+        VMSTATE_UINT8(eeprom.eedo, RTL8139State),
+
+        VMSTATE_UINT32(TCTR, RTL8139State),
+        VMSTATE_UINT32(TimerInt, RTL8139State),
+        VMSTATE_INT64(TCTR_base, RTL8139State),
+
+        VMSTATE_STRUCT(tally_counters, RTL8139State, 0,
+                       vmstate_tally_counters, RTL8139TallyCounters),
+
+        VMSTATE_UINT32_V(cplus_enabled, RTL8139State, 4),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /***********************************************************/
 /* PCI RTL8139 definitions */
@@ -3416,17 +3284,7 @@ static void rtl8139_cleanup(VLANClientState *vc)
 {
     RTL8139State *s = vc->opaque;
 
-    if (s->cplus_txbuffer) {
-        qemu_free(s->cplus_txbuffer);
-        s->cplus_txbuffer = NULL;
-    }
-
-#ifdef RTL8139_ONBOARD_TIMER
-    qemu_del_timer(s->timer);
-    qemu_free_timer(s->timer);
-#endif
-
-    unregister_savevm("rtl8139", s);
+    s->vc = NULL;
 }
 
 static int pci_rtl8139_uninit(PCIDevice *dev)
@@ -3434,7 +3292,16 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     RTL8139State *s = DO_UPCAST(RTL8139State, dev, dev);
 
     cpu_unregister_io_memory(s->rtl8139_mmio_io_addr);
-
+    if (s->cplus_txbuffer) {
+        qemu_free(s->cplus_txbuffer);
+        s->cplus_txbuffer = NULL;
+    }
+#ifdef RTL8139_ONBOARD_TIMER
+    qemu_del_timer(s->timer);
+    qemu_free_timer(s->timer);
+#endif
+    vmstate_unregister(&vmstate_rtl8139, s);
+    qemu_del_vlan_client(s->vc);
     return 0;
 }
 
@@ -3463,19 +3330,20 @@ static int pci_rtl8139_init(PCIDevice *dev)
     pci_register_bar(&s->dev, 1, 0x100,
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
-    qdev_get_macaddr(&dev->qdev, s->macaddr);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
     rtl8139_reset(&s->dev.qdev);
-    s->vc = qdev_get_vlan_client(&dev->qdev,
+    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
+                                 s->conf.vlan, s->conf.peer,
+                                 dev->qdev.info->name, dev->qdev.id,
                                  rtl8139_can_receive, rtl8139_receive, NULL,
-                                 rtl8139_cleanup, s);
-
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+                                 NULL, rtl8139_cleanup, s);
+    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
 
     s->cplus_txbuffer = NULL;
     s->cplus_txbuffer_len = 0;
     s->cplus_txbuffer_offset = 0;
 
-    register_savevm("rtl8139", -1, 4, rtl8139_save, rtl8139_load, s);
+    vmstate_register(-1, &vmstate_rtl8139, s);
 
 #ifdef RTL8139_ONBOARD_TIMER
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);
@@ -3483,6 +3351,14 @@ static int pci_rtl8139_init(PCIDevice *dev)
     qemu_mod_timer(s->timer,
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
+
+    if (!dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            rom_add_option("pxe-rtl8139.bin");
+            loaded = 1;
+        }
+    }
     return 0;
 }
 
@@ -3492,6 +3368,10 @@ static PCIDeviceInfo rtl8139_info = {
     .qdev.reset = rtl8139_reset,
     .init       = pci_rtl8139_init,
     .exit       = pci_rtl8139_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(RTL8139State, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void rtl8139_register_devices(void)
