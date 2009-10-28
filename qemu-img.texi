@@ -25,43 +25,8 @@ differ
 @item base_fmt
 is the disk image format of @var{base_image}. for more information look at @var{fmt}
 @item fmt
-is the disk image format. It is guessed automatically in most cases. The following formats are supported:
-
-@table @code
-@item raw
-
-Raw disk image format (default). This format has the advantage of
-being simple and easily exportable to all other emulators. If your
-file system supports @emph{holes} (for example in ext2 or ext3 on
-Linux or NTFS on Windows), then only the written sectors will reserve
-space. Use @code{qemu-img info} to know the real size used by the
-image or @code{ls -ls} on Unix/Linux.
-
-@item host_device
-
-Host device format. This format should be used instead of raw when
-converting to block devices or other devices where "holes" are not
-supported.
-
-@item qcow2
-QEMU image format, the most versatile format. Use it to have smaller
-images (useful if your filesystem does not supports holes, for example
-on Windows), optional AES encryption, zlib based compression and
-support of multiple VM snapshots.
-@item qcow
-Old QEMU image format. Left for compatibility.
-@item cow
-User Mode Linux Copy On Write image format. Used to be the only growable
-image format in QEMU. It is supported only for compatibility with
-previous versions. It does not work on win32.
-@item vdi
-VirtualBox 1.1 compatible image format.
-@item vmdk
-VMware 3 and 4 compatible image format.
-@item cloop
-Linux Compressed Loop image, useful only to reuse directly compressed
-CD-ROM images present for example in the Knoppix CD-ROMs.
-@end table
+is the disk image format. It is guessed automatically in most cases. See below
+for a description of the supported disk formats.
 
 @item size
 is the disk image size in bytes. Optional suffixes @code{k} or @code{K}
@@ -149,6 +114,45 @@ they are displayed too.
 
 List, apply, create or delete snapshots in image @var{filename}.
 @end table
+
+Supported image file formats:
+
+@table @option
+@item raw
+
+Raw disk image format (default). This format has the advantage of
+being simple and easily exportable to all other emulators. If your
+file system supports @emph{holes} (for example in ext2 or ext3 on
+Linux or NTFS on Windows), then only the written sectors will reserve
+space. Use @code{qemu-img info} to know the real size used by the
+image or @code{ls -ls} on Unix/Linux.
+
+@item host_device
+
+Host device format. This format should be used instead of raw when
+converting to block devices or other devices where "holes" are not
+supported.
+
+@item qcow2
+QEMU image format, the most versatile format. Use it to have smaller
+images (useful if your filesystem does not supports holes, for example
+on Windows), optional AES encryption, zlib based compression and
+support of multiple VM snapshots.
+@item qcow
+Old QEMU image format. Left for compatibility.
+@item cow
+User Mode Linux Copy On Write image format. Used to be the only growable
+image format in QEMU. It is supported only for compatibility with
+previous versions. It does not work on win32.
+@item vdi
+VirtualBox 1.1 compatible image format.
+@item vmdk
+VMware 3 and 4 compatible image format.
+@item cloop
+Linux Compressed Loop image, useful only to reuse directly compressed
+CD-ROM images present for example in the Knoppix CD-ROMs.
+@end table
+
 
 @c man end
 
