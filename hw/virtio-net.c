@@ -834,6 +834,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
     n->ctrl_vq = virtio_add_queue(&n->vdev, 64, virtio_net_handle_ctrl);
     qemu_macaddr_default_if_unset(&conf->macaddr);
+    memcpy(&n->mac[0], &conf->macaddr, sizeof(n->mac));
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC, conf->vlan, conf->peer,
                                  dev->info->name, dev->id,
