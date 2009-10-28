@@ -297,13 +297,16 @@ static int img_create(int argc, char **argv)
         return 0;
     }
 
+    /* Create parameter list with default values */
+    param = parse_option_parameters("", drv->create_options, param);
+    set_option_parameter_int(param, BLOCK_OPT_SIZE, -1);
+
+    /* Parse -o options */
     if (options) {
         param = parse_option_parameters(options, drv->create_options, param);
         if (param == NULL) {
             error("Invalid options for file format '%s'.", fmt);
         }
-    } else {
-        param = parse_option_parameters("", drv->create_options, param);
     }
 
     /* Get the filename */
@@ -321,7 +324,7 @@ static int img_create(int argc, char **argv)
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
-    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == 0) {
+    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
 
         QEMUOptionParameter *backing_file =
             get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
