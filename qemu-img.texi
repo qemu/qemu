@@ -31,7 +31,7 @@ is the destination disk image filename
 @item options
 is a comma separated list of format specific options in a
 name=value format. Use @code{-o ?} for an overview of the options supported
-by the used format
+by the used format or see the format descriptions below for details.
 
 
 @item -c
@@ -132,10 +132,42 @@ images (useful if your filesystem does not supports holes, for example
 on Windows), optional AES encryption, zlib based compression and
 support of multiple VM snapshots.
 
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@item backing_fmt
+Image format of the base image
+@item encryption
+If this option is set to @code{on}, the image is encrypted.
+
 Encryption uses the AES format which is very secure (128 bit keys). Use
 a long password (16 characters) to get maximum protection.
+
+@item cluster_size
+Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
+sizes can improve the image file size whereas larger cluster sizes generally
+provide better performance.
+
+@item preallocation
+Preallocation mode (allowed values: off, metadata). An image with preallocated
+metadata is initially larger but can improve performance when the image needs
+to grow.
+
+@end table
+
+
 @item qcow
 Old QEMU image format. Left for compatibility.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@item encryption
+If this option is set to @code{on}, the image is encrypted.
+@end table
+
 @item cow
 User Mode Linux Copy On Write image format. Used to be the only growable
 image format in QEMU. It is supported only for compatibility with
@@ -144,6 +176,18 @@ previous versions. It does not work on win32.
 VirtualBox 1.1 compatible image format.
 @item vmdk
 VMware 3 and 4 compatible image format.
+
+Supported options:
+@table @code
+@item backing_fmt
+Image format of the base image
+@item compat6
+Create a VMDK version 6 image (instead of version 4)
+@end table
+
+@item vpc
+VirtualPC compatible image format (VHD).
+
 @item cloop
 Linux Compressed Loop image, useful only to reuse directly compressed
 CD-ROM images present for example in the Knoppix CD-ROMs.
