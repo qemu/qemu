@@ -293,7 +293,7 @@ struct mac80211_frame *Atheros_WLAN_create_deauthentication(void)
 	buf = (unsigned char*)frame->data_and_fcs;
 
 	/*
-	 * Inser reason code:
+	 * Insert reason code:
 	 *  "Deauthentication because sending STA is leaving"
 	 */
 	FRAME_INSERT(0x03);
@@ -394,7 +394,7 @@ struct mac80211_frame *Atheros_WLAN_create_disassociation(void)
 	buf = (unsigned char*)frame->data_and_fcs;
 
 	/*
-	 * Inser reason code:
+	 * Insert reason code:
 	 *  "Disassociation because sending STA is leaving"
 	 */
 	FRAME_INSERT(0x03);
