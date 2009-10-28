@@ -101,3 +101,12 @@ int64_t qemu_get_clock(QEMUClock *clock)
     qemu_gettimeofday(&tv);
     return (tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000)) / 1000000;
 }
+
+void qemu_error(const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
