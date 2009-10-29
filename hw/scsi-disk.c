@@ -633,7 +633,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             memset(p, 0, 4);
             outbuf[1] = 0; /* Default media type.  */
             outbuf[3] = 0; /* Block descriptor length.  */
-            if (bdrv_get_type_hint(s->dinfo->bdrv) == BDRV_TYPE_CDROM) {
+            if (bdrv_get_type_hint(s->dinfo->bdrv) == BDRV_TYPE_CDROM ||
+                bdrv_is_read_only(s->dinfo->bdrv)) {
                 outbuf[2] = 0x80; /* Readonly.  */
             }
             p += 4;
