@@ -215,6 +215,8 @@ qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y)
 
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o $(block-obj-y)
 
+qemu-io.o: config-host.h
+
 qemu-io$(EXESUF):  qemu-io.o qemu-tool.o cmd.o $(block-obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
