@@ -3685,8 +3685,7 @@ static int64_t load_kernel (CPUState *env)
         int argc;
         uint32_t *argv;
         uint32_t *arg0;
-        target_ulong size = load_image_targphys(loaderparams.kernel_cmdline,
-                                                INITRD_LOAD_ADDR, 1 * KiB);
+        target_ulong size = load_image(loaderparams.kernel_cmdline, address);
         target_ulong i;
         if (size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load kernel parameters '%s'\n",
