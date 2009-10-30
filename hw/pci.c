@@ -84,9 +84,15 @@ static const VMStateDescription vmstate_pcibus = {
     }
 };
 
-static inline int pci_bar(int reg)
+static int pci_bar(PCIDevice *d, int reg)
 {
-    return reg == PCI_ROM_SLOT ? PCI_ROM_ADDRESS : PCI_BASE_ADDRESS_0 + reg * 4;
+    uint8_t type;
+
+    if (reg != PCI_ROM_SLOT)
+        return PCI_BASE_ADDRESS_0 + reg * 4;
+
+    type = d->config[PCI_HEADER_TYPE] & ~PCI_HEADER_TYPE_MULTI_FUNCTION;
+    return type == PCI_HEADER_TYPE_BRIDGE ? PCI_ROM_ADDRESS1 : PCI_ROM_ADDRESS;
 }
 
 static void pci_device_reset(PCIDevice *dev)
@@ -102,7 +108,7 @@ static void pci_device_reset(PCIDevice *dev)
         if (!dev->io_regions[r].size) {
             continue;
         }
-        pci_set_long(dev->config + pci_bar(r), dev->io_regions[r].type);
+        pci_set_long(dev->config + pci_bar(dev, r), dev->io_regions[r].type);
     }
     pci_update_mappings(dev);
 }
@@ -472,7 +478,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->map_func = map_func;
 
     wmask = ~(size - 1);
-    addr = pci_bar(region_num);
+    addr = pci_bar(pci_dev, region_num);
     if (region_num == PCI_ROM_SLOT) {
         /* ROM enable bit is writeable */
         wmask |= PCI_ROM_ADDRESS_ENABLE;
@@ -494,7 +500,7 @@ static void pci_update_mappings(PCIDevice *d)
         if (r->size != 0) {
             if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                 if (cmd & PCI_COMMAND_IO) {
-                    new_addr = pci_get_long(d->config + pci_bar(i));
+                    new_addr = pci_get_long(d->config + pci_bar(d, i));
                     new_addr = new_addr & ~(r->size - 1);
                     last_addr = new_addr + r->size - 1;
                     /* NOTE: we have only 64K ioports on PC */
@@ -507,7 +513,7 @@ static void pci_update_mappings(PCIDevice *d)
                 }
             } else {
                 if (cmd & PCI_COMMAND_MEMORY) {
-                    new_addr = pci_get_long(d->config + pci_bar(i));
+                    new_addr = pci_get_long(d->config + pci_bar(d, i));
                     /* the ROM slot has a specific enable bit */
                     if (i == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE))
                         goto no_mem_map;
