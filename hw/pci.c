@@ -637,85 +637,91 @@ static void pci_update_mappings(PCIDevice *d)
     cmd = pci_get_word(d->config + PCI_COMMAND);
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
-        if (r->size != 0) {
-            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-                if (cmd & PCI_COMMAND_IO) {
-                    new_addr = pci_get_long(d->config + pci_bar(d, i));
-                    new_addr = new_addr & ~(r->size - 1);
-                    last_addr = new_addr + r->size - 1;
-                    /* NOTE: we have only 64K ioports on PC */
-                    if (last_addr <= new_addr || new_addr == 0 ||
-                        last_addr >= 0x10000) {
-                        new_addr = PCI_BAR_UNMAPPED;
-                    }
-                } else {
+
+        /* this region isn't registered */
+        if (r->size == 0)
+            continue;
+
+        if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+            if (cmd & PCI_COMMAND_IO) {
+                new_addr = pci_get_long(d->config + pci_bar(d, i));
+                new_addr = new_addr & ~(r->size - 1);
+                last_addr = new_addr + r->size - 1;
+                /* NOTE: we have only 64K ioports on PC */
+                if (last_addr <= new_addr || new_addr == 0 ||
+                    last_addr >= 0x10000) {
                     new_addr = PCI_BAR_UNMAPPED;
                 }
             } else {
-                if (cmd & PCI_COMMAND_MEMORY) {
-                    if (r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-                        new_addr = pci_get_quad(d->config + pci_bar(d, i));
-                    } else {
-                        new_addr = pci_get_long(d->config + pci_bar(d, i));
-                    }
-                    /* the ROM slot has a specific enable bit */
-                    if (i == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE))
-                        goto no_mem_map;
-                    new_addr = new_addr & ~(r->size - 1);
-                    last_addr = new_addr + r->size - 1;
-                    /* NOTE: we do not support wrapping */
-                    /* XXX: as we cannot support really dynamic
-                       mappings, we handle specific values as invalid
-                       mappings. */
-                    if (last_addr <= new_addr || new_addr == 0 ||
-                        last_addr == PCI_BAR_UNMAPPED ||
-
-                        /* Now pcibus_t is 64bit.
-                         * Check if 32 bit BAR wrap around explicitly.
-                         * Without this, PC ide doesn't work well.
-                         * TODO: remove this work around.
-                         */
-                        (!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) &&
-                         last_addr >= UINT32_MAX) ||
-
-                        /*
-                         * OS is allowed to set BAR beyond its addressable
-                         * bits. For example, 32 bit OS can set 64bit bar
-                         * to >4G. Check it.
-                         */
-                        last_addr >= TARGET_PHYS_ADDR_MAX) {
-                        new_addr = PCI_BAR_UNMAPPED;
-                    }
+                new_addr = PCI_BAR_UNMAPPED;
+            }
+        } else {
+            if (cmd & PCI_COMMAND_MEMORY) {
+                if (r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+                    new_addr = pci_get_quad(d->config + pci_bar(d, i));
                 } else {
-                no_mem_map:
+                    new_addr = pci_get_long(d->config + pci_bar(d, i));
+                }
+                /* the ROM slot has a specific enable bit */
+                if (i == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE))
+                    goto no_mem_map;
+                new_addr = new_addr & ~(r->size - 1);
+                last_addr = new_addr + r->size - 1;
+                /* NOTE: we do not support wrapping */
+                /* XXX: as we cannot support really dynamic
+                   mappings, we handle specific values as invalid
+                   mappings. */
+                if (last_addr <= new_addr || new_addr == 0 ||
+                    last_addr == PCI_BAR_UNMAPPED ||
+
+                    /* Now pcibus_t is 64bit.
+                     * Check if 32 bit BAR wrap around explicitly.
+                     * Without this, PC ide doesn't work well.
+                     * TODO: remove this work around.
+                     */
+                    (!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) &&
+                     last_addr >= UINT32_MAX) ||
+
+                    /*
+                     * OS is allowed to set BAR beyond its addressable
+                     * bits. For example, 32 bit OS can set 64bit bar
+                     * to >4G. Check it.
+                     */
+                    last_addr >= TARGET_PHYS_ADDR_MAX) {
                     new_addr = PCI_BAR_UNMAPPED;
                 }
+            } else {
+            no_mem_map:
+                new_addr = PCI_BAR_UNMAPPED;
             }
-            /* now do the real mapping */
-            if (new_addr != r->addr) {
-                if (r->addr != PCI_BAR_UNMAPPED) {
-                    if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-                        int class;
-                        /* NOTE: specific hack for IDE in PC case:
-                           only one byte must be mapped. */
-                        class = pci_get_word(d->config + PCI_CLASS_DEVICE);
-                        if (class == 0x0101 && r->size == 4) {
-                            isa_unassign_ioport(r->addr + 2, 1);
-                        } else {
-                            isa_unassign_ioport(r->addr, r->size);
-                        }
-                    } else {
-                        cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
-                                                     r->size,
-                                                     IO_MEM_UNASSIGNED);
-                        qemu_unregister_coalesced_mmio(r->addr, r->size);
-                    }
+        }
+
+        /* This bar isn't changed */
+        if (new_addr == r->addr)
+            continue;
+
+        /* now do the real mapping */
+        if (r->addr != PCI_BAR_UNMAPPED) {
+            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+                int class;
+                /* NOTE: specific hack for IDE in PC case:
+                   only one byte must be mapped. */
+                class = pci_get_word(d->config + PCI_CLASS_DEVICE);
+                if (class == 0x0101 && r->size == 4) {
+                    isa_unassign_ioport(r->addr + 2, 1);
+                } else {
+                    isa_unassign_ioport(r->addr, r->size);
                 }
-                r->addr = new_addr;
-                if (r->addr != PCI_BAR_UNMAPPED) {
-                    r->map_func(d, i, r->addr, r->size, r->type);
-                }
+            } else {
+                cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
+                                             r->size,
+                                             IO_MEM_UNASSIGNED);
+                qemu_unregister_coalesced_mmio(r->addr, r->size);
             }
+        }
+        r->addr = new_addr;
+        if (r->addr != PCI_BAR_UNMAPPED) {
+            r->map_func(d, i, r->addr, r->size, r->type);
         }
     }
 }
