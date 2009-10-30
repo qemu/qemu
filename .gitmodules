@@ -4,6 +4,3 @@
 [submodule "roms/seabios"]
 	path = roms/seabios
 	url = ../seabios.git
-[submodule "roms/pcbios"]
-	path = roms/pcbios
-	url = ../pcbios.git
