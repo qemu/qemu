@@ -352,8 +352,8 @@ static void pci_init_wmask(PCIDevice *dev)
     int i;
     dev->wmask[PCI_CACHE_LINE_SIZE] = 0xff;
     dev->wmask[PCI_INTERRUPT_LINE] = 0xff;
-    dev->wmask[PCI_COMMAND] = PCI_COMMAND_IO | PCI_COMMAND_MEMORY
-                              | PCI_COMMAND_MASTER;
+    pci_set_word(dev->wmask + PCI_COMMAND,
+                 PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
     for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i)
         dev->wmask[i] = 0xff;
 }
