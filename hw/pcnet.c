@@ -1732,7 +1732,8 @@ static void pcnet_ioport_map(PCIDevice *pci_dev, int region_num,
     PCNetState *d = &DO_UPCAST(PCIPCNetState, pci_dev, pci_dev)->state;
 
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_ioport_map addr=0x%04x size=0x%04x\n", addr, size);
+    printf("pcnet_ioport_map addr=0x%04"FMT_PCIBUS" size=0x%04"FMT_PCIBUS"\n",
+           addr, size);
 #endif
 
     register_ioport_write(addr, 16, 1, pcnet_aprom_writeb, d);
@@ -1925,7 +1926,8 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, pci_dev);
 
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_map addr=0x%08x 0x%08x\n", addr, size);
+    printf("pcnet_mmio_map addr=0x%08"FMT_PCIBUS" 0x%08"FMT_PCIBUS"\n",
+           addr, size);
 #endif
 
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->state.mmio_index);

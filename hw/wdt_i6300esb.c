@@ -358,7 +358,8 @@ static void i6300esb_map(PCIDevice *dev, int region_num,
     I6300State *d = DO_UPCAST(I6300State, dev, dev);
     int io_mem;
 
-    i6300esb_debug("addr = %x, size = %x, type = %d\n", addr, size, type);
+    i6300esb_debug("addr = %"FMT_PCIBUS", size = %"FMT_PCIBUS", type = %d\n",
+                   addr, size, type);
 
     io_mem = cpu_register_io_memory(mem_read, mem_write, d);
     cpu_register_physical_memory (addr, 0x10, io_mem);

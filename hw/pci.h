@@ -72,6 +72,7 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_DEVICE_ID_VIRTIO_CONSOLE     0x1003
 
 typedef uint32_t pcibus_t;
+#define FMT_PCIBUS                      PRIx32
 
 typedef void PCIConfigWriteFunc(PCIDevice *pci_dev,
                                 uint32_t address, uint32_t data, int len);
