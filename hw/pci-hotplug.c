@@ -30,7 +30,7 @@
 #include "pc.h"
 #include "monitor.h"
 #include "block_int.h"
-#include "scsi-disk.h"
+#include "scsi.h"
 #include "virtio-blk.h"
 #include "qemu-config.h"
 

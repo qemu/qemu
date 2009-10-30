@@ -14,7 +14,7 @@
 
 #include "hw.h"
 #include "pci.h"
-#include "scsi-disk.h"
+#include "scsi.h"
 #include "block_int.h"
 
 //#define DEBUG_LSI

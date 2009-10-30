@@ -1,6 +1,6 @@
 #include "hw.h"
 #include "sysemu.h"
-#include "scsi-disk.h"
+#include "scsi.h"
 #include "block.h"
 #include "qdev.h"
 
