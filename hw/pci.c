@@ -707,6 +707,8 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
         d->config[addr] = (d->config[addr] & ~wmask) | (val & wmask);
     }
     if (ranges_overlap(addr, l, PCI_BASE_ADDRESS_0, 24) ||
+        ranges_overlap(addr, l, PCI_ROM_ADDRESS, 4) ||
+        ranges_overlap(addr, l, PCI_ROM_ADDRESS1, 4) ||
         range_covers_byte(addr, l, PCI_COMMAND))
         pci_update_mappings(d);
 }
