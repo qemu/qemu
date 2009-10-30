@@ -32,6 +32,114 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
 #define PCI_DPRINTF(fmt, ...)
 #endif
 
+static void pci_host_config_writel(void *opaque, target_phys_addr_t addr,
+                                   uint32_t val)
+{
+    PCIHostState *s = opaque;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
+                __func__, addr, val);
+    s->config_reg = val;
+}
+
+static uint32_t pci_host_config_readl(void *opaque, target_phys_addr_t addr)
+{
+    PCIHostState *s = opaque;
+    uint32_t val = s->config_reg;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
+                __func__, addr, val);
+    return val;
+}
+
+static CPUWriteMemoryFunc * const pci_host_config_write[] = {
+    &pci_host_config_writel,
+    &pci_host_config_writel,
+    &pci_host_config_writel,
+};
+
+static CPUReadMemoryFunc * const pci_host_config_read[] = {
+    &pci_host_config_readl,
+    &pci_host_config_readl,
+    &pci_host_config_readl,
+};
+
+int pci_host_config_register_io_memory(PCIHostState *s)
+{
+    return cpu_register_io_memory(pci_host_config_read,
+                                  pci_host_config_write, s);
+}
+
+static void pci_host_config_writel_noswap(void *opaque,
+                                          target_phys_addr_t addr,
+                                          uint32_t val)
+{
+    PCIHostState *s = opaque;
+
+    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
+                __func__, addr, val);
+    s->config_reg = val;
+}
+
+static uint32_t pci_host_config_readl_noswap(void *opaque,
+                                             target_phys_addr_t addr)
+{
+    PCIHostState *s = opaque;
+    uint32_t val = s->config_reg;
+
+    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
+                __func__, addr, val);
+    return val;
+}
+
+static CPUWriteMemoryFunc * const pci_host_config_write_noswap[] = {
+    &pci_host_config_writel_noswap,
+    &pci_host_config_writel_noswap,
+    &pci_host_config_writel_noswap,
+};
+
+static CPUReadMemoryFunc * const pci_host_config_read_noswap[] = {
+    &pci_host_config_readl_noswap,
+    &pci_host_config_readl_noswap,
+    &pci_host_config_readl_noswap,
+};
+
+int pci_host_config_register_io_memory_noswap(PCIHostState *s)
+{
+    return cpu_register_io_memory(pci_host_config_read_noswap,
+                                  pci_host_config_write_noswap, s);
+}
+
+static void pci_host_config_writel_ioport(void *opaque,
+                                          uint32_t addr, uint32_t val)
+{
+    PCIHostState *s = opaque;
+
+    PCI_DPRINTF("%s addr %"PRIx32 " val %"PRIx32"\n", __func__, addr, val);
+    s->config_reg = val;
+}
+
+static uint32_t pci_host_config_readl_ioport(void *opaque, uint32_t addr)
+{
+    PCIHostState *s = opaque;
+    uint32_t val = s->config_reg;
+
+    PCI_DPRINTF("%s addr %"PRIx32" val %"PRIx32"\n", __func__, addr, val);
+    return val;
+}
+
+void pci_host_config_register_ioport(pio_addr_t ioport, PCIHostState *s)
+{
+    register_ioport_write(ioport, 4, 4, pci_host_config_writel_ioport, s);
+    register_ioport_read(ioport, 4, 4, pci_host_config_readl_ioport, s);
+}
+
 #define PCI_ADDR_T      target_phys_addr_t
 #define PCI_HOST_SUFFIX _mmio
 

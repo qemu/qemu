@@ -37,9 +37,12 @@ typedef struct {
 } PCIHostState;
 
 /* for mmio */
+int pci_host_config_register_io_memory(PCIHostState *s);
+int pci_host_config_register_io_memory_noswap(PCIHostState *s);
 int pci_host_data_register_io_memory(PCIHostState *s);
 
 /* for ioio */
+void pci_host_config_register_ioport(pio_addr_t ioport, PCIHostState *s);
 void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s);
 
 #endif /* PCI_HOST_H */

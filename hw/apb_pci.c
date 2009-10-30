@@ -54,46 +54,6 @@ typedef struct APBState {
     PCIHostState host_state;
 } APBState;
 
-static void pci_apb_config_writel (void *opaque, target_phys_addr_t addr,
-                                         uint32_t val)
-{
-    APBState *s = opaque;
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    APB_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr,
-                val);
-    s->host_state.config_reg = val;
-}
-
-static uint32_t pci_apb_config_readl (void *opaque,
-                                            target_phys_addr_t addr)
-{
-    APBState *s = opaque;
-    uint32_t val;
-
-    val = s->host_state.config_reg;
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    APB_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr,
-                val);
-    return val;
-}
-
-static CPUWriteMemoryFunc * const pci_apb_config_write[] = {
-    &pci_apb_config_writel,
-    &pci_apb_config_writel,
-    &pci_apb_config_writel,
-};
-
-static CPUReadMemoryFunc * const pci_apb_config_read[] = {
-    &pci_apb_config_readl,
-    &pci_apb_config_readl,
-    &pci_apb_config_readl,
-};
-
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
                                uint32_t val)
 {
@@ -275,8 +235,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
                                           pci_apb_iowrite, s);
     sysbus_init_mmio(dev, 0x10000ULL, pci_ioport);
     /* mem_config  */
-    pci_mem_config = cpu_register_io_memory(pci_apb_config_read,
-                                            pci_apb_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x10ULL, pci_mem_config);
     /* mem_data */
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);

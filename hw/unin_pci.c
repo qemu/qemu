@@ -41,74 +41,6 @@ typedef struct UNINState {
     PCIHostState host_state;
 } UNINState;
 
-static void pci_unin_main_config_writel (void *opaque, target_phys_addr_t addr,
-                                         uint32_t val)
-{
-    UNINState *s = opaque;
-
-    UNIN_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr, val);
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-
-    s->host_state.config_reg = val;
-}
-
-static uint32_t pci_unin_main_config_readl (void *opaque,
-                                            target_phys_addr_t addr)
-{
-    UNINState *s = opaque;
-    uint32_t val;
-
-    val = s->host_state.config_reg;
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    UNIN_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr, val);
-
-    return val;
-}
-
-static CPUWriteMemoryFunc * const pci_unin_main_config_write[] = {
-    &pci_unin_main_config_writel,
-    &pci_unin_main_config_writel,
-    &pci_unin_main_config_writel,
-};
-
-static CPUReadMemoryFunc * const pci_unin_main_config_read[] = {
-    &pci_unin_main_config_readl,
-    &pci_unin_main_config_readl,
-    &pci_unin_main_config_readl,
-};
-
-static void pci_unin_config_writel (void *opaque, target_phys_addr_t addr,
-                                    uint32_t val)
-{
-    UNINState *s = opaque;
-
-    s->host_state.config_reg = val;
-}
-
-static uint32_t pci_unin_config_readl (void *opaque,
-                                       target_phys_addr_t addr)
-{
-    UNINState *s = opaque;
-
-    return s->host_state.config_reg;
-}
-
-static CPUWriteMemoryFunc * const pci_unin_config_write[] = {
-    &pci_unin_config_writel,
-    &pci_unin_config_writel,
-    &pci_unin_config_writel,
-};
-
-static CPUReadMemoryFunc * const pci_unin_config_read[] = {
-    &pci_unin_config_readl,
-    &pci_unin_config_readl,
-    &pci_unin_config_readl,
-};
-
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
@@ -152,10 +84,8 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     /* Uninorth main bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = cpu_register_io_memory(pci_unin_main_config_read,
-                                            pci_unin_main_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
-
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
@@ -173,8 +103,7 @@ static int pci_dec_21154_init_device(SysBusDevice *dev)
     s = FROM_SYSBUS(UNINState, dev);
 
     // XXX: s = &pci_bridge[2];
-    pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
-                                            pci_unin_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory_noswap(&s->host_state);
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
@@ -189,8 +118,7 @@ static int pci_unin_agp_init_device(SysBusDevice *dev)
     /* Uninorth AGP bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
-                                            pci_unin_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory_noswap(&s->host_state);
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
@@ -205,8 +133,7 @@ static int pci_unin_internal_init_device(SysBusDevice *dev)
     /* Uninorth internal bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
-                                            pci_unin_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory_noswap(&s->host_state);
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);

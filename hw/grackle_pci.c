@@ -43,45 +43,6 @@ typedef struct GrackleState {
     PCIHostState host_state;
 } GrackleState;
 
-static void pci_grackle_config_writel (void *opaque, target_phys_addr_t addr,
-                                       uint32_t val)
-{
-    GrackleState *s = opaque;
-
-    GRACKLE_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr,
-                    val);
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    s->host_state.config_reg = val;
-}
-
-static uint32_t pci_grackle_config_readl (void *opaque, target_phys_addr_t addr)
-{
-    GrackleState *s = opaque;
-    uint32_t val;
-
-    val = s->host_state.config_reg;
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    GRACKLE_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr,
-                    val);
-    return val;
-}
-
-static CPUWriteMemoryFunc * const pci_grackle_config_write[] = {
-    &pci_grackle_config_writel,
-    &pci_grackle_config_writel,
-    &pci_grackle_config_writel,
-};
-
-static CPUReadMemoryFunc * const pci_grackle_config_read[] = {
-    &pci_grackle_config_readl,
-    &pci_grackle_config_readl,
-    &pci_grackle_config_readl,
-};
-
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
 static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)
 {
@@ -147,8 +108,7 @@ static int pci_grackle_init_device(SysBusDevice *dev)
 
     s = FROM_SYSBUS(GrackleState, dev);
 
-    pci_mem_config = cpu_register_io_memory(pci_grackle_config_read,
-                                            pci_grackle_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
@@ -166,8 +126,7 @@ static int pci_dec_21154_init_device(SysBusDevice *dev)
 
     s = FROM_SYSBUS(GrackleState, dev);
 
-    pci_mem_config = cpu_register_io_memory(pci_grackle_config_read,
-                                            pci_grackle_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
     pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);

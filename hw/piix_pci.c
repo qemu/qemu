@@ -44,18 +44,6 @@ struct PCII440FXState {
     PIIX3State *piix3;
 };
 
-static void i440fx_addr_writel(void* opaque, uint32_t addr, uint32_t val)
-{
-    I440FXState *s = opaque;
-    s->config_reg = val;
-}
-
-static uint32_t i440fx_addr_readl(void* opaque, uint32_t addr)
-{
-    I440FXState *s = opaque;
-    return s->config_reg;
-}
-
 static void piix3_set_irq(void *opaque, int irq_num, int level);
 
 /* return the global irq number corresponding to a given device irq
@@ -192,8 +180,7 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
-    register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);
-    register_ioport_read(0xcf8, 4, 4, i440fx_addr_readl, s);
+    pci_host_config_register_ioport(0xcf8, s);
 
     pci_host_data_register_ioport(0xcfc, s);
     return 0;
