@@ -1085,8 +1085,237 @@ is activated if no @option{-net} options are provided.
 @end table
 ETEXI
 
+DEFHEADING()
+
+DEFHEADING(Character device options:)
+
+DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
+    "-chardev null,id=id\n"
+    "-chardev socket,id=id[,host=host],port=host[,to=to][,ipv4][,ipv6][,nodelay]\n"
+    "         [,server][,nowait][,telnet] (tcp)\n"
+    "-chardev socket,id=id,path=path[,server][,nowait][,telnet] (unix)\n"
+    "-chardev udp,id=id[,host=host],port=port[,localaddr=localaddr]\n"
+    "         [,localport=localport][,ipv4][,ipv6]\n"
+    "-chardev msmouse,id=id\n"
+    "-chardev vc,id=id[[,width=width][,height=height]][[,cols=cols][,rows=rows]]\n"
+    "-chardev file,id=id,path=path\n"
+    "-chardev pipe,id=id,path=path\n"
+#ifdef _WIN32
+    "-chardev console,id=id\n"
+    "-chardev serial,id=id,path=path\n"
+#else
+    "-chardev pty,id=id\n"
+    "-chardev stdio,id=id\n"
+#endif
+#ifdef CONFIG_BRLAPI
+    "-chardev braille,id=id\n"
+#endif
+#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
+        || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    "-chardev tty,id=id,path=path\n"
+#endif
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
+    "-chardev parport,id=id,path=path\n"
+#endif
+)
+
+STEXI
+
+The general form of a character device option is:
+@table @option
+
+@item -chardev @var{backend} ,id=@var{id} [,@var{options}]
+
+Backend is one of:
+@option{null},
+@option{socket},
+@option{udp},
+@option{msmouse},
+@option{vc},
+@option{file},
+@option{pipe},
+@option{console},
+@option{serial},
+@option{pty},
+@option{stdio},
+@option{braille},
+@option{tty},
+@option{parport}.
+The specific backend will determine the applicable options.
+
+All devices must have an id, which can be any string up to 127 characters long.
+It is used to uniquely identify this device in other command line directives.
+
+Options to each backend are described below.
+
+@item -chardev null ,id=@var{id}
+A void device. This device will not emit any data, and will drop any data it
+receives. The null backend does not take any options.
+
+@item -chardev socket ,id=@var{id} [@var{TCP options} or @var{unix options}] [,server] [,nowait] [,telnet]
+
+Create a two-way stream socket, which can be either a TCP or a unix socket. A
+unix socket will be created if @option{path} is specified. Behaviour is
+undefined if TCP options are specified for a unix socket.
+
+@option{server} specifies that the socket shall be a listening socket.
+
+@option{nowait} specifies that QEMU should not block waiting for a client to
+connect to a listening socket.
+
+@option{telnet} specifies that traffic on the socket should interpret telnet
+escape sequences.
+
+TCP and unix socket options are given below:
+
+@table @option
+
+@item TCP options: port=@var{host} [,host=@var{host}] [,to=@var{to}] [,ipv4] [,ipv6] [,nodelay]
+
+@option{host} for a listening socket specifies the local address to be bound.
+For a connecting socket species the remote host to connect to. @option{host} is
+optional for listening sockets. If not specified it defaults to @code{0.0.0.0}.
+
+@option{port} for a listening socket specifies the local port to be bound. For a
+connecting socket specifies the port on the remote host to connect to.
+@option{port} can be given as either a port number or a service name.
+@option{port} is required.
+
+@option{to} is only relevant to listening sockets. If it is specified, and
+@option{port} cannot be bound, QEMU will attempt to bind to subsequent ports up
+to and including @option{to} until it succeeds. @option{to} must be specified
+as a port number.
+
+@option{ipv4} and @option{ipv6} specify that either IPv4 or IPv6 must be used.
+If neither is specified the socket may use either protocol.
+
+@option{nodelay} disables the Nagle algorithm.
+
+@item unix options: path=@var{path}
+
+@option{path} specifies the local path of the unix socket. @option{path} is
+required.
+
+@end table
+
+@item -chardev udp ,id=@var{id} [,host=@var{host}] ,port=@var{port} [,localaddr=@var{localaddr}] [,localport=@var{localport}] [,ipv4] [,ipv6]
+
+Sends all traffic from the guest to a remote host over UDP.
+
+@option{host} specifies the remote host to connect to. If not specified it
+defaults to @code{localhost}.
+
+@option{port} specifies the port on the remote host to connect to. @option{port}
+is required.
+
+@option{localaddr} specifies the local address to bind to. If not specified it
+defaults to @code{0.0.0.0}.
+
+@option{localport} specifies the local port to bind to. If not specified any
+available local port will be used.
+
+@option{ipv4} and @option{ipv6} specify that either IPv4 or IPv6 must be used.
+If neither is specified the device may use either protocol.
+
+@item -chardev msmouse ,id=@var{id}
+
+Forward QEMU's emulated msmouse events to the guest. @option{msmouse} does not
+take any options.
+
+@item -chardev vc ,id=@var{id} [[,width=@var{width}] [,height=@var{height}]] [[,cols=@var{cols}] [,rows=@var{rows}]]
+
+Connect to a QEMU text console. @option{vc} may optionally be given a specific
+size.
+
+@option{width} and @option{height} specify the width and height respectively of
+the console, in pixels.
+
+@option{cols} and @option{rows} specify that the console be sized to fit a text
+console with the given dimensions.
+
+@item -chardev file ,id=@var{id} ,path=@var{path}
+
+Log all traffic received from the guest to a file.
+
+@option{path} specifies the path of the file to be opened. This file will be
+created if it does not already exist, and overwritten if it does. @option{path}
+is required.
+
+@item -chardev pipe ,id=@var{id} ,path=@var{path}
+
+Create a two-way connection to the guest. The behaviour differs slightly between
+Windows hosts and other hosts:
+
+On Windows, a single duplex pipe will be created at
+@file{\\.pipe\@option{path}}.
+
+On other hosts, 2 pipes will be created called @file{@option{path}.in} and
+@file{@option{path}.out}. Data written to @file{@option{path}.in} will be
+received by the guest. Data written by the guest can be read from
+@file{@option{path}.out}. QEMU will not create these fifos, and requires them to
+be present.
+
+@option{path} forms part of the pipe path as described above. @option{path} is
+required.
+
+@item -chardev console ,id=@var{id}
+
+Send traffic from the guest to QEMU's standard output. @option{console} does not
+take any options.
+
+@option{console} is only available on Windows hosts.
+
+@item -chardev serial ,id=@var{id} ,path=@option{path}
+
+Send traffic from the guest to a serial device on the host.
+
+@option{serial} is
+only available on Windows hosts.
+
+@option{path} specifies the name of the serial device to open.
+
+@item -chardev pty ,id=@var{id}
+
+Create a new pseudo-terminal on the host and connect to it. @option{pty} does
+not take any options.
+
+@option{pty} is not available on Windows hosts.
+
+@item -chardev stdio ,id=@var{id}
+Connect to standard input and standard output of the qemu process.
+@option{stdio} does not take any options. @option{stdio} is not available on
+Windows hosts.
+
+@item -chardev braille ,id=@var{id}
+
+Connect to a local BrlAPI server. @option{braille} does not take any options.
+
+@item -chardev tty ,id=@var{id} ,path=@var{path}
+
+Connect to a local tty device.
+
+@option{tty} is only available on Linux, Sun, FreeBSD, NetBSD, OpenBSD and
+DragonFlyBSD hosts.
+
+@option{path} specifies the path to the tty. @option{path} is required.
+
+@item -chardev parport ,id=@var{id} ,path=@var{path}
+
+@option{parport} is only available on Linux, FreeBSD and DragonFlyBSD hosts.
+
+Connect to a local parallel port.
+
+@option{path} specifies the path to the parallel port device. @option{path} is
+required.
+
+@end table
+ETEXI
+
+DEFHEADING()
+
+DEFHEADING(Bluetooth(R) options:)
+
 DEF("bt", HAS_ARG, QEMU_OPTION_bt, \
-    "\n" \
     "-bt hci,null    dumb bluetooth HCI - doesn't respond to commands\n" \
     "-bt hci,host[:id]\n" \
     "                use host's HCI with the given name\n" \
@@ -1097,7 +1326,6 @@ DEF("bt", HAS_ARG, QEMU_OPTION_bt, \
     "-bt device:dev[,vlan=n]\n" \
     "                emulate a bluetooth device 'dev' in scatternet 'n'\n")
 STEXI
-Bluetooth(R) options:
 @table @option
 
 @item -bt hci[...]
@@ -1206,8 +1434,6 @@ STEXI
 @table @option
 ETEXI
 
-DEF("chardev", HAS_ARG, QEMU_OPTION_chardev, \
-    "-chardev spec   create unconnected chardev\n")
 DEF("serial", HAS_ARG, QEMU_OPTION_serial, \
     "-serial dev     redirect the serial port to char device 'dev'\n")
 STEXI
