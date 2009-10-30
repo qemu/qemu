@@ -745,7 +745,7 @@ static void pci_info_device(PCIDevice *d)
     const pci_class_desc *desc;
 
     monitor_printf(mon, "  Bus %2d, device %3d, function %d:\n",
-                   d->bus->bus_num, d->devfn >> 3, d->devfn & 7);
+                   d->bus->bus_num, PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
     class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
     monitor_printf(mon, "    ");
     desc = pci_class_descriptions;
@@ -1111,7 +1111,7 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "
                    "pci id %04x:%04x (sub %04x:%04x)\n",
                    indent, "", ctxt,
-                   d->bus->bus_num, d->devfn >> 3, d->devfn & 7,
+                   d->bus->bus_num, PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
                    le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
                    le16_to_cpu(*((uint16_t *)(d->config + PCI_DEVICE_ID))),
                    le16_to_cpu(*((uint16_t *)(d->config + PCI_SUBSYSTEM_VENDOR_ID))),

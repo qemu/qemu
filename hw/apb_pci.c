@@ -261,11 +261,13 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
                                          0, 32);
     pci_create_simple(d->host_state.bus, 0, "pbm");
     /* APB secondary busses */
-    *bus2 = pci_bridge_init(d->host_state.bus, 8, PCI_VENDOR_ID_SUN,
-                            PCI_DEVICE_ID_SUN_SIMBA, pci_apb_map_irq,
+    *bus2 = pci_bridge_init(d->host_state.bus, PCI_DEVFN(1, 0),
+                            PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_SIMBA,
+                            pci_apb_map_irq,
                             "Advanced PCI Bus secondary bridge 1");
-    *bus3 = pci_bridge_init(d->host_state.bus, 9, PCI_VENDOR_ID_SUN,
-                            PCI_DEVICE_ID_SUN_SIMBA, pci_apb_map_irq,
+    *bus3 = pci_bridge_init(d->host_state.bus, PCI_DEVFN(1, 1),
+                            PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_SIMBA,
+                            pci_apb_map_irq,
                             "Advanced PCI Bus secondary bridge 2");
 
     return d->host_state.bus;
