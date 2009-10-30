@@ -970,7 +970,32 @@ static void pci_info_device(PCIBus *bus, PCIDevice *d)
                        d->config[PCI_INTERRUPT_LINE]);
     }
     if (class == 0x0604) {
+        uint64_t base;
+        uint64_t limit;
+
         monitor_printf(mon, "      BUS %d.\n", d->config[0x19]);
+        monitor_printf(mon, "      secondary bus %d.\n",
+                       d->config[PCI_SECONDARY_BUS]);
+        monitor_printf(mon, "      subordinate bus %d.\n",
+                       d->config[PCI_SUBORDINATE_BUS]);
+
+        base = pci_bridge_get_base(d, PCI_BASE_ADDRESS_SPACE_IO);
+        limit = pci_bridge_get_limit(d, PCI_BASE_ADDRESS_SPACE_IO);
+        monitor_printf(mon, "      IO range [0x%04"PRIx64", 0x%04"PRIx64"]\n",
+                       base, limit);
+
+        base = pci_bridge_get_base(d, PCI_BASE_ADDRESS_SPACE_MEMORY);
+        limit= pci_config_get_memory_base(d, PCI_BASE_ADDRESS_SPACE_MEMORY);
+        monitor_printf(mon,
+                       "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
+                       base, limit);
+
+        base = pci_bridge_get_base(d, PCI_BASE_ADDRESS_SPACE_MEMORY |
+                                   PCI_BASE_ADDRESS_MEM_PREFETCH);
+        limit = pci_bridge_get_limit(d, PCI_BASE_ADDRESS_SPACE_MEMORY |
+                                     PCI_BASE_ADDRESS_MEM_PREFETCH);
+        monitor_printf(mon, "      prefetchable memory range "
+                       "[0x%08"PRIx64", 0x%08"PRIx64"]\n", base, limit);
     }
     for(i = 0;i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
