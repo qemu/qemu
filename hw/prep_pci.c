@@ -24,8 +24,6 @@
 
 #include "hw.h"
 #include "pci.h"
-
-typedef uint32_t pci_addr_t;
 #include "pci_host.h"
 
 typedef PCIHostState PREPPCIState;
@@ -144,12 +142,7 @@ PCIBus *pci_prep_init(qemu_irq *pic)
     register_ioport_write(0xcf8, 4, 4, pci_prep_addr_writel, s);
     register_ioport_read(0xcf8, 4, 4, pci_prep_addr_readl, s);
 
-    register_ioport_write(0xcfc, 4, 1, pci_host_data_writeb, s);
-    register_ioport_write(0xcfc, 4, 2, pci_host_data_writew, s);
-    register_ioport_write(0xcfc, 4, 4, pci_host_data_writel, s);
-    register_ioport_read(0xcfc, 4, 1, pci_host_data_readb, s);
-    register_ioport_read(0xcfc, 4, 2, pci_host_data_readw, s);
-    register_ioport_read(0xcfc, 4, 4, pci_host_data_readl, s);
+    pci_host_data_register_ioport(0xcfc, s);
 
     PPC_io_memory = cpu_register_io_memory(PPC_PCIIO_read,
                                            PPC_PCIIO_write, s);

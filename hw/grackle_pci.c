@@ -26,6 +26,7 @@
 #include "sysbus.h"
 #include "ppc_mac.h"
 #include "pci.h"
+#include "pci_host.h"
 
 /* debug Grackle */
 //#define DEBUG_GRACKLE
@@ -36,9 +37,6 @@
 #else
 #define GRACKLE_DPRINTF(fmt, ...)
 #endif
-
-typedef target_phys_addr_t pci_addr_t;
-#include "pci_host.h"
 
 typedef struct GrackleState {
     SysBusDevice busdev;
@@ -82,18 +80,6 @@ static CPUReadMemoryFunc * const pci_grackle_config_read[] = {
     &pci_grackle_config_readl,
     &pci_grackle_config_readl,
     &pci_grackle_config_readl,
-};
-
-static CPUWriteMemoryFunc * const pci_grackle_write[] = {
-    &pci_host_data_writeb,
-    &pci_host_data_writew,
-    &pci_host_data_writel,
-};
-
-static CPUReadMemoryFunc * const pci_grackle_read[] = {
-    &pci_host_data_readb,
-    &pci_host_data_readw,
-    &pci_host_data_readl,
 };
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
@@ -163,9 +149,7 @@ static int pci_grackle_init_device(SysBusDevice *dev)
 
     pci_mem_config = cpu_register_io_memory(pci_grackle_config_read,
                                             pci_grackle_config_write, s);
-    pci_mem_data = cpu_register_io_memory(pci_grackle_read,
-                                          pci_grackle_write,
-                                          &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
@@ -184,9 +168,7 @@ static int pci_dec_21154_init_device(SysBusDevice *dev)
 
     pci_mem_config = cpu_register_io_memory(pci_grackle_config_read,
                                             pci_grackle_config_write, s);
-    pci_mem_data = cpu_register_io_memory(pci_grackle_read,
-                                          pci_grackle_write,
-                                          &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
     return 0;

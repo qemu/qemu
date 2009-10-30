@@ -28,6 +28,7 @@
 
 #include "sysbus.h"
 #include "pci.h"
+#include "pci_host.h"
 
 /* debug APB */
 //#define DEBUG_APB
@@ -47,9 +48,6 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
  * APB: "Advanced PCI Bridge (APB) User's Manual",
  * http://www.sun.com/processors/manuals/805-1251.pdf
  */
-
-typedef target_phys_addr_t pci_addr_t;
-#include "pci_host.h"
 
 typedef struct APBState {
     SysBusDevice busdev;
@@ -143,18 +141,6 @@ static CPUReadMemoryFunc * const apb_config_read[] = {
     &apb_config_readl,
     &apb_config_readl,
     &apb_config_readl,
-};
-
-static CPUWriteMemoryFunc * const pci_apb_write[] = {
-    &pci_host_data_writeb,
-    &pci_host_data_writew,
-    &pci_host_data_writel,
-};
-
-static CPUReadMemoryFunc * const pci_apb_read[] = {
-    &pci_host_data_readb,
-    &pci_host_data_readw,
-    &pci_host_data_readl,
 };
 
 static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
@@ -293,8 +279,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
                                             pci_apb_config_write, s);
     sysbus_init_mmio(dev, 0x10ULL, pci_mem_config);
     /* mem_data */
-    pci_mem_data = cpu_register_io_memory(pci_apb_read,
-                                          pci_apb_write, &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x10000000ULL, pci_mem_data);
     return 0;
 }

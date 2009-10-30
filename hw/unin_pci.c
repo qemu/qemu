@@ -24,6 +24,7 @@
 #include "hw.h"
 #include "ppc_mac.h"
 #include "pci.h"
+#include "pci_host.h"
 
 /* debug UniNorth */
 //#define DEBUG_UNIN
@@ -34,9 +35,6 @@
 #else
 #define UNIN_DPRINTF(fmt, ...)
 #endif
-
-typedef target_phys_addr_t pci_addr_t;
-#include "pci_host.h"
 
 typedef struct UNINState {
     SysBusDevice busdev;
@@ -83,18 +81,6 @@ static CPUReadMemoryFunc * const pci_unin_main_config_read[] = {
     &pci_unin_main_config_readl,
 };
 
-static CPUWriteMemoryFunc * const pci_unin_main_write[] = {
-    &pci_host_data_writeb,
-    &pci_host_data_writew,
-    &pci_host_data_writel,
-};
-
-static CPUReadMemoryFunc * const pci_unin_main_read[] = {
-    &pci_host_data_readb,
-    &pci_host_data_readw,
-    &pci_host_data_readl,
-};
-
 static void pci_unin_config_writel (void *opaque, target_phys_addr_t addr,
                                     uint32_t val)
 {
@@ -121,18 +107,6 @@ static CPUReadMemoryFunc * const pci_unin_config_read[] = {
     &pci_unin_config_readl,
     &pci_unin_config_readl,
     &pci_unin_config_readl,
-};
-
-static CPUWriteMemoryFunc * const pci_unin_write[] = {
-    &pci_host_data_writeb,
-    &pci_host_data_writew,
-    &pci_host_data_writel,
-};
-
-static CPUReadMemoryFunc * const pci_unin_read[] = {
-    &pci_host_data_readb,
-    &pci_host_data_readw,
-    &pci_host_data_readl,
 };
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
@@ -180,8 +154,7 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
 
     pci_mem_config = cpu_register_io_memory(pci_unin_main_config_read,
                                             pci_unin_main_config_write, s);
-    pci_mem_data = cpu_register_io_memory(pci_unin_main_read,
-                                          pci_unin_main_write, &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
 
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
@@ -202,8 +175,7 @@ static int pci_dec_21154_init_device(SysBusDevice *dev)
     // XXX: s = &pci_bridge[2];
     pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
                                             pci_unin_config_write, s);
-    pci_mem_data = cpu_register_io_memory(pci_unin_main_read,
-                                          pci_unin_main_write, &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
     return 0;
@@ -219,8 +191,7 @@ static int pci_unin_agp_init_device(SysBusDevice *dev)
 
     pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
                                             pci_unin_config_write, s);
-    pci_mem_data = cpu_register_io_memory(pci_unin_main_read,
-                                          pci_unin_main_write, &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
     return 0;
@@ -236,8 +207,7 @@ static int pci_unin_internal_init_device(SysBusDevice *dev)
 
     pci_mem_config = cpu_register_io_memory(pci_unin_config_read,
                                             pci_unin_config_write, s);
-    pci_mem_data = cpu_register_io_memory(pci_unin_read,
-                                          pci_unin_write, s);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
     return 0;
