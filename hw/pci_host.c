@@ -32,6 +32,69 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
 #define PCI_DPRINTF(fmt, ...)
 #endif
 
+/*
+ * PCI address
+ * bit 16 - 24: bus number
+ * bit  8 - 15: devfun number
+ * bit  0 -  7: offset in configuration space of a given pci device
+ */
+
+/* the helper functio to get a PCIDeice* for a given pci address */
+static inline PCIDevice *pci_addr_to_dev(PCIBus *bus, uint32_t addr)
+{
+    uint8_t bus_num = (addr >> 16) & 0xff;
+    uint8_t devfn = (addr >> 8) & 0xff;
+    return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
+}
+
+static inline uint32_t pci_addr_to_config(uint32_t addr)
+{
+    return addr & (PCI_CONFIG_SPACE_SIZE - 1);
+}
+
+void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
+{
+    PCIBus *s = opaque;
+    PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
+    uint32_t config_addr = pci_addr_to_config(addr);
+
+    if (!pci_dev)
+        return;
+
+    PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRI32x" len=%d\n",
+                __func__, pci_dev->name, config_addr, val, len);
+    pci_dev->config_write(pci_dev, config_addr, val, len);
+}
+
+uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
+{
+    PCIBus *s = opaque;
+    PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
+    uint32_t config_addr = pci_addr_to_config(addr);
+    uint32_t val;
+
+    if (!pci_dev) {
+        switch(len) {
+        case 1:
+            val = 0xff;
+            break;
+        case 2:
+            val = 0xffff;
+            break;
+        default:
+        case 4:
+            val = 0xffffffff;
+            break;
+        }
+    } else {
+        val = pci_dev->config_read(pci_dev, config_addr, len);
+        PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRIx32" len=%d\n",
+                    __func__, pci_dev->name, config_addr, val, len);
+    }
+
+    return val;
+}
+
 static void pci_host_config_writel(void *opaque, target_phys_addr_t addr,
                                    uint32_t val)
 {
