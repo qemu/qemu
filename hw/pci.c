@@ -477,9 +477,9 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         /* ROM enable bit is writeable */
         wmask |= PCI_ROM_ADDRESS_ENABLE;
     }
-    *(uint32_t *)(pci_dev->config + addr) = cpu_to_le32(type);
-    *(uint32_t *)(pci_dev->wmask + addr) = cpu_to_le32(wmask);
-    *(uint32_t *)(pci_dev->cmask + addr) = 0xffffffff;
+    pci_set_long(pci_dev->config + addr, type);
+    pci_set_long(pci_dev->wmask + addr, wmask);
+    pci_set_long(pci_dev->cmask + addr, 0xffffffff);
 }
 
 static void pci_update_mappings(PCIDevice *d)
@@ -488,7 +488,7 @@ static void pci_update_mappings(PCIDevice *d)
     int cmd, i;
     uint32_t last_addr, new_addr;
 
-    cmd = le16_to_cpu(*(uint16_t *)(d->config + PCI_COMMAND));
+    cmd = pci_get_word(d->config + PCI_COMMAND);
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (r->size != 0) {
@@ -564,18 +564,18 @@ uint32_t pci_default_read_config(PCIDevice *d,
     default:
     case 4:
 	if (address <= 0xfc) {
-	    val = le32_to_cpu(*(uint32_t *)(d->config + address));
+            val = pci_get_long(d->config + address);
 	    break;
 	}
 	/* fall through */
     case 2:
         if (address <= 0xfe) {
-	    val = le16_to_cpu(*(uint16_t *)(d->config + address));
+            val = pci_get_word(d->config + address);
 	    break;
 	}
 	/* fall through */
     case 1:
-        val = d->config[address];
+        val = pci_get_byte(d->config + address);
         break;
     }
     return val;
@@ -746,7 +746,7 @@ static void pci_info_device(PCIDevice *d)
 
     monitor_printf(mon, "  Bus %2d, device %3d, function %d:\n",
                    d->bus->bus_num, PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
-    class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
+    class = pci_get_word(d->config + PCI_CLASS_DEVICE);
     monitor_printf(mon, "    ");
     desc = pci_class_descriptions;
     while (desc->desc && class != desc->class)
@@ -757,8 +757,8 @@ static void pci_info_device(PCIDevice *d)
         monitor_printf(mon, "Class %04x", class);
     }
     monitor_printf(mon, ": PCI device %04x:%04x\n",
-           le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
-           le16_to_cpu(*((uint16_t *)(d->config + PCI_DEVICE_ID))));
+           pci_get_word(d->config + PCI_VENDOR_ID),
+           pci_get_word(d->config + PCI_DEVICE_ID));
 
     if (d->config[PCI_INTERRUPT_PIN] != 0) {
         monitor_printf(mon, "      IRQ %d.\n",
@@ -1098,7 +1098,7 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     PCIIORegion *r;
     int i, class;
 
-    class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
+    class = pci_get_word(d->config + PCI_CLASS_DEVICE);
     desc = pci_class_descriptions;
     while (desc->desc && class != desc->class)
         desc++;
@@ -1112,10 +1112,10 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
                    "pci id %04x:%04x (sub %04x:%04x)\n",
                    indent, "", ctxt,
                    d->bus->bus_num, PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
-                   le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
-                   le16_to_cpu(*((uint16_t *)(d->config + PCI_DEVICE_ID))),
-                   le16_to_cpu(*((uint16_t *)(d->config + PCI_SUBSYSTEM_VENDOR_ID))),
-                   le16_to_cpu(*((uint16_t *)(d->config + PCI_SUBSYSTEM_ID))));
+                   pci_get_word(d->config + PCI_VENDOR_ID),
+                   pci_get_word(d->config + PCI_DEVICE_ID),
+                   pci_get_word(d->config + PCI_SUBSYSTEM_VENDOR_ID),
+                   pci_get_word(d->config + PCI_SUBSYSTEM_ID));
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (!r->size)
