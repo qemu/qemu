@@ -114,6 +114,7 @@ typedef struct PCIIORegion {
 #define PCI_BASE_ADDRESS_0	0x10	/* 32 bits */
 #define  PCI_BASE_ADDRESS_SPACE_IO	0x01
 #define  PCI_BASE_ADDRESS_SPACE_MEMORY	0x00
+#define  PCI_BASE_ADDRESS_MEM_TYPE_64	0x04	/* 64 bit address */
 #define  PCI_BASE_ADDRESS_MEM_PREFETCH	0x08	/* prefetchable? */
 #define PCI_PRIMARY_BUS		0x18	/* Primary bus number */
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */

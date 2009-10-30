@@ -484,8 +484,14 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         wmask |= PCI_ROM_ADDRESS_ENABLE;
     }
     pci_set_long(pci_dev->config + addr, type);
-    pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
-    pci_set_long(pci_dev->cmask + addr, 0xffffffff);
+    if (!(r->type & PCI_BASE_ADDRESS_SPACE_IO) &&
+        r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+        pci_set_quad(pci_dev->wmask + addr, wmask);
+        pci_set_quad(pci_dev->cmask + addr, ~0ULL);
+    } else {
+        pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
+        pci_set_long(pci_dev->cmask + addr, 0xffffffff);
+    }
 }
 
 static void pci_update_mappings(PCIDevice *d)
@@ -513,7 +519,11 @@ static void pci_update_mappings(PCIDevice *d)
                 }
             } else {
                 if (cmd & PCI_COMMAND_MEMORY) {
-                    new_addr = pci_get_long(d->config + pci_bar(d, i));
+                    if (r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+                        new_addr = pci_get_quad(d->config + pci_bar(d, i));
+                    } else {
+                        new_addr = pci_get_long(d->config + pci_bar(d, i));
+                    }
                     /* the ROM slot has a specific enable bit */
                     if (i == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE))
                         goto no_mem_map;
@@ -531,7 +541,15 @@ static void pci_update_mappings(PCIDevice *d)
                          * Without this, PC ide doesn't work well.
                          * TODO: remove this work around.
                          */
-                        last_addr >= UINT32_MAX) {
+                        (!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) &&
+                         last_addr >= UINT32_MAX) ||
+
+                        /*
+                         * OS is allowed to set BAR beyond its addressable
+                         * bits. For example, 32 bit OS can set 64bit bar
+                         * to >4G. Check it.
+                         */
+                        last_addr >= TARGET_PHYS_ADDR_MAX) {
                         new_addr = PCI_BAR_UNMAPPED;
                     }
                 } else {
@@ -773,8 +791,15 @@ static void pci_info_device(PCIDevice *d)
                                " [0x%04"FMT_PCIBUS"].\n",
                                r->addr, r->addr + r->size - 1);
             } else {
-                monitor_printf(mon, "32 bit memory at 0x%08"FMT_PCIBUS
+                const char *type = r->type & PCI_BASE_ADDRESS_MEM_TYPE_64 ?
+                    "64 bit" : "32 bit";
+                const char *prefetch =
+                    r->type & PCI_BASE_ADDRESS_MEM_PREFETCH ?
+                    " prefetchable" : "";
+
+                monitor_printf(mon, "%s%s memory at 0x%08"FMT_PCIBUS
                                " [0x%08"FMT_PCIBUS"].\n",
+                               type, prefetch,
                                r->addr, r->addr + r->size - 1);
             }
         }
