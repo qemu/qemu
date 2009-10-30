@@ -885,19 +885,26 @@ static void pci_info_device(PCIBus *bus, PCIDevice *d)
     }
 }
 
-void pci_for_each_device(PCIBus *bus, int bus_num,
-                         void (*fn)(PCIBus *b, PCIDevice *d))
+static void pci_for_each_device_under_bus(PCIBus *bus,
+                                          void (*fn)(PCIBus *b, PCIDevice *d))
 {
     PCIDevice *d;
     int devfn;
 
+    for(devfn = 0; devfn < 256; devfn++) {
+        d = bus->devices[devfn];
+        if (d)
+            fn(bus, d);
+    }
+}
+
+void pci_for_each_device(PCIBus *bus, int bus_num,
+                         void (*fn)(PCIBus *b, PCIDevice *d))
+{
     bus = pci_find_bus(bus, bus_num);
+
     if (bus) {
-        for(devfn = 0; devfn < 256; devfn++) {
-            d = bus->devices[devfn];
-            if (d)
-                fn(bus, d);
-        }
+        pci_for_each_device_under_bus(bus, fn);
     }
 }
 
