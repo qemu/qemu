@@ -86,6 +86,7 @@ typedef struct PCIIORegion {
     pcibus_t addr; /* current PCI mapping address. -1 means not mapped */
 #define PCI_BAR_UNMAPPED (~(pcibus_t)0)
     pcibus_t size;
+    pcibus_t filtered_size;
     uint8_t type;
     PCIMapIORegionFunc *map_func;
 } PCIIORegion;
@@ -130,6 +131,7 @@ typedef struct PCIIORegion {
 #define PCI_SEC_LATENCY_TIMER   0x1b    /* Latency timer for secondary interface */
 #define PCI_IO_BASE             0x1c    /* I/O range behind the bridge */
 #define PCI_IO_LIMIT            0x1d
+#define  PCI_IO_RANGE_TYPE_32	0x01
 #define  PCI_IO_RANGE_MASK      (~0x0fUL)
 #define PCI_SEC_STATUS		0x1e	/* Secondary status register, only bit 14 used */
 #define PCI_MEMORY_BASE         0x20    /* Memory range behind */
@@ -139,6 +141,7 @@ typedef struct PCIIORegion {
 #define PCI_PREF_MEMORY_LIMIT   0x26
 #define  PCI_PREF_RANGE_MASK    (~0x0fUL)
 #define PCI_PREF_BASE_UPPER32   0x28    /* Upper half of prefetchable memory range */
+#define PCI_PREF_LIMIT_UPPER32	0x2c
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
 #define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
 #define PCI_ROM_ADDRESS		0x30	/* Bits 31..11 are address, 10..1 reserved */

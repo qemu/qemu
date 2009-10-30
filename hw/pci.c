@@ -560,10 +560,10 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
         if (!r->size || r->addr == PCI_BAR_UNMAPPED)
             continue;
         if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
-            isa_unassign_ioport(r->addr, r->size);
+            isa_unassign_ioport(r->addr, r->filtered_size);
         } else {
             cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
-                                                     r->size,
+                                                     r->filtered_size,
                                                      IO_MEM_UNASSIGNED);
         }
     }
@@ -608,6 +608,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r = &pci_dev->io_regions[region_num];
     r->addr = PCI_BAR_UNMAPPED;
     r->size = size;
+    r->filtered_size = size;
     r->type = type;
     r->map_func = map_func;
 
@@ -628,11 +629,111 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     }
 }
 
+static uint32_t pci_config_get_io_base(PCIDevice *d,
+                                       uint32_t base, uint32_t base_upper16)
+{
+    uint32_t val;
+
+    val = ((uint32_t)d->config[base] & PCI_IO_RANGE_MASK) << 8;
+    if (d->config[base] & PCI_IO_RANGE_TYPE_32) {
+        val |= (uint32_t)pci_get_word(d->config + PCI_IO_BASE_UPPER16) << 16;
+    }
+    return val;
+}
+
+static uint64_t pci_config_get_memory_base(PCIDevice *d, uint32_t base)
+{
+    return ((uint64_t)pci_get_word(d->config + base) & PCI_MEMORY_RANGE_MASK)
+        << 16;
+}
+
+static uint64_t pci_config_get_pref_base(PCIDevice *d,
+                                         uint32_t base, uint32_t upper)
+{
+    uint64_t val;
+    val = ((uint64_t)pci_get_word(d->config + base) &
+           PCI_PREF_RANGE_MASK) << 16;
+    val |= (uint64_t)pci_get_long(d->config + upper) << 32;
+    return val;
+}
+
+static pcibus_t pci_bridge_get_base(PCIDevice *bridge, uint8_t type)
+{
+    pcibus_t base;
+    if (type & PCI_BASE_ADDRESS_SPACE_IO) {
+        base = pci_config_get_io_base(bridge,
+                                      PCI_IO_BASE, PCI_IO_BASE_UPPER16);
+    } else {
+        if (type & PCI_BASE_ADDRESS_MEM_PREFETCH) {
+            base = pci_config_get_pref_base(
+                bridge, PCI_PREF_MEMORY_BASE, PCI_PREF_BASE_UPPER32);
+        } else {
+            base = pci_config_get_memory_base(bridge, PCI_MEMORY_BASE);
+        }
+    }
+
+    return base;
+}
+
+static pcibus_t pci_bridge_get_limit(PCIDevice *bridge, uint8_t type)
+{
+    pcibus_t limit;
+    if (type & PCI_BASE_ADDRESS_SPACE_IO) {
+        limit = pci_config_get_io_base(bridge,
+                                      PCI_IO_LIMIT, PCI_IO_LIMIT_UPPER16);
+        limit |= 0xfff;         /* PCI bridge spec 3.2.5.6. */
+    } else {
+        if (type & PCI_BASE_ADDRESS_MEM_PREFETCH) {
+            limit = pci_config_get_pref_base(
+                bridge, PCI_PREF_MEMORY_LIMIT, PCI_PREF_LIMIT_UPPER32);
+        } else {
+            limit = pci_config_get_memory_base(bridge, PCI_MEMORY_LIMIT);
+        }
+        limit |= 0xfffff;       /* PCI bridge spec 3.2.5.{1, 8}. */
+    }
+    return limit;
+}
+
+static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
+                              uint8_t type)
+{
+    pcibus_t base = *addr;
+    pcibus_t limit = *addr + *size - 1;
+    PCIDevice *br;
+
+    for (br = d->bus->parent_dev; br; br = br->bus->parent_dev) {
+        uint16_t cmd = pci_get_word(d->config + PCI_COMMAND);
+
+        if (type & PCI_BASE_ADDRESS_SPACE_IO) {
+            if (!(cmd & PCI_COMMAND_IO)) {
+                goto no_map;
+            }
+        } else {
+            if (!(cmd & PCI_COMMAND_MEMORY)) {
+                goto no_map;
+            }
+        }
+
+        base = MAX(base, pci_bridge_get_base(br, type));
+        limit = MIN(limit, pci_bridge_get_limit(br, type));
+    }
+
+    if (base > limit) {
+    no_map:
+        *addr = PCI_BAR_UNMAPPED;
+        *size = 0;
+    } else {
+        *addr = base;
+        *size = limit - base + 1;
+    }
+}
+
 static void pci_update_mappings(PCIDevice *d)
 {
     PCIIORegion *r;
     int cmd, i;
     pcibus_t last_addr, new_addr;
+    pcibus_t filtered_size;
 
     cmd = pci_get_word(d->config + PCI_COMMAND);
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
@@ -696,8 +797,14 @@ static void pci_update_mappings(PCIDevice *d)
             }
         }
 
+        /* bridge filtering */
+        filtered_size = r->size;
+        if (new_addr != PCI_BAR_UNMAPPED) {
+            pci_bridge_filter(d, &new_addr, &filtered_size, r->type);
+        }
+
         /* This bar isn't changed */
-        if (new_addr == r->addr)
+        if (new_addr == r->addr && filtered_size == r->filtered_size)
             continue;
 
         /* now do the real mapping */
@@ -710,18 +817,26 @@ static void pci_update_mappings(PCIDevice *d)
                 if (class == 0x0101 && r->size == 4) {
                     isa_unassign_ioport(r->addr + 2, 1);
                 } else {
-                    isa_unassign_ioport(r->addr, r->size);
+                    isa_unassign_ioport(r->addr, r->filtered_size);
                 }
             } else {
                 cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
-                                             r->size,
+                                             r->filtered_size,
                                              IO_MEM_UNASSIGNED);
-                qemu_unregister_coalesced_mmio(r->addr, r->size);
+                qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
             }
         }
         r->addr = new_addr;
+        r->filtered_size = filtered_size;
         if (r->addr != PCI_BAR_UNMAPPED) {
-            r->map_func(d, i, r->addr, r->size, r->type);
+            /*
+             * TODO: currently almost all the map funcions assumes
+             * filtered_size == size and addr & ~(size - 1) == addr.
+             * However with bridge filtering, they aren't always true.
+             * Teach them such cases, such that filtered_size < size and
+             * addr & (size - 1) != 0.
+             */
+            r->map_func(d, i, r->addr, r->filtered_size, r->type);
         }
     }
 }
@@ -994,10 +1109,36 @@ typedef struct {
     uint32_t did;
 } PCIBridge;
 
+
+static void pci_bridge_update_mappings_fn(PCIBus *b, PCIDevice *d)
+{
+    pci_update_mappings(d);
+}
+
+static void pci_bridge_update_mappings(PCIBus *b)
+{
+    PCIBus *child;
+
+    pci_for_each_device_under_bus(b, pci_bridge_update_mappings_fn);
+
+    QLIST_FOREACH(child, &b->child, sibling) {
+        pci_bridge_update_mappings(child);
+    }
+}
+
 static void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len)
 {
     pci_default_write_config(d, address, val, len);
+
+    if (/* io base/limit */
+        ranges_overlap(address, len, PCI_IO_BASE, 2) ||
+
+        /* memory base/limit, prefetchable base/limit and
+           io base/limit upper 16 */
+        ranges_overlap(address, len, PCI_MEMORY_BASE, 20)) {
+        pci_bridge_update_mappings(d->bus);
+    }
 }
 
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
