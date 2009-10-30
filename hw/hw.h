@@ -512,6 +512,17 @@ extern const VMStateDescription vmstate_pci_device;
     .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
 }
 
+extern const VMStateDescription vmstate_pcie_device;
+
+#define VMSTATE_PCIE_DEVICE(_field, _state) {                        \
+    .name       = (stringify(_field)),                               \
+    .version_id = 2,                                                 \
+    .size       = sizeof(PCIDevice),                                 \
+    .vmsd       = &vmstate_pcie_device,                              \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
+}
+
 extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_I2C_SLAVE(_field, _state) {                          \

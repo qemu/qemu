@@ -163,28 +163,31 @@ typedef struct PCIIORegion {
 #define PCI_CONFIG_HEADER_SIZE 0x40
 /* Size of the standard PCI config space */
 #define PCI_CONFIG_SPACE_SIZE 0x100
+/* Size of the standart PCIe config space: 4KB */
+#define PCIE_CONFIG_SPACE_SIZE  0x1000
 
 #define PCI_NUM_PINS 4 /* A-D */
 
 /* Bits in cap_present field. */
 enum {
     QEMU_PCI_CAP_MSIX = 0x1,
+    QEMU_PCI_CAP_EXPRESS = 0x2,
 };
 
 struct PCIDevice {
     DeviceState qdev;
     /* PCI config space */
-    uint8_t config[PCI_CONFIG_SPACE_SIZE];
+    uint8_t *config;
 
     /* Used to enable config checks on load. Note that writeable bits are
      * never checked even if set in cmask. */
-    uint8_t cmask[PCI_CONFIG_SPACE_SIZE];
+    uint8_t *cmask;
 
     /* Used to implement R/W bytes */
-    uint8_t wmask[PCI_CONFIG_SPACE_SIZE];
+    uint8_t *wmask;
 
     /* Used to allocate config space for capabilities. */
-    uint8_t used[PCI_CONFIG_SPACE_SIZE];
+    uint8_t *used;
 
     /* the following fields are read only */
     PCIBus *bus;
@@ -354,6 +357,12 @@ typedef struct {
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+
+    /* pcie stuff */
+    int is_express;   /* is this device pci express?
+                       * initialization code needs to know this before
+                       * each specific device initialization.
+                       */
 } PCIDeviceInfo;
 
 void pci_qdev_register(PCIDeviceInfo *info);
@@ -361,6 +370,16 @@ void pci_qdev_register_many(PCIDeviceInfo *info);
 
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
+
+static inline int pci_is_express(PCIDevice *d)
+{
+    return d->cap_present & QEMU_PCI_CAP_EXPRESS;
+}
+
+static inline uint32_t pci_config_size(PCIDevice *d)
+{
+    return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
+}
 
 /* lsi53c895a.c */
 #define LSI_MAX_DEVS 7

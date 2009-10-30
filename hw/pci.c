@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "pci.h"
+#include "pci_host.h"
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
@@ -248,18 +249,24 @@ static uint8_t pci_sub_bus(PCIBus *s)
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
-    uint8_t config[PCI_CONFIG_SPACE_SIZE];
+    uint8_t *config;
     int i;
 
-    assert(size == sizeof config);
-    qemu_get_buffer(f, config, sizeof config);
-    for (i = 0; i < sizeof config; ++i)
-        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i])
+    assert(size == pci_config_size(s));
+    config = qemu_malloc(size);
+
+    qemu_get_buffer(f, config, size);
+    for (i = 0; i < size; ++i) {
+        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i]) {
+            qemu_free(config);
             return -EINVAL;
-    memcpy(s->config, config, sizeof config);
+        }
+    }
+    memcpy(s->config, config, size);
 
     pci_update_mappings(s);
 
+    qemu_free(config);
     return 0;
 }
 
@@ -267,6 +274,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 static void put_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
     const uint8_t *v = pv;
+    assert(size == pci_config_size(container_of(pv, PCIDevice, config)));
     qemu_put_buffer(f, v, size);
 }
 
@@ -283,21 +291,42 @@ const VMStateDescription vmstate_pci_device = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_INT32_LE(version_id, PCIDevice),
-        VMSTATE_SINGLE(config, PCIDevice, 0, vmstate_info_pci_config,
-                       typeof_field(PCIDevice,config)),
+        VMSTATE_BUFFER_UNSAFE_INFO(config, PCIDevice, 0,
+                                   vmstate_info_pci_config,
+                                   PCI_CONFIG_SPACE_SIZE),
         VMSTATE_INT32_ARRAY_V(irq_state, PCIDevice, PCI_NUM_PINS, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
+const VMStateDescription vmstate_pcie_device = {
+    .name = "PCIDevice",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32_LE(version_id, PCIDevice),
+        VMSTATE_BUFFER_UNSAFE_INFO(config, PCIDevice, 0,
+                                   vmstate_info_pci_config,
+                                   PCIE_CONFIG_SPACE_SIZE),
+        VMSTATE_INT32_ARRAY_V(irq_state, PCIDevice, PCI_NUM_PINS, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static inline const VMStateDescription *pci_get_vmstate(PCIDevice *s)
+{
+    return pci_is_express(s) ? &vmstate_pcie_device : &vmstate_pci_device;
+}
+
 void pci_device_save(PCIDevice *s, QEMUFile *f)
 {
-    vmstate_save_state(f, &vmstate_pci_device, s);
+    vmstate_save_state(f, pci_get_vmstate(s), s);
 }
 
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
-    return vmstate_load_state(f, &vmstate_pci_device, s, s->version_id);
+    return vmstate_load_state(f, pci_get_vmstate(s), s, s->version_id);
 }
 
 static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
@@ -406,12 +435,32 @@ static void pci_init_cmask(PCIDevice *dev)
 static void pci_init_wmask(PCIDevice *dev)
 {
     int i;
+    int config_size = pci_config_size(dev);
+
     dev->wmask[PCI_CACHE_LINE_SIZE] = 0xff;
     dev->wmask[PCI_INTERRUPT_LINE] = 0xff;
     pci_set_word(dev->wmask + PCI_COMMAND,
                  PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-    for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i)
+    for (i = PCI_CONFIG_HEADER_SIZE; i < config_size; ++i)
         dev->wmask[i] = 0xff;
+}
+
+static void pci_config_alloc(PCIDevice *pci_dev)
+{
+    int config_size = pci_config_size(pci_dev);
+
+    pci_dev->config = qemu_mallocz(config_size);
+    pci_dev->cmask = qemu_mallocz(config_size);
+    pci_dev->wmask = qemu_mallocz(config_size);
+    pci_dev->used = qemu_mallocz(config_size);
+}
+
+static void pci_config_free(PCIDevice *pci_dev)
+{
+    qemu_free(pci_dev->config);
+    qemu_free(pci_dev->cmask);
+    qemu_free(pci_dev->wmask);
+    qemu_free(pci_dev->used);
 }
 
 /* -1 for devfn means auto assign */
@@ -434,6 +483,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     memset(pci_dev->irq_state, 0, sizeof(pci_dev->irq_state));
+    pci_config_alloc(pci_dev);
     pci_set_default_subsystem_id(pci_dev);
     pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
@@ -501,6 +551,7 @@ static int pci_unregister_device(DeviceState *dev)
 
     qemu_free_irqs(pci_dev->irq);
     pci_dev->bus->devices[pci_dev->devfn] = NULL;
+    pci_config_free(pci_dev);
     return 0;
 }
 
@@ -641,7 +692,7 @@ uint32_t pci_default_read_config(PCIDevice *d,
 {
     uint32_t val = 0;
     assert(len == 1 || len == 2 || len == 4);
-    len = MIN(len, PCI_CONFIG_SPACE_SIZE - address);
+    len = MIN(len, pci_config_size(d) - address);
     memcpy(&val, d->config + address, len);
     return le32_to_cpu(val);
 }
@@ -650,10 +701,11 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 {
     uint8_t orig[PCI_CONFIG_SPACE_SIZE];
     int i;
+    uint32_t config_size = pci_config_size(d);
 
     /* not efficient, but simple */
     memcpy(orig, d->config, PCI_CONFIG_SPACE_SIZE);
-    for(i = 0; i < l && addr < PCI_CONFIG_SPACE_SIZE; val >>= 8, ++i, ++addr) {
+    for(i = 0; i < l && addr < config_size; val >>= 8, ++i, ++addr) {
         uint8_t wmask = d->wmask[addr];
         d->config[addr] = (d->config[addr] & ~wmask) | (val & wmask);
     }
@@ -1001,6 +1053,11 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     PCIBus *bus;
     int devfn, rc;
 
+    /* initialize cap_present for pci_is_express() and pci_config_size() */
+    if (info->is_express) {
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    }
+
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
     devfn = pci_dev->devfn;
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
@@ -1057,9 +1114,10 @@ PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 
 static int pci_find_space(PCIDevice *pdev, uint8_t size)
 {
+    int config_size = pci_config_size(pdev);
     int offset = PCI_CONFIG_HEADER_SIZE;
     int i;
-    for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i)
+    for (i = PCI_CONFIG_HEADER_SIZE; i < config_size; ++i)
         if (pdev->used[i])
             offset = i + 1;
         else if (i - offset + 1 == size)
