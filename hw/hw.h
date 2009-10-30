@@ -485,11 +485,11 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
 }
 
-#define VMSTATE_BUFFER_UNSAFE(_field, _state, _version, _size) {     \
+#define VMSTATE_BUFFER_UNSAFE_INFO(_field, _state, _version, _info, _size) { \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
     .size       = (_size),                                           \
-    .info       = &vmstate_info_buffer,                              \
+    .info       = &(_info),                                          \
     .flags      = VMS_BUFFER,                                        \
     .offset     = offsetof(_state, _field),                          \
 }
@@ -669,6 +669,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_BUFFER_TEST(_f, _s, _test)                            \
     VMSTATE_STATIC_BUFFER(_f, _s, 0, _test, 0, sizeof(typeof_field(_s, _f)))
+
+#define VMSTATE_BUFFER_UNSAFE(_field, _state, _version, _size)        \
+    VMSTATE_BUFFER_UNSAFE_INFO(_field, _state, _version, vmstate_info_buffer, _size)
 
 #define VMSTATE_UNUSED_V(_v, _size)                                   \
     VMSTATE_UNUSED_BUFFER(NULL, _v, _size)
