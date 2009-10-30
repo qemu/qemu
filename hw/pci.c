@@ -229,7 +229,7 @@ const VMStateDescription vmstate_pci_device = {
         VMSTATE_INT32_LE(version_id, PCIDevice),
         VMSTATE_SINGLE(config, PCIDevice, 0, vmstate_info_pci_config,
                        typeof_field(PCIDevice,config)),
-        VMSTATE_INT32_ARRAY_V(irq_state, PCIDevice, 4, 2),
+        VMSTATE_INT32_ARRAY_V(irq_state, PCIDevice, PCI_NUM_PINS, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -389,7 +389,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->config_read = config_read;
     pci_dev->config_write = config_write;
     bus->devices[devfn] = pci_dev;
-    pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, 4);
+    pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, PCI_NUM_PINS);
     pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
 }

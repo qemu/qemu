@@ -158,6 +158,8 @@ typedef struct PCIIORegion {
 /* Size of the standard PCI config space */
 #define PCI_CONFIG_SPACE_SIZE 0x100
 
+#define PCI_NUM_PINS 4 /* A-D */
+
 /* Bits in cap_present field. */
 enum {
     QEMU_PCI_CAP_MSIX = 0x1,
@@ -192,7 +194,7 @@ struct PCIDevice {
     qemu_irq *irq;
 
     /* Current IRQ levels.  Used internally by the generic PCI code.  */
-    int irq_state[4];
+    int irq_state[PCI_NUM_PINS];
 
     /* Capability bits */
     uint32_t cap_present;
