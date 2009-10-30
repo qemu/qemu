@@ -23,7 +23,8 @@
  */
 
 #include "net/tap.h"
-#incude "qemu-common.h"
+#include "qemu-common.h"
+#include "sysemu.h"
 
 #ifdef __NetBSD__
 #include <net/if_tap.h>
@@ -34,8 +35,9 @@
 #else
 #include <util.h>
 #endif
-#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
+#if defined (__GLIBC__) && defined (__FreeBSD_kernel__)
 #include <freebsd/stdlib.h>
+#endif
 
 #if defined(__OpenBSD__)
 #include <util.h>
