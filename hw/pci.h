@@ -265,8 +265,8 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
                                const char *default_devaddr);
-void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
-uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
+void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
+uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
 PCIBus *pci_find_host_bus(int domain);

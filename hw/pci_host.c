@@ -52,9 +52,8 @@ static inline uint32_t pci_addr_to_config(uint32_t addr)
     return addr & (PCI_CONFIG_SPACE_SIZE - 1);
 }
 
-void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
+void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 {
-    PCIBus *s = opaque;
     PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
     uint32_t config_addr = pci_addr_to_config(addr);
 
@@ -66,9 +65,8 @@ void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
     pci_dev->config_write(pci_dev, config_addr, val, len);
 }
 
-uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
+uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
 {
-    PCIBus *s = opaque;
     PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
     uint32_t config_addr = pci_addr_to_config(addr);
     uint32_t val;
