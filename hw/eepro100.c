@@ -171,7 +171,8 @@ typedef struct {
         rx_short_frame_errors;
     uint32_t fc_xmt_pause, fc_rcv_pause, fc_rcv_unsupported;
     uint16_t xmt_tco_frames, rcv_tco_frames;
-    uint32_t complete;
+    /* TODO: i82559 has six reserved statistics but a total of 24 dwords. */
+    uint32_t reserved[4];
 } eepro100_stats_t;
 
 typedef enum {
@@ -210,7 +211,10 @@ typedef struct {
     uint32_t ru_base;           /* RU base address */
     uint32_t ru_offset;         /* RU address offset */
     uint32_t statsaddr;         /* pointer to eepro100_stats_t */
-    eepro100_stats_t statistics;        /* statistical counters */
+
+    /* Statistical counters. Also used for wake-up packet (i82559). */
+    eepro100_stats_t statistics;
+
 #if 0
     uint16_t status;
 #endif
@@ -222,6 +226,10 @@ typedef struct {
     uint8_t mem[PCI_MEM_SIZE];
     /* vmstate for each particular nic */
     VMStateDescription *vmstate;
+
+    /* Quasi static device properties (no need to save them). */
+    uint16_t stats_size;
+    bool has_extended_tcb_support;
 } EEPRO100State;
 
 /* Default values for MDI (PHY) registers */
@@ -242,6 +250,13 @@ static const uint16_t eepro100_mdi_mask[] = {
     0x0fff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff,
     0xffff, 0xffff, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
+
+/* XXX: optimize */
+static void stl_le_phys(target_phys_addr_t addr, uint32_t val)
+{
+    val = cpu_to_le32(val);
+    cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
+}
 
 #define POLYNOMIAL 0x04c11db6
 
@@ -388,6 +403,7 @@ static void pci_reset(EEPRO100State * s)
 {
     uint32_t device = s->device;
     uint8_t *pci_conf = s->dev.config;
+    bool power_management = 1;
 
     TRACE(OTHER, logout("%p\n", s));
 
@@ -439,46 +455,151 @@ static void pci_reset(EEPRO100State * s)
     PCI_CONFIG_8(0x3e, 0x08);
     /* Maximum Latency */
     PCI_CONFIG_8(0x3f, 0x18);
-    /* Power Management Capabilities / Next Item Pointer / Capability ID */
-    PCI_CONFIG_32(0xdc, 0x7e210001);
 
     switch (device) {
+    case i82550:
+        // TODO: check device id.
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+        /* Revision ID: 0x0c, 0x0d, 0x0e. */
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0e);
+        // TODO: check size of statistical counters.
+        s->stats_size = 80;
+        // TODO: check extended tcb support.
+        s->has_extended_tcb_support = 1;
+        break;
     case i82551:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+        /* Revision ID: 0x0f, 0x10. */
         PCI_CONFIG_8(PCI_REVISION_ID, 0x0f);
+        // TODO: check size of statistical counters.
+        s->stats_size = 80;
+        s->has_extended_tcb_support = 1;
+        break;
+    case i82557A:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
+        PCI_CONFIG_8(0x34, 0x00);
+        power_management = 0;
         break;
     case i82557B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x02);
+        PCI_CONFIG_8(0x34, 0x00);
+        power_management = 0;
         break;
     case i82557C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x03);
+        PCI_CONFIG_8(0x34, 0x00);
+        power_management = 0;
+        break;
+    case i82558A:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x04);
+        s->stats_size = 76;
+        s->has_extended_tcb_support = 1;
         break;
     case i82558B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x2810);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x05);
+        s->stats_size = 76;
+        s->has_extended_tcb_support = 1;
+        break;
+    case i82559A:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x06);
+        s->stats_size = 80;
+        s->has_extended_tcb_support = 1;
+        break;
+    case i82559B:
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x07);
+        s->stats_size = 80;
+        s->has_extended_tcb_support = 1;
         break;
     case i82559C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x2810);
-        //~ PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+        // TODO: Windows wants revision id 0x0c.
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0c);
+#if EEPROM_SIZE > 0
+        PCI_CONFIG_16(PCI_SUBSYSTEM_VENDOR_ID, 0x8086);
+        PCI_CONFIG_16(PCI_SUBSYSTEM_ID, 0x0040);
+#endif
+        s->stats_size = 80;
+        s->has_extended_tcb_support = 1;
         break;
     case i82559ER:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
-        PCI_CONFIG_16(PCI_STATUS, 0x2810);
+        PCI_CONFIG_16(PCI_STATUS, 0x0290);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
+        s->stats_size = 80;
+        s->has_extended_tcb_support = 1;
         break;
-    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1029);
-    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1030);       /* 82559 InBusiness 10/100 */
+    case i82562:
+        // TODO: check device id.
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
+        /* TODO: wrong revision id. */
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0e);
+        s->stats_size = 80;
+        s->has_extended_tcb_support = 1;
+        break;
     default:
         logout("Device %X is undefined!\n", device);
     }
 
+    s->configuration[6] |= BIT(5);
+
+    if (s->stats_size == 80) {
+        /* TODO: check TCO Statistical Counters bit. Documentation not clear. */
+        if (s->configuration[6] & BIT(2)) {
+            /* TCO statistical counters. */
+            assert(s->configuration[6] & BIT(5));
+        } else {
+            if (s->configuration[6] & BIT(5)) {
+                /* No extended statistical counters, i82557 compatible. */
+                s->stats_size = 64;
+            } else {
+                /* i82558 compatible. */
+                s->stats_size = 76;
+            }
+        }
+    } else {
+        if (s->configuration[6] & BIT(5)) {
+            /* No extended statistical counters. */
+            s->stats_size = 64;
+        }
+    }
+    assert(s->stats_size > 0 && s->stats_size <= sizeof(s->statistics));
+
+    if (power_management) {
+        /* Power Management Capabilities */
+        PCI_CONFIG_8(0xdc, 0x01);
+        /* Next Item Pointer */
+        /* Capability ID */
+        PCI_CONFIG_16(0xde, 0x7e21);
+        /* TODO: Power Management Control / Status. */
+        /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
+    }
+
+#if EEPROM_SIZE > 0
     if (device == i82557C || device == i82558B || device == i82559C) {
+        // TODO: get vendor id from EEPROM for i82557C or later.
+        // TODO: get device id from EEPROM for i82557C or later.
+        // TODO: status bit 4 can be disabled by EEPROM for i82558, i82559.
+        // TODO: header type is determined by EEPROM for i82559.
+        // TODO: get subsystem id from EEPROM for i82557C or later.
+        // TODO: get subsystem vendor id from EEPROM for i82557C or later.
+        // TODO: exp. rom baddr depends on a bit in EEPROM for i82558 or later.
+        // TODO: capability pointer depends on EEPROM for i82558.
         logout("Get device id and revision from EEPROM!!!\n");
     }
+#endif /* EEPROM_SIZE > 0 */
 }
 
 static void nic_selective_reset(EEPRO100State * s)
@@ -571,11 +692,6 @@ static uint16_t eepro100_read_command(EEPRO100State * s)
 }
 #endif
 
-static bool device_supports_eTxCB(EEPRO100State * s)
-{
-    return (s->device != i82557B && s->device != i82557C);
-}
-
 /* Commands that can be put in a command list entry. */
 enum commands {
     CmdNOp = 0,
@@ -620,13 +736,14 @@ static void dump_statistics(EEPRO100State * s)
      * values which really matter.
      * Number of data should check configuration!!!
      */
-    cpu_physical_memory_write(s->statsaddr, (uint8_t *) & s->statistics, 64);
-    stl_phys(s->statsaddr + 0, s->statistics.tx_good_frames);
-    stl_phys(s->statsaddr + 36, s->statistics.rx_good_frames);
-    stl_phys(s->statsaddr + 48, s->statistics.rx_resource_errors);
-    stl_phys(s->statsaddr + 60, s->statistics.rx_short_frame_errors);
-    //~ stw_phys(s->statsaddr + 76, s->statistics.xmt_tco_frames);
-    //~ stw_phys(s->statsaddr + 78, s->statistics.rcv_tco_frames);
+    cpu_physical_memory_write(s->statsaddr,
+                              (uint8_t *) & s->statistics, s->stats_size);
+    stl_le_phys(s->statsaddr + 0, s->statistics.tx_good_frames);
+    stl_le_phys(s->statsaddr + 36, s->statistics.rx_good_frames);
+    stl_le_phys(s->statsaddr + 48, s->statistics.rx_resource_errors);
+    stl_le_phys(s->statsaddr + 60, s->statistics.rx_short_frame_errors);
+    //~ stw_le_phys(s->statsaddr + 76, s->statistics.xmt_tco_frames);
+    //~ stw_le_phys(s->statsaddr + 78, s->statistics.rcv_tco_frames);
     //~ missing("CU dump statistical counters");
 }
 
@@ -712,7 +829,7 @@ static void action_command(EEPRO100State *s)
             } else {
                 /* Flexible mode. */
                 uint8_t tbd_count = 0;
-                if (device_supports_eTxCB(s) && !(s->configuration[6] & BIT(4))) {
+                if (s->has_extended_tcb_support && !(s->configuration[6] & BIT(4))) {
                     /* Extended Flexible TCB. */
                     for (; tbd_count < 2; tbd_count++) {
                         uint32_t tx_buffer_address = ldl_phys(tbd_address);
@@ -832,6 +949,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         /* Dump statistical counters. */
         TRACE(OTHER, logout("val=0x%02x (dump stats)\n", val));
         dump_statistics(s);
+        stl_le_phys(s->statsaddr + s->stats_size, 0xa005);
         break;
     case CU_CMD_BASE:
         /* Load CU base. */
@@ -842,6 +960,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         /* Dump and reset statistical counters. */
         TRACE(OTHER, logout("val=0x%02x (dump stats and reset)\n", val));
         dump_statistics(s);
+        stl_le_phys(s->statsaddr + s->stats_size, 0xa007);
         memset(&s->statistics, 0, sizeof(s->statistics));
         break;
     case CU_SRESUME:
@@ -1628,7 +1747,7 @@ static const VMStateDescription vmstate_eepro100 = {
         VMSTATE_UINT32(ru_base, EEPRO100State),
         VMSTATE_UINT32(ru_offset, EEPRO100State),
         VMSTATE_UINT32(statsaddr, EEPRO100State),
-        /* Save epro100_stats_t statistics. */
+        /* Save eepro100_stats_t statistics. */
         VMSTATE_UINT32(statistics.tx_good_frames, EEPRO100State),
         VMSTATE_UINT32(statistics.tx_max_collisions, EEPRO100State),
         VMSTATE_UINT32(statistics.tx_late_collisions, EEPRO100State),
@@ -1650,7 +1769,6 @@ static const VMStateDescription vmstate_eepro100 = {
         VMSTATE_UINT32(statistics.fc_rcv_unsupported, EEPRO100State),
         VMSTATE_UINT16(statistics.xmt_tco_frames, EEPRO100State),
         VMSTATE_UINT16(statistics.rcv_tco_frames, EEPRO100State),
-        VMSTATE_UINT32(statistics.complete, EEPRO100State),
 #if 0
         VMSTATE_UINT16(status, EEPRO100State),
 #endif
