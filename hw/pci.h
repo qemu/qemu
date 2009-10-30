@@ -312,6 +312,18 @@ pci_get_long(uint8_t *config)
 }
 
 static inline void
+pci_set_quad(uint8_t *config, uint64_t val)
+{
+    cpu_to_le64w((uint64_t *)config, val);
+}
+
+static inline uint64_t
+pci_get_quad(uint8_t *config)
+{
+    return le64_to_cpup((uint64_t *)config);
+}
+
+static inline void
 pci_config_set_vendor_id(uint8_t *pci_config, uint16_t val)
 {
     pci_set_word(&pci_config[PCI_VENDOR_ID], val);
