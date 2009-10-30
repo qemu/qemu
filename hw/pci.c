@@ -445,6 +445,30 @@ static void pci_init_wmask(PCIDevice *dev)
         dev->wmask[i] = 0xff;
 }
 
+static void pci_init_wmask_bridge(PCIDevice *d)
+{
+    /* PCI_PRIMARY_BUS, PCI_SECONDARY_BUS, PCI_SUBORDINATE_BUS and
+       PCI_SEC_LETENCY_TIMER */
+    memset(d->wmask + PCI_PRIMARY_BUS, 0xff, 4);
+
+    /* base and limit */
+    d->wmask[PCI_IO_BASE] = PCI_IO_RANGE_MASK & 0xff;
+    d->wmask[PCI_IO_LIMIT] = PCI_IO_RANGE_MASK & 0xff;
+    pci_set_word(d->wmask + PCI_MEMORY_BASE,
+                 PCI_MEMORY_RANGE_MASK & 0xffff);
+    pci_set_word(d->wmask + PCI_MEMORY_LIMIT,
+                 PCI_MEMORY_RANGE_MASK & 0xffff);
+    pci_set_word(d->wmask + PCI_PREF_MEMORY_BASE,
+                 PCI_PREF_RANGE_MASK & 0xffff);
+    pci_set_word(d->wmask + PCI_PREF_MEMORY_LIMIT,
+                 PCI_PREF_RANGE_MASK & 0xffff);
+
+    /* PCI_PREF_BASE_UPPER32 and PCI_PREF_LIMIT_UPPER32 */
+    memset(d->wmask + PCI_PREF_BASE_UPPER32, 0xff, 8);
+
+    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL, 0xffff);
+}
+
 static void pci_config_alloc(PCIDevice *pci_dev)
 {
     int config_size = pci_config_size(pci_dev);
@@ -467,7 +491,8 @@ static void pci_config_free(PCIDevice *pci_dev)
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
                                          PCIConfigReadFunc *config_read,
-                                         PCIConfigWriteFunc *config_write)
+                                         PCIConfigWriteFunc *config_write,
+                                         uint8_t header_type)
 {
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < 256; devfn += 8) {
@@ -484,9 +509,16 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     memset(pci_dev->irq_state, 0, sizeof(pci_dev->irq_state));
     pci_config_alloc(pci_dev);
-    pci_set_default_subsystem_id(pci_dev);
+
+    header_type &= ~PCI_HEADER_TYPE_MULTI_FUNCTION;
+    if (header_type == PCI_HEADER_TYPE_NORMAL) {
+        pci_set_default_subsystem_id(pci_dev);
+    }
     pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
+    if (header_type == PCI_HEADER_TYPE_BRIDGE) {
+        pci_init_wmask_bridge(pci_dev);
+    }
 
     if (!config_read)
         config_read = pci_default_read_config;
@@ -509,7 +541,8 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
 
     pci_dev = qemu_mallocz(instance_size);
     pci_dev = do_pci_register_device(pci_dev, bus, name, devfn,
-                                     config_read, config_write);
+                                     config_read, config_write,
+                                     PCI_HEADER_TYPE_NORMAL);
     return pci_dev;
 }
 static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
@@ -1059,7 +1092,8 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
     devfn = pci_dev->devfn;
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
-                                     info->config_read, info->config_write);
+                                     info->config_read, info->config_write,
+                                     info->header_type);
     assert(pci_dev);
     rc = info->init(pci_dev);
     if (rc != 0)

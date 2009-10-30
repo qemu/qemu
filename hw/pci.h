@@ -100,6 +100,14 @@ typedef struct PCIIORegion {
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
 #define  PCI_COMMAND_MASTER	0x4	/* Enable bus master */
+#define  PCI_COMMAND_SPECIAL	0x8	/* Enable response to special cycles */
+#define  PCI_COMMAND_INVALIDATE 0x10	/* Use memory write and invalidate */
+#define  PCI_COMMAND_VGA_PALETTE 0x20	/* Enable palette snooping */
+#define  PCI_COMMAND_PARITY	0x40	/* Enable parity checking */
+#define  PCI_COMMAND_WAIT	0x80	/* Enable address/data stepping */
+#define  PCI_COMMAND_SERR	0x100	/* Enable SERR */
+#define  PCI_COMMAND_FAST_BACK	0x200	/* Enable back-to-back writes */
+#define  PCI_COMMAND_INTX_DISABLE 0x400 /* INTx Emulation Disable */
 #define PCI_STATUS              0x06    /* 16 bits */
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
 #define PCI_CLASS_PROG		0x09	/* Reg. Level Programming Interface */
@@ -119,16 +127,30 @@ typedef struct PCIIORegion {
 #define PCI_PRIMARY_BUS		0x18	/* Primary bus number */
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
 #define PCI_SUBORDINATE_BUS	0x1a	/* Highest bus number behind the bridge */
+#define PCI_SEC_LATENCY_TIMER   0x1b    /* Latency timer for secondary interface */
+#define PCI_IO_BASE             0x1c    /* I/O range behind the bridge */
+#define PCI_IO_LIMIT            0x1d
+#define  PCI_IO_RANGE_MASK      (~0x0fUL)
 #define PCI_SEC_STATUS		0x1e	/* Secondary status register, only bit 14 used */
+#define PCI_MEMORY_BASE         0x20    /* Memory range behind */
+#define PCI_MEMORY_LIMIT        0x22
+#define  PCI_MEMORY_RANGE_MASK  (~0x0fUL)
+#define PCI_PREF_MEMORY_BASE    0x24    /* Prefetchable memory range behind */
+#define PCI_PREF_MEMORY_LIMIT   0x26
+#define  PCI_PREF_RANGE_MASK    (~0x0fUL)
+#define PCI_PREF_BASE_UPPER32   0x28    /* Upper half of prefetchable memory range */
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
 #define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
 #define PCI_ROM_ADDRESS		0x30	/* Bits 31..11 are address, 10..1 reserved */
 #define  PCI_ROM_ADDRESS_ENABLE	0x01
+#define PCI_IO_BASE_UPPER16     0x30    /* Upper half of I/O addresses */
+#define PCI_IO_LIMIT_UPPER16    0x32
 #define PCI_CAPABILITY_LIST	0x34	/* Offset of first capability list entry */
 #define PCI_ROM_ADDRESS1	0x38	/* Same as PCI_ROM_ADDRESS, but for htype 1 */
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
 #define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
 #define PCI_MIN_GNT		0x3e	/* 8 bits */
+#define PCI_BRIDGE_CONTROL      0x3e
 #define PCI_MAX_LAT		0x3f	/* 8 bits */
 
 /* Capability lists */
@@ -357,6 +379,13 @@ typedef struct {
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+
+    /* pci config header type */
+    uint8_t header_type;        /* this is necessary for initialization
+                                 * code to know its header type before
+                                 * device specific code can initialize
+                                 * configuration space.
+                                 */
 
     /* pcie stuff */
     int is_express;   /* is this device pci express?
