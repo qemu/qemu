@@ -699,19 +699,15 @@ uint32_t pci_default_read_config(PCIDevice *d,
 
 void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 {
-    uint8_t orig[PCI_CONFIG_SPACE_SIZE];
     int i;
     uint32_t config_size = pci_config_size(d);
 
-    /* not efficient, but simple */
-    memcpy(orig, d->config, PCI_CONFIG_SPACE_SIZE);
     for(i = 0; i < l && addr < config_size; val >>= 8, ++i, ++addr) {
         uint8_t wmask = d->wmask[addr];
         d->config[addr] = (d->config[addr] & ~wmask) | (val & wmask);
     }
-    if (memcmp(orig + PCI_BASE_ADDRESS_0, d->config + PCI_BASE_ADDRESS_0, 24)
-        || ((orig[PCI_COMMAND] ^ d->config[PCI_COMMAND])
-            & (PCI_COMMAND_MEMORY | PCI_COMMAND_IO)))
+    if (ranges_overlap(addr, l, PCI_BASE_ADDRESS_0, 24) ||
+        range_covers_byte(addr, l, PCI_COMMAND))
         pci_update_mappings(d);
 }
 
