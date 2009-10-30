@@ -418,7 +418,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
 
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &pci_dev->io_regions[i];
-        if (!r->size || r->addr == -1)
+        if (!r->size || r->addr == PCI_BAR_UNMAPPED)
             continue;
         if (r->type == PCI_ADDRESS_SPACE_IO) {
             isa_unassign_ioport(r->addr, r->size);
@@ -466,7 +466,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     }
 
     r = &pci_dev->io_regions[region_num];
-    r->addr = -1;
+    r->addr = PCI_BAR_UNMAPPED;
     r->size = size;
     r->type = type;
     r->map_func = map_func;
@@ -500,10 +500,10 @@ static void pci_update_mappings(PCIDevice *d)
                     /* NOTE: we have only 64K ioports on PC */
                     if (last_addr <= new_addr || new_addr == 0 ||
                         last_addr >= 0x10000) {
-                        new_addr = -1;
+                        new_addr = PCI_BAR_UNMAPPED;
                     }
                 } else {
-                    new_addr = -1;
+                    new_addr = PCI_BAR_UNMAPPED;
                 }
             } else {
                 if (cmd & PCI_COMMAND_MEMORY) {
@@ -518,17 +518,17 @@ static void pci_update_mappings(PCIDevice *d)
                        mappings, we handle specific values as invalid
                        mappings. */
                     if (last_addr <= new_addr || new_addr == 0 ||
-                        last_addr == -1) {
-                        new_addr = -1;
+                        last_addr == PCI_BAR_UNMAPPED) {
+                        new_addr = PCI_BAR_UNMAPPED;
                     }
                 } else {
                 no_mem_map:
-                    new_addr = -1;
+                    new_addr = PCI_BAR_UNMAPPED;
                 }
             }
             /* now do the real mapping */
             if (new_addr != r->addr) {
-                if (r->addr != -1) {
+                if (r->addr != PCI_BAR_UNMAPPED) {
                     if (r->type & PCI_ADDRESS_SPACE_IO) {
                         int class;
                         /* NOTE: specific hack for IDE in PC case:
@@ -547,7 +547,7 @@ static void pci_update_mappings(PCIDevice *d)
                     }
                 }
                 r->addr = new_addr;
-                if (r->addr != -1) {
+                if (r->addr != PCI_BAR_UNMAPPED) {
                     r->map_func(d, i, r->addr, r->size, r->type);
                 }
             }

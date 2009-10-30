@@ -3210,7 +3210,7 @@ static void pci_cirrus_write_config(PCIDevice *d,
     CirrusVGAState *s = &pvs->cirrus_vga;
 
     pci_default_write_config(d, address, val, len);
-    if (s->vga.map_addr && d->io_regions[0].addr == -1)
+    if (s->vga.map_addr && d->io_regions[0].addr == PCI_BAR_UNMAPPED)
         s->vga.map_addr = 0;
     cirrus_update_memory_access(s);
 }

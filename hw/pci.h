@@ -85,6 +85,7 @@ typedef int PCIUnregisterFunc(PCIDevice *pci_dev);
 
 typedef struct PCIIORegion {
     uint32_t addr; /* current PCI mapping address. -1 means not mapped */
+#define PCI_BAR_UNMAPPED (~(uint32_t)0)
     uint32_t size;
     uint8_t type;
     PCIMapIORegionFunc *map_func;
