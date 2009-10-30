@@ -252,6 +252,7 @@ ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 video.x openbios-sparc32 openbios-sparc64 openbios-ppc \
 pxe-ne2k_pci.bin pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin \
+pxe-virtio.bin pxe-eepro100.bin pxe-pcnet.bin \
 bamboo.dtb petalogix-s3adsp1800.dtb \
 multiboot.bin
 else
