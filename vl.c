@@ -4572,7 +4572,7 @@ int main(int argc, char **argv, char **envp)
     int snapshot, linux_boot, net_boot;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    char boot_devices[33] = "cadn"; /* default to HD->floppy->CD-ROM->Network */
+    char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
