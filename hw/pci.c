@@ -36,7 +36,6 @@
 
 struct PCIBus {
     BusState qbus;
-    int bus_num;
     int devfn_min;
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
@@ -192,7 +191,9 @@ static void pci_register_secondary_bus(PCIBus *bus,
 
 int pci_bus_num(PCIBus *s)
 {
-    return s->bus_num;
+    if (!s->parent_dev)
+        return 0;       /* pci host bridge */
+    return s->parent_dev->config[PCI_SECONDARY_BUS];
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
@@ -624,7 +625,7 @@ void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
                 addr, val, len);
 #endif
     bus_num = (addr >> 16) & 0xff;
-    while (s && s->bus_num != bus_num)
+    while (s && pci_bus_num(s) != bus_num)
         s = s->next;
     if (!s)
         return;
@@ -645,7 +646,7 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
     uint32_t val;
 
     bus_num = (addr >> 16) & 0xff;
-    while (s && s->bus_num != bus_num)
+    while (s && pci_bus_num(s) != bus_num)
         s= s->next;
     if (!s)
         goto fail;
@@ -760,7 +761,8 @@ static void pci_info_device(PCIDevice *d)
     const pci_class_desc *desc;
 
     monitor_printf(mon, "  Bus %2d, device %3d, function %d:\n",
-                   d->bus->bus_num, PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
+                   pci_bus_num(d->bus),
+                   PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
     class = pci_get_word(d->config + PCI_CLASS_DEVICE);
     monitor_printf(mon, "    ");
     desc = pci_class_descriptions;
@@ -816,7 +818,7 @@ void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d))
     PCIDevice *d;
     int devfn;
 
-    while (bus && bus->bus_num != bus_num)
+    while (bus && pci_bus_num(bus) != bus_num)
         bus = bus->next;
     if (bus) {
         for(devfn = 0; devfn < 256; devfn++) {
@@ -913,17 +915,14 @@ typedef struct {
 static void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len)
 {
-    PCIBridge *s = (PCIBridge *)d;
-
     pci_default_write_config(d, address, val, len);
-    s->bus.bus_num = d->config[PCI_SECONDARY_BUS];
 }
 
 PCIBus *pci_find_bus(int bus_num)
 {
     PCIBus *bus = first_bus;
 
-    while (bus && bus->bus_num != bus_num)
+    while (bus && pci_bus_num(bus) != bus_num)
         bus = bus->next;
 
     return bus;
@@ -1149,7 +1148,7 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "
                    "pci id %04x:%04x (sub %04x:%04x)\n",
                    indent, "", ctxt,
-                   d->bus->bus_num, PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
+                   pci_bus_num(d->bus), PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
                    pci_get_word(d->config + PCI_VENDOR_ID),
                    pci_get_word(d->config + PCI_DEVICE_ID),
                    pci_get_word(d->config + PCI_SUBSYSTEM_VENDOR_ID),
