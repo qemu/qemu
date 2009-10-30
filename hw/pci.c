@@ -558,27 +558,11 @@ static void pci_update_mappings(PCIDevice *d)
 uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len)
 {
-    uint32_t val;
-
-    switch(len) {
-    default:
-    case 4:
-	if (address <= 0xfc) {
-            val = pci_get_long(d->config + address);
-	    break;
-	}
-	/* fall through */
-    case 2:
-        if (address <= 0xfe) {
-            val = pci_get_word(d->config + address);
-	    break;
-	}
-	/* fall through */
-    case 1:
-        val = pci_get_byte(d->config + address);
-        break;
-    }
-    return val;
+    uint32_t val = 0;
+    assert(len == 1 || len == 2 || len == 4);
+    len = MIN(len, PCI_CONFIG_SPACE_SIZE - address);
+    memcpy(&val, d->config + address, len);
+    return le32_to_cpu(val);
 }
 
 void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
