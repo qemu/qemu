@@ -31,7 +31,7 @@
 #include "audio/audio.h"
 #include "boards.h"
 #include "net.h"
-#include "scsi.h"
+#include "esp.h"
 #include "mips-bios.h"
 #include "loader.h"
 

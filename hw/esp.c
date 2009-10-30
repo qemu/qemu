@@ -24,7 +24,7 @@
 
 #include "sysbus.h"
 #include "scsi-disk.h"
-#include "scsi.h"
+#include "esp.h"
 
 /* debug ESP card */
 //#define DEBUG_ESP

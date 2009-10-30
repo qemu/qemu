@@ -31,7 +31,7 @@
 #include "net.h"
 #include "boards.h"
 #include "firmware_abi.h"
-#include "scsi.h"
+#include "esp.h"
 #include "pc.h"
 #include "isa.h"
 #include "fw_cfg.h"

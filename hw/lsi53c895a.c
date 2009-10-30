@@ -14,7 +14,6 @@
 
 #include "hw.h"
 #include "pci.h"
-#include "scsi.h"
 #include "scsi-disk.h"
 #include "block_int.h"
 
