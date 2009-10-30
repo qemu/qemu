@@ -524,7 +524,14 @@ static void pci_update_mappings(PCIDevice *d)
                        mappings, we handle specific values as invalid
                        mappings. */
                     if (last_addr <= new_addr || new_addr == 0 ||
-                        last_addr == PCI_BAR_UNMAPPED) {
+                        last_addr == PCI_BAR_UNMAPPED ||
+
+                        /* Now pcibus_t is 64bit.
+                         * Check if 32 bit BAR wrap around explicitly.
+                         * Without this, PC ide doesn't work well.
+                         * TODO: remove this work around.
+                         */
+                        last_addr >= UINT32_MAX) {
                         new_addr = PCI_BAR_UNMAPPED;
                     }
                 } else {
