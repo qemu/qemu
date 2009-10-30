@@ -663,24 +663,33 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
         pci_update_mappings(d);
 }
 
+static inline PCIDevice *pci_addr_to_dev(PCIBus *bus, uint32_t addr)
+{
+    uint8_t bus_num = (addr >> 16) & 0xff;
+    uint8_t devfn = (addr >> 8) & 0xff;
+    return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
+}
+
+static inline int pci_addr_to_config(uint32_t addr)
+{
+    return addr & (PCI_CONFIG_SPACE_SIZE - 1);
+}
+
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
 {
     PCIBus *s = opaque;
     PCIDevice *pci_dev;
-    int config_addr, bus_num;
+    int config_addr;
 
 #if 0
     PCI_DPRINTF("pci_data_write: addr=%08x val=%08x len=%d\n",
                 addr, val, len);
 #endif
-    bus_num = (addr >> 16) & 0xff;
-    s = pci_find_bus(s, bus_num);
-    if (!s)
-        return;
-    pci_dev = s->devices[(addr >> 8) & 0xff];
+    pci_dev = pci_addr_to_dev(s, addr);
     if (!pci_dev)
         return;
     config_addr = addr & 0xff;
+    config_addr = pci_addr_to_config(addr);
     PCI_DPRINTF("pci_config_write: %s: addr=%02x val=%08x len=%d\n",
                 pci_dev->name, config_addr, val, len);
     pci_dev->config_write(pci_dev, config_addr, val, len);
@@ -690,16 +699,11 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
 {
     PCIBus *s = opaque;
     PCIDevice *pci_dev;
-    int config_addr, bus_num;
+    int config_addr;
     uint32_t val;
 
-    bus_num = (addr >> 16) & 0xff;
-    s = pci_find_bus(s, bus_num);
-    if (!s)
-        goto fail;
-    pci_dev = s->devices[(addr >> 8) & 0xff];
+    pci_dev = pci_addr_to_dev(s, addr);
     if (!pci_dev) {
-    fail:
         switch(len) {
         case 1:
             val = 0xff;
@@ -714,7 +718,7 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
         }
         goto the_end;
     }
-    config_addr = addr & 0xff;
+    config_addr = pci_addr_to_config(addr);
     val = pci_dev->config_read(pci_dev, config_addr, len);
     PCI_DPRINTF("pci_config_read: %s: addr=%02x val=%08x len=%d\n",
                 pci_dev->name, config_addr, val, len);
