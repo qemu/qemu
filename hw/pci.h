@@ -118,6 +118,7 @@ typedef struct PCIIORegion {
 #define  PCI_BASE_ADDRESS_MEM_PREFETCH	0x08	/* prefetchable? */
 #define PCI_PRIMARY_BUS		0x18	/* Primary bus number */
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
+#define PCI_SUBORDINATE_BUS	0x1a	/* Highest bus number behind the bridge */
 #define PCI_SEC_STATUS		0x1e	/* Secondary status register, only bit 14 used */
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
 #define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
@@ -267,9 +268,10 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
-void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
-PCIBus *pci_find_bus(int bus_num);
-PCIDevice *pci_find_device(int bus_num, int slot, int function);
+void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
+PCIBus *pci_find_host_bus(int domain);
+PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
+PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 
 int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,

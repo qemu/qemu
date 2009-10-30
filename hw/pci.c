@@ -44,7 +44,10 @@ struct PCIBus {
     void *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
-    PCIBus *next;
+
+    QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
+    QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */
+
     /* The bus IRQ state is the logical OR of the connected devices.
        Keep a count of the number of devices with raised IRQs.  */
     int nirq;
@@ -69,7 +72,13 @@ static void pci_set_irq(void *opaque, int irq_num, int level);
 target_phys_addr_t pci_mem_base;
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
-static PCIBus *first_bus;
+
+struct PCIHostBus {
+    int domain;
+    struct PCIBus *bus;
+    QLIST_ENTRY(PCIHostBus) next;
+};
+static QLIST_HEAD(, PCIHostBus) host_buses;
 
 static const VMStateDescription vmstate_pcibus = {
     .name = "PCIBUS",
@@ -127,6 +136,28 @@ static void pci_bus_reset(void *opaque)
     }
 }
 
+static void pci_host_bus_register(int domain, PCIBus *bus)
+{
+    struct PCIHostBus *host;
+    host = qemu_mallocz(sizeof(*host));
+    host->domain = domain;
+    host->bus = bus;
+    QLIST_INSERT_HEAD(&host_buses, host, next);
+}
+
+PCIBus *pci_find_host_bus(int domain)
+{
+    struct PCIHostBus *host;
+
+    QLIST_FOREACH(host, &host_buses, next) {
+        if (host->domain == domain) {
+            return host->bus;
+        }
+    }
+
+    return NULL;
+}
+
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name, int devfn_min)
 {
@@ -134,8 +165,11 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
 
     qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
     bus->devfn_min = devfn_min;
-    bus->next = first_bus;
-    first_bus = bus;
+
+    /* host bridge */
+    QLIST_INIT(&bus->child);
+    pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
+
     vmstate_register(nbus++, &vmstate_pcibus, bus);
     qemu_register_reset(pci_bus_reset, bus);
 }
@@ -177,7 +211,8 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
     return bus;
 }
 
-static void pci_register_secondary_bus(PCIBus *bus,
+static void pci_register_secondary_bus(PCIBus *parent,
+                                       PCIBus *bus,
                                        PCIDevice *dev,
                                        pci_map_irq_fn map_irq,
                                        const char *name)
@@ -185,8 +220,15 @@ static void pci_register_secondary_bus(PCIBus *bus,
     qbus_create_inplace(&bus->qbus, &pci_bus_info, &dev->qdev, name);
     bus->map_irq = map_irq;
     bus->parent_dev = dev;
-    bus->next = dev->bus->next;
-    dev->bus->next = bus;
+
+    QLIST_INIT(&bus->child);
+    QLIST_INSERT_HEAD(&parent->child, bus, sibling);
+}
+
+static void pci_unregister_secondary_bus(PCIBus *bus)
+{
+    assert(QLIST_EMPTY(&bus->child));
+    QLIST_REMOVE(bus, sibling);
 }
 
 int pci_bus_num(PCIBus *s)
@@ -194,6 +236,13 @@ int pci_bus_num(PCIBus *s)
     if (!s->parent_dev)
         return 0;       /* pci host bridge */
     return s->parent_dev->config[PCI_SECONDARY_BUS];
+}
+
+static uint8_t pci_sub_bus(PCIBus *s)
+{
+    if (!s->parent_dev)
+        return 255;     /* pci host bridge */
+    return s->parent_dev->config[PCI_SUBORDINATE_BUS];
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
@@ -301,7 +350,7 @@ static int pci_parse_devaddr(const char *addr, int *domp, int *busp, unsigned *s
 	return -1;
 
     /* Note: QEMU doesn't implement domains other than 0 */
-    if (dom != 0 || pci_find_bus(bus) == NULL)
+    if (!pci_find_bus(pci_find_host_bus(dom), bus))
 	return -1;
 
     *domp = dom;
@@ -331,7 +380,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 
     if (!devaddr) {
         *devfnp = -1;
-        return pci_find_bus(0);
+        return pci_find_bus(pci_find_host_bus(0), 0);
     }
 
     if (pci_parse_devaddr(devaddr, &dom, &bus, &slot) < 0) {
@@ -339,7 +388,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
     }
 
     *devfnp = slot << 3;
-    return pci_find_bus(bus);
+    return pci_find_bus(pci_find_host_bus(0), bus);
 }
 
 static void pci_init_cmask(PCIDevice *dev)
@@ -625,8 +674,7 @@ void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
                 addr, val, len);
 #endif
     bus_num = (addr >> 16) & 0xff;
-    while (s && pci_bus_num(s) != bus_num)
-        s = s->next;
+    s = pci_find_bus(s, bus_num);
     if (!s)
         return;
     pci_dev = s->devices[(addr >> 8) & 0xff];
@@ -646,8 +694,7 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
     uint32_t val;
 
     bus_num = (addr >> 16) & 0xff;
-    while (s && pci_bus_num(s) != bus_num)
-        s= s->next;
+    s = pci_find_bus(s, bus_num);
     if (!s)
         goto fail;
     pci_dev = s->devices[(addr >> 8) & 0xff];
@@ -753,7 +800,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0, NULL}
 };
 
-static void pci_info_device(PCIDevice *d)
+static void pci_info_device(PCIBus *bus, PCIDevice *d)
 {
     Monitor *mon = cur_mon;
     int i, class;
@@ -808,30 +855,32 @@ static void pci_info_device(PCIDevice *d)
     }
     monitor_printf(mon, "      id \"%s\"\n", d->qdev.id ? d->qdev.id : "");
     if (class == 0x0604 && d->config[0x19] != 0) {
-        pci_for_each_device(d->config[0x19], pci_info_device);
+        pci_for_each_device(bus, d->config[0x19], pci_info_device);
     }
 }
 
-void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d))
+void pci_for_each_device(PCIBus *bus, int bus_num,
+                         void (*fn)(PCIBus *b, PCIDevice *d))
 {
-    PCIBus *bus = first_bus;
     PCIDevice *d;
     int devfn;
 
-    while (bus && pci_bus_num(bus) != bus_num)
-        bus = bus->next;
+    bus = pci_find_bus(bus, bus_num);
     if (bus) {
         for(devfn = 0; devfn < 256; devfn++) {
             d = bus->devices[devfn];
             if (d)
-                fn(d);
+                fn(bus, d);
         }
     }
 }
 
 void pci_info(Monitor *mon)
 {
-    pci_for_each_device(0, pci_info_device);
+    struct PCIHostBus *host;
+    QLIST_FOREACH(host, &host_buses, next) {
+        pci_for_each_device(host->bus, 0, pci_info_device);
+    }
 }
 
 static const char * const pci_nic_models[] = {
@@ -918,19 +967,30 @@ static void pci_bridge_write_config(PCIDevice *d,
     pci_default_write_config(d, address, val, len);
 }
 
-PCIBus *pci_find_bus(int bus_num)
+PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 {
-    PCIBus *bus = first_bus;
+    PCIBus *sec;
 
-    while (bus && pci_bus_num(bus) != bus_num)
-        bus = bus->next;
+    if (!bus)
+        return NULL;
 
-    return bus;
+    if (pci_bus_num(bus) == bus_num) {
+        return bus;
+    }
+
+    /* try child bus */
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        if (pci_bus_num(sec) <= bus_num && bus_num <= pci_sub_bus(sec)) {
+            return pci_find_bus(sec, bus_num);
+        }
+    }
+
+    return NULL;
 }
 
-PCIDevice *pci_find_device(int bus_num, int slot, int function)
+PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function)
 {
-    PCIBus *bus = pci_find_bus(bus_num);
+    bus = pci_find_bus(bus, bus_num);
 
     if (!bus)
         return NULL;
@@ -973,6 +1033,14 @@ static int pci_bridge_initfn(PCIDevice *dev)
     return 0;
 }
 
+static int pci_bridge_exitfn(PCIDevice *pci_dev)
+{
+    PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
+    PCIBus *bus = &s->bus;
+    pci_unregister_secondary_bus(bus);
+    return 0;
+}
+
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name)
 {
@@ -985,7 +1053,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     qdev_init_nofail(&dev->qdev);
 
     s = DO_UPCAST(PCIBridge, dev, dev);
-    pci_register_secondary_bus(&s->bus, &s->dev, map_irq, name);
+    pci_register_secondary_bus(bus, &s->bus, &s->dev, map_irq, name);
     return &s->bus;
 }
 
@@ -1148,7 +1216,8 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "
                    "pci id %04x:%04x (sub %04x:%04x)\n",
                    indent, "", ctxt,
-                   pci_bus_num(d->bus), PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
+                   d->config[PCI_SECONDARY_BUS],
+                   PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
                    pci_get_word(d->config + PCI_VENDOR_ID),
                    pci_get_word(d->config + PCI_DEVICE_ID),
                    pci_get_word(d->config + PCI_SUBSYSTEM_VENDOR_ID),
@@ -1169,6 +1238,7 @@ static PCIDeviceInfo bridge_info = {
     .qdev.name    = "pci-bridge",
     .qdev.size    = sizeof(PCIBridge),
     .init         = pci_bridge_initfn,
+    .exit         = pci_bridge_exitfn,
     .config_write = pci_bridge_write_config,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_HEX32("vendorid", PCIBridge, vid, 0),
