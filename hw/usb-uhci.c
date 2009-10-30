@@ -1047,7 +1047,7 @@ static void uhci_frame_timer(void *opaque)
 }
 
 static void uhci_map(PCIDevice *pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                    pcibus_t addr, pcibus_t size, int type)
 {
     UHCIState *s = (UHCIState *)pci_dev;
 

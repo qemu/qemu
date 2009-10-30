@@ -343,7 +343,7 @@ static void i6300esb_mem_writel(void *vp, target_phys_addr_t addr, uint32_t val)
 }
 
 static void i6300esb_map(PCIDevice *dev, int region_num,
-                         uint32_t addr, uint32_t size, int type)
+                         pcibus_t addr, pcibus_t size, int type)
 {
     static CPUReadMemoryFunc * const mem_read[3] = {
         i6300esb_mem_readb,

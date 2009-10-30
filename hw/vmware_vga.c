@@ -1126,7 +1126,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 }
 
 static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
-                uint32_t addr, uint32_t size, int type)
+                pcibus_t addr, pcibus_t size, int type)
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;
@@ -1146,7 +1146,7 @@ static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
 }
 
 static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
-                uint32_t addr, uint32_t size, int type)
+                pcibus_t addr, pcibus_t size, int type)
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;

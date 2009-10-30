@@ -145,8 +145,8 @@ static const char phy_regcap[0x20] = {
 };
 
 static void
-ioport_map(PCIDevice *pci_dev, int region_num, uint32_t addr,
-           uint32_t size, int type)
+ioport_map(PCIDevice *pci_dev, int region_num, pcibus_t addr,
+           pcibus_t size, int type)
 {
     DBGOUT(IO, "e1000_ioport_map addr=0x%04x size=0x%08x\n", addr, size);
 }
@@ -1011,7 +1011,7 @@ static CPUReadMemoryFunc * const e1000_mmio_read[] = {
 
 static void
 e1000_mmio_map(PCIDevice *pci_dev, int region_num,
-                uint32_t addr, uint32_t size, int type)
+                pcibus_t addr, pcibus_t size, int type)
 {
     E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
     int i;

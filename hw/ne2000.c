@@ -679,7 +679,7 @@ const VMStateDescription vmstate_pci_ne2000 = {
 /* PCI NE2000 definitions */
 
 static void ne2000_map(PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+                       pcibus_t addr, pcibus_t size, int type)
 {
     PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s = &d->ne2000;

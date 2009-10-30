@@ -40,7 +40,7 @@ struct macio_state_t {
 };
 
 static void macio_map (PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+                       pcibus_t addr, pcibus_t size, int type)
 {
     macio_state_t *macio_state;
     int i;

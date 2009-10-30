@@ -3174,7 +3174,7 @@ void isa_cirrus_vga_init(void)
  ***************************************/
 
 static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
-			       uint32_t addr, uint32_t size, int type)
+			       pcibus_t addr, pcibus_t size, int type)
 {
     CirrusVGAState *s = &DO_UPCAST(PCICirrusVGAState, dev, d)->cirrus_vga;
 
@@ -3195,7 +3195,7 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
 }
 
 static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
-				uint32_t addr, uint32_t size, int type)
+				pcibus_t addr, pcibus_t size, int type)
 {
     CirrusVGAState *s = &DO_UPCAST(PCICirrusVGAState, dev, d)->cirrus_vga;
 

@@ -1706,7 +1706,7 @@ typedef struct {
 } OHCIPCIState;
 
 static void ohci_mapfunc(PCIDevice *pci_dev, int i,
-            uint32_t addr, uint32_t size, int type)
+            pcibus_t addr, pcibus_t size, int type)
 {
     OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, pci_dev);
     cpu_register_physical_memory(addr, size, ohci->state.mem);

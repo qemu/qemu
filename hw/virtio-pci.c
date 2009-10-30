@@ -344,7 +344,7 @@ static void virtio_pci_config_writel(void *opaque, uint32_t addr, uint32_t val)
 }
 
 static void virtio_map(PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+                       pcibus_t addr, pcibus_t size, int type)
 {
     VirtIOPCIProxy *proxy = container_of(pci_dev, VirtIOPCIProxy, pci_dev);
     VirtIODevice *vdev = proxy->vdev;

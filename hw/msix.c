@@ -200,7 +200,7 @@ static CPUReadMemoryFunc * const msix_mmio_read[] = {
 
 /* Should be called from device's map method. */
 void msix_mmio_map(PCIDevice *d, int region_num,
-                   uint32_t addr, uint32_t size, int type)
+                   pcibus_t addr, pcibus_t size, int type)
 {
     uint8_t *config = d->config + d->msix_cap;
     uint32_t table = pci_get_long(config + MSIX_TABLE_OFFSET);

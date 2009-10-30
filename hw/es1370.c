@@ -907,7 +907,7 @@ static void es1370_adc_callback (void *opaque, int avail)
 }
 
 static void es1370_map (PCIDevice *pci_dev, int region_num,
-                        uint32_t addr, uint32_t size, int type)
+                        pcibus_t addr, pcibus_t size, int type)
 {
     ES1370State *s = DO_UPCAST (ES1370State, dev, pci_dev);
 

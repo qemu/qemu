@@ -1026,7 +1026,7 @@ static CPUReadMemoryFunc * const openpic_read[] = {
 };
 
 static void openpic_map(PCIDevice *pci_dev, int region_num,
-                        uint32_t addr, uint32_t size, int type)
+                        pcibus_t addr, pcibus_t size, int type)
 {
     openpic_t *opp;
 

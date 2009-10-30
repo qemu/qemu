@@ -1384,7 +1384,7 @@ static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
 /* PCI EEPRO100 definitions */
 
 static void pci_map(PCIDevice * pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                    pcibus_t addr, pcibus_t size, int type)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
@@ -1463,7 +1463,7 @@ static CPUReadMemoryFunc * const pci_mmio_read[] = {
 };
 
 static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
-                         uint32_t addr, uint32_t size, int type)
+                         pcibus_t addr, pcibus_t size, int type)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 

@@ -1250,7 +1250,7 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
 }
 
 static void ac97_map (PCIDevice *pci_dev, int region_num,
-                      uint32_t addr, uint32_t size, int type)
+                      pcibus_t addr, pcibus_t size, int type)
 {
     AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, pci_dev);
     PCIDevice *d = &s->dev;

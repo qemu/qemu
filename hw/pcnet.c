@@ -1727,7 +1727,7 @@ static uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
 }
 
 static void pcnet_ioport_map(PCIDevice *pci_dev, int region_num,
-                             uint32_t addr, uint32_t size, int type)
+                             pcibus_t addr, pcibus_t size, int type)
 {
     PCNetState *d = &DO_UPCAST(PCIPCNetState, pci_dev, pci_dev)->state;
 
@@ -1920,7 +1920,7 @@ static CPUReadMemoryFunc * const pcnet_mmio_read[] = {
 };
 
 static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
-                            uint32_t addr, uint32_t size, int type)
+                            pcibus_t addr, pcibus_t size, int type)
 {
     PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, pci_dev);
 

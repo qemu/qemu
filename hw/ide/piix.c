@@ -69,7 +69,7 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
 }
 
 static void bmdma_map(PCIDevice *pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                    pcibus_t addr, pcibus_t size, int type)
 {
     PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, pci_dev);
     int i;
