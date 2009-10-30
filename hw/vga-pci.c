@@ -95,7 +95,7 @@ static int pci_vga_initfn(PCIDevice *dev)
 
      /* XXX: VGA_RAM_SIZE must be a power of two */
      pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
-                      PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+                      PCI_BASE_ADDRESS_MEM_PREFETCH, vga_map);
 
      if (s->bios_size) {
         unsigned int bios_total_size;
@@ -104,7 +104,7 @@ static int pci_vga_initfn(PCIDevice *dev)
         while (bios_total_size < s->bios_size)
             bios_total_size <<= 1;
         pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
-                         PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+                         PCI_BASE_ADDRESS_MEM_PREFETCH, vga_map);
      }
 
      /* ROM BIOS */

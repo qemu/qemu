@@ -3325,10 +3325,10 @@ static int pci_rtl8139_init(PCIDevice *dev)
     cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s);
 
     pci_register_bar(&s->dev, 0, 0x100,
-                           PCI_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
+                           PCI_BASE_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
 
     pci_register_bar(&s->dev, 1, 0x100,
-                           PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
+                           PCI_BASE_ADDRESS_SPACE_MEMORY, rtl8139_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 

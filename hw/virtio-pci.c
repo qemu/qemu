@@ -415,7 +415,7 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors, 1, 0)) {
         pci_register_bar(&proxy->pci_dev, 1,
                          msix_bar_size(&proxy->pci_dev),
-                         PCI_ADDRESS_SPACE_MEM,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY,
                          msix_mmio_map);
     } else
         vdev->nvectors = 0;
@@ -426,7 +426,7 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
     if (size & (size-1))
         size = 1 << qemu_fls(size);
 
-    pci_register_bar(&proxy->pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
+    pci_register_bar(&proxy->pci_dev, 0, size, PCI_BASE_ADDRESS_SPACE_IO,
                            virtio_map);
 
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);

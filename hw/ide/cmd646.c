@@ -221,11 +221,11 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
         pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
-    pci_register_bar(dev, 0, 0x8, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 1, 0x4, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 2, 0x8, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 3, 0x4, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 4, 0x10, PCI_ADDRESS_SPACE_IO, bmdma_map);
+    pci_register_bar(dev, 0, 0x8, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 1, 0x4, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 2, 0x8, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 3, 0x4, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 4, 0x10, PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 

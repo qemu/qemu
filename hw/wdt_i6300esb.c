@@ -413,7 +413,7 @@ static int i6300esb_init(PCIDevice *dev)
     pci_conf[0x0e] = 0x00;
 
     pci_register_bar(&d->dev, 0, 0x10,
-                            PCI_ADDRESS_SPACE_MEM, i6300esb_map);
+                            PCI_BASE_ADDRESS_SPACE_MEMORY, i6300esb_map);
 
     vmstate_register(-1, &vmstate_i6300esb, d);
 

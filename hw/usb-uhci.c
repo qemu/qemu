@@ -1083,7 +1083,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
     pci_register_bar(&s->dev, 4, 0x20,
-                           PCI_ADDRESS_SPACE_IO, uhci_map);
+                           PCI_BASE_ADDRESS_SPACE_IO, uhci_map);
 
     vmstate_register(0, &vmstate_uhci, s);
     return 0;

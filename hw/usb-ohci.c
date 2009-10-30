@@ -1729,7 +1729,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
                   OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
 
     pci_register_bar((struct PCIDevice *)ohci, 0, 256,
-                           PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
+                           PCI_BASE_ADDRESS_SPACE_MEMORY, ohci_mapfunc);
     return 0;
 }
 

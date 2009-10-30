@@ -3241,10 +3241,10 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      /* memory #1 memory-mapped I/O */
      /* XXX: s->vga.vram_size must be a power of two */
      pci_register_bar((PCIDevice *)d, 0, 0x2000000,
-                      PCI_ADDRESS_SPACE_MEM_PREFETCH, cirrus_pci_lfb_map);
+                      PCI_BASE_ADDRESS_MEM_PREFETCH, cirrus_pci_lfb_map);
      if (device_id == CIRRUS_ID_CLGD5446) {
          pci_register_bar((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
-                          PCI_ADDRESS_SPACE_MEM, cirrus_pci_mmio_map);
+                          PCI_BASE_ADDRESS_SPACE_MEMORY, cirrus_pci_mmio_map);
      }
      vmstate_register(0, &vmstate_pci_cirrus_vga, d);
 

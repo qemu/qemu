@@ -123,7 +123,7 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     qemu_register_reset(piix3_reset, d);
 
-    pci_register_bar(&d->dev, 4, 0x10, PCI_ADDRESS_SPACE_IO, bmdma_map);
+    pci_register_bar(&d->dev, 4, 0x10, PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
     vmstate_register(0, &vmstate_ide_pci, d);
 

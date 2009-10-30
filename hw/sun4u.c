@@ -389,9 +389,9 @@ pci_ebus_init1(PCIDevice *s)
     s->config[0x0D] = 0x0a; // latency_timer
     s->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
-    pci_register_bar(s, 0, 0x1000000, PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(s, 0, 0x1000000, PCI_BASE_ADDRESS_SPACE_MEMORY,
                            ebus_mmio_mapfunc);
-    pci_register_bar(s, 1, 0x800000,  PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(s, 1, 0x800000,  PCI_BASE_ADDRESS_SPACE_MEMORY,
                            ebus_mmio_mapfunc);
     return 0;
 }

@@ -420,7 +420,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
         r = &pci_dev->io_regions[i];
         if (!r->size || r->addr == PCI_BAR_UNMAPPED)
             continue;
-        if (r->type == PCI_ADDRESS_SPACE_IO) {
+        if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
             isa_unassign_ioport(r->addr, r->size);
         } else {
             cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
@@ -492,7 +492,7 @@ static void pci_update_mappings(PCIDevice *d)
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (r->size != 0) {
-            if (r->type & PCI_ADDRESS_SPACE_IO) {
+            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                 if (cmd & PCI_COMMAND_IO) {
                     new_addr = pci_get_long(d->config + pci_bar(i));
                     new_addr = new_addr & ~(r->size - 1);
@@ -529,7 +529,7 @@ static void pci_update_mappings(PCIDevice *d)
             /* now do the real mapping */
             if (new_addr != r->addr) {
                 if (r->addr != PCI_BAR_UNMAPPED) {
-                    if (r->type & PCI_ADDRESS_SPACE_IO) {
+                    if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                         int class;
                         /* NOTE: specific hack for IDE in PC case:
                            only one byte must be mapped. */
@@ -771,7 +771,7 @@ static void pci_info_device(PCIDevice *d)
         r = &d->io_regions[i];
         if (r->size != 0) {
             monitor_printf(mon, "      BAR%d: ", i);
-            if (r->type & PCI_ADDRESS_SPACE_IO) {
+            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                 monitor_printf(mon, "I/O at 0x%04x [0x%04x].\n",
                                r->addr, r->addr + r->size - 1);
             } else {
@@ -1135,7 +1135,7 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
         if (!r->size)
             continue;
         monitor_printf(mon, "%*sbar %d: %s at 0x%x [0x%x]\n", indent, "",
-                       i, r->type & PCI_ADDRESS_SPACE_IO ? "i/o" : "mem",
+                       i, r->type & PCI_BASE_ADDRESS_SPACE_IO ? "i/o" : "mem",
                        r->addr, r->addr + r->size - 1);
     }
 }

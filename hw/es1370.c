@@ -1027,7 +1027,7 @@ static int es1370_initfn (PCIDevice *dev)
     c[0x3e] = 0x0c;
     c[0x3f] = 0x80;
 
-    pci_register_bar (&s->dev, 0, 256, PCI_ADDRESS_SPACE_IO, es1370_map);
+    pci_register_bar (&s->dev, 0, 256, PCI_BASE_ADDRESS_SPACE_IO, es1370_map);
     register_savevm ("es1370", 0, 2, es1370_save, es1370_load, s);
     qemu_register_reset (es1370_on_reset, s);
 

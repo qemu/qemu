@@ -412,18 +412,20 @@ static void pci_reset(EEPRO100State * s)
     /* BIST (built-in self test) */
 #if defined(TARGET_I386)
 // !!! workaround for buggy bios
-//~ #define PCI_ADDRESS_SPACE_MEM_PREFETCH 0
+//~ #define PCI_BASE_ADDRESS_MEM_PREFETCH 0
 #endif
 #if 0
     /* PCI Base Address Registers */
     /* CSR Memory Mapped Base Address */
     PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
-                  PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+                  PCI_BASE_ADDRESS_SPACE_MEMORY |
+                  PCI_BASE_ADDRESS_MEM_PREFETCH);
     /* CSR I/O Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_1, PCI_ADDRESS_SPACE_IO);
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_SPACE_IO);
 #if 0
     /* Flash Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_2, 0xfffe0000 | PCI_ADDRESS_SPACE_MEM);
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_2,
+                  0xfffe0000 | PCI_BASE_ADDRESS_SPACE_MEMORY);
 #endif
 #endif
     /* Expansion ROM Base Address (depends on boot disable!!!) */
@@ -1693,11 +1695,11 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
         cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
 
     pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
-                           PCI_ADDRESS_SPACE_MEM |
-                           PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_mmio_map);
-    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
+                           PCI_BASE_ADDRESS_SPACE_MEMORY |
+                           PCI_BASE_ADDRESS_MEM_PREFETCH, pci_mmio_map);
+    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
                            pci_map);
-    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
                            pci_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

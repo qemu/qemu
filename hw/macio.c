@@ -115,5 +115,5 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
     d->config[0x3d] = 0x01; // interrupt on pin 1
 
     pci_register_bar(d, 0, 0x80000,
-                           PCI_ADDRESS_SPACE_MEM, macio_map);
+                           PCI_BASE_ADDRESS_SPACE_MEMORY, macio_map);
 }

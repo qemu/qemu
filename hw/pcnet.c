@@ -1996,10 +1996,10 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
       cpu_register_io_memory(pcnet_mmio_read, pcnet_mmio_write, &d->state);
 
     pci_register_bar((PCIDevice *)d, 0, PCNET_IOPORT_SIZE,
-                           PCI_ADDRESS_SPACE_IO, pcnet_ioport_map);
+                           PCI_BASE_ADDRESS_SPACE_IO, pcnet_ioport_map);
 
     pci_register_bar((PCIDevice *)d, 1, PCNET_PNPMMIO_SIZE,
-                           PCI_ADDRESS_SPACE_MEM, pcnet_mmio_map);
+                           PCI_BASE_ADDRESS_SPACE_MEMORY, pcnet_mmio_map);
 
     s->irq = pci_dev->irq[0];
     s->phys_mem_read = pci_physical_memory_read;

@@ -79,10 +79,6 @@ typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 uint32_t addr, uint32_t size, int type);
 typedef int PCIUnregisterFunc(PCIDevice *pci_dev);
 
-#define PCI_ADDRESS_SPACE_MEM		0x00
-#define PCI_ADDRESS_SPACE_IO		0x01
-#define PCI_ADDRESS_SPACE_MEM_PREFETCH	0x08
-
 typedef struct PCIIORegion {
     uint32_t addr; /* current PCI mapping address. -1 means not mapped */
 #define PCI_BAR_UNMAPPED (~(uint32_t)0)
@@ -113,6 +109,9 @@ typedef struct PCIIORegion {
 #define  PCI_HEADER_TYPE_CARDBUS	2
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
 #define PCI_BASE_ADDRESS_0	0x10	/* 32 bits */
+#define  PCI_BASE_ADDRESS_SPACE_IO	0x01
+#define  PCI_BASE_ADDRESS_SPACE_MEMORY	0x00
+#define  PCI_BASE_ADDRESS_MEM_PREFETCH	0x08	/* prefetchable? */
 #define PCI_PRIMARY_BUS		0x18	/* Primary bus number */
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
 #define PCI_SEC_STATUS		0x1e	/* Secondary status register, only bit 14 used */
