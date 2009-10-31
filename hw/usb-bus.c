@@ -45,8 +45,9 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
     pstrcpy(dev->devname, sizeof(dev->devname), qdev->info->name);
     dev->info = info;
+    dev->auto_attach = 1;
     rc = dev->info->init(dev);
-    if (rc == 0)
+    if (rc == 0 && dev->auto_attach)
         usb_device_attach(dev);
     return rc;
 }
@@ -225,9 +226,10 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
     USBBus *bus = usb_bus_from_device(dev);
 
-    monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s\n", indent, "",
-                   bus->busnr, dev->addr,
-                   usb_speed(dev->speed), dev->devname);
+    monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s%s\n",
+                   indent, "", bus->busnr, dev->addr,
+                   usb_speed(dev->speed), dev->devname,
+                   dev->attached ? ", attached" : "");
 }
 
 void usb_info(Monitor *mon)
@@ -252,3 +254,50 @@ void usb_info(Monitor *mon)
     }
 }
 
+/* handle legacy -usbdevice cmd line option */
+USBDevice *usbdevice_create(const char *cmdline)
+{
+    USBBus *bus = usb_bus_find(-1 /* any */);
+    DeviceInfo *info;
+    USBDeviceInfo *usb;
+    char driver[32], *params;
+    int len;
+
+    params = strchr(cmdline,':');
+    if (params) {
+        params++;
+        len = params - cmdline;
+        if (len > sizeof(driver))
+            len = sizeof(driver);
+        pstrcpy(driver, len, cmdline);
+    } else {
+        pstrcpy(driver, sizeof(driver), cmdline);
+    }
+
+    for (info = device_info_list; info != NULL; info = info->next) {
+        if (info->bus_info != &usb_bus_info)
+            continue;
+        usb = DO_UPCAST(USBDeviceInfo, qdev, info);
+        if (usb->usbdevice_name == NULL)
+            continue;
+        if (strcmp(usb->usbdevice_name, driver) != 0)
+            continue;
+        break;
+    }
+    if (info == NULL) {
+#if 0
+        /* no error because some drivers are not converted (yet) */
+        qemu_error("usbdevice %s not found\n", driver);
+#endif
+        return NULL;
+    }
+
+    if (!usb->usbdevice_init) {
+        if (params) {
+            qemu_error("usbdevice %s accepts no params\n", driver);
+            return NULL;
+        }
+        return usb_create_simple(bus, usb->qdev.name);
+    }
+    return usb->usbdevice_init(params);
+}

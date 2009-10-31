@@ -5,7 +5,7 @@
 #include "qemu-common.h"
 #include "qdict.h"
 #include "qemu-option.h"
-#include "net-queue.h"
+#include "net/queue.h"
 
 struct MACAddr {
     uint8_t a[6];
@@ -147,13 +147,6 @@ struct HCIInfo {
 
 struct HCIInfo *qemu_next_hci(void);
 
-/* checksumming functions (net-checksum.c) */
-uint32_t net_checksum_add(int len, uint8_t *buf);
-uint16_t net_checksum_finish(uint32_t sum);
-uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
-                             uint8_t *addrs, uint8_t *buf);
-void net_checksum_calculate(uint8_t *data, int length);
-
 /* from net.c */
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
@@ -181,9 +174,6 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict);
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
-int tap_has_ufo(VLANClientState *vc);
-int tap_has_vnet_hdr(VLANClientState *vc);
-void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
-void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn, int ufo);
+int net_handle_fd_param(Monitor *mon, const char *param);
 
 #endif

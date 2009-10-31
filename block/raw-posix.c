@@ -107,7 +107,6 @@ typedef struct BDRVRawState {
     int type;
     unsigned int lseek_err_cnt;
     int open_flags;
-    void *aio_ctx;
 #if defined(__linux__)
     /* linux floppy specific */
     int64_t fd_open_time;
@@ -117,6 +116,7 @@ typedef struct BDRVRawState {
 #endif
 #ifdef CONFIG_LINUX_AIO
     int use_aio;
+    void *aio_ctx;
 #endif
     uint8_t* aligned_buf;
 } BDRVRawState;
@@ -185,8 +185,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     } else
 #endif
     {
-        s->aio_ctx = paio_init();
-        if (!s->aio_ctx) {
+        if (paio_init() < 0) {
             goto out_free_buf;
         }
 #ifdef CONFIG_LINUX_AIO
@@ -558,7 +557,7 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
         }
     }
 
-    return paio_submit(bs, s->aio_ctx, s->fd, sector_num, qiov, nb_sectors,
+    return paio_submit(bs, s->fd, sector_num, qiov, nb_sectors,
                        cb, opaque, type);
 }
 
@@ -586,8 +585,7 @@ static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
     if (fd_open(bs) < 0)
         return NULL;
 
-    return paio_submit(bs, s->aio_ctx, s->fd, 0, NULL, 0,
-    		       cb, opaque, QEMU_AIO_FLUSH);
+    return paio_submit(bs, s->fd, 0, NULL, 0, cb, opaque, QEMU_AIO_FLUSH);
 }
 
 static void raw_close(BlockDriverState *bs)

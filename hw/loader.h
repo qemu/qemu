@@ -38,9 +38,8 @@ void do_info_roms(Monitor *mon);
 #define PC_ROM_ALIGN       0x800
 #define PC_ROM_SIZE        (PC_ROM_MAX - PC_ROM_MIN_VGA)
 
-#define rom_add_vga(_f)                                                 \
-    rom_add_file(_f, PC_ROM_MIN_VGA,    PC_ROM_MAX, PC_ROM_ALIGN)
-#define rom_add_option(_f)                                              \
-    rom_add_file(_f, PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN)
+extern int rom_enable_driver_roms;
+int rom_add_vga(const char *file);
+int rom_add_option(const char *file);
 
 #endif

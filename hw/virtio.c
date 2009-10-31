@@ -23,8 +23,11 @@
 /* QEMU doesn't strictly need write barriers since everything runs in
  * lock-step.  We'll leave the calls to wmb() in though to make it obvious for
  * KVM or if kqemu gets SMP support.
+ * In any case, we must prevent the compiler from reordering the code.
+ * TODO: we likely need some rmb()/mb() as well.
  */
-#define wmb() do { } while (0)
+
+#define wmb() __asm__ __volatile__("": : :"memory")
 
 typedef struct VRingDesc
 {

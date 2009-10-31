@@ -128,13 +128,10 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
 static uint32_t msix_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     PCIDevice *dev = opaque;
-    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1);
+    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1) & ~0x3;
     void *page = dev->msix_table_page;
-    uint32_t val = 0;
 
-    memcpy(&val, (void *)((char *)page + offset), 4);
-
-    return val;
+    return pci_get_long(page + offset);
 }
 
 static uint32_t msix_mmio_read_unallowed(void *opaque, target_phys_addr_t addr)
@@ -178,9 +175,9 @@ static void msix_mmio_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
     PCIDevice *dev = opaque;
-    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1);
+    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1) & ~0x3;
     int vector = offset / MSIX_ENTRY_SIZE;
-    memcpy(dev->msix_table_page + offset, &val, 4);
+    pci_set_long(dev->msix_table_page + offset, val);
     if (!msix_is_masked(dev, vector) && msix_is_pending(dev, vector)) {
         msix_clr_pending(dev, vector);
         msix_notify(dev, vector);

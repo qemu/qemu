@@ -14,6 +14,7 @@
 #include "block.h"
 #include "scsi-disk.h"
 #include "console.h"
+#include "monitor.h"
 
 //#define DEBUG_MSD
 
@@ -508,6 +509,16 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
+static void usb_msd_password_cb(void *opaque, int err)
+{
+    MSDState *s = opaque;
+
+    if (!err)
+        usb_device_attach(&s->dev);
+    else
+        qdev_unplug(&s->dev.qdev);
+}
+
 static int usb_msd_initfn(USBDevice *dev)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
@@ -522,10 +533,21 @@ static int usb_msd_initfn(USBDevice *dev)
     s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, s->dinfo, 0);
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
+
+    if (bdrv_key_required(s->dinfo->bdrv)) {
+        if (s->dev.qdev.hotplugged) {
+            monitor_read_bdrv_key_start(cur_mon, s->dinfo->bdrv,
+                                        usb_msd_password_cb, s);
+            s->dev.auto_attach = 0;
+        } else {
+            autostart = 0;
+        }
+    }
+
     return 0;
 }
 
-USBDevice *usb_msd_init(const char *filename)
+static USBDevice *usb_msd_init(const char *filename)
 {
     static int nr=0;
     char id[8];
@@ -577,13 +599,6 @@ USBDevice *usb_msd_init(const char *filename)
     return dev;
 }
 
-BlockDriverState *usb_msd_get_bdrv(USBDevice *dev)
-{
-    MSDState *s = (MSDState *)dev;
-
-    return s->dinfo->bdrv;
-}
-
 static struct USBDeviceInfo msd_info = {
     .qdev.name      = "QEMU USB MSD",
     .qdev.alias     = "usb-storage",
@@ -593,6 +608,8 @@ static struct USBDeviceInfo msd_info = {
     .handle_reset   = usb_msd_handle_reset,
     .handle_control = usb_msd_handle_control,
     .handle_data    = usb_msd_handle_data,
+    .usbdevice_name = "disk",
+    .usbdevice_init = usb_msd_init,
     .qdev.props     = (Property[]) {
         DEFINE_PROP_DRIVE("drive", MSDState, dinfo),
         DEFINE_PROP_END_OF_LIST(),

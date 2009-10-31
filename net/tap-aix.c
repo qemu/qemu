@@ -1,7 +1,7 @@
 /*
- * QEMU ISA VGA Emulator.
+ * QEMU System Emulator
  *
- * Copyright (c) 2003 Fabrice Bellard
+ * Copyright (c) 2003-2008 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "console.h"
-#include "pc.h"
-#include "vga_int.h"
-#include "pixel_ops.h"
-#include "qemu-timer.h"
-#include "loader.h"
 
-int isa_vga_init(void)
+#include "net/tap.h"
+#include <stdio.h>
+
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
-    VGACommonState *s;
+    fprintf(stderr, "no tap on AIX\n");
+    return -1;
+}
 
-    s = qemu_mallocz(sizeof(*s));
-
-    vga_common_init(s, VGA_RAM_SIZE);
-    vga_init(s);
-    vmstate_register(0, &vmstate_vga_common, s);
-
-    s->ds = graphic_console_init(s->update, s->invalidate,
-                                 s->screen_dump, s->text_update, s);
-
-#ifdef CONFIG_BOCHS_VBE
-    /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 VGA_RAM_SIZE, s->vram_offset);
-#endif
-    /* ROM BIOS */
-    rom_add_vga(VGABIOS_FILENAME);
+int tap_set_sndbuf(int fd, QemuOpts *opts)
+{
     return 0;
+}
+
+int tap_probe_vnet_hdr(int fd)
+{
+    return 0;
+}
+
+int tap_probe_has_ufo(int fd)
+{
+    return 0;
+}
+
+void tap_fd_set_offload(int fd, int csum, int tso4,
+                        int tso6, int ecn, int ufo)
+{
 }

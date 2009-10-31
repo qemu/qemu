@@ -556,7 +556,7 @@ static AIOPool raw_aio_pool = {
     .cancel             = paio_cancel,
 };
 
-BlockDriverAIOCB *paio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
+BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
@@ -607,7 +607,7 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
     return &acb->common;
 }
 
-void *paio_init(void)
+int paio_init(void)
 {
     struct sigaction act;
     PosixAioState *s;
@@ -615,7 +615,7 @@ void *paio_init(void)
     int ret;
 
     if (posix_aio_state)
-        return posix_aio_state;
+        return 0;
 
     s = qemu_malloc(sizeof(PosixAioState));
 
@@ -627,7 +627,7 @@ void *paio_init(void)
     s->first_aio = NULL;
     if (pipe(fds) == -1) {
         fprintf(stderr, "failed to create pipe\n");
-        return NULL;
+        return -1;
     }
 
     s->rfd = fds[0];
@@ -650,6 +650,5 @@ void *paio_init(void)
     QTAILQ_INIT(&request_list);
 
     posix_aio_state = s;
-
-    return posix_aio_state;
+    return 0;
 }

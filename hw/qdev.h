@@ -141,6 +141,7 @@ struct DeviceInfo {
     BusInfo *bus_info;
     struct DeviceInfo *next;
 };
+extern DeviceInfo *device_info_list;
 
 void qdev_register(DeviceInfo *info);
 

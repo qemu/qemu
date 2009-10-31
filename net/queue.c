@@ -21,7 +21,7 @@
  * THE SOFTWARE.
  */
 
-#include "net-queue.h"
+#include "net/queue.h"
 #include "qemu-queue.h"
 
 /* The delivery handler may only return zero if it will call

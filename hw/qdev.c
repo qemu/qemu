@@ -35,7 +35,7 @@ static int qdev_hotplug = 0;
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 static BusState *main_system_bus;
 
-static DeviceInfo *device_info_list;
+DeviceInfo *device_info_list;
 
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const BusInfo *info);

@@ -133,6 +133,7 @@ struct USBDevice {
     int speed;
     uint8_t addr;
     char devname[32];
+    int auto_attach;
     int attached;
 
     int state;
@@ -183,6 +184,10 @@ struct USBDeviceInfo {
      * Returns length or one of the USB_RET_ codes.
      */
     int (*handle_data)(USBDevice *dev, USBPacket *p);
+
+    /* handle legacy -usbdevice command line options */
+    const char *usbdevice_name;
+    USBDevice *(*usbdevice_init)(const char *params);
 };
 
 typedef void (*usb_attachfn)(USBPort *port, USBDevice *dev);
@@ -251,18 +256,11 @@ void usb_host_info(Monitor *mon);
 /* usb-hid.c */
 void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *));
 
-/* usb-msd.c */
-USBDevice *usb_msd_init(const char *filename);
-BlockDriverState *usb_msd_get_bdrv(USBDevice *dev);
-
 /* usb-net.c */
 USBDevice *usb_net_init(NICInfo *nd);
 
 /* usb-bt.c */
 USBDevice *usb_bt_init(HCIInfo *hci);
-
-/* usb-serial.c */
-USBDevice *usb_serial_init(const char *filename);
 
 /* usb ports of the VM */
 
@@ -309,6 +307,7 @@ void usb_qdev_register(USBDeviceInfo *info);
 void usb_qdev_register_many(USBDeviceInfo *info);
 USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
+USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
                        usb_attachfn attach);
 void usb_unregister_port(USBBus *bus, USBPort *port);

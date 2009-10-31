@@ -2519,77 +2519,22 @@ static void smp_parse(const char *optarg)
 /***********************************************************/
 /* USB devices */
 
-static void usb_msd_password_cb(void *opaque, int err)
-{
-    USBDevice *dev = opaque;
-
-    if (!err)
-        usb_device_attach(dev);
-    else
-        dev->info->handle_destroy(dev);
-}
-
-static struct {
-    const char *name;
-    const char *qdev;
-} usbdevs[] = {
-    {
-        .name = "mouse",
-        .qdev = "QEMU USB Mouse",
-    },{
-        .name = "tablet",
-        .qdev = "QEMU USB Tablet",
-    },{
-        .name = "keyboard",
-        .qdev = "QEMU USB Keyboard",
-    },{
-        .name = "wacom-tablet",
-        .qdev = "QEMU PenPartner Tablet",
-    }
-};
-
 static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
-    USBBus *bus = usb_bus_find(-1 /* any */);
     USBDevice *dev = NULL;
-    int i;
 
     if (!usb_enabled)
         return -1;
 
-    /* simple devices which don't need extra care */
-    for (i = 0; i < ARRAY_SIZE(usbdevs); i++) {
-        if (strcmp(devname, usbdevs[i].name) != 0)
-            continue;
-        dev = usb_create_simple(bus, usbdevs[i].qdev);
+    /* drivers with .usbdevice_name entry in USBDeviceInfo */
+    dev = usbdevice_create(devname);
+    if (dev)
         goto done;
-    }
 
     /* the other ones */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-    } else if (strstart(devname, "disk:", &p)) {
-        BlockDriverState *bs;
-
-        dev = usb_msd_init(p);
-        if (!dev)
-            return -1;
-        bs = usb_msd_get_bdrv(dev);
-        if (bdrv_key_required(bs)) {
-            autostart = 0;
-            if (is_hotplug) {
-                monitor_read_bdrv_key_start(cur_mon, bs, usb_msd_password_cb,
-                                            dev);
-                return 0;
-            }
-        }
-    } else if (strstart(devname, "serial:", &p)) {
-        dev = usb_serial_init(p);
-#ifdef CONFIG_BRLAPI
-    } else if (!strcmp(devname, "braille")) {
-        dev = usb_baum_init();
-#endif
     } else if (strstart(devname, "net:", &p)) {
         QemuOpts *opts;
         int idx;

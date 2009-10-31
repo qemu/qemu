@@ -17,6 +17,8 @@
 #define QEMU_TAP_H
 
 #include <stdint.h>
+#ifdef __linux__
+
 #include <linux/ioctl.h>
 
 /* Ioctl defines */
@@ -25,6 +27,8 @@
 #define TUNSETOFFLOAD  _IOW('T', 208, unsigned int)
 #define TUNGETIFF      _IOR('T', 210, unsigned int)
 #define TUNSETSNDBUF   _IOW('T', 212, int)
+
+#endif
 
 /* TUNSETIFF ifr flags */
 #define IFF_TAP		0x0002

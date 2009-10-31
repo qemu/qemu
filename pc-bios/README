@@ -16,10 +16,14 @@
   The included images for Sparc32, Sparc64 and PowerPC (for 32 and 64 bit
   PPC CPUs) are built from OpenBIOS SVN revision 569.
 
-- The PXE roms come from Rom-o-Matic etherboot 5.4.2.
-  eepro100:i82559er -- [0x8086,0x1209]
-  natsemi:dp83815 -- [0x100b,0x0020]
-  pcnet32:pcnet32 -- [0x1022,0x2000]
-  ns8390:winbond940 -- [0x1050,0x0940]
-  rtl8139:rtl8139 -- [0x10ec,0x8139]
+- The PXE roms come from Rom-o-Matic gPXE 0.9.9 with BANNER_TIMEOUT=0
+
+  dp83815 100b:0020
+  e1000 8086:100E
+  pcnet32 1022:2000
+  ns8390 1050:0940
+  rtl8139 10ec:8139
+  eepro100 8086:1209
+  virtio 1af4:1000
+
   http://rom-o-matic.net/

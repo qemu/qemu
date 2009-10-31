@@ -233,9 +233,10 @@ static void serial_update_parameters(SerialState *s)
     if (s->divider == 0)
         return;
 
-    /* start bit */
+    /* Start bit. */
     frame_size = 1;
     if (s->lcr & 0x08) {
+        /* Parity bit. */
         frame_size++;
         if (s->lcr & 0x10)
             parity = 'E';

@@ -26,8 +26,8 @@
 
 
 /* posix-aio-compat.c - thread pool based implementation */
-void *paio_init(void);
-BlockDriverAIOCB *paio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
+int paio_init(void);
+BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type);
 BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,

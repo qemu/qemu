@@ -534,6 +534,7 @@ struct Rom {
 };
 
 static QTAILQ_HEAD(, Rom) roms = QTAILQ_HEAD_INITIALIZER(roms);
+int rom_enable_driver_roms;
 
 static void rom_insert(Rom *rom)
 {
@@ -559,7 +560,7 @@ int rom_add_file(const char *file,
     rom->name = qemu_strdup(file);
     rom->path = qemu_find_file(QEMU_FILE_TYPE_BIOS, rom->name);
     if (rom->path == NULL) {
-        rom->path = strdup(file);
+        rom->path = qemu_strdup(file);
     }
 
     fd = open(rom->path, O_RDONLY | O_BINARY);
@@ -610,6 +611,20 @@ int rom_add_blob(const char *name, const void *blob, size_t len,
     memcpy(rom->data, blob, len);
     rom_insert(rom);
     return 0;
+}
+
+int rom_add_vga(const char *file)
+{
+    if (!rom_enable_driver_roms)
+        return 0;
+    return rom_add_file(file, PC_ROM_MIN_VGA, PC_ROM_MAX, PC_ROM_ALIGN);
+}
+
+int rom_add_option(const char *file)
+{
+    if (!rom_enable_driver_roms)
+        return 0;
+    return rom_add_file(file, PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN);
 }
 
 static void rom_reset(void *unused)
