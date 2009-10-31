@@ -730,6 +730,13 @@ static void serial_init_core(SerialState *s)
                           serial_event, s);
 }
 
+/* Change the main reference oscillator frequency. */
+void serial_set_frequency(SerialState *s, uint32_t frequency)
+{
+    s->baudbase = frequency;
+    serial_update_parameters(s);
+}
+
 static const int isa_serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
 static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 

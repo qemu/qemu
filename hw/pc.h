@@ -13,6 +13,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, int baudbase,
                              CharDriverState *chr, int ioregister);
 SerialState *serial_isa_init(int index, CharDriverState *chr);
+void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 /* parallel.c */
 
