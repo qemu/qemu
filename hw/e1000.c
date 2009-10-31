@@ -790,6 +790,8 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     getreg(MANC),	getreg(MDIC),	getreg(SWSM),	getreg(STATUS),
     getreg(TORL),	getreg(TOTL),	getreg(IMS),	getreg(TCTL),
     getreg(RDH),	getreg(RDT),	getreg(VET),	getreg(ICS),
+    getreg(TDBAL),	getreg(TDBAH),	getreg(RDBAH),	getreg(RDBAL),
+    getreg(TDLEN),	getreg(RDLEN),
 
     [TOTH] = mac_read_clr8,	[TORH] = mac_read_clr8,	[GPRC] = mac_read_clr4,
     [GPTC] = mac_read_clr4,	[TPR] = mac_read_clr4,	[TPT] = mac_read_clr4,
