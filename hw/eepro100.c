@@ -40,6 +40,7 @@
 #include <stddef.h>             /* offsetof */
 #include <stdbool.h>
 #include "hw.h"
+#include "loader.h"             /* rom_add_option */
 #include "pci.h"
 #include "net.h"
 #include "eeprom93xx.h"
@@ -1843,6 +1844,16 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
     memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
     s->vmstate->name = s->vc->model;
     vmstate_register(-1, s->vmstate, s);
+
+    if (!pci_dev->qdev.hotplugged) {
+        static int loaded = 0;
+        if (!loaded) {
+            char fname[32];
+            snprintf(fname, sizeof(fname), "pxe-%s.bin", s->vc->model);
+            rom_add_option(fname);
+            loaded = 1;
+        }
+    }
     return 0;
 }
 
