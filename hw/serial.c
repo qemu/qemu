@@ -742,7 +742,7 @@ static void serial_init_core(SerialState *s)
 }
 
 /* Change the main reference oscillator frequency. */
-void serial_frequency(SerialState *s, uint32_t frequency)
+void serial_set_frequency(SerialState *s, uint32_t frequency)
 {
     s->baudbase = frequency;
     serial_update_parameters(s);

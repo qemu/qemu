@@ -3296,7 +3296,7 @@ static void ar7_serial_init(CPUState * env)
         ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
             AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
             serial_hds[uart_index], 0);
-        serial_frequency(ar7.serial[uart_index], io_frequency / 16);
+        serial_set_frequency(ar7.serial[uart_index], io_frequency / 16);
     }
 
     /* Set special init values. */
