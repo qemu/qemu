@@ -138,6 +138,7 @@ obj-y += qemu-char.o aio.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
 obj-y += qint.o qstring.o qdict.o qlist.o qemu-config.o
+obj-y += block-migration.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o

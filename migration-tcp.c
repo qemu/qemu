@@ -78,7 +78,9 @@ static void tcp_wait_for_connect(void *opaque)
 
 MigrationState *tcp_start_outgoing_migration(const char *host_port,
                                              int64_t bandwidth_limit,
-                                             int detach)
+                                             int detach,
+					     int blk,
+					     int inc)
 {
     struct sockaddr_in addr;
     FdMigrationState *s;
@@ -95,6 +97,9 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
     s->mig_state.cancel = migrate_fd_cancel;
     s->mig_state.get_status = migrate_fd_get_status;
     s->mig_state.release = migrate_fd_release;
+
+    s->mig_state.blk = blk;
+    s->mig_state.shared = inc;
 
     s->state = MIG_STATE_ACTIVE;
     s->mon_resume = NULL;

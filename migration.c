@@ -58,16 +58,24 @@ void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *p;
     int detach = qdict_get_int(qdict, "detach");
     const char *uri = qdict_get_str(qdict, "uri");
-
+    
     if (strstart(uri, "tcp:", &p))
-        s = tcp_start_outgoing_migration(p, max_throttle, detach);
+        s = tcp_start_outgoing_migration(p, max_throttle, detach, 
+                                         (int)qdict_get_int(qdict, "blk"), 
+                                         (int)qdict_get_int(qdict, "inc"));
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
-        s = exec_start_outgoing_migration(p, max_throttle, detach);
+        s = exec_start_outgoing_migration(p, max_throttle, detach, 
+                                          (int)qdict_get_int(qdict, "blk"), 
+                                          (int)qdict_get_int(qdict, "inc"));
     else if (strstart(uri, "unix:", &p))
-        s = unix_start_outgoing_migration(p, max_throttle, detach);
+        s = unix_start_outgoing_migration(p, max_throttle, detach, 
+					  (int)qdict_get_int(qdict, "blk"), 
+                                          (int)qdict_get_int(qdict, "inc"));
     else if (strstart(uri, "fd:", &p))
-        s = fd_start_outgoing_migration(mon, p, max_throttle, detach);
+        s = fd_start_outgoing_migration(mon, p, max_throttle, detach, 
+                                        (int)qdict_get_int(qdict, "blk"), 
+                                        (int)qdict_get_int(qdict, "inc"));
 #endif
     else
         monitor_printf(mon, "unknown migration protocol: %s\n", uri);
@@ -251,13 +259,14 @@ void migrate_fd_connect(FdMigrationState *s)
                                       migrate_fd_close);
 
     dprintf("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->file);
+    ret = qemu_savevm_state_begin(s->file, s->mig_state.blk, 
+                                  s->mig_state.shared);
     if (ret < 0) {
         dprintf("failed, %d\n", ret);
         migrate_fd_error(s);
         return;
     }
-
+    
     migrate_fd_put_ready(s);
 }
 

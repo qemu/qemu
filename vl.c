@@ -148,6 +148,8 @@ int main(int argc, char **argv)
 #include "qemu-char.h"
 #include "cache-utils.h"
 #include "block.h"
+#include "block_int.h"
+#include "block-migration.h"
 #include "dma.h"
 #include "audio/audio.h"
 #include "migration.h"
@@ -2972,9 +2974,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
         bwidth = 0.000001;
 
     /* try transferring iterative blocks of memory */
-
     if (stage == 3) {
-
         /* flush all remaining blocks regardless of rate limiting */
         while (ram_save_block(f) != 0) {
             bytes_transferred += TARGET_PAGE_SIZE;
@@ -5553,6 +5553,8 @@ int main(int argc, char **argv, char **envp)
 
     bdrv_init_with_whitelist();
 
+    blk_mig_init();
+
     /* we always create the cdrom drive, even if no disk is there */
     drive_add(NULL, CDROM_ALIAS);
 
@@ -5569,7 +5571,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
 
     vmstate_register(0, &vmstate_timers ,&timers_state);
-    register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
+    register_savevm_live("ram", 0, 3, NULL, ram_save_live, NULL, 
+                         ram_load, NULL);
 
     /* Maintain compatibility with multiple stdio monitors */
     if (!strcmp(monitor_devices[0],"stdio")) {

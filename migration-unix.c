@@ -77,7 +77,9 @@ static void unix_wait_for_connect(void *opaque)
 
 MigrationState *unix_start_outgoing_migration(const char *path,
 					      int64_t bandwidth_limit,
-					      int detach)
+					      int detach,
+					      int blk,
+					      int inc)
 {
     FdMigrationState *s;
     struct sockaddr_un addr;
@@ -94,6 +96,9 @@ MigrationState *unix_start_outgoing_migration(const char *path,
     s->mig_state.cancel = migrate_fd_cancel;
     s->mig_state.get_status = migrate_fd_get_status;
     s->mig_state.release = migrate_fd_release;
+
+    s->mig_state.blk = blk;
+    s->mig_state.shared = inc;
 
     s->state = MIG_STATE_ACTIVE;
     s->mon_resume = NULL;

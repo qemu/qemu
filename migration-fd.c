@@ -54,7 +54,9 @@ static int fd_close(FdMigrationState *s)
 MigrationState *fd_start_outgoing_migration(Monitor *mon,
 					    const char *fdname,
 					    int64_t bandwidth_limit,
-					    int detach)
+					    int detach,
+					    int blk,
+					    int inc)
 {
     FdMigrationState *s;
 
@@ -78,6 +80,9 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
     s->mig_state.get_status = migrate_fd_get_status;
     s->mig_state.release = migrate_fd_release;
 
+    s->mig_state.blk = blk;
+    s->mig_state.shared = inc;
+    
     s->state = MIG_STATE_ACTIVE;
     s->mon_resume = NULL;
     s->bandwidth_limit = bandwidth_limit;

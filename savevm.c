@@ -169,6 +169,7 @@ struct QEMUFile {
     QEMUFileCloseFunc *close;
     QEMUFileRateLimit *rate_limit;
     QEMUFileSetRateLimit *set_rate_limit;
+    QEMUFileGetRateLimit *get_rate_limit;
     void *opaque;
     int is_write;
 
@@ -264,9 +265,11 @@ QEMUFile *qemu_popen(FILE *stdio_file, const char *mode)
     s->stdio_file = stdio_file;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_pclose, NULL, NULL);
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_pclose, 
+				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_pclose, NULL, NULL);
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_pclose, 
+				 NULL, NULL, NULL);
     }
     return s->file;
 }
@@ -311,9 +314,11 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
         goto fail;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_fclose, NULL, NULL);
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_fclose, 
+				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_fclose, NULL, NULL);
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_fclose, 
+				 NULL, NULL, NULL);
     }
     return s->file;
 
@@ -327,7 +332,8 @@ QEMUFile *qemu_fopen_socket(int fd)
     QEMUFileSocket *s = qemu_mallocz(sizeof(QEMUFileSocket));
 
     s->fd = fd;
-    s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close, NULL, NULL);
+    s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close, 
+			     NULL, NULL, NULL);
     return s->file;
 }
 
@@ -363,11 +369,13 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
     s->stdio_file = fopen(filename, mode);
     if (!s->stdio_file)
         goto fail;
-
+    
     if(mode[0] == 'w') {
-        s->file = qemu_fopen_ops(s, file_put_buffer, NULL, stdio_fclose, NULL, NULL);
+        s->file = qemu_fopen_ops(s, file_put_buffer, NULL, stdio_fclose, 
+				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, NULL, file_get_buffer, stdio_fclose, NULL, NULL);
+        s->file = qemu_fopen_ops(s, NULL, file_get_buffer, stdio_fclose, 
+			       NULL, NULL, NULL);
     }
     return s->file;
 fail:
@@ -395,15 +403,17 @@ static int bdrv_fclose(void *opaque)
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
     if (is_writable)
-        return qemu_fopen_ops(bs, block_put_buffer, NULL, bdrv_fclose, NULL, NULL);
-    return qemu_fopen_ops(bs, NULL, block_get_buffer, bdrv_fclose, NULL, NULL);
+        return qemu_fopen_ops(bs, block_put_buffer, NULL, bdrv_fclose, 
+			      NULL, NULL, NULL);
+    return qemu_fopen_ops(bs, NULL, block_get_buffer, bdrv_fclose, NULL, NULL, NULL);
 }
 
 QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
                          QEMUFileGetBufferFunc *get_buffer,
                          QEMUFileCloseFunc *close,
                          QEMUFileRateLimit *rate_limit,
-                         QEMUFileSetRateLimit *set_rate_limit)
+                         QEMUFileSetRateLimit *set_rate_limit,
+                         QEMUFileGetRateLimit *get_rate_limit)
 {
     QEMUFile *f;
 
@@ -415,6 +425,7 @@ QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
     f->close = close;
     f->rate_limit = rate_limit;
     f->set_rate_limit = set_rate_limit;
+    f->get_rate_limit = get_rate_limit;
     f->is_write = 0;
 
     return f;
@@ -588,6 +599,14 @@ int qemu_file_rate_limit(QEMUFile *f)
 {
     if (f->rate_limit)
         return f->rate_limit(f->opaque);
+
+    return 0;
+}
+
+size_t qemu_file_get_rate_limit(QEMUFile *f)
+{
+    if (f->get_rate_limit)
+        return f->get_rate_limit(f->opaque);
 
     return 0;
 }
@@ -964,12 +983,14 @@ typedef struct SaveStateEntry {
     int instance_id;
     int version_id;
     int section_id;
+    SaveSetParamsHandler *set_params;
     SaveLiveStateHandler *save_live_state;
     SaveStateHandler *save_state;
     LoadStateHandler *load_state;
     const VMStateDescription *vmsd;
     void *opaque;
 } SaveStateEntry;
+
 
 static QTAILQ_HEAD(savevm_handlers, SaveStateEntry) savevm_handlers =
     QTAILQ_HEAD_INITIALIZER(savevm_handlers);
@@ -996,6 +1017,7 @@ static int calculate_new_instance_id(const char *idstr)
 int register_savevm_live(const char *idstr,
                          int instance_id,
                          int version_id,
+                         SaveSetParamsHandler *set_params,
                          SaveLiveStateHandler *save_live_state,
                          SaveStateHandler *save_state,
                          LoadStateHandler *load_state,
@@ -1003,10 +1025,11 @@ int register_savevm_live(const char *idstr,
 {
     SaveStateEntry *se;
 
-    se = qemu_malloc(sizeof(SaveStateEntry));
+    se = qemu_mallocz(sizeof(SaveStateEntry));
     pstrcpy(se->idstr, sizeof(se->idstr), idstr);
     se->version_id = version_id;
     se->section_id = global_section_id++;
+    se->set_params = set_params;
     se->save_live_state = save_live_state;
     se->save_state = save_state;
     se->load_state = load_state;
@@ -1031,7 +1054,7 @@ int register_savevm(const char *idstr,
                     void *opaque)
 {
     return register_savevm_live(idstr, instance_id, version_id,
-                                NULL, save_state, load_state, opaque);
+                                NULL, NULL, save_state, load_state, opaque);
 }
 
 void unregister_savevm(const char *idstr, void *opaque)
@@ -1051,7 +1074,7 @@ int vmstate_register(int instance_id, const VMStateDescription *vmsd,
 {
     SaveStateEntry *se;
 
-    se = qemu_malloc(sizeof(SaveStateEntry));
+    se = qemu_mallocz(sizeof(SaveStateEntry));
     pstrcpy(se->idstr, sizeof(se->idstr), vmsd->name);
     se->version_id = vmsd->version_id;
     se->section_id = global_section_id++;
@@ -1213,10 +1236,17 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 #define QEMU_VM_SECTION_END          0x03
 #define QEMU_VM_SECTION_FULL         0x04
 
-int qemu_savevm_state_begin(QEMUFile *f)
+int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
 {
     SaveStateEntry *se;
 
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if(se->set_params == NULL) {
+            continue;
+	}
+	se->set_params(blk_enable, shared, se->opaque);
+    }
+    
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
@@ -1326,7 +1356,7 @@ int qemu_savevm_state(QEMUFile *f)
 
     bdrv_flush_all();
 
-    ret = qemu_savevm_state_begin(f);
+    ret = qemu_savevm_state_begin(f, 0, 0);
     if (ret < 0)
         goto out;
 
