@@ -40,8 +40,7 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 
 -include config-all-devices.mak
 
-build-all: config-host.h config-all-devices.h $(DOCS) $(TOOLS)
-	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) recurse-all,)
+build-all: $(DOCS) $(TOOLS) recurse-all
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
@@ -207,9 +206,12 @@ bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 libqemu_common.a: $(obj-y)
 
+$(obj-y): config-host.h
+
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
+qemu-img.o qemu-nbd.o qemu-io.o: config-host.h
 
 qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y)
 
