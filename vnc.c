@@ -1377,6 +1377,27 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         }
     }
 
+    if ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z')) {
+        /* If the capslock state needs to change then simulate an additional
+           keypress before sending this one.  This will happen if the user
+           toggles capslock away from the VNC window.
+        */
+        int uppercase = !!(sym >= 'A' && sym <= 'Z');
+        int shift = !!(vs->modifiers_state[0x2a] | vs->modifiers_state[0x36]);
+        int capslock = !!(vs->modifiers_state[0x3a]);
+        if (capslock) {
+            if (uppercase == shift) {
+                vs->modifiers_state[0x3a] = 0;
+                press_key(vs, 0xffe5);
+            }
+        } else {
+            if (uppercase != shift) {
+                vs->modifiers_state[0x3a] = 1;
+                press_key(vs, 0xffe5);
+            }
+        }
+    }
+
     if (is_graphic_console()) {
         if (keycode & 0x80)
             kbd_put_keycode(0xe0);
