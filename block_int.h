@@ -168,6 +168,8 @@ struct BlockDriverState {
     int cyls, heads, secs, translation;
     int type;
     char device_name[32];
+    int dirty_tracking;
+    uint8_t *dirty_bitmap;
     BlockDriverState *next;
     void *private;
 };
