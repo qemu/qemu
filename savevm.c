@@ -1535,12 +1535,40 @@ static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
     return ret;
 }
 
+/*
+ * Deletes snapshots of a given name in all opened images.
+ */
+static int del_existing_snapshots(Monitor *mon, const char *name)
+{
+    BlockDriverState *bs;
+    DriveInfo *dinfo;
+    QEMUSnapshotInfo sn1, *snapshot = &sn1;
+    int ret;
+
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        bs = dinfo->bdrv;
+        if (bdrv_can_snapshot(bs) &&
+            bdrv_snapshot_find(bs, snapshot, name) >= 0)
+        {
+            ret = bdrv_snapshot_delete(bs, name);
+            if (ret < 0) {
+                monitor_printf(mon,
+                               "Error while deleting snapshot on '%s'\n",
+                               bdrv_get_device_name(bs));
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 void do_savevm(Monitor *mon, const QDict *qdict)
 {
     DriveInfo *dinfo;
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
-    int must_delete, ret;
+    int ret;
     QEMUFile *f;
     int saved_vm_running;
     uint32_t vm_state_size;
@@ -1563,20 +1591,15 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     saved_vm_running = vm_running;
     vm_stop(0);
 
-    must_delete = 0;
+    memset(sn, 0, sizeof(*sn));
     if (name) {
         ret = bdrv_snapshot_find(bs, old_sn, name);
         if (ret >= 0) {
-            must_delete = 1;
-        }
-    }
-    memset(sn, 0, sizeof(*sn));
-    if (must_delete) {
-        pstrcpy(sn->name, sizeof(sn->name), old_sn->name);
-        pstrcpy(sn->id_str, sizeof(sn->id_str), old_sn->id_str);
-    } else {
-        if (name)
+            pstrcpy(sn->name, sizeof(sn->name), old_sn->name);
+            pstrcpy(sn->id_str, sizeof(sn->id_str), old_sn->id_str);
+        } else {
             pstrcpy(sn->name, sizeof(sn->name), name);
+        }
     }
 
     /* fill auxiliary fields */
@@ -1590,6 +1613,11 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     sn->date_nsec = tv.tv_usec * 1000;
 #endif
     sn->vm_clock_nsec = qemu_get_clock(vm_clock);
+
+    /* Delete old snapshots of the same name */
+    if (del_existing_snapshots(mon, name) < 0) {
+        goto the_end;
+    }
 
     /* save the VM state */
     f = qemu_fopen_bdrv(bs, 1);
@@ -1610,14 +1638,6 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
         if (bdrv_has_snapshot(bs1)) {
-            if (must_delete) {
-                ret = bdrv_snapshot_delete(bs1, old_sn->id_str);
-                if (ret < 0) {
-                    monitor_printf(mon,
-                                   "Error while deleting snapshot on '%s'\n",
-                                   bdrv_get_device_name(bs1));
-                }
-            }
             /* Write VM state size only to the image that contains the state */
             sn->vm_state_size = (bs == bs1 ? vm_state_size : 0);
             ret = bdrv_snapshot_create(bs1, sn);
