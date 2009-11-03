@@ -1585,7 +1585,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   fallocate=yes
 fi
 
@@ -1600,7 +1600,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   dup3=yes
 fi
 
