@@ -5790,7 +5790,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     text_consoles_set_display(display_state);
-    qemu_chr_initial_reset();
 
     for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
         if (monitor_devices[i] && monitor_hds[i]) {
