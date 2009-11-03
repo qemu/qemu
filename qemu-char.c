@@ -97,6 +97,8 @@
 
 #include "qemu_socket.h"
 
+#define READ_BUF_LEN 4096
+
 /***********************************************************/
 /* character device */
 
@@ -172,7 +174,7 @@ void qemu_chr_accept_input(CharDriverState *s)
 
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
 {
-    char buf[4096];
+    char buf[READ_BUF_LEN];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -555,7 +557,7 @@ static void fd_chr_read(void *opaque)
     CharDriverState *chr = opaque;
     FDCharDriver *s = chr->opaque;
     int size, len;
-    uint8_t buf[1024];
+    uint8_t buf[READ_BUF_LEN];
 
     len = sizeof(buf);
     if (len > s->max_size)
@@ -866,7 +868,7 @@ static void pty_chr_read(void *opaque)
     CharDriverState *chr = opaque;
     PtyCharDriver *s = chr->opaque;
     int size, len;
-    uint8_t buf[1024];
+    uint8_t buf[READ_BUF_LEN];
 
     len = sizeof(buf);
     if (len > s->read_bytes)
@@ -1554,7 +1556,7 @@ static void win_chr_readfile(CharDriverState *chr)
 {
     WinCharState *s = chr->opaque;
     int ret, err;
-    uint8_t buf[1024];
+    uint8_t buf[READ_BUF_LEN];
     DWORD size;
 
     ZeroMemory(&s->orecv, sizeof(s->orecv));
@@ -1760,7 +1762,7 @@ static CharDriverState *qemu_chr_open_win_file_out(QemuOpts *opts)
 
 typedef struct {
     int fd;
-    uint8_t buf[1024];
+    uint8_t buf[READ_BUF_LEN];
     int bufcnt;
     int bufptr;
     int max_size;
@@ -2020,7 +2022,7 @@ static void tcp_chr_read(void *opaque)
 {
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
-    uint8_t buf[1024];
+    uint8_t buf[READ_BUF_LEN];
     int len, size;
 
     if (!s->connected || s->max_size <= 0)
