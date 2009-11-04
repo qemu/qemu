@@ -1499,7 +1499,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_qemu_st8, { "S", "S" } },
     { INDEX_op_qemu_st16, { "S", "S" } },
     { INDEX_op_qemu_st32, { "S", "S" } },
-    { INDEX_op_qemu_st64, { "S", "S", "S" } },
+    { INDEX_op_qemu_st64, { "S", "S" } },
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
