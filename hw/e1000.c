@@ -1113,7 +1113,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     qemu_format_nic_info_str(d->vc, macaddr);
 
     vmstate_register(-1, &vmstate_e1000, d);
-    e1000_reset(d);
 
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;

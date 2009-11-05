@@ -97,7 +97,6 @@ static int piix4_initfn(PCIDevice *d)
         PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
     piix4_dev = d;
-    piix4_reset(d);
     qemu_register_reset(piix4_reset, d);
     return 0;
 }

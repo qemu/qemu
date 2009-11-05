@@ -120,7 +120,6 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     qemu_register_reset(piix3_reset, d);
-    piix3_reset(d);
 
     pci_register_bar(&d->dev, 4, 0x10, PCI_ADDRESS_SPACE_IO, bmdma_map);
 

@@ -341,7 +341,6 @@ static int piix3_initfn(PCIDevice *dev)
     pci_conf[PCI_HEADER_TYPE] =
         PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
-    piix3_reset(d);
     qemu_register_reset(piix3_reset, d);
     return 0;
 }

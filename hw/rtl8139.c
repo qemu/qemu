@@ -3331,7 +3331,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    rtl8139_reset(&s->dev.qdev);
+
     s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
                                  s->conf.vlan, s->conf.peer,
                                  dev->qdev.info->name, dev->qdev.id,

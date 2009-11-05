@@ -981,7 +981,6 @@ int apic_init(CPUState *env)
     s->id = env->cpuid_apic_id;
     s->cpu_env = env;
 
-    apic_reset(s);
     msix_supported = 1;
 
     /* XXX: mapping more APICs at the same memory location */
