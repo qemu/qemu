@@ -17,7 +17,7 @@ QEMU_CFLAGS += -MMD -MP -MT $@
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 %.o: %.S
-	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CLAGS) -c -o $@ $<,"  AS    $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) -c -o $@ $<,"  AS    $(TARGET_DIR)$@")
 
 %.o: %.m
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
