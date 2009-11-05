@@ -1,5 +1,8 @@
 # Makefile for QEMU.
 
+# This needs to be defined before rules.mak
+GENERATED_HEADERS = config-host.h config-all-devices.h
+
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
 all: build-all
@@ -40,8 +43,7 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 
 -include config-all-devices.mak
 
-build-all: config-host.h config-all-devices.h $(DOCS) $(TOOLS)
-	$(call quiet-command, $(MAKE) $(SUBDIR_MAKEFLAGS) recurse-all,)
+build-all: $(DOCS) $(TOOLS) recurse-all
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
@@ -51,7 +53,7 @@ config-all-devices.h-timestamp: config-all-devices.mak
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
-subdir-%: config-host.h config-all-devices.h
+subdir-%: $(GENERATED_HEADERS)
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a

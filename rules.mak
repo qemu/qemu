@@ -13,7 +13,7 @@ MAKEFLAGS += -rR
 
 QEMU_CFLAGS += -MMD -MP -MT $@
 
-%.o: %.c
+%.o: %.c $(GENERATED_HEADERS)
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 %.o: %.S

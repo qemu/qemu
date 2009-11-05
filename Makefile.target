@@ -1,5 +1,8 @@
 # -*- Mode: makefile -*-
 
+# This needs to be defined before rules.mak
+GENERATED_HEADERS = config-target.h config-devices.h
+
 include ../config-host.mak
 include config-devices.mak
 include config-target.mak
@@ -33,8 +36,7 @@ config-target.h-timestamp: config-target.mak
 config-devices.h: config-devices.h-timestamp
 config-devices.h-timestamp: config-devices.mak
 
-all: config-target.h config-devices.h
-	$(call quiet-command, $(MAKE) $(PROGS),)
+all: $(PROGS)
 
 # Dummy command so that make thinks it has done something
 	@true
