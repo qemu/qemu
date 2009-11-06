@@ -1267,7 +1267,7 @@ static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS] = {
 static void vga_draw_text(VGACommonState *s, int full_update)
 {
     int cx, cy, cheight, cw, ch, cattr, height, width, ch_attr;
-    int cx_min, cx_max, linesize, x_incr, line;
+    int cx_min, cx_max, linesize, x_incr, line, line1;
     uint32_t offset, fgcol, bgcol, v, cursor_offset;
     uint8_t *d1, *d, *src, *dest, *cursor_ptr;
     const uint8_t *font_ptr, *font_base[2];
@@ -1420,14 +1420,12 @@ static void vga_draw_text(VGACommonState *s, int full_update)
                        (cx_max - cx_min + 1) * cw, cheight);
         }
         dest += linesize * cheight;
-        if (line >= s->line_compare) {
-            line -= s->line_compare;
+        line1 = line + cheight;
+        offset += line_offset;
+        if (line < s->line_compare && line1 >= s->line_compare) {
             offset = 0;
         }
-        else {
-            offset += line_offset;
-            line += cheight;
-        }
+        line = line1;
     }
 }
 
