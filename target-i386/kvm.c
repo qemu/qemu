@@ -23,6 +23,7 @@
 #include "kvm.h"
 #include "cpu.h"
 #include "gdbstub.h"
+#include "host-utils.h"
 
 //#define DEBUG_KVM
 
@@ -223,6 +224,7 @@ int kvm_arch_init_vcpu(CPUState *env)
 
 void kvm_arch_reset_vcpu(CPUState *env)
 {
+    env->interrupt_injected = -1;
 }
 
 static int kvm_has_msr_star(CPUState *env)
@@ -411,9 +413,11 @@ static int kvm_put_sregs(CPUState *env)
 {
     struct kvm_sregs sregs;
 
-    memcpy(sregs.interrupt_bitmap,
-           env->interrupt_bitmap,
-           sizeof(sregs.interrupt_bitmap));
+    memset(sregs.interrupt_bitmap, 0, sizeof(sregs.interrupt_bitmap));
+    if (env->interrupt_injected >= 0) {
+        sregs.interrupt_bitmap[env->interrupt_injected / 64] |=
+                (uint64_t)1 << (env->interrupt_injected % 64);
+    }
 
     if ((env->eflags & VM_MASK)) {
 	    set_v8086_seg(&sregs.cs, &env->segs[R_CS]);
@@ -520,15 +524,22 @@ static int kvm_get_sregs(CPUState *env)
 {
     struct kvm_sregs sregs;
     uint32_t hflags;
-    int ret;
+    int bit, i, ret;
 
     ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
     if (ret < 0)
         return ret;
 
-    memcpy(env->interrupt_bitmap, 
-           sregs.interrupt_bitmap,
-           sizeof(sregs.interrupt_bitmap));
+    /* There can only be one pending IRQ set in the bitmap at a time, so try
+       to find it and save its number instead (-1 for none). */
+    env->interrupt_injected = -1;
+    for (i = 0; i < ARRAY_SIZE(sregs.interrupt_bitmap); i++) {
+        if (sregs.interrupt_bitmap[i]) {
+            bit = ctz64(sregs.interrupt_bitmap[i]);
+            env->interrupt_injected = i * 64 + bit;
+            break;
+        }
+    }
 
     get_seg(&env->segs[R_CS], &sregs.cs);
     get_seg(&env->segs[R_DS], &sregs.ds);
