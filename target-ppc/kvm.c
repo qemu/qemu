@@ -53,6 +53,10 @@ int kvm_arch_init_vcpu(CPUState *cenv)
     return ret;
 }
 
+void kvm_arch_reset_vcpu(CPUState *env)
+{
+}
+
 int kvm_arch_put_registers(CPUState *env)
 {
     struct kvm_regs regs;

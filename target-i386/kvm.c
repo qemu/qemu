@@ -221,6 +221,10 @@ int kvm_arch_init_vcpu(CPUState *env)
     return kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
 }
 
+void kvm_arch_reset_vcpu(CPUState *env)
+{
+}
+
 static int kvm_has_msr_star(CPUState *env)
 {
     static int has_msr_star;
