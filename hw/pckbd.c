@@ -397,7 +397,6 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->irq_mouse = mouse_irq;
     s->mask = mask;
 
-    kbd_reset(s);
     vmstate_register(0, &vmstate_kbd, s);
     s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s);
     cpu_register_physical_memory(base, size, s_io_memory);
@@ -422,7 +421,6 @@ static int i8042_initfn(ISADevice *dev)
     isa_init_irq(dev, &s->irq_kbd, 1);
     isa_init_irq(dev, &s->irq_mouse, 12);
 
-    kbd_reset(s);
     vmstate_register(0, &vmstate_kbd, s);
     register_ioport_read(0x60, 1, 1, kbd_read_data, s);
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);

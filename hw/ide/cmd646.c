@@ -235,7 +235,6 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     vmstate_register(0, &vmstate_ide_pci, d);
     qemu_register_reset(cmd646_reset, d);
-    cmd646_reset(d);
     return 0;
 }
 
