@@ -162,7 +162,6 @@ static int cs4231_init1(SysBusDevice *dev)
     sysbus_init_mmio(dev, CS_SIZE, io);
     sysbus_init_irq(dev, &s->irq);
 
-    cs_reset(&s->busdev.qdev);
     return 0;
 }
 

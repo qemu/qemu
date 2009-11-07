@@ -921,7 +921,6 @@ static int escc_init1(SysBusDevice *dev)
     if (s->chn[1].type == kbd) {
         qemu_add_kbd_event_handler(sunkbd_event, &s->chn[1]);
     }
-    escc_reset(&s->busdev.qdev);
 
     return 0;
 }

@@ -559,7 +559,6 @@ static int tcx_init1(SysBusDevice *dev)
                                      tcx_screen_dump, NULL, s);
     }
 
-    tcx_reset(&s->busdev.qdev);
     qemu_console_resize(s->ds, s->width, s->height);
     return 0;
 }

@@ -1902,7 +1902,6 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s,
                                  pcnet_can_receive, pcnet_receive, NULL, NULL,
                                  cleanup, s);
     qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
-    pcnet_h_reset(s);
     return 0;
 }
 

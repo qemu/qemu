@@ -313,7 +313,6 @@ static int ecc_init1(SysBusDevice *dev)
                                                ecc_diag_mem_write, s);
         sysbus_init_mmio(dev, ECC_DIAG_SIZE, ecc_io_memory);
     }
-    ecc_reset(&s->busdev.qdev);
 
     return 0;
 }

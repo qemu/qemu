@@ -411,8 +411,6 @@ static int slavio_timer_init1(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cputimer[i].irq);
     }
 
-    slavio_timer_reset(&s->busdev.qdev);
-
     return 0;
 }
 

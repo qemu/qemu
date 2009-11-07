@@ -363,8 +363,6 @@ static int iommu_init1(SysBusDevice *dev)
     io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s);
     sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
 
-    iommu_reset(&s->busdev.qdev);
-
     return 0;
 }
 

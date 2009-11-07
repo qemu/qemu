@@ -1956,7 +1956,6 @@ static int isabus_fdc_init1(ISADevice *dev)
     fdctrl->dma_chann = dma_chann;
 
     ret = fdctrl_init_common(fdctrl);
-    fdctrl_external_reset_isa(&isa->busdev.qdev);
 
     return ret;
 }
@@ -1975,7 +1974,6 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
     fdctrl->dma_chann = -1;
 
     ret = fdctrl_init_common(fdctrl);
-    fdctrl_external_reset_sysbus(&sys->busdev.qdev);
 
     return ret;
 }

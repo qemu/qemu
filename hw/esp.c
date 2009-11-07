@@ -665,8 +665,6 @@ static int esp_init1(SysBusDevice *dev)
     esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s);
     sysbus_init_mmio(dev, ESP_REGS << s->it_shift, esp_io_memory);
 
-    esp_reset(&s->busdev.qdev);
-
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
     scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
