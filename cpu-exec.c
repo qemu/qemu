@@ -416,7 +416,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_PPC)
 #if 0
                     if ((interrupt_request & CPU_INTERRUPT_RESET)) {
-                        cpu_ppc_reset(env);
+                        cpu_reset(env);
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_HARD) {

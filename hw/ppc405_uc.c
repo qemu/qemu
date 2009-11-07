@@ -1805,7 +1805,7 @@ void ppc40x_core_reset (CPUState *env)
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
     /* XXX: TOFIX */
 #if 0
-    cpu_ppc_reset(env);
+    cpu_reset(env);
 #else
     qemu_system_reset_request();
 #endif
@@ -1823,7 +1823,7 @@ void ppc40x_chip_reset (CPUState *env)
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
     /* XXX: TOFIX */
 #if 0
-    cpu_ppc_reset(env);
+    cpu_reset(env);
 #else
     qemu_system_reset_request();
 #endif

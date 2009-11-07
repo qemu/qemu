@@ -123,7 +123,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
                 env->interrupt_request |= CPU_INTERRUPT_EXITTB;
                 /* XXX: TOFIX */
 #if 0
-                cpu_ppc_reset(env);
+                cpu_reset(env);
 #else
                 qemu_system_reset_request();
 #endif
@@ -1088,7 +1088,7 @@ int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
 #if 0
 /*****************************************************************************/
 /* Handle system reset (for now, just stop emulation) */
-void cpu_ppc_reset (CPUState *env)
+void cpu_reset(CPUState *env)
 {
     printf("Reset asked... Stop emulation\n");
     abort();

@@ -60,7 +60,7 @@ CPUState *ppc4xx_init (const char *cpu_model,
     tb_clk->opaque = env;
     ppc_dcr_init(env, NULL, NULL);
     /* Register qemu callbacks */
-    qemu_register_reset(&cpu_ppc_reset, env);
+    qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
 
     return env;
 }
