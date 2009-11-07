@@ -119,7 +119,8 @@ fail:
 static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVParallelsState *s = bs->opaque;
-    uint32_t index, offset, position;
+    uint32_t index, offset;
+    uint64_t position;
 
     index = sector_num / s->tracks;
     offset = sector_num % s->tracks;
@@ -128,7 +129,7 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     if ((index > s->catalog_size) || (s->catalog_bitmap[index] == 0))
 	return -1;
 
-    position = (s->catalog_bitmap[index] + offset) * 512;
+    position = (uint64_t)(s->catalog_bitmap[index] + offset) * 512;
 
 //    fprintf(stderr, "sector: %llx index=%x offset=%x pointer=%x position=%x\n",
 //	sector_num, index, offset, s->catalog_bitmap[index], position);
