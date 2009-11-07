@@ -525,13 +525,14 @@ extern const VMStateDescription vmstate_ide_drive;
 #define VMSTATE_IDE_DRIVES(_field, _state) \
     VMSTATE_STRUCT_ARRAY(_field, _state, 2, 3, vmstate_ide_drive, IDEState)
 
-void ide_reset(IDEState *s);
+void ide_bus_reset(IDEBus *bus);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);
 
 void ide_dma_cancel(BMDMAState *bm);
 void ide_dma_restart_cb(void *opaque, int running, int reason);
 void ide_dma_error(IDEState *s);
+void ide_dma_reset(BMDMAState *bm);
 
 void ide_atapi_cmd_ok(IDEState *s);
 void ide_atapi_cmd_error(IDEState *s, int sense_key, int asc);

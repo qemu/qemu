@@ -110,7 +110,7 @@ static void md_reset(MicroDriveState *s)
     s->pins = 0;
     s->cycle = 0;
     s->ctrl = 0;
-    ide_reset(s->bus.ifs);
+    ide_bus_reset(&s->bus);
 }
 
 static uint8_t md_attr_read(void *opaque, uint32_t at)

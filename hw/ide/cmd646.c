@@ -193,8 +193,10 @@ static void cmd646_reset(void *opaque)
     PCIIDEState *d = opaque;
     unsigned int i;
 
-    for (i = 0; i < 2; i++)
-        ide_dma_cancel(&d->bmdma[i]);
+    for (i = 0; i < 2; i++) {
+        ide_bus_reset(&d->bus[i]);
+        ide_dma_reset(&d->bmdma[i]);
+    }
 }
 
 /* CMD646 PCI IDE controller */

@@ -101,8 +101,10 @@ static void piix3_reset(void *opaque)
     uint8_t *pci_conf = d->dev.config;
     int i;
 
-    for (i = 0; i < 2; i++)
-        ide_dma_cancel(&d->bmdma[i]);
+    for (i = 0; i < 2; i++) {
+        ide_bus_reset(&d->bus[i]);
+        ide_dma_reset(&d->bmdma[i]);
+    }
 
     pci_conf[0x04] = 0x00;
     pci_conf[0x05] = 0x00;

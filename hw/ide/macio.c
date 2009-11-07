@@ -307,8 +307,7 @@ static void pmac_ide_reset(void *opaque)
 {
     MACIOIDEState *d = opaque;
 
-    ide_reset(d->bus.ifs +0);
-    ide_reset(d->bus.ifs +1);
+    ide_bus_reset(&d->bus);
 }
 
 /* hd_table must contain 4 block drivers */
