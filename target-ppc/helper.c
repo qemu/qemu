@@ -2811,7 +2811,9 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     ppc_translate_init();
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
+#if defined(CONFIG_USER_ONLY)
     cpu_ppc_reset(env);
+#endif
 
     qemu_init_vcpu(env);
 

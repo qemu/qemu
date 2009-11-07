@@ -763,5 +763,4 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
     *cuda_mem_index = cpu_register_io_memory(cuda_read, cuda_write, s);
     register_savevm("cuda", -1, 1, cuda_save, cuda_load, s);
     qemu_register_reset(cuda_reset, s);
-    cuda_reset(s);
 }

@@ -330,7 +330,6 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
                                              pmac_ide_write, d);
     vmstate_register(0, &vmstate_pmac, d);
     qemu_register_reset(pmac_ide_reset, d);
-    pmac_ide_reset(d);
 
     return pmac_ide_memory;
 }

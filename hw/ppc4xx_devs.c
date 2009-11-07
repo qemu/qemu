@@ -304,7 +304,6 @@ qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
                          &dcr_read_uic, &dcr_write_uic);
     }
     qemu_register_reset(ppcuic_reset, uic);
-    ppcuic_reset(uic);
 
     return qemu_allocate_irqs(&ppcuic_set_irq, uic, UIC_MAX_IRQ);
 }
@@ -639,7 +638,6 @@ void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
     memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
     memcpy(sdram->ram_sizes, ram_sizes,
            nbanks * sizeof(target_phys_addr_t));
-    sdram_reset(sdram);
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);

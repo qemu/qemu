@@ -123,7 +123,6 @@ ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
     d->devreset = devreset;
     d->opaque = opaque;
     qemu_register_reset((QEMUResetHandler *)devreset, d);
-    d->devreset(d);
     return d;
 }
 
