@@ -891,6 +891,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+#if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
+    cpu_reset(env);
+#endif
     thread_env = env;
 
     if (getenv("QEMU_STRACE")) {
