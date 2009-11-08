@@ -175,8 +175,6 @@ struct CPUMIPSState {
     TCState active_tc;
     CPUMIPSFPUContext active_fpu;
 
-    CPUMIPSMVPContext *mvp;
-    CPUMIPSTLBContext *tlb;
     uint32_t current_tc;
     uint32_t current_fpu;
 
@@ -457,6 +455,9 @@ struct CPUMIPSState {
     target_ulong tls_value; /* For usermode emulation */
 
     CPU_COMMON
+
+    CPUMIPSMVPContext *mvp;
+    CPUMIPSTLBContext *tlb;
 
     const mips_def_t *cpu_model;
     void *irq[8];

@@ -8598,9 +8598,14 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
         return NULL;
     env = qemu_mallocz(sizeof(CPUMIPSState));
     env->cpu_model = def;
+    env->cpu_model_str = cpu_model;
 
     cpu_exec_init(env);
-    env->cpu_model_str = cpu_model;
+#ifndef CONFIG_USER_ONLY
+    mmu_init(env, def);
+#endif
+    fpu_init(env, def);
+    mvp_init(env, def);
     mips_tcg_init();
     cpu_reset(env);
     qemu_init_vcpu(env);
@@ -8615,10 +8620,46 @@ void cpu_reset (CPUMIPSState *env)
     }
 
     memset(env, 0, offsetof(CPUMIPSState, breakpoints));
-
     tlb_flush(env, 1);
 
-    /* Minimal init */
+    /* Reset registers to their default values */
+    env->CP0_PRid = env->cpu_model->CP0_PRid;
+    env->CP0_Config0 = env->cpu_model->CP0_Config0;
+#ifdef TARGET_WORDS_BIGENDIAN
+    env->CP0_Config0 |= (1 << CP0C0_BE);
+#endif
+    env->CP0_Config1 = env->cpu_model->CP0_Config1;
+    env->CP0_Config2 = env->cpu_model->CP0_Config2;
+    env->CP0_Config3 = env->cpu_model->CP0_Config3;
+    env->CP0_Config6 = env->cpu_model->CP0_Config6;
+    env->CP0_Config7 = env->cpu_model->CP0_Config7;
+    env->SYNCI_Step = env->cpu_model->SYNCI_Step;
+    env->CCRes = env->cpu_model->CCRes;
+    env->CP0_Status_rw_bitmask = env->cpu_model->CP0_Status_rw_bitmask;
+    env->CP0_TCStatus_rw_bitmask = env->cpu_model->CP0_TCStatus_rw_bitmask;
+    env->CP0_SRSCtl = env->cpu_model->CP0_SRSCtl;
+    env->current_tc = 0;
+    env->SEGBITS = env->cpu_model->SEGBITS;
+    env->SEGMask = (target_ulong)((1ULL << env->cpu_model->SEGBITS) - 1);
+#if defined(TARGET_MIPS64)
+    if (env->cpu_model->insn_flags & ISA_MIPS3) {
+        env->SEGMask |= 3ULL << 62;
+    }
+#endif
+    env->PABITS = env->cpu_model->PABITS;
+    env->PAMask = (target_ulong)((1ULL << env->cpu_model->PABITS) - 1);
+    env->CP0_SRSConf0_rw_bitmask = env->cpu_model->CP0_SRSConf0_rw_bitmask;
+    env->CP0_SRSConf0 = env->cpu_model->CP0_SRSConf0;
+    env->CP0_SRSConf1_rw_bitmask = env->cpu_model->CP0_SRSConf1_rw_bitmask;
+    env->CP0_SRSConf1 = env->cpu_model->CP0_SRSConf1;
+    env->CP0_SRSConf2_rw_bitmask = env->cpu_model->CP0_SRSConf2_rw_bitmask;
+    env->CP0_SRSConf2 = env->cpu_model->CP0_SRSConf2;
+    env->CP0_SRSConf3_rw_bitmask = env->cpu_model->CP0_SRSConf3_rw_bitmask;
+    env->CP0_SRSConf3 = env->cpu_model->CP0_SRSConf3;
+    env->CP0_SRSConf4_rw_bitmask = env->cpu_model->CP0_SRSConf4_rw_bitmask;
+    env->CP0_SRSConf4 = env->cpu_model->CP0_SRSConf4;
+    env->insn_flags = env->cpu_model->insn_flags;
+
 #if defined(CONFIG_USER_ONLY)
     env->hflags = MIPS_HFLAG_UM;
     /* Enable access to the SYNCI_Step register.  */
@@ -8632,6 +8673,8 @@ void cpu_reset (CPUMIPSState *env)
         env->CP0_ErrorEPC = env->active_tc.PC;
     }
     env->active_tc.PC = (int32_t)0xBFC00000;
+    env->CP0_Random = env->tlb->nb_tlb - 1;
+    env->tlb->tlb_in_use = env->tlb->nb_tlb;
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
@@ -8653,8 +8696,12 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->hflags = MIPS_HFLAG_CP0;
 #endif
+#if defined(TARGET_MIPS64)
+    if (env->cpu_model->insn_flags & ISA_MIPS3) {
+        env->hflags |= MIPS_HFLAG_64;
+    }
+#endif
     env->exception_index = EXCP_NONE;
-    cpu_mips_register(env, env->cpu_model);
 }
 
 void gen_pc_load(CPUState *env, TranslationBlock *tb,
