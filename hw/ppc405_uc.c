@@ -172,7 +172,6 @@ static void ppc4xx_plb_init(CPUState *env)
     ppc_dcr_register(env, PLB0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
     ppc_dcr_register(env, PLB0_BEAR, plb, &dcr_read_plb, &dcr_write_plb);
     ppc_dcr_register(env, PLB0_BESR, plb, &dcr_read_plb, &dcr_write_plb);
-    ppc4xx_plb_reset(plb);
     qemu_register_reset(ppc4xx_plb_reset, plb);
 }
 
@@ -250,7 +249,6 @@ static void ppc4xx_pob_init(CPUState *env)
     ppc_dcr_register(env, POB0_BESR0, pob, &dcr_read_pob, &dcr_write_pob);
     ppc_dcr_register(env, POB0_BESR1, pob, &dcr_read_pob, &dcr_write_pob);
     qemu_register_reset(ppc4xx_pob_reset, pob);
-    ppc4xx_pob_reset(pob);
 }
 
 /*****************************************************************************/
@@ -387,7 +385,6 @@ static void ppc4xx_opba_init(target_phys_addr_t base)
 #endif
     io = cpu_register_io_memory(opba_read, opba_write, opba);
     cpu_register_physical_memory(base, 0x002, io);
-    ppc4xx_opba_reset(opba);
     qemu_register_reset(ppc4xx_opba_reset, opba);
 }
 
@@ -580,7 +577,6 @@ static void ppc405_ebc_init(CPUState *env)
     ppc4xx_ebc_t *ebc;
 
     ebc = qemu_mallocz(sizeof(ppc4xx_ebc_t));
-    ebc_reset(ebc);
     qemu_register_reset(&ebc_reset, ebc);
     ppc_dcr_register(env, EBC0_CFGADDR,
                      ebc, &dcr_read_ebc, &dcr_write_ebc);
@@ -672,7 +668,6 @@ static void ppc405_dma_init(CPUState *env, qemu_irq irqs[4])
 
     dma = qemu_mallocz(sizeof(ppc405_dma_t));
     memcpy(dma->irqs, irqs, 4 * sizeof(qemu_irq));
-    ppc405_dma_reset(dma);
     qemu_register_reset(&ppc405_dma_reset, dma);
     ppc_dcr_register(env, DMA0_CR0,
                      dma, &dcr_read_dma, &dcr_write_dma);
@@ -843,7 +838,6 @@ static void ppc405_gpio_init(target_phys_addr_t base)
 #endif
     io = cpu_register_io_memory(ppc405_gpio_read, ppc405_gpio_write, gpio);
     cpu_register_physical_memory(base, 0x038, io);
-    ppc405_gpio_reset(gpio);
     qemu_register_reset(&ppc405_gpio_reset, gpio);
 }
 
@@ -1001,7 +995,6 @@ static void ppc405_ocm_init(CPUState *env)
 
     ocm = qemu_mallocz(sizeof(ppc405_ocm_t));
     ocm->offset = qemu_ram_alloc(4096);
-    ocm_reset(ocm);
     qemu_register_reset(&ocm_reset, ocm);
     ppc_dcr_register(env, OCM0_ISARC,
                      ocm, &dcr_read_ocm, &dcr_write_ocm);
@@ -1254,7 +1247,6 @@ static void ppc405_i2c_init(target_phys_addr_t base, qemu_irq irq)
 #endif
     io = cpu_register_io_memory(i2c_read, i2c_write, i2c);
     cpu_register_physical_memory(base, 0x011, io);
-    ppc4xx_i2c_reset(i2c);
     qemu_register_reset(ppc4xx_i2c_reset, i2c);
 }
 
@@ -1539,7 +1531,6 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
     io = cpu_register_io_memory(gpt_read, gpt_write, gpt);
     cpu_register_physical_memory(base, 0x0d4, io);
     qemu_register_reset(ppc4xx_gpt_reset, gpt);
-    ppc4xx_gpt_reset(gpt);
 }
 
 /*****************************************************************************/
@@ -1763,7 +1754,6 @@ static void ppc405_mal_init(CPUState *env, qemu_irq irqs[4])
     mal = qemu_mallocz(sizeof(ppc40x_mal_t));
     for (i = 0; i < 4; i++)
         mal->irqs[i] = irqs[i];
-    ppc40x_mal_reset(mal);
     qemu_register_reset(&ppc40x_mal_reset, mal);
     ppc_dcr_register(env, MAL0_CFG,
                      mal, &dcr_read_mal, &dcr_write_mal);
@@ -1815,7 +1805,7 @@ void ppc40x_core_reset (CPUState *env)
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
     /* XXX: TOFIX */
 #if 0
-    cpu_ppc_reset(env);
+    cpu_reset(env);
 #else
     qemu_system_reset_request();
 #endif
@@ -1833,7 +1823,7 @@ void ppc40x_chip_reset (CPUState *env)
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
     /* XXX: TOFIX */
 #if 0
-    cpu_ppc_reset(env);
+    cpu_reset(env);
 #else
     qemu_system_reset_request();
 #endif
@@ -2149,7 +2139,6 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
                      &dcr_read_crcpc, &dcr_write_crcpc);
     ppc405cr_clk_init(cpc);
     qemu_register_reset(ppc405cr_cpc_reset, cpc);
-    ppc405cr_cpc_reset(cpc);
 }
 
 CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
@@ -2469,7 +2458,6 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
            PPC405EP_CLK_NB * sizeof(clk_setup_t));
     cpc->jtagid = 0x20267049;
     cpc->sysclk = sysclk;
-    ppc405ep_cpc_reset(cpc);
     qemu_register_reset(&ppc405ep_cpc_reset, cpc);
     ppc_dcr_register(env, PPC405EP_CPC0_BOOT, cpc,
                      &dcr_read_epcpc, &dcr_write_epcpc);

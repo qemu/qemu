@@ -44,6 +44,13 @@ typedef struct ISAIDEState {
     qemu_irq  irq;
 } ISAIDEState;
 
+static void isa_ide_reset(DeviceState *d)
+{
+    ISAIDEState *s = container_of(d, ISAIDEState, dev.qdev);
+
+    ide_bus_reset(&s->bus);
+}
+
 static const VMStateDescription vmstate_ide_isa = {
     .name = "isa-ide",
     .version_id = 3,
@@ -93,6 +100,7 @@ static ISADeviceInfo isa_ide_info = {
     .qdev.name  = "isa-ide",
     .qdev.size  = sizeof(ISAIDEState),
     .init       = isa_ide_initfn,
+    .qdev.reset = isa_ide_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_HEX32("iobase",  ISAIDEState, iobase,  0x1f0),
         DEFINE_PROP_HEX32("iobase2", ISAIDEState, iobase2, 0x3f6),

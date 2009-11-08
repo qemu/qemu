@@ -1269,9 +1269,9 @@ static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS] = {
 static void vga_draw_text(VGACommonState *s, int full_update)
 {
     int cx, cy, cheight, cw, ch, cattr, height, width, ch_attr;
-    int cx_min, cx_max, linesize, x_incr;
+    int cx_min, cx_max, linesize, x_incr, line, line1;
     uint32_t offset, fgcol, bgcol, v, cursor_offset;
-    uint8_t *d1, *d, *src, *s1, *dest, *cursor_ptr;
+    uint8_t *d1, *d, *src, *dest, *cursor_ptr;
     const uint8_t *font_ptr, *font_base[2];
     int dup9, line_offset, depth_index;
     uint32_t *palette;
@@ -1303,7 +1303,6 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     full_update |= update_basic_params(s);
 
     line_offset = s->line_offset;
-    s1 = s->vram_ptr + (s->start_addr * 4);
 
     vga_get_text_resolution(s, &width, &height, &cw, &cheight);
     x_incr = cw * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
@@ -1356,9 +1355,11 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     dest = ds_get_data(s->ds);
     linesize = ds_get_linesize(s->ds);
     ch_attr_ptr = s->last_ch_attr;
+    line = 0;
+    offset = s->start_addr * 4;
     for(cy = 0; cy < height; cy++) {
         d1 = dest;
-        src = s1;
+        src = s->vram_ptr + offset;
         cx_min = width;
         cx_max = -1;
         for(cx = 0; cx < width; cx++) {
@@ -1421,7 +1422,12 @@ static void vga_draw_text(VGACommonState *s, int full_update)
                        (cx_max - cx_min + 1) * cw, cheight);
         }
         dest += linesize * cheight;
-        s1 += line_offset;
+        line1 = line + cheight;
+        offset += line_offset;
+        if (line < s->line_compare && line1 >= s->line_compare) {
+            offset = 0;
+        }
+        line = line1;
     }
 }
 
@@ -2237,7 +2243,6 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
         s->update_retrace_info = vga_precise_update_retrace_info;
         break;
     }
-    vga_reset(s);
 }
 
 /* used by both ISA and PCI */

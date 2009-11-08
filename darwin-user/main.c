@@ -846,6 +846,7 @@ int main(int argc, char **argv)
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
     env = cpu_init(cpu_model);
+    cpu_reset(env);
 
     printf("Starting %s with qemu\n----------------\n", filename);
 

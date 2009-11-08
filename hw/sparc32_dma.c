@@ -245,7 +245,6 @@ static int sparc32_dma_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
     qdev_init_gpio_out(&dev->qdev, &s->dev_reset, 1);
-    dma_reset(&s->busdev.qdev);
 
     return 0;
 }

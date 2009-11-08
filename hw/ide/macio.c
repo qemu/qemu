@@ -307,8 +307,7 @@ static void pmac_ide_reset(void *opaque)
 {
     MACIOIDEState *d = opaque;
 
-    ide_reset(d->bus.ifs +0);
-    ide_reset(d->bus.ifs +1);
+    ide_bus_reset(&d->bus);
 }
 
 /* hd_table must contain 4 block drivers */
@@ -330,7 +329,6 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
                                              pmac_ide_write, d);
     vmstate_register(0, &vmstate_pmac, d);
     qemu_register_reset(pmac_ide_reset, d);
-    pmac_ide_reset(d);
 
     return pmac_ide_memory;
 }

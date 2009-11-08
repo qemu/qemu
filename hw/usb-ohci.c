@@ -1698,7 +1698,6 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 
     ohci->async_td = 0;
     qemu_register_reset(ohci_reset, ohci);
-    ohci_reset(ohci);
 }
 
 typedef struct {

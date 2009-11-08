@@ -471,7 +471,6 @@ static int parallel_isa_initfn(ISADevice *dev)
 
     base = isa->iobase;
     isa_init_irq(dev, &s->irq, isa->isairq);
-    parallel_reset(s);
     qemu_register_reset(parallel_reset, s);
 
     if (qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_READ_STATUS, &dummy) == 0) {
@@ -576,7 +575,6 @@ ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq 
     s->irq = irq;
     s->chr = chr;
     s->it_shift = it_shift;
-    parallel_reset(s);
     qemu_register_reset(parallel_reset, s);
 
     io_sw = cpu_register_io_memory(parallel_mm_read_sw, parallel_mm_write_sw, s);

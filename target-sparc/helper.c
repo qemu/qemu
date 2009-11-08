@@ -762,7 +762,6 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
         cpu_sparc_close(env);
         return NULL;
     }
-    cpu_reset(env);
     qemu_init_vcpu(env);
 
     return env;

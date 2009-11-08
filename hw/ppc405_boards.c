@@ -165,7 +165,6 @@ static void ref405ep_fpga_init (uint32_t base)
     fpga_memory = cpu_register_io_memory(ref405ep_fpga_read,
                                          ref405ep_fpga_write, fpga);
     cpu_register_physical_memory(base, 0x00000100, fpga_memory);
-    ref405ep_fpga_reset(fpga);
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
 }
 
@@ -489,7 +488,6 @@ static void taihu_cpld_init (uint32_t base)
     cpld_memory = cpu_register_io_memory(taihu_cpld_read,
                                          taihu_cpld_write, cpld);
     cpu_register_physical_memory(base, 0x00000100, cpld_memory);
-    taihu_cpld_reset(cpld);
     qemu_register_reset(&taihu_cpld_reset, cpld);
 }
 

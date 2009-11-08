@@ -734,8 +734,6 @@ void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
-void cpu_ppc_reset (void *opaque);
-
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 const ppc_def_t *cpu_ppc_find_by_name (const char *name);

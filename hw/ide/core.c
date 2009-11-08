@@ -2500,23 +2500,63 @@ static void ide_dummy_transfer_stop(IDEState *s)
     s->io_buffer[3] = 0xff;
 }
 
-void ide_reset(IDEState *s)
+static void ide_reset(IDEState *s)
 {
-    IDEBus *bus = s->bus;
-
+#ifdef DEBUG_IDE
+    printf("ide: reset\n");
+#endif
     if (s->is_cf)
         s->mult_sectors = 0;
     else
         s->mult_sectors = MAX_MULT_SECTORS;
-    bus->unit = s->unit;
+    /* ide regs */
+    s->feature = 0;
+    s->error = 0;
+    s->nsector = 0;
+    s->sector = 0;
+    s->lcyl = 0;
+    s->hcyl = 0;
+
+    /* lba48 */
+    s->hob_feature = 0;
+    s->hob_sector = 0;
+    s->hob_nsector = 0;
+    s->hob_lcyl = 0;
+    s->hob_hcyl = 0;
+
     s->select = 0xa0;
     s->status = READY_STAT | SEEK_STAT;
+
+    s->lba48 = 0;
+
+    /* ATAPI specific */
+    s->sense_key = 0;
+    s->asc = 0;
+    s->cdrom_changed = 0;
+    s->packet_transfer_size = 0;
+    s->elementary_transfer_size = 0;
+    s->io_buffer_index = 0;
+    s->cd_sector_size = 0;
+    s->atapi_dma = 0;
+    /* ATA DMA state */
+    s->io_buffer_size = 0;
+    s->req_nb_sectors = 0;
+
     ide_set_signature(s);
     /* init the transfer handler so that 0xffff is returned on data
        accesses */
     s->end_transfer_func = ide_dummy_transfer_stop;
     ide_dummy_transfer_stop(s);
     s->media_changed = 0;
+}
+
+void ide_bus_reset(IDEBus *bus)
+{
+    bus->unit = 0;
+    bus->cmd = 0;
+    ide_reset(&bus->ifs[0]);
+    ide_reset(&bus->ifs[1]);
+    ide_clear_hob(bus);
 }
 
 void ide_init_drive(IDEState *s, DriveInfo *dinfo)
@@ -2704,3 +2744,19 @@ void ide_dma_cancel(BMDMAState *bm)
     }
 }
 
+void ide_dma_reset(BMDMAState *bm)
+{
+#ifdef DEBUG_IDE
+    printf("ide: dma_reset\n");
+#endif
+    ide_dma_cancel(bm);
+    bm->cmd = 0;
+    bm->status = 0;
+    bm->addr = 0;
+    bm->cur_addr = 0;
+    bm->cur_prd_last = 0;
+    bm->cur_prd_addr = 0;
+    bm->cur_prd_len = 0;
+    bm->sector_num = 0;
+    bm->nsector = 0;
+}

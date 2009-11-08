@@ -682,7 +682,6 @@ int rom_load_all(void)
             rom->isrom = 1;
     }
     qemu_register_reset(rom_reset, NULL);
-    rom_reset(NULL);
     return 0;
 }
 

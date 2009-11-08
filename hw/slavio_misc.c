@@ -476,8 +476,6 @@ static int slavio_misc_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
 
-    slavio_misc_reset(&s->busdev.qdev);
-
     return 0;
 }
 

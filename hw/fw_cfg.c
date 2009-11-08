@@ -275,7 +275,6 @@ void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
     vmstate_register(-1, &vmstate_fw_cfg, s);
     qemu_register_reset(fw_cfg_reset, s);
-    fw_cfg_reset(s);
 
     return s;
 }

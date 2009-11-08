@@ -2749,9 +2749,8 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
              TARGET_FMT_lx "\n", RA, msr);
 }
 
-void cpu_ppc_reset (void *opaque)
+void cpu_reset(CPUPPCState *env)
 {
-    CPUPPCState *env = opaque;
     target_ulong msr;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
@@ -2812,7 +2811,6 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     ppc_translate_init();
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
-    cpu_ppc_reset(env);
 
     qemu_init_vcpu(env);
 

@@ -268,13 +268,14 @@ static void cpu_set_irq(void *opaque, int irq, int level)
 
 typedef struct ResetData {
     CPUState *env;
-    uint64_t reset_addr;
+    uint64_t prom_addr;
 } ResetData;
 
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
     CPUState *env = s->env;
+    static unsigned int nr_resets;
 
     cpu_reset(env);
     env->tick_cmpr = TICK_INT_DIS | 0;
@@ -289,7 +290,12 @@ static void main_cpu_reset(void *opaque)
     env->gregs[1] = 0; // Memory start
     env->gregs[2] = ram_size; // Memory size
     env->gregs[3] = 0; // Machine description XXX
-    env->pc = s->reset_addr;
+    if (nr_resets++ == 0) {
+        /* Power on reset */
+        env->pc = s->prom_addr + 0x20ULL;
+    } else {
+        env->pc = s->prom_addr + 0x40ULL;
+    }
     env->npc = env->pc + 4;
 }
 
@@ -544,12 +550,8 @@ static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 
     reset_info = qemu_mallocz(sizeof(ResetData));
     reset_info->env = env;
-    reset_info->reset_addr = hwdef->prom_addr + 0x40ULL;
+    reset_info->prom_addr = hwdef->prom_addr;
     qemu_register_reset(main_cpu_reset, reset_info);
-    main_cpu_reset(reset_info);
-    // Override warm reset address with cold start address
-    env->pc = hwdef->prom_addr + 0x20ULL;
-    env->npc = env->pc + 4;
 
     return env;
 }

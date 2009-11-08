@@ -204,8 +204,6 @@ static int sun4c_intctl_init1(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cpu_irqs[i]);
     }
 
-    sun4c_intctl_reset(&s->busdev.qdev);
-
     return 0;
 }
 

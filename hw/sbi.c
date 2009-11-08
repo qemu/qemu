@@ -128,8 +128,6 @@ static int sbi_init1(SysBusDevice *dev)
     sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s);
     sysbus_init_mmio(dev, SBI_SIZE, sbi_io_memory);
 
-    sbi_reset(&s->busdev.qdev);
-
     return 0;
 }
 

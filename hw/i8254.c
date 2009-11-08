@@ -513,7 +513,5 @@ PITState *pit_init(int base, qemu_irq irq)
     register_ioport_write(base, 4, 1, pit_ioport_write, pit);
     register_ioport_read(base, 3, 1, pit_ioport_read, pit);
 
-    pit_reset(pit);
-
     return pit;
 }

@@ -1079,7 +1079,6 @@ static int usb_uhci_common_initfn(UHCIState *s)
     s->num_ports_vmstate = NB_PORTS;
 
     qemu_register_reset(uhci_reset, s);
-    uhci_reset(s);
 
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */

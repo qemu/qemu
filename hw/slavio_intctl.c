@@ -447,8 +447,6 @@ static int slavio_intctl_init1(SysBusDevice *dev)
         s->slaves[i].master = s;
     }
 
-    slavio_intctl_reset(&s->busdev.qdev);
-
     return 0;
 }
 

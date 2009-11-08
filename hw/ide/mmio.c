@@ -41,6 +41,13 @@ typedef struct {
     int shift;
 } MMIOState;
 
+static void mmio_ide_reset(void *opaque)
+{
+    MMIOState *s = opaque;
+
+    ide_bus_reset(&s->bus);
+}
+
 static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
 {
     MMIOState *s = opaque;
@@ -127,5 +134,6 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
     cpu_register_physical_memory(membase, 16 << shift, mem1);
     cpu_register_physical_memory(membase2, 2 << shift, mem2);
     vmstate_register(0, &vmstate_ide_mmio, s);
+    qemu_register_reset(mmio_ide_reset, s);
 }
 
