@@ -52,7 +52,6 @@ close:
     fclose(f);
 free:
     free(path);
-out:
     return ret;
 }
 
