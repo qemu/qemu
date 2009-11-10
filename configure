@@ -38,6 +38,7 @@ cc="gcc"
 audio_drv_list=""
 audio_card_list="ac97 es1370 sb16"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus"
+block_drv_whitelist=""
 host_cc="gcc"
 ar="ar"
 link="ld"
@@ -448,6 +449,8 @@ for opt do
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
+  --block-drv-whitelist=*) block_drv_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
+  ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
   --disable-debug-tcg) debug_tcg="no"
@@ -683,6 +686,8 @@ echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
 echo "  --audio-card-list=LIST   set list of emulated audio cards [$audio_card_list]"
 echo "                           Available cards: $audio_possible_cards"
+echo "  --block-drv-whitelist=L  set block driver whitelist"
+echo "                           (affects only QEMU, not qemu-img)"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
 echo "  --enable-xen             enable xen backend driver support"
@@ -1862,6 +1867,7 @@ echo "check support     $check_utests"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
+echo "Block whitelist   $block_drv_whitelist"
 echo "Mixer emulation   $mixemu"
 echo "VNC TLS support   $vnc_tls"
 echo "VNC SASL support  $vnc_sasl"
@@ -1995,6 +2001,7 @@ fi
 if test "$audio_win_int" = "yes" ; then
   echo "CONFIG_AUDIO_WIN_INT=y" >> $config_host_mak
 fi
+echo "CONFIG_BDRV_WHITELIST=$block_drv_whitelist" >> $config_host_mak
 if test "$mixemu" = "yes" ; then
   echo "CONFIG_MIXEMU=y" >> $config_host_mak
 fi

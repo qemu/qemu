@@ -1126,7 +1126,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 }
 
 static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
-                uint32_t addr, uint32_t size, int type)
+                pcibus_t addr, pcibus_t size, int type)
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;
@@ -1146,7 +1146,7 @@ static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
 }
 
 static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
-                uint32_t addr, uint32_t size, int type)
+                pcibus_t addr, pcibus_t size, int type)
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;
@@ -1182,9 +1182,9 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     s->card.config[0x3c]		= 0xff;		/* End */
 
     pci_register_bar(&s->card, 0, 0x10,
-                    PCI_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
+                    PCI_BASE_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
     pci_register_bar(&s->card, 1, VGA_RAM_SIZE,
-                    PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_vmsvga_map_mem);
+                    PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_mem);
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 

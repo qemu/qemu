@@ -25,7 +25,7 @@
 #include <hw/hw.h>
 #include <hw/pc.h>
 #include <hw/pci.h>
-#include <hw/scsi-disk.h>
+#include <hw/scsi.h>
 #include <hw/sh.h>
 #include "block.h"
 #include "block_int.h"

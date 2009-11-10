@@ -25,11 +25,9 @@
 #include "hw.h"
 #include "pc.h"
 #include "pci.h"
+#include "pci_host.h"
 #include "isa.h"
 #include "sysbus.h"
-
-typedef uint32_t pci_addr_t;
-#include "pci_host.h"
 
 typedef PCIHostState I440FXState;
 
@@ -45,18 +43,6 @@ struct PCII440FXState {
     uint8_t smm_enabled;
     PIIX3State *piix3;
 };
-
-static void i440fx_addr_writel(void* opaque, uint32_t addr, uint32_t val)
-{
-    I440FXState *s = opaque;
-    s->config_reg = val;
-}
-
-static uint32_t i440fx_addr_readl(void* opaque, uint32_t addr)
-{
-    I440FXState *s = opaque;
-    return s->config_reg;
-}
 
 static void piix3_set_irq(void *opaque, int irq_num, int level);
 
@@ -194,15 +180,9 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
-    register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);
-    register_ioport_read(0xcf8, 4, 4, i440fx_addr_readl, s);
+    pci_host_config_register_ioport(0xcf8, s);
 
-    register_ioport_write(0xcfc, 4, 1, pci_host_data_writeb, s);
-    register_ioport_write(0xcfc, 4, 2, pci_host_data_writew, s);
-    register_ioport_write(0xcfc, 4, 4, pci_host_data_writel, s);
-    register_ioport_read(0xcfc, 4, 1, pci_host_data_readb, s);
-    register_ioport_read(0xcfc, 4, 2, pci_host_data_readw, s);
-    register_ioport_read(0xcfc, 4, 4, pci_host_data_readl, s);
+    pci_host_data_register_ioport(0xcfc, s);
     return 0;
 }
 

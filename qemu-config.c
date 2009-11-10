@@ -71,6 +71,9 @@ QemuOptsList qemu_drive_opts = {
             .name = "addr",
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
+        },{
+            .name = "readonly",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },
@@ -209,17 +212,9 @@ static QemuOptsList *lists[] = {
     NULL,
 };
 
-int qemu_set_option(const char *str)
+static QemuOptsList *find_list(const char *group)
 {
-    char group[64], id[64], arg[64];
-    QemuOpts *opts;
-    int i, rc, offset;
-
-    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
-    if (rc < 3 || str[offset] != '=') {
-        qemu_error("can't parse: \"%s\"\n", str);
-        return -1;
-    }
+    int i;
 
     for (i = 0; lists[i] != NULL; i++) {
         if (strcmp(lists[i]->name, group) == 0)
@@ -227,13 +222,32 @@ int qemu_set_option(const char *str)
     }
     if (lists[i] == NULL) {
         qemu_error("there is no option group \"%s\"\n", group);
+    }
+    return lists[i];
+}
+
+int qemu_set_option(const char *str)
+{
+    char group[64], id[64], arg[64];
+    QemuOptsList *list;
+    QemuOpts *opts;
+    int rc, offset;
+
+    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
+    if (rc < 3 || str[offset] != '=') {
+        qemu_error("can't parse: \"%s\"\n", str);
         return -1;
     }
 
-    opts = qemu_opts_find(lists[i], id);
+    list = find_list(group);
+    if (list == NULL) {
+        return -1;
+    }
+
+    opts = qemu_opts_find(list, id);
     if (!opts) {
         qemu_error("there is no %s \"%s\" defined\n",
-                lists[i]->name, id);
+                   list->name, id);
         return -1;
     }
 
@@ -243,3 +257,92 @@ int qemu_set_option(const char *str)
     return 0;
 }
 
+struct ConfigWriteData {
+    QemuOptsList *list;
+    FILE *fp;
+};
+
+static int config_write_opt(const char *name, const char *value, void *opaque)
+{
+    struct ConfigWriteData *data = opaque;
+
+    fprintf(data->fp, "  %s = \"%s\"\n", name, value);
+    return 0;
+}
+
+static int config_write_opts(QemuOpts *opts, void *opaque)
+{
+    struct ConfigWriteData *data = opaque;
+    const char *id = qemu_opts_id(opts);
+
+    if (id) {
+        fprintf(data->fp, "[%s \"%s\"]\n", data->list->name, id);
+    } else {
+        fprintf(data->fp, "[%s]\n", data->list->name);
+    }
+    qemu_opt_foreach(opts, config_write_opt, data, 0);
+    fprintf(data->fp, "\n");
+    return 0;
+}
+
+void qemu_config_write(FILE *fp)
+{
+    struct ConfigWriteData data = { .fp = fp };
+    int i;
+
+    fprintf(fp, "# qemu config file\n\n");
+    for (i = 0; lists[i] != NULL; i++) {
+        data.list = lists[i];
+        qemu_opts_foreach(data.list, config_write_opts, &data, 0);
+    }
+}
+
+int qemu_config_parse(FILE *fp)
+{
+    char line[1024], group[64], id[64], arg[64], value[1024];
+    QemuOptsList *list = NULL;
+    QemuOpts *opts = NULL;
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        if (line[0] == '\n') {
+            /* skip empty lines */
+            continue;
+        }
+        if (line[0] == '#') {
+            /* comment */
+            continue;
+        }
+        if (sscanf(line, "[%63s \"%63[^\"]\"]", group, id) == 2) {
+            /* group with id */
+            list = find_list(group);
+            if (list == NULL)
+                return -1;
+            opts = qemu_opts_create(list, id, 1);
+            continue;
+        }
+        if (sscanf(line, "[%63[^]]]", group) == 1) {
+            /* group without id */
+            list = find_list(group);
+            if (list == NULL)
+                return -1;
+            opts = qemu_opts_create(list, NULL, 0);
+            continue;
+        }
+        if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {
+            /* arg = value */
+            if (opts == NULL) {
+                fprintf(stderr, "no group defined\n");
+                return -1;
+            }
+            if (qemu_opt_set(opts, arg, value) != 0) {
+                fprintf(stderr, "failed to set \"%s\" for %s\n",
+                        arg, group);
+                return -1;
+            }
+            continue;
+        }
+        fprintf(stderr, "parse error: %s\n", line);
+        return -1;
+    }
+    return 0;
+}

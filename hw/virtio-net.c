@@ -187,10 +187,10 @@ static uint32_t virtio_net_bad_features(VirtIODevice *vdev)
     /* Linux kernel 2.6.25.  It understood MAC (as everyone must),
      * but also these: */
     features |= (1 << VIRTIO_NET_F_MAC);
-    features |= (1 << VIRTIO_NET_F_GUEST_CSUM);
-    features |= (1 << VIRTIO_NET_F_GUEST_TSO4);
-    features |= (1 << VIRTIO_NET_F_GUEST_TSO6);
-    features |= (1 << VIRTIO_NET_F_GUEST_ECN);
+    features |= (1 << VIRTIO_NET_F_CSUM);
+    features |= (1 << VIRTIO_NET_F_HOST_TSO4);
+    features |= (1 << VIRTIO_NET_F_HOST_TSO6);
+    features |= (1 << VIRTIO_NET_F_HOST_ECN);
 
     return features & virtio_net_get_features(vdev);
 }
@@ -367,12 +367,19 @@ static void virtio_net_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
     qemu_notify_event();
 }
 
-static int do_virtio_net_can_receive(VirtIONet *n, int bufsize)
+static int virtio_net_can_receive(VLANClientState *vc)
 {
+    VirtIONet *n = vc->opaque;
+
     if (!virtio_queue_ready(n->rx_vq) ||
         !(n->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
         return 0;
 
+    return 1;
+}
+
+static int virtio_net_has_buffers(VirtIONet *n, int bufsize)
+{
     if (virtio_queue_empty(n->rx_vq) ||
         (n->mergeable_rx_bufs &&
          !virtqueue_avail_bytes(n->rx_vq, bufsize, 0))) {
@@ -382,13 +389,6 @@ static int do_virtio_net_can_receive(VirtIONet *n, int bufsize)
 
     virtio_queue_set_notification(n->rx_vq, 0);
     return 1;
-}
-
-static int virtio_net_can_receive(VLANClientState *vc)
-{
-    VirtIONet *n = vc->opaque;
-
-    return do_virtio_net_can_receive(n, VIRTIO_NET_MAX_BUFSIZE);
 }
 
 /* dhclient uses AF_PACKET but doesn't pass auxdata to the kernel so
@@ -517,7 +517,10 @@ static ssize_t virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
     size_t hdr_len, offset, i;
 
-    if (!do_virtio_net_can_receive(n, size))
+    if (!virtio_net_can_receive(n->vc))
+        return -1;
+
+    if (!virtio_net_has_buffers(n, size))
         return 0;
 
     if (!receive_filter(n, buf, size))

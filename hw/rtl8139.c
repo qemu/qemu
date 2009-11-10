@@ -3192,7 +3192,7 @@ static const VMStateDescription vmstate_rtl8139 = {
 /* PCI RTL8139 definitions */
 
 static void rtl8139_mmio_map(PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+                       pcibus_t addr, pcibus_t size, int type)
 {
     RTL8139State *s = DO_UPCAST(RTL8139State, dev, pci_dev);
 
@@ -3200,7 +3200,7 @@ static void rtl8139_mmio_map(PCIDevice *pci_dev, int region_num,
 }
 
 static void rtl8139_ioport_map(PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+                       pcibus_t addr, pcibus_t size, int type)
 {
     RTL8139State *s = DO_UPCAST(RTL8139State, dev, pci_dev);
 
@@ -3325,10 +3325,10 @@ static int pci_rtl8139_init(PCIDevice *dev)
     cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s);
 
     pci_register_bar(&s->dev, 0, 0x100,
-                           PCI_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
+                           PCI_BASE_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
 
     pci_register_bar(&s->dev, 1, 0x100,
-                           PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
+                           PCI_BASE_ADDRESS_SPACE_MEMORY, rtl8139_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 

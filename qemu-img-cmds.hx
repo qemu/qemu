@@ -16,9 +16,9 @@ STEXI
 ETEXI
 
 DEF("create", img_create,
-    "create [-F fmt] [-b base_image] [-f fmt] [-o options] filename [size]")
+    "create [-f fmt] [-o options] filename [size]")
 STEXI
-@item create [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
+@item create [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
 ETEXI
 
 DEF("commit", img_commit,
@@ -28,9 +28,9 @@ STEXI
 ETEXI
 
 DEF("convert", img_convert,
-    "convert [-c] [-f fmt] [-O output_fmt] [-o options] [-B output_base_image] filename [filename2 [...]] output_filename")
+    "convert [-c] [-f fmt] [-O output_fmt] [-o options] filename [filename2 [...]] output_filename")
 STEXI
-@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 ETEXI
 
 DEF("info", img_info,

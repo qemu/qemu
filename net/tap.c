@@ -207,7 +207,7 @@ static void tap_send(void *opaque)
         if (size == 0) {
             tap_read_poll(s, 0);
         }
-    } while (size > 0);
+    } while (size > 0 && qemu_can_send_packet(s->vc));
 }
 
 int tap_has_ufo(VLANClientState *vc)

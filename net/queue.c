@@ -186,7 +186,7 @@ ssize_t qemu_net_queue_send(NetQueue *queue,
     }
 
     ret = qemu_net_queue_deliver(queue, sender, flags, data, size);
-    if (ret == 0 && sent_cb != NULL) {
+    if (ret == 0) {
         qemu_net_queue_append(queue, sender, flags, data, size, sent_cb);
         return 0;
     }
@@ -210,7 +210,7 @@ ssize_t qemu_net_queue_send_iov(NetQueue *queue,
     }
 
     ret = qemu_net_queue_deliver_iov(queue, sender, flags, iov, iovcnt);
-    if (ret == 0 && sent_cb != NULL) {
+    if (ret == 0) {
         qemu_net_queue_append_iov(queue, sender, flags, iov, iovcnt, sent_cb);
         return 0;
     }
@@ -246,7 +246,7 @@ void qemu_net_queue_flush(NetQueue *queue)
                                      packet->flags,
                                      packet->data,
                                      packet->size);
-        if (ret == 0 && packet->sent_cb != NULL) {
+        if (ret == 0) {
             QTAILQ_INSERT_HEAD(&queue->packets, packet, entry);
             break;
         }

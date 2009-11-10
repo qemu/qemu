@@ -45,7 +45,7 @@
 static void cmd646_update_irq(PCIIDEState *d);
 
 static void ide_map(PCIDevice *pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                    pcibus_t addr, pcibus_t size, int type)
 {
     PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, pci_dev);
     IDEBus *bus;
@@ -136,7 +136,7 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
 }
 
 static void bmdma_map(PCIDevice *pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                    pcibus_t addr, pcibus_t size, int type)
 {
     PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, pci_dev);
     int i;
@@ -221,11 +221,11 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
         pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
-    pci_register_bar(dev, 0, 0x8, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 1, 0x4, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 2, 0x8, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 3, 0x4, PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_bar(dev, 4, 0x10, PCI_ADDRESS_SPACE_IO, bmdma_map);
+    pci_register_bar(dev, 0, 0x8, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 1, 0x4, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 2, 0x8, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 3, 0x4, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
+    pci_register_bar(dev, 4, 0x10, PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 

@@ -680,12 +680,13 @@ const VMStateDescription vmstate_pci_ne2000 = {
 /* PCI NE2000 definitions */
 
 static void ne2000_map(PCIDevice *pci_dev, int region_num,
-                       uint32_t addr, uint32_t size, int type)
+                       pcibus_t addr, pcibus_t size, int type)
 {
     PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s = &d->ne2000;
 
-    printf("NE2000: %s region %d, addr=0x%08x, size=0x%08x, type=%d\n",
+    printf("NE2000: %s region %d, addr=0x%08" FMT_PCIBUS
+           ", size=0x%08" FMT_PCIBUS ", type=%d\n",
            __func__, region_num, addr, size, type);
 
     register_ioport_write(addr, 16, 1, ne2000_ioport_write, s);
@@ -723,7 +724,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     pci_conf[0x3d] = 1; // interrupt pin 0
 
     pci_register_bar(&d->dev, 0, 0x100,
-                           PCI_ADDRESS_SPACE_IO, ne2000_map);
+                           PCI_BASE_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = d->dev.irq[0];
 

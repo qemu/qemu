@@ -1703,11 +1703,12 @@ static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
 /* PCI EEPRO100 definitions */
 
 static void pci_map(PCIDevice * pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                    pcibus_t addr, pcibus_t size, int type)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
-    TRACE(OTHER, logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
+    TRACE(OTHER, logout("region %d, addr=0x%08"FMT_PCIBUS", "
+          "size=0x%08"FMT_PCIBUS", type=%d\n",
           region_num, addr, size, type));
 
     assert(region_num == 1);
@@ -1782,11 +1783,12 @@ static CPUReadMemoryFunc * const pci_mmio_read[] = {
 };
 
 static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
-                         uint32_t addr, uint32_t size, int type)
+                         pcibus_t addr, pcibus_t size, int type)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
-    TRACE(OTHER, logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
+    TRACE(OTHER, logout("region %d, addr=0x%08"FMT_PCIBUS", "
+          "size=0x%08"FMT_PCIBUS", type=%d\n",
           region_num, addr, size, type));
 
     assert(region_num == 0 || region_num == 2);
@@ -2030,11 +2032,11 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
         cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
 
     pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
-                           PCI_ADDRESS_SPACE_MEM |
-                           PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_mmio_map);
-    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
+                           PCI_BASE_ADDRESS_SPACE_MEMORY |
+                           PCI_BASE_ADDRESS_MEM_PREFETCH, pci_mmio_map);
+    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
                            pci_map);
-    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
                            pci_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

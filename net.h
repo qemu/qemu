@@ -61,6 +61,7 @@ struct VLANClientState {
     char *model;
     char *name;
     char info_str[256];
+    unsigned receive_disabled : 1;
 };
 
 struct VLANState {

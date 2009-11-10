@@ -1275,12 +1275,13 @@ static void dp8381x_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 }
 
 static void dp8381x_io_map(PCIDevice * pci_dev, int region_num,
-                           uint32_t addr, uint32_t size, int type)
+                           pcibus_t addr, pcibus_t size, int type)
 {
     pci_dp8381x_t *d = (pci_dp8381x_t *) pci_dev;
     dp8381x_t *s = &d->dp8381x;
 
-    logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size);
+    logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
+           region_num, addr, size);
     assert(region_num == 0);
     s->region[region_num] = addr;
 
@@ -1356,12 +1357,13 @@ static void dp8381x_mmio_writel(void *opaque, target_phys_addr_t addr,
 }
 
 static void dp8381x_mem_map(PCIDevice * pci_dev, int region_num,
-                            uint32_t addr, uint32_t size, int type)
+                            pcibus_t addr, pcibus_t size, int type)
 {
     pci_dp8381x_t *d = (pci_dp8381x_t *) pci_dev;
     dp8381x_t *s = &d->dp8381x;
 
-    logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size);
+    logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
+           region_num, addr, size);
     assert(region_num == 1);
     s->region[region_num] = addr;
 
@@ -1530,9 +1532,9 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     logout("io_memory = 0x%08x\n", s->io_memory);
 
     pci_register_bar(&d->dev, 0, DP8381X_IO_SIZE,
-                     PCI_ADDRESS_SPACE_IO, dp8381x_io_map);
+                     PCI_BASE_ADDRESS_SPACE_IO, dp8381x_io_map);
     pci_register_bar(&d->dev, 1, DP8381X_MEM_SIZE,
-                     PCI_ADDRESS_SPACE_MEM, dp8381x_mem_map);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, dp8381x_mem_map);
 
     s->pci_dev = &d->dev;
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

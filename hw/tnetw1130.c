@@ -743,12 +743,14 @@ static CPUWriteMemoryFunc *tnetw1130_region1_write[] = {
 };
 
 static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
-                            uint32_t addr, uint32_t size, int type)
+                              pcibus_t addr, pcibus_t size, int type)
 {
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) pci_dev;
     tnetw1130_t *s = &d->tnetw1130;
 
-    TRACE(TNETW, logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size));
+    TRACE(TNETW, logout("region %d, addr 0x%08" FMT_PCIBUS
+                        ", size 0x%08" FMT_PCIBUS "\n",
+                        region_num, addr, size));
     assert((unsigned)region_num < TNETW1130_REGIONS);
     s->region[region_num] = addr;
 
@@ -830,9 +832,9 @@ static void tnetw1130_pci_config(uint8_t *pci_conf)
     /* ethernet network controller */
     PCI_CONFIG_32(PCI_REVISION, 0x02800000);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
-                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+                  //~ PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
-                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+                  //~ PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH);
     PCI_CONFIG_32(0x28, 0x00001c02);
     PCI_CONFIG_32(0x2c, 0x9067104c);
     /* Address registers are set by pci_register_bar. */
@@ -865,9 +867,9 @@ static int tnetw1130_init(PCIDevice *pci_dev)
     TRACE(TNETW, logout("io_memory = 0x%08x, 0x%08x\n", s->io_memory[0], s->io_memory[1]));
 
     pci_register_bar(&d->dev, 0, TNETW1130_MEM0_SIZE,
-                     PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
     pci_register_bar(&d->dev, 1, TNETW1130_MEM1_SIZE,
-                     PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
 
 #if 0
     static const char macaddr[6] = {
@@ -941,9 +943,9 @@ void vlynq_tnetw1130_init(void)
     TRACE(TNETW, logout("io_memory = 0x%08x, 0x%08x\n", s->io_memory[0], s->io_memory[1]));
 
     pci_register_bar(&d->dev, 0, TNETW1130_MEM0_SIZE,
-                     PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
     pci_register_bar(&d->dev, 1, TNETW1130_MEM1_SIZE,
-                     PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
 
     memcpy(s->mem1 + 0x0001f000, pci_conf, 64);
 

@@ -438,11 +438,13 @@ int qemu_can_send_packet(VLANClientState *sender)
     VLANClientState *vc;
 
     if (sender->peer) {
-        if (!sender->peer->can_receive ||
-            sender->peer->can_receive(sender->peer)) {
-            return 1;
-        } else {
+        if (sender->peer->receive_disabled) {
             return 0;
+        } else if (sender->peer->can_receive &&
+                   !sender->peer->can_receive(sender->peer)) {
+            return 0;
+        } else {
+            return 1;
         }
     }
 
@@ -470,15 +472,27 @@ static ssize_t qemu_deliver_packet(VLANClientState *sender,
                                    void *opaque)
 {
     VLANClientState *vc = opaque;
+    ssize_t ret;
 
     if (vc->link_down) {
         return size;
     }
 
-    if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->receive_raw)
-        return vc->receive_raw(vc, data, size);
-    else
-        return vc->receive(vc, data, size);
+    if (vc->receive_disabled) {
+        return 0;
+    }
+
+    if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->receive_raw) {
+        ret = vc->receive_raw(vc, data, size);
+    } else {
+        ret = vc->receive(vc, data, size);
+    }
+
+    if (ret == 0) {
+        vc->receive_disabled = 1;
+    };
+
+    return ret;
 }
 
 static ssize_t qemu_vlan_deliver_packet(VLANClientState *sender,
@@ -489,7 +503,7 @@ static ssize_t qemu_vlan_deliver_packet(VLANClientState *sender,
 {
     VLANState *vlan = opaque;
     VLANClientState *vc;
-    int ret = -1;
+    ssize_t ret = -1;
 
     QTAILQ_FOREACH(vc, &vlan->clients, next) {
         ssize_t len;
@@ -503,12 +517,23 @@ static ssize_t qemu_vlan_deliver_packet(VLANClientState *sender,
             continue;
         }
 
-        if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->receive_raw)
+        if (vc->receive_disabled) {
+            ret = 0;
+            continue;
+        }
+
+        if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->receive_raw) {
             len = vc->receive_raw(vc, buf, size);
-        else
+        } else {
             len = vc->receive(vc, buf, size);
+        }
+
+        if (len == 0) {
+            vc->receive_disabled = 1;
+        }
 
         ret = (ret >= 0) ? ret : len;
+
     }
 
     return ret;
@@ -534,6 +559,8 @@ void qemu_purge_queued_packets(VLANClientState *vc)
 void qemu_flush_queued_packets(VLANClientState *vc)
 {
     NetQueue *queue;
+
+    vc->receive_disabled = 0;
 
     if (vc->vlan) {
         queue = vc->vlan->send_queue;

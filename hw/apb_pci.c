@@ -28,6 +28,7 @@
 
 #include "sysbus.h"
 #include "pci.h"
+#include "pci_host.h"
 
 /* debug APB */
 //#define DEBUG_APB
@@ -48,53 +49,10 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
  * http://www.sun.com/processors/manuals/805-1251.pdf
  */
 
-typedef target_phys_addr_t pci_addr_t;
-#include "pci_host.h"
-
 typedef struct APBState {
     SysBusDevice busdev;
     PCIHostState host_state;
 } APBState;
-
-static void pci_apb_config_writel (void *opaque, target_phys_addr_t addr,
-                                         uint32_t val)
-{
-    APBState *s = opaque;
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    APB_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr,
-                val);
-    s->host_state.config_reg = val;
-}
-
-static uint32_t pci_apb_config_readl (void *opaque,
-                                            target_phys_addr_t addr)
-{
-    APBState *s = opaque;
-    uint32_t val;
-
-    val = s->host_state.config_reg;
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
-    APB_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr,
-                val);
-    return val;
-}
-
-static CPUWriteMemoryFunc * const pci_apb_config_write[] = {
-    &pci_apb_config_writel,
-    &pci_apb_config_writel,
-    &pci_apb_config_writel,
-};
-
-static CPUReadMemoryFunc * const pci_apb_config_read[] = {
-    &pci_apb_config_readl,
-    &pci_apb_config_readl,
-    &pci_apb_config_readl,
-};
 
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
                                uint32_t val)
@@ -143,18 +101,6 @@ static CPUReadMemoryFunc * const apb_config_read[] = {
     &apb_config_readl,
     &apb_config_readl,
     &apb_config_readl,
-};
-
-static CPUWriteMemoryFunc * const pci_apb_write[] = {
-    &pci_host_data_writeb,
-    &pci_host_data_writew,
-    &pci_host_data_writel,
-};
-
-static CPUReadMemoryFunc * const pci_apb_read[] = {
-    &pci_host_data_readb,
-    &pci_host_data_readw,
-    &pci_host_data_readl,
 };
 
 static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
@@ -261,11 +207,13 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
                                          0, 32);
     pci_create_simple(d->host_state.bus, 0, "pbm");
     /* APB secondary busses */
-    *bus2 = pci_bridge_init(d->host_state.bus, 8, PCI_VENDOR_ID_SUN,
-                            PCI_DEVICE_ID_SUN_SIMBA, pci_apb_map_irq,
+    *bus2 = pci_bridge_init(d->host_state.bus, PCI_DEVFN(1, 0),
+                            PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_SIMBA,
+                            pci_apb_map_irq,
                             "Advanced PCI Bus secondary bridge 1");
-    *bus3 = pci_bridge_init(d->host_state.bus, 9, PCI_VENDOR_ID_SUN,
-                            PCI_DEVICE_ID_SUN_SIMBA, pci_apb_map_irq,
+    *bus3 = pci_bridge_init(d->host_state.bus, PCI_DEVFN(1, 1),
+                            PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_SIMBA,
+                            pci_apb_map_irq,
                             "Advanced PCI Bus secondary bridge 2");
 
     return d->host_state.bus;
@@ -287,12 +235,10 @@ static int pci_pbm_init_device(SysBusDevice *dev)
                                           pci_apb_iowrite, s);
     sysbus_init_mmio(dev, 0x10000ULL, pci_ioport);
     /* mem_config  */
-    pci_mem_config = cpu_register_io_memory(pci_apb_config_read,
-                                            pci_apb_config_write, s);
+    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x10ULL, pci_mem_config);
     /* mem_data */
-    pci_mem_data = cpu_register_io_memory(pci_apb_read,
-                                          pci_apb_write, &s->host_state);
+    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
     sysbus_init_mmio(dev, 0x10000000ULL, pci_mem_data);
     return 0;
 }

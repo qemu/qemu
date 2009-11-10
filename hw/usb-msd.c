@@ -12,7 +12,7 @@
 #include "qemu-config.h"
 #include "usb.h"
 #include "block.h"
-#include "scsi-disk.h"
+#include "scsi.h"
 #include "console.h"
 #include "monitor.h"
 

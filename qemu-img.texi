@@ -14,54 +14,9 @@ Command parameters:
 @table @var
 @item filename
  is a disk image filename
-@item base_image
-is the read-only disk image which is used as base for a copy on
-    write image; the copy on write image only stores the modified data
-@item output_base_image
-forces the output image to be created as a copy on write
-image of the specified base image; @code{output_base_image} should have the same
-content as the input's base image, however the path, image format, etc may
-differ
-@item base_fmt
-is the disk image format of @var{base_image}. for more information look at @var{fmt}
 @item fmt
-is the disk image format. It is guessed automatically in most cases. The following formats are supported:
-
-@table @code
-@item raw
-
-Raw disk image format (default). This format has the advantage of
-being simple and easily exportable to all other emulators. If your
-file system supports @emph{holes} (for example in ext2 or ext3 on
-Linux or NTFS on Windows), then only the written sectors will reserve
-space. Use @code{qemu-img info} to know the real size used by the
-image or @code{ls -ls} on Unix/Linux.
-
-@item host_device
-
-Host device format. This format should be used instead of raw when
-converting to block devices or other devices where "holes" are not
-supported.
-
-@item qcow2
-QEMU image format, the most versatile format. Use it to have smaller
-images (useful if your filesystem does not supports holes, for example
-on Windows), optional AES encryption, zlib based compression and
-support of multiple VM snapshots.
-@item qcow
-Old QEMU image format. Left for compatibility.
-@item cow
-User Mode Linux Copy On Write image format. Used to be the only growable
-image format in QEMU. It is supported only for compatibility with
-previous versions. It does not work on win32.
-@item vdi
-VirtualBox 1.1 compatible image format.
-@item vmdk
-VMware 3 and 4 compatible image format.
-@item cloop
-Linux Compressed Loop image, useful only to reuse directly compressed
-CD-ROM images present for example in the Knoppix CD-ROMs.
-@end table
+is the disk image format. It is guessed automatically in most cases. See below
+for a description of the supported disk formats.
 
 @item size
 is the disk image size in bytes. Optional suffixes @code{k} or @code{K}
@@ -76,7 +31,7 @@ is the destination disk image filename
 @item options
 is a comma separated list of format specific options in a
 name=value format. Use @code{-o ?} for an overview of the options supported
-by the used format
+by the used format or see the format descriptions below for details.
 
 
 @item -c
@@ -104,15 +59,16 @@ lists all snapshots in the given image
 Command description:
 
 @table @option
-@item create [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
+@item create [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
 
 Create the new disk image @var{filename} of size @var{size} and format
-@var{fmt}.
+@var{fmt}. Depending on the file format, you can add one or more @var{options}
+that enable additional features of this format.
 
-If @var{base_image} is specified, then the image will record only the
-differences from @var{base_image}. No size needs to be specified in
-this case. @var{base_image} will never be modified unless you use the
-@code{commit} monitor command.
+If the option @var{backing_file} is specified, then the image will record
+only the differences from @var{backing_file}. No size needs to be specified in
+this case. @var{backing_file} will never be modified unless you use the
+@code{commit} monitor command (or qemu-img commit).
 
 The size can also be specified using the @var{size} option with @code{-o},
 it doesn't need to be specified separately in this case.
@@ -121,22 +77,24 @@ it doesn't need to be specified separately in this case.
 
 Commit the changes recorded in @var{filename} in its base image.
 
-@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} to disk image @var{output_filename}
 using format @var{output_fmt}. It can be optionally compressed (@code{-c}
 option) or use any format specific options like encryption (@code{-o} option).
 
-Only the formats @code{qcow} and @code{qcow2} support encryption or compression. The
+Only the formats @code{qcow} and @code{qcow2} support compression. The
 compression is read-only. It means that if a compressed sector is
 rewritten, then it is rewritten as uncompressed data.
-
-Encryption uses the AES format which is very secure (128 bit keys). Use
-a long password (16 characters) to get maximum protection.
 
 Image conversion is also useful to get smaller image when using a
 growable format such as @code{qcow} or @code{cow}: the empty sectors
 are detected and suppressed from the destination image.
+
+You can use the @var{backing_file} option to force the output image to be
+created as a copy on write image of the specified base image; the
+@var{backing_file} should have the same content as the input's base image,
+however the path, image format, etc may differ.
 
 @item info [-f @var{fmt}] @var{filename}
 
@@ -149,6 +107,92 @@ they are displayed too.
 
 List, apply, create or delete snapshots in image @var{filename}.
 @end table
+
+Supported image file formats:
+
+@table @option
+@item raw
+
+Raw disk image format (default). This format has the advantage of
+being simple and easily exportable to all other emulators. If your
+file system supports @emph{holes} (for example in ext2 or ext3 on
+Linux or NTFS on Windows), then only the written sectors will reserve
+space. Use @code{qemu-img info} to know the real size used by the
+image or @code{ls -ls} on Unix/Linux.
+
+@item host_device
+
+Host device format. This format should be used instead of raw when
+converting to block devices or other devices where "holes" are not
+supported.
+
+@item qcow2
+QEMU image format, the most versatile format. Use it to have smaller
+images (useful if your filesystem does not supports holes, for example
+on Windows), optional AES encryption, zlib based compression and
+support of multiple VM snapshots.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@item backing_fmt
+Image format of the base image
+@item encryption
+If this option is set to @code{on}, the image is encrypted.
+
+Encryption uses the AES format which is very secure (128 bit keys). Use
+a long password (16 characters) to get maximum protection.
+
+@item cluster_size
+Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
+sizes can improve the image file size whereas larger cluster sizes generally
+provide better performance.
+
+@item preallocation
+Preallocation mode (allowed values: off, metadata). An image with preallocated
+metadata is initially larger but can improve performance when the image needs
+to grow.
+
+@end table
+
+
+@item qcow
+Old QEMU image format. Left for compatibility.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@item encryption
+If this option is set to @code{on}, the image is encrypted.
+@end table
+
+@item cow
+User Mode Linux Copy On Write image format. Used to be the only growable
+image format in QEMU. It is supported only for compatibility with
+previous versions. It does not work on win32.
+@item vdi
+VirtualBox 1.1 compatible image format.
+@item vmdk
+VMware 3 and 4 compatible image format.
+
+Supported options:
+@table @code
+@item backing_fmt
+Image format of the base image
+@item compat6
+Create a VMDK version 6 image (instead of version 4)
+@end table
+
+@item vpc
+VirtualPC compatible image format (VHD).
+
+@item cloop
+Linux Compressed Loop image, useful only to reuse directly compressed
+CD-ROM images present for example in the Knoppix CD-ROMs.
+@end table
+
 
 @c man end
 

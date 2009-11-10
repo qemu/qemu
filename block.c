@@ -63,6 +63,9 @@ BlockDriverState *bdrv_first;
 
 static BlockDriver *first_drv;
 
+/* If non-zero, use only whitelisted block drivers */
+static int use_bdrv_whitelist;
+
 int path_is_absolute(const char *path)
 {
     const char *p;
@@ -171,6 +174,30 @@ BlockDriver *bdrv_find_format(const char *format_name)
             return drv1;
     }
     return NULL;
+}
+
+static int bdrv_is_whitelisted(BlockDriver *drv)
+{
+    static const char *whitelist[] = {
+        CONFIG_BDRV_WHITELIST
+    };
+    const char **p;
+
+    if (!whitelist[0])
+        return 1;               /* no whitelist, anything goes */
+
+    for (p = whitelist; *p; p++) {
+        if (!strcmp(drv->format_name, *p)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+BlockDriver *bdrv_find_whitelisted_format(const char *format_name)
+{
+    BlockDriver *drv = bdrv_find_format(format_name);
+    return drv && bdrv_is_whitelisted(drv) ? drv : NULL;
 }
 
 int bdrv_create(BlockDriver *drv, const char* filename,
@@ -333,11 +360,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags)
 int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
                BlockDriver *drv)
 {
-    int ret, open_flags;
+    int ret, open_flags, try_rw;
     char tmp_filename[PATH_MAX];
     char backing_filename[PATH_MAX];
 
-    bs->read_only = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
@@ -424,12 +450,16 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
     /* Note: for compatibility, we open disk image files as RDWR, and
        RDONLY as fallback */
+    try_rw = !bs->read_only || bs->is_temporary;
     if (!(flags & BDRV_O_FILE))
-        open_flags = BDRV_O_RDWR |
-		(flags & (BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
+        open_flags = (try_rw ? BDRV_O_RDWR : 0) |
+            (flags & (BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
     else
         open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
-    ret = drv->bdrv_open(bs, filename, open_flags);
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv))
+        ret = -ENOTSUP;
+    else
+        ret = drv->bdrv_open(bs, filename, open_flags);
     if ((ret == -EACCES || ret == -EPERM) && !(flags & BDRV_O_FILE)) {
         ret = drv->bdrv_open(bs, filename, open_flags & ~BDRV_O_RDWR);
         bs->read_only = 1;
@@ -455,6 +485,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         /* if there is a backing file, use it */
         BlockDriver *back_drv = NULL;
         bs->backing_hd = bdrv_new("");
+        /* pass on read_only property to the backing_hd */
+        bs->backing_hd->read_only = bs->read_only;
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
         if (bs->backing_format[0] != '\0')
@@ -733,6 +765,8 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -ENOMEDIUM;
     if (!drv->bdrv_truncate)
         return -ENOTSUP;
+    if (bs->read_only)
+        return -EACCES;
     return drv->bdrv_truncate(bs, offset);
 }
 
@@ -925,6 +959,13 @@ int bdrv_is_removable(BlockDriverState *bs)
 int bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
+}
+
+int bdrv_set_read_only(BlockDriverState *bs, int read_only)
+{
+    int ret = bs->read_only;
+    bs->read_only = read_only;
+    return ret;
 }
 
 int bdrv_is_sg(BlockDriverState *bs)
@@ -1753,6 +1794,12 @@ fail:
 void bdrv_init(void)
 {
     module_call_init(MODULE_INIT_BLOCK);
+}
+
+void bdrv_init_with_whitelist(void)
+{
+    use_bdrv_whitelist = 1;
+    bdrv_init();
 }
 
 void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,

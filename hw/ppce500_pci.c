@@ -17,7 +17,6 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppce500.h"
-typedef target_phys_addr_t pci_addr_t;
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
@@ -84,49 +83,6 @@ struct PPCE500PCIState {
 };
 
 typedef struct PPCE500PCIState PPCE500PCIState;
-
-static uint32_t pcie500_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
-{
-    PPCE500PCIState *pci = opaque;
-
-    pci_debug("%s: (addr:" TARGET_FMT_plx ") -> value:%x\n", __func__, addr,
-              pci->pci_state.config_reg);
-    return pci->pci_state.config_reg;
-}
-
-static CPUReadMemoryFunc * const pcie500_cfgaddr_read[] = {
-    &pcie500_cfgaddr_readl,
-    &pcie500_cfgaddr_readl,
-    &pcie500_cfgaddr_readl,
-};
-
-static void pcie500_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
-                                  uint32_t value)
-{
-    PPCE500PCIState *controller = opaque;
-
-    pci_debug("%s: value:%x -> (addr:" TARGET_FMT_plx ")\n", __func__, value,
-              addr);
-    controller->pci_state.config_reg = value & ~0x3;
-}
-
-static CPUWriteMemoryFunc * const pcie500_cfgaddr_write[] = {
-    &pcie500_cfgaddr_writel,
-    &pcie500_cfgaddr_writel,
-    &pcie500_cfgaddr_writel,
-};
-
-static CPUReadMemoryFunc * const pcie500_cfgdata_read[] = {
-    &pci_host_data_readb,
-    &pci_host_data_readw,
-    &pci_host_data_readl,
-};
-
-static CPUWriteMemoryFunc * const pcie500_cfgdata_write[] = {
-    &pci_host_data_writeb,
-    &pci_host_data_writew,
-    &pci_host_data_writel,
-};
 
 static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
 {
@@ -337,16 +293,13 @@ PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
     controller->pci_dev = d;
 
     /* CFGADDR */
-    index = cpu_register_io_memory(pcie500_cfgaddr_read,
-                                   pcie500_cfgaddr_write, controller);
+    index = pci_host_config_register_io_memory_noswap(&controller->pci_state);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_CFGADDR, 4, index);
 
     /* CFGDATA */
-    index = cpu_register_io_memory(pcie500_cfgdata_read,
-                                   pcie500_cfgdata_write,
-                                   &controller->pci_state);
+    index = pci_host_data_register_io_memory(&controller->pci_state);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);

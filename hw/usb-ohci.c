@@ -1706,7 +1706,7 @@ typedef struct {
 } OHCIPCIState;
 
 static void ohci_mapfunc(PCIDevice *pci_dev, int i,
-            uint32_t addr, uint32_t size, int type)
+            pcibus_t addr, pcibus_t size, int type)
 {
     OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, pci_dev);
     cpu_register_physical_memory(addr, size, ohci->state.mem);
@@ -1729,7 +1729,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
                   OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
 
     pci_register_bar((struct PCIDevice *)ohci, 0, 256,
-                           PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
+                           PCI_BASE_ADDRESS_SPACE_MEMORY, ohci_mapfunc);
     return 0;
 }
 

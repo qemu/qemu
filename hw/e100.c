@@ -2138,11 +2138,12 @@ static CPUWriteMemoryFunc *pci_mmio_write[] = {
 };
 
 static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
-                         uint32_t addr, uint32_t size, int type)
+                         pcibus_t addr, pcibus_t size, int type)
 {
     PCIE100State *d = (PCIE100State *) pci_dev;
 
-    logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
+    logout("region %d, addr=0x%08" FMT_PCIBUS
+           ", size=0x%08" FMT_PCIBUS ", type=%d\n",
            region_num, addr, size, type);
 
     if ( region_num == CSR_MEMORY_BASE ) {
@@ -2199,12 +2200,13 @@ static uint32_t ioport_read4(void *opaque, uint32_t addr)
 }
 
 static void pci_ioport_map(PCIDevice * pci_dev, int region_num,
-                    uint32_t addr, uint32_t size, int type)
+                           pcibus_t addr, pcibus_t size, int type)
 {
     PCIE100State *d = (PCIE100State *) pci_dev;
     E100State *s = &d->e100;
 
-    logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
+    logout("region %d, addr=0x%08" FMT_PCIBUS
+           ", size=0x%08" FMT_PCIBUS ", type=%d\n",
            region_num, addr, size, type);
 
     if ( region_num != 1 )
@@ -2483,13 +2485,13 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
 
     //CSR Memory mapped base
     pci_register_bar(&d->dev, 0, PCI_MEM_SIZE,
-                     PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH,
                      pci_mmio_map);
     //CSR I/O mapped base
-    pci_register_bar(&d->dev, 1, PCI_IO_SIZE, PCI_ADDRESS_SPACE_IO,
+    pci_register_bar(&d->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
                      pci_ioport_map);
     //Flash memory mapped base
-    pci_register_bar(&d->dev, 2, PCI_FLASH_SIZE, PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(&d->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      pci_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

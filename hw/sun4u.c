@@ -344,7 +344,7 @@ void cpu_tick_set_limit(void *opaque, uint64_t limit)
 }
 
 static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
-                              uint32_t addr, uint32_t size, int type)
+                              pcibus_t addr, pcibus_t size, int type)
 {
     DPRINTF("Mapping region %d registers at %08x\n", region_num, addr);
     switch (region_num) {
@@ -389,9 +389,9 @@ pci_ebus_init1(PCIDevice *s)
     s->config[0x0D] = 0x0a; // latency_timer
     s->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
-    pci_register_bar(s, 0, 0x1000000, PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(s, 0, 0x1000000, PCI_BASE_ADDRESS_SPACE_MEMORY,
                            ebus_mmio_mapfunc);
-    pci_register_bar(s, 1, 0x800000,  PCI_ADDRESS_SPACE_MEM,
+    pci_register_bar(s, 1, 0x800000,  PCI_BASE_ADDRESS_SPACE_MEMORY,
                            ebus_mmio_mapfunc);
     return 0;
 }

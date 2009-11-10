@@ -13,7 +13,7 @@
 
 #include "qemu-common.h"
 #include "block.h"
-#include "scsi-disk.h"
+#include "scsi.h"
 
 #ifdef __linux__
 
