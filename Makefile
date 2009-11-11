@@ -137,7 +137,7 @@ obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
 obj-y += qemu-char.o aio.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
-obj-y += qint.o qstring.o qdict.o qlist.o qfloat.o
+obj-y += qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
 obj-y += qemu-config.o block-migration.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
