@@ -138,7 +138,7 @@ obj-y += qemu-char.o aio.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
 obj-y += qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o json-lexer.o
-obj-y += json-streamer.o json-parser.o
+obj-y += json-streamer.o json-parser.o qjson.o
 obj-y += qemu-config.o block-migration.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
