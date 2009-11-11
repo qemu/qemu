@@ -27,12 +27,13 @@ START_TEST(escaped_string)
     struct {
         const char *encoded;
         const char *decoded;
+        int skip;
     } test_cases[] = {
         { "\"\\\"\"", "\"" },
         { "\"hello world \\\"embedded string\\\"\"",
           "hello world \"embedded string\"" },
         { "\"hello world\\nwith new line\"", "hello world\nwith new line" },
-        { "\"single byte utf-8 \\u0020\"", "single byte utf-8  " },
+        { "\"single byte utf-8 \\u0020\"", "single byte utf-8  ", .skip = 1 },
         { "\"double byte utf-8 \\u00A2\"", "double byte utf-8 \xc2\xa2" },
         { "\"triple byte utf-8 \\u20AC\"", "triple byte utf-8 \xe2\x82\xac" },
         {}
@@ -49,6 +50,13 @@ START_TEST(escaped_string)
         
         str = qobject_to_qstring(obj);
         fail_unless(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
+
+        if (test_cases[i].skip == 0) {
+            str = qobject_to_json(obj);
+            fail_unless(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
+
+            qobject_decref(obj);
+        }
 
         QDECREF(str);
     }
@@ -80,6 +88,11 @@ START_TEST(simple_string)
         str = qobject_to_qstring(obj);
         fail_unless(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
+        str = qobject_to_json(obj);
+        fail_unless(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
+
+        qobject_decref(obj);
+        
         QDECREF(str);
     }
 }
@@ -149,12 +162,13 @@ START_TEST(simple_number)
     struct {
         const char *encoded;
         int64_t decoded;
+        int skip;
     } test_cases[] = {
         { "0", 0 },
         { "1234", 1234 },
         { "1", 1 },
         { "-32", -32 },
-        { "-0", 0 },
+        { "-0", 0, .skip = 1 },
         { },
     };
 
@@ -168,6 +182,13 @@ START_TEST(simple_number)
 
         qint = qobject_to_qint(obj);
         fail_unless(qint_get_int(qint) == test_cases[i].decoded);
+        if (test_cases[i].skip == 0) {
+            QString *str;
+
+            str = qobject_to_json(obj);
+            fail_unless(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
+            QDECREF(str);
+        }
 
         QDECREF(qint);
     }
@@ -180,11 +201,12 @@ START_TEST(float_number)
     struct {
         const char *encoded;
         double decoded;
+        int skip;
     } test_cases[] = {
         { "32.43", 32.43 },
         { "0.222", 0.222 },
         { "-32.12313", -32.12313 },
-        { "-32.20e-10", -32.20e-10 },
+        { "-32.20e-10", -32.20e-10, .skip = 1 },
         { },
     };
 
@@ -198,6 +220,14 @@ START_TEST(float_number)
 
         qfloat = qobject_to_qfloat(obj);
         fail_unless(qfloat_get_double(qfloat) == test_cases[i].decoded);
+
+        if (test_cases[i].skip == 0) {
+            QString *str;
+
+            str = qobject_to_json(obj);
+            fail_unless(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
+            QDECREF(str);
+        }
 
         QDECREF(qfloat);
     }
@@ -246,6 +276,7 @@ START_TEST(keyword_literal)
 {
     QObject *obj;
     QBool *qbool;
+    QString *str;
 
     obj = qobject_from_json("true");
     fail_unless(obj != NULL);
@@ -253,6 +284,10 @@ START_TEST(keyword_literal)
 
     qbool = qobject_to_qbool(obj);
     fail_unless(qbool_get_int(qbool) != 0);
+
+    str = qobject_to_json(obj);
+    fail_unless(strcmp(qstring_get_str(str), "true") == 0);
+    QDECREF(str);
 
     QDECREF(qbool);
 
@@ -262,6 +297,10 @@ START_TEST(keyword_literal)
 
     qbool = qobject_to_qbool(obj);
     fail_unless(qbool_get_int(qbool) == 0);
+
+    str = qobject_to_json(obj);
+    fail_unless(strcmp(qstring_get_str(str), "false") == 0);
+    QDECREF(str);
 
     QDECREF(qbool);
 
@@ -385,7 +424,7 @@ START_TEST(simple_dict)
         LiteralQObject decoded;
     } test_cases[] = {
         {
-            .encoded = "{\"foo\":42,\"bar\":\"hello world\"}",
+            .encoded = "{\"foo\": 42, \"bar\": \"hello world\"}",
             .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
                         { "foo", QLIT_QINT(42) },
                         { "bar", QLIT_QSTR("hello world") },
@@ -397,7 +436,7 @@ START_TEST(simple_dict)
                         { }
                     })),
         }, {
-            .encoded = "{\"foo\":43}",
+            .encoded = "{\"foo\": 43}",
             .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
                         { "foo", QLIT_QINT(43) },
                         { }
@@ -408,6 +447,7 @@ START_TEST(simple_dict)
 
     for (i = 0; test_cases[i].encoded; i++) {
         QObject *obj;
+        QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded);
         fail_unless(obj != NULL);
@@ -415,7 +455,16 @@ START_TEST(simple_dict)
 
         fail_unless(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
 
+        str = qobject_to_json(obj);
         qobject_decref(obj);
+
+        obj = qobject_from_json(qstring_get_str(str));
+        fail_unless(obj != NULL);
+        fail_unless(qobject_type(obj) == QTYPE_QDICT);
+
+        fail_unless(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        qobject_decref(obj);
+        QDECREF(str);
     }
 }
 END_TEST
@@ -462,6 +511,7 @@ START_TEST(simple_list)
 
     for (i = 0; test_cases[i].encoded; i++) {
         QObject *obj;
+        QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded);
         fail_unless(obj != NULL);
@@ -469,7 +519,16 @@ START_TEST(simple_list)
 
         fail_unless(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
 
+        str = qobject_to_json(obj);
         qobject_decref(obj);
+
+        obj = qobject_from_json(qstring_get_str(str));
+        fail_unless(obj != NULL);
+        fail_unless(qobject_type(obj) == QTYPE_QLIST);
+
+        fail_unless(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        qobject_decref(obj);
+        QDECREF(str);
     }
 }
 END_TEST
@@ -521,6 +580,7 @@ START_TEST(simple_whitespace)
 
     for (i = 0; test_cases[i].encoded; i++) {
         QObject *obj;
+        QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded);
         fail_unless(obj != NULL);
@@ -528,7 +588,17 @@ START_TEST(simple_whitespace)
 
         fail_unless(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
 
+        str = qobject_to_json(obj);
         qobject_decref(obj);
+
+        obj = qobject_from_json(qstring_get_str(str));
+        fail_unless(obj != NULL);
+        fail_unless(qobject_type(obj) == QTYPE_QLIST);
+
+        fail_unless(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+
+        qobject_decref(obj);
+        QDECREF(str);
     }
 }
 END_TEST
