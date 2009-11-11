@@ -273,9 +273,9 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 /* just put buffer */
 static void put_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
-    const uint8_t *v = pv;
+    const uint8_t **v = pv;
     assert(size == pci_config_size(container_of(pv, PCIDevice, config)));
-    qemu_put_buffer(f, v, size);
+    qemu_put_buffer(f, *v, size);
 }
 
 static VMStateInfo vmstate_info_pci_config = {
