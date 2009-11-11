@@ -23,7 +23,6 @@
 #include "hw.h"
 #include "net.h"
 #include "pci.h"
-#include "tnetw1130.h"
 
 /*****************************************************************************
  *
@@ -827,7 +826,9 @@ static void tnetw1130_cleanup(VLANClientState *vc)
 
 static void tnetw1130_pci_config(uint8_t *pci_conf)
 {
-    PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
+    /* PCI Vendor ID */
+    pci_config_set_vendor_id(pci_conf, 0x104c);
+    pci_config_set_device_id(pci_conf, 0x9066);
     PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
     /* ethernet network controller */
     PCI_CONFIG_32(PCI_REVISION, 0x02800000);
@@ -907,24 +908,21 @@ static int pci_tnetw1130_init(PCIDevice* pci_dev)
     return tnetw1130_init(pci_dev);
 }
 
-static PCIDeviceInfo tnetw1130_info = {
-    .qdev.name = "tnetw1130",
-    .qdev.size = sizeof(pci_tnetw1130_t),
-    .init      = pci_tnetw1130_init,
-};
-
-static void tnetw1130_register_devices(void)
+static int pci_tnetw1130_uninit(PCIDevice *pci_dev)
 {
-    pci_qdev_register(&tnetw1130_info);
+    pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
+    tnetw1130_t *s = &d->tnetw1130;
+
+    cpu_unregister_io_memory(s->io_memory[0]);
+    cpu_unregister_io_memory(s->io_memory[1]);
+    //~ vmstate_unregister(s->vmstate, s);
+    qemu_del_vlan_client(s->vc);
+    return 0;
 }
 
-device_init(tnetw1130_register_devices)
-
-static pci_tnetw1130_t vlynq;
-
-void vlynq_tnetw1130_init(void)
+static int vlynq_tnetw1130_init(PCIDevice* pci_dev)
 {
-    pci_tnetw1130_t *d = &vlynq;
+    pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
     uint8_t *pci_conf = d->dev.config;
     tnetw1130_t *s = &d->tnetw1130;
 #if defined(DEBUG_TNETW1130)
@@ -958,7 +956,50 @@ void vlynq_tnetw1130_init(void)
     //~ tnetw1130_mem_map(&d->dev, 0, 0x04040000, 0x22000, 0);
     tnetw1130_mem_map(&d->dev, 0, 0x04000000, TNETW1130_MEM0_SIZE, 0);
     tnetw1130_mem_map(&d->dev, 1, 0x04022000, TNETW1130_MEM1_SIZE, 0);
+    return 0;
 }
+
+static int vlynq_tnetw1130_uninit(PCIDevice *pci_dev)
+{
+    pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
+    tnetw1130_t *s = &d->tnetw1130;
+
+    cpu_unregister_io_memory(s->io_memory[0]);
+    cpu_unregister_io_memory(s->io_memory[1]);
+    //~ vmstate_unregister(s->vmstate, s);
+    qemu_del_vlan_client(s->vc);
+    return 0;
+}
+
+static PCIDeviceInfo pci_tnetw1130_info = {
+    .qdev.name = "tnetw1130",
+    .qdev.size = sizeof(pci_tnetw1130_t),
+    .init      = pci_tnetw1130_init,
+    .exit      = pci_tnetw1130_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(pci_tnetw1130_t, tnetw1130.conf),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static PCIDeviceInfo vlynq_tnetw1130_info = {
+    .qdev.name = "tnetw1130-vlynq",
+    .qdev.size = sizeof(pci_tnetw1130_t),
+    .init      = vlynq_tnetw1130_init,
+    .exit      = vlynq_tnetw1130_uninit,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(pci_tnetw1130_t, tnetw1130.conf),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void tnetw1130_register_devices(void)
+{
+    pci_qdev_register(&pci_tnetw1130_info);
+    pci_qdev_register(&vlynq_tnetw1130_info);
+}
+
+device_init(tnetw1130_register_devices)
 
 /*
 

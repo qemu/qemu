@@ -76,7 +76,6 @@
 #include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
 #include "hw/sysbus.h"          /* sysbus_register_withprop */
-#include "hw/tnetw1130.h"       /* vlynq_tnetw1130_init */
 
 #include "target-mips/cpu.h"    /* do_interrupt */
 
@@ -3613,7 +3612,8 @@ static void ar7_init(CPUState * env)
     ar7_serial_init(env);
     ar7_display_init(env);
     ar7_nic_init();
-    vlynq_tnetw1130_init();
+    // TODO: tnetw1130 must be integrated again (QEMU interface changed).
+    //~ vlynq_tnetw1130_init();
 
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
     //~ if (offset == 0xe00) continue;
