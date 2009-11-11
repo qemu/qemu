@@ -51,6 +51,8 @@
 
 #include <zlib.h>
 
+static int roms_loaded;
+
 /* return the size or -1 if error */
 int get_image_size(const char *filename)
 {
@@ -540,6 +542,10 @@ static void rom_insert(Rom *rom)
 {
     Rom *item;
 
+    if (roms_loaded) {
+        hw_error ("ROM images must be loaded at startup\n");
+    }
+
     /* list is ordered by load address */
     QTAILQ_FOREACH(item, &roms, next) {
         if (rom->min >= item->min)
@@ -682,6 +688,7 @@ int rom_load_all(void)
             rom->isrom = 1;
     }
     qemu_register_reset(rom_reset, NULL);
+    roms_loaded = 1;
     return 0;
 }
 

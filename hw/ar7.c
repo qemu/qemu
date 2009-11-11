@@ -161,6 +161,7 @@ static struct {
 
 static struct _loaderparams {
     ram_addr_t ram_size;
+    uint64_t   kernel_addr;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *initrd_filename;
@@ -3637,7 +3638,7 @@ static void ar7_init(CPUState * env)
 }
 
 /* Kernel */
-static int64_t load_kernel (CPUState *env)
+static void kernel_load(CPUState *env)
 {
     uint64_t kernel_addr = 0;
     uint64_t kernel_low, kernel_high;
@@ -3662,12 +3663,17 @@ static int64_t load_kernel (CPUState *env)
                 loaderparams.kernel_filename, (unsigned long)kernel_addr, kernel_size);
         fprintf(stderr, "qemu: kernel low 0x%08lx, high 0x%08lx\n",
                 (unsigned long)kernel_low, (unsigned long)kernel_high);
-        env->active_tc.PC = kernel_addr;
+        loaderparams.kernel_addr = kernel_addr;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
         exit(1);
     }
+}
+
+static void kernel_init(CPUState *env)
+{
+    env->active_tc.PC = loaderparams.kernel_addr;
 
     /* a0 = argc, a1 = argv, a2 = envp */
     env->active_tc.gpr[4] = 0;
@@ -3719,8 +3725,6 @@ static int64_t load_kernel (CPUState *env)
             }
         }
     }
-
-    return kernel_addr;
 }
 
 static void ar7_mips_init(CPUState *env)
@@ -3773,7 +3777,7 @@ static void main_cpu_reset(void *opaque)
     env->CP0_Config1 &= ~(1 << CP0C1_FP);
 
     if (loaderparams.kernel_filename) {
-        load_kernel(env);
+        kernel_init(env);
     }
 }
 
@@ -3834,7 +3838,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     fprintf(stderr, "%s: ram_size = 0x%08x\n",
         __func__, (unsigned)machine_ram_size);
 
-    /* load_kernel would fail when ram_offset != 0. */
+    /* kernel_init would fail when ram_offset != 0. */
     assert(ram_offset == 0);
 
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
@@ -3899,7 +3903,8 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     }
 
     if (kernel_filename) {
-        load_kernel(env);
+        kernel_load(env);
+        kernel_init(env);
     }
 
     /* Init internal devices */

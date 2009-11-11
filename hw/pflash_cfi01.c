@@ -188,7 +188,6 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
     uint32_t boff;
     uint32_t ret = 0xffffffffU;
 
-    offset -= pfl->base;
     boff = offset / pfl->width;
     switch (pfl->cmd) {
         case 0x00:

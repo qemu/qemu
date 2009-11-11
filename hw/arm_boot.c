@@ -44,17 +44,6 @@ static uint32_t smpboot[] = {
   0xe12fff11  /* bx      r1 */
 };
 
-static void main_cpu_reset(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_reset(env);
-    if (env->boot_info)
-        arm_load_kernel(env, env->boot_info);
-
-    /* TODO:  Reset secondary CPUs.  */
-}
-
 #define WRITE_WORD(p, value) do { \
     stl_phys_notdirty(p, value);  \
     p += 4;                       \
@@ -186,6 +175,29 @@ static void set_kernel_args_old(struct arm_boot_info *info,
     }
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    struct arm_boot_info *info = env->boot_info;
+
+    cpu_reset(env);
+    if (info) {
+        if (!info->is_linux) {
+            /* Jump to the entry point.  */
+            env->regs[15] = info->entry & 0xfffffffe;
+            env->thumb = info->entry & 1;
+        } else {
+            if (old_param) {
+                set_kernel_args_old(info, info->initrd_size,
+                                    info->loader_start);
+            } else {
+                set_kernel_args(info, info->initrd_size, info->loader_start);
+            }
+        }
+    }
+    /* TODO:  Reset secondary CPUs.  */
+}
+
 void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
 {
     int kernel_size;
@@ -202,12 +214,9 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         exit(1);
     }
 
-    if (!env->boot_info) {
-        if (info->nb_cpus == 0)
-            info->nb_cpus = 1;
-        env->boot_info = info;
-        qemu_register_reset(main_cpu_reset, env);
-    }
+    if (info->nb_cpus == 0)
+        info->nb_cpus = 1;
+    env->boot_info = info;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     big_endian = 1;
@@ -234,11 +243,8 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
                 info->kernel_filename);
         exit(1);
     }
-    if (!is_linux) {
-        /* Jump to the entry point.  */
-        env->regs[15] = entry & 0xfffffffe;
-        env->thumb = entry & 1;
-    } else {
+    info->entry = entry;
+    if (is_linux) {
         if (info->initrd_filename) {
             initrd_size = load_image_targphys(info->initrd_filename,
                                               info->loader_start
@@ -257,16 +263,19 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++) {
-            stl_phys_notdirty(info->loader_start + (n * 4), bootloader[n]);
+            bootloader[n] = tswap32(bootloader[n]);
         }
+        rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
+                           info->loader_start);
         if (info->nb_cpus > 1) {
             for (n = 0; n < sizeof(smpboot) / 4; n++) {
-                stl_phys_notdirty(info->smp_loader_start + (n * 4), smpboot[n]);
+                smpboot[n] = tswap32(smpboot[n]);
             }
+            rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
+                               info->smp_loader_start);
         }
-        if (old_param)
-            set_kernel_args_old(info, initrd_size, info->loader_start);
-        else
-            set_kernel_args(info, initrd_size, info->loader_start);
+        info->initrd_size = initrd_size;
     }
+    info->is_linux = is_linux;
+    qemu_register_reset(main_cpu_reset, env);
 }
