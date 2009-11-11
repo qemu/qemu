@@ -32,6 +32,7 @@
 #include "net.h"
 #include "isa.h"
 #include "pci.h"
+#include "usb-ohci.h"
 #include "boards.h"
 #include "fw_cfg.h"
 #include "escc.h"

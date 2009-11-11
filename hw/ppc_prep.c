@@ -29,6 +29,8 @@
 #include "sysemu.h"
 #include "isa.h"
 #include "pci.h"
+#include "prep_pci.h"
+#include "usb-ohci.h"
 #include "ppc.h"
 #include "boards.h"
 #include "qemu-log.h"

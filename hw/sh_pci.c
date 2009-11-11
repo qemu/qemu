@@ -24,6 +24,7 @@
 #include "hw.h"
 #include "sh.h"
 #include "pci.h"
+#include "sh_pci.h"
 #include "bswap.h"
 
 typedef struct {

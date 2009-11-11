@@ -413,31 +413,6 @@ static inline uint32_t pci_config_size(PCIDevice *d)
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
 
-/* lsi53c895a.c */
-#define LSI_MAX_DEVS 7
-
-/* vmware_vga.c */
-void pci_vmsvga_init(PCIBus *bus);
-
-/* usb-uhci.c */
-void usb_uhci_piix3_init(PCIBus *bus, int devfn);
-void usb_uhci_piix4_init(PCIBus *bus, int devfn);
-
-/* usb-ohci.c */
-void usb_ohci_init_pci(struct PCIBus *bus, int devfn);
-
-/* prep_pci.c */
-PCIBus *pci_prep_init(qemu_irq *pic);
-
-/* apb_pci.c */
-PCIBus *pci_apb_init(target_phys_addr_t special_base,
-                     target_phys_addr_t mem_base,
-                     qemu_irq *pic, PCIBus **bus2, PCIBus **bus3);
-
-/* sh_pci.c */
-PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                            void *pic, int devfn_min, int nirq);
-
 /* These are not pci specific. Should move into a separate header.
  * Only pci.c uses them, so keep them here for now.
  */

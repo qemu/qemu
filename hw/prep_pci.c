@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "prep_pci.h"
 
 typedef PCIHostState PREPPCIState;
 
