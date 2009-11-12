@@ -239,13 +239,6 @@ int pci_bus_num(PCIBus *s)
     return s->parent_dev->config[PCI_SECONDARY_BUS];
 }
 
-static uint8_t pci_sub_bus(PCIBus *s)
-{
-    if (!s->parent_dev)
-        return 255;     /* pci host bridge */
-    return s->parent_dev->config[PCI_SUBORDINATE_BUS];
-}
-
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
@@ -1180,7 +1173,10 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 
     /* try child bus */
     QLIST_FOREACH(sec, &bus->child, sibling) {
-        if (pci_bus_num(sec) <= bus_num && bus_num <= pci_sub_bus(sec)) {
+
+        if (!bus->parent_dev /* pci host bridge */
+            || (pci_bus_num(sec) <= bus_num &&
+                bus->parent_dev->config[PCI_SUBORDINATE_BUS])) {
             return pci_find_bus(sec, bus_num);
         }
     }
