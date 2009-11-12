@@ -127,7 +127,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
             return;
     }
 
-    virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
+    virtio_blk_req_complete(req, ret ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK);
 }
 
 static void virtio_blk_flush_complete(void *opaque, int ret)

@@ -4049,7 +4049,6 @@ static void main_loop(void)
     qemu_system_ready = 1;
     qemu_cond_broadcast(&qemu_system_cond);
 #endif
-    qemu_system_reset();
 
     for (;;) {
         do {
@@ -5895,6 +5894,7 @@ int main(int argc, char **argv, char **envp)
 
     rom_load_all();
 
+    qemu_system_reset();
     if (loadvm) {
         if (load_vmstate(cur_mon, loadvm) < 0) {
             autostart = 0;

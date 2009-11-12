@@ -24,6 +24,17 @@ static struct arm_boot_info realview_binfo = {
     .board_id = 0x33b,
 };
 
+static void secondary_cpu_reset(void *opaque)
+{
+  CPUState *env = opaque;
+
+  cpu_reset(env);
+  /* Set entry point for secondary CPUs.  This assumes we're using
+     the init code from arm_boot.c.  Real hardware resets all CPUs
+     the same.  */
+  env->regs[15] = 0x80000000;
+}
+
 static void realview_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
@@ -59,10 +70,7 @@ static void realview_init(ram_addr_t ram_size,
         irqp = arm_pic_init_cpu(env);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
         if (n > 0) {
-            /* Set entry point for secondary CPUs.  This assumes we're using
-               the init code from arm_boot.c.  Real hardware resets all CPUs
-               the same.  */
-            env->regs[15] = 0x80000000;
+            qemu_register_reset(secondary_cpu_reset, env);
         }
     }
 

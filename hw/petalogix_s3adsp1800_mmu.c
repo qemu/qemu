@@ -174,7 +174,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
             bootstrap_pc = ddr_base;
         }
 
-        env->regs[5] = ddr_base + kernel_size;
+        env->regs[5] = ddr_base + kernel_size + 8192;
         if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
             pstrcpy_targphys("cmdline", env->regs[5], 256, kernel_cmdline);
         }

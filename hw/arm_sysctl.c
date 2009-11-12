@@ -27,6 +27,18 @@ typedef struct {
     uint32_t resetlevel;
 } arm_sysctl_state;
 
+static void arm_sysctl_reset(DeviceState *d)
+{
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, sysbus_from_qdev(d));
+
+    s->leds = 0;
+    s->lockval = 0;
+    s->cfgdata1 = 0;
+    s->cfgdata2 = 0;
+    s->flags = 0;
+    s->resetlevel = 0;
+}
+
 static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
@@ -195,9 +207,6 @@ static int arm_sysctl_init1(SysBusDevice *dev)
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
     int iomemtype;
 
-    /* The MPcore bootloader uses these flags to start secondary CPUs.
-       We don't use a bootloader, so do this here.  */
-    s->flags = 3;
     iomemtype = cpu_register_io_memory(arm_sysctl_readfn,
                                        arm_sysctl_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
@@ -220,6 +229,7 @@ static SysBusDeviceInfo arm_sysctl_info = {
     .init = arm_sysctl_init1,
     .qdev.name  = "realview_sysctl",
     .qdev.size  = sizeof(arm_sysctl_state),
+    .qdev.reset = arm_sysctl_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
         DEFINE_PROP_END_OF_LIST(),

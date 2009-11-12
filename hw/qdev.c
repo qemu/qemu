@@ -258,6 +258,8 @@ int qdev_unplug(DeviceState *dev)
                    dev->parent_bus->name);
         return -1;
     }
+    assert(dev->info->unplug != NULL);
+
     return dev->info->unplug(dev);
 }
 

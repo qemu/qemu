@@ -249,6 +249,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     qemu_log_mask(CPU_LOG_INT, "Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",
              addr, is_write, is_exec);
     if (!(env->sregs[SR_MSR] & MSR_EE)) {
+        env = saved_env;
         return;
     }
 
@@ -264,4 +265,5 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
             helper_raise_exception(EXCP_HW_EXCP);
         }
     }
+    env = saved_env;
 }

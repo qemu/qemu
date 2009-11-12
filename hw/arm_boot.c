@@ -39,8 +39,8 @@ static uint32_t smpboot[] = {
   0xe3800030, /* orr     r0, #0x30 */
   0xe320f003, /* wfi */
   0xe5901000, /* ldr     r1, [r0] */
-  0xe3110003, /* tst     r1, #3 */
-  0x1afffffb, /* bne     <wfi> */
+  0xe1110001, /* tst     r1, r1 */
+  0x0afffffb, /* beq     <wfi> */
   0xe12fff11  /* bx      r1 */
 };
 
