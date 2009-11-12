@@ -30,11 +30,11 @@
 
 #include "sysbus.h"
 
-typedef struct {
+struct PCIHostState {
     SysBusDevice busdev;
     uint32_t config_reg;
     PCIBus *bus;
-} PCIHostState;
+};
 
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
