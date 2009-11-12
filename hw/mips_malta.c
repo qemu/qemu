@@ -41,6 +41,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
+#include "hw/sysbus.h"
 
 #undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)
@@ -813,6 +814,9 @@ void mips_malta_init (ram_addr_t ram_size,
     int fl_idx = 0;
     int fl_sectors = 0;
 
+    //~ DeviceState *dev =
+    qdev_create(NULL, "mips malta");
+
     /* Make sure the first 3 serial ports are associated with a device. */
     for(i = 0; i < 3; i++) {
         if (!serial_hds[i]) {
@@ -997,6 +1001,69 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 }
 
+typedef struct {
+    SysBusDevice busdev;
+    //~ CPUState *cpu_env;
+    //~ QEMUTimer *wd_timer;
+    //~ qemu_irq *primary_irq;
+    //~ qemu_irq *secondary_irq;
+    //~ NICState nic[2];
+    //~ /* Address of phy device (0...31). Only one phy device is supported.
+       //~ The internal phy has address 31. */
+    //~ uint8_t phyaddr;
+    //~ /* VLYNQ index for TNETW1130. Set to >1 to disable WLAN. */
+    //~ uint8_t vlynq_tnetw1130;
+    //~ CharDriverState *gpio_display;
+    //~ SerialState *serial[2];
+    //~ uint8_t *cpmac[2];
+    //~ ar7_timer_t timer[2];
+    //~ uint8_t *vlynq[2];
+} MaltaState;
+
+static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
+{
+    /* TODO */
+    MaltaState *s = FROM_SYSBUS(MaltaState, sysbusdev);
+    (void)s;
+    logout("%s:%u\n", __FILE__, __LINE__);
+    return 0;
+}
+
+static void mips_malta_reset(DeviceState *d)
+{
+    /* TODO: fix code. */
+    MaltaState *s = container_of(d, MaltaState, busdev.qdev);
+    (void)s;
+    //~ CPUState *env = opaque;
+    logout("%s:%u\n", __FILE__, __LINE__);
+    //~ env->exception_index = EXCP_RESET;
+    //~ env->exception_index = EXCP_SRESET;
+    //~ do_interrupt(env);
+    //~ env->CP0_Cause |= 0x00000400;
+    //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
+}
+
+static const VMStateDescription vmstate_mips_malta = {
+    .name ="malta",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo mips_malta_info = {
+    .init = mips_malta_sysbus_device_init,
+    .qdev.name  = "mips malta",
+    .qdev.size  = sizeof(MaltaState),
+    .qdev.vmsd  = &vmstate_mips_malta,
+    .qdev.reset = mips_malta_reset,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static QEMUMachine mips_malta_machine = {
     .name = "malta",
     .desc = "MIPS Malta Core LV",
@@ -1004,11 +1071,17 @@ static QEMUMachine mips_malta_machine = {
     .is_default = 1,
 };
 
+static void mips_malta_device_init(void)
+{
+    sysbus_register_withprop(&mips_malta_info);
+}
+
 static void mips_malta_machine_init(void)
 {
     qemu_register_machine(&mips_malta_machine);
 }
 
+device_init(mips_malta_device_init);
 machine_init(mips_malta_machine_init);
 
 /*
