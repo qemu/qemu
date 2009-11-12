@@ -782,7 +782,6 @@ static void main_cpu_reset(void *opaque)
        location does not change. */
     if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
-        load_kernel (env);
     }
 }
 
