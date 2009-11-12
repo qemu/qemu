@@ -17,7 +17,10 @@
 #define FW_CFG_NUMA             0x0d
 #define FW_CFG_BOOT_MENU        0x0e
 #define FW_CFG_MAX_CPUS         0x0f
-#define FW_CFG_MAX_ENTRY        0x10
+#define FW_CFG_KERNEL_ENTRY     0x10
+#define FW_CFG_KERNEL_DATA      0x11
+#define FW_CFG_INITRD_DATA      0x12
+#define FW_CFG_MAX_ENTRY        0x13
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
 #define FW_CFG_ARCH_LOCAL       0x8000

@@ -603,6 +603,8 @@ static int load_multiboot(void *fw_cfg,
     uint32_t mb_mod_end;
     uint8_t bootinfo[0x500];
     uint32_t cmdline = 0x200;
+    uint8_t *mb_kernel_data;
+    uint8_t *mb_bootinfo_data;
 
     /* Ok, let's see if it is a multiboot image.
        The header is 12x32bit long, so the latest entry may be 8192 - 48. */
@@ -643,6 +645,12 @@ static int load_multiboot(void *fw_cfg,
         mh_load_addr = mh_entry_addr = elf_entry;
         mb_kernel_size = kernel_size;
 
+        mb_kernel_data = qemu_malloc(mb_kernel_size);
+        if (rom_copy(mb_kernel_data, elf_entry, kernel_size) != kernel_size) {
+            fprintf(stderr, "Error while fetching elf kernel from rom\n");
+            exit(1);
+        }
+
 #ifdef DEBUG_MULTIBOOT
         fprintf(stderr, "qemu: loading multiboot-elf kernel (%#x bytes) with entry %#zx\n",
                 mb_kernel_size, (size_t)mh_entry_addr);
@@ -656,7 +664,6 @@ static int load_multiboot(void *fw_cfg,
         uint32_t mh_bss_end_addr = ldl_p(header+i+24);
 #endif
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
-        uint8_t *kernel;
 
         mh_entry_addr = ldl_p(header+i+28);
         mb_kernel_size = get_file_size(f) - mb_kernel_text_offset;
@@ -676,12 +683,9 @@ static int load_multiboot(void *fw_cfg,
                 mb_kernel_size, mh_load_addr);
 #endif
 
-        kernel = qemu_malloc(mb_kernel_size);
+        mb_kernel_data = qemu_malloc(mb_kernel_size);
         fseek(f, mb_kernel_text_offset, SEEK_SET);
-        fread(kernel, 1, mb_kernel_size, f);
-        rom_add_blob_fixed(kernel_filename, kernel, mb_kernel_size,
-                           mh_load_addr);
-        qemu_free(kernel);
+        fread(mb_kernel_data, 1, mb_kernel_size, f);
         fclose(f);
     }
 
@@ -732,9 +736,14 @@ static int load_multiboot(void *fw_cfg,
                 exit(1);
             }
             mb_mod_end = mb_mod_start + mb_mod_length;
-            rom_add_file_fixed(initrd_filename, mb_mod_start);
-
             mb_mod_count++;
+
+            /* append module data at the end of last module */
+            mb_kernel_data = qemu_realloc(mb_kernel_data,
+                                          mh_load_addr - mb_mod_end);
+            load_image(initrd_filename,
+                       mb_kernel_data + mb_mod_start - mh_load_addr);
+
             stl_p(bootinfo + mb_mod_info + 0, mb_mod_start);
             stl_p(bootinfo + mb_mod_info + 4, mb_mod_start + mb_mod_length);
             stl_p(bootinfo + mb_mod_info + 12, 0x0); /* reserved */
@@ -774,13 +783,21 @@ static int load_multiboot(void *fw_cfg,
     fprintf(stderr, "multiboot: mh_entry_addr = %#x\n", mh_entry_addr);
 #endif
 
-    /* Pass variables to option rom */
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, mh_entry_addr);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, mb_bootinfo);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, mmap_addr);
+    /* save bootinfo off the stack */
+    mb_bootinfo_data = qemu_malloc(sizeof(bootinfo));
+    memcpy(mb_bootinfo_data, bootinfo, sizeof(bootinfo));
 
-    rom_add_blob_fixed("multiboot-info", bootinfo, sizeof(bootinfo),
-                       mb_bootinfo);
+    /* Pass variables to option rom */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ENTRY, mh_entry_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, mh_load_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, mb_mod_end - mh_load_addr);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, mb_kernel_data,
+                     mb_mod_end - mh_load_addr);
+
+    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, mb_bootinfo);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, sizeof(bootinfo));
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, mb_bootinfo_data,
+                     sizeof(bootinfo));
 
     option_rom[nb_option_roms] = "multiboot.bin";
     nb_option_roms++;
