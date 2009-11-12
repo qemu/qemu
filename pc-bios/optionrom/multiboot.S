@@ -18,86 +18,15 @@
  *   Authors: Alexander Graf <agraf@suse.de>
  */
 
-#define NO_QEMU_PROTOS
-#include "../../hw/fw_cfg.h"
-
-#define BIOS_CFG_IOPORT_CFG	0x510
-#define BIOS_CFG_IOPORT_DATA	0x511
+#include "optionrom.h"
 
 #define MULTIBOOT_MAGIC		0x2badb002
 
 #define GS_PROT_JUMP		0
 #define GS_GDT_DESC		6
 
-/* Break the translation block flow so -d cpu shows us values */
-#define DEBUG_HERE \
-	jmp		1f;				\
-	1:
-	
-/* Read a variable from the fw_cfg device.
-   Clobbers:	%edx
-   Out:		%eax */
-.macro read_fw VAR
-	mov		$\VAR, %ax
-	mov		$BIOS_CFG_IOPORT_CFG, %dx
-	outw		%ax, (%dx)
-	mov		$BIOS_CFG_IOPORT_DATA, %dx
-	inb		(%dx), %al
-	shl		$8, %eax
-	inb		(%dx), %al
-	shl		$8, %eax
-	inb		(%dx), %al
-	shl		$8, %eax
-	inb		(%dx), %al
-	bswap		%eax
-.endm
 
-/*
- * Read a blob from the fw_cfg device.
- * Requires _ADDR, _SIZE and _DATA values for the parameter.
- *
- * Clobbers:	%eax, %edx, %es, %ecx, %edi
- */
-#define read_fw_blob(var) \
-	read_fw		var ## _ADDR;			\
-	mov		%eax, %edi;			\
-	read_fw		var ## _SIZE;			\
-	mov		%eax, %ecx;			\
-	mov		$var ## _DATA, %ax;		\
-	mov		$BIOS_CFG_IOPORT_CFG, %edx;	\
-	outw		%ax, (%dx);			\
-	mov		$BIOS_CFG_IOPORT_DATA, %dx;	\
-	cld;						\
-	DEBUG_HERE \
-	rep insb	(%dx), %es:(%edi);
-
-.code16
-.text
-	.global 	_start
-_start:
-	.short		0xaa55
-	.byte		(_end - _start) / 512
-	push		%eax
-	push		%ds
-
-	/* setup ds so we can access the IVT */
-	xor		%ax, %ax
-	mov		%ax, %ds
-
-	/* install our int 19 handler */
-	movw		$int19_handler, (0x19*4)
-	mov		%cs, (0x19*4+2)
-
-	pop		%ds
-	pop		%eax
-	lret
-
-int19_handler:
-	/* DS = CS */
-	movw		%cs, %ax
-	movw		%ax, %ds
-
-	/* fall through */
+BOOT_ROM_START
 
 run_multiboot:
 
@@ -249,6 +178,4 @@ gdt_desc:
 .short	(5 * 8) - 1
 .long	gdt
 
-.align 512, 0
-_end:
-
+BOOT_ROM_END
