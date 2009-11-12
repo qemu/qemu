@@ -40,7 +40,7 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
  */
 
 /* the helper functio to get a PCIDeice* for a given pci address */
-static inline PCIDevice *pci_addr_to_dev(PCIBus *bus, uint32_t addr)
+static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
 {
     uint8_t bus_num = (addr >> 16) & 0xff;
     uint8_t devfn = (addr >> 8) & 0xff;
@@ -49,7 +49,7 @@ static inline PCIDevice *pci_addr_to_dev(PCIBus *bus, uint32_t addr)
 
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 {
-    PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
+    PCIDevice *pci_dev = pci_dev_find_by_addr(s, addr);
     uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
 
     if (!pci_dev)
@@ -62,7 +62,7 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
 {
-    PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
+    PCIDevice *pci_dev = pci_dev_find_by_addr(s, addr);
     uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
     uint32_t val;
 
