@@ -42,8 +42,9 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
 /* the helper functio to get a PCIDeice* for a given pci address */
 static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
 {
-    uint8_t bus_num = (addr >> 16) & 0xff;
-    uint8_t devfn = (addr >> 8) & 0xff;
+    uint8_t bus_num = addr >> 16;
+    uint8_t devfn = addr >> 8;
+
     return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
 
