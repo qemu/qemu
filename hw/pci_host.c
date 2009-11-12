@@ -47,15 +47,10 @@ static inline PCIDevice *pci_addr_to_dev(PCIBus *bus, uint32_t addr)
     return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
 
-static inline uint32_t pci_addr_to_config(uint32_t addr)
-{
-    return addr & (PCI_CONFIG_SPACE_SIZE - 1);
-}
-
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 {
     PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
-    uint32_t config_addr = pci_addr_to_config(addr);
+    uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
 
     if (!pci_dev)
         return;
@@ -68,7 +63,7 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
 {
     PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
-    uint32_t config_addr = pci_addr_to_config(addr);
+    uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
     uint32_t val;
 
     assert(len == 1 || len == 2 || len == 4);
