@@ -131,6 +131,7 @@ typedef struct PCIIORegion {
 #define PCI_PREF_MEMORY_BASE    0x24    /* Prefetchable memory range behind */
 #define PCI_PREF_MEMORY_LIMIT   0x26
 #define  PCI_PREF_RANGE_MASK    (~0x0fUL)
+#define  PCI_PREF_RANGE_TYPE_64 0x01
 #define PCI_PREF_BASE_UPPER32   0x28    /* Upper half of prefetchable memory range */
 #define PCI_PREF_LIMIT_UPPER32	0x2c
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */

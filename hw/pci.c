@@ -635,19 +635,23 @@ static uint32_t pci_config_get_io_base(PCIDevice *d,
     return val;
 }
 
-static uint64_t pci_config_get_memory_base(PCIDevice *d, uint32_t base)
+static pcibus_t pci_config_get_memory_base(PCIDevice *d, uint32_t base)
 {
-    return ((uint64_t)pci_get_word(d->config + base) & PCI_MEMORY_RANGE_MASK)
+    return ((pcibus_t)pci_get_word(d->config + base) & PCI_MEMORY_RANGE_MASK)
         << 16;
 }
 
-static uint64_t pci_config_get_pref_base(PCIDevice *d,
+static pcibus_t pci_config_get_pref_base(PCIDevice *d,
                                          uint32_t base, uint32_t upper)
 {
-    uint64_t val;
-    val = ((uint64_t)pci_get_word(d->config + base) &
-           PCI_PREF_RANGE_MASK) << 16;
-    val |= (uint64_t)pci_get_long(d->config + upper) << 32;
+    pcibus_t tmp;
+    pcibus_t val;
+
+    tmp = (pcibus_t)pci_get_word(d->config + base);
+    val = (tmp & PCI_PREF_RANGE_MASK) << 16;
+    if (tmp & PCI_PREF_RANGE_TYPE_64) {
+        val |= (pcibus_t)pci_get_long(d->config + upper) << 32;
+    }
     return val;
 }
 
