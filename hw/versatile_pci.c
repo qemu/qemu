@@ -9,6 +9,7 @@
 
 #include "sysbus.h"
 #include "pci.h"
+#include "pci_host.h"
 
 typedef struct {
     SysBusDevice busdev;

@@ -36,6 +36,9 @@ typedef struct {
     PCIBus *bus;
 } PCIHostState;
 
+void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
+uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
+
 /* for mmio */
 int pci_host_config_register_io_memory(PCIHostState *s);
 int pci_host_config_register_io_memory_noswap(PCIHostState *s);
