@@ -116,7 +116,7 @@ static CPUReadMemoryFunc * const pci_host_config_read[] = {
     &pci_host_config_readl,
 };
 
-int pci_host_config_register_io_memory(PCIHostState *s)
+int pci_host_conf_register_mmio(PCIHostState *s)
 {
     return cpu_register_io_memory(pci_host_config_read,
                                   pci_host_config_write, s);
@@ -156,7 +156,7 @@ static CPUReadMemoryFunc * const pci_host_config_read_noswap[] = {
     &pci_host_config_readl_noswap,
 };
 
-int pci_host_config_register_io_memory_noswap(PCIHostState *s)
+int pci_host_conf_register_mmio_noswap(PCIHostState *s)
 {
     return cpu_register_io_memory(pci_host_config_read_noswap,
                                   pci_host_config_write_noswap, s);
@@ -180,7 +180,7 @@ static uint32_t pci_host_config_readl_ioport(void *opaque, uint32_t addr)
     return val;
 }
 
-void pci_host_config_register_ioport(pio_addr_t ioport, PCIHostState *s)
+void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
 {
     register_ioport_write(ioport, 4, 4, pci_host_config_writel_ioport, s);
     register_ioport_read(ioport, 4, 4, pci_host_config_readl_ioport, s);
@@ -203,7 +203,7 @@ static CPUReadMemoryFunc * const pci_host_data_read_mmio[] = {
     pci_host_data_readl_mmio,
 };
 
-int pci_host_data_register_io_memory(PCIHostState *s)
+int pci_host_data_register_mmio(PCIHostState *s)
 {
     return cpu_register_io_memory(pci_host_data_read_mmio,
                                   pci_host_data_write_mmio,

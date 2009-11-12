@@ -40,12 +40,12 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
 
 /* for mmio */
-int pci_host_config_register_io_memory(PCIHostState *s);
-int pci_host_config_register_io_memory_noswap(PCIHostState *s);
-int pci_host_data_register_io_memory(PCIHostState *s);
+int pci_host_conf_register_mmio(PCIHostState *s);
+int pci_host_conf_register_mmio_noswap(PCIHostState *s);
+int pci_host_data_register_mmio(PCIHostState *s);
 
 /* for ioio */
-void pci_host_config_register_ioport(pio_addr_t ioport, PCIHostState *s);
+void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s);
 void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s);
 
 #endif /* PCI_HOST_H */

@@ -128,7 +128,7 @@ PCIBus *pci_prep_init(qemu_irq *pic)
     s->bus = pci_register_bus(NULL, "pci",
                               prep_set_irq, prep_map_irq, pic, 0, 4);
 
-    pci_host_config_register_ioport(0xcf8, s);
+    pci_host_conf_register_ioport(0xcf8, s);
 
     pci_host_data_register_ioport(0xcfc, s);
 
