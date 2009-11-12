@@ -264,7 +264,7 @@ pxe-e1000.bin pxe-i82559er.bin \
 pxe-ne2k_pci.bin pxe-pcnet.bin \
 pxe-rtl8139.bin pxe-virtio.bin \
 bamboo.dtb petalogix-s3adsp1800.dtb \
-multiboot.bin
+multiboot.bin linuxboot.bin
 else
 BLOBS=
 endif
