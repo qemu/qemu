@@ -733,7 +733,7 @@ static void pci_update_mappings(PCIDevice *d)
         r = &d->io_regions[i];
 
         /* this region isn't registered */
-        if (r->size == 0)
+        if (!r->size)
             continue;
 
         if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
