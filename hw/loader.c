@@ -708,6 +708,44 @@ static Rom *find_rom(target_phys_addr_t addr)
     return NULL;
 }
 
+int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
+{
+    target_phys_addr_t end = addr + size;
+    uint8_t *s, *d = dest;
+    size_t l = 0;
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->max)
+            continue;
+        if (rom->min > addr)
+            continue;
+        if (rom->min + rom->romsize < addr)
+            continue;
+        if (rom->min > end)
+            break;
+        if (!rom->data)
+            continue;
+
+        d = dest + (rom->min - addr);
+        s = rom->data;
+        l = rom->romsize;
+
+        if (rom->min < addr) {
+            d = dest;
+            s += (addr - rom->min);
+            l -= (addr - rom->min);
+        }
+        if ((d + l) > (dest + size)) {
+            l = dest - d;
+        }
+
+        memcpy(d, s, l);
+    }
+
+    return (d + l) - dest;
+}
+
 void *rom_ptr(target_phys_addr_t addr)
 {
     Rom *rom;
