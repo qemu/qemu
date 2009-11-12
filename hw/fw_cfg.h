@@ -20,7 +20,13 @@
 #define FW_CFG_KERNEL_ENTRY     0x10
 #define FW_CFG_KERNEL_DATA      0x11
 #define FW_CFG_INITRD_DATA      0x12
-#define FW_CFG_MAX_ENTRY        0x13
+#define FW_CFG_CMDLINE_ADDR     0x13
+#define FW_CFG_CMDLINE_SIZE     0x14
+#define FW_CFG_CMDLINE_DATA     0x15
+#define FW_CFG_SETUP_ADDR       0x16
+#define FW_CFG_SETUP_SIZE       0x17
+#define FW_CFG_SETUP_DATA       0x18
+#define FW_CFG_MAX_ENTRY        0x19
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
 #define FW_CFG_ARCH_LOCAL       0x8000

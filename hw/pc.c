@@ -487,85 +487,6 @@ static void *bochs_bios_init(void)
     return fw_cfg;
 }
 
-/* Generate an initial boot sector which sets state and jump to
-   a specified vector */
-static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
-{
-    uint8_t rom[512], *p, *reloc;
-    uint8_t sum;
-    int i;
-
-    memset(rom, 0, sizeof(rom));
-
-    p = rom;
-    /* Make sure we have an option rom signature */
-    *p++ = 0x55;
-    *p++ = 0xaa;
-
-    /* ROM size in sectors*/
-    *p++ = 1;
-
-    /* Hook int19 */
-
-    *p++ = 0x50;		/* push ax */
-    *p++ = 0x1e;		/* push ds */
-    *p++ = 0x31; *p++ = 0xc0;	/* xor ax, ax */
-    *p++ = 0x8e; *p++ = 0xd8;	/* mov ax, ds */
-
-    *p++ = 0xc7; *p++ = 0x06;   /* movvw _start,0x64 */
-    *p++ = 0x64; *p++ = 0x00;
-    reloc = p;
-    *p++ = 0x00; *p++ = 0x00;
-
-    *p++ = 0x8c; *p++ = 0x0e;   /* mov cs,0x66 */
-    *p++ = 0x66; *p++ = 0x00;
-
-    *p++ = 0x1f;		/* pop ds */
-    *p++ = 0x58;		/* pop ax */
-    *p++ = 0xcb;		/* lret */
-
-    /* Actual code */
-    *reloc = (p - rom);
-
-    *p++ = 0xfa;		/* CLI */
-    *p++ = 0xfc;		/* CLD */
-
-    for (i = 0; i < 6; i++) {
-	if (i == 1)		/* Skip CS */
-	    continue;
-
-	*p++ = 0xb8;		/* MOV AX,imm16 */
-	*p++ = segs[i];
-	*p++ = segs[i] >> 8;
-	*p++ = 0x8e;		/* MOV <seg>,AX */
-	*p++ = 0xc0 + (i << 3);
-    }
-
-    for (i = 0; i < 8; i++) {
-	*p++ = 0x66;		/* 32-bit operand size */
-	*p++ = 0xb8 + i;	/* MOV <reg>,imm32 */
-	*p++ = gpr[i];
-	*p++ = gpr[i] >> 8;
-	*p++ = gpr[i] >> 16;
-	*p++ = gpr[i] >> 24;
-    }
-
-    *p++ = 0xea;		/* JMP FAR */
-    *p++ = ip;			/* IP */
-    *p++ = ip >> 8;
-    *p++ = segs[1];		/* CS */
-    *p++ = segs[1] >> 8;
-
-    /* sign rom */
-    sum = 0;
-    for (i = 0; i < (sizeof(rom) - 1); i++)
-        sum += rom[i];
-    rom[sizeof(rom) - 1] = -sum;
-
-    rom_add_blob("linux-bootsect", rom, sizeof(rom),
-                 PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN);
-}
-
 static long get_file_size(FILE *f)
 {
     long where, size;
@@ -812,12 +733,9 @@ static void load_linux(void *fw_cfg,
                        target_phys_addr_t max_ram_size)
 {
     uint16_t protocol;
-    uint32_t gpr[8];
-    uint16_t seg[6];
-    uint16_t real_seg;
     int setup_size, kernel_size, initrd_size = 0, cmdline_size;
     uint32_t initrd_max;
-    uint8_t header[8192], *setup, *kernel;
+    uint8_t header[8192], *setup, *kernel, *initrd_data;
     target_phys_addr_t real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f;
     char *vmode;
@@ -886,9 +804,11 @@ static void load_linux(void *fw_cfg,
     if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
     	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
 
-    /* kernel command line */
-    rom_add_blob_fixed("cmdline", kernel_cmdline,
-                       strlen(kernel_cmdline)+1, cmdline_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline)+1);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_CMDLINE_DATA,
+                     (uint8_t*)strdup(kernel_cmdline),
+                     strlen(kernel_cmdline)+1);
 
     if (protocol >= 0x202) {
 	stl_p(header+0x228, cmdline_addr);
@@ -937,7 +857,13 @@ static void load_linux(void *fw_cfg,
 
 	initrd_size = get_image_size(initrd_filename);
         initrd_addr = (initrd_max-initrd_size) & ~4095;
-        rom_add_file_fixed(initrd_filename, initrd_addr);
+
+        initrd_data = qemu_malloc(initrd_size);
+        load_image(initrd_filename, initrd_data);
+
+        fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
+        fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
+        fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data, initrd_size);
 
 	stl_p(header+0x218, initrd_addr);
 	stl_p(header+0x21c, initrd_size);
@@ -957,21 +883,17 @@ static void load_linux(void *fw_cfg,
     fread(kernel, 1, kernel_size, f);
     fclose(f);
     memcpy(setup, header, MIN(sizeof(header), setup_size));
-    rom_add_blob_fixed("linux-setup", setup,
-                       setup_size, real_addr);
-    rom_add_blob_fixed(kernel_filename, kernel,
-                       kernel_size, prot_addr);
-    qemu_free(setup);
-    qemu_free(kernel);
 
-    /* generate bootsector to set up the initial register state */
-    real_seg = real_addr >> 4;
-    seg[0] = seg[2] = seg[3] = seg[4] = seg[4] = real_seg;
-    seg[1] = real_seg+0x20;	/* CS */
-    memset(gpr, 0, sizeof gpr);
-    gpr[4] = cmdline_addr-real_addr-16;	/* SP (-16 is paranoia) */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, prot_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, kernel, kernel_size);
 
-    generate_bootsect(gpr, seg, 0);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_ADDR, real_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, setup_size);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA, setup, setup_size);
+
+    option_rom[nb_option_roms] = "linuxboot.bin";
+    nb_option_roms++;
 }
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
