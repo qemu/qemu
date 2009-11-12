@@ -76,6 +76,7 @@
 #include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
 #include "hw/sysbus.h"          /* sysbus_register_withprop */
+#include "hw/vlynq.h"           /* vlynq_create_bus */
 
 #include "target-mips/cpu.h"    /* do_interrupt */
 
@@ -3824,9 +3825,14 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     ar7_mips_init(env);
 
     dev = qdev_create(NULL, "mips ar7");
+    //~ qdev_prop_set_uint32(dev, "memsz", machine_ram_size / MiB);
     qdev_prop_set_uint8(dev, "phy addr", 31);
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
     qdev_init_nofail(dev);
+
+    // TODO: finish vlynq bus integration.
+    vlynq_create_bus(dev, "vlynq");
+    vlynq_create_bus(dev, "vlynq");
 
     loaderparams.ram_size = machine_ram_size;
     loaderparams.kernel_filename = kernel_filename;
