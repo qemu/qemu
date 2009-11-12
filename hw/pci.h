@@ -382,17 +382,10 @@ typedef struct {
     PCIConfigWriteFunc *config_write;
 
     /* pci config header type */
-    uint8_t header_type;        /* this is necessary for initialization
-                                 * code to know its header type before
-                                 * device specific code can initialize
-                                 * configuration space.
-                                 */
+    uint8_t header_type;
 
     /* pcie stuff */
-    int is_express;   /* is this device pci express?
-                       * initialization code needs to know this before
-                       * each specific device initialization.
-                       */
+    int is_express;   /* is this device pci express? */
 } PCIDeviceInfo;
 
 void pci_qdev_register(PCIDeviceInfo *info);
