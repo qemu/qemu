@@ -71,24 +71,14 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
     uint32_t config_addr = pci_addr_to_config(addr);
     uint32_t val;
 
+    assert(len == 1 || len == 2 || len == 4);
     if (!pci_dev) {
-        switch(len) {
-        case 1:
-            val = 0xff;
-            break;
-        case 2:
-            val = 0xffff;
-            break;
-        default:
-        case 4:
-            val = 0xffffffff;
-            break;
-        }
-    } else {
-        val = pci_dev->config_read(pci_dev, config_addr, len);
-        PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRIx32" len=%d\n",
-                    __func__, pci_dev->name, config_addr, val, len);
+        return ~0x0;
     }
+
+    val = pci_dev->config_read(pci_dev, config_addr, len);
+    PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRIx32" len=%d\n",
+                __func__, pci_dev->name, config_addr, val, len);
 
     return val;
 }

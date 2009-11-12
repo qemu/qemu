@@ -65,31 +65,15 @@ static void pcie_mmcfg_data_write(PCIBus *s,
                           PCIE_MMCFG_CONFOFFSET(mmcfg_addr), val, len);
 }
 
-static uint32_t pcie_mmcfg_data_read(PCIBus *s,
-                                     uint32_t mmcfg_addr, int len)
+static uint32_t pcie_mmcfg_data_read(PCIBus *s, uint32_t addr, int len)
 {
-    PCIDevice *pci_dev = pcie_mmcfg_addr_to_dev(s, mmcfg_addr);
-    uint32_t val;
+    PCIDevice *pci_dev = pcie_mmcfg_addr_to_dev(s, addr);
 
+    assert(len == 1 || len == 2 || len == 4);
     if (!pci_dev) {
-        switch(len) {
-        case 1:
-            val = 0xff;
-            break;
-        case 2:
-            val = 0xffff;
-            break;
-        default:
-        case 4:
-            val = 0xffffffff;
-            break;
-        }
-    } else {
-        val = pci_dev->config_read(pci_dev,
-                                   PCIE_MMCFG_CONFOFFSET(mmcfg_addr), len);
+        return ~0x0;
     }
-
-    return val;
+    return pci_dev->config_read(pci_dev, PCIE_MMCFG_CONFOFFSET(addr), len);
 }
 
 static void pcie_mmcfg_data_writeb(void *opaque,
