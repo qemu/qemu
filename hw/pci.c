@@ -717,13 +717,14 @@ static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
     }
 
     if (base > limit) {
-    no_map:
-        *addr = PCI_BAR_UNMAPPED;
-        *size = 0;
-    } else {
-        *addr = base;
-        *size = limit - base + 1;
+        goto no_map;
     }
+    *addr = base;
+    *size = limit - base + 1;
+    return;
+no_map:
+    *addr = PCI_BAR_UNMAPPED;
+    *size = 0;
 }
 
 static pcibus_t pci_bar_address(PCIDevice *d,
