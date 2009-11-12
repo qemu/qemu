@@ -146,7 +146,7 @@ static void pci_host_bus_register(int domain, PCIBus *bus)
     QLIST_INSERT_HEAD(&host_buses, host, next);
 }
 
-PCIBus *pci_find_host_bus(int domain)
+PCIBus *pci_find_root_bus(int domain)
 {
     struct PCIHostBus *host;
 
@@ -372,7 +372,7 @@ static int pci_parse_devaddr(const char *addr, int *domp, int *busp, unsigned *s
 	return -1;
 
     /* Note: QEMU doesn't implement domains other than 0 */
-    if (!pci_find_bus(pci_find_host_bus(dom), bus))
+    if (!pci_find_bus(pci_find_root_bus(dom), bus))
 	return -1;
 
     *domp = dom;
@@ -402,7 +402,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 
     if (!devaddr) {
         *devfnp = -1;
-        return pci_find_bus(pci_find_host_bus(0), 0);
+        return pci_find_bus(pci_find_root_bus(0), 0);
     }
 
     if (pci_parse_devaddr(devaddr, &dom, &bus, &slot) < 0) {
@@ -410,7 +410,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
     }
 
     *devfnp = slot << 3;
-    return pci_find_bus(pci_find_host_bus(0), bus);
+    return pci_find_bus(pci_find_root_bus(0), bus);
 }
 
 static void pci_init_cmask(PCIDevice *dev)

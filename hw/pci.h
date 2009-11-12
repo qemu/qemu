@@ -295,7 +295,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
                                const char *default_devaddr);
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
-PCIBus *pci_find_host_bus(int domain);
+PCIBus *pci_find_root_bus(int domain);
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
