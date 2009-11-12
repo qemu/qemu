@@ -630,7 +630,7 @@ static uint32_t pci_config_get_io_base(PCIDevice *d,
 
     val = ((uint32_t)d->config[base] & PCI_IO_RANGE_MASK) << 8;
     if (d->config[base] & PCI_IO_RANGE_TYPE_32) {
-        val |= (uint32_t)pci_get_word(d->config + PCI_IO_BASE_UPPER16) << 16;
+        val |= (uint32_t)pci_get_word(d->config + base_upper16) << 16;
     }
     return val;
 }
