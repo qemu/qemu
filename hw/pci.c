@@ -487,7 +487,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          uint8_t header_type)
 {
     if (devfn < 0) {
-        for(devfn = bus->devfn_min ; devfn < 256; devfn += 8) {
+        for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
+            devfn += 8) {
             if (!bus->devices[devfn])
                 goto found;
         }
@@ -1035,7 +1036,7 @@ static void pci_for_each_device_under_bus(PCIBus *bus,
     PCIDevice *d;
     int devfn;
 
-    for(devfn = 0; devfn < 256; devfn++) {
+    for(devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         d = bus->devices[devfn];
         if (d)
             fn(bus, d);
