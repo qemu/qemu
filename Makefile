@@ -128,6 +128,7 @@ obj-y += usb-serial.o usb-net.o usb-bus.o
 obj-$(CONFIG_SSI) += ssi.o
 obj-$(CONFIG_SSI_SD) += ssi-sd.o
 obj-$(CONFIG_SD) += sd.o
+obj-$(CONFIG_VLYNQ) += vlynq.o
 obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 obj-y += bt-hci-csr.o
 obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
