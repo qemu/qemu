@@ -48,6 +48,11 @@ typedef struct gic_irq_state
 } gic_irq_state;
 
 #define ALL_CPU_MASK ((1 << NCPU) - 1)
+#if NCPU > 1
+#define NUM_CPU(s) ((s)->num_cpu)
+#else
+#define NUM_CPU(s) 1
+#endif
 
 #define GIC_SET_ENABLED(irq) s->irq_state[irq].enabled = 1
 #define GIC_CLEAR_ENABLED(irq) s->irq_state[irq].enabled = 0
@@ -95,6 +100,10 @@ typedef struct gic_state
     int running_priority[NCPU];
     int current_pending[NCPU];
 
+#if NCPU > 1
+    int num_cpu;
+#endif
+
     int iomemtype;
 } gic_state;
 
@@ -109,7 +118,7 @@ static void gic_update(gic_state *s)
     int cpu;
     int cm;
 
-    for (cpu = 0; cpu < NCPU; cpu++) {
+    for (cpu = 0; cpu < NUM_CPU(s); cpu++) {
         cm = 1 << cpu;
         s->current_pending[cpu] = 1023;
         if (!s->enabled || !s->cpu_enabled[cpu]) {
@@ -255,7 +264,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
         if (offset == 0)
             return s->enabled;
         if (offset == 4)
-            return ((GIC_NIRQ / 32) - 1) | ((NCPU - 1) << 5);
+            return ((GIC_NIRQ / 32) - 1) | ((NUM_CPU(s) - 1) << 5);
         if (offset < 0x08)
             return 0;
 #endif
@@ -620,7 +629,7 @@ static void gic_reset(gic_state *s)
 {
     int i;
     memset(s->irq_state, 0, GIC_NIRQ * sizeof(gic_irq_state));
-    for (i = 0 ; i < NCPU; i++) {
+    for (i = 0 ; i < NUM_CPU(s); i++) {
         s->priority_mask[i] = 0xf0;
         s->current_pending[i] = 1023;
         s->running_irq[i] = 1023;
@@ -651,7 +660,7 @@ static void gic_save(QEMUFile *f, void *opaque)
     int j;
 
     qemu_put_be32(f, s->enabled);
-    for (i = 0; i < NCPU; i++) {
+    for (i = 0; i < NUM_CPU(s); i++) {
         qemu_put_be32(f, s->cpu_enabled[i]);
 #ifndef NVIC
         qemu_put_be32(f, s->irq_target[i]);
@@ -688,7 +697,7 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     s->enabled = qemu_get_be32(f);
-    for (i = 0; i < NCPU; i++) {
+    for (i = 0; i < NUM_CPU(s); i++) {
         s->cpu_enabled[i] = qemu_get_be32(f);
 #ifndef NVIC
         s->irq_target[i] = qemu_get_be32(f);
@@ -717,12 +726,19 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+#if NCPU > 1
+static void gic_init(gic_state *s, int num_cpu)
+#else
 static void gic_init(gic_state *s)
+#endif
 {
     int i;
 
+#if NCPU > 1
+    s->num_cpu = num_cpu;
+#endif
     qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, GIC_NIRQ - 32);
-    for (i = 0; i < NCPU; i++) {
+    for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
     s->iomemtype = cpu_register_io_memory(gic_dist_readfn,

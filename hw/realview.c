@@ -35,14 +35,21 @@ static void secondary_cpu_reset(void *opaque)
   env->regs[15] = 0x80000000;
 }
 
+enum realview_board_type {
+    BOARD_EB,
+    BOARD_EB_MPCORE
+};
+
 static void realview_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+                     const char *initrd_filename, const char *cpu_model,
+                     enum realview_board_type board_type)
 {
-    CPUState *env;
+    CPUState *env = NULL;
     ram_addr_t ram_offset;
     DeviceState *dev;
+    SysBusDevice *busdev;
     qemu_irq *irqp;
     qemu_irq pic[64];
     PCIBus *pci_bus;
@@ -50,19 +57,10 @@ static void realview_init(ram_addr_t ram_size,
     int n;
     int done_smc = 0;
     qemu_irq cpu_irq[4];
-    int ncpu;
+    int is_mpcore = (board_type == BOARD_EB_MPCORE);
     uint32_t proc_id = 0;
 
-    if (!cpu_model)
-        cpu_model = "arm926";
-    /* FIXME: obey smp_cpus.  */
-    if (strcmp(cpu_model, "arm11mpcore") == 0) {
-        ncpu = 4;
-    } else {
-        ncpu = 1;
-    }
-
-    for (n = 0; n < ncpu; n++) {
+    for (n = 0; n < smp_cpus; n++) {
         env = cpu_init(cpu_model);
         if (!env) {
             fprintf(stderr, "Unable to find CPU definition\n");
@@ -91,15 +89,16 @@ static void realview_init(ram_addr_t ram_size,
 
     arm_sysctl_init(0x10000000, 0xc1400400, proc_id);
 
-    if (ncpu == 1) {
-        /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
-           is nIRQ (there are inconsistencies).  However Linux 2.6.17 expects
-           GIC1 to be nIRQ and ignores all the others, so do that for now.  */
-        dev = sysbus_create_simple("realview_gic", 0x10040000, cpu_irq[0]);
+    if (is_mpcore) {
+        dev = qdev_create(NULL, "realview_mpcore");
+        qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
+        qdev_init_nofail(dev);
+        busdev = sysbus_from_qdev(dev);
+        for (n = 0; n < smp_cpus; n++) {
+            sysbus_connect_irq(busdev, n, cpu_irq[n]);
+        }
     } else {
-        dev = sysbus_create_varargs("realview_mpcore", -1,
-                                    cpu_irq[0], cpu_irq[1], cpu_irq[2],
-                                    cpu_irq[3], NULL);
+        dev = sysbus_create_simple("realview_gic", 0x10040000, cpu_irq[0]);
     }
     for (n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
@@ -210,20 +209,53 @@ static void realview_init(ram_addr_t ram_size,
     realview_binfo.kernel_filename = kernel_filename;
     realview_binfo.kernel_cmdline = kernel_cmdline;
     realview_binfo.initrd_filename = initrd_filename;
-    realview_binfo.nb_cpus = ncpu;
+    realview_binfo.nb_cpus = smp_cpus;
     arm_load_kernel(first_cpu, &realview_binfo);
 }
 
-static QEMUMachine realview_machine = {
-    .name = "realview",
+static void realview_eb_init(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    if (!cpu_model) {
+        cpu_model = "arm926";
+    }
+    realview_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                  initrd_filename, cpu_model, BOARD_EB);
+}
+
+static void realview_eb_mpcore_init(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    if (!cpu_model) {
+        cpu_model = "arm11mpcore";
+    }
+    realview_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                  initrd_filename, cpu_model, BOARD_EB_MPCORE);
+}
+
+static QEMUMachine realview_eb_machine = {
+    .name = "realview-eb",
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
-    .init = realview_init,
+    .init = realview_eb_init,
     .use_scsi = 1,
+};
+
+static QEMUMachine realview_eb_mpcore_machine = {
+    .name = "realview-eb-mpcore",
+    .desc = "ARM RealView Emulation Baseboard (ARM11MPCore)",
+    .init = realview_eb_mpcore_init,
+    .use_scsi = 1,
+    .max_cpus = 4,
 };
 
 static void realview_machine_init(void)
 {
-    qemu_register_machine(&realview_machine);
+    qemu_register_machine(&realview_eb_machine);
+    qemu_register_machine(&realview_eb_mpcore_machine);
 }
 
 machine_init(realview_machine_init);
