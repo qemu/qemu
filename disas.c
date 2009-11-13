@@ -393,6 +393,9 @@ void monitor_disas(Monitor *mon, CPUState *env,
 #else
     print_insn = print_insn_little_mips;
 #endif
+#elif defined(TARGET_SH4)
+    disasm_info.mach = bfd_mach_sh4;
+    print_insn = print_insn_sh;
 #else
     monitor_printf(mon, "0x" TARGET_FMT_lx
                    ": Asm output not supported on this arch\n", pc);
