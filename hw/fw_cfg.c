@@ -39,7 +39,7 @@
 #define FW_CFG_SIZE 2
 
 typedef struct _FWCfgEntry {
-    uint16_t len;
+    uint32_t len;
     uint8_t *data;
     void *callback_opaque;
     FWCfgCallback callback;
@@ -48,7 +48,7 @@ typedef struct _FWCfgEntry {
 typedef struct _FWCfgState {
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
     uint16_t cur_entry;
-    uint16_t cur_offset;
+    uint32_t cur_offset;
 } FWCfgState;
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
@@ -164,19 +164,53 @@ static void fw_cfg_reset(void *opaque)
     fw_cfg_select(s, 0);
 }
 
+/* Save restore 32 bit int as uint16_t
+   This is a Big hack, but it is how the old state did it.
+   Or we broke compatibility in the state, or we can't use struct tm
+ */
+
+static int get_uint32_as_uint16(QEMUFile *f, void *pv, size_t size)
+{
+    uint32_t *v = pv;
+    *v = qemu_get_be16(f);
+    return 0;
+}
+
+static void put_unused(QEMUFile *f, void *pv, size_t size)
+{
+    fprintf(stderr, "uint32_as_uint16 is only used for backward compatibilty.\n");
+    fprintf(stderr, "This functions shouldn't be called.\n");
+}
+
+const VMStateInfo vmstate_hack_uint32_as_uint16 = {
+    .name = "int32_as_uint16",
+    .get  = get_uint32_as_uint16,
+    .put  = put_unused,
+};
+
+#define VMSTATE_UINT16_HACK(_f, _s, _t)                                    \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_hack_uint32_as_uint16, uint32_t)
+
+
+static bool is_version_1(void *opaque, int version_id)
+{
+    return version_id == 1;
+}
+
 static const VMStateDescription vmstate_fw_cfg = {
     .name = "fw_cfg",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_UINT16(cur_entry, FWCfgState),
-        VMSTATE_UINT16(cur_offset, FWCfgState),
+        VMSTATE_UINT16_HACK(cur_offset, FWCfgState, is_version_1),
+        VMSTATE_UINT32_V(cur_offset, FWCfgState, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
-int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint16_t len)
+int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint32_t len)
 {
     FWCfgState *s = opaque;
     int arch = !!(key & FW_CFG_ARCH_LOCAL);

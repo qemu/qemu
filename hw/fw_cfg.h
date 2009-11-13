@@ -28,7 +28,7 @@
 #ifndef NO_QEMU_PROTOS
 typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
 
-int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint16_t len);
+int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint32_t len);
 int fw_cfg_add_i16(void *opaque, uint16_t key, uint16_t value);
 int fw_cfg_add_i32(void *opaque, uint16_t key, uint32_t value);
 int fw_cfg_add_i64(void *opaque, uint16_t key, uint64_t value);
