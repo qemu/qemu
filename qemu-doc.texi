@@ -1660,7 +1660,7 @@ The ARM RealView Emulation baseboard is emulated with the following devices:
 
 @itemize @minus
 @item
-ARM926E, ARM1136, ARM11MPCORE(x4) or Cortex-A8 CPU
+ARM926E, ARM1136, ARM11MPCORE or Cortex-A8 CPU
 @item
 ARM AMBA Generic/Distributed Interrupt Controller
 @item

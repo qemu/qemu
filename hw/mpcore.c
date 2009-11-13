@@ -44,6 +44,7 @@ typedef struct mpcore_priv_state {
     uint32_t scu_control;
     int iomemtype;
     mpcore_timer_state timer[8];
+    uint32_t num_cpu;
 } mpcore_priv_state;
 
 /* Per-CPU Timers.  */
@@ -166,7 +167,8 @@ static uint32_t mpcore_priv_read(void *opaque, target_phys_addr_t offset)
         case 0x00: /* Control.  */
             return s->scu_control;
         case 0x04: /* Configuration.  */
-            return 0xf3;
+            id = ((1 << s->num_cpu) - 1) << 4;
+            return id | (s->num_cpu - 1);
         case 0x08: /* CPU status.  */
             return 0;
         case 0x0c: /* Invalidate all.  */
@@ -180,6 +182,9 @@ static uint32_t mpcore_priv_read(void *opaque, target_phys_addr_t offset)
             id = gic_get_current_cpu();
         } else {
             id = (offset - 0x200) >> 8;
+            if (id >= s->num_cpu) {
+                return 0;
+            }
         }
         return gic_cpu_read(&s->gic, id, offset & 0xff);
     } else if (offset < 0xb00) {
@@ -188,6 +193,9 @@ static uint32_t mpcore_priv_read(void *opaque, target_phys_addr_t offset)
             id = gic_get_current_cpu();
         } else {
             id = (offset - 0x700) >> 8;
+            if (id >= s->num_cpu) {
+                return 0;
+            }
         }
         id <<= 1;
         if (offset & 0x20)
@@ -224,7 +232,9 @@ static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
         } else {
             id = (offset - 0x200) >> 8;
         }
-        gic_cpu_write(&s->gic, id, offset & 0xff, value);
+        if (id < s->num_cpu) {
+            gic_cpu_write(&s->gic, id, offset & 0xff, value);
+        }
     } else if (offset < 0xb00) {
         /* Timers.  */
         if (offset < 0x700) {
@@ -232,10 +242,12 @@ static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
         } else {
             id = (offset - 0x700) >> 8;
         }
-        id <<= 1;
-        if (offset & 0x20)
-          id++;
-        mpcore_timer_write(&s->timer[id], offset & 0xf, value);
+        if (id < s->num_cpu) {
+            id <<= 1;
+            if (offset & 0x20)
+              id++;
+            mpcore_timer_write(&s->timer[id], offset & 0xf, value);
+        }
         return;
     }
     return;
@@ -267,11 +279,11 @@ static int mpcore_priv_init(SysBusDevice *dev)
     mpcore_priv_state *s = FROM_SYSBUSGIC(mpcore_priv_state, dev);
     int i;
 
-    gic_init(&s->gic);
+    gic_init(&s->gic, s->num_cpu);
     s->iomemtype = cpu_register_io_memory(mpcore_priv_readfn,
                                           mpcore_priv_writefn, s);
     sysbus_init_mmio_cb(dev, 0x2000, mpcore_priv_map);
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < s->num_cpu * 2; i++) {
         mpcore_timer_init(s, &s->timer[i], i);
     }
     return 0;
@@ -284,6 +296,7 @@ typedef struct {
     SysBusDevice busdev;
     qemu_irq cpuic[32];
     qemu_irq rvic[4][64];
+    uint32_t num_cpu;
 } mpcore_rirq_state;
 
 /* Map baseboard IRQs onto CPU IRQ lines.  */
@@ -315,11 +328,16 @@ static int realview_mpcore_init(SysBusDevice *dev)
     mpcore_rirq_state *s = FROM_SYSBUS(mpcore_rirq_state, dev);
     DeviceState *gic;
     DeviceState *priv;
+    SysBusDevice *bus_priv;
     int n;
     int i;
 
-    priv = sysbus_create_simple("arm11mpcore_priv", MPCORE_PRIV_BASE, NULL);
-    sysbus_pass_irq(dev, sysbus_from_qdev(priv));
+    priv = qdev_create(NULL, "arm11mpcore_priv");
+    qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
+    qdev_init_nofail(priv);
+    bus_priv = sysbus_from_qdev(priv);
+    sysbus_mmio_map(bus_priv, 0, MPCORE_PRIV_BASE);
+    sysbus_pass_irq(dev, bus_priv);
     for (i = 0; i < 32; i++) {
         s->cpuic[i] = qdev_get_gpio_in(priv, i);
     }
@@ -335,12 +353,30 @@ static int realview_mpcore_init(SysBusDevice *dev)
     return 0;
 }
 
+static SysBusDeviceInfo mpcore_rirq_info = {
+    .init = realview_mpcore_init,
+    .qdev.name  = "realview_mpcore",
+    .qdev.size  = sizeof(mpcore_rirq_state),
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("num-cpu", mpcore_rirq_state, num_cpu, 1),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static SysBusDeviceInfo mpcore_priv_info = {
+    .init = mpcore_priv_init,
+    .qdev.name  = "arm11mpcore_priv",
+    .qdev.size  = sizeof(mpcore_priv_state),
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("num-cpu", mpcore_priv_state, num_cpu, 1),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void mpcore_register_devices(void)
 {
-    sysbus_register_dev("realview_mpcore", sizeof(mpcore_rirq_state),
-                        realview_mpcore_init);
-    sysbus_register_dev("arm11mpcore_priv", sizeof(mpcore_priv_state),
-                        mpcore_priv_init);
+    sysbus_register_withprop(&mpcore_rirq_info);
+    sysbus_register_withprop(&mpcore_priv_info);
 }
 
 device_init(mpcore_register_devices)

@@ -184,7 +184,7 @@ static void versatile_init(ram_addr_t ram_size,
     /* SDRAM at address zero.  */
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
-    arm_sysctl_init(0x10000000, 0x41007004);
+    arm_sysctl_init(0x10000000, 0x41007004, 0x02000000);
     cpu_pic = arm_pic_init_cpu(env);
     dev = sysbus_create_varargs("pl190", 0x10140000,
                                 cpu_pic[0], cpu_pic[1], NULL);
