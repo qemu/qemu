@@ -51,6 +51,7 @@ static void realview_init(ram_addr_t ram_size,
     int done_smc = 0;
     qemu_irq cpu_irq[4];
     int ncpu;
+    uint32_t proc_id = 0;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -73,13 +74,22 @@ static void realview_init(ram_addr_t ram_size,
             qemu_register_reset(secondary_cpu_reset, env);
         }
     }
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        proc_id = 0x0e000000;
+    } else if (arm_feature(env, ARM_FEATURE_V6K)) {
+        proc_id = 0x06000000;
+    } else if (arm_feature(env, ARM_FEATURE_V6)) {
+        proc_id = 0x04000000;
+    } else {
+        proc_id = 0x02000000;
+    }
 
     ram_offset = qemu_ram_alloc(ram_size);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
-    arm_sysctl_init(0x10000000, 0xc1400400);
+    arm_sysctl_init(0x10000000, 0xc1400400, proc_id);
 
     if (ncpu == 1) {
         /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
