@@ -683,7 +683,7 @@ static void prom_set(int index, const char *string, ...)
 }
 
 /* Kernel */
-static int64_t load_kernel (CPUState *env)
+static int64_t load_kernel (void)
 {
     int64_t kernel_entry, kernel_low, kernel_high;
     int index = 0;
@@ -758,7 +758,6 @@ static void main_cpu_reset(void *opaque)
        location does not change. */
     if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
-        load_kernel (env);
     }
 }
 
@@ -843,8 +842,7 @@ void mips_malta_init (ram_addr_t ram_size,
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        kernel_entry = load_kernel(env);
-        env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
+        kernel_entry = load_kernel();
         write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
     } else {
         dinfo = drive_get(IF_PFLASH, 0, fl_idx);
