@@ -50,7 +50,12 @@ static struct _loaderparams {
     const char *initrd_filename;
 } loaderparams;
 
-static void load_kernel (CPUState *env)
+typedef struct ResetData {
+    CPUState *env;
+    uint64_t vector;
+} ResetData;
+
+static int64_t load_kernel(void)
 {
     int64_t entry, kernel_low, kernel_high;
     long kernel_size;
@@ -70,7 +75,6 @@ static void load_kernel (CPUState *env)
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
-        env->active_tc.PC = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
@@ -99,15 +103,16 @@ static void load_kernel (CPUState *env)
             exit(1);
         }
     }
+    return entry;
 }
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
-    cpu_reset(env);
+    ResetData *s = (ResetData *)opaque;
+    CPUState *env = s->env;
 
-    if (loaderparams.kernel_filename)
-        load_kernel (env);
+    cpu_reset(env);
+    env->active_tc.PC = s->vector;
 }
 
 static void
@@ -120,6 +125,7 @@ mips_mipssim_init (ram_addr_t ram_size,
     ram_addr_t ram_offset;
     ram_addr_t bios_offset;
     CPUState *env;
+    ResetData *reset_info;
     int bios_size;
 
     /* Init CPUs. */
@@ -135,7 +141,10 @@ mips_mipssim_init (ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    qemu_register_reset(main_cpu_reset, env);
+    reset_info = qemu_mallocz(sizeof(ResetData));
+    reset_info->env = env;
+    reset_info->vector = env->active_tc.PC;
+    qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate RAM. */
     ram_offset = qemu_ram_alloc(ram_size);
@@ -172,7 +181,7 @@ mips_mipssim_init (ram_addr_t ram_size,
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        load_kernel(env);
+        reset_info->vector = load_kernel();
     }
 
     /* Init CPU internal devices. */

@@ -239,12 +239,13 @@ clean:
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser; do \
-	$(MAKE) -C $$d $@ || exit 1 ; \
+	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi
+	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
 	rm -f config-all-devices.mak config-all-devices.h*
+	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS) libhw32 libhw64 libuser; do \
 	rm -rf $$d || exit 1 ; \

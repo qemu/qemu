@@ -74,7 +74,12 @@ static CPUReadMemoryFunc * const mips_qemu_read[] = {
 
 static int mips_qemu_iomemtype = 0;
 
-static void load_kernel (CPUState *env)
+typedef struct ResetData {
+    CPUState *env;
+    uint64_t vector;
+} ResetData;
+
+static int64_t load_kernel(void)
 {
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
@@ -93,7 +98,6 @@ static void load_kernel (CPUState *env)
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
-        env->active_tc.PC = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
@@ -101,7 +105,7 @@ static void load_kernel (CPUState *env)
     }
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->active_tc.gpr[29] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
+    //~ env->active_tc.gpr[29] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
 
     /* load initrd */
     initrd_size = 0;
@@ -142,15 +146,16 @@ static void load_kernel (CPUState *env)
 
     stl_phys((16 << 20) - 260, 0x12345678);
     stl_phys((16 << 20) - 264, ram_size);
+    return entry;
 }
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
-    cpu_reset(env);
+    ResetData *s = (ResetData *)opaque;
+    CPUState *env = s->env;
 
-    if (loaderparams.kernel_filename)
-        load_kernel (env);
+    cpu_reset(env);
+    env->active_tc.PC = s->vector;
 }
 
 static const int sector_len = 32 * 1024;
@@ -164,6 +169,7 @@ static void mips_init(ram_addr_t ram_size,
     ram_addr_t bios_offset;
     int bios_size;
     CPUState *env;
+    ResetData *reset_info;
     RTCState *rtc_state;
     int i;
     qemu_irq *i8259;
@@ -187,7 +193,10 @@ static void mips_init(ram_addr_t ram_size,
     fprintf(stderr, "%s: setting %s endian mode\n",
             __func__, bigendian ? "big" : "little");
 
-    qemu_register_reset(main_cpu_reset, env);
+    reset_info = qemu_mallocz(sizeof(ResetData));
+    reset_info->env = env;
+    reset_info->vector = env->active_tc.PC;
+    qemu_register_reset(main_cpu_reset, reset_info);
 
     /* allocate RAM */
     if (ram_size > (256 << 20)) {
@@ -247,7 +256,7 @@ static void mips_init(ram_addr_t ram_size,
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        load_kernel (env);
+        reset_info->vector = load_kernel();
     }
 
     /* Init CPU internal devices */

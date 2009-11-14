@@ -1147,7 +1147,6 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "0", "ci" } },
     { INDEX_op_shr_i32, { "r", "0", "ci" } },
     { INDEX_op_sar_i32, { "r", "0", "ci" } },
-    { INDEX_op_sar_i32, { "r", "0", "ci" } },
     { INDEX_op_rotl_i32, { "r", "0", "ci" } },
     { INDEX_op_rotr_i32, { "r", "0", "ci" } },
 
