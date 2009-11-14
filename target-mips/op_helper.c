@@ -1169,7 +1169,7 @@ void helper_mtc0_status (target_ulong arg1)
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
         default: cpu_abort(env, "Invalid MMU mode!\n"); break;
-	}
+        }
     }
     cpu_mips_update_irq(env);
 }
