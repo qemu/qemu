@@ -655,41 +655,37 @@ static void write_bootloader (CPUState *env, uint8_t *base,
 
 }
 
-static void prom_set(int index, const char *string, ...)
+static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
 {
-    char buf[ENVP_ENTRY_SIZE];
-    target_phys_addr_t p;
     va_list ap;
     int32_t table_addr;
 
     if (index >= ENVP_NB_ENTRIES)
         return;
 
-    p = ENVP_ADDR + VIRT_TO_PHYS_ADDEND + index * 4;
-
     if (string == NULL) {
-        stl_phys(p, 0);
+        prom_buf[index] = 0;
         return;
     }
 
-    table_addr = ENVP_ADDR + sizeof(int32_t) * ENVP_NB_ENTRIES
-                 + index * ENVP_ENTRY_SIZE;
-    stl_phys(p, table_addr);
+    table_addr = sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
+    prom_buf[index] = tswap32(ENVP_ADDR + table_addr);
 
     va_start(ap, string);
-    vsnprintf(buf, ENVP_ENTRY_SIZE, string, ap);
+    vsnprintf((char *)prom_buf + table_addr, ENVP_ENTRY_SIZE, string, ap);
     va_end(ap);
-    pstrcpy_targphys("prom", table_addr + VIRT_TO_PHYS_ADDEND, ENVP_ENTRY_SIZE, buf);
 }
 
 /* Kernel */
 static int64_t load_kernel (void)
 {
     int64_t kernel_entry, kernel_low, kernel_high;
-    int index = 0;
     long initrd_size;
     ram_addr_t initrd_offset;
     int big_endian;
+    uint32_t *prom_buf;
+    long prom_size;
+    int prom_index = 0;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     big_endian = 1;
@@ -729,21 +725,27 @@ static int64_t load_kernel (void)
         }
     }
 
-    /* Store command line.  */
-    prom_set(index++, loaderparams.kernel_filename);
-    if (initrd_size > 0)
-        prom_set(index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
+    /* Setup prom parameters. */
+    prom_size = ENVP_NB_ENTRIES * (sizeof(int32_t) + ENVP_ENTRY_SIZE);
+    prom_buf = qemu_malloc(prom_size);
+
+    prom_set(prom_buf, prom_index++, loaderparams.kernel_filename);
+    if (initrd_size > 0) {
+        prom_set(prom_buf, prom_index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
                  PHYS_TO_VIRT(initrd_offset), initrd_size,
                  loaderparams.kernel_cmdline);
-    else
-        prom_set(index++, loaderparams.kernel_cmdline);
+    } else {
+        prom_set(prom_buf, prom_index++, loaderparams.kernel_cmdline);
+    }
 
-    /* Setup minimum environment variables */
-    prom_set(index++, "memsize");
-    prom_set(index++, "%i", loaderparams.ram_size);
-    prom_set(index++, "modetty0");
-    prom_set(index++, "38400n8r");
-    prom_set(index++, NULL);
+    prom_set(prom_buf, prom_index++, "memsize");
+    prom_set(prom_buf, prom_index++, "%i", loaderparams.ram_size);
+    prom_set(prom_buf, prom_index++, "modetty0");
+    prom_set(prom_buf, prom_index++, "38400n8r");
+    prom_set(prom_buf, prom_index++, NULL);
+
+    rom_add_blob_fixed("prom", prom_buf, prom_size,
+                       ENVP_ADDR + VIRT_TO_PHYS_ADDEND);
 
     return kernel_entry;
 }
