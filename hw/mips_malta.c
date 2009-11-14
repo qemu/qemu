@@ -230,7 +230,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
     /* SWITCH Register */
     case 0x00200:
         val = 0x00000000;		/* All switches closed */
-	break;
+        break;
 
     /* STATUS Register */
     case 0x00208:
@@ -297,7 +297,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
     default:
 #if 0
         printf ("malta_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
-		addr);
+                addr);
 #endif
         break;
     }
@@ -384,7 +384,7 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
     default:
 #if 0
         printf ("malta_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
-		addr);
+                addr);
 #endif
         break;
     }
