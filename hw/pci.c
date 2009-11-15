@@ -499,10 +499,11 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
             if (!bus->devices[devfn])
                 goto found;
         }
-        return NULL;
+        hw_error("PCI: no devfn available for %s, all in use\n", name);
     found: ;
     } else if (bus->devices[devfn]) {
-        return NULL;
+        hw_error("PCI: devfn %d not available for %s, in use by %s\n", devfn,
+                 name, bus->devices[devfn]->name);
     }
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
@@ -1273,7 +1274,6 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write,
                                      info->header_type);
-    assert(pci_dev);
     rc = info->init(pci_dev);
     if (rc != 0)
         return rc;
