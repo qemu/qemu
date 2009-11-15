@@ -561,7 +561,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 
     if (len == 0) {
         if (r->buf != NULL)
-            free(r->buf);
+            qemu_free(r->buf);
         r->buflen = 0;
         r->buf = NULL;
         ret = execute_command(s->dinfo->bdrv, r, SG_DXFER_NONE, scsi_command_complete);
@@ -574,7 +574,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 
     if (r->buflen != len) {
         if (r->buf != NULL)
-            free(r->buf);
+            qemu_free(r->buf);
         r->buf = qemu_malloc(len);
         r->buflen = len;
     }
