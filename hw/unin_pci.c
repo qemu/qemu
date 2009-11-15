@@ -156,7 +156,9 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
                                          pci_unin_set_irq, pci_unin_map_irq,
                                          pic, 11 << 3, 4);
 
+#if 0
     pci_create_simple(d->host_state.bus, 11 << 3, "Uni-north main");
+#endif
 
     sysbus_mmio_map(s, 0, 0xf2800000);
     sysbus_mmio_map(s, 1, 0xf2c00000);
@@ -168,7 +170,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
 #endif
 
     /* Uninorth AGP bus */
-    pci_create_simple(d->host_state.bus, 13 << 3, "Uni-north AGP");
+    pci_create_simple(d->host_state.bus, 11 << 3, "Uni-north AGP");
 
     /* Uninorth internal bus */
 #if 0
