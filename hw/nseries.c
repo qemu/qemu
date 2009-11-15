@@ -711,7 +711,7 @@ static void n800_dss_init(struct rfbi_chip_s *chip)
     fb_blank = memset(qemu_malloc(800 * 480 * 2), 0xff, 800 * 480 * 2);
     /* Display Memory Data Port */
     chip->block(chip->opaque, 1, fb_blank, 800 * 480 * 2, 800);
-    free(fb_blank);
+    qemu_free(fb_blank);
 }
 
 static void n8x0_dss_setup(struct n800_s *s)
