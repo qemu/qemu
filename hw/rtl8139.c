@@ -1985,7 +1985,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     if (!s->cplus_txbuffer)
     {
         s->cplus_txbuffer_len = CP_TX_BUFFER_SIZE;
-        s->cplus_txbuffer = malloc(s->cplus_txbuffer_len);
+        s->cplus_txbuffer = qemu_malloc(s->cplus_txbuffer_len);
         s->cplus_txbuffer_offset = 0;
 
         DEBUG_PRINT(("RTL8139: +++ C+ mode transmission buffer allocated space %d\n", s->cplus_txbuffer_len));
@@ -2300,7 +2300,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
         }
         else
         {
-            free(saved_buffer);
+            qemu_free(saved_buffer);
         }
     }
     else
