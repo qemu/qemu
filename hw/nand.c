@@ -507,9 +507,9 @@ void nand_done(NANDFlashState *s)
     }
 
     if (!s->bdrv || s->mem_oob)
-        free(s->storage);
+        qemu_free(s->storage);
 
-    free(s);
+    qemu_free(s);
 }
 
 #else
