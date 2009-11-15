@@ -171,11 +171,21 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
 
     /* Uninorth AGP bus */
     pci_create_simple(d->host_state.bus, 11 << 3, "Uni-north AGP");
+    dev = qdev_create(NULL, "Uni-north AGP");
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_mmio_map(s, 0, 0xf0800000);
+    sysbus_mmio_map(s, 1, 0xf0c00000);
 
     /* Uninorth internal bus */
 #if 0
     /* XXX: not needed for now */
     pci_create_simple(d->host_state.bus, 14 << 3, "Uni-north internal");
+    dev = qdev_create(NULL, "Uni-north internal");
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+    sysbus_mmio_map(s, 0, 0xf4800000);
+    sysbus_mmio_map(s, 1, 0xf4c00000);
 #endif
 
     return d->host_state.bus;
