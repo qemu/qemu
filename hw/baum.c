@@ -559,7 +559,7 @@ static void baum_chr_read(void *opaque)
     if (ret == -1 && (brlapi_errno != BRLAPI_ERROR_LIBCERR || errno != EINTR)) {
         brlapi_perror("baum: brlapi_readKey");
         brlapi__closeConnection(baum->brlapi);
-        free(baum->brlapi);
+        qemu_free(baum->brlapi);
         baum->brlapi = NULL;
     }
 }
@@ -622,8 +622,8 @@ fail:
     qemu_free_timer(baum->cellCount_timer);
     brlapi__closeConnection(handle);
 fail_handle:
-    free(handle);
-    free(chr);
-    free(baum);
+    qemu_free(handle);
+    qemu_free(chr);
+    qemu_free(baum);
     return NULL;
 }
