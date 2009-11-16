@@ -44,5 +44,5 @@ cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
 	@test -f $@ || cp $< $@
 
 %.h-timestamp: %.mak
-	$(call quiet-command, $(SRC_PATH)/create_config < $< > $@, "  GEN   $*.h")
+	$(call quiet-command, sh $(SRC_PATH)/create_config < $< > $@, "  GEN   $*.h")
 	@cmp $@ $*.h >/dev/null 2>&1 || cp $@ $*.h

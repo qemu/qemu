@@ -1202,8 +1202,6 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     if (bus) {
         opp = (openpic_t *)pci_register_device(bus, "OpenPIC", sizeof(openpic_t),
                                                -1, NULL, NULL);
-        if (opp == NULL)
-            return NULL;
         pci_conf = opp->pci_dev.config;
         pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_IBM);
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_IBM_OPENPIC2);
