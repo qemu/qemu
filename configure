@@ -1165,9 +1165,9 @@ for drv in $audio_drv_list; do
     ;;
 
     pa)
-    audio_drv_probe $drv pulse/simple.h -lpulse-simple \
+    audio_drv_probe $drv pulse/simple.h "-lpulse-simple -lpulse" \
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
-    libs_softmmu="-lpulse-simple $libs_softmmu"
+    libs_softmmu="-lpulse -lpulse-simple $libs_softmmu"
     audio_pt_int="yes"
     ;;
 
