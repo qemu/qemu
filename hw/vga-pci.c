@@ -107,6 +107,12 @@ static int pci_vga_initfn(PCIDevice *dev)
                          PCI_BASE_ADDRESS_MEM_PREFETCH, vga_map);
      }
 
+#ifdef CONFIG_BOCHS_VBE
+    /* XXX: use optimized standard vga accesses */
+    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                 VGA_RAM_SIZE, s->vram_offset);
+#endif
+
      /* ROM BIOS */
      rom_add_vga(VGABIOS_FILENAME);
      return 0;
