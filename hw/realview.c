@@ -16,12 +16,11 @@
 #include "sysemu.h"
 #include "boards.h"
 
+#define SMP_BOOT_ADDR 0xe0000000
 /* Board init.  */
 
 static struct arm_boot_info realview_binfo = {
-    .loader_start = 0x0,
-    .smp_loader_start = 0x80000000,
-    .board_id = 0x33b,
+    .smp_loader_start = SMP_BOOT_ADDR,
 };
 
 static void secondary_cpu_reset(void *opaque)
@@ -32,12 +31,13 @@ static void secondary_cpu_reset(void *opaque)
   /* Set entry point for secondary CPUs.  This assumes we're using
      the init code from arm_boot.c.  Real hardware resets all CPUs
      the same.  */
-  env->regs[15] = 0x80000000;
+  env->regs[15] = SMP_BOOT_ADDR;
 }
 
 enum realview_board_type {
     BOARD_EB,
-    BOARD_EB_MPCORE
+    BOARD_EB_MPCORE,
+    BOARD_PB_A8
 };
 
 static void realview_init(ram_addr_t ram_size,
@@ -55,10 +55,13 @@ static void realview_init(ram_addr_t ram_size,
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
-    int done_smc = 0;
+    int done_nic = 0;
     qemu_irq cpu_irq[4];
     int is_mpcore = (board_type == BOARD_EB_MPCORE);
+    int is_pb = (board_type == BOARD_PB_A8);
     uint32_t proc_id = 0;
+    uint32_t sys_id;
+    ram_addr_t low_ram_size;
 
     for (n = 0; n < smp_cpus; n++) {
         env = cpu_init(cpu_model);
@@ -83,11 +86,22 @@ static void realview_init(ram_addr_t ram_size,
     }
 
     ram_offset = qemu_ram_alloc(ram_size);
+    low_ram_size = ram_size;
+    if (low_ram_size > 0x10000000)
+      low_ram_size = 0x10000000;
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
-    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+    cpu_register_physical_memory(0, low_ram_size, ram_offset | IO_MEM_RAM);
+    if (is_pb) {
+        /* And again at a high address.  */
+        cpu_register_physical_memory(0x70000000, ram_size,
+                                     ram_offset | IO_MEM_RAM);
+    } else {
+        ram_size = low_ram_size;
+    }
 
-    arm_sysctl_init(0x10000000, 0xc1400400, proc_id);
+    sys_id = is_pb ? 0x01780500 : 0xc1400400;
+    arm_sysctl_init(0x10000000, sys_id, proc_id);
 
     if (is_mpcore) {
         dev = qdev_create(NULL, "realview_mpcore");
@@ -98,7 +112,9 @@ static void realview_init(ram_addr_t ram_size,
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
     } else {
-        dev = sysbus_create_simple("realview_gic", 0x10040000, cpu_irq[0]);
+        uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
+        /* For now just create the nIRQ GIC, and ignore the others.  */
+        dev = sysbus_create_simple("realview_gic", gic_addr, cpu_irq[0]);
     }
     for (n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
@@ -124,23 +140,30 @@ static void realview_init(ram_addr_t ram_size,
 
     sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
-    dev = sysbus_create_varargs("realview_pci", 0x60000000,
-                                pic[48], pic[49], pic[50], pic[51], NULL);
-    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
-    if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
-    }
-    n = drive_get_max_bus(IF_SCSI);
-    while (n >= 0) {
-        pci_create_simple(pci_bus, -1, "lsi53c895a");
-        n--;
+    if (!is_pb) {
+        dev = sysbus_create_varargs("realview_pci", 0x60000000,
+                                    pic[48], pic[49], pic[50], pic[51], NULL);
+        pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
+        if (usb_enabled) {
+            usb_ohci_init_pci(pci_bus, -1);
+        }
+        n = drive_get_max_bus(IF_SCSI);
+        while (n >= 0) {
+            pci_create_simple(pci_bus, -1, "lsi53c895a");
+            n--;
+        }
     }
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
 
-        if ((!nd->model && !done_smc) || strcmp(nd->model, "smc91c111") == 0) {
-            smc91c111_init(nd, 0x4e000000, pic[28]);
-            done_smc = 1;
+        if ((!nd->model && !done_nic)
+            || strcmp(nd->model, is_pb ? "lan9118" : "smc91c111") == 0) {
+            if (is_pb) {
+                lan9118_init(nd, 0x4e000000, pic[28]);
+            } else {
+                smc91c111_init(nd, 0x4e000000, pic[28]);
+            }
+            done_nic = 1;
         } else {
             pci_nic_init_nofail(nd, "rtl8139", NULL);
         }
@@ -155,7 +178,7 @@ static void realview_init(ram_addr_t ram_size,
     /*  0x10005000 MCI.  */
     /* 0x10006000 KMI0.  */
     /* 0x10007000 KMI1.  */
-    /*  0x10008000 Character LCD.  */
+    /*  0x10008000 Character LCD. (EB) */
     /* 0x10009000 UART0.  */
     /* 0x1000a000 UART1.  */
     /* 0x1000b000 UART2.  */
@@ -169,17 +192,21 @@ static void realview_init(ram_addr_t ram_size,
     /*  0x10013000 GPIO 0.  */
     /*  0x10014000 GPIO 1.  */
     /*  0x10015000 GPIO 2.  */
-    /* 0x10016000 Reserved.  */
+    /*  0x10002000 Two-Wire Serial Bus - DVI. (PB) */
     /* 0x10017000 RTC.  */
     /*  0x10018000 DMC.  */
     /*  0x10019000 PCI controller config.  */
     /*  0x10020000 CLCD.  */
     /* 0x10030000 DMA Controller.  */
-    /* 0x10040000 GIC1.  */
-    /* 0x10050000 GIC2.  */
-    /* 0x10060000 GIC3.  */
-    /* 0x10070000 GIC4.  */
+    /* 0x10040000 GIC1. (EB) */
+    /*  0x10050000 GIC2. (EB) */
+    /*  0x10060000 GIC3. (EB) */
+    /*  0x10070000 GIC4. (EB) */
     /*  0x10080000 SMC.  */
+    /* 0x1e000000 GIC1. (PB) */
+    /*  0x1e001000 GIC2. (PB) */
+    /*  0x1e002000 GIC3. (PB) */
+    /*  0x1e003000 GIC4. (PB) */
     /*  0x40000000 NOR flash.  */
     /*  0x44000000 DoC flash.  */
     /*  0x48000000 SRAM.  */
@@ -203,13 +230,16 @@ static void realview_init(ram_addr_t ram_size,
        BootROM happens to be in ROM/flash or in memory that isn't clobbered
        until after Linux boots the secondary CPUs.  */
     ram_offset = qemu_ram_alloc(0x1000);
-    cpu_register_physical_memory(0x80000000, 0x1000, ram_offset | IO_MEM_RAM);
+    cpu_register_physical_memory(SMP_BOOT_ADDR, 0x1000,
+                                 ram_offset | IO_MEM_RAM);
 
     realview_binfo.ram_size = ram_size;
     realview_binfo.kernel_filename = kernel_filename;
     realview_binfo.kernel_cmdline = kernel_cmdline;
     realview_binfo.initrd_filename = initrd_filename;
     realview_binfo.nb_cpus = smp_cpus;
+    realview_binfo.board_id = is_pb ? 0x769 : 0x33b;
+    realview_binfo.loader_start = is_pb ? 0x70000000 : 0;
     arm_load_kernel(first_cpu, &realview_binfo);
 }
 
@@ -237,6 +267,18 @@ static void realview_eb_mpcore_init(ram_addr_t ram_size,
                   initrd_filename, cpu_model, BOARD_EB_MPCORE);
 }
 
+static void realview_pb_a8_init(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    if (!cpu_model) {
+        cpu_model = "cortex-a8";
+    }
+    realview_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                  initrd_filename, cpu_model, BOARD_PB_A8);
+}
+
 static QEMUMachine realview_eb_machine = {
     .name = "realview-eb",
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
@@ -252,10 +294,18 @@ static QEMUMachine realview_eb_mpcore_machine = {
     .max_cpus = 4,
 };
 
+static QEMUMachine realview_pb_a8_machine = {
+    .name = "realview-pb-a8",
+    .desc = "ARM RealView Platform Baseboard for Cortex-A8",
+    .init = realview_pb_a8_init,
+    .use_scsi = 1,
+};
+
 static void realview_machine_init(void)
 {
     qemu_register_machine(&realview_eb_machine);
     qemu_register_machine(&realview_eb_mpcore_machine);
+    qemu_register_machine(&realview_pb_a8_machine);
 }
 
 machine_init(realview_machine_init);
