@@ -189,7 +189,7 @@ esac
 # Default value for a variable defining feature "foo"
 #  * foo="no", feature will only be used if --enable-foo arg is given
 #  * foo="", feature will be searched for, and if found, will be used
-#  * foo="yes", this value vill only be set by --enable-foo flag.
+#  * foo="yes", this value will only be set by --enable-foo flag.
 #                   feature will searched for, if not found, configure exits with error
 #
 # Always add --enable-foo and --disable-foo command line args.  Distributions want
@@ -206,6 +206,7 @@ kvm=""
 nptl=""
 sdl=""
 sparse="no"
+tools=""
 uuid=""
 vde=""
 vnc_tls=""
@@ -587,6 +588,10 @@ for opt do
   --disable-docs) docs="no"
   ;;
   --enable-docs) docs="yes"
+  ;;
+  --disable-tools) tools="no"
+  ;;
+  --enable-tools) tools="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1653,6 +1658,14 @@ if test "$docs" != "no" ; then
   fi
 fi
 
+if test "$tools" == ""; then
+  if test `expr "$target_list" : ".*softmmu.*"` != 0; then
+    tools=yes
+  else
+    tools=no
+  fi
+fi
+
 # Search for bswap_32 function
 byteswap_h=no
 cat > $TMPC << EOF
@@ -1878,6 +1891,7 @@ echo "xen support       $xen"
 echo "brlapi support    $brlapi"
 echo "bluez  support    $bluez"
 echo "Documentation     $docs"
+echo "Tools             $tools"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
@@ -2030,6 +2044,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
 fi
+if [ "$tools" = "yes" ] ; then
+  echo "BUILD_TOOLS=yes" >> $config_host_mak
+fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=y" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
@@ -2135,17 +2152,14 @@ bsd)
 ;;
 esac
 
-tools=
-if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
-  tools="qemu-img\$(EXESUF) $tools"
-  if [ "$linux" = "yes" ] ; then
-    tools="qemu-nbd\$(EXESUF) qemu-io\$(EXESUF) $tools"
-    if [ "$check_utests" = "yes" ]; then
-      tools="check-qint check-qstring check-qdict check-qlist $tools"
-    fi
-  elif test "$mingw32" = "yes" ; then
-      tools="qemu-io\$(EXESUF) $tools"
+tools="qemu-img\$(EXESUF) $tools"
+if [ "$linux" = "yes" ] ; then
+  tools="qemu-nbd\$(EXESUF) qemu-io\$(EXESUF) $tools"
+  if [ "$check_utests" = "yes" ]; then
+    tools="check-qint check-qstring check-qdict check-qlist $tools"
   fi
+elif test "$mingw32" = "yes" ; then
+    tools="qemu-io\$(EXESUF) $tools"
 fi
 echo "TOOLS=$tools" >> $config_host_mak
 
