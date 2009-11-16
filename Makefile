@@ -22,7 +22,8 @@ endif
 Makefile: ;
 configure: ;
 
-.PHONY: all clean cscope distclean doc dvi html info install install-doc \
+.PHONY: all clean cscope distclean doc dvi html \
+	info install install-doc install-tools \
 	recurse-all speed tar tarbin test tools build-all
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
@@ -274,7 +275,7 @@ else
 BLOBS=
 endif
 
-install-doc: $(DOCS)
+install-doc: doc
 	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"
 	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
 ifdef CONFIG_POSIX
@@ -284,11 +285,11 @@ ifdef CONFIG_POSIX
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
 endif
 
-install: all $(if $(BUILD_DOCS),install-doc)
-	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
-ifneq ($(TOOLS),)
+install-tools: tools
 	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
-endif
+
+install: all $(if $(BUILD_DOCS),install-doc) $(if $(BUILD_TOOLS),install-tools)
+	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(BLOBS),)
 	$(INSTALL_DIR) "$(DESTDIR)$(datadir)"
 	set -e; for x in $(BLOBS); do \

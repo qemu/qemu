@@ -2152,7 +2152,7 @@ bsd)
 ;;
 esac
 
-tools="qemu-img\$(EXESUF) $tools"
+tools="qemu-img\$(EXESUF)"
 if [ "$linux" = "yes" ] ; then
   tools="qemu-nbd\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$check_utests" = "yes" ]; then
