@@ -6,6 +6,9 @@
 /* smc91c111.c */
 void smc91c111_init(NICInfo *, uint32_t, qemu_irq);
 
+/* lan9118.c */
+void lan9118_init(NICInfo *, uint32_t, qemu_irq);
+
 /* tsc210x.c */
 uWireSlave *tsc2102_init(qemu_irq pint);
 uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav);
