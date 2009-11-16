@@ -22,18 +22,14 @@ endif
 Makefile: ;
 configure: ;
 
-.PHONY: all clean cscope distclean dvi html info install install-doc \
-	recurse-all speed tar tarbin test build-all
+.PHONY: all clean cscope distclean doc dvi html info install install-doc \
+	recurse-all speed tar tarbin test tools build-all
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
 LIBS+=-lz $(LIBS_TOOLS)
 
-ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8
-else
-DOCS=
-endif
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
 SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
@@ -43,7 +39,18 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 
 -include config-all-devices.mak
 
-build-all: $(DOCS) $(TOOLS) recurse-all
+build-all: recurse-all
+
+ifdef BUILD_DOCS
+build-all: doc
+endif
+
+ifdef BUILD_TOOLS
+build-all: tools
+endif
+
+doc: $(DOCS)
+tools: $(TOOLS)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
