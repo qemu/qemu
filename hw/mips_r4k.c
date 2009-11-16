@@ -82,9 +82,9 @@ typedef struct ResetData {
 static int64_t load_kernel(void)
 {
     int64_t entry, kernel_low, kernel_high;
-    long kernel_size, initrd_size;
+    long kernel_size, initrd_size, params_size;
     ram_addr_t initrd_offset;
-    int ret;
+    uint32_t *params_buf;
     int big_endian;
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -132,20 +132,23 @@ static int64_t load_kernel(void)
     }
 
     /* Store command line.  */
-    if (initrd_size > 0) {
-        char buf[64];
-        ret = snprintf(buf, 64, "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
-                       PHYS_TO_VIRT((uint32_t)initrd_offset),
-                       initrd_size);
-        cpu_physical_memory_write((16 << 20) - 256, (void *)buf, 64);
-    } else {
-        ret = 0;
-    }
-    pstrcpy_targphys("cmdline", (16 << 20) - 256 + ret, 256,
-                     loaderparams.kernel_cmdline);
+    params_size = 264;
+    params_buf = qemu_malloc(params_size);
 
-    stl_phys((16 << 20) - 260, 0x12345678);
-    stl_phys((16 << 20) - 264, ram_size);
+    params_buf[0] = tswap32(ram_size);
+    params_buf[1] = tswap32(0x12345678);
+
+    if (initrd_size > 0) {
+        snprintf((char *)params_buf + 8, 256, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
+                 PHYS_TO_VIRT((uint32_t)initrd_offset),
+                 initrd_size, loaderparams.kernel_cmdline);
+    } else {
+        snprintf((char *)params_buf + 8, 256, "%s", loaderparams.kernel_cmdline);
+    }
+
+    rom_add_blob_fixed("params", params_buf, params_size,
+                       (16 << 20) - 264);
+
     return entry;
 }
 
