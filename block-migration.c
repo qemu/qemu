@@ -16,7 +16,6 @@
 #include "hw/hw.h"
 #include "block-migration.h"
 #include <assert.h>
-#include <pthread.h>
 
 #define SECTOR_BITS 9
 #define SECTOR_SIZE (1 << SECTOR_BITS)
