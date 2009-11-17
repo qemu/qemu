@@ -30,9 +30,13 @@ typedef struct QList {
         qlist_append_obj(qlist, QOBJECT(obj))
 
 QList *qlist_new(void);
+QList *qlist_copy(QList *src);
 void qlist_append_obj(QList *qlist, QObject *obj);
 void qlist_iter(const QList *qlist,
                 void (*iter)(QObject *obj, void *opaque), void *opaque);
+QObject *qlist_pop(QList *qlist);
+QObject *qlist_peek(QList *qlist);
+int qlist_empty(const QList *qlist);
 QList *qobject_to_qlist(const QObject *obj);
 
 #endif /* QLIST_H */

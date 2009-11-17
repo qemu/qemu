@@ -18,63 +18,15 @@
  *   Authors: Alexander Graf <agraf@suse.de>
  */
 
-#define NO_QEMU_PROTOS
-#include "../../hw/fw_cfg.h"
-
-#define BIOS_CFG_IOPORT_CFG	0x510
-#define BIOS_CFG_IOPORT_DATA	0x511
+#include "optionrom.h"
 
 #define MULTIBOOT_MAGIC		0x2badb002
 
-/* Read a variable from the fw_cfg device.
-   Clobbers:	%edx
-   Out:		%eax */
-.macro read_fw VAR
-	mov		$\VAR, %ax
-	mov		$BIOS_CFG_IOPORT_CFG, %dx
-	outw		%ax, (%dx)
-	mov		$BIOS_CFG_IOPORT_DATA, %dx
-	inb		(%dx), %al
-	shl		$8, %eax
-	inb		(%dx), %al
-	shl		$8, %eax
-	inb		(%dx), %al
-	shl		$8, %eax
-	inb		(%dx), %al
-	bswap		%eax
-.endm
+#define GS_PROT_JUMP		0
+#define GS_GDT_DESC		6
 
-.code16
-.text
-	.global 	_start
-_start:
-	.short		0xaa55
-	.byte		1 /* (_end - _start) / 512 */
-	push		%eax
-	push		%ds
 
-	/* setup ds so we can access the IVT */
-	xor		%ax, %ax
-	mov		%ax, %ds
-
-	/* save old int 19 */
-	mov		(0x19*4), %eax
-	mov		%eax, %cs:old_int19
-
-	/* install our int 19 handler */
-	movw		$int19_handler, (0x19*4)
-	mov		%cs, (0x19*4+2)
-
-	pop		%ds
-	pop		%eax
-	lret
-
-int19_handler:
-	/* DS = CS */
-	movw		%cs, %ax
-	movw		%ax, %ds
-
-	/* fall through */
+BOOT_ROM_START
 
 run_multiboot:
 
@@ -84,15 +36,34 @@ run_multiboot:
 	mov		%cs, %eax
 	shl		$0x4, %eax
 
-	/* fix the gdt descriptor to be PC relative */
-	mov		(gdt_desc+2), %ebx
-	add		%eax, %ebx
-	mov		%ebx, (gdt_desc+2)
+	/* set up a long jump descriptor that is PC relative */
 
-	/* fix the prot mode indirect jump to be PC relative */
+	/* move stack memory to %gs */
+	mov		%ss, %ecx
+	shl		$0x4, %ecx
+	mov		%esp, %ebx
+	add		%ebx, %ecx
+	sub		$0x20, %ecx
+	sub		$0x30, %esp
+	shr		$0x4, %ecx
+	mov		%cx, %gs
+
+	/* now push the indirect jump decriptor there */
 	mov		(prot_jump), %ebx
 	add		%eax, %ebx
-	mov		%ebx, (prot_jump)
+	movl		%ebx, %gs:GS_PROT_JUMP
+	mov		$8, %bx
+	movw		%bx, %gs:GS_PROT_JUMP + 4
+
+	/* fix the gdt descriptor to be PC relative */
+	movw		(gdt_desc), %bx
+	movw		%bx, %gs:GS_GDT_DESC
+	movl		(gdt_desc+2), %ebx
+	add		%eax, %ebx
+	movl		%ebx, %gs:GS_GDT_DESC + 2
+
+	/* Read the bootinfo struct into RAM */
+	read_fw_blob(FW_CFG_INITRD)
 
 	/* FS = bootinfo_struct */
 	read_fw		FW_CFG_INITRD_ADDR
@@ -100,7 +71,7 @@ run_multiboot:
 	mov		%ax, %fs
 
 	/* ES = mmap_addr */
-	read_fw		FW_CFG_INITRD_SIZE
+	mov		%eax, %fs:0x48
 	shr		$4, %eax
 	mov		%ax, %es
 
@@ -144,7 +115,7 @@ mmap_done:
 real_to_prot:
 	/* Load the GDT before going into protected mode */
 lgdt:
-	data32 lgdt	%cs:gdt_desc
+	data32 lgdt	%gs:GS_GDT_DESC
 
 	/* get us to protected mode now */
 	movl		$1, %eax
@@ -152,7 +123,7 @@ lgdt:
 
 	/* the LJMP sets CS for us and gets us to 32-bit */
 ljmp:
-	data32 ljmp	*%cs:prot_jump
+	data32 ljmp	*%gs:GS_PROT_JUMP
 
 prot_mode:
 .code32
@@ -165,8 +136,11 @@ prot_mode:
 	movl		%eax, %fs
 	movl		%eax, %gs
 
+	/* Read the kernel and modules into RAM */
+	read_fw_blob(FW_CFG_KERNEL)
+
 	/* Jump off to the kernel */
-	read_fw		FW_CFG_KERNEL_ADDR
+	read_fw		FW_CFG_KERNEL_ENTRY
 	mov		%eax, %ecx
 
 	/* EBX contains a pointer to the bootinfo struct */
@@ -180,8 +154,6 @@ ljmp2:
 
 /* Variables */
 .align 4, 0
-old_int19:	.long 0
-
 prot_jump:	.long prot_mode
 		.short 8
 
@@ -206,6 +178,4 @@ gdt_desc:
 .short	(5 * 8) - 1
 .long	gdt
 
-.align 512, 0
-_end:
-
+BOOT_ROM_END

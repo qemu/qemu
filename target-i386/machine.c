@@ -2,7 +2,6 @@
 #include "hw/boards.h"
 #include "hw/pc.h"
 #include "hw/isa.h"
-#include "host-utils.h"
 
 #include "exec-all.h"
 #include "kvm.h"
@@ -320,7 +319,7 @@ static const VMStateInfo vmstate_hack_uint64_as_uint32 = {
 static void cpu_pre_save(void *opaque)
 {
     CPUState *env = opaque;
-    int i, bit;
+    int i;
 
     cpu_synchronize_state(env);
 
@@ -336,17 +335,6 @@ static void cpu_pre_save(void *opaque)
 #else
     env->fpregs_format_vmstate = 1;
 #endif
-
-    /* There can only be one pending IRQ set in the bitmap at a time, so try
-       to find it and save its number instead (-1 for none). */
-    env->pending_irq_vmstate = -1;
-    for (i = 0; i < ARRAY_SIZE(env->interrupt_bitmap); i++) {
-        if (env->interrupt_bitmap[i]) {
-            bit = ctz64(env->interrupt_bitmap[i]);
-            env->pending_irq_vmstate = i * 64 + bit;
-            break;
-        }
-    }
 }
 
 static int cpu_pre_load(void *opaque)
@@ -374,14 +362,6 @@ static int cpu_post_load(void *opaque, int version_id)
     cpu_watchpoint_remove_all(env, BP_CPU);
     for (i = 0; i < 4; i++)
         hw_breakpoint_insert(env, i);
-
-    if (version_id >= 9) {
-        memset(&env->interrupt_bitmap, 0, sizeof(env->interrupt_bitmap));
-        if (env->pending_irq_vmstate >= 0) {
-            env->interrupt_bitmap[env->pending_irq_vmstate / 64] |=
-                (uint64_t)1 << (env->pending_irq_vmstate % 64);
-        }
-    }
 
     tlb_flush(env, 1);
     return 0;
@@ -465,7 +445,7 @@ static const VMStateDescription vmstate_cpu = {
         VMSTATE_UINT64_V(mtrr_deftype, CPUState, 8),
         VMSTATE_MTRR_VARS(mtrr_var, CPUState, 8, 8),
         /* KVM-related states */
-        VMSTATE_INT32_V(pending_irq_vmstate, CPUState, 9),
+        VMSTATE_INT32_V(interrupt_injected, CPUState, 9),
         VMSTATE_UINT32_V(mp_state, CPUState, 9),
         VMSTATE_UINT64_V(tsc, CPUState, 9),
         /* MCE */

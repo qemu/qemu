@@ -1626,7 +1626,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   fallocate=yes
 fi
 
@@ -1641,7 +1641,7 @@ int main(void)
     return 0;
 }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if compile_prog "" "" ; then
   dup3=yes
 fi
 
@@ -2157,6 +2157,7 @@ if [ "$linux" = "yes" ] ; then
   tools="qemu-nbd\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$check_utests" = "yes" ]; then
     tools="check-qint check-qstring check-qdict check-qlist $tools"
+    tools="check-qfloat check-qjson $tools"
   fi
 elif test "$mingw32" = "yes" ; then
     tools="qemu-io\$(EXESUF) $tools"

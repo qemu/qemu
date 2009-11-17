@@ -80,7 +80,8 @@ void bdrv_register(BlockDriver *bdrv);
 /* async block I/O */
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
-
+typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
+				     int sector_num);
 BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                                  QEMUIOVector *iov, int nb_sectors,
                                  BlockDriverCompletionFunc *cb, void *opaque);
@@ -187,4 +188,9 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
 
+void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
+int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
+void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, 
+		      int nr_sectors);
+int bdrv_get_sectors_per_chunk(void);
 #endif

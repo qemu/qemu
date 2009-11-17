@@ -691,8 +691,8 @@ typedef struct CPUX86State {
     MTRRVar mtrr_var[8];
 
     /* For KVM */
-    uint64_t interrupt_bitmap[256 / 64];
     uint32_t mp_state;
+    int32_t interrupt_injected;
 
     /* in order to simplify APIC support, we leave this pointer to the
        user */
@@ -709,7 +709,6 @@ typedef struct CPUX86State {
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
-    int32_t pending_irq_vmstate;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(const char *cpu_model);

@@ -614,7 +614,7 @@ CharDriverState *chr_baum_init(QemuOpts *opts)
 
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
 
-    qemu_chr_reset(chr);
+    qemu_chr_generic_open(chr);
 
     return chr;
 

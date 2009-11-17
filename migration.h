@@ -30,6 +30,8 @@ struct MigrationState
     void (*cancel)(MigrationState *s);
     int (*get_status)(MigrationState *s);
     void (*release)(MigrationState *s);
+    int blk;
+    int shared;
 };
 
 typedef struct FdMigrationState FdMigrationState;
@@ -65,27 +67,35 @@ void do_info_migrate(Monitor *mon);
 int exec_start_incoming_migration(const char *host_port);
 
 MigrationState *exec_start_outgoing_migration(const char *host_port,
-					     int64_t bandwidth_limit,
-					     int detach);
+					      int64_t bandwidth_limit,
+					      int detach,
+					      int blk,
+					      int inc);
 
 int tcp_start_incoming_migration(const char *host_port);
 
 MigrationState *tcp_start_outgoing_migration(const char *host_port,
 					     int64_t bandwidth_limit,
-					     int detach);
+					     int detach,
+					     int blk,
+					     int inc);
 
 int unix_start_incoming_migration(const char *path);
 
 MigrationState *unix_start_outgoing_migration(const char *path,
 					      int64_t bandwidth_limit,
-					      int detach);
+					      int detach,
+					      int blk,
+					      int inc);
 
 int fd_start_incoming_migration(const char *path);
 
 MigrationState *fd_start_outgoing_migration(Monitor *mon,
 					    const char *fdname,
 					    int64_t bandwidth_limit,
-					    int detach);
+					    int detach,
+					    int blk,
+					    int inc);
 
 void migrate_fd_monitor_suspend(FdMigrationState *s);
 

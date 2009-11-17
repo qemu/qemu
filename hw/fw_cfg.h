@@ -17,7 +17,16 @@
 #define FW_CFG_NUMA             0x0d
 #define FW_CFG_BOOT_MENU        0x0e
 #define FW_CFG_MAX_CPUS         0x0f
-#define FW_CFG_MAX_ENTRY        0x10
+#define FW_CFG_KERNEL_ENTRY     0x10
+#define FW_CFG_KERNEL_DATA      0x11
+#define FW_CFG_INITRD_DATA      0x12
+#define FW_CFG_CMDLINE_ADDR     0x13
+#define FW_CFG_CMDLINE_SIZE     0x14
+#define FW_CFG_CMDLINE_DATA     0x15
+#define FW_CFG_SETUP_ADDR       0x16
+#define FW_CFG_SETUP_SIZE       0x17
+#define FW_CFG_SETUP_DATA       0x18
+#define FW_CFG_MAX_ENTRY        0x19
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
 #define FW_CFG_ARCH_LOCAL       0x8000
@@ -28,7 +37,7 @@
 #ifndef NO_QEMU_PROTOS
 typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
 
-int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint16_t len);
+int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint32_t len);
 int fw_cfg_add_i16(void *opaque, uint16_t key, uint16_t value);
 int fw_cfg_add_i32(void *opaque, uint16_t key, uint32_t value);
 int fw_cfg_add_i64(void *opaque, uint16_t key, uint64_t value);

@@ -21,6 +21,16 @@ static const QType qstring_type = {
 };
 
 /**
+ * qstring_new(): Create a new empty QString
+ *
+ * Return strong reference.
+ */
+QString *qstring_new(void)
+{
+    return qstring_from_str("");
+}
+
+/**
  * qstring_from_str(): Create a new QString from a regular C string
  *
  * Return strong reference.
@@ -30,10 +40,35 @@ QString *qstring_from_str(const char *str)
     QString *qstring;
 
     qstring = qemu_malloc(sizeof(*qstring));
-    qstring->string = qemu_strdup(str);
+
+    qstring->length = strlen(str);
+    qstring->capacity = qstring->length;
+
+    qstring->string = qemu_malloc(qstring->capacity + 1);
+    memcpy(qstring->string, str, qstring->length);
+    qstring->string[qstring->length] = 0;
+
     QOBJECT_INIT(qstring, &qstring_type);
 
     return qstring;
+}
+
+/* qstring_append(): Append a C string to a QString
+ */
+void qstring_append(QString *qstring, const char *str)
+{
+    size_t len = strlen(str);
+
+    if (qstring->capacity < (qstring->length + len)) {
+        qstring->capacity += len;
+        qstring->capacity *= 2; /* use exponential growth */
+
+        qstring->string = qemu_realloc(qstring->string, qstring->capacity + 1);
+    }
+
+    memcpy(qstring->string + qstring->length, str, len);
+    qstring->length += len;
+    qstring->string[qstring->length] = 0;
 }
 
 /**

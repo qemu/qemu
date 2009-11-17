@@ -146,7 +146,9 @@ obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
 obj-y += qemu-char.o aio.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
-obj-y += qint.o qstring.o qdict.o qlist.o qemu-config.o
+obj-y += qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o json-lexer.o
+obj-y += json-streamer.o json-parser.o qjson.o
+obj-y += qemu-config.o block-migration.o
 
 obj-$(CONFIG_BRLAPI) += baum.o
 obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
@@ -238,6 +240,8 @@ check-qint: check-qint.o qint.o qemu-malloc.o
 check-qstring: check-qstring.o qstring.o qemu-malloc.o
 check-qdict: check-qdict.o qdict.o qint.o qstring.o qemu-malloc.o
 check-qlist: check-qlist.o qlist.o qint.o qemu-malloc.o
+check-qfloat: check-qfloat.o qfloat.o qemu-malloc.o
+check-qjson: check-qjson.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o qjson.o json-streamer.o json-lexer.o json-parser.o qemu-malloc.o
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
@@ -270,7 +274,7 @@ pxe-e1000.bin pxe-i82559er.bin \
 pxe-ne2k_pci.bin pxe-pcnet.bin \
 pxe-rtl8139.bin pxe-virtio.bin \
 bamboo.dtb petalogix-s3adsp1800.dtb \
-multiboot.bin
+multiboot.bin linuxboot.bin
 else
 BLOBS=
 endif
