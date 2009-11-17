@@ -587,7 +587,7 @@ static ISADeviceInfo parallel_isa_info = {
     .qdev.size  = sizeof(ISAParallelState),
     .init       = parallel_isa_initfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("index",  ISAParallelState, index,   -1),
+        DEFINE_PROP_UINT32("index", ISAParallelState, index,   -1),
         DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  -1),
         DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),
         DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
