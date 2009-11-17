@@ -2188,7 +2188,7 @@ case "$target" in
     target_darwin_user="yes"
     ;;
   ${target_arch2}-bsd-user)
-    if test "bsd" != "yes" ; then
+    if test "$bsd" != "yes" ; then
       echo "ERROR: Target '$target' is only available on a BSD host"
       exit 1
     fi
