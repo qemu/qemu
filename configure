@@ -1204,9 +1204,9 @@ for drv in $audio_drv_list; do
     ;;
 
     pa)
-    audio_drv_probe $drv pulse/simple.h -lpulse-simple \
+    audio_drv_probe $drv pulse/simple.h "-lpulse-simple -lpulse" \
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
-    libs_softmmu="-lpulse-simple $libs_softmmu"
+    libs_softmmu="-lpulse -lpulse-simple $libs_softmmu"
     audio_pt_int="yes"
     ;;
 
@@ -2236,14 +2236,26 @@ case "$target" in
     target_softmmu="yes"
     ;;
   ${target_arch2}-linux-user)
+    if test "$linux" != "yes" ; then
+      echo "ERROR: Target '$target' is only available on a Linux host"
+      exit 1
+    fi
     target_user_only="yes"
     target_linux_user="yes"
     ;;
   ${target_arch2}-darwin-user)
+    if test "$darwin" != "yes" ; then
+      echo "ERROR: Target '$target' is only available on a Darwin host"
+      exit 1
+    fi
     target_user_only="yes"
     target_darwin_user="yes"
     ;;
   ${target_arch2}-bsd-user)
+    if test "$bsd" != "yes" ; then
+      echo "ERROR: Target '$target' is only available on a BSD host"
+      exit 1
+    fi
     target_user_only="yes"
     target_bsd_user="yes"
     ;;

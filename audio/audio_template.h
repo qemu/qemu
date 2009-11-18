@@ -485,32 +485,30 @@ SW *glue (AUD_open_, TYPE) (
         }
     }
 
-    if (sw) {
-        sw->card = card;
-        sw->vol = nominal_volume;
-        sw->callback.fn = callback_fn;
-        sw->callback.opaque = callback_opaque;
+    sw->card = card;
+    sw->vol = nominal_volume;
+    sw->callback.fn = callback_fn;
+    sw->callback.opaque = callback_opaque;
 
 #ifdef DAC
-        if (live) {
-            int mixed =
-                (live << old_sw->info.shift)
-                * old_sw->info.bytes_per_second
-                / sw->info.bytes_per_second;
+    if (live) {
+        int mixed =
+            (live << old_sw->info.shift)
+            * old_sw->info.bytes_per_second
+            / sw->info.bytes_per_second;
 
 #ifdef DEBUG_PLIVE
-            dolog ("Silence will be mixed %d\n", mixed);
+        dolog ("Silence will be mixed %d\n", mixed);
 #endif
-            sw->total_hw_samples_mixed += mixed;
-        }
+        sw->total_hw_samples_mixed += mixed;
+    }
 #endif
 
 #ifdef DEBUG_AUDIO
-        dolog ("%s\n", name);
-        audio_pcm_print_info ("hw", &sw->hw->info);
-        audio_pcm_print_info ("sw", &sw->info);
+    dolog ("%s\n", name);
+    audio_pcm_print_info ("hw", &sw->hw->info);
+    audio_pcm_print_info ("sw", &sw->info);
 #endif
-    }
 
     return sw;
 

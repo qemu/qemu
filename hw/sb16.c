@@ -889,14 +889,7 @@ static IO_WRITE_PROTO (dsp_write)
         switch (val) {
         case 0x00:
             if (s->v2x6 == 1) {
-                if (0 && s->highspeed) {
-                    s->highspeed = 0;
-                    qemu_irq_lower (s->pic);
-                    control (s, 0);
-                }
-                else {
-                    reset (s);
-                }
+                reset (s);
             }
             s->v2x6 = 0;
             break;
