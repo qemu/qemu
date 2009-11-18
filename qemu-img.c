@@ -607,6 +607,7 @@ static int img_convert(int argc, char **argv)
 
     if (options && !strcmp(options, "?")) {
         print_option_help(drv->create_options);
+        free(bs);
         return 0;
     }
 
