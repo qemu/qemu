@@ -634,6 +634,7 @@ static int load_multiboot(void *fw_cfg,
                 printf("WARNING: Too many modules loaded, aborting.\n");
                 break;
             }
+
             next_initrd = strchr(initrd_filename, ',');
             if (next_initrd)
                 *next_initrd = '\0';
