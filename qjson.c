@@ -34,9 +34,11 @@ static void parse_json(JSONMessageParser *parser, QList *tokens)
     s->result = json_parser_parse(tokens, s->ap);
 }
 
-QObject *qobject_from_json(const char *string)
+QObject *qobject_from_jsonv(const char *string, va_list *ap)
 {
     JSONParsingState state = {};
+
+    state.ap = ap;
 
     json_message_parser_init(&state.parser, parse_json);
     json_message_parser_feed(&state.parser, string, strlen(string));
@@ -46,22 +48,21 @@ QObject *qobject_from_json(const char *string)
     return state.result;
 }
 
+QObject *qobject_from_json(const char *string)
+{
+    return qobject_from_jsonv(string, NULL);
+}
+
 QObject *qobject_from_jsonf(const char *string, ...)
 {
-    JSONParsingState state = {};
+    QObject *obj;
     va_list ap;
 
     va_start(ap, string);
-    state.ap = &ap;
-
-    json_message_parser_init(&state.parser, parse_json);
-    json_message_parser_feed(&state.parser, string, strlen(string));
-    json_message_parser_flush(&state.parser);
-    json_message_parser_destroy(&state.parser);
-
+    obj = qobject_from_jsonv(string, &ap);
     va_end(ap);
 
-    return state.result;
+    return obj;
 }
 
 typedef struct ToJsonIterState
