@@ -48,6 +48,10 @@ const QErrorStringTable qerror_table[] = {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
         .desc      = "The %(device) device has not been activated by the guest",
     },
+    {
+        .error_fmt = QERR_KVM_MISSING_CAP,
+        .desc      = "Using KVM without %(capability), %(feature) unavailable",
+    },
     {}
 };
 

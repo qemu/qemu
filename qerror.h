@@ -44,4 +44,7 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_NOT_ACTIVE \
         "{ 'class': 'DeviceNotActive', 'data': { 'device': %s } }"
 
+#define QERR_KVM_MISSING_CAP \
+        "{ 'class': 'KVMMissingCap', 'data': { 'capability': %s, 'feature': %s } }"
+
 #endif /* QERROR_H */
