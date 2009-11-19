@@ -1030,7 +1030,7 @@ again:
             if (insn & (1 << 25)) {
                 id = read_dword(s, s->dsa + sxt24(insn));
             } else {
-                id = addr;
+                id = insn;
             }
             id = (id >> 16) & 0xf;
             if (insn & (1 << 26)) {
