@@ -585,6 +585,10 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     }
     id = (tag >> 8) & 0xf;
     s->ssid = id | 0x80;
+    /* LSI53C700 Family Compatibility, see LSI53C895A 4-73 */
+    if (!s->dcntl & LSI_DCNTL_COM) {
+        s->sfbr = 1 << (id & 0x7);
+    }
     DPRINTF("Reselected target %d\n", id);
     s->current_dev = s->bus.devs[id];
     s->current_tag = tag;
