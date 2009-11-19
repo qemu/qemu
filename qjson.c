@@ -224,6 +224,8 @@ static void to_json(const QObject *obj, QString *str)
         }
         break;
     }
+    case QTYPE_QERROR:
+        /* XXX: should QError be emitted? */
     case QTYPE_NONE:
         break;
     }
