@@ -115,6 +115,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
+        set_feature(env, ARM_FEATURE_VFP_FP16);
         set_feature(env, ARM_FEATURE_NEON);
         set_feature(env, ARM_FEATURE_THUMB2EE);
         set_feature(env, ARM_FEATURE_DIV);
@@ -2567,6 +2568,21 @@ VFP_CONV_FIX(sl, s, float32, int32, )
 VFP_CONV_FIX(uh, s, float32, uint16, u)
 VFP_CONV_FIX(ul, s, float32, uint32, u)
 #undef VFP_CONV_FIX
+
+/* Half precision conversions.  */
+float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
+    return float16_to_float32(a, ieee, s);
+}
+
+uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
+    return float32_to_float16(a, ieee, s);
+}
 
 float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 {

@@ -2974,6 +2974,47 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     case 3: /* sqrt */
                         gen_vfp_sqrt(dp);
                         break;
+                    case 4: /* vcvtb.f32.f16 */
+                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
+                          return 1;
+                        tmp = gen_vfp_mrs();
+                        tcg_gen_ext16u_i32(tmp, tmp);
+                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        dead_tmp(tmp);
+                        break;
+                    case 5: /* vcvtt.f32.f16 */
+                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
+                          return 1;
+                        tmp = gen_vfp_mrs();
+                        tcg_gen_shri_i32(tmp, tmp, 16);
+                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        dead_tmp(tmp);
+                        break;
+                    case 6: /* vcvtb.f16.f32 */
+                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
+                          return 1;
+                        tmp = new_tmp();
+                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        gen_mov_F0_vreg(0, rd);
+                        tmp2 = gen_vfp_mrs();
+                        tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
+                        tcg_gen_or_i32(tmp, tmp, tmp2);
+                        dead_tmp(tmp2);
+                        gen_vfp_msr(tmp);
+                        break;
+                    case 7: /* vcvtt.f16.f32 */
+                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
+                          return 1;
+                        tmp = new_tmp();
+                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        tcg_gen_shli_i32(tmp, tmp, 16);
+                        gen_mov_F0_vreg(0, rd);
+                        tmp2 = gen_vfp_mrs();
+                        tcg_gen_ext16u_i32(tmp2, tmp2);
+                        tcg_gen_or_i32(tmp, tmp, tmp2);
+                        dead_tmp(tmp2);
+                        gen_vfp_msr(tmp);
+                        break;
                     case 8: /* cmp */
                         gen_vfp_cmp(dp);
                         break;
@@ -5327,6 +5368,50 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_neon_widen(cpu_V0, tmp, size, 1);
                         neon_store_reg64(cpu_V0, rd + pass);
                     }
+                    break;
+                case 44: /* VCVT.F16.F32 */
+                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
+                      return 1;
+                    tmp = new_tmp();
+                    tmp2 = new_tmp();
+                    tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, 0));
+                    gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                    tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, 1));
+                    gen_helper_vfp_fcvt_f32_to_f16(tmp2, cpu_F0s, cpu_env);
+                    tcg_gen_shli_i32(tmp2, tmp2, 16);
+                    tcg_gen_or_i32(tmp2, tmp2, tmp);
+                    tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, 2));
+                    gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                    tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, 3));
+                    neon_store_reg(rd, 0, tmp2);
+                    tmp2 = new_tmp();
+                    gen_helper_vfp_fcvt_f32_to_f16(tmp2, cpu_F0s, cpu_env);
+                    tcg_gen_shli_i32(tmp2, tmp2, 16);
+                    tcg_gen_or_i32(tmp2, tmp2, tmp);
+                    neon_store_reg(rd, 1, tmp2);
+                    dead_tmp(tmp);
+                    break;
+                case 46: /* VCVT.F32.F16 */
+                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
+                      return 1;
+                    tmp3 = new_tmp();
+                    tmp = neon_load_reg(rm, 0);
+                    tmp2 = neon_load_reg(rm, 1);
+                    tcg_gen_ext16u_i32(tmp3, tmp);
+                    gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp3, cpu_env);
+                    tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, 0));
+                    tcg_gen_shri_i32(tmp3, tmp, 16);
+                    gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp3, cpu_env);
+                    tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, 1));
+                    dead_tmp(tmp);
+                    tcg_gen_ext16u_i32(tmp3, tmp2);
+                    gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp3, cpu_env);
+                    tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, 2));
+                    tcg_gen_shri_i32(tmp3, tmp2, 16);
+                    gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp3, cpu_env);
+                    tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, 3));
+                    dead_tmp(tmp2);
+                    dead_tmp(tmp3);
                     break;
                 default:
                 elementwise:
