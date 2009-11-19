@@ -55,6 +55,22 @@ START_TEST(qstring_get_str_test)
 }
 END_TEST
 
+START_TEST(qstring_append_chr_test)
+{
+    int i;
+    QString *qstring;
+    const char *str = "qstring append char unit-test";
+
+    qstring = qstring_new();
+
+    for (i = 0; str[i]; i++)
+        qstring_append_chr(qstring, str[i]);
+
+    fail_unless(strcmp(str, qstring_get_str(qstring)) == 0);
+    QDECREF(qstring);
+}
+END_TEST
+
 START_TEST(qobject_to_qstring_test)
 {
     QString *qstring;
@@ -78,6 +94,7 @@ static Suite *qstring_suite(void)
     tcase_add_test(qstring_public_tcase, qstring_from_str_test);
     tcase_add_test(qstring_public_tcase, qstring_destroy_test);
     tcase_add_test(qstring_public_tcase, qstring_get_str_test);
+    tcase_add_test(qstring_public_tcase, qstring_append_chr_test);
     tcase_add_test(qstring_public_tcase, qobject_to_qstring_test);
 
     return s;
