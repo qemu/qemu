@@ -424,12 +424,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     if (bdrv_get_type_hint(bdrv) == BDRV_TYPE_CDROM) {
         outbuf[0] = 5;
         outbuf[1] = 0x80;
-        memcpy(&outbuf[16], "QEMU CD-ROM    ", 16);
+        memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
     } else {
         outbuf[0] = 0;
-        memcpy(&outbuf[16], "QEMU HARDDISK  ", 16);
+        memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
-    memcpy(&outbuf[8], "QEMU   ", 8);
+    memcpy(&outbuf[8], "QEMU    ", 8);
     memcpy(&outbuf[32], QEMU_VERSION, 4);
     /* Identify device as SCSI-3 rev 1.
        Some later commands are also implemented. */
