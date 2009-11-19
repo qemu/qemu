@@ -75,6 +75,14 @@ void qstring_append(QString *qstring, const char *str)
     qstring->string[qstring->length] = 0;
 }
 
+void qstring_append_int(QString *qstring, int64_t value)
+{
+    char num[32];
+
+    snprintf(num, sizeof(num), "%" PRId64, value);
+    qstring_append(qstring, num);
+}
+
 /**
  * qstring_append_chr(): Append a C char to a QString
  */
