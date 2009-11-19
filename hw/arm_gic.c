@@ -607,7 +607,7 @@ static void gic_cpu_write(gic_state *s, int cpu, int offset, uint32_t value)
     switch (offset) {
     case 0x00: /* Control */
         s->cpu_enabled[cpu] = (value & 1);
-        DPRINTF("CPU %sabled\n", s->cpu_enabled ? "En" : "Dis");
+        DPRINTF("CPU %d %sabled\n", cpu, s->cpu_enabled ? "En" : "Dis");
         break;
     case 0x04: /* Priority mask */
         s->priority_mask[cpu] = (value & 0xff);
