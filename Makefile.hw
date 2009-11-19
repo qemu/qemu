@@ -30,6 +30,9 @@ obj-y += msix.o
 # PCI network cards
 obj-y += ne2000.o
 
+obj-$(CONFIG_SMC91C111) += smc91c111.o
+obj-$(CONFIG_LAN9118) += lan9118.o
+
 # SCSI layer
 obj-y += lsi53c895a.o
 obj-$(CONFIG_ESP) += esp.o
