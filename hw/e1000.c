@@ -89,6 +89,7 @@ typedef struct E1000State_st {
     struct e1000_tx {
         unsigned char header[256];
         unsigned char vlan_header[4];
+        /* Fields vlan and data must not be reordered or separated. */
         unsigned char vlan[4];
         unsigned char data[0x10000];
         uint16_t size;
@@ -383,7 +384,8 @@ xmit_seg(E1000State *s)
     if (tp->sum_needed & E1000_TXD_POPTS_IXSM)
         putsum(tp->data, tp->size, tp->ipcso, tp->ipcss, tp->ipcse);
     if (tp->vlan_needed) {
-        memmove(tp->vlan, tp->data, 12);
+        memmove(tp->vlan, tp->data, 4);
+        memmove(tp->data, tp->data + 4, 8);
         memcpy(tp->data + 8, tp->vlan_header, 4);
         qemu_send_packet(&s->nic->nc, tp->vlan, tp->size + 4);
     } else
