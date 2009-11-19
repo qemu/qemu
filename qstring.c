@@ -53,21 +53,35 @@ QString *qstring_from_str(const char *str)
     return qstring;
 }
 
-/* qstring_append(): Append a C string to a QString
- */
-void qstring_append(QString *qstring, const char *str)
+static void capacity_increase(QString *qstring, size_t len)
 {
-    size_t len = strlen(str);
-
     if (qstring->capacity < (qstring->length + len)) {
         qstring->capacity += len;
         qstring->capacity *= 2; /* use exponential growth */
 
         qstring->string = qemu_realloc(qstring->string, qstring->capacity + 1);
     }
+}
 
+/* qstring_append(): Append a C string to a QString
+ */
+void qstring_append(QString *qstring, const char *str)
+{
+    size_t len = strlen(str);
+
+    capacity_increase(qstring, len);
     memcpy(qstring->string + qstring->length, str, len);
     qstring->length += len;
+    qstring->string[qstring->length] = 0;
+}
+
+/**
+ * qstring_append_chr(): Append a C char to a QString
+ */
+void qstring_append_chr(QString *qstring, int c)
+{
+    capacity_increase(qstring, 1);
+    qstring->string[qstring->length++] = c;
     qstring->string[qstring->length] = 0;
 }
 

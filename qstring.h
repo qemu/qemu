@@ -14,6 +14,7 @@ QString *qstring_new(void);
 QString *qstring_from_str(const char *str);
 const char *qstring_get_str(const QString *qstring);
 void qstring_append(QString *qstring, const char *str);
+void qstring_append_chr(QString *qstring, int c);
 QString *qobject_to_qstring(const QObject *obj);
 
 #endif /* QSTRING_H */
