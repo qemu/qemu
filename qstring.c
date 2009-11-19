@@ -31,26 +31,36 @@ QString *qstring_new(void)
 }
 
 /**
+ * qstring_from_substr(): Create a new QString from a C string substring
+ *
+ * Return string reference
+ */
+QString *qstring_from_substr(const char *str, int start, int end)
+{
+    QString *qstring;
+
+    qstring = qemu_malloc(sizeof(*qstring));
+
+    qstring->length = end - start + 1;
+    qstring->capacity = qstring->length;
+
+    qstring->string = qemu_malloc(qstring->capacity + 1);
+    memcpy(qstring->string, str + start, qstring->length);
+    qstring->string[qstring->length] = 0;
+
+    QOBJECT_INIT(qstring, &qstring_type);
+
+    return qstring;
+}
+
+/**
  * qstring_from_str(): Create a new QString from a regular C string
  *
  * Return strong reference.
  */
 QString *qstring_from_str(const char *str)
 {
-    QString *qstring;
-
-    qstring = qemu_malloc(sizeof(*qstring));
-
-    qstring->length = strlen(str);
-    qstring->capacity = qstring->length;
-
-    qstring->string = qemu_malloc(qstring->capacity + 1);
-    memcpy(qstring->string, str, qstring->length);
-    qstring->string[qstring->length] = 0;
-
-    QOBJECT_INIT(qstring, &qstring_type);
-
-    return qstring;
+    return qstring_from_substr(str, 0, strlen(str) - 1);
 }
 
 static void capacity_increase(QString *qstring, size_t len)

@@ -13,6 +13,7 @@ typedef struct QString {
 
 QString *qstring_new(void);
 QString *qstring_from_str(const char *str);
+QString *qstring_from_substr(const char *str, int start, int end);
 const char *qstring_get_str(const QString *qstring);
 void qstring_append_int(QString *qstring, int64_t value);
 void qstring_append(QString *qstring, const char *str);
