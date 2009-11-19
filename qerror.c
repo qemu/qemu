@@ -44,6 +44,10 @@ const QErrorStringTable qerror_table[] = {
         .error_fmt = QERR_DEVICE_NOT_FOUND,
         .desc      = "The %(device) device has not been found",
     },
+    {
+        .error_fmt = QERR_DEVICE_NOT_ACTIVE,
+        .desc      = "The %(device) device has not been activated by the guest",
+    },
     {}
 };
 

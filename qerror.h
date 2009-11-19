@@ -41,4 +41,7 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_NOT_FOUND \
         "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
 
+#define QERR_DEVICE_NOT_ACTIVE \
+        "{ 'class': 'DeviceNotActive', 'data': { 'device': %s } }"
+
 #endif /* QERROR_H */
