@@ -71,6 +71,19 @@ START_TEST(qstring_append_chr_test)
 }
 END_TEST
 
+START_TEST(qstring_from_substr_test)
+{
+    QString *qs;
+
+    qs = qstring_from_substr("virtualization", 3, 9);
+    fail_unless(qs != NULL);
+    fail_unless(strcmp(qstring_get_str(qs), "tualiza") == 0);
+
+    QDECREF(qs);
+}
+END_TEST
+
+
 START_TEST(qobject_to_qstring_test)
 {
     QString *qstring;
@@ -95,6 +108,7 @@ static Suite *qstring_suite(void)
     tcase_add_test(qstring_public_tcase, qstring_destroy_test);
     tcase_add_test(qstring_public_tcase, qstring_get_str_test);
     tcase_add_test(qstring_public_tcase, qstring_append_chr_test);
+    tcase_add_test(qstring_public_tcase, qstring_from_substr_test);
     tcase_add_test(qstring_public_tcase, qobject_to_qstring_test);
 
     return s;
