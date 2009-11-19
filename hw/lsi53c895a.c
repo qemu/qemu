@@ -1040,8 +1040,9 @@ again:
             switch (opcode) {
             case 0: /* Select */
                 s->sdid = id;
-                if (s->current_dma_len && (s->ssid & 0xf) == id) {
-                    DPRINTF("Already reselected by target %d\n", id);
+                if (s->scntl1 & LSI_SCNTL1_CON) {
+                    DPRINTF("Already reselected, jumping to alternative address\n");
+                    s->dsp = s->dnad;
                     break;
                 }
                 s->sstat0 |= LSI_SSTAT0_WOA;
