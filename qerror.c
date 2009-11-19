@@ -40,6 +40,10 @@ static const QType qerror_type = {
  * "running out of foo: %(foo)%%"
  */
 const QErrorStringTable qerror_table[] = {
+    {
+        .error_fmt = QERR_DEVICE_NOT_FOUND,
+        .desc      = "The %(device) device has not been found",
+    },
     {}
 };
 

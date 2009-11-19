@@ -38,5 +38,7 @@ QError *qobject_to_qerror(const QObject *obj);
 /*
  * QError class list
  */
+#define QERR_DEVICE_NOT_FOUND \
+        "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
 
 #endif /* QERROR_H */
