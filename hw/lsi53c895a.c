@@ -10,7 +10,7 @@
 /* ??? Need to check if the {read,write}[wl] routines work properly on
    big-endian targets.  */
 
-#include <assert.h>                             \
+#include <assert.h>
 
 #include "hw.h"
 #include "pci.h"
@@ -185,7 +185,7 @@ typedef struct {
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int sense;
     /* Action to take at the end of a MSG IN phase.
-       0 = COMMAND, 1 = disconect, 2 = DATA OUT, 3 = DATA IN.  */
+       0 = COMMAND, 1 = disconnect, 2 = DATA OUT, 3 = DATA IN.  */
     int msg_action;
     int msg_len;
     uint8_t msg[LSI_MAX_MSGIN_LEN];
@@ -1062,7 +1062,7 @@ again:
                 lsi_set_phase(s, PHASE_MO);
                 break;
             case 1: /* Disconnect */
-                DPRINTF("Wait Disconect\n");
+                DPRINTF("Wait Disconnect\n");
                 s->scntl1 &= ~LSI_SCNTL1_CON;
                 break;
             case 2: /* Wait Reselect */
@@ -1554,9 +1554,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
            SCRIPTS register move instructions are.  */
         s->sfbr = val;
         break;
-    case 0x0a: case 0x0b: 
+    case 0x0a: case 0x0b:
         /* Openserver writes to these readonly registers on startup */
-	return;    
+	return;
     case 0x0c: case 0x0d: case 0x0e: case 0x0f:
         /* Linux writes to these readonly registers on startup.  */
         return;
