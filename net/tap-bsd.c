@@ -49,11 +49,39 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     char *dev;
     struct stat s;
 
+#ifdef __FreeBSD__
+    /* if no ifname is given, always start the search from tap0. */
+    int i;
+    char dname[100];
+
+    for (i = 0; i < 10; i++) {
+        if (*ifname) {
+            snprintf(dname, sizeof dname, "/dev/%s", ifname);
+        } else {
+            snprintf(dname, sizeof dname, "/dev/tap%d", i);
+        }
+        TFR(fd = open(dname, O_RDWR));
+        if (fd >= 0) {
+            break;
+        }
+        else if (errno == ENXIO || errno == ENOENT) {
+            break;
+        }
+        if (*ifname) {
+            break;
+        }
+    }
+    if (fd < 0) {
+        qemu_error("warning: could not open %s (%s): no virtual network emulation\n", dname, strerror(errno));
+        return -1;
+    }
+#else
     TFR(fd = open("/dev/tap", O_RDWR));
     if (fd < 0) {
         fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
         return -1;
     }
+#endif
 
     fstat(fd, &s);
     dev = devname(s.st_rdev, S_IFCHR);
