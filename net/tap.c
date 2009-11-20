@@ -399,6 +399,9 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         }
 
         fd = net_tap_init(opts, &vnet_hdr);
+        if (fd == -1) {
+            return -1;
+        }
     }
 
     s = net_tap_fd_init(vlan, "tap", name, fd, vnet_hdr);
