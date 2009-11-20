@@ -183,16 +183,6 @@ static void menelaus_reset(i2c_slave *i2c)
     menelaus_update(s);
 }
 
-static inline uint8_t to_bcd(int val)
-{
-    return ((val / 10) << 4) | (val % 10);
-}
-
-static inline int from_bcd(uint8_t val)
-{
-    return ((val >> 4) * 10) + (val & 0x0f);
-}
-
 static void menelaus_gpio_set(void *opaque, int line, int level)
 {
     MenelausState *s = (MenelausState *) opaque;

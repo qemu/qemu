@@ -80,16 +80,6 @@ typedef struct M48t59SysBusState {
 } M48t59SysBusState;
 
 /* Fake timer functions */
-/* Generic helpers for BCD */
-static inline uint8_t toBCD (uint8_t value)
-{
-    return (((value / 10) % 10) << 4) | (value % 10);
-}
-
-static inline uint8_t fromBCD (uint8_t BCD)
-{
-    return ((BCD >> 4) * 10) + (BCD & 0x0F);
-}
 
 /* Alarm management */
 static void alarm_cb (void *opaque)
@@ -219,7 +209,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x1FF2:
         /* alarm seconds */
-        tmp = fromBCD(val & 0x7F);
+        tmp = from_bcd(val & 0x7F);
         if (tmp >= 0 && tmp <= 59) {
             NVRAM->alarm.tm_sec = tmp;
             NVRAM->buffer[0x1FF2] = val;
@@ -228,7 +218,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x1FF3:
         /* alarm minutes */
-        tmp = fromBCD(val & 0x7F);
+        tmp = from_bcd(val & 0x7F);
         if (tmp >= 0 && tmp <= 59) {
             NVRAM->alarm.tm_min = tmp;
             NVRAM->buffer[0x1FF3] = val;
@@ -237,7 +227,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x1FF4:
         /* alarm hours */
-        tmp = fromBCD(val & 0x3F);
+        tmp = from_bcd(val & 0x3F);
         if (tmp >= 0 && tmp <= 23) {
             NVRAM->alarm.tm_hour = tmp;
             NVRAM->buffer[0x1FF4] = val;
@@ -246,7 +236,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x1FF5:
         /* alarm date */
-        tmp = fromBCD(val & 0x1F);
+        tmp = from_bcd(val & 0x1F);
         if (tmp != 0) {
             NVRAM->alarm.tm_mday = tmp;
             NVRAM->buffer[0x1FF5] = val;
@@ -270,7 +260,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FF9:
     case 0x07F9:
         /* seconds (BCD) */
-	tmp = fromBCD(val & 0x7F);
+	tmp = from_bcd(val & 0x7F);
 	if (tmp >= 0 && tmp <= 59) {
 	    get_time(NVRAM, &tm);
 	    tm.tm_sec = tmp;
@@ -289,7 +279,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FFA:
     case 0x07FA:
         /* minutes (BCD) */
-	tmp = fromBCD(val & 0x7F);
+	tmp = from_bcd(val & 0x7F);
 	if (tmp >= 0 && tmp <= 59) {
 	    get_time(NVRAM, &tm);
 	    tm.tm_min = tmp;
@@ -299,7 +289,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FFB:
     case 0x07FB:
         /* hours (BCD) */
-	tmp = fromBCD(val & 0x3F);
+	tmp = from_bcd(val & 0x3F);
 	if (tmp >= 0 && tmp <= 23) {
 	    get_time(NVRAM, &tm);
 	    tm.tm_hour = tmp;
@@ -309,7 +299,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FFC:
     case 0x07FC:
         /* day of the week / century */
-	tmp = fromBCD(val & 0x07);
+	tmp = from_bcd(val & 0x07);
 	get_time(NVRAM, &tm);
 	tm.tm_wday = tmp;
 	set_time(NVRAM, &tm);
@@ -318,7 +308,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FFD:
     case 0x07FD:
         /* date */
-	tmp = fromBCD(val & 0x1F);
+	tmp = from_bcd(val & 0x1F);
 	if (tmp != 0) {
 	    get_time(NVRAM, &tm);
 	    tm.tm_mday = tmp;
@@ -328,7 +318,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FFE:
     case 0x07FE:
         /* month */
-	tmp = fromBCD(val & 0x1F);
+	tmp = from_bcd(val & 0x1F);
 	if (tmp >= 1 && tmp <= 12) {
 	    get_time(NVRAM, &tm);
 	    tm.tm_mon = tmp - 1;
@@ -338,13 +328,13 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x1FFF:
     case 0x07FF:
         /* year */
-	tmp = fromBCD(val);
+	tmp = from_bcd(val);
 	if (tmp >= 0 && tmp <= 99) {
 	    get_time(NVRAM, &tm);
             if (NVRAM->type == 8)
-                tm.tm_year = fromBCD(val) + 68; // Base year is 1968
+                tm.tm_year = from_bcd(val) + 68; // Base year is 1968
             else
-                tm.tm_year = fromBCD(val);
+                tm.tm_year = from_bcd(val);
 	    set_time(NVRAM, &tm);
 	}
         break;
@@ -410,19 +400,19 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
     case 0x07F9:
         /* seconds (BCD) */
         get_time(NVRAM, &tm);
-        retval = (NVRAM->buffer[addr] & 0x80) | toBCD(tm.tm_sec);
+        retval = (NVRAM->buffer[addr] & 0x80) | to_bcd(tm.tm_sec);
         break;
     case 0x1FFA:
     case 0x07FA:
         /* minutes (BCD) */
         get_time(NVRAM, &tm);
-        retval = toBCD(tm.tm_min);
+        retval = to_bcd(tm.tm_min);
         break;
     case 0x1FFB:
     case 0x07FB:
         /* hours (BCD) */
         get_time(NVRAM, &tm);
-        retval = toBCD(tm.tm_hour);
+        retval = to_bcd(tm.tm_hour);
         break;
     case 0x1FFC:
     case 0x07FC:
@@ -434,22 +424,22 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
     case 0x07FD:
         /* date */
         get_time(NVRAM, &tm);
-        retval = toBCD(tm.tm_mday);
+        retval = to_bcd(tm.tm_mday);
         break;
     case 0x1FFE:
     case 0x07FE:
         /* month */
         get_time(NVRAM, &tm);
-        retval = toBCD(tm.tm_mon + 1);
+        retval = to_bcd(tm.tm_mon + 1);
         break;
     case 0x1FFF:
     case 0x07FF:
         /* year */
         get_time(NVRAM, &tm);
         if (NVRAM->type == 8)
-            retval = toBCD(tm.tm_year - 68); // Base year is 1968
+            retval = to_bcd(tm.tm_year - 68); // Base year is 1968
         else
-            retval = toBCD(tm.tm_year);
+            retval = to_bcd(tm.tm_year);
         break;
     default:
         /* Check lock registers state */

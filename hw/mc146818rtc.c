@@ -259,7 +259,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
     }
 }
 
-static inline int to_bcd(RTCState *s, int a)
+static inline int rtc_to_bcd(RTCState *s, int a)
 {
     if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
         return a;
@@ -268,7 +268,7 @@ static inline int to_bcd(RTCState *s, int a)
     }
 }
 
-static inline int from_bcd(RTCState *s, int a)
+static inline int rtc_from_bcd(RTCState *s, int a)
 {
     if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
         return a;
@@ -281,17 +281,17 @@ static void rtc_set_time(RTCState *s)
 {
     struct tm *tm = &s->current_tm;
 
-    tm->tm_sec = from_bcd(s, s->cmos_data[RTC_SECONDS]);
-    tm->tm_min = from_bcd(s, s->cmos_data[RTC_MINUTES]);
-    tm->tm_hour = from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
+    tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
+    tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
+    tm->tm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
     if (!(s->cmos_data[RTC_REG_B] & 0x02) &&
         (s->cmos_data[RTC_HOURS] & 0x80)) {
         tm->tm_hour += 12;
     }
-    tm->tm_wday = from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
-    tm->tm_mday = from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
-    tm->tm_mon = from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
-    tm->tm_year = from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year - 1900;
+    tm->tm_wday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
+    tm->tm_mday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
+    tm->tm_mon = rtc_from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
+    tm->tm_year = rtc_from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year - 1900;
 }
 
 static void rtc_copy_date(RTCState *s)
@@ -299,24 +299,24 @@ static void rtc_copy_date(RTCState *s)
     const struct tm *tm = &s->current_tm;
     int year;
 
-    s->cmos_data[RTC_SECONDS] = to_bcd(s, tm->tm_sec);
-    s->cmos_data[RTC_MINUTES] = to_bcd(s, tm->tm_min);
+    s->cmos_data[RTC_SECONDS] = rtc_to_bcd(s, tm->tm_sec);
+    s->cmos_data[RTC_MINUTES] = rtc_to_bcd(s, tm->tm_min);
     if (s->cmos_data[RTC_REG_B] & 0x02) {
         /* 24 hour format */
-        s->cmos_data[RTC_HOURS] = to_bcd(s, tm->tm_hour);
+        s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour);
     } else {
         /* 12 hour format */
-        s->cmos_data[RTC_HOURS] = to_bcd(s, tm->tm_hour % 12);
+        s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour % 12);
         if (tm->tm_hour >= 12)
             s->cmos_data[RTC_HOURS] |= 0x80;
     }
-    s->cmos_data[RTC_DAY_OF_WEEK] = to_bcd(s, tm->tm_wday + 1);
-    s->cmos_data[RTC_DAY_OF_MONTH] = to_bcd(s, tm->tm_mday);
-    s->cmos_data[RTC_MONTH] = to_bcd(s, tm->tm_mon + 1);
+    s->cmos_data[RTC_DAY_OF_WEEK] = rtc_to_bcd(s, tm->tm_wday + 1);
+    s->cmos_data[RTC_DAY_OF_MONTH] = rtc_to_bcd(s, tm->tm_mday);
+    s->cmos_data[RTC_MONTH] = rtc_to_bcd(s, tm->tm_mon + 1);
     year = (tm->tm_year - s->base_year) % 100;
     if (year < 0)
         year += 100;
-    s->cmos_data[RTC_YEAR] = to_bcd(s, year);
+    s->cmos_data[RTC_YEAR] = rtc_to_bcd(s, year);
 }
 
 /* month is between 0 and 11. */
@@ -497,7 +497,7 @@ static void rtc_set_date_from_host(RTCState *s)
     qemu_get_timedate(&tm, 0);
     rtc_set_date(s, &tm);
 
-    val = to_bcd(s, (tm.tm_year / 100) + 19);
+    val = rtc_to_bcd(s, (tm.tm_year / 100) + 19);
     rtc_set_memory(s, REG_IBM_CENTURY_BYTE, val);
     rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
 }

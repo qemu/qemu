@@ -248,6 +248,17 @@ void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count);
 struct Monitor;
 typedef struct Monitor Monitor;
 
+/* Convert a byte between binary and BCD.  */
+static inline uint8_t to_bcd(uint8_t val)
+{
+    return ((val / 10) << 4) | (val % 10);
+}
+
+static inline uint8_t from_bcd(uint8_t val)
+{
+    return ((val >> 4) * 10) + (val & 0x0f);
+}
+
 #include "module.h"
 
 #endif /* dyngen-exec.h hack */
