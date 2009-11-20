@@ -132,6 +132,7 @@ obj-$(CONFIG_SSD0303) += ssd0303.o
 obj-$(CONFIG_SSD0323) += ssd0323.o
 obj-$(CONFIG_ADS7846) += ads7846.o
 obj-$(CONFIG_MAX111X) += max111x.o
+obj-$(CONFIG_DS1338) += ds1338.o
 obj-y += i2c.o smbus.o smbus_eeprom.o
 obj-y += eeprom93xx.o
 obj-y += scsi-disk.o cdrom.o
