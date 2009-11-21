@@ -34,10 +34,19 @@ static void secondary_cpu_reset(void *opaque)
   env->regs[15] = SMP_BOOT_ADDR;
 }
 
+/* The following two lists must be consistent.  */
 enum realview_board_type {
     BOARD_EB,
     BOARD_EB_MPCORE,
-    BOARD_PB_A8
+    BOARD_PB_A8,
+    BOARD_PBX_A9,
+};
+
+int realview_board_id[] = {
+    0x33b,
+    0x33b,
+    0x769,
+    0x76d
 };
 
 static void realview_init(ram_addr_t ram_size,
@@ -57,12 +66,26 @@ static void realview_init(ram_addr_t ram_size,
     int n;
     int done_nic = 0;
     qemu_irq cpu_irq[4];
-    int is_mpcore = (board_type == BOARD_EB_MPCORE);
-    int is_pb = (board_type == BOARD_PB_A8);
+    int is_mpcore = 0;
+    int is_pb = 0;
     uint32_t proc_id = 0;
     uint32_t sys_id;
     ram_addr_t low_ram_size;
 
+    switch (board_type) {
+    case BOARD_EB:
+        break;
+    case BOARD_EB_MPCORE:
+        is_mpcore = 1;
+        break;
+    case BOARD_PB_A8:
+        is_pb = 1;
+        break;
+    case BOARD_PBX_A9:
+        is_mpcore = 1;
+        is_pb = 1;
+        break;
+    }
     for (n = 0; n < smp_cpus; n++) {
         env = cpu_init(cpu_model);
         if (!env) {
@@ -76,7 +99,11 @@ static void realview_init(ram_addr_t ram_size,
         }
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
-        proc_id = 0x0e000000;
+        if (is_mpcore) {
+            proc_id = 0x0c000000;
+        } else {
+            proc_id = 0x0e000000;
+        }
     } else if (arm_feature(env, ARM_FEATURE_V6K)) {
         proc_id = 0x06000000;
     } else if (arm_feature(env, ARM_FEATURE_V6)) {
@@ -104,10 +131,16 @@ static void realview_init(ram_addr_t ram_size,
     arm_sysctl_init(0x10000000, sys_id, proc_id);
 
     if (is_mpcore) {
-        dev = qdev_create(NULL, "realview_mpcore");
+        dev = qdev_create(NULL, is_pb ? "a9mpcore_priv": "realview_mpcore");
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         qdev_init_nofail(dev);
         busdev = sysbus_from_qdev(dev);
+        if (is_pb) {
+            realview_binfo.smp_priv_base = 0x1f000000;
+        } else {
+            realview_binfo.smp_priv_base = 0x10100000;
+        }
+        sysbus_mmio_map(busdev, 0, realview_binfo.smp_priv_base);
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
@@ -238,7 +271,7 @@ static void realview_init(ram_addr_t ram_size,
     realview_binfo.kernel_cmdline = kernel_cmdline;
     realview_binfo.initrd_filename = initrd_filename;
     realview_binfo.nb_cpus = smp_cpus;
-    realview_binfo.board_id = is_pb ? 0x769 : 0x33b;
+    realview_binfo.board_id = realview_board_id[board_type];
     realview_binfo.loader_start = is_pb ? 0x70000000 : 0;
     arm_load_kernel(first_cpu, &realview_binfo);
 }
@@ -279,6 +312,18 @@ static void realview_pb_a8_init(ram_addr_t ram_size,
                   initrd_filename, cpu_model, BOARD_PB_A8);
 }
 
+static void realview_pbx_a9_init(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    if (!cpu_model) {
+        cpu_model = "cortex-a9";
+    }
+    realview_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                  initrd_filename, cpu_model, BOARD_PBX_A9);
+}
+
 static QEMUMachine realview_eb_machine = {
     .name = "realview-eb",
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
@@ -298,7 +343,14 @@ static QEMUMachine realview_pb_a8_machine = {
     .name = "realview-pb-a8",
     .desc = "ARM RealView Platform Baseboard for Cortex-A8",
     .init = realview_pb_a8_init,
+};
+
+static QEMUMachine realview_pbx_a9_machine = {
+    .name = "realview-pbx-a9",
+    .desc = "ARM RealView Platform Baseboard Explore for Cortex-A9",
+    .init = realview_pbx_a9_init,
     .use_scsi = 1,
+    .max_cpus = 4,
 };
 
 static void realview_machine_init(void)
@@ -306,6 +358,7 @@ static void realview_machine_init(void)
     qemu_register_machine(&realview_eb_machine);
     qemu_register_machine(&realview_eb_mpcore_machine);
     qemu_register_machine(&realview_pb_a8_machine);
+    qemu_register_machine(&realview_pbx_a9_machine);
 }
 
 machine_init(realview_machine_init);

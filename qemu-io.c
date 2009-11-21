@@ -266,8 +266,6 @@ static int do_aio_writev(QEMUIOVector *qiov, int64_t offset, int *total)
 }
 
 
-static const cmdinfo_t read_cmd;
-
 static void
 read_help(void)
 {
@@ -290,6 +288,19 @@ read_help(void)
 " -v, -- dump buffer to standard output\n"
 "\n");
 }
+
+static int read_f(int argc, char **argv);
+
+static const cmdinfo_t read_cmd = {
+	.name		= "read",
+	.altname	= "r",
+	.cfunc		= read_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-abCpqv] [-P pattern [-s off] [-l len]] off len",
+	.oneline	= "reads a number of bytes at a specified offset",
+	.help		= read_help,
+};
 
 static int
 read_f(int argc, char **argv)
@@ -439,19 +450,6 @@ out:
 	return 0;
 }
 
-static const cmdinfo_t read_cmd = {
-	.name		= "read",
-	.altname	= "r",
-	.cfunc		= read_f,
-	.argmin		= 2,
-	.argmax		= -1,
-	.args		= "[-abCpqv] [-P pattern [-s off] [-l len]] off len",
-	.oneline	= "reads a number of bytes at a specified offset",
-	.help		= read_help,
-};
-
-static const cmdinfo_t readv_cmd;
-
 static void
 readv_help(void)
 {
@@ -471,6 +469,18 @@ readv_help(void)
 " -q, -- quite mode, do not show I/O statistics\n"
 "\n");
 }
+
+static int readv_f(int argc, char **argv);
+
+static const cmdinfo_t readv_cmd = {
+	.name		= "readv",
+	.cfunc		= readv_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-Cqv] [-P pattern ] off len [len..]",
+	.oneline	= "reads a number of bytes at a specified offset",
+	.help		= readv_help,
+};
 
 static int
 readv_f(int argc, char **argv)
@@ -563,18 +573,6 @@ out:
 	return 0;
 }
 
-static const cmdinfo_t readv_cmd = {
-	.name		= "readv",
-	.cfunc		= readv_f,
-	.argmin		= 2,
-	.argmax		= -1,
-	.args		= "[-Cqv] [-P pattern ] off len [len..]",
-	.oneline	= "reads a number of bytes at a specified offset",
-	.help		= readv_help,
-};
-
-static const cmdinfo_t write_cmd;
-
 static void
 write_help(void)
 {
@@ -594,6 +592,19 @@ write_help(void)
 " -q, -- quite mode, do not show I/O statistics\n"
 "\n");
 }
+
+static int write_f(int argc, char **argv);
+
+static const cmdinfo_t write_cmd = {
+	.name		= "write",
+	.altname	= "w",
+	.cfunc		= write_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-abCpq] [-P pattern ] off len",
+	.oneline	= "writes a number of bytes at a specified offset",
+	.help		= write_help,
+};
 
 static int
 write_f(int argc, char **argv)
@@ -696,19 +707,6 @@ out:
 	return 0;
 }
 
-static const cmdinfo_t write_cmd = {
-	.name		= "write",
-	.altname	= "w",
-	.cfunc		= write_f,
-	.argmin		= 2,
-	.argmax		= -1,
-	.args		= "[-abCpq] [-P pattern ] off len",
-	.oneline	= "writes a number of bytes at a specified offset",
-	.help		= write_help,
-};
-
-static const cmdinfo_t writev_cmd;
-
 static void
 writev_help(void)
 {
@@ -726,6 +724,18 @@ writev_help(void)
 " -q, -- quite mode, do not show I/O statistics\n"
 "\n");
 }
+
+static int writev_f(int argc, char **argv);
+
+static const cmdinfo_t writev_cmd = {
+	.name		= "writev",
+	.cfunc		= writev_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-Cq] [-P pattern ] off len [len..]",
+	.oneline	= "writes a number of bytes at a specified offset",
+	.help		= writev_help,
+};
 
 static int
 writev_f(int argc, char **argv)
@@ -797,16 +807,6 @@ out:
 	return 0;
 }
 
-static const cmdinfo_t writev_cmd = {
-	.name		= "writev",
-	.cfunc		= writev_f,
-	.argmin		= 2,
-	.argmax		= -1,
-	.args		= "[-Cq] [-P pattern ] off len [len..]",
-	.oneline	= "writes a number of bytes at a specified offset",
-	.help		= writev_help,
-};
-
 struct aio_ctx {
 	QEMUIOVector qiov;
 	int64_t offset;
@@ -845,8 +845,6 @@ out:
 	qemu_io_free(ctx->buf);
 	free(ctx);
 }
-
-static const cmdinfo_t aio_read_cmd;
 
 static void
 aio_read_done(void *opaque, int ret)
@@ -910,6 +908,18 @@ aio_read_help(void)
 " -q, -- quite mode, do not show I/O statistics\n"
 "\n");
 }
+
+static int aio_read_f(int argc, char **argv);
+
+static const cmdinfo_t aio_read_cmd = {
+	.name		= "aio_read",
+	.cfunc		= aio_read_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-Cqv] [-P pattern ] off len [len..]",
+	.oneline	= "asynchronously reads a number of bytes",
+	.help		= aio_read_help,
+};
 
 static int
 aio_read_f(int argc, char **argv)
@@ -976,18 +986,6 @@ aio_read_f(int argc, char **argv)
 	return 0;
 }
 
-static const cmdinfo_t aio_read_cmd = {
-	.name		= "aio_read",
-	.cfunc		= aio_read_f,
-	.argmin		= 2,
-	.argmax		= -1,
-	.args		= "[-Cqv] [-P pattern ] off len [len..]",
-	.oneline	= "asynchronously reads a number of bytes",
-	.help		= aio_read_help,
-};
-
-static const cmdinfo_t aio_write_cmd;
-
 static void
 aio_write_help(void)
 {
@@ -1009,6 +1007,17 @@ aio_write_help(void)
 "\n");
 }
 
+static int aio_write_f(int argc, char **argv);
+
+static const cmdinfo_t aio_write_cmd = {
+	.name		= "aio_write",
+	.cfunc		= aio_write_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-Cq] [-P pattern ] off len [len..]",
+	.oneline	= "asynchronously writes a number of bytes",
+	.help		= aio_write_help,
+};
 
 static int
 aio_write_f(int argc, char **argv)
@@ -1071,16 +1080,6 @@ aio_write_f(int argc, char **argv)
 
 	return 0;
 }
-
-static const cmdinfo_t aio_write_cmd = {
-	.name		= "aio_write",
-	.cfunc		= aio_write_f,
-	.argmin		= 2,
-	.argmax		= -1,
-	.args		= "[-Cq] [-P pattern ] off len [len..]",
-	.oneline	= "asynchronously writes a number of bytes",
-	.help		= aio_write_help,
-};
 
 static int
 aio_flush_f(int argc, char **argv)
@@ -1312,7 +1311,19 @@ open_help(void)
 "\n");
 }
 
-static const cmdinfo_t open_cmd;
+static int open_f(int argc, char **argv);
+
+static const cmdinfo_t open_cmd = {
+	.name		= "open",
+	.altname	= "o",
+	.cfunc		= open_f,
+	.argmin		= 1,
+	.argmax		= -1,
+	.flags		= CMD_NOFILE_OK,
+	.args		= "[-Crsn] [path]",
+	.oneline	= "open the file specified by path",
+	.help		= open_help,
+};
 
 static int
 open_f(int argc, char **argv)
@@ -1354,18 +1365,6 @@ open_f(int argc, char **argv)
 
 	return openfile(argv[optind], flags, growable);
 }
-
-static const cmdinfo_t open_cmd = {
-	.name		= "open",
-	.altname	= "o",
-	.cfunc		= open_f,
-	.argmin		= 1,
-	.argmax		= -1,
-	.flags		= CMD_NOFILE_OK,
-	.args		= "[-Crsn] [path]",
-	.oneline	= "open the file specified by path",
-	.help		= open_help,
-};
 
 static int
 init_args_command(

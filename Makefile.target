@@ -308,10 +308,10 @@ obj-sparc-y += slavio_timer.o slavio_misc.o fdc.o sparc32_dma.o
 obj-sparc-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 
-obj-arm-y = integratorcp.o versatilepb.o smc91c111.o arm_pic.o arm_timer.o
+obj-arm-y = integratorcp.o versatilepb.o arm_pic.o arm_timer.o
 obj-arm-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
 obj-arm-y += versatile_pci.o
-obj-arm-y += realview_gic.o realview.o arm_sysctl.o mpcore.o
+obj-arm-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-arm-y += armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
 obj-arm-y += pl061.o
 obj-arm-y += arm-semi.o
@@ -329,7 +329,6 @@ obj-arm-y += framebuffer.o
 obj-arm-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
 obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 obj-arm-y += syborg_virtio.o
-obj-arm-y += lan9118.o
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
 obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o

@@ -31,8 +31,7 @@ static uint32_t bootloader[] = {
 /* Entry point for secondary CPUs.  Enable interrupt controller and
    Issue WFI until start address is written to system controller.  */
 static uint32_t smpboot[] = {
-  0xe3a00201, /* mov     r0, #0x10000000 */
-  0xe3800601, /* orr     r0, r0, #0x001000000 */
+  0xe59f0020, /* ldr     r0, privbase */
   0xe3a01001, /* mov     r1, #1 */
   0xe5801100, /* str     r1, [r0, #0x100] */
   0xe3a00201, /* mov     r0, #0x10000000 */
@@ -41,7 +40,8 @@ static uint32_t smpboot[] = {
   0xe5901000, /* ldr     r1, [r0] */
   0xe1110001, /* tst     r1, r1 */
   0x0afffffb, /* beq     <wfi> */
-  0xe12fff11  /* bx      r1 */
+  0xe12fff11, /* bx      r1 */
+  0 /* privbase: Private memory region base address.  */
 };
 
 #define WRITE_WORD(p, value) do { \
@@ -268,6 +268,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
                            info->loader_start);
         if (info->nb_cpus > 1) {
+            smpboot[10] = info->smp_priv_base;
             for (n = 0; n < sizeof(smpboot) / 4; n++) {
                 smpboot[n] = tswap32(smpboot[n]);
             }

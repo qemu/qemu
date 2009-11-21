@@ -337,6 +337,7 @@ enum arm_features {
     ARM_FEATURE_THUMB2,
     ARM_FEATURE_MPU,    /* Only has Memory Protection Unit, not full MMU.  */
     ARM_FEATURE_VFP3,
+    ARM_FEATURE_VFP_FP16,
     ARM_FEATURE_NEON,
     ARM_FEATURE_DIV,
     ARM_FEATURE_M, /* Microcontroller profile.  */
@@ -388,6 +389,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define ARM_CPUID_ARM1136_R2  0x4107b362
 #define ARM_CPUID_ARM11MPCORE 0x410fb022
 #define ARM_CPUID_CORTEXA8    0x410fc080
+#define ARM_CPUID_CORTEXA9    0x410fc090
 #define ARM_CPUID_CORTEXM3    0x410fc231
 #define ARM_CPUID_ANY         0xffffffff
 

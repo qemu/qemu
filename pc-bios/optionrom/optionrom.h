@@ -66,7 +66,10 @@
 	outw		%ax, (%dx);			\
 	mov		$BIOS_CFG_IOPORT_DATA, %dx;	\
 	cld;						\
-	rep insb	(%dx), %es:(%edi);
+	/* old as(1) doesn't like this insn so emit the bytes instead: \
+	rep insb	(%dx), %es:(%edi);		\
+	*/						\
+	.dc.b		0x67,0xf3,0x6c
 
 #define OPTION_ROM_START					\
     .code16;						\

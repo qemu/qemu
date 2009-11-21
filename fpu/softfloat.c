@@ -2457,6 +2457,144 @@ float32 float64_to_float32( float64 a STATUS_PARAM )
 
 }
 
+
+/*----------------------------------------------------------------------------
+| Packs the sign `zSign', exponent `zExp', and significand `zSig' into a
+| half-precision floating-point value, returning the result.  After being
+| shifted into the proper positions, the three fields are simply added
+| together to form the result.  This means that any integer portion of `zSig'
+| will be added into the exponent.  Since a properly normalized significand
+| will have an integer portion equal to 1, the `zExp' input should be 1 less
+| than the desired result exponent whenever `zSig' is a complete, normalized
+| significand.
+*----------------------------------------------------------------------------*/
+static bits16 packFloat16(flag zSign, int16 zExp, bits16 zSig)
+{
+    return (((bits32)zSign) << 15) + (((bits32)zExp) << 10) + zSig;
+}
+
+/* Half precision floats come in two formats: standard IEEE and "ARM" format.
+   The latter gains extra exponent range by omitting the NaN/Inf encodings.  */
+  
+float32 float16_to_float32( bits16 a, flag ieee STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp;
+    bits32 aSig;
+
+    aSign = a >> 15;
+    aExp = (a >> 10) & 0x1f;
+    aSig = a & 0x3ff;
+
+    if (aExp == 0x1f && ieee) {
+        if (aSig) {
+            /* Make sure correct exceptions are raised.  */
+            float32ToCommonNaN(a STATUS_VAR);
+            aSig |= 0x200;
+        }
+        return packFloat32(aSign, 0xff, aSig << 13);
+    }
+    if (aExp == 0) {
+        int8 shiftCount;
+
+        if (aSig == 0) {
+            return packFloat32(aSign, 0, 0);
+        }
+
+        shiftCount = countLeadingZeros32( aSig ) - 21;
+        aSig = aSig << shiftCount;
+        aExp = -shiftCount;
+    }
+    return packFloat32( aSign, aExp + 0x70, aSig << 13);
+}
+
+bits16 float32_to_float16( float32 a, flag ieee STATUS_PARAM)
+{
+    flag aSign;
+    int16 aExp;
+    bits32 aSig;
+    bits32 mask;
+    bits32 increment;
+    int8 roundingMode;
+
+    aSig = extractFloat32Frac( a );
+    aExp = extractFloat32Exp( a );
+    aSign = extractFloat32Sign( a );
+    if ( aExp == 0xFF ) {
+        if (aSig) {
+            /* Make sure correct exceptions are raised.  */
+            float32ToCommonNaN(a STATUS_VAR);
+            aSig |= 0x00400000;
+        }
+        return packFloat16(aSign, 0x1f, aSig >> 13);
+    }
+    if (aExp == 0 && aSign == 0) {
+        return packFloat16(aSign, 0, 0);
+    }
+    /* Decimal point between bits 22 and 23.  */
+    aSig |= 0x00800000;
+    aExp -= 0x7f;
+    if (aExp < -14) {
+        mask = 0x007fffff;
+        if (aExp < -24) {
+            aExp = -25;
+        } else {
+            mask >>= 24 + aExp;
+        }
+    } else {
+        mask = 0x00001fff;
+    }
+    if (aSig & mask) {
+        float_raise( float_flag_underflow STATUS_VAR );
+        roundingMode = STATUS(float_rounding_mode);
+        switch (roundingMode) {
+        case float_round_nearest_even:
+            increment = (mask + 1) >> 1;
+            if ((aSig & mask) == increment) {
+                increment = aSig & (increment << 1);
+            }
+            break;
+        case float_round_up:
+            increment = aSign ? 0 : mask;
+            break;
+        case float_round_down:
+            increment = aSign ? mask : 0;
+            break;
+        default: /* round_to_zero */
+            increment = 0;
+            break;
+        }
+        aSig += increment;
+        if (aSig >= 0x01000000) {
+            aSig >>= 1;
+            aExp++;
+        }
+    } else if (aExp < -14
+          && STATUS(float_detect_tininess) == float_tininess_before_rounding) {
+        float_raise( float_flag_underflow STATUS_VAR);
+    }
+
+    if (ieee) {
+        if (aExp > 15) {
+            float_raise( float_flag_overflow | float_flag_inexact STATUS_VAR);
+            return packFloat16(aSign, 0x1f, 0);
+        }
+    } else {
+        if (aExp > 16) {
+            float_raise( float_flag_overflow | float_flag_inexact STATUS_VAR);
+            return packFloat16(aSign, 0x1f, 0x3ff);
+        }
+    }
+    if (aExp < -24) {
+        return packFloat16(aSign, 0, 0);
+    }
+    if (aExp < -14) {
+        aSig >>= -14 - aExp;
+        aExp = -14;
+    }
+    return packFloat16(aSign, aExp + 14, aSig >> 13);
+}
+
 #ifdef FLOATX80
 
 /*----------------------------------------------------------------------------

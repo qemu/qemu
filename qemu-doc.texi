@@ -1661,7 +1661,7 @@ devices:
 
 @itemize @minus
 @item
-ARM926E, ARM1136, ARM11MPCORE or Cortex-A8 CPU
+ARM926E, ARM1136, ARM11MPCore, Cortex-A8 or Cortex-A9 MPCore CPU
 @item
 ARM AMBA Generic/Distributed Interrupt Controller
 @item

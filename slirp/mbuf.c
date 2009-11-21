@@ -95,8 +95,8 @@ m_free(struct mbuf *m)
 	 * Either free() it or put it on the free list
 	 */
 	if (m->m_flags & M_DOFREE) {
-		free(m);
 		m->slirp->mbuf_alloced--;
+		free(m);
 	} else if ((m->m_flags & M_FREELIST) == 0) {
 		insque(m,&m->slirp->m_freelist);
 		m->m_flags = M_FREELIST; /* Clobber other flags */
