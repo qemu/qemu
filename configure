@@ -2209,10 +2209,6 @@ if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$targ
   mkdir -p $target_dir/nwfpe
 fi
 
-if test ! -f $target_dir/config-devices.mak ; then
-  cp $source_path/default-configs/${target}.mak $target_dir/config-devices.mak
-fi
-
 #
 # don't use ln -sf as not all "ln -sf" over write the file/link
 #
