@@ -38,6 +38,9 @@ SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
 config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 	$(call quiet-command,cat $(SUBDIR_DEVICES_MAK) | grep "=y$$" | sort -u > $@,"  GEN   $@")
 
+%/config-devices.mak: default-configs/%.mak
+	$(call quiet-command,cp -p $< $@, "  GEN   $@")
+
 -include config-all-devices.mak
 
 build-all: recurse-all
