@@ -730,7 +730,7 @@ target_ulong helper_mftc0_status(void)
 
 target_ulong helper_mfc0_lladdr (void)
 {
-    return (int32_t)env->CP0_LLAddr >> 4;
+    return (int32_t)env->lladdr >> 4;
 }
 
 target_ulong helper_mfc0_watchlo (uint32_t sel)
@@ -795,7 +795,7 @@ target_ulong helper_dmfc0_tcschefback (void)
 
 target_ulong helper_dmfc0_lladdr (void)
 {
-    return env->CP0_LLAddr >> 4;
+    return env->lladdr >> 4;
 }
 
 target_ulong helper_dmfc0_watchlo (uint32_t sel)
@@ -959,7 +959,7 @@ void helper_mtc0_tcrestart (target_ulong arg1)
 {
     env->active_tc.PC = arg1;
     env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
-    env->CP0_LLAddr = 0ULL;
+    env->lladdr = 0ULL;
     /* MIPS16 not implemented. */
 }
 
@@ -970,12 +970,12 @@ void helper_mttc0_tcrestart (target_ulong arg1)
     if (other_tc == env->current_tc) {
         env->active_tc.PC = arg1;
         env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
-        env->CP0_LLAddr = 0ULL;
+        env->lladdr = 0ULL;
         /* MIPS16 not implemented. */
     } else {
         env->tcs[other_tc].PC = arg1;
         env->tcs[other_tc].CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
-        env->CP0_LLAddr = 0ULL;
+        env->lladdr = 0ULL;
         /* MIPS16 not implemented. */
     }
 }
@@ -1702,7 +1702,7 @@ void helper_eret (void)
     }
     compute_hflags(env);
     debug_post_eret();
-    env->CP0_LLAddr = 1;
+    env->lladdr = 1;
 }
 
 void helper_deret (void)
@@ -1712,7 +1712,7 @@ void helper_deret (void)
     env->hflags &= MIPS_HFLAG_DM;
     compute_hflags(env);
     debug_post_eret();
-    env->CP0_LLAddr = 1;
+    env->lladdr = 1;
 }
 #endif /* !CONFIG_USER_ONLY */
 

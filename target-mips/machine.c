@@ -127,7 +127,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_sbe32s(f, &env->CP0_Config3);
     qemu_put_sbe32s(f, &env->CP0_Config6);
     qemu_put_sbe32s(f, &env->CP0_Config7);
-    qemu_put_betls(f, &env->CP0_LLAddr);
+    qemu_put_betls(f, &env->lladdr);
     for(i = 0; i < 8; i++)
         qemu_put_betls(f, &env->CP0_WatchLo[i]);
     for(i = 0; i < 8; i++)
@@ -279,7 +279,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_sbe32s(f, &env->CP0_Config3);
     qemu_get_sbe32s(f, &env->CP0_Config6);
     qemu_get_sbe32s(f, &env->CP0_Config7);
-    qemu_get_betls(f, &env->CP0_LLAddr);
+    qemu_get_betls(f, &env->lladdr);
     for(i = 0; i < 8; i++)
         qemu_get_betls(f, &env->CP0_WatchLo[i]);
     for(i = 0; i < 8; i++)

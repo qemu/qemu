@@ -918,7 +918,7 @@ static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)  \
     TCGv t0 = tcg_temp_new();                                              \
     tcg_gen_mov_tl(t0, arg1);                                              \
     tcg_gen_qemu_##fname(ret, arg1, ctx->mem_idx);                         \
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, CP0_LLAddr));            \
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, lladdr));            \
     tcg_gen_st_tl(ret, cpu_env, offsetof(CPUState, llval));                \
     tcg_temp_free(t0);                                                     \
 }
@@ -941,7 +941,7 @@ static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ct
     tcg_gen_st_tl(arg2, cpu_env, offsetof(CPUState, CP0_BadVAddr));          \
     generate_exception(ctx, EXCP_AdES);                                      \
     gen_set_label(l1);                                                       \
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, CP0_LLAddr));              \
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, lladdr));              \
     tcg_gen_brcond_tl(TCG_COND_NE, arg2, t0, l2);                            \
     tcg_gen_movi_tl(t0, rt | ((almask << 3) & 0x20));                        \
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, llreg));                   \
@@ -967,7 +967,7 @@ static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ct
     tcg_gen_st_tl(arg2, cpu_env, offsetof(CPUState, CP0_BadVAddr));          \
     generate_exception(ctx, EXCP_AdES);                                      \
     gen_set_label(l1);                                                       \
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, CP0_LLAddr));              \
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, lladdr));              \
     tcg_gen_brcond_tl(TCG_COND_NE, arg2, t0, l2);                            \
     tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, llval));                   \
     tcg_gen_qemu_##ldname(t1, arg2, ctx->mem_idx);                           \
@@ -8501,8 +8501,8 @@ cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 
     if (!SIGN_EXT_P(env->CP0_EPC))
         cpu_fprintf(f, "BROKEN: EPC=0x" TARGET_FMT_lx "\n", env->CP0_EPC);
-    if (!SIGN_EXT_P(env->CP0_LLAddr))
-        cpu_fprintf(f, "BROKEN: LLAddr=0x" TARGET_FMT_lx "\n", env->CP0_LLAddr);
+    if (!SIGN_EXT_P(env->lladdr))
+        cpu_fprintf(f, "BROKEN: LLAddr=0x" TARGET_FMT_lx "\n", env->lladdr);
 }
 #endif
 
@@ -8526,7 +8526,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TARGET_FMT_lx "\n",
                 env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TARGET_FMT_lx "\n",
-                env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
+                env->CP0_Config0, env->CP0_Config1, env->lladdr);
     if (env->hflags & MIPS_HFLAG_FPU)
         fpu_dump_state(env, f, cpu_fprintf, flags);
 #if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)

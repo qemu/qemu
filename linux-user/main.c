@@ -1849,7 +1849,7 @@ static int do_store_exclusive(CPUMIPSState *env)
     int reg;
     int d;
 
-    addr = env->CP0_LLAddr;
+    addr = env->lladdr;
     page_addr = addr & TARGET_PAGE_MASK;
     start_exclusive();
     mmap_lock();
@@ -1879,7 +1879,7 @@ static int do_store_exclusive(CPUMIPSState *env)
             }
         }
     }
-    env->CP0_LLAddr = -1;
+    env->lladdr = -1;
     if (!segv) {
         env->active_tc.PC += 4;
     }
