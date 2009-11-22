@@ -5042,11 +5042,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_S:
                 autostart = 0;
                 break;
-#ifndef _WIN32
 	    case QEMU_OPTION_k:
 		keyboard_layout = optarg;
 		break;
-#endif
             case QEMU_OPTION_localtime:
                 rtc_utc = 0;
                 break;
