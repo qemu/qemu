@@ -3841,7 +3841,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int s
     case 17:
         switch (sel) {
         case 0:
-            /* ignored */
+            gen_helper_mtc0_lladdr(arg);
             rn = "LLAddr";
             break;
         default:
@@ -4998,7 +4998,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int 
     case 17:
         switch (sel) {
         case 0:
-            /* ignored */
+            gen_helper_mtc0_lladdr(arg);
             rn = "LLAddr";
             break;
         default:
@@ -8633,6 +8633,9 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Config3 = env->cpu_model->CP0_Config3;
     env->CP0_Config6 = env->cpu_model->CP0_Config6;
     env->CP0_Config7 = env->cpu_model->CP0_Config7;
+    env->CP0_LLAddr_rw_bitmask = env->cpu_model->CP0_LLAddr_rw_bitmask
+                                 << env->cpu_model->CP0_LLAddr_shift;
+    env->CP0_LLAddr_shift = env->cpu_model->CP0_LLAddr_shift;
     env->SYNCI_Step = env->cpu_model->SYNCI_Step;
     env->CCRes = env->cpu_model->CCRes;
     env->CP0_Status_rw_bitmask = env->cpu_model->CP0_Status_rw_bitmask;

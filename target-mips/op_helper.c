@@ -730,7 +730,7 @@ target_ulong helper_mftc0_status(void)
 
 target_ulong helper_mfc0_lladdr (void)
 {
-    return (int32_t)env->lladdr >> 4;
+    return (int32_t)(env->lladdr >> env->CP0_LLAddr_shift);
 }
 
 target_ulong helper_mfc0_watchlo (uint32_t sel)
@@ -795,7 +795,7 @@ target_ulong helper_dmfc0_tcschefback (void)
 
 target_ulong helper_dmfc0_lladdr (void)
 {
-    return env->lladdr >> 4;
+    return env->lladdr >> env->CP0_LLAddr_shift;
 }
 
 target_ulong helper_dmfc0_watchlo (uint32_t sel)
@@ -1241,6 +1241,13 @@ void helper_mtc0_config2 (target_ulong arg1)
 {
     /* tertiary/secondary caches not implemented */
     env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
+}
+
+void helper_mtc0_lladdr (target_ulong arg1)
+{
+    target_long mask = env->CP0_LLAddr_rw_bitmask;
+    arg1 = arg1 << env->CP0_LLAddr_shift;
+    env->lladdr = (env->lladdr & ~mask) | (arg1 & mask);
 }
 
 void helper_mtc0_watchlo (target_ulong arg1, uint32_t sel)
