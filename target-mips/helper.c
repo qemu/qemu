@@ -35,7 +35,7 @@ enum {
 };
 
 /* no MMU emulation */
-int no_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
+int no_mmu_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
     *physical = address;
@@ -44,7 +44,7 @@ int no_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
 }
 
 /* fixed mapping MMU emulation */
-int fixed_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
+int fixed_mmu_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                            target_ulong address, int rw, int access_type)
 {
     if (address <= (int32_t)0x7FFFFFFFUL) {
@@ -62,7 +62,7 @@ int fixed_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
 }
 
 /* MIPS32/MIPS64 R4000-style MMU emulation */
-int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
+int r4k_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                      target_ulong address, int rw, int access_type)
 {
     uint8_t ASID = env->CP0_EntryHi & 0xFF;
@@ -99,7 +99,7 @@ int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static int get_physical_address (CPUState *env, target_ulong *physical,
+static int get_physical_address (CPUState *env, target_phys_addr_t *physical,
                                 int *prot, target_ulong address,
                                 int rw, int access_type)
 {
@@ -206,7 +206,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 #if defined(CONFIG_USER_ONLY)
     return addr;
 #else
-    target_ulong phys_addr;
+    target_phys_addr_t phys_addr;
     int prot;
 
     if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT) != 0)
@@ -219,7 +219,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu)
 {
 #if !defined(CONFIG_USER_ONLY)
-    target_ulong physical;
+    target_phys_addr_t physical;
     int prot;
 #endif
     int exception = 0, error_code = 0;
@@ -243,7 +243,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #else
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    qemu_log("%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_lx " prot %d\n",
+    qemu_log("%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_plx " prot %d\n",
               __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
        ret = tlb_set_page(env, address & TARGET_PAGE_MASK,

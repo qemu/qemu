@@ -40,7 +40,7 @@ typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
 struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
-    int (*map_address) (struct CPUMIPSState *env, target_ulong *physical, int *prot, target_ulong address, int rw, int access_type);
+    int (*map_address) (struct CPUMIPSState *env, target_phys_addr_t *physical, int *prot, target_ulong address, int rw, int access_type);
     void (*helper_tlbwi) (void);
     void (*helper_tlbwr) (void);
     void (*helper_tlbp) (void);
@@ -466,11 +466,11 @@ struct CPUMIPSState {
     struct QEMUTimer *timer; /* Internal timer */
 };
 
-int no_mmu_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
+int no_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
                         target_ulong address, int rw, int access_type);
-int fixed_mmu_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
+int fixed_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
                            target_ulong address, int rw, int access_type);
-int r4k_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
+int r4k_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
                      target_ulong address, int rw, int access_type);
 void r4k_helper_tlbwi (void);
 void r4k_helper_tlbwr (void);
