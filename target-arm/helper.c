@@ -470,16 +470,6 @@ void do_interrupt (CPUState *env)
     env->exception_index = -1;
 }
 
-/* Structure used to record exclusive memory locations.  */
-typedef struct mmon_state {
-    struct mmon_state *next;
-    CPUARMState *cpu_env;
-    uint32_t addr;
-} mmon_state;
-
-/* Chain of current locks.  */
-static mmon_state* mmon_head = NULL;
-
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu)
 {
@@ -491,62 +481,6 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         env->cp15.c6_data = address;
     }
     return 1;
-}
-
-static void allocate_mmon_state(CPUState *env)
-{
-    env->mmon_entry = malloc(sizeof (mmon_state));
-    memset (env->mmon_entry, 0, sizeof (mmon_state));
-    env->mmon_entry->cpu_env = env;
-    mmon_head = env->mmon_entry;
-}
-
-/* Flush any monitor locks for the specified address.  */
-static void flush_mmon(uint32_t addr)
-{
-    mmon_state *mon;
-
-    for (mon = mmon_head; mon; mon = mon->next)
-      {
-        if (mon->addr != addr)
-          continue;
-
-        mon->addr = 0;
-        break;
-      }
-}
-
-/* Mark an address for exclusive access.  */
-void HELPER(mark_exclusive)(CPUState *env, uint32_t addr)
-{
-    if (!env->mmon_entry)
-        allocate_mmon_state(env);
-    /* Clear any previous locks.  */
-    flush_mmon(addr);
-    env->mmon_entry->addr = addr;
-}
-
-/* Test if an exclusive address is still exclusive.  Returns zero
-   if the address is still exclusive.   */
-uint32_t HELPER(test_exclusive)(CPUState *env, uint32_t addr)
-{
-    int res;
-
-    if (!env->mmon_entry)
-        return 1;
-    if (env->mmon_entry->addr == addr)
-        res = 0;
-    else
-        res = 1;
-    flush_mmon(addr);
-    return res;
-}
-
-void HELPER(clrex)(CPUState *env)
-{
-    if (!(env->mmon_entry && env->mmon_entry->addr))
-        return;
-    flush_mmon(env->mmon_entry->addr);
 }
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
@@ -1271,24 +1205,6 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
         return -1;
 
     return phys_addr;
-}
-
-/* Not really implemented.  Need to figure out a sane way of doing this.
-   Maybe add generic watchpoint support and use that.  */
-
-void HELPER(mark_exclusive)(CPUState *env, uint32_t addr)
-{
-    env->mmon_addr = addr;
-}
-
-uint32_t HELPER(test_exclusive)(CPUState *env, uint32_t addr)
-{
-    return (env->mmon_addr != addr);
-}
-
-void HELPER(clrex)(CPUState *env)
-{
-    env->mmon_addr = -1;
 }
 
 void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)

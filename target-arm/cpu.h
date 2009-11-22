@@ -40,6 +40,7 @@
 #define EXCP_BKPT            7
 #define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
 #define EXCP_KERNEL_TRAP     9   /* Jumped to kernel code page.  */
+#define EXCP_STREX          10
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -180,10 +181,12 @@ typedef struct CPUARMState {
 
         float_status fp_status;
     } vfp;
+    uint32_t exclusive_addr;
+    uint32_t exclusive_val;
+    uint32_t exclusive_high;
 #if defined(CONFIG_USER_ONLY)
-    struct mmon_state *mmon_entry;
-#else
-    uint32_t mmon_addr;
+    uint32_t exclusive_test;
+    uint32_t exclusive_info;
 #endif
 
     /* iwMMXt coprocessor state.  */

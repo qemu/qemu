@@ -524,6 +524,81 @@ do_kernel_trap(CPUARMState *env)
     return 0;
 }
 
+static int do_strex(CPUARMState *env)
+{
+    uint32_t val;
+    int size;
+    int rc = 1;
+    int segv = 0;
+    uint32_t addr;
+    start_exclusive();
+    addr = env->exclusive_addr;
+    if (addr != env->exclusive_test) {
+        goto fail;
+    }
+    size = env->exclusive_info & 0xf;
+    switch (size) {
+    case 0:
+        segv = get_user_u8(val, addr);
+        break;
+    case 1:
+        segv = get_user_u16(val, addr);
+        break;
+    case 2:
+    case 3:
+        segv = get_user_u32(val, addr);
+        break;
+    }
+    if (segv) {
+        env->cp15.c6_data = addr;
+        goto done;
+    }
+    if (val != env->exclusive_val) {
+        goto fail;
+    }
+    if (size == 3) {
+        segv = get_user_u32(val, addr + 4);
+        if (segv) {
+            env->cp15.c6_data = addr + 4;
+            goto done;
+        }
+        if (val != env->exclusive_high) {
+            goto fail;
+        }
+    }
+    val = env->regs[(env->exclusive_info >> 8) & 0xf];
+    switch (size) {
+    case 0:
+        segv = put_user_u8(val, addr);
+        break;
+    case 1:
+        segv = put_user_u16(val, addr);
+        break;
+    case 2:
+    case 3:
+        segv = put_user_u32(val, addr);
+        break;
+    }
+    if (segv) {
+        env->cp15.c6_data = addr;
+        goto done;
+    }
+    if (size == 3) {
+        val = env->regs[(env->exclusive_info >> 12) & 0xf];
+        segv = put_user_u32(val, addr);
+        if (segv) {
+            env->cp15.c6_data = addr + 4;
+            goto done;
+        }
+    }
+    rc = 0;
+fail:
+    env->regs[(env->exclusive_info >> 4) & 0xf] = rc;
+done:
+    end_exclusive();
+    return segv;
+}
+
 void cpu_loop(CPUARMState *env)
 {
     int trapnr;
@@ -717,6 +792,11 @@ void cpu_loop(CPUARMState *env)
             if (do_kernel_trap(env))
               goto error;
             break;
+        case EXCP_STREX:
+            if (do_strex(env)) {
+                addr = env->cp15.c6_data;
+                goto do_segv;
+            }
         default:
         error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",

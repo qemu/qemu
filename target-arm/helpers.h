@@ -68,10 +68,6 @@ DEF_HELPER_2(get_cp, i32, env, i32)
 DEF_HELPER_2(get_r13_banked, i32, env, i32)
 DEF_HELPER_3(set_r13_banked, void, env, i32, i32)
 
-DEF_HELPER_2(mark_exclusive, void, env, i32)
-DEF_HELPER_2(test_exclusive, i32, env, i32)
-DEF_HELPER_1(clrex, void, env)
-
 DEF_HELPER_1(get_user_reg, i32, i32)
 DEF_HELPER_2(set_user_reg, void, i32, i32)
 
