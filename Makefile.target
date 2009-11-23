@@ -1,7 +1,7 @@
 # -*- Mode: makefile -*-
 
 # This needs to be defined before rules.mak
-GENERATED_HEADERS = config-target.h config-devices.h
+GENERATED_HEADERS = config-target.h
 
 include ../config-host.mak
 include config-devices.mak

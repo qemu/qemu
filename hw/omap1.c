@@ -3358,16 +3358,6 @@ static void omap_rtc_alarm_update(struct omap_rtc_s *s)
         printf("%s: conversion failed\n", __FUNCTION__);
 }
 
-static inline uint8_t omap_rtc_bcd(int num)
-{
-    return ((num / 10) << 4) | (num % 10);
-}
-
-static inline int omap_rtc_bin(uint8_t num)
-{
-    return (num & 15) + 10 * (num >> 4);
-}
-
 static uint32_t omap_rtc_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_rtc_s *s = (struct omap_rtc_s *) opaque;
@@ -3376,51 +3366,51 @@ static uint32_t omap_rtc_read(void *opaque, target_phys_addr_t addr)
 
     switch (offset) {
     case 0x00:	/* SECONDS_REG */
-        return omap_rtc_bcd(s->current_tm.tm_sec);
+        return to_bcd(s->current_tm.tm_sec);
 
     case 0x04:	/* MINUTES_REG */
-        return omap_rtc_bcd(s->current_tm.tm_min);
+        return to_bcd(s->current_tm.tm_min);
 
     case 0x08:	/* HOURS_REG */
         if (s->pm_am)
             return ((s->current_tm.tm_hour > 11) << 7) |
-                    omap_rtc_bcd(((s->current_tm.tm_hour - 1) % 12) + 1);
+                    to_bcd(((s->current_tm.tm_hour - 1) % 12) + 1);
         else
-            return omap_rtc_bcd(s->current_tm.tm_hour);
+            return to_bcd(s->current_tm.tm_hour);
 
     case 0x0c:	/* DAYS_REG */
-        return omap_rtc_bcd(s->current_tm.tm_mday);
+        return to_bcd(s->current_tm.tm_mday);
 
     case 0x10:	/* MONTHS_REG */
-        return omap_rtc_bcd(s->current_tm.tm_mon + 1);
+        return to_bcd(s->current_tm.tm_mon + 1);
 
     case 0x14:	/* YEARS_REG */
-        return omap_rtc_bcd(s->current_tm.tm_year % 100);
+        return to_bcd(s->current_tm.tm_year % 100);
 
     case 0x18:	/* WEEK_REG */
         return s->current_tm.tm_wday;
 
     case 0x20:	/* ALARM_SECONDS_REG */
-        return omap_rtc_bcd(s->alarm_tm.tm_sec);
+        return to_bcd(s->alarm_tm.tm_sec);
 
     case 0x24:	/* ALARM_MINUTES_REG */
-        return omap_rtc_bcd(s->alarm_tm.tm_min);
+        return to_bcd(s->alarm_tm.tm_min);
 
     case 0x28:	/* ALARM_HOURS_REG */
         if (s->pm_am)
             return ((s->alarm_tm.tm_hour > 11) << 7) |
-                    omap_rtc_bcd(((s->alarm_tm.tm_hour - 1) % 12) + 1);
+                    to_bcd(((s->alarm_tm.tm_hour - 1) % 12) + 1);
         else
-            return omap_rtc_bcd(s->alarm_tm.tm_hour);
+            return to_bcd(s->alarm_tm.tm_hour);
 
     case 0x2c:	/* ALARM_DAYS_REG */
-        return omap_rtc_bcd(s->alarm_tm.tm_mday);
+        return to_bcd(s->alarm_tm.tm_mday);
 
     case 0x30:	/* ALARM_MONTHS_REG */
-        return omap_rtc_bcd(s->alarm_tm.tm_mon + 1);
+        return to_bcd(s->alarm_tm.tm_mon + 1);
 
     case 0x34:	/* ALARM_YEARS_REG */
-        return omap_rtc_bcd(s->alarm_tm.tm_year % 100);
+        return to_bcd(s->alarm_tm.tm_year % 100);
 
     case 0x40:	/* RTC_CTRL_REG */
         return (s->pm_am << 3) | (s->auto_comp << 2) |
@@ -3459,7 +3449,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         printf("RTC SEC_REG <-- %02x\n", value);
 #endif
         s->ti -= s->current_tm.tm_sec;
-        s->ti += omap_rtc_bin(value);
+        s->ti += from_bcd(value);
         return;
 
     case 0x04:	/* MINUTES_REG */
@@ -3467,7 +3457,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         printf("RTC MIN_REG <-- %02x\n", value);
 #endif
         s->ti -= s->current_tm.tm_min * 60;
-        s->ti += omap_rtc_bin(value) * 60;
+        s->ti += from_bcd(value) * 60;
         return;
 
     case 0x08:	/* HOURS_REG */
@@ -3476,10 +3466,10 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #endif
         s->ti -= s->current_tm.tm_hour * 3600;
         if (s->pm_am) {
-            s->ti += (omap_rtc_bin(value & 0x3f) & 12) * 3600;
+            s->ti += (from_bcd(value & 0x3f) & 12) * 3600;
             s->ti += ((value >> 7) & 1) * 43200;
         } else
-            s->ti += omap_rtc_bin(value & 0x3f) * 3600;
+            s->ti += from_bcd(value & 0x3f) * 3600;
         return;
 
     case 0x0c:	/* DAYS_REG */
@@ -3487,7 +3477,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         printf("RTC DAY_REG <-- %02x\n", value);
 #endif
         s->ti -= s->current_tm.tm_mday * 86400;
-        s->ti += omap_rtc_bin(value) * 86400;
+        s->ti += from_bcd(value) * 86400;
         return;
 
     case 0x10:	/* MONTHS_REG */
@@ -3495,7 +3485,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         printf("RTC MTH_REG <-- %02x\n", value);
 #endif
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
-        new_tm.tm_mon = omap_rtc_bin(value);
+        new_tm.tm_mon = from_bcd(value);
         ti[0] = mktimegm(&s->current_tm);
         ti[1] = mktimegm(&new_tm);
 
@@ -3505,7 +3495,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         } else {
             /* A less accurate version */
             s->ti -= s->current_tm.tm_mon * 2592000;
-            s->ti += omap_rtc_bin(value) * 2592000;
+            s->ti += from_bcd(value) * 2592000;
         }
         return;
 
@@ -3514,7 +3504,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         printf("RTC YRS_REG <-- %02x\n", value);
 #endif
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
-        new_tm.tm_year += omap_rtc_bin(value) - (new_tm.tm_year % 100);
+        new_tm.tm_year += from_bcd(value) - (new_tm.tm_year % 100);
         ti[0] = mktimegm(&s->current_tm);
         ti[1] = mktimegm(&new_tm);
 
@@ -3524,7 +3514,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
         } else {
             /* A less accurate version */
             s->ti -= (s->current_tm.tm_year % 100) * 31536000;
-            s->ti += omap_rtc_bin(value) * 31536000;
+            s->ti += from_bcd(value) * 31536000;
         }
         return;
 
@@ -3535,7 +3525,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #ifdef ALMDEBUG
         printf("ALM SEC_REG <-- %02x\n", value);
 #endif
-        s->alarm_tm.tm_sec = omap_rtc_bin(value);
+        s->alarm_tm.tm_sec = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
@@ -3543,7 +3533,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #ifdef ALMDEBUG
         printf("ALM MIN_REG <-- %02x\n", value);
 #endif
-        s->alarm_tm.tm_min = omap_rtc_bin(value);
+        s->alarm_tm.tm_min = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
@@ -3553,10 +3543,10 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #endif
         if (s->pm_am)
             s->alarm_tm.tm_hour =
-                    ((omap_rtc_bin(value & 0x3f)) % 12) +
+                    ((from_bcd(value & 0x3f)) % 12) +
                     ((value >> 7) & 1) * 12;
         else
-            s->alarm_tm.tm_hour = omap_rtc_bin(value);
+            s->alarm_tm.tm_hour = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
@@ -3564,7 +3554,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #ifdef ALMDEBUG
         printf("ALM DAY_REG <-- %02x\n", value);
 #endif
-        s->alarm_tm.tm_mday = omap_rtc_bin(value);
+        s->alarm_tm.tm_mday = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
@@ -3572,7 +3562,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #ifdef ALMDEBUG
         printf("ALM MON_REG <-- %02x\n", value);
 #endif
-        s->alarm_tm.tm_mon = omap_rtc_bin(value);
+        s->alarm_tm.tm_mon = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
@@ -3580,7 +3570,7 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #ifdef ALMDEBUG
         printf("ALM YRS_REG <-- %02x\n", value);
 #endif
-        s->alarm_tm.tm_year = omap_rtc_bin(value);
+        s->alarm_tm.tm_year = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 

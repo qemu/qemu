@@ -77,6 +77,13 @@ static TCGv_ptr cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 static TCGv_i32 cpu_R[16];
+static TCGv_i32 cpu_exclusive_addr;
+static TCGv_i32 cpu_exclusive_val;
+static TCGv_i32 cpu_exclusive_high;
+#ifdef CONFIG_USER_ONLY
+static TCGv_i32 cpu_exclusive_test;
+static TCGv_i32 cpu_exclusive_info;
+#endif
 
 /* FIXME:  These should be removed.  */
 static TCGv cpu_F0s, cpu_F1s;
@@ -100,6 +107,18 @@ void arm_translate_init(void)
                                           offsetof(CPUState, regs[i]),
                                           regnames[i]);
     }
+    cpu_exclusive_addr = tcg_global_mem_new_i32(TCG_AREG0,
+        offsetof(CPUState, exclusive_addr), "exclusive_addr");
+    cpu_exclusive_val = tcg_global_mem_new_i32(TCG_AREG0,
+        offsetof(CPUState, exclusive_val), "exclusive_val");
+    cpu_exclusive_high = tcg_global_mem_new_i32(TCG_AREG0,
+        offsetof(CPUState, exclusive_high), "exclusive_high");
+#ifdef CONFIG_USER_ONLY
+    cpu_exclusive_test = tcg_global_mem_new_i32(TCG_AREG0,
+        offsetof(CPUState, exclusive_test), "exclusive_test");
+    cpu_exclusive_info = tcg_global_mem_new_i32(TCG_AREG0,
+        offsetof(CPUState, exclusive_info), "exclusive_info");
+#endif
 
 #define GEN_HELPER 2
 #include "helpers.h"
@@ -5820,6 +5839,132 @@ static void gen_logicq_cc(TCGv_i64 val)
     dead_tmp(tmp);
 }
 
+/* Load/Store exclusive instructions are implemented by remembering
+   the value/address loaded, and seeing if these are the same
+   when the store is performed. This should be is sufficient to implement
+   the architecturally mandated semantics, and avoids having to monitor
+   regular stores.
+
+   In system emulation mode only one CPU will be running at once, so
+   this sequence is effectively atomic.  In user emulation mode we
+   throw an exception and handle the atomic operation elsewhere.  */
+static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
+                               TCGv addr, int size)
+{
+    TCGv tmp;
+
+    switch (size) {
+    case 0:
+        tmp = gen_ld8u(addr, IS_USER(s));
+        break;
+    case 1:
+        tmp = gen_ld16u(addr, IS_USER(s));
+        break;
+    case 2:
+    case 3:
+        tmp = gen_ld32(addr, IS_USER(s));
+        break;
+    default:
+        abort();
+    }
+    tcg_gen_mov_i32(cpu_exclusive_val, tmp);
+    store_reg(s, rt, tmp);
+    if (size == 3) {
+        tcg_gen_addi_i32(addr, addr, 4);
+        tmp = gen_ld32(addr, IS_USER(s));
+        tcg_gen_mov_i32(cpu_exclusive_high, tmp);
+        store_reg(s, rt2, tmp);
+    }
+    tcg_gen_mov_i32(cpu_exclusive_addr, addr);
+}
+
+static void gen_clrex(DisasContext *s)
+{
+    tcg_gen_movi_i32(cpu_exclusive_addr, -1);
+}
+
+#ifdef CONFIG_USER_ONLY
+static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
+                                TCGv addr, int size)
+{
+    tcg_gen_mov_i32(cpu_exclusive_test, addr);
+    tcg_gen_movi_i32(cpu_exclusive_info,
+                     size | (rd << 4) | (rt << 8) | (rt2 << 12));
+    gen_set_condexec(s);
+    gen_set_pc_im(s->pc - 4);
+    gen_exception(EXCP_STREX);
+    s->is_jmp = DISAS_JUMP;
+}
+#else
+static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
+                                TCGv addr, int size)
+{
+    TCGv tmp;
+    int done_label;
+    int fail_label;
+
+    /* if (env->exclusive_addr == addr && env->exclusive_val == [addr]) {
+         [addr] = {Rt};
+         {Rd} = 0;
+       } else {
+         {Rd} = 1;
+       } */
+    fail_label = gen_new_label();
+    done_label = gen_new_label();
+    tcg_gen_brcond_i32(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
+    switch (size) {
+    case 0:
+        tmp = gen_ld8u(addr, IS_USER(s));
+        break;
+    case 1:
+        tmp = gen_ld16u(addr, IS_USER(s));
+        break;
+    case 2:
+    case 3:
+        tmp = gen_ld32(addr, IS_USER(s));
+        break;
+    default:
+        abort();
+    }
+    tcg_gen_brcond_i32(TCG_COND_NE, tmp, cpu_exclusive_val, fail_label);
+    dead_tmp(tmp);
+    if (size == 3) {
+        TCGv tmp2 = new_tmp();
+        tcg_gen_addi_i32(tmp2, addr, 4);
+        tmp = gen_ld32(addr, IS_USER(s));
+        dead_tmp(tmp2);
+        tcg_gen_brcond_i32(TCG_COND_NE, tmp, cpu_exclusive_high, fail_label);
+        dead_tmp(tmp);
+    }
+    tmp = load_reg(s, rt);
+    switch (size) {
+    case 0:
+        gen_st8(tmp, addr, IS_USER(s));
+        break;
+    case 1:
+        gen_st16(tmp, addr, IS_USER(s));
+        break;
+    case 2:
+    case 3:
+        gen_st32(tmp, addr, IS_USER(s));
+        break;
+    default:
+        abort();
+    }
+    if (size == 3) {
+        tcg_gen_addi_i32(addr, addr, 4);
+        tmp = load_reg(s, rt2);
+        gen_st32(tmp, addr, IS_USER(s));
+    }
+    tcg_gen_movi_i32(cpu_R[rd], 0);
+    tcg_gen_br(done_label);
+    gen_set_label(fail_label);
+    tcg_gen_movi_i32(cpu_R[rd], 1);
+    gen_set_label(done_label);
+    tcg_gen_movi_i32(cpu_exclusive_addr, -1);
+}
+#endif
+
 static void disas_arm_insn(CPUState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
@@ -5870,7 +6015,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             switch ((insn >> 4) & 0xf) {
             case 1: /* clrex */
                 ARCH(6K);
-                gen_helper_clrex(cpu_env);
+                gen_clrex(s);
                 return;
             case 4: /* dsb */
             case 5: /* dmb */
@@ -6455,57 +6600,40 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         addr = tcg_temp_local_new_i32();
                         load_reg_var(s, addr, rn);
                         if (insn & (1 << 20)) {
-                            gen_helper_mark_exclusive(cpu_env, addr);
                             switch (op1) {
                             case 0: /* ldrex */
-                                tmp = gen_ld32(addr, IS_USER(s));
+                                gen_load_exclusive(s, rd, 15, addr, 2);
                                 break;
                             case 1: /* ldrexd */
-                                tmp = gen_ld32(addr, IS_USER(s));
-                                store_reg(s, rd, tmp);
-                                tcg_gen_addi_i32(addr, addr, 4);
-                                tmp = gen_ld32(addr, IS_USER(s));
-                                rd++;
+                                gen_load_exclusive(s, rd, rd + 1, addr, 3);
                                 break;
                             case 2: /* ldrexb */
-                                tmp = gen_ld8u(addr, IS_USER(s));
+                                gen_load_exclusive(s, rd, 15, addr, 0);
                                 break;
                             case 3: /* ldrexh */
-                                tmp = gen_ld16u(addr, IS_USER(s));
+                                gen_load_exclusive(s, rd, 15, addr, 1);
                                 break;
                             default:
                                 abort();
                             }
-                            store_reg(s, rd, tmp);
                         } else {
-                            int label = gen_new_label();
                             rm = insn & 0xf;
-                            tmp2 = tcg_temp_local_new_i32();
-                            gen_helper_test_exclusive(tmp2, cpu_env, addr);
-                            tcg_gen_brcondi_i32(TCG_COND_NE, tmp2, 0, label);
-                            tmp = load_reg(s,rm);
                             switch (op1) {
                             case 0:  /*  strex */
-                                gen_st32(tmp, addr, IS_USER(s));
+                                gen_store_exclusive(s, rd, rm, 15, addr, 2);
                                 break;
                             case 1: /*  strexd */
-                                gen_st32(tmp, addr, IS_USER(s));
-                                tcg_gen_addi_i32(addr, addr, 4);
-                                tmp = load_reg(s, rm + 1);
-                                gen_st32(tmp, addr, IS_USER(s));
+                                gen_store_exclusive(s, rd, rm, rm + 1, addr, 2);
                                 break;
                             case 2: /*  strexb */
-                                gen_st8(tmp, addr, IS_USER(s));
+                                gen_store_exclusive(s, rd, rm, 15, addr, 0);
                                 break;
                             case 3: /* strexh */
-                                gen_st16(tmp, addr, IS_USER(s));
+                                gen_store_exclusive(s, rd, rm, 15, addr, 1);
                                 break;
                             default:
                                 abort();
                             }
-                            gen_set_label(label);
-                            tcg_gen_mov_i32(cpu_R[rd], tmp2);
-                            tcg_temp_free(tmp2);
                         }
                         tcg_temp_free(addr);
                     } else {
@@ -7260,20 +7388,11 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 /* Load/store exclusive word.  */
                 addr = tcg_temp_local_new();
                 load_reg_var(s, addr, rn);
+                tcg_gen_addi_i32(addr, addr, (insn & 0xff) << 2);
                 if (insn & (1 << 20)) {
-                    gen_helper_mark_exclusive(cpu_env, addr);
-                    tmp = gen_ld32(addr, IS_USER(s));
-                    store_reg(s, rd, tmp);
+                    gen_load_exclusive(s, rs, 15, addr, 2);
                 } else {
-                    int label = gen_new_label();
-                    tmp2 = tcg_temp_local_new();
-                    gen_helper_test_exclusive(tmp2, cpu_env, addr);
-                    tcg_gen_brcondi_i32(TCG_COND_NE, tmp2, 0, label);
-                    tmp = load_reg(s, rs);
-                    gen_st32(tmp, addr, IS_USER(s));
-                    gen_set_label(label);
-                    tcg_gen_mov_i32(cpu_R[rd], tmp2);
-                    tcg_temp_free(tmp2);
+                    gen_store_exclusive(s, rd, rs, 15, addr, 2);
                 }
                 tcg_temp_free(addr);
             } else if ((insn & (1 << 6)) == 0) {
@@ -7301,56 +7420,17 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 store_reg(s, 15, tmp);
             } else {
                 /* Load/store exclusive byte/halfword/doubleword.  */
-                /* ??? These are not really atomic.  However we know
-                   we never have multiple CPUs running in parallel,
-                   so it is good enough.  */
+                ARCH(7);
                 op = (insn >> 4) & 0x3;
+                if (op == 2) {
+                    goto illegal_op;
+                }
                 addr = tcg_temp_local_new();
                 load_reg_var(s, addr, rn);
                 if (insn & (1 << 20)) {
-                    gen_helper_mark_exclusive(cpu_env, addr);
-                    switch (op) {
-                    case 0:
-                        tmp = gen_ld8u(addr, IS_USER(s));
-                        break;
-                    case 1:
-                        tmp = gen_ld16u(addr, IS_USER(s));
-                        break;
-                    case 3:
-                        tmp = gen_ld32(addr, IS_USER(s));
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp2 = gen_ld32(addr, IS_USER(s));
-                        store_reg(s, rd, tmp2);
-                        break;
-                    default:
-                        goto illegal_op;
-                    }
-                    store_reg(s, rs, tmp);
+                    gen_load_exclusive(s, rs, rd, addr, op);
                 } else {
-                    int label = gen_new_label();
-                    tmp2 = tcg_temp_local_new();
-                    gen_helper_test_exclusive(tmp2, cpu_env, addr);
-                    tcg_gen_brcondi_i32(TCG_COND_NE, tmp2, 0, label);
-                    tmp = load_reg(s, rs);
-                    switch (op) {
-                    case 0:
-                        gen_st8(tmp, addr, IS_USER(s));
-                        break;
-                    case 1:
-                        gen_st16(tmp, addr, IS_USER(s));
-                        break;
-                    case 3:
-                        gen_st32(tmp, addr, IS_USER(s));
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = load_reg(s, rd);
-                        gen_st32(tmp, addr, IS_USER(s));
-                        break;
-                    default:
-                        goto illegal_op;
-                    }
-                    gen_set_label(label);
-                    tcg_gen_mov_i32(cpu_R[rm], tmp2);
-                    tcg_temp_free(tmp2);
+                    gen_store_exclusive(s, rm, rs, rd, addr, op);
                 }
                 tcg_temp_free(addr);
             }
@@ -7846,16 +7926,16 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         }
                         break;
                     case 3: /* Special control operations.  */
+                        ARCH(7);
                         op = (insn >> 4) & 0xf;
                         switch (op) {
                         case 2: /* clrex */
-                            gen_helper_clrex(cpu_env);
+                            gen_clrex(s);
                             break;
                         case 4: /* dsb */
                         case 5: /* dmb */
                         case 6: /* isb */
                             /* These execute as NOPs.  */
-                            ARCH(7);
                             break;
                         default:
                             goto illegal_op;

@@ -1,7 +1,7 @@
 # Makefile for QEMU.
 
 # This needs to be defined before rules.mak
-GENERATED_HEADERS = config-host.h config-all-devices.h
+GENERATED_HEADERS = config-host.h
 
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -39,7 +39,17 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 	$(call quiet-command,cat $(SUBDIR_DEVICES_MAK) | grep "=y$$" | sort -u > $@,"  GEN   $@")
 
 %/config-devices.mak: default-configs/%.mak
-	$(call quiet-command,cp -p $< $@, "  GEN   $@")
+	$(call quiet-command,cat $< > $@.tmp, "  GEN   $@")
+	@if test -f $@ ; then \
+	  echo "WARNING: $@ out of date." ;\
+	  echo "Run \"make defconfing\" to regenerate." ; \
+	  rm $@.tmp ; \
+	 else \
+	  mv $@.tmp $@ ; \
+	 fi
+
+defconfig:
+	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
 
 -include config-all-devices.mak
 
@@ -58,9 +68,6 @@ tools: $(TOOLS)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
-
-config-all-devices.h: config-all-devices.h-timestamp
-config-all-devices.h-timestamp: config-all-devices.mak
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
@@ -133,6 +140,7 @@ obj-$(CONFIG_SSD0303) += ssd0303.o
 obj-$(CONFIG_SSD0323) += ssd0323.o
 obj-$(CONFIG_ADS7846) += ads7846.o
 obj-$(CONFIG_MAX111X) += max111x.o
+obj-$(CONFIG_DS1338) += ds1338.o
 obj-y += i2c.o smbus.o smbus_eeprom.o
 obj-y += eeprom93xx.o
 obj-y += scsi-disk.o cdrom.o
@@ -259,7 +267,7 @@ clean:
 
 distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
-	rm -f config-all-devices.mak config-all-devices.h*
+	rm -f config-all-devices.mak
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS) libhw32 libhw64 libuser; do \
