@@ -231,8 +231,6 @@ bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 libqemu_common.a: $(obj-y)
 
-$(obj-y): config-host.h
-
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h

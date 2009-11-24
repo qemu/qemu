@@ -64,9 +64,7 @@ libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
 libobj-$(TARGET_ALPHA) += alpha_palcode.o
 
-ifdef CONFIG_SCU2
-LIBOBJS += scu2.o
-endif
+libobj-$(CONFIG_SCU2) += scu2.o
 
 # NOTE: the disassembler code is only needed for debugging
 libobj-y += disas.o
@@ -88,7 +86,6 @@ libobj-$(CONFIG_SPARC_DIS) += sparc-dis.o
 libqemu.a: $(libobj-y)
 
 translate.o: translate.c cpu.h
-translate.o: CFLAGS:=${CFLAGS} -O1 #-fno-unit-at-a-time
 
 translate-all.o: translate-all.c cpu.h
 
