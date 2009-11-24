@@ -45,7 +45,7 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 	$(call quiet-command,cat $< > $@.tmp, "  GEN   $@")
 	@if test -f $@ ; then \
 	  echo "WARNING: $@ out of date." ;\
-	  echo "Run \"make defconfing\" to regenerate." ; \
+	  echo "Run \"make defconfig\" to regenerate." ; \
 	  rm $@.tmp ; \
 	 else \
 	  mv $@.tmp $@ ; \
