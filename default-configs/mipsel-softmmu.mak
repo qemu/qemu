@@ -9,3 +9,6 @@ CONFIG_PFLASH=y
 
 # Systems.
 CONFIG_AR7=y
+
+# Experimental interfaces.
+CONFIG_RUBY=n

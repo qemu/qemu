@@ -26,25 +26,16 @@ endif
 
 PROGS=$(QEMU_PROG)
 
-ifdef CONFIG_MY_EXTENSIONS # TODO
-ifndef CONFIG_LINUX_USER
+ifeq ($(CONFIG_RUBY),y)
 ifndef CONFIG_WIN32
 ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux/ruby.h),)
-ifeq ($(TARGET_ARCH),mips)
-CONFIG_RUBY=yes
 CPPFLAGS += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
 LIBS += -lruby1.8
 QEMU_RUBY := qemu.so
 PROGS += $(QEMU_RUBY)
-endif # mips
-ifeq ($(TARGET_ARCH), i386)
-# CONFIG_SCU2=yes
-# CPPFLAGS += -DLOCAL_INIT=scu2_init
-endif
 endif
 endif # !CONFIG_WIN32
-endif # !CONFIG_LINUX_USER
-endif # !CONFIG_MY_EXTENSIONS
+endif
 
 LIBS+=-lm
 
@@ -335,7 +326,7 @@ obj-sh4-y += ide/core.o ide/mmio.o
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 obj-m68k-y += m68k-semi.o dummy_m68k.o
 
-ifdef CONFIG_RUBY
+ifdef QEMU_RUBY
 $(QEMU_RUBY): $(OBJS) libqemu.a
 	$(CC) -shared $(VL_LDFLAGS) -o $(QEMU_RUBY) $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
 endif
