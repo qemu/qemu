@@ -262,15 +262,13 @@ obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
 obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 obj-mips-y += piix4.o parallel.o cirrus_vga.o pcspk.o $(sound-obj-y)
-ifeq ($(TARGET_ARCH), mips)
-obj-mips-y += ar7.o
-endif
 obj-mips-y += mipsnet.o ne2000-isa.o
-obj-mips-y += pflash.o
-obj-mips-y += pflash_amd.o
 obj-mips-y += pflash_cfi01.o
-obj-mips-y += pflash_cfi02.o
 obj-mips-y += vmware_vga.o
+obj-mips-$(CONFIG_AR7) += ar7.o
+obj-mips-$(CONFIG_PFLASH) += pflash.o
+obj-mips-$(CONFIG_PFLASH) += pflash_amd.o
+obj-mips-$(CONFIG_PFLASH) += pflash_cfi02.o
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
 
