@@ -797,6 +797,7 @@ void cpu_loop(CPUARMState *env)
                 addr = env->cp15.c6_data;
                 goto do_segv;
             }
+            break;
         default:
         error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
