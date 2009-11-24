@@ -378,3 +378,10 @@ void msix_vector_unuse(PCIDevice *dev, unsigned vector)
     if (vector < dev->msix_entries_nr && dev->msix_entry_used[vector])
         --dev->msix_entry_used[vector];
 }
+
+void msix_unuse_all_vectors(PCIDevice *dev)
+{
+    if (!(dev->cap_present & QEMU_PCI_CAP_MSIX))
+        return;
+    msix_free_irq_entries(dev);
+}
