@@ -47,6 +47,7 @@ int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size);
 int kvm_set_migration_log(int enable);
 
 int kvm_has_sync_mmu(void);
+int kvm_has_vcpu_events(void);
 
 void kvm_setup_guest_memory(void *start, size_t size);
 

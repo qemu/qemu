@@ -693,6 +693,11 @@ typedef struct CPUX86State {
     /* For KVM */
     uint32_t mp_state;
     int32_t interrupt_injected;
+    uint8_t soft_interrupt;
+    uint8_t nmi_injected;
+    uint8_t nmi_pending;
+    uint8_t has_error_code;
+    uint32_t sipi_vector;
 
     /* in order to simplify APIC support, we leave this pointer to the
        user */

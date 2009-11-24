@@ -61,6 +61,7 @@ struct KVMState
     int coalesced_mmio;
     int broken_set_mem_region;
     int migration_log;
+    int vcpu_events;
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
@@ -479,6 +480,11 @@ int kvm_init(int smp_cpus)
     }
 #endif
 
+    s->vcpu_events = 0;
+#ifdef KVM_CAP_VCPU_EVENTS
+    s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
+#endif
+
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
@@ -866,6 +872,11 @@ int kvm_has_sync_mmu(void)
 #else
     return 0;
 #endif
+}
+
+int kvm_has_vcpu_events(void)
+{
+    return kvm_state->vcpu_events;
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)
