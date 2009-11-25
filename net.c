@@ -21,73 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <errno.h>
-#include <sys/time.h>
-#include <zlib.h>
+#include "net.h"
 
-/* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 
-#ifndef _WIN32
-#include <sys/times.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/select.h>
-#ifdef CONFIG_BSD
-#include <sys/stat.h>
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#include <libutil.h>
-#else
-#include <util.h>
-#endif
-#ifdef __linux__
-#include <pty.h>
-#include <malloc.h>
-#include <linux/rtc.h>
-
-/* For the benefit of older linux systems which don't supply it,
-   we use a local copy of hpet.h. */
-/* #include <linux/hpet.h> */
-#include "hpet.h"
-
-#include <linux/ppdev.h>
-#include <linux/parport.h>
-#endif
-#ifdef __sun__
-#include <sys/stat.h>
-#include <sys/ethernet.h>
-#include <sys/sockio.h>
-#include <netinet/arp.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h> // must come after ip.h
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#include <net/if.h>
-#include <syslog.h>
-#include <stropts.h>
-#endif
-#endif
-#endif
-
-#if defined(__OpenBSD__)
-#include <util.h>
-#endif
-
-#include "qemu-common.h"
-#include "net.h"
 #include "net/tap.h"
 #include "net/socket.h"
 #include "net/dump.h"
@@ -95,12 +32,8 @@
 #include "net/vde.h"
 #include "monitor.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "audio/audio.h"
+#include "qemu-common.h"
 #include "qemu_socket.h"
-#include "qemu-log.h"
-#include "qemu-config.h"
 
 static QTAILQ_HEAD(, VLANState) vlans;
 static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
