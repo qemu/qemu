@@ -33,9 +33,6 @@ kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
-config-devices.h: config-devices.h-timestamp
-config-devices.h-timestamp: config-devices.mak
-
 all: $(PROGS)
 
 # Dummy command so that make thinks it has done something
