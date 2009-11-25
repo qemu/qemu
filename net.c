@@ -1055,12 +1055,18 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
     int i;
 
     type = qemu_opt_get(opts, "type");
-    if (!type) {
-        qemu_error("No type specified for -net\n");
-        return -1;
-    }
 
-    if (is_netdev) {
+    if (!is_netdev) {
+        if (!type) {
+            qemu_error("No type specified for -net\n");
+            return -1;
+        }
+    } else {
+        if (!type) {
+            qemu_error("No type specified for -netdev\n");
+            return -1;
+        }
+
         if (strcmp(type, "tap") != 0 &&
 #ifdef CONFIG_SLIRP
             strcmp(type, "user") != 0 &&
