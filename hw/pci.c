@@ -128,11 +128,23 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
     bus->set_irq(bus->irq_opaque, irq_num, bus->irq_count[irq_num] != 0);
 }
 
+/* Update interrupt status bit in config space on interrupt
+ * state change. */
+static void pci_update_irq_status(PCIDevice *dev)
+{
+    if (dev->irq_state) {
+        dev->config[PCI_STATUS] |= PCI_STATUS_INTERRUPT;
+    } else {
+        dev->config[PCI_STATUS] &= ~PCI_STATUS_INTERRUPT;
+    }
+}
+
 static void pci_device_reset(PCIDevice *dev)
 {
     int r;
 
     dev->irq_state = 0;
+    pci_update_irq_status(dev);
     dev->config[PCI_COMMAND] &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
                                   PCI_COMMAND_MASTER);
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
@@ -377,12 +389,23 @@ static inline const VMStateDescription *pci_get_vmstate(PCIDevice *s)
 
 void pci_device_save(PCIDevice *s, QEMUFile *f)
 {
+    /* Clear interrupt status bit: it is implicit
+     * in irq_state which we are saving.
+     * This makes us compatible with old devices
+     * which never set or clear this bit. */
+    s->config[PCI_STATUS] &= ~PCI_STATUS_INTERRUPT;
     vmstate_save_state(f, pci_get_vmstate(s), s);
+    /* Restore the interrupt status bit. */
+    pci_update_irq_status(s);
 }
 
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
-    return vmstate_load_state(f, pci_get_vmstate(s), s, s->version_id);
+    int ret;
+    ret = vmstate_load_state(f, pci_get_vmstate(s), s, s->version_id);
+    /* Restore the interrupt status bit. */
+    pci_update_irq_status(s);
+    return ret;
 }
 
 static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
@@ -955,6 +978,7 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
         return;
 
     pci_set_irq_state(pci_dev, irq_num, level);
+    pci_update_irq_status(pci_dev);
     pci_change_irq_level(pci_dev, irq_num, change);
 }
 
