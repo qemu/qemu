@@ -18,7 +18,7 @@
 
 typedef struct {
     SysBusDevice busdev;
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
     uint16_t tcr;
     uint16_t rcr;
@@ -207,7 +207,7 @@ static void smc91c111_do_tx(smc91c111_state *s)
             smc91c111_release_packet(s, packetnum);
         else if (s->tx_fifo_done_len < NUM_PACKETS)
             s->tx_fifo_done[s->tx_fifo_done_len++] = packetnum;
-        qemu_send_packet(s->vc, p, len);
+        qemu_send_packet(&s->nic->nc, p, len);
     }
     s->tx_fifo_len = 0;
     smc91c111_update(s);
@@ -591,9 +591,9 @@ static uint32_t smc91c111_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static int smc91c111_can_receive(VLANClientState *vc)
+static int smc91c111_can_receive(VLANClientState *nc)
 {
-    smc91c111_state *s = vc->opaque;
+    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
         return 1;
@@ -602,9 +602,9 @@ static int smc91c111_can_receive(VLANClientState *vc)
     return 1;
 }
 
-static ssize_t smc91c111_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t smc91c111_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    smc91c111_state *s = vc->opaque;
+    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int status;
     int packetsize;
     uint32_t crc;
@@ -692,12 +692,20 @@ static CPUWriteMemoryFunc * const smc91c111_writefn[] = {
     smc91c111_writel
 };
 
-static void smc91c111_cleanup(VLANClientState *vc)
+static void smc91c111_cleanup(VLANClientState *nc)
 {
-    smc91c111_state *s = vc->opaque;
+    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
+
+static NetClientInfo net_smc91c111_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = smc91c111_can_receive,
+    .receive = smc91c111_receive,
+    .cleanup = smc91c111_cleanup,
+};
 
 static int smc91c111_init1(SysBusDevice *dev)
 {
@@ -711,12 +719,9 @@ static int smc91c111_init1(SysBusDevice *dev)
 
     smc91c111_reset(s);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 dev->qdev.info->name, dev->qdev.id,
-                                 smc91c111_can_receive, smc91c111_receive, NULL,
-                                 NULL, smc91c111_cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
+                          dev->qdev.info->name, dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     /* ??? Save/restore.  */
     return 0;
 }
