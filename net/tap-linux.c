@@ -131,6 +131,11 @@ void tap_fd_set_offload(int fd, int csum, int tso4,
 {
     unsigned int offload = 0;
 
+    /* Check if our kernel supports TUNSETOFFLOAD */
+    if (ioctl(fd, TUNSETOFFLOAD, 0) != 0 && errno == EINVAL) {
+        return;
+    }
+
     if (csum) {
         offload |= TUN_F_CSUM;
         if (tso4)
