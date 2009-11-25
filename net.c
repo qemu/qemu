@@ -86,14 +86,11 @@
 #include <util.h>
 #endif
 
-#if defined(CONFIG_VDE)
-#include <libvdeplug.h>
-#endif
-
 #include "qemu-common.h"
 #include "net.h"
 #include "net/tap.h"
 #include "net/slirp.h"
+#include "net/vde.h"
 #include "monitor.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
@@ -718,75 +715,6 @@ qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov, int iovcnt)
 {
     return qemu_sendv_packet_async(vc, iov, iovcnt, NULL);
 }
-
-#if defined(CONFIG_VDE)
-typedef struct VDEState {
-    VLANClientState *vc;
-    VDECONN *vde;
-} VDEState;
-
-static void vde_to_qemu(void *opaque)
-{
-    VDEState *s = opaque;
-    uint8_t buf[4096];
-    int size;
-
-    size = vde_recv(s->vde, (char *)buf, sizeof(buf), 0);
-    if (size > 0) {
-        qemu_send_packet(s->vc, buf, size);
-    }
-}
-
-static ssize_t vde_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
-{
-    VDEState *s = vc->opaque;
-    ssize_t ret;
-
-    do {
-      ret = vde_send(s->vde, (const char *)buf, size, 0);
-    } while (ret < 0 && errno == EINTR);
-
-    return ret;
-}
-
-static void vde_cleanup(VLANClientState *vc)
-{
-    VDEState *s = vc->opaque;
-    qemu_set_fd_handler(vde_datafd(s->vde), NULL, NULL, NULL);
-    vde_close(s->vde);
-    qemu_free(s);
-}
-
-static int net_vde_init(VLANState *vlan, const char *model,
-                        const char *name, const char *sock,
-                        int port, const char *group, int mode)
-{
-    VDEState *s;
-    char *init_group = (char *)group;
-    char *init_sock = (char *)sock;
-
-    struct vde_open_args args = {
-        .port = port,
-        .group = init_group,
-        .mode = mode,
-    };
-
-    s = qemu_mallocz(sizeof(VDEState));
-    s->vde = vde_open(init_sock, (char *)"QEMU", &args);
-    if (!s->vde){
-        free(s);
-        return -1;
-    }
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_VDE,
-                                 vlan, NULL, model, name, NULL,
-                                 vde_receive, NULL, NULL,
-                                 vde_cleanup, s);
-    qemu_set_fd_handler(vde_datafd(s->vde), vde_to_qemu, NULL, s);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "sock=%s,fd=%d",
-             sock, vde_datafd(s->vde));
-    return 0;
-}
-#endif
 
 /* network connection */
 typedef struct NetSocketState {
@@ -1599,34 +1527,6 @@ static int net_init_socket(QemuOpts *opts,
 
     return 0;
 }
-
-#ifdef CONFIG_VDE
-static int net_init_vde(QemuOpts *opts,
-                        Monitor *mon,
-                        const char *name,
-                        VLANState *vlan)
-{
-    const char *sock;
-    const char *group;
-    int port, mode;
-
-    sock  = qemu_opt_get(opts, "sock");
-    group = qemu_opt_get(opts, "group");
-
-    port = qemu_opt_get_number(opts, "port", 0);
-    mode = qemu_opt_get_number(opts, "mode", 0700);
-
-    if (net_vde_init(vlan, "vde", name, sock, port, group, mode) == -1) {
-        return -1;
-    }
-
-    if (vlan) {
-        vlan->nb_host_devs++;
-    }
-
-    return 0;
-}
-#endif
 
 static int net_init_dump(QemuOpts *opts,
                          Monitor *mon,
