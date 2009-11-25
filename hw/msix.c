@@ -217,6 +217,15 @@ void msix_mmio_map(PCIDevice *d, int region_num,
                                  d->msix_mmio_index);
 }
 
+static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
+{
+    int vector;
+    for (vector = 0; vector < nentries; ++vector) {
+        unsigned offset = vector * MSIX_ENTRY_SIZE + MSIX_VECTOR_CTRL;
+        dev->msix_table_page[offset] |= MSIX_VECTOR_MASK;
+    }
+}
+
 /* Initialize the MSI-X structures. Note: if MSI-X is supported, BAR size is
  * modified, it should be retrieved with msix_bar_size. */
 int msix_init(struct PCIDevice *dev, unsigned short nentries,
@@ -234,6 +243,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
                                         sizeof *dev->msix_entry_used);
 
     dev->msix_table_page = qemu_mallocz(MSIX_PAGE_SIZE);
+    msix_mask_all(dev, nentries);
 
     dev->msix_mmio_index = cpu_register_io_memory(msix_mmio_read,
                                                   msix_mmio_write, dev);
@@ -353,6 +363,7 @@ void msix_reset(PCIDevice *dev)
     msix_free_irq_entries(dev);
     dev->config[dev->msix_cap + MSIX_ENABLE_OFFSET] &= MSIX_ENABLE_MASK;
     memset(dev->msix_table_page, 0, MSIX_PAGE_SIZE);
+    msix_mask_all(dev, dev->msix_entries_nr);
 }
 
 /* PCI spec suggests that devices make it possible for software to configure
