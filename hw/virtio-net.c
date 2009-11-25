@@ -31,7 +31,7 @@ typedef struct VirtIONet
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
     VirtQueue *ctrl_vq;
-    VLANClientState *vc;
+    NICState *nic;
     QEMUTimer *tx_timer;
     int tx_timer_active;
     uint32_t has_vnet_hdr;
@@ -85,16 +85,16 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     if (memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
         memcpy(n->mac, netcfg.mac, ETH_ALEN);
-        qemu_format_nic_info_str(n->vc, n->mac);
+        qemu_format_nic_info_str(&n->nic->nc, n->mac);
     }
 }
 
-static void virtio_net_set_link_status(VLANClientState *vc)
+static void virtio_net_set_link_status(VLANClientState *nc)
 {
-    VirtIONet *n = vc->opaque;
+    VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t old_status = n->status;
 
-    if (vc->link_down)
+    if (nc->link_down)
         n->status &= ~VIRTIO_NET_S_LINK_UP;
     else
         n->status |= VIRTIO_NET_S_LINK_UP;
@@ -126,13 +126,13 @@ static void virtio_net_reset(VirtIODevice *vdev)
 
 static int peer_has_vnet_hdr(VirtIONet *n)
 {
-    if (!n->vc->peer)
+    if (!n->nic->nc.peer)
         return 0;
 
-    if (n->vc->peer->type != NET_CLIENT_TYPE_TAP)
+    if (n->nic->nc.peer->type != NET_CLIENT_TYPE_TAP)
         return 0;
 
-    n->has_vnet_hdr = tap_has_vnet_hdr(n->vc->peer);
+    n->has_vnet_hdr = tap_has_vnet_hdr(n->nic->nc.peer);
 
     return n->has_vnet_hdr;
 }
@@ -142,7 +142,7 @@ static int peer_has_ufo(VirtIONet *n)
     if (!peer_has_vnet_hdr(n))
         return 0;
 
-    n->has_ufo = tap_has_ufo(n->vc->peer);
+    n->has_ufo = tap_has_ufo(n->nic->nc.peer);
 
     return n->has_ufo;
 }
@@ -159,7 +159,7 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev)
                         (1 << VIRTIO_NET_F_CTRL_RX_EXTRA);
 
     if (peer_has_vnet_hdr(n)) {
-        tap_using_vnet_hdr(n->vc->peer, 1);
+        tap_using_vnet_hdr(n->nic->nc.peer, 1);
 
         features |= (1 << VIRTIO_NET_F_CSUM);
         features |= (1 << VIRTIO_NET_F_HOST_TSO4);
@@ -202,7 +202,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     n->mergeable_rx_bufs = !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF));
 
     if (n->has_vnet_hdr) {
-        tap_set_offload(n->vc->peer,
+        tap_set_offload(n->nic->nc.peer,
                         (features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
                         (features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
                         (features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
@@ -360,16 +360,16 @@ static void virtio_net_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = to_virtio_net(vdev);
 
-    qemu_flush_queued_packets(n->vc);
+    qemu_flush_queued_packets(&n->nic->nc);
 
     /* We now have RX buffers, signal to the IO thread to break out of the
      * select to re-poll the tap file descriptor */
     qemu_notify_event();
 }
 
-static int virtio_net_can_receive(VLANClientState *vc)
+static int virtio_net_can_receive(VLANClientState *nc)
 {
-    VirtIONet *n = vc->opaque;
+    VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if (!virtio_queue_ready(n->rx_vq) ||
         !(n->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
@@ -511,13 +511,13 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static ssize_t virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    VirtIONet *n = vc->opaque;
+    VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
     size_t hdr_len, offset, i;
 
-    if (!virtio_net_can_receive(n->vc))
+    if (!virtio_net_can_receive(&n->nic->nc))
         return -1;
 
     if (!virtio_net_has_buffers(n, size))
@@ -590,9 +590,9 @@ static ssize_t virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_
 
 static void virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq);
 
-static void virtio_net_tx_complete(VLANClientState *vc, ssize_t len)
+static void virtio_net_tx_complete(VLANClientState *nc, ssize_t len)
 {
-    VirtIONet *n = vc->opaque;
+    VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
 
     virtqueue_push(n->tx_vq, &n->async_tx.elem, n->async_tx.len);
     virtio_notify(&n->vdev, n->tx_vq);
@@ -644,7 +644,7 @@ static void virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
             len += hdr_len;
         }
 
-        ret = qemu_sendv_packet_async(n->vc, out_sg, out_num,
+        ret = qemu_sendv_packet_async(&n->nic->nc, out_sg, out_num,
                                       virtio_net_tx_complete);
         if (ret == 0) {
             virtio_queue_set_notification(n->tx_vq, 0);
@@ -766,8 +766,8 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         if (n->has_vnet_hdr) {
-            tap_using_vnet_hdr(n->vc->peer, 1);
-            tap_set_offload(n->vc->peer,
+            tap_using_vnet_hdr(n->nic->nc.peer, 1);
+            tap_set_offload(n->nic->nc.peer,
                             (n->vdev.features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
                             (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
                             (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
@@ -811,12 +811,21 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_net_cleanup(VLANClientState *vc)
+static void virtio_net_cleanup(VLANClientState *nc)
 {
-    VirtIONet *n = vc->opaque;
+    VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    n->vc = NULL;
+    n->nic = NULL;
 }
+
+static NetClientInfo net_virtio_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = virtio_net_can_receive,
+    .receive = virtio_net_receive,
+        .cleanup = virtio_net_cleanup,
+    .link_status_changed = virtio_net_set_link_status,
+};
 
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
 {
@@ -839,14 +848,10 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
     qemu_macaddr_default_if_unset(&conf->macaddr);
     memcpy(&n->mac[0], &conf->macaddr, sizeof(n->mac));
     n->status = VIRTIO_NET_S_LINK_UP;
-    n->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC, conf->vlan, conf->peer,
-                                 dev->info->name, dev->id,
-                                 virtio_net_can_receive,
-                                 virtio_net_receive, NULL, NULL,
-                                 virtio_net_cleanup, n);
-    n->vc->link_status_changed = virtio_net_set_link_status;
 
-    qemu_format_nic_info_str(n->vc, conf->macaddr.a);
+    n->nic = qemu_new_nic(&net_virtio_info, conf, dev->info->name, dev->id, n);
+
+    qemu_format_nic_info_str(&n->nic->nc, conf->macaddr.a);
 
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
@@ -867,7 +872,7 @@ void virtio_net_exit(VirtIODevice *vdev)
 {
     VirtIONet *n = DO_UPCAST(VirtIONet, vdev, vdev);
 
-    qemu_purge_queued_packets(n->vc);
+    qemu_purge_queued_packets(&n->nic->nc);
 
     unregister_savevm("virtio-net", n);
 
@@ -878,5 +883,5 @@ void virtio_net_exit(VirtIODevice *vdev)
     qemu_free_timer(n->tx_timer);
 
     virtio_cleanup(&n->vdev);
-    qemu_del_vlan_client(n->vc);
+    qemu_del_vlan_client(&n->nic->nc);
 }
