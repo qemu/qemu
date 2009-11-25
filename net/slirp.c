@@ -64,8 +64,8 @@ struct slirp_config_str {
 };
 
 typedef struct SlirpState {
+    VLANClientState nc;
     QTAILQ_ENTRY(SlirpState) entry;
-    VLANClientState *vc;
     Slirp *slirp;
 #ifndef _WIN32
     char smb_dir[128];
@@ -97,34 +97,40 @@ int slirp_can_output(void *opaque)
 {
     SlirpState *s = opaque;
 
-    return qemu_can_send_packet(s->vc);
+    return qemu_can_send_packet(&s->nc);
 }
 
 void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
     SlirpState *s = opaque;
 
-    qemu_send_packet(s->vc, pkt, pkt_len);
+    qemu_send_packet(&s->nc, pkt, pkt_len);
 }
 
-static ssize_t slirp_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_slirp_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    SlirpState *s = vc->opaque;
+    SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
     slirp_input(s->slirp, buf, size);
 
     return size;
 }
 
-static void net_slirp_cleanup(VLANClientState *vc)
+static void net_slirp_cleanup(VLANClientState *nc)
 {
-    SlirpState *s = vc->opaque;
+    SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
     slirp_cleanup(s->slirp);
     slirp_smb_cleanup(s);
     QTAILQ_REMOVE(&slirp_stacks, s, entry);
-    qemu_free(s);
 }
+
+static NetClientInfo net_slirp_info = {
+    .type = NET_CLIENT_TYPE_SLIRP,
+    .size = sizeof(SlirpState),
+    .receive = net_slirp_receive,
+    .cleanup = net_slirp_cleanup,
+};
 
 static int net_slirp_init(VLANState *vlan, const char *model,
                           const char *name, int restricted,
@@ -143,6 +149,7 @@ static int net_slirp_init(VLANState *vlan, const char *model,
 #ifndef _WIN32
     struct in_addr smbsrv = { .s_addr = 0 };
 #endif
+    VLANClientState *nc;
     SlirpState *s;
     char buf[20];
     uint32_t addr;
@@ -228,7 +235,13 @@ static int net_slirp_init(VLANState *vlan, const char *model,
     }
 #endif
 
-    s = qemu_mallocz(sizeof(SlirpState));
+    nc = qemu_new_net_client(&net_slirp_info, vlan, NULL, model, name);
+
+    snprintf(nc->info_str, sizeof(nc->info_str),
+             "net=%s, restricted=%c", inet_ntoa(net), restricted ? 'y' : 'n');
+
+    s = DO_UPCAST(SlirpState, nc, nc);
+
     s->slirp = slirp_init(restricted, net, mask, host, vhostname,
                           tftp_export, bootfile, dhcp, dns, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
@@ -237,11 +250,11 @@ static int net_slirp_init(VLANState *vlan, const char *model,
         if (config->flags & SLIRP_CFG_HOSTFWD) {
             if (slirp_hostfwd(s, config->str,
                               config->flags & SLIRP_CFG_LEGACY) < 0)
-                return -1;
+                goto error;
         } else {
             if (slirp_guestfwd(s, config->str,
                                config->flags & SLIRP_CFG_LEGACY) < 0)
-                return -1;
+                goto error;
         }
     }
 #ifndef _WIN32
@@ -250,34 +263,32 @@ static int net_slirp_init(VLANState *vlan, const char *model,
     }
     if (smb_export) {
         if (slirp_smb(s, smb_export, smbsrv) < 0)
-            return -1;
+            goto error;
     }
 #endif
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_SLIRP,
-                                 vlan, NULL, model, name, NULL,
-                                 slirp_receive, NULL, NULL,
-                                 net_slirp_cleanup, s);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "net=%s, restricted=%c", inet_ntoa(net), restricted ? 'y' : 'n');
     return 0;
+
+error:
+    qemu_del_vlan_client(nc);
+    return -1;
 }
 
 static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
                                 const char *stack)
 {
-    VLANClientState *vc;
 
     if (vlan) {
-        vc = qemu_find_vlan_client_by_name(mon, strtol(vlan, NULL, 0), stack);
-        if (!vc) {
+        VLANClientState *nc;
+        nc = qemu_find_vlan_client_by_name(mon, strtol(vlan, NULL, 0), stack);
+        if (!nc) {
             return NULL;
         }
-        if (strcmp(vc->model, "user")) {
+        if (strcmp(nc->model, "user")) {
             monitor_printf(mon, "invalid device specified\n");
             return NULL;
         }
-        return vc->opaque;
+        return DO_UPCAST(SlirpState, nc, nc);
     } else {
         if (QTAILQ_EMPTY(&slirp_stacks)) {
             monitor_printf(mon, "user mode network stack not in use\n");
@@ -626,7 +637,9 @@ void do_info_usernet(Monitor *mon)
     SlirpState *s;
 
     QTAILQ_FOREACH(s, &slirp_stacks, entry) {
-        monitor_printf(mon, "VLAN %d (%s):\n", s->vc->vlan->id, s->vc->name);
+        monitor_printf(mon, "VLAN %d (%s):\n",
+                       s->nc.vlan ? s->nc.vlan->id : -1,
+                       s->nc.name);
         slirp_connection_info(s->slirp, mon);
     }
 }
