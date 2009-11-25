@@ -35,7 +35,8 @@ typedef struct MIPSnetState {
     uint8_t tx_buffer[MAX_ETH_FRAME_SIZE];
     int io_base;
     qemu_irq irq;
-    VLANClientState *vc;
+    NICState *nic;
+    NICConf conf;
 } MIPSnetState;
 
 static void mipsnet_reset(MIPSnetState *s)
@@ -66,23 +67,23 @@ static int mipsnet_buffer_full(MIPSnetState *s)
     return 0;
 }
 
-static int mipsnet_can_receive(VLANClientState *vc)
+static int mipsnet_can_receive(VLANClientState *nc)
 {
-    MIPSnetState *s = vc->opaque;
+    MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if (s->busy)
         return 0;
     return !mipsnet_buffer_full(s);
 }
 
-static ssize_t mipsnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t mipsnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    MIPSnetState *s = vc->opaque;
+    MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
 #ifdef DEBUG_MIPSNET_RECEIVE
     printf("mipsnet: receiving len=%d\n", size);
 #endif
-    if (!mipsnet_can_receive(vc))
+    if (!mipsnet_can_receive(nc))
         return -1;
 
     s->busy = 1;
@@ -183,7 +184,7 @@ static void mipsnet_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #ifdef DEBUG_MIPSNET_SEND
             printf("mipsnet: sending len=%d\n", s->tx_count);
 #endif
-            qemu_send_packet(s->vc, s->tx_buffer, s->tx_count);
+            qemu_send_packet(&s->nic->nc, s->tx_buffer, s->tx_count);
             s->tx_count = s->tx_written = 0;
             s->intctl |= MIPSNET_INTCTL_TXDONE;
             s->busy = 1;
@@ -234,9 +235,9 @@ static int mipsnet_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void mipsnet_cleanup(VLANClientState *vc)
+static void mipsnet_cleanup(VLANClientState *nc)
 {
-    MIPSnetState *s = vc->opaque;
+    MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     unregister_savevm("mipsnet", s);
 
@@ -244,6 +245,14 @@ static void mipsnet_cleanup(VLANClientState *vc)
 
     qemu_free(s);
 }
+
+static NetClientInfo net_mipsnet_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = mipsnet_can_receive,
+    .receive = mipsnet_receive,
+    .cleanup = mipsnet_cleanup,
+};
 
 void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
 {
@@ -262,17 +271,17 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
 
     s->io_base = base;
     s->irq = irq;
-    if (nd) {
-        s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                     nd->vlan, nd->netdev,
-                                     nd->model, nd->name,
-                                     mipsnet_can_receive, mipsnet_receive,
-                                     NULL, NULL, mipsnet_cleanup, s);
-    } else {
-        s->vc = NULL;
-    }
 
-    qemu_format_nic_info_str(s->vc, nd->macaddr);
+    if (nd) {
+        memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));
+        s->conf.vlan = nd->vlan;
+        s->conf.peer = nd->netdev;
+
+        s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
+                              nd->model, nd->name, s);
+
+        qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    }
 
     mipsnet_reset(s);
     register_savevm("mipsnet", 0, 0, mipsnet_save, mipsnet_load, s);
