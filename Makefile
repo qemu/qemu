@@ -99,7 +99,7 @@ block-nested-$(CONFIG_CURL) += curl.o
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
 net-obj-y = net.o
-net-nested-y = queue.o checksum.o
+net-nested-y = queue.o checksum.o util.o
 net-nested-y += socket.o
 net-nested-y += dump.o
 net-nested-$(CONFIG_POSIX) += tap.o
