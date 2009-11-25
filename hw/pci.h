@@ -220,7 +220,7 @@ struct PCIDevice {
     qemu_irq *irq;
 
     /* Current IRQ levels.  Used internally by the generic PCI code.  */
-    int irq_state[PCI_NUM_PINS];
+    uint8_t irq_state;
 
     /* Capability bits */
     uint32_t cap_present;
