@@ -105,14 +105,6 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     return 0;
 }
 
-static void msix_free_irq_entries(PCIDevice *dev)
-{
-    int vector;
-
-    for (vector = 0; vector < dev->msix_entries_nr; ++vector)
-        dev->msix_entry_used[vector] = 0;
-}
-
 /* Handle MSI-X capability config write. */
 void msix_write_config(PCIDevice *dev, uint32_t addr,
                        uint32_t val, int len)
@@ -271,6 +263,16 @@ err_index:
     return ret;
 }
 
+static void msix_free_irq_entries(PCIDevice *dev)
+{
+    int vector;
+
+    for (vector = 0; vector < dev->msix_entries_nr; ++vector) {
+        dev->msix_entry_used[vector] = 0;
+        msix_clr_pending(dev, vector);
+    }
+}
+
 /* Clean up resources for the device. */
 int msix_uninit(PCIDevice *dev)
 {
@@ -387,8 +389,13 @@ int msix_vector_use(PCIDevice *dev, unsigned vector)
 /* Mark vector as unused. */
 void msix_vector_unuse(PCIDevice *dev, unsigned vector)
 {
-    if (vector < dev->msix_entries_nr && dev->msix_entry_used[vector])
-        --dev->msix_entry_used[vector];
+    if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector]) {
+        return;
+    }
+    if (--dev->msix_entry_used[vector]) {
+        return;
+    }
+    msix_clr_pending(dev, vector);
 }
 
 void msix_unuse_all_vectors(PCIDevice *dev)
