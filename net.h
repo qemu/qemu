@@ -75,6 +75,12 @@ struct VLANClientState {
     unsigned receive_disabled : 1;
 };
 
+typedef struct NICState {
+    VLANClientState nc;
+    NICConf *conf;
+    void *opaque;
+} NICState;
+
 struct VLANState {
     int id;
     QTAILQ_HEAD(, VLANClientState) clients;
@@ -90,6 +96,11 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
                                      VLANClientState *peer,
                                      const char *model,
                                      const char *name);
+NICState *qemu_new_nic(NetClientInfo *info,
+                       NICConf *conf,
+                       const char *model,
+                       const char *name,
+                       void *opaque);
 VLANClientState *qemu_new_vlan_client(net_client_type type,
                                       VLANState *vlan,
                                       VLANClientState *peer,

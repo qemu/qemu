@@ -293,6 +293,27 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
     return vc;
 }
 
+NICState *qemu_new_nic(NetClientInfo *info,
+                       NICConf *conf,
+                       const char *model,
+                       const char *name,
+                       void *opaque)
+{
+    VLANClientState *nc;
+    NICState *nic;
+
+    assert(info->type == NET_CLIENT_TYPE_NIC);
+    assert(info->size >= sizeof(NICState));
+
+    nc = qemu_new_net_client(info, conf->vlan, conf->peer, model, name);
+
+    nic = DO_UPCAST(NICState, nc, nc);
+    nic->conf = conf;
+    nic->opaque = opaque;
+
+    return nic;
+}
+
 VLANClientState *qemu_new_vlan_client(net_client_type type,
                                       VLANState *vlan,
                                       VLANClientState *peer,
