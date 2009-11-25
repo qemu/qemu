@@ -41,6 +41,7 @@
 #include "hw.h"
 #include "net.h"
 #include "net/checksum.h"
+#include "net/util.h"
 #include "qemu-char.h"
 #include "xen_backend.h"
 
@@ -56,7 +57,8 @@ struct XenNetDev {
     struct netif_rx_sring *rxs;
     netif_tx_back_ring_t  tx_ring;
     netif_rx_back_ring_t  rx_ring;
-    VLANClientState       *vs;
+    NICConf               conf;
+    NICState              *nic;
 };
 
 /* ------------------------------------------------------------- */
@@ -179,9 +181,9 @@ static void net_tx_packets(struct XenNetDev *netdev)
                     tmpbuf = qemu_malloc(XC_PAGE_SIZE);
                 memcpy(tmpbuf, page + txreq.offset, txreq.size);
 		net_checksum_calculate(tmpbuf, txreq.size);
-                qemu_send_packet(netdev->vs, tmpbuf, txreq.size);
+                qemu_send_packet(&netdev->nic->nc, tmpbuf, txreq.size);
             } else {
-                qemu_send_packet(netdev->vs, page + txreq.offset, txreq.size);
+                qemu_send_packet(&netdev->nic->nc, page + txreq.offset, txreq.size);
             }
 	    xc_gnttab_munmap(netdev->xendev.gnttabdev, page, 1);
 	    net_tx_response(netdev, &txreq, NETIF_RSP_OKAY);
@@ -223,9 +225,9 @@ static void net_rx_response(struct XenNetDev *netdev,
 
 #define NET_IP_ALIGN 2
 
-static int net_rx_ok(VLANClientState *vc)
+static int net_rx_ok(VLANClientState *nc)
 {
-    struct XenNetDev *netdev = vc->opaque;
+    struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
     RING_IDX rc, rp;
 
     if (netdev->xendev.be_state != XenbusStateConnected)
@@ -243,9 +245,9 @@ static int net_rx_ok(VLANClientState *vc)
     return 1;
 }
 
-static ssize_t net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_rx_packet(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XenNetDev *netdev = vc->opaque;
+    struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
     netif_rx_request_t rxreq;
     RING_IDX rc, rp;
     void *page;
@@ -288,10 +290,16 @@ static ssize_t net_rx_packet(VLANClientState *vc, const uint8_t *buf, size_t siz
 
 /* ------------------------------------------------------------- */
 
+static NetClientInfo net_xen_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = net_rx_ok,
+    .receive = net_rx_packet,
+};
+
 static int net_init(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
-    VLANState *vlan;
 
     /* read xenstore entries */
     if (netdev->mac == NULL)
@@ -301,12 +309,16 @@ static int net_init(struct XenDevice *xendev)
     if (netdev->mac == NULL)
 	return -1;
 
-    vlan = qemu_find_vlan(netdev->xendev.dev, 1);
-    netdev->vs = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                      vlan, NULL, "xen", NULL,
-                                      net_rx_ok, net_rx_packet, NULL, NULL,
-                                      NULL, netdev);
-    snprintf(netdev->vs->info_str, sizeof(netdev->vs->info_str),
+    if (net_parse_macaddr(netdev->conf.macaddr.a, netdev->mac) < 0)
+        return -1;
+
+    netdev->conf.vlan = qemu_find_vlan(netdev->xendev.dev, 1);
+    netdev->conf.peer = NULL;
+
+    netdev->nic = qemu_new_nic(&net_xen_info, &netdev->conf,
+                               "xen", NULL, netdev);
+
+    snprintf(netdev->nic->nc.info_str, sizeof(netdev->nic->nc.info_str),
              "nic: xenbus vif macaddr=%s", netdev->mac);
 
     /* fill info */
@@ -376,9 +388,9 @@ static void net_disconnect(struct XenDevice *xendev)
 	xc_gnttab_munmap(netdev->xendev.gnttabdev, netdev->rxs, 1);
 	netdev->rxs = NULL;
     }
-    if (netdev->vs) {
-        qemu_del_vlan_client(netdev->vs);
-        netdev->vs = NULL;
+    if (netdev->nic) {
+        qemu_del_vlan_client(&netdev->nic->nc);
+        netdev->nic = NULL;
     }
 }
 
