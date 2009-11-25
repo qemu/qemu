@@ -28,7 +28,7 @@
 #include "qemu-log.h"
 
 typedef struct DumpState {
-    VLANClientState *pcap_vc;
+    VLANClientState nc;
     int fd;
     int pcap_caplen;
 } DumpState;
@@ -54,9 +54,9 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static ssize_t dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t dump_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    DumpState *s = vc->opaque;
+    DumpState *s = DO_UPCAST(DumpState, nc, nc);
     struct pcap_sf_pkthdr hdr;
     int64_t ts;
     int caplen;
@@ -83,51 +83,58 @@ static ssize_t dump_receive(VLANClientState *vc, const uint8_t *buf, size_t size
     return size;
 }
 
-static void net_dump_cleanup(VLANClientState *vc)
+static void dump_cleanup(VLANClientState *nc)
 {
-    DumpState *s = vc->opaque;
+    DumpState *s = DO_UPCAST(DumpState, nc, nc);
 
     close(s->fd);
-    qemu_free(s);
 }
+
+static NetClientInfo net_dump_info = {
+    .type = NET_CLIENT_TYPE_DUMP,
+    .size = sizeof(DumpState),
+    .receive = dump_receive,
+    .cleanup = dump_cleanup,
+};
 
 static int net_dump_init(VLANState *vlan, const char *device,
                          const char *name, const char *filename, int len)
 {
     struct pcap_file_hdr hdr;
+    VLANClientState *nc;
     DumpState *s;
+    int fd;
 
-    s = qemu_malloc(sizeof(DumpState));
-
-    s->fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
-    if (s->fd < 0) {
+    fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
+    if (fd < 0) {
         qemu_error("-net dump: can't open %s\n", filename);
         return -1;
     }
-
-    s->pcap_caplen = len;
 
     hdr.magic = PCAP_MAGIC;
     hdr.version_major = 2;
     hdr.version_minor = 4;
     hdr.thiszone = 0;
     hdr.sigfigs = 0;
-    hdr.snaplen = s->pcap_caplen;
+    hdr.snaplen = len;
     hdr.linktype = 1;
 
-    if (write(s->fd, &hdr, sizeof(hdr)) < sizeof(hdr)) {
+    if (write(fd, &hdr, sizeof(hdr)) < sizeof(hdr)) {
         qemu_error("-net dump write error: %s\n", strerror(errno));
-        close(s->fd);
-        qemu_free(s);
+        close(fd);
         return -1;
     }
 
-    s->pcap_vc = qemu_new_vlan_client(NET_CLIENT_TYPE_DUMP,
-                                      vlan, NULL, device, name, NULL,
-                                      dump_receive, NULL, NULL,
-                                      net_dump_cleanup, s);
-    snprintf(s->pcap_vc->info_str, sizeof(s->pcap_vc->info_str),
+    nc = qemu_new_net_client(&net_dump_info, vlan, NULL, device, name);
+
+    snprintf(nc->info_str, sizeof(nc->info_str),
              "dump to %s (len=%d)", filename, len);
+
+    s = DO_UPCAST(DumpState, nc, nc);
+
+    s->fd = fd;
+    s->pcap_caplen = len;
+
     return 0;
 }
 
