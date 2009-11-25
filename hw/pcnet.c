@@ -1028,9 +1028,9 @@ static int pcnet_tdte_poll(PCNetState *s)
     return !!(CSR_CXST(s) & 0x8000);
 }
 
-static int pcnet_can_receive(VLANClientState *vc)
+int pcnet_can_receive(VLANClientState *nc)
 {
-    PCNetState *s = vc->opaque;
+    PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     if (CSR_STOP(s) || CSR_SPND(s))
         return 0;
 
@@ -1039,9 +1039,9 @@ static int pcnet_can_receive(VLANClientState *vc)
 
 #define MIN_BUF_SIZE 60
 
-static ssize_t pcnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size_)
+ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
 {
-    PCNetState *s = vc->opaque;
+    PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
     uint8_t buf1[60];
     int remaining;
@@ -1268,11 +1268,11 @@ static void pcnet_transmit(PCNetState *s)
                 if (BCR_SWSTYLE(s) == 1)
                     add_crc = !GET_FIELD(tmd.status, TMDS, NOFCS);
                 s->looptest = add_crc ? PCNET_LOOPTEST_CRC : PCNET_LOOPTEST_NOCRC;
-                pcnet_receive(s->vc, s->buffer, s->xmit_pos);
+                pcnet_receive(&s->nic->nc, s->buffer, s->xmit_pos);
                 s->looptest = 0;
             } else
-                if (s->vc)
-                    qemu_send_packet(s->vc, s->buffer, s->xmit_pos);
+                if (s->nic)
+                    qemu_send_packet(&s->nic->nc, s->buffer, s->xmit_pos);
 
             s->csr[0] &= ~0x0008;   /* clear TDMD */
             s->csr[4] |= 0x0004;    /* set TXSTRT */
@@ -1888,21 +1888,16 @@ static const VMStateDescription vmstate_pci_pcnet = {
 
 void pcnet_common_cleanup(PCNetState *d)
 {
-    d->vc = NULL;
+    d->nic = NULL;
 }
 
-int pcnet_common_init(DeviceState *dev, PCNetState *s,
-                             NetCleanup *cleanup)
+int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 {
     s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 dev->info->name, dev->id,
-                                 pcnet_can_receive, pcnet_receive, NULL, NULL,
-                                 cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    s->nic = qemu_new_nic(info, &s->conf, dev->info->name, dev->id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     return 0;
 }
 
@@ -1945,9 +1940,9 @@ static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
     cpu_physical_memory_read(addr, buf, len);
 }
 
-static void pci_pcnet_cleanup(VLANClientState *vc)
+static void pci_pcnet_cleanup(VLANClientState *nc)
 {
-    PCNetState *d = vc->opaque;
+    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
 
     pcnet_common_cleanup(d);
 }
@@ -1960,9 +1955,17 @@ static int pci_pcnet_uninit(PCIDevice *dev)
     vmstate_unregister(&vmstate_pci_pcnet, d);
     qemu_del_timer(d->state.poll_timer);
     qemu_free_timer(d->state.poll_timer);
-    qemu_del_vlan_client(d->state.vc);
+    qemu_del_vlan_client(&d->state.nic->nc);
     return 0;
 }
+
+static NetClientInfo net_pci_pcnet_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = pcnet_can_receive,
+    .receive = pcnet_receive,
+    .cleanup = pci_pcnet_cleanup,
+};
 
 static int pci_pcnet_init(PCIDevice *pci_dev)
 {
@@ -2017,7 +2020,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
         }
     }
 
-    return pcnet_common_init(&pci_dev->qdev, s, pci_pcnet_cleanup);
+    return pcnet_common_init(&pci_dev->qdev, s, &net_pci_pcnet_info);
 }
 
 static void pci_reset(DeviceState *dev)
