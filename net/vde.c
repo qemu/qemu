@@ -34,7 +34,7 @@
 #include "sysemu.h"
 
 typedef struct VDEState {
-    VLANClientState *vc;
+    VLANClientState nc;
     VDECONN *vde;
 } VDEState;
 
@@ -46,13 +46,13 @@ static void vde_to_qemu(void *opaque)
 
     size = vde_recv(s->vde, (char *)buf, sizeof(buf), 0);
     if (size > 0) {
-        qemu_send_packet(s->vc, buf, size);
+        qemu_send_packet(&s->nc, buf, size);
     }
 }
 
-static ssize_t vde_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t vde_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    VDEState *s = vc->opaque;
+    VDEState *s = DO_UPCAST(VDEState, nc, nc);
     ssize_t ret;
 
     do {
@@ -62,19 +62,27 @@ static ssize_t vde_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
     return ret;
 }
 
-static void vde_cleanup(VLANClientState *vc)
+static void vde_cleanup(VLANClientState *nc)
 {
-    VDEState *s = vc->opaque;
+    VDEState *s = DO_UPCAST(VDEState, nc, nc);
     qemu_set_fd_handler(vde_datafd(s->vde), NULL, NULL, NULL);
     vde_close(s->vde);
-    qemu_free(s);
 }
+
+static NetClientInfo net_vde_info = {
+    .type = NET_CLIENT_TYPE_VDE,
+    .size = sizeof(VDEState),
+    .receive = vde_receive,
+    .cleanup = vde_cleanup,
+};
 
 static int net_vde_init(VLANState *vlan, const char *model,
                         const char *name, const char *sock,
                         int port, const char *group, int mode)
 {
+    VLANClientState *nc;
     VDEState *s;
+    VDECONN *vde;
     char *init_group = (char *)group;
     char *init_sock = (char *)sock;
 
@@ -84,19 +92,22 @@ static int net_vde_init(VLANState *vlan, const char *model,
         .mode = mode,
     };
 
-    s = qemu_mallocz(sizeof(VDEState));
-    s->vde = vde_open(init_sock, (char *)"QEMU", &args);
-    if (!s->vde){
-        free(s);
+    vde = vde_open(init_sock, (char *)"QEMU", &args);
+    if (!vde){
         return -1;
     }
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_VDE,
-                                 vlan, NULL, model, name, NULL,
-                                 vde_receive, NULL, NULL,
-                                 vde_cleanup, s);
+
+    nc = qemu_new_net_client(&net_vde_info, vlan, NULL, model, name);
+
+    snprintf(nc->info_str, sizeof(nc->info_str), "sock=%s,fd=%d",
+             sock, vde_datafd(vde));
+
+    s = DO_UPCAST(VDEState, nc, nc);
+
+    s->vde = vde;
+
     qemu_set_fd_handler(vde_datafd(s->vde), vde_to_qemu, NULL, s);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "sock=%s,fd=%d",
-             sock, vde_datafd(s->vde));
+
     return 0;
 }
 
