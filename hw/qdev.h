@@ -154,16 +154,6 @@ CharDriverState *qdev_init_chardev(DeviceState *dev);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
 
-/* Convert from a base type to a parent type, with compile time checking.  */
-#ifdef __GNUC__
-#define DO_UPCAST(type, field, dev) ( __extension__ ( { \
-    char __attribute__((unused)) offset_must_be_zero[ \
-        -offsetof(type, field)]; \
-    container_of(dev, type, field);}))
-#else
-#define DO_UPCAST(type, field, dev) container_of(dev, type, field)
-#endif
-
 /*** BUS API. ***/
 
 void qbus_create_inplace(BusState *bus, BusInfo *info,

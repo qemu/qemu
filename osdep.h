@@ -37,6 +37,16 @@
         (type *) ((char *) __mptr - offsetof(type, member));})
 #endif
 
+/* Convert from a base type to a parent type, with compile time checking.  */
+#ifdef __GNUC__
+#define DO_UPCAST(type, field, dev) ( __extension__ ( { \
+    char __attribute__((unused)) offset_must_be_zero[ \
+        -offsetof(type, field)]; \
+    container_of(dev, type, field);}))
+#else
+#define DO_UPCAST(type, field, dev) container_of(dev, type, field)
+#endif
+
 #define typeof_field(type, field) typeof(((type *)0)->field)
 #define type_check(t1,t2) ((t1*)0 - (t2*)0)
 
