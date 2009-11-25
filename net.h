@@ -87,6 +87,8 @@ VLANClientState *qemu_new_vlan_client(net_client_type type,
                                       void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
 VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque);
+VLANClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
+                                               const char *client_str);
 int qemu_can_send_packet(VLANClientState *vc);
 ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
                           int iovcnt);
@@ -107,8 +109,6 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 
 void do_info_network(Monitor *mon);
 void do_set_link(Monitor *mon, const QDict *qdict);
-
-void do_info_usernet(Monitor *mon);
 
 /* NIC info */
 
@@ -156,10 +156,6 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
-int net_slirp_smb(const char *exported_dir);
-void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
-void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict);
-int net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
 void net_set_boot_mask(int boot_mask);
 void net_host_device_add(Monitor *mon, const QDict *qdict);

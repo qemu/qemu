@@ -32,6 +32,7 @@
 #include "hw/loader.h"
 #include "gdbstub.h"
 #include "net.h"
+#include "net/slirp.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "monitor.h"

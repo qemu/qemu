@@ -106,6 +106,7 @@ net-nested-$(CONFIG_WIN32) += tap-win32.o
 net-nested-$(CONFIG_BSD) += tap-bsd.o
 net-nested-$(CONFIG_SOLARIS) += tap-solaris.o
 net-nested-$(CONFIG_AIX) += tap-aix.o
+net-nested-$(CONFIG_SLIRP) += slirp.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
 ######################################################################
