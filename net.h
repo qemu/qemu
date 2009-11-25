@@ -54,15 +54,7 @@ typedef struct NetClientInfo {
 } NetClientInfo;
 
 struct VLANClientState {
-    net_client_type type;
-    NetReceive *receive;
-    NetReceive *receive_raw;
-    NetReceiveIOV *receive_iov;
-    /* Packets may still be sent if this returns zero.  It's used to
-       rate-limit the slirp code.  */
-    NetCanReceive *can_receive;
-    NetCleanup *cleanup;
-    LinkStatusChanged *link_status_changed;
+    NetClientInfo *info;
     int link_down;
     QTAILQ_ENTRY(VLANClientState) next;
     struct VLANState *vlan;

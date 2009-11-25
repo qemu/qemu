@@ -229,19 +229,13 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
 
     vc = qemu_mallocz(info->size);
 
-    vc->type = info->type;
+    vc->info = info;
     vc->model = qemu_strdup(model);
     if (name) {
         vc->name = qemu_strdup(name);
     } else {
         vc->name = assign_name(vc, model);
     }
-    vc->can_receive = info->can_receive;
-    vc->receive = info->receive;
-    vc->receive_raw = info->receive_raw;
-    vc->receive_iov = info->receive_iov;
-    vc->cleanup = info->cleanup;
-    vc->link_status_changed = info->link_status_changed;
 
     if (vlan) {
         assert(!peer);
@@ -297,8 +291,8 @@ void qemu_del_vlan_client(VLANClientState *vc)
         }
     }
 
-    if (vc->cleanup) {
-        vc->cleanup(vc);
+    if (vc->info->cleanup) {
+        vc->info->cleanup(vc);
     }
 
     qemu_free(vc->name);
@@ -340,8 +334,8 @@ int qemu_can_send_packet(VLANClientState *sender)
     if (sender->peer) {
         if (sender->peer->receive_disabled) {
             return 0;
-        } else if (sender->peer->can_receive &&
-                   !sender->peer->can_receive(sender->peer)) {
+        } else if (sender->peer->info->can_receive &&
+                   !sender->peer->info->can_receive(sender->peer)) {
             return 0;
         } else {
             return 1;
@@ -358,7 +352,7 @@ int qemu_can_send_packet(VLANClientState *sender)
         }
 
         /* no can_receive() handler, they can always receive */
-        if (!vc->can_receive || vc->can_receive(vc)) {
+        if (!vc->info->can_receive || vc->info->can_receive(vc)) {
             return 1;
         }
     }
@@ -382,10 +376,10 @@ static ssize_t qemu_deliver_packet(VLANClientState *sender,
         return 0;
     }
 
-    if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->receive_raw) {
-        ret = vc->receive_raw(vc, data, size);
+    if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->info->receive_raw) {
+        ret = vc->info->receive_raw(vc, data, size);
     } else {
-        ret = vc->receive(vc, data, size);
+        ret = vc->info->receive(vc, data, size);
     }
 
     if (ret == 0) {
@@ -422,10 +416,10 @@ static ssize_t qemu_vlan_deliver_packet(VLANClientState *sender,
             continue;
         }
 
-        if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->receive_raw) {
-            len = vc->receive_raw(vc, buf, size);
+        if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->info->receive_raw) {
+            len = vc->info->receive_raw(vc, buf, size);
         } else {
-            len = vc->receive(vc, buf, size);
+            len = vc->info->receive(vc, buf, size);
         }
 
         if (len == 0) {
@@ -530,7 +524,7 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
         offset += len;
     }
 
-    return vc->receive(vc, buffer, offset);
+    return vc->info->receive(vc, buffer, offset);
 }
 
 static ssize_t calc_iov_length(const struct iovec *iov, int iovcnt)
@@ -555,8 +549,8 @@ static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
         return calc_iov_length(iov, iovcnt);
     }
 
-    if (vc->receive_iov) {
-        return vc->receive_iov(vc, iov, iovcnt);
+    if (vc->info->receive_iov) {
+        return vc->info->receive_iov(vc, iov, iovcnt);
     } else {
         return vc_sendv_compat(vc, iov, iovcnt);
     }
@@ -586,8 +580,8 @@ static ssize_t qemu_vlan_deliver_packet_iov(VLANClientState *sender,
 
         assert(!(flags & QEMU_NET_PACKET_FLAG_RAW));
 
-        if (vc->receive_iov) {
-            len = vc->receive_iov(vc, iov, iovcnt);
+        if (vc->info->receive_iov) {
+            len = vc->info->receive_iov(vc, iov, iovcnt);
         } else {
             len = vc_sendv_compat(vc, iov, iovcnt);
         }
@@ -1246,8 +1240,9 @@ done:
         monitor_printf(mon, "invalid link status '%s'; only 'up' or 'down' "
                        "valid\n", up_or_down);
 
-    if (vc->link_status_changed)
-        vc->link_status_changed(vc);
+    if (vc->info->link_status_changed) {
+        vc->info->link_status_changed(vc);
+    }
 }
 
 void net_cleanup(void)

@@ -407,9 +407,9 @@ static void do_transmit_packets(dp8393xState *s)
         if (s->regs[SONIC_RCR] & (SONIC_RCR_LB1 | SONIC_RCR_LB0)) {
             /* Loopback */
             s->regs[SONIC_TCR] |= SONIC_TCR_CRSL;
-            if (s->nic->nc.can_receive(&s->nic->nc)) {
+            if (s->nic->nc.info->can_receive(&s->nic->nc)) {
                 s->loopback_packet = 1;
-                s->nic->nc.receive(&s->nic->nc, s->tx_buffer, tx_len);
+                s->nic->nc.info->receive(&s->nic->nc, s->tx_buffer, tx_len);
             }
         } else {
             /* Transmit packet */
