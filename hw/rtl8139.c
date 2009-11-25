@@ -459,7 +459,7 @@ typedef struct RTL8139State {
     uint16_t CpCmd;
     uint8_t  TxThresh;
 
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
     int rtl8139_mmio_io_addr;
 
@@ -785,9 +785,9 @@ static inline target_phys_addr_t rtl8139_addr64(uint32_t low, uint32_t high)
 #endif
 }
 
-static int rtl8139_can_receive(VLANClientState *vc)
+static int rtl8139_can_receive(VLANClientState *nc)
 {
-    RTL8139State *s = vc->opaque;
+    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int avail;
 
     /* Receive (drop) packets if card is disabled.  */
@@ -807,9 +807,9 @@ static int rtl8139_can_receive(VLANClientState *vc)
     }
 }
 
-static ssize_t rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, size_t size_, int do_interrupt)
+static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
 {
-    RTL8139State *s = vc->opaque;
+    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int size = size_;
 
     uint32_t packet_header = 0;
@@ -1156,9 +1156,9 @@ static ssize_t rtl8139_do_receive(VLANClientState *vc, const uint8_t *buf, size_
     return size_;
 }
 
-static ssize_t rtl8139_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t rtl8139_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    return rtl8139_do_receive(vc, buf, size, 1);
+    return rtl8139_do_receive(nc, buf, size, 1);
 }
 
 static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
@@ -1744,11 +1744,11 @@ static void rtl8139_transfer_frame(RTL8139State *s, const uint8_t *buf, int size
     if (TxLoopBack == (s->TxConfig & TxLoopBack))
     {
         DEBUG_PRINT(("RTL8139: +++ transmit loopback mode\n"));
-        rtl8139_do_receive(s->vc, buf, size, do_interrupt);
+        rtl8139_do_receive(&s->nic->nc, buf, size, do_interrupt);
     }
     else
     {
-        qemu_send_packet(s->vc, buf, size);
+        qemu_send_packet(&s->nic->nc, buf, size);
     }
 }
 
@@ -3280,11 +3280,11 @@ static void rtl8139_timer(void *opaque)
 }
 #endif /* RTL8139_ONBOARD_TIMER */
 
-static void rtl8139_cleanup(VLANClientState *vc)
+static void rtl8139_cleanup(VLANClientState *nc)
 {
-    RTL8139State *s = vc->opaque;
+    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
 
 static int pci_rtl8139_uninit(PCIDevice *dev)
@@ -3301,9 +3301,17 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     qemu_free_timer(s->timer);
 #endif
     vmstate_unregister(&vmstate_rtl8139, s);
-    qemu_del_vlan_client(s->vc);
+    qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
+
+static NetClientInfo net_rtl8139_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = rtl8139_can_receive,
+    .receive = rtl8139_receive,
+    .cleanup = rtl8139_cleanup,
+};
 
 static int pci_rtl8139_init(PCIDevice *dev)
 {
@@ -3332,12 +3340,9 @@ static int pci_rtl8139_init(PCIDevice *dev)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 dev->qdev.info->name, dev->qdev.id,
-                                 rtl8139_can_receive, rtl8139_receive, NULL,
-                                 NULL, rtl8139_cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    s->nic = qemu_new_nic(&net_rtl8139_info, &s->conf,
+                          dev->qdev.info->name, dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     s->cplus_txbuffer = NULL;
     s->cplus_txbuffer_len = 0;
