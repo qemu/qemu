@@ -42,6 +42,17 @@ typedef ssize_t (NetReceiveIOV)(VLANClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (VLANClientState *);
 typedef void (LinkStatusChanged)(VLANClientState *);
 
+typedef struct NetClientInfo {
+    net_client_type type;
+    size_t size;
+    NetReceive *receive;
+    NetReceive *receive_raw;
+    NetReceiveIOV *receive_iov;
+    NetCanReceive *can_receive;
+    NetCleanup *cleanup;
+    LinkStatusChanged *link_status_changed;
+} NetClientInfo;
+
 struct VLANClientState {
     net_client_type type;
     NetReceive *receive;
