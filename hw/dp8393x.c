@@ -154,7 +154,8 @@ typedef struct dp8393xState {
 #endif
     QEMUTimer *watchdog;
     int64_t wt_last_update;
-    VLANClientState *vc;
+    NICConf conf;
+    NICState *nic;
     int mmio_index;
 
     /* Registers */
@@ -406,13 +407,13 @@ static void do_transmit_packets(dp8393xState *s)
         if (s->regs[SONIC_RCR] & (SONIC_RCR_LB1 | SONIC_RCR_LB0)) {
             /* Loopback */
             s->regs[SONIC_TCR] |= SONIC_TCR_CRSL;
-            if (s->vc->can_receive(s->vc)) {
+            if (s->nic->nc.can_receive(&s->nic->nc)) {
                 s->loopback_packet = 1;
-                s->vc->receive(s->vc, s->tx_buffer, tx_len);
+                s->nic->nc.receive(&s->nic->nc, s->tx_buffer, tx_len);
             }
         } else {
             /* Transmit packet */
-            qemu_send_packet(s->vc, s->tx_buffer, tx_len);
+            qemu_send_packet(&s->nic->nc, s->tx_buffer, tx_len);
         }
         s->regs[SONIC_TCR] |= SONIC_TCR_PTX;
 
@@ -675,9 +676,9 @@ static CPUWriteMemoryFunc * const dp8393x_write[3] = {
     dp8393x_writel,
 };
 
-static int nic_can_receive(VLANClientState *vc)
+static int nic_can_receive(VLANClientState *nc)
 {
-    dp8393xState *s = vc->opaque;
+    dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if (!(s->regs[SONIC_CR] & SONIC_CR_RXEN))
         return 0;
@@ -724,10 +725,10 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
     return -1;
 }
 
-static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size)
 {
+    dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t data[10];
-    dp8393xState *s = vc->opaque;
     int packet_type;
     uint32_t available, address;
     int width, rx_len = size;
@@ -860,9 +861,9 @@ static void nic_reset(void *opaque)
     dp8393x_update_irq(s);
 }
 
-static void nic_cleanup(VLANClientState *vc)
+static void nic_cleanup(VLANClientState *nc)
 {
-    dp8393xState *s = vc->opaque;
+    dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     cpu_unregister_io_memory(s->mmio_index);
 
@@ -871,6 +872,14 @@ static void nic_cleanup(VLANClientState *vc)
 
     qemu_free(s);
 }
+
+static NetClientInfo net_dp83932_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = nic_can_receive,
+    .receive = nic_receive,
+    .cleanup = nic_cleanup,
+};
 
 void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
                   qemu_irq irq, void* mem_opaque,
@@ -889,13 +898,13 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->watchdog = qemu_new_timer(vm_clock, dp8393x_watchdog, s);
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 nd->vlan, nd->netdev,
-                                 nd->model, nd->name,
-                                 nic_can_receive, nic_receive, NULL, NULL,
-                                 nic_cleanup, s);
+    memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(s->conf.macaddr));
+    s->conf.vlan = nd->vlan;
+    s->conf.peer = nd->netdev;
 
-    qemu_format_nic_info_str(s->vc, nd->macaddr);
+    s->nic = qemu_new_nic(&net_dp83932_info, &s->conf, nd->model, nd->name, s);
+
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
