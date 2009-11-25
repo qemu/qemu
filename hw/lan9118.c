@@ -137,7 +137,7 @@ typedef struct {
 
 typedef struct {
     SysBusDevice busdev;
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
     qemu_irq irq;
     int mmio_index;
@@ -212,7 +212,7 @@ static void lan9118_update(lan9118_state *s)
 
 static void lan9118_mac_changed(lan9118_state *s)
 {
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 }
 
 static void lan9118_reload_eeprom(lan9118_state *s)
@@ -234,16 +234,16 @@ static void lan9118_reload_eeprom(lan9118_state *s)
 static void phy_update_link(lan9118_state *s)
 {
     /* Autonegotiation status mirrors link status.  */
-    if (s->vc->link_down) {
+    if (s->nic->nc.link_down) {
         s->phy_status &= ~0x0024;
     } else {
         s->phy_status |= 0x0024;
     }
 }
 
-static void lan9118_set_link(VLANClientState *vc)
+static void lan9118_set_link(VLANClientState *nc)
 {
-    phy_update_link(vc->opaque);
+    phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
 }
 
 static void phy_reset(lan9118_state *s)
@@ -305,7 +305,7 @@ static void lan9118_reset(DeviceState *d)
     lan9118_reload_eeprom(s);
 }
 
-static int lan9118_can_receive(VLANClientState *vc)
+static int lan9118_can_receive(VLANClientState *nc)
 {
     return 1;
 }
@@ -358,10 +358,10 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
     }
 }
 
-static ssize_t lan9118_receive(VLANClientState *vc, const uint8_t *buf,
+static ssize_t lan9118_receive(VLANClientState *nc, const uint8_t *buf,
                                size_t size)
 {
-    lan9118_state *s = vc->opaque;
+    lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int fifo_len;
     int offset;
     int src_pos;
@@ -506,9 +506,9 @@ static void do_tx_packet(lan9118_state *s)
     /* FIXME: Honor TX disable, and allow queueing of packets.  */
     if (s->phy_control & 0x4000)  {
         /* This assumes the receive routine doesn't touch the VLANClient.  */
-        lan9118_receive(s->vc, s->txp->data, s->txp->len);
+        lan9118_receive(&s->nic->nc, s->txp->data, s->txp->len);
     } else {
-        qemu_send_packet(s->vc, s->txp->data, s->txp->len);
+        qemu_send_packet(&s->nic->nc, s->txp->data, s->txp->len);
     }
     s->txp->fifo_used = 0;
 
@@ -1022,12 +1022,21 @@ static CPUWriteMemoryFunc * const lan9118_writefn[] = {
     lan9118_writel
 };
 
-static void lan9118_cleanup(VLANClientState *vc)
+static void lan9118_cleanup(VLANClientState *nc)
 {
-    lan9118_state *s = vc->opaque;
+    lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
+
+static NetClientInfo net_lan9118_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = lan9118_can_receive,
+    .receive = lan9118_receive,
+    .cleanup = lan9118_cleanup,
+    .link_status_changed = lan9118_set_link,
+};
 
 static int lan9118_init1(SysBusDevice *dev)
 {
@@ -1040,13 +1049,9 @@ static int lan9118_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 dev->qdev.info->name, dev->qdev.id,
-                                 lan9118_can_receive, lan9118_receive, NULL,
-                                 NULL, lan9118_cleanup, s);
-    s->vc->link_status_changed = lan9118_set_link;
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    s->nic = qemu_new_nic(&net_lan9118_info, &s->conf,
+                          dev->qdev.info->name, dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     s->eeprom[0] = 0xa5;
     for (i = 0; i < 6; i++) {
         s->eeprom[i + 1] = s->conf.macaddr.a[i];
