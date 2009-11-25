@@ -283,37 +283,6 @@ NICState *qemu_new_nic(NetClientInfo *info,
     return nic;
 }
 
-VLANClientState *qemu_new_vlan_client(net_client_type type,
-                                      VLANState *vlan,
-                                      VLANClientState *peer,
-                                      const char *model,
-                                      const char *name,
-                                      NetCanReceive *can_receive,
-                                      NetReceive *receive,
-                                      NetReceive *receive_raw,
-                                      NetReceiveIOV *receive_iov,
-                                      NetCleanup *cleanup,
-                                      void *opaque)
-{
-    VLANClientState *ret;
-    NetClientInfo info;
-
-    info.type = type;
-    info.size = sizeof(VLANClientState);
-    info.can_receive = can_receive;
-    info.receive = receive;
-    info.receive_raw = receive_raw;
-    info.receive_iov = receive_iov;
-    info.cleanup = cleanup;
-    info.link_status_changed = NULL;
-
-    ret = qemu_new_net_client(&info, vlan, peer, model, name);
-
-    ret->opaque = opaque;
-
-    return ret;
-}
-
 void qemu_del_vlan_client(VLANClientState *vc)
 {
     if (vc->vlan) {
@@ -335,19 +304,6 @@ void qemu_del_vlan_client(VLANClientState *vc)
     qemu_free(vc->name);
     qemu_free(vc->model);
     qemu_free(vc);
-}
-
-VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque)
-{
-    VLANClientState *vc;
-
-    QTAILQ_FOREACH(vc, &vlan->clients, next) {
-        if (vc->opaque == opaque) {
-            return vc;
-        }
-    }
-
-    return NULL;
 }
 
 VLANClientState *

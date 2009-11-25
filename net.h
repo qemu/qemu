@@ -64,7 +64,6 @@ struct VLANClientState {
     NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
     int link_down;
-    void *opaque;
     QTAILQ_ENTRY(VLANClientState) next;
     struct VLANState *vlan;
     VLANClientState *peer;
@@ -101,19 +100,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *model,
                        const char *name,
                        void *opaque);
-VLANClientState *qemu_new_vlan_client(net_client_type type,
-                                      VLANState *vlan,
-                                      VLANClientState *peer,
-                                      const char *model,
-                                      const char *name,
-                                      NetCanReceive *can_receive,
-                                      NetReceive *receive,
-                                      NetReceive *receive_raw,
-                                      NetReceiveIOV *receive_iov,
-                                      NetCleanup *cleanup,
-                                      void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
-VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque);
 VLANClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
                                                const char *client_str);
 int qemu_can_send_packet(VLANClientState *vc);
