@@ -27,8 +27,8 @@
 #define MSIX_PBA_OFFSET 8
 #define MSIX_CAP_LENGTH 12
 
-/* MSI enable bit is in byte 1 in FLAGS register */
-#define MSIX_ENABLE_OFFSET (PCI_MSIX_FLAGS + 1)
+/* MSI enable bit and maskall bit are in byte 1 in FLAGS register */
+#define MSIX_CONTROL_OFFSET (PCI_MSIX_FLAGS + 1)
 #define MSIX_ENABLE_MASK (PCI_MSIX_FLAGS_ENABLE >> 8)
 
 /* MSI-X table format */
@@ -101,7 +101,7 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
                  bar_nr);
     pdev->msix_cap = config_offset;
     /* Make flags bit writeable. */
-    pdev->wmask[config_offset + MSIX_ENABLE_OFFSET] |= MSIX_ENABLE_MASK;
+    pdev->wmask[config_offset + MSIX_CONTROL_OFFSET] |= MSIX_ENABLE_MASK;
     return 0;
 }
 
@@ -109,7 +109,7 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
 void msix_write_config(PCIDevice *dev, uint32_t addr,
                        uint32_t val, int len)
 {
-    unsigned enable_pos = dev->msix_cap + MSIX_ENABLE_OFFSET;
+    unsigned enable_pos = dev->msix_cap + MSIX_CONTROL_OFFSET;
     if (addr + len <= enable_pos || addr > enable_pos)
         return;
 
@@ -327,7 +327,7 @@ int msix_present(PCIDevice *dev)
 int msix_enabled(PCIDevice *dev)
 {
     return (dev->cap_present & QEMU_PCI_CAP_MSIX) &&
-        (dev->config[dev->msix_cap + MSIX_ENABLE_OFFSET] &
+        (dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
          MSIX_ENABLE_MASK);
 }
 
@@ -363,8 +363,8 @@ void msix_reset(PCIDevice *dev)
     if (!(dev->cap_present & QEMU_PCI_CAP_MSIX))
         return;
     msix_free_irq_entries(dev);
-    dev->config[dev->msix_cap + MSIX_ENABLE_OFFSET] &=
-	    ~dev->wmask[dev->msix_cap + MSIX_ENABLE_OFFSET];
+    dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &=
+	    ~dev->wmask[dev->msix_cap + MSIX_CONTROL_OFFSET];
     memset(dev->msix_table_page, 0, MSIX_PAGE_SIZE);
     msix_mask_all(dev, dev->msix_entries_nr);
 }
