@@ -52,6 +52,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
             features & IFF_VNET_HDR) {
             *vnet_hdr = 1;
             ifr.ifr_flags |= IFF_VNET_HDR;
+        } else {
+            *vnet_hdr = 0;
         }
 
         if (vnet_hdr_required && !*vnet_hdr) {
