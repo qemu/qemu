@@ -378,7 +378,7 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
 int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
 {
     TAPState *s;
-    int fd, vnet_hdr;
+    int fd, vnet_hdr = 0;
 
     if (qemu_opt_get(opts, "fd")) {
         if (qemu_opt_get(opts, "ifname") ||
