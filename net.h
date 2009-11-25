@@ -85,6 +85,11 @@ struct VLANState {
 
 VLANState *qemu_find_vlan(int id, int allocate);
 VLANClientState *qemu_find_netdev(const char *id);
+VLANClientState *qemu_new_net_client(NetClientInfo *info,
+                                     VLANState *vlan,
+                                     VLANClientState *peer,
+                                     const char *model,
+                                     const char *name);
 VLANClientState *qemu_new_vlan_client(net_client_type type,
                                       VLANState *vlan,
                                       VLANClientState *peer,

@@ -248,34 +248,31 @@ static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
                                        int iovcnt,
                                        void *opaque);
 
-VLANClientState *qemu_new_vlan_client(net_client_type type,
-                                      VLANState *vlan,
-                                      VLANClientState *peer,
-                                      const char *model,
-                                      const char *name,
-                                      NetCanReceive *can_receive,
-                                      NetReceive *receive,
-                                      NetReceive *receive_raw,
-                                      NetReceiveIOV *receive_iov,
-                                      NetCleanup *cleanup,
-                                      void *opaque)
+VLANClientState *qemu_new_net_client(NetClientInfo *info,
+                                     VLANState *vlan,
+                                     VLANClientState *peer,
+                                     const char *model,
+                                     const char *name)
 {
     VLANClientState *vc;
 
-    vc = qemu_mallocz(sizeof(VLANClientState));
+    assert(info->size >= sizeof(VLANClientState));
 
-    vc->type = type;
+    vc = qemu_mallocz(info->size);
+
+    vc->type = info->type;
     vc->model = qemu_strdup(model);
-    if (name)
+    if (name) {
         vc->name = qemu_strdup(name);
-    else
+    } else {
         vc->name = assign_name(vc, model);
-    vc->can_receive = can_receive;
-    vc->receive = receive;
-    vc->receive_raw = receive_raw;
-    vc->receive_iov = receive_iov;
-    vc->cleanup = cleanup;
-    vc->opaque = opaque;
+    }
+    vc->can_receive = info->can_receive;
+    vc->receive = info->receive;
+    vc->receive_raw = info->receive_raw;
+    vc->receive_iov = info->receive_iov;
+    vc->cleanup = info->cleanup;
+    vc->link_status_changed = info->link_status_changed;
 
     if (vlan) {
         assert(!peer);
@@ -294,6 +291,37 @@ VLANClientState *qemu_new_vlan_client(net_client_type type,
     }
 
     return vc;
+}
+
+VLANClientState *qemu_new_vlan_client(net_client_type type,
+                                      VLANState *vlan,
+                                      VLANClientState *peer,
+                                      const char *model,
+                                      const char *name,
+                                      NetCanReceive *can_receive,
+                                      NetReceive *receive,
+                                      NetReceive *receive_raw,
+                                      NetReceiveIOV *receive_iov,
+                                      NetCleanup *cleanup,
+                                      void *opaque)
+{
+    VLANClientState *ret;
+    NetClientInfo info;
+
+    info.type = type;
+    info.size = sizeof(VLANClientState);
+    info.can_receive = can_receive;
+    info.receive = receive;
+    info.receive_raw = receive_raw;
+    info.receive_iov = receive_iov;
+    info.cleanup = cleanup;
+    info.link_status_changed = NULL;
+
+    ret = qemu_new_net_client(&info, vlan, peer, model, name);
+
+    ret->opaque = opaque;
+
+    return ret;
 }
 
 void qemu_del_vlan_client(VLANClientState *vc)
