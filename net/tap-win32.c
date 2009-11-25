@@ -630,25 +630,24 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
 /********************************************/
 
  typedef struct TAPState {
-     VLANClientState *vc;
+     VLANClientState nc;
      tap_win32_overlapped_t *handle;
  } TAPState;
 
-static void tap_cleanup(VLANClientState *vc)
+static void tap_cleanup(VLANClientState *nc)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
     qemu_del_wait_object(s->handle->tap_semaphore, NULL, NULL);
 
     /* FIXME: need to kill thread and close file handle:
        tap_win32_close(s);
     */
-    qemu_free(s);
 }
 
-static ssize_t tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
     return tap_win32_write(s->handle, buf, size);
 }
@@ -662,33 +661,41 @@ static void tap_win32_send(void *opaque)
 
     size = tap_win32_read(s->handle, &buf, max_size);
     if (size > 0) {
-        qemu_send_packet(s->vc, buf, size);
+        qemu_send_packet(&s->nc, buf, size);
         tap_win32_free_buffer(s->handle, buf);
     }
 }
 
+static NetClientInfo net_tap_win32_info = {
+    .type = NET_CLIENT_TYPE_TAP,
+    .size = sizeof(TAPState),
+    .receive = tap_receive,
+    .cleanup = tap_cleanup,
+};
+
 static int tap_win32_init(VLANState *vlan, const char *model,
                           const char *name, const char *ifname)
 {
+    VLANClientState *nc;
     TAPState *s;
+    tap_win32_overlapped_t *handle;
 
-    s = qemu_mallocz(sizeof(TAPState));
-    if (!s)
-        return -1;
-    if (tap_win32_open(&s->handle, ifname) < 0) {
+    if (tap_win32_open(&handle, ifname) < 0) {
         printf("tap: Could not open '%s'\n", ifname);
         return -1;
     }
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_TAP,
-                                 vlan, NULL, model, name,
-                                 NULL, tap_receive,
-                                 NULL, NULL, tap_cleanup, s);
+    nc = qemu_new_net_client(&net_tap_win32_info, vlan, NULL, model, name);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "tap: ifname=%s", ifname);
 
+    s = DO_UPCAST(TAPState, nc, nc);
+
+    s->handle = handle;
+
     qemu_add_wait_object(s->handle->tap_semaphore, tap_win32_send, s);
+
     return 0;
 }
 
