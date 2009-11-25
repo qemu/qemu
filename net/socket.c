@@ -33,7 +33,7 @@
 #include "sysemu.h"
 
 typedef struct NetSocketState {
-    VLANClientState *vc;
+    VLANClientState nc;
     int fd;
     int state; /* 0 = getting length, 1 = getting data */
     unsigned int index;
@@ -50,9 +50,9 @@ typedef struct NetSocketListenState {
 } NetSocketListenState;
 
 /* XXX: we consider we can send the whole packet without blocking */
-static ssize_t net_socket_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    NetSocketState *s = vc->opaque;
+    NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     uint32_t len;
     len = htonl(size);
 
@@ -60,9 +60,9 @@ static ssize_t net_socket_receive(VLANClientState *vc, const uint8_t *buf, size_
     return send_all(s->fd, buf, size);
 }
 
-static ssize_t net_socket_receive_dgram(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive_dgram(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    NetSocketState *s = vc->opaque;
+    NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
 
     return sendto(s->fd, (const void *)buf, size, 0,
                   (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
@@ -124,7 +124,7 @@ static void net_socket_send(void *opaque)
             buf += l;
             size -= l;
             if (s->index >= s->packet_len) {
-                qemu_send_packet(s->vc, s->buf, s->packet_len);
+                qemu_send_packet(&s->nc, s->buf, s->packet_len);
                 s->index = 0;
                 s->state = 0;
             }
@@ -146,7 +146,7 @@ static void net_socket_send_dgram(void *opaque)
         qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         return;
     }
-    qemu_send_packet(s->vc, s->buf, size);
+    qemu_send_packet(&s->nc, s->buf, size);
 }
 
 static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
@@ -209,13 +209,19 @@ fail:
     return -1;
 }
 
-static void net_socket_cleanup(VLANClientState *vc)
+static void net_socket_cleanup(VLANClientState *nc)
 {
-    NetSocketState *s = vc->opaque;
+    NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
     close(s->fd);
-    qemu_free(s);
 }
+
+static NetClientInfo net_dgram_socket_info = {
+    .type = NET_CLIENT_TYPE_SOCKET,
+    .size = sizeof(NetSocketState),
+    .receive = net_socket_receive_dgram,
+    .cleanup = net_socket_cleanup,
+};
 
 static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
                                                 const char *model,
@@ -225,6 +231,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
     struct sockaddr_in saddr;
     int newfd;
     socklen_t saddr_len;
+    VLANClientState *nc;
     NetSocketState *s;
 
     /* fd passed: multicast: "learn" dgram_dst address from bound address and save it
@@ -258,22 +265,22 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
 	}
     }
 
-    s = qemu_mallocz(sizeof(NetSocketState));
+    nc = qemu_new_net_client(&net_dgram_socket_info, vlan, NULL, model, name);
+
+    snprintf(nc->info_str, sizeof(nc->info_str),
+	    "socket: fd=%d (%s mcast=%s:%d)",
+	    fd, is_connected ? "cloned" : "",
+	    inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+
+    s = DO_UPCAST(NetSocketState, nc, nc);
+
     s->fd = fd;
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_SOCKET,
-                                 vlan, NULL, model, name, NULL,
-                                 net_socket_receive_dgram, NULL, NULL,
-                                 net_socket_cleanup, s);
     qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
 
     /* mcast: save bound address as dst */
     if (is_connected) s->dgram_dst=saddr;
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-	    "socket: fd=%d (%s mcast=%s:%d)",
-	    fd, is_connected? "cloned" : "",
-	    inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
     return s;
 }
 
@@ -283,20 +290,29 @@ static void net_socket_connect(void *opaque)
     qemu_set_fd_handler(s->fd, net_socket_send, NULL, s);
 }
 
+static NetClientInfo net_socket_info = {
+    .type = NET_CLIENT_TYPE_SOCKET,
+    .size = sizeof(NetSocketState),
+    .receive = net_socket_receive,
+    .cleanup = net_socket_cleanup,
+};
+
 static NetSocketState *net_socket_fd_init_stream(VLANState *vlan,
                                                  const char *model,
                                                  const char *name,
                                                  int fd, int is_connected)
 {
+    VLANClientState *nc;
     NetSocketState *s;
-    s = qemu_mallocz(sizeof(NetSocketState));
+
+    nc = qemu_new_net_client(&net_socket_info, vlan, NULL, model, name);
+
+    snprintf(nc->info_str, sizeof(nc->info_str), "socket: fd=%d", fd);
+
+    s = DO_UPCAST(NetSocketState, nc, nc);
+
     s->fd = fd;
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_SOCKET,
-                                 vlan, NULL, model, name, NULL,
-                                 net_socket_receive, NULL, NULL,
-                                 net_socket_cleanup, s);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "socket: fd=%d", fd);
+
     if (is_connected) {
         net_socket_connect(s);
     } else {
@@ -350,7 +366,7 @@ static void net_socket_accept(void *opaque)
     if (!s1) {
         closesocket(fd);
     } else {
-        snprintf(s1->vc->info_str, sizeof(s1->vc->info_str),
+        snprintf(s1->nc.info_str, sizeof(s1->nc.info_str),
                  "socket: connection from %s:%d",
                  inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
     }
@@ -443,7 +459,7 @@ static int net_socket_connect_init(VLANState *vlan,
     s = net_socket_fd_init(vlan, model, name, fd, connected);
     if (!s)
         return -1;
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: connect to %s:%d",
              inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
     return 0;
@@ -472,7 +488,7 @@ static int net_socket_mcast_init(VLANState *vlan,
 
     s->dgram_dst = saddr;
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: mcast=%s:%d",
              inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
     return 0;
