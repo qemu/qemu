@@ -124,7 +124,6 @@ struct NICInfo {
     char *devaddr;
     VLANState *vlan;
     VLANClientState *netdev;
-    void *private;
     int used;
     int bootable;
     int nvectors;
