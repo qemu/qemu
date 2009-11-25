@@ -326,6 +326,26 @@ qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
     return vc;
 }
 
+void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
+{
+    VLANClientState *nc;
+    VLANState *vlan;
+
+    QTAILQ_FOREACH(nc, &non_vlan_clients, next) {
+        if (nc->info->type == NET_CLIENT_TYPE_NIC) {
+            func(DO_UPCAST(NICState, nc, nc), opaque);
+        }
+    }
+
+    QTAILQ_FOREACH(vlan, &vlans, next) {
+        QTAILQ_FOREACH(nc, &vlan->clients, next) {
+            if (nc->info->type == NET_CLIENT_TYPE_NIC) {
+                func(DO_UPCAST(NICState, nc, nc), opaque);
+            }
+        }
+    }
+}
+
 int qemu_can_send_packet(VLANClientState *sender)
 {
     VLANState *vlan = sender->vlan;

@@ -95,6 +95,8 @@ NICState *qemu_new_nic(NetClientInfo *info,
 void qemu_del_vlan_client(VLANClientState *vc);
 VLANClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
                                                const char *client_str);
+typedef void (*qemu_nic_foreach)(NICState *nic, void *opaque);
+void qemu_foreach_nic(qemu_nic_foreach func, void *opaque);
 int qemu_can_send_packet(VLANClientState *vc);
 ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
                           int iovcnt);
