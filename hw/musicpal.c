@@ -151,7 +151,7 @@ typedef struct mv88w8618_eth_state {
     uint32_t rx_queue[4];
     uint32_t frx_queue[4];
     uint32_t cur_rx[4];
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
 } mv88w8618_eth_state;
 
@@ -175,14 +175,14 @@ static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
     le32_to_cpus(&desc->next);
 }
 
-static int eth_can_receive(VLANClientState *vc)
+static int eth_can_receive(VLANClientState *nc)
 {
     return 1;
 }
 
-static ssize_t eth_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t eth_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    mv88w8618_eth_state *s = vc->opaque;
+    mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint32_t desc_addr;
     mv88w8618_rx_desc desc;
     int i;
@@ -250,7 +250,7 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
             len = desc.bytes;
             if (len < 2048) {
                 cpu_physical_memory_read(desc.buffer, buf, len);
-                qemu_send_packet(s->vc, buf, len);
+                qemu_send_packet(&s->nic->nc, buf, len);
             }
             desc.cmdstat &= ~MP_ETH_TX_OWN;
             s->icr |= 1 << (MP_ETH_IRQ_TXLO_BIT - queue_index);
@@ -365,23 +365,28 @@ static CPUWriteMemoryFunc * const mv88w8618_eth_writefn[] = {
     mv88w8618_eth_write
 };
 
-static void eth_cleanup(VLANClientState *vc)
+static void eth_cleanup(VLANClientState *nc)
 {
-    mv88w8618_eth_state *s = vc->opaque;
+    mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
+
+static NetClientInfo net_mv88w8618_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = eth_can_receive,
+    .receive = eth_receive,
+    .cleanup = eth_cleanup,
+};
 
 static int mv88w8618_eth_init(SysBusDevice *dev)
 {
     mv88w8618_eth_state *s = FROM_SYSBUS(mv88w8618_eth_state, dev);
 
     sysbus_init_irq(dev, &s->irq);
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 dev->qdev.info->name, dev->qdev.id,
-                                 eth_can_receive, eth_receive, NULL,
-                                 NULL, eth_cleanup, s);
+    s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
+                          dev->qdev.info->name, dev->qdev.id, s);
     s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
                                            mv88w8618_eth_writefn, s);
     sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
