@@ -670,6 +670,12 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         if (req->cmd.buf[1] & 3)
             goto illegal_request;
         break;
+    case START_STOP:
+        if (bdrv_get_type_hint(bdrv) == BDRV_TYPE_CDROM && (req->cmd.buf[4] & 2)) {
+            /* load/eject medium */
+            bdrv_eject(bdrv, !(req->cmd.buf[4] & 1));
+        }
+	break;
     default:
         goto illegal_request;
     }
@@ -781,6 +787,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case RESERVE_10:
     case RELEASE:
     case RELEASE_10:
+    case START_STOP:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -790,13 +797,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             return 0;
         }
         break;
-    case START_STOP:
-        DPRINTF("Start Stop Unit\n");
-        if (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM &&
-            (buf[4] & 2))
-            /* load/eject medium */
-            bdrv_eject(s->qdev.dinfo->bdrv, !(buf[4] & 1));
-	break;
     case ALLOW_MEDIUM_REMOVAL:
         DPRINTF("Prevent Allow Medium Removal (prevent = %d)\n", buf[4] & 3);
         bdrv_set_locked(s->qdev.dinfo->bdrv, buf[4] & 1);
