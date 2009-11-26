@@ -88,30 +88,28 @@ static void scsi_command_complete(void *opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
-    uint32_t tag;
-    int status;
 
     s->driver_status = r->io_header.driver_status;
     if (s->driver_status & SG_ERR_DRIVER_SENSE)
         s->senselen = r->io_header.sb_len_wr;
 
     if (ret != 0)
-        status = BUSY << 1;
+        r->req.status = BUSY << 1;
     else {
         if (s->driver_status & SG_ERR_DRIVER_TIMEOUT) {
-            status = BUSY << 1;
+            r->req.status = BUSY << 1;
             BADF("Driver Timeout\n");
         } else if (r->io_header.status)
-            status = r->io_header.status;
+            r->req.status = r->io_header.status;
         else if (s->driver_status & SG_ERR_DRIVER_SENSE)
-            status = CHECK_CONDITION << 1;
+            r->req.status = CHECK_CONDITION << 1;
         else
-            status = GOOD << 1;
+            r->req.status = GOOD << 1;
     }
     DPRINTF("Command complete 0x%p tag=0x%x status=%d\n",
-            r, r->req.tag, status);
-    tag = r->req.tag;
-    r->req.bus->complete(r->req.bus, SCSI_REASON_DONE, tag, status);
+            r, r->req.tag, r->req.status);
+
+    scsi_req_complete(&r->req);
     scsi_remove_request(r);
 }
 

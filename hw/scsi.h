@@ -33,6 +33,7 @@ typedef struct SCSIRequest {
     SCSIDevice        *dev;
     uint32_t          tag;
     uint32_t          lun;
+    uint32_t          status;
     struct {
         uint8_t buf[SCSI_CMD_BUF_SIZE];
         int len;
@@ -106,5 +107,6 @@ SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag);
 void scsi_req_free(SCSIRequest *req);
 
 int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
+void scsi_req_complete(SCSIRequest *req);
 
 #endif

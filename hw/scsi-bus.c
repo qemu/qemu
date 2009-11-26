@@ -132,6 +132,7 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     req->dev = d;
     req->tag = tag;
     req->lun = lun;
+    req->status = -1;
     QTAILQ_INSERT_TAIL(&d->requests, req, next);
     return req;
 }
@@ -361,4 +362,12 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     scsi_req_xfer_mode(req);
     req->cmd.lba = scsi_req_lba(req);
     return 0;
+}
+
+void scsi_req_complete(SCSIRequest *req)
+{
+    assert(req->status != -1);
+    req->bus->complete(req->bus, SCSI_REASON_DONE,
+                       req->tag,
+                       req->status);
 }

@@ -84,16 +84,19 @@ static SCSIDiskReq *scsi_find_request(SCSIDiskState *s, uint32_t tag)
     return DO_UPCAST(SCSIDiskReq, req, scsi_req_find(&s->qdev, tag));
 }
 
+static void scsi_req_set_status(SCSIRequest *req, int status, int sense_code)
+{
+    req->status = status;
+    scsi_dev_set_sense(req->dev, sense_code);
+}
+
 /* Helper function for command completion.  */
 static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    uint32_t tag;
     DPRINTF("Command complete tag=0x%x status=%d sense=%d\n",
             r->req.tag, status, sense);
-    scsi_dev_set_sense(&s->qdev, sense);
-    tag = r->req.tag;
-    r->req.bus->complete(r->req.bus, SCSI_REASON_DONE, tag, status);
+    scsi_req_set_status(&r->req, status, sense);
+    scsi_req_complete(&r->req);
     scsi_remove_request(r);
 }
 
