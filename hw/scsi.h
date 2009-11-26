@@ -48,6 +48,7 @@ struct SCSIDevice
 {
     DeviceState qdev;
     uint32_t id;
+    DriveInfo *dinfo;
     SCSIDeviceInfo *info;
     QTAILQ_HEAD(, SCSIRequest) requests;
     int blocksize;
