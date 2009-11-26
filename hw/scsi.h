@@ -2,6 +2,7 @@
 #define QEMU_HW_SCSI_H
 
 #include "qdev.h"
+#include "block.h"
 
 /* scsi-disk.c */
 enum scsi_reason {
@@ -14,6 +15,13 @@ typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
 typedef void (*scsi_completionfn)(SCSIBus *bus, int reason, uint32_t tag,
                                   uint32_t arg);
+
+typedef struct SCSIRequest {
+    SCSIBus           *bus;
+    SCSIDevice        *dev;
+    uint32_t          tag;
+    BlockDriverAIOCB  *aiocb;
+} SCSIRequest;
 
 struct SCSIDevice
 {

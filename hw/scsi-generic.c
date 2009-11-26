@@ -54,24 +54,21 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct SCSIGenericState SCSIGenericState;
 
-typedef struct SCSIRequest {
-    BlockDriverAIOCB *aiocb;
-    struct SCSIRequest *next;
-    SCSIBus *bus;
-    SCSIGenericState *dev;
-    uint32_t tag;
+typedef struct SCSIGenericReq {
+    SCSIRequest req;
+    struct SCSIGenericReq *next;
     uint8_t cmd[SCSI_CMD_BUF_SIZE];
     int cmdlen;
     uint8_t *buf;
     int buflen;
     int len;
     sg_io_hdr_t io_header;
-} SCSIRequest;
+} SCSIGenericReq;
 
 struct SCSIGenericState
 {
     SCSIDevice qdev;
-    SCSIRequest *requests;
+    SCSIGenericReq *requests;
     DriveInfo *dinfo;
     int type;
     int blocksize;
@@ -81,30 +78,30 @@ struct SCSIGenericState
     uint8_t senselen;
 };
 
-/* Global pool of SCSIRequest structures.  */
-static SCSIRequest *free_requests = NULL;
+/* Global pool of SCSIGenericReq structures.  */
+static SCSIGenericReq *free_requests = NULL;
 
-static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag)
+static SCSIGenericReq *scsi_new_request(SCSIDevice *d, uint32_t tag)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIRequest *r;
+    SCSIGenericReq *r;
 
     if (free_requests) {
         r = free_requests;
         free_requests = r->next;
     } else {
-        r = qemu_malloc(sizeof(SCSIRequest));
+        r = qemu_malloc(sizeof(SCSIGenericReq));
         r->buf = NULL;
         r->buflen = 0;
     }
-    r->bus = scsi_bus_from_device(d);
-    r->dev = s;
-    r->tag = tag;
+    r->req.bus = scsi_bus_from_device(d);
+    r->req.dev = d;
+    r->req.tag = tag;
     memset(r->cmd, 0, sizeof(r->cmd));
     memset(&r->io_header, 0, sizeof(r->io_header));
     r->cmdlen = 0;
     r->len = 0;
-    r->aiocb = NULL;
+    r->req.aiocb = NULL;
 
     /* link */
 
@@ -113,10 +110,10 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag)
     return r;
 }
 
-static void scsi_remove_request(SCSIRequest *r)
+static void scsi_remove_request(SCSIGenericReq *r)
 {
-    SCSIRequest *last;
-    SCSIGenericState *s = r->dev;
+    SCSIGenericReq *last;
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
 
     if (s->requests == r) {
         s->requests = r->next;
@@ -134,12 +131,12 @@ static void scsi_remove_request(SCSIRequest *r)
     free_requests = r;
 }
 
-static SCSIRequest *scsi_find_request(SCSIGenericState *s, uint32_t tag)
+static SCSIGenericReq *scsi_find_request(SCSIGenericState *s, uint32_t tag)
 {
-    SCSIRequest *r;
+    SCSIGenericReq *r;
 
     r = s->requests;
-    while (r && r->tag != tag)
+    while (r && r->req.tag != tag)
         r = r->next;
 
     return r;
@@ -148,8 +145,8 @@ static SCSIRequest *scsi_find_request(SCSIGenericState *s, uint32_t tag)
 /* Helper function for command completion.  */
 static void scsi_command_complete(void *opaque, int ret)
 {
-    SCSIRequest *r = (SCSIRequest *)opaque;
-    SCSIGenericState *s = r->dev;
+    SCSIGenericReq *r = (SCSIGenericReq *)opaque;
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
     uint32_t tag;
     int status;
 
@@ -171,10 +168,10 @@ static void scsi_command_complete(void *opaque, int ret)
             status = GOOD << 1;
     }
     DPRINTF("Command complete 0x%p tag=0x%x status=%d\n",
-            r, r->tag, status);
-    tag = r->tag;
+            r, r->req.tag, status);
+    tag = r->req.tag;
     scsi_remove_request(r);
-    r->bus->complete(r->bus, SCSI_REASON_DONE, tag, status);
+    r->req.bus->complete(r->req.bus, SCSI_REASON_DONE, tag, status);
 }
 
 /* Cancel a pending data transfer.  */
@@ -182,35 +179,37 @@ static void scsi_cancel_io(SCSIDevice *d, uint32_t tag)
 {
     DPRINTF("scsi_cancel_io 0x%x\n", tag);
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIRequest *r;
+    SCSIGenericReq *r;
     DPRINTF("Cancel tag=0x%x\n", tag);
     r = scsi_find_request(s, tag);
     if (r) {
-        if (r->aiocb)
-            bdrv_aio_cancel(r->aiocb);
-        r->aiocb = NULL;
+        if (r->req.aiocb)
+            bdrv_aio_cancel(r->req.aiocb);
+        r->req.aiocb = NULL;
         scsi_remove_request(r);
     }
 }
 
 static int execute_command(BlockDriverState *bdrv,
-                           SCSIRequest *r, int direction,
+                           SCSIGenericReq *r, int direction,
 			   BlockDriverCompletionFunc *complete)
 {
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
+
     r->io_header.interface_id = 'S';
     r->io_header.dxfer_direction = direction;
     r->io_header.dxferp = r->buf;
     r->io_header.dxfer_len = r->buflen;
     r->io_header.cmdp = r->cmd;
     r->io_header.cmd_len = r->cmdlen;
-    r->io_header.mx_sb_len = sizeof(r->dev->sensebuf);
-    r->io_header.sbp = r->dev->sensebuf;
+    r->io_header.mx_sb_len = sizeof(s->sensebuf);
+    r->io_header.sbp = s->sensebuf;
     r->io_header.timeout = MAX_UINT;
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
-    r->aiocb = bdrv_aio_ioctl(bdrv, SG_IO, &r->io_header, complete, r);
-    if (r->aiocb == NULL) {
+    r->req.aiocb = bdrv_aio_ioctl(bdrv, SG_IO, &r->io_header, complete, r);
+    if (r->req.aiocb == NULL) {
         BADF("execute_command: read failed !\n");
         return -1;
     }
@@ -220,7 +219,7 @@ static int execute_command(BlockDriverState *bdrv,
 
 static void scsi_read_complete(void * opaque, int ret)
 {
-    SCSIRequest *r = (SCSIRequest *)opaque;
+    SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     int len;
 
     if (ret) {
@@ -229,10 +228,10 @@ static void scsi_read_complete(void * opaque, int ret)
         return;
     }
     len = r->io_header.dxfer_len - r->io_header.resid;
-    DPRINTF("Data ready tag=0x%x len=%d\n", r->tag, len);
+    DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, len);
 
     r->len = -1;
-    r->bus->complete(r->bus, SCSI_REASON_DATA, r->tag, len);
+    r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, len);
     if (len == 0)
         scsi_command_complete(r, 0);
 }
@@ -241,7 +240,7 @@ static void scsi_read_complete(void * opaque, int ret)
 static void scsi_read_data(SCSIDevice *d, uint32_t tag)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIRequest *r;
+    SCSIGenericReq *r;
     int ret;
 
     DPRINTF("scsi_read_data 0x%x\n", tag);
@@ -266,11 +265,11 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         r->io_header.status = 0;
         r->io_header.dxfer_len  = s->senselen;
         r->len = -1;
-        DPRINTF("Data ready tag=0x%x len=%d\n", r->tag, s->senselen);
+        DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, s->senselen);
         DPRINTF("Sense: %d %d %d %d %d %d %d %d\n",
                 r->buf[0], r->buf[1], r->buf[2], r->buf[3],
                 r->buf[4], r->buf[5], r->buf[6], r->buf[7]);
-        r->bus->complete(r->bus, SCSI_REASON_DATA, r->tag, s->senselen);
+        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, s->senselen);
         return;
     }
 
@@ -283,7 +282,8 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
 
 static void scsi_write_complete(void * opaque, int ret)
 {
-    SCSIRequest *r = (SCSIRequest *)opaque;
+    SCSIGenericReq *r = (SCSIGenericReq *)opaque;
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
 
     DPRINTF("scsi_write_complete() ret = %d\n", ret);
     if (ret) {
@@ -293,9 +293,9 @@ static void scsi_write_complete(void * opaque, int ret)
     }
 
     if (r->cmd[0] == MODE_SELECT && r->cmd[4] == 12 &&
-        r->dev->type == TYPE_TAPE) {
-        r->dev->blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
-        DPRINTF("block size %d\n", r->dev->blocksize);
+        s->type == TYPE_TAPE) {
+        s->blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
+        DPRINTF("block size %d\n", s->blocksize);
     }
 
     scsi_command_complete(r, ret);
@@ -306,7 +306,7 @@ static void scsi_write_complete(void * opaque, int ret)
 static int scsi_write_data(SCSIDevice *d, uint32_t tag)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIRequest *r;
+    SCSIGenericReq *r;
     int ret;
 
     DPRINTF("scsi_write_data 0x%x\n", tag);
@@ -320,7 +320,7 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
 
     if (r->len == 0) {
         r->len = r->buflen;
-        r->bus->complete(r->bus, SCSI_REASON_DATA, r->tag, r->len);
+        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->len);
         return 0;
     }
 
@@ -337,7 +337,7 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
 static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIRequest *r;
+    SCSIGenericReq *r;
     r = scsi_find_request(s, tag);
     if (!r) {
         BADF("Bad buffer tag 0x%x\n", tag);
@@ -512,7 +512,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
     uint32_t len=0;
     int cmdlen=0;
-    SCSIRequest *r;
+    SCSIGenericReq *r;
     SCSIBus *bus;
     int ret;
 
@@ -653,7 +653,7 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
 static void scsi_destroy(SCSIDevice *d)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIRequest *r, *n;
+    SCSIGenericReq *r, *n;
 
     r = s->requests;
     while (r) {
