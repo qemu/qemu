@@ -615,6 +615,42 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 }
 
+static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    int start_track, format, msf, toclen;
+    uint64_t nb_sectors;
+
+    msf = req->cmd.buf[1] & 2;
+    format = req->cmd.buf[2] & 0xf;
+    start_track = req->cmd.buf[6];
+    bdrv_get_geometry(bdrv, &nb_sectors);
+    DPRINTF("Read TOC (track %d format %d msf %d)\n", start_track, format, msf >> 1);
+    nb_sectors /= s->cluster_size;
+    switch (format) {
+    case 0:
+        toclen = cdrom_read_toc(nb_sectors, outbuf, msf, start_track);
+        break;
+    case 1:
+        /* multi session : only a single session defined */
+        toclen = 12;
+        memset(outbuf, 0, 12);
+        outbuf[1] = 0x0a;
+        outbuf[2] = 0x01;
+        outbuf[3] = 0x01;
+        break;
+    case 2:
+        toclen = cdrom_read_toc_raw(nb_sectors, outbuf, msf, start_track);
+        break;
+    default:
+        return -1;
+    }
+    if (toclen > req->cmd.xfer)
+        toclen = req->cmd.xfer;
+    return toclen;
+}
+
 static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
@@ -653,6 +689,11 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
     case MODE_SENSE:
     case MODE_SENSE_10:
         buflen = scsi_disk_emulate_mode_sense(req, outbuf);
+        if (buflen < 0)
+            goto illegal_request;
+        break;
+    case READ_TOC:
+        buflen = scsi_disk_emulate_read_toc(req, outbuf);
         if (buflen < 0)
             goto illegal_request;
         break;
@@ -823,6 +864,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case ALLOW_MEDIUM_REMOVAL:
     case READ_CAPACITY:
     case SYNCHRONIZE_CACHE:
+    case READ_TOC:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -851,44 +893,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector_count = len * s->cluster_size;
         is_write = 1;
         break;
-    case READ_TOC:
-        {
-            int start_track, format, msf, toclen;
-
-            msf = buf[1] & 2;
-            format = buf[2] & 0xf;
-            start_track = buf[6];
-            bdrv_get_geometry(s->qdev.dinfo->bdrv, &nb_sectors);
-            DPRINTF("Read TOC (track %d format %d msf %d)\n", start_track, format, msf >> 1);
-            nb_sectors /= s->cluster_size;
-            switch(format) {
-            case 0:
-                toclen = cdrom_read_toc(nb_sectors, outbuf, msf, start_track);
-                break;
-            case 1:
-                /* multi session : only a single session defined */
-                toclen = 12;
-                memset(outbuf, 0, 12);
-                outbuf[1] = 0x0a;
-                outbuf[2] = 0x01;
-                outbuf[3] = 0x01;
-                break;
-            case 2:
-                toclen = cdrom_read_toc_raw(nb_sectors, outbuf, msf, start_track);
-                break;
-            default:
-                goto error_cmd;
-            }
-            if (toclen > 0) {
-                if (len > toclen)
-                  len = toclen;
-                r->iov.iov_len = len;
-                break;
-            }
-        error_cmd:
-            DPRINTF("Read TOC error\n");
-            goto fail;
-        }
     case 0x46:
         DPRINTF("Get Configuration (rt %d, maxlen %d)\n", buf[1] & 3, len);
         memset(outbuf, 0, 8);
