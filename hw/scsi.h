@@ -26,6 +26,8 @@ typedef struct SCSIRequest {
     struct {
         uint8_t buf[SCSI_CMD_BUF_SIZE];
         int len;
+        size_t xfer;
+        uint64_t lba;
     } cmd;
     BlockDriverAIOCB  *aiocb;
     QTAILQ_ENTRY(SCSIRequest) next;
@@ -86,5 +88,6 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
 SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag);
 void scsi_req_free(SCSIRequest *req);
+int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
 
 #endif

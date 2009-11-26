@@ -1,6 +1,7 @@
 #include "hw.h"
 #include "sysemu.h"
 #include "scsi.h"
+#include "scsi-defs.h"
 #include "block.h"
 #include "qdev.h"
 
@@ -141,4 +142,167 @@ void scsi_req_free(SCSIRequest *req)
 {
     QTAILQ_REMOVE(&req->dev->requests, req, next);
     qemu_free(req);
+}
+
+static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
+{
+    switch (cmd[0] >> 5) {
+    case 0:
+        req->cmd.xfer = cmd[4];
+        req->cmd.len = 6;
+        /* length 0 means 256 blocks */
+        if (req->cmd.xfer == 0)
+            req->cmd.xfer = 256;
+        break;
+    case 1:
+    case 2:
+        req->cmd.xfer = cmd[8] | (cmd[7] << 8);
+        req->cmd.len = 10;
+        break;
+    case 4:
+        req->cmd.xfer = cmd[13] | (cmd[12] << 8) | (cmd[11] << 16) | (cmd[10] << 24);
+        req->cmd.len = 16;
+        break;
+    case 5:
+        req->cmd.xfer = cmd[9] | (cmd[8] << 8) | (cmd[7] << 16) | (cmd[6] << 24);
+        req->cmd.len = 12;
+        break;
+    default:
+        return -1;
+    }
+
+    switch(cmd[0]) {
+    case TEST_UNIT_READY:
+    case REZERO_UNIT:
+    case START_STOP:
+    case SEEK_6:
+    case WRITE_FILEMARKS:
+    case SPACE:
+    case ERASE:
+    case ALLOW_MEDIUM_REMOVAL:
+    case VERIFY:
+    case SEEK_10:
+    case SYNCHRONIZE_CACHE:
+    case LOCK_UNLOCK_CACHE:
+    case LOAD_UNLOAD:
+    case SET_CD_SPEED:
+    case SET_LIMITS:
+    case WRITE_LONG:
+    case MOVE_MEDIUM:
+    case UPDATE_BLOCK:
+        req->cmd.xfer = 0;
+        break;
+    case MODE_SENSE:
+        break;
+    case WRITE_SAME:
+        req->cmd.xfer = 1;
+        break;
+    case READ_CAPACITY:
+        req->cmd.xfer = 8;
+        break;
+    case READ_BLOCK_LIMITS:
+        req->cmd.xfer = 6;
+        break;
+    case READ_POSITION:
+        req->cmd.xfer = 20;
+        break;
+    case SEND_VOLUME_TAG:
+        req->cmd.xfer *= 40;
+        break;
+    case MEDIUM_SCAN:
+        req->cmd.xfer *= 8;
+        break;
+    case WRITE_10:
+    case WRITE_VERIFY:
+    case WRITE_6:
+    case WRITE_12:
+    case WRITE_VERIFY_12:
+        req->cmd.xfer *= req->dev->blocksize;
+        break;
+    case READ_10:
+    case READ_6:
+    case READ_REVERSE:
+    case RECOVER_BUFFERED_DATA:
+    case READ_12:
+        req->cmd.xfer *= req->dev->blocksize;
+        break;
+    case INQUIRY:
+        req->cmd.xfer = cmd[4] | (cmd[3] << 8);
+        break;
+    }
+    return 0;
+}
+
+static int scsi_req_stream_length(SCSIRequest *req, uint8_t *cmd)
+{
+    switch(cmd[0]) {
+    /* stream commands */
+    case READ_6:
+    case READ_REVERSE:
+    case RECOVER_BUFFERED_DATA:
+    case WRITE_6:
+        req->cmd.len = 6;
+        req->cmd.xfer = cmd[4] | (cmd[3] << 8) | (cmd[2] << 16);
+        if (cmd[1] & 0x01) /* fixed */
+            req->cmd.xfer *= req->dev->blocksize;
+        break;
+    case REWIND:
+    case START_STOP:
+        req->cmd.len = 6;
+        req->cmd.xfer = 0;
+        break;
+    /* generic commands */
+    default:
+        return scsi_req_length(req, cmd);
+    }
+    return 0;
+}
+
+static uint64_t scsi_req_lba(SCSIRequest *req)
+{
+    uint8_t *buf = req->cmd.buf;
+    uint64_t lba;
+
+    switch (buf[0] >> 5) {
+    case 0:
+        lba = (uint64_t) buf[3] | ((uint64_t) buf[2] << 8) |
+              (((uint64_t) buf[1] & 0x1f) << 16);
+        break;
+    case 1:
+    case 2:
+        lba = (uint64_t) buf[5] | ((uint64_t) buf[4] << 8) |
+              ((uint64_t) buf[3] << 16) | ((uint64_t) buf[2] << 24);
+        break;
+    case 4:
+        lba = (uint64_t) buf[9] | ((uint64_t) buf[8] << 8) |
+              ((uint64_t) buf[7] << 16) | ((uint64_t) buf[6] << 24) |
+              ((uint64_t) buf[5] << 32) | ((uint64_t) buf[4] << 40) |
+              ((uint64_t) buf[3] << 48) | ((uint64_t) buf[2] << 56);
+        break;
+    case 5:
+        lba = (uint64_t) buf[5] | ((uint64_t) buf[4] << 8) |
+              ((uint64_t) buf[3] << 16) | ((uint64_t) buf[2] << 24);
+        break;
+    default:
+        lba = -1;
+
+    }
+    return lba;
+}
+
+int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
+{
+    int rc;
+
+    if (req->dev->type == TYPE_TAPE) {
+        rc = scsi_req_stream_length(req, buf);
+    } else {
+        rc = scsi_req_length(req, buf);
+    }
+    if (rc != 0)
+        return rc;
+
+    memcpy(req->cmd.buf, buf, req->cmd.len);
+    req->cmd.lba = scsi_req_lba(req);
+    return 0;
 }

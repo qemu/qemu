@@ -288,121 +288,23 @@ static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
     return r->buf;
 }
 
-static int scsi_length(uint8_t *cmd, int blocksize, int *cmdlen, uint32_t *len)
+static void scsi_req_fixup(SCSIRequest *req)
 {
-    switch (cmd[0] >> 5) {
-    case 0:
-        *len = cmd[4];
-        *cmdlen = 6;
-        /* length 0 means 256 blocks */
-        if (*len == 0)
-            *len = 256;
-        break;
-    case 1:
-    case 2:
-        *len = cmd[8] | (cmd[7] << 8);
-        *cmdlen = 10;
-        break;
-    case 4:
-        *len = cmd[13] | (cmd[12] << 8) | (cmd[11] << 16) | (cmd[10] << 24);
-        *cmdlen = 16;
-        break;
-    case 5:
-        *len = cmd[9] | (cmd[8] << 8) | (cmd[7] << 16) | (cmd[6] << 24);
-        *cmdlen = 12;
-        break;
-    default:
-        return -1;
-    }
-
-    switch(cmd[0]) {
-    case TEST_UNIT_READY:
-    case REZERO_UNIT:
-    case START_STOP:
-    case SEEK_6:
-    case WRITE_FILEMARKS:
-    case SPACE:
-    case ERASE:
-    case ALLOW_MEDIUM_REMOVAL:
-    case VERIFY:
-    case SEEK_10:
-    case SYNCHRONIZE_CACHE:
-    case LOCK_UNLOCK_CACHE:
-    case LOAD_UNLOAD:
-    case SET_CD_SPEED:
-    case SET_LIMITS:
-    case WRITE_LONG:
-    case MOVE_MEDIUM:
-    case UPDATE_BLOCK:
-        *len = 0;
-        break;
-    case MODE_SENSE:
-        break;
-    case WRITE_SAME:
-        *len = 1;
-        break;
-    case READ_CAPACITY:
-        *len = 8;
-        break;
-    case READ_BLOCK_LIMITS:
-        *len = 6;
-        break;
-    case READ_POSITION:
-        *len = 20;
-        break;
-    case SEND_VOLUME_TAG:
-        *len *= 40;
-        break;
-    case MEDIUM_SCAN:
-        *len *= 8;
-        break;
+    switch(req->cmd.buf[0]) {
     case WRITE_10:
-        cmd[1] &= ~0x08;	/* disable FUA */
-    case WRITE_VERIFY:
-    case WRITE_6:
-    case WRITE_12:
-    case WRITE_VERIFY_12:
-        *len *= blocksize;
+        req->cmd.buf[1] &= ~0x08;	/* disable FUA */
         break;
     case READ_10:
-        cmd[1] &= ~0x08;	/* disable FUA */
-    case READ_6:
-    case READ_REVERSE:
-    case RECOVER_BUFFERED_DATA:
-    case READ_12:
-        *len *= blocksize;
-        break;
-    case INQUIRY:
-        *len = cmd[4] | (cmd[3] << 8);
-        break;
-    }
-    return 0;
-}
-
-static int scsi_stream_length(uint8_t *cmd, int blocksize, int *cmdlen, uint32_t *len)
-{
-    switch(cmd[0]) {
-    /* stream commands */
-    case READ_6:
-    case READ_REVERSE:
-    case RECOVER_BUFFERED_DATA:
-    case WRITE_6:
-        *cmdlen = 6;
-        *len = cmd[4] | (cmd[3] << 8) | (cmd[2] << 16);
-        if (cmd[1] & 0x01) /* fixed */
-            *len *= blocksize;
+        req->cmd.buf[1] &= ~0x08;	/* disable FUA */
         break;
     case REWIND:
     case START_STOP:
-        *cmdlen = 6;
-        *len = 0;
-        cmd[1] = 0x01;	/* force IMMED, otherwise qemu waits end of command */
+        if (req->dev->type == TYPE_TAPE) {
+            /* force IMMED, otherwise qemu waits end of command */
+            req->cmd.buf[1] = 0x01;
+        }
         break;
-    /* generic commands */
-    default:
-        return scsi_length(cmd, blocksize, cmdlen, len);
     }
-    return 0;
 }
 
 static int is_write(int command)
@@ -452,26 +354,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                                  uint8_t *cmd, int lun)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    uint32_t len=0;
-    int cmdlen=0;
     SCSIGenericReq *r;
     SCSIBus *bus;
     int ret;
-
-    if (s->qdev.type == TYPE_TAPE) {
-        if (scsi_stream_length(cmd, s->qdev.blocksize, &cmdlen, &len) == -1) {
-            BADF("Unsupported command length, command %x\n", cmd[0]);
-            return 0;
-        }
-     } else {
-        if (scsi_length(cmd, s->qdev.blocksize, &cmdlen, &len) == -1) {
-            BADF("Unsupported command length, command %x\n", cmd[0]);
-            return 0;
-        }
-    }
-
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x len %d\n", lun, tag,
-            cmd[0], len);
 
     if (cmd[0] != REQUEST_SENSE &&
         (lun != s->lun || (cmd[1] >> 5) != s->lun)) {
@@ -498,10 +383,17 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     r = scsi_new_request(d, tag, lun);
 
-    memcpy(r->req.cmd.buf, cmd, cmdlen);
-    r->req.cmd.len = cmdlen;
+    if (-1 == scsi_req_parse(&r->req, cmd)) {
+        BADF("Unsupported command length, command %x\n", cmd[0]);
+        scsi_remove_request(r);
+        return 0;
+    }
+    scsi_req_fixup(&r->req);
 
-    if (len == 0) {
+    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x len %d\n", lun, tag,
+            cmd[0], r->req.cmd.xfer);
+
+    if (r->req.cmd.xfer == 0) {
         if (r->buf != NULL)
             qemu_free(r->buf);
         r->buflen = 0;
@@ -514,21 +406,21 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         return 0;
     }
 
-    if (r->buflen != len) {
+    if (r->buflen != r->req.cmd.xfer) {
         if (r->buf != NULL)
             qemu_free(r->buf);
-        r->buf = qemu_malloc(len);
-        r->buflen = len;
+        r->buf = qemu_malloc(r->req.cmd.xfer);
+        r->buflen = r->req.cmd.xfer;
     }
 
     memset(r->buf, 0, r->buflen);
-    r->len = len;
+    r->len = r->req.cmd.xfer;
     if (is_write(cmd[0])) {
         r->len = 0;
-        return -len;
+        return -r->req.cmd.xfer;
     }
 
-    return len;
+    return r->req.cmd.xfer;
 }
 
 static int get_blocksize(BlockDriverState *bdrv)
