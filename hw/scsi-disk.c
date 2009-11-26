@@ -59,7 +59,6 @@ struct SCSIDiskState
        This is the number of 512 byte blocks in a single scsi sector.  */
     int cluster_size;
     uint64_t max_lba;
-    int sense;
     char drive_serial_str[21];
     QEMUBH *bh;
 };
@@ -93,7 +92,7 @@ static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
     uint32_t tag;
     DPRINTF("Command complete tag=0x%x status=%d sense=%d\n",
             r->req.tag, status, sense);
-    s->sense = sense;
+    scsi_dev_set_sense(&s->qdev, sense);
     tag = r->req.tag;
     r->req.bus->complete(r->req.bus, SCSI_REASON_DONE, tag, status);
     scsi_remove_request(r);
@@ -394,7 +393,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             goto fail;
         memset(outbuf, 0, 4);
         r->iov.iov_len = 4;
-        if (s->sense == NOT_READY && len >= 18) {
+        if (s->qdev.sense.key == NOT_READY && len >= 18) {
             memset(outbuf, 0, 18);
             r->iov.iov_len = 18;
             outbuf[7] = 10;
@@ -404,7 +403,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         }
         outbuf[0] = 0xf0;
         outbuf[1] = 0;
-        outbuf[2] = s->sense;
+        outbuf[2] = s->qdev.sense.key;
+        scsi_dev_clear_sense(&s->qdev);
         break;
     case INQUIRY:
         DPRINTF("Inquiry (len %d)\n", len);
