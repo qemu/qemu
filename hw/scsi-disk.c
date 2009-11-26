@@ -55,7 +55,6 @@ typedef struct SCSIDiskReq {
     uint32_t sector_count;
     struct iovec iov;
     QEMUIOVector qiov;
-    struct SCSIDiskReq *next;
     uint32_t status;
 } SCSIDiskReq;
 
@@ -63,7 +62,6 @@ struct SCSIDiskState
 {
     SCSIDevice qdev;
     DriveInfo *dinfo;
-    SCSIDiskReq *requests;
     /* The qemu block layer uses a fixed 512 byte sector size.
        This is the number of 512 byte blocks in a single scsi sector.  */
     int cluster_size;
@@ -73,64 +71,37 @@ struct SCSIDiskState
     QEMUBH *bh;
 };
 
-/* Global pool of SCSIRequest structures.  */
-static SCSIDiskReq *free_requests = NULL;
-
 static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
     SCSIDiskReq *r;
 
-    if (free_requests) {
-        r = free_requests;
-        free_requests = r->next;
-    } else {
-        r = qemu_malloc(sizeof(SCSIDiskReq));
-        r->iov.iov_base = qemu_memalign(512, SCSI_DMA_BUF_SIZE);
-    }
+    r = qemu_mallocz(sizeof(SCSIDiskReq));
+    r->iov.iov_base = qemu_memalign(512, SCSI_DMA_BUF_SIZE);
     r->req.bus = scsi_bus_from_device(d);
     r->req.dev = d;
     r->req.tag = tag;
-    r->sector_count = 0;
-    r->iov.iov_len = 0;
-    r->req.aiocb = NULL;
-    r->status = 0;
 
-    r->next = s->requests;
-    s->requests = r;
+    QTAILQ_INSERT_TAIL(&d->requests, &r->req, next);
     return r;
 }
 
 static void scsi_remove_request(SCSIDiskReq *r)
 {
-    SCSIDiskReq *last;
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-
-    if (s->requests == r) {
-        s->requests = r->next;
-    } else {
-        last = s->requests;
-        while (last && last->next != r)
-            last = last->next;
-        if (last) {
-            last->next = r->next;
-        } else {
-            BADF("Orphaned request\n");
-        }
-    }
-    r->next = free_requests;
-    free_requests = r;
+    qemu_free(r->iov.iov_base);
+    QTAILQ_REMOVE(&r->req.dev->requests, &r->req, next);
+    qemu_free(r);
 }
 
 static SCSIDiskReq *scsi_find_request(SCSIDiskState *s, uint32_t tag)
 {
-    SCSIDiskReq *r;
+    SCSIRequest *req;
 
-    r = s->requests;
-    while (r && r->req.tag != tag)
-        r = r->next;
-
-    return r;
+    QTAILQ_FOREACH(req, &s->qdev.requests, next) {
+        if (req->tag == tag) {
+            return DO_UPCAST(SCSIDiskReq, req, req);
+        }
+    }
+    return NULL;
 }
 
 /* Helper function for command completion.  */
@@ -310,17 +281,18 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
 static void scsi_dma_restart_bh(void *opaque)
 {
     SCSIDiskState *s = opaque;
-    SCSIDiskReq *r = s->requests;
+    SCSIRequest *req;
+    SCSIDiskReq *r;
 
     qemu_bh_delete(s->bh);
     s->bh = NULL;
 
-    while (r) {
+    QTAILQ_FOREACH(req, &s->qdev.requests, next) {
+        r = DO_UPCAST(SCSIDiskReq, req, req);
         if (r->status & SCSI_REQ_STATUS_RETRY) {
             r->status &= ~SCSI_REQ_STATUS_RETRY;
             scsi_write_request(r); 
         }
-        r = r->next;
     }
 }
 
@@ -959,7 +931,12 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 static void scsi_destroy(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    SCSIDiskReq *r;
 
+    while (!QTAILQ_EMPTY(&s->qdev.requests)) {
+        r = DO_UPCAST(SCSIDiskReq, req, QTAILQ_FIRST(&s->qdev.requests));
+        scsi_remove_request(r);
+    }
     drive_uninit(s->dinfo);
 }
 

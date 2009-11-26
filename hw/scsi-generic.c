@@ -56,7 +56,6 @@ typedef struct SCSIGenericState SCSIGenericState;
 
 typedef struct SCSIGenericReq {
     SCSIRequest req;
-    struct SCSIGenericReq *next;
     uint8_t cmd[SCSI_CMD_BUF_SIZE];
     int cmdlen;
     uint8_t *buf;
@@ -68,7 +67,6 @@ typedef struct SCSIGenericReq {
 struct SCSIGenericState
 {
     SCSIDevice qdev;
-    SCSIGenericReq *requests;
     DriveInfo *dinfo;
     int type;
     int blocksize;
@@ -78,68 +76,36 @@ struct SCSIGenericState
     uint8_t senselen;
 };
 
-/* Global pool of SCSIGenericReq structures.  */
-static SCSIGenericReq *free_requests = NULL;
-
 static SCSIGenericReq *scsi_new_request(SCSIDevice *d, uint32_t tag)
 {
-    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
     SCSIGenericReq *r;
 
-    if (free_requests) {
-        r = free_requests;
-        free_requests = r->next;
-    } else {
-        r = qemu_malloc(sizeof(SCSIGenericReq));
-        r->buf = NULL;
-        r->buflen = 0;
-    }
+    r = qemu_mallocz(sizeof(SCSIGenericReq));
     r->req.bus = scsi_bus_from_device(d);
     r->req.dev = d;
     r->req.tag = tag;
-    memset(r->cmd, 0, sizeof(r->cmd));
-    memset(&r->io_header, 0, sizeof(r->io_header));
-    r->cmdlen = 0;
-    r->len = 0;
-    r->req.aiocb = NULL;
 
-    /* link */
-
-    r->next = s->requests;
-    s->requests = r;
+    QTAILQ_INSERT_TAIL(&d->requests, &r->req, next);
     return r;
 }
 
 static void scsi_remove_request(SCSIGenericReq *r)
 {
-    SCSIGenericReq *last;
-    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
-
-    if (s->requests == r) {
-        s->requests = r->next;
-    } else {
-        last = s->requests;
-        while (last && last->next != r)
-            last = last->next;
-        if (last) {
-            last->next = r->next;
-        } else {
-            BADF("Orphaned request\n");
-        }
-    }
-    r->next = free_requests;
-    free_requests = r;
+    qemu_free(r->buf);
+    QTAILQ_REMOVE(&r->req.dev->requests, &r->req, next);
+    qemu_free(r);
 }
 
 static SCSIGenericReq *scsi_find_request(SCSIGenericState *s, uint32_t tag)
 {
-    SCSIGenericReq *r;
+    SCSIRequest *req;
 
-    r = s->requests;
-    while (r && r->req.tag != tag)
-        r = r->next;
-
-    return r;
+    QTAILQ_FOREACH(req, &s->qdev.requests, next) {
+        if (req->tag == tag) {
+            return DO_UPCAST(SCSIGenericReq, req, req);
+        }
+    }
+    return NULL;
 }
 
 /* Helper function for command completion.  */
@@ -653,22 +619,12 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
 static void scsi_destroy(SCSIDevice *d)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
-    SCSIGenericReq *r, *n;
+    SCSIGenericReq *r;
 
-    r = s->requests;
-    while (r) {
-        n = r->next;
-        qemu_free(r);
-        r = n;
+    while (!QTAILQ_EMPTY(&s->qdev.requests)) {
+        r = DO_UPCAST(SCSIGenericReq, req, QTAILQ_FIRST(&s->qdev.requests));
+        scsi_remove_request(r);
     }
-
-    r = free_requests;
-    while (r) {
-        n = r->next;
-        qemu_free(r);
-        r = n;
-    }
-
     drive_uninit(s->dinfo);
 }
 

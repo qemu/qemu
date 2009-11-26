@@ -21,6 +21,7 @@ typedef struct SCSIRequest {
     SCSIDevice        *dev;
     uint32_t          tag;
     BlockDriverAIOCB  *aiocb;
+    QTAILQ_ENTRY(SCSIRequest) next;
 } SCSIRequest;
 
 struct SCSIDevice
@@ -28,6 +29,7 @@ struct SCSIDevice
     DeviceState qdev;
     uint32_t id;
     SCSIDeviceInfo *info;
+    QTAILQ_HEAD(, SCSIRequest) requests;
 };
 
 /* cdrom.c */

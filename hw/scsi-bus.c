@@ -50,6 +50,7 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     bus->devs[dev->id] = dev;
 
     dev->info = info;
+    QTAILQ_INIT(&dev->requests);
     rc = dev->info->init(dev);
     if (rc != 0) {
         bus->devs[dev->id] = NULL;
