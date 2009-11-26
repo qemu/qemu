@@ -1,5 +1,5 @@
-#ifndef SCSI_DISK_H
-#define SCSI_DISK_H
+#ifndef QEMU_HW_SCSI_H
+#define QEMU_HW_SCSI_H
 
 #include "qdev.h"
 
