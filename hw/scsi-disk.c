@@ -705,6 +705,9 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         outbuf[7] = 0;
         buflen = 8;
 	break;
+    case SYNCHRONIZE_CACHE:
+        bdrv_flush(bdrv);
+        break;
     default:
         goto illegal_request;
     }
@@ -819,6 +822,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case START_STOP:
     case ALLOW_MEDIUM_REMOVAL:
     case READ_CAPACITY:
+    case SYNCHRONIZE_CACHE:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -846,10 +850,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
-        break;
-    case SYNCHRONIZE_CACHE:
-        DPRINTF("Synchronise cache (sector %" PRId64 ", count %d)\n", lba, len);
-        bdrv_flush(s->qdev.dinfo->bdrv);
         break;
     case READ_TOC:
         {
