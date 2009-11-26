@@ -71,37 +71,26 @@ struct SCSIDiskState
     QEMUBH *bh;
 };
 
-static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag)
+static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
 {
+    SCSIRequest *req;
     SCSIDiskReq *r;
 
-    r = qemu_mallocz(sizeof(SCSIDiskReq));
+    req = scsi_req_alloc(sizeof(SCSIDiskReq), d, tag, lun);
+    r = DO_UPCAST(SCSIDiskReq, req, req);
     r->iov.iov_base = qemu_memalign(512, SCSI_DMA_BUF_SIZE);
-    r->req.bus = scsi_bus_from_device(d);
-    r->req.dev = d;
-    r->req.tag = tag;
-
-    QTAILQ_INSERT_TAIL(&d->requests, &r->req, next);
     return r;
 }
 
 static void scsi_remove_request(SCSIDiskReq *r)
 {
     qemu_free(r->iov.iov_base);
-    QTAILQ_REMOVE(&r->req.dev->requests, &r->req, next);
-    qemu_free(r);
+    scsi_req_free(&r->req);
 }
 
 static SCSIDiskReq *scsi_find_request(SCSIDiskState *s, uint32_t tag)
 {
-    SCSIRequest *req;
-
-    QTAILQ_FOREACH(req, &s->qdev.requests, next) {
-        if (req->tag == tag) {
-            return DO_UPCAST(SCSIDiskReq, req, req);
-        }
-    }
-    return NULL;
+    return DO_UPCAST(SCSIDiskReq, req, scsi_req_find(&s->qdev, tag));
 }
 
 /* Helper function for command completion.  */
@@ -113,8 +102,8 @@ static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
             r->req.tag, status, sense);
     s->sense = sense;
     tag = r->req.tag;
-    scsi_remove_request(r);
     r->req.bus->complete(r->req.bus, SCSI_REASON_DONE, tag, status);
+    scsi_remove_request(r);
 }
 
 /* Cancel a pending data transfer.  */
@@ -349,7 +338,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     /* ??? Tags are not unique for different luns.  We only implement a
        single lun, so this should not matter.  */
-    r = scsi_new_request(d, tag);
+    r = scsi_new_request(d, tag, lun);
     outbuf = (uint8_t *)r->iov.iov_base;
     is_write = 0;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);

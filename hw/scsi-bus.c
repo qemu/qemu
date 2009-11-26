@@ -111,3 +111,34 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
         scsi_bus_legacy_add_drive(bus, dinfo, unit);
     }
 }
+
+SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun)
+{
+    SCSIRequest *req;
+
+    req = qemu_mallocz(size);
+    req->bus = scsi_bus_from_device(d);
+    req->dev = d;
+    req->tag = tag;
+    req->lun = lun;
+    QTAILQ_INSERT_TAIL(&d->requests, req, next);
+    return req;
+}
+
+SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag)
+{
+    SCSIRequest *req;
+
+    QTAILQ_FOREACH(req, &d->requests, next) {
+        if (req->tag == tag) {
+            return req;
+        }
+    }
+    return NULL;
+}
+
+void scsi_req_free(SCSIRequest *req)
+{
+    QTAILQ_REMOVE(&req->dev->requests, req, next);
+    qemu_free(req);
+}

@@ -20,6 +20,7 @@ typedef struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
     uint32_t          tag;
+    uint32_t          lun;
     BlockDriverAIOCB  *aiocb;
     QTAILQ_ENTRY(SCSIRequest) next;
 } SCSIRequest;
@@ -73,5 +74,9 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit);
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
+
+SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
+SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag);
+void scsi_req_free(SCSIRequest *req);
 
 #endif

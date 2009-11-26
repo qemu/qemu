@@ -76,36 +76,23 @@ struct SCSIGenericState
     uint8_t senselen;
 };
 
-static SCSIGenericReq *scsi_new_request(SCSIDevice *d, uint32_t tag)
+static SCSIGenericReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
 {
-    SCSIGenericReq *r;
+    SCSIRequest *req;
 
-    r = qemu_mallocz(sizeof(SCSIGenericReq));
-    r->req.bus = scsi_bus_from_device(d);
-    r->req.dev = d;
-    r->req.tag = tag;
-
-    QTAILQ_INSERT_TAIL(&d->requests, &r->req, next);
-    return r;
+    req = scsi_req_alloc(sizeof(SCSIGenericReq), d, tag, lun);
+    return DO_UPCAST(SCSIGenericReq, req, req);
 }
 
 static void scsi_remove_request(SCSIGenericReq *r)
 {
     qemu_free(r->buf);
-    QTAILQ_REMOVE(&r->req.dev->requests, &r->req, next);
-    qemu_free(r);
+    scsi_req_free(&r->req);
 }
 
 static SCSIGenericReq *scsi_find_request(SCSIGenericState *s, uint32_t tag)
 {
-    SCSIRequest *req;
-
-    QTAILQ_FOREACH(req, &s->qdev.requests, next) {
-        if (req->tag == tag) {
-            return DO_UPCAST(SCSIGenericReq, req, req);
-        }
-    }
-    return NULL;
+    return DO_UPCAST(SCSIGenericReq, req, scsi_req_find(&s->qdev, tag));
 }
 
 /* Helper function for command completion.  */
@@ -136,8 +123,8 @@ static void scsi_command_complete(void *opaque, int ret)
     DPRINTF("Command complete 0x%p tag=0x%x status=%d\n",
             r, r->req.tag, status);
     tag = r->req.tag;
-    scsi_remove_request(r);
     r->req.bus->complete(r->req.bus, SCSI_REASON_DONE, tag, status);
+    scsi_remove_request(r);
 }
 
 /* Cancel a pending data transfer.  */
@@ -520,7 +507,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         BADF("Tag 0x%x already in use %p\n", tag, r);
         scsi_cancel_io(d, tag);
     }
-    r = scsi_new_request(d, tag);
+    r = scsi_new_request(d, tag, lun);
 
     memcpy(r->cmd, cmd, cmdlen);
     r->cmdlen = cmdlen;
