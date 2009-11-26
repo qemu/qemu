@@ -34,13 +34,7 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <scsi/sg.h>
-#include <scsi/scsi.h>
-
-#define REWIND 0x01
-#define REPORT_DENSITY_SUPPORT 0x44
-#define LOAD_UNLOAD 0xa6
-#define SET_CD_SPEED 0xbb
-#define BLANK 0xa1
+#include "scsi-defs.h"
 
 #define SCSI_SENSE_BUF_SIZE 96
 

@@ -30,14 +30,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "qemu-common.h"
 #include "block.h"
 #include "scsi.h"
-
-#define SENSE_NO_SENSE        0
-#define SENSE_NOT_READY       2
-#define SENSE_HARDWARE_ERROR  4
-#define SENSE_ILLEGAL_REQUEST 5
-
-#define STATUS_GOOD            0
-#define STATUS_CHECK_CONDITION 2
+#include "scsi-defs.h"
 
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
@@ -128,7 +121,7 @@ static void scsi_read_complete(void * opaque, int ret)
     if (ret) {
         DPRINTF("IO error\n");
         r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, 0);
-        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NO_SENSE);
+        scsi_command_complete(r, CHECK_CONDITION, NO_SENSE);
         return;
     }
     DPRINTF("Data ready tag=0x%x len=%" PRId64 "\n", r->req.tag, r->iov.iov_len);
@@ -147,7 +140,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     if (!r) {
         BADF("Bad read tag 0x%x\n", tag);
         /* ??? This is the wrong error.  */
-        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
         return;
     }
     if (r->sector_count == (uint32_t)-1) {
@@ -158,7 +151,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     }
     DPRINTF("Read sector_count=%d\n", r->sector_count);
     if (r->sector_count == 0) {
-        scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
+        scsi_command_complete(r, GOOD, NO_SENSE);
         return;
     }
 
@@ -171,7 +164,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     r->req.aiocb = bdrv_aio_readv(s->dinfo->bdrv, r->sector, &r->qiov, n,
                               scsi_read_complete, r);
     if (r->req.aiocb == NULL)
-        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
     r->sector += n;
     r->sector_count -= n;
 }
@@ -189,8 +182,8 @@ static int scsi_handle_write_error(SCSIDiskReq *r, int error)
         r->status |= SCSI_REQ_STATUS_RETRY;
         vm_stop(0);
     } else {
-        scsi_command_complete(r, STATUS_CHECK_CONDITION,
-                SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, CHECK_CONDITION,
+                HARDWARE_ERROR);
     }
 
     return 1;
@@ -213,7 +206,7 @@ static void scsi_write_complete(void * opaque, int ret)
     r->sector += n;
     r->sector_count -= n;
     if (r->sector_count == 0) {
-        scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
+        scsi_command_complete(r, GOOD, NO_SENSE);
     } else {
         len = r->sector_count * 512;
         if (len > SCSI_DMA_BUF_SIZE) {
@@ -236,8 +229,8 @@ static void scsi_write_request(SCSIDiskReq *r)
         r->req.aiocb = bdrv_aio_writev(s->dinfo->bdrv, r->sector, &r->qiov, n,
                                    scsi_write_complete, r);
         if (r->req.aiocb == NULL)
-            scsi_command_complete(r, STATUS_CHECK_CONDITION,
-                                  SENSE_HARDWARE_ERROR);
+            scsi_command_complete(r, CHECK_CONDITION,
+                                  HARDWARE_ERROR);
     } else {
         /* Invoke completion routine to fetch data from host.  */
         scsi_write_complete(r, 0);
@@ -255,7 +248,7 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
     r = scsi_find_request(s, tag);
     if (!r) {
         BADF("Bad write tag 0x%x\n", tag);
-        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
         return 1;
     }
 
@@ -401,7 +394,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             goto fail;
         memset(outbuf, 0, 4);
         r->iov.iov_len = 4;
-        if (s->sense == SENSE_NOT_READY && len >= 18) {
+        if (s->sense == NOT_READY && len >= 18) {
             memset(outbuf, 0, 18);
             r->iov.iov_len = 18;
             outbuf[7] = 10;
@@ -767,7 +760,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             r->iov.iov_len = 8;
         } else {
         notready:
-            scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NOT_READY);
+            scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
             return 0;
         }
 	break;
@@ -877,7 +870,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                 /* Protection, exponent and lowest lba field left blank. */
                 r->iov.iov_len = len;
             } else {
-                scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NOT_READY);
+                scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
                 return 0;
             }
             break;
@@ -898,14 +891,14 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     default:
 	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
     fail:
-        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_ILLEGAL_REQUEST);
+        scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
 	return 0;
     illegal_lba:
-        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
         return 0;
     }
     if (r->sector_count == 0 && r->iov.iov_len == 0) {
-        scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
+        scsi_command_complete(r, GOOD, NO_SENSE);
     }
     len = r->sector_count * 512 + r->iov.iov_len;
     if (is_write) {
