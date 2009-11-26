@@ -306,6 +306,31 @@ static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
     return (uint8_t *)r->iov.iov_base;
 }
 
+static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
+{
+    BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    int buflen = 0;
+
+    switch (req->cmd.buf[0]) {
+    case TEST_UNIT_READY:
+        if (!bdrv_is_inserted(bdrv))
+            goto not_ready;
+	break;
+    default:
+        goto illegal_request;
+    }
+    scsi_req_set_status(req, GOOD, NO_SENSE);
+    return buflen;
+
+not_ready:
+    scsi_req_set_status(req, CHECK_CONDITION, NOT_READY);
+    return 0;
+
+illegal_request:
+    scsi_req_set_status(req, CHECK_CONDITION, ILLEGAL_REQUEST);
+    return 0;
+}
+
 /* Execute a scsi command.  Returns the length of the data expected by the
    command.  This will be Positive for data transfers from the device
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
@@ -323,6 +348,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     uint8_t command;
     uint8_t *outbuf;
     SCSIDiskReq *r;
+    int rc;
 
     command = buf[0];
     r = scsi_find_request(s, tag);
@@ -377,6 +403,14 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         printf("\n");
     }
 #endif
+
+    if (scsi_req_parse(&r->req, buf) != 0) {
+        BADF("Unsupported command length, command %x\n", command);
+        goto fail;
+    }
+    assert(r->req.cmd.len == cmdlen);
+    assert(r->req.cmd.lba == lba);
+
     if (lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
         DPRINTF("Unimplemented LUN %d\n", lun ? lun : buf[1] >> 5);
@@ -385,10 +419,14 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     switch (command) {
     case TEST_UNIT_READY:
-	DPRINTF("Test Unit Ready\n");
-        if (!bdrv_is_inserted(s->qdev.dinfo->bdrv))
-            goto notready;
-	break;
+        rc = scsi_disk_emulate_command(&r->req, outbuf);
+        if (rc > 0) {
+            r->iov.iov_len = rc;
+        } else {
+            scsi_req_complete(&r->req);
+            scsi_remove_request(r);
+        }
+        return rc;
     case REQUEST_SENSE:
         DPRINTF("Request Sense (len %d)\n", len);
         if (len < 4)
@@ -761,7 +799,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             outbuf[7] = 0;
             r->iov.iov_len = 8;
         } else {
-        notready:
             scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
             return 0;
         }
