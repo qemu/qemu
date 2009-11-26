@@ -58,7 +58,6 @@ struct SCSIDiskState
        This is the number of 512 byte blocks in a single scsi sector.  */
     int cluster_size;
     uint64_t max_lba;
-    char drive_serial_str[21];
     QEMUBH *bh;
 };
 
@@ -306,6 +305,141 @@ static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
     return (uint8_t *)r->iov.iov_base;
 }
 
+static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
+{
+    BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    int buflen = 0;
+
+    if (req->cmd.buf[1] & 0x2) {
+        /* Command support data - optional, not implemented */
+        BADF("optional INQUIRY command support request not implemented\n");
+        return -1;
+    }
+
+    if (req->cmd.buf[1] & 0x1) {
+        /* Vital product data */
+        uint8_t page_code = req->cmd.buf[2];
+        if (req->cmd.xfer < 4) {
+            BADF("Error: Inquiry (EVPD[%02X]) buffer size %zd is "
+                 "less than 4\n", page_code, req->cmd.xfer);
+            return -1;
+        }
+
+        if (bdrv_get_type_hint(bdrv) == BDRV_TYPE_CDROM) {
+            outbuf[buflen++] = 5;
+        } else {
+            outbuf[buflen++] = 0;
+        }
+        outbuf[buflen++] = page_code ; // this page
+        outbuf[buflen++] = 0x00;
+
+        switch (page_code) {
+        case 0x00: /* Supported page codes, mandatory */
+            DPRINTF("Inquiry EVPD[Supported pages] "
+                    "buffer size %zd\n", req->cmd.xfer);
+            outbuf[buflen++] = 3;    // number of pages
+            outbuf[buflen++] = 0x00; // list of supported pages (this page)
+            outbuf[buflen++] = 0x80; // unit serial number
+            outbuf[buflen++] = 0x83; // device identification
+            break;
+
+        case 0x80: /* Device serial number, optional */
+        {
+            const char *serial = req->dev->dinfo->serial ?: "0";
+            int l = strlen(serial);
+
+            if (l > req->cmd.xfer)
+                l = req->cmd.xfer;
+            if (l > 20)
+                l = 20;
+
+            DPRINTF("Inquiry EVPD[Serial number] "
+                    "buffer size %zd\n", req->cmd.xfer);
+            outbuf[buflen++] = l;
+            memcpy(outbuf+buflen, serial, l);
+            buflen += l;
+            break;
+        }
+
+        case 0x83: /* Device identification page, mandatory */
+        {
+            int max_len = 255 - 8;
+            int id_len = strlen(bdrv_get_device_name(bdrv));
+
+            if (id_len > max_len)
+                id_len = max_len;
+            DPRINTF("Inquiry EVPD[Device identification] "
+                    "buffer size %zd\n", req->cmd.xfer);
+
+            outbuf[buflen++] = 3 + id_len;
+            outbuf[buflen++] = 0x2; // ASCII
+            outbuf[buflen++] = 0;   // not officially assigned
+            outbuf[buflen++] = 0;   // reserved
+            outbuf[buflen++] = id_len; // length of data following
+
+            memcpy(outbuf+buflen, bdrv_get_device_name(bdrv), id_len);
+            buflen += id_len;
+            break;
+        }
+        default:
+            BADF("Error: unsupported Inquiry (EVPD[%02X]) "
+                 "buffer size %zd\n", page_code, req->cmd.xfer);
+            return -1;
+        }
+        /* done with EVPD */
+        return buflen;
+    }
+
+    /* Standard INQUIRY data */
+    if (req->cmd.buf[2] != 0) {
+        BADF("Error: Inquiry (STANDARD) page or code "
+             "is non-zero [%02X]\n", req->cmd.buf[2]);
+        return -1;
+    }
+
+    /* PAGE CODE == 0 */
+    if (req->cmd.xfer < 5) {
+        BADF("Error: Inquiry (STANDARD) buffer size %zd "
+             "is less than 5\n", req->cmd.xfer);
+        return -1;
+    }
+
+    if (req->cmd.xfer < 36) {
+        BADF("Error: Inquiry (STANDARD) buffer size %zd "
+             "is less than 36 (TODO: only 5 required)\n", req->cmd.xfer);
+    }
+
+    buflen = req->cmd.xfer;
+    if (buflen > SCSI_MAX_INQUIRY_LEN)
+        buflen = SCSI_MAX_INQUIRY_LEN;
+
+    memset(outbuf, 0, buflen);
+
+    if (req->lun || req->cmd.buf[1] >> 5) {
+        outbuf[0] = 0x7f;	/* LUN not supported */
+        return buflen;
+    }
+
+    if (bdrv_get_type_hint(bdrv) == BDRV_TYPE_CDROM) {
+        outbuf[0] = 5;
+        outbuf[1] = 0x80;
+        memcpy(&outbuf[16], "QEMU CD-ROM    ", 16);
+    } else {
+        outbuf[0] = 0;
+        memcpy(&outbuf[16], "QEMU HARDDISK  ", 16);
+    }
+    memcpy(&outbuf[8], "QEMU   ", 8);
+    memcpy(&outbuf[32], QEMU_VERSION, 4);
+    /* Identify device as SCSI-3 rev 1.
+       Some later commands are also implemented. */
+    outbuf[2] = 3;
+    outbuf[3] = 2; /* Format 2 */
+    outbuf[4] = buflen - 5; /* Additional Length = (Len - 1) - 4 */
+    /* Sync data transfer and TCQ.  */
+    outbuf[7] = 0x10 | (req->bus->tcq ? 0x02 : 0);
+    return buflen;
+}
+
 static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
 {
     BlockDriverState *bdrv = req->dev->dinfo->bdrv;
@@ -334,6 +468,11 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         outbuf[2] = req->dev->sense.key;
         scsi_dev_clear_sense(req->dev);
         break;
+    case INQUIRY:
+        buflen = scsi_disk_emulate_inquiry(req, outbuf);
+        if (buflen < 0)
+            goto illegal_request;
+	break;
     default:
         goto illegal_request;
     }
@@ -438,170 +577,16 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     switch (command) {
     case TEST_UNIT_READY:
     case REQUEST_SENSE:
+    case INQUIRY:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
         } else {
             scsi_req_complete(&r->req);
             scsi_remove_request(r);
+            return 0;
         }
-        return rc;
-    case INQUIRY:
-        DPRINTF("Inquiry (len %d)\n", len);
-        if (buf[1] & 0x2) {
-            /* Command support data - optional, not implemented */
-            BADF("optional INQUIRY command support request not implemented\n");
-            goto fail;
-        }
-        else if (buf[1] & 0x1) {
-            /* Vital product data */
-            uint8_t page_code = buf[2];
-            if (len < 4) {
-                BADF("Error: Inquiry (EVPD[%02X]) buffer size %d is "
-                     "less than 4\n", page_code, len);
-                goto fail;
-            }
-
-            switch (page_code) {
-                case 0x00:
-                    {
-                        /* Supported page codes, mandatory */
-                        DPRINTF("Inquiry EVPD[Supported pages] "
-                                "buffer size %d\n", len);
-
-                        r->iov.iov_len = 0;
-
-                        if (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM) {
-                            outbuf[r->iov.iov_len++] = 5;
-                        } else {
-                            outbuf[r->iov.iov_len++] = 0;
-                        }
-
-                        outbuf[r->iov.iov_len++] = 0x00; // this page
-                        outbuf[r->iov.iov_len++] = 0x00;
-                        outbuf[r->iov.iov_len++] = 3;    // number of pages
-                        outbuf[r->iov.iov_len++] = 0x00; // list of supported pages (this page)
-                        outbuf[r->iov.iov_len++] = 0x80; // unit serial number
-                        outbuf[r->iov.iov_len++] = 0x83; // device identification
-                    }
-                    break;
-                case 0x80:
-                    {
-                        int l;
-
-                        /* Device serial number, optional */
-                        if (len < 4) {
-                            BADF("Error: EVPD[Serial number] Inquiry buffer "
-                                 "size %d too small, %d needed\n", len, 4);
-                            goto fail;
-                        }
-
-                        DPRINTF("Inquiry EVPD[Serial number] buffer size %d\n", len);
-                        l = MIN(len, strlen(s->drive_serial_str));
-
-                        r->iov.iov_len = 0;
-
-                        /* Supported page codes */
-                        if (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM) {
-                            outbuf[r->iov.iov_len++] = 5;
-                        } else {
-                            outbuf[r->iov.iov_len++] = 0;
-                        }
-
-                        outbuf[r->iov.iov_len++] = 0x80; // this page
-                        outbuf[r->iov.iov_len++] = 0x00;
-                        outbuf[r->iov.iov_len++] = l;
-                        memcpy(&outbuf[r->iov.iov_len], s->drive_serial_str, l);
-                        r->iov.iov_len += l;
-                    }
-
-                    break;
-                case 0x83:
-                    {
-                        /* Device identification page, mandatory */
-                        int max_len = 255 - 8;
-                        int id_len = strlen(bdrv_get_device_name(s->qdev.dinfo->bdrv));
-                        if (id_len > max_len)
-                            id_len = max_len;
-
-                        DPRINTF("Inquiry EVPD[Device identification] "
-                                "buffer size %d\n", len);
-                        r->iov.iov_len = 0;
-                        if (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM) {
-                            outbuf[r->iov.iov_len++] = 5;
-                        } else {
-                            outbuf[r->iov.iov_len++] = 0;
-                        }
-
-                        outbuf[r->iov.iov_len++] = 0x83; // this page
-                        outbuf[r->iov.iov_len++] = 0x00;
-                        outbuf[r->iov.iov_len++] = 3 + id_len;
-
-                        outbuf[r->iov.iov_len++] = 0x2; // ASCII
-                        outbuf[r->iov.iov_len++] = 0;   // not officially assigned
-                        outbuf[r->iov.iov_len++] = 0;   // reserved
-                        outbuf[r->iov.iov_len++] = id_len; // length of data following
-
-                        memcpy(&outbuf[r->iov.iov_len],
-                               bdrv_get_device_name(s->qdev.dinfo->bdrv), id_len);
-                        r->iov.iov_len += id_len;
-                    }
-                    break;
-                default:
-                    BADF("Error: unsupported Inquiry (EVPD[%02X]) "
-                         "buffer size %d\n", page_code, len);
-                    goto fail;
-            }
-            /* done with EVPD */
-            break;
-        }
-        else {
-            /* Standard INQUIRY data */
-            if (buf[2] != 0) {
-                BADF("Error: Inquiry (STANDARD) page or code "
-                     "is non-zero [%02X]\n", buf[2]);
-                goto fail;
-            }
-
-            /* PAGE CODE == 0 */
-            if (len < 5) {
-                BADF("Error: Inquiry (STANDARD) buffer size %d "
-                     "is less than 5\n", len);
-                goto fail;
-            }
-
-            if (len < 36) {
-                BADF("Error: Inquiry (STANDARD) buffer size %d "
-                     "is less than 36 (TODO: only 5 required)\n", len);
-            }
-        }
-
-        if(len > SCSI_MAX_INQUIRY_LEN)
-            len = SCSI_MAX_INQUIRY_LEN;
-
-        memset(outbuf, 0, len);
-
-        if (lun || buf[1] >> 5) {
-            outbuf[0] = 0x7f;	/* LUN not supported */
-	} else if (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM) {
-	    outbuf[0] = 5;
-            outbuf[1] = 0x80;
-	    memcpy(&outbuf[16], "QEMU CD-ROM    ", 16);
-	} else {
-	    outbuf[0] = 0;
-	    memcpy(&outbuf[16], "QEMU HARDDISK  ", 16);
-	}
-	memcpy(&outbuf[8], "QEMU   ", 8);
-        memcpy(&outbuf[32], QEMU_VERSION, 4);
-        /* Identify device as SCSI-3 rev 1.
-           Some later commands are also implemented. */
-	outbuf[2] = 3;
-	outbuf[3] = 2; /* Format 2 */
-	outbuf[4] = len - 5; /* Additional Length = (Len - 1) - 4 */
-        /* Sync data transfer and TCQ.  */
-        outbuf[7] = 0x10 | (r->req.bus->tcq ? 0x02 : 0);
-	r->iov.iov_len = len;
-	break;
+        break;
     case RESERVE:
         DPRINTF("Reserve(6)\n");
         if (buf[1] & 1)
@@ -983,10 +968,6 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     if (nb_sectors)
         nb_sectors--;
     s->max_lba = nb_sectors;
-    strncpy(s->drive_serial_str, drive_get_serial(s->qdev.dinfo->bdrv),
-            sizeof(s->drive_serial_str));
-    if (strlen(s->drive_serial_str) == 0)
-        pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), "0");
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
     return 0;
 }
