@@ -228,6 +228,8 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case WRITE_6:
     case WRITE_12:
     case WRITE_VERIFY_12:
+    case WRITE_16:
+    case WRITE_VERIFY_16:
         req->cmd.xfer *= req->dev->blocksize;
         break;
     case READ_10:
@@ -235,6 +237,7 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case READ_REVERSE:
     case RECOVER_BUFFERED_DATA:
     case READ_12:
+    case READ_16:
         req->cmd.xfer *= req->dev->blocksize;
         break;
     case INQUIRY:
@@ -277,6 +280,8 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case WRITE_VERIFY:
     case WRITE_12:
     case WRITE_VERIFY_12:
+    case WRITE_16:
+    case WRITE_VERIFY_16:
     case COPY:
     case COPY_VERIFY:
     case COMPARE:
@@ -441,6 +446,9 @@ static const char *scsi_command_name(uint8_t cmd)
         [ REWIND                   ] = "REWIND",
         [ REPORT_DENSITY_SUPPORT   ] = "REPORT_DENSITY_SUPPORT",
         [ GET_CONFIGURATION        ] = "GET_CONFIGURATION",
+        [ READ_16                  ] = "READ_16",
+        [ WRITE_16                 ] = "WRITE_16",
+        [ WRITE_VERIFY_16          ] = "WRITE_VERIFY_16",
         [ SERVICE_ACTION_IN        ] = "SERVICE_ACTION_IN",
         [ REPORT_LUNS              ] = "REPORT_LUNS",
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",

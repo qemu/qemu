@@ -100,6 +100,9 @@
 #define REWIND 0x01
 #define REPORT_DENSITY_SUPPORT 0x44
 #define GET_CONFIGURATION 0x46
+#define READ_16 0x88
+#define WRITE_16 0x8a
+#define WRITE_VERIFY_16 0x8e
 #define SERVICE_ACTION_IN 0x9e
 #define REPORT_LUNS 0xa0
 #define LOAD_UNLOAD 0xa6

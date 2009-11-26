@@ -926,7 +926,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         break;
     case READ_6:
     case READ_10:
-    case 0x88:
+    case READ_12:
+    case READ_16:
         DPRINTF("Read (sector %" PRId64 ", count %d)\n", lba, len);
         if (lba > s->max_lba)
             goto illegal_lba;
@@ -935,7 +936,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         break;
     case WRITE_6:
     case WRITE_10:
-    case 0x8a:
+    case WRITE_12:
+    case WRITE_16:
         DPRINTF("Write (sector %" PRId64 ", count %d)\n", lba, len);
         if (lba > s->max_lba)
             goto illegal_lba;
