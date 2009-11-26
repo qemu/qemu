@@ -440,6 +440,181 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 }
 
+static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    int cylinders, heads, secs;
+
+    switch (page) {
+    case 4: /* Rigid disk device geometry page. */
+        p[0] = 4;
+        p[1] = 0x16;
+        /* if a geometry hint is available, use it */
+        bdrv_get_geometry_hint(bdrv, &cylinders, &heads, &secs);
+        p[2] = (cylinders >> 16) & 0xff;
+        p[3] = (cylinders >> 8) & 0xff;
+        p[4] = cylinders & 0xff;
+        p[5] = heads & 0xff;
+        /* Write precomp start cylinder, disabled */
+        p[6] = (cylinders >> 16) & 0xff;
+        p[7] = (cylinders >> 8) & 0xff;
+        p[8] = cylinders & 0xff;
+        /* Reduced current start cylinder, disabled */
+        p[9] = (cylinders >> 16) & 0xff;
+        p[10] = (cylinders >> 8) & 0xff;
+        p[11] = cylinders & 0xff;
+        /* Device step rate [ns], 200ns */
+        p[12] = 0;
+        p[13] = 200;
+        /* Landing zone cylinder */
+        p[14] = 0xff;
+        p[15] =  0xff;
+        p[16] = 0xff;
+        /* Medium rotation rate [rpm], 5400 rpm */
+        p[20] = (5400 >> 8) & 0xff;
+        p[21] = 5400 & 0xff;
+        return 0x16;
+
+    case 5: /* Flexible disk device geometry page. */
+        p[0] = 5;
+        p[1] = 0x1e;
+        /* Transfer rate [kbit/s], 5Mbit/s */
+        p[2] = 5000 >> 8;
+        p[3] = 5000 & 0xff;
+        /* if a geometry hint is available, use it */
+        bdrv_get_geometry_hint(bdrv, &cylinders, &heads, &secs);
+        p[4] = heads & 0xff;
+        p[5] = secs & 0xff;
+        p[6] = s->cluster_size * 2;
+        p[8] = (cylinders >> 8) & 0xff;
+        p[9] = cylinders & 0xff;
+        /* Write precomp start cylinder, disabled */
+        p[10] = (cylinders >> 8) & 0xff;
+        p[11] = cylinders & 0xff;
+        /* Reduced current start cylinder, disabled */
+        p[12] = (cylinders >> 8) & 0xff;
+        p[13] = cylinders & 0xff;
+        /* Device step rate [100us], 100us */
+        p[14] = 0;
+        p[15] = 1;
+        /* Device step pulse width [us], 1us */
+        p[16] = 1;
+        /* Device head settle delay [100us], 100us */
+        p[17] = 0;
+        p[18] = 1;
+        /* Motor on delay [0.1s], 0.1s */
+        p[19] = 1;
+        /* Motor off delay [0.1s], 0.1s */
+        p[20] = 1;
+        /* Medium rotation rate [rpm], 5400 rpm */
+        p[28] = (5400 >> 8) & 0xff;
+        p[29] = 5400 & 0xff;
+        return 0x1e;
+
+    case 8: /* Caching page.  */
+        p[0] = 8;
+        p[1] = 0x12;
+        if (bdrv_enable_write_cache(s->qdev.dinfo->bdrv)) {
+            p[2] = 4; /* WCE */
+        }
+        return 20;
+
+    case 0x2a: /* CD Capabilities and Mechanical Status page. */
+        if (bdrv_get_type_hint(bdrv) != BDRV_TYPE_CDROM)
+            return 0;
+        p[0] = 0x2a;
+        p[1] = 0x14;
+        p[2] = 3; // CD-R & CD-RW read
+        p[3] = 0; // Writing not supported
+        p[4] = 0x7f; /* Audio, composite, digital out,
+                        mode 2 form 1&2, multi session */
+        p[5] = 0xff; /* CD DA, DA accurate, RW supported,
+                        RW corrected, C2 errors, ISRC,
+                        UPC, Bar code */
+        p[6] = 0x2d | (bdrv_is_locked(s->qdev.dinfo->bdrv)? 2 : 0);
+        /* Locking supported, jumper present, eject, tray */
+        p[7] = 0; /* no volume & mute control, no
+                     changer */
+        p[8] = (50 * 176) >> 8; // 50x read speed
+        p[9] = (50 * 176) & 0xff;
+        p[10] = 0 >> 8; // No volume
+        p[11] = 0 & 0xff;
+        p[12] = 2048 >> 8; // 2M buffer
+        p[13] = 2048 & 0xff;
+        p[14] = (16 * 176) >> 8; // 16x read speed current
+        p[15] = (16 * 176) & 0xff;
+        p[18] = (16 * 176) >> 8; // 16x write speed
+        p[19] = (16 * 176) & 0xff;
+        p[20] = (16 * 176) >> 8; // 16x write speed current
+        p[21] = (16 * 176) & 0xff;
+        return 22;
+
+    default:
+        return 0;
+    }
+}
+
+static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    uint64_t nb_sectors;
+    int page, dbd, buflen;
+    uint8_t *p;
+
+    dbd = req->cmd.buf[1]  & 0x8;
+    page = req->cmd.buf[2] & 0x3f;
+    DPRINTF("Mode Sense (page %d, len %zd)\n", page, req->cmd.xfer);
+    memset(outbuf, 0, req->cmd.xfer);
+    p = outbuf;
+
+    p[1] = 0; /* Default media type.  */
+    p[3] = 0; /* Block descriptor length.  */
+    if (bdrv_get_type_hint(bdrv) == BDRV_TYPE_CDROM ||
+        bdrv_is_read_only(bdrv)) {
+        p[2] = 0x80; /* Readonly.  */
+    }
+    p += 4;
+
+    bdrv_get_geometry(bdrv, &nb_sectors);
+    if ((~dbd) & nb_sectors) {
+        outbuf[3] = 8; /* Block descriptor length  */
+        nb_sectors /= s->cluster_size;
+        nb_sectors--;
+        if (nb_sectors > 0xffffff)
+            nb_sectors = 0xffffff;
+        p[0] = 0; /* media density code */
+        p[1] = (nb_sectors >> 16) & 0xff;
+        p[2] = (nb_sectors >> 8) & 0xff;
+        p[3] = nb_sectors & 0xff;
+        p[4] = 0; /* reserved */
+        p[5] = 0; /* bytes 5-7 are the sector size in bytes */
+        p[6] = s->cluster_size * 2;
+        p[7] = 0;
+        p += 8;
+    }
+
+    switch (page) {
+    case 0x04:
+    case 0x05:
+    case 0x08:
+    case 0x2a:
+        p += mode_sense_page(req, page, p);
+        break;
+    case 0x3f:
+        p += mode_sense_page(req, 0x08, p);
+        p += mode_sense_page(req, 0x2a, p);
+        break;
+    }
+
+    buflen = p - outbuf;
+    outbuf[0] = buflen - 4;
+    if (buflen > req->cmd.xfer)
+        buflen = req->cmd.xfer;
+    return buflen;
+}
+
 static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
 {
     BlockDriverState *bdrv = req->dev->dinfo->bdrv;
@@ -473,6 +648,12 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         if (buflen < 0)
             goto illegal_request;
 	break;
+    case MODE_SENSE:
+    case MODE_SENSE_10:
+        buflen = scsi_disk_emulate_mode_sense(req, outbuf);
+        if (buflen < 0)
+            goto illegal_request;
+        break;
     case RESERVE:
         if (req->cmd.buf[1] & 1)
             goto illegal_request;
@@ -594,6 +775,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case TEST_UNIT_READY:
     case REQUEST_SENSE:
     case INQUIRY:
+    case MODE_SENSE:
+    case MODE_SENSE_10:
     case RESERVE:
     case RESERVE_10:
     case RELEASE:
@@ -605,158 +788,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             scsi_req_complete(&r->req);
             scsi_remove_request(r);
             return 0;
-        }
-        break;
-    case MODE_SENSE:
-    case MODE_SENSE_10:
-        {
-            uint8_t *p;
-            int page;
-            int dbd;
-            
-            dbd = buf[1]  & 0x8;
-            page = buf[2] & 0x3f;
-            DPRINTF("Mode Sense (page %d, len %d)\n", page, len);
-            p = outbuf;
-            memset(p, 0, 4);
-            outbuf[1] = 0; /* Default media type.  */
-            outbuf[3] = 0; /* Block descriptor length.  */
-            if (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM ||
-                bdrv_is_read_only(s->qdev.dinfo->bdrv)) {
-                outbuf[2] = 0x80; /* Readonly.  */
-            }
-            p += 4;
-            bdrv_get_geometry(s->qdev.dinfo->bdrv, &nb_sectors);
-            if ((~dbd) & nb_sectors) {
-                nb_sectors /= s->cluster_size;
-                nb_sectors--;
-                if (nb_sectors > 0xffffff)
-                    nb_sectors = 0xffffff;
-                outbuf[3] = 8; /* Block descriptor length  */
-                p[0] = 0; /* media density code */
-                p[1] = (nb_sectors >> 16) & 0xff;
-                p[2] = (nb_sectors >> 8) & 0xff;
-                p[3] = nb_sectors & 0xff;
-                p[4] = 0; /* reserved */
-                p[5] = 0; /* bytes 5-7 are the sector size in bytes */
-                p[6] = s->cluster_size * 2;
-                p[7] = 0;
-                p += 8;
-            }
-
-            if (page == 4) {
-                int cylinders, heads, secs;
-
-                /* Rigid disk device geometry page. */
-                p[0] = 4;
-                p[1] = 0x16;
-                /* if a geometry hint is available, use it */
-                bdrv_get_geometry_hint(s->qdev.dinfo->bdrv, &cylinders, &heads, &secs);
-                p[2] = (cylinders >> 16) & 0xff;
-                p[3] = (cylinders >> 8) & 0xff;
-                p[4] = cylinders & 0xff;
-                p[5] = heads & 0xff;
-                /* Write precomp start cylinder, disabled */
-                p[6] = (cylinders >> 16) & 0xff;
-                p[7] = (cylinders >> 8) & 0xff;
-                p[8] = cylinders & 0xff;
-                /* Reduced current start cylinder, disabled */
-                p[9] = (cylinders >> 16) & 0xff;
-                p[10] = (cylinders >> 8) & 0xff;
-                p[11] = cylinders & 0xff;
-                /* Device step rate [ns], 200ns */
-                p[12] = 0;
-                p[13] = 200;
-                /* Landing zone cylinder */
-                p[14] = 0xff;
-                p[15] =  0xff;
-                p[16] = 0xff;
-                /* Medium rotation rate [rpm], 5400 rpm */
-                p[20] = (5400 >> 8) & 0xff;
-                p[21] = 5400 & 0xff;
-                p += 0x16;
-            } else if (page == 5) {
-                int cylinders, heads, secs;
-
-                /* Flexible disk device geometry page. */
-                p[0] = 5;
-                p[1] = 0x1e;
-                /* Transfer rate [kbit/s], 5Mbit/s */
-                p[2] = 5000 >> 8;
-                p[3] = 5000 & 0xff;
-                /* if a geometry hint is available, use it */
-                bdrv_get_geometry_hint(s->qdev.dinfo->bdrv, &cylinders, &heads, &secs);
-                p[4] = heads & 0xff;
-                p[5] = secs & 0xff;
-                p[6] = s->cluster_size * 2;
-                p[8] = (cylinders >> 8) & 0xff;
-                p[9] = cylinders & 0xff;
-                /* Write precomp start cylinder, disabled */
-                p[10] = (cylinders >> 8) & 0xff;
-                p[11] = cylinders & 0xff;
-                /* Reduced current start cylinder, disabled */
-                p[12] = (cylinders >> 8) & 0xff;
-                p[13] = cylinders & 0xff;
-                /* Device step rate [100us], 100us */
-                p[14] = 0;
-                p[15] = 1;
-                /* Device step pulse width [us], 1us */
-                p[16] = 1;
-                /* Device head settle delay [100us], 100us */
-                p[17] = 0;
-                p[18] = 1;
-                /* Motor on delay [0.1s], 0.1s */
-                p[19] = 1;
-                /* Motor off delay [0.1s], 0.1s */
-                p[20] = 1;
-                /* Medium rotation rate [rpm], 5400 rpm */
-                p[28] = (5400 >> 8) & 0xff;
-                p[29] = 5400 & 0xff;
-                p += 0x1e;
-            } else if ((page == 8 || page == 0x3f)) {
-                /* Caching page.  */
-                memset(p,0,20);
-                p[0] = 8;
-                p[1] = 0x12;
-                if (bdrv_enable_write_cache(s->qdev.dinfo->bdrv)) {
-                     p[2] = 4; /* WCE */
-                }
-                p += 20;
-            }
-            if ((page == 0x3f || page == 0x2a)
-                    && (bdrv_get_type_hint(s->qdev.dinfo->bdrv) == BDRV_TYPE_CDROM)) {
-                /* CD Capabilities and Mechanical Status page. */
-                p[0] = 0x2a;
-                p[1] = 0x14;
-                p[2] = 3; // CD-R & CD-RW read
-                p[3] = 0; // Writing not supported
-                p[4] = 0x7f; /* Audio, composite, digital out,
-                                         mode 2 form 1&2, multi session */
-                p[5] = 0xff; /* CD DA, DA accurate, RW supported,
-                                         RW corrected, C2 errors, ISRC,
-                                         UPC, Bar code */
-                p[6] = 0x2d | (bdrv_is_locked(s->qdev.dinfo->bdrv)? 2 : 0);
-                /* Locking supported, jumper present, eject, tray */
-                p[7] = 0; /* no volume & mute control, no
-                                      changer */
-                p[8] = (50 * 176) >> 8; // 50x read speed
-                p[9] = (50 * 176) & 0xff;
-                p[10] = 0 >> 8; // No volume
-                p[11] = 0 & 0xff;
-                p[12] = 2048 >> 8; // 2M buffer
-                p[13] = 2048 & 0xff;
-                p[14] = (16 * 176) >> 8; // 16x read speed current
-                p[15] = (16 * 176) & 0xff;
-                p[18] = (16 * 176) >> 8; // 16x write speed
-                p[19] = (16 * 176) & 0xff;
-                p[20] = (16 * 176) >> 8; // 16x write speed current
-                p[21] = (16 * 176) & 0xff;
-                p += 22;
-            }
-            r->iov.iov_len = p - outbuf;
-            outbuf[0] = r->iov.iov_len - 4;
-            if (r->iov.iov_len > len)
-                r->iov.iov_len = len;
         }
         break;
     case START_STOP:
