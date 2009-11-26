@@ -676,6 +676,9 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
             bdrv_eject(bdrv, !(req->cmd.buf[4] & 1));
         }
 	break;
+    case ALLOW_MEDIUM_REMOVAL:
+        bdrv_set_locked(bdrv, req->cmd.buf[4] & 1);
+	break;
     default:
         goto illegal_request;
     }
@@ -788,6 +791,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case RELEASE:
     case RELEASE_10:
     case START_STOP:
+    case ALLOW_MEDIUM_REMOVAL:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -797,10 +801,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             return 0;
         }
         break;
-    case ALLOW_MEDIUM_REMOVAL:
-        DPRINTF("Prevent Allow Medium Removal (prevent = %d)\n", buf[4] & 3);
-        bdrv_set_locked(s->qdev.dinfo->bdrv, buf[4] & 1);
-	break;
     case READ_CAPACITY:
 	DPRINTF("Read Capacity\n");
         /* The normal LEN field for this command is zero.  */
