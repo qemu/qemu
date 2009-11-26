@@ -379,16 +379,16 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     if (lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
         DPRINTF("Unimplemented LUN %d\n", lun ? lun : buf[1] >> 5);
-        if (command != 0x03 && command != 0x12) /* REQUEST SENSE and INQUIRY */
+        if (command != REQUEST_SENSE && command != INQUIRY)
             goto fail;
     }
     switch (command) {
-    case 0x0:
+    case TEST_UNIT_READY:
 	DPRINTF("Test Unit Ready\n");
         if (!bdrv_is_inserted(s->dinfo->bdrv))
             goto notready;
 	break;
-    case 0x03:
+    case REQUEST_SENSE:
         DPRINTF("Request Sense (len %d)\n", len);
         if (len < 4)
             goto fail;
@@ -406,7 +406,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         outbuf[1] = 0;
         outbuf[2] = s->sense;
         break;
-    case 0x12:
+    case INQUIRY:
         DPRINTF("Inquiry (len %d)\n", len);
         if (buf[1] & 0x2) {
             /* Command support data - optional, not implemented */
@@ -562,18 +562,18 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         outbuf[7] = 0x10 | (r->req.bus->tcq ? 0x02 : 0);
 	r->iov.iov_len = len;
 	break;
-    case 0x16:
+    case RESERVE:
         DPRINTF("Reserve(6)\n");
         if (buf[1] & 1)
             goto fail;
         break;
-    case 0x17:
+    case RELEASE:
         DPRINTF("Release(6)\n");
         if (buf[1] & 1)
             goto fail;
         break;
-    case 0x1a:
-    case 0x5a:
+    case MODE_SENSE:
+    case MODE_SENSE_10:
         {
             uint8_t *p;
             int page;
@@ -724,18 +724,18 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                 r->iov.iov_len = len;
         }
         break;
-    case 0x1b:
+    case START_STOP:
         DPRINTF("Start Stop Unit\n");
         if (bdrv_get_type_hint(s->dinfo->bdrv) == BDRV_TYPE_CDROM &&
             (buf[4] & 2))
             /* load/eject medium */
             bdrv_eject(s->dinfo->bdrv, !(buf[4] & 1));
 	break;
-    case 0x1e:
+    case ALLOW_MEDIUM_REMOVAL:
         DPRINTF("Prevent Allow Medium Removal (prevent = %d)\n", buf[4] & 3);
         bdrv_set_locked(s->dinfo->bdrv, buf[4] & 1);
 	break;
-    case 0x25:
+    case READ_CAPACITY:
 	DPRINTF("Read Capacity\n");
         /* The normal LEN field for this command is zero.  */
 	memset(outbuf, 0, 8);
@@ -764,8 +764,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             return 0;
         }
 	break;
-    case 0x08:
-    case 0x28:
+    case READ_6:
+    case READ_10:
     case 0x88:
         DPRINTF("Read (sector %" PRId64 ", count %d)\n", lba, len);
         if (lba > s->max_lba)
@@ -773,8 +773,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         break;
-    case 0x0a:
-    case 0x2a:
+    case WRITE_6:
+    case WRITE_10:
     case 0x8a:
         DPRINTF("Write (sector %" PRId64 ", count %d)\n", lba, len);
         if (lba > s->max_lba)
@@ -783,11 +783,11 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector_count = len * s->cluster_size;
         is_write = 1;
         break;
-    case 0x35:
+    case SYNCHRONIZE_CACHE:
         DPRINTF("Synchronise cache (sector %" PRId64 ", count %d)\n", lba, len);
         bdrv_flush(s->dinfo->bdrv);
         break;
-    case 0x43:
+    case READ_TOC:
         {
             int start_track, format, msf, toclen;
 
@@ -833,12 +833,12 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         outbuf[7] = 8; // CD-ROM
         r->iov.iov_len = 8;
         break;
-    case 0x56:
+    case RESERVE_10:
         DPRINTF("Reserve(10)\n");
         if (buf[1] & 3)
             goto fail;
         break;
-    case 0x57:
+    case RELEASE_10:
         DPRINTF("Release(10)\n");
         if (buf[1] & 3)
             goto fail;
@@ -885,7 +885,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         outbuf[3] = 8;
         r->iov.iov_len = 16;
         break;
-    case 0x2f:
+    case VERIFY:
         DPRINTF("Verify (sector %" PRId64 ", count %d)\n", lba, len);
         break;
     default:
