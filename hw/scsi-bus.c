@@ -441,6 +441,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ REWIND                   ] = "REWIND",
         [ REPORT_DENSITY_SUPPORT   ] = "REPORT_DENSITY_SUPPORT",
         [ GET_CONFIGURATION        ] = "GET_CONFIGURATION",
+        [ SERVICE_ACTION_IN        ] = "SERVICE_ACTION_IN",
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ SET_CD_SPEED             ] = "SET_CD_SPEED",
         [ BLANK                    ] = "BLANK",

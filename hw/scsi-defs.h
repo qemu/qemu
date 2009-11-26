@@ -100,6 +100,7 @@
 #define REWIND 0x01
 #define REPORT_DENSITY_SUPPORT 0x44
 #define GET_CONFIGURATION 0x46
+#define SERVICE_ACTION_IN 0x9e
 #define LOAD_UNLOAD 0xa6
 #define SET_CD_SPEED 0xbb
 #define BLANK 0xa1

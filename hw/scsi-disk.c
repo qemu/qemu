@@ -756,6 +756,37 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         outbuf[7] = 8; // CD-ROM
         buflen = 8;
         break;
+    case SERVICE_ACTION_IN:
+        /* Service Action In subcommands. */
+        if ((req->cmd.buf[1] & 31) == 0x10) {
+            DPRINTF("SAI READ CAPACITY(16)\n");
+            memset(outbuf, 0, req->cmd.xfer);
+            bdrv_get_geometry(bdrv, &nb_sectors);
+            if (!nb_sectors)
+                goto not_ready;
+            nb_sectors /= s->cluster_size;
+            /* Returned value is the address of the last sector.  */
+            nb_sectors--;
+            /* Remember the new size for read/write sanity checking. */
+            s->max_lba = nb_sectors;
+            outbuf[0] = (nb_sectors >> 56) & 0xff;
+            outbuf[1] = (nb_sectors >> 48) & 0xff;
+            outbuf[2] = (nb_sectors >> 40) & 0xff;
+            outbuf[3] = (nb_sectors >> 32) & 0xff;
+            outbuf[4] = (nb_sectors >> 24) & 0xff;
+            outbuf[5] = (nb_sectors >> 16) & 0xff;
+            outbuf[6] = (nb_sectors >> 8) & 0xff;
+            outbuf[7] = nb_sectors & 0xff;
+            outbuf[8] = 0;
+            outbuf[9] = 0;
+            outbuf[10] = s->cluster_size * 2;
+            outbuf[11] = 0;
+            /* Protection, exponent and lowest lba field left blank. */
+            buflen = req->cmd.xfer;
+            break;
+        }
+        DPRINTF("Unsupported Service Action In\n");
+        goto illegal_request;
     default:
         goto illegal_request;
     }
@@ -780,7 +811,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                                  uint8_t *buf, int lun)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    uint64_t nb_sectors;
     uint64_t lba;
     uint32_t len;
     int cmdlen;
@@ -873,6 +903,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case SYNCHRONIZE_CACHE:
     case READ_TOC:
     case GET_CONFIGURATION:
+    case SERVICE_ACTION_IN:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -901,40 +932,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector_count = len * s->cluster_size;
         is_write = 1;
         break;
-    case 0x9e:
-        /* Service Action In subcommands. */
-        if ((buf[1] & 31) == 0x10) {
-            DPRINTF("SAI READ CAPACITY(16)\n");
-            memset(outbuf, 0, len);
-            bdrv_get_geometry(s->qdev.dinfo->bdrv, &nb_sectors);
-            nb_sectors /= s->cluster_size;
-            /* Returned value is the address of the last sector.  */
-            if (nb_sectors) {
-                nb_sectors--;
-                /* Remember the new size for read/write sanity checking. */
-                s->max_lba = nb_sectors;
-                outbuf[0] = (nb_sectors >> 56) & 0xff;
-                outbuf[1] = (nb_sectors >> 48) & 0xff;
-                outbuf[2] = (nb_sectors >> 40) & 0xff;
-                outbuf[3] = (nb_sectors >> 32) & 0xff;
-                outbuf[4] = (nb_sectors >> 24) & 0xff;
-                outbuf[5] = (nb_sectors >> 16) & 0xff;
-                outbuf[6] = (nb_sectors >> 8) & 0xff;
-                outbuf[7] = nb_sectors & 0xff;
-                outbuf[8] = 0;
-                outbuf[9] = 0;
-                outbuf[10] = s->cluster_size * 2;
-                outbuf[11] = 0;
-                /* Protection, exponent and lowest lba field left blank. */
-                r->iov.iov_len = len;
-            } else {
-                scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
-                return 0;
-            }
-            break;
-        }
-        DPRINTF("Unsupported Service Action In\n");
-        goto fail;
     case 0xa0:
         DPRINTF("Report LUNs (len %d)\n", len);
         if (len < 16)
