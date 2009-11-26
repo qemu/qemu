@@ -794,6 +794,8 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         outbuf[3] = 8;
         buflen = 16;
         break;
+    case VERIFY:
+        break;
     default:
         goto illegal_request;
     }
@@ -912,6 +914,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case GET_CONFIGURATION:
     case SERVICE_ACTION_IN:
     case REPORT_LUNS:
+    case VERIFY:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -939,9 +942,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
-        break;
-    case VERIFY:
-        DPRINTF("Verify (sector %" PRId64 ", count %d)\n", lba, len);
         break;
     default:
 	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
