@@ -66,7 +66,6 @@ struct SCSIGenericState
     SCSIDevice qdev;
     DriveInfo *dinfo;
     int type;
-    int blocksize;
     int lun;
     int driver_status;
     uint8_t sensebuf[SCSI_SENSE_BUF_SIZE];
@@ -244,7 +243,7 @@ static void scsi_write_complete(void * opaque, int ret)
 
     if (r->req.cmd.buf[0] == MODE_SELECT && r->req.cmd.buf[4] == 12 &&
         s->type == TYPE_TAPE) {
-        s->blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
+        s->qdev.blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
         DPRINTF("block size %d\n", s->blocksize);
     }
 
@@ -467,12 +466,12 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     int ret;
 
     if (s->type == TYPE_TAPE) {
-        if (scsi_stream_length(cmd, s->blocksize, &cmdlen, &len) == -1) {
+        if (scsi_stream_length(cmd, s->qdev.blocksize, &cmdlen, &len) == -1) {
             BADF("Unsupported command length, command %x\n", cmd[0]);
             return 0;
         }
      } else {
-        if (scsi_length(cmd, s->blocksize, &cmdlen, &len) == -1) {
+        if (scsi_length(cmd, s->qdev.blocksize, &cmdlen, &len) == -1) {
             BADF("Unsupported command length, command %x\n", cmd[0]);
             return 0;
         }
@@ -648,20 +647,20 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     s->type = scsiid.scsi_type;
     DPRINTF("device type %d\n", s->type);
     if (s->type == TYPE_TAPE) {
-        s->blocksize = get_stream_blocksize(s->dinfo->bdrv);
-        if (s->blocksize == -1)
-            s->blocksize = 0;
+        s->qdev.blocksize = get_stream_blocksize(s->dinfo->bdrv);
+        if (s->qdev.blocksize == -1)
+            s->qdev.blocksize = 0;
     } else {
-        s->blocksize = get_blocksize(s->dinfo->bdrv);
+        s->qdev.blocksize = get_blocksize(s->dinfo->bdrv);
         /* removable media returns 0 if not present */
-        if (s->blocksize <= 0) {
+        if (s->qdev.blocksize <= 0) {
             if (s->type == TYPE_ROM || s->type  == TYPE_WORM)
-                s->blocksize = 2048;
+                s->qdev.blocksize = 2048;
             else
-                s->blocksize = 512;
+                s->qdev.blocksize = 512;
         }
     }
-    DPRINTF("block size %d\n", s->blocksize);
+    DPRINTF("block size %d\n", s->qdev.blocksize);
     s->driver_status = 0;
     memset(s->sensebuf, 0, sizeof(s->sensebuf));
     return 0;

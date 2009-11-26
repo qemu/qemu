@@ -37,6 +37,7 @@ struct SCSIDevice
     uint32_t id;
     SCSIDeviceInfo *info;
     QTAILQ_HEAD(, SCSIRequest) requests;
+    int blocksize;
 };
 
 /* cdrom.c */

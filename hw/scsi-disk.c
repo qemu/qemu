@@ -944,6 +944,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     } else {
         s->cluster_size = 1;
     }
+    s->qdev.blocksize = 512 * s->cluster_size;
     bdrv_get_geometry(s->dinfo->bdrv, &nb_sectors);
     nb_sectors /= s->cluster_size;
     if (nb_sectors)
