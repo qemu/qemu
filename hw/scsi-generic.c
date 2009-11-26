@@ -42,7 +42,6 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #define SET_CD_SPEED 0xbb
 #define BLANK 0xa1
 
-#define SCSI_CMD_BUF_SIZE     16
 #define SCSI_SENSE_BUF_SIZE 96
 
 #define SG_ERR_DRIVER_TIMEOUT 0x06
@@ -56,8 +55,6 @@ typedef struct SCSIGenericState SCSIGenericState;
 
 typedef struct SCSIGenericReq {
     SCSIRequest req;
-    uint8_t cmd[SCSI_CMD_BUF_SIZE];
-    int cmdlen;
     uint8_t *buf;
     int buflen;
     int len;
@@ -153,8 +150,8 @@ static int execute_command(BlockDriverState *bdrv,
     r->io_header.dxfer_direction = direction;
     r->io_header.dxferp = r->buf;
     r->io_header.dxfer_len = r->buflen;
-    r->io_header.cmdp = r->cmd;
-    r->io_header.cmd_len = r->cmdlen;
+    r->io_header.cmdp = r->req.cmd.buf;
+    r->io_header.cmd_len = r->req.cmd.len;
     r->io_header.mx_sb_len = sizeof(s->sensebuf);
     r->io_header.sbp = s->sensebuf;
     r->io_header.timeout = MAX_UINT;
@@ -210,7 +207,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         return;
     }
 
-    if (r->cmd[0] == REQUEST_SENSE && s->driver_status & SG_ERR_DRIVER_SENSE)
+    if (r->req.cmd.buf[0] == REQUEST_SENSE && s->driver_status & SG_ERR_DRIVER_SENSE)
     {
         s->senselen = MIN(r->len, s->senselen);
         memcpy(r->buf, s->sensebuf, s->senselen);
@@ -245,7 +242,7 @@ static void scsi_write_complete(void * opaque, int ret)
         return;
     }
 
-    if (r->cmd[0] == MODE_SELECT && r->cmd[4] == 12 &&
+    if (r->req.cmd.buf[0] == MODE_SELECT && r->req.cmd.buf[4] == 12 &&
         s->type == TYPE_TAPE) {
         s->blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
         DPRINTF("block size %d\n", s->blocksize);
@@ -509,8 +506,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     r = scsi_new_request(d, tag, lun);
 
-    memcpy(r->cmd, cmd, cmdlen);
-    r->cmdlen = cmdlen;
+    memcpy(r->req.cmd.buf, cmd, cmdlen);
+    r->req.cmd.len = cmdlen;
 
     if (len == 0) {
         if (r->buf != NULL)

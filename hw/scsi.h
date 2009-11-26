@@ -4,6 +4,8 @@
 #include "qdev.h"
 #include "block.h"
 
+#define SCSI_CMD_BUF_SIZE     16
+
 /* scsi-disk.c */
 enum scsi_reason {
     SCSI_REASON_DONE, /* Command complete.  */
@@ -21,6 +23,10 @@ typedef struct SCSIRequest {
     SCSIDevice        *dev;
     uint32_t          tag;
     uint32_t          lun;
+    struct {
+        uint8_t buf[SCSI_CMD_BUF_SIZE];
+        int len;
+    } cmd;
     BlockDriverAIOCB  *aiocb;
     QTAILQ_ENTRY(SCSIRequest) next;
 } SCSIRequest;
