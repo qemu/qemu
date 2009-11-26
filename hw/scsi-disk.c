@@ -787,6 +787,13 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         }
         DPRINTF("Unsupported Service Action In\n");
         goto illegal_request;
+    case REPORT_LUNS:
+        if (req->cmd.xfer < 16)
+            goto illegal_request;
+        memset(outbuf, 0, 16);
+        outbuf[3] = 8;
+        buflen = 16;
+        break;
     default:
         goto illegal_request;
     }
@@ -904,6 +911,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case READ_TOC:
     case GET_CONFIGURATION:
     case SERVICE_ACTION_IN:
+    case REPORT_LUNS:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -931,14 +939,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
-        break;
-    case 0xa0:
-        DPRINTF("Report LUNs (len %d)\n", len);
-        if (len < 16)
-            goto fail;
-        memset(outbuf, 0, 16);
-        outbuf[3] = 8;
-        r->iov.iov_len = 16;
         break;
     case VERIFY:
         DPRINTF("Verify (sector %" PRId64 ", count %d)\n", lba, len);

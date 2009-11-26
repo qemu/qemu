@@ -101,6 +101,7 @@
 #define REPORT_DENSITY_SUPPORT 0x44
 #define GET_CONFIGURATION 0x46
 #define SERVICE_ACTION_IN 0x9e
+#define REPORT_LUNS 0xa0
 #define LOAD_UNLOAD 0xa6
 #define SET_CD_SPEED 0xbb
 #define BLANK 0xa1
