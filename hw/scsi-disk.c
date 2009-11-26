@@ -473,6 +473,22 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         if (buflen < 0)
             goto illegal_request;
 	break;
+    case RESERVE:
+        if (req->cmd.buf[1] & 1)
+            goto illegal_request;
+        break;
+    case RESERVE_10:
+        if (req->cmd.buf[1] & 3)
+            goto illegal_request;
+        break;
+    case RELEASE:
+        if (req->cmd.buf[1] & 1)
+            goto illegal_request;
+        break;
+    case RELEASE_10:
+        if (req->cmd.buf[1] & 3)
+            goto illegal_request;
+        break;
     default:
         goto illegal_request;
     }
@@ -578,6 +594,10 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case TEST_UNIT_READY:
     case REQUEST_SENSE:
     case INQUIRY:
+    case RESERVE:
+    case RESERVE_10:
+    case RELEASE:
+    case RELEASE_10:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -586,16 +606,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             scsi_remove_request(r);
             return 0;
         }
-        break;
-    case RESERVE:
-        DPRINTF("Reserve(6)\n");
-        if (buf[1] & 1)
-            goto fail;
-        break;
-    case RELEASE:
-        DPRINTF("Release(6)\n");
-        if (buf[1] & 1)
-            goto fail;
         break;
     case MODE_SENSE:
     case MODE_SENSE_10:
@@ -856,16 +866,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
            just return the basic header indicating the CD-ROM profile.  */
         outbuf[7] = 8; // CD-ROM
         r->iov.iov_len = 8;
-        break;
-    case RESERVE_10:
-        DPRINTF("Reserve(10)\n");
-        if (buf[1] & 3)
-            goto fail;
-        break;
-    case RELEASE_10:
-        DPRINTF("Release(10)\n");
-        if (buf[1] & 3)
-            goto fail;
         break;
     case 0x9e:
         /* Service Action In subcommands. */
