@@ -107,6 +107,7 @@ SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag);
 void scsi_req_free(SCSIRequest *req);
 
 int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
+void scsi_req_print(SCSIRequest *req);
 void scsi_req_complete(SCSIRequest *req);
 
 #endif
