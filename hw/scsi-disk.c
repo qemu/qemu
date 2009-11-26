@@ -749,6 +749,13 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
     case SYNCHRONIZE_CACHE:
         bdrv_flush(bdrv);
         break;
+    case GET_CONFIGURATION:
+        memset(outbuf, 0, 8);
+        /* ??? This should probably return much more information.  For now
+           just return the basic header indicating the CD-ROM profile.  */
+        outbuf[7] = 8; // CD-ROM
+        buflen = 8;
+        break;
     default:
         goto illegal_request;
     }
@@ -865,6 +872,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case READ_CAPACITY:
     case SYNCHRONIZE_CACHE:
     case READ_TOC:
+    case GET_CONFIGURATION:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -892,14 +900,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
-        break;
-    case 0x46:
-        DPRINTF("Get Configuration (rt %d, maxlen %d)\n", buf[1] & 3, len);
-        memset(outbuf, 0, 8);
-        /* ??? This should probably return much more information.  For now
-           just return the basic header indicating the CD-ROM profile.  */
-        outbuf[7] = 8; // CD-ROM
-        r->iov.iov_len = 8;
         break;
     case 0x9e:
         /* Service Action In subcommands. */
