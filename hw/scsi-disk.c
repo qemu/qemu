@@ -617,7 +617,9 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
 
 static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    uint64_t nb_sectors;
     int buflen = 0;
 
     switch (req->cmd.buf[0]) {
@@ -678,6 +680,30 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
 	break;
     case ALLOW_MEDIUM_REMOVAL:
         bdrv_set_locked(bdrv, req->cmd.buf[4] & 1);
+	break;
+    case READ_CAPACITY:
+        /* The normal LEN field for this command is zero.  */
+	memset(outbuf, 0, 8);
+	bdrv_get_geometry(bdrv, &nb_sectors);
+        if (!nb_sectors)
+            goto not_ready;
+        nb_sectors /= s->cluster_size;
+        /* Returned value is the address of the last sector.  */
+        nb_sectors--;
+        /* Remember the new size for read/write sanity checking. */
+        s->max_lba = nb_sectors;
+        /* Clip to 2TB, instead of returning capacity modulo 2TB. */
+        if (nb_sectors > UINT32_MAX)
+            nb_sectors = UINT32_MAX;
+        outbuf[0] = (nb_sectors >> 24) & 0xff;
+        outbuf[1] = (nb_sectors >> 16) & 0xff;
+        outbuf[2] = (nb_sectors >> 8) & 0xff;
+        outbuf[3] = nb_sectors & 0xff;
+        outbuf[4] = 0;
+        outbuf[5] = 0;
+        outbuf[6] = s->cluster_size * 2;
+        outbuf[7] = 0;
+        buflen = 8;
 	break;
     default:
         goto illegal_request;
@@ -792,6 +818,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case RELEASE_10:
     case START_STOP:
     case ALLOW_MEDIUM_REMOVAL:
+    case READ_CAPACITY:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -801,34 +828,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             return 0;
         }
         break;
-    case READ_CAPACITY:
-	DPRINTF("Read Capacity\n");
-        /* The normal LEN field for this command is zero.  */
-	memset(outbuf, 0, 8);
-	bdrv_get_geometry(s->qdev.dinfo->bdrv, &nb_sectors);
-        nb_sectors /= s->cluster_size;
-        /* Returned value is the address of the last sector.  */
-        if (nb_sectors) {
-            nb_sectors--;
-            /* Remember the new size for read/write sanity checking. */
-            s->max_lba = nb_sectors;
-            /* Clip to 2TB, instead of returning capacity modulo 2TB. */
-            if (nb_sectors > UINT32_MAX)
-                nb_sectors = UINT32_MAX;
-            outbuf[0] = (nb_sectors >> 24) & 0xff;
-            outbuf[1] = (nb_sectors >> 16) & 0xff;
-            outbuf[2] = (nb_sectors >> 8) & 0xff;
-            outbuf[3] = nb_sectors & 0xff;
-            outbuf[4] = 0;
-            outbuf[5] = 0;
-            outbuf[6] = s->cluster_size * 2;
-            outbuf[7] = 0;
-            r->iov.iov_len = 8;
-        } else {
-            scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
-            return 0;
-        }
-	break;
     case READ_6:
     case READ_10:
     case 0x88:
