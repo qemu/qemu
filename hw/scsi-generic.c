@@ -307,44 +307,6 @@ static void scsi_req_fixup(SCSIRequest *req)
     }
 }
 
-static int is_write(int command)
-{
-    switch (command) {
-    case COPY:
-    case COPY_VERIFY:
-    case COMPARE:
-    case CHANGE_DEFINITION:
-    case LOG_SELECT:
-    case MODE_SELECT:
-    case MODE_SELECT_10:
-    case SEND_DIAGNOSTIC:
-    case WRITE_BUFFER:
-    case FORMAT_UNIT:
-    case REASSIGN_BLOCKS:
-    case RESERVE:
-    case SEARCH_EQUAL:
-    case SEARCH_HIGH:
-    case SEARCH_LOW:
-    case WRITE_6:
-    case WRITE_10:
-    case WRITE_VERIFY:
-    case UPDATE_BLOCK:
-    case WRITE_LONG:
-    case WRITE_SAME:
-    case SEARCH_HIGH_12:
-    case SEARCH_EQUAL_12:
-    case SEARCH_LOW_12:
-    case WRITE_12:
-    case WRITE_VERIFY_12:
-    case SET_WINDOW:
-    case MEDIUM_SCAN:
-    case SEND_VOLUME_TAG:
-    case WRITE_LONG_2:
-        return 1;
-    }
-    return 0;
-}
-
 /* Execute a scsi command.  Returns the length of the data expected by the
    command.  This will be Positive for data transfers from the device
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
@@ -415,7 +377,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 
     memset(r->buf, 0, r->buflen);
     r->len = r->req.cmd.xfer;
-    if (is_write(cmd[0])) {
+    if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
         r->len = 0;
         return -r->req.cmd.xfer;
     }

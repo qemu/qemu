@@ -18,6 +18,12 @@ typedef struct SCSIDeviceInfo SCSIDeviceInfo;
 typedef void (*scsi_completionfn)(SCSIBus *bus, int reason, uint32_t tag,
                                   uint32_t arg);
 
+enum SCSIXferMode {
+    SCSI_XFER_NONE,      /*  TEST_UNIT_READY, ...            */
+    SCSI_XFER_FROM_DEV,  /*  READ, INQUIRY, MODE_SENSE, ...  */
+    SCSI_XFER_TO_DEV,    /*  WRITE, MODE_SELECT, ...         */
+};
+
 typedef struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
@@ -28,6 +34,7 @@ typedef struct SCSIRequest {
         int len;
         size_t xfer;
         uint64_t lba;
+        enum SCSIXferMode mode;
     } cmd;
     BlockDriverAIOCB  *aiocb;
     QTAILQ_ENTRY(SCSIRequest) next;
