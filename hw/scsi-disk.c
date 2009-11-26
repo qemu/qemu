@@ -316,6 +316,24 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         if (!bdrv_is_inserted(bdrv))
             goto not_ready;
 	break;
+    case REQUEST_SENSE:
+        if (req->cmd.xfer < 4)
+            goto illegal_request;
+        memset(outbuf, 0, 4);
+        buflen = 4;
+        if (req->dev->sense.key == NOT_READY && req->cmd.xfer >= 18) {
+            memset(outbuf, 0, 18);
+            buflen = 18;
+            outbuf[7] = 10;
+            /* asc 0x3a, ascq 0: Medium not present */
+            outbuf[12] = 0x3a;
+            outbuf[13] = 0;
+        }
+        outbuf[0] = 0xf0;
+        outbuf[1] = 0;
+        outbuf[2] = req->dev->sense.key;
+        scsi_dev_clear_sense(req->dev);
+        break;
     default:
         goto illegal_request;
     }
@@ -419,6 +437,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     switch (command) {
     case TEST_UNIT_READY:
+    case REQUEST_SENSE:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -427,25 +446,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             scsi_remove_request(r);
         }
         return rc;
-    case REQUEST_SENSE:
-        DPRINTF("Request Sense (len %d)\n", len);
-        if (len < 4)
-            goto fail;
-        memset(outbuf, 0, 4);
-        r->iov.iov_len = 4;
-        if (s->qdev.sense.key == NOT_READY && len >= 18) {
-            memset(outbuf, 0, 18);
-            r->iov.iov_len = 18;
-            outbuf[7] = 10;
-            /* asc 0x3a, ascq 0: Medium not present */
-            outbuf[12] = 0x3a;
-            outbuf[13] = 0;
-        }
-        outbuf[0] = 0xf0;
-        outbuf[1] = 0;
-        outbuf[2] = s->qdev.sense.key;
-        scsi_dev_clear_sense(&s->qdev);
-        break;
     case INQUIRY:
         DPRINTF("Inquiry (len %d)\n", len);
         if (buf[1] & 0x2) {
