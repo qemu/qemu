@@ -648,7 +648,7 @@ static const char * const reg[PCI_IO_SIZE / 4] = {
 
 static char *regname(uint32_t addr)
 {
-    static char buf[16];
+    static char buf[32];
     if (addr < PCI_IO_SIZE) {
         const char *r = reg[addr / 4];
         if (r != 0) {
