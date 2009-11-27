@@ -267,6 +267,32 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
     QDECREF(json);
 }
 
+static void monitor_protocol_emitter(Monitor *mon, QObject *data)
+{
+    QDict *qmp;
+
+    qmp = qdict_new();
+
+    if (!monitor_has_error(mon)) {
+        /* success response */
+        if (data) {
+            qobject_incref(data);
+            qdict_put_obj(qmp, "return", data);
+        } else {
+            qdict_put(qmp, "return", qstring_from_str("OK"));
+        }
+    } else {
+        /* error response */
+        qdict_put(qmp, "error", mon->error->error);
+        QINCREF(mon->error->error);
+        QDECREF(mon->error);
+        mon->error = NULL;
+    }
+
+    monitor_json_emitter(mon, QOBJECT(qmp));
+    QDECREF(qmp);
+}
+
 static int compare_cmd(const char *name, const char *list)
 {
     const char *p, *pstart;
@@ -354,8 +380,15 @@ static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     if (monitor_handler_ported(cmd)) {
         cmd->mhandler.info_new(mon, ret_data);
-        if (*ret_data)
-            cmd->user_print(mon, *ret_data);
+
+        if (!monitor_ctrl_mode(mon)) {
+            /*
+             * User Protocol function is called here, Monitor Protocol is
+             * handled by monitor_call_handler()
+             */
+            if (*ret_data)
+                cmd->user_print(mon, *ret_data);
+        }
     } else {
         cmd->mhandler.info(mon);
     }
@@ -3250,8 +3283,15 @@ static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
     QObject *data = NULL;
 
     cmd->mhandler.cmd_new(mon, params, &data);
-    if (data)
-        cmd->user_print(mon, data);
+
+    if (monitor_ctrl_mode(mon)) {
+        /* Monitor Protocol */
+        monitor_protocol_emitter(mon, data);
+    } else {
+        /* User Protocol */
+         if (data)
+            cmd->user_print(mon, data);
+    }
 
     qobject_decref(data);
 }
