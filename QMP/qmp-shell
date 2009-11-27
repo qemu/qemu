@@ -1,0 +1,72 @@
+#!/usr/bin/python
+#
+# Simple QEMU shell on top of QMP
+#
+# Copyright (C) 2009 Red Hat Inc.
+#
+# Authors:
+#  Luiz Capitulino <lcapitulino@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2.  See
+# the COPYING file in the top-level directory.
+#
+# Usage:
+#
+# Start QEMU with:
+#
+# $ qemu [...] -monitor control,unix:./qmp,server
+#
+# Run the shell:
+#
+# $ qmp-shell ./qmp
+#
+# Commands have the following format:
+#
+# < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
+#
+# For example:
+#
+# (QEMU) info item=network
+
+import qmp
+import readline
+from sys import argv,exit
+
+def shell_help():
+    print 'bye  exit from the shell'
+
+def main():
+    if len(argv) != 2:
+        print 'qemu-shell <unix-socket>'
+        exit(1)
+
+    qemu = qmp.QEMUMonitorProtocol(argv[1])
+    qemu.connect()
+
+    print 'Connected!'
+
+    while True:
+        try:
+            cmd = raw_input('(QEMU) ')
+        except EOFError:
+            print
+            break
+        if cmd == '':
+            continue
+        elif cmd == 'bye':
+            break
+        elif cmd == 'help':
+            shell_help()
+        else:
+            try:
+                resp = qemu.send(cmd)
+                if resp == None:
+                    print 'Disconnected'
+                    break
+                print resp
+            except IndexError:
+                print '-> command format: <command-name> ',
+                print '[arg-name1=arg1] ... [arg-nameN=argN]'
+
+if __name__ == '__main__':
+    main()
