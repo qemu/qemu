@@ -3207,7 +3207,7 @@ static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
     qobject_decref(data);
 }
 
-static void monitor_handle_command(Monitor *mon, const char *cmdline)
+static void handle_user_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
@@ -3471,7 +3471,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
         if (size == 0 || buf[size - 1] != 0)
             monitor_printf(cur_mon, "corrupted command\n");
         else
-            monitor_handle_command(cur_mon, (char *)buf);
+            handle_user_command(cur_mon, (char *)buf);
     }
 
     cur_mon = old_mon;
@@ -3480,7 +3480,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
 static void monitor_command_cb(Monitor *mon, const char *cmdline, void *opaque)
 {
     monitor_suspend(mon);
-    monitor_handle_command(mon, cmdline);
+    handle_user_command(mon, cmdline);
     monitor_resume(mon);
 }
 
