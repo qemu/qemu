@@ -2133,7 +2133,7 @@ echo "TOOLS=$tools" >> $config_host_mak
 # Mac OS X ships with a broken assembler
 roms=
 if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
-        "$targetos" != "Darwin" -a \
+        "$targetos" != "Darwin" -a "$targetos" != "SunOS" -a \
         `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   roms="optionrom"
 fi
