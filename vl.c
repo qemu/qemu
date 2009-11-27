@@ -2198,7 +2198,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
 
     on_read_error = BLOCK_ERR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
-        if (type != IF_IDE) {
+        if (type != IF_IDE && type != IF_VIRTIO) {
             fprintf(stderr, "rerror is no supported by this format\n");
             return NULL;
         }

@@ -98,9 +98,11 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
     qemu_free(req);
 }
 
-static int virtio_blk_handle_write_error(VirtIOBlockReq *req, int error)
+static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
+    int is_read)
 {
-    BlockInterfaceErrorAction action = drive_get_on_error(req->dev->bs, 0);
+    BlockInterfaceErrorAction action =
+        drive_get_on_error(req->dev->bs, is_read);
     VirtIOBlock *s = req->dev;
 
     if (action == BLOCK_ERR_IGNORE)
@@ -122,12 +124,13 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *req = opaque;
 
-    if (ret && (req->out->type & VIRTIO_BLK_T_OUT)) {
-        if (virtio_blk_handle_write_error(req, -ret))
+    if (ret) {
+        int is_read = !(req->out->type & VIRTIO_BLK_T_OUT);
+        if (virtio_blk_handle_rw_error(req, -ret, is_read))
             return;
     }
 
-    virtio_blk_req_complete(req, ret ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK);
+    virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
 }
 
 static void virtio_blk_flush_complete(void *opaque, int ret)
