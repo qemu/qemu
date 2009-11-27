@@ -1964,16 +1964,12 @@ BlockInterfaceErrorAction drive_get_on_error(
 {
     DriveInfo *dinfo;
 
-    if (is_read) {
-        return BLOCK_ERR_REPORT;
-    }
-
     QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
-            return dinfo->on_write_error;
+            return is_read ? dinfo->on_read_error : dinfo->on_write_error;
     }
 
-    return BLOCK_ERR_STOP_ENOSPC;
+    return is_read ? BLOCK_ERR_REPORT : BLOCK_ERR_STOP_ENOSPC;
 }
 
 static void bdrv_format_print(void *opaque, const char *name)
@@ -1987,6 +1983,23 @@ void drive_uninit(DriveInfo *dinfo)
     bdrv_delete(dinfo->bdrv);
     QTAILQ_REMOVE(&drives, dinfo, next);
     qemu_free(dinfo);
+}
+
+static int parse_block_error_action(const char *buf, int is_read)
+{
+    if (!strcmp(buf, "ignore")) {
+        return BLOCK_ERR_IGNORE;
+    } else if (!is_read && !strcmp(buf, "enospc")) {
+        return BLOCK_ERR_STOP_ENOSPC;
+    } else if (!strcmp(buf, "stop")) {
+        return BLOCK_ERR_STOP_ANY;
+    } else if (!strcmp(buf, "report")) {
+        return BLOCK_ERR_REPORT;
+    } else {
+        fprintf(stderr, "qemu: '%s' invalid %s error action\n",
+            buf, is_read ? "read" : "write");
+        return -1;
+    }
 }
 
 DriveInfo *drive_init(QemuOpts *opts, void *opaque,
@@ -2008,7 +2021,8 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     int cache;
     int aio = 0;
     int ro = 0;
-    int bdrv_flags, onerror;
+    int bdrv_flags;
+    int on_read_error, on_write_error;
     const char *devaddr;
     DriveInfo *dinfo;
     int snapshot = 0;
@@ -2169,22 +2183,28 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         }
     }
 
-    onerror = BLOCK_ERR_STOP_ENOSPC;
+    on_write_error = BLOCK_ERR_STOP_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO) {
             fprintf(stderr, "werror is no supported by this format\n");
             return NULL;
         }
-        if (!strcmp(buf, "ignore"))
-            onerror = BLOCK_ERR_IGNORE;
-        else if (!strcmp(buf, "enospc"))
-            onerror = BLOCK_ERR_STOP_ENOSPC;
-        else if (!strcmp(buf, "stop"))
-            onerror = BLOCK_ERR_STOP_ANY;
-        else if (!strcmp(buf, "report"))
-            onerror = BLOCK_ERR_REPORT;
-        else {
-            fprintf(stderr, "qemu: '%s' invalid write error action\n", buf);
+
+        on_write_error = parse_block_error_action(buf, 0);
+        if (on_write_error < 0) {
+            return NULL;
+        }
+    }
+
+    on_read_error = BLOCK_ERR_REPORT;
+    if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
+        if (1) {
+            fprintf(stderr, "rerror is no supported by this format\n");
+            return NULL;
+        }
+
+        on_read_error = parse_block_error_action(buf, 1);
+        if (on_read_error < 0) {
             return NULL;
         }
     }
@@ -2268,7 +2288,8 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
-    dinfo->on_write_error = onerror;
+    dinfo->on_read_error = on_read_error;
+    dinfo->on_write_error = on_write_error;
     dinfo->opts = opts;
     if (serial)
         strncpy(dinfo->serial, serial, sizeof(serial));

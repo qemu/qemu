@@ -180,6 +180,7 @@ typedef struct DriveInfo {
     int bus;
     int unit;
     QemuOpts *opts;
+    BlockInterfaceErrorAction on_read_error;
     BlockInterfaceErrorAction on_write_error;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     QTAILQ_ENTRY(DriveInfo) next;
