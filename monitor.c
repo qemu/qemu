@@ -3535,6 +3535,24 @@ static void monitor_event(void *opaque, int event)
  * End:
  */
 
+const char *monitor_cmdline_parse(const char *cmdline, int *flags)
+{
+    const char *dev;
+
+    if (strstart(cmdline, "control,", &dev)) {
+        if (strstart(dev, "vc", NULL)) {
+            fprintf(stderr, "qemu: control mode is for low-level interaction ");
+            fprintf(stderr, "cannot be used with device 'vc'\n");
+            exit(1);
+        }
+        *flags &= ~MONITOR_USE_READLINE;
+        *flags |= MONITOR_USE_CONTROL;
+        return dev;
+    }
+
+    return cmdline;
+}
+
 void monitor_init(CharDriverState *chr, int flags)
 {
     static int is_first_init = 1;

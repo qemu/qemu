@@ -1577,13 +1577,14 @@ Use @code{-parallel none} to disable all parallel ports.
 ETEXI
 
 DEF("monitor", HAS_ARG, QEMU_OPTION_monitor, \
-    "-monitor dev    redirect the monitor to char device 'dev'\n")
+    "-monitor [control,]dev    redirect the monitor to char device 'dev'\n")
 STEXI
-@item -monitor @var{dev}
+@item -monitor [@var{control},]@var{dev}
 Redirect the monitor to host device @var{dev} (same devices as the
 serial port).
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
+The option @var{control} enables the QEMU Monitor Protocol.
 ETEXI
 
 DEF("pidfile", HAS_ARG, QEMU_OPTION_pidfile, \

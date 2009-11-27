@@ -4589,6 +4589,7 @@ int main(int argc, char **argv, char **envp)
     const char *r, *optarg;
     CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
     const char *monitor_devices[MAX_MONITOR_DEVICES];
+    int monitor_flags[MAX_MONITOR_DEVICES];
     int monitor_device_index;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
@@ -4676,8 +4677,10 @@ int main(int argc, char **argv, char **envp)
     virtio_console_index = 0;
 
     monitor_devices[0] = "vc:80Cx24C";
+    monitor_flags[0] = MONITOR_IS_DEFAULT | MONITOR_USE_READLINE;
     for (i = 1; i < MAX_MONITOR_DEVICES; i++) {
         monitor_devices[i] = NULL;
+        monitor_flags[i] = MONITOR_USE_READLINE;
     }
     monitor_device_index = 0;
 
@@ -5098,7 +5101,9 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "qemu: too many monitor devices\n");
                     exit(1);
                 }
-                monitor_devices[monitor_device_index] = optarg;
+                monitor_devices[monitor_device_index] =
+                                monitor_cmdline_parse(optarg,
+                                        &monitor_flags[monitor_device_index]);
                 monitor_device_index++;
                 break;
             case QEMU_OPTION_chardev:
@@ -5792,9 +5797,7 @@ int main(int argc, char **argv, char **envp)
 
     for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
         if (monitor_devices[i] && monitor_hds[i]) {
-            monitor_init(monitor_hds[i],
-                         MONITOR_USE_READLINE |
-                         ((i == 0) ? MONITOR_IS_DEFAULT : 0));
+            monitor_init(monitor_hds[i], monitor_flags[i]);
         }
     }
 
