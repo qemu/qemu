@@ -50,6 +50,7 @@
 #include "qdict.h"
 #include "qstring.h"
 #include "qerror.h"
+#include "qjson.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -253,6 +254,17 @@ static void monitor_print_qobject(Monitor *mon, const QObject *data)
     }
 
     monitor_puts(mon, "\n");
+}
+
+static void monitor_json_emitter(Monitor *mon, const QObject *data)
+{
+    QString *json;
+
+    json = qobject_to_json(data);
+    assert(json != NULL);
+
+    monitor_printf(mon, "%s\n", qstring_get_str(json));
+    QDECREF(json);
 }
 
 static int compare_cmd(const char *name, const char *list)
@@ -3494,6 +3506,20 @@ static int monitor_can_read(void *opaque)
     return (mon->suspend_cnt == 0) ? 128 : 0;
 }
 
+/**
+ * monitor_control_read(): Read and handle QMP input
+ */
+static void monitor_control_read(void *opaque, const uint8_t *buf, int size)
+{
+    Monitor *old_mon = cur_mon;
+
+    cur_mon = opaque;
+
+    // TODO: read QMP input
+
+    cur_mon = old_mon;
+}
+
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
     Monitor *old_mon = cur_mon;
@@ -3535,6 +3561,23 @@ void monitor_resume(Monitor *mon)
         return;
     if (--mon->suspend_cnt == 0)
         readline_show_prompt(mon->rs);
+}
+
+/**
+ * monitor_control_event(): Print QMP gretting
+ */
+static void monitor_control_event(void *opaque, int event)
+{
+    if (event == CHR_EVENT_OPENED) {
+        QObject *data;
+        Monitor *mon = opaque;
+
+        data = qobject_from_jsonf("{ 'QMP': { 'capabilities': [] } }");
+        assert(data != NULL);
+
+        monitor_json_emitter(mon, data);
+        qobject_decref(data);
+    }
 }
 
 static void monitor_event(void *opaque, int event)
@@ -3623,8 +3666,14 @@ void monitor_init(CharDriverState *chr, int flags)
         monitor_read_command(mon, 0);
     }
 
-    qemu_chr_add_handlers(chr, monitor_can_read, monitor_read, monitor_event,
-                          mon);
+    if (monitor_ctrl_mode(mon)) {
+        /* Control mode requires special handlers */
+        qemu_chr_add_handlers(chr, monitor_can_read, monitor_control_read,
+                              monitor_control_event, mon);
+    } else {
+        qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
+                              monitor_event, mon);
+    }
 
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
     if (!cur_mon || (flags & MONITOR_IS_DEFAULT))
