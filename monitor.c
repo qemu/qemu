@@ -98,6 +98,7 @@ struct mon_fd_t {
 
 typedef struct MonitorControl {
     QObject *id;
+    int print_enabled;
     JSONMessageParser parser;
 } MonitorControl;
 
@@ -186,9 +187,13 @@ static void monitor_puts(Monitor *mon, const char *str)
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
-    char buf[4096];
-    vsnprintf(buf, sizeof(buf), fmt, ap);
-    monitor_puts(mon, buf);
+    if (mon->mc && !mon->mc->print_enabled) {
+        qemu_error_new(QERR_UNDEFINED_ERROR);
+    } else {
+        char buf[4096];
+        vsnprintf(buf, sizeof(buf), fmt, ap);
+        monitor_puts(mon, buf);
+    }
 }
 
 void monitor_printf(Monitor *mon, const char *fmt, ...)
@@ -272,7 +277,10 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
     json = qobject_to_json(data);
     assert(json != NULL);
 
+    mon->mc->print_enabled = 1;
     monitor_printf(mon, "%s\n", qstring_get_str(json));
+    mon->mc->print_enabled = 0;
+
     QDECREF(json);
 }
 
