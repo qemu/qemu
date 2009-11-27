@@ -1,0 +1,32 @@
+#!/usr/bin/python
+#
+# Print Virtual Machine information
+#
+# Usage:
+#
+# Start QEMU with:
+#
+# $ qemu [...] -monitor control,unix:./qmp,server
+#
+# Run vm-info:
+#
+# $ vm-info ./qmp
+#
+# Luiz Capitulino <lcapitulino@redhat.com>
+
+import qmp
+from sys import argv,exit
+
+def main():
+    if len(argv) != 2:
+        print 'vm-info <unix-socket>'
+        exit(1)
+
+    qemu = qmp.QEMUMonitorProtocol(argv[1])
+    qemu.connect()
+
+    for cmd in [ 'version', 'hpet', 'kvm', 'status', 'uuid', 'balloon' ]:
+        print cmd + ': ' + str(qemu.send('query-' + cmd))
+
+if __name__ == '__main__':
+    main()
