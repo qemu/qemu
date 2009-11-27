@@ -158,7 +158,6 @@ typedef struct VGACommonState {
     uint32_t last_width, last_height; /* in chars or pixels */
     uint32_t last_scr_width, last_scr_height; /* in pixels */
     uint32_t last_depth; /* in bits */
-    uint8_t full_update;
     uint8_t cursor_start, cursor_end;
     uint32_t cursor_offset;
     unsigned int (*rgb_to_pixel)(unsigned int r,
