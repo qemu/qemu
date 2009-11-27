@@ -473,7 +473,7 @@ void ide_dma_error(IDEState *s)
 
 static int ide_handle_write_error(IDEState *s, int error, int op)
 {
-    BlockInterfaceErrorAction action = drive_get_onerror(s->bs);
+    BlockInterfaceErrorAction action = drive_get_on_error(s->bs, 0);
 
     if (action == BLOCK_ERR_IGNORE)
         return 0;

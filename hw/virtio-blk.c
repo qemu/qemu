@@ -100,7 +100,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 
 static int virtio_blk_handle_write_error(VirtIOBlockReq *req, int error)
 {
-    BlockInterfaceErrorAction action = drive_get_onerror(req->dev->bs);
+    BlockInterfaceErrorAction action = drive_get_on_error(req->dev->bs, 0);
     VirtIOBlock *s = req->dev;
 
     if (action == BLOCK_ERR_IGNORE)

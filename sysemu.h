@@ -180,7 +180,7 @@ typedef struct DriveInfo {
     int bus;
     int unit;
     QemuOpts *opts;
-    BlockInterfaceErrorAction onerror;
+    BlockInterfaceErrorAction on_write_error;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     QTAILQ_ENTRY(DriveInfo) next;
 } DriveInfo;
@@ -197,7 +197,9 @@ extern DriveInfo *drive_get_by_id(const char *id);
 extern int drive_get_max_bus(BlockInterfaceType type);
 extern void drive_uninit(DriveInfo *dinfo);
 extern const char *drive_get_serial(BlockDriverState *bdrv);
-extern BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv);
+
+extern BlockInterfaceErrorAction drive_get_on_error(
+    BlockDriverState *bdrv, int is_read);
 
 BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type);
 

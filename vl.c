@@ -1959,13 +1959,18 @@ const char *drive_get_serial(BlockDriverState *bdrv)
     return "\0";
 }
 
-BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
+BlockInterfaceErrorAction drive_get_on_error(
+    BlockDriverState *bdrv, int is_read)
 {
     DriveInfo *dinfo;
 
+    if (is_read) {
+        return BLOCK_ERR_REPORT;
+    }
+
     QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
-            return dinfo->onerror;
+            return dinfo->on_write_error;
     }
 
     return BLOCK_ERR_STOP_ENOSPC;
@@ -2263,7 +2268,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
-    dinfo->onerror = onerror;
+    dinfo->on_write_error = onerror;
     dinfo->opts = opts;
     if (serial)
         strncpy(dinfo->serial, serial, sizeof(serial));
