@@ -635,14 +635,14 @@ static void nic_reset(void *opaque)
 }
 
 #if defined(DEBUG_EEPRO100)
-static const char * const reg[PCI_IO_SIZE / 4] = {
+static const char * const e100_reg[PCI_IO_SIZE / 4] = {
     "Command/Status",
     "General Pointer",
     "Port",
     "EEPROM/Flash Control",
     "MDI Control",
     "Receive DMA Byte Count",
-    "Flow control",
+    "Flow Control",
     "General Status/Control"
 };
 
@@ -650,7 +650,7 @@ static char *regname(uint32_t addr)
 {
     static char buf[32];
     if (addr < PCI_IO_SIZE) {
-        const char *r = reg[addr / 4];
+        const char *r = e100_reg[addr / 4];
         if (r != 0) {
             snprintf(buf, sizeof(buf), "%s+%u", r, addr % 4);
         } else {
