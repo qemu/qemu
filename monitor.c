@@ -3728,9 +3728,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     int err;
     QObject *obj;
     QDict *input, *args;
-    const char *cmd_name;
     const mon_cmd_t *cmd;
     Monitor *mon = cur_mon;
+    const char *cmd_name, *info_item;
 
     args = NULL;
     qemu_errors_to_mon(mon);
@@ -3761,10 +3761,24 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     cmd_name = qstring_get_str(qobject_to_qstring(obj));
-    cmd = monitor_find_command(cmd_name);
-    if (!cmd) {
+
+    /*
+     * XXX: We need this special case until we get info handlers
+     * converted into 'query-' commands
+     */
+    if (compare_cmd(cmd_name, "info")) {
         qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_input;
+    } else if (strstart(cmd_name, "query-", &info_item)) {
+        cmd = monitor_find_command("info");
+        qdict_put_obj(input, "arguments",
+                      qobject_from_jsonf("{ 'item': %s }", info_item));
+    } else {
+        cmd = monitor_find_command(cmd_name);
+        if (!cmd) {
+            qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+            goto err_input;
+        }
     }
 
     obj = qdict_get(input, "arguments");
