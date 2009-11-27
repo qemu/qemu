@@ -48,9 +48,12 @@
 #include "qint.h"
 #include "qlist.h"
 #include "qdict.h"
+#include "qbool.h"
 #include "qstring.h"
 #include "qerror.h"
 #include "qjson.h"
+#include "json-streamer.h"
+#include "json-parser.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -93,6 +96,11 @@ struct mon_fd_t {
     QLIST_ENTRY(mon_fd_t) next;
 };
 
+typedef struct MonitorControl {
+    QObject *id;
+    JSONMessageParser parser;
+} MonitorControl;
+
 struct Monitor {
     CharDriverState *chr;
     int mux_out;
@@ -102,6 +110,7 @@ struct Monitor {
     uint8_t outbuf[1024];
     int outbuf_index;
     ReadLineState *rs;
+    MonitorControl *mc;
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
@@ -287,6 +296,11 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
         QINCREF(mon->error->error);
         QDECREF(mon->error);
         mon->error = NULL;
+    }
+
+    if (mon->mc->id) {
+        qdict_put_obj(qmp, "id", mon->mc->id);
+        mon->mc->id = NULL;
     }
 
     monitor_json_emitter(mon, QOBJECT(qmp));
@@ -3558,6 +3572,228 @@ static int monitor_can_read(void *opaque)
     return (mon->suspend_cnt == 0) ? 128 : 0;
 }
 
+typedef struct CmdArgs {
+    QString *name;
+    int type;
+    int flag;
+    int optional;
+} CmdArgs;
+
+static int check_opt(const CmdArgs *cmd_args, const char *name, QDict *args)
+{
+    if (!cmd_args->optional) {
+        qemu_error_new(QERR_MISSING_PARAMETER, name);
+        return -1;
+    }
+
+    if (cmd_args->type == '-') {
+        /* handlers expect a value, they need to be changed */
+        qdict_put(args, name, qint_from_int(0));
+    }
+
+    return 0;
+}
+
+static int check_arg(const CmdArgs *cmd_args, QDict *args)
+{
+    QObject *value;
+    const char *name;
+
+    name = qstring_get_str(cmd_args->name);
+
+    if (!args) {
+        return check_opt(cmd_args, name, args);
+    }
+
+    value = qdict_get(args, name);
+    if (!value) {
+        return check_opt(cmd_args, name, args);
+    }
+
+    switch (cmd_args->type) {
+        case 'F':
+        case 'B':
+        case 's':
+            if (qobject_type(value) != QTYPE_QSTRING) {
+                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "string");
+                return -1;
+            }
+            break;
+        case '/': {
+            int i;
+            const char *keys[] = { "count", "format", "size", NULL };
+
+            for (i = 0; keys[i]; i++) {
+                QObject *obj = qdict_get(args, keys[i]);
+                if (!obj) {
+                    qemu_error_new(QERR_MISSING_PARAMETER, name);
+                    return -1;
+                }
+                if (qobject_type(obj) != QTYPE_QINT) {
+                    qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
+                    return -1;
+                }
+            }
+            break;
+        }
+        case 'i':
+        case 'l':
+            if (qobject_type(value) != QTYPE_QINT) {
+                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
+                return -1;
+            }
+            break;
+        case '-':
+            if (qobject_type(value) != QTYPE_QINT &&
+                qobject_type(value) != QTYPE_QBOOL) {
+                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "bool");
+                return -1;
+            }
+            if (qobject_type(value) == QTYPE_QBOOL) {
+                /* handlers expect a QInt, they need to be changed */
+                qdict_put(args, name,
+                         qint_from_int(qbool_get_int(qobject_to_qbool(value))));
+            }
+            break;
+        default:
+            /* impossible */
+            abort();
+    }
+
+    return 0;
+}
+
+static void cmd_args_init(CmdArgs *cmd_args)
+{
+    cmd_args->name = qstring_new();
+    cmd_args->type = cmd_args->flag = cmd_args->optional = 0;
+}
+
+/*
+ * This is not trivial, we have to parse Monitor command's argument
+ * type syntax to be able to check the arguments provided by clients.
+ *
+ * In the near future we will be using an array for that and will be
+ * able to drop all this parsing...
+ */
+static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
+{
+    int err;
+    const char *p;
+    CmdArgs cmd_args;
+
+    if (cmd->args_type == '\0') {
+        return (qdict_size(args) == 0 ? 0 : -1);
+    }
+
+    err = 0;
+    cmd_args_init(&cmd_args);
+
+    for (p = cmd->args_type;; p++) {
+        if (*p == ':') {
+            cmd_args.type = *++p;
+            p++;
+            if (cmd_args.type == '-') {
+                cmd_args.flag = *p++;
+                cmd_args.optional = 1;
+            } else if (*p == '?') {
+                cmd_args.optional = 1;
+                p++;
+            }
+
+            assert(*p == ',' || *p == '\0');
+            err = check_arg(&cmd_args, args);
+
+            QDECREF(cmd_args.name);
+            cmd_args_init(&cmd_args);
+
+            if (err < 0) {
+                break;
+            }
+        } else {
+            qstring_append_chr(cmd_args.name, *p);
+        }
+
+        if (*p == '\0') {
+            break;
+        }
+    }
+
+    QDECREF(cmd_args.name);
+    return err;
+}
+
+static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
+{
+    int err;
+    QObject *obj;
+    QDict *input, *args;
+    const char *cmd_name;
+    const mon_cmd_t *cmd;
+    Monitor *mon = cur_mon;
+
+    args = NULL;
+    qemu_errors_to_mon(mon);
+
+    obj = json_parser_parse(tokens, NULL);
+    if (!obj) {
+        // FIXME: should be triggered in json_parser_parse()
+        qemu_error_new(QERR_JSON_PARSING);
+        goto err_out;
+    } else if (qobject_type(obj) != QTYPE_QDICT) {
+        qemu_error_new(QERR_QMP_BAD_INPUT_OBJECT, "object");
+        qobject_decref(obj);
+        goto err_out;
+    }
+
+    input = qobject_to_qdict(obj);
+
+    mon->mc->id = qdict_get(input, "id");
+    qobject_incref(mon->mc->id);
+
+    obj = qdict_get(input, "execute");
+    if (!obj) {
+        qemu_error_new(QERR_QMP_BAD_INPUT_OBJECT, "execute");
+        goto err_input;
+    } else if (qobject_type(obj) != QTYPE_QSTRING) {
+        qemu_error_new(QERR_QMP_BAD_INPUT_OBJECT, "string");
+        goto err_input;
+    }
+
+    cmd_name = qstring_get_str(qobject_to_qstring(obj));
+    cmd = monitor_find_command(cmd_name);
+    if (!cmd) {
+        qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+        goto err_input;
+    }
+
+    obj = qdict_get(input, "arguments");
+    if (!obj) {
+        args = qdict_new();
+    } else {
+        args = qobject_to_qdict(obj);
+        QINCREF(args);
+    }
+
+    QDECREF(input);
+
+    err = monitor_check_qmp_args(cmd, args);
+    if (err < 0) {
+        goto err_out;
+    }
+
+    monitor_call_handler(mon, cmd, args);
+    goto out;
+
+err_input:
+    QDECREF(input);
+err_out:
+    monitor_protocol_emitter(mon, NULL);
+out:
+    QDECREF(args);
+    qemu_errors_to_previous();
+}
+
 /**
  * monitor_control_read(): Read and handle QMP input
  */
@@ -3567,7 +3803,7 @@ static void monitor_control_read(void *opaque, const uint8_t *buf, int size)
 
     cur_mon = opaque;
 
-    // TODO: read QMP input
+    json_message_parser_feed(&cur_mon->mc->parser, (const char *) buf, size);
 
     cur_mon = old_mon;
 }
@@ -3623,6 +3859,8 @@ static void monitor_control_event(void *opaque, int event)
     if (event == CHR_EVENT_OPENED) {
         QObject *data;
         Monitor *mon = opaque;
+
+        json_message_parser_init(&mon->mc->parser, handle_qmp_command);
 
         data = qobject_from_jsonf("{ 'QMP': { 'capabilities': [] } }");
         assert(data != NULL);
@@ -3719,6 +3957,7 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     if (monitor_ctrl_mode(mon)) {
+        mon->mc = qemu_mallocz(sizeof(MonitorControl));
         /* Control mode requires special handlers */
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_control_read,
                               monitor_control_event, mon);
