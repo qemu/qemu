@@ -1,0 +1,26 @@
+                   QEMU Monitor Protocol: Events
+                   =============================
+
+1 SHUTDOWN
+-----------
+
+Description: Issued when the Virtual Machine is powered down.
+Data: None.
+
+2 RESET
+-------
+
+Description: Issued when the Virtual Machine is reseted.
+Data: None.
+
+3 STOP
+------
+
+Description: Issued when the Virtual Machine is stopped.
+Data: None.
+
+4 DEBUG
+-------
+
+Description: Issued when the Virtual Machine enters debug mode.
+Data: None.
