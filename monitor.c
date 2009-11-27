@@ -368,6 +368,35 @@ static void do_info_name(Monitor *mon)
         monitor_printf(mon, "%s\n", qemu_name);
 }
 
+/**
+ * do_info_commands(): List QMP available commands
+ *
+ * Return a QList of QStrings.
+ */
+static void do_info_commands(Monitor *mon, QObject **ret_data)
+{
+    QList *cmd_list;
+    const mon_cmd_t *cmd;
+
+    cmd_list = qlist_new();
+
+    for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+        if (monitor_handler_ported(cmd) && !compare_cmd(cmd->name, "info")) {
+            qlist_append(cmd_list, qstring_from_str(cmd->name));
+        }
+    }
+
+    for (cmd = info_cmds; cmd->name != NULL; cmd++) {
+        if (monitor_handler_ported(cmd)) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "query-%s", cmd->name);
+            qlist_append(cmd_list, qstring_from_str(buf));
+        }
+    }
+
+    *ret_data = QOBJECT(cmd_list);
+}
+
 #if defined(TARGET_I386)
 static void do_info_hpet(Monitor *mon)
 {
@@ -1971,6 +2000,14 @@ static const mon_cmd_t info_cmds[] = {
         .help       = "show the version of QEMU",
         .user_print = monitor_print_qobject,
         .mhandler.info_new = do_info_version,
+    },
+    {
+        .name       = "commands",
+        .args_type  = "",
+        .params     = "",
+        .help       = "list QMP available commands",
+        .user_print = monitor_user_noop,
+        .mhandler.info_new = do_info_commands,
     },
     {
         .name       = "network",
