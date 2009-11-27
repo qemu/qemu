@@ -41,6 +41,10 @@ static const QType qerror_type = {
  */
 const QErrorStringTable qerror_table[] = {
     {
+        .error_fmt   = QERR_COMMAND_NOT_FOUND,
+        .desc        = "The command %(name) has not been found",
+    },
+    {
         .error_fmt = QERR_DEVICE_NOT_FOUND,
         .desc      = "The %(device) device has not been found",
     },
@@ -49,8 +53,28 @@ const QErrorStringTable qerror_table[] = {
         .desc      = "The %(device) device has not been activated by the guest",
     },
     {
+        .error_fmt   = QERR_INVALID_PARAMETER_TYPE,
+        .desc        = "Invalid parameter type, expected: %(expected)",
+    },
+    {
         .error_fmt = QERR_KVM_MISSING_CAP,
         .desc      = "Using KVM without %(capability), %(feature) unavailable",
+    },
+    {
+        .error_fmt = QERR_MISSING_PARAMETER,
+        .desc      = "Parameter %(name) is missing",
+    },
+    {
+        .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,
+        .desc      = "Bad QMP input object",
+    },
+    {
+        .error_fmt = QERR_JSON_PARSING,
+        .desc      = "Invalid JSON synaxt",
+    },
+    {
+        .error_fmt   = QERR_UNDEFINED_ERROR,
+        .desc        = "An undefined error has ocurred",
     },
     {}
 };
