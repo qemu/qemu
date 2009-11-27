@@ -464,6 +464,7 @@ struct IDEDeviceInfo {
 #define BM_STATUS_INT    0x04
 #define BM_STATUS_DMA_RETRY  0x08
 #define BM_STATUS_PIO_RETRY  0x10
+#define BM_STATUS_RETRY_READ 0x20
 
 #define BM_CMD_START     0x01
 #define BM_CMD_READ      0x08
