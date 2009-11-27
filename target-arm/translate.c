@@ -35,6 +35,7 @@
 #define GEN_HELPER 1
 #include "helpers.h"
 
+#define ENABLE_ARCH_5     arm_feature(env, ARM_FEATURE_V5)
 #define ENABLE_ARCH_5J    0
 #define ENABLE_ARCH_6     arm_feature(env, ARM_FEATURE_V6)
 #define ENABLE_ARCH_6K   arm_feature(env, ARM_FEATURE_V6K)
@@ -6303,7 +6304,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 tmp = load_reg(s, rm);
                 gen_bx(s, tmp);
             } else if (op1 == 3) {
-                /* clz */
+                ARCH(5); /* clz */
                 rd = (insn >> 12) & 0xf;
                 tmp = load_reg(s, rm);
                 gen_helper_clz(tmp, tmp);
@@ -6326,14 +6327,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (op1 != 1)
               goto illegal_op;
 
-            /* branch link/exchange thumb (blx) */
+            ARCH(5); /* branch link/exchange thumb (blx) */
             tmp = load_reg(s, rm);
             tmp2 = new_tmp();
             tcg_gen_movi_i32(tmp2, s->pc);
             store_reg(s, 14, tmp2);
             gen_bx(s, tmp);
             break;
-        case 0x5: /* saturating add/subtract */
+        case 0x5:
+            ARCH(5); /* saturating add/subtract */
             rd = (insn >> 12) & 0xf;
             rn = (insn >> 16) & 0xf;
             tmp = load_reg(s, rm);
@@ -6347,16 +6349,18 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             dead_tmp(tmp2);
             store_reg(s, rd, tmp);
             break;
-        case 7: /* bkpt */
+        case 7:
+            ARCH(5); /* bkpt */
             gen_set_condexec(s);
             gen_set_pc_im(s->pc - 4);
             gen_exception(EXCP_BKPT);
             s->is_jmp = DISAS_JUMP;
             break;
-        case 0x8: /* signed multiply */
+        case 0x8:
         case 0xa:
         case 0xc:
         case 0xe:
+            ARCH(5); /* signed multiply */
             rs = (insn >> 8) & 0xf;
             rn = (insn >> 12) & 0xf;
             rd = (insn >> 16) & 0xf;
@@ -7135,7 +7139,11 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             /* load */
                             tmp = gen_ld32(addr, IS_USER(s));
                             if (i == 15) {
-                                gen_bx(s, tmp);
+                                if (ENABLE_ARCH_5) {
+                                    gen_bx(s, tmp);
+                                } else {
+                                    store_reg(s, i, tmp);
+                                }
                             } else if (user) {
                                 tmp2 = tcg_const_i32(i);
                                 gen_helper_set_user_reg(tmp2, tmp);
@@ -7404,7 +7412,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
         if (insn & (1 << 22)) {
             /* Other load/store, table branch.  */
             if (insn & 0x01200000) {
-                /* Load/store doubleword.  */
+                ARCH(5); /* Load/store doubleword.  */
                 if (rn == 15) {
                     addr = new_tmp();
                     tcg_gen_movi_i32(addr, s->pc & ~3);

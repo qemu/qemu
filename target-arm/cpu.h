@@ -334,6 +334,7 @@ enum arm_features {
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
+    ARM_FEATURE_V5,
     ARM_FEATURE_V6,
     ARM_FEATURE_V6K,
     ARM_FEATURE_V7,
@@ -374,6 +375,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define ARM_CPUID_ARM1026     0x4106a262
 #define ARM_CPUID_ARM926      0x41069265
 #define ARM_CPUID_ARM946      0x41059461
+#define ARM_CPUID_ARM920T     0x41129200
 #define ARM_CPUID_TI915T      0x54029152
 #define ARM_CPUID_TI925T      0x54029252
 #define ARM_CPUID_PXA250      0x69052100
