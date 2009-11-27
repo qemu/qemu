@@ -342,6 +342,21 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         return;
 
     switch (event) {
+        case EVENT_DEBUG:
+            event_name = "DEBUG";
+            break;
+        case EVENT_SHUTDOWN:
+            event_name = "SHUTDOWN";
+            break;
+        case EVENT_RESET:
+            event_name = "RESET";
+            break;
+        case EVENT_POWERDOWN:
+            event_name = "POWERDOWN";
+            break;
+        case EVENT_STOP:
+            event_name = "STOP";
+            break;
         default:
             abort();
             break;

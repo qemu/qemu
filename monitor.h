@@ -15,6 +15,11 @@ extern Monitor *cur_mon;
 
 /* QMP events */
 typedef enum MonitorEvent {
+    EVENT_DEBUG,
+    EVENT_SHUTDOWN,
+    EVENT_RESET,
+    EVENT_POWERDOWN,
+    EVENT_STOP,
     EVENT_MAX,
 } MonitorEvent;
 
