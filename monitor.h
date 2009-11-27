@@ -11,6 +11,7 @@ extern Monitor *cur_mon;
 /* flags for monitor_init */
 #define MONITOR_IS_DEFAULT    0x01
 #define MONITOR_USE_READLINE  0x02
+#define MONITOR_USE_CONTROL   0x04
 
 void monitor_init(CharDriverState *chr, int flags);
 

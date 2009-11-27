@@ -119,6 +119,12 @@ Monitor *cur_mon = NULL;
 static void monitor_command_cb(Monitor *mon, const char *cmdline,
                                void *opaque);
 
+/* Return true if in control mode, false otherwise */
+static inline int monitor_ctrl_mode(const Monitor *mon)
+{
+    return (mon->flags & MONITOR_USE_CONTROL);
+}
+
 static void monitor_read_command(Monitor *mon, int show_prompt)
 {
     readline_start(mon->rs, "(qemu) ", 0, monitor_command_cb, NULL);
