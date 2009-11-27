@@ -307,6 +307,56 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
     QDECREF(qmp);
 }
 
+static void timestamp_put(QDict *qdict)
+{
+    int err;
+    QObject *obj;
+    struct timeval tv;
+
+    err = gettimeofday(&tv, NULL);
+    if (err < 0)
+        return;
+
+    obj = qobject_from_jsonf("{ 'seconds': %" PRId64 ", "
+                                "'microseconds': %" PRId64 " }",
+                                (int64_t) tv.tv_sec, (int64_t) tv.tv_usec);
+    assert(obj != NULL);
+
+    qdict_put_obj(qdict, "timestamp", obj);
+}
+
+/**
+ * monitor_protocol_event(): Generate a Monitor event
+ *
+ * Event-specific data can be emitted through the (optional) 'data' parameter.
+ */
+void monitor_protocol_event(MonitorEvent event, QObject *data)
+{
+    QDict *qmp;
+    const char *event_name;
+    Monitor *mon = cur_mon;
+
+    assert(event < EVENT_MAX);
+
+    if (!monitor_ctrl_mode(mon))
+        return;
+
+    switch (event) {
+        default:
+            abort();
+            break;
+    }
+
+    qmp = qdict_new();
+    timestamp_put(qmp);
+    qdict_put(qmp, "event", qstring_from_str(event_name));
+    if (data)
+        qdict_put_obj(qmp, "data", data);
+
+    monitor_json_emitter(mon, QOBJECT(qmp));
+    QDECREF(qmp);
+}
+
 static int compare_cmd(const char *name, const char *list)
 {
     const char *p, *pstart;
