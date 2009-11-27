@@ -2932,6 +2932,19 @@ static int is_valid_option(const char *c, const char *typestr)
     return (typestr != NULL);
 }
 
+static const mon_cmd_t *monitor_find_command(const char *cmdname)
+{
+    const mon_cmd_t *cmd;
+
+    for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+        if (compare_cmd(cmdname, cmd->name)) {
+            return cmd;
+        }
+    }
+
+    return NULL;
+}
+
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdline,
                                               QDict *qdict)
@@ -2952,13 +2965,8 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     if (!p)
         return NULL;
 
-    /* find the command */
-    for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
-        if (compare_cmd(cmdname, cmd->name))
-            break;
-    }
-
-    if (cmd->name == NULL) {
+    cmd = monitor_find_command(cmdname);
+    if (!cmd) {
         monitor_printf(mon, "unknown command: '%s'\n", cmdname);
         return NULL;
     }
