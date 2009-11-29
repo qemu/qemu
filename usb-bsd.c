@@ -335,7 +335,7 @@ USBDevice *usb_host_device_open(const char *devname)
         return NULL;
     }
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
     snprintf(ctlpath, PATH_MAX, "/dev/%s", bus_info.udi_devnames[0]);
 #else
     snprintf(ctlpath, PATH_MAX, "/dev/%s.00", bus_info.udi_devnames[0]);
@@ -437,7 +437,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             if (strncmp(bus_info.udi_devnames[0], "ugen", 4) != 0)
                 continue;
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
             snprintf(devbuf, sizeof(devbuf) - 1, "/dev/%s", bus_info.udi_devnames[0]);
 #else
             snprintf(devbuf, sizeof(devbuf) - 1, "/dev/%s.00", bus_info.udi_devnames[0]);

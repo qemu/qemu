@@ -255,27 +255,32 @@ MINGW32*)
   audio_drv_list="winwave"
 ;;
 GNU/kFreeBSD)
+  bsd="yes"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
 ;;
 FreeBSD)
   bsd="yes"
+  make="gmake"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
 ;;
 DragonFly)
   bsd="yes"
+  make="gmake"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
 ;;
 NetBSD)
   bsd="yes"
+  make="gmake"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd"
   oss_lib="-lossaudio"
 ;;
 OpenBSD)
   bsd="yes"
+  make="gmake"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd"
   oss_lib="-lossaudio"
@@ -360,7 +365,6 @@ esac
 
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
-    make="gmake"
     usb="bsd"
   fi
   bsd_user="yes"
