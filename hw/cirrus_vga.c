@@ -3231,7 +3231,6 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      /* setup PCI */
      pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CIRRUS);
      pci_config_set_device_id(pci_conf, device_id);
-     pci_conf[0x04] = PCI_COMMAND_IOACCESS | PCI_COMMAND_MEMACCESS;
      pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
      pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
 
