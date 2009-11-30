@@ -58,7 +58,13 @@ void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *p;
     int detach = qdict_get_int(qdict, "detach");
     const char *uri = qdict_get_str(qdict, "uri");
-    
+
+    if (current_migration &&
+        current_migration->get_status(current_migration) == MIG_STATE_ACTIVE) {
+        monitor_printf(mon, "migration already in progress\n");
+        return;
+    }
+
     if (strstart(uri, "tcp:", &p))
         s = tcp_start_outgoing_migration(p, max_throttle, detach, 
                                          (int)qdict_get_int(qdict, "blk"), 
