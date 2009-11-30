@@ -85,96 +85,25 @@ static void blk_mig_read_cb(void *opaque, int ret)
     assert(block_mig_state.submitted >= 0);
 }
 
-static int mig_read_device_bulk(QEMUFile *f, BlkMigDevState *bms)
+static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds, int is_async)
 {
-    int nr_sectors;
-    int64_t total_sectors, cur_sector = 0;
-    BlockDriverState *bs = bms->bs;
-    BlkMigBlock *blk;
-
-    blk = qemu_malloc(sizeof(BlkMigBlock));
-    blk->buf = qemu_malloc(BLOCK_SIZE);
-
-    cur_sector = bms->cur_sector;
-    total_sectors = bms->total_sectors;
-
-    if (bms->shared_base) {
-        while (cur_sector < total_sectors &&
-               !bdrv_is_allocated(bms->bs, cur_sector,
-                                  MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
-            cur_sector += nr_sectors;
-        }
-    }
-
-    if (cur_sector >= total_sectors) {
-        bms->cur_sector = total_sectors;
-        qemu_free(blk->buf);
-        qemu_free(blk);
-        return 1;
-    }
-
-    if (cur_sector >= block_mig_state.print_completion) {
-        printf("Completed %" PRId64 " %%\r", cur_sector * 100 / total_sectors);
-        fflush(stdout);
-        block_mig_state.print_completion +=
-            (BDRV_SECTORS_PER_DIRTY_CHUNK * 10000);
-    }
-
-    /* we are going to transfer a full block even if it is not allocated */
-    nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
-
-    cur_sector &= ~((int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK - 1);
-
-    if (total_sectors - cur_sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
-        nr_sectors = (total_sectors - cur_sector);
-    }
-
-    bms->cur_sector = cur_sector + nr_sectors;
-    blk->sector = cur_sector;
-    blk->bmds = bms;
-
-    blk->iov.iov_base = blk->buf;
-    blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
-    qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
-
-    blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
-                                nr_sectors, blk_mig_read_cb, blk);
-
-    if (!blk->aiocb) {
-        printf("Error reading sector %" PRId64 "\n", cur_sector);
-        qemu_free(blk->buf);
-        qemu_free(blk);
-        return 0;
-    }
-
-    bdrv_reset_dirty(bms->bs, cur_sector, nr_sectors);
-    block_mig_state.submitted++;
-
-    return (bms->cur_sector >= total_sectors);
-}
-
-static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
-{
-    int len, nr_sectors;
-    int64_t total_sectors = bmds->total_sectors, cur_sector = 0;
-    uint8_t *tmp_buf = NULL;
+    int64_t total_sectors = bmds->total_sectors;
+    int64_t cur_sector = bmds->cur_sector;
     BlockDriverState *bs = bmds->bs;
-
-    tmp_buf = qemu_malloc(BLOCK_SIZE);
-
-    cur_sector = bmds->cur_sector;
+    int len, nr_sectors;
+    BlkMigBlock *blk;
+    uint8_t *tmp_buf;
 
     if (bmds->shared_base) {
         while (cur_sector < total_sectors &&
-               !bdrv_is_allocated(bmds->bs, cur_sector,
-                                  MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
+               !bdrv_is_allocated(bs, cur_sector, MAX_IS_ALLOCATED_SEARCH,
+                                  &nr_sectors)) {
             cur_sector += nr_sectors;
         }
     }
 
     if (cur_sector >= total_sectors) {
         bmds->cur_sector = total_sectors;
-        qemu_free(tmp_buf);
         return 1;
     }
 
@@ -191,29 +120,58 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
 
     if (total_sectors - cur_sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
-        nr_sectors = (total_sectors - cur_sector);
+        nr_sectors = total_sectors - cur_sector;
     }
 
-    if (bdrv_read(bs, cur_sector, tmp_buf, nr_sectors) < 0) {
-        printf("Error reading sector %" PRId64 "\n", cur_sector);
+    if (is_async) {
+        blk = qemu_malloc(sizeof(BlkMigBlock));
+        blk->buf = qemu_malloc(BLOCK_SIZE);
+
+        bmds->cur_sector = cur_sector + nr_sectors;
+        blk->sector = cur_sector;
+        blk->bmds = bmds;
+
+        blk->iov.iov_base = blk->buf;
+        blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
+        qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
+
+        blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
+                                    nr_sectors, blk_mig_read_cb, blk);
+
+        if (!blk->aiocb) {
+            printf("Error reading sector %" PRId64 "\n", cur_sector);
+            qemu_free(blk->buf);
+            qemu_free(blk);
+            return 0;
+        }
+
+        bdrv_reset_dirty(bs, cur_sector, nr_sectors);
+        block_mig_state.submitted++;
+
+    } else {
+        tmp_buf = qemu_malloc(BLOCK_SIZE);
+
+        if (bdrv_read(bs, cur_sector, tmp_buf, nr_sectors) < 0) {
+            printf("Error reading sector %" PRId64 "\n", cur_sector);
+        }
+
+        bdrv_reset_dirty(bs, cur_sector, nr_sectors);
+
+        /* sector number and flags */
+        qemu_put_be64(f, (cur_sector << BDRV_SECTOR_BITS)
+                         | BLK_MIG_FLAG_DEVICE_BLOCK);
+
+        /* device name */
+        len = strlen(bs->device_name);
+        qemu_put_byte(f, len);
+        qemu_put_buffer(f, (uint8_t *)bs->device_name, len);
+
+        qemu_put_buffer(f, tmp_buf, BLOCK_SIZE);
+
+        bmds->cur_sector = cur_sector + BDRV_SECTORS_PER_DIRTY_CHUNK;
+
+        qemu_free(tmp_buf);
     }
-
-    bdrv_reset_dirty(bs, cur_sector, nr_sectors);
-
-    /* sector number and flags */
-    qemu_put_be64(f, (cur_sector << BDRV_SECTOR_BITS)
-                     | BLK_MIG_FLAG_DEVICE_BLOCK);
-
-    /* device name */
-    len = strlen(bs->device_name);
-    qemu_put_byte(f, len);
-    qemu_put_buffer(f, (uint8_t *)bs->device_name, len);
-
-    qemu_put_buffer(f, tmp_buf, BLOCK_SIZE);
-
-    bmds->cur_sector = cur_sector + BDRV_SECTORS_PER_DIRTY_CHUNK;
-
-    qemu_free(tmp_buf);
 
     return (bmds->cur_sector >= total_sectors);
 }
@@ -279,16 +237,9 @@ static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->bulk_completed == 0) {
-            if (is_async) {
-                if (mig_read_device_bulk(f, bmds) == 1) {
-                    /* completed bulk section for this device */
-                    bmds->bulk_completed = 1;
-                }
-            } else {
-                if (mig_save_device_bulk(f, bmds) == 1) {
-                    /* completed bulk section for this device */
-                    bmds->bulk_completed = 1;
-                }
+            if (mig_save_device_bulk(f, bmds, is_async) == 1) {
+                /* completed bulk section for this device */
+                bmds->bulk_completed = 1;
             }
             return 1;
         }
