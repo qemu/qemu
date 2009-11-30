@@ -666,7 +666,7 @@ static int load_multiboot(void *fw_cfg,
 
             /* append module data at the end of last module */
             mb_kernel_data = qemu_realloc(mb_kernel_data,
-                                          mh_load_addr - mb_mod_end);
+                                          mb_mod_end - mh_load_addr);
             load_image(initrd_filename,
                        mb_kernel_data + mb_mod_start - mh_load_addr);
 
