@@ -192,7 +192,7 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
 
-#define BDRV_SECTORS_PER_DIRTY_CHUNK 8
+#define BDRV_SECTORS_PER_DIRTY_CHUNK 2048
 
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
