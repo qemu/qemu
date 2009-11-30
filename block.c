@@ -41,10 +41,6 @@
 #include <windows.h>
 #endif
 
-#define SECTOR_BITS 9
-#define SECTOR_SIZE (1 << SECTOR_BITS)
-#define SECTORS_PER_DIRTY_CHUNK 8
-
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
@@ -386,7 +382,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
             bdrv_delete(bs1);
             return ret;
         }
-        total_size = bdrv_getlength(bs1) >> SECTOR_BITS;
+        total_size = bdrv_getlength(bs1) >> BDRV_SECTOR_BITS;
 
         if (bs1->drv && bs1->drv->protocol_name)
             is_protocol = 1;
@@ -473,7 +469,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         return ret;
     }
     if (drv->bdrv_getlength) {
-        bs->total_sectors = bdrv_getlength(bs) >> SECTOR_BITS;
+        bs->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
     }
 #ifndef _WIN32
     if (bs->is_temporary) {
@@ -576,7 +572,7 @@ int bdrv_commit(BlockDriverState *bs)
 	return -ENOTSUP;
     }
 
-    total_sectors = bdrv_getlength(bs) >> SECTOR_BITS;
+    total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
     for (i = 0; i < total_sectors;) {
         if (drv->bdrv_is_allocated(bs, i, 65536, &n)) {
             for(j = 0; j < n; j++) {
@@ -647,8 +643,8 @@ static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
 {
     int64_t start, end;
 
-    start = sector_num / SECTORS_PER_DIRTY_CHUNK;
-    end = (sector_num + nb_sectors) / SECTORS_PER_DIRTY_CHUNK;
+    start = sector_num / BDRV_SECTORS_PER_DIRTY_CHUNK;
+    end = (sector_num + nb_sectors) / BDRV_SECTORS_PER_DIRTY_CHUNK;
 
     for (; start <= end; start++) {
         bs->dirty_bitmap[start] = dirty;
@@ -682,20 +678,20 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count1)
 {
-    uint8_t tmp_buf[SECTOR_SIZE];
+    uint8_t tmp_buf[BDRV_SECTOR_SIZE];
     int len, nb_sectors, count;
     int64_t sector_num;
 
     count = count1;
     /* first read to align to sector start */
-    len = (SECTOR_SIZE - offset) & (SECTOR_SIZE - 1);
+    len = (BDRV_SECTOR_SIZE - offset) & (BDRV_SECTOR_SIZE - 1);
     if (len > count)
         len = count;
-    sector_num = offset >> SECTOR_BITS;
+    sector_num = offset >> BDRV_SECTOR_BITS;
     if (len > 0) {
         if (bdrv_read(bs, sector_num, tmp_buf, 1) < 0)
             return -EIO;
-        memcpy(buf, tmp_buf + (offset & (SECTOR_SIZE - 1)), len);
+        memcpy(buf, tmp_buf + (offset & (BDRV_SECTOR_SIZE - 1)), len);
         count -= len;
         if (count == 0)
             return count1;
@@ -704,12 +700,12 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset,
     }
 
     /* read the sectors "in place" */
-    nb_sectors = count >> SECTOR_BITS;
+    nb_sectors = count >> BDRV_SECTOR_BITS;
     if (nb_sectors > 0) {
         if (bdrv_read(bs, sector_num, buf, nb_sectors) < 0)
             return -EIO;
         sector_num += nb_sectors;
-        len = nb_sectors << SECTOR_BITS;
+        len = nb_sectors << BDRV_SECTOR_BITS;
         buf += len;
         count -= len;
     }
@@ -726,20 +722,20 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset,
 int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
                 const void *buf, int count1)
 {
-    uint8_t tmp_buf[SECTOR_SIZE];
+    uint8_t tmp_buf[BDRV_SECTOR_SIZE];
     int len, nb_sectors, count;
     int64_t sector_num;
 
     count = count1;
     /* first write to align to sector start */
-    len = (SECTOR_SIZE - offset) & (SECTOR_SIZE - 1);
+    len = (BDRV_SECTOR_SIZE - offset) & (BDRV_SECTOR_SIZE - 1);
     if (len > count)
         len = count;
-    sector_num = offset >> SECTOR_BITS;
+    sector_num = offset >> BDRV_SECTOR_BITS;
     if (len > 0) {
         if (bdrv_read(bs, sector_num, tmp_buf, 1) < 0)
             return -EIO;
-        memcpy(tmp_buf + (offset & (SECTOR_SIZE - 1)), buf, len);
+        memcpy(tmp_buf + (offset & (BDRV_SECTOR_SIZE - 1)), buf, len);
         if (bdrv_write(bs, sector_num, tmp_buf, 1) < 0)
             return -EIO;
         count -= len;
@@ -750,12 +746,12 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
     }
 
     /* write the sectors "in place" */
-    nb_sectors = count >> SECTOR_BITS;
+    nb_sectors = count >> BDRV_SECTOR_BITS;
     if (nb_sectors > 0) {
         if (bdrv_write(bs, sector_num, buf, nb_sectors) < 0)
             return -EIO;
         sector_num += nb_sectors;
-        len = nb_sectors << SECTOR_BITS;
+        len = nb_sectors << BDRV_SECTOR_BITS;
         buf += len;
         count -= len;
     }
@@ -796,7 +792,7 @@ int64_t bdrv_getlength(BlockDriverState *bs)
         return -ENOMEDIUM;
     if (!drv->bdrv_getlength) {
         /* legacy mode */
-        return bs->total_sectors * SECTOR_SIZE;
+        return bs->total_sectors * BDRV_SECTOR_SIZE;
     }
     return drv->bdrv_getlength(bs);
 }
@@ -809,7 +805,7 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     if (length < 0)
         length = 0;
     else
-        length = length >> SECTOR_BITS;
+        length = length >> BDRV_SECTOR_BITS;
     *nb_sectors_ptr = length;
 }
 
@@ -1402,7 +1398,7 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
 
     if (ret) {
 	/* Update stats even though technically transfer has not happened. */
-	bs->rd_bytes += (unsigned) nb_sectors * SECTOR_SIZE;
+	bs->rd_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
 	bs->rd_ops ++;
     }
 
@@ -1432,7 +1428,7 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
 
     if (ret) {
 	/* Update stats even though technically transfer has not happened. */
-	bs->wr_bytes += (unsigned) nb_sectors * SECTOR_SIZE;
+	bs->wr_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
 	bs->wr_ops ++;
     }
 
@@ -1973,8 +1969,8 @@ void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)
             int64_t i;
             uint8_t test;
 
-            bitmap_size = (bdrv_getlength(bs) >> SECTOR_BITS);
-            bitmap_size /= SECTORS_PER_DIRTY_CHUNK;
+            bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
+            bitmap_size /= BDRV_SECTORS_PER_DIRTY_CHUNK;
             bitmap_size++;
 
             bs->dirty_bitmap = qemu_mallocz(bitmap_size);
@@ -1992,10 +1988,10 @@ void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)
 
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
 {
-    int64_t chunk = sector / (int64_t)SECTORS_PER_DIRTY_CHUNK;
+    int64_t chunk = sector / (int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK;
 
     if (bs->dirty_bitmap != NULL &&
-        (sector << SECTOR_BITS) <= bdrv_getlength(bs)) {
+        (sector << BDRV_SECTOR_BITS) <= bdrv_getlength(bs)) {
         return bs->dirty_bitmap[chunk];
     } else {
         return 0;
@@ -2006,10 +2002,4 @@ void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors)
 {
     set_dirty_bitmap(bs, cur_sector, nr_sectors, 0);
-}
-
-int bdrv_get_sectors_per_chunk(void)
-{
-    /* size must be 2^x */
-    return SECTORS_PER_DIRTY_CHUNK;
 }

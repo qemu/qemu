@@ -17,11 +17,7 @@
 #include "block-migration.h"
 #include <assert.h>
 
-#define SECTOR_BITS 9
-#define SECTOR_SIZE (1 << SECTOR_BITS)
-#define SECTOR_MASK ~(SECTOR_SIZE - 1);
-
-#define BLOCK_SIZE (block_mig_state->sectors_per_block << SECTOR_BITS)
+#define BLOCK_SIZE (BDRV_SECTORS_PER_DIRTY_CHUNK << BDRV_SECTOR_BITS)
 
 #define BLK_MIG_FLAG_DEVICE_BLOCK       0x01
 #define BLK_MIG_FLAG_EOS                0x02
@@ -69,7 +65,6 @@ typedef struct BlkMigState {
     int no_dirty;
     QEMUFile *load_file;
     BlkMigDevState *bmds_first;
-    int sectors_per_block;
     BlkMigBlock *first_blk;
     BlkMigBlock *last_blk;
     int submitted;
@@ -111,7 +106,7 @@ static int mig_read_device_bulk(QEMUFile *f, BlkMigDevState *bms)
     blk->buf = qemu_malloc(BLOCK_SIZE);
 
     cur_sector = bms->cur_sector;
-    total_sectors = bdrv_getlength(bs) >> SECTOR_BITS;
+    total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
 
     if (bms->shared_base) {
         while (cur_sector < bms->total_sectors &&
@@ -132,15 +127,15 @@ static int mig_read_device_bulk(QEMUFile *f, BlkMigDevState *bms)
         printf("Completed %" PRId64 " %%\r", cur_sector * 100 / total_sectors);
         fflush(stdout);
         block_mig_state->print_completion +=
-            (block_mig_state->sectors_per_block * 10000);
+            (BDRV_SECTORS_PER_DIRTY_CHUNK * 10000);
     }
 
-    /* we going to transfder BLOCK_SIZE any way even if it is not allocated */
-    nr_sectors = block_mig_state->sectors_per_block;
+    /* we are going to transfer a full block even if it is not allocated */
+    nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
 
-    cur_sector &= ~((int64_t)block_mig_state->sectors_per_block -1);
+    cur_sector &= ~((int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK - 1);
 
-    if (total_sectors - cur_sector < block_mig_state->sectors_per_block) {
+    if (total_sectors - cur_sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
         nr_sectors = (total_sectors - cur_sector);
     }
 
@@ -150,7 +145,7 @@ static int mig_read_device_bulk(QEMUFile *f, BlkMigDevState *bms)
     blk->next = NULL;
 
     blk->iov.iov_base = blk->buf;
-    blk->iov.iov_len = nr_sectors * SECTOR_SIZE;
+    blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
 
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
@@ -198,15 +193,15 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
         printf("Completed %" PRId64 " %%\r", cur_sector * 100 / total_sectors);
         fflush(stdout);
         block_mig_state->print_completion +=
-            (block_mig_state->sectors_per_block * 10000);
+            (BDRV_SECTORS_PER_DIRTY_CHUNK * 10000);
     }
 
-    cur_sector &= ~((int64_t)block_mig_state->sectors_per_block -1);
+    cur_sector &= ~((int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK - 1);
 
-    /* we going to transfer BLOCK_SIZE any way even if it is not allocated */
-    nr_sectors = block_mig_state->sectors_per_block;
+    /* we are going to transfer a full block even if it is not allocated */
+    nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
 
-    if (total_sectors - cur_sector < block_mig_state->sectors_per_block) {
+    if (total_sectors - cur_sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
         nr_sectors = (total_sectors - cur_sector);
     }
 
@@ -217,7 +212,8 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     bdrv_reset_dirty(bs, cur_sector, nr_sectors);
 
     /* sector number and flags */
-    qemu_put_be64(f, (cur_sector << SECTOR_BITS) | BLK_MIG_FLAG_DEVICE_BLOCK);
+    qemu_put_be64(f, (cur_sector << BDRV_SECTOR_BITS)
+                     | BLK_MIG_FLAG_DEVICE_BLOCK);
 
     /* device name */
     len = strlen(bs->device_name);
@@ -226,7 +222,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
 
     qemu_put_buffer(f, tmp_buf, BLOCK_SIZE);
 
-    bmds->cur_sector = cur_sector + block_mig_state->sectors_per_block;
+    bmds->cur_sector = cur_sector + BDRV_SECTORS_PER_DIRTY_CHUNK;
 
     qemu_free(tmp_buf);
 
@@ -238,7 +234,8 @@ static void send_blk(QEMUFile *f, BlkMigBlock * blk)
     int len;
 
     /* sector number and flags */
-    qemu_put_be64(f, (blk->sector << SECTOR_BITS) | BLK_MIG_FLAG_DEVICE_BLOCK);
+    qemu_put_be64(f, (blk->sector << BDRV_SECTOR_BITS)
+                     | BLK_MIG_FLAG_DEVICE_BLOCK);
 
     /* device name */
     len = strlen(blk->bmds->bs->device_name);
@@ -270,7 +267,7 @@ static void init_blk_migration(QEMUFile *f)
             bmds = qemu_mallocz(sizeof(BlkMigDevState));
             bmds->bs = bs;
             bmds->bulk_completed = 0;
-            bmds->total_sectors = bdrv_getlength(bs) >> SECTOR_BITS;
+            bmds->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
             bmds->shared_base = block_mig_state->shared_base;
 
             if (bmds->shared_base) {
@@ -290,8 +287,6 @@ static void init_blk_migration(QEMUFile *f)
             blk_mig_save_dev_info(f, bmds);
         }
     }
-
-    block_mig_state->sectors_per_block = bdrv_get_sectors_per_chunk();
 }
 
 static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
@@ -334,12 +329,12 @@ static void blk_mig_save_dirty_blocks(QEMUFile *f)
         for (sector = 0; sector < bmds->cur_sector;) {
             if (bdrv_get_dirty(bmds->bs, sector)) {
                 if (bdrv_read(bmds->bs, sector, buf,
-                              block_mig_state->sectors_per_block) < 0) {
+                              BDRV_SECTORS_PER_DIRTY_CHUNK) < 0) {
                     /* FIXME: add error handling */
                 }
 
                 /* sector number and flags */
-                qemu_put_be64(f, (sector << SECTOR_BITS)
+                qemu_put_be64(f, (sector << BDRV_SECTOR_BITS)
                                  | BLK_MIG_FLAG_DEVICE_BLOCK);
 
                 /* device name */
@@ -347,14 +342,12 @@ static void blk_mig_save_dirty_blocks(QEMUFile *f)
                 qemu_put_byte(f, len);
                 qemu_put_buffer(f, (uint8_t *)bmds->bs->device_name, len);
 
-                qemu_put_buffer(f, buf,
-                                (block_mig_state->sectors_per_block *
-                                 SECTOR_SIZE));
+                qemu_put_buffer(f, buf, BLOCK_SIZE);
 
                 bdrv_reset_dirty(bmds->bs, sector,
-                                 block_mig_state->sectors_per_block);
+                                 BDRV_SECTORS_PER_DIRTY_CHUNK);
             }
-            sector += block_mig_state->sectors_per_block;
+            sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
         }
     }
 }
@@ -465,14 +458,13 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     BlockDriverState *bs;
     uint8_t *buf;
 
-    block_mig_state->sectors_per_block = bdrv_get_sectors_per_chunk();
     buf = qemu_malloc(BLOCK_SIZE);
 
     do {
         addr = qemu_get_be64(f);
 
-        flags = addr & ~SECTOR_MASK;
-        addr &= SECTOR_MASK;
+        flags = addr & ~BDRV_SECTOR_MASK;
+        addr >>= BDRV_SECTOR_BITS;
 
         if (flags & BLK_MIG_FLAG_DEVICE_BLOCK) {
             /* get device name */
@@ -485,8 +477,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
 
             qemu_get_buffer(f, buf, BLOCK_SIZE);
             if (bs != NULL) {
-                bdrv_write(bs, (addr >> SECTOR_BITS),
-                           buf, block_mig_state->sectors_per_block);
+                bdrv_write(bs, addr, buf, BDRV_SECTORS_PER_DIRTY_CHUNK);
             } else {
                 printf("Error unknown block device %s\n", device_name);
                 /* FIXME: add error handling */
