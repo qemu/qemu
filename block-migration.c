@@ -321,9 +321,11 @@ static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
 static void blk_mig_save_dirty_blocks(QEMUFile *f)
 {
     BlkMigDevState *bmds;
-    uint8_t buf[BLOCK_SIZE];
+    uint8_t *buf;
     int64_t sector;
     int len;
+
+    buf = qemu_malloc(BLOCK_SIZE);
 
     for (bmds = block_mig_state->bmds_first; bmds != NULL; bmds = bmds->next) {
         for (sector = 0; sector < bmds->cur_sector;) {
@@ -350,6 +352,8 @@ static void blk_mig_save_dirty_blocks(QEMUFile *f)
             sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
         }
     }
+
+    qemu_free(buf);
 }
 
 static void flush_blks(QEMUFile* f)
@@ -458,8 +462,6 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     BlockDriverState *bs;
     uint8_t *buf;
 
-    buf = qemu_malloc(BLOCK_SIZE);
-
     do {
         addr = qemu_get_be64(f);
 
@@ -475,6 +477,8 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
 
             bs = bdrv_find(device_name);
 
+            buf = qemu_malloc(BLOCK_SIZE);
+
             qemu_get_buffer(f, buf, BLOCK_SIZE);
             if (bs != NULL) {
                 bdrv_write(bs, addr, buf, BDRV_SECTORS_PER_DIRTY_CHUNK);
@@ -482,13 +486,13 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                 printf("Error unknown block device %s\n", device_name);
                 /* FIXME: add error handling */
             }
+
+            qemu_free(buf);
         } else if (!(flags & BLK_MIG_FLAG_EOS)) {
             printf("Unknown flags\n");
             /* FIXME: add error handling */
         }
     } while (!(flags & BLK_MIG_FLAG_EOS));
-
-    qemu_free(buf);
 
     return 0;
 }
