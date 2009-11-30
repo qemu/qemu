@@ -43,6 +43,7 @@ typedef struct BlkMigDevState {
     int bulk_completed;
     int shared_base;
     int64_t cur_sector;
+    int64_t completed_sectors;
     int64_t total_sectors;
     int64_t dirty;
     QSIMPLEQ_ENTRY(BlkMigDevState) entry;
@@ -67,6 +68,7 @@ typedef struct BlkMigState {
     int submitted;
     int read_done;
     int transferred;
+    int64_t total_sector_sum;
     int64_t print_completion;
 } BlkMigState;
 
@@ -118,16 +120,11 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds, int is_async)
     }
 
     if (cur_sector >= total_sectors) {
-        bmds->cur_sector = total_sectors;
+        bmds->cur_sector = bmds->completed_sectors = total_sectors;
         return 1;
     }
 
-    if (cur_sector >= block_mig_state.print_completion) {
-        printf("Completed %" PRId64 " %%\r", cur_sector * 100 / total_sectors);
-        fflush(stdout);
-        block_mig_state.print_completion +=
-            (BDRV_SECTORS_PER_DIRTY_CHUNK * 10000);
-    }
+    bmds->completed_sectors = cur_sector;
 
     cur_sector &= ~((int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK - 1);
 
@@ -194,6 +191,7 @@ static void init_blk_migration(QEMUFile *f)
     block_mig_state.submitted = 0;
     block_mig_state.read_done = 0;
     block_mig_state.transferred = 0;
+    block_mig_state.total_sector_sum = 0;
     block_mig_state.print_completion = 0;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
@@ -202,7 +200,10 @@ static void init_blk_migration(QEMUFile *f)
             bmds->bs = bs;
             bmds->bulk_completed = 0;
             bmds->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+            bmds->completed_sectors = 0;
             bmds->shared_base = block_mig_state.shared_base;
+
+            block_mig_state.total_sector_sum += bmds->total_sectors;
 
             if (bmds->shared_base) {
                 printf("Start migration for %s with shared base image\n",
@@ -218,7 +219,9 @@ static void init_blk_migration(QEMUFile *f)
 
 static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
 {
+    int64_t completed_sector_sum = 0;
     BlkMigDevState *bmds;
+    int ret = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->bulk_completed == 0) {
@@ -226,12 +229,23 @@ static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
                 /* completed bulk section for this device */
                 bmds->bulk_completed = 1;
             }
-            return 1;
+            completed_sector_sum += bmds->completed_sectors;
+            ret = 1;
+            break;
+        } else {
+            completed_sector_sum += bmds->completed_sectors;
         }
     }
 
-    /* we reached here means bulk is completed */
-    return 0;
+    if (completed_sector_sum >= block_mig_state.print_completion) {
+        printf("Completed %" PRId64 " %%\r",
+               completed_sector_sum * 100 / block_mig_state.total_sector_sum);
+        fflush(stdout);
+        block_mig_state.print_completion +=
+            (BDRV_SECTORS_PER_DIRTY_CHUNK * 10000);
+    }
+
+    return ret;
 }
 
 #define MAX_NUM_BLOCKS 4
@@ -319,16 +333,16 @@ static int is_stage2_completed(void)
 
 static void blk_mig_cleanup(void)
 {
-    BlkMigDevState *bmds, *next_bmds;
-    BlkMigBlock *blk, *next_blk;
+    BlkMigDevState *bmds;
+    BlkMigBlock *blk;
 
-    QTAILQ_FOREACH_SAFE(bmds, &block_mig_state.dev_list, entry, next_bmds) {
-        QTAILQ_REMOVE(&block_mig_state.dev_list, bmds, entry);
+    while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
+        QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
         qemu_free(bmds);
     }
 
-    QTAILQ_FOREACH_SAFE(blk, &block_mig_state.blk_list, entry, next_blk) {
-        QTAILQ_REMOVE(&block_mig_state.blk_list, blk, entry);
+    while ((blk = QSIMPLEQ_FIRST(&block_mig_state.blk_list)) != NULL) {
+        QSIMPLEQ_REMOVE_HEAD(&block_mig_state.blk_list, entry);
         qemu_free(blk->buf);
         qemu_free(blk);
     }
