@@ -71,6 +71,7 @@
 #else
 #include <util.h>
 #endif
+#else
 #ifdef __linux__
 #include <pty.h>
 
