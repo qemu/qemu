@@ -2934,6 +2934,11 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
     double bwidth = 0;
     uint64_t expected_time = 0;
 
+    if (stage < 0) {
+        cpu_physical_memory_set_dirty_tracking(0);
+        return 0;
+    }
+
     if (cpu_physical_sync_dirty_bitmap(0, TARGET_PHYS_ADDR_MAX) != 0) {
         qemu_file_set_error(f);
         return 0;

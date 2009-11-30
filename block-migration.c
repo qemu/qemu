@@ -317,10 +317,36 @@ static int is_stage2_completed(void)
     return 1;
 }
 
+static void blk_mig_cleanup(void)
+{
+    BlkMigDevState *bmds, *next_bmds;
+    BlkMigBlock *blk, *next_blk;
+
+    QTAILQ_FOREACH_SAFE(bmds, &block_mig_state.dev_list, entry, next_bmds) {
+        QTAILQ_REMOVE(&block_mig_state.dev_list, bmds, entry);
+        qemu_free(bmds);
+    }
+
+    QTAILQ_FOREACH_SAFE(blk, &block_mig_state.blk_list, entry, next_blk) {
+        QTAILQ_REMOVE(&block_mig_state.blk_list, blk, entry);
+        qemu_free(blk->buf);
+        qemu_free(blk);
+    }
+
+    set_dirty_tracking(0);
+
+    printf("\n");
+}
+
 static int block_save_live(QEMUFile *f, int stage, void *opaque)
 {
     dprintf("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
+
+    if (stage < 0) {
+        blk_mig_cleanup();
+        return 0;
+    }
 
     if (block_mig_state.blk_enable != 1) {
         /* no need to migrate storage */
@@ -338,7 +364,7 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
     flush_blks(f);
 
     if (qemu_file_has_error(f)) {
-        set_dirty_tracking(0);
+        blk_mig_cleanup();
         return 0;
     }
 
@@ -355,7 +381,7 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
     flush_blks(f);
 
     if (qemu_file_has_error(f)) {
-        set_dirty_tracking(0);
+        blk_mig_cleanup();
         return 0;
     }
 
@@ -365,15 +391,13 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
         }
 
         blk_mig_save_dirty_blocks(f);
-
-        /* stop track dirty blocks */
-        set_dirty_tracking(0);
+        blk_mig_cleanup();
 
         if (qemu_file_has_error(f)) {
             return 0;
         }
 
-        printf("\nBlock migration completed\n");
+        printf("Block migration completed\n");
     }
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);

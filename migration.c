@@ -324,6 +324,7 @@ void migrate_fd_cancel(MigrationState *mig_state)
     dprintf("cancelling migration\n");
 
     s->state = MIG_STATE_CANCELLED;
+    qemu_savevm_state_cancel(s->file);
 
     migrate_fd_cleanup(s);
 }

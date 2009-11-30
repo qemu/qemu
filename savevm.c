@@ -1299,8 +1299,10 @@ int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
         se->save_live_state(f, QEMU_VM_SECTION_START, se->opaque);
     }
 
-    if (qemu_file_has_error(f))
+    if (qemu_file_has_error(f)) {
+        qemu_savevm_state_cancel(f);
         return -EIO;
+    }
 
     return 0;
 }
@@ -1324,8 +1326,10 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     if (ret)
         return 1;
 
-    if (qemu_file_has_error(f))
+    if (qemu_file_has_error(f)) {
+        qemu_savevm_state_cancel(f);
         return -EIO;
+    }
 
     return 0;
 }
@@ -1372,6 +1376,17 @@ int qemu_savevm_state_complete(QEMUFile *f)
         return -EIO;
 
     return 0;
+}
+
+void qemu_savevm_state_cancel(QEMUFile *f)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if (se->save_live_state) {
+            se->save_live_state(f, -1, se->opaque);
+        }
+    }
 }
 
 int qemu_savevm_state(QEMUFile *f)

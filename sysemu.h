@@ -65,6 +65,7 @@ void main_loop_wait(int timeout);
 int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared);
 int qemu_savevm_state_iterate(QEMUFile *f);
 int qemu_savevm_state_complete(QEMUFile *f);
+void qemu_savevm_state_cancel(QEMUFile *f);
 int qemu_savevm_state(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
