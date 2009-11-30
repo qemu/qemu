@@ -151,16 +151,12 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds, int is_async)
         blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                     nr_sectors, blk_mig_read_cb, blk);
         if (!blk->aiocb) {
-            printf("Error reading sector %" PRId64 "\n", cur_sector);
-            qemu_free(blk->buf);
-            qemu_free(blk);
-            return 0;
+            goto error;
         }
         block_mig_state.submitted++;
     } else {
         if (bdrv_read(bs, cur_sector, blk->buf, nr_sectors) < 0) {
-            printf("Error reading sector %" PRId64 "\n", cur_sector);
-            return 0;
+            goto error;
         }
         blk_send(f, blk);
 
@@ -172,6 +168,13 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds, int is_async)
     bmds->cur_sector = cur_sector + nr_sectors;
 
     return (bmds->cur_sector >= total_sectors);
+
+error:
+    printf("Error reading sector %" PRId64 "\n", cur_sector);
+    qemu_file_set_error(f);
+    qemu_free(blk->buf);
+    qemu_free(blk);
+    return 0;
 }
 
 static void set_dirty_tracking(int enable)
@@ -247,7 +250,9 @@ static void blk_mig_save_dirty_blocks(QEMUFile *f)
                 if (bdrv_read(bmds->bs, sector, blk.buf,
                               BDRV_SECTORS_PER_DIRTY_CHUNK) < 0) {
                     printf("Error reading sector %" PRId64 "\n", sector);
-                    /* FIXME: add error handling */
+                    qemu_file_set_error(f);
+                    qemu_free(blk.buf);
+                    return;
                 }
                 blk.bmds = bmds;
                 blk.sector = sector;
@@ -273,6 +278,10 @@ static void flush_blks(QEMUFile* f)
 
     while ((blk = QSIMPLEQ_FIRST(&block_mig_state.blk_list)) != NULL) {
         if (qemu_file_rate_limit(f)) {
+            break;
+        }
+        if (blk->ret < 0) {
+            qemu_file_set_error(f);
             break;
         }
         blk_send(f, blk);
@@ -328,6 +337,11 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
 
     flush_blks(f);
 
+    if (qemu_file_has_error(f)) {
+        set_dirty_tracking(0);
+        return 0;
+    }
+
     /* control the rate of transfer */
     while ((block_mig_state.submitted +
             block_mig_state.read_done) * BLOCK_SIZE <
@@ -340,6 +354,11 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
 
     flush_blks(f);
 
+    if (qemu_file_has_error(f)) {
+        set_dirty_tracking(0);
+        return 0;
+    }
+
     if (stage == 3) {
         while (blk_mig_save_bulked_block(f, 0) != 0) {
             /* empty */
@@ -349,6 +368,10 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
 
         /* stop track dirty blocks */
         set_dirty_tracking(0);
+
+        if (qemu_file_has_error(f)) {
+            return 0;
+        }
 
         printf("\nBlock migration completed\n");
     }
@@ -375,26 +398,28 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
         if (flags & BLK_MIG_FLAG_DEVICE_BLOCK) {
             /* get device name */
             len = qemu_get_byte(f);
-
             qemu_get_buffer(f, (uint8_t *)device_name, len);
             device_name[len] = '\0';
 
             bs = bdrv_find(device_name);
+            if (!bs) {
+                fprintf(stderr, "Error unknown block device %s\n",
+                        device_name);
+                return -EINVAL;
+            }
 
             buf = qemu_malloc(BLOCK_SIZE);
 
             qemu_get_buffer(f, buf, BLOCK_SIZE);
-            if (bs != NULL) {
-                bdrv_write(bs, addr, buf, BDRV_SECTORS_PER_DIRTY_CHUNK);
-            } else {
-                printf("Error unknown block device %s\n", device_name);
-                /* FIXME: add error handling */
-            }
+            bdrv_write(bs, addr, buf, BDRV_SECTORS_PER_DIRTY_CHUNK);
 
             qemu_free(buf);
         } else if (!(flags & BLK_MIG_FLAG_EOS)) {
-            printf("Unknown flags\n");
-            /* FIXME: add error handling */
+            fprintf(stderr, "Unknown flags\n");
+            return -EINVAL;
+        }
+        if (qemu_file_has_error(f)) {
+            return -EIO;
         }
     } while (!(flags & BLK_MIG_FLAG_EOS));
 
