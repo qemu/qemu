@@ -248,6 +248,11 @@ static void init_blk_migration(QEMUFile *f)
     BlkMigDevState *bmds;
     BlockDriverState *bs;
 
+    block_mig_state.submitted = 0;
+    block_mig_state.read_done = 0;
+    block_mig_state.transferred = 0;
+    block_mig_state.print_completion = 0;
+
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
         if (bs->type == BDRV_TYPE_HD) {
             bmds = qemu_mallocz(sizeof(BlkMigDevState));
