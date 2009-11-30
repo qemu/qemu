@@ -3016,8 +3016,12 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 madvise(qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE, MADV_DONTNEED);
             }
 #endif
-        } else if (flags & RAM_SAVE_FLAG_PAGE)
+        } else if (flags & RAM_SAVE_FLAG_PAGE) {
             qemu_get_buffer(f, qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE);
+        }
+        if (qemu_file_has_error(f)) {
+            return -EIO;
+        }
     } while (!(flags & RAM_SAVE_FLAG_EOS));
 
     return 0;
