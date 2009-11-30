@@ -310,6 +310,29 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return ret;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+target_phys_addr_t do_translate_address(CPUState *env, target_ulong address, int rw)
+{
+    target_phys_addr_t physical;
+    int prot;
+    int access_type;
+    int ret = 0;
+
+    rw &= 1;
+
+    /* data access */
+    access_type = ACCESS_INT;
+    ret = get_physical_address(env, &physical, &prot,
+                               address, rw, access_type);
+    if (ret != TLBRET_MATCH) {
+        raise_mmu_exception(env, address, rw, ret);
+        cpu_loop_exit();
+    }
+
+    return physical;
+}
+#endif
+
 static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_RESET] = "reset",
     [EXCP_SRESET] = "soft reset",
