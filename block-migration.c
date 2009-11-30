@@ -91,6 +91,38 @@ static void blk_send(QEMUFile *f, BlkMigBlock * blk)
     qemu_put_buffer(f, blk->buf, BLOCK_SIZE);
 }
 
+int blk_mig_active(void)
+{
+    return !QSIMPLEQ_EMPTY(&block_mig_state.bmds_list);
+}
+
+uint64_t blk_mig_bytes_transferred(void)
+{
+    BlkMigDevState *bmds;
+    uint64_t sum = 0;
+
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        sum += bmds->completed_sectors;
+    }
+    return sum << BDRV_SECTOR_BITS;
+}
+
+uint64_t blk_mig_bytes_remaining(void)
+{
+    return blk_mig_bytes_total() - blk_mig_bytes_transferred();
+}
+
+uint64_t blk_mig_bytes_total(void)
+{
+    BlkMigDevState *bmds;
+    uint64_t sum = 0;
+
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        sum += bmds->total_sectors;
+    }
+    return sum << BDRV_SECTOR_BITS;
+}
+
 static void blk_mig_read_cb(void *opaque, int ret)
 {
     BlkMigBlock *blk = opaque;

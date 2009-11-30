@@ -18,6 +18,7 @@
 #include "sysemu.h"
 #include "block.h"
 #include "qemu_socket.h"
+#include "block-migration.h"
 
 //#define DEBUG_MIGRATION
 
@@ -174,6 +175,14 @@ void do_info_migrate(Monitor *mon)
             monitor_printf(mon, "transferred ram: %" PRIu64 " kbytes\n", ram_bytes_transferred() >> 10);
             monitor_printf(mon, "remaining ram: %" PRIu64 " kbytes\n", ram_bytes_remaining() >> 10);
             monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n", ram_bytes_total() >> 10);
+            if (blk_mig_active()) {
+                monitor_printf(mon, "transferred disk: %" PRIu64 " kbytes\n",
+                               blk_mig_bytes_transferred() >> 10);
+                monitor_printf(mon, "remaining disk: %" PRIu64 " kbytes\n",
+                               blk_mig_bytes_remaining() >> 10);
+                monitor_printf(mon, "total disk: %" PRIu64 " kbytes\n",
+                               blk_mig_bytes_total() >> 10);
+            }
             break;
         case MIG_STATE_COMPLETED:
             monitor_printf(mon, "completed\n");
