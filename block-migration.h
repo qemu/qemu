@@ -15,5 +15,5 @@
 #define BLOCK_MIGRATION_H
 
 void blk_mig_init(void);
-void blk_mig_info(void);
+
 #endif /* BLOCK_MIGRATION_H */

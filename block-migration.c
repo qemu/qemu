@@ -59,11 +59,8 @@ typedef struct BlkMigBlock {
 } BlkMigBlock;
 
 typedef struct BlkMigState {
-    int bulk_completed;
     int blk_enable;
     int shared_base;
-    int no_dirty;
-    QEMUFile *load_file;
     BlkMigDevState *bmds_first;
     BlkMigBlock *first_blk;
     BlkMigBlock *last_blk;
@@ -245,10 +242,6 @@ static void send_blk(QEMUFile *f, BlkMigBlock * blk)
     qemu_put_buffer(f, blk->buf, BLOCK_SIZE);
 }
 
-static void blk_mig_save_dev_info(QEMUFile *f, BlkMigDevState *bmds)
-{
-}
-
 static void set_dirty_tracking(int enable)
 {
     BlkMigDevState *bmds;
@@ -283,8 +276,6 @@ static void init_blk_migration(QEMUFile *f)
                 pbmds = &(*pbmds)->next;
             }
             *pbmds = bmds;
-
-            blk_mig_save_dev_info(f, bmds);
         }
     }
 }
@@ -311,8 +302,6 @@ static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
     }
 
     /* we reached here means bulk is completed */
-    block_mig_state.bulk_completed = 1;
-
     return 0;
 }
 
@@ -505,19 +494,6 @@ static void block_set_params(int blk_enable, int shared_base, void *opaque)
 
     /* shared base means that blk_enable = 1 */
     block_mig_state.blk_enable |= shared_base;
-}
-
-void blk_mig_info(void)
-{
-    BlockDriverState *bs;
-
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        printf("Device %s\n", bs->device_name);
-        if (bs->type == BDRV_TYPE_HD) {
-            printf("device %s format %s\n",
-                   bs->device_name, bs->drv->format_name);
-        }
-    }
 }
 
 void blk_mig_init(void)
