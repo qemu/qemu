@@ -1269,6 +1269,23 @@ static void ide_atapi_cmd(IDEState *s)
                     buf[15] = 0x00;
                     ide_atapi_cmd_reply(s, 16, max_len);
                     break;
+                case GPMODE_AUDIO_CTL_PAGE:
+                    cpu_to_ube16(&buf[0], 24 + 6);
+                    buf[2] = 0x70;
+                    buf[3] = 0;
+                    buf[4] = 0;
+                    buf[5] = 0;
+                    buf[6] = 0;
+                    buf[7] = 0;
+
+                    /* Fill with CDROM audio volume */
+                    buf[17] = 0;
+                    buf[19] = 0;
+                    buf[21] = 0;
+                    buf[23] = 0;
+
+                    ide_atapi_cmd_reply(s, 24, max_len);
+                    break;
                 case GPMODE_CAPABILITIES_PAGE:
                     cpu_to_ube16(&buf[0], 28 + 6);
                     buf[2] = 0x70;
