@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "hw/hw.h"
+#include "qemu-queue.h"
 #include "block-migration.h"
 #include <assert.h>
 
@@ -41,10 +42,10 @@ typedef struct BlkMigDevState {
     BlockDriverState *bs;
     int bulk_completed;
     int shared_base;
-    struct BlkMigDevState *next;
     int64_t cur_sector;
     int64_t total_sectors;
     int64_t dirty;
+    QSIMPLEQ_ENTRY(BlkMigDevState) entry;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
@@ -55,15 +56,14 @@ typedef struct BlkMigBlock {
     QEMUIOVector qiov;
     BlockDriverAIOCB *aiocb;
     int ret;
-    struct BlkMigBlock *next;
+    QSIMPLEQ_ENTRY(BlkMigBlock) entry;
 } BlkMigBlock;
 
 typedef struct BlkMigState {
     int blk_enable;
     int shared_base;
-    BlkMigDevState *bmds_first;
-    BlkMigBlock *first_blk;
-    BlkMigBlock *last_blk;
+    QSIMPLEQ_HEAD(bmds_list, BlkMigDevState) bmds_list;
+    QSIMPLEQ_HEAD(blk_list, BlkMigBlock) blk_list;
     int submitted;
     int read_done;
     int transferred;
@@ -78,14 +78,7 @@ static void blk_mig_read_cb(void *opaque, int ret)
 
     blk->ret = ret;
 
-    /* insert at the end */
-    if (block_mig_state.last_blk == NULL) {
-        block_mig_state.first_blk = blk;
-        block_mig_state.last_blk = blk;
-    } else {
-        block_mig_state.last_blk->next = blk;
-        block_mig_state.last_blk = blk;
-    }
+    QSIMPLEQ_INSERT_TAIL(&block_mig_state.blk_list, blk, entry);
 
     block_mig_state.submitted--;
     block_mig_state.read_done++;
@@ -139,7 +132,6 @@ static int mig_read_device_bulk(QEMUFile *f, BlkMigDevState *bms)
     bms->cur_sector = cur_sector + nr_sectors;
     blk->sector = cur_sector;
     blk->bmds = bms;
-    blk->next = NULL;
 
     blk->iov.iov_base = blk->buf;
     blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
@@ -245,14 +237,15 @@ static void send_blk(QEMUFile *f, BlkMigBlock * blk)
 static void set_dirty_tracking(int enable)
 {
     BlkMigDevState *bmds;
-    for (bmds = block_mig_state.bmds_first; bmds != NULL; bmds = bmds->next) {
+
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         bdrv_set_dirty_tracking(bmds->bs, enable);
     }
 }
 
 static void init_blk_migration(QEMUFile *f)
 {
-    BlkMigDevState **pbmds, *bmds;
+    BlkMigDevState *bmds;
     BlockDriverState *bs;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
@@ -270,12 +263,7 @@ static void init_blk_migration(QEMUFile *f)
                 printf("Start full migration for %s\n", bs->device_name);
             }
 
-            /* insert at the end */
-            pbmds = &block_mig_state.bmds_first;
-            while (*pbmds != NULL) {
-                pbmds = &(*pbmds)->next;
-            }
-            *pbmds = bmds;
+            QSIMPLEQ_INSERT_TAIL(&block_mig_state.bmds_list, bmds, entry);
         }
     }
 }
@@ -284,7 +272,7 @@ static int blk_mig_save_bulked_block(QEMUFile *f, int is_async)
 {
     BlkMigDevState *bmds;
 
-    for (bmds = block_mig_state.bmds_first; bmds != NULL; bmds = bmds->next) {
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->bulk_completed == 0) {
             if (is_async) {
                 if (mig_read_device_bulk(f, bmds) == 1) {
@@ -316,7 +304,7 @@ static void blk_mig_save_dirty_blocks(QEMUFile *f)
 
     buf = qemu_malloc(BLOCK_SIZE);
 
-    for (bmds = block_mig_state.bmds_first; bmds != NULL; bmds = bmds->next) {
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         for (sector = 0; sector < bmds->cur_sector;) {
             if (bdrv_get_dirty(bmds->bs, sector)) {
                 if (bdrv_read(bmds->bs, sector, buf,
@@ -347,29 +335,25 @@ static void blk_mig_save_dirty_blocks(QEMUFile *f)
 
 static void flush_blks(QEMUFile* f)
 {
-    BlkMigBlock *blk, *next;
+    BlkMigBlock *blk;
 
     dprintf("%s Enter submitted %d read_done %d transferred %d\n",
             __FUNCTION__, block_mig_state.submitted, block_mig_state.read_done,
             block_mig_state.transferred);
 
-    for (blk = block_mig_state.first_blk;
-         blk != NULL && !qemu_file_rate_limit(f);
-         blk = next) {
+    while ((blk = QSIMPLEQ_FIRST(&block_mig_state.blk_list)) != NULL) {
+        if (qemu_file_rate_limit(f)) {
+            break;
+        }
         send_blk(f, blk);
 
-        next = blk->next;
+        QSIMPLEQ_REMOVE_HEAD(&block_mig_state.blk_list, entry);
         qemu_free(blk->buf);
         qemu_free(blk);
 
         block_mig_state.read_done--;
         block_mig_state.transferred++;
         assert(block_mig_state.read_done >= 0);
-    }
-    block_mig_state.first_blk = blk;
-
-    if (block_mig_state.first_blk == NULL) {
-        block_mig_state.last_blk = NULL;
     }
 
     dprintf("%s Exit submitted %d read_done %d transferred %d\n", __FUNCTION__,
@@ -385,7 +369,7 @@ static int is_stage2_completed(void)
         return 0;
     }
 
-    for (bmds = block_mig_state.bmds_first; bmds != NULL; bmds = bmds->next) {
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->bulk_completed == 0) {
             return 0;
         }
@@ -498,6 +482,9 @@ static void block_set_params(int blk_enable, int shared_base, void *opaque)
 
 void blk_mig_init(void)
 {
+    QSIMPLEQ_INIT(&block_mig_state.bmds_list);
+    QSIMPLEQ_INIT(&block_mig_state.blk_list);
+
     register_savevm_live("block", 0, 1, block_set_params, block_save_live,
                          NULL, block_load, &block_mig_state);
 }
