@@ -118,12 +118,11 @@ void do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     max_throttle = (uint32_t)d;
-    s = migrate_to_fms(current_migration);
 
-    if (s) {
+    s = migrate_to_fms(current_migration);
+    if (s && s->file) {
         qemu_file_set_rate_limit(s->file, max_throttle);
     }
-    
 }
 
 /* amount of nanoseconds we are willing to wait for migration to be down.
@@ -209,6 +208,7 @@ void migrate_fd_cleanup(FdMigrationState *s)
     if (s->file) {
         dprintf("closing file\n");
         qemu_fclose(s->file);
+        s->file = NULL;
     }
 
     if (s->fd != -1)
