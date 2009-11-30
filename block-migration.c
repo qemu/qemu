@@ -96,10 +96,10 @@ static int mig_read_device_bulk(QEMUFile *f, BlkMigDevState *bms)
     blk->buf = qemu_malloc(BLOCK_SIZE);
 
     cur_sector = bms->cur_sector;
-    total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+    total_sectors = bms->total_sectors;
 
     if (bms->shared_base) {
-        while (cur_sector < bms->total_sectors &&
+        while (cur_sector < total_sectors &&
                !bdrv_is_allocated(bms->bs, cur_sector,
                                   MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
             cur_sector += nr_sectors;
@@ -165,7 +165,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     cur_sector = bmds->cur_sector;
 
     if (bmds->shared_base) {
-        while (cur_sector < bmds->total_sectors &&
+        while (cur_sector < total_sectors &&
                !bdrv_is_allocated(bmds->bs, cur_sector,
                                   MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
             cur_sector += nr_sectors;
