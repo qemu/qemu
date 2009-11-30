@@ -66,6 +66,58 @@ static void do_restore_state (void *pc_ptr)
 }
 #endif
 
+#if defined(CONFIG_USER_ONLY)
+#define HELPER_LD(name, insn, type)                                     \
+static inline type do_##name(target_ulong addr, int mem_idx)            \
+{                                                                       \
+    return (type) insn##_raw(addr);                                     \
+}
+#else
+#define HELPER_LD(name, insn, type)                                     \
+static inline type do_##name(target_ulong addr, int mem_idx)            \
+{                                                                       \
+    switch (mem_idx)                                                    \
+    {                                                                   \
+    case 0: return (type) insn##_kernel(addr); break;                   \
+    case 1: return (type) insn##_super(addr); break;                    \
+    default:                                                            \
+    case 2: return (type) insn##_user(addr); break;                     \
+    }                                                                   \
+}
+#endif
+HELPER_LD(lbu, ldub, uint8_t)
+HELPER_LD(lw, ldl, int32_t)
+#ifdef TARGET_MIPS64
+HELPER_LD(ld, ldq, int64_t)
+#endif
+#undef HELPER_LD
+
+#if defined(CONFIG_USER_ONLY)
+#define HELPER_ST(name, insn, type)                                     \
+static inline void do_##name(target_ulong addr, type val, int mem_idx)  \
+{                                                                       \
+    insn##_raw(addr, val);                                              \
+}
+#else
+#define HELPER_ST(name, insn, type)                                     \
+static inline void do_##name(target_ulong addr, type val, int mem_idx)  \
+{                                                                       \
+    switch (mem_idx)                                                    \
+    {                                                                   \
+    case 0: insn##_kernel(addr, val); break;                            \
+    case 1: insn##_super(addr, val); break;                             \
+    default:                                                            \
+    case 2: insn##_user(addr, val); break;                              \
+    }                                                                   \
+}
+#endif
+HELPER_ST(sb, stb, uint8_t)
+HELPER_ST(sw, stl, uint32_t)
+#ifdef TARGET_MIPS64
+HELPER_ST(sd, stq, uint64_t)
+#endif
+#undef HELPER_ST
+
 target_ulong helper_clo (target_ulong arg1)
 {
     return clo32(arg1);
@@ -235,34 +287,21 @@ target_ulong helper_lwl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     target_ulong tmp;
 
-#ifdef CONFIG_USER_ONLY
-#define ldfun ldub_raw
-#else
-    int (*ldfun)(target_ulong);
-
-    switch (mem_idx)
-    {
-    case 0: ldfun = ldub_kernel; break;
-    case 1: ldfun = ldub_super; break;
-    default:
-    case 2: ldfun = ldub_user; break;
-    }
-#endif
-    tmp = ldfun(arg2);
+    tmp = do_lbu(arg2, mem_idx);
     arg1 = (arg1 & 0x00FFFFFF) | (tmp << 24);
 
     if (GET_LMASK(arg2) <= 2) {
-        tmp = ldfun(GET_OFFSET(arg2, 1));
+        tmp = do_lbu(GET_OFFSET(arg2, 1), mem_idx);
         arg1 = (arg1 & 0xFF00FFFF) | (tmp << 16);
     }
 
     if (GET_LMASK(arg2) <= 1) {
-        tmp = ldfun(GET_OFFSET(arg2, 2));
+        tmp = do_lbu(GET_OFFSET(arg2, 2), mem_idx);
         arg1 = (arg1 & 0xFFFF00FF) | (tmp << 8);
     }
 
     if (GET_LMASK(arg2) == 0) {
-        tmp = ldfun(GET_OFFSET(arg2, 3));
+        tmp = do_lbu(GET_OFFSET(arg2, 3), mem_idx);
         arg1 = (arg1 & 0xFFFFFF00) | tmp;
     }
     return (int32_t)arg1;
@@ -272,34 +311,21 @@ target_ulong helper_lwr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     target_ulong tmp;
 
-#ifdef CONFIG_USER_ONLY
-#define ldfun ldub_raw
-#else
-    int (*ldfun)(target_ulong);
-
-    switch (mem_idx)
-    {
-    case 0: ldfun = ldub_kernel; break;
-    case 1: ldfun = ldub_super; break;
-    default:
-    case 2: ldfun = ldub_user; break;
-    }
-#endif
-    tmp = ldfun(arg2);
+    tmp = do_lbu(arg2, mem_idx);
     arg1 = (arg1 & 0xFFFFFF00) | tmp;
 
     if (GET_LMASK(arg2) >= 1) {
-        tmp = ldfun(GET_OFFSET(arg2, -1));
+        tmp = do_lbu(GET_OFFSET(arg2, -1), mem_idx);
         arg1 = (arg1 & 0xFFFF00FF) | (tmp << 8);
     }
 
     if (GET_LMASK(arg2) >= 2) {
-        tmp = ldfun(GET_OFFSET(arg2, -2));
+        tmp = do_lbu(GET_OFFSET(arg2, -2), mem_idx);
         arg1 = (arg1 & 0xFF00FFFF) | (tmp << 16);
     }
 
     if (GET_LMASK(arg2) == 3) {
-        tmp = ldfun(GET_OFFSET(arg2, -3));
+        tmp = do_lbu(GET_OFFSET(arg2, -3), mem_idx);
         arg1 = (arg1 & 0x00FFFFFF) | (tmp << 24);
     }
     return (int32_t)arg1;
@@ -307,56 +333,30 @@ target_ulong helper_lwr(target_ulong arg1, target_ulong arg2, int mem_idx)
 
 void helper_swl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
-#ifdef CONFIG_USER_ONLY
-#define stfun stb_raw
-#else
-    void (*stfun)(target_ulong, int);
-
-    switch (mem_idx)
-    {
-    case 0: stfun = stb_kernel; break;
-    case 1: stfun = stb_super; break;
-    default:
-    case 2: stfun = stb_user; break;
-    }
-#endif
-    stfun(arg2, (uint8_t)(arg1 >> 24));
+    do_sb(arg2, (uint8_t)(arg1 >> 24), mem_idx);
 
     if (GET_LMASK(arg2) <= 2)
-        stfun(GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 16));
+        do_sb(GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 16), mem_idx);
 
     if (GET_LMASK(arg2) <= 1)
-        stfun(GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 8));
+        do_sb(GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 8), mem_idx);
 
     if (GET_LMASK(arg2) == 0)
-        stfun(GET_OFFSET(arg2, 3), (uint8_t)arg1);
+        do_sb(GET_OFFSET(arg2, 3), (uint8_t)arg1, mem_idx);
 }
 
 void helper_swr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
-#ifdef CONFIG_USER_ONLY
-#define stfun stb_raw
-#else
-    void (*stfun)(target_ulong, int);
-
-    switch (mem_idx)
-    {
-    case 0: stfun = stb_kernel; break;
-    case 1: stfun = stb_super; break;
-    default:
-    case 2: stfun = stb_user; break;
-    }
-#endif
-    stfun(arg2, (uint8_t)arg1);
+    do_sb(arg2, (uint8_t)arg1, mem_idx);
 
     if (GET_LMASK(arg2) >= 1)
-        stfun(GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8));
+        do_sb(GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8), mem_idx);
 
     if (GET_LMASK(arg2) >= 2)
-        stfun(GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16));
+        do_sb(GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16), mem_idx);
 
     if (GET_LMASK(arg2) == 3)
-        stfun(GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24));
+        do_sb(GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24), mem_idx);
 }
 
 #if defined(TARGET_MIPS64)
@@ -373,54 +373,41 @@ target_ulong helper_ldl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     uint64_t tmp;
 
-#ifdef CONFIG_USER_ONLY
-#define ldfun ldub_raw
-#else
-    int (*ldfun)(target_ulong);
-
-    switch (mem_idx)
-    {
-    case 0: ldfun = ldub_kernel; break;
-    case 1: ldfun = ldub_super; break;
-    default:
-    case 2: ldfun = ldub_user; break;
-    }
-#endif
-    tmp = ldfun(arg2);
+    tmp = do_lbu(arg2, mem_idx);
     arg1 = (arg1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
 
     if (GET_LMASK64(arg2) <= 6) {
-        tmp = ldfun(GET_OFFSET(arg2, 1));
+        tmp = do_lbu(GET_OFFSET(arg2, 1), mem_idx);
         arg1 = (arg1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
     }
 
     if (GET_LMASK64(arg2) <= 5) {
-        tmp = ldfun(GET_OFFSET(arg2, 2));
+        tmp = do_lbu(GET_OFFSET(arg2, 2), mem_idx);
         arg1 = (arg1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
     }
 
     if (GET_LMASK64(arg2) <= 4) {
-        tmp = ldfun(GET_OFFSET(arg2, 3));
+        tmp = do_lbu(GET_OFFSET(arg2, 3), mem_idx);
         arg1 = (arg1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
     }
 
     if (GET_LMASK64(arg2) <= 3) {
-        tmp = ldfun(GET_OFFSET(arg2, 4));
+        tmp = do_lbu(GET_OFFSET(arg2, 4), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
     }
 
     if (GET_LMASK64(arg2) <= 2) {
-        tmp = ldfun(GET_OFFSET(arg2, 5));
+        tmp = do_lbu(GET_OFFSET(arg2, 5), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
     }
 
     if (GET_LMASK64(arg2) <= 1) {
-        tmp = ldfun(GET_OFFSET(arg2, 6));
+        tmp = do_lbu(GET_OFFSET(arg2, 6), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFFFFFF00FFULL) | (tmp << 8);
     }
 
     if (GET_LMASK64(arg2) == 0) {
-        tmp = ldfun(GET_OFFSET(arg2, 7));
+        tmp = do_lbu(GET_OFFSET(arg2, 7), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
     }
 
@@ -431,54 +418,41 @@ target_ulong helper_ldr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     uint64_t tmp;
 
-#ifdef CONFIG_USER_ONLY
-#define ldfun ldub_raw
-#else
-    int (*ldfun)(target_ulong);
-
-    switch (mem_idx)
-    {
-    case 0: ldfun = ldub_kernel; break;
-    case 1: ldfun = ldub_super; break;
-    default:
-    case 2: ldfun = ldub_user; break;
-    }
-#endif
-    tmp = ldfun(arg2);
+    tmp = do_lbu(arg2, mem_idx);
     arg1 = (arg1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
 
     if (GET_LMASK64(arg2) >= 1) {
-        tmp = ldfun(GET_OFFSET(arg2, -1));
+        tmp = do_lbu(GET_OFFSET(arg2, -1), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFFFFFF00FFULL) | (tmp  << 8);
     }
 
     if (GET_LMASK64(arg2) >= 2) {
-        tmp = ldfun(GET_OFFSET(arg2, -2));
+        tmp = do_lbu(GET_OFFSET(arg2, -2), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
     }
 
     if (GET_LMASK64(arg2) >= 3) {
-        tmp = ldfun(GET_OFFSET(arg2, -3));
+        tmp = do_lbu(GET_OFFSET(arg2, -3), mem_idx);
         arg1 = (arg1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
     }
 
     if (GET_LMASK64(arg2) >= 4) {
-        tmp = ldfun(GET_OFFSET(arg2, -4));
+        tmp = do_lbu(GET_OFFSET(arg2, -4), mem_idx);
         arg1 = (arg1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
     }
 
     if (GET_LMASK64(arg2) >= 5) {
-        tmp = ldfun(GET_OFFSET(arg2, -5));
+        tmp = do_lbu(GET_OFFSET(arg2, -5), mem_idx);
         arg1 = (arg1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
     }
 
     if (GET_LMASK64(arg2) >= 6) {
-        tmp = ldfun(GET_OFFSET(arg2, -6));
+        tmp = do_lbu(GET_OFFSET(arg2, -6), mem_idx);
         arg1 = (arg1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
     }
 
     if (GET_LMASK64(arg2) == 7) {
-        tmp = ldfun(GET_OFFSET(arg2, -7));
+        tmp = do_lbu(GET_OFFSET(arg2, -7), mem_idx);
         arg1 = (arg1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
     }
 
@@ -487,80 +461,54 @@ target_ulong helper_ldr(target_ulong arg1, target_ulong arg2, int mem_idx)
 
 void helper_sdl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
-#ifdef CONFIG_USER_ONLY
-#define stfun stb_raw
-#else
-    void (*stfun)(target_ulong, int);
-
-    switch (mem_idx)
-    {
-    case 0: stfun = stb_kernel; break;
-    case 1: stfun = stb_super; break;
-    default:
-    case 2: stfun = stb_user; break;
-    }
-#endif
-    stfun(arg2, (uint8_t)(arg1 >> 56));
+    do_sb(arg2, (uint8_t)(arg1 >> 56), mem_idx);
 
     if (GET_LMASK64(arg2) <= 6)
-        stfun(GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 48));
+        do_sb(GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 48), mem_idx);
 
     if (GET_LMASK64(arg2) <= 5)
-        stfun(GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 40));
+        do_sb(GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 40), mem_idx);
 
     if (GET_LMASK64(arg2) <= 4)
-        stfun(GET_OFFSET(arg2, 3), (uint8_t)(arg1 >> 32));
+        do_sb(GET_OFFSET(arg2, 3), (uint8_t)(arg1 >> 32), mem_idx);
 
     if (GET_LMASK64(arg2) <= 3)
-        stfun(GET_OFFSET(arg2, 4), (uint8_t)(arg1 >> 24));
+        do_sb(GET_OFFSET(arg2, 4), (uint8_t)(arg1 >> 24), mem_idx);
 
     if (GET_LMASK64(arg2) <= 2)
-        stfun(GET_OFFSET(arg2, 5), (uint8_t)(arg1 >> 16));
+        do_sb(GET_OFFSET(arg2, 5), (uint8_t)(arg1 >> 16), mem_idx);
 
     if (GET_LMASK64(arg2) <= 1)
-        stfun(GET_OFFSET(arg2, 6), (uint8_t)(arg1 >> 8));
+        do_sb(GET_OFFSET(arg2, 6), (uint8_t)(arg1 >> 8), mem_idx);
 
     if (GET_LMASK64(arg2) <= 0)
-        stfun(GET_OFFSET(arg2, 7), (uint8_t)arg1);
+        do_sb(GET_OFFSET(arg2, 7), (uint8_t)arg1, mem_idx);
 }
 
 void helper_sdr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
-#ifdef CONFIG_USER_ONLY
-#define stfun stb_raw
-#else
-    void (*stfun)(target_ulong, int);
-
-    switch (mem_idx)
-    {
-    case 0: stfun = stb_kernel; break;
-    case 1: stfun = stb_super; break;
-     default:
-    case 2: stfun = stb_user; break;
-    }
-#endif
-    stfun(arg2, (uint8_t)arg1);
+    do_sb(arg2, (uint8_t)arg1, mem_idx);
 
     if (GET_LMASK64(arg2) >= 1)
-        stfun(GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8));
+        do_sb(GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8), mem_idx);
 
     if (GET_LMASK64(arg2) >= 2)
-        stfun(GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16));
+        do_sb(GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16), mem_idx);
 
     if (GET_LMASK64(arg2) >= 3)
-        stfun(GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24));
+        do_sb(GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24), mem_idx);
 
     if (GET_LMASK64(arg2) >= 4)
-        stfun(GET_OFFSET(arg2, -4), (uint8_t)(arg1 >> 32));
+        do_sb(GET_OFFSET(arg2, -4), (uint8_t)(arg1 >> 32), mem_idx);
 
     if (GET_LMASK64(arg2) >= 5)
-        stfun(GET_OFFSET(arg2, -5), (uint8_t)(arg1 >> 40));
+        do_sb(GET_OFFSET(arg2, -5), (uint8_t)(arg1 >> 40), mem_idx);
 
     if (GET_LMASK64(arg2) >= 6)
-        stfun(GET_OFFSET(arg2, -6), (uint8_t)(arg1 >> 48));
+        do_sb(GET_OFFSET(arg2, -6), (uint8_t)(arg1 >> 48), mem_idx);
 
     if (GET_LMASK64(arg2) == 7)
-        stfun(GET_OFFSET(arg2, -7), (uint8_t)(arg1 >> 56));
+        do_sb(GET_OFFSET(arg2, -7), (uint8_t)(arg1 >> 56), mem_idx);
 }
 #endif /* TARGET_MIPS64 */
 
