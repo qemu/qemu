@@ -1014,6 +1014,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
+    .no_zero_init       = 1,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv	= raw_aio_readv,
@@ -1110,6 +1111,7 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
+    .no_zero_init       = 1,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
@@ -1192,6 +1194,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
+    .no_zero_init       = 1,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
@@ -1313,6 +1316,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
+    .no_zero_init       = 1,
     .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,

@@ -743,7 +743,7 @@ static int img_convert(int argc, char **argv)
             if (n > bs_offset + bs_sectors - sector_num)
                 n = bs_offset + bs_sectors - sector_num;
 
-            if (strcmp(drv->format_name, "host_device")) {
+            if (!drv->no_zero_init) {
                 /* If the output image is being created as a copy on write image,
                    assume that sectors which are unallocated in the input image
                    are present in both the output's and input's base images (no
@@ -776,7 +776,7 @@ static int img_convert(int argc, char **argv)
                    If the output is to a host device, we also write out
                    sectors that are entirely 0, since whatever data was
                    already there is garbage, not 0s. */
-                if (strcmp(drv->format_name, "host_device") == 0 || out_baseimg ||
+                if (drv->no_zero_init || out_baseimg ||
                     is_allocated_sectors(buf1, n, &n1)) {
                     if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");
