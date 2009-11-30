@@ -1250,7 +1250,7 @@ static void ide_atapi_cmd(IDEState *s)
             switch(action) {
             case 0: /* current values */
                 switch(code) {
-                case 0x01: /* error recovery */
+                case GPMODE_R_W_ERROR_PAGE: /* error recovery */
                     cpu_to_ube16(&buf[0], 16 + 6);
                     buf[2] = 0x70;
                     buf[3] = 0;
@@ -1269,7 +1269,7 @@ static void ide_atapi_cmd(IDEState *s)
                     buf[15] = 0x00;
                     ide_atapi_cmd_reply(s, 16, max_len);
                     break;
-                case 0x2a:
+                case GPMODE_CAPABILITIES_PAGE:
                     cpu_to_ube16(&buf[0], 28 + 6);
                     buf[2] = 0x70;
                     buf[3] = 0;
