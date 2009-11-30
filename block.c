@@ -643,13 +643,14 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
 }
 
 static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
-			     int nb_sectors, int dirty)
+                             int nb_sectors, int dirty)
 {
     int64_t start, end;
+
     start = sector_num / SECTORS_PER_DIRTY_CHUNK;
     end = (sector_num + nb_sectors) / SECTORS_PER_DIRTY_CHUNK;
-    
-    for(; start <= end; start++) {
+
+    for (; start <= end; start++) {
         bs->dirty_bitmap[start] = dirty;
     }
 }
@@ -670,11 +671,11 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
         return -EACCES;
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
-    
-    if(bs->dirty_tracking) {
+
+    if (bs->dirty_tracking) {
         set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
     }
-    
+
     return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
 }
 
@@ -1220,11 +1221,11 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
         return -ENOTSUP;
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
-    
-    if(bs->dirty_tracking) {
+
+    if (bs->dirty_tracking) {
         set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
     }
-    
+
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
 
@@ -1422,10 +1423,10 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return NULL;
 
-    if(bs->dirty_tracking) {
+    if (bs->dirty_tracking) {
         set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
     }
-    
+
     ret = drv->bdrv_aio_writev(bs, sector_num, qiov, nb_sectors,
                                cb, opaque);
 
@@ -1966,41 +1967,43 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size)
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)
 {
     int64_t bitmap_size;
-    if(enable) {
-        if(bs->dirty_tracking == 0) {
+
+    if (enable) {
+        if (bs->dirty_tracking == 0) {
             int64_t i;
             uint8_t test;
+
             bitmap_size = (bdrv_getlength(bs) >> SECTOR_BITS);
             bitmap_size /= SECTORS_PER_DIRTY_CHUNK;
             bitmap_size++;
-	    
+
             bs->dirty_bitmap = qemu_mallocz(bitmap_size);
-	    
+
             bs->dirty_tracking = enable;
             for(i = 0; i < bitmap_size; i++) test = bs->dirty_bitmap[i]; 
-	}
+        }
     } else {
-        if(bs->dirty_tracking != 0) {
+        if (bs->dirty_tracking != 0) {
             qemu_free(bs->dirty_bitmap);
             bs->dirty_tracking = enable;
-	}
+        }
     }
 }
 
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
 {
     int64_t chunk = sector / (int64_t)SECTORS_PER_DIRTY_CHUNK;
-    
-    if(bs->dirty_bitmap != NULL && 
-       (sector << SECTOR_BITS) <= bdrv_getlength(bs)) {
+
+    if (bs->dirty_bitmap != NULL &&
+        (sector << SECTOR_BITS) <= bdrv_getlength(bs)) {
         return bs->dirty_bitmap[chunk];
     } else {
         return 0;
     }
 }
 
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, 
-		      int nr_sectors)
+void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
+                      int nr_sectors)
 {
     set_dirty_bitmap(bs, cur_sector, nr_sectors, 0);
 }
