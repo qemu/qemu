@@ -2927,7 +2927,7 @@ uint64_t ram_bytes_total(void)
     return last_ram_offset;
 }
 
-static int ram_save_live(QEMUFile *f, int stage, void *opaque)
+static int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
     uint64_t bytes_transferred_last;

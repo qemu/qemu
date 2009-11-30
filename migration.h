@@ -42,7 +42,7 @@ struct FdMigrationState
     int64_t bandwidth_limit;
     QEMUFile *file;
     int fd;
-    Monitor *mon_resume;
+    Monitor *mon;
     int state;
     int (*get_error)(struct FdMigrationState*);
     int (*close)(struct FdMigrationState*);
@@ -66,7 +66,8 @@ void do_info_migrate(Monitor *mon);
 
 int exec_start_incoming_migration(const char *host_port);
 
-MigrationState *exec_start_outgoing_migration(const char *host_port,
+MigrationState *exec_start_outgoing_migration(Monitor *mon,
+                                              const char *host_port,
 					      int64_t bandwidth_limit,
 					      int detach,
 					      int blk,
@@ -74,7 +75,8 @@ MigrationState *exec_start_outgoing_migration(const char *host_port,
 
 int tcp_start_incoming_migration(const char *host_port);
 
-MigrationState *tcp_start_outgoing_migration(const char *host_port,
+MigrationState *tcp_start_outgoing_migration(Monitor *mon,
+                                             const char *host_port,
 					     int64_t bandwidth_limit,
 					     int detach,
 					     int blk,
@@ -82,7 +84,8 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
 
 int unix_start_incoming_migration(const char *path);
 
-MigrationState *unix_start_outgoing_migration(const char *path,
+MigrationState *unix_start_outgoing_migration(Monitor *mon,
+                                              const char *path,
 					      int64_t bandwidth_limit,
 					      int detach,
 					      int blk,
@@ -97,7 +100,7 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 					    int blk,
 					    int inc);
 
-void migrate_fd_monitor_suspend(FdMigrationState *s);
+void migrate_fd_monitor_suspend(FdMigrationState *s, Monitor *mon);
 
 void migrate_fd_error(FdMigrationState *s);
 

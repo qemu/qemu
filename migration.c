@@ -66,16 +66,16 @@ void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (strstart(uri, "tcp:", &p))
-        s = tcp_start_outgoing_migration(p, max_throttle, detach, 
+        s = tcp_start_outgoing_migration(mon, p, max_throttle, detach,
                                          (int)qdict_get_int(qdict, "blk"), 
                                          (int)qdict_get_int(qdict, "inc"));
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
-        s = exec_start_outgoing_migration(p, max_throttle, detach, 
+        s = exec_start_outgoing_migration(mon, p, max_throttle, detach,
                                           (int)qdict_get_int(qdict, "blk"), 
                                           (int)qdict_get_int(qdict, "inc"));
     else if (strstart(uri, "unix:", &p))
-        s = unix_start_outgoing_migration(p, max_throttle, detach, 
+        s = unix_start_outgoing_migration(mon, p, max_throttle, detach,
 					  (int)qdict_get_int(qdict, "blk"), 
                                           (int)qdict_get_int(qdict, "inc"));
     else if (strstart(uri, "fd:", &p))
@@ -190,14 +190,15 @@ void do_info_migrate(Monitor *mon)
 
 /* shared migration helpers */
 
-void migrate_fd_monitor_suspend(FdMigrationState *s)
+void migrate_fd_monitor_suspend(FdMigrationState *s, Monitor *mon)
 {
-    s->mon_resume = cur_mon;
-    if (monitor_suspend(cur_mon) == 0)
+    s->mon = mon;
+    if (monitor_suspend(mon) == 0) {
         dprintf("suspending monitor\n");
-    else
-        monitor_printf(cur_mon, "terminal does not allow synchronous "
+    } else {
+        monitor_printf(mon, "terminal does not allow synchronous "
                        "migration, continuing detached\n");
+    }
 }
 
 void migrate_fd_error(FdMigrationState *s)
@@ -221,8 +222,9 @@ void migrate_fd_cleanup(FdMigrationState *s)
         close(s->fd);
 
     /* Don't resume monitor until we've flushed all of the buffers */
-    if (s->mon_resume)
-        monitor_resume(s->mon_resume);
+    if (s->mon) {
+        monitor_resume(s->mon);
+    }
 
     s->fd = -1;
 }
@@ -265,7 +267,7 @@ void migrate_fd_connect(FdMigrationState *s)
                                       migrate_fd_close);
 
     dprintf("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->file, s->mig_state.blk, 
+    ret = qemu_savevm_state_begin(s->mon, s->file, s->mig_state.blk,
                                   s->mig_state.shared);
     if (ret < 0) {
         dprintf("failed, %d\n", ret);
@@ -286,7 +288,7 @@ void migrate_fd_put_ready(void *opaque)
     }
 
     dprintf("iterate\n");
-    if (qemu_savevm_state_iterate(s->file) == 1) {
+    if (qemu_savevm_state_iterate(s->mon, s->file) == 1) {
         int state;
         int old_vm_running = vm_running;
 
@@ -295,7 +297,7 @@ void migrate_fd_put_ready(void *opaque)
 
         qemu_aio_flush();
         bdrv_flush_all();
-        if ((qemu_savevm_state_complete(s->file)) < 0) {
+        if ((qemu_savevm_state_complete(s->mon, s->file)) < 0) {
             if (old_vm_running) {
                 vm_start();
             }
@@ -324,7 +326,7 @@ void migrate_fd_cancel(MigrationState *mig_state)
     dprintf("cancelling migration\n");
 
     s->state = MIG_STATE_CANCELLED;
-    qemu_savevm_state_cancel(s->file);
+    qemu_savevm_state_cancel(s->mon, s->file);
 
     migrate_fd_cleanup(s);
 }

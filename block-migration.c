@@ -352,7 +352,7 @@ static void blk_mig_cleanup(void)
     printf("\n");
 }
 
-static int block_save_live(QEMUFile *f, int stage, void *opaque)
+static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 {
     dprintf("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
