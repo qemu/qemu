@@ -23,6 +23,7 @@
 
 #define BLK_MIG_FLAG_DEVICE_BLOCK       0x01
 #define BLK_MIG_FLAG_EOS                0x02
+#define BLK_MIG_FLAG_PROGRESS           0x04
 
 #define MAX_IS_ALLOCATED_SEARCH 65536
 #define MAX_BLOCKS_READ 10000
@@ -70,7 +71,7 @@ typedef struct BlkMigState {
     int read_done;
     int transferred;
     int64_t total_sector_sum;
-    int64_t print_completion;
+    int prev_progress;
 } BlkMigState;
 
 static BlkMigState block_mig_state;
@@ -226,7 +227,7 @@ static void init_blk_migration(Monitor *mon, QEMUFile *f)
     block_mig_state.read_done = 0;
     block_mig_state.transferred = 0;
     block_mig_state.total_sector_sum = 0;
-    block_mig_state.print_completion = 0;
+    block_mig_state.prev_progress = -1;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
         if (bs->type == BDRV_TYPE_HD) {
@@ -257,6 +258,7 @@ static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f, int is_async)
 {
     int64_t completed_sector_sum = 0;
     BlkMigDevState *bmds;
+    int progress;
     int ret = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
@@ -273,13 +275,13 @@ static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f, int is_async)
         }
     }
 
-    if (completed_sector_sum >= block_mig_state.print_completion) {
-        monitor_printf(mon, "Completed %" PRId64 " %%\r",
-                       completed_sector_sum * 100 /
-                       block_mig_state.total_sector_sum);
+    progress = completed_sector_sum * 100 / block_mig_state.total_sector_sum;
+    if (progress != block_mig_state.prev_progress) {
+        block_mig_state.prev_progress = progress;
+        qemu_put_be64(f, (progress << BDRV_SECTOR_BITS)
+                         | BLK_MIG_FLAG_PROGRESS);
+        monitor_printf(mon, "Completed %d %%\r", progress);
         monitor_flush(mon);
-        block_mig_state.print_completion +=
-            (BDRV_SECTORS_PER_DIRTY_CHUNK * 10000);
     }
 
     return ret;
@@ -445,6 +447,9 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         blk_mig_save_dirty_blocks(mon, f);
         blk_mig_cleanup(mon);
 
+        /* report completion */
+        qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
+
         if (qemu_file_has_error(f)) {
             return 0;
         }
@@ -459,6 +464,7 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
 {
+    static int banner_printed;
     int len, flags;
     char device_name[256];
     int64_t addr;
@@ -490,6 +496,14 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             bdrv_write(bs, addr, buf, BDRV_SECTORS_PER_DIRTY_CHUNK);
 
             qemu_free(buf);
+        } else if (flags & BLK_MIG_FLAG_PROGRESS) {
+            if (!banner_printed) {
+                printf("Receiving block device images\n");
+                banner_printed = 1;
+            }
+            printf("Completed %d %%%c", (int)addr,
+                   (addr == 100) ? '\n' : '\r');
+            fflush(stdout);
         } else if (!(flags & BLK_MIG_FLAG_EOS)) {
             fprintf(stderr, "Unknown flags\n");
             return -EINVAL;
