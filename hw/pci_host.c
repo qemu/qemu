@@ -40,22 +40,18 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
  */
 
 /* the helper functio to get a PCIDeice* for a given pci address */
-static inline PCIDevice *pci_addr_to_dev(PCIBus *bus, uint32_t addr)
+static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
 {
-    uint8_t bus_num = (addr >> 16) & 0xff;
-    uint8_t devfn = (addr >> 8) & 0xff;
-    return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
-}
+    uint8_t bus_num = addr >> 16;
+    uint8_t devfn = addr >> 8;
 
-static inline uint32_t pci_addr_to_config(uint32_t addr)
-{
-    return addr & (PCI_CONFIG_SPACE_SIZE - 1);
+    return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
 
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 {
-    PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
-    uint32_t config_addr = pci_addr_to_config(addr);
+    PCIDevice *pci_dev = pci_dev_find_by_addr(s, addr);
+    uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
 
     if (!pci_dev)
         return;
@@ -67,28 +63,18 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
 
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
 {
-    PCIDevice *pci_dev = pci_addr_to_dev(s, addr);
-    uint32_t config_addr = pci_addr_to_config(addr);
+    PCIDevice *pci_dev = pci_dev_find_by_addr(s, addr);
+    uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
     uint32_t val;
 
+    assert(len == 1 || len == 2 || len == 4);
     if (!pci_dev) {
-        switch(len) {
-        case 1:
-            val = 0xff;
-            break;
-        case 2:
-            val = 0xffff;
-            break;
-        default:
-        case 4:
-            val = 0xffffffff;
-            break;
-        }
-    } else {
-        val = pci_dev->config_read(pci_dev, config_addr, len);
-        PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRIx32" len=%d\n",
-                    __func__, pci_dev->name, config_addr, val, len);
+        return ~0x0;
     }
+
+    val = pci_dev->config_read(pci_dev, config_addr, len);
+    PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRIx32" len=%d\n",
+                __func__, pci_dev->name, config_addr, val, len);
 
     return val;
 }
@@ -131,7 +117,7 @@ static CPUReadMemoryFunc * const pci_host_config_read[] = {
     &pci_host_config_readl,
 };
 
-int pci_host_config_register_io_memory(PCIHostState *s)
+int pci_host_conf_register_mmio(PCIHostState *s)
 {
     return cpu_register_io_memory(pci_host_config_read,
                                   pci_host_config_write, s);
@@ -171,7 +157,7 @@ static CPUReadMemoryFunc * const pci_host_config_read_noswap[] = {
     &pci_host_config_readl_noswap,
 };
 
-int pci_host_config_register_io_memory_noswap(PCIHostState *s)
+int pci_host_conf_register_mmio_noswap(PCIHostState *s)
 {
     return cpu_register_io_memory(pci_host_config_read_noswap,
                                   pci_host_config_write_noswap, s);
@@ -195,7 +181,7 @@ static uint32_t pci_host_config_readl_ioport(void *opaque, uint32_t addr)
     return val;
 }
 
-void pci_host_config_register_ioport(pio_addr_t ioport, PCIHostState *s)
+void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
 {
     register_ioport_write(ioport, 4, 4, pci_host_config_writel_ioport, s);
     register_ioport_read(ioport, 4, 4, pci_host_config_readl_ioport, s);
@@ -218,7 +204,7 @@ static CPUReadMemoryFunc * const pci_host_data_read_mmio[] = {
     pci_host_data_readl_mmio,
 };
 
-int pci_host_data_register_io_memory(PCIHostState *s)
+int pci_host_data_register_mmio(PCIHostState *s)
 {
     return cpu_register_io_memory(pci_host_data_read_mmio,
                                   pci_host_data_write_mmio,

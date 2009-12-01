@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "pci.h"
+#include "apb_pci.h"
 #include "pc.h"
 #include "nvram.h"
 #include "fdc.h"

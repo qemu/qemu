@@ -101,14 +101,6 @@ typedef struct PCIIORegion {
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
 #define  PCI_COMMAND_MASTER	0x4	/* Enable bus master */
-#define  PCI_COMMAND_SPECIAL	0x8	/* Enable response to special cycles */
-#define  PCI_COMMAND_INVALIDATE 0x10	/* Use memory write and invalidate */
-#define  PCI_COMMAND_VGA_PALETTE 0x20	/* Enable palette snooping */
-#define  PCI_COMMAND_PARITY	0x40	/* Enable parity checking */
-#define  PCI_COMMAND_WAIT	0x80	/* Enable address/data stepping */
-#define  PCI_COMMAND_SERR	0x100	/* Enable SERR */
-#define  PCI_COMMAND_FAST_BACK	0x200	/* Enable back-to-back writes */
-#define  PCI_COMMAND_INTX_DISABLE 0x400 /* INTx Emulation Disable */
 #define PCI_STATUS              0x06    /* 16 bits */
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
 #define PCI_CLASS_PROG		0x09	/* Reg. Level Programming Interface */
@@ -128,7 +120,6 @@ typedef struct PCIIORegion {
 #define PCI_PRIMARY_BUS		0x18	/* Primary bus number */
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
 #define PCI_SUBORDINATE_BUS	0x1a	/* Highest bus number behind the bridge */
-#define PCI_SEC_LATENCY_TIMER   0x1b    /* Latency timer for secondary interface */
 #define PCI_IO_BASE             0x1c    /* I/O range behind the bridge */
 #define PCI_IO_LIMIT            0x1d
 #define  PCI_IO_RANGE_TYPE_32	0x01
@@ -140,6 +131,7 @@ typedef struct PCIIORegion {
 #define PCI_PREF_MEMORY_BASE    0x24    /* Prefetchable memory range behind */
 #define PCI_PREF_MEMORY_LIMIT   0x26
 #define  PCI_PREF_RANGE_MASK    (~0x0fUL)
+#define  PCI_PREF_RANGE_TYPE_64 0x01
 #define PCI_PREF_BASE_UPPER32   0x28    /* Upper half of prefetchable memory range */
 #define PCI_PREF_LIMIT_UPPER32	0x2c
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
@@ -294,11 +286,9 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
                                const char *default_devaddr);
-void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
-uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
-PCIBus *pci_find_host_bus(int domain);
+PCIBus *pci_find_root_bus(int domain);
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
@@ -385,17 +375,10 @@ typedef struct {
     PCIConfigWriteFunc *config_write;
 
     /* pci config header type */
-    uint8_t header_type;        /* this is necessary for initialization
-                                 * code to know its header type before
-                                 * device specific code can initialize
-                                 * configuration space.
-                                 */
+    uint8_t header_type;
 
     /* pcie stuff */
-    int is_express;   /* is this device pci express?
-                       * initialization code needs to know this before
-                       * each specific device initialization.
-                       */
+    int is_express;   /* is this device pci express? */
 } PCIDeviceInfo;
 
 void pci_qdev_register(PCIDeviceInfo *info);
@@ -413,31 +396,6 @@ static inline uint32_t pci_config_size(PCIDevice *d)
 {
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
-
-/* lsi53c895a.c */
-#define LSI_MAX_DEVS 7
-
-/* vmware_vga.c */
-void pci_vmsvga_init(PCIBus *bus);
-
-/* usb-uhci.c */
-void usb_uhci_piix3_init(PCIBus *bus, int devfn);
-void usb_uhci_piix4_init(PCIBus *bus, int devfn);
-
-/* usb-ohci.c */
-void usb_ohci_init_pci(struct PCIBus *bus, int devfn);
-
-/* prep_pci.c */
-PCIBus *pci_prep_init(qemu_irq *pic);
-
-/* apb_pci.c */
-PCIBus *pci_apb_init(target_phys_addr_t special_base,
-                     target_phys_addr_t mem_base,
-                     qemu_irq *pic, PCIBus **bus2, PCIBus **bus3);
-
-/* sh_pci.c */
-PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                            void *pic, int devfn_min, int nirq);
 
 /* These are not pci specific. Should move into a separate header.
  * Only pci.c uses them, so keep them here for now.

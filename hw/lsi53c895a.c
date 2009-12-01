@@ -31,6 +31,8 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); exit(1);} while 
 do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
+#define LSI_MAX_DEVS 7
+
 #define LSI_SCNTL0_TRG    0x01
 #define LSI_SCNTL0_AAP    0x02
 #define LSI_SCNTL0_EPC    0x08

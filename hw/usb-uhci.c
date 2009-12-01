@@ -29,6 +29,7 @@
 #include "usb.h"
 #include "pci.h"
 #include "qemu-timer.h"
+#include "usb-uhci.h"
 
 //#define DEBUG
 //#define DEBUG_DUMP_DATA

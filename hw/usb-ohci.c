@@ -32,6 +32,7 @@
 #include "pci.h"
 #include "pxa.h"
 #include "devices.h"
+#include "usb-ohci.h"
 
 //#define DEBUG_OHCI
 /* Dump packet contents.  */

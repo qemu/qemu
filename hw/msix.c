@@ -105,14 +105,6 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     return 0;
 }
 
-static void msix_free_irq_entries(PCIDevice *dev)
-{
-    int vector;
-
-    for (vector = 0; vector < dev->msix_entries_nr; ++vector)
-        dev->msix_entry_used[vector] = 0;
-}
-
 /* Handle MSI-X capability config write. */
 void msix_write_config(PCIDevice *dev, uint32_t addr,
                        uint32_t val, int len)
@@ -217,6 +209,15 @@ void msix_mmio_map(PCIDevice *d, int region_num,
                                  d->msix_mmio_index);
 }
 
+static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
+{
+    int vector;
+    for (vector = 0; vector < nentries; ++vector) {
+        unsigned offset = vector * MSIX_ENTRY_SIZE + MSIX_VECTOR_CTRL;
+        dev->msix_table_page[offset] |= MSIX_VECTOR_MASK;
+    }
+}
+
 /* Initialize the MSI-X structures. Note: if MSI-X is supported, BAR size is
  * modified, it should be retrieved with msix_bar_size. */
 int msix_init(struct PCIDevice *dev, unsigned short nentries,
@@ -234,6 +235,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
                                         sizeof *dev->msix_entry_used);
 
     dev->msix_table_page = qemu_mallocz(MSIX_PAGE_SIZE);
+    msix_mask_all(dev, nentries);
 
     dev->msix_mmio_index = cpu_register_io_memory(msix_mmio_read,
                                                   msix_mmio_write, dev);
@@ -259,6 +261,16 @@ err_index:
     qemu_free(dev->msix_entry_used);
     dev->msix_entry_used = NULL;
     return ret;
+}
+
+static void msix_free_irq_entries(PCIDevice *dev)
+{
+    int vector;
+
+    for (vector = 0; vector < dev->msix_entries_nr; ++vector) {
+        dev->msix_entry_used[vector] = 0;
+        msix_clr_pending(dev, vector);
+    }
 }
 
 /* Clean up resources for the device. */
@@ -351,8 +363,10 @@ void msix_reset(PCIDevice *dev)
     if (!(dev->cap_present & QEMU_PCI_CAP_MSIX))
         return;
     msix_free_irq_entries(dev);
-    dev->config[dev->msix_cap + MSIX_ENABLE_OFFSET] &= MSIX_ENABLE_MASK;
+    dev->config[dev->msix_cap + MSIX_ENABLE_OFFSET] &=
+	    ~dev->wmask[dev->msix_cap + MSIX_ENABLE_OFFSET];
     memset(dev->msix_table_page, 0, MSIX_PAGE_SIZE);
+    msix_mask_all(dev, dev->msix_entries_nr);
 }
 
 /* PCI spec suggests that devices make it possible for software to configure
@@ -375,6 +389,18 @@ int msix_vector_use(PCIDevice *dev, unsigned vector)
 /* Mark vector as unused. */
 void msix_vector_unuse(PCIDevice *dev, unsigned vector)
 {
-    if (vector < dev->msix_entries_nr && dev->msix_entry_used[vector])
-        --dev->msix_entry_used[vector];
+    if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector]) {
+        return;
+    }
+    if (--dev->msix_entry_used[vector]) {
+        return;
+    }
+    msix_clr_pending(dev, vector);
+}
+
+void msix_unuse_all_vectors(PCIDevice *dev)
+{
+    if (!(dev->cap_present & QEMU_PCI_CAP_MSIX))
+        return;
+    msix_free_irq_entries(dev);
 }

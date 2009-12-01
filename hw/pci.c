@@ -23,7 +23,6 @@
  */
 #include "hw.h"
 #include "pci.h"
-#include "pci_host.h"
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
@@ -147,7 +146,7 @@ static void pci_host_bus_register(int domain, PCIBus *bus)
     QLIST_INSERT_HEAD(&host_buses, host, next);
 }
 
-PCIBus *pci_find_host_bus(int domain)
+PCIBus *pci_find_root_bus(int domain)
 {
     struct PCIHostBus *host;
 
@@ -238,13 +237,6 @@ int pci_bus_num(PCIBus *s)
     if (!s->parent_dev)
         return 0;       /* pci host bridge */
     return s->parent_dev->config[PCI_SECONDARY_BUS];
-}
-
-static uint8_t pci_sub_bus(PCIBus *s)
-{
-    if (!s->parent_dev)
-        return 255;     /* pci host bridge */
-    return s->parent_dev->config[PCI_SUBORDINATE_BUS];
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
@@ -380,7 +372,7 @@ static int pci_parse_devaddr(const char *addr, int *domp, int *busp, unsigned *s
 	return -1;
 
     /* Note: QEMU doesn't implement domains other than 0 */
-    if (!pci_find_bus(pci_find_host_bus(dom), bus))
+    if (!pci_find_bus(pci_find_root_bus(dom), bus))
 	return -1;
 
     *domp = dom;
@@ -410,7 +402,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 
     if (!devaddr) {
         *devfnp = -1;
-        return pci_find_bus(pci_find_host_bus(0), 0);
+        return pci_find_bus(pci_find_root_bus(0), 0);
     }
 
     if (pci_parse_devaddr(devaddr, &dom, &bus, &slot) < 0) {
@@ -418,7 +410,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
     }
 
     *devfnp = slot << 3;
-    return pci_find_bus(pci_find_host_bus(0), bus);
+    return pci_find_bus(pci_find_root_bus(0), bus);
 }
 
 static void pci_init_cmask(PCIDevice *dev)
@@ -435,15 +427,15 @@ static void pci_init_cmask(PCIDevice *dev)
 
 static void pci_init_wmask(PCIDevice *dev)
 {
-    int i;
     int config_size = pci_config_size(dev);
 
     dev->wmask[PCI_CACHE_LINE_SIZE] = 0xff;
     dev->wmask[PCI_INTERRUPT_LINE] = 0xff;
     pci_set_word(dev->wmask + PCI_COMMAND,
                  PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-    for (i = PCI_CONFIG_HEADER_SIZE; i < config_size; ++i)
-        dev->wmask[i] = 0xff;
+
+    memset(dev->wmask + PCI_CONFIG_HEADER_SIZE, 0xff,
+           config_size - PCI_CONFIG_HEADER_SIZE);
 }
 
 static void pci_init_wmask_bridge(PCIDevice *d)
@@ -496,7 +488,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          uint8_t header_type)
 {
     if (devfn < 0) {
-        for(devfn = bus->devfn_min ; devfn < 256; devfn += 8) {
+        for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
+            devfn += 8) {
             if (!bus->devices[devfn])
                 goto found;
         }
@@ -639,24 +632,28 @@ static uint32_t pci_config_get_io_base(PCIDevice *d,
 
     val = ((uint32_t)d->config[base] & PCI_IO_RANGE_MASK) << 8;
     if (d->config[base] & PCI_IO_RANGE_TYPE_32) {
-        val |= (uint32_t)pci_get_word(d->config + PCI_IO_BASE_UPPER16) << 16;
+        val |= (uint32_t)pci_get_word(d->config + base_upper16) << 16;
     }
     return val;
 }
 
-static uint64_t pci_config_get_memory_base(PCIDevice *d, uint32_t base)
+static pcibus_t pci_config_get_memory_base(PCIDevice *d, uint32_t base)
 {
-    return ((uint64_t)pci_get_word(d->config + base) & PCI_MEMORY_RANGE_MASK)
+    return ((pcibus_t)pci_get_word(d->config + base) & PCI_MEMORY_RANGE_MASK)
         << 16;
 }
 
-static uint64_t pci_config_get_pref_base(PCIDevice *d,
+static pcibus_t pci_config_get_pref_base(PCIDevice *d,
                                          uint32_t base, uint32_t upper)
 {
-    uint64_t val;
-    val = ((uint64_t)pci_get_word(d->config + base) &
-           PCI_PREF_RANGE_MASK) << 16;
-    val |= (uint64_t)pci_get_long(d->config + upper) << 32;
+    pcibus_t tmp;
+    pcibus_t val;
+
+    tmp = (pcibus_t)pci_get_word(d->config + base);
+    val = (tmp & PCI_PREF_RANGE_MASK) << 16;
+    if (tmp & PCI_PREF_RANGE_TYPE_64) {
+        val |= (pcibus_t)pci_get_long(d->config + upper) << 32;
+    }
     return val;
 }
 
@@ -722,83 +719,95 @@ static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
     }
 
     if (base > limit) {
-    no_map:
-        *addr = PCI_BAR_UNMAPPED;
-        *size = 0;
-    } else {
-        *addr = base;
-        *size = limit - base + 1;
+        goto no_map;
     }
+    *addr = base;
+    *size = limit - base + 1;
+    return;
+no_map:
+    *addr = PCI_BAR_UNMAPPED;
+    *size = 0;
+}
+
+static pcibus_t pci_bar_address(PCIDevice *d,
+				int reg, uint8_t type, pcibus_t size)
+{
+    pcibus_t new_addr, last_addr;
+    int bar = pci_bar(d, reg);
+    uint16_t cmd = pci_get_word(d->config + PCI_COMMAND);
+
+    if (type & PCI_BASE_ADDRESS_SPACE_IO) {
+        if (!(cmd & PCI_COMMAND_IO)) {
+            return PCI_BAR_UNMAPPED;
+        }
+        new_addr = pci_get_long(d->config + bar) & ~(size - 1);
+        last_addr = new_addr + size - 1;
+        /* NOTE: we have only 64K ioports on PC */
+        if (last_addr <= new_addr || new_addr == 0 || last_addr > UINT16_MAX) {
+            return PCI_BAR_UNMAPPED;
+        }
+        return new_addr;
+    }
+
+    if (!(cmd & PCI_COMMAND_MEMORY)) {
+        return PCI_BAR_UNMAPPED;
+    }
+    if (type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+        new_addr = pci_get_quad(d->config + bar);
+    } else {
+        new_addr = pci_get_long(d->config + bar);
+    }
+    /* the ROM slot has a specific enable bit */
+    if (reg == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE)) {
+        return PCI_BAR_UNMAPPED;
+    }
+    new_addr &= ~(size - 1);
+    last_addr = new_addr + size - 1;
+    /* NOTE: we do not support wrapping */
+    /* XXX: as we cannot support really dynamic
+       mappings, we handle specific values as invalid
+       mappings. */
+    if (last_addr <= new_addr || new_addr == 0 ||
+        last_addr == PCI_BAR_UNMAPPED) {
+        return PCI_BAR_UNMAPPED;
+    }
+
+    /* Now pcibus_t is 64bit.
+     * Check if 32 bit BAR wraps around explicitly.
+     * Without this, PC ide doesn't work well.
+     * TODO: remove this work around.
+     */
+    if  (!(type & PCI_BASE_ADDRESS_MEM_TYPE_64) && last_addr >= UINT32_MAX) {
+        return PCI_BAR_UNMAPPED;
+    }
+
+    /*
+     * OS is allowed to set BAR beyond its addressable
+     * bits. For example, 32 bit OS can set 64bit bar
+     * to >4G. Check it. TODO: we might need to support
+     * it in the future for e.g. PAE.
+     */
+    if (last_addr >= TARGET_PHYS_ADDR_MAX) {
+        return PCI_BAR_UNMAPPED;
+    }
+
+    return new_addr;
 }
 
 static void pci_update_mappings(PCIDevice *d)
 {
     PCIIORegion *r;
-    int cmd, i;
-    pcibus_t last_addr, new_addr;
-    pcibus_t filtered_size;
+    int i;
+    pcibus_t new_addr, filtered_size;
 
-    cmd = pci_get_word(d->config + PCI_COMMAND);
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
 
         /* this region isn't registered */
-        if (r->size == 0)
+        if (!r->size)
             continue;
 
-        if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-            if (cmd & PCI_COMMAND_IO) {
-                new_addr = pci_get_long(d->config + pci_bar(d, i));
-                new_addr = new_addr & ~(r->size - 1);
-                last_addr = new_addr + r->size - 1;
-                /* NOTE: we have only 64K ioports on PC */
-                if (last_addr <= new_addr || new_addr == 0 ||
-                    last_addr >= 0x10000) {
-                    new_addr = PCI_BAR_UNMAPPED;
-                }
-            } else {
-                new_addr = PCI_BAR_UNMAPPED;
-            }
-        } else {
-            if (cmd & PCI_COMMAND_MEMORY) {
-                if (r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-                    new_addr = pci_get_quad(d->config + pci_bar(d, i));
-                } else {
-                    new_addr = pci_get_long(d->config + pci_bar(d, i));
-                }
-                /* the ROM slot has a specific enable bit */
-                if (i == PCI_ROM_SLOT && !(new_addr & PCI_ROM_ADDRESS_ENABLE))
-                    goto no_mem_map;
-                new_addr = new_addr & ~(r->size - 1);
-                last_addr = new_addr + r->size - 1;
-                /* NOTE: we do not support wrapping */
-                /* XXX: as we cannot support really dynamic
-                   mappings, we handle specific values as invalid
-                   mappings. */
-                if (last_addr <= new_addr || new_addr == 0 ||
-                    last_addr == PCI_BAR_UNMAPPED ||
-
-                    /* Now pcibus_t is 64bit.
-                     * Check if 32 bit BAR wrap around explicitly.
-                     * Without this, PC ide doesn't work well.
-                     * TODO: remove this work around.
-                     */
-                    (!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64) &&
-                     last_addr >= UINT32_MAX) ||
-
-                    /*
-                     * OS is allowed to set BAR beyond its addressable
-                     * bits. For example, 32 bit OS can set 64bit bar
-                     * to >4G. Check it.
-                     */
-                    last_addr >= TARGET_PHYS_ADDR_MAX) {
-                    new_addr = PCI_BAR_UNMAPPED;
-                }
-            } else {
-            no_mem_map:
-                new_addr = PCI_BAR_UNMAPPED;
-            }
-        }
+        new_addr = pci_bar_address(d, i, r->type, r->size);
 
         /* bridge filtering */
         filtered_size = r->size;
@@ -988,7 +997,7 @@ static void pci_info_device(PCIBus *bus, PCIDevice *d)
                        base, limit);
 
         base = pci_bridge_get_base(d, PCI_BASE_ADDRESS_SPACE_MEMORY);
-        limit= pci_config_get_memory_base(d, PCI_BASE_ADDRESS_SPACE_MEMORY);
+        limit= pci_bridge_get_limit(d, PCI_BASE_ADDRESS_SPACE_MEMORY);
         monitor_printf(mon,
                        "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
                        base, limit);
@@ -1034,7 +1043,7 @@ static void pci_for_each_device_under_bus(PCIBus *bus,
     PCIDevice *d;
     int devfn;
 
-    for(devfn = 0; devfn < 256; devfn++) {
+    for(devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         d = bus->devices[devfn];
         if (d)
             fn(bus, d);
@@ -1213,7 +1222,10 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 
     /* try child bus */
     QLIST_FOREACH(sec, &bus->child, sibling) {
-        if (pci_bus_num(sec) <= bus_num && bus_num <= pci_sub_bus(sec)) {
+
+        if (!bus->parent_dev /* pci host bridge */
+            || (pci_bus_num(sec) <= bus_num &&
+                bus->parent_dev->config[PCI_SUBORDINATE_BUS])) {
             return pci_find_bus(sec, bus_num);
         }
     }

@@ -32,6 +32,8 @@
 #include "pflash.h"
 #include "mips.h"
 #include "pci.h"
+#include "usb-uhci.h"
+#include "vmware_vga.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "audio/audio.h"
