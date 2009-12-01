@@ -108,8 +108,8 @@ static int pci_grackle_init_device(SysBusDevice *dev)
 
     s = FROM_SYSBUS(GrackleState, dev);
 
-    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
-    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
+    pci_mem_config = pci_host_conf_register_mmio(&s->host_state);
+    pci_mem_data = pci_host_data_register_mmio(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
@@ -126,8 +126,8 @@ static int pci_dec_21154_init_device(SysBusDevice *dev)
 
     s = FROM_SYSBUS(GrackleState, dev);
 
-    pci_mem_config = pci_host_config_register_io_memory(&s->host_state);
-    pci_mem_data = pci_host_data_register_io_memory(&s->host_state);
+    pci_mem_config = pci_host_conf_register_mmio(&s->host_state);
+    pci_mem_data = pci_host_data_register_mmio(&s->host_state);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
     return 0;

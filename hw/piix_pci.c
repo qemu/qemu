@@ -180,7 +180,7 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
-    pci_host_config_register_ioport(0xcf8, s);
+    pci_host_conf_register_ioport(0xcf8, s);
 
     pci_host_data_register_ioport(0xcfc, s);
     return 0;

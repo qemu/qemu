@@ -24,6 +24,7 @@
 #include "hw.h"
 #include "console.h"
 #include "pci.h"
+#include "vmware_vga.h"
 
 #define VERBOSE
 #undef DIRECT_VRAM

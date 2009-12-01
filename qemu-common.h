@@ -198,6 +198,8 @@ typedef struct i2c_bus i2c_bus;
 typedef struct i2c_slave i2c_slave;
 typedef struct SMBusDevice SMBusDevice;
 typedef struct QEMUTimer QEMUTimer;
+typedef struct PCIHostState PCIHostState;
+typedef struct PCIExpressHost PCIExpressHost;
 typedef struct PCIBus PCIBus;
 typedef struct PCIDevice PCIDevice;
 typedef struct SerialState SerialState;

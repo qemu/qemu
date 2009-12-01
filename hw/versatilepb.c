@@ -14,6 +14,7 @@
 #include "net.h"
 #include "sysemu.h"
 #include "pci.h"
+#include "usb-ohci.h"
 #include "boards.h"
 
 /* Primary interrupt controller.  */

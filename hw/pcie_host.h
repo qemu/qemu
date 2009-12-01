@@ -24,7 +24,7 @@
 
 #include "pci_host.h"
 
-typedef struct {
+struct PCIExpressHost {
     PCIHostState pci;
 
     /* express part */
@@ -37,7 +37,7 @@ typedef struct {
 
     /* result of cpu_register_io_memory() to map MMCONFIG area */
     int mmio_index;
-} PCIExpressHost;
+};
 
 int pcie_host_init(PCIExpressHost *e);
 void pcie_host_mmcfg_unmap(PCIExpressHost *e);

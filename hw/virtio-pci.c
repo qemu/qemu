@@ -185,8 +185,10 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case VIRTIO_PCI_QUEUE_PFN:
         pa = (target_phys_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
-        if (pa == 0)
-            virtio_pci_reset(&proxy->pci_dev.qdev);
+        if (pa == 0) {
+            virtio_reset(proxy->vdev);
+            msix_unuse_all_vectors(&proxy->pci_dev);
+        }
         else
             virtio_queue_set_addr(vdev, vdev->queue_sel, pa);
         break;
@@ -199,8 +201,10 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case VIRTIO_PCI_STATUS:
         vdev->status = val & 0xFF;
-        if (vdev->status == 0)
-            virtio_pci_reset(&proxy->pci_dev.qdev);
+        if (vdev->status == 0) {
+            virtio_reset(proxy->vdev);
+            msix_unuse_all_vectors(&proxy->pci_dev);
+        }
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
         msix_vector_unuse(&proxy->pci_dev, vdev->config_vector);

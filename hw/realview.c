@@ -12,6 +12,7 @@
 #include "primecell.h"
 #include "devices.h"
 #include "pci.h"
+#include "usb-ohci.h"
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
