@@ -15,6 +15,15 @@ DEF_HELPER_3(lwr, tl, tl, tl, int)
 DEF_HELPER_3(swl, void, tl, tl, int)
 DEF_HELPER_3(swr, void, tl, tl, int)
 
+#ifndef CONFIG_USER_ONLY
+DEF_HELPER_2(ll, tl, tl, int)
+DEF_HELPER_3(sc, tl, tl, tl, int)
+#ifdef TARGET_MIPS64
+DEF_HELPER_2(lld, tl, tl, int)
+DEF_HELPER_3(scd, tl, tl, tl, int)
+#endif
+#endif
+
 DEF_HELPER_FLAGS_1(clo, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_FLAGS_1(clz, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 #ifdef TARGET_MIPS64

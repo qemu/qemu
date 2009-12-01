@@ -30,13 +30,10 @@
 #include <net/if_tap.h>
 #endif
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #include <libutil.h>
 #else
 #include <util.h>
-#endif
-#if defined (__GLIBC__) && defined (__FreeBSD_kernel__)
-#include <freebsd/stdlib.h>
 #endif
 
 #if defined(__OpenBSD__)
@@ -49,7 +46,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     char *dev;
     struct stat s;
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     /* if no ifname is given, always start the search from tap0. */
     int i;
     char dname[100];

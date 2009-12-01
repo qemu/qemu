@@ -57,10 +57,13 @@
 #include <sys/select.h>
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <libutil.h>
 #include <dev/ppbus/ppi.h>
 #include <dev/ppbus/ppbconf.h>
+#if defined(__GLIBC__)
+#include <pty.h>
+#endif
 #elif defined(__DragonFly__)
 #include <libutil.h>
 #include <dev/misc/ppi/ppi.h>
@@ -68,8 +71,6 @@
 #else
 #include <util.h>
 #endif
-#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
-#include <freebsd/stdlib.h>
 #else
 #ifdef __linux__
 #include <pty.h>
@@ -820,7 +821,8 @@ static void cfmakeraw (struct termios *termios_p)
 #endif
 
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
-    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
+    || defined(__GLIBC__)
 
 typedef struct {
     int fd;
@@ -1336,7 +1338,7 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
 }
 #endif /* __linux__ */
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
 {
     int fd = (int)chr->opaque;
@@ -2380,10 +2382,12 @@ static const struct {
     { .name = "braille",   .open = chr_baum_init },
 #endif
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
-    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
+    || defined(__FreeBSD_kernel__)
     { .name = "tty",       .open = qemu_chr_open_tty },
 #endif
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__) \
+    || defined(__FreeBSD_kernel__)
     { .name = "parport",   .open = qemu_chr_open_pp },
 #endif
 };

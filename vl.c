@@ -50,13 +50,11 @@
 #include <sys/select.h>
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #include <libutil.h>
 #else
 #include <util.h>
 #endif
-#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
-#include <freebsd/stdlib.h>
 #else
 #ifdef __linux__
 #include <pty.h>
@@ -573,7 +571,7 @@ static void init_get_clock(void)
 {
     use_rt_clock = 0;
 #if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
-    || defined(__DragonFly__)
+    || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
     {
         struct timespec ts;
         if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
@@ -586,7 +584,7 @@ static void init_get_clock(void)
 static int64_t get_clock(void)
 {
 #if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
-	|| defined(__DragonFly__)
+	|| defined(__DragonFly__) || defined(__FreeBSD_kernel__)
     if (use_rt_clock) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);

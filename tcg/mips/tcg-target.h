@@ -96,12 +96,9 @@ enum {
 #define TCG_AREG1 TCG_REG_S0
 #define TCG_AREG2 TCG_REG_S1
 
+#include <sys/cachectl.h>
+
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
-#if QEMU_GNUC_PREREQ(4, 1)
-    void __clear_cache(char *beg, char *end);
-    __clear_cache((char *) start, (char *) stop);
-#else
-# error __clear_cache not available
-#endif
+    cacheflush ((void *)start, stop-start, ICACHE);
 }

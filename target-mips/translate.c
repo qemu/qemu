@@ -913,16 +913,24 @@ OP_ST(sd,st64);
 #endif
 #undef OP_ST
 
+#ifdef CONFIG_USER_ONLY
 #define OP_LD_ATOMIC(insn,fname)                                           \
 static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)  \
 {                                                                          \
     TCGv t0 = tcg_temp_new();                                              \
     tcg_gen_mov_tl(t0, arg1);                                              \
     tcg_gen_qemu_##fname(ret, arg1, ctx->mem_idx);                         \
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, lladdr));            \
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, lladdr));                \
     tcg_gen_st_tl(ret, cpu_env, offsetof(CPUState, llval));                \
     tcg_temp_free(t0);                                                     \
 }
+#else
+#define OP_LD_ATOMIC(insn,fname)                                           \
+static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)  \
+{                                                                          \
+    gen_helper_2i(insn, ret, arg1, ctx->mem_idx);                          \
+}
+#endif
 OP_LD_ATOMIC(ll,ld32s);
 #if defined(TARGET_MIPS64)
 OP_LD_ATOMIC(lld,ld64);
@@ -942,7 +950,7 @@ static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ct
     tcg_gen_st_tl(arg2, cpu_env, offsetof(CPUState, CP0_BadVAddr));          \
     generate_exception(ctx, EXCP_AdES);                                      \
     gen_set_label(l1);                                                       \
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, lladdr));              \
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, lladdr));                  \
     tcg_gen_brcond_tl(TCG_COND_NE, arg2, t0, l2);                            \
     tcg_gen_movi_tl(t0, rt | ((almask << 3) & 0x20));                        \
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, llreg));                   \
@@ -958,34 +966,11 @@ static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ct
 static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
 {                                                                            \
     TCGv t0 = tcg_temp_new();                                                \
-    TCGv t1 = tcg_temp_new();                                                \
-    int l1 = gen_new_label();                                                \
-    int l2 = gen_new_label();                                                \
-    int l3 = gen_new_label();                                                \
-                                                                             \
-    tcg_gen_andi_tl(t0, arg2, almask);                                       \
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);                              \
-    tcg_gen_st_tl(arg2, cpu_env, offsetof(CPUState, CP0_BadVAddr));          \
-    generate_exception(ctx, EXCP_AdES);                                      \
-    gen_set_label(l1);                                                       \
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, lladdr));              \
-    tcg_gen_brcond_tl(TCG_COND_NE, arg2, t0, l2);                            \
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, llval));                   \
-    tcg_gen_qemu_##ldname(t1, arg2, ctx->mem_idx);                           \
-    tcg_gen_brcond_tl(TCG_COND_NE, t0, t1, l2);                              \
-    tcg_temp_free(t1);                                                       \
-    tcg_gen_qemu_##fname(arg1, arg2, ctx->mem_idx);                          \
-    tcg_gen_movi_tl(t0, 1);                                                  \
+    gen_helper_3i(insn, t0, arg1, arg2, ctx->mem_idx);                       \
     gen_store_gpr(t0, rt);                                                   \
-    tcg_gen_br(l3);                                                          \
-    gen_set_label(l2);                                                       \
-    tcg_gen_movi_tl(t0, 0);                                                  \
-    gen_store_gpr(t0, rt);                                                   \
-    gen_set_label(l3);                                                       \
     tcg_temp_free(t0);                                                       \
 }
 #endif
-
 OP_ST_ATOMIC(sc,st32,ld32s,0x3);
 #if defined(TARGET_MIPS64)
 OP_ST_ATOMIC(scd,st64,ld64,0x7);
@@ -1138,7 +1123,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         opn = "swr";
         break;
     case OPC_LL:
-        save_cpu_state(ctx, 0);
+        save_cpu_state(ctx, 1);
         op_ldst_ll(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "ll";
@@ -1180,7 +1165,7 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
         break;
 #endif
     case OPC_SC:
-        save_cpu_state(ctx, 0);
+        save_cpu_state(ctx, 1);
         op_ldst_sc(t1, t0, rt, ctx);
         opn = "sc";
         break;
