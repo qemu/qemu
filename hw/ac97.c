@@ -1170,7 +1170,6 @@ static void po_callback (void *opaque, int free)
 static void ac97_save (QEMUFile *f, void *opaque)
 {
     size_t i;
-    uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
 
     pci_device_save (&s->dev, f);
@@ -1193,11 +1192,6 @@ static void ac97_save (QEMUFile *f, void *opaque)
         qemu_put_be32s (f, &r->bd.ctl_len);
     }
     qemu_put_buffer (f, s->mixer_data, sizeof (s->mixer_data));
-
-    active[PI_INDEX] = AUD_is_active_in (s->voice_pi) ? 1 : 0;
-    active[PO_INDEX] = AUD_is_active_out (s->voice_po) ? 1 : 0;
-    active[MC_INDEX] = AUD_is_active_in (s->voice_mc) ? 1 : 0;
-    qemu_put_buffer (f, active, sizeof (active));
 }
 
 static int ac97_load (QEMUFile *f, void *opaque, int version_id)
@@ -1207,7 +1201,7 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
     uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
 
-    if (version_id != 2)
+    if (version_id < 2 || version_id > 3)
         return -EINVAL;
 
     ret = pci_device_load (&s->dev, f);
@@ -1232,7 +1226,8 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
         qemu_get_be32s (f, &r->bd.ctl_len);
     }
     qemu_get_buffer (f, s->mixer_data, sizeof (s->mixer_data));
-    qemu_get_buffer (f, active, sizeof (active));
+    if (version_id < 3)
+        qemu_get_buffer (f, active, sizeof (active));
 
 #ifdef USE_MIXER
     record_select (s, mixer_load (s, AC97_Record_Select));
@@ -1337,7 +1332,7 @@ static int ac97_initfn (PCIDevice *dev)
     pci_register_bar (&s->dev, 0, 256 * 4, PCI_BASE_ADDRESS_SPACE_IO,
                       ac97_map);
     pci_register_bar (&s->dev, 1, 64 * 4, PCI_BASE_ADDRESS_SPACE_IO, ac97_map);
-    register_savevm ("ac97", 0, 2, ac97_save, ac97_load, s);
+    register_savevm ("ac97", 0, 3, ac97_save, ac97_load, s);
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
     ac97_on_reset (s);
