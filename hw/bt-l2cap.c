@@ -1218,7 +1218,7 @@ static void l2cap_teardown(struct l2cap_instance_s *l2cap, int send_disconnect)
     for (cid = L2CAP_CID_ALLOC; cid < L2CAP_CID_MAX; cid ++)
         if (l2cap->cid[cid]) {
             l2cap->cid[cid]->params.close(l2cap->cid[cid]->params.opaque);
-            free(l2cap->cid[cid]);
+            qemu_free(l2cap->cid[cid]);
         }
 
     if (l2cap->role)

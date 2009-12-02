@@ -921,7 +921,7 @@ static ISADeviceInfo serial_isa_info = {
     .qdev.size  = sizeof(ISASerialState),
     .init       = serial_isa_initfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("index",  ISASerialState, index,   -1),
+        DEFINE_PROP_UINT32("index", ISASerialState, index,   -1),
         DEFINE_PROP_HEX32("iobase", ISASerialState, iobase,  -1),
         DEFINE_PROP_UINT32("irq",   ISASerialState, isairq,  -1),
         DEFINE_PROP_CHR("chardev",  ISASerialState, state.chr),

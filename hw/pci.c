@@ -1250,29 +1250,10 @@ static int pci_bridge_initfn(PCIDevice *dev)
     pci_config_set_vendor_id(s->dev.config, s->vid);
     pci_config_set_device_id(s->dev.config, s->did);
 
-    /* TODO: intial value
-     * command register:
-     * According to PCI bridge spec, after reset
-     *   bus master bit is off
-     *   memory space enable bit is off
-     * According to manual (805-1251.pdf).(See abp_pbi.c for its links.)
-     *   the reset value should be zero unless the boot pin is tied high
-     *   (which is tru) and thus it should be PCI_COMMAND_MEMORY.
-     *
-     * For now, don't touch the value.
-     * Later command register will be set to zero and apb_pci.c will
-     * override the value.
-     * Same for latency timer, and multi function bit of header type.
-     */
-    pci_set_word(dev->config + PCI_COMMAND,
-                 PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-
     pci_set_word(dev->config + PCI_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_PCI);
-    dev->config[PCI_LATENCY_TIMER] = 0x10;
-    dev->config[PCI_HEADER_TYPE] =
-        PCI_HEADER_TYPE_MULTI_FUNCTION | PCI_HEADER_TYPE_BRIDGE;
+    dev->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_BRIDGE;
     pci_set_word(dev->config + PCI_SEC_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     return 0;
@@ -1300,6 +1281,11 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     s = DO_UPCAST(PCIBridge, dev, dev);
     pci_register_secondary_bus(bus, &s->bus, &s->dev, map_irq, name);
     return &s->bus;
+}
+
+PCIDevice *pci_bridge_get_device(PCIBus *bus)
+{
+    return bus->parent_dev;
 }
 
 static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)

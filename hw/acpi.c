@@ -920,7 +920,7 @@ int acpi_table_add(const char *t)
     return 0;
 out:
     if (acpi_tables) {
-        free(acpi_tables);
+        qemu_free(acpi_tables);
         acpi_tables = NULL;
     }
     return -1;

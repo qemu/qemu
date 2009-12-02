@@ -299,6 +299,7 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
 void pci_info(Monitor *mon);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);
+PCIDevice *pci_bridge_get_device(PCIBus *bus);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)

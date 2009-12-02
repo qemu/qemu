@@ -594,7 +594,7 @@ static void xenstore_update(void *unused)
 	xenstore_update_fe(vec[XS_WATCH_PATH], (void*)ptr);
 
 cleanup:
-    qemu_free(vec);
+    free(vec);
 }
 
 static void xen_be_evtchn_event(void *opaque)

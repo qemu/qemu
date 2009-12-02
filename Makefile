@@ -234,7 +234,6 @@ libqemu_common.a: $(obj-y)
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
-qemu-img.o qemu-nbd.o qemu-io.o: config-host.h
 
 qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y)
 
