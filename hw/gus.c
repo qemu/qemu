@@ -215,35 +215,22 @@ static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_len;
 }
 
-static void GUS_save (QEMUFile *f, void *opaque)
-{
-    GUSState *s = opaque;
-
-    qemu_put_be32 (f, s->pos);
-    qemu_put_be32 (f, s->left);
-    qemu_put_be32 (f, s->shift);
-    qemu_put_be32 (f, s->irqs);
-    qemu_put_be32 (f, s->samples);
-    qemu_put_be64 (f, s->last_ticks);
-    qemu_put_buffer (f, s->himem, sizeof (s->himem));
-}
-
-static int GUS_load (QEMUFile *f, void *opaque, int version_id)
-{
-    GUSState *s = opaque;
-
-    if (version_id != 2)
-        return -EINVAL;
-
-    s->pos = qemu_get_be32 (f);
-    s->left = qemu_get_be32 (f);
-    s->shift = qemu_get_be32 (f);
-    s->irqs = qemu_get_be32 (f);
-    s->samples = qemu_get_be32 (f);
-    s->last_ticks = qemu_get_be64 (f);
-    qemu_get_buffer (f, s->himem, sizeof (s->himem));
-    return 0;
-}
+static const VMStateDescription vmstate_gus = {
+    .name = "gus",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(pos, GUSState),
+        VMSTATE_INT32(left, GUSState),
+        VMSTATE_INT32(shift, GUSState),
+        VMSTATE_INT32(irqs, GUSState),
+        VMSTATE_INT32(samples, GUSState),
+        VMSTATE_INT64(last_ticks, GUSState),
+        VMSTATE_BUFFER(himem, GUSState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int gus_initfn (ISADevice *dev)
 {
@@ -300,7 +287,7 @@ static int gus_initfn (ISADevice *dev)
 
     AUD_set_active_out (s->voice, 1);
 
-    register_savevm ("gus", 0, 2, GUS_save, GUS_load, s);
+    vmstate_register (0, &vmstate_gus, s);
     return 0;
 }
 
