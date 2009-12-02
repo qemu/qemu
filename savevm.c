@@ -1206,6 +1206,9 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             for (i = 0; i < n_elems; i++) {
                 void *addr = base_addr + field->size * i;
 
+                if (field->flags & VMS_ARRAY_OF_POINTER) {
+                    addr = *(void **)addr;
+                }
                 if (field->flags & VMS_STRUCT) {
                     vmstate_save_state(f, field->vmsd, addr);
                 } else {
