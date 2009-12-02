@@ -323,7 +323,7 @@ static void reset_bm_regs (AC97LinkState *s, AC97BusMasterRegs *r)
 static void mixer_store (AC97LinkState *s, uint32_t i, uint16_t v)
 {
     if (i + 2 > sizeof (s->mixer_data)) {
-        dolog ("mixer_store: index %d out of bounds %d\n",
+        dolog ("mixer_store: index %d out of bounds %zd\n",
                i, sizeof (s->mixer_data));
         return;
     }
@@ -337,7 +337,7 @@ static uint16_t mixer_load (AC97LinkState *s, uint32_t i)
     uint16_t val = 0xffff;
 
     if (i + 2 > sizeof (s->mixer_data)) {
-        dolog ("mixer_store: index %d out of bounds %d\n",
+        dolog ("mixer_store: index %d out of bounds %zd\n",
                i, sizeof (s->mixer_data));
     }
     else {
