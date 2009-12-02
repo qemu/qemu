@@ -475,16 +475,6 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
-#define VMSTATE_STRUCT_ARRAY_SIZE_UINT8(_field, _state, _field__num, _version, _vmsd, _type) { \
-    .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
-    .version_id = (_version),                                        \
-    .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_STRUCT|VMS_ARRAY,                              \
-    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
-}
-
 #define VMSTATE_STATIC_BUFFER(_field, _state, _version, _test, _start, _size) { \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
