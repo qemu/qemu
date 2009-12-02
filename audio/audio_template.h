@@ -445,9 +445,9 @@ SW *glue (AUD_open_, TYPE) (
                SW_NAME (sw), sw->info.freq, sw->info.bits, sw->info.nchannels);
         dolog ("New %s freq %d, bits %d, channels %d\n",
                name,
-               freq,
-               (fmt == AUD_FMT_S16 || fmt == AUD_FMT_U16) ? 16 : 8,
-               nchannels);
+               as->freq,
+               (as->fmt == AUD_FMT_S16 || as->fmt == AUD_FMT_U16) ? 16 : 8,
+               as->nchannels);
 #endif
 
         if (live) {
