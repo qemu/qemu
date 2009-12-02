@@ -2897,7 +2897,7 @@ static int ram_save_block(QEMUFile *f)
     return found;
 }
 
-static uint64_t bytes_transferred = 0;
+static uint64_t bytes_transferred;
 
 static ram_addr_t ram_save_remaining(void)
 {
@@ -2945,6 +2945,8 @@ static int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     }
 
     if (stage == 1) {
+        bytes_transferred = 0;
+
         /* Make sure all dirty bits are set */
         for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
             if (!cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG))
