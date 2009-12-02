@@ -104,7 +104,7 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     s->state = MIG_STATE_ACTIVE;
     s->mon = NULL;
     s->bandwidth_limit = bandwidth_limit;
-    s->fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    s->fd = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (s->fd < 0) {
         dprintf("Unable to open socket");
         goto err_after_alloc;
@@ -150,7 +150,7 @@ static void unix_accept_incoming_migration(void *opaque)
     int c, ret;
 
     do {
-        c = accept(s, (struct sockaddr *)&addr, &addrlen);
+        c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
     } while (c == -1 && socket_error() == EINTR);
 
     dprintf("accepted migration\n");
@@ -191,7 +191,7 @@ int unix_start_incoming_migration(const char *path)
 
     dprintf("Attempting to start an incoming migration\n");
 
-    sock = socket(PF_UNIX, SOCK_STREAM, 0);
+    sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         fprintf(stderr, "Could not open unix socket: %s\n", strerror(errno));
         return -EINVAL;

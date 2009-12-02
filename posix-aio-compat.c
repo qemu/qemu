@@ -625,7 +625,7 @@ int paio_init(void)
     sigaction(SIGUSR2, &act, NULL);
 
     s->first_aio = NULL;
-    if (pipe(fds) == -1) {
+    if (qemu_pipe(fds) == -1) {
         fprintf(stderr, "failed to create pipe\n");
         return -1;
     }

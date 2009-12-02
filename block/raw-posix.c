@@ -153,7 +153,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         s->open_flags |= O_DSYNC;
 
     s->fd = -1;
-    fd = open(filename, s->open_flags, 0644);
+    fd = qemu_open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
         if (ret == -EROFS)

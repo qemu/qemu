@@ -159,6 +159,13 @@ void *get_mmap_addr(unsigned long size);
 void qemu_mutex_lock_iothread(void);
 void qemu_mutex_unlock_iothread(void);
 
+int qemu_open(const char *name, int flags, ...);
+void qemu_set_cloexec(int fd);
+
+#ifndef _WIN32
+int qemu_pipe(int pipefd[2]);
+#endif
+
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...)

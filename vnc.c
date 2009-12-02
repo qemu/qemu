@@ -2247,7 +2247,7 @@ static void vnc_listen_read(void *opaque)
     /* Catch-up */
     vga_hw_update();
 
-    int csock = accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
+    int csock = qemu_accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (csock != -1) {
         vnc_connect(vs, csock);
     }

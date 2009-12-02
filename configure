@@ -1570,6 +1570,23 @@ if compile_prog "" "" ; then
   pipe2=yes
 fi
 
+# check if accept4 is there
+accept4=no
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <sys/socket.h>
+#include <stddef.h>
+
+int main(void)
+{
+    accept4(0, NULL, NULL, SOCK_CLOEXEC);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  accept4=yes
+fi
+
 # check if tee/splice is there. vmsplice was added same time.
 splice=no
 cat > $TMPC << EOF
@@ -2013,6 +2030,9 @@ if test "$utimens" = "yes" ; then
 fi
 if test "$pipe2" = "yes" ; then
   echo "CONFIG_PIPE2=y" >> $config_host_mak
+fi
+if test "$accept4" = "yes" ; then
+  echo "CONFIG_ACCEPT4=y" >> $config_host_mak
 fi
 if test "$splice" = "yes" ; then
   echo "CONFIG_SPLICE=y" >> $config_host_mak

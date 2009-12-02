@@ -121,7 +121,7 @@ int qemu_create_pidfile(const char *filename)
 #ifndef _WIN32
     int fd;
 
-    fd = open(filename, O_RDWR | O_CREAT, 0600);
+    fd = qemu_open(filename, O_RDWR | O_CREAT, 0600);
     if (fd == -1)
         return -1;
 
@@ -201,11 +201,113 @@ int inet_aton(const char *cp, struct in_addr *ia)
     ia->s_addr = addr;
     return 1;
 }
+
+void qemu_set_cloexec(int fd)
+{
+}
+
 #else
+
 void socket_set_nonblock(int fd)
 {
     int f;
     f = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, f | O_NONBLOCK);
 }
+
+void qemu_set_cloexec(int fd)
+{
+    int f;
+    f = fcntl(fd, F_GETFD);
+    fcntl(fd, F_SETFD, f | FD_CLOEXEC);
+}
+
 #endif
+
+/*
+ * Opens a file with FD_CLOEXEC set
+ */
+int qemu_open(const char *name, int flags, ...)
+{
+    int ret;
+    int mode = 0;
+
+    if (flags & O_CREAT) {
+        va_list ap;
+
+        va_start(ap, flags);
+        mode = va_arg(ap, int);
+        va_end(ap);
+    }
+
+#ifdef O_CLOEXEC
+    ret = open(name, flags | O_CLOEXEC, mode);
+#else
+    ret = open(name, flags, mode);
+    if (ret >= 0) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+
+    return ret;
+}
+
+#ifndef _WIN32
+/*
+ * Creates a pipe with FD_CLOEXEC set on both file descriptors
+ */
+int qemu_pipe(int pipefd[2])
+{
+    int ret;
+
+#ifdef CONFIG_PIPE2
+    ret = pipe2(pipefd, O_CLOEXEC);
+#else
+    ret = pipe(pipefd);
+    if (ret == 0) {
+        qemu_set_cloexec(pipefd[0]);
+        qemu_set_cloexec(pipefd[1]);
+    }
+#endif
+
+    return ret;
+}
+#endif
+
+/*
+ * Opens a socket with FD_CLOEXEC set
+ */
+int qemu_socket(int domain, int type, int protocol)
+{
+    int ret;
+
+#ifdef SOCK_CLOEXEC
+    ret = socket(domain, type | SOCK_CLOEXEC, protocol);
+#else
+    ret = socket(domain, type, protocol);
+    if (ret >= 0) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+
+    return ret;
+}
+
+/*
+ * Accept a connection and set FD_CLOEXEC
+ */
+int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+{
+    int ret;
+
+#ifdef CONFIG_ACCEPT4
+    ret = accept4(s, addr, addrlen, SOCK_CLOEXEC);
+#else
+    ret = accept(s, addr, addrlen);
+    if (ret >= 0) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+
+    return ret;
+}

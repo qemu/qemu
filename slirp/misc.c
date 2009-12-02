@@ -132,7 +132,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		addr.sin_port = 0;
 		addr.sin_addr.s_addr = INADDR_ANY;
 
-		if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0 ||
+		if ((s = qemu_socket(AF_INET, SOCK_STREAM, 0)) < 0 ||
 		    bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
 		    listen(s, 1) < 0) {
 			lprint("Error: inet socket: %s\n", strerror(errno));
@@ -165,7 +165,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 			 * Connect to the socket
 			 * XXX If any of these fail, we're in trouble!
 	 		 */
-			s = socket(AF_INET, SOCK_STREAM, 0);
+			s = qemu_socket(AF_INET, SOCK_STREAM, 0);
 			addr.sin_addr = loopback_addr;
                         do {
                             ret = connect(s, (struct sockaddr *)&addr, addrlen);

@@ -416,7 +416,7 @@ int kvm_init(int smp_cpus)
         s->slots[i].slot = i;
 
     s->vmfd = -1;
-    s->fd = open("/dev/kvm", O_RDWR);
+    s->fd = qemu_open("/dev/kvm", O_RDWR);
     if (s->fd == -1) {
         fprintf(stderr, "Could not access KVM kernel module: %m\n");
         ret = -errno;
