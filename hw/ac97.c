@@ -1167,67 +1167,30 @@ static void po_callback (void *opaque, int free)
     transfer_audio (opaque, PO_INDEX, free);
 }
 
-static void ac97_save (QEMUFile *f, void *opaque)
-{
-    size_t i;
-    AC97LinkState *s = opaque;
-
-    pci_device_save (&s->dev, f);
-
-    qemu_put_be32s (f, &s->glob_cnt);
-    qemu_put_be32s (f, &s->glob_sta);
-    qemu_put_be32s (f, &s->cas);
-
-    for (i = 0; i < ARRAY_SIZE (s->bm_regs); ++i) {
-        AC97BusMasterRegs *r = &s->bm_regs[i];
-        qemu_put_be32s (f, &r->bdbar);
-        qemu_put_8s (f, &r->civ);
-        qemu_put_8s (f, &r->lvi);
-        qemu_put_be16s (f, &r->sr);
-        qemu_put_be16s (f, &r->picb);
-        qemu_put_8s (f, &r->piv);
-        qemu_put_8s (f, &r->cr);
-        qemu_put_be32s (f, &r->bd_valid);
-        qemu_put_be32s (f, &r->bd.addr);
-        qemu_put_be32s (f, &r->bd.ctl_len);
+static const VMStateDescription vmstate_ac97_bm_regs = {
+    .name = "ac97_bm_regs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(bdbar, AC97BusMasterRegs),
+        VMSTATE_UINT8(civ, AC97BusMasterRegs),
+        VMSTATE_UINT8(lvi, AC97BusMasterRegs),
+        VMSTATE_UINT16(sr, AC97BusMasterRegs),
+        VMSTATE_UINT16(picb, AC97BusMasterRegs),
+        VMSTATE_UINT8(piv, AC97BusMasterRegs),
+        VMSTATE_UINT8(cr, AC97BusMasterRegs),
+        VMSTATE_UINT32(bd_valid, AC97BusMasterRegs),
+        VMSTATE_UINT32(bd.addr, AC97BusMasterRegs),
+        VMSTATE_UINT32(bd.ctl_len, AC97BusMasterRegs),
+        VMSTATE_END_OF_LIST()
     }
-    qemu_put_buffer (f, s->mixer_data, sizeof (s->mixer_data));
-}
+};
 
-static int ac97_load (QEMUFile *f, void *opaque, int version_id)
+static int ac97_post_load (void *opaque, int version_id)
 {
-    int ret;
-    size_t i;
     uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
-
-    if (version_id < 2 || version_id > 3)
-        return -EINVAL;
-
-    ret = pci_device_load (&s->dev, f);
-    if (ret)
-        return ret;
-
-    qemu_get_be32s (f, &s->glob_cnt);
-    qemu_get_be32s (f, &s->glob_sta);
-    qemu_get_be32s (f, &s->cas);
-
-    for (i = 0; i < ARRAY_SIZE (s->bm_regs); ++i) {
-        AC97BusMasterRegs *r = &s->bm_regs[i];
-        qemu_get_be32s (f, &r->bdbar);
-        qemu_get_8s (f, &r->civ);
-        qemu_get_8s (f, &r->lvi);
-        qemu_get_be16s (f, &r->sr);
-        qemu_get_be16s (f, &r->picb);
-        qemu_get_8s (f, &r->piv);
-        qemu_get_8s (f, &r->cr);
-        qemu_get_be32s (f, &r->bd_valid);
-        qemu_get_be32s (f, &r->bd.addr);
-        qemu_get_be32s (f, &r->bd.ctl_len);
-    }
-    qemu_get_buffer (f, s->mixer_data, sizeof (s->mixer_data));
-    if (version_id < 3)
-        qemu_get_buffer (f, active, sizeof (active));
 
 #ifdef USE_MIXER
     record_select (s, mixer_load (s, AC97_Record_Select));
@@ -1246,6 +1209,30 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
     s->last_samp = 0;
     return 0;
 }
+
+static bool is_version_2 (void *opaque, int version_id)
+{
+    return version_id == 2;
+}
+
+static const VMStateDescription vmstate_ac97 = {
+    .name = "ac97",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .post_load = ac97_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, AC97LinkState),
+        VMSTATE_UINT32(glob_cnt, AC97LinkState),
+        VMSTATE_UINT32(glob_sta, AC97LinkState),
+        VMSTATE_UINT32(cas, AC97LinkState),
+        VMSTATE_STRUCT_ARRAY(bm_regs, AC97LinkState, 3, 1,
+                             vmstate_ac97_bm_regs, AC97BusMasterRegs),
+        VMSTATE_BUFFER(mixer_data, AC97LinkState),
+        VMSTATE_UNUSED_TEST(is_version_2, 3),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void ac97_map (PCIDevice *pci_dev, int region_num,
                       pcibus_t addr, pcibus_t size, int type)
@@ -1332,7 +1319,7 @@ static int ac97_initfn (PCIDevice *dev)
     pci_register_bar (&s->dev, 0, 256 * 4, PCI_BASE_ADDRESS_SPACE_IO,
                       ac97_map);
     pci_register_bar (&s->dev, 1, 64 * 4, PCI_BASE_ADDRESS_SPACE_IO, ac97_map);
-    register_savevm ("ac97", 0, 3, ac97_save, ac97_load, s);
+    vmstate_register (0, &vmstate_ac97, s);
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
     ac97_on_reset (s);
