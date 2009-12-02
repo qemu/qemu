@@ -161,8 +161,6 @@ PCIBus *pci_find_root_bus(int domain)
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name, int devfn_min)
 {
-    static int nbus = 0;
-
     qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
     bus->devfn_min = devfn_min;
 
@@ -170,7 +168,7 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     QLIST_INIT(&bus->child);
     pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
 
-    vmstate_register(nbus++, &vmstate_pcibus, bus);
+    vmstate_register(-1, &vmstate_pcibus, bus);
     qemu_register_reset(pci_bus_reset, bus);
 }
 
