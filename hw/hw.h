@@ -545,7 +545,7 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_MACADDR(_field, _state) {                            \
     .name       = (stringify(_field)),                               \
     .size       = sizeof(MACAddr),                                   \
-    .info       = &vmstate_info_uint8,                               \
+    .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER,                                        \
     .offset     = vmstate_offset_macaddr(_state, _field),            \
 }
