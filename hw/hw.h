@@ -446,12 +446,13 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .offset       = vmstate_offset_value(_state, _field, _type),     \
 }
 
-#define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type) {       \
-    .name       = (stringify(_field)),                               \
-    .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_STRUCT|VMS_POINTER,                            \
-    .offset     = vmstate_offset_value(_state, _field, _type),       \
+#define VMSTATE_STRUCT_POINTER_TEST(_field, _state, _test, _vmsd, _type) { \
+    .name         = (stringify(_field)),                             \
+    .field_exists = (_test),                                         \
+    .vmsd         = &(_vmsd),                                        \
+    .size         = sizeof(_type),                                   \
+    .flags        = VMS_STRUCT|VMS_POINTER,                          \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
 }
 
 #define VMSTATE_ARRAY_OF_POINTER(_field, _state, _num, _version, _info, _type) {\
@@ -577,6 +578,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_STRUCT(_field, _state, _version, _vmsd, _type)        \
     VMSTATE_STRUCT_TEST(_field, _state, NULL, _version, _vmsd, _type)
+
+#define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type)          \
+    VMSTATE_STRUCT_POINTER_TEST(_field, _state, NULL, _vmsd, _type)
 
 #define VMSTATE_INT8_V(_f, _s, _v)                                    \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int8, int8_t)
