@@ -1143,7 +1143,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->version_id <= version_id)) {
             void *base_addr = opaque + field->offset;
             int ret, i, n_elems = 1;
+            int size = field->size;
 
+            if (field->flags & VMS_VBUFFER) {
+                size = *(int32_t *)(opaque+field->size_offset);
+            }
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
             } else if (field->flags & VMS_VARRAY_INT32) {
@@ -1152,10 +1156,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
-                base_addr = *(void **)base_addr;
+                base_addr = *(void **)base_addr + field->start;
             }
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + field->size * i;
+                void *addr = base_addr + size * i;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     addr = *(void **)addr;
@@ -1163,7 +1167,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 if (field->flags & VMS_STRUCT) {
                     ret = vmstate_load_state(f, field->vmsd, addr, field->vmsd->version_id);
                 } else {
-                    ret = field->info->get(f, addr, field->size);
+                    ret = field->info->get(f, addr, size);
 
                 }
                 if (ret < 0) {
@@ -1192,7 +1196,11 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             field->field_exists(opaque, vmsd->version_id)) {
             void *base_addr = opaque + field->offset;
             int i, n_elems = 1;
+            int size = field->size;
 
+            if (field->flags & VMS_VBUFFER) {
+                size = *(int32_t *)(opaque+field->size_offset);
+            }
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
             } else if (field->flags & VMS_VARRAY_INT32) {
@@ -1201,10 +1209,10 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
-                base_addr = *(void **)base_addr;
+                base_addr = *(void **)base_addr + field->start;
             }
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + field->size * i;
+                void *addr = base_addr + size * i;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     addr = *(void **)addr;
@@ -1212,7 +1220,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 if (field->flags & VMS_STRUCT) {
                     vmstate_save_state(f, field->vmsd, addr);
                 } else {
-                    field->info->put(f, addr, field->size);
+                    field->info->put(f, addr, size);
                 }
             }
         }

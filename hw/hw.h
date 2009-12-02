@@ -294,14 +294,17 @@ enum VMStateFlags {
     VMS_BUFFER           = 0x020,  /* static sized buffer */
     VMS_ARRAY_OF_POINTER = 0x040,
     VMS_VARRAY_UINT16    = 0x080,  /* Array with size in uint16_t field */
+    VMS_VBUFFER          = 0x100,  /* Buffer with size in int32_t field */
 };
 
 typedef struct {
     const char *name;
     size_t offset;
     size_t size;
+    size_t start;
     int num;
     size_t num_offset;
+    size_t size_offset;
     const VMStateInfo *info;
     enum VMStateFlags flags;
     const VMStateDescription *vmsd;
@@ -488,6 +491,17 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_BUFFER,                                      \
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
+}
+
+#define VMSTATE_VBUFFER(_field, _state, _version, _test, _start, _field_size) { \
+    .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
+    .size_offset  = vmstate_offset_value(_state, _field_size, int32_t),\
+    .info         = &vmstate_info_buffer,                            \
+    .flags        = VMS_VBUFFER|VMS_POINTER,                         \
+    .offset       = offsetof(_state, _field),                        \
+    .start        = (_start),                                        \
 }
 
 #define VMSTATE_BUFFER_UNSAFE_INFO(_field, _state, _version, _info, _size) { \
@@ -682,6 +696,12 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_BUFFER_START_MIDDLE(_f, _s, _start) \
     VMSTATE_STATIC_BUFFER(_f, _s, 0, NULL, _start, sizeof(typeof_field(_s, _f)))
+
+#define VMSTATE_PARTIAL_VBUFFER(_f, _s, _size)                        \
+    VMSTATE_VBUFFER(_f, _s, 0, NULL, 0, _size)
+
+#define VMSTATE_SUB_VBUFFER(_f, _s, _start, _size)                    \
+    VMSTATE_VBUFFER(_f, _s, 0, NULL, _start, _size)
 
 #define VMSTATE_BUFFER_TEST(_f, _s, _test)                            \
     VMSTATE_STATIC_BUFFER(_f, _s, 0, _test, 0, sizeof(typeof_field(_s, _f)))
