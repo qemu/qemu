@@ -596,44 +596,46 @@ static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_pos;
 }
 
-static void cs_save (QEMUFile *f, void *opaque)
+static int cs4231a_pre_load (void *opaque)
 {
     CSState *s = opaque;
-    unsigned int i;
-    uint32_t val;
 
-    for (i = 0; i < CS_REGS; i++)
-        qemu_put_be32s (f, &s->regs[i]);
-
-    qemu_put_buffer (f, s->dregs, CS_DREGS);
-    val = s->dma_running; qemu_put_be32s (f, &val);
-    val = s->audio_free;  qemu_put_be32s (f, &val);
-    val = s->transferred; qemu_put_be32s (f, &val);
-    val = s->aci_counter; qemu_put_be32s (f, &val);
-}
-
-static int cs_load (QEMUFile *f, void *opaque, int version_id)
-{
-    CSState *s = opaque;
-    unsigned int i;
-    uint32_t val, dma_running;
-
-    if (version_id > 1)
-        return -EINVAL;
-
-    for (i = 0; i < CS_REGS; i++)
-        qemu_get_be32s (f, &s->regs[i]);
-
-    qemu_get_buffer (f, s->dregs, CS_DREGS);
-
-    qemu_get_be32s (f, &dma_running);
-    qemu_get_be32s (f, &val); s->audio_free  = val;
-    qemu_get_be32s (f, &val); s->transferred = val;
-    qemu_get_be32s (f, &val); s->aci_counter = val;
-    if (dma_running && (s->dregs[Interface_Configuration] & PEN))
-        cs_reset_voices (s, s->dregs[FS_And_Playback_Data_Format]);
+    if (s->dma_running) {
+        DMA_release_DREQ (s->dma);
+        AUD_set_active_out (s->voice, 0);
+    }
+    s->dma_running = 0;
     return 0;
 }
+
+static int cs4231a_post_load (void *opaque, int version_id)
+{
+    CSState *s = opaque;
+
+    if (s->dma_running && (s->dregs[Interface_Configuration] & PEN)) {
+        s->dma_running = 0;
+        cs_reset_voices (s, s->dregs[FS_And_Playback_Data_Format]);
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_cs4231a = {
+    .name = "cs4231a",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_load = cs4231a_pre_load,
+    .post_load = cs4231a_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(regs, CSState, CS_REGS),
+        VMSTATE_BUFFER(dregs, CSState),
+        VMSTATE_INT32(dma_running, CSState),
+        VMSTATE_INT32(audio_free, CSState),
+        VMSTATE_INT32(transferred, CSState),
+        VMSTATE_INT32(aci_counter, CSState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int cs4231a_initfn (ISADevice *dev)
 {
@@ -649,7 +651,7 @@ static int cs4231a_initfn (ISADevice *dev)
 
     DMA_register_channel (s->dma, cs_dma_read, s);
 
-    register_savevm ("cs4231a", 0, 1, cs_save, cs_load, s);
+    vmstate_register (0, &vmstate_cs4231a, s);
     qemu_register_reset (cs_reset, s);
     cs_reset (s);
 
