@@ -291,13 +291,13 @@ static int ssd0303_init(i2c_slave *i2c)
                                  ssd0303_invalidate_display,
                                  NULL, NULL, s);
     qemu_console_resize(s->ds, 96 * MAGNIFY, 16 * MAGNIFY);
-    vmstate_register(-1, &vmstate_ssd0303, s);
     return 0;
 }
 
 static I2CSlaveInfo ssd0303_info = {
     .qdev.name = "ssd0303",
     .qdev.size = sizeof(ssd0303_state),
+    .qdev.vmsd = &vmstate_ssd0303,
     .init = ssd0303_init,
     .event = ssd0303_event,
     .recv = ssd0303_recv,

@@ -287,7 +287,6 @@ static int gus_initfn (ISADevice *dev)
 
     AUD_set_active_out (s->voice, 1);
 
-    vmstate_register (0, &vmstate_gus, s);
     return 0;
 }
 
@@ -301,6 +300,7 @@ static ISADeviceInfo gus_info = {
     .qdev.name     = "gus",
     .qdev.desc     = "Gravis Ultrasound GF1",
     .qdev.size     = sizeof (GUSState),
+    .qdev.vmsd     = &vmstate_gus,
     .init          = gus_initfn,
     .qdev.props    = (Property[]) {
         DEFINE_PROP_UINT32 ("freq",    GUSState, freq,        44100),

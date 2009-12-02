@@ -3245,7 +3245,6 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
          pci_register_bar((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
                           PCI_BASE_ADDRESS_SPACE_MEMORY, cirrus_pci_mmio_map);
      }
-     vmstate_register(0, &vmstate_pci_cirrus_vga, d);
 
      /* ROM BIOS */
      rom_add_vga(VGABIOS_CIRRUS_FILENAME);
@@ -3260,6 +3259,7 @@ void pci_cirrus_vga_init(PCIBus *bus)
 static PCIDeviceInfo cirrus_vga_info = {
     .qdev.name    = "Cirrus VGA",
     .qdev.size    = sizeof(PCICirrusVGAState),
+    .qdev.vmsd    = &vmstate_pci_cirrus_vga,
     .init         = pci_cirrus_vga_initfn,
     .config_write = pci_cirrus_write_config,
 };

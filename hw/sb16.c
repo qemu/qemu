@@ -1381,7 +1381,6 @@ static int sb16_initfn (ISADevice *dev)
     DMA_register_channel (s->dma, SB_read_DMA, s);
     s->can_write = 1;
 
-    vmstate_register (0, &vmstate_sb16, s);
     AUD_register_card ("sb16", &s->card);
     return 0;
 }
@@ -1396,6 +1395,7 @@ static ISADeviceInfo sb16_info = {
     .qdev.name     = "sb16",
     .qdev.desc     = "Creative Sound Blaster 16",
     .qdev.size     = sizeof (SB16State),
+    .qdev.vmsd     = &vmstate_sb16,
     .init          = sb16_initfn,
     .qdev.props    = (Property[]) {
         DEFINE_PROP_HEX32  ("version", SB16State, ver,  0x0405), /* 4.5 */

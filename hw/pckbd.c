@@ -414,6 +414,17 @@ typedef struct ISAKBDState {
     KBDState  kbd;
 } ISAKBDState;
 
+const VMStateDescription vmstate_kbd_isa = {
+    .name = "pckbd",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_STRUCT(kbd, ISAKBDState, 0, vmstate_kbd, KBDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int i8042_initfn(ISADevice *dev)
 {
     KBDState *s = &(DO_UPCAST(ISAKBDState, dev, dev)->kbd);
@@ -421,7 +432,6 @@ static int i8042_initfn(ISADevice *dev)
     isa_init_irq(dev, &s->irq_kbd, 1);
     isa_init_irq(dev, &s->irq_mouse, 12);
 
-    vmstate_register(0, &vmstate_kbd, s);
     register_ioport_read(0x60, 1, 1, kbd_read_data, s);
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);
@@ -439,6 +449,7 @@ static int i8042_initfn(ISADevice *dev)
 static ISADeviceInfo i8042_info = {
     .qdev.name     = "i8042",
     .qdev.size     = sizeof(ISAKBDState),
+    .qdev.vmsd     = &vmstate_kbd_isa,
     .qdev.no_user  = 1,
     .init          = i8042_initfn,
 };

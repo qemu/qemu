@@ -2148,7 +2148,6 @@ static int lsi_scsi_init(PCIDevice *dev)
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
-    vmstate_register(-1, &vmstate_lsi_scsi, s);
     return 0;
 }
 
@@ -2156,6 +2155,7 @@ static PCIDeviceInfo lsi_info = {
     .qdev.name  = "lsi53c895a",
     .qdev.alias = "lsi",
     .qdev.size  = sizeof(LSIState),
+    .qdev.vmsd  = &vmstate_lsi_scsi,
     .init       = lsi_scsi_init,
     .exit       = lsi_scsi_uninit,
 };

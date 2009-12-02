@@ -1051,7 +1051,6 @@ pci_e1000_uninit(PCIDevice *dev)
 
     cpu_unregister_io_memory(d->mmio_index);
     qemu_del_vlan_client(&d->nic->nc);
-    vmstate_unregister(&vmstate_e1000, d);
     return 0;
 }
 
@@ -1121,8 +1120,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     qemu_format_nic_info_str(&d->nic->nc, macaddr);
 
-    vmstate_register(-1, &vmstate_e1000, d);
-
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
@@ -1144,6 +1141,7 @@ static PCIDeviceInfo e1000_info = {
     .qdev.desc  = "Intel Gigabit Ethernet",
     .qdev.size  = sizeof(E1000State),
     .qdev.reset = qdev_e1000_reset,
+    .qdev.vmsd  = &vmstate_e1000,
     .init       = pci_e1000_init,
     .exit       = pci_e1000_uninit,
     .qdev.props = (Property[]) {

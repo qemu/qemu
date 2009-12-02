@@ -1319,7 +1319,6 @@ static int ac97_initfn (PCIDevice *dev)
     pci_register_bar (&s->dev, 0, 256 * 4, PCI_BASE_ADDRESS_SPACE_IO,
                       ac97_map);
     pci_register_bar (&s->dev, 1, 64 * 4, PCI_BASE_ADDRESS_SPACE_IO, ac97_map);
-    vmstate_register (0, &vmstate_ac97, s);
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
     ac97_on_reset (s);
@@ -1336,6 +1335,7 @@ static PCIDeviceInfo ac97_info = {
     .qdev.name    = "AC97",
     .qdev.desc    = "Intel 82801AA AC97 Audio",
     .qdev.size    = sizeof (AC97LinkState),
+    .qdev.vmsd    = &vmstate_ac97,
     .init         = ac97_initfn,
 };
 

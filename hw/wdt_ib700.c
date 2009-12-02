@@ -98,7 +98,6 @@ static int wdt_ib700_init(ISADevice *dev)
     IB700State *s = DO_UPCAST(IB700State, dev, dev);
 
     s->timer = qemu_new_timer(vm_clock, ib700_timer_expired, s);
-    vmstate_register(-1, &vmstate_ib700, s);
     register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, s);
     register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, s);
 
@@ -113,6 +112,7 @@ static WatchdogTimerModel model = {
 static ISADeviceInfo wdt_ib700_info = {
     .qdev.name = "ib700",
     .qdev.size = sizeof(IB700State),
+    .qdev.vmsd = &vmstate_ib700,
     .init      = wdt_ib700_init,
 };
 

@@ -228,13 +228,13 @@ static int tmp105_init(i2c_slave *i2c)
 
     tmp105_reset(&s->i2c);
 
-    vmstate_register(-1, &vmstate_tmp105, s);
     return 0;
 }
 
 static I2CSlaveInfo tmp105_info = {
     .qdev.name = "tmp105",
     .qdev.size = sizeof(TMP105State),
+    .qdev.vmsd = &vmstate_tmp105,
     .init = tmp105_init,
     .event = tmp105_event,
     .recv = tmp105_rx,

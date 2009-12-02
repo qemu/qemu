@@ -1189,7 +1189,6 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
-    vmstate_register(0, &vmstate_vmware_vga, s);
     return 0;
 }
 
@@ -1201,6 +1200,7 @@ void pci_vmsvga_init(PCIBus *bus)
 static PCIDeviceInfo vmsvga_info = {
     .qdev.name    = "QEMUware SVGA",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
+    .qdev.vmsd    = &vmstate_vmware_vga,
     .init         = pci_vmsvga_initfn,
 };
 

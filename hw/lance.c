@@ -96,7 +96,6 @@ static void lance_cleanup(VLANClientState *nc)
 {
     PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    vmstate_unregister(&vmstate_pcnet, d);
     pcnet_common_cleanup(d);
 }
 
@@ -106,6 +105,17 @@ static NetClientInfo net_lance_info = {
     .can_receive = pcnet_can_receive,
     .receive = pcnet_receive,
     .cleanup = lance_cleanup,
+};
+
+static const VMStateDescription vmstate_lance = {
+    .name = "pcnet",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_STRUCT(state, SysBusPCNetState, 0, vmstate_pcnet, PCNetState),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static int lance_init(SysBusDevice *dev)
@@ -124,8 +134,6 @@ static int lance_init(SysBusDevice *dev)
 
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
-
-    vmstate_register(-1, &vmstate_pcnet, d);
     return pcnet_common_init(&dev->qdev, s, &net_lance_info);
 }
 
@@ -141,6 +149,7 @@ static SysBusDeviceInfo lance_info = {
     .qdev.name  = "lance",
     .qdev.size  = sizeof(SysBusPCNetState),
     .qdev.reset = lance_reset,
+    .qdev.vmsd  = &vmstate_lance,
     .qdev.props = (Property[]) {
         DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
         DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),

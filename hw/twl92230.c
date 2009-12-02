@@ -855,13 +855,13 @@ static int twl92230_init(i2c_slave *i2c)
 
     menelaus_reset(&s->i2c);
 
-    vmstate_register(-1, &vmstate_menelaus, s);
     return 0;
 }
 
 static I2CSlaveInfo twl92230_info = {
     .qdev.name ="twl92230",
     .qdev.size = sizeof(MenelausState),
+    .qdev.vmsd = &vmstate_menelaus,
     .init = twl92230_init,
     .event = menelaus_event,
     .recv = menelaus_rx,

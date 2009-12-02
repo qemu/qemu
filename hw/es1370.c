@@ -1023,7 +1023,6 @@ static int es1370_initfn (PCIDevice *dev)
     c[0x3f] = 0x80;
 
     pci_register_bar (&s->dev, 0, 256, PCI_BASE_ADDRESS_SPACE_IO, es1370_map);
-    vmstate_register (0, &vmstate_es1370, s);
     qemu_register_reset (es1370_on_reset, s);
 
     AUD_register_card ("es1370", &s->card);
@@ -1041,6 +1040,7 @@ static PCIDeviceInfo es1370_info = {
     .qdev.name    = "ES1370",
     .qdev.desc    = "ENSONIQ AudioPCI ES1370",
     .qdev.size    = sizeof (ES1370State),
+    .qdev.vmsd    = &vmstate_es1370,
     .init         = es1370_initfn,
 };
 

@@ -651,7 +651,6 @@ static int cs4231a_initfn (ISADevice *dev)
 
     DMA_register_channel (s->dma, cs_dma_read, s);
 
-    vmstate_register (0, &vmstate_cs4231a, s);
     qemu_register_reset (cs_reset, s);
     cs_reset (s);
 
@@ -669,6 +668,7 @@ static ISADeviceInfo cs4231a_info = {
     .qdev.name     = "cs4231a",
     .qdev.desc     = "Crystal Semiconductor CS4231A",
     .qdev.size     = sizeof (CSState),
+    .qdev.vmsd     = &vmstate_cs4231a,
     .init          = cs4231a_initfn,
     .qdev.props    = (Property[]) {
         DEFINE_PROP_HEX32  ("iobase",  CSState, port, 0x534),
