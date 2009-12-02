@@ -1,3 +1,20 @@
+Version 0.11.1
+  - fix I2C slave addressing (Juha Riihimäki)
+  - Revert "vga: do not resize the screen on hw_invalidate" (Aurelien Jarno)
+  - slirp: fix use-after-free (Mark McLoughlin)
+  - Fix sparc.ld (Blue Swirl)
+  - ELF codedump build failures (Laurent Desnogues)
+  - kvm: Move KVM mp_state accessors to i386-specific code (Hollis Blanchard)
+  - fix configure script with armv4l cpu (Laurent Desnogues)
+  - net: disable draining tap queue in one go (Mark McLoughlin)
+  - pcnet: Restart poll timer on pcnet_start (Jan Kiszka)
+  - Sparc32: Fix lance (Blue Swirl)
+  - mac99: fix segmentation fault on startup (Aurelien Jarno)
+  - usb-linux.c: fix buffer overflow (Jim Paris)
+  - ARM host: fix generated blocks linking (Laurent Desnogues)
+  - qemu serial: lost tx irqs (affecting FreeBSD's new uart(4) driver (Juergen Lock)
+  - exec-all.h: increase MAX_OP_PER_INSTR to 96 from 64 (Aurelien Jarno)
+
 version 0.11.0
   - fix rtc polling mode (Bernhard Kauer)
   - qcow2: order concurrent aio requests (Kevin Wolf)
