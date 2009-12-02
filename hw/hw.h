@@ -633,6 +633,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_INT32_LE(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
 
+#define VMSTATE_UINT16_TEST(_f, _s, _t)                               \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint16, uint16_t)
+
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
 
