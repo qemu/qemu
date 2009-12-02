@@ -1242,6 +1242,9 @@ static int ac97_load (QEMUFile *f, void *opaque, int version_id)
     V_ (AC97_Line_In_Volume_Mute, AUD_MIXER_LINE_IN);
 #undef V_
 #endif
+    active[PI_INDEX] = !!(s->bm_regs[PI_INDEX].cr & CR_RPBM);
+    active[PO_INDEX] = !!(s->bm_regs[PO_INDEX].cr & CR_RPBM);
+    active[MC_INDEX] = !!(s->bm_regs[MC_INDEX].cr & CR_RPBM);
     reset_voices (s, active);
 
     s->bup_flag = 0;
