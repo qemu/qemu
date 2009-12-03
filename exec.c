@@ -192,7 +192,11 @@ static int io_mem_watch;
 #endif
 
 /* log support */
+#ifdef WIN32
+static const char *logfilename = "qemu.log";
+#else
 static const char *logfilename = "/tmp/qemu.log";
+#endif
 FILE *logfile;
 int loglevel;
 static int log_append = 0;
