@@ -133,25 +133,16 @@ int qemu_create_pidfile(const char *filename)
         return -1;
 #else
     HANDLE file;
-    DWORD flags;
     OVERLAPPED overlap;
     BOOL ret;
+    memset(&overlap, 0, sizeof(overlap));
 
-    /* Open for writing with no sharing. */
-    file = CreateFile(filename, GENERIC_WRITE, 0, NULL,
+    file = CreateFile(filename, GENERIC_WRITE, FILE_SHARE_READ, NULL,
 		      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (file == INVALID_HANDLE_VALUE)
       return -1;
 
-    flags = LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY;
-    overlap.hEvent = 0;
-    /* Lock 1 byte. */
-    ret = LockFileEx(file, flags, 0, 0, 1, &overlap);
-    if (ret == 0)
-      return -1;
-
-    /* Write PID to file. */
     len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
     ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len,
 		      &overlap, NULL);

@@ -5761,16 +5761,18 @@ int main(int argc, char **argv, char **envp)
         signal(SIGTTOU, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
     }
+#endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
+#ifndef _WIN32
         if (daemonize) {
             uint8_t status = 1;
             write(fds[1], &status, 1);
         } else
+#endif
             fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
         exit(1);
     }
-#endif
 
     if (kvm_enabled()) {
         int ret;
