@@ -2919,7 +2919,7 @@ static int get_free_io_mem_idx(void)
             io_mem_used[i] = 1;
             return i;
         }
-
+    fprintf(stderr, "RAN out out io_mem_idx, max %d !\n", IO_MEM_NB_ENTRIES);
     return -1;
 }
 
