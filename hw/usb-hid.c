@@ -100,7 +100,7 @@ static const uint8_t qemu_mouse_config_descriptor[] = {
 	0x01,       /*  u8  bNumInterfaces; (1) */
 	0x01,       /*  u8  bConfigurationValue; */
 	0x04,       /*  u8  iConfiguration; */
-	0xa0,       /*  u8  bmAttributes;
+	0xe0,       /*  u8  bmAttributes;
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
