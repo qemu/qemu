@@ -560,19 +560,21 @@ static int load_multiboot(void *fw_cfg,
     }
     if (!(flags & 0x00010000)) { /* MULTIBOOT_HEADER_HAS_ADDR */
         uint64_t elf_entry;
+        uint64_t elf_low, elf_high;
         int kernel_size;
         fclose(f);
-        kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL,
+        kernel_size = load_elf(kernel_filename, 0, &elf_entry, &elf_low, &elf_high,
                                0, ELF_MACHINE, 0);
         if (kernel_size < 0) {
             fprintf(stderr, "Error while loading elf kernel\n");
             exit(1);
         }
-        mh_load_addr = mh_entry_addr = elf_entry;
-        mb_kernel_size = kernel_size;
+        mh_load_addr = elf_low;
+        mb_kernel_size = elf_high - elf_low;
+        mh_entry_addr = elf_entry;
 
         mb_kernel_data = qemu_malloc(mb_kernel_size);
-        if (rom_copy(mb_kernel_data, elf_entry, kernel_size) != kernel_size) {
+        if (rom_copy(mb_kernel_data, mh_load_addr, mb_kernel_size) != mb_kernel_size) {
             fprintf(stderr, "Error while fetching elf kernel from rom\n");
             exit(1);
         }
