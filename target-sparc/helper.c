@@ -579,7 +579,7 @@ void dump_mmu(CPUState *env)
     } else {
         printf("DMMU dump:\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->dtlb_tte[i] >> 61) & 3) {
+            switch ((env->dtlb[i].tte >> 61) & 3) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -594,17 +594,17 @@ void dump_mmu(CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("[%02u] VA: " PRIx64 ", PA: " PRIx64
+            if ((env->dtlb[i].tte & 0x8000000000000000ULL) != 0) {
+                printf("[%02u] VA: %" PRIx64 ", PA: %" PRIx64
                        ", %s, %s, %s, %s, ctx %" PRId64 "\n",
                        i,
-                       env->dtlb_tag[i] & (uint64_t)~0x1fffULL,
-                       env->dtlb_tte[i] & (uint64_t)0x1ffffffe000ULL,
+                       env->dtlb[i].tag & (uint64_t)~0x1fffULL,
+                       env->dtlb[i].tte & (uint64_t)0x1ffffffe000ULL,
                        mask,
-                       env->dtlb_tte[i] & 0x4? "priv": "user",
-                       env->dtlb_tte[i] & 0x2? "RW": "RO",
-                       env->dtlb_tte[i] & 0x40? "locked": "unlocked",
-                       env->dtlb_tag[i] & (uint64_t)0x1fffULL);
+                       env->dtlb[i].tte & 0x4? "priv": "user",
+                       env->dtlb[i].tte & 0x2? "RW": "RO",
+                       env->dtlb[i].tte & 0x40? "locked": "unlocked",
+                       env->dtlb[i].tag & (uint64_t)0x1fffULL);
             }
         }
     }
@@ -613,7 +613,7 @@ void dump_mmu(CPUState *env)
     } else {
         printf("IMMU dump:\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->itlb_tte[i] >> 61) & 3) {
+            switch ((env->itlb[i].tte >> 61) & 3) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -628,15 +628,15 @@ void dump_mmu(CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("[%02u] VA: " PRIx64 ", PA: " PRIx64
+            if ((env->itlb[i].tte & 0x8000000000000000ULL) != 0) {
+                printf("[%02u] VA: %" PRIx64 ", PA: %" PRIx64
                        ", %s, %s, %s, ctx %" PRId64 "\n",
                        i,
                        env->itlb[i].tag & (uint64_t)~0x1fffULL,
-                       env->itlb_tte[i] & (uint64_t)0x1ffffffe000ULL,
+                       env->itlb[i].tte & (uint64_t)0x1ffffffe000ULL,
                        mask,
-                       env->itlb_tte[i] & 0x4? "priv": "user",
-                       env->itlb_tte[i] & 0x40? "locked": "unlocked",
+                       env->itlb[i].tte & 0x4? "priv": "user",
+                       env->itlb[i].tte & 0x40? "locked": "unlocked",
                        env->itlb[i].tag & (uint64_t)0x1fffULL);
             }
         }
