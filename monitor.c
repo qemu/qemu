@@ -772,6 +772,22 @@ static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
     eject_device(mon, bs, force);
 }
 
+static void do_block_set_passwd(Monitor *mon, const QDict *qdict,
+                                QObject **ret_data)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_find(qdict_get_str(qdict, "device"));
+    if (!bs) {
+        qemu_error_new(QERR_DEVICE_NOT_FOUND, qdict_get_str(qdict, "device"));
+        return;
+    }
+
+    if (bdrv_set_key(bs, qdict_get_str(qdict, "password")) < 0) {
+        qemu_error_new(QERR_INVALID_PASSWORD);
+    }
+}
+
 static void do_change_block(Monitor *mon, const char *device,
                             const char *filename, const char *fmt)
 {
