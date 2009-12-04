@@ -346,7 +346,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
         case 0x80: /* Device serial number, optional */
         {
-            const char *serial = req->dev->dinfo->serial ?: "0";
+            const char *serial = req->dev->dinfo->serial ?
+                req->dev->dinfo->serial : "0";
             int l = strlen(serial);
 
             if (l > req->cmd.xfer)
