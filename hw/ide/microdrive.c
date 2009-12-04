@@ -300,7 +300,7 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
     }
 }
 
-const VMStateDescription vmstate_microdrive = {
+static const VMStateDescription vmstate_microdrive = {
     .name = "microdrive",
     .version_id = 3,
     .minimum_version_id = 0,

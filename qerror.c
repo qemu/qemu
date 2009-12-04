@@ -39,7 +39,7 @@ static const QType qerror_type = {
  *
  * "running out of foo: %(foo)%%"
  */
-const QErrorStringTable qerror_table[] = {
+static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt   = QERR_COMMAND_NOT_FOUND,
         .desc        = "The command %(name) has not been found",

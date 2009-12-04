@@ -756,7 +756,7 @@ static void put_int32_as_uint16(QEMUFile *f, void *pv, size_t size)
     qemu_put_be16(f, *v);
 }
 
-const VMStateInfo vmstate_hack_int32_as_uint16 = {
+static const VMStateInfo vmstate_hack_int32_as_uint16 = {
     .name = "int32_as_uint16",
     .get  = get_int32_as_uint16,
     .put  = put_int32_as_uint16,

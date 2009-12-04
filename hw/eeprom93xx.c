@@ -107,7 +107,7 @@ static void put_unused(QEMUFile *f, void *pv, size_t size)
     exit(0);
 }
 
-const VMStateInfo vmstate_hack_uint16_from_uint8 = {
+static const VMStateInfo vmstate_hack_uint16_from_uint8 = {
     .name = "uint16_from_uint8",
     .get  = get_uint16_from_uint8,
     .put  = put_unused,

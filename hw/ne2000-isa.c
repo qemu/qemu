@@ -50,7 +50,7 @@ static NetClientInfo net_ne2000_isa_info = {
     .cleanup = isa_ne2000_cleanup,
 };
 
-const VMStateDescription vmstate_isa_ne2000 = {
+static const VMStateDescription vmstate_isa_ne2000 = {
     .name = "ne2000",
     .version_id = 2,
     .minimum_version_id = 0,

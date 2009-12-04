@@ -663,7 +663,7 @@ const VMStateDescription vmstate_ne2000 = {
     }
 };
 
-const VMStateDescription vmstate_pci_ne2000 = {
+static const VMStateDescription vmstate_pci_ne2000 = {
     .name = "ne2000",
     .version_id = 3,
     .minimum_version_id = 3,

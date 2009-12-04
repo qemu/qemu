@@ -182,7 +182,7 @@ static void put_unused(QEMUFile *f, void *pv, size_t size)
     fprintf(stderr, "This functions shouldn't be called.\n");
 }
 
-const VMStateInfo vmstate_hack_uint32_as_uint16 = {
+static const VMStateInfo vmstate_hack_uint32_as_uint16 = {
     .name = "int32_as_uint16",
     .get  = get_uint32_as_uint16,
     .put  = put_unused,

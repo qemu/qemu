@@ -1063,7 +1063,7 @@ static int vmsvga_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_vmware_vga_internal = {
+static const VMStateDescription vmstate_vmware_vga_internal = {
     .name = "vmware_vga_internal",
     .version_id = 0,
     .minimum_version_id = 0,
@@ -1090,7 +1090,7 @@ const VMStateDescription vmstate_vmware_vga_internal = {
     }
 };
 
-const VMStateDescription vmstate_vmware_vga = {
+static const VMStateDescription vmstate_vmware_vga = {
     .name = "vmware_vga",
     .version_id = 0,
     .minimum_version_id = 0,

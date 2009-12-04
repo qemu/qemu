@@ -414,7 +414,7 @@ typedef struct ISAKBDState {
     KBDState  kbd;
 } ISAKBDState;
 
-const VMStateDescription vmstate_kbd_isa = {
+static const VMStateDescription vmstate_kbd_isa = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
