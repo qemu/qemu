@@ -15,12 +15,12 @@ extern Monitor *cur_mon;
 
 /* QMP events */
 typedef enum MonitorEvent {
-    EVENT_DEBUG,
-    EVENT_SHUTDOWN,
-    EVENT_RESET,
-    EVENT_POWERDOWN,
-    EVENT_STOP,
-    EVENT_MAX,
+    QEVENT_DEBUG,
+    QEVENT_SHUTDOWN,
+    QEVENT_RESET,
+    QEVENT_POWERDOWN,
+    QEVENT_STOP,
+    QEVENT_MAX,
 } MonitorEvent;
 
 void monitor_protocol_event(MonitorEvent event, QObject *data);
