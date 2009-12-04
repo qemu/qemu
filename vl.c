@@ -2044,10 +2044,6 @@ BlockInterfaceErrorAction drive_get_on_error(
 {
     DriveInfo *dinfo;
 
-    if (is_read) {
-        return BLOCK_ERR_REPORT;
-    }
-
     QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
             return is_read ? dinfo->on_read_error : dinfo->on_write_error;
