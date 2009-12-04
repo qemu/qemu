@@ -55,6 +55,7 @@
 #include "qjson.h"
 #include "json-streamer.h"
 #include "json-parser.h"
+#include "osdep.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -320,9 +321,9 @@ static void timestamp_put(QDict *qdict)
 {
     int err;
     QObject *obj;
-    struct timeval tv;
+    qemu_timeval tv;
 
-    err = gettimeofday(&tv, NULL);
+    err = qemu_gettimeofday(&tv);
     if (err < 0)
         return;
 
