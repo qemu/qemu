@@ -57,6 +57,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc        = "Invalid parameter type, expected: %(expected)",
     },
     {
+        .error_fmt   = QERR_INVALID_PASSWORD,
+        .desc        = "The entered password is invalid",
+    },
+    {
         .error_fmt = QERR_KVM_MISSING_CAP,
         .desc      = "Using KVM without %(capability), %(feature) unavailable",
     },
