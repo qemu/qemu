@@ -718,8 +718,6 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->max)
             continue;
-        if (rom->min > addr)
-            continue;
         if (rom->min + rom->romsize < addr)
             continue;
         if (rom->min > end)
