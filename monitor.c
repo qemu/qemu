@@ -3757,7 +3757,7 @@ static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
     const char *p;
     CmdArgs cmd_args;
 
-    if (cmd->args_type == '\0') {
+    if (cmd->args_type == NULL) {
         return (qdict_size(args) == 0 ? 0 : -1);
     }
 
