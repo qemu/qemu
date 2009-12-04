@@ -3864,7 +3864,7 @@ static int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return (mon->suspend_cnt == 0) ? 128 : 0;
+    return (mon->suspend_cnt == 0) ? 1 : 0;
 }
 
 typedef struct CmdArgs {
