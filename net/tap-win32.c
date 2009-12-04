@@ -687,10 +687,10 @@ static int tap_win32_init(VLANState *vlan, const char *model,
 
     nc = qemu_new_net_client(&net_tap_win32_info, vlan, NULL, model, name);
 
+    s = DO_UPCAST(TAPState, nc, nc);
+
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "tap: ifname=%s", ifname);
-
-    s = DO_UPCAST(TAPState, nc, nc);
 
     s->handle = handle;
 
