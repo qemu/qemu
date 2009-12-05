@@ -1377,6 +1377,8 @@ EOF
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/x86/include"
 	elif test "$cpu" = "ppc" -a -d "$kerneldir/arch/powerpc/include" ; then
 	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/powerpc/include"
+	elif test "$cpu" = "s390x" -a -d "$kerneldir/arch/s390/include" ; then
+	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/s390/include"
         elif test -d "$kerneldir/arch/$cpu/include" ; then
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/$cpu/include"
       fi
@@ -2390,7 +2392,7 @@ case "$target_arch2" in
     fi
 esac
 case "$target_arch2" in
-  i386|x86_64|ppcemb|ppc|ppc64)
+  i386|x86_64|ppcemb|ppc|ppc64|s390x)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_arch2" = "$cpu" -o \
