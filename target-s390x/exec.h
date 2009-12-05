@@ -22,8 +22,13 @@
 
 register struct CPUS390XState *env asm(AREG0);
 
+#include "config.h"
 #include "cpu.h"
 #include "exec-all.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
 
 static inline int cpu_has_work(CPUState *env)
 {

@@ -30,8 +30,7 @@
 
 #include "softfloat.h"
 
-#define NB_MMU_MODES 2 // guess
-#define MMU_USER_IDX 0 // guess
+#define NB_MMU_MODES 2
 
 typedef union FPReg {
     struct {
@@ -77,6 +76,15 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+static inline int cpu_mmu_index (CPUState *env)
+{
+    /* XXX: Currently we don't implement virtual memory */
+    return 0;
+}
+
 CPUS390XState *cpu_s390x_init(const char *cpu_model);
 int cpu_s390x_exec(CPUS390XState *s);
 void cpu_s390x_close(CPUS390XState *s);
@@ -91,6 +99,13 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 #define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
 
 #define TARGET_PAGE_BITS 12
+
+#ifndef CONFIG_USER_ONLY
+extern int s390_virtio_hypercall(CPUState *env);
+extern void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);
+extern CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
+#endif
+
 
 #define cpu_init cpu_s390x_init
 #define cpu_exec cpu_s390x_exec
@@ -119,4 +134,138 @@ static inline void cpu_get_tb_cpu_state(CPUState* env, target_ulong *pc,
     *cs_base = 0;
     *flags = env->psw.mask;
 }
+
+/* Program Status Word.  */
+#define S390_PSWM_REGNUM 0
+#define S390_PSWA_REGNUM 1
+/* General Purpose Registers.  */
+#define S390_R0_REGNUM 2
+#define S390_R1_REGNUM 3
+#define S390_R2_REGNUM 4
+#define S390_R3_REGNUM 5
+#define S390_R4_REGNUM 6
+#define S390_R5_REGNUM 7
+#define S390_R6_REGNUM 8
+#define S390_R7_REGNUM 9
+#define S390_R8_REGNUM 10
+#define S390_R9_REGNUM 11
+#define S390_R10_REGNUM 12
+#define S390_R11_REGNUM 13
+#define S390_R12_REGNUM 14
+#define S390_R13_REGNUM 15
+#define S390_R14_REGNUM 16
+#define S390_R15_REGNUM 17
+/* Access Registers.  */
+#define S390_A0_REGNUM 18
+#define S390_A1_REGNUM 19
+#define S390_A2_REGNUM 20
+#define S390_A3_REGNUM 21
+#define S390_A4_REGNUM 22
+#define S390_A5_REGNUM 23
+#define S390_A6_REGNUM 24
+#define S390_A7_REGNUM 25
+#define S390_A8_REGNUM 26
+#define S390_A9_REGNUM 27
+#define S390_A10_REGNUM 28
+#define S390_A11_REGNUM 29
+#define S390_A12_REGNUM 30
+#define S390_A13_REGNUM 31
+#define S390_A14_REGNUM 32
+#define S390_A15_REGNUM 33
+/* Floating Point Control Word.  */
+#define S390_FPC_REGNUM 34
+/* Floating Point Registers.  */
+#define S390_F0_REGNUM 35
+#define S390_F1_REGNUM 36
+#define S390_F2_REGNUM 37
+#define S390_F3_REGNUM 38
+#define S390_F4_REGNUM 39
+#define S390_F5_REGNUM 40
+#define S390_F6_REGNUM 41
+#define S390_F7_REGNUM 42
+#define S390_F8_REGNUM 43
+#define S390_F9_REGNUM 44
+#define S390_F10_REGNUM 45
+#define S390_F11_REGNUM 46
+#define S390_F12_REGNUM 47
+#define S390_F13_REGNUM 48
+#define S390_F14_REGNUM 49
+#define S390_F15_REGNUM 50
+/* Total.  */
+#define S390_NUM_REGS 51
+
+/* Pseudo registers -- PC and condition code.  */
+#define S390_PC_REGNUM S390_NUM_REGS
+#define S390_CC_REGNUM (S390_NUM_REGS+1)
+#define S390_NUM_PSEUDO_REGS 2
+#define S390_NUM_TOTAL_REGS (S390_NUM_REGS+2)
+
+
+
+/* Program Status Word.  */
+#define S390_PSWM_REGNUM 0
+#define S390_PSWA_REGNUM 1
+/* General Purpose Registers.  */
+#define S390_R0_REGNUM 2
+#define S390_R1_REGNUM 3
+#define S390_R2_REGNUM 4
+#define S390_R3_REGNUM 5
+#define S390_R4_REGNUM 6
+#define S390_R5_REGNUM 7
+#define S390_R6_REGNUM 8
+#define S390_R7_REGNUM 9
+#define S390_R8_REGNUM 10
+#define S390_R9_REGNUM 11
+#define S390_R10_REGNUM 12
+#define S390_R11_REGNUM 13
+#define S390_R12_REGNUM 14
+#define S390_R13_REGNUM 15
+#define S390_R14_REGNUM 16
+#define S390_R15_REGNUM 17
+/* Access Registers.  */
+#define S390_A0_REGNUM 18
+#define S390_A1_REGNUM 19
+#define S390_A2_REGNUM 20
+#define S390_A3_REGNUM 21
+#define S390_A4_REGNUM 22
+#define S390_A5_REGNUM 23
+#define S390_A6_REGNUM 24
+#define S390_A7_REGNUM 25
+#define S390_A8_REGNUM 26
+#define S390_A9_REGNUM 27
+#define S390_A10_REGNUM 28
+#define S390_A11_REGNUM 29
+#define S390_A12_REGNUM 30
+#define S390_A13_REGNUM 31
+#define S390_A14_REGNUM 32
+#define S390_A15_REGNUM 33
+/* Floating Point Control Word.  */
+#define S390_FPC_REGNUM 34
+/* Floating Point Registers.  */
+#define S390_F0_REGNUM 35
+#define S390_F1_REGNUM 36
+#define S390_F2_REGNUM 37
+#define S390_F3_REGNUM 38
+#define S390_F4_REGNUM 39
+#define S390_F5_REGNUM 40
+#define S390_F6_REGNUM 41
+#define S390_F7_REGNUM 42
+#define S390_F8_REGNUM 43
+#define S390_F9_REGNUM 44
+#define S390_F10_REGNUM 45
+#define S390_F11_REGNUM 46
+#define S390_F12_REGNUM 47
+#define S390_F13_REGNUM 48
+#define S390_F14_REGNUM 49
+#define S390_F15_REGNUM 50
+/* Total.  */
+#define S390_NUM_REGS 51
+
+/* Pseudo registers -- PC and condition code.  */
+#define S390_PC_REGNUM S390_NUM_REGS
+#define S390_CC_REGNUM (S390_NUM_REGS+1)
+#define S390_NUM_PSEUDO_REGS 2
+#define S390_NUM_TOTAL_REGS (S390_NUM_REGS+2)
+
+
 #endif

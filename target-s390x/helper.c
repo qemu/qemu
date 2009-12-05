@@ -27,6 +27,9 @@
 #include "gdbstub.h"
 #include "qemu-common.h"
 
+#include <linux/kvm.h>
+#include "kvm.h"
+
 CPUS390XState *cpu_s390x_init(const char *cpu_model)
 {
     CPUS390XState *env;
@@ -60,3 +63,22 @@ void cpu_reset(CPUS390XState *env)
     /* FIXME: reset vector? */
     tlb_flush(env, 1);
 }
+
+#ifndef CONFIG_USER_ONLY
+
+int cpu_s390x_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                                int mmu_idx, int is_softmmu)
+{
+    target_ulong phys;
+    int prot;
+
+    /* XXX: implement mmu */
+
+    phys = address;
+    prot = PAGE_READ | PAGE_WRITE;
+
+    return tlb_set_page(env, address & TARGET_PAGE_MASK,
+                        phys & TARGET_PAGE_MASK, prot,
+                        mmu_idx, is_softmmu);
+}
+#endif /* CONFIG_USER_ONLY */
