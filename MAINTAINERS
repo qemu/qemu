@@ -20,6 +20,7 @@ SH4                ?
 CRIS               Edgar E. Iglesias
 Alpha              ?
 MicroBlaze         Edgar E. Iglesias
+S390               ?
 
 Machines (sorted by CPU):
 -------------------------
@@ -63,6 +64,8 @@ CRIS
 Alpha
 MicroBlaze
   petalogix_s3adsp1800.c  Edgar E. Iglesias
+S390
+  s390-*.c                Alexander Graf
 
 Generic Subsystems:
 -------------------  
