@@ -4711,6 +4711,20 @@ int main(int argc, char **argv, char **envp)
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
+#ifdef TARGET_S390X
+    for(i = 0; i < MAX_SERIAL_PORTS; i++)
+        serial_devices[i] = NULL;
+    serial_device_index = 0;
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++)
+        parallel_devices[i] = NULL;
+    parallel_device_index = 0;
+
+    virtio_consoles[0] = "mon:stdio";
+    for(i = 1; i < MAX_VIRTIO_CONSOLES; i++)
+        virtio_consoles[i] = NULL;
+    virtio_console_index = 0;
+#else
     serial_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i] = NULL;
@@ -4724,6 +4738,7 @@ int main(int argc, char **argv, char **envp)
     for(i = 0; i < MAX_VIRTIO_CONSOLES; i++)
         virtio_consoles[i] = NULL;
     virtio_console_index = 0;
+#endif
 
     monitor_devices[0] = "vc:80Cx24C";
     monitor_flags[0] = MONITOR_IS_DEFAULT | MONITOR_USE_READLINE;
@@ -5637,6 +5652,17 @@ int main(int argc, char **argv, char **envp)
             } else if (devname && !strcmp(devname,"stdio")) {
                 monitor_devices[0] = NULL;
                 serial_devices[i] = "mon:stdio";
+                break;
+            }
+        }
+        for (i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+            const char *devname = virtio_consoles[i];
+            if (devname && !strcmp(devname,"mon:stdio")) {
+                monitor_devices[0] = NULL;
+                break;
+            } else if (devname && !strcmp(devname,"stdio")) {
+                monitor_devices[0] = NULL;
+                virtio_consoles[i] = "mon:stdio";
                 break;
             }
         }
