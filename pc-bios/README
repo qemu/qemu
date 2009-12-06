@@ -14,7 +14,7 @@
   firmware implementation. The goal is to implement a 100% IEEE
   1275-1994 (referred to as Open Firmware) compliant firmware.
   The included images for Sparc32, Sparc64 and PowerPC (for 32 and 64 bit
-  PPC CPUs) are built from OpenBIOS SVN revision 569.
+  PPC CPUs) are built from OpenBIOS SVN revision 640.
 
 - The PXE roms come from Rom-o-Matic gPXE 0.9.9 with BANNER_TIMEOUT=0
 
