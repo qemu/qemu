@@ -244,9 +244,9 @@ static int kvm_has_msr_star(CPUState *env)
          * save/restore */
         msr_list.nmsrs = 0;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, &msr_list);
-        if (ret < 0)
+        if (ret < 0 && ret != -E2BIG) {
             return 0;
-
+        }
         /* Old kernel modules had a bug and could write beyond the provided
            memory. Allocate at least a safe amount of 1K. */
         kvm_msr_list = qemu_mallocz(MAX(1024, sizeof(msr_list) +
