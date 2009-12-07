@@ -80,8 +80,8 @@ void helper_debug(void)
     int i;
 
     qemu_log("PC=%8.8x\n", env->sregs[SR_PC]);
-    qemu_log("rmsr=%x resr=%x debug[%x] imm=%x iflags=%x\n",
-             env->sregs[SR_MSR], env->sregs[SR_ESR],
+    qemu_log("rmsr=%x resr=%x rear=%x debug[%x] imm=%x iflags=%x\n",
+             env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
              env->debug, env->imm, env->iflags);
     qemu_log("btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
              env->btaken, env->btarget,
