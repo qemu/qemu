@@ -93,6 +93,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Bad QMP input object",
     },
     {
+        .error_fmt = QERR_SET_PASSWD_FAILED,
+        .desc      = "Could not set password",
+    },
+    {
         .error_fmt = QERR_UNDEFINED_ERROR,
         .desc      = "An undefined error has ocurred",
     },
