@@ -13,6 +13,7 @@
 #define QERROR_H
 
 #include "qdict.h"
+#include "qstring.h"
 #include <stdarg.h>
 
 typedef struct QErrorStringTable {
@@ -32,6 +33,7 @@ typedef struct QError {
 QError *qerror_new(void);
 QError *qerror_from_info(const char *file, int linenr, const char *func,
                          const char *fmt, va_list *va);
+QString *qerror_human(const QError *qerror);
 void qerror_print(const QError *qerror);
 QError *qobject_to_qerror(const QObject *obj);
 
