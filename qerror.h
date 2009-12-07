@@ -65,6 +65,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_INVALID_BLOCK_FORMAT \
     "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
 
+#define QERR_INVALID_PARAMETER \
+    "{ 'class': 'invalid_parameter', 'data': { 'name': %s } }"
+
 #define QERR_INVALID_PARAMETER_TYPE \
     "{ 'class': 'InvalidParameterType', 'data': { 'name': %s,'expected': %s } }"
 
