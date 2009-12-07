@@ -65,6 +65,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device %(device) is not removable",
     },
     {
+        .error_fmt = QERR_FD_NOT_FOUND,
+        .desc      = "Failed to find file descriptor named %(name)",
+    },
+    {
         .error_fmt = QERR_INVALID_BLOCK_FORMAT,
         .desc      = "Invalid block format %(name)",
     },
