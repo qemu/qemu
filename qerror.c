@@ -41,28 +41,32 @@ static const QType qerror_type = {
  */
 static const QErrorStringTable qerror_table[] = {
     {
-        .error_fmt   = QERR_COMMAND_NOT_FOUND,
-        .desc        = "The command %(name) has not been found",
+        .error_fmt = QERR_COMMAND_NOT_FOUND,
+        .desc      = "The command %(name) has not been found",
     },
     {
         .error_fmt = QERR_DEVICE_ENCRYPTED,
         .desc      = "The %(device) is encrypted",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_FOUND,
-        .desc      = "The %(device) device has not been found",
-    },
-    {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
         .desc      = "The %(device) device has not been activated by the guest",
     },
     {
-        .error_fmt   = QERR_INVALID_PARAMETER_TYPE,
-        .desc        = "Invalid parameter type, expected: %(expected)",
+        .error_fmt = QERR_DEVICE_NOT_FOUND,
+        .desc      = "The %(device) device has not been found",
     },
     {
-        .error_fmt   = QERR_INVALID_PASSWORD,
-        .desc        = "The entered password is invalid",
+        .error_fmt = QERR_INVALID_PARAMETER_TYPE,
+        .desc      = "Invalid parameter type, expected: %(expected)",
+    },
+    {
+        .error_fmt = QERR_INVALID_PASSWORD,
+        .desc      = "The entered password is invalid",
+    },
+    {
+        .error_fmt = QERR_JSON_PARSING,
+        .desc      = "Invalid JSON syntax",
     },
     {
         .error_fmt = QERR_KVM_MISSING_CAP,
@@ -77,12 +81,8 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Bad QMP input object",
     },
     {
-        .error_fmt = QERR_JSON_PARSING,
-        .desc      = "Invalid JSON synaxt",
-    },
-    {
-        .error_fmt   = QERR_UNDEFINED_ERROR,
-        .desc        = "An undefined error has ocurred",
+        .error_fmt = QERR_UNDEFINED_ERROR,
+        .desc      = "An undefined error has ocurred",
     },
     {}
 };
