@@ -1638,6 +1638,24 @@ static void host_cpuid(uint32_t function, uint32_t count,
 #endif
 }
 
+static void get_cpuid_vendor(CPUX86State *env, uint32_t *ebx,
+                             uint32_t *ecx, uint32_t *edx)
+{
+    *ebx = env->cpuid_vendor1;
+    *edx = env->cpuid_vendor2;
+    *ecx = env->cpuid_vendor3;
+
+    /* sysenter isn't supported on compatibility mode on AMD, syscall
+     * isn't supported in compatibility mode on Intel.
+     * Normally we advertise the actual cpu vendor, but you can override
+     * this if you want to use KVM's sysenter/syscall emulation
+     * in compatibility mode and when doing cross vendor migration
+     */
+    if (kvm_enabled() && env->cpuid_vendor_override) {
+        host_cpuid(0, 0, NULL, ebx, ecx, edx);
+    }
+}
+
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx)
@@ -1654,16 +1672,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     switch(index) {
     case 0:
         *eax = env->cpuid_level;
-        *ebx = env->cpuid_vendor1;
-        *edx = env->cpuid_vendor2;
-        *ecx = env->cpuid_vendor3;
-
-        /* sysenter isn't supported on compatibility mode on AMD.  and syscall
-         * isn't supported in compatibility mode on Intel.  so advertise the
-         * actuall cpu, and say goodbye to migration between different vendors
-         * is you use compatibility mode. */
-        if (kvm_enabled() && !env->cpuid_vendor_override)
-            host_cpuid(0, 0, NULL, ebx, ecx, edx);
+        get_cpuid_vendor(env, ebx, ecx, edx);
         break;
     case 1:
         *eax = env->cpuid_version;
@@ -1759,11 +1768,18 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = env->cpuid_ext3_features;
         *edx = env->cpuid_ext2_features;
 
-        if (env->nr_cores * env->nr_threads > 1 &&
-            env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
-            env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
-            env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
-            *ecx |= 1 << 1;    /* CmpLegacy bit */
+        /* The Linux kernel checks for the CMPLegacy bit and
+         * discards multiple thread information if it is set.
+         * So dont set it here for Intel to make Linux guests happy.
+         */
+        if (env->nr_cores * env->nr_threads > 1) {
+            uint32_t tebx, tecx, tedx;
+            get_cpuid_vendor(env, &tebx, &tecx, &tedx);
+            if (tebx != CPUID_VENDOR_INTEL_1 ||
+                tedx != CPUID_VENDOR_INTEL_2 ||
+                tecx != CPUID_VENDOR_INTEL_3) {
+                *ecx |= 1 << 1;    /* CmpLegacy bit */
+            }
         }
 
         if (kvm_enabled()) {
