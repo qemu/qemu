@@ -49,6 +49,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "The %(device) is encrypted",
     },
     {
+        .error_fmt = QERR_DEVICE_LOCKED,
+        .desc      = "Device %(device) is locked",
+    },
+    {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
         .desc      = "The %(device) device has not been activated by the guest",
     },
