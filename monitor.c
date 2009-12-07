@@ -748,11 +748,12 @@ static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
     if (bdrv_is_inserted(bs)) {
         if (!force) {
             if (!bdrv_is_removable(bs)) {
-                monitor_printf(mon, "device is not removable\n");
+                qemu_error_new(QERR_DEVICE_NOT_REMOVABLE,
+                               bdrv_get_device_name(bs));
                 return -1;
             }
             if (bdrv_is_locked(bs)) {
-                monitor_printf(mon, "device is locked\n");
+                qemu_error_new(QERR_DEVICE_LOCKED, bdrv_get_device_name(bs));
                 return -1;
             }
         }
@@ -769,7 +770,7 @@ static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     bs = bdrv_find(filename);
     if (!bs) {
-        monitor_printf(mon, "device not found\n");
+        qemu_error_new(QERR_DEVICE_NOT_FOUND, filename);
         return;
     }
     eject_device(mon, bs, force);
