@@ -148,7 +148,10 @@ static void monitor_read_command(Monitor *mon, int show_prompt)
 static int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                                  void *opaque)
 {
-    if (mon->rs) {
+    if (monitor_ctrl_mode(mon)) {
+        qemu_error_new(QERR_MISSING_PARAMETER, "password");
+        return -EINVAL;
+    } else if (mon->rs) {
         readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
         /* prompt is printed on return from the command handler */
         return 0;
@@ -4100,6 +4103,11 @@ void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
     if (!bdrv_key_required(bs)) {
         if (completion_cb)
             completion_cb(opaque, 0);
+        return;
+    }
+
+    if (monitor_ctrl_mode(mon)) {
+        qemu_error_new(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
         return;
     }
 
