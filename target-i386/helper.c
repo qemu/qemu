@@ -131,10 +131,11 @@ static x86_def_t x86_defs[] = {
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
         /* this feature is needed for Solaris and isn't fully implemented */
             CPUID_PSE36,
-        .ext_features = CPUID_EXT_SSE3,
+        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_POPCNT,
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
-        .ext3_features = CPUID_EXT3_SVM,
+        .ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM |
+            CPUID_EXT3_ABM | CPUID_EXT3_SSE4A,
         .xlevel = 0x8000000A,
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
@@ -151,18 +152,19 @@ static x86_def_t x86_defs[] = {
         .features = PPRO_FEATURES | 
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
             CPUID_PSE36,
-        /* Missing: CPUID_EXT_CX16, CPUID_EXT_POPCNT */
-        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR,
+        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 |
+            CPUID_EXT_POPCNT,
         /* Missing: CPUID_EXT2_PDPE1GB, CPUID_EXT2_RDTSCP */
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX |
             CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT | CPUID_EXT2_MMXEXT |
             CPUID_EXT2_FFXSR,
-        /* Missing: CPUID_EXT3_LAHF_LM, CPUID_EXT3_CMP_LEG, CPUID_EXT3_EXTAPIC,
-                    CPUID_EXT3_CR8LEG, CPUID_EXT3_ABM, CPUID_EXT3_SSE4A,
+        /* Missing: CPUID_EXT3_CMP_LEG, CPUID_EXT3_EXTAPIC,
+                    CPUID_EXT3_CR8LEG,
                     CPUID_EXT3_MISALIGNSSE, CPUID_EXT3_3DNOWPREFETCH,
                     CPUID_EXT3_OSVW, CPUID_EXT3_IBS */
-        .ext3_features = CPUID_EXT3_SVM,
+        .ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM |
+            CPUID_EXT3_ABM | CPUID_EXT3_SSE4A,
         .xlevel = 0x8000001A,
         .model_id = "AMD Phenom(tm) 9550 Quad-Core Processor"
     },
@@ -183,7 +185,7 @@ static x86_def_t x86_defs[] = {
                CPUID_EXT_TM2, CPUID_EXT_CX16, CPUID_EXT_XTPR, CPUID_EXT_PDCM */
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3,
         .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
-        /* Missing: .ext3_features = CPUID_EXT3_LAHF_LM */
+        .ext3_features = CPUID_EXT3_LAHF_LM,
         .xlevel = 0x80000008,
         .model_id = "Intel(R) Core(TM)2 Duo CPU     T7700  @ 2.40GHz",
     },
@@ -221,7 +223,7 @@ static x86_def_t x86_defs[] = {
         .model = 3,
         .stepping = 3,
         .features = PPRO_FEATURES,
-        .ext_features = CPUID_EXT_SSE3,
+        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_POPCNT,
         .xlevel = 0,
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
@@ -1783,11 +1785,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
 
         if (kvm_enabled()) {
-            /* Nested SVM not yet supported in KVM */
+            /* Nested SVM not yet supported in upstream QEMU */
             *ecx &= ~CPUID_EXT3_SVM;
-        } else {
-            /* AMD 3DNow! is not supported in QEMU */
-            *edx &= ~(CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT);
         }
         break;
     case 0x80000002:
