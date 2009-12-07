@@ -59,6 +59,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_FD_NOT_FOUND \
     "{ 'class': 'fd_not_found', 'data': { 'name': %s } }"
 
+#define QERR_FD_NOT_SUPPLIED \
+    "{ 'class': 'fd_not_supplied', 'data': {} }"
+
 #define QERR_INVALID_BLOCK_FORMAT \
     "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
 
