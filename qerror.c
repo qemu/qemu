@@ -109,6 +109,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not set password",
     },
     {
+        .error_fmt = QERR_TOO_MANY_FILES,
+        .desc      = "Too many open files",
+    },
+    {
         .error_fmt = QERR_UNDEFINED_ERROR,
         .desc      = "An undefined error has ocurred",
     },
