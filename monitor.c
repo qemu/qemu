@@ -2121,8 +2121,7 @@ static void do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return;
     }
 
-    monitor_printf(mon, "Failed to find file descriptor named %s\n",
-                   fdname);
+    qemu_error_new(QERR_FD_NOT_FOUND, fdname);
 }
 
 static void do_loadvm(Monitor *mon, const QDict *qdict)
