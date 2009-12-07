@@ -61,6 +61,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "The %(device) device has not been found",
     },
     {
+        .error_fmt = QERR_DEVICE_NOT_REMOVABLE,
+        .desc      = "Device %(device) is not removable",
+    },
+    {
         .error_fmt = QERR_INVALID_PARAMETER_TYPE,
         .desc      = "Invalid parameter type, expected: %(expected)",
     },
