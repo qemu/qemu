@@ -69,6 +69,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Failed to find file descriptor named %(name)",
     },
     {
+        .error_fmt = QERR_FD_NOT_SUPPLIED,
+        .desc      = "No file descriptor supplied via SCM_RIGHTS",
+    },
+    {
         .error_fmt = QERR_INVALID_BLOCK_FORMAT,
         .desc      = "Invalid block format %(name)",
     },
