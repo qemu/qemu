@@ -45,6 +45,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc        = "The command %(name) has not been found",
     },
     {
+        .error_fmt = QERR_DEVICE_ENCRYPTED,
+        .desc      = "The %(device) is encrypted",
+    },
+    {
         .error_fmt = QERR_DEVICE_NOT_FOUND,
         .desc      = "The %(device) device has not been found",
     },

@@ -41,6 +41,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_COMMAND_NOT_FOUND \
         "{ 'class': 'CommandNotFound', 'data': { 'name': %s } }"
 
+#define QERR_DEVICE_ENCRYPTED \
+        "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s } }"
+
 #define QERR_DEVICE_NOT_FOUND \
         "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
 
