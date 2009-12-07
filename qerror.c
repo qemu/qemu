@@ -65,6 +65,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device %(device) is not removable",
     },
     {
+        .error_fmt = QERR_INVALID_BLOCK_FORMAT,
+        .desc      = "Invalid block format %(name)",
+    },
+    {
         .error_fmt = QERR_INVALID_PARAMETER_TYPE,
         .desc      = "Invalid parameter type, expected: %(expected)",
     },
