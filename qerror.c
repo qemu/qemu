@@ -283,13 +283,11 @@ static const char *append_field(QString *outstr, const QError *qerror,
 }
 
 /**
- * qerror_print(): Print QError data
+ * qerror_human(): Format QError data into human-readable string.
  *
- * This function will print the member 'desc' of the specified QError object,
- * it uses qemu_error() for this, so that the output is routed to the right
- * place (ie. stderr or Monitor's device).
+ * Formats according to member 'desc' of the specified QError object.
  */
-void qerror_print(const QError *qerror)
+QString *qerror_human(const QError *qerror)
 {
     const char *p;
     QString *qstring;
@@ -309,6 +307,19 @@ void qerror_print(const QError *qerror)
         }
     }
 
+    return qstring;
+}
+
+/**
+ * qerror_print(): Print QError data
+ *
+ * This function will print the member 'desc' of the specified QError object,
+ * it uses qemu_error() for this, so that the output is routed to the right
+ * place (ie. stderr or Monitor's device).
+ */
+void qerror_print(const QError *qerror)
+{
+    QString *qstring = qerror_human(qerror);
     qemu_error("%s\n", qstring_get_str(qstring));
     QDECREF(qstring);
 }

@@ -305,6 +305,7 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
         }
     } else {
         /* error response */
+        qdict_put(mon->error->error, "desc", qerror_human(mon->error));
         qdict_put(qmp, "error", mon->error->error);
         QINCREF(mon->error->error);
         QDECREF(mon->error);

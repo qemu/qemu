@@ -102,13 +102,16 @@ completed because of an error condition.
 
 The format is:
 
-{ "error": { "class": json-string, "data": json-value }, "id": json-value }
+{ "error": { "class": json-string, "data": json-value, "desc": json-string },
+  "id": json-value }
 
  Where,
 
 - The "class" member contains the error class name (eg. "ServiceUnavailable")
 - The "data" member contains specific error data and is defined in a
   per-command basis, it will be an empty json-object if the error has no data
+- The "desc" member is a human-readable error message.  Clients should
+  not attempt to parse this message.
 - The "id" member contains the transaction identification associated with
   the command execution (if issued by the Client)
 
