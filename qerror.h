@@ -83,4 +83,7 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_UNDEFINED_ERROR \
     "{ 'class': 'UndefinedError', 'data': {} }"
 
+#define QERR_VNC_SERVER_FAILED \
+    "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
+
 #endif /* QERROR_H */
