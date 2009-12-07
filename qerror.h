@@ -53,6 +53,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_NOT_FOUND \
     "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
 
+#define QERR_DEVICE_NOT_REMOVABLE \
+    "{ 'class': 'DeviceNotRemovable', 'data': { 'device': %s } }"
+
 #define QERR_INVALID_PARAMETER_TYPE \
     "{ 'class': 'InvalidParameterType', 'data': { 'name': %s,'expected': %s } }"
 
