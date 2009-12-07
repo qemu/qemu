@@ -2071,19 +2071,21 @@ static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     fd = qemu_chr_get_msgfd(mon->chr);
     if (fd == -1) {
-        monitor_printf(mon, "getfd: no file descriptor supplied via SCM_RIGHTS\n");
+        qemu_error_new(QERR_FD_NOT_SUPPLIED);
         return;
     }
 
     if (qemu_isdigit(fdname[0])) {
-        monitor_printf(mon, "getfd: monitor names may not begin with a number\n");
+        qemu_error_new(QERR_INVALID_PARAMETER, "fdname");
         return;
     }
 
     fd = dup(fd);
     if (fd == -1) {
-        monitor_printf(mon, "Failed to dup() file descriptor: %s\n",
-                       strerror(errno));
+        if (errno == EMFILE)
+            qemu_error_new(QERR_TOO_MANY_FILES);
+        else
+            qemu_error_new(QERR_UNDEFINED_ERROR);
         return;
     }
 
