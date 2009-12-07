@@ -800,13 +800,13 @@ static void do_change_block(Monitor *mon, const char *device,
 
     bs = bdrv_find(device);
     if (!bs) {
-        monitor_printf(mon, "device not found\n");
+        qemu_error_new(QERR_DEVICE_NOT_FOUND, device);
         return;
     }
     if (fmt) {
         drv = bdrv_find_whitelisted_format(fmt);
         if (!drv) {
-            monitor_printf(mon, "invalid format %s\n", fmt);
+            qemu_error_new(QERR_INVALID_BLOCK_FORMAT, fmt);
             return;
         }
     }
@@ -816,17 +816,17 @@ static void do_change_block(Monitor *mon, const char *device,
     monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
 }
 
-static void change_vnc_password(Monitor *mon, const char *password)
+static void change_vnc_password(const char *password)
 {
     if (vnc_display_password(NULL, password) < 0)
-        monitor_printf(mon, "could not set VNC server password\n");
+        qemu_error_new(QERR_SET_PASSWD_FAILED);
 
 }
 
 static void change_vnc_password_cb(Monitor *mon, const char *password,
                                    void *opaque)
 {
-    change_vnc_password(mon, password);
+    change_vnc_password(password);
     monitor_read_command(mon, 1);
 }
 
@@ -838,17 +838,20 @@ static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
             char password[9];
             strncpy(password, arg, sizeof(password));
             password[sizeof(password) - 1] = '\0';
-            change_vnc_password(mon, password);
+            change_vnc_password(password);
         } else {
             monitor_read_password(mon, change_vnc_password_cb, NULL);
         }
     } else {
         if (vnc_display_open(NULL, target) < 0)
-            monitor_printf(mon, "could not start VNC server on %s\n", target);
+            qemu_error_new(QERR_VNC_SERVER_FAILED, target);
     }
 }
 
-static void do_change(Monitor *mon, const QDict *qdict)
+/**
+ * do_change(): Change a removable medium, or VNC configuration
+ */
+static void do_change(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *target = qdict_get_str(qdict, "target");
