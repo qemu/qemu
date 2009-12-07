@@ -100,6 +100,10 @@ static const QErrorStringTable qerror_table[] = {
         .error_fmt = QERR_UNDEFINED_ERROR,
         .desc      = "An undefined error has ocurred",
     },
+    {
+        .error_fmt = QERR_VNC_SERVER_FAILED,
+        .desc      = "Could not start VNC server on %(target)",
+    },
     {}
 };
 
