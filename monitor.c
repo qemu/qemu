@@ -815,12 +815,17 @@ static void do_change_block(Monitor *mon, const char *device,
     monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
 }
 
-static void change_vnc_password_cb(Monitor *mon, const char *password,
-                                   void *opaque)
+static void change_vnc_password(Monitor *mon, const char *password)
 {
     if (vnc_display_password(NULL, password) < 0)
         monitor_printf(mon, "could not set VNC server password\n");
 
+}
+
+static void change_vnc_password_cb(Monitor *mon, const char *password,
+                                   void *opaque)
+{
+    change_vnc_password(mon, password);
     monitor_read_command(mon, 1);
 }
 
@@ -832,7 +837,7 @@ static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
             char password[9];
             strncpy(password, arg, sizeof(password));
             password[sizeof(password) - 1] = '\0';
-            change_vnc_password_cb(mon, password, NULL);
+            change_vnc_password(mon, password);
         } else {
             monitor_read_password(mon, change_vnc_password_cb, NULL);
         }
