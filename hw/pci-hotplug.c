@@ -199,14 +199,10 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
 
     switch (type) {
     case IF_SCSI:
-        if (!dinfo) {
-            monitor_printf(mon, "scsi requires a backing file/device.\n");
-            return NULL;
-        }
         dev = pci_create(bus, devfn, "lsi53c895a");
         if (qdev_init(&dev->qdev) < 0)
             dev = NULL;
-        if (dev) {
+        if (dev && dinfo) {
             if (scsi_hot_add(&dev->qdev, dinfo, 0) != 0) {
                 qdev_unplug(&dev->qdev);
                 dev = NULL;
