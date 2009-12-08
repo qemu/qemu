@@ -270,7 +270,7 @@ static void *boot_set_opaque;
 
 static int default_serial = 1;
 static int default_parallel = 1;
-static int default_virtcon = 0;
+static int default_virtcon = 1;
 static int default_monitor = 1;
 static int default_vga = 1;
 static int default_drive = 1;
@@ -5629,14 +5629,31 @@ int main(int argc, char **argv, char **envp)
 
     qemu_opts_foreach(&qemu_device_opts, default_driver_check, NULL, 0);
 
+    if (machine->no_serial) {
+        default_serial = 0;
+    }
+    if (machine->no_parallel) {
+        default_parallel = 0;
+    }
+    if (!machine->use_virtcon) {
+        default_virtcon = 0;
+    }
+    if (machine->no_vga) {
+        default_vga = 0;
+    }
+
     if (display_type == DT_NOGRAPHIC) {
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "null");
         if (default_serial && default_monitor) {
             add_device_config(DEV_SERIAL, "mon:stdio");
+        } else if (default_virtcon && default_monitor) {
+            add_device_config(DEV_VIRTCON, "mon:stdio");
         } else {
             if (default_serial)
                 add_device_config(DEV_SERIAL, "stdio");
+            if (default_virtcon)
+                add_device_config(DEV_VIRTCON, "stdio");
             if (default_monitor)
                 monitor_parse("stdio", "readline");
         }

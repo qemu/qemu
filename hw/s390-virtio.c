@@ -243,6 +243,10 @@ static QEMUMachine s390_machine = {
     .alias = "s390",
     .desc = "VirtIO based S390 machine",
     .init = s390_init,
+    .no_serial = 1,
+    .no_parallel = 1,
+    .use_virtcon = 1.
+    .no_vga = 1,
     .max_cpus = 255,
     .is_default = 1,
 };
