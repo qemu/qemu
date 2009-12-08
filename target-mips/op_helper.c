@@ -1684,14 +1684,24 @@ static void debug_post_eret (void)
     }
 }
 
+static void set_pc (target_ulong error_pc)
+{
+    env->active_tc.PC = error_pc & ~(target_ulong)1;
+    if (error_pc & 1) {
+        env->hflags |= MIPS_HFLAG_M16;
+    } else {
+        env->hflags &= ~(MIPS_HFLAG_M16);
+    }
+}
+
 void helper_eret (void)
 {
     debug_pre_eret();
     if (env->CP0_Status & (1 << CP0St_ERL)) {
-        env->active_tc.PC = env->CP0_ErrorEPC;
+        set_pc(env->CP0_ErrorEPC);
         env->CP0_Status &= ~(1 << CP0St_ERL);
     } else {
-        env->active_tc.PC = env->CP0_EPC;
+        set_pc(env->CP0_EPC);
         env->CP0_Status &= ~(1 << CP0St_EXL);
     }
     compute_hflags(env);
@@ -1702,7 +1712,8 @@ void helper_eret (void)
 void helper_deret (void)
 {
     debug_pre_eret();
-    env->active_tc.PC = env->CP0_DEPC;
+    set_pc(env->CP0_DEPC);
+
     env->hflags &= MIPS_HFLAG_DM;
     compute_hflags(env);
     debug_post_eret();
