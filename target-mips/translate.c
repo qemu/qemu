@@ -7532,6 +7532,56 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
                fregnames[fs], fregnames[ft]);
 }
 
+static void handle_delay_slot (CPUState *env, DisasContext *ctx,
+                               int insn_bytes)
+{
+    if (ctx->hflags & MIPS_HFLAG_BMASK) {
+        int hflags = ctx->hflags & MIPS_HFLAG_BMASK;
+        /* Branches completion */
+        ctx->hflags &= ~MIPS_HFLAG_BMASK;
+        ctx->bstate = BS_BRANCH;
+        save_cpu_state(ctx, 0);
+        /* FIXME: Need to clear can_do_io.  */
+        switch (hflags) {
+        case MIPS_HFLAG_B:
+            /* unconditional branch */
+            MIPS_DEBUG("unconditional branch");
+            gen_goto_tb(ctx, 0, ctx->btarget);
+            break;
+        case MIPS_HFLAG_BL:
+            /* blikely taken case */
+            MIPS_DEBUG("blikely branch taken");
+            gen_goto_tb(ctx, 0, ctx->btarget);
+            break;
+        case MIPS_HFLAG_BC:
+            /* Conditional branch */
+            MIPS_DEBUG("conditional branch");
+            {
+                int l1 = gen_new_label();
+
+                tcg_gen_brcondi_tl(TCG_COND_NE, bcond, 0, l1);
+                gen_goto_tb(ctx, 1, ctx->pc + insn_bytes);
+                gen_set_label(l1);
+                gen_goto_tb(ctx, 0, ctx->btarget);
+            }
+            break;
+        case MIPS_HFLAG_BR:
+            /* unconditional branch to register */
+            MIPS_DEBUG("branch to register");
+            tcg_gen_mov_tl(cpu_PC, btarget);
+            if (ctx->singlestep_enabled) {
+                save_cpu_state(ctx, 0);
+                gen_helper_0i(raise_exception, EXCP_DEBUG);
+            }
+            tcg_gen_exit_tb(0);
+            break;
+        default:
+            MIPS_DEBUG("unknown branch");
+            break;
+        }
+    }
+}
+
 /* ISA extensions (ASEs) */
 /* MIPS16 extension to MIPS32 */
 /* SmartMIPS extension to MIPS32 */
@@ -7542,7 +7592,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
 
 #endif
 
-static void decode_opc (CPUState *env, DisasContext *ctx)
+static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
 {
     int32_t offset;
     int rs, rt, rd, sa;
@@ -7557,7 +7607,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     }
 
     /* Handle blikely not taken case */
-    if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
+    if ((ctx->hflags & MIPS_HFLAG_BMASK_BASE) == MIPS_HFLAG_BL) {
         int l1 = gen_new_label();
 
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
@@ -7648,7 +7698,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
         case OPC_JR ... OPC_JALR:
             gen_compute_branch(ctx, op1, 4, rs, rd, sa);
-            return;
+            *is_branch = 1;
+            break;
         case OPC_TGE ... OPC_TEQ: /* Traps */
         case OPC_TNE:
             gen_trap(ctx, op1, rs, rt, -1);
@@ -7937,7 +7988,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_BLTZ ... OPC_BGEZL: /* REGIMM branches */
         case OPC_BLTZAL ... OPC_BGEZALL:
             gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
-            return;
+            *is_branch = 1;
+            break;
         case OPC_TGEI ... OPC_TEQI: /* REGIMM traps */
         case OPC_TNEI:
             gen_trap(ctx, op1, rs, -1, imm);
@@ -8056,11 +8108,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
          gen_compute_branch(ctx, op, 4, rs, rt, offset);
-         return;
+         *is_branch = 1;
+         break;
     case OPC_BEQ ... OPC_BGTZ: /* Branch */
     case OPC_BEQL ... OPC_BGTZL:
          gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
-         return;
+         *is_branch = 1;
+         break;
     case OPC_LB ... OPC_LWR: /* Load and stores */
     case OPC_SB ... OPC_SW:
     case OPC_SWR:
@@ -8121,7 +8175,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             case OPC_BC1:
                 gen_compute_branch1(env, ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
-                return;
+                *is_branch = 1;
+                break;
             case OPC_S_FMT:
             case OPC_D_FMT:
             case OPC_W_FMT:
@@ -8226,51 +8281,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         generate_exception(ctx, EXCP_RI);
         break;
     }
-    if (ctx->hflags & MIPS_HFLAG_BMASK) {
-        int hflags = ctx->hflags & MIPS_HFLAG_BMASK;
-        /* Branches completion */
-        ctx->hflags &= ~MIPS_HFLAG_BMASK;
-        ctx->bstate = BS_BRANCH;
-        save_cpu_state(ctx, 0);
-        /* FIXME: Need to clear can_do_io.  */
-        switch (hflags) {
-        case MIPS_HFLAG_B:
-            /* unconditional branch */
-            MIPS_DEBUG("unconditional branch");
-            gen_goto_tb(ctx, 0, ctx->btarget);
-            break;
-        case MIPS_HFLAG_BL:
-            /* blikely taken case */
-            MIPS_DEBUG("blikely branch taken");
-            gen_goto_tb(ctx, 0, ctx->btarget);
-            break;
-        case MIPS_HFLAG_BC:
-            /* Conditional branch */
-            MIPS_DEBUG("conditional branch");
-            {
-                int l1 = gen_new_label();
-
-                tcg_gen_brcondi_tl(TCG_COND_NE, bcond, 0, l1);
-                gen_goto_tb(ctx, 1, ctx->pc + 4);
-                gen_set_label(l1);
-                gen_goto_tb(ctx, 0, ctx->btarget);
-            }
-            break;
-        case MIPS_HFLAG_BR:
-            /* unconditional branch to register */
-            MIPS_DEBUG("branch to register");
-            tcg_gen_mov_tl(cpu_PC, btarget);
-            if (ctx->singlestep_enabled) {
-                save_cpu_state(ctx, 0);
-                gen_helper_0i(raise_exception, EXCP_DEBUG);
-            }
-            tcg_gen_exit_tb(0);
-            break;
-        default:
-            MIPS_DEBUG("unknown branch");
-            break;
-        }
-    }
 }
 
 static inline void
@@ -8284,6 +8294,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     int j, lj = -1;
     int num_insns;
     int max_insns;
+    int insn_bytes;
+    int is_branch;
 
     if (search_pc)
         qemu_log("search pc %d\n", search_pc);
@@ -8343,9 +8355,21 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
-        ctx.opcode = ldl_code(ctx.pc);
-        decode_opc(env, &ctx);
-        ctx.pc += 4;
+
+        is_branch = 0;
+        if (ctx.isa_mode == 0) {
+            ctx.opcode = ldl_code(ctx.pc);
+            insn_bytes = 4;
+            decode_opc(env, &ctx, &is_branch);
+        } else {
+            generate_exception(&ctx, EXCP_RI);
+            break;
+        }
+        if (!is_branch) {
+            handle_delay_slot(env, &ctx, insn_bytes);
+        }
+        ctx.pc += insn_bytes;
+
         num_insns++;
 
         /* Execute a branch and its delay slot as a single instruction.
