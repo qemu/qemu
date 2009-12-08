@@ -193,7 +193,7 @@ int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClock *rtc_clock;
-int vga_interface_type = VGA_CIRRUS;
+int vga_interface_type = VGA_NONE;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -275,6 +275,7 @@ static void *boot_set_opaque;
 static int default_serial = 1;
 static int default_parallel = 1;
 static int default_monitor = 1;
+static int default_vga = 1;
 
 static struct {
     const char *driver;
@@ -282,6 +283,9 @@ static struct {
 } default_list[] = {
     { .driver = "isa-serial",           .flag = &default_serial    },
     { .driver = "isa-parallel",         .flag = &default_parallel  },
+    { .driver = "VGA",                  .flag = &default_vga       },
+    { .driver = "Cirrus VGA",           .flag = &default_vga       },
+    { .driver = "QEMUware SVGA",        .flag = &default_vga       },
 };
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
@@ -4373,6 +4377,7 @@ static void select_vgahw (const char *p)
 {
     const char *opts;
 
+    default_vga = 0;
     vga_interface_type = VGA_NONE;
     if (strstart(p, "std", &opts)) {
         vga_interface_type = VGA_STD;
@@ -5565,6 +5570,8 @@ int main(int argc, char **argv, char **envp)
         if (default_monitor)
             add_device_config(DEV_MONITOR, "vc:80Cx24C");
     }
+    if (default_vga)
+        vga_interface_type = VGA_CIRRUS;
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
         exit(1);
