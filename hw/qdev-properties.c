@@ -614,7 +614,8 @@ void qdev_prop_set_globals(DeviceState *dev)
     GlobalProperty *prop;
 
     QTAILQ_FOREACH(prop, &global_props, next) {
-        if (strcmp(dev->info->name, prop->driver) != 0) {
+        if (strcmp(dev->info->name, prop->driver) != 0 &&
+            strcmp(dev->info->bus_info->name, prop->driver) != 0) {
             continue;
         }
         if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {
