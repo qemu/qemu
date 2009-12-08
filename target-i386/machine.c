@@ -453,6 +453,7 @@ static const VMStateDescription vmstate_cpu = {
         VMSTATE_UINT8_V(nmi_pending, CPUState, 11),
         VMSTATE_UINT8_V(has_error_code, CPUState, 11),
         VMSTATE_UINT32_V(sipi_vector, CPUState, 11),
+        VMSTATE_INT32_V(exception_index, CPUState, 11),
         /* MCE */
         VMSTATE_UINT64_V(mcg_cap, CPUState, 10),
         VMSTATE_UINT64_V(mcg_status, CPUState, 10),
