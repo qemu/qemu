@@ -2390,6 +2390,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 
 /* Branches (before delay slot) */
 static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
+                                int insn_bytes,
                                 int rs, int rt, int32_t offset)
 {
     target_ulong btgt = -1;
@@ -2418,7 +2419,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             gen_load_gpr(t1, rt);
             bcond_compute = 1;
         }
-        btgt = ctx->pc + 4 + offset;
+        btgt = ctx->pc + insn_bytes + offset;
         break;
     case OPC_BGEZ:
     case OPC_BGEZAL:
@@ -2437,12 +2438,12 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             gen_load_gpr(t0, rs);
             bcond_compute = 1;
         }
-        btgt = ctx->pc + 4 + offset;
+        btgt = ctx->pc + insn_bytes + offset;
         break;
     case OPC_J:
     case OPC_JAL:
         /* Jump to immediate */
-        btgt = ((ctx->pc + 4) & (int32_t)0xF0000000) | (uint32_t)offset;
+        btgt = ((ctx->pc + insn_bytes) & (int32_t)0xF0000000) | (uint32_t)offset;
         break;
     case OPC_JR:
     case OPC_JALR:
@@ -7654,7 +7655,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_muldiv(ctx, op1, rs, rt);
             break;
         case OPC_JR ... OPC_JALR:
-            gen_compute_branch(ctx, op1, rs, rd, sa);
+            gen_compute_branch(ctx, op1, 4, rs, rd, sa);
             return;
         case OPC_TGE ... OPC_TEQ: /* Traps */
         case OPC_TNE:
@@ -7943,7 +7944,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_BLTZ ... OPC_BGEZL: /* REGIMM branches */
         case OPC_BLTZAL ... OPC_BGEZALL:
-            gen_compute_branch(ctx, op1, rs, -1, imm << 2);
+            gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
             return;
         case OPC_TGEI ... OPC_TEQI: /* REGIMM traps */
         case OPC_TNEI:
@@ -8062,11 +8063,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
          break;
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
-         gen_compute_branch(ctx, op, rs, rt, offset);
+         gen_compute_branch(ctx, op, 4, rs, rt, offset);
          return;
     case OPC_BEQ ... OPC_BGTZ: /* Branch */
     case OPC_BEQL ... OPC_BGTZL:
-         gen_compute_branch(ctx, op, rs, rt, imm << 2);
+         gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
          return;
     case OPC_LB ... OPC_LWR: /* Load and stores */
     case OPC_SB ... OPC_SW:
