@@ -4660,7 +4660,7 @@ static int mon_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static void monitor_parse(const char *optarg)
+static void monitor_parse(const char *optarg, const char *mode)
 {
     static int monitor_device_index = 0;
     QemuOpts *opts;
@@ -4690,7 +4690,7 @@ static void monitor_parse(const char *optarg)
         fprintf(stderr, "duplicate chardev: %s\n", label);
         exit(1);
     }
-    qemu_opt_set(opts, "mode", "readline");
+    qemu_opt_set(opts, "mode", mode);
     qemu_opt_set(opts, "chardev", label);
     if (def)
         qemu_opt_set(opts, "default", "on");
@@ -5281,7 +5281,11 @@ int main(int argc, char **argv, char **envp)
                     break;
                 }
             case QEMU_OPTION_monitor:
-                monitor_parse(optarg);
+                monitor_parse(optarg, "readline");
+                default_monitor = 0;
+                break;
+            case QEMU_OPTION_qmp:
+                monitor_parse(optarg, "control");
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
@@ -5617,7 +5621,7 @@ int main(int argc, char **argv, char **envp)
             if (default_serial)
                 add_device_config(DEV_SERIAL, "stdio");
             if (default_monitor)
-                monitor_parse("stdio");
+                monitor_parse("stdio", "readline");
         }
     } else {
         if (default_serial)
@@ -5625,7 +5629,7 @@ int main(int argc, char **argv, char **envp)
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "vc:80Cx24C");
         if (default_monitor)
-            monitor_parse("vc:80Cx24C");
+            monitor_parse("vc:80Cx24C", "readline");
     }
     if (default_vga)
         vga_interface_type = VGA_CIRRUS;

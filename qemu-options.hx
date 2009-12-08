@@ -1588,6 +1588,8 @@ serial port).
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 ETEXI
+DEF("qmp", HAS_ARG, QEMU_OPTION_qmp, \
+    "-qmp dev        like -monitor but opens in 'control' mode.\n")
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
     "-mon chardev=[name][,mode=readline|control][,default]\n")
