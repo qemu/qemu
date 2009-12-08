@@ -416,35 +416,44 @@ struct CPUMIPSState {
     int error_code;
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0x03FF
-#define MIPS_HFLAG_MODE   0x0007 /* execution modes                    */
+#define MIPS_HFLAG_TMASK  0x007FF
+#define MIPS_HFLAG_MODE   0x00007 /* execution modes                    */
     /* The KSU flags must be the lowest bits in hflags. The flag order
        must be the same as defined for CP0 Status. This allows to use
        the bits as the value of mmu_idx. */
-#define MIPS_HFLAG_KSU    0x0003 /* kernel/supervisor/user mode mask   */
-#define MIPS_HFLAG_UM       0x0002 /* user mode flag */
-#define MIPS_HFLAG_SM       0x0001 /* supervisor mode flag */
-#define MIPS_HFLAG_KM       0x0000 /* kernel mode flag */
-#define MIPS_HFLAG_DM     0x0004 /* Debug mode                         */
-#define MIPS_HFLAG_64     0x0008 /* 64-bit instructions enabled        */
-#define MIPS_HFLAG_CP0    0x0010 /* CP0 enabled                        */
-#define MIPS_HFLAG_FPU    0x0020 /* FPU enabled                        */
-#define MIPS_HFLAG_F64    0x0040 /* 64-bit FPU enabled                 */
+#define MIPS_HFLAG_KSU    0x00003 /* kernel/supervisor/user mode mask   */
+#define MIPS_HFLAG_UM     0x00002 /* user mode flag                     */
+#define MIPS_HFLAG_SM     0x00001 /* supervisor mode flag               */
+#define MIPS_HFLAG_KM     0x00000 /* kernel mode flag                   */
+#define MIPS_HFLAG_DM     0x00004 /* Debug mode                         */
+#define MIPS_HFLAG_64     0x00008 /* 64-bit instructions enabled        */
+#define MIPS_HFLAG_CP0    0x00010 /* CP0 enabled                        */
+#define MIPS_HFLAG_FPU    0x00020 /* FPU enabled                        */
+#define MIPS_HFLAG_F64    0x00040 /* 64-bit FPU enabled                 */
     /* True if the MIPS IV COP1X instructions can be used.  This also
        controls the non-COP1X instructions RECIP.S, RECIP.D, RSQRT.S
        and RSQRT.D.  */
-#define MIPS_HFLAG_COP1X  0x0080 /* COP1X instructions enabled         */
-#define MIPS_HFLAG_RE     0x0100 /* Reversed endianness                */
-#define MIPS_HFLAG_UX     0x0200 /* 64-bit user mode                   */
+#define MIPS_HFLAG_COP1X  0x00080 /* COP1X instructions enabled         */
+#define MIPS_HFLAG_RE     0x00100 /* Reversed endianness                */
+#define MIPS_HFLAG_UX     0x00200 /* 64-bit user mode                   */
+#define MIPS_HFLAG_M16    0x00400 /* MIPS16 mode flag                   */
+#define MIPS_HFLAG_M16_SHIFT 10
     /* If translation is interrupted between the branch instruction and
      * the delay slot, record what type of branch it is so that we can
      * resume translation properly.  It might be possible to reduce
      * this from three bits to two.  */
-#define MIPS_HFLAG_BMASK  0x1C00
-#define MIPS_HFLAG_B      0x0400 /* Unconditional branch               */
-#define MIPS_HFLAG_BC     0x0800 /* Conditional branch                 */
-#define MIPS_HFLAG_BL     0x0C00 /* Likely branch                      */
-#define MIPS_HFLAG_BR     0x1000 /* branch to register (can't link TB) */
+#define MIPS_HFLAG_BMASK_BASE  0x03800
+#define MIPS_HFLAG_B      0x00800 /* Unconditional branch               */
+#define MIPS_HFLAG_BC     0x01000 /* Conditional branch                 */
+#define MIPS_HFLAG_BL     0x01800 /* Likely branch                      */
+#define MIPS_HFLAG_BR     0x02000 /* branch to register (can't link TB) */
+    /* Extra flags about the current pending branch.  */
+#define MIPS_HFLAG_BMASK_EXT 0x3C000
+#define MIPS_HFLAG_B16    0x04000 /* branch instruction was 16 bits     */
+#define MIPS_HFLAG_BDS16  0x08000 /* branch requires 16-bit delay slot  */
+#define MIPS_HFLAG_BDS32  0x10000 /* branch requires 32-bit delay slot  */
+#define MIPS_HFLAG_BX     0x20000 /* branch exchanges execution mode    */
+#define MIPS_HFLAG_BMASK  (MIPS_HFLAG_BMASK_BASE | MIPS_HFLAG_BMASK_EXT)
     target_ulong btarget;        /* Jump / branch target               */
     target_ulong bcond;          /* Branch condition (if needed)       */
 
