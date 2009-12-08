@@ -5284,6 +5284,14 @@ int main(int argc, char **argv, char **envp)
                 monitor_parse(optarg);
                 default_monitor = 0;
                 break;
+            case QEMU_OPTION_mon:
+                opts = qemu_opts_parse(&qemu_mon_opts, optarg, "chardev");
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+                default_monitor = 0;
+                break;
             case QEMU_OPTION_chardev:
                 opts = qemu_opts_parse(&qemu_chardev_opts, optarg, "backend");
                 if (!opts) {

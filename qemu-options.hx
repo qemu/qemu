@@ -1589,6 +1589,13 @@ The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 ETEXI
 
+DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
+    "-mon chardev=[name][,mode=readline|control][,default]\n")
+STEXI
+@item -mon chardev=[name][,mode=readline|control][,default]
+Setup monitor on chardev @var{name}.
+ETEXI
+
 DEF("pidfile", HAS_ARG, QEMU_OPTION_pidfile, \
     "-pidfile file   write PID to 'file'\n")
 STEXI
