@@ -39,6 +39,8 @@
 static QTAILQ_HEAD(, VLANState) vlans;
 static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
 
+int default_net = 1;
+
 /***********************************************************/
 /* network device redirectors */
 
@@ -1317,7 +1319,7 @@ static int net_init_netdev(QemuOpts *opts, void *dummy)
 
 int net_init_clients(void)
 {
-    if (QTAILQ_EMPTY(&qemu_net_opts.head)) {
+    if (default_net) {
         /* if no clients, we use a default config */
         qemu_opts_set(&qemu_net_opts, NULL, "type", "nic");
 #ifdef CONFIG_SLIRP
@@ -1353,5 +1355,6 @@ int net_client_parse(QemuOptsList *opts_list, const char *optarg)
         return -1;
     }
 
+    default_net = 0;
     return 0;
 }
