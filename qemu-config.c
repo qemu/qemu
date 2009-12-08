@@ -2,6 +2,7 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "sysemu.h"
+#include "hw/qdev.h"
 
 QemuOptsList qemu_drive_opts = {
     .name = "drive",
@@ -205,6 +206,24 @@ QemuOptsList qemu_rtc_opts = {
     },
 };
 
+QemuOptsList qemu_global_opts = {
+    .name = "global",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_global_opts.head),
+    .desc = {
+        {
+            .name = "driver",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "property",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "value",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end if list */ }
+    },
+};
+
 static QemuOptsList *lists[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
@@ -212,6 +231,7 @@ static QemuOptsList *lists[] = {
     &qemu_netdev_opts,
     &qemu_net_opts,
     &qemu_rtc_opts,
+    &qemu_global_opts,
     NULL,
 };
 
@@ -258,6 +278,42 @@ int qemu_set_option(const char *str)
         return -1;
     }
     return 0;
+}
+
+int qemu_global_option(const char *str)
+{
+    char driver[64], property[64];
+    QemuOpts *opts;
+    int rc, offset;
+
+    rc = sscanf(str, "%63[^.].%63[^=]%n", driver, property, &offset);
+    if (rc < 2 || str[offset] != '=') {
+        qemu_error("can't parse: \"%s\"\n", str);
+        return -1;
+    }
+
+    opts = qemu_opts_create(&qemu_global_opts, NULL, 0);
+    qemu_opt_set(opts, "driver", driver);
+    qemu_opt_set(opts, "property", property);
+    qemu_opt_set(opts, "value", str+offset+1);
+    return 0;
+}
+
+static int qemu_add_one_global(QemuOpts *opts, void *opaque)
+{
+    GlobalProperty *g;
+
+    g = qemu_mallocz(sizeof(*g));
+    g->driver   = qemu_opt_get(opts, "driver");
+    g->property = qemu_opt_get(opts, "property");
+    g->value    = qemu_opt_get(opts, "value");
+    qdev_prop_register_global(g);
+    return 0;
+}
+
+void qemu_add_globals(void)
+{
+    qemu_opts_foreach(&qemu_global_opts, qemu_add_one_global, NULL, 0);
 }
 
 struct ConfigWriteData {

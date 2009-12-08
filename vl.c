@@ -4851,6 +4851,10 @@ int main(int argc, char **argv, char **envp)
                 if (qemu_set_option(optarg) != 0)
                     exit(1);
 	        break;
+            case QEMU_OPTION_global:
+                if (qemu_global_option(optarg) != 0)
+                    exit(1);
+	        break;
             case QEMU_OPTION_mtdblock:
                 drive_add(optarg, MTD_ALIAS);
                 break;
@@ -5781,6 +5785,8 @@ int main(int argc, char **argv, char **envp)
     if (machine->compat_props) {
         qdev_prop_register_global_list(machine->compat_props);
     }
+    qemu_add_globals();
+
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
