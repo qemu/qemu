@@ -4662,33 +4662,6 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     return 0;
 }
 
-static void serial_monitor_mux(void)
-{
-    struct device_config *mon0, *serial;
-    const char *devname;
-
-    QTAILQ_FOREACH(mon0, &device_configs, next) {
-        if (mon0->type != DEV_MONITOR)
-            continue;
-        if (strcmp(mon0->cmdline,"stdio") != 0)
-            return;
-        break;
-    }
-    QTAILQ_FOREACH(serial, &device_configs, next) {
-        if (serial->type != DEV_SERIAL)
-            continue;
-        devname = serial->cmdline;
-        if (devname && !strcmp(devname,"mon:stdio")) {
-            QTAILQ_REMOVE(&device_configs, mon0, next);
-            break;
-        } else if (devname && !strcmp(devname,"stdio")) {
-            QTAILQ_REMOVE(&device_configs, mon0, next);
-            serial->cmdline = "mon:stdio";
-            break;
-        }
-    }
-}
-
 static int serial_parse(const char *devname)
 {
     static int index = 0;
@@ -5574,12 +5547,16 @@ int main(int argc, char **argv, char **envp)
     qemu_opts_foreach(&qemu_device_opts, default_driver_check, NULL, 0);
 
     if (display_type == DT_NOGRAPHIC) {
-        if (default_serial)
-            add_device_config(DEV_SERIAL, "stdio");
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "null");
-        if (default_monitor)
-            add_device_config(DEV_MONITOR, "stdio");
+        if (default_serial && default_monitor) {
+            add_device_config(DEV_SERIAL, "mon:stdio");
+        } else {
+            if (default_serial)
+                add_device_config(DEV_SERIAL, "stdio");
+            if (default_monitor)
+                add_device_config(DEV_MONITOR, "stdio");
+        }
     } else {
         if (default_serial)
             add_device_config(DEV_SERIAL, "vc:80Cx24C");
@@ -5736,9 +5713,6 @@ int main(int argc, char **argv, char **envp)
     vmstate_register(0, &vmstate_timers ,&timers_state);
     register_savevm_live("ram", 0, 3, NULL, ram_save_live, NULL, 
                          ram_load, NULL);
-
-    /* Maintain compatibility with multiple stdio monitors */
-    serial_monitor_mux();
 
     if (nb_numa_nodes > 0) {
         int i;
