@@ -2231,7 +2231,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
     return NULL;
 }
 
-static QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
+QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 {
     char host[65], port[33], width[8], height[8];
     int pos;
