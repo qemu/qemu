@@ -271,6 +271,30 @@ uint8_t qemu_uuid[16];
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
+static int default_serial = 1;
+
+static struct {
+    const char *driver;
+    int *flag;
+} default_list[] = {
+    { .driver = "isa-serial",           .flag = &default_serial },
+};
+
+static int default_driver_check(QemuOpts *opts, void *opaque)
+{
+    const char *driver = qemu_opt_get(opts, "driver");
+    int i;
+
+    if (!driver)
+        return 0;
+    for (i = 0; i < ARRAY_SIZE(default_list); i++) {
+        if (strcmp(default_list[i].driver, driver) != 0)
+            continue;
+        *(default_list[i].flag) = 0;
+    }
+    return 0;
+}
+
 /***********************************************************/
 /* x86 ISA bus support */
 
@@ -4600,6 +4624,7 @@ struct device_config {
     enum {
         DEV_USB,       /* -usbdevice   */
         DEV_BT,        /* -bt          */
+        DEV_SERIAL,    /* -serial      */
     } type;
     const char *cmdline;
     QTAILQ_ENTRY(device_config) next;
@@ -4631,6 +4656,50 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     return 0;
 }
 
+static void serial_monitor_mux(const char *monitor_devices[])
+{
+    struct device_config *serial;
+    const char *devname;
+
+    if (strcmp(monitor_devices[0],"stdio") != 0)
+        return;
+    QTAILQ_FOREACH(serial, &device_configs, next) {
+        if (serial->type != DEV_SERIAL)
+            continue;
+        devname = serial->cmdline;
+        if (devname && !strcmp(devname,"mon:stdio")) {
+            monitor_devices[0] = NULL;
+            break;
+        } else if (devname && !strcmp(devname,"stdio")) {
+            monitor_devices[0] = NULL;
+            serial->cmdline = "mon:stdio";
+            break;
+        }
+    }
+}
+
+static int serial_parse(const char *devname)
+{
+    static int index = 0;
+    char label[32];
+
+    if (strcmp(devname, "none") == 0)
+        return 0;
+    if (index == MAX_SERIAL_PORTS) {
+        fprintf(stderr, "qemu: too many serial ports\n");
+        exit(1);
+    }
+    snprintf(label, sizeof(label), "serial%d", index);
+    serial_hds[index] = qemu_chr_open(label, devname, NULL);
+    if (!serial_hds[index]) {
+        fprintf(stderr, "qemu: could not open serial device '%s': %s\n",
+                devname, strerror(errno));
+        return -1;
+    }
+    index++;
+    return 0;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4649,8 +4718,6 @@ int main(int argc, char **argv, char **envp)
     CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
     const char *monitor_devices[MAX_MONITOR_DEVICES];
     int monitor_device_index;
-    const char *serial_devices[MAX_SERIAL_PORTS];
-    int serial_device_index;
     const char *parallel_devices[MAX_PARALLEL_PORTS];
     int parallel_device_index;
     const char *virtio_consoles[MAX_VIRTIO_CONSOLES];
@@ -4719,11 +4786,6 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-
-    serial_devices[0] = "vc:80Cx24C";
-    for(i = 1; i < MAX_SERIAL_PORTS; i++)
-        serial_devices[i] = NULL;
-    serial_device_index = 0;
 
     parallel_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
@@ -5172,12 +5234,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_serial:
-                if (serial_device_index >= MAX_SERIAL_PORTS) {
-                    fprintf(stderr, "qemu: too many serial ports\n");
-                    exit(1);
-                }
-                serial_devices[serial_device_index] = optarg;
-                serial_device_index++;
+                add_device_config(DEV_SERIAL, optarg);
+                default_serial = 0;
                 break;
             case QEMU_OPTION_watchdog:
                 if (watchdog) {
@@ -5478,14 +5536,19 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    qemu_opts_foreach(&qemu_device_opts, default_driver_check, NULL, 0);
+
     if (display_type == DT_NOGRAPHIC) {
-       if (serial_device_index == 0)
-           serial_devices[0] = "stdio";
+        if (default_serial)
+            add_device_config(DEV_SERIAL, "stdio");
        if (parallel_device_index == 0)
            parallel_devices[0] = "null";
        if (strncmp(monitor_devices[0], "vc", 2) == 0) {
            monitor_devices[0] = "stdio";
        }
+    } else {
+        if (default_serial)
+            add_device_config(DEV_SERIAL, "vc:80Cx24C");
     }
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
@@ -5637,19 +5700,7 @@ int main(int argc, char **argv, char **envp)
                          ram_load, NULL);
 
     /* Maintain compatibility with multiple stdio monitors */
-    if (!strcmp(monitor_devices[0],"stdio")) {
-        for (i = 0; i < MAX_SERIAL_PORTS; i++) {
-            const char *devname = serial_devices[i];
-            if (devname && !strcmp(devname,"mon:stdio")) {
-                monitor_devices[0] = NULL;
-                break;
-            } else if (devname && !strcmp(devname,"stdio")) {
-                monitor_devices[0] = NULL;
-                serial_devices[i] = "mon:stdio";
-                break;
-            }
-        }
-    }
+    serial_monitor_mux(monitor_devices);
 
     if (nb_numa_nodes > 0) {
         int i;
@@ -5711,19 +5762,8 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        const char *devname = serial_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_open(label, devname, NULL);
-            if (!serial_hds[i]) {
-                fprintf(stderr, "qemu: could not open serial device '%s': %s\n",
-                        devname, strerror(errno));
-                exit(1);
-            }
-        }
-    }
+    if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
+        exit(1);
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         const char *devname = parallel_devices[i];
