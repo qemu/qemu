@@ -4586,6 +4586,16 @@ static int device_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+static int chardev_init_func(QemuOpts *opts, void *opaque)
+{
+    CharDriverState *chr;
+
+    chr = qemu_chr_open_opts(opts, NULL);
+    if (!chr)
+        return -1;
+    return 0;
+}
+
 struct device_config {
     enum {
         DEV_USB,       /* -usbdevice   */
@@ -5180,9 +5190,6 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
-                if (qemu_chr_open_opts(opts, NULL) == NULL) {
-                    exit(1);
-                }
                 break;
             case QEMU_OPTION_serial:
                 if (serial_device_index >= MAX_SERIAL_PORTS) {
@@ -5500,6 +5507,9 @@ int main(int argc, char **argv, char **envp)
            monitor_devices[0] = "stdio";
        }
     }
+
+    if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
+        exit(1);
 
 #ifndef _WIN32
     if (daemonize) {
