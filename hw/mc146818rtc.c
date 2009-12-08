@@ -30,6 +30,8 @@
 
 //#define DEBUG_CMOS
 
+#define RTC_REINJECT_ON_ACK_COUNT 1000
+
 #define RTC_SECONDS             0
 #define RTC_SECONDS_ALARM       1
 #define RTC_MINUTES             2
@@ -76,6 +78,7 @@ struct RTCState {
     int64_t next_periodic_time;
     /* second update */
     int64_t next_second_time;
+    uint16_t irq_reinject_on_ack_count;
     uint32_t irq_coalesced;
     uint32_t period;
     QEMUTimer *coalesced_timer;
@@ -180,6 +183,8 @@ static void rtc_periodic_timer(void *opaque)
         s->cmos_data[RTC_REG_C] |= 0xc0;
 #ifdef TARGET_I386
         if(rtc_td_hack) {
+            if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
+                s->irq_reinject_on_ack_count = 0;		
             apic_reset_irq_delivered();
             rtc_irq_raise(s->irq);
             if (!apic_get_irq_delivered()) {
@@ -458,6 +463,18 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
         case RTC_REG_C:
             ret = s->cmos_data[s->cmos_index];
             qemu_irq_lower(s->irq);
+#ifdef TARGET_I386
+            if(s->irq_coalesced &&
+                    s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
+                s->irq_reinject_on_ack_count++;
+                apic_reset_irq_delivered();
+                qemu_irq_raise(s->irq);
+                if (apic_get_irq_delivered())
+                    s->irq_coalesced--;
+                break;
+            }
+#endif
+
             s->cmos_data[RTC_REG_C] = 0x00;
             break;
         default:
