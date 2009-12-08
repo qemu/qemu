@@ -1388,8 +1388,10 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, QemuOpt
         char msg[128];
         int len;
 
+        s->t_attrib.bgcol = COLOR_BLUE;
         len = snprintf(msg, sizeof(msg), "%s console\r\n", chr->label);
         console_puts(chr, (uint8_t*)msg, len);
+        s->t_attrib = s->t_attrib_default;
     }
 
     qemu_chr_generic_open(chr);
