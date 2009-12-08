@@ -92,11 +92,12 @@ struct PropertyInfo {
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
 };
 
-struct CompatProperty {
+typedef struct GlobalProperty {
     const char *driver;
     const char *property;
     const char *value;
-};
+    QTAILQ_ENTRY(GlobalProperty) next;
+} GlobalProperty;
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
@@ -256,8 +257,9 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 
-void qdev_prop_register_compat(CompatProperty *props);
-void qdev_prop_set_compat(DeviceState *dev);
+void qdev_prop_register_global(GlobalProperty *prop);
+void qdev_prop_register_global_list(GlobalProperty *props);
+void qdev_prop_set_globals(DeviceState *dev);
 
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;
