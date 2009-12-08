@@ -1881,6 +1881,11 @@ DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
 STEXI
 ETEXI
 
+DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
+    "-nodefaults     don't create default devices.\n")
+STEXI
+ETEXI
+
 #ifndef _WIN32
 DEF("chroot", HAS_ARG, QEMU_OPTION_chroot, \
     "-chroot dir     Chroot to dir just before starting the VM.\n")
