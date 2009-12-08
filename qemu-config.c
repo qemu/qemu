@@ -224,6 +224,24 @@ QemuOptsList qemu_global_opts = {
     },
 };
 
+QemuOptsList qemu_mon_opts = {
+    .name = "mon",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_mon_opts.head),
+    .desc = {
+        {
+            .name = "mode",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "chardev",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "default",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end if list */ }
+    },
+};
+
 static QemuOptsList *lists[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
@@ -232,6 +250,7 @@ static QemuOptsList *lists[] = {
     &qemu_net_opts,
     &qemu_rtc_opts,
     &qemu_global_opts,
+    &qemu_mon_opts,
     NULL,
 };
 
