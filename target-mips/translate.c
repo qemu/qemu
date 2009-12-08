@@ -7584,6 +7584,118 @@ static void handle_delay_slot (CPUState *env, DisasContext *ctx,
 
 /* ISA extensions (ASEs) */
 /* MIPS16 extension to MIPS32 */
+
+/* MIPS16 major opcodes */
+enum {
+  M16_OPC_ADDIUSP = 0x00,
+  M16_OPC_ADDIUPC = 0x01,
+  M16_OPC_B = 0x02,
+  M16_OPC_JAL = 0x03,
+  M16_OPC_BEQZ = 0x04,
+  M16_OPC_BNEQZ = 0x05,
+  M16_OPC_SHIFT = 0x06,
+  M16_OPC_LD = 0x07,
+  M16_OPC_RRIA = 0x08,
+  M16_OPC_ADDIU8 = 0x09,
+  M16_OPC_SLTI = 0x0a,
+  M16_OPC_SLTIU = 0x0b,
+  M16_OPC_I8 = 0x0c,
+  M16_OPC_LI = 0x0d,
+  M16_OPC_CMPI = 0x0e,
+  M16_OPC_SD = 0x0f,
+  M16_OPC_LB = 0x10,
+  M16_OPC_LH = 0x11,
+  M16_OPC_LWSP = 0x12,
+  M16_OPC_LW = 0x13,
+  M16_OPC_LBU = 0x14,
+  M16_OPC_LHU = 0x15,
+  M16_OPC_LWPC = 0x16,
+  M16_OPC_LWU = 0x17,
+  M16_OPC_SB = 0x18,
+  M16_OPC_SH = 0x19,
+  M16_OPC_SWSP = 0x1a,
+  M16_OPC_SW = 0x1b,
+  M16_OPC_RRR = 0x1c,
+  M16_OPC_RR = 0x1d,
+  M16_OPC_EXTEND = 0x1e,
+  M16_OPC_I64 = 0x1f
+};
+
+/* I8 funct field */
+enum {
+  I8_BTEQZ = 0x0,
+  I8_BTNEZ = 0x1,
+  I8_SWRASP = 0x2,
+  I8_ADJSP = 0x3,
+  I8_SVRS = 0x4,
+  I8_MOV32R = 0x5,
+  I8_MOVR32 = 0x7
+};
+
+/* RRR f field */
+enum {
+  RRR_DADDU = 0x0,
+  RRR_ADDU = 0x1,
+  RRR_DSUBU = 0x2,
+  RRR_SUBU = 0x3
+};
+
+/* RR funct field */
+enum {
+  RR_JR = 0x00,
+  RR_SDBBP = 0x01,
+  RR_SLT = 0x02,
+  RR_SLTU = 0x03,
+  RR_SLLV = 0x04,
+  RR_BREAK = 0x05,
+  RR_SRLV = 0x06,
+  RR_SRAV = 0x07,
+  RR_DSRL = 0x08,
+  RR_CMP = 0x0a,
+  RR_NEG = 0x0b,
+  RR_AND = 0x0c,
+  RR_OR = 0x0d,
+  RR_XOR = 0x0e,
+  RR_NOT = 0x0f,
+  RR_MFHI = 0x10,
+  RR_CNVT = 0x11,
+  RR_MFLO = 0x12,
+  RR_DSRA = 0x13,
+  RR_DSLLV = 0x14,
+  RR_DSRLV = 0x16,
+  RR_DSRAV = 0x17,
+  RR_MULT = 0x18,
+  RR_MULTU = 0x19,
+  RR_DIV = 0x1a,
+  RR_DIVU = 0x1b,
+  RR_DMULT = 0x1c,
+  RR_DMULTU = 0x1d,
+  RR_DDIV = 0x1e,
+  RR_DDIVU = 0x1f
+};
+
+/* I64 funct field */
+enum {
+  I64_LDSP = 0x0,
+  I64_SDSP = 0x1,
+  I64_SDRASP = 0x2,
+  I64_DADJSP = 0x3,
+  I64_LDPC = 0x4,
+  I64_DADDIU = 0x5,
+  I64_DADDIUPC = 0x6,
+  I64_DADDIUSP = 0x7
+};
+
+/* RR ry field for CNVT */
+enum {
+  RR_RY_CNVT_ZEB = 0x0,
+  RR_RY_CNVT_ZEH = 0x1,
+  RR_RY_CNVT_ZEW = 0x2,
+  RR_RY_CNVT_SEB = 0x4,
+  RR_RY_CNVT_SEH = 0x5,
+  RR_RY_CNVT_SEW = 0x6,
+};
+
 /* SmartMIPS extension to MIPS32 */
 
 #if defined(TARGET_MIPS64)
