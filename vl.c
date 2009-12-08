@@ -5471,6 +5471,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_incoming:
                 incoming = optarg;
                 break;
+            case QEMU_OPTION_nodefaults:
+                default_serial = 0;
+                default_parallel = 0;
+                default_monitor = 0;
+                default_vga = 0;
+                break;
 #ifndef _WIN32
             case QEMU_OPTION_chroot:
                 chroot_dir = optarg;
