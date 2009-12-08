@@ -981,6 +981,19 @@ OP_ST_ATOMIC(scd,st64,ld64,0x7);
 #endif
 #undef OP_ST_ATOMIC
 
+static void gen_base_offset_addr (DisasContext *ctx, TCGv addr,
+                                  int base, int16_t offset)
+{
+    if (base == 0) {
+        tcg_gen_movi_tl(addr, offset);
+    } else if (offset == 0) {
+        gen_load_gpr(addr, base);
+    } else {
+        tcg_gen_movi_tl(addr, offset);
+        gen_op_addr_add(ctx, addr, cpu_gpr[base], addr);
+    }
+}
+
 /* Load and store */
 static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
                       int base, int16_t offset)
@@ -989,14 +1002,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    if (base == 0) {
-        tcg_gen_movi_tl(t0, offset);
-    } else if (offset == 0) {
-        gen_load_gpr(t0, base);
-    } else {
-        tcg_gen_movi_tl(t0, offset);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
-    }
+    gen_base_offset_addr(ctx, t0, base, offset);
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
     switch (opc) {
@@ -1147,14 +1153,7 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
 
     t0 = tcg_temp_local_new();
 
-    if (base == 0) {
-        tcg_gen_movi_tl(t0, offset);
-    } else if (offset == 0) {
-        gen_load_gpr(t0, base);
-    } else {
-        tcg_gen_movi_tl(t0, offset);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
-    }
+    gen_base_offset_addr(ctx, t0, base, offset);
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
 
@@ -1186,14 +1185,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     const char *opn = "flt_ldst";
     TCGv t0 = tcg_temp_new();
 
-    if (base == 0) {
-        tcg_gen_movi_tl(t0, offset);
-    } else if (offset == 0) {
-        gen_load_gpr(t0, base);
-    } else {
-        tcg_gen_movi_tl(t0, offset);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
-    }
+    gen_base_offset_addr(ctx, t0, base, offset);
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
     switch (opc) {
