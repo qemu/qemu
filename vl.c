@@ -5779,7 +5779,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (machine->compat_props) {
-        qdev_prop_register_compat(machine->compat_props);
+        qdev_prop_register_global_list(machine->compat_props);
     }
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);

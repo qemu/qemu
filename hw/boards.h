@@ -20,7 +20,7 @@ typedef struct QEMUMachine {
     int use_scsi;
     int max_cpus;
     int is_default;
-    CompatProperty *compat_props;
+    GlobalProperty *compat_props;
     struct QEMUMachine *next;
 } QEMUMachine;
 

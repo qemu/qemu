@@ -593,21 +593,27 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props)
     }
 }
 
-static CompatProperty *compat_props;
+static QTAILQ_HEAD(, GlobalProperty) global_props = QTAILQ_HEAD_INITIALIZER(global_props);
 
-void qdev_prop_register_compat(CompatProperty *props)
+void qdev_prop_register_global(GlobalProperty *prop)
 {
-    compat_props = props;
+    QTAILQ_INSERT_TAIL(&global_props, prop, next);
 }
 
-void qdev_prop_set_compat(DeviceState *dev)
+void qdev_prop_register_global_list(GlobalProperty *props)
 {
-    CompatProperty *prop;
+    int i;
 
-    if (!compat_props) {
-        return;
+    for (i = 0; props[i].driver != NULL; i++) {
+        qdev_prop_register_global(props+i);
     }
-    for (prop = compat_props; prop->driver != NULL; prop++) {
+}
+
+void qdev_prop_set_globals(DeviceState *dev)
+{
+    GlobalProperty *prop;
+
+    QTAILQ_FOREACH(prop, &global_props, next) {
         if (strcmp(dev->info->name, prop->driver) != 0) {
             continue;
         }
