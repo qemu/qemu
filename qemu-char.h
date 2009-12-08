@@ -69,6 +69,7 @@ struct CharDriverState {
     QTAILQ_ENTRY(CharDriverState) next;
 };
 
+QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s));
 CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s));
