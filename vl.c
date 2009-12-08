@@ -5476,6 +5476,7 @@ int main(int argc, char **argv, char **envp)
                 default_parallel = 0;
                 default_monitor = 0;
                 default_vga = 0;
+                default_net = 0;
                 break;
 #ifndef _WIN32
             case QEMU_OPTION_chroot:
