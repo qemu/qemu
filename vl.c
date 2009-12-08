@@ -270,6 +270,7 @@ static void *boot_set_opaque;
 
 static int default_serial = 1;
 static int default_parallel = 1;
+static int default_virtcon = 0;
 static int default_monitor = 1;
 static int default_vga = 1;
 static int default_drive = 1;
@@ -280,6 +281,8 @@ static struct {
 } default_list[] = {
     { .driver = "isa-serial",           .flag = &default_serial    },
     { .driver = "isa-parallel",         .flag = &default_parallel  },
+    { .driver = "virtio-console-pci",   .flag = &default_virtcon   },
+    { .driver = "virtio-console-s390",  .flag = &default_virtcon   },
     { .driver = "VGA",                  .flag = &default_vga       },
     { .driver = "Cirrus VGA",           .flag = &default_vga       },
     { .driver = "QEMUware SVGA",        .flag = &default_vga       },
@@ -4699,10 +4702,11 @@ static void monitor_parse(const char *optarg, const char *mode)
 
 struct device_config {
     enum {
-        DEV_USB,       /* -usbdevice   */
-        DEV_BT,        /* -bt          */
-        DEV_SERIAL,    /* -serial      */
-        DEV_PARALLEL,  /* -parallel    */
+        DEV_USB,       /* -usbdevice     */
+        DEV_BT,        /* -bt            */
+        DEV_SERIAL,    /* -serial        */
+        DEV_PARALLEL,  /* -parallel      */
+        DEV_VIRTCON,   /* -virtioconsole */
     } type;
     const char *cmdline;
     QTAILQ_ENTRY(device_config) next;
@@ -4778,6 +4782,28 @@ static int parallel_parse(const char *devname)
     return 0;
 }
 
+static int virtcon_parse(const char *devname)
+{
+    static int index = 0;
+    char label[32];
+
+    if (strcmp(devname, "none") == 0)
+        return 0;
+    if (index == MAX_VIRTIO_CONSOLES) {
+        fprintf(stderr, "qemu: too many virtio consoles\n");
+        exit(1);
+    }
+    snprintf(label, sizeof(label), "virtcon%d", index);
+    virtcon_hds[index] = qemu_chr_open(label, devname, NULL);
+    if (!virtcon_hds[index]) {
+        fprintf(stderr, "qemu: could not open virtio console '%s': %s\n",
+                devname, strerror(errno));
+        return -1;
+    }
+    index++;
+    return 0;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4793,8 +4819,6 @@ int main(int argc, char **argv, char **envp)
     QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
-    const char *virtio_consoles[MAX_VIRTIO_CONSOLES];
-    int virtio_console_index;
     const char *loadvm = NULL;
     QEMUMachine *machine;
     const char *cpu_model;
@@ -4859,10 +4883,6 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-
-    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++)
-        virtio_consoles[i] = NULL;
-    virtio_console_index = 0;
 
     for (i = 0; i < MAX_NODES; i++) {
         node_mem[i] = 0;
@@ -5322,12 +5342,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_virtiocon:
-                if (virtio_console_index >= MAX_VIRTIO_CONSOLES) {
-                    fprintf(stderr, "qemu: too many virtio consoles\n");
-                    exit(1);
-                }
-                virtio_consoles[virtio_console_index] = optarg;
-                virtio_console_index++;
+                add_device_config(DEV_VIRTCON, optarg);
+                default_virtcon = 0;
                 break;
             case QEMU_OPTION_parallel:
                 add_device_config(DEV_PARALLEL, optarg);
@@ -5527,6 +5543,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_nodefaults:
                 default_serial = 0;
                 default_parallel = 0;
+                default_virtcon = 0;
                 default_monitor = 0;
                 default_vga = 0;
                 default_net = 0;
@@ -5830,20 +5847,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     if (foreach_device_config(DEV_PARALLEL, parallel_parse) < 0)
         exit(1);
-
-    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-        const char *devname = virtio_consoles[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "virtcon%d", i);
-            virtcon_hds[i] = qemu_chr_open(label, devname, NULL);
-            if (!virtcon_hds[i]) {
-                fprintf(stderr, "qemu: could not open virtio console '%s': %s\n",
-                        devname, strerror(errno));
-                exit(1);
-            }
-        }
-    }
+    if (foreach_device_config(DEV_VIRTCON, virtcon_parse) < 0)
+        exit(1);
 
     module_call_init(MODULE_INIT_DEVICE);
 
