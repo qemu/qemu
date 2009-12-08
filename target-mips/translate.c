@@ -128,18 +128,23 @@ enum {
     /* SSNOP is SLL r0, r0, 1 */
     /* EHB is SLL r0, r0, 3 */
     OPC_SRL      = 0x02 | OPC_SPECIAL, /* also ROTR */
+    OPC_ROTR     = OPC_SRL | (1 << 21),
     OPC_SRA      = 0x03 | OPC_SPECIAL,
     OPC_SLLV     = 0x04 | OPC_SPECIAL,
     OPC_SRLV     = 0x06 | OPC_SPECIAL, /* also ROTRV */
+    OPC_ROTRV    = OPC_SRLV | (1 << 6),
     OPC_SRAV     = 0x07 | OPC_SPECIAL,
     OPC_DSLLV    = 0x14 | OPC_SPECIAL,
     OPC_DSRLV    = 0x16 | OPC_SPECIAL, /* also DROTRV */
+    OPC_DROTRV   = OPC_DSRLV | (1 << 6),
     OPC_DSRAV    = 0x17 | OPC_SPECIAL,
     OPC_DSLL     = 0x38 | OPC_SPECIAL,
     OPC_DSRL     = 0x3A | OPC_SPECIAL, /* also DROTR */
+    OPC_DROTR    = OPC_DSRL | (1 << 21),
     OPC_DSRA     = 0x3B | OPC_SPECIAL,
     OPC_DSLL32   = 0x3C | OPC_SPECIAL,
     OPC_DSRL32   = 0x3E | OPC_SPECIAL, /* also DROTR32 */
+    OPC_DROTR32  = OPC_DSRL32 | (1 << 21),
     OPC_DSRA32   = 0x3F | OPC_SPECIAL,
     /* Multiplication / division */
     OPC_MULT     = 0x18 | OPC_SPECIAL,
@@ -1431,43 +1436,24 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "sra";
         break;
     case OPC_SRL:
-        switch ((ctx->opcode >> 21) & 0x1f) {
-        case 0:
-            if (uimm != 0) {
-                tcg_gen_ext32u_tl(t0, t0);
-                tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
-            } else {
-                tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
-            }
-            opn = "srl";
-            break;
-        case 1:
-            /* rotr is decoded as srl on non-R2 CPUs */
-            if (env->insn_flags & ISA_MIPS32R2) {
-                if (uimm != 0) {
-                    TCGv_i32 t1 = tcg_temp_new_i32();
-
-                    tcg_gen_trunc_tl_i32(t1, t0);
-                    tcg_gen_rotri_i32(t1, t1, uimm);
-                    tcg_gen_ext_i32_tl(cpu_gpr[rt], t1);
-                    tcg_temp_free_i32(t1);
-                }
-                opn = "rotr";
-            } else {
-                if (uimm != 0) {
-                    tcg_gen_ext32u_tl(t0, t0);
-                    tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
-                } else {
-                    tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
-                }
-                opn = "srl";
-            }
-            break;
-        default:
-            MIPS_INVAL("invalid srl flag");
-            generate_exception(ctx, EXCP_RI);
-            break;
+        if (uimm != 0) {
+            tcg_gen_ext32u_tl(t0, t0);
+            tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
+        } else {
+            tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
         }
+        opn = "srl";
+        break;
+    case OPC_ROTR:
+        if (uimm != 0) {
+            TCGv_i32 t1 = tcg_temp_new_i32();
+
+            tcg_gen_trunc_tl_i32(t1, t0);
+            tcg_gen_rotri_i32(t1, t1, uimm);
+            tcg_gen_ext_i32_tl(cpu_gpr[rt], t1);
+            tcg_temp_free_i32(t1);
+        }
+        opn = "rotr";
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DSLL:
@@ -1479,28 +1465,14 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "dsra";
         break;
     case OPC_DSRL:
-        switch ((ctx->opcode >> 21) & 0x1f) {
-        case 0:
-            tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
-            opn = "dsrl";
-            break;
-        case 1:
-            /* drotr is decoded as dsrl on non-R2 CPUs */
-            if (env->insn_flags & ISA_MIPS32R2) {
-                if (uimm != 0) {
-                    tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm);
-                }
-                opn = "drotr";
-            } else {
-                tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
-                opn = "dsrl";
-            }
-            break;
-        default:
-            MIPS_INVAL("invalid dsrl flag");
-            generate_exception(ctx, EXCP_RI);
-            break;
+        tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
+        opn = "dsrl";
+        break;
+    case OPC_DROTR:
+        if (uimm != 0) {
+            tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm);
         }
+        opn = "drotr";
         break;
     case OPC_DSLL32:
         tcg_gen_shli_tl(cpu_gpr[rt], t0, uimm + 32);
@@ -1511,26 +1483,12 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "dsra32";
         break;
     case OPC_DSRL32:
-        switch ((ctx->opcode >> 21) & 0x1f) {
-        case 0:
-            tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm + 32);
-            opn = "dsrl32";
-            break;
-        case 1:
-            /* drotr32 is decoded as dsrl32 on non-R2 CPUs */
-            if (env->insn_flags & ISA_MIPS32R2) {
-                tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm + 32);
-                opn = "drotr32";
-            } else {
-                tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm + 32);
-                opn = "dsrl32";
-            }
-            break;
-        default:
-            MIPS_INVAL("invalid dsrl32 flag");
-            generate_exception(ctx, EXCP_RI);
-            break;
-        }
+        tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm + 32);
+        opn = "dsrl32";
+        break;
+    case OPC_DROTR32:
+        tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm + 32);
+        opn = "drotr32";
         break;
 #endif
     }
@@ -1879,40 +1837,25 @@ static void gen_shift (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "srav";
         break;
     case OPC_SRLV:
-        switch ((ctx->opcode >> 6) & 0x1f) {
-        case 0:
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_andi_tl(t0, t0, 0x1f);
-            tcg_gen_shr_tl(t0, t1, t0);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
-            opn = "srlv";
-            break;
-        case 1:
-            /* rotrv is decoded as srlv on non-R2 CPUs */
-            if (env->insn_flags & ISA_MIPS32R2) {
-                TCGv_i32 t2 = tcg_temp_new_i32();
-                TCGv_i32 t3 = tcg_temp_new_i32();
+        tcg_gen_ext32u_tl(t1, t1);
+        tcg_gen_andi_tl(t0, t0, 0x1f);
+        tcg_gen_shr_tl(t0, t1, t0);
+        tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        opn = "srlv";
+        break;
+    case OPC_ROTRV:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
 
-                tcg_gen_trunc_tl_i32(t2, t0);
-                tcg_gen_trunc_tl_i32(t3, t1);
-                tcg_gen_andi_i32(t2, t2, 0x1f);
-                tcg_gen_rotr_i32(t2, t3, t2);
-                tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
-                tcg_temp_free_i32(t2);
-                tcg_temp_free_i32(t3);
-                opn = "rotrv";
-            } else {
-                tcg_gen_ext32u_tl(t1, t1);
-                tcg_gen_andi_tl(t0, t0, 0x1f);
-                tcg_gen_shr_tl(t0, t1, t0);
-                tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
-                opn = "srlv";
-            }
-            break;
-        default:
-            MIPS_INVAL("invalid srlv flag");
-            generate_exception(ctx, EXCP_RI);
-            break;
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_andi_i32(t2, t2, 0x1f);
+            tcg_gen_rotr_i32(t2, t3, t2);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+            opn = "rotrv";
         }
         break;
 #if defined(TARGET_MIPS64)
@@ -1927,29 +1870,14 @@ static void gen_shift (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "dsrav";
         break;
     case OPC_DSRLV:
-        switch ((ctx->opcode >> 6) & 0x1f) {
-        case 0:
-            tcg_gen_andi_tl(t0, t0, 0x3f);
-            tcg_gen_shr_tl(cpu_gpr[rd], t1, t0);
-            opn = "dsrlv";
-            break;
-        case 1:
-            /* drotrv is decoded as dsrlv on non-R2 CPUs */
-            if (env->insn_flags & ISA_MIPS32R2) {
-                tcg_gen_andi_tl(t0, t0, 0x3f);
-                tcg_gen_rotr_tl(cpu_gpr[rd], t1, t0);
-                opn = "drotrv";
-            } else {
-                tcg_gen_andi_tl(t0, t0, 0x3f);
-                tcg_gen_shr_tl(t0, t1, t0);
-                opn = "dsrlv";
-            }
-            break;
-        default:
-            MIPS_INVAL("invalid dsrlv flag");
-            generate_exception(ctx, EXCP_RI);
-            break;
-        }
+        tcg_gen_andi_tl(t0, t0, 0x3f);
+        tcg_gen_shr_tl(cpu_gpr[rd], t1, t0);
+        opn = "dsrlv";
+        break;
+    case OPC_DROTRV:
+        tcg_gen_andi_tl(t0, t0, 0x3f);
+        tcg_gen_rotr_tl(cpu_gpr[rd], t1, t0);
+        opn = "drotrv";
         break;
 #endif
     }
@@ -7661,8 +7589,23 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_SLL:          /* Shift with immediate */
         case OPC_SRA:
-        case OPC_SRL:
             gen_shift_imm(env, ctx, op1, rd, rt, sa);
+            break;
+        case OPC_SRL:
+            switch ((ctx->opcode >> 21) & 0x1f) {
+            case 1:
+                /* rotr is decoded as srl on non-R2 CPUs */
+                if (env->insn_flags & ISA_MIPS32R2) {
+                    op1 = OPC_ROTR;
+                }
+                /* Fallthrough */
+            case 0:
+                gen_shift_imm(env, ctx, op1, rd, rt, sa);
+                break;
+            default:
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
             break;
         case OPC_MOVN:         /* Conditional move */
         case OPC_MOVZ:
@@ -7673,9 +7616,24 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_arith(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_SLLV:         /* Shifts */
-        case OPC_SRLV:
         case OPC_SRAV:
             gen_shift(env, ctx, op1, rd, rs, rt);
+            break;
+        case OPC_SRLV:
+            switch ((ctx->opcode >> 6) & 0x1f) {
+            case 1:
+                /* rotrv is decoded as srlv on non-R2 CPUs */
+                if (env->insn_flags & ISA_MIPS32R2) {
+                    op1 = OPC_ROTRV;
+                }
+                /* Fallthrough */
+            case 0:
+                gen_shift(env, ctx, op1, rd, rs, rt);
+                break;
+            default:
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
             break;
         case OPC_SLT:          /* Set on less than */
         case OPC_SLTU:
@@ -7754,13 +7712,47 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
        /* MIPS64 specific opcodes */
         case OPC_DSLL:
         case OPC_DSRA:
-        case OPC_DSRL:
         case OPC_DSLL32:
         case OPC_DSRA32:
-        case OPC_DSRL32:
             check_insn(env, ctx, ISA_MIPS3);
             check_mips_64(ctx);
             gen_shift_imm(env, ctx, op1, rd, rt, sa);
+            break;
+        case OPC_DSRL:
+            switch ((ctx->opcode >> 21) & 0x1f) {
+            case 1:
+                /* drotr is decoded as dsrl on non-R2 CPUs */
+                if (env->insn_flags & ISA_MIPS32R2) {
+                    op1 = OPC_DROTR;
+                }
+                /* Fallthrough */
+            case 0:
+                check_insn(env, ctx, ISA_MIPS3);
+                check_mips_64(ctx);
+                gen_shift_imm(env, ctx, op1, rd, rt, sa);
+                break;
+            default:
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
+            break;
+        case OPC_DSRL32:
+            switch ((ctx->opcode >> 21) & 0x1f) {
+            case 1:
+                /* drotr32 is decoded as dsrl32 on non-R2 CPUs */
+                if (env->insn_flags & ISA_MIPS32R2) {
+                    op1 = OPC_DROTR32;
+                }
+                /* Fallthrough */
+            case 0:
+                check_insn(env, ctx, ISA_MIPS3);
+                check_mips_64(ctx);
+                gen_shift_imm(env, ctx, op1, rd, rt, sa);
+                break;
+            default:
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
             break;
         case OPC_DADD ... OPC_DSUBU:
             check_insn(env, ctx, ISA_MIPS3);
@@ -7769,10 +7761,27 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
         case OPC_DSLLV:
         case OPC_DSRAV:
-        case OPC_DSRLV:
             check_insn(env, ctx, ISA_MIPS3);
             check_mips_64(ctx);
             gen_shift(env, ctx, op1, rd, rs, rt);
+            break;
+        case OPC_DSRLV:
+            switch ((ctx->opcode >> 6) & 0x1f) {
+            case 1:
+                /* drotrv is decoded as dsrlv on non-R2 CPUs */
+                if (env->insn_flags & ISA_MIPS32R2) {
+                    op1 = OPC_DROTRV;
+                }
+                /* Fallthrough */
+            case 0:
+                check_insn(env, ctx, ISA_MIPS3);
+                check_mips_64(ctx);
+                gen_shift(env, ctx, op1, rd, rs, rt);
+                break;
+            default:
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
             break;
         case OPC_DMULT ... OPC_DDIVU:
             check_insn(env, ctx, ISA_MIPS3);
