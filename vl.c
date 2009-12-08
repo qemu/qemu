@@ -211,6 +211,7 @@ int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
+CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
 #ifdef TARGET_I386
 int win2k_install_hack = 0;
 int rtc_td_hack = 0;
@@ -273,6 +274,7 @@ static void *boot_set_opaque;
 
 static int default_serial = 1;
 static int default_parallel = 1;
+static int default_monitor = 1;
 
 static struct {
     const char *driver;
@@ -4628,6 +4630,7 @@ struct device_config {
         DEV_BT,        /* -bt          */
         DEV_SERIAL,    /* -serial      */
         DEV_PARALLEL,  /* -parallel    */
+        DEV_MONITOR,   /* -monitor     */
     } type;
     const char *cmdline;
     QTAILQ_ENTRY(device_config) next;
@@ -4659,22 +4662,27 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     return 0;
 }
 
-static void serial_monitor_mux(const char *monitor_devices[])
+static void serial_monitor_mux(void)
 {
-    struct device_config *serial;
+    struct device_config *mon0, *serial;
     const char *devname;
 
-    if (strcmp(monitor_devices[0],"stdio") != 0)
-        return;
+    QTAILQ_FOREACH(mon0, &device_configs, next) {
+        if (mon0->type != DEV_MONITOR)
+            continue;
+        if (strcmp(mon0->cmdline,"stdio") != 0)
+            return;
+        break;
+    }
     QTAILQ_FOREACH(serial, &device_configs, next) {
         if (serial->type != DEV_SERIAL)
             continue;
         devname = serial->cmdline;
         if (devname && !strcmp(devname,"mon:stdio")) {
-            monitor_devices[0] = NULL;
+            QTAILQ_REMOVE(&device_configs, mon0, next);
             break;
         } else if (devname && !strcmp(devname,"stdio")) {
-            monitor_devices[0] = NULL;
+            QTAILQ_REMOVE(&device_configs, mon0, next);
             serial->cmdline = "mon:stdio";
             break;
         }
@@ -4725,6 +4733,32 @@ static int parallel_parse(const char *devname)
     return 0;
 }
 
+static int monitor_parse(const char *devname)
+{
+    static int index = 0;
+    char label[32];
+
+    if (strcmp(devname, "none") == 0)
+        return 0;
+    if (index == MAX_MONITOR_DEVICES) {
+        fprintf(stderr, "qemu: too many monitor devices\n");
+        exit(1);
+    }
+    if (index == 0) {
+        snprintf(label, sizeof(label), "monitor");
+    } else {
+        snprintf(label, sizeof(label), "monitor%d", index);
+    }
+    monitor_hds[index] = qemu_chr_open(label, devname, NULL);
+    if (!monitor_hds[index]) {
+        fprintf(stderr, "qemu: could not open monitor device '%s'\n",
+                devname);
+        return -1;
+    }
+    index++;
+    return 0;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4740,9 +4774,6 @@ int main(int argc, char **argv, char **envp)
     QemuOpts *hda_opts = NULL, *opts;
     int optind;
     const char *r, *optarg;
-    CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
-    const char *monitor_devices[MAX_MONITOR_DEVICES];
-    int monitor_device_index;
     const char *virtio_consoles[MAX_VIRTIO_CONSOLES];
     int virtio_console_index;
     const char *loadvm = NULL;
@@ -4813,12 +4844,6 @@ int main(int argc, char **argv, char **envp)
     for(i = 0; i < MAX_VIRTIO_CONSOLES; i++)
         virtio_consoles[i] = NULL;
     virtio_console_index = 0;
-
-    monitor_devices[0] = "vc:80Cx24C";
-    for (i = 1; i < MAX_MONITOR_DEVICES; i++) {
-        monitor_devices[i] = NULL;
-    }
-    monitor_device_index = 0;
 
     for (i = 0; i < MAX_NODES; i++) {
         node_mem[i] = 0;
@@ -5237,12 +5262,8 @@ int main(int argc, char **argv, char **envp)
                     break;
                 }
             case QEMU_OPTION_monitor:
-                if (monitor_device_index >= MAX_MONITOR_DEVICES) {
-                    fprintf(stderr, "qemu: too many monitor devices\n");
-                    exit(1);
-                }
-                monitor_devices[monitor_device_index] = optarg;
-                monitor_device_index++;
+                add_device_config(DEV_MONITOR, optarg);
+                default_monitor = 0;
                 break;
             case QEMU_OPTION_chardev:
                 opts = qemu_opts_parse(&qemu_chardev_opts, optarg, "backend");
@@ -5557,14 +5578,15 @@ int main(int argc, char **argv, char **envp)
             add_device_config(DEV_SERIAL, "stdio");
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "null");
-       if (strncmp(monitor_devices[0], "vc", 2) == 0) {
-           monitor_devices[0] = "stdio";
-       }
+        if (default_monitor)
+            add_device_config(DEV_MONITOR, "stdio");
     } else {
         if (default_serial)
             add_device_config(DEV_SERIAL, "vc:80Cx24C");
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "vc:80Cx24C");
+        if (default_monitor)
+            add_device_config(DEV_MONITOR, "vc:80Cx24C");
     }
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
@@ -5716,7 +5738,7 @@ int main(int argc, char **argv, char **envp)
                          ram_load, NULL);
 
     /* Maintain compatibility with multiple stdio monitors */
-    serial_monitor_mux(monitor_devices);
+    serial_monitor_mux();
 
     if (nb_numa_nodes > 0) {
         int i;
@@ -5760,24 +5782,8 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
-        const char *devname = monitor_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            if (i == 0) {
-                snprintf(label, sizeof(label), "monitor");
-            } else {
-                snprintf(label, sizeof(label), "monitor%d", i);
-            }
-            monitor_hds[i] = qemu_chr_open(label, devname, NULL);
-            if (!monitor_hds[i]) {
-                fprintf(stderr, "qemu: could not open monitor device '%s'\n",
-                        devname);
-                exit(1);
-            }
-        }
-    }
-
+    if (foreach_device_config(DEV_MONITOR, monitor_parse) < 0)
+        exit(1);
     if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
         exit(1);
     if (foreach_device_config(DEV_PARALLEL, parallel_parse) < 0)
@@ -5903,7 +5909,7 @@ int main(int argc, char **argv, char **envp)
     text_consoles_set_display(display_state);
 
     for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
-        if (monitor_devices[i] && monitor_hds[i]) {
+        if (monitor_hds[i]) {
             monitor_init(monitor_hds[i],
                          MONITOR_USE_READLINE |
                          ((i == 0) ? MONITOR_IS_DEFAULT : 0));
