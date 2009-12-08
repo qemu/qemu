@@ -272,12 +272,14 @@ static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
 static int default_serial = 1;
+static int default_parallel = 1;
 
 static struct {
     const char *driver;
     int *flag;
 } default_list[] = {
-    { .driver = "isa-serial",           .flag = &default_serial },
+    { .driver = "isa-serial",           .flag = &default_serial    },
+    { .driver = "isa-parallel",         .flag = &default_parallel  },
 };
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
@@ -4625,6 +4627,7 @@ struct device_config {
         DEV_USB,       /* -usbdevice   */
         DEV_BT,        /* -bt          */
         DEV_SERIAL,    /* -serial      */
+        DEV_PARALLEL,  /* -parallel    */
     } type;
     const char *cmdline;
     QTAILQ_ENTRY(device_config) next;
@@ -4700,6 +4703,28 @@ static int serial_parse(const char *devname)
     return 0;
 }
 
+static int parallel_parse(const char *devname)
+{
+    static int index = 0;
+    char label[32];
+
+    if (strcmp(devname, "none") == 0)
+        return 0;
+    if (index == MAX_PARALLEL_PORTS) {
+        fprintf(stderr, "qemu: too many parallel ports\n");
+        exit(1);
+    }
+    snprintf(label, sizeof(label), "parallel%d", index);
+    parallel_hds[index] = qemu_chr_open(label, devname, NULL);
+    if (!parallel_hds[index]) {
+        fprintf(stderr, "qemu: could not open parallel device '%s': %s\n",
+                devname, strerror(errno));
+        return -1;
+    }
+    index++;
+    return 0;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4718,8 +4743,6 @@ int main(int argc, char **argv, char **envp)
     CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
     const char *monitor_devices[MAX_MONITOR_DEVICES];
     int monitor_device_index;
-    const char *parallel_devices[MAX_PARALLEL_PORTS];
-    int parallel_device_index;
     const char *virtio_consoles[MAX_VIRTIO_CONSOLES];
     int virtio_console_index;
     const char *loadvm = NULL;
@@ -4786,11 +4809,6 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-
-    parallel_devices[0] = "vc:80Cx24C";
-    for(i = 1; i < MAX_PARALLEL_PORTS; i++)
-        parallel_devices[i] = NULL;
-    parallel_device_index = 0;
 
     for(i = 0; i < MAX_VIRTIO_CONSOLES; i++)
         virtio_consoles[i] = NULL;
@@ -5260,12 +5278,8 @@ int main(int argc, char **argv, char **envp)
                 virtio_console_index++;
                 break;
             case QEMU_OPTION_parallel:
-                if (parallel_device_index >= MAX_PARALLEL_PORTS) {
-                    fprintf(stderr, "qemu: too many parallel ports\n");
-                    exit(1);
-                }
-                parallel_devices[parallel_device_index] = optarg;
-                parallel_device_index++;
+                add_device_config(DEV_PARALLEL, optarg);
+                default_parallel = 0;
                 break;
 	    case QEMU_OPTION_loadvm:
 		loadvm = optarg;
@@ -5541,14 +5555,16 @@ int main(int argc, char **argv, char **envp)
     if (display_type == DT_NOGRAPHIC) {
         if (default_serial)
             add_device_config(DEV_SERIAL, "stdio");
-       if (parallel_device_index == 0)
-           parallel_devices[0] = "null";
+        if (default_parallel)
+            add_device_config(DEV_PARALLEL, "null");
        if (strncmp(monitor_devices[0], "vc", 2) == 0) {
            monitor_devices[0] = "stdio";
        }
     } else {
         if (default_serial)
             add_device_config(DEV_SERIAL, "vc:80Cx24C");
+        if (default_parallel)
+            add_device_config(DEV_PARALLEL, "vc:80Cx24C");
     }
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
@@ -5764,20 +5780,8 @@ int main(int argc, char **argv, char **envp)
 
     if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
         exit(1);
-
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        const char *devname = parallel_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "parallel%d", i);
-            parallel_hds[i] = qemu_chr_open(label, devname, NULL);
-            if (!parallel_hds[i]) {
-                fprintf(stderr, "qemu: could not open parallel device '%s': %s\n",
-                        devname, strerror(errno));
-                exit(1);
-            }
-        }
-    }
+    if (foreach_device_config(DEV_PARALLEL, parallel_parse) < 0)
+        exit(1);
 
     for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
         const char *devname = virtio_consoles[i];
