@@ -5866,30 +5866,6 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        const char *devname = serial_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            if (strstart(devname, "vc", 0))
-                qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
-        }
-    }
-
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        const char *devname = parallel_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            if (strstart(devname, "vc", 0))
-                qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
-        }
-    }
-
-    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-        const char *devname = virtio_consoles[i];
-        if (virtcon_hds[i] && devname) {
-            if (strstart(devname, "vc", 0))
-                qemu_chr_printf(virtcon_hds[i], "virtio console%d\r\n", i);
-        }
-    }
-
     if (gdbstub_dev && gdbserver_start(gdbstub_dev) < 0) {
         fprintf(stderr, "qemu: could not open gdbserver on device '%s'\n",
                 gdbstub_dev);
