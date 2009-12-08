@@ -59,16 +59,16 @@ QError *qobject_to_qerror(const QObject *obj);
     "{ 'class': 'DeviceNotRemovable', 'data': { 'device': %s } }"
 
 #define QERR_FD_NOT_FOUND \
-    "{ 'class': 'fd_not_found', 'data': { 'name': %s } }"
+    "{ 'class': 'FdNotFound', 'data': { 'name': %s } }"
 
 #define QERR_FD_NOT_SUPPLIED \
-    "{ 'class': 'fd_not_supplied', 'data': {} }"
+    "{ 'class': 'FdNotSupplied', 'data': {} }"
 
 #define QERR_INVALID_BLOCK_FORMAT \
     "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
 
 #define QERR_INVALID_PARAMETER \
-    "{ 'class': 'invalid_parameter', 'data': { 'name': %s } }"
+    "{ 'class': 'InvalidParameter', 'data': { 'name': %s } }"
 
 #define QERR_INVALID_PARAMETER_TYPE \
     "{ 'class': 'InvalidParameterType', 'data': { 'name': %s,'expected': %s } }"
@@ -95,7 +95,7 @@ QError *qobject_to_qerror(const QObject *obj);
     "{ 'class': 'UndefinedError', 'data': {} }"
 
 #define QERR_TOO_MANY_FILES \
-    "{ 'class': 'fd_too_many_files', 'data': {} }"
+    "{ 'class': 'TooManyFiles', 'data': {} }"
 
 #define QERR_VNC_SERVER_FAILED \
     "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
