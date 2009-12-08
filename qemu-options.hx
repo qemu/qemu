@@ -109,6 +109,9 @@ DEF("set", HAS_ARG, QEMU_OPTION_set,
     "-set group.id.arg=value\n"
     "                set <arg> parameter for item <id> of type <group>\n"
     "                i.e. -set drive.$id.file=/path/to/image\n")
+DEF("global", HAS_ARG, QEMU_OPTION_global,
+    "-global driver.property=value\n"
+    "                set a global default for a driver property\n")
 STEXI
 @item -drive @var{option}[,@var{option}[,@var{option}[,...]]]
 
