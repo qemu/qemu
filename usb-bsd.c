@@ -393,6 +393,7 @@ fail:
 }
 
 static struct USBDeviceInfo usb_host_dev_info = {
+    .product_desc   = "USB Host Device",
     .qdev.name      = "USB Host Device",
     .qdev.size      = sizeof(USBHostDevice),
     .init           = usb_host_initfn,
