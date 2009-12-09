@@ -42,22 +42,29 @@ void qemu_free(void *ptr)
     free(ptr);
 }
 
+static int allow_zero_malloc(void)
+{
+#if defined(CONFIG_ZERO_MALLOC)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 void *qemu_malloc(size_t size)
 {
-    if (!size) {
+    if (!size && !allow_zero_malloc()) {
         abort();
     }
-    return oom_check(malloc(size));
+    return oom_check(malloc(size ? size : 1));
 }
 
 void *qemu_realloc(void *ptr, size_t size)
 {
     if (size) {
         return oom_check(realloc(ptr, size));
-    } else {
-        if (ptr) {
-            return realloc(ptr, size);
-        }
+    } else if (allow_zero_malloc()) {
+        return oom_check(realloc(ptr, size ? size : 1));
     }
     abort();
 }
