@@ -2460,17 +2460,57 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
+struct cpu_def_t {
+    const char *name;
+    int implver, amask;
+};
+
+static const struct cpu_def_t cpu_defs[] = {
+    { "ev4",   IMPLVER_2106x, 0 },
+    { "ev5",   IMPLVER_21164, 0 },
+    { "ev56",  IMPLVER_21164, AMASK_BWX },
+    { "pca56", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
+    { "ev6",   IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
+    { "ev67",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
+			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
+    { "ev68",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
+			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
+    { "21064", IMPLVER_2106x, 0 },
+    { "21164", IMPLVER_21164, 0 },
+    { "21164a", IMPLVER_21164, AMASK_BWX },
+    { "21164pc", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
+    { "21264", IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
+    { "21264a", IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
+				| AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), }
+};
+
 CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 {
     CPUAlphaState *env;
     uint64_t hwpcb;
+    int implver, amask, i, max;
 
     env = qemu_mallocz(sizeof(CPUAlphaState));
     cpu_exec_init(env);
     alpha_translate_init();
     tlb_flush(env, 1);
-    /* XXX: should not be hardcoded */
-    env->implver = IMPLVER_2106x;
+
+    /* Default to ev67; no reason not to emulate insns by default.  */
+    implver = IMPLVER_21264;
+    amask = (AMASK_BWX | AMASK_FIX | AMASK_CIX | AMASK_MVI
+	     | AMASK_TRAP | AMASK_PREFETCH);
+
+    max = ARRAY_SIZE(cpu_defs);
+    for (i = 0; i < max; i++) {
+        if (strcmp (cpu_model, cpu_defs[i].name) == 0) {
+            implver = cpu_defs[i].implver;
+            amask = cpu_defs[i].amask;
+            break;
+        }
+    }
+    env->implver = implver;
+    env->amask = amask;
+
     env->ps = 0x1F00;
 #if defined (CONFIG_USER_ONLY)
     env->ps |= 1 << 3;
