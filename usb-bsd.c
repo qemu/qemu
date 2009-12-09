@@ -370,10 +370,10 @@ USBDevice *usb_host_device_open(const char *devname)
             dev->dev.speed = USB_SPEED_FULL - 1;
 
         if (strncmp(dev_info.udi_product, "product", 7) != 0)
-            pstrcpy(dev->dev.devname, sizeof(dev->dev.devname),
+            pstrcpy(dev->dev.product_desc, sizeof(dev->dev.product_desc),
                     dev_info.udi_product);
         else
-            snprintf(dev->dev.devname, sizeof(dev->dev.devname),
+            snprintf(dev->dev.product_desc, sizeof(dev->dev.product_desc),
                      "host:%s", devname);
 
         pstrcpy(dev->devpath, sizeof(dev->devpath), "/dev/");
