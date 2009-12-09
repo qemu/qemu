@@ -32,10 +32,7 @@
 #define GEN_HELPER 1
 #include "helper.h"
 
-/* #define DO_SINGLE_STEP */
-#define ALPHA_DEBUG_DISAS
-/* #define DO_TB_FLUSH */
-
+#undef ALPHA_DEBUG_DISAS
 
 #ifdef ALPHA_DEBUG_DISAS
 #  define LOG_DISAS(...) qemu_log(__VA_ARGS__)
@@ -2428,9 +2425,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     if (ret != 1 && ret != 3) {
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
     }
-#if defined (DO_TB_FLUSH)
-    gen_helper_tb_flush();
-#endif
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
     /* Generate the return instruction */

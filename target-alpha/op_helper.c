@@ -22,11 +22,6 @@
 #include "softfloat.h"
 #include "helper.h"
 
-void helper_tb_flush (void)
-{
-    tb_flush(env);
-}
-
 /*****************************************************************************/
 /* Exceptions processing helpers */
 void helper_excp (int excp, int error)

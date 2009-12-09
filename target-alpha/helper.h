@@ -1,7 +1,5 @@
 #include "def-helper.h"
 
-DEF_HELPER_0(tb_flush, void)
-
 DEF_HELPER_2(excp, void, int, int)
 DEF_HELPER_0(load_pcc, i64)
 DEF_HELPER_0(rc, i64)
