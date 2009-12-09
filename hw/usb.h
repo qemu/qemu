@@ -132,7 +132,7 @@ struct USBDevice {
 
     int speed;
     uint8_t addr;
-    char devname[32];
+    char product_desc[32];
     int auto_attach;
     int attached;
 

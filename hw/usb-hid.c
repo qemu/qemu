@@ -701,7 +701,7 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
                 break;
             case 2:
                 /* product description */
-                ret = set_usb_string(data, s->dev.devname);
+                ret = set_usb_string(data, s->dev.product_desc);
                 break;
             case 3:
                 /* vendor description */

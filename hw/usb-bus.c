@@ -43,7 +43,7 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     USBDeviceInfo *info = DO_UPCAST(USBDeviceInfo, qdev, base);
     int rc;
 
-    pstrcpy(dev->devname, sizeof(dev->devname), qdev->info->name);
+    pstrcpy(dev->product_desc, sizeof(dev->product_desc), qdev->info->name);
     dev->info = info;
     dev->auto_attach = 1;
     rc = dev->info->init(dev);
@@ -131,7 +131,7 @@ static void do_attach(USBDevice *dev)
 
     if (dev->attached) {
         fprintf(stderr, "Warning: tried to attach usb device %s twice\n",
-                dev->devname);
+                dev->product_desc);
         return;
     }
     dev->attached++;
@@ -166,7 +166,7 @@ int usb_device_detach(USBDevice *dev)
 
     if (!dev->attached) {
         fprintf(stderr, "Warning: tried to detach unattached usb device %s\n",
-                dev->devname);
+                dev->product_desc);
         return -1;
     }
     dev->attached--;
@@ -228,7 +228,7 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 
     monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s%s\n",
                    indent, "", bus->busnr, dev->addr,
-                   usb_speed(dev->speed), dev->devname,
+                   usb_speed(dev->speed), dev->product_desc,
                    dev->attached ? ", attached" : "");
 }
 
@@ -249,7 +249,8 @@ void usb_info(Monitor *mon)
             if (!dev)
                 continue;
             monitor_printf(mon, "  Device %d.%d, Speed %s Mb/s, Product %s\n",
-                           bus->busnr, dev->addr, usb_speed(dev->speed), dev->devname);
+                           bus->busnr, dev->addr, usb_speed(dev->speed),
+                           dev->product_desc);
         }
     }
 }
