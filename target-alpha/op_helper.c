@@ -39,49 +39,12 @@ uint64_t helper_load_pcc (void)
 
 uint64_t helper_load_fpcr (void)
 {
-    uint64_t ret = 0;
-#ifdef CONFIG_SOFTFLOAT
-    ret |= env->fp_status.float_exception_flags << 52;
-    if (env->fp_status.float_exception_flags)
-        ret |= 1ULL << 63;
-    env->ipr[IPR_EXC_SUM] &= ~0x3E:
-    env->ipr[IPR_EXC_SUM] |= env->fp_status.float_exception_flags << 1;
-#endif
-    switch (env->fp_status.float_rounding_mode) {
-    case float_round_nearest_even:
-        ret |= 2ULL << 58;
-        break;
-    case float_round_down:
-        ret |= 1ULL << 58;
-        break;
-    case float_round_up:
-        ret |= 3ULL << 58;
-        break;
-    case float_round_to_zero:
-        break;
-    }
-    return ret;
+    return cpu_alpha_load_fpcr (env);
 }
 
 void helper_store_fpcr (uint64_t val)
 {
-#ifdef CONFIG_SOFTFLOAT
-    set_float_exception_flags((val >> 52) & 0x3F, &FP_STATUS);
-#endif
-    switch ((val >> 58) & 3) {
-    case 0:
-        set_float_rounding_mode(float_round_to_zero, &FP_STATUS);
-        break;
-    case 1:
-        set_float_rounding_mode(float_round_down, &FP_STATUS);
-        break;
-    case 2:
-        set_float_rounding_mode(float_round_nearest_even, &FP_STATUS);
-        break;
-    case 3:
-        set_float_rounding_mode(float_round_up, &FP_STATUS);
-        break;
-    }
+    cpu_alpha_store_fpcr (env, val);
 }
 
 static spinlock_t intr_cpu_lock = SPIN_LOCK_UNLOCKED;

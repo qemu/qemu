@@ -23,6 +23,83 @@
 
 #include "cpu.h"
 #include "exec-all.h"
+#include "softfloat.h"
+
+uint64_t cpu_alpha_load_fpcr (CPUState *env)
+{
+    uint64_t ret = 0;
+    int flags, mask;
+
+    flags = env->fp_status.float_exception_flags;
+    ret |= (uint64_t) flags << 52;
+    if (flags)
+        ret |= FPCR_SUM;
+    env->ipr[IPR_EXC_SUM] &= ~0x3E;
+    env->ipr[IPR_EXC_SUM] |= flags << 1;
+
+    mask = env->fp_status.float_exception_mask;
+    if (mask & float_flag_invalid)
+        ret |= FPCR_INVD;
+    if (mask & float_flag_divbyzero)
+        ret |= FPCR_DZED;
+    if (mask & float_flag_overflow)
+        ret |= FPCR_OVFD;
+    if (mask & float_flag_underflow)
+        ret |= FPCR_UNFD;
+    if (mask & float_flag_inexact)
+        ret |= FPCR_INED;
+
+    switch (env->fp_status.float_rounding_mode) {
+    case float_round_nearest_even:
+        ret |= 2ULL << FPCR_DYN_SHIFT;
+        break;
+    case float_round_down:
+        ret |= 1ULL << FPCR_DYN_SHIFT;
+        break;
+    case float_round_up:
+        ret |= 3ULL << FPCR_DYN_SHIFT;
+        break;
+    case float_round_to_zero:
+        break;
+    }
+    return ret;
+}
+
+void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
+{
+    int round_mode, mask;
+
+    set_float_exception_flags((val >> 52) & 0x3F, &env->fp_status);
+
+    mask = 0;
+    if (val & FPCR_INVD)
+        mask |= float_flag_invalid;
+    if (val & FPCR_DZED)
+        mask |= float_flag_divbyzero;
+    if (val & FPCR_OVFD)
+        mask |= float_flag_overflow;
+    if (val & FPCR_UNFD)
+        mask |= float_flag_underflow;
+    if (val & FPCR_INED)
+        mask |= float_flag_inexact;
+    env->fp_status.float_exception_mask = mask;
+
+    switch ((val >> FPCR_DYN_SHIFT) & 3) {
+    case 0:
+        round_mode = float_round_to_zero;
+        break;
+    case 1:
+        round_mode = float_round_down;
+        break;
+    case 2:
+        round_mode = float_round_nearest_even;
+        break;
+    case 3:
+        round_mode = float_round_up;
+        break;
+    }
+    set_float_rounding_mode(round_mode, &env->fp_status);
+}
 
 #if defined(CONFIG_USER_ONLY)
 
