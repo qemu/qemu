@@ -178,7 +178,7 @@ static PCIDeviceInfo grackle_pci_host_info = {
 };
 
 static PCIDeviceInfo dec_21154_pci_host_info = {
-    .qdev.name = "DEC 21154",
+    .qdev.name = "dec-21154",
     .qdev.size = sizeof(PCIDevice),
     .init      = dec_21154_pci_host_init,
 };
@@ -188,7 +188,7 @@ static void grackle_register_devices(void)
     sysbus_register_dev("grackle", sizeof(GrackleState),
                         pci_grackle_init_device);
     pci_qdev_register(&grackle_pci_host_info);
-    sysbus_register_dev("DEC 21154", sizeof(GrackleState),
+    sysbus_register_dev("dec-21154", sizeof(GrackleState),
                         pci_dec_21154_init_device);
     pci_qdev_register(&dec_21154_pci_host_info);
 }

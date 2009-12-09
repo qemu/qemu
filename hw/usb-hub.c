@@ -545,7 +545,7 @@ static int usb_hub_initfn(USBDevice *dev)
 
 static struct USBDeviceInfo hub_info = {
     .product_desc   = "QEMU USB Hub",
-    .qdev.name      = "QEMU USB Hub",
+    .qdev.name      = "usb-hub",
     .qdev.size      = sizeof(USBHubState),
     .init           = usb_hub_initfn,
     .handle_packet  = usb_hub_handle_packet,

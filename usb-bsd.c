@@ -361,7 +361,7 @@ USBDevice *usb_host_device_open(const char *devname)
             goto fail;
         }
 
-        d = usb_create(NULL /* FIXME */, "USB Host Device");
+        d = usb_create(NULL /* FIXME */, "usb-host");
         dev = DO_UPCAST(USBHostDevice, dev, d);
 
         if (dev_info.udi_speed == 1)
@@ -394,7 +394,7 @@ fail:
 
 static struct USBDeviceInfo usb_host_dev_info = {
     .product_desc   = "USB Host Device",
-    .qdev.name      = "USB Host Device",
+    .qdev.name      = "usb-host",
     .qdev.size      = sizeof(USBHostDevice),
     .init           = usb_host_initfn,
     .handle_packet  = usb_generic_handle_packet,

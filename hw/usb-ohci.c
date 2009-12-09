@@ -1736,7 +1736,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 
 void usb_ohci_init_pci(struct PCIBus *bus, int devfn)
 {
-    pci_create_simple(bus, devfn, "OHCI USB PCI");
+    pci_create_simple(bus, devfn, "pci-ohci");
 }
 
 void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
@@ -1762,8 +1762,7 @@ void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
 }
 
 static PCIDeviceInfo ohci_info = {
-    .qdev.name    = "OHCI USB PCI",
-    .qdev.alias   = "pci-ohci",
+    .qdev.name    = "pci-ohci",
     .qdev.desc    = "Apple USB Controller",
     .qdev.size    = sizeof(OHCIPCIState),
     .init         = usb_ohci_initfn_pci,

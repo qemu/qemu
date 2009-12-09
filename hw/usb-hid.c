@@ -881,8 +881,7 @@ void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
 static struct USBDeviceInfo hid_info[] = {
     {
         .product_desc   = "QEMU USB Tablet",
-        .qdev.name      = "QEMU USB Tablet",
-        .qdev.alias     = "usb-tablet",
+        .qdev.name      = "usb-tablet",
         .usbdevice_name = "tablet",
         .qdev.size      = sizeof(USBHIDState),
         .init           = usb_tablet_initfn,
@@ -893,8 +892,7 @@ static struct USBDeviceInfo hid_info[] = {
         .handle_destroy = usb_hid_handle_destroy,
     },{
         .product_desc   = "QEMU USB Mouse",
-        .qdev.name      = "QEMU USB Mouse",
-        .qdev.alias     = "usb-mouse",
+        .qdev.name      = "usb-mouse",
         .usbdevice_name = "mouse",
         .qdev.size      = sizeof(USBHIDState),
         .init           = usb_mouse_initfn,
@@ -905,8 +903,7 @@ static struct USBDeviceInfo hid_info[] = {
         .handle_destroy = usb_hid_handle_destroy,
     },{
         .product_desc   = "QEMU USB Keyboard",
-        .qdev.name      = "QEMU USB Keyboard",
-        .qdev.alias     = "usb-kbd",
+        .qdev.name      = "usb-kbd",
         .usbdevice_name = "keyboard",
         .qdev.size      = sizeof(USBHIDState),
         .init           = usb_keyboard_initfn,
