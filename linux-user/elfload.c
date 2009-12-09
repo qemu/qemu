@@ -677,9 +677,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->pc = infop->entry;
     regs->ps = 8;
     regs->usp = infop->start_stack;
-    regs->unique = infop->start_data; /* ? */
-    printf("Set unique value to " TARGET_FMT_lx " (" TARGET_FMT_lx ")\n",
-           regs->unique, infop->start_data);
 }
 
 #define ELF_EXEC_PAGESIZE        8192
