@@ -980,8 +980,7 @@ static int usb_host_initfn(USBDevice *dev)
 
 static struct USBDeviceInfo usb_host_dev_info = {
     .product_desc   = "USB Host Device",
-    .qdev.name      = "USB Host Device",
-    .qdev.alias     = "usb-host",
+    .qdev.name      = "usb-host",
     .qdev.size      = sizeof(USBHostDevice),
     .init           = usb_host_initfn,
     .handle_packet  = usb_host_handle_packet,
@@ -1011,7 +1010,7 @@ USBDevice *usb_host_device_open(const char *devname)
     USBHostDevice *s;
     char *p;
 
-    dev = usb_create(NULL /* FIXME */, "USB Host Device");
+    dev = usb_create(NULL /* FIXME */, "usb-host");
     s = DO_UPCAST(USBHostDevice, dev, dev);
 
     if (strstr(devname, "auto:")) {

@@ -591,7 +591,7 @@ static USBDevice *usb_msd_init(const char *filename)
     }
 
     /* create guest device */
-    dev = usb_create(NULL /* FIXME */, "QEMU USB MSD");
+    dev = usb_create(NULL /* FIXME */, "usb-storage");
     qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
     if (qdev_init(&dev->qdev) < 0)
         return NULL;
@@ -601,8 +601,7 @@ static USBDevice *usb_msd_init(const char *filename)
 
 static struct USBDeviceInfo msd_info = {
     .product_desc   = "QEMU USB MSD",
-    .qdev.name      = "QEMU USB MSD",
-    .qdev.alias     = "usb-storage",
+    .qdev.name      = "usb-storage",
     .qdev.size      = sizeof(MSDState),
     .init           = usb_msd_initfn,
     .handle_packet  = usb_generic_handle_packet,

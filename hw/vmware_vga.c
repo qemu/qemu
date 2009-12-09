@@ -1196,11 +1196,11 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
 void pci_vmsvga_init(PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "QEMUware SVGA");
+    pci_create_simple(bus, -1, "vmware-svga");
 }
 
 static PCIDeviceInfo vmsvga_info = {
-    .qdev.name    = "QEMUware SVGA",
+    .qdev.name    = "vmware-svga",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
     .qdev.vmsd    = &vmstate_vmware_vga,
     .init         = pci_vmsvga_initfn,

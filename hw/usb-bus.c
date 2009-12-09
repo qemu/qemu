@@ -153,7 +153,7 @@ int usb_device_attach(USBDevice *dev)
 
     if (bus->nfree == 1) {
         /* Create a new hub and chain it on.  */
-        hub = usb_create_simple(bus, "QEMU USB Hub");
+        hub = usb_create_simple(bus, "usb-hub");
     }
     do_attach(dev);
     return 0;

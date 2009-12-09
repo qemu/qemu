@@ -245,7 +245,7 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
 {
     PCIDevice *dev;
 
-    dev = pci_create(bus, -1, "CMD646 IDE");
+    dev = pci_create(bus, -1, "cmd646-ide");
     qdev_prop_set_uint32(&dev->qdev, "secondary", secondary_ide_enabled);
     qdev_init_nofail(&dev->qdev);
 
@@ -254,7 +254,7 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
 
 static PCIDeviceInfo cmd646_ide_info[] = {
     {
-        .qdev.name    = "CMD646 IDE",
+        .qdev.name    = "cmd646-ide",
         .qdev.size    = sizeof(PCIIDEState),
         .init         = pci_cmd646_ide_initfn,
         .qdev.props   = (Property[]) {
