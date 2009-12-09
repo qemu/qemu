@@ -645,6 +645,7 @@ USBDevice *usb_bt_init(HCIInfo *hci)
 }
 
 static struct USBDeviceInfo bt_info = {
+    .product_desc   = "QEMU BT dongle",
     .qdev.name      = "QEMU BT dongle",
     .qdev.size      = sizeof(struct USBBtState),
     .init           = usb_bt_initfn,

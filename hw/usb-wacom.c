@@ -409,6 +409,7 @@ static int usb_wacom_initfn(USBDevice *dev)
 }
 
 static struct USBDeviceInfo wacom_info = {
+    .product_desc   = "QEMU PenPartner Tablet",
     .qdev.name      = "QEMU PenPartner Tablet",
     .qdev.alias     = "wacom-tablet",
     .usbdevice_name = "wacom-tablet",

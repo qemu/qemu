@@ -1487,6 +1487,7 @@ USBDevice *usb_net_init(NICInfo *nd)
 }
 
 static struct USBDeviceInfo net_info = {
+    .product_desc   = "QEMU USB Network Interface",
     .qdev.name      = "QEMU USB Network Interface",
     .qdev.size      = sizeof(USBNetState),
     .init           = usb_net_initfn,

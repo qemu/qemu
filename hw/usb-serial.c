@@ -605,6 +605,7 @@ static USBDevice *usb_braille_init(const char *unused)
 }
 
 static struct USBDeviceInfo serial_info = {
+    .product_desc   = "QEMU USB Serial",
     .qdev.name      = "QEMU USB Serial",
     .qdev.alias     = "usb-serial",
     .qdev.size      = sizeof(USBSerialState),
@@ -625,6 +626,7 @@ static struct USBDeviceInfo serial_info = {
 };
 
 static struct USBDeviceInfo braille_info = {
+    .product_desc   = "QEMU USB Braille",
     .qdev.name      = "QEMU USB Braille",
     .qdev.alias     = "usb-braille",
     .qdev.size      = sizeof(USBSerialState),

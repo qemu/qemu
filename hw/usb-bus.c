@@ -43,7 +43,7 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     USBDeviceInfo *info = DO_UPCAST(USBDeviceInfo, qdev, base);
     int rc;
 
-    pstrcpy(dev->product_desc, sizeof(dev->product_desc), qdev->info->name);
+    pstrcpy(dev->product_desc, sizeof(dev->product_desc), info->product_desc);
     dev->info = info;
     dev->auto_attach = 1;
     rc = dev->info->init(dev);

@@ -600,6 +600,7 @@ static USBDevice *usb_msd_init(const char *filename)
 }
 
 static struct USBDeviceInfo msd_info = {
+    .product_desc   = "QEMU USB MSD",
     .qdev.name      = "QEMU USB MSD",
     .qdev.alias     = "usb-storage",
     .qdev.size      = sizeof(MSDState),

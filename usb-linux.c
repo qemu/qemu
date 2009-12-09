@@ -979,6 +979,7 @@ static int usb_host_initfn(USBDevice *dev)
 }
 
 static struct USBDeviceInfo usb_host_dev_info = {
+    .product_desc   = "USB Host Device",
     .qdev.name      = "USB Host Device",
     .qdev.alias     = "usb-host",
     .qdev.size      = sizeof(USBHostDevice),

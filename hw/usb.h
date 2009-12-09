@@ -185,6 +185,8 @@ struct USBDeviceInfo {
      */
     int (*handle_data)(USBDevice *dev, USBPacket *p);
 
+    const char *product_desc;
+
     /* handle legacy -usbdevice command line options */
     const char *usbdevice_name;
     USBDevice *(*usbdevice_init)(const char *params);
