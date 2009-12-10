@@ -621,13 +621,32 @@ static void do_info_hpet(Monitor *mon, QObject **ret_data)
 }
 #endif
 
-static void do_info_uuid(Monitor *mon)
+static void do_info_uuid_print(Monitor *mon, const QObject *data)
 {
-    monitor_printf(mon, UUID_FMT "\n", qemu_uuid[0], qemu_uuid[1],
+    monitor_printf(mon, "%s\n", qdict_get_str(qobject_to_qdict(data), "UUID"));
+}
+
+/**
+ * do_info_uuid(): Show VM UUID
+ *
+ * Return a QDict with the following information:
+ *
+ * - "UUID": Universally Unique Identifier
+ *
+ * Example:
+ *
+ * { "UUID": "550e8400-e29b-41d4-a716-446655440000" }
+ */
+static void do_info_uuid(Monitor *mon, QObject **ret_data)
+{
+    char uuid[64];
+
+    snprintf(uuid, sizeof(uuid), UUID_FMT, qemu_uuid[0], qemu_uuid[1],
                    qemu_uuid[2], qemu_uuid[3], qemu_uuid[4], qemu_uuid[5],
                    qemu_uuid[6], qemu_uuid[7], qemu_uuid[8], qemu_uuid[9],
                    qemu_uuid[10], qemu_uuid[11], qemu_uuid[12], qemu_uuid[13],
                    qemu_uuid[14], qemu_uuid[15]);
+    *ret_data = qobject_from_jsonf("{ 'UUID': %s }", uuid);
 }
 
 /* get the current CPU defined by the user */
@@ -2521,7 +2540,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM UUID",
-        .mhandler.info = do_info_uuid,
+        .user_print = do_info_uuid_print,
+        .mhandler.info_new = do_info_uuid,
     },
 #if defined(TARGET_PPC)
     {
