@@ -514,10 +514,33 @@ static void do_info_version(Monitor *mon, QObject **ret_data)
                                    QEMU_VERSION, QEMU_PKGVERSION);
 }
 
-static void do_info_name(Monitor *mon)
+static void do_info_name_print(Monitor *mon, const QObject *data)
 {
-    if (qemu_name)
-        monitor_printf(mon, "%s\n", qemu_name);
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(data);
+    if (qdict_size(qdict) == 0) {
+        return;
+    }
+
+    monitor_printf(mon, "%s\n", qdict_get_str(qdict, "name"));
+}
+
+/**
+ * do_info_name(): Show VM name
+ *
+ * Return a QDict with the following information:
+ *
+ * - "name": VM's name (optional)
+ *
+ * Example:
+ *
+ * { "name": "qemu-name" }
+ */
+static void do_info_name(Monitor *mon, QObject **ret_data)
+{
+    *ret_data = qemu_name ? qobject_from_jsonf("{'name': %s }", qemu_name) :
+                            qobject_from_jsonf("{}");
 }
 
 static QObject *get_cmd_dict(const char *name)
@@ -2472,7 +2495,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM name",
-        .mhandler.info = do_info_name,
+        .user_print = do_info_name_print,
+        .mhandler.info_new = do_info_name,
     },
     {
         .name       = "uuid",
