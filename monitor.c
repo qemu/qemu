@@ -2518,7 +2518,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show which guest mouse is receiving events",
-        .mhandler.info = do_info_mice,
+        .user_print = do_info_mice_print,
+        .mhandler.info_new = do_info_mice,
     },
     {
         .name       = "vnc",

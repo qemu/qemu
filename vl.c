@@ -156,6 +156,7 @@ int main(int argc, char **argv)
 #include "balloon.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "qemu-objects.h"
 
 #include "disas.h"
 
@@ -490,25 +491,72 @@ int kbd_mouse_is_absolute(void)
     return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
 }
 
-void do_info_mice(Monitor *mon)
+static void info_mice_iter(QObject *data, void *opaque)
 {
-    QEMUPutMouseEntry *cursor;
-    int index = 0;
+    QDict *mouse;
+    Monitor *mon = opaque;
 
-    if (!qemu_put_mouse_event_head) {
+    mouse = qobject_to_qdict(data);
+    monitor_printf(mon, "%c Mouse #%" PRId64 ": %s\n",
+                  (qdict_get_bool(mouse, "current") ? '*' : ' '),
+                  qdict_get_int(mouse, "index"), qdict_get_str(mouse, "name"));
+}
+
+void do_info_mice_print(Monitor *mon, const QObject *data)
+{
+    QList *mice_list;
+
+    mice_list = qobject_to_qlist(data);
+    if (qlist_empty(mice_list)) {
         monitor_printf(mon, "No mouse devices connected\n");
         return;
     }
 
-    monitor_printf(mon, "Mouse devices available:\n");
+    qlist_iter(mice_list, info_mice_iter, mon);
+}
+
+/**
+ * do_info_mice(): Show VM mice information
+ *
+ * Each mouse is represented by a QDict, the returned QObject is a QList of
+ * all mice.
+ *
+ * The mouse QDict contains the following:
+ *
+ * - "name": mouse's name
+ * - "index": mouse's index
+ * - "current": true if this mouse is receiving events, false otherwise
+ *
+ * Example:
+ *
+ * [ { "name": "QEMU Microsoft Mouse", "index": 0, "current": false },
+ *   { "name": "QEMU PS/2 Mouse", "index": 1, "current": true } ]
+ */
+void do_info_mice(Monitor *mon, QObject **ret_data)
+{
+    QEMUPutMouseEntry *cursor;
+    QList *mice_list;
+    int index = 0;
+
+    mice_list = qlist_new();
+
+    if (!qemu_put_mouse_event_head) {
+        goto out;
+    }
+
     cursor = qemu_put_mouse_event_head;
     while (cursor != NULL) {
-        monitor_printf(mon, "%c Mouse #%d: %s\n",
-                       (cursor == qemu_put_mouse_event_current ? '*' : ' '),
-                       index, cursor->qemu_put_mouse_event_name);
+        QObject *obj;
+        obj = qobject_from_jsonf("{ 'name': %s, 'index': %d, 'current': %i }",
+                                 cursor->qemu_put_mouse_event_name,
+                                 index, cursor == qemu_put_mouse_event_current);
+        qlist_append_obj(mice_list, obj);
         index++;
         cursor = cursor->next;
     }
+
+out:
+    *ret_data = QOBJECT(mice_list);
 }
 
 void do_mouse_set(Monitor *mon, const QDict *qdict)
