@@ -1919,12 +1919,24 @@ static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 static void monitor_print_balloon(Monitor *mon, const QObject *data)
 {
-    monitor_printf(mon, "balloon: actual=%d\n",
-                                     (int)qint_get_int(qobject_to_qint(data)));
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(data);
+
+    monitor_printf(mon, "balloon: actual=%" PRId64 "\n",
+                        qdict_get_int(qdict, "balloon") >> 20);
 }
 
 /**
  * do_info_balloon(): Balloon information
+ *
+ * Return a QDict with the following information:
+ *
+ * - "balloon": current balloon value in bytes
+ *
+ * Example:
+ *
+ * { "balloon": 1073741824 }
  */
 static void do_info_balloon(Monitor *mon, QObject **ret_data)
 {
@@ -1936,7 +1948,8 @@ static void do_info_balloon(Monitor *mon, QObject **ret_data)
     else if (actual == 0)
         qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
     else
-        *ret_data = QOBJECT(qint_from_int((int)(actual >> 20)));
+        *ret_data = qobject_from_jsonf("{ 'balloon': %" PRId64 "}",
+                                       (int64_t) actual);
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
