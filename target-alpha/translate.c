@@ -507,6 +507,65 @@ FCMOV(cmpfge)
 FCMOV(cmpfle)
 FCMOV(cmpfgt)
 
+/* Implement zapnot with an immediate operand, which expands to some
+   form of immediate AND.  This is a basic building block in the
+   definition of many of the other byte manipulation instructions.  */
+static inline void gen_zapnoti(int ra, int rc, uint8_t lit)
+{
+    uint64_t mask;
+    int i;
+
+    switch (lit) {
+    case 0x00:
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+        break;
+    case 0x01:
+        tcg_gen_ext8u_i64(cpu_ir[rc], cpu_ir[ra]);
+        break;
+    case 0x03:
+        tcg_gen_ext16u_i64(cpu_ir[rc], cpu_ir[ra]);
+        break;
+    case 0x0f:
+        tcg_gen_ext32u_i64(cpu_ir[rc], cpu_ir[ra]);
+        break;
+    case 0xff:
+        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+        break;
+    default:
+        for (mask = i = 0; i < 8; ++i) {
+            if ((lit >> i) & 1)
+                mask |= 0xffull << (i * 8);
+        }
+        tcg_gen_andi_i64 (cpu_ir[rc], cpu_ir[ra], mask);
+        break;
+    }
+}
+
+static inline void gen_zapnot(int ra, int rb, int rc, int islit, uint8_t lit)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit)
+        gen_zapnoti(ra, rc, lit);
+    else
+        gen_helper_zapnot (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
+}
+
+static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit)
+        gen_zapnoti(ra, rc, ~lit);
+    else
+        gen_helper_zap (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
+}
+
+
 /* EXTWH, EXTWH, EXTLH, EXTQH */
 static inline void gen_ext_h(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
                              int ra, int rb, int rc, int islit, uint8_t lit)
@@ -598,8 +657,6 @@ ARITH3(mskwl)
 ARITH3(inswl)
 ARITH3(mskll)
 ARITH3(insll)
-ARITH3(zap)
-ARITH3(zapnot)
 ARITH3(mskql)
 ARITH3(insql)
 ARITH3(mskwh)
