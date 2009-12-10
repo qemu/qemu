@@ -705,7 +705,7 @@ int qemu_opts_print(QemuOpts *opts, void *dummy)
 
 int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname)
 {
-    char option[128], value[128];
+    char option[128], value[1024];
     const char *p,*pe,*pc;
 
     for (p = params; *p != '\0'; p++) {
@@ -751,7 +751,7 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
 
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname)
 {
-    char value[128], *id = NULL;
+    char value[1024], *id = NULL;
     const char *p;
     QemuOpts *opts;
 
