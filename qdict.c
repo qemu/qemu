@@ -12,6 +12,7 @@
 
 #include "qint.h"
 #include "qdict.h"
+#include "qbool.h"
 #include "qstring.h"
 #include "qobject.h"
 #include "qemu-queue.h"
@@ -186,6 +187,20 @@ int64_t qdict_get_int(const QDict *qdict, const char *key)
 {
     QObject *obj = qdict_get_obj(qdict, key, QTYPE_QINT);
     return qint_get_int(qobject_to_qint(obj));
+}
+
+/**
+ * qdict_get_bool(): Get a bool mapped by 'key'
+ *
+ * This function assumes that 'key' exists and it stores a
+ * QBool object.
+ *
+ * Return bool mapped by 'key'.
+ */
+int qdict_get_bool(const QDict *qdict, const char *key)
+{
+    QObject *obj = qdict_get_obj(qdict, key, QTYPE_QBOOL);
+    return qbool_get_int(qobject_to_qbool(obj));
 }
 
 /**
