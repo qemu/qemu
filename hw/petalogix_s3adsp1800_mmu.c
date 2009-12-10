@@ -38,13 +38,19 @@
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (16 * 1024 * 1024)
 
-static uint32_t bootstrap_pc;
+struct
+{
+    uint32_t bootstrap_pc;
+    uint32_t cmdline;
+    uint32_t fdt;
+} boot_info;
 
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
-    cpu_reset(env);
-    env->sregs[SR_PC] = bootstrap_pc;
+    env->regs[5] = boot_info.cmdline;
+    env->regs[7] = boot_info.fdt;
+    env->sregs[SR_PC] = boot_info.bootstrap_pc;
 }
 
 #define BINARY_DEVICE_TREE_FILE "petalogix-s3adsp1800.dtb"
@@ -166,27 +172,24 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
                                    1, ELF_MACHINE, 0);
         }
         /* Always boot into physical ram.  */
-        bootstrap_pc = ddr_base + (entry & 0x0fffffff);
+        boot_info.bootstrap_pc = ddr_base + (entry & 0x0fffffff);
         if (kernel_size < 0) {
             /* If we failed loading ELF's try a raw image.  */
             kernel_size = load_image_targphys(kernel_filename, ddr_base,
                                               ram_size);
-            bootstrap_pc = ddr_base;
+            boot_info.bootstrap_pc = ddr_base;
         }
 
-        env->regs[5] = ddr_base + kernel_size + 8192;
+        boot_info.cmdline = ddr_base + kernel_size + 8192;
         if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
-            pstrcpy_targphys("cmdline", env->regs[5], 256, kernel_cmdline);
+            pstrcpy_targphys("cmdline", boot_info.cmdline, 256, kernel_cmdline);
         }
-        env->regs[6] = 0;
         /* Provide a device-tree.  */
-        env->regs[7] = ddr_base + kernel_size + 256;
-        petalogix_load_device_tree(env->regs[7], ram_size,
-                                   env->regs[6], 0,
+        boot_info.fdt = boot_info.cmdline + 256;
+        petalogix_load_device_tree(boot_info.fdt, ram_size,
+                                   0, 0,
                                    kernel_cmdline);
     }
-
-    env->sregs[SR_PC] = bootstrap_pc;
 }
 
 static QEMUMachine petalogix_s3adsp1800_machine = {
