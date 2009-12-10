@@ -206,8 +206,8 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CMD);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_CMD_646);
 
-    pci_conf[0x08] = 0x07; // IDE controller revision
-    pci_conf[0x09] = 0x8f;
+    pci_conf[PCI_REVISION_ID] = 0x07; // IDE controller revision
+    pci_conf[PCI_CLASS_PROG] = 0x8f;
 
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
@@ -224,7 +224,8 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     pci_register_bar(dev, 3, 0x4, PCI_BASE_ADDRESS_SPACE_IO, ide_map);
     pci_register_bar(dev, 4, 0x10, PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
-    pci_conf[0x3d] = 0x01; // interrupt on pin 1
+    /* TODO: RST# value should be 0 */
+    pci_conf[PCI_INTERRUPT_PIN] = 0x01; // interrupt on pin 1
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
     ide_bus_new(&d->bus[0], &d->dev.qdev);
