@@ -1261,22 +1261,82 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
     *ret_data = QOBJECT(bs_list);
 }
 
-/* The "info blockstats" command. */
-void bdrv_info_stats(Monitor *mon)
+static void bdrv_stats_iter(QObject *data, void *opaque)
 {
+    QDict *qdict;
+    Monitor *mon = opaque;
+
+    qdict = qobject_to_qdict(data);
+    monitor_printf(mon, "%s:", qdict_get_str(qdict, "device"));
+
+    qdict = qobject_to_qdict(qdict_get(qdict, "stats"));
+    monitor_printf(mon, " rd_bytes=%" PRId64
+                        " wr_bytes=%" PRId64
+                        " rd_operations=%" PRId64
+                        " wr_operations=%" PRId64
+                        "\n",
+                        qdict_get_int(qdict, "rd_bytes"),
+                        qdict_get_int(qdict, "wr_bytes"),
+                        qdict_get_int(qdict, "rd_operations"),
+                        qdict_get_int(qdict, "wr_operations"));
+}
+
+void bdrv_stats_print(Monitor *mon, const QObject *data)
+{
+    qlist_iter(qobject_to_qlist(data), bdrv_stats_iter, mon);
+}
+
+/**
+ * bdrv_info_stats(): show block device statistics
+ *
+ * Each device statistic information is stored in a QDict and
+ * the returned QObject is a QList of all devices.
+ *
+ * The QDict contains the following:
+ *
+ * - "device": device name
+ * - "stats": A QDict with the statistics information, it contains:
+ *     - "rd_bytes": bytes read
+ *     - "wr_bytes": bytes written
+ *     - "rd_operations": read operations
+ *     - "wr_operations": write operations
+ * 
+ * Example:
+ *
+ * [ { "device": "ide0-hd0",
+ *               "stats": { "rd_bytes": 512,
+ *                          "wr_bytes": 0,
+ *                          "rd_operations": 1,
+ *                          "wr_operations": 0 } },
+ *   { "device": "ide1-cd0",
+ *               "stats": { "rd_bytes": 0,
+ *                          "wr_bytes": 0,
+ *                          "rd_operations": 0,
+ *                          "wr_operations": 0 } } ]
+ */
+void bdrv_info_stats(Monitor *mon, QObject **ret_data)
+{
+    QObject *obj;
+    QList *devices;
     BlockDriverState *bs;
 
+    devices = qlist_new();
+
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        monitor_printf(mon, "%s:"
-                       " rd_bytes=%" PRIu64
-                       " wr_bytes=%" PRIu64
-                       " rd_operations=%" PRIu64
-                       " wr_operations=%" PRIu64
-                       "\n",
-                       bs->device_name,
-                       bs->rd_bytes, bs->wr_bytes,
-                       bs->rd_ops, bs->wr_ops);
+        obj = qobject_from_jsonf("{ 'device': %s, 'stats': {"
+                                 "'rd_bytes': %" PRId64 ","
+                                 "'wr_bytes': %" PRId64 ","
+                                 "'rd_operations': %" PRId64 ","
+                                 "'wr_operations': %" PRId64
+                                 "} }",
+                                 bs->device_name,
+                                 bs->rd_bytes, bs->wr_bytes,
+                                 bs->rd_ops, bs->wr_ops);
+        assert(obj != NULL);
+        qlist_append_obj(devices, obj);
     }
+
+    *ret_data = QOBJECT(devices);
 }
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
