@@ -107,10 +107,13 @@ static void piix3_reset(void *opaque)
         ide_dma_reset(&d->bmdma[i]);
     }
 
-    pci_conf[0x04] = 0x00;
-    pci_conf[0x05] = 0x00;
-    pci_conf[0x06] = 0x80; /* FBC */
-    pci_conf[0x07] = 0x02; // PCI_status_devsel_medium
+    /* TODO: this is the default. do not override. */
+    pci_conf[PCI_COMMAND] = 0x00;
+    /* TODO: this is the default. do not override. */
+    pci_conf[PCI_COMMAND + 1] = 0x00;
+    /* TODO: use pci_set_word */
+    pci_conf[PCI_STATUS] = PCI_STATUS_FAST_BACK;
+    pci_conf[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_MEDIUM >> 8;
     pci_conf[0x20] = 0x01; /* BMIBA: 20-23h */
 }
 
@@ -118,7 +121,7 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 {
     uint8_t *pci_conf = d->dev.config;
 
-    pci_conf[0x09] = 0x80; // legacy ATA mode
+    pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
