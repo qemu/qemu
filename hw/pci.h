@@ -167,6 +167,8 @@ typedef struct PCIIORegion {
 #define PCI_STATUS_FAST_BACK	0x080
 #define PCI_STATUS_DEVSEL_MEDIUM 0x200
 #define PCI_STATUS_DEVSEL	0x600
+#define  PCI_STATUS_SIG_TARGET_ABORT	0x800 /* Set on target abort */
+#define  PCI_STATUS_REC_MASTER_ABORT	0x2000 /* Set on master abort */
 
 #define PCI_STATUS_RESERVED_MASK_LO (PCI_STATUS_RESERVED1 | \
                 PCI_STATUS_INT_STATUS | PCI_STATUS_CAPABILITIES | \
