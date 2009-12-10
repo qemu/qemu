@@ -19,6 +19,7 @@
 #include "block.h"
 #include "qemu_socket.h"
 #include "block-migration.h"
+#include "qemu-objects.h"
 
 //#define DEBUG_MIGRATION
 
@@ -163,37 +164,123 @@ void do_migrate_set_downtime(Monitor *mon, const QDict *qdict)
     max_downtime = (uint64_t)d;
 }
 
-void do_info_migrate(Monitor *mon)
+static void migrate_print_status(Monitor *mon, const char *name,
+                                 const QDict *status_dict)
 {
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(qdict_get(status_dict, name));
+
+    monitor_printf(mon, "transferred %s: %" PRIu64 " kbytes\n", name,
+                        qdict_get_int(qdict, "transferred") >> 10);
+    monitor_printf(mon, "remaining %s: %" PRIu64 " kbytes\n", name,
+                        qdict_get_int(qdict, "remaining") >> 10);
+    monitor_printf(mon, "total %s: %" PRIu64 " kbytes\n", name,
+                        qdict_get_int(qdict, "total") >> 10);
+}
+
+void do_info_migrate_print(Monitor *mon, const QObject *data)
+{
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(data);
+
+    monitor_printf(mon, "Migration status: %s\n",
+                   qdict_get_str(qdict, "status"));
+
+    if (qdict_haskey(qdict, "ram")) {
+        migrate_print_status(mon, "ram", qdict);
+    }
+
+    if (qdict_haskey(qdict, "disk")) {
+        migrate_print_status(mon, "disk", qdict);
+    }
+}
+
+static void migrate_put_status(QDict *qdict, const char *name,
+                               uint64_t trans, uint64_t rem, uint64_t total)
+{
+    QObject *obj;
+
+    obj = qobject_from_jsonf("{ 'transferred': %" PRId64 ", "
+                               "'remaining': %" PRId64 ", "
+                               "'total': %" PRId64 " }", trans, rem, total);
+    assert(obj != NULL);
+
+    qdict_put_obj(qdict, name, obj);
+}
+
+/**
+ * do_info_migrate(): Migration status
+ *
+ * Return a QDict. If migration is active there will be another
+ * QDict with RAM migration status and if block migration is active
+ * another one with block migration status.
+ *
+ * The main QDict contains the following:
+ *
+ * - "status": migration status
+ * - "ram": only present if "status" is "active", it is a QDict with the
+ *   following RAM information (in bytes):
+ *          - "transferred": amount transferred
+ *          - "remaining": amount remaining
+ *          - "total": total
+ * - "disk": only present if "status" is "active" and it is a block migration,
+ *   it is a QDict with the following disk information (in bytes):
+ *          - "transferred": amount transferred
+ *          - "remaining": amount remaining
+ *          - "total": total
+ *
+ * Examples:
+ *
+ * 1. Migration is "completed":
+ *
+ * { "status": "completed" }
+ *
+ * 2. Migration is "active" and it is not a block migration:
+ *
+ * { "status": "active",
+ *            "ram": { "transferred": 123, "remaining": 123, "total": 246 } }
+ *
+ * 3. Migration is "active" and it is a block migration:
+ *
+ * { "status": "active",
+ *   "ram": { "total": 1057024, "remaining": 1053304, "transferred": 3720 },
+ *   "disk": { "total": 20971520, "remaining": 20880384, "transferred": 91136 }}
+ */
+void do_info_migrate(Monitor *mon, QObject **ret_data)
+{
+    QDict *qdict;
     MigrationState *s = current_migration;
 
     if (s) {
-        monitor_printf(mon, "Migration status: ");
         switch (s->get_status(s)) {
         case MIG_STATE_ACTIVE:
-            monitor_printf(mon, "active\n");
-            monitor_printf(mon, "transferred ram: %" PRIu64 " kbytes\n", ram_bytes_transferred() >> 10);
-            monitor_printf(mon, "remaining ram: %" PRIu64 " kbytes\n", ram_bytes_remaining() >> 10);
-            monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n", ram_bytes_total() >> 10);
+            qdict = qdict_new();
+            qdict_put(qdict, "status", qstring_from_str("active"));
+
+            migrate_put_status(qdict, "ram", ram_bytes_transferred(),
+                               ram_bytes_remaining(), ram_bytes_total());
+
             if (blk_mig_active()) {
-                monitor_printf(mon, "transferred disk: %" PRIu64 " kbytes\n",
-                               blk_mig_bytes_transferred() >> 10);
-                monitor_printf(mon, "remaining disk: %" PRIu64 " kbytes\n",
-                               blk_mig_bytes_remaining() >> 10);
-                monitor_printf(mon, "total disk: %" PRIu64 " kbytes\n",
-                               blk_mig_bytes_total() >> 10);
+                migrate_put_status(qdict, "disk", blk_mig_bytes_transferred(),
+                                   blk_mig_bytes_remaining(),
+                                   blk_mig_bytes_total());
             }
+
+            *ret_data = QOBJECT(qdict);
             break;
         case MIG_STATE_COMPLETED:
-            monitor_printf(mon, "completed\n");
+            *ret_data = qobject_from_jsonf("{ 'status': 'completed' }");
             break;
         case MIG_STATE_ERROR:
-            monitor_printf(mon, "failed\n");
+            *ret_data = qobject_from_jsonf("{ 'status': 'failed' }");
             break;
         case MIG_STATE_CANCELLED:
-            monitor_printf(mon, "cancelled\n");
+            *ret_data = qobject_from_jsonf("{ 'status': 'cancelled' }");
             break;
         }
+        assert(*ret_data != NULL);
     }
 }
 

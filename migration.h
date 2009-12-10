@@ -62,7 +62,9 @@ uint64_t migrate_max_downtime(void);
 
 void do_migrate_set_downtime(Monitor *mon, const QDict *qdict);
 
-void do_info_migrate(Monitor *mon);
+void do_info_migrate_print(Monitor *mon, const QObject *data);
+
+void do_info_migrate(Monitor *mon, QObject **ret_data);
 
 int exec_start_incoming_migration(const char *host_port);
 
