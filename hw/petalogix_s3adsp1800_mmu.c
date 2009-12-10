@@ -38,7 +38,7 @@
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (16 * 1024 * 1024)
 
-struct
+static struct
 {
     uint32_t bootstrap_pc;
     uint32_t cmdline;
