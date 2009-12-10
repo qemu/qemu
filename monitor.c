@@ -1806,16 +1806,40 @@ static void tlb_info(Monitor *mon)
 
 #endif
 
-static void do_info_kvm(Monitor *mon)
+static void do_info_kvm_print(Monitor *mon, const QObject *data)
+{
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(data);
+
+    monitor_printf(mon, "kvm support: ");
+    if (qdict_get_bool(qdict, "present")) {
+        monitor_printf(mon, "%s\n", qdict_get_bool(qdict, "enabled") ?
+                                    "enabled" : "disabled");
+    } else {
+        monitor_printf(mon, "not compiled\n");
+    }
+}
+
+/**
+ * do_info_kvm(): Show KVM information
+ *
+ * Return a QDict with the following information:
+ *
+ * - "enabled": true if KVM support is enabled, false otherwise
+ * - "present": true if QEMU has KVM support, false otherwise
+ *
+ * Example:
+ *
+ * { "enabled": true, "present": true }
+ */
+static void do_info_kvm(Monitor *mon, QObject **ret_data)
 {
 #ifdef CONFIG_KVM
-    monitor_printf(mon, "kvm support: ");
-    if (kvm_enabled())
-        monitor_printf(mon, "enabled\n");
-    else
-        monitor_printf(mon, "disabled\n");
+    *ret_data = qobject_from_jsonf("{ 'enabled': %i, 'present': true }",
+                                   kvm_enabled());
 #else
-    monitor_printf(mon, "kvm support: not compiled\n");
+    *ret_data = qobject_from_jsonf("{ 'enabled': false, 'present': false }");
 #endif
 }
 
@@ -2369,7 +2393,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show KVM information",
-        .mhandler.info = do_info_kvm,
+        .user_print = do_info_kvm_print,
+        .mhandler.info_new = do_info_kvm,
     },
     {
         .name       = "numa",
