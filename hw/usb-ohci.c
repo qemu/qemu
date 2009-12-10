@@ -1721,14 +1721,16 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     pci_config_set_vendor_id(ohci->pci_dev.config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(ohci->pci_dev.config,
                              PCI_DEVICE_ID_APPLE_IPID_USB);
-    ohci->pci_dev.config[0x09] = 0x10; /* OHCI */
+    ohci->pci_dev.config[PCI_CLASS_PROG] = 0x10; /* OHCI */
     pci_config_set_class(ohci->pci_dev.config, PCI_CLASS_SERIAL_USB);
-    ohci->pci_dev.config[0x3d] = 0x01; /* interrupt pin 1 */
+    /* TODO: RST# value should be 0. */
+    ohci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
 
     usb_ohci_init(&ohci->state, &dev->qdev, num_ports,
                   ohci->pci_dev.devfn, ohci->pci_dev.irq[0],
                   OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
 
+    /* TODO: avoid cast below by using dev */
     pci_register_bar((struct PCIDevice *)ohci, 0, 256,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, ohci_mapfunc);
     return 0;
