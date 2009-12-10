@@ -2567,7 +2567,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show migration status",
-        .mhandler.info = do_info_migrate,
+        .user_print = do_info_migrate_print,
+        .mhandler.info_new = do_info_migrate,
     },
     {
         .name       = "balloon",
