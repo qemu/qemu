@@ -518,10 +518,34 @@ static void do_info_name(Monitor *mon)
         monitor_printf(mon, "%s\n", qemu_name);
 }
 
+static QObject *get_cmd_dict(const char *name)
+{
+    const char *p;
+
+    /* Remove '|' from some commands */
+    p = strchr(name, '|');
+    if (p) {
+        p++;
+    } else {
+        p = name;
+    }
+
+    return qobject_from_jsonf("{ 'name': %s }", p);
+}
+
 /**
  * do_info_commands(): List QMP available commands
  *
- * Return a QList of QStrings.
+ * Each command is represented by a QDict, the returned QObject is a QList
+ * of all commands.
+ *
+ * The QDict contains:
+ *
+ * - "name": command's name
+ *
+ * Example:
+ *
+ * { [ { "name": "query-balloon" }, { "name": "system_powerdown" } ] }
  */
 static void do_info_commands(Monitor *mon, QObject **ret_data)
 {
@@ -532,7 +556,7 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
 
     for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
         if (monitor_handler_ported(cmd) && !compare_cmd(cmd->name, "info")) {
-            qlist_append(cmd_list, qstring_from_str(cmd->name));
+            qlist_append_obj(cmd_list, get_cmd_dict(cmd->name));
         }
     }
 
@@ -540,7 +564,7 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
         if (monitor_handler_ported(cmd)) {
             char buf[128];
             snprintf(buf, sizeof(buf), "query-%s", cmd->name);
-            qlist_append(cmd_list, qstring_from_str(buf));
+            qlist_append_obj(cmd_list, get_cmd_dict(buf));
         }
     }
 
