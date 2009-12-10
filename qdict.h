@@ -37,6 +37,7 @@ void qdict_iter(const QDict *qdict,
 
 /* High level helpers */
 int64_t qdict_get_int(const QDict *qdict, const char *key);
+int qdict_get_bool(const QDict *qdict, const char *key);
 const char *qdict_get_str(const QDict *qdict, const char *key);
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t err_value);
