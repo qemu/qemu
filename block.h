@@ -4,6 +4,7 @@
 #include "qemu-aio.h"
 #include "qemu-common.h"
 #include "qemu-option.h"
+#include "qobject.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -45,7 +46,8 @@ typedef struct QEMUSnapshotInfo {
 #define BDRV_SECTOR_SIZE   (1 << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1);
 
-void bdrv_info(Monitor *mon);
+void bdrv_info_print(Monitor *mon, const QObject *data);
+void bdrv_info(Monitor *mon, QObject **ret_data);
 void bdrv_info_stats(Monitor *mon);
 
 void bdrv_init(void);

@@ -26,6 +26,7 @@
 #include "monitor.h"
 #include "block_int.h"
 #include "module.h"
+#include "qemu-objects.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -1139,43 +1140,125 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     return bs->drv->bdrv_is_allocated(bs, sector_num, nb_sectors, pnum);
 }
 
-void bdrv_info(Monitor *mon)
+static void bdrv_print_dict(QObject *obj, void *opaque)
 {
+    QDict *bs_dict;
+    Monitor *mon = opaque;
+
+    bs_dict = qobject_to_qdict(obj);
+
+    monitor_printf(mon, "%s: type=%s removable=%d",
+                        qdict_get_str(bs_dict, "device"),
+                        qdict_get_str(bs_dict, "type"),
+                        qdict_get_bool(bs_dict, "removable"));
+
+    if (qdict_get_bool(bs_dict, "removable")) {
+        monitor_printf(mon, " locked=%d", qdict_get_bool(bs_dict, "locked"));
+    }
+
+    if (qdict_haskey(bs_dict, "inserted")) {
+        QDict *qdict = qobject_to_qdict(qdict_get(bs_dict, "inserted"));
+
+        monitor_printf(mon, " file=");
+        monitor_print_filename(mon, qdict_get_str(qdict, "file"));
+        if (qdict_haskey(qdict, "backing_file")) {
+            monitor_printf(mon, " backing_file=");
+            monitor_print_filename(mon, qdict_get_str(qdict, "backing_file"));
+        }
+        monitor_printf(mon, " ro=%d drv=%s encrypted=%d",
+                            qdict_get_bool(qdict, "ro"),
+                            qdict_get_str(qdict, "drv"),
+                            qdict_get_bool(qdict, "encrypted"));
+    } else {
+        monitor_printf(mon, " [not inserted]");
+    }
+
+    monitor_printf(mon, "\n");
+}
+
+void bdrv_info_print(Monitor *mon, const QObject *data)
+{
+    qlist_iter(qobject_to_qlist(data), bdrv_print_dict, mon);
+}
+
+/**
+ * bdrv_info(): Block devices information
+ *
+ * Each block device information is stored in a QDict and the
+ * returned QObject is a QList of all devices.
+ *
+ * The QDict contains the following:
+ *
+ * - "device": device name
+ * - "type": device type
+ * - "removable": true if the device is removable, false otherwise
+ * - "locked": true if the device is locked, false otherwise
+ * - "inserted": only present if the device is inserted, it is a QDict
+ *    containing the following:
+ *          - "file": device file name
+ *          - "ro": true if read-only, false otherwise
+ *          - "drv": driver format name
+ *          - "backing_file": backing file name if one is used
+ *          - "encrypted": true if encrypted, false otherwise
+ *
+ * Example:
+ *
+ * [ { "device": "ide0-hd0", "type": "hd", "removable": false, "locked": false,
+ *     "inserted": { "file": "/tmp/foobar", "ro": false, "drv": "qcow2" } },
+ *   { "device": "floppy0", "type": "floppy", "removable": true,
+ *     "locked": false } ]
+ */
+void bdrv_info(Monitor *mon, QObject **ret_data)
+{
+    QList *bs_list;
     BlockDriverState *bs;
 
+    bs_list = qlist_new();
+
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        monitor_printf(mon, "%s:", bs->device_name);
-        monitor_printf(mon, " type=");
+        QObject *bs_obj;
+        const char *type = "unknown";
+
         switch(bs->type) {
         case BDRV_TYPE_HD:
-            monitor_printf(mon, "hd");
+            type = "hd";
             break;
         case BDRV_TYPE_CDROM:
-            monitor_printf(mon, "cdrom");
+            type = "cdrom";
             break;
         case BDRV_TYPE_FLOPPY:
-            monitor_printf(mon, "floppy");
+            type = "floppy";
             break;
         }
-        monitor_printf(mon, " removable=%d", bs->removable);
-        if (bs->removable) {
-            monitor_printf(mon, " locked=%d", bs->locked);
-        }
+
+        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': %s, "
+                                    "'removable': %i, 'locked': %i }",
+                                    bs->device_name, type, bs->removable,
+                                    bs->locked);
+        assert(bs_obj != NULL);
+
         if (bs->drv) {
-            monitor_printf(mon, " file=");
-            monitor_print_filename(mon, bs->filename);
+            QObject *obj;
+            QDict *bs_dict = qobject_to_qdict(bs_obj);
+
+            obj = qobject_from_jsonf("{ 'file': %s, 'ro': %i, 'drv': %s, "
+                                     "'encrypted': %i }",
+                                     bs->filename, bs->read_only,
+                                     bs->drv->format_name,
+                                     bdrv_is_encrypted(bs));
+            assert(obj != NULL);
             if (bs->backing_file[0] != '\0') {
-                monitor_printf(mon, " backing_file=");
-                monitor_print_filename(mon, bs->backing_file);
+                QDict *qdict = qobject_to_qdict(obj);
+                qdict_put(qdict, "backing_file",
+                          qstring_from_str(bs->backing_file));
             }
-            monitor_printf(mon, " ro=%d", bs->read_only);
-            monitor_printf(mon, " drv=%s", bs->drv->format_name);
-            monitor_printf(mon, " encrypted=%d", bdrv_is_encrypted(bs));
-        } else {
-            monitor_printf(mon, " [not inserted]");
+
+            qdict_put_obj(bs_dict, "inserted", obj);
         }
-        monitor_printf(mon, "\n");
+        qlist_append_obj(bs_list, bs_obj);
     }
+
+    *ret_data = QOBJECT(bs_list);
 }
 
 /* The "info blockstats" command. */
