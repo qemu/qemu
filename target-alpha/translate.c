@@ -567,46 +567,41 @@ static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
 
 
 /* EXTWH, EXTWH, EXTLH, EXTQH */
-static inline void gen_ext_h(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
-                             int ra, int rb, int rc, int islit, uint8_t lit)
+static inline void gen_ext_h(int ra, int rb, int rc, int islit,
+                             uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
-
-    if (ra != 31) {
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
         if (islit) {
-            if (lit != 0)
-                tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 64 - ((lit & 7) * 8));
-            else
-                tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+            lit = (64 - (lit & 7) * 8) & 0x3f;
+            tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], lit);
         } else {
-            TCGv tmp1;
-            tmp1 = tcg_temp_new();
-
+            TCGv tmp1 = tcg_temp_new();
             tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
             tcg_gen_shli_i64(tmp1, tmp1, 3);
             tcg_gen_neg_i64(tmp1, tmp1);
             tcg_gen_andi_i64(tmp1, tmp1, 0x3f);
             tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
-
             tcg_temp_free(tmp1);
         }
-        if (tcg_gen_ext_i64)
-            tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
-    } else
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+        gen_zapnoti(rc, rc, byte_mask);
+    }
 }
 
 /* EXTBL, EXTWL, EXTWL, EXTLL, EXTQL */
-static inline void gen_ext_l(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
-                             int ra, int rb, int rc, int islit, uint8_t lit)
+static inline void gen_ext_l(int ra, int rb, int rc, int islit,
+                             uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
-
-    if (ra != 31) {
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
         if (islit) {
-                tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
+            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
         } else {
             TCGv tmp = tcg_temp_new();
             tcg_gen_andi_i64(tmp, cpu_ir[rb], 7);
@@ -614,10 +609,8 @@ static inline void gen_ext_l(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
             tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
             tcg_temp_free(tmp);
         }
-        if (tcg_gen_ext_i64)
-            tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
-    } else
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+        gen_zapnoti(rc, rc, byte_mask);
+    }
 }
 
 /* Code to call arith3 helpers */
@@ -1276,7 +1269,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x06:
             /* EXTBL */
-            gen_ext_l(&tcg_gen_ext8u_i64, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0x01);
             break;
         case 0x0B:
             /* INSBL */
@@ -1288,7 +1281,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x16:
             /* EXTWL */
-            gen_ext_l(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x1B:
             /* INSWL */
@@ -1300,7 +1293,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x26:
             /* EXTLL */
-            gen_ext_l(&tcg_gen_ext32u_i64, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x2B:
             /* INSLL */
@@ -1336,7 +1329,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x36:
             /* EXTQL */
-            gen_ext_l(NULL, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x39:
             /* SLL */
@@ -1384,7 +1377,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x5A:
             /* EXTWH */
-            gen_ext_h(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
+            gen_ext_h(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x62:
             /* MSKLH */
@@ -1396,7 +1389,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x6A:
             /* EXTLH */
-            gen_ext_h(&tcg_gen_ext32u_i64, ra, rb, rc, islit, lit);
+            gen_ext_h(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x72:
             /* MSKQH */
@@ -1408,7 +1401,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x7A:
             /* EXTQH */
-            gen_ext_h(NULL, ra, rb, rc, islit, lit);
+            gen_ext_h(ra, rb, rc, islit, lit, 0xff);
             break;
         default:
             goto invalid_opc;
