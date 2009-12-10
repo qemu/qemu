@@ -635,8 +635,9 @@ static void print_cpu_iter(QObject *obj, void *opaque)
     assert(qobject_type(obj) == QTYPE_QDICT);
     cpu = qobject_to_qdict(obj);
 
-    if (strcmp(qdict_get_str(cpu, "current"), "yes") == 0)
+    if (qdict_get_bool(cpu, "current")) {
         active = '*';
+    }
 
     monitor_printf(mon, "%c CPU #%d: ", active, (int)qdict_get_int(cpu, "CPU"));
 
@@ -656,8 +657,9 @@ static void print_cpu_iter(QObject *obj, void *opaque)
                    (target_long) qdict_get_int(cpu, "PC"));
 #endif
 
-    if (strcmp(qdict_get_str(cpu, "halted"), "yes") == 0)
+    if (qdict_get_bool(cpu, "halted")) {
         monitor_printf(mon, " (halted)");
+    }
 
     monitor_printf(mon, "\n");
 }
@@ -674,12 +676,21 @@ static void monitor_print_cpus(Monitor *mon, const QObject *data)
 /**
  * do_info_cpus(): Show CPU information
  *
- * Return a QList with a QDict for each CPU.
+ * Return a QList. Each CPU is represented by a QDict, which contains:
  *
- * For example:
+ * - "cpu": CPU index
+ * - "current": true if this is the current CPU, false otherwise
+ * - "halted": true if the cpu is halted, false otherwise
+ * - Current program counter. The key's name depends on the architecture:
+ *      "pc": i386/x86)64
+ *      "nip": PPC
+ *      "pc" and "npc": sparc
+ *      "PC": mips
  *
- * [ { "CPU": 0, "current": "yes", "pc": 0x..., "halted": "no" },
- *   { "CPU": 1, "current": "no",  "pc": 0x..., "halted": "yes" } ]
+ * Example:
+ *
+ * [ { "CPU": 0, "current": true, "halted": false, "pc": 3227107138 },
+ *   { "CPU": 1, "current": false, "halted": true, "pc": 7108165 } ]
  */
 static void do_info_cpus(Monitor *mon, QObject **ret_data)
 {
@@ -692,14 +703,17 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
     mon_get_cpu();
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        const char *answer;
-        QDict *cpu = qdict_new();
+        QDict *cpu;
+        QObject *obj;
 
         cpu_synchronize_state(env);
 
-        qdict_put(cpu, "CPU", qint_from_int(env->cpu_index));
-        answer = (env == mon->mon_cpu) ? "yes" : "no";
-        qdict_put(cpu, "current", qstring_from_str(answer));
+        obj = qobject_from_jsonf("{ 'CPU': %d, 'current': %i, 'halted': %i }",
+                                 env->cpu_index, env == mon->mon_cpu,
+                                 env->halted);
+        assert(obj != NULL);
+
+        cpu = qobject_to_qdict(obj);
 
 #if defined(TARGET_I386)
         qdict_put(cpu, "pc", qint_from_int(env->eip + env->segs[R_CS].base));
@@ -711,8 +725,6 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
 #elif defined(TARGET_MIPS)
         qdict_put(cpu, "PC", qint_from_int(env->active_tc.PC));
 #endif
-        answer = env->halted ? "yes" : "no";
-        qdict_put(cpu, "halted", qstring_from_str(answer));
 
         qlist_append(cpu_list, cpu);
     }
