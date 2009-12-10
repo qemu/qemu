@@ -597,10 +597,27 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
 }
 
 #if defined(TARGET_I386)
-static void do_info_hpet(Monitor *mon)
+static void do_info_hpet_print(Monitor *mon, const QObject *data)
 {
     monitor_printf(mon, "HPET is %s by QEMU\n",
-                   (no_hpet) ? "disabled" : "enabled");
+                   qdict_get_bool(qobject_to_qdict(data), "enabled") ?
+                   "enabled" : "disabled");
+}
+
+/**
+ * do_info_hpet(): Show HPET state
+ *
+ * Return a QDict with the following information:
+ *
+ * - "enabled": true if hpet if enabled, false otherwise
+ *
+ * Example:
+ *
+ * { "enabled": true }
+ */
+static void do_info_hpet(Monitor *mon, QObject **ret_data)
+{
+    *ret_data = qobject_from_jsonf("{ 'enabled': %i }", !no_hpet);
 }
 #endif
 
@@ -2401,7 +2418,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show state of HPET",
-        .mhandler.info = do_info_hpet,
+        .user_print = do_info_hpet_print,
+        .mhandler.info_new = do_info_hpet,
     },
 #endif
     {
