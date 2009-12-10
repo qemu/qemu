@@ -48,7 +48,8 @@ typedef struct QEMUSnapshotInfo {
 
 void bdrv_info_print(Monitor *mon, const QObject *data);
 void bdrv_info(Monitor *mon, QObject **ret_data);
-void bdrv_info_stats(Monitor *mon);
+void bdrv_stats_print(Monitor *mon, const QObject *data);
+void bdrv_info_stats(Monitor *mon, QObject **ret_data);
 
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);

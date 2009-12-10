@@ -2371,7 +2371,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show block device statistics",
-        .mhandler.info = bdrv_info_stats,
+        .user_print = bdrv_stats_print,
+        .mhandler.info_new = bdrv_info_stats,
     },
     {
         .name       = "registers",
