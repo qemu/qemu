@@ -580,11 +580,13 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
             if (!bus->devices[devfn])
                 goto found;
         }
-        hw_error("PCI: no devfn available for %s, all in use\n", name);
+        qemu_error("PCI: no devfn available for %s, all in use\n", name);
+        return NULL;
     found: ;
     } else if (bus->devices[devfn]) {
-        hw_error("PCI: devfn %d not available for %s, in use by %s\n", devfn,
+        qemu_error("PCI: devfn %d not available for %s, in use by %s\n", devfn,
                  name, bus->devices[devfn]->name);
+        return NULL;
     }
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
@@ -625,6 +627,9 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     pci_dev = do_pci_register_device(pci_dev, bus, name, devfn,
                                      config_read, config_write,
                                      PCI_HEADER_TYPE_NORMAL);
+    if (pci_dev == NULL) {
+        hw_error("PCI: can't register device\n");
+    }
     return pci_dev;
 }
 static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
@@ -1376,6 +1381,8 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write,
                                      info->header_type);
+    if (pci_dev == NULL)
+        return -1;
     rc = info->init(pci_dev);
     if (rc != 0)
         return rc;
