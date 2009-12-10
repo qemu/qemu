@@ -35,7 +35,7 @@
 #undef ALPHA_DEBUG_DISAS
 
 #ifdef ALPHA_DEBUG_DISAS
-#  define LOG_DISAS(...) qemu_log(__VA_ARGS__)
+#  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
 #else
 #  define LOG_DISAS(...) do { } while (0)
 #endif
@@ -696,8 +696,9 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     fn7 = (insn >> 5) & 0x0000007F;
     fn2 = (insn >> 5) & 0x00000003;
     ret = 0;
-    LOG_DISAS("opc %02x ra %d rb %d rc %d disp16 %04x\n",
+    LOG_DISAS("opc %02x ra %2d rb %2d rc %2d disp16 %6d\n",
               opc, ra, rb, rc, disp16);
+
     switch (opc) {
     case 0x00:
         /* CALL_PAL */
@@ -2353,9 +2354,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                                                   TranslationBlock *tb,
                                                   int search_pc)
 {
-#if defined ALPHA_DEBUG_DISAS
-    static int insn_count;
-#endif
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
     uint32_t insn;
@@ -2405,16 +2403,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
-#if defined ALPHA_DEBUG_DISAS
-        insn_count++;
-        LOG_DISAS("pc " TARGET_FMT_lx " mem_idx %d\n",
-                  ctx.pc, ctx.mem_idx);
-#endif
         insn = ldl_code(ctx.pc);
-#if defined ALPHA_DEBUG_DISAS
-        insn_count++;
-        LOG_DISAS("opcode %08x %d\n", insn, insn_count);
-#endif
         num_insns++;
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
@@ -2459,7 +2448,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;
     }
-#if defined ALPHA_DEBUG_DISAS
+#ifdef DEBUG_DISAS
     log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
