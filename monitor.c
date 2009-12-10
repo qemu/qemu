@@ -1933,16 +1933,41 @@ static void do_inject_nmi(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-static void do_info_status(Monitor *mon)
+static void do_info_status_print(Monitor *mon, const QObject *data)
 {
-    if (vm_running) {
-        if (singlestep) {
-            monitor_printf(mon, "VM status: running (single step mode)\n");
-        } else {
-            monitor_printf(mon, "VM status: running\n");
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(data);
+
+    monitor_printf(mon, "VM status: ");
+    if (qdict_get_bool(qdict, "running")) {
+        monitor_printf(mon, "running");
+        if (qdict_get_bool(qdict, "singlestep")) {
+            monitor_printf(mon, " (single step mode)");
         }
-    } else
-       monitor_printf(mon, "VM status: paused\n");
+    } else {
+        monitor_printf(mon, "paused");
+    }
+
+    monitor_printf(mon, "\n");
+}
+
+/**
+ * do_info_status(): VM status
+ *
+ * Return a QDict with the following information:
+ *
+ * - "running": true if the VM is running, or false if it is paused
+ * - "singlestep": true if the VM is in single step mode, false otherwise
+ *
+ * Example:
+ *
+ * { "running": true, "singlestep": false }
+ */
+static void do_info_status(Monitor *mon, QObject **ret_data)
+{
+    *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i }",
+                                    vm_running, singlestep);
 }
 
 /**
@@ -2393,7 +2418,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM status (running|paused)",
-        .mhandler.info = do_info_status,
+        .user_print = do_info_status_print,
+        .mhandler.info_new = do_info_status,
     },
     {
         .name       = "pcmcia",
