@@ -36,6 +36,20 @@ DEF_HELPER_2(insqh, i64, i64, i64)
 
 DEF_HELPER_2(cmpbge, i64, i64, i64)
 
+DEF_HELPER_2(minub8, i64, i64, i64)
+DEF_HELPER_2(minsb8, i64, i64, i64)
+DEF_HELPER_2(minuw4, i64, i64, i64)
+DEF_HELPER_2(minsw4, i64, i64, i64)
+DEF_HELPER_2(maxub8, i64, i64, i64)
+DEF_HELPER_2(maxsb8, i64, i64, i64)
+DEF_HELPER_2(maxuw4, i64, i64, i64)
+DEF_HELPER_2(maxsw4, i64, i64, i64)
+DEF_HELPER_2(perr, i64, i64, i64)
+DEF_HELPER_1(pklb, i64, i64)
+DEF_HELPER_1(pkwb, i64, i64)
+DEF_HELPER_1(unpkbl, i64, i64)
+DEF_HELPER_1(unpkbw, i64, i64)
+
 DEF_HELPER_0(load_fpcr, i64)
 DEF_HELPER_1(store_fpcr, void, i64)
 

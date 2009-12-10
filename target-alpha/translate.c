@@ -611,6 +611,30 @@ ARITH3(insqh)
 ARITH3(umulh)
 ARITH3(mullv)
 ARITH3(mulqv)
+ARITH3(minub8)
+ARITH3(minsb8)
+ARITH3(minuw4)
+ARITH3(minsw4)
+ARITH3(maxub8)
+ARITH3(maxsb8)
+ARITH3(maxuw4)
+ARITH3(maxsw4)
+ARITH3(perr)
+
+#define MVIOP2(name)                                    \
+static inline void glue(gen_, name)(int rb, int rc)     \
+{                                                       \
+    if (unlikely(rc == 31))                             \
+        return;                                         \
+    if (unlikely(rb == 31))                             \
+        tcg_gen_movi_i64(cpu_ir[rc], 0);                \
+    else                                                \
+        gen_helper_ ## name (cpu_ir[rc], cpu_ir[rb]);   \
+}
+MVIOP2(pklb)
+MVIOP2(pkwb)
+MVIOP2(unpkbl)
+MVIOP2(unpkbw)
 
 static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
                            uint8_t lit)
@@ -619,7 +643,7 @@ static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
     TCGv tmp;
 
     if (unlikely(rc == 31))
-    return;
+        return;
 
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -646,7 +670,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
     uint16_t fn11, fn16;
-    uint8_t opc, ra, rb, rc, sbz, fpfn, fn7, fn2, islit;
+    uint8_t opc, ra, rb, rc, sbz, fpfn, fn7, fn2, islit, real_islit;
     uint8_t lit;
     int ret;
 
@@ -656,7 +680,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     rb = (insn >> 16) & 0x1F;
     rc = insn & 0x1F;
     sbz = (insn >> 13) & 0x07;
-    islit = (insn >> 12) & 1;
+    real_islit = islit = (insn >> 12) & 1;
     if (rb == 31 && !islit) {
         islit = 1;
         lit = 0;
@@ -1913,8 +1937,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* PERR */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_perr(ra, rb, rc, islit, lit);
             break;
         case 0x32:
             /* CTLZ */
@@ -1942,85 +1965,81 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* UNPKBW */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_unpkbw (rb, rc);
             break;
         case 0x35:
-            /* UNPKWL */
+            /* UNPKBL */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_unpkbl (rb, rc);
             break;
         case 0x36:
             /* PKWB */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_pkwb (rb, rc);
             break;
         case 0x37:
             /* PKLB */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_pklb (rb, rc);
             break;
         case 0x38:
             /* MINSB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minsb8 (ra, rb, rc, islit, lit);
             break;
         case 0x39:
             /* MINSW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minsw4 (ra, rb, rc, islit, lit);
             break;
         case 0x3A:
             /* MINUB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minub8 (ra, rb, rc, islit, lit);
             break;
         case 0x3B:
             /* MINUW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minuw4 (ra, rb, rc, islit, lit);
             break;
         case 0x3C:
             /* MAXUB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxub8 (ra, rb, rc, islit, lit);
             break;
         case 0x3D:
             /* MAXUW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxuw4 (ra, rb, rc, islit, lit);
             break;
         case 0x3E:
             /* MAXSB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxsb8 (ra, rb, rc, islit, lit);
             break;
         case 0x3F:
             /* MAXSW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxsw4 (ra, rb, rc, islit, lit);
             break;
         case 0x70:
             /* FTOIT */
