@@ -93,6 +93,7 @@ static int scsi_hot_add(DeviceState *adapter, DriveInfo *dinfo, int printinfo)
      */
     dinfo->unit = qemu_opt_get_number(dinfo->opts, "unit", -1);
     scsidev = scsi_bus_legacy_add_drive(scsibus, dinfo, dinfo->unit);
+    dinfo->unit = scsidev->id;
 
     if (printinfo)
         qemu_error("OK bus %d, unit %d\n", scsibus->busnr, scsidev->id);
