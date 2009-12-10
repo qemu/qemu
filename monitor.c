@@ -257,24 +257,6 @@ static inline int monitor_has_error(const Monitor *mon)
     return mon->error != NULL;
 }
 
-static void monitor_print_qobject(Monitor *mon, const QObject *data)
-{
-    switch (qobject_type(data)) {
-        case QTYPE_QSTRING:
-            monitor_printf(mon, "%s",qstring_get_str(qobject_to_qstring(data)));
-            break;
-        case QTYPE_QINT:
-            monitor_printf(mon, "%" PRId64,qint_get_int(qobject_to_qint(data)));
-            break;
-        default:
-            monitor_printf(mon, "ERROR: unsupported type: %d",
-                                                        qobject_type(data));
-            break;
-    }
-
-    monitor_puts(mon, "\n");
-}
-
 static void monitor_json_emitter(Monitor *mon, const QObject *data)
 {
     QString *json;
@@ -504,12 +486,32 @@ help:
     help_cmd(mon, "info");
 }
 
+static void do_info_version_print(Monitor *mon, const QObject *data)
+{
+    QDict *qdict;
+
+    qdict = qobject_to_qdict(data);
+
+    monitor_printf(mon, "%s%s\n", qdict_get_str(qdict, "qemu"),
+                                  qdict_get_str(qdict, "package"));
+}
+
 /**
  * do_info_version(): Show QEMU version
+ *
+ * Return a QDict with the following information:
+ *
+ * - "qemu": QEMU's version
+ * - "package": package's version
+ *
+ * Example:
+ *
+ * { "qemu": "0.11.50", "package": "" }
  */
 static void do_info_version(Monitor *mon, QObject **ret_data)
 {
-    *ret_data = QOBJECT(qstring_from_str(QEMU_VERSION QEMU_PKGVERSION));
+    *ret_data = qobject_from_jsonf("{ 'qemu': %s, 'package': %s }",
+                                   QEMU_VERSION, QEMU_PKGVERSION);
 }
 
 static void do_info_name(Monitor *mon)
@@ -2223,7 +2225,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the version of QEMU",
-        .user_print = monitor_print_qobject,
+        .user_print = do_info_version_print,
         .mhandler.info_new = do_info_version,
     },
     {
