@@ -291,25 +291,25 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 {
-    (*regs)[0] = env->regs[0];
-    (*regs)[1] = env->regs[1];
-    (*regs)[2] = env->regs[2];
-    (*regs)[3] = env->regs[3];
-    (*regs)[4] = env->regs[4];
-    (*regs)[5] = env->regs[5];
-    (*regs)[6] = env->regs[6];
-    (*regs)[7] = env->regs[7];
-    (*regs)[8] = env->regs[8];
-    (*regs)[9] = env->regs[9];
-    (*regs)[10] = env->regs[10];
-    (*regs)[11] = env->regs[11];
-    (*regs)[12] = env->regs[12];
-    (*regs)[13] = env->regs[13];
-    (*regs)[14] = env->regs[14];
-    (*regs)[15] = env->regs[15];
+    (*regs)[0] = tswapl(env->regs[0]);
+    (*regs)[1] = tswapl(env->regs[1]);
+    (*regs)[2] = tswapl(env->regs[2]);
+    (*regs)[3] = tswapl(env->regs[3]);
+    (*regs)[4] = tswapl(env->regs[4]);
+    (*regs)[5] = tswapl(env->regs[5]);
+    (*regs)[6] = tswapl(env->regs[6]);
+    (*regs)[7] = tswapl(env->regs[7]);
+    (*regs)[8] = tswapl(env->regs[8]);
+    (*regs)[9] = tswapl(env->regs[9]);
+    (*regs)[10] = tswapl(env->regs[10]);
+    (*regs)[11] = tswapl(env->regs[11]);
+    (*regs)[12] = tswapl(env->regs[12]);
+    (*regs)[13] = tswapl(env->regs[13]);
+    (*regs)[14] = tswapl(env->regs[14]);
+    (*regs)[15] = tswapl(env->regs[15]);
 
-    (*regs)[16] = cpsr_read((CPUState *)env);
-    (*regs)[17] = env->regs[0]; /* XXX */
+    (*regs)[16] = tswapl(cpsr_read((CPUState *)env));
+    (*regs)[17] = tswapl(env->regs[0]); /* XXX */
 }
 
 #define USE_ELF_CORE_DUMP
