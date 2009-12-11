@@ -655,6 +655,32 @@ static inline void gen_ins_l(int ra, int rb, int rc, int islit,
     }
 }
 
+/* MSKBL, MSKWL, MSKLL, MSKQL */
+static inline void gen_msk_l(int ra, int rb, int rc, int islit,
+                             uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit) {
+        gen_zapnoti (cpu_ir[rc], cpu_ir[ra], ~(byte_mask << (lit & 7)));
+    } else {
+        TCGv shift = tcg_temp_new();
+        TCGv mask = tcg_temp_new();
+
+        tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+        tcg_gen_shli_i64(shift, shift, 3);
+        tcg_gen_movi_i64(mask, zapnot_mask (byte_mask));
+        tcg_gen_shl_i64(mask, mask, shift);
+
+        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], mask);
+
+        tcg_temp_free(mask);
+        tcg_temp_free(shift);
+    }
+}
+
 /* Code to call arith3 helpers */
 #define ARITH3(name)                                                  \
 static inline void glue(gen_, name)(int ra, int rb, int rc, int islit,\
@@ -686,10 +712,6 @@ ARITH3(addlv)
 ARITH3(sublv)
 ARITH3(addqv)
 ARITH3(subqv)
-ARITH3(mskbl)
-ARITH3(mskwl)
-ARITH3(mskll)
-ARITH3(mskql)
 ARITH3(mskwh)
 ARITH3(inswh)
 ARITH3(msklh)
@@ -1314,7 +1336,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x02:
             /* MSKBL */
-            gen_mskbl(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0x01);
             break;
         case 0x06:
             /* EXTBL */
@@ -1326,7 +1348,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x12:
             /* MSKWL */
-            gen_mskwl(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x16:
             /* EXTWL */
@@ -1338,7 +1360,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x22:
             /* MSKLL */
-            gen_mskll(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x26:
             /* EXTLL */
@@ -1358,7 +1380,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x32:
             /* MSKQL */
-            gen_mskql(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x34:
             /* SRL */
