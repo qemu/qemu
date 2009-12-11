@@ -1506,11 +1506,13 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
     int keycode;
+    int lsym = sym;
 
-    if (sym >= 'A' && sym <= 'Z' && is_graphic_console())
-        sym = sym - 'A' + 'a';
+    if (lsym >= 'A' && lsym <= 'Z' && is_graphic_console()) {
+        lsym = lsym - 'A' + 'a';
+    }
 
-    keycode = keysym2scancode(vs->vd->kbd_layout, sym & 0xFFFF);
+    keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF);
     do_key_event(vs, down, keycode, sym);
 }
 
