@@ -9845,6 +9845,14 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags = MIPS_HFLAG_UM;
     /* Enable access to the SYNCI_Step register.  */
     env->CP0_HWREna |= (1 << 1);
+    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+        env->hflags |= MIPS_HFLAG_FPU;
+    }
+#ifdef TARGET_MIPS64
+    if (env->active_fpu.fcr0 & (1 << FCR0_F64)) {
+        env->hflags |= MIPS_HFLAG_F64;
+    }
+#endif
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
