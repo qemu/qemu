@@ -97,6 +97,16 @@ enum {
 #define ELIBBAD 80
 #endif
 
+typedef target_ulong	target_elf_greg_t;
+#ifdef USE_UID16
+typedef uint16_t	target_uid_t;
+typedef uint16_t	target_gid_t;
+#else
+typedef uint32_t	target_uid_t;
+typedef uint32_t	target_gid_t;
+#endif
+typedef int32_t		target_pid_t;
+
 #ifdef TARGET_I386
 
 #define ELF_PLATFORM get_elf_platform()
@@ -133,11 +143,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->rsp = infop->start_stack;
     regs->rip = infop->entry;
 }
-
-typedef target_ulong    target_elf_greg_t;
-typedef uint32_t        target_uid_t;
-typedef uint32_t        target_gid_t;
-typedef int32_t         target_pid_t;
 
 #define ELF_NREG    27
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
@@ -211,11 +216,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->edx = 0;
 }
 
-typedef target_ulong    target_elf_greg_t;
-typedef uint16_t        target_uid_t;
-typedef uint16_t        target_gid_t;
-typedef int32_t         target_pid_t;
-
 #define ELF_NREG    17
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
@@ -285,11 +285,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
     regs->ARM_r10 = infop->start_data;
 }
-
-typedef uint32_t target_elf_greg_t;
-typedef uint16_t target_uid_t;
-typedef uint16_t target_gid_t;
-typedef int32_t  target_pid_t;
 
 #define ELF_NREG    18
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
@@ -1775,13 +1770,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
  * typedef <target_regtype> target_elf_greg_t;
  * #define ELF_NREG <number of registers>
  * typedef taret_elf_greg_t target_elf_gregset_t[ELF_NREG];
- *
- * Then define following types to match target types.  Actual types can
- * be found from linux kernel (arch/<ARCH>/include/asm/posix_types.h):
- *
- * typedef <target_uid_type> target_uid_t;
- * typedef <target_gid_type> target_gid_t;
- * typedef <target_pid_type> target_pid_t;
  *
  * Last step is to implement target specific function that copies registers
  * from given cpu into just specified register set.  Prototype is:
