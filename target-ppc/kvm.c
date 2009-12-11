@@ -98,9 +98,14 @@ int kvm_arch_put_registers(CPUState *env)
 int kvm_arch_get_registers(CPUState *env)
 {
     struct kvm_regs regs;
+    struct kvm_sregs sregs;
     uint32_t i, ret;
 
     ret = kvm_vcpu_ioctl(env, KVM_GET_REGS, &regs);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
     if (ret < 0)
         return ret;
 
@@ -124,6 +129,31 @@ int kvm_arch_get_registers(CPUState *env)
 
     for (i = 0;i < 32; i++)
         env->gpr[i] = regs.gpr[i];
+
+#ifdef KVM_CAP_PPC_SEGSTATE
+    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_SEGSTATE)) {
+        env->sdr1 = sregs.u.s.sdr1;
+
+        /* Sync SLB */
+        for (i = 0; i < 64; i++) {
+            ppc_store_slb(env, sregs.u.s.ppc64.slb[i].slbe,
+                               sregs.u.s.ppc64.slb[i].slbv);
+        }
+
+        /* Sync SRs */
+        for (i = 0; i < 16; i++) {
+            env->sr[i] = sregs.u.s.ppc32.sr[i];
+        }
+
+        /* Sync BATs */
+        for (i = 0; i < 8; i++) {
+            env->DBAT[0][i] = sregs.u.s.ppc32.dbat[i] & 0xffffffff;
+            env->DBAT[1][i] = sregs.u.s.ppc32.dbat[i] >> 32;
+            env->IBAT[0][i] = sregs.u.s.ppc32.ibat[i] & 0xffffffff;
+            env->IBAT[1][i] = sregs.u.s.ppc32.ibat[i] >> 32;
+        }
+    }
+#endif
 
     return 0;
 }

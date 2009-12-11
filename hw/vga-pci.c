@@ -82,7 +82,6 @@ static int pci_vga_initfn(PCIDevice *dev)
      // vga + console init
      vga_common_init(s, VGA_RAM_SIZE);
      vga_init(s);
-     vmstate_register(0, &vmstate_vga_pci, d);
 
      s->ds = graphic_console_init(s->update, s->invalidate,
                                   s->screen_dump, s->text_update, s);
@@ -134,6 +133,7 @@ int pci_vga_init(PCIBus *bus,
 static PCIDeviceInfo vga_info = {
     .qdev.name    = "VGA",
     .qdev.size    = sizeof(PCIVGAState),
+    .qdev.vmsd    = &vmstate_vga_pci,
     .init         = pci_vga_initfn,
     .config_write = pci_vga_write_config,
     .qdev.props   = (Property[]) {

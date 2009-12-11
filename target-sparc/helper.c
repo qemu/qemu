@@ -388,7 +388,8 @@ static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
 // requires virtual address mask value calculated from TTE entry size
 static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
                                        uint64_t address, uint64_t context,
-                                       target_phys_addr_t *physical)
+                                       target_phys_addr_t *physical,
+                                       int is_nucleus)
 {
     uint64_t mask;
 
@@ -410,8 +411,9 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
     // valid, context match, virtual address match?
     if (TTE_IS_VALID(tlb->tte) &&
-            compare_masked(context, tlb->tag, 0x1fff) &&
-            compare_masked(address, tlb->tag, mask))
+        ((is_nucleus && compare_masked(0, tlb->tag, 0x1fff))
+         || TTE_IS_GLOBAL(tlb->tte) || compare_masked(context, tlb->tag, 0x1fff))
+        && compare_masked(address, tlb->tag, mask))
     {
         // decode physical address
         *physical = ((tlb->tte & mask) | (address & ~mask)) & 0x1ffffffe000ULL;
@@ -427,6 +429,7 @@ static int get_physical_address_data(CPUState *env,
 {
     unsigned int i;
     uint64_t context;
+    int is_nucleus;
 
     if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
         *physical = ultrasparc_truncate_physical(address);
@@ -435,12 +438,13 @@ static int get_physical_address_data(CPUState *env,
     }
 
     context = env->dmmu.mmu_primary_context & 0x1fff;
+    is_nucleus = env->tl > 0;
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->dtlb[i],
-                                 address, context, physical)
-        ) {
+                                 address, context, physical,
+                                 is_nucleus)) {
             // access ok?
             if (((env->dtlb[i].tte & 0x4) && is_user) ||
                 (!(env->dtlb[i].tte & 0x2) && (rw == 1))) {
@@ -486,6 +490,7 @@ static int get_physical_address_code(CPUState *env,
 {
     unsigned int i;
     uint64_t context;
+    int is_nucleus;
 
     if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
         /* IMMU disabled */
@@ -495,12 +500,13 @@ static int get_physical_address_code(CPUState *env,
     }
 
     context = env->dmmu.mmu_primary_context & 0x1fff;
+    is_nucleus = env->tl > 0;
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->itlb[i],
-                                 address, context, physical)
-        ) {
+                                 address, context, physical,
+                                 is_nucleus)) {
             // access ok?
             if ((env->itlb[i].tte & 0x4) && is_user) {
                 if (env->immu.sfsr) /* Fault status register */
@@ -579,7 +585,7 @@ void dump_mmu(CPUState *env)
     } else {
         printf("DMMU dump:\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->dtlb_tte[i] >> 61) & 3) {
+            switch ((env->dtlb[i].tte >> 61) & 3) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -594,17 +600,18 @@ void dump_mmu(CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("[%02u] VA: " PRIx64 ", PA: " PRIx64
-                       ", %s, %s, %s, %s, ctx %" PRId64 "\n",
+            if ((env->dtlb[i].tte & 0x8000000000000000ULL) != 0) {
+                printf("[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+                       ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
                        i,
-                       env->dtlb_tag[i] & (uint64_t)~0x1fffULL,
-                       env->dtlb_tte[i] & (uint64_t)0x1ffffffe000ULL,
+                       env->dtlb[i].tag & (uint64_t)~0x1fffULL,
+                       env->dtlb[i].tte & (uint64_t)0x1ffffffe000ULL,
                        mask,
-                       env->dtlb_tte[i] & 0x4? "priv": "user",
-                       env->dtlb_tte[i] & 0x2? "RW": "RO",
-                       env->dtlb_tte[i] & 0x40? "locked": "unlocked",
-                       env->dtlb_tag[i] & (uint64_t)0x1fffULL);
+                       env->dtlb[i].tte & 0x4? "priv": "user",
+                       env->dtlb[i].tte & 0x2? "RW": "RO",
+                       env->dtlb[i].tte & 0x40? "locked": "unlocked",
+                       env->dtlb[i].tag & (uint64_t)0x1fffULL,
+                       TTE_IS_GLOBAL(env->dtlb[i].tag)? "global" : "local");
             }
         }
     }
@@ -613,7 +620,7 @@ void dump_mmu(CPUState *env)
     } else {
         printf("IMMU dump:\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->itlb_tte[i] >> 61) & 3) {
+            switch ((env->itlb[i].tte >> 61) & 3) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -628,16 +635,17 @@ void dump_mmu(CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("[%02u] VA: " PRIx64 ", PA: " PRIx64
-                       ", %s, %s, %s, ctx %" PRId64 "\n",
+            if ((env->itlb[i].tte & 0x8000000000000000ULL) != 0) {
+                printf("[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+                       ", %s, %s, %s, ctx %" PRId64 " %s\n",
                        i,
                        env->itlb[i].tag & (uint64_t)~0x1fffULL,
-                       env->itlb_tte[i] & (uint64_t)0x1ffffffe000ULL,
+                       env->itlb[i].tte & (uint64_t)0x1ffffffe000ULL,
                        mask,
-                       env->itlb_tte[i] & 0x4? "priv": "user",
-                       env->itlb_tte[i] & 0x40? "locked": "unlocked",
-                       env->itlb[i].tag & (uint64_t)0x1fffULL);
+                       env->itlb[i].tte & 0x4? "priv": "user",
+                       env->itlb[i].tte & 0x40? "locked": "unlocked",
+                       env->itlb[i].tag & (uint64_t)0x1fffULL,
+                       TTE_IS_GLOBAL(env->itlb[i].tag)? "global" : "local");
             }
         }
     }

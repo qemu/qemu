@@ -513,7 +513,11 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     l1_size2 = l1_size * sizeof(uint64_t);
     l1_allocated = 0;
     if (l1_table_offset != s->l1_table_offset) {
-        l1_table = qemu_mallocz(align_offset(l1_size2, 512));
+        if (l1_size2 != 0) {
+            l1_table = qemu_mallocz(align_offset(l1_size2, 512));
+        } else {
+            l1_table = NULL;
+        }
         l1_allocated = 1;
         if (bdrv_pread(s->hd, l1_table_offset,
                        l1_table, l1_size2) != l1_size2)
@@ -769,12 +773,16 @@ static int check_refcounts_l1(BlockDriverState *bs,
                   l1_table_offset, l1_size2);
 
     /* Read L1 table entries from disk */
-    l1_table = qemu_malloc(l1_size2);
-    if (bdrv_pread(s->hd, l1_table_offset,
-                   l1_table, l1_size2) != l1_size2)
-        goto fail;
-    for(i = 0;i < l1_size; i++)
-        be64_to_cpus(&l1_table[i]);
+    if (l1_size2 == 0) {
+        l1_table = NULL;
+    } else {
+        l1_table = qemu_malloc(l1_size2);
+        if (bdrv_pread(s->hd, l1_table_offset,
+                       l1_table, l1_size2) != l1_size2)
+            goto fail;
+        for(i = 0;i < l1_size; i++)
+            be64_to_cpus(&l1_table[i]);
+    }
 
     /* Do the actual checks */
     for(i = 0; i < l1_size; i++) {

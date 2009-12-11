@@ -197,7 +197,7 @@ case "$cpu" in
   mips*)
     cpu="mips"
   ;;
-  s390*)
+  s390)
     cpu="s390"
   ;;
   s390x)
@@ -909,7 +909,7 @@ else
 
 # if cross compiling, cannot launch a program, so make a static guess
 case "$cpu" in
-  armv4b|hppa|m68k|mips|mips64|ppc|ppc64|s390|sparc|sparc64)
+  armv4b|hppa|m68k|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64)
     bigendian=yes
   ;;
 esac
@@ -928,7 +928,7 @@ esac
 # host long bits test
 hostlongbits="32"
 case "$cpu" in
-  x86_64|alpha|ia64|mips64|sparc64|ppc64)
+  x86_64|alpha|ia64|mips64|sparc64|ppc64|s390x)
     hostlongbits=64
   ;;
 esac
@@ -1413,6 +1413,8 @@ EOF
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/x86/include"
 	elif test "$cpu" = "ppc" -a -d "$kerneldir/arch/powerpc/include" ; then
 	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/powerpc/include"
+	elif test "$cpu" = "s390x" -a -d "$kerneldir/arch/s390/include" ; then
+	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/s390/include"
         elif test -d "$kerneldir/arch/$cpu/include" ; then
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/$cpu/include"
       fi
@@ -1609,6 +1611,23 @@ int main(void)
 EOF
 if compile_prog "" "" ; then
   pipe2=yes
+fi
+
+# check if accept4 is there
+accept4=no
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <sys/socket.h>
+#include <stddef.h>
+
+int main(void)
+{
+    accept4(0, NULL, NULL, SOCK_CLOEXEC);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  accept4=yes
 fi
 
 # check if tee/splice is there. vmsplice was added same time.
@@ -1935,7 +1954,7 @@ echo >> $config_host_mak
 echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
 
 case "$cpu" in
-  i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|ppc|ppc64|s390|sparc|sparc64)
+  i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|ppc|ppc64|s390|s390x|sparc|sparc64)
     ARCH=$cpu
   ;;
   armv4b|armv4l)
@@ -2078,6 +2097,9 @@ fi
 if test "$pipe2" = "yes" ; then
   echo "CONFIG_PIPE2=y" >> $config_host_mak
 fi
+if test "$accept4" = "yes" ; then
+  echo "CONFIG_ACCEPT4=y" >> $config_host_mak
+fi
 if test "$splice" = "yes" ; then
   echo "CONFIG_SPLICE=y" >> $config_host_mak
 fi
@@ -2177,7 +2199,7 @@ echo "TOOLS=$tools" >> $config_host_mak
 # Mac OS X ships with a broken assembler
 roms=
 if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
-        "$targetos" != "Darwin" -a \
+        "$targetos" != "Darwin" -a "$targetos" != "SunOS" -a \
         `expr "$target_list" : ".*softmmu.*"` != 0 ; then
   roms="optionrom"
 fi
@@ -2232,7 +2254,7 @@ target_arch2=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 
 case "$target_arch2" in
-  armeb|m68k|microblaze|mips|mipsn32|mips64|ppc|ppcemb|ppc64|ppc64abi32|sh4eb|sparc|sparc64|sparc32plus)
+  armeb|m68k|microblaze|mips|mipsn32|mips64|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus)
   target_bigendian=yes
   ;;
 esac
@@ -2400,6 +2422,9 @@ case "$target_arch2" in
     echo "TARGET_ABI32=y" >> $config_target_mak
     target_phys_bits=64
   ;;
+  s390x)
+    target_phys_bits=64
+  ;;
   *)
     echo "Unsupported target CPU"
     exit 1
@@ -2428,7 +2453,7 @@ case "$target_arch2" in
     fi
 esac
 case "$target_arch2" in
-  i386|x86_64|ppcemb|ppc|ppc64)
+  i386|x86_64|ppcemb|ppc|ppc64|s390x)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_arch2" = "$cpu" -o \
@@ -2468,7 +2493,7 @@ if test ! -z "$gdb_xml_files" ; then
 fi
 
 case "$target_arch2" in
-  arm|armeb|m68k|microblaze|mips|mipsel|mipsn32|mipsn32el|mips64|mips64el|ppc|ppc64|ppc64abi32|ppcemb|sparc|sparc64|sparc32plus)
+  arm|armeb|m68k|microblaze|mips|mipsel|mipsn32|mipsn32el|mips64|mips64el|ppc|ppc64|ppc64abi32|ppcemb|s390x|sparc|sparc64|sparc32plus)
     echo "CONFIG_SOFTFLOAT=y" >> $config_target_mak
     ;;
   *)
@@ -2503,6 +2528,8 @@ if test "$tcg_interpreter" = "yes"; then
   cflags="-I\$(SRC_PATH)/tcg/bytecode $cflags"
 elif test "$ARCH" = "sparc64" ; then
   cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
+elif test "$ARCH" = "s390x" ; then
+  cflags="-I\$(SRC_PATH)/tcg/s390 $cflags"
 else
   cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
 fi
@@ -2538,7 +2565,7 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   ppc*)
     echo "CONFIG_PPC_DIS=y"  >> $config_target_mak
   ;;
-  s390)
+  s390*)
     echo "CONFIG_S390_DIS=y"  >> $config_target_mak
   ;;
   sh4)

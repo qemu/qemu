@@ -184,7 +184,6 @@ static int max7310_init(i2c_slave *i2c)
 
     max7310_reset(&s->i2c);
 
-    vmstate_register(-1, &vmstate_max7310, s);
     return 0;
 }
 
@@ -206,6 +205,7 @@ void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
 static I2CSlaveInfo max7310_info = {
     .qdev.name = "max7310",
     .qdev.size = sizeof(MAX7310State),
+    .qdev.vmsd = &vmstate_max7310,
     .init = max7310_init,
     .event = max7310_event,
     .recv = max7310_rx,

@@ -161,7 +161,7 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
 	return -1;
 
     }
-    fd = socket(PF_INET, SOCK_DGRAM, 0);
+    fd = qemu_socket(PF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
         perror("socket(PF_INET, SOCK_DGRAM)");
         return -1;
@@ -355,7 +355,7 @@ static void net_socket_accept(void *opaque)
 
     for(;;) {
         len = sizeof(saddr);
-        fd = accept(s->fd, (struct sockaddr *)&saddr, &len);
+        fd = qemu_accept(s->fd, (struct sockaddr *)&saddr, &len);
         if (fd < 0 && errno != EINTR) {
             return;
         } else if (fd >= 0) {
@@ -386,7 +386,7 @@ static int net_socket_listen_init(VLANState *vlan,
 
     s = qemu_mallocz(sizeof(NetSocketListenState));
 
-    fd = socket(PF_INET, SOCK_STREAM, 0);
+    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
         perror("socket");
         return -1;
@@ -427,7 +427,7 @@ static int net_socket_connect_init(VLANState *vlan,
     if (parse_host_port(&saddr, host_str) < 0)
         return -1;
 
-    fd = socket(PF_INET, SOCK_STREAM, 0);
+    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
         perror("socket");
         return -1;

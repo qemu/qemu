@@ -160,7 +160,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
         getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
 		        uaddr,INET6_ADDRSTRLEN,uport,32,
 		        NI_NUMERICHOST | NI_NUMERICSERV);
-        slisten = socket(e->ai_family, e->ai_socktype, e->ai_protocol);
+        slisten = qemu_socket(e->ai_family, e->ai_socktype, e->ai_protocol);
         if (slisten < 0) {
             fprintf(stderr,"%s: socket(%s): %s\n", __FUNCTION__,
                     inet_strfamily(e->ai_family), strerror(errno));
@@ -258,7 +258,7 @@ int inet_connect_opts(QemuOpts *opts)
             fprintf(stderr,"%s: getnameinfo: oops\n", __FUNCTION__);
             continue;
         }
-        sock = socket(e->ai_family, e->ai_socktype, e->ai_protocol);
+        sock = qemu_socket(e->ai_family, e->ai_socktype, e->ai_protocol);
         if (sock < 0) {
             fprintf(stderr,"%s: socket(%s): %s\n", __FUNCTION__,
             inet_strfamily(e->ai_family), strerror(errno));
@@ -351,7 +351,7 @@ int inet_dgram_opts(QemuOpts *opts)
     }
 
     /* create socket */
-    sock = socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol);
+    sock = qemu_socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol);
     if (sock < 0) {
         fprintf(stderr,"%s: socket(%s): %s\n", __FUNCTION__,
                 inet_strfamily(peer->ai_family), strerror(errno));
@@ -505,7 +505,7 @@ int unix_listen_opts(QemuOpts *opts)
     const char *path = qemu_opt_get(opts, "path");
     int sock, fd;
 
-    sock = socket(PF_UNIX, SOCK_STREAM, 0);
+    sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("socket(unix)");
         return -1;
@@ -560,7 +560,7 @@ int unix_connect_opts(QemuOpts *opts)
         return -1;
     }
 
-    sock = socket(PF_UNIX, SOCK_STREAM, 0);
+    sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("socket(unix)");
         return -1;

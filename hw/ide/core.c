@@ -61,8 +61,9 @@ static inline int media_is_cd(IDEState *s)
 }
 
 static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
-static void ide_dma_restart(IDEState *s);
+static void ide_dma_restart(IDEState *s, int is_read);
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
+static int ide_handle_rw_error(IDEState *s, int error, int op);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -407,8 +408,11 @@ static void ide_sector_read(IDEState *s)
             n = s->req_nb_sectors;
         ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
         if (ret != 0) {
-            ide_rw_error(s);
-            return;
+            if (ide_handle_rw_error(s, -ret,
+                BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ))
+            {
+                return;
+            }
         }
         ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_read);
         ide_set_irq(s->bus);
@@ -471,9 +475,10 @@ void ide_dma_error(IDEState *s)
     ide_set_irq(s->bus);
 }
 
-static int ide_handle_write_error(IDEState *s, int error, int op)
+static int ide_handle_rw_error(IDEState *s, int error, int op)
 {
-    BlockInterfaceErrorAction action = drive_get_onerror(s->bs);
+    int is_read = (op & BM_STATUS_RETRY_READ);
+    BlockInterfaceErrorAction action = drive_get_on_error(s->bs, is_read);
 
     if (action == BLOCK_ERR_IGNORE)
         return 0;
@@ -484,7 +489,7 @@ static int ide_handle_write_error(IDEState *s, int error, int op)
         s->bus->bmdma->status |= op;
         vm_stop(0);
     } else {
-        if (op == BM_STATUS_DMA_RETRY) {
+        if (op & BM_STATUS_DMA_RETRY) {
             dma_buf_commit(s, 0);
             ide_dma_error(s);
         } else {
@@ -551,9 +556,11 @@ static void ide_read_dma_cb(void *opaque, int ret)
     int64_t sector_num;
 
     if (ret < 0) {
-        dma_buf_commit(s, 1);
-	ide_dma_error(s);
-	return;
+        if (ide_handle_rw_error(s, -ret,
+            BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ))
+        {
+            return;
+        }
     }
 
     n = s->io_buffer_size >> 9;
@@ -622,7 +629,7 @@ static void ide_sector_write(IDEState *s)
     ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
 
     if (ret != 0) {
-        if (ide_handle_write_error(s, -ret, BM_STATUS_PIO_RETRY))
+        if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY))
             return;
     }
 
@@ -658,16 +665,23 @@ static void ide_sector_write(IDEState *s)
 static void ide_dma_restart_bh(void *opaque)
 {
     BMDMAState *bm = opaque;
+    int is_read;
 
     qemu_bh_delete(bm->bh);
     bm->bh = NULL;
 
+    is_read = !!(bm->status & BM_STATUS_RETRY_READ);
+
     if (bm->status & BM_STATUS_DMA_RETRY) {
-        bm->status &= ~BM_STATUS_DMA_RETRY;
-        ide_dma_restart(bmdma_active_if(bm));
+        bm->status &= ~(BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ);
+        ide_dma_restart(bmdma_active_if(bm), is_read);
     } else if (bm->status & BM_STATUS_PIO_RETRY) {
-        bm->status &= ~BM_STATUS_PIO_RETRY;
-        ide_sector_write(bmdma_active_if(bm));
+        bm->status &= ~(BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ);
+        if (is_read) {
+            ide_sector_read(bmdma_active_if(bm));
+        } else {
+            ide_sector_write(bmdma_active_if(bm));
+        }
     }
 }
 
@@ -692,7 +706,7 @@ static void ide_write_dma_cb(void *opaque, int ret)
     int64_t sector_num;
 
     if (ret < 0) {
-        if (ide_handle_write_error(s, -ret,  BM_STATUS_DMA_RETRY))
+        if (ide_handle_rw_error(s, -ret,  BM_STATUS_DMA_RETRY))
             return;
     }
 
@@ -1236,7 +1250,7 @@ static void ide_atapi_cmd(IDEState *s)
             switch(action) {
             case 0: /* current values */
                 switch(code) {
-                case 0x01: /* error recovery */
+                case GPMODE_R_W_ERROR_PAGE: /* error recovery */
                     cpu_to_ube16(&buf[0], 16 + 6);
                     buf[2] = 0x70;
                     buf[3] = 0;
@@ -1255,7 +1269,24 @@ static void ide_atapi_cmd(IDEState *s)
                     buf[15] = 0x00;
                     ide_atapi_cmd_reply(s, 16, max_len);
                     break;
-                case 0x2a:
+                case GPMODE_AUDIO_CTL_PAGE:
+                    cpu_to_ube16(&buf[0], 24 + 6);
+                    buf[2] = 0x70;
+                    buf[3] = 0;
+                    buf[4] = 0;
+                    buf[5] = 0;
+                    buf[6] = 0;
+                    buf[7] = 0;
+
+                    /* Fill with CDROM audio volume */
+                    buf[17] = 0;
+                    buf[19] = 0;
+                    buf[21] = 0;
+                    buf[23] = 0;
+
+                    ide_atapi_cmd_reply(s, 24, max_len);
+                    break;
+                case GPMODE_CAPABILITIES_PAGE:
                     cpu_to_ube16(&buf[0], 28 + 6);
                     buf[2] = 0x70;
                     buf[3] = 0;
@@ -2715,7 +2746,7 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
     }
 }
 
-static void ide_dma_restart(IDEState *s)
+static void ide_dma_restart(IDEState *s, int is_read)
 {
     BMDMAState *bm = s->bus->bmdma;
     ide_set_sector(s, bm->sector_num);
@@ -2723,7 +2754,13 @@ static void ide_dma_restart(IDEState *s)
     s->io_buffer_size = 0;
     s->nsector = bm->nsector;
     bm->cur_addr = bm->addr;
-    bm->dma_cb = ide_write_dma_cb;
+
+    if (is_read) {
+        bm->dma_cb = ide_read_dma_cb;
+    } else {
+        bm->dma_cb = ide_write_dma_cb;
+    }
+
     ide_dma_start(s, bm->dma_cb);
 }
 

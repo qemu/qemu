@@ -266,7 +266,12 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     sn->l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
     sn->l1_size = s->l1_size;
 
-    l1_table = qemu_malloc(s->l1_size * sizeof(uint64_t));
+    if (s->l1_size != 0) {
+        l1_table = qemu_malloc(s->l1_size * sizeof(uint64_t));
+    } else {
+        l1_table = NULL;
+    }
+
     for(i = 0; i < s->l1_size; i++) {
         l1_table[i] = cpu_to_be64(s->l1_table[i]);
     }

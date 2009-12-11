@@ -39,22 +39,58 @@ static const QType qerror_type = {
  *
  * "running out of foo: %(foo)%%"
  */
-const QErrorStringTable qerror_table[] = {
+static const QErrorStringTable qerror_table[] = {
     {
-        .error_fmt   = QERR_COMMAND_NOT_FOUND,
-        .desc        = "The command %(name) has not been found",
+        .error_fmt = QERR_COMMAND_NOT_FOUND,
+        .desc      = "The command %(name) has not been found",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_FOUND,
-        .desc      = "The %(device) device has not been found",
+        .error_fmt = QERR_DEVICE_ENCRYPTED,
+        .desc      = "The %(device) is encrypted",
+    },
+    {
+        .error_fmt = QERR_DEVICE_LOCKED,
+        .desc      = "Device %(device) is locked",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
         .desc      = "The %(device) device has not been activated by the guest",
     },
     {
-        .error_fmt   = QERR_INVALID_PARAMETER_TYPE,
-        .desc        = "Invalid parameter type, expected: %(expected)",
+        .error_fmt = QERR_DEVICE_NOT_FOUND,
+        .desc      = "The %(device) device has not been found",
+    },
+    {
+        .error_fmt = QERR_DEVICE_NOT_REMOVABLE,
+        .desc      = "Device %(device) is not removable",
+    },
+    {
+        .error_fmt = QERR_FD_NOT_FOUND,
+        .desc      = "Failed to find file descriptor named %(name)",
+    },
+    {
+        .error_fmt = QERR_FD_NOT_SUPPLIED,
+        .desc      = "No file descriptor supplied via SCM_RIGHTS",
+    },
+    {
+        .error_fmt = QERR_INVALID_BLOCK_FORMAT,
+        .desc      = "Invalid block format %(name)",
+    },
+    {
+        .error_fmt = QERR_INVALID_PARAMETER,
+        .desc      = "Invalid parameter %(name)",
+    },
+    {
+        .error_fmt = QERR_INVALID_PARAMETER_TYPE,
+        .desc      = "Invalid parameter type, expected: %(expected)",
+    },
+    {
+        .error_fmt = QERR_INVALID_PASSWORD,
+        .desc      = "The entered password is invalid",
+    },
+    {
+        .error_fmt = QERR_JSON_PARSING,
+        .desc      = "Invalid JSON syntax",
     },
     {
         .error_fmt = QERR_KVM_MISSING_CAP,
@@ -69,12 +105,20 @@ const QErrorStringTable qerror_table[] = {
         .desc      = "Bad QMP input object",
     },
     {
-        .error_fmt = QERR_JSON_PARSING,
-        .desc      = "Invalid JSON synaxt",
+        .error_fmt = QERR_SET_PASSWD_FAILED,
+        .desc      = "Could not set password",
     },
     {
-        .error_fmt   = QERR_UNDEFINED_ERROR,
-        .desc        = "An undefined error has ocurred",
+        .error_fmt = QERR_TOO_MANY_FILES,
+        .desc      = "Too many open files",
+    },
+    {
+        .error_fmt = QERR_UNDEFINED_ERROR,
+        .desc      = "An undefined error has ocurred",
+    },
+    {
+        .error_fmt = QERR_VNC_SERVER_FAILED,
+        .desc      = "Could not start VNC server on %(target)",
     },
     {}
 };
@@ -239,13 +283,11 @@ static const char *append_field(QString *outstr, const QError *qerror,
 }
 
 /**
- * qerror_print(): Print QError data
+ * qerror_human(): Format QError data into human-readable string.
  *
- * This function will print the member 'desc' of the specified QError object,
- * it uses qemu_error() for this, so that the output is routed to the right
- * place (ie. stderr or Monitor's device).
+ * Formats according to member 'desc' of the specified QError object.
  */
-void qerror_print(const QError *qerror)
+QString *qerror_human(const QError *qerror)
 {
     const char *p;
     QString *qstring;
@@ -265,6 +307,19 @@ void qerror_print(const QError *qerror)
         }
     }
 
+    return qstring;
+}
+
+/**
+ * qerror_print(): Print QError data
+ *
+ * This function will print the member 'desc' of the specified QError object,
+ * it uses qemu_error() for this, so that the output is routed to the right
+ * place (ie. stderr or Monitor's device).
+ */
+void qerror_print(const QError *qerror)
+{
+    QString *qstring = qerror_human(qerror);
     qemu_error("%s\n", qstring_get_str(qstring));
     QDECREF(qstring);
 }

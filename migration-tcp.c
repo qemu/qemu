@@ -76,7 +76,8 @@ static void tcp_wait_for_connect(void *opaque)
     }
 }
 
-MigrationState *tcp_start_outgoing_migration(const char *host_port,
+MigrationState *tcp_start_outgoing_migration(Monitor *mon,
+                                             const char *host_port,
                                              int64_t bandwidth_limit,
                                              int detach,
 					     int blk,
@@ -102,9 +103,9 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
     s->mig_state.shared = inc;
 
     s->state = MIG_STATE_ACTIVE;
-    s->mon_resume = NULL;
+    s->mon = NULL;
     s->bandwidth_limit = bandwidth_limit;
-    s->fd = socket(PF_INET, SOCK_STREAM, 0);
+    s->fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s->fd == -1) {
         qemu_free(s);
         return NULL;
@@ -112,8 +113,9 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
 
     socket_set_nonblock(s->fd);
 
-    if (!detach)
-        migrate_fd_monitor_suspend(s);
+    if (!detach) {
+        migrate_fd_monitor_suspend(s, mon);
+    }
 
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
@@ -144,7 +146,7 @@ static void tcp_accept_incoming_migration(void *opaque)
     int c, ret;
 
     do {
-        c = accept(s, (struct sockaddr *)&addr, &addrlen);
+        c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
     } while (c == -1 && socket_error() == EINTR);
 
     dprintf("accepted migration\n");
@@ -191,7 +193,7 @@ int tcp_start_incoming_migration(const char *host_port)
         return -EINVAL;
     }
 
-    s = socket(PF_INET, SOCK_STREAM, 0);
+    s = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s == -1)
         return -socket_error();
 

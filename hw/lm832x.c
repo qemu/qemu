@@ -471,7 +471,6 @@ static int lm8323_init(i2c_slave *i2c)
     lm_kbd_reset(s);
 
     qemu_register_reset((void *) lm_kbd_reset, s);
-    vmstate_register(-1, &vmstate_lm_kbd, s);
     return 0;
 }
 
@@ -498,6 +497,7 @@ void lm832x_key_event(struct i2c_slave *i2c, int key, int state)
 static I2CSlaveInfo lm8323_info = {
     .qdev.name = "lm8323",
     .qdev.size = sizeof(LM823KbdState),
+    .qdev.vmsd = &vmstate_lm_kbd,
     .init = lm8323_init,
     .event = lm_i2c_event,
     .recv = lm_i2c_rx,

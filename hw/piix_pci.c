@@ -198,7 +198,6 @@ static int i440fx_initfn(PCIDevice *dev)
 
     d->dev.config[0x72] = 0x02; /* SMRAM */
 
-    vmstate_register(0, &vmstate_i440fx, d);
     return 0;
 }
 
@@ -312,7 +311,6 @@ static int piix3_initfn(PCIDevice *dev)
     uint8_t *pci_conf;
 
     isa_bus_new(&d->dev.qdev);
-    vmstate_register(0, &vmstate_piix3, d);
 
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
@@ -330,6 +328,7 @@ static PCIDeviceInfo i440fx_info[] = {
         .qdev.name    = "i440FX",
         .qdev.desc    = "Host bridge",
         .qdev.size    = sizeof(PCII440FXState),
+        .qdev.vmsd    = &vmstate_i440fx,
         .qdev.no_user = 1,
         .init         = i440fx_initfn,
         .config_write = i440fx_write_config,
@@ -337,6 +336,7 @@ static PCIDeviceInfo i440fx_info[] = {
         .qdev.name    = "PIIX3",
         .qdev.desc    = "ISA bridge",
         .qdev.size    = sizeof(PIIX3State),
+        .qdev.vmsd    = &vmstate_piix3,
         .qdev.no_user = 1,
         .init         = piix3_initfn,
     },{

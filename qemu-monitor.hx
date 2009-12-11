@@ -147,7 +147,8 @@ ETEXI
         .args_type  = "device:B,target:F,arg:s?",
         .params     = "device filename [format]",
         .help       = "change a removable medium, optional format",
-        .mhandler.cmd = do_change,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_change,
     },
 
 STEXI
@@ -1045,6 +1046,20 @@ STEXI
 Close the file descriptor previously assigned to @var{fdname} using the
 @code{getfd} command. This is only needed if the file descriptor was never
 used by another monitor command.
+ETEXI
+
+    {
+        .name       = "block_passwd",
+        .args_type  = "device:B,password:s",
+        .params     = "block_passwd device password",
+        .help       = "set the password of encrypted block devices",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_block_set_passwd,
+    },
+
+STEXI
+@item block_passwd @var{device} @var{password}
+Set the encrypted device @var{device} password to @var{password}
 ETEXI
 
 STEXI

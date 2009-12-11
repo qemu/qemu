@@ -622,7 +622,6 @@ static int wm8750_init(i2c_slave *i2c)
     AUD_register_card(CODEC, &s->card);
     wm8750_reset(&s->i2c);
 
-    vmstate_register(-1, &vmstate_wm8750, s);
     return 0;
 }
 
@@ -699,6 +698,7 @@ void wm8750_set_bclk_in(void *opaque, int new_hz)
 static I2CSlaveInfo wm8750_info = {
     .qdev.name = "wm8750",
     .qdev.size = sizeof(WM8750State),
+    .qdev.vmsd = &vmstate_wm8750,
     .init = wm8750_init,
     .event = wm8750_event,
     .recv = wm8750_rx,

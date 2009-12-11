@@ -416,8 +416,6 @@ static int i6300esb_init(PCIDevice *dev)
     pci_register_bar(&d->dev, 0, 0x10,
                             PCI_BASE_ADDRESS_SPACE_MEMORY, i6300esb_map);
 
-    vmstate_register(-1, &vmstate_i6300esb, d);
-
     return 0;
 }
 
@@ -429,6 +427,7 @@ static WatchdogTimerModel model = {
 static PCIDeviceInfo i6300esb_info = {
     .qdev.name    = "i6300esb",
     .qdev.size    = sizeof(I6300State),
+    .qdev.vmsd    = &vmstate_i6300esb,
     .config_read  = i6300esb_config_read,
     .config_write = i6300esb_config_write,
     .init         = i6300esb_init,

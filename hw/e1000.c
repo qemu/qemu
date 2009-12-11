@@ -89,6 +89,7 @@ typedef struct E1000State_st {
     struct e1000_tx {
         unsigned char header[256];
         unsigned char vlan_header[4];
+        /* Fields vlan and data must not be reordered or separated. */
         unsigned char vlan[4];
         unsigned char data[0x10000];
         uint16_t size;
@@ -383,7 +384,8 @@ xmit_seg(E1000State *s)
     if (tp->sum_needed & E1000_TXD_POPTS_IXSM)
         putsum(tp->data, tp->size, tp->ipcso, tp->ipcss, tp->ipcse);
     if (tp->vlan_needed) {
-        memmove(tp->vlan, tp->data, 12);
+        memmove(tp->vlan, tp->data, 4);
+        memmove(tp->data, tp->data + 4, 8);
         memcpy(tp->data + 8, tp->vlan_header, 4);
         qemu_send_packet(&s->nic->nc, tp->vlan, tp->size + 4);
     } else
@@ -1051,7 +1053,6 @@ pci_e1000_uninit(PCIDevice *dev)
 
     cpu_unregister_io_memory(d->mmio_index);
     qemu_del_vlan_client(&d->nic->nc);
-    vmstate_unregister(&vmstate_e1000, d);
     return 0;
 }
 
@@ -1121,8 +1122,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     qemu_format_nic_info_str(&d->nic->nc, macaddr);
 
-    vmstate_register(-1, &vmstate_e1000, d);
-
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
@@ -1144,6 +1143,7 @@ static PCIDeviceInfo e1000_info = {
     .qdev.desc  = "Intel Gigabit Ethernet",
     .qdev.size  = sizeof(E1000State),
     .qdev.reset = qdev_e1000_reset,
+    .qdev.vmsd  = &vmstate_e1000,
     .init       = pci_e1000_init,
     .exit       = pci_e1000_uninit,
     .qdev.props = (Property[]) {

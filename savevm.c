@@ -959,13 +959,27 @@ const VMStateInfo vmstate_info_buffer = {
 
 static int get_unused_buffer(QEMUFile *f, void *pv, size_t size)
 {
-    qemu_fseek(f, size, SEEK_CUR);
-    return 0;
+    uint8_t buf[1024];
+    int block_len;
+
+    while (size > 0) {
+        block_len = MIN(sizeof(buf), size);
+        size -= block_len;
+        qemu_get_buffer(f, buf, block_len);
+    }
+   return 0;
 }
 
 static void put_unused_buffer(QEMUFile *f, void *pv, size_t size)
 {
-    qemu_fseek(f, size, SEEK_CUR);
+    static const uint8_t buf[1024];
+    int block_len;
+
+    while (size > 0) {
+        block_len = MIN(sizeof(buf), size);
+        size -= block_len;
+        qemu_put_buffer(f, buf, block_len);
+    }
 }
 
 const VMStateInfo vmstate_info_unused_buffer = {
@@ -1129,7 +1143,14 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->version_id <= version_id)) {
             void *base_addr = opaque + field->offset;
             int ret, i, n_elems = 1;
+            int size = field->size;
 
+            if (field->flags & VMS_VBUFFER) {
+                size = *(int32_t *)(opaque+field->size_offset);
+                if (field->flags & VMS_MULTIPLY) {
+                    size *= field->size;
+                }
+            }
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
             } else if (field->flags & VMS_VARRAY_INT32) {
@@ -1138,10 +1159,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
-                base_addr = *(void **)base_addr;
+                base_addr = *(void **)base_addr + field->start;
             }
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + field->size * i;
+                void *addr = base_addr + size * i;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     addr = *(void **)addr;
@@ -1149,7 +1170,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 if (field->flags & VMS_STRUCT) {
                     ret = vmstate_load_state(f, field->vmsd, addr, field->vmsd->version_id);
                 } else {
-                    ret = field->info->get(f, addr, field->size);
+                    ret = field->info->get(f, addr, size);
 
                 }
                 if (ret < 0) {
@@ -1178,7 +1199,14 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             field->field_exists(opaque, vmsd->version_id)) {
             void *base_addr = opaque + field->offset;
             int i, n_elems = 1;
+            int size = field->size;
 
+            if (field->flags & VMS_VBUFFER) {
+                size = *(int32_t *)(opaque+field->size_offset);
+                if (field->flags & VMS_MULTIPLY) {
+                    size *= field->size;
+                }
+            }
             if (field->flags & VMS_ARRAY) {
                 n_elems = field->num;
             } else if (field->flags & VMS_VARRAY_INT32) {
@@ -1187,15 +1215,18 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
-                base_addr = *(void **)base_addr;
+                base_addr = *(void **)base_addr + field->start;
             }
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + field->size * i;
+                void *addr = base_addr + size * i;
 
+                if (field->flags & VMS_ARRAY_OF_POINTER) {
+                    addr = *(void **)addr;
+                }
                 if (field->flags & VMS_STRUCT) {
                     vmstate_save_state(f, field->vmsd, addr);
                 } else {
-                    field->info->put(f, addr, field->size);
+                    field->info->put(f, addr, size);
                 }
             }
         }
@@ -1233,7 +1264,8 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 #define QEMU_VM_SECTION_END          0x03
 #define QEMU_VM_SECTION_FULL         0x04
 
-int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
+int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
+                            int shared)
 {
     SaveStateEntry *se;
 
@@ -1265,16 +1297,18 @@ int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        se->save_live_state(f, QEMU_VM_SECTION_START, se->opaque);
+        se->save_live_state(mon, f, QEMU_VM_SECTION_START, se->opaque);
     }
 
-    if (qemu_file_has_error(f))
+    if (qemu_file_has_error(f)) {
+        qemu_savevm_state_cancel(mon, f);
         return -EIO;
+    }
 
     return 0;
 }
 
-int qemu_savevm_state_iterate(QEMUFile *f)
+int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret = 1;
@@ -1287,19 +1321,28 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
-        ret &= !!se->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
+        ret = se->save_live_state(mon, f, QEMU_VM_SECTION_PART, se->opaque);
+        if (!ret) {
+            /* Do not proceed to the next vmstate before this one reported
+               completion of the current stage. This serializes the migration
+               and reduces the probability that a faster changing state is
+               synchronized over and over again. */
+            break;
+        }
     }
 
     if (ret)
         return 1;
 
-    if (qemu_file_has_error(f))
+    if (qemu_file_has_error(f)) {
+        qemu_savevm_state_cancel(mon, f);
         return -EIO;
+    }
 
     return 0;
 }
 
-int qemu_savevm_state_complete(QEMUFile *f)
+int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
 {
     SaveStateEntry *se;
 
@@ -1311,7 +1354,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
-        se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
+        se->save_live_state(mon, f, QEMU_VM_SECTION_END, se->opaque);
     }
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
@@ -1343,7 +1386,18 @@ int qemu_savevm_state_complete(QEMUFile *f)
     return 0;
 }
 
-int qemu_savevm_state(QEMUFile *f)
+void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if (se->save_live_state) {
+            se->save_live_state(mon, f, -1, se->opaque);
+        }
+    }
+}
+
+static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
 {
     int saved_vm_running;
     int ret;
@@ -1353,17 +1407,17 @@ int qemu_savevm_state(QEMUFile *f)
 
     bdrv_flush_all();
 
-    ret = qemu_savevm_state_begin(f, 0, 0);
+    ret = qemu_savevm_state_begin(mon, f, 0, 0);
     if (ret < 0)
         goto out;
 
     do {
-        ret = qemu_savevm_state_iterate(f);
+        ret = qemu_savevm_state_iterate(mon, f);
         if (ret < 0)
             goto out;
     } while (ret == 0);
 
-    ret = qemu_savevm_state_complete(f);
+    ret = qemu_savevm_state_complete(mon, f);
 
 out:
     if (qemu_file_has_error(f))
@@ -1652,7 +1706,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
     }
-    ret = qemu_savevm_state(f);
+    ret = qemu_savevm_state(mon, f);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {

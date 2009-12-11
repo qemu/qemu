@@ -1952,7 +1952,6 @@ static int pci_pcnet_uninit(PCIDevice *dev)
     PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, dev);
 
     cpu_unregister_io_memory(d->state.mmio_index);
-    vmstate_unregister(&vmstate_pci_pcnet, d);
     qemu_del_timer(d->state.poll_timer);
     qemu_free_timer(d->state.poll_timer);
     qemu_del_vlan_client(&d->state.nic->nc);
@@ -2010,8 +2009,6 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
 
-    vmstate_register(-1, &vmstate_pci_pcnet, d);
-
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
@@ -2034,6 +2031,7 @@ static PCIDeviceInfo pcnet_info = {
     .qdev.name  = "pcnet",
     .qdev.size  = sizeof(PCIPCNetState),
     .qdev.reset = pci_reset,
+    .qdev.vmsd  = &vmstate_pci_pcnet,
     .init       = pci_pcnet_init,
     .exit       = pci_pcnet_uninit,
     .qdev.props = (Property[]) {

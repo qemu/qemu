@@ -2447,7 +2447,13 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
     size = TARGET_PAGE_ALIGN(size);
     new_block = qemu_malloc(sizeof(*new_block));
 
+#if defined(TARGET_S390X) && defined(CONFIG_KVM)
+    /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
+    new_block->host = mmap((void*)0x1000000, size, PROT_EXEC|PROT_READ|PROT_WRITE,
+                           MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+#else
     new_block->host = qemu_vmalloc(size);
+#endif
 #ifdef MADV_MERGEABLE
     madvise(new_block->host, size, MADV_MERGEABLE);
 #endif

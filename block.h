@@ -41,6 +41,10 @@ typedef struct QEMUSnapshotInfo {
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB)
 
+#define BDRV_SECTOR_BITS   9
+#define BDRV_SECTOR_SIZE   (1 << BDRV_SECTOR_BITS)
+#define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1);
+
 void bdrv_info(Monitor *mon);
 void bdrv_info_stats(Monitor *mon);
 
@@ -188,9 +192,10 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
 
+#define BDRV_SECTORS_PER_DIRTY_CHUNK 2048
+
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, 
-		      int nr_sectors);
-int bdrv_get_sectors_per_chunk(void);
+void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
+                      int nr_sectors);
 #endif

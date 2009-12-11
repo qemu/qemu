@@ -593,6 +593,7 @@ static int do_strex(CPUARMState *env)
     }
     rc = 0;
 fail:
+    env->regs[15] += 4;
     env->regs[(env->exclusive_info >> 4) & 0xf] = rc;
 done:
     end_exclusive();

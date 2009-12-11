@@ -102,11 +102,11 @@ copy_kernel:
 	mov		$1, %eax
 	mov		%eax, %cr0
 
-	/* So we can set DS to a 32-bit segment */
+	/* So we can set ES to a 32-bit segment */
 	mov		$0x10, %eax
-	mov		%eax, %ds
+	mov		%eax, %es
 
-	/* We're now running in 16-bit CS, but 32-bit DS! */
+	/* We're now running in 16-bit CS, but 32-bit ES! */
 
 	/* Load kernel and initrd */
 	read_fw_blob(FW_CFG_KERNEL)
@@ -118,9 +118,9 @@ copy_kernel:
 	mov		$0, %eax
 	mov		%eax, %cr0
 
-	/* DS = CS */
+	/* ES = CS */
 	mov		%cs, %ax
-	mov		%ax, %ds
+	mov		%ax, %es
 
 	jmp		boot_kernel
 

@@ -3300,7 +3300,6 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
 #endif
-    vmstate_unregister(&vmstate_rtl8139, s);
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
@@ -3348,8 +3347,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->cplus_txbuffer_len = 0;
     s->cplus_txbuffer_offset = 0;
 
-    vmstate_register(-1, &vmstate_rtl8139, s);
-
 #ifdef RTL8139_ONBOARD_TIMER
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);
 
@@ -3371,6 +3368,7 @@ static PCIDeviceInfo rtl8139_info = {
     .qdev.name  = "rtl8139",
     .qdev.size  = sizeof(RTL8139State),
     .qdev.reset = rtl8139_reset,
+    .qdev.vmsd  = &vmstate_rtl8139,
     .init       = pci_rtl8139_init,
     .exit       = pci_rtl8139_uninit,
     .qdev.props = (Property[]) {

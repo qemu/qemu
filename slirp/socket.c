@@ -626,7 +626,7 @@ tcp_listen(Slirp *slirp, u_int32_t haddr, u_int hport, u_int32_t laddr,
 	addr.sin_addr.s_addr = haddr;
 	addr.sin_port = hport;
 
-	if (((s = socket(AF_INET,SOCK_STREAM,0)) < 0) ||
+	if (((s = qemu_socket(AF_INET,SOCK_STREAM,0)) < 0) ||
 	    (setsockopt(s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int)) < 0) ||
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {

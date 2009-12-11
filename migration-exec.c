@@ -52,7 +52,8 @@ static int exec_close(FdMigrationState *s)
     return 0;
 }
 
-MigrationState *exec_start_outgoing_migration(const char *command,
+MigrationState *exec_start_outgoing_migration(Monitor *mon,
+                                              const char *command,
 					      int64_t bandwidth_limit,
 					      int detach,
 					      int blk,
@@ -88,13 +89,14 @@ MigrationState *exec_start_outgoing_migration(const char *command,
 
     s->mig_state.blk = blk;
     s->mig_state.shared = inc;
-    
+
     s->state = MIG_STATE_ACTIVE;
-    s->mon_resume = NULL;
+    s->mon = NULL;
     s->bandwidth_limit = bandwidth_limit;
 
-    if (!detach)
-        migrate_fd_monitor_suspend(s);
+    if (!detach) {
+        migrate_fd_monitor_suspend(s, mon);
+    }
 
     migrate_fd_connect(s);
     return &s->mig_state;

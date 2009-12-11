@@ -72,9 +72,9 @@ static void QEMU_NORETURN help(void)
            "Command parameters:\n"
            "  'filename' is a disk image filename\n"
            "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
-           "  'size' is the disk image size in kilobytes. Optional suffixes\n"
-           "    'M' (megabyte, 1024 * 1024) and 'G' (gigabyte, 1024 * 1024 * 1024) are\n"
-           "    supported any 'k' or 'K' is ignored\n"
+           "  'size' is the disk image size in bytes. Optional suffixes\n"
+           "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M)\n"
+           "    and T (terabyte, 1024G) are supported. 'b' is ignored.\n"
            "  'output_filename' is the destination disk image filename\n"
            "  'output_fmt' is the destination format\n"
            "  'options' is a comma separated list of format specific options in a\n"
@@ -607,6 +607,7 @@ static int img_convert(int argc, char **argv)
 
     if (options && !strcmp(options, "?")) {
         print_option_help(drv->create_options);
+        free(bs);
         return 0;
     }
 
@@ -743,7 +744,7 @@ static int img_convert(int argc, char **argv)
             if (n > bs_offset + bs_sectors - sector_num)
                 n = bs_offset + bs_sectors - sector_num;
 
-            if (strcmp(drv->format_name, "host_device")) {
+            if (!drv->no_zero_init) {
                 /* If the output image is being created as a copy on write image,
                    assume that sectors which are unallocated in the input image
                    are present in both the output's and input's base images (no
@@ -776,7 +777,7 @@ static int img_convert(int argc, char **argv)
                    If the output is to a host device, we also write out
                    sectors that are entirely 0, since whatever data was
                    already there is garbage, not 0s. */
-                if (strcmp(drv->format_name, "host_device") == 0 || out_baseimg ||
+                if (drv->no_zero_init || out_baseimg ||
                     is_allocated_sectors(buf1, n, &n1)) {
                     if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");

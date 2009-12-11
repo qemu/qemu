@@ -62,6 +62,9 @@ run_multiboot:
 	add		%eax, %ebx
 	movl		%ebx, %gs:GS_GDT_DESC + 2
 
+	xor		%eax, %eax
+	mov		%eax, %es
+
 	/* Read the bootinfo struct into RAM */
 	read_fw_blob(FW_CFG_INITRD)
 
@@ -71,7 +74,7 @@ run_multiboot:
 	mov		%ax, %fs
 
 	/* ES = mmap_addr */
-	mov		%eax, %fs:0x48
+	mov 		%fs:48, %eax
 	shr		$4, %eax
 	mov		%ax, %es
 

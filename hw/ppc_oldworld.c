@@ -39,6 +39,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
+#include "kvm.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -162,6 +163,9 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
         envs[i] = env;
     }
+
+    /* Make sure all register sets take effect */
+    cpu_synchronize_state(env);
 
     /* allocate RAM */
     if (ram_size > (2047 << 20)) {

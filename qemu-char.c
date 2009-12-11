@@ -620,7 +620,7 @@ static CharDriverState *qemu_chr_open_file_out(QemuOpts *opts)
 {
     int fd_out;
 
-    TFR(fd_out = open(qemu_opt_get(opts, "path"),
+    TFR(fd_out = qemu_open(qemu_opt_get(opts, "path"),
                       O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666));
     if (fd_out < 0)
         return NULL;
@@ -640,8 +640,8 @@ static CharDriverState *qemu_chr_open_pipe(QemuOpts *opts)
 
     snprintf(filename_in, 256, "%s.in", filename);
     snprintf(filename_out, 256, "%s.out", filename);
-    TFR(fd_in = open(filename_in, O_RDWR | O_BINARY));
-    TFR(fd_out = open(filename_out, O_RDWR | O_BINARY));
+    TFR(fd_in = qemu_open(filename_in, O_RDWR | O_BINARY));
+    TFR(fd_out = qemu_open(filename_out, O_RDWR | O_BINARY));
     if (fd_in < 0 || fd_out < 0) {
 	if (fd_in >= 0)
 	    close(fd_in);
@@ -2101,7 +2101,7 @@ static void tcp_chr_accept(void *opaque)
 	    len = sizeof(saddr);
 	    addr = (struct sockaddr *)&saddr;
 	}
-        fd = accept(s->listen_fd, addr, &len);
+        fd = qemu_accept(s->listen_fd, addr, &len);
         if (fd < 0 && errno != EINTR) {
             return;
         } else if (fd >= 0) {

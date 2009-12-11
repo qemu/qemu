@@ -664,7 +664,7 @@ const VMStateDescription vmstate_ne2000 = {
     }
 };
 
-const VMStateDescription vmstate_pci_ne2000 = {
+static const VMStateDescription vmstate_pci_ne2000 = {
     .name = "ne2000",
     .version_id = 3,
     .minimum_version_id = 3,
@@ -751,7 +751,6 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
         }
     }
 
-    vmstate_register(-1, &vmstate_pci_ne2000, d);
     return 0;
 }
 
@@ -760,7 +759,6 @@ static int pci_ne2000_exit(PCIDevice *pci_dev)
     PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s = &d->ne2000;
 
-    vmstate_unregister(&vmstate_pci_ne2000, s);
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
@@ -768,6 +766,7 @@ static int pci_ne2000_exit(PCIDevice *pci_dev)
 static PCIDeviceInfo ne2000_info = {
     .qdev.name  = "ne2k_pci",
     .qdev.size  = sizeof(PCINE2000State),
+    .qdev.vmsd  = &vmstate_pci_ne2000,
     .init       = pci_ne2000_init,
     .exit       = pci_ne2000_exit,
     .qdev.props = (Property[]) {

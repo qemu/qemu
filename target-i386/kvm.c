@@ -228,6 +228,8 @@ int kvm_arch_init_vcpu(CPUState *env)
 void kvm_arch_reset_vcpu(CPUState *env)
 {
     env->interrupt_injected = -1;
+    env->nmi_injected = 0;
+    env->nmi_pending = 0;
 }
 
 static int kvm_has_msr_star(CPUState *env)
@@ -245,9 +247,9 @@ static int kvm_has_msr_star(CPUState *env)
          * save/restore */
         msr_list.nmsrs = 0;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, &msr_list);
-        if (ret < 0)
+        if (ret < 0 && ret != -E2BIG) {
             return 0;
-
+        }
         /* Old kernel modules had a bug and could write beyond the provided
            memory. Allocate at least a safe amount of 1K. */
         kvm_msr_list = qemu_mallocz(MAX(1024, sizeof(msr_list) +
@@ -697,6 +699,73 @@ static int kvm_get_mp_state(CPUState *env)
     return 0;
 }
 
+static int kvm_put_vcpu_events(CPUState *env)
+{
+#ifdef KVM_CAP_VCPU_EVENTS
+    struct kvm_vcpu_events events;
+
+    if (!kvm_has_vcpu_events()) {
+        return 0;
+    }
+
+    events.exception.injected = (env->exception_index >= 0);
+    events.exception.nr = env->exception_index;
+    events.exception.has_error_code = env->has_error_code;
+    events.exception.error_code = env->error_code;
+
+    events.interrupt.injected = (env->interrupt_injected >= 0);
+    events.interrupt.nr = env->interrupt_injected;
+    events.interrupt.soft = env->soft_interrupt;
+
+    events.nmi.injected = env->nmi_injected;
+    events.nmi.pending = env->nmi_pending;
+    events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
+
+    events.sipi_vector = env->sipi_vector;
+
+    return kvm_vcpu_ioctl(env, KVM_SET_VCPU_EVENTS, &events);
+#else
+    return 0;
+#endif
+}
+
+static int kvm_get_vcpu_events(CPUState *env)
+{
+#ifdef KVM_CAP_VCPU_EVENTS
+    struct kvm_vcpu_events events;
+    int ret;
+
+    if (!kvm_has_vcpu_events()) {
+        return 0;
+    }
+
+    ret = kvm_vcpu_ioctl(env, KVM_GET_VCPU_EVENTS, &events);
+    if (ret < 0) {
+       return ret;
+    }
+    env->exception_index =
+       events.exception.injected ? events.exception.nr : -1;
+    env->has_error_code = events.exception.has_error_code;
+    env->error_code = events.exception.error_code;
+
+    env->interrupt_injected =
+        events.interrupt.injected ? events.interrupt.nr : -1;
+    env->soft_interrupt = events.interrupt.soft;
+
+    env->nmi_injected = events.nmi.injected;
+    env->nmi_pending = events.nmi.pending;
+    if (events.nmi.masked) {
+        env->hflags2 |= HF2_NMI_MASK;
+    } else {
+        env->hflags2 &= ~HF2_NMI_MASK;
+    }
+
+    env->sipi_vector = events.sipi_vector;
+#endif
+
+    return 0;
+}
+
 int kvm_arch_put_registers(CPUState *env)
 {
     int ret;
@@ -721,7 +790,7 @@ int kvm_arch_put_registers(CPUState *env)
     if (ret < 0)
         return ret;
 
-    ret = kvm_get_mp_state(env);
+    ret = kvm_put_vcpu_events(env);
     if (ret < 0)
         return ret;
 
@@ -745,6 +814,14 @@ int kvm_arch_get_registers(CPUState *env)
         return ret;
 
     ret = kvm_get_msrs(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_get_mp_state(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_get_vcpu_events(env);
     if (ret < 0)
         return ret;
 

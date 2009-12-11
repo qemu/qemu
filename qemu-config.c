@@ -65,6 +65,9 @@ QemuOptsList qemu_drive_opts = {
             .name = "serial",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "rerror",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "werror",
             .type = QEMU_OPT_STRING,
         },{

@@ -197,6 +197,10 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "bootp.h"
 #include "tftp.h"
 
+/* osdep.c */
+int qemu_socket(int domain, int type, int protocol);
+
+
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
 

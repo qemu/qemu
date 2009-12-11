@@ -1973,7 +1973,7 @@ static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
 {
     LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
 
-    DPRINTF("Mapping IO at %08x\n", addr);
+    DPRINTF("Mapping IO at %08"FMT_PCIBUS"\n", addr);
 
     register_ioport_write(addr, 256, 1, lsi_io_writeb, s);
     register_ioport_read(addr, 256, 1, lsi_io_readb, s);
@@ -1988,7 +1988,7 @@ static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
 {
     LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
 
-    DPRINTF("Mapping ram at %08x\n", addr);
+    DPRINTF("Mapping ram at %08"FMT_PCIBUS"\n", addr);
     s->script_ram_base = addr;
     cpu_register_physical_memory(addr + 0, 0x2000, s->ram_io_addr);
 }
@@ -1998,7 +1998,7 @@ static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
 {
     LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
 
-    DPRINTF("Mapping registers at %08x\n", addr);
+    DPRINTF("Mapping registers at %08"FMT_PCIBUS"\n", addr);
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
 }
 
@@ -2148,7 +2148,6 @@ static int lsi_scsi_init(PCIDevice *dev)
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
-    vmstate_register(-1, &vmstate_lsi_scsi, s);
     return 0;
 }
 
@@ -2156,6 +2155,7 @@ static PCIDeviceInfo lsi_info = {
     .qdev.name  = "lsi53c895a",
     .qdev.alias = "lsi",
     .qdev.size  = sizeof(LSIState),
+    .qdev.vmsd  = &vmstate_lsi_scsi,
     .init       = lsi_scsi_init,
     .exit       = lsi_scsi_uninit,
 };

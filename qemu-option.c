@@ -481,7 +481,7 @@ struct QemuOpt {
 };
 
 struct QemuOpts {
-    const char *id;
+    char *id;
     QemuOptsList *list;
     QTAILQ_HEAD(QemuOptHead, QemuOpt) head;
     QTAILQ_ENTRY(QemuOpts) next;
@@ -686,6 +686,7 @@ void qemu_opts_del(QemuOpts *opts)
         qemu_opt_del(opt);
     }
     QTAILQ_REMOVE(&opts->list->head, opts, next);
+    qemu_free(opts->id);
     qemu_free(opts);
 }
 

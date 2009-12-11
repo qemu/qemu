@@ -82,13 +82,14 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 
     s->mig_state.blk = blk;
     s->mig_state.shared = inc;
-    
+
     s->state = MIG_STATE_ACTIVE;
-    s->mon_resume = NULL;
+    s->mon = NULL;
     s->bandwidth_limit = bandwidth_limit;
 
-    if (!detach)
-        migrate_fd_monitor_suspend(s);
+    if (!detach) {
+        migrate_fd_monitor_suspend(s, mon);
+    }
 
     migrate_fd_connect(s);
     return &s->mig_state;

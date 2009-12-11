@@ -126,12 +126,12 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #ifdef DEBUG_EXT
             printf("Qcow2: Got format extension %s\n", bs->backing_format);
 #endif
-            offset += ((ext.len + 7) & ~7);
+            offset = ((offset + ext.len + 7) & ~7);
             break;
 
         default:
             /* unknown magic -- just skip it */
-            offset += ((ext.len + 7) & ~7);
+            offset = ((offset + ext.len + 7) & ~7);
             break;
         }
     }
@@ -740,6 +740,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
 
     int fd, header_size, backing_filename_len, l1_size, i, shift, l2_bits;
     int ref_clusters, backing_format_len = 0;
+    int rounded_ext_bf_len = 0;
     QCowHeader header;
     uint64_t tmp, offset;
     QCowCreateState s1, *s = &s1;
@@ -761,8 +762,9 @@ static int qcow_create2(const char *filename, int64_t total_size,
         if (backing_format) {
             ext_bf.magic = QCOW_EXT_MAGIC_BACKING_FORMAT;
             backing_format_len = strlen(backing_format);
-            ext_bf.len = (backing_format_len + 7) & ~7;
-            header_size += ((sizeof(ext_bf) + ext_bf.len + 7) & ~7);
+            ext_bf.len = backing_format_len;
+            rounded_ext_bf_len = (sizeof(ext_bf) + ext_bf.len + 7) & ~7;
+            header_size += rounded_ext_bf_len;
         }
         header.backing_file_offset = cpu_to_be64(header_size);
         backing_filename_len = strlen(backing_file);
@@ -830,15 +832,15 @@ static int qcow_create2(const char *filename, int64_t total_size,
     if (backing_file) {
         if (backing_format_len) {
             char zero[16];
-            int d = ext_bf.len - backing_format_len;
+            int padding = rounded_ext_bf_len - (ext_bf.len + sizeof(ext_bf));
 
             memset(zero, 0, sizeof(zero));
             cpu_to_be32s(&ext_bf.magic);
             cpu_to_be32s(&ext_bf.len);
             write(fd, &ext_bf, sizeof(ext_bf));
             write(fd, backing_format, backing_format_len);
-            if (d>0) {
-                write(fd, zero, d);
+            if (padding > 0) {
+                write(fd, zero, padding);
             }
         }
         write(fd, backing_file, backing_filename_len);

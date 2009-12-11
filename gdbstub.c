@@ -1348,6 +1348,55 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 
     return 8;
 }
+#elif defined (TARGET_S390X)
+
+#define NUM_CORE_REGS S390_NUM_TOTAL_REGS
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+        case S390_PSWM_REGNUM: GET_REGL(env->psw.mask); break;
+        case S390_PSWA_REGNUM: GET_REGL(env->psw.addr); break;
+        case S390_R0_REGNUM ... S390_R15_REGNUM:
+            GET_REGL(env->regs[n-S390_R0_REGNUM]); break;
+        case S390_A0_REGNUM ... S390_A15_REGNUM:
+            GET_REG32(env->aregs[n-S390_A0_REGNUM]); break;
+        case S390_FPC_REGNUM: GET_REG32(env->fpc); break;
+        case S390_F0_REGNUM ... S390_F15_REGNUM:
+            /* XXX */
+            break;
+        case S390_PC_REGNUM: GET_REGL(env->psw.addr); break;
+        case S390_CC_REGNUM: GET_REG32(env->cc); break;
+    }
+
+    return 0;
+}
+
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    target_ulong tmpl;
+    uint32_t tmp32;
+    int r = 8;
+    tmpl = ldtul_p(mem_buf);
+    tmp32 = ldl_p(mem_buf);
+
+    switch (n) {
+        case S390_PSWM_REGNUM: env->psw.mask = tmpl; break;
+        case S390_PSWA_REGNUM: env->psw.addr = tmpl; break;
+        case S390_R0_REGNUM ... S390_R15_REGNUM:
+            env->regs[n-S390_R0_REGNUM] = tmpl; break;
+        case S390_A0_REGNUM ... S390_A15_REGNUM:
+            env->aregs[n-S390_A0_REGNUM] = tmp32; r=4; break;
+        case S390_FPC_REGNUM: env->fpc = tmp32; r=4; break;
+        case S390_F0_REGNUM ... S390_F15_REGNUM:
+            /* XXX */
+            break;
+        case S390_PC_REGNUM: env->psw.addr = tmpl; break;
+        case S390_CC_REGNUM: env->cc = tmp32; r=4; break;
+    }
+
+    return r;
+}
 #else
 
 #define NUM_CORE_REGS 0
@@ -1616,6 +1665,9 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
     s->c_cpu->pc = pc;
 #elif defined (TARGET_ALPHA)
     s->c_cpu->pc = pc;
+#elif defined (TARGET_S390X)
+    cpu_synchronize_state(s->c_cpu);
+    s->c_cpu->psw.addr = pc;
 #endif
 }
 
@@ -2356,6 +2408,9 @@ static void gdb_accept(void)
             perror("accept");
             return;
         } else if (fd >= 0) {
+#ifndef _WIN32
+            fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
             break;
         }
     }
@@ -2385,6 +2440,9 @@ static int gdbserver_open(int port)
         perror("socket");
         return -1;
     }
+#ifndef _WIN32
+    fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
 
     /* allow fast reuse */
     val = 1;

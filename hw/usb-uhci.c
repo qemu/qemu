@@ -1086,7 +1086,6 @@ static int usb_uhci_common_initfn(UHCIState *s)
     pci_register_bar(&s->dev, 4, 0x20,
                            PCI_BASE_ADDRESS_SPACE_IO, uhci_map);
 
-    vmstate_register(0, &vmstate_uhci, s);
     return 0;
 }
 
@@ -1114,10 +1113,12 @@ static PCIDeviceInfo uhci_info[] = {
     {
         .qdev.name    = "PIIX3 USB-UHCI",
         .qdev.size    = sizeof(UHCIState),
+        .qdev.vmsd    = &vmstate_uhci,
         .init         = usb_uhci_piix3_initfn,
     },{
         .qdev.name    = "PIIX4 USB-UHCI",
         .qdev.size    = sizeof(UHCIState),
+        .qdev.vmsd    = &vmstate_uhci,
         .init         = usb_uhci_piix4_initfn,
     },{
         /* end of list */

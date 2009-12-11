@@ -1063,7 +1063,7 @@ static int vmsvga_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_vmware_vga_internal = {
+static const VMStateDescription vmstate_vmware_vga_internal = {
     .name = "vmware_vga_internal",
     .version_id = 0,
     .minimum_version_id = 0,
@@ -1090,7 +1090,7 @@ const VMStateDescription vmstate_vmware_vga_internal = {
     }
 };
 
-const VMStateDescription vmstate_vmware_vga = {
+static const VMStateDescription vmstate_vmware_vga = {
     .name = "vmware_vga",
     .version_id = 0,
     .minimum_version_id = 0,
@@ -1189,7 +1189,6 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
-    vmstate_register(0, &vmstate_vmware_vga, s);
     return 0;
 }
 
@@ -1201,6 +1200,7 @@ void pci_vmsvga_init(PCIBus *bus)
 static PCIDeviceInfo vmsvga_info = {
     .qdev.name    = "QEMUware SVGA",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
+    .qdev.vmsd    = &vmstate_vmware_vga,
     .init         = pci_vmsvga_initfn,
 };
 

@@ -172,7 +172,8 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
 static int scsi_handle_write_error(SCSIDiskReq *r, int error)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    BlockInterfaceErrorAction action = drive_get_onerror(s->qdev.dinfo->bdrv);
+    BlockInterfaceErrorAction action =
+        drive_get_on_error(s->qdev.dinfo->bdrv, 0);
 
     if (action == BLOCK_ERR_IGNORE)
         return 0;
@@ -345,7 +346,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
         case 0x80: /* Device serial number, optional */
         {
-            const char *serial = req->dev->dinfo->serial ?: "0";
+            const char *serial = req->dev->dinfo->serial ?
+                req->dev->dinfo->serial : "0";
             int l = strlen(serial);
 
             if (l > req->cmd.xfer)
@@ -423,12 +425,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     if (bdrv_get_type_hint(bdrv) == BDRV_TYPE_CDROM) {
         outbuf[0] = 5;
         outbuf[1] = 0x80;
-        memcpy(&outbuf[16], "QEMU CD-ROM    ", 16);
+        memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
     } else {
         outbuf[0] = 0;
-        memcpy(&outbuf[16], "QEMU HARDDISK  ", 16);
+        memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
-    memcpy(&outbuf[8], "QEMU   ", 8);
+    memcpy(&outbuf[8], "QEMU    ", 8);
     memcpy(&outbuf[32], QEMU_VERSION, 4);
     /* Identify device as SCSI-3 rev 1.
        Some later commands are also implemented. */
