@@ -514,36 +514,41 @@ FCMOV(cmpfge)
 FCMOV(cmpfle)
 FCMOV(cmpfgt)
 
+static inline uint64_t zapnot_mask(uint8_t lit)
+{
+    uint64_t mask = 0;
+    int i;
+
+    for (i = 0; i < 8; ++i) {
+        if ((lit >> i) & 1)
+            mask |= 0xffull << (i * 8);
+    }
+    return mask;
+}
+
 /* Implement zapnot with an immediate operand, which expands to some
    form of immediate AND.  This is a basic building block in the
    definition of many of the other byte manipulation instructions.  */
-static inline void gen_zapnoti(int ra, int rc, uint8_t lit)
+static void gen_zapnoti(TCGv dest, TCGv src, uint8_t lit)
 {
-    uint64_t mask;
-    int i;
-
     switch (lit) {
     case 0x00:
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+        tcg_gen_movi_i64(dest, 0);
         break;
     case 0x01:
-        tcg_gen_ext8u_i64(cpu_ir[rc], cpu_ir[ra]);
+        tcg_gen_ext8u_i64(dest, src);
         break;
     case 0x03:
-        tcg_gen_ext16u_i64(cpu_ir[rc], cpu_ir[ra]);
+        tcg_gen_ext16u_i64(dest, src);
         break;
     case 0x0f:
-        tcg_gen_ext32u_i64(cpu_ir[rc], cpu_ir[ra]);
+        tcg_gen_ext32u_i64(dest, src);
         break;
     case 0xff:
-        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+        tcg_gen_mov_i64(dest, src);
         break;
     default:
-        for (mask = i = 0; i < 8; ++i) {
-            if ((lit >> i) & 1)
-                mask |= 0xffull << (i * 8);
-        }
-        tcg_gen_andi_i64 (cpu_ir[rc], cpu_ir[ra], mask);
+        tcg_gen_andi_i64 (dest, src, zapnot_mask (lit));
         break;
     }
 }
@@ -555,7 +560,7 @@ static inline void gen_zapnot(int ra, int rb, int rc, int islit, uint8_t lit)
     else if (unlikely(ra == 31))
         tcg_gen_movi_i64(cpu_ir[rc], 0);
     else if (islit)
-        gen_zapnoti(ra, rc, lit);
+        gen_zapnoti(cpu_ir[rc], cpu_ir[ra], lit);
     else
         gen_helper_zapnot (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
 }
@@ -567,13 +572,13 @@ static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
     else if (unlikely(ra == 31))
         tcg_gen_movi_i64(cpu_ir[rc], 0);
     else if (islit)
-        gen_zapnoti(ra, rc, ~lit);
+        gen_zapnoti(cpu_ir[rc], cpu_ir[ra], ~lit);
     else
         gen_helper_zap (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
 }
 
 
-/* EXTWH, EXTWH, EXTLH, EXTQH */
+/* EXTWH, EXTLH, EXTQH */
 static inline void gen_ext_h(int ra, int rb, int rc, int islit,
                              uint8_t lit, uint8_t byte_mask)
 {
@@ -594,11 +599,11 @@ static inline void gen_ext_h(int ra, int rb, int rc, int islit,
             tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
             tcg_temp_free(tmp1);
         }
-        gen_zapnoti(rc, rc, byte_mask);
+        gen_zapnoti(cpu_ir[rc], cpu_ir[rc], byte_mask);
     }
 }
 
-/* EXTBL, EXTWL, EXTWL, EXTLL, EXTQL */
+/* EXTBL, EXTWL, EXTLL, EXTQL */
 static inline void gen_ext_l(int ra, int rb, int rc, int islit,
                              uint8_t lit, uint8_t byte_mask)
 {
@@ -616,7 +621,37 @@ static inline void gen_ext_l(int ra, int rb, int rc, int islit,
             tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
             tcg_temp_free(tmp);
         }
-        gen_zapnoti(rc, rc, byte_mask);
+        gen_zapnoti(cpu_ir[rc], cpu_ir[rc], byte_mask);
+    }
+}
+
+/* INSBL, INSWL, INSLL, INSQL */
+static inline void gen_ins_l(int ra, int rb, int rc, int islit,
+                             uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
+        TCGv tmp = tcg_temp_new();
+
+        /* The instruction description has us left-shift the byte mask
+           the same number of byte slots as the data and apply the zap
+           at the end.  This is equivalent to simply performing the zap
+           first and shifting afterward.  */
+        gen_zapnoti (tmp, cpu_ir[ra], byte_mask);
+
+        if (islit) {
+            tcg_gen_shli_i64(cpu_ir[rc], tmp, (lit & 7) * 8);
+        } else {
+            TCGv shift = tcg_temp_new();
+            tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+            tcg_gen_shli_i64(shift, shift, 3);
+            tcg_gen_shl_i64(cpu_ir[rc], tmp, shift);
+            tcg_temp_free(shift);
+        }
+        tcg_temp_free(tmp);
     }
 }
 
@@ -652,13 +687,9 @@ ARITH3(sublv)
 ARITH3(addqv)
 ARITH3(subqv)
 ARITH3(mskbl)
-ARITH3(insbl)
 ARITH3(mskwl)
-ARITH3(inswl)
 ARITH3(mskll)
-ARITH3(insll)
 ARITH3(mskql)
-ARITH3(insql)
 ARITH3(mskwh)
 ARITH3(inswh)
 ARITH3(msklh)
@@ -1291,7 +1322,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x0B:
             /* INSBL */
-            gen_insbl(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0x01);
             break;
         case 0x12:
             /* MSKWL */
@@ -1303,7 +1334,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x1B:
             /* INSWL */
-            gen_inswl(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x22:
             /* MSKLL */
@@ -1315,7 +1346,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2B:
             /* INSLL */
-            gen_insll(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x30:
             /* ZAP */
@@ -1367,7 +1398,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x3B:
             /* INSQL */
-            gen_insql(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x3C:
             /* SRA */

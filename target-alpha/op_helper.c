@@ -180,32 +180,14 @@ uint64_t helper_mskbl(uint64_t val, uint64_t mask)
     return byte_zap(val, 0x01 << (mask & 7));
 }
 
-uint64_t helper_insbl(uint64_t val, uint64_t mask)
-{
-    val <<= (mask & 7) * 8;
-    return byte_zap(val, ~(0x01 << (mask & 7)));
-}
-
 uint64_t helper_mskwl(uint64_t val, uint64_t mask)
 {
     return byte_zap(val, 0x03 << (mask & 7));
 }
 
-uint64_t helper_inswl(uint64_t val, uint64_t mask)
-{
-    val <<= (mask & 7) * 8;
-    return byte_zap(val, ~(0x03 << (mask & 7)));
-}
-
 uint64_t helper_mskll(uint64_t val, uint64_t mask)
 {
     return byte_zap(val, 0x0F << (mask & 7));
-}
-
-uint64_t helper_insll(uint64_t val, uint64_t mask)
-{
-    val <<= (mask & 7) * 8;
-    return byte_zap(val, ~(0x0F << (mask & 7)));
 }
 
 uint64_t helper_zap(uint64_t val, uint64_t mask)
@@ -221,12 +203,6 @@ uint64_t helper_zapnot(uint64_t val, uint64_t mask)
 uint64_t helper_mskql(uint64_t val, uint64_t mask)
 {
     return byte_zap(val, 0xFF << (mask & 7));
-}
-
-uint64_t helper_insql(uint64_t val, uint64_t mask)
-{
-    val <<= (mask & 7) * 8;
-    return byte_zap(val, ~(0xFF << (mask & 7)));
 }
 
 uint64_t helper_mskwh(uint64_t val, uint64_t mask)
