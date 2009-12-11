@@ -539,6 +539,32 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
     _regs->gpr[5] = pos;
 }
 
+/* See linux kernel: arch/powerpc/include/asm/elf.h.  */
+#define ELF_NREG 48
+typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+{
+    int i;
+    target_ulong ccr = 0;
+
+    for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
+        (*regs)[i] = tswapl(env->gpr[i]);
+    }
+
+    (*regs)[32] = tswapl(env->nip);
+    (*regs)[33] = tswapl(env->msr);
+    (*regs)[35] = tswapl(env->ctr);
+    (*regs)[36] = tswapl(env->lr);
+    (*regs)[37] = tswapl(env->xer);
+
+    for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
+        ccr |= env->crf[i] << (32 - ((i + 1) * 4));
+    }
+    (*regs)[38] = tswapl(ccr);
+}
+
+#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 #endif
