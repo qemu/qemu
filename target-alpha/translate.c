@@ -314,8 +314,7 @@ static inline void gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
     gen_set_label(l2);
 }
 
-static inline void gen_fbcond(DisasContext *ctx, int opc, int ra,
-                              int32_t disp16)
+static inline void gen_fbcond(DisasContext *ctx, int opc, int ra, int32_t disp)
 {
     int l1, l2;
     TCGv tmp;
@@ -356,7 +355,7 @@ static inline void gen_fbcond(DisasContext *ctx, int opc, int ra,
     tcg_gen_movi_i64(cpu_pc, ctx->pc);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp16 << 2));
+    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
     gen_set_label(l2);
 }
 
@@ -2335,7 +2334,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     case 0x31: /* FBEQ */
     case 0x32: /* FBLT */
     case 0x33: /* FBLE */
-        gen_fbcond(ctx, opc, ra, disp16);
+        gen_fbcond(ctx, opc, ra, disp21);
         ret = 1;
         break;
     case 0x34:
@@ -2348,7 +2347,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     case 0x35: /* FBNE */
     case 0x36: /* FBGE */
     case 0x37: /* FBGT */
-        gen_fbcond(ctx, opc, ra, disp16);
+        gen_fbcond(ctx, opc, ra, disp21);
         ret = 1;
         break;
     case 0x38:
