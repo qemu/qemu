@@ -579,8 +579,8 @@ static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
 
 
 /* EXTWH, EXTLH, EXTQH */
-static inline void gen_ext_h(int ra, int rb, int rc, int islit,
-                             uint8_t lit, uint8_t byte_mask)
+static void gen_ext_h(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
@@ -604,8 +604,8 @@ static inline void gen_ext_h(int ra, int rb, int rc, int islit,
 }
 
 /* EXTBL, EXTWL, EXTLL, EXTQL */
-static inline void gen_ext_l(int ra, int rb, int rc, int islit,
-                             uint8_t lit, uint8_t byte_mask)
+static void gen_ext_l(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
@@ -626,8 +626,8 @@ static inline void gen_ext_l(int ra, int rb, int rc, int islit,
 }
 
 /* INSBL, INSWL, INSLL, INSQL */
-static inline void gen_ins_l(int ra, int rb, int rc, int islit,
-                             uint8_t lit, uint8_t byte_mask)
+static void gen_ins_l(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
@@ -655,9 +655,47 @@ static inline void gen_ins_l(int ra, int rb, int rc, int islit,
     }
 }
 
+/* MSKWH, MSKLH, MSKQH */
+static void gen_msk_h(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit) {
+        gen_zapnoti (cpu_ir[rc], cpu_ir[ra], ~((byte_mask << (lit & 7)) >> 8));
+    } else {
+        TCGv shift = tcg_temp_new();
+        TCGv mask = tcg_temp_new();
+
+        /* The instruction description is as above, where the byte_mask
+           is shifted left, and then we extract bits <15:8>.  This can be
+           emulated with a right-shift on the expanded byte mask.  This
+           requires extra care because for an input <2:0> == 0 we need a
+           shift of 64 bits in order to generate a zero.  This is done by
+           splitting the shift into two parts, the variable shift - 1
+           followed by a constant 1 shift.  The code we expand below is
+           equivalent to ~((B & 7) * 8) & 63.  */
+
+        tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+        tcg_gen_shli_i64(shift, shift, 3);
+        tcg_gen_not_i64(shift, shift);
+        tcg_gen_andi_i64(shift, shift, 0x3f);
+        tcg_gen_movi_i64(mask, zapnot_mask (byte_mask));
+        tcg_gen_shr_i64(mask, mask, shift);
+        tcg_gen_shri_i64(mask, mask, 1);
+
+        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], mask);
+
+        tcg_temp_free(mask);
+        tcg_temp_free(shift);
+    }
+}
+
 /* MSKBL, MSKWL, MSKLL, MSKQL */
-static inline void gen_msk_l(int ra, int rb, int rc, int islit,
-                             uint8_t lit, uint8_t byte_mask)
+static void gen_msk_l(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
@@ -712,11 +750,8 @@ ARITH3(addlv)
 ARITH3(sublv)
 ARITH3(addqv)
 ARITH3(subqv)
-ARITH3(mskwh)
 ARITH3(inswh)
-ARITH3(msklh)
 ARITH3(inslh)
-ARITH3(mskqh)
 ARITH3(insqh)
 ARITH3(umulh)
 ARITH3(mullv)
@@ -1440,7 +1475,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x52:
             /* MSKWH */
-            gen_mskwh(ra, rb, rc, islit, lit);
+            gen_msk_h(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x57:
             /* INSWH */
@@ -1452,7 +1487,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x62:
             /* MSKLH */
-            gen_msklh(ra, rb, rc, islit, lit);
+            gen_msk_h(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x67:
             /* INSLH */
@@ -1464,7 +1499,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x72:
             /* MSKQH */
-            gen_mskqh(ra, rb, rc, islit, lit);
+            gen_msk_h(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x77:
             /* INSQH */
