@@ -1060,7 +1060,6 @@ void call_pal (CPUState *env, int palcode)
 {
     target_long ret;
 
-    qemu_log("%s: palcode %02x\n", __func__, palcode);
     switch (palcode) {
     case 0x83:
         /* CALLSYS */
@@ -1078,14 +1077,14 @@ void call_pal (CPUState *env, int palcode)
         break;
     case 0x9E:
         /* RDUNIQUE */
-        env->ir[IR_V0] = env->unique;
         qemu_log("RDUNIQUE: " TARGET_FMT_lx "\n", env->unique);
-        break;
+        /* Handled in the translator for usermode.  */
+        abort();
     case 0x9F:
         /* WRUNIQUE */
-        env->unique = env->ir[IR_A0];
-        qemu_log("WRUNIQUE: " TARGET_FMT_lx "\n", env->unique);
-        break;
+        qemu_log("WRUNIQUE: " TARGET_FMT_lx "\n", env->ir[IR_A0]);
+        /* Handled in the translator for usermode.  */
+        abort();
     default:
         qemu_log("%s: unhandled palcode %02x\n",
                     __func__, palcode);

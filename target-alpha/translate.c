@@ -57,6 +57,9 @@ static TCGv cpu_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
 static TCGv cpu_lock;
+#ifdef CONFIG_USER_ONLY
+static TCGv cpu_uniq;
+#endif
 
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
@@ -92,6 +95,11 @@ static void alpha_translate_init(void)
 
     cpu_lock = tcg_global_mem_new_i64(TCG_AREG0,
                                       offsetof(CPUState, lock), "lock");
+
+#ifdef CONFIG_USER_ONLY
+    cpu_uniq = tcg_global_mem_new_i64(TCG_AREG0,
+                                      offsetof(CPUState, unique), "uniq");
+#endif
 
     /* register helpers */
 #define GEN_HELPER 2
@@ -751,23 +759,34 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     switch (opc) {
     case 0x00:
         /* CALL_PAL */
+#ifdef CONFIG_USER_ONLY
+        if (palcode == 0x9E) {
+            /* RDUNIQUE */
+            tcg_gen_mov_i64(cpu_ir[IR_V0], cpu_uniq);
+            break;
+        } else if (palcode == 0x9F) {
+            /* WRUNIQUE */
+            tcg_gen_mov_i64(cpu_uniq, cpu_ir[IR_A0]);
+            break;
+        }
+#endif
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
             gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
-#if !defined (CONFIG_USER_ONLY)
-        } else if (palcode < 0x40) {
+            ret = 3;
+            break;
+        }
+#ifndef CONFIG_USER_ONLY
+        if (palcode < 0x40) {
             /* Privileged PAL code */
             if (ctx->mem_idx & 1)
                 goto invalid_opc;
-            else
-                gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
-#endif
-        } else {
-            /* Invalid PAL call */
-            goto invalid_opc;
+            gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
+            ret = 3;
         }
-        ret = 3;
-        break;
+#endif
+        /* Invalid PAL call */
+        goto invalid_opc;
     case 0x01:
         /* OPC01 */
         goto invalid_opc;
