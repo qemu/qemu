@@ -43,6 +43,7 @@ typedef enum {
     QTYPE_QLIST,
     QTYPE_QFLOAT,
     QTYPE_QBOOL,
+    QTYPE_QERROR,
 } qtype_code;
 
 struct QObject;

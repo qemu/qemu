@@ -1784,23 +1784,15 @@ static void audio_atexit (void)
     }
 }
 
-static void audio_save (QEMUFile *f, void *opaque)
-{
-    (void) f;
-    (void) opaque;
-}
-
-static int audio_load (QEMUFile *f, void *opaque, int version_id)
-{
-    (void) f;
-    (void) opaque;
-
-    if (version_id != 1) {
-        return -EINVAL;
+static const VMStateDescription vmstate_audio = {
+    .name = "audio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_END_OF_LIST()
     }
-
-    return 0;
-}
+};
 
 static void audio_init (void)
 {
@@ -1900,7 +1892,7 @@ static void audio_init (void)
     }
 
     QLIST_INIT (&s->card_head);
-    register_savevm ("audio", 0, 1, audio_save, audio_load, s);
+    vmstate_register (0, &vmstate_audio, s);
 }
 
 void AUD_register_card (const char *name, QEMUSoundCard *card)

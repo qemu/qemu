@@ -1244,114 +1244,9 @@ static void SB_audio_callback (void *opaque, int free)
     s->audio_free = free;
 }
 
-static void SB_save (QEMUFile *f, void *opaque)
+static int sb16_post_load (void *opaque, int version_id)
 {
     SB16State *s = opaque;
-
-    qemu_put_be32 (f, s->irq);
-    qemu_put_be32 (f, s->dma);
-    qemu_put_be32 (f, s->hdma);
-    qemu_put_be32 (f, s->port);
-    qemu_put_be32 (f, s->ver);
-    qemu_put_be32 (f, s->in_index);
-    qemu_put_be32 (f, s->out_data_len);
-    qemu_put_be32 (f, s->fmt_stereo);
-    qemu_put_be32 (f, s->fmt_signed);
-    qemu_put_be32 (f, s->fmt_bits);
-    qemu_put_be32s (f, &s->fmt);
-    qemu_put_be32 (f, s->dma_auto);
-    qemu_put_be32 (f, s->block_size);
-    qemu_put_be32 (f, s->fifo);
-    qemu_put_be32 (f, s->freq);
-    qemu_put_be32 (f, s->time_const);
-    qemu_put_be32 (f, s->speaker);
-    qemu_put_be32 (f, s->needed_bytes);
-    qemu_put_be32 (f, s->cmd);
-    qemu_put_be32 (f, s->use_hdma);
-    qemu_put_be32 (f, s->highspeed);
-    qemu_put_be32 (f, s->can_write);
-    qemu_put_be32 (f, s->v2x6);
-
-    qemu_put_8s (f, &s->csp_param);
-    qemu_put_8s (f, &s->csp_value);
-    qemu_put_8s (f, &s->csp_mode);
-    qemu_put_8s (f, &s->csp_param);
-    qemu_put_buffer (f, s->csp_regs, 256);
-    qemu_put_8s (f, &s->csp_index);
-    qemu_put_buffer (f, s->csp_reg83, 4);
-    qemu_put_be32 (f, s->csp_reg83r);
-    qemu_put_be32 (f, s->csp_reg83w);
-
-    qemu_put_buffer (f, s->in2_data, sizeof (s->in2_data));
-    qemu_put_buffer (f, s->out_data, sizeof (s->out_data));
-    qemu_put_8s (f, &s->test_reg);
-    qemu_put_8s (f, &s->last_read_byte);
-
-    qemu_put_be32 (f, s->nzero);
-    qemu_put_be32 (f, s->left_till_irq);
-    qemu_put_be32 (f, s->dma_running);
-    qemu_put_be32 (f, s->bytes_per_second);
-    qemu_put_be32 (f, s->align);
-
-    qemu_put_be32 (f, s->mixer_nreg);
-    qemu_put_buffer (f, s->mixer_regs, 256);
-}
-
-static int SB_load (QEMUFile *f, void *opaque, int version_id)
-{
-    SB16State *s = opaque;
-
-    if (version_id != 1) {
-        return -EINVAL;
-    }
-
-    s->irq=qemu_get_be32 (f);
-    s->dma=qemu_get_be32 (f);
-    s->hdma=qemu_get_be32 (f);
-    s->port=qemu_get_be32 (f);
-    s->ver=qemu_get_be32 (f);
-    s->in_index=qemu_get_be32 (f);
-    s->out_data_len=qemu_get_be32 (f);
-    s->fmt_stereo=qemu_get_be32 (f);
-    s->fmt_signed=qemu_get_be32 (f);
-    s->fmt_bits=qemu_get_be32 (f);
-    qemu_get_be32s (f, &s->fmt);
-    s->dma_auto=qemu_get_be32 (f);
-    s->block_size=qemu_get_be32 (f);
-    s->fifo=qemu_get_be32 (f);
-    s->freq=qemu_get_be32 (f);
-    s->time_const=qemu_get_be32 (f);
-    s->speaker=qemu_get_be32 (f);
-    s->needed_bytes=qemu_get_be32 (f);
-    s->cmd=qemu_get_be32 (f);
-    s->use_hdma=qemu_get_be32 (f);
-    s->highspeed=qemu_get_be32 (f);
-    s->can_write=qemu_get_be32 (f);
-    s->v2x6=qemu_get_be32 (f);
-
-    qemu_get_8s (f, &s->csp_param);
-    qemu_get_8s (f, &s->csp_value);
-    qemu_get_8s (f, &s->csp_mode);
-    qemu_get_8s (f, &s->csp_param);
-    qemu_get_buffer (f, s->csp_regs, 256);
-    qemu_get_8s (f, &s->csp_index);
-    qemu_get_buffer (f, s->csp_reg83, 4);
-    s->csp_reg83r=qemu_get_be32 (f);
-    s->csp_reg83w=qemu_get_be32 (f);
-
-    qemu_get_buffer (f, s->in2_data, sizeof (s->in2_data));
-    qemu_get_buffer (f, s->out_data, sizeof (s->out_data));
-    qemu_get_8s (f, &s->test_reg);
-    qemu_get_8s (f, &s->last_read_byte);
-
-    s->nzero=qemu_get_be32 (f);
-    s->left_till_irq=qemu_get_be32 (f);
-    s->dma_running=qemu_get_be32 (f);
-    s->bytes_per_second=qemu_get_be32 (f);
-    s->align=qemu_get_be32 (f);
-
-    s->mixer_nreg=qemu_get_be32 (f);
-    qemu_get_buffer (f, s->mixer_regs, 256);
 
     if (s->voice) {
         AUD_close_out (&s->card, s->voice);
@@ -1384,6 +1279,65 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     }
     return 0;
 }
+
+static const VMStateDescription vmstate_sb16 = {
+    .name = "sb16",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = sb16_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(irq, SB16State),
+        VMSTATE_UINT32(dma, SB16State),
+        VMSTATE_UINT32(hdma, SB16State),
+        VMSTATE_UINT32(port, SB16State),
+        VMSTATE_UINT32(ver, SB16State),
+        VMSTATE_INT32(in_index, SB16State),
+        VMSTATE_INT32(out_data_len, SB16State),
+        VMSTATE_INT32(fmt_stereo, SB16State),
+        VMSTATE_INT32(fmt_signed, SB16State),
+        VMSTATE_INT32(fmt_bits, SB16State),
+        VMSTATE_UINT32(fmt, SB16State),
+        VMSTATE_INT32(dma_auto, SB16State),
+        VMSTATE_INT32(block_size, SB16State),
+        VMSTATE_INT32(fifo, SB16State),
+        VMSTATE_INT32(freq, SB16State),
+        VMSTATE_INT32(time_const, SB16State),
+        VMSTATE_INT32(speaker, SB16State),
+        VMSTATE_INT32(needed_bytes, SB16State),
+        VMSTATE_INT32(cmd, SB16State),
+        VMSTATE_INT32(use_hdma, SB16State),
+        VMSTATE_INT32(highspeed, SB16State),
+        VMSTATE_INT32(can_write, SB16State),
+        VMSTATE_INT32(v2x6, SB16State),
+
+        VMSTATE_UINT8(csp_param, SB16State),
+        VMSTATE_UINT8(csp_value, SB16State),
+        VMSTATE_UINT8(csp_mode, SB16State),
+        VMSTATE_UINT8(csp_param, SB16State),
+        VMSTATE_BUFFER(csp_regs, SB16State),
+        VMSTATE_UINT8(csp_index, SB16State),
+        VMSTATE_BUFFER(csp_reg83, SB16State),
+        VMSTATE_INT32(csp_reg83r, SB16State),
+        VMSTATE_INT32(csp_reg83w, SB16State),
+
+        VMSTATE_BUFFER(in2_data, SB16State),
+        VMSTATE_BUFFER(out_data, SB16State),
+        VMSTATE_UINT8(test_reg, SB16State),
+        VMSTATE_UINT8(last_read_byte, SB16State),
+
+        VMSTATE_INT32(nzero, SB16State),
+        VMSTATE_INT32(left_till_irq, SB16State),
+        VMSTATE_INT32(dma_running, SB16State),
+        VMSTATE_INT32(bytes_per_second, SB16State),
+        VMSTATE_INT32(align, SB16State),
+
+        VMSTATE_INT32(mixer_nreg, SB16State),
+        VMSTATE_BUFFER(mixer_regs, SB16State),
+
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int sb16_initfn (ISADevice *dev)
 {
@@ -1427,7 +1381,7 @@ static int sb16_initfn (ISADevice *dev)
     DMA_register_channel (s->dma, SB_read_DMA, s);
     s->can_write = 1;
 
-    register_savevm ("sb16", 0, 1, SB_save, SB_load, s);
+    vmstate_register (0, &vmstate_sb16, s);
     AUD_register_card ("sb16", &s->card);
     return 0;
 }

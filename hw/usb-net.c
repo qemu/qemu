@@ -610,7 +610,6 @@ typedef struct USBNetState {
     uint32_t media_state;
     uint16_t filter;
     uint32_t vendorid;
-    uint8_t mac[6];
 
     unsigned int out_ptr;
     uint8_t out_buf[2048];
@@ -620,7 +619,8 @@ typedef struct USBNetState {
     uint8_t in_buf[2048];
 
     char usbstring_mac[13];
-    VLANClientState *vc;
+    NICState *nic;
+    NICConf conf;
     QTAILQ_HEAD(rndis_resp_head, rndis_response) rndis_resp;
 } USBNetState;
 
@@ -741,12 +741,12 @@ static int ndis_query(USBNetState *s, uint32_t oid,
     /* ieee802.3 OIDs (table 4-3) */
     /* mandatory */
     case OID_802_3_PERMANENT_ADDRESS:
-        memcpy(outbuf, s->mac, 6);
+        memcpy(outbuf, s->conf.macaddr.a, 6);
         return 6;
 
     /* mandatory */
     case OID_802_3_CURRENT_ADDRESS:
-        memcpy(outbuf, s->mac, 6);
+        memcpy(outbuf, s->conf.macaddr.a, 6);
         return 6;
 
     /* mandatory */
@@ -1305,7 +1305,7 @@ static int usb_net_handle_dataout(USBNetState *s, USBPacket *p)
 
     if (!s->rndis) {
         if (ret < 64) {
-            qemu_send_packet(s->vc, s->out_buf, s->out_ptr);
+            qemu_send_packet(&s->nic->nc, s->out_buf, s->out_ptr);
             s->out_ptr = 0;
         }
         return ret;
@@ -1317,7 +1317,7 @@ static int usb_net_handle_dataout(USBNetState *s, USBPacket *p)
         uint32_t offs = 8 + le32_to_cpu(msg->DataOffset);
         uint32_t size = le32_to_cpu(msg->DataLength);
         if (offs + size <= len)
-            qemu_send_packet(s->vc, s->out_buf + offs, size);
+            qemu_send_packet(&s->nic->nc, s->out_buf + offs, size);
     }
     s->out_ptr -= len;
     memmove(s->out_buf, &s->out_buf[len], s->out_ptr);
@@ -1369,9 +1369,9 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static ssize_t usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t usbnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    USBNetState *s = vc->opaque;
+    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     struct rndis_packet_msg_type *msg;
 
     if (s->rndis) {
@@ -1406,9 +1406,9 @@ static ssize_t usbnet_receive(VLANClientState *vc, const uint8_t *buf, size_t si
     return size;
 }
 
-static int usbnet_can_receive(VLANClientState *vc)
+static int usbnet_can_receive(VLANClientState *nc)
 {
-    USBNetState *s = vc->opaque;
+    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if (s->rndis && !s->rndis_state == RNDIS_DATA_INITIALIZED)
         return 1;
@@ -1416,9 +1416,9 @@ static int usbnet_can_receive(VLANClientState *vc)
     return !s->in_len;
 }
 
-static void usbnet_cleanup(VLANClientState *vc)
+static void usbnet_cleanup(VLANClientState *nc)
 {
-    USBNetState *s = vc->opaque;
+    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     rndis_clear_responsequeue(s);
     qemu_free(s);
@@ -1429,7 +1429,7 @@ static void usb_net_handle_destroy(USBDevice *dev)
     USBNetState *s = (USBNetState *) dev;
 
     /* TODO: remove the nd_table[] entry */
-    qemu_del_vlan_client(s->vc);
+    qemu_del_vlan_client(&s->nic->nc);
 }
 
 static int usb_net_initfn(USBDevice *dev)
@@ -1450,6 +1450,14 @@ static int usb_net_initfn(USBDevice *dev)
     return 0;
 }
 
+static NetClientInfo net_usbnet_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = usbnet_can_receive,
+    .receive = usbnet_receive,
+    .cleanup = usbnet_cleanup,
+};
+
 USBDevice *usb_net_init(NICInfo *nd)
 {
     USBDevice *dev;
@@ -1458,25 +1466,22 @@ USBDevice *usb_net_init(NICInfo *nd)
     dev = usb_create_simple(NULL /* FIXME */, "QEMU USB Network Interface");
     s = DO_UPCAST(USBNetState, dev, dev);
 
-    memcpy(s->mac, nd->macaddr, 6);
+    memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));
+    s->conf.vlan = nd->vlan;
+    s->conf.peer = nd->netdev;
 
-    s->vc = nd->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                          nd->vlan, nd->netdev,
-                                          nd->model, nd->name,
-                                          usbnet_can_receive,
-                                          usbnet_receive,
-                                          NULL, NULL,
-                                          usbnet_cleanup, s);
+    s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,
+                          nd->model, nd->name, s);
 
-    qemu_format_nic_info_str(s->vc, s->mac);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     snprintf(s->usbstring_mac, sizeof(s->usbstring_mac),
                     "%02x%02x%02x%02x%02x%02x",
-                    0x40, s->mac[1], s->mac[2],
-                    s->mac[3], s->mac[4], s->mac[5]);
+                    0x40, s->conf.macaddr.a[1], s->conf.macaddr.a[2],
+                    s->conf.macaddr.a[3], s->conf.macaddr.a[4], s->conf.macaddr.a[5]);
     fprintf(stderr, "usbnet: initialized mac %02x:%02x:%02x:%02x:%02x:%02x\n",
-                    s->mac[0], s->mac[1], s->mac[2],
-                    s->mac[3], s->mac[4], s->mac[5]);
+                    s->conf.macaddr.a[0], s->conf.macaddr.a[1], s->conf.macaddr.a[2],
+                    s->conf.macaddr.a[3], s->conf.macaddr.a[4], s->conf.macaddr.a[5]);
 
     return (USBDevice *) s;
 }

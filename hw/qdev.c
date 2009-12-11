@@ -29,6 +29,7 @@
 #include "qdev.h"
 #include "sysemu.h"
 #include "monitor.h"
+#include "qerror.h"
 
 static int qdev_hotplug = 0;
 
@@ -176,8 +177,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* find driver */
     info = qdev_find_info(NULL, driver);
     if (!info) {
-        qemu_error("Device \"%s\" not found.  Try -device '?' for a list.\n",
-                   driver);
+        qemu_error_new(QERR_DEVICE_NOT_FOUND, driver);
         return NULL;
     }
     if (info->no_user) {

@@ -222,7 +222,7 @@ timer_done:
 
 static int Atheros_WLAN_can_receive(VLANClientState *vc)
 {
-	Atheros_WLANState *s = (Atheros_WLANState *)vc->opaque;
+    Atheros_WLANState *s = DO_UPCAST(NICState, nc, vc)->opaque;
 
 	if (s->ap_state != Atheros_WLAN__STATE_ASSOCIATED)
 	{
@@ -243,8 +243,8 @@ static int Atheros_WLAN_can_receive(VLANClientState *vc)
 static ssize_t Atheros_WLAN_receive(VLANClientState *vc,
                                     const uint8_t *buf, size_t size)
 {
+    Atheros_WLANState *s = DO_UPCAST(NICState, nc, vc)->opaque;
 	struct mac80211_frame *frame;
-	Atheros_WLANState *s = (Atheros_WLANState *)vc->opaque;
 
 	if (!Atheros_WLAN_can_receive(vc))
 	{
@@ -284,6 +284,14 @@ static void Atheros_WLAN_cleanup(VLANClientState *vc)
 #endif
 }
 
+static NetClientInfo net_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = Atheros_WLAN_can_receive,
+    .receive = Atheros_WLAN_receive,
+    .cleanup = Atheros_WLAN_cleanup,
+};
+
 void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 {
 	Atheros_WLANState *s;
@@ -313,16 +321,9 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 	// it when necessary...
 	s->inject_timer = qemu_new_timer(rt_clock, Atheros_WLAN_inject_timer, s);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 //~ nd->vlan, nd->netdev,
-                                 nd->model, nd->name,
-                                 Atheros_WLAN_can_receive,
-                                 Atheros_WLAN_receive,
-                                 NULL, NULL,
-                                 Atheros_WLAN_cleanup, s);
+    s->nic = qemu_new_nic(&net_info, &s->conf, nd->model, nd->name, s);
 
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(&s->nic->nc, s->macaddr);
 }
 
 
@@ -776,7 +777,7 @@ void Atheros_WLAN_handle_frame(Atheros_WLANState *s, struct mac80211_frame *fram
 		/*
 		 * Send 802.3 frame
 		 */
-		qemu_send_packet(s->vc, ethernet_frame, ethernet_frame_size);
+		qemu_send_packet(&s->nic->nc, ethernet_frame, ethernet_frame_size);
 	}
 
 	if (reply)

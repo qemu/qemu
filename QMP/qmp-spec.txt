@@ -1,0 +1,192 @@
+           QEMU Monitor Protocol Draft Specification - Version 0.1
+
+1. Introduction
+===============
+
+This document specifies the QEMU Monitor Protocol (QMP), a JSON-based protocol
+which is available for applications to control QEMU at the machine-level.
+
+To enable QMP support, QEMU has to be run in "control mode". This is done by
+starting QEMU with the appropriate command-line options. Please, refer to the
+QEMU manual page for more information.
+
+2. Protocol Specification
+=========================
+
+This section details the protocol format. For the purpose of this document
+"Client" is any application which is communicating with QEMU in control mode,
+and "Server" is QEMU itself.
+
+JSON data structures, when mentioned in this document, are always in the
+following format:
+
+    json-DATA-STRUCTURE-NAME
+
+Where DATA-STRUCTURE-NAME is any valid JSON data structure, as defined by
+the JSON standard:
+
+http://www.ietf.org/rfc/rfc4627.txt
+
+For convenience, json-objects mentioned in this document will have its members
+in a certain order. However, in real protocol usage json-objects members can
+be in ANY order, thus no particular order should be assumed.
+
+2.1 General Definitions
+-----------------------
+
+2.1.1 All interactions transmitted by the Server are json-objects, always
+      terminating with CRLF
+
+2.1.2 All json-objects members are mandatory when not specified otherwise
+
+2.2 Server Greeting
+-------------------
+
+Right when connected the Server will issue a greeting message, which signals
+that the connection has been successfully established and that the Server is
+waiting for commands.
+
+The format is:
+
+{ "QMP": { "capabilities": json-array } }
+
+ Where,
+
+- The "capabilities" member specify the availability of features beyond the
+  baseline specification
+
+2.3 Issuing Commands
+--------------------
+
+The format for command execution is:
+
+{ "execute": json-string, "arguments": json-object, "id": json-value }
+
+ Where,
+
+- The "execute" member identifies the command to be executed by the Server
+- The "arguments" member is used to pass any arguments required for the
+  execution of the command, it is optional when no arguments are required
+- The "id" member is a transaction identification associated with the
+  command execution, it is optional and will be part of the response if
+  provided
+
+2.4 Commands Responses
+----------------------
+
+There are two possible responses which the Server will issue as the result
+of a command execution: success or error.
+
+2.4.1 success
+-------------
+
+The success response is issued when the command execution has finished
+without errors.
+
+The format is:
+
+{ "return": json-value, "id": json-value }
+
+ Where,
+
+- The "return" member contains the command returned data, which is defined
+  in a per-command basis or "OK" if the command does not return data
+- The "id" member contains the transaction identification associated
+  with the command execution (if issued by the Client)
+
+2.4.2 error
+-----------
+
+The error response is issued when the command execution could not be
+completed because of an error condition.
+
+The format is:
+
+{ "error": { "class": json-string, "data": json-value }, "id": json-value }
+
+ Where,
+
+- The "class" member contains the error class name (eg. "ServiceUnavailable")
+- The "data" member contains specific error data and is defined in a
+  per-command basis, it will be an empty json-object if the error has no data
+- The "id" member contains the transaction identification associated with
+  the command execution (if issued by the Client)
+
+NOTE: Some errors can occur before the Server is able to read the "id" member,
+in these cases the "id" member will not be part of the error response, even
+if provided by the client.
+
+2.5 Asynchronous events
+-----------------------
+
+As a result of state changes, the Server may send messages unilaterally
+to the Client at any time. They are called 'asynchronous events'.
+
+The format is:
+
+{ "event": json-string, "data": json-value,
+  "timestamp": { "seconds": json-number, "microseconds": json-number } }
+
+ Where,
+
+- The "event" member contains the event's name
+- The "data" member contains event specific data, which is defined in a
+  per-event basis, it is optional
+- The "timestamp" member contains the exact time of when the event ocurred
+  in the Server. It is a fixed json-object with time in seconds and
+  microseconds
+
+For a listing of supported asynchronous events, please, refer to the
+qmp-events.txt file.
+
+3. QMP Examples
+===============
+
+This section provides some examples of real QMP usage, in all of them
+'C' stands for 'Client' and 'S' stands for 'Server'.
+
+3.1 Server greeting
+-------------------
+
+S: {"QMP": {"capabilities": []}}
+
+3.2 Simple 'stop' execution
+---------------------------
+
+C: { "execute": "stop" }
+S: {"return": "OK"}
+
+3.3 KVM information
+-------------------
+
+C: {"execute": "query-kvm", "id": "example"}
+S: {"return": "enabled", "id": "example"}
+
+3.4 Parsing error
+------------------
+
+C: { "execute": }
+S: {"error": {"class": "JSONParsing", "data": {}}}
+
+3.5 Powerdown event
+-------------------
+
+S: {"timestamp": {"seconds": 1258551470, "microseconds": 802384}, "event":
+"POWERDOWN"}
+
+4. Notes to Client implementors
+-------------------------------
+
+4.1 It is recommended to always start the Server in pause mode, thus the
+    Client is able to perform any setup procedure without the risk of
+    race conditions and related problems
+
+4.2 It is recommended to always check the capabilities json-array, issued
+    with the greeting message, at connection time
+
+4.3 Json-objects or json-arrays mentioned in this document are not fixed
+    and no particular size or number of members/elements should be assumed.
+    New members/elements can be added at any time.
+
+4.4 No particular order of json-objects members should be assumed, they
+    can change at any time

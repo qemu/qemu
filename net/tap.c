@@ -47,7 +47,7 @@
 #define TAP_BUFSIZE (4096 + 65536)
 
 typedef struct TAPState {
-    VLANClientState *vc;
+    VLANClientState nc;
     int fd;
     char down_script[1024];
     char down_script_arg[128];
@@ -92,7 +92,7 @@ static void tap_writable(void *opaque)
 
     tap_write_poll(s, 0);
 
-    qemu_flush_queued_packets(s->vc);
+    qemu_flush_queued_packets(&s->nc);
 }
 
 static ssize_t tap_write_packet(TAPState *s, const struct iovec *iov, int iovcnt)
@@ -111,10 +111,10 @@ static ssize_t tap_write_packet(TAPState *s, const struct iovec *iov, int iovcnt
     return len;
 }
 
-static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
+static ssize_t tap_receive_iov(VLANClientState *nc, const struct iovec *iov,
                                int iovcnt)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
     const struct iovec *iovp = iov;
     struct iovec iov_copy[iovcnt + 1];
     struct virtio_net_hdr hdr = { 0, };
@@ -130,9 +130,9 @@ static ssize_t tap_receive_iov(VLANClientState *vc, const struct iovec *iov,
     return tap_write_packet(s, iovp, iovcnt);
 }
 
-static ssize_t tap_receive_raw(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive_raw(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
     struct iovec iov[2];
     int iovcnt = 0;
     struct virtio_net_hdr hdr = { 0, };
@@ -150,13 +150,13 @@ static ssize_t tap_receive_raw(VLANClientState *vc, const uint8_t *buf, size_t s
     return tap_write_packet(s, iov, iovcnt);
 }
 
-static ssize_t tap_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
     struct iovec iov[1];
 
     if (s->has_vnet_hdr && !s->using_vnet_hdr) {
-        return tap_receive_raw(vc, buf, size);
+        return tap_receive_raw(nc, buf, size);
     }
 
     iov[0].iov_base = (char *)buf;
@@ -169,7 +169,7 @@ static int tap_can_send(void *opaque)
 {
     TAPState *s = opaque;
 
-    return qemu_can_send_packet(s->vc);
+    return qemu_can_send_packet(&s->nc);
 }
 
 #ifndef __sun__
@@ -179,9 +179,9 @@ ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 }
 #endif
 
-static void tap_send_completed(VLANClientState *vc, ssize_t len)
+static void tap_send_completed(VLANClientState *nc, ssize_t len)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
     tap_read_poll(s, 1);
 }
 
@@ -203,56 +203,56 @@ static void tap_send(void *opaque)
             size -= sizeof(struct virtio_net_hdr);
         }
 
-        size = qemu_send_packet_async(s->vc, buf, size, tap_send_completed);
+        size = qemu_send_packet_async(&s->nc, buf, size, tap_send_completed);
         if (size == 0) {
             tap_read_poll(s, 0);
         }
-    } while (size > 0 && qemu_can_send_packet(s->vc));
+    } while (size > 0 && qemu_can_send_packet(&s->nc));
 }
 
-int tap_has_ufo(VLANClientState *vc)
+int tap_has_ufo(VLANClientState *nc)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(vc->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
 
     return s->has_ufo;
 }
 
-int tap_has_vnet_hdr(VLANClientState *vc)
+int tap_has_vnet_hdr(VLANClientState *nc)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(vc->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
 
     return s->has_vnet_hdr;
 }
 
-void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
+void tap_using_vnet_hdr(VLANClientState *nc, int using_vnet_hdr)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
     using_vnet_hdr = using_vnet_hdr != 0;
 
-    assert(vc->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
     assert(s->has_vnet_hdr == using_vnet_hdr);
 
     s->using_vnet_hdr = using_vnet_hdr;
 }
 
-void tap_set_offload(VLANClientState *vc, int csum, int tso4,
+void tap_set_offload(VLANClientState *nc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
     return tap_fd_set_offload(s->fd, csum, tso4, tso6, ecn, ufo);
 }
 
-static void tap_cleanup(VLANClientState *vc)
+static void tap_cleanup(VLANClientState *nc)
 {
-    TAPState *s = vc->opaque;
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    qemu_purge_queued_packets(vc);
+    qemu_purge_queued_packets(nc);
 
     if (s->down_script[0])
         launch_script(s->down_script, s->down_script_arg, s->fd);
@@ -260,10 +260,18 @@ static void tap_cleanup(VLANClientState *vc)
     tap_read_poll(s, 0);
     tap_write_poll(s, 0);
     close(s->fd);
-    qemu_free(s);
 }
 
 /* fd support */
+
+static NetClientInfo net_tap_info = {
+    .type = NET_CLIENT_TYPE_TAP,
+    .size = sizeof(TAPState),
+    .receive = tap_receive,
+    .receive_raw = tap_receive_raw,
+    .receive_iov = tap_receive_iov,
+    .cleanup = tap_cleanup,
+};
 
 static TAPState *net_tap_fd_init(VLANState *vlan,
                                  const char *model,
@@ -271,18 +279,18 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
                                  int fd,
                                  int vnet_hdr)
 {
+    VLANClientState *nc;
     TAPState *s;
 
-    s = qemu_mallocz(sizeof(TAPState));
+    nc = qemu_new_net_client(&net_tap_info, vlan, NULL, model, name);
+
+    s = DO_UPCAST(TAPState, nc, nc);
+
     s->fd = fd;
     s->has_vnet_hdr = vnet_hdr != 0;
     s->using_vnet_hdr = 0;
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_TAP,
-                                 vlan, NULL, model, name, NULL,
-                                 tap_receive, tap_receive_raw,
-                                 tap_receive_iov, tap_cleanup, s);
     s->has_ufo = tap_probe_has_ufo(s->fd);
-    tap_set_offload(s->vc, 0, 0, 0, 0, 0);
+    tap_set_offload(&s->nc, 0, 0, 0, 0, 0);
     tap_read_poll(s, 1);
     return s;
 }
@@ -370,7 +378,7 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
 int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
 {
     TAPState *s;
-    int fd, vnet_hdr;
+    int fd, vnet_hdr = 0;
 
     if (qemu_opt_get(opts, "fd")) {
         if (qemu_opt_get(opts, "ifname") ||
@@ -415,7 +423,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
     }
 
     if (qemu_opt_get(opts, "fd")) {
-        snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "fd=%d", fd);
     } else {
         const char *ifname, *script, *downscript;
 
@@ -423,7 +431,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         script     = qemu_opt_get(opts, "script");
         downscript = qemu_opt_get(opts, "downscript");
 
-        snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
                  "ifname=%s,script=%s,downscript=%s",
                  ifname, script, downscript);
 

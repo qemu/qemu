@@ -339,7 +339,7 @@ static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
     s->irq = d->dev.irq[0];
     s->pci_dev = (PCIDevice *)d;
     s->pending_interrupts = NULL;
-    qemu_format_nic_info_str(s->vc, s->macaddr);
+    qemu_format_nic_info_str(&s->nic->nc, s->macaddr);
 
 #define nd 0 // TODO: hack to allow compilation, fix it
     Atheros_WLAN_setup_type(nd, d);

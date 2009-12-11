@@ -142,6 +142,7 @@ int main(int argc, char **argv)
 #include "hw/loader.h"
 #include "bt-host.h"
 #include "net.h"
+#include "net/slirp.h"
 #include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
@@ -4065,9 +4066,12 @@ static void main_loop(void)
 #endif
         } while (vm_can_run());
 
-        if (qemu_debug_requested())
+        if (qemu_debug_requested()) {
+            monitor_protocol_event(EVENT_DEBUG, NULL);
             vm_stop(EXCP_DEBUG);
+        }
         if (qemu_shutdown_requested()) {
+            monitor_protocol_event(EVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
                 vm_stop(0);
                 no_shutdown = 0;
@@ -4075,15 +4079,19 @@ static void main_loop(void)
                 break;
         }
         if (qemu_reset_requested()) {
+            monitor_protocol_event(EVENT_RESET, NULL);
             pause_all_vcpus();
             qemu_system_reset();
             resume_all_vcpus();
         }
         if (qemu_powerdown_requested()) {
+            monitor_protocol_event(EVENT_POWERDOWN, NULL);
             qemu_irq_raise(qemu_system_powerdown);
         }
-        if ((r = qemu_vmstop_requested()))
+        if ((r = qemu_vmstop_requested())) {
+            monitor_protocol_event(EVENT_STOP, NULL);
             vm_stop(r);
+        }
     }
     pause_all_vcpus();
 }
@@ -4631,6 +4639,7 @@ int main(int argc, char **argv, char **envp)
     const char *r, *optarg;
     CharDriverState *monitor_hds[MAX_MONITOR_DEVICES];
     const char *monitor_devices[MAX_MONITOR_DEVICES];
+    int monitor_flags[MAX_MONITOR_DEVICES];
     int monitor_device_index;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
@@ -4730,8 +4739,10 @@ int main(int argc, char **argv, char **envp)
     virtio_console_index = 0;
 
     monitor_devices[0] = "vc:132Cx43C";
+    monitor_flags[0] = MONITOR_IS_DEFAULT | MONITOR_USE_READLINE;
     for (i = 1; i < MAX_MONITOR_DEVICES; i++) {
         monitor_devices[i] = NULL;
+        monitor_flags[i] = MONITOR_USE_READLINE;
     }
     monitor_device_index = 0;
 
@@ -5154,7 +5165,9 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "qemu: too many monitor devices\n");
                     exit(1);
                 }
-                monitor_devices[monitor_device_index] = optarg;
+                monitor_devices[monitor_device_index] =
+                                monitor_cmdline_parse(optarg,
+                                        &monitor_flags[monitor_device_index]);
                 monitor_device_index++;
                 break;
             case QEMU_OPTION_chardev:
@@ -5849,9 +5862,7 @@ int main(int argc, char **argv, char **envp)
 
     for (i = 0; i < MAX_MONITOR_DEVICES; i++) {
         if (monitor_devices[i] && monitor_hds[i]) {
-            monitor_init(monitor_hds[i],
-                         MONITOR_USE_READLINE |
-                         ((i == 0) ? MONITOR_IS_DEFAULT : 0));
+            monitor_init(monitor_hds[i], monitor_flags[i]);
         }
     }
 

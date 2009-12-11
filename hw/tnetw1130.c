@@ -17,6 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Texas Instruments does not provide any datasheets.
+ *
+ * TODO:
+ * - Add save, load support.
+ * - Much more emulation is needed.
  */
 
 #include <assert.h>             /* assert */
@@ -85,7 +89,7 @@
 
 #define TNETW1130_FW_SIZE        (128 * KiB)
 
-static int tnetw1130_instance = 0;
+//~ static int tnetw1130_instance = 0;
 static const int tnetw1130_version = 20070211;
 
 typedef struct {
@@ -97,12 +101,12 @@ typedef struct {
     /* PCI region addresses. */
     uint32_t region[TNETW1130_REGIONS];
 
-    VLANClientState *vc;
     //~ eeprom_t *eeprom;
 
     uint16_t irq_status;
 
     NICConf conf;
+    NICState *nic;
     uint8_t mem0[TNETW1130_MEM0_SIZE];
     uint8_t mem1[TNETW1130_MEM1_SIZE];
     uint32_t fw_addr;
@@ -762,6 +766,7 @@ static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
  *
  ****************************************************************************/
 
+#if 0
 static int tnetw1130_load(QEMUFile * f, void *opaque, int version_id)
 {
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
@@ -778,12 +783,6 @@ static int tnetw1130_load(QEMUFile * f, void *opaque, int version_id)
     return result;
 }
 
-static void nic_reset(void *opaque)
-{
-    //~ pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    TRACE(TNETW, logout("%p\n", opaque));
-}
-
 static void tnetw1130_save(QEMUFile * f, void *opaque)
 {
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
@@ -795,10 +794,17 @@ static void tnetw1130_save(QEMUFile * f, void *opaque)
     /* TODO: support different endianess */
     qemu_put_buffer(f, (uint8_t *) d, sizeof(*d));
 }
+#endif
 
-static int tnetw1130_can_receive(VLANClientState *vc)
+static void nic_reset(void *opaque)
 {
-    //~ tnetw1130_t *s = vc->opaque;
+    //~ pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TRACE(TNETW, logout("%p\n", opaque));
+}
+
+static int nic_can_receive(VLANClientState *vc)
+{
+    //~ tnetw1130_t *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     TRACE(TNETW, logout("\n"));
 
@@ -806,19 +812,17 @@ static int tnetw1130_can_receive(VLANClientState *vc)
     return 0;
 }
 
-static ssize_t tnetw1130_receive(VLANClientState *vc,
-                                 const uint8_t * buf, size_t size)
+static ssize_t nic_receive(VLANClientState *vc,
+                           const uint8_t * buf, size_t size)
 {
     TRACE(TNETW, logout("\n"));
     return size;
 }
 
-static void tnetw1130_cleanup(VLANClientState *vc)
+static void nic_cleanup(VLANClientState *vc)
 {
-    pci_tnetw1130_t *d = vc->opaque;
-    unregister_savevm("tnetw1130", d);
-
 #if 0
+    tnetw1130_t *s = DO_UPCAST(NICState, nc, nc)->opaque;
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif
@@ -851,6 +855,14 @@ static void tnetw1130_pci_config(uint8_t *pci_conf)
     /* 0x48...0xff reserved, returns 0 */
 }
 
+static NetClientInfo net_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = nic_can_receive,
+    .receive = nic_receive,
+    .cleanup = nic_cleanup,
+};
+
 static int tnetw1130_init(PCIDevice *pci_dev)
 {
     pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
@@ -881,20 +893,15 @@ static int tnetw1130_init(PCIDevice *pci_dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     tnetw1130_reset(s);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
-                                 tnetw1130_can_receive,
-                                 tnetw1130_receive,
-                                 NULL, NULL,
-                                 tnetw1130_cleanup, s);
+    s->nic = qemu_new_nic(&net_info, &s->conf,
+                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     qemu_register_reset(nic_reset, d);
 
-    register_savevm("tnetw1130", tnetw1130_instance, tnetw1130_version,
-                    tnetw1130_save, tnetw1130_load, d);
+    //~ register_savevm("tnetw1130", tnetw1130_instance, tnetw1130_version,
+                    //~ tnetw1130_save, tnetw1130_load, d);
 
     return 0;
 }
@@ -916,7 +923,7 @@ static int pci_tnetw1130_uninit(PCIDevice *pci_dev)
     cpu_unregister_io_memory(s->io_memory[0]);
     cpu_unregister_io_memory(s->io_memory[1]);
     //~ vmstate_unregister(s->vmstate, s);
-    qemu_del_vlan_client(s->vc);
+    qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
 
@@ -967,7 +974,7 @@ static int vlynq_tnetw1130_uninit(PCIDevice *pci_dev)
     cpu_unregister_io_memory(s->io_memory[0]);
     cpu_unregister_io_memory(s->io_memory[1]);
     //~ vmstate_unregister(s->vmstate, s);
-    qemu_del_vlan_client(s->vc);
+    qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
 

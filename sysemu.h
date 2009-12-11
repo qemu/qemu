@@ -7,6 +7,7 @@
 #include "qemu-queue.h"
 #include "qemu-timer.h"
 #include "qdict.h"
+#include "qerror.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -71,6 +72,12 @@ void qemu_errors_to_file(FILE *fp);
 void qemu_errors_to_mon(Monitor *mon);
 void qemu_errors_to_previous(void);
 void qemu_error(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
+void qemu_error_internal(const char *file, int linenr, const char *func,
+                         const char *fmt, ...)
+                         __attribute__ ((format(printf, 4, 5)));
+
+#define qemu_error_new(fmt, ...) \
+    qemu_error_internal(__FILE__, __LINE__, __func__, fmt, ## __VA_ARGS__)
 
 #ifdef _WIN32
 /* Polling handling */

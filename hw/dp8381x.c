@@ -32,6 +32,9 @@
  *
  * Untested features:
  *      big endian host cpu
+ *
+ * TODO:
+ *      Implement save, load VM support.
  */
 
 #include <assert.h>             /* assert */
@@ -135,8 +138,8 @@ typedef struct {
     int io_memory;              /* handle for memory mapped I/O */
     PCIDevice *pci_dev;
     uint32_t region[2];         /* PCI region addresses */
-    VLANClientState *vc;
     eeprom_t *eeprom;
+    NICState *nic;
     NICConf conf;
     uint8_t mem[DP8381X_IO_SIZE];
     uint8_t filter[1024];
@@ -450,9 +453,9 @@ typedef struct {
 typedef descriptor_t rx_descriptor_t;
 typedef descriptor_t tx_descriptor_t;
 
-static int dp8381x_can_receive(VLANClientState *vc)
+static int nic_can_receive(VLANClientState *vc)
 {
-    dp8381x_t *s = (dp8381x_t *)vc->opaque;
+    dp8381x_t *s = DO_UPCAST(NICState, nc, vc)->opaque;
 
     logout("\n");
 
@@ -474,12 +477,12 @@ typedef enum {
     CMDSTS_RUNT = BIT(21),
 } cmdsts_bit_t;
 
-static ssize_t dp8381x_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    dp8381x_t *s = (dp8381x_t *)vc->opaque;
+    dp8381x_t *s = DO_UPCAST(NICState, nc, vc)->opaque;
 #if 0
     uint8_t *p;
     int total_len, next, avail, len, index, mcast_idx;
@@ -593,7 +596,7 @@ static void dp8381x_transmit(dp8381x_t * s)
         stl_le_phys(txdp + 4, cmdsts);
         dp8381x_interrupt(s, ISR_TXOK);
         TRACE(LOG_TX, logout("sending\n"));
-        qemu_send_packet(s->vc, buffer, size);
+        qemu_send_packet(&s->nic->nc, buffer, size);
         if (txlink == 0) {
             s->tx_state = idle;
             dp8381x_interrupt(s, ISR_TXIDLE);
@@ -1382,9 +1385,9 @@ static CPUWriteMemoryFunc *dp8381x_mmio_write[] = {
     dp8381x_mmio_writel
 };
 
-static void dp8381x_cleanup(VLANClientState *vc)
+static void nic_cleanup(VLANClientState *vc)
 {
-    pci_dp8381x_t *d = vc->opaque;
+    pci_dp8381x_t *d = DO_UPCAST(NICState, nc, vc)->opaque;
 
     unregister_savevm("dp8381x", d);
 
@@ -1396,10 +1399,7 @@ static void dp8381x_cleanup(VLANClientState *vc)
 
 static int dp8381x_load(QEMUFile * f, void *opaque, int version_id)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-#if 0
-    dp8381x_t *s = &d->dp8381x;
-#endif
+    pci_dp8381x_t *d = opaque;
     int result = 0;
     logout("\n");
     if (version_id == dp8381x_version) {
@@ -1498,6 +1498,14 @@ static void eeprom_init(dp8381x_t * s)
 }
 #endif
 
+static NetClientInfo net_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = nic_can_receive,
+    .receive = nic_receive,
+    .cleanup = nic_cleanup,
+};
+
 static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 {
     pci_dp8381x_t *d = (pci_dp8381x_t *)pci_dev;
@@ -1546,18 +1554,14 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     eeprom_init(s);
 #endif
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
-                                 dp8381x_can_receive, dp8381x_receive,
-                                 NULL, NULL,
-                                 dp8381x_cleanup, s);
+    s->nic = qemu_new_nic(&net_info, &s->conf,
+                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     qemu_register_reset(nic_reset, d);
 
-    // TODO: use s->vc->model or d->name instead of "dp8381x".
+    // TODO: use &s->nic->nc->model or d->name instead of "dp8381x".
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
                     dp8381x_save, dp8381x_load, d);
 

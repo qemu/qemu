@@ -10,7 +10,7 @@
 /* ??? Need to check if the {read,write}[wl] routines work properly on
    big-endian targets.  */
 
-#include <assert.h>                             \
+#include <assert.h>
 
 #include "hw.h"
 #include "pci.h"
@@ -154,6 +154,9 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #define LSI_CCNTL1_DDAC      0x08
 #define LSI_CCNTL1_ZMOD      0x80
 
+/* Enable Response to Reselection */
+#define LSI_SCID_RRE      0x60
+
 #define LSI_CCNTL1_40BIT (LSI_CCNTL1_EN64TIBMV|LSI_CCNTL1_64TIMOD)
 
 #define PHASE_DO          0
@@ -185,7 +188,7 @@ typedef struct {
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int sense;
     /* Action to take at the end of a MSG IN phase.
-       0 = COMMAND, 1 = disconect, 2 = DATA OUT, 3 = DATA IN.  */
+       0 = COMMAND, 1 = disconnect, 2 = DATA OUT, 3 = DATA IN.  */
     int msg_action;
     int msg_len;
     uint8_t msg[LSI_MAX_MSGIN_LEN];
@@ -271,6 +274,11 @@ typedef struct {
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
 } LSIState;
+
+static inline int lsi_irq_on_rsl(LSIState *s)
+{
+    return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
+}
 
 static void lsi_soft_reset(LSIState *s)
 {
@@ -362,6 +370,7 @@ static int lsi_dma_64bit(LSIState *s)
 static uint8_t lsi_reg_readb(LSIState *s, int offset);
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
 static void lsi_execute_script(LSIState *s);
+static void lsi_reselect(LSIState *s, uint32_t tag);
 
 static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
@@ -382,6 +391,7 @@ static void lsi_stop_script(LSIState *s)
 
 static void lsi_update_irq(LSIState *s)
 {
+    int i;
     int level;
     static int last_level;
 
@@ -413,6 +423,17 @@ static void lsi_update_irq(LSIState *s)
         last_level = level;
     }
     qemu_set_irq(s->dev.irq[0], level);
+
+    if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
+        DPRINTF("Handled IRQs & disconnected, looking for pending "
+                "processes\n");
+        for (i = 0; i < s->active_commands; i++) {
+            if (s->queue[i].pending) {
+                lsi_reselect(s, s->queue[i].tag);
+                break;
+            }
+        }
+    }
 }
 
 /* Stop SCRIPTS execution and raise a SCSI interrupt.  */
@@ -585,6 +606,10 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     }
     id = (tag >> 8) & 0xf;
     s->ssid = id | 0x80;
+    /* LSI53C700 Family Compatibility, see LSI53C895A 4-73 */
+    if (!s->dcntl & LSI_DCNTL_COM) {
+        s->sfbr = 1 << (id & 0x7);
+    }
     DPRINTF("Reselected target %d\n", id);
     s->current_dev = s->bus.devs[id];
     s->current_tag = tag;
@@ -603,6 +628,10 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     if (n != s->active_commands) {
         s->queue[n] = s->queue[s->active_commands];
     }
+
+    if (lsi_irq_on_rsl(s)) {
+        lsi_script_scsi_interrupt(s, LSI_SIST0_RSL, 0);
+    }
 }
 
 /* Record that data is available for a queued command.  Returns zero if
@@ -618,7 +647,14 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
                 BADF("Multiple IO pending for tag %d\n", tag);
             }
             p->pending = arg;
-            if (s->waiting == 1) {
+            /* Reselect if waiting for it, or if reselection triggers an IRQ
+               and the bus is free.
+               Since no interrupt stacking is implemented in the emulation, it
+               is also required that there are no pending interrupts waiting
+               for service from the device driver. */
+            if (s->waiting == 1 ||
+                (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
+                 !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
                 /* Reselect device.  */
                 lsi_reselect(s, tag);
                 return 0;
@@ -655,10 +691,13 @@ static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
         return;
     }
 
-    if (s->waiting == 1 || tag != s->current_tag) {
+    if (s->waiting == 1 || tag != s->current_tag ||
+        (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
         if (lsi_queue_tag(s, tag, arg))
             return;
     }
+
+    /* host adapter (re)connected */
     DPRINTF("Data ready tag=0x%x len=%d\n", tag, arg);
     s->current_dma_len = arg;
     s->command_complete = 1;
@@ -786,7 +825,7 @@ static void lsi_do_msgout(LSIState *s)
         s->sfbr = msg;
 
         switch (msg) {
-        case 0x00:
+        case 0x04:
             DPRINTF("MSG: Disconnect\n");
             lsi_disconnect(s);
             break;
@@ -1026,7 +1065,7 @@ again:
             if (insn & (1 << 25)) {
                 id = read_dword(s, s->dsa + sxt24(insn));
             } else {
-                id = addr;
+                id = insn;
             }
             id = (id >> 16) & 0xf;
             if (insn & (1 << 26)) {
@@ -1036,8 +1075,9 @@ again:
             switch (opcode) {
             case 0: /* Select */
                 s->sdid = id;
-                if (s->current_dma_len && (s->ssid & 0xf) == id) {
-                    DPRINTF("Already reselected by target %d\n", id);
+                if (s->scntl1 & LSI_SCNTL1_CON) {
+                    DPRINTF("Already reselected, jumping to alternative address\n");
+                    s->dsp = s->dnad;
                     break;
                 }
                 s->sstat0 |= LSI_SSTAT0_WOA;
@@ -1062,11 +1102,13 @@ again:
                 lsi_set_phase(s, PHASE_MO);
                 break;
             case 1: /* Disconnect */
-                DPRINTF("Wait Disconect\n");
+                DPRINTF("Wait Disconnect\n");
                 s->scntl1 &= ~LSI_SCNTL1_CON;
                 break;
             case 2: /* Wait Reselect */
-                lsi_wait_reselect(s);
+                if (!lsi_irq_on_rsl(s)) {
+                    lsi_wait_reselect(s);
+                }
                 break;
             case 3: /* Set */
                 DPRINTF("Set%s%s%s%s\n",
@@ -1554,9 +1596,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
            SCRIPTS register move instructions are.  */
         s->sfbr = val;
         break;
-    case 0x0a: case 0x0b: 
+    case 0x0a: case 0x0b:
         /* Openserver writes to these readonly registers on startup */
-	return;    
+	return;
     case 0x0c: case 0x0d: case 0x0e: case 0x0f:
         /* Linux writes to these readonly registers on startup.  */
         return;

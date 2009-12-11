@@ -8,7 +8,7 @@
 typedef struct PCNetState_st PCNetState;
 
 struct PCNetState_st {
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
     QEMUTimer *poll_timer;
     int rap, isr, lnkst;
@@ -32,7 +32,8 @@ struct PCNetState_st {
 void pcnet_h_reset(void *opaque);
 void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val);
 uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr);
+int pcnet_can_receive(VLANClientState *nc);
+ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_);
 void pcnet_common_cleanup(PCNetState *d);
-int pcnet_common_init(DeviceState *dev, PCNetState *s,
-                      NetCleanup *cleanup);
+int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info);
 extern const VMStateDescription vmstate_pcnet;

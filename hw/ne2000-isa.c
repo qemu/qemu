@@ -35,12 +35,20 @@ typedef struct ISANE2000State {
     NE2000State ne2000;
 } ISANE2000State;
 
-static void isa_ne2000_cleanup(VLANClientState *vc)
+static void isa_ne2000_cleanup(VLANClientState *nc)
 {
-    NE2000State *s = vc->opaque;
+    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
+
+static NetClientInfo net_ne2000_isa_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = ne2000_can_receive,
+    .receive = ne2000_receive,
+    .cleanup = isa_ne2000_cleanup,
+};
 
 static int isa_ne2000_initfn(ISADevice *dev)
 {
@@ -63,11 +71,9 @@ static int isa_ne2000_initfn(ISADevice *dev)
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC, s->c.vlan, s->c.peer,
-                                 dev->qdev.info->name, dev->qdev.id,
-                                 ne2000_can_receive, ne2000_receive, NULL,
-                                 NULL, isa_ne2000_cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->c.macaddr.a);
+    s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
+                          dev->qdev.info->name, dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
 
     vmstate_register(-1, &vmstate_ne2000, s);
     return 0;

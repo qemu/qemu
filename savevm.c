@@ -120,24 +120,24 @@ static int announce_self_create(uint8_t *buf,
     return 60; /* len (FCS will be added by hardware) */
 }
 
+static void qemu_announce_self_iter(NICState *nic, void *opaque)
+{
+    uint8_t buf[60];
+    int len;
+
+    len = announce_self_create(buf, nic->conf->macaddr.a);
+
+    qemu_send_packet_raw(&nic->nc, buf, len);
+}
+
+
 static void qemu_announce_self_once(void *opaque)
 {
-    int i, len;
-    VLANState *vlan;
-    VLANClientState *vc;
-    uint8_t buf[60];
     static int count = SELF_ANNOUNCE_ROUNDS;
     QEMUTimer *timer = *(QEMUTimer **)opaque;
 
-    for (i = 0; i < MAX_NICS; i++) {
-        if (!nd_table[i].used)
-            continue;
-        len = announce_self_create(buf, nd_table[i].macaddr);
-        vlan = nd_table[i].vlan;
-        QTAILQ_FOREACH(vc, &vlan->clients, next) {
-            qemu_send_packet_raw(vc, buf, len);
-        }
-    }
+    qemu_foreach_nic(qemu_announce_self_iter, NULL);
+
     if (--count) {
         /* delay 50ms, 150ms, 250ms, ... */
         qemu_mod_timer(timer, qemu_get_clock(rt_clock) +

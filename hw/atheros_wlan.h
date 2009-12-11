@@ -283,12 +283,12 @@ struct pending_interrupt
 typedef struct Atheros_WLANState
 {
 	PCIDevice *pci_dev;
-	VLANClientState *vc;
 	int Atheros_WLAN_mmio_io_addr;
 
 	uint32_t device_driver_type;
 
     NICConf conf;
+    NICState *nic;
 
 	uint8_t ipaddr[4];				// currently unused
 	uint8_t macaddr[6];				// mac address

@@ -107,13 +107,17 @@ block-nested-$(CONFIG_CURL) += curl.o
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
 net-obj-y = net.o
-net-nested-y = queue.o checksum.o
+net-nested-y = queue.o checksum.o util.o
+net-nested-y += socket.o
+net-nested-y += dump.o
 net-nested-$(CONFIG_POSIX) += tap.o
 net-nested-$(CONFIG_LINUX) += tap-linux.o
 net-nested-$(CONFIG_WIN32) += tap-win32.o
 net-nested-$(CONFIG_BSD) += tap-bsd.o
 net-nested-$(CONFIG_SOLARIS) += tap-solaris.o
 net-nested-$(CONFIG_AIX) += tap-aix.o
+net-nested-$(CONFIG_SLIRP) += slirp.o
+net-nested-$(CONFIG_VDE) += vde.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
 ######################################################################
@@ -158,7 +162,7 @@ obj-y += qemu-char.o aio.o savevm.o
 obj-y += msmouse.o ps2.o
 obj-y += qdev.o qdev-properties.o
 obj-y += qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o json-lexer.o
-obj-y += json-streamer.o json-parser.o qjson.o
+obj-y += json-streamer.o json-parser.o qjson.o qerror.o
 obj-y += qemu-config.o block-migration.o
 
 obj-$(CONFIG_BRLAPI) += baum.o

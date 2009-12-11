@@ -92,13 +92,21 @@ static CPUWriteMemoryFunc * const lance_mem_write[3] = {
     NULL,
 };
 
-static void lance_cleanup(VLANClientState *vc)
+static void lance_cleanup(VLANClientState *nc)
 {
-    PCNetState *d = vc->opaque;
+    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
 
     vmstate_unregister(&vmstate_pcnet, d);
     pcnet_common_cleanup(d);
 }
+
+static NetClientInfo net_lance_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = pcnet_can_receive,
+    .receive = pcnet_receive,
+    .cleanup = lance_cleanup,
+};
 
 static int lance_init(SysBusDevice *dev)
 {
@@ -118,7 +126,7 @@ static int lance_init(SysBusDevice *dev)
     s->phys_mem_write = ledma_memory_write;
 
     vmstate_register(-1, &vmstate_pcnet, d);
-    return pcnet_common_init(&dev->qdev, s, lance_cleanup);
+    return pcnet_common_init(&dev->qdev, s, &net_lance_info);
 }
 
 static void lance_reset(DeviceState *dev)

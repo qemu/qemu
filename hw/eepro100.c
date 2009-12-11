@@ -223,7 +223,7 @@ typedef struct {
     PCIDevice dev;
     uint8_t mult[8];            /* multicast mask array */
     int mmio_index;
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
@@ -975,7 +975,7 @@ static void tx_command(EEPRO100State *s)
     }
     TRACE(RXTX, logout("%p sending frame, len=%d,%s\n", s, size, nic_dump(buf, size)));
     assert(size <= sizeof(buf));
-    qemu_send_packet(s->vc, buf, size);
+    qemu_send_packet(&s->nic->nc, buf, size);
     s->statistics.tx_good_frames++;
     /* Transmit with bad status would raise an CX/TNO interrupt.
      * (82557 only). Emulation never has bad status. */
@@ -1799,21 +1799,21 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
     }
 }
 
-static int nic_can_receive(VLANClientState *vc)
+static int nic_can_receive(VLANClientState *nc)
 {
-    EEPRO100State *s = vc->opaque;
+    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     TRACE(RXTX, logout("%p\n", s));
     return get_ru_state(s) == ru_ready;
     //~ return !eepro100_buffer_full(s);
 }
 
-static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size)
 {
     /* TODO:
      * - Magic packets should set bit 30 in power management driver register.
      * - Interesting packets should set bit 29 in power management driver register.
      */
-    EEPRO100State *s = vc->opaque;
+    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t rfd_status = 0xa000;
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -1993,11 +1993,11 @@ static const VMStateDescription vmstate_eepro100 = {
     }
 };
 
-static void nic_cleanup(VLANClientState *vc)
+static void nic_cleanup(VLANClientState *nc)
 {
-    EEPRO100State *s = vc->opaque;
+    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
 
 static int pci_nic_uninit(PCIDevice *pci_dev)
@@ -2007,9 +2007,17 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
     cpu_unregister_io_memory(s->mmio_index);
     vmstate_unregister(s->vmstate, s);
     eeprom93xx_free(s->eeprom);
-    qemu_del_vlan_client(s->vc);
+    qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
+
+static NetClientInfo net_eepro100_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = nic_can_receive,
+    .receive = nic_receive,
+    .cleanup = nic_cleanup,
+};
 
 static int nic_init(PCIDevice *pci_dev, uint32_t device)
 {
@@ -2044,27 +2052,24 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
 
     nic_reset(s);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
-                                 nic_can_receive, nic_receive, NULL, NULL,
-                                 nic_cleanup, s);
+    s->nic = qemu_new_nic(&net_eepro100_info, &s->conf,
+                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
-    TRACE(OTHER, logout("%s\n", s->vc->info_str));
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    TRACE(OTHER, logout("%s\n", s->nic->nc.info_str));
 
     qemu_register_reset(nic_reset, s);
 
     s->vmstate = qemu_malloc(sizeof(vmstate_eepro100));
     memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
-    s->vmstate->name = s->vc->model;
+    s->vmstate->name = s->nic->nc.model;
     vmstate_register(-1, s->vmstate, s);
 
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
             char fname[32];
-            snprintf(fname, sizeof(fname), "pxe-%s.bin", s->vc->model);
+            snprintf(fname, sizeof(fname), "pxe-%s.bin", s->nic->nc.model);
             rom_add_option(fname);
             loaded = 1;
         }

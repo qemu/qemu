@@ -188,9 +188,9 @@ static int ne2000_buffer_full(NE2000State *s)
     return 0;
 }
 
-int ne2000_can_receive(VLANClientState *vc)
+int ne2000_can_receive(VLANClientState *nc)
 {
-    NE2000State *s = vc->opaque;
+    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     /* Receive (drop) packets if card is disabled.  */
     if (s->cmd & E8390_STOP)
@@ -200,9 +200,9 @@ int ne2000_can_receive(VLANClientState *vc)
 
 #define MIN_BUF_SIZE 60
 
-ssize_t ne2000_receive(VLANClientState *vc, const uint8_t *buf, size_t size_)
+ssize_t ne2000_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
 {
-    NE2000State *s = vc->opaque;
+    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int size = size_;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
@@ -324,7 +324,7 @@ void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                     index -= NE2000_PMEM_SIZE;
                 /* fail safe: check range on the transmitted length  */
                 if (index + s->tcnt <= NE2000_PMEM_END) {
-                    qemu_send_packet(s->vc, s->mem + index, s->tcnt);
+                    qemu_send_packet(&s->nic->nc, s->mem + index, s->tcnt);
                 }
                 /* signal end of transfer */
                 s->tsr = ENTSR_PTX;
@@ -703,12 +703,20 @@ static void ne2000_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
 }
 
-static void ne2000_cleanup(VLANClientState *vc)
+static void ne2000_cleanup(VLANClientState *nc)
 {
-    NE2000State *s = vc->opaque;
+    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    s->vc = NULL;
+    s->nic = NULL;
 }
+
+static NetClientInfo net_ne2000_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = ne2000_can_receive,
+    .receive = ne2000_receive,
+    .cleanup = ne2000_cleanup,
+};
 
 static int pci_ne2000_init(PCIDevice *pci_dev)
 {
@@ -730,11 +738,10 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC, s->c.vlan, s->c.peer,
-                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
-                                 ne2000_can_receive, ne2000_receive, NULL,
-                                 NULL, ne2000_cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->c.macaddr.a);
+
+    s->nic = qemu_new_nic(&net_ne2000_info, &s->c,
+                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
 
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
@@ -754,7 +761,7 @@ static int pci_ne2000_exit(PCIDevice *pci_dev)
     NE2000State *s = &d->ne2000;
 
     vmstate_unregister(&vmstate_pci_ne2000, s);
-    qemu_del_vlan_client(s->vc);
+    qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
 

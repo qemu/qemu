@@ -31,6 +31,10 @@
  *
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
+ *
+ * TODO:
+ * - Add save, load support.
+ *
  */
 
 #include <assert.h>
@@ -496,12 +500,12 @@ typedef struct
 } __attribute__ ((packed)) i82557_cfg_t;
 
 typedef struct {
-    VLANClientState *vc;
     PCIDevice *pci_dev;
     int mmio_index;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint32_t region_base_addr[REGION_NUM];         /* PCI region addresses */
     NICConf conf;
+    NICState *nic;
     uint16_t mdimem[32];
     eeprom_t eeprom;
     uint32_t device;            /* device variant */
@@ -838,19 +842,6 @@ static void e100_reset(void *opaque)
     E100State *s = (E100State *) opaque;
     logout("%p\n", s);
     e100_software_reset(s);
-}
-
-
-static void e100_save(QEMUFile * f, void *opaque)
-{
-    //TODO
-    return;
-}
-
-static int e100_load(QEMUFile * f, void *opaque, int version_id)
-{
-    //TODO
-    return 0;
 }
 
 /* Interrupt functions */
@@ -1599,7 +1590,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
 
                     if ( s->pkt_buf_len )
                     {
-                        qemu_send_packet(s->vc, s->pkt_buf, s->pkt_buf_len);
+                        qemu_send_packet(&s->nic->nc, s->pkt_buf, s->pkt_buf_len);
                         s->statistics.tx_good_frames ++;
                         logout("Send out frame successful(size=%d,"
                                 "already sent %d frames)\n", s->pkt_buf_len,
@@ -2304,9 +2295,9 @@ static inline int buffer_tcp(E100State *s, const uint8_t *pkt)
 #endif
 
 /* Eerpro100 receive functions */
-static int e100_can_receive(VLANClientState *vc)
+static int nic_can_receive(VLANClientState *vc)
 {
-    E100State *s = vc->opaque;
+    E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
 
     int is_ready = (GET_RU_STATE == RU_READY);
     logout("%s\n", is_ready ? "EEPro100 receiver is ready"
@@ -2314,9 +2305,9 @@ static int e100_can_receive(VLANClientState *vc)
     return is_ready;
 }
 
-static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
 {
-    E100State *s = vc->opaque;
+    E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
     uint32_t rfd_addr = 0;
     rfd_t rfd = {0};
 
@@ -2433,13 +2424,13 @@ static ssize_t e100_receive(VLANClientState *vc, const uint8_t * buf, size_t siz
     return size;
 }
 
-static void e100_cleanup(VLANClientState *vc)
+static void nic_cleanup(VLANClientState *vc)
 {
-    PCIE100State *d = vc->opaque;
-
-    unregister_savevm("e100", d);
+    //~ E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    //~ PCIE100State *d = vc->opaque;
 
 #if 0
+    unregister_savevm("e100", d);
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif
@@ -2466,6 +2457,14 @@ static void eeprom_init(E100State *s)
     s->eeprom.contents[i] = 0xBABA - chksum;
 
 }
+
+static NetClientInfo net_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = nic_can_receive,
+    .receive = nic_receive,
+    .cleanup = nic_cleanup,
+};
 
 static int e100_init(PCIDevice *pci_dev, uint32_t device)
 {
@@ -2501,17 +2500,12 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
 
     e100_reset(s);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 pci_dev->qdev.info->name, pci_dev->qdev.id,
-                                 e100_can_receive, e100_receive, NULL, NULL,
-                                 e100_cleanup, s);
+    s->nic = qemu_new_nic(&net_info, &s->conf,
+                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     qemu_register_reset(e100_reset, s);
-
-    register_savevm(s->vc->model, 0, 3, e100_save, e100_load, s);
 
     return 0;
 }

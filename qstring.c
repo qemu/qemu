@@ -31,26 +31,46 @@ QString *qstring_new(void)
 }
 
 /**
+ * qstring_from_substr(): Create a new QString from a C string substring
+ *
+ * Return string reference
+ */
+QString *qstring_from_substr(const char *str, int start, int end)
+{
+    QString *qstring;
+
+    qstring = qemu_malloc(sizeof(*qstring));
+
+    qstring->length = end - start + 1;
+    qstring->capacity = qstring->length;
+
+    qstring->string = qemu_malloc(qstring->capacity + 1);
+    memcpy(qstring->string, str + start, qstring->length);
+    qstring->string[qstring->length] = 0;
+
+    QOBJECT_INIT(qstring, &qstring_type);
+
+    return qstring;
+}
+
+/**
  * qstring_from_str(): Create a new QString from a regular C string
  *
  * Return strong reference.
  */
 QString *qstring_from_str(const char *str)
 {
-    QString *qstring;
+    return qstring_from_substr(str, 0, strlen(str) - 1);
+}
 
-    qstring = qemu_malloc(sizeof(*qstring));
+static void capacity_increase(QString *qstring, size_t len)
+{
+    if (qstring->capacity < (qstring->length + len)) {
+        qstring->capacity += len;
+        qstring->capacity *= 2; /* use exponential growth */
 
-    qstring->length = strlen(str);
-    qstring->capacity = qstring->length;
-
-    qstring->string = qemu_malloc(qstring->capacity + 1);
-    memcpy(qstring->string, str, qstring->length);
-    qstring->string[qstring->length] = 0;
-
-    QOBJECT_INIT(qstring, &qstring_type);
-
-    return qstring;
+        qstring->string = qemu_realloc(qstring->string, qstring->capacity + 1);
+    }
 }
 
 /* qstring_append(): Append a C string to a QString
@@ -59,15 +79,27 @@ void qstring_append(QString *qstring, const char *str)
 {
     size_t len = strlen(str);
 
-    if (qstring->capacity < (qstring->length + len)) {
-        qstring->capacity += len;
-        qstring->capacity *= 2; /* use exponential growth */
-
-        qstring->string = qemu_realloc(qstring->string, qstring->capacity + 1);
-    }
-
+    capacity_increase(qstring, len);
     memcpy(qstring->string + qstring->length, str, len);
     qstring->length += len;
+    qstring->string[qstring->length] = 0;
+}
+
+void qstring_append_int(QString *qstring, int64_t value)
+{
+    char num[32];
+
+    snprintf(num, sizeof(num), "%" PRId64, value);
+    qstring_append(qstring, num);
+}
+
+/**
+ * qstring_append_chr(): Append a C char to a QString
+ */
+void qstring_append_chr(QString *qstring, int c)
+{
+    capacity_increase(qstring, 1);
+    qstring->string[qstring->length++] = c;
     qstring->string[qstring->length] = 0;
 }
 

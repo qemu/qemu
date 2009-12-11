@@ -42,18 +42,20 @@ typedef ssize_t (NetReceiveIOV)(VLANClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (VLANClientState *);
 typedef void (LinkStatusChanged)(VLANClientState *);
 
-struct VLANClientState {
+typedef struct NetClientInfo {
     net_client_type type;
+    size_t size;
     NetReceive *receive;
     NetReceive *receive_raw;
     NetReceiveIOV *receive_iov;
-    /* Packets may still be sent if this returns zero.  It's used to
-       rate-limit the slirp code.  */
     NetCanReceive *can_receive;
     NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
+} NetClientInfo;
+
+struct VLANClientState {
+    NetClientInfo *info;
     int link_down;
-    void *opaque;
     QTAILQ_ENTRY(VLANClientState) next;
     struct VLANState *vlan;
     VLANClientState *peer;
@@ -63,6 +65,12 @@ struct VLANClientState {
     char info_str[256];
     unsigned receive_disabled : 1;
 };
+
+typedef struct NICState {
+    VLANClientState nc;
+    NICConf *conf;
+    void *opaque;
+} NICState;
 
 struct VLANState {
     int id;
@@ -74,19 +82,21 @@ struct VLANState {
 
 VLANState *qemu_find_vlan(int id, int allocate);
 VLANClientState *qemu_find_netdev(const char *id);
-VLANClientState *qemu_new_vlan_client(net_client_type type,
-                                      VLANState *vlan,
-                                      VLANClientState *peer,
-                                      const char *model,
-                                      const char *name,
-                                      NetCanReceive *can_receive,
-                                      NetReceive *receive,
-                                      NetReceive *receive_raw,
-                                      NetReceiveIOV *receive_iov,
-                                      NetCleanup *cleanup,
-                                      void *opaque);
+VLANClientState *qemu_new_net_client(NetClientInfo *info,
+                                     VLANState *vlan,
+                                     VLANClientState *peer,
+                                     const char *model,
+                                     const char *name);
+NICState *qemu_new_nic(NetClientInfo *info,
+                       NICConf *conf,
+                       const char *model,
+                       const char *name,
+                       void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
-VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque);
+VLANClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
+                                               const char *client_str);
+typedef void (*qemu_nic_foreach)(NICState *nic, void *opaque);
+void qemu_foreach_nic(qemu_nic_foreach func, void *opaque);
 int qemu_can_send_packet(VLANClientState *vc);
 ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
                           int iovcnt);
@@ -108,8 +118,6 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 void do_info_network(Monitor *mon);
 void do_set_link(Monitor *mon, const QDict *qdict);
 
-void do_info_usernet(Monitor *mon);
-
 /* NIC info */
 
 #define MAX_NICS 8
@@ -124,8 +132,6 @@ struct NICInfo {
     char *devaddr;
     VLANState *vlan;
     VLANClientState *netdev;
-    VLANClientState *vc;
-    void *private;
     int used;
     int bootable;
     int nvectors;
@@ -156,10 +162,6 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
-int net_slirp_smb(const char *exported_dir);
-void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
-void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict);
-int net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
 void net_set_boot_mask(int boot_mask);
 void net_host_device_add(Monitor *mon, const QDict *qdict);

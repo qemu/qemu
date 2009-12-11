@@ -66,7 +66,7 @@ typedef struct {
     uint8_t *rx_fifo;
     int rx_fifo_len;
     int next_packet;
-    VLANClientState *vc;
+    NICState *nic;
     NICConf conf;
     qemu_irq irq;
     int mmio_index;
@@ -78,9 +78,9 @@ static void stellaris_enet_update(stellaris_enet_state *s)
 }
 
 /* TODO: Implement MAC address filtering.  */
-static ssize_t stellaris_enet_receive(VLANClientState *vc, const uint8_t *buf, size_t size)
+static ssize_t stellaris_enet_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
-    stellaris_enet_state *s = vc->opaque;
+    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int n;
     uint8_t *p;
     uint32_t crc;
@@ -120,9 +120,9 @@ static ssize_t stellaris_enet_receive(VLANClientState *vc, const uint8_t *buf, s
     return size;
 }
 
-static int stellaris_enet_can_receive(VLANClientState *vc)
+static int stellaris_enet_can_receive(VLANClientState *nc)
 {
-    stellaris_enet_state *s = vc->opaque;
+    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if ((s->rctl & SE_RCTL_RXEN) == 0)
         return 1;
@@ -258,7 +258,7 @@ static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
                     memset(&s->tx_fifo[s->tx_frame_len], 0, 60 - s->tx_frame_len);
                     s->tx_fifo_len = 60;
                 }
-                qemu_send_packet(s->vc, s->tx_fifo, s->tx_frame_len);
+                qemu_send_packet(&s->nic->nc, s->tx_fifo, s->tx_frame_len);
                 s->tx_frame_len = -1;
                 s->ris |= SE_INT_TXEMP;
                 stellaris_enet_update(s);
@@ -385,9 +385,9 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_enet_cleanup(VLANClientState *vc)
+static void stellaris_enet_cleanup(VLANClientState *nc)
 {
-    stellaris_enet_state *s = vc->opaque;
+    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     unregister_savevm("stellaris_enet", s);
 
@@ -395,6 +395,14 @@ static void stellaris_enet_cleanup(VLANClientState *vc)
 
     qemu_free(s);
 }
+
+static NetClientInfo net_stellaris_enet_info = {
+    .type = NET_CLIENT_TYPE_NIC,
+    .size = sizeof(NICState),
+    .can_receive = stellaris_enet_can_receive,
+    .receive = stellaris_enet_receive,
+    .cleanup = stellaris_enet_cleanup,
+};
 
 static int stellaris_enet_init(SysBusDevice *dev)
 {
@@ -406,13 +414,9 @@ static int stellaris_enet_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
-    s->vc = qemu_new_vlan_client(NET_CLIENT_TYPE_NIC,
-                                 s->conf.vlan, s->conf.peer,
-                                 dev->qdev.info->name, dev->qdev.id,
-                                 stellaris_enet_can_receive,
-                                 stellaris_enet_receive, NULL, NULL,
-                                 stellaris_enet_cleanup, s);
-    qemu_format_nic_info_str(s->vc, s->conf.macaddr.a);
+    s->nic = qemu_new_nic(&net_stellaris_enet_info, &s->conf,
+                          dev->qdev.info->name, dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     stellaris_enet_reset(s);
     register_savevm("stellaris_enet", -1, 1,
