@@ -1764,7 +1764,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
  * Core dump code is copied from linux kernel (fs/binfmt_elf.c).
  *
  * Porting ELF coredump for target is (quite) simple process.  First you
- * define ELF_USE_CORE_DUMP in target ELF code (where init_thread() for
+ * define USE_ELF_CORE_DUMP in target ELF code (where init_thread() for
  * the target resides):
  *
  * #define USE_ELF_CORE_DUMP
