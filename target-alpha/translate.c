@@ -1834,12 +1834,16 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x020:
             if (likely(rc != 31)) {
-                if (ra == rb)
+                if (ra == rb) {
                     /* FMOV */
-                    tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[ra]);
-                else
+                    if (ra == 31)
+                        tcg_gen_movi_i64(cpu_fir[rc], 0);
+                    else
+                        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[ra]);
+                } else {
                     /* CPYS */
                     gen_fcpys(ra, rb, rc);
+                }
             }
             break;
         case 0x021:
