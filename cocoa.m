@@ -233,7 +233,7 @@ int keymap[] =
 */
 };
 
-int cocoa_keycode_to_qemu(int keycode)
+static int cocoa_keycode_to_qemu(int keycode)
 {
     if((sizeof(keymap)/sizeof(int)) <= keycode)
     {
