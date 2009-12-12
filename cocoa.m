@@ -28,6 +28,10 @@
 #include "console.h"
 #include "sysemu.h"
 
+#ifndef MAC_OS_X_VERSION_10_5
+#define MAC_OS_X_VERSION_10_5 1050
+#endif
+
 
 //#define DEBUG
 
@@ -337,7 +341,11 @@ int cocoa_keycode_to_qemu(int keycode)
         } else {
             // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
             const NSRect *rectList;
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+            NSInteger rectCount;
+#else
             int rectCount;
+#endif
             int i;
             CGImageRef clipImageRef;
             CGRect clipRect;
