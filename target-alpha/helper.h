@@ -19,9 +19,6 @@ DEF_HELPER_1(cttz, i64, i64)
 
 DEF_HELPER_2(zap, i64, i64, i64)
 DEF_HELPER_2(zapnot, i64, i64, i64)
-DEF_HELPER_2(inswh, i64, i64, i64)
-DEF_HELPER_2(inslh, i64, i64, i64)
-DEF_HELPER_2(insqh, i64, i64, i64)
 
 DEF_HELPER_2(cmpbge, i64, i64, i64)
 

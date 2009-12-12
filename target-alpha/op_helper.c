@@ -185,24 +185,6 @@ uint64_t helper_zapnot(uint64_t val, uint64_t mask)
     return byte_zap(val, ~mask);
 }
 
-uint64_t helper_inswh(uint64_t val, uint64_t mask)
-{
-    val >>= 64 - ((mask & 7) * 8);
-    return byte_zap(val, ~((0x03 << (mask & 7)) >> 8));
-}
-
-uint64_t helper_inslh(uint64_t val, uint64_t mask)
-{
-    val >>= 64 - ((mask & 7) * 8);
-    return byte_zap(val, ~((0x0F << (mask & 7)) >> 8));
-}
-
-uint64_t helper_insqh(uint64_t val, uint64_t mask)
-{
-    val >>= 64 - ((mask & 7) * 8);
-    return byte_zap(val, ~((0xFF << (mask & 7)) >> 8));
-}
-
 uint64_t helper_cmpbge (uint64_t op1, uint64_t op2)
 {
     uint8_t opa, opb, res;
