@@ -5,6 +5,12 @@
  * Based on code by Fabrice Bellard
  *
  * Written by Paul Brook
+ * Modifications:
+ *  2009-Dec-12 Artyom Tarasenko : implemented stamdard inquiry for the case
+ *                                 when the allocation length of CDB is smaller
+ *                                 than 36.
+ *  2009-Oct-13 Artyom Tarasenko : implemented the block descriptor in the
+ *                                 MODE SENSE response.
  *
  * This code is licenced under the LGPL.
  *
@@ -406,11 +412,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         return -1;
     }
 
-    if (req->cmd.xfer < 36) {
-        BADF("Error: Inquiry (STANDARD) buffer size %zd "
-             "is less than 36 (TODO: only 5 required)\n", req->cmd.xfer);
-    }
-
     buflen = req->cmd.xfer;
     if (buflen > SCSI_MAX_INQUIRY_LEN)
         buflen = SCSI_MAX_INQUIRY_LEN;
@@ -436,7 +437,15 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
        Some later commands are also implemented. */
     outbuf[2] = 3;
     outbuf[3] = 2; /* Format 2 */
-    outbuf[4] = buflen - 5; /* Additional Length = (Len - 1) - 4 */
+
+    if (buflen > 36) {
+        outbuf[4] = buflen - 5; /* Additional Length = (Len - 1) - 4 */
+    } else {
+        /* If the allocation length of CDB is too small,
+               the additional length is not adjusted */
+        outbuf[4] = 36 - 5;
+    }
+
     /* Sync data transfer and TCQ.  */
     outbuf[7] = 0x10 | (req->bus->tcq ? 0x02 : 0);
     return buflen;
