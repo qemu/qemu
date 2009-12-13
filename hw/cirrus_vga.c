@@ -3217,11 +3217,12 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
 
 void pci_cirrus_vga_init(PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "Cirrus VGA");
+    pci_create_simple(bus, -1, "cirrus-vga");
 }
 
 static PCIDeviceInfo cirrus_vga_info = {
-    .qdev.name    = "Cirrus VGA",
+    .qdev.name    = "cirrus-vga",
+    .qdev.desc    = "Cirrus CLGD 54xx VGA",
     .qdev.size    = sizeof(PCICirrusVGAState),
     .qdev.vmsd    = &vmstate_pci_cirrus_vga,
     .init         = pci_cirrus_vga_initfn,

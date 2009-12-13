@@ -139,6 +139,53 @@ enum {
     FP_ROUND_DYNAMIC = 0x3,
 };
 
+/* FPCR bits */
+#define FPCR_SUM		(1ULL << 63)
+#define FPCR_INED		(1ULL << 62)
+#define FPCR_UNFD		(1ULL << 61)
+#define FPCR_UNDZ		(1ULL << 60)
+#define FPCR_DYN_SHIFT		58
+#define FPCR_DYN_MASK		(3ULL << FPCR_DYN_SHIFT)
+#define FPCR_IOV		(1ULL << 57)
+#define FPCR_INE		(1ULL << 56)
+#define FPCR_UNF		(1ULL << 55)
+#define FPCR_OVF		(1ULL << 54)
+#define FPCR_DZE		(1ULL << 53)
+#define FPCR_INV		(1ULL << 52)
+#define FPCR_OVFD		(1ULL << 51)
+#define FPCR_DZED		(1ULL << 50)
+#define FPCR_INVD		(1ULL << 49)
+#define FPCR_DNZ		(1ULL << 48)
+#define FPCR_DNOD		(1ULL << 47)
+#define FPCR_STATUS_MASK	(FPCR_IOV | FPCR_INE | FPCR_UNF \
+				 | FPCR_OVF | FPCR_DZE | FPCR_INV)
+
+/* The silly software trap enables implemented by the kernel emulation.
+   These are more or less architecturally required, since the real hardware
+   has read-as-zero bits in the FPCR when the features aren't implemented.
+   For the purposes of QEMU, we pretend the FPCR can hold everything.  */
+#define SWCR_TRAP_ENABLE_INV	(1ULL << 1)
+#define SWCR_TRAP_ENABLE_DZE	(1ULL << 2)
+#define SWCR_TRAP_ENABLE_OVF	(1ULL << 3)
+#define SWCR_TRAP_ENABLE_UNF	(1ULL << 4)
+#define SWCR_TRAP_ENABLE_INE	(1ULL << 5)
+#define SWCR_TRAP_ENABLE_DNO	(1ULL << 6)
+#define SWCR_TRAP_ENABLE_MASK	((1ULL << 7) - (1ULL << 1))
+
+#define SWCR_MAP_DMZ		(1ULL << 12)
+#define SWCR_MAP_UMZ		(1ULL << 13)
+#define SWCR_MAP_MASK		(SWCR_MAP_DMZ | SWCR_MAP_UMZ)
+
+#define SWCR_STATUS_INV		(1ULL << 17)
+#define SWCR_STATUS_DZE		(1ULL << 18)
+#define SWCR_STATUS_OVF		(1ULL << 19)
+#define SWCR_STATUS_UNF		(1ULL << 20)
+#define SWCR_STATUS_INE		(1ULL << 21)
+#define SWCR_STATUS_DNO		(1ULL << 22)
+#define SWCR_STATUS_MASK	((1ULL << 23) - (1ULL << 17))
+
+#define SWCR_MASK  (SWCR_TRAP_ENABLE_MASK | SWCR_MAP_MASK | SWCR_STATUS_MASK)
+
 /* Internal processor registers */
 /* XXX: TOFIX: most of those registers are implementation dependant */
 enum {
@@ -436,6 +483,8 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, uint64_t address, int rw,
 #define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
 void do_interrupt (CPUState *env);
 
+uint64_t cpu_alpha_load_fpcr (CPUState *env);
+void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 void pal_init (CPUState *env);

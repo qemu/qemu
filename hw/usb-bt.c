@@ -630,7 +630,7 @@ USBDevice *usb_bt_init(HCIInfo *hci)
 
     if (!hci)
         return NULL;
-    dev = usb_create_simple(NULL /* FIXME */, "QEMU BT dongle");
+    dev = usb_create_simple(NULL /* FIXME */, "usb-bt-dongle");
     s = DO_UPCAST(struct USBBtState, dev, dev);
     s->dev.opaque = s;
 
@@ -645,7 +645,8 @@ USBDevice *usb_bt_init(HCIInfo *hci)
 }
 
 static struct USBDeviceInfo bt_info = {
-    .qdev.name      = "QEMU BT dongle",
+    .product_desc   = "QEMU BT dongle",
+    .qdev.name      = "usb-bt-dongle",
     .qdev.size      = sizeof(struct USBBtState),
     .init           = usb_bt_initfn,
     .handle_packet  = usb_generic_handle_packet,

@@ -6388,23 +6388,140 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_getxuid) && defined(TARGET_ALPHA)
    /* Alpha specific */
     case TARGET_NR_getxuid:
-	 {
-	    uid_t euid;
-	    euid=geteuid();
-	    ((CPUAlphaState *)cpu_env)->ir[IR_A4]=euid;
-	 }
+         {
+            uid_t euid;
+            euid=geteuid();
+            ((CPUAlphaState *)cpu_env)->ir[IR_A4]=euid;
+         }
         ret = get_errno(getuid());
         break;
 #endif
 #if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
    /* Alpha specific */
     case TARGET_NR_getxgid:
-	 {
-	    uid_t egid;
-	    egid=getegid();
-	    ((CPUAlphaState *)cpu_env)->ir[IR_A4]=egid;
-	 }
+         {
+            uid_t egid;
+            egid=getegid();
+            ((CPUAlphaState *)cpu_env)->ir[IR_A4]=egid;
+         }
         ret = get_errno(getgid());
+        break;
+#endif
+#if defined(TARGET_NR_osf_getsysinfo) && defined(TARGET_ALPHA)
+    /* Alpha specific */
+    case TARGET_NR_osf_getsysinfo:
+        ret = -TARGET_EOPNOTSUPP;
+        switch (arg1) {
+          case TARGET_GSI_IEEE_FP_CONTROL:
+            {
+                uint64_t swcr, fpcr = cpu_alpha_load_fpcr (cpu_env);
+
+                /* Copied from linux ieee_fpcr_to_swcr.  */
+                swcr = (fpcr >> 35) & SWCR_STATUS_MASK;
+                swcr |= (fpcr >> 36) & SWCR_MAP_DMZ;
+                swcr |= (~fpcr >> 48) & (SWCR_TRAP_ENABLE_INV
+                                        | SWCR_TRAP_ENABLE_DZE
+                                        | SWCR_TRAP_ENABLE_OVF);
+                swcr |= (~fpcr >> 57) & (SWCR_TRAP_ENABLE_UNF
+                                        | SWCR_TRAP_ENABLE_INE);
+                swcr |= (fpcr >> 47) & SWCR_MAP_UMZ;
+                swcr |= (~fpcr >> 41) & SWCR_TRAP_ENABLE_DNO;
+
+                if (put_user_u64 (swcr, arg2))
+                        goto efault;
+                ret = 0;
+            }
+            break;
+
+          /* case GSI_IEEE_STATE_AT_SIGNAL:
+             -- Not implemented in linux kernel.
+             case GSI_UACPROC:
+             -- Retrieves current unaligned access state; not much used.
+             case GSI_PROC_TYPE:
+             -- Retrieves implver information; surely not used.
+             case GSI_GET_HWRPB:
+             -- Grabs a copy of the HWRPB; surely not used.
+          */
+        }
+        break;
+#endif
+#if defined(TARGET_NR_osf_setsysinfo) && defined(TARGET_ALPHA)
+    /* Alpha specific */
+    case TARGET_NR_osf_setsysinfo:
+        ret = -TARGET_EOPNOTSUPP;
+        switch (arg1) {
+          case TARGET_SSI_IEEE_FP_CONTROL:
+          case TARGET_SSI_IEEE_RAISE_EXCEPTION:
+            {
+                uint64_t swcr, fpcr, orig_fpcr;
+
+                if (get_user_u64 (swcr, arg2))
+                    goto efault;
+                orig_fpcr = cpu_alpha_load_fpcr (cpu_env);
+                fpcr = orig_fpcr & FPCR_DYN_MASK;
+
+                /* Copied from linux ieee_swcr_to_fpcr.  */
+                fpcr |= (swcr & SWCR_STATUS_MASK) << 35;
+                fpcr |= (swcr & SWCR_MAP_DMZ) << 36;
+                fpcr |= (~swcr & (SWCR_TRAP_ENABLE_INV
+                                  | SWCR_TRAP_ENABLE_DZE
+                                  | SWCR_TRAP_ENABLE_OVF)) << 48;
+                fpcr |= (~swcr & (SWCR_TRAP_ENABLE_UNF
+                                  | SWCR_TRAP_ENABLE_INE)) << 57;
+                fpcr |= (swcr & SWCR_MAP_UMZ ? FPCR_UNDZ | FPCR_UNFD : 0);
+                fpcr |= (~swcr & SWCR_TRAP_ENABLE_DNO) << 41;
+
+                cpu_alpha_store_fpcr (cpu_env, fpcr);
+                ret = 0;
+
+                if (arg1 == TARGET_SSI_IEEE_RAISE_EXCEPTION) {
+                    /* Old exceptions are not signaled.  */
+                    fpcr &= ~(orig_fpcr & FPCR_STATUS_MASK);
+
+                    /* If any exceptions set by this call, and are unmasked,
+                       send a signal.  */
+                    /* ??? FIXME */
+                }
+            }
+            break;
+
+          /* case SSI_NVPAIRS:
+             -- Used with SSIN_UACPROC to enable unaligned accesses.
+             case SSI_IEEE_STATE_AT_SIGNAL:
+             case SSI_IEEE_IGNORE_STATE_AT_SIGNAL:
+             -- Not implemented in linux kernel
+          */
+        }
+        break;
+#endif
+#ifdef TARGET_NR_osf_sigprocmask
+    /* Alpha specific.  */
+    case TARGET_NR_osf_sigprocmask:
+        {
+            abi_ulong mask;
+            int how = arg1;
+            sigset_t set, oldset;
+
+            switch(arg1) {
+            case TARGET_SIG_BLOCK:
+                how = SIG_BLOCK;
+                break;
+            case TARGET_SIG_UNBLOCK:
+                how = SIG_UNBLOCK;
+                break;
+            case TARGET_SIG_SETMASK:
+                how = SIG_SETMASK;
+                break;
+            default:
+                ret = -TARGET_EINVAL;
+                goto fail;
+            }
+            mask = arg2;
+            target_to_host_old_sigset(&set, &mask);
+            sigprocmask(arg1, &set, &oldset);
+            host_to_target_old_sigset(&mask, &oldset);
+            ret = mask;
+        }
         break;
 #endif
 

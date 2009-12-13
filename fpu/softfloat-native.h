@@ -22,7 +22,7 @@
  */
 #if defined(CONFIG_SOLARIS) && \
            ((CONFIG_SOLARIS_VERSION <= 9 ) || \
-           ((CONFIG_SOLARIS_VERSION >= 10) && (__GNUC__ < 4))) \
+           ((CONFIG_SOLARIS_VERSION == 10) && (__GNUC__ < 4))) \
     || (defined(__OpenBSD__) && (OpenBSD < 200811))
 /*
  * C99 7.12.3 classification macros

@@ -132,7 +132,7 @@ struct USBDevice {
 
     int speed;
     uint8_t addr;
-    char devname[32];
+    char product_desc[32];
     int auto_attach;
     int attached;
 
@@ -184,6 +184,8 @@ struct USBDeviceInfo {
      * Returns length or one of the USB_RET_ codes.
      */
     int (*handle_data)(USBDevice *dev, USBPacket *p);
+
+    const char *product_desc;
 
     /* handle legacy -usbdevice command line options */
     const char *usbdevice_name;

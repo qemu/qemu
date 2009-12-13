@@ -23,6 +23,7 @@
  */
 
 #include "net/tap.h"
+#include "sysemu.h"
 
 #include <sys/stat.h>
 #include <sys/ethernet.h>

@@ -387,6 +387,24 @@ static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_CACHE] = "cache error",
 };
 
+#if !defined(CONFIG_USER_ONLY)
+static target_ulong exception_resume_pc (CPUState *env)
+{
+    target_ulong bad_pc;
+    target_ulong isa_mode;
+
+    isa_mode = !!(env->hflags & MIPS_HFLAG_M16);
+    bad_pc = env->active_tc.PC | isa_mode;
+    if (env->hflags & MIPS_HFLAG_BMASK) {
+        /* If the exception was raised from a delay slot, come back to
+           the jump.  */
+        bad_pc -= (env->hflags & MIPS_HFLAG_B16 ? 2 : 4);
+    }
+
+    return bad_pc;
+}
+#endif
+
 void do_interrupt (CPUState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -414,7 +432,7 @@ void do_interrupt (CPUState *env)
            resume will always occur on the next instruction
            (but we assume the pc has always been updated during
            code translation). */
-        env->CP0_DEPC = env->active_tc.PC;
+        env->CP0_DEPC = env->active_tc.PC | !!(env->hflags & MIPS_HFLAG_M16);
         goto enter_debug_mode;
     case EXCP_DINT:
         env->CP0_Debug |= 1 << CP0DB_DINT;
@@ -431,14 +449,8 @@ void do_interrupt (CPUState *env)
     case EXCP_DDBL:
         env->CP0_Debug |= 1 << CP0DB_DDBL;
     set_DEPC:
-        if (env->hflags & MIPS_HFLAG_BMASK) {
-            /* If the exception was raised from a delay slot,
-               come back to the jump.  */
-            env->CP0_DEPC = env->active_tc.PC - 4;
-            env->hflags &= ~MIPS_HFLAG_BMASK;
-        } else {
-            env->CP0_DEPC = env->active_tc.PC;
-        }
+        env->CP0_DEPC = exception_resume_pc(env);
+        env->hflags &= ~MIPS_HFLAG_BMASK;
  enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM | MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
         env->hflags &= ~(MIPS_HFLAG_KSU);
@@ -446,6 +458,8 @@ void do_interrupt (CPUState *env)
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->active_tc.PC = (int32_t)0xBFC00480;
+        /* Exception handlers are entered in 32-bit mode.  */
+        env->hflags &= ~(MIPS_HFLAG_M16);
         break;
     case EXCP_RESET:
         cpu_reset(env);
@@ -457,20 +471,16 @@ void do_interrupt (CPUState *env)
     case EXCP_NMI:
         env->CP0_Status |= (1 << CP0St_NMI);
  set_error_EPC:
-        if (env->hflags & MIPS_HFLAG_BMASK) {
-            /* If the exception was raised from a delay slot,
-               come back to the jump.  */
-            env->CP0_ErrorEPC = env->active_tc.PC - 4;
-            env->hflags &= ~MIPS_HFLAG_BMASK;
-        } else {
-            env->CP0_ErrorEPC = env->active_tc.PC;
-        }
+        env->CP0_ErrorEPC = exception_resume_pc(env);
+        env->hflags &= ~MIPS_HFLAG_BMASK;
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
         env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
         env->hflags &= ~(MIPS_HFLAG_KSU);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->active_tc.PC = (int32_t)0xBFC00000;
+        /* Exception handlers are entered in 32-bit mode.  */
+        env->hflags &= ~(MIPS_HFLAG_M16);
         break;
     case EXCP_EXT_INTERRUPT:
         cause = 0;
@@ -572,13 +582,10 @@ void do_interrupt (CPUState *env)
         }
  set_EPC:
         if (!(env->CP0_Status & (1 << CP0St_EXL))) {
+            env->CP0_EPC = exception_resume_pc(env);
             if (env->hflags & MIPS_HFLAG_BMASK) {
-                /* If the exception was raised from a delay slot,
-                   come back to the jump.  */
-                env->CP0_EPC = env->active_tc.PC - 4;
                 env->CP0_Cause |= (1 << CP0Ca_BD);
             } else {
-                env->CP0_EPC = env->active_tc.PC;
                 env->CP0_Cause &= ~(1 << CP0Ca_BD);
             }
             env->CP0_Status |= (1 << CP0St_EXL);
@@ -592,6 +599,8 @@ void do_interrupt (CPUState *env)
             env->active_tc.PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }
         env->active_tc.PC += offset;
+        /* Exception handlers are entered in 32-bit mode.  */
+        env->hflags &= ~(MIPS_HFLAG_M16);
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:

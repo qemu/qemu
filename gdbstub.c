@@ -1053,7 +1053,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
     case 34: GET_REGL(env->active_tc.HI[0]);
     case 35: GET_REGL(env->CP0_BadVAddr);
     case 36: GET_REGL((int32_t)env->CP0_Cause);
-    case 37: GET_REGL(env->active_tc.PC);
+    case 37: GET_REGL(env->active_tc.PC | !!(env->hflags & MIPS_HFLAG_M16));
     case 72: GET_REGL(0); /* fp */
     case 89: GET_REGL((int32_t)env->CP0_PRid);
     }
@@ -1114,7 +1114,14 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
     case 34: env->active_tc.HI[0] = tmp; break;
     case 35: env->CP0_BadVAddr = tmp; break;
     case 36: env->CP0_Cause = tmp; break;
-    case 37: env->active_tc.PC = tmp; break;
+    case 37:
+        env->active_tc.PC = tmp & ~(target_ulong)1;
+        if (tmp & 1) {
+            env->hflags |= MIPS_HFLAG_M16;
+        } else {
+            env->hflags &= ~(MIPS_HFLAG_M16);
+        }
+        break;
     case 72: /* fp, ignored */ break;
     default: 
 	if (n > 89)
@@ -1658,7 +1665,12 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 #elif defined (TARGET_SH4)
     s->c_cpu->pc = pc;
 #elif defined (TARGET_MIPS)
-    s->c_cpu->active_tc.PC = pc;
+    s->c_cpu->active_tc.PC = pc & ~(target_ulong)1;
+    if (pc & 1) {
+        s->c_cpu->hflags |= MIPS_HFLAG_M16;
+    } else {
+        s->c_cpu->hflags &= ~(MIPS_HFLAG_M16);
+    }
 #elif defined (TARGET_MICROBLAZE)
     s->c_cpu->sregs[SR_PC] = pc;
 #elif defined (TARGET_CRIS)

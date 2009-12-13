@@ -32,13 +32,10 @@
 #define GEN_HELPER 1
 #include "helper.h"
 
-/* #define DO_SINGLE_STEP */
-#define ALPHA_DEBUG_DISAS
-/* #define DO_TB_FLUSH */
-
+#undef ALPHA_DEBUG_DISAS
 
 #ifdef ALPHA_DEBUG_DISAS
-#  define LOG_DISAS(...) qemu_log(__VA_ARGS__)
+#  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
 #else
 #  define LOG_DISAS(...) do { } while (0)
 #endif
@@ -60,6 +57,9 @@ static TCGv cpu_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
 static TCGv cpu_lock;
+#ifdef CONFIG_USER_ONLY
+static TCGv cpu_uniq;
+#endif
 
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
@@ -95,6 +95,11 @@ static void alpha_translate_init(void)
 
     cpu_lock = tcg_global_mem_new_i64(TCG_AREG0,
                                       offsetof(CPUState, lock), "lock");
+
+#ifdef CONFIG_USER_ONLY
+    cpu_uniq = tcg_global_mem_new_i64(TCG_AREG0,
+                                      offsetof(CPUState, unique), "uniq");
+#endif
 
     /* register helpers */
 #define GEN_HELPER 2
@@ -317,8 +322,7 @@ static inline void gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
     gen_set_label(l2);
 }
 
-static inline void gen_fbcond(DisasContext *ctx, int opc, int ra,
-                              int32_t disp16)
+static inline void gen_fbcond(DisasContext *ctx, int opc, int ra, int32_t disp)
 {
     int l1, l2;
     TCGv tmp;
@@ -359,7 +363,7 @@ static inline void gen_fbcond(DisasContext *ctx, int opc, int ra,
     tcg_gen_movi_i64(cpu_pc, ctx->pc);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp16 << 2));
+    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
     gen_set_label(l2);
 }
 
@@ -510,47 +514,106 @@ FCMOV(cmpfge)
 FCMOV(cmpfle)
 FCMOV(cmpfgt)
 
-/* EXTWH, EXTWH, EXTLH, EXTQH */
-static inline void gen_ext_h(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
-                             int ra, int rb, int rc, int islit, uint8_t lit)
+static inline uint64_t zapnot_mask(uint8_t lit)
+{
+    uint64_t mask = 0;
+    int i;
+
+    for (i = 0; i < 8; ++i) {
+        if ((lit >> i) & 1)
+            mask |= 0xffull << (i * 8);
+    }
+    return mask;
+}
+
+/* Implement zapnot with an immediate operand, which expands to some
+   form of immediate AND.  This is a basic building block in the
+   definition of many of the other byte manipulation instructions.  */
+static void gen_zapnoti(TCGv dest, TCGv src, uint8_t lit)
+{
+    switch (lit) {
+    case 0x00:
+        tcg_gen_movi_i64(dest, 0);
+        break;
+    case 0x01:
+        tcg_gen_ext8u_i64(dest, src);
+        break;
+    case 0x03:
+        tcg_gen_ext16u_i64(dest, src);
+        break;
+    case 0x0f:
+        tcg_gen_ext32u_i64(dest, src);
+        break;
+    case 0xff:
+        tcg_gen_mov_i64(dest, src);
+        break;
+    default:
+        tcg_gen_andi_i64 (dest, src, zapnot_mask (lit));
+        break;
+    }
+}
+
+static inline void gen_zapnot(int ra, int rb, int rc, int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit)
+        gen_zapnoti(cpu_ir[rc], cpu_ir[ra], lit);
+    else
+        gen_helper_zapnot (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
+}
 
-    if (ra != 31) {
+static inline void gen_zap(int ra, int rb, int rc, int islit, uint8_t lit)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit)
+        gen_zapnoti(cpu_ir[rc], cpu_ir[ra], ~lit);
+    else
+        gen_helper_zap (cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
+}
+
+
+/* EXTWH, EXTLH, EXTQH */
+static void gen_ext_h(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
         if (islit) {
-            if (lit != 0)
-                tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 64 - ((lit & 7) * 8));
-            else
-                tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+            lit = (64 - (lit & 7) * 8) & 0x3f;
+            tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], lit);
         } else {
-            TCGv tmp1;
-            tmp1 = tcg_temp_new();
-
+            TCGv tmp1 = tcg_temp_new();
             tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
             tcg_gen_shli_i64(tmp1, tmp1, 3);
             tcg_gen_neg_i64(tmp1, tmp1);
             tcg_gen_andi_i64(tmp1, tmp1, 0x3f);
             tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
-
             tcg_temp_free(tmp1);
         }
-        if (tcg_gen_ext_i64)
-            tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
-    } else
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+        gen_zapnoti(cpu_ir[rc], cpu_ir[rc], byte_mask);
+    }
 }
 
-/* EXTBL, EXTWL, EXTWL, EXTLL, EXTQL */
-static inline void gen_ext_l(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
-                             int ra, int rb, int rc, int islit, uint8_t lit)
+/* EXTBL, EXTWL, EXTLL, EXTQL */
+static void gen_ext_l(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
 {
     if (unlikely(rc == 31))
         return;
-
-    if (ra != 31) {
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
         if (islit) {
-                tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
+            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
         } else {
             TCGv tmp = tcg_temp_new();
             tcg_gen_andi_i64(tmp, cpu_ir[rb], 7);
@@ -558,10 +621,144 @@ static inline void gen_ext_l(void(*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
             tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
             tcg_temp_free(tmp);
         }
-        if (tcg_gen_ext_i64)
-            tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
-    } else
+        gen_zapnoti(cpu_ir[rc], cpu_ir[rc], byte_mask);
+    }
+}
+
+/* INSWH, INSLH, INSQH */
+static void gen_ins_h(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31) || (islit && (lit & 7) == 0))
         tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
+        TCGv tmp = tcg_temp_new();
+
+        /* The instruction description has us left-shift the byte mask
+           and extract bits <15:8> and apply that zap at the end.  This
+           is equivalent to simply performing the zap first and shifting
+           afterward.  */
+        gen_zapnoti (tmp, cpu_ir[ra], byte_mask);
+
+        if (islit) {
+            /* Note that we have handled the lit==0 case above.  */
+            tcg_gen_shri_i64 (cpu_ir[rc], tmp, 64 - (lit & 7) * 8);
+        } else {
+            TCGv shift = tcg_temp_new();
+
+            /* If (B & 7) == 0, we need to shift by 64 and leave a zero.
+               Do this portably by splitting the shift into two parts:
+               shift_count-1 and 1.  Arrange for the -1 by using
+               ones-complement instead of twos-complement in the negation:
+               ~((B & 7) * 8) & 63.  */
+
+            tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+            tcg_gen_shli_i64(shift, shift, 3);
+            tcg_gen_not_i64(shift, shift);
+            tcg_gen_andi_i64(shift, shift, 0x3f);
+
+            tcg_gen_shr_i64(cpu_ir[rc], tmp, shift);
+            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[rc], 1);
+            tcg_temp_free(shift);
+        }
+        tcg_temp_free(tmp);
+    }
+}
+
+/* INSBL, INSWL, INSLL, INSQL */
+static void gen_ins_l(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else {
+        TCGv tmp = tcg_temp_new();
+
+        /* The instruction description has us left-shift the byte mask
+           the same number of byte slots as the data and apply the zap
+           at the end.  This is equivalent to simply performing the zap
+           first and shifting afterward.  */
+        gen_zapnoti (tmp, cpu_ir[ra], byte_mask);
+
+        if (islit) {
+            tcg_gen_shli_i64(cpu_ir[rc], tmp, (lit & 7) * 8);
+        } else {
+            TCGv shift = tcg_temp_new();
+            tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+            tcg_gen_shli_i64(shift, shift, 3);
+            tcg_gen_shl_i64(cpu_ir[rc], tmp, shift);
+            tcg_temp_free(shift);
+        }
+        tcg_temp_free(tmp);
+    }
+}
+
+/* MSKWH, MSKLH, MSKQH */
+static void gen_msk_h(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit) {
+        gen_zapnoti (cpu_ir[rc], cpu_ir[ra], ~((byte_mask << (lit & 7)) >> 8));
+    } else {
+        TCGv shift = tcg_temp_new();
+        TCGv mask = tcg_temp_new();
+
+        /* The instruction description is as above, where the byte_mask
+           is shifted left, and then we extract bits <15:8>.  This can be
+           emulated with a right-shift on the expanded byte mask.  This
+           requires extra care because for an input <2:0> == 0 we need a
+           shift of 64 bits in order to generate a zero.  This is done by
+           splitting the shift into two parts, the variable shift - 1
+           followed by a constant 1 shift.  The code we expand below is
+           equivalent to ~((B & 7) * 8) & 63.  */
+
+        tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+        tcg_gen_shli_i64(shift, shift, 3);
+        tcg_gen_not_i64(shift, shift);
+        tcg_gen_andi_i64(shift, shift, 0x3f);
+        tcg_gen_movi_i64(mask, zapnot_mask (byte_mask));
+        tcg_gen_shr_i64(mask, mask, shift);
+        tcg_gen_shri_i64(mask, mask, 1);
+
+        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], mask);
+
+        tcg_temp_free(mask);
+        tcg_temp_free(shift);
+    }
+}
+
+/* MSKBL, MSKWL, MSKLL, MSKQL */
+static void gen_msk_l(int ra, int rb, int rc, int islit,
+                      uint8_t lit, uint8_t byte_mask)
+{
+    if (unlikely(rc == 31))
+        return;
+    else if (unlikely(ra == 31))
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    else if (islit) {
+        gen_zapnoti (cpu_ir[rc], cpu_ir[ra], ~(byte_mask << (lit & 7)));
+    } else {
+        TCGv shift = tcg_temp_new();
+        TCGv mask = tcg_temp_new();
+
+        tcg_gen_andi_i64(shift, cpu_ir[rb], 7);
+        tcg_gen_shli_i64(shift, shift, 3);
+        tcg_gen_movi_i64(mask, zapnot_mask (byte_mask));
+        tcg_gen_shl_i64(mask, mask, shift);
+
+        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], mask);
+
+        tcg_temp_free(mask);
+        tcg_temp_free(shift);
+    }
 }
 
 /* Code to call arith3 helpers */
@@ -595,25 +792,33 @@ ARITH3(addlv)
 ARITH3(sublv)
 ARITH3(addqv)
 ARITH3(subqv)
-ARITH3(mskbl)
-ARITH3(insbl)
-ARITH3(mskwl)
-ARITH3(inswl)
-ARITH3(mskll)
-ARITH3(insll)
-ARITH3(zap)
-ARITH3(zapnot)
-ARITH3(mskql)
-ARITH3(insql)
-ARITH3(mskwh)
-ARITH3(inswh)
-ARITH3(msklh)
-ARITH3(inslh)
-ARITH3(mskqh)
-ARITH3(insqh)
 ARITH3(umulh)
 ARITH3(mullv)
 ARITH3(mulqv)
+ARITH3(minub8)
+ARITH3(minsb8)
+ARITH3(minuw4)
+ARITH3(minsw4)
+ARITH3(maxub8)
+ARITH3(maxsb8)
+ARITH3(maxuw4)
+ARITH3(maxsw4)
+ARITH3(perr)
+
+#define MVIOP2(name)                                    \
+static inline void glue(gen_, name)(int rb, int rc)     \
+{                                                       \
+    if (unlikely(rc == 31))                             \
+        return;                                         \
+    if (unlikely(rb == 31))                             \
+        tcg_gen_movi_i64(cpu_ir[rc], 0);                \
+    else                                                \
+        gen_helper_ ## name (cpu_ir[rc], cpu_ir[rb]);   \
+}
+MVIOP2(pklb)
+MVIOP2(pkwb)
+MVIOP2(unpkbl)
+MVIOP2(unpkbw)
 
 static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
                            uint8_t lit)
@@ -622,7 +827,7 @@ static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
     TCGv tmp;
 
     if (unlikely(rc == 31))
-    return;
+        return;
 
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -649,7 +854,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
     uint16_t fn11, fn16;
-    uint8_t opc, ra, rb, rc, sbz, fpfn, fn7, fn2, islit;
+    uint8_t opc, ra, rb, rc, sbz, fpfn, fn7, fn2, islit, real_islit;
     uint8_t lit;
     int ret;
 
@@ -659,7 +864,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     rb = (insn >> 16) & 0x1F;
     rc = insn & 0x1F;
     sbz = (insn >> 13) & 0x07;
-    islit = (insn >> 12) & 1;
+    real_islit = islit = (insn >> 12) & 1;
     if (rb == 31 && !islit) {
         islit = 1;
         lit = 0;
@@ -675,28 +880,40 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     fn7 = (insn >> 5) & 0x0000007F;
     fn2 = (insn >> 5) & 0x00000003;
     ret = 0;
-    LOG_DISAS("opc %02x ra %d rb %d rc %d disp16 %04x\n",
+    LOG_DISAS("opc %02x ra %2d rb %2d rc %2d disp16 %6d\n",
               opc, ra, rb, rc, disp16);
+
     switch (opc) {
     case 0x00:
         /* CALL_PAL */
+#ifdef CONFIG_USER_ONLY
+        if (palcode == 0x9E) {
+            /* RDUNIQUE */
+            tcg_gen_mov_i64(cpu_ir[IR_V0], cpu_uniq);
+            break;
+        } else if (palcode == 0x9F) {
+            /* WRUNIQUE */
+            tcg_gen_mov_i64(cpu_uniq, cpu_ir[IR_A0]);
+            break;
+        }
+#endif
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
             gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
-#if !defined (CONFIG_USER_ONLY)
-        } else if (palcode < 0x40) {
+            ret = 3;
+            break;
+        }
+#ifndef CONFIG_USER_ONLY
+        if (palcode < 0x40) {
             /* Privileged PAL code */
             if (ctx->mem_idx & 1)
                 goto invalid_opc;
-            else
-                gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
-#endif
-        } else {
-            /* Invalid PAL call */
-            goto invalid_opc;
+            gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
+            ret = 3;
         }
-        ret = 3;
-        break;
+#endif
+        /* Invalid PAL call */
+        goto invalid_opc;
     case 0x01:
         /* OPC01 */
         goto invalid_opc;
@@ -1193,39 +1410,39 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x02:
             /* MSKBL */
-            gen_mskbl(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0x01);
             break;
         case 0x06:
             /* EXTBL */
-            gen_ext_l(&tcg_gen_ext8u_i64, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0x01);
             break;
         case 0x0B:
             /* INSBL */
-            gen_insbl(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0x01);
             break;
         case 0x12:
             /* MSKWL */
-            gen_mskwl(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x16:
             /* EXTWL */
-            gen_ext_l(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x1B:
             /* INSWL */
-            gen_inswl(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x22:
             /* MSKLL */
-            gen_mskll(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x26:
             /* EXTLL */
-            gen_ext_l(&tcg_gen_ext32u_i64, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x2B:
             /* INSLL */
-            gen_insll(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x30:
             /* ZAP */
@@ -1237,7 +1454,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x32:
             /* MSKQL */
-            gen_mskql(ra, rb, rc, islit, lit);
+            gen_msk_l(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x34:
             /* SRL */
@@ -1257,7 +1474,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x36:
             /* EXTQL */
-            gen_ext_l(NULL, ra, rb, rc, islit, lit);
+            gen_ext_l(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x39:
             /* SLL */
@@ -1277,7 +1494,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x3B:
             /* INSQL */
-            gen_insql(ra, rb, rc, islit, lit);
+            gen_ins_l(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x3C:
             /* SRA */
@@ -1297,39 +1514,39 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x52:
             /* MSKWH */
-            gen_mskwh(ra, rb, rc, islit, lit);
+            gen_msk_h(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x57:
             /* INSWH */
-            gen_inswh(ra, rb, rc, islit, lit);
+            gen_ins_h(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x5A:
             /* EXTWH */
-            gen_ext_h(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
+            gen_ext_h(ra, rb, rc, islit, lit, 0x03);
             break;
         case 0x62:
             /* MSKLH */
-            gen_msklh(ra, rb, rc, islit, lit);
+            gen_msk_h(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x67:
             /* INSLH */
-            gen_inslh(ra, rb, rc, islit, lit);
+            gen_ins_h(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x6A:
             /* EXTLH */
-            gen_ext_h(&tcg_gen_ext32u_i64, ra, rb, rc, islit, lit);
+            gen_ext_h(ra, rb, rc, islit, lit, 0x0f);
             break;
         case 0x72:
             /* MSKQH */
-            gen_mskqh(ra, rb, rc, islit, lit);
+            gen_msk_h(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x77:
             /* INSQH */
-            gen_insqh(ra, rb, rc, islit, lit);
+            gen_ins_h(ra, rb, rc, islit, lit, 0xff);
             break;
         case 0x7A:
             /* EXTQH */
-            gen_ext_h(NULL, ra, rb, rc, islit, lit);
+            gen_ext_h(ra, rb, rc, islit, lit, 0xff);
             break;
         default:
             goto invalid_opc;
@@ -1617,12 +1834,16 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x020:
             if (likely(rc != 31)) {
-                if (ra == rb)
+                if (ra == rb) {
                     /* FMOV */
-                    tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[ra]);
-                else
+                    if (ra == 31)
+                        tcg_gen_movi_i64(cpu_fir[rc], 0);
+                    else
+                        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[ra]);
+                } else {
                     /* CPYS */
                     gen_fcpys(ra, rb, rc);
+                }
             }
             break;
         case 0x021:
@@ -1916,8 +2137,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* PERR */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_perr(ra, rb, rc, islit, lit);
             break;
         case 0x32:
             /* CTLZ */
@@ -1945,85 +2165,81 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* UNPKBW */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_unpkbw (rb, rc);
             break;
         case 0x35:
-            /* UNPKWL */
+            /* UNPKBL */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_unpkbl (rb, rc);
             break;
         case 0x36:
             /* PKWB */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_pkwb (rb, rc);
             break;
         case 0x37:
             /* PKLB */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            if (real_islit || ra != 31)
+                goto invalid_opc;
+            gen_pklb (rb, rc);
             break;
         case 0x38:
             /* MINSB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minsb8 (ra, rb, rc, islit, lit);
             break;
         case 0x39:
             /* MINSW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minsw4 (ra, rb, rc, islit, lit);
             break;
         case 0x3A:
             /* MINUB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minub8 (ra, rb, rc, islit, lit);
             break;
         case 0x3B:
             /* MINUW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_minuw4 (ra, rb, rc, islit, lit);
             break;
         case 0x3C:
             /* MAXUB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxub8 (ra, rb, rc, islit, lit);
             break;
         case 0x3D:
             /* MAXUW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxuw4 (ra, rb, rc, islit, lit);
             break;
         case 0x3E:
             /* MAXSB8 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxsb8 (ra, rb, rc, islit, lit);
             break;
         case 0x3F:
             /* MAXSW4 */
             if (!(ctx->amask & AMASK_MVI))
                 goto invalid_opc;
-            /* XXX: TODO */
-            goto invalid_opc;
+            gen_maxsw4 (ra, rb, rc, islit, lit);
             break;
         case 0x70:
             /* FTOIT */
@@ -2268,7 +2484,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     case 0x31: /* FBEQ */
     case 0x32: /* FBLT */
     case 0x33: /* FBLE */
-        gen_fbcond(ctx, opc, ra, disp16);
+        gen_fbcond(ctx, opc, ra, disp21);
         ret = 1;
         break;
     case 0x34:
@@ -2281,7 +2497,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     case 0x35: /* FBNE */
     case 0x36: /* FBGE */
     case 0x37: /* FBGT */
-        gen_fbcond(ctx, opc, ra, disp16);
+        gen_fbcond(ctx, opc, ra, disp21);
         ret = 1;
         break;
     case 0x38:
@@ -2337,9 +2553,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                                                   TranslationBlock *tb,
                                                   int search_pc)
 {
-#if defined ALPHA_DEBUG_DISAS
-    static int insn_count;
-#endif
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
     uint32_t insn;
@@ -2389,16 +2602,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
-#if defined ALPHA_DEBUG_DISAS
-        insn_count++;
-        LOG_DISAS("pc " TARGET_FMT_lx " mem_idx %d\n",
-                  ctx.pc, ctx.mem_idx);
-#endif
         insn = ldl_code(ctx.pc);
-#if defined ALPHA_DEBUG_DISAS
-        insn_count++;
-        LOG_DISAS("opcode %08x %d\n", insn, insn_count);
-#endif
         num_insns++;
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
@@ -2428,9 +2632,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     if (ret != 1 && ret != 3) {
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
     }
-#if defined (DO_TB_FLUSH)
-    gen_helper_tb_flush();
-#endif
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
     /* Generate the return instruction */
@@ -2446,8 +2647,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;
     }
-#if defined ALPHA_DEBUG_DISAS
-    log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
+#ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(pc_start, ctx.pc - pc_start, 1);
@@ -2466,17 +2666,57 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
+struct cpu_def_t {
+    const char *name;
+    int implver, amask;
+};
+
+static const struct cpu_def_t cpu_defs[] = {
+    { "ev4",   IMPLVER_2106x, 0 },
+    { "ev5",   IMPLVER_21164, 0 },
+    { "ev56",  IMPLVER_21164, AMASK_BWX },
+    { "pca56", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
+    { "ev6",   IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
+    { "ev67",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
+			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
+    { "ev68",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
+			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
+    { "21064", IMPLVER_2106x, 0 },
+    { "21164", IMPLVER_21164, 0 },
+    { "21164a", IMPLVER_21164, AMASK_BWX },
+    { "21164pc", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
+    { "21264", IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
+    { "21264a", IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
+				| AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), }
+};
+
 CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 {
     CPUAlphaState *env;
     uint64_t hwpcb;
+    int implver, amask, i, max;
 
     env = qemu_mallocz(sizeof(CPUAlphaState));
     cpu_exec_init(env);
     alpha_translate_init();
     tlb_flush(env, 1);
-    /* XXX: should not be hardcoded */
-    env->implver = IMPLVER_2106x;
+
+    /* Default to ev67; no reason not to emulate insns by default.  */
+    implver = IMPLVER_21264;
+    amask = (AMASK_BWX | AMASK_FIX | AMASK_CIX | AMASK_MVI
+	     | AMASK_TRAP | AMASK_PREFETCH);
+
+    max = ARRAY_SIZE(cpu_defs);
+    for (i = 0; i < max; i++) {
+        if (strcmp (cpu_model, cpu_defs[i].name) == 0) {
+            implver = cpu_defs[i].implver;
+            amask = cpu_defs[i].amask;
+            break;
+        }
+    }
+    env->implver = implver;
+    env->amask = amask;
+
     env->ps = 0x1F00;
 #if defined (CONFIG_USER_ONLY)
     env->ps |= 1 << 3;

@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
+#include "loader.h"
 #include "console.h"
 #include "pci.h"
 #include "vmware_vga.h"
@@ -1124,6 +1125,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                  vga_ram_size, s->vga.vram_offset);
 #endif
+     rom_add_vga(VGABIOS_FILENAME);
 }
 
 static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
@@ -1194,11 +1196,11 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
 void pci_vmsvga_init(PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "QEMUware SVGA");
+    pci_create_simple(bus, -1, "vmware-svga");
 }
 
 static PCIDeviceInfo vmsvga_info = {
-    .qdev.name    = "QEMUware SVGA",
+    .qdev.name    = "vmware-svga",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
     .qdev.vmsd    = &vmstate_vmware_vga,
     .init         = pci_vmsvga_initfn,

@@ -87,7 +87,7 @@ static uint32_t syborg_virtio_readl(void *opaque, target_phys_addr_t offset)
         break;
     case SYBORG_VIRTIO_HOST_FEATURES:
         ret = vdev->get_features(vdev);
-        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
+        ret |= vdev->binding->get_features(s);
         break;
     case SYBORG_VIRTIO_GUEST_FEATURES:
         ret = vdev->features;
@@ -242,8 +242,16 @@ static void syborg_virtio_update_irq(void *opaque, uint16_t vector)
     qemu_set_irq(proxy->irq, level != 0);
 }
 
+static unsigned syborg_virtio_get_features(void *opaque)
+{
+    unsigned ret = 0;
+    ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
+    return ret;
+}
+
 static VirtIOBindings syborg_virtio_bindings = {
-    .notify = syborg_virtio_update_irq
+    .notify = syborg_virtio_update_irq,
+    .get_features = syborg_virtio_get_features,
 };
 
 static int syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)

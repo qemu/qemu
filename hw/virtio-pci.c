@@ -236,9 +236,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
     switch (addr) {
     case VIRTIO_PCI_HOST_FEATURES:
         ret = vdev->get_features(vdev);
-        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-        ret |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
-        ret |= (1 << VIRTIO_F_BAD_FEATURE);
+        ret |= vdev->binding->get_features(proxy);
         break;
     case VIRTIO_PCI_GUEST_FEATURES:
         ret = vdev->features;
@@ -382,12 +380,22 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
     msix_write_config(pci_dev, address, val, len);
 }
 
+static unsigned virtio_pci_get_features(void *opaque)
+{
+    unsigned ret = 0;
+    ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
+    ret |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
+    ret |= (1 << VIRTIO_F_BAD_FEATURE);
+    return ret;
+}
+
 static const VirtIOBindings virtio_pci_bindings = {
     .notify = virtio_pci_notify,
     .save_config = virtio_pci_save_config,
     .load_config = virtio_pci_load_config,
     .save_queue = virtio_pci_save_queue,
     .load_queue = virtio_pci_load_queue,
+    .get_features = virtio_pci_get_features,
 };
 
 static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,

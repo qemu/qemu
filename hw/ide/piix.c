@@ -78,6 +78,7 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         BMDMAState *bm = &d->bmdma[i];
         d->bus[i].bmdma = bm;
         bm->bus = d->bus+i;
+        bm->pci_dev = d;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
@@ -161,7 +162,7 @@ void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_create_simple(bus, devfn, "PIIX3 IDE");
+    dev = pci_create_simple(bus, devfn, "piix3-ide");
     pci_ide_create_devs(dev, hd_table);
 }
 
@@ -171,18 +172,18 @@ void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_create_simple(bus, devfn, "PIIX4 IDE");
+    dev = pci_create_simple(bus, devfn, "piix4-ide");
     pci_ide_create_devs(dev, hd_table);
 }
 
 static PCIDeviceInfo piix_ide_info[] = {
     {
-        .qdev.name    = "PIIX3 IDE",
+        .qdev.name    = "piix3-ide",
         .qdev.size    = sizeof(PCIIDEState),
         .qdev.no_user = 1,
         .init         = pci_piix3_ide_initfn,
     },{
-        .qdev.name    = "PIIX4 IDE",
+        .qdev.name    = "piix4-ide",
         .qdev.size    = sizeof(PCIIDEState),
         .qdev.no_user = 1,
         .init         = pci_piix4_ide_initfn,

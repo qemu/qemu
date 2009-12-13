@@ -933,10 +933,10 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
         dev->dev.speed = USB_SPEED_HIGH;
 
     if (!prod_name || prod_name[0] == '\0')
-        snprintf(dev->dev.devname, sizeof(dev->dev.devname),
+        snprintf(dev->dev.product_desc, sizeof(dev->dev.product_desc),
                  "host:%d.%d", bus_num, addr);
     else
-        pstrcpy(dev->dev.devname, sizeof(dev->dev.devname),
+        pstrcpy(dev->dev.product_desc, sizeof(dev->dev.product_desc),
                 prod_name);
 
     /* USB devio uses 'write' flag to check for async completions */
@@ -979,8 +979,8 @@ static int usb_host_initfn(USBDevice *dev)
 }
 
 static struct USBDeviceInfo usb_host_dev_info = {
-    .qdev.name      = "USB Host Device",
-    .qdev.alias     = "usb-host",
+    .product_desc   = "USB Host Device",
+    .qdev.name      = "usb-host",
     .qdev.size      = sizeof(USBHostDevice),
     .init           = usb_host_initfn,
     .handle_packet  = usb_host_handle_packet,
@@ -1010,7 +1010,7 @@ USBDevice *usb_host_device_open(const char *devname)
     USBHostDevice *s;
     char *p;
 
-    dev = usb_create(NULL /* FIXME */, "USB Host Device");
+    dev = usb_create(NULL /* FIXME */, "usb-host");
     s = DO_UPCAST(USBHostDevice, dev, dev);
 
     if (strstr(devname, "auto:")) {

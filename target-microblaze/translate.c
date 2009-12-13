@@ -713,6 +713,9 @@ static void dec_bit(DisasContext *dc)
             tcg_gen_ext16s_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
             break;
         case 0x64:
+        case 0x66:
+        case 0x74:
+        case 0x76:
             /* wdc.  */
             LOG_DIS("wdc r%d\n", dc->ra);
             if ((dc->tb_flags & MSR_EE_FLAG)
@@ -1019,7 +1022,7 @@ static void dec_br(DisasContext *dc)
         if (dc->imm == 0)
             t_gen_raise_exception(dc, EXCP_DEBUG);
     } else {
-        if (dc->tb_flags & IMM_FLAG) {
+        if (!dc->type_b || (dc->tb_flags & IMM_FLAG)) {
             tcg_gen_movi_tl(env_btaken, 1);
             tcg_gen_movi_tl(env_btarget, dc->pc);
             tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));

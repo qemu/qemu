@@ -272,6 +272,7 @@ blobs="yes"
 pkgversion=""
 check_utests="no"
 user_pie="no"
+zero_malloc=""
 
 # OS specific
 if check_define __linux__ ; then
@@ -1838,13 +1839,24 @@ fi
 
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
+z_version=`cut -f3 -d. $source_path/VERSION`
+
 if test -z "$werror" ; then
-    z_version=`cut -f3 -d. $source_path/VERSION`
     if test "$z_version" = "50" -a \
         "$linux" = "yes" ; then
         werror="yes"
     else
         werror="no"
+    fi
+fi
+
+# Disable zero malloc errors for official releases unless explicitly told to
+# enable/disable
+if test -z "$zero_malloc" ; then
+    if test "$z_version" = "50" ; then
+	zero_malloc="no"
+    else
+	zero_malloc="yes"
     fi
 fi
 
@@ -2173,6 +2185,10 @@ fi
 
 echo "CONFIG_UNAME_RELEASE=\"$uname_release\"" >> $config_host_mak
 
+if test "$zero_malloc" = "yes" ; then
+  echo "CONFIG_ZERO_MALLOC=y" >> $config_host_mak
+fi
+
 # USB host support
 case "$usb" in
 linux)
@@ -2493,7 +2509,7 @@ if test ! -z "$gdb_xml_files" ; then
 fi
 
 case "$target_arch2" in
-  arm|armeb|m68k|microblaze|mips|mipsel|mipsn32|mipsn32el|mips64|mips64el|ppc|ppc64|ppc64abi32|ppcemb|s390x|sparc|sparc64|sparc32plus)
+  alpha|arm|armeb|m68k|microblaze|mips|mipsel|mipsn32|mipsn32el|mips64|mips64el|ppc|ppc64|ppc64abi32|ppcemb|s390x|sparc|sparc64|sparc32plus)
     echo "CONFIG_SOFTFLOAT=y" >> $config_target_mak
     ;;
   *)

@@ -1111,12 +1111,12 @@ static int usb_uhci_piix4_initfn(PCIDevice *dev)
 
 static PCIDeviceInfo uhci_info[] = {
     {
-        .qdev.name    = "PIIX3 USB-UHCI",
+        .qdev.name    = "piix3-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
         .init         = usb_uhci_piix3_initfn,
     },{
-        .qdev.name    = "PIIX4 USB-UHCI",
+        .qdev.name    = "piix4-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
         .init         = usb_uhci_piix4_initfn,
@@ -1133,10 +1133,10 @@ device_init(uhci_register);
 
 void usb_uhci_piix3_init(PCIBus *bus, int devfn)
 {
-    pci_create_simple(bus, devfn, "PIIX3 USB-UHCI");
+    pci_create_simple(bus, devfn, "piix3-usb-uhci");
 }
 
 void usb_uhci_piix4_init(PCIBus *bus, int devfn)
 {
-    pci_create_simple(bus, devfn, "PIIX4 USB-UHCI");
+    pci_create_simple(bus, devfn, "piix4-usb-uhci");
 }

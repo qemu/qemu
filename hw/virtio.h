@@ -31,6 +31,11 @@
 /* We've given up on this device. */
 #define VIRTIO_CONFIG_S_FAILED          0x80
 
+/* Some virtio feature bits (currently bits 28 through 31) are reserved for the
+ * transport being used (eg. virtio_ring), the rest are per-device feature bits. */
+#define VIRTIO_TRANSPORT_F_START        28
+#define VIRTIO_TRANSPORT_F_END          32
+
 /* We notify when the ring is completely used, even if the guest is suppressing
  * callbacks */
 #define VIRTIO_F_NOTIFY_ON_EMPTY        24
@@ -82,6 +87,7 @@ typedef struct {
     void (*save_queue)(void * opaque, int n, QEMUFile *f);
     int (*load_config)(void * opaque, QEMUFile *f);
     int (*load_queue)(void * opaque, int n, QEMUFile *f);
+    unsigned (*get_features)(void * opaque);
 } VirtIOBindings;
 
 #define VIRTIO_PCI_QUEUE_MAX 16

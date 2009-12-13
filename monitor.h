@@ -24,7 +24,6 @@ typedef enum MonitorEvent {
 } MonitorEvent;
 
 void monitor_protocol_event(MonitorEvent event, QObject *data);
-const char *monitor_cmdline_parse(const char *cmdline, int *flags);
 void monitor_init(CharDriverState *chr, int flags);
 
 int monitor_suspend(Monitor *mon);

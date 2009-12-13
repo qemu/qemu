@@ -29,6 +29,7 @@
 #include "qemu_socket.h"
 #include "qemu-timer.h"
 #include "acl.h"
+#include "qemu-objects.h"
 
 #define VNC_REFRESH_INTERVAL_BASE 30
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -99,6 +100,54 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
+static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
+                          socklen_t salen)
+{
+    char host[NI_MAXHOST];
+    char serv[NI_MAXSERV];
+    int err;
+
+    if ((err = getnameinfo((struct sockaddr *)sa, salen,
+                           host, sizeof(host),
+                           serv, sizeof(serv),
+                           NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
+        VNC_DEBUG("Cannot resolve address %d: %s\n",
+                  err, gai_strerror(err));
+        return -1;
+    }
+
+    qdict_put(qdict, "host", qstring_from_str(host));
+    qdict_put(qdict, "service", qstring_from_str(serv));
+
+    return 0;
+}
+
+static int vnc_qdict_local_addr(QDict *qdict, int fd)
+{
+    struct sockaddr_storage sa;
+    socklen_t salen;
+
+    salen = sizeof(sa);
+    if (getsockname(fd, (struct sockaddr*)&sa, &salen) < 0) {
+        return -1;
+    }
+
+    return put_addr_qdict(qdict, &sa, salen);
+}
+
+static int vnc_qdict_remote_addr(QDict *qdict, int fd)
+{
+    struct sockaddr_storage sa;
+    socklen_t salen;
+
+    salen = sizeof(sa);
+    if (getpeername(fd, (struct sockaddr*)&sa, &salen) < 0) {
+        return -1;
+    }
+
+    return put_addr_qdict(qdict, &sa, salen);
+}
+
 static const char *vnc_auth_name(VncDisplay *vd) {
     switch (vd->auth) {
     case VNC_AUTH_INVALID:
@@ -150,58 +199,140 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     return "unknown";
 }
 
-static void do_info_vnc_client(Monitor *mon, VncState *client)
+static QDict *do_info_vnc_client(Monitor *mon, VncState *client)
 {
-    char *clientAddr =
-        vnc_socket_remote_addr("     address: %s:%s\n",
-                               client->csock);
-    if (!clientAddr)
-        return;
+    QDict *qdict;
 
-    monitor_printf(mon, "Client:\n");
-    monitor_printf(mon, "%s", clientAddr);
-    free(clientAddr);
+    qdict = qdict_new();
+    if (vnc_qdict_remote_addr(qdict, client->csock) < 0) {
+        QDECREF(qdict);
+        return NULL;
+    }
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session &&
-        client->tls.dname)
-        monitor_printf(mon, "  x509 dname: %s\n", client->tls.dname);
-    else
-        monitor_printf(mon, "  x509 dname: none\n");
+        client->tls.dname) {
+        qdict_put(qdict, "x509_dname", qstring_from_str(client->tls.dname));
+    }
 #endif
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn &&
-        client->sasl.username)
-        monitor_printf(mon, "    username: %s\n", client->sasl.username);
-    else
-        monitor_printf(mon, "    username: none\n");
+        client->sasl.username) {
+        qdict_put(qdict, "username", qstring_from_str(client->sasl.username));
+    }
+#endif
+
+    return qdict;
+}
+
+static void info_vnc_iter(QObject *obj, void *opaque)
+{
+    QDict *client;
+    Monitor *mon = opaque;
+
+    client = qobject_to_qdict(obj);
+    monitor_printf(mon, "Client:\n");
+    monitor_printf(mon, "     address: %s:%s\n",
+                   qdict_get_str(client, "host"),
+                   qdict_get_str(client, "service"));
+
+#ifdef CONFIG_VNC_TLS
+    monitor_printf(mon, "  x509_dname: %s\n",
+        qdict_haskey(client, "x509_dname") ?
+        qdict_get_str(client, "x509_dname") : "none");
+#endif
+#ifdef CONFIG_VNC_SASL
+    monitor_printf(mon, "    username: %s\n",
+        qdict_haskey(client, "username") ?
+        qdict_get_str(client, "username") : "none");
 #endif
 }
 
-void do_info_vnc(Monitor *mon)
+void do_info_vnc_print(Monitor *mon, const QObject *data)
+{
+    QDict *server;
+    QList *clients;
+
+    server = qobject_to_qdict(data);
+    if (strcmp(qdict_get_str(server, "status"), "disabled") == 0) {
+        monitor_printf(mon, "Server: disabled\n");
+        return;
+    }
+
+    monitor_printf(mon, "Server:\n");
+    monitor_printf(mon, "     address: %s:%s\n",
+                   qdict_get_str(server, "host"),
+                   qdict_get_str(server, "service"));
+    monitor_printf(mon, "        auth: %s\n",
+        qdict_haskey(server, "auth") ? qdict_get_str(server, "auth") : "none");
+
+    clients = qdict_get_qlist(server, "clients");
+    if (qlist_empty(clients)) {
+        monitor_printf(mon, "Client: none\n");
+    } else {
+        qlist_iter(clients, info_vnc_iter, mon);
+    }
+}
+
+/**
+ * do_info_vnc(): Show VNC server information
+ *
+ * Return a QDict with server information. Connected clients are returned
+ * as a QList of QDicts.
+ *
+ * The main QDict contains the following:
+ *
+ * - "status": "disabled" or "enabled"
+ * - "host": server's IP address
+ * - "service": server's port number
+ * - "auth": authentication method (optional)
+ * - "clients": a QList of all connected clients
+ *
+ * Clients are described by a QDict, with the following information:
+ *
+ * - "host": client's IP address
+ * - "service": client's port number
+ * - "x509_dname": TLS dname (optional)
+ * - "username": SASL username (optional)
+ *
+ * Example:
+ *
+ * { "status": "enabled", "host": "0.0.0.0", "service": "50402", "auth": "vnc",
+ *   "clients": [ { "host": "127.0.0.1", "service": "50401" } ] }
+ */
+void do_info_vnc(Monitor *mon, QObject **ret_data)
 {
     if (vnc_display == NULL || vnc_display->display == NULL) {
-        monitor_printf(mon, "Server: disabled\n");
+        *ret_data = qobject_from_jsonf("{ 'status': 'disabled' }");
     } else {
-        char *serverAddr = vnc_socket_local_addr("     address: %s:%s\n",
-                                                 vnc_display->lsock);
+        QDict *qdict;
+        QList *clist;
 
-        if (!serverAddr)
-            return;
-
-        monitor_printf(mon, "Server:\n");
-        monitor_printf(mon, "%s", serverAddr);
-        free(serverAddr);
-        monitor_printf(mon, "        auth: %s\n", vnc_auth_name(vnc_display));
-
+        clist = qlist_new();
         if (vnc_display->clients) {
             VncState *client = vnc_display->clients;
             while (client) {
-                do_info_vnc_client(mon, client);
+                qdict = do_info_vnc_client(mon, client);
+                if (qdict)
+                    qlist_append(clist, qdict);
                 client = client->next;
             }
-        } else {
-            monitor_printf(mon, "Client: none\n");
+        }
+
+        *ret_data = qobject_from_jsonf("{ 'status': 'enabled', 'clients': %p }",
+                                       QOBJECT(clist));
+        assert(*ret_data != NULL);
+
+        qdict = qobject_to_qdict(*ret_data);
+
+        if (vnc_display->auth != VNC_AUTH_NONE) {
+            qdict_put(qdict, "auth",
+                      qstring_from_str(vnc_auth_name(vnc_display)));
+        }
+
+        if (vnc_qdict_local_addr(qdict, vnc_display->lsock) < 0) {
+            qobject_decref(*ret_data);
+            *ret_data = NULL;
         }
     }
 }
@@ -1514,11 +1645,13 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
     int keycode;
+    int lsym = sym;
 
-    if (sym >= 'A' && sym <= 'Z' && is_graphic_console())
-        sym = sym - 'A' + 'a';
+    if (lsym >= 'A' && lsym <= 'Z' && is_graphic_console()) {
+        lsym = lsym - 'A' + 'a';
+    }
 
-    keycode = keysym2scancode(vs->vd->kbd_layout, sym & 0xFFFF);
+    keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF);
     do_key_event(vs, down, keycode, sym);
 }
 

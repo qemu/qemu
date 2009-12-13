@@ -4,7 +4,6 @@ Unsolved issues/bugs in the mips/mipsel backend
 General
 -------
 - Unimplemented ASEs:
-  - MIPS16
   - MDMX
   - SmartMIPS
   - DSP r1

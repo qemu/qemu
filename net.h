@@ -139,6 +139,7 @@ struct NICInfo {
 
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
+extern int default_net;
 
 /* BT HCI info */
 

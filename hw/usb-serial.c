@@ -577,7 +577,7 @@ static USBDevice *usb_serial_init(const char *filename)
     if (!cdrv)
         return NULL;
 
-    dev = usb_create(NULL /* FIXME */, "QEMU USB Serial");
+    dev = usb_create(NULL /* FIXME */, "usb-serial");
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     if (vendorid)
         qdev_prop_set_uint16(&dev->qdev, "vendorid", vendorid);
@@ -597,7 +597,7 @@ static USBDevice *usb_braille_init(const char *unused)
     if (!cdrv)
         return NULL;
 
-    dev = usb_create(NULL /* FIXME */, "QEMU USB Braille");
+    dev = usb_create(NULL /* FIXME */, "usb-braille");
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     qdev_init(&dev->qdev);
 
@@ -605,8 +605,8 @@ static USBDevice *usb_braille_init(const char *unused)
 }
 
 static struct USBDeviceInfo serial_info = {
-    .qdev.name      = "QEMU USB Serial",
-    .qdev.alias     = "usb-serial",
+    .product_desc   = "QEMU USB Serial",
+    .qdev.name      = "usb-serial",
     .qdev.size      = sizeof(USBSerialState),
     .init           = usb_serial_initfn,
     .handle_packet  = usb_generic_handle_packet,
@@ -625,8 +625,8 @@ static struct USBDeviceInfo serial_info = {
 };
 
 static struct USBDeviceInfo braille_info = {
-    .qdev.name      = "QEMU USB Braille",
-    .qdev.alias     = "usb-braille",
+    .product_desc   = "QEMU USB Braille",
+    .qdev.name      = "usb-braille",
     .qdev.size      = sizeof(USBSerialState),
     .init           = usb_serial_initfn,
     .handle_packet  = usb_generic_handle_packet,

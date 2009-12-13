@@ -95,7 +95,7 @@ struct sun4m_hwdef {
     target_phys_addr_t iommu_base, slavio_base;
     target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
     target_phys_addr_t serial_base, fd_base;
-    target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
+    target_phys_addr_t afx_base, idreg_base, dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, cs_base, apc_base, aux1_base, aux2_base;
     target_phys_addr_t ecc_base;
     uint32_t ecc_version;
@@ -600,6 +600,41 @@ static void idreg_register_devices(void)
 
 device_init(idreg_register_devices);
 
+/* SS-5 TCX AFX register */
+static void afx_init(target_phys_addr_t addr)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "tcx_afx");
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+
+    sysbus_mmio_map(s, 0, addr);
+}
+
+static int afx_init1(SysBusDevice *dev)
+{
+    ram_addr_t afx_offset;
+
+    afx_offset = qemu_ram_alloc(4);
+    sysbus_init_mmio(dev, 4, afx_offset | IO_MEM_RAM);
+    return 0;
+}
+
+static SysBusDeviceInfo afx_info = {
+    .init = afx_init1,
+    .qdev.name  = "tcx_afx",
+    .qdev.size  = sizeof(SysBusDevice),
+};
+
+static void afx_register_devices(void)
+{
+    sysbus_register_withprop(&afx_info);
+}
+
+device_init(afx_register_devices);
+
 /* Boot PROM (OpenBIOS) */
 static void prom_init(target_phys_addr_t addr, const char *bios_name)
 {
@@ -795,6 +830,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         idreg_init(hwdef->idreg_base);
     }
 
+    if (hwdef->afx_base) {
+        afx_init(hwdef->afx_base);
+    }
+
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
                        slavio_irq[30]);
 
@@ -920,6 +959,7 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
         .apc_base     = 0x6a000000,
+        .afx_base     = 0x6e000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
         .nvram_machine_id = 0x80,

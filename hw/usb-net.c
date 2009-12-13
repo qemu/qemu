@@ -1463,7 +1463,7 @@ USBDevice *usb_net_init(NICInfo *nd)
     USBDevice *dev;
     USBNetState *s;
 
-    dev = usb_create_simple(NULL /* FIXME */, "QEMU USB Network Interface");
+    dev = usb_create_simple(NULL /* FIXME */, "usb-net");
     s = DO_UPCAST(USBNetState, dev, dev);
 
     memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));
@@ -1487,7 +1487,8 @@ USBDevice *usb_net_init(NICInfo *nd)
 }
 
 static struct USBDeviceInfo net_info = {
-    .qdev.name      = "QEMU USB Network Interface",
+    .product_desc   = "QEMU USB Network Interface",
+    .qdev.name      = "usb-net",
     .qdev.size      = sizeof(USBNetState),
     .init           = usb_net_initfn,
     .handle_packet  = usb_generic_handle_packet,

@@ -1298,7 +1298,7 @@ static QEMUMachine pc_machine_v0_10 = {
     .desc = "Standard PC, qemu 0.10",
     .init = pc_init_pci,
     .max_cpus = 255,
-    .compat_props = (CompatProperty[]) {
+    .compat_props = (GlobalProperty[]) {
         {
             .driver   = "virtio-blk-pci",
             .property = "class",

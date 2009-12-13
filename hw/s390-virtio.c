@@ -181,7 +181,7 @@ static void s390_init(ram_addr_t ram_size,
 
         cpu_synchronize_state(env);
         env->psw.addr = KERN_IMAGE_START;
-        env->psw.mask = 0x0000000180000000UL;
+        env->psw.mask = 0x0000000180000000ULL;
     }
 
     if (initrd_filename) {
@@ -243,6 +243,10 @@ static QEMUMachine s390_machine = {
     .alias = "s390",
     .desc = "VirtIO based S390 machine",
     .init = s390_init,
+    .no_serial = 1,
+    .no_parallel = 1,
+    .use_virtcon = 1,
+    .no_vga = 1,
     .max_cpus = 255,
     .is_default = 1,
 };

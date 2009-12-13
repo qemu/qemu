@@ -2,6 +2,7 @@
 #define QDICT_H
 
 #include "qobject.h"
+#include "qlist.h"
 #include "qemu-queue.h"
 #include <stdint.h>
 
@@ -37,6 +38,8 @@ void qdict_iter(const QDict *qdict,
 
 /* High level helpers */
 int64_t qdict_get_int(const QDict *qdict, const char *key);
+int qdict_get_bool(const QDict *qdict, const char *key);
+QList *qdict_get_qlist(const QDict *qdict, const char *key);
 const char *qdict_get_str(const QDict *qdict, const char *key);
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t err_value);

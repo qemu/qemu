@@ -1415,7 +1415,7 @@ int main(int argc, char **argv)
 	int readonly = 0;
 	int growable = 0;
 	const char *sopt = "hVc:Crsnmgk";
-	struct option lopt[] = {
+        const struct option lopt[] = {
 		{ "help", 0, NULL, 'h' },
 		{ "version", 0, NULL, 'V' },
 		{ "offset", 1, NULL, 'o' },

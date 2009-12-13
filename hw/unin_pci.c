@@ -148,7 +148,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
 
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
-    dev = qdev_create(NULL, "Uni-north main");
+    dev = qdev_create(NULL, "uni-north-main");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(UNINState, s);
@@ -157,7 +157,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
                                          pic, 11 << 3, 4);
 
 #if 0
-    pci_create_simple(d->host_state.bus, 11 << 3, "Uni-north main");
+    pci_create_simple(d->host_state.bus, 11 << 3, "uni-north-main");
 #endif
 
     sysbus_mmio_map(s, 0, 0xf2800000);
@@ -166,12 +166,12 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     /* DEC 21154 bridge */
 #if 0
     /* XXX: not activated as PPC BIOS doesn't handle multiple buses properly */
-    pci_create_simple(d->host_state.bus, 12 << 3, "DEC 21154");
+    pci_create_simple(d->host_state.bus, 12 << 3, "dec-21154");
 #endif
 
     /* Uninorth AGP bus */
-    pci_create_simple(d->host_state.bus, 11 << 3, "Uni-north AGP");
-    dev = qdev_create(NULL, "Uni-north AGP");
+    pci_create_simple(d->host_state.bus, 11 << 3, "uni-north-AGP");
+    dev = qdev_create(NULL, "uni-north-AGP");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, 0xf0800000);
@@ -180,8 +180,8 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     /* Uninorth internal bus */
 #if 0
     /* XXX: not needed for now */
-    pci_create_simple(d->host_state.bus, 14 << 3, "Uni-north internal");
-    dev = qdev_create(NULL, "Uni-north internal");
+    pci_create_simple(d->host_state.bus, 14 << 3, "uni-north-internal");
+    dev = qdev_create(NULL, "uni-north-internal");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_mmio_map(s, 0, 0xf4800000);
@@ -260,41 +260,41 @@ static int unin_internal_pci_host_init(PCIDevice *d)
 }
 
 static PCIDeviceInfo unin_main_pci_host_info = {
-    .qdev.name = "Uni-north main",
+    .qdev.name = "uni-north-main",
     .qdev.size = sizeof(PCIDevice),
     .init      = unin_main_pci_host_init,
 };
 
 static PCIDeviceInfo dec_21154_pci_host_info = {
-    .qdev.name = "DEC 21154",
+    .qdev.name = "dec-21154",
     .qdev.size = sizeof(PCIDevice),
     .init      = dec_21154_pci_host_init,
 };
 
 static PCIDeviceInfo unin_agp_pci_host_info = {
-    .qdev.name = "Uni-north AGP",
+    .qdev.name = "uni-north-AGP",
     .qdev.size = sizeof(PCIDevice),
     .init      = unin_agp_pci_host_init,
 };
 
 static PCIDeviceInfo unin_internal_pci_host_info = {
-    .qdev.name = "Uni-north internal",
+    .qdev.name = "uni-north-internal",
     .qdev.size = sizeof(PCIDevice),
     .init      = unin_internal_pci_host_init,
 };
 
 static void unin_register_devices(void)
 {
-    sysbus_register_dev("Uni-north main", sizeof(UNINState),
+    sysbus_register_dev("uni-north-main", sizeof(UNINState),
                         pci_unin_main_init_device);
     pci_qdev_register(&unin_main_pci_host_info);
-    sysbus_register_dev("DEC 21154", sizeof(UNINState),
+    sysbus_register_dev("dec-21154", sizeof(UNINState),
                         pci_dec_21154_init_device);
     pci_qdev_register(&dec_21154_pci_host_info);
-    sysbus_register_dev("Uni-north AGP", sizeof(UNINState),
+    sysbus_register_dev("uni-north-AGP", sizeof(UNINState),
                         pci_unin_agp_init_device);
     pci_qdev_register(&unin_agp_pci_host_info);
-    sysbus_register_dev("Uni-north internal", sizeof(UNINState),
+    sysbus_register_dev("uni-north-internal", sizeof(UNINState),
                         pci_unin_internal_init_device);
     pci_qdev_register(&unin_internal_pci_host_info);
 }

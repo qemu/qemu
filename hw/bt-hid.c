@@ -552,7 +552,7 @@ static struct bt_device_s *bt_hid_init(struct bt_scatternet_s *net,
                     BT_HID_MTU, bt_hid_new_interrupt_ch);
 
     s->usbdev = dev;
-    s->btdev.device.lmp_name = s->usbdev->devname;
+    s->btdev.device.lmp_name = s->usbdev->product_desc;
     usb_hid_datain_cb(s->usbdev, s, bt_hid_datain);
 
     s->btdev.device.handle_destroy = bt_hid_destroy;
@@ -566,6 +566,6 @@ static struct bt_device_s *bt_hid_init(struct bt_scatternet_s *net,
 
 struct bt_device_s *bt_keyboard_init(struct bt_scatternet_s *net)
 {
-    USBDevice *dev = usb_create_simple(NULL /* FIXME */, "QEMU USB Keyboard");
+    USBDevice *dev = usb_create_simple(NULL /* FIXME */, "usb-kbd");
     return bt_hid_init(net, dev, class_keyboard);
 }
