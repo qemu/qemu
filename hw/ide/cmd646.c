@@ -70,11 +70,7 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
 
 static PCIIDEState *pci_from_bm(BMDMAState *bm)
 {
-    if (bm->unit == 0) {
-        return container_of(bm, PCIIDEState, bmdma[0]);
-    } else {
-        return container_of(bm, PCIIDEState, bmdma[1]);
-    }
+    return bm->pci_dev;
 }
 
 static uint32_t bmdma_readb(void *opaque, uint32_t addr)
@@ -145,6 +141,7 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         BMDMAState *bm = &d->bmdma[i];
         d->bus[i].bmdma = bm;
         bm->bus = d->bus+i;
+        bm->pci_dev = d;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
