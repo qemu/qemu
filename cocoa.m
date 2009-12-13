@@ -855,6 +855,16 @@ int main (int argc, const char * argv[]) {
     gArgc = argc;
     gArgv = (char **)argv;
     CPSProcessSerNum PSN;
+    int i;
+
+    /* In case we don't need to display a window, let's not do that */
+    for (i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-vnc") ||
+            !strcmp(argv[i], "-nographic") ||
+            !strcmp(argv[i], "-curses")) {
+                return qemu_main(gArgc, gArgv);
+        }
+    }
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
