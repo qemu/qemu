@@ -740,6 +740,7 @@ static int cocoa_keycode_to_qemu(int keycode)
         [normalWindow setAcceptsMouseMovedEvents:YES];
         [normalWindow setTitle:[NSString stringWithFormat:@"QEMU"]];
         [normalWindow setContentView:cocoaView];
+        [normalWindow useOptimizedDrawing:YES];
         [normalWindow makeKeyAndOrderFront:self];
 		[normalWindow center];
 
