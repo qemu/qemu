@@ -305,6 +305,11 @@ static int cocoa_keycode_to_qemu(int keycode)
     [super dealloc];
 }
 
+- (BOOL) isOpaque
+{
+    return YES;
+}
+
 - (void) drawRect:(NSRect) rect
 {
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
