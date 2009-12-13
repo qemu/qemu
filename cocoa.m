@@ -28,6 +28,9 @@
 #include "console.h"
 #include "sysemu.h"
 
+#ifndef MAC_OS_X_VERSION_10_4
+#define MAC_OS_X_VERSION_10_4 1040
+#endif
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
 #endif
@@ -331,7 +334,7 @@ static int cocoa_keycode_to_qemu(int keycode)
             0, //interpolate
             kCGRenderingIntentDefault //intent
         );
-// test if host support "CGImageCreateWithImageInRect" at compiletime
+// test if host supports "CGImageCreateWithImageInRect" at compile time
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
         if (CGImageCreateWithImageInRect == NULL) { // test if "CGImageCreateWithImageInRect" is supported on host at runtime
 #endif
@@ -428,8 +431,8 @@ static int cocoa_keycode_to_qemu(int keycode)
         isFullscreen = FALSE;
         [self ungrabMouse];
         [self setContentDimensions];
-// test if host support "enterFullScreenMode:withOptions" at compiletime
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+// test if host supports "exitFullScreenModeWithOptions" at compile time
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         if ([NSView respondsToSelector:@selector(exitFullScreenModeWithOptions:)]) { // test if "exitFullScreenModeWithOptions" is supported on host at runtime
             [self exitFullScreenModeWithOptions:nil];
         } else {
@@ -438,15 +441,15 @@ static int cocoa_keycode_to_qemu(int keycode)
             [normalWindow setContentView: self];
             [normalWindow makeKeyAndOrderFront: self];
             [NSMenu setMenuBarVisible:YES];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
 #endif
     } else { // switch from desktop to fullscreen
         isFullscreen = TRUE;
         [self grabMouse];
         [self setContentDimensions];
-// test if host support "enterFullScreenMode:withOptions" at compiletime
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+// test if host supports "enterFullScreenMode:withOptions" at compile time
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         if ([NSView respondsToSelector:@selector(enterFullScreenMode:withOptions:)]) { // test if "enterFullScreenMode:withOptions" is supported on host at runtime
             [self enterFullScreenMode:[NSScreen mainScreen] withOptions:[NSDictionary dictionaryWithObjectsAndKeys:
                 [NSNumber numberWithBool:NO], NSFullScreenModeAllScreens,
@@ -462,7 +465,7 @@ static int cocoa_keycode_to_qemu(int keycode)
             [fullScreenWindow setHasShadow:NO];
             [fullScreenWindow setContentView:self];
             [fullScreenWindow makeKeyAndOrderFront:self];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
 #endif
     }
