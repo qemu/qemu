@@ -713,6 +713,9 @@ static void dec_bit(DisasContext *dc)
             tcg_gen_ext16s_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
             break;
         case 0x64:
+        case 0x66:
+        case 0x74:
+        case 0x76:
             /* wdc.  */
             LOG_DIS("wdc r%d\n", dc->ra);
             if ((dc->tb_flags & MSR_EE_FLAG)
