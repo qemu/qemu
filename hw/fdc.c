@@ -935,6 +935,12 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     fdctrl->dor |= FD_DOR_nRESET;
 
+    /* Sparc mutation */
+    if (fdctrl->sun4m) {
+        retval |= FD_MSR_DIO;
+        fdctrl_reset_irq(fdctrl);
+    };
+
     FLOPPY_DPRINTF("main status register: 0x%02x\n", retval);
 
     return retval;
