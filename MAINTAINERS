@@ -75,7 +75,7 @@ Main loop                 Fabrice Bellard (new maintainer needed)
 TCG                       Fabrice Bellard
 IDE device                ?
 SCSI device               Paul Brook
-PCI layer                 ?
+PCI layer                 Michael S. Tsirkin
 USB layer                 ?
 Block layer               ?
 Graphic layer             ?
