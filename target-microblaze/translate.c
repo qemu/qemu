@@ -1019,7 +1019,7 @@ static void dec_br(DisasContext *dc)
         if (dc->imm == 0)
             t_gen_raise_exception(dc, EXCP_DEBUG);
     } else {
-        if (dc->tb_flags & IMM_FLAG) {
+        if (!dc->type_b || (dc->tb_flags & IMM_FLAG)) {
             tcg_gen_movi_tl(env_btaken, 1);
             tcg_gen_movi_tl(env_btarget, dc->pc);
             tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
