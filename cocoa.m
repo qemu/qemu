@@ -938,7 +938,7 @@ static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
             w * [cocoaView cdx],
             h * [cocoaView cdy]);
     }
-    [cocoaView displayRect:rect];
+    [cocoaView setNeedsDisplayInRect:rect];
 }
 
 static void cocoa_resize(DisplayState *ds)
