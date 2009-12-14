@@ -101,7 +101,6 @@ typedef struct PCIIORegion {
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
 #define  PCI_COMMAND_MASTER	0x4	/* Enable bus master */
-#define  PCI_COMMAND_INTX_DISABLE 0x400 /* INTx Emulation Disable */
 #define PCI_STATUS              0x06    /* 16 bits */
 #define  PCI_STATUS_INTERRUPT   0x08
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
