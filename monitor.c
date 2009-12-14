@@ -864,7 +864,7 @@ static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     BlockDriverState *bs;
     int force = qdict_get_int(qdict, "force");
-    const char *filename = qdict_get_str(qdict, "filename");
+    const char *filename = qdict_get_str(qdict, "device");
 
     bs = bdrv_find(filename);
     if (!bs) {
