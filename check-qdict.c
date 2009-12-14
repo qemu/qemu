@@ -205,6 +205,8 @@ START_TEST(qdict_put_exists_test)
 
     value = qdict_get_int(tests_dict, key);
     fail_unless(value == 2);
+
+    fail_unless(qdict_size(tests_dict) == 1);
 }
 END_TEST
 
