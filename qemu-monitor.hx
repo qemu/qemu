@@ -130,7 +130,7 @@ ETEXI
 
     {
         .name       = "eject",
-        .args_type  = "force:-f,filename:B",
+        .args_type  = "force:-f,device:B",
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
         .user_print = monitor_user_noop,
