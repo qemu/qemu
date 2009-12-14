@@ -6049,7 +6049,10 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_creation_done();
 
-    rom_load_all();
+    if (rom_load_all() != 0) {
+        fprintf(stderr, "rom loading failed\n");
+        exit(1);
+    }
 
     qemu_system_reset();
     if (loadvm) {

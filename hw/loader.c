@@ -669,7 +669,7 @@ int rom_load_all(void)
                         "addr 0x" TARGET_FMT_plx
                         ", size 0x%zx, max 0x" TARGET_FMT_plx ")\n",
                         rom->name, addr, rom->romsize, rom->max);
-                return -1;
+                continue;
             }
         } else {
             /* fixed address requested */
