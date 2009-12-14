@@ -77,13 +77,6 @@ DEF_HELPER_2(cmpgeq, i64, i64, i64)
 DEF_HELPER_2(cmpgle, i64, i64, i64)
 DEF_HELPER_2(cmpglt, i64, i64, i64)
 
-DEF_HELPER_1(cmpfeq, i64, i64)
-DEF_HELPER_1(cmpfne, i64, i64)
-DEF_HELPER_1(cmpflt, i64, i64)
-DEF_HELPER_1(cmpfle, i64, i64)
-DEF_HELPER_1(cmpfgt, i64, i64)
-DEF_HELPER_1(cmpfge, i64, i64)
-
 DEF_HELPER_2(cpys, i64, i64, i64)
 DEF_HELPER_2(cpysn, i64, i64, i64)
 DEF_HELPER_2(cpyse, i64, i64, i64)

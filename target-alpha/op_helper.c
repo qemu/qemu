@@ -884,37 +884,6 @@ uint64_t helper_cmpglt(uint64_t a, uint64_t b)
         return 0;
 }
 
-uint64_t helper_cmpfeq (uint64_t a)
-{
-    return !(a & 0x7FFFFFFFFFFFFFFFULL);
-}
-
-uint64_t helper_cmpfne (uint64_t a)
-{
-    return (a & 0x7FFFFFFFFFFFFFFFULL);
-}
-
-uint64_t helper_cmpflt (uint64_t a)
-{
-    return (a & 0x8000000000000000ULL) && (a & 0x7FFFFFFFFFFFFFFFULL);
-}
-
-uint64_t helper_cmpfle (uint64_t a)
-{
-    return (a & 0x8000000000000000ULL) || !(a & 0x7FFFFFFFFFFFFFFFULL);
-}
-
-uint64_t helper_cmpfgt (uint64_t a)
-{
-    return !(a & 0x8000000000000000ULL) && (a & 0x7FFFFFFFFFFFFFFFULL);
-}
-
-uint64_t helper_cmpfge (uint64_t a)
-{
-    return !(a & 0x8000000000000000ULL) || !(a & 0x7FFFFFFFFFFFFFFFULL);
-}
-
-
 /* Floating point format conversion */
 uint64_t helper_cvtts (uint64_t a)
 {
