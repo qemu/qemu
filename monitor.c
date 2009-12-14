@@ -2053,14 +2053,34 @@ static void do_info_status(Monitor *mon, QObject **ret_data)
                                     vm_running, singlestep);
 }
 
+static ram_addr_t balloon_get_value(void)
+{
+    ram_addr_t actual;
+
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        return 0;
+    }
+
+    actual = qemu_balloon_status();
+    if (actual == 0) {
+        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
+        return 0;
+    }
+
+    return actual;
+}
+
 /**
  * do_balloon(): Request VM to change its memory allocation
  */
 static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    int value = qdict_get_int(qdict, "value");
-    ram_addr_t target = value;
-    qemu_balloon(target << 20);
+    if (balloon_get_value()) {
+        /* ballooning is active */
+        ram_addr_t value = qdict_get_int(qdict, "value");
+        qemu_balloon(value << 20);
+    }
 }
 
 static void monitor_print_balloon(Monitor *mon, const QObject *data)
@@ -2088,14 +2108,11 @@ static void do_info_balloon(Monitor *mon, QObject **ret_data)
 {
     ram_addr_t actual;
 
-    actual = qemu_balloon_status();
-    if (kvm_enabled() && !kvm_has_sync_mmu())
-        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
-    else if (actual == 0)
-        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
-    else
+    actual = balloon_get_value();
+    if (actual != 0) {
         *ret_data = qobject_from_jsonf("{ 'balloon': %" PRId64 "}",
                                        (int64_t) actual);
+    }
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
