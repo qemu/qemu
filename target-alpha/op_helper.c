@@ -625,37 +625,57 @@ uint64_t helper_sqrtg (uint64_t a)
 
 
 /* S floating (single) */
+
+/* Taken from linux/arch/alpha/kernel/traps.c, s_mem_to_reg.  */
+static inline uint64_t float32_to_s_int(uint32_t fi)
+{
+    uint32_t frac = fi & 0x7fffff;
+    uint32_t sign = fi >> 31;
+    uint32_t exp_msb = (fi >> 30) & 1;
+    uint32_t exp_low = (fi >> 23) & 0x7f;
+    uint32_t exp;
+
+    exp = (exp_msb << 10) | exp_low;
+    if (exp_msb) {
+        if (exp_low == 0x7f)
+            exp = 0x7ff;
+    } else {
+        if (exp_low != 0x00)
+            exp |= 0x380;
+    }
+
+    return (((uint64_t)sign << 63)
+            | ((uint64_t)exp << 52)
+            | ((uint64_t)frac << 29));
+}
+
 static inline uint64_t float32_to_s(float32 fa)
 {
     CPU_FloatU a;
-    uint64_t r;
-
     a.f = fa;
+    return float32_to_s_int(a.l);
+}
 
-    r = (((uint64_t)(a.l & 0xc0000000)) << 32) | (((uint64_t)(a.l & 0x3fffffff)) << 29);
-    if (((a.l & 0x7f800000) != 0x7f800000) && (!(a.l & 0x40000000)))
-        r |= 0x7ll << 59;
-    return r;
+static inline uint32_t s_to_float32_int(uint64_t a)
+{
+    return ((a >> 32) & 0xc0000000) | ((a >> 29) & 0x3fffffff);
 }
 
 static inline float32 s_to_float32(uint64_t a)
 {
     CPU_FloatU r;
-    r.l = ((a >> 32) & 0xc0000000) | ((a >> 29) & 0x3fffffff);
+    r.l = s_to_float32_int(a);
     return r.f;
 }
 
 uint32_t helper_s_to_memory (uint64_t a)
 {
-    /* Memory format is the same as float32 */
-    float32 fa = s_to_float32(a);
-    return *(uint32_t*)(&fa);
+    return s_to_float32_int(a);
 }
 
 uint64_t helper_memory_to_s (uint32_t a)
 {
-    /* Memory format is the same as float32 */
-    return float32_to_s(*(float32*)(&a));
+    return float32_to_s_int(a);
 }
 
 uint64_t helper_adds (uint64_t a, uint64_t b)
