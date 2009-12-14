@@ -783,6 +783,11 @@ static int cocoa_keycode_to_qemu(int keycode)
     exit(0);
 }
 
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)theApplication
+{
+    return YES;
+}
+
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv
 {
     COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
