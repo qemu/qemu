@@ -694,6 +694,7 @@ typedef struct CPUX86State {
 
     /* For KVM */
     uint32_t mp_state;
+    int32_t exception_injected;
     int32_t interrupt_injected;
     uint8_t soft_interrupt;
     uint8_t nmi_injected;
