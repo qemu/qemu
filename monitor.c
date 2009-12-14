@@ -177,9 +177,6 @@ static void monitor_puts(Monitor *mon, const char *str)
 {
     char c;
 
-    if (!mon)
-        return;
-
     for(;;) {
         c = *str++;
         if (c == '\0')
@@ -195,6 +192,9 @@ static void monitor_puts(Monitor *mon, const char *str)
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
+    if (!mon)
+        return;
+
     if (mon->mc && !mon->mc->print_enabled) {
         qemu_error_new(QERR_UNDEFINED_ERROR);
     } else {
