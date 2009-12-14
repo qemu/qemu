@@ -835,12 +835,12 @@ static inline int hw_breakpoint_enabled(unsigned long dr7, int index)
 
 static inline int hw_breakpoint_type(unsigned long dr7, int index)
 {
-    return (dr7 >> (DR7_TYPE_SHIFT + (index * 2))) & 3;
+    return (dr7 >> (DR7_TYPE_SHIFT + (index * 4))) & 3;
 }
 
 static inline int hw_breakpoint_len(unsigned long dr7, int index)
 {
-    int len = ((dr7 >> (DR7_LEN_SHIFT + (index * 2))) & 3);
+    int len = ((dr7 >> (DR7_LEN_SHIFT + (index * 4))) & 3);
     return (len == 2) ? 8 : len + 1;
 }
 
