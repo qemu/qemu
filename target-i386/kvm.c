@@ -720,8 +720,8 @@ static int kvm_put_vcpu_events(CPUState *env)
         return 0;
     }
 
-    events.exception.injected = (env->exception_index >= 0);
-    events.exception.nr = env->exception_index;
+    events.exception.injected = (env->exception_injected >= 0);
+    events.exception.nr = env->exception_injected;
     events.exception.has_error_code = env->has_error_code;
     events.exception.error_code = env->error_code;
 
@@ -755,7 +755,7 @@ static int kvm_get_vcpu_events(CPUState *env)
     if (ret < 0) {
        return ret;
     }
-    env->exception_index =
+    env->exception_injected =
        events.exception.injected ? events.exception.nr : -1;
     env->has_error_code = events.exception.has_error_code;
     env->error_code = events.exception.error_code;
