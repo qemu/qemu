@@ -258,9 +258,6 @@ void usb_host_info(Monitor *mon);
 /* usb-hid.c */
 void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *));
 
-/* usb-net.c */
-USBDevice *usb_net_init(NICInfo *nd);
-
 /* usb-bt.c */
 USBDevice *usb_bt_init(HCIInfo *hci);
 

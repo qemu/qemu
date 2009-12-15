@@ -2654,24 +2654,6 @@ static int usb_device_add(const char *devname, int is_hotplug)
     /* the other ones */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-    } else if (strstart(devname, "net:", &p)) {
-        QemuOpts *opts;
-        int idx;
-
-        opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
-        if (!opts) {
-            return -1;
-        }
-
-        qemu_opt_set(opts, "type", "nic");
-        qemu_opt_set(opts, "model", "usb");
-
-        idx = net_client_init(NULL, opts, 0);
-        if (idx == -1) {
-            return -1;
-        }
-
-        dev = usb_net_init(&nd_table[idx]);
     } else if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
         dev = usb_bt_init(devname[2] ? hci_init(p) :
                         bt_new_hci(qemu_find_bt_vlan(0)));
