@@ -41,7 +41,6 @@ struct PCIBus {
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     pci_hotplug_fn hotplug;
-    uint32_t config_reg; /* XXX: suppress */
     void *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
