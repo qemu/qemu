@@ -1173,8 +1173,11 @@ typedef enum {
  ****************************************************************************/
 
 /* Large parts of the emac code can be used for TMS320DM644x emac, too.
-   Parts which are specific for AR7 and must be changed for other SoCs
-   are marked with CONFIG_AR7_EMAC. */
+ * Parts which are specific for AR7 and must be changed for other SoCs
+ * are marked with CONFIG_AR7_EMAC.
+ * See also linux drivers/net/cpmac.c, drivers/net/davinci_emac.c.
+ */
+
 #define CONFIG_AR7_EMAC         1
 
 #if 0
@@ -3428,7 +3431,7 @@ static void ar7_nic_cleanup(VLANClientState *vc)
 {
     /* TODO: check this code. */
     //~ void *d = vc->opaque;
-    assert(vc == 0);    /* just to trigger always an assertion... */
+    MISSING();
     //~ unregister_savevm("ar7", d);
 
 #if 0
@@ -3647,7 +3650,6 @@ static void ar7_init(CPUState * env)
 #define ar7_instance 0
 #define ar7_version 0
     /* TODO: fix code. */
-    //~ qemu_register_reset(ar7_reset, env);
     //~ register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
@@ -3783,12 +3785,11 @@ static void ar7_mips_init(CPUState *env)
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
-    cpu_reset(env);
     ar7_mips_init(env);
     /* AR7 is MIPS32 release 1. */
-    env->CP0_Config0 &= ~(7 << CP0C0_AR);
+    assert(!(env->CP0_Config0 & (7 << CP0C0_AR)));
     /* AR7 has no FPU. */
-    env->CP0_Config1 &= ~(1 << CP0C1_FP);
+    assert(!(env->CP0_Config1 & (1 << CP0C1_FP)));
 
     if (loaderparams.kernel_filename) {
         kernel_init(env);
@@ -3834,8 +3835,6 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     }
 
     qemu_register_reset(main_cpu_reset, env);
-    //~ ar7_reset(&s->busdev.qdev);
-    ar7_mips_init(env);
 
     dev = qdev_create(NULL, "mips ar7");
     //~ qdev_prop_set_uint32(dev, "memsz", machine_ram_size / MiB);
