@@ -463,8 +463,9 @@ static void tcg_out_movi (TCGContext *s, TCGType type,
                           int ret, tcg_target_long arg)
 {
     int32_t arg32 = arg;
+    arg = type == TCG_TYPE_I32 ? arg & 0xffffffff : arg;
 
-    if (type == TCG_TYPE_I32 || arg == arg32) {
+    if (arg == arg32) {
         tcg_out_movi32 (s, ret, arg32);
     }
     else {
