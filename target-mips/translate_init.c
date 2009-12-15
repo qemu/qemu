@@ -115,7 +115,7 @@ static const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1278FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32 | ASE_MIPS16,
+        .insn_flags = CPU_MIPS32,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -157,7 +157,7 @@ static const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1278FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32 | ASE_MIPS16,
+        .insn_flags = CPU_MIPS32,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -198,7 +198,7 @@ static const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1278FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16,
+        .insn_flags = CPU_MIPS32R2,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
