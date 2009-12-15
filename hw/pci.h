@@ -155,7 +155,7 @@ typedef struct PCIIORegion {
 #define PCI_CAP_LIST_NEXT	1	/* Next capability in the list */
 
 #define PCI_REVISION            0x08    /* obsolete, use PCI_REVISION_ID */
-#define PCI_SUBVENDOR_ID        0x2c    /* obsolete, use PCI_SUBSYSTEM_VENDOR_ID */
+#define PCI_SUBSYSTEM_VENDOR_ID 0x2c
 #define PCI_SUBDEVICE_ID        0x2e    /* obsolete, use PCI_SUBSYSTEM_ID */
 
 /* Bits in the PCI Status Register (PCI 2.3 spec) */
