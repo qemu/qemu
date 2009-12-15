@@ -44,6 +44,11 @@ struct PCII440FXState {
     PIIX3State *piix3;
 };
 
+
+#define I440FX_PAM      0x59
+#define I440FX_PAM_SIZE 7
+#define I440FX_SMRAM    0x72
+
 static void piix3_set_irq(void *opaque, int irq_num, int level);
 
 /* return the global irq number corresponding to a given device irq
@@ -88,12 +93,12 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     int i, r;
     uint32_t smram, addr;
 
-    update_pam(d, 0xf0000, 0x100000, (d->dev.config[0x59] >> 4) & 3);
+    update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3);
     for(i = 0; i < 12; i++) {
-        r = (d->dev.config[(i >> 1) + 0x5a] >> ((i & 1) * 4)) & 3;
+        r = (d->dev.config[(i >> 1) + (I440FX_PAM + 1)] >> ((i & 1) * 4)) & 3;
         update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r);
     }
-    smram = d->dev.config[0x72];
+    smram = d->dev.config[I440FX_SMRAM];
     if ((d->smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
         cpu_register_physical_memory(0xa0000, 0x20000, 0xa0000);
     } else {
@@ -132,7 +137,9 @@ static void i440fx_write_config(PCIDevice *dev,
 
     /* XXX: implement SMRAM.D_LOCK */
     pci_default_write_config(dev, address, val, len);
-    if ((address >= 0x59 && address <= 0x5f) || address == 0x72)
+    if ((address >= I440FX_PAM &&
+         address <= I440FX_PAM + I440FX_PAM_SIZE - 1) ||
+        address == I440FX_SMRAM)
         i440fx_update_memory_mappings(d);
 }
 
@@ -196,7 +203,7 @@ static int i440fx_initfn(PCIDevice *dev)
     pci_config_set_class(d->dev.config, PCI_CLASS_BRIDGE_HOST);
     d->dev.config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
-    d->dev.config[0x72] = 0x02; /* SMRAM */
+    d->dev.config[I440FX_SMRAM] = 0x02;
 
     return 0;
 }
