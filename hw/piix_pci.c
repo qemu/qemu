@@ -29,6 +29,11 @@
 #include "isa.h"
 #include "sysbus.h"
 
+/*
+ * I440FX chipset data sheet.
+ * http://download.intel.com/design/chipsets/datashts/29054901.pdf
+ */
+
 typedef PCIHostState I440FXState;
 
 typedef struct PIIX3State {
