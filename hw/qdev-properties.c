@@ -500,7 +500,12 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
                 dev->info->name, name);
         return -1;
     }
-    return prop->info->parse(dev, prop, value);
+    if (prop->info->parse(dev, prop, value) != 0) {
+        fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
+                dev->info->name, name, value);
+        return -1;
+    }
+    return 0;
 }
 
 void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type)
@@ -619,7 +624,7 @@ void qdev_prop_set_globals(DeviceState *dev)
             continue;
         }
         if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {
-            abort();
+            exit(1);
         }
     }
 }
