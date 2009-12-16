@@ -1451,10 +1451,13 @@ void cpu_dump_state (CPUState *env, FILE *f,
     cpu_fprintf(f, "rmsr=%x resr=%x debug[%x] imm=%x iflags=%x\n",
              env->sregs[SR_MSR], env->sregs[SR_ESR],
              env->debug, env->imm, env->iflags);
-    cpu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s)\n",
+    cpu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
              env->btaken, env->btarget,
              (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
-             (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel");
+             (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
+             (env->sregs[SR_MSR] & MSR_EIP),
+             (env->sregs[SR_MSR] & MSR_IE));
+
     for (i = 0; i < 32; i++) {
         cpu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
         if ((i + 1) % 4 == 0)
