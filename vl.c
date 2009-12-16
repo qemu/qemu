@@ -289,8 +289,8 @@ static struct {
     { .driver = "virtio-console-pci",   .flag = &default_virtcon   },
     { .driver = "virtio-console-s390",  .flag = &default_virtcon   },
     { .driver = "VGA",                  .flag = &default_vga       },
-    { .driver = "Cirrus VGA",           .flag = &default_vga       },
-    { .driver = "QEMUware SVGA",        .flag = &default_vga       },
+    { .driver = "cirrus-vga",           .flag = &default_vga       },
+    { .driver = "vmware-svga",          .flag = &default_vga       },
 };
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
