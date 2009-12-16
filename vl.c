@@ -274,7 +274,9 @@ static int default_parallel = 1;
 static int default_virtcon = 1;
 static int default_monitor = 1;
 static int default_vga = 1;
-static int default_drive = 1;
+static int default_floppy = 1;
+static int default_cdrom = 1;
+static int default_sdcard = 1;
 
 static struct {
     const char *driver;
@@ -5591,7 +5593,9 @@ int main(int argc, char **argv, char **envp)
                 default_monitor = 0;
                 default_vga = 0;
                 default_net = 0;
-                default_drive = 0;
+                default_floppy = 0;
+                default_cdrom = 0;
+                default_sdcard = 0;
                 break;
 #ifndef _WIN32
             case QEMU_OPTION_chroot:
@@ -5684,6 +5688,15 @@ int main(int argc, char **argv, char **envp)
     }
     if (machine->no_vga) {
         default_vga = 0;
+    }
+    if (machine->no_floppy) {
+        default_floppy = 0;
+    }
+    if (machine->no_cdrom) {
+        default_cdrom = 0;
+    }
+    if (machine->no_sdcard) {
+        default_sdcard = 0;
     }
 
     if (display_type == DT_NOGRAPHIC) {
@@ -5843,13 +5856,17 @@ int main(int argc, char **argv, char **envp)
 
     blk_mig_init();
 
-    if (default_drive) {
+    if (default_cdrom) {
         /* we always create the cdrom drive, even if no disk is there */
         drive_add(NULL, CDROM_ALIAS);
+    }
 
+    if (default_floppy) {
         /* we always create at least one floppy */
         drive_add(NULL, FD_ALIAS, 0);
+    }
 
+    if (default_sdcard) {
         /* we always create one sd slot, even if no card is in it */
         drive_add(NULL, SD_ALIAS);
     }
