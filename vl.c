@@ -284,6 +284,8 @@ static struct {
 } default_list[] = {
     { .driver = "isa-serial",           .flag = &default_serial    },
     { .driver = "isa-parallel",         .flag = &default_parallel  },
+    { .driver = "isa-fdc",              .flag = &default_floppy    },
+    { .driver = "ide-drive",            .flag = &default_cdrom     },
     { .driver = "virtio-console-pci",   .flag = &default_virtcon   },
     { .driver = "virtio-console-s390",  .flag = &default_virtcon   },
     { .driver = "VGA",                  .flag = &default_vga       },
@@ -5676,6 +5678,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     qemu_opts_foreach(&qemu_device_opts, default_driver_check, NULL, 0);
+    qemu_opts_foreach(&qemu_global_opts, default_driver_check, NULL, 0);
 
     if (machine->no_serial) {
         default_serial = 0;
