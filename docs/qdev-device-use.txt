@@ -1,0 +1,353 @@
+= How to convert to -device & friends =
+
+=== Specifying Bus and Address on Bus ===
+
+In qdev, each device has a parent bus.  Some devices provide one or
+more buses for children.  You can specify a device's parent bus with
+-device parameter bus.
+
+A device typically has a device address on its parent bus.  For buses
+where this address can be configured, devices provide a bus-specific
+property.  These are
+
+    bus     property name       value format
+    PCI     addr                %x.%x (dev.fn, .fn optional)
+    I2C     address             %u
+    SCSI    scsi-id             %u
+
+Example: device i440FX-pcihost is on the root bus, and provides a PCI
+bus named pci.0.  To put a FOO device into its slot 4, use -device
+FOO,bus=/i440FX-pcihost/pci.0,addr=4.  The abbreviated form bus=pci.0
+also works as long as the bus name is unique.
+
+Note: the USB device address can't be controlled at this time.
+
+=== Block Devices ===
+
+A QEMU block device (drive) has a host and a guest part.
+
+In the general case, the guest device is connected to a controller
+device.  For instance, the IDE controller provides two IDE buses, each
+of which can have up to two ide-drive devices, and each ide-drive
+device is a guest part, and is connected to a host part.
+
+Except we sometimes lump controller, bus(es) and drive device(s) all
+together into a single device.  For instance, the ISA floppy
+controller is connected to up to two host drives.
+
+The old ways to define block devices define host and guest part
+together.  Sometimes, they can even define a controller device in
+addition to the block device.
+
+The new way keeps the parts separate: you create the host part with
+-drive, and guest device(s) with -device.
+
+The various old ways to define drives all boil down to the common form
+
+    -drive if=TYPE,index=IDX,bus=BUS,unit=UNIT,HOST-OPTS...
+
+TYPE, BUS and UNIT identify the controller device, which of its buses
+to use, and the drive's address on that bus.  Details depend on TYPE.
+IDX is an alternative way to specify BUS and UNIT.
+
+In the new way, this becomes something like
+
+   -drive if=none,id=DRIVE-ID,HOST-OPTS...
+   -device DEVNAME,drive=DRIVE-ID,DEV-OPTS...
+
+The -device argument differs in detail for each kind of drive:
+
+* if=ide
+
+  -device ide-drive,drive=DRIVE-ID,bus=IDE-BUS,unit=UNIT
+
+  where IDE-BUS identifies an IDE bus, normally either ide.0 or ide.1,
+  and UNIT is either 0 or 1.
+
+  Bug: new way does not work for ide.1 unit 0 (in old terms: index=2)
+  unless you disable the default CD-ROM with -nodefaults.
+
+* if=scsi
+
+  The old way implicitly creates SCSI controllers as needed.  The new
+  way makes that explicit:
+
+  -device lsi53c895a,id=ID
+
+  As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to
+  control the PCI device address.
+
+  This SCSI controller a single SCSI bus, named ID.0.  Put a disk on
+  it:
+
+  -device scsi-disk,drive=DRIVE-ID,bus=ID.0,scsi-id=SCSI-ID
+
+* if=floppy
+
+  -global isa-fdc,driveA=DRIVE-ID,driveB=DRIVE-ID
+
+  This is -global instead of -device, because the floppy controller is
+  created automatically, and we want to configure that one, not create
+  a second one (which isn't possible anyway).
+
+  Omitting a drive parameter makes that drive empty.
+
+  Bug: driveA works only if you disable the default floppy drive with
+  -nodefaults.
+
+* if=virtio
+
+  -device virtio-blk-pci,drive=DRIVE-ID,class=C,vectors=V
+
+  This lets you control PCI device class and MSI-X vectors.
+
+  As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to
+  control the PCI device address.
+
+* if=pflash, if=mtd, if=sd, if=xen are not yet available with -device
+
+For USB devices, the old way is actually different:
+
+    -usbdevice disk:format=FMT:FILENAME
+
+Provides much less control than -drive's HOST-OPTS...  The new way
+fixes that:
+
+    -device usb-storage,drive=DRIVE-ID
+
+=== Character Devices ===
+
+A QEMU character device has a host and a guest part.
+
+The old ways to define character devices define host and guest part
+together.
+
+The new way keeps the parts separate: you create the host part with
+-chardev, and the guest device with -device.
+
+The various old ways to define a character device are all of the
+general form
+
+    -FOO FOO-OPTS...,LEGACY-CHARDEV
+
+where FOO-OPTS... is specific to -FOO, and the host part
+LEGACY-CHARDEV is the same everywhere.
+
+In the new way, this becomes
+
+    -chardev HOST-OPTS...,id=CHR-ID
+    -device DEVNAME,chardev=CHR-ID,DEV-OPTS...
+
+The appropriate DEVNAME depends on the machine type.  For type "pc":
+
+* -serial becomes -device isa-serial,iobase=IOADDR,irq=IRQ,index=IDX
+
+  This lets you control I/O ports and IRQs.
+
+* -parallel becomes -device isa-parallel,iobase=IOADDR,irq=IRQ,index=IDX
+
+  This lets you control I/O ports and IRQs.
+
+* -usbdevice serial:vendorid=VID,productid=PRID becomes
+  -device usb-serial,vendorid=VID,productid=PRID
+
+* -usbdevice braille doesn't support LEGACY-CHARDEV syntax.  It always
+  uses "braille".  With -device, this useful default is gone, so you
+  have to use something like
+
+  -device usb-braille,chardev=braille,vendorid=VID,productid=PRID
+  -chardev braille,id=braille
+
+* -virtioconsole is still being worked on
+
+LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
+
+* null becomes -chardev null
+
+* pty, msmouse, braille, stdio likewise
+
+* vc:WIDTHxHEIGHT becomes -chardev vc,width=WIDTH,height=HEIGHT
+
+* vc:<COLS>Cx<ROWS>C becomes -chardev vc,cols=<COLS>,rows=<ROWS>
+
+* con: becomes -chardev console
+
+* COM<NUM> becomes -chardev serial,path=<NUM>
+
+* file:FNAME becomes -chardev file,path=FNAME
+
+* pipe:FNAME becomes -chardev pipe,path=FNAME
+
+* tcp:HOST:PORT,OPTS... becomes -chardev socket,host=HOST,port=PORT,OPTS...
+
+* telnet:HOST:PORT,OPTS... becomes
+  -chardev socket,host=HOST,port=PORT,OPTS...,telnet=on
+
+* udp:HOST:PORT@LOCALADDR:LOCALPORT becomes
+  -chardev udp,host=HOST,port=PORT,localaddr=LOCALADDR,localport=LOCALPORT
+
+* unix:FNAME becomes -chardev socket,path=FNAME
+
+* /dev/parportN becomes -chardev parport,file=/dev/parportN
+
+* /dev/ppiN likewise
+
+* Any other /dev/FNAME becomes -chardev tty,path=/dev/FNAME
+
+* mon:LEGACY-CHARDEV is special: it multiplexes the monitor onto the
+  character device defined by LEGACY-CHARDEV.  -chardev provides more
+  general multiplexing instead: you can connect up to four users to a
+  single host part.  You need to pass mux=on to -chardev to enable
+  switching the input focus.
+
+QEMU uses LEGACY-CHARDEV syntax not just to set up guest devices, but
+also in various other places such as -monitor or -net
+user,guestfwd=...  You can use chardev:CHR-ID in place of
+LEGACY-CHARDEV to refer to a host part defined with -chardev.
+
+=== Network Devices ===
+
+A QEMU network device (NIC) has a host and a guest part.
+
+The old ways to define NICs define host and guest part together.  It
+looks like this:
+
+    -net nic,vlan=VLAN,macaddr=MACADDR,model=MODEL,name=ID,addr=STR,vectors=V
+
+Except for USB it looks like this:
+
+    -usbdevice net:vlan=VLAN,macaddr=MACADDR,name=ID,addr=STR,vectors=V
+
+The new way keeps the parts separate: you create the host part with
+-netdev, and the guest device with -device, like this:
+
+    -netdev type=TYPE,id=NET-ID
+    -device DEVNAME,netdev=NET-ID,mac=MACADDR,DEV-OPTS...
+
+Unlike the old way, this creates just a network device, not a VLAN.
+If you really want a VLAN, create it the usual way, then create the
+guest device like this:
+
+    -device DEVNAME,vlan=VLAN,mac=MACADDR,DEV-OPTS...
+
+DEVNAME equals MODEL, except for virtio you have to name the virtio
+device appropriate for the bus (virtio-net-pci for PCI), and for USB
+NIC you have to use usb-net.
+
+The old name=ID parameter becomes the usual id=ID with -device.
+
+For PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control the PCI
+device address, as usual.  The old -net nic provides parameter addr
+for that, it is silently ignored when the NIC is not a PCI device.
+
+-net nic accepts vectors=V for all models, but it's silently ignored
+except for virtio-net-pci (model=virtio).  With -device, only devices
+that support it accept it.
+
+Not all devices are available with -device at this time.  All PCI
+devices and ne2k_isa are.
+
+Some PCI devices aren't available with -net nic, e.g. i82558a.
+
+Bug: usb-net does not work, yet.  Patch posted.
+
+=== Graphics Devices ===
+
+Host and guest part of graphics devices have always been separate.
+
+The old way to define the guest graphics device is -vga VGA.
+
+The new way is -device.  Map from -vga argument to -device:
+
+    std         -device VGA
+    cirrus      -device cirrus-vga
+    vmware      -device vmware-svga
+    xenfb       not yet available with -device
+
+As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control
+the PCI device address.
+
+-device VGA supports properties bios-offset and bios-size, but they
+aren't used with machine type "pc".
+
+Bug: -device cirrus-vga and -device vmware-svga require -nodefaults.
+
+Bug: the new way requires PCI; ISA VGA is not yet available with
+-device.
+
+Bug: the new way doesn't work for machine type "pc", because it
+violates obscure device initialization ordering constraints.
+
+=== Audio Devices ===
+
+Host and guest part of audio devices have always been separate.
+
+The old way to define guest audio devices is -soundhw C1,...
+
+The new way is to define each guest audio device separately with
+-device.
+
+Map from -soundhw sound card name to -device:
+
+    ac97        -device AC97
+    cs4231a     -device cs4231a,iobase=IOADDR,irq=IRQ,dma=DMA
+    es1370      -device ES1370
+    gus         -device gus,iobase=IOADDR,irq=IRQ,dma=DMA,freq=F
+    sb16        -device sb16,iobase=IOADDR,irq=IRQ,dma=DMA,dma16=DMA16,version=V
+    adlib       not yet available with -device
+    pcspk       not yet available with -device
+
+For PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control the PCI
+device address, as usual.
+
+=== USB Devices ===
+
+The old way to define a virtual USB device is -usbdevice DRIVER:OPTS...
+
+The new way is -device DEVNAME,DEV-OPTS...  Details depend on DRIVER:
+
+* mouse           -device usb-mouse
+* tablet          -device usb-tablet
+* keyboard        -device usb-kdb
+* wacom-tablet    -device usb-wacom-tablet
+* host:...        See "Host Device Assignment"
+* disk:...        See "Block Devices"
+* serial:...      See "Character Devices"
+* braille         See "Character Devices"
+* net:...         See "Network Devices"
+* bt:...          not yet available with -device
+
+=== Watchdog Devices ===
+
+Host and guest part of watchdog devices have always been separate.
+
+The old way to define a guest watchdog device is -watchdog DEVNAME.
+The new way is -device DEVNAME.  For PCI devices, you can add
+bus=PCI-BUS,addr=DEVFN to control the PCI device address, as usual.
+
+=== Host Device Assignment ===
+
+QEMU supports assigning host PCI devices (qemu-kvm only at this time)
+and host USB devices.
+
+The old way to assign a host PCI device is
+
+    -pcidevice host=ADDR,dma=none,id=ID
+
+The new way is
+
+    -device pci-assign,host=ADDR,iommu=IOMMU,id=ID
+
+The old dma=none becomes iommu=0 with -device.
+
+The old way to assign a host USB device is
+
+    -usbdevice host:auto:BUS.ADDR:VID:PRID
+
+where any of BUS, ADDR, VID, PRID can be the wildcard *.
+
+The new way is
+
+    -device usb-host,hostbus=BUS,hostaddr=ADDR,vendorid=VID,productid=PRID
+
+where left out or zero BUS, ADDR, VID, PRID serve as wildcard.
