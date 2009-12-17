@@ -201,7 +201,11 @@ static void s390_init(ram_addr_t ram_size,
     }
 
     /* Create VirtIO console */
-    qdev_init_nofail(qdev_create((BusState *)s390_bus, "virtio-console-s390"));
+    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+        if (virtcon_hds[i]) {
+            qdev_init_nofail(qdev_create((BusState *)s390_bus, "virtio-console-s390"));
+        }
+    }
 
     /* Create VirtIO network adapters */
     for(i = 0; i < nb_nics; i++) {
