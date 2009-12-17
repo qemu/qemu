@@ -67,6 +67,11 @@ struct vmsvga_state_s {
     int syncing;
     int fb_size;
 
+    ram_addr_t fifo_offset;
+    uint8_t *fifo_ptr;
+    unsigned int fifo_size;
+    target_phys_addr_t fifo_base;
+
     union {
         uint32_t *fifo;
         struct __attribute__((__packed__)) {
@@ -680,7 +685,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return 0x0;
 
     case SVGA_REG_VRAM_SIZE:
-        return s->vga.vram_size - SVGA_FIFO_SIZE;
+        return s->vga.vram_size;
 
     case SVGA_REG_FB_SIZE:
         return s->fb_size;
@@ -701,10 +706,10 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return caps;
 
     case SVGA_REG_MEM_START:
-        return s->vram_base + s->vga.vram_size - SVGA_FIFO_SIZE;
+        return s->fifo_base;
 
     case SVGA_REG_MEM_SIZE:
-        return SVGA_FIFO_SIZE;
+        return s->fifo_size;
 
     case SVGA_REG_CONFIG_DONE:
         return s->config;
@@ -790,7 +795,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
 
     case SVGA_REG_CONFIG_DONE:
         if (value) {
-            s->fifo = (uint32_t *) &s->vga.vram_ptr[s->vga.vram_size - SVGA_FIFO_SIZE];
+            s->fifo = (uint32_t *) s->fifo_ptr;
             /* Check range and alignment.  */
             if ((CMD(min) | CMD(max) |
                         CMD(next_cmd) | CMD(stop)) & 3)
@@ -1059,7 +1064,7 @@ static int vmsvga_post_load(void *opaque, int version_id)
 
     s->invalidated = 1;
     if (s->config)
-        s->fifo = (uint32_t *) &s->vga.vram_ptr[s->vga.vram_size - SVGA_FIFO_SIZE];
+        s->fifo = (uint32_t *) s->fifo_ptr;
 
     return 0;
 }
@@ -1110,6 +1115,10 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     s->scratch = qemu_malloc(s->scratch_size * 4);
 
     vmsvga_reset(s);
+
+    s->fifo_size = SVGA_FIFO_SIZE;
+    s->fifo_offset = qemu_ram_alloc(s->fifo_size);
+    s->fifo_ptr = qemu_get_ram_ptr(s->fifo_offset);
 
     vga_common_init(&s->vga, vga_ram_size);
     vga_init(&s->vga);
@@ -1166,6 +1175,19 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
                     iomemtype);
 }
 
+static void pci_vmsvga_map_fifo(PCIDevice *pci_dev, int region_num,
+                pcibus_t addr, pcibus_t size, int type)
+{
+    struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
+    struct vmsvga_state_s *s = &d->chip;
+    ram_addr_t iomemtype;
+
+    s->fifo_base = addr;
+    iomemtype = s->fifo_offset | IO_MEM_RAM;
+    cpu_register_physical_memory(s->fifo_base, s->fifo_size,
+                    iomemtype);
+}
+
 static int pci_vmsvga_initfn(PCIDevice *dev)
 {
     struct pci_vmsvga_state_s *s =
@@ -1188,6 +1210,9 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
                     PCI_BASE_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
     pci_register_bar(&s->card, 1, VGA_RAM_SIZE,
                     PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_mem);
+
+    pci_register_bar(&s->card, 2, SVGA_FIFO_SIZE,
+		     PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_fifo);
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
