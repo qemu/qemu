@@ -42,11 +42,7 @@ int isa_vga_init(void)
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);
 
-#ifdef CONFIG_BOCHS_VBE
-    /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 VGA_RAM_SIZE, s->vram_offset);
-#endif
+    vga_init_vbe(s);
     /* ROM BIOS */
     rom_add_vga(VGABIOS_FILENAME);
     return 0;
