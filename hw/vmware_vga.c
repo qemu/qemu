@@ -467,7 +467,7 @@ struct vmsvga_cursor_definition_s {
     int hot_x;
     int hot_y;
     uint32_t mask[1024];
-    uint32_t image[1024];
+    uint32_t image[4096];
 };
 
 #define SVGA_BITMAP_SIZE(w, h)		((((w) + 31) >> 5) * (h))
