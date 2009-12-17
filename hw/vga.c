@@ -1606,7 +1606,29 @@ void vga_dirty_log_start(VGACommonState *s)
         kvm_log_start(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
     }
 #endif
+}
 
+void vga_dirty_log_stop(VGACommonState *s)
+{
+    if (kvm_enabled() && s->map_addr)
+	kvm_log_stop(s->map_addr, s->map_end - s->map_addr);
+
+    if (kvm_enabled() && s->lfb_vram_mapped) {
+	kvm_log_stop(isa_mem_base + 0xa0000, 0x80000);
+	kvm_log_stop(isa_mem_base + 0xa8000, 0x80000);
+    }
+
+#ifdef CONFIG_BOCHS_VBE
+    if (kvm_enabled() && s->vbe_mapped) {
+	kvm_log_stop(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
+    }
+#endif
+}
+
+void vga_dirty_log_restart(VGACommonState *s)
+{
+    vga_dirty_log_stop(s);
+    vga_dirty_log_start(s);
 }
 
 /*
