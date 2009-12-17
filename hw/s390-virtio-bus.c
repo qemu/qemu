@@ -307,7 +307,7 @@ static void virtio_s390_notify(void *opaque, uint16_t vector)
     uint64_t token = s390_virtio_device_vq_token(dev, vector);
 
     /* XXX kvm dependency! */
-    kvm_s390_virtio_irq(s390_cpu_addr2state(0), 1, token);
+    kvm_s390_virtio_irq(s390_cpu_addr2state(0), 0, token);
 }
 
 /**************** S390 Virtio Bus Device Descriptions *******************/
