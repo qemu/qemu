@@ -5712,6 +5712,8 @@ int main(int argc, char **argv, char **envp)
             add_device_config(DEV_PARALLEL, "vc:80Cx24C");
         if (default_monitor)
             monitor_parse("vc:80Cx24C", "readline");
+        if (default_virtcon)
+            add_device_config(DEV_VIRTCON, "vc:80Cx24C");
     }
     if (default_vga)
         vga_interface_type = VGA_CIRRUS;
