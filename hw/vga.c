@@ -1581,6 +1581,14 @@ static void vga_sync_dirty_bitmap(VGACommonState *s)
         cpu_physical_sync_dirty_bitmap(isa_mem_base + 0xa0000, 0xa8000);
         cpu_physical_sync_dirty_bitmap(isa_mem_base + 0xa8000, 0xb0000);
     }
+
+#ifdef CONFIG_BOCHS_VBE
+    if (s->vbe_mapped) {
+        cpu_physical_sync_dirty_bitmap(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                       VBE_DISPI_LFB_PHYSICAL_ADDRESS + s->vram_size);
+    }
+#endif
+
 }
 
 void vga_dirty_log_start(VGACommonState *s)
@@ -1592,6 +1600,13 @@ void vga_dirty_log_start(VGACommonState *s)
         kvm_log_start(isa_mem_base + 0xa0000, 0x8000);
         kvm_log_start(isa_mem_base + 0xa8000, 0x8000);
     }
+
+#ifdef CONFIG_BOCHS_VBE
+    if (kvm_enabled() && s->vbe_mapped) {
+        kvm_log_start(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
+    }
+#endif
+
 }
 
 /*
@@ -2294,6 +2309,15 @@ void vga_init(VGACommonState *s)
     qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);
 }
 
+void vga_init_vbe(VGACommonState *s)
+{
+#ifdef CONFIG_BOCHS_VBE
+    /* XXX: use optimized standard vga accesses */
+    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                 VGA_RAM_SIZE, s->vram_offset);
+    s->vbe_mapped = 1;
+#endif 
+}
 /********************************************************/
 /* vga screen dump */
 

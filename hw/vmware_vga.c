@@ -1129,12 +1129,8 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
                                      vmsvga_screen_dump,
                                      vmsvga_text_update, s);
 
-#ifdef CONFIG_BOCHS_VBE
-    /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 vga_ram_size, s->vga.vram_offset);
-#endif
-     rom_add_vga(VGABIOS_FILENAME);
+    vga_init_vbe(&s->vga);
+    rom_add_vga(VGABIOS_FILENAME);
 }
 
 static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
