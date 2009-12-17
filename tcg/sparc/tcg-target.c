@@ -302,7 +302,7 @@ static inline void tcg_out_movi_imm13(TCGContext *s, int ret, uint32_t arg)
 
 static inline void tcg_out_movi_imm32(TCGContext *s, int ret, uint32_t arg)
 {
-    if (check_fit_tl(arg, 12))
+    if (check_fit_tl(arg, 13))
         tcg_out_movi_imm13(s, ret, arg);
     else {
         tcg_out_sethi(s, ret, arg);
