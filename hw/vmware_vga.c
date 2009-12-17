@@ -1169,6 +1169,10 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
 #endif
     cpu_register_physical_memory(s->vram_base, s->vga.vram_size,
                     iomemtype);
+
+    s->vga.map_addr = addr;
+    s->vga.map_end = addr + s->vga.vram_size;
+    vga_dirty_log_start(&s->vga);
 }
 
 static void pci_vmsvga_map_fifo(PCIDevice *pci_dev, int region_num,
