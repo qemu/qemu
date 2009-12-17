@@ -95,6 +95,7 @@ void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
         round_mode = float_round_nearest_even;
         break;
     case 3:
+    default: /* this avoids a gcc (< 4.4) warning */
         round_mode = float_round_up;
         break;
     }

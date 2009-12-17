@@ -209,7 +209,7 @@ static void s390_init(ram_addr_t ram_size,
         DeviceState *dev;
 
         if (!nd->model) {
-            nd->model = (char*)"virtio";
+            nd->model = qemu_strdup("virtio");
         }
 
         if (strcmp(nd->model, "virtio")) {
