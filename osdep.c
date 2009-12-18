@@ -262,13 +262,15 @@ int qemu_pipe(int pipefd[2])
 
 #ifdef CONFIG_PIPE2
     ret = pipe2(pipefd, O_CLOEXEC);
-#else
+    if (ret != -1 || errno != ENOSYS) {
+        return ret;
+    }
+#endif
     ret = pipe(pipefd);
     if (ret == 0) {
         qemu_set_cloexec(pipefd[0]);
         qemu_set_cloexec(pipefd[1]);
     }
-#endif
 
     return ret;
 }
@@ -283,12 +285,14 @@ int qemu_socket(int domain, int type, int protocol)
 
 #ifdef SOCK_CLOEXEC
     ret = socket(domain, type | SOCK_CLOEXEC, protocol);
-#else
+    if (ret != -1 || errno != EINVAL) {
+        return ret;
+    }
+#endif
     ret = socket(domain, type, protocol);
     if (ret >= 0) {
         qemu_set_cloexec(ret);
     }
-#endif
 
     return ret;
 }
@@ -302,12 +306,14 @@ int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 
 #ifdef CONFIG_ACCEPT4
     ret = accept4(s, addr, addrlen, SOCK_CLOEXEC);
-#else
+    if (ret != -1 || errno != EINVAL) {
+        return ret;
+    }
+#endif
     ret = accept(s, addr, addrlen);
     if (ret >= 0) {
         qemu_set_cloexec(ret);
     }
-#endif
 
     return ret;
 }
