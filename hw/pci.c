@@ -26,6 +26,7 @@
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
+#include "loader.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI
@@ -1436,6 +1437,40 @@ static uint8_t pci_find_capability_list(PCIDevice *pdev, uint8_t cap_id,
     if (prev_p)
         *prev_p = prev;
     return next;
+}
+
+static void pci_map_option_rom(PCIDevice *pdev, int region_num, pcibus_t addr, pcibus_t size, int type)
+{
+    cpu_register_physical_memory(addr, size, pdev->rom_offset);
+}
+
+/* Add an option rom for the device */
+int pci_add_option_rom(PCIDevice *pdev, const char *name)
+{
+    int size;
+    char *path;
+    void *ptr;
+
+    path = qemu_find_file(QEMU_FILE_TYPE_BIOS, name);
+    if (path == NULL) {
+        path = qemu_strdup(name);
+    }
+
+    size = get_image_size(path);
+    if (size & (size - 1)) {
+        size = 1 << qemu_fls(size);
+    }
+
+    pdev->rom_offset = qemu_ram_alloc(size);
+
+    ptr = qemu_get_ram_ptr(pdev->rom_offset);
+    load_image(path, ptr);
+    qemu_free(path);
+
+    pci_register_bar(pdev, PCI_ROM_SLOT, size,
+                     0, pci_map_option_rom);
+
+    return 0;
 }
 
 /* Reserve space and add capability to the linked list in pci config space */

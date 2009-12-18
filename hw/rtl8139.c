@@ -3357,7 +3357,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
     if (!dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
-            rom_add_option("pxe-rtl8139.bin");
+            pci_add_option_rom(&s->dev, "pxe-rtl8139.bin");
             loaded = 1;
         }
     }

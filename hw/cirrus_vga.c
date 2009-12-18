@@ -3211,7 +3211,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      }
 
      /* ROM BIOS */
-     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
+     pci_add_option_rom((PCIDevice *)d, VGABIOS_CIRRUS_FILENAME);
      return 0;
 }
 

@@ -242,6 +242,9 @@ struct PCIDevice {
     uint32_t msix_bar_size;
     /* Version id needed for VMState */
     int32_t version_id;
+
+    /* Location of option rom */
+    ram_addr_t rom_offset;
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
@@ -252,6 +255,8 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
                             pcibus_t size, int type,
                             PCIMapIORegionFunc *map_func);
+
+int pci_add_option_rom(PCIDevice *pdev, const char *name);
 
 int pci_add_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 
