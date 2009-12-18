@@ -4070,7 +4070,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
                       qobject_from_jsonf("{ 'item': %s }", info_item));
     } else {
         cmd = monitor_find_command(cmd_name);
-        if (!cmd) {
+        if (!cmd || !monitor_handler_ported(cmd)) {
             qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
             goto err_input;
         }
