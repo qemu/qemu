@@ -4,45 +4,57 @@
 Introduction
 -------------
 
-The QEMU Monitor Protocol (QMP) is a JSON[1] based protocol for QEMU.
+The QEMU Monitor Protocol (QMP) allows applications to communicate with
+QEMU's Monitor.
 
-By using it applications can control QEMU in reliable and "parseable" way,
-QMP also provides asynchronous events support.
+QMP is JSON[1] based and has the following features:
+
+- Lightweight, text-based, easy to parse data format
+- Asynchronous events support 
+- Stability
 
 For more information, please, refer to the following files:
 
-o qmp-spec.txt    QEMU Monitor Protocol current draft specification
+o qmp-spec.txt    QEMU Monitor Protocol current specification
 o qmp-events.txt  List of available asynchronous events
 
 There are also two simple Python scripts available:
 
 o qmp-shell       A shell
-o vm-info         Show some informations about the Virtal Machine
+o vm-info         Show some information about the Virtual Machine
 
 [1] http://www.json.org
 
 Usage
 -----
 
-To enable QMP, QEMU has to be started in "control mode". This is done
-by passing the flag "control" to the "-monitor" command-line option.
+To enable QMP, QEMU has to be started in "control mode". There are
+two ways of doing this, the simplest one is using the the '-qmp'
+command-line option.
 
 For example:
 
-$ qemu [...] -monitor control,tcp:localhost:4444,server
+$ qemu [...] -qmp tcp:localhost:4444,server
 
 Will start QEMU in control mode, waiting for a client TCP connection
 on localhost port 4444.
 
-To manually test it you can connect with telnet and issue commands:
+It is also possible to use the '-mon' command-line option to have
+more complex combinations. Please, refer to the QEMU's manpage for
+more information.
+
+Simple Testing
+--------------
+
+To manually test QMP one can connect with telnet and issue commands:
 
 $ telnet localhost 4444
-Trying ::1...
+Trying 127.0.0.1...
 Connected to localhost.
 Escape character is '^]'.
 {"QMP": {"capabilities": []}}
 { "execute": "query-version" }
-{"return": "0.11.50"}
+{"return": {"qemu": "0.11.50", "package": ""}}
 
 Contact
 -------
