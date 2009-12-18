@@ -3353,14 +3353,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
     qemu_mod_timer(s->timer,
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
-
-    if (!dev->qdev.hotplugged) {
-        static int loaded = 0;
-        if (!loaded) {
-            pci_add_option_rom(&s->dev, "pxe-rtl8139.bin");
-            loaded = 1;
-        }
-    }
     return 0;
 }
 
@@ -3371,6 +3363,7 @@ static PCIDeviceInfo rtl8139_info = {
     .qdev.vmsd  = &vmstate_rtl8139,
     .init       = pci_rtl8139_init,
     .exit       = pci_rtl8139_uninit,
+    .romfile    = "pxe-rtl8139.bin",
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(RTL8139State, conf),
         DEFINE_PROP_END_OF_LIST(),

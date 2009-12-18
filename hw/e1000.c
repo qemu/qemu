@@ -1121,14 +1121,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
                           d->dev.qdev.info->name, d->dev.qdev.id, d);
 
     qemu_format_nic_info_str(&d->nic->nc, macaddr);
-
-    if (!pci_dev->qdev.hotplugged) {
-        static int loaded = 0;
-        if (!loaded) {
-            pci_add_option_rom(&d->dev, "pxe-e1000.bin");
-            loaded = 1;
-        }
-    }
     return 0;
 }
 
@@ -1146,6 +1138,7 @@ static PCIDeviceInfo e1000_info = {
     .qdev.vmsd  = &vmstate_e1000,
     .init       = pci_e1000_init,
     .exit       = pci_e1000_uninit,
+    .romfile    = "pxe-e1000.bin",
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(E1000State, conf),
         DEFINE_PROP_END_OF_LIST(),
