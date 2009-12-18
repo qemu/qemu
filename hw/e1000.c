@@ -1125,7 +1125,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
-            rom_add_option("pxe-e1000.bin");
+            pci_add_option_rom(&d->dev, "pxe-e1000.bin");
             loaded = 1;
         }
     }

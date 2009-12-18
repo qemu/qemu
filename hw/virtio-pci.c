@@ -522,7 +522,7 @@ static int virtio_net_init_pci(PCIDevice *pci_dev)
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
-            rom_add_option("pxe-virtio.bin");
+            pci_add_option_rom(pci_dev, "pxe-virtio.bin");
             loaded = 1;
         }
     }
