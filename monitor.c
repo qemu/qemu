@@ -286,7 +286,8 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
             qobject_incref(data);
             qdict_put_obj(qmp, "return", data);
         } else {
-            qdict_put(qmp, "return", qstring_from_str("OK"));
+            /* return an empty QDict by default */
+            qdict_put(qmp, "return", qdict_new());
         }
     } else {
         /* error response */
