@@ -1250,6 +1250,8 @@ static void pc_init1(ram_addr_t ram_size,
             }
         }
     }
+
+    rom_load_fw(fw_cfg);
 }
 
 static void pc_init_pci(ram_addr_t ram_size,
