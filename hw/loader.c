@@ -48,6 +48,7 @@
 #include "sysemu.h"
 #include "uboot_image.h"
 #include "loader.h"
+#include "fw_cfg.h"
 
 #include <zlib.h>
 
@@ -528,6 +529,8 @@ struct Rom {
     uint8_t *data;
     int align;
     int isrom;
+    char *fw_dir;
+    char *fw_file;
 
     target_phys_addr_t min;
     target_phys_addr_t max;
@@ -556,7 +559,7 @@ static void rom_insert(Rom *rom)
     QTAILQ_INSERT_TAIL(&roms, rom, next);
 }
 
-int rom_add_file(const char *file,
+int rom_add_file(const char *file, const char *fw_dir, const char *fw_file,
                  target_phys_addr_t min, target_phys_addr_t max, int align)
 {
     Rom *rom;
@@ -576,6 +579,8 @@ int rom_add_file(const char *file,
         goto err;
     }
 
+    rom->fw_dir  = fw_dir  ? qemu_strdup(fw_dir)  : NULL;
+    rom->fw_file = fw_file ? qemu_strdup(fw_file) : NULL;
     rom->align   = align;
     rom->min     = min;
     rom->max     = max;
@@ -623,14 +628,16 @@ int rom_add_vga(const char *file)
 {
     if (!rom_enable_driver_roms)
         return 0;
-    return rom_add_file(file, PC_ROM_MIN_VGA, PC_ROM_MAX, PC_ROM_ALIGN);
+    return rom_add_file(file, "vgaroms", file,
+                        PC_ROM_MIN_VGA, PC_ROM_MAX, PC_ROM_ALIGN);
 }
 
 int rom_add_option(const char *file)
 {
     if (!rom_enable_driver_roms)
         return 0;
-    return rom_add_file(file, PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN);
+    return rom_add_file(file, "genroms", file,
+                        PC_ROM_MIN_OPTION, PC_ROM_MAX, PC_ROM_ALIGN);
 }
 
 static void rom_reset(void *unused)
@@ -689,6 +696,18 @@ int rom_load_all(void)
     }
     qemu_register_reset(rom_reset, NULL);
     roms_loaded = 1;
+    return 0;
+}
+
+int rom_load_fw(void *fw_cfg)
+{
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (!rom->fw_file)
+            continue;
+        fw_cfg_add_file(fw_cfg, rom->fw_dir, rom->fw_file, rom->data, rom->romsize);
+    }
     return 0;
 }
 
