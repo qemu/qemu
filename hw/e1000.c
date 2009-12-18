@@ -1089,7 +1089,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, E1000_DEVID);
-    *(uint16_t *)(pci_conf+0x04) = cpu_to_le16(0x0407);
     *(uint16_t *)(pci_conf+0x06) = cpu_to_le16(0x0010);
     pci_conf[0x08] = 0x03;
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
