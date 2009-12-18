@@ -179,7 +179,7 @@ typedef struct CPUWatchpoint {
                                                                         \
     /* Core interrupt code */                                           \
     jmp_buf jmp_env;                                                    \
-    int32_t exception_index;                                            \
+    int exception_index;                                                \
                                                                         \
     CPUState *next_cpu; /* next CPU sharing TB cache */                 \
     int cpu_index; /* CPU index (informative) */                        \
