@@ -3501,6 +3501,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
             break;
         case 'i':
         case 'l':
+        case 'M':
             {
                 int64_t val;
 
@@ -3531,6 +3532,8 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     monitor_printf(mon, "\'%s\' has failed: ", cmdname);
                     monitor_printf(mon, "integer is for 32-bit values\n");
                     goto fail;
+                } else if (c == 'M') {
+                    val <<= 20;
                 }
                 qdict_put(qdict, key, qint_from_int(val));
             }
@@ -3935,6 +3938,7 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
         }
         case 'i':
         case 'l':
+        case 'M':
             if (qobject_type(value) != QTYPE_QINT) {
                 qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
                 return -1;
