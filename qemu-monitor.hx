@@ -887,7 +887,7 @@ ETEXI
 
     {
         .name       = "balloon",
-        .args_type  = "value:i",
+        .args_type  = "value:M",
         .params     = "target",
         .help       = "request VM to change it's memory allocation (in MB)",
         .user_print = monitor_user_noop,

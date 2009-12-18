@@ -2083,8 +2083,7 @@ static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     if (balloon_get_value()) {
         /* ballooning is active */
-        ram_addr_t value = qdict_get_int(qdict, "value");
-        qemu_balloon(value << 20);
+        qemu_balloon(qdict_get_int(qdict, "value"));
     }
 }
 
