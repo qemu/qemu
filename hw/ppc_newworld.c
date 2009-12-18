@@ -108,7 +108,6 @@ static void ppc_core99_init (ram_addr_t ram_size,
     MacIONVRAMState *nvr;
     int nvram_mem_index;
     int vga_bios_size, bios_size;
-    qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -318,10 +317,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     /* init basic PC hardware */
     pci_vga_init(pci_bus, vga_bios_offset, vga_bios_size);
 
-    /* XXX: suppress that */
-    dummy_irq = i8259_init(NULL);
-
-    escc_mem_index = escc_init(0x80013000, dummy_irq[4], dummy_irq[5],
+    escc_mem_index = escc_init(0x80013000, pic[0x25], pic[0x24],
                                serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
 
     for(i = 0; i < nb_nics; i++)
