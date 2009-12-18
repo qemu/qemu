@@ -63,12 +63,14 @@ static struct BusInfo pci_bus_info = {
     .print_dev  = pcibus_dev_print,
     .props      = (Property[]) {
         DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
+        DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
         DEFINE_PROP_END_OF_LIST()
     }
 };
 
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
+static int pci_add_option_rom(PCIDevice *pdev);
 
 target_phys_addr_t pci_mem_base;
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
@@ -1362,6 +1364,12 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     rc = info->init(pci_dev);
     if (rc != 0)
         return rc;
+
+    /* rom loading */
+    if (pci_dev->romfile == NULL && info->romfile != NULL)
+        pci_dev->romfile = qemu_strdup(info->romfile);
+    pci_add_option_rom(pci_dev);
+
     if (qdev->hotplugged)
         bus->hotplug(pci_dev, 1);
     return 0;
@@ -1445,18 +1453,28 @@ static void pci_map_option_rom(PCIDevice *pdev, int region_num, pcibus_t addr, p
 }
 
 /* Add an option rom for the device */
-int pci_add_option_rom(PCIDevice *pdev, const char *name)
+static int pci_add_option_rom(PCIDevice *pdev)
 {
     int size;
     char *path;
     void *ptr;
 
-    path = qemu_find_file(QEMU_FILE_TYPE_BIOS, name);
+    if (!pdev->romfile)
+        return 0;
+    if (strlen(pdev->romfile) == 0)
+        return 0;
+
+    path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
     if (path == NULL) {
-        path = qemu_strdup(name);
+        path = qemu_strdup(pdev->romfile);
     }
 
     size = get_image_size(path);
+    if (size < 0) {
+        qemu_error("%s: failed to find romfile \"%s\"\n", __FUNCTION__,
+                   pdev->romfile);
+        return -1;
+    }
     if (size & (size - 1)) {
         size = 1 << qemu_fls(size);
     }

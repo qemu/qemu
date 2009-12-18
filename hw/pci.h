@@ -244,6 +244,7 @@ struct PCIDevice {
     int32_t version_id;
 
     /* Location of option rom */
+    char *romfile;
     ram_addr_t rom_offset;
 };
 
@@ -255,8 +256,6 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
                             pcibus_t size, int type,
                             PCIMapIORegionFunc *map_func);
-
-int pci_add_option_rom(PCIDevice *pdev, const char *name);
 
 int pci_add_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 
@@ -385,6 +384,9 @@ typedef struct {
 
     /* pcie stuff */
     int is_express;   /* is this device pci express? */
+
+    /* rom bar */
+    const char *romfile;
 } PCIDeviceInfo;
 
 void pci_qdev_register(PCIDeviceInfo *info);
