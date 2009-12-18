@@ -348,13 +348,13 @@ static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
 {
     if (!check_fit_tl(arg, 10))
         tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ffULL);
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) |
-              INSN_IMM13(arg & 0x3ff));
-#else
-    tcg_out32(s, LDUW | INSN_RD(ret) | INSN_RS1(ret) |
-              INSN_IMM13(arg & 0x3ff));
-#endif
+    if (TCG_TARGET_REG_BITS == 64) {
+        tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) |
+                  INSN_IMM13(arg & 0x3ff));
+    } else {
+        tcg_out32(s, LDUW | INSN_RD(ret) | INSN_RS1(ret) |
+                  INSN_IMM13(arg & 0x3ff));
+    }
 }
 
 static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, int op)
@@ -447,7 +447,7 @@ static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
     }
 }
 
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
 static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
 {
     int32_t val;
@@ -493,7 +493,7 @@ static void tcg_out_brcond_i32(TCGContext *s, int cond,
     tcg_out_nop(s);
 }
 
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
 static void tcg_out_brcond_i64(TCGContext *s, int cond,
                                TCGArg arg1, TCGArg arg2, int const_arg2,
                                int label_index)
@@ -989,7 +989,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_movi(s, TCG_TYPE_I32, args[0], (uint32_t)args[1]);
         break;
 
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
 #define OP_32_64(x)                             \
         glue(glue(case INDEX_op_, x), _i32:)    \
         glue(glue(case INDEX_op_, x), _i64:)
@@ -1010,7 +1010,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_ldst(s, args[0], args[1], args[2], LDSH);
         break;
     case INDEX_op_ld_i32:
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_ld32u_i64:
 #endif
         tcg_out_ldst(s, args[0], args[1], args[2], LDUW);
@@ -1022,7 +1022,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_ldst(s, args[0], args[1], args[2], STH);
         break;
     case INDEX_op_st_i32:
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_st32_i64:
 #endif
         tcg_out_ldst(s, args[0], args[1], args[2], STW);
@@ -1106,7 +1106,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_qemu_st(s, args, 2);
         break;
 
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_movi_i64:
         tcg_out_movi(s, TCG_TYPE_I64, args[0], args[1]);
         break;
@@ -1208,7 +1208,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_qemu_st16, { "L", "L" } },
     { INDEX_op_qemu_st32, { "L", "L" } },
 
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
     { INDEX_op_mov_i64, { "r", "r" } },
     { INDEX_op_movi_i64, { "r" } },
     { INDEX_op_ld8u_i64, { "r", "r" } },
@@ -1246,7 +1246,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffffffff);
 #endif
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
@@ -1267,7 +1267,7 @@ void tcg_target_init(TCGContext *s)
 
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_G0);
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#if TCG_TARGET_REG_BITS == 64
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_I4); // for internal use
 #endif
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_I5); // for internal use
