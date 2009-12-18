@@ -20,9 +20,9 @@ void pstrcpy_targphys(const char *name,
                       const char *source);
 
 int rom_add_file(const char *file, const char *fw_dir, const char *fw_file,
-                 target_phys_addr_t min, target_phys_addr_t max, int align);
+                 target_phys_addr_t addr);
 int rom_add_blob(const char *name, const void *blob, size_t len,
-                 target_phys_addr_t min, target_phys_addr_t max, int align);
+                 target_phys_addr_t addr);
 int rom_load_all(void);
 int rom_load_fw(void *fw_cfg);
 int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size);
@@ -30,9 +30,9 @@ void *rom_ptr(target_phys_addr_t addr);
 void do_info_roms(Monitor *mon);
 
 #define rom_add_file_fixed(_f, _a)              \
-    rom_add_file(_f, NULL, NULL, _a, 0, 0)
+    rom_add_file(_f, NULL, NULL, _a)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
-    rom_add_blob(_f, _b, _l, _a, 0, 0)
+    rom_add_blob(_f, _b, _l, _a)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000
