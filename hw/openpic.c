@@ -442,7 +442,9 @@ static void openpic_reset (void *opaque)
 	opp->dst[i].pctp      = 0x0000000F;
 	opp->dst[i].pcsr      = 0x00000000;
 	memset(&opp->dst[i].raised, 0, sizeof(IRQ_queue_t));
+        opp->dst[i].raised.next = -1;
 	memset(&opp->dst[i].servicing, 0, sizeof(IRQ_queue_t));
+        opp->dst[i].servicing.next = -1;
     }
     /* Initialise timers */
     for (i = 0; i < MAX_TMR; i++) {
