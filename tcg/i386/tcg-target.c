@@ -361,9 +361,8 @@ static void tcg_out_jxx(TCGContext *s, int opc, int label_index, int small)
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, int cond, 
-                           TCGArg arg1, TCGArg arg2, int const_arg2,
-                           int label_index, int small)
+static void tcg_out_cmp(TCGContext *s, TCGArg arg1, TCGArg arg2,
+                        int const_arg2)
 {
     if (const_arg2) {
         if (arg2 == 0) {
@@ -375,6 +374,13 @@ static void tcg_out_brcond(TCGContext *s, int cond,
     } else {
         tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3), arg2, arg1);
     }
+}
+
+static void tcg_out_brcond(TCGContext *s, int cond,
+                           TCGArg arg1, TCGArg arg2, int const_arg2,
+                           int label_index, int small)
+{
+    tcg_out_cmp(s, arg1, arg2, const_arg2);
     tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index, small);
 }
 
@@ -458,6 +464,57 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
         tcg_abort();
     }
     tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
+}
+
+static void tcg_out_setcond(TCGContext *s, int cond, TCGArg dest,
+                            TCGArg arg1, TCGArg arg2, int const_arg2)
+{
+    tcg_out_cmp(s, arg1, arg2, const_arg2);
+    /* setcc */
+    tcg_out_modrm(s, 0x90 | tcg_cond_to_jcc[cond] | P_EXT, 0, dest);
+    tgen_arithi(s, ARITH_AND, dest, 0xff, 0);
+}
+
+static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
+                             const int *const_args)
+{
+    TCGArg new_args[6];
+    int label_true, label_over;
+
+    memcpy(new_args, args+1, 5*sizeof(TCGArg));
+
+    if (args[0] == args[1] || args[0] == args[2]
+        || (!const_args[3] && args[0] == args[3])
+        || (!const_args[4] && args[0] == args[4])) {
+        /* When the destination overlaps with one of the argument
+           registers, don't do anything tricky.  */
+        label_true = gen_new_label();
+        label_over = gen_new_label();
+
+        new_args[5] = label_true;
+        tcg_out_brcond2(s, new_args, const_args+1, 1);
+
+        tcg_out_movi(s, TCG_TYPE_I32, args[0], 0);
+        tcg_out_jxx(s, JCC_JMP, label_over, 1);
+        tcg_out_label(s, label_true, (tcg_target_long)s->code_ptr);
+
+        tcg_out_movi(s, TCG_TYPE_I32, args[0], 1);
+        tcg_out_label(s, label_over, (tcg_target_long)s->code_ptr);
+    } else {
+        /* When the destination does not overlap one of the arguments,
+           clear the destination first, jump if cond false, and emit an
+           increment in the true case.  This results in smaller code.  */
+
+        tcg_out_movi(s, TCG_TYPE_I32, args[0], 0);
+
+        label_over = gen_new_label();
+        new_args[4] = tcg_invert_cond(new_args[4]);
+        new_args[5] = label_over;
+        tcg_out_brcond2(s, new_args, const_args+1, 1);
+
+        tgen_arithi(s, ARITH_ADD, args[0], 1, 0);
+        tcg_out_label(s, label_over, (tcg_target_long)s->code_ptr);
+    }
 }
 
 #if defined(CONFIG_SOFTMMU)
@@ -1121,6 +1178,13 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         tcg_out_modrm(s, 0xb7 | P_EXT, args[0], args[1]);
         break;
 
+    case INDEX_op_setcond_i32:
+        tcg_out_setcond(s, args[3], args[0], args[1], args[2], const_args[2]);
+        break;
+    case INDEX_op_setcond2_i32:
+        tcg_out_setcond2(s, args, const_args);
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
         break;
@@ -1208,6 +1272,9 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_ext16s_i32, { "r", "r" } },
     { INDEX_op_ext8u_i32, { "r", "q"} },
     { INDEX_op_ext16u_i32, { "r", "r"} },
+
+    { INDEX_op_setcond_i32, { "q", "r", "ri" } },
+    { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },
 
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "L" } },
