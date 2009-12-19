@@ -367,19 +367,19 @@ static inline void free_sigqueue(CPUState *env, struct sigqueue *q)
 }
 
 /* abort execution with signal */
-static void QEMU_NORETURN force_sig(int sig)
+static void QEMU_NORETURN force_sig(int target_sig)
 {
     TaskState *ts = (TaskState *)thread_env->opaque;
     int host_sig, core_dumped = 0;
     struct sigaction act;
-    host_sig = target_to_host_signal(sig);
-    gdb_signalled(thread_env, sig);
+    host_sig = target_to_host_signal(target_sig);
+    gdb_signalled(thread_env, target_sig);
 
     /* dump core if supported by target binary format */
-    if (core_dump_signal(sig) && (ts->bprm->core_dump != NULL)) {
+    if (core_dump_signal(target_sig) && (ts->bprm->core_dump != NULL)) {
         stop_all_tasks();
         core_dumped =
-            ((*ts->bprm->core_dump)(sig, thread_env) == 0);
+            ((*ts->bprm->core_dump)(target_sig, thread_env) == 0);
     }
     if (core_dumped) {
         /* we already dumped the core of target process, we don't want
@@ -389,7 +389,7 @@ static void QEMU_NORETURN force_sig(int sig)
         nodump.rlim_cur=0;
         setrlimit(RLIMIT_CORE, &nodump);
         (void) fprintf(stderr, "qemu: uncaught target signal %d (%s) - %s\n",
-            sig, strsignal(host_sig), "core dumped" );
+            target_sig, strsignal(host_sig), "core dumped" );
     }
 
     /* The proper exit code for dieing from an uncaught signal is
@@ -1488,7 +1488,7 @@ static long do_sigreturn_v1(CPUState *env)
 
 badframe:
 	unlock_user_struct(frame, frame_addr, 0);
-        force_sig(SIGSEGV /* , current */);
+        force_sig(TARGET_SIGSEGV /* , current */);
 	return 0;
 }
 
@@ -1540,7 +1540,7 @@ static long do_sigreturn_v2(CPUState *env)
 
 badframe:
 	unlock_user_struct(frame, frame_addr, 0);
-        force_sig(SIGSEGV /* , current */);
+        force_sig(TARGET_SIGSEGV /* , current */);
 	return 0;
 }
 
@@ -1590,7 +1590,7 @@ static long do_rt_sigreturn_v1(CPUState *env)
 
 badframe:
 	unlock_user_struct(frame, frame_addr, 0);
-        force_sig(SIGSEGV /* , current */);
+        force_sig(TARGET_SIGSEGV /* , current */);
 	return 0;
 }
 
@@ -1619,7 +1619,7 @@ static long do_rt_sigreturn_v2(CPUState *env)
 
 badframe:
 	unlock_user_struct(frame, frame_addr, 0);
-        force_sig(SIGSEGV /* , current */);
+        force_sig(TARGET_SIGSEGV /* , current */);
 	return 0;
 }
 
@@ -2161,7 +2161,7 @@ void sparc64_set_context(CPUSPARCState *env)
     return;
  do_sigsegv:
     unlock_user_struct(ucp, ucp_addr, 0);
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 
 void sparc64_get_context(CPUSPARCState *env)
@@ -2255,7 +2255,7 @@ void sparc64_get_context(CPUSPARCState *env)
     return;
  do_sigsegv:
     unlock_user_struct(ucp, ucp_addr, 1);
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 #endif
 #elif defined(TARGET_ABI_MIPSN64)
@@ -2909,7 +2909,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -2972,7 +2972,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 
 long do_sigreturn(CPUState *regs)
@@ -3851,7 +3851,7 @@ sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
     if (logfile)
         fprintf (logfile, "segfaulting from setup_frame\n");
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -3920,7 +3920,7 @@ sigsegv:
     unlock_user_struct(rt_sf, rt_sf_addr, 1);
     if (logfile)
         fprintf (logfile, "segfaulting from setup_rt_frame\n");
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 
 }
 
@@ -3962,7 +3962,7 @@ sigsegv:
     unlock_user_struct(sc, sc_addr, 1);
     if (logfile)
         fprintf (logfile, "segfaulting from do_sigreturn\n");
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
     return 0;
 }
 
@@ -4025,7 +4025,7 @@ sigsegv:
     unlock_user_struct(rt_sf, rt_sf_addr, 1);
     if (logfile)
         fprintf (logfile, "segfaulting from do_rt_sigreturn\n");
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
     return 0;
 }
 
@@ -4195,7 +4195,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 
 static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
@@ -4337,7 +4337,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
-    force_sig(SIGSEGV);
+    force_sig(TARGET_SIGSEGV);
 }
 
 long do_sigreturn(CPUState *env)

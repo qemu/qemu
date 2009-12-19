@@ -130,7 +130,7 @@ ETEXI
 
     {
         .name       = "eject",
-        .args_type  = "force:-f,filename:B",
+        .args_type  = "force:-f,device:B",
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
         .user_print = monitor_user_noop,
@@ -763,8 +763,7 @@ ETEXI
         .args_type  = "value:s",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_set_speed,
+        .mhandler.cmd = do_migrate_set_speed,
     },
 
 STEXI
@@ -887,7 +886,7 @@ ETEXI
 
     {
         .name       = "balloon",
-        .args_type  = "value:i",
+        .args_type  = "value:M",
         .params     = "target",
         .help       = "request VM to change it's memory allocation (in MB)",
         .user_print = monitor_user_noop,

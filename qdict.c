@@ -122,9 +122,8 @@ void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
         /* allocate a new entry */
         entry = alloc_entry(key, value);
         QLIST_INSERT_HEAD(&qdict->table[hash], entry, next);
+        qdict->size++;
     }
-
-    qdict->size++;
 }
 
 /**

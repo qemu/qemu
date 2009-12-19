@@ -518,14 +518,6 @@ static int virtio_net_init_pci(PCIDevice *pci_dev)
 
     /* make the actual value visible */
     proxy->nvectors = vdev->nvectors;
-
-    if (!pci_dev->qdev.hotplugged) {
-        static int loaded = 0;
-        if (!loaded) {
-            rom_add_option("pxe-virtio.bin");
-            loaded = 1;
-        }
-    }
     return 0;
 }
 
@@ -569,6 +561,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
         .exit       = virtio_net_exit_pci,
+        .romfile    = "pxe-virtio.bin",
         .qdev.props = (Property[]) {
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
             DEFINE_NIC_PROPERTIES(VirtIOPCIProxy, nic),

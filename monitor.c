@@ -140,6 +140,9 @@ static inline int monitor_ctrl_mode(const Monitor *mon)
 
 static void monitor_read_command(Monitor *mon, int show_prompt)
 {
+    if (!mon->rs)
+        return;
+
     readline_start(mon->rs, "(qemu) ", 0, monitor_command_cb, NULL);
     if (show_prompt)
         readline_show_prompt(mon->rs);
@@ -174,9 +177,6 @@ static void monitor_puts(Monitor *mon, const char *str)
 {
     char c;
 
-    if (!mon)
-        return;
-
     for(;;) {
         c = *str++;
         if (c == '\0')
@@ -192,6 +192,9 @@ static void monitor_puts(Monitor *mon, const char *str)
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
+    if (!mon)
+        return;
+
     if (mon->mc && !mon->mc->print_enabled) {
         qemu_error_new(QERR_UNDEFINED_ERROR);
     } else {
@@ -280,10 +283,12 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
     if (!monitor_has_error(mon)) {
         /* success response */
         if (data) {
+            assert(qobject_type(data) == QTYPE_QDICT);
             qobject_incref(data);
             qdict_put_obj(qmp, "return", data);
         } else {
-            qdict_put(qmp, "return", qstring_from_str("OK"));
+            /* return an empty QDict by default */
+            qdict_put(qmp, "return", qdict_new());
         }
     } else {
         /* error response */
@@ -864,7 +869,7 @@ static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     BlockDriverState *bs;
     int force = qdict_get_int(qdict, "force");
-    const char *filename = qdict_get_str(qdict, "filename");
+    const char *filename = qdict_get_str(qdict, "device");
 
     bs = bdrv_find(filename);
     if (!bs) {
@@ -2053,14 +2058,33 @@ static void do_info_status(Monitor *mon, QObject **ret_data)
                                     vm_running, singlestep);
 }
 
+static ram_addr_t balloon_get_value(void)
+{
+    ram_addr_t actual;
+
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        return 0;
+    }
+
+    actual = qemu_balloon_status();
+    if (actual == 0) {
+        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
+        return 0;
+    }
+
+    return actual;
+}
+
 /**
  * do_balloon(): Request VM to change its memory allocation
  */
 static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    int value = qdict_get_int(qdict, "value");
-    ram_addr_t target = value;
-    qemu_balloon(target << 20);
+    if (balloon_get_value()) {
+        /* ballooning is active */
+        qemu_balloon(qdict_get_int(qdict, "value"));
+    }
 }
 
 static void monitor_print_balloon(Monitor *mon, const QObject *data)
@@ -2088,14 +2112,11 @@ static void do_info_balloon(Monitor *mon, QObject **ret_data)
 {
     ram_addr_t actual;
 
-    actual = qemu_balloon_status();
-    if (kvm_enabled() && !kvm_has_sync_mmu())
-        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
-    else if (actual == 0)
-        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
-    else
+    actual = balloon_get_value();
+    if (actual != 0) {
         *ret_data = qobject_from_jsonf("{ 'balloon': %" PRId64 "}",
                                        (int64_t) actual);
+    }
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
@@ -3479,6 +3500,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
             break;
         case 'i':
         case 'l':
+        case 'M':
             {
                 int64_t val;
 
@@ -3509,6 +3531,8 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     monitor_printf(mon, "\'%s\' has failed: ", cmdname);
                     monitor_printf(mon, "integer is for 32-bit values\n");
                     goto fail;
+                } else if (c == 'M') {
+                    val <<= 20;
                 }
                 qdict_put(qdict, key, qint_from_int(val));
             }
@@ -3844,7 +3868,7 @@ static int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return (mon->suspend_cnt == 0) ? 128 : 0;
+    return (mon->suspend_cnt == 0) ? 1 : 0;
 }
 
 typedef struct CmdArgs {
@@ -3913,6 +3937,7 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
         }
         case 'i':
         case 'l':
+        case 'M':
             if (qobject_type(value) != QTYPE_QINT) {
                 qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
                 return -1;
@@ -4050,7 +4075,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
                       qobject_from_jsonf("{ 'item': %s }", info_item));
     } else {
         cmd = monitor_find_command(cmd_name);
-        if (!cmd) {
+        if (!cmd || !monitor_handler_ported(cmd)) {
             qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
             goto err_input;
         }

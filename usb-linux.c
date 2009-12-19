@@ -1206,7 +1206,8 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
         ret = 1;
 #if 0
     } else {
-        monitor_printf(mon, "husb: could not open %s\n", filename);
+        if (mon)
+            monitor_printf(mon, "husb: could not open %s\n", filename);
 #endif
     }
 
@@ -1339,15 +1340,17 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
         }
     found_devices:
         if (!usb_fs_type) {
-            monitor_printf(mon, "husb: unable to access USB devices\n");
+            if (mon)
+                monitor_printf(mon, "husb: unable to access USB devices\n");
             return -ENOENT;
         }
 
         /* the module setting (used later for opening devices) */
         usb_host_device_path = qemu_mallocz(strlen(devpath)+1);
         strcpy(usb_host_device_path, devpath);
-        monitor_printf(mon, "husb: using %s file-system with %s\n",
-                       fs_type[usb_fs_type], usb_host_device_path);
+        if (mon)
+            monitor_printf(mon, "husb: using %s file-system with %s\n",
+                           fs_type[usb_fs_type], usb_host_device_path);
     }
 
     switch (usb_fs_type) {

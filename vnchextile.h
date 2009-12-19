@@ -73,7 +73,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	*last_bg = bg;
     }
 
-    if (!*has_fg || *last_fg != fg) {
+    if (n_colors < 3 && (!*has_fg || *last_fg != fg)) {
 	flags |= 0x04;
 	*has_fg = 1;
 	*last_fg = fg;
@@ -165,8 +165,6 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	    irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
 	}
 
-	/* A SubrectsColoured subtile invalidates the foreground color */
-	*has_fg = 0;
 	if (n_data > (w * h * sizeof(pixel_t))) {
 	    n_colors = 4;
 	    flags = 0x01;

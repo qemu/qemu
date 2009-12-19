@@ -164,7 +164,7 @@ static inline int ctz64(uint64_t val)
 {
 #if QEMU_GNUC_PREREQ(3, 4)
     if (val)
-        return __builtin_ctz(val);
+        return __builtin_ctzll(val);
     else
         return 64;
 #else

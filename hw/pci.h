@@ -101,7 +101,6 @@ typedef struct PCIIORegion {
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
 #define  PCI_COMMAND_MASTER	0x4	/* Enable bus master */
-#define  PCI_COMMAND_INTX_DISABLE 0x400 /* INTx Emulation Disable */
 #define PCI_STATUS              0x06    /* 16 bits */
 #define  PCI_STATUS_INTERRUPT   0x08
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
@@ -243,6 +242,10 @@ struct PCIDevice {
     uint32_t msix_bar_size;
     /* Version id needed for VMState */
     int32_t version_id;
+
+    /* Location of option rom */
+    char *romfile;
+    ram_addr_t rom_offset;
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
@@ -283,7 +286,6 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq);
 
-int pci_nic_supported(const char *model);
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
@@ -382,6 +384,9 @@ typedef struct {
 
     /* pcie stuff */
     int is_express;   /* is this device pci express? */
+
+    /* rom bar */
+    const char *romfile;
 } PCIDeviceInfo;
 
 void pci_qdev_register(PCIDeviceInfo *info);

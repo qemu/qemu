@@ -669,6 +669,10 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         }
         break;
 
+    case 5: /* CMD5: reserved for SDIO cards */
+        sd->card_status |= ILLEGAL_COMMAND;
+        return sd_r0;
+
     case 6:	/* CMD6:   SWITCH_FUNCTION */
         if (sd->spi)
             goto bad_cmd;

@@ -142,6 +142,13 @@ static void s390_init(ram_addr_t ram_size,
     ram_addr_t initrd_size = 0;
     int i;
 
+    /* XXX we only work on KVM for now */
+
+    if (!kvm_enabled()) {
+        fprintf(stderr, "The S390 target only works with KVM enabled\n");
+        exit(1);
+    }
+
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&ram_size);
 
@@ -201,7 +208,11 @@ static void s390_init(ram_addr_t ram_size,
     }
 
     /* Create VirtIO console */
-    qdev_init_nofail(qdev_create((BusState *)s390_bus, "virtio-console-s390"));
+    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+        if (virtcon_hds[i]) {
+            qdev_init_nofail(qdev_create((BusState *)s390_bus, "virtio-console-s390"));
+        }
+    }
 
     /* Create VirtIO network adapters */
     for(i = 0; i < nb_nics; i++) {

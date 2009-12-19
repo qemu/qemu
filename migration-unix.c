@@ -112,10 +112,6 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
 
     socket_set_nonblock(s->fd);
 
-    if (!detach) {
-        migrate_fd_monitor_suspend(s, mon);
-    }
-
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
         if (ret == -1)
@@ -128,7 +124,13 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     if (ret < 0 && ret != -EINPROGRESS && ret != -EWOULDBLOCK) {
         dprintf("connect failed\n");
         goto err_after_open;
-    } else if (ret >= 0)
+    }
+
+    if (!detach) {
+        migrate_fd_monitor_suspend(s, mon);
+    }
+
+    if (ret >= 0)
         migrate_fd_connect(s);
 
     return &s->mig_state;

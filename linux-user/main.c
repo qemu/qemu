@@ -99,13 +99,14 @@ static int pending_cpus;
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
-    mmap_fork_start();
     pthread_mutex_lock(&tb_lock);
     pthread_mutex_lock(&exclusive_lock);
+    mmap_fork_start();
 }
 
 void fork_end(int child)
 {
+    mmap_fork_end(child);
     if (child) {
         /* Child processes created by fork() only have a single thread.
            Discard information about the parent threads.  */
@@ -122,7 +123,6 @@ void fork_end(int child)
         pthread_mutex_unlock(&exclusive_lock);
         pthread_mutex_unlock(&tb_lock);
     }
-    mmap_fork_end(child);
 }
 
 /* Wait for pending exclusive operations to complete.  The exclusive lock

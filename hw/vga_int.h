@@ -71,8 +71,8 @@
     uint16_t vbe_regs[VBE_DISPI_INDEX_NB];      \
     uint32_t vbe_start_addr;                    \
     uint32_t vbe_line_offset;                   \
-    uint32_t vbe_bank_mask;
-
+    uint32_t vbe_bank_mask;			\
+    int vbe_mapped;
 #else
 
 #define VGA_STATE_COMMON_BOCHS_VBE
@@ -194,6 +194,8 @@ void vga_init(VGACommonState *s);
 void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
+void vga_dirty_log_stop(VGACommonState *s);
+void vga_dirty_log_restart(VGACommonState *s);
 
 extern const VMStateDescription vmstate_vga_common;
 uint32_t vga_ioport_read(void *opaque, uint32_t addr);
@@ -217,6 +219,7 @@ void vga_draw_cursor_line_32(uint8_t *d1, const uint8_t *src1,
                              unsigned int color_xor);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
+void vga_init_vbe(VGACommonState *s);
 
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];

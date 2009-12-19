@@ -192,7 +192,11 @@ static int io_mem_watch;
 #endif
 
 /* log support */
+#ifdef WIN32
+static const char *logfilename = "qemu.log";
+#else
 static const char *logfilename = "/tmp/qemu.log";
+#endif
 FILE *logfile;
 int loglevel;
 static int log_append = 0;
@@ -1526,24 +1530,22 @@ void cpu_set_log_filename(const char *filename)
 
 static void cpu_unlink_tb(CPUState *env)
 {
-#if defined(CONFIG_USE_NPTL)
     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
        problem and hope the cpu will stop of its own accord.  For userspace
        emulation this often isn't actually as bad as it sounds.  Often
        signals are used primarily to interrupt blocking syscalls.  */
-#else
     TranslationBlock *tb;
     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
 
     tb = env->current_tb;
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
-    if (tb && !testandset(&interrupt_lock)) {
+    if (tb) {
+        spin_lock(&interrupt_lock);
         env->current_tb = NULL;
         tb_reset_jump_recursive(tb);
-        resetlock(&interrupt_lock);
+        spin_unlock(&interrupt_lock);
     }
-#endif
 }
 
 /* mask must never be zero, except for A20 change call */
@@ -2967,7 +2969,7 @@ static int get_free_io_mem_idx(void)
             io_mem_used[i] = 1;
             return i;
         }
-
+    fprintf(stderr, "RAN out out io_mem_idx, max %d !\n", IO_MEM_NB_ENTRIES);
     return -1;
 }
 

@@ -294,77 +294,98 @@ static inline void gen_store_mem(DisasContext *ctx,
     tcg_temp_free(addr);
 }
 
-static inline void gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
-                             int32_t disp, int mask)
+static void gen_bcond_pcload(DisasContext *ctx, int32_t disp, int lab_true)
 {
-    int l1, l2;
+    int lab_over = gen_new_label();
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
+    tcg_gen_movi_i64(cpu_pc, ctx->pc);
+    tcg_gen_br(lab_over);
+    gen_set_label(lab_true);
+    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
+    gen_set_label(lab_over);
+}
+
+static void gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
+                      int32_t disp, int mask)
+{
+    int lab_true = gen_new_label();
+
     if (likely(ra != 31)) {
         if (mask) {
             TCGv tmp = tcg_temp_new();
             tcg_gen_andi_i64(tmp, cpu_ir[ra], 1);
-            tcg_gen_brcondi_i64(cond, tmp, 0, l1);
+            tcg_gen_brcondi_i64(cond, tmp, 0, lab_true);
             tcg_temp_free(tmp);
-        } else
-            tcg_gen_brcondi_i64(cond, cpu_ir[ra], 0, l1);
+        } else {
+            tcg_gen_brcondi_i64(cond, cpu_ir[ra], 0, lab_true);
+        }
     } else {
         /* Very uncommon case - Do not bother to optimize.  */
         TCGv tmp = tcg_const_i64(0);
-        tcg_gen_brcondi_i64(cond, tmp, 0, l1);
+        tcg_gen_brcondi_i64(cond, tmp, 0, lab_true);
         tcg_temp_free(tmp);
     }
-    tcg_gen_movi_i64(cpu_pc, ctx->pc);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
-    gen_set_label(l2);
+    gen_bcond_pcload(ctx, disp, lab_true);
 }
 
-static inline void gen_fbcond(DisasContext *ctx, int opc, int ra, int32_t disp)
-{
-    int l1, l2;
-    TCGv tmp;
-    TCGv src;
+/* Generate a forward TCG branch to LAB_TRUE if RA cmp 0.0.
+   This is complicated by the fact that -0.0 compares the same as +0.0.  */
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    if (ra != 31) {
+static void gen_fbcond_internal(TCGCond cond, TCGv src, int lab_true)
+{
+    int lab_false = -1;
+    uint64_t mzero = 1ull << 63;
+    TCGv tmp;
+
+    switch (cond) {
+    case TCG_COND_LE:
+    case TCG_COND_GT:
+        /* For <= or >, the -0.0 value directly compares the way we want.  */
+        tcg_gen_brcondi_i64(cond, src, 0, lab_true);
+        break;
+
+    case TCG_COND_EQ:
+    case TCG_COND_NE:
+        /* For == or !=, we can simply mask off the sign bit and compare.  */
+        /* ??? Assume that the temporary is reclaimed at the branch.  */
         tmp = tcg_temp_new();
-        src = cpu_fir[ra];
-    } else  {
-        tmp = tcg_const_i64(0);
-        src = tmp;
-    }
-    switch (opc) {
-    case 0x31: /* FBEQ */
-        gen_helper_cmpfeq(tmp, src);
+        tcg_gen_andi_i64(tmp, src, mzero - 1);
+        tcg_gen_brcondi_i64(cond, tmp, 0, lab_true);
         break;
-    case 0x32: /* FBLT */
-        gen_helper_cmpflt(tmp, src);
+
+    case TCG_COND_GE:
+        /* For >=, emit two branches to the destination.  */
+        tcg_gen_brcondi_i64(cond, src, 0, lab_true);
+        tcg_gen_brcondi_i64(TCG_COND_EQ, src, mzero, lab_true);
         break;
-    case 0x33: /* FBLE */
-        gen_helper_cmpfle(tmp, src);
+
+    case TCG_COND_LT:
+        /* For <, first filter out -0.0 to what will be the fallthru.  */
+        lab_false = gen_new_label();
+        tcg_gen_brcondi_i64(TCG_COND_EQ, src, mzero, lab_false);
+        tcg_gen_brcondi_i64(cond, src, 0, lab_true);
+        gen_set_label(lab_false);
         break;
-    case 0x35: /* FBNE */
-        gen_helper_cmpfne(tmp, src);
-        break;
-    case 0x36: /* FBGE */
-        gen_helper_cmpfge(tmp, src);
-        break;
-    case 0x37: /* FBGT */
-        gen_helper_cmpfgt(tmp, src);
-        break;
+
     default:
         abort();
     }
-    tcg_gen_brcondi_i64(TCG_COND_NE, tmp, 0, l1);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
-    gen_set_label(l2);
+}
+
+static void gen_fbcond(DisasContext *ctx, TCGCond cond, int ra, int32_t disp)
+{
+    int lab_true;
+
+    if (unlikely(ra == 31)) {
+        /* Very uncommon case, but easier to optimize it to an integer
+           comparison than continuing with the floating point comparison.  */
+        gen_bcond(ctx, cond, ra, disp, 0);
+        return;
+    }
+
+    lab_true = gen_new_label();
+    gen_fbcond_internal(cond, cpu_fir[ra], lab_true);
+    gen_bcond_pcload(ctx, disp, lab_true);
 }
 
 static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
@@ -396,6 +417,28 @@ static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
         tcg_gen_movi_i64(cpu_ir[rc], lit);
     else
         tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
+    gen_set_label(l1);
+}
+
+static void gen_fcmov(TCGCond inv_cond, int ra, int rb, int rc)
+{
+    TCGv va = cpu_fir[ra];
+    int l1;
+
+    if (unlikely(rc == 31))
+        return;
+    if (unlikely(ra == 31)) {
+        /* ??? Assume that the temporary is reclaimed at the branch.  */
+        va = tcg_const_i64(0);
+    }
+
+    l1 = gen_new_label();
+    gen_fbcond_internal(inv_cond, va, l1);
+
+    if (rb != 31)
+        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[rb]);
+    else
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
     gen_set_label(l1);
 }
 
@@ -481,38 +524,6 @@ FARITH3(cmptle)
 FARITH3(cpys)
 FARITH3(cpysn)
 FARITH3(cpyse)
-
-#define FCMOV(name)                                                   \
-static inline void glue(gen_f, name)(int ra, int rb, int rc)          \
-{                                                                     \
-    int l1;                                                           \
-    TCGv tmp;                                                         \
-                                                                      \
-    if (unlikely(rc == 31))                                           \
-        return;                                                       \
-                                                                      \
-    l1 = gen_new_label();                                             \
-    tmp = tcg_temp_new();                                 \
-    if (ra != 31) {                                                   \
-        tmp = tcg_temp_new();                             \
-        gen_helper_ ## name (tmp, cpu_fir[ra]);                       \
-    } else  {                                                         \
-        tmp = tcg_const_i64(0);                                       \
-        gen_helper_ ## name (tmp, tmp);                               \
-    }                                                                 \
-    tcg_gen_brcondi_i64(TCG_COND_EQ, tmp, 0, l1);                     \
-    if (rb != 31)                                                     \
-        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[ra]);                    \
-    else                                                              \
-        tcg_gen_movi_i64(cpu_fir[rc], 0);                             \
-    gen_set_label(l1);                                                \
-}
-FCMOV(cmpfeq)
-FCMOV(cmpfne)
-FCMOV(cmpflt)
-FCMOV(cmpfge)
-FCMOV(cmpfle)
-FCMOV(cmpfgt)
 
 static inline uint64_t zapnot_mask(uint8_t lit)
 {
@@ -1871,27 +1882,27 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x02A:
             /* FCMOVEQ */
-            gen_fcmpfeq(ra, rb, rc);
+            gen_fcmov(TCG_COND_NE, ra, rb, rc);
             break;
         case 0x02B:
             /* FCMOVNE */
-            gen_fcmpfne(ra, rb, rc);
+            gen_fcmov(TCG_COND_EQ, ra, rb, rc);
             break;
         case 0x02C:
             /* FCMOVLT */
-            gen_fcmpflt(ra, rb, rc);
+            gen_fcmov(TCG_COND_GE, ra, rb, rc);
             break;
         case 0x02D:
             /* FCMOVGE */
-            gen_fcmpfge(ra, rb, rc);
+            gen_fcmov(TCG_COND_LT, ra, rb, rc);
             break;
         case 0x02E:
             /* FCMOVLE */
-            gen_fcmpfle(ra, rb, rc);
+            gen_fcmov(TCG_COND_GT, ra, rb, rc);
             break;
         case 0x02F:
             /* FCMOVGT */
-            gen_fcmpfgt(ra, rb, rc);
+            gen_fcmov(TCG_COND_LE, ra, rb, rc);
             break;
         case 0x030:
             /* CVTQL */
@@ -2482,9 +2493,15 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         ret = 1;
         break;
     case 0x31: /* FBEQ */
+        gen_fbcond(ctx, TCG_COND_EQ, ra, disp21);
+        ret = 1;
+        break;
     case 0x32: /* FBLT */
+        gen_fbcond(ctx, TCG_COND_LT, ra, disp21);
+        ret = 1;
+        break;
     case 0x33: /* FBLE */
-        gen_fbcond(ctx, opc, ra, disp21);
+        gen_fbcond(ctx, TCG_COND_LE, ra, disp21);
         ret = 1;
         break;
     case 0x34:
@@ -2495,9 +2512,15 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         ret = 1;
         break;
     case 0x35: /* FBNE */
+        gen_fbcond(ctx, TCG_COND_NE, ra, disp21);
+        ret = 1;
+        break;
     case 0x36: /* FBGE */
+        gen_fbcond(ctx, TCG_COND_GE, ra, disp21);
+        ret = 1;
+        break;
     case 0x37: /* FBGT */
-        gen_fbcond(ctx, opc, ra, disp21);
+        gen_fbcond(ctx, TCG_COND_GT, ra, disp21);
         ret = 1;
         break;
     case 0x38:

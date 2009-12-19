@@ -45,11 +45,12 @@ typedef struct _FWCfgEntry {
     FWCfgCallback callback;
 } FWCfgEntry;
 
-typedef struct _FWCfgState {
+struct _FWCfgState {
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
+    FWCfgFiles *files;
     uint16_t cur_entry;
     uint32_t cur_offset;
-} FWCfgState;
+};
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
 {
@@ -210,9 +211,8 @@ static const VMStateDescription vmstate_fw_cfg = {
     }
 };
 
-int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint32_t len)
+int fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len)
 {
-    FWCfgState *s = opaque;
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
     key &= FW_CFG_ENTRY_MASK;
@@ -226,37 +226,36 @@ int fw_cfg_add_bytes(void *opaque, uint16_t key, uint8_t *data, uint32_t len)
     return 1;
 }
 
-int fw_cfg_add_i16(void *opaque, uint16_t key, uint16_t value)
+int fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
 
     copy = qemu_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
-    return fw_cfg_add_bytes(opaque, key, (uint8_t *)copy, sizeof(value));
+    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
 
-int fw_cfg_add_i32(void *opaque, uint16_t key, uint32_t value)
+int fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
 
     copy = qemu_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
-    return fw_cfg_add_bytes(opaque, key, (uint8_t *)copy, sizeof(value));
+    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
 
-int fw_cfg_add_i64(void *opaque, uint16_t key, uint64_t value)
+int fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
 
     copy = qemu_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
-    return fw_cfg_add_bytes(opaque, key, (uint8_t *)copy, sizeof(value));
+    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
 
-int fw_cfg_add_callback(void *opaque, uint16_t key, FWCfgCallback callback,
+int fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
                         void *callback_opaque, uint8_t *data, size_t len)
 {
-    FWCfgState *s = opaque;
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
     if (!(key & FW_CFG_WRITE_CHANNEL))
@@ -275,8 +274,50 @@ int fw_cfg_add_callback(void *opaque, uint16_t key, FWCfgCallback callback,
     return 1;
 }
 
-void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-		target_phys_addr_t ctl_addr, target_phys_addr_t data_addr)
+int fw_cfg_add_file(FWCfgState *s,  const char *dir, const char *filename,
+                    uint8_t *data, uint32_t len)
+{
+    const char *basename;
+    int index;
+
+    if (!s->files) {
+        int dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
+        s->files = qemu_mallocz(dsize);
+        fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, (uint8_t*)s->files, dsize);
+    }
+
+    index = be32_to_cpu(s->files->count);
+    if (index == FW_CFG_FILE_SLOTS) {
+        fprintf(stderr, "fw_cfg: out of file slots\n");
+        return 0;
+    }
+
+    fw_cfg_add_bytes(s, FW_CFG_FILE_FIRST + index, data, len);
+
+    basename = strrchr(filename, '/');
+    if (basename) {
+        basename++;
+    } else {
+        basename = filename;
+    }
+    if (dir) {
+        snprintf(s->files->f[index].name, sizeof(s->files->f[index].name),
+                 "%s/%s", dir, basename);
+    } else {
+        snprintf(s->files->f[index].name, sizeof(s->files->f[index].name),
+                 "%s", basename);
+    }
+    s->files->f[index].size   = cpu_to_be32(len);
+    s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);
+    FW_CFG_DPRINTF("%s: #%d: %s (%d bytes)\n", __FUNCTION__,
+                   index, s->files->f[index].name, len);
+
+    s->files->count = cpu_to_be32(index+1);
+    return 1;
+}
+
+FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
+                        target_phys_addr_t ctl_addr, target_phys_addr_t data_addr)
 {
     FWCfgState *s;
     int io_ctl_memory, io_data_memory;

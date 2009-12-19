@@ -129,7 +129,8 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 {
 	size_t *sizes = calloc(nr_iov, sizeof(size_t));
 	size_t count = 0;
-	void *buf, *p;
+	void *buf = NULL;
+	void *p;
 	int i;
 
 	for (i = 0; i < nr_iov; i++) {
@@ -139,19 +140,19 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 		len = cvtnum(arg);
 		if (len < 0) {
 			printf("non-numeric length argument -- %s\n", arg);
-			return NULL;
+			goto fail;
 		}
 
 		/* should be SIZE_T_MAX, but that doesn't exist */
 		if (len > UINT_MAX) {
 			printf("too large length argument -- %s\n", arg);
-			return NULL;
+			goto fail;
 		}
 
 		if (len & 0x1ff) {
 			printf("length argument %lld is not sector aligned\n",
 				len);
-			return NULL;
+			goto fail;
 		}
 
 		sizes[i] = len;
@@ -167,6 +168,7 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 		p += sizes[i];
 	}
 
+fail:
 	free(sizes);
 	return buf;
 }

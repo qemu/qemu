@@ -278,7 +278,9 @@ static int default_parallel = 1;
 static int default_virtcon = 1;
 static int default_monitor = 1;
 static int default_vga = 1;
-static int default_drive = 1;
+static int default_floppy = 1;
+static int default_cdrom = 1;
+static int default_sdcard = 1;
 
 static struct {
     const char *driver;
@@ -286,11 +288,13 @@ static struct {
 } default_list[] = {
     { .driver = "isa-serial",           .flag = &default_serial    },
     { .driver = "isa-parallel",         .flag = &default_parallel  },
+    { .driver = "isa-fdc",              .flag = &default_floppy    },
+    { .driver = "ide-drive",            .flag = &default_cdrom     },
     { .driver = "virtio-console-pci",   .flag = &default_virtcon   },
     { .driver = "virtio-console-s390",  .flag = &default_virtcon   },
     { .driver = "VGA",                  .flag = &default_vga       },
-    { .driver = "Cirrus VGA",           .flag = &default_vga       },
-    { .driver = "QEMUware SVGA",        .flag = &default_vga       },
+    { .driver = "cirrus-vga",           .flag = &default_vga       },
+    { .driver = "vmware-svga",          .flag = &default_vga       },
 };
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
@@ -2046,10 +2050,6 @@ BlockInterfaceErrorAction drive_get_on_error(
 {
     DriveInfo *dinfo;
 
-    if (is_read) {
-        return BLOCK_ERR_REPORT;
-    }
-
     QTAILQ_FOREACH(dinfo, &drives, next) {
         if (dinfo->bdrv == bdrv)
             return is_read ? dinfo->on_read_error : dinfo->on_write_error;
@@ -2656,24 +2656,6 @@ static int usb_device_add(const char *devname, int is_hotplug)
     /* the other ones */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-    } else if (strstart(devname, "net:", &p)) {
-        QemuOpts *opts;
-        int idx;
-
-        opts = qemu_opts_parse(&qemu_net_opts, p, NULL);
-        if (!opts) {
-            return -1;
-        }
-
-        qemu_opt_set(opts, "type", "nic");
-        qemu_opt_set(opts, "model", "usb");
-
-        idx = net_client_init(NULL, opts, 0);
-        if (idx == -1) {
-            return -1;
-        }
-
-        dev = usb_net_init(&nd_table[idx]);
     } else if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
         dev = usb_bt_init(devname[2] ? hci_init(p) :
                         bt_new_hci(qemu_find_bt_vlan(0)));
@@ -5651,7 +5633,9 @@ int main(int argc, char **argv, char **envp)
                 default_monitor = 0;
                 default_vga = 0;
                 default_net = 0;
-                default_drive = 0;
+                default_floppy = 0;
+                default_cdrom = 0;
+                default_sdcard = 0;
                 break;
 #ifdef CONFIG_CHROOT
             case QEMU_OPTION_chroot:
@@ -5732,6 +5716,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     qemu_opts_foreach(&qemu_device_opts, default_driver_check, NULL, 0);
+    qemu_opts_foreach(&qemu_global_opts, default_driver_check, NULL, 0);
 
     if (machine->no_serial) {
         default_serial = 0;
@@ -5744,6 +5729,15 @@ int main(int argc, char **argv, char **envp)
     }
     if (machine->no_vga) {
         default_vga = 0;
+    }
+    if (machine->no_floppy) {
+        default_floppy = 0;
+    }
+    if (machine->no_cdrom) {
+        default_cdrom = 0;
+    }
+    if (machine->no_sdcard) {
+        default_sdcard = 0;
     }
 
     if (display_type == DT_NOGRAPHIC) {
@@ -5768,6 +5762,8 @@ int main(int argc, char **argv, char **envp)
             add_device_config(DEV_PARALLEL, "vc:80Cx24C");
         if (default_monitor)
             monitor_parse("vc:80Cx24C", "readline");
+        if (default_virtcon)
+            add_device_config(DEV_VIRTCON, "vc:80Cx24C");
     }
     if (default_vga)
         vga_interface_type = VGA_CIRRUS;
@@ -5821,16 +5817,18 @@ int main(int argc, char **argv, char **envp)
         signal(SIGTTOU, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
     }
+#endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
+#ifndef _WIN32
         if (daemonize) {
             uint8_t status = 1;
             write(fds[1], &status, 1);
         } else
+#endif
             fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
         exit(1);
     }
-#endif
 
     if (kvm_enabled()) {
         int ret;
@@ -5902,13 +5900,17 @@ int main(int argc, char **argv, char **envp)
 
     blk_mig_init();
 
-    if (default_drive) {
+    if (default_cdrom) {
         /* we always create the cdrom drive, even if no disk is there */
         drive_add(NULL, CDROM_ALIAS);
+    }
 
+    if (default_floppy) {
         /* we always create at least one floppy */
         drive_add(NULL, FD_ALIAS, 0);
+    }
 
+    if (default_sdcard) {
         /* we always create one sd slot, even if no card is in it */
         drive_add(NULL, SD_ALIAS);
     }
@@ -6088,7 +6090,10 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_creation_done();
 
-    rom_load_all();
+    if (rom_load_all() != 0) {
+        fprintf(stderr, "rom loading failed\n");
+        exit(1);
+    }
 
     qemu_system_reset();
     if (loadvm) {
