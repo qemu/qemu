@@ -698,6 +698,11 @@ static Rom *find_rom(target_phys_addr_t addr)
     return NULL;
 }
 
+/*
+ * Copies memory from registered ROMs to dest. Any memory that is contained in
+ * a ROM between addr and addr + size is copied. Note that this can involve
+ * multiple ROMs, which need not start at addr and need not end at addr + size.
+ */
 int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
 {
     target_phys_addr_t end = addr + size;
@@ -706,8 +711,6 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
-        if (rom->addr > addr)
-            continue;
         if (rom->addr + rom->romsize < addr)
             continue;
         if (rom->addr > end)
