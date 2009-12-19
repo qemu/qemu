@@ -2652,3 +2652,6 @@ d=libuser
 mkdir -p $d
 rm -f $d/Makefile
 ln -s $source_path/Makefile.user $d/Makefile
+if test "$static" = "no" -a "$user_pie" = "yes" ; then
+  echo "QEMU_CFLAGS+=-fpie" > $d/config.mak
+fi

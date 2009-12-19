@@ -2,10 +2,15 @@
 
 include ../config-host.mak
 include $(SRC_PATH)/rules.mak
+include config.mak
 
 .PHONY: all
 
-VPATH=$(SRC_PATH)
+# Do not take %.o from $(SRC_PATH), only %.c and %.h
+# All %.o for user targets should be built with -fpie, when
+# configured with --enable-user-pie, so we don't want to
+# take %.o from $(SRC_PATH), since they built without -fpie
+vpath %.c %.h $(SRC_PATH)
 
 QEMU_CFLAGS+=-I..
 
