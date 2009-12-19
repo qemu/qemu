@@ -119,7 +119,11 @@ static void ppc_core99_init (ram_addr_t ram_size,
 
     /* init CPUs */
     if (cpu_model == NULL)
+#ifdef TARGET_PPC64
+        cpu_model = "970fx";
+#else
         cpu_model = "G4";
+#endif
     for (i = 0; i < smp_cpus; i++) {
         env = cpu_init(cpu_model);
         if (!env) {
@@ -385,6 +389,9 @@ static QEMUMachine core99_machine = {
     .desc = "Mac99 based PowerMAC",
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
+#ifdef TARGET_PPC64
+    .is_default = 1,
+#endif
 };
 
 static void core99_machine_init(void)
