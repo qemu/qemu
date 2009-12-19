@@ -2,7 +2,7 @@
 
 include ../config-host.mak
 include $(SRC_PATH)/rules.mak
-include config.mak
+-include config.mak
 
 .PHONY: all
 
