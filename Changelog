@@ -1,3 +1,37 @@
+version 0.12.0:
+
+  - Update to SeaBIOS 0.5.0
+  - e1000: fix device link status in Linux (Anthony Liguori)
+  - monitor: fix QMP for balloon command (Luiz Capitulino)
+  - QMP: Return an empty dict by default (Luiz Capitulino)
+  - QMP: Only handle converted commands (Luiz Capitulino)
+  - pci: support PCI based option rom loading (Gerd Hoffman/Anthony Liguori)
+  - Fix backcompat for hotplug of SCSI controllers (Daniel P. Berrange)
+  - fdc: fix migration from 0.11 (Juan Quintela)
+  - vmware-vga: fix segv on cursor resize. (Dave Airlie)
+  - vmware-vga: various fixes (Dave Airlie/Anthony Liguori)
+  - qdev: improve property error reporting. (Gerd Hoffmann)
+  - fix vga names in default_list (Gerd Hoffmann)
+  - usb-host: check mon before using it. (Gerd Hoffmann)
+  - usb-net: use qdev for -usbdevice (Gerd Hoffmann)
+  - monitor: Catch printing to non-existent monitor (Luiz Capitulino)
+  - Avoid permanently disabled QEMU monitor when UNIX migration fails (Daniel P. Berrange)
+  - Fix loading of ELF multiboot kernels (Kevin Wolf)
+  - qemu-io: Fix memory leak (Kevin Wolf)
+  - Fix thinko in linuxboot.S (Paolo Bonzini)
+  - target-i386: Fix evaluation of DR7 register (Jan Kiszka)
+  - vnc: hextile: do not generate ForegroundSpecified and SubrectsColoured tiles (Anthony Liguori)
+  - S390: Bail out without KVM (Alexander Graf)
+  - S390: Don't tell guest we're updating config space (Alexander Graf)
+  - target-s390: Fail on unknown instructions (Alexander Graf)
+  - osdep: Fix runtime failure on older Linux kernels (Andre Przywara)
+  - Fix a make -j race (Juergen Lock)
+  - target-alpha: Fix generic ctz64. (Richard Henderson)
+  - s390: Fix buggy assignment (Stefan Weil)
+  - target-mips: fix user-mode emulation startup (Nathan Froyd)
+  - target-i386: Update CPUID feature set for TCG (Andre Przywara)
+  - s390: fix build on 32 bit host (Michael S. Tsirkin)
+	
 version 0.12.0-rc2:
 
   - v2: properly save kvm system time msr registers (Glauber Costa)
