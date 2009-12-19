@@ -135,10 +135,12 @@ int kvm_arch_get_registers(CPUState *env)
         env->sdr1 = sregs.u.s.sdr1;
 
         /* Sync SLB */
+#ifdef TARGET_PPC64
         for (i = 0; i < 64; i++) {
             ppc_store_slb(env, sregs.u.s.ppc64.slb[i].slbe,
                                sregs.u.s.ppc64.slb[i].slbv);
         }
+#endif
 
         /* Sync SRs */
         for (i = 0; i < 16; i++) {
