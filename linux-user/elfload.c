@@ -2589,7 +2589,7 @@ static int elf_core_dump(int signr, const CPUState *env)
              */
             error = copy_from_user(page, addr, sizeof (page));
             if (error != 0) {
-                (void) fprintf(stderr, "unable to dump " TARGET_FMT_lx "\n",
+                (void) fprintf(stderr, "unable to dump " TARGET_ABI_FMT_lx "\n",
                     addr);
                 errno = -error;
                 goto out;
