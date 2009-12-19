@@ -47,7 +47,6 @@
 #include <stdbool.h>            /* bool */
 #include <stddef.h>             /* offsetof */
 #include "hw.h"
-#include "loader.h"             /* rom_add_option */
 #include "pci.h"
 #include "net.h"
 #include "eeprom93xx.h"
@@ -2065,15 +2064,6 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
     s->vmstate->name = s->nic->nc.model;
     vmstate_register(-1, s->vmstate, s);
 
-    if (!pci_dev->qdev.hotplugged) {
-        static int loaded = 0;
-        if (!loaded) {
-            char fname[32];
-            snprintf(fname, sizeof(fname), "pxe-%s.bin", s->nic->nc.model);
-            rom_add_option(fname);
-            loaded = 1;
-        }
-    }
     return 0;
 }
 
@@ -2152,6 +2142,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-i82551.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2170,6 +2161,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-i82557b.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2233,6 +2225,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-i82559er.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
