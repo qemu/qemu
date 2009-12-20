@@ -140,7 +140,7 @@ typedef struct {
     uint16_t status;
     uint16_t command;
     uint32_t link;              /* void * */
-    uint32_t tx_desc_addr;      /* transmit buffer decsriptor array address. */
+    uint32_t tbd_array_addr;    /* transmit buffer descriptor array address. */
     uint16_t tcb_bytes;         /* transmit command block byte count (in lower 14 bits */
     uint8_t tx_threshold;       /* transmit threshold */
     uint8_t tbd_count;          /* TBD number */
@@ -267,7 +267,7 @@ static void stl_le_phys(target_phys_addr_t addr, uint32_t val)
 
 /* From FreeBSD */
 /* XXX: optimize */
-static int compute_mcast_idx(const uint8_t * ep)
+static unsigned compute_mcast_idx(const uint8_t * ep)
 {
     uint32_t crc;
     int carry, i, j;
@@ -285,7 +285,7 @@ static int compute_mcast_idx(const uint8_t * ep)
             }
         }
     }
-    return (crc >> 26);
+    return (crc & BITS(7, 2)) >> 2;
 }
 
 #if defined(DEBUG_EEPRO100)
@@ -648,6 +648,8 @@ static void nic_reset(void *opaque)
 {
     EEPRO100State *s = opaque;
     TRACE(OTHER, logout("%p\n", s));
+    /* TODO: Clearing of multicast table for selective reset, too? */
+    memset(&s->mult[0], 0, sizeof(s->mult));
     nic_selective_reset(s);
 }
 
@@ -767,7 +769,7 @@ static void dump_statistics(EEPRO100State * s)
 
 static void tx_command(EEPRO100State *s)
 {
-    uint32_t tbd_array = le32_to_cpu(s->tx.tx_desc_addr);
+    uint32_t tbd_array = le32_to_cpu(s->tx.tbd_array_addr);
     uint16_t tcb_bytes = (le16_to_cpu(s->tx.tcb_bytes) & 0x3fff);
     /* Sends larger than MAX_ETH_FRAME_SIZE are allowed, up to 2600 bytes. */
     uint8_t buf[2600];
@@ -849,6 +851,22 @@ static void tx_command(EEPRO100State *s)
     //~ eepro100_cx_interrupt(s);
 }
 
+static void set_multicast_list(EEPRO100State *s)
+{
+    uint16_t multicast_count = s->tx.tbd_array_addr & BITS(13, 0);
+    uint16_t i;
+    memset(&s->mult[0], 0, sizeof(s->mult));
+    TRACE(OTHER, logout("multicast list, multicast count = %u\n", multicast_count));
+    for (i = 0; i < multicast_count; i += 6) {
+        uint8_t multicast_addr[6];
+        cpu_physical_memory_read(s->cb_address + 10 + i, multicast_addr, 6);
+        TRACE(OTHER, logout("multicast entry %s\n", nic_dump(multicast_addr, 6)));
+        unsigned mcast_idx = compute_mcast_idx(multicast_addr);
+        assert(mcast_idx < 64);
+        s->mult[mcast_idx >> 3] |= (1 << (mcast_idx & 7));
+    }
+}
+
 static void action_command(EEPRO100State *s)
 {
     for (;;) {
@@ -881,7 +899,7 @@ static void action_command(EEPRO100State *s)
             TRACE(OTHER, logout("configuration: %s\n", nic_dump(&s->configuration[0], 16)));
             break;
         case CmdMulticastList:
-            //~ missing("multicast list");
+            set_multicast_list(s);
             break;
         case CmdTx:
             if (bit_nc) {
@@ -1664,17 +1682,25 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         /* Broadcast frame. */
         TRACE(RXTX, logout("%p received broadcast, len=%zu\n", s, size));
         rfd_status |= 0x0002;
-    } else if (buf[0] & 0x01) { // !!!
+    } else if (buf[0] & 0x01) {
         /* Multicast frame. */
-        TRACE(RXTX, logout("%p received multicast, len=%zu\n", s, size));
-        /* TODO: check multicast all bit. */
+        TRACE(RXTX, logout("%p received multicast, len=%zu,%s\n", s, size, nic_dump(buf, size)));
         if (s->configuration[21] & BIT(3)) {
-            missing("Multicast All bit");
+          /* Multicast all bit is set, receive all multicast frames. */
+        } else {
+          unsigned mcast_idx = compute_mcast_idx(buf);
+          assert(mcast_idx < 64);
+          if (s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))) {
+            /* Multicast frame is allowed in hash table. */
+          } else if (s->configuration[15] & 1) {
+              /* Promiscuous: receive all. */
+              rfd_status |= 0x0004;
+          } else {
+              TRACE(RXTX, logout("%p multicast ignored\n", s));
+              return -1;
+          }
         }
-        int mcast_idx = compute_mcast_idx(buf);
-        if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
-            return size;
-        }
+        /* TODO: Next not for promiscuous mode? */
         rfd_status |= 0x0002;
     } else if (s->configuration[15] & 1) {
         /* Promiscuous: receive all. */
