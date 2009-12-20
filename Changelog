@@ -1,3 +1,7 @@
+version 0.12.1:
+  - loader: fix rom loading at address 0 (fixes target-arm) (Aurelien Jarno)
+  - loader: fix rom_copy (fixes multiboot) (Kevin Wolf)
+	
 version 0.12.0:
 
   - Update to SeaBIOS 0.5.0
