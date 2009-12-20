@@ -479,16 +479,19 @@ static const uint8_t tcg_cond_to_bcond[10] = {
     [TCG_COND_GTU] = COND_GU,
 };
 
+static void tcg_out_cmp(TCGContext *s, TCGArg c1, TCGArg c2, int c2const)
+{
+    if (c2const)
+        tcg_out_arithi(s, TCG_REG_G0, c1, c2, ARITH_SUBCC);
+    else
+        tcg_out_arith(s, TCG_REG_G0, c1, c2, ARITH_SUBCC);
+}
+
 static void tcg_out_brcond_i32(TCGContext *s, int cond,
                                TCGArg arg1, TCGArg arg2, int const_arg2,
                                int label_index)
 {
-    if (const_arg2 && arg2 == 0)
-        /* orcc %g0, r, %g0 */
-        tcg_out_arith(s, TCG_REG_G0, TCG_REG_G0, arg1, ARITH_ORCC);
-    else
-        /* subcc r1, r2, %g0 */
-        tcg_out_arith(s, TCG_REG_G0, arg1, arg2, ARITH_SUBCC);
+    tcg_out_cmp(s, arg1, arg2, const_arg2);
     tcg_out_branch_i32(s, tcg_cond_to_bcond[cond], label_index);
     tcg_out_nop(s);
 }
@@ -498,14 +501,56 @@ static void tcg_out_brcond_i64(TCGContext *s, int cond,
                                TCGArg arg1, TCGArg arg2, int const_arg2,
                                int label_index)
 {
-    if (const_arg2 && arg2 == 0)
-        /* orcc %g0, r, %g0 */
-        tcg_out_arith(s, TCG_REG_G0, TCG_REG_G0, arg1, ARITH_ORCC);
-    else
-        /* subcc r1, r2, %g0 */
-        tcg_out_arith(s, TCG_REG_G0, arg1, arg2, ARITH_SUBCC);
+    tcg_out_cmp(s, arg1, arg2, const_arg2);
     tcg_out_branch_i64(s, tcg_cond_to_bcond[cond], label_index);
     tcg_out_nop(s);
+}
+#else
+static void tcg_out_brcond2_i32(TCGContext *s, int cond,
+                                TCGArg al, TCGArg ah,
+                                TCGArg bl, int blconst,
+                                TCGArg bh, int bhconst, int label_dest)
+{
+    int cc, label_next = gen_new_label();
+
+    tcg_out_cmp(s, ah, bh, bhconst);
+
+    /* Note that we fill one of the delay slots with the second compare.  */
+    switch (cond) {
+    case TCG_COND_EQ:
+        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_NE], 0);
+        tcg_out_branch_i32(s, cc, label_next);
+        tcg_out_cmp(s, al, bl, blconst);
+        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_EQ], 0);
+        tcg_out_branch_i32(s, cc, label_dest);
+        break;
+
+    case TCG_COND_NE:
+        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_NE], 0);
+        tcg_out_branch_i32(s, cc, label_dest);
+        tcg_out_cmp(s, al, bl, blconst);
+        tcg_out_branch_i32(s, cc, label_dest);
+        break;
+
+    default:
+        /* ??? One could fairly easily special-case 64-bit unsigned
+           compares against 32-bit zero-extended constants.  For instance,
+           we know that (unsigned)AH < 0 is false and need not emit it.
+           Similarly, (unsigned)AH > 0 being true implies AH != 0, so the
+           second branch will never be taken.  */
+        cc = INSN_COND(tcg_cond_to_bcond[cond], 0);
+        tcg_out_branch_i32(s, cc, label_dest);
+        tcg_out_nop(s);
+        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_NE], 0);
+        tcg_out_branch_i32(s, cc, label_next);
+        tcg_out_cmp(s, al, bl, blconst);
+        cc = INSN_COND(tcg_cond_to_bcond[tcg_unsigned_cond(cond)], 0);
+        tcg_out_branch_i32(s, cc, label_dest);
+        break;
+    }
+    tcg_out_nop(s);
+
+    tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
 }
 #endif
 
@@ -1077,6 +1122,13 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_brcond_i32(s, args[2], args[0], args[1], const_args[1],
                            args[3]);
         break;
+#if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_brcond2_i32:
+        tcg_out_brcond2_i32(s, args[4], args[0], args[1],
+                            args[2], const_args[2],
+                            args[3], const_args[3], args[5]);
+        break;
+#endif
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
@@ -1195,7 +1247,10 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_shr_i32, { "r", "r", "rJ" } },
     { INDEX_op_sar_i32, { "r", "r", "rJ" } },
 
-    { INDEX_op_brcond_i32, { "r", "ri" } },
+    { INDEX_op_brcond_i32, { "r", "rJ" } },
+#if TCG_TARGET_REG_BITS == 32
+    { INDEX_op_brcond2_i32, { "r", "r", "rJ", "rJ" } },
+#endif
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
@@ -1238,7 +1293,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_shr_i64, { "r", "r", "rJ" } },
     { INDEX_op_sar_i64, { "r", "r", "rJ" } },
 
-    { INDEX_op_brcond_i64, { "r", "ri" } },
+    { INDEX_op_brcond_i64, { "r", "rJ" } },
 #endif
     { -1 },
 };
