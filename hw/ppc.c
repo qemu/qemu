@@ -463,7 +463,7 @@ void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
     _cpu_ppc_store_tbu(env, value);
 }
 
-uint32_t cpu_ppc_load_atbl (CPUState *env)
+uint64_t cpu_ppc_load_atbl (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -471,7 +471,7 @@ uint32_t cpu_ppc_load_atbl (CPUState *env)
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
     LOG_TB("%s: tb %016" PRIx64 "\n", __func__, tb);
 
-    return tb & 0xFFFFFFFF;
+    return tb;
 }
 
 uint32_t cpu_ppc_load_atbu (CPUState *env)

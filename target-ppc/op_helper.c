@@ -78,7 +78,7 @@ target_ulong helper_load_tbu (void)
 
 target_ulong helper_load_atbl (void)
 {
-    return cpu_ppc_load_atbl(env);
+    return (target_ulong)cpu_ppc_load_atbl(env);
 }
 
 target_ulong helper_load_atbu (void)
