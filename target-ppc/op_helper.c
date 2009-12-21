@@ -68,7 +68,7 @@ void helper_store_dump_spr (uint32_t sprn)
 
 target_ulong helper_load_tbl (void)
 {
-    return cpu_ppc_load_tbl(env);
+    return (target_ulong)cpu_ppc_load_tbl(env);
 }
 
 target_ulong helper_load_tbu (void)

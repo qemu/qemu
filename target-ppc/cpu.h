@@ -741,7 +741,7 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
-uint32_t cpu_ppc_load_tbl (CPUPPCState *env);
+uint64_t cpu_ppc_load_tbl (CPUPPCState *env);
 uint32_t cpu_ppc_load_tbu (CPUPPCState *env);
 void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
