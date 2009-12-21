@@ -1,5 +1,6 @@
 -include ../config-host.mak
-VPATH=$(SRC_PATH)/tests
+
+$(call set-vpath, $(SRC_PATH)/tests)
 
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing
 #CFLAGS+=-msse2

@@ -24,7 +24,7 @@ configure: ;
 .PHONY: all clean cscope distclean dvi html info install install-doc \
 	recurse-all speed tar tarbin test build-all
 
-VPATH=$(SRC_PATH):$(SRC_PATH)/hw
+$(call set-vpath, $(SRC_PATH):$(SRC_PATH)/hw)
 
 LIBS+=-lz $(LIBS_TOOLS)
 

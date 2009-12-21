@@ -5,7 +5,8 @@ all: build-all
 include ../../config-host.mak
 include $(SRC_PATH)/rules.mak
 
-VPATH=$(SRC_PATH)/pc-bios/optionrom
+$(call set-vpath, $(SRC_PATH)/pc-bios/optionrom)
+
 .PHONY : all clean build-all
 
 CFLAGS := -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin

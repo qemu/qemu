@@ -11,7 +11,7 @@ include $(HWDIR)/config.mak
 endif
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
-VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
+$(call set-vpath, $(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw)
 QEMU_CFLAGS+= -I.. -I$(TARGET_PATH) -DNEED_CPU_H
 
 include $(SRC_PATH)/Makefile.objs
@@ -91,7 +91,8 @@ signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 ifdef CONFIG_LINUX_USER
 
-VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
+$(call set-vpath, $(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR))
+
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o
@@ -122,7 +123,8 @@ endif #CONFIG_LINUX_USER
 
 ifdef CONFIG_DARWIN_USER
 
-VPATH+=:$(SRC_PATH)/darwin-user
+$(call set-vpath, $(SRC_PATH)/darwin-user)
+
 QEMU_CFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
 
 # Leave some space for the regular program loading zone
@@ -147,7 +149,8 @@ endif #CONFIG_DARWIN_USER
 
 ifdef CONFIG_BSD_USER
 
-VPATH+=:$(SRC_PATH)/bsd-user
+$(call set-vpath, $(SRC_PATH)/bsd-user)
+
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
