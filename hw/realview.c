@@ -192,11 +192,19 @@ static void realview_init(ram_addr_t ram_size,
         proc_id = 0x02000000;
     }
 
+    if (is_pb && ram_size > 0x20000000) {
+        /* Core tile RAM.  */
+        low_ram_size = ram_size - 0x20000000;
+        ram_size = 0x20000000;
+        ram_offset = qemu_ram_alloc(low_ram_size);
+        cpu_register_physical_memory(0x20000000, low_ram_size,
+                                     ram_offset | IO_MEM_RAM);
+    }
+
     ram_offset = qemu_ram_alloc(ram_size);
     low_ram_size = ram_size;
     if (low_ram_size > 0x10000000)
       low_ram_size = 0x10000000;
-    /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
     cpu_register_physical_memory(0, low_ram_size, ram_offset | IO_MEM_RAM);
     if (is_pb) {
@@ -356,7 +364,7 @@ static void realview_init(ram_addr_t ram_size,
     realview_binfo.initrd_filename = initrd_filename;
     realview_binfo.nb_cpus = smp_cpus;
     realview_binfo.board_id = realview_board_id[board_type];
-    realview_binfo.loader_start = is_pb ? 0x70000000 : 0;
+    realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
     arm_load_kernel(first_cpu, &realview_binfo);
 }
 

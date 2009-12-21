@@ -741,11 +741,11 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
-uint32_t cpu_ppc_load_tbl (CPUPPCState *env);
+uint64_t cpu_ppc_load_tbl (CPUPPCState *env);
 uint32_t cpu_ppc_load_tbu (CPUPPCState *env);
 void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
-uint32_t cpu_ppc_load_atbl (CPUPPCState *env);
+uint64_t cpu_ppc_load_atbl (CPUPPCState *env);
 uint32_t cpu_ppc_load_atbu (CPUPPCState *env);
 void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
@@ -795,8 +795,8 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 }
 
 /* Device control registers */
-int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
-int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp);
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 
 #define cpu_init cpu_ppc_init
 #define cpu_exec cpu_ppc_exec

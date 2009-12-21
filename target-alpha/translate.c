@@ -2627,6 +2627,11 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_io_start();
         insn = ldl_code(ctx.pc);
         num_insns++;
+
+	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+            tcg_gen_debug_insn_start(ctx.pc);
+        }
+
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
         if (ret != 0)

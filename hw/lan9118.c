@@ -40,8 +40,8 @@ do { fprintf(stderr, "lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 #define CSR_TX_FIFO_INF 0x80
 #define CSR_PMT_CTRL    0x84
 #define CSR_GPIO_CFG    0x88
-#define CSR_GPT_CFG     0x8c /* TODO */
-#define CSR_GPT_CNT     0x90 /* TODO */
+#define CSR_GPT_CFG     0x8c
+#define CSR_GPT_CNT     0x90
 #define CSR_WORD_SWAP   0x98
 #define CSR_FREE_RUN    0x9c
 #define CSR_RX_DROP     0xa0
@@ -52,6 +52,7 @@ do { fprintf(stderr, "lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 #define CSR_E2P_DATA    0xb4
 
 /* IRQ_CFG */
+#define IRQ_INT         0x00001000
 #define IRQ_EN          0x00000100
 #define IRQ_POL         0x00000010
 #define IRQ_TYPE        0x00000001
@@ -117,6 +118,16 @@ do { fprintf(stderr, "lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 #define MAC_CR_RXEN     0x00000004
 #define MAC_CR_RESERVED 0x7f404213
 
+#define PHY_INT_ENERGYON            0x80
+#define PHY_INT_AUTONEG_COMPLETE    0x40
+#define PHY_INT_FAULT               0x20
+#define PHY_INT_DOWN                0x10
+#define PHY_INT_AUTONEG_LP          0x08
+#define PHY_INT_PARFAULT            0x04
+#define PHY_INT_AUTONEG_PAGE        0x02
+
+#define GPT_TIMER_EN    0x20000000
+
 enum tx_state {
     TX_IDLE,
     TX_B,
@@ -141,6 +152,7 @@ typedef struct {
     NICConf conf;
     qemu_irq irq;
     int mmio_index;
+    ptimer_state *timer;
 
     uint32_t irq_cfg;
     uint32_t int_sts;
@@ -151,6 +163,7 @@ typedef struct {
     uint32_t hw_cfg;
     uint32_t pmt_ctrl;
     uint32_t gpio_cfg;
+    uint32_t gpt_cfg;
     uint32_t word_swap;
     uint32_t free_timer_start;
     uint32_t mac_cmd;
@@ -169,6 +182,8 @@ typedef struct {
     uint32_t phy_status;
     uint32_t phy_control;
     uint32_t phy_advertise;
+    uint32_t phy_int;
+    uint32_t phy_int_mask;
 
     int eeprom_writable;
     uint8_t eeprom[8];
@@ -204,6 +219,11 @@ static void lan9118_update(lan9118_state *s)
 
     /* TODO: Implement FIFO level IRQs.  */
     level = (s->int_sts & s->int_en) != 0;
+    if (level) {
+        s->irq_cfg |= IRQ_INT;
+    } else {
+        s->irq_cfg &= ~IRQ_INT;
+    }
     if ((s->irq_cfg & IRQ_EN) == 0) {
         level = 0;
     }
@@ -231,14 +251,28 @@ static void lan9118_reload_eeprom(lan9118_state *s)
     lan9118_mac_changed(s);
 }
 
+static void phy_update_irq(lan9118_state *s)
+{
+    if (s->phy_int & s->phy_int_mask) {
+        s->int_sts |= PHY_INT;
+    } else {
+        s->int_sts &= ~PHY_INT;
+    }
+    lan9118_update(s);
+}
+
 static void phy_update_link(lan9118_state *s)
 {
     /* Autonegotiation status mirrors link status.  */
     if (s->nic->nc.link_down) {
         s->phy_status &= ~0x0024;
+        s->phy_int |= PHY_INT_DOWN;
     } else {
         s->phy_status |= 0x0024;
+        s->phy_int |= PHY_INT_ENERGYON;
+        s->phy_int |= PHY_INT_AUTONEG_COMPLETE;
     }
+    phy_update_irq(s);
 }
 
 static void lan9118_set_link(VLANClientState *nc)
@@ -248,9 +282,11 @@ static void lan9118_set_link(VLANClientState *nc)
 
 static void phy_reset(lan9118_state *s)
 {
-    s->phy_status = 0x7805;
+    s->phy_status = 0x7809;
     s->phy_control = 0x3000;
     s->phy_advertise = 0x01e1;
+    s->phy_int_mask = 0;
+    s->phy_int = 0;
     phy_update_link(s);
 }
 
@@ -291,6 +327,10 @@ static void lan9118_reset(DeviceState *d)
     s->e2p_cmd = 0;
     s->e2p_data = 0;
     s->free_timer_start = qemu_get_clock(vm_clock) / 40;
+
+    ptimer_stop(s->timer);
+    ptimer_set_count(s->timer, 0xffff);
+    s->gpt_cfg = 0xffff;
 
     s->mac_cr = MAC_CR_PRMS;
     s->mac_hashh = 0;
@@ -640,6 +680,8 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
 
 static uint32_t do_phy_read(lan9118_state *s, int reg)
 {
+    uint32_t val;
+
     switch (reg) {
     case 0: /* Basic Control */
         return s->phy_control;
@@ -656,6 +698,13 @@ static uint32_t do_phy_read(lan9118_state *s, int reg)
     case 6: /* Auto-neg Expansion */
         return 1;
         /* TODO 17, 18, 27, 29, 30, 31 */
+    case 29: /* Interrupt source.  */
+        val = s->phy_int;
+        s->phy_int = 0;
+        phy_update_irq(s);
+        return val;
+    case 30: /* Interrupt mask */
+        return s->phy_int_mask;
     default:
         BADF("PHY read reg %d\n", reg);
         return 0;
@@ -679,7 +728,11 @@ static void do_phy_write(lan9118_state *s, int reg, uint32_t val)
     case 4: /* Auto-neg advertisment */
         s->phy_advertise = (val & 0x2d7f) | 0x80;
         break;
-        /* TODO 17, 18, 27, 29, 30, 31 */
+        /* TODO 17, 18, 27, 31 */
+    case 30: /* Interrupt mask */
+        s->phy_int_mask = val & 0xff;
+        phy_update_irq(s);
+        break;
     default:
         BADF("PHY write reg %d = 0x%04x\n", reg, val);
     }
@@ -820,6 +873,15 @@ static void lan9118_eeprom_cmd(lan9118_state *s, int cmd, int addr)
     }
 }
 
+static void lan9118_tick(void *opaque)
+{
+    lan9118_state *s = (lan9118_state *)opaque;
+    if (s->int_en & GPT_INT) {
+        s->int_sts |= GPT_INT;
+    }
+    lan9118_update(s);
+}
+
 static void lan9118_writel(void *opaque, target_phys_addr_t offset,
                            uint32_t val)
 {
@@ -835,7 +897,7 @@ static void lan9118_writel(void *opaque, target_phys_addr_t offset,
     switch (offset) {
     case CSR_IRQ_CFG:
         /* TODO: Implement interrupt deassertion intervals.  */
-        s->irq_cfg = (val & IRQ_EN);
+        s->irq_cfg = (s->irq_cfg & IRQ_INT) | (val & IRQ_EN);
         break;
     case CSR_INT_STS:
         s->int_sts &= ~val;
@@ -904,6 +966,18 @@ static void lan9118_writel(void *opaque, target_phys_addr_t offset,
     case CSR_GPIO_CFG:
         /* Probably just enabling LEDs.  */
         s->gpio_cfg = val & 0x7777071f;
+        break;
+    case CSR_GPT_CFG:
+        if ((s->gpt_cfg ^ val) & GPT_TIMER_EN) {
+            if (val & GPT_TIMER_EN) {
+                ptimer_set_count(s->timer, val & 0xffff);
+                ptimer_run(s->timer, 0);
+            } else {
+                ptimer_stop(s->timer);
+                ptimer_set_count(s->timer, 0xffff);
+            }
+        }
+        s->gpt_cfg = val & (GPT_TIMER_EN | 0xffff);
         break;
     case CSR_WORD_SWAP:
         /* Ignored because we're in 32-bit mode.  */
@@ -988,6 +1062,10 @@ static uint32_t lan9118_readl(void *opaque, target_phys_addr_t offset)
         return s->pmt_ctrl;
     case CSR_GPIO_CFG:
         return s->gpio_cfg;
+    case CSR_GPT_CFG:
+        return s->gpt_cfg;
+    case CSR_GPT_CNT:
+        return ptimer_get_count(s->timer);
     case CSR_WORD_SWAP:
         return s->word_swap;
     case CSR_FREE_RUN:
@@ -1041,6 +1119,7 @@ static NetClientInfo net_lan9118_info = {
 static int lan9118_init1(SysBusDevice *dev)
 {
     lan9118_state *s = FROM_SYSBUS(lan9118_state, dev);
+    QEMUBH *bh;
     int i;
 
     s->mmio_index = cpu_register_io_memory(lan9118_readfn,
@@ -1058,6 +1137,11 @@ static int lan9118_init1(SysBusDevice *dev)
     }
     s->pmt_ctrl = 1;
     s->txp = &s->tx_packet;
+
+    bh = qemu_bh_new(lan9118_tick, s);
+    s->timer = ptimer_init(bh);
+    ptimer_set_freq(s->timer, 10000);
+    ptimer_set_limit(s->timer, 0xffff, 1);
 
     /* ??? Save/restore.  */
     return 0;

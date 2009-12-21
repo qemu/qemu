@@ -409,7 +409,9 @@ static QEMUMachine heathrow_machine = {
     .desc = "Heathrow based PowerMAC",
     .init = ppc_heathrow_init,
     .max_cpus = MAX_CPUS,
+#ifndef TARGET_PPC64
     .is_default = 1,
+#endif
 };
 
 static void heathrow_machine_init(void)
