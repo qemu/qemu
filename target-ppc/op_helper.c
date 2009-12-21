@@ -1828,30 +1828,30 @@ target_ulong helper_602_mfrom (target_ulong arg)
 /* Embedded PowerPC specific helpers */
 
 /* XXX: to be improved to check access rights when in user-mode */
-target_ulong helper_load_dcr (target_ulong dcrn)
+uint32_t helper_load_dcr (uint32_t dcrn)
 {
-    target_ulong val = 0;
+    uint32_t val = 0;
 
     if (unlikely(env->dcr_env == NULL)) {
         qemu_log("No DCR environment\n");
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, dcrn, &val) != 0)) {
-        qemu_log("DCR read error %d %03x\n", (int)dcrn, (int)dcrn);
+        qemu_log("DCR read error %d %03x\n", dcrn, dcrn);
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
     return val;
 }
 
-void helper_store_dcr (target_ulong dcrn, target_ulong val)
+void helper_store_dcr (uint32_t dcrn, uint32_t val)
 {
     if (unlikely(env->dcr_env == NULL)) {
         qemu_log("No DCR environment\n");
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, dcrn, val) != 0)) {
-        qemu_log("DCR write error %d %03x\n", (int)dcrn, (int)dcrn);
+        qemu_log("DCR write error %d %03x\n", dcrn, dcrn);
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }

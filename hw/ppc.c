@@ -1009,7 +1009,7 @@ struct ppc_dcr_t {
     int (*write_error)(int dcrn);
 };
 
-int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp)
 {
     ppc_dcrn_t *dcr;
 
@@ -1029,7 +1029,7 @@ int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
     return -1;
 }
 
-int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val)
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
 {
     ppc_dcrn_t *dcr;
 

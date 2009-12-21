@@ -13,8 +13,8 @@ static inline void clk_setup (clk_setup_t *clk, uint32_t freq)
 
 clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq);
 /* Embedded PowerPC DCR management */
-typedef target_ulong (*dcr_read_cb)(void *opaque, int dcrn);
-typedef void (*dcr_write_cb)(void *opaque, int dcrn, target_ulong val);
+typedef uint32_t (*dcr_read_cb)(void *opaque, int dcrn);
+typedef void (*dcr_write_cb)(void *opaque, int dcrn, uint32_t val);
 int ppc_dcr_init (CPUState *env, int (*dcr_read_error)(int dcrn),
                   int (*dcr_write_error)(int dcrn));
 int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
