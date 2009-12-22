@@ -283,7 +283,6 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
     if (!monitor_has_error(mon)) {
         /* success response */
         if (data) {
-            assert(qobject_type(data) == QTYPE_QDICT);
             qobject_incref(data);
             qdict_put_obj(qmp, "return", data);
         } else {
