@@ -353,7 +353,8 @@ int main(int argc, char **argv)
         }
 
         if (socket == NULL) {
-            sprintf(sockpath, SOCKET_PATH, basename(device));
+            snprintf(sockpath, sizeof(sockpath), SOCKET_PATH,
+                     basename(device));
             socket = sockpath;
         }
 
