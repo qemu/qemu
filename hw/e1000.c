@@ -1,6 +1,9 @@
 /*
  * QEMU e1000 emulation
  *
+ * Software developer's manual:
+ * http://download.intel.com/design/network/manuals/8254x_GBe_SDM.pdf
+ *
  * Nir Peleg, Tutis Systems Ltd. for Qumranet Inc.
  * Copyright (c) 2008 Qumranet
  * Based on work done by:
