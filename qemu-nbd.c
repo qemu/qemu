@@ -30,6 +30,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <libgen.h>
 
 #define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
