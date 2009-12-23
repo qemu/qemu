@@ -492,7 +492,8 @@ readv_f(int argc, char **argv)
 	int c, cnt;
 	char *buf;
 	int64_t offset;
-	int total;
+        /* Some compilers get confused and warn if this is not initialized.  */
+        int total = 0;
 	int nr_iov;
 	QEMUIOVector qiov;
 	int pattern = 0;
@@ -747,7 +748,8 @@ writev_f(int argc, char **argv)
 	int c, cnt;
 	char *buf;
 	int64_t offset;
-	int total;
+        /* Some compilers get confused and warn if this is not initialized.  */
+        int total = 0;
 	int nr_iov;
 	int pattern = 0xcd;
 	QEMUIOVector qiov;
