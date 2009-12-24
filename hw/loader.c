@@ -695,6 +695,9 @@ static Rom *find_rom(target_phys_addr_t addr)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
         if (rom->addr > addr)
             continue;
         if (rom->addr + rom->romsize < addr)
@@ -717,6 +720,9 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
         if (rom->addr + rom->romsize < addr)
             continue;
         if (rom->addr > end)
