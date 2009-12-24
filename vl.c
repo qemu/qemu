@@ -2691,17 +2691,28 @@ static int usb_device_del(const char *devname)
 
 static int usb_parse(const char *cmdline)
 {
-    return usb_device_add(cmdline, 0);
+    int r;
+    r = usb_device_add(cmdline, 0);
+    if (r < 0) {
+        fprintf(stderr, "qemu: could not add USB device '%s'\n", cmdline);
+    }
+    return r;
 }
 
 void do_usb_add(Monitor *mon, const QDict *qdict)
 {
-    usb_device_add(qdict_get_str(qdict, "devname"), 1);
+    const char *devname = qdict_get_str(qdict, "devname");
+    if (usb_device_add(devname, 1) < 0) {
+        qemu_error("could not add USB device '%s'\n", devname);
+    }
 }
 
 void do_usb_del(Monitor *mon, const QDict *qdict)
 {
-    usb_device_del(qdict_get_str(qdict, "devname"));
+    const char *devname = qdict_get_str(qdict, "devname");
+    if (usb_device_del(devname) < 0) {
+        qemu_error("could not delete USB device '%s'\n", devname);
+    }
 }
 
 /***********************************************************/

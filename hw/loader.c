@@ -636,6 +636,9 @@ static void rom_reset(void *unused)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
         if (rom->data == NULL)
             continue;
         cpu_physical_memory_write_rom(rom->addr, rom->data, rom->romsize);
@@ -654,6 +657,9 @@ int rom_load_all(void)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
         if (addr > rom->addr) {
             fprintf(stderr, "rom: requested regions overlap "
                     "(rom %s. free=0x" TARGET_FMT_plx
@@ -689,6 +695,9 @@ static Rom *find_rom(target_phys_addr_t addr)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
         if (rom->addr > addr)
             continue;
         if (rom->addr + rom->romsize < addr)
@@ -711,6 +720,9 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
         if (rom->addr + rom->romsize < addr)
             continue;
         if (rom->addr > end)
@@ -752,7 +764,7 @@ void do_info_roms(Monitor *mon)
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
-        if (rom->addr) {
+        if (!rom->fw_file) {
             monitor_printf(mon, "addr=" TARGET_FMT_plx
                            " size=0x%06zx mem=%s name=\"%s\" \n",
                            rom->addr, rom->romsize,

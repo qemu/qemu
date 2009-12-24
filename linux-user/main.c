@@ -548,6 +548,8 @@ static int do_strex(CPUARMState *env)
     case 3:
         segv = get_user_u32(val, addr);
         break;
+    default:
+        abort();
     }
     if (segv) {
         env->cp15.c6_data = addr;

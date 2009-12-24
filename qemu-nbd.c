@@ -30,6 +30,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <libgen.h>
 
 #define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
@@ -352,7 +353,8 @@ int main(int argc, char **argv)
         }
 
         if (socket == NULL) {
-            sprintf(sockpath, SOCKET_PATH, basename(device));
+            snprintf(sockpath, sizeof(sockpath), SOCKET_PATH,
+                     basename(device));
             socket = sockpath;
         }
 

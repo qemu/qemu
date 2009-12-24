@@ -6623,7 +6623,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                 gen_store_exclusive(s, rd, rm, 15, addr, 2);
                                 break;
                             case 1: /*  strexd */
-                                gen_store_exclusive(s, rd, rm, rm + 1, addr, 2);
+                                gen_store_exclusive(s, rd, rm, rm + 1, addr, 3);
                                 break;
                             case 2: /*  strexb */
                                 gen_store_exclusive(s, rd, rm, 15, addr, 0);

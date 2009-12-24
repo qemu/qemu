@@ -2203,7 +2203,7 @@ bsd)
 esac
 
 tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF)"
-if [ "$linux" = "yes" ] ; then
+if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
   tools="qemu-nbd\$(EXESUF) $tools"
   if [ "$check_utests" = "yes" ]; then
     tools="check-qint check-qstring check-qdict check-qlist $tools"
