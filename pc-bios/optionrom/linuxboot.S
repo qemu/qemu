@@ -86,9 +86,10 @@ copy_kernel:
 	/* Now create the GDT descriptor */
 	movw		$((3 * 8) - 1), -16(%bp)
 	mov		%cs, %eax
+	movzwl		%ax, %eax
 	shl		$4, %eax
-	addl		$gdt, %ebx
-	movl		%ebx, -14(%bp)
+	addl		$gdt, %eax
+	movl		%eax, -14(%bp)
 
 	/* And load the GDT */
 	data32 lgdt	-16(%bp)
