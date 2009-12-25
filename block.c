@@ -396,8 +396,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         if (is_protocol)
             snprintf(backing_filename, sizeof(backing_filename),
                      "%s", filename);
-        else
-            realpath(filename, backing_filename);
+        else if (!realpath(filename, backing_filename))
+            return -errno;
 
         bdrv_qcow2 = bdrv_find_format("qcow2");
         options = parse_option_parameters("", bdrv_qcow2->create_options, NULL);
