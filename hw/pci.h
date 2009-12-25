@@ -10,8 +10,6 @@
 
 /* PCI bus */
 
-extern target_phys_addr_t pci_mem_base;
-
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
@@ -285,6 +283,8 @@ void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq);
+
+void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base);
 
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
