@@ -613,7 +613,10 @@ static int load_multiboot(void *fw_cfg,
 
         mb_kernel_data = qemu_malloc(mb_kernel_size);
         fseek(f, mb_kernel_text_offset, SEEK_SET);
-        fread(mb_kernel_data, 1, mb_kernel_size, f);
+        if (fread(mb_kernel_data, 1, mb_kernel_size, f) != mb_kernel_size) {
+            fprintf(stderr, "fread() failed\n");
+            exit(1);
+        }
         fclose(f);
     }
 
@@ -887,8 +890,14 @@ static void load_linux(void *fw_cfg,
     setup  = qemu_malloc(setup_size);
     kernel = qemu_malloc(kernel_size);
     fseek(f, 0, SEEK_SET);
-    fread(setup, 1, setup_size, f);
-    fread(kernel, 1, kernel_size, f);
+    if (fread(setup, 1, setup_size, f) != setup_size) {
+        fprintf(stderr, "fread() failed\n");
+        exit(1);
+    }
+    if (fread(kernel, 1, kernel_size, f) != kernel_size) {
+        fprintf(stderr, "fread() failed\n");
+        exit(1);
+    }
     fclose(f);
     memcpy(setup, header, MIN(sizeof(header), setup_size));
 
