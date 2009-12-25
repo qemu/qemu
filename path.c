@@ -46,7 +46,10 @@ static struct pathelem *new_entry(const char *root,
 {
     struct pathelem *new = malloc(sizeof(*new));
     new->name = strdup(name);
-    asprintf(&new->pathname, "%s/%s", root, name);
+    if (asprintf(&new->pathname, "%s/%s", root, name) == -1) {
+        printf("Cannot allocate memory\n");
+        exit(1);
+    }
     new->num_entries = 0;
     return new;
 }
