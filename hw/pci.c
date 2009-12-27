@@ -949,7 +949,12 @@ static void pci_update_mappings(PCIDevice *d)
              * Teach them such cases, such that filtered_size < size and
              * addr & (size - 1) != 0.
              */
-            r->map_func(d, i, r->addr, r->filtered_size, r->type);
+            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+                r->map_func(d, i, r->addr, r->filtered_size, r->type);
+            } else {
+                r->map_func(d, i, pci_to_cpu_addr(d->bus, r->addr),
+                            r->filtered_size, r->type);
+            }
         }
     }
 }
