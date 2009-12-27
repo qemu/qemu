@@ -652,6 +652,9 @@ static void sun4uv_init(ram_addr_t RAM_size,
     if (kernel_cmdline) {
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, CMDLINE_ADDR);
         pstrcpy_targphys("cmdline", CMDLINE_ADDR, TARGET_PAGE_SIZE, kernel_cmdline);
+        fw_cfg_add_bytes(fw_cfg, FW_CFG_CMDLINE_DATA,
+                         (uint8_t*)strdup(kernel_cmdline),
+                         strlen(kernel_cmdline) + 1);
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, 0);
     }
