@@ -19,7 +19,7 @@ typedef struct QEMUMachine {
     QEMUMachineInitFunc *init;
     int use_scsi;
     int max_cpus;
-    int no_serial:1,
+    unsigned int no_serial:1,
         no_parallel:1,
         use_virtcon:1,
         no_vga:1,

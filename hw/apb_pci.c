@@ -225,6 +225,8 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_apb_set_irq, pci_pbm_map_irq, pic,
                                          0, 32);
+    pci_bus_set_mem_base(d->host_state.bus, mem_base);
+
     pci_create_simple(d->host_state.bus, 0, "pbm");
     /* APB secondary busses */
     *bus2 = pci_bridge_init(d->host_state.bus, PCI_DEVFN(1, 0),

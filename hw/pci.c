@@ -45,6 +45,7 @@ struct PCIBus {
     void *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
+    target_phys_addr_t mem_base;
 
     QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
     QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */
@@ -72,7 +73,6 @@ static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
 static int pci_add_option_rom(PCIDevice *pdev);
 
-target_phys_addr_t pci_mem_base;
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
@@ -236,6 +236,11 @@ void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug)
 {
     bus->qbus.allow_hotplug = 1;
     bus->hotplug = hotplug;
+}
+
+void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base)
+{
+    bus->mem_base = base;
 }
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
@@ -634,9 +639,11 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     }
     return pci_dev;
 }
-static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
+
+static target_phys_addr_t pci_to_cpu_addr(PCIBus *bus,
+                                          target_phys_addr_t addr)
 {
-    return addr + pci_mem_base;
+    return addr + bus->mem_base;
 }
 
 static void pci_unregister_io_regions(PCIDevice *pci_dev)
@@ -651,9 +658,10 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
         if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
             isa_unassign_ioport(r->addr, r->filtered_size);
         } else {
-            cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
-                                                     r->filtered_size,
-                                                     IO_MEM_UNASSIGNED);
+            cpu_register_physical_memory(pci_to_cpu_addr(pci_dev->bus,
+                                                         r->addr),
+                                         r->filtered_size,
+                                         IO_MEM_UNASSIGNED);
         }
     }
 }
@@ -925,7 +933,7 @@ static void pci_update_mappings(PCIDevice *d)
                     isa_unassign_ioport(r->addr, r->filtered_size);
                 }
             } else {
-                cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
+                cpu_register_physical_memory(pci_to_cpu_addr(d->bus, r->addr),
                                              r->filtered_size,
                                              IO_MEM_UNASSIGNED);
                 qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
@@ -941,7 +949,12 @@ static void pci_update_mappings(PCIDevice *d)
              * Teach them such cases, such that filtered_size < size and
              * addr & (size - 1) != 0.
              */
-            r->map_func(d, i, r->addr, r->filtered_size, r->type);
+            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+                r->map_func(d, i, r->addr, r->filtered_size, r->type);
+            } else {
+                r->map_func(d, i, pci_to_cpu_addr(d->bus, r->addr),
+                            r->filtered_size, r->type);
+            }
         }
     }
 }

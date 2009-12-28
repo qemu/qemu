@@ -205,6 +205,11 @@ typedef enum {
     TCG_COND_GTU,
 } TCGCond;
 
+static inline TCGCond tcg_unsigned_cond(TCGCond c)
+{
+    return (c >= TCG_COND_LT && c <= TCG_COND_GT ? c + 4 : c);
+}
+
 #define TEMP_VAL_DEAD  0
 #define TEMP_VAL_REG   1
 #define TEMP_VAL_MEM   2
