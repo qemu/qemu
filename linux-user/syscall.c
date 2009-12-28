@@ -4775,20 +4775,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_sigaction
     case TARGET_NR_sigaction:
         {
-#if !defined(TARGET_MIPS)
+#if defined(TARGET_ALPHA)
+            struct target_sigaction act, oact, *pact = 0;
             struct target_old_sigaction *old_act;
-            struct target_sigaction act, oact, *pact;
             if (arg2) {
                 if (!lock_user_struct(VERIFY_READ, old_act, arg2, 1))
                     goto efault;
                 act._sa_handler = old_act->_sa_handler;
                 target_siginitset(&act.sa_mask, old_act->sa_mask);
                 act.sa_flags = old_act->sa_flags;
-                act.sa_restorer = old_act->sa_restorer;
+                act.sa_restorer = 0;
                 unlock_user_struct(old_act, arg2, 0);
                 pact = &act;
-            } else {
-                pact = NULL;
             }
             ret = get_errno(do_sigaction(arg1, pact, &oact));
             if (!is_error(ret) && arg3) {
@@ -4797,10 +4795,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 old_act->_sa_handler = oact._sa_handler;
                 old_act->sa_mask = oact.sa_mask.sig[0];
                 old_act->sa_flags = oact.sa_flags;
-                old_act->sa_restorer = oact.sa_restorer;
                 unlock_user_struct(old_act, arg3, 1);
             }
-#else
+#elif defined(TARGET_MIPS)
 	    struct target_sigaction act, oact, *pact, *old_act;
 
 	    if (arg2) {
@@ -4828,12 +4825,61 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 		old_act->sa_mask.sig[3] = 0;
 		unlock_user_struct(old_act, arg3, 1);
 	    }
+#else
+            struct target_old_sigaction *old_act;
+            struct target_sigaction act, oact, *pact;
+            if (arg2) {
+                if (!lock_user_struct(VERIFY_READ, old_act, arg2, 1))
+                    goto efault;
+                act._sa_handler = old_act->_sa_handler;
+                target_siginitset(&act.sa_mask, old_act->sa_mask);
+                act.sa_flags = old_act->sa_flags;
+                act.sa_restorer = old_act->sa_restorer;
+                unlock_user_struct(old_act, arg2, 0);
+                pact = &act;
+            } else {
+                pact = NULL;
+            }
+            ret = get_errno(do_sigaction(arg1, pact, &oact));
+            if (!is_error(ret) && arg3) {
+                if (!lock_user_struct(VERIFY_WRITE, old_act, arg3, 0))
+                    goto efault;
+                old_act->_sa_handler = oact._sa_handler;
+                old_act->sa_mask = oact.sa_mask.sig[0];
+                old_act->sa_flags = oact.sa_flags;
+                old_act->sa_restorer = oact.sa_restorer;
+                unlock_user_struct(old_act, arg3, 1);
+            }
 #endif
         }
         break;
 #endif
     case TARGET_NR_rt_sigaction:
         {
+#if defined(TARGET_ALPHA)
+            struct target_sigaction act, oact, *pact = 0;
+            struct target_rt_sigaction *rt_act;
+            /* ??? arg4 == sizeof(sigset_t).  */
+            if (arg2) {
+                if (!lock_user_struct(VERIFY_READ, rt_act, arg2, 1))
+                    goto efault;
+                act._sa_handler = rt_act->_sa_handler;
+                act.sa_mask = rt_act->sa_mask;
+                act.sa_flags = rt_act->sa_flags;
+                act.sa_restorer = arg5;
+                unlock_user_struct(rt_act, arg2, 0);
+                pact = &act;
+            }
+            ret = get_errno(do_sigaction(arg1, pact, &oact));
+            if (!is_error(ret) && arg3) {
+                if (!lock_user_struct(VERIFY_WRITE, rt_act, arg3, 0))
+                    goto efault;
+                rt_act->_sa_handler = oact._sa_handler;
+                rt_act->sa_mask = oact.sa_mask;
+                rt_act->sa_flags = oact.sa_flags;
+                unlock_user_struct(rt_act, arg3, 1);
+            }
+#else
             struct target_sigaction *act;
             struct target_sigaction *oact;
 
@@ -4855,6 +4901,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 unlock_user_struct(act, arg2, 0);
             if (oact)
                 unlock_user_struct(oact, arg3, 1);
+#endif
         }
         break;
 #ifdef TARGET_NR_sgetmask /* not on alpha */

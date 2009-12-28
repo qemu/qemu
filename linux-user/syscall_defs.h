@@ -472,8 +472,28 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
 #endif
 
-#if defined(TARGET_MIPS)
+#if defined(TARGET_ALPHA)
+struct target_old_sigaction {
+    abi_ulong _sa_handler;
+    abi_ulong sa_mask;
+    abi_ulong sa_flags;
+};
 
+struct target_rt_sigaction {
+    abi_ulong _sa_handler;
+    abi_ulong sa_flags;
+    target_sigset_t sa_mask;
+};
+
+/* This is the struct used inside the kernel.  The ka_restorer
+   field comes from the 5th argument to sys_rt_sigaction.  */
+struct target_sigaction {
+    abi_ulong _sa_handler;
+    abi_ulong sa_flags;
+    target_sigset_t sa_mask;
+    abi_ulong sa_restorer;
+};
+#elif defined(TARGET_MIPS)
 struct target_sigaction {
 	uint32_t	sa_flags;
 #if defined(TARGET_ABI_MIPSN32)
@@ -483,7 +503,6 @@ struct target_sigaction {
 #endif
 	target_sigset_t	sa_mask;
 };
-
 #else
 struct target_old_sigaction {
         abi_ulong _sa_handler;

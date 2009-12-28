@@ -2351,6 +2351,7 @@ void cpu_loop (CPUState *env)
 {
     int trapnr;
     target_siginfo_t info;
+    abi_long sysret;
 
     while (1) {
         trapnr = cpu_alpha_exec (env);
@@ -2365,16 +2366,22 @@ void cpu_loop (CPUState *env)
             exit(1);
             break;
         case EXCP_ARITH:
-            fprintf(stderr, "Arithmetic trap.\n");
-            exit(1);
+            info.si_signo = TARGET_SIGFPE;
+            info.si_errno = 0;
+            info.si_code = TARGET_FPE_FLTINV;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_HW_INTERRUPT:
             fprintf(stderr, "External interrupt. Exit\n");
             exit(1);
             break;
         case EXCP_DFAULT:
-            fprintf(stderr, "MMU data fault\n");
-            exit(1);
+            info.si_signo = TARGET_SIGSEGV;
+            info.si_errno = 0;
+            info.si_code = 0;  /* ??? SEGV_MAPERR vs SEGV_ACCERR.  */
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_DTB_MISS_PAL:
             fprintf(stderr, "MMU data TLB miss in PALcode\n");
@@ -2393,36 +2400,116 @@ void cpu_loop (CPUState *env)
             exit(1);
             break;
         case EXCP_UNALIGN:
-            fprintf(stderr, "Unaligned access\n");
-            exit(1);
+            info.si_signo = TARGET_SIGBUS;
+            info.si_errno = 0;
+            info.si_code = TARGET_BUS_ADRALN;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_OPCDEC:
-            fprintf(stderr, "Invalid instruction\n");
-            exit(1);
+        do_sigill:
+            info.si_signo = TARGET_SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPC;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_FEN:
-            fprintf(stderr, "Floating-point not allowed\n");
-            exit(1);
+            /* No-op.  Linux simply re-enables the FPU.  */
             break;
         case EXCP_CALL_PAL ... (EXCP_CALL_PALP - 1):
-            call_pal(env, (trapnr >> 6) | 0x80);
+            switch ((trapnr >> 6) | 0x80) {
+            case 0x80:
+                /* BPT */
+                info.si_signo = TARGET_SIGTRAP;
+                info.si_errno = 0;
+                info.si_code = TARGET_TRAP_BRKPT;
+                info._sifields._sigfault._addr = env->pc;
+                queue_signal(env, info.si_signo, &info);
+                break;
+            case 0x81:
+                /* BUGCHK */
+                info.si_signo = TARGET_SIGTRAP;
+                info.si_errno = 0;
+                info.si_code = 0;
+                info._sifields._sigfault._addr = env->pc;
+                queue_signal(env, info.si_signo, &info);
+                break;
+            case 0x83:
+                /* CALLSYS */
+                trapnr = env->ir[IR_V0];
+                sysret = do_syscall(env, trapnr,
+                                    env->ir[IR_A0], env->ir[IR_A1],
+                                    env->ir[IR_A2], env->ir[IR_A3],
+                                    env->ir[IR_A4], env->ir[IR_A5]);
+		if (trapnr != TARGET_NR_sigreturn
+                    && trapnr != TARGET_NR_rt_sigreturn) {
+                    env->ir[IR_V0] = (sysret < 0 ? -sysret : sysret);
+                    env->ir[IR_A3] = (sysret < 0);
+                }
+                break;
+            case 0x86:
+                /* IMB */
+                /* ??? We can probably elide the code using page_unprotect
+                   that is checking for self-modifying code.  Instead we
+                   could simply call tb_flush here.  Until we work out the
+                   changes required to turn off the extra write protection,
+                   this can be a no-op.  */
+                break;
+            case 0x9E:
+                /* RDUNIQUE */
+                /* Handled in the translator for usermode.  */
+                abort();
+            case 0x9F:
+                /* WRUNIQUE */
+                /* Handled in the translator for usermode.  */
+                abort();
+            case 0xAA:
+                /* GENTRAP */
+                info.si_signo = TARGET_SIGFPE;
+                switch (env->ir[IR_A0]) {
+                case TARGET_GEN_INTOVF:
+                    info.si_code = TARGET_FPE_INTOVF;
+                    break;
+                case TARGET_GEN_INTDIV:
+                    info.si_code = TARGET_FPE_INTDIV;
+                    break;
+                case TARGET_GEN_FLTOVF:
+                    info.si_code = TARGET_FPE_FLTOVF;
+                    break;
+                case TARGET_GEN_FLTUND:
+                    info.si_code = TARGET_FPE_FLTUND;
+                    break;
+                case TARGET_GEN_FLTINV:
+                    info.si_code = TARGET_FPE_FLTINV;
+                    break;
+                case TARGET_GEN_FLTINE:
+                    info.si_code = TARGET_FPE_FLTRES;
+                    break;
+                case TARGET_GEN_ROPRAND:
+                    info.si_code = 0;
+                    break;
+                default:
+                    info.si_signo = TARGET_SIGTRAP;
+                    info.si_code = 0;
+                    break;
+                }
+                info.si_errno = 0;
+                info._sifields._sigfault._addr = env->pc;
+                queue_signal(env, info.si_signo, &info);
+                break;
+            default:
+                goto do_sigill;
+            }
             break;
         case EXCP_CALL_PALP ... (EXCP_CALL_PALE - 1):
-            fprintf(stderr, "Privileged call to PALcode\n");
-            exit(1);
-            break;
+            goto do_sigill;
         case EXCP_DEBUG:
-            {
-                int sig;
-
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
-                if (sig)
-                  {
-                    info.si_signo = sig;
-                    info.si_errno = 0;
-                    info.si_code = TARGET_TRAP_BRKPT;
-                    queue_signal(env, info.si_signo, &info);
-                  }
+            info.si_signo = gdb_handlesig (env, TARGET_SIGTRAP);
+            if (info.si_signo) {
+                info.si_errno = 0;
+                info.si_code = TARGET_TRAP_BRKPT;
+                queue_signal(env, info.si_signo, &info);
             }
             break;
         default:
