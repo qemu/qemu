@@ -39,12 +39,20 @@
 #include "elf.h"
 
 //#define DEBUG_IRQ
+//#define DEBUG_EBUS
 
 #ifdef DEBUG_IRQ
-#define DPRINTF(fmt, ...)                                       \
+#define CPUIRQ_DPRINTF(fmt, ...)                                \
     do { printf("CPUIRQ: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define DPRINTF(fmt, ...)
+#define CPUIRQ_DPRINTF(fmt, ...)
+#endif
+
+#ifdef DEBUG_EBUS
+#define EBUS_DPRINTF(fmt, ...)                                  \
+    do { printf("EBUS: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define EBUS_DPRINTF(fmt, ...)
 #endif
 
 #define KERNEL_LOAD_ADDR     0x00404000
@@ -238,14 +246,14 @@ void cpu_check_irqs(CPUState *env)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
-                    DPRINTF("Set CPU IRQ %d\n", i);
+                    CPUIRQ_DPRINTF("Set CPU IRQ %d\n", i);
                     cpu_interrupt(env, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
         }
     } else if (!pil && (env->interrupt_index & ~15) == TT_EXTINT) {
-        DPRINTF("Reset CPU IRQ %d\n", env->interrupt_index & 15);
+        CPUIRQ_DPRINTF("Reset CPU IRQ %d\n", env->interrupt_index & 15);
         env->interrupt_index = 0;
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
@@ -256,12 +264,12 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     CPUState *env = opaque;
 
     if (level) {
-        DPRINTF("Raise CPU IRQ %d\n", irq);
+        CPUIRQ_DPRINTF("Raise CPU IRQ %d\n", irq);
         env->halted = 0;
         env->pil_in |= 1 << irq;
         cpu_check_irqs(env);
     } else {
-        DPRINTF("Lower CPU IRQ %d\n", irq);
+        CPUIRQ_DPRINTF("Lower CPU IRQ %d\n", irq);
         env->pil_in &= ~(1 << irq);
         cpu_check_irqs(env);
     }
@@ -347,8 +355,8 @@ void cpu_tick_set_limit(void *opaque, uint64_t limit)
 static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                               pcibus_t addr, pcibus_t size, int type)
 {
-    DPRINTF("Mapping region %d registers at %" FMT_PCIBUS "\n", region_num,
-            addr);
+    EBUS_DPRINTF("Mapping region %d registers at %" FMT_PCIBUS "\n",
+                 region_num, addr);
     switch (region_num) {
     case 0:
         isa_mmio_init(addr, 0x1000000);
