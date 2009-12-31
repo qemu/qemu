@@ -187,7 +187,6 @@ typedef struct float_status {
     signed char float_detect_tininess;
     signed char float_rounding_mode;
     signed char float_exception_flags;
-    signed char float_exception_mask;
 #ifdef FLOATX80
     signed char floatx80_rounding_precision;
 #endif

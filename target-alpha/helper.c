@@ -27,79 +27,136 @@
 
 uint64_t cpu_alpha_load_fpcr (CPUState *env)
 {
-    uint64_t ret = 0;
-    int flags, mask;
+    uint64_t r = 0;
+    uint8_t t;
 
-    flags = env->fp_status.float_exception_flags;
-    ret |= (uint64_t) flags << 52;
-    if (flags)
-        ret |= FPCR_SUM;
-    env->ipr[IPR_EXC_SUM] &= ~0x3E;
-    env->ipr[IPR_EXC_SUM] |= flags << 1;
+    t = env->fpcr_exc_status;
+    if (t) {
+        r = FPCR_SUM;
+        if (t & float_flag_invalid) {
+            r |= FPCR_INV;
+        }
+        if (t & float_flag_divbyzero) {
+            r |= FPCR_DZE;
+        }
+        if (t & float_flag_overflow) {
+            r |= FPCR_OVF;
+        }
+        if (t & float_flag_underflow) {
+            r |= FPCR_UNF;
+        }
+        if (t & float_flag_inexact) {
+            r |= FPCR_INE;
+        }
+    }
 
-    mask = env->fp_status.float_exception_mask;
-    if (mask & float_flag_invalid)
-        ret |= FPCR_INVD;
-    if (mask & float_flag_divbyzero)
-        ret |= FPCR_DZED;
-    if (mask & float_flag_overflow)
-        ret |= FPCR_OVFD;
-    if (mask & float_flag_underflow)
-        ret |= FPCR_UNFD;
-    if (mask & float_flag_inexact)
-        ret |= FPCR_INED;
+    t = env->fpcr_exc_mask;
+    if (t & float_flag_invalid) {
+        r |= FPCR_INVD;
+    }
+    if (t & float_flag_divbyzero) {
+        r |= FPCR_DZED;
+    }
+    if (t & float_flag_overflow) {
+        r |= FPCR_OVFD;
+    }
+    if (t & float_flag_underflow) {
+        r |= FPCR_UNFD;
+    }
+    if (t & float_flag_inexact) {
+        r |= FPCR_INED;
+    }
 
-    switch (env->fp_status.float_rounding_mode) {
+    switch (env->fpcr_dyn_round) {
     case float_round_nearest_even:
-        ret |= 2ULL << FPCR_DYN_SHIFT;
+        r |= FPCR_DYN_NORMAL;
         break;
     case float_round_down:
-        ret |= 1ULL << FPCR_DYN_SHIFT;
+        r |= FPCR_DYN_MINUS;
         break;
     case float_round_up:
-        ret |= 3ULL << FPCR_DYN_SHIFT;
+        r |= FPCR_DYN_PLUS;
         break;
     case float_round_to_zero:
+        r |= FPCR_DYN_CHOPPED;
         break;
     }
-    return ret;
+
+    if (env->fpcr_dnz) {
+        r |= FPCR_DNZ;
+    }
+    if (env->fpcr_dnod) {
+        r |= FPCR_DNOD;
+    }
+    if (env->fpcr_undz) {
+        r |= FPCR_UNDZ;
+    }
+
+    return r;
 }
 
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
 {
-    int round_mode, mask;
+    uint8_t t;
 
-    set_float_exception_flags((val >> 52) & 0x3F, &env->fp_status);
+    t = 0;
+    if (val & FPCR_INV) {
+        t |= float_flag_invalid;
+    }
+    if (val & FPCR_DZE) {
+        t |= float_flag_divbyzero;
+    }
+    if (val & FPCR_OVF) {
+        t |= float_flag_overflow;
+    }
+    if (val & FPCR_UNF) {
+        t |= float_flag_underflow;
+    }
+    if (val & FPCR_INE) {
+        t |= float_flag_inexact;
+    }
+    env->fpcr_exc_status = t;
 
-    mask = 0;
-    if (val & FPCR_INVD)
-        mask |= float_flag_invalid;
-    if (val & FPCR_DZED)
-        mask |= float_flag_divbyzero;
-    if (val & FPCR_OVFD)
-        mask |= float_flag_overflow;
-    if (val & FPCR_UNFD)
-        mask |= float_flag_underflow;
-    if (val & FPCR_INED)
-        mask |= float_flag_inexact;
-    env->fp_status.float_exception_mask = mask;
+    t = 0;
+    if (val & FPCR_INVD) {
+        t |= float_flag_invalid;
+    }
+    if (val & FPCR_DZED) {
+        t |= float_flag_divbyzero;
+    }
+    if (val & FPCR_OVFD) {
+        t |= float_flag_overflow;
+    }
+    if (val & FPCR_UNFD) {
+        t |= float_flag_underflow;
+    }
+    if (val & FPCR_INED) {
+        t |= float_flag_inexact;
+    }
+    env->fpcr_exc_mask = t;
 
-    switch ((val >> FPCR_DYN_SHIFT) & 3) {
-    case 0:
-        round_mode = float_round_to_zero;
+    switch (val & FPCR_DYN_MASK) {
+    case FPCR_DYN_CHOPPED:
+        t = float_round_to_zero;
         break;
-    case 1:
-        round_mode = float_round_down;
+    case FPCR_DYN_MINUS:
+        t = float_round_down;
         break;
-    case 2:
-        round_mode = float_round_nearest_even;
+    case FPCR_DYN_NORMAL:
+        t = float_round_nearest_even;
         break;
-    case 3:
-    default: /* this avoids a gcc (< 4.4) warning */
-        round_mode = float_round_up;
+    case FPCR_DYN_PLUS:
+        t = float_round_up;
         break;
     }
-    set_float_rounding_mode(round_mode, &env->fp_status);
+    env->fpcr_dyn_round = t;
+
+    env->fpcr_flush_to_zero
+      = (val & (FPCR_UNDZ|FPCR_UNFD)) == (FPCR_UNDZ|FPCR_UNFD);
+
+    env->fpcr_dnz = (val & FPCR_DNZ) != 0;
+    env->fpcr_dnod = (val & FPCR_DNOD) != 0;
+    env->fpcr_undz = (val & FPCR_UNDZ) != 0;
 }
 
 #if defined(CONFIG_USER_ONLY)

@@ -145,6 +145,10 @@ enum {
 #define FPCR_UNFD		(1ULL << 61)
 #define FPCR_UNDZ		(1ULL << 60)
 #define FPCR_DYN_SHIFT		58
+#define FPCR_DYN_CHOPPED	(0ULL << FPCR_DYN_SHIFT)
+#define FPCR_DYN_MINUS		(1ULL << FPCR_DYN_SHIFT)
+#define FPCR_DYN_NORMAL		(2ULL << FPCR_DYN_SHIFT)
+#define FPCR_DYN_PLUS		(3ULL << FPCR_DYN_SHIFT)
 #define FPCR_DYN_MASK		(3ULL << FPCR_DYN_SHIFT)
 #define FPCR_IOV		(1ULL << 57)
 #define FPCR_INE		(1ULL << 56)
@@ -341,17 +345,27 @@ struct pal_handler_t {
 
 struct CPUAlphaState {
     uint64_t ir[31];
-    float64  fir[31];
-    float_status fp_status;
-    uint64_t fpcr;
+    float64 fir[31];
     uint64_t pc;
     uint64_t lock;
     uint32_t pcc[2];
     uint64_t ipr[IPR_LAST];
     uint64_t ps;
     uint64_t unique;
-    int saved_mode; /* Used for HW_LD / HW_ST */
-    int intr_flag; /* For RC and RS */
+    float_status fp_status;
+    /* The following fields make up the FPCR, but in FP_STATUS format.  */
+    uint8_t fpcr_exc_status;
+    uint8_t fpcr_exc_mask;
+    uint8_t fpcr_dyn_round;
+    uint8_t fpcr_flush_to_zero;
+    uint8_t fpcr_dnz;
+    uint8_t fpcr_dnod;
+    uint8_t fpcr_undz;
+
+    /* Used for HW_LD / HW_ST */
+    uint8_t saved_mode;
+    /* For RC and RS */
+    uint8_t intr_flag;
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
