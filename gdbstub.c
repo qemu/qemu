@@ -1343,52 +1343,72 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 }
 #elif defined (TARGET_ALPHA)
 
-#define NUM_CORE_REGS 65
+#define NUM_CORE_REGS 67
 
 static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    if (n < 31) {
-       GET_REGL(env->ir[n]);
-    }
-    else if (n == 31) {
-       GET_REGL(0);
-    }
-    else if (n<63) {
-       uint64_t val;
+    uint64_t val;
+    CPU_DoubleU d;
 
-       val = *((uint64_t *)&env->fir[n-32]);
-       GET_REGL(val);
+    switch (n) {
+    case 0 ... 30:
+        val = env->ir[n];
+        break;
+    case 32 ... 62:
+        d.d = env->fir[n - 32];
+        val = d.ll;
+        break;
+    case 63:
+        val = cpu_alpha_load_fpcr(env);
+        break;
+    case 64:
+        val = env->pc;
+        break;
+    case 66:
+        val = env->unique;
+        break;
+    case 31:
+    case 65:
+        /* 31 really is the zero register; 65 is unassigned in the
+           gdb protocol, but is still required to occupy 8 bytes. */
+        val = 0;
+        break;
+    default:
+        return 0;
     }
-    else if (n==63) {
-       GET_REGL(env->fpcr);
-    }
-    else if (n==64) {
-       GET_REGL(env->pc);
-    }
-    else {
-       GET_REGL(0);
-    }
-
-    return 0;
+    GET_REGL(val);
 }
 
 static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    target_ulong tmp;
-    tmp = ldtul_p(mem_buf);
+    target_ulong tmp = ldtul_p(mem_buf);
+    CPU_DoubleU d;
 
-    if (n < 31) {
+    switch (n) {
+    case 0 ... 30:
         env->ir[n] = tmp;
+        break;
+    case 32 ... 62:
+        d.ll = tmp;
+        env->fir[n - 32] = d.d;
+        break;
+    case 63:
+        cpu_alpha_store_fpcr(env, tmp);
+        break;
+    case 64:
+        env->pc = tmp;
+        break;
+    case 66:
+        env->unique = tmp;
+        break;
+    case 31:
+    case 65:
+        /* 31 really is the zero register; 65 is unassigned in the
+           gdb protocol, but is still required to occupy 8 bytes. */
+        break;
+    default:
+        return 0;
     }
-
-    if (n > 31 && n < 63) {
-        env->fir[n - 32] = ldfl_p(mem_buf);
-    }
-
-    if (n == 64 ) {
-       env->pc=tmp;
-    }
-
     return 8;
 }
 #elif defined (TARGET_S390X)
