@@ -96,6 +96,48 @@ static void glue(draw_line32_, PIXEL_NAME)(
     } while (-- width != 0);
 }
 
+/**
+ * Draw hardware cursor image on the given line.
+ */
+static void glue(draw_hwc_line_, PIXEL_NAME)(SM501State * s, int crt,
+                         uint8_t * palette, int c_y, uint8_t *d, int width)
+{
+    int x, i;
+    uint8_t bitset = 0;
+
+    /* get hardware cursor pattern */
+    uint32_t cursor_addr = get_hwc_address(s, crt);
+    assert(0 <= c_y && c_y < SM501_HWC_HEIGHT);
+    cursor_addr += 64 * c_y / 4;  /* 4 pixels per byte */
+    cursor_addr += s->base;
+
+    /* get cursor position */
+    x = get_hwc_x(s, crt);
+    d += x * BPP;
+
+    for (i = 0; i < SM501_HWC_WIDTH && x + i < width; i++) {
+        uint8_t v;
+
+        /* get pixel value */
+        if (i % 4 == 0) {
+            cpu_physical_memory_rw(cursor_addr, &bitset, 1, 0);
+            cursor_addr++;
+        }
+        v = bitset & 3;
+        bitset >>= 2;
+
+        /* write pixel */
+        if (v) {
+            v--;
+            uint8_t r = palette[v * 3 + 0];
+            uint8_t g = palette[v * 3 + 1];
+            uint8_t b = palette[v * 3 + 2];
+            ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+        }
+        d += BPP;
+    }
+}
+
 #undef DEPTH
 #undef BPP
 #undef PIXEL_TYPE
