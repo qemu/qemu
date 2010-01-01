@@ -1844,6 +1844,11 @@ uint32_t helper_load_dcr (uint32_t dcrn)
     return val;
 }
 
+target_ulong helper_load_dcr_tl (target_ulong dcrn)
+{
+    return (uint32_t)helper_load_dcr((uint32_t)dcrn);
+}
+
 void helper_store_dcr (uint32_t dcrn, uint32_t val)
 {
     if (unlikely(env->dcr_env == NULL)) {
@@ -1855,6 +1860,11 @@ void helper_store_dcr (uint32_t dcrn, uint32_t val)
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
+}
+
+void helper_store_dcr_tl (target_ulong dcrn, target_ulong val)
+{
+    helper_store_dcr((uint32_t)dcrn, (uint32_t)val);
 }
 
 #if !defined(CONFIG_USER_ONLY)
