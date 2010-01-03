@@ -1,7 +1,7 @@
 #ifndef QEMU_CACHE_UTILS_H
 #define QEMU_CACHE_UTILS_H
 
-#if defined(_ARCH_PPC)
+#if defined(_ARCH_PPC) && !defined(CONFIG_TCG_INTERPRETER)
 struct qemu_cache_conf {
     unsigned long dcache_bsize;
     unsigned long icache_bsize;

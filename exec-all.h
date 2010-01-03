@@ -188,7 +188,14 @@ extern int code_gen_max_blocks;
 
 #if defined(USE_DIRECT_JUMP)
 
-#if defined(_ARCH_PPC)
+#if defined(CONFIG_TCG_INTERPRETER)
+static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+{
+    /* patch the branch destination */
+    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
+    /* no need to flush icache explicitly */
+}
+#elif defined(_ARCH_PPC)
 extern void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
@@ -223,13 +230,6 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     _flg = 0;
     __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 #endif
-}
-#elif defined(CONFIG_TCG_INTERPRETER)
-static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
-{
-    /* patch the branch destination */
-    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
-    /* no need to flush icache explicitly */
 }
 #else
 #error tb_set_jmp_target1 is missing
