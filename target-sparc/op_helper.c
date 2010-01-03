@@ -3447,10 +3447,10 @@ void do_interrupt(CPUState *env)
         change_pstate(PS_PEF | PS_PRIV | PS_IG);
         break;
     case TT_TFAULT:
-    case TT_TMISS:
     case TT_DFAULT:
-    case TT_DMISS:
-    case TT_DPROT:
+    case TT_TMISS ... TT_TMISS + 3:
+    case TT_DMISS ... TT_DMISS + 3:
+    case TT_DPROT ... TT_DPROT + 3:
         change_pstate(PS_PEF | PS_PRIV | PS_MG);
         break;
     default:
