@@ -6260,6 +6260,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             tval += next_eip;
             if (s->dflag == 0)
                 tval &= 0xffff;
+            else if(!CODE64(s))
+                tval &= 0xffffffff;
             gen_movtl_T0_im(next_eip);
             gen_push_T0(s);
             gen_jmp(s, tval);
