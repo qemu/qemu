@@ -2721,7 +2721,6 @@ static const struct cpu_def_t cpu_defs[] = {
 CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 {
     CPUAlphaState *env;
-    uint64_t hwpcb;
     int implver, amask, i, max;
 
     env = qemu_mallocz(sizeof(CPUAlphaState));
@@ -2752,24 +2751,34 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
                                | FPCR_UNFD | FPCR_INED | FPCR_DNOD));
 #endif
     pal_init(env);
+
     /* Initialize IPR */
-    hwpcb = env->ipr[IPR_PCBB];
-    env->ipr[IPR_ASN] = 0;
-    env->ipr[IPR_ASTEN] = 0;
-    env->ipr[IPR_ASTSR] = 0;
-    env->ipr[IPR_DATFX] = 0;
-    /* XXX: fix this */
-    //    env->ipr[IPR_ESP] = ldq_raw(hwpcb + 8);
-    //    env->ipr[IPR_KSP] = ldq_raw(hwpcb + 0);
-    //    env->ipr[IPR_SSP] = ldq_raw(hwpcb + 16);
-    //    env->ipr[IPR_USP] = ldq_raw(hwpcb + 24);
-    env->ipr[IPR_FEN] = 0;
-    env->ipr[IPR_IPL] = 31;
-    env->ipr[IPR_MCES] = 0;
-    env->ipr[IPR_PERFMON] = 0; /* Implementation specific */
-    //    env->ipr[IPR_PTBR] = ldq_raw(hwpcb + 32);
-    env->ipr[IPR_SISR] = 0;
-    env->ipr[IPR_VIRBND] = -1ULL;
+#if defined (CONFIG_USER_ONLY)
+    env->ipr[IPR_EXC_ADDR] = 0;
+    env->ipr[IPR_EXC_SUM] = 0;
+    env->ipr[IPR_EXC_MASK] = 0;
+#else
+    {
+        uint64_t hwpcb;
+        hwpcb = env->ipr[IPR_PCBB];
+        env->ipr[IPR_ASN] = 0;
+        env->ipr[IPR_ASTEN] = 0;
+        env->ipr[IPR_ASTSR] = 0;
+        env->ipr[IPR_DATFX] = 0;
+        /* XXX: fix this */
+        //    env->ipr[IPR_ESP] = ldq_raw(hwpcb + 8);
+        //    env->ipr[IPR_KSP] = ldq_raw(hwpcb + 0);
+        //    env->ipr[IPR_SSP] = ldq_raw(hwpcb + 16);
+        //    env->ipr[IPR_USP] = ldq_raw(hwpcb + 24);
+        env->ipr[IPR_FEN] = 0;
+        env->ipr[IPR_IPL] = 31;
+        env->ipr[IPR_MCES] = 0;
+        env->ipr[IPR_PERFMON] = 0; /* Implementation specific */
+        //    env->ipr[IPR_PTBR] = ldq_raw(hwpcb + 32);
+        env->ipr[IPR_SISR] = 0;
+        env->ipr[IPR_VIRBND] = -1ULL;
+    }
+#endif
 
     qemu_init_vcpu(env);
     return env;

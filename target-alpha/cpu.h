@@ -193,6 +193,11 @@ enum {
 /* Internal processor registers */
 /* XXX: TOFIX: most of those registers are implementation dependant */
 enum {
+#if defined(CONFIG_USER_ONLY)
+    IPR_EXC_ADDR,
+    IPR_EXC_SUM,
+    IPR_EXC_MASK,
+#else
     /* Ebox IPRs */
     IPR_CC           = 0xC0,            /* 21264 */
     IPR_CC_CTL       = 0xC1,            /* 21264 */
@@ -306,6 +311,7 @@ enum {
     IPR_VPTB,
     IPR_WHAMI,
     IPR_ALT_MODE,
+#endif
     IPR_LAST,
 };
 
