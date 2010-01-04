@@ -110,20 +110,20 @@
 #if defined(DEBUG_AR7)
 /* Set flags to >0 to enable debug output. */
 static struct {
-  int CLOCK:1;
-  int CPMAC:1;
-  int DCL:1;
-  int EMIF:1;
-  int GPIO:1;
-  int INTC:1;
-  int MDIO:1;
-  int RESET:1;
-  int TIMER:1;
-  int UART:1;
-  int VLYNQ:1;
-  int WDOG:1;
-  int OTHER:1;
-  int RXTX:1;
+  unsigned CLOCK:1;     /* 0x0001 */
+  unsigned CPMAC:1;
+  unsigned DCL:1;
+  unsigned EMIF:1;
+  unsigned GPIO:1;      /* 0x0010 */
+  unsigned INTC:1;
+  unsigned MDIO:1;
+  unsigned RESET:1;
+  unsigned TIMER:1;     /* 0x0100 */
+  unsigned UART:1;
+  unsigned VLYNQ:1;
+  unsigned WDOG:1;
+  unsigned OTHER:1;     /* 0x1000 */
+  unsigned RXTX:1;
 } traceflags;
 
 #define CLOCK   traceflags.CLOCK
