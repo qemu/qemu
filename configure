@@ -1991,9 +1991,6 @@ qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_host_mak
 echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
-if [ "$source_path_used" = "yes" ]; then
-  echo "VPATH=$source_path" >> $config_host_mak
-fi
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak

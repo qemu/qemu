@@ -333,7 +333,7 @@ $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
 	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
 
 
-gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
+gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
 
 qemu-options.h: $(SRC_PATH)/qemu-options.hx

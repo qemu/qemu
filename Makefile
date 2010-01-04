@@ -7,7 +7,7 @@ ifneq ($(wildcard config-host.mak),)
 all: build-all
 include config-host.mak
 include $(SRC_PATH)/rules.mak
-config-host.mak: configure
+config-host.mak: $(SRC_PATH)/configure
 	@echo $@ is out-of-date, running configure
 	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
 else
