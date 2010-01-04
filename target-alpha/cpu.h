@@ -450,9 +450,13 @@ enum {
 };
 
 /* Arithmetic exception */
-enum {
-    EXCP_ARITH_OVERFLOW,
-};
+#define EXC_M_IOV       (1<<16)         /* Integer Overflow */
+#define EXC_M_INE       (1<<15)         /* Inexact result */
+#define EXC_M_UNF       (1<<14)         /* Underflow */
+#define EXC_M_FOV       (1<<13)         /* Overflow */
+#define EXC_M_DZE       (1<<12)         /* Division by zero */
+#define EXC_M_INV       (1<<11)         /* Invalid operation */
+#define EXC_M_SWC       (1<<10)         /* Software completion */
 
 enum {
     IR_V0   = 0,
