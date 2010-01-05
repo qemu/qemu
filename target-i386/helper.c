@@ -617,6 +617,8 @@ void cpu_reset(CPUX86State *env)
     env->dr[7] = DR7_FIXED_1;
     cpu_breakpoint_remove_all(env, BP_CPU);
     cpu_watchpoint_remove_all(env, BP_CPU);
+
+    env->mcg_status = 0;
 }
 
 void cpu_x86_close(CPUX86State *env)
