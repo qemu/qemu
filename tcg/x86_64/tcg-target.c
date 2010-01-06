@@ -426,23 +426,17 @@ static inline void tgen_arithi64(TCGContext *s, int c, int r0, int64_t val)
     } else if ((c == ARITH_ADD && val == -1) || (c == ARITH_SUB && val == 1)) {
         /* dec */
         tcg_out_modrm(s, 0xff | P_REXW, 1, r0);
-    } else if (val == (int8_t)val) {
-        tcg_out_modrm(s, 0x83 | P_REXW, c, r0);
-        tcg_out8(s, val);
-    } else if (c == ARITH_AND && val == 0xffu) {
-        /* movzbl */
-        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXW, r0, r0);
-    } else if (c == ARITH_AND && val == 0xffffu) {
-        /* movzwl */
-        tcg_out_modrm(s, 0xb7 | P_EXT | P_REXW, r0, r0);
     } else if (c == ARITH_AND && val == 0xffffffffu) {
         /* 32-bit mov zero extends */
         tcg_out_modrm(s, 0x8b, r0, r0);
+    } else if (c == ARITH_AND && val == (uint32_t)val) {
+        /* AND with no high bits set can use a 32-bit operation.  */
+        tgen_arithi32(s, c, r0, (uint32_t)val);
+    } else if (val == (int8_t)val) {
+        tcg_out_modrm(s, 0x83 | P_REXW, c, r0);
+        tcg_out8(s, val);
     } else if (val == (int32_t)val) {
         tcg_out_modrm(s, 0x81 | P_REXW, c, r0);
-        tcg_out32(s, val);
-    } else if (c == ARITH_AND && val == (uint32_t)val) {
-        tcg_out_modrm(s, 0x81, c, r0);
         tcg_out32(s, val);
     } else {
         tcg_abort();
@@ -1182,16 +1176,12 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_modrm(s, 0x63 | P_REXW, args[0], args[1]);
         break;
     case INDEX_op_ext8u_i32:
+    case INDEX_op_ext8u_i64:
         tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, args[0], args[1]);
         break;
     case INDEX_op_ext16u_i32:
-        tcg_out_modrm(s, 0xb7 | P_EXT, args[0], args[1]);
-        break;
-    case INDEX_op_ext8u_i64:
-        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXW, args[0], args[1]);
-        break;
     case INDEX_op_ext16u_i64:
-        tcg_out_modrm(s, 0xb7 | P_EXT | P_REXW, args[0], args[1]);
+        tcg_out_modrm(s, 0xb7 | P_EXT, args[0], args[1]);
         break;
     case INDEX_op_ext32u_i64:
         tcg_out_modrm(s, 0x8b, args[0], args[1]);
