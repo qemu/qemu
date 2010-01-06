@@ -724,7 +724,8 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8029);
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
-    pci_conf[0x3d] = 1; // interrupt pin 0
+    /* TODO: RST# value should be 0. PCI spec 6.2.4 */
+    pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
 
     pci_register_bar(&d->dev, 0, 0x100,
                            PCI_BASE_ADDRESS_SPACE_IO, ne2000_map);

@@ -1203,16 +1203,18 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     pci_config_set_vendor_id(s->card.config, PCI_VENDOR_ID_VMWARE);
     pci_config_set_device_id(s->card.config, SVGA_PCI_DEVICE_ID);
-    s->card.config[PCI_COMMAND]		= 0x07;		/* I/O + Memory */
+    s->card.config[PCI_COMMAND]	= PCI_COMMAND_IO |
+                                  PCI_COMMAND_MEMORY |
+                                  PCI_COMMAND_MASTER; /* I/O + Memory */
     pci_config_set_class(s->card.config, PCI_CLASS_DISPLAY_VGA);
-    s->card.config[0x0c]		= 0x08;		/* Cache line size */
-    s->card.config[0x0d]		= 0x40;		/* Latency timer */
-    s->card.config[PCI_HEADER_TYPE]	= PCI_HEADER_TYPE_NORMAL;
-    s->card.config[0x2c]		= PCI_VENDOR_ID_VMWARE & 0xff;
-    s->card.config[0x2d]		= PCI_VENDOR_ID_VMWARE >> 8;
-    s->card.config[0x2e]		= SVGA_PCI_DEVICE_ID & 0xff;
-    s->card.config[0x2f]		= SVGA_PCI_DEVICE_ID >> 8;
-    s->card.config[0x3c]		= 0xff;		/* End */
+    s->card.config[PCI_CACHE_LINE_SIZE]	= 0x08;		/* Cache line size */
+    s->card.config[PCI_LATENCY_TIMER] = 0x40;		/* Latency timer */
+    s->card.config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
+    s->card.config[PCI_SUBSYSTEM_VENDOR_ID] = PCI_VENDOR_ID_VMWARE & 0xff;
+    s->card.config[PCI_SUBSYSTEM_VENDOR_ID + 1]	= PCI_VENDOR_ID_VMWARE >> 8;
+    s->card.config[PCI_SUBSYSTEM_ID] = SVGA_PCI_DEVICE_ID & 0xff;
+    s->card.config[PCI_SUBSYSTEM_ID + 1] = SVGA_PCI_DEVICE_ID >> 8;
+    s->card.config[PCI_INTERRUPT_LINE] = 0xff;		/* End */
 
     pci_register_bar(&s->card, 0, 0x10,
                     PCI_BASE_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);

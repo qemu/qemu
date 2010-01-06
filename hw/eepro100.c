@@ -412,19 +412,24 @@ static void pci_reset(EEPRO100State * s)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     /* PCI Device ID depends on device and is set below. */
     /* PCI Command */
+    /* TODO: this is the default, do not override. */
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);
     /* PCI Status */
-    PCI_CONFIG_16(PCI_STATUS, 0x2800);
+    /* TODO: this seems to make no sense. */
+    /* TODO: Value at RST# should be 0. */
+    PCI_CONFIG_16(PCI_STATUS,
+                  PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_SIG_TARGET_ABORT);
     /* PCI Revision ID */
     PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+    /* TODO: this is the default, do not override. */
     /* PCI Class Code */
-    PCI_CONFIG_8(0x09, 0x00);
+    PCI_CONFIG_8(PCI_CLASS_PROG, 0x00);
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* PCI Cache Line Size */
     /* check cache line size!!! */
     //~ PCI_CONFIG_8(0x0c, 0x00);
     /* PCI Latency Timer */
-    PCI_CONFIG_8(0x0d, 0x20);   // latency timer = 32 clocks
+    PCI_CONFIG_8(PCI_LATENCY_TIMER, 0x20);   // latency timer = 32 clocks
     /* PCI Header Type */
     /* BIST (built-in self test) */
 #if defined(TARGET_I386)
@@ -446,16 +451,20 @@ static void pci_reset(EEPRO100State * s)
 #endif
 #endif
     /* Expansion ROM Base Address (depends on boot disable!!!) */
-    PCI_CONFIG_32(0x30, 0x00000000);
+    /* TODO: not needed, set when BAR is registered */
+    PCI_CONFIG_32(PCI_ROM_ADDRESS, PCI_BASE_ADDRESS_SPACE_MEMORY);
     /* Capability Pointer */
-    PCI_CONFIG_8(0x34, 0xdc);
+    /* TODO: revisions with power_management 1 use this but
+     * do not set new capability list bit in status register. */
+    PCI_CONFIG_8(PCI_CAPABILITY_LIST, 0xdc);
     /* Interrupt Line */
     /* Interrupt Pin */
-    PCI_CONFIG_8(0x3d, 1);      // interrupt pin 0
+    /* TODO: RST# value should be 0 */
+    PCI_CONFIG_8(PCI_INTERRUPT_PIN, 1);      // interrupt pin 0
     /* Minimum Grant */
-    PCI_CONFIG_8(0x3e, 0x08);
+    PCI_CONFIG_8(PCI_MIN_GNT, 0x08);
     /* Maximum Latency */
-    PCI_CONFIG_8(0x3f, 0x18);
+    PCI_CONFIG_8(PCI_MAX_LAT, 0x18);
 
     switch (device) {
     case i82550:
@@ -479,52 +488,57 @@ static void pci_reset(EEPRO100State * s)
     case i82557A:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
-        PCI_CONFIG_8(0x34, 0x00);
+        PCI_CONFIG_8(PCI_CAPABILITY_LIST, 0x00);
         power_management = 0;
         break;
     case i82557B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x02);
-        PCI_CONFIG_8(0x34, 0x00);
+        PCI_CONFIG_8(PCI_CAPABILITY_LIST, 0x00);
         power_management = 0;
         break;
     case i82557C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x03);
-        PCI_CONFIG_8(0x34, 0x00);
+        PCI_CONFIG_8(PCI_CAPABILITY_LIST, 0x00);
         power_management = 0;
         break;
     case i82558A:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                  PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x04);
         s->stats_size = 76;
         s->has_extended_tcb_support = 1;
         break;
     case i82558B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                  PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x05);
         s->stats_size = 76;
         s->has_extended_tcb_support = 1;
         break;
     case i82559A:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                  PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x06);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;
         break;
     case i82559B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                  PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x07);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;
         break;
     case i82559C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                  PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
         // TODO: Windows wants revision id 0x0c.
         PCI_CONFIG_8(PCI_REVISION_ID, 0x0c);
@@ -537,7 +551,8 @@ static void pci_reset(EEPRO100State * s)
         break;
     case i82559ER:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
-        PCI_CONFIG_16(PCI_STATUS, 0x0290);
+        PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                  PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;

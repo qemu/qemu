@@ -41,7 +41,6 @@ struct PCIBus {
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     pci_hotplug_fn hotplug;
-    uint32_t config_reg; /* XXX: suppress */
     void *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
@@ -420,7 +419,7 @@ static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
 {
     uint16_t *id;
 
-    id = (void*)(&pci_dev->config[PCI_SUBVENDOR_ID]);
+    id = (void*)(&pci_dev->config[PCI_SUBSYSTEM_VENDOR_ID]);
     id[0] = cpu_to_le16(pci_default_sub_vendor_id);
     id[1] = cpu_to_le16(pci_default_sub_device_id);
     return 0;
@@ -526,7 +525,8 @@ static void pci_init_wmask(PCIDevice *dev)
     dev->wmask[PCI_CACHE_LINE_SIZE] = 0xff;
     dev->wmask[PCI_INTERRUPT_LINE] = 0xff;
     pci_set_word(dev->wmask + PCI_COMMAND,
-                 PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+                 PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+                 PCI_COMMAND_INTX_DISABLE);
 
     memset(dev->wmask + PCI_CONFIG_HEADER_SIZE, 0xff,
            config_size - PCI_CONFIG_HEADER_SIZE);
@@ -959,6 +959,25 @@ static void pci_update_mappings(PCIDevice *d)
     }
 }
 
+static inline int pci_irq_disabled(PCIDevice *d)
+{
+    return pci_get_word(d->config + PCI_COMMAND) & PCI_COMMAND_INTX_DISABLE;
+}
+
+/* Called after interrupt disabled field update in config space,
+ * assert/deassert interrupts if necessary.
+ * Gets original interrupt disable bit value (before update). */
+static void pci_update_irq_disabled(PCIDevice *d, int was_irq_disabled)
+{
+    int i, disabled = pci_irq_disabled(d);
+    if (disabled == was_irq_disabled)
+        return;
+    for (i = 0; i < PCI_NUM_PINS; ++i) {
+        int state = pci_irq_state(d, i);
+        pci_change_irq_level(d, i, disabled ? -state : state);
+    }
+}
+
 uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len)
 {
@@ -971,7 +990,7 @@ uint32_t pci_default_read_config(PCIDevice *d,
 
 void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 {
-    int i;
+    int i, was_irq_disabled = pci_irq_disabled(d);
     uint32_t config_size = pci_config_size(d);
 
     for (i = 0; i < l && addr + i < config_size; val >>= 8, ++i) {
@@ -983,6 +1002,9 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
         ranges_overlap(addr, l, PCI_ROM_ADDRESS1, 4) ||
         range_covers_byte(addr, l, PCI_COMMAND))
         pci_update_mappings(d);
+
+    if (range_covers_byte(addr, l, PCI_COMMAND))
+        pci_update_irq_disabled(d, was_irq_disabled);
 }
 
 /***********************************************************/
@@ -1000,6 +1022,8 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
 
     pci_set_irq_state(pci_dev, irq_num, level);
     pci_update_irq_status(pci_dev);
+    if (pci_irq_disabled(pci_dev))
+        return;
     pci_change_irq_level(pci_dev, irq_num, change);
 }
 

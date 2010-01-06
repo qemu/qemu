@@ -2120,18 +2120,20 @@ static int lsi_scsi_init(PCIDevice *dev)
     /* PCI base class code */
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_SCSI);
     /* PCI subsystem ID */
-    pci_conf[0x2e] = 0x00;
-    pci_conf[0x2f] = 0x10;
+    pci_conf[PCI_SUBSYSTEM_ID] = 0x00;
+    pci_conf[PCI_SUBSYSTEM_ID + 1] = 0x10;
     /* PCI latency timer = 255 */
-    pci_conf[0x0d] = 0xff;
+    pci_conf[PCI_LATENCY_TIMER] = 0xff;
+    /* TODO: RST# value should be 0 */
     /* Interrupt pin 1 */
-    pci_conf[0x3d] = 0x01;
+    pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
     s->mmio_io_addr = cpu_register_io_memory(lsi_mmio_readfn,
                                              lsi_mmio_writefn, s);
     s->ram_io_addr = cpu_register_io_memory(lsi_ram_readfn,
                                             lsi_ram_writefn, s);
 
+    /* TODO: use dev and get rid of cast below */
     pci_register_bar((struct PCIDevice *)s, 0, 256,
                            PCI_BASE_ADDRESS_SPACE_IO, lsi_io_mapfunc);
     pci_register_bar((struct PCIDevice *)s, 1, 0x400,

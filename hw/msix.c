@@ -175,7 +175,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
     unsigned enable_pos = dev->msix_cap + MSIX_CONTROL_OFFSET;
     int vector;
 
-    if (addr + len <= enable_pos || addr > enable_pos) {
+    if (!range_covers_byte(addr, len, enable_pos)) {
         return;
     }
 
