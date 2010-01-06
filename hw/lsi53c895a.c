@@ -176,6 +176,8 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 typedef struct lsi_request {
     uint32_t tag;
     SCSIDevice *dev;
+    uint32_t dma_len;
+    uint8_t *dma_buf;
     uint32_t pending;
     int out;
     QTAILQ_ENTRY(lsi_request) next;
@@ -204,9 +206,7 @@ typedef struct {
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
     uint32_t select_tag;
-    uint32_t current_dma_len;
     int command_complete;
-    uint8_t *dma_buf;
     QTAILQ_HEAD(, lsi_request) queue;
     lsi_request *current;
 
@@ -509,15 +509,16 @@ static void lsi_do_dma(LSIState *s, int out)
     uint32_t count;
     target_phys_addr_t addr;
 
-    if (!s->current_dma_len) {
+    assert(s->current);
+    if (!s->current->dma_len) {
         /* Wait until data is available.  */
         DPRINTF("DMA no data available\n");
         return;
     }
 
     count = s->dbc;
-    if (count > s->current_dma_len)
-        count = s->current_dma_len;
+    if (count > s->current->dma_len)
+        count = s->current->dma_len;
 
     addr = s->dnad;
     /* both 40 and Table Indirect 64-bit DMAs store upper bits in dnad64 */
@@ -533,20 +534,20 @@ static void lsi_do_dma(LSIState *s, int out)
     s->dnad += count;
     s->dbc -= count;
 
-    if (s->dma_buf == NULL) {
-        s->dma_buf = s->current->dev->info->get_buf(s->current->dev,
-                                                    s->current->tag);
+    if (s->current->dma_buf == NULL) {
+        s->current->dma_buf = s->current->dev->info->get_buf(s->current->dev,
+                                                             s->current->tag);
     }
 
     /* ??? Set SFBR to first data byte.  */
     if (out) {
-        cpu_physical_memory_read(addr, s->dma_buf, count);
+        cpu_physical_memory_read(addr, s->current->dma_buf, count);
     } else {
-        cpu_physical_memory_write(addr, s->dma_buf, count);
+        cpu_physical_memory_write(addr, s->current->dma_buf, count);
     }
-    s->current_dma_len -= count;
-    if (s->current_dma_len == 0) {
-        s->dma_buf = NULL;
+    s->current->dma_len -= count;
+    if (s->current->dma_len == 0) {
+        s->current->dma_buf = NULL;
         if (out) {
             /* Write the data.  */
             s->current->dev->info->write_data(s->current->dev, s->current->tag);
@@ -555,7 +556,7 @@ static void lsi_do_dma(LSIState *s, int out)
             s->current->dev->info->read_data(s->current->dev, s->current->tag);
         }
     } else {
-        s->dma_buf += count;
+        s->current->dma_buf += count;
         lsi_resume_script(s);
     }
 }
@@ -568,6 +569,7 @@ static void lsi_queue_command(LSIState *s)
 
     DPRINTF("Queueing tag=0x%x\n", s->current_tag);
     assert(s->current != NULL);
+    assert(s->current->dma_len == 0);
     QTAILQ_INSERT_TAIL(&s->queue, s->current, next);
     s->current = NULL;
 
@@ -614,8 +616,7 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = p->out ? 2 : 3;
-    s->current_dma_len = p->pending;
-    s->dma_buf = NULL;
+    s->current->dma_len = p->pending;
     lsi_add_msg_byte(s, 0x80);
     if (s->current->tag & LSI_TAG_VALID) {
         lsi_add_msg_byte(s, 0x20);
@@ -695,7 +696,7 @@ static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
 
     /* host adapter (re)connected */
     DPRINTF("Data ready tag=0x%x len=%d\n", tag, arg);
-    s->current_dma_len = arg;
+    s->current->dma_len = arg;
     s->command_complete = 1;
     if (!s->waiting)
         return;
@@ -910,8 +911,6 @@ static void lsi_wait_reselect(LSIState *s)
     lsi_request *p;
 
     DPRINTF("Wait Reselect\n");
-    if (s->current_dma_len)
-        BADF("Reselect with pending DMA\n");
 
     QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->pending) {
@@ -919,7 +918,7 @@ static void lsi_wait_reselect(LSIState *s)
             break;
         }
     }
-    if (s->current_dma_len == 0) {
+    if (s->current == NULL) {
         s->waiting = 1;
     }
 }
@@ -2010,8 +2009,10 @@ static void lsi_pre_save(void *opaque)
 {
     LSIState *s = opaque;
 
-    assert(s->dma_buf == NULL);
-    assert(s->current_dma_len == 0);
+    if (s->current) {
+        assert(s->current->dma_buf == NULL);
+        assert(s->current->dma_len == 0);
+    }
     assert(QTAILQ_EMPTY(&s->queue));
 }
 
