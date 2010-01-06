@@ -371,7 +371,7 @@ static int lsi_dma_64bit(LSIState *s)
 static uint8_t lsi_reg_readb(LSIState *s, int offset);
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
 static void lsi_execute_script(LSIState *s);
-static void lsi_reselect(LSIState *s, uint32_t tag);
+static void lsi_reselect(LSIState *s, lsi_request *p);
 
 static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
@@ -430,7 +430,7 @@ static void lsi_update_irq(LSIState *s)
                 "processes\n");
         QTAILQ_FOREACH(p, &s->queue, next) {
             if (p->pending) {
-                lsi_reselect(s, p->tag);
+                lsi_reselect(s, p);
                 break;
             }
         }
@@ -589,24 +589,15 @@ static void lsi_add_msg_byte(LSIState *s, uint8_t data)
 }
 
 /* Perform reselection to continue a command.  */
-static void lsi_reselect(LSIState *s, uint32_t tag)
+static void lsi_reselect(LSIState *s, lsi_request *p)
 {
-    lsi_request *p;
     int id;
 
-    QTAILQ_FOREACH(p, &s->queue, next) {
-        if (p->tag == tag)
-            break;
-    }
-    if (p == NULL) {
-        BADF("Reselected non-existant command tag=0x%x\n", tag);
-        return;
-    }
     assert(s->current == NULL);
     QTAILQ_REMOVE(&s->queue, p, next);
     s->current = p;
 
-    id = (tag >> 8) & 0xf;
+    id = (p->tag >> 8) & 0xf;
     s->ssid = id | 0x80;
     /* LSI53C700 Family Compatibility, see LSI53C895A 4-73 */
     if (!(s->dcntl & LSI_DCNTL_COM)) {
@@ -620,7 +611,7 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
     lsi_add_msg_byte(s, 0x80);
     if (s->current->tag & LSI_TAG_VALID) {
         lsi_add_msg_byte(s, 0x20);
-        lsi_add_msg_byte(s, tag & 0xff);
+        lsi_add_msg_byte(s, p->tag & 0xff);
     }
 
     if (lsi_irq_on_rsl(s)) {
@@ -649,7 +640,7 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
                 (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
                  !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
                 /* Reselect device.  */
-                lsi_reselect(s, tag);
+                lsi_reselect(s, p);
                 return 0;
             } else {
                 DPRINTF("Queueing IO tag=0x%x\n", tag);
@@ -914,7 +905,7 @@ static void lsi_wait_reselect(LSIState *s)
 
     QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->pending) {
-            lsi_reselect(s, p->tag);
+            lsi_reselect(s, p);
             break;
         }
     }
