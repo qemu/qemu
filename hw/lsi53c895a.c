@@ -173,11 +173,12 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 /* Flag set if this is a tagged command.  */
 #define LSI_TAG_VALID     (1 << 16)
 
-typedef struct {
+typedef struct lsi_request {
     uint32_t tag;
     uint32_t pending;
     int out;
-} lsi_queue;
+    QTAILQ_ENTRY(lsi_request) next;
+} lsi_request;
 
 typedef struct {
     PCIDevice dev;
@@ -205,9 +206,7 @@ typedef struct {
     uint32_t current_dma_len;
     int command_complete;
     uint8_t *dma_buf;
-    lsi_queue *queue;
-    int queue_len;
-    int active_commands;
+    QTAILQ_HEAD(, lsi_request) queue;
 
     uint32_t dsa;
     uint32_t temp;
@@ -391,9 +390,9 @@ static void lsi_stop_script(LSIState *s)
 
 static void lsi_update_irq(LSIState *s)
 {
-    int i;
     int level;
     static int last_level;
+    lsi_request *p;
 
     /* It's unclear whether the DIP/SIP bits should be cleared when the
        Interrupt Status Registers are cleared or when istat0 is read.
@@ -427,9 +426,9 @@ static void lsi_update_irq(LSIState *s)
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
         DPRINTF("Handled IRQs & disconnected, looking for pending "
                 "processes\n");
-        for (i = 0; i < s->active_commands; i++) {
-            if (s->queue[i].pending) {
-                lsi_reselect(s, s->queue[i].tag);
+        QTAILQ_FOREACH(p, &s->queue, next) {
+            if (p->pending) {
+                lsi_reselect(s, p->tag);
                 break;
             }
         }
@@ -563,14 +562,11 @@ static void lsi_do_dma(LSIState *s, int out)
 /* Add a command to the queue.  */
 static void lsi_queue_command(LSIState *s)
 {
-    lsi_queue *p;
+    lsi_request *p;
 
     DPRINTF("Queueing tag=0x%x\n", s->current_tag);
-    if (s->queue_len == s->active_commands) {
-        s->queue_len++;
-        s->queue = qemu_realloc(s->queue, s->queue_len * sizeof(lsi_queue));
-    }
-    p = &s->queue[s->active_commands++];
+    p = qemu_mallocz(sizeof(*p));
+    QTAILQ_INSERT_TAIL(&s->queue, p, next);
     p->tag = s->current_tag;
     p->pending = 0;
     p->out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
@@ -590,17 +586,14 @@ static void lsi_add_msg_byte(LSIState *s, uint8_t data)
 /* Perform reselection to continue a command.  */
 static void lsi_reselect(LSIState *s, uint32_t tag)
 {
-    lsi_queue *p;
-    int n;
+    lsi_request *p;
     int id;
 
-    p = NULL;
-    for (n = 0; n < s->active_commands; n++) {
-        p = &s->queue[n];
+    QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->tag == tag)
             break;
     }
-    if (n == s->active_commands) {
+    if (p == NULL) {
         BADF("Reselected non-existant command tag=0x%x\n", tag);
         return;
     }
@@ -624,10 +617,8 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
         lsi_add_msg_byte(s, tag & 0xff);
     }
 
-    s->active_commands--;
-    if (n != s->active_commands) {
-        s->queue[n] = s->queue[s->active_commands];
-    }
+    QTAILQ_REMOVE(&s->queue, p, next);
+    qemu_free(p);
 
     if (lsi_irq_on_rsl(s)) {
         lsi_script_scsi_interrupt(s, LSI_SIST0_RSL, 0);
@@ -638,10 +629,9 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
    the device was reselected, nonzero if the IO is deferred.  */
 static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
 {
-    lsi_queue *p;
-    int i;
-    for (i = 0; i < s->active_commands; i++) {
-        p = &s->queue[i];
+    lsi_request *p;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->tag == tag) {
             if (p->pending) {
                 BADF("Multiple IO pending for tag %d\n", tag);
@@ -659,7 +649,7 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
                 lsi_reselect(s, tag);
                 return 0;
             } else {
-               DPRINTF("Queueing IO tag=0x%x\n", tag);
+                DPRINTF("Queueing IO tag=0x%x\n", tag);
                 p->pending = arg;
                 return 1;
             }
@@ -905,13 +895,15 @@ static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 
 static void lsi_wait_reselect(LSIState *s)
 {
-    int i;
+    lsi_request *p;
+
     DPRINTF("Wait Reselect\n");
     if (s->current_dma_len)
         BADF("Reselect with pending DMA\n");
-    for (i = 0; i < s->active_commands; i++) {
-        if (s->queue[i].pending) {
-            lsi_reselect(s, s->queue[i].tag);
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        if (p->pending) {
+            lsi_reselect(s, p->tag);
             break;
         }
     }
@@ -2008,7 +2000,7 @@ static void lsi_pre_save(void *opaque)
 
     assert(s->dma_buf == NULL);
     assert(s->current_dma_len == 0);
-    assert(s->active_commands == 0);
+    assert(QTAILQ_EMPTY(&s->queue));
 }
 
 static const VMStateDescription vmstate_lsi_scsi = {
@@ -2101,8 +2093,6 @@ static int lsi_scsi_uninit(PCIDevice *d)
     cpu_unregister_io_memory(s->mmio_io_addr);
     cpu_unregister_io_memory(s->ram_io_addr);
 
-    qemu_free(s->queue);
-
     return 0;
 }
 
@@ -2138,9 +2128,7 @@ static int lsi_scsi_init(PCIDevice *dev)
                            PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_mmio_mapfunc);
     pci_register_bar((struct PCIDevice *)s, 2, 0x2000,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_ram_mapfunc);
-    s->queue = qemu_malloc(sizeof(lsi_queue));
-    s->queue_len = 1;
-    s->active_commands = 0;
+    QTAILQ_INIT(&s->queue);
 
     lsi_soft_reset(s);
 
