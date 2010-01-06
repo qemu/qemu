@@ -11,40 +11,11 @@ VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
 QEMU_CFLAGS+=-I.. -I$(SRC_PATH)/fpu
 
-obj-y =
-obj-y += loader.o
-obj-y += virtio.o
-obj-y += fw_cfg.o
-obj-y += watchdog.o
-obj-$(CONFIG_ECC) += ecc.o
-obj-$(CONFIG_NAND) += nand.o
+include $(SRC_PATH)/Makefile.objs
 
-obj-$(CONFIG_M48T59) += m48t59.o
-obj-$(CONFIG_ESCC) += escc.o
-
-# PCI watchdog devices
-obj-y += wdt_i6300esb.o
-
-obj-y += msix.o
-
-# PCI network cards
-obj-y += ne2000.o
-
-obj-$(CONFIG_SMC91C111) += smc91c111.o
-obj-$(CONFIG_LAN9118) += lan9118.o
-
-# SCSI layer
-obj-y += lsi53c895a.o
-obj-$(CONFIG_ESP) += esp.o
-
-obj-y += dma-helpers.o sysbus.o isa-bus.o
-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
-
-all: $(HWLIB)
+all: $(hw-obj-y)
 # Dummy command so that make thinks it has done something
 	@true
-
-$(HWLIB): $(obj-y)
 
 clean:
 	rm -f *.o *.d *.a *~

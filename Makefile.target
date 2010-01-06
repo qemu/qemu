@@ -1,16 +1,20 @@
 # -*- Mode: makefile -*-
 
-# This needs to be defined before rules.mak
 GENERATED_HEADERS = config-target.h
 
 include ../config-host.mak
 include config-devices.mak
 include config-target.mak
 include $(SRC_PATH)/rules.mak
+ifneq ($(HWDIR),)
+include $(HWDIR)/config.mak
+endif
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 QEMU_CFLAGS+= -I.. -I$(TARGET_PATH) -DNEED_CPU_H
+
+include $(SRC_PATH)/Makefile.objs
 
 ifdef CONFIG_USER_ONLY
 # user emulator name
@@ -64,9 +68,9 @@ libobj-$(CONFIG_S390_DIS) += s390-dis.o
 libobj-$(CONFIG_SH4_DIS) += sh4-dis.o
 libobj-$(CONFIG_SPARC_DIS) += sparc-dis.o
 
-# libqemu
+$(libobj-y): $(GENERATED_HEADERS)
 
-libqemu.a: $(libobj-y)
+# libqemu
 
 translate.o: translate.c cpu.h
 
@@ -106,7 +110,10 @@ obj-arm-y += arm-semi.o
 
 obj-m68k-y += m68k-sim.o m68k-semi.o
 
-ARLIBS=../libuser/libuser.a libqemu.a
+$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
+
+obj-y += $(addprefix ../libuser/, $(user-obj-y))
+obj-y += $(libobj-y)
 
 endif #CONFIG_LINUX_USER
 
@@ -128,7 +135,10 @@ obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
 
 obj-i386-y += ioport-user.o
 
-ARLIBS=../libuser/libuser.a libqemu.a
+$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
+
+obj-y += $(addprefix ../libuser/, $(user-obj-y))
+obj-y += $(libobj-y)
 
 endif #CONFIG_DARWIN_USER
 
@@ -145,7 +155,10 @@ obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
 
 obj-i386-y += ioport-user.o
 
-ARLIBS=../libuser/libuser.a libqemu.a
+$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
+
+obj-y += $(addprefix ../libuser/, $(user-obj-y))
+obj-y += $(libobj-y)
 
 endif #CONFIG_BSD_USER
 
@@ -303,13 +316,17 @@ vl.o: qemu-options.h
 
 monitor.o: qemu-monitor.h
 
-ARLIBS=../libqemu_common.a libqemu.a $(HWLIB)
+$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
+
+obj-y += $(addprefix ../, $(common-obj-y))
+obj-y += $(libobj-y)
+obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 
 endif # CONFIG_SOFTMMU
 
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
-$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y) $(ARLIBS)
+$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
 	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
 
 
