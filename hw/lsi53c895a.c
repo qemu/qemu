@@ -175,6 +175,7 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 
 typedef struct lsi_request {
     uint32_t tag;
+    SCSIDevice *dev;
     uint32_t pending;
     int out;
     QTAILQ_ENTRY(lsi_request) next;
@@ -199,7 +200,7 @@ typedef struct {
      * 3 if a DMA operation is in progress.  */
     int waiting;
     SCSIBus bus;
-    SCSIDevice *current_dev;
+    SCSIDevice *select_dev;
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
     uint32_t select_tag;
@@ -533,8 +534,8 @@ static void lsi_do_dma(LSIState *s, int out)
     s->dbc -= count;
 
     if (s->dma_buf == NULL) {
-        s->dma_buf = s->current_dev->info->get_buf(s->current_dev,
-                                                   s->current->tag);
+        s->dma_buf = s->current->dev->info->get_buf(s->current->dev,
+                                                    s->current->tag);
     }
 
     /* ??? Set SFBR to first data byte.  */
@@ -548,10 +549,10 @@ static void lsi_do_dma(LSIState *s, int out)
         s->dma_buf = NULL;
         if (out) {
             /* Write the data.  */
-            s->current_dev->info->write_data(s->current_dev, s->current->tag);
+            s->current->dev->info->write_data(s->current->dev, s->current->tag);
         } else {
             /* Request any remaining data.  */
-            s->current_dev->info->read_data(s->current_dev, s->current->tag);
+            s->current->dev->info->read_data(s->current->dev, s->current->tag);
         }
     } else {
         s->dma_buf += count;
@@ -610,7 +611,6 @@ static void lsi_reselect(LSIState *s, uint32_t tag)
         s->sfbr = 1 << (id & 0x7);
     }
     DPRINTF("Reselected target %d\n", id);
-    s->current_dev = s->bus.devs[id];
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = p->out ? 2 : 3;
@@ -721,15 +721,16 @@ static void lsi_do_command(LSIState *s)
     assert(s->current == NULL);
     s->current = qemu_mallocz(sizeof(lsi_request));
     s->current->tag = s->select_tag;
+    s->current->dev = s->select_dev;
 
-    n = s->current_dev->info->send_command(s->current_dev, s->current->tag, buf,
-                                           s->current_lun);
+    n = s->current->dev->info->send_command(s->current->dev, s->current->tag, buf,
+                                            s->current_lun);
     if (n > 0) {
         lsi_set_phase(s, PHASE_DI);
-        s->current_dev->info->read_data(s->current_dev, s->current->tag);
+        s->current->dev->info->read_data(s->current->dev, s->current->tag);
     } else if (n < 0) {
         lsi_set_phase(s, PHASE_DO);
-        s->current_dev->info->write_data(s->current_dev, s->current->tag);
+        s->current->dev->info->write_data(s->current->dev, s->current->tag);
     }
 
     if (!s->command_complete) {
@@ -1096,7 +1097,7 @@ again:
                 /* ??? Linux drivers compain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
-                s->current_dev = s->bus.devs[id];
+                s->select_dev = s->bus.devs[id];
                 s->select_tag = id << 8;
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 3)) {
