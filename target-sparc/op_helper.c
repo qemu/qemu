@@ -3563,7 +3563,7 @@ void do_interrupt(CPUState *env)
     env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
     env->pc = env->tbr;
     env->npc = env->pc + 4;
-    env->exception_index = 0;
+    env->exception_index = -1;
 }
 #endif
 
