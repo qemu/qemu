@@ -498,9 +498,7 @@ static void pci_reset(EEPRO100State * s)
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);         // TODO: maybe 0x17
     /* PCI Status */
     /* TODO: Value at RST# should be 0. */
-    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
-                              PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-    PCI_CONFIG_16(PCI_STATUS, 0x0280);
+    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM | PCI_STATUS_FAST_BACK);
     /* PCI Revision ID depends on device. */
     /* TODO: this is the default, do not override. */
     /* PCI Class Code */
