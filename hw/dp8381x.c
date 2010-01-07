@@ -1483,10 +1483,13 @@ static void eeprom_init(dp8381x_t * s)
 
 #if 0
     // EEPROM Bit 20 NCPEN!!!
-    PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
-    PCI_CONFIG_32(0x2c, 0x00000000);    /* Configuration Subsystem Identification */
+    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
+    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                              PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
+    PCI_CONFIG_32(PCI_SUBSYSTEM_VENDOR_ID, 0x00000000);
     // EEPROM Bits 16...31!!!
-    PCI_CONFIG_32(0x3c, 0x340b0100);    // MNGNT = 11, MXLAT = 52, IPIN = 0
+    // TODO Split using PCI_CONFIG8.
+    PCI_CONFIG_32(PCI_INTERRUPT_LINE, 0x340b0100);    // MNGNT = 11, MXLAT = 52, IPIN = 0
     // EEPROM Bits 31...27, 21!!!
     PCI_CONFIG_32(0x40, 0xff820001);    /* Power Management Capabilities */
     // EEPROM Bit 8!!!
@@ -1516,15 +1519,18 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     /* National Semiconductor DP83815, DP83816 */
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x0020100b);
-    PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
+    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
+    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                              PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
     /* ethernet network controller */
     PCI_CONFIG_32(PCI_REVISION_ID, 0x02000000);
     /* Address registers are set by pci_register_bar. */
     /* Capabilities Pointer, CLOFS */
-    PCI_CONFIG_32(0x34, 0x00000040);
+    PCI_CONFIG_32(PCI_CAPABILITY_LIST, 0x00000040);
     /* 0x38 reserved, returns 0 */
     /* MNGNT = 11, MXLAT = 52, IPIN = 0 */
-    PCI_CONFIG_32(0x3c, 0x340b0100);
+    // TODO Split using PCI_CONFIG8.
+    PCI_CONFIG_32(PCI_INTERRUPT_LINE, 0x340b0100);
     /* Power Management Capabilities */
     PCI_CONFIG_32(0x40, 0xff820001);
     /* Power Management Control and Status */
