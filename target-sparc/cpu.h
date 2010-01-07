@@ -577,6 +577,16 @@ static inline int cpu_interrupts_enabled(CPUState *env1)
     return 0;
 }
 
+static inline int cpu_pil_allowed(CPUState *env1, int pil)
+{
+#if !defined(TARGET_SPARC64)
+    /* level 15 is non-maskable on sparc v8 */
+    return pil == 15 || pil > env1->psrpil;
+#else
+    return pil > env1->psrpil;
+#endif
+}
+
 static inline int cpu_fpu_enabled(CPUState *env1)
 {
 #if defined(CONFIG_USER_ONLY)

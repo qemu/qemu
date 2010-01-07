@@ -232,29 +232,51 @@ void irq_info(Monitor *mon)
 
 void cpu_check_irqs(CPUState *env)
 {
-    uint32_t pil = env->pil_in | (env->softint & ~SOFTINT_TIMER) |
-        ((env->softint & SOFTINT_TIMER) << 14);
+    uint32_t pil = env->pil_in |
+                  (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
 
-    if (pil && (env->interrupt_index == 0 ||
-                (env->interrupt_index & ~15) == TT_EXTINT)) {
+    /* check if TM or SM in SOFTINT are set
+       setting these also causes interrupt 14 */
+    if (env->softint & (SOFTINT_TIMER | SOFTINT_STIMER)) {
+        pil |= 1 << 14;
+    }
+
+    if (!pil) {
+        if (env->interrupt_request & CPU_INTERRUPT_HARD) {
+            CPUIRQ_DPRINTF("Reset CPU IRQ (current interrupt %x)\n",
+                           env->interrupt_index);
+            env->interrupt_index = 0;
+            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        }
+        return;
+    }
+
+    if (cpu_interrupts_enabled(env)) {
+
         unsigned int i;
 
-        for (i = 15; i > 0; i--) {
+        for (i = 15; i > env->psrpil; i--) {
             if (pil & (1 << i)) {
                 int old_interrupt = env->interrupt_index;
+                int new_interrupt = TT_EXTINT | i;
 
-                env->interrupt_index = TT_EXTINT | i;
-                if (old_interrupt != env->interrupt_index) {
-                    CPUIRQ_DPRINTF("Set CPU IRQ %d\n", i);
+                if (env->tl > 0 && cpu_tsptr(env)->tt > new_interrupt) {
+                    CPUIRQ_DPRINTF("Not setting CPU IRQ: TL=%d "
+                                   "current %x >= pending %x\n",
+                                   env->tl, cpu_tsptr(env)->tt, new_interrupt);
+                } else if (old_interrupt != new_interrupt) {
+                    env->interrupt_index = new_interrupt;
+                    CPUIRQ_DPRINTF("Set CPU IRQ %d old=%x new=%x\n", i,
+                                   old_interrupt, new_interrupt);
                     cpu_interrupt(env, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
         }
-    } else if (!pil && (env->interrupt_index & ~15) == TT_EXTINT) {
-        CPUIRQ_DPRINTF("Reset CPU IRQ %d\n", env->interrupt_index & 15);
-        env->interrupt_index = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    } else {
+        CPUIRQ_DPRINTF("Interrupts disabled, pil=%08x pil_in=%08x softint=%08x "
+                       "current interrupt %x\n",
+                       pil, env->pil_in, env->softint, env->interrupt_index);
     }
 }
 
