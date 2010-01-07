@@ -3240,7 +3240,7 @@ target_ulong helper_popc(target_ulong val)
     return ctpop64(val);
 }
 
-static inline uint64_t *get_gregset(uint64_t pstate)
+static inline uint64_t *get_gregset(uint32_t pstate)
 {
     switch (pstate) {
     default:
@@ -3255,9 +3255,9 @@ static inline uint64_t *get_gregset(uint64_t pstate)
     }
 }
 
-static inline void change_pstate(uint64_t new_pstate)
+static inline void change_pstate(uint32_t new_pstate)
 {
-    uint64_t pstate_regs, new_pstate_regs;
+    uint32_t pstate_regs, new_pstate_regs;
     uint64_t *src, *dst;
 
     if (env->def->features & CPU_FEATURE_GL) {
