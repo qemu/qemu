@@ -831,23 +831,25 @@ static void nic_cleanup(VLANClientState *vc)
 static void tnetw1130_pci_config(uint8_t *pci_conf)
 {
     /* PCI Vendor ID */
-    pci_config_set_vendor_id(pci_conf, 0x104c);
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_TI);
     pci_config_set_device_id(pci_conf, 0x9066);
-    PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
+    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
+    PCI_CONFIG_16(PCI_STATUS, 0x0210);
     /* ethernet network controller */
     PCI_CONFIG_32(PCI_REVISION_ID, 0x02800000);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
                   //~ PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
                   //~ PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH);
-    PCI_CONFIG_32(0x28, 0x00001c02);
-    PCI_CONFIG_32(0x2c, 0x9067104c);
+    PCI_CONFIG_32(PCI_CARDBUS_CIS, 0x00001c02);
+    PCI_CONFIG_32(PCI_SUBSYSTEM_VENDOR_ID, 0x90670000 | PCI_VENDOR_ID_TI);
     /* Address registers are set by pci_register_bar. */
     /* Capabilities Pointer, CLOFS */
-    PCI_CONFIG_32(0x34, 0x00000040);
+    PCI_CONFIG_32(PCI_CAPABILITY_LIST, 0x00000040);
     /* 0x38 reserved, returns 0 */
     /* MNGNT = 11, MXLAT = 52, IPIN = 0 */
-    PCI_CONFIG_32(0x3c, 0x00000100);
+    /* TODO: Split next command using PCI_CONFIG_8. */
+    PCI_CONFIG_32(PCI_INTERRUPT_LINE, 0x00000100);
     /* Power Management Capabilities */
     PCI_CONFIG_32(0x40, 0x7e020001);
     /* Power Management Control and Status */
