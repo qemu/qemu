@@ -564,6 +564,19 @@ static inline int cpu_mmu_index(CPUState *env1)
 #endif
 }
 
+static inline int cpu_interrupts_enabled(CPUState *env1)
+{
+#if !defined (TARGET_SPARC64)
+    if (env1->psret != 0)
+        return 1;
+#else
+    if (env1->pstate & PS_IE)
+        return 1;
+#endif
+
+    return 0;
+}
+
 static inline int cpu_fpu_enabled(CPUState *env1)
 {
 #if defined(CONFIG_USER_ONLY)
