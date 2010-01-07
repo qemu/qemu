@@ -3468,7 +3468,7 @@ void do_interrupt(CPUState *env)
     env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
     env->pc = env->tbr;
     env->npc = env->pc + 4;
-    env->exception_index = 0;
+    env->exception_index = -1;
 }
 #else
 #ifdef DEBUG_PCALL

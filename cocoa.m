@@ -28,6 +28,13 @@
 #include "console.h"
 #include "sysemu.h"
 
+#ifndef MAC_OS_X_VERSION_10_4
+#define MAC_OS_X_VERSION_10_4 1040
+#endif
+#ifndef MAC_OS_X_VERSION_10_5
+#define MAC_OS_X_VERSION_10_5 1050
+#endif
+
 
 //#define DEBUG
 
@@ -229,7 +236,7 @@ int keymap[] =
 */
 };
 
-int cocoa_keycode_to_qemu(int keycode)
+static int cocoa_keycode_to_qemu(int keycode)
 {
     if((sizeof(keymap)/sizeof(int)) <= keycode)
     {
@@ -298,6 +305,11 @@ int cocoa_keycode_to_qemu(int keycode)
     [super dealloc];
 }
 
+- (BOOL) isOpaque
+{
+    return YES;
+}
+
 - (void) drawRect:(NSRect) rect
 {
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
@@ -315,7 +327,7 @@ int cocoa_keycode_to_qemu(int keycode)
             screen.bitsPerComponent, //bitsPerComponent
             screen.bitsPerPixel, //bitsPerPixel
             (screen.width * (screen.bitsPerComponent/2)), //bytesPerRow
-#if __LITTLE_ENDIAN__
+#ifdef __LITTLE_ENDIAN__
             CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
             kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
 #else
@@ -327,7 +339,7 @@ int cocoa_keycode_to_qemu(int keycode)
             0, //interpolate
             kCGRenderingIntentDefault //intent
         );
-// test if host support "CGImageCreateWithImageInRect" at compiletime
+// test if host supports "CGImageCreateWithImageInRect" at compile time
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
         if (CGImageCreateWithImageInRect == NULL) { // test if "CGImageCreateWithImageInRect" is supported on host at runtime
 #endif
@@ -337,7 +349,11 @@ int cocoa_keycode_to_qemu(int keycode)
         } else {
             // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
             const NSRect *rectList;
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+            NSInteger rectCount;
+#else
             int rectCount;
+#endif
             int i;
             CGImageRef clipImageRef;
             CGRect clipRect;
@@ -403,7 +419,7 @@ int cocoa_keycode_to_qemu(int keycode)
     } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:YES animate:YES];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:YES animate:NO];
     }
     screen.width = w;
     screen.height = h;
@@ -420,8 +436,8 @@ int cocoa_keycode_to_qemu(int keycode)
         isFullscreen = FALSE;
         [self ungrabMouse];
         [self setContentDimensions];
-// test if host support "enterFullScreenMode:withOptions" at compiletime
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+// test if host supports "exitFullScreenModeWithOptions" at compile time
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         if ([NSView respondsToSelector:@selector(exitFullScreenModeWithOptions:)]) { // test if "exitFullScreenModeWithOptions" is supported on host at runtime
             [self exitFullScreenModeWithOptions:nil];
         } else {
@@ -430,15 +446,15 @@ int cocoa_keycode_to_qemu(int keycode)
             [normalWindow setContentView: self];
             [normalWindow makeKeyAndOrderFront: self];
             [NSMenu setMenuBarVisible:YES];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
 #endif
     } else { // switch from desktop to fullscreen
         isFullscreen = TRUE;
         [self grabMouse];
         [self setContentDimensions];
-// test if host support "enterFullScreenMode:withOptions" at compiletime
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+// test if host supports "enterFullScreenMode:withOptions" at compile time
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         if ([NSView respondsToSelector:@selector(enterFullScreenMode:withOptions:)]) { // test if "enterFullScreenMode:withOptions" is supported on host at runtime
             [self enterFullScreenMode:[NSScreen mainScreen] withOptions:[NSDictionary dictionaryWithObjectsAndKeys:
                 [NSNumber numberWithBool:NO], NSFullScreenModeAllScreens,
@@ -454,7 +470,7 @@ int cocoa_keycode_to_qemu(int keycode)
             [fullScreenWindow setHasShadow:NO];
             [fullScreenWindow setContentView:self];
             [fullScreenWindow makeKeyAndOrderFront:self];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
 #endif
     }
@@ -724,6 +740,7 @@ int cocoa_keycode_to_qemu(int keycode)
         [normalWindow setAcceptsMouseMovedEvents:YES];
         [normalWindow setTitle:[NSString stringWithFormat:@"QEMU"]];
         [normalWindow setContentView:cocoaView];
+        [normalWindow useOptimizedDrawing:YES];
         [normalWindow makeKeyAndOrderFront:self];
 		[normalWindow center];
 
@@ -767,6 +784,11 @@ int cocoa_keycode_to_qemu(int keycode)
     exit(0);
 }
 
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)theApplication
+{
+    return YES;
+}
+
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv
 {
     COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
@@ -783,7 +805,7 @@ int cocoa_keycode_to_qemu(int keycode)
     if(returnCode == NSCancelButton) {
         exit(0);
     } else if(returnCode == NSOKButton) {
-        char *bin = "qemu";
+        const char *bin = "qemu";
         char *img = (char*)[ [ sheet filename ] cStringUsingEncoding:NSASCIIStringEncoding];
 
         char **argv = (char**)malloc( sizeof(char*)*3 );
@@ -839,6 +861,16 @@ int main (int argc, const char * argv[]) {
     gArgc = argc;
     gArgv = (char **)argv;
     CPSProcessSerNum PSN;
+    int i;
+
+    /* In case we don't need to display a window, let's not do that */
+    for (i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-vnc") ||
+            !strcmp(argv[i], "-nographic") ||
+            !strcmp(argv[i], "-curses")) {
+                return qemu_main(gArgc, gArgv);
+        }
+    }
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
@@ -922,7 +954,7 @@ static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
             w * [cocoaView cdx],
             h * [cocoaView cdy]);
     }
-    [cocoaView displayRect:rect];
+    [cocoaView setNeedsDisplayInRect:rect];
 }
 
 static void cocoa_resize(DisplayState *ds)

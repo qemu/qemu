@@ -437,7 +437,7 @@ static void pm_write_config(PCIDevice *d,
                             uint32_t address, uint32_t val, int len)
 {
     pci_default_write_config(d, address, val, len);
-    if (address == 0x80)
+    if (range_covers_byte(address, len, 0x80))
         pm_io_space_update((PIIX4PMState *)d);
 }
 

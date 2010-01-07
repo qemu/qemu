@@ -835,7 +835,7 @@ static void tnetw1130_pci_config(uint8_t *pci_conf)
     pci_config_set_device_id(pci_conf, 0x9066);
     PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
     /* ethernet network controller */
-    PCI_CONFIG_32(PCI_REVISION, 0x02800000);
+    PCI_CONFIG_32(PCI_REVISION_ID, 0x02800000);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
                   //~ PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,

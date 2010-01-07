@@ -1091,17 +1091,6 @@ static void gt64120_reset(void *opaque)
     gt64120_pci_mapping(s);
 }
 
-static uint32_t gt64120_read_config(PCIDevice *d, uint32_t address, int len)
-{
-    return pci_default_read_config(d, address, len);
-}
-
-static void gt64120_write_config(PCIDevice *d, uint32_t address, uint32_t val,
-                                 int len)
-{
-    pci_default_write_config(d, address, val, len);
-}
-
 static void gt64120_save(QEMUFile* f, void *opaque)
 {
     PCIDevice *d = opaque;
@@ -1134,7 +1123,7 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
                                    pic, 144, 4);
     s->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, s);
     d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice),
-                            0, gt64120_read_config, gt64120_write_config);
+                            0, NULL, NULL);
 
     /* FIXME: Malta specific hw assumptions ahead */
 

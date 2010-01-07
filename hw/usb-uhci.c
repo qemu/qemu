@@ -1065,11 +1065,12 @@ static int usb_uhci_common_initfn(UHCIState *s)
     uint8_t *pci_conf = s->dev.config;
     int i;
 
-    pci_conf[0x08] = 0x01; // revision number
-    pci_conf[0x09] = 0x00;
+    pci_conf[PCI_REVISION_ID] = 0x01; // revision number
+    pci_conf[PCI_CLASS_PROG] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
-    pci_conf[0x3d] = 4; // interrupt pin 3
+    /* TODO: reset value should be 0. */
+    pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
 
     usb_bus_new(&s->bus, &s->dev.qdev);

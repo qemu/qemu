@@ -411,7 +411,7 @@ static int i6300esb_init(PCIDevice *dev)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_ESB_9);
     pci_config_set_class(pci_conf, PCI_CLASS_SYSTEM_OTHER);
-    pci_conf[0x0e] = 0x00;
+    pci_conf[PCI_HEADER_TYPE] = 0x00;
 
     pci_register_bar(&d->dev, 0, 0x10,
                             PCI_BASE_ADDRESS_SPACE_MEMORY, i6300esb_map);

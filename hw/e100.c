@@ -786,7 +786,7 @@ static void pci_reset(E100State * s)
     logout("%p\n", s);
 
     /* I82557 */
-    PCI_CONFIG_8(PCI_REVISION, 0x01);
+    PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
 
     PCI_CONFIG_8(0x3c, 0x0);
 

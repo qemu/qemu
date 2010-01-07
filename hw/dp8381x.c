@@ -1518,7 +1518,7 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x0020100b);
     PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
     /* ethernet network controller */
-    PCI_CONFIG_32(PCI_REVISION, 0x02000000);
+    PCI_CONFIG_32(PCI_REVISION_ID, 0x02000000);
     /* Address registers are set by pci_register_bar. */
     /* Capabilities Pointer, CLOFS */
     PCI_CONFIG_32(0x34, 0x00000040);
