@@ -1709,7 +1709,7 @@ if test "$docs" != "no" ; then
   fi
 fi
 
-if test "$tools" == ""; then
+if test "$tools" = ""; then
   if test `expr "$target_list" : ".*softmmu.*"` != 0; then
     tools=yes
   else
