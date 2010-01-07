@@ -63,7 +63,9 @@
 #define KiB 1024
 
 /* Debug EEPRO100 card. */
-//~ #define DEBUG_EEPRO100
+#if 0
+# define DEBUG_EEPRO100
+#endif
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, ...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ## __VA_ARGS__)
@@ -632,6 +634,10 @@ static void pci_reset(EEPRO100State * s)
         logout("Device %X is undefined!\n", device);
     }
 
+    /* Standard TxCB. */
+    s->configuration[6] |= BIT(4);
+
+    /* Standard statistical counters. */
     s->configuration[6] |= BIT(5);
 
     if (s->stats_size == 80) {
@@ -935,14 +941,11 @@ static void tx_command(EEPRO100State *s)
         } else {
             cpu_physical_memory_read(tbd_address, &buf[0], tcb_bytes);
         }
-    } else if (!s->has_extended_tcb_support) {
-        /* Device does not support extend TCB. */
-        UNEXPECTED();
     } else {
         /* Flexible mode. */
         uint8_t tbd_count = 0;
         if (!(s->configuration[6] & BIT(4))) {
-            /* Extended TCB. */
+            /* Extended TxCB. */
             assert(tcb_bytes == 0);
             for (; tbd_count < 2 && tbd_count < s->tx.tbd_count; tbd_count++) {
                 uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
@@ -1036,6 +1039,10 @@ static void action_command(EEPRO100State *s)
         case CmdConfigure:
             cpu_physical_memory_read(s->cb_address + 8, &s->configuration[0],
                                      sizeof(s->configuration));
+            if (!s->has_extended_tcb_support) {
+              /* Force standard TxCB. */
+              s->configuration[6] |= BIT(4);
+            }
             TRACE(OTHER, logout("configuration: %s\n", nic_dump(&s->configuration[0], 16)));
             break;
         case CmdMulticastList:
@@ -1870,7 +1877,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
           assert(mcast_idx < 64);
           if (s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))) {
             /* Multicast frame is allowed in hash table. */
-          } else if (s->configuration[15] & 1) {
+          } else if (s->configuration[15] & BIT(0)) {
               /* Promiscuous: receive all. */
               rfd_status |= 0x0004;
           } else {
@@ -1880,7 +1887,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         }
         /* TODO: Next not for promiscuous mode? */
         rfd_status |= 0x0002;
-    } else if (s->configuration[15] & 1) {
+    } else if (s->configuration[15] & BIT(0)) {
         /* Promiscuous: receive all. */
         TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%zu\n", s, size));
         rfd_status |= 0x0004;
@@ -1924,12 +1931,12 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     /* Early receive interrupt not supported. */
     //~ eepro100_er_interrupt(s);
     /* Receive CRC Transfer not supported. */
-    if (s->configuration[18] & 4) {
+    if (s->configuration[18] & BIT(2)) {
         missing("Receive CRC Transfer");
         return -1;
     }
     /* TODO: check stripping enable bit. */
-    //~ assert(!(s->configuration[17] & 1));
+    //~ assert(!(s->configuration[17] & BIT(0)));
     cpu_physical_memory_write(s->ru_base + s->ru_offset +
                               offsetof(eepro100_rx_t, packet), buf, size);
     s->statistics.rx_good_frames++;
