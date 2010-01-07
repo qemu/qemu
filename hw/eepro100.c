@@ -2163,7 +2163,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-i82551.bin",
+        .romfile   = "pxe-80861209.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2173,6 +2173,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557a_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2182,7 +2183,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-i82557b.bin",
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2192,6 +2193,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557c_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2201,6 +2203,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558a_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2210,6 +2213,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558b_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2219,6 +2223,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559a_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2228,6 +2233,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559b_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2237,6 +2243,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559c_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861229.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2246,7 +2253,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-i82559er.bin",
+        .romfile   = "pxe-80861209.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2256,6 +2263,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82562_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "pxe-80861209.bin",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
