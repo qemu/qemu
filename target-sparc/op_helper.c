@@ -3303,6 +3303,20 @@ void helper_wrpstate(target_ulong new_state)
     change_pstate(new_state & 0xf3f);
 }
 
+void helper_wrpil(target_ulong new_pil)
+{
+#if !defined(CONFIG_USER_ONLY)
+    DPRINTF_PSTATE("helper_wrpil old=%x new=%x\n",
+                   env->psrpil, (uint32_t)new_pil);
+
+    env->psrpil = new_pil;
+
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
+}
+
 void helper_done(void)
 {
     trap_state* tsptr = cpu_tsptr(env);

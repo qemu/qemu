@@ -5,6 +5,7 @@ DEF_HELPER_0(rett, void)
 DEF_HELPER_1(wrpsr, void, tl)
 DEF_HELPER_0(rdpsr, tl)
 #else
+DEF_HELPER_1(wrpil, void, tl)
 DEF_HELPER_1(wrpstate, void, tl)
 DEF_HELPER_0(done, void)
 DEF_HELPER_0(retry, void)
