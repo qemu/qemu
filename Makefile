@@ -1,6 +1,5 @@
 # Makefile for QEMU.
 
-# This needs to be defined before rules.mak
 GENERATED_HEADERS = config-host.h
 
 ifneq ($(wildcard config-host.mak),)
@@ -87,7 +86,10 @@ SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 subdir-%: $(GENERATED_HEADERS)
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
-$(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
+include $(SRC_PATH)/Makefile.objs
+
+$(common-obj-y): $(GENERATED_HEADERS)
+$(filter %-softmmu,$(SUBDIR_RULES)): $(common-obj-y)
 
 $(filter %-user,$(SUBDIR_RULES)): libuser.a
 
@@ -102,124 +104,7 @@ ALL_SUBDIRS=$(TARGET_DIRS) $(patsubst %,pc-bios/%, $(ROMS))
 
 recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
-#######################################################################
-# QObject
-qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
-qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
-qobject-obj-y += qerror.o
-
-#######################################################################
-# block-obj-y is code used by both qemu system emulation and qemu-img
-
-block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += nbd.o block.o aio.o aes.o osdep.o
-block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
-block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
-
-block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
-block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
-block-nested-y += parallels.o nbd.o
-block-nested-$(CONFIG_WIN32) += raw-win32.o
-block-nested-$(CONFIG_POSIX) += raw-posix.o
-block-nested-$(CONFIG_CURL) += curl.o
-
-block-obj-y +=  $(addprefix block/, $(block-nested-y))
-
-net-obj-y = net.o
-net-nested-y = queue.o checksum.o util.o
-net-nested-y += socket.o
-net-nested-y += dump.o
-net-nested-$(CONFIG_POSIX) += tap.o
-net-nested-$(CONFIG_LINUX) += tap-linux.o
-net-nested-$(CONFIG_WIN32) += tap-win32.o
-net-nested-$(CONFIG_BSD) += tap-bsd.o
-net-nested-$(CONFIG_SOLARIS) += tap-solaris.o
-net-nested-$(CONFIG_AIX) += tap-aix.o
-net-nested-$(CONFIG_SLIRP) += slirp.o
-net-nested-$(CONFIG_VDE) += vde.o
-net-obj-y += $(addprefix net/, $(net-nested-y))
-
-######################################################################
-# libqemu_common.a: Target independent part of system emulation. The
-# long term path is to suppress *all* target specific code in case of
-# system emulation, i.e. a single QEMU executable should support all
-# CPUs and machines.
-
-obj-y = $(block-obj-y)
-obj-y += $(net-obj-y)
-obj-y += $(qobject-obj-y)
-obj-y += readline.o console.o
-
-obj-y += tcg-runtime.o host-utils.o
-obj-y += irq.o ioport.o
-obj-$(CONFIG_PTIMER) += ptimer.o
-obj-$(CONFIG_MAX7310) += max7310.o
-obj-$(CONFIG_WM8750) += wm8750.o
-obj-$(CONFIG_TWL92230) += twl92230.o
-obj-$(CONFIG_TSC2005) += tsc2005.o
-obj-$(CONFIG_LM832X) += lm832x.o
-obj-$(CONFIG_TMP105) += tmp105.o
-obj-$(CONFIG_STELLARIS_INPUT) += stellaris_input.o
-obj-$(CONFIG_SSD0303) += ssd0303.o
-obj-$(CONFIG_SSD0323) += ssd0323.o
-obj-$(CONFIG_ADS7846) += ads7846.o
-obj-$(CONFIG_MAX111X) += max111x.o
-obj-$(CONFIG_DS1338) += ds1338.o
-obj-y += i2c.o smbus.o smbus_eeprom.o
-obj-y += eeprom93xx.o
-obj-y += scsi-disk.o cdrom.o
-obj-y += scsi-generic.o scsi-bus.o
-obj-y += usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
-obj-y += usb-serial.o usb-net.o usb-bus.o
-obj-$(CONFIG_SSI) += ssi.o
-obj-$(CONFIG_SSI_SD) += ssi-sd.o
-obj-$(CONFIG_SD) += sd.o
-obj-$(CONFIG_VLYNQ) += vlynq.o
-obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
-obj-y += bt-hci-csr.o
-obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
-obj-y += qemu-char.o aio.o savevm.o
-obj-y += msmouse.o ps2.o
-obj-y += qdev.o qdev-properties.o
-obj-y += qemu-config.o block-migration.o
-
-obj-$(CONFIG_BRLAPI) += baum.o
-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
-
 audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
-
-audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
-audio-obj-$(CONFIG_SDL) += sdlaudio.o
-audio-obj-$(CONFIG_OSS) += ossaudio.o
-audio-obj-$(CONFIG_COREAUDIO) += coreaudio.o
-audio-obj-$(CONFIG_ALSA) += alsaaudio.o
-audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o
-audio-obj-$(CONFIG_FMOD) += fmodaudio.o
-audio-obj-$(CONFIG_ESD) += esdaudio.o
-audio-obj-$(CONFIG_PA) += paaudio.o
-audio-obj-$(CONFIG_WINWAVE) += winwaveaudio.o
-audio-obj-$(CONFIG_AUDIO_PT_INT) += audio_pt_int.o
-audio-obj-$(CONFIG_AUDIO_WIN_INT) += audio_win_int.o
-audio-obj-y += wavcapture.o
-obj-y += $(addprefix audio/, $(audio-obj-y))
-
-obj-y += keymaps.o
-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
-obj-$(CONFIG_CURSES) += curses.o
-obj-y += vnc.o acl.o d3des.o
-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
-obj-$(CONFIG_COCOA) += cocoa.o
-obj-$(CONFIG_IOTHREAD) += qemu-thread.o
-
-slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
-slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
-slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
-obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
-
-# xen backend driver support
-obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
-obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
 QEMU_CFLAGS+=$(CURL_CFLAGS)
 
@@ -251,17 +136,23 @@ curses.o: curses.c keymaps.h curses_keys.h
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
-libqemu_common.a: $(obj-y)
-
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
+obj-y = qemu-img.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
 
-qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
+qemu-img$(EXESUF): $(obj-y)
 
-qemu-io$(EXESUF):  qemu-io.o qemu-tool.o cmd.o $(block-obj-y) $(qobject-obj-y)
+obj-y = qemu-nbd.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
+$(obj-y): $(GENERATED_HEADERS)
+
+qemu-nbd$(EXESUF): $(obj-y)
+
+obj-y = qemu-io.o qemu-tool.o cmd.o $(block-obj-y) $(qobject-obj-y)
+$(obj-y): $(GENERATED_HEADERS)
+
+qemu-io$(EXESUF): $(obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")

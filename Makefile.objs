@@ -1,0 +1,156 @@
+#######################################################################
+# QObject
+qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
+qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
+qobject-obj-y += qerror.o
+
+#######################################################################
+# block-obj-y is code used by both qemu system emulation and qemu-img
+
+block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
+block-obj-y += nbd.o block.o aio.o aes.o osdep.o
+block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
+block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
+
+block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
+block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
+block-nested-y += parallels.o nbd.o
+block-nested-$(CONFIG_WIN32) += raw-win32.o
+block-nested-$(CONFIG_POSIX) += raw-posix.o
+block-nested-$(CONFIG_CURL) += curl.o
+
+block-obj-y +=  $(addprefix block/, $(block-nested-y))
+
+net-obj-y = net.o
+net-nested-y = queue.o checksum.o util.o
+net-nested-y += socket.o
+net-nested-y += dump.o
+net-nested-$(CONFIG_POSIX) += tap.o
+net-nested-$(CONFIG_LINUX) += tap-linux.o
+net-nested-$(CONFIG_WIN32) += tap-win32.o
+net-nested-$(CONFIG_BSD) += tap-bsd.o
+net-nested-$(CONFIG_SOLARIS) += tap-solaris.o
+net-nested-$(CONFIG_AIX) += tap-aix.o
+net-nested-$(CONFIG_SLIRP) += slirp.o
+net-nested-$(CONFIG_VDE) += vde.o
+net-obj-y += $(addprefix net/, $(net-nested-y))
+
+######################################################################
+# libqemu_common.a: Target independent part of system emulation. The
+# long term path is to suppress *all* target specific code in case of
+# system emulation, i.e. a single QEMU executable should support all
+# CPUs and machines.
+
+common-obj-y = $(block-obj-y)
+common-obj-y += $(net-obj-y)
+common-obj-y += $(qobject-obj-y)
+common-obj-y += readline.o console.o
+
+common-obj-y += tcg-runtime.o host-utils.o
+common-obj-y += irq.o ioport.o
+common-obj-$(CONFIG_PTIMER) += ptimer.o
+common-obj-$(CONFIG_MAX7310) += max7310.o
+common-obj-$(CONFIG_WM8750) += wm8750.o
+common-obj-$(CONFIG_TWL92230) += twl92230.o
+common-obj-$(CONFIG_TSC2005) += tsc2005.o
+common-obj-$(CONFIG_LM832X) += lm832x.o
+common-obj-$(CONFIG_TMP105) += tmp105.o
+common-obj-$(CONFIG_STELLARIS_INPUT) += stellaris_input.o
+common-obj-$(CONFIG_SSD0303) += ssd0303.o
+common-obj-$(CONFIG_SSD0323) += ssd0323.o
+common-obj-$(CONFIG_ADS7846) += ads7846.o
+common-obj-$(CONFIG_MAX111X) += max111x.o
+common-obj-$(CONFIG_DS1338) += ds1338.o
+common-obj-y += i2c.o smbus.o smbus_eeprom.o
+common-obj-y += eeprom93xx.o
+common-obj-y += scsi-disk.o cdrom.o
+common-obj-y += scsi-generic.o scsi-bus.o
+common-obj-y += usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
+common-obj-y += usb-serial.o usb-net.o usb-bus.o
+common-obj-$(CONFIG_SSI) += ssi.o
+common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
+common-obj-$(CONFIG_SD) += sd.o
+common-obj-$(CONFIG_VLYNQ) += vlynq.o
+common-obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
+common-obj-y += bt-hci-csr.o
+common-obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
+common-obj-y += qemu-char.o savevm.o #aio.o
+common-obj-y += msmouse.o ps2.o
+common-obj-y += qdev.o qdev-properties.o
+common-obj-y += qemu-config.o block-migration.o
+
+common-obj-$(CONFIG_BRLAPI) += baum.o
+common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
+
+audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
+audio-obj-$(CONFIG_SDL) += sdlaudio.o
+audio-obj-$(CONFIG_OSS) += ossaudio.o
+audio-obj-$(CONFIG_COREAUDIO) += coreaudio.o
+audio-obj-$(CONFIG_ALSA) += alsaaudio.o
+audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o
+audio-obj-$(CONFIG_FMOD) += fmodaudio.o
+audio-obj-$(CONFIG_ESD) += esdaudio.o
+audio-obj-$(CONFIG_PA) += paaudio.o
+audio-obj-$(CONFIG_WINWAVE) += winwaveaudio.o
+audio-obj-$(CONFIG_AUDIO_PT_INT) += audio_pt_int.o
+audio-obj-$(CONFIG_AUDIO_WIN_INT) += audio_win_int.o
+audio-obj-y += wavcapture.o
+common-obj-y += $(addprefix audio/, $(audio-obj-y))
+
+common-obj-y += keymaps.o
+common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
+common-obj-$(CONFIG_CURSES) += curses.o
+common-obj-y += vnc.o acl.o d3des.o
+common-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
+common-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
+common-obj-$(CONFIG_COCOA) += cocoa.o
+common-obj-$(CONFIG_IOTHREAD) += qemu-thread.o
+
+slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
+slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
+slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
+common-obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
+
+# xen backend driver support
+common-obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
+common-obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
+
+######################################################################
+# libuser
+
+user-obj-y =
+user-obj-y += envlist.o path.o
+user-obj-y += tcg-runtime.o host-utils.o
+user-obj-y += cutils.o cache-utils.o
+
+######################################################################
+# libhw
+
+hw-obj-y =
+hw-obj-y += loader.o
+hw-obj-y += virtio.o
+hw-obj-y += fw_cfg.o
+hw-obj-y += watchdog.o
+hw-obj-$(CONFIG_ECC) += ecc.o
+hw-obj-$(CONFIG_NAND) += nand.o
+
+hw-obj-$(CONFIG_M48T59) += m48t59.o
+hw-obj-$(CONFIG_ESCC) += escc.o
+
+# PCI watchdog devices
+hw-obj-y += wdt_i6300esb.o
+
+hw-obj-y += msix.o
+
+# PCI network cards
+hw-obj-y += ne2000.o
+
+hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
+hw-obj-$(CONFIG_LAN9118) += lan9118.o
+
+# SCSI layer
+hw-obj-y += lsi53c895a.o
+hw-obj-$(CONFIG_ESP) += esp.o
+
+hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
+hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o

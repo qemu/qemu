@@ -1753,37 +1753,6 @@ elif compile_prog "" "-lrt" ; then
   LIBS="-lrt $LIBS"
 fi
 
-# Determine what linker flags to use to force archive inclusion
-check_linker_flags()
-{
-    w2=
-    if test "$2" ; then
-	w2=-Wl,$2
-    fi
-    compile_prog "" "-Wl,$1 ${w2}"
-}
-
-cat > $TMPC << EOF
-int main(void) { }
-EOF
-if check_linker_flags --whole-archive --no-whole-archive ; then
-    # GNU ld
-    arlibs_begin="-Wl,--whole-archive"
-    arlibs_end="-Wl,--no-whole-archive"
-elif check_linker_flags -z,allextract -z,defaultextract ; then
-    # Solaris ld
-    arlibs_begin="-Wl,-z,allextract"
-    arlibs_end="-Wl,-z,defaultextract"
-elif check_linker_flags -all_load ; then
-    # Mac OS X
-    arlibs_begin="-all_load"
-    arlibs_end=""
-else
-    echo "Error: your linker does not support --whole-archive or -z."
-    echo "Please report to qemu-devel@nongnu.org"
-    exit 1
-fi
-
 if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
         "$aix" != "yes" ; then
     libs_softmmu="-lutil $libs_softmmu"
@@ -2488,7 +2457,7 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
   echo "LIBS+=$libs_softmmu" >> $config_target_mak
-  echo "HWLIB=../libhw$target_phys_bits/libqemuhw$target_phys_bits.a" >> $config_target_mak
+  echo "HWDIR=../libhw$target_phys_bits" >> $config_target_mak
   echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 fi
 if test "$target_user_only" = "yes" ; then
@@ -2707,7 +2676,6 @@ for hwlib in 32 64; do
   mkdir -p $d
   rm -f $d/Makefile
   ln -s $source_path/Makefile.hw $d/Makefile
-  echo "HWLIB=libqemuhw$hwlib.a" > $d/config.mak
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" >> $d/config.mak
 done
 
