@@ -3301,6 +3301,12 @@ static inline void change_pstate(uint32_t new_pstate)
 void helper_wrpstate(target_ulong new_state)
 {
     change_pstate(new_state & 0xf3f);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
 }
 
 void helper_wrpil(target_ulong new_pil)
@@ -3328,6 +3334,14 @@ void helper_done(void)
     change_pstate((tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, tsptr->tstate & 0xff);
     env->tl--;
+
+    DPRINTF_PSTATE("... helper_done tl=%d\n", env->tl);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
 }
 
 void helper_retry(void)
@@ -3341,21 +3355,42 @@ void helper_retry(void)
     change_pstate((tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, tsptr->tstate & 0xff);
     env->tl--;
+
+    DPRINTF_PSTATE("... helper_retry tl=%d\n", env->tl);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
+}
+
+static void do_modify_softint(const char* operation, uint32_t value)
+{
+    if (env->softint != value) {
+        env->softint = value;
+        DPRINTF_PSTATE(": %s new %08x\n", operation, env->softint);
+#if !defined(CONFIG_USER_ONLY)
+        if (cpu_interrupts_enabled(env)) {
+            cpu_check_irqs(env);
+        }
+#endif
+    }
 }
 
 void helper_set_softint(uint64_t value)
 {
-    env->softint |= (uint32_t)value;
+    do_modify_softint("helper_set_softint", env->softint | (uint32_t)value);
 }
 
 void helper_clear_softint(uint64_t value)
 {
-    env->softint &= (uint32_t)~value;
+    do_modify_softint("helper_clear_softint", env->softint & (uint32_t)~value);
 }
 
 void helper_write_softint(uint64_t value)
 {
-    env->softint = (uint32_t)value;
+    do_modify_softint("helper_write_softint", (uint32_t)value);
 }
 #endif
 
