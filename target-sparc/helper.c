@@ -1452,6 +1452,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 #ifdef TARGET_SPARC64
     cpu_fprintf(f, "pstate: 0x%08x ccr: 0x%02x asi: 0x%02x tl: %d fprs: %d\n",
                 env->pstate, GET_CCR(env), env->asi, env->tl, env->fprs);
+    cpu_fprintf(f, "pil=%x\n", env->psrpil);
     cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate %d "
                 "cleanwin %d cwp %d\n",
                 env->cansave, env->canrestore, env->otherwin, env->wstate,
