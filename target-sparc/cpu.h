@@ -394,6 +394,8 @@ typedef struct CPUSPARCState {
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
     void *tick, *stick;
+#define TICK_NPT_MASK        0x8000000000000000ULL
+#define TICK_INT_DIS         0x8000000000000000ULL
     uint64_t gsr;
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
@@ -402,6 +404,8 @@ typedef struct CPUSPARCState {
     uint32_t softint;
 #define SOFTINT_TIMER   1
 #define SOFTINT_STIMER  (1 << 16)
+#define SOFTINT_INTRMASK (0xFFFE)
+#define SOFTINT_REG_MASK (SOFTINT_STIMER|SOFTINT_INTRMASK|SOFTINT_TIMER)
 #endif
     sparc_def_t *def;
 } CPUSPARCState;

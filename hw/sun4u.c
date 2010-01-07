@@ -73,7 +73,6 @@
 
 #define MAX_PILS 16
 
-#define TICK_INT_DIS         0x8000000000000000ULL
 #define TICK_MAX             0x7fffffffffffffffULL
 
 struct hwdef {
