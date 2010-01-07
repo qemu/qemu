@@ -670,6 +670,7 @@ void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
 }
 #endif
 
+
 static void tcg_reg_alloc_start(TCGContext *s)
 {
     int i;
@@ -888,21 +889,29 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
                 fprintf(outfile, "%s",
                         tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k++]));
             }
-            if (c == INDEX_op_brcond_i32
+            switch (c) {
+            case INDEX_op_brcond_i32:
 #if TCG_TARGET_REG_BITS == 32
-                || c == INDEX_op_brcond2_i32
+            case INDEX_op_brcond2_i32:
 #elif TCG_TARGET_REG_BITS == 64
-                || c == INDEX_op_brcond_i64
+            case INDEX_op_brcond_i64:
 #endif
-                ) {
+            case INDEX_op_setcond_i32:
+#if TCG_TARGET_REG_BITS == 32
+            case INDEX_op_setcond2_i32:
+#elif TCG_TARGET_REG_BITS == 64
+            case INDEX_op_setcond_i64:
+#endif
                 if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]])
                     fprintf(outfile, ",%s", cond_name[args[k++]]);
                 else
                     fprintf(outfile, ",$0x%" TCG_PRIlx, args[k++]);
                 i = 1;
-            }
-            else
+                break;
+            default:
                 i = 0;
+                break;
+            }
             for(; i < nb_cargs; i++) {
                 if (k != 0)
                     fprintf(outfile, ",");

@@ -42,6 +42,7 @@ DEF2(br, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 
 DEF2(mov_i32, 1, 1, 0, 0)
 DEF2(movi_i32, 1, 0, 1, 0)
+DEF2(setcond_i32, 1, 2, 1, 0)
 /* load/store */
 DEF2(ld8u_i32, 1, 1, 1, 0)
 DEF2(ld8s_i32, 1, 1, 1, 0)
@@ -82,6 +83,7 @@ DEF2(add2_i32, 2, 4, 0, 0)
 DEF2(sub2_i32, 2, 4, 0, 0)
 DEF2(brcond2_i32, 0, 4, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 DEF2(mulu2_i32, 2, 2, 0, 0)
+DEF2(setcond2_i32, 1, 4, 1, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext8s_i32
 DEF2(ext8s_i32, 1, 1, 0, 0)
@@ -111,6 +113,7 @@ DEF2(neg_i32, 1, 1, 0, 0)
 #if TCG_TARGET_REG_BITS == 64
 DEF2(mov_i64, 1, 1, 0, 0)
 DEF2(movi_i64, 1, 0, 1, 0)
+DEF2(setcond_i64, 1, 2, 1, 0)
 /* load/store */
 DEF2(ld8u_i64, 1, 1, 1, 0)
 DEF2(ld8s_i64, 1, 1, 1, 0)
