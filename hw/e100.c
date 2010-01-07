@@ -788,8 +788,8 @@ static void pci_reset(E100State * s)
     /* I82557 */
     PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
 
-    PCI_CONFIG_8(0x3c, 0x0);
-
+    /* TODO: This is the default value. */
+    PCI_CONFIG_8(PCI_INTERRUPT_LINE, 0x00);
 }
 
 static void e100_selective_reset(E100State * s)
