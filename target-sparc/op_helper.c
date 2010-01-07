@@ -11,6 +11,7 @@
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_ASI
 //#define DEBUG_PCALL
+//#define DEBUG_PSTATE
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, ...)                                   \
@@ -29,6 +30,13 @@
 #ifdef DEBUG_ASI
 #define DPRINTF_ASI(fmt, ...)                                   \
     do { printf("ASI: " fmt , ## __VA_ARGS__); } while (0)
+#endif
+
+#ifdef DEBUG_PSTATE
+#define DPRINTF_PSTATE(fmt, ...)                                   \
+    do { printf("PSTATE: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF_PSTATE(fmt, ...) do {} while (0)
 #endif
 
 #ifdef TARGET_SPARC64
@@ -3244,6 +3252,12 @@ static inline uint64_t *get_gregset(uint32_t pstate)
 {
     switch (pstate) {
     default:
+        DPRINTF_PSTATE("ERROR in get_gregset: active pstate bits=%x%s%s%s\n",
+                pstate,
+                (pstate & PS_IG) ? " IG" : "",
+                (pstate & PS_MG) ? " MG" : "",
+                (pstate & PS_AG) ? " AG" : "");
+        /* pass through to normal set of global registers */
     case 0:
         return env->bgregs;
     case PS_AG:
@@ -3269,11 +3283,17 @@ static inline void change_pstate(uint32_t new_pstate)
     new_pstate_regs = new_pstate & 0xc01;
 
     if (new_pstate_regs != pstate_regs) {
+        DPRINTF_PSTATE("change_pstate: switching regs old=%x new=%x\n",
+                       pstate_regs, new_pstate_regs);
         // Switch global register bank
         src = get_gregset(new_pstate_regs);
         dst = get_gregset(pstate_regs);
         memcpy32(dst, env->gregs);
         memcpy32(env->gregs, src);
+    }
+    else {
+        DPRINTF_PSTATE("change_pstate: regs new=%x (unchanged)\n",
+                       new_pstate_regs);
     }
     env->pstate = new_pstate;
 }
