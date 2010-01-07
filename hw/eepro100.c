@@ -415,10 +415,8 @@ static void pci_reset(EEPRO100State * s)
     /* TODO: this is the default, do not override. */
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);
     /* PCI Status */
-    /* TODO: this seems to make no sense. */
     /* TODO: Value at RST# should be 0. */
-    PCI_CONFIG_16(PCI_STATUS,
-                  PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_SIG_TARGET_ABORT);
+    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM | PCI_STATUS_FAST_BACK);
     /* PCI Revision ID */
     PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
     /* TODO: this is the default, do not override. */
