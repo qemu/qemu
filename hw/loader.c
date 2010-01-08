@@ -535,6 +535,7 @@ struct Rom {
     QTAILQ_ENTRY(Rom) next;
 };
 
+static FWCfgState *fw_cfg;
 static QTAILQ_HEAD(, Rom) roms = QTAILQ_HEAD_INITIALIZER(roms);
 int rom_enable_driver_roms;
 
@@ -592,6 +593,8 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
     close(fd);
     rom_insert(rom);
+    if (rom->fw_file && fw_cfg)
+        fw_cfg_add_file(fw_cfg, rom->fw_dir, rom->fw_file, rom->data, rom->romsize);
     return 0;
 
 err:
@@ -681,17 +684,9 @@ int rom_load_all(void)
     return 0;
 }
 
-int rom_load_fw(void *fw_cfg)
+void rom_set_fw(void *f)
 {
-    Rom *rom;
-
-    QTAILQ_FOREACH(rom, &roms, next) {
-        if (!rom->fw_file) {
-            continue;
-        }
-        fw_cfg_add_file(fw_cfg, rom->fw_dir, rom->fw_file, rom->data, rom->romsize);
-    }
-    return 0;
+    fw_cfg = f;
 }
 
 static Rom *find_rom(target_phys_addr_t addr)
