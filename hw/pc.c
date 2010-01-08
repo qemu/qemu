@@ -1065,12 +1065,27 @@ void cmos_set_s3_resume(void)
 }
 
 static QEMUMachine pc_machine = {
-    .name = "pc-0.11",
+    .name = "pc-0.12",
     .alias = "pc",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
     .is_default = 1,
+};
+
+static QEMUMachine pc_machine_v0_11 = {
+    .name = "pc-0.11",
+    .desc = "Standard PC, qemu 0.11",
+    .init = pc_init_pci,
+    .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "virtio-blk-pci",
+            .property = "vectors",
+            .value    = stringify(0),
+        },
+        { /* end of list */ }
+    }
 };
 
 static QEMUMachine pc_machine_v0_10 = {
@@ -1110,6 +1125,7 @@ static QEMUMachine isapc_machine = {
 static void pc_machine_init(void)
 {
     qemu_register_machine(&pc_machine);
+    qemu_register_machine(&pc_machine_v0_11);
     qemu_register_machine(&pc_machine_v0_10);
     qemu_register_machine(&isapc_machine);
 }
