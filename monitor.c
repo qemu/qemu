@@ -365,8 +365,10 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     qmp = qdict_new();
     timestamp_put(qmp);
     qdict_put(qmp, "event", qstring_from_str(event_name));
-    if (data)
+    if (data) {
+        qobject_incref(data);
         qdict_put_obj(qmp, "data", data);
+    }
 
     monitor_json_emitter(mon, QOBJECT(qmp));
     QDECREF(qmp);
