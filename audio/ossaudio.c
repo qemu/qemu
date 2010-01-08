@@ -38,6 +38,10 @@
 #define AUDIO_CAP "oss"
 #include "audio_int.h"
 
+#if defined OSS_GETVERSION && defined SNDCTL_DSP_POLICY
+#define USE_DSP_POLICY
+#endif
+
 typedef struct OSSVoiceOut {
     HWVoiceOut hw;
     void *pcm_buf;
@@ -240,7 +244,7 @@ static int oss_open (int in, struct oss_params *req,
                      struct oss_params *obt, int *pfd)
 {
     int fd;
-#ifdef OSS_GETVERSION
+#ifdef USE_DSP_POLICY
     int version;
 #endif
     int oflags = conf.exclusive ? O_EXCL : 0;
@@ -283,7 +287,7 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
-#ifdef OSS_GETVERSION
+#ifdef USE_DSP_POLICY
     if (ioctl (fd, OSS_GETVERSION, &version)) {
         oss_logerr2 (errno, typ, "Failed to get OSS version\n");
         version = 0;
@@ -292,16 +296,8 @@ static int oss_open (int in, struct oss_params *req,
     if (conf.debug) {
         dolog ("OSS version = %#x\n", version);
     }
-#endif
 
-#ifdef SNDCTL_DSP_POLICY
-    if (conf.policy >= 0
-#ifdef OSS_GETVERSION
-        && version >= 0x040000
-#else
-        0
-#endif
-        )
+    if (conf.policy >= 0 && version >= 0x040000)
     {
         int policy = conf.policy;
         if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
@@ -868,7 +864,7 @@ static struct audio_option oss_options[] = {
         .valp  = &conf.exclusive,
         .descr = "Open device in exclusive mode (vmix wont work)"
     },
-#ifdef SNDCTL_DSP_POLICY
+#ifdef USE_DSP_POLICY
     {
         .name  = "POLICY",
         .tag   = AUD_OPT_INT,
