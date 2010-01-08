@@ -19,7 +19,8 @@ void pstrcpy_targphys(const char *name,
                       target_phys_addr_t dest, int buf_size,
                       const char *source);
 
-int rom_add_file(const char *file, const char *fw_dir, const char *fw_file,
+
+int rom_add_file(const char *file, const char *fw_dir,
                  target_phys_addr_t addr);
 int rom_add_blob(const char *name, const void *blob, size_t len,
                  target_phys_addr_t addr);
@@ -30,7 +31,7 @@ void *rom_ptr(target_phys_addr_t addr);
 void do_info_roms(Monitor *mon);
 
 #define rom_add_file_fixed(_f, _a)              \
-    rom_add_file(_f, NULL, NULL, _a)
+    rom_add_file(_f, NULL, _a)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
     rom_add_blob(_f, _b, _l, _a)
 
