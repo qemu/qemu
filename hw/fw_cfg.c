@@ -278,7 +278,7 @@ int fw_cfg_add_file(FWCfgState *s,  const char *dir, const char *filename,
                     uint8_t *data, uint32_t len)
 {
     const char *basename;
-    int index;
+    int i, index;
 
     if (!s->files) {
         int dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
@@ -300,13 +300,17 @@ int fw_cfg_add_file(FWCfgState *s,  const char *dir, const char *filename,
     } else {
         basename = filename;
     }
-    if (dir) {
-        snprintf(s->files->f[index].name, sizeof(s->files->f[index].name),
-                 "%s/%s", dir, basename);
-    } else {
-        snprintf(s->files->f[index].name, sizeof(s->files->f[index].name),
-                 "%s", basename);
+
+    snprintf(s->files->f[index].name, sizeof(s->files->f[index].name),
+             "%s/%s", dir, basename);
+    for (i = 0; i < index; i++) {
+        if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
+            FW_CFG_DPRINTF("%s: skip duplicate: %s\n", __FUNCTION__,
+                           s->files->f[index].name);
+            return 1;
+        }
     }
+
     s->files->f[index].size   = cpu_to_be32(len);
     s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);
     FW_CFG_DPRINTF("%s: #%d: %s (%d bytes)\n", __FUNCTION__,
