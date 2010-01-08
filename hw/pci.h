@@ -246,6 +246,7 @@ struct PCIDevice {
     /* Location of option rom */
     char *romfile;
     ram_addr_t rom_offset;
+    uint32_t rom_bar;
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
