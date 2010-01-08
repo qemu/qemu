@@ -240,7 +240,9 @@ static int oss_open (int in, struct oss_params *req,
                      struct oss_params *obt, int *pfd)
 {
     int fd;
+#ifdef OSS_GETVERSION
     int version;
+#endif
     int oflags = conf.exclusive ? O_EXCL : 0;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
@@ -281,6 +283,7 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
+#ifdef OSS_GETVERSION
     if (ioctl (fd, OSS_GETVERSION, &version)) {
         oss_logerr2 (errno, typ, "Failed to get OSS version\n");
         version = 0;
@@ -289,9 +292,17 @@ static int oss_open (int in, struct oss_params *req,
     if (conf.debug) {
         dolog ("OSS version = %#x\n", version);
     }
+#endif
 
 #ifdef SNDCTL_DSP_POLICY
-    if (conf.policy >= 0 && version >= 0x040000) {
+    if (conf.policy >= 0
+#ifdef OSS_GETVERSION
+        && version >= 0x040000
+#else
+        0
+#endif
+        )
+    {
         int policy = conf.policy;
         if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
             oss_logerr2 (errno, typ, "Failed to set timing policy to %d\n",
