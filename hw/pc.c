@@ -1082,6 +1082,10 @@ static QEMUMachine pc_machine_v0_11 = {
             .driver   = "virtio-blk-pci",
             .property = "vectors",
             .value    = stringify(0),
+        },{
+            .driver   = "PCI",
+            .property = "rombar",
+            .value    = stringify(0),
         },
         { /* end of list */ }
     }
@@ -1108,6 +1112,10 @@ static QEMUMachine pc_machine_v0_10 = {
         },{
             .driver   = "virtio-blk-pci",
             .property = "vectors",
+            .value    = stringify(0),
+        },{
+            .driver   = "PCI",
+            .property = "rombar",
             .value    = stringify(0),
         },
         { /* end of list */ }
