@@ -80,10 +80,7 @@ include $(SRC_PATH)/Makefile.objs
 $(common-obj-y): $(GENERATED_HEADERS)
 $(filter %-softmmu,$(SUBDIR_RULES)): $(common-obj-y)
 
-$(filter %-user,$(SUBDIR_RULES)): libuser.a
-
-libuser.a: $(GENERATED_HEADERS)
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libuser V="$(V)" TARGET_DIR="libuser/" all,)
+$(filter %-user,$(SUBDIR_RULES)): $(GENERATED_HEADERS) subdir-libuser
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
