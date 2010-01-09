@@ -247,6 +247,7 @@ static int oss_open (int in, struct oss_params *req,
     int oflags = conf.exclusive ? O_EXCL : 0;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
+    int setfragment = 1;
     const char *dspname = in ? conf.devpath_in : conf.devpath_out;
     const char *typ = in ? "ADC" : "DAC";
 
@@ -290,25 +291,27 @@ static int oss_open (int in, struct oss_params *req,
 
         if (ioctl (fd, OSS_GETVERSION, &version)) {
             oss_logerr2 (errno, typ, "Failed to get OSS version\n");
-            version = 0;
         }
+        else {
+            if (conf.debug) {
+                dolog ("OSS version = %#x\n", version);
+            }
 
-        if (conf.debug) {
-            dolog ("OSS version = %#x\n", version);
-        }
-
-        if (version >= 0x040000) {
-            int policy = conf.policy;
-            if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
-                oss_logerr2 (errno, typ, "Failed to set timing policy to %d\n",
-                             conf.policy);
-                goto err;
+            if (version >= 0x040000) {
+                int policy = conf.policy;
+                if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
+                    oss_logerr2 (errno, typ,
+                                 "Failed to set timing policy to %d\n",
+                                 conf.policy);
+                    goto err;
+                }
+                setfragment = 0;
             }
         }
     }
-    else
 #endif
-    {
+
+    if (setfragment) {
         int mmmmssss = (req->nfrags << 16) | ctz32 (req->fragsize);
         if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
             oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
