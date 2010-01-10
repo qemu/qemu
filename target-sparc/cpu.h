@@ -394,6 +394,8 @@ typedef struct CPUSPARCState {
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
     void *tick, *stick;
+#define TICK_NPT_MASK        0x8000000000000000ULL
+#define TICK_INT_DIS         0x8000000000000000ULL
     uint64_t gsr;
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
@@ -402,6 +404,8 @@ typedef struct CPUSPARCState {
     uint32_t softint;
 #define SOFTINT_TIMER   1
 #define SOFTINT_STIMER  (1 << 16)
+#define SOFTINT_INTRMASK (0xFFFE)
+#define SOFTINT_REG_MASK (SOFTINT_STIMER|SOFTINT_INTRMASK|SOFTINT_TIMER)
 #endif
     sparc_def_t *def;
 } CPUSPARCState;
@@ -557,6 +561,29 @@ static inline int cpu_mmu_index(CPUState *env1)
         return MMU_KERNEL_IDX;
     else
         return MMU_HYPV_IDX;
+#endif
+}
+
+static inline int cpu_interrupts_enabled(CPUState *env1)
+{
+#if !defined (TARGET_SPARC64)
+    if (env1->psret != 0)
+        return 1;
+#else
+    if (env1->pstate & PS_IE)
+        return 1;
+#endif
+
+    return 0;
+}
+
+static inline int cpu_pil_allowed(CPUState *env1, int pil)
+{
+#if !defined(TARGET_SPARC64)
+    /* level 15 is non-maskable on sparc v8 */
+    return pil == 15 || pil > env1->psrpil;
+#else
+    return pil > env1->psrpil;
 #endif
 }
 

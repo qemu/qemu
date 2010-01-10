@@ -38,6 +38,10 @@
 #define AUDIO_CAP "oss"
 #include "audio_int.h"
 
+#if defined OSS_GETVERSION && defined SNDCTL_DSP_POLICY
+#define USE_DSP_POLICY
+#endif
+
 typedef struct OSSVoiceOut {
     HWVoiceOut hw;
     void *pcm_buf;
@@ -240,10 +244,10 @@ static int oss_open (int in, struct oss_params *req,
                      struct oss_params *obt, int *pfd)
 {
     int fd;
-    int version;
     int oflags = conf.exclusive ? O_EXCL : 0;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
+    int setfragment = 1;
     const char *dspname = in ? conf.devpath_in : conf.devpath_out;
     const char *typ = in ? "ADC" : "DAC";
 
@@ -281,27 +285,33 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
-    if (ioctl (fd, OSS_GETVERSION, &version)) {
-        oss_logerr2 (errno, typ, "Failed to get OSS version\n");
-        version = 0;
-    }
+#ifdef USE_DSP_POLICY
+    if (conf.policy >= 0) {
+        int version;
 
-    if (conf.debug) {
-        dolog ("OSS version = %#x\n", version);
-    }
+        if (ioctl (fd, OSS_GETVERSION, &version)) {
+            oss_logerr2 (errno, typ, "Failed to get OSS version\n");
+        }
+        else {
+            if (conf.debug) {
+                dolog ("OSS version = %#x\n", version);
+            }
 
-#ifdef SNDCTL_DSP_POLICY
-    if (conf.policy >= 0 && version >= 0x040000) {
-        int policy = conf.policy;
-        if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
-            oss_logerr2 (errno, typ, "Failed to set timing policy to %d\n",
-                         conf.policy);
-            goto err;
+            if (version >= 0x040000) {
+                int policy = conf.policy;
+                if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
+                    oss_logerr2 (errno, typ,
+                                 "Failed to set timing policy to %d\n",
+                                 conf.policy);
+                    goto err;
+                }
+                setfragment = 0;
+            }
         }
     }
-    else
 #endif
-    {
+
+    if (setfragment) {
         int mmmmssss = (req->nfrags << 16) | ctz32 (req->fragsize);
         if (ioctl (fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss)) {
             oss_logerr2 (errno, typ, "Failed to set buffer length (%d, %d)\n",
@@ -857,7 +867,7 @@ static struct audio_option oss_options[] = {
         .valp  = &conf.exclusive,
         .descr = "Open device in exclusive mode (vmix wont work)"
     },
-#ifdef SNDCTL_DSP_POLICY
+#ifdef USE_DSP_POLICY
     {
         .name  = "POLICY",
         .tag   = AUD_OPT_INT,

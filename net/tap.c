@@ -262,6 +262,13 @@ static void tap_cleanup(VLANClientState *nc)
     close(s->fd);
 }
 
+static void tap_poll(VLANClientState *nc, bool enable)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    tap_read_poll(s, enable);
+    tap_write_poll(s, enable);
+}
+
 /* fd support */
 
 static NetClientInfo net_tap_info = {
@@ -270,6 +277,7 @@ static NetClientInfo net_tap_info = {
     .receive = tap_receive,
     .receive_raw = tap_receive_raw,
     .receive_iov = tap_receive_iov,
+    .poll = tap_poll,
     .cleanup = tap_cleanup,
 };
 

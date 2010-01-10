@@ -449,20 +449,20 @@ int cpu_exec(CPUState *env1)
                         next_tb = 0;
                     }
 #elif defined(TARGET_SPARC)
-                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-			cpu_interrupts_enabled(env)) {
-			int pil = env->interrupt_index & 15;
-			int type = env->interrupt_index & 0xf0;
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                        if (cpu_interrupts_enabled(env) &&
+                            env->interrupt_index > 0) {
+                            int pil = env->interrupt_index & 0xf;
+                            int type = env->interrupt_index & 0xf0;
 
-			if (((type == TT_EXTINT) &&
-			     (pil == 15 || pil > env->psrpil)) ||
-			    type != TT_EXTINT) {
-			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-                            env->exception_index = env->interrupt_index;
-                            do_interrupt(env);
-			    env->interrupt_index = 0;
-                        next_tb = 0;
-			}
+                            if (((type == TT_EXTINT) &&
+                                  cpu_pil_allowed(env, pil)) ||
+                                  type != TT_EXTINT) {
+                                env->exception_index = env->interrupt_index;
+                                do_interrupt(env);
+                                next_tb = 0;
+                            }
+                        }
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
 			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;

@@ -44,12 +44,10 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
+#include "multiboot.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
-
-/* Show multiboot debug output */
-//#define DEBUG_MULTIBOOT
 
 #define BIOS_FILENAME "bios.bin"
 
@@ -506,237 +504,6 @@ static long get_file_size(FILE *f)
     return size;
 }
 
-#define MULTIBOOT_STRUCT_ADDR 0x9000
-
-#if MULTIBOOT_STRUCT_ADDR > 0xf0000
-#error multiboot struct needs to fit in 16 bit real mode
-#endif
-
-static int load_multiboot(void *fw_cfg,
-                          FILE *f,
-                          const char *kernel_filename,
-                          const char *initrd_filename,
-                          const char *kernel_cmdline,
-                          uint8_t *header)
-{
-    int i, is_multiboot = 0;
-    uint32_t flags = 0;
-    uint32_t mh_entry_addr;
-    uint32_t mh_load_addr;
-    uint32_t mb_kernel_size;
-    uint32_t mmap_addr = MULTIBOOT_STRUCT_ADDR;
-    uint32_t mb_bootinfo = MULTIBOOT_STRUCT_ADDR + 0x500;
-    uint32_t mb_mod_end;
-    uint8_t bootinfo[0x500];
-    uint32_t cmdline = 0x200;
-    uint8_t *mb_kernel_data;
-    uint8_t *mb_bootinfo_data;
-
-    /* Ok, let's see if it is a multiboot image.
-       The header is 12x32bit long, so the latest entry may be 8192 - 48. */
-    for (i = 0; i < (8192 - 48); i += 4) {
-        if (ldl_p(header+i) == 0x1BADB002) {
-            uint32_t checksum = ldl_p(header+i+8);
-            flags = ldl_p(header+i+4);
-            checksum += flags;
-            checksum += (uint32_t)0x1BADB002;
-            if (!checksum) {
-                is_multiboot = 1;
-                break;
-            }
-        }
-    }
-
-    if (!is_multiboot)
-        return 0; /* no multiboot */
-
-#ifdef DEBUG_MULTIBOOT
-    fprintf(stderr, "qemu: I believe we found a multiboot image!\n");
-#endif
-    memset(bootinfo, 0, sizeof(bootinfo));
-
-    if (flags & 0x00000004) { /* MULTIBOOT_HEADER_HAS_VBE */
-        fprintf(stderr, "qemu: multiboot knows VBE. we don't.\n");
-    }
-    if (!(flags & 0x00010000)) { /* MULTIBOOT_HEADER_HAS_ADDR */
-        uint64_t elf_entry;
-        uint64_t elf_low, elf_high;
-        int kernel_size;
-        fclose(f);
-        kernel_size = load_elf(kernel_filename, 0, &elf_entry, &elf_low, &elf_high,
-                               0, ELF_MACHINE, 0);
-        if (kernel_size < 0) {
-            fprintf(stderr, "Error while loading elf kernel\n");
-            exit(1);
-        }
-        mh_load_addr = elf_low;
-        mb_kernel_size = elf_high - elf_low;
-        mh_entry_addr = elf_entry;
-
-        mb_kernel_data = qemu_malloc(mb_kernel_size);
-        if (rom_copy(mb_kernel_data, mh_load_addr, mb_kernel_size) != mb_kernel_size) {
-            fprintf(stderr, "Error while fetching elf kernel from rom\n");
-            exit(1);
-        }
-
-#ifdef DEBUG_MULTIBOOT
-        fprintf(stderr, "qemu: loading multiboot-elf kernel (%#x bytes) with entry %#zx\n",
-                mb_kernel_size, (size_t)mh_entry_addr);
-#endif
-    } else {
-        /* Valid if mh_flags sets MULTIBOOT_HEADER_HAS_ADDR. */
-        uint32_t mh_header_addr = ldl_p(header+i+12);
-        mh_load_addr = ldl_p(header+i+16);
-#ifdef DEBUG_MULTIBOOT
-        uint32_t mh_load_end_addr = ldl_p(header+i+20);
-        uint32_t mh_bss_end_addr = ldl_p(header+i+24);
-#endif
-        uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
-
-        mh_entry_addr = ldl_p(header+i+28);
-        mb_kernel_size = get_file_size(f) - mb_kernel_text_offset;
-
-        /* Valid if mh_flags sets MULTIBOOT_HEADER_HAS_VBE.
-        uint32_t mh_mode_type = ldl_p(header+i+32);
-        uint32_t mh_width = ldl_p(header+i+36);
-        uint32_t mh_height = ldl_p(header+i+40);
-        uint32_t mh_depth = ldl_p(header+i+44); */
-
-#ifdef DEBUG_MULTIBOOT
-        fprintf(stderr, "multiboot: mh_header_addr = %#x\n", mh_header_addr);
-        fprintf(stderr, "multiboot: mh_load_addr = %#x\n", mh_load_addr);
-        fprintf(stderr, "multiboot: mh_load_end_addr = %#x\n", mh_load_end_addr);
-        fprintf(stderr, "multiboot: mh_bss_end_addr = %#x\n", mh_bss_end_addr);
-        fprintf(stderr, "qemu: loading multiboot kernel (%#x bytes) at %#x\n",
-                mb_kernel_size, mh_load_addr);
-#endif
-
-        mb_kernel_data = qemu_malloc(mb_kernel_size);
-        fseek(f, mb_kernel_text_offset, SEEK_SET);
-        if (fread(mb_kernel_data, 1, mb_kernel_size, f) != mb_kernel_size) {
-            fprintf(stderr, "fread() failed\n");
-            exit(1);
-        }
-        fclose(f);
-    }
-
-    /* blob size is only the kernel for now */
-    mb_mod_end = mh_load_addr + mb_kernel_size;
-
-    /* load modules */
-    stl_p(bootinfo + 20, 0x0); /* mods_count */
-    if (initrd_filename) {
-        uint32_t mb_mod_info = 0x100;
-        uint32_t mb_mod_cmdline = 0x300;
-        uint32_t mb_mod_start = mh_load_addr;
-        uint32_t mb_mod_length = mb_kernel_size;
-        char *next_initrd;
-        char *next_space;
-        int mb_mod_count = 0;
-
-        do {
-            if (mb_mod_info + 16 > mb_mod_cmdline) {
-                printf("WARNING: Too many modules loaded, aborting.\n");
-                break;
-            }
-
-            next_initrd = strchr(initrd_filename, ',');
-            if (next_initrd)
-                *next_initrd = '\0';
-            /* if a space comes after the module filename, treat everything
-               after that as parameters */
-            pstrcpy((char*)bootinfo + mb_mod_cmdline,
-                    sizeof(bootinfo) - mb_mod_cmdline,
-                    initrd_filename);
-            stl_p(bootinfo + mb_mod_info + 8, mb_bootinfo + mb_mod_cmdline); /* string */
-            mb_mod_cmdline += strlen(initrd_filename) + 1;
-            if (mb_mod_cmdline > sizeof(bootinfo)) {
-                mb_mod_cmdline = sizeof(bootinfo);
-                printf("WARNING: Too many module cmdlines loaded, aborting.\n");
-                break;
-            }
-            if ((next_space = strchr(initrd_filename, ' ')))
-                *next_space = '\0';
-#ifdef DEBUG_MULTIBOOT
-            printf("multiboot loading module: %s\n", initrd_filename);
-#endif
-            mb_mod_start = (mb_mod_start + mb_mod_length + (TARGET_PAGE_SIZE - 1))
-                         & (TARGET_PAGE_MASK);
-            mb_mod_length = get_image_size(initrd_filename);
-            if (mb_mod_length < 0) {
-                fprintf(stderr, "failed to get %s image size\n", initrd_filename);
-                exit(1);
-            }
-            mb_mod_end = mb_mod_start + mb_mod_length;
-            mb_mod_count++;
-
-            /* append module data at the end of last module */
-            mb_kernel_data = qemu_realloc(mb_kernel_data,
-                                          mb_mod_end - mh_load_addr);
-            load_image(initrd_filename,
-                       mb_kernel_data + mb_mod_start - mh_load_addr);
-
-            stl_p(bootinfo + mb_mod_info + 0, mb_mod_start);
-            stl_p(bootinfo + mb_mod_info + 4, mb_mod_start + mb_mod_length);
-            stl_p(bootinfo + mb_mod_info + 12, 0x0); /* reserved */
-#ifdef DEBUG_MULTIBOOT
-            printf("mod_start: %#x\nmod_end:   %#x\n", mb_mod_start,
-                   mb_mod_start + mb_mod_length);
-#endif
-            initrd_filename = next_initrd+1;
-            mb_mod_info += 16;
-        } while (next_initrd);
-        stl_p(bootinfo + 20, mb_mod_count); /* mods_count */
-        stl_p(bootinfo + 24, mb_bootinfo + 0x100); /* mods_addr */
-    }
-
-    /* Commandline support */
-    stl_p(bootinfo + 16, mb_bootinfo + cmdline);
-    snprintf((char*)bootinfo + cmdline, 0x100, "%s %s",
-             kernel_filename, kernel_cmdline);
-
-    /* the kernel is where we want it to be now */
-#define MULTIBOOT_FLAGS_MEMORY (1 << 0)
-#define MULTIBOOT_FLAGS_BOOT_DEVICE (1 << 1)
-#define MULTIBOOT_FLAGS_CMDLINE (1 << 2)
-#define MULTIBOOT_FLAGS_MODULES (1 << 3)
-#define MULTIBOOT_FLAGS_MMAP (1 << 6)
-    stl_p(bootinfo, MULTIBOOT_FLAGS_MEMORY
-                  | MULTIBOOT_FLAGS_BOOT_DEVICE
-                  | MULTIBOOT_FLAGS_CMDLINE
-                  | MULTIBOOT_FLAGS_MODULES
-                  | MULTIBOOT_FLAGS_MMAP);
-    stl_p(bootinfo + 4, 640); /* mem_lower */
-    stl_p(bootinfo + 8, ram_size / 1024); /* mem_upper */
-    stl_p(bootinfo + 12, 0x8001ffff); /* XXX: use the -boot switch? */
-    stl_p(bootinfo + 48, mmap_addr); /* mmap_addr */
-
-#ifdef DEBUG_MULTIBOOT
-    fprintf(stderr, "multiboot: mh_entry_addr = %#x\n", mh_entry_addr);
-#endif
-
-    /* save bootinfo off the stack */
-    mb_bootinfo_data = qemu_malloc(sizeof(bootinfo));
-    memcpy(mb_bootinfo_data, bootinfo, sizeof(bootinfo));
-
-    /* Pass variables to option rom */
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ENTRY, mh_entry_addr);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, mh_load_addr);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, mb_mod_end - mh_load_addr);
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, mb_kernel_data,
-                     mb_mod_end - mh_load_addr);
-
-    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, mb_bootinfo);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, sizeof(bootinfo));
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, mb_bootinfo_data,
-                     sizeof(bootinfo));
-
-    option_rom[nb_option_roms] = "multiboot.bin";
-    nb_option_roms++;
-
-    return 1; /* yes, we are multiboot */
-}
-
 static void load_linux(void *fw_cfg,
                        const char *kernel_filename,
 		       const char *initrd_filename,
@@ -773,8 +540,8 @@ static void load_linux(void *fw_cfg,
     else {
 	/* This looks like a multiboot kernel. If it is, let's stop
 	   treating it like a Linux kernel. */
-	if (load_multiboot(fw_cfg, f, kernel_filename,
-                           initrd_filename, kernel_cmdline, header))
+        if (load_multiboot(fw_cfg, f, kernel_filename, initrd_filename,
+                           kernel_cmdline, kernel_size, header))
             return;
 	protocol = 0;
     }

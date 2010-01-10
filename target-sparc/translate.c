@@ -3372,10 +3372,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                                offsetof(CPUSPARCState, tl));
                                 break;
                             case 8: // pil
-                                tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
-                                tcg_gen_st_i32(cpu_tmp32, cpu_env,
-                                               offsetof(CPUSPARCState,
-                                                        psrpil));
+                                gen_helper_wrpil(cpu_tmp0);
                                 break;
                             case 9: // cwp
                                 gen_helper_wrcwp(cpu_tmp0);

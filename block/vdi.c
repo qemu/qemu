@@ -411,14 +411,17 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
         /* We only support data blocks which start on a sector boundary. */
         logout("unsupported data offset 0x%x B\n", header.offset_data);
         goto fail;
+    } else if (header.disk_size % SECTOR_SIZE != 0) {
+        logout("unsupported disk size %" PRIu64 " B\n", header.disk_size);
+        goto fail;
     } else if (header.sector_size != SECTOR_SIZE) {
         logout("unsupported sector size %u B\n", header.sector_size);
         goto fail;
     } else if (header.block_size != 1 * MiB) {
         logout("unsupported block size %u B\n", header.block_size);
         goto fail;
-    } else if (header.disk_size !=
-               (uint64_t)header.blocks_in_image * header.block_size) {
+    } else if ((header.disk_size + header.block_size - 1) / header.block_size !=
+               (uint64_t)header.blocks_in_image) {
         logout("unexpected block number %u B\n", header.blocks_in_image);
         goto fail;
     } else if (!uuid_is_null(header.uuid_link)) {

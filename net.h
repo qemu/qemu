@@ -1,6 +1,7 @@
 #ifndef QEMU_NET_H
 #define QEMU_NET_H
 
+#include <stdbool.h>
 #include "qemu-queue.h"
 #include "qemu-common.h"
 #include "qdict.h"
@@ -36,6 +37,7 @@ typedef enum {
     NET_CLIENT_TYPE_DUMP
 } net_client_type;
 
+typedef void (NetPoll)(VLANClientState *, bool enable);
 typedef int (NetCanReceive)(VLANClientState *);
 typedef ssize_t (NetReceive)(VLANClientState *, const uint8_t *, size_t);
 typedef ssize_t (NetReceiveIOV)(VLANClientState *, const struct iovec *, int);
@@ -51,6 +53,7 @@ typedef struct NetClientInfo {
     NetCanReceive *can_receive;
     NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
+    NetPoll *poll;
 } NetClientInfo;
 
 struct VLANClientState {

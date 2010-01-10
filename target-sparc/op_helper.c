@@ -11,6 +11,7 @@
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_ASI
 //#define DEBUG_PCALL
+//#define DEBUG_PSTATE
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, ...)                                   \
@@ -29,6 +30,13 @@
 #ifdef DEBUG_ASI
 #define DPRINTF_ASI(fmt, ...)                                   \
     do { printf("ASI: " fmt , ## __VA_ARGS__); } while (0)
+#endif
+
+#ifdef DEBUG_PSTATE
+#define DPRINTF_PSTATE(fmt, ...)                                   \
+    do { printf("PSTATE: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF_PSTATE(fmt, ...) do {} while (0)
 #endif
 
 #ifdef TARGET_SPARC64
@@ -3240,10 +3248,16 @@ target_ulong helper_popc(target_ulong val)
     return ctpop64(val);
 }
 
-static inline uint64_t *get_gregset(uint64_t pstate)
+static inline uint64_t *get_gregset(uint32_t pstate)
 {
     switch (pstate) {
     default:
+        DPRINTF_PSTATE("ERROR in get_gregset: active pstate bits=%x%s%s%s\n",
+                pstate,
+                (pstate & PS_IG) ? " IG" : "",
+                (pstate & PS_MG) ? " MG" : "",
+                (pstate & PS_AG) ? " AG" : "");
+        /* pass through to normal set of global registers */
     case 0:
         return env->bgregs;
     case PS_AG:
@@ -3255,9 +3269,9 @@ static inline uint64_t *get_gregset(uint64_t pstate)
     }
 }
 
-static inline void change_pstate(uint64_t new_pstate)
+static inline void change_pstate(uint32_t new_pstate)
 {
-    uint64_t pstate_regs, new_pstate_regs;
+    uint32_t pstate_regs, new_pstate_regs;
     uint64_t *src, *dst;
 
     if (env->def->features & CPU_FEATURE_GL) {
@@ -3269,11 +3283,17 @@ static inline void change_pstate(uint64_t new_pstate)
     new_pstate_regs = new_pstate & 0xc01;
 
     if (new_pstate_regs != pstate_regs) {
+        DPRINTF_PSTATE("change_pstate: switching regs old=%x new=%x\n",
+                       pstate_regs, new_pstate_regs);
         // Switch global register bank
         src = get_gregset(new_pstate_regs);
         dst = get_gregset(pstate_regs);
         memcpy32(dst, env->gregs);
         memcpy32(env->gregs, src);
+    }
+    else {
+        DPRINTF_PSTATE("change_pstate: regs new=%x (unchanged)\n",
+                       new_pstate_regs);
     }
     env->pstate = new_pstate;
 }
@@ -3281,6 +3301,26 @@ static inline void change_pstate(uint64_t new_pstate)
 void helper_wrpstate(target_ulong new_state)
 {
     change_pstate(new_state & 0xf3f);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
+}
+
+void helper_wrpil(target_ulong new_pil)
+{
+#if !defined(CONFIG_USER_ONLY)
+    DPRINTF_PSTATE("helper_wrpil old=%x new=%x\n",
+                   env->psrpil, (uint32_t)new_pil);
+
+    env->psrpil = new_pil;
+
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
 }
 
 void helper_done(void)
@@ -3294,6 +3334,14 @@ void helper_done(void)
     change_pstate((tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, tsptr->tstate & 0xff);
     env->tl--;
+
+    DPRINTF_PSTATE("... helper_done tl=%d\n", env->tl);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
 }
 
 void helper_retry(void)
@@ -3307,21 +3355,42 @@ void helper_retry(void)
     change_pstate((tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, tsptr->tstate & 0xff);
     env->tl--;
+
+    DPRINTF_PSTATE("... helper_retry tl=%d\n", env->tl);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_interrupts_enabled(env)) {
+        cpu_check_irqs(env);
+    }
+#endif
+}
+
+static void do_modify_softint(const char* operation, uint32_t value)
+{
+    if (env->softint != value) {
+        env->softint = value;
+        DPRINTF_PSTATE(": %s new %08x\n", operation, env->softint);
+#if !defined(CONFIG_USER_ONLY)
+        if (cpu_interrupts_enabled(env)) {
+            cpu_check_irqs(env);
+        }
+#endif
+    }
 }
 
 void helper_set_softint(uint64_t value)
 {
-    env->softint |= (uint32_t)value;
+    do_modify_softint("helper_set_softint", env->softint | (uint32_t)value);
 }
 
 void helper_clear_softint(uint64_t value)
 {
-    env->softint &= (uint32_t)~value;
+    do_modify_softint("helper_clear_softint", env->softint & (uint32_t)~value);
 }
 
 void helper_write_softint(uint64_t value)
 {
-    env->softint = (uint32_t)value;
+    do_modify_softint("helper_write_softint", (uint32_t)value);
 }
 #endif
 
@@ -3563,7 +3632,7 @@ void do_interrupt(CPUState *env)
     env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
     env->pc = env->tbr;
     env->npc = env->pc + 4;
-    env->exception_index = 0;
+    env->exception_index = -1;
 }
 #endif
 

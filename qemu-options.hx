@@ -1598,6 +1598,17 @@ STEXI
 Setup monitor on chardev @var{name}.
 ETEXI
 
+DEF("debugcon", HAS_ARG, QEMU_OPTION_debugcon, \
+    "-debugcon dev   redirect the debug console to char device 'dev'\n")
+STEXI
+@item -debugcon @var{dev}
+Redirect the debug console to host device @var{dev} (same devices as the
+serial port).  The debug console is an I/O port which is typically port
+0xe9; writing to that I/O port sends output to this device.
+The default device is @code{vc} in graphical mode and @code{stdio} in
+non graphical mode.
+ETEXI
+
 DEF("pidfile", HAS_ARG, QEMU_OPTION_pidfile, \
     "-pidfile file   write PID to 'file'\n")
 STEXI
