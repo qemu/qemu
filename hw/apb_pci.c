@@ -214,7 +214,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     /* apb_config */
-    sysbus_mmio_map(s, 0, special_base + 0x2000ULL);
+    sysbus_mmio_map(s, 0, special_base);
     /* pci_ioport */
     sysbus_mmio_map(s, 1, special_base + 0x2000000ULL);
     /* mem_config: XXX size should be 4G-prom */
@@ -254,7 +254,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     /* apb_config */
     apb_config = cpu_register_io_memory(apb_config_read,
                                         apb_config_write, s);
-    sysbus_init_mmio(dev, 0x40ULL, apb_config);
+    sysbus_init_mmio(dev, 0x10000ULL, apb_config);
     /* pci_ioport */
     pci_ioport = cpu_register_io_memory(pci_apb_ioread,
                                           pci_apb_iowrite, s);
