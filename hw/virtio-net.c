@@ -768,11 +768,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         if (n->has_vnet_hdr) {
             tap_using_vnet_hdr(n->nic->nc.peer, 1);
             tap_set_offload(n->nic->nc.peer,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_ECN)  & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_UFO)  & 1);
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_ECN)  & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_UFO)  & 1);
         }
     }
 

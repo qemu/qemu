@@ -90,7 +90,7 @@ static uint32_t syborg_virtio_readl(void *opaque, target_phys_addr_t offset)
         ret |= vdev->binding->get_features(s);
         break;
     case SYBORG_VIRTIO_GUEST_FEATURES:
-        ret = vdev->features;
+        ret = vdev->guest_features;
         break;
     case SYBORG_VIRTIO_QUEUE_BASE:
         ret = virtio_queue_get_addr(vdev, vdev->queue_sel);
@@ -132,7 +132,7 @@ static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
     case SYBORG_VIRTIO_GUEST_FEATURES:
         if (vdev->set_features)
             vdev->set_features(vdev, value);
-        vdev->features = value;
+        vdev->guest_features = value;
         break;
     case SYBORG_VIRTIO_QUEUE_BASE:
         if (value == 0)

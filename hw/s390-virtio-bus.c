@@ -251,7 +251,7 @@ void s390_virtio_device_update_status(VirtIOS390Device *dev)
     if (vdev->set_features) {
         vdev->set_features(vdev, features);
     }
-    vdev->features = features;
+    vdev->guest_features = features;
 }
 
 VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus)

@@ -181,7 +181,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	}
         if (vdev->set_features)
             vdev->set_features(vdev, val);
-        vdev->features = val;
+        vdev->guest_features = val;
         break;
     case VIRTIO_PCI_QUEUE_PFN:
         pa = (target_phys_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
@@ -239,7 +239,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
         ret |= vdev->binding->get_features(proxy);
         break;
     case VIRTIO_PCI_GUEST_FEATURES:
-        ret = vdev->features;
+        ret = vdev->guest_features;
         break;
     case VIRTIO_PCI_QUEUE_PFN:
         ret = virtio_queue_get_addr(vdev, vdev->queue_sel)
