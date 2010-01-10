@@ -85,6 +85,9 @@ u1 = linux-user-test works
   A cross compiled qemu for mipsel host works, too. It is terribly slow
   because I run it in a mips malta emulation, so it is an interpreted
   emulation in an emulation.
+  A cross compiled qemu for ppc host works at least partially:
+  i386-linux-user/qemu-i386 can run a simple hello-world program
+  (tested in a ppc emulation).
 
 * A lot of TCG opcodes are either missing in the code generator and/or
   in the interpreter. These opcodes raise a runtime exception, so it is
