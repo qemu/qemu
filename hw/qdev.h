@@ -64,6 +64,7 @@ struct Property {
     const char   *name;
     PropertyInfo *info;
     int          offset;
+    int          bitnr;
     void         *defval;
 };
 
@@ -82,6 +83,7 @@ enum PropertyType {
     PROP_TYPE_NETDEV,
     PROP_TYPE_VLAN,
     PROP_TYPE_PTR,
+    PROP_TYPE_BIT,
 };
 
 struct PropertyInfo {
@@ -173,6 +175,7 @@ void do_device_del(Monitor *mon, const QDict *qdict);
 
 /*** qdev-properties.c ***/
 
+extern PropertyInfo qdev_prop_bit;
 extern PropertyInfo qdev_prop_uint8;
 extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
@@ -201,6 +204,14 @@ extern PropertyInfo qdev_prop_pci_devfn;
         .offset    = offsetof(_state, _field)                           \
             + type_check(_type,typeof_field(_state, _field)),           \
         .defval    = (_type[]) { _defval },                             \
+        }
+#define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval) {  \
+        .name      = (_name),                                    \
+        .info      = &(qdev_prop_bit),                           \
+        .bitnr    = (_bit),                                      \
+        .offset    = offsetof(_state, _field)                    \
+            + type_check(uint32_t,typeof_field(_state, _field)), \
+        .defval    = (bool[]) { (_defval) },                     \
         }
 
 #define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \

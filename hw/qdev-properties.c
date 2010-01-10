@@ -9,6 +9,59 @@ void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
     return ptr;
 }
 
+static uint32_t qdev_get_prop_mask(Property *prop)
+{
+    assert(prop->info->type == PROP_TYPE_BIT);
+    return 0x1 << prop->bitnr;
+}
+
+static void bit_prop_set(DeviceState *dev, Property *props, bool val)
+{
+    uint32_t *p = qdev_get_prop_ptr(dev, props);
+    uint32_t mask = qdev_get_prop_mask(props);
+    if (val)
+        *p |= ~mask;
+    else
+        *p &= ~mask;
+}
+
+static void qdev_prop_cpy(DeviceState *dev, Property *props, void *src)
+{
+    if (props->info->type == PROP_TYPE_BIT) {
+        bool *defval = src;
+        bit_prop_set(dev, props, *defval);
+    } else {
+        char *dst = qdev_get_prop_ptr(dev, props);
+        memcpy(dst, src, props->info->size);
+    }
+}
+
+/* Bit */
+static int parse_bit(DeviceState *dev, Property *prop, const char *str)
+{
+    if (!strncasecmp(str, "on", 2))
+        bit_prop_set(dev, prop, true);
+    else if (!strncasecmp(str, "off", 3))
+        bit_prop_set(dev, prop, false);
+    else
+        return -1;
+    return 0;
+}
+
+static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    uint8_t *p = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, (*p & qdev_get_prop_mask(prop)) ? "on" : "off");
+}
+
+PropertyInfo qdev_prop_bit = {
+    .name  = "on/off",
+    .type  = PROP_TYPE_BIT,
+    .size  = sizeof(uint32_t),
+    .parse = parse_bit,
+    .print = print_bit,
+};
+
 /* --- 8bit integer --- */
 
 static int parse_uint8(DeviceState *dev, Property *prop, const char *str)
@@ -511,7 +564,6 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type)
 {
     Property *prop;
-    void *dst;
 
     prop = qdev_prop_find(dev, name);
     if (!prop) {
@@ -524,8 +576,7 @@ void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyT
                 __FUNCTION__, dev->info->name, name);
         abort();
     }
-    dst = qdev_get_prop_ptr(dev, prop);
-    memcpy(dst, src, prop->info->size);
+    qdev_prop_cpy(dev, prop, src);
 }
 
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
@@ -585,14 +636,11 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
 
 void qdev_prop_set_defaults(DeviceState *dev, Property *props)
 {
-    char *dst;
-
     if (!props)
         return;
     while (props->name) {
         if (props->defval) {
-            dst = qdev_get_prop_ptr(dev, props);
-            memcpy(dst, props->defval, props->info->size);
+            qdev_prop_cpy(dev, props, props->defval);
         }
         props++;
     }
