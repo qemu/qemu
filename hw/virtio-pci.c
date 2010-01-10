@@ -16,6 +16,8 @@
 #include <inttypes.h>
 
 #include "virtio.h"
+#include "virtio-blk.h"
+#include "virtio-net.h"
 #include "pci.h"
 #include "sysemu.h"
 #include "msix.h"
@@ -92,6 +94,7 @@ typedef struct {
     uint32_t nvectors;
     DriveInfo *dinfo;
     NICConf nic;
+    uint32_t host_features;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -175,7 +178,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	/* Guest does not negotiate properly?  We have to assume nothing. */
 	if (val & (1 << VIRTIO_F_BAD_FEATURE)) {
 	    if (vdev->bad_features)
-		val = vdev->bad_features(vdev);
+		val = proxy->host_features & vdev->bad_features(vdev);
 	    else
 		val = 0;
 	}
@@ -235,8 +238,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
 
     switch (addr) {
     case VIRTIO_PCI_HOST_FEATURES:
-        ret = vdev->get_features(vdev);
-        ret |= vdev->binding->get_features(proxy);
+        ret = proxy->host_features;
         break;
     case VIRTIO_PCI_GUEST_FEATURES:
         ret = vdev->guest_features;
@@ -382,11 +384,8 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 
 static unsigned virtio_pci_get_features(void *opaque)
 {
-    unsigned ret = 0;
-    ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
-    ret |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
-    ret |= (1 << VIRTIO_F_BAD_FEATURE);
-    return ret;
+    VirtIOPCIProxy *proxy = opaque;
+    return proxy->host_features;
 }
 
 static const VirtIOBindings virtio_pci_bindings = {
@@ -442,6 +441,9 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
                            virtio_map);
 
     virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
+    proxy->host_features |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
+    proxy->host_features |= 0x1 << VIRTIO_F_BAD_FEATURE;
+    proxy->host_features = vdev->get_features(vdev, proxy->host_features);
 }
 
 static int virtio_blk_init_pci(PCIDevice *pci_dev)
@@ -553,6 +555,7 @@ static PCIDeviceInfo virtio_info[] = {
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
             DEFINE_PROP_DRIVE("drive", VirtIOPCIProxy, dinfo),
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+            DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
             DEFINE_PROP_END_OF_LIST(),
         },
         .qdev.reset = virtio_pci_reset,
@@ -564,6 +567,7 @@ static PCIDeviceInfo virtio_info[] = {
         .romfile    = "pxe-virtio.bin",
         .qdev.props = (Property[]) {
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
+            DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
             DEFINE_NIC_PROPERTIES(VirtIOPCIProxy, nic),
             DEFINE_PROP_END_OF_LIST(),
         },
@@ -575,6 +579,7 @@ static PCIDeviceInfo virtio_info[] = {
         .exit      = virtio_exit_pci,
         .qdev.props = (Property[]) {
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+            DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
             DEFINE_PROP_END_OF_LIST(),
         },
         .qdev.reset = virtio_pci_reset,
@@ -583,6 +588,10 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_balloon_init_pci,
         .exit      = virtio_exit_pci,
+        .qdev.props = (Property[]) {
+            DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+            DEFINE_PROP_END_OF_LIST(),
+        },
         .qdev.reset = virtio_pci_reset,
     },{
         /* end of list */

@@ -101,6 +101,7 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     bus->dev_offs += dev_len;
 
     virtio_bind_device(vdev, &virtio_s390_bindings, dev);
+    dev->host_features = vdev->get_features(vdev, dev->host_features);
     s390_virtio_device_sync(dev);
 
     return 0;
@@ -222,9 +223,7 @@ static void s390_virtio_device_sync(VirtIOS390Device *dev)
     cur_offs += num_vq * VIRTIO_VQCONFIG_LEN;
 
     /* Sync feature bitmap */
-    if (dev->vdev->get_features) {
-        stl_phys(cur_offs, dev->vdev->get_features(dev->vdev));
-    }
+    stl_phys(cur_offs, dev->host_features);
 
     dev->feat_offs = cur_offs + dev->feat_len;
     cur_offs += dev->feat_len * 2;
@@ -310,10 +309,17 @@ static void virtio_s390_notify(void *opaque, uint16_t vector)
     kvm_s390_virtio_irq(s390_cpu_addr2state(0), 0, token);
 }
 
+static unsigned virtio_s390_get_features(void *opaque)
+{
+    VirtIOS390Device *dev = (VirtIOS390Device*)opaque;
+    return dev->host_features;
+}
+
 /**************** S390 Virtio Bus Device Descriptions *******************/
 
 static const VirtIOBindings virtio_s390_bindings = {
     .notify = virtio_s390_notify,
+    .get_features = virtio_s390_get_features,
 };
 
 static VirtIOS390DeviceInfo s390_virtio_net = {

@@ -652,7 +652,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 {
     int num, i, ret;
     uint32_t features;
-    uint32_t supported_features = vdev->get_features(vdev) |
+    uint32_t supported_features =
         vdev->binding->get_features(vdev->binding_opaque);
 
     if (vdev->binding->load_config) {

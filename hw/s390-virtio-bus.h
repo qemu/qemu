@@ -40,6 +40,7 @@ typedef struct VirtIOS390Device {
     VirtIODevice *vdev;
     DriveInfo *dinfo;
     NICConf nic;
+    uint32_t host_features;
 } VirtIOS390Device;
 
 typedef struct VirtIOS390Bus {

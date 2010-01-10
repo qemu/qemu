@@ -105,7 +105,7 @@ struct VirtIODevice
     void *config;
     uint16_t config_vector;
     int nvectors;
-    uint32_t (*get_features)(VirtIODevice *vdev);
+    uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
     uint32_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint32_t val);
     void (*get_config)(VirtIODevice *vdev, uint8_t *config);
@@ -175,5 +175,10 @@ VirtIODevice *virtio_console_init(DeviceState *dev);
 VirtIODevice *virtio_balloon_init(DeviceState *dev);
 
 void virtio_net_exit(VirtIODevice *vdev);
+
+#define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
+	DEFINE_PROP_BIT("indirect_desc", _state, _field, \
+			VIRTIO_RING_F_INDIRECT_DESC, true)
+
 
 #endif
