@@ -372,7 +372,7 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 
     if (PCI_COMMAND == address) {
         if (!(val & PCI_COMMAND_MASTER)) {
-            proxy->vdev->status &= !VIRTIO_CONFIG_S_DRIVER_OK;
+            proxy->vdev->status &= ~VIRTIO_CONFIG_S_DRIVER_OK;
         }
     }
 
