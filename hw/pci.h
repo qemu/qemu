@@ -246,7 +246,7 @@ pci_set_byte(uint8_t *config, uint8_t val)
 }
 
 static inline uint8_t
-pci_get_byte(uint8_t *config)
+pci_get_byte(const uint8_t *config)
 {
     return *config;
 }
@@ -258,9 +258,9 @@ pci_set_word(uint8_t *config, uint16_t val)
 }
 
 static inline uint16_t
-pci_get_word(uint8_t *config)
+pci_get_word(const uint8_t *config)
 {
-    return le16_to_cpupu((uint16_t *)config);
+    return le16_to_cpupu((const uint16_t *)config);
 }
 
 static inline void
@@ -270,9 +270,9 @@ pci_set_long(uint8_t *config, uint32_t val)
 }
 
 static inline uint32_t
-pci_get_long(uint8_t *config)
+pci_get_long(const uint8_t *config)
 {
-    return le32_to_cpupu((uint32_t *)config);
+    return le32_to_cpupu((const uint32_t *)config);
 }
 
 static inline void
@@ -282,9 +282,9 @@ pci_set_quad(uint8_t *config, uint64_t val)
 }
 
 static inline uint64_t
-pci_get_quad(uint8_t *config)
+pci_get_quad(const uint8_t *config)
 {
-    return le64_to_cpup((uint64_t *)config);
+    return le64_to_cpup((const uint64_t *)config);
 }
 
 static inline void
