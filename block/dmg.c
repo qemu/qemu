@@ -90,24 +90,21 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 
     /* read offset of info blocks */
     if(lseek(s->fd,-0x1d8,SEEK_END)<0) {
-dmg_close:
-	close(s->fd);
-	/* open raw instead */
-	bs->drv=bdrv_find_format("raw");
-	return bs->drv->bdrv_open(bs, filename, flags);
+        goto fail;
     }
+
     info_begin=read_off(s->fd);
     if(info_begin==0)
-	goto dmg_close;
+	goto fail;
     if(lseek(s->fd,info_begin,SEEK_SET)<0)
-	goto dmg_close;
+	goto fail;
     if(read_uint32(s->fd)!=0x100)
-	goto dmg_close;
+	goto fail;
     if((count = read_uint32(s->fd))==0)
-	goto dmg_close;
+	goto fail;
     info_end = info_begin+count;
     if(lseek(s->fd,0xf8,SEEK_CUR)<0)
-	goto dmg_close;
+	goto fail;
 
     /* read offsets */
     last_in_offset = last_out_offset = 0;
@@ -116,14 +113,14 @@ dmg_close:
 
 	count = read_uint32(s->fd);
 	if(count==0)
-	    goto dmg_close;
+	    goto fail;
 	type = read_uint32(s->fd);
 	if(type!=0x6d697368 || count<244)
 	    lseek(s->fd,count-4,SEEK_CUR);
 	else {
 	    int new_size, chunk_count;
 	    if(lseek(s->fd,200,SEEK_CUR)<0)
-	        goto dmg_close;
+	        goto fail;
 	    chunk_count = (count-204)/40;
 	    new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
 	    s->types = qemu_realloc(s->types, new_size/2);
@@ -142,7 +139,7 @@ dmg_close:
 		    chunk_count--;
 		    i--;
 		    if(lseek(s->fd,36,SEEK_CUR)<0)
-			goto dmg_close;
+			goto fail;
 		    continue;
 		}
 		read_uint32(s->fd);
@@ -163,11 +160,14 @@ dmg_close:
     s->compressed_chunk = qemu_malloc(max_compressed_size+1);
     s->uncompressed_chunk = qemu_malloc(512*max_sectors_per_chunk);
     if(inflateInit(&s->zstream) != Z_OK)
-	goto dmg_close;
+	goto fail;
 
     s->current_chunk = s->n_chunks;
 
     return 0;
+fail:
+    close(s->fd);
+    return -1;
 }
 
 static inline int is_sector_in_chunk(BDRVDMGState* s,
