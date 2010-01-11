@@ -1155,7 +1155,7 @@ static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                              env->spr[SPR_40x_PID], 0, i) < 0)
             continue;
         zsel = (tlb->attr >> 4) & 0xF;
-        zpr = (env->spr[SPR_40x_ZPR] >> (28 - (2 * zsel))) & 0x3;
+        zpr = (env->spr[SPR_40x_ZPR] >> (30 - (2 * zsel))) & 0x3;
         LOG_SWTLB("%s: TLB %d zsel %d zpr %d rw %d attr %08x\n",
                     __func__, i, zsel, zpr, rw, tlb->attr);
         /* Check execute enable bit */
