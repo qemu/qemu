@@ -1171,6 +1171,8 @@ static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             break;
         case 0x0:
             if (pr != 0) {
+                /* Raise Zone protection fault.  */
+                env->spr[SPR_40x_ESR] = 1 << 22;
                 ctx->prot = 0;
                 ret = -2;
                 break;
@@ -1183,6 +1185,8 @@ static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             ctx->prot = tlb->prot;
             ctx->prot |= PAGE_EXEC;
             ret = check_prot(ctx->prot, rw, access_type);
+            if (ret == -2)
+                env->spr[SPR_40x_ESR] = 0;
             break;
         }
         if (ret >= 0) {
@@ -1580,11 +1584,20 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 /* Access rights violation */
                 env->exception_index = POWERPC_EXCP_DSI;
                 env->error_code = 0;
-                env->spr[SPR_DAR] = address;
-                if (rw == 1)
-                    env->spr[SPR_DSISR] = 0x0A000000;
-                else
-                    env->spr[SPR_DSISR] = 0x08000000;
+                if (env->mmu_model == POWERPC_MMU_SOFT_4xx
+                    || env->mmu_model == POWERPC_MMU_SOFT_4xx_Z) {
+                    env->spr[SPR_40x_DEAR] = address;
+                    if (rw) {
+                        env->spr[SPR_40x_ESR] |= 0x00800000;
+                    }
+                } else {
+                    env->spr[SPR_DAR] = address;
+                    if (rw == 1) {
+                        env->spr[SPR_DSISR] = 0x0A000000;
+                    } else {
+                        env->spr[SPR_DSISR] = 0x08000000;
+                    }
+                }
                 break;
             case -4:
                 /* Direct store exception */
