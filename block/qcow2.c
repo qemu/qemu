@@ -1111,6 +1111,14 @@ static void qcow_flush(BlockDriverState *bs)
     bdrv_flush(s->hd);
 }
 
+static BlockDriverAIOCB *qcow_aio_flush(BlockDriverState *bs,
+         BlockDriverCompletionFunc *cb, void *opaque)
+{
+     BDRVQcowState *s = bs->opaque;
+
+     return bdrv_aio_flush(s->hd, cb, opaque);
+}
+
 static int64_t qcow_vm_state_offset(BDRVQcowState *s)
 {
 	return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
@@ -1225,6 +1233,7 @@ static BlockDriver bdrv_qcow2 = {
 
     .bdrv_aio_readv	= qcow_aio_readv,
     .bdrv_aio_writev	= qcow_aio_writev,
+    .bdrv_aio_flush	= qcow_aio_flush,
     .bdrv_write_compressed = qcow_write_compressed,
 
     .bdrv_snapshot_create   = qcow2_snapshot_create,
