@@ -212,6 +212,7 @@ static void nand_reset(NANDFlashState *s)
 
 static void nand_command(NANDFlashState *s)
 {
+    unsigned int offset;
     switch (s->cmd) {
     case NAND_CMD_READ0:
         s->iolen = 0;
@@ -233,8 +234,12 @@ static void nand_command(NANDFlashState *s)
     case NAND_CMD_NOSERIALREAD2:
         if (!(nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP))
             break;
-
-        s->blk_load(s, s->addr, s->addr & ((1 << s->addr_shift) - 1));
+        offset = s->addr & ((1 << s->addr_shift) - 1);
+        s->blk_load(s, s->addr, offset);
+        if (s->gnd)
+            s->iolen = (1 << s->page_shift) - offset;
+        else
+            s->iolen = (1 << s->page_shift) + (1 << s->oob_shift) - offset;
         break;
 
     case NAND_CMD_RESET:
@@ -380,12 +385,15 @@ void nand_setio(NANDFlashState *s, uint8_t value)
 
         if (s->cmd != NAND_CMD_RANDOMREAD2) {
             s->addrlen = 0;
-            s->addr = 0;
         }
     }
 
     if (s->ale) {
-        s->addr |= value << (s->addrlen * 8);
+        unsigned int shift = s->addrlen * 8;
+        unsigned int mask = ~(0xff << shift);
+        unsigned int v = value << shift;
+
+        s->addr = (s->addr & mask) | v;
         s->addrlen ++;
 
         if (s->addrlen == 1 && s->cmd == NAND_CMD_READID)
@@ -435,6 +443,7 @@ uint8_t nand_getio(NANDFlashState *s)
         return 0;
 
     s->iolen --;
+    s->addr++;
     return *(s->ioaddr ++);
 }
 
@@ -633,9 +642,6 @@ static void glue(nand_blk_load_, PAGE_SIZE)(NANDFlashState *s,
                         offset, PAGE_SIZE + OOB_SIZE - offset);
         s->ioaddr = s->io;
     }
-
-    s->addr &= PAGE_SIZE - 1;
-    s->addr += PAGE_SIZE;
 }
 
 static void glue(nand_init_, PAGE_SIZE)(NANDFlashState *s)
