@@ -157,7 +157,6 @@ struct virtio_net_ctrl_mac {
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
         DEFINE_PROP_BIT("csum", _state, _field, VIRTIO_NET_F_CSUM, true), \
         DEFINE_PROP_BIT("guest_csum", _state, _field, VIRTIO_NET_F_GUEST_CSUM, true), \
-        DEFINE_PROP_BIT("mac", _state, _field, VIRTIO_NET_F_MAC, true), \
         DEFINE_PROP_BIT("gso", _state, _field, VIRTIO_NET_F_GSO, true), \
         DEFINE_PROP_BIT("guest_tso4", _state, _field, VIRTIO_NET_F_GUEST_TSO4, true), \
         DEFINE_PROP_BIT("guest_tso6", _state, _field, VIRTIO_NET_F_GUEST_TSO6, true), \
