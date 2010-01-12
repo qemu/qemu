@@ -215,6 +215,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define BA         (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2))
 
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
+#define ARITH_ADDCC (INSN_OP(2) | INSN_OP3(0x10))
 #define ARITH_AND  (INSN_OP(2) | INSN_OP3(0x01))
 #define ARITH_OR   (INSN_OP(2) | INSN_OP3(0x02))
 #define ARITH_ORCC (INSN_OP(2) | INSN_OP3(0x12))
@@ -238,6 +239,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define SHIFT_SRLX (INSN_OP(2) | INSN_OP3(0x26) | (1 << 12))
 #define SHIFT_SRAX (INSN_OP(2) | INSN_OP3(0x27) | (1 << 12))
 
+#define RDY        (INSN_OP(2) | INSN_OP3(0x28) | INSN_RS1(0))
 #define WRY        (INSN_OP(2) | INSN_OP3(0x30))
 #define JMPL       (INSN_OP(2) | INSN_OP3(0x38))
 #define SAVE       (INSN_OP(2) | INSN_OP3(0x3c))
@@ -408,6 +410,11 @@ static inline void tcg_out_sety(TCGContext *s, tcg_target_long val)
         tcg_out32(s, WRY | INSN_IMM13(val));
     else
         fprintf(stderr, "unimplemented sety %ld\n", (long)val);
+}
+
+static inline void tcg_out_rdy(TCGContext *s, int rd)
+{
+    tcg_out32(s, RDY | INSN_RD(rd));
 }
 
 static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
@@ -1132,6 +1139,23 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                             args[2], const_args[2],
                             args[3], const_args[3], args[5]);
         break;
+    case INDEX_op_add2_i32:
+        tcg_out_arithc(s, args[0], args[2], args[4], const_args[4],
+                       ARITH_ADDCC);
+        tcg_out_arithc(s, args[1], args[3], args[5], const_args[5],
+                       ARITH_ADDX);
+        break;
+    case INDEX_op_sub2_i32:
+        tcg_out_arithc(s, args[0], args[2], args[4], const_args[4],
+                       ARITH_SUBCC);
+        tcg_out_arithc(s, args[1], args[3], args[5], const_args[5],
+                       ARITH_SUBX);
+        break;
+    case INDEX_op_mulu2_i32:
+        tcg_out_arithc(s, args[0], args[2], args[3], const_args[3],
+                       ARITH_UMUL);
+        tcg_out_rdy(s, args[1]);
+        break;
 #endif
 
     case INDEX_op_qemu_ld8u:
@@ -1250,6 +1274,9 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_brcond_i32, { "r", "rJ" } },
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_brcond2_i32, { "r", "r", "rJ", "rJ" } },
+    { INDEX_op_add2_i32, { "r", "r", "r", "r", "rJ", "rJ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "rJ", "rJ" } },
+    { INDEX_op_mulu2_i32, { "r", "r", "r", "rJ" } },
 #endif
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
