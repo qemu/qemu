@@ -477,7 +477,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         unlink(filename);
     }
 #endif
-    if (bs->backing_file[0] != '\0') {
+    if ((flags & BDRV_O_NO_BACKING) == 0 && bs->backing_file[0] != '\0') {
         /* if there is a backing file, use it */
         BlockDriver *back_drv = NULL;
         bs->backing_hd = bdrv_new("");
@@ -1352,7 +1352,7 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
-    if (!bs->backing_hd) {
+    if (!bs->backing_file) {
         pstrcpy(filename, filename_size, "");
     } else {
         pstrcpy(filename, filename_size, bs->backing_file);

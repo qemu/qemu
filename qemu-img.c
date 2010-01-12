@@ -884,7 +884,7 @@ static int img_info(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
+    if (bdrv_open2(bs, filename, BRDV_O_FLAGS | BDRV_O_NO_BACKING, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
