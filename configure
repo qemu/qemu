@@ -216,6 +216,7 @@ curses=""
 docs=""
 fdt=""
 kvm=""
+kvm_para=""
 nptl=""
 sdl=""
 sparse="no"
@@ -1388,6 +1389,13 @@ EOF
   fi
   if compile_prog "$kvm_cflags" "" ; then
     kvm=yes
+    cat > $TMPC <<EOF
+#include <linux/kvm_para.h>
+int main(void) { return 0; }
+EOF
+    if compile_prog "$kvm_cflags" "" ; then
+      kvm_para=yes
+    fi
   else
     if test "$kvm" = "yes" ; then
       if [ -x "`which awk 2>/dev/null`" ] && \
@@ -2384,6 +2392,9 @@ case "$target_arch2" in
       \( "$target_arch2" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_target_mak
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_target_mak
+      if test "$kvm_para" = "yes"; then
+        echo "CONFIG_KVM_PARA=y" >> $config_target_mak
+      fi
     fi
 esac
 echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_target_mak
