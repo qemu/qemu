@@ -98,6 +98,9 @@ struct BlockDriver {
     int (*bdrv_load_vmstate)(BlockDriverState *bs, uint8_t *buf,
                              int64_t pos, int size);
 
+    int (*bdrv_change_backing_file)(BlockDriverState *bs,
+        const char *backing_file, const char *backing_fmt);
+
     /* removable device specific */
     int (*bdrv_is_inserted)(BlockDriverState *bs);
     int (*bdrv_media_changed)(BlockDriverState *bs);

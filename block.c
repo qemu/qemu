@@ -597,6 +597,26 @@ int bdrv_commit(BlockDriverState *bs)
     return 0;
 }
 
+/*
+ * Return values:
+ * 0        - success
+ * -EINVAL  - backing format specified, but no file
+ * -ENOSPC  - can't update the backing file because no space is left in the
+ *            image file header
+ * -ENOTSUP - format driver doesn't support changing the backing file
+ */
+int bdrv_change_backing_file(BlockDriverState *bs,
+    const char *backing_file, const char *backing_fmt)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (drv->bdrv_change_backing_file != NULL) {
+        return drv->bdrv_change_backing_file(bs, backing_file, backing_fmt);
+    } else {
+        return -ENOTSUP;
+    }
+}
+
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
                                    size_t size)
 {
