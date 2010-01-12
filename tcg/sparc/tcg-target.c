@@ -285,6 +285,13 @@ static inline void tcg_out_arithi(TCGContext *s, int rd, int rs1,
               INSN_IMM13(offset));
 }
 
+static void tcg_out_arithc(TCGContext *s, int rd, int rs1,
+			   int val2, int val2const, int op)
+{
+    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1)
+              | (val2const ? INSN_IMM13(val2) : INSN_RS2(val2)));
+}
+
 static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
 {
     tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
@@ -481,10 +488,7 @@ static const uint8_t tcg_cond_to_bcond[10] = {
 
 static void tcg_out_cmp(TCGContext *s, TCGArg c1, TCGArg c2, int c2const)
 {
-    if (c2const)
-        tcg_out_arithi(s, TCG_REG_G0, c1, c2, ARITH_SUBCC);
-    else
-        tcg_out_arith(s, TCG_REG_G0, c1, c2, ARITH_SUBCC);
+    tcg_out_arithc(s, TCG_REG_G0, c1, c2, c2const, ARITH_SUBCC);
 }
 
 static void tcg_out_brcond_i32(TCGContext *s, int cond,
@@ -1036,22 +1040,22 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 
 #if TCG_TARGET_REG_BITS == 64
 #define OP_32_64(x)                             \
-        glue(glue(case INDEX_op_, x), _i32:)    \
-        glue(glue(case INDEX_op_, x), _i64:)
+        glue(glue(case INDEX_op_, x), _i32):    \
+        glue(glue(case INDEX_op_, x), _i64)
 #else
 #define OP_32_64(x)                             \
-        glue(glue(case INDEX_op_, x), _i32:)
+        glue(glue(case INDEX_op_, x), _i32)
 #endif
-        OP_32_64(ld8u);
+    OP_32_64(ld8u):
         tcg_out_ldst(s, args[0], args[1], args[2], LDUB);
         break;
-        OP_32_64(ld8s);
+    OP_32_64(ld8s):
         tcg_out_ldst(s, args[0], args[1], args[2], LDSB);
         break;
-        OP_32_64(ld16u);
+    OP_32_64(ld16u):
         tcg_out_ldst(s, args[0], args[1], args[2], LDUH);
         break;
-        OP_32_64(ld16s);
+    OP_32_64(ld16s):
         tcg_out_ldst(s, args[0], args[1], args[2], LDSH);
         break;
     case INDEX_op_ld_i32:
@@ -1060,10 +1064,10 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 #endif
         tcg_out_ldst(s, args[0], args[1], args[2], LDUW);
         break;
-        OP_32_64(st8);
+    OP_32_64(st8):
         tcg_out_ldst(s, args[0], args[1], args[2], STB);
         break;
-        OP_32_64(st16);
+    OP_32_64(st16):
         tcg_out_ldst(s, args[0], args[1], args[2], STH);
         break;
     case INDEX_op_st_i32:
@@ -1072,50 +1076,50 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 #endif
         tcg_out_ldst(s, args[0], args[1], args[2], STW);
         break;
-        OP_32_64(add);
+    OP_32_64(add):
         c = ARITH_ADD;
-        goto gen_arith32;
-        OP_32_64(sub);
+        goto gen_arith;
+    OP_32_64(sub):
         c = ARITH_SUB;
-        goto gen_arith32;
-        OP_32_64(and);
+        goto gen_arith;
+    OP_32_64(and):
         c = ARITH_AND;
-        goto gen_arith32;
-        OP_32_64(or);
+        goto gen_arith;
+    OP_32_64(or):
         c = ARITH_OR;
-        goto gen_arith32;
-        OP_32_64(xor);
+        goto gen_arith;
+    OP_32_64(xor):
         c = ARITH_XOR;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_shl_i32:
         c = SHIFT_SLL;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_shr_i32:
         c = SHIFT_SRL;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_sar_i32:
         c = SHIFT_SRA;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_mul_i32:
         c = ARITH_UMUL;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_div2_i32:
 #if defined(__sparc_v9__) || defined(__sparc_v8plus__)
         c = ARITH_SDIVX;
-        goto gen_arith32;
+        goto gen_arith;
 #else
         tcg_out_sety(s, 0);
         c = ARITH_SDIV;
-        goto gen_arith32;
+        goto gen_arith;
 #endif
     case INDEX_op_divu2_i32:
 #if defined(__sparc_v9__) || defined(__sparc_v8plus__)
         c = ARITH_UDIVX;
-        goto gen_arith32;
+        goto gen_arith;
 #else
         tcg_out_sety(s, 0);
         c = ARITH_UDIV;
-        goto gen_arith32;
+        goto gen_arith;
 #endif
 
     case INDEX_op_brcond_i32:
@@ -1173,22 +1177,22 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_shl_i64:
         c = SHIFT_SLLX;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_shr_i64:
         c = SHIFT_SRLX;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_sar_i64:
         c = SHIFT_SRAX;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_mul_i64:
         c = ARITH_MULX;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_div2_i64:
         c = ARITH_SDIVX;
-        goto gen_arith32;
+        goto gen_arith;
     case INDEX_op_divu2_i64:
         c = ARITH_UDIVX;
-        goto gen_arith32;
+        goto gen_arith;
 
     case INDEX_op_brcond_i64:
         tcg_out_brcond_i64(s, args[2], args[0], args[1], const_args[1],
@@ -1202,12 +1206,8 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
 
 #endif
-    gen_arith32:
-        if (const_args[2]) {
-            tcg_out_arithi(s, args[0], args[1], args[2], c);
-        } else {
-            tcg_out_arith(s, args[0], args[1], args[2], c);
-        }
+    gen_arith:
+        tcg_out_arithc(s, args[0], args[1], args[2], const_args[2], c);
         break;
 
     default:
