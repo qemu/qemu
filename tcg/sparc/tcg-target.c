@@ -243,7 +243,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define SHIFT_SRAX (INSN_OP(2) | INSN_OP3(0x27) | (1 << 12))
 
 #define RDY        (INSN_OP(2) | INSN_OP3(0x28) | INSN_RS1(0))
-#define WRY        (INSN_OP(2) | INSN_OP3(0x30))
+#define WRY        (INSN_OP(2) | INSN_OP3(0x30) | INSN_RD(0))
 #define JMPL       (INSN_OP(2) | INSN_OP3(0x38))
 #define SAVE       (INSN_OP(2) | INSN_OP3(0x3c))
 #define RESTORE    (INSN_OP(2) | INSN_OP3(0x3d))
@@ -407,12 +407,9 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
         tcg_out_ldst(s, arg, arg1, arg2, STX);
 }
 
-static inline void tcg_out_sety(TCGContext *s, tcg_target_long val)
+static inline void tcg_out_sety(TCGContext *s, int rs)
 {
-    if (val == 0 || val == -1)
-        tcg_out32(s, WRY | INSN_IMM13(val));
-    else
-        fprintf(stderr, "unimplemented sety %ld\n", (long)val);
+    tcg_out32(s, WRY | INSN_RS1(TCG_REG_G0) | INSN_RS2(rs));
 }
 
 static inline void tcg_out_rdy(TCGContext *s, int rd)
@@ -442,6 +439,21 @@ static inline void tcg_out_andi(TCGContext *s, int reg, tcg_target_long val)
             tcg_out_arith(s, reg, reg, TCG_REG_I5, ARITH_AND);
         }
     }
+}
+
+static void tcg_out_div32(TCGContext *s, int rd, int rs1,
+                          int val2, int val2const, int uns)
+{
+    /* Load Y with the sign/zero extension of RS1 to 64-bits.  */
+    if (uns) {
+        tcg_out_sety(s, TCG_REG_G0);
+    } else {
+        tcg_out_arithi(s, TCG_REG_I5, rs1, 31, SHIFT_SRA);
+        tcg_out_sety(s, TCG_REG_I5);
+    }
+
+    tcg_out_arithc(s, rd, rs1, val2, val2const,
+                   uns ? ARITH_UDIV : ARITH_SDIV);
 }
 
 static inline void tcg_out_nop(TCGContext *s)
@@ -1113,24 +1125,22 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_mul_i32:
         c = ARITH_UMUL;
         goto gen_arith;
-    case INDEX_op_div2_i32:
-#if defined(__sparc_v9__) || defined(__sparc_v8plus__)
-        c = ARITH_SDIVX;
-        goto gen_arith;
-#else
-        tcg_out_sety(s, 0);
-        c = ARITH_SDIV;
-        goto gen_arith;
-#endif
-    case INDEX_op_divu2_i32:
-#if defined(__sparc_v9__) || defined(__sparc_v8plus__)
-        c = ARITH_UDIVX;
-        goto gen_arith;
-#else
-        tcg_out_sety(s, 0);
-        c = ARITH_UDIV;
-        goto gen_arith;
-#endif
+
+    case INDEX_op_div_i32:
+        tcg_out_div32(s, args[0], args[1], args[2], const_args[2], 0);
+        break;
+    case INDEX_op_divu_i32:
+        tcg_out_div32(s, args[0], args[1], args[2], const_args[2], 1);
+        break;
+
+    case INDEX_op_rem_i32:
+    case INDEX_op_remu_i32:
+        tcg_out_div32(s, TCG_REG_I5, args[1], args[2], const_args[2],
+                      opc == INDEX_op_remu_i32);
+        tcg_out_arithc(s, TCG_REG_I5, TCG_REG_I5, args[2], const_args[2],
+                       ARITH_UMUL);
+        tcg_out_arith(s, args[0], args[1], TCG_REG_I5, ARITH_SUB);
+        break;
 
     case INDEX_op_brcond_i32:
         tcg_out_brcond_i32(s, args[2], args[0], args[1], const_args[1],
@@ -1214,12 +1224,20 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_mul_i64:
         c = ARITH_MULX;
         goto gen_arith;
-    case INDEX_op_div2_i64:
+    case INDEX_op_div_i64:
         c = ARITH_SDIVX;
         goto gen_arith;
-    case INDEX_op_divu2_i64:
+    case INDEX_op_divu_i64:
         c = ARITH_UDIVX;
         goto gen_arith;
+    case INDEX_op_rem_i64:
+    case INDEX_op_remu_i64:
+        tcg_out_arithc(s, TCG_REG_I5, args[1], args[2], const_args[2],
+                       opc == INDEX_op_rem_i64 ? ARITH_SDIVX : ARITH_UDIVX);
+        tcg_out_arithc(s, TCG_REG_I5, TCG_REG_I5, args[2], const_args[2],
+                       ARITH_MULX);
+        tcg_out_arith(s, args[0], args[1], TCG_REG_I5, ARITH_SUB);
+        break;
 
     case INDEX_op_brcond_i64:
         tcg_out_brcond_i64(s, args[2], args[0], args[1], const_args[1],
@@ -1263,8 +1281,10 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_add_i32, { "r", "r", "rJ" } },
     { INDEX_op_mul_i32, { "r", "r", "rJ" } },
-    { INDEX_op_div2_i32, { "r", "r", "0", "1", "r" } },
-    { INDEX_op_divu2_i32, { "r", "r", "0", "1", "r" } },
+    { INDEX_op_div_i32, { "r", "r", "rJ" } },
+    { INDEX_op_divu_i32, { "r", "r", "rJ" } },
+    { INDEX_op_rem_i32, { "r", "r", "rJ" } },
+    { INDEX_op_remu_i32, { "r", "r", "rJ" } },
     { INDEX_op_sub_i32, { "r", "r", "rJ" } },
     { INDEX_op_and_i32, { "r", "r", "rJ" } },
     { INDEX_op_or_i32, { "r", "r", "rJ" } },
@@ -1312,8 +1332,10 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_add_i64, { "r", "r", "rJ" } },
     { INDEX_op_mul_i64, { "r", "r", "rJ" } },
-    { INDEX_op_div2_i64, { "r", "r", "0", "1", "r" } },
-    { INDEX_op_divu2_i64, { "r", "r", "0", "1", "r" } },
+    { INDEX_op_div_i64, { "r", "r", "rJ" } },
+    { INDEX_op_divu_i64, { "r", "r", "rJ" } },
+    { INDEX_op_rem_i64, { "r", "r", "rJ" } },
+    { INDEX_op_remu_i64, { "r", "r", "rJ" } },
     { INDEX_op_sub_i64, { "r", "r", "rJ" } },
     { INDEX_op_and_i64, { "r", "r", "rJ" } },
     { INDEX_op_or_i64, { "r", "r", "rJ" } },
