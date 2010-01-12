@@ -43,5 +43,11 @@ DEF("snapshot", img_snapshot,
     "snapshot [-l | -a snapshot | -c snapshot | -d snapshot] filename")
 STEXI
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot}] @var{filename}
+ETEXI
+
+DEF("rebase", img_rebase,
+    "rebase [-u] -b backing_file [-F backing_fmt] filename")
+STEXI
+@item rebase [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
 @end table
 ETEXI
