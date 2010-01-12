@@ -169,15 +169,15 @@ static uint32_t apb_pci_config_readb(void *opaque, target_phys_addr_t addr)
 }
 
 static CPUWriteMemoryFunc * const apb_pci_config_writes[] = {
-    &apb_pci_config_writel,
-    &apb_pci_config_writew,
     &apb_pci_config_writeb,
+    &apb_pci_config_writew,
+    &apb_pci_config_writel,
 };
 
 static CPUReadMemoryFunc * const apb_pci_config_reads[] = {
-    &apb_pci_config_readl,
-    &apb_pci_config_readw,
     &apb_pci_config_readb,
+    &apb_pci_config_readw,
+    &apb_pci_config_readl,
 };
 
 static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
