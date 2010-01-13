@@ -701,7 +701,8 @@ typedef struct CPUX86State {
     uint8_t nmi_pending;
     uint8_t has_error_code;
     uint32_t sipi_vector;
-
+    uint32_t cpuid_kvm_features;
+    
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct APICState *apic_state;
