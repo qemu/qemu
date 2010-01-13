@@ -2403,17 +2403,13 @@ static void smp_parse(const char *optarg)
         threads = threads > 0 ? threads : 1;
         if (smp == 0) {
             smp = cores * threads * sockets;
-        } else {
-            sockets = smp / (cores * threads);
         }
     } else {
         if (cores == 0) {
             threads = threads > 0 ? threads : 1;
             cores = smp / (sockets * threads);
         } else {
-            if (sockets == 0) {
-                sockets = smp / (cores * threads);
-            } else {
+            if (sockets) {
                 threads = smp / (cores * sockets);
             }
         }
