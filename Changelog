@@ -1,7 +1,41 @@
+version 0.12.2:
+  - Qemu's internal TFTP server breaks lock-step-iness of TFTP (Milan Plzik)
+  - osdep.c: Fix accept4 fallback (Kevin Wolf)
+  - pc: add rombar to compat properties for pc-0.10 and pc-0.11 (Gerd Hoffmann)
+  - pci: allow loading roms via fw_cfg. (Gerd Hoffmann)
+  - roms: rework rom loading via fw (Gerd Hoffmann)
+  - fw_cfg: rom loader tweaks. (Gerd Hoffmann)
+  - roms: minor fixes and cleanups. (Gerd Hoffmann)
+  - pc: add machine type for 0.12 (Gerd Hoffmann)
+  - loader: more ignores for rom intended to be loaded by the bios (Aurelien Jarno)
+  - vnc_refresh: return if vd->timer is NULL (Stefano Stabellini)
+  - QMP: Don't free async event's 'data' (Luiz Capitulino)
+  - Handle TFTP ERROR from client (Thomas Horsten)
+  - dmg: fix ->open failure (Christoph Hellwig)
+  - virtio-pci: thinko fix (Michael S. Tsirkin)
+  - pc-bios: Update README (SeaBIOS) (Stefan Weil)
+  - vmware_vga: Check cursor dimensions passed from guest to avoid buffer overflow (Roland Dreier)
+  - remove pending exception on vcpu reset. (Gleb Natapov)
+  - Fix CPU topology initialization (Jiri Denemark)
+  - MCE: Fix bug of IA32_MCG_STATUS after system reset (Huang Ying)
+  - linuxboot: fix gdt address calculation (Avi Kivity)
+  - QMP: Drop wrong assert() (Luiz Capitulino)
+  - vnc: Fix artifacts in hextile decoding (Anthony Liguori)
+  - target-i386: Fix "call im" on x86_64 when executing 32-bit code (Aurelien Jarno)
+  - Add missing newline at the end of options list (Michael Tokarev)
+  - Don't load options roms intended to be loaded by the bios in qemu (Avi Kivity)
+  - USB: Improve usbdevice error messages (Scott Tsai)
+  - cpu-all.h: fix cpu_get_real_ticks() #ifdef (Aurelien Jarno)
+  - alpha: fix compile (Blue Swirl)
+  - user_only: compile everything with -fpie (Kirill A. Shutemov)
+  - fdc/sparc32: don't hang on detection under OBP (Artyom Tarasenko)
+  - scsi-disk: Inquiry with allocation length of CDB < 36 (v4) (Artyom Tarasenko)
+  - e1000: fix init values for command register (Michael S. Tsirkin)
+
 version 0.12.1:
   - loader: fix rom loading at address 0 (fixes target-arm) (Aurelien Jarno)
   - loader: fix rom_copy (fixes multiboot) (Kevin Wolf)
-	
+
 version 0.12.0:
 
   - Update to SeaBIOS 0.5.0
