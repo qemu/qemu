@@ -1909,6 +1909,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
     cpu_physical_memory_read(cplus_tx_ring_desc,    (uint8_t *)&val, 4);
     txdw0 = le32_to_cpu(val);
+    /* TODO: implement VLAN tagging support, VLAN tag data is read to txdw1 */
     cpu_physical_memory_read(cplus_tx_ring_desc+4,  (uint8_t *)&val, 4);
     txdw1 = le32_to_cpu(val);
     cpu_physical_memory_read(cplus_tx_ring_desc+8,  (uint8_t *)&val, 4);
@@ -1919,6 +1920,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     DEBUG_PRINT(("RTL8139: +++ C+ mode TX descriptor %d %08x %08x %08x %08x\n",
            descriptor,
            txdw0, txdw1, txbufLO, txbufHI));
+
+    /* TODO: the following discard cast should clean clang analyzer output */
+    (void)txdw1;
 
 /* w0 ownership flag */
 #define CP_TX_OWN (1<<31)
@@ -2045,6 +2049,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     /* update ring data */
     val = cpu_to_le32(txdw0);
     cpu_physical_memory_write(cplus_tx_ring_desc,    (uint8_t *)&val, 4);
+    /* TODO: implement VLAN tagging support, VLAN tag data is read to txdw1 */
 //    val = cpu_to_le32(txdw1);
 //    cpu_physical_memory_write(cplus_tx_ring_desc+4,  &val, 4);
 
