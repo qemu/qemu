@@ -1303,7 +1303,6 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     line_offset = s->line_offset;
 
     vga_get_text_resolution(s, &width, &height, &cw, &cheight);
-    x_incr = cw * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
     if ((height * width) > CH_ATTR_SIZE) {
         /* better than nothing: exit if transient size is too big */
         return;
