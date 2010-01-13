@@ -264,6 +264,12 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
   size_t prefix_len;
   char *req_fname;
 
+  /* check if a session already exists and if so terminate it */
+  s = tftp_session_find(slirp, tp);
+  if (s >= 0) {
+    tftp_session_terminate(&slirp->tftp_sessions[s]);
+  }
+
   s = tftp_session_allocate(slirp, tp);
 
   if (s < 0) {
@@ -385,6 +391,19 @@ static void tftp_handle_ack(Slirp *slirp, struct tftp_t *tp, int pktlen)
   }
 }
 
+static void tftp_handle_error(Slirp *slirp, struct tftp_t *tp, int pktlen)
+{
+  int s;
+
+  s = tftp_session_find(slirp, tp);
+
+  if (s < 0) {
+    return;
+  }
+
+  tftp_session_terminate(&slirp->tftp_sessions[s]);
+}
+
 void tftp_input(struct mbuf *m)
 {
   struct tftp_t *tp = (struct tftp_t *)m->m_data;
@@ -396,6 +415,10 @@ void tftp_input(struct mbuf *m)
 
   case TFTP_ACK:
     tftp_handle_ack(m->slirp, tp, m->m_len);
+    break;
+
+  case TFTP_ERROR:
+    tftp_handle_error(m->slirp, tp, m->m_len);
     break;
   }
 }

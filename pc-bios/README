@@ -1,4 +1,5 @@
-- The PC BIOS comes from the Bochs project (http://bochs.sourceforge.net/).
+- SeaBIOS (bios.bin) is the successor of pc bios.
+  See http://www.seabios.org/ for more information.
 
 - The VGA BIOS and the Cirrus VGA BIOS come from the LGPL VGA bios
   project (http://www.nongnu.org/vgabios/).

@@ -535,6 +535,7 @@ struct Rom {
     QTAILQ_ENTRY(Rom) next;
 };
 
+static FWCfgState *fw_cfg;
 static QTAILQ_HEAD(, Rom) roms = QTAILQ_HEAD_INITIALIZER(roms);
 int rom_enable_driver_roms;
 
@@ -556,7 +557,7 @@ static void rom_insert(Rom *rom)
     QTAILQ_INSERT_TAIL(&roms, rom, next);
 }
 
-int rom_add_file(const char *file, const char *fw_dir, const char *fw_file,
+int rom_add_file(const char *file, const char *fw_dir,
                  target_phys_addr_t addr)
 {
     Rom *rom;
@@ -576,8 +577,10 @@ int rom_add_file(const char *file, const char *fw_dir, const char *fw_file,
         goto err;
     }
 
-    rom->fw_dir  = fw_dir  ? qemu_strdup(fw_dir)  : NULL;
-    rom->fw_file = fw_file ? qemu_strdup(fw_file) : NULL;
+    if (fw_dir) {
+        rom->fw_dir  = qemu_strdup(fw_dir);
+        rom->fw_file = qemu_strdup(file);
+    }
     rom->addr    = addr;
     rom->romsize = lseek(fd, 0, SEEK_END);
     rom->data    = qemu_mallocz(rom->romsize);
@@ -590,6 +593,8 @@ int rom_add_file(const char *file, const char *fw_dir, const char *fw_file,
     }
     close(fd);
     rom_insert(rom);
+    if (rom->fw_file && fw_cfg)
+        fw_cfg_add_file(fw_cfg, rom->fw_dir, rom->fw_file, rom->data, rom->romsize);
     return 0;
 
 err:
@@ -621,14 +626,14 @@ int rom_add_vga(const char *file)
 {
     if (!rom_enable_driver_roms)
         return 0;
-    return rom_add_file(file, "vgaroms", file, 0);
+    return rom_add_file(file, "vgaroms", 0);
 }
 
 int rom_add_option(const char *file)
 {
     if (!rom_enable_driver_roms)
         return 0;
-    return rom_add_file(file, "genroms", file, 0);
+    return rom_add_file(file, "genroms", 0);
 }
 
 static void rom_reset(void *unused)
@@ -639,8 +644,9 @@ static void rom_reset(void *unused)
         if (rom->fw_file) {
             continue;
         }
-        if (rom->data == NULL)
+        if (rom->data == NULL) {
             continue;
+        }
         cpu_physical_memory_write_rom(rom->addr, rom->data, rom->romsize);
         if (rom->isrom) {
             /* rom needs to be written only once */
@@ -678,16 +684,9 @@ int rom_load_all(void)
     return 0;
 }
 
-int rom_load_fw(void *fw_cfg)
+void rom_set_fw(void *f)
 {
-    Rom *rom;
-
-    QTAILQ_FOREACH(rom, &roms, next) {
-        if (!rom->fw_file)
-            continue;
-        fw_cfg_add_file(fw_cfg, rom->fw_dir, rom->fw_file, rom->data, rom->romsize);
-    }
-    return 0;
+    fw_cfg = f;
 }
 
 static Rom *find_rom(target_phys_addr_t addr)
@@ -698,10 +697,12 @@ static Rom *find_rom(target_phys_addr_t addr)
         if (rom->fw_file) {
             continue;
         }
-        if (rom->addr > addr)
+        if (rom->addr > addr) {
             continue;
-        if (rom->addr + rom->romsize < addr)
+        }
+        if (rom->addr + rom->romsize < addr) {
             continue;
+        }
         return rom;
     }
     return NULL;
@@ -723,12 +724,15 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
         if (rom->fw_file) {
             continue;
         }
-        if (rom->addr + rom->romsize < addr)
+        if (rom->addr + rom->romsize < addr) {
             continue;
-        if (rom->addr > end)
+        }
+        if (rom->addr > end) {
             break;
-        if (!rom->data)
+        }
+        if (!rom->data) {
             continue;
+        }
 
         d = dest + (rom->addr - addr);
         s = rom->data;
@@ -771,10 +775,9 @@ void do_info_roms(Monitor *mon)
                            rom->isrom ? "rom" : "ram",
                            rom->name);
         } else {
-            monitor_printf(mon, "fw=%s%s%s"
+            monitor_printf(mon, "fw=%s/%s"
                            " size=0x%06zx name=\"%s\" \n",
-                           rom->fw_dir ? rom->fw_dir : "",
-                           rom->fw_dir ? "/" : "",
+                           rom->fw_dir,
                            rom->fw_file,
                            rom->romsize,
                            rom->name);

@@ -147,34 +147,29 @@ static int peer_has_ufo(VirtIONet *n)
     return n->has_ufo;
 }
 
-static uint32_t virtio_net_get_features(VirtIODevice *vdev)
+static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIONet *n = to_virtio_net(vdev);
-    uint32_t features = (1 << VIRTIO_NET_F_MAC) |
-                        (1 << VIRTIO_NET_F_MRG_RXBUF) |
-                        (1 << VIRTIO_NET_F_STATUS) |
-                        (1 << VIRTIO_NET_F_CTRL_VQ) |
-                        (1 << VIRTIO_NET_F_CTRL_RX) |
-                        (1 << VIRTIO_NET_F_CTRL_VLAN) |
-                        (1 << VIRTIO_NET_F_CTRL_RX_EXTRA);
+
+    features |= (1 << VIRTIO_NET_F_MAC);
 
     if (peer_has_vnet_hdr(n)) {
         tap_using_vnet_hdr(n->nic->nc.peer, 1);
+    } else {
+        features &= ~(0x1 << VIRTIO_NET_F_CSUM);
+        features &= ~(0x1 << VIRTIO_NET_F_HOST_TSO4);
+        features &= ~(0x1 << VIRTIO_NET_F_HOST_TSO6);
+        features &= ~(0x1 << VIRTIO_NET_F_HOST_ECN);
 
-        features |= (1 << VIRTIO_NET_F_CSUM);
-        features |= (1 << VIRTIO_NET_F_HOST_TSO4);
-        features |= (1 << VIRTIO_NET_F_HOST_TSO6);
-        features |= (1 << VIRTIO_NET_F_HOST_ECN);
+        features &= ~(0x1 << VIRTIO_NET_F_GUEST_CSUM);
+        features &= ~(0x1 << VIRTIO_NET_F_GUEST_TSO4);
+        features &= ~(0x1 << VIRTIO_NET_F_GUEST_TSO6);
+        features &= ~(0x1 << VIRTIO_NET_F_GUEST_ECN);
+    }
 
-        features |= (1 << VIRTIO_NET_F_GUEST_CSUM);
-        features |= (1 << VIRTIO_NET_F_GUEST_TSO4);
-        features |= (1 << VIRTIO_NET_F_GUEST_TSO6);
-        features |= (1 << VIRTIO_NET_F_GUEST_ECN);
-
-        if (peer_has_ufo(n)) {
-            features |= (1 << VIRTIO_NET_F_GUEST_UFO);
-            features |= (1 << VIRTIO_NET_F_HOST_UFO);
-        }
+    if (!peer_has_vnet_hdr(n) || !peer_has_ufo(n)) {
+        features &= ~(0x1 << VIRTIO_NET_F_GUEST_UFO);
+        features &= ~(0x1 << VIRTIO_NET_F_HOST_UFO);
     }
 
     return features;
@@ -192,7 +187,7 @@ static uint32_t virtio_net_bad_features(VirtIODevice *vdev)
     features |= (1 << VIRTIO_NET_F_HOST_TSO6);
     features |= (1 << VIRTIO_NET_F_HOST_ECN);
 
-    return features & virtio_net_get_features(vdev);
+    return features;
 }
 
 static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
@@ -768,11 +763,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         if (n->has_vnet_hdr) {
             tap_using_vnet_hdr(n->nic->nc.peer, 1);
             tap_set_offload(n->nic->nc.peer,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_ECN)  & 1,
-                            (n->vdev.features >> VIRTIO_NET_F_GUEST_UFO)  & 1);
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_TSO6) & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_ECN)  & 1,
+                    (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_UFO)  & 1);
         }
     }
 

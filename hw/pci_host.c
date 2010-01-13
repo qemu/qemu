@@ -56,7 +56,7 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
     if (!pci_dev)
         return;
 
-    PCI_DPRINTF("%s: %s: addr=%02"PRIx32" val=%08"PRI32x" len=%d\n",
+    PCI_DPRINTF("%s: %s: addr=%02" PRIx32 " val=%08" PRIx32 " len=%d\n",
                 __func__, pci_dev->name, config_addr, val, len);
     pci_dev->config_write(pci_dev, config_addr, val, len);
 }

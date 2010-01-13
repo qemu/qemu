@@ -230,6 +230,7 @@ int kvm_arch_init_vcpu(CPUState *env)
 
 void kvm_arch_reset_vcpu(CPUState *env)
 {
+    env->exception_injected = -1;
     env->interrupt_injected = -1;
     env->nmi_injected = 0;
     env->nmi_pending = 0;

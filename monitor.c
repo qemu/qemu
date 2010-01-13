@@ -365,8 +365,10 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     qmp = qdict_new();
     timestamp_put(qmp);
     qdict_put(qmp, "event", qstring_from_str(event_name));
-    if (data)
+    if (data) {
+        qobject_incref(data);
         qdict_put_obj(qmp, "data", data);
+    }
 
     monitor_json_emitter(mon, QOBJECT(qmp));
     QDECREF(qmp);
@@ -1107,7 +1109,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
                         target_phys_addr_t addr, int is_physical)
 {
     CPUState *env;
-    int nb_per_line, l, line_size, i, max_digits, len;
+    int l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
 
@@ -1146,7 +1148,6 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         line_size = 8;
     else
         line_size = 16;
-    nb_per_line = line_size / wsize;
     max_digits = 0;
 
     switch(format) {

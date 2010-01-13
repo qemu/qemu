@@ -3489,10 +3489,10 @@ void qemu_init_vcpu(void *_env)
 {
     CPUState *env = _env;
 
-    if (kvm_enabled())
-        kvm_init_vcpu(env);
     env->nr_cores = smp_cores;
     env->nr_threads = smp_threads;
+    if (kvm_enabled())
+        kvm_init_vcpu(env);
     return;
 }
 
@@ -3818,12 +3818,12 @@ void qemu_init_vcpu(void *_env)
 {
     CPUState *env = _env;
 
+    env->nr_cores = smp_cores;
+    env->nr_threads = smp_threads;
     if (kvm_enabled())
         kvm_start_vcpu(env);
     else
         tcg_init_vcpu(env);
-    env->nr_cores = smp_cores;
-    env->nr_threads = smp_threads;
 }
 
 void qemu_notify_event(void)

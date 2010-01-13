@@ -42,7 +42,7 @@ DEF("smp", HAS_ARG, QEMU_OPTION_smp,
     "-smp n[,maxcpus=cpus][,cores=cores][,threads=threads][,sockets=sockets]\n"
     "                set the number of CPUs to 'n' [default=1]\n"
     "                maxcpus= maximum number of total cpus, including\n"
-    "                  offline CPUs for hotplug etc.\n"
+    "                offline CPUs for hotplug, etc\n"
     "                cores= number of CPU cores on one socket\n"
     "                threads= number of threads on one CPU core\n"
     "                sockets= number of discrete sockets in the system\n")
@@ -405,8 +405,9 @@ ETEXI
 DEF("device", HAS_ARG, QEMU_OPTION_device,
     "-device driver[,options]  add device\n")
 DEF("name", HAS_ARG, QEMU_OPTION_name,
-    "-name string1[,process=string2]    set the name of the guest\n"
-    "            string1 sets the window title and string2 the process name (on Linux)\n")
+    "-name string1[,process=string2]\n"
+    "                set the name of the guest\n"
+    "                string1 sets the window title and string2 the process name (on Linux)\n")
 STEXI
 @item -name @var{name}
 Sets the @var{name} of the guest.
@@ -483,7 +484,7 @@ ETEXI
 
 #ifdef CONFIG_SDL
 DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
-    "-ctrl-grab       use Right-Ctrl to grab mouse (instead of Ctrl-Alt)\n")
+    "-ctrl-grab      use Right-Ctrl to grab mouse (instead of Ctrl-Alt)\n")
 #endif
 STEXI
 @item -ctrl-grab
@@ -756,12 +757,12 @@ ETEXI
 #ifdef TARGET_I386
 DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "-smbios file=binary\n"
-    "                Load SMBIOS entry from binary file\n"
+    "                load SMBIOS entry from binary file\n"
     "-smbios type=0[,vendor=str][,version=str][,date=str][,release=%%d.%%d]\n"
-    "                Specify SMBIOS type 0 fields\n"
+    "                specify SMBIOS type 0 fields\n"
     "-smbios type=1[,manufacturer=str][,product=str][,version=str][,serial=str]\n"
     "              [,uuid=uuid][,sku=str][,family=str]\n"
-    "                Specify SMBIOS type 1 fields\n")
+    "                specify SMBIOS type 1 fields\n")
 #endif
 STEXI
 @item -smbios file=@var{binary}
@@ -816,13 +817,13 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile][,sndbuf=nbytes][,vnet_hdr=on|off]\n"
     "                connect the host TAP network interface to VLAN 'n' and use the\n"
     "                network scripts 'file' (default=%s)\n"
-    "                and 'dfile' (default=%s);\n"
-    "                use '[down]script=no' to disable script execution;\n"
+    "                and 'dfile' (default=%s)\n"
+    "                use '[down]script=no' to disable script execution\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
-    "                use 'sndbuf=nbytes' to limit the size of the send buffer; the\n"
-    "                default of 'sndbuf=1048576' can be disabled using 'sndbuf=0'\n"
-    "                use vnet_hdr=off to avoid enabling the IFF_VNET_HDR tap flag; use\n"
-    "                vnet_hdr=on to make the lack of IFF_VNET_HDR support an error condition\n"
+    "                use 'sndbuf=nbytes' to limit the size of the send buffer (the\n"
+    "                default of 'sndbuf=1048576' can be disabled using 'sndbuf=0')\n"
+    "                use vnet_hdr=off to avoid enabling the IFF_VNET_HDR tap flag\n"
+    "                use vnet_hdr=on to make the lack of IFF_VNET_HDR support an error condition\n"
 #endif
     "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                connect the vlan 'n' to another VLAN using a socket connection\n"
@@ -837,7 +838,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
 #endif
     "-net dump[,vlan=n][,file=f][,len=n]\n"
     "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
-    "-net none       use it alone to have zero network devices; if no -net option\n"
+    "-net none       use it alone to have zero network devices. If no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
 DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "-netdev ["
@@ -1589,7 +1590,7 @@ The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 ETEXI
 DEF("qmp", HAS_ARG, QEMU_OPTION_qmp, \
-    "-qmp dev        like -monitor but opens in 'control' mode.\n")
+    "-qmp dev        like -monitor but opens in 'control' mode\n")
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
     "-mon chardev=[name][,mode=readline|control][,default]\n")
@@ -1618,7 +1619,7 @@ from a script.
 ETEXI
 
 DEF("singlestep", 0, QEMU_OPTION_singlestep, \
-    "-singlestep   always run in singlestep mode\n")
+    "-singlestep     always run in singlestep mode\n")
 STEXI
 @item -singlestep
 Run the emulation in single step mode.
@@ -1902,13 +1903,13 @@ STEXI
 ETEXI
 
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
-    "-nodefaults     don't create default devices.\n")
+    "-nodefaults     don't create default devices\n")
 STEXI
 ETEXI
 
 #ifdef CONFIG_CHROOT
 DEF("chroot", HAS_ARG, QEMU_OPTION_chroot, \
-    "-chroot dir     Chroot to dir just before starting the VM.\n")
+    "-chroot dir     chroot to dir just before starting the VM\n")
 #endif
 STEXI
 @item -chroot @var{dir}
@@ -1919,7 +1920,7 @@ ETEXI
 
 #ifndef _WIN32
 DEF("runas", HAS_ARG, QEMU_OPTION_runas, \
-    "-runas user     Change to user id user just before starting the VM.\n")
+    "-runas user     change to user id user just before starting the VM\n")
 #endif
 STEXI
 @item -runas @var{user}

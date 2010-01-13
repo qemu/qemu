@@ -51,9 +51,9 @@ static void virtio_console_handle_input(VirtIODevice *vdev, VirtQueue *vq)
 {
 }
 
-static uint32_t virtio_console_get_features(VirtIODevice *vdev)
+static uint32_t virtio_console_get_features(VirtIODevice *vdev, uint32_t f)
 {
-    return 0;
+    return f;
 }
 
 static int vcon_can_read(void *opaque)
