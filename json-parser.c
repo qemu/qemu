@@ -247,8 +247,6 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token
         }
     }
 
-    ptr++;
-
     return str;
 
 out:
