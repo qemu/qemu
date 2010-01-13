@@ -2207,8 +2207,6 @@ static void gen_add_A0_ds_seg(DisasContext *s)
     if (s->override >= 0) {
         override = s->override;
         must_add_seg = 1;
-    } else {
-        override = R_DS;
     }
     if (must_add_seg) {
 #ifdef TARGET_X86_64
