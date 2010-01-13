@@ -1608,7 +1608,7 @@ static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
 {
     PCNetState *s = opaque;
-    uint32_t val = s->prom[addr &= 15];
+    uint32_t val = s->prom[addr & 15];
 #ifdef PCNET_DEBUG
     printf("pcnet_aprom_readb addr=0x%08x val=0x%02x\n", addr, val);
 #endif
