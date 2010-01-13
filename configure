@@ -1309,13 +1309,19 @@ fi
 ##########################################
 # curl probe
 
+if $pkgconfig libcurl --modversion >/dev/null 2>&1; then
+  curlconfig="$pkgconfig libcurl"
+else
+  curlconfig=curl-config
+fi
+
 if test "$curl" != "no" ; then
   cat > $TMPC << EOF
 #include <curl/curl.h>
 int main(void) { return curl_easy_init(); }
 EOF
-  curl_cflags=`curl-config --cflags 2>/dev/null`
-  curl_libs=`curl-config --libs 2>/dev/null`
+  curl_cflags=`$curlconfig --cflags 2>/dev/null`
+  curl_libs=`$curlconfig --libs 2>/dev/null`
   if compile_prog "$curl_cflags" "$curl_libs" ; then
     curl=yes
     libs_tools="$curl_libs $libs_tools"
