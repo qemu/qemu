@@ -254,7 +254,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
     QList *clients;
 
     server = qobject_to_qdict(data);
-    if (strcmp(qdict_get_str(server, "status"), "disabled") == 0) {
+    if (qdict_get_bool(server, "enabled") == 0) {
         monitor_printf(mon, "Server: disabled\n");
         return;
     }
@@ -282,7 +282,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  *
  * The main QDict contains the following:
  *
- * - "status": "disabled" or "enabled"
+ * - "enabled": true or false
  * - "host": server's IP address
  * - "service": server's port number
  * - "auth": authentication method (optional)
@@ -297,13 +297,13 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  *
  * Example:
  *
- * { "status": "enabled", "host": "0.0.0.0", "service": "50402", "auth": "vnc",
+ * { "enabled": true, "host": "0.0.0.0", "service": "50402", "auth": "vnc",
  *   "clients": [ { "host": "127.0.0.1", "service": "50401" } ] }
  */
 void do_info_vnc(Monitor *mon, QObject **ret_data)
 {
     if (vnc_display == NULL || vnc_display->display == NULL) {
-        *ret_data = qobject_from_jsonf("{ 'status': 'disabled' }");
+        *ret_data = qobject_from_jsonf("{ 'enabled': false }");
     } else {
         QDict *qdict;
         QList *clist;
@@ -319,7 +319,7 @@ void do_info_vnc(Monitor *mon, QObject **ret_data)
             }
         }
 
-        *ret_data = qobject_from_jsonf("{ 'status': 'enabled', 'clients': %p }",
+        *ret_data = qobject_from_jsonf("{ 'enabled': true, 'clients': %p }",
                                        QOBJECT(clist));
         assert(*ret_data != NULL);
 
