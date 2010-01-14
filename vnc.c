@@ -1108,6 +1108,8 @@ static void vnc_disconnect_start(VncState *vs)
 
 static void vnc_disconnect_finish(VncState *vs)
 {
+    vnc_qmp_event(vs, QEVENT_VNC_DISCONNECTED);
+
     if (vs->input.buffer) {
         qemu_free(vs->input.buffer);
         vs->input.buffer = NULL;
