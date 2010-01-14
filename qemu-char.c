@@ -1187,7 +1187,6 @@ static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
         return NULL;
     }
     chr->chr_ioctl = tty_serial_ioctl;
-    qemu_chr_generic_open(chr);
     return chr;
 }
 #else  /* ! __linux__ && ! __sun__ */
