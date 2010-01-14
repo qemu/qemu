@@ -1002,6 +1002,15 @@ EOF
 fi
 
 ##########################################
+# pkgconfig probe
+
+pkgconfig="${cross_prefix}pkg-config"
+if ! test -x "$(which $pkgconfig 2>/dev/null)"; then
+  # likely not cross compiling, or hope for the best
+  pkgconfig=pkg-config
+fi
+
+##########################################
 # Sparse probe
 if test "$sparse" != "no" ; then
   if test -x "$(which cgcc 2>/dev/null)"; then
@@ -1017,18 +1026,24 @@ fi
 ##########################################
 # SDL probe
 
-sdl_too_old=no
+if $pkgconfig sdl --modversion >/dev/null 2>&1; then
+  sdlconfig="$pkgconfig sdl"
+  _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
+else
+  sdlconfig='sdl-config'
+  _sdlversion=`${cross_prefix}$sdlconfig --version | sed 's/[^0-9]//g'`
+fi
 
+sdl_too_old=no
 if test "$sdl" != "no" ; then
   cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-  sdl_cflags=`${cross_prefix}sdl-config --cflags 2> /dev/null`
-  sdl_libs=`${cross_prefix}sdl-config --libs 2> /dev/null`
+  sdl_cflags=`${cross_prefix}$sdlconfig --cflags 2> /dev/null`
+  sdl_libs=`${cross_prefix}$sdlconfig --libs 2> /dev/null`
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
-    _sdlversion=`${cross_prefix}sdl-config --version | sed 's/[^0-9]//g'`
     if test "$_sdlversion" -lt 121 ; then
       sdl_too_old=yes
     else
@@ -1037,12 +1052,12 @@ EOF
       fi
     fi
 
-    # static link with sdl ?
+    # static link with sdl ? (note: sdl.pc's --static --libs is broken)
     if test "$sdl" = "yes" -a "$static" = "yes" ; then
       sdl_libs=`${cross_prefix}sdl-config --static-libs 2>/dev/null`
-      if test `${cross_prefix}sdl-config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` ; then
+      if test $? = 0 && echo $sdl_libs | grep -- -laa > /dev/null; then
          sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
-         sdl_cflags="$sd_cflags `aalib-config --cflags >2 /dev/null`"
+         sdl_cflags="$sdl_cflags `aalib-config --cflags >2 /dev/null`"
       fi
       if compile_prog "$sdl_cflags" "$sdl_libs" ; then
 	:
@@ -1084,8 +1099,8 @@ if test "$vnc_tls" != "no" ; then
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
-  vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
-  vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
+  vnc_tls_cflags=`$pkgconfig --cflags gnutls 2> /dev/null`
+  vnc_tls_libs=`$pkgconfig --libs gnutls 2> /dev/null`
   if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
     vnc_tls=yes
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
@@ -1330,13 +1345,19 @@ fi
 ##########################################
 # curl probe
 
+if $pkgconfig libcurl --modversion >/dev/null 2>&1; then
+  curlconfig="$pkgconfig libcurl"
+else
+  curlconfig=curl-config
+fi
+
 if test "$curl" != "no" ; then
   cat > $TMPC << EOF
 #include <curl/curl.h>
 int main(void) { return curl_easy_init(); }
 EOF
-  curl_cflags=`curl-config --cflags 2>/dev/null`
-  curl_libs=`curl-config --libs 2>/dev/null`
+  curl_cflags=`$curlconfig --cflags 2>/dev/null`
+  curl_libs=`$curlconfig --libs 2>/dev/null`
   if compile_prog "$curl_cflags" "$curl_libs" ; then
     curl=yes
     libs_tools="$curl_libs $libs_tools"
@@ -1357,7 +1378,7 @@ if test "$check_utests" != "no" ; then
 #include <check.h>
 int main(void) { suite_create("qemu test"); return 0; }
 EOF
-  check_libs=`pkg-config --libs check`
+  check_libs=`$pkgconfig --libs check`
   if compile_prog "" $check_libs ; then
     check_utests=yes
     libs_tools="$check_libs $libs_tools"
@@ -1376,8 +1397,8 @@ if test "$bluez" != "no" ; then
 #include <bluetooth/bluetooth.h>
 int main(void) { return bt_error(0); }
 EOF
-  bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
-  bluez_libs=`pkg-config --libs bluez 2> /dev/null`
+  bluez_cflags=`$pkgconfig --cflags bluez 2> /dev/null`
+  bluez_libs=`$pkgconfig --libs bluez 2> /dev/null`
   if compile_prog "$bluez_cflags" "$bluez_libs" ; then
     bluez=yes
     libs_softmmu="$bluez_libs $libs_softmmu"

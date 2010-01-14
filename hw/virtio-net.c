@@ -532,7 +532,7 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
         int len, total;
         struct iovec sg[VIRTQUEUE_MAX_SIZE];
 
-        len = total = 0;
+        total = 0;
 
         if ((i != 0 && !n->mergeable_rx_bufs) ||
             virtqueue_pop(n->rx_vq, &elem) == 0) {

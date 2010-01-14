@@ -161,7 +161,7 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
             p8++;
             b = *p8++;
             g = *p8++;
-            r = *p8++;
+            r = *p8;
             if (bgr)
                 dval = rgb_to_pixel32bgr(r, g, b);
             else

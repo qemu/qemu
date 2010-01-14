@@ -297,7 +297,7 @@ int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 
 #ifdef CONFIG_ACCEPT4
     ret = accept4(s, addr, addrlen, SOCK_CLOEXEC);
-    if (ret != -1 || errno != EINVAL) {
+    if (ret != -1 || errno != ENOSYS) {
         return ret;
     }
 #endif

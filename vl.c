@@ -379,216 +379,9 @@ ram_addr_t qemu_balloon_status(void)
     return 0;
 }
 
+
 /***********************************************************/
-/* keyboard/mouse */
-
-static QEMUPutKBDEvent *qemu_put_kbd_event;
-static void *qemu_put_kbd_event_opaque;
-static QEMUPutMouseEntry *qemu_put_mouse_event_head;
-static QEMUPutMouseEntry *qemu_put_mouse_event_current;
-
-void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
-{
-    qemu_put_kbd_event_opaque = opaque;
-    qemu_put_kbd_event = func;
-}
-
-QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
-                                                void *opaque, int absolute,
-                                                const char *name)
-{
-    QEMUPutMouseEntry *s, *cursor;
-
-    s = qemu_mallocz(sizeof(QEMUPutMouseEntry));
-
-    s->qemu_put_mouse_event = func;
-    s->qemu_put_mouse_event_opaque = opaque;
-    s->qemu_put_mouse_event_absolute = absolute;
-    s->qemu_put_mouse_event_name = qemu_strdup(name);
-    s->next = NULL;
-
-    if (!qemu_put_mouse_event_head) {
-        qemu_put_mouse_event_head = qemu_put_mouse_event_current = s;
-        return s;
-    }
-
-    cursor = qemu_put_mouse_event_head;
-    while (cursor->next != NULL)
-        cursor = cursor->next;
-
-    cursor->next = s;
-    qemu_put_mouse_event_current = s;
-
-    return s;
-}
-
-void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
-{
-    QEMUPutMouseEntry *prev = NULL, *cursor;
-
-    if (!qemu_put_mouse_event_head || entry == NULL)
-        return;
-
-    cursor = qemu_put_mouse_event_head;
-    while (cursor != NULL && cursor != entry) {
-        prev = cursor;
-        cursor = cursor->next;
-    }
-
-    if (cursor == NULL) // does not exist or list empty
-        return;
-    else if (prev == NULL) { // entry is head
-        qemu_put_mouse_event_head = cursor->next;
-        if (qemu_put_mouse_event_current == entry)
-            qemu_put_mouse_event_current = cursor->next;
-        qemu_free(entry->qemu_put_mouse_event_name);
-        qemu_free(entry);
-        return;
-    }
-
-    prev->next = entry->next;
-
-    if (qemu_put_mouse_event_current == entry)
-        qemu_put_mouse_event_current = prev;
-
-    qemu_free(entry->qemu_put_mouse_event_name);
-    qemu_free(entry);
-}
-
-void kbd_put_keycode(int keycode)
-{
-    if (qemu_put_kbd_event) {
-        qemu_put_kbd_event(qemu_put_kbd_event_opaque, keycode);
-    }
-}
-
-void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
-{
-    QEMUPutMouseEvent *mouse_event;
-    void *mouse_event_opaque;
-    int width;
-
-    if (!qemu_put_mouse_event_current) {
-        return;
-    }
-
-    mouse_event =
-        qemu_put_mouse_event_current->qemu_put_mouse_event;
-    mouse_event_opaque =
-        qemu_put_mouse_event_current->qemu_put_mouse_event_opaque;
-
-    if (mouse_event) {
-        if (graphic_rotate) {
-            if (qemu_put_mouse_event_current->qemu_put_mouse_event_absolute)
-                width = 0x7fff;
-            else
-                width = graphic_width - 1;
-            mouse_event(mouse_event_opaque,
-                                 width - dy, dx, dz, buttons_state);
-        } else
-            mouse_event(mouse_event_opaque,
-                                 dx, dy, dz, buttons_state);
-    }
-}
-
-int kbd_mouse_is_absolute(void)
-{
-    if (!qemu_put_mouse_event_current)
-        return 0;
-
-    return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
-}
-
-static void info_mice_iter(QObject *data, void *opaque)
-{
-    QDict *mouse;
-    Monitor *mon = opaque;
-
-    mouse = qobject_to_qdict(data);
-    monitor_printf(mon, "%c Mouse #%" PRId64 ": %s\n",
-                  (qdict_get_bool(mouse, "current") ? '*' : ' '),
-                  qdict_get_int(mouse, "index"), qdict_get_str(mouse, "name"));
-}
-
-void do_info_mice_print(Monitor *mon, const QObject *data)
-{
-    QList *mice_list;
-
-    mice_list = qobject_to_qlist(data);
-    if (qlist_empty(mice_list)) {
-        monitor_printf(mon, "No mouse devices connected\n");
-        return;
-    }
-
-    qlist_iter(mice_list, info_mice_iter, mon);
-}
-
-/**
- * do_info_mice(): Show VM mice information
- *
- * Each mouse is represented by a QDict, the returned QObject is a QList of
- * all mice.
- *
- * The mouse QDict contains the following:
- *
- * - "name": mouse's name
- * - "index": mouse's index
- * - "current": true if this mouse is receiving events, false otherwise
- *
- * Example:
- *
- * [ { "name": "QEMU Microsoft Mouse", "index": 0, "current": false },
- *   { "name": "QEMU PS/2 Mouse", "index": 1, "current": true } ]
- */
-void do_info_mice(Monitor *mon, QObject **ret_data)
-{
-    QEMUPutMouseEntry *cursor;
-    QList *mice_list;
-    int index = 0;
-
-    mice_list = qlist_new();
-
-    if (!qemu_put_mouse_event_head) {
-        goto out;
-    }
-
-    cursor = qemu_put_mouse_event_head;
-    while (cursor != NULL) {
-        QObject *obj;
-        obj = qobject_from_jsonf("{ 'name': %s, 'index': %d, 'current': %i }",
-                                 cursor->qemu_put_mouse_event_name,
-                                 index, cursor == qemu_put_mouse_event_current);
-        qlist_append_obj(mice_list, obj);
-        index++;
-        cursor = cursor->next;
-    }
-
-out:
-    *ret_data = QOBJECT(mice_list);
-}
-
-void do_mouse_set(Monitor *mon, const QDict *qdict)
-{
-    QEMUPutMouseEntry *cursor;
-    int i = 0;
-    int index = qdict_get_int(qdict, "index");
-
-    if (!qemu_put_mouse_event_head) {
-        monitor_printf(mon, "No mouse devices connected\n");
-        return;
-    }
-
-    cursor = qemu_put_mouse_event_head;
-    while (cursor != NULL && index != i) {
-        i++;
-        cursor = cursor->next;
-    }
-
-    if (cursor != NULL)
-        qemu_put_mouse_event_current = cursor;
-    else
-        monitor_printf(mon, "Mouse at given index not found\n");
-}
+/* real time host monotonic timer */
 
 /* compute with 96 bit intermediate result: (a*b)/c */
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
@@ -613,9 +406,6 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
     return res.ll;
 }
-
-/***********************************************************/
-/* real time host monotonic timer */
 
 static int64_t get_clock_realtime(void)
 {
@@ -2615,17 +2405,13 @@ static void smp_parse(const char *optarg)
         threads = threads > 0 ? threads : 1;
         if (smp == 0) {
             smp = cores * threads * sockets;
-        } else {
-            sockets = smp / (cores * threads);
         }
     } else {
         if (cores == 0) {
             threads = threads > 0 ? threads : 1;
             cores = smp / (sockets * threads);
         } else {
-            if (sockets == 0) {
-                sockets = smp / (cores * threads);
-            } else {
+            if (sockets) {
                 threads = smp / (cores * sockets);
             }
         }

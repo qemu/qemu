@@ -26,6 +26,10 @@
 #include "gdbstub.h"
 #include "host-utils.h"
 
+#ifdef CONFIG_KVM_PARA
+#include <linux/kvm_para.h>
+#endif
+//
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -135,6 +139,39 @@ static void kvm_trim_features(uint32_t *features, uint32_t supported)
     }
 }
 
+#ifdef CONFIG_KVM_PARA
+struct kvm_para_features {
+        int cap;
+        int feature;
+} para_features[] = {
+#ifdef KVM_CAP_CLOCKSOURCE
+        { KVM_CAP_CLOCKSOURCE, KVM_FEATURE_CLOCKSOURCE },
+#endif
+#ifdef KVM_CAP_NOP_IO_DELAY
+        { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
+#endif
+#ifdef KVM_CAP_PV_MMU
+        { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
+#endif
+#ifdef KVM_CAP_CR3_CACHE
+        { KVM_CAP_CR3_CACHE, KVM_FEATURE_CR3_CACHE },
+#endif
+        { -1, -1 }
+};
+
+static int get_para_features(CPUState *env)
+{
+        int i, features = 0;
+
+        for (i = 0; i < ARRAY_SIZE(para_features) - 1; i++) {
+                if (kvm_check_extension(env->kvm_state, para_features[i].cap))
+                        features |= (1 << para_features[i].feature);
+        }
+
+        return features;
+}
+#endif
+
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
@@ -143,6 +180,10 @@ int kvm_arch_init_vcpu(CPUState *env)
     } __attribute__((packed)) cpuid_data;
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
+    struct kvm_cpuid_entry2 *c;
+#ifdef KVM_CPUID_SIGNATURE
+    uint32_t signature[3];
+#endif
 
     env->mp_state = KVM_MP_STATE_RUNNABLE;
 
@@ -161,10 +202,27 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     cpuid_i = 0;
 
+#ifdef CONFIG_KVM_PARA
+    /* Paravirtualization CPUIDs */
+    memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+    c = &cpuid_data.entries[cpuid_i++];
+    memset(c, 0, sizeof(*c));
+    c->function = KVM_CPUID_SIGNATURE;
+    c->eax = 0;
+    c->ebx = signature[0];
+    c->ecx = signature[1];
+    c->edx = signature[2];
+
+    c = &cpuid_data.entries[cpuid_i++];
+    memset(c, 0, sizeof(*c));
+    c->function = KVM_CPUID_FEATURES;
+    c->eax = env->cpuid_kvm_features & get_para_features(env);
+#endif
+
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
     for (i = 0; i <= limit; i++) {
-        struct kvm_cpuid_entry2 *c = &cpuid_data.entries[cpuid_i++];
+        c = &cpuid_data.entries[cpuid_i++];
         assert(cpuid_i < 100);
 
         switch (i) {
@@ -215,7 +273,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     cpu_x86_cpuid(env, 0x80000000, 0, &limit, &unused, &unused, &unused);
 
     for (i = 0x80000000; i <= limit; i++) {
-        struct kvm_cpuid_entry2 *c = &cpuid_data.entries[cpuid_i++];
+        c = &cpuid_data.entries[cpuid_i++];
         assert(cpuid_i < 100);
 
         c->function = i;

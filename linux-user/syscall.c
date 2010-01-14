@@ -4002,7 +4002,7 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
     } else
 #endif
     {
-#if TARGET_LONG_BITS == 64
+#if (TARGET_LONG_BITS == 64) && (!defined(TARGET_ALPHA))
         struct target_stat *target_st;
 #else
         struct target_stat64 *target_st;

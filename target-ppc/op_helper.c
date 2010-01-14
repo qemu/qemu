@@ -3992,16 +3992,17 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
                   tlb->size, TARGET_PAGE_SIZE, (int)((val >> 7) & 0x7));
     }
     tlb->EPN = val & ~(tlb->size - 1);
-    if (val & 0x40)
+    if (val & 0x40) {
         tlb->prot |= PAGE_VALID;
-    else
+        if (val & 0x20) {
+            /* XXX: TO BE FIXED */
+            cpu_abort(env,
+                      "Little-endian TLB entries are not supported by now\n");
+        }
+    } else {
         tlb->prot &= ~PAGE_VALID;
-    if (val & 0x20) {
-        /* XXX: TO BE FIXED */
-        cpu_abort(env, "Little-endian TLB entries are not supported by now\n");
     }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
-    tlb->attr = val & 0xFF;
     LOG_SWTLB("%s: set up TLB %d RPN " TARGET_FMT_plx " EPN " TARGET_FMT_lx
               " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
               (int)entry, tlb->RPN, tlb->EPN, tlb->size,
@@ -4028,6 +4029,7 @@ void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
               val);
     entry &= 0x3F;
     tlb = &env->tlb[entry].tlbe;
+    tlb->attr = val & 0xFF;
     tlb->RPN = val & 0xFFFFFC00;
     tlb->prot = PAGE_READ;
     if (val & 0x200)

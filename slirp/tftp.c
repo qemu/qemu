@@ -368,6 +368,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
 	  }
 
 	  tftp_send_oack(spt, "tsize", tsize, tp);
+	  return;
       }
   }
 

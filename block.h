@@ -39,6 +39,7 @@ typedef struct QEMUSnapshotInfo {
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
 #define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
 #define BDRV_O_NATIVE_AIO  0x0080 /* use native AIO instead of the thread pool */
+#define BDRV_O_NO_BACKING  0x0100 /* don't open the backing file */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB)
 
@@ -82,6 +83,8 @@ int64_t bdrv_getlength(BlockDriverState *bs);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
 void bdrv_guess_geometry(BlockDriverState *bs, int *pcyls, int *pheads, int *psecs);
 int bdrv_commit(BlockDriverState *bs);
+int bdrv_change_backing_file(BlockDriverState *bs,
+    const char *backing_file, const char *backing_fmt);
 void bdrv_register(BlockDriver *bdrv);
 
 /* async block I/O */

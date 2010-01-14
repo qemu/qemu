@@ -107,12 +107,10 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     int access_perms = 0;
     target_phys_addr_t pde_ptr;
     uint32_t pde;
-    target_ulong virt_addr;
     int error_code = 0, is_dirty, is_user;
     unsigned long page_offset;
 
     is_user = mmu_idx == MMU_USER_IDX;
-    virt_addr = address & TARGET_PAGE_MASK;
 
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
         // Boot mode: instruction fetches are taken from PROM
@@ -174,18 +172,15 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                 case 3: /* Reserved */
                     return (3 << 8) | (4 << 2);
                 case 2: /* L3 PTE */
-                    virt_addr = address & TARGET_PAGE_MASK;
                     page_offset = (address & TARGET_PAGE_MASK) &
                         (TARGET_PAGE_SIZE - 1);
                 }
                 break;
             case 2: /* L2 PTE */
-                virt_addr = address & ~0x3ffff;
                 page_offset = address & 0x3ffff;
             }
             break;
         case 2: /* L1 PTE */
-            virt_addr = address & ~0xffffff;
             page_offset = address & 0xffffff;
         }
     }

@@ -272,13 +272,11 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
 static target_phys_addr_t iommu_translate_pa(target_phys_addr_t addr,
                                              uint32_t pte)
 {
-    uint32_t tmppte;
     target_phys_addr_t pa;
 
-    tmppte = pte;
     pa = ((pte & IOPTE_PAGE) << 4) + (addr & ~IOMMU_PAGE_MASK);
     DPRINTF("xlate dva " TARGET_FMT_plx " => pa " TARGET_FMT_plx
-            " (iopte = %x)\n", addr, pa, tmppte);
+            " (iopte = %x)\n", addr, pa, pte);
 
     return pa;
 }

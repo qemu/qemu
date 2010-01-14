@@ -479,7 +479,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         unlink(filename);
     }
 #endif
-    if (bs->backing_file[0] != '\0') {
+    if ((flags & BDRV_O_NO_BACKING) == 0 && bs->backing_file[0] != '\0') {
         /* if there is a backing file, use it */
         BlockDriver *back_drv = NULL;
         bs->backing_hd = bdrv_new("");
@@ -596,7 +596,33 @@ int bdrv_commit(BlockDriverState *bs)
     if (drv->bdrv_make_empty)
 	return drv->bdrv_make_empty(bs);
 
+    /*
+     * Make sure all data we wrote to the backing device is actually
+     * stable on disk.
+     */
+    if (bs->backing_hd)
+        bdrv_flush(bs->backing_hd);
     return 0;
+}
+
+/*
+ * Return values:
+ * 0        - success
+ * -EINVAL  - backing format specified, but no file
+ * -ENOSPC  - can't update the backing file because no space is left in the
+ *            image file header
+ * -ENOTSUP - format driver doesn't support changing the backing file
+ */
+int bdrv_change_backing_file(BlockDriverState *bs,
+    const char *backing_file, const char *backing_fmt)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (drv->bdrv_change_backing_file != NULL) {
+        return drv->bdrv_change_backing_file(bs, backing_file, backing_fmt);
+    } else {
+        return -ENOTSUP;
+    }
 }
 
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
@@ -1097,12 +1123,8 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
 
 void bdrv_flush(BlockDriverState *bs)
 {
-    if (!bs->drv)
-        return;
-    if (bs->drv->bdrv_flush)
+    if (bs->drv && bs->drv->bdrv_flush)
         bs->drv->bdrv_flush(bs);
-    if (bs->backing_hd)
-        bdrv_flush(bs->backing_hd);
 }
 
 void bdrv_flush_all(void)
@@ -1354,7 +1376,7 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
-    if (!bs->backing_hd) {
+    if (!bs->backing_file) {
         pstrcpy(filename, filename_size, "");
     } else {
         pstrcpy(filename, filename_size, bs->backing_file);
@@ -1779,11 +1801,6 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
 
     if (!drv)
         return NULL;
-
-    /*
-     * Note that unlike bdrv_flush the driver is reponsible for flushing a
-     * backing image if it exists.
-     */
     return drv->bdrv_aio_flush(bs, cb, opaque);
 }
 

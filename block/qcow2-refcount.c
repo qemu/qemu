@@ -511,7 +511,6 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     l2_table = NULL;
     l1_table = NULL;
     l1_size2 = l1_size * sizeof(uint64_t);
-    l1_allocated = 0;
     if (l1_table_offset != s->l1_table_offset) {
         if (l1_size2 != 0) {
             l1_table = qemu_mallocz(align_offset(l1_size2, 512));
