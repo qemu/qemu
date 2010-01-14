@@ -100,6 +100,26 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
+static QString *get_sock_family(const struct sockaddr_storage *sa)
+{
+    const char *name;
+
+    switch (sa->ss_family)
+    {
+        case AF_INET:
+            name = "ipv4";
+            break;
+        case AF_INET6:
+            name = "ipv6";
+            break;
+        default:
+            name = "unknown";
+            break;
+    }
+
+    return qstring_from_str(name);
+}
+
 static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
                           socklen_t salen)
 {
@@ -118,6 +138,7 @@ static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
 
     qdict_put(qdict, "host", qstring_from_str(host));
     qdict_put(qdict, "service", qstring_from_str(serv));
+    qdict_put(qdict, "family", get_sock_family(sa));
 
     return 0;
 }
@@ -294,6 +315,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  *
  * - "enabled": true or false
  * - "host": server's IP address
+ * - "family": address family ("ipv4" or "ipv6")
  * - "service": server's port number
  * - "auth": authentication method
  * - "clients": a QList of all connected clients
@@ -301,6 +323,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  * Clients are described by a QDict, with the following information:
  *
  * - "host": client's IP address
+ * - "family": address family ("ipv4" or "ipv6")
  * - "service": client's port number
  * - "x509_dname": TLS dname (optional)
  * - "sasl_username": SASL username (optional)
@@ -308,7 +331,8 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  * Example:
  *
  * { "enabled": true, "host": "0.0.0.0", "service": "50402", "auth": "vnc",
- *   "clients": [ { "host": "127.0.0.1", "service": "50401" } ] }
+ *   "family": "ipv4",
+ *   "clients": [{ "host": "127.0.0.1", "service": "50401", "family": "ipv4" }]}
  */
 void do_info_vnc(Monitor *mon, QObject **ret_data)
 {
