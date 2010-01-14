@@ -269,6 +269,30 @@ static void vnc_client_cache_addr(VncState *client)
     client->info = QOBJECT(qdict);
 }
 
+static void vnc_qmp_event(VncState *vs, MonitorEvent event)
+{
+    QDict *server;
+    QObject *data;
+
+    if (!vs->info) {
+        return;
+    }
+
+    server = qdict_new();
+    if (vnc_server_info_put(server) < 0) {
+        QDECREF(server);
+        return;
+    }
+
+    data = qobject_from_jsonf("{ 'client': %p, 'server': %p }",
+                              vs->info, QOBJECT(server));
+
+    monitor_protocol_event(event, data);
+
+    qobject_incref(vs->info);
+    qobject_decref(data);
+}
+
 static void info_vnc_iter(QObject *obj, void *opaque)
 {
     QDict *client;
@@ -2396,6 +2420,7 @@ static void vnc_connect(VncDisplay *vd, int csock)
     qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
 
     vnc_client_cache_addr(vs);
+    vnc_qmp_event(vs, QEVENT_VNC_CONNECTED);
 
     vs->vd = vd;
     vs->ds = vd->ds;

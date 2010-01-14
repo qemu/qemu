@@ -357,6 +357,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_STOP:
             event_name = "STOP";
             break;
+        case QEVENT_VNC_CONNECTED:
+            event_name = "VNC_CONNECTED";
+            break;
         default:
             abort();
             break;

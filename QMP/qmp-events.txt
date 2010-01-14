@@ -24,3 +24,10 @@ Data: None.
 
 Description: Issued when the Virtual Machine enters debug mode.
 Data: None.
+
+4 VNC_CONNECTED
+---------------
+
+Description: Issued when a VNC client establishes a connection.
+Data: 'server' and 'client' keys with the same keys as 'query-vnc',
+except that authentication ID is not provided.
