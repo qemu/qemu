@@ -1014,7 +1014,7 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
     if (n < 8) {
         /* D0-D7 */
         env->dregs[n] = tmp;
-    } else if (n < 8) {
+    } else if (n < 16) {
         /* A0-A7 */
         env->aregs[n - 8] = tmp;
     } else {
