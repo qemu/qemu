@@ -115,7 +115,7 @@ static void ide_identify(IDEState *s)
     put_le16(p + 20, 3); /* XXX: retired, remove ? */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
-    padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
+    padstr((char *)(p + 23), s->version, 8); /* firmware version */
     padstr((char *)(p + 27), "QEMU HARDDISK", 40); /* model */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
@@ -186,7 +186,7 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 20, 3); /* buffer type */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
-    padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
+    padstr((char *)(p + 23), s->version, 8); /* firmware version */
     padstr((char *)(p + 27), "QEMU DVD-ROM", 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
 #ifdef USE_DMA_CDROM
@@ -238,7 +238,7 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 8, s->nb_sectors);		/* Sectors per card */
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
     put_le16(p + 22, 0x0004);			/* ECC bytes */
-    padstr((char *) (p + 23), QEMU_VERSION, 8);	/* Firmware Revision */
+    padstr((char *) (p + 23), s->version, 8);	/* Firmware Revision */
     padstr((char *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
@@ -1591,7 +1591,7 @@ static void ide_atapi_cmd(IDEState *s)
         buf[7] = 0; /* reserved */
         padstr8(buf + 8, 8, "QEMU");
         padstr8(buf + 16, 16, "QEMU DVD-ROM");
-        padstr8(buf + 32, 4, QEMU_VERSION);
+        padstr8(buf + 32, 4, s->version);
         ide_atapi_cmd_reply(s, 36, max_len);
         break;
     case GPCMD_GET_CONFIGURATION:
@@ -2590,7 +2590,7 @@ void ide_bus_reset(IDEBus *bus)
     ide_clear_hob(bus);
 }
 
-void ide_init_drive(IDEState *s, DriveInfo *dinfo)
+void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -2619,6 +2619,11 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo)
     if (strlen(s->drive_serial_str) == 0)
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
                  "QM%05d", s->drive_serial);
+    if (version) {
+        pstrcpy(s->version, sizeof(s->version), version);
+    } else {
+        pstrcpy(s->version, sizeof(s->version), QEMU_VERSION);
+    }
     ide_reset(s);
 }
 
@@ -2639,9 +2644,9 @@ void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
         s->sector_write_timer = qemu_new_timer(vm_clock,
                                                ide_sector_write_timer_cb, s);
         if (i == 0)
-            ide_init_drive(s, hd0);
+            ide_init_drive(s, hd0, NULL);
         if (i == 1)
-            ide_init_drive(s, hd1);
+            ide_init_drive(s, hd1, NULL);
     }
     bus->irq = irq;
 }
