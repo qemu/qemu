@@ -75,7 +75,9 @@ SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 subdir-%: $(GENERATED_HEADERS)
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
+ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
+endif
 
 $(common-obj-y): $(GENERATED_HEADERS)
 $(filter %-softmmu,$(SUBDIR_RULES)): $(common-obj-y)
