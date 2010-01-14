@@ -217,9 +217,10 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define JCC_JLE 0xe
 #define JCC_JG  0xf
 
-#define P_EXT   0x100 /* 0x0f opcode prefix */
-#define P_REXW  0x200 /* set rex.w = 1 */
-#define P_REXB  0x400 /* force rex use for byte registers */
+#define P_EXT		0x100		/* 0x0f opcode prefix */
+#define P_REXW		0x200		/* set rex.w = 1 */
+#define P_REXB_R	0x400		/* REG field as byte register */
+#define P_REXB_RM	0x800		/* R/M field as byte register */
                                   
 static const uint8_t tcg_cond_to_jcc[10] = {
     [TCG_COND_EQ] = JCC_JE,
@@ -234,16 +235,29 @@ static const uint8_t tcg_cond_to_jcc[10] = {
     [TCG_COND_GTU] = JCC_JA,
 };
 
-static inline void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
+static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
 {
-    int rex;
-    rex = ((opc >> 6) & 0x8) | ((r >> 1) & 0x4) | 
-        ((x >> 2) & 2) | ((rm >> 3) & 1);
-    if (rex || (opc & P_REXB)) {
-        tcg_out8(s, rex | 0x40);
+    int rex = 0;
+
+    rex |= (opc & P_REXW) >> 6;		/* REX.W */
+    rex |= (r & 8) >> 1;		/* REX.R */
+    rex |= (x & 8) >> 2;		/* REX.X */
+    rex |= (rm & 8) >> 3;		/* REX.B */
+
+    /* P_REXB_{R,RM} indicates that the given register is the low byte.
+       For %[abcd]l we need no REX prefix, but for %{si,di,bp,sp}l we do,
+       as otherwise the encoding indicates %[abcd]h.  Note that the values
+       that are ORed in merely indicate that the REX byte must be present;
+       those bits get discarded in output.  */
+    rex |= opc & (r >= 4 ? P_REXB_R : 0);
+    rex |= opc & (rm >= 4 ? P_REXB_RM : 0);
+
+    if (rex) {
+        tcg_out8(s, (uint8_t)(rex | 0x40));
     }
-    if (opc & P_EXT)
+    if (opc & P_EXT) {
         tcg_out8(s, 0x0f);
+    }
     tcg_out8(s, opc & 0xff);
 }
 
@@ -408,7 +422,7 @@ static inline void tgen_arithi32(TCGContext *s, int c, int r0, int32_t val)
         tcg_out8(s, val);
     } else if (c == ARITH_AND && val == 0xffu) {
         /* movzbl */
-        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, r0, r0);
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB_RM, r0, r0);
     } else if (c == ARITH_AND && val == 0xffffu) {
         /* movzwl */
         tcg_out_modrm(s, 0xb7 | P_EXT, r0, r0);
@@ -776,7 +790,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movzbl */
-        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, TCG_REG_RSI, data_reg);
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB_RM, TCG_REG_RSI, data_reg);
         break;
     case 1:
         /* movzwl */
@@ -829,7 +843,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REXB, data_reg, r0, offset);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB_R, data_reg, r0, offset);
         break;
     case 1:
         if (bswap) {
@@ -964,7 +978,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REXB, args[0], args[1], args[2]);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB_R, args[0], args[1], args[2]);
         break;
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
@@ -1161,7 +1175,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
 
     case INDEX_op_ext8s_i32:
-        tcg_out_modrm(s, 0xbe | P_EXT | P_REXB, args[0], args[1]);
+        tcg_out_modrm(s, 0xbe | P_EXT | P_REXB_RM, args[0], args[1]);
         break;
     case INDEX_op_ext16s_i32:
         tcg_out_modrm(s, 0xbf | P_EXT, args[0], args[1]);
@@ -1177,7 +1191,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_ext8u_i32:
     case INDEX_op_ext8u_i64:
-        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, args[0], args[1]);
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB_RM, args[0], args[1]);
         break;
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
