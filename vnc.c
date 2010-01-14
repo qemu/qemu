@@ -122,7 +122,7 @@ static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
     return 0;
 }
 
-static int vnc_qdict_local_addr(QDict *qdict, int fd)
+static int vnc_server_addr_put(QDict *qdict, int fd)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
@@ -199,6 +199,16 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     return "unknown";
 }
 
+static int vnc_server_info_put(QDict *qdict)
+{
+    if (vnc_server_addr_put(qdict, vnc_display->lsock) < 0) {
+        return -1;
+    }
+
+    qdict_put(qdict, "auth", qstring_from_str(vnc_auth_name(vnc_display)));
+    return 0;
+}
+
 static QDict *do_info_vnc_client(Monitor *mon, VncState *client)
 {
     QDict *qdict;
@@ -263,8 +273,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
     monitor_printf(mon, "     address: %s:%s\n",
                    qdict_get_str(server, "host"),
                    qdict_get_str(server, "service"));
-    monitor_printf(mon, "        auth: %s\n",
-        qdict_haskey(server, "auth") ? qdict_get_str(server, "auth") : "none");
+    monitor_printf(mon, "        auth: %s\n", qdict_get_str(server, "auth"));
 
     clients = qdict_get_qlist(server, "clients");
     if (qlist_empty(clients)) {
@@ -285,7 +294,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  * - "enabled": true or false
  * - "host": server's IP address
  * - "service": server's port number
- * - "auth": authentication method (optional)
+ * - "auth": authentication method
  * - "clients": a QList of all connected clients
  *
  * Clients are described by a QDict, with the following information:
@@ -323,14 +332,7 @@ void do_info_vnc(Monitor *mon, QObject **ret_data)
                                        QOBJECT(clist));
         assert(*ret_data != NULL);
 
-        qdict = qobject_to_qdict(*ret_data);
-
-        if (vnc_display->auth != VNC_AUTH_NONE) {
-            qdict_put(qdict, "auth",
-                      qstring_from_str(vnc_auth_name(vnc_display)));
-        }
-
-        if (vnc_qdict_local_addr(qdict, vnc_display->lsock) < 0) {
+        if (vnc_server_info_put(qobject_to_qdict(*ret_data)) < 0) {
             qobject_decref(*ret_data);
             *ret_data = NULL;
         }
