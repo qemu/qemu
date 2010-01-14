@@ -37,3 +37,9 @@ except that authentication ID is not provided.
 
 Description: Issued when the conection is closed.
 Data: 'server' and 'client' keys with the same keys as 'query-vnc'.
+
+6 VNC_INITIALIZED
+-----------------
+
+Description: Issued when the VNC session is made active.
+Data: 'server' and 'client' keys with the same keys as 'query-vnc'.

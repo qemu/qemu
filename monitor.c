@@ -360,6 +360,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_VNC_CONNECTED:
             event_name = "VNC_CONNECTED";
             break;
+        case QEVENT_VNC_INITIALIZED:
+            event_name = "VNC_INITIALIZED";
+            break;
         case QEVENT_VNC_DISCONNECTED:
             event_name = "VNC_DISCONNECTED";
             break;
