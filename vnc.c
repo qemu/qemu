@@ -230,15 +230,15 @@ static int vnc_server_info_put(QDict *qdict)
     return 0;
 }
 
-static QDict *do_info_vnc_client(Monitor *mon, VncState *client)
+static void vnc_client_cache_auth(VncState *client)
 {
     QDict *qdict;
 
-    qdict = qdict_new();
-    if (vnc_qdict_remote_addr(qdict, client->csock) < 0) {
-        QDECREF(qdict);
-        return NULL;
+    if (!client->info) {
+        return;
     }
+
+    qdict = qobject_to_qdict(client->info);
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session &&
@@ -253,8 +253,20 @@ static QDict *do_info_vnc_client(Monitor *mon, VncState *client)
                   qstring_from_str(client->sasl.username));
     }
 #endif
+}
 
-    return qdict;
+static void vnc_client_cache_addr(VncState *client)
+{
+    QDict *qdict;
+
+    qdict = qdict_new();
+    if (vnc_qdict_remote_addr(qdict, client->csock) < 0) {
+        QDECREF(qdict);
+        /* XXX: how to report the error? */
+        return;
+    }
+
+    client->info = QOBJECT(qdict);
 }
 
 static void info_vnc_iter(QObject *obj, void *opaque)
@@ -339,16 +351,17 @@ void do_info_vnc(Monitor *mon, QObject **ret_data)
     if (vnc_display == NULL || vnc_display->display == NULL) {
         *ret_data = qobject_from_jsonf("{ 'enabled': false }");
     } else {
-        QDict *qdict;
         QList *clist;
 
         clist = qlist_new();
         if (vnc_display->clients) {
             VncState *client = vnc_display->clients;
             while (client) {
-                qdict = do_info_vnc_client(mon, client);
-                if (qdict)
-                    qlist_append(clist, qdict);
+                if (client->info) {
+                    /* incref so that it's not freed by upper layers */
+                    qobject_incref(client->info);
+                    qlist_append_obj(clist, client->info);
+                }
                 client = client->next;
             }
         }
@@ -1079,6 +1092,9 @@ static void vnc_disconnect_finish(VncState *vs)
         qemu_free(vs->output.buffer);
         vs->output.buffer = NULL;
     }
+
+    qobject_decref(vs->info);
+
 #ifdef CONFIG_VNC_TLS
     vnc_tls_client_cleanup(vs);
 #endif /* CONFIG_VNC_TLS */
@@ -2069,6 +2085,8 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     vnc_write(vs, buf, size);
     vnc_flush(vs);
 
+    vnc_client_cache_auth(vs);
+
     vnc_read_when(vs, protocol_client_msg, 1);
 
     return 0;
@@ -2376,6 +2394,8 @@ static void vnc_connect(VncDisplay *vd, int csock)
     dcl->idle = 0;
     socket_set_nonblock(vs->csock);
     qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+
+    vnc_client_cache_addr(vs);
 
     vs->vd = vd;
     vs->ds = vd->ds;
