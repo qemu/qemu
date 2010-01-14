@@ -228,7 +228,8 @@ static QDict *do_info_vnc_client(Monitor *mon, VncState *client)
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn &&
         client->sasl.username) {
-        qdict_put(qdict, "username", qstring_from_str(client->sasl.username));
+        qdict_put(qdict, "sasl_username",
+                  qstring_from_str(client->sasl.username));
     }
 #endif
 
@@ -253,8 +254,8 @@ static void info_vnc_iter(QObject *obj, void *opaque)
 #endif
 #ifdef CONFIG_VNC_SASL
     monitor_printf(mon, "    username: %s\n",
-        qdict_haskey(client, "username") ?
-        qdict_get_str(client, "username") : "none");
+        qdict_haskey(client, "sasl_username") ?
+        qdict_get_str(client, "sasl_username") : "none");
 #endif
 }
 
@@ -302,7 +303,7 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
  * - "host": client's IP address
  * - "service": client's port number
  * - "x509_dname": TLS dname (optional)
- * - "username": SASL username (optional)
+ * - "sasl_username": SASL username (optional)
  *
  * Example:
  *
