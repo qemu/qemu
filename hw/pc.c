@@ -1083,6 +1083,14 @@ static QEMUMachine pc_machine_v0_11 = {
             .property = "vectors",
             .value    = stringify(0),
         },{
+            .driver   = "ide-drive",
+            .property = "ver",
+            .value    = "0.11",
+        },{
+            .driver   = "scsi-disk",
+            .property = "ver",
+            .value    = "0.11",
+        },{
             .driver   = "PCI",
             .property = "rombar",
             .value    = stringify(0),
@@ -1113,6 +1121,14 @@ static QEMUMachine pc_machine_v0_10 = {
             .driver   = "virtio-blk-pci",
             .property = "vectors",
             .value    = stringify(0),
+        },{
+            .driver   = "ide-drive",
+            .property = "ver",
+            .value    = "0.10",
+        },{
+            .driver   = "scsi-disk",
+            .property = "ver",
+            .value    = "0.10",
         },{
             .driver   = "PCI",
             .property = "rombar",
