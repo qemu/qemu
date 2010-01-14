@@ -65,6 +65,7 @@ struct SCSIDiskState
     int cluster_size;
     uint64_t max_lba;
     QEMUBH *bh;
+    char *version;
 };
 
 static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
@@ -315,6 +316,7 @@ static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
 static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 {
     BlockDriverState *bdrv = req->dev->dinfo->bdrv;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int buflen = 0;
 
     if (req->cmd.buf[1] & 0x2) {
@@ -432,7 +434,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
-    memcpy(&outbuf[32], QEMU_VERSION, 4);
+    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION, 4);
     /* Identify device as SCSI-3 rev 1.
        Some later commands are also implemented. */
     outbuf[2] = 3;
@@ -1029,6 +1031,7 @@ static SCSIDeviceInfo scsi_disk_info = {
     .get_buf      = scsi_get_buf,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.dinfo),
+        DEFINE_PROP_STRING("ver",  SCSIDiskState, version),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
