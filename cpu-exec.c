@@ -596,17 +596,13 @@ int cpu_exec(CPUState *env1)
                     tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
                 }
                 spin_unlock(&tb_lock);
-                env->current_tb = tb;
-                assert (env->current_tb);
 
                 /* cpu_interrupt might be called while translating the
                    TB, but before it is linked into a potentially
                    infinite loop and becomes env->current_tb. Avoid
                    starting execution if there is a pending interrupt. */
-                if (unlikely (env->exit_request))
-                    env->current_tb = NULL;
-
-                while (env->current_tb) {
+                if (!unlikely (env->exit_request)) {
+                    env->current_tb = tb;
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
 #if defined(__sparc__) && !defined(CONFIG_SOLARIS)
@@ -643,8 +639,8 @@ int cpu_exec(CPUState *env1)
                             cpu_loop_exit();
                         }
                     }
-                    assert (env->current_tb == NULL);
                 }
+                assert (env->current_tb == NULL);
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
             } /* for(;;) */
