@@ -13,14 +13,6 @@ register struct CPUSPARCState *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline void env_to_regs(void)
-{
-}
-
-static inline void regs_to_env(void)
-{
-}
-
 /* op_helper.c */
 void do_interrupt(CPUState *env);
 

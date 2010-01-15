@@ -56,9 +56,6 @@ int qemu_cpu_has_work(CPUState *env)
 
 void cpu_loop_exit(void)
 {
-    /* NOTE: the register at this point must be saved by hand because
-       longjmp restore them */
-    regs_to_env();
     longjmp(env->jmp_env, 1);
 }
 
@@ -129,8 +126,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
 
     tb_invalidated_flag = 0;
-
-    regs_to_env(); /* XXX: do it just before cpu_gen_code() */
 
     /* find translated block using physical mappings */
     phys_pc = get_phys_addr_code(env, pc);
@@ -230,7 +225,6 @@ int cpu_exec(CPUState *env1)
 #include "hostregs_helper.h"
     env = env1;
 
-    env_to_regs();
 #if defined(TARGET_I386)
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -544,7 +538,6 @@ int cpu_exec(CPUState *env1)
 #ifdef CONFIG_DEBUG_EXEC
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
-                    regs_to_env();
 #if defined(TARGET_I386)
                     env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
                     log_cpu_state(env, X86_DUMP_CCOP);
@@ -651,8 +644,6 @@ int cpu_exec(CPUState *env1)
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
             } /* for(;;) */
-        } else {
-            env_to_regs();
         }
     } /* for(;;) */
 

@@ -290,14 +290,6 @@ static inline void load_eflags(int eflags, int update_mask)
         (eflags & update_mask) | 0x2;
 }
 
-static inline void env_to_regs(void)
-{
-}
-
-static inline void regs_to_env(void)
-{
-}
-
 static inline int cpu_has_work(CPUState *env)
 {
     int work;

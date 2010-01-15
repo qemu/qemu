@@ -35,14 +35,6 @@ static inline int cpu_has_work(CPUState *env)
     return env->interrupt_request & CPU_INTERRUPT_HARD; // guess
 }
 
-static inline void regs_to_env(void)
-{
-}
-
-static inline void env_to_regs(void)
-{
-}
-
 static inline int cpu_halted(CPUState *env)
 {
     if (!env->halted) {
