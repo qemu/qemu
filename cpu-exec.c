@@ -22,6 +22,8 @@
 #include "tcg.h"
 #include "kvm.h"
 
+#include <assert.h>
+
 #if !defined(CONFIG_SOFTMMU)
 #undef EAX
 #undef ECX
@@ -260,7 +262,7 @@ int cpu_exec(CPUState *env1)
                     env = cpu_single_env;
 #define env cpu_single_env
 #endif
-            env->current_tb = NULL;
+            assert (env->current_tb == NULL);
             /* if an exception is pending, we execute it here */
             if (env->exception_index >= 0) {
                 if (env->exception_index >= EXCP_INTERRUPT) {
@@ -595,6 +597,7 @@ int cpu_exec(CPUState *env1)
                 }
                 spin_unlock(&tb_lock);
                 env->current_tb = tb;
+                assert (env->current_tb);
 
                 /* cpu_interrupt might be called while translating the
                    TB, but before it is linked into a potentially
@@ -640,6 +643,7 @@ int cpu_exec(CPUState *env1)
                             cpu_loop_exit();
                         }
                     }
+                    assert (env->current_tb == NULL);
                 }
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
