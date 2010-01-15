@@ -583,7 +583,7 @@ static USBDevice *usb_serial_init(const char *filename)
         qdev_prop_set_uint16(&dev->qdev, "vendorid", vendorid);
     if (productid)
         qdev_prop_set_uint16(&dev->qdev, "productid", productid);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
 
     return dev;
 }
@@ -599,7 +599,7 @@ static USBDevice *usb_braille_init(const char *unused)
 
     dev = usb_create(NULL /* FIXME */, "usb-braille");
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
 
     return dev;
 }
