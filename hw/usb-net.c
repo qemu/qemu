@@ -1492,7 +1492,7 @@ static USBDevice *usb_net_init(const char *cmdline)
 
     dev = usb_create(NULL /* FIXME */, "usb-net");
     qdev_set_nic_properties(&dev->qdev, &nd_table[idx]);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
     return dev;
 }
 
