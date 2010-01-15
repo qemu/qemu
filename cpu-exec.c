@@ -56,6 +56,7 @@ int qemu_cpu_has_work(CPUState *env)
 
 void cpu_loop_exit(void)
 {
+    env->current_tb = NULL;
     longjmp(env->jmp_env, 1);
 }
 
@@ -107,6 +108,7 @@ static void cpu_exec_nocache(int max_cycles, TranslationBlock *orig_tb)
     env->current_tb = tb;
     /* execute the generated code */
     next_tb = tcg_qemu_tb_exec(tb->tc_ptr);
+    env->current_tb = NULL;
 
     if ((next_tb & 3) == 2) {
         /* Restore PC.  This may happen if async event occurs before
