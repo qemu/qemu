@@ -313,9 +313,9 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_M68K)
                     do_interrupt(0);
 #endif
+                    env->exception_index = -1;
 #endif
                 }
-                env->exception_index = -1;
             }
 
             if (kvm_enabled()) {
