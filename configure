@@ -1005,7 +1005,8 @@ fi
 # pkgconfig probe
 
 pkgconfig="${cross_prefix}pkg-config"
-if ! test -x "$(which $pkgconfig 2>/dev/null)"; then
+# Using pkg-config without prefix won't help for cross compilation.
+if false && ! test -x "$(which $pkgconfig 2>/dev/null)"; then
   # likely not cross compiling, or hope for the best
   pkgconfig=pkg-config
 fi
@@ -1030,8 +1031,8 @@ if $pkgconfig sdl --modversion >/dev/null 2>&1; then
   sdlconfig="$pkgconfig sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
 else
-  sdlconfig='sdl-config'
-  _sdlversion=`${cross_prefix}$sdlconfig --version | sed 's/[^0-9]//g'`
+  sdlconfig="${cross_prefix}sdl-config"
+  _sdlversion=`$sdlconfig --version 2>/dev/null | sed 's/[^0-9]//g'`
 fi
 
 sdl_too_old=no
@@ -1041,8 +1042,8 @@ if test "$sdl" != "no" ; then
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-  sdl_cflags=`${cross_prefix}$sdlconfig --cflags 2> /dev/null`
-  sdl_libs=`${cross_prefix}$sdlconfig --libs 2> /dev/null`
+  sdl_cflags=`$sdlconfig --cflags 2> /dev/null`
+  sdl_libs=`$sdlconfig --libs 2> /dev/null`
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     if test "$_sdlversion" -lt 121 ; then
       sdl_too_old=yes
@@ -1054,7 +1055,7 @@ EOF
 
     # static link with sdl ? (note: sdl.pc's --static --libs is broken)
     if test "$sdl" = "yes" -a "$static" = "yes" ; then
-      sdl_libs=`${cross_prefix}sdl-config --static-libs 2>/dev/null`
+      sdl_libs=`$sdlconfig --static-libs 2>/dev/null`
       if test $? = 0 && echo $sdl_libs | grep -- -laa > /dev/null; then
          sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
          sdl_cflags="$sdl_cflags `aalib-config --cflags >2 /dev/null`"
