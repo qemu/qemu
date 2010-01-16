@@ -154,6 +154,7 @@ static void esp_raise_irq(ESPState *s)
     if (!(s->rregs[ESP_RSTAT] & STAT_INT)) {
         s->rregs[ESP_RSTAT] |= STAT_INT;
         qemu_irq_raise(s->irq);
+        DPRINTF("Raise IRQ\n");
     }
 }
 
@@ -162,6 +163,7 @@ static void esp_lower_irq(ESPState *s)
     if (s->rregs[ESP_RSTAT] & STAT_INT) {
         s->rregs[ESP_RSTAT] &= ~STAT_INT;
         qemu_irq_lower(s->irq);
+        DPRINTF("Lower IRQ\n");
     }
 }
 
