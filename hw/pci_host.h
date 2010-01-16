@@ -29,9 +29,13 @@
 #define PCI_HOST_H
 
 #include "sysbus.h"
+#include "rwhandler.h"
 
 struct PCIHostState {
     SysBusDevice busdev;
+    ReadWriteHandler conf_noswap_handler;
+    ReadWriteHandler conf_handler;
+    ReadWriteHandler data_handler;
     uint32_t config_reg;
     PCIBus *bus;
 };
