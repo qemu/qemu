@@ -185,11 +185,10 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
                 s->intregm_disabled);
         slavio_check_interrupts(s, 1);
         break;
-    case 3: // set (disable, clear pending)
+    case 3: // set (disable; doesn't affect pending)
         // Force clear unused bits
         val &= MASTER_IRQ_MASK;
         s->intregm_disabled |= val;
-        s->intregm_pending &= ~val;
         slavio_check_interrupts(s, 1);
         DPRINTF("Disabled master irq mask %x, curmask %x\n", val,
                 s->intregm_disabled);
