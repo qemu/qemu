@@ -557,6 +557,7 @@ int bdrv_commit(BlockDriverState *bs)
     BlockDriver *drv = bs->drv;
     int64_t i, total_sectors;
     int n, j;
+    int ret = 0;
     unsigned char sector[512];
 
     if (!drv)
@@ -588,8 +589,10 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    if (drv->bdrv_make_empty)
-	return drv->bdrv_make_empty(bs);
+    if (drv->bdrv_make_empty) {
+        ret = drv->bdrv_make_empty(bs);
+        bdrv_flush(bs);
+    }
 
     /*
      * Make sure all data we wrote to the backing device is actually
@@ -597,7 +600,7 @@ int bdrv_commit(BlockDriverState *bs)
      */
     if (bs->backing_hd)
         bdrv_flush(bs->backing_hd);
-    return 0;
+    return ret;
 }
 
 /*
