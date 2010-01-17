@@ -2233,6 +2233,13 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         }
         (void)bdrv_set_read_only(dinfo->bdrv, 1);
     }
+    /* 
+     * cdrom is read-only. Set it now, after above interface checking
+     * since readonly attribute not explicitly required, so no error.
+     */
+    if (media == MEDIA_CDROM) {
+        (void)bdrv_set_read_only(dinfo->bdrv, 1);
+    }
 
     if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s: %s\n",
