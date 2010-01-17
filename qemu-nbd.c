@@ -213,7 +213,7 @@ int main(int argc, char **argv)
     int opt_ind = 0;
     int li;
     char *end;
-    int flags = 0;
+    int flags = BDRV_O_RDWR;
     int partition = -1;
     int ret;
     int shared = 1;

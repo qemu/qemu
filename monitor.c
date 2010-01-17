@@ -927,7 +927,7 @@ static void do_change_block(Monitor *mon, const char *device,
     }
     if (eject_device(mon, bs, 0) < 0)
         return;
-    bdrv_open2(bs, filename, 0, drv);
+    bdrv_open2(bs, filename, BDRV_O_RDWR, drv);
     monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
 }
 

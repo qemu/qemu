@@ -27,9 +27,7 @@ typedef struct QEMUSnapshotInfo {
     uint64_t vm_clock_nsec; /* VM clock relative to boot */
 } QEMUSnapshotInfo;
 
-#define BDRV_O_RDONLY      0x0000
 #define BDRV_O_RDWR        0x0002
-#define BDRV_O_ACCESS      0x0003
 #define BDRV_O_CREAT       0x0004 /* create an empty file */
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_FILE        0x0010 /* open as a raw file (do not try to

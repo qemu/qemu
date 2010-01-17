@@ -310,7 +310,7 @@ static BlockDriver *find_image_format(const char *filename)
     if (drv && strcmp(drv->format_name, "vvfat") == 0)
         return drv;
 
-    ret = bdrv_file_open(&bs, filename, BDRV_O_RDONLY);
+    ret = bdrv_file_open(&bs, filename, 0);
     if (ret < 0)
         return NULL;
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
@@ -356,7 +356,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags)
 int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
                BlockDriver *drv)
 {
-    int ret, open_flags, try_rw;
+    int ret, open_flags;
     char tmp_filename[PATH_MAX];
     char backing_filename[PATH_MAX];
 
@@ -446,19 +446,23 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
     /* Note: for compatibility, we open disk image files as RDWR, and
        RDONLY as fallback */
-    try_rw = !bs->read_only || bs->is_temporary;
-    if (!(flags & BDRV_O_FILE))
-        open_flags = (try_rw ? BDRV_O_RDWR : 0) |
-            (flags & (BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
-    else
+    bs->read_only = (flags & BDRV_O_RDWR) == 0;
+    if (!(flags & BDRV_O_FILE)) {
+        open_flags = (flags & (BDRV_O_RDWR | BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
+        if (bs->is_temporary) { /* snapshot should be writeable */
+            open_flags |= BDRV_O_RDWR;
+        }
+    } else {
         open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
-    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv))
+    }
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
         ret = -ENOTSUP;
-    else
+    } else {
         ret = drv->bdrv_open(bs, filename, open_flags);
-    if ((ret == -EACCES || ret == -EPERM) && !(flags & BDRV_O_FILE)) {
-        ret = drv->bdrv_open(bs, filename, open_flags & ~BDRV_O_RDWR);
-        bs->read_only = 1;
+        if ((ret == -EACCES || ret == -EPERM) && !(flags & BDRV_O_FILE)) {
+            ret = drv->bdrv_open(bs, filename, open_flags & ~BDRV_O_RDWR);
+            bs->read_only = 1;
+        }
     }
     if (ret < 0) {
         qemu_free(bs->opaque);
@@ -481,14 +485,13 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         /* if there is a backing file, use it */
         BlockDriver *back_drv = NULL;
         bs->backing_hd = bdrv_new("");
-        /* pass on read_only property to the backing_hd */
-        bs->backing_hd->read_only = bs->read_only;
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
         if (bs->backing_format[0] != '\0')
             back_drv = bdrv_find_format(bs->backing_format);
         ret = bdrv_open2(bs->backing_hd, backing_filename, open_flags,
                          back_drv);
+        bs->backing_hd->read_only =  (open_flags & BDRV_O_RDWR) == 0;
         if (ret < 0) {
             bdrv_close(bs);
             return ret;

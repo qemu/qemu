@@ -138,7 +138,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 
     s->open_flags = open_flags | O_BINARY;
     s->open_flags &= ~O_ACCMODE;
-    if ((bdrv_flags & BDRV_O_ACCESS) == BDRV_O_RDWR) {
+    if (bdrv_flags & BDRV_O_RDWR) {
         s->open_flags |= O_RDWR;
     } else {
         s->open_flags |= O_RDONLY;

@@ -2227,19 +2227,19 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     }
 
     if (ro == 1) {
-        if (type == IF_IDE) {
-            fprintf(stderr, "qemu: readonly flag not supported for drive with ide interface\n");
+        if (type != IF_SCSI && type != IF_VIRTIO && type != IF_FLOPPY) {
+            fprintf(stderr, "qemu: readonly flag not supported for drive with this interface\n");
             return NULL;
         }
-        (void)bdrv_set_read_only(dinfo->bdrv, 1);
     }
     /* 
      * cdrom is read-only. Set it now, after above interface checking
      * since readonly attribute not explicitly required, so no error.
      */
     if (media == MEDIA_CDROM) {
-        (void)bdrv_set_read_only(dinfo->bdrv, 1);
+        ro = 1;
     }
+    bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s: %s\n",
