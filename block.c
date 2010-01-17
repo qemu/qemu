@@ -444,8 +444,6 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (flags & (BDRV_O_CACHE_WB|BDRV_O_NOCACHE))
         bs->enable_write_cache = 1;
 
-    /* Note: for compatibility, we open disk image files as RDWR, and
-       RDONLY as fallback */
     bs->read_only = (flags & BDRV_O_RDWR) == 0;
     if (!(flags & BDRV_O_FILE)) {
         open_flags = (flags & (BDRV_O_RDWR | BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
@@ -459,10 +457,6 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         ret = -ENOTSUP;
     } else {
         ret = drv->bdrv_open(bs, filename, open_flags);
-        if ((ret == -EACCES || ret == -EPERM) && !(flags & BDRV_O_FILE)) {
-            ret = drv->bdrv_open(bs, filename, open_flags & ~BDRV_O_RDWR);
-            bs->read_only = 1;
-        }
     }
     if (ret < 0) {
         qemu_free(bs->opaque);
