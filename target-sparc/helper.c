@@ -1409,6 +1409,21 @@ void sparc_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
                    "fpu_version mmu_version nwindows\n");
 }
 
+static void cpu_print_cc(FILE *f,
+                         int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                         uint32_t cc)
+{
+    cpu_fprintf(f, "%c%c%c%c", cc & PSR_NEG? 'N' : '-',
+                cc & PSR_ZERO? 'Z' : '-', cc & PSR_OVF? 'V' : '-',
+                cc & PSR_CARRY? 'C' : '-');
+}
+
+#ifdef TARGET_SPARC64
+#define REGS_PER_LINE 4
+#else
+#define REGS_PER_LINE 8
+#endif
+
 void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
@@ -1418,26 +1433,32 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc,
                 env->npc);
     cpu_fprintf(f, "General Registers:\n");
-    for (i = 0; i < 4; i++)
-        cpu_fprintf(f, "%%g%c: " TARGET_FMT_lx "\t", i + '0', env->gregs[i]);
-    cpu_fprintf(f, "\n");
-    for (; i < 8; i++)
-        cpu_fprintf(f, "%%g%c: " TARGET_FMT_lx "\t", i + '0', env->gregs[i]);
+
+    for (i = 0; i < 8; i++) {
+        if (i % REGS_PER_LINE == 0) {
+            cpu_fprintf(f, "%%g%d-%d:", i, i + REGS_PER_LINE - 1);
+        }
+        cpu_fprintf(f, " " TARGET_FMT_lx, env->gregs[i]);
+        if (i % REGS_PER_LINE == REGS_PER_LINE - 1) {
+            cpu_fprintf(f, "\n");
+        }
+    }
     cpu_fprintf(f, "\nCurrent Register Window:\n");
     for (x = 0; x < 3; x++) {
-        for (i = 0; i < 4; i++)
-            cpu_fprintf(f, "%%%c%d: " TARGET_FMT_lx "\t",
-                    (x == 0 ? 'o' : (x == 1 ? 'l' : 'i')), i,
-                    env->regwptr[i + x * 8]);
-        cpu_fprintf(f, "\n");
-        for (; i < 8; i++)
-            cpu_fprintf(f, "%%%c%d: " TARGET_FMT_lx "\t",
-                    (x == 0 ? 'o' : x == 1 ? 'l' : 'i'), i,
-                    env->regwptr[i + x * 8]);
-        cpu_fprintf(f, "\n");
+        for (i = 0; i < 8; i++) {
+            if (i % REGS_PER_LINE == 0) {
+                cpu_fprintf(f, "%%%c%d-%d: ",
+                            x == 0 ? 'o' : (x == 1 ? 'l' : 'i'),
+                            i, i + REGS_PER_LINE - 1);
+            }
+            cpu_fprintf(f, TARGET_FMT_lx " ", env->regwptr[i + x * 8]);
+            if (i % REGS_PER_LINE == REGS_PER_LINE - 1) {
+                cpu_fprintf(f, "\n");
+            }
+        }
     }
     cpu_fprintf(f, "\nFloating Point Registers:\n");
-    for (i = 0; i < 32; i++) {
+    for (i = 0; i < TARGET_FPREGS; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "%%f%02d:", i);
         cpu_fprintf(f, " %016f", *(float *)&env->fpr[i]);
@@ -1445,22 +1466,26 @@ void cpu_dump_state(CPUState *env, FILE *f,
             cpu_fprintf(f, "\n");
     }
 #ifdef TARGET_SPARC64
-    cpu_fprintf(f, "pstate: 0x%08x ccr: 0x%02x asi: 0x%02x tl: %d fprs: %d\n",
-                env->pstate, GET_CCR(env), env->asi, env->tl, env->fprs);
-    cpu_fprintf(f, "pil=%x\n", env->psrpil);
-    cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate %d "
-                "cleanwin %d cwp %d\n",
+    cpu_fprintf(f, "pstate: %08x ccr: %02x (icc: ", env->pstate,
+                GET_CCR(env));
+    cpu_print_cc(f, cpu_fprintf, GET_CCR(env) << PSR_CARRY_SHIFT);
+    cpu_fprintf(f, " xcc: ");
+    cpu_print_cc(f, cpu_fprintf, GET_CCR(env) << (PSR_CARRY_SHIFT - 4));
+    cpu_fprintf(f, ") asi: %02x tl: %d pil: %x\n", env->asi, env->tl,
+                env->psrpil);
+    cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate: %d "
+                "cleanwin: %d cwp: %d\n",
                 env->cansave, env->canrestore, env->otherwin, env->wstate,
                 env->cleanwin, env->nwindows - 1 - env->cwp);
+    cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx " fprs: "
+                TARGET_FMT_lx "\n", env->fsr, env->y, env->fprs);
 #else
-
-#define GET_FLAG(a,b) ((env->psr & a)?b:'-')
-
-    cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n",
-                GET_PSR(env), GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
-                GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
-                env->psrs?'S':'-', env->psrps?'P':'-',
-                env->psret?'E':'-', env->wim);
+    cpu_fprintf(f, "psr: %08x (icc: ", GET_PSR(env));
+    cpu_print_cc(f, cpu_fprintf, GET_PSR(env));
+    cpu_fprintf(f, " SPE: %c%c%c) wim: %08x\n", env->psrs? 'S' : '-',
+                env->psrps? 'P' : '-', env->psret? 'E' : '-',
+                env->wim);
+    cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
+                env->fsr, env->y);
 #endif
-    cpu_fprintf(f, "fsr: 0x%08x\n", env->fsr);
 }
