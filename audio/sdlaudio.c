@@ -41,8 +41,8 @@
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
     int live;
+    int rpos;
     int decr;
-    int pending;
 } SDLVoiceOut;
 
 static struct {
@@ -225,10 +225,6 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     HWVoiceOut *hw = &sdl->hw;
     int samples = len >> hw->info.shift;
 
-    if (sdl_lock (s, "sdl_callback")) {
-        return;
-    }
-
     if (s->exit) {
         return;
     }
@@ -236,34 +232,49 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     while (samples) {
         int to_mix, decr;
 
-        while (!sdl->pending) {
-            if (sdl_unlock (s, "sdl_callback")) {
-                return;
-            }
-
-            sdl_wait (s, "sdl_callback");
-            if (s->exit) {
-                return;
-            }
-
-            if (sdl_lock (s, "sdl_callback")) {
-                return;
-            }
-            sdl->pending += sdl->live;
-            sdl->live = 0;
+        /* dolog ("in callback samples=%d\n", samples); */
+        sdl_wait (s, "sdl_callback");
+        if (s->exit) {
+            return;
         }
 
-        to_mix = audio_MIN (samples, sdl->pending);
-        decr = audio_pcm_hw_clip_out (hw, buf, to_mix, 0);
-        buf += decr << hw->info.shift;
-        samples -= decr;
-        sdl->decr += decr;
-        sdl->pending -= decr;
-    }
+        if (sdl_lock (s, "sdl_callback")) {
+            return;
+        }
 
-    if (sdl_unlock (s, "sdl_callback")) {
-        return;
+        if (audio_bug (AUDIO_FUNC, sdl->live < 0 || sdl->live > hw->samples)) {
+            dolog ("sdl->live=%d hw->samples=%d\n",
+                   sdl->live, hw->samples);
+            return;
+        }
+
+        if (!sdl->live) {
+            goto again;
+        }
+
+        /* dolog ("in callback live=%d\n", live); */
+        to_mix = audio_MIN (samples, sdl->live);
+        decr = to_mix;
+        while (to_mix) {
+            int chunk = audio_MIN (to_mix, hw->samples - hw->rpos);
+            struct st_sample *src = hw->mix_buf + hw->rpos;
+
+            /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
+            hw->clip (buf, src, chunk);
+            sdl->rpos = (sdl->rpos + chunk) % hw->samples;
+            to_mix -= chunk;
+            buf += chunk << hw->info.shift;
+        }
+        samples -= decr;
+        sdl->live -= decr;
+        sdl->decr += decr;
+
+    again:
+        if (sdl_unlock (s, "sdl_callback")) {
+            return;
+        }
     }
+    /* dolog ("done len=%d\n", len); */
 }
 
 static int sdl_write_out (SWVoiceOut *sw, void *buf, int len)
@@ -281,9 +292,18 @@ static int sdl_run_out (HWVoiceOut *hw, int live)
         return 0;
     }
 
-    sdl->live = live;
-    decr = sdl->decr;
-    sdl->decr = 0;
+    if (sdl->decr > live) {
+        ldebug ("sdl->decr %d live %d sdl->live %d\n",
+                sdl->decr,
+                live,
+                sdl->live);
+    }
+
+    decr = audio_MIN (sdl->decr, live);
+    sdl->decr -= decr;
+
+    sdl->live = live - decr;
+    hw->rpos = sdl->rpos;
 
     if (sdl->live > 0) {
         sdl_unlock_and_post (s, "sdl_run_out");
