@@ -520,6 +520,8 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
     VirtIOSerial *vser = port->vser;
 
+    send_control_event(port, VIRTIO_CONSOLE_PORT_REMOVE, 1);
+
     /*
      * Don't decrement nr_ports here; thus we keep a linearly
      * increasing port id. Not utilising an id again saves us a couple
