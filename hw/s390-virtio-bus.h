@@ -41,6 +41,8 @@ typedef struct VirtIOS390Device {
     DriveInfo *dinfo;
     NICConf nic;
     uint32_t host_features;
+    /* Max. number of ports we can have for a the virtio-serial device */
+    uint32_t max_virtserial_ports;
 } VirtIOS390Device;
 
 typedef struct VirtIOS390Bus {

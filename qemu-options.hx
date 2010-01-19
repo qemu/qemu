@@ -1891,6 +1891,10 @@ DEF("virtioconsole", HAS_ARG, QEMU_OPTION_virtiocon, \
 STEXI
 @item -virtioconsole @var{c}
 Set virtio console.
+
+This option is maintained for backward compatibility.
+
+Please use @code{-device virtconsole} for the new way of invocation.
 ETEXI
 
 DEF("show-cursor", 0, QEMU_OPTION_show_cursor, \

@@ -172,7 +172,7 @@ ifdef CONFIG_SOFTMMU
 obj-y = vl.o async.o monitor.o pci.o pci_host.o pcie_host.o machine.o gdbstub.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o virtio-pci.o
+obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial.o virtio-serial-bus.o virtio-pci.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 LIBS+=-lz

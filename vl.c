@@ -173,6 +173,8 @@ int main(int argc, char **argv)
 
 #define DEFAULT_RAM_SIZE 128
 
+#define MAX_VIRTIO_CONSOLES 1
+
 static const char *data_dir;
 const char *bios_name = NULL;
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available

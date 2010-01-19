@@ -108,13 +108,6 @@ static void bamboo_init(ram_addr_t ram_size,
     env = ppc440ep_init(&ram_size, &pcibus, pci_irq_nrs, 1, cpu_model);
 
     if (pcibus) {
-        /* Add virtio console devices */
-        for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-            if (virtcon_hds[i]) {
-                pci_create_simple(pcibus, -1, "virtio-console-pci");
-            }
-        }
-
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
             /* There are no PCI NICs on the Bamboo board, but there are
