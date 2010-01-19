@@ -243,6 +243,33 @@ int qemu_open(const char *name, int flags, ...)
     return ret;
 }
 
+/*
+ * A variant of write(2) which handles partial write.
+ *
+ * Return the number of bytes transferred.
+ * Set errno if fewer than `count' bytes are written.
+ */
+ssize_t qemu_write_full(int fd, const void *buf, size_t count)
+{
+    ssize_t ret = 0;
+    ssize_t total = 0;
+
+    while (count) {
+        ret = write(fd, buf, count);
+        if (ret < 0) {
+            if (errno == EINTR)
+                continue;
+            break;
+        }
+
+        count -= ret;
+        buf += ret;
+        total += ret;
+    }
+
+    return total;
+}
+
 #ifndef _WIN32
 /*
  * Creates a pipe with FD_CLOEXEC set on both file descriptors

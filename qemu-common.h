@@ -161,6 +161,7 @@ void qemu_mutex_lock_iothread(void);
 void qemu_mutex_unlock_iothread(void);
 
 int qemu_open(const char *name, int flags, ...);
+ssize_t qemu_write_full(int fd, const void *buf, size_t count);
 void qemu_set_cloexec(int fd);
 
 #ifndef _WIN32
