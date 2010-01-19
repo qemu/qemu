@@ -250,7 +250,8 @@ static int mmap_frag(abi_ulong real_start,
             mprotect(host_start, qemu_host_page_size, prot1 | PROT_WRITE);
 
         /* read the corresponding file data */
-        pread(fd, g2h(start), end - start, offset);
+        if (pread(fd, g2h(start), end - start, offset) == -1)
+            return -1;
 
         /* put final protection */
         if (prot_new != (prot1 | PROT_WRITE))
@@ -474,7 +475,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                                   -1, 0);
             if (retaddr == -1)
                 goto fail;
-            pread(fd, g2h(start), len, offset);
+            if (pread(fd, g2h(start), len, offset) == -1)
+                goto fail;
             if (!(prot & PROT_WRITE)) {
                 ret = target_mprotect(start, len, prot);
                 if (ret != 0) {
