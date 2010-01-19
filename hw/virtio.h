@@ -90,7 +90,7 @@ typedef struct {
     unsigned (*get_features)(void * opaque);
 } VirtIOBindings;
 
-#define VIRTIO_PCI_QUEUE_MAX 16
+#define VIRTIO_PCI_QUEUE_MAX 64
 
 #define VIRTIO_NO_VECTOR 0xffff
 
