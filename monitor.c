@@ -1324,10 +1324,14 @@ static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
         if (l > size)
             l = size;
         cpu_memory_rw_debug(env, addr, buf, l, 0);
-        fwrite(buf, 1, l, f);
+        if (fwrite(buf, 1, l, f) != l) {
+            monitor_printf(mon, "fwrite() error in do_memory_save\n");
+            goto exit;
+        }
         addr += l;
         size -= l;
     }
+exit:
     fclose(f);
 }
 
@@ -1351,11 +1355,15 @@ static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
         if (l > size)
             l = size;
         cpu_physical_memory_rw(addr, buf, l, 0);
-        fwrite(buf, 1, l, f);
+        if (fwrite(buf, 1, l, f) != l) {
+            monitor_printf(mon, "fwrite() error in do_physical_memory_save\n");
+            goto exit;
+        }
         fflush(f);
         addr += l;
         size -= l;
     }
+exit:
     fclose(f);
 }
 
