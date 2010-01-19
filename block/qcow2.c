@@ -844,7 +844,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
     uint64_t tmp, offset;
     QCowCreateState s1, *s = &s1;
     QCowExtension ext_bf = {0, 0};
-
+    int ret;
 
     memset(s, 0, sizeof(*s));
 
@@ -927,7 +927,11 @@ static int qcow_create2(const char *filename, int64_t total_size,
         ref_clusters * s->cluster_size);
 
     /* write all the data */
-    write(fd, &header, sizeof(header));
+    ret = qemu_write_full(fd, &header, sizeof(header));
+    if (ret != sizeof(header)) {
+        ret = -1;
+        goto exit;
+    }
     if (backing_file) {
         if (backing_format_len) {
             char zero[16];
@@ -936,25 +940,56 @@ static int qcow_create2(const char *filename, int64_t total_size,
             memset(zero, 0, sizeof(zero));
             cpu_to_be32s(&ext_bf.magic);
             cpu_to_be32s(&ext_bf.len);
-            write(fd, &ext_bf, sizeof(ext_bf));
-            write(fd, backing_format, backing_format_len);
+            ret = qemu_write_full(fd, &ext_bf, sizeof(ext_bf));
+            if (ret != sizeof(ext_bf)) {
+                ret = -1;
+                goto exit;
+            }
+            ret = qemu_write_full(fd, backing_format, backing_format_len);
+            if (ret != backing_format_len) {
+                ret = -1;
+                goto exit;
+            }
             if (padding > 0) {
-                write(fd, zero, padding);
+                ret = qemu_write_full(fd, zero, padding);
+                if (ret != padding) {
+                    ret = -1;
+                    goto exit;
+                }
             }
         }
-        write(fd, backing_file, backing_filename_len);
+        ret = qemu_write_full(fd, backing_file, backing_filename_len);
+        if (ret != backing_filename_len) {
+            ret = -1;
+            goto exit;
+        }
     }
     lseek(fd, s->l1_table_offset, SEEK_SET);
     tmp = 0;
     for(i = 0;i < l1_size; i++) {
-        write(fd, &tmp, sizeof(tmp));
+        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
+        if (ret != sizeof(tmp)) {
+            ret = -1;
+            goto exit;
+        }
     }
     lseek(fd, s->refcount_table_offset, SEEK_SET);
-    write(fd, s->refcount_table, s->cluster_size);
+    ret = qemu_write_full(fd, s->refcount_table, s->cluster_size);
+    if (ret != s->cluster_size) {
+        ret = -1;
+        goto exit;
+    }
 
     lseek(fd, s->refcount_block_offset, SEEK_SET);
-    write(fd, s->refcount_block, ref_clusters * s->cluster_size);
+    ret = qemu_write_full(fd, s->refcount_block,
+		    ref_clusters * s->cluster_size);
+    if (ret != s->cluster_size) {
+        ret = -1;
+        goto exit;
+    }
 
+    ret = 0;
+exit:
     qemu_free(s->refcount_table);
     qemu_free(s->refcount_block);
     close(fd);
@@ -968,7 +1003,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
         bdrv_close(bs);
     }
 
-    return 0;
+    return ret;
 }
 
 static int qcow_create(const char *filename, QEMUOptionParameter *options)
