@@ -243,7 +243,7 @@ static int mmap_frag(abi_ulong real_start,
            possible while it is a shared mapping */
         if ((flags & MAP_TYPE) == MAP_SHARED &&
             (prot & PROT_WRITE))
-            return -EINVAL;
+            return -1;
 
         /* adjust protection to be able to read */
         if (!(prot1 & PROT_WRITE))
