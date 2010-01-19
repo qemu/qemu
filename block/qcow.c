@@ -750,6 +750,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     int64_t total_size = 0;
     const char *backing_file = NULL;
     int flags = 0;
+    int ret;
 
     /* Read out options */
     while (options && options->name) {
@@ -801,17 +802,34 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     }
 
     /* write all the data */
-    write(fd, &header, sizeof(header));
+    ret = qemu_write_full(fd, &header, sizeof(header));
+    if (ret != sizeof(header)) {
+        ret = -1;
+        goto exit;
+    }
+
     if (backing_file) {
-        write(fd, backing_file, backing_filename_len);
+        ret = qemu_write_full(fd, backing_file, backing_filename_len);
+        if (ret != backing_filename_len) {
+            ret = -1;
+            goto exit;
+        }
+
     }
     lseek(fd, header_size, SEEK_SET);
     tmp = 0;
     for(i = 0;i < l1_size; i++) {
-        write(fd, &tmp, sizeof(tmp));
+        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
+        if (ret != sizeof(tmp)) {
+            ret = -1;
+            goto exit;
+        }
     }
+
+    ret = 0;
+exit:
     close(fd);
-    return 0;
+    return ret;
 }
 
 static int qcow_make_empty(BlockDriverState *bs)
