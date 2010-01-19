@@ -1689,6 +1689,10 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             merge = bs->drv->bdrv_merge_requests(bs, &reqs[outidx], &reqs[i]);
         }
 
+        if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 > IOV_MAX) {
+            merge = 0;
+        }
+
         if (merge) {
             size_t size;
             QEMUIOVector *qiov = qemu_mallocz(sizeof(*qiov));
