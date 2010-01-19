@@ -100,6 +100,7 @@ static VirtIOSerialPortInfo virtconsole_info = {
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT8("is_console", VirtConsole, port.is_console, 1),
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
+        DEFINE_PROP_STRING("name", VirtConsole, port.name),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

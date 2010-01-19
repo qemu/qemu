@@ -204,6 +204,8 @@ static void handle_control_message(VirtIOSerial *vser, void *buf)
 {
     struct VirtIOSerialPort *port;
     struct virtio_console_control cpkt, *gcpkt;
+    uint8_t *buffer;
+    size_t buffer_len;
 
     gcpkt = buf;
     port = find_port_by_id(vser, ldl_p(&gcpkt->id));
@@ -224,6 +226,21 @@ static void handle_control_message(VirtIOSerial *vser, void *buf)
          */
         if (port->is_console) {
             send_control_event(port, VIRTIO_CONSOLE_CONSOLE_PORT, 1);
+        }
+
+        if (port->name) {
+            stw_p(&cpkt.event, VIRTIO_CONSOLE_PORT_NAME);
+            stw_p(&cpkt.value, 1);
+
+            buffer_len = sizeof(cpkt) + strlen(port->name) + 1;
+            buffer = qemu_malloc(buffer_len);
+
+            memcpy(buffer, &cpkt, sizeof(cpkt));
+            memcpy(buffer + sizeof(cpkt), port->name, strlen(port->name));
+            buffer[buffer_len - 1] = 0;
+
+            send_control_msg(port, buffer, buffer_len);
+            qemu_free(buffer);
         }
 
         if (port->host_connected) {
