@@ -49,6 +49,7 @@ struct virtio_console_control {
 #define VIRTIO_CONSOLE_PORT_READY	0
 #define VIRTIO_CONSOLE_CONSOLE_PORT	1
 #define VIRTIO_CONSOLE_RESIZE		2
+#define VIRTIO_CONSOLE_PORT_OPEN	3
 
 /* == In-qemu interface == */
 
@@ -92,6 +93,11 @@ struct VirtIOSerialPort {
 
     /* Identify if this is a port that binds with hvc in the guest */
     uint8_t is_console;
+
+    /* Is the corresponding guest device open? */
+    bool guest_connected;
+    /* Is this device open for IO on the host? */
+    bool host_connected;
 };
 
 struct VirtIOSerialPortInfo {
