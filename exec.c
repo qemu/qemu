@@ -1537,15 +1537,15 @@ static void cpu_unlink_tb(CPUState *env)
     TranslationBlock *tb;
     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
 
+    spin_lock(&interrupt_lock);
     tb = env->current_tb;
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
     if (tb) {
-        spin_lock(&interrupt_lock);
         env->current_tb = NULL;
         tb_reset_jump_recursive(tb);
-        spin_unlock(&interrupt_lock);
     }
+    spin_unlock(&interrupt_lock);
 }
 
 /* mask must never be zero, except for A20 change call */
