@@ -126,13 +126,6 @@ enum {
     float_round_up           = FP_RP,
     float_round_to_zero      = FP_RZ
 };
-#elif defined(__arm__)
-enum {
-    float_round_nearest_even = 0,
-    float_round_down         = 1,
-    float_round_up           = 2,
-    float_round_to_zero      = 3
-};
 #else
 enum {
     float_round_nearest_even = FE_TONEAREST,
