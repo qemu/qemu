@@ -33,7 +33,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
     BDRVQcowState *s = bs->opaque;
     int new_l1_size, new_l1_size2, ret, i;
     uint64_t *new_l1_table;
-    uint64_t new_l1_table_offset;
+    int64_t new_l1_table_offset;
     uint8_t data[12];
 
     new_l1_size = s->l1_size;
@@ -55,6 +55,10 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
 
     /* write new table (align to cluster) */
     new_l1_table_offset = qcow2_alloc_clusters(bs, new_l1_size2);
+    if (new_l1_table_offset < 0) {
+        qemu_free(new_l1_table);
+        return new_l1_table_offset;
+    }
 
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
@@ -222,6 +226,9 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
     /* allocate a new l2 entry */
 
     l2_offset = qcow2_alloc_clusters(bs, s->l2_size * sizeof(uint64_t));
+    if (l2_offset < 0) {
+        return NULL;
+    }
 
     /* update the L1 entry */
 
@@ -569,6 +576,10 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
         qcow2_free_any_clusters(bs, cluster_offset, 1);
 
     cluster_offset = qcow2_alloc_bytes(bs, compressed_size);
+    if (cluster_offset < 0) {
+        return 0;
+    }
+
     nb_csectors = ((cluster_offset + compressed_size - 1) >> 9) -
                   (cluster_offset >> 9);
 
@@ -700,7 +711,8 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index, ret;
-    uint64_t l2_offset, *l2_table, cluster_offset;
+    uint64_t l2_offset, *l2_table;
+    int64_t cluster_offset;
     unsigned int nb_clusters, i = 0;
     QCowL2Meta *old_alloc;
 
@@ -794,6 +806,9 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
     /* allocate a new cluster */
 
     cluster_offset = qcow2_alloc_clusters(bs, nb_clusters * s->cluster_size);
+    if (cluster_offset < 0) {
+        return cluster_offset;
+    }
 
     /* save info needed for meta data update */
     m->offset = offset;
