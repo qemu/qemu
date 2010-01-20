@@ -269,9 +269,8 @@ static int write_refcount_block_entries(BDRVQcowState *s,
 }
 
 /* XXX: cache several refcount block clusters ? */
-static int update_refcount(BlockDriverState *bs,
-                            int64_t offset, int64_t length,
-                            int addend)
+static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
+    int64_t offset, int64_t length, int addend)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t start, last, cluster_offset;
@@ -415,9 +414,13 @@ retry:
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
 {
     int64_t offset;
+    int ret;
 
     offset = alloc_clusters_noref(bs, size);
-    update_refcount(bs, offset, size, 1);
+    ret = update_refcount(bs, offset, size, 1);
+    if (ret < 0) {
+        return ret;
+    }
     return offset;
 }
 
@@ -464,7 +467,13 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size)
 {
-    update_refcount(bs, offset, size, -1);
+    int ret;
+
+    ret = update_refcount(bs, offset, size, -1);
+    if (ret < 0) {
+        fprintf(stderr, "qcow2_free_clusters failed: %s\n", strerror(-ret));
+        abort();
+    }
 }
 
 /*
@@ -574,9 +583,15 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     if (offset & QCOW_OFLAG_COMPRESSED) {
                         nb_csectors = ((offset >> s->csize_shift) &
                                        s->csize_mask) + 1;
-                        if (addend != 0)
-                            update_refcount(bs, (offset & s->cluster_offset_mask) & ~511,
-                                            nb_csectors * 512, addend);
+                        if (addend != 0) {
+                            int ret;
+                            ret = update_refcount(bs,
+                                (offset & s->cluster_offset_mask) & ~511,
+                                nb_csectors * 512, addend);
+                            if (ret < 0) {
+                                goto fail;
+                            }
+                        }
                         /* compressed clusters are never modified */
                         refcount = 2;
                     } else {
