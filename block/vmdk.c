@@ -357,7 +357,7 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
             return -1;
         }
         parent_open = 1;
-        if (bdrv_open(bs->backing_hd, parent_img_name, BDRV_O_RDONLY) < 0)
+        if (bdrv_open(bs->backing_hd, parent_img_name, 0) < 0)
             goto failure;
         parent_open = 0;
     }
@@ -371,9 +371,10 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     uint32_t magic;
     int l1_size, i, ret;
 
-    if (parent_open)
-        // Parent must be opened as RO.
-        flags = BDRV_O_RDONLY;
+    if (parent_open) {
+        /* Parent must be opened as RO, no RDWR. */
+        flags = 0;
+    }
 
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)

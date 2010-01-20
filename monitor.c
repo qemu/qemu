@@ -334,12 +334,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 {
     QDict *qmp;
     const char *event_name;
-    Monitor *mon = cur_mon;
+    Monitor *mon;
 
     assert(event < QEVENT_MAX);
-
-    if (!monitor_ctrl_mode(mon))
-        return;
 
     switch (event) {
         case QEVENT_DEBUG:
@@ -357,6 +354,15 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_STOP:
             event_name = "STOP";
             break;
+        case QEVENT_VNC_CONNECTED:
+            event_name = "VNC_CONNECTED";
+            break;
+        case QEVENT_VNC_INITIALIZED:
+            event_name = "VNC_INITIALIZED";
+            break;
+        case QEVENT_VNC_DISCONNECTED:
+            event_name = "VNC_DISCONNECTED";
+            break;
         default:
             abort();
             break;
@@ -370,7 +376,11 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         qdict_put_obj(qmp, "data", data);
     }
 
-    monitor_json_emitter(mon, QOBJECT(qmp));
+    QLIST_FOREACH(mon, &mon_list, entry) {
+        if (monitor_ctrl_mode(mon)) {
+            monitor_json_emitter(mon, QOBJECT(qmp));
+        }
+    }
     QDECREF(qmp);
 }
 
@@ -916,7 +926,7 @@ static void do_change_block(Monitor *mon, const char *device,
     }
     if (eject_device(mon, bs, 0) < 0)
         return;
-    bdrv_open2(bs, filename, 0, drv);
+    bdrv_open2(bs, filename, BDRV_O_RDWR, drv);
     monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
 }
 

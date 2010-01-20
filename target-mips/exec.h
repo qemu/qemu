@@ -25,14 +25,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
 
-static inline void env_to_regs(void)
-{
-}
-
-static inline void regs_to_env(void)
-{
-}
-
 static inline int cpu_has_work(CPUState *env)
 {
     return (env->interrupt_request &

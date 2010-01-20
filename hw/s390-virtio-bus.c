@@ -26,7 +26,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "hw/virtio.h"
-#include "hw/virtio-console.h"
+#include "hw/virtio-serial.h"
 #include "hw/sysbus.h"
 #include "kvm.h"
 
@@ -131,7 +131,7 @@ static int s390_virtio_blk_init(VirtIOS390Device *dev)
     return s390_virtio_device_init(dev, vdev);
 }
 
-static int s390_virtio_console_init(VirtIOS390Device *dev)
+static int s390_virtio_serial_init(VirtIOS390Device *dev)
 {
     VirtIOS390Bus *bus;
     VirtIODevice *vdev;
@@ -139,7 +139,7 @@ static int s390_virtio_console_init(VirtIOS390Device *dev)
 
     bus = DO_UPCAST(VirtIOS390Bus, bus, dev->qdev.parent_bus);
 
-    vdev = virtio_console_init((DeviceState *)dev);
+    vdev = virtio_serial_init((DeviceState *)dev, dev->max_virtserial_ports);
     if (!vdev) {
         return -1;
     }
@@ -342,11 +342,14 @@ static VirtIOS390DeviceInfo s390_virtio_blk = {
     },
 };
 
-static VirtIOS390DeviceInfo s390_virtio_console = {
-    .init = s390_virtio_console_init,
-    .qdev.name = "virtio-console-s390",
+static VirtIOS390DeviceInfo s390_virtio_serial = {
+    .init = s390_virtio_serial_init,
+    .qdev.name = "virtio-serial-s390",
+    .qdev.alias = "virtio-serial",
     .qdev.size = sizeof(VirtIOS390Device),
     .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("max_ports", VirtIOS390Device, max_virtserial_ports,
+                           31),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -370,7 +373,7 @@ static void s390_virtio_bus_register_withprop(VirtIOS390DeviceInfo *info)
 
 static void s390_virtio_register(void)
 {
-    s390_virtio_bus_register_withprop(&s390_virtio_console);
+    s390_virtio_bus_register_withprop(&s390_virtio_serial);
     s390_virtio_bus_register_withprop(&s390_virtio_blk);
     s390_virtio_bus_register_withprop(&s390_virtio_net);
 }

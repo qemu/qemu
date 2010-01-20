@@ -204,7 +204,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
+    if (bdrv_open2(bs, filename, BRDV_O_FLAGS | BDRV_O_RDWR, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     if (bdrv_is_encrypted(bs)) {
@@ -468,7 +468,7 @@ static int img_commit(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
+    if (bdrv_open2(bs, filename, BRDV_O_FLAGS | BDRV_O_RDWR, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     ret = bdrv_commit(bs);
@@ -966,10 +966,11 @@ static int img_snapshot(int argc, char **argv)
     BlockDriverState *bs;
     QEMUSnapshotInfo sn;
     char *filename, *snapshot_name = NULL;
-    int c, ret;
+    int c, ret, bdrv_oflags;
     int action = 0;
     qemu_timeval tv;
 
+    bdrv_oflags = BDRV_O_RDWR;
     /* Parse commandline parameters */
     for(;;) {
         c = getopt(argc, argv, "la:c:d:h");
@@ -985,6 +986,7 @@ static int img_snapshot(int argc, char **argv)
                 return 0;
             }
             action = SNAPSHOT_LIST;
+            bdrv_oflags &= ~BDRV_O_RDWR; /* no need for RW */
             break;
         case 'a':
             if (action) {
@@ -1022,7 +1024,7 @@ static int img_snapshot(int argc, char **argv)
     if (!bs)
         error("Not enough memory");
 
-    if (bdrv_open2(bs, filename, 0, NULL) < 0) {
+    if (bdrv_open2(bs, filename, bdrv_oflags, NULL) < 0) {
         error("Could not open '%s'", filename);
     }
 

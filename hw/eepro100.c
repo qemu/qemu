@@ -245,9 +245,10 @@ typedef struct {
     cu_state_t cu_state;
     ru_state_t ru_state;
 
-    /* Temporary data. */
-    eepro100_tx_t tx;
-    uint32_t cb_address;
+    /* Temporary status information (no need to save these values),
+     * used while processing CU commands. */
+    eepro100_tx_t tx;           /* transmit buffer descriptor */
+    uint32_t cb_address;        /* = cu_base + cu_offset */
 
     /* Statistical counters. Also used for wake-up packet (i82559). */
     eepro100_stats_t statistics;

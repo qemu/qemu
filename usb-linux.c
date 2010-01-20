@@ -1036,7 +1036,7 @@ USBDevice *usb_host_device_open(const char *devname)
     qdev_prop_set_uint32(&dev->qdev, "hostaddr",  filter.addr);
     qdev_prop_set_uint32(&dev->qdev, "vendorid",  filter.vendor_id);
     qdev_prop_set_uint32(&dev->qdev, "productid", filter.product_id);
-    qdev_init(&dev->qdev);
+    qdev_init_nofail(&dev->qdev);
     return dev;
 
 fail:

@@ -321,13 +321,9 @@ void qdev_machine_creation_done(void)
 CharDriverState *qdev_init_chardev(DeviceState *dev)
 {
     static int next_serial;
-    static int next_virtconsole;
-    /* FIXME: This is a nasty hack that needs to go away.  */
-    if (strncmp(dev->info->name, "virtio", 6) == 0) {
-        return virtcon_hds[next_virtconsole++];
-    } else {
-        return serial_hds[next_serial++];
-    }
+
+    /* FIXME: This function needs to go away: use chardev properties!  */
+    return serial_hds[next_serial++];
 }
 
 BusState *qdev_get_parent_bus(DeviceState *dev)

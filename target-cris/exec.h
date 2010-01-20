@@ -24,14 +24,6 @@ register struct CPUCRISState *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline void env_to_regs(void)
-{
-}
-
-static inline void regs_to_env(void)
-{
-}
-
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif

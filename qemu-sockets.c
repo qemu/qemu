@@ -91,14 +91,14 @@ static void inet_setport(struct addrinfo *e, int port)
     }
 }
 
-static const char *inet_strfamily(int family)
+const char *inet_strfamily(int family)
 {
     switch (family) {
     case PF_INET6: return "ipv6";
     case PF_INET:  return "ipv4";
     case PF_UNIX:  return "unix";
     }
-    return "????";
+    return "unknown";
 }
 
 static void inet_print_addrinfo(const char *tag, struct addrinfo *res)

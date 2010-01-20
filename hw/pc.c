@@ -1018,15 +1018,6 @@ static void pc_init1(ram_addr_t ram_size,
             pci_create_simple(pci_bus, -1, "lsi53c895a");
         }
     }
-
-    /* Add virtio console devices */
-    if (pci_enabled) {
-        for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-            if (virtcon_hds[i]) {
-                pci_create_simple(pci_bus, -1, "virtio-console-pci");
-            }
-        }
-    }
 }
 
 static void pc_init_pci(ram_addr_t ram_size,
@@ -1083,6 +1074,14 @@ static QEMUMachine pc_machine_v0_11 = {
             .property = "vectors",
             .value    = stringify(0),
         },{
+            .driver   = "ide-drive",
+            .property = "ver",
+            .value    = "0.11",
+        },{
+            .driver   = "scsi-disk",
+            .property = "ver",
+            .value    = "0.11",
+        },{
             .driver   = "PCI",
             .property = "rombar",
             .value    = stringify(0),
@@ -1102,7 +1101,7 @@ static QEMUMachine pc_machine_v0_10 = {
             .property = "class",
             .value    = stringify(PCI_CLASS_STORAGE_OTHER),
         },{
-            .driver   = "virtio-console-pci",
+            .driver   = "virtio-serial-pci",
             .property = "class",
             .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
         },{
@@ -1113,6 +1112,14 @@ static QEMUMachine pc_machine_v0_10 = {
             .driver   = "virtio-blk-pci",
             .property = "vectors",
             .value    = stringify(0),
+        },{
+            .driver   = "ide-drive",
+            .property = "ver",
+            .value    = "0.10",
+        },{
+            .driver   = "scsi-disk",
+            .property = "ver",
+            .value    = "0.10",
         },{
             .driver   = "PCI",
             .property = "rombar",

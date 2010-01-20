@@ -26,7 +26,6 @@
 #include "loader.h"
 #include "elf.h"
 #include "hw/virtio.h"
-#include "hw/virtio-console.h"
 #include "hw/sysbus.h"
 #include "kvm.h"
 
@@ -205,13 +204,6 @@ static void s390_init(ram_addr_t ram_size,
     if (kernel_cmdline) {
         cpu_physical_memory_rw(KERN_PARM_AREA, (uint8_t *)kernel_cmdline,
                                strlen(kernel_cmdline), 1);
-    }
-
-    /* Create VirtIO console */
-    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-        if (virtcon_hds[i]) {
-            qdev_init_nofail(qdev_create((BusState *)s390_bus, "virtio-console-s390"));
-        }
     }
 
     /* Create VirtIO network adapters */

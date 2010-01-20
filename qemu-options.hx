@@ -103,7 +103,7 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
     "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
     "       [,cache=writethrough|writeback|none][,format=f][,serial=s]\n"
-    "       [,addr=A][,id=name][,aio=threads|native]\n"
+    "       [,addr=A][,id=name][,aio=threads|native][,readonly=on|off]\n"
     "                use 'file' as a drive image\n")
 DEF("set", HAS_ARG, QEMU_OPTION_set,
     "-set group.id.arg=value\n"
@@ -404,6 +404,12 @@ ETEXI
 
 DEF("device", HAS_ARG, QEMU_OPTION_device,
     "-device driver[,options]  add device\n")
+STEXI
+@item -device @var{driver}[,@var{option}[,...]]
+Add device @var{driver}. Depending on the device type,
+@var{option} (typically @var{key}=@var{value}) may be useful.
+ETEXI
+
 DEF("name", HAS_ARG, QEMU_OPTION_name,
     "-name string1[,process=string2]\n"
     "                set the name of the guest\n"
@@ -1885,6 +1891,10 @@ DEF("virtioconsole", HAS_ARG, QEMU_OPTION_virtiocon, \
 STEXI
 @item -virtioconsole @var{c}
 Set virtio console.
+
+This option is maintained for backward compatibility.
+
+Please use @code{-device virtconsole} for the new way of invocation.
 ETEXI
 
 DEF("show-cursor", 0, QEMU_OPTION_show_cursor, \
@@ -1905,6 +1915,8 @@ ETEXI
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
     "-nodefaults     don't create default devices\n")
 STEXI
+@item -nodefaults
+Don't create default devices.
 ETEXI
 
 #ifdef CONFIG_CHROOT
@@ -1928,10 +1940,6 @@ Immediately before starting guest execution, drop root privileges, switching
 to the specified user.
 ETEXI
 
-STEXI
-@end table
-ETEXI
-
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
 DEF("prom-env", HAS_ARG, QEMU_OPTION_prom_env,
     "-prom-env variable=value\n"
@@ -1947,6 +1955,19 @@ DEF("old-param", 0, QEMU_OPTION_old_param,
 #endif
 DEF("readconfig", HAS_ARG, QEMU_OPTION_readconfig,
     "-readconfig <file>\n")
+STEXI
+@item -readconfig @var{file}
+Read device configuration from @var{file}.
+ETEXI
 DEF("writeconfig", HAS_ARG, QEMU_OPTION_writeconfig,
     "-writeconfig <file>\n"
     "                read/write config file\n")
+STEXI
+@item -writeconfig @var{file}
+Write device configuration to @var{file}.
+ETEXI
+
+HXCOMM This is the last statement. Insert new options before this line!
+STEXI
+@end table
+ETEXI

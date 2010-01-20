@@ -1359,10 +1359,9 @@ open_f(int argc, char **argv)
 		}
 	}
 
-	if (readonly)
-		flags |= BDRV_O_RDONLY;
-	else
-		flags |= BDRV_O_RDWR;
+	if (!readonly) {
+            flags |= BDRV_O_RDWR;
+        }
 
 	if (optind != argc - 1)
 		return command_usage(&open_cmd);
@@ -1511,10 +1510,9 @@ int main(int argc, char **argv)
 	add_check_command(init_check_command);
 
 	/* open the device */
-	if (readonly)
-		flags |= BDRV_O_RDONLY;
-	else
-		flags |= BDRV_O_RDWR;
+	if (!readonly) {
+            flags |= BDRV_O_RDWR;
+        }
 
 	if ((argc - optind) == 1)
 		openfile(argv[optind], flags, growable);

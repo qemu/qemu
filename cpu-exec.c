@@ -56,9 +56,7 @@ int qemu_cpu_has_work(CPUState *env)
 
 void cpu_loop_exit(void)
 {
-    /* NOTE: the register at this point must be saved by hand because
-       longjmp restore them */
-    regs_to_env();
+    env->current_tb = NULL;
     longjmp(env->jmp_env, 1);
 }
 
@@ -110,6 +108,7 @@ static void cpu_exec_nocache(int max_cycles, TranslationBlock *orig_tb)
     env->current_tb = tb;
     /* execute the generated code */
     next_tb = tcg_qemu_tb_exec(tb->tc_ptr);
+    env->current_tb = NULL;
 
     if ((next_tb & 3) == 2) {
         /* Restore PC.  This may happen if async event occurs before
@@ -129,8 +128,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
 
     tb_invalidated_flag = 0;
-
-    regs_to_env(); /* XXX: do it just before cpu_gen_code() */
 
     /* find translated block using physical mappings */
     phys_pc = get_phys_addr_code(env, pc);
@@ -230,7 +227,6 @@ int cpu_exec(CPUState *env1)
 #include "hostregs_helper.h"
     env = env1;
 
-    env_to_regs();
 #if defined(TARGET_I386)
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -264,7 +260,6 @@ int cpu_exec(CPUState *env1)
                     env = cpu_single_env;
 #define env cpu_single_env
 #endif
-            env->current_tb = NULL;
             /* if an exception is pending, we execute it here */
             if (env->exception_index >= 0) {
                 if (env->exception_index >= EXCP_INTERRUPT) {
@@ -318,9 +313,9 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_M68K)
                     do_interrupt(0);
 #endif
+                    env->exception_index = -1;
 #endif
                 }
-                env->exception_index = -1;
             }
 
             if (kvm_enabled()) {
@@ -544,7 +539,6 @@ int cpu_exec(CPUState *env1)
 #ifdef CONFIG_DEBUG_EXEC
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
-                    regs_to_env();
 #if defined(TARGET_I386)
                     env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
                     log_cpu_state(env, X86_DUMP_CCOP);
@@ -595,22 +589,17 @@ int cpu_exec(CPUState *env1)
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
                    jump. */
-                {
-                    if (next_tb != 0 && tb->page_addr[1] == -1) {
+                if (next_tb != 0 && tb->page_addr[1] == -1) {
                     tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
                 }
-                }
                 spin_unlock(&tb_lock);
-                env->current_tb = tb;
 
                 /* cpu_interrupt might be called while translating the
                    TB, but before it is linked into a potentially
                    infinite loop and becomes env->current_tb. Avoid
                    starting execution if there is a pending interrupt. */
-                if (unlikely (env->exit_request))
-                    env->current_tb = NULL;
-
-                while (env->current_tb) {
+                if (!unlikely (env->exit_request)) {
+                    env->current_tb = tb;
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
 #if defined(__sparc__) && !defined(CONFIG_SOLARIS)
@@ -651,8 +640,6 @@ int cpu_exec(CPUState *env1)
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
             } /* for(;;) */
-        } else {
-            env_to_regs();
         }
     } /* for(;;) */
 

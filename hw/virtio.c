@@ -75,8 +75,6 @@ struct VirtQueue
     void (*handle_output)(VirtIODevice *vdev, VirtQueue *vq);
 };
 
-#define VIRTIO_PCI_QUEUE_MAX        16
-
 /* virt queue functions */
 static void virtqueue_init(VirtQueue *vq)
 {

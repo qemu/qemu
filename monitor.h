@@ -20,6 +20,9 @@ typedef enum MonitorEvent {
     QEVENT_RESET,
     QEVENT_POWERDOWN,
     QEVENT_STOP,
+    QEVENT_VNC_CONNECTED,
+    QEVENT_VNC_INITIALIZED,
+    QEVENT_VNC_DISCONNECTED,
     QEVENT_MAX,
 } MonitorEvent;
 

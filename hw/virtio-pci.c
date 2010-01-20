@@ -95,6 +95,8 @@ typedef struct {
     DriveInfo *dinfo;
     NICConf nic;
     uint32_t host_features;
+    /* Max. number of ports we can have for a the virtio-serial device */
+    uint32_t max_virtserial_ports;
 } VirtIOPCIProxy;
 
 /* virtio device */
@@ -483,7 +485,7 @@ static int virtio_blk_exit_pci(PCIDevice *pci_dev)
     return virtio_exit_pci(pci_dev);
 }
 
-static int virtio_console_init_pci(PCIDevice *pci_dev)
+static int virtio_serial_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
@@ -493,14 +495,17 @@ static int virtio_console_init_pci(PCIDevice *pci_dev)
         proxy->class_code != PCI_CLASS_OTHERS)          /* qemu-kvm  */
         proxy->class_code = PCI_CLASS_COMMUNICATION_OTHER;
 
-    vdev = virtio_console_init(&pci_dev->qdev);
+    vdev = virtio_serial_init(&pci_dev->qdev, proxy->max_virtserial_ports);
     if (!vdev) {
         return -1;
     }
+    vdev->nvectors = proxy->nvectors ? proxy->nvectors
+                                     : proxy->max_virtserial_ports + 1;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     PCI_DEVICE_ID_VIRTIO_CONSOLE,
                     proxy->class_code, 0x00);
+    proxy->nvectors = vdev->nvectors;
     return 0;
 }
 
@@ -573,13 +578,17 @@ static PCIDeviceInfo virtio_info[] = {
         },
         .qdev.reset = virtio_pci_reset,
     },{
-        .qdev.name = "virtio-console-pci",
+        .qdev.name = "virtio-serial-pci",
+        .qdev.alias = "virtio-serial",
         .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_console_init_pci,
+        .init      = virtio_serial_init_pci,
         .exit      = virtio_exit_pci,
         .qdev.props = (Property[]) {
+            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 0),
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
             DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+            DEFINE_PROP_UINT32("max_ports", VirtIOPCIProxy, max_virtserial_ports,
+                               31),
             DEFINE_PROP_END_OF_LIST(),
         },
         .qdev.reset = virtio_pci_reset,

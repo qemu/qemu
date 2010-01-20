@@ -147,6 +147,8 @@ struct VncState
     VncStateSASL sasl;
 #endif
 
+    QObject *info;
+
     Buffer output;
     Buffer input;
     /* current output mode information */

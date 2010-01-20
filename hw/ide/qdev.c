@@ -99,7 +99,7 @@ typedef struct IDEDrive {
 static int ide_drive_initfn(IDEDevice *dev)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
-    ide_init_drive(bus->ifs + dev->unit, dev->dinfo);
+    ide_init_drive(bus->ifs + dev->unit, dev->dinfo, dev->version);
     return 0;
 }
 
@@ -110,6 +110,7 @@ static IDEDeviceInfo ide_drive_info = {
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("unit", IDEDrive, dev.unit, -1),
         DEFINE_PROP_DRIVE("drive", IDEDrive, dev.dinfo),
+        DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

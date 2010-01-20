@@ -26,14 +26,6 @@ register struct CPUARMState *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline void env_to_regs(void)
-{
-}
-
-static inline void regs_to_env(void)
-{
-}
-
 static inline int cpu_has_work(CPUState *env)
 {
     return (env->interrupt_request &

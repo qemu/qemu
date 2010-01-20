@@ -138,7 +138,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 
     s->open_flags = open_flags | O_BINARY;
     s->open_flags &= ~O_ACCMODE;
-    if ((bdrv_flags & BDRV_O_ACCESS) == BDRV_O_RDWR) {
+    if (bdrv_flags & BDRV_O_RDWR) {
         s->open_flags |= O_RDWR;
     } else {
         s->open_flags |= O_RDONLY;
@@ -1055,9 +1055,26 @@ static int floppy_open(BlockDriverState *bs, const char *filename, int flags)
 
 static int floppy_probe_device(const char *filename)
 {
+    int fd, ret;
+    int prio = 0;
+    struct floppy_struct fdparam;
+
     if (strstart(filename, "/dev/fd", NULL))
-        return 100;
-    return 0;
+        prio = 50;
+
+    fd = open(filename, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        goto out;
+    }
+
+    /* Attempt to detect via a floppy specific ioctl */
+    ret = ioctl(fd, FDGETPRM, &fdparam);
+    if (ret >= 0)
+        prio = 100;
+
+    close(fd);
+out:
+    return prio;
 }
 
 
@@ -1140,9 +1157,25 @@ static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
 
 static int cdrom_probe_device(const char *filename)
 {
+    int fd, ret;
+    int prio = 0;
+
     if (strstart(filename, "/dev/cd", NULL))
-        return 100;
-    return 0;
+        prio = 50;
+
+    fd = open(filename, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        goto out;
+    }
+
+    /* Attempt to detect via a CDROM specific ioctl */
+    ret = ioctl(fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
+    if (ret >= 0)
+        prio = 100;
+
+    close(fd);
+out:
+    return prio;
 }
 
 static int cdrom_is_inserted(BlockDriverState *bs)
