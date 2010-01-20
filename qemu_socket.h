@@ -44,6 +44,7 @@ int inet_listen(const char *str, char *ostr, int olen,
 int inet_connect_opts(QemuOpts *opts);
 int inet_connect(const char *str, int socktype);
 int inet_dgram_opts(QemuOpts *opts);
+const char *inet_strfamily(int family);
 
 int unix_listen_opts(QemuOpts *opts);
 int unix_listen(const char *path, char *ostr, int olen);
