@@ -278,6 +278,7 @@ static int update_refcount(BlockDriverState *bs,
     int64_t refcount_block_offset = 0;
     int64_t table_index = -1, old_table_index;
     int first_index = -1, last_index = -1;
+    int ret;
 
 #ifdef DEBUG_ALLOC2
     printf("update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
@@ -292,6 +293,7 @@ static int update_refcount(BlockDriverState *bs,
     {
         int block_index, refcount;
         int64_t cluster_index = cluster_offset >> s->cluster_bits;
+        int64_t new_block;
 
         /* Only write refcount block to disk when we are done with it */
         old_table_index = table_index;
@@ -309,10 +311,12 @@ static int update_refcount(BlockDriverState *bs,
         }
 
         /* Load the refcount block and allocate it if needed */
-        refcount_block_offset = alloc_refcount_block(bs, cluster_index);
-        if (refcount_block_offset < 0) {
-            return refcount_block_offset;
+        new_block = alloc_refcount_block(bs, cluster_index);
+        if (new_block < 0) {
+            ret = new_block;
+            goto fail;
         }
+        refcount_block_offset = new_block;
 
         /* we can update the count and save it */
         block_index = cluster_index &
@@ -326,24 +330,38 @@ static int update_refcount(BlockDriverState *bs,
 
         refcount = be16_to_cpu(s->refcount_block_cache[block_index]);
         refcount += addend;
-        if (refcount < 0 || refcount > 0xffff)
-            return -EINVAL;
+        if (refcount < 0 || refcount > 0xffff) {
+            ret = -EINVAL;
+            goto fail;
+        }
         if (refcount == 0 && cluster_index < s->free_cluster_index) {
             s->free_cluster_index = cluster_index;
         }
         s->refcount_block_cache[block_index] = cpu_to_be16(refcount);
     }
 
+    ret = 0;
+fail:
+
     /* Write last changed block to disk */
     if (refcount_block_offset != 0) {
         if (write_refcount_block_entries(s, refcount_block_offset,
             first_index, last_index) < 0)
         {
-            return -EIO;
+            return ret < 0 ? ret : -EIO;
         }
     }
 
-    return 0;
+    /*
+     * Try do undo any updates if an error is returned (This may succeed in
+     * some cases like ENOSPC for allocating a new refcount block)
+     */
+    if (ret < 0) {
+        int dummy;
+        dummy = update_refcount(bs, offset, cluster_offset - offset, -addend);
+    }
+
+    return ret;
 }
 
 /* addend must be 1 or -1 */
