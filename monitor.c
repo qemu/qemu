@@ -807,11 +807,11 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
     *ret_data = QOBJECT(cpu_list);
 }
 
-static void do_cpu_set(Monitor *mon, const QDict *qdict)
+static void do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int index = qdict_get_int(qdict, "index");
     if (mon_set_cpu(index) < 0)
-        monitor_printf(mon, "Invalid CPU index\n");
+        qemu_error_new(QERR_INVALID_CPU_INDEX);
 }
 
 static void do_info_jit(Monitor *mon)
