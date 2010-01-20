@@ -377,10 +377,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     }
 
     QLIST_FOREACH(mon, &mon_list, entry) {
-        if (!monitor_ctrl_mode(mon))
-            return;
-
-        monitor_json_emitter(mon, QOBJECT(qmp));
+        if (monitor_ctrl_mode(mon)) {
+            monitor_json_emitter(mon, QOBJECT(qmp));
+        }
     }
     QDECREF(qmp);
 }
