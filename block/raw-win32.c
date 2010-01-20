@@ -76,7 +76,7 @@ static int set_sparse(int fd)
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int access_flags, create_flags;
+    int access_flags;
     DWORD overlapped;
 
     s->type = FTYPE_FILE;
@@ -86,11 +86,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     } else {
         access_flags = GENERIC_READ;
     }
-    if (flags & BDRV_O_CREAT) {
-        create_flags = CREATE_ALWAYS;
-    } else {
-        create_flags = OPEN_EXISTING;
-    }
+
     overlapped = FILE_ATTRIBUTE_NORMAL;
     if ((flags & BDRV_O_NOCACHE))
         overlapped |= FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH;
@@ -98,7 +94,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         overlapped |= FILE_FLAG_WRITE_THROUGH;
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
-                          create_flags, overlapped, NULL);
+                          OPEN_EXISTING, overlapped, NULL);
     if (s->hfile == INVALID_HANDLE_VALUE) {
         int err = GetLastError();
 

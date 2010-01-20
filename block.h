@@ -28,7 +28,6 @@ typedef struct QEMUSnapshotInfo {
 } QEMUSnapshotInfo;
 
 #define BDRV_O_RDWR        0x0002
-#define BDRV_O_CREAT       0x0004 /* create an empty file */
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_FILE        0x0010 /* open as a raw file (do not try to
                                      use a disk image format on top of
