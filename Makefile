@@ -126,7 +126,7 @@ bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 ######################################################################
 
-qemu-img.o: qemu-img-cmds.h
+qemu-img.o: qemu-img-cmds.h config-host.h
 
 obj-y = qemu-img.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
 
