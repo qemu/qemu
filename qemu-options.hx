@@ -573,6 +573,8 @@ DEF("g", 1, QEMU_OPTION_g ,
     "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n")
 #endif
 STEXI
+@item -g @var{width}x@var{height}[x@var{depth}]
+Set the initial graphical resolution and depth (PPC, SPARC only).
 ETEXI
 
 DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
@@ -1606,6 +1608,10 @@ non graphical mode.
 ETEXI
 DEF("qmp", HAS_ARG, QEMU_OPTION_qmp, \
     "-qmp dev        like -monitor but opens in 'control' mode\n")
+STEXI
+@item -qmp @var{dev}
+Like -monitor but opens in 'control' mode.
+ETEXI
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
     "-mon chardev=[name][,mode=readline|control][,default]\n")
@@ -1722,6 +1728,16 @@ DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
     "-xen-attach     attach to existing xen domain\n"
     "                xend will use this when starting qemu\n")
 #endif
+STEXI
+@item -xen-domid @var{id}
+Specify xen guest domain @var{id} (XEN only).
+@item -xen-create
+Create domain using xen hypercalls, bypassing xend.
+Warning: should not be used when xend is in use (XEN only).
+@item -xen-attach
+Attach to existing xen domain.
+xend will use this when starting qemu (XEN only).
+ETEXI
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
     "-no-reboot      exit instead of rebooting\n")
@@ -1909,16 +1925,22 @@ ETEXI
 DEF("show-cursor", 0, QEMU_OPTION_show_cursor, \
     "-show-cursor    show cursor\n")
 STEXI
+@item -show-cursor
+Show cursor.
 ETEXI
 
 DEF("tb-size", HAS_ARG, QEMU_OPTION_tb_size, \
     "-tb-size n      set TB size\n")
 STEXI
+@item -tb-size @var{n}
+Set TB size.
 ETEXI
 
 DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
     "-incoming p     prepare for incoming migration, listen on port p\n")
 STEXI
+@item -incoming @var{port}
+Prepare for incoming migration, listen on @var{port}.
 ETEXI
 
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
@@ -1953,14 +1975,27 @@ DEF("prom-env", HAS_ARG, QEMU_OPTION_prom_env,
     "-prom-env variable=value\n"
     "                set OpenBIOS nvram variables\n")
 #endif
+STEXI
+@item -prom-env @var{variable}=@var{value}
+Set OpenBIOS nvram @var{variable} to given @var{value} (PPC, SPARC only).
+ETEXI
 #if defined(TARGET_ARM) || defined(TARGET_M68K)
 DEF("semihosting", 0, QEMU_OPTION_semihosting,
     "-semihosting    semihosting mode\n")
 #endif
+STEXI
+@item -semihosting
+Semihosting mode (ARM, M68K only).
+ETEXI
 #if defined(TARGET_ARM)
 DEF("old-param", 0, QEMU_OPTION_old_param,
     "-old-param      old param mode\n")
 #endif
+STEXI
+@item -old-param
+Old param mode (ARM only).
+ETEXI
+
 DEF("readconfig", HAS_ARG, QEMU_OPTION_readconfig,
     "-readconfig <file>\n")
 STEXI
