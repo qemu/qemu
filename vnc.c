@@ -100,26 +100,6 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-static QString *get_sock_family(const struct sockaddr_storage *sa)
-{
-    const char *name;
-
-    switch (sa->ss_family)
-    {
-        case AF_INET:
-            name = "ipv4";
-            break;
-        case AF_INET6:
-            name = "ipv6";
-            break;
-        default:
-            name = "unknown";
-            break;
-    }
-
-    return qstring_from_str(name);
-}
-
 static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
                           socklen_t salen)
 {
@@ -138,7 +118,7 @@ static int put_addr_qdict(QDict *qdict, struct sockaddr_storage *sa,
 
     qdict_put(qdict, "host", qstring_from_str(host));
     qdict_put(qdict, "service", qstring_from_str(serv));
-    qdict_put(qdict, "family", get_sock_family(sa));
+    qdict_put(qdict, "family",qstring_from_str(inet_strfamily(sa->ss_family)));
 
     return 0;
 }
