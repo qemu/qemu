@@ -1696,7 +1696,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     sn->vm_clock_nsec = qemu_get_clock(vm_clock);
 
     /* Delete old snapshots of the same name */
-    if (del_existing_snapshots(mon, name) < 0) {
+    if (name && del_existing_snapshots(mon, name) < 0) {
         goto the_end;
     }
 
