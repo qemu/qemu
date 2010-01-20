@@ -1056,12 +1056,13 @@ static int qcow_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 {
     BDRVQcowState *s = bs->opaque;
     int growable = bs->growable;
+    int ret;
 
     bs->growable = 1;
-    bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
+    ret = bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
 
-    return size;
+    return ret;
 }
 
 static int qcow_load_vmstate(BlockDriverState *bs, uint8_t *buf,
