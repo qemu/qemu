@@ -98,7 +98,7 @@ const char *inet_strfamily(int family)
     case PF_INET:  return "ipv4";
     case PF_UNIX:  return "unix";
     }
-    return "????";
+    return "unknown";
 }
 
 static void inet_print_addrinfo(const char *tag, struct addrinfo *res)
