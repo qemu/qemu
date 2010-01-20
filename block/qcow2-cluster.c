@@ -611,12 +611,12 @@ static int write_l2_entries(BDRVQcowState *s, uint64_t *l2_table,
     return 0;
 }
 
-int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
-    QCowL2Meta *m)
+int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 {
     BDRVQcowState *s = bs->opaque;
     int i, j = 0, l2_index, ret;
     uint64_t *old_cluster, start_sect, l2_offset, *l2_table;
+    uint64_t cluster_offset = m->cluster_offset;
 
     if (m->nb_clusters == 0)
         return 0;
@@ -677,16 +677,22 @@ err:
 /*
  * alloc_cluster_offset
  *
- * For a given offset of the disk image, return cluster offset in
- * qcow2 file.
- *
+ * For a given offset of the disk image, return cluster offset in qcow2 file.
  * If the offset is not found, allocate a new cluster.
  *
- * Return the cluster offset if successful,
- * Return 0, otherwise.
+ * If the cluster was already allocated, m->nb_clusters is set to 0,
+ * m->depends_on is set to NULL and the other fields in m are meaningless.
  *
+ * If the cluster is newly allocated, m->nb_clusters is set to the number of
+ * contiguous clusters that have been allocated. This may be 0 if the request
+ * conflict with another write request in flight; in this case, m->depends_on
+ * is set and the remaining fields of m are meaningless.
+ *
+ * If m->nb_clusters is non-zero, the other fields of m are valid and contain
+ * information about the first allocated cluster.
+ *
+ * Return 0 on success and -errno in error cases
  */
-
 uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
                                     uint64_t offset,
                                     int n_start, int n_end,
@@ -700,7 +706,7 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
 
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
     if (ret < 0) {
-        return 0;
+        return ret;
     }
 
     nb_clusters = size_to_clusters(s, n_end << 9);
@@ -717,6 +723,7 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
 
         cluster_offset &= ~QCOW_OFLAG_COPIED;
         m->nb_clusters = 0;
+        m->depends_on = NULL;
 
         goto out;
     }
@@ -795,10 +802,11 @@ uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
 
 out:
     m->nb_available = MIN(nb_clusters << (s->cluster_bits - 9), n_end);
+    m->cluster_offset = cluster_offset;
 
     *num = m->nb_available - n_start;
 
-    return cluster_offset;
+    return 0;
 }
 
 static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
