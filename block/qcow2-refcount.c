@@ -168,9 +168,12 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
 
     cpu_to_be64w((uint64_t*)data, table_offset);
     cpu_to_be32w((uint32_t*)(data + 8), refcount_table_clusters);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
-                    data, sizeof(data)) != sizeof(data))
+    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
+                    data, sizeof(data));
+    if (ret != sizeof(data)) {
         goto fail;
+    }
+
     qemu_free(s->refcount_table);
     old_table_offset = s->refcount_table_offset;
     old_table_size = s->refcount_table_size;
@@ -183,7 +186,7 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     return 0;
  fail:
     qemu_free(new_table);
-    return -EIO;
+    return ret < 0 ? ret : -EIO;
 }
 
 
