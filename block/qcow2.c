@@ -561,7 +561,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     acb->hd_aiocb = NULL;
 
     if (ret >= 0) {
-        ret = qcow2_alloc_cluster_link_l2(bs, acb->cluster_offset, &acb->l2meta);
+        ret = qcow2_alloc_cluster_link_l2(bs, &acb->l2meta);
     }
 
     run_dependent_requests(&acb->l2meta);
@@ -585,21 +585,23 @@ static void qcow_aio_write_cb(void *opaque, int ret)
         n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors)
         n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
 
-    acb->cluster_offset = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
-                                          index_in_cluster,
-                                          n_end, &acb->n, &acb->l2meta);
+    ret = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
+        index_in_cluster, n_end, &acb->n, &acb->l2meta);
+    if (ret < 0) {
+        goto done;
+    }
+
+    acb->cluster_offset = acb->l2meta.cluster_offset;
 
     /* Need to wait for another request? If so, we are done for now. */
-    if (!acb->cluster_offset && acb->l2meta.depends_on != NULL) {
+    if (acb->l2meta.nb_clusters == 0 && acb->l2meta.depends_on != NULL) {
         QLIST_INSERT_HEAD(&acb->l2meta.depends_on->dependent_requests,
             acb, next_depend);
         return;
     }
 
-    if (!acb->cluster_offset || (acb->cluster_offset & 511) != 0) {
-        ret = -EIO;
-        goto done;
-    }
+    assert((acb->cluster_offset & 511) == 0);
+
     if (s->crypt_method) {
         if (!acb->cluster_data) {
             acb->cluster_data = qemu_mallocz(QCOW_MAX_CRYPT_CLUSTERS *
@@ -683,27 +685,27 @@ static int get_bits_from_size(size_t size)
 static int preallocate(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    uint64_t cluster_offset = 0;
     uint64_t nb_sectors;
     uint64_t offset;
     int num;
+    int ret;
     QCowL2Meta meta;
 
     nb_sectors = bdrv_getlength(bs) >> 9;
     offset = 0;
     QLIST_INIT(&meta.dependent_requests);
+    meta.cluster_offset = 0;
 
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);
-        cluster_offset = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num,
-            &meta);
+        ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num, &meta);
 
-        if (cluster_offset == 0) {
+        if (ret < 0) {
             return -1;
         }
 
-        if (qcow2_alloc_cluster_link_l2(bs, cluster_offset, &meta) < 0) {
-            qcow2_free_any_clusters(bs, cluster_offset, meta.nb_clusters);
+        if (qcow2_alloc_cluster_link_l2(bs, &meta) < 0) {
+            qcow2_free_any_clusters(bs, meta.cluster_offset, meta.nb_clusters);
             return -1;
         }
 
@@ -722,10 +724,10 @@ static int preallocate(BlockDriverState *bs)
      * all of the allocated clusters (otherwise we get failing reads after
      * EOF). Extend the image to the last allocated sector.
      */
-    if (cluster_offset != 0) {
+    if (meta.cluster_offset != 0) {
         uint8_t buf[512];
         memset(buf, 0, 512);
-        bdrv_write(s->hd, (cluster_offset >> 9) + num - 1, buf, 1);
+        bdrv_write(s->hd, (meta.cluster_offset >> 9) + num - 1, buf, 1);
     }
 
     return 0;
