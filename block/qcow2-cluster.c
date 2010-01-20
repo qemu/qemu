@@ -67,9 +67,10 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
     /* set new table */
     cpu_to_be32w((uint32_t*)data, new_l1_size);
     cpu_to_be64w((uint64_t*)(data + 4), new_l1_table_offset);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_size), data,
-                sizeof(data)) != sizeof(data))
+    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_size), data,sizeof(data));
+    if (ret != sizeof(data)) {
         goto fail;
+    }
     qemu_free(s->l1_table);
     qcow2_free_clusters(bs, s->l1_table_offset, s->l1_size * sizeof(uint64_t));
     s->l1_table_offset = new_l1_table_offset;
@@ -77,8 +78,9 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
     s->l1_size = new_l1_size;
     return 0;
  fail:
-    qemu_free(s->l1_table);
-    return -EIO;
+    qemu_free(new_l1_table);
+    qcow2_free_clusters(bs, new_l1_table_offset, new_l1_size2);
+    return ret < 0 ? ret : -EIO;
 }
 
 void qcow2_l2_cache_reset(BlockDriverState *bs)
