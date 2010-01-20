@@ -284,8 +284,12 @@ static int update_refcount(BlockDriverState *bs,
     printf("update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
            offset, length, addend);
 #endif
-    if (length <= 0)
+    if (length < 0) {
         return -EINVAL;
+    } else if (length == 0) {
+        return 0;
+    }
+
     start = offset & ~(s->cluster_size - 1);
     last = (offset + length - 1) & ~(s->cluster_size - 1);
     for(cluster_offset = start; cluster_offset <= last;
