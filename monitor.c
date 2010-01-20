@@ -1316,7 +1316,7 @@ static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     f = fopen(filename, "wb");
     if (!f) {
-        monitor_printf(mon, "could not open '%s'\n", filename);
+        qemu_error_new(QERR_OPEN_FILE_FAILED, filename);
         return;
     }
     while (size != 0) {
