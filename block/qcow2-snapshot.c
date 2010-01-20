@@ -139,6 +139,9 @@ static int qcow_write_snapshots(BlockDriverState *bs)
 
     snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
     offset = snapshots_offset;
+    if (offset < 0) {
+        return offset;
+    }
 
     for(i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
@@ -235,6 +238,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     QCowSnapshot *snapshots1, sn1, *sn = &sn1;
     int i, ret;
     uint64_t *l1_table = NULL;
+    int64_t l1_table_offset;
 
     memset(sn, 0, sizeof(*sn));
 
@@ -263,7 +267,12 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto fail;
 
     /* create the L1 table of the snapshot */
-    sn->l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
+    l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
+    if (l1_table_offset < 0) {
+        goto fail;
+    }
+
+    sn->l1_table_offset = l1_table_offset;
     sn->l1_size = s->l1_size;
 
     if (s->l1_size != 0) {
