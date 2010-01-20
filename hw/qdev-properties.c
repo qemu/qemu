@@ -565,8 +565,13 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
         return -1;
     }
     if (prop->info->parse(dev, prop, value) != 0) {
-        fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
-                dev->info->name, name, value);
+        if (strcmp(value, "?") != 0) {
+            fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
+                    dev->info->name, name, value);
+        } else {
+            fprintf(stderr, "%s.%s=%s\n",
+                    dev->info->name, name, prop->info->name);
+        }
         return -1;
     }
     return 0;
