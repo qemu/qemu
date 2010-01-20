@@ -803,21 +803,23 @@ fi
 # Solaris specific configure tool chain decisions
 #
 if test "$solaris" = "yes" ; then
-  solinst=`path_of $install`
-  if test -z "$solinst" ; then
+  if has $install; then
+    :
+  else
     echo "Solaris install program not found. Use --install=/usr/ucb/install or"
     echo "install fileutils from www.blastwave.org using pkg-get -i fileutils"
     echo "to get ginstall which is used by default (which lives in /opt/csw/bin)"
     exit 1
   fi
-  if test "$solinst" = "/usr/sbin/install" ; then
+  if test "`path_of $install`" = "/usr/sbin/install" ; then
     echo "Error: Solaris /usr/sbin/install is not an appropriate install program."
     echo "try ginstall from the GNU fileutils available from www.blastwave.org"
     echo "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
     exit 1
   fi
-  sol_ar=`path_of ar`
-  if test -z "$sol_ar" ; then
+  if has ar; then
+    :
+  else
     echo "Error: No path includes ar"
     if test -f /usr/ccs/bin/ar ; then
       echo "Add /usr/ccs/bin to your path and rerun configure"
