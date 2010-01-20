@@ -30,7 +30,7 @@
 
 //#define DEBUG_CMOS
 
-#define RTC_REINJECT_ON_ACK_COUNT 1000
+#define RTC_REINJECT_ON_ACK_COUNT 20
 
 #define RTC_SECONDS             0
 #define RTC_SECONDS_ALARM       1
