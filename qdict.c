@@ -216,6 +216,19 @@ QList *qdict_get_qlist(const QDict *qdict, const char *key)
 }
 
 /**
+ * qdict_get_qdict(): Get the QDict mapped by 'key'
+ *
+ * This function assumes that 'key' exists and it stores a
+ * QDict object.
+ *
+ * Return QDict mapped by 'key'.
+ */
+QDict *qdict_get_qdict(const QDict *qdict, const char *key)
+{
+    return qobject_to_qdict(qdict_get_obj(qdict, key, QTYPE_QDICT));
+}
+
+/**
  * qdict_get_str(): Get a pointer to the stored string mapped
  * by 'key'
  *
