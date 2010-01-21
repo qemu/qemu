@@ -52,6 +52,11 @@
 static void *oom_check(void *ptr)
 {
     if (ptr == NULL) {
+#if defined(_WIN32)
+        fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
+#else
+        fprintf(stderr, "Failed to allocate memory: %s\n", strerror(errno));
+#endif
         abort();
     }
     return ptr;
@@ -91,8 +96,11 @@ void *qemu_memalign(size_t alignment, size_t size)
     int ret;
     void *ptr;
     ret = posix_memalign(&ptr, alignment, size);
-    if (ret != 0)
+    if (ret != 0) {
+        fprintf(stderr, "Failed to allocate %zu B: %s\n",
+                size, strerror(ret));
         abort();
+    }
     return ptr;
 #elif defined(CONFIG_BSD)
     return oom_check(valloc(size));
