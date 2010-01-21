@@ -1183,7 +1183,15 @@ static void pci_device_print(Monitor *mon, QDict *device)
 
     monitor_printf(mon, "      id \"%s\"\n", qdict_get_str(device, "qdev_id"));
 
-    /* TODO: PCI bridge devices */
+    if (qdict_haskey(device, "pci_bridge")) {
+        qdict = qdict_get_qdict(device, "pci_bridge");
+        if (qdict_haskey(qdict, "devices")) {
+            QListEntry *dev;
+            QLIST_FOREACH_ENTRY(qdict_get_qlist(qdict, "devices"), dev) {
+                pci_device_print(mon, qobject_to_qdict(qlist_entry_obj(dev)));
+            }
+        }
+    }
 }
 
 void do_pci_info_print(Monitor *mon, const QObject *data)
@@ -1261,7 +1269,9 @@ static QObject *pci_get_regions_list(const PCIDevice *dev)
     return QOBJECT(regions_list);
 }
 
-static QObject *pci_get_dev_dict(PCIDevice *dev, int bus_num)
+static QObject *pci_get_devices_list(PCIBus *bus, int bus_num);
+
+static QObject *pci_get_dev_dict(PCIDevice *dev, PCIBus *bus, int bus_num)
 {
     int class;
     QObject *obj;
@@ -1300,6 +1310,12 @@ static QObject *pci_get_dev_dict(PCIDevice *dev, int bus_num)
         pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_MEMORY |
                                 PCI_BASE_ADDRESS_MEM_PREFETCH));
 
+        if (dev->config[0x19] != 0) {
+            qdict = qobject_to_qdict(pci_bridge);
+            qdict_put_obj(qdict, "devices",
+                          pci_get_devices_list(bus, dev->config[0x19]));
+        }
+
         qdict = qobject_to_qdict(obj);
         qdict_put_obj(qdict, "pci_bridge", pci_bridge);
     }
@@ -1318,7 +1334,7 @@ static QObject *pci_get_devices_list(PCIBus *bus, int bus_num)
     for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         dev = bus->devices[devfn];
         if (dev) {
-            qlist_append_obj(dev_list, pci_get_dev_dict(dev, bus_num));
+            qlist_append_obj(dev_list, pci_get_dev_dict(dev, bus, bus_num));
         }
     }
 
@@ -1371,6 +1387,7 @@ static QObject *pci_get_bus_dict(PCIBus *bus, int bus_num)
  *      - "io_range": a QDict with memory range information
  *      - "memory_range": a QDict with memory range information
  *      - "prefetchable_range": a QDict with memory range information
+ *      - "devices": a QList of PCI devices if there's any attached (optional)
  * - "regions": a QList of QDicts, each QDict represents a
  *   memory region of this device
  *
