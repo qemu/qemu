@@ -998,7 +998,7 @@ exit:
     if (prealloc) {
         BlockDriverState *bs;
         bs = bdrv_new("");
-        bdrv_open(bs, filename, BDRV_O_CACHE_WB);
+        bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR);
         preallocate(bs);
         bdrv_close(bs);
     }

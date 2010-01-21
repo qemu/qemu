@@ -1116,7 +1116,7 @@ static int img_rebase(int argc, char **argv)
     if (!bs)
         error("Not enough memory");
 
-    flags = BRDV_O_FLAGS | (unsafe ? BDRV_O_NO_BACKING : 0);
+    flags = BRDV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
     if (bdrv_open2(bs, filename, flags, NULL) < 0) {
         error("Could not open '%s'", filename);
     }
@@ -1157,7 +1157,7 @@ static int img_rebase(int argc, char **argv)
         }
 
         bs_new_backing = bdrv_new("new_backing");
-        if (bdrv_open2(bs_new_backing, out_baseimg, BRDV_O_FLAGS,
+        if (bdrv_open2(bs_new_backing, out_baseimg, BRDV_O_FLAGS | BDRV_O_RDWR,
             new_backing_drv))
         {
             error("Could not open new backing file '%s'", backing_name);
