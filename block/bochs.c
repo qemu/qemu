@@ -116,11 +116,9 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
     struct bochs_header bochs;
     struct bochs_header_v1 header_v1;
 
-    fd = open(filename, O_RDWR | O_BINARY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
-        fd = open(filename, O_RDONLY | O_BINARY);
-        if (fd < 0)
-            return -1;
+        return -1;
     }
 
     bs->read_only = 1; // no write support yet
