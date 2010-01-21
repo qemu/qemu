@@ -288,8 +288,9 @@ static struct {
     { .driver = "isa-parallel",         .flag = &default_parallel  },
     { .driver = "isa-fdc",              .flag = &default_floppy    },
     { .driver = "ide-drive",            .flag = &default_cdrom     },
-    { .driver = "virtio-console-pci",   .flag = &default_virtcon   },
-    { .driver = "virtio-console-s390",  .flag = &default_virtcon   },
+    { .driver = "virtio-serial-pci",    .flag = &default_virtcon   },
+    { .driver = "virtio-serial-s390",   .flag = &default_virtcon   },
+    { .driver = "virtio-serial",        .flag = &default_virtcon   },
     { .driver = "VGA",                  .flag = &default_vga       },
     { .driver = "cirrus-vga",           .flag = &default_vga       },
     { .driver = "vmware-svga",          .flag = &default_vga       },
@@ -4629,6 +4630,7 @@ static int virtcon_parse(const char *devname)
 {
     static int index = 0;
     char label[32];
+    QemuOpts *bus_opts, *dev_opts;
 
     if (strcmp(devname, "none") == 0)
         return 0;
@@ -4636,6 +4638,13 @@ static int virtcon_parse(const char *devname)
         fprintf(stderr, "qemu: too many virtio consoles\n");
         exit(1);
     }
+
+    bus_opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
+    qemu_opt_set(bus_opts, "driver", "virtio-serial");
+
+    dev_opts = qemu_opts_create(&qemu_device_opts, NULL, 0);
+    qemu_opt_set(dev_opts, "driver", "virtconsole");
+
     snprintf(label, sizeof(label), "virtcon%d", index);
     virtcon_hds[index] = qemu_chr_open(label, devname, NULL);
     if (!virtcon_hds[index]) {
@@ -4643,6 +4652,8 @@ static int virtcon_parse(const char *devname)
                 devname, strerror(errno));
         return -1;
     }
+    qemu_opt_set(dev_opts, "chardev", label);
+
     index++;
     return 0;
 }
