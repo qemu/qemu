@@ -29,6 +29,16 @@ typedef struct QList {
 #define qlist_append(qlist, obj) \
         qlist_append_obj(qlist, QOBJECT(obj))
 
+#define QLIST_FOREACH_ENTRY(qlist, var)             \
+        for ((var) = ((qlist)->head.tqh_first);     \
+            (var);                                  \
+            (var) = ((var)->next.tqe_next))
+
+static inline QObject *qlist_entry_obj(const QListEntry *entry)
+{
+    return entry->value;
+}
+
 QList *qlist_new(void);
 QList *qlist_copy(QList *src);
 void qlist_append_obj(QList *qlist, QObject *obj);
