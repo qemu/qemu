@@ -142,6 +142,8 @@ elif check_define __i386__ ; then
   cpu="i386"
 elif check_define __x86_64__ ; then
   cpu="x86_64"
+elif check_define __arm__ ; then
+  cpu="armv4l"
 elif check_define __mips__ ; then
   if check_define __mips64 ; then
     cpu="mips64"
@@ -162,8 +164,6 @@ elif check_define _ARCH_PPC ; then
   else
     cpu="ppc"
   fi
-elif check_define __mips__ ; then
-  cpu="mips"
 else
   cpu=`uname -m`
 fi
@@ -976,7 +976,7 @@ else
     echo "Error: zlib check failed"
     echo "Make sure to have the zlib libs and headers installed."
     echo
-    exit 1
+    #~ exit 1
 fi
 fi
 
@@ -1496,7 +1496,7 @@ if test "$mingw32" != yes -a "$pthread" = no; then
   echo "Error: pthread check failed"
   echo "Make sure to have the pthread libs and headers installed."
   echo
-  exit 1
+  #~ exit 1
 fi
 fi
 
