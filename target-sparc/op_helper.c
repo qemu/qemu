@@ -3761,13 +3761,14 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
         else
             raise_exception(TT_DATA_ACCESS);
     }
-    env = saved_env;
 
     /* flush neverland mappings created during no-fault mode,
        so the sequential MMU faults report proper fault types */
     if (env->mmuregs[0] & MMU_NF) {
         tlb_flush(env, 1);
     }
+
+    env = saved_env;
 }
 #else
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
