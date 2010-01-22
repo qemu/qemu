@@ -128,7 +128,7 @@ static void apb_pci_config_writel(void *opaque, target_phys_addr_t addr,
 {
     APBState *s = opaque;
 
-    apb_pci_config_write(s, addr, val, 4);
+    apb_pci_config_write(s, addr, bswap32(val), 4);
 }
 
 static void apb_pci_config_writew(void *opaque, target_phys_addr_t addr,
@@ -136,7 +136,7 @@ static void apb_pci_config_writew(void *opaque, target_phys_addr_t addr,
 {
     APBState *s = opaque;
 
-    apb_pci_config_write(s, addr, val, 2);
+    apb_pci_config_write(s, addr, bswap16(val), 2);
 }
 
 static void apb_pci_config_writeb(void *opaque, target_phys_addr_t addr,
@@ -151,14 +151,14 @@ static uint32_t apb_pci_config_readl(void *opaque, target_phys_addr_t addr)
 {
     APBState *s = opaque;
 
-    return apb_pci_config_read(s, addr, 4);
+    return bswap32(apb_pci_config_read(s, addr, 4));
 }
 
 static uint32_t apb_pci_config_readw(void *opaque, target_phys_addr_t addr)
 {
     APBState *s = opaque;
 
-    return apb_pci_config_read(s, addr, 2);
+    return bswap16(apb_pci_config_read(s, addr, 2));
 }
 
 static uint32_t apb_pci_config_readb(void *opaque, target_phys_addr_t addr)
@@ -293,12 +293,10 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     sysbus_mmio_map(s, 0, special_base);
     /* pci_ioport */
     sysbus_mmio_map(s, 1, special_base + 0x2000000ULL);
-    /* mem_config: XXX should not exist */
+    /* pci_config */
     sysbus_mmio_map(s, 2, special_base + 0x1000000ULL);
-    /* mem_config: XXX size should be 4G-prom */
-    sysbus_mmio_map(s, 3, special_base + 0x1000010ULL);
     /* mem_data */
-    sysbus_mmio_map(s, 4, mem_base);
+    sysbus_mmio_map(s, 3, mem_base);
     d = FROM_SYSBUS(APBState, s);
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_apb_set_irq, pci_pbm_map_irq, pic,
@@ -326,7 +324,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
 {
 
     APBState *s;
-    int pci_mem_config, pci_mem_data, apb_config, pci_ioport, pci_config;
+    int pci_mem_data, apb_config, pci_ioport, pci_config;
 
     s = FROM_SYSBUS(APBState, dev);
     /* apb_config */
@@ -337,9 +335,6 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     pci_ioport = cpu_register_io_memory(pci_apb_ioread,
                                           pci_apb_iowrite, s);
     sysbus_init_mmio(dev, 0x10000ULL, pci_ioport);
-    /* mem_config  */
-    pci_mem_config = pci_host_conf_register_mmio(&s->host_state);
-    sysbus_init_mmio(dev, 0x10ULL, pci_mem_config);
     /* pci_config */
     pci_config = cpu_register_io_memory(apb_pci_config_reads,
                                         apb_pci_config_writes, s);
