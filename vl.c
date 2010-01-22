@@ -4658,6 +4658,46 @@ static int debugcon_parse(const char *devname)
     return 0;
 }
 
+static const QEMUOption *lookup_opt(int argc, char **argv,
+                                    const char **poptarg, int *poptind)
+{
+    const QEMUOption *popt;
+    int optind = *poptind;
+    char *r = argv[optind];
+    const char *optarg;
+
+    optind++;
+    /* Treat --foo the same as -foo.  */
+    if (r[1] == '-')
+        r++;
+    popt = qemu_options;
+    for(;;) {
+        if (!popt->name) {
+            fprintf(stderr, "%s: invalid option -- '%s'\n",
+                    argv[0], r);
+            exit(1);
+        }
+        if (!strcmp(popt->name, r + 1))
+            break;
+        popt++;
+    }
+    if (popt->flags & HAS_ARG) {
+        if (optind >= argc) {
+            fprintf(stderr, "%s: option '%s' requires an argument\n",
+                    argv[0], r);
+            exit(1);
+        }
+        optarg = argv[optind++];
+    } else {
+        optarg = NULL;
+    }
+
+    *poptarg = optarg;
+    *poptind = optind;
+
+    return popt;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4672,7 +4712,7 @@ int main(int argc, char **argv, char **envp)
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts;
     int optind;
-    const char *r, *optarg;
+    const char *optarg;
     const char *loadvm = NULL;
     QEMUMachine *machine;
     const char *cpu_model;
@@ -4753,38 +4793,12 @@ int main(int argc, char **argv, char **envp)
     for(;;) {
         if (optind >= argc)
             break;
-        r = argv[optind];
-        if (r[0] != '-') {
+        if (argv[optind][0] != '-') {
 	    hda_opts = drive_add(argv[optind++], HD_ALIAS, 0);
         } else {
             const QEMUOption *popt;
 
-            optind++;
-            /* Treat --foo the same as -foo.  */
-            if (r[1] == '-')
-                r++;
-            popt = qemu_options;
-            for(;;) {
-                if (!popt->name) {
-                    fprintf(stderr, "%s: invalid option -- '%s'\n",
-                            argv[0], r);
-                    exit(1);
-                }
-                if (!strcmp(popt->name, r + 1))
-                    break;
-                popt++;
-            }
-            if (popt->flags & HAS_ARG) {
-                if (optind >= argc) {
-                    fprintf(stderr, "%s: option '%s' requires an argument\n",
-                            argv[0], r);
-                    exit(1);
-                }
-                optarg = argv[optind++];
-            } else {
-                optarg = NULL;
-            }
-
+            popt = lookup_opt(argc, argv, &optarg, &optind);
             switch(popt->index) {
             case QEMU_OPTION_M:
                 machine = find_machine(optarg);
