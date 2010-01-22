@@ -23,7 +23,7 @@ configure: ;
 
 .PHONY: all clean cscope distclean doc dvi html \
 	info install install-doc install-tools \
-	recurse-all speed tar tarbin test tools build-all
+	pdf recurse-all speed tar tarbin test tools build-all
 
 $(call set-vpath, $(SRC_PATH):$(SRC_PATH)/hw)
 
@@ -175,7 +175,7 @@ distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
 	rm -f config-all-devices.mak
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
-	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
+	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pdf,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS) libhw32 libhw64 libuser; do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -239,14 +239,17 @@ cscope:
 	cscope -b
 
 # documentation
+%.dvi: %.texi
+	$(call quiet-command,texi2dvi -q -I . $<,"  GEN   $@")
+
 %.html: %.texi
 	$(call quiet-command,texi2html -I=. -monolithic -number $<,"  GEN   $@")
 
 %.info: %.texi
 	$(call quiet-command,makeinfo -I . $< -o $@,"  GEN   $@")
 
-%.dvi: %.texi
-	$(call quiet-command,texi2dvi -I . $<,"  GEN   $@")
+%.pdf: %.texi
+	$(call quiet-command,texi2pdf -q -I . $<,"  GEN   $@")
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
@@ -275,13 +278,14 @@ qemu-nbd.8: qemu-nbd.texi
 	  pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
 	  "  GEN   $@")
 
-info: qemu-doc.info qemu-tech.info
-
 dvi: qemu-doc.dvi qemu-tech.dvi
-
 html: qemu-doc.html qemu-tech.html
+info: qemu-doc.info qemu-tech.info
+pdf: qemu-doc.pdf qemu-tech.pdf
 
-qemu-doc.dvi qemu-doc.html qemu-doc.info: qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-monitor.texi qemu-img-cmds.texi
+qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
+	qemu-img.texi qemu-nbd.texi qemu-options.texi \
+	qemu-monitor.texi qemu-img-cmds.texi
 
 VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
