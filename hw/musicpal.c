@@ -67,7 +67,7 @@
 #define MP_AUDIO_IRQ            30
 
 /* Wolfson 8750 I2C address */
-#define MP_WM_ADDR              0x34
+#define MP_WM_ADDR              0x1A
 
 /* Ethernet register offsets */
 #define MP_ETH_SMIR             0x010
