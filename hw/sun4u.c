@@ -169,6 +169,7 @@ static unsigned long sun4u_load_kernel(const char *kernel_filename,
     int linux_boot;
     unsigned int i;
     long kernel_size;
+    uint8_t *ptr;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -211,9 +212,10 @@ static unsigned long sun4u_load_kernel(const char *kernel_filename,
         }
         if (*initrd_size > 0) {
             for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
-                if (ldl_phys(KERNEL_LOAD_ADDR + i) == 0x48647253) { // HdrS
-                    stl_phys(KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
-                    stl_phys(KERNEL_LOAD_ADDR + i + 20, *initrd_size);
+                ptr = rom_ptr(KERNEL_LOAD_ADDR + i);
+                if (ldl_p(ptr + 8) == 0x48647253) { /* HdrS */
+                    stl_p(ptr + 24, INITRD_LOAD_ADDR + KERNEL_LOAD_ADDR - 0x4000);
+                    stl_p(ptr + 28, *initrd_size);
                     break;
                 }
             }
