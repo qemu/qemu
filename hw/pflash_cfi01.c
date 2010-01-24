@@ -239,7 +239,6 @@ static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
 static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
                          uint32_t value, int width)
 {
-    target_phys_addr_t boff;
     uint8_t *p;
     uint8_t cmd;
 
@@ -250,12 +249,6 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
 
     /* Set the device in I/O access mode */
     cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
-    boff = offset & (pfl->sector_len - 1);
-
-    if (pfl->width == 2)
-        boff = boff >> 1;
-    else if (pfl->width == 4)
-        boff = boff >> 2;
 
     switch (pfl->wcycle) {
     case 0:
