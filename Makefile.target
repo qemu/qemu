@@ -277,7 +277,7 @@ obj-microblaze-y += xilinx_timer.o
 obj-microblaze-y += xilinx_uartlite.o
 obj-microblaze-y += xilinx_ethlite.o
 
-obj-microblaze-y += pflash_cfi02.o
+obj-microblaze-y += pflash_cfi01.o
 
 obj-microblaze-$(CONFIG_FDT) += device_tree.o
 

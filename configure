@@ -32,6 +32,7 @@ cpu=""
 prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
+sysconfdir=""
 sparc_cpu=""
 cross_prefix=""
 cc="gcc"
@@ -469,6 +470,8 @@ for opt do
   ;;
   --static) static="yes"
   ;;
+  --sysconfdir) sysconfdir="$optarg"
+  ;;
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
@@ -710,6 +713,7 @@ echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
+echo "  --sysconfdir=PATH        install config in PATH"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
 echo "  --enable-debug           enable common debug build options"
@@ -1875,8 +1879,12 @@ if test "$mingw32" = "yes" ; then
   fi
   mansuffix=""
   datasuffix=""
+  confsuffix=""
   docsuffix=""
   binsuffix=""
+  if test -z "$sysconfdir" ; then
+      sysconfdir="${prefix}"
+  fi
 else
   if test -z "$prefix" ; then
       prefix="/usr/local"
@@ -1885,6 +1893,9 @@ else
   datasuffix="/share/qemu"
   docsuffix="/share/doc/qemu"
   binsuffix="/bin"
+  if test -z "$sysconfdir" ; then
+      sysconfdir="${prefix}/etc"
+  fi
 fi
 
 echo "Install prefix    $prefix"
@@ -1963,6 +1974,11 @@ printf " '%s'" "$0" "$@" >> $config_host_mak
 echo >> $config_host_mak
 
 echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
+if test "$mingw32" = "yes" ; then
+  echo "CONFIG_QEMU_CONFDIR=\"$sysconfdir\"" >> $config_host_mak
+else
+  echo "CONFIG_QEMU_CONFDIR=\"${sysconfdir}/qemu\"" >> $config_host_mak
+fi
 
 case "$cpu" in
   i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|ppc|ppc64|s390|s390x|sparc|sparc64)
@@ -2221,6 +2237,7 @@ echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=\${prefix}$binsuffix" >> $config_host_mak
 echo "mandir=\${prefix}$mansuffix" >> $config_host_mak
 echo "datadir=\${prefix}$datasuffix" >> $config_host_mak
+echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "docdir=\${prefix}$docsuffix" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
