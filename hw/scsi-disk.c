@@ -81,7 +81,7 @@ static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
 
 static void scsi_remove_request(SCSIDiskReq *r)
 {
-    qemu_free(r->iov.iov_base);
+    qemu_vfree(r->iov.iov_base);
     scsi_req_free(&r->req);
 }
 

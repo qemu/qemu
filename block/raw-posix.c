@@ -591,7 +591,7 @@ static void raw_close(BlockDriverState *bs)
         close(s->fd);
         s->fd = -1;
         if (s->aligned_buf != NULL)
-            qemu_free(s->aligned_buf);
+            qemu_vfree(s->aligned_buf);
     }
 }
 
