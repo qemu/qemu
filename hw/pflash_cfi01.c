@@ -599,7 +599,11 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
     /* Max number of bytes in multi-bytes write */
-    pfl->cfi_table[0x2A] = 0x0B;
+    if (width == 1) {
+        pfl->cfi_table[0x2A] = 0x08;
+    } else {
+        pfl->cfi_table[0x2A] = 0x0B;
+    }
     pfl->cfi_table[0x2B] = 0x00;
     /* Number of erase block regions (uniform) */
     pfl->cfi_table[0x2C] = 0x01;
