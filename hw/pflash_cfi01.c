@@ -247,8 +247,10 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
     DPRINTF("%s: writing offset " TARGET_FMT_plx " value %08x width %d wcycle 0x%x\n",
             __func__, offset, value, width, pfl->wcycle);
 
-    /* Set the device in I/O access mode */
-    cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
+    if (!pfl->wcycle) {
+        /* Set the device in I/O access mode */
+        cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
+    }
 
     switch (pfl->wcycle) {
     case 0:
