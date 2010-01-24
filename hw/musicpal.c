@@ -238,14 +238,13 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
 {
     uint32_t desc_addr = s->tx_queue[queue_index];
     mv88w8618_tx_desc desc;
+    uint32_t next_desc;
     uint8_t buf[2048];
     int len;
 
-    if (!desc_addr) {
-        return;
-    }
     do {
         eth_tx_desc_get(desc_addr, &desc);
+        next_desc = desc.next;
         if (desc.cmdstat & MP_ETH_TX_OWN) {
             len = desc.bytes;
             if (len < 2048) {
@@ -256,7 +255,7 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
             s->icr |= 1 << (MP_ETH_IRQ_TXLO_BIT - queue_index);
             eth_tx_desc_put(desc_addr, &desc);
         }
-        desc_addr = desc.next;
+        desc_addr = next_desc;
     } while (desc_addr != s->tx_queue[queue_index]);
 }
 
