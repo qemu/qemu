@@ -467,7 +467,7 @@ int main(int argc, char **argv)
             }
         }
     } while (persistent || nb_fds > 1);
-    qemu_free(data);
+    qemu_vfree(data);
 
     close(sharing_fds[0]);
     bdrv_close(bs);
