@@ -113,7 +113,7 @@ struct ctrl_struct {
     uint16_t offset;
     uint8_t  state;
     struct   usb_ctrlrequest req;
-    uint8_t  buffer[2048];
+    uint8_t  buffer[8192];
 };
 
 struct USBAutoFilter {
