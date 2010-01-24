@@ -72,6 +72,7 @@ struct pflash_t {
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
     target_phys_addr_t counter;
+    unsigned int writeblock_size;
     QEMUTimer *timer;
     ram_addr_t off;
     int fl_mem;
@@ -206,7 +207,6 @@ static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
     switch (width) {
     case 1:
         p[offset] = value;
-        pflash_update(pfl, offset, 1);
         break;
     case 2:
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -216,7 +216,6 @@ static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
         p[offset] = value;
         p[offset + 1] = value >> 8;
 #endif
-        pflash_update(pfl, offset, 2);
         break;
     case 4:
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -230,7 +229,6 @@ static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
         p[offset + 2] = value >> 16;
         p[offset + 3] = value >> 24;
 #endif
-        pflash_update(pfl, offset, 4);
         break;
     }
 
@@ -307,6 +305,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
         case 0x40: /* Single Byte Program */
             DPRINTF("%s: Single Byte Program\n", __func__);
             pflash_data_write(pfl, offset, value, width);
+            pflash_update(pfl, offset, width);
             pfl->status |= 0x80; /* Ready! */
             pfl->wcycle = 0;
         break;
@@ -359,8 +358,13 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
             pfl->status |= 0x80;
 
             if (!pfl->counter) {
+                target_phys_addr_t mask = pfl->writeblock_size - 1;
+                mask = ~mask;
+
                 DPRINTF("%s: block write finished\n", __func__);
                 pfl->wcycle++;
+                /* Flush the entire write buffer onto backing storage.  */
+                pflash_update(pfl, offset & mask, pfl->writeblock_size);
             }
 
             pfl->counter--;
@@ -606,6 +610,8 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
     } else {
         pfl->cfi_table[0x2A] = 0x0B;
     }
+    pfl->writeblock_size = 1 << pfl->cfi_table[0x2A];
+
     pfl->cfi_table[0x2B] = 0x00;
     /* Number of erase block regions (uniform) */
     pfl->cfi_table[0x2C] = 0x01;
