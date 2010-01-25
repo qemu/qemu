@@ -44,4 +44,6 @@ void monitor_printf(Monitor *mon, const char *fmt, ...)
 void monitor_print_filename(Monitor *mon, const char *filename);
 void monitor_flush(Monitor *mon);
 
+typedef void (MonitorCompletion)(void *opaque, QObject *ret_data);
+
 #endif /* !MONITOR_H */
