@@ -75,6 +75,9 @@
  *              user mode accepts an optional G, g, M, m, K, k suffix,
  *              which multiplies the value by 2^30 for suffixes G and
  *              g, 2^20 for M and m, 2^10 for K and k
+ * 'T'          double
+ *              user mode accepts an optional ms, us, ns suffix,
+ *              which divides the value by 1e3, 1e6, 1e9, respectively
  * '/'          optional gdb-like print format (like "/10x")
  *
  * '?'          optional type (for all types, except '/')
@@ -3662,6 +3665,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
             }
             break;
         case 'b':
+        case 'T':
             {
                 double val;
 
@@ -3676,7 +3680,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 if (get_double(mon, &val, &p) < 0) {
                     goto fail;
                 }
-                if (*p) {
+                if (c == 'b' && *p) {
                     switch (*p) {
                     case 'K': case 'k':
                         val *= 1 << 10; p++; break;
@@ -3684,6 +3688,16 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                         val *= 1 << 20; p++; break;
                     case 'G': case 'g':
                         val *= 1 << 30; p++; break;
+                    }
+                }
+                if (c == 'T' && p[0] && p[1] == 's') {
+                    switch (*p) {
+                    case 'm':
+                        val /= 1e3; p += 2; break;
+                    case 'u':
+                        val /= 1e6; p += 2; break;
+                    case 'n':
+                        val /= 1e9; p += 2; break;
                     }
                 }
                 if (*p && !qemu_isspace(*p)) {
@@ -4119,6 +4133,7 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
             }
             break;
         case 'b':
+        case 'T':
             if (qobject_type(value) != QTYPE_QINT && qobject_type(value) != QTYPE_QFLOAT) {
                 qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "number");
                 return -1;
