@@ -68,6 +68,8 @@
  * 's'          string (accept optional quote)
  * 'i'          32 bit integer
  * 'l'          target long (32 or 64 bit)
+ * 'M'          just like 'l', except in user mode the value is
+ *              multiplied by 2^20 (think Mebibyte)
  * '/'          optional gdb-like print format (like "/10x")
  *
  * '?'          optional type (for all types, except '/')
