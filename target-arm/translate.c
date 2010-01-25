@@ -2455,6 +2455,57 @@ static int cp15_user_ok(uint32_t insn)
     return 0;
 }
 
+static int cp15_tls_load_store(CPUState *env, DisasContext *s, uint32_t insn, uint32_t rd)
+{
+    TCGv tmp;
+    int cpn = (insn >> 16) & 0xf;
+    int cpm = insn & 0xf;
+    int op = ((insn >> 5) & 7) | ((insn >> 18) & 0x38);
+
+    if (!arm_feature(env, ARM_FEATURE_V6K))
+        return 0;
+
+    if (!(cpn == 13 && cpm == 0))
+        return 0;
+
+    if (insn & ARM_CP_RW_BIT) {
+        tmp = new_tmp();
+        switch (op) {
+        case 2:
+            tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls1));
+            break;
+        case 3:
+            tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls2));
+            break;
+        case 4:
+            tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls3));
+            break;
+        default:
+            dead_tmp(tmp);
+            return 0;
+        }
+        store_reg(s, rd, tmp);
+
+    } else {
+        tmp = load_reg(s, rd);
+        switch (op) {
+        case 2:
+            tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls1));
+            break;
+        case 3:
+            tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls2));
+            break;
+        case 4:
+            tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls3));
+            break;
+        default:
+            return 0;
+        }
+        dead_tmp(tmp);
+    }
+    return 1;
+}
+
 /* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
    instruction is not defined.  */
 static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
@@ -2489,6 +2540,10 @@ static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
         return 0;
     }
     rd = (insn >> 12) & 0xf;
+
+    if (cp15_tls_load_store(env, s, insn, rd))
+        return 0;
+
     tmp2 = tcg_const_i32(insn);
     if (insn & ARM_CP_RW_BIT) {
         tmp = new_tmp();
