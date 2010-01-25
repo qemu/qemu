@@ -775,7 +775,7 @@ ETEXI
 
     {
         .name       = "migrate_set_downtime",
-        .args_type  = "value:s",
+        .args_type  = "value:T",
         .params     = "value",
         .help       = "set maximum tolerated downtime (in seconds) for migrations",
         .mhandler.cmd = do_migrate_set_downtime,

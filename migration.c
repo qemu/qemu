@@ -134,21 +134,10 @@ uint64_t migrate_max_downtime(void)
 
 void do_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 {
-    char *ptr;
     double d;
-    const char *value = qdict_get_str(qdict, "value");
 
-    d = strtod(value, &ptr);
-    if (!strcmp(ptr,"ms")) {
-        d *= 1000000;
-    } else if (!strcmp(ptr,"us")) {
-        d *= 1000;
-    } else if (!strcmp(ptr,"ns")) {
-    } else {
-        /* all else considered to be seconds */
-        d *= 1000000000;
-    }
-
+    d = qdict_get_double(qdict, "value") * 1e9;
+    d = MAX(0, MIN(UINT64_MAX, d));
     max_downtime = (uint64_t)d;
 }
 
