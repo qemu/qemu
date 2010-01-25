@@ -163,8 +163,14 @@ static void to_json(const QObject *obj, QString *str)
                     qstring_append(str, "\\t");
                     break;
                 default: {
-                    char buf[2] = { ptr[0], 0 };
-                    qstring_append(str, buf);
+                    if (ptr[0] <= 0x1F) {
+                        char escape[7];
+                        snprintf(escape, sizeof(escape), "\\u%04X", ptr[0]);
+                        qstring_append(str, escape);
+                    } else {
+                        char buf[2] = { ptr[0], 0 };
+                        qstring_append(str, buf);
+                    }
                     break;
                 }
                 }
