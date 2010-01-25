@@ -761,7 +761,7 @@ ETEXI
 
     {
         .name       = "migrate_set_speed",
-        .args_type  = "value:s",
+        .args_type  = "value:b",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
         .mhandler.cmd = do_migrate_set_speed,
