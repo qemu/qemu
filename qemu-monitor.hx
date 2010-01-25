@@ -764,7 +764,8 @@ ETEXI
         .args_type  = "value:b",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
-        .mhandler.cmd = do_migrate_set_speed,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate_set_speed,
     },
 
 STEXI
