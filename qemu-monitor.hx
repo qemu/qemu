@@ -778,7 +778,8 @@ ETEXI
         .args_type  = "value:T",
         .params     = "value",
         .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .mhandler.cmd = do_migrate_set_downtime,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate_set_downtime,
     },
 
 STEXI

@@ -132,7 +132,8 @@ uint64_t migrate_max_downtime(void)
     return max_downtime;
 }
 
-void do_migrate_set_downtime(Monitor *mon, const QDict *qdict)
+void do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
+                             QObject **ret_data)
 {
     double d;
 
