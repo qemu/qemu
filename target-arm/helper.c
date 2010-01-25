@@ -511,7 +511,6 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
 uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
-    return 0;
 }
 
 /* These should probably raise undefined insn exceptions.  */
@@ -1491,15 +1490,6 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
               tlb_flush(env, 0);
             env->cp15.c13_context = val;
             break;
-        case 2:
-            env->cp15.c13_tls1 = val;
-            break;
-        case 3:
-            env->cp15.c13_tls2 = val;
-            break;
-        case 4:
-            env->cp15.c13_tls3 = val;
-            break;
         default:
             goto bad_reg;
         }
@@ -1779,12 +1769,6 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
             return env->cp15.c13_fcse;
         case 1:
             return env->cp15.c13_context;
-        case 2:
-            return env->cp15.c13_tls1;
-        case 3:
-            return env->cp15.c13_tls2;
-        case 4:
-            return env->cp15.c13_tls3;
         default:
             goto bad_reg;
         }
