@@ -931,6 +931,23 @@ int64_t qemu_get_clock(QEMUClock *clock)
     }
 }
 
+int64_t qemu_get_clock_ns(QEMUClock *clock)
+{
+    switch(clock->type) {
+    case QEMU_CLOCK_REALTIME:
+        return get_clock();
+    default:
+    case QEMU_CLOCK_VIRTUAL:
+        if (use_icount) {
+            return cpu_get_icount();
+        } else {
+            return cpu_get_clock();
+        }
+    case QEMU_CLOCK_HOST:
+        return get_clock_realtime();
+    }
+}
+
 static void init_clocks(void)
 {
     init_get_clock();
@@ -2866,7 +2883,7 @@ static int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     }
 
     bytes_transferred_last = bytes_transferred;
-    bwidth = get_clock();
+    bwidth = qemu_get_clock_ns(rt_clock);
 
     while (!qemu_file_rate_limit(f)) {
         int ret;
@@ -2877,7 +2894,7 @@ static int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
             break;
     }
 
-    bwidth = get_clock() - bwidth;
+    bwidth = qemu_get_clock_ns(rt_clock) - bwidth;
     bwidth = (bytes_transferred - bytes_transferred_last) / bwidth;
 
     /* if we haven't transferred anything this round, force expected_time to a

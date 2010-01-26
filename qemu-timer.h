@@ -25,6 +25,7 @@ extern QEMUClock *vm_clock;
 extern QEMUClock *host_clock;
 
 int64_t qemu_get_clock(QEMUClock *clock);
+int64_t qemu_get_clock_ns(QEMUClock *clock);
 
 QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque);
 void qemu_free_timer(QEMUTimer *ts);
