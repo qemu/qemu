@@ -42,6 +42,7 @@ typedef struct BlkMigDevState {
     int bulk_completed;
     int shared_base;
     int64_t cur_sector;
+    int64_t cur_dirty;
     int64_t completed_sectors;
     int64_t total_sectors;
     int64_t dirty;
@@ -70,6 +71,7 @@ typedef struct BlkMigState {
     int64_t total_sector_sum;
     int prev_progress;
     int bulk_completed;
+    int dirty_iterations;
 } BlkMigState;
 
 static BlkMigState block_mig_state;
@@ -183,6 +185,7 @@ static int mig_save_device_bulk(Monitor *mon, QEMUFile *f,
         goto error;
     }
     block_mig_state.submitted++;
+
     bdrv_reset_dirty(bs, cur_sector, nr_sectors);
     bmds->cur_sector = cur_sector + nr_sectors;
 
@@ -281,39 +284,88 @@ static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f)
     return ret;
 }
 
-#define MAX_NUM_BLOCKS 4
-
-static void blk_mig_save_dirty_blocks(Monitor *mon, QEMUFile *f)
+static void blk_mig_reset_dirty_cursor(void)
 {
     BlkMigDevState *bmds;
-    BlkMigBlock blk;
-    int64_t sector;
-
-    blk.buf = qemu_malloc(BLOCK_SIZE);
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        for (sector = 0; sector < bmds->cur_sector;) {
-            if (bdrv_get_dirty(bmds->bs, sector)) {
-                if (bdrv_read(bmds->bs, sector, blk.buf,
-                              BDRV_SECTORS_PER_DIRTY_CHUNK) < 0) {
-                    monitor_printf(mon, "Error reading sector %" PRId64 "\n",
-                                   sector);
-                    qemu_file_set_error(f);
-                    qemu_free(blk.buf);
-                    return;
-                }
-                blk.bmds = bmds;
-                blk.sector = sector;
-                blk_send(f, &blk);
+        bmds->cur_dirty = 0;
+    }
+}
 
-                bdrv_reset_dirty(bmds->bs, sector,
-                                 BDRV_SECTORS_PER_DIRTY_CHUNK);
+static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
+                                 BlkMigDevState *bmds, int is_async)
+{
+    BlkMigBlock *blk;
+    int64_t total_sectors = bmds->total_sectors;
+    int64_t sector;
+    int nr_sectors;
+
+    for (sector = bmds->cur_dirty; sector < bmds->total_sectors;) {
+        if (bdrv_get_dirty(bmds->bs, sector)) {
+
+            if (total_sectors - sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
+                nr_sectors = total_sectors - sector;
+            } else {
+                nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
-            sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
+            blk = qemu_malloc(sizeof(BlkMigBlock));
+            blk->buf = qemu_malloc(BLOCK_SIZE);
+            blk->bmds = bmds;
+            blk->sector = sector;
+
+            if(is_async) {
+                blk->iov.iov_base = blk->buf;
+                blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
+                qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
+
+                blk->aiocb = bdrv_aio_readv(bmds->bs, sector, &blk->qiov,
+                                            nr_sectors, blk_mig_read_cb, blk);
+                if (!blk->aiocb) {
+                    goto error;
+                }
+                block_mig_state.submitted++;
+            } else {
+                if (bdrv_read(bmds->bs, sector, blk->buf,
+                              nr_sectors) < 0) {
+                    goto error;
+                }
+                blk_send(f, blk);
+
+                qemu_free(blk->buf);
+                qemu_free(blk);
+            }
+
+            bdrv_reset_dirty(bmds->bs, sector, nr_sectors);
+            break;
+        }
+        sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
+        bmds->cur_dirty = sector;
+    }
+
+    return (bmds->cur_dirty >= bmds->total_sectors);
+
+ error:
+    monitor_printf(mon, "Error reading sector %" PRId64 "\n", sector);
+    qemu_file_set_error(f);
+    qemu_free(blk->buf);
+    qemu_free(blk);
+    return 0;
+}
+
+static int blk_mig_save_dirty_block(Monitor *mon, QEMUFile *f, int is_async)
+{
+    BlkMigDevState *bmds;
+    int ret = 0;
+
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        if(mig_save_device_dirty(mon, f, bmds, is_async) == 0) {
+            ret = 1;
+            break;
         }
     }
 
-    qemu_free(blk.buf);
+    return ret;
 }
 
 static void flush_blks(QEMUFile* f)
@@ -404,28 +456,39 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         return 0;
     }
 
-    /* control the rate of transfer */
-    while ((block_mig_state.submitted +
-            block_mig_state.read_done) * BLOCK_SIZE <
-           qemu_file_get_rate_limit(f)) {
-        if (blk_mig_save_bulked_block(mon, f) == 0) {
-            /* finished saving bulk on all devices */
-            block_mig_state.bulk_completed = 1;
-            break;
+    blk_mig_reset_dirty_cursor();
+
+    if(stage == 2) {
+        /* control the rate of transfer */
+        while ((block_mig_state.submitted +
+                block_mig_state.read_done) * BLOCK_SIZE <
+               qemu_file_get_rate_limit(f)) {
+            if (block_mig_state.bulk_completed == 0) {
+                /* first finish the bulk phase */
+                if (blk_mig_save_bulked_block(mon, f) == 0) {
+                    /* finish saving bulk on all devices */
+                    block_mig_state.bulk_completed = 1;
+                }
+            } else {
+                if (blk_mig_save_dirty_block(mon, f, 1) == 0) {
+                    /* no more dirty blocks */
+                    break;
+                }
+            }
         }
-    }
 
-    flush_blks(f);
+        flush_blks(f);
 
-    if (qemu_file_has_error(f)) {
-        blk_mig_cleanup(mon);
-        return 0;
+        if (qemu_file_has_error(f)) {
+            blk_mig_cleanup(mon);
+            return 0;
+        }
     }
 
     if (stage == 3) {
         /* we know for sure that save bulk is completed */
 
-        blk_mig_save_dirty_blocks(mon, f);
+        while(blk_mig_save_dirty_block(mon, f, 0) != 0);
         blk_mig_cleanup(mon);
 
         /* report completion */
