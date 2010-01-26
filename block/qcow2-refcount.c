@@ -168,9 +168,12 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
 
     cpu_to_be64w((uint64_t*)data, table_offset);
     cpu_to_be32w((uint32_t*)(data + 8), refcount_table_clusters);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
-                    data, sizeof(data)) != sizeof(data))
+    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
+                    data, sizeof(data));
+    if (ret != sizeof(data)) {
         goto fail;
+    }
+
     qemu_free(s->refcount_table);
     old_table_offset = s->refcount_table_offset;
     old_table_size = s->refcount_table_size;
@@ -183,7 +186,7 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     return 0;
  fail:
     qemu_free(new_table);
-    return -EIO;
+    return ret < 0 ? ret : -EIO;
 }
 
 
@@ -266,22 +269,26 @@ static int write_refcount_block_entries(BDRVQcowState *s,
 }
 
 /* XXX: cache several refcount block clusters ? */
-static int update_refcount(BlockDriverState *bs,
-                            int64_t offset, int64_t length,
-                            int addend)
+static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
+    int64_t offset, int64_t length, int addend)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t start, last, cluster_offset;
     int64_t refcount_block_offset = 0;
     int64_t table_index = -1, old_table_index;
     int first_index = -1, last_index = -1;
+    int ret;
 
 #ifdef DEBUG_ALLOC2
     printf("update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
            offset, length, addend);
 #endif
-    if (length <= 0)
+    if (length < 0) {
         return -EINVAL;
+    } else if (length == 0) {
+        return 0;
+    }
+
     start = offset & ~(s->cluster_size - 1);
     last = (offset + length - 1) & ~(s->cluster_size - 1);
     for(cluster_offset = start; cluster_offset <= last;
@@ -289,6 +296,7 @@ static int update_refcount(BlockDriverState *bs,
     {
         int block_index, refcount;
         int64_t cluster_index = cluster_offset >> s->cluster_bits;
+        int64_t new_block;
 
         /* Only write refcount block to disk when we are done with it */
         old_table_index = table_index;
@@ -306,10 +314,12 @@ static int update_refcount(BlockDriverState *bs,
         }
 
         /* Load the refcount block and allocate it if needed */
-        refcount_block_offset = alloc_refcount_block(bs, cluster_index);
-        if (refcount_block_offset < 0) {
-            return refcount_block_offset;
+        new_block = alloc_refcount_block(bs, cluster_index);
+        if (new_block < 0) {
+            ret = new_block;
+            goto fail;
         }
+        refcount_block_offset = new_block;
 
         /* we can update the count and save it */
         block_index = cluster_index &
@@ -323,24 +333,38 @@ static int update_refcount(BlockDriverState *bs,
 
         refcount = be16_to_cpu(s->refcount_block_cache[block_index]);
         refcount += addend;
-        if (refcount < 0 || refcount > 0xffff)
-            return -EINVAL;
+        if (refcount < 0 || refcount > 0xffff) {
+            ret = -EINVAL;
+            goto fail;
+        }
         if (refcount == 0 && cluster_index < s->free_cluster_index) {
             s->free_cluster_index = cluster_index;
         }
         s->refcount_block_cache[block_index] = cpu_to_be16(refcount);
     }
 
+    ret = 0;
+fail:
+
     /* Write last changed block to disk */
     if (refcount_block_offset != 0) {
         if (write_refcount_block_entries(s, refcount_block_offset,
             first_index, last_index) < 0)
         {
-            return -EIO;
+            return ret < 0 ? ret : -EIO;
         }
     }
 
-    return 0;
+    /*
+     * Try do undo any updates if an error is returned (This may succeed in
+     * some cases like ENOSPC for allocating a new refcount block)
+     */
+    if (ret < 0) {
+        int dummy;
+        dummy = update_refcount(bs, offset, cluster_offset - offset, -addend);
+    }
+
+    return ret;
 }
 
 /* addend must be 1 or -1 */
@@ -390,9 +414,13 @@ retry:
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
 {
     int64_t offset;
+    int ret;
 
     offset = alloc_clusters_noref(bs, size);
-    update_refcount(bs, offset, size, 1);
+    ret = update_refcount(bs, offset, size, 1);
+    if (ret < 0) {
+        return ret;
+    }
     return offset;
 }
 
@@ -407,6 +435,9 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     assert(size > 0 && size <= s->cluster_size);
     if (s->free_byte_offset == 0) {
         s->free_byte_offset = qcow2_alloc_clusters(bs, s->cluster_size);
+        if (s->free_byte_offset < 0) {
+            return s->free_byte_offset;
+        }
     }
  redo:
     free_in_cluster = s->cluster_size -
@@ -422,6 +453,9 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
             update_cluster_refcount(bs, offset >> s->cluster_bits, 1);
     } else {
         offset = qcow2_alloc_clusters(bs, s->cluster_size);
+        if (offset < 0) {
+            return offset;
+        }
         cluster_offset = s->free_byte_offset & ~(s->cluster_size - 1);
         if ((cluster_offset + s->cluster_size) == offset) {
             /* we are lucky: contiguous data */
@@ -439,7 +473,13 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size)
 {
-    update_refcount(bs, offset, size, -1);
+    int ret;
+
+    ret = update_refcount(bs, offset, size, -1);
+    if (ret < 0) {
+        fprintf(stderr, "qcow2_free_clusters failed: %s\n", strerror(-ret));
+        abort();
+    }
 }
 
 /*
@@ -548,9 +588,15 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     if (offset & QCOW_OFLAG_COMPRESSED) {
                         nb_csectors = ((offset >> s->csize_shift) &
                                        s->csize_mask) + 1;
-                        if (addend != 0)
-                            update_refcount(bs, (offset & s->cluster_offset_mask) & ~511,
-                                            nb_csectors * 512, addend);
+                        if (addend != 0) {
+                            int ret;
+                            ret = update_refcount(bs,
+                                (offset & s->cluster_offset_mask) & ~511,
+                                nb_csectors * 512, addend);
+                            if (ret < 0) {
+                                goto fail;
+                            }
+                        }
                         /* compressed clusters are never modified */
                         refcount = 2;
                     } else {

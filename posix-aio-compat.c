@@ -501,8 +501,11 @@ static void aio_signal_handler(int signum)
 {
     if (posix_aio_state) {
         char byte = 0;
+        ssize_t ret;
 
-        write(posix_aio_state->wfd, &byte, sizeof(byte));
+        ret = write(posix_aio_state->wfd, &byte, sizeof(byte));
+        if (ret < 0 && errno != EAGAIN)
+            die("write()");
     }
 
     qemu_service_io();

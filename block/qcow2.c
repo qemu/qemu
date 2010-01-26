@@ -563,7 +563,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     acb->hd_aiocb = NULL;
 
     if (ret >= 0) {
-        ret = qcow2_alloc_cluster_link_l2(bs, acb->cluster_offset, &acb->l2meta);
+        ret = qcow2_alloc_cluster_link_l2(bs, &acb->l2meta);
     }
 
     run_dependent_requests(&acb->l2meta);
@@ -587,21 +587,23 @@ static void qcow_aio_write_cb(void *opaque, int ret)
         n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors)
         n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
 
-    acb->cluster_offset = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
-                                          index_in_cluster,
-                                          n_end, &acb->n, &acb->l2meta);
+    ret = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
+        index_in_cluster, n_end, &acb->n, &acb->l2meta);
+    if (ret < 0) {
+        goto done;
+    }
+
+    acb->cluster_offset = acb->l2meta.cluster_offset;
 
     /* Need to wait for another request? If so, we are done for now. */
-    if (!acb->cluster_offset && acb->l2meta.depends_on != NULL) {
+    if (acb->l2meta.nb_clusters == 0 && acb->l2meta.depends_on != NULL) {
         QLIST_INSERT_HEAD(&acb->l2meta.depends_on->dependent_requests,
             acb, next_depend);
         return;
     }
 
-    if (!acb->cluster_offset || (acb->cluster_offset & 511) != 0) {
-        ret = -EIO;
-        goto done;
-    }
+    assert((acb->cluster_offset & 511) == 0);
+
     if (s->crypt_method) {
         if (!acb->cluster_data) {
             acb->cluster_data = qemu_mallocz(QCOW_MAX_CRYPT_CLUSTERS *
@@ -784,27 +786,27 @@ static int get_bits_from_size(size_t size)
 static int preallocate(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    uint64_t cluster_offset = 0;
     uint64_t nb_sectors;
     uint64_t offset;
     int num;
+    int ret;
     QCowL2Meta meta;
 
     nb_sectors = bdrv_getlength(bs) >> 9;
     offset = 0;
     QLIST_INIT(&meta.dependent_requests);
+    meta.cluster_offset = 0;
 
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);
-        cluster_offset = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num,
-            &meta);
+        ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num, &meta);
 
-        if (cluster_offset == 0) {
+        if (ret < 0) {
             return -1;
         }
 
-        if (qcow2_alloc_cluster_link_l2(bs, cluster_offset, &meta) < 0) {
-            qcow2_free_any_clusters(bs, cluster_offset, meta.nb_clusters);
+        if (qcow2_alloc_cluster_link_l2(bs, &meta) < 0) {
+            qcow2_free_any_clusters(bs, meta.cluster_offset, meta.nb_clusters);
             return -1;
         }
 
@@ -823,10 +825,10 @@ static int preallocate(BlockDriverState *bs)
      * all of the allocated clusters (otherwise we get failing reads after
      * EOF). Extend the image to the last allocated sector.
      */
-    if (cluster_offset != 0) {
+    if (meta.cluster_offset != 0) {
         uint8_t buf[512];
         memset(buf, 0, 512);
-        bdrv_write(s->hd, (cluster_offset >> 9) + num - 1, buf, 1);
+        bdrv_write(s->hd, (meta.cluster_offset >> 9) + num - 1, buf, 1);
     }
 
     return 0;
@@ -844,7 +846,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
     uint64_t tmp, offset;
     QCowCreateState s1, *s = &s1;
     QCowExtension ext_bf = {0, 0};
-
+    int ret;
 
     memset(s, 0, sizeof(*s));
 
@@ -927,7 +929,11 @@ static int qcow_create2(const char *filename, int64_t total_size,
         ref_clusters * s->cluster_size);
 
     /* write all the data */
-    write(fd, &header, sizeof(header));
+    ret = qemu_write_full(fd, &header, sizeof(header));
+    if (ret != sizeof(header)) {
+        ret = -1;
+        goto exit;
+    }
     if (backing_file) {
         if (backing_format_len) {
             char zero[16];
@@ -936,25 +942,56 @@ static int qcow_create2(const char *filename, int64_t total_size,
             memset(zero, 0, sizeof(zero));
             cpu_to_be32s(&ext_bf.magic);
             cpu_to_be32s(&ext_bf.len);
-            write(fd, &ext_bf, sizeof(ext_bf));
-            write(fd, backing_format, backing_format_len);
+            ret = qemu_write_full(fd, &ext_bf, sizeof(ext_bf));
+            if (ret != sizeof(ext_bf)) {
+                ret = -1;
+                goto exit;
+            }
+            ret = qemu_write_full(fd, backing_format, backing_format_len);
+            if (ret != backing_format_len) {
+                ret = -1;
+                goto exit;
+            }
             if (padding > 0) {
-                write(fd, zero, padding);
+                ret = qemu_write_full(fd, zero, padding);
+                if (ret != padding) {
+                    ret = -1;
+                    goto exit;
+                }
             }
         }
-        write(fd, backing_file, backing_filename_len);
+        ret = qemu_write_full(fd, backing_file, backing_filename_len);
+        if (ret != backing_filename_len) {
+            ret = -1;
+            goto exit;
+        }
     }
     lseek(fd, s->l1_table_offset, SEEK_SET);
     tmp = 0;
     for(i = 0;i < l1_size; i++) {
-        write(fd, &tmp, sizeof(tmp));
+        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
+        if (ret != sizeof(tmp)) {
+            ret = -1;
+            goto exit;
+        }
     }
     lseek(fd, s->refcount_table_offset, SEEK_SET);
-    write(fd, s->refcount_table, s->cluster_size);
+    ret = qemu_write_full(fd, s->refcount_table, s->cluster_size);
+    if (ret != s->cluster_size) {
+        ret = -1;
+        goto exit;
+    }
 
     lseek(fd, s->refcount_block_offset, SEEK_SET);
-    write(fd, s->refcount_block, ref_clusters * s->cluster_size);
+    ret = qemu_write_full(fd, s->refcount_block,
+		    ref_clusters * s->cluster_size);
+    if (ret != s->cluster_size) {
+        ret = -1;
+        goto exit;
+    }
 
+    ret = 0;
+exit:
     qemu_free(s->refcount_table);
     qemu_free(s->refcount_block);
     close(fd);
@@ -968,7 +1005,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
         bdrv_close(bs);
     }
 
-    return 0;
+    return ret;
 }
 
 static int qcow_create(const char *filename, QEMUOptionParameter *options)
@@ -1165,12 +1202,13 @@ static int qcow_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 {
     BDRVQcowState *s = bs->opaque;
     int growable = bs->growable;
+    int ret;
 
     bs->growable = 1;
-    bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
+    ret = bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
 
-    return size;
+    return ret;
 }
 
 static int qcow_load_vmstate(BlockDriverState *bs, uint8_t *buf,

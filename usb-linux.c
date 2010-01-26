@@ -1201,9 +1201,8 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
              device_file);
     f = fopen(filename, "r");
     if (f) {
-        fgets(line, line_size, f);
+        ret = fgets(line, line_size, f) != NULL;
         fclose(f);
-        ret = 1;
 #if 0
     } else {
         if (mon)

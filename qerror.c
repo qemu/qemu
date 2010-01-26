@@ -73,8 +73,16 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "No file descriptor supplied via SCM_RIGHTS",
     },
     {
+        .error_fmt = QERR_OPEN_FILE_FAILED,
+        .desc      = "Could not open '%(filename)'",
+    },
+    {
         .error_fmt = QERR_INVALID_BLOCK_FORMAT,
         .desc      = "Invalid block format %(name)",
+    },
+    {
+        .error_fmt = QERR_INVALID_CPU_INDEX,
+        .desc      = "Invalid CPU index",
     },
     {
         .error_fmt = QERR_INVALID_PARAMETER,

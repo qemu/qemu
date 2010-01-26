@@ -135,6 +135,7 @@ struct QCowAIOCB;
 typedef struct QCowL2Meta
 {
     uint64_t offset;
+    uint64_t cluster_offset;
     int n_start;
     int nb_available;
     int nb_clusters;
@@ -199,8 +200,7 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
                                          uint64_t offset,
                                          int compressed_size);
 
-int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
-    QCowL2Meta *m);
+int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
 
 /* qcow2-snapshot.c functions */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);

@@ -64,8 +64,14 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_FD_NOT_SUPPLIED \
     "{ 'class': 'FdNotSupplied', 'data': {} }"
 
+#define QERR_OPEN_FILE_FAILED \
+    "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
+
 #define QERR_INVALID_BLOCK_FORMAT \
     "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
+
+#define QERR_INVALID_CPU_INDEX \
+    "{ 'class': 'InvalidCPUIndex', 'data': {} }"
 
 #define QERR_INVALID_PARAMETER \
     "{ 'class': 'InvalidParameter', 'data': { 'name': %s } }"
