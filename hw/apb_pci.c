@@ -365,6 +365,7 @@ static PCIDeviceInfo pbm_pci_host_info = {
     .qdev.name = "pbm",
     .qdev.size = sizeof(PCIDevice),
     .init      = pbm_pci_host_init,
+    .header_type  = PCI_HEADER_TYPE_BRIDGE,
 };
 
 static void pbm_register_devices(void)

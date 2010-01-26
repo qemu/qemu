@@ -334,8 +334,8 @@ typedef struct QCowAIOCB {
     QEMUIOVector *qiov;
     uint8_t *buf;
     void *orig_buf;
-    int nb_sectors;
-    int n;
+    int remaining_sectors;
+    int cur_nr_sectors;	/* number of sectors in current iteration */
     uint64_t cluster_offset;
     uint8_t *cluster_data;
     BlockDriverAIOCB *hd_aiocb;
@@ -401,38 +401,38 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     } else {
         if (s->crypt_method) {
             qcow2_encrypt_sectors(s, acb->sector_num, acb->buf, acb->buf,
-                            acb->n, 0,
+                            acb->cur_nr_sectors, 0,
                             &s->aes_decrypt_key);
         }
     }
 
-    acb->nb_sectors -= acb->n;
-    acb->sector_num += acb->n;
-    acb->buf += acb->n * 512;
+    acb->remaining_sectors -= acb->cur_nr_sectors;
+    acb->sector_num += acb->cur_nr_sectors;
+    acb->buf += acb->cur_nr_sectors * 512;
 
-    if (acb->nb_sectors == 0) {
+    if (acb->remaining_sectors == 0) {
         /* request completed */
         ret = 0;
         goto done;
     }
 
     /* prepare next AIO request */
-    acb->n = acb->nb_sectors;
-    acb->cluster_offset =
-        qcow2_get_cluster_offset(bs, acb->sector_num << 9, &acb->n);
+    acb->cur_nr_sectors = acb->remaining_sectors;
+    acb->cluster_offset = qcow2_get_cluster_offset(bs, acb->sector_num << 9,
+                                                   &acb->cur_nr_sectors);
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
 
     if (!acb->cluster_offset) {
         if (bs->backing_hd) {
             /* read from the base image */
             n1 = qcow2_backing_read1(bs->backing_hd, acb->sector_num,
-                               acb->buf, acb->n);
+                               acb->buf, acb->cur_nr_sectors);
             if (n1 > 0) {
                 acb->hd_iov.iov_base = (void *)acb->buf;
-                acb->hd_iov.iov_len = acb->n * 512;
+                acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
                 qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
                 acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
-                                    &acb->hd_qiov, acb->n,
+                                    &acb->hd_qiov, acb->cur_nr_sectors,
 				    qcow_aio_read_cb, acb);
                 if (acb->hd_aiocb == NULL)
                     goto done;
@@ -443,7 +443,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
             }
         } else {
             /* Note: in this case, no need to wait */
-            memset(acb->buf, 0, 512 * acb->n);
+            memset(acb->buf, 0, 512 * acb->cur_nr_sectors);
             ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
             if (ret < 0)
                 goto done;
@@ -452,8 +452,8 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         /* add AIO support for compressed blocks ? */
         if (qcow2_decompress_cluster(s, acb->cluster_offset) < 0)
             goto done;
-        memcpy(acb->buf,
-               s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
+        memcpy(acb->buf, s->cluster_cache + index_in_cluster * 512,
+               512 * acb->cur_nr_sectors);
         ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
         if (ret < 0)
             goto done;
@@ -464,11 +464,12 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         }
 
         acb->hd_iov.iov_base = (void *)acb->buf;
-        acb->hd_iov.iov_len = acb->n * 512;
+        acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_readv(s->hd,
                             (acb->cluster_offset >> 9) + index_in_cluster,
-                            &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
+                            &acb->hd_qiov, acb->cur_nr_sectors,
+                            qcow_aio_read_cb, acb);
         if (acb->hd_aiocb == NULL)
             goto done;
     }
@@ -502,8 +503,8 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
     } else {
         acb->buf = (uint8_t *)qiov->iov->iov_base;
     }
-    acb->nb_sectors = nb_sectors;
-    acb->n = 0;
+    acb->remaining_sectors = nb_sectors;
+    acb->cur_nr_sectors = 0;
     acb->cluster_offset = 0;
     acb->l2meta.nb_clusters = 0;
     QLIST_INIT(&acb->l2meta.dependent_requests);
@@ -571,24 +572,24 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     if (ret < 0)
         goto done;
 
-    acb->nb_sectors -= acb->n;
-    acb->sector_num += acb->n;
-    acb->buf += acb->n * 512;
+    acb->remaining_sectors -= acb->cur_nr_sectors;
+    acb->sector_num += acb->cur_nr_sectors;
+    acb->buf += acb->cur_nr_sectors * 512;
 
-    if (acb->nb_sectors == 0) {
+    if (acb->remaining_sectors == 0) {
         /* request completed */
         ret = 0;
         goto done;
     }
 
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
-    n_end = index_in_cluster + acb->nb_sectors;
+    n_end = index_in_cluster + acb->remaining_sectors;
     if (s->crypt_method &&
         n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors)
         n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
 
     ret = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
-        index_in_cluster, n_end, &acb->n, &acb->l2meta);
+        index_in_cluster, n_end, &acb->cur_nr_sectors, &acb->l2meta);
     if (ret < 0) {
         goto done;
     }
@@ -610,17 +611,17 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                              s->cluster_size);
         }
         qcow2_encrypt_sectors(s, acb->sector_num, acb->cluster_data, acb->buf,
-                        acb->n, 1, &s->aes_encrypt_key);
+                        acb->cur_nr_sectors, 1, &s->aes_encrypt_key);
         src_buf = acb->cluster_data;
     } else {
         src_buf = acb->buf;
     }
     acb->hd_iov.iov_base = (void *)src_buf;
-    acb->hd_iov.iov_len = acb->n * 512;
+    acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
     qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
     acb->hd_aiocb = bdrv_aio_writev(s->hd,
                                     (acb->cluster_offset >> 9) + index_in_cluster,
-                                    &acb->hd_qiov, acb->n,
+                                    &acb->hd_qiov, acb->cur_nr_sectors,
                                     qcow_aio_write_cb, acb);
     if (acb->hd_aiocb == NULL)
         goto done;
@@ -1000,7 +1001,7 @@ exit:
     if (prealloc) {
         BlockDriverState *bs;
         bs = bdrv_new("");
-        bdrv_open(bs, filename, BDRV_O_CACHE_WB);
+        bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR);
         preallocate(bs);
         bdrv_close(bs);
     }

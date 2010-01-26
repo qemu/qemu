@@ -128,7 +128,7 @@ user-obj-y += cutils.o cache-utils.o
 
 hw-obj-y =
 hw-obj-y += loader.o
-hw-obj-y += virtio.o virtio-serial.o
+hw-obj-y += virtio.o virtio-console.o
 hw-obj-y += fw_cfg.o
 hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ECC) += ecc.o

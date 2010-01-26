@@ -430,10 +430,16 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
             drv = find_image_format(filename);
         }
     }
+
     if (!drv) {
         ret = -ENOENT;
         goto unlink_and_fail;
     }
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
+        ret = -ENOTSUP;
+        goto unlink_and_fail;
+    }
+
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
 
@@ -455,20 +461,12 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     } else {
         open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
     }
-    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
-        ret = -ENOTSUP;
-    } else {
-        ret = drv->bdrv_open(bs, filename, open_flags);
-    }
+
+    ret = drv->bdrv_open(bs, filename, open_flags);
     if (ret < 0) {
-        qemu_free(bs->opaque);
-        bs->opaque = NULL;
-        bs->drv = NULL;
-    unlink_and_fail:
-        if (bs->is_temporary)
-            unlink(filename);
-        return ret;
+        goto free_and_fail;
     }
+
     if (drv->bdrv_getlength) {
         bs->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
     }
@@ -501,6 +499,15 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
             bs->change_cb(bs->change_opaque);
     }
     return 0;
+
+free_and_fail:
+    qemu_free(bs->opaque);
+    bs->opaque = NULL;
+    bs->drv = NULL;
+unlink_and_fail:
+    if (bs->is_temporary)
+        unlink(filename);
+    return ret;
 }
 
 void bdrv_close(BlockDriverState *bs)
@@ -1011,13 +1018,6 @@ int bdrv_is_removable(BlockDriverState *bs)
 int bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
-}
-
-int bdrv_set_read_only(BlockDriverState *bs, int read_only)
-{
-    int ret = bs->read_only;
-    bs->read_only = read_only;
-    return ret;
 }
 
 int bdrv_is_sg(BlockDriverState *bs)

@@ -28,7 +28,6 @@ typedef struct QEMUSnapshotInfo {
 } QEMUSnapshotInfo;
 
 #define BDRV_O_RDWR        0x0002
-#define BDRV_O_CREAT       0x0004 /* create an empty file */
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_FILE        0x0010 /* open as a raw file (do not try to
                                      use a disk image format on top of
@@ -147,7 +146,6 @@ int bdrv_get_type_hint(BlockDriverState *bs);
 int bdrv_get_translation_hint(BlockDriverState *bs);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
-int bdrv_set_read_only(BlockDriverState *bs, int read_only);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);

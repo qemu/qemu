@@ -2445,7 +2445,8 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show PCI info",
-        .mhandler.info = pci_info,
+        .user_print = do_pci_info_print,
+        .mhandler.info_new = do_pci_info,
     },
 #if defined(TARGET_I386) || defined(TARGET_SH4)
     {

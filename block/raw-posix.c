@@ -205,13 +205,9 @@ out_close:
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int open_flags = 0;
 
     s->type = FTYPE_FILE;
-    if (flags & BDRV_O_CREAT)
-        open_flags = O_CREAT | O_TRUNC;
-
-    return raw_open_common(bs, filename, flags, open_flags);
+    return raw_open_common(bs, filename, flags, 0);
 }
 
 /* XXX: use host sector size if necessary with:

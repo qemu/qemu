@@ -74,11 +74,9 @@ static int parallels_open(BlockDriverState *bs, const char *filename, int flags)
     int fd, i;
     struct parallels_header ph;
 
-    fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
+    fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
     if (fd < 0) {
-        fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
-        if (fd < 0)
-            return -1;
+        return -1;
     }
 
     bs->read_only = 1; // no write support yet
