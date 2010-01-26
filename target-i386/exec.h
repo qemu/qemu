@@ -73,6 +73,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
                        target_ulong next_eip);
 void QEMU_NORETURN raise_exception_err(int exception_index, int error_code);
 void QEMU_NORETURN raise_exception(int exception_index);
+void QEMU_NORETURN raise_exception_env(int exception_index, CPUState *nenv);
 void do_smm_enter(void);
 
 /* n must be a constant to be efficient */
