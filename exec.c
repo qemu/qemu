@@ -2406,6 +2406,12 @@ void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
         kvm_uncoalesce_mmio_region(addr, size);
 }
 
+void qemu_flush_coalesced_mmio_buffer(void)
+{
+    if (kvm_enabled())
+        kvm_flush_coalesced_mmio_buffer();
+}
+
 ram_addr_t qemu_ram_alloc(ram_addr_t size)
 {
     RAMBlock *new_block;

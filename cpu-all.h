@@ -915,6 +915,8 @@ void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
+void qemu_flush_coalesced_mmio_buffer(void);
+
 /*******************************************/
 /* host CPU ticks (if available) */
 
