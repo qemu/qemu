@@ -1874,6 +1874,7 @@ static PCIDeviceInfo bridge_info = {
     .init         = pci_bridge_initfn,
     .exit         = pci_bridge_exitfn,
     .config_write = pci_bridge_write_config,
+    .header_type  = PCI_HEADER_TYPE_BRIDGE,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_HEX32("vendorid", PCIBridge, vid, 0),
         DEFINE_PROP_HEX32("deviceid", PCIBridge, did, 0),
