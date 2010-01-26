@@ -200,4 +200,5 @@ void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors);
+int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 #endif
