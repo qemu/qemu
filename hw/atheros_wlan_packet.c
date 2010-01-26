@@ -449,6 +449,7 @@ struct mac80211_frame *Atheros_WLAN_create_data_packet(Atheros_WLANState *s, con
 
 int Atheros_WLAN_dumpFrame(struct mac80211_frame *frame, int frame_len, char *filename)
 {
+    int result = 1;
         int i = 0, j;
         unsigned char buf[56];
         unsigned int frame_total_length = frame_len + 16;
@@ -471,17 +472,18 @@ int Atheros_WLAN_dumpFrame(struct mac80211_frame *frame, int frame_len, char *fi
 
         FILE *fp;
         fp = fopen(filename, "w");
-        if (!fp)
-        {
-                return 1;
+    if (fp) {
+        result = 0;
+        if (fwrite(buf, 1, sizeof(buf), fp) != sizeof(buf)) {
+            result = 1;
         }
-
-        fwrite(buf, 1, sizeof(buf), fp);
-        fwrite(frame, 1, frame_len, fp);
-
+        if (fwrite(frame, 1, frame_len, fp) != frame_len) {
+            result = 1;
+        }
         fclose(fp);
+    }
 
-        return 0;
+    return result;
 }
 
 #endif /* CONFIG_WIN32 */
