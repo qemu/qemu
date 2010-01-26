@@ -54,6 +54,10 @@ struct iovec {
     void *iov_base;
     size_t iov_len;
 };
+/*
+ * Use the same value as Linux for now.
+ */
+#define IOV_MAX		1024
 #else
 #include <sys/uio.h>
 #endif
