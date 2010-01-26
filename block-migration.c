@@ -26,9 +26,6 @@
 #define BLK_MIG_FLAG_PROGRESS           0x04
 
 #define MAX_IS_ALLOCATED_SEARCH 65536
-#define MAX_BLOCKS_READ 10000
-#define BLOCKS_READ_CHANGE 100
-#define INITIAL_BLOCKS_READ 100
 
 //#define DEBUG_BLK_MIGRATION
 
@@ -72,6 +69,7 @@ typedef struct BlkMigState {
     int transferred;
     int64_t total_sector_sum;
     int prev_progress;
+    int bulk_completed;
 } BlkMigState;
 
 static BlkMigState block_mig_state;
@@ -138,7 +136,7 @@ static void blk_mig_read_cb(void *opaque, int ret)
 }
 
 static int mig_save_device_bulk(Monitor *mon, QEMUFile *f,
-                                BlkMigDevState *bmds, int is_async)
+                                BlkMigDevState *bmds)
 {
     int64_t total_sectors = bmds->total_sectors;
     int64_t cur_sector = bmds->cur_sector;
@@ -175,27 +173,16 @@ static int mig_save_device_bulk(Monitor *mon, QEMUFile *f,
     blk->bmds = bmds;
     blk->sector = cur_sector;
 
-    if (is_async) {
-        blk->iov.iov_base = blk->buf;
-        blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
-        qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
+    blk->iov.iov_base = blk->buf;
+    blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
+    qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
 
-        blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
-                                    nr_sectors, blk_mig_read_cb, blk);
-        if (!blk->aiocb) {
-            goto error;
-        }
-        block_mig_state.submitted++;
-    } else {
-        if (bdrv_read(bs, cur_sector, blk->buf, nr_sectors) < 0) {
-            goto error;
-        }
-        blk_send(f, blk);
-
-        qemu_free(blk->buf);
-        qemu_free(blk);
+    blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
+                                nr_sectors, blk_mig_read_cb, blk);
+    if (!blk->aiocb) {
+        goto error;
     }
-
+    block_mig_state.submitted++;
     bdrv_reset_dirty(bs, cur_sector, nr_sectors);
     bmds->cur_sector = cur_sector + nr_sectors;
 
@@ -229,6 +216,7 @@ static void init_blk_migration(Monitor *mon, QEMUFile *f)
     block_mig_state.transferred = 0;
     block_mig_state.total_sector_sum = 0;
     block_mig_state.prev_progress = -1;
+    block_mig_state.bulk_completed = 0;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
         if (bs->type == BDRV_TYPE_HD) {
@@ -260,7 +248,7 @@ static void init_blk_migration(Monitor *mon, QEMUFile *f)
     }
 }
 
-static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f, int is_async)
+static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f)
 {
     int64_t completed_sector_sum = 0;
     BlkMigDevState *bmds;
@@ -269,7 +257,7 @@ static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f, int is_async)
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->bulk_completed == 0) {
-            if (mig_save_device_bulk(mon, f, bmds, is_async) == 1) {
+            if (mig_save_device_bulk(mon, f, bmds) == 1) {
                 /* completed bulk section for this device */
                 bmds->bulk_completed = 1;
             }
@@ -362,19 +350,7 @@ static void flush_blks(QEMUFile* f)
 
 static int is_stage2_completed(void)
 {
-    BlkMigDevState *bmds;
-
-    if (block_mig_state.submitted > 0) {
-        return 0;
-    }
-
-    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        if (bmds->bulk_completed == 0) {
-            return 0;
-        }
-    }
-
-    return 1;
+    return (block_mig_state.submitted == 0 && block_mig_state.bulk_completed);
 }
 
 static void blk_mig_cleanup(Monitor *mon)
@@ -432,8 +408,9 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     while ((block_mig_state.submitted +
             block_mig_state.read_done) * BLOCK_SIZE <
            qemu_file_get_rate_limit(f)) {
-        if (blk_mig_save_bulked_block(mon, f, 1) == 0) {
-            /* no more bulk blocks for now */
+        if (blk_mig_save_bulked_block(mon, f) == 0) {
+            /* finished saving bulk on all devices */
+            block_mig_state.bulk_completed = 1;
             break;
         }
     }
@@ -446,9 +423,7 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     }
 
     if (stage == 3) {
-        while (blk_mig_save_bulked_block(mon, f, 0) != 0) {
-            /* empty */
-        }
+        /* we know for sure that save bulk is completed */
 
         blk_mig_save_dirty_blocks(mon, f);
         blk_mig_cleanup(mon);
