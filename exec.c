@@ -1624,6 +1624,101 @@ const CPULogItem cpu_log_items[] = {
     { 0, NULL, NULL },
 };
 
+#ifndef CONFIG_USER_ONLY
+static QLIST_HEAD(memory_client_list, CPUPhysMemoryClient) memory_client_list
+    = QLIST_HEAD_INITIALIZER(memory_client_list);
+
+static void cpu_notify_set_memory(target_phys_addr_t start_addr,
+				  ram_addr_t size,
+				  ram_addr_t phys_offset)
+{
+    CPUPhysMemoryClient *client;
+    QLIST_FOREACH(client, &memory_client_list, list) {
+        client->set_memory(client, start_addr, size, phys_offset);
+    }
+}
+
+static int cpu_notify_sync_dirty_bitmap(target_phys_addr_t start,
+					target_phys_addr_t end)
+{
+    CPUPhysMemoryClient *client;
+    QLIST_FOREACH(client, &memory_client_list, list) {
+        int r = client->sync_dirty_bitmap(client, start, end);
+        if (r < 0)
+            return r;
+    }
+    return 0;
+}
+
+static int cpu_notify_migration_log(int enable)
+{
+    CPUPhysMemoryClient *client;
+    QLIST_FOREACH(client, &memory_client_list, list) {
+        int r = client->migration_log(client, enable);
+        if (r < 0)
+            return r;
+    }
+    return 0;
+}
+
+static void phys_page_for_each_in_l1_map(PhysPageDesc **phys_map,
+                                         CPUPhysMemoryClient *client)
+{
+    PhysPageDesc *pd;
+    int l1, l2;
+
+    for (l1 = 0; l1 < L1_SIZE; ++l1) {
+        pd = phys_map[l1];
+        if (!pd) {
+            continue;
+        }
+        for (l2 = 0; l2 < L2_SIZE; ++l2) {
+            if (pd[l2].phys_offset == IO_MEM_UNASSIGNED) {
+                continue;
+            }
+            client->set_memory(client, pd[l2].region_offset,
+                               TARGET_PAGE_SIZE, pd[l2].phys_offset);
+        }
+    }
+}
+
+static void phys_page_for_each(CPUPhysMemoryClient *client)
+{
+#if TARGET_PHYS_ADDR_SPACE_BITS > 32
+
+#if TARGET_PHYS_ADDR_SPACE_BITS > (32 + L1_BITS)
+#error unsupported TARGET_PHYS_ADDR_SPACE_BITS
+#endif
+    void **phys_map = (void **)l1_phys_map;
+    int l1;
+    if (!l1_phys_map) {
+        return;
+    }
+    for (l1 = 0; l1 < L1_SIZE; ++l1) {
+        if (phys_map[l1]) {
+            phys_page_for_each_in_l1_map(phys_map[l1], client);
+        }
+    }
+#else
+    if (!l1_phys_map) {
+        return;
+    }
+    phys_page_for_each_in_l1_map(l1_phys_map, client);
+#endif
+}
+
+void cpu_register_phys_memory_client(CPUPhysMemoryClient *client)
+{
+    QLIST_INSERT_HEAD(&memory_client_list, client, list);
+    phys_page_for_each(client);
+}
+
+void cpu_unregister_phys_memory_client(CPUPhysMemoryClient *client)
+{
+    QLIST_REMOVE(client, list);
+}
+#endif
+
 static int cmp1(const char *s1, int n, const char *s2)
 {
     if (strlen(s2) != n)
@@ -1891,11 +1986,16 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
 
 int cpu_physical_memory_set_dirty_tracking(int enable)
 {
+    int ret = 0;
     in_migration = enable;
     if (kvm_enabled()) {
-        return kvm_set_migration_log(enable);
+        ret = kvm_set_migration_log(enable);
     }
-    return 0;
+    if (ret < 0) {
+        return ret;
+    }
+    ret = cpu_notify_migration_log(!!enable);
+    return ret;
 }
 
 int cpu_physical_memory_get_dirty_tracking(void)
@@ -1908,8 +2008,13 @@ int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
 {
     int ret = 0;
 
-    if (kvm_enabled())
+    if (kvm_enabled()) {
         ret = kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
+    }
+    if (ret < 0) {
+        return ret;
+    }
+    ret = cpu_notify_sync_dirty_bitmap(start_addr, end_addr);
     return ret;
 }
 
@@ -2323,6 +2428,8 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
 
     if (kvm_enabled())
         kvm_set_phys_mem(start_addr, size, phys_offset);
+
+    cpu_notify_set_memory(start_addr, size, phys_offset);
 
     if (phys_offset == IO_MEM_UNASSIGNED) {
         region_offset = start_addr;
