@@ -25,6 +25,9 @@
 
 #include "config-host.h"
 
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 #include "net.h"
 #include "monitor.h"
 #include "sysemu.h"
