@@ -317,46 +317,60 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
     }
 }
 
+typedef struct MultiReqBuffer {
+    BlockRequest        blkreq[32];
+    int                 num_writes;
+    BlockDriverState    *old_bs;
+} MultiReqBuffer;
+
+static void virtio_blk_handle_request(VirtIOBlockReq *req,
+    MultiReqBuffer *mrb)
+{
+    if (req->elem.out_num < 1 || req->elem.in_num < 1) {
+        fprintf(stderr, "virtio-blk missing headers\n");
+        exit(1);
+    }
+
+    if (req->elem.out_sg[0].iov_len < sizeof(*req->out) ||
+        req->elem.in_sg[req->elem.in_num - 1].iov_len < sizeof(*req->in)) {
+        fprintf(stderr, "virtio-blk header not in correct element\n");
+        exit(1);
+    }
+
+    req->out = (void *)req->elem.out_sg[0].iov_base;
+    req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
+
+    if (req->out->type & VIRTIO_BLK_T_FLUSH) {
+        virtio_blk_handle_flush(req);
+    } else if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
+        virtio_blk_handle_scsi(req);
+    } else if (req->out->type & VIRTIO_BLK_T_OUT) {
+        qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
+                                 req->elem.out_num - 1);
+        virtio_blk_handle_write(mrb->blkreq, &mrb->num_writes,
+            req, &mrb->old_bs);
+    } else {
+        qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
+                                 req->elem.in_num - 1);
+        virtio_blk_handle_read(req);
+    }
+}
+
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBlock *s = to_virtio_blk(vdev);
     VirtIOBlockReq *req;
-    BlockRequest blkreq[32];
-    int num_writes = 0;
-    BlockDriverState *old_bs = NULL;
+    MultiReqBuffer mrb = {
+        .num_writes = 0,
+        .old_bs = NULL,
+    };
 
     while ((req = virtio_blk_get_request(s))) {
-        if (req->elem.out_num < 1 || req->elem.in_num < 1) {
-            fprintf(stderr, "virtio-blk missing headers\n");
-            exit(1);
-        }
-
-        if (req->elem.out_sg[0].iov_len < sizeof(*req->out) ||
-            req->elem.in_sg[req->elem.in_num - 1].iov_len < sizeof(*req->in)) {
-            fprintf(stderr, "virtio-blk header not in correct element\n");
-            exit(1);
-        }
-
-        req->out = (void *)req->elem.out_sg[0].iov_base;
-        req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
-
-        if (req->out->type & VIRTIO_BLK_T_FLUSH) {
-            virtio_blk_handle_flush(req);
-        } else if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
-            virtio_blk_handle_scsi(req);
-        } else if (req->out->type & VIRTIO_BLK_T_OUT) {
-            qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
-                                     req->elem.out_num - 1);
-            virtio_blk_handle_write(blkreq, &num_writes, req, &old_bs);
-        } else {
-            qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
-                                     req->elem.in_num - 1);
-            virtio_blk_handle_read(req);
-        }
+        virtio_blk_handle_request(req, &mrb);
     }
 
-    if (num_writes > 0) {
-        do_multiwrite(old_bs, blkreq, num_writes);
+    if (mrb.num_writes > 0) {
+        do_multiwrite(mrb.old_bs, mrb.blkreq, mrb.num_writes);
     }
 
     /*
