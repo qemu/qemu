@@ -265,7 +265,7 @@ int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
                                           KVM_MEM_LOG_DIRTY_PAGES);
 }
 
-int kvm_set_migration_log(int enable)
+static int kvm_set_migration_log(int enable)
 {
     KVMState *s = kvm_state;
     KVMSlot *mem;
@@ -300,8 +300,8 @@ static int test_le_bit(unsigned long nr, unsigned char *addr)
  * @start_add: start of logged region.
  * @end_addr: end of logged region.
  */
-int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
-                                   target_phys_addr_t end_addr)
+static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
+					  target_phys_addr_t end_addr)
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
@@ -402,9 +402,9 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
-void kvm_set_phys_mem(target_phys_addr_t start_addr,
-		       ram_addr_t size,
-		       ram_addr_t phys_offset)
+static void kvm_set_phys_mem(target_phys_addr_t start_addr,
+			     ram_addr_t size,
+			     ram_addr_t phys_offset)
 {
     KVMState *s = kvm_state;
     ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
@@ -540,6 +540,33 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
     }
 }
 
+static void kvm_client_set_memory(struct CPUPhysMemoryClient *client,
+				  target_phys_addr_t start_addr,
+				  ram_addr_t size,
+				  ram_addr_t phys_offset)
+{
+	kvm_set_phys_mem(start_addr, size, phys_offset);
+}
+
+static int kvm_client_sync_dirty_bitmap(struct CPUPhysMemoryClient *client,
+					target_phys_addr_t start_addr,
+					target_phys_addr_t end_addr)
+{
+	return kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
+}
+
+static int kvm_client_migration_log(struct CPUPhysMemoryClient *client,
+				    int enable)
+{
+	return kvm_set_migration_log(enable);
+}
+
+static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
+	.set_memory = kvm_client_set_memory,
+	.sync_dirty_bitmap = kvm_client_sync_dirty_bitmap,
+	.migration_log = kvm_client_migration_log,
+};
+
 int kvm_init(int smp_cpus)
 {
     static const char upgrade_note[] =
@@ -636,6 +663,7 @@ int kvm_init(int smp_cpus)
         goto err;
 
     kvm_state = s;
+    cpu_register_phys_memory_client(&kvm_cpu_phys_memory_client);
 
     return 0;
 

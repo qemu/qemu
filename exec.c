@@ -1988,12 +1988,6 @@ int cpu_physical_memory_set_dirty_tracking(int enable)
 {
     int ret = 0;
     in_migration = enable;
-    if (kvm_enabled()) {
-        ret = kvm_set_migration_log(enable);
-    }
-    if (ret < 0) {
-        return ret;
-    }
     ret = cpu_notify_migration_log(!!enable);
     return ret;
 }
@@ -2006,14 +2000,8 @@ int cpu_physical_memory_get_dirty_tracking(void)
 int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
                                    target_phys_addr_t end_addr)
 {
-    int ret = 0;
+    int ret;
 
-    if (kvm_enabled()) {
-        ret = kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
-    }
-    if (ret < 0) {
-        return ret;
-    }
     ret = cpu_notify_sync_dirty_bitmap(start_addr, end_addr);
     return ret;
 }
@@ -2425,9 +2413,6 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
     CPUState *env;
     ram_addr_t orig_size = size;
     void *subpage;
-
-    if (kvm_enabled())
-        kvm_set_phys_mem(start_addr, size, phys_offset);
 
     cpu_notify_set_memory(start_addr, size, phys_offset);
 
