@@ -387,6 +387,10 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 {
     VirtIOBlock *s = opaque;
     VirtIOBlockReq *req = s->rq;
+    MultiReqBuffer mrb = {
+        .num_writes = 0,
+        .old_bs = NULL,
+    };
 
     qemu_bh_delete(s->bh);
     s->bh = NULL;
@@ -394,9 +398,12 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     s->rq = NULL;
 
     while (req) {
-        bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
-            req->qiov.size / 512, virtio_blk_rw_complete, req);
+        virtio_blk_handle_request(req, &mrb);
         req = req->next;
+    }
+
+    if (mrb.num_writes > 0) {
+        do_multiwrite(mrb.old_bs, mrb.blkreq, mrb.num_writes);
     }
 }
 
