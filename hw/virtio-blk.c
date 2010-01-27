@@ -272,7 +272,7 @@ static void do_multiwrite(BlockDriverState *bs, BlockRequest *blkreq,
     if (ret != 0) {
         for (i = 0; i < num_writes; i++) {
             if (blkreq[i].error) {
-                virtio_blk_req_complete(blkreq[i].opaque, VIRTIO_BLK_S_IOERR);
+                virtio_blk_rw_complete(blkreq[i].opaque, -EIO);
             }
         }
     }
@@ -316,7 +316,7 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
     acb = bdrv_aio_readv(req->dev->bs, req->out->sector, &req->qiov,
                          req->qiov.size / 512, virtio_blk_rw_complete, req);
     if (!acb) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+        virtio_blk_rw_complete(req, -EIO);
     }
 }
 
