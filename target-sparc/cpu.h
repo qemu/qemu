@@ -519,7 +519,7 @@ static inline void PUT_PSR(CPUSPARCState *env1, target_ulong val)
 static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
 {
     if (unlikely(cwp >= env1->nwindows || cwp < 0))
-        cwp = 0;
+        cwp %= env1->nwindows;
     cpu_set_cwp(env1, env1->nwindows - 1 - cwp);
 }
 #endif
