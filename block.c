@@ -1633,7 +1633,7 @@ static void multiwrite_user_cb(MultiwriteCB *mcb)
     for (i = 0; i < mcb->num_callbacks; i++) {
         mcb->callbacks[i].cb(mcb->callbacks[i].opaque, mcb->error);
         qemu_free(mcb->callbacks[i].free_qiov);
-        qemu_free(mcb->callbacks[i].free_buf);
+        qemu_vfree(mcb->callbacks[i].free_buf);
     }
 }
 
@@ -1691,6 +1691,10 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         // unused space in format like qcow2).
         if (!merge && bs->drv->bdrv_merge_requests) {
             merge = bs->drv->bdrv_merge_requests(bs, &reqs[outidx], &reqs[i]);
+        }
+
+        if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 > IOV_MAX) {
+            merge = 0;
         }
 
         if (merge) {

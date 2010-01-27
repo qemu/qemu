@@ -525,6 +525,7 @@ static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state
 static void toggle_full_screen(DisplayState *ds)
 {
     gui_fullscreen = !gui_fullscreen;
+    do_sdl_resize(real_screen->w, real_screen->h, real_screen->format->BitsPerPixel);
     if (gui_fullscreen) {
         scaling_active = 0;
         gui_saved_grab = gui_grab;

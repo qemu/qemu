@@ -76,6 +76,12 @@
  *
  */
 
+typedef struct MonitorCompletionData MonitorCompletionData;
+struct MonitorCompletionData {
+    Monitor *mon;
+    void (*user_print)(Monitor *mon, const QObject *data);
+};
+
 typedef struct mon_cmd_t {
     const char *name;
     const char *args_type;
@@ -85,9 +91,13 @@ typedef struct mon_cmd_t {
     union {
         void (*info)(Monitor *mon);
         void (*info_new)(Monitor *mon, QObject **ret_data);
+        int  (*info_async)(Monitor *mon, MonitorCompletion *cb, void *opaque);
         void (*cmd)(Monitor *mon, const QDict *qdict);
         void (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
+        int  (*cmd_async)(Monitor *mon, const QDict *params,
+                          MonitorCompletion *cb, void *opaque);
     } mhandler;
+    int async;
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -253,6 +263,11 @@ static void monitor_user_noop(Monitor *mon, const QObject *data) { }
 static inline int monitor_handler_ported(const mon_cmd_t *cmd)
 {
     return cmd->user_print != NULL;
+}
+
+static inline bool monitor_handler_is_async(const mon_cmd_t *cmd)
+{
+    return cmd->async != 0;
 }
 
 static inline int monitor_has_error(const Monitor *mon)
@@ -453,6 +468,65 @@ static void do_commit(Monitor *mon, const QDict *qdict)
     }
 }
 
+static void user_monitor_complete(void *opaque, QObject *ret_data)
+{
+    MonitorCompletionData *data = (MonitorCompletionData *)opaque; 
+
+    if (ret_data) {
+        data->user_print(data->mon, ret_data);
+    }
+    monitor_resume(data->mon);
+    qemu_free(data);
+}
+
+static void qmp_monitor_complete(void *opaque, QObject *ret_data)
+{
+    monitor_protocol_emitter(opaque, ret_data);
+}
+
+static void qmp_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
+                                  const QDict *params)
+{
+    cmd->mhandler.cmd_async(mon, params, qmp_monitor_complete, mon);
+}
+
+static void qmp_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
+{
+    cmd->mhandler.info_async(mon, qmp_monitor_complete, mon);
+}
+
+static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
+                                   const QDict *params)
+{
+    int ret;
+
+    MonitorCompletionData *cb_data = qemu_malloc(sizeof(*cb_data));
+    cb_data->mon = mon;
+    cb_data->user_print = cmd->user_print;
+    monitor_suspend(mon);
+    ret = cmd->mhandler.cmd_async(mon, params,
+                                  user_monitor_complete, cb_data);
+    if (ret < 0) {
+        monitor_resume(mon);
+        qemu_free(cb_data);
+    }
+}
+
+static void user_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
+{
+    int ret;
+
+    MonitorCompletionData *cb_data = qemu_malloc(sizeof(*cb_data));
+    cb_data->mon = mon;
+    cb_data->user_print = cmd->user_print;
+    monitor_suspend(mon);
+    ret = cmd->mhandler.info_async(mon, user_monitor_complete, cb_data);
+    if (ret < 0) {
+        monitor_resume(mon);
+        qemu_free(cb_data);
+    }
+}
+
 static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const mon_cmd_t *cmd;
@@ -476,7 +550,19 @@ static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
         goto help;
     }
 
-    if (monitor_handler_ported(cmd)) {
+    if (monitor_handler_is_async(cmd)) {
+        if (monitor_ctrl_mode(mon)) {
+            qmp_async_info_handler(mon, cmd);
+        } else {
+            user_async_info_handler(mon, cmd);
+        }
+        /*
+         * Indicate that this command is asynchronous and will not return any
+         * data (not even empty).  Instead, the data will be returned via a
+         * completion callback.
+         */
+        *ret_data = qobject_from_jsonf("{ '__mon_async': 'return' }");
+    } else if (monitor_handler_ported(cmd)) {
         cmd->mhandler.info_new(mon, ret_data);
 
         if (!monitor_ctrl_mode(mon)) {
@@ -2066,33 +2152,13 @@ static void do_info_status(Monitor *mon, QObject **ret_data)
                                     vm_running, singlestep);
 }
 
-static ram_addr_t balloon_get_value(void)
+static void print_balloon_stat(const char *key, QObject *obj, void *opaque)
 {
-    ram_addr_t actual;
+    Monitor *mon = opaque;
 
-    if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
-        return 0;
-    }
-
-    actual = qemu_balloon_status();
-    if (actual == 0) {
-        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
-        return 0;
-    }
-
-    return actual;
-}
-
-/**
- * do_balloon(): Request VM to change its memory allocation
- */
-static void do_balloon(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    if (balloon_get_value()) {
-        /* ballooning is active */
-        qemu_balloon(qdict_get_int(qdict, "value"));
-    }
+    if (strcmp(key, "actual"))
+        monitor_printf(mon, ",%s=%" PRId64, key,
+                       qint_get_int(qobject_to_qint(obj)));
 }
 
 static void monitor_print_balloon(Monitor *mon, const QObject *data)
@@ -2100,31 +2166,74 @@ static void monitor_print_balloon(Monitor *mon, const QObject *data)
     QDict *qdict;
 
     qdict = qobject_to_qdict(data);
+    if (!qdict_haskey(qdict, "actual"))
+        return;
 
-    monitor_printf(mon, "balloon: actual=%" PRId64 "\n",
-                        qdict_get_int(qdict, "balloon") >> 20);
+    monitor_printf(mon, "balloon: actual=%" PRId64,
+                   qdict_get_int(qdict, "actual") >> 20);
+    qdict_iter(qdict, print_balloon_stat, mon);
+    monitor_printf(mon, "\n");
 }
 
 /**
  * do_info_balloon(): Balloon information
  *
- * Return a QDict with the following information:
+ * Make an asynchronous request for balloon info.  When the request completes
+ * a QDict will be returned according to the following specification:
  *
- * - "balloon": current balloon value in bytes
+ * - "actual": current balloon value in bytes
+ * The following fields may or may not be present:
+ * - "mem_swapped_in": Amount of memory swapped in (bytes)
+ * - "mem_swapped_out": Amount of memory swapped out (bytes)
+ * - "major_page_faults": Number of major faults
+ * - "minor_page_faults": Number of minor faults
+ * - "free_mem": Total amount of free and unused memory (bytes)
+ * - "total_mem": Total amount of available memory (bytes)
  *
  * Example:
  *
- * { "balloon": 1073741824 }
+ * { "actual": 1073741824, "mem_swapped_in": 0, "mem_swapped_out": 0,
+ *   "major_page_faults": 142, "minor_page_faults": 239245,
+ *   "free_mem": 1014185984, "total_mem": 1044668416 }
  */
-static void do_info_balloon(Monitor *mon, QObject **ret_data)
+static int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque)
 {
-    ram_addr_t actual;
+    int ret;
 
-    actual = balloon_get_value();
-    if (actual != 0) {
-        *ret_data = qobject_from_jsonf("{ 'balloon': %" PRId64 "}",
-                                       (int64_t) actual);
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        return -1;
     }
+
+    ret = qemu_balloon_status(cb, opaque);
+    if (!ret) {
+        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * do_balloon(): Request VM to change its memory allocation
+ */
+static int do_balloon(Monitor *mon, const QDict *params,
+                       MonitorCompletion cb, void *opaque)
+{
+    int ret;
+
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        return -1;
+    }
+
+    ret = qemu_balloon(qdict_get_int(params, "value"), cb, opaque);
+    if (ret == 0) {
+        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
+        return -1;
+    }
+
+    return 0;
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
@@ -2610,7 +2719,8 @@ static const mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show balloon information",
         .user_print = monitor_print_balloon,
-        .mhandler.info_new = do_info_balloon,
+        .mhandler.info_async = do_info_balloon,
+        .async      = 1,
     },
     {
         .name       = "qtree",
@@ -3588,6 +3698,11 @@ static void monitor_print_error(Monitor *mon)
     mon->error = NULL;
 }
 
+static int is_async_return(const QObject *data)
+{
+    return data && qdict_haskey(qobject_to_qdict(data), "__mon_async");
+}
+
 static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
                                  const QDict *params)
 {
@@ -3595,7 +3710,15 @@ static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
 
     cmd->mhandler.cmd_new(mon, params, &data);
 
-    if (monitor_ctrl_mode(mon)) {
+    if (is_async_return(data)) {
+        /*
+         * Asynchronous commands have no initial return data but they can
+         * generate errors.  Data is returned via the async completion handler.
+         */
+        if (monitor_ctrl_mode(mon) && monitor_has_error(mon)) {
+            monitor_protocol_emitter(mon, NULL);
+        }
+    } else if (monitor_ctrl_mode(mon)) {
         /* Monitor Protocol */
         monitor_protocol_emitter(mon, data);
     } else {
@@ -3620,7 +3743,9 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
 
     qemu_errors_to_mon(mon);
 
-    if (monitor_handler_ported(cmd)) {
+    if (monitor_handler_is_async(cmd)) {
+        user_async_cmd_handler(mon, cmd, qdict);
+    } else if (monitor_handler_ported(cmd)) {
         monitor_call_handler(mon, cmd, qdict);
     } else {
         cmd->mhandler.cmd(mon, qdict);
@@ -4082,7 +4207,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    monitor_call_handler(mon, cmd, args);
+    if (monitor_handler_is_async(cmd)) {
+        qmp_async_cmd_handler(mon, cmd, args);
+    } else {
+        monitor_call_handler(mon, cmd, args);
+    }
     goto out;
 
 err_input:

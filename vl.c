@@ -369,17 +369,24 @@ void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
     qemu_balloon_event_opaque = opaque;
 }
 
-void qemu_balloon(ram_addr_t target)
+int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
 {
-    if (qemu_balloon_event)
-        qemu_balloon_event(qemu_balloon_event_opaque, target);
+    if (qemu_balloon_event) {
+        qemu_balloon_event(qemu_balloon_event_opaque, target, cb, opaque);
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
-ram_addr_t qemu_balloon_status(void)
+int qemu_balloon_status(MonitorCompletion cb, void *opaque)
 {
-    if (qemu_balloon_event)
-        return qemu_balloon_event(qemu_balloon_event_opaque, 0);
-    return 0;
+    if (qemu_balloon_event) {
+        qemu_balloon_event(qemu_balloon_event_opaque, 0, cb, opaque);
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 
@@ -4866,6 +4873,7 @@ int main(int argc, char **argv, char **envp)
     while (optind < argc) {
         if (argv[optind][0] != '-') {
             /* disk image */
+            optind++;
             continue;
         } else {
             const QEMUOption *popt;
