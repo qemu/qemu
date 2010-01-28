@@ -794,6 +794,9 @@ static int kvm_put_vcpu_events(CPUState *env)
 
     events.sipi_vector = env->sipi_vector;
 
+    events.flags =
+        KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR;
+
     return kvm_vcpu_ioctl(env, KVM_SET_VCPU_EVENTS, &events);
 #else
     return 0;
