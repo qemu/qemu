@@ -27,6 +27,42 @@ compile_prog() {
   $cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags > /dev/null 2> /dev/null
 }
 
+# check whether a command is available to this shell (may be either an
+# executable or a builtin)
+has() {
+    type "$1" >/dev/null 2>&1
+}
+
+# search for an executable in PATH
+path_of() {
+    local_command="$1"
+    local_ifs="$IFS"
+    local_dir=""
+
+    # pathname has a dir component?
+    if [ "${local_command#*/}" != "$local_command" ]; then
+        if [ -x "$local_command" ] && [ ! -d "$local_command" ]; then
+            echo "$local_command"
+            return 0
+        fi
+    fi
+    if [ -z "$local_command" ]; then
+        return 1
+    fi
+
+    IFS=:
+    for local_dir in $PATH; do
+        if [ -x "$local_dir/$local_command" ] && [ ! -d "$local_dir/$local_command" ]; then
+            echo "$local_dir/$local_command"
+            IFS="${local_ifs:-$(printf ' \t\n')}"
+            return 0
+        fi
+    done
+    # not found
+    IFS="${local_ifs:-$(printf ' \t\n')}"
+    return 1
+}
+
 # default parameters
 cpu=""
 prefix=""
@@ -767,7 +803,7 @@ fi
 # Solaris specific configure tool chain decisions
 #
 if test "$solaris" = "yes" ; then
-  solinst=`which $install 2> /dev/null | /usr/bin/grep -v "no $install in"`
+  solinst=`path_of $install`
   if test -z "$solinst" ; then
     echo "Solaris install program not found. Use --install=/usr/ucb/install or"
     echo "install fileutils from www.blastwave.org using pkg-get -i fileutils"
@@ -780,7 +816,7 @@ if test "$solaris" = "yes" ; then
     echo "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
     exit 1
   fi
-  sol_ar=`which ar 2> /dev/null | /usr/bin/grep -v "no ar in"`
+  sol_ar=`path_of ar`
   if test -z "$sol_ar" ; then
     echo "Error: No path includes ar"
     if test -f /usr/ccs/bin/ar ; then
@@ -973,7 +1009,7 @@ fi
 # pkgconfig probe
 
 pkgconfig="${cross_prefix}pkg-config"
-if ! test -x "$(which $pkgconfig 2>/dev/null)"; then
+if ! has $pkgconfig; then
   # likely not cross compiling, or hope for the best
   pkgconfig=pkg-config
 fi
@@ -981,7 +1017,7 @@ fi
 ##########################################
 # Sparse probe
 if test "$sparse" != "no" ; then
-  if test -x "$(which cgcc 2>/dev/null)"; then
+  if has cgcc; then
     sparse=yes
   else
     if test "$sparse" = "yes" ; then
@@ -997,7 +1033,7 @@ fi
 if $pkgconfig sdl --modversion >/dev/null 2>&1; then
   sdlconfig="$pkgconfig sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
-elif which sdl-config >/dev/null 2>&1; then
+elif has sdl-config; then
   sdlconfig='sdl-config'
   _sdlversion=`$sdlconfig --version | sed 's/[^0-9]//g'`
 else
@@ -1428,8 +1464,7 @@ EOF
     fi
   else
     if test "$kvm" = "yes" ; then
-      if [ -x "`which awk 2>/dev/null`" ] && \
-         [ -x "`which grep 2>/dev/null`" ]; then
+      if has awk && has grep; then
         kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
@@ -1698,8 +1733,7 @@ fi
 
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
-  if test -x "`which texi2html 2>/dev/null`" -a \
-          -x "`which pod2man 2>/dev/null`" ; then
+  if has texi2html && has pod2man; then
     docs=yes
   else
     if test "$docs" = "yes" ; then
