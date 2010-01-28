@@ -997,9 +997,14 @@ fi
 if $pkgconfig sdl --modversion >/dev/null 2>&1; then
   sdlconfig="$pkgconfig sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
-else
+elif which sdl-config >/dev/null 2>&1; then
   sdlconfig='sdl-config'
   _sdlversion=`$sdlconfig --version | sed 's/[^0-9]//g'`
+else
+  if test "$sdl" = "yes" ; then
+    feature_not_found "sdl"
+  fi
+  sdl=no
 fi
 
 sdl_too_old=no
