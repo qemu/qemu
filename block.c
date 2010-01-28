@@ -451,13 +451,20 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         bs->enable_write_cache = 1;
 
     bs->read_only = (flags & BDRV_O_RDWR) == 0;
-    if (!(flags & BDRV_O_FILE)) {
-        open_flags = (flags & (BDRV_O_RDWR | BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
-        if (bs->is_temporary) { /* snapshot should be writeable */
-            open_flags |= BDRV_O_RDWR;
-        }
-    } else {
-        open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
+
+    /*
+     * Clear flags that are internal to the block layer before opening the
+     * image.
+     */
+    open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+    /*
+     * Snapshots should be writeable.
+     *
+     * XXX(hch): and what is the point of a snapshot during a read-only open?
+     */
+    if (!(flags & BDRV_O_FILE) && bs->is_temporary) {
+        open_flags |= BDRV_O_RDWR;
     }
 
     ret = drv->bdrv_open(bs, filename, open_flags);
