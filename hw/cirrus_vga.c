@@ -2585,9 +2585,11 @@ static void map_linear_vram(CirrusVGAState *s)
 
 static void unmap_linear_vram(CirrusVGAState *s)
 {
-    if (s->vga.map_addr && s->vga.lfb_addr && s->vga.lfb_end)
+    if (s->vga.map_addr && s->vga.lfb_addr && s->vga.lfb_end) {
         s->vga.map_addr = s->vga.map_end = 0;
-
+         cpu_register_physical_memory(s->vga.lfb_addr, s->vga.vram_size,
+                                      s->cirrus_linear_io_addr);
+    }
     cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x20000,
                                  s->vga.vga_io_memory);
 }
