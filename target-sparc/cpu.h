@@ -292,6 +292,22 @@ typedef struct SparcTLBEntry {
     uint64_t tte;
 } SparcTLBEntry;
 
+struct CPUTimer
+{
+    const char *name;
+    uint32_t    frequency;
+    uint32_t    disabled;
+    uint64_t    disabled_mask;
+    int64_t     clock_offset;
+    struct QEMUTimer  *qtimer;
+};
+
+typedef struct CPUTimer CPUTimer;
+
+struct QEMUFile;
+void cpu_put_timer(struct QEMUFile *f, CPUTimer *s);
+void cpu_get_timer(struct QEMUFile *f, CPUTimer *s);
+
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
@@ -393,14 +409,14 @@ typedef struct CPUSPARCState {
     uint64_t mgregs[8]; /* mmu general registers */
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
-    void *tick, *stick;
+    CPUTimer *tick, *stick;
 #define TICK_NPT_MASK        0x8000000000000000ULL
 #define TICK_INT_DIS         0x8000000000000000ULL
     uint64_t gsr;
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
-    void *hstick; // UA 2005
+    CPUTimer *hstick; // UA 2005
     uint32_t softint;
 #define SOFTINT_TIMER   1
 #define SOFTINT_STIMER  (1 << 16)
@@ -536,7 +552,7 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list
 
-#define CPU_SAVE_VERSION 5
+#define CPU_SAVE_VERSION 6
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _user
@@ -615,9 +631,9 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 
 #ifdef TARGET_SPARC64
 /* sun4u.c */
-void cpu_tick_set_count(void *opaque, uint64_t count);
-uint64_t cpu_tick_get_count(void *opaque);
-void cpu_tick_set_limit(void *opaque, uint64_t limit);
+void cpu_tick_set_count(CPUTimer *timer, uint64_t count);
+uint64_t cpu_tick_get_count(CPUTimer *timer);
+void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit);
 trap_state* cpu_tsptr(CPUState* env);
 #endif
 

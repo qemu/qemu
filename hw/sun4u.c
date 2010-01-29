@@ -40,6 +40,7 @@
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS
+//#define DEBUG_TIMER
 
 #ifdef DEBUG_IRQ
 #define CPUIRQ_DPRINTF(fmt, ...)                                \
@@ -53,6 +54,13 @@
     do { printf("EBUS: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define EBUS_DPRINTF(fmt, ...)
+#endif
+
+#ifdef DEBUG_TIMER
+#define TIMER_DPRINTF(fmt, ...)                                  \
+    do { printf("TIMER: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define TIMER_DPRINTF(fmt, ...)
 #endif
 
 #define KERNEL_LOAD_ADDR     0x00404000
@@ -282,6 +290,12 @@ void cpu_check_irqs(CPUState *env)
     }
 }
 
+static void cpu_kick_irq(CPUState *env)
+{
+    env->halted = 0;
+    cpu_check_irqs(env);
+}
+
 static void cpu_set_irq(void *opaque, int irq, int level)
 {
     CPUState *env = opaque;
@@ -303,6 +317,52 @@ typedef struct ResetData {
     uint64_t prom_addr;
 } ResetData;
 
+void cpu_put_timer(QEMUFile *f, CPUTimer *s)
+{
+    qemu_put_be32s(f, &s->frequency);
+    qemu_put_be32s(f, &s->disabled);
+    qemu_put_be64s(f, &s->disabled_mask);
+    qemu_put_sbe64s(f, &s->clock_offset);
+
+    qemu_put_timer(f, s->qtimer);
+}
+
+void cpu_get_timer(QEMUFile *f, CPUTimer *s)
+{
+    qemu_get_be32s(f, &s->frequency);
+    qemu_get_be32s(f, &s->disabled);
+    qemu_get_be64s(f, &s->disabled_mask);
+    qemu_get_sbe64s(f, &s->clock_offset);
+
+    qemu_get_timer(f, s->qtimer);
+}
+
+static CPUTimer* cpu_timer_create(const char* name, CPUState *env,
+                                  QEMUBHFunc *cb, uint32_t frequency,
+                                  uint64_t disabled_mask)
+{
+    CPUTimer *timer = qemu_mallocz(sizeof (CPUTimer));
+
+    timer->name = name;
+    timer->frequency = frequency;
+    timer->disabled_mask = disabled_mask;
+
+    timer->disabled = 1;
+    timer->clock_offset = qemu_get_clock(vm_clock);
+
+    timer->qtimer = qemu_new_timer(vm_clock, cb, env);
+
+    return timer;
+}
+
+static void cpu_timer_reset(CPUTimer *timer)
+{
+    timer->disabled = 1;
+    timer->clock_offset = qemu_get_clock(vm_clock);
+
+    qemu_del_timer(timer->qtimer);
+}
+
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
@@ -310,15 +370,11 @@ static void main_cpu_reset(void *opaque)
     static unsigned int nr_resets;
 
     cpu_reset(env);
-    env->tick_cmpr = TICK_INT_DIS | 0;
-    ptimer_set_limit(env->tick, TICK_MAX, 1);
-    ptimer_run(env->tick, 1);
-    env->stick_cmpr = TICK_INT_DIS | 0;
-    ptimer_set_limit(env->stick, TICK_MAX, 1);
-    ptimer_run(env->stick, 1);
-    env->hstick_cmpr = TICK_INT_DIS | 0;
-    ptimer_set_limit(env->hstick, TICK_MAX, 1);
-    ptimer_run(env->hstick, 1);
+
+    cpu_timer_reset(env->tick);
+    cpu_timer_reset(env->stick);
+    cpu_timer_reset(env->hstick);
+
     env->gregs[1] = 0; // Memory start
     env->gregs[2] = ram_size; // Memory size
     env->gregs[3] = 0; // Machine description XXX
@@ -335,44 +391,127 @@ static void tick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
-    if (!(env->tick_cmpr & TICK_INT_DIS)) {
-        env->softint |= SOFTINT_TIMER;
-        cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    CPUTimer* timer = env->tick;
+
+    if (timer->disabled) {
+        CPUIRQ_DPRINTF("tick_irq: softint disabled\n");
+        return;
+    } else {
+        CPUIRQ_DPRINTF("tick: fire\n");
     }
+
+    env->softint |= SOFTINT_TIMER;
+    cpu_kick_irq(env);
 }
 
 static void stick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
-    if (!(env->stick_cmpr & TICK_INT_DIS)) {
-        env->softint |= SOFTINT_STIMER;
-        cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    CPUTimer* timer = env->stick;
+
+    if (timer->disabled) {
+        CPUIRQ_DPRINTF("stick_irq: softint disabled\n");
+        return;
+    } else {
+        CPUIRQ_DPRINTF("stick: fire\n");
     }
+
+    env->softint |= SOFTINT_STIMER;
+    cpu_kick_irq(env);
 }
 
 static void hstick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
-    if (!(env->hstick_cmpr & TICK_INT_DIS)) {
-        cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    CPUTimer* timer = env->hstick;
+
+    if (timer->disabled) {
+        CPUIRQ_DPRINTF("hstick_irq: softint disabled\n");
+        return;
+    } else {
+        CPUIRQ_DPRINTF("hstick: fire\n");
     }
+
+    env->softint |= SOFTINT_STIMER;
+    cpu_kick_irq(env);
 }
 
-void cpu_tick_set_count(void *opaque, uint64_t count)
+static int64_t cpu_to_timer_ticks(int64_t cpu_ticks, uint32_t frequency)
 {
-    ptimer_set_count(opaque, -count);
+    return muldiv64(cpu_ticks, get_ticks_per_sec(), frequency);
 }
 
-uint64_t cpu_tick_get_count(void *opaque)
+static uint64_t timer_to_cpu_ticks(int64_t timer_ticks, uint32_t frequency)
 {
-    return -ptimer_get_count(opaque);
+    return muldiv64(timer_ticks, frequency, get_ticks_per_sec());
 }
 
-void cpu_tick_set_limit(void *opaque, uint64_t limit)
+void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
 {
-    ptimer_set_limit(opaque, -limit, 0);
+    uint64_t real_count = count & ~timer->disabled_mask;
+    uint64_t disabled_bit = count & timer->disabled_mask;
+
+    int64_t vm_clock_offset = qemu_get_clock(vm_clock) -
+                    cpu_to_timer_ticks(real_count, timer->frequency);
+
+    TIMER_DPRINTF("%s set_count count=0x%016lx (%s) p=%p\n",
+                  timer->name, real_count,
+                  timer->disabled?"disabled":"enabled", timer);
+
+    timer->disabled = disabled_bit ? 1 : 0;
+    timer->clock_offset = vm_clock_offset;
+}
+
+uint64_t cpu_tick_get_count(CPUTimer *timer)
+{
+    uint64_t real_count = timer_to_cpu_ticks(
+                    qemu_get_clock(vm_clock) - timer->clock_offset,
+                    timer->frequency);
+
+    TIMER_DPRINTF("%s get_count count=0x%016lx (%s) p=%p\n",
+           timer->name, real_count,
+           timer->disabled?"disabled":"enabled", timer);
+
+    if (timer->disabled)
+        real_count |= timer->disabled_mask;
+
+    return real_count;
+}
+
+void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
+{
+    int64_t now = qemu_get_clock(vm_clock);
+
+    uint64_t real_limit = limit & ~timer->disabled_mask;
+    timer->disabled = (limit & timer->disabled_mask) ? 1 : 0;
+
+    int64_t expires = cpu_to_timer_ticks(real_limit, timer->frequency) +
+                    timer->clock_offset;
+
+    if (expires < now) {
+        expires = now + 1;
+    }
+
+    TIMER_DPRINTF("%s set_limit limit=0x%016lx (%s) p=%p "
+                  "called with limit=0x%016lx at 0x%016lx (delta=0x%016lx)\n",
+                  timer->name, real_limit,
+                  timer->disabled?"disabled":"enabled",
+                  timer, limit,
+                  timer_to_cpu_ticks(now - timer->clock_offset,
+                                     timer->frequency),
+                  timer_to_cpu_ticks(expires - now, timer->frequency));
+
+    if (!real_limit) {
+        TIMER_DPRINTF("%s set_limit limit=ZERO - not starting timer\n",
+                timer->name);
+        qemu_del_timer(timer->qtimer);
+    } else if (timer->disabled) {
+        qemu_del_timer(timer->qtimer);
+    } else {
+        qemu_mod_timer(timer->qtimer, expires);
+    }
 }
 
 static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
@@ -559,8 +698,11 @@ device_init(ram_register_devices);
 static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 {
     CPUState *env;
-    QEMUBH *bh;
     ResetData *reset_info;
+
+    uint32_t   tick_frequency = 100*1000000;
+    uint32_t  stick_frequency = 100*1000000;
+    uint32_t hstick_frequency = 100*1000000;
 
     if (!cpu_model)
         cpu_model = hwdef->default_cpu_model;
@@ -569,17 +711,15 @@ static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
         exit(1);
     }
-    bh = qemu_bh_new(tick_irq, env);
-    env->tick = ptimer_init(bh);
-    ptimer_set_period(env->tick, 1ULL);
 
-    bh = qemu_bh_new(stick_irq, env);
-    env->stick = ptimer_init(bh);
-    ptimer_set_period(env->stick, 1ULL);
+    env->tick = cpu_timer_create("tick", env, tick_irq,
+                                  tick_frequency, TICK_NPT_MASK);
 
-    bh = qemu_bh_new(hstick_irq, env);
-    env->hstick = ptimer_init(bh);
-    ptimer_set_period(env->hstick, 1ULL);
+    env->stick = cpu_timer_create("stick", env, stick_irq,
+                                   stick_frequency, TICK_INT_DIS);
+
+    env->hstick = cpu_timer_create("hstick", env, hstick_irq,
+                                    hstick_frequency, TICK_INT_DIS);
 
     reset_info = qemu_mallocz(sizeof(ResetData));
     reset_info->env = env;

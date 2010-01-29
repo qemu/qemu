@@ -3700,7 +3700,11 @@ static void monitor_print_error(Monitor *mon)
 
 static int is_async_return(const QObject *data)
 {
-    return data && qdict_haskey(qobject_to_qdict(data), "__mon_async");
+    if (data && qobject_type(data) == QTYPE_QDICT) {
+        return qdict_haskey(qobject_to_qdict(data), "__mon_async");
+    }
+
+    return 0;
 }
 
 static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,

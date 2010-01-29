@@ -84,8 +84,8 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be64s(f, &env->fprs);
     qemu_put_be64s(f, &env->tick_cmpr);
     qemu_put_be64s(f, &env->stick_cmpr);
-    qemu_put_ptimer(f, env->tick);
-    qemu_put_ptimer(f, env->stick);
+    cpu_put_timer(f, env->tick);
+    cpu_put_timer(f, env->stick);
     qemu_put_be64s(f, &env->gsr);
     qemu_put_be32s(f, &env->gl);
     qemu_put_be64s(f, &env->hpstate);
@@ -96,7 +96,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be64s(f, &env->hver);
     qemu_put_be64s(f, &env->hstick_cmpr);
     qemu_put_be64s(f, &env->ssr);
-    qemu_put_ptimer(f, env->hstick);
+    cpu_put_timer(f, env->hstick);
 #endif
 }
 
@@ -106,7 +106,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int i;
     uint32_t tmp;
 
-    if (version_id != 5)
+    if (version_id < 6)
         return -EINVAL;
     for(i = 0; i < 8; i++)
         qemu_get_betls(f, &env->gregs[i]);
@@ -180,8 +180,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be64s(f, &env->fprs);
     qemu_get_be64s(f, &env->tick_cmpr);
     qemu_get_be64s(f, &env->stick_cmpr);
-    qemu_get_ptimer(f, env->tick);
-    qemu_get_ptimer(f, env->stick);
+    cpu_get_timer(f, env->tick);
+    cpu_get_timer(f, env->stick);
     qemu_get_be64s(f, &env->gsr);
     qemu_get_be32s(f, &env->gl);
     qemu_get_be64s(f, &env->hpstate);
@@ -192,7 +192,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be64s(f, &env->hver);
     qemu_get_be64s(f, &env->hstick_cmpr);
     qemu_get_be64s(f, &env->ssr);
-    qemu_get_ptimer(f, env->hstick);
+    cpu_get_timer(f, env->hstick);
 #endif
     tlb_flush(env, 1);
     return 0;
