@@ -36,6 +36,7 @@ qemu-monitor.texi
 *.fn
 *.ky
 *.log
+*.pdf
 *.pg
 *.toc
 *.tp
