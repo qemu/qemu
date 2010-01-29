@@ -2313,10 +2313,13 @@ instructions in the download section and the FAQ.
 @item Download
 the MinGW development library of SDL 1.2.x
 (@file{SDL-devel-1.2.x-@/mingw32.tar.gz}) from
-@url{http://www.libsdl.org}. Unpack it in a temporary place, and
-unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
-directory. Edit the @file{sdl-config} script so that it gives the
+@url{http://www.libsdl.org}. Unpack it in a temporary place and
+edit the @file{sdl-config} script so that it gives the
 correct SDL directory when invoked.
+
+@item Install the MinGW version of zlib and make sure
+@file{zlib.h} and @file{libz.dll.a} are in
+MingGW's default header and linker search paths.
 
 @item Extract the current version of QEMU.
 
@@ -2340,29 +2343,43 @@ correct SDL directory when invoked.
 Install the MinGW cross compilation tools available at
 @url{http://www.mingw.org/}.
 
-@item
-Install the Win32 version of SDL (@url{http://www.libsdl.org}) by
-unpacking @file{i386-mingw32msvc.tar.gz}. Set up the PATH environment
-variable so that @file{i386-mingw32msvc-sdl-config} can be launched by
+@item Download
+the MinGW development library of SDL 1.2.x
+(@file{SDL-devel-1.2.x-@/mingw32.tar.gz}) from
+@url{http://www.libsdl.org}. Unpack it in a temporary place and
+edit the @file{sdl-config} script so that it gives the
+correct SDL directory when invoked.  Set up the @code{PATH} environment
+variable so that @file{sdl-config} can be launched by
 the QEMU configuration script.
+
+@item Install the MinGW version of zlib and make sure
+@file{zlib.h} and @file{libz.dll.a} are in
+MingGW's default header and linker search paths.
 
 @item
 Configure QEMU for Windows cross compilation:
 @example
-./configure --enable-mingw32
+PATH=/usr/i686-pc-mingw32/sys-root/mingw/bin:$PATH ./configure --cross-prefix='i686-pc-mingw32-'
 @end example
-If necessary, you can change the cross-prefix according to the prefix
-chosen for the MinGW tools with --cross-prefix. You can also use
---prefix to set the Win32 install path.
+The example assumes @file{sdl-config} is installed under @file{/usr/i686-pc-mingw32/sys-root/mingw/bin} and
+MinGW cross compilation tools have names like @file{i686-pc-mingw32-gcc} and @file{i686-pc-mingw32-strip}.
+We set the @code{PATH} environment variable to ensure the MingW version of @file{sdl-config} is used and
+use --cross-prefix to specify the name of the cross compiler.
+You can also use --prefix to set the Win32 install path which defaults to @file{c:/Program Files/Qemu}.
+
+Under Fedora Linux, you can run:
+@example
+yum -y install mingw32-gcc mingw32-SDL mingw32-zlib
+@end example
+to get a suitable cross compilation environment.
 
 @item You can install QEMU in the installation directory by typing
-@file{make install}. Don't forget to copy @file{SDL.dll} in the
+@code{make install}. Don't forget to copy @file{SDL.dll} and @file{zlib1.dll} into the
 installation directory.
 
 @end itemize
 
-Note: Currently, Wine does not seem able to launch
-QEMU for Win32.
+Wine can be used to launch the resulting qemu.exe compiled for Win32.
 
 @node Mac OS X
 @section Mac OS X
