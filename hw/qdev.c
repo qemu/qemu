@@ -179,7 +179,7 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     for (prop = info->props; prop && prop->name; prop++) {
-        qemu_error("%s.%s\n", info->name, prop->name);
+        qemu_error("%s.%s=%s\n", info->name, prop->name, prop->info->name);
     }
     return 1;
 }
