@@ -189,11 +189,13 @@ static int read_password(char *buf, int buf_size)
 #endif
 
 static BlockDriverState *bdrv_new_open(const char *filename,
-                                       const char *fmt)
+                                       const char *fmt,
+                                       int readonly)
 {
     BlockDriverState *bs;
     BlockDriver *drv;
     char password[256];
+    int flags = BRDV_O_FLAGS;
 
     bs = bdrv_new("");
     if (!bs)
@@ -205,7 +207,10 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS | BDRV_O_RDWR, drv) < 0) {
+    if (!readonly) {
+        flags |= BDRV_O_RDWR;
+    }
+    if (bdrv_open2(bs, filename, flags, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     if (bdrv_is_encrypted(bs)) {
@@ -344,7 +349,7 @@ static int img_create(int argc, char **argv)
                 }
             }
 
-            bs = bdrv_new_open(backing_file->value.s, fmt);
+            bs = bdrv_new_open(backing_file->value.s, fmt, 1);
             bdrv_get_geometry(bs, &size);
             size *= 512;
             bdrv_delete(bs);
@@ -628,7 +633,7 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt);
+        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, 1);
         if (!bs[bs_i])
             error("Could not open '%s'", argv[optind + bs_i]);
         bdrv_get_geometry(bs[bs_i], &bs_sectors);
@@ -686,7 +691,7 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt);
+    out_bs = bdrv_new_open(out_filename, out_fmt, 0);
 
     bs_i = 0;
     bs_offset = 0;
