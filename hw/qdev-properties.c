@@ -544,19 +544,8 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 
     prop = qdev_prop_find(dev, name);
     if (!prop) {
-        if (strcmp(name, "?") != 0) {
-            fprintf(stderr, "property \"%s.%s\" not found\n",
-                    dev->info->name, name);
-        } else {
-            fprintf(stderr, "supported properties:\n");
-            if (dev->info->props != NULL) {
-                Property *props = dev->info->props;
-                while (props->name) {
-                    fprintf(stderr, "%s.%s\n", dev->info->name, props->name);
-                    props++;
-                }
-            }
-        }
+        fprintf(stderr, "property \"%s.%s\" not found\n",
+                dev->info->name, name);
         return -1;
     }
     if (!prop->info->parse) {
