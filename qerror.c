@@ -81,10 +81,6 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Invalid block format %(name)",
     },
     {
-        .error_fmt = QERR_INVALID_CPU_INDEX,
-        .desc      = "Invalid CPU index",
-    },
-    {
         .error_fmt = QERR_INVALID_PARAMETER,
         .desc      = "Invalid parameter %(name)",
     },
