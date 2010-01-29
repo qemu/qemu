@@ -158,6 +158,7 @@ int qdev_device_help(QemuOpts *opts)
     const char *driver;
     DeviceInfo *info;
     char msg[256];
+    Property *prop;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && !strcmp(driver, "?")) {
@@ -168,7 +169,19 @@ int qdev_device_help(QemuOpts *opts)
         return 1;
     }
 
-    return 0;
+    if (!qemu_opt_get(opts, "?")) {
+        return 0;
+    }
+
+    info = qdev_find_info(NULL, driver);
+    if (!info) {
+        return 0;
+    }
+
+    for (prop = info->props; prop && prop->name; prop++) {
+        qemu_error("%s.%s\n", info->name, prop->name);
+    }
+    return 1;
 }
 
 DeviceState *qdev_device_add(QemuOpts *opts)
