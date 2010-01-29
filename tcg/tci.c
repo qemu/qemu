@@ -892,7 +892,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i64
         case INDEX_op_bswap32_i64:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_r64(&tb_ptr);
+            tci_write_reg64(t0, bswap32(t1));
             break;
 #endif
 #ifdef TCG_TARGET_HAS_bswap64_i64

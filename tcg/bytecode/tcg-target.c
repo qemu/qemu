@@ -794,6 +794,13 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
+#ifdef TCG_TARGET_HAS_bswap32_i64
+    case INDEX_op_bswap32_i64:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
 #ifdef TCG_TARGET_HAS_not_i64
     case INDEX_op_not_i64:
         tcg_out_op_t(s, opc);
@@ -1025,6 +1032,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     default:
         //~ tcg_dump_ops(s, stderr);
         TODO();
+        fprintf(stderr, "Missing: %s\n", tcg_op_defs[opc].name);
         tcg_abort();
     }
 }
