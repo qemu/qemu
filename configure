@@ -488,7 +488,9 @@ for opt do
   ;;
   --enable-gprof) gprof="yes"
   ;;
-  --static) static="yes"
+  --static)
+    static="yes"
+    LDFLAGS="-static $LDFLAGS"
   ;;
   --sysconfdir) sysconfdir="$optarg"
   ;;
@@ -2025,7 +2027,6 @@ if test "$solaris" = "yes" ; then
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
-  LDFLAGS="-static $LDFLAGS"
 fi
 if test $profiler = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
