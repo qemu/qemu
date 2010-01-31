@@ -3366,13 +3366,13 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
 
 	for (i = 0; i < 16; i++) {
-		cpu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
+		cpu_fprintf(f, "%s=%8.8x ",regnames[i], env->regs[i]);
 		if ((i + 1) % 4 == 0)
 			cpu_fprintf(f, "\n");
 	}
 	cpu_fprintf(f, "\nspecial regs:\n");
 	for (i = 0; i < 16; i++) {
-		cpu_fprintf(f, "p%2.2d=%8.8x ", i, env->pregs[i]);
+		cpu_fprintf(f, "%s=%8.8x ", pregnames[i], env->pregs[i]);
 		if ((i + 1) % 4 == 0)
 			cpu_fprintf(f, "\n");
 	}
