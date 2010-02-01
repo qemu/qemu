@@ -377,7 +377,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
 	n = find_itlb_entry(env, address, use_asid, 1);
 	if (n >= 0) {
 	    matching = &env->itlb[n];
-	    if ((env->sr & SR_MD) & !(matching->pr & 2))
+	    if (!(env->sr & SR_MD) && !(matching->pr & 2))
 		n = MMU_ITLB_VIOLATION;
 	    else
 		*prot = PAGE_READ;
