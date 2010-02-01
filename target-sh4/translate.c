@@ -1905,7 +1905,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.bstate = BS_NONE;
     ctx.sr = env->sr;
     ctx.fpscr = env->fpscr;
-    ctx.memidx = (env->sr & SR_MD) ? 1 : 0;
+    ctx.memidx = (env->sr & SR_MD) == 0 ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
        so assume it is a dynamic branch.  */
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
