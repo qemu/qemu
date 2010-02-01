@@ -185,6 +185,12 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
         }
     }
 
+    /* check access */
+    access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
+    error_code = access_table[*access_index][access_perms];
+    if (error_code && !((env->mmuregs[0] & MMU_NF) && is_user))
+        return error_code;
+
     /* update page modified and dirty bits */
     is_dirty = (rw & 1) && !(pde & PG_MODIFIED_MASK);
     if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
@@ -193,11 +199,6 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
             pde |= PG_MODIFIED_MASK;
         stl_phys_notdirty(pde_ptr, pde);
     }
-    /* check access */
-    access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
-    error_code = access_table[*access_index][access_perms];
-    if (error_code && !((env->mmuregs[0] & MMU_NF) && is_user))
-        return error_code;
 
     /* the page can be put in the TLB */
     *prot = perm_table[is_user][access_perms];
