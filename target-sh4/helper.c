@@ -464,7 +464,7 @@ static int get_physical_address(CPUState * env, target_ulong * physical,
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 			     int mmu_idx, int is_softmmu)
 {
-    target_ulong physical, page_offset, page_size;
+    target_ulong physical;
     int prot, ret, access_type;
 
     access_type = ACCESS_INT;
@@ -511,11 +511,8 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 	return 1;
     }
 
-    page_size = TARGET_PAGE_SIZE;
-    page_offset =
-	(address - (address & TARGET_PAGE_MASK)) & ~(page_size - 1);
-    address = (address & TARGET_PAGE_MASK) + page_offset;
-    physical = (physical & TARGET_PAGE_MASK) + page_offset;
+    address &= TARGET_PAGE_MASK;
+    physical &= TARGET_PAGE_MASK;
 
     return tlb_set_page(env, address, physical, prot, mmu_idx, is_softmmu);
 }
