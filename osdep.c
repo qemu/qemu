@@ -28,13 +28,14 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+/* Needed early for CONFIG_BSD etc. */
+#include "config-host.h"
+
 #ifdef CONFIG_SOLARIS
 #include <sys/types.h>
 #include <sys/statvfs.h>
 #endif
-
-/* Needed early for CONFIG_BSD etc. */
-#include "config-host.h"
 
 #ifdef _WIN32
 #include <windows.h>
