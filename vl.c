@@ -3217,8 +3217,12 @@ static void qemu_event_increment(void)
     if (io_thread_fd == -1)
         return;
 
-    ret = write(io_thread_fd, &byte, sizeof(byte));
-    if (ret < 0 && (errno != EINTR && errno != EAGAIN)) {
+    do {
+        ret = write(io_thread_fd, &byte, sizeof(byte));
+    } while (ret < 0 && errno == EINTR);
+
+    /* EAGAIN is fine, a read must be pending.  */
+    if (ret < 0 && errno != EAGAIN) {
         fprintf(stderr, "qemu_event_increment: write() filed: %s\n",
                 strerror(errno));
         exit (1);
