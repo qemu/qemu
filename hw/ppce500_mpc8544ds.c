@@ -34,8 +34,10 @@
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
-#define DTB_LOAD_BASE              0x600000
-#define INITRD_LOAD_BASE           0x2000000
+#define DTC_LOAD_PAD               0x500000
+#define DTC_PAD_MASK               0xFFFFF
+#define INITRD_LOAD_PAD            0x2000000
+#define INITRD_PAD_MASK            0xFFFFFF
 
 #define RAM_SIZES_ALIGN            (64UL << 20)
 
@@ -168,8 +170,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     target_phys_addr_t entry=0;
     target_phys_addr_t loadaddr=UIMAGE_LOAD_BASE;
     target_long kernel_size=0;
-    target_ulong dt_base=DTB_LOAD_BASE;
-    target_ulong initrd_base=INITRD_LOAD_BASE;
+    target_ulong dt_base = 0;
+    target_ulong initrd_base = 0;
     target_long initrd_size=0;
     int i=0;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
@@ -244,6 +246,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* Load initrd. */
     if (initrd_filename) {
+        initrd_base = (kernel_size + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
         initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 
@@ -256,6 +259,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
+        dt_base = (kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
         if (mpc8544_load_device_tree(dt_base, ram_size,
                     initrd_base, initrd_size, kernel_cmdline) < 0) {
             fprintf(stderr, "couldn't load device tree\n");
