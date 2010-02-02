@@ -3229,12 +3229,12 @@ static void qemu_event_read(void *opaque)
 {
     int fd = (unsigned long)opaque;
     ssize_t len;
+    char buffer[512];
 
     /* Drain the notify pipe */
     do {
-        char buffer[512];
         len = read(fd, buffer, sizeof(buffer));
-    } while ((len == -1 && errno == EINTR) || len > 0);
+    } while ((len == -1 && errno == EINTR) || len == sizeof(buffer));
 }
 
 static int qemu_event_init(void)
