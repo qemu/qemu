@@ -72,7 +72,7 @@ out:
 }
 #endif
 
-static void *mpc8544_load_device_tree(target_phys_addr_t addr,
+static int mpc8544_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
                                      target_phys_addr_t initrd_size,
@@ -87,11 +87,13 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
+        ret = -1;
         goto out;
     }
     fdt = load_device_tree(filename, &fdt_size);
     qemu_free(filename);
     if (fdt == NULL) {
+        ret = -1;
         goto out;
     }
 
@@ -123,6 +125,7 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
 
         if ((dp = opendir("/proc/device-tree/cpus/")) == NULL) {
             printf("Can't open directory /proc/device-tree/cpus/\n");
+            ret = -1;
             goto out;
         }
 
@@ -136,6 +139,7 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
         closedir(dp);
         if (buf[0] == '\0') {
             printf("Unknow host!\n");
+            ret = -1;
             goto out;
         }
 
@@ -143,12 +147,13 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
         mpc8544_copy_soc_cell(fdt, buf, "timebase-frequency");
     }
 
-    cpu_physical_memory_write (addr, (void *)fdt, fdt_size);
+    ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
+    qemu_free(fdt);
 
 out:
 #endif
 
-    return fdt;
+    return ret;
 }
 
 static void mpc8544ds_init(ram_addr_t ram_size,
@@ -168,7 +173,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     target_ulong dt_base=DTB_LOAD_BASE;
     target_ulong initrd_base=INITRD_LOAD_BASE;
     target_long initrd_size=0;
-    void *fdt;
     int i=0;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq *irqs, *mpic, *pci_irqs;
@@ -254,9 +258,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
-        fdt = mpc8544_load_device_tree(dt_base, ram_size,
-                                      initrd_base, initrd_size, kernel_cmdline);
-        if (fdt == NULL) {
+        if (mpc8544_load_device_tree(dt_base, ram_size,
+                    initrd_base, initrd_size, kernel_cmdline) < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
