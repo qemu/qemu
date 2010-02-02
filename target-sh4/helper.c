@@ -386,38 +386,28 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
 	n = find_utlb_entry(env, address, use_asid);
 	if (n >= 0) {
 	    matching = &env->utlb[n];
-	    switch ((matching->pr << 1) | ((env->sr & SR_MD) ? 1 : 0)) {
-	    case 0:		/* 000 */
-	    case 2:		/* 010 */
-		n = (rw == 1) ? MMU_DTLB_VIOLATION_WRITE :
-		    MMU_DTLB_VIOLATION_READ;
-		break;
-	    case 1:		/* 001 */
-	    case 4:		/* 100 */
-	    case 5:		/* 101 */
-		if (rw == 1)
-		    n = MMU_DTLB_VIOLATION_WRITE;
-		else
-		    *prot = PAGE_READ;
-		break;
-	    case 3:		/* 011 */
-	    case 6:		/* 110 */
-	    case 7:		/* 111 */
-		*prot = (rw == 1)? PAGE_WRITE : PAGE_READ;
-		break;
-	    }
+            if (!(env->sr & SR_MD) && !(matching->pr & 2)) {
+                n = (rw == 1) ? MMU_DTLB_VIOLATION_WRITE :
+                    MMU_DTLB_VIOLATION_READ;
+            } else if ((rw == 1) && !(matching->pr & 1)) {
+                n = MMU_DTLB_VIOLATION_WRITE;
+            } else if ((rw == 1) & !matching->d) {
+                n = MMU_DTLB_INITIAL_WRITE;
+            } else {
+                *prot = PAGE_READ;
+                if ((matching->pr & 1) && matching->d) {
+                    *prot |= PAGE_WRITE;
+                }
+            }
 	} else if (n == MMU_DTLB_MISS) {
 	    n = (rw == 1) ? MMU_DTLB_MISS_WRITE :
 		MMU_DTLB_MISS_READ;
 	}
     }
     if (n >= 0) {
+	n = MMU_OK;
 	*physical = ((matching->ppn << 10) & ~(matching->size - 1)) |
 	    (address & (matching->size - 1));
-	if ((rw == 1) & !matching->d)
-	    n = MMU_DTLB_INITIAL_WRITE;
-	else
-	    n = MMU_OK;
     }
     return n;
 }
