@@ -574,6 +574,24 @@ void cpu_load_tlb(CPUSH4State * env)
     entry->tc   = (uint8_t)cpu_ptea_tc(env->ptea);
 }
 
+ void cpu_sh4_invalidate_tlb(CPUSH4State *s)
+{
+    int i;
+
+    /* UTLB */
+    for (i = 0; i < UTLB_SIZE; i++) {
+        tlb_t * entry = &s->utlb[i];
+        entry->v = 0;
+    }
+    /* ITLB */
+    for (i = 0; i < UTLB_SIZE; i++) {
+        tlb_t * entry = &s->utlb[i];
+        entry->v = 0;
+    }
+
+    tlb_flush(s, 1);
+}
+
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value)
 {

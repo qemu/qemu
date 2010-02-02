@@ -396,8 +396,11 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
 	portb_changed(s, temp);
 	return;
     case SH7750_MMUCR_A7:
-	s->cpu->mmucr = mem_value;
-	return;
+        if (mem_value & MMUCR_TI) {
+            cpu_sh4_invalidate_tlb(s->cpu);
+        }
+        s->cpu->mmucr = mem_value & ~MMUCR_TI;
+        return;
     case SH7750_PTEH_A7:
         /* If asid changes, clear all registered tlb entries. */
 	if ((s->cpu->pteh & 0xff) != (mem_value & 0xff))
