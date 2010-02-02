@@ -272,16 +272,6 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
     return match;
 }
 
-static int same_tlb_entry_exists(const tlb_t * haystack, uint8_t nbtlb,
-				 const tlb_t * needle)
-{
-    int i;
-    for (i = 0; i < nbtlb; i++)
-        if (!memcmp(&haystack[i], needle, sizeof(tlb_t)))
-	    return 1;
-    return 0;
-}
-
 static void increment_urc(CPUState * env)
 {
     uint8_t urb, urc;
@@ -314,8 +304,7 @@ static int find_itlb_entry(CPUState * env, target_ulong address,
 	    n = itlb_replacement(env);
 	    ientry = &env->itlb[n];
 	    if (ientry->v) {
-		if (!same_tlb_entry_exists(env->utlb, UTLB_SIZE, ientry))
-		    tlb_flush_page(env, ientry->vpn << 10);
+                tlb_flush_page(env, ientry->vpn << 10);
 	    }
 	    *ientry = env->utlb[e];
 	    e = n;
@@ -362,7 +351,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
 	    if (!(env->sr & SR_MD) && !(matching->pr & 2))
 		n = MMU_ITLB_VIOLATION;
 	    else
-		*prot = PAGE_READ;
+		*prot = PAGE_EXEC;
 	}
     } else {
 	n = find_utlb_entry(env, address, use_asid);
@@ -418,14 +407,14 @@ static int get_physical_address(CPUState * env, target_ulong * physical,
 	} else {
 	    *physical = address;
 	}
-	*prot = PAGE_READ | PAGE_WRITE;
+	*prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 	return MMU_OK;
     }
 
     /* If MMU is disabled, return the corresponding physical page */
     if (!env->mmucr & MMUCR_AT) {
 	*physical = address & 0x1FFFFFFF;
-	*prot = PAGE_READ | PAGE_WRITE;
+	*prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 	return MMU_OK;
     }
 
@@ -506,9 +495,7 @@ void cpu_load_tlb(CPUSH4State * env)
     if (entry->v) {
         /* Overwriting valid entry in utlb. */
         target_ulong address = entry->vpn << 10;
-	if (!same_tlb_entry_exists(env->itlb, ITLB_SIZE, entry)) {
-	    tlb_flush_page(env, address);
-	}
+	tlb_flush_page(env, address);
     }
 
     /* Take values into cpu status from registers. */
@@ -623,9 +610,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 	if (entry->v) {
 	    /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-	    if (!same_tlb_entry_exists(s->itlb, ITLB_SIZE, entry)) {
-	        tlb_flush_page(s, address);
-	    }
+	    tlb_flush_page(s, address);
 	}
 	entry->asid = asid;
 	entry->vpn = vpn;
