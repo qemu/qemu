@@ -430,7 +430,7 @@ static int get_physical_address(CPUState * env, target_ulong * physical,
     if ((address >= 0x80000000 && address < 0xc0000000) ||
 	address >= 0xe0000000) {
 	if (!(env->sr & SR_MD)
-	    && (address < 0xe0000000 || address > 0xe4000000)) {
+	    && (address < 0xe0000000 || address >= 0xe4000000)) {
 	    /* Unauthorized access in user mode (only store queues are available) */
 	    fprintf(stderr, "Unauthorized access\n");
 	    if (rw == 0)
