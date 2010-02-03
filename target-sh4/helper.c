@@ -261,24 +261,6 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
 	    continue;		/* Invalid entry */
 	if (!entries[i].sh && use_asid && entries[i].asid != asid)
 	    continue;		/* Bad ASID */
-#if 0
-	switch (entries[i].sz) {
-	case 0:
-	    size = 1024;	/* 1kB */
-	    break;
-	case 1:
-	    size = 4 * 1024;	/* 4kB */
-	    break;
-	case 2:
-	    size = 64 * 1024;	/* 64kB */
-	    break;
-	case 3:
-	    size = 1024 * 1024;	/* 1MB */
-	    break;
-	default:
-	    assert(0);
-	}
-#endif
 	start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
 	end = start + entries[i].size - 1;
 	if (address >= start && address <= end) {	/* Match */
