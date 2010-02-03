@@ -388,6 +388,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_VNC_DISCONNECTED:
             event_name = "VNC_DISCONNECTED";
             break;
+        case QEVENT_BLOCK_IO_ERROR:
+            event_name = "BLOCK_IO_ERROR";
+            break;
         default:
             abort();
             break;

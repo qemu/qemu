@@ -43,3 +43,24 @@ Data: 'server' and 'client' keys with the same keys as 'query-vnc'.
 
 Description: Issued when the VNC session is made active.
 Data: 'server' and 'client' keys with the same keys as 'query-vnc'.
+
+7 BLOCK_IO_ERROR
+----------------
+
+Description: Issued when a disk I/O error occurs
+Data:
+
+- 'device': device name (json-string)
+- 'operation': I/O operation (json-string, "read" or "write")
+- 'action': action that has been taken, it's one of the following:
+    "ignore": error has been ignored
+    "report": error has been reported to the device
+    "stop": error caused VM to be stopped
+
+Example:
+
+{ "event": "BLOCK_IO_ERROR",
+    "data": { "device": "ide0-hd1",
+              "operation": "write",
+              "action": "stop" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
