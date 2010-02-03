@@ -72,21 +72,20 @@
  * The use of DELAY_SLOT_TRUE flag makes us accept such SR_T modification.
  */
 
-/* XXXXX The structure could be made more compact */
 typedef struct tlb_t {
-    uint8_t asid;		/* address space identifier */
     uint32_t vpn;		/* virtual page number */
-    uint8_t v;			/* validity */
     uint32_t ppn;		/* physical page number */
-    uint8_t sz;			/* page size */
-    uint32_t size;		/* cached page size in bytes */
-    uint8_t sh;			/* share status */
-    uint8_t c;			/* cacheability */
-    uint8_t pr;			/* protection key */
-    uint8_t d;			/* dirty */
-    uint8_t wt;			/* write through */
-    uint8_t sa;			/* space attribute (PCMCIA) */
-    uint8_t tc;			/* timing control */
+    uint32_t size;		/* mapped page size in bytes */
+    uint8_t asid;		/* address space identifier */
+    uint8_t v:1;		/* validity */
+    uint8_t sz:2;		/* page size */
+    uint8_t sh:1;		/* share status */
+    uint8_t c:1;		/* cacheability */
+    uint8_t pr:2;		/* protection key */
+    uint8_t d:1;		/* dirty */
+    uint8_t wt:1;		/* write through */
+    uint8_t sa:3;		/* space attribute (PCMCIA) */
+    uint8_t tc:1;		/* timing control */
 } tlb_t;
 
 #define UTLB_SIZE 64
