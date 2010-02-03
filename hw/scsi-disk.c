@@ -182,16 +182,20 @@ static int scsi_handle_write_error(SCSIDiskReq *r, int error)
     BlockInterfaceErrorAction action =
         drive_get_on_error(s->qdev.dinfo->bdrv, 0);
 
-    if (action == BLOCK_ERR_IGNORE)
+    if (action == BLOCK_ERR_IGNORE) {
+        bdrv_mon_event(s->qdev.dinfo->bdrv, BDRV_ACTION_IGNORE, 0);
         return 0;
+    }
 
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
         r->status |= SCSI_REQ_STATUS_RETRY;
         vm_stop(0);
+        bdrv_mon_event(s->qdev.dinfo->bdrv, BDRV_ACTION_STOP, 0);
     } else {
         scsi_command_complete(r, CHECK_CONDITION,
                 HARDWARE_ERROR);
+        bdrv_mon_event(s->qdev.dinfo->bdrv, BDRV_ACTION_REPORT, 0);
     }
 
     return 1;
