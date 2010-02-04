@@ -275,7 +275,8 @@ the write back by pressing @key{C-a s} (@pxref{disk_images}).
 ETEXI
 
 DEF("m", HAS_ARG, QEMU_OPTION_m,
-    "-m megs         set virtual RAM size to megs MB [default=%d]\n")
+    "-m megs         set virtual RAM size to megs MB [default="
+    stringify(DEFAULT_RAM_SIZE) "]\n")
 STEXI
 @item -m @var{megs}
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
@@ -830,8 +831,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
 #else
     "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile][,sndbuf=nbytes][,vnet_hdr=on|off]\n"
     "                connect the host TAP network interface to VLAN 'n' and use the\n"
-    "                network scripts 'file' (default=%s)\n"
-    "                and 'dfile' (default=%s)\n"
+    "                network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
+    "                and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
     "                use '[down]script=no' to disable script execution\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
     "                use 'sndbuf=nbytes' to limit the size of the send buffer (the\n"
@@ -1664,7 +1665,7 @@ within gdb and establish the connection via a pipe:
 ETEXI
 
 DEF("s", 0, QEMU_OPTION_s, \
-    "-s              shorthand for -gdb tcp::%s\n")
+    "-s              shorthand for -gdb tcp::" DEFAULT_GDBSTUB_PORT "\n")
 STEXI
 @item -s
 Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
@@ -1672,7 +1673,7 @@ Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
 ETEXI
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
-    "-d item1,...    output log to %s (use -d ? for a list of log items)\n")
+    "-d item1,...    output log to /tmp/qemu.log (use -d ? for a list of log items)\n")
 STEXI
 @item -d
 Output log in /tmp/qemu.log

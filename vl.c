@@ -4041,14 +4041,7 @@ static void help(int exitcode)
            "\n"
            "When using -nographic, press 'ctrl-a h' to get some help.\n"
            ,
-           "qemu",
-           DEFAULT_RAM_SIZE,
-#ifndef _WIN32
-           DEFAULT_NETWORK_SCRIPT,
-           DEFAULT_NETWORK_DOWN_SCRIPT,
-#endif
-           DEFAULT_GDBSTUB_PORT,
-           "/tmp/qemu.log");
+           "qemu");
     exit(exitcode);
 }
 
