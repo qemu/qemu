@@ -28,6 +28,7 @@
 #define IS_ESC  1
 #define IS_CSI  2
 
+#undef printf
 #define printf do_not_use_printf
 
 void readline_show_prompt(ReadLineState *rs)
