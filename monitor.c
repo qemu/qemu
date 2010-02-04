@@ -4368,6 +4368,14 @@ void monitor_resume(Monitor *mon)
         readline_show_prompt(mon->rs);
 }
 
+static QObject *get_qmp_greeting(void)
+{
+    QObject *ver;
+
+    do_info_version(NULL, &ver);
+    return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
+}
+
 /**
  * monitor_control_event(): Print QMP gretting
  */
@@ -4379,7 +4387,7 @@ static void monitor_control_event(void *opaque, int event)
 
         json_message_parser_init(&mon->mc->parser, handle_qmp_command);
 
-        data = qobject_from_jsonf("{ 'QMP': { 'capabilities': [] } }");
+        data = get_qmp_greeting();
         assert(data != NULL);
 
         monitor_json_emitter(mon, data);

@@ -48,10 +48,12 @@ waiting for commands.
 
 The format is:
 
-{ "QMP": { "capabilities": json-array } }
+{ "QMP": { "version": json-object, "capabilities": json-array } }
 
  Where,
 
+- The "version" member contains the Server's version information (the format
+  is the same of the 'query-version' command)
 - The "capabilities" member specify the availability of features beyond the
   baseline specification
 
@@ -152,7 +154,7 @@ This section provides some examples of real QMP usage, in all of them
 3.1 Server greeting
 -------------------
 
-S: {"QMP": {"capabilities": []}}
+S: {"QMP": {"version": {"qemu": "0.12.50", "package": ""}, "capabilities": []}}
 
 3.2 Simple 'stop' execution
 ---------------------------
