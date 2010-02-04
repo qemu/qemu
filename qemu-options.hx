@@ -430,7 +430,7 @@ Also optionally set the top visible process name in Linux.
 ETEXI
 
 DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,
-    "-uuid %%08x-%%04x-%%04x-%%04x-%%012x\n"
+    "-uuid %08x-%04x-%04x-%04x-%012x\n"
     "                specify machine UUID\n")
 STEXI
 @item -uuid @var{uuid}
@@ -773,7 +773,7 @@ ETEXI
 DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "-smbios file=binary\n"
     "                load SMBIOS entry from binary file\n"
-    "-smbios type=0[,vendor=str][,version=str][,date=str][,release=%%d.%%d]\n"
+    "-smbios type=0[,vendor=str][,version=str][,date=str][,release=%d.%d]\n"
     "                specify SMBIOS type 0 fields\n"
     "-smbios type=1[,manufacturer=str][,product=str][,version=str][,serial=str]\n"
     "              [,uuid=uuid][,sku=str][,family=str]\n"
