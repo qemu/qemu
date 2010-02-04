@@ -476,7 +476,8 @@ static QObject *parse_escape(JSONParserContext *ctxt, QList **tokens, va_list *a
         obj = QOBJECT(qint_from_int(va_arg(*ap, int)));
     } else if (token_is_escape(token, "%ld")) {
         obj = QOBJECT(qint_from_int(va_arg(*ap, long)));
-    } else if (token_is_escape(token, "%lld")) {
+    } else if (token_is_escape(token, "%lld") ||
+               token_is_escape(token, "%I64d")) {
         obj = QOBJECT(qint_from_int(va_arg(*ap, long long)));
     } else if (token_is_escape(token, "%s")) {
         obj = QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
