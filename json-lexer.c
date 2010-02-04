@@ -54,6 +54,9 @@ enum json_lexer_state {
     IN_ESCAPE,
     IN_ESCAPE_L,
     IN_ESCAPE_LL,
+    IN_ESCAPE_I,
+    IN_ESCAPE_I6,
+    IN_ESCAPE_I64,
     IN_ESCAPE_DONE,
     IN_WHITESPACE,
     IN_OPERATOR_DONE,
@@ -223,6 +226,18 @@ static const uint8_t json_lexer[][256] =  {
         ['l'] = IN_ESCAPE_LL,
     },
 
+    [IN_ESCAPE_I64] = {
+        ['d'] = IN_ESCAPE_DONE,
+    },
+
+    [IN_ESCAPE_I6] = {
+        ['4'] = IN_ESCAPE_I64,
+    },
+
+    [IN_ESCAPE_I] = {
+        ['6'] = IN_ESCAPE_I6,
+    },
+
     [IN_ESCAPE] = {
         ['d'] = IN_ESCAPE_DONE,
         ['i'] = IN_ESCAPE_DONE,
@@ -230,6 +245,7 @@ static const uint8_t json_lexer[][256] =  {
         ['s'] = IN_ESCAPE_DONE,
         ['f'] = IN_ESCAPE_DONE,
         ['l'] = IN_ESCAPE_L,
+        ['I'] = IN_ESCAPE_I,
     },
 
     /* top level rule */
