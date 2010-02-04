@@ -2380,9 +2380,9 @@ static void numa_add(const char *optarg)
                         fprintf(stderr,
                             "only 63 CPUs in NUMA mode supported.\n");
                     }
-                    value = (1 << (endvalue + 1)) - (1 << value);
+                    value = (2ULL << endvalue) - (1ULL << value);
                 } else {
-                    value = 1 << value;
+                    value = 1ULL << value;
                 }
             }
             node_cpumask[nodenr] = value;
