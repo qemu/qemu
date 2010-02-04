@@ -37,6 +37,7 @@ void qdict_iter(const QDict *qdict,
         qdict_put_obj(qdict, key, QOBJECT(obj))
 
 /* High level helpers */
+double qdict_get_double(const QDict *qdict, const char *key);
 int64_t qdict_get_int(const QDict *qdict, const char *key);
 int qdict_get_bool(const QDict *qdict, const char *key);
 QList *qdict_get_qlist(const QDict *qdict, const char *key);

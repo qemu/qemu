@@ -11,6 +11,7 @@
  */
 
 #include "qint.h"
+#include "qfloat.h"
 #include "qdict.h"
 #include "qbool.h"
 #include "qstring.h"
@@ -172,6 +173,29 @@ static QObject *qdict_get_obj(const QDict *qdict, const char *key,
     assert(qobject_type(obj) == type);
 
     return obj;
+}
+
+/**
+ * qdict_get_double(): Get an number mapped by 'key'
+ *
+ * This function assumes that 'key' exists and it stores a
+ * QFloat or QInt object.
+ *
+ * Return number mapped by 'key'.
+ */
+double qdict_get_double(const QDict *qdict, const char *key)
+{
+    QObject *obj = qdict_get(qdict, key);
+
+    assert(obj);
+    switch (qobject_type(obj)) {
+    case QTYPE_QFLOAT:
+        return qfloat_get_double(qobject_to_qfloat(obj));
+    case QTYPE_QINT:
+        return qint_get_int(qobject_to_qint(obj));
+    default:
+        assert(0);
+    }
 }
 
 /**

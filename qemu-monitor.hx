@@ -761,10 +761,11 @@ ETEXI
 
     {
         .name       = "migrate_set_speed",
-        .args_type  = "value:s",
+        .args_type  = "value:b",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
-        .mhandler.cmd = do_migrate_set_speed,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate_set_speed,
     },
 
 STEXI
@@ -774,10 +775,11 @@ ETEXI
 
     {
         .name       = "migrate_set_downtime",
-        .args_type  = "value:s",
+        .args_type  = "value:T",
         .params     = "value",
         .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .mhandler.cmd = do_migrate_set_downtime,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_migrate_set_downtime,
     },
 
 STEXI

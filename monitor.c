@@ -47,6 +47,7 @@
 #include "kvm.h"
 #include "acl.h"
 #include "qint.h"
+#include "qfloat.h"
 #include "qlist.h"
 #include "qdict.h"
 #include "qbool.h"
@@ -68,6 +69,15 @@
  * 's'          string (accept optional quote)
  * 'i'          32 bit integer
  * 'l'          target long (32 or 64 bit)
+ * 'M'          just like 'l', except in user mode the value is
+ *              multiplied by 2^20 (think Mebibyte)
+ * 'b'          double
+ *              user mode accepts an optional G, g, M, m, K, k suffix,
+ *              which multiplies the value by 2^30 for suffixes G and
+ *              g, 2^20 for M and m, 2^10 for K and k
+ * 'T'          double
+ *              user mode accepts an optional ms, us, ns suffix,
+ *              which divides the value by 1e3, 1e6, 1e9, respectively
  * '/'          optional gdb-like print format (like "/10x")
  *
  * '?'          optional type (for all types, except '/')
@@ -897,7 +907,7 @@ static void do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int index = qdict_get_int(qdict, "index");
     if (mon_set_cpu(index) < 0)
-        qemu_error_new(QERR_INVALID_CPU_INDEX);
+        qemu_error_new(QERR_INVALID_PARAMETER, "index");
 }
 
 static void do_info_jit(Monitor *mon)
@@ -3297,6 +3307,27 @@ static int get_expr(Monitor *mon, int64_t *pval, const char **pp)
     return 0;
 }
 
+static int get_double(Monitor *mon, double *pval, const char **pp)
+{
+    const char *p = *pp;
+    char *tailp;
+    double d;
+
+    d = strtod(p, &tailp);
+    if (tailp == p) {
+        monitor_printf(mon, "Number expected\n");
+        return -1;
+    }
+    if (d != d || d - d != 0) {
+        /* NaN or infinity */
+        monitor_printf(mon, "Bad number\n");
+        return -1;
+    }
+    *pval = d;
+    *pp = tailp;
+    return 0;
+}
+
 static int get_str(char *buf, int buf_size, const char **pp)
 {
     const char *p;
@@ -3631,6 +3662,49 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     val <<= 20;
                 }
                 qdict_put(qdict, key, qint_from_int(val));
+            }
+            break;
+        case 'b':
+        case 'T':
+            {
+                double val;
+
+                while (qemu_isspace(*p))
+                    p++;
+                if (*typestr == '?') {
+                    typestr++;
+                    if (*p == '\0') {
+                        break;
+                    }
+                }
+                if (get_double(mon, &val, &p) < 0) {
+                    goto fail;
+                }
+                if (c == 'b' && *p) {
+                    switch (*p) {
+                    case 'K': case 'k':
+                        val *= 1 << 10; p++; break;
+                    case 'M': case 'm':
+                        val *= 1 << 20; p++; break;
+                    case 'G': case 'g':
+                        val *= 1 << 30; p++; break;
+                    }
+                }
+                if (c == 'T' && p[0] && p[1] == 's') {
+                    switch (*p) {
+                    case 'm':
+                        val /= 1e3; p += 2; break;
+                    case 'u':
+                        val /= 1e6; p += 2; break;
+                    case 'n':
+                        val /= 1e9; p += 2; break;
+                    }
+                }
+                if (*p && !qemu_isspace(*p)) {
+                    monitor_printf(mon, "Unknown unit suffix\n");
+                    goto fail;
+                }
+                qdict_put(qdict, key, qfloat_from_double(val));
             }
             break;
         case '-':
@@ -4055,6 +4129,13 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
         case 'M':
             if (qobject_type(value) != QTYPE_QINT) {
                 qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
+                return -1;
+            }
+            break;
+        case 'b':
+        case 'T':
+            if (qobject_type(value) != QTYPE_QINT && qobject_type(value) != QTYPE_QFLOAT) {
+                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "number");
                 return -1;
             }
             break;
