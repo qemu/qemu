@@ -153,6 +153,11 @@ Monitor *cur_mon = NULL;
 static void monitor_command_cb(Monitor *mon, const char *cmdline,
                                void *opaque);
 
+static inline int qmp_cmd_mode(const Monitor *mon)
+{
+    return (mon->mc ? mon->mc->command_mode : 0);
+}
+
 /* Return true if in control mode, false otherwise */
 static inline int monitor_ctrl_mode(const Monitor *mon)
 {
@@ -406,7 +411,7 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     }
 
     QLIST_FOREACH(mon, &mon_list, entry) {
-        if (monitor_ctrl_mode(mon)) {
+        if (monitor_ctrl_mode(mon) && qmp_cmd_mode(mon)) {
             monitor_json_emitter(mon, QOBJECT(qmp));
         }
     }
@@ -4232,6 +4237,12 @@ static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
     return err;
 }
 
+static int invalid_qmp_mode(const Monitor *mon, const char *cmd_name)
+{
+    int is_cap = compare_cmd(cmd_name, "qmp_capabilities");
+    return (qmp_cmd_mode(mon) ? is_cap : !is_cap);
+}
+
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
     int err;
@@ -4270,6 +4281,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     cmd_name = qstring_get_str(qobject_to_qstring(obj));
+
+    if (invalid_qmp_mode(mon, cmd_name)) {
+        qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+        goto err_input;
+    }
 
     /*
      * XXX: We need this special case until we get info handlers
