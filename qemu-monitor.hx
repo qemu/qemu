@@ -1126,6 +1126,20 @@ STEXI
 Set the encrypted device @var{device} password to @var{password}
 ETEXI
 
+    {
+        .name       = "qmp_capabilities",
+        .args_type  = "",
+        .params     = "",
+        .help       = "enable QMP capabilities",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_qmp_capabilities,
+    },
+
+STEXI
+@item qmp_capabilities
+Enable the specified QMP capabilities
+ETEXI
+
 STEXI
 @end table
 ETEXI
