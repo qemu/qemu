@@ -1007,11 +1007,9 @@ USBDevice *usb_host_device_open(const char *devname)
 {
     struct USBAutoFilter filter;
     USBDevice *dev;
-    USBHostDevice *s;
     char *p;
 
     dev = usb_create(NULL /* FIXME */, "usb-host");
-    s = DO_UPCAST(USBHostDevice, dev, dev);
 
     if (strstr(devname, "auto:")) {
         if (parse_filter(devname, &filter) < 0)
