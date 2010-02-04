@@ -58,7 +58,8 @@ static void format_print(void *opaque, const char *name)
 /* Please keep in synch with qemu-img.texi */
 static void help(void)
 {
-    printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
+    const char *help_msg =
+           "qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
            "usage: qemu-img command [command options]\n"
            "QEMU disk image utility\n"
            "\n"
@@ -91,9 +92,9 @@ static void help(void)
            "  '-a' applies a snapshot (revert disk to saved state)\n"
            "  '-c' creates a snapshot\n"
            "  '-d' deletes a snapshot\n"
-           "  '-l' lists all snapshots in the given image\n"
-           );
-    printf("\nSupported formats:");
+           "  '-l' lists all snapshots in the given image\n";
+
+    printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
     printf("\n");
     exit(1);
