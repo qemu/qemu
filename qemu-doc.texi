@@ -58,7 +58,7 @@ achieve good emulation speed.
 
 QEMU has two operating modes:
 
-@itemize @minus
+@itemize
 
 @item
 Full system emulation. In this mode, QEMU emulates a full system (for
