@@ -37,6 +37,7 @@
 * QEMU System emulator for non PC targets::
 * QEMU User space emulator::
 * compilation:: Compilation from the sources
+* License::
 * Index::
 @end menu
 @end ifnottex
@@ -59,14 +60,17 @@ achieve good emulation speed.
 QEMU has two operating modes:
 
 @itemize
+@cindex operating modes
 
 @item
+@cindex system emulation
 Full system emulation. In this mode, QEMU emulates a full system (for
 example a PC), including one or several processors and various
 peripherals. It can be used to launch different Operating Systems
 without rebooting the PC or to debug system code.
 
 @item
+@cindex user mode emulation
 User mode emulation. In this mode, QEMU can launch
 processes compiled for one CPU on another CPU. It can be used to
 launch the Wine Windows API emulator (@url{http://www.winehq.org}) or
@@ -79,6 +83,8 @@ performance.
 
 For system emulation, the following hardware targets are supported:
 @itemize
+@cindex emulated target systems
+@cindex supported target systems
 @item PC (x86 or x86_64 processor)
 @item ISA PC (old style PC without PCI bus)
 @item PREP (PowerPC processor)
@@ -106,7 +112,10 @@ For system emulation, the following hardware targets are supported:
 @item Petalogix Spartan 3aDSP1800 MMU ref design (MicroBlaze).
 @end itemize
 
-For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64, ColdFire(m68k), CRISv32 and MicroBlaze CPUs are supported.
+@cindex supported user mode targets
+For user emulation, x86 (32 and 64 bit), PowerPC (32 and 64 bit),
+ARM, MIPS (32 bit only), Sparc (32 and 64 bit),
+Alpha, ColdFire(m68k), CRISv32 and MicroBlaze CPUs are supported.
 
 @node Installation
 @chapter Installation
@@ -121,24 +130,29 @@ If you want to compile QEMU yourself, see @ref{compilation}.
 
 @node install_linux
 @section Linux
+@cindex installation (Linux)
 
 If a precompiled package is available for your distribution - you just
 have to install it. Otherwise, see @ref{compilation}.
 
 @node install_windows
 @section Windows
+@cindex installation (Windows)
 
 Download the experimental binary installer at
 @url{http://www.free.oszoo.org/@/download.html}.
+TODO (no longer available)
 
 @node install_mac
 @section Mac OS X
 
 Download the experimental binary installer at
 @url{http://www.free.oszoo.org/@/download.html}.
+TODO (no longer available)
 
 @node QEMU PC System emulator
 @chapter QEMU PC System emulator
+@cindex system emulation (PC)
 
 @menu
 * pcsys_introduction:: Introduction
@@ -229,6 +243,7 @@ CS4231A is the chip used in Windows Sound System and GUSMAX products
 
 @node pcsys_quickstart
 @section Quick Start
+@cindex quick start
 
 Download and uncompress the linux image (@file{linux.img}) and type:
 
@@ -263,12 +278,15 @@ targets do not need a disk image.
 During the graphical emulation, you can use the following keys:
 @table @key
 @item Ctrl-Alt-f
+@kindex Ctrl-Alt-f
 Toggle full screen
 
 @item Ctrl-Alt-u
+@kindex Ctrl-Alt-u
 Restore the screen's un-scaled dimensions
 
 @item Ctrl-Alt-n
+@kindex Ctrl-Alt-n
 Switch to virtual console 'n'. Standard console mappings are:
 @table @emph
 @item 1
@@ -280,30 +298,44 @@ Serial port
 @end table
 
 @item Ctrl-Alt
+@kindex Ctrl-Alt
 Toggle mouse and keyboard grab.
 @end table
 
+@kindex Ctrl-Up
+@kindex Ctrl-Down
+@kindex Ctrl-PageUp
+@kindex Ctrl-PageDown
 In the virtual consoles, you can use @key{Ctrl-Up}, @key{Ctrl-Down},
 @key{Ctrl-PageUp} and @key{Ctrl-PageDown} to move in the back log.
 
+@kindex Ctrl-a h
 During emulation, if you are using the @option{-nographic} option, use
 @key{Ctrl-a h} to get terminal commands:
 
 @table @key
 @item Ctrl-a h
+@kindex Ctrl-a h
 @item Ctrl-a ?
+@kindex Ctrl-a ?
 Print this help
 @item Ctrl-a x
+@kindex Ctrl-a x
 Exit emulator
 @item Ctrl-a s
+@kindex Ctrl-a s
 Save disk data back to file (if -snapshot)
 @item Ctrl-a t
+@kindex Ctrl-a t
 Toggle console timestamps
 @item Ctrl-a b
+@kindex Ctrl-a b
 Send break (magic sysrq in Linux)
 @item Ctrl-a c
+@kindex Ctrl-a c
 Switch between console and monitor
 @item Ctrl-a Ctrl-a
+@kindex Ctrl-a a
 Send Ctrl-a
 @end table
 @c man end
@@ -323,6 +355,7 @@ Fabrice Bellard
 
 @node pcsys_monitor
 @section QEMU Monitor
+@cindex QEMU monitor
 
 The QEMU monitor is used to give complex commands to the QEMU
 emulator. You can use it to:
@@ -1286,16 +1319,20 @@ machines. Most of the options are similar to the PC emulator. The
 differences are mentioned in the following sections.
 
 @menu
-* QEMU PowerPC System emulator::
+* PowerPC System emulator::
 * Sparc32 System emulator::
 * Sparc64 System emulator::
 * MIPS System emulator::
 * ARM System emulator::
 * ColdFire System emulator::
+* Cris System emulator::
+* Microblaze System emulator::
+* SH4 System emulator::
 @end menu
 
-@node QEMU PowerPC System emulator
-@section QEMU PowerPC System emulator
+@node PowerPC System emulator
+@section PowerPC System emulator
+@cindex system emulation (PowerPC)
 
 Use the executable @file{qemu-system-ppc} to simulate a complete PREP
 or PowerMac PowerPC system.
@@ -1378,6 +1415,7 @@ More information is available at
 
 @node Sparc32 System emulator
 @section Sparc32 System emulator
+@cindex system emulation (Sparc32)
 
 Use the executable @file{qemu-system-sparc} to simulate the following
 Sun4m architecture machines:
@@ -1476,6 +1514,7 @@ Set the emulated machine type. Default is SS-5.
 
 @node Sparc64 System emulator
 @section Sparc64 System emulator
+@cindex system emulation (Sparc64)
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u
 (UltraSPARC PC-like machine), Sun4v (T1 PC-like machine), or generic
@@ -1525,6 +1564,7 @@ Set the emulated machine type. The default is sun4u.
 
 @node MIPS System emulator
 @section MIPS System emulator
+@cindex system emulation (MIPS)
 
 Four executables cover simulation of 32 and 64-bit MIPS systems in
 both endian options, @file{qemu-system-mips}, @file{qemu-system-mipsel}
@@ -1620,6 +1660,7 @@ G364 framebuffer
 
 @node ARM System emulator
 @section ARM System emulator
+@cindex system emulation (ARM)
 
 Use the executable @file{qemu-system-arm} to simulate a ARM
 machine. The ARM Integrator/CP board is emulated with the following
@@ -1905,6 +1946,8 @@ so should only be used with trusted guest OS.
 
 @node ColdFire System emulator
 @section ColdFire System emulator
+@cindex system emulation (ColdFire)
+@cindex system emulation (M68K)
 
 Use the executable @file{qemu-system-m68k} to simulate a ColdFire machine.
 The emulator is able to boot a uClinux kernel.
@@ -1931,7 +1974,7 @@ Two on-chip UARTs.
 
 @c man begin OPTIONS
 
-The following options are specific to the ARM emulation:
+The following options are specific to the ColdFire emulation:
 
 @table @option
 
@@ -1944,6 +1987,24 @@ Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
 
 @end table
+
+@node Cris System emulator
+@section Cris System emulator
+@cindex system emulation (Cris)
+
+TODO
+
+@node Microblaze System emulator
+@section Microblaze System emulator
+@cindex system emulation (Microblaze)
+
+TODO
+
+@node SH4 System emulator
+@section SH4 System emulator
+@cindex system emulation (SH4)
+
+TODO
 
 @node QEMU User space emulator
 @chapter QEMU User space emulator
@@ -2109,16 +2170,49 @@ flag-style arguments don't have decoders and will show up as numbers.
 @node Other binaries
 @subsection Other binaries
 
+@cindex user mode (Alpha)
+@command{qemu-alpha} TODO.
+
+@cindex user mode (ARM)
+@command{qemu-armeb} TODO.
+
+@cindex user mode (ARM)
 @command{qemu-arm} is also capable of running ARM "Angel" semihosted ELF
 binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
 configurations), and arm-uclinux bFLT format binaries.
 
+@cindex user mode (ColdFire)
+@cindex user mode (M68K)
 @command{qemu-m68k} is capable of running semihosted binaries using the BDM
 (m5xxx-ram-hosted.ld) or m68k-sim (sim.ld) syscall interfaces, and
 coldfire uClinux bFLT format binaries.
 
 The binary format is detected automatically.
 
+@cindex user mode (Cris)
+@command{qemu-cris} TODO.
+
+@cindex user mode (i386)
+@command{qemu-i386} TODO.
+@command{qemu-x86_64} TODO.
+
+@cindex user mode (Microblaze)
+@command{qemu-microblaze} TODO.
+
+@cindex user mode (MIPS)
+@command{qemu-mips} TODO.
+@command{qemu-mipsel} TODO.
+
+@cindex user mode (PowerPC)
+@command{qemu-ppc64abi32} TODO.
+@command{qemu-ppc64} TODO.
+@command{qemu-ppc} TODO.
+
+@cindex user mode (SH4)
+@command{qemu-sh4eb} TODO.
+@command{qemu-sh4} TODO.
+
+@cindex user mode (SPARC)
 @command{qemu-sparc} can execute Sparc32 binaries (Sparc32 CPU, 32 bit ABI).
 
 @command{qemu-sparc32plus} can execute Sparc32 and SPARC32PLUS binaries
@@ -2439,8 +2533,58 @@ TODO
 
 @end table
 
+@node License
+@appendix License
+
+QEMU is a trademark of Fabrice Bellard.
+
+QEMU is released under the GNU General Public License (TODO: add link).
+Parts of QEMU have specific licenses, see file LICENSE.
+
+TODO (refer to file LICENSE, include it, include the GPL?)
+
 @node Index
-@chapter Index
+@appendix Index
+@menu
+* Concept Index::
+* Function Index::
+* Keystroke Index::
+* Program Index::
+* Data Type Index::
+* Variable Index::
+@end menu
+
+@node Concept Index
+@section Concept Index
+This is the main index. Should we combine all keywords in one index? TODO
 @printindex cp
+
+@node Function Index
+@section Function Index
+This index could be used for command line options and monitor functions.
+@printindex fn
+
+@node Keystroke Index
+@section Keystroke Index
+
+This is a list of all keystrokes which have a special function
+in system emulation.
+
+@printindex ky
+
+@node Program Index
+@section Program Index
+@printindex pg
+
+@node Data Type Index
+@section Data Type Index
+
+This index could be used for qdev device names and options.
+
+@printindex tp
+
+@node Variable Index
+@section Variable Index
+@printindex vr
 
 @bye
