@@ -1,6 +1,10 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
 @setfilename qemu-doc.info
+
+@documentlanguage en
+@documentencoding UTF-8
+
 @settitle QEMU Emulator User Documentation
 @exampleindent 0
 @paragraphindent 0
@@ -1831,7 +1835,7 @@ MV88W8xx8 Ethernet controller
 @item
 MV88W8618 audio controller, WM8750 CODEC and mixer
 @item
-128×64 display with brightness control
+128Ã—64 display with brightness control
 @item
 2 buttons, 2 navigation wheels with button function
 @end itemize

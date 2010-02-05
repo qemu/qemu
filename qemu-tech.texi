@@ -1,6 +1,10 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
 @setfilename qemu-tech.info
+
+@documentlanguage en
+@documentencoding UTF-8
+
 @settitle QEMU Internals
 @exampleindent 0
 @paragraphindent 0
