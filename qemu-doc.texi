@@ -6,6 +6,12 @@
 @paragraphindent 0
 @c %**end of header
 
+@ifinfo
+@direntry
+* QEMU: (qemu-doc).    The QEMU Emulator User Documentation.
+@end direntry
+@end ifinfo
+
 @iftex
 @titlepage
 @sp 7

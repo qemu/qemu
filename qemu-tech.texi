@@ -6,6 +6,12 @@
 @paragraphindent 0
 @c %**end of header
 
+@ifinfo
+@direntry
+* QEMU Internals: (qemu-tech).   The QEMU Emulator Internals.
+@end direntry
+@end ifinfo
+
 @iftex
 @titlepage
 @sp 7
