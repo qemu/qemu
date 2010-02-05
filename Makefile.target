@@ -224,7 +224,7 @@ obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
 # OldWorld PowerMac
 obj-ppc-y += heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
-obj-ppc-y += unin_pci.o ppc_newworld.o
+obj-ppc-y += unin_pci.o ppc_newworld.o dec_pci.o
 # PowerPC 4xx boards
 obj-ppc-y += pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-ppc-y += ppc440.o ppc440_bamboo.o
