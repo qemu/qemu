@@ -2286,6 +2286,7 @@ Run the emulation in single step mode.
 * Windows::
 * Cross compilation for Windows with Linux::
 * Mac OS X::
+* Make targets::
 @end menu
 
 @node Linux/Unix
@@ -2397,6 +2398,46 @@ Wine can be used to launch the resulting qemu.exe compiled for Win32.
 The Mac OS X patches are not fully merged in QEMU, so you should look
 at the QEMU mailing list archive to have all the necessary
 information.
+
+@node Make targets
+@section Make targets
+
+@table @code
+
+@item make
+@item make all
+Make everything which is typically needed.
+
+@item install
+TODO
+
+@item install-doc
+TODO
+
+@item make clean
+Remove most files which were built during make.
+
+@item make distclean
+Remove everything which was built during make.
+
+@item make dvi
+@item make html
+@item make info
+@item make pdf
+Create documentation in dvi, html, info or pdf format.
+
+@item make cscope
+TODO
+
+@item make defconfig
+(Re-)create some build configuration files.
+User made changes will be overwritten.
+
+@item tar
+@item tarbin
+TODO
+
+@end table
 
 @node Index
 @chapter Index
