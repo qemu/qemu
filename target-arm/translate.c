@@ -5010,7 +5010,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     case 0: case 1: case 4: /* VADDL, VADDW, VADDHN, VRADDHN */
                         gen_neon_addl(size);
                         break;
-                    case 2: case 3: case 6: /* VSUBL, VSUBW, VSUBHL, VRSUBHL */
+                    case 2: case 3: case 6: /* VSUBL, VSUBW, VSUBHN, VRSUBHN */
                         gen_neon_subl(size);
                         break;
                     case 5: case 7: /* VABAL, VABDL */
@@ -5079,7 +5079,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     } else if (op == 4 || op == 6) {
                         /* Narrowing operation.  */
                         tmp = new_tmp();
-                        if (u) {
+                        if (!u) {
                             switch (size) {
                             case 0:
                                 gen_helper_neon_narrow_high_u8(tmp, cpu_V0);
