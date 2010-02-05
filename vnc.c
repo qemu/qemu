@@ -356,17 +356,14 @@ void do_info_vnc(Monitor *mon, QObject **ret_data)
         *ret_data = qobject_from_jsonf("{ 'enabled': false }");
     } else {
         QList *clist;
+        VncState *client;
 
         clist = qlist_new();
-        if (vnc_display->clients) {
-            VncState *client = vnc_display->clients;
-            while (client) {
-                if (client->info) {
-                    /* incref so that it's not freed by upper layers */
-                    qobject_incref(client->info);
-                    qlist_append_obj(clist, client->info);
-                }
-                client = client->next;
+        QTAILQ_FOREACH(client, &vnc_display->clients, next) {
+            if (client->info) {
+                /* incref so that it's not freed by upper layers */
+                qobject_incref(client->info);
+                qlist_append_obj(clist, client->info);
             }
         }
 
@@ -519,7 +516,7 @@ static void vnc_dpy_resize(DisplayState *ds)
 {
     int size_changed;
     VncDisplay *vd = ds->opaque;
-    VncState *vs = vd->clients;
+    VncState *vs;
 
     /* server surface */
     if (!vd->server)
@@ -540,7 +537,7 @@ static void vnc_dpy_resize(DisplayState *ds)
     *(vd->guest.ds) = *(ds->surface);
     memset(vd->guest.dirty, 0xFF, sizeof(vd->guest.dirty));
 
-    while (vs != NULL) {
+    QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
         if (size_changed) {
             if (vs->csock != -1 && vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
@@ -553,7 +550,6 @@ static void vnc_dpy_resize(DisplayState *ds)
             }
         }
         memset(vs->dirty, 0xFF, sizeof(vs->dirty));
-        vs = vs->next;
     }
 }
 
@@ -867,8 +863,7 @@ static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int 
     int cmp_bytes;
 
     vnc_refresh_server_surface(vd);
-    for (vs = vd->clients; vs != NULL; vs = vn) {
-        vn = vs->next;
+    QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
         if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
             vs->force_update = 1;
             vnc_update_client(vs, 1);
@@ -912,11 +907,10 @@ static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int 
             if (memcmp(src_row, dst_row, cmp_bytes) == 0)
                 continue;
             memmove(dst_row, src_row, cmp_bytes);
-            vs = vd->clients;
-            while (vs != NULL) {
-                if (!vnc_has_feature(vs, VNC_FEATURE_COPYRECT))
+            QTAILQ_FOREACH(vs, &vd->clients, next) {
+                if (!vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
                     vnc_set_bit(vs->dirty[y], ((x + dst_x) / 16));
-                vs = vs->next;
+                }
             }
         }
         src_row += pitch - w * depth;
@@ -924,9 +918,10 @@ static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int 
         y += inc;
     }
 
-    for (vs = vd->clients; vs != NULL; vs = vs->next) {
-        if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT))
+    QTAILQ_FOREACH(vs, &vd->clients, next) {
+        if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
             vnc_copy(vs, src_x, src_y, dst_x, dst_y, w, h);
+        }
     }
 }
 
@@ -1109,19 +1104,11 @@ static void vnc_disconnect_finish(VncState *vs)
 #endif /* CONFIG_VNC_SASL */
     audio_del(vs);
 
-    VncState *p, *parent = NULL;
-    for (p = vs->vd->clients; p != NULL; p = p->next) {
-        if (p == vs) {
-            if (parent)
-                parent->next = p->next;
-            else
-                vs->vd->clients = p->next;
-            break;
-        }
-        parent = p;
-    }
-    if (!vs->vd->clients)
+    QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+
+    if (QTAILQ_EMPTY(&vs->vd->clients)) {
         dcl->idle = 1;
+    }
 
     vnc_remove_timer(vs->vd);
     qemu_free(vs);
@@ -2299,7 +2286,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
     uint8_t *server_row;
     int cmp_bytes;
     uint32_t width_mask[VNC_DIRTY_WORDS];
-    VncState *vs = NULL;
+    VncState *vs;
     int has_dirty = 0;
 
     /*
@@ -2328,10 +2315,8 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
                 if (memcmp(server_ptr, guest_ptr, cmp_bytes) == 0)
                     continue;
                 memcpy(server_ptr, guest_ptr, cmp_bytes);
-                vs = vd->clients;
-                while (vs != NULL) {
+                QTAILQ_FOREACH(vs, &vd->clients, next) {
                     vnc_set_bit(vs->dirty[y], (x / 16));
-                    vs = vs->next;
                 }
                 has_dirty++;
             }
@@ -2345,19 +2330,16 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
 static void vnc_refresh(void *opaque)
 {
     VncDisplay *vd = opaque;
-    VncState *vs = NULL, *vn = NULL;
-    int has_dirty = 0, rects = 0;
+    VncState *vs, *vn;
+    int has_dirty, rects = 0;
 
     vga_hw_update();
 
     has_dirty = vnc_refresh_server_surface(vd);
 
-    vs = vd->clients;
-    while (vs != NULL) {
-        vn = vs->next;
+    QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
         rects += vnc_update_client(vs, has_dirty);
         /* vs might be free()ed here */
-        vs = vn;
     }
     /* vd->timer could be NULL now if the last client disconnected,
      * in this case don't update the timer */
@@ -2379,7 +2361,7 @@ static void vnc_refresh(void *opaque)
 static void vnc_init_timer(VncDisplay *vd)
 {
     vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
-    if (vd->timer == NULL && vd->clients != NULL) {
+    if (vd->timer == NULL && !QTAILQ_EMPTY(&vd->clients)) {
         vd->timer = qemu_new_timer(rt_clock, vnc_refresh, vd);
         vnc_refresh(vd);
     }
@@ -2387,7 +2369,7 @@ static void vnc_init_timer(VncDisplay *vd)
 
 static void vnc_remove_timer(VncDisplay *vd)
 {
-    if (vd->timer != NULL && vd->clients == NULL) {
+    if (vd->timer != NULL && QTAILQ_EMPTY(&vd->clients)) {
         qemu_del_timer(vd->timer);
         qemu_free_timer(vd->timer);
         vd->timer = NULL;
@@ -2417,8 +2399,7 @@ static void vnc_connect(VncDisplay *vd, int csock)
     vs->as.fmt = AUD_FMT_S16;
     vs->as.endianness = 0;
 
-    vs->next = vd->clients;
-    vd->clients = vs;
+    QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
 
     vga_hw_update();
 
@@ -2460,6 +2441,7 @@ void vnc_display_init(DisplayState *ds)
     vs->lsock = -1;
 
     vs->ds = ds;
+    QTAILQ_INIT(&vs->clients);
 
     if (keyboard_layout)
         vs->kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);

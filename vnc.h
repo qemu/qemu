@@ -28,6 +28,7 @@
 #define __QEMU_VNC_H
 
 #include "qemu-common.h"
+#include "qemu-queue.h"
 #include "console.h"
 #include "monitor.h"
 #include "audio/audio.h"
@@ -92,11 +93,11 @@ struct VncSurface
 
 struct VncDisplay
 {
+    QTAILQ_HEAD(, VncState) clients;
     QEMUTimer *timer;
     int timer_interval;
     int lsock;
     DisplayState *ds;
-    VncState *clients;
     kbd_layout_t *kbd_layout;
 
     struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
@@ -165,7 +166,7 @@ struct VncState
     Buffer zlib_tmp;
     z_stream zlib_stream[4];
 
-    VncState *next;
+    QTAILQ_ENTRY(VncState) next;
 };
 
 
