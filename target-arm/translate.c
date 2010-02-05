@@ -5438,6 +5438,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         if (pass == 1)
                             tmp = tmp2;
                         gen_neon_widen(cpu_V0, tmp, size, 1);
+                        tcg_gen_shli_i64(cpu_V0, cpu_V0, 8 << size);
                         neon_store_reg64(cpu_V0, rd + pass);
                     }
                     break;
