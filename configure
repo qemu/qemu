@@ -143,11 +143,8 @@ cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
-    echo $testing $flag
     if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
 	QEMU_CFLAGS="$flag $QEMU_CFLAGS"
-    else
-        echo disable $flag
     fi
 done
 
