@@ -316,6 +316,7 @@ static int tcg_target_const_match(tcg_target_long val,
 #define STH    OPCD(44)
 #define STW    OPCD(36)
 
+#define ADDIC  OPCD(12)
 #define ADDI   OPCD(14)
 #define ADDIS  OPCD(15)
 #define ORI    OPCD(24)
@@ -339,6 +340,7 @@ static int tcg_target_const_match(tcg_target_long val,
 #define CRANDC XO19(129)
 #define CRNAND XO19(225)
 #define CROR   XO19(449)
+#define CRNOR  XO19( 33)
 
 #define EXTSB  XO31(954)
 #define EXTSH  XO31(922)
@@ -365,6 +367,8 @@ static int tcg_target_const_match(tcg_target_long val,
 #define MTSPR  XO31(467)
 #define SRAWI  XO31(824)
 #define NEG    XO31(104)
+#define MFCR   XO31( 19)
+#define CNTLZW XO31( 26)
 
 #define LBZX   XO31( 87)
 #define LHZX   XO31(279)
@@ -1065,20 +1069,10 @@ static void tcg_out_bc (TCGContext *s, int bc, int label_index)
     }
 }
 
-static void tcg_out_brcond (TCGContext *s, int cond,
-                            TCGArg arg1, TCGArg arg2, int const_arg2,
-                            int label_index)
+static void tcg_out_cr7eq_from_cond (TCGContext *s, const TCGArg *args,
+                                     const int *const_args)
 {
-    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7);
-    tcg_out_bc (s, tcg_to_bc[cond], label_index);
-}
-
-/* XXX: we implement it at the target level to avoid having to
-   handle cross basic blocks temporaries */
-static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
-                             const int *const_args)
-{
-    int cond = args[4], label_index = args[5], op;
+    int cond = args[4], op;
     struct { int bit1; int bit2; int cond2; } bits[] = {
         [TCG_COND_LT ] = { CR_LT, CR_LT, TCG_COND_LT  },
         [TCG_COND_LE ] = { CR_LT, CR_GT, TCG_COND_LT  },
@@ -1116,8 +1110,147 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
     default:
         tcg_abort();
     }
+}
 
-    tcg_out_bc (s, (BC | BI (7, CR_EQ) | BO_COND_TRUE), label_index);
+static void tcg_out_setcond (TCGContext *s, int cond, TCGArg arg0,
+                             TCGArg arg1, TCGArg arg2, int const_arg2)
+{
+    int crop, sh, arg;
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        if (const_arg2) {
+            if (!arg2) {
+                arg = arg1;
+            }
+            else {
+                arg = 0;
+                if ((uint16_t) arg2 == arg2) {
+                    tcg_out32 (s, XORI | RS (arg1) | RA (0) | arg2);
+                }
+                else {
+                    tcg_out_movi (s, TCG_TYPE_I32, 0, arg2);
+                    tcg_out32 (s, XOR | SAB (arg1, 0, 0));
+                }
+            }
+        }
+        else {
+            arg = 0;
+            tcg_out32 (s, XOR | SAB (arg1, 0, arg2));
+        }
+        tcg_out32 (s, CNTLZW | RS (arg) | RA (0));
+        tcg_out32 (s, (RLWINM
+                       | RA (arg0)
+                       | RS (0)
+                       | SH (27)
+                       | MB (5)
+                       | ME (31)
+                       )
+            );
+        return;
+
+    case TCG_COND_NE:
+        if (const_arg2) {
+            if (!arg2) {
+                arg = arg1;
+            }
+            else {
+                arg = 0;
+                if ((uint16_t) arg2 == arg2) {
+                    tcg_out32 (s, XORI | RS (arg1) | RA (0) | arg2);
+                }
+                else {
+                    tcg_out_movi (s, TCG_TYPE_I32, 0, arg2);
+                    tcg_out32 (s, XOR | SAB (arg1, 0, 0));
+                }
+            }
+        }
+        else {
+            arg = 0;
+            tcg_out32 (s, XOR | SAB (arg1, 0, arg2));
+        }
+
+        if (arg == arg1 && arg1 == arg0) {
+            tcg_out32 (s, ADDIC | RT (0) | RA (arg) | 0xffff);
+            tcg_out32 (s, SUBFE | TAB (arg0, 0, arg));
+        }
+        else {
+            tcg_out32 (s, ADDIC | RT (arg0) | RA (arg) | 0xffff);
+            tcg_out32 (s, SUBFE | TAB (arg0, arg0, arg));
+        }
+        return;
+
+    case TCG_COND_LTU:
+    case TCG_COND_LT:
+        sh = 29;
+        crop = 0;
+        break;
+
+    case TCG_COND_GEU:
+    case TCG_COND_GE:
+        sh = 31;
+        crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_LT) | BB (7, CR_LT);
+        break;
+
+    case TCG_COND_LEU:
+    case TCG_COND_LE:
+        sh = 31;
+        crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_GT) | BB (7, CR_GT);
+        break;
+
+    case TCG_COND_GTU:
+    case TCG_COND_GT:
+        sh = 30;
+        crop = 0;
+        break;
+
+    default:
+        tcg_abort ();
+    }
+
+    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7);
+    if (crop) tcg_out32 (s, crop);
+    tcg_out32 (s, MFCR | RT (0));
+    tcg_out32 (s, (RLWINM
+                   | RA (arg0)
+                   | RS (0)
+                   | SH (sh)
+                   | MB (31)
+                   | ME (31)
+                   )
+        );
+}
+
+static void tcg_out_setcond2 (TCGContext *s, const TCGArg *args,
+                              const int *const_args)
+{
+    tcg_out_cr7eq_from_cond (s, args + 1, const_args + 1);
+    tcg_out32 (s, MFCR | RT (0));
+    tcg_out32 (s, (RLWINM
+                   | RA (args[0])
+                   | RS (0)
+                   | SH (31)
+                   | MB (31)
+                   | ME (31)
+                   )
+        );
+}
+
+static void tcg_out_brcond (TCGContext *s, int cond,
+                            TCGArg arg1, TCGArg arg2, int const_arg2,
+                            int label_index)
+{
+    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7);
+    tcg_out_bc (s, tcg_to_bc[cond], label_index);
+}
+
+/* XXX: we implement it at the target level to avoid having to
+   handle cross basic blocks temporaries */
+static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
+                             const int *const_args)
+{
+    tcg_out_cr7eq_from_cond (s, args, const_args);
+    tcg_out_bc (s, (BC | BI (7, CR_EQ) | BO_COND_TRUE), args[5]);
 }
 
 void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
@@ -1496,6 +1629,13 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out32 (s, EXTSH | RS (args[1]) | RA (args[0]));
         break;
 
+    case INDEX_op_setcond_i32:
+        tcg_out_setcond (s, args[3], args[0], args[1], args[2], const_args[2]);
+        break;
+    case INDEX_op_setcond2_i32:
+        tcg_out_setcond2 (s, args, const_args);
+        break;
+
     default:
         tcg_dump_ops (s, stderr);
         tcg_abort ();
@@ -1543,6 +1683,9 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_brcond2_i32, { "r", "r", "r", "r" } },
 
     { INDEX_op_neg_i32, { "r", "r" } },
+
+    { INDEX_op_setcond_i32, { "r", "r", "ri" } },
+    { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },
 
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "L" } },
