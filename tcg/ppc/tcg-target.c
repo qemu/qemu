@@ -1147,7 +1147,7 @@ static void tcg_out_setcond (TCGContext *s, int cond, TCGArg arg0,
                        | ME (31)
                        )
             );
-        return;
+        break;
 
     case TCG_COND_NE:
         if (const_arg2) {
@@ -1178,47 +1178,47 @@ static void tcg_out_setcond (TCGContext *s, int cond, TCGArg arg0,
             tcg_out32 (s, ADDIC | RT (arg0) | RA (arg) | 0xffff);
             tcg_out32 (s, SUBFE | TAB (arg0, arg0, arg));
         }
-        return;
-
-    case TCG_COND_LTU:
-    case TCG_COND_LT:
-        sh = 29;
-        crop = 0;
         break;
 
-    case TCG_COND_GEU:
-    case TCG_COND_GE:
-        sh = 31;
-        crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_LT) | BB (7, CR_LT);
-        break;
-
-    case TCG_COND_LEU:
-    case TCG_COND_LE:
-        sh = 31;
-        crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_GT) | BB (7, CR_GT);
-        break;
-
-    case TCG_COND_GTU:
     case TCG_COND_GT:
+    case TCG_COND_GTU:
         sh = 30;
         crop = 0;
+        goto crtest;
+
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        sh = 29;
+        crop = 0;
+        goto crtest;
+
+    case TCG_COND_GE:
+    case TCG_COND_GEU:
+        sh = 31;
+        crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_LT) | BB (7, CR_LT);
+        goto crtest;
+
+    case TCG_COND_LE:
+    case TCG_COND_LEU:
+        sh = 31;
+        crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_GT) | BB (7, CR_GT);
+    crtest:
+        tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7);
+        if (crop) tcg_out32 (s, crop);
+        tcg_out32 (s, MFCR | RT (0));
+        tcg_out32 (s, (RLWINM
+                       | RA (arg0)
+                       | RS (0)
+                       | SH (sh)
+                       | MB (31)
+                       | ME (31)
+                       )
+            );
         break;
 
     default:
         tcg_abort ();
     }
-
-    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7);
-    if (crop) tcg_out32 (s, crop);
-    tcg_out32 (s, MFCR | RT (0));
-    tcg_out32 (s, (RLWINM
-                   | RA (arg0)
-                   | RS (0)
-                   | SH (sh)
-                   | MB (31)
-                   | ME (31)
-                   )
-        );
 }
 
 static void tcg_out_setcond2 (TCGContext *s, const TCGArg *args,
