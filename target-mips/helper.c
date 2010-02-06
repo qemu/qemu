@@ -311,7 +311,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-target_phys_addr_t do_translate_address(CPUState *env, target_ulong address, int rw)
+target_phys_addr_t cpu_mips_translate_address(CPUState *env, target_ulong address, int rw)
 {
     target_phys_addr_t physical;
     int prot;
@@ -326,10 +326,10 @@ target_phys_addr_t do_translate_address(CPUState *env, target_ulong address, int
                                address, rw, access_type);
     if (ret != TLBRET_MATCH) {
         raise_mmu_exception(env, address, rw, ret);
-        cpu_loop_exit();
+        return -1LL;
+    } else {
+        return physical;
     }
-
-    return physical;
 }
 #endif
 
