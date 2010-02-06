@@ -4022,10 +4022,10 @@ static void version(void)
 static void help(int exitcode)
 {
     version();
-    printf("usage: %s [options] [disk_image]\n"
-           "\n"
-           "'disk_image' is a raw hard image image for IDE hard disk 0\n"
-           "\n"
+    (printf)("usage: %s [options] [disk_image]\n"
+             "\n"
+             "'disk_image' is a raw hard image image for IDE hard disk 0\n"
+             "\n"
 #define DEF(option, opt_arg, opt_enum, opt_help)        \
            opt_help
 #define DEFHEADING(text) stringify(text) "\n"
@@ -4033,22 +4033,22 @@ static void help(int exitcode)
 #undef DEF
 #undef DEFHEADING
 #undef GEN_DOCS
-           "\n"
-           "During emulation, the following keys are useful:\n"
-           "ctrl-alt-f      toggle full screen\n"
-           "ctrl-alt-n      switch to virtual console 'n'\n"
-           "ctrl-alt        toggle mouse and keyboard grab\n"
-           "\n"
-           "When using -nographic, press 'ctrl-a h' to get some help.\n"
-           ,
-           "qemu",
-           DEFAULT_RAM_SIZE,
+             "\n"
+             "During emulation, the following keys are useful:\n"
+             "ctrl-alt-f      toggle full screen\n"
+             "ctrl-alt-n      switch to virtual console 'n'\n"
+             "ctrl-alt        toggle mouse and keyboard grab\n"
+             "\n"
+             "When using -nographic, press 'ctrl-a h' to get some help.\n"
+             ,
+             "qemu",
+             DEFAULT_RAM_SIZE,
 #ifndef _WIN32
-           DEFAULT_NETWORK_SCRIPT,
-           DEFAULT_NETWORK_DOWN_SCRIPT,
+             DEFAULT_NETWORK_SCRIPT,
+             DEFAULT_NETWORK_DOWN_SCRIPT,
 #endif
-           DEFAULT_GDBSTUB_PORT,
-           "/tmp/qemu.log");
+             DEFAULT_GDBSTUB_PORT,
+             "/tmp/qemu.log");
     exit(exitcode);
 }
 
