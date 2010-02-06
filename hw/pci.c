@@ -1290,7 +1290,7 @@ static QObject *pci_get_dev_dict(PCIDevice *dev, PCIBus *bus, int bus_num)
     }
 
     class = pci_get_word(dev->config + PCI_CLASS_DEVICE);
-    if (class == 0x0604) {
+    if (class == PCI_CLASS_BRIDGE_HOST || class == PCI_CLASS_BRIDGE_PCI) {
         QDict *qdict;
         QObject *pci_bridge;
 
