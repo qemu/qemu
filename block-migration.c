@@ -33,10 +33,10 @@
 //#define DEBUG_BLK_MIGRATION
 
 #ifdef DEBUG_BLK_MIGRATION
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { printf("blk_migration: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -332,7 +332,7 @@ static void flush_blks(QEMUFile* f)
 {
     BlkMigBlock *blk;
 
-    dprintf("%s Enter submitted %d read_done %d transferred %d\n",
+    DPRINTF("%s Enter submitted %d read_done %d transferred %d\n",
             __FUNCTION__, block_mig_state.submitted, block_mig_state.read_done,
             block_mig_state.transferred);
 
@@ -355,7 +355,7 @@ static void flush_blks(QEMUFile* f)
         assert(block_mig_state.read_done >= 0);
     }
 
-    dprintf("%s Exit submitted %d read_done %d transferred %d\n", __FUNCTION__,
+    DPRINTF("%s Exit submitted %d read_done %d transferred %d\n", __FUNCTION__,
             block_mig_state.submitted, block_mig_state.read_done,
             block_mig_state.transferred);
 }
@@ -400,7 +400,7 @@ static void blk_mig_cleanup(Monitor *mon)
 
 static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 {
-    dprintf("Enter save live stage %d submitted %d transferred %d\n",
+    DPRINTF("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
 
     if (stage < 0) {

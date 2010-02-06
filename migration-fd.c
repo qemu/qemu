@@ -24,10 +24,10 @@
 //#define DEBUG_MIGRATION_FD
 
 #ifdef DEBUG_MIGRATION_FD
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { printf("migration-fd: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -43,7 +43,7 @@ static int fd_write(FdMigrationState *s, const void * buf, size_t size)
 
 static int fd_close(FdMigrationState *s)
 {
-    dprintf("fd_close\n");
+    DPRINTF("fd_close\n");
     if (s->fd != -1) {
         close(s->fd);
         s->fd = -1;
@@ -64,12 +64,12 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 
     s->fd = monitor_get_fd(mon, fdname);
     if (s->fd == -1) {
-        dprintf("fd_migration: invalid file descriptor identifier\n");
+        DPRINTF("fd_migration: invalid file descriptor identifier\n");
         goto err_after_alloc;
     }
 
     if (fcntl(s->fd, F_SETFL, O_NONBLOCK) == -1) {
-        dprintf("Unable to set nonblocking mode on file descriptor\n");
+        DPRINTF("Unable to set nonblocking mode on file descriptor\n");
         goto err_after_open;
     }
 
@@ -112,7 +112,7 @@ static void fd_accept_incoming_migration(void *opaque)
         goto err;
     }
     qemu_announce_self();
-    dprintf("successfully loaded vm state\n");
+    DPRINTF("successfully loaded vm state\n");
     /* we've successfully migrated, close the fd */
     qemu_set_fd_handler2(qemu_stdio_fd(f), NULL, NULL, NULL, NULL);
     if (autostart)
@@ -127,12 +127,12 @@ int fd_start_incoming_migration(const char *infd)
     int fd;
     QEMUFile *f;
 
-    dprintf("Attempting to start an incoming migration via fd\n");
+    DPRINTF("Attempting to start an incoming migration via fd\n");
 
     fd = strtol(infd, NULL, 0);
     f = qemu_fdopen(fd, "rb");
     if(f == NULL) {
-        dprintf("Unable to apply qemu wrapper to file descriptor\n");
+        DPRINTF("Unable to apply qemu wrapper to file descriptor\n");
         return -errno;
     }
 
