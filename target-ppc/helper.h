@@ -359,8 +359,8 @@ DEF_HELPER_2(divo, tl, tl, tl)
 DEF_HELPER_2(divs, tl, tl, tl)
 DEF_HELPER_2(divso, tl, tl, tl)
 
-DEF_HELPER_1(load_dcr, i32, i32);
-DEF_HELPER_2(store_dcr, void, i32, i32)
+DEF_HELPER_1(load_dcr, tl, tl);
+DEF_HELPER_2(store_dcr, void, tl, tl)
 
 DEF_HELPER_1(load_dump_spr, void, i32)
 DEF_HELPER_1(store_dump_spr, void, i32)
