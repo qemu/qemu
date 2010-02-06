@@ -796,6 +796,8 @@ echo "  --enable-linux-aio       enable Linux AIO support"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
+echo "  --enable-docs            enable documentation build"
+echo "  --disable-docs           disable documentation build"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
