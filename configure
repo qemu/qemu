@@ -140,11 +140,14 @@ LDFLAGS="-g $LDFLAGS"
 
 gcc_flags="-Wold-style-declaration -Wold-style-definition -fstack-protector-all"
 cat > $TMPC << EOF
-int main(void) { }
+int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
-    if compile_prog "$QEMU_CFLAGS" "$flag" ; then
+    echo $testing $flag
+    if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
 	QEMU_CFLAGS="$flag $QEMU_CFLAGS"
+    else
+        echo disable $flag
     fi
 done
 
