@@ -276,10 +276,24 @@ void helper_dmultu (target_ulong arg1, target_ulong arg2)
 #endif
 
 #ifndef CONFIG_USER_ONLY
+
+static inline target_phys_addr_t do_translate_address(target_ulong address, int rw)
+{
+    target_phys_addr_t lladdr;
+
+    lladdr = cpu_mips_translate_address(env, address, rw);
+
+    if (lladdr == -1LL) {
+        cpu_loop_exit();
+    } else {
+        return lladdr;
+    }
+}
+
 #define HELPER_LD_ATOMIC(name, insn)                                          \
 target_ulong helper_##name(target_ulong arg, int mem_idx)                     \
 {                                                                             \
-    env->lladdr = do_translate_address(env, arg, 0);                          \
+    env->lladdr = do_translate_address(arg, 0);                               \
     env->llval = do_##insn(arg, mem_idx);                                     \
     return env->llval;                                                        \
 }
@@ -298,7 +312,7 @@ target_ulong helper_##name(target_ulong arg1, target_ulong arg2, int mem_idx) \
         env->CP0_BadVAddr = arg2;                                             \
         helper_raise_exception(EXCP_AdES);                                    \
     }                                                                         \
-    if (do_translate_address(env, arg2, 1) == env->lladdr) {                  \
+    if (do_translate_address(arg2, 1) == env->lladdr) {                       \
         tmp = do_##ld_insn(arg2, mem_idx);                                    \
         if (tmp == env->llval) {                                              \
             do_##st_insn(arg2, arg1, mem_idx);                                \
