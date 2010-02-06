@@ -243,6 +243,8 @@ typedef struct {
 #define R_386_GOTOFF	9
 #define R_386_GOTPC	10
 #define R_386_NUM	11
+/* Not a dynamic reloc, so not included in R_386_NUM.  Used in TCG.  */
+#define R_386_PC8	23
 
 #define R_MIPS_NONE		0
 #define R_MIPS_16		1
