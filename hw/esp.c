@@ -77,8 +77,8 @@ struct ESPState {
     uint8_t *async_buf;
     uint32_t async_len;
 
-    espdma_memory_read_write dma_memory_read;
-    espdma_memory_read_write dma_memory_write;
+    ESPDMAMemoryReadWriteFunc dma_memory_read;
+    ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
 };
 
@@ -635,8 +635,8 @@ static const VMStateDescription vmstate_esp = {
 };
 
 void esp_init(target_phys_addr_t espaddr, int it_shift,
-              espdma_memory_read_write dma_memory_read,
-              espdma_memory_read_write dma_memory_write,
+              ESPDMAMemoryReadWriteFunc dma_memory_read,
+              ESPDMAMemoryReadWriteFunc dma_memory_write,
               void *dma_opaque, qemu_irq irq, qemu_irq *reset)
 {
     DeviceState *dev;
