@@ -780,7 +780,7 @@ void mips_malta_init (ram_addr_t ram_size,
     ISADevice *isa_dev;
     CPUState *env;
     RTCState *rtc_state;
-    fdctrl_t *floppy_controller;
+    FDCtrl *floppy_controller;
     MaltaFPGAState *malta_fpga;
     qemu_irq *i8259;
     int piix4_devfn;
