@@ -41,6 +41,9 @@
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #include <signal.h>
+#if defined(TARGET_X86_64)
+#include "vsyscall.h"
+#endif
 #endif
 
 //#define DEBUG_TB_INVALIDATE
@@ -904,6 +907,13 @@ TranslationBlock *tb_gen_code(CPUState *env,
     cpu_gen_code(env, tb, &code_gen_size);
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+    /* if we are doing vsyscall don't link the page as it lies in high memory
+       and tb_alloc_page will abort due to page_l1_map returning NULL */
+    if (unlikely(phys_pc >= TARGET_VSYSCALL_START
+                 && phys_pc < TARGET_VSYSCALL_END))
+        return tb;
+#endif
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;

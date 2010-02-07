@@ -57,6 +57,9 @@ DEF_HELPER_1(sysexit, void, int)
 #ifdef TARGET_X86_64
 DEF_HELPER_1(syscall, void, int)
 DEF_HELPER_1(sysret, void, int)
+#if defined(CONFIG_USER_ONLY)
+DEF_HELPER_0(vsyscall, void)
+#endif
 #endif
 DEF_HELPER_1(hlt, void, int)
 DEF_HELPER_1(monitor, void, tl)

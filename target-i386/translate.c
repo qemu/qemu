@@ -33,6 +33,10 @@
 #define GEN_HELPER 1
 #include "helper.h"
 
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+#include "vsyscall.h"
+#endif
+
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
 #define PREFIX_LOCK   0x04
@@ -7822,6 +7826,15 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     gen_icount_start();
     for(;;) {
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+        /* Detect vsyscall */
+        if (unlikely(pc_ptr >= TARGET_VSYSCALL_START
+                     && pc_ptr < TARGET_VSYSCALL_END)) {
+            gen_helper_vsyscall();
+            break;
+        }
+#endif
+
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == pc_ptr &&

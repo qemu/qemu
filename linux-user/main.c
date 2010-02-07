@@ -28,6 +28,9 @@
 #include "qemu.h"
 #include "qemu-common.h"
 #include "cache-utils.h"
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+#include "vsyscall.h"
+#endif
 /* For tb_lock */
 #include "exec-all.h"
 
@@ -304,6 +307,9 @@ void cpu_loop(CPUX86State *env)
     int trapnr;
     abi_ulong pc;
     target_siginfo_t info;
+#ifdef TARGET_X86_64
+    int syscall_num;
+#endif
 
     for(;;) {
         trapnr = cpu_x86_exec(env);
@@ -331,6 +337,37 @@ void cpu_loop(CPUX86State *env)
                                           env->regs[8],
                                           env->regs[9]);
             env->eip = env->exception_next_eip;
+            break;
+#endif
+#ifdef TARGET_X86_64
+        case EXCP_VSYSCALL:
+            switch (env->eip) {
+            case TARGET_VSYSCALL_ADDR(__NR_vgettimeofday):
+                syscall_num = __NR_gettimeofday;
+                break;
+            case TARGET_VSYSCALL_ADDR(__NR_vtime):
+                syscall_num = __NR_time;
+                break;
+            case TARGET_VSYSCALL_ADDR(__NR_vgetcpu):
+                /* XXX: not yet implemented */
+                cpu_abort(env, "Unimplemented vsyscall vgetcpu");
+                break;
+            default:
+                cpu_abort(env,
+                          "Invalid vsyscall to address " TARGET_FMT_lx "\n",
+                          env->eip);
+            }
+            env->regs[R_EAX] = do_syscall(env,
+                                          syscall_num,
+                                          env->regs[R_EDI],
+                                          env->regs[R_ESI],
+                                          env->regs[R_EDX],
+                                          env->regs[10],
+                                          env->regs[8],
+                                          env->regs[9]);
+            /* simulate a ret */
+            env->eip = ldq(env->regs[R_ESP]);
+            env->regs[R_ESP] += 8;
             break;
 #endif
         case EXCP0B_NOSEG:

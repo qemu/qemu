@@ -437,6 +437,8 @@
 
 #define EXCP_SYSCALL    0x100 /* only happens in user only emulation
                                  for syscall instruction */
+#define EXCP_VSYSCALL   0x101 /* only happens in user only emulation
+                                 on x86_64 */
 
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */

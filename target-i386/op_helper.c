@@ -1003,6 +1003,12 @@ void QEMU_NORETURN helper_syscall(int next_eip_addend)
     env->exception_next_eip = env->eip + next_eip_addend;
     cpu_loop_exit();
 }
+
+void helper_vsyscall(void)
+{
+    env->exception_index = EXCP_VSYSCALL;
+    cpu_loop_exit();
+}
 #else
 void helper_syscall(int next_eip_addend)
 {
