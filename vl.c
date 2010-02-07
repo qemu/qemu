@@ -2382,9 +2382,9 @@ static void numa_add(const char *optarg)
                         fprintf(stderr,
                             "only 63 CPUs in NUMA mode supported.\n");
                     }
-                    value = (1 << (endvalue + 1)) - (1 << value);
+                    value = (2ULL << endvalue) - (1ULL << value);
                 } else {
-                    value = 1 << value;
+                    value = 1ULL << value;
                 }
             }
             node_cpumask[nodenr] = value;
@@ -4027,10 +4027,10 @@ static void version(void)
 static void QEMU_NORETURN help(int exitcode)
 {
     version();
-    printf("usage: %s [options] [disk_image]\n"
-           "\n"
-           "'disk_image' is a raw hard image image for IDE hard disk 0\n"
-           "\n"
+    (printf)("usage: %s [options] [disk_image]\n"
+             "\n"
+             "'disk_image' is a raw hard image image for IDE hard disk 0\n"
+             "\n"
 #define DEF(option, opt_arg, opt_enum, opt_help)        \
            opt_help
 #define DEFHEADING(text) stringify(text) "\n"
@@ -4038,22 +4038,22 @@ static void QEMU_NORETURN help(int exitcode)
 #undef DEF
 #undef DEFHEADING
 #undef GEN_DOCS
-           "\n"
-           "During emulation, the following keys are useful:\n"
-           "ctrl-alt-f      toggle full screen\n"
-           "ctrl-alt-n      switch to virtual console 'n'\n"
-           "ctrl-alt        toggle mouse and keyboard grab\n"
-           "\n"
-           "When using -nographic, press 'ctrl-a h' to get some help.\n"
-           ,
-           "qemu",
-           DEFAULT_RAM_SIZE,
+             "\n"
+             "During emulation, the following keys are useful:\n"
+             "ctrl-alt-f      toggle full screen\n"
+             "ctrl-alt-n      switch to virtual console 'n'\n"
+             "ctrl-alt        toggle mouse and keyboard grab\n"
+             "\n"
+             "When using -nographic, press 'ctrl-a h' to get some help.\n"
+             ,
+             "qemu",
+             DEFAULT_RAM_SIZE,
 #ifndef _WIN32
-           DEFAULT_NETWORK_SCRIPT,
-           DEFAULT_NETWORK_DOWN_SCRIPT,
+             DEFAULT_NETWORK_SCRIPT,
+             DEFAULT_NETWORK_DOWN_SCRIPT,
 #endif
-           DEFAULT_GDBSTUB_PORT,
-           "/tmp/qemu.log");
+             DEFAULT_GDBSTUB_PORT,
+             "/tmp/qemu.log");
     exit(exitcode);
 }
 

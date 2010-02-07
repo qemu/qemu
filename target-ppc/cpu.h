@@ -733,8 +733,6 @@ void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
 void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
-void helper_store_dcr (uint32_t dcrn, uint32_t val);
-uint32_t helper_load_dcr (uint32_t dcrn);
 
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 

@@ -282,6 +282,14 @@ order bytes must be set to zero.
 Indicate that the value of t0 won't be used later. It is useful to
 force dead code elimination.
 
+********* Conditional moves
+
+* setcond_i32/i64 cond, dest, t1, t2
+
+dest = (t1 cond t2)
+
+Set DEST to 1 if (T1 cond T2) is true, otherwise set to 0.
+
 ********* Type conversions
 
 * ext_i32_i64 t0, t1
@@ -322,6 +330,34 @@ st32_i64 t0, t1, offset
 
 write(t0, t1 + offset)
 Write 8, 16, 32 or 64 bits to host memory.
+
+********* 64-bit target on 32-bit host support
+
+The following opcodes are internal to TCG.  Thus they are to be implemented by
+32-bit host code generators, but are not to be emitted by guest translators.
+They are emitted as needed by inline functions within "tcg-op.h".
+
+* brcond2_i32 cond, t0_low, t0_high, t1_low, t1_high, label
+
+Similar to brcond, except that the 64-bit values T0 and T1
+are formed from two 32-bit arguments.
+
+* add2_i32 t0_low, t0_high, t1_low, t1_high, t2_low, t2_high
+* sub2_i32 t0_low, t0_high, t1_low, t1_high, t2_low, t2_high
+
+Similar to add/sub, except that the 64-bit inputs T1 and T2 are
+formed from two 32-bit arguments, and the 64-bit output T0
+is returned in two 32-bit outputs.
+
+* mulu2_i32 t0_low, t0_high, t1, t2
+
+Similar to mul, except two 32-bit (unsigned) inputs T1 and T2 yielding
+the full 64-bit product T0.  The later is returned in two 32-bit outputs.
+
+* setcond2_i32 cond, dest, t1_low, t1_high, t2_low, t2_high
+
+Similar to setcond, except that the 64-bit values T1 and T2 are
+formed from two 32-bit arguments.  The result is a 32-bit value.
 
 ********* QEMU specific operations
 

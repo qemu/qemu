@@ -94,22 +94,6 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     return 0;
 }
 
-static int pci_dec_21154_init_device(SysBusDevice *dev)
-{
-    UNINState *s;
-    int pci_mem_config, pci_mem_data;
-
-    /* Uninorth bridge */
-    s = FROM_SYSBUS(UNINState, dev);
-
-    // XXX: s = &pci_bridge[2];
-    pci_mem_config = pci_host_conf_register_mmio_noswap(&s->host_state);
-    pci_mem_data = pci_host_data_register_mmio(&s->host_state);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
-    return 0;
-}
-
 static int pci_unin_agp_init_device(SysBusDevice *dev)
 {
     UNINState *s;
@@ -204,35 +188,6 @@ static int unin_main_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static int dec_21154_pci_host_init(PCIDevice *d)
-{
-    /* pci-to-pci bridge */
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_DEC);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_DEC_21154);
-    d->config[0x08] = 0x05; // revision
-    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_PCI);
-    d->config[0x0C] = 0x08; // cache_line_size
-    d->config[0x0D] = 0x20; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_BRIDGE; // header_type
-
-    d->config[0x18] = 0x01; // primary_bus
-    d->config[0x19] = 0x02; // secondary_bus
-    d->config[0x1A] = 0x02; // subordinate_bus
-    d->config[0x1B] = 0x20; // secondary_latency_timer
-    d->config[0x1C] = 0x11; // io_base
-    d->config[0x1D] = 0x01; // io_limit
-    d->config[0x20] = 0x00; // memory_base
-    d->config[0x21] = 0x80;
-    d->config[0x22] = 0x00; // memory_limit
-    d->config[0x23] = 0x80;
-    d->config[0x24] = 0x01; // prefetchable_memory_base
-    d->config[0x25] = 0x80;
-    d->config[0x26] = 0xF1; // prefectchable_memory_limit
-    d->config[0x27] = 0x7F;
-    // d->config[0x34] = 0xdc // capabilities_pointer
-    return 0;
-}
-
 static int unin_agp_pci_host_init(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
@@ -265,13 +220,6 @@ static PCIDeviceInfo unin_main_pci_host_info = {
     .init      = unin_main_pci_host_init,
 };
 
-static PCIDeviceInfo dec_21154_pci_host_info = {
-    .qdev.name = "dec-21154",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = dec_21154_pci_host_init,
-    .header_type  = PCI_HEADER_TYPE_BRIDGE,
-};
-
 static PCIDeviceInfo unin_agp_pci_host_info = {
     .qdev.name = "uni-north-agp",
     .qdev.size = sizeof(PCIDevice),
@@ -289,9 +237,6 @@ static void unin_register_devices(void)
     sysbus_register_dev("uni-north", sizeof(UNINState),
                         pci_unin_main_init_device);
     pci_qdev_register(&unin_main_pci_host_info);
-    sysbus_register_dev("dec-21154", sizeof(UNINState),
-                        pci_dec_21154_init_device);
-    pci_qdev_register(&dec_21154_pci_host_info);
     sysbus_register_dev("uni-north-agp", sizeof(UNINState),
                         pci_unin_agp_init_device);
     pci_qdev_register(&unin_agp_pci_host_info);

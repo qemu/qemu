@@ -61,44 +61,44 @@
 #define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
 
 /* Floppy disk drive emulation */
-typedef enum fdisk_type_t {
+typedef enum FDiskType {
     FDRIVE_DISK_288   = 0x01, /* 2.88 MB disk           */
     FDRIVE_DISK_144   = 0x02, /* 1.44 MB disk           */
     FDRIVE_DISK_720   = 0x03, /* 720 kB disk            */
     FDRIVE_DISK_USER  = 0x04, /* User defined geometry  */
     FDRIVE_DISK_NONE  = 0x05, /* No disk                */
-} fdisk_type_t;
+} FDiskType;
 
-typedef enum fdrive_type_t {
+typedef enum FDriveType {
     FDRIVE_DRV_144  = 0x00,   /* 1.44 MB 3"5 drive      */
     FDRIVE_DRV_288  = 0x01,   /* 2.88 MB 3"5 drive      */
     FDRIVE_DRV_120  = 0x02,   /* 1.2  MB 5"25 drive     */
     FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
-} fdrive_type_t;
+} FDriveType;
 
-typedef enum fdisk_flags_t {
+typedef enum FDiskFlags {
     FDISK_DBL_SIDES  = 0x01,
-} fdisk_flags_t;
+} FDiskFlags;
 
-typedef struct fdrive_t {
+typedef struct FDrive {
     DriveInfo *dinfo;
     BlockDriverState *bs;
     /* Drive status */
-    fdrive_type_t drive;
+    FDriveType drive;
     uint8_t perpendicular;    /* 2.88 MB access mode    */
     /* Position */
     uint8_t head;
     uint8_t track;
     uint8_t sect;
     /* Media */
-    fdisk_flags_t flags;
+    FDiskFlags flags;
     uint8_t last_sect;        /* Nb sector per track    */
     uint8_t max_track;        /* Nb of tracks           */
     uint16_t bps;             /* Bytes per sector       */
     uint8_t ro;               /* Is read-only           */
-} fdrive_t;
+} FDrive;
 
-static void fd_init (fdrive_t *drv)
+static void fd_init(FDrive *drv)
 {
     /* Drive */
     drv->bs = drv->dinfo ? drv->dinfo->bdrv : NULL;
@@ -109,16 +109,16 @@ static void fd_init (fdrive_t *drv)
     drv->max_track = 0;
 }
 
-static int _fd_sector (uint8_t head, uint8_t track,
-                       uint8_t sect, uint8_t last_sect)
+static int fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
+                          uint8_t last_sect)
 {
     return (((track * 2) + head) * last_sect) + sect - 1;
 }
 
 /* Returns current position, in sectors, for given drive */
-static int fd_sector (fdrive_t *drv)
+static int fd_sector(FDrive *drv)
 {
-    return _fd_sector(drv->head, drv->track, drv->sect, drv->last_sect);
+    return fd_sector_calc(drv->head, drv->track, drv->sect, drv->last_sect);
 }
 
 /* Seek to a new position:
@@ -128,8 +128,8 @@ static int fd_sector (fdrive_t *drv)
  * returns 3 if sector is invalid
  * returns 4 if seek is disabled
  */
-static int fd_seek (fdrive_t *drv, uint8_t head, uint8_t track, uint8_t sect,
-                    int enable_seek)
+static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
+                   int enable_seek)
 {
     uint32_t sector;
     int ret;
@@ -149,7 +149,7 @@ static int fd_seek (fdrive_t *drv, uint8_t head, uint8_t track, uint8_t sect,
                        drv->max_track, drv->last_sect);
         return 3;
     }
-    sector = _fd_sector(head, track, sect, drv->last_sect);
+    sector = fd_sector_calc(head, track, sect, drv->last_sect);
     ret = 0;
     if (sector != fd_sector(drv)) {
 #if 0
@@ -170,7 +170,7 @@ static int fd_seek (fdrive_t *drv, uint8_t head, uint8_t track, uint8_t sect,
 }
 
 /* Set drive back to track 0 */
-static void fd_recalibrate (fdrive_t *drv)
+static void fd_recalibrate(FDrive *drv)
 {
     FLOPPY_DPRINTF("recalibrate\n");
     drv->head = 0;
@@ -179,16 +179,16 @@ static void fd_recalibrate (fdrive_t *drv)
 }
 
 /* Recognize floppy formats */
-typedef struct fd_format_t {
-    fdrive_type_t drive;
-    fdisk_type_t  disk;
+typedef struct FDFormat {
+    FDriveType drive;
+    FDiskType  disk;
     uint8_t last_sect;
     uint8_t max_track;
     uint8_t max_head;
     const char *str;
-} fd_format_t;
+} FDFormat;
 
-static const fd_format_t fd_formats[] = {
+static const FDFormat fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
     { FDRIVE_DRV_144, FDRIVE_DISK_144, 18, 80, 1, "1.44 MB 3\"1/2", },
@@ -236,9 +236,9 @@ static const fd_format_t fd_formats[] = {
 };
 
 /* Revalidate a disk drive after a disk change */
-static void fd_revalidate (fdrive_t *drv)
+static void fd_revalidate(FDrive *drv)
 {
-    const fd_format_t *parse;
+    const FDFormat *parse;
     uint64_t nb_sectors, size;
     int i, first_match, match;
     int nb_heads, max_track, last_sect, ro;
@@ -303,23 +303,23 @@ static void fd_revalidate (fdrive_t *drv)
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
 
-static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq);
-static void fdctrl_reset_fifo (fdctrl_t *fdctrl);
+static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
+static void fdctrl_reset_fifo(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
-static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status0);
+static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0);
 
-static uint32_t fdctrl_read_statusA (fdctrl_t *fdctrl);
-static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl);
-static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl);
-static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value);
-static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl);
-static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value);
-static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl);
-static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value);
-static uint32_t fdctrl_read_data (fdctrl_t *fdctrl);
-static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value);
-static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl);
+static uint32_t fdctrl_read_statusA(FDCtrl *fdctrl);
+static uint32_t fdctrl_read_statusB(FDCtrl *fdctrl);
+static uint32_t fdctrl_read_dor(FDCtrl *fdctrl);
+static void fdctrl_write_dor(FDCtrl *fdctrl, uint32_t value);
+static uint32_t fdctrl_read_tape(FDCtrl *fdctrl);
+static void fdctrl_write_tape(FDCtrl *fdctrl, uint32_t value);
+static uint32_t fdctrl_read_main_status(FDCtrl *fdctrl);
+static void fdctrl_write_rate(FDCtrl *fdctrl, uint32_t value);
+static uint32_t fdctrl_read_data(FDCtrl *fdctrl);
+static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value);
+static uint32_t fdctrl_read_dir(FDCtrl *fdctrl);
 
 enum {
     FD_DIR_WRITE   = 0,
@@ -471,7 +471,7 @@ enum {
 #define FD_DID_SEEK(state) ((state) & FD_STATE_SEEK)
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
-struct fdctrl_t {
+struct FDCtrl {
     /* Controller's identification */
     uint8_t version;
     /* HW */
@@ -512,23 +512,23 @@ struct fdctrl_t {
     int sun4m;
     /* Floppy drives */
     uint8_t num_floppies;
-    fdrive_t drives[MAX_FD];
+    FDrive drives[MAX_FD];
     int reset_sensei;
 };
 
-typedef struct fdctrl_sysbus_t {
+typedef struct FDCtrlSysBus {
     SysBusDevice busdev;
-    struct fdctrl_t state;
-} fdctrl_sysbus_t;
+    struct FDCtrl state;
+} FDCtrlSysBus;
 
-typedef struct fdctrl_isabus_t {
+typedef struct FDCtrlISABus {
     ISADevice busdev;
-    struct fdctrl_t state;
-} fdctrl_isabus_t;
+    struct FDCtrl state;
+} FDCtrlISABus;
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
 {
-    fdctrl_t *fdctrl = opaque;
+    FDCtrl *fdctrl = opaque;
     uint32_t retval;
 
     switch (reg) {
@@ -564,7 +564,7 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
 
 static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 {
-    fdctrl_t *fdctrl = opaque;
+    FDCtrl *fdctrl = opaque;
 
     FLOPPY_DPRINTF("write reg%d: 0x%02x\n", reg & 7, value);
 
@@ -637,23 +637,23 @@ static const VMStateDescription vmstate_fdrive = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT8(head, fdrive_t),
-        VMSTATE_UINT8(track, fdrive_t),
-        VMSTATE_UINT8(sect, fdrive_t),
+        VMSTATE_UINT8(head, FDrive),
+        VMSTATE_UINT8(track, FDrive),
+        VMSTATE_UINT8(sect, FDrive),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void fdc_pre_save(void *opaque)
 {
-    fdctrl_t *s = opaque;
+    FDCtrl *s = opaque;
 
     s->dor_vmstate = s->dor | GET_CUR_DRV(s);
 }
 
 static int fdc_post_load(void *opaque, int version_id)
 {
-    fdctrl_t *s = opaque;
+    FDCtrl *s = opaque;
 
     SET_CUR_DRV(s, s->dor_vmstate & FD_DOR_SELMASK);
     s->dor = s->dor_vmstate & ~FD_DOR_SELMASK;
@@ -669,55 +669,55 @@ static const VMStateDescription vmstate_fdc = {
     .post_load = fdc_post_load,
     .fields      = (VMStateField []) {
         /* Controller State */
-        VMSTATE_UINT8(sra, fdctrl_t),
-        VMSTATE_UINT8(srb, fdctrl_t),
-        VMSTATE_UINT8(dor_vmstate, fdctrl_t),
-        VMSTATE_UINT8(tdr, fdctrl_t),
-        VMSTATE_UINT8(dsr, fdctrl_t),
-        VMSTATE_UINT8(msr, fdctrl_t),
-        VMSTATE_UINT8(status0, fdctrl_t),
-        VMSTATE_UINT8(status1, fdctrl_t),
-        VMSTATE_UINT8(status2, fdctrl_t),
+        VMSTATE_UINT8(sra, FDCtrl),
+        VMSTATE_UINT8(srb, FDCtrl),
+        VMSTATE_UINT8(dor_vmstate, FDCtrl),
+        VMSTATE_UINT8(tdr, FDCtrl),
+        VMSTATE_UINT8(dsr, FDCtrl),
+        VMSTATE_UINT8(msr, FDCtrl),
+        VMSTATE_UINT8(status0, FDCtrl),
+        VMSTATE_UINT8(status1, FDCtrl),
+        VMSTATE_UINT8(status2, FDCtrl),
         /* Command FIFO */
-        VMSTATE_VARRAY_INT32(fifo, fdctrl_t, fifo_size, 0, vmstate_info_uint8, uint8),
-        VMSTATE_UINT32(data_pos, fdctrl_t),
-        VMSTATE_UINT32(data_len, fdctrl_t),
-        VMSTATE_UINT8(data_state, fdctrl_t),
-        VMSTATE_UINT8(data_dir, fdctrl_t),
-        VMSTATE_UINT8(eot, fdctrl_t),
+        VMSTATE_VARRAY_INT32(fifo, FDCtrl, fifo_size, 0, vmstate_info_uint8, uint8),
+        VMSTATE_UINT32(data_pos, FDCtrl),
+        VMSTATE_UINT32(data_len, FDCtrl),
+        VMSTATE_UINT8(data_state, FDCtrl),
+        VMSTATE_UINT8(data_dir, FDCtrl),
+        VMSTATE_UINT8(eot, FDCtrl),
         /* States kept only to be returned back */
-        VMSTATE_UINT8(timer0, fdctrl_t),
-        VMSTATE_UINT8(timer1, fdctrl_t),
-        VMSTATE_UINT8(precomp_trk, fdctrl_t),
-        VMSTATE_UINT8(config, fdctrl_t),
-        VMSTATE_UINT8(lock, fdctrl_t),
-        VMSTATE_UINT8(pwrd, fdctrl_t),
-        VMSTATE_UINT8_EQUAL(num_floppies, fdctrl_t),
-        VMSTATE_STRUCT_ARRAY(drives, fdctrl_t, MAX_FD, 1,
-                             vmstate_fdrive, fdrive_t),
+        VMSTATE_UINT8(timer0, FDCtrl),
+        VMSTATE_UINT8(timer1, FDCtrl),
+        VMSTATE_UINT8(precomp_trk, FDCtrl),
+        VMSTATE_UINT8(config, FDCtrl),
+        VMSTATE_UINT8(lock, FDCtrl),
+        VMSTATE_UINT8(pwrd, FDCtrl),
+        VMSTATE_UINT8_EQUAL(num_floppies, FDCtrl),
+        VMSTATE_STRUCT_ARRAY(drives, FDCtrl, MAX_FD, 1,
+                             vmstate_fdrive, FDrive),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void fdctrl_external_reset_sysbus(DeviceState *d)
 {
-    fdctrl_sysbus_t *sys = container_of(d, fdctrl_sysbus_t, busdev.qdev);
-    fdctrl_t *s = &sys->state;
+    FDCtrlSysBus *sys = container_of(d, FDCtrlSysBus, busdev.qdev);
+    FDCtrl *s = &sys->state;
 
     fdctrl_reset(s, 0);
 }
 
 static void fdctrl_external_reset_isa(DeviceState *d)
 {
-    fdctrl_isabus_t *isa = container_of(d, fdctrl_isabus_t, busdev.qdev);
-    fdctrl_t *s = &isa->state;
+    FDCtrlISABus *isa = container_of(d, FDCtrlISABus, busdev.qdev);
+    FDCtrl *s = &isa->state;
 
     fdctrl_reset(s, 0);
 }
 
 static void fdctrl_handle_tc(void *opaque, int irq, int level)
 {
-    //fdctrl_t *s = opaque;
+    //FDCtrl *s = opaque;
 
     if (level) {
         // XXX
@@ -726,13 +726,13 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
 }
 
 /* XXX: may change if moved to bdrv */
-int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num)
+int fdctrl_get_drive_type(FDCtrl *fdctrl, int drive_num)
 {
     return fdctrl->drives[drive_num].drive;
 }
 
 /* Change IRQ state */
-static void fdctrl_reset_irq (fdctrl_t *fdctrl)
+static void fdctrl_reset_irq(FDCtrl *fdctrl)
 {
     if (!(fdctrl->sra & FD_SRA_INTPEND))
         return;
@@ -741,7 +741,7 @@ static void fdctrl_reset_irq (fdctrl_t *fdctrl)
     fdctrl->sra &= ~FD_SRA_INTPEND;
 }
 
-static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status0)
+static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
 {
     /* Sparc mutation */
     if (fdctrl->sun4m && (fdctrl->msr & FD_MSR_CMDBUSY)) {
@@ -761,7 +761,7 @@ static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status0)
 }
 
 /* Reset controller */
-static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
+static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
 {
     int i;
 
@@ -790,12 +790,12 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     }
 }
 
-static inline fdrive_t *drv0 (fdctrl_t *fdctrl)
+static inline FDrive *drv0(FDCtrl *fdctrl)
 {
     return &fdctrl->drives[(fdctrl->tdr & FD_TDR_BOOTSEL) >> 2];
 }
 
-static inline fdrive_t *drv1 (fdctrl_t *fdctrl)
+static inline FDrive *drv1(FDCtrl *fdctrl)
 {
     if ((fdctrl->tdr & FD_TDR_BOOTSEL) < (1 << 2))
         return &fdctrl->drives[1];
@@ -804,7 +804,7 @@ static inline fdrive_t *drv1 (fdctrl_t *fdctrl)
 }
 
 #if MAX_FD == 4
-static inline fdrive_t *drv2 (fdctrl_t *fdctrl)
+static inline FDrive *drv2(FDCtrl *fdctrl)
 {
     if ((fdctrl->tdr & FD_TDR_BOOTSEL) < (2 << 2))
         return &fdctrl->drives[2];
@@ -812,7 +812,7 @@ static inline fdrive_t *drv2 (fdctrl_t *fdctrl)
         return &fdctrl->drives[1];
 }
 
-static inline fdrive_t *drv3 (fdctrl_t *fdctrl)
+static inline FDrive *drv3(FDCtrl *fdctrl)
 {
     if ((fdctrl->tdr & FD_TDR_BOOTSEL) < (3 << 2))
         return &fdctrl->drives[3];
@@ -821,7 +821,7 @@ static inline fdrive_t *drv3 (fdctrl_t *fdctrl)
 }
 #endif
 
-static fdrive_t *get_cur_drv (fdctrl_t *fdctrl)
+static FDrive *get_cur_drv(FDCtrl *fdctrl)
 {
     switch (fdctrl->cur_drv) {
         case 0: return drv0(fdctrl);
@@ -835,7 +835,7 @@ static fdrive_t *get_cur_drv (fdctrl_t *fdctrl)
 }
 
 /* Status A register : 0x00 (read-only) */
-static uint32_t fdctrl_read_statusA (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_statusA(FDCtrl *fdctrl)
 {
     uint32_t retval = fdctrl->sra;
 
@@ -845,7 +845,7 @@ static uint32_t fdctrl_read_statusA (fdctrl_t *fdctrl)
 }
 
 /* Status B register : 0x01 (read-only) */
-static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_statusB(FDCtrl *fdctrl)
 {
     uint32_t retval = fdctrl->srb;
 
@@ -855,7 +855,7 @@ static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl)
 }
 
 /* Digital output register : 0x02 */
-static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_dor(FDCtrl *fdctrl)
 {
     uint32_t retval = fdctrl->dor;
 
@@ -866,7 +866,7 @@ static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
     return retval;
 }
 
-static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
+static void fdctrl_write_dor(FDCtrl *fdctrl, uint32_t value)
 {
     FLOPPY_DPRINTF("digital output register set to 0x%02x\n", value);
 
@@ -905,7 +905,7 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
 }
 
 /* Tape drive register : 0x03 */
-static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_tape(FDCtrl *fdctrl)
 {
     uint32_t retval = fdctrl->tdr;
 
@@ -914,7 +914,7 @@ static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl)
     return retval;
 }
 
-static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
+static void fdctrl_write_tape(FDCtrl *fdctrl, uint32_t value)
 {
     /* Reset mode */
     if (!(fdctrl->dor & FD_DOR_nRESET)) {
@@ -928,7 +928,7 @@ static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
 }
 
 /* Main status register : 0x04 (read) */
-static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_main_status(FDCtrl *fdctrl)
 {
     uint32_t retval = fdctrl->msr;
 
@@ -947,7 +947,7 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
 }
 
 /* Data select rate register : 0x04 (write) */
-static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
+static void fdctrl_write_rate(FDCtrl *fdctrl, uint32_t value)
 {
     /* Reset mode */
     if (!(fdctrl->dor & FD_DOR_nRESET)) {
@@ -967,7 +967,7 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
     fdctrl->dsr = value;
 }
 
-static int fdctrl_media_changed(fdrive_t *drv)
+static int fdctrl_media_changed(FDrive *drv)
 {
     int ret;
 
@@ -981,7 +981,7 @@ static int fdctrl_media_changed(fdrive_t *drv)
 }
 
 /* Digital input register : 0x07 (read-only) */
-static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
 {
     uint32_t retval = 0;
 
@@ -1000,7 +1000,7 @@ static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
 }
 
 /* FIFO state control */
-static void fdctrl_reset_fifo (fdctrl_t *fdctrl)
+static void fdctrl_reset_fifo(FDCtrl *fdctrl)
 {
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
@@ -1008,7 +1008,7 @@ static void fdctrl_reset_fifo (fdctrl_t *fdctrl)
 }
 
 /* Set FIFO status for the host to read */
-static void fdctrl_set_fifo (fdctrl_t *fdctrl, int fifo_len, int do_irq)
+static void fdctrl_set_fifo(FDCtrl *fdctrl, int fifo_len, int do_irq)
 {
     fdctrl->data_dir = FD_DIR_READ;
     fdctrl->data_len = fifo_len;
@@ -1019,7 +1019,7 @@ static void fdctrl_set_fifo (fdctrl_t *fdctrl, int fifo_len, int do_irq)
 }
 
 /* Set an error: unimplemented/unknown command */
-static void fdctrl_unimplemented (fdctrl_t *fdctrl, int direction)
+static void fdctrl_unimplemented(FDCtrl *fdctrl, int direction)
 {
     FLOPPY_ERROR("unimplemented command 0x%02x\n", fdctrl->fifo[0]);
     fdctrl->fifo[0] = FD_SR0_INVCMD;
@@ -1027,7 +1027,7 @@ static void fdctrl_unimplemented (fdctrl_t *fdctrl, int direction)
 }
 
 /* Seek to next sector */
-static int fdctrl_seek_to_next_sect (fdctrl_t *fdctrl, fdrive_t *cur_drv)
+static int fdctrl_seek_to_next_sect(FDCtrl *fdctrl, FDrive *cur_drv)
 {
     FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d)\n",
                    cur_drv->head, cur_drv->track, cur_drv->sect,
@@ -1061,10 +1061,10 @@ static int fdctrl_seek_to_next_sect (fdctrl_t *fdctrl, fdrive_t *cur_drv)
 }
 
 /* Callback for transfer end (stop or abort) */
-static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
-                                  uint8_t status1, uint8_t status2)
+static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
+                                 uint8_t status1, uint8_t status2)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     cur_drv = get_cur_drv(fdctrl);
     FLOPPY_DPRINTF("transfer status: %02x %02x %02x (%02x)\n",
@@ -1087,9 +1087,9 @@ static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
 }
 
 /* Prepare a data transfer (either DMA or FIFO) */
-static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
+static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
     uint8_t kh, kt, ks;
     int did_seek = 0;
 
@@ -1100,7 +1100,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     ks = fdctrl->fifo[4];
     FLOPPY_DPRINTF("Start transfer at %d %d %02x %02x (%d)\n",
                    GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   _fd_sector(kh, kt, ks, cur_drv->last_sect));
+                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
@@ -1189,7 +1189,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
 }
 
 /* Prepare a transfer of deleted data */
-static void fdctrl_start_transfer_del (fdctrl_t *fdctrl, int direction)
+static void fdctrl_start_transfer_del(FDCtrl *fdctrl, int direction)
 {
     FLOPPY_ERROR("fdctrl_start_transfer_del() unimplemented\n");
 
@@ -1203,8 +1203,8 @@ static void fdctrl_start_transfer_del (fdctrl_t *fdctrl, int direction)
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len)
 {
-    fdctrl_t *fdctrl;
-    fdrive_t *cur_drv;
+    FDCtrl *fdctrl;
+    FDrive *cur_drv;
     int len, start_pos, rel_pos;
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
 
@@ -1310,9 +1310,9 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
 }
 
 /* Data register : 0x05 */
-static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
+static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
     uint32_t retval = 0;
     int pos;
 
@@ -1358,9 +1358,9 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
     return retval;
 }
 
-static void fdctrl_format_sector (fdctrl_t *fdctrl)
+static void fdctrl_format_sector(FDCtrl *fdctrl)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
     uint8_t kh, kt, ks;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
@@ -1370,7 +1370,7 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     ks = fdctrl->fifo[8];
     FLOPPY_DPRINTF("format sector at %d %d %02x %02x (%d)\n",
                    GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   _fd_sector(kh, kt, ks, cur_drv->last_sect));
+                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
@@ -1420,16 +1420,16 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     }
 }
 
-static void fdctrl_handle_lock (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
     fdctrl->fifo[0] = fdctrl->lock << 4;
     fdctrl_set_fifo(fdctrl, 1, fdctrl->lock);
 }
 
-static void fdctrl_handle_dumpreg (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     /* Drives position */
     fdctrl->fifo[0] = drv0(fdctrl)->track;
@@ -1452,22 +1452,22 @@ static void fdctrl_handle_dumpreg (fdctrl_t *fdctrl, int direction)
     fdctrl_set_fifo(fdctrl, 10, 0);
 }
 
-static void fdctrl_handle_version (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_version(FDCtrl *fdctrl, int direction)
 {
     /* Controller's version */
     fdctrl->fifo[0] = fdctrl->version;
     fdctrl_set_fifo(fdctrl, 1, 1);
 }
 
-static void fdctrl_handle_partid (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
 {
     fdctrl->fifo[0] = 0x41; /* Stepping 1 */
     fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
-static void fdctrl_handle_restore (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     /* Drives position */
     drv0(fdctrl)->track = fdctrl->fifo[3];
@@ -1488,9 +1488,9 @@ static void fdctrl_handle_restore (fdctrl_t *fdctrl, int direction)
     fdctrl_reset_fifo(fdctrl);
 }
 
-static void fdctrl_handle_save (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     fdctrl->fifo[0] = 0;
     fdctrl->fifo[1] = 0;
@@ -1518,9 +1518,9 @@ static void fdctrl_handle_save (fdctrl_t *fdctrl, int direction)
     fdctrl_set_fifo(fdctrl, 15, 1);
 }
 
-static void fdctrl_handle_readid (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     /* XXX: should set main status register to busy */
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
@@ -1528,9 +1528,9 @@ static void fdctrl_handle_readid (fdctrl_t *fdctrl, int direction)
                    qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 50));
 }
 
-static void fdctrl_handle_format_track (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1557,7 +1557,7 @@ static void fdctrl_handle_format_track (fdctrl_t *fdctrl, int direction)
     fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
 
-static void fdctrl_handle_specify (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_specify(FDCtrl *fdctrl, int direction)
 {
     fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
     fdctrl->timer1 = fdctrl->fifo[2] >> 1;
@@ -1569,9 +1569,9 @@ static void fdctrl_handle_specify (fdctrl_t *fdctrl, int direction)
     fdctrl_reset_fifo(fdctrl);
 }
 
-static void fdctrl_handle_sense_drive_status (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_sense_drive_status(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1585,9 +1585,9 @@ static void fdctrl_handle_sense_drive_status (fdctrl_t *fdctrl, int direction)
     fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
-static void fdctrl_handle_recalibrate (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1597,9 +1597,9 @@ static void fdctrl_handle_recalibrate (fdctrl_t *fdctrl, int direction)
     fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
-static void fdctrl_handle_sense_interrupt_status (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     if(fdctrl->reset_sensei > 0) {
         fdctrl->fifo[0] =
@@ -1619,9 +1619,9 @@ static void fdctrl_handle_sense_interrupt_status (fdctrl_t *fdctrl, int directio
     fdctrl->status0 = FD_SR0_RDYCHG;
 }
 
-static void fdctrl_handle_seek (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1635,9 +1635,9 @@ static void fdctrl_handle_seek (fdctrl_t *fdctrl, int direction)
     }
 }
 
-static void fdctrl_handle_perpendicular_mode (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     if (fdctrl->fifo[1] & 0x80)
         cur_drv->perpendicular = fdctrl->fifo[1] & 0x7;
@@ -1645,7 +1645,7 @@ static void fdctrl_handle_perpendicular_mode (fdctrl_t *fdctrl, int direction)
     fdctrl_reset_fifo(fdctrl);
 }
 
-static void fdctrl_handle_configure (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_configure(FDCtrl *fdctrl, int direction)
 {
     fdctrl->config = fdctrl->fifo[2];
     fdctrl->precomp_trk =  fdctrl->fifo[3];
@@ -1653,22 +1653,22 @@ static void fdctrl_handle_configure (fdctrl_t *fdctrl, int direction)
     fdctrl_reset_fifo(fdctrl);
 }
 
-static void fdctrl_handle_powerdown_mode (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 {
     fdctrl->pwrd = fdctrl->fifo[1];
     fdctrl->fifo[0] = fdctrl->fifo[1];
     fdctrl_set_fifo(fdctrl, 1, 1);
 }
 
-static void fdctrl_handle_option (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
 {
     /* No result back */
     fdctrl_reset_fifo(fdctrl);
 }
 
-static void fdctrl_handle_drive_specification_command (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x80) {
         /* Command parameters done */
@@ -1688,9 +1688,9 @@ static void fdctrl_handle_drive_specification_command (fdctrl_t *fdctrl, int dir
     }
 }
 
-static void fdctrl_handle_relative_seek_out (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1704,9 +1704,9 @@ static void fdctrl_handle_relative_seek_out (fdctrl_t *fdctrl, int direction)
     fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
-static void fdctrl_handle_relative_seek_in (fdctrl_t *fdctrl, int direction)
+static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1725,7 +1725,7 @@ static const struct {
     uint8_t mask;
     const char* name;
     int parameters;
-    void (*handler)(fdctrl_t *fdctrl, int direction);
+    void (*handler)(FDCtrl *fdctrl, int direction);
     int direction;
 } handlers[] = {
     { FD_CMD_READ, 0x1f, "READ", 8, fdctrl_start_transfer, FD_DIR_READ },
@@ -1764,9 +1764,9 @@ static const struct {
 /* Associate command to an index in the 'handlers' array */
 static uint8_t command_to_handler[256];
 
-static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
+static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
 {
-    fdrive_t *cur_drv;
+    FDrive *cur_drv;
     int pos;
 
     /* Reset mode */
@@ -1831,8 +1831,8 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
 
 static void fdctrl_result_timer(void *opaque)
 {
-    fdctrl_t *fdctrl = opaque;
-    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    FDCtrl *fdctrl = opaque;
+    FDrive *cur_drv = get_cur_drv(fdctrl);
 
     /* Pretend we are spinning.
      * This is needed for Coherent, which uses READ ID to check for
@@ -1845,7 +1845,7 @@ static void fdctrl_result_timer(void *opaque)
 }
 
 /* Init functions */
-static void fdctrl_connect_drives(fdctrl_t *fdctrl)
+static void fdctrl_connect_drives(FDCtrl *fdctrl)
 {
     unsigned int i;
 
@@ -1855,7 +1855,7 @@ static void fdctrl_connect_drives(fdctrl_t *fdctrl)
     }
 }
 
-fdctrl_t *fdctrl_init_isa(DriveInfo **fds)
+FDCtrl *fdctrl_init_isa(DriveInfo **fds)
 {
     ISADevice *dev;
 
@@ -1864,19 +1864,18 @@ fdctrl_t *fdctrl_init_isa(DriveInfo **fds)
     qdev_prop_set_drive(&dev->qdev, "driveB", fds[1]);
     if (qdev_init(&dev->qdev) < 0)
         return NULL;
-    return &(DO_UPCAST(fdctrl_isabus_t, busdev, dev)->state);
+    return &(DO_UPCAST(FDCtrlISABus, busdev, dev)->state);
 }
 
-fdctrl_t *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
-                             target_phys_addr_t mmio_base,
-                             DriveInfo **fds)
+FDCtrl *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
+                           target_phys_addr_t mmio_base, DriveInfo **fds)
 {
-    fdctrl_t *fdctrl;
+    FDCtrl *fdctrl;
     DeviceState *dev;
-    fdctrl_sysbus_t *sys;
+    FDCtrlSysBus *sys;
 
     dev = qdev_create(NULL, "sysbus-fdc");
-    sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
+    sys = DO_UPCAST(FDCtrlSysBus, busdev.qdev, dev);
     fdctrl = &sys->state;
     fdctrl->dma_chann = dma_chann; /* FIXME */
     qdev_prop_set_drive(dev, "driveA", fds[0]);
@@ -1888,17 +1887,17 @@ fdctrl_t *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     return fdctrl;
 }
 
-fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
-                             DriveInfo **fds, qemu_irq *fdc_tc)
+FDCtrl *sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
+                          DriveInfo **fds, qemu_irq *fdc_tc)
 {
     DeviceState *dev;
-    fdctrl_sysbus_t *sys;
-    fdctrl_t *fdctrl;
+    FDCtrlSysBus *sys;
+    FDCtrl *fdctrl;
 
     dev = qdev_create(NULL, "SUNW,fdtwo");
     qdev_prop_set_drive(dev, "drive", fds[0]);
     qdev_init_nofail(dev);
-    sys = DO_UPCAST(fdctrl_sysbus_t, busdev.qdev, dev);
+    sys = DO_UPCAST(FDCtrlSysBus, busdev.qdev, dev);
     fdctrl = &sys->state;
     sysbus_connect_irq(&sys->busdev, 0, irq);
     sysbus_mmio_map(&sys->busdev, 0, io_base);
@@ -1907,7 +1906,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
     return fdctrl;
 }
 
-static int fdctrl_init_common(fdctrl_t *fdctrl, target_phys_addr_t io_base)
+static int fdctrl_init_common(FDCtrl *fdctrl, target_phys_addr_t io_base)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -1944,8 +1943,8 @@ static int fdctrl_init_common(fdctrl_t *fdctrl, target_phys_addr_t io_base)
 
 static int isabus_fdc_init1(ISADevice *dev)
 {
-    fdctrl_isabus_t *isa = DO_UPCAST(fdctrl_isabus_t, busdev, dev);
-    fdctrl_t *fdctrl = &isa->state;
+    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, dev);
+    FDCtrl *fdctrl = &isa->state;
     int iobase = 0x3f0;
     int isairq = 6;
     int dma_chann = 2;
@@ -1969,8 +1968,8 @@ static int isabus_fdc_init1(ISADevice *dev)
 
 static int sysbus_fdc_init1(SysBusDevice *dev)
 {
-    fdctrl_sysbus_t *sys = DO_UPCAST(fdctrl_sysbus_t, busdev, dev);
-    fdctrl_t *fdctrl = &sys->state;
+    FDCtrlSysBus *sys = DO_UPCAST(FDCtrlSysBus, busdev, dev);
+    FDCtrl *fdctrl = &sys->state;
     int io;
     int ret;
 
@@ -1987,7 +1986,7 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
 
 static int sun4m_fdc_init1(SysBusDevice *dev)
 {
-    fdctrl_t *fdctrl = &(FROM_SYSBUS(fdctrl_sysbus_t, dev)->state);
+    FDCtrl *fdctrl = &(FROM_SYSBUS(FDCtrlSysBus, dev)->state);
     int io;
 
     io = cpu_register_io_memory(fdctrl_mem_read_strict,
@@ -2003,12 +2002,12 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
 static ISADeviceInfo isa_fdc_info = {
     .init = isabus_fdc_init1,
     .qdev.name  = "isa-fdc",
-    .qdev.size  = sizeof(fdctrl_isabus_t),
+    .qdev.size  = sizeof(FDCtrlISABus),
     .qdev.no_user = 1,
     .qdev.reset = fdctrl_external_reset_isa,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_DRIVE("driveA", fdctrl_isabus_t, state.drives[0].dinfo),
-        DEFINE_PROP_DRIVE("driveB", fdctrl_isabus_t, state.drives[1].dinfo),
+        DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].dinfo),
+        DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].dinfo),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -2016,11 +2015,11 @@ static ISADeviceInfo isa_fdc_info = {
 static SysBusDeviceInfo sysbus_fdc_info = {
     .init = sysbus_fdc_init1,
     .qdev.name  = "sysbus-fdc",
-    .qdev.size  = sizeof(fdctrl_sysbus_t),
+    .qdev.size  = sizeof(FDCtrlSysBus),
     .qdev.reset = fdctrl_external_reset_sysbus,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_DRIVE("driveA", fdctrl_sysbus_t, state.drives[0].dinfo),
-        DEFINE_PROP_DRIVE("driveB", fdctrl_sysbus_t, state.drives[1].dinfo),
+        DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].dinfo),
+        DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].dinfo),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -2028,10 +2027,10 @@ static SysBusDeviceInfo sysbus_fdc_info = {
 static SysBusDeviceInfo sun4m_fdc_info = {
     .init = sun4m_fdc_init1,
     .qdev.name  = "SUNW,fdtwo",
-    .qdev.size  = sizeof(fdctrl_sysbus_t),
+    .qdev.size  = sizeof(FDCtrlSysBus),
     .qdev.reset = fdctrl_external_reset_sysbus,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_DRIVE("drive", fdctrl_sysbus_t, state.drives[0].dinfo),
+        DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].dinfo),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

@@ -277,7 +277,7 @@ static CPUReadMemoryFunc * const PPC_XCSR_read[] = {
 /* Fake super-io ports for PREP platform (Intel 82378ZB) */
 typedef struct sysctrl_t {
     qemu_irq reset_irq;
-    m48t59_t *nvram;
+    M48t59State *nvram;
     uint8_t state;
     uint8_t syscontrol;
     uint8_t fake_io[2];
@@ -557,7 +557,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     CPUState *env = NULL, *envs[MAX_CPUS];
     char *filename;
     nvram_t nvram;
-    m48t59_t *m48t59;
+    M48t59State *m48t59;
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;
     ram_addr_t ram_offset, bios_offset;

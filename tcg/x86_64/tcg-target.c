@@ -499,24 +499,40 @@ static void tcg_out_jxx(TCGContext *s, int opc, int label_index)
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, int cond, 
-                           TCGArg arg1, TCGArg arg2, int const_arg2,
-                           int label_index, int rexw)
+static void tcg_out_cmp(TCGContext *s, TCGArg arg1, TCGArg arg2,
+                        int const_arg2, int rexw)
 {
     if (const_arg2) {
         if (arg2 == 0) {
             /* test r, r */
             tcg_out_modrm(s, 0x85 | rexw, arg1, arg1);
         } else {
-            if (rexw)
+            if (rexw) {
                 tgen_arithi64(s, ARITH_CMP, arg1, arg2);
-            else
+            } else {
                 tgen_arithi32(s, ARITH_CMP, arg1, arg2);
+            }
         }
     } else {
         tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3) | rexw, arg2, arg1);
     }
+}
+
+static void tcg_out_brcond(TCGContext *s, int cond,
+                           TCGArg arg1, TCGArg arg2, int const_arg2,
+                           int label_index, int rexw)
+{
+    tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
     tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
+}
+
+static void tcg_out_setcond(TCGContext *s, int cond, TCGArg dest,
+                            TCGArg arg1, TCGArg arg2, int const_arg2, int rexw)
+{
+    tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
+    /* setcc */
+    tcg_out_modrm(s, 0x90 | tcg_cond_to_jcc[cond] | P_EXT | P_REXB_RM, 0, dest);
+    tgen_arithi32(s, ARITH_AND, dest, 0xff);
 }
 
 #if defined(CONFIG_SOFTMMU)
@@ -1201,6 +1217,15 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_modrm(s, 0x8b, args[0], args[1]);
         break;
 
+    case INDEX_op_setcond_i32:
+        tcg_out_setcond(s, args[3], args[0], args[1], args[2],
+                        const_args[2], 0);
+        break;
+    case INDEX_op_setcond_i64:
+        tcg_out_setcond(s, args[3], args[0], args[1], args[2],
+                        const_args[2], P_REXW);
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
         break;
@@ -1379,6 +1404,9 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
     { INDEX_op_ext8u_i64, { "r", "r"} },
     { INDEX_op_ext16u_i64, { "r", "r"} },
     { INDEX_op_ext32u_i64, { "r", "r"} },
+
+    { INDEX_op_setcond_i32, { "r", "r", "ri" } },
+    { INDEX_op_setcond_i64, { "r", "r", "re" } },
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },

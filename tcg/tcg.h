@@ -205,6 +205,11 @@ typedef enum {
     TCG_COND_GTU,
 } TCGCond;
 
+static inline TCGCond tcg_invert_cond(TCGCond c)
+{
+    return (TCGCond)(c ^ 1);
+}
+
 static inline TCGCond tcg_unsigned_cond(TCGCond c)
 {
     return (c >= TCG_COND_LT && c <= TCG_COND_GT ? c + 4 : c);

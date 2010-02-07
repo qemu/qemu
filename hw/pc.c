@@ -62,7 +62,7 @@
 
 #define MAX_IDE_BUS 2
 
-static fdctrl_t *floppy_controller;
+static FDCtrl *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
 static PCII440FXState *i440fx_state;

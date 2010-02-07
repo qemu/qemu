@@ -32,9 +32,9 @@
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
-#define dprintf printf
+#define DPRINTF printf
 #else
-#define dprintf(...)
+#define DPRINTF(...)
 #endif
 
 static HPETState *hpet_statep;
@@ -288,7 +288,7 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
     HPETState *s = (HPETState *)opaque;
     uint64_t cur_tick, index;
 
-    dprintf("qemu: Enter hpet_ram_readl at %" PRIx64 "\n", addr);
+    DPRINTF("qemu: Enter hpet_ram_readl at %" PRIx64 "\n", addr);
     index = addr;
     /*address range of all TN regs*/
     if (index >= 0x100 && index <= 0x3ff) {
@@ -311,7 +311,7 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
             case HPET_TN_ROUTE:
                 return timer->fsb >> 32;
             default:
-                dprintf("qemu: invalid hpet_ram_readl\n");
+                DPRINTF("qemu: invalid hpet_ram_readl\n");
                 break;
         }
     } else {
@@ -323,26 +323,26 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
             case HPET_CFG:
                 return s->config;
             case HPET_CFG + 4:
-                dprintf("qemu: invalid HPET_CFG + 4 hpet_ram_readl \n");
+                DPRINTF("qemu: invalid HPET_CFG + 4 hpet_ram_readl \n");
                 return 0;
             case HPET_COUNTER:
                 if (hpet_enabled())
                     cur_tick = hpet_get_ticks();
                 else
                     cur_tick = s->hpet_counter;
-                dprintf("qemu: reading counter  = %" PRIx64 "\n", cur_tick);
+                DPRINTF("qemu: reading counter  = %" PRIx64 "\n", cur_tick);
                 return cur_tick;
             case HPET_COUNTER + 4:
                 if (hpet_enabled())
                     cur_tick = hpet_get_ticks();
                 else
                     cur_tick = s->hpet_counter;
-                dprintf("qemu: reading counter + 4  = %" PRIx64 "\n", cur_tick);
+                DPRINTF("qemu: reading counter + 4  = %" PRIx64 "\n", cur_tick);
                 return cur_tick >> 32;
             case HPET_STATUS:
                 return s->isr;
             default:
-                dprintf("qemu: invalid hpet_ram_readl\n");
+                DPRINTF("qemu: invalid hpet_ram_readl\n");
                 break;
         }
     }
@@ -372,7 +372,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
     HPETState *s = (HPETState *)opaque;
     uint64_t old_val, new_val, val, index;
 
-    dprintf("qemu: Enter hpet_ram_writel at %" PRIx64 " = %#x\n", addr, value);
+    DPRINTF("qemu: Enter hpet_ram_writel at %" PRIx64 " = %#x\n", addr, value);
     index = addr;
     old_val = hpet_ram_readl(opaque, addr);
     new_val = value;
@@ -380,12 +380,12 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
     /*address range of all TN regs*/
     if (index >= 0x100 && index <= 0x3ff) {
         uint8_t timer_id = (addr - 0x100) / 0x20;
-        dprintf("qemu: hpet_ram_writel timer_id = %#x \n", timer_id);
+        DPRINTF("qemu: hpet_ram_writel timer_id = %#x \n", timer_id);
         HPETTimer *timer = &s->timer[timer_id];
 
         switch ((addr - 0x100) % 0x20) {
             case HPET_TN_CFG:
-                dprintf("qemu: hpet_ram_writel HPET_TN_CFG\n");
+                DPRINTF("qemu: hpet_ram_writel HPET_TN_CFG\n");
                 val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
                 timer->config = (timer->config & 0xffffffff00000000ULL) | val;
                 if (new_val & HPET_TN_32BIT) {
@@ -399,10 +399,10 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
 
                 break;
             case HPET_TN_CFG + 4: // Interrupt capabilities
-                dprintf("qemu: invalid HPET_TN_CFG+4 write\n");
+                DPRINTF("qemu: invalid HPET_TN_CFG+4 write\n");
                 break;
             case HPET_TN_CMP: // comparator register
-                dprintf("qemu: hpet_ram_writel HPET_TN_CMP \n");
+                DPRINTF("qemu: hpet_ram_writel HPET_TN_CMP \n");
                 if (timer->config & HPET_TN_32BIT)
                     new_val = (uint32_t)new_val;
                 if (!timer_is_periodic(timer) ||
@@ -423,7 +423,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                     hpet_set_timer(timer);
                 break;
             case HPET_TN_CMP + 4: // comparator register high order
-                dprintf("qemu: hpet_ram_writel HPET_TN_CMP + 4\n");
+                DPRINTF("qemu: hpet_ram_writel HPET_TN_CMP + 4\n");
                 if (!timer_is_periodic(timer) ||
                            (timer->config & HPET_TN_SETVAL))
                     timer->cmp = (timer->cmp & 0xffffffffULL)
@@ -443,10 +443,10 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                     hpet_set_timer(timer);
                 break;
             case HPET_TN_ROUTE + 4:
-                dprintf("qemu: hpet_ram_writel HPET_TN_ROUTE + 4\n");
+                DPRINTF("qemu: hpet_ram_writel HPET_TN_ROUTE + 4\n");
                 break;
             default:
-                dprintf("qemu: invalid hpet_ram_writel\n");
+                DPRINTF("qemu: invalid hpet_ram_writel\n");
                 break;
         }
         return;
@@ -479,7 +479,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                 }
                 break;
             case HPET_CFG + 4:
-                dprintf("qemu: invalid HPET_CFG+4 write \n");
+                DPRINTF("qemu: invalid HPET_CFG+4 write \n");
                 break;
             case HPET_STATUS:
                 /* FIXME: need to handle level-triggered interrupts */
@@ -489,7 +489,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                    printf("qemu: Writing counter while HPET enabled!\n");
                s->hpet_counter = (s->hpet_counter & 0xffffffff00000000ULL)
                                   | value;
-               dprintf("qemu: HPET counter written. ctr = %#x -> %" PRIx64 "\n",
+               DPRINTF("qemu: HPET counter written. ctr = %#x -> %" PRIx64 "\n",
                         value, s->hpet_counter);
                break;
             case HPET_COUNTER + 4:
@@ -497,11 +497,11 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                    printf("qemu: Writing counter while HPET enabled!\n");
                s->hpet_counter = (s->hpet_counter & 0xffffffffULL)
                                   | (((uint64_t)value) << 32);
-               dprintf("qemu: HPET counter + 4 written. ctr = %#x -> %" PRIx64 "\n",
+               DPRINTF("qemu: HPET counter + 4 written. ctr = %#x -> %" PRIx64 "\n",
                         value, s->hpet_counter);
                break;
             default:
-               dprintf("qemu: invalid hpet_ram_writel\n");
+               DPRINTF("qemu: invalid hpet_ram_writel\n");
                break;
         }
     }
@@ -568,7 +568,7 @@ void hpet_init(qemu_irq *irq) {
     int i, iomemtype;
     HPETState *s;
 
-    dprintf ("hpet_init\n");
+    DPRINTF ("hpet_init\n");
 
     s = qemu_mallocz(sizeof(HPETState));
     hpet_statep = s;

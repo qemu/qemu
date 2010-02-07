@@ -29,9 +29,9 @@
 // #define DEBUG_VERBOSE
 
 #ifdef DEBUG_CURL
-#define dprintf(fmt, ...) do { printf(fmt, ## __VA_ARGS__); } while (0)
+#define DPRINTF(fmt, ...) do { printf(fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) do { } while (0)
+#define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
 #define CURL_NUM_STATES 8
@@ -80,7 +80,7 @@ static void curl_multi_do(void *arg);
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *s, void *sp)
 {
-    dprintf("CURL (AIO): Sock action %d on fd %d\n", action, fd);
+    DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, fd);
     switch (action) {
         case CURL_POLL_IN:
             qemu_aio_set_fd_handler(fd, curl_multi_do, NULL, NULL, NULL, s);
@@ -118,7 +118,7 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     size_t realsize = size * nmemb;
     int i;
 
-    dprintf("CURL: Just reading %lld bytes\n", (unsigned long long)realsize);
+    DPRINTF("CURL: Just reading %lld bytes\n", (unsigned long long)realsize);
 
     if (!s || !s->orig_buf)
         goto read_end;
@@ -349,7 +349,7 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
         inited = 1;
     }
 
-    dprintf("CURL: Opening %s\n", file);
+    DPRINTF("CURL: Opening %s\n", file);
     s->url = file;
     state = curl_init_state(s);
     if (!state)
@@ -368,7 +368,7 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
         s->len = (size_t)d;
     else if(!s->len)
         goto out;
-    dprintf("CURL: Size = %lld\n", (long long)s->len);
+    DPRINTF("CURL: Size = %lld\n", (long long)s->len);
 
     curl_clean_state(state);
     curl_easy_cleanup(state->curl);
@@ -451,7 +451,7 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     state->acb[0] = acb;
 
     snprintf(state->range, 127, "%lld-%lld", (long long)start, (long long)end);
-    dprintf("CURL (AIO): Reading %d at %lld (%s)\n", (nb_sectors * SECTOR_SIZE), start, state->range);
+    DPRINTF("CURL (AIO): Reading %d at %lld (%s)\n", (nb_sectors * SECTOR_SIZE), start, state->range);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     curl_multi_add_handle(s->multi, state->curl);
@@ -465,7 +465,7 @@ static void curl_close(BlockDriverState *bs)
     BDRVCURLState *s = bs->opaque;
     int i;
 
-    dprintf("CURL: Close\n");
+    DPRINTF("CURL: Close\n");
     for (i=0; i<CURL_NUM_STATES; i++) {
         if (s->states[i].in_use)
             curl_clean_state(&s->states[i]);

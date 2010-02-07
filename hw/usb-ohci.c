@@ -42,9 +42,9 @@
 //#define OHCI_TIME_WARP 1
 
 #ifdef DEBUG_OHCI
-#define dprintf printf
+#define DPRINTF printf
 #else
-#define dprintf(...)
+#define DPRINTF(...)
 #endif
 
 /* Number of Downstream Ports on the root hub.  */
@@ -355,7 +355,7 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
 
         /* send the attach message */
         usb_send_msg(dev, USB_MSG_ATTACH);
-        dprintf("usb-ohci: Attached port %d\n", port1->index);
+        DPRINTF("usb-ohci: Attached port %d\n", port1->index);
     } else {
         /* set connect status */
         if (port->ctrl & OHCI_PORT_CCS) {
@@ -373,7 +373,7 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
             usb_send_msg(dev, USB_MSG_DETACH);
         }
         port->port.dev = NULL;
-        dprintf("usb-ohci: Detached port %d\n", port1->index);
+        DPRINTF("usb-ohci: Detached port %d\n", port1->index);
     }
 
     if (old_state != port->ctrl)
@@ -427,7 +427,7 @@ static void ohci_reset(void *opaque)
         usb_cancel_packet(&ohci->usb_packet);
         ohci->async_td = 0;
     }
-    dprintf("usb-ohci: Reset %s\n", ohci->name);
+    DPRINTF("usb-ohci: Reset %s\n", ohci->name);
 }
 
 /* Get an array of dwords from main memory */
@@ -593,7 +593,7 @@ static void ohci_async_complete_packet(USBPacket *packet, void *opaque)
 {
     OHCIState *ohci = opaque;
 #ifdef DEBUG_PACKET
-    dprintf("Async packet complete\n");
+    DPRINTF("Async packet complete\n");
 #endif
     ohci->async_complete = 1;
     ohci_process_lists(ohci, 1);
@@ -648,12 +648,12 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
 #endif
 
     if (relative_frame_number < 0) {
-        dprintf("usb-ohci: ISO_TD R=%d < 0\n", relative_frame_number);
+        DPRINTF("usb-ohci: ISO_TD R=%d < 0\n", relative_frame_number);
         return 1;
     } else if (relative_frame_number > frame_count) {
         /* ISO TD expired - retire the TD to the Done Queue and continue with
            the next ISO TD of the same ED */
-        dprintf("usb-ohci: ISO_TD R=%d > FC=%d\n", relative_frame_number, 
+        DPRINTF("usb-ohci: ISO_TD R=%d > FC=%d\n", relative_frame_number, 
                frame_count);
         OHCI_SET_BM(iso_td.flags, TD_CC, OHCI_CC_DATAOVERRUN);
         ed->head &= ~OHCI_DPTR_MASK;
@@ -856,7 +856,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     completion = (addr == ohci->async_td);
     if (completion && !ohci->async_complete) {
 #ifdef DEBUG_PACKET
-        dprintf("Skipping async TD\n");
+        DPRINTF("Skipping async TD\n");
 #endif
         return 1;
     }
@@ -907,14 +907,14 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 
     flag_r = (td.flags & OHCI_TD_R) != 0;
 #ifdef DEBUG_PACKET
-    dprintf(" TD @ 0x%.8x %" PRId64 " bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
+    DPRINTF(" TD @ 0x%.8x %" PRId64 " bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
             addr, len, str, flag_r, td.cbp, td.be);
 
     if (len > 0 && dir != OHCI_TD_DIR_IN) {
-        dprintf("  data:");
+        DPRINTF("  data:");
         for (i = 0; i < len; i++)
             printf(" %.2x", ohci->usb_buf[i]);
-        dprintf("\n");
+        DPRINTF("\n");
     }
 #endif
     if (completion) {
@@ -935,7 +935,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
                    timely manner.
                  */
 #ifdef DEBUG_PACKET
-                dprintf("Too many pending packets\n");
+                DPRINTF("Too many pending packets\n");
 #endif
                 return 1;
             }
@@ -951,7 +951,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
                 break;
         }
 #ifdef DEBUG_PACKET
-        dprintf("ret=%d\n", ret);
+        DPRINTF("ret=%d\n", ret);
 #endif
         if (ret == USB_RET_ASYNC) {
             ohci->async_td = addr;
@@ -962,10 +962,10 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         if (dir == OHCI_TD_DIR_IN) {
             ohci_copy_td(ohci, &td, ohci->usb_buf, ret, 1);
 #ifdef DEBUG_PACKET
-            dprintf("  data:");
+            DPRINTF("  data:");
             for (i = 0; i < ret; i++)
                 printf(" %.2x", ohci->usb_buf[i]);
-            dprintf("\n");
+            DPRINTF("\n");
 #endif
         } else {
             ret = len;
@@ -994,21 +994,21 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             ed->head |= OHCI_ED_C;
     } else {
         if (ret >= 0) {
-            dprintf("usb-ohci: Underrun\n");
+            DPRINTF("usb-ohci: Underrun\n");
             OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DATAUNDERRUN);
         } else {
             switch (ret) {
             case USB_RET_NODEV:
                 OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DEVICENOTRESPONDING);
             case USB_RET_NAK:
-                dprintf("usb-ohci: got NAK\n");
+                DPRINTF("usb-ohci: got NAK\n");
                 return 1;
             case USB_RET_STALL:
-                dprintf("usb-ohci: got STALL\n");
+                DPRINTF("usb-ohci: got STALL\n");
                 OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_STALL);
                 break;
             case USB_RET_BABBLE:
-                dprintf("usb-ohci: got BABBLE\n");
+                DPRINTF("usb-ohci: got BABBLE\n");
                 OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DATAOVERRUN);
                 break;
             default:
@@ -1067,7 +1067,7 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
 
         while ((ed.head & OHCI_DPTR_MASK) != ed.tail) {
 #ifdef DEBUG_PACKET
-            dprintf("ED @ 0x%.8x fa=%u en=%u d=%u s=%u k=%u f=%u mps=%u "
+            DPRINTF("ED @ 0x%.8x fa=%u en=%u d=%u s=%u k=%u f=%u mps=%u "
                     "h=%u c=%u\n  head=0x%.8x tailp=0x%.8x next=0x%.8x\n", cur,
                     OHCI_BM(ed.flags, ED_FA), OHCI_BM(ed.flags, ED_EN),
                     OHCI_BM(ed.flags, ED_D), (ed.flags & OHCI_ED_S)!= 0,
@@ -1107,7 +1107,7 @@ static void ohci_process_lists(OHCIState *ohci, int completion)
 {
     if ((ohci->ctl & OHCI_CTL_CLE) && (ohci->status & OHCI_STATUS_CLF)) {
         if (ohci->ctrl_cur && ohci->ctrl_cur != ohci->ctrl_head)
-          dprintf("usb-ohci: head %x, cur %x\n",
+          DPRINTF("usb-ohci: head %x, cur %x\n",
                           ohci->ctrl_head, ohci->ctrl_cur);
         if (!ohci_service_ed_list(ohci, ohci->ctrl_head, completion)) {
             ohci->ctrl_cur = 0;
@@ -1191,7 +1191,7 @@ static int ohci_bus_start(OHCIState *ohci)
         return 0;
     }
 
-    dprintf("usb-ohci: %s: USB Operational\n", ohci->name);
+    DPRINTF("usb-ohci: %s: USB Operational\n", ohci->name);
 
     ohci_sof(ohci);
 
@@ -1244,7 +1244,7 @@ static void ohci_set_frame_interval(OHCIState *ohci, uint16_t val)
     val &= OHCI_FMI_FI;
 
     if (val != ohci->fi) {
-        dprintf("usb-ohci: %s: FrameInterval = 0x%x (%u)\n",
+        DPRINTF("usb-ohci: %s: FrameInterval = 0x%x (%u)\n",
             ohci->name, ohci->fi, ohci->fi);
     }
 
@@ -1283,14 +1283,14 @@ static void ohci_set_ctl(OHCIState *ohci, uint32_t val)
         break;
     case OHCI_USB_SUSPEND:
         ohci_bus_stop(ohci);
-        dprintf("usb-ohci: %s: USB Suspended\n", ohci->name);
+        DPRINTF("usb-ohci: %s: USB Suspended\n", ohci->name);
         break;
     case OHCI_USB_RESUME:
-        dprintf("usb-ohci: %s: USB Resume\n", ohci->name);
+        DPRINTF("usb-ohci: %s: USB Resume\n", ohci->name);
         break;
     case OHCI_USB_RESET:
         ohci_reset(ohci);
-        dprintf("usb-ohci: %s: USB Reset\n", ohci->name);
+        DPRINTF("usb-ohci: %s: USB Reset\n", ohci->name);
         break;
     }
 }
@@ -1335,7 +1335,7 @@ static void ohci_set_hub_status(OHCIState *ohci, uint32_t val)
 
         for (i = 0; i < ohci->num_ports; i++)
             ohci_port_power(ohci, i, 0);
-        dprintf("usb-ohci: powered down all ports\n");
+        DPRINTF("usb-ohci: powered down all ports\n");
     }
 
     if (val & OHCI_RHS_LPSC) {
@@ -1343,7 +1343,7 @@ static void ohci_set_hub_status(OHCIState *ohci, uint32_t val)
 
         for (i = 0; i < ohci->num_ports; i++)
             ohci_port_power(ohci, i, 1);
-        dprintf("usb-ohci: powered up all ports\n");
+        DPRINTF("usb-ohci: powered up all ports\n");
     }
 
     if (val & OHCI_RHS_DRWE)
@@ -1375,10 +1375,10 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
     ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PES);
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PSS))
-        dprintf("usb-ohci: port %d: SUSPEND\n", portnum);
+        DPRINTF("usb-ohci: port %d: SUSPEND\n", portnum);
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PRS)) {
-        dprintf("usb-ohci: port %d: RESET\n", portnum);
+        DPRINTF("usb-ohci: port %d: RESET\n", portnum);
         usb_send_msg(port->port.dev, USB_MSG_RESET);
         port->ctrl &= ~OHCI_PORT_PRS;
         /* ??? Should this also set OHCI_PORT_PESC.  */
@@ -1680,7 +1680,7 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
             usb_bit_time = 1;
         }
 #endif
-        dprintf("usb-ohci: usb_bit_time=%" PRId64 " usb_frame_time=%" PRId64 "\n",
+        DPRINTF("usb-ohci: usb_bit_time=%" PRId64 " usb_frame_time=%" PRId64 "\n",
                 usb_frame_time, usb_bit_time);
     }
 

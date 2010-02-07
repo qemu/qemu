@@ -118,16 +118,15 @@ static int fw_cfg_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
-                                   const char *arch,
-                                   ram_addr_t RAM_size,
-                                   const char *boot_devices,
-                                   uint32_t kernel_image, uint32_t kernel_size,
-                                   const char *cmdline,
-                                   uint32_t initrd_image, uint32_t initrd_size,
-                                   uint32_t NVRAM_image,
-                                   int width, int height, int depth,
-                                   const uint8_t *macaddr)
+static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
+                                  const char *arch, ram_addr_t RAM_size,
+                                  const char *boot_devices,
+                                  uint32_t kernel_image, uint32_t kernel_size,
+                                  const char *cmdline,
+                                  uint32_t initrd_image, uint32_t initrd_size,
+                                  uint32_t NVRAM_image,
+                                  int width, int height, int depth,
+                                  const uint8_t *macaddr)
 {
     unsigned int i;
     uint32_t start, end;
@@ -736,7 +735,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
                         const struct hwdef *hwdef)
 {
     CPUState *env;
-    m48t59_t *nvram;
+    M48t59State *nvram;
     unsigned int i;
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;

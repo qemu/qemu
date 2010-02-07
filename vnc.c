@@ -2554,7 +2554,6 @@ int vnc_display_open(DisplayState *ds, const char *display)
     const char *options;
     int password = 0;
     int reverse = 0;
-    int to_port = 0;
 #ifdef CONFIG_VNC_TLS
     int tls = 0, x509 = 0;
 #endif
@@ -2580,8 +2579,6 @@ int vnc_display_open(DisplayState *ds, const char *display)
             password = 1; /* Require password auth */
         } else if (strncmp(options, "reverse", 7) == 0) {
             reverse = 1;
-        } else if (strncmp(options, "to=", 3) == 0) {
-            to_port = atoi(options+3) + 5900;
 #ifdef CONFIG_VNC_SASL
         } else if (strncmp(options, "sasl", 4) == 0) {
             sasl = 1; /* Require SASL auth */

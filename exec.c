@@ -40,6 +40,7 @@
 #include "kvm.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
+#include <signal.h>
 #endif
 
 //#define DEBUG_TB_INVALIDATE
@@ -1537,15 +1538,15 @@ static void cpu_unlink_tb(CPUState *env)
     TranslationBlock *tb;
     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
 
+    spin_lock(&interrupt_lock);
     tb = env->current_tb;
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
     if (tb) {
-        spin_lock(&interrupt_lock);
         env->current_tb = NULL;
         tb_reset_jump_recursive(tb);
-        spin_unlock(&interrupt_lock);
     }
+    spin_unlock(&interrupt_lock);
 }
 
 /* mask must never be zero, except for A20 change call */
@@ -1692,6 +1693,14 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     }
     va_end(ap2);
     va_end(ap);
+#if defined(CONFIG_USER_ONLY)
+    {
+        struct sigaction act;
+        sigfillset(&act.sa_mask);
+        act.sa_handler = SIG_DFL;
+        sigaction(SIGABRT, &act, NULL);
+    }
+#endif
     abort();
 }
 
@@ -2525,17 +2534,13 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
 ram_addr_t qemu_ram_addr_from_host(void *ptr)
 {
     RAMBlock *prev;
-    RAMBlock **prevp;
     RAMBlock *block;
     uint8_t *host = ptr;
 
     prev = NULL;
-    prevp = &ram_blocks;
     block = ram_blocks;
     while (block && (block->host > host
                      || block->host + block->length <= host)) {
-        if (prev)
-          prevp = &prev->next;
         prev = block;
         block = block->next;
     }

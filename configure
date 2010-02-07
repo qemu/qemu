@@ -142,10 +142,10 @@ LDFLAGS="-g $LDFLAGS"
 
 gcc_flags="-Wold-style-declaration -Wold-style-definition -fstack-protector-all"
 cat > $TMPC << EOF
-int main(void) { }
+int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
-    if compile_prog "$QEMU_CFLAGS" "$flag" ; then
+    if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
 	QEMU_CFLAGS="$flag $QEMU_CFLAGS"
     fi
 done
@@ -504,7 +504,9 @@ for opt do
   ;;
   --enable-gprof) gprof="yes"
   ;;
-  --static) static="yes"
+  --static)
+    static="yes"
+    LDFLAGS="-static $LDFLAGS"
   ;;
   --sysconfdir) sysconfdir="$optarg"
   ;;
@@ -2084,7 +2086,6 @@ if test "$solaris" = "yes" ; then
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
-  LDFLAGS="-static $LDFLAGS"
 fi
 if test $profiler = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak

@@ -31,9 +31,9 @@
 //#define DEBUG
 
 #ifdef DEBUG
-#define dprintf(fmt, ...) fprintf(stderr, "%s: " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DPRINTF(fmt, ...) fprintf(stderr, "%s: " fmt, __FUNCTION__, ##__VA_ARGS__)
 #else
-#define dprintf(fmt, ...)
+#define DPRINTF(fmt, ...)
 #endif
 
 #define GT_REGS			(0x1000 >> 2)
@@ -283,7 +283,7 @@ static void gt64120_isd_mapping(GT64120State *s)
     check_reserved_space(&start, &length);
     length = 0x1000;
     /* Map new address */
-    dprintf("ISD: %x@%x -> %x@%x, %x\n", s->ISD_length, s->ISD_start,
+    DPRINTF("ISD: %x@%x -> %x@%x, %x\n", s->ISD_length, s->ISD_start,
             length, start, s->ISD_handle);
     s->ISD_start = start;
     s->ISD_length = length;
@@ -434,7 +434,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_DEV_B3:
     case GT_DEV_BOOT:
         /* Not implemented */
-        dprintf ("Unimplemented device register offset 0x%x\n", saddr << 2);
+        DPRINTF ("Unimplemented device register offset 0x%x\n", saddr << 2);
         break;
 
     /* ECC */
@@ -468,7 +468,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_DMA2_CUR:
     case GT_DMA3_CUR:
         /* Not implemented */
-        dprintf ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
+        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
         break;
 
     /* DMA Channel Control */
@@ -477,13 +477,13 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_DMA2_CTRL:
     case GT_DMA3_CTRL:
         /* Not implemented */
-        dprintf ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
+        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
         break;
 
     /* DMA Arbiter */
     case GT_DMA_ARB:
         /* Not implemented */
-        dprintf ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
+        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
         break;
 
     /* Timer/Counter */
@@ -493,7 +493,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_TC3:
     case GT_TC_CONTROL:
         /* Not implemented */
-        dprintf ("Unimplemented timer register offset 0x%x\n", saddr << 2);
+        DPRINTF ("Unimplemented timer register offset 0x%x\n", saddr << 2);
         break;
 
     /* PCI Internal */
@@ -550,19 +550,19 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         /* not really implemented */
         s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
         s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
-        dprintf("INTRCAUSE %x\n", val);
+        DPRINTF("INTRCAUSE %x\n", val);
         break;
     case GT_INTRMASK:
         s->regs[saddr] = val & 0x3c3ffffe;
-        dprintf("INTRMASK %x\n", val);
+        DPRINTF("INTRMASK %x\n", val);
         break;
     case GT_PCI0_ICMASK:
         s->regs[saddr] = val & 0x03fffffe;
-        dprintf("ICMASK %x\n", val);
+        DPRINTF("ICMASK %x\n", val);
         break;
     case GT_PCI0_SERR0MASK:
         s->regs[saddr] = val & 0x0000003f;
-        dprintf("SERR0MASK %x\n", val);
+        DPRINTF("SERR0MASK %x\n", val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -586,7 +586,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        dprintf ("Bad register offset 0x%x\n", (int)addr);
+        DPRINTF ("Bad register offset 0x%x\n", (int)addr);
         break;
     }
 }
@@ -826,19 +826,19 @@ static uint32_t gt64120_readl (void *opaque,
     /* Interrupts */
     case GT_INTRCAUSE:
         val = s->regs[saddr];
-        dprintf("INTRCAUSE %x\n", val);
+        DPRINTF("INTRCAUSE %x\n", val);
         break;
     case GT_INTRMASK:
         val = s->regs[saddr];
-        dprintf("INTRMASK %x\n", val);
+        DPRINTF("INTRMASK %x\n", val);
         break;
     case GT_PCI0_ICMASK:
         val = s->regs[saddr];
-        dprintf("ICMASK %x\n", val);
+        DPRINTF("ICMASK %x\n", val);
         break;
     case GT_PCI0_SERR0MASK:
         val = s->regs[saddr];
-        dprintf("SERR0MASK %x\n", val);
+        DPRINTF("SERR0MASK %x\n", val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -853,7 +853,7 @@ static uint32_t gt64120_readl (void *opaque,
 
     default:
         val = s->regs[saddr];
-        dprintf ("Bad register offset 0x%x\n", (int)addr);
+        DPRINTF ("Bad register offset 0x%x\n", (int)addr);
         break;
     }
 

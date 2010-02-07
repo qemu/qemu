@@ -280,6 +280,32 @@ static inline void tcg_gen_op6_i64(int opc, TCGv_i64 arg1, TCGv_i64 arg2,
     *gen_opparam_ptr++ = GET_TCGV_I64(arg6);
 }
 
+static inline void tcg_gen_op6i_i32(int opc, TCGv_i32 arg1, TCGv_i32 arg2,
+                                    TCGv_i32 arg3, TCGv_i32 arg4,
+                                    TCGv_i32 arg5, TCGArg arg6)
+{
+    *gen_opc_ptr++ = opc;
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg5);
+    *gen_opparam_ptr++ = arg6;
+}
+
+static inline void tcg_gen_op6i_i64(int opc, TCGv_i64 arg1, TCGv_i64 arg2,
+                                    TCGv_i64 arg3, TCGv_i64 arg4,
+                                    TCGv_i64 arg5, TCGArg arg6)
+{
+    *gen_opc_ptr++ = opc;
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg5);
+    *gen_opparam_ptr++ = arg6;
+}
+
 static inline void tcg_gen_op6ii_i32(int opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                      TCGv_i32 arg3, TCGv_i32 arg4, TCGArg arg5,
                                      TCGArg arg6)
@@ -1795,6 +1821,25 @@ static inline void tcg_gen_rotri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
     }
 }
 
+static inline void tcg_gen_setcond_i32(int cond, TCGv_i32 ret,
+                                       TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    tcg_gen_op4i_i32(INDEX_op_setcond_i32, ret, arg1, arg2, cond);
+}
+
+static inline void tcg_gen_setcond_i64(int cond, TCGv_i64 ret,
+                                       TCGv_i64 arg1, TCGv_i64 arg2)
+{
+#if TCG_TARGET_REG_BITS == 64
+    tcg_gen_op4i_i64(INDEX_op_setcond_i64, ret, arg1, arg2, cond);
+#else
+    tcg_gen_op6i_i32(INDEX_op_setcond2_i32, TCGV_LOW(ret),
+                     TCGV_LOW(arg1), TCGV_HIGH(arg1),
+                     TCGV_LOW(arg2), TCGV_HIGH(arg2), cond);
+    tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
+#endif
+}
+
 /***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */
@@ -2067,6 +2112,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_sari_tl tcg_gen_sari_i64
 #define tcg_gen_brcond_tl tcg_gen_brcond_i64
 #define tcg_gen_brcondi_tl tcg_gen_brcondi_i64
+#define tcg_gen_setcond_tl tcg_gen_setcond_i64
 #define tcg_gen_mul_tl tcg_gen_mul_i64
 #define tcg_gen_muli_tl tcg_gen_muli_i64
 #define tcg_gen_div_tl tcg_gen_div_i64
@@ -2137,6 +2183,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_sari_tl tcg_gen_sari_i32
 #define tcg_gen_brcond_tl tcg_gen_brcond_i32
 #define tcg_gen_brcondi_tl tcg_gen_brcondi_i32
+#define tcg_gen_setcond_tl tcg_gen_setcond_i32
 #define tcg_gen_mul_tl tcg_gen_mul_i32
 #define tcg_gen_muli_tl tcg_gen_muli_i32
 #define tcg_gen_div_tl tcg_gen_div_i32

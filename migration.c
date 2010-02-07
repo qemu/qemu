@@ -24,10 +24,10 @@
 //#define DEBUG_MIGRATION
 
 #ifdef DEBUG_MIGRATION
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { printf("migration: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -268,7 +268,7 @@ void migrate_fd_monitor_suspend(FdMigrationState *s, Monitor *mon)
 {
     s->mon = mon;
     if (monitor_suspend(mon) == 0) {
-        dprintf("suspending monitor\n");
+        DPRINTF("suspending monitor\n");
     } else {
         monitor_printf(mon, "terminal does not allow synchronous "
                        "migration, continuing detached\n");
@@ -277,7 +277,7 @@ void migrate_fd_monitor_suspend(FdMigrationState *s, Monitor *mon)
 
 void migrate_fd_error(FdMigrationState *s)
 {
-    dprintf("setting error state\n");
+    DPRINTF("setting error state\n");
     s->state = MIG_STATE_ERROR;
     migrate_fd_cleanup(s);
 }
@@ -287,7 +287,7 @@ void migrate_fd_cleanup(FdMigrationState *s)
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
     if (s->file) {
-        dprintf("closing file\n");
+        DPRINTF("closing file\n");
         qemu_fclose(s->file);
         s->file = NULL;
     }
@@ -340,11 +340,11 @@ void migrate_fd_connect(FdMigrationState *s)
                                       migrate_fd_wait_for_unfreeze,
                                       migrate_fd_close);
 
-    dprintf("beginning savevm\n");
+    DPRINTF("beginning savevm\n");
     ret = qemu_savevm_state_begin(s->mon, s->file, s->mig_state.blk,
                                   s->mig_state.shared);
     if (ret < 0) {
-        dprintf("failed, %d\n", ret);
+        DPRINTF("failed, %d\n", ret);
         migrate_fd_error(s);
         return;
     }
@@ -357,16 +357,16 @@ void migrate_fd_put_ready(void *opaque)
     FdMigrationState *s = opaque;
 
     if (s->state != MIG_STATE_ACTIVE) {
-        dprintf("put_ready returning because of non-active state\n");
+        DPRINTF("put_ready returning because of non-active state\n");
         return;
     }
 
-    dprintf("iterate\n");
+    DPRINTF("iterate\n");
     if (qemu_savevm_state_iterate(s->mon, s->file) == 1) {
         int state;
         int old_vm_running = vm_running;
 
-        dprintf("done iterating\n");
+        DPRINTF("done iterating\n");
         vm_stop(0);
 
         qemu_aio_flush();
@@ -397,7 +397,7 @@ void migrate_fd_cancel(MigrationState *mig_state)
     if (s->state != MIG_STATE_ACTIVE)
         return;
 
-    dprintf("cancelling migration\n");
+    DPRINTF("cancelling migration\n");
 
     s->state = MIG_STATE_CANCELLED;
     qemu_savevm_state_cancel(s->mon, s->file);
@@ -409,7 +409,7 @@ void migrate_fd_release(MigrationState *mig_state)
 {
     FdMigrationState *s = migrate_to_fms(mig_state);
 
-    dprintf("releasing state\n");
+    DPRINTF("releasing state\n");
    
     if (s->state == MIG_STATE_ACTIVE) {
         s->state = MIG_STATE_CANCELLED;
@@ -423,7 +423,7 @@ void migrate_fd_wait_for_unfreeze(void *opaque)
     FdMigrationState *s = opaque;
     int ret;
 
-    dprintf("wait for unfreeze\n");
+    DPRINTF("wait for unfreeze\n");
     if (s->state != MIG_STATE_ACTIVE)
         return;
 
