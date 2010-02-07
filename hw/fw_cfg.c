@@ -38,14 +38,14 @@
 
 #define FW_CFG_SIZE 2
 
-typedef struct _FWCfgEntry {
+typedef struct FWCfgEntry {
     uint32_t len;
     uint8_t *data;
     void *callback_opaque;
     FWCfgCallback callback;
 } FWCfgEntry;
 
-struct _FWCfgState {
+struct FWCfgState {
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
     FWCfgFiles *files;
     uint16_t cur_entry;
