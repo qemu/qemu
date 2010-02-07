@@ -109,8 +109,8 @@ static void fd_init(FDrive *drv)
     drv->max_track = 0;
 }
 
-static int _fd_sector (uint8_t head, uint8_t track,
-                       uint8_t sect, uint8_t last_sect)
+static int fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
+                          uint8_t last_sect)
 {
     return (((track * 2) + head) * last_sect) + sect - 1;
 }
@@ -118,7 +118,7 @@ static int _fd_sector (uint8_t head, uint8_t track,
 /* Returns current position, in sectors, for given drive */
 static int fd_sector(FDrive *drv)
 {
-    return _fd_sector(drv->head, drv->track, drv->sect, drv->last_sect);
+    return fd_sector_calc(drv->head, drv->track, drv->sect, drv->last_sect);
 }
 
 /* Seek to a new position:
@@ -149,7 +149,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
                        drv->max_track, drv->last_sect);
         return 3;
     }
-    sector = _fd_sector(head, track, sect, drv->last_sect);
+    sector = fd_sector_calc(head, track, sect, drv->last_sect);
     ret = 0;
     if (sector != fd_sector(drv)) {
 #if 0
@@ -1100,7 +1100,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     ks = fdctrl->fifo[4];
     FLOPPY_DPRINTF("Start transfer at %d %d %02x %02x (%d)\n",
                    GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   _fd_sector(kh, kt, ks, cur_drv->last_sect));
+                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
@@ -1370,7 +1370,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
     ks = fdctrl->fifo[8];
     FLOPPY_DPRINTF("format sector at %d %d %02x %02x (%d)\n",
                    GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   _fd_sector(kh, kt, ks, cur_drv->last_sect));
+                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
