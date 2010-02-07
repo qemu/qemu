@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "dec_pci.h"
 #include "sysbus.h"
 #include "pci.h"
 #include "pci_host.h"
@@ -41,6 +42,25 @@ typedef struct DECState {
     SysBusDevice busdev;
     PCIHostState host_state;
 } DECState;
+
+static int dec_map_irq(PCIDevice *pci_dev, int irq_num)
+{
+    return irq_num;
+}
+
+PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
+{
+    DeviceState *dev;
+    PCIBus *ret;
+
+    dev = qdev_create(NULL, "dec-21154");
+    qdev_init_nofail(dev);
+    ret = pci_bridge_init(parent_bus, devfn,
+                          PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21154,
+                          dec_map_irq, "DEC 21154 PCI-PCI bridge");
+
+    return ret;
+}
 
 static int pci_dec_21154_init_device(SysBusDevice *dev)
 {
