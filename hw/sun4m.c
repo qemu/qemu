@@ -164,9 +164,9 @@ static int fw_cfg_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
-                       const char *boot_devices, ram_addr_t RAM_size,
-                       uint32_t kernel_size,
+static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
+                       const char *cmdline, const char *boot_devices,
+                       ram_addr_t RAM_size, uint32_t kernel_size,
                        int width, int height, int depth,
                        int nvram_machine_id, const char *arch)
 {
