@@ -88,13 +88,13 @@
 
 typedef enum {
     chn_a, chn_b,
-} chn_id_t;
+} ChnID;
 
 #define CHN_C(s) ((s)->chn == chn_b? 'b' : 'a')
 
 typedef enum {
     ser, kbd, mouse,
-} chn_type_t;
+} ChnType;
 
 #define SERIO_QUEUE_SIZE 256
 
@@ -108,8 +108,8 @@ typedef struct ChannelState {
     qemu_irq irq;
     uint32_t reg;
     uint32_t rxint, txint, rxint_under_svc, txint_under_svc;
-    chn_id_t chn; // this channel, A (base+4) or B (base+0)
-    chn_type_t type;
+    ChnID chn; // this channel, A (base+4) or B (base+0)
+    ChnType type;
     struct ChannelState *otherchn;
     uint8_t rx, tx, wregs[SERIAL_REGS], rregs[SERIAL_REGS];
     SERIOQueue queue;
