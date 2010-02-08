@@ -1827,6 +1827,14 @@ static inline void tcg_gen_setcond_i32(int cond, TCGv_i32 ret,
     tcg_gen_op4i_i32(INDEX_op_setcond_i32, ret, arg1, arg2, cond);
 }
 
+static inline void tcg_gen_setcondi_i32(int cond, TCGv_i32 ret, TCGv_i32 arg1,
+                                        int32_t arg2)
+{
+    TCGv_i32 t0 = tcg_const_i32(arg2);
+    tcg_gen_setcond_i32(cond, ret, arg1, t0);
+    tcg_temp_free_i32(t0);
+}
+
 static inline void tcg_gen_setcond_i64(int cond, TCGv_i64 ret,
                                        TCGv_i64 arg1, TCGv_i64 arg2)
 {
@@ -1838,6 +1846,14 @@ static inline void tcg_gen_setcond_i64(int cond, TCGv_i64 ret,
                      TCGV_LOW(arg2), TCGV_HIGH(arg2), cond);
     tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 #endif
+}
+
+static inline void tcg_gen_setcondi_i64(int cond, TCGv_i64 ret, TCGv_i64 arg1,
+                                        int64_t arg2)
+{
+    TCGv_i64 t0 = tcg_const_i64(arg2);
+    tcg_gen_setcond_i64(cond, ret, arg1, t0);
+    tcg_temp_free_i64(t0);
 }
 
 /***************************************/
@@ -2113,6 +2129,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_brcond_tl tcg_gen_brcond_i64
 #define tcg_gen_brcondi_tl tcg_gen_brcondi_i64
 #define tcg_gen_setcond_tl tcg_gen_setcond_i64
+#define tcg_gen_setcondi_tl tcg_gen_setcondi_i64
 #define tcg_gen_mul_tl tcg_gen_mul_i64
 #define tcg_gen_muli_tl tcg_gen_muli_i64
 #define tcg_gen_div_tl tcg_gen_div_i64
@@ -2184,6 +2201,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_brcond_tl tcg_gen_brcond_i32
 #define tcg_gen_brcondi_tl tcg_gen_brcondi_i32
 #define tcg_gen_setcond_tl tcg_gen_setcond_i32
+#define tcg_gen_setcondi_tl tcg_gen_setcondi_i32
 #define tcg_gen_mul_tl tcg_gen_mul_i32
 #define tcg_gen_muli_tl tcg_gen_muli_i32
 #define tcg_gen_div_tl tcg_gen_div_i32
