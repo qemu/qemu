@@ -96,7 +96,7 @@ int parse_host_src_port(struct sockaddr_in *haddr,
                         struct sockaddr_in *saddr,
                         const char *input_str)
 {
-    char *str = strdup(input_str);
+    char *str = qemu_strdup(input_str);
     char *host_str = str;
     char *src_str;
     const char *src_str2;
