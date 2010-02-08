@@ -379,7 +379,15 @@ static int virtio_net_has_buffers(VirtIONet *n, int bufsize)
         (n->mergeable_rx_bufs &&
          !virtqueue_avail_bytes(n->rx_vq, bufsize, 0))) {
         virtio_queue_set_notification(n->rx_vq, 1);
-        return 0;
+
+        /* To avoid a race condition where the guest has made some buffers
+         * available after the above check but before notification was
+         * enabled, check for available buffers again.
+         */
+        if (virtio_queue_empty(n->rx_vq) ||
+            (n->mergeable_rx_bufs &&
+             !virtqueue_avail_bytes(n->rx_vq, bufsize, 0)))
+            return 0;
     }
 
     virtio_queue_set_notification(n->rx_vq, 0);
