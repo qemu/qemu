@@ -3001,6 +3001,7 @@ static void gui_update(void *opaque)
     DisplayState *ds = opaque;
     DisplayChangeListener *dcl = ds->listeners;
 
+    qemu_flush_coalesced_mmio_buffer();
     dpy_refresh(ds);
 
     while (dcl != NULL) {
@@ -3016,6 +3017,7 @@ static void nographic_update(void *opaque)
 {
     uint64_t interval = GUI_REFRESH_INTERVAL;
 
+    qemu_flush_coalesced_mmio_buffer();
     qemu_mod_timer(nographic_timer, interval + qemu_get_clock(rt_clock));
 }
 
@@ -3284,6 +3286,8 @@ static int cpu_can_run(CPUState *env)
     if (env->stop)
         return 0;
     if (env->stopped)
+        return 0;
+    if (!vm_running)
         return 0;
     return 1;
 }
@@ -4026,11 +4030,7 @@ static void version(void)
 
 static void QEMU_NORETURN help(int exitcode)
 {
-    version();
-    (printf)("usage: %s [options] [disk_image]\n"
-             "\n"
-             "'disk_image' is a raw hard image image for IDE hard disk 0\n"
-             "\n"
+    const char *options_help =
 #define DEF(option, opt_arg, opt_enum, opt_help)        \
            opt_help
 #define DEFHEADING(text) stringify(text) "\n"
@@ -4038,22 +4038,21 @@ static void QEMU_NORETURN help(int exitcode)
 #undef DEF
 #undef DEFHEADING
 #undef GEN_DOCS
-             "\n"
-             "During emulation, the following keys are useful:\n"
-             "ctrl-alt-f      toggle full screen\n"
-             "ctrl-alt-n      switch to virtual console 'n'\n"
-             "ctrl-alt        toggle mouse and keyboard grab\n"
-             "\n"
-             "When using -nographic, press 'ctrl-a h' to get some help.\n"
-             ,
-             "qemu",
-             DEFAULT_RAM_SIZE,
-#ifndef _WIN32
-             DEFAULT_NETWORK_SCRIPT,
-             DEFAULT_NETWORK_DOWN_SCRIPT,
-#endif
-             DEFAULT_GDBSTUB_PORT,
-             "/tmp/qemu.log");
+        ;
+    version();
+    printf("usage: %s [options] [disk_image]\n"
+           "\n"
+           "'disk_image' is a raw hard image image for IDE hard disk 0\n"
+           "\n"
+           "%s\n"
+           "During emulation, the following keys are useful:\n"
+           "ctrl-alt-f      toggle full screen\n"
+           "ctrl-alt-n      switch to virtual console 'n'\n"
+           "ctrl-alt        toggle mouse and keyboard grab\n"
+           "\n"
+           "When using -nographic, press 'ctrl-a h' to get some help.\n",
+           "qemu",
+           options_help);
     exit(exitcode);
 }
 

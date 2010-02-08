@@ -339,7 +339,7 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
     }
 
     if ((s->readahead_size & 0x1ff) != 0) {
-        fprintf(stderr, "HTTP_READAHEAD_SIZE %Zd is not a multiple of 512\n",
+        fprintf(stderr, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512\n",
                 s->readahead_size);
         goto out_noclean;
     }

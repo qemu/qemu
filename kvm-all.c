@@ -57,8 +57,10 @@ struct KVMState
     KVMSlot slots[32];
     int fd;
     int vmfd;
-    int regs_modified;
     int coalesced_mmio;
+#ifdef KVM_CAP_COALESCED_MMIO
+    struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
+#endif
     int broken_set_mem_region;
     int migration_log;
     int vcpu_events;
@@ -199,6 +201,12 @@ int kvm_init_vcpu(CPUState *env)
         dprintf("mmap'ing vcpu state failed\n");
         goto err;
     }
+
+#ifdef KVM_CAP_COALESCED_MMIO
+    if (s->coalesced_mmio && !s->coalesced_mmio_ring)
+        s->coalesced_mmio_ring = (void *) env->kvm_run +
+		s->coalesced_mmio * PAGE_SIZE;
+#endif
 
     ret = kvm_arch_init_vcpu(env);
     if (ret == 0) {
@@ -466,10 +474,10 @@ int kvm_init(int smp_cpus)
         goto err;
     }
 
+    s->coalesced_mmio = 0;
 #ifdef KVM_CAP_COALESCED_MMIO
     s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
-#else
-    s->coalesced_mmio = 0;
+    s->coalesced_mmio_ring = NULL;
 #endif
 
     s->broken_set_mem_region = 1;
@@ -544,14 +552,12 @@ static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
     return 1;
 }
 
-static void kvm_run_coalesced_mmio(CPUState *env, struct kvm_run *run)
+void kvm_flush_coalesced_mmio_buffer(void)
 {
 #ifdef KVM_CAP_COALESCED_MMIO
     KVMState *s = kvm_state;
-    if (s->coalesced_mmio) {
-        struct kvm_coalesced_mmio_ring *ring;
-
-        ring = (void *)run + (s->coalesced_mmio * TARGET_PAGE_SIZE);
+    if (s->coalesced_mmio_ring) {
+        struct kvm_coalesced_mmio_ring *ring = s->coalesced_mmio_ring;
         while (ring->first != ring->last) {
             struct kvm_coalesced_mmio *ent;
 
@@ -567,9 +573,9 @@ static void kvm_run_coalesced_mmio(CPUState *env, struct kvm_run *run)
 
 void kvm_cpu_synchronize_state(CPUState *env)
 {
-    if (!env->kvm_state->regs_modified) {
+    if (!env->kvm_vcpu_dirty) {
         kvm_arch_get_registers(env);
-        env->kvm_state->regs_modified = 1;
+        env->kvm_vcpu_dirty = 1;
     }
 }
 
@@ -587,9 +593,9 @@ int kvm_cpu_exec(CPUState *env)
             break;
         }
 
-        if (env->kvm_state->regs_modified) {
+        if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env);
-            env->kvm_state->regs_modified = 0;
+            env->kvm_vcpu_dirty = 0;
         }
 
         kvm_arch_pre_run(env, run);
@@ -609,7 +615,7 @@ int kvm_cpu_exec(CPUState *env)
             abort();
         }
 
-        kvm_run_coalesced_mmio(env, run);
+        kvm_flush_coalesced_mmio_buffer();
 
         ret = 0; /* exit loop */
         switch (run->exit_reason) {
@@ -939,9 +945,9 @@ static void kvm_invoke_set_guest_debug(void *data)
     struct kvm_set_guest_debug_data *dbg_data = data;
     CPUState *env = dbg_data->env;
 
-    if (env->kvm_state->regs_modified) {
+    if (env->kvm_vcpu_dirty) {
         kvm_arch_put_registers(env);
-        env->kvm_state->regs_modified = 0;
+        env->kvm_vcpu_dirty = 0;
     }
     dbg_data->err = kvm_vcpu_ioctl(env, KVM_SET_GUEST_DEBUG, &dbg_data->dbg);
 }

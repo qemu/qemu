@@ -53,6 +53,7 @@ void kvm_setup_guest_memory(void *start, size_t size);
 
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
+void kvm_flush_coalesced_mmio_buffer(void);
 
 int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
                           target_ulong len, int type);
