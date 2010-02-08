@@ -99,12 +99,18 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
                 break;
             case R_EDX:
                 ret = cpuid->entries[i].edx;
-                if (function == 0x80000001) {
+                switch (function) {
+                case 1:
+                    /* KVM before 2.6.30 misreports the following features */
+                    ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
+                    break;
+                case 0x80000001:
                     /* On Intel, kvm returns cpuid according to the Intel spec,
                      * so add missing bits according to the AMD spec:
                      */
                     cpuid_1_edx = kvm_arch_get_supported_cpuid(env, 1, R_EDX);
                     ret |= cpuid_1_edx & 0xdfeff7ff;
+                    break;
                 }
                 break;
             }
@@ -793,6 +799,9 @@ static int kvm_put_vcpu_events(CPUState *env)
     events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
 
     events.sipi_vector = env->sipi_vector;
+
+    events.flags =
+        KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR;
 
     return kvm_vcpu_ioctl(env, KVM_SET_VCPU_EVENTS, &events);
 #else
