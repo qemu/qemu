@@ -309,7 +309,7 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
 
     static int inited = 0;
 
-    file = strdup(filename);
+    file = qemu_strdup(filename);
     s->readahead_size = READ_AHEAD_SIZE;
 
     /* Parse a trailing ":readahead=#:" param, if present. */
