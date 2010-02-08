@@ -4628,8 +4628,13 @@ void qemu_error_internal(const char *file, int linenr, const char *func,
         QDECREF(qerror);
         break;
     case ERR_SINK_MONITOR:
-        assert(qemu_error_sink->mon->error == NULL);
-        qemu_error_sink->mon->error = qerror;
+        /* report only the first error */
+        if (!qemu_error_sink->mon->error) {
+            qemu_error_sink->mon->error = qerror;
+        } else {
+            /* XXX: warn the programmer */
+            QDECREF(qerror);
+        }
         break;
     }
 }
