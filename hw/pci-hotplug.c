@@ -285,7 +285,6 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
         qobject_from_jsonf("{ 'domain': 0, 'bus': %d, 'slot': %d, "
                            "'function': %d }", pci_bus_num(dev->bus),
                            PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-        assert(*ret_data != NULL);
     } else
         monitor_printf(mon, "failed to add %s\n", opts);
 }

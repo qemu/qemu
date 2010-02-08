@@ -351,8 +351,6 @@ static void timestamp_put(QDict *qdict)
     obj = qobject_from_jsonf("{ 'seconds': %" PRId64 ", "
                                 "'microseconds': %" PRId64 " }",
                                 (int64_t) tv.tv_sec, (int64_t) tv.tv_usec);
-    assert(obj != NULL);
-
     qdict_put_obj(qdict, "timestamp", obj);
 }
 
@@ -900,7 +898,6 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
         obj = qobject_from_jsonf("{ 'CPU': %d, 'current': %i, 'halted': %i }",
                                  env->cpu_index, env == mon->mon_cpu,
                                  env->halted);
-        assert(obj != NULL);
 
         cpu = qobject_to_qdict(obj);
 
@@ -4415,8 +4412,6 @@ static void monitor_control_event(void *opaque, int event)
         json_message_parser_init(&mon->mc->parser, handle_qmp_command);
 
         data = get_qmp_greeting();
-        assert(data != NULL);
-
         monitor_json_emitter(mon, data);
         qobject_decref(data);
     }
