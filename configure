@@ -1057,7 +1057,11 @@ if test "$sdl" != "no" ; then
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
   sdl_cflags=`$sdlconfig --cflags 2> /dev/null`
-  sdl_libs=`$sdlconfig --libs 2> /dev/null`
+  if test "$static" = "yes" ; then
+    sdl_libs=`$sdlconfig --static-libs 2>/dev/null`
+  else
+    sdl_libs=`$sdlconfig --libs 2> /dev/null`
+  fi
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     if test "$_sdlversion" -lt 121 ; then
       sdl_too_old=yes
@@ -1069,7 +1073,6 @@ EOF
 
     # static link with sdl ? (note: sdl.pc's --static --libs is broken)
     if test "$sdl" = "yes" -a "$static" = "yes" ; then
-      sdl_libs=`sdl-config --static-libs 2>/dev/null`
       if test $? = 0 && echo $sdl_libs | grep -- -laa > /dev/null; then
          sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
          sdl_cflags="$sdl_cflags `aalib-config --cflags >2 /dev/null`"
