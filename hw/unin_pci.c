@@ -39,6 +39,7 @@
 typedef struct UNINState {
     SysBusDevice busdev;
     PCIHostState host_state;
+    ReadWriteHandler data_handler;
 } UNINState;
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
@@ -75,6 +76,68 @@ static void pci_unin_reset(void *opaque)
 {
 }
 
+static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
+{
+    uint32_t retval;
+
+    if (reg & (1u << 31)) {
+        /* XXX OpenBIOS compatibility hack */
+        retval = reg | (addr & 3);
+    } else if (reg & 1) {
+        /* CFA1 style */
+        retval = (reg & ~7u) | (addr & 7);
+    } else {
+        uint32_t slot, func;
+
+        /* Grab CFA0 style values */
+        slot = ffs(reg & 0xfffff800) - 1;
+        func = (reg >> 8) & 7;
+
+        /* ... and then convert them to x86 format */
+        /* config pointer */
+        retval = (reg & (0xff - 7)) | (addr & 7);
+        /* slot */
+        retval |= slot << 11;
+        /* fn */
+        retval |= func << 8;
+    }
+
+
+    UNIN_DPRINTF("Converted config space accessor %08x/%08x -> %08x\n",
+                 reg, addr, retval);
+
+    return retval;
+}
+
+static void unin_data_write(ReadWriteHandler *handler,
+                            pcibus_t addr, uint32_t val, int len)
+{
+    UNINState *s = container_of(handler, UNINState, data_handler);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = qemu_bswap_len(val, len);
+#endif
+    UNIN_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n", addr, len, val);
+    pci_data_write(s->host_state.bus,
+                   unin_get_config_reg(s->host_state.config_reg, addr),
+                   val, len);
+}
+
+static uint32_t unin_data_read(ReadWriteHandler *handler,
+                               pcibus_t addr, int len)
+{
+    UNINState *s = container_of(handler, UNINState, data_handler);
+    uint32_t val;
+
+    val = pci_data_read(s->host_state.bus,
+                        unin_get_config_reg(s->host_state.config_reg, addr),
+                        len);
+    UNIN_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n", addr, len, val);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = qemu_bswap_len(val, len);
+#endif
+    return val;
+}
+
 static int pci_unin_main_init_device(SysBusDevice *dev)
 {
     UNINState *s;
@@ -85,7 +148,9 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     s = FROM_SYSBUS(UNINState, dev);
 
     pci_mem_config = pci_host_conf_register_mmio(&s->host_state);
-    pci_mem_data = pci_host_data_register_mmio(&s->host_state);
+    s->data_handler.read = unin_data_read;
+    s->data_handler.write = unin_data_write;
+    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
