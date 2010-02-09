@@ -64,6 +64,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "kvm.h"
+#include "kvm_ppc.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -412,6 +413,14 @@ static void ppc_core99_init (ram_addr_t ram_size,
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, graphic_depth);
+
+    if (kvm_enabled()) {
+#ifdef CONFIG_KVM
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
+#endif
+    } else {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());
+    }
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }

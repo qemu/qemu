@@ -252,3 +252,50 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
     return ret;
 }
 
+static int read_cpuinfo(const char *field, char *value, int len)
+{
+    FILE *f;
+    int ret = -1;
+    int field_len = strlen(field);
+    char line[512];
+
+    f = fopen("/proc/cpuinfo", "r");
+    if (!f) {
+        return -1;
+    }
+
+    do {
+        if(!fgets(line, sizeof(line), f)) {
+            break;
+        }
+        if (!strncmp(line, field, field_len)) {
+            strncpy(value, line, len);
+            ret = 0;
+            break;
+        }
+    } while(*line);
+
+    fclose(f);
+
+    return ret;
+}
+
+uint32_t kvmppc_get_tbfreq(void)
+{
+    char line[512];
+    char *ns;
+    uint32_t retval = get_ticks_per_sec();
+
+    if (read_cpuinfo("timebase", line, sizeof(line))) {
+        return retval;
+    }
+
+    if (!(ns = strchr(line, ':'))) {
+        return retval;
+    }
+
+    ns++;
+
+    retval = atoi(ns);
+    return retval;
+}
