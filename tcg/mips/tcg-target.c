@@ -855,9 +855,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     /* label1: fast path */
     reloc_pc16(label1_ptr, (tcg_target_long) s->code_ptr);
 
-    tcg_out_opc_imm(s, OPC_LW, TCG_REG_V0, TCG_REG_A0,
+    tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0,
                     offsetof(CPUState, tlb_table[mem_index][0].addend) + addr_meml);
-    tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_V0, addr_regl);
+    tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_A0, addr_regl);
 
     addr_reg1 = TCG_REG_V0;
 #endif
