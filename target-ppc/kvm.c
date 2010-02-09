@@ -37,6 +37,22 @@
     do { } while (0)
 #endif
 
+/* XXX For some odd reason we sometimes hang inside KVM forever. I'd guess it's
+ *     a race condition where we actually have a level triggered interrupt, but
+ *     the infrastructure can't expose that yet, so the guest ACKs it, goes to
+ *     sleep and never gets notified that there's still an interrupt pending.
+ *
+ *     As a quick workaround, let's just wake up every 500 ms. That way we can
+ *     assure that we're always reinjecting interrupts in time.
+ */
+static QEMUTimer *idle_timer;
+
+static void do_nothing(void *opaque)
+{
+    qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
+                   (get_ticks_per_sec() / 2));
+}
+
 int kvm_arch_init(KVMState *s, int smp_cpus)
 {
     return 0;
@@ -172,6 +188,12 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
     int r;
     unsigned irq;
+
+    if (!idle_timer) {
+        idle_timer = qemu_new_timer(vm_clock, do_nothing, NULL);
+        qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
+                       (get_ticks_per_sec() / 2));
+    }
 
     /* PowerPC Qemu tracks the various core input pins (interrupt, critical
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
