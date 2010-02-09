@@ -36,23 +36,31 @@
 #define UNIN_DPRINTF(fmt, ...)
 #endif
 
+static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
+
 typedef struct UNINState {
     SysBusDevice busdev;
     PCIHostState host_state;
     ReadWriteHandler data_handler;
 } UNINState;
 
-/* Don't know if this matches real hardware, but it agrees with OHW.  */
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    return (irq_num + (pci_dev->devfn >> 3)) & 3;
+    int retval;
+    int devfn = pci_dev->devfn & 0x00FFFFFF;
+
+    retval = (((devfn >> 11) & 0x1F) + irq_num) & 3;
+
+    return retval;
 }
 
 static void pci_unin_set_irq(void *opaque, int irq_num, int level)
 {
     qemu_irq *pic = opaque;
 
-    qemu_set_irq(pic[irq_num + 8], level);
+    UNIN_DPRINTF("%s: setting INT %d = %d\n", __func__,
+                 unin_irq_line[irq_num], level);
+    qemu_set_irq(pic[unin_irq_line[irq_num]], level);
 }
 
 static void pci_unin_save(QEMUFile* f, void *opaque)
