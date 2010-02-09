@@ -114,6 +114,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     void *fw_cfg;
     void *dbdma;
     uint8_t *vga_bios_ptr;
+    int machine_arch;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -317,7 +318,14 @@ static void ppc_core99_init (ram_addr_t ram_size,
         }
     }
     pic = openpic_init(NULL, &pic_mem_index, smp_cpus, openpic_irqs, NULL);
-    pci_bus = pci_pmac_init(pic);
+    if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
+        /* 970 gets a U3 bus */
+        pci_bus = pci_pmac_u3_init(pic);
+        machine_arch = ARCH_MAC99_U3;
+    } else {
+        pci_bus = pci_pmac_init(pic);
+        machine_arch = ARCH_MAC99;
+    }
     /* init basic PC hardware */
     pci_vga_init(pci_bus, vga_bios_offset, vga_bios_size);
 
@@ -364,7 +372,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_MAC99);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, machine_arch);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
     if (kernel_cmdline) {

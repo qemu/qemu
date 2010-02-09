@@ -159,6 +159,27 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     return 0;
 }
 
+static int pci_u3_agp_init_device(SysBusDevice *dev)
+{
+    UNINState *s;
+    int pci_mem_config, pci_mem_data;
+
+    /* Uninorth U3 AGP bus */
+    s = FROM_SYSBUS(UNINState, dev);
+
+    pci_mem_config = pci_host_conf_register_mmio(&s->host_state);
+    s->data_handler.read = unin_data_read;
+    s->data_handler.write = unin_data_write;
+    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler);
+    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
+    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
+
+    register_savevm("uninorth", 0, 1, pci_unin_save, pci_unin_load, &s->host_state);
+    qemu_register_reset(pci_unin_reset, &s->host_state);
+
+    return 0;
+}
+
 static int pci_unin_agp_init_device(SysBusDevice *dev)
 {
     UNINState *s;
@@ -240,6 +261,31 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     return d->host_state.bus;
 }
 
+PCIBus *pci_pmac_u3_init(qemu_irq *pic)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    UNINState *d;
+
+    /* Uninorth AGP bus */
+
+    dev = qdev_create(NULL, "u3-agp");
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+    d = FROM_SYSBUS(UNINState, s);
+
+    d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
+                                         pci_unin_set_irq, pci_unin_map_irq,
+                                         pic, 11 << 3, 4);
+
+    sysbus_mmio_map(s, 0, 0xf0800000);
+    sysbus_mmio_map(s, 1, 0xf0c00000);
+
+    pci_create_simple(d->host_state.bus, 11 << 3, "u3-agp");
+
+    return d->host_state.bus;
+}
+
 static int unin_main_pci_host_init(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
@@ -266,6 +312,21 @@ static int unin_agp_pci_host_init(PCIDevice *d)
     return 0;
 }
 
+static int u3_agp_pci_host_init(PCIDevice *d)
+{
+    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
+    pci_config_set_device_id(d->config, PCI_DEVICE_ID_APPLE_U3_AGP);
+    /* revision */
+    d->config[0x08] = 0x00;
+    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
+    /* cache line size */
+    d->config[0x0C] = 0x08;
+    /* latency timer */
+    d->config[0x0D] = 0x10;
+    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
+    return 0;
+}
+
 static int unin_internal_pci_host_init(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
@@ -285,6 +346,12 @@ static PCIDeviceInfo unin_main_pci_host_info = {
     .init      = unin_main_pci_host_init,
 };
 
+static PCIDeviceInfo u3_agp_pci_host_info = {
+    .qdev.name = "u3-agp",
+    .qdev.size = sizeof(PCIDevice),
+    .init      = u3_agp_pci_host_init,
+};
+
 static PCIDeviceInfo unin_agp_pci_host_info = {
     .qdev.name = "uni-north-agp",
     .qdev.size = sizeof(PCIDevice),
@@ -302,6 +369,9 @@ static void unin_register_devices(void)
     sysbus_register_dev("uni-north", sizeof(UNINState),
                         pci_unin_main_init_device);
     pci_qdev_register(&unin_main_pci_host_info);
+    sysbus_register_dev("u3-agp", sizeof(UNINState),
+                        pci_u3_agp_init_device);
+    pci_qdev_register(&u3_agp_pci_host_info);
     sysbus_register_dev("uni-north-agp", sizeof(UNINState),
                         pci_unin_agp_init_device);
     pci_qdev_register(&unin_agp_pci_host_info);
