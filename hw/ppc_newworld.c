@@ -134,6 +134,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     int nvram_mem_index;
     int vga_bios_size, bios_size;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
+    int ide_mem_index[3];
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -364,11 +365,16 @@ static void ppc_core99_init (ram_addr_t ram_size,
         fprintf(stderr, "qemu: too many IDE bus\n");
         exit(1);
     }
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
     dbdma = DBDMA_init(&dbdma_mem_index);
-    pci_cmd646_ide_init(pci_bus, hd, 0);
+
+    /* We only emulate 2 out of 3 IDE controllers for now */
+    ide_mem_index[0] = -1;
+    hd[0] = drive_get(IF_IDE, 0, 0);
+    hd[1] = drive_get(IF_IDE, 0, 1);
+    ide_mem_index[1] = pmac_ide_init(hd, pic[0x0d], dbdma, 0x16, pic[0x02]);
+    hd[0] = drive_get(IF_IDE, 1, 0);
+    hd[1] = drive_get(IF_IDE, 1, 1);
+    ide_mem_index[2] = pmac_ide_init(hd, pic[0x0e], dbdma, 0x1a, pic[0x02]);
 
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x19]);
@@ -378,7 +384,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
 
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem_index,
-               dbdma_mem_index, cuda_mem_index, NULL, 0, NULL,
+               dbdma_mem_index, cuda_mem_index, NULL, 3, ide_mem_index,
                escc_mem_index);
 
     if (usb_enabled) {
