@@ -205,9 +205,17 @@ typedef enum {
     TCG_COND_GTU,
 } TCGCond;
 
+/* Invert the sense of the comparison.  */
 static inline TCGCond tcg_invert_cond(TCGCond c)
 {
     return (TCGCond)(c ^ 1);
+}
+
+/* Swap the operands in a comparison.  */
+static inline TCGCond tcg_swap_cond(TCGCond c)
+{
+    int mask = (c < TCG_COND_LT ? 0 : c < TCG_COND_LTU ? 7 : 15);
+    return (TCGCond)(c ^ mask);
 }
 
 static inline TCGCond tcg_unsigned_cond(TCGCond c)
