@@ -65,6 +65,7 @@
 #include "elf.h"
 #include "kvm.h"
 #include "kvm_ppc.h"
+#include "hw/usb.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -377,11 +378,13 @@ static void ppc_core99_init (ram_addr_t ram_size,
     ide_mem_index[2] = pmac_ide_init(hd, pic[0x0e], dbdma, 0x1a, pic[0x02]);
 
     /* cuda also initialize ADB */
+    if (machine_arch == ARCH_MAC99_U3) {
+        usb_enabled = 1;
+    }
     cuda_init(&cuda_mem_index, pic[0x19]);
 
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
-
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem_index,
                dbdma_mem_index, cuda_mem_index, NULL, 3, ide_mem_index,
@@ -389,6 +392,13 @@ static void ppc_core99_init (ram_addr_t ram_size,
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, -1);
+    }
+
+    /* U3 needs to use USB for input because Linux doesn't support via-cuda
+       on PPC64 */
+    if (machine_arch == ARCH_MAC99_U3) {
+        usbdevice_create("keyboard");
+        usbdevice_create("mouse");
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
