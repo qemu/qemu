@@ -28,6 +28,7 @@
 
 #include "qemu-common.h"
 #include "qemu-error.h"
+#include "qemu-objects.h"
 #include "qemu-option.h"
 
 /*
@@ -775,6 +776,84 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
     }
 
     return opts;
+}
+
+static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
+{
+    char buf[32];
+    const char *value;
+    int n;
+
+    if (!strcmp(key, "id")) {
+        return;
+    }
+
+    switch (qobject_type(obj)) {
+    case QTYPE_QSTRING:
+        value = qstring_get_str(qobject_to_qstring(obj));
+        break;
+    case QTYPE_QINT:
+        n = snprintf(buf, sizeof(buf), "%" PRId64,
+                     qint_get_int(qobject_to_qint(obj)));
+        assert(n < sizeof(buf));
+        value = buf;
+        break;
+    case QTYPE_QFLOAT:
+        n = snprintf(buf, sizeof(buf), "%.17g",
+                     qfloat_get_double(qobject_to_qfloat(obj)));
+        assert(n < sizeof(buf));
+        value = buf;
+        break;
+    case QTYPE_QBOOL:
+        strcpy(buf, qbool_get_int(qobject_to_qbool(obj)) ? "on" : "off");
+        value = buf;
+        break;
+    default:
+        return;
+    }
+    qemu_opt_set(opaque, key, value);
+}
+
+/*
+ * Create QemuOpts from a QDict.
+ * Use value of key "id" as ID if it exists and is a QString.
+ * Only QStrings, QInts, QFloats and QBools are copied.  Entries with
+ * other types are silently ignored.
+ */
+QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict)
+{
+    QemuOpts *opts;
+
+    opts = qemu_opts_create(list, qdict_get_try_str(qdict, "id"), 1);
+    if (opts == NULL)
+        return NULL;
+
+    qdict_iter(qdict, qemu_opts_from_qdict_1, opts);
+    return opts;
+}
+
+/*
+ * Convert from QemuOpts to QDict.
+ * The QDict values are of type QString.
+ * TODO We'll want to use types appropriate for opt->desc->type, but
+ * this is enough for now.
+ */
+QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
+{
+    QemuOpt *opt;
+    QObject *val;
+
+    if (!qdict) {
+        qdict = qdict_new();
+    }
+    if (opts->id) {
+        qdict_put(qdict, "id", qstring_from_str(opts->id));
+    }
+    QTAILQ_FOREACH(opt, &opts->head, next) {
+        val = QOBJECT(qstring_from_str(opt->str));
+        qdict_put_obj(qdict, opt->name, val);
+    }
+    return qdict;
 }
 
 /* Validate parsed opts against descriptions where no
