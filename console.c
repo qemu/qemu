@@ -154,6 +154,7 @@ struct TextConsole {
     QEMUTimer *kbd_timer;
 };
 
+static DisplayState *display_state;
 static TextConsole *active_console;
 static TextConsole *consoles[MAX_CONSOLES];
 static int nb_consoles = 0;
@@ -1265,6 +1266,117 @@ static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
     return s;
 }
 
+static DisplaySurface* defaultallocator_create_displaysurface(int width, int height)
+{
+    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+
+    surface->width = width;
+    surface->height = height;
+    surface->linesize = width * 4;
+    surface->pf = qemu_default_pixelformat(32);
+#ifdef HOST_WORDS_BIGENDIAN
+    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
+#else
+    surface->flags = QEMU_ALLOCATED_FLAG;
+#endif
+    surface->data = (uint8_t*) qemu_mallocz(surface->linesize * surface->height);
+
+    return surface;
+}
+
+static DisplaySurface* defaultallocator_resize_displaysurface(DisplaySurface *surface,
+                                          int width, int height)
+{
+    surface->width = width;
+    surface->height = height;
+    surface->linesize = width * 4;
+    surface->pf = qemu_default_pixelformat(32);
+    if (surface->flags & QEMU_ALLOCATED_FLAG)
+        surface->data = (uint8_t*) qemu_realloc(surface->data, surface->linesize * surface->height);
+    else
+        surface->data = (uint8_t*) qemu_malloc(surface->linesize * surface->height);
+#ifdef HOST_WORDS_BIGENDIAN
+    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
+#else
+    surface->flags = QEMU_ALLOCATED_FLAG;
+#endif
+
+    return surface;
+}
+
+DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
+                                              int linesize, uint8_t *data)
+{
+    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+
+    surface->width = width;
+    surface->height = height;
+    surface->linesize = linesize;
+    surface->pf = qemu_default_pixelformat(bpp);
+#ifdef HOST_WORDS_BIGENDIAN
+    surface->flags = QEMU_BIG_ENDIAN_FLAG;
+#endif
+    surface->data = data;
+
+    return surface;
+}
+
+static void defaultallocator_free_displaysurface(DisplaySurface *surface)
+{
+    if (surface == NULL)
+        return;
+    if (surface->flags & QEMU_ALLOCATED_FLAG)
+        qemu_free(surface->data);
+    qemu_free(surface);
+}
+
+static struct DisplayAllocator default_allocator = {
+    defaultallocator_create_displaysurface,
+    defaultallocator_resize_displaysurface,
+    defaultallocator_free_displaysurface
+};
+
+static void dumb_display_init(void)
+{
+    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    ds->allocator = &default_allocator;
+    ds->surface = qemu_create_displaysurface(ds, 640, 480);
+    register_displaystate(ds);
+}
+
+/***********************************************************/
+/* register display */
+
+void register_displaystate(DisplayState *ds)
+{
+    DisplayState **s;
+    s = &display_state;
+    while (*s != NULL)
+        s = &(*s)->next;
+    ds->next = NULL;
+    *s = ds;
+}
+
+DisplayState *get_displaystate(void)
+{
+    if (!display_state) {
+        dumb_display_init ();
+    }
+    return display_state;
+}
+
+DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
+{
+    if(ds->allocator ==  &default_allocator) {
+        DisplaySurface *surf;
+        surf = da->create_displaysurface(ds_get_width(ds), ds_get_height(ds));
+        defaultallocator_free_displaysurface(ds->surface);
+        ds->surface = surf;
+        ds->allocator = da;
+    }
+    return ds->allocator;
+}
+
 DisplayState *graphic_console_init(vga_hw_update_ptr update,
                                    vga_hw_invalidate_ptr invalidate,
                                    vga_hw_screen_dump_ptr screen_dump,
@@ -1558,68 +1670,4 @@ PixelFormat qemu_default_pixelformat(int bpp)
             break;
     }
     return pf;
-}
-
-DisplaySurface* defaultallocator_create_displaysurface(int width, int height)
-{
-    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
-
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = width * 4;
-    surface->pf = qemu_default_pixelformat(32);
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_ALLOCATED_FLAG;
-#endif
-    surface->data = (uint8_t*) qemu_mallocz(surface->linesize * surface->height);
-
-    return surface;
-}
-
-DisplaySurface* defaultallocator_resize_displaysurface(DisplaySurface *surface,
-                                          int width, int height)
-{
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = width * 4;
-    surface->pf = qemu_default_pixelformat(32);
-    if (surface->flags & QEMU_ALLOCATED_FLAG)
-        surface->data = (uint8_t*) qemu_realloc(surface->data, surface->linesize * surface->height);
-    else
-        surface->data = (uint8_t*) qemu_malloc(surface->linesize * surface->height);
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_ALLOCATED_FLAG;
-#endif
-
-    return surface;
-}
-
-DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
-                                              int linesize, uint8_t *data)
-{
-    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
-
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = linesize;
-    surface->pf = qemu_default_pixelformat(bpp);
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_BIG_ENDIAN_FLAG;
-#endif
-    surface->data = data;
-
-    return surface;
-}
-
-void defaultallocator_free_displaysurface(DisplaySurface *surface)
-{
-    if (surface == NULL)
-        return;
-    if (surface->flags & QEMU_ALLOCATED_FLAG)
-        qemu_free(surface->data);
-    qemu_free(surface);
 }

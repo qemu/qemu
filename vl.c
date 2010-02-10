@@ -182,7 +182,6 @@ const char *bios_name = NULL;
 struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
 struct driveoptlist driveopts = QTAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
@@ -2574,55 +2573,6 @@ void pcmcia_info(Monitor *mon)
         monitor_printf(mon, "%s: %s\n", iter->socket->slot_string,
                        iter->socket->attached ? iter->socket->card_string :
                        "Empty");
-}
-
-/***********************************************************/
-/* register display */
-
-struct DisplayAllocator default_allocator = {
-    defaultallocator_create_displaysurface,
-    defaultallocator_resize_displaysurface,
-    defaultallocator_free_displaysurface
-};
-
-/* dumb display */
-
-static void dumb_display_init(void)
-{
-    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
-    ds->allocator = &default_allocator;
-    ds->surface = qemu_create_displaysurface(ds, 640, 480);
-    register_displaystate(ds);
-}
-
-void register_displaystate(DisplayState *ds)
-{
-    DisplayState **s;
-    s = &display_state;
-    while (*s != NULL)
-        s = &(*s)->next;
-    ds->next = NULL;
-    *s = ds;
-}
-
-DisplayState *get_displaystate(void)
-{
-    if (!display_state) {
-        dumb_display_init();
-    }
-    return display_state;
-}
-
-DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
-{
-    if(ds->allocator ==  &default_allocator) {
-        DisplaySurface *surf;
-        surf = da->create_displaysurface(ds_get_width(ds), ds_get_height(ds));
-        defaultallocator_free_displaysurface(ds->surface);
-        ds->surface = surf;
-        ds->allocator = da;
-    }
-    return ds->allocator;
 }
 
 /***********************************************************/

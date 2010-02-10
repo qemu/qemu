@@ -144,11 +144,7 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
-extern struct DisplayAllocator default_allocator;
 DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da);
-DisplaySurface* defaultallocator_create_displaysurface(int width, int height);
-DisplaySurface* defaultallocator_resize_displaysurface(DisplaySurface *surface, int width, int height);
-void defaultallocator_free_displaysurface(DisplaySurface *surface);
 
 static inline DisplaySurface* qemu_create_displaysurface(DisplayState *ds, int width, int height)
 {
