@@ -164,6 +164,8 @@ static void ide_identify(IDEState *s)
     put_le16(p + 101, s->nb_sectors >> 16);
     put_le16(p + 102, s->nb_sectors >> 32);
     put_le16(p + 103, s->nb_sectors >> 48);
+    if (s->conf && s->conf->physical_block_size)
+        put_le16(p + 106, 0x6000 | get_physical_block_exp(s->conf));
 
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
