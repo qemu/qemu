@@ -753,11 +753,16 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
     return 0;
 }
 
-QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname)
+QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
+                          int permit_abbrev)
 {
+    const char *firstname;
     char value[1024], *id = NULL;
     const char *p;
     QemuOpts *opts;
+
+    assert(!permit_abbrev || list->implied_opt_name);
+    firstname = permit_abbrev ? list->implied_opt_name : NULL;
 
     if (strncmp(params, "id=", 3) == 0) {
         get_opt_value(value, sizeof(value), params+3);

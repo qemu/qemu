@@ -767,7 +767,7 @@ void do_device_add(Monitor *mon, const QDict *qdict)
     QemuOpts *opts;
 
     opts = qemu_opts_parse(&qemu_device_opts,
-                           qdict_get_str(qdict, "config"), "driver");
+                           qdict_get_str(qdict, "config"), 1);
     if (opts) {
         if (qdev_device_help(opts) || qdev_device_add(opts) == NULL) {
             qemu_opts_del(opts);

@@ -86,6 +86,7 @@ QemuOptsList qemu_drive_opts = {
 
 QemuOptsList qemu_chardev_opts = {
     .name = "chardev",
+    .implied_opt_name = "backend",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_chardev_opts.head),
     .desc = {
         {
@@ -152,6 +153,7 @@ QemuOptsList qemu_chardev_opts = {
 
 QemuOptsList qemu_device_opts = {
     .name = "device",
+    .implied_opt_name = "driver",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_device_opts.head),
     .desc = {
         /*
@@ -165,6 +167,7 @@ QemuOptsList qemu_device_opts = {
 
 QemuOptsList qemu_netdev_opts = {
     .name = "netdev",
+    .implied_opt_name = "type",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_netdev_opts.head),
     .desc = {
         /*
@@ -177,6 +180,7 @@ QemuOptsList qemu_netdev_opts = {
 
 QemuOptsList qemu_net_opts = {
     .name = "net",
+    .implied_opt_name = "type",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_net_opts.head),
     .desc = {
         /*
@@ -227,6 +231,7 @@ QemuOptsList qemu_global_opts = {
 
 QemuOptsList qemu_mon_opts = {
     .name = "mon",
+    .implied_opt_name = "chardev",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_mon_opts.head),
     .desc = {
         {

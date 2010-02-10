@@ -1159,7 +1159,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", NULL);
+    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", 0);
     if (!opts) {
         monitor_printf(mon, "parsing network options '%s' failed\n",
                        opts_str ? opts_str : "");
@@ -1364,7 +1364,7 @@ int net_client_parse(QemuOptsList *opts_list, const char *optarg)
     }
 #endif
 
-    if (!qemu_opts_parse(opts_list, optarg, "type")) {
+    if (!qemu_opts_parse(opts_list, optarg, 1)) {
         return -1;
     }
 
