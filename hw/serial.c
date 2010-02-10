@@ -169,11 +169,19 @@ static int fifo_put(SerialState *s, int fifo, uint8_t chr)
 {
     SerialFIFO *f = (fifo) ? &s->recv_fifo : &s->xmit_fifo;
 
-    f->data[f->head++] = chr;
+    /* Receive overruns do not overwrite FIFO contents. */
+    if (fifo == XMIT_FIFO || f->count < UART_FIFO_LENGTH) {
 
-    if (f->head == UART_FIFO_LENGTH)
-        f->head = 0;
-    f->count++;
+        f->data[f->head++] = chr;
+
+        if (f->head == UART_FIFO_LENGTH)
+            f->head = 0;
+    }
+
+    if (f->count < UART_FIFO_LENGTH)
+        f->count++;
+    else if (fifo == RECV_FIFO)
+        s->lsr |= UART_LSR_OE;
 
     return 1;
 }
@@ -533,8 +541,10 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
         break;
     case 2:
         ret = s->iir;
+        if (ret & UART_IIR_THRI) {
             s->thr_ipending = 0;
-        serial_update_irq(s);
+            serial_update_irq(s);
+        }
         break;
     case 3:
         ret = s->lcr;
@@ -544,9 +554,9 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
         break;
     case 5:
         ret = s->lsr;
-        /* Clear break interrupt */
-        if (s->lsr & UART_LSR_BI) {
-            s->lsr &= ~UART_LSR_BI;
+        /* Clear break and overrun interrupts */
+        if (s->lsr & (UART_LSR_BI|UART_LSR_OE)) {
+            s->lsr &= ~(UART_LSR_BI|UART_LSR_OE);
             serial_update_irq(s);
         }
         break;
@@ -629,6 +639,8 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
         /* call the timeout receive callback in 4 char transmit time */
         qemu_mod_timer(s->fifo_timeout_timer, qemu_get_clock (vm_clock) + s->char_transmit_time * 4);
     } else {
+        if (s->lsr & UART_LSR_DR)
+            s->lsr |= UART_LSR_OE;
         s->rbr = buf[0];
         s->lsr |= UART_LSR_DR;
     }
