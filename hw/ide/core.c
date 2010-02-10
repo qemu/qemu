@@ -2594,7 +2594,8 @@ void ide_bus_reset(IDEBus *bus)
     ide_clear_hob(bus);
 }
 
-void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
+void ide_init_drive(IDEState *s, DriveInfo *dinfo, BlockConf *conf,
+        const char *version)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -2619,6 +2620,9 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
         }
         strncpy(s->drive_serial_str, drive_get_serial(s->bs),
                 sizeof(s->drive_serial_str));
+        if (conf) {
+            s->conf = conf;
+        }
     }
     if (strlen(s->drive_serial_str) == 0)
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
@@ -2648,9 +2652,9 @@ void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
         s->sector_write_timer = qemu_new_timer(vm_clock,
                                                ide_sector_write_timer_cb, s);
         if (i == 0)
-            ide_init_drive(s, hd0, NULL);
+            ide_init_drive(s, hd0, NULL, NULL);
         if (i == 1)
-            ide_init_drive(s, hd1, NULL);
+            ide_init_drive(s, hd1, NULL, NULL);
     }
     bus->irq = irq;
 }

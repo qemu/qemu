@@ -457,7 +457,7 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-VirtIODevice *virtio_blk_init(DeviceState *dev, DriveInfo *dinfo)
+VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
 {
     VirtIOBlock *s;
     int cylinders, heads, secs;
@@ -470,7 +470,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, DriveInfo *dinfo)
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
-    s->bs = dinfo->bdrv;
+    s->bs = conf->dinfo->bdrv;
     s->rq = NULL;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
     bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);

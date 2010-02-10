@@ -58,6 +58,7 @@ typedef struct SCSIGenericReq {
 struct SCSIGenericState
 {
     SCSIDevice qdev;
+    BlockDriverState *bs;
     int lun;
     int driver_status;
     uint8_t sensebuf[SCSI_SENSE_BUF_SIZE];
@@ -212,7 +213,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         return;
     }
 
-    ret = execute_command(s->qdev.dinfo->bdrv, r, SG_DXFER_FROM_DEV, scsi_read_complete);
+    ret = execute_command(s->bs, r, SG_DXFER_FROM_DEV, scsi_read_complete);
     if (ret == -1) {
         scsi_command_complete(r, -EINVAL);
         return;
@@ -263,7 +264,7 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
         return 0;
     }
 
-    ret = execute_command(s->qdev.dinfo->bdrv, r, SG_DXFER_TO_DEV, scsi_write_complete);
+    ret = execute_command(s->bs, r, SG_DXFER_TO_DEV, scsi_write_complete);
     if (ret == -1) {
         scsi_command_complete(r, -EINVAL);
         return 1;
@@ -357,7 +358,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             qemu_free(r->buf);
         r->buflen = 0;
         r->buf = NULL;
-        ret = execute_command(s->qdev.dinfo->bdrv, r, SG_DXFER_NONE, scsi_command_complete);
+        ret = execute_command(s->bs, r, SG_DXFER_NONE, scsi_command_complete);
         if (ret == -1) {
             scsi_command_complete(r, -EINVAL);
             return 0;
@@ -452,7 +453,7 @@ static void scsi_destroy(SCSIDevice *d)
         r = DO_UPCAST(SCSIGenericReq, req, QTAILQ_FIRST(&s->qdev.requests));
         scsi_remove_request(r);
     }
-    drive_uninit(s->qdev.dinfo);
+    drive_uninit(s->qdev.conf.dinfo);
 }
 
 static int scsi_generic_initfn(SCSIDevice *dev)
@@ -461,26 +462,27 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     int sg_version;
     struct sg_scsi_id scsiid;
 
-    if (!s->qdev.dinfo || !s->qdev.dinfo->bdrv) {
+    if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
         qemu_error("scsi-generic: drive property not set\n");
         return -1;
     }
+    s->bs = s->qdev.conf.dinfo->bdrv;
 
     /* check we are really using a /dev/sg* file */
-    if (!bdrv_is_sg(s->qdev.dinfo->bdrv)) {
+    if (!bdrv_is_sg(s->bs)) {
         qemu_error("scsi-generic: not /dev/sg*\n");
         return -1;
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after */
-    if (bdrv_ioctl(s->qdev.dinfo->bdrv, SG_GET_VERSION_NUM, &sg_version) < 0 ||
+    if (bdrv_ioctl(s->bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
         sg_version < 30000) {
         qemu_error("scsi-generic: scsi generic interface too old\n");
         return -1;
     }
 
     /* get LUN of the /dev/sg? */
-    if (bdrv_ioctl(s->qdev.dinfo->bdrv, SG_GET_SCSI_ID, &scsiid)) {
+    if (bdrv_ioctl(s->bs, SG_GET_SCSI_ID, &scsiid)) {
         qemu_error("scsi-generic: SG_GET_SCSI_ID ioctl failed\n");
         return -1;
     }
@@ -491,11 +493,11 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     s->qdev.type = scsiid.scsi_type;
     DPRINTF("device type %d\n", s->qdev.type);
     if (s->qdev.type == TYPE_TAPE) {
-        s->qdev.blocksize = get_stream_blocksize(s->qdev.dinfo->bdrv);
+        s->qdev.blocksize = get_stream_blocksize(s->bs);
         if (s->qdev.blocksize == -1)
             s->qdev.blocksize = 0;
     } else {
-        s->qdev.blocksize = get_blocksize(s->qdev.dinfo->bdrv);
+        s->qdev.blocksize = get_blocksize(s->bs);
         /* removable media returns 0 if not present */
         if (s->qdev.blocksize <= 0) {
             if (s->qdev.type == TYPE_ROM || s->qdev.type  == TYPE_WORM)
@@ -522,7 +524,7 @@ static SCSIDeviceInfo scsi_generic_info = {
     .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
     .qdev.props   = (Property[]) {
-        DEFINE_PROP_DRIVE("drive", SCSIGenericState, qdev.dinfo),
+        DEFINE_BLOCK_PROPERTIES(SCSIGenericState, qdev.conf),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
