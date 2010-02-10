@@ -2585,6 +2585,16 @@ struct DisplayAllocator default_allocator = {
     defaultallocator_free_displaysurface
 };
 
+/* dumb display */
+
+static void dumb_display_init(void)
+{
+    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    ds->allocator = &default_allocator;
+    ds->surface = qemu_create_displaysurface(ds, 640, 480);
+    register_displaystate(ds);
+}
+
 void register_displaystate(DisplayState *ds)
 {
     DisplayState **s;
@@ -2597,6 +2607,9 @@ void register_displaystate(DisplayState *ds)
 
 DisplayState *get_displaystate(void)
 {
+    if (!display_state) {
+        dumb_display_init();
+    }
     return display_state;
 }
 
@@ -2604,16 +2617,6 @@ DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *
 {
     if(ds->allocator ==  &default_allocator) ds->allocator = da;
     return ds->allocator;
-}
-
-/* dumb display */
-
-static void dumb_display_init(void)
-{
-    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
-    ds->allocator = &default_allocator;
-    ds->surface = qemu_create_displaysurface(ds, 640, 480);
-    register_displaystate(ds);
 }
 
 /***********************************************************/
@@ -5899,10 +5902,8 @@ int main(int argc, char **argv, char **envp)
 
     net_check_clients();
 
-    if (!display_state)
-        dumb_display_init();
     /* just use the first displaystate for the moment */
-    ds = display_state;
+    ds = get_displaystate();
 
     if (display_type == DT_DEFAULT) {
 #if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
@@ -5960,7 +5961,7 @@ int main(int argc, char **argv, char **envp)
         qemu_mod_timer(nographic_timer, qemu_get_clock(rt_clock));
     }
 
-    text_consoles_set_display(display_state);
+    text_consoles_set_display(ds);
 
     if (qemu_opts_foreach(&qemu_mon_opts, mon_init_func, NULL, 1) != 0)
         exit(1);
