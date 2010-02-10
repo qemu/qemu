@@ -232,8 +232,9 @@ cscope:
 	cscope -b
 
 # documentation
+TEXIFLAG=$(if $(V),,--quiet)
 %.dvi: %.texi
-	$(call quiet-command,texi2dvi -q -I . $<,"  GEN   $@")
+	$(call quiet-command,texi2dvi $(TEXIFLAG) -I . $<,"  GEN   $@")
 
 %.html: %.texi
 	$(call quiet-command,texi2html -I=. -monolithic -number $<,"  GEN   $@")
@@ -242,7 +243,7 @@ cscope:
 	$(call quiet-command,makeinfo -I . $< -o $@,"  GEN   $@")
 
 %.pdf: %.texi
-	$(call quiet-command,texi2pdf -q -I . $<,"  GEN   $@")
+	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"  GEN   $@")
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")

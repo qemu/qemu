@@ -23,6 +23,7 @@ typedef enum MonitorEvent {
     QEVENT_VNC_CONNECTED,
     QEVENT_VNC_INITIALIZED,
     QEVENT_VNC_DISCONNECTED,
+    QEVENT_BLOCK_IO_ERROR,
     QEVENT_MAX,
 } MonitorEvent;
 

@@ -192,10 +192,8 @@ void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
 
 uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int *num);
-uint64_t qcow2_alloc_cluster_offset(BlockDriverState *bs,
-                              uint64_t offset,
-                              int n_start, int n_end,
-                              int *num, QCowL2Meta *m);
+int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
+    int n_start, int n_end, int *num, QCowL2Meta *m);
 uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
                                          uint64_t offset,
                                          int compressed_size);

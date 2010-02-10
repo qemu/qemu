@@ -453,13 +453,20 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         bs->enable_write_cache = 1;
 
     bs->read_only = (flags & BDRV_O_RDWR) == 0;
-    if (!(flags & BDRV_O_FILE)) {
-        open_flags = (flags & (BDRV_O_RDWR | BDRV_O_CACHE_MASK|BDRV_O_NATIVE_AIO));
-        if (bs->is_temporary) { /* snapshot should be writeable */
-            open_flags |= BDRV_O_RDWR;
-        }
-    } else {
-        open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
+
+    /*
+     * Clear flags that are internal to the block layer before opening the
+     * image.
+     */
+    open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+    /*
+     * Snapshots should be writeable.
+     *
+     * XXX(hch): and what is the point of a snapshot during a read-only open?
+     */
+    if (!(flags & BDRV_O_FILE) && bs->is_temporary) {
+        open_flags |= BDRV_O_RDWR;
     }
 
     ret = drv->bdrv_open(bs, filename, open_flags);
@@ -688,9 +695,15 @@ static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
         bit = start % (sizeof(unsigned long) * 8);
         val = bs->dirty_bitmap[idx];
         if (dirty) {
-            val |= 1 << bit;
+            if (!(val & (1 << bit))) {
+                bs->dirty_count++;
+                val |= 1 << bit;
+            }
         } else {
-            val &= ~(1 << bit);
+            if (val & (1 << bit)) {
+                bs->dirty_count--;
+                val &= ~(1 << bit);
+            }
         }
         bs->dirty_bitmap[idx] = val;
     }
@@ -1164,6 +1177,35 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         return 1;
     }
     return bs->drv->bdrv_is_allocated(bs, sector_num, nb_sectors, pnum);
+}
+
+void bdrv_mon_event(const BlockDriverState *bdrv,
+                    BlockMonEventAction action, int is_read)
+{
+    QObject *data;
+    const char *action_str;
+
+    switch (action) {
+    case BDRV_ACTION_REPORT:
+        action_str = "report";
+        break;
+    case BDRV_ACTION_IGNORE:
+        action_str = "ignore";
+        break;
+    case BDRV_ACTION_STOP:
+        action_str = "stop";
+        break;
+    default:
+        abort();
+    }
+
+    data = qobject_from_jsonf("{ 'device': %s, 'action': %s, 'operation': %s }",
+                              bdrv->device_name,
+                              action_str,
+                              is_read ? "read" : "write");
+    monitor_protocol_event(QEVENT_BLOCK_IO_ERROR, data);
+
+    qobject_decref(data);
 }
 
 static void bdrv_print_dict(QObject *obj, void *opaque)
@@ -2141,6 +2183,7 @@ void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)
 {
     int64_t bitmap_size;
 
+    bs->dirty_count = 0;
     if (enable) {
         if (!bs->dirty_bitmap) {
             bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS) +
@@ -2174,4 +2217,9 @@ void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors)
 {
     set_dirty_bitmap(bs, cur_sector, nr_sectors, 0);
+}
+
+int64_t bdrv_get_dirty_count(BlockDriverState *bs)
+{
+    return bs->dirty_count;
 }

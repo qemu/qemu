@@ -8,6 +8,7 @@
 #endif
 
 #include "bswap.h"
+#include "qemu-queue.h"
 
 /* address in the RAM (different from a physical address) */
 typedef unsigned long ram_addr_t;
@@ -60,6 +61,24 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
                                int is_write, target_phys_addr_t access_len);
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque));
 void cpu_unregister_map_client(void *cookie);
+
+struct CPUPhysMemoryClient;
+typedef struct CPUPhysMemoryClient CPUPhysMemoryClient;
+struct CPUPhysMemoryClient {
+    void (*set_memory)(struct CPUPhysMemoryClient *client,
+                       target_phys_addr_t start_addr,
+                       ram_addr_t size,
+                       ram_addr_t phys_offset);
+    int (*sync_dirty_bitmap)(struct CPUPhysMemoryClient *client,
+                             target_phys_addr_t start_addr,
+                             target_phys_addr_t end_addr);
+    int (*migration_log)(struct CPUPhysMemoryClient *client,
+                         int enable);
+    QLIST_ENTRY(CPUPhysMemoryClient) list;
+};
+
+void cpu_register_phys_memory_client(CPUPhysMemoryClient *);
+void cpu_unregister_phys_memory_client(CPUPhysMemoryClient *);
 
 uint32_t ldub_phys(target_phys_addr_t addr);
 uint32_t lduw_phys(target_phys_addr_t addr);

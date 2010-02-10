@@ -497,12 +497,28 @@ static int usb_serial_can_read(void *opaque)
 static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
 {
     USBSerialState *s = opaque;
-    int first_size = RECV_BUF - s->recv_ptr;
-    if (first_size > size)
-        first_size = size;
-    memcpy(s->recv_buf + s->recv_ptr + s->recv_used, buf, first_size);
-    if (size > first_size)
-        memcpy(s->recv_buf, buf + first_size, size - first_size);
+    int first_size, start;
+
+    /* room in the buffer? */
+    if (size > (RECV_BUF - s->recv_used))
+        size = RECV_BUF - s->recv_used;
+
+    start = s->recv_ptr + s->recv_used;
+    if (start < RECV_BUF) {
+        /* copy data to end of buffer */
+        first_size = RECV_BUF - start;
+        if (first_size > size)
+            first_size = size;
+
+        memcpy(s->recv_buf + start, buf, first_size);
+
+        /* wrap around to front if needed */
+        if (size > first_size)
+            memcpy(s->recv_buf, buf + first_size, size - first_size);
+    } else {
+        start -= RECV_BUF;
+        memcpy(s->recv_buf + start, buf, size);
+    }
     s->recv_used += size;
 }
 

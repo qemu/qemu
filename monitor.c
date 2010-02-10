@@ -122,6 +122,7 @@ typedef struct MonitorControl {
     QObject *id;
     int print_enabled;
     JSONMessageParser parser;
+    int command_mode;
 } MonitorControl;
 
 struct Monitor {
@@ -151,6 +152,11 @@ Monitor *cur_mon = NULL;
 
 static void monitor_command_cb(Monitor *mon, const char *cmdline,
                                void *opaque);
+
+static inline int qmp_cmd_mode(const Monitor *mon)
+{
+    return (mon->mc ? mon->mc->command_mode : 0);
+}
 
 /* Return true if in control mode, false otherwise */
 static inline int monitor_ctrl_mode(const Monitor *mon)
@@ -388,6 +394,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_VNC_DISCONNECTED:
             event_name = "VNC_DISCONNECTED";
             break;
+        case QEVENT_BLOCK_IO_ERROR:
+            event_name = "BLOCK_IO_ERROR";
+            break;
         default:
             abort();
             break;
@@ -402,11 +411,20 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     }
 
     QLIST_FOREACH(mon, &mon_list, entry) {
-        if (monitor_ctrl_mode(mon)) {
+        if (monitor_ctrl_mode(mon) && qmp_cmd_mode(mon)) {
             monitor_json_emitter(mon, QOBJECT(qmp));
         }
     }
     QDECREF(qmp);
+}
+
+static void do_qmp_capabilities(Monitor *mon, const QDict *params,
+                                QObject **ret_data)
+{
+    /* Will setup QMP capabilities in the future */
+    if (monitor_ctrl_mode(mon)) {
+        mon->mc->command_mode = 1;
+    }
 }
 
 static int compare_cmd(const char *name, const char *list)
@@ -4219,6 +4237,12 @@ static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
     return err;
 }
 
+static int invalid_qmp_mode(const Monitor *mon, const char *cmd_name)
+{
+    int is_cap = compare_cmd(cmd_name, "qmp_capabilities");
+    return (qmp_cmd_mode(mon) ? is_cap : !is_cap);
+}
+
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
     int err;
@@ -4257,6 +4281,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     cmd_name = qstring_get_str(qobject_to_qstring(obj));
+
+    if (invalid_qmp_mode(mon, cmd_name)) {
+        qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+        goto err_input;
+    }
 
     /*
      * XXX: We need this special case until we get info handlers
@@ -4365,6 +4394,14 @@ void monitor_resume(Monitor *mon)
         readline_show_prompt(mon->rs);
 }
 
+static QObject *get_qmp_greeting(void)
+{
+    QObject *ver;
+
+    do_info_version(NULL, &ver);
+    return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
+}
+
 /**
  * monitor_control_event(): Print QMP gretting
  */
@@ -4374,9 +4411,10 @@ static void monitor_control_event(void *opaque, int event)
         QObject *data;
         Monitor *mon = opaque;
 
+        mon->mc->command_mode = 0;
         json_message_parser_init(&mon->mc->parser, handle_qmp_command);
 
-        data = qobject_from_jsonf("{ 'QMP': { 'capabilities': [] } }");
+        data = get_qmp_greeting();
         assert(data != NULL);
 
         monitor_json_emitter(mon, data);

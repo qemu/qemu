@@ -19,6 +19,7 @@ ETEXI
 
 STEXI
 @item help or ? [@var{cmd}]
+@findex help
 Show the help for all commands or just for command @var{cmd}.
 ETEXI
 
@@ -32,6 +33,7 @@ ETEXI
 
 STEXI
 @item commit
+@findex commit
 Commit changes to the disk images (if -snapshot is used) or backing files.
 ETEXI
 
@@ -46,6 +48,7 @@ ETEXI
 
 STEXI
 @item info @var{subcommand}
+@findex info
 Show various information about the system state.
 
 @table @option
@@ -125,6 +128,7 @@ ETEXI
 
 STEXI
 @item q or quit
+@findex quit
 Quit the emulator.
 ETEXI
 
@@ -139,6 +143,7 @@ ETEXI
 
 STEXI
 @item eject [-f] @var{device}
+@findex eject
 Eject a removable medium (use -f to force it).
 ETEXI
 
@@ -153,6 +158,7 @@ ETEXI
 
 STEXI
 @item change @var{device} @var{setting}
+@findex change
 
 Change the configuration of a device.
 
@@ -198,6 +204,7 @@ ETEXI
 
 STEXI
 @item screendump @var{filename}
+@findex screendump
 Save screen into PPM image @var{filename}.
 ETEXI
 
@@ -211,6 +218,7 @@ ETEXI
 
 STEXI
 @item logfile @var{filename}
+@findex logfile
 Output logs to @var{filename}.
 ETEXI
 
@@ -224,6 +232,7 @@ ETEXI
 
 STEXI
 @item log @var{item1}[,...]
+@findex log
 Activate logging of the specified items to @file{/tmp/qemu.log}.
 ETEXI
 
@@ -237,6 +246,7 @@ ETEXI
 
 STEXI
 @item savevm [@var{tag}|@var{id}]
+@findex savevm
 Create a snapshot of the whole virtual machine. If @var{tag} is
 provided, it is used as human readable identifier. If there is already
 a snapshot with the same tag or ID, it is replaced. More info at
@@ -253,6 +263,7 @@ ETEXI
 
 STEXI
 @item loadvm @var{tag}|@var{id}
+@findex loadvm
 Set the whole virtual machine to the snapshot identified by the tag
 @var{tag} or the unique snapshot ID @var{id}.
 ETEXI
@@ -267,6 +278,7 @@ ETEXI
 
 STEXI
 @item delvm @var{tag}|@var{id}
+@findex delvm
 Delete the snapshot identified by @var{tag} or @var{id}.
 ETEXI
 
@@ -280,6 +292,7 @@ ETEXI
 
 STEXI
 @item singlestep [off]
+@findex singlestep
 Run the emulation in single step mode.
 If called with option off, the emulation returns to normal mode.
 ETEXI
@@ -295,6 +308,7 @@ ETEXI
 
 STEXI
 @item stop
+@findex stop
 Stop emulation.
 ETEXI
 
@@ -309,6 +323,7 @@ ETEXI
 
 STEXI
 @item c or cont
+@findex cont
 Resume emulation.
 ETEXI
 
@@ -322,6 +337,7 @@ ETEXI
 
 STEXI
 @item gdbserver [@var{port}]
+@findex gdbserver
 Start gdbserver session (default @var{port}=1234)
 ETEXI
 
@@ -335,6 +351,7 @@ ETEXI
 
 STEXI
 @item x/fmt @var{addr}
+@findex x
 Virtual memory dump starting at @var{addr}.
 ETEXI
 
@@ -348,6 +365,7 @@ ETEXI
 
 STEXI
 @item xp /@var{fmt} @var{addr}
+@findex xp
 Physical memory dump starting at @var{addr}.
 
 @var{fmt} is a format which tells the command how to format the
@@ -355,13 +373,16 @@ data. Its syntax is: @option{/@{count@}@{format@}@{size@}}
 
 @table @var
 @item count
+@findex count
 is the number of items to be dumped.
 
 @item format
+@findex format
 can be x (hex), d (signed decimal), u (unsigned decimal), o (octal),
 c (char) or i (asm instruction).
 
 @item size
+@findex size
 can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits). On x86,
 @code{h} or @code{w} can be specified with the @code{i} format to
 respectively select 16 or 32 bit code instruction size.
@@ -414,6 +435,7 @@ ETEXI
 
 STEXI
 @item p or print/@var{fmt} @var{expr}
+@findex print
 
 Print expression value. Only the @var{format} part of @var{fmt} is
 used.
@@ -453,6 +475,7 @@ ETEXI
 
 STEXI
 @item sendkey @var{keys}
+@findex sendkey
 
 Send @var{keys} to the emulator. @var{keys} could be the name of the
 key or @code{#} followed by the raw value in either decimal or hexadecimal
@@ -476,6 +499,7 @@ ETEXI
 
 STEXI
 @item system_reset
+@findex system_reset
 
 Reset the system.
 ETEXI
@@ -491,6 +515,7 @@ ETEXI
 
 STEXI
 @item system_powerdown
+@findex system_powerdown
 
 Power down the system (if supported).
 ETEXI
@@ -505,6 +530,7 @@ ETEXI
 
 STEXI
 @item sum @var{addr} @var{size}
+@findex sum
 
 Compute the checksum of a memory region.
 ETEXI
@@ -519,6 +545,7 @@ ETEXI
 
 STEXI
 @item usb_add @var{devname}
+@findex usb_add
 
 Add the USB device @var{devname}.  For details of available devices see
 @ref{usb_devices}
@@ -534,6 +561,7 @@ ETEXI
 
 STEXI
 @item usb_del @var{devname}
+@findex usb_del
 
 Remove the USB device @var{devname} from the QEMU virtual USB
 hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
@@ -550,6 +578,7 @@ ETEXI
 
 STEXI
 @item device_add @var{config}
+@findex device_add
 
 Add device.
 ETEXI
@@ -564,6 +593,7 @@ ETEXI
 
 STEXI
 @item device_del @var{id}
+@findex device_del
 
 Remove device @var{id}.
 ETEXI
@@ -591,6 +621,7 @@ ETEXI
 
 STEXI
 @item mouse_move @var{dx} @var{dy} [@var{dz}]
+@findex mouse_move
 Move the active mouse to the specified coordinates @var{dx} @var{dy}
 with optional scroll axis @var{dz}.
 ETEXI
@@ -605,6 +636,7 @@ ETEXI
 
 STEXI
 @item mouse_button @var{val}
+@findex mouse_button
 Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
 ETEXI
 
@@ -618,6 +650,7 @@ ETEXI
 
 STEXI
 @item mouse_set @var{index}
+@findex mouse_set
 Set which mouse device receives events at given @var{index}, index
 can be obtained with
 @example
@@ -636,6 +669,7 @@ ETEXI
 #endif
 STEXI
 @item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
+@findex wavcapture
 Capture audio into @var{filename}. Using sample rate @var{frequency}
 bits per sample @var{bits} and number of channels @var{channels}.
 
@@ -658,6 +692,7 @@ ETEXI
 #endif
 STEXI
 @item stopcapture @var{index}
+@findex stopcapture
 Stop capture with a given @var{index}, index can be obtained with
 @example
 info capture
@@ -675,6 +710,7 @@ ETEXI
 
 STEXI
 @item memsave @var{addr} @var{size} @var{file}
+@findex memsave
 save to disk virtual memory dump starting at @var{addr} of size @var{size}.
 ETEXI
 
@@ -689,6 +725,7 @@ ETEXI
 
 STEXI
 @item pmemsave @var{addr} @var{size} @var{file}
+@findex pmemsave
 save to disk physical memory dump starting at @var{addr} of size @var{size}.
 ETEXI
 
@@ -702,6 +739,7 @@ ETEXI
 
 STEXI
 @item boot_set @var{bootdevicelist}
+@findex boot_set
 
 Define new values for the boot device list. Those values will override
 the values specified on the command line through the @code{-boot} option.
@@ -721,6 +759,7 @@ ETEXI
 #endif
 STEXI
 @item nmi @var{cpu}
+@findex nmi
 Inject an NMI on the given CPU (x86 only).
 ETEXI
 
@@ -740,6 +779,7 @@ ETEXI
 
 STEXI
 @item migrate [-d] [-b] [-i] @var{uri}
+@findex migrate
 Migrate to @var{uri} (using -d to not wait for completion).
 	-b for migration with full copy of disk
 	-i for migration with incremental copy of disk (base image is shared)
@@ -756,6 +796,7 @@ ETEXI
 
 STEXI
 @item migrate_cancel
+@findex migrate_cancel
 Cancel the current VM migration.
 ETEXI
 
@@ -770,6 +811,7 @@ ETEXI
 
 STEXI
 @item migrate_set_speed @var{value}
+@findex migrate_set_speed
 Set maximum speed to @var{value} (in bytes) for migrations.
 ETEXI
 
@@ -784,6 +826,7 @@ ETEXI
 
 STEXI
 @item migrate_set_downtime @var{second}
+@findex migrate_set_downtime
 Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
@@ -803,6 +846,7 @@ ETEXI
 
 STEXI
 @item drive_add
+@findex drive_add
 Add drive to PCI storage controller.
 ETEXI
 
@@ -819,6 +863,7 @@ ETEXI
 
 STEXI
 @item pci_add
+@findex pci_add
 Hot-add PCI device.
 ETEXI
 
@@ -835,6 +880,7 @@ ETEXI
 
 STEXI
 @item pci_del
+@findex pci_del
 Hot remove PCI device.
 ETEXI
 
@@ -848,6 +894,7 @@ ETEXI
 
 STEXI
 @item host_net_add
+@findex host_net_add
 Add host VLAN client.
 ETEXI
 
@@ -861,6 +908,7 @@ ETEXI
 
 STEXI
 @item host_net_remove
+@findex host_net_remove
 Remove host VLAN client.
 ETEXI
 
@@ -884,6 +932,7 @@ ETEXI
 #endif
 STEXI
 @item host_net_redir
+@findex host_net_redir
 Redirect TCP or UDP connections from host to guest (requires -net user).
 ETEXI
 
@@ -899,6 +948,7 @@ ETEXI
 
 STEXI
 @item balloon @var{value}
+@findex balloon
 Request VM to change its memory allocation to @var{value} (in MB).
 ETEXI
 
@@ -912,6 +962,7 @@ ETEXI
 
 STEXI
 @item set_link @var{name} [up|down]
+@findex set_link
 Set link @var{name} up or down.
 ETEXI
 
@@ -925,6 +976,7 @@ ETEXI
 
 STEXI
 @item watchdog_action
+@findex watchdog_action
 Change watchdog action.
 ETEXI
 
@@ -938,6 +990,7 @@ ETEXI
 
 STEXI
 @item acl_show @var{aclname}
+@findex acl_show
 List all the matching rules in the access control list, and the default
 policy. There are currently two named access control lists,
 @var{vnc.x509dname} and @var{vnc.username} matching on the x509 client
@@ -954,6 +1007,7 @@ ETEXI
 
 STEXI
 @item acl_policy @var{aclname} @code{allow|deny}
+@findex acl_policy
 Set the default access control list policy, used in the event that
 none of the explicit rules match. The default policy at startup is
 always @code{deny}.
@@ -969,6 +1023,7 @@ ETEXI
 
 STEXI
 @item acl_allow @var{aclname} @var{match} @code{allow|deny} [@var{index}]
+@findex acl_allow
 Add a match rule to the access control list, allowing or denying access.
 The match will normally be an exact username or x509 distinguished name,
 but can optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to
@@ -987,6 +1042,7 @@ ETEXI
 
 STEXI
 @item acl_remove @var{aclname} @var{match}
+@findex acl_remove
 Remove the specified match rule from the access control list.
 ETEXI
 
@@ -999,7 +1055,7 @@ ETEXI
     },
 
 STEXI
-@item acl_remove @var{aclname} @var{match}
+@item acl_remove @var{aclname}
 Remove all matches from the access control list, and set the default
 policy back to @code{deny}.
 ETEXI
@@ -1017,6 +1073,7 @@ ETEXI
 #endif
 STEXI
 @item mce @var{cpu} @var{bank} @var{status} @var{mcgstatus} @var{addr} @var{misc}
+@findex mce (x86)
 Inject an MCE on the given CPU (x86 only).
 ETEXI
 
@@ -1031,6 +1088,7 @@ ETEXI
 
 STEXI
 @item getfd @var{fdname}
+@findex getfd
 If a file descriptor is passed alongside this command using the SCM_RIGHTS
 mechanism on unix sockets, it is stored using the name @var{fdname} for
 later use by other monitor commands.
@@ -1047,6 +1105,7 @@ ETEXI
 
 STEXI
 @item closefd @var{fdname}
+@findex closefd
 Close the file descriptor previously assigned to @var{fdname} using the
 @code{getfd} command. This is only needed if the file descriptor was never
 used by another monitor command.
@@ -1063,7 +1122,22 @@ ETEXI
 
 STEXI
 @item block_passwd @var{device} @var{password}
+@findex block_passwd
 Set the encrypted device @var{device} password to @var{password}
+ETEXI
+
+    {
+        .name       = "qmp_capabilities",
+        .args_type  = "",
+        .params     = "",
+        .help       = "enable QMP capabilities",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_qmp_capabilities,
+    },
+
+STEXI
+@item qmp_capabilities
+Enable the specified QMP capabilities
 ETEXI
 
 STEXI

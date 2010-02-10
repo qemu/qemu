@@ -44,6 +44,12 @@ typedef struct QEMUSnapshotInfo {
 #define BDRV_SECTOR_SIZE   (1 << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1);
 
+typedef enum {
+    BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP
+} BlockMonEventAction;
+
+void bdrv_mon_event(const BlockDriverState *bdrv,
+                    BlockMonEventAction action, int is_read);
 void bdrv_info_print(Monitor *mon, const QObject *data);
 void bdrv_info(Monitor *mon, QObject **ret_data);
 void bdrv_stats_print(Monitor *mon, const QObject *data);
@@ -200,4 +206,5 @@ void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors);
+int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 #endif

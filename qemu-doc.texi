@@ -1,6 +1,7 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
 @setfilename qemu-doc.info
+
 @documentlanguage en
 @documentencoding UTF-8
 
@@ -8,6 +9,12 @@
 @exampleindent 0
 @paragraphindent 0
 @c %**end of header
+
+@ifinfo
+@direntry
+* QEMU: (qemu-doc).    The QEMU Emulator User Documentation.
+@end direntry
+@end ifinfo
 
 @iftex
 @titlepage
@@ -52,7 +59,7 @@ achieve good emulation speed.
 
 QEMU has two operating modes:
 
-@itemize @minus
+@itemize
 @cindex operating modes
 
 @item
@@ -133,7 +140,7 @@ have to install it. Otherwise, see @ref{compilation}.
 @cindex installation (Windows)
 
 Download the experimental binary installer at
-@url{http://www.free.oszoo.org/download.html}.
+@url{http://www.free.oszoo.org/@/download.html}.
 TODO (no longer available)
 
 @node install_mac
@@ -141,7 +148,7 @@ TODO (no longer available)
 @cindex installation (Mac OS X)
 
 Download the experimental binary installer at
-@url{http://www.free.oszoo.org/download.html}.
+@url{http://www.free.oszoo.org/@/download.html}.
 TODO (no longer available)
 
 @node QEMU PC System emulator
@@ -2099,7 +2106,7 @@ qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 (@file{qemu-XXX-i386-wine.tar.gz} on the QEMU web page).
 
 @item Configure Wine on your account. Look at the provided script
-@file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
+@file{/usr/local/qemu-i386/@/bin/wine-conf.sh}. Your previous
 @code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
 
 @item Then you can try the example @file{putty.exe}:
@@ -2371,6 +2378,7 @@ Run the emulation in single step mode.
 * Windows::
 * Cross compilation for Windows with Linux::
 * Mac OS X::
+* Make targets::
 @end menu
 
 @node Linux/Unix
@@ -2407,11 +2415,14 @@ instructions in the download section and the FAQ.
 
 @item Download
 the MinGW development library of SDL 1.2.x
-(@file{SDL-devel-1.2.x/mingw32.tar.gz}) from
-@url{http://www.libsdl.org}. Unpack it in a temporary place, and
-unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
-directory. Edit the @file{sdl-config} script so that it gives the
+(@file{SDL-devel-1.2.x-@/mingw32.tar.gz}) from
+@url{http://www.libsdl.org}. Unpack it in a temporary place and
+edit the @file{sdl-config} script so that it gives the
 correct SDL directory when invoked.
+
+@item Install the MinGW version of zlib and make sure
+@file{zlib.h} and @file{libz.dll.a} are in
+MingGW's default header and linker search paths.
 
 @item Extract the current version of QEMU.
 
@@ -2435,29 +2446,44 @@ correct SDL directory when invoked.
 Install the MinGW cross compilation tools available at
 @url{http://www.mingw.org/}.
 
-@item
-Install the Win32 version of SDL (@url{http://www.libsdl.org}) by
-unpacking @file{i386-mingw32msvc.tar.gz}. Set up the PATH environment
-variable so that @file{i386-mingw32msvc-sdl-config} can be launched by
+@item Download
+the MinGW development library of SDL 1.2.x
+(@file{SDL-devel-1.2.x-@/mingw32.tar.gz}) from
+@url{http://www.libsdl.org}. Unpack it in a temporary place and
+edit the @file{sdl-config} script so that it gives the
+correct SDL directory when invoked.  Set up the @code{PATH} environment
+variable so that @file{sdl-config} can be launched by
 the QEMU configuration script.
+
+@item Install the MinGW version of zlib and make sure
+@file{zlib.h} and @file{libz.dll.a} are in
+MingGW's default header and linker search paths.
 
 @item
 Configure QEMU for Windows cross compilation:
 @example
-./configure --enable-mingw32
+PATH=/usr/i686-pc-mingw32/sys-root/mingw/bin:$PATH ./configure --cross-prefix='i686-pc-mingw32-'
 @end example
-If necessary, you can change the cross-prefix according to the prefix
-chosen for the MinGW tools with --cross-prefix. You can also use
---prefix to set the Win32 install path.
+The example assumes @file{sdl-config} is installed under @file{/usr/i686-pc-mingw32/sys-root/mingw/bin} and
+MinGW cross compilation tools have names like @file{i686-pc-mingw32-gcc} and @file{i686-pc-mingw32-strip}.
+We set the @code{PATH} environment variable to ensure the MingW version of @file{sdl-config} is used and
+use --cross-prefix to specify the name of the cross compiler.
+You can also use --prefix to set the Win32 install path which defaults to @file{c:/Program Files/Qemu}.
+
+Under Fedora Linux, you can run:
+@example
+yum -y install mingw32-gcc mingw32-SDL mingw32-zlib
+@end example
+to get a suitable cross compilation environment.
 
 @item You can install QEMU in the installation directory by typing
-@file{make install}. Don't forget to copy @file{SDL.dll} in the
+@code{make install}. Don't forget to copy @file{SDL.dll} and @file{zlib1.dll} into the
 installation directory.
 
 @end itemize
 
 @cindex wine, starting system emulation
-Wine is able to launch QEMU for Win32:
+Wine can be used to launch the resulting qemu.exe compiled for Win32.
 @example
 wine qemu.exe
 @end example
@@ -2468,6 +2494,46 @@ wine qemu.exe
 The Mac OS X patches are not fully merged in QEMU, so you should look
 at the QEMU mailing list archive to have all the necessary
 information. (TODO: is this still true?)
+
+@node Make targets
+@section Make targets
+
+@table @code
+
+@item make
+@item make all
+Make everything which is typically needed.
+
+@item install
+TODO
+
+@item install-doc
+TODO
+
+@item make clean
+Remove most files which were built during make.
+
+@item make distclean
+Remove everything which was built during make.
+
+@item make dvi
+@item make html
+@item make info
+@item make pdf
+Create documentation in dvi, html, info or pdf format.
+
+@item make cscope
+TODO
+
+@item make defconfig
+(Re-)create some build configuration files.
+User made changes will be overwritten.
+
+@item tar
+@item tarbin
+TODO
+
+@end table
 
 @node License
 @appendix License
@@ -2480,23 +2546,47 @@ Parts of QEMU have specific licenses, see file LICENSE.
 TODO (refer to file LICENSE, include it, include the GPL?)
 
 @node Index
-@appendix Concept Index
+@appendix Index
+@menu
+* Concept Index::
+* Function Index::
+* Keystroke Index::
+* Program Index::
+* Data Type Index::
+* Variable Index::
+@end menu
+
+@node Concept Index
+@section Concept Index
+This is the main index. Should we combine all keywords in one index? TODO
 @printindex cp
-@appendix Function Index
+
+@node Function Index
+@section Function Index
+This index could be used for command line options and monitor functions.
 @printindex fn
 
-@appendix Keystroke Index
+@node Keystroke Index
+@section Keystroke Index
 
 This is a list of all keystrokes which have a special function
 in system emulation.
 
 @printindex ky
 
-@appendix Program Index
+@node Program Index
+@section Program Index
 @printindex pg
-@appendix Data Type Index
+
+@node Data Type Index
+@section Data Type Index
+
+This index could be used for qdev device names and options.
+
 @printindex tp
-@appendix Variable Index
+
+@node Variable Index
+@section Variable Index
 @printindex vr
 
 @bye
