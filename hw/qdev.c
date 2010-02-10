@@ -586,7 +586,9 @@ static BusState *qbus_find(const char *path)
         dev = qbus_find_dev(bus, elem);
         if (!dev) {
             qerror_report(QERR_DEVICE_NOT_FOUND, elem);
-            qbus_list_dev(bus);
+            if (!monitor_cur_is_qmp()) {
+                qbus_list_dev(bus);
+            }
             return NULL;
         }
 
@@ -605,7 +607,9 @@ static BusState *qbus_find(const char *path)
                 return QLIST_FIRST(&dev->child_bus);
             default:
                 qerror_report(QERR_DEVICE_MULTIPLE_BUSSES, elem);
-                qbus_list_bus(dev);
+                if (!monitor_cur_is_qmp()) {
+                    qbus_list_bus(dev);
+                }
                 return NULL;
             }
         }
@@ -619,7 +623,9 @@ static BusState *qbus_find(const char *path)
         bus = qbus_find_bus(dev, elem);
         if (!bus) {
             qerror_report(QERR_BUS_NOT_FOUND, elem);
-            qbus_list_bus(dev);
+            if (!monitor_cur_is_qmp()) {
+                qbus_list_bus(dev);
+            }
             return NULL;
         }
     }
@@ -762,16 +768,36 @@ void do_info_qdm(Monitor *mon)
     }
 }
 
-void do_device_add(Monitor *mon, const QDict *qdict)
+/**
+ * do_device_add(): Add a device
+ *
+ * Argument qdict contains
+ * - "driver": the name of the new device's driver
+ * - "bus": the device's parent bus (device tree path)
+ * - "id": the device's ID (must be unique)
+ * - device properties
+ *
+ * Example:
+ *
+ * { "driver": "usb-net", "id": "eth1", "netdev": "netdev1" }
+ */
+int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     QemuOpts *opts;
 
     opts = qemu_opts_from_qdict(&qemu_device_opts, qdict);
-    if (opts) {
-        if (qdev_device_help(opts) || qdev_device_add(opts) == NULL) {
-            qemu_opts_del(opts);
-        }
+    if (!opts) {
+        return -1;
     }
+    if (!monitor_cur_is_qmp() && qdev_device_help(opts)) {
+        qemu_opts_del(opts);
+        return 0;
+    }
+    if (!qdev_device_add(opts)) {
+        qemu_opts_del(opts);
+        return -1;
+    }
+    return 0;
 }
 
 void do_device_del(Monitor *mon, const QDict *qdict)
