@@ -1455,7 +1455,6 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "sll";
         break;
     case OPC_SRA:
-        tcg_gen_ext32s_tl(t0, t0);
         tcg_gen_sari_tl(cpu_gpr[rt], t0, uimm);
         opn = "sra";
         break;
@@ -1855,7 +1854,6 @@ static void gen_shift (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "sllv";
         break;
     case OPC_SRAV:
-        tcg_gen_ext32s_tl(t1, t1);
         tcg_gen_andi_tl(t0, t0, 0x1f);
         tcg_gen_sar_tl(cpu_gpr[rd], t1, t0);
         opn = "srav";
