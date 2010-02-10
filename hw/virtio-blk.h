@@ -30,12 +30,8 @@
 #define VIRTIO_BLK_F_RO         5       /* Disk is read-only */
 #define VIRTIO_BLK_F_BLK_SIZE   6       /* Block size of disk is available*/
 #define VIRTIO_BLK_F_SCSI       7       /* Supports scsi command passthru */
-#define VIRTIO_BLK_F_IDENTIFY   8       /* ATA IDENTIFY supported */
+/* #define VIRTIO_BLK_F_IDENTIFY   8       ATA IDENTIFY supported, DEPRECATED */
 #define VIRTIO_BLK_F_WCACHE     9       /* write cache enabled */
-
-#define VIRTIO_BLK_ID_LEN       256     /* length of identify u16 array */
-#define VIRTIO_BLK_ID_SN        10      /* start of char * serial# */
-#define VIRTIO_BLK_ID_SN_BYTES  20      /* length in bytes of serial# */
 
 struct virtio_blk_config
 {
@@ -46,7 +42,6 @@ struct virtio_blk_config
     uint8_t heads;
     uint8_t sectors;
     uint32_t _blk_size;    /* structure pad, currently unused */
-    uint16_t identify[VIRTIO_BLK_ID_LEN];
 } __attribute__((packed));
 
 /* These two define direction. */
