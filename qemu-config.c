@@ -309,7 +309,7 @@ static QemuOptsList *lists[] = {
     NULL,
 };
 
-static QemuOptsList *find_list(const char *group)
+QemuOptsList *qemu_find_opts(const char *group)
 {
     int i;
 
@@ -336,7 +336,7 @@ int qemu_set_option(const char *str)
         return -1;
     }
 
-    list = find_list(group);
+    list = qemu_find_opts(group);
     if (list == NULL) {
         return -1;
     }
@@ -451,7 +451,7 @@ int qemu_config_parse(FILE *fp, const char *fname)
         }
         if (sscanf(line, "[%63s \"%63[^\"]\"]", group, id) == 2) {
             /* group with id */
-            list = find_list(group);
+            list = qemu_find_opts(group);
             if (list == NULL)
                 goto out;
             opts = qemu_opts_create(list, id, 1);
@@ -459,7 +459,7 @@ int qemu_config_parse(FILE *fp, const char *fname)
         }
         if (sscanf(line, "[%63[^]]]", group) == 1) {
             /* group without id */
-            list = find_list(group);
+            list = qemu_find_opts(group);
             if (list == NULL)
                 goto out;
             opts = qemu_opts_create(list, NULL, 0);
