@@ -2615,7 +2615,13 @@ DisplayState *get_displaystate(void)
 
 DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
 {
-    if(ds->allocator ==  &default_allocator) ds->allocator = da;
+    if(ds->allocator ==  &default_allocator) {
+        DisplaySurface *surf;
+        surf = da->create_displaysurface(ds_get_width(ds), ds_get_height(ds));
+        defaultallocator_free_displaysurface(ds->surface);
+        ds->surface = surf;
+        ds->allocator = da;
+    }
     return ds->allocator;
 }
 
