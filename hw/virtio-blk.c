@@ -26,6 +26,7 @@ typedef struct VirtIOBlock
     VirtQueue *vq;
     void *rq;
     QEMUBH *bh;
+    BlockConf *conf;
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
@@ -405,6 +406,10 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blkcfg.heads = heads;
     blkcfg.sectors = secs;
     blkcfg.size_max = 0;
+    blkcfg.physical_block_exp = get_physical_block_exp(s->conf);
+    blkcfg.alignment_offset = 0;
+    blkcfg.min_io_size = s->conf->min_io_size / 512;
+    blkcfg.opt_io_size = s->conf->opt_io_size / 512;
     memcpy(config, &blkcfg, sizeof(struct virtio_blk_config));
 }
 
@@ -414,6 +419,7 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 
     features |= (1 << VIRTIO_BLK_F_SEG_MAX);
     features |= (1 << VIRTIO_BLK_F_GEOMETRY);
+    features |= (1 << VIRTIO_BLK_F_TOPOLOGY);
 
     if (bdrv_enable_write_cache(s->bs))
         features |= (1 << VIRTIO_BLK_F_WCACHE);
@@ -471,6 +477,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
     s->bs = conf->dinfo->bdrv;
+    s->conf = conf;
     s->rq = NULL;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
     bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);

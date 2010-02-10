@@ -32,6 +32,7 @@
 #define VIRTIO_BLK_F_SCSI       7       /* Supports scsi command passthru */
 /* #define VIRTIO_BLK_F_IDENTIFY   8       ATA IDENTIFY supported, DEPRECATED */
 #define VIRTIO_BLK_F_WCACHE     9       /* write cache enabled */
+#define VIRTIO_BLK_F_TOPOLOGY   10      /* Topology information is available */
 
 struct virtio_blk_config
 {
@@ -42,6 +43,10 @@ struct virtio_blk_config
     uint8_t heads;
     uint8_t sectors;
     uint32_t _blk_size;    /* structure pad, currently unused */
+    uint8_t physical_block_exp;
+    uint8_t alignment_offset;
+    uint16_t min_io_size;
+    uint32_t opt_io_size;
 } __attribute__((packed));
 
 /* These two define direction. */
