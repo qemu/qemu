@@ -349,10 +349,11 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         case 0x00: /* Supported page codes, mandatory */
             DPRINTF("Inquiry EVPD[Supported pages] "
                     "buffer size %zd\n", req->cmd.xfer);
-            outbuf[buflen++] = 3;    // number of pages
+            outbuf[buflen++] = 4;    // number of pages
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
             outbuf[buflen++] = 0x80; // unit serial number
             outbuf[buflen++] = 0x83; // device identification
+            outbuf[buflen++] = 0xb0; // block device characteristics
             break;
 
         case 0x80: /* Device serial number, optional */
@@ -392,6 +393,27 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
             memcpy(outbuf+buflen, bdrv_get_device_name(s->bs), id_len);
             buflen += id_len;
+            break;
+        }
+        case 0xb0: /* block device characteristics */
+        {
+            unsigned int min_io_size = s->qdev.conf.min_io_size >> 9;
+            unsigned int opt_io_size = s->qdev.conf.opt_io_size >> 9;
+
+            /* required VPD size with unmap support */
+            outbuf[3] = buflen = 0x3c;
+
+            memset(outbuf + 4, 0, buflen - 4);
+
+            /* optimal transfer length granularity */
+            outbuf[6] = (min_io_size >> 8) & 0xff;
+            outbuf[7] = min_io_size & 0xff;
+
+            /* optimal transfer length */
+            outbuf[12] = (opt_io_size >> 24) & 0xff;
+            outbuf[13] = (opt_io_size >> 16) & 0xff;
+            outbuf[14] = (opt_io_size >> 8) & 0xff;
+            outbuf[15] = opt_io_size & 0xff;
             break;
         }
         default:
@@ -440,7 +462,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION, 4);
     /* Identify device as SCSI-3 rev 1.
        Some later commands are also implemented. */
-    outbuf[2] = 3;
+    outbuf[2] = 5;
     outbuf[3] = 2; /* Format 2 */
 
     if (buflen > 36) {
@@ -794,6 +816,8 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
             outbuf[9] = 0;
             outbuf[10] = s->cluster_size * 2;
             outbuf[11] = 0;
+            outbuf[12] = 0;
+            outbuf[13] = get_physical_block_exp(&s->qdev.conf);
             /* Protection, exponent and lowest lba field left blank. */
             buflen = req->cmd.xfer;
             break;
