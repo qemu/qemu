@@ -67,6 +67,11 @@
  * 'F'          filename
  * 'B'          block device name
  * 's'          string (accept optional quote)
+ * 'O'          option string of the form NAME=VALUE,...
+ *              parsed according to QemuOptsList given by its name
+ *              Example: 'device:O' uses qemu_device_opts.
+ *              Restriction: only lists with empty desc are supported
+ *              TODO lift the restriction
  * 'i'          32 bit integer
  * 'l'          target long (32 or 64 bit)
  * 'M'          just like 'l', except in user mode the value is
@@ -3645,6 +3650,31 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 qdict_put(qdict, key, qstring_from_str(buf));
             }
             break;
+        case 'O':
+            {
+                QemuOptsList *opts_list;
+                QemuOpts *opts;
+
+                opts_list = qemu_find_opts(key);
+                if (!opts_list || opts_list->desc->name) {
+                    goto bad_type;
+                }
+                while (qemu_isspace(*p)) {
+                    p++;
+                }
+                if (!*p)
+                    break;
+                if (get_str(buf, sizeof(buf), &p) < 0) {
+                    goto fail;
+                }
+                opts = qemu_opts_parse(opts_list, buf, 1);
+                if (!opts) {
+                    goto fail;
+                }
+                qemu_opts_to_qdict(opts, qdict);
+                qemu_opts_del(opts);
+            }
+            break;
         case '/':
             {
                 int count, format, size;
@@ -4299,6 +4329,7 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
                          qint_from_int(qbool_get_int(qobject_to_qbool(value))));
             }
             break;
+        case 'O':
         default:
             /* impossible */
             abort();
@@ -4313,6 +4344,12 @@ static void cmd_args_init(CmdArgs *cmd_args)
     cmd_args->type = cmd_args->flag = cmd_args->optional = 0;
 }
 
+static int check_opts(QemuOptsList *opts_list, QDict *args)
+{
+    assert(!opts_list->desc->name);
+    return 0;
+}
+
 /*
  * This is not trivial, we have to parse Monitor command's argument
  * type syntax to be able to check the arguments provided by clients.
@@ -4325,6 +4362,7 @@ static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
     int err;
     const char *p;
     CmdArgs cmd_args;
+    QemuOptsList *opts_list;
 
     if (cmd->args_type == NULL) {
         return (qdict_size(args) == 0 ? 0 : -1);
@@ -4332,6 +4370,7 @@ static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
 
     err = 0;
     cmd_args_init(&cmd_args);
+    opts_list = NULL;
 
     for (p = cmd->args_type;; p++) {
         if (*p == ':') {
@@ -4340,16 +4379,23 @@ static int monitor_check_qmp_args(const mon_cmd_t *cmd, QDict *args)
             if (cmd_args.type == '-') {
                 cmd_args.flag = *p++;
                 cmd_args.optional = 1;
+            } else if (cmd_args.type == 'O') {
+                opts_list = qemu_find_opts(qstring_get_str(cmd_args.name));
+                assert(opts_list);
             } else if (*p == '?') {
                 cmd_args.optional = 1;
                 p++;
             }
 
             assert(*p == ',' || *p == '\0');
-            err = check_arg(&cmd_args, args);
-
-            QDECREF(cmd_args.name);
-            cmd_args_init(&cmd_args);
+            if (opts_list) {
+                err = check_opts(opts_list, args);
+                opts_list = NULL;
+            } else {
+                err = check_arg(&cmd_args, args);
+                QDECREF(cmd_args.name);
+                cmd_args_init(&cmd_args);
+            }
 
             if (err < 0) {
                 break;
