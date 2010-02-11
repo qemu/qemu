@@ -318,7 +318,7 @@ ETEXI
         .params     = "",
         .help       = "resume emulation",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_cont,
+        .cmd_new_ret = do_cont,
     },
 
 STEXI
