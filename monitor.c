@@ -4760,7 +4760,8 @@ void qemu_error_internal(const char *file, int linenr, const char *func,
         if (!qemu_error_sink->mon->error) {
             qemu_error_sink->mon->error = qerror;
         } else {
-            /* XXX: warn the programmer */
+            MON_DEBUG("Additional error report at %s:%d\n", qerror->file,
+                      qerror->linenr);
             QDECREF(qerror);
         }
         break;
