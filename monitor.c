@@ -556,7 +556,7 @@ static void user_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
     }
 }
 
-static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const mon_cmd_t *cmd;
     const char *item = qdict_get_try_str(qdict, "item");
@@ -574,7 +574,7 @@ static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (cmd->name == NULL) {
         if (monitor_ctrl_mode(mon)) {
             qemu_error_new(QERR_COMMAND_NOT_FOUND, item);
-            return;
+            return -1;
         }
         goto help;
     }
@@ -606,15 +606,17 @@ static void do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
         if (monitor_ctrl_mode(mon)) {
             /* handler not converted yet */
             qemu_error_new(QERR_COMMAND_NOT_FOUND, item);
+            return -1;
         } else {
             cmd->mhandler.info(mon);
         }
     }
 
-    return;
+    return 0;
 
 help:
     help_cmd(mon, "info");
+    return 0;
 }
 
 static void do_info_version_print(Monitor *mon, const QObject *data)

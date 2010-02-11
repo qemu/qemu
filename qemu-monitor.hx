@@ -43,7 +43,7 @@ ETEXI
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_info,
+        .cmd_new_ret = do_info,
     },
 
 STEXI
