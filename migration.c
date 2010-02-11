@@ -54,7 +54,7 @@ void qemu_start_incoming_migration(const char *uri)
         fprintf(stderr, "unknown migration protocol: %s\n", uri);
 }
 
-void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
+int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = NULL;
     const char *p;
@@ -64,38 +64,43 @@ void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (current_migration &&
         current_migration->get_status(current_migration) == MIG_STATE_ACTIVE) {
         monitor_printf(mon, "migration already in progress\n");
-        return;
+        return -1;
     }
 
-    if (strstart(uri, "tcp:", &p))
+    if (strstart(uri, "tcp:", &p)) {
         s = tcp_start_outgoing_migration(mon, p, max_throttle, detach,
                                          (int)qdict_get_int(qdict, "blk"), 
                                          (int)qdict_get_int(qdict, "inc"));
 #if !defined(WIN32)
-    else if (strstart(uri, "exec:", &p))
+    } else if (strstart(uri, "exec:", &p)) {
         s = exec_start_outgoing_migration(mon, p, max_throttle, detach,
                                           (int)qdict_get_int(qdict, "blk"), 
                                           (int)qdict_get_int(qdict, "inc"));
-    else if (strstart(uri, "unix:", &p))
+    } else if (strstart(uri, "unix:", &p)) {
         s = unix_start_outgoing_migration(mon, p, max_throttle, detach,
 					  (int)qdict_get_int(qdict, "blk"), 
                                           (int)qdict_get_int(qdict, "inc"));
-    else if (strstart(uri, "fd:", &p))
+    } else if (strstart(uri, "fd:", &p)) {
         s = fd_start_outgoing_migration(mon, p, max_throttle, detach, 
                                         (int)qdict_get_int(qdict, "blk"), 
                                         (int)qdict_get_int(qdict, "inc"));
 #endif
-    else
+    } else {
         monitor_printf(mon, "unknown migration protocol: %s\n", uri);
-
-    if (s == NULL)
-        monitor_printf(mon, "migration failed\n");
-    else {
-        if (current_migration)
-            current_migration->release(current_migration);
-
-        current_migration = s;
+        return -1;
     }
+
+    if (s == NULL) {
+        monitor_printf(mon, "migration failed\n");
+        return -1;
+    }
+
+    if (current_migration) {
+        current_migration->release(current_migration);
+    }
+
+    current_migration = s;
+    return 0;
 }
 
 int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)

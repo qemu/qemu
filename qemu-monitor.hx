@@ -773,7 +773,7 @@ ETEXI
 		      "shared storage with incremental copy of disk "
 		      "(base image shared between src and destination)",
         .user_print = monitor_user_noop,	
-	.mhandler.cmd_new = do_migrate,
+	.cmd_new_ret = do_migrate,
     },
 
 
