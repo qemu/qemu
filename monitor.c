@@ -137,6 +137,9 @@ struct Monitor {
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
+#ifdef CONFIG_DEBUG_MONITOR
+    int print_calls_nr;
+#endif
     QError *error;
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
@@ -146,8 +149,27 @@ struct Monitor {
 #define MON_DEBUG(fmt, ...) do {    \
     fprintf(stderr, "Monitor: ");       \
     fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+
+static inline void mon_print_count_inc(Monitor *mon)
+{
+    mon->print_calls_nr++;
+}
+
+static inline void mon_print_count_init(Monitor *mon)
+{
+    mon->print_calls_nr = 0;
+}
+
+static inline int mon_print_count_get(const Monitor *mon)
+{
+    return mon->print_calls_nr;
+}
+
 #else /* !CONFIG_DEBUG_MONITOR */
 #define MON_DEBUG(fmt, ...) do { } while (0)
+static inline void mon_print_count_inc(Monitor *mon) { }
+static inline void mon_print_count_init(Monitor *mon) { }
+static inline int mon_print_count_get(const Monitor *mon) { return 0; }
 #endif /* CONFIG_DEBUG_MONITOR */
 
 static QLIST_HEAD(mon_list, Monitor) mon_list;
@@ -230,8 +252,9 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
     if (!mon)
         return;
 
+    mon_print_count_inc(mon);
+
     if (monitor_ctrl_mode(mon)) {
-        qemu_error_new(QERR_UNDEFINED_ERROR);
         return;
     }
 
@@ -3873,6 +3896,21 @@ static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
         MON_DEBUG("command '%s' returned success but passed an error\n",
                   cmd->name);
     }
+
+    if (mon_print_count_get(mon) > 0 && strcmp(cmd->name, "info") != 0) {
+        /*
+         * Handlers should not call Monitor print functions.
+         *
+         * Action: Ignore them in QMP.
+         *
+         * (XXX: we don't check any 'info' or 'query' command here
+         * because the user print function _is_ called by do_info(), hence
+         * we will trigger this check. This problem will go away when we
+         * make 'query' commands real and kill do_info())
+         */
+        MON_DEBUG("command '%s' called print functions %d time(s)\n",
+                  cmd->name, mon_print_count_get(mon));
+    }
 #endif
 }
 
@@ -3881,6 +3919,8 @@ static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
 {
     int ret;
     QObject *data = NULL;
+
+    mon_print_count_init(mon);
 
     ret = cmd->mhandler.cmd_new(mon, params, &data);
     handler_audit(mon, cmd, ret);
