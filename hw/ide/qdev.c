@@ -40,7 +40,7 @@ static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
     IDEDeviceInfo *info = DO_UPCAST(IDEDeviceInfo, qdev, base);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
-    if (!dev->dinfo) {
+    if (!dev->conf.dinfo) {
         fprintf(stderr, "%s: no drive specified\n", qdev->info->name);
         goto err;
     }
@@ -99,7 +99,8 @@ typedef struct IDEDrive {
 static int ide_drive_initfn(IDEDevice *dev)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
-    ide_init_drive(bus->ifs + dev->unit, dev->dinfo, dev->version);
+    ide_init_drive(bus->ifs + dev->unit, dev->conf.dinfo, &dev->conf,
+                   dev->version);
     return 0;
 }
 
@@ -109,7 +110,7 @@ static IDEDeviceInfo ide_drive_info = {
     .init       = ide_drive_initfn,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("unit", IDEDrive, dev.unit, -1),
-        DEFINE_PROP_DRIVE("drive", IDEDrive, dev.dinfo),
+        DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),
         DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),
         DEFINE_PROP_END_OF_LIST(),
     }

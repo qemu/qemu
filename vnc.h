@@ -69,7 +69,7 @@ typedef void VncSendHextileTile(VncState *vs,
                                 void *last_fg,
                                 int *has_bg, int *has_fg);
 
-#define VNC_MAX_WIDTH 2048
+#define VNC_MAX_WIDTH 2560
 #define VNC_MAX_HEIGHT 2048
 #define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
 

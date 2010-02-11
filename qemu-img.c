@@ -577,7 +577,7 @@ static int img_convert(int argc, char **argv)
     BlockDriverState **bs, *out_bs;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
     uint64_t bs_sectors;
-    uint8_t buf[IO_BUF_SIZE];
+    uint8_t * buf;
     const uint8_t *buf1;
     BlockDriverInfo bdi;
     QEMUOptionParameter *param = NULL;
@@ -696,6 +696,7 @@ static int img_convert(int argc, char **argv)
     bs_i = 0;
     bs_offset = 0;
     bdrv_get_geometry(bs[0], &bs_sectors);
+    buf = qemu_malloc(IO_BUF_SIZE);
 
     if (flags & BLOCK_FLAG_COMPRESS) {
         if (bdrv_get_info(out_bs, &bdi) < 0)
@@ -828,6 +829,7 @@ static int img_convert(int argc, char **argv)
             }
         }
     }
+    qemu_free(buf);
     bdrv_delete(out_bs);
     for (bs_i = 0; bs_i < bs_n; bs_i++)
         bdrv_delete(bs[bs_i]);
@@ -1184,8 +1186,11 @@ static int img_rebase(int argc, char **argv)
         uint64_t num_sectors;
         uint64_t sector;
         int n, n1;
-        uint8_t buf_old[IO_BUF_SIZE];
-        uint8_t buf_new[IO_BUF_SIZE];
+        uint8_t * buf_old;
+        uint8_t * buf_new;
+
+        buf_old = qemu_malloc(IO_BUF_SIZE);
+        buf_new = qemu_malloc(IO_BUF_SIZE);
 
         bdrv_get_geometry(bs, &num_sectors);
 
@@ -1232,6 +1237,9 @@ static int img_rebase(int argc, char **argv)
                 written += pnum;
             }
         }
+
+        qemu_free(buf_old);
+        qemu_free(buf_new);
     }
 
     /*

@@ -22,6 +22,7 @@
 #include "sysemu.h"
 #include "msix.h"
 #include "net.h"
+#include "block_int.h"
 #include "loader.h"
 
 /* from Linux's linux/virtio_pci.h */
@@ -92,7 +93,7 @@ typedef struct {
     uint32_t addr;
     uint32_t class_code;
     uint32_t nvectors;
-    DriveInfo *dinfo;
+    BlockConf block;
     NICConf nic;
     uint32_t host_features;
     /* Max. number of ports we can have for a the virtio-serial device */
@@ -457,11 +458,11 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code != PCI_CLASS_STORAGE_OTHER)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
-    if (!proxy->dinfo) {
+    if (!proxy->block.dinfo) {
         qemu_error("virtio-blk-pci: drive property not set\n");
         return -1;
     }
-    vdev = virtio_blk_init(&pci_dev->qdev, proxy->dinfo);
+    vdev = virtio_blk_init(&pci_dev->qdev, &proxy->block);
     vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
@@ -481,7 +482,7 @@ static int virtio_blk_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
-    drive_uninit(proxy->dinfo);
+    drive_uninit(proxy->block.dinfo);
     return virtio_exit_pci(pci_dev);
 }
 
@@ -558,7 +559,7 @@ static PCIDeviceInfo virtio_info[] = {
         .exit      = virtio_blk_exit_pci,
         .qdev.props = (Property[]) {
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
-            DEFINE_PROP_DRIVE("drive", VirtIOPCIProxy, dinfo),
+            DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, block),
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
             DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
             DEFINE_PROP_END_OF_LIST(),

@@ -7,6 +7,7 @@
  * non-internal declarations are in hw/ide.h
  */
 #include <hw/ide.h>
+#include "block_int.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -397,6 +398,7 @@ struct IDEState {
     /* set for lba48 access */
     uint8_t lba48;
     BlockDriverState *bs;
+    BlockConf *conf;
     char version[9];
     /* ATAPI specific */
     uint8_t sense_key;
@@ -449,7 +451,7 @@ struct IDEBus {
 struct IDEDevice {
     DeviceState qdev;
     uint32_t unit;
-    DriveInfo *dinfo;
+    BlockConf conf;
     char *version;
 };
 
@@ -551,7 +553,8 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
-void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version);
+void ide_init_drive(IDEState *s, DriveInfo *dinfo, BlockConf *conf,
+    const char *version);
 void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
                qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2);

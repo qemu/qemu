@@ -351,8 +351,6 @@ static void timestamp_put(QDict *qdict)
     obj = qobject_from_jsonf("{ 'seconds': %" PRId64 ", "
                                 "'microseconds': %" PRId64 " }",
                                 (int64_t) tv.tv_sec, (int64_t) tv.tv_usec);
-    assert(obj != NULL);
-
     qdict_put_obj(qdict, "timestamp", obj);
 }
 
@@ -900,7 +898,6 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
         obj = qobject_from_jsonf("{ 'CPU': %d, 'current': %i, 'halted': %i }",
                                  env->cpu_index, env == mon->mon_cpu,
                                  env->halted);
-        assert(obj != NULL);
 
         cpu = qobject_to_qdict(obj);
 
@@ -4407,18 +4404,20 @@ static QObject *get_qmp_greeting(void)
  */
 static void monitor_control_event(void *opaque, int event)
 {
-    if (event == CHR_EVENT_OPENED) {
-        QObject *data;
-        Monitor *mon = opaque;
+    QObject *data;
+    Monitor *mon = opaque;
 
+    switch (event) {
+    case CHR_EVENT_OPENED:
         mon->mc->command_mode = 0;
         json_message_parser_init(&mon->mc->parser, handle_qmp_command);
-
         data = get_qmp_greeting();
-        assert(data != NULL);
-
         monitor_json_emitter(mon, data);
         qobject_decref(data);
+        break;
+    case CHR_EVENT_CLOSED:
+        json_message_parser_destroy(&mon->mc->parser);
+        break;
     }
 }
 
@@ -4633,8 +4632,13 @@ void qemu_error_internal(const char *file, int linenr, const char *func,
         QDECREF(qerror);
         break;
     case ERR_SINK_MONITOR:
-        assert(qemu_error_sink->mon->error == NULL);
-        qemu_error_sink->mon->error = qerror;
+        /* report only the first error */
+        if (!qemu_error_sink->mon->error) {
+            qemu_error_sink->mon->error = qerror;
+        } else {
+            /* XXX: warn the programmer */
+            QDECREF(qerror);
+        }
         break;
     }
 }

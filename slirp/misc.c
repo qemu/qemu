@@ -179,7 +179,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		   close(s);
 
 		i = 0;
-		bptr = strdup(ex); /* No need to free() this */
+		bptr = qemu_strdup(ex); /* No need to free() this */
 		if (do_pty == 1) {
 			/* Setup "slirp.telnetd -x" */
 			argv[i++] = "slirp.telnetd";
