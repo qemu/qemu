@@ -1210,15 +1210,22 @@ void net_set_boot_mask(int net_boot_mask)
 void do_info_network(Monitor *mon)
 {
     VLANState *vlan;
+    VLANClientState *vc;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
-        VLANClientState *vc;
-
         monitor_printf(mon, "VLAN %d devices:\n", vlan->id);
 
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             monitor_printf(mon, "  %s: %s\n", vc->name, vc->info_str);
         }
+    }
+    monitor_printf(mon, "Devices not on any VLAN:\n");
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        monitor_printf(mon, "  %s: %s", vc->name, vc->info_str);
+        if (vc->peer) {
+            monitor_printf(mon, " peer=%s", vc->peer->name);
+        }
+        monitor_printf(mon, "\n");
     }
 }
 
