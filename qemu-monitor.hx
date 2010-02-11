@@ -720,7 +720,7 @@ ETEXI
         .params     = "addr size file",
         .help       = "save to disk physical memory dump starting at 'addr' of size 'size'",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_physical_memory_save,
+        .cmd_new_ret = do_physical_memory_save,
     },
 
 STEXI

@@ -1466,7 +1466,7 @@ exit:
     return ret;
 }
 
-static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
+static int do_physical_memory_save(Monitor *mon, const QDict *qdict,
                                     QObject **ret_data)
 {
     FILE *f;
@@ -1475,11 +1475,12 @@ static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
     uint32_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     target_phys_addr_t addr = qdict_get_int(qdict, "val");
+    int ret = -1;
 
     f = fopen(filename, "wb");
     if (!f) {
         qemu_error_new(QERR_OPEN_FILE_FAILED, filename);
-        return;
+        return -1;
     }
     while (size != 0) {
         l = sizeof(buf);
@@ -1494,8 +1495,12 @@ static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
         addr += l;
         size -= l;
     }
+
+    ret = 0;
+
 exit:
     fclose(f);
+    return ret;
 }
 
 static void do_sum(Monitor *mon, const QDict *qdict)
