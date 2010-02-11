@@ -194,6 +194,12 @@ static inline int monitor_ctrl_mode(const Monitor *mon)
     return (mon->flags & MONITOR_USE_CONTROL);
 }
 
+/* Return non-zero iff we have a current monitor, and it is in QMP mode.  */
+int monitor_cur_is_qmp(void)
+{
+    return cur_mon && monitor_ctrl_mode(cur_mon);
+}
+
 static void monitor_read_command(Monitor *mon, int show_prompt)
 {
     if (!mon->rs)
