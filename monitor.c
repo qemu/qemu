@@ -2447,7 +2447,7 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-static void do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
@@ -2461,10 +2461,11 @@ static void do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
         close(monfd->fd);
         qemu_free(monfd->name);
         qemu_free(monfd);
-        return;
+        return 0;
     }
 
     qemu_error_new(QERR_FD_NOT_FOUND, fdname);
+    return -1;
 }
 
 static void do_loadvm(Monitor *mon, const QDict *qdict)

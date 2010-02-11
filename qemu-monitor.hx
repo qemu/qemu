@@ -1100,7 +1100,7 @@ ETEXI
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_closefd,
+        .cmd_new_ret = do_closefd,
     },
 
 STEXI
