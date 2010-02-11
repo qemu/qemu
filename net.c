@@ -1275,7 +1275,7 @@ void net_cleanup(void)
     }
 }
 
-static void net_check_clients(void)
+void net_check_clients(void)
 {
     VLANState *vlan;
 
@@ -1322,8 +1322,6 @@ int net_init_clients(void)
     if (qemu_opts_foreach(&qemu_net_opts, net_init_client, NULL, 1) == -1) {
         return -1;
     }
-
-    net_check_clients();
 
     return 0;
 }
