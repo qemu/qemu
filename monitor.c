@@ -2403,7 +2403,7 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     mon_fd_t *monfd;
@@ -2412,12 +2412,12 @@ static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     fd = qemu_chr_get_msgfd(mon->chr);
     if (fd == -1) {
         qemu_error_new(QERR_FD_NOT_SUPPLIED);
-        return;
+        return -1;
     }
 
     if (qemu_isdigit(fdname[0])) {
         qemu_error_new(QERR_INVALID_PARAMETER, "fdname");
-        return;
+        return -1;
     }
 
     fd = dup(fd);
@@ -2426,7 +2426,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
             qemu_error_new(QERR_TOO_MANY_FILES);
         else
             qemu_error_new(QERR_UNDEFINED_ERROR);
-        return;
+        return -1;
     }
 
     QLIST_FOREACH(monfd, &mon->fds, next) {
@@ -2436,7 +2436,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
         close(monfd->fd);
         monfd->fd = fd;
-        return;
+        return 0;
     }
 
     monfd = qemu_mallocz(sizeof(mon_fd_t));
@@ -2444,6 +2444,7 @@ static void do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     monfd->fd = fd;
 
     QLIST_INSERT_HEAD(&mon->fds, monfd, next);
+    return 0;
 }
 
 static void do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)

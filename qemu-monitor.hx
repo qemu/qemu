@@ -1083,7 +1083,7 @@ ETEXI
         .params     = "getfd name",
         .help       = "receive a file descriptor via SCM rights and assign it a name",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_getfd,
+        .cmd_new_ret = do_getfd,
     },
 
 STEXI
