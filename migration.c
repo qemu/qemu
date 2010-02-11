@@ -98,15 +98,17 @@ void do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 }
 
-void do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
+int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = current_migration;
 
     if (s)
         s->cancel(s);
+
+    return 0;
 }
 
-void do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
+int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     double d;
     FdMigrationState *s;
@@ -119,6 +121,8 @@ void do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (s && s->file) {
         qemu_file_set_rate_limit(s->file, max_throttle);
     }
+
+    return 0;
 }
 
 /* amount of nanoseconds we are willing to wait for migration to be down.
@@ -132,14 +136,16 @@ uint64_t migrate_max_downtime(void)
     return max_downtime;
 }
 
-void do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
-                             QObject **ret_data)
+int do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
+                            QObject **ret_data)
 {
     double d;
 
     d = qdict_get_double(qdict, "value") * 1e9;
     d = MAX(0, MIN(UINT64_MAX, d));
     max_downtime = (uint64_t)d;
+
+    return 0;
 }
 
 static void migrate_print_status(Monitor *mon, const char *name,

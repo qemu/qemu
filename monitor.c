@@ -417,13 +417,15 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     QDECREF(qmp);
 }
 
-static void do_qmp_capabilities(Monitor *mon, const QDict *params,
-                                QObject **ret_data)
+static int do_qmp_capabilities(Monitor *mon, const QDict *params,
+                               QObject **ret_data)
 {
     /* Will setup QMP capabilities in the future */
     if (monitor_ctrl_mode(mon)) {
         mon->mc->command_mode = 1;
     }
+
+    return 0;
 }
 
 static int compare_cmd(const char *name, const char *list)
@@ -962,9 +964,10 @@ static void do_info_cpu_stats(Monitor *mon)
 /**
  * do_quit(): Quit QEMU execution
  */
-static void do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     exit(0);
+    return 0;
 }
 
 static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
@@ -1129,9 +1132,10 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
 /**
  * do_stop(): Stop VM execution
  */
-static void do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     vm_stop(EXCP_INTERRUPT);
+    return 0;
 }
 
 static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs);
@@ -1829,19 +1833,21 @@ static void do_boot_set(Monitor *mon, const QDict *qdict)
 /**
  * do_system_reset(): Issue a machine reset
  */
-static void do_system_reset(Monitor *mon, const QDict *qdict,
-                            QObject **ret_data)
+static int do_system_reset(Monitor *mon, const QDict *qdict,
+                           QObject **ret_data)
 {
     qemu_system_reset_request();
+    return 0;
 }
 
 /**
  * do_system_powerdown(): Issue a machine powerdown
  */
-static void do_system_powerdown(Monitor *mon, const QDict *qdict,
-                                QObject **ret_data)
+static int do_system_powerdown(Monitor *mon, const QDict *qdict,
+                               QObject **ret_data)
 {
     qemu_system_powerdown_request();
+    return 0;
 }
 
 #if defined(TARGET_I386)
