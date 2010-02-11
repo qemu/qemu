@@ -1428,7 +1428,7 @@ static void do_print(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "\n");
 }
 
-static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     FILE *f;
     uint32_t size = qdict_get_int(qdict, "size");
@@ -1437,13 +1437,14 @@ static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
     uint32_t l;
     CPUState *env;
     uint8_t buf[1024];
+    int ret = -1;
 
     env = mon_get_cpu();
 
     f = fopen(filename, "wb");
     if (!f) {
         qemu_error_new(QERR_OPEN_FILE_FAILED, filename);
-        return;
+        return -1;
     }
     while (size != 0) {
         l = sizeof(buf);
@@ -1457,8 +1458,12 @@ static void do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
         addr += l;
         size -= l;
     }
+
+    ret = 0;
+
 exit:
     fclose(f);
+    return ret;
 }
 
 static void do_physical_memory_save(Monitor *mon, const QDict *qdict,
