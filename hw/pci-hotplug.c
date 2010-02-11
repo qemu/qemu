@@ -296,26 +296,26 @@ int pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 }
 #endif
 
-void pci_device_hot_remove(Monitor *mon, const char *pci_addr)
+int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
 {
     PCIDevice *d;
     int dom, bus;
     unsigned slot;
 
     if (pci_read_devaddr(mon, pci_addr, &dom, &bus, &slot)) {
-        return;
+        return -1;
     }
 
     d = pci_find_device(pci_find_root_bus(0), bus, slot, 0);
     if (!d) {
         monitor_printf(mon, "slot %d empty\n", slot);
-        return;
+        return -1;
     }
-    qdev_unplug(&d->qdev);
+    return qdev_unplug(&d->qdev);
 }
 
-void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict,
-                              QObject **ret_data)
+int do_pci_device_hot_remove(Monitor *mon, const QDict *qdict,
+                             QObject **ret_data)
 {
-    pci_device_hot_remove(mon, qdict_get_str(qdict, "pci_addr"));
+    return pci_device_hot_remove(mon, qdict_get_str(qdict, "pci_addr"));
 }
