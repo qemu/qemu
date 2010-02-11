@@ -5969,6 +5969,8 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(&qemu_device_opts, device_init_func, NULL, 1) != 0)
         exit(1);
 
+    net_check_clients();
+
     if (!display_state)
         dumb_display_init();
     /* just use the first displaystate for the moment */
