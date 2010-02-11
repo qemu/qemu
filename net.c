@@ -1300,6 +1300,13 @@ void net_check_clients(void)
                     "Warning: vlan %d is not connected to host network\n",
                     vlan->id);
     }
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (!vc->peer) {
+            fprintf(stderr, "Warning: %s %s has no peer\n",
+                    vc->info->type == NET_CLIENT_TYPE_NIC ? "nic" : "netdev",
+                    vc->name);
+        }
+    }
 }
 
 static int net_init_client(QemuOpts *opts, void *dummy)
