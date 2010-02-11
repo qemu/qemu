@@ -1243,6 +1243,7 @@ void do_set_link(Monitor *mon, const QDict *qdict)
             }
         }
     }
+    vc = qemu_find_netdev(name);
 done:
 
     if (!vc) {
