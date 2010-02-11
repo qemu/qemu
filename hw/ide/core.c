@@ -2640,6 +2640,7 @@ void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
         s->unit = i;
         s->drive_serial = drive_serial++;
         s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
+        s->io_buffer_total_len = IDE_DMA_BUF_SECTORS*512 + 4;
         s->smart_selftest_data = qemu_blockalign(s->bs, 512);
         s->sector_write_timer = qemu_new_timer(vm_clock,
                                                ide_sector_write_timer_cb, s);
@@ -2674,6 +2675,25 @@ static bool is_identify_set(void *opaque, int version_id)
     return s->identify_set != 0;
 }
 
+static EndTransferFunc* transfer_end_table[] = {
+        ide_sector_read,
+        ide_sector_write,
+        ide_transfer_stop,
+        ide_atapi_cmd_reply_end,
+        ide_atapi_cmd,
+};
+
+static int transfer_end_table_idx(EndTransferFunc *fn)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(transfer_end_table); i++)
+        if (transfer_end_table[i] == fn)
+            return i;
+
+    return -1;
+}
+
 static int ide_drive_post_load(void *opaque, int version_id)
 {
     IDEState *s = opaque;
@@ -2684,14 +2704,42 @@ static int ide_drive_post_load(void *opaque, int version_id)
             s->cdrom_changed = 1;
         }
     }
+
+    if (s->cur_io_buffer_len) {
+        s->end_transfer_func = transfer_end_table[s->end_transfer_fn_idx];
+        s->data_ptr = s->io_buffer + s->cur_io_buffer_offset;
+        s->data_end = s->data_ptr + s->cur_io_buffer_len;
+    }
+        
     return 0;
+}
+
+static void ide_drive_pre_save(void *opaque)
+{
+    IDEState *s = opaque;
+
+    s->cur_io_buffer_len = 0;
+
+    if (!(s->status & DRQ_STAT))
+        return;
+
+    s->cur_io_buffer_offset = s->data_ptr - s->io_buffer;
+    s->cur_io_buffer_len = s->data_end - s->data_ptr;
+
+    s->end_transfer_fn_idx = transfer_end_table_idx(s->end_transfer_func);
+    if (s->end_transfer_fn_idx == -1) {
+        fprintf(stderr, "%s: invalid end_transfer_func for DRQ_STAT\n",
+                        __func__);
+        s->end_transfer_fn_idx = 2;
+    }
 }
 
 const VMStateDescription vmstate_ide_drive = {
     .name = "ide_drive",
-    .version_id = 3,
+    .version_id = 4,
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
+    .pre_save = ide_drive_pre_save,
     .post_load = ide_drive_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_INT32(mult_sectors, IDEState),
@@ -2714,7 +2762,14 @@ const VMStateDescription vmstate_ide_drive = {
         VMSTATE_UINT8(sense_key, IDEState),
         VMSTATE_UINT8(asc, IDEState),
         VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
-        /* XXX: if a transfer is pending, we do not save it yet */
+        VMSTATE_INT32_V(req_nb_sectors, IDEState, 4),
+        VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 4,
+			     vmstate_info_uint8, uint8_t),
+        VMSTATE_INT32_V(cur_io_buffer_offset, IDEState, 4),
+        VMSTATE_INT32_V(cur_io_buffer_len, IDEState, 4),
+        VMSTATE_UINT8_V(end_transfer_fn_idx, IDEState, 4),
+        VMSTATE_INT32_V(elementary_transfer_size, IDEState, 4),
+        VMSTATE_INT32_V(packet_transfer_size, IDEState, 4),
         VMSTATE_END_OF_LIST()
     }
 };
