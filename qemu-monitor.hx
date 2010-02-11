@@ -43,7 +43,7 @@ ETEXI
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_info,
+        .mhandler.cmd_new = do_info,
     },
 
 STEXI
@@ -123,7 +123,7 @@ ETEXI
         .params     = "",
         .help       = "quit the emulator",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_quit,
+        .mhandler.cmd_new = do_quit,
     },
 
 STEXI
@@ -138,7 +138,7 @@ ETEXI
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_eject,
+        .mhandler.cmd_new = do_eject,
     },
 
 STEXI
@@ -153,7 +153,7 @@ ETEXI
         .params     = "device filename [format]",
         .help       = "change a removable medium, optional format",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_change,
+        .mhandler.cmd_new = do_change,
     },
 
 STEXI
@@ -303,7 +303,7 @@ ETEXI
         .params     = "",
         .help       = "stop emulation",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_stop,
+        .mhandler.cmd_new = do_stop,
     },
 
 STEXI
@@ -318,7 +318,7 @@ ETEXI
         .params     = "",
         .help       = "resume emulation",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_cont,
+        .mhandler.cmd_new = do_cont,
     },
 
 STEXI
@@ -494,7 +494,7 @@ ETEXI
         .params     = "",
         .help       = "reset the system",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_system_reset,
+        .mhandler.cmd_new = do_system_reset,
     },
 
 STEXI
@@ -510,7 +510,7 @@ ETEXI
         .params     = "",
         .help       = "send system power down event",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_system_powerdown,
+        .mhandler.cmd_new = do_system_powerdown,
     },
 
 STEXI
@@ -604,7 +604,7 @@ ETEXI
         .params     = "index",
         .help       = "set the default CPU",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_cpu_set,
+        .mhandler.cmd_new = do_cpu_set,
     },
 
 STEXI
@@ -705,7 +705,7 @@ ETEXI
         .params     = "addr size file",
         .help       = "save to disk virtual memory dump starting at 'addr' of size 'size'",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_memory_save,
+        .mhandler.cmd_new = do_memory_save,
     },
 
 STEXI
@@ -720,7 +720,7 @@ ETEXI
         .params     = "addr size file",
         .help       = "save to disk physical memory dump starting at 'addr' of size 'size'",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_physical_memory_save,
+        .mhandler.cmd_new = do_physical_memory_save,
     },
 
 STEXI
@@ -773,7 +773,7 @@ ETEXI
 		      "shared storage with incremental copy of disk "
 		      "(base image shared between src and destination)",
         .user_print = monitor_user_noop,	
-	.cmd_new_ret = do_migrate,
+	.mhandler.cmd_new = do_migrate,
     },
 
 
@@ -791,7 +791,7 @@ ETEXI
         .params     = "",
         .help       = "cancel the current VM migration",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_migrate_cancel,
+        .mhandler.cmd_new = do_migrate_cancel,
     },
 
 STEXI
@@ -806,7 +806,7 @@ ETEXI
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_migrate_set_speed,
+        .mhandler.cmd_new = do_migrate_set_speed,
     },
 
 STEXI
@@ -821,7 +821,7 @@ ETEXI
         .params     = "value",
         .help       = "set maximum tolerated downtime (in seconds) for migrations",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_migrate_set_downtime,
+        .mhandler.cmd_new = do_migrate_set_downtime,
     },
 
 STEXI
@@ -857,7 +857,7 @@ ETEXI
         .params     = "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...",
         .help       = "hot-add PCI device",
         .user_print = pci_device_hot_add_print,
-        .cmd_new_ret = pci_device_hot_add,
+        .mhandler.cmd_new = pci_device_hot_add,
     },
 #endif
 
@@ -874,7 +874,7 @@ ETEXI
         .params     = "[[<domain>:]<bus>:]<slot>",
         .help       = "hot remove PCI device",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_pci_device_hot_remove,
+        .mhandler.cmd_new = do_pci_device_hot_remove,
     },
 #endif
 
@@ -1083,7 +1083,7 @@ ETEXI
         .params     = "getfd name",
         .help       = "receive a file descriptor via SCM rights and assign it a name",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_getfd,
+        .mhandler.cmd_new = do_getfd,
     },
 
 STEXI
@@ -1100,7 +1100,7 @@ ETEXI
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_closefd,
+        .mhandler.cmd_new = do_closefd,
     },
 
 STEXI
@@ -1117,7 +1117,7 @@ ETEXI
         .params     = "block_passwd device password",
         .help       = "set the password of encrypted block devices",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_block_set_passwd,
+        .mhandler.cmd_new = do_block_set_passwd,
     },
 
 STEXI
@@ -1132,7 +1132,7 @@ ETEXI
         .params     = "",
         .help       = "enable QMP capabilities",
         .user_print = monitor_user_noop,
-        .cmd_new_ret = do_qmp_capabilities,
+        .mhandler.cmd_new = do_qmp_capabilities,
     },
 
 STEXI

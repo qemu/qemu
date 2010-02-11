@@ -98,13 +98,12 @@ typedef struct mon_cmd_t {
     const char *params;
     const char *help;
     void (*user_print)(Monitor *mon, const QObject *data);
-    int (*cmd_new_ret)(Monitor *mon, const QDict *params, QObject **ret_data);
     union {
         void (*info)(Monitor *mon);
         void (*info_new)(Monitor *mon, QObject **ret_data);
         int  (*info_async)(Monitor *mon, MonitorCompletion *cb, void *opaque);
         void (*cmd)(Monitor *mon, const QDict *qdict);
-        void (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
+        int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
         int  (*cmd_async)(Monitor *mon, const QDict *params,
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
@@ -3846,11 +3845,7 @@ static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
 {
     QObject *data = NULL;
 
-    if (cmd->cmd_new_ret) {
-        cmd->cmd_new_ret(mon, params, &data);
-    } else {
-        cmd->mhandler.cmd_new(mon, params, &data);
-    }
+    cmd->mhandler.cmd_new(mon, params, &data);
 
     if (is_async_return(data)) {
         /*
