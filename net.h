@@ -76,7 +76,6 @@ struct VLANState {
     int id;
     QTAILQ_HEAD(, VLANClientState) clients;
     QTAILQ_ENTRY(VLANState) next;
-    unsigned int nb_guest_devs, nb_host_devs;
     NetQueue *send_queue;
 };
 
