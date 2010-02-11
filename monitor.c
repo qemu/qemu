@@ -989,7 +989,7 @@ static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
     return 0;
 }
 
-static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     BlockDriverState *bs;
     int force = qdict_get_int(qdict, "force");
@@ -998,9 +998,9 @@ static void do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
     bs = bdrv_find(filename);
     if (!bs) {
         qemu_error_new(QERR_DEVICE_NOT_FOUND, filename);
-        return;
+        return -1;
     }
-    eject_device(mon, bs, force);
+    return eject_device(mon, bs, force);
 }
 
 static void do_block_set_passwd(Monitor *mon, const QDict *qdict,

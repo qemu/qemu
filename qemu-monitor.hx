@@ -138,7 +138,7 @@ ETEXI
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_eject,
+        .cmd_new_ret = do_eject,
     },
 
 STEXI
