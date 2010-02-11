@@ -266,6 +266,7 @@ linux_aio=""
 
 gprof="no"
 debug_tcg="no"
+debug_mon="no"
 debug="no"
 strip_opt="yes"
 bigendian="no"
@@ -514,9 +515,14 @@ for opt do
   ;;
   --disable-debug-tcg) debug_tcg="no"
   ;;
+  --enable-debug-mon) debug_mon="yes"
+  ;;
+  --disable-debug-mon) debug_mon="no"
+  ;;
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
+      debug_mon="yes"
       debug="yes"
       strip_opt="no"
   ;;
@@ -1918,6 +1924,7 @@ echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
 echo "tcg debug enabled $debug_tcg"
+echo "Mon debug enabled $debug_mon"
 echo "gprof enabled     $gprof"
 echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
@@ -1994,6 +2001,9 @@ esac
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
+fi
+if test "$debug_mon" = "yes" ; then
+  echo "CONFIG_DEBUG_MONITOR=y" >> $config_host_mak
 fi
 if test "$debug" = "yes" ; then
   echo "CONFIG_DEBUG_EXEC=y" >> $config_host_mak

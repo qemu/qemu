@@ -143,6 +143,14 @@ struct Monitor {
     QLIST_ENTRY(Monitor) entry;
 };
 
+#ifdef CONFIG_DEBUG_MONITOR
+#define MON_DEBUG(fmt, ...) do {    \
+    fprintf(stderr, "Monitor: ");       \
+    fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else /* !CONFIG_DEBUG_MONITOR */
+#define MON_DEBUG(fmt, ...) do { } while (0)
+#endif /* CONFIG_DEBUG_MONITOR */
+
 static QLIST_HEAD(mon_list, Monitor) mon_list;
 
 static const mon_cmd_t mon_cmds[];
