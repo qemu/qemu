@@ -163,7 +163,6 @@ extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
 int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev);
-void net_client_uninit(NICInfo *nd);
 int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
 void net_cleanup(void);

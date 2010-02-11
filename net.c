@@ -1128,20 +1128,6 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
     return -1;
 }
 
-void net_client_uninit(NICInfo *nd)
-{
-    if (nd->vlan) {
-        nd->vlan->nb_guest_devs--;
-    }
-    nb_nics--;
-
-    qemu_free(nd->model);
-    qemu_free(nd->name);
-    qemu_free(nd->devaddr);
-
-    nd->used = 0;
-}
-
 static int net_host_check_device(const char *device)
 {
     int i;
