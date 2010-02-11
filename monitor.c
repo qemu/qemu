@@ -3848,12 +3848,42 @@ static int is_async_return(const QObject *data)
     return 0;
 }
 
+static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
+{
+    if (ret && !monitor_has_error(mon)) {
+        /*
+         * If it returns failure, it must have passed on error.
+         *
+         * Action: Report an internal error to the client if in QMP.
+         */
+        if (monitor_ctrl_mode(mon)) {
+            qemu_error_new(QERR_UNDEFINED_ERROR);
+        }
+        MON_DEBUG("command '%s' returned failure but did not pass an error\n",
+                  cmd->name);
+    }
+
+#ifdef CONFIG_DEBUG_MONITOR
+    if (!ret && monitor_has_error(mon)) {
+        /*
+         * If it returns success, it must not have passed an error.
+         *
+         * Action: Report the passed error to the client.
+         */
+        MON_DEBUG("command '%s' returned success but passed an error\n",
+                  cmd->name);
+    }
+#endif
+}
+
 static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
                                  const QDict *params)
 {
+    int ret;
     QObject *data = NULL;
 
-    cmd->mhandler.cmd_new(mon, params, &data);
+    ret = cmd->mhandler.cmd_new(mon, params, &data);
+    handler_audit(mon, cmd, ret);
 
     if (is_async_return(data)) {
         /*
