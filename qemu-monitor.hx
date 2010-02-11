@@ -604,7 +604,7 @@ ETEXI
         .params     = "index",
         .help       = "set the default CPU",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_cpu_set,
+        .cmd_new_ret = do_cpu_set,
     },
 
 STEXI

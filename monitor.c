@@ -921,11 +921,14 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
     *ret_data = QOBJECT(cpu_list);
 }
 
-static void do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int index = qdict_get_int(qdict, "index");
-    if (mon_set_cpu(index) < 0)
+    if (mon_set_cpu(index) < 0) {
         qemu_error_new(QERR_INVALID_PARAMETER, "index");
+        return -1;
+    }
+    return 0;
 }
 
 static void do_info_jit(Monitor *mon)
