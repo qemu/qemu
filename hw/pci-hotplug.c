@@ -254,7 +254,7 @@ void pci_device_hot_add_print(Monitor *mon, const QObject *data)
  *
  * { "domain": 0, "bus": 0, "slot": 5, "function": 0 }
  */
-void pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
+int pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     PCIDevice *dev = NULL;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
@@ -273,20 +273,26 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (!strcmp(pci_addr, "auto"))
         pci_addr = NULL;
 
-    if (strcmp(type, "nic") == 0)
+    if (strcmp(type, "nic") == 0) {
         dev = qemu_pci_hot_add_nic(mon, pci_addr, opts);
-    else if (strcmp(type, "storage") == 0)
+    } else if (strcmp(type, "storage") == 0) {
         dev = qemu_pci_hot_add_storage(mon, pci_addr, opts);
-    else
+    } else {
         monitor_printf(mon, "invalid type: %s\n", type);
+        return -1;
+    }
 
     if (dev) {
         *ret_data =
         qobject_from_jsonf("{ 'domain': 0, 'bus': %d, 'slot': %d, "
                            "'function': %d }", pci_bus_num(dev->bus),
                            PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-    } else
+    } else {
         monitor_printf(mon, "failed to add %s\n", opts);
+        return -1;
+    }
+
+    return 0;
 }
 #endif
 
