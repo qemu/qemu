@@ -33,9 +33,9 @@ void monitor_init(CharDriverState *chr, int flags);
 int monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);
 
-void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
-                                 BlockDriverCompletionFunc *completion_cb,
-                                 void *opaque);
+int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
+                                BlockDriverCompletionFunc *completion_cb,
+                                void *opaque);
 
 int monitor_get_fd(Monitor *mon, const char *fdname);
 

@@ -1027,8 +1027,8 @@ static int do_block_set_passwd(Monitor *mon, const QDict *qdict,
     return 0;
 }
 
-static void do_change_block(Monitor *mon, const char *device,
-                            const char *filename, const char *fmt)
+static int do_change_block(Monitor *mon, const char *device,
+                           const char *filename, const char *fmt)
 {
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
@@ -1036,26 +1036,32 @@ static void do_change_block(Monitor *mon, const char *device,
     bs = bdrv_find(device);
     if (!bs) {
         qemu_error_new(QERR_DEVICE_NOT_FOUND, device);
-        return;
+        return -1;
     }
     if (fmt) {
         drv = bdrv_find_whitelisted_format(fmt);
         if (!drv) {
             qemu_error_new(QERR_INVALID_BLOCK_FORMAT, fmt);
-            return;
+            return -1;
         }
     }
-    if (eject_device(mon, bs, 0) < 0)
-        return;
-    bdrv_open2(bs, filename, BDRV_O_RDWR, drv);
-    monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
+    if (eject_device(mon, bs, 0) < 0) {
+        return -1;
+    }
+    if (bdrv_open2(bs, filename, BDRV_O_RDWR, drv) < 0) {
+        return -1;
+    }
+    return monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
 }
 
-static void change_vnc_password(const char *password)
+static int change_vnc_password(const char *password)
 {
-    if (vnc_display_password(NULL, password) < 0)
+    if (vnc_display_password(NULL, password) < 0) {
         qemu_error_new(QERR_SET_PASSWD_FAILED);
+        return -1;
+    }
 
+    return 0;
 }
 
 static void change_vnc_password_cb(Monitor *mon, const char *password,
@@ -1065,7 +1071,7 @@ static void change_vnc_password_cb(Monitor *mon, const char *password,
     monitor_read_command(mon, 1);
 }
 
-static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
+static int do_change_vnc(Monitor *mon, const char *target, const char *arg)
 {
     if (strcmp(target, "passwd") == 0 ||
         strcmp(target, "password") == 0) {
@@ -1073,29 +1079,37 @@ static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
             char password[9];
             strncpy(password, arg, sizeof(password));
             password[sizeof(password) - 1] = '\0';
-            change_vnc_password(password);
+            return change_vnc_password(password);
         } else {
-            monitor_read_password(mon, change_vnc_password_cb, NULL);
+            return monitor_read_password(mon, change_vnc_password_cb, NULL);
         }
     } else {
-        if (vnc_display_open(NULL, target) < 0)
+        if (vnc_display_open(NULL, target) < 0) {
             qemu_error_new(QERR_VNC_SERVER_FAILED, target);
+            return -1;
+        }
     }
+
+    return 0;
 }
 
 /**
  * do_change(): Change a removable medium, or VNC configuration
  */
-static void do_change(Monitor *mon, const QDict *qdict, QObject **ret_data)
+static int do_change(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *target = qdict_get_str(qdict, "target");
     const char *arg = qdict_get_try_str(qdict, "arg");
+    int ret;
+
     if (strcmp(device, "vnc") == 0) {
-        do_change_vnc(mon, target, arg);
+        ret = do_change_vnc(mon, target, arg);
     } else {
-        do_change_block(mon, device, target, arg);
+        ret = do_change_block(mon, device, target, arg);
     }
+
+    return ret;
 }
 
 static void do_screen_dump(Monitor *mon, const QDict *qdict)
@@ -4554,21 +4568,21 @@ static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
     monitor_read_command(mon, 1);
 }
 
-void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
-                                 BlockDriverCompletionFunc *completion_cb,
-                                 void *opaque)
+int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
+                                BlockDriverCompletionFunc *completion_cb,
+                                void *opaque)
 {
     int err;
 
     if (!bdrv_key_required(bs)) {
         if (completion_cb)
             completion_cb(opaque, 0);
-        return;
+        return 0;
     }
 
     if (monitor_ctrl_mode(mon)) {
         qemu_error_new(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
-        return;
+        return -1;
     }
 
     monitor_printf(mon, "%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
@@ -4581,6 +4595,8 @@ void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
 
     if (err && completion_cb)
         completion_cb(opaque, err);
+
+    return err;
 }
 
 typedef struct QemuErrorSink QemuErrorSink;
