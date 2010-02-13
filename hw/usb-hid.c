@@ -66,6 +66,7 @@ typedef struct USBHIDState {
     int kind;
     int protocol;
     uint8_t idle;
+    int64_t next_idle_clock;
     int changed;
     void *datain_opaque;
     void (*datain)(void *);
@@ -630,6 +631,11 @@ static void usb_keyboard_handle_reset(USBDevice *dev)
     s->protocol = 1;
 }
 
+static void usb_hid_set_next_idle(USBHIDState *s, int64_t curtime)
+{
+    s->next_idle_clock = curtime + (get_ticks_per_sec() * s->idle * 4) / 1000;
+}
+
 static int usb_hid_handle_control(USBDevice *dev, int request, int value,
                                   int index, int length, uint8_t *data)
 {
@@ -795,6 +801,7 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
         break;
     case SET_IDLE:
         s->idle = (uint8_t) (value >> 8);
+        usb_hid_set_next_idle(s, qemu_get_clock(vm_clock));
         ret = 0;
         break;
     default:
@@ -813,9 +820,10 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     switch(p->pid) {
     case USB_TOKEN_IN:
         if (p->devep == 1) {
-            /* TODO: Implement finite idle delays.  */
-            if (!(s->changed || s->idle))
+            int64_t curtime = qemu_get_clock(vm_clock);
+            if (!s->changed && (!s->idle || s->next_idle_clock - curtime > 0))
                 return USB_RET_NAK;
+            usb_hid_set_next_idle(s, curtime);
             s->changed = 0;
             if (s->kind == USB_MOUSE)
                 ret = usb_mouse_poll(s, p->data, p->len);
