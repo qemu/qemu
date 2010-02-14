@@ -2018,7 +2018,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     s->statistics.rx_good_frames++;
     eepro100_fr_interrupt(s);
     s->ru_offset = le32_to_cpu(rx.link);
-    if (rfd_command & 0x8000) {
+    if (rfd_command & COMMAND_EL) {
         /* EL bit is set, so this was the last frame. */
         set_ru_state(s, ru_idle);
 #if 0
@@ -2026,7 +2026,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         set_ru_state(s, ru_suspended);
 #endif
     }
-    if (rfd_command & 0x4000) {
+    if (rfd_command & COMMAND_S) {
         /* S bit is set. */
         set_ru_state(s, ru_suspended);
     }
