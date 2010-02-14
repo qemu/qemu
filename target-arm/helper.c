@@ -824,11 +824,10 @@ void do_interrupt(CPUARMState *env)
     env->spsr = cpsr_read(env);
     /* Clear IT bits.  */
     env->condexec_bits = 0;
-    /* Switch to the new mode, and switch to Arm mode.  */
-    /* ??? Thumb interrupt handlers not implemented.  */
+    /* Switch to the new mode, and to the correct instruction set.  */
     env->uncached_cpsr = (env->uncached_cpsr & ~CPSR_M) | new_mode;
     env->uncached_cpsr |= mask;
-    env->thumb = 0;
+    env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
