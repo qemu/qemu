@@ -130,6 +130,8 @@ struct BlockDriverState {
     int64_t total_sectors; /* if we are reading a disk image, give its
                               size in sectors */
     int read_only; /* if true, the media is read only */
+    int keep_read_only; /* if true, the media was requested to stay read only */
+    int open_flags; /* flags used to open the file, re-used for re-open */
     int removable; /* if true, the media can be removed */
     int locked;    /* if true, the media cannot temporarily be ejected */
     int encrypted; /* if true, the media is encrypted */
