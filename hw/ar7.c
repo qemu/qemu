@@ -24,12 +24,14 @@
  * - TNETD7100 (not supported)
  * - TNETD7200 (just started, very incomplete)
  * - TNETD7300 (best emulation)
+ * Maybe support for Titan can be added, too.
  *
  * TODO:
  * - Add save, load support.
  * - ldl_phys, stl_phys wrong for big endian AR7
  * - TNETD7100 emulation is missing
  * - TNETD7200 emulation is very incomplete
+ * - Support Titan.
  * - reboot loops endless reading device config latch (AVALANCHE_DCL_BASE)
  * - uart0, uart1 wrong type (is 16450, should be 16550). Fixed in latest QEMU?
  * - vlynq emulation only very rudimentary
@@ -80,6 +82,10 @@
 #include "hw/vlynq.h"           /* vlynq_create_bus */
 
 #include "target-mips/cpu.h"    /* do_interrupt */
+
+#if 0 /* Support Titan SoC. */
+#define CONFIG_TITAN
+#endif
 
 #define MIPS_EXCEPTION_OFFSET   8
 #define NUM_PRIMARY_IRQS        40
@@ -173,9 +179,31 @@ static struct _loaderparams {
 #define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
 #endif
 
+/* Chip variants. */
+
+#define AR7_CHIP_7100  0x18
+#define AR7_CHIP_7200  0x2b
+#define AR7_CHIP_7300  0x05
+#define AR7_CHIP_TITAN 0x07
+
+#define TITAN_CHIP_1050        0x0f
+#define TITAN_CHIP_1055        0x0e
+#define TITAN_CHIP_1056        0x0d
+#define TITAN_CHIP_1060        0x07
+
+#if defined(CONFIG_TITAN)
+#define AR7_CHIP_DEFAULT        0       /* TODO: check value */
+#define TITAN_CHIP_DEFAULT      TITAN_CHIP_1060
+#else
+#define AR7_CHIP_DEFAULT        AR7_CHIP_7300
+#define TITAN_CHIP_DEFAULT      0xffffffff
+#endif /* CONFIG_TITAN */
+
+#if 0
 #define OHIO_ADSLSS_BASE0       KERNEL_ADDR(0x01000000)
 #define OHIO_ADSLSS_BASE1       KERNEL_ADDR(0x01800000)
 #define OHIO_ADSLSS_BASE2       KERNEL_ADDR(0x01C00000)
+#endif
 
 /*
 Physical memory map
@@ -306,7 +334,7 @@ typedef struct {
 
     uint8_t cpmac0[0x800];      // 0x08610000
     uint8_t emif[0x100];        // 0x08610800
-    uint8_t gpio[32];           // 0x08610900
+    uint8_t gpio[40];           /* 0x08610900 */
     //~ uint8_t gpio_dummy[4 * 0x38];
     uint8_t clock_control[0x100];       // 0x08610a00
     // 0x08610a80 struct _ohio_clock_pll
@@ -1932,7 +1960,8 @@ typedef enum {
     GPIO_CVR = 0x14,            /* chip version */
     GPIO_DIDR1 = 0x18,
     GPIO_DIDR2 = 0x1c,
-} gpio_t;
+    GPIO_TITAN = 0x24,          /* titan chip */
+} GpioOffset;
 
 static void ar7_led_display(unsigned led_index, int on)
 {
@@ -3598,12 +3627,10 @@ static void ar7_init(CPUState * env)
     //~ reg_write(av.gpio, GPIO_OUT, 0x00000000);
     reg_write(av.gpio, GPIO_DIR, 0xffffffff);
     reg_write(av.gpio, GPIO_ENABLE, 0xffffffff);
-#define AR7_CHIP_7100 0x18
-#define AR7_CHIP_7200 0x2b
-#define AR7_CHIP_7300 0x05
-    reg_write(av.gpio, GPIO_CVR, 0x00020005);
+    reg_write(av.gpio, GPIO_CVR, 0x00020000 + AR7_CHIP_DEFAULT);
     reg_write(av.gpio, GPIO_DIDR1, 0x7106150d);
     reg_write(av.gpio, GPIO_DIDR2, 0xf52ccccf);
+    reg_write(av.gpio, GPIO_TITAN, TITAN_CHIP_DEFAULT);
 
   //~ .mdio = {0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
 #if defined(CONFIG_AR7_EMAC)
