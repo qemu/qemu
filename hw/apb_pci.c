@@ -359,9 +359,14 @@ static void apb_pci_bridge_init(PCIBus *b)
      *   (which is true) and thus it should be PCI_COMMAND_MEMORY.
      */
     pci_set_word(dev->config + PCI_COMMAND,
-                 PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-    dev->config[PCI_LATENCY_TIMER] = 0x10;
-    dev->config[PCI_HEADER_TYPE] |= PCI_HEADER_TYPE_MULTI_FUNCTION;
+                 PCI_COMMAND_MEMORY);
+    pci_set_word(dev->config + PCI_STATUS,
+                 PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
+                 PCI_STATUS_DEVSEL_MEDIUM);
+    pci_set_byte(dev->config + PCI_REVISION_ID, 0x11);
+    pci_set_byte(dev->config + PCI_HEADER_TYPE,
+                 pci_get_byte(dev->config + PCI_HEADER_TYPE) |
+                 PCI_HEADER_TYPE_MULTI_FUNCTION);
 }
 
 PCIBus *pci_apb_init(target_phys_addr_t special_base,
@@ -463,15 +468,14 @@ static int pbm_pci_host_init(PCIDevice *d)
 {
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_SUN);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_SUN_SABRE);
-    d->config[0x04] = 0x06; // command = bus master, pci mem
-    d->config[0x05] = 0x00;
-    d->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
-    d->config[0x07] = 0x03; // status = medium devsel
-    d->config[0x08] = 0x00; // revision
-    d->config[0x09] = 0x00; // programming i/f
+    pci_set_word(d->config + PCI_COMMAND,
+                 PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+    pci_set_word(d->config + PCI_STATUS,
+                 PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
+                 PCI_STATUS_DEVSEL_MEDIUM);
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
-    d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
+    pci_set_byte(d->config + PCI_HEADER_TYPE,
+                 PCI_HEADER_TYPE_NORMAL);
     return 0;
 }
 
