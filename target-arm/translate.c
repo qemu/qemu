@@ -8898,7 +8898,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                     shift = CPSR_A | CPSR_I | CPSR_F;
                 else
                     shift = 0;
-                gen_set_psr_im(s, shift, 0, ((insn & 7) << 6) & shift);
+                gen_set_psr_im(s, ((insn & 7) << 6), 0, shift);
             }
             break;
 
