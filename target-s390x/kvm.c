@@ -186,7 +186,7 @@ static void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
     }
 
     env->halted = 0;
-    env->exception_index = 0;
+    env->exception_index = -1;
 
     kvmint.type = type;
     kvmint.parm = parm;
@@ -325,7 +325,7 @@ static int s390_cpu_restart(CPUState *env)
 {
     kvm_s390_interrupt(env, KVM_S390_RESTART, 0);
     env->halted = 0;
-    env->exception_index = 0;
+    env->exception_index = -1;
     qemu_cpu_kick(env);
     dprintf("DONE: SIGP cpu restart: %p\n", env);
     return 0;

@@ -1273,7 +1273,7 @@ static QObject *pci_get_devices_list(PCIBus *bus, int bus_num);
 
 static QObject *pci_get_dev_dict(PCIDevice *dev, PCIBus *bus, int bus_num)
 {
-    int class;
+    uint8_t type;
     QObject *obj;
 
     obj = qobject_from_jsonf("{ 'bus': %d, 'slot': %d, 'function': %d,"                                       "'class_info': %p, 'id': %p, 'regions': %p,"
@@ -1289,8 +1289,8 @@ static QObject *pci_get_dev_dict(PCIDevice *dev, PCIBus *bus, int bus_num)
         qdict_put(qdict, "irq", qint_from_int(dev->config[PCI_INTERRUPT_LINE]));
     }
 
-    class = pci_get_word(dev->config + PCI_CLASS_DEVICE);
-    if (class == PCI_CLASS_BRIDGE_HOST || class == PCI_CLASS_BRIDGE_PCI) {
+    type = dev->config[PCI_HEADER_TYPE] & ~PCI_HEADER_TYPE_MULTI_FUNCTION;
+    if (type == PCI_HEADER_TYPE_BRIDGE) {
         QDict *qdict;
         QObject *pci_bridge;
 
@@ -1578,7 +1578,7 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
     /* try child bus */
     QLIST_FOREACH(sec, &bus->child, sibling) {
         if (!bus->parent_dev /* pci host bridge */
-            || (pci_bus_num(sec) >= bus_num &&
+            || (pci_bus_num(sec) <= bus_num &&
                 bus_num <= bus->parent_dev->config[PCI_SUBORDINATE_BUS]) ) {
             ret = pci_find_bus(sec, bus_num);
             if (ret) {

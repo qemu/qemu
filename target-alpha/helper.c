@@ -467,7 +467,7 @@ void do_interrupt (CPUState *env)
 
     env->ipr[IPR_EXC_ADDR] = env->pc | 1;
     excp = env->exception_index;
-    env->exception_index = 0;
+    env->exception_index = -1;
     env->error_code = 0;
     /* XXX: disable interrupts and memory mapping */
     if (env->ipr[IPR_PAL_BASE] != -1ULL) {
