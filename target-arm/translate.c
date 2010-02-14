@@ -8001,8 +8001,16 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         gen_bx(s, tmp);
                         break;
                     case 5: /* Exception return.  */
-                        /* Unpredictable in user mode.  */
-                        goto illegal_op;
+                        if (IS_USER(s)) {
+                            goto illegal_op;
+                        }
+                        if (rn != 14 || rd != 15) {
+                            goto illegal_op;
+                        }
+                        tmp = load_reg(s, rn);
+                        tcg_gen_subi_i32(tmp, tmp, insn & 0xff);
+                        gen_exception_return(s, tmp);
+                        break;
                     case 6: /* mrs cpsr.  */
                         tmp = new_tmp();
                         if (IS_M(env)) {
