@@ -49,6 +49,7 @@
 #define PR_WZ  4
 #define PR_EXS 5
 #define PR_EDA 6
+#define PR_PREFIX 6    /* On CRISv10 P6 is reserved, we use it as prefix.  */
 #define PR_MOF 7
 #define PR_DZ  8
 #define PR_EBP 9
@@ -62,6 +63,7 @@
 /* CPU flags.  */
 #define Q_FLAG 0x80000000
 #define M_FLAG 0x40000000
+#define PFIX_FLAG 0x800      /* CRISv10 Only.  */
 #define S_FLAG 0x200
 #define R_FLAG 0x100
 #define P_FLAG 0x80
@@ -121,6 +123,8 @@ typedef struct CPUCRISState {
 	/* X flag at the time of cc snapshot.  */
 	int cc_x;
 
+	/* CRIS has certain insns that lockout interrupts.  */
+	int locked_irq;
 	int interrupt_vector;
 	int fault_vector;
 	int trap_vector;
@@ -180,6 +184,7 @@ enum {
     CC_OP_MULS,
     CC_OP_MULU,
     CC_OP_DSTEP,
+    CC_OP_MSTEP,
     CC_OP_BOUND,
 
     CC_OP_OR,
@@ -253,7 +258,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *pc = env->pc;
     *cs_base = 0;
     *flags = env->dslot |
-            (env->pregs[PR_CCS] & (S_FLAG | P_FLAG | U_FLAG | X_FLAG));
+            (env->pregs[PR_CCS] & (S_FLAG | P_FLAG | U_FLAG
+				     | X_FLAG | PFIX_FLAG));
 }
 
 #endif
