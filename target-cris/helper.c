@@ -87,10 +87,10 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	if (miss)
 	{
 		if (env->exception_index == EXCP_BUSFAULT)
-			cpu_abort(env, 
+			cpu_abort(env,
 				  "CRIS: Illegal recursive bus fault."
-				  "addr=%x rw=%d\n",
-				  address, rw);
+				 "addr=%x rw=%d\n",
+				 address, rw);
 
 		env->pregs[PR_EDA] = address;
 		env->exception_index = EXCP_BUSFAULT;
@@ -116,9 +116,67 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	return r;
 }
 
+static void do_interruptv10(CPUState *env)
+{
+	int ex_vec = -1;
+
+	D_LOG( "exception index=%d interrupt_req=%d\n",
+		   env->exception_index,
+		   env->interrupt_request);
+
+	assert(!(env->pregs[PR_CCS] & PFIX_FLAG));
+	switch (env->exception_index)
+	{
+		case EXCP_BREAK:
+			/* These exceptions are genereated by the core itself.
+			   ERP should point to the insn following the brk.  */
+			ex_vec = env->trap_vector;
+			env->pregs[PR_ERP] = env->pc;
+			break;
+
+		case EXCP_NMI:
+			/* NMI is hardwired to vector zero.  */
+			ex_vec = 0;
+			env->pregs[PR_CCS] &= ~M_FLAG;
+			env->pregs[PR_NRP] = env->pc;
+			break;
+
+		case EXCP_BUSFAULT:
+			assert(0);
+			break;
+
+		default:
+			/* The interrupt controller gives us the vector.  */
+			ex_vec = env->interrupt_vector;
+			/* Normal interrupts are taken between
+			   TB's.  env->pc is valid here.  */
+			env->pregs[PR_ERP] = env->pc;
+			break;
+	}
+
+	if (env->pregs[PR_CCS] & U_FLAG) {
+		/* Swap stack pointers.  */
+		env->pregs[PR_USP] = env->regs[R_SP];
+		env->regs[R_SP] = env->ksp;
+	}
+
+	/* Now that we are in kernel mode, load the handlers address.  */
+	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+	env->locked_irq = 1;
+
+	qemu_log_mask(CPU_LOG_INT, "%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n", 
+		      __func__, env->pc, ex_vec, 
+		      env->pregs[PR_CCS],
+		      env->pregs[PR_PID], 
+		      env->pregs[PR_ERP]);
+}
+
 void do_interrupt(CPUState *env)
 {
 	int ex_vec = -1;
+
+	if (env->pregs[PR_VR] < 32)
+		return do_interruptv10(env);
 
 	D_LOG( "exception index=%d interrupt_req=%d\n",
 		   env->exception_index,
@@ -184,8 +242,8 @@ void do_interrupt(CPUState *env)
 	/* Now that we are in kernel mode, load the handlers address.  */
 	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
 
-	D_LOG("%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n", 
-		   __func__, env->pc, ex_vec, 
+	D_LOG("%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n",
+		   __func__, env->pc, ex_vec,
 		   env->pregs[PR_CCS],
 		   env->pregs[PR_PID], 
 		   env->pregs[PR_ERP]);

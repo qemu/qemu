@@ -497,7 +497,8 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HARD
-                        && (env->pregs[PR_CCS] & I_FLAG)) {
+                        && (env->pregs[PR_CCS] & I_FLAG)
+                        && !env->locked_irq) {
                         env->exception_index = EXCP_IRQ;
                         do_interrupt(env);
                         next_tb = 0;
