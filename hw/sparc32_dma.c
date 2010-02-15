@@ -3,6 +3,9 @@
  *
  * Copyright (c) 2006 Fabrice Bellard
  *
+ * Modifications:
+ *  2010-Feb-14 Artyom Tarasenko : reworked irq generation
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -125,13 +128,19 @@ static void dma_set_irq(void *opaque, int irq, int level)
 {
     DMAState *s = opaque;
     if (level) {
-        DPRINTF("Raise IRQ\n");
         s->dmaregs[0] |= DMA_INTR;
-        qemu_irq_raise(s->irq);
+        if (s->dmaregs[0] & DMA_INTREN) {
+            DPRINTF("Raise IRQ\n");
+            qemu_irq_raise(s->irq);
+        }
     } else {
-        s->dmaregs[0] &= ~DMA_INTR;
-        DPRINTF("Lower IRQ\n");
-        qemu_irq_lower(s->irq);
+        if (s->dmaregs[0] & DMA_INTR) {
+            s->dmaregs[0] &= ~DMA_INTR;
+            if (s->dmaregs[0] & DMA_INTREN) {
+                DPRINTF("Lower IRQ\n");
+                qemu_irq_lower(s->irq);
+            }
+        }
     }
 }
 
@@ -142,7 +151,6 @@ void espdma_memory_read(void *opaque, uint8_t *buf, int len)
     DPRINTF("DMA read, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
     sparc_iommu_memory_read(s->iommu, s->dmaregs[1], buf, len);
-    s->dmaregs[0] |= DMA_INTR;
     s->dmaregs[1] += len;
 }
 
@@ -153,7 +161,6 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
     DPRINTF("DMA write, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
     sparc_iommu_memory_write(s->iommu, s->dmaregs[1], buf, len);
-    s->dmaregs[0] |= DMA_INTR;
     s->dmaregs[1] += len;
 }
 
@@ -179,9 +186,16 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             s->dmaregs[saddr], val);
     switch (saddr) {
     case 0:
-        if (!(val & DMA_INTREN)) {
-            DPRINTF("Lower IRQ\n");
-            qemu_irq_lower(s->irq);
+        if (val & DMA_INTREN) {
+            if (val & DMA_INTR) {
+                DPRINTF("Raise IRQ\n");
+                qemu_irq_raise(s->irq);
+            }
+        } else {
+            if (s->dmaregs[0] & (DMA_INTR | DMA_INTREN)) {
+                DPRINTF("Lower IRQ\n");
+                qemu_irq_lower(s->irq);
+            }
         }
         if (val & DMA_RESET) {
             qemu_irq_raise(s->dev_reset);
