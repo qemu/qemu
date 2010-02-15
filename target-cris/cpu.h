@@ -262,4 +262,7 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 				     | X_FLAG | PFIX_FLAG));
 }
 
+#define cpu_list cris_cpu_list
+void cris_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+
 #endif
