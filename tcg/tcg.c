@@ -981,9 +981,16 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
         op = tdefs->op;
         assert(op >= 0 && op < NB_OPS);
         def = &tcg_op_defs[op];
+#if defined(CONFIG_DEBUG_TCG)
+        /* Duplicate entry in op definitions? */
+        assert(!def->used);
+        def->used = 1;
+#endif
         nb_args = def->nb_iargs + def->nb_oargs;
         for(i = 0; i < nb_args; i++) {
             ct_str = tdefs->args_ct_str[i];
+            /* Incomplete TCGTargetOpDef entry? */
+            assert(ct_str != NULL);
             tcg_regset_clear(def->args_ct[i].u.regs);
             def->args_ct[i].ct = 0;
             if (ct_str[0] >= '0' && ct_str[0] <= '9') {
@@ -1018,6 +1025,9 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
             }
         }
 
+        /* TCGTargetOpDef entry with too much information? */
+        assert(i == TCG_MAX_OP_ARGS || tdefs->args_ct_str[i] == NULL);
+
         /* sort the constraints (XXX: this is just an heuristic) */
         sort_constraints(def, 0, def->nb_oargs);
         sort_constraints(def, def->nb_oargs, def->nb_iargs);
@@ -1035,6 +1045,17 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
         tdefs++;
     }
 
+#if defined(CONFIG_DEBUG_TCG)
+    for (op = 0; op < ARRAY_SIZE(tcg_op_defs); op++) {
+        if (op < INDEX_op_call || op == INDEX_op_debug_insn_start) {
+            /* Wrong entry in op definitions? */
+            assert(!tcg_op_defs[op].used);
+        } else {
+            /* Missing entry in op definitions? */
+            assert(tcg_op_defs[op].used);
+        }
+    }
+#endif
 }
 
 #ifdef USE_LIVENESS_ANALYSIS
