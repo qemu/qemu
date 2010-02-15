@@ -1065,6 +1065,18 @@ static QEMUMachine pc_machine_v0_12 = {
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "virtio-serial-pci",
+            .property = "max_nr_ports",
+            .value    = stringify(1),
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "vectors",
+            .value    = stringify(0),
+        },
+        { /* end of list */ }
+    }
 };
 
 static QEMUMachine pc_machine_v0_11 = {
@@ -1075,6 +1087,14 @@ static QEMUMachine pc_machine_v0_11 = {
     .compat_props = (GlobalProperty[]) {
         {
             .driver   = "virtio-blk-pci",
+            .property = "vectors",
+            .value    = stringify(0),
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "max_nr_ports",
+            .value    = stringify(1),
+        },{
+            .driver   = "virtio-serial-pci",
             .property = "vectors",
             .value    = stringify(0),
         },{
@@ -1108,6 +1128,14 @@ static QEMUMachine pc_machine_v0_10 = {
             .driver   = "virtio-serial-pci",
             .property = "class",
             .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "max_nr_ports",
+            .value    = stringify(1),
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "vectors",
+            .value    = stringify(0),
         },{
             .driver   = "virtio-net-pci",
             .property = "vectors",
