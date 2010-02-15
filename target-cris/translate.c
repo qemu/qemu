@@ -1381,7 +1381,7 @@ static unsigned int dec_moveq(DisasContext *dc)
 	imm = sign_extend(dc->op1, 5);
 	LOG_DIS("moveq %d, $r%u\n", imm, dc->op2);
 
-	tcg_gen_mov_tl(cpu_R[dc->op2], tcg_const_tl(imm));
+	tcg_gen_movi_tl(cpu_R[dc->op2], imm);
 	return 2;
 }
 static unsigned int dec_subq(DisasContext *dc)
@@ -2723,7 +2723,7 @@ static unsigned int dec_lapc_im(DisasContext *dc)
 
 	pc = dc->pc;
 	pc += imm;
-	t_gen_mov_reg_TN(rd, tcg_const_tl(pc));
+	tcg_gen_movi_tl(cpu_R[rd], pc);
 	return 6;
 }
 
