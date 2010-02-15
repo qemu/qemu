@@ -59,6 +59,7 @@
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
+#define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 
 #define MAX_IDE_BUS 2
 
@@ -66,6 +67,21 @@ static FDCtrl *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
 static PCII440FXState *i440fx_state;
+
+#define E820_NR_ENTRIES		16
+
+struct e820_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+};
+
+struct e820_table {
+    uint32_t count;
+    struct e820_entry entry[E820_NR_ENTRIES];
+};
+
+static struct e820_table e820_table;
 
 typedef struct isa_irq_state {
     qemu_irq *i8259;
@@ -435,6 +451,23 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
+{
+    int index = e820_table.count;
+    struct e820_entry *entry;
+
+    if (index >= E820_NR_ENTRIES)
+        return -EBUSY;
+    entry = &e820_table.entry[index];
+
+    entry->address = address;
+    entry->length = length;
+    entry->type = type;
+
+    e820_table.count++;
+    return e820_table.count;
+}
+
 static void *bochs_bios_init(void)
 {
     void *fw_cfg;
@@ -466,6 +499,8 @@ static void *bochs_bios_init(void)
     if (smbios_table)
         fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
                          smbios_table, smbios_len);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE, (uint8_t *)&e820_table,
+                     sizeof(struct e820_table));
 
     /* allocate memory for the NUMA channel: one (64bit) word for the number
      * of nodes, one word for each VCPU->node and one word for each node to

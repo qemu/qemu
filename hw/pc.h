@@ -150,4 +150,14 @@ void isa_cirrus_vga_init(void);
 void isa_ne2000_init(int base, int irq, NICInfo *nd);
 
 int cpu_is_bsp(CPUState *env);
+
+/* e820 types */
+#define E820_RAM        1
+#define E820_RESERVED   2
+#define E820_ACPI       3
+#define E820_NVS        4
+#define E820_UNUSABLE   5
+
+int e820_add_entry(uint64_t, uint64_t, uint32_t);
+
 #endif
