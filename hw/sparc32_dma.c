@@ -142,7 +142,6 @@ void espdma_memory_read(void *opaque, uint8_t *buf, int len)
     DPRINTF("DMA read, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
     sparc_iommu_memory_read(s->iommu, s->dmaregs[1], buf, len);
-    DPRINTF("Raise IRQ\n");
     s->dmaregs[0] |= DMA_INTR;
     s->dmaregs[1] += len;
 }
@@ -154,7 +153,6 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
     DPRINTF("DMA write, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
     sparc_iommu_memory_write(s->iommu, s->dmaregs[1], buf, len);
-    DPRINTF("Raise IRQ\n");
     s->dmaregs[0] |= DMA_INTR;
     s->dmaregs[1] += len;
 }
