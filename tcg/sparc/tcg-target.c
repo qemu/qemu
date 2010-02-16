@@ -224,6 +224,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
 #define ARITH_ADDCC (INSN_OP(2) | INSN_OP3(0x10))
 #define ARITH_AND  (INSN_OP(2) | INSN_OP3(0x01))
+#define ARITH_ANDN (INSN_OP(2) | INSN_OP3(0x05))
 #define ARITH_OR   (INSN_OP(2) | INSN_OP3(0x02))
 #define ARITH_ORCC (INSN_OP(2) | INSN_OP3(0x12))
 #define ARITH_ORN  (INSN_OP(2) | INSN_OP3(0x06))
@@ -1216,6 +1217,9 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     OP_32_64(and):
         c = ARITH_AND;
         goto gen_arith;
+    OP_32_64(andc):
+        c = ARITH_ANDN;
+        goto gen_arith;
     OP_32_64(or):
         c = ARITH_OR;
         goto gen_arith;
@@ -1436,6 +1440,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_remu_i32, { "r", "r", "rJ" } },
     { INDEX_op_sub_i32, { "r", "r", "rJ" } },
     { INDEX_op_and_i32, { "r", "r", "rJ" } },
+    { INDEX_op_andc_i32, { "r", "r", "rJ" } },
     { INDEX_op_or_i32, { "r", "r", "rJ" } },
     { INDEX_op_xor_i32, { "r", "r", "rJ" } },
 
@@ -1493,6 +1498,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_remu_i64, { "r", "r", "rJ" } },
     { INDEX_op_sub_i64, { "r", "r", "rJ" } },
     { INDEX_op_and_i64, { "r", "r", "rJ" } },
+    { INDEX_op_andc_i64, { "r", "r", "rJ" } },
     { INDEX_op_or_i64, { "r", "r", "rJ" } },
     { INDEX_op_xor_i64, { "r", "r", "rJ" } },
 
