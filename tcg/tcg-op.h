@@ -1650,20 +1650,31 @@ static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low, TCGv_i64 hi
 
 static inline void tcg_gen_andc_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
+#ifdef TCG_TARGET_HAS_andc_i32
+    tcg_gen_op3_i32(INDEX_op_andc_i32, ret, arg1, arg2);
+#else
     TCGv_i32 t0;
     t0 = tcg_temp_new_i32();
     tcg_gen_not_i32(t0, arg2);
     tcg_gen_and_i32(ret, arg1, t0);
     tcg_temp_free_i32(t0);
+#endif
 }
 
 static inline void tcg_gen_andc_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
+#ifdef TCG_TARGET_HAS_andc_i64
+    tcg_gen_op3_i64(INDEX_op_andc_i64, ret, arg1, arg2);
+#elif defined(TCG_TARGET_HAS_andc_i32) && TCG_TARGET_REG_BITS == 32
+    tcg_gen_andc_i32(TCGV_LOW(ret), TCGV_LOW(arg1), TCGV_LOW(arg2));
+    tcg_gen_andc_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), TCGV_HIGH(arg2));
+#else
     TCGv_i64 t0;
     t0 = tcg_temp_new_i64();
     tcg_gen_not_i64(t0, arg2);
     tcg_gen_and_i64(ret, arg1, t0);
     tcg_temp_free_i64(t0);
+#endif
 }
 
 static inline void tcg_gen_eqv_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)

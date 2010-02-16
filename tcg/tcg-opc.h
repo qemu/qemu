@@ -109,6 +109,9 @@ DEF2(not_i32, 1, 1, 0, 0)
 #ifdef TCG_TARGET_HAS_neg_i32
 DEF2(neg_i32, 1, 1, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_andc_i32
+DEF2(andc_i32, 1, 2, 0, 0)
+#endif
 
 #if TCG_TARGET_REG_BITS == 64
 DEF2(mov_i64, 1, 1, 0, 0)
@@ -184,6 +187,9 @@ DEF2(not_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_neg_i64
 DEF2(neg_i64, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_andc_i64
+DEF2(andc_i64, 1, 2, 0, 0)
 #endif
 #endif
 
