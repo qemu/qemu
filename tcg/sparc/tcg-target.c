@@ -1234,6 +1234,10 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         c = ARITH_UMUL;
         goto gen_arith;
 
+    OP_32_64(neg):
+	c = ARITH_SUB;
+	goto gen_arith1;
+
     case INDEX_op_div_i32:
         tcg_out_div32(s, args[0], args[1], args[2], const_args[2], 0);
         break;
@@ -1392,6 +1396,10 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_arithc(s, args[0], args[1], args[2], const_args[2], c);
         break;
 
+    gen_arith1:
+	tcg_out_arithc(s, args[0], TCG_REG_G0, args[1], const_args[1], c);
+	break;
+
     default:
         fprintf(stderr, "unknown opcode 0x%x\n", opc);
         tcg_abort();
@@ -1430,6 +1438,8 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "r", "rJ" } },
     { INDEX_op_shr_i32, { "r", "r", "rJ" } },
     { INDEX_op_sar_i32, { "r", "r", "rJ" } },
+
+    { INDEX_op_neg_i32, { "r", "rJ" } },
 
     { INDEX_op_brcond_i32, { "r", "rJ" } },
     { INDEX_op_setcond_i32, { "r", "r", "rJ" } },
@@ -1484,6 +1494,9 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_shl_i64, { "r", "r", "rJ" } },
     { INDEX_op_shr_i64, { "r", "r", "rJ" } },
     { INDEX_op_sar_i64, { "r", "r", "rJ" } },
+
+    { INDEX_op_neg_i64, { "r", "rJ" } },
+
     { INDEX_op_ext32s_i64, { "r", "ri" } },
     { INDEX_op_ext32u_i64, { "r", "ri" } },
 
