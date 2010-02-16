@@ -92,11 +92,13 @@ enum {
 #define TCG_TARGET_HAS_div_i64
 
 #define TCG_TARGET_HAS_neg_i32
+#define TCG_TARGET_HAS_not_i32
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_ext32s_i64
 #define TCG_TARGET_HAS_ext32u_i64
 #define TCG_TARGET_HAS_neg_i64
+#define TCG_TARGET_HAS_not_i64
 #endif
 
 //#define TCG_TARGET_HAS_bswap32_i32
