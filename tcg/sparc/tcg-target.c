@@ -1223,6 +1223,9 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     OP_32_64(or):
         c = ARITH_OR;
         goto gen_arith;
+    OP_32_64(orc):
+        c = ARITH_ORN;
+        goto gen_arith;
     OP_32_64(xor):
         c = ARITH_XOR;
         goto gen_arith;
@@ -1442,6 +1445,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_and_i32, { "r", "r", "rJ" } },
     { INDEX_op_andc_i32, { "r", "r", "rJ" } },
     { INDEX_op_or_i32, { "r", "r", "rJ" } },
+    { INDEX_op_orc_i32, { "r", "r", "rJ" } },
     { INDEX_op_xor_i32, { "r", "r", "rJ" } },
 
     { INDEX_op_shl_i32, { "r", "r", "rJ" } },
@@ -1500,6 +1504,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_and_i64, { "r", "r", "rJ" } },
     { INDEX_op_andc_i64, { "r", "r", "rJ" } },
     { INDEX_op_or_i64, { "r", "r", "rJ" } },
+    { INDEX_op_orc_i64, { "r", "r", "rJ" } },
     { INDEX_op_xor_i64, { "r", "r", "rJ" } },
 
     { INDEX_op_shl_i64, { "r", "r", "rJ" } },
