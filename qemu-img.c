@@ -1168,7 +1168,7 @@ static int img_rebase(int argc, char **argv)
         if (bdrv_open2(bs_new_backing, out_baseimg, BRDV_O_FLAGS | BDRV_O_RDWR,
             new_backing_drv))
         {
-            error("Could not open new backing file '%s'", backing_name);
+            error("Could not open new backing file '%s'", out_baseimg);
             return -1;
         }
     }
