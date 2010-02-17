@@ -2812,6 +2812,7 @@ static int setup_sigcontext(struct target_sigcontext *sc,
 			    CPUState *regs, unsigned long mask)
 {
     int err = 0;
+    int i;
 
 #define COPY(x)         err |= __put_user(regs->x, &sc->sc_##x)
     COPY(gregs[0]); COPY(gregs[1]);
@@ -2827,7 +2828,11 @@ static int setup_sigcontext(struct target_sigcontext *sc,
     COPY(sr); COPY(pc);
 #undef COPY
 
-    /* todo: save FPU registers here */
+    for (i=0; i<16; i++) {
+        err |= __put_user(regs->fregs[i], &sc->sc_fpregs[i]);
+    }
+    err |= __put_user(regs->fpscr, &sc->sc_fpscr);
+    err |= __put_user(regs->fpul, &sc->sc_fpul);
 
     /* non-iBCS2 extensions.. */
     err |= __put_user(mask, &sc->oldmask);
@@ -2835,10 +2840,11 @@ static int setup_sigcontext(struct target_sigcontext *sc,
     return err;
 }
 
-static int restore_sigcontext(CPUState *regs,
-			      struct target_sigcontext *sc)
+static int restore_sigcontext(CPUState *regs, struct target_sigcontext *sc,
+                              target_ulong *r0_p)
 {
     unsigned int err = 0;
+    int i;
 
 #define COPY(x)         err |= __get_user(regs->x, &sc->sc_##x)
     COPY(gregs[1]);
@@ -2854,9 +2860,14 @@ static int restore_sigcontext(CPUState *regs,
     COPY(sr); COPY(pc);
 #undef COPY
 
-    /* todo: restore FPU registers here */
+    for (i=0; i<16; i++) {
+        err |= __get_user(regs->fregs[i], &sc->sc_fpregs[i]);
+    }
+    err |= __get_user(regs->fpscr, &sc->sc_fpscr);
+    err |= __get_user(regs->fpul, &sc->sc_fpul);
 
     regs->tra = -1;         /* disable syscall checks */
+    err |= __get_user(*r0_p, &sc->sc_gregs[0]);
     return err;
 }
 
@@ -2980,6 +2991,7 @@ long do_sigreturn(CPUState *regs)
     abi_ulong frame_addr;
     sigset_t blocked;
     target_sigset_t target_set;
+    target_ulong r0;
     int i;
     int err = 0;
 
@@ -3001,11 +3013,11 @@ long do_sigreturn(CPUState *regs)
     target_to_host_sigset_internal(&blocked, &target_set);
     sigprocmask(SIG_SETMASK, &blocked, NULL);
 
-    if (restore_sigcontext(regs, &frame->sc))
+    if (restore_sigcontext(regs, &frame->sc, &r0))
         goto badframe;
 
     unlock_user_struct(frame, frame_addr, 0);
-    return regs->gregs[0];
+    return r0;
 
 badframe:
     unlock_user_struct(frame, frame_addr, 0);
@@ -3018,6 +3030,7 @@ long do_rt_sigreturn(CPUState *regs)
     struct target_rt_sigframe *frame;
     abi_ulong frame_addr;
     sigset_t blocked;
+    target_ulong r0;
 
 #if defined(DEBUG_SIGNAL)
     fprintf(stderr, "do_rt_sigreturn\n");
@@ -3029,7 +3042,7 @@ long do_rt_sigreturn(CPUState *regs)
     target_to_host_sigset(&blocked, &frame->uc.uc_sigmask);
     sigprocmask(SIG_SETMASK, &blocked, NULL);
 
-    if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
+    if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))
         goto badframe;
 
     if (do_sigaltstack(frame_addr +
@@ -3038,7 +3051,7 @@ long do_rt_sigreturn(CPUState *regs)
         goto badframe;
 
     unlock_user_struct(frame, frame_addr, 0);
-    return regs->gregs[0];
+    return r0;
 
 badframe:
     unlock_user_struct(frame, frame_addr, 0);
