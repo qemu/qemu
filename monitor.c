@@ -3858,6 +3858,18 @@ fail:
     return NULL;
 }
 
+void monitor_set_error(Monitor *mon, QError *qerror)
+{
+    /* report only the first error */
+    if (!mon->error) {
+        mon->error = qerror;
+    } else {
+        MON_DEBUG("Additional error report at %s:%d\n",
+                  qerror->file, qerror->linenr);
+        QDECREF(qerror);
+    }
+}
+
 static void monitor_print_error(Monitor *mon)
 {
     qerror_print(mon->error);
@@ -4759,14 +4771,7 @@ void qemu_error_internal(const char *file, int linenr, const char *func,
         QDECREF(qerror);
         break;
     case ERR_SINK_MONITOR:
-        /* report only the first error */
-        if (!qemu_error_sink->mon->error) {
-            qemu_error_sink->mon->error = qerror;
-        } else {
-            MON_DEBUG("Additional error report at %s:%d\n", qerror->file,
-                      qerror->linenr);
-            QDECREF(qerror);
-        }
+        monitor_set_error(qemu_error_sink->mon, qerror);
         break;
     }
 }
