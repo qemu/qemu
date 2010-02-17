@@ -1224,7 +1224,7 @@ static int img_rebase(int argc, char **argv)
                 int pnum;
 
                 if (compare_sectors(buf_old + written * 512,
-                    buf_new + written * 512, n, &pnum))
+                    buf_new + written * 512, n - written, &pnum))
                 {
                     ret = bdrv_write(bs, sector + written,
                         buf_old + written * 512, pnum);
