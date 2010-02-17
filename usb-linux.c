@@ -1188,9 +1188,6 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
  */
 static int usb_host_read_file(char *line, size_t line_size, const char *device_file, const char *device_name)
 {
-#if 0
-    Monitor *mon = cur_mon;
-#endif
     FILE *f;
     int ret = 0;
     char filename[PATH_MAX];
@@ -1201,11 +1198,6 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
     if (f) {
         ret = fgets(line, line_size, f) != NULL;
         fclose(f);
-#if 0
-    } else {
-        if (mon)
-            monitor_printf(mon, "husb: could not open %s\n", filename);
-#endif
     }
 
     return ret;
