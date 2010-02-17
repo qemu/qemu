@@ -969,10 +969,13 @@ static abi_long do_pipe(void *cpu_env, abi_ulong pipedes, int flags)
 #if defined(TARGET_MIPS)
     ((CPUMIPSState*)cpu_env)->active_tc.gpr[3] = host_pipe[1];
     ret = host_pipe[0];
-#elif defined(TARGET_SH4)
-    ((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
-    ret = host_pipe[0];
 #else
+#if defined(TARGET_SH4)
+    if (!flags) {
+        ((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
+        ret = host_pipe[0];
+    } else
+#endif
     if (put_user_s32(host_pipe[0], pipedes)
         || put_user_s32(host_pipe[1], pipedes + sizeof(host_pipe[0])))
         return -TARGET_EFAULT;
