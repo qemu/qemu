@@ -3515,6 +3515,7 @@ static void block_io_signals(void)
     sigaddset(&set, SIGUSR2);
     sigaddset(&set, SIGIO);
     sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGCHLD);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     sigemptyset(&set);
