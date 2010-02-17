@@ -753,11 +753,13 @@ int kvm_cpu_exec(CPUState *env)
     dprintf("kvm_cpu_exec()\n");
 
     do {
+#ifndef CONFIG_IOTHREAD
         if (env->exit_request) {
             dprintf("interrupt exit requested\n");
             ret = 0;
             break;
         }
+#endif
 
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env);
