@@ -3383,6 +3383,7 @@ static QemuCond qemu_pause_cond;
 static void block_io_signals(void);
 static void unblock_io_signals(void);
 static int tcg_has_work(void);
+static int cpu_has_work(CPUState *env);
 
 static int qemu_init_main_loop(void)
 {
@@ -3403,6 +3404,15 @@ static int qemu_init_main_loop(void)
     return 0;
 }
 
+static void qemu_wait_io_event_common(CPUState *env)
+{
+    if (env->stop) {
+        env->stop = 0;
+        env->stopped = 1;
+        qemu_cond_signal(&qemu_pause_cond);
+    }
+}
+
 static void qemu_wait_io_event(CPUState *env)
 {
     while (!tcg_has_work())
@@ -3419,11 +3429,15 @@ static void qemu_wait_io_event(CPUState *env)
     qemu_mutex_unlock(&qemu_fair_mutex);
 
     qemu_mutex_lock(&qemu_global_mutex);
-    if (env->stop) {
-        env->stop = 0;
-        env->stopped = 1;
-        qemu_cond_signal(&qemu_pause_cond);
-    }
+    qemu_wait_io_event_common(env);
+}
+
+static void qemu_kvm_wait_io_event(CPUState *env)
+{
+    while (!cpu_has_work(env))
+        qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+
+    qemu_wait_io_event_common(env);
 }
 
 static int qemu_cpu_exec(CPUState *env);
@@ -3449,7 +3463,7 @@ static void *kvm_cpu_thread_fn(void *arg)
     while (1) {
         if (cpu_can_run(env))
             qemu_cpu_exec(env);
-        qemu_wait_io_event(env);
+        qemu_kvm_wait_io_event(env);
     }
 
     return NULL;
