@@ -771,6 +771,7 @@ int kvm_cpu_exec(CPUState *env)
         kvm_arch_post_run(env, run);
 
         if (ret == -EINTR || ret == -EAGAIN) {
+            cpu_exit(env);
             dprintf("io window exit\n");
             ret = 0;
             break;
@@ -1116,3 +1117,21 @@ void kvm_remove_all_breakpoints(CPUState *current_env)
 {
 }
 #endif /* !KVM_CAP_SET_GUEST_DEBUG */
+
+int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
+{
+    struct kvm_signal_mask *sigmask;
+    int r;
+
+    if (!sigset)
+        return kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, NULL);
+
+    sigmask = qemu_malloc(sizeof(*sigmask) + sizeof(*sigset));
+
+    sigmask->len = 8;
+    memcpy(sigmask->sigset, sigset, sizeof(*sigset));
+    r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
+    free(sigmask);
+
+    return r;
+}
