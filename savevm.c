@@ -1737,7 +1737,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         vm_start();
 }
 
-int load_vmstate(Monitor *mon, const char *name)
+int load_vmstate(const char *name)
 {
     DriveInfo *dinfo;
     BlockDriverState *bs, *bs1;
@@ -1747,7 +1747,7 @@ int load_vmstate(Monitor *mon, const char *name)
 
     bs = get_bs_snapshots();
     if (!bs) {
-        monitor_printf(mon, "No block device supports snapshots\n");
+        qemu_error("No block device supports snapshots\n");
         return -EINVAL;
     }
 
@@ -1760,21 +1760,19 @@ int load_vmstate(Monitor *mon, const char *name)
             ret = bdrv_snapshot_goto(bs1, name);
             if (ret < 0) {
                 if (bs != bs1)
-                    monitor_printf(mon, "Warning: ");
+                    qemu_error("Warning: ");
                 switch(ret) {
                 case -ENOTSUP:
-                    monitor_printf(mon,
-                                   "Snapshots not supported on device '%s'\n",
-                                   bdrv_get_device_name(bs1));
+                    qemu_error("Snapshots not supported on device '%s'\n",
+                               bdrv_get_device_name(bs1));
                     break;
                 case -ENOENT:
-                    monitor_printf(mon, "Could not find snapshot '%s' on "
-                                   "device '%s'\n",
-                                   name, bdrv_get_device_name(bs1));
+                    qemu_error("Could not find snapshot '%s' on device '%s'\n",
+                               name, bdrv_get_device_name(bs1));
                     break;
                 default:
-                    monitor_printf(mon, "Error %d while activating snapshot on"
-                                   " '%s'\n", ret, bdrv_get_device_name(bs1));
+                    qemu_error("Error %d while activating snapshot on '%s'\n",
+                               ret, bdrv_get_device_name(bs1));
                     break;
                 }
                 /* fatal on snapshot block device */
@@ -1792,13 +1790,13 @@ int load_vmstate(Monitor *mon, const char *name)
     /* restore the VM state */
     f = qemu_fopen_bdrv(bs, 0);
     if (!f) {
-        monitor_printf(mon, "Could not open VM state file\n");
+        qemu_error("Could not open VM state file\n");
         return -EINVAL;
     }
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
     if (ret < 0) {
-        monitor_printf(mon, "Error %d while loading VM state\n", ret);
+        qemu_error("Error %d while loading VM state\n", ret);
         return ret;
     }
     return 0;

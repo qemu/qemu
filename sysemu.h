@@ -54,7 +54,7 @@ extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
 void do_savevm(Monitor *mon, const QDict *qdict);
-int load_vmstate(Monitor *mon, const char *name);
+int load_vmstate(const char *name);
 void do_delvm(Monitor *mon, const QDict *qdict);
 void do_info_snapshots(Monitor *mon);
 

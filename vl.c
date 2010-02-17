@@ -6072,7 +6072,7 @@ int main(int argc, char **argv, char **envp)
 
     qemu_system_reset();
     if (loadvm) {
-        if (load_vmstate(cur_mon, loadvm) < 0) {
+        if (load_vmstate(loadvm) < 0) {
             autostart = 0;
         }
     }

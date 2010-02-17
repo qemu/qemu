@@ -2533,7 +2533,7 @@ static void do_loadvm(Monitor *mon, const QDict *qdict)
 
     vm_stop(0);
 
-    if (load_vmstate(mon, name) >= 0 && saved_vm_running)
+    if (load_vmstate(name) >= 0 && saved_vm_running)
         vm_start();
 }
 
