@@ -425,13 +425,17 @@ void qemu_config_write(FILE *fp)
     }
 }
 
-int qemu_config_parse(FILE *fp)
+int qemu_config_parse(FILE *fp, const char *fname)
 {
     char line[1024], group[64], id[64], arg[64], value[1024];
+    Location loc;
     QemuOptsList *list = NULL;
     QemuOpts *opts = NULL;
+    int res = -1, lno = 0;
 
+    loc_push_none(&loc);
     while (fgets(line, sizeof(line), fp) != NULL) {
+        loc_set_file(fname, ++lno);
         if (line[0] == '\n') {
             /* skip empty lines */
             continue;
@@ -444,7 +448,7 @@ int qemu_config_parse(FILE *fp)
             /* group with id */
             list = find_list(group);
             if (list == NULL)
-                return -1;
+                goto out;
             opts = qemu_opts_create(list, id, 1);
             continue;
         }
@@ -452,25 +456,27 @@ int qemu_config_parse(FILE *fp)
             /* group without id */
             list = find_list(group);
             if (list == NULL)
-                return -1;
+                goto out;
             opts = qemu_opts_create(list, NULL, 0);
             continue;
         }
         if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {
             /* arg = value */
             if (opts == NULL) {
-                fprintf(stderr, "no group defined\n");
-                return -1;
+                error_report("no group defined");
+                goto out;
             }
             if (qemu_opt_set(opts, arg, value) != 0) {
-                fprintf(stderr, "failed to set \"%s\" for %s\n",
-                        arg, group);
-                return -1;
+                error_report("failed to set \"%s\" for %s", arg, group);
+                goto out;
             }
             continue;
         }
-        fprintf(stderr, "parse error: %s\n", line);
-        return -1;
+        error_report("parse error");
+        goto out;
     }
-    return 0;
+    res = 0;
+out:
+    loc_pop(&loc);
+    return res;
 }

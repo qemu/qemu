@@ -4941,18 +4941,22 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (defconfig) {
+        const char *fname;
         FILE *fp;
-        fp = fopen(CONFIG_QEMU_CONFDIR "/qemu.conf", "r");
+
+        fname = CONFIG_QEMU_CONFDIR "/qemu.conf";
+        fp = fopen(fname, "r");
         if (fp) {
-            if (qemu_config_parse(fp) != 0) {
+            if (qemu_config_parse(fp, fname) != 0) {
                 exit(1);
             }
             fclose(fp);
         }
 
-        fp = fopen(CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", "r");
+        fname = CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf";
+        fp = fopen(fname, "r");
         if (fp) {
-            if (qemu_config_parse(fp) != 0) {
+            if (qemu_config_parse(fp, fname) != 0) {
                 exit(1);
             }
             fclose(fp);
@@ -5633,7 +5637,7 @@ int main(int argc, char **argv, char **envp)
                         fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
                         exit(1);
                     }
-                    if (qemu_config_parse(fp) != 0) {
+                    if (qemu_config_parse(fp, optarg) != 0) {
                         exit(1);
                     }
                     fclose(fp);

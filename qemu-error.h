@@ -15,7 +15,7 @@
 
 typedef struct Location {
     /* all members are private to qemu-error.c */
-    enum { LOC_NONE } kind;
+    enum { LOC_NONE, LOC_FILE } kind;
     int num;
     const void *ptr;
     struct Location *prev;
@@ -27,6 +27,7 @@ Location *loc_pop(Location *loc);
 Location *loc_save(Location *loc);
 void loc_restore(Location *loc);
 void loc_set_none(void);
+void loc_set_file(const char *fname, int lno);
 
 void error_vprintf(const char *fmt, va_list ap);
 void error_printf(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));

@@ -113,6 +113,19 @@ void loc_set_none(void)
     cur_loc->kind = LOC_NONE;
 }
 
+/*
+ * Change the current location to file FNAME, line LNO.
+ */
+void loc_set_file(const char *fname, int lno)
+{
+    assert (fname || cur_loc->kind == LOC_FILE);
+    cur_loc->kind = LOC_FILE;
+    cur_loc->num = lno;
+    if (fname) {
+        cur_loc->ptr = fname;
+    }
+}
+
 static const char *progname;
 
 /*
@@ -136,6 +149,13 @@ void error_print_loc(void)
         sep = " ";
     }
     switch (cur_loc->kind) {
+    case LOC_FILE:
+        error_printf("%s:", (const char *)cur_loc->ptr);
+        if (cur_loc->num) {
+            error_printf("%d:", cur_loc->num);
+        }
+        error_printf(" ");
+        break;
     default:
         error_printf(sep);
     }
