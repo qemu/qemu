@@ -4864,7 +4864,6 @@ int main(int argc, char **argv, char **envp)
 
     init_clocks();
 
-    qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
     QLIST_INIT (&vm_change_state_head);

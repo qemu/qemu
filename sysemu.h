@@ -73,9 +73,6 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f);
 void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
-void qemu_errors_to_file(FILE *fp);
-void qemu_errors_to_mon(Monitor *mon);
-void qemu_errors_to_previous(void);
 void qemu_error(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
 void qemu_error_internal(const char *file, int linenr, const char *func,
                          const char *fmt, ...)
