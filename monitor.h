@@ -7,6 +7,7 @@
 #include "block.h"
 
 extern Monitor *cur_mon;
+extern Monitor *default_mon;
 
 /* flags for monitor_init */
 #define MONITOR_IS_DEFAULT    0x01

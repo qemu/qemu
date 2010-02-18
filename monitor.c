@@ -177,7 +177,8 @@ static QLIST_HEAD(mon_list, Monitor) mon_list;
 static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
 
-Monitor *cur_mon = NULL;
+Monitor *cur_mon;
+Monitor *default_mon;
 
 static void monitor_command_cb(Monitor *mon, const char *cmdline,
                                void *opaque);
@@ -4624,8 +4625,8 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
-    if (!cur_mon || (flags & MONITOR_IS_DEFAULT))
-        cur_mon = mon;
+    if (!default_mon || (flags & MONITOR_IS_DEFAULT))
+        default_mon = mon;
 }
 
 static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
