@@ -114,6 +114,16 @@ void loc_set_none(void)
 }
 
 /*
+ * Change the current location to argument ARGV[IDX..IDX+CNT-1].
+ */
+void loc_set_cmdline(char **argv, int idx, int cnt)
+{
+    cur_loc->kind = LOC_CMDLINE;
+    cur_loc->num = cnt;
+    cur_loc->ptr = argv + idx;
+}
+
+/*
  * Change the current location to file FNAME, line LNO.
  */
 void loc_set_file(const char *fname, int lno)
@@ -143,12 +153,22 @@ void error_set_progname(const char *argv0)
 void error_print_loc(void)
 {
     const char *sep = "";
+    int i;
+    const char *const *argp;
 
     if (!cur_mon) {
         fprintf(stderr, "%s:", progname);
         sep = " ";
     }
     switch (cur_loc->kind) {
+    case LOC_CMDLINE:
+        argp = cur_loc->ptr;
+        for (i = 0; i < cur_loc->num; i++) {
+            error_printf("%s%s", sep, argp[i]);
+            sep = " ";
+        }
+        error_printf(": ");
+        break;
     case LOC_FILE:
         error_printf("%s:", (const char *)cur_loc->ptr);
         if (cur_loc->num) {

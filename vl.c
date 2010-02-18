@@ -4796,6 +4796,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     char *r = argv[optind];
     const char *optarg;
 
+    loc_set_cmdline(argv, optind, 1);
     optind++;
     /* Treat --foo the same as -foo.  */
     if (r[1] == '-')
@@ -4803,8 +4804,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     popt = qemu_options;
     for(;;) {
         if (!popt->name) {
-            fprintf(stderr, "%s: invalid option -- '%s'\n",
-                    argv[0], r);
+            error_report("invalid option");
             exit(1);
         }
         if (!strcmp(popt->name, r + 1))
@@ -4813,11 +4813,11 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     }
     if (popt->flags & HAS_ARG) {
         if (optind >= argc) {
-            fprintf(stderr, "%s: option '%s' requires an argument\n",
-                    argv[0], r);
+            error_report("requires an argument");
             exit(1);
         }
         optarg = argv[optind++];
+        loc_set_cmdline(argv, optind - 2, 2);
     } else {
         optarg = NULL;
     }
@@ -5662,6 +5662,7 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
+    loc_set_none();
 
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
