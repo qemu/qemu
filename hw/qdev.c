@@ -113,27 +113,20 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     return dev;
 }
 
-static int qdev_print_devinfo(DeviceInfo *info, char *dest, int len)
+static void qdev_print_devinfo(DeviceInfo *info)
 {
-    int pos = 0;
-    int ret;
-
-    ret = snprintf(dest+pos, len-pos, "name \"%s\", bus %s",
-                   info->name, info->bus_info->name);
-    pos += MIN(len-pos,ret);
+    error_printf("name \"%s\", bus %s",
+                 info->name, info->bus_info->name);
     if (info->alias) {
-        ret = snprintf(dest+pos, len-pos, ", alias \"%s\"", info->alias);
-        pos += MIN(len-pos,ret);
+        error_printf(", alias \"%s\"", info->alias);
     }
     if (info->desc) {
-        ret = snprintf(dest+pos, len-pos, ", desc \"%s\"", info->desc);
-        pos += MIN(len-pos,ret);
+        error_printf(", desc \"%s\"", info->desc);
     }
     if (info->no_user) {
-        ret = snprintf(dest+pos, len-pos, ", no-user");
-        pos += MIN(len-pos,ret);
+        error_printf(", no-user");
     }
-    return pos;
+    error_printf("\n");
 }
 
 static int set_property(const char *name, const char *value, void *opaque)
@@ -157,14 +150,12 @@ int qdev_device_help(QemuOpts *opts)
 {
     const char *driver;
     DeviceInfo *info;
-    char msg[256];
     Property *prop;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && !strcmp(driver, "?")) {
         for (info = device_info_list; info != NULL; info = info->next) {
-            qdev_print_devinfo(info, msg, sizeof(msg));
-            qemu_error("%s\n", msg);
+            qdev_print_devinfo(info);
         }
         return 1;
     }
@@ -179,7 +170,7 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     for (prop = info->props; prop && prop->name; prop++) {
-        qemu_error("%s.%s=%s\n", info->name, prop->name, prop->info->name);
+        error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
     }
     return 1;
 }
@@ -735,11 +726,9 @@ void do_info_qtree(Monitor *mon)
 void do_info_qdm(Monitor *mon)
 {
     DeviceInfo *info;
-    char msg[256];
 
     for (info = device_info_list; info != NULL; info = info->next) {
-        qdev_print_devinfo(info, msg, sizeof(msg));
-        monitor_printf(mon, "%s\n", msg);
+        qdev_print_devinfo(info);
     }
 }
 
