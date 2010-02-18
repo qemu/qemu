@@ -1,5 +1,5 @@
 #include "hw.h"
-#include "sysemu.h"
+#include "qemu-error.h"
 #include "scsi.h"
 #include "scsi-defs.h"
 #include "block.h"

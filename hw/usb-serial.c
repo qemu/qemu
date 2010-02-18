@@ -9,6 +9,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "usb.h"
 #include "qemu-char.h"
 

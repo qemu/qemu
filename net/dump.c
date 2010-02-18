@@ -25,6 +25,7 @@
 #include "dump.h"
 #include "qemu-common.h"
 #include "sysemu.h"
+#include "qemu-error.h"
 #include "qemu-log.h"
 
 typedef struct DumpState {

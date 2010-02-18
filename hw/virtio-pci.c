@@ -19,7 +19,7 @@
 #include "virtio-blk.h"
 #include "virtio-net.h"
 #include "pci.h"
-#include "sysemu.h"
+#include "qemu-error.h"
 #include "msix.h"
 #include "net.h"
 #include "block_int.h"

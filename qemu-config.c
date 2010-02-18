@@ -1,4 +1,5 @@
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "sysemu.h"

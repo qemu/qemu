@@ -38,6 +38,7 @@
 #include "sysemu.h"
 #include "qemu-char.h"
 #include "qemu-common.h"
+#include "qemu-error.h"
 
 #include "net/tap-linux.h"
 

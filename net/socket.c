@@ -28,9 +28,9 @@
 #include "net.h"
 #include "qemu-char.h"
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "qemu-option.h"
 #include "qemu_socket.h"
-#include "sysemu.h"
 
 typedef struct NetSocketState {
     VLANClientState nc;

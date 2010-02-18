@@ -19,8 +19,6 @@
  * the host adapter emulator.
  */
 
-#include <qemu-common.h>
-#include <sysemu.h>
 //#define DEBUG_SCSI
 
 #ifdef DEBUG_SCSI
@@ -34,6 +32,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "block.h"
 #include "scsi.h"
 #include "scsi-defs.h"

@@ -31,6 +31,7 @@
 
 #include "sysemu.h"
 #include "qemu-common.h"
+#include "qemu-error.h"
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
