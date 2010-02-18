@@ -2539,7 +2539,7 @@ void do_usb_add(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
     if (usb_device_add(devname, 1) < 0) {
-        qemu_error("could not add USB device '%s'\n", devname);
+        error_report("could not add USB device '%s'", devname);
     }
 }
 
@@ -2547,7 +2547,7 @@ void do_usb_del(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
     if (usb_device_del(devname) < 0) {
-        qemu_error("could not delete USB device '%s'\n", devname);
+        error_report("could not delete USB device '%s'", devname);
     }
 }
 

@@ -238,14 +238,14 @@ static int set_boot_dev(RTCState *s, const char *boot_device, int fd_bootchk)
 
     nbds = strlen(boot_device);
     if (nbds > PC_MAX_BOOT_DEVICES) {
-        qemu_error("Too many boot devices for PC\n");
+        error_report("Too many boot devices for PC");
         return(1);
     }
     for (i = 0; i < nbds; i++) {
         bds[i] = boot_device2nibble(boot_device[i]);
         if (bds[i] == 0) {
-            qemu_error("Invalid boot device for PC: '%c'\n",
-                       boot_device[i]);
+            error_report("Invalid boot device for PC: '%c'",
+                         boot_device[i]);
             return(1);
         }
     }

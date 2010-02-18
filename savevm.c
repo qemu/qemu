@@ -1747,7 +1747,7 @@ int load_vmstate(const char *name)
 
     bs = get_bs_snapshots();
     if (!bs) {
-        qemu_error("No block device supports snapshots\n");
+        error_report("No block device supports snapshots");
         return -EINVAL;
     }
 
@@ -1759,20 +1759,21 @@ int load_vmstate(const char *name)
         if (bdrv_has_snapshot(bs1)) {
             ret = bdrv_snapshot_goto(bs1, name);
             if (ret < 0) {
-                if (bs != bs1)
-                    qemu_error("Warning: ");
                 switch(ret) {
                 case -ENOTSUP:
-                    qemu_error("Snapshots not supported on device '%s'\n",
-                               bdrv_get_device_name(bs1));
+                    error_report("%sSnapshots not supported on device '%s'",
+                                 bs != bs1 ? "Warning: " : "",
+                                 bdrv_get_device_name(bs1));
                     break;
                 case -ENOENT:
-                    qemu_error("Could not find snapshot '%s' on device '%s'\n",
-                               name, bdrv_get_device_name(bs1));
+                    error_report("%sCould not find snapshot '%s' on device '%s'",
+                                 bs != bs1 ? "Warning: " : "",
+                                 name, bdrv_get_device_name(bs1));
                     break;
                 default:
-                    qemu_error("Error %d while activating snapshot on '%s'\n",
-                               ret, bdrv_get_device_name(bs1));
+                    error_report("%sError %d while activating snapshot on '%s'",
+                                 bs != bs1 ? "Warning: " : "",
+                                 ret, bdrv_get_device_name(bs1));
                     break;
                 }
                 /* fatal on snapshot block device */
@@ -1790,13 +1791,13 @@ int load_vmstate(const char *name)
     /* restore the VM state */
     f = qemu_fopen_bdrv(bs, 0);
     if (!f) {
-        qemu_error("Could not open VM state file\n");
+        error_report("Could not open VM state file");
         return -EINVAL;
     }
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
     if (ret < 0) {
-        qemu_error("Error %d while loading VM state\n", ret);
+        error_report("Error %d while loading VM state", ret);
         return ret;
     }
     return 0;

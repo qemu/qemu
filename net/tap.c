@@ -394,7 +394,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
             qemu_opt_get(opts, "script") ||
             qemu_opt_get(opts, "downscript") ||
             qemu_opt_get(opts, "vnet_hdr")) {
-            qemu_error("ifname=, script=, downscript= and vnet_hdr= is invalid with fd=\n");
+            error_report("ifname=, script=, downscript= and vnet_hdr= is invalid with fd=");
             return -1;
         }
 

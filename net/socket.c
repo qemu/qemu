@@ -506,7 +506,7 @@ int net_init_socket(QemuOpts *opts,
         if (qemu_opt_get(opts, "listen") ||
             qemu_opt_get(opts, "connect") ||
             qemu_opt_get(opts, "mcast")) {
-            qemu_error("listen=, connect= and mcast= is invalid with fd=\n");
+            error_report("listen=, connect= and mcast= is invalid with fd=");
             return -1;
         }
 
@@ -525,7 +525,7 @@ int net_init_socket(QemuOpts *opts,
         if (qemu_opt_get(opts, "fd") ||
             qemu_opt_get(opts, "connect") ||
             qemu_opt_get(opts, "mcast")) {
-            qemu_error("fd=, connect= and mcast= is invalid with listen=\n");
+            error_report("fd=, connect= and mcast= is invalid with listen=");
             return -1;
         }
 
@@ -540,7 +540,7 @@ int net_init_socket(QemuOpts *opts,
         if (qemu_opt_get(opts, "fd") ||
             qemu_opt_get(opts, "listen") ||
             qemu_opt_get(opts, "mcast")) {
-            qemu_error("fd=, listen= and mcast= is invalid with connect=\n");
+            error_report("fd=, listen= and mcast= is invalid with connect=");
             return -1;
         }
 
@@ -555,7 +555,7 @@ int net_init_socket(QemuOpts *opts,
         if (qemu_opt_get(opts, "fd") ||
             qemu_opt_get(opts, "connect") ||
             qemu_opt_get(opts, "listen")) {
-            qemu_error("fd=, connect= and listen= is invalid with mcast=\n");
+            error_report("fd=, connect= and listen= is invalid with mcast=");
             return -1;
         }
 
@@ -565,7 +565,7 @@ int net_init_socket(QemuOpts *opts,
             return -1;
         }
     } else {
-        qemu_error("-socket requires fd=, listen=, connect= or mcast=\n");
+        error_report("-socket requires fd=, listen=, connect= or mcast=");
         return -1;
     }
 

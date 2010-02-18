@@ -15,7 +15,7 @@
 
 void error_vprintf(const char *fmt, va_list ap);
 void error_printf(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
-void qemu_error(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
+void error_report(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
 void qemu_error_internal(const char *file, int linenr, const char *func,
                          const char *fmt, ...)
                          __attribute__ ((format(printf, 4, 5)));

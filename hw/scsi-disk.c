@@ -1025,13 +1025,13 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     uint64_t nb_sectors;
 
     if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
-        qemu_error("scsi-disk: drive property not set\n");
+        error_report("scsi-disk: drive property not set");
         return -1;
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
     if (bdrv_is_sg(s->bs)) {
-        qemu_error("scsi-disk: unwanted /dev/sg*\n");
+        error_report("scsi-disk: unwanted /dev/sg*");
         return -1;
     }
 

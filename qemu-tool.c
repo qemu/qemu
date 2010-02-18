@@ -104,7 +104,7 @@ int64_t qemu_get_clock(QEMUClock *clock)
     return (tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000)) / 1000000;
 }
 
-void qemu_error(const char *fmt, ...)
+void error_report(const char *fmt, ...)
 {
     va_list args;
 

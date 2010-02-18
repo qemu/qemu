@@ -81,7 +81,7 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
 
     scsibus = DO_UPCAST(SCSIBus, qbus, QLIST_FIRST(&adapter->child_bus));
     if (!scsibus || strcmp(scsibus->qbus.info->name, "SCSI") != 0) {
-        qemu_error("Device is not a SCSI adapter\n");
+        error_report("Device is not a SCSI adapter");
         return -1;
     }
 

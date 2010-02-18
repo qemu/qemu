@@ -765,7 +765,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id >= 7) {
         if (qemu_get_be32(f) && !peer_has_vnet_hdr(n)) {
-            qemu_error("virtio-net: saved image requires vnet_hdr=on\n");
+            error_report("virtio-net: saved image requires vnet_hdr=on");
             return -1;
         }
 
@@ -794,7 +794,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id >= 11) {
         if (qemu_get_byte(f) && !peer_has_ufo(n)) {
-            qemu_error("virtio-net: saved image requires TUN_F_UFO support\n");
+            error_report("virtio-net: saved image requires TUN_F_UFO support");
             return -1;
         }
     }

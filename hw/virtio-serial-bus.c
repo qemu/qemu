@@ -485,7 +485,7 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
     plugging_port0 = port->is_console && !find_port_by_id(port->vser, 0);
 
     if (port->vser->config.nr_ports == bus->max_nr_ports && !plugging_port0) {
-        qemu_error("virtio-serial-bus: Maximum device limit reached\n");
+        error_report("virtio-serial-bus: Maximum device limit reached");
         return -1;
     }
     dev->info = info;

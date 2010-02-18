@@ -186,8 +186,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
         *vnet_hdr = 0;
 
         if (vnet_hdr_required && !*vnet_hdr) {
-            qemu_error("vnet_hdr=1 requested, but no kernel "
-                       "support for IFF_VNET_HDR available");
+            error_report("vnet_hdr=1 requested, but no kernel "
+                         "support for IFF_VNET_HDR available");
             close(fd);
             return -1;
         }

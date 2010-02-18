@@ -108,7 +108,7 @@ static int net_dump_init(VLANState *vlan, const char *device,
 
     fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
     if (fd < 0) {
-        qemu_error("-net dump: can't open %s\n", filename);
+        error_report("-net dump: can't open %s", filename);
         return -1;
     }
 
@@ -121,7 +121,7 @@ static int net_dump_init(VLANState *vlan, const char *device,
     hdr.linktype = 1;
 
     if (write(fd, &hdr, sizeof(hdr)) < sizeof(hdr)) {
-        qemu_error("-net dump write error: %s\n", strerror(errno));
+        error_report("-net dump write error: %s", strerror(errno));
         close(fd);
         return -1;
     }

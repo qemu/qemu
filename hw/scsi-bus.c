@@ -41,7 +41,7 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
         }
     }
     if (dev->id >= bus->ndev) {
-        qemu_error("bad scsi device id: %d\n", dev->id);
+        error_report("bad scsi device id: %d", dev->id);
         goto err;
     }
 

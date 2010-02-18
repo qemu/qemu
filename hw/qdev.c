@@ -139,8 +139,8 @@ static int set_property(const char *name, const char *value, void *opaque)
         return 0;
 
     if (qdev_prop_parse(dev, name, value) == -1) {
-        qemu_error("can't set property \"%s\" to \"%s\" for \"%s\"\n",
-                   name, value, dev->info->name);
+        error_report("can't set property \"%s\" to \"%s\" for \"%s\"",
+                     name, value, dev->info->name);
         return -1;
     }
     return 0;
@@ -184,7 +184,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
-        qemu_error("-device: no driver specified\n");
+        error_report("-device: no driver specified");
         return NULL;
     }
 
@@ -195,8 +195,8 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
     if (info->no_user) {
-        qemu_error("device \"%s\" can't be added via command line\n",
-                   info->name);
+        error_report("device \"%s\" can't be added via command line",
+                     info->name);
         return NULL;
     }
 
@@ -208,13 +208,13 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
     }
     if (!bus) {
-        qemu_error("Did not find %s bus for %s\n",
-                   path ? path : info->bus_info->name, info->name);
+        error_report("Did not find %s bus for %s",
+                     path ? path : info->bus_info->name, info->name);
         return NULL;
     }
     if (qdev_hotplug && !bus->allow_hotplug) {
-        qemu_error("Bus %s does not support hotplugging\n",
-                   bus->name);
+        error_report("Bus %s does not support hotplugging",
+                     bus->name);
         return NULL;
     }
 
@@ -229,7 +229,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
     if (qdev_init(qdev) < 0) {
-        qemu_error("Error initializing device %s\n", driver);
+        error_report("Error initializing device %s", driver);
         return NULL;
     }
     qdev->opts = opts;
@@ -268,8 +268,8 @@ int qdev_init(DeviceState *dev)
 int qdev_unplug(DeviceState *dev)
 {
     if (!dev->parent_bus->allow_hotplug) {
-        qemu_error("Bus %s does not support hotplugging\n",
-                   dev->parent_bus->name);
+        error_report("Bus %s does not support hotplugging",
+                     dev->parent_bus->name);
         return -1;
     }
     assert(dev->info->unplug != NULL);
@@ -538,12 +538,12 @@ static BusState *qbus_find(const char *path)
         pos = 0;
     } else {
         if (sscanf(path, "%127[^/]%n", elem, &len) != 1) {
-            qemu_error("path parse error (\"%s\")\n", path);
+            error_report("path parse error (\"%s\")", path);
             return NULL;
         }
         bus = qbus_find_recursive(main_system_bus, elem, NULL);
         if (!bus) {
-            qemu_error("bus \"%s\" not found\n", elem);
+            error_report("bus \"%s\" not found", elem);
             return NULL;
         }
         pos = len;
@@ -557,13 +557,13 @@ static BusState *qbus_find(const char *path)
 
         /* find device */
         if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
-            qemu_error("path parse error (\"%s\" pos %d)\n", path, pos);
+            error_report("path parse error (\"%s\" pos %d)", path, pos);
             return NULL;
         }
         pos += len;
         dev = qbus_find_dev(bus, elem);
         if (!dev) {
-            qemu_error("device \"%s\" not found\n", elem);
+            error_report("device \"%s\" not found", elem);
             qbus_list_dev(bus);
             return NULL;
         }
@@ -572,12 +572,12 @@ static BusState *qbus_find(const char *path)
              * one child bus accept it nevertheless */
             switch (dev->num_child_bus) {
             case 0:
-                qemu_error("device has no child bus (%s)\n", path);
+                error_report("device has no child bus (%s)", path);
                 return NULL;
             case 1:
                 return QLIST_FIRST(&dev->child_bus);
             default:
-                qemu_error("device has multiple child busses (%s)\n", path);
+                error_report("device has multiple child busses (%s)", path);
                 qbus_list_bus(dev);
                 return NULL;
             }
@@ -585,13 +585,13 @@ static BusState *qbus_find(const char *path)
 
         /* find bus */
         if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
-            qemu_error("path parse error (\"%s\" pos %d)\n", path, pos);
+            error_report("path parse error (\"%s\" pos %d)", path, pos);
             return NULL;
         }
         pos += len;
         bus = qbus_find_bus(dev, elem);
         if (!bus) {
-            qemu_error("child bus \"%s\" not found\n", elem);
+            error_report("child bus \"%s\" not found", elem);
             qbus_list_bus(dev);
             return NULL;
         }
@@ -749,7 +749,7 @@ void do_device_del(Monitor *mon, const QDict *qdict)
 
     dev = qdev_find_recursive(main_system_bus, id);
     if (NULL == dev) {
-        qemu_error("Device '%s' not found\n", id);
+        error_report("Device '%s' not found", id);
         return;
     }
     qdev_unplug(dev);

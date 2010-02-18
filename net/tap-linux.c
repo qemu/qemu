@@ -58,8 +58,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
         }
 
         if (vnet_hdr_required && !*vnet_hdr) {
-            qemu_error("vnet_hdr=1 requested, but no kernel "
-                       "support for IFF_VNET_HDR available");
+            error_report("vnet_hdr=1 requested, but no kernel "
+                         "support for IFF_VNET_HDR available");
             close(fd);
             return -1;
         }
@@ -97,7 +97,7 @@ int tap_set_sndbuf(int fd, QemuOpts *opts)
     }
 
     if (ioctl(fd, TUNSETSNDBUF, &sndbuf) == -1 && qemu_opt_get(opts, "sndbuf")) {
-        qemu_error("TUNSETSNDBUF ioctl failed: %s\n", strerror(errno));
+        error_report("TUNSETSNDBUF ioctl failed: %s", strerror(errno));
         return -1;
     }
     return 0;
@@ -108,7 +108,7 @@ int tap_probe_vnet_hdr(int fd)
     struct ifreq ifr;
 
     if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
-        qemu_error("TUNGETIFF ioctl() failed: %s\n", strerror(errno));
+        error_report("TUNGETIFF ioctl() failed: %s", strerror(errno));
         return 0;
     }
 

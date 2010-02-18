@@ -41,13 +41,19 @@ void error_printf(const char *fmt, ...)
     va_end(ap);
 }
 
-void qemu_error(const char *fmt, ...)
+/*
+ * Print an error message to current monitor if we have one, else to stderr.
+ * Appends a newline to the message.
+ * It's wrong to call this in a QMP monitor.  Use qemu_error_new() there.
+ */
+void error_report(const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
     error_vprintf(fmt, ap);
     va_end(ap);
+    error_printf("\n");
 }
 
 void qemu_error_internal(const char *file, int linenr, const char *func,

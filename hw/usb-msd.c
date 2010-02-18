@@ -524,7 +524,7 @@ static int usb_msd_initfn(USBDevice *dev)
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
 
     if (!s->conf.dinfo || !s->conf.dinfo->bdrv) {
-        qemu_error("usb-msd: drive property not set\n");
+        error_report("usb-msd: drive property not set");
         return -1;
     }
 
