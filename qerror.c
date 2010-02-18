@@ -224,6 +224,7 @@ QError *qerror_from_info(const char *file, int linenr, const char *func,
     QError *qerr;
 
     qerr = qerror_new();
+    loc_save(&qerr->loc);
     qerr->linenr = linenr;
     qerr->file = file;
     qerr->func = func;
@@ -321,10 +322,12 @@ QString *qerror_human(const QError *qerror)
  * it uses error_report() for this, so that the output is routed to the right
  * place (ie. stderr or Monitor's device).
  */
-void qerror_print(const QError *qerror)
+void qerror_print(QError *qerror)
 {
     QString *qstring = qerror_human(qerror);
+    loc_push_restore(&qerror->loc);
     error_report("%s", qstring_get_str(qstring));
+    loc_pop(&qerror->loc);
     QDECREF(qstring);
 }
 

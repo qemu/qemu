@@ -41,15 +41,98 @@ void error_printf(const char *fmt, ...)
     va_end(ap);
 }
 
+static Location std_loc = {
+    .kind = LOC_NONE
+};
+static Location *cur_loc = &std_loc;
+
+/*
+ * Push location saved in LOC onto the location stack, return it.
+ * The top of that stack is the current location.
+ * Needs a matching loc_pop().
+ */
+Location *loc_push_restore(Location *loc)
+{
+    assert(!loc->prev);
+    loc->prev = cur_loc;
+    cur_loc = loc;
+    return loc;
+}
+
+/*
+ * Initialize *LOC to "nowhere", push it onto the location stack.
+ * The top of that stack is the current location.
+ * Needs a matching loc_pop().
+ * Return LOC.
+ */
+Location *loc_push_none(Location *loc)
+{
+    loc->kind = LOC_NONE;
+    loc->prev = NULL;
+    return loc_push_restore(loc);
+}
+
+/*
+ * Pop the location stack.
+ * LOC must be the current location, i.e. the top of the stack.
+ */
+Location *loc_pop(Location *loc)
+{
+    assert(cur_loc == loc && loc->prev);
+    cur_loc = loc->prev;
+    loc->prev = NULL;
+    return loc;
+}
+
+/*
+ * Save the current location in LOC, return LOC.
+ */
+Location *loc_save(Location *loc)
+{
+    *loc = *cur_loc;
+    loc->prev = NULL;
+    return loc;
+}
+
+/*
+ * Change the current location to the one saved in LOC.
+ */
+void loc_restore(Location *loc)
+{
+    Location *prev = cur_loc->prev;
+    assert(!loc->prev);
+    *cur_loc = *loc;
+    cur_loc->prev = prev;
+}
+
+/*
+ * Change the current location to "nowhere in particular".
+ */
+void loc_set_none(void)
+{
+    cur_loc->kind = LOC_NONE;
+}
+
+/*
+ * Print current location to current monitor if we have one, else to stderr.
+ */
+void error_print_loc(void)
+{
+    switch (cur_loc->kind) {
+    default: ;
+    }
+}
+
 /*
  * Print an error message to current monitor if we have one, else to stderr.
- * Appends a newline to the message.
+ * Prepend the current location and append a newline.
  * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
  */
 void error_report(const char *fmt, ...)
 {
     va_list ap;
 
+    error_print_loc();
     va_start(ap, fmt);
     error_vprintf(fmt, ap);
     va_end(ap);

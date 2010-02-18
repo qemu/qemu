@@ -104,6 +104,30 @@ int64_t qemu_get_clock(QEMUClock *clock)
     return (tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000)) / 1000000;
 }
 
+Location *loc_push_restore(Location *loc)
+{
+    return loc;
+}
+
+Location *loc_push_none(Location *loc)
+{
+    return loc;
+}
+
+Location *loc_pop(Location *loc)
+{
+    return loc;
+}
+
+Location *loc_save(Location *loc)
+{
+    return loc;
+}
+
+void loc_restore(Location *loc)
+{
+}
+
 void error_report(const char *fmt, ...)
 {
     va_list args;

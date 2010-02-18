@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "qemu-option.h"
 
 /*
@@ -483,6 +484,7 @@ struct QemuOpt {
 struct QemuOpts {
     char *id;
     QemuOptsList *list;
+    Location loc;
     QTAILQ_HEAD(QemuOptHead, QemuOpt) head;
     QTAILQ_ENTRY(QemuOpts) next;
 };
@@ -653,6 +655,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exist
         opts->id = qemu_strdup(id);
     }
     opts->list = list;
+    loc_save(&opts->loc);
     QTAILQ_INIT(&opts->head);
     QTAILQ_INSERT_TAIL(&list->head, opts, next);
     return opts;
@@ -810,13 +813,17 @@ int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
                       int abort_on_failure)
 {
+    Location loc;
     QemuOpts *opts;
     int rc = 0;
 
+    loc_push_none(&loc);
     QTAILQ_FOREACH(opts, &list->head, next) {
+        loc_restore(&opts->loc);
         rc |= func(opts, opaque);
         if (abort_on_failure  &&  rc != 0)
             break;
     }
+    loc_pop(&loc);
     return rc;
 }
