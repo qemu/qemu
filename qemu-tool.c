@@ -33,8 +33,6 @@ void qemu_service_io(void)
 {
 }
 
-Monitor *cur_mon;
-
 void monitor_printf(Monitor *mon, const char *fmt, ...)
 {
 }
