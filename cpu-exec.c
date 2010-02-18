@@ -210,8 +210,7 @@ static void cpu_handle_debug_exception(CPUState *env)
 
 int cpu_exec(CPUState *env1)
 {
-#define DECLARE_HOST_REGS 1
-#include "hostregs_helper.h"
+    host_reg_t saved_env_reg;
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -222,9 +221,12 @@ int cpu_exec(CPUState *env1)
 
     cpu_single_env = env1;
 
-    /* first we save global registers */
-#define SAVE_HOST_REGS 1
-#include "hostregs_helper.h"
+    /* the access to env below is actually saving the global register's
+       value, so that files not including target-xyz/exec.h are free to
+       use it.  */
+    QEMU_BUILD_BUG_ON (sizeof (saved_env_reg) != sizeof (env));
+    saved_env_reg = (host_reg_t) env;
+    asm("");
     env = env1;
 
 #if defined(TARGET_I386)
@@ -669,7 +671,8 @@ int cpu_exec(CPUState *env1)
 #endif
 
     /* restore global registers */
-#include "hostregs_helper.h"
+    asm("");
+    env = (void *) saved_env_reg;
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */
     cpu_single_env = NULL;
