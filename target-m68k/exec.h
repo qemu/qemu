@@ -20,10 +20,6 @@
 #include "dyngen-exec.h"
 
 register struct CPUM68KState *env asm(AREG0);
-/* This is only used for tb lookup.  */
-register uint32_t T0 asm(AREG1);
-/* ??? We don't use T1, but common code expects it to exist  */
-#define T1 env->t1
 
 #include "cpu.h"
 #include "exec-all.h"
