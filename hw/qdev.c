@@ -555,8 +555,8 @@ static BusState *qbus_find(const char *path)
         pos = 0;
     } else {
         if (sscanf(path, "%127[^/]%n", elem, &len) != 1) {
-            error_report("path parse error (\"%s\")", path);
-            return NULL;
+            assert(!path[0]);
+            elem[0] = len = 0;
         }
         bus = qbus_find_recursive(main_system_bus, elem, NULL);
         if (!bus) {
@@ -567,15 +567,18 @@ static BusState *qbus_find(const char *path)
     }
 
     for (;;) {
+        assert(path[pos] == '/' || !path[pos]);
+        while (path[pos] == '/') {
+            pos++;
+        }
         if (path[pos] == '\0') {
-            /* we are done */
             return bus;
         }
 
         /* find device */
-        if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
-            error_report("path parse error (\"%s\" pos %d)", path, pos);
-            return NULL;
+        if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
+            assert(0);
+            elem[0] = len = 0;
         }
         pos += len;
         dev = qbus_find_dev(bus, elem);
@@ -583,6 +586,11 @@ static BusState *qbus_find(const char *path)
             error_report("device \"%s\" not found", elem);
             qbus_list_dev(bus);
             return NULL;
+        }
+
+        assert(path[pos] == '/' || !path[pos]);
+        while (path[pos] == '/') {
+            pos++;
         }
         if (path[pos] == '\0') {
             /* last specified element is a device.  If it has exactly
@@ -601,9 +609,9 @@ static BusState *qbus_find(const char *path)
         }
 
         /* find bus */
-        if (sscanf(path+pos, "/%127[^/]%n", elem, &len) != 1) {
-            error_report("path parse error (\"%s\" pos %d)", path, pos);
-            return NULL;
+        if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
+            assert(0);
+            elem[0] = len = 0;
         }
         pos += len;
         bus = qbus_find_bus(dev, elem);
