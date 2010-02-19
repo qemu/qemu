@@ -402,17 +402,11 @@ PropertyInfo qdev_prop_vlan = {
 
 /* --- pointer --- */
 
-static int print_ptr(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    void **ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "<%p>", *ptr);
-}
-
+/* Not a proper property, just for dirty hacks.  TODO Remove it!  */
 PropertyInfo qdev_prop_ptr = {
     .name  = "ptr",
     .type  = PROP_TYPE_PTR,
     .size  = sizeof(void*),
-    .print = print_ptr,
 };
 
 /* --- mac address --- */
@@ -547,13 +541,14 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
     int ret;
 
     prop = qdev_prop_find(dev, name);
-    if (!prop) {
+    /*
+     * TODO Properties without a parse method are just for dirty
+     * hacks.  qdev_prop_ptr is the only such PropertyInfo.  It's
+     * marked for removal.  The test !prop->info->parse should be
+     * removed along with it.
+     */
+    if (!prop || !prop->info->parse) {
         fprintf(stderr, "property \"%s.%s\" not found\n",
-                dev->info->name, name);
-        return -1;
-    }
-    if (!prop->info->parse) {
-        fprintf(stderr, "property \"%s.%s\" has no parser\n",
                 dev->info->name, name);
         return -1;
     }

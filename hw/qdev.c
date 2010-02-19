@@ -180,6 +180,15 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     for (prop = info->props; prop && prop->name; prop++) {
+        /*
+         * TODO Properties without a parser are just for dirty hacks.
+         * qdev_prop_ptr is the only such PropertyInfo.  It's marked
+         * for removal.  This conditional should be removed along with
+         * it.
+         */
+        if (!prop->info->parse) {
+            continue;           /* no way to set it, don't show */
+        }
         error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
     }
     return 1;
@@ -682,6 +691,12 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
     if (!props)
         return;
     while (props->name) {
+        /*
+         * TODO Properties without a print method are just for dirty
+         * hacks.  qdev_prop_ptr is the only such PropertyInfo.  It's
+         * marked for removal.  The test props->info->print should be
+         * removed along with it.
+         */
         if (props->info->print) {
             props->info->print(dev, props, buf, sizeof(buf));
             qdev_printf("%s-prop: %s = %s\n", prefix, props->name, buf);
