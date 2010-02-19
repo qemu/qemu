@@ -42,6 +42,9 @@ QError *qobject_to_qerror(const QObject *obj);
 /*
  * QError class list
  */
+#define QERR_BAD_BUS_FOR_DEVICE \
+    "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
+
 #define QERR_BUS_NOT_FOUND \
     "{ 'class': 'BusNotFound', 'data': { 'bus': %s } }"
 

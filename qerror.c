@@ -41,6 +41,10 @@ static const QType qerror_type = {
  */
 static const QErrorStringTable qerror_table[] = {
     {
+        .error_fmt = QERR_BAD_BUS_FOR_DEVICE,
+        .desc      = "Device '%(device)' can't go on a %(bad_bus_type) bus",
+    },
+    {
         .error_fmt = QERR_BUS_NOT_FOUND,
         .desc      = "Bus '%(bus)' not found",
     },
