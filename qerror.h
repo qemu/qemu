@@ -48,6 +48,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_BUS_NOT_FOUND \
     "{ 'class': 'BusNotFound', 'data': { 'bus': %s } }"
 
+#define QERR_BUS_NO_HOTPLUG \
+    "{ 'class': 'BusNoHotplug', 'data': { 'bus': %s } }"
+
 #define QERR_COMMAND_NOT_FOUND \
     "{ 'class': 'CommandNotFound', 'data': { 'name': %s } }"
 

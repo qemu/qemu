@@ -49,6 +49,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Bus '%(bus)' not found",
     },
     {
+        .error_fmt = QERR_BUS_NO_HOTPLUG,
+        .desc      = "Bus '%(bus)' does not support hotplugging",
+    },
+    {
         .error_fmt = QERR_COMMAND_NOT_FOUND,
         .desc      = "The command %(name) has not been found",
     },
