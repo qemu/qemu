@@ -73,6 +73,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' is not removable",
     },
     {
+        .error_fmt = QERR_DEVICE_NO_BUS,
+        .desc      = "Device '%(device)' has no child bus",
+    },
+    {
         .error_fmt = QERR_FD_NOT_FOUND,
         .desc      = "File descriptor named '%(name)' not found",
     },
