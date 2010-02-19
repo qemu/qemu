@@ -232,11 +232,13 @@ int cpu_exec(CPUState *env1)
 
     env_to_regs();
 #if defined(TARGET_I386)
-    /* put eflags in CPU temporary format */
-    CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((env->eflags >> 10) & 1));
-    CC_OP = CC_OP_EFLAGS;
-    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    if (!kvm_enabled()) {
+        /* put eflags in CPU temporary format */
+        CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+        DF = 1 - (2 * ((env->eflags >> 10) & 1));
+        CC_OP = CC_OP_EFLAGS;
+        env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    }
 #elif defined(TARGET_SPARC)
 #elif defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
