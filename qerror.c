@@ -41,6 +41,10 @@ static const QType qerror_type = {
  */
 static const QErrorStringTable qerror_table[] = {
     {
+        .error_fmt = QERR_BUS_NOT_FOUND,
+        .desc      = "Bus '%(bus)' not found",
+    },
+    {
         .error_fmt = QERR_COMMAND_NOT_FOUND,
         .desc      = "The command %(name) has not been found",
     },
