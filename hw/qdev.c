@@ -216,18 +216,21 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     path = qemu_opt_get(opts, "bus");
     if (path != NULL) {
         bus = qbus_find(path);
-        if (bus && bus->info != info->bus_info) {
+        if (!bus) {
+            return NULL;
+        }
+        if (bus->info != info->bus_info) {
             error_report("Device '%s' can't go on a %s bus",
                          driver, bus->info->name);
             return NULL;
         }
     } else {
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
-    }
-    if (!bus) {
-        error_report("Did not find %s bus for %s",
-                     path ? path : info->bus_info->name, info->name);
-        return NULL;
+        if (!bus) {
+            error_report("Did not find %s bus for %s",
+                         info->bus_info->name, info->name);
+            return NULL;
+        }
     }
     if (qdev_hotplug && !bus->allow_hotplug) {
         error_report("Bus %s does not support hotplugging",
@@ -560,7 +563,7 @@ static BusState *qbus_find(const char *path)
         }
         bus = qbus_find_recursive(main_system_bus, elem, NULL);
         if (!bus) {
-            error_report("bus \"%s\" not found", elem);
+            qerror_report(QERR_BUS_NOT_FOUND, elem);
             return NULL;
         }
         pos = len;
@@ -583,7 +586,7 @@ static BusState *qbus_find(const char *path)
         pos += len;
         dev = qbus_find_dev(bus, elem);
         if (!dev) {
-            error_report("device \"%s\" not found", elem);
+            qerror_report(QERR_DEVICE_NOT_FOUND, elem);
             qbus_list_dev(bus);
             return NULL;
         }
@@ -597,12 +600,12 @@ static BusState *qbus_find(const char *path)
              * one child bus accept it nevertheless */
             switch (dev->num_child_bus) {
             case 0:
-                error_report("device has no child bus (%s)", path);
+                qerror_report(QERR_DEVICE_NO_BUS, elem);
                 return NULL;
             case 1:
                 return QLIST_FIRST(&dev->child_bus);
             default:
-                error_report("device has multiple child busses (%s)", path);
+                qerror_report(QERR_DEVICE_MULTIPLE_BUSSES, elem);
                 qbus_list_bus(dev);
                 return NULL;
             }
@@ -616,7 +619,7 @@ static BusState *qbus_find(const char *path)
         pos += len;
         bus = qbus_find_bus(dev, elem);
         if (!bus) {
-            error_report("child bus \"%s\" not found", elem);
+            qerror_report(QERR_BUS_NOT_FOUND, elem);
             qbus_list_bus(dev);
             return NULL;
         }
