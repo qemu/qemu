@@ -105,6 +105,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_MISSING_PARAMETER \
     "{ 'class': 'MissingParameter', 'data': { 'name': %s } }"
 
+#define QERR_NO_BUS_FOR_DEVICE \
+    "{ 'class': 'NoBusForDevice', 'data': { 'device': %s, 'bus': %s } }"
+
 #define QERR_OPEN_FILE_FAILED \
     "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
 

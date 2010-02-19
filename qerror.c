@@ -125,6 +125,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Parameter '%(name)' is missing",
     },
     {
+        .error_fmt = QERR_NO_BUS_FOR_DEVICE,
+        .desc      = "No '%(bus)' bus found for device '%(device)'",
+    },
+    {
         .error_fmt = QERR_OPEN_FILE_FAILED,
         .desc      = "Could not open '%(filename)'",
     },
