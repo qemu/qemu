@@ -46,43 +46,39 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_DEVICE_ENCRYPTED,
-        .desc      = "The %(device) is encrypted",
+        .desc      = "Device '%(device)' is encrypted",
     },
     {
         .error_fmt = QERR_DEVICE_LOCKED,
-        .desc      = "Device %(device) is locked",
+        .desc      = "Device '%(device)' is locked",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
-        .desc      = "The %(device) device has not been activated by the guest",
+        .desc      = "Device '%(device)' has not been activated by the guest",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_FOUND,
-        .desc      = "The %(device) device has not been found",
+        .desc      = "Device '%(device)' not found",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_REMOVABLE,
-        .desc      = "Device %(device) is not removable",
+        .desc      = "Device '%(device)' is not removable",
     },
     {
         .error_fmt = QERR_FD_NOT_FOUND,
-        .desc      = "Failed to find file descriptor named %(name)",
+        .desc      = "File descriptor named '%(name)' not found",
     },
     {
         .error_fmt = QERR_FD_NOT_SUPPLIED,
         .desc      = "No file descriptor supplied via SCM_RIGHTS",
     },
     {
-        .error_fmt = QERR_OPEN_FILE_FAILED,
-        .desc      = "Could not open '%(filename)'",
-    },
-    {
         .error_fmt = QERR_INVALID_BLOCK_FORMAT,
-        .desc      = "Invalid block format %(name)",
+        .desc      = "Invalid block format '%(name)'",
     },
     {
         .error_fmt = QERR_INVALID_PARAMETER,
-        .desc      = "Invalid parameter %(name)",
+        .desc      = "Invalid parameter '%(name)'",
     },
     {
         .error_fmt = QERR_INVALID_PARAMETER_TYPE,
@@ -90,7 +86,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_INVALID_PASSWORD,
-        .desc      = "The entered password is invalid",
+        .desc      = "Password incorrect",
     },
     {
         .error_fmt = QERR_JSON_PARSING,
@@ -102,7 +98,11 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_MISSING_PARAMETER,
-        .desc      = "Parameter %(name) is missing",
+        .desc      = "Parameter '%(name)' is missing",
+    },
+    {
+        .error_fmt = QERR_OPEN_FILE_FAILED,
+        .desc      = "Could not open '%(filename)'",
     },
     {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,

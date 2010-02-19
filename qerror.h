@@ -48,7 +48,7 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_ENCRYPTED \
     "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s } }"
 
-#define QERR_DEVICE_LOCKED                                      \
+#define QERR_DEVICE_LOCKED \
     "{ 'class': 'DeviceLocked', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NOT_ACTIVE \
@@ -65,9 +65,6 @@ QError *qobject_to_qerror(const QObject *obj);
 
 #define QERR_FD_NOT_SUPPLIED \
     "{ 'class': 'FdNotSupplied', 'data': {} }"
-
-#define QERR_OPEN_FILE_FAILED \
-    "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
 
 #define QERR_INVALID_BLOCK_FORMAT \
     "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
@@ -90,17 +87,20 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_MISSING_PARAMETER \
     "{ 'class': 'MissingParameter', 'data': { 'name': %s } }"
 
+#define QERR_OPEN_FILE_FAILED \
+    "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
+
 #define QERR_QMP_BAD_INPUT_OBJECT \
     "{ 'class': 'QMPBadInputObject', 'data': { 'expected': %s } }"
 
 #define QERR_SET_PASSWD_FAILED \
     "{ 'class': 'SetPasswdFailed', 'data': {} }"
 
-#define QERR_UNDEFINED_ERROR \
-    "{ 'class': 'UndefinedError', 'data': {} }"
-
 #define QERR_TOO_MANY_FILES \
     "{ 'class': 'TooManyFiles', 'data': {} }"
+
+#define QERR_UNDEFINED_ERROR \
+    "{ 'class': 'UndefinedError', 'data': {} }"
 
 #define QERR_VNC_SERVER_FAILED \
     "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
