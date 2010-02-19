@@ -204,6 +204,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     path = qemu_opt_get(opts, "bus");
     if (path != NULL) {
         bus = qbus_find(path);
+        if (bus && bus->info != info->bus_info) {
+            error_report("Device '%s' can't go on a %s bus",
+                         driver, bus->info->name);
+            return NULL;
+        }
     } else {
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
     }
