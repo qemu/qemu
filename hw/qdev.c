@@ -78,26 +78,11 @@ static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
     return NULL;
 }
 
-/* Create a new device.  This only initializes the device state structure
-   and allows properties to be set.  qdev_init should be called to
-   initialize the actual device emulation.  */
-DeviceState *qdev_create(BusState *bus, const char *name)
+static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 {
-    DeviceInfo *info;
     DeviceState *dev;
 
-    if (!bus) {
-        if (!main_system_bus) {
-            main_system_bus = qbus_create(&system_bus_info, NULL, "main-system-bus");
-        }
-        bus = main_system_bus;
-    }
-
-    info = qdev_find_info(bus->info, name);
-    if (!info) {
-        hw_error("Unknown device '%s' for bus '%s'\n", name, bus->info->name);
-    }
-
+    assert(bus->info == info->bus_info);
     dev = qemu_mallocz(info->size);
     dev->info = info;
     dev->parent_bus = bus;
@@ -111,6 +96,28 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     }
     dev->state = DEV_STATE_CREATED;
     return dev;
+}
+
+/* Create a new device.  This only initializes the device state structure
+   and allows properties to be set.  qdev_init should be called to
+   initialize the actual device emulation.  */
+DeviceState *qdev_create(BusState *bus, const char *name)
+{
+    DeviceInfo *info;
+
+    if (!bus) {
+        if (!main_system_bus) {
+            main_system_bus = qbus_create(&system_bus_info, NULL, "main-system-bus");
+        }
+        bus = main_system_bus;
+    }
+
+    info = qdev_find_info(bus->info, name);
+    if (!info) {
+        hw_error("Unknown device '%s' for bus '%s'\n", name, bus->info->name);
+    }
+
+    return qdev_create_from_info(bus, info);
 }
 
 static void qdev_print_devinfo(DeviceInfo *info)
@@ -224,7 +231,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* create device, set properties */
-    qdev = qdev_create(bus, driver);
+    qdev = qdev_create_from_info(bus, info);
     id = qemu_opts_id(opts);
     if (id) {
         qdev->id = id;
