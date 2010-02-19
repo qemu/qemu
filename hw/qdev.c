@@ -162,6 +162,9 @@ int qdev_device_help(QemuOpts *opts)
     driver = qemu_opt_get(opts, "driver");
     if (driver && !strcmp(driver, "?")) {
         for (info = device_info_list; info != NULL; info = info->next) {
+            if (info->no_user) {
+                continue;       /* not available, don't show */
+            }
             qdev_print_devinfo(info);
         }
         return 1;
@@ -197,13 +200,8 @@ DeviceState *qdev_device_add(QemuOpts *opts)
 
     /* find driver */
     info = qdev_find_info(NULL, driver);
-    if (!info) {
+    if (!info || info->no_user) {
         qerror_report(QERR_DEVICE_NOT_FOUND, driver);
-        return NULL;
-    }
-    if (info->no_user) {
-        error_report("device \"%s\" can't be added via command line",
-                     info->name);
         return NULL;
     }
 
