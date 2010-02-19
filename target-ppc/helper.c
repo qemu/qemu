@@ -736,14 +736,13 @@ static inline int slb_lookup(CPUPPCState *env, target_ulong eaddr,
                     PRIx32 "\n", __func__, n, slb->tmp64, slb->tmp);
         if (slb_is_valid(slb)) {
             /* SLB entry is valid */
+            mask = 0xFFFFFFFFF0000000ULL;
             if (slb->tmp & 0x8) {
-                /* 1 TB Segment */
-                mask = 0xFFFF000000000000ULL;
+                /* 16 MB PTEs */
                 if (target_page_bits)
-                    *target_page_bits = 24; // XXX 16M pages?
+                    *target_page_bits = 24;
             } else {
-                /* 256MB Segment */
-                mask = 0xFFFFFFFFF0000000ULL;
+                /* 4 KB PTEs */
                 if (target_page_bits)
                     *target_page_bits = TARGET_PAGE_BITS;
             }

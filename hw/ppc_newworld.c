@@ -21,6 +21,30 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
+ * PCI bus layout on a real G5 (U3 based):
+ *
+ * 0000:f0:0b.0 Host bridge [0600]: Apple Computer Inc. U3 AGP [106b:004b]
+ * 0000:f0:10.0 VGA compatible controller [0300]: ATI Technologies Inc RV350 AP [Radeon 9600] [1002:4150]
+ * 0001:00:00.0 Host bridge [0600]: Apple Computer Inc. CPC945 HT Bridge [106b:004a]
+ * 0001:00:01.0 PCI bridge [0604]: Advanced Micro Devices [AMD] AMD-8131 PCI-X Bridge [1022:7450] (rev 12)
+ * 0001:00:02.0 PCI bridge [0604]: Advanced Micro Devices [AMD] AMD-8131 PCI-X Bridge [1022:7450] (rev 12)
+ * 0001:00:03.0 PCI bridge [0604]: Apple Computer Inc. K2 HT-PCI Bridge [106b:0045]
+ * 0001:00:04.0 PCI bridge [0604]: Apple Computer Inc. K2 HT-PCI Bridge [106b:0046]
+ * 0001:00:05.0 PCI bridge [0604]: Apple Computer Inc. K2 HT-PCI Bridge [106b:0047]
+ * 0001:00:06.0 PCI bridge [0604]: Apple Computer Inc. K2 HT-PCI Bridge [106b:0048]
+ * 0001:00:07.0 PCI bridge [0604]: Apple Computer Inc. K2 HT-PCI Bridge [106b:0049]
+ * 0001:01:07.0 Class [ff00]: Apple Computer Inc. K2 KeyLargo Mac/IO [106b:0041] (rev 20)
+ * 0001:01:08.0 USB Controller [0c03]: Apple Computer Inc. K2 KeyLargo USB [106b:0040]
+ * 0001:01:09.0 USB Controller [0c03]: Apple Computer Inc. K2 KeyLargo USB [106b:0040]
+ * 0001:02:0b.0 USB Controller [0c03]: NEC Corporation USB [1033:0035] (rev 43)
+ * 0001:02:0b.1 USB Controller [0c03]: NEC Corporation USB [1033:0035] (rev 43)
+ * 0001:02:0b.2 USB Controller [0c03]: NEC Corporation USB 2.0 [1033:00e0] (rev 04)
+ * 0001:03:0d.0 Class [ff00]: Apple Computer Inc. K2 ATA/100 [106b:0043]
+ * 0001:03:0e.0 FireWire (IEEE 1394) [0c00]: Apple Computer Inc. K2 FireWire [106b:0042]
+ * 0001:04:0f.0 Ethernet controller [0200]: Apple Computer Inc. K2 GMAC (Sun GEM) [106b:004c]
+ * 0001:05:0c.0 IDE interface [0101]: Broadcom K2 SATA [1166:0240]
+ *
  */
 #include "hw.h"
 #include "ppc.h"
@@ -40,6 +64,8 @@
 #include "loader.h"
 #include "elf.h"
 #include "kvm.h"
+#include "kvm_ppc.h"
+#include "hw/usb.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -109,11 +135,13 @@ static void ppc_core99_init (ram_addr_t ram_size,
     int nvram_mem_index;
     int vga_bios_size, bios_size;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
+    int ide_mem_index[3];
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     void *dbdma;
     uint8_t *vga_bios_ptr;
+    int machine_arch;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -317,7 +345,14 @@ static void ppc_core99_init (ram_addr_t ram_size,
         }
     }
     pic = openpic_init(NULL, &pic_mem_index, smp_cpus, openpic_irqs, NULL);
-    pci_bus = pci_pmac_init(pic);
+    if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
+        /* 970 gets a U3 bus */
+        pci_bus = pci_pmac_u3_init(pic);
+        machine_arch = ARCH_MAC99_U3;
+    } else {
+        pci_bus = pci_pmac_init(pic);
+        machine_arch = ARCH_MAC99;
+    }
     /* init basic PC hardware */
     pci_vga_init(pci_bus, vga_bios_offset, vga_bios_size);
 
@@ -331,25 +366,39 @@ static void ppc_core99_init (ram_addr_t ram_size,
         fprintf(stderr, "qemu: too many IDE bus\n");
         exit(1);
     }
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
     dbdma = DBDMA_init(&dbdma_mem_index);
-    pci_cmd646_ide_init(pci_bus, hd, 0);
+
+    /* We only emulate 2 out of 3 IDE controllers for now */
+    ide_mem_index[0] = -1;
+    hd[0] = drive_get(IF_IDE, 0, 0);
+    hd[1] = drive_get(IF_IDE, 0, 1);
+    ide_mem_index[1] = pmac_ide_init(hd, pic[0x0d], dbdma, 0x16, pic[0x02]);
+    hd[0] = drive_get(IF_IDE, 1, 0);
+    hd[1] = drive_get(IF_IDE, 1, 1);
+    ide_mem_index[2] = pmac_ide_init(hd, pic[0x0e], dbdma, 0x1a, pic[0x02]);
 
     /* cuda also initialize ADB */
+    if (machine_arch == ARCH_MAC99_U3) {
+        usb_enabled = 1;
+    }
     cuda_init(&cuda_mem_index, pic[0x19]);
 
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
-
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem_index,
-               dbdma_mem_index, cuda_mem_index, NULL, 0, NULL,
+               dbdma_mem_index, cuda_mem_index, NULL, 3, ide_mem_index,
                escc_mem_index);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, -1);
+    }
+
+    /* U3 needs to use USB for input because Linux doesn't support via-cuda
+       on PPC64 */
+    if (machine_arch == ARCH_MAC99_U3) {
+        usbdevice_create("keyboard");
+        usbdevice_create("mouse");
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
@@ -364,7 +413,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_MAC99);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, machine_arch);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
     if (kernel_cmdline) {
@@ -380,6 +429,14 @@ static void ppc_core99_init (ram_addr_t ram_size,
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, graphic_depth);
+
+    if (kvm_enabled()) {
+#ifdef CONFIG_KVM
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
+#endif
+    } else {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());
+    }
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
