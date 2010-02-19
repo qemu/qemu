@@ -548,25 +548,24 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
      * removed along with it.
      */
     if (!prop || !prop->info->parse) {
-        fprintf(stderr, "property \"%s.%s\" not found\n",
-                dev->info->name, name);
+        qerror_report(QERR_PROPERTY_NOT_FOUND, dev->info->name, name);
         return -1;
     }
     ret = prop->info->parse(dev, prop, value);
     if (ret < 0) {
         switch (ret) {
         case -EEXIST:
-            fprintf(stderr, "property \"%s.%s\": \"%s\" is already in use\n",
-                    dev->info->name, name, value);
+            qerror_report(QERR_PROPERTY_VALUE_IN_USE,
+                          dev->info->name, name, value);
             break;
         default:
         case -EINVAL:
-            fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
-                    dev->info->name, name, value);
+            qerror_report(QERR_PROPERTY_VALUE_BAD,
+                          dev->info->name, name, value);
             break;
         case -ENOENT:
-            fprintf(stderr, "property \"%s.%s\": could not find \"%s\"\n",
-                    dev->info->name, name, value);
+            qerror_report(QERR_PROPERTY_VALUE_NOT_FOUND,
+                          dev->info->name, name, value);
             break;
         }
         return -1;

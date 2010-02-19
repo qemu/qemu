@@ -146,8 +146,6 @@ static int set_property(const char *name, const char *value, void *opaque)
         return 0;
 
     if (qdev_prop_parse(dev, name, value) == -1) {
-        error_report("can't set property \"%s\" to \"%s\" for \"%s\"",
-                     name, value, dev->info->name);
         return -1;
     }
     return 0;
