@@ -1252,8 +1252,10 @@ if( cmd == val ) { \
 
     int cmd = (int)tswap32(tflag);
 #ifdef FUTEX_PRIVATE_FLAG
-    if (cmd == FUTEX_PRIVATE_FLAG)
+    if (cmd & FUTEX_PRIVATE_FLAG) {
         gemu_log("FUTEX_PRIVATE_FLAG|");
+        cmd &= ~FUTEX_PRIVATE_FLAG;
+    }
 #endif
     print_op(FUTEX_WAIT)
     print_op(FUTEX_WAKE)
