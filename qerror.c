@@ -57,6 +57,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' is locked",
     },
     {
+        .error_fmt = QERR_DEVICE_MULTIPLE_BUSSES,
+        .desc      = "Device '%(device)' has multiple child busses",
+    },
+    {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
         .desc      = "Device '%(device)' has not been activated by the guest",
     },
