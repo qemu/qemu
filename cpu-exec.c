@@ -924,6 +924,20 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 # define TRAP_sig(context)			REG_sig(trap, context)
 #endif /* linux */
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <ucontext.h>
+# define IAR_sig(context)		((context)->uc_mcontext.mc_srr0)
+# define MSR_sig(context)		((context)->uc_mcontext.mc_srr1)
+# define CTR_sig(context)		((context)->uc_mcontext.mc_ctr)
+# define XER_sig(context)		((context)->uc_mcontext.mc_xer)
+# define LR_sig(context)		((context)->uc_mcontext.mc_lr)
+# define CR_sig(context)		((context)->uc_mcontext.mc_cr)
+/* Exception Registers access */
+# define DAR_sig(context)		((context)->uc_mcontext.mc_dar)
+# define DSISR_sig(context)		((context)->uc_mcontext.mc_dsisr)
+# define TRAP_sig(context)		((context)->uc_mcontext.mc_exc)
+#endif /* __FreeBSD__|| __FreeBSD_kernel__ */
+
 #ifdef __APPLE__
 # include <sys/ucontext.h>
 typedef struct ucontext SIGCONTEXT;
@@ -953,7 +967,11 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+    ucontext_t *uc = puc;
+#else
     struct ucontext *uc = puc;
+#endif
     unsigned long pc;
     int is_write;
 
