@@ -26,9 +26,40 @@
 #include "block_int.h"
 #include "module.h"
 
+#include <stdbool.h>
+
+typedef struct BlkdebugVars {
+    int state;
+
+    /* If inject_errno != 0, an error is injected for requests */
+    int inject_errno;
+
+    /* Decides if all future requests fail (false) or only the next one and
+     * after the next request inject_errno is reset to 0 (true) */
+    bool inject_once;
+
+    /* Decides if aio_readv/writev fails right away (true) or returns an error
+     * return value only in the callback (false) */
+    bool inject_immediately;
+} BlkdebugVars;
+
 typedef struct BDRVBlkdebugState {
     BlockDriverState *hd;
+    BlkdebugVars vars;
 } BDRVBlkdebugState;
+
+typedef struct BlkdebugAIOCB {
+    BlockDriverAIOCB common;
+    QEMUBH *bh;
+    int ret;
+} BlkdebugAIOCB;
+
+static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb);
+
+static AIOPool blkdebug_aio_pool = {
+    .aiocb_size = sizeof(BlkdebugAIOCB),
+    .cancel     = blkdebug_aio_cancel,
+};
 
 static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
 {
@@ -42,11 +73,56 @@ static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
     return bdrv_file_open(&s->hd, filename, flags);
 }
 
+static void error_callback_bh(void *opaque)
+{
+    struct BlkdebugAIOCB *acb = opaque;
+    qemu_bh_delete(acb->bh);
+    acb->common.cb(acb->common.opaque, acb->ret);
+    qemu_aio_release(acb);
+}
+
+static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb)
+{
+    BlkdebugAIOCB *acb = (BlkdebugAIOCB*) blockacb;
+    qemu_aio_release(acb);
+}
+
+static BlockDriverAIOCB *inject_error(BlockDriverState *bs,
+    BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    int error = s->vars.inject_errno;
+    struct BlkdebugAIOCB *acb;
+    QEMUBH *bh;
+
+    if (s->vars.inject_once) {
+        s->vars.inject_errno = 0;
+    }
+
+    if (s->vars.inject_immediately) {
+        return NULL;
+    }
+
+    acb = qemu_aio_get(&blkdebug_aio_pool, bs, cb, opaque);
+    acb->ret = -error;
+
+    bh = qemu_bh_new(error_callback_bh, acb);
+    acb->bh = bh;
+    qemu_bh_schedule(bh);
+
+    return (BlockDriverAIOCB*) acb;
+}
+
 static BlockDriverAIOCB *blkdebug_aio_readv(BlockDriverState *bs,
     int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVBlkdebugState *s = bs->opaque;
+
+    if (s->vars.inject_errno) {
+        return inject_error(bs, cb, opaque);
+    }
+
     BlockDriverAIOCB *acb =
         bdrv_aio_readv(s->hd, sector_num, qiov, nb_sectors, cb, opaque);
     return acb;
@@ -57,6 +133,11 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVBlkdebugState *s = bs->opaque;
+
+    if (s->vars.inject_errno) {
+        return inject_error(bs, cb, opaque);
+    }
+
     BlockDriverAIOCB *acb =
         bdrv_aio_writev(s->hd, sector_num, qiov, nb_sectors, cb, opaque);
     return acb;
