@@ -90,6 +90,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_OPEN_FILE_FAILED \
     "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
 
+#define QERR_PROPERTY_NOT_FOUND \
+    "{ 'class': 'PropertyNotFound', 'data': { 'device': %s, 'property': %s } }"
+
 #define QERR_QMP_BAD_INPUT_OBJECT \
     "{ 'class': 'QMPBadInputObject', 'data': { 'expected': %s } }"
 

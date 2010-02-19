@@ -105,6 +105,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not open '%(filename)'",
     },
     {
+        .error_fmt = QERR_PROPERTY_NOT_FOUND,
+        .desc      = "Property '%(device).%(property)' not found",
+    },
+    {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,
         .desc      = "Bad QMP input object",
     },
