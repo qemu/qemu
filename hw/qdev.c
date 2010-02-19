@@ -200,15 +200,15 @@ DeviceState *qdev_device_add(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
-        error_report("-device: no driver specified");
+        qerror_report(QERR_MISSING_PARAMETER, "driver");
         return NULL;
     }
 
     /* find driver */
     info = qdev_find_info(NULL, driver);
     if (!info || info->no_user) {
-        error_report("Device \"%s\" not found.  Try -device '?' for a list.",
-                     driver);
+        qerror_report(QERR_INVALID_PARAMETER, "driver");
+        error_printf_unless_qmp("Try with argument '?' for a list.\n");
         return NULL;
     }
 
@@ -220,21 +220,20 @@ DeviceState *qdev_device_add(QemuOpts *opts)
             return NULL;
         }
         if (bus->info != info->bus_info) {
-            error_report("Device '%s' can't go on a %s bus",
-                         driver, bus->info->name);
+            qerror_report(QERR_BAD_BUS_FOR_DEVICE,
+                           driver, bus->info->name);
             return NULL;
         }
     } else {
         bus = qbus_find_recursive(main_system_bus, NULL, info->bus_info);
         if (!bus) {
-            error_report("Did not find %s bus for %s",
-                         info->bus_info->name, info->name);
+            qerror_report(QERR_NO_BUS_FOR_DEVICE,
+                           info->name, info->bus_info->name);
             return NULL;
         }
     }
     if (qdev_hotplug && !bus->allow_hotplug) {
-        error_report("Bus %s does not support hotplugging",
-                     bus->name);
+        qerror_report(QERR_BUS_NO_HOTPLUG, bus->name);
         return NULL;
     }
 
@@ -249,7 +248,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
     if (qdev_init(qdev) < 0) {
-        error_report("Error initializing device %s", driver);
+        qerror_report(QERR_DEVICE_INIT_FAILED, driver);
         return NULL;
     }
     qdev->opts = opts;
