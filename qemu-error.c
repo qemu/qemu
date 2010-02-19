@@ -41,6 +41,17 @@ void error_printf(const char *fmt, ...)
     va_end(ap);
 }
 
+void error_printf_unless_qmp(const char *fmt, ...)
+{
+    va_list ap;
+
+    if (!monitor_cur_is_qmp()) {
+        va_start(ap, fmt);
+        error_vprintf(fmt, ap);
+        va_end(ap);
+    }
+}
+
 static Location std_loc = {
     .kind = LOC_NONE
 };
