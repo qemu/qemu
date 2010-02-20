@@ -723,8 +723,10 @@ typedef struct CPUX86State {
 CPUX86State *cpu_x86_init(const char *cpu_model);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
-void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
-                                                 ...));
+void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                   const char *optarg);
+void x86_cpudef_setup(void);
+
 int cpu_get_pic_interrupt(CPUX86State *s);
 /* MSDOS compatibility mode FPU exception support */
 void cpu_set_ferr(CPUX86State *s);
@@ -876,7 +878,8 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
-#define cpu_list x86_cpu_list
+#define cpu_list_id x86_cpu_list
+#define cpudef_setup	x86_cpudef_setup
 
 #define CPU_SAVE_VERSION 11
 

@@ -4836,6 +4836,9 @@ int main(int argc, char **argv, char **envp)
             fclose(fp);
         }
     }
+#if defined(cpudef_setup)
+    cpudef_setup(); /* parse cpu definitions in target config file */
+#endif
 
     /* second pass of option parsing */
     optind = 1;
@@ -4869,8 +4872,10 @@ int main(int argc, char **argv, char **envp)
                 /* hw initialization will check this */
                 if (*optarg == '?') {
 /* XXX: implement xxx_cpu_list for targets that still miss it */
-#if defined(cpu_list)
-                    cpu_list(stdout, &fprintf);
+#if defined(cpu_list_id)
+                    cpu_list_id(stdout, &fprintf, optarg);
+#elif defined(cpu_list)
+                    cpu_list(stdout, &fprintf);	        /* deprecated */
 #endif
                     exit(0);
                 } else {

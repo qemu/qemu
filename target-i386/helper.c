@@ -29,33 +29,52 @@
 #include "kvm.h"
 
 //#define DEBUG_MMU
+#include "qemu-option.h"
+#include "qemu-config.h"
 
 /* feature flags taken from "Intel Processor Identification and the CPUID
- * Instruction" and AMD's "CPUID Specification". In cases of disagreement
- * about feature names, the Linux name is used. */
+ * Instruction" and AMD's "CPUID Specification".  In cases of disagreement
+ * between feature naming conventions, aliases may be added.
+ */
 static const char *feature_name[] = {
-    "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-    "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
-    "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
-    "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
+    "fpu", "vme", "de", "pse",
+    "tsc", "msr", "pae", "mce",
+    "cx8", "apic", NULL, "sep",
+    "mtrr", "pge", "mca", "cmov",
+    "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */,
+    NULL, "ds" /* Intel dts */, "acpi", "mmx",
+    "fxsr", "sse", "sse2", "ss",
+    "ht" /* Intel htt */, "tm", "ia64", "pbe",
 };
 static const char *ext_feature_name[] = {
-    "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
-    "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
-    NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, "hypervisor",
+    "pni|sse3" /* Intel,AMD sse3 */, NULL, NULL, "monitor",
+    "ds_cpl", "vmx", NULL /* Linux smx */, "est",
+    "tm2", "ssse3", "cid", NULL,
+    NULL, "cx16", "xtpr", NULL,
+    NULL, NULL, "dca", "sse4.1|sse4_1",
+    "sse4.2|sse4_2", "x2apic", NULL, "popcnt",
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, "hypervisor",
 };
 static const char *ext2_feature_name[] = {
-    "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-    "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mtrr", "pge", "mca", "cmov",
-    "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
-    "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
+    "fpu", "vme", "de", "pse",
+    "tsc", "msr", "pae", "mce",
+    "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall",
+    "mtrr", "pge", "mca", "cmov",
+    "pat", "pse36", NULL, NULL /* Linux mp */,
+    "nx" /* Intel xd */, NULL, "mmxext", "mmx",
+    "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp",
+    NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
 };
 static const char *ext3_feature_name[] = {
-    "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
-    "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
+    "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
+    "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL,
+    "skinit", "wdt", NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
 };
 
 static const char *kvm_feature_name[] = {
@@ -65,47 +84,99 @@ static const char *kvm_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
+/* collects per-function cpuid data
+ */
+typedef struct model_features_t {
+    uint32_t *guest_feat;
+    uint32_t *host_feat;
+    uint32_t check_feat;
+    const char **flag_names;
+    uint32_t cpuid;
+    } model_features_t;
+
+int check_cpuid = 0;
+int enforce_cpuid = 0;
+
+static void host_cpuid(uint32_t function, uint32_t count, uint32_t *eax,
+                       uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
+
+#define iswhite(c) ((c) && ((c) <= ' ' || '~' < (c)))
+
+/* general substring compare of *[s1..e1) and *[s2..e2).  sx is start of
+ * a substring.  ex if !NULL points to the first char after a substring,
+ * otherwise the string is assumed to sized by a terminating nul.
+ * Return lexical ordering of *s1:*s2.
+ */
+static int sstrcmp(const char *s1, const char *e1, const char *s2,
+    const char *e2)
+{
+    for (;;) {
+        if (!*s1 || !*s2 || *s1 != *s2)
+            return (*s1 - *s2);
+        ++s1, ++s2;
+        if (s1 == e1 && s2 == e2)
+            return (0);
+        else if (s1 == e1)
+            return (*s2);
+        else if (s2 == e2)
+            return (*s1);
+    }
+}
+
+/* compare *[s..e) to *altstr.  *altstr may be a simple string or multiple
+ * '|' delimited (possibly empty) strings in which case search for a match
+ * within the alternatives proceeds left to right.  Return 0 for success,
+ * non-zero otherwise.
+ */
+static int altcmp(const char *s, const char *e, const char *altstr)
+{
+    const char *p, *q;
+
+    for (q = p = altstr; ; ) {
+        while (*p && *p != '|')
+            ++p;
+        if ((q == p && !*s) || (q != p && !sstrcmp(s, e, q, p)))
+            return (0);
+        if (!*p)
+            return (1);
+        else
+            q = ++p;
+    }
+}
+
+/* search featureset for flag *[s..e), if found set corresponding bit in
+ * *pval and return success, otherwise return zero
+ */
+static int lookup_feature(uint32_t *pval, const char *s, const char *e,
+    const char **featureset)
+{
+    uint32_t mask;
+    const char **ppc;
+
+    for (mask = 1, ppc = featureset; mask; mask <<= 1, ++ppc)
+        if (*ppc && !altcmp(s, e, *ppc)) {
+            *pval |= mask;
+            break;
+        }
+    return (mask ? 1 : 0);
+}
+
 static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features,
                                     uint32_t *ext_features,
                                     uint32_t *ext2_features,
                                     uint32_t *ext3_features,
                                     uint32_t *kvm_features)
 {
-    int i;
-    int found = 0;
-
-    for ( i = 0 ; i < 32 ; i++ )
-        if (feature_name[i] && !strcmp (flagname, feature_name[i])) {
-            *features |= 1 << i;
-            found = 1;
-        }
-    for ( i = 0 ; i < 32 ; i++ )
-        if (ext_feature_name[i] && !strcmp (flagname, ext_feature_name[i])) {
-            *ext_features |= 1 << i;
-            found = 1;
-        }
-    for ( i = 0 ; i < 32 ; i++ )
-        if (ext2_feature_name[i] && !strcmp (flagname, ext2_feature_name[i])) {
-            *ext2_features |= 1 << i;
-            found = 1;
-        }
-    for ( i = 0 ; i < 32 ; i++ )
-        if (ext3_feature_name[i] && !strcmp (flagname, ext3_feature_name[i])) {
-            *ext3_features |= 1 << i;
-            found = 1;
-        }
-    for ( i = 0 ; i < 32 ; i++ )
-        if (kvm_feature_name[i] && !strcmp (flagname, kvm_feature_name[i])) {
-            *kvm_features |= 1 << i;
-            found = 1;
-        }
-
-    if (!found) {
-        fprintf(stderr, "CPU feature %s not found\n", flagname);
-    }
+    if (!lookup_feature(features, flagname, NULL, feature_name) &&
+        !lookup_feature(ext_features, flagname, NULL, ext_feature_name) &&
+        !lookup_feature(ext2_features, flagname, NULL, ext2_feature_name) &&
+        !lookup_feature(ext3_features, flagname, NULL, ext3_feature_name) &&
+        !lookup_feature(kvm_features, flagname, NULL, kvm_feature_name))
+            fprintf(stderr, "CPU feature %s not found\n", flagname);
 }
 
 typedef struct x86_def_t {
+    struct x86_def_t *next;
     const char *name;
     uint32_t level;
     uint32_t vendor1, vendor2, vendor3;
@@ -116,6 +187,7 @@ typedef struct x86_def_t {
     uint32_t xlevel;
     char model_id[48];
     int vendor_override;
+    uint32_t flags;
 } x86_def_t;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
@@ -129,7 +201,14 @@ typedef struct x86_def_t {
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
           CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
           CPUID_PAE | CPUID_SEP | CPUID_APIC)
-static x86_def_t x86_defs[] = {
+
+/* maintains list of cpu model definitions
+ */
+static x86_def_t *x86_defs = {NULL};
+
+/* built-in cpu model definitions (deprecated)
+ */
+static x86_def_t builtin_x86_defs[] = {
 #ifdef TARGET_X86_64
     {
         .name = "qemu64",
@@ -334,9 +413,6 @@ static x86_def_t x86_defs[] = {
     },
 };
 
-static void host_cpuid(uint32_t function, uint32_t count, uint32_t *eax,
-                               uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
-
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -382,6 +458,51 @@ static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
     return 0;
 }
 
+static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
+{
+    int i;
+
+    for (i = 0; i < 32; ++i)
+        if (1 << i & mask) {
+            fprintf(stderr, "warning: host cpuid %04x_%04x lacks requested"
+                " flag '%s' [0x%08x]\n",
+                f->cpuid >> 16, f->cpuid & 0xffff,
+                f->flag_names[i] ? f->flag_names[i] : "[reserved]", mask);
+            break;
+        }
+    return 0;
+}
+
+/* best effort attempt to inform user requested cpu flags aren't making
+ * their way to the guest.  Note: ft[].check_feat ideally should be
+ * specified via a guest_def field to suppress report of extraneous flags.
+ */
+static int check_features_against_host(x86_def_t *guest_def)
+{
+    x86_def_t host_def;
+    uint32_t mask;
+    int rv, i;
+    struct model_features_t ft[] = {
+        {&guest_def->features, &host_def.features,
+            ~0, feature_name, 0x00000000},
+        {&guest_def->ext_features, &host_def.ext_features,
+            ~CPUID_EXT_HYPERVISOR, ext_feature_name, 0x00000001},
+        {&guest_def->ext2_features, &host_def.ext2_features,
+            ~PPRO_FEATURES, ext2_feature_name, 0x80000000},
+        {&guest_def->ext3_features, &host_def.ext3_features,
+            ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001}};
+
+    cpu_x86_fill_host(&host_def);
+    for (rv = 0, i = 0; i < sizeof (ft) / sizeof (ft[0]); ++i)
+        for (mask = 1; mask; mask <<= 1)
+            if (ft[i].check_feat & mask && *ft[i].guest_feat & mask &&
+                !(*ft[i].host_feat & mask)) {
+                    unavailable_host_feature(&ft[i], mask);
+                    rv = 1;
+                }
+    return rv;
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 {
     unsigned int i;
@@ -393,13 +514,9 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     uint32_t minus_features = 0, minus_ext_features = 0, minus_ext2_features = 0, minus_ext3_features = 0, minus_kvm_features = 0;
     uint32_t numvalue;
 
-    def = NULL;
-    for (i = 0; i < ARRAY_SIZE(x86_defs); i++) {
-        if (strcmp(name, x86_defs[i].name) == 0) {
-            def = &x86_defs[i];
+    for (def = x86_defs; def; def = def->next)
+        if (!strcmp(name, def->name))
             break;
-        }
-    }
     if (kvm_enabled() && strcmp(name, "host") == 0) {
         cpu_x86_fill_host(x86_cpu_def);
     } else if (!def) {
@@ -488,6 +605,10 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                 fprintf(stderr, "unrecognized feature %s\n", featurestr);
                 goto error;
             }
+        } else if (!strcmp(featurestr, "check")) {
+            check_cpuid = 1;
+        } else if (!strcmp(featurestr, "enforce")) {
+            check_cpuid = enforce_cpuid = 1;
         } else {
             fprintf(stderr, "feature string `%s' not in format (+feature|-feature|feature=xyz)\n", featurestr);
             goto error;
@@ -504,6 +625,10 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     x86_cpu_def->ext2_features &= ~minus_ext2_features;
     x86_cpu_def->ext3_features &= ~minus_ext3_features;
     x86_cpu_def->kvm_features &= ~minus_kvm_features;
+    if (check_cpuid) {
+        if (check_features_against_host(x86_cpu_def) && enforce_cpuid)
+            goto error;
+    }
     free(s);
     return 0;
 
@@ -512,12 +637,97 @@ error:
     return -1;
 }
 
-void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+/* generate a composite string into buf of all cpuid names in featureset
+ * selected by fbits.  indicate truncation at bufsize in the event of overflow.
+ * if flags, suppress names undefined in featureset.
+ */
+static void listflags(char *buf, int bufsize, uint32_t fbits,
+    const char **featureset, uint32_t flags)
 {
-    unsigned int i;
+    const char **p = &featureset[31];
+    char *q, *b, bit;
+    int nc;
 
-    for (i = 0; i < ARRAY_SIZE(x86_defs); i++)
-        (*cpu_fprintf)(f, "x86 %16s\n", x86_defs[i].name);
+    b = 4 <= bufsize ? buf + (bufsize -= 3) - 1 : NULL;
+    *buf = '\0';
+    for (q = buf, bit = 31; fbits && bufsize; --p, fbits &= ~(1 << bit), --bit)
+        if (fbits & 1 << bit && (*p || !flags)) {
+            if (*p)
+                nc = snprintf(q, bufsize, "%s%s", q == buf ? "" : " ", *p);
+            else
+                nc = snprintf(q, bufsize, "%s[%d]", q == buf ? "" : " ", bit);
+            if (bufsize <= nc) {
+                if (b)
+                    sprintf(b, "...");
+                return;
+            }
+            q += nc;
+            bufsize -= nc;
+        }
+}
+
+/* generate CPU information:
+ * -?        list model names
+ * -?model   list model names/IDs
+ * -?dump    output all model (x86_def_t) data
+ * -?cpuid   list all recognized cpuid flag names
+ */ 
+void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                  const char *optarg)
+{
+    unsigned char model = !strcmp("?model", optarg);
+    unsigned char dump = !strcmp("?dump", optarg);
+    unsigned char cpuid = !strcmp("?cpuid", optarg);
+    x86_def_t *def;
+    char buf[256];
+
+    if (cpuid) {
+        (*cpu_fprintf)(f, "Recognized CPUID flags:\n");
+        listflags(buf, sizeof (buf), (uint32_t)~0, feature_name, 1);
+        (*cpu_fprintf)(f, "  f_edx: %s\n", buf);
+        listflags(buf, sizeof (buf), (uint32_t)~0, ext_feature_name, 1);
+        (*cpu_fprintf)(f, "  f_ecx: %s\n", buf);
+        listflags(buf, sizeof (buf), (uint32_t)~0, ext2_feature_name, 1);
+        (*cpu_fprintf)(f, "  extf_edx: %s\n", buf);
+        listflags(buf, sizeof (buf), (uint32_t)~0, ext3_feature_name, 1);
+        (*cpu_fprintf)(f, "  extf_ecx: %s\n", buf);
+        return;
+    }
+    for (def = x86_defs; def; def = def->next) {
+        snprintf(buf, sizeof (buf), def->flags ? "[%s]": "%s", def->name);
+        if (model || dump) {
+            (*cpu_fprintf)(f, "x86 %16s  %-48s\n", buf, def->model_id);
+        } else {
+            (*cpu_fprintf)(f, "x86 %16s\n", buf);
+        }
+        if (dump) {
+            memcpy(buf, &def->vendor1, sizeof (def->vendor1));
+            memcpy(buf + 4, &def->vendor2, sizeof (def->vendor2));
+            memcpy(buf + 8, &def->vendor3, sizeof (def->vendor3));
+            buf[12] = '\0';
+            (*cpu_fprintf)(f,
+                "  family %d model %d stepping %d level %d xlevel 0x%x"
+                " vendor \"%s\"\n",
+                def->family, def->model, def->stepping, def->level,
+                def->xlevel, buf);
+            listflags(buf, sizeof (buf), def->features, feature_name, 0);
+            (*cpu_fprintf)(f, "  feature_edx %08x (%s)\n", def->features,
+                buf);
+            listflags(buf, sizeof (buf), def->ext_features, ext_feature_name,
+                0);
+            (*cpu_fprintf)(f, "  feature_ecx %08x (%s)\n", def->ext_features,
+                buf);
+            listflags(buf, sizeof (buf), def->ext2_features, ext2_feature_name,
+                0);
+            (*cpu_fprintf)(f, "  extfeature_edx %08x (%s)\n",
+                def->ext2_features, buf);
+            listflags(buf, sizeof (buf), def->ext3_features, ext3_feature_name,
+                0);
+            (*cpu_fprintf)(f, "  extfeature_ecx %08x (%s)\n",
+                def->ext3_features, buf);
+            (*cpu_fprintf)(f, "\n");
+        }
+    }
 }
 
 static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
@@ -564,6 +774,128 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         }
     }
     return 0;
+}
+
+#if !defined(CONFIG_LINUX_USER)
+/* copy vendor id string to 32 bit register, nul pad as needed
+ */
+static void cpyid(const char *s, uint32_t *id)
+{
+    char *d = (char *)id;
+    char i;
+
+    for (i = sizeof (*id); i--; )
+        *d++ = *s ? *s++ : '\0';
+}
+
+/* interpret radix and convert from string to arbitrary scalar,
+ * otherwise flag failure
+ */
+#define setscalar(pval, str, perr)                      \
+{                                                       \
+    char *pend;                                         \
+    unsigned long ul;                                   \
+                                                        \
+    ul = strtoul(str, &pend, 0);                        \
+    *str && !*pend ? (*pval = ul) : (*perr = 1);        \
+}
+
+/* map cpuid options to feature bits, otherwise return failure
+ * (option tags in *str are delimited by whitespace)
+ */
+static void setfeatures(uint32_t *pval, const char *str,
+    const char **featureset, int *perr)
+{
+    const char *p, *q;
+
+    for (q = p = str; *p || *q; q = p) {
+        while (iswhite(*p))
+            q = ++p; 
+        while (*p && !iswhite(*p))
+            ++p;
+        if (!*q && !*p)
+            return;
+        if (!lookup_feature(pval, q, p, featureset)) {
+            fprintf(stderr, "error: feature \"%.*s\" not available in set\n",
+                (int)(p - q), q);
+            *perr = 1;
+            return;
+        }
+    }
+}
+
+/* map config file options to x86_def_t form
+ */
+static int cpudef_setfield(const char *name, const char *str, void *opaque)
+{
+    x86_def_t *def = opaque;
+    int err = 0;
+
+    if (!strcmp(name, "name")) {
+        def->name = strdup(str);
+    } else if (!strcmp(name, "model_id")) {
+        strncpy(def->model_id, str, sizeof (def->model_id));
+    } else if (!strcmp(name, "level")) {
+        setscalar(&def->level, str, &err)
+    } else if (!strcmp(name, "vendor")) {
+        cpyid(&str[0], &def->vendor1);
+        cpyid(&str[4], &def->vendor2);
+        cpyid(&str[8], &def->vendor3);
+    } else if (!strcmp(name, "family")) {
+        setscalar(&def->family, str, &err)
+    } else if (!strcmp(name, "model")) {
+        setscalar(&def->model, str, &err)
+    } else if (!strcmp(name, "stepping")) {
+        setscalar(&def->stepping, str, &err)
+    } else if (!strcmp(name, "feature_edx")) {
+        setfeatures(&def->features, str, feature_name, &err);
+    } else if (!strcmp(name, "feature_ecx")) {
+        setfeatures(&def->ext_features, str, ext_feature_name, &err);
+    } else if (!strcmp(name, "extfeature_edx")) {
+        setfeatures(&def->ext2_features, str, ext2_feature_name, &err);
+    } else if (!strcmp(name, "extfeature_ecx")) {
+        setfeatures(&def->ext3_features, str, ext3_feature_name, &err);
+    } else if (!strcmp(name, "xlevel")) {
+        setscalar(&def->xlevel, str, &err)
+    } else {
+        fprintf(stderr, "error: unknown option [%s = %s]\n", name, str);
+        return (1);
+    }
+    if (err) {
+        fprintf(stderr, "error: bad option value [%s = %s]\n", name, str);
+        return (1);
+    }
+    return (0);
+}
+
+/* register config file entry as x86_def_t
+ */
+static int cpudef_register(QemuOpts *opts, void *opaque)
+{
+    x86_def_t *def = qemu_mallocz(sizeof (x86_def_t));
+
+    qemu_opt_foreach(opts, cpudef_setfield, def, 1);
+    def->next = x86_defs;
+    x86_defs = def;
+    return (0);
+}
+#endif	/* !CONFIG_LINUX_USER */
+
+/* register "cpudef" models defined in configuration file.  Here we first
+ * preload any built-in definitions
+ */
+void x86_cpudef_setup(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
+        builtin_x86_defs[i].next = x86_defs;
+        builtin_x86_defs[i].flags = 1;
+        x86_defs = &builtin_x86_defs[i];
+    }
+#if !defined(CONFIG_LINUX_USER)
+    qemu_opts_foreach(&qemu_cpudef_opts, cpudef_register, NULL, 0);
+#endif
 }
 
 /* NOTE: must be called outside the CPU execute loop */

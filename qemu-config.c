@@ -242,6 +242,54 @@ QemuOptsList qemu_mon_opts = {
     },
 };
 
+QemuOptsList qemu_cpudef_opts = {
+    .name = "cpudef",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpudef_opts.head),
+    .desc = {
+        {
+            .name = "name",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "level",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "vendor",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "family",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "model",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "stepping",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "feature_edx",      /* cpuid 0000_0001.edx */
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "feature_ecx",      /* cpuid 0000_0001.ecx */
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "extfeature_edx",   /* cpuid 8000_0001.edx */
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "extfeature_ecx",   /* cpuid 8000_0001.ecx */
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "xlevel",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "model_id",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "vendor_override",
+            .type = QEMU_OPT_NUMBER,
+        },
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList *lists[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
@@ -251,6 +299,7 @@ static QemuOptsList *lists[] = {
     &qemu_rtc_opts,
     &qemu_global_opts,
     &qemu_mon_opts,
+    &qemu_cpudef_opts,
     NULL,
 };
 
