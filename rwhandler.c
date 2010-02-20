@@ -2,8 +2,6 @@
 #include "ioport.h"
 #include "cpu-all.h"
 
-#if !defined(CONFIG_USER_ONLY)
-
 #define RWHANDLER_WRITE(name, len, type) \
 static void name(void *opaque, type addr, uint32_t value) \
 {\
@@ -87,5 +85,3 @@ int register_ioport_simple(ReadWriteHandler* handler,
     }
     return 0;
 }
-
-#endif
