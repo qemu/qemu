@@ -617,7 +617,17 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
                 real_args++;
             }
 #endif
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
+	    /* If stack grows up, then we will be placing successive
+	       arguments at lower addresses, which means we need to
+	       reverse the order compared to how we would normally
+	       treat either big or little-endian.  For those arguments
+	       that will wind up in registers, this still works for
+	       HPPA (the only current STACK_GROWSUP target) since the
+	       argument registers are *also* allocated in decreasing
+	       order.  If another such target is added, this logic may
+	       have to get more complicated to differentiate between
+	       stack arguments and register arguments.  */
+#if defined(TCG_TARGET_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
             *gen_opparam_ptr++ = args[i] + 1;
             *gen_opparam_ptr++ = args[i];
 #else
