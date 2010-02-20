@@ -1663,27 +1663,27 @@ static inline TCGv get_src2(unsigned int insn, TCGv def)
 #ifdef TARGET_SPARC64
 static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 {
-    TCGv r_tl = tcg_temp_new();
+    TCGv_i32 r_tl = tcg_temp_new_i32();
 
     /* load env->tl into r_tl */
-    {
-        TCGv_i32 r_tl_tmp = tcg_temp_new_i32();
-        tcg_gen_ld_i32(r_tl_tmp, cpu_env, offsetof(CPUSPARCState, tl));
-        tcg_gen_ext_i32_tl(r_tl, r_tl_tmp);
-        tcg_temp_free_i32(r_tl_tmp);
-    }
+    tcg_gen_ld_i32(r_tl, cpu_env, offsetof(CPUSPARCState, tl));
 
     /* tl = [0 ... MAXTL_MASK] where MAXTL_MASK must be power of 2 */
-    tcg_gen_andi_tl(r_tl, r_tl, MAXTL_MASK);
+    tcg_gen_andi_i32(r_tl, r_tl, MAXTL_MASK);
 
     /* calculate offset to current trap state from env->ts, reuse r_tl */
-    tcg_gen_muli_tl(r_tl, r_tl, sizeof (trap_state));
+    tcg_gen_muli_i32(r_tl, r_tl, sizeof (trap_state));
     tcg_gen_addi_ptr(r_tsptr, cpu_env, offsetof(CPUState, ts));
 
     /* tsptr = env->ts[env->tl & MAXTL_MASK] */
-    tcg_gen_add_ptr(r_tsptr, r_tsptr, r_tl);
+    {
+        TCGv_ptr r_tl_tmp = tcg_temp_new_ptr();
+        tcg_gen_ext_i32_ptr(r_tl_tmp, r_tl);
+        tcg_gen_add_ptr(r_tsptr, r_tsptr, r_tl_tmp);
+        tcg_temp_free_i32(r_tl_tmp);
+    }
 
-    tcg_temp_free(r_tl);
+    tcg_temp_free_i32(r_tl);
 }
 #endif
 
