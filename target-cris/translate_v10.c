@@ -1187,6 +1187,10 @@ static unsigned int crisv10_decoder(DisasContext *dc)
         dc->cpustate_changed = 1;
     }
 
+    /* CRISv10 locks out interrupts on dslots.  */
+    if (dc->delayed_branch == 2) {
+        cris_lock_irq(dc);
+    }
     return insn_len;
 }
 
