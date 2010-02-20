@@ -830,7 +830,7 @@ static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv
 static inline void check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0)))
-        generate_exception_err(ctx, EXCP_CpU, 1);
+        generate_exception_err(ctx, EXCP_CpU, 0);
 }
 
 static inline void check_cp1_enabled(DisasContext *ctx)
