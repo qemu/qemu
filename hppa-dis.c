@@ -576,7 +576,7 @@ struct pa_opcode
     const char *name;
     unsigned long int match;	/* Bits that must be set...  */
     unsigned long int mask;	/* ... in these bits. */
-    char *args;
+    const char *args;
     enum pa_arch arch;
     char flags;
 };
@@ -2753,7 +2753,7 @@ print_insn_hppa (bfd_vma memaddr, disassemble_info *info)
 		    int sf = GET_FIELD (insn, 19, 20);
 		    const char * const * source = float_format_names;
 		    const char * const * dest = float_format_names;
-		    char *t = "";
+		    const char *t = "";
 
 		    if (sub == 4)
 		      {
