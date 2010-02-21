@@ -840,7 +840,7 @@ typedef int (*net_client_init_func)(QemuOpts *opts,
 /* magic number, but compiler will warn if too small */
 #define NET_MAX_DESC 20
 
-static struct {
+static const struct {
     const char *type;
     net_client_init_func init;
     QemuOptDesc desc[NET_MAX_DESC];
