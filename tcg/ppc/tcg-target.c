@@ -1575,7 +1575,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_rotr_i32:
         if (const_args[2]) {
             if (!args[2]) {
-                tcg_out_mov (s, args[0], args[2]);
+                tcg_out_mov (s, args[0], args[1]);
             }
             else {
                 tcg_out32 (s, RLWINM
