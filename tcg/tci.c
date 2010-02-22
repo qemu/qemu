@@ -39,11 +39,7 @@
 typedef tcg_target_ulong (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                             tcg_target_ulong, tcg_target_ulong);
 
-#if defined(TARGET_I386)
-struct CPUX86State *env;
-#else
-#error Target support missing, please fix!
-#endif
+CPUState *env;
 
 #ifdef CONFIG_SOFTMMU
 uint8_t * tci_tb_ptr;
