@@ -2307,7 +2307,6 @@ static int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque)
         return -1;
     }
 
-    cb(opaque, NULL);
     return 0;
 }
 
@@ -2330,6 +2329,7 @@ static int do_balloon(Monitor *mon, const QDict *params,
         return -1;
     }
 
+    cb(opaque, NULL);
     return 0;
 }
 
