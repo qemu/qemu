@@ -993,6 +993,7 @@ static void dec_bcc(DisasContext *dc)
 static void dec_br(DisasContext *dc)
 {
     unsigned int dslot, link, abs;
+    int mem_index = cpu_mmu_index(dc->env);
 
     dslot = dc->ir & (1 << 20);
     abs = dc->ir & (1 << 19);
@@ -1016,11 +1017,19 @@ static void dec_br(DisasContext *dc)
     if (abs) {
         tcg_gen_movi_tl(env_btaken, 1);
         tcg_gen_mov_tl(env_btarget, *(dec_alu_op_b(dc)));
-        if (link && !(dc->tb_flags & IMM_FLAG)
-            && (dc->imm == 8 || dc->imm == 0x18))
-            t_gen_raise_exception(dc, EXCP_BREAK);
-        if (dc->imm == 0)
-            t_gen_raise_exception(dc, EXCP_DEBUG);
+        if (link && !dslot) {
+            if (!(dc->tb_flags & IMM_FLAG) && (dc->imm == 8 || dc->imm == 0x18))
+                t_gen_raise_exception(dc, EXCP_BREAK);
+            if (dc->imm == 0) {
+                if ((dc->tb_flags & MSR_EE_FLAG) && mem_index == MMU_USER_IDX) {
+                    tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_PRIVINSN);
+                    t_gen_raise_exception(dc, EXCP_HW_EXCP);
+                    return;
+                }
+
+                t_gen_raise_exception(dc, EXCP_DEBUG);
+            }
+        }
     } else {
         if (!dc->type_b || (dc->tb_flags & IMM_FLAG)) {
             tcg_gen_movi_tl(env_btaken, 1);

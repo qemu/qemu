@@ -57,6 +57,27 @@ static void ppc_init_cacheline_sizes(void)
 }
 #endif
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+static void ppc_init_cacheline_sizes(void)
+{
+    size_t len = 4;
+    unsigned cacheline;
+
+    if (sysctlbyname ("machdep.cacheline_size", &cacheline, &len, NULL, 0)) {
+        fprintf(stderr, "sysctlbyname machdep.cacheline_size failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
+    qemu_cache_conf.dcache_bsize = cacheline;
+    qemu_cache_conf.icache_bsize = cacheline;
+}
+#endif    
+
 #ifdef __linux__
 void qemu_cache_utils_init(char **envp)
 {

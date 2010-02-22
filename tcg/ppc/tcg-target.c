@@ -24,10 +24,10 @@
 
 static uint8_t *tb_ret_addr;
 
-#ifdef __APPLE__
+#ifdef _CALL_DARWIN
 #define LINKAGE_AREA_SIZE 24
 #define LR_OFFSET 8
-#elif defined _AIX
+#elif defined _CALL_AIX
 #define LINKAGE_AREA_SIZE 52
 #define LR_OFFSET 8
 #else
@@ -104,7 +104,7 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31,
-#ifdef __APPLE__
+#ifdef _CALL_DARWIN
     TCG_REG_R2,
 #endif
     TCG_REG_R3,
@@ -115,11 +115,11 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
-#ifndef __APPLE__
+#ifndef _CALL_DARWIN
     TCG_REG_R11,
 #endif
     TCG_REG_R12,
-#ifndef __linux__
+#ifndef _CALL_SYSV
     TCG_REG_R13,
 #endif
     TCG_REG_R24,
@@ -145,11 +145,11 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 static const int tcg_target_callee_save_regs[] = {
-#ifdef __APPLE__
+#ifdef _CALL_DARWIN
     TCG_REG_R11,
     TCG_REG_R13,
 #endif
-#ifdef _AIX
+#ifdef _CALL_AIX
     TCG_REG_R13,
 #endif
     TCG_REG_R14,
@@ -478,7 +478,7 @@ static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
 
 static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
 {
-#ifdef _AIX
+#ifdef _CALL_AIX
     int reg;
 
     if (const_arg) {
@@ -908,7 +908,7 @@ void tcg_target_qemu_prologue (TCGContext *s)
         ;
     frame_size = (frame_size + 15) & ~15;
 
-#ifdef _AIX
+#ifdef _CALL_AIX
     {
         uint32_t addr;
 
@@ -1726,7 +1726,7 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      (1 << TCG_REG_R0) |
-#ifdef __APPLE__
+#ifdef _CALL_DARWIN
                      (1 << TCG_REG_R2) |
 #endif
                      (1 << TCG_REG_R3) |
@@ -1744,10 +1744,10 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1);
-#ifndef __APPLE__
+#ifndef _CALL_DARWIN
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R2);
 #endif
-#ifdef __linux__
+#ifdef _CALL_SYSV
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13);
 #endif
 #ifdef CONFIG_USE_GUEST_BASE

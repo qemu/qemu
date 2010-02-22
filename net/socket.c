@@ -569,9 +569,5 @@ int net_init_socket(QemuOpts *opts,
         return -1;
     }
 
-    if (vlan) {
-        vlan->nb_host_devs++;
-    }
-
     return 0;
 }

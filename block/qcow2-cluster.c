@@ -750,12 +750,15 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     while (i < nb_clusters) {
         i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
                 &l2_table[l2_index], i, 0);
-
-        if(be64_to_cpu(l2_table[l2_index + i]))
+        if ((i >= nb_clusters) || be64_to_cpu(l2_table[l2_index + i])) {
             break;
+        }
 
         i += count_contiguous_free_clusters(nb_clusters - i,
                 &l2_table[l2_index + i]);
+        if (i >= nb_clusters) {
+            break;
+        }
 
         cluster_offset = be64_to_cpu(l2_table[l2_index + i]);
 
@@ -763,6 +766,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
                 (cluster_offset & QCOW_OFLAG_COMPRESSED))
             break;
     }
+    assert(i <= nb_clusters);
     nb_clusters = i;
 
     /*

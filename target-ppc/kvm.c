@@ -37,6 +37,22 @@
     do { } while (0)
 #endif
 
+/* XXX For some odd reason we sometimes hang inside KVM forever. I'd guess it's
+ *     a race condition where we actually have a level triggered interrupt, but
+ *     the infrastructure can't expose that yet, so the guest ACKs it, goes to
+ *     sleep and never gets notified that there's still an interrupt pending.
+ *
+ *     As a quick workaround, let's just wake up every 500 ms. That way we can
+ *     assure that we're always reinjecting interrupts in time.
+ */
+static QEMUTimer *idle_timer;
+
+static void do_nothing(void *opaque)
+{
+    qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
+                   (get_ticks_per_sec() / 2));
+}
+
 int kvm_arch_init(KVMState *s, int smp_cpus)
 {
     return 0;
@@ -173,6 +189,12 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     int r;
     unsigned irq;
 
+    if (!idle_timer) {
+        idle_timer = qemu_new_timer(vm_clock, do_nothing, NULL);
+        qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
+                       (get_ticks_per_sec() / 2));
+    }
+
     /* PowerPC Qemu tracks the various core input pins (interrupt, critical
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
     if (run->ready_for_interrupt_injection &&
@@ -252,3 +274,50 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
     return ret;
 }
 
+static int read_cpuinfo(const char *field, char *value, int len)
+{
+    FILE *f;
+    int ret = -1;
+    int field_len = strlen(field);
+    char line[512];
+
+    f = fopen("/proc/cpuinfo", "r");
+    if (!f) {
+        return -1;
+    }
+
+    do {
+        if(!fgets(line, sizeof(line), f)) {
+            break;
+        }
+        if (!strncmp(line, field, field_len)) {
+            strncpy(value, line, len);
+            ret = 0;
+            break;
+        }
+    } while(*line);
+
+    fclose(f);
+
+    return ret;
+}
+
+uint32_t kvmppc_get_tbfreq(void)
+{
+    char line[512];
+    char *ns;
+    uint32_t retval = get_ticks_per_sec();
+
+    if (read_cpuinfo("timebase", line, sizeof(line))) {
+        return retval;
+    }
+
+    if (!(ns = strchr(line, ':'))) {
+        return retval;
+    }
+
+    ns++;
+
+    retval = atoi(ns);
+    return retval;
+}

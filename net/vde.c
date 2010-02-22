@@ -127,9 +127,5 @@ int net_init_vde(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         return -1;
     }
 
-    if (vlan) {
-        vlan->nb_host_devs++;
-    }
-
     return 0;
 }

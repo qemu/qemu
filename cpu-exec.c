@@ -210,8 +210,7 @@ static void cpu_handle_debug_exception(CPUState *env)
 
 int cpu_exec(CPUState *env1)
 {
-#define DECLARE_HOST_REGS 1
-#include "hostregs_helper.h"
+    host_reg_t saved_env_reg;
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -222,9 +221,12 @@ int cpu_exec(CPUState *env1)
 
     cpu_single_env = env1;
 
-    /* first we save global registers */
-#define SAVE_HOST_REGS 1
-#include "hostregs_helper.h"
+    /* the access to env below is actually saving the global register's
+       value, so that files not including target-xyz/exec.h are free to
+       use it.  */
+    QEMU_BUILD_BUG_ON (sizeof (saved_env_reg) != sizeof (env));
+    saved_env_reg = (host_reg_t) env;
+    asm("");
     env = env1;
 
 #if defined(TARGET_I386)
@@ -669,7 +671,8 @@ int cpu_exec(CPUState *env1)
 #endif
 
     /* restore global registers */
-#include "hostregs_helper.h"
+    asm("");
+    env = (void *) saved_env_reg;
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */
     cpu_single_env = NULL;
@@ -921,6 +924,20 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 # define TRAP_sig(context)			REG_sig(trap, context)
 #endif /* linux */
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <ucontext.h>
+# define IAR_sig(context)		((context)->uc_mcontext.mc_srr0)
+# define MSR_sig(context)		((context)->uc_mcontext.mc_srr1)
+# define CTR_sig(context)		((context)->uc_mcontext.mc_ctr)
+# define XER_sig(context)		((context)->uc_mcontext.mc_xer)
+# define LR_sig(context)		((context)->uc_mcontext.mc_lr)
+# define CR_sig(context)		((context)->uc_mcontext.mc_cr)
+/* Exception Registers access */
+# define DAR_sig(context)		((context)->uc_mcontext.mc_dar)
+# define DSISR_sig(context)		((context)->uc_mcontext.mc_dsisr)
+# define TRAP_sig(context)		((context)->uc_mcontext.mc_exc)
+#endif /* __FreeBSD__|| __FreeBSD_kernel__ */
+
 #ifdef __APPLE__
 # include <sys/ucontext.h>
 typedef struct ucontext SIGCONTEXT;
@@ -950,7 +967,11 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+    ucontext_t *uc = puc;
+#else
     struct ucontext *uc = puc;
+#endif
     unsigned long pc;
     int is_write;
 

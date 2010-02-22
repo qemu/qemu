@@ -79,152 +79,120 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
     return val;
 }
 
-static void pci_host_config_writel(void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
+static void pci_host_config_write(ReadWriteHandler *handler,
+                                  pcibus_t addr, uint32_t val, int len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = container_of(handler, PCIHostState, conf_handler);
 
+    PCI_DPRINTF("%s addr %" FMT_PCIBUS " %d val %"PRIx32"\n",
+                __func__, addr, len, val);
 #ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
+    val = qemu_bswap_len(val, len);
 #endif
-    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
-                __func__, addr, val);
     s->config_reg = val;
 }
 
-static uint32_t pci_host_config_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t pci_host_config_read(ReadWriteHandler *handler,
+                                            pcibus_t addr, int len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = container_of(handler, PCIHostState, conf_handler);
     uint32_t val = s->config_reg;
-
 #ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
+    val = qemu_bswap_len(val, len);
 #endif
-    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
-                __func__, addr, val);
+    PCI_DPRINTF("%s addr %" FMT_PCIBUS " len %d val %"PRIx32"\n",
+                __func__, addr, len, val);
     return val;
 }
 
-static CPUWriteMemoryFunc * const pci_host_config_write[] = {
-    &pci_host_config_writel,
-    &pci_host_config_writel,
-    &pci_host_config_writel,
-};
+static void pci_host_config_write_noswap(ReadWriteHandler *handler,
+                                         pcibus_t addr, uint32_t val, int len)
+{
+    PCIHostState *s = container_of(handler, PCIHostState, conf_noswap_handler);
 
-static CPUReadMemoryFunc * const pci_host_config_read[] = {
-    &pci_host_config_readl,
-    &pci_host_config_readl,
-    &pci_host_config_readl,
-};
+    PCI_DPRINTF("%s addr %" FMT_PCIBUS " %d val %"PRIx32"\n",
+                __func__, addr, len, val);
+    s->config_reg = val;
+}
+
+static uint32_t pci_host_config_read_noswap(ReadWriteHandler *handler,
+                                            pcibus_t addr, int len)
+{
+    PCIHostState *s = container_of(handler, PCIHostState, conf_noswap_handler);
+    uint32_t val = s->config_reg;
+
+    PCI_DPRINTF("%s addr %" FMT_PCIBUS " len %d val %"PRIx32"\n",
+                __func__, addr, len, val);
+    return val;
+}
+
+static void pci_host_data_write(ReadWriteHandler *handler,
+                                pcibus_t addr, uint32_t val, int len)
+{
+    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = qemu_bswap_len(val, len);
+#endif
+    PCI_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n",
+                addr, len, val);
+    if (s->config_reg & (1u << 31))
+        pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
+}
+
+static uint32_t pci_host_data_read(ReadWriteHandler *handler,
+                                   pcibus_t addr, int len)
+{
+    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+    uint32_t val;
+    if (!(s->config_reg & (1 << 31)))
+        return 0xffffffff;
+    val = pci_data_read(s->bus, s->config_reg | (addr & 3), len);
+    PCI_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n",
+                addr, len, val);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = qemu_bswap_len(val, len);
+#endif
+    return val;
+}
+
+static void pci_host_init(PCIHostState *s)
+{
+    s->conf_handler.write = pci_host_config_write;
+    s->conf_handler.read = pci_host_config_read;
+    s->conf_noswap_handler.write = pci_host_config_write_noswap;
+    s->conf_noswap_handler.read = pci_host_config_read_noswap;
+    s->data_handler.write = pci_host_data_write;
+    s->data_handler.read = pci_host_data_read;
+}
 
 int pci_host_conf_register_mmio(PCIHostState *s)
 {
-    return cpu_register_io_memory(pci_host_config_read,
-                                  pci_host_config_write, s);
+    pci_host_init(s);
+    return cpu_register_io_memory_simple(&s->conf_handler);
 }
-
-static void pci_host_config_writel_noswap(void *opaque,
-                                          target_phys_addr_t addr,
-                                          uint32_t val)
-{
-    PCIHostState *s = opaque;
-
-    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
-                __func__, addr, val);
-    s->config_reg = val;
-}
-
-static uint32_t pci_host_config_readl_noswap(void *opaque,
-                                             target_phys_addr_t addr)
-{
-    PCIHostState *s = opaque;
-    uint32_t val = s->config_reg;
-
-    PCI_DPRINTF("%s addr " TARGET_FMT_plx " val %"PRIx32"\n",
-                __func__, addr, val);
-    return val;
-}
-
-static CPUWriteMemoryFunc * const pci_host_config_write_noswap[] = {
-    &pci_host_config_writel_noswap,
-    &pci_host_config_writel_noswap,
-    &pci_host_config_writel_noswap,
-};
-
-static CPUReadMemoryFunc * const pci_host_config_read_noswap[] = {
-    &pci_host_config_readl_noswap,
-    &pci_host_config_readl_noswap,
-    &pci_host_config_readl_noswap,
-};
 
 int pci_host_conf_register_mmio_noswap(PCIHostState *s)
 {
-    return cpu_register_io_memory(pci_host_config_read_noswap,
-                                  pci_host_config_write_noswap, s);
-}
-
-static void pci_host_config_writel_ioport(void *opaque,
-                                          uint32_t addr, uint32_t val)
-{
-    PCIHostState *s = opaque;
-
-    PCI_DPRINTF("%s addr %"PRIx32 " val %"PRIx32"\n", __func__, addr, val);
-    s->config_reg = val;
-}
-
-static uint32_t pci_host_config_readl_ioport(void *opaque, uint32_t addr)
-{
-    PCIHostState *s = opaque;
-    uint32_t val = s->config_reg;
-
-    PCI_DPRINTF("%s addr %"PRIx32" val %"PRIx32"\n", __func__, addr, val);
-    return val;
+    pci_host_init(s);
+    return cpu_register_io_memory_simple(&s->conf_noswap_handler);
 }
 
 void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
 {
-    register_ioport_write(ioport, 4, 4, pci_host_config_writel_ioport, s);
-    register_ioport_read(ioport, 4, 4, pci_host_config_readl_ioport, s);
+    pci_host_init(s);
+    register_ioport_simple(&s->conf_noswap_handler, ioport, 4, 4);
 }
-
-#define PCI_ADDR_T      target_phys_addr_t
-#define PCI_HOST_SUFFIX _mmio
-
-#include "pci_host_template.h"
-
-static CPUWriteMemoryFunc * const pci_host_data_write_mmio[] = {
-    pci_host_data_writeb_mmio,
-    pci_host_data_writew_mmio,
-    pci_host_data_writel_mmio,
-};
-
-static CPUReadMemoryFunc * const pci_host_data_read_mmio[] = {
-    pci_host_data_readb_mmio,
-    pci_host_data_readw_mmio,
-    pci_host_data_readl_mmio,
-};
 
 int pci_host_data_register_mmio(PCIHostState *s)
 {
-    return cpu_register_io_memory(pci_host_data_read_mmio,
-                                  pci_host_data_write_mmio,
-                                  s);
+    pci_host_init(s);
+    return cpu_register_io_memory_simple(&s->data_handler);
 }
-
-#undef PCI_ADDR_T
-#undef PCI_HOST_SUFFIX
-
-#define PCI_ADDR_T      uint32_t
-#define PCI_HOST_SUFFIX _ioport
-
-#include "pci_host_template.h"
 
 void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s)
 {
-    register_ioport_write(ioport, 4, 1, pci_host_data_writeb_ioport, s);
-    register_ioport_write(ioport, 4, 2, pci_host_data_writew_ioport, s);
-    register_ioport_write(ioport, 4, 4, pci_host_data_writel_ioport, s);
-    register_ioport_read(ioport, 4, 1, pci_host_data_readb_ioport, s);
-    register_ioport_read(ioport, 4, 2, pci_host_data_readw_ioport, s);
-    register_ioport_read(ioport, 4, 4, pci_host_data_readl_ioport, s);
+    pci_host_init(s);
+    register_ioport_simple(&s->data_handler, ioport, 4, 1);
+    register_ioport_simple(&s->data_handler, ioport, 4, 2);
+    register_ioport_simple(&s->data_handler, ioport, 4, 4);
 }

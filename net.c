@@ -812,9 +812,6 @@ static int net_init_nic(QemuOpts *opts,
     }
 
     nd->used = 1;
-    if (vlan) {
-        nd->vlan->nb_guest_devs++;
-    }
     nb_nics++;
 
     return idx;
@@ -843,7 +840,7 @@ typedef int (*net_client_init_func)(QemuOpts *opts,
 /* magic number, but compiler will warn if too small */
 #define NET_MAX_DESC 20
 
-static struct {
+static const struct {
     const char *type;
     net_client_init_func init;
     QemuOptDesc desc[NET_MAX_DESC];
@@ -1128,20 +1125,6 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
     return -1;
 }
 
-void net_client_uninit(NICInfo *nd)
-{
-    if (nd->vlan) {
-        nd->vlan->nb_guest_devs--;
-    }
-    nb_nics--;
-
-    qemu_free(nd->model);
-    qemu_free(nd->name);
-    qemu_free(nd->devaddr);
-
-    nd->used = 0;
-}
-
 static int net_host_check_device(const char *device)
 {
     int i;
@@ -1227,15 +1210,22 @@ void net_set_boot_mask(int net_boot_mask)
 void do_info_network(Monitor *mon)
 {
     VLANState *vlan;
+    VLANClientState *vc;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
-        VLANClientState *vc;
-
         monitor_printf(mon, "VLAN %d devices:\n", vlan->id);
 
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             monitor_printf(mon, "  %s: %s\n", vc->name, vc->info_str);
         }
+    }
+    monitor_printf(mon, "Devices not on any VLAN:\n");
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        monitor_printf(mon, "  %s: %s", vc->name, vc->info_str);
+        if (vc->peer) {
+            monitor_printf(mon, " peer=%s", vc->peer->name);
+        }
+        monitor_printf(mon, "\n");
     }
 }
 
@@ -1253,6 +1243,7 @@ void do_set_link(Monitor *mon, const QDict *qdict)
             }
         }
     }
+    vc = qemu_find_netdev(name);
 done:
 
     if (!vc) {
@@ -1289,19 +1280,40 @@ void net_cleanup(void)
     }
 }
 
-static void net_check_clients(void)
+void net_check_clients(void)
 {
     VLANState *vlan;
+    VLANClientState *vc;
+    int has_nic = 0, has_host_dev = 0;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
-        if (vlan->nb_guest_devs == 0 && vlan->nb_host_devs == 0)
-            continue;
-        if (vlan->nb_guest_devs == 0)
+        QTAILQ_FOREACH(vc, &vlan->clients, next) {
+            switch (vc->info->type) {
+            case NET_CLIENT_TYPE_NIC:
+                has_nic = 1;
+                break;
+            case NET_CLIENT_TYPE_SLIRP:
+            case NET_CLIENT_TYPE_TAP:
+            case NET_CLIENT_TYPE_SOCKET:
+            case NET_CLIENT_TYPE_VDE:
+                has_host_dev = 1;
+                break;
+            default: ;
+            }
+        }
+        if (has_host_dev && !has_nic)
             fprintf(stderr, "Warning: vlan %d with no nics\n", vlan->id);
-        if (vlan->nb_host_devs == 0)
+        if (has_nic && !has_host_dev)
             fprintf(stderr,
                     "Warning: vlan %d is not connected to host network\n",
                     vlan->id);
+    }
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (!vc->peer) {
+            fprintf(stderr, "Warning: %s %s has no peer\n",
+                    vc->info->type == NET_CLIENT_TYPE_NIC ? "nic" : "netdev",
+                    vc->name);
+        }
     }
 }
 
@@ -1336,8 +1348,6 @@ int net_init_clients(void)
     if (qemu_opts_foreach(&qemu_net_opts, net_init_client, NULL, 1) == -1) {
         return -1;
     }
-
-    net_check_clients();
 
     return 0;
 }

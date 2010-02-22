@@ -58,6 +58,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic);
 
 /* UniNorth PCI */
 PCIBus *pci_pmac_init(qemu_irq *pic);
+PCIBus *pci_pmac_u3_init(qemu_irq *pic);
 
 /* Mac NVRAM */
 typedef struct MacIONVRAMState MacIONVRAMState;

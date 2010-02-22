@@ -1168,7 +1168,7 @@ static int img_rebase(int argc, char **argv)
         if (bdrv_open2(bs_new_backing, out_baseimg, BRDV_O_FLAGS | BDRV_O_RDWR,
             new_backing_drv))
         {
-            error("Could not open new backing file '%s'", backing_name);
+            error("Could not open new backing file '%s'", out_baseimg);
             return -1;
         }
     }
@@ -1224,7 +1224,7 @@ static int img_rebase(int argc, char **argv)
                 int pnum;
 
                 if (compare_sectors(buf_old + written * 512,
-                    buf_new + written * 512, n, &pnum))
+                    buf_new + written * 512, n - written, &pnum))
                 {
                     ret = bdrv_write(bs, sector + written,
                         buf_old + written * 512, pnum);

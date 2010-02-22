@@ -1249,9 +1249,45 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 
 #define NUM_CORE_REGS 49
 
+static int
+read_register_crisv10(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 15) {
+        GET_REG32(env->regs[n]);
+    }
+
+    if (n == 15) {
+        GET_REG32(env->pc);
+    }
+
+    if (n < 32) {
+        switch (n) {
+        case 16:
+            GET_REG8(env->pregs[n - 16]);
+            break;
+        case 17:
+            GET_REG8(env->pregs[n - 16]);
+            break;
+        case 20:
+        case 21:
+            GET_REG16(env->pregs[n - 16]);
+            break;
+        default:
+            if (n >= 23) {
+                GET_REG32(env->pregs[n - 16]);
+            }
+            break;
+        }
+    }
+    return 0;
+}
+
 static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
     uint8_t srs;
+
+    if (env->pregs[PR_VR] < 32)
+        return read_register_crisv10(env, mem_buf, n);
 
     srs = env->pregs[PR_SRS];
     if (n < 16) {

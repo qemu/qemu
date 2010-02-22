@@ -186,7 +186,6 @@ const char *bios_name = NULL;
 struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
 struct driveoptlist driveopts = QTAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-static DisplayState *display_state;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
@@ -2576,49 +2575,6 @@ void pcmcia_info(Monitor *mon)
         monitor_printf(mon, "%s: %s\n", iter->socket->slot_string,
                        iter->socket->attached ? iter->socket->card_string :
                        "Empty");
-}
-
-/***********************************************************/
-/* register display */
-
-struct DisplayAllocator default_allocator = {
-    defaultallocator_create_displaysurface,
-    defaultallocator_resize_displaysurface,
-    defaultallocator_free_displaysurface
-};
-
-void register_displaystate(DisplayState *ds)
-{
-    DisplayState **s;
-    s = &display_state;
-    while (*s != NULL)
-        s = &(*s)->next;
-    ds->next = NULL;
-    *s = ds;
-}
-
-DisplayState *get_displaystate(void)
-{
-    return display_state;
-}
-
-DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
-{
-    if(ds->allocator ==  &default_allocator) ds->allocator = da;
-    return ds->allocator;
-}
-
-/* dumb display */
-
-static void dumb_display_init(void)
-{
-    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
-    ds->allocator = &default_allocator;
-    // TODO: this is a workaround - smaller surface would crash when
-    // monitor display is selected.
-    //~ ds->surface = qemu_create_displaysurface(ds, 640, 480);
-    ds->surface = qemu_create_displaysurface(ds, 132 * 8, 43 * 16);
-    register_displaystate(ds);
 }
 
 /***********************************************************/
@@ -5954,10 +5910,10 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(&qemu_device_opts, device_init_func, NULL, 1) != 0)
         exit(1);
 
-    if (!display_state)
-        dumb_display_init();
+    net_check_clients();
+
     /* just use the first displaystate for the moment */
-    ds = display_state;
+    ds = get_displaystate();
 
     if (display_type == DT_DEFAULT) {
 #if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
@@ -6015,7 +5971,7 @@ int main(int argc, char **argv, char **envp)
         qemu_mod_timer(nographic_timer, qemu_get_clock(rt_clock));
     }
 
-    text_consoles_set_display(display_state);
+    text_consoles_set_display(ds);
 
     if (qemu_opts_foreach(&qemu_mon_opts, mon_init_func, NULL, 1) != 0)
         exit(1);

@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "gdbstub.h"
 #include "host-utils.h"
+#include "hw/pc.h"
 
 #ifdef CONFIG_KVM_PARA
 #include <linux/kvm_para.h>
@@ -365,6 +366,13 @@ int kvm_arch_init(KVMState *s, int smp_cpus)
      * as unavaible memory.  FIXME, need to ensure the e820 map deals with
      * this?
      */
+    /*
+     * Tell fw_cfg to notify the BIOS to reserve the range.
+     */
+    if (e820_add_entry(0xfffbc000, 0x4000, E820_RESERVED) < 0) {
+        perror("e820_add_entry() table is full");
+        exit(1);
+    }
     return kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, 0xfffbd000);
 }
                     

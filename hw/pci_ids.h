@@ -65,6 +65,7 @@
 
 #define PCI_VENDOR_ID_APPLE              0x106b
 #define PCI_DEVICE_ID_APPLE_UNI_N_AGP    0x0020
+#define PCI_DEVICE_ID_APPLE_U3_AGP       0x004b
 
 #define PCI_VENDOR_ID_SUN                0x108e
 #define PCI_DEVICE_ID_SUN_EBUS           0x1000

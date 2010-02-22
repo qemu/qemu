@@ -402,7 +402,9 @@ static void start_output(DBDMA_channel *ch, int key, uint32_t addr,
     ch->io.dma_end = dbdma_end;
     ch->io.is_dma_out = 1;
     ch->processing = 1;
-    ch->rw(&ch->io);
+    if (ch->rw) {
+        ch->rw(&ch->io);
+    }
 }
 
 static void start_input(DBDMA_channel *ch, int key, uint32_t addr,
@@ -425,7 +427,9 @@ static void start_input(DBDMA_channel *ch, int key, uint32_t addr,
     ch->io.dma_end = dbdma_end;
     ch->io.is_dma_out = 0;
     ch->processing = 1;
-    ch->rw(&ch->io);
+    if (ch->rw) {
+        ch->rw(&ch->io);
+    }
 }
 
 static void load_word(DBDMA_channel *ch, int key, uint32_t addr,
@@ -688,7 +692,7 @@ dbdma_control_write(DBDMA_channel *ch)
 
     if (status & ACTIVE)
         qemu_bh_schedule(dbdma_bh);
-    if (status & FLUSH)
+    if ((status & FLUSH) && ch->flush)
         ch->flush(&ch->io);
 }
 

@@ -251,6 +251,12 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size)
 {
     CPUState *saved_env;
+
+    if (!cpu_single_env) {
+        /* XXX: ???   */
+        return;
+    }
+
     /* XXX: hack to restore env in all cases, even if not called from
        generated code */
     saved_env = env;

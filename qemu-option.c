@@ -470,7 +470,7 @@ struct QemuOpt {
     const char   *name;
     const char   *str;
 
-    QemuOptDesc  *desc;
+    const QemuOptDesc *desc;
     union {
         int      boolean;
         uint64_t uint;
@@ -565,7 +565,7 @@ static void qemu_opt_del(QemuOpt *opt)
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
 {
     QemuOpt *opt;
-    QemuOptDesc *desc = opts->list->desc;
+    const QemuOptDesc *desc = opts->list->desc;
     int i;
 
     for (i = 0; desc[i].name != NULL; i++) {
@@ -777,7 +777,7 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
 /* Validate parsed opts against descriptions where no
  * descriptions were provided in the QemuOptsList.
  */
-int qemu_opts_validate(QemuOpts *opts, QemuOptDesc *desc)
+int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
 {
     QemuOpt *opt;
 

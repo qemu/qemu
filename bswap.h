@@ -214,4 +214,10 @@ static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
 #undef le_bswaps
 #undef be_bswaps
 
+/* len must be one of 1, 2, 4 */
+static inline uint32_t qemu_bswap_len(uint32_t value, int len)
+{
+    return bswap32(value) >> (32 - 8 * len);
+}
+
 #endif /* BSWAP_H */
