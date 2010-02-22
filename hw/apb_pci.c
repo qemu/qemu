@@ -29,6 +29,7 @@
 #include "sysbus.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "rwhandler.h"
 #include "apb_pci.h"
 
 /* debug APB */
@@ -65,6 +66,7 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 typedef struct APBState {
     SysBusDevice busdev;
     PCIHostState host_state;
+    ReadWriteHandler pci_config_handler;
     uint32_t iommu[4];
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
@@ -183,79 +185,27 @@ static CPUReadMemoryFunc * const apb_config_read[] = {
     &apb_config_readl,
 };
 
-static void apb_pci_config_write(APBState *s, target_phys_addr_t addr,
+static void apb_pci_config_write(ReadWriteHandler *h, pcibus_t addr,
                                  uint32_t val, int size)
 {
+    APBState *s = container_of(h, APBState, pci_config_handler);
+
+    val = qemu_bswap_len(val, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %x\n", __func__, addr, val);
     pci_data_write(s->host_state.bus, addr, val, size);
 }
 
-static uint32_t apb_pci_config_read(APBState *s, target_phys_addr_t addr,
+static uint32_t apb_pci_config_read(ReadWriteHandler *h, pcibus_t addr,
                                     int size)
 {
     uint32_t ret;
+    APBState *s = container_of(h, APBState, pci_config_handler);
 
     ret = pci_data_read(s->host_state.bus, addr, size);
+    ret = qemu_bswap_len(ret, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_lx " -> %x\n", __func__, addr, ret);
     return ret;
 }
-
-static void apb_pci_config_writel(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
-{
-    APBState *s = opaque;
-
-    apb_pci_config_write(s, addr, bswap32(val), 4);
-}
-
-static void apb_pci_config_writew(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
-{
-    APBState *s = opaque;
-
-    apb_pci_config_write(s, addr, bswap16(val), 2);
-}
-
-static void apb_pci_config_writeb(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
-{
-    APBState *s = opaque;
-
-    apb_pci_config_write(s, addr, val, 1);
-}
-
-static uint32_t apb_pci_config_readl(void *opaque, target_phys_addr_t addr)
-{
-    APBState *s = opaque;
-
-    return bswap32(apb_pci_config_read(s, addr, 4));
-}
-
-static uint32_t apb_pci_config_readw(void *opaque, target_phys_addr_t addr)
-{
-    APBState *s = opaque;
-
-    return bswap16(apb_pci_config_read(s, addr, 2));
-}
-
-static uint32_t apb_pci_config_readb(void *opaque, target_phys_addr_t addr)
-{
-    APBState *s = opaque;
-
-    return apb_pci_config_read(s, addr, 1);
-}
-
-static CPUWriteMemoryFunc * const apb_pci_config_writes[] = {
-    &apb_pci_config_writeb,
-    &apb_pci_config_writew,
-    &apb_pci_config_writel,
-};
-
-static CPUReadMemoryFunc * const apb_pci_config_reads[] = {
-    &apb_pci_config_readb,
-    &apb_pci_config_readw,
-    &apb_pci_config_readl,
-};
 
 static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
@@ -453,8 +403,10 @@ static int pci_pbm_init_device(SysBusDevice *dev)
                                           pci_apb_iowrite, s);
     sysbus_init_mmio(dev, 0x10000ULL, pci_ioport);
     /* pci_config */
-    pci_config = cpu_register_io_memory(apb_pci_config_reads,
-                                        apb_pci_config_writes, s);
+    s->pci_config_handler.read = apb_pci_config_read;
+    s->pci_config_handler.write = apb_pci_config_write;
+    pci_config = cpu_register_io_memory_simple(&s->pci_config_handler);
+    assert(pci_config >= 0);
     sysbus_init_mmio(dev, 0x1000000ULL, pci_config);
     /* mem_data */
     pci_mem_data = pci_host_data_register_mmio(&s->host_state);
