@@ -182,7 +182,7 @@ error:
 static void pl181_fifo_run(pl181_state *s)
 {
     uint32_t bits;
-    uint32_t value;
+    uint32_t value = 0;
     int n;
     int is_read;
 
@@ -191,7 +191,6 @@ static void pl181_fifo_run(pl181_state *s)
             && !s->linux_hack) {
         if (is_read) {
             n = 0;
-            value = 0;
             while (s->datacnt && s->fifo_len < PL181_FIFO_LEN) {
                 value |= (uint32_t)sd_read_data(s->card) << (n * 8);
                 s->datacnt--;
