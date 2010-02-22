@@ -1319,9 +1319,11 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_qemu_ld32u:
         tcg_out_qemu_ld(s, args, 2);
         break;
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_qemu_ld32s:
         tcg_out_qemu_ld(s, args, 2 | 4);
         break;
+#endif
     case INDEX_op_qemu_st8:
         tcg_out_qemu_st(s, args, 0);
         break;
@@ -1471,7 +1473,9 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L" } },
+#if TCG_TARGET_REG_BITS == 64
     { INDEX_op_qemu_ld32s, { "r", "L" } },
+#endif
 
     { INDEX_op_qemu_st8, { "L", "L" } },
     { INDEX_op_qemu_st16, { "L", "L" } },
