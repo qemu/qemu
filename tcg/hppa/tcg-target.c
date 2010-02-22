@@ -936,7 +936,6 @@ static const TCGTargetOpDef hppa_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld32s, { "r", "L", "L" } },
     { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
 
     { INDEX_op_qemu_st8, { "L", "L", "L" } },
