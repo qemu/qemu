@@ -199,7 +199,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L" } },
+#if TCG_TARGET_REG_BITS == 64
     { INDEX_op_qemu_ld32s, { "r", "L" } },
+#endif
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_qemu_ld64, { "r", "r", "L" } },
 #else
@@ -887,7 +889,9 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_qemu_ld16u:
     case INDEX_op_qemu_ld16s:
     case INDEX_op_qemu_ld32u:
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_qemu_ld32s:
+#endif
         tcg_out_op_t(s, opc);
         tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);

@@ -126,10 +126,12 @@ static void tci_write_reg32(uint32_t index, uint32_t value)
     tci_write_reg(index, value);
 }
 
+#if TCG_TARGET_REG_BITS == 64
 static void tci_write_reg32s(uint32_t index, int32_t value)
 {
     tci_write_reg(index, value);
 }
+#endif
 
 #if TCG_TARGET_REG_BITS == 64
 static void tci_write_reg64(uint32_t index, uint64_t value)
@@ -398,7 +400,10 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         tcg_target_ulong host_addr;
 #endif
         uint16_t i16, u16;
-        uint32_t i32, u32;
+#if TCG_TARGET_REG_BITS == 64
+        uint32_t i32;
+#endif
+        uint32_t u32;
         uint64_t u64;
 
         tci_disas(opc);
@@ -1007,6 +1012,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             tci_write_reg32(t0, tswap32(u32));
             break;
+#if TCG_TARGET_REG_BITS == 64
         case INDEX_op_qemu_ld32s:
             t0 = *tb_ptr++;
             taddr = tci_read_r(&tb_ptr);
@@ -1022,6 +1028,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             tci_write_reg32s(t0, tswap32(i32));
             break;
+#endif /* TCG_TARGET_REG_BITS == 64 */
         case INDEX_op_qemu_ld64:
             t0 = *tb_ptr++;
 #if TCG_TARGET_REG_BITS == 32
