@@ -187,8 +187,7 @@ static void apb_pci_config_write(APBState *s, target_phys_addr_t addr,
                                  uint32_t val, int size)
 {
     APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %x\n", __func__, addr, val);
-    pci_data_write(s->host_state.bus, (addr & 0x00ffffff) | (1u << 31), val,
-                   size);
+    pci_data_write(s->host_state.bus, addr, val, size);
 }
 
 static uint32_t apb_pci_config_read(APBState *s, target_phys_addr_t addr,
@@ -196,8 +195,7 @@ static uint32_t apb_pci_config_read(APBState *s, target_phys_addr_t addr,
 {
     uint32_t ret;
 
-    ret = pci_data_read(s->host_state.bus, (addr & 0x00ffffff) | (1u << 31),
-                        size);
+    ret = pci_data_read(s->host_state.bus, addr, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_lx " -> %x\n", __func__, addr, ret);
     return ret;
 }
