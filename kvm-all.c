@@ -21,6 +21,7 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
+#include "qemu-barrier.h"
 #include "sysemu.h"
 #include "hw/hw.h"
 #include "gdbstub.h"
@@ -730,7 +731,7 @@ void kvm_flush_coalesced_mmio_buffer(void)
             ent = &ring->coalesced_mmio[ring->first];
 
             cpu_physical_memory_write(ent->phys_addr, ent->data, ent->len);
-            /* FIXME smp_wmb() */
+            smp_wmb();
             ring->first = (ring->first + 1) % KVM_COALESCED_MMIO_MAX;
         }
     }
