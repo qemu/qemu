@@ -184,37 +184,39 @@ static void pl181_fifo_run(pl181_state *s)
     uint32_t bits;
     uint32_t value;
     int n;
-    int limit;
     int is_read;
 
     is_read = (s->datactrl & PL181_DATA_DIRECTION) != 0;
     if (s->datacnt != 0 && (!is_read || sd_data_ready(s->card))
             && !s->linux_hack) {
-        limit = is_read ? PL181_FIFO_LEN : 0;
-        n = 0;
-        value = 0;
-        while (s->datacnt && s->fifo_len != limit) {
-            if (is_read) {
+        if (is_read) {
+            n = 0;
+            value = 0;
+            while (s->datacnt && s->fifo_len < PL181_FIFO_LEN) {
                 value |= (uint32_t)sd_read_data(s->card) << (n * 8);
+                s->datacnt--;
                 n++;
                 if (n == 4) {
                     pl181_fifo_push(s, value);
-                    value = 0;
                     n = 0;
+                    value = 0;
                 }
-            } else {
+            }
+            if (n != 0) {
+                pl181_fifo_push(s, value);
+            }
+        } else { /* write */
+            n = 0;
+            while (s->datacnt > 0 && (s->fifo_len > 0 || n > 0)) {
                 if (n == 0) {
                     value = pl181_fifo_pop(s);
                     n = 4;
                 }
+                n--;
+                s->datacnt--;
                 sd_write_data(s->card, value & 0xff);
                 value >>= 8;
-                n--;
             }
-            s->datacnt--;
-        }
-        if (n && is_read) {
-            pl181_fifo_push(s, value);
         }
     }
     s->status &= ~(PL181_STATUS_RX_FIFO | PL181_STATUS_TX_FIFO);
