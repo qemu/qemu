@@ -270,6 +270,12 @@ uint8_t qemu_uuid[16];
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
+#ifdef SIGRTMIN
+#define SIG_IPI (SIGRTMIN+4)
+#else
+#define SIG_IPI SIGUSR1
+#endif
+
 static int default_serial = 1;
 static int default_parallel = 1;
 static int default_virtcon = 1;
@@ -3170,14 +3176,15 @@ static int io_thread_fd = -1;
 
 static void qemu_event_increment(void)
 {
-    static const char byte = 0;
+    /* Write 8 bytes to be compatible with eventfd.  */
+    static uint64_t val = 1;
     ssize_t ret;
 
     if (io_thread_fd == -1)
         return;
 
     do {
-        ret = write(io_thread_fd, &byte, sizeof(byte));
+        ret = write(io_thread_fd, &val, sizeof(val));
     } while (ret < 0 && errno == EINTR);
 
     /* EAGAIN is fine, a read must be pending.  */
@@ -3194,7 +3201,7 @@ static void qemu_event_read(void *opaque)
     ssize_t len;
     char buffer[512];
 
-    /* Drain the notify pipe */
+    /* Drain the notify pipe.  For eventfd, only 8 bytes will be read.  */
     do {
         len = read(fd, buffer, sizeof(buffer));
     } while ((len == -1 && errno == EINTR) || len == sizeof(buffer));
@@ -3205,7 +3212,7 @@ static int qemu_event_init(void)
     int err;
     int fds[2];
 
-    err = qemu_pipe(fds);
+    err = qemu_eventfd(fds);
     if (err == -1)
         return -errno;
 
@@ -3338,9 +3345,11 @@ static QemuCond qemu_cpu_cond;
 static QemuCond qemu_system_cond;
 static QemuCond qemu_pause_cond;
 
-static void block_io_signals(void);
+static void tcg_block_io_signals(void);
+static void kvm_block_io_signals(CPUState *env);
 static void unblock_io_signals(void);
 static int tcg_has_work(void);
+static int cpu_has_work(CPUState *env);
 
 static int qemu_init_main_loop(void)
 {
@@ -3361,6 +3370,15 @@ static int qemu_init_main_loop(void)
     return 0;
 }
 
+static void qemu_wait_io_event_common(CPUState *env)
+{
+    if (env->stop) {
+        env->stop = 0;
+        env->stopped = 1;
+        qemu_cond_signal(&qemu_pause_cond);
+    }
+}
+
 static void qemu_wait_io_event(CPUState *env)
 {
     while (!tcg_has_work())
@@ -3377,11 +3395,40 @@ static void qemu_wait_io_event(CPUState *env)
     qemu_mutex_unlock(&qemu_fair_mutex);
 
     qemu_mutex_lock(&qemu_global_mutex);
-    if (env->stop) {
-        env->stop = 0;
-        env->stopped = 1;
-        qemu_cond_signal(&qemu_pause_cond);
+    qemu_wait_io_event_common(env);
+}
+
+static void qemu_kvm_eat_signal(CPUState *env, int timeout)
+{
+    struct timespec ts;
+    int r, e;
+    siginfo_t siginfo;
+    sigset_t waitset;
+
+    ts.tv_sec = timeout / 1000;
+    ts.tv_nsec = (timeout % 1000) * 1000000;
+
+    sigemptyset(&waitset);
+    sigaddset(&waitset, SIG_IPI);
+
+    qemu_mutex_unlock(&qemu_global_mutex);
+    r = sigtimedwait(&waitset, &siginfo, &ts);
+    e = errno;
+    qemu_mutex_lock(&qemu_global_mutex);
+
+    if (r == -1 && !(e == EAGAIN || e == EINTR)) {
+        fprintf(stderr, "sigtimedwait: %s\n", strerror(e));
+        exit(1);
     }
+}
+
+static void qemu_kvm_wait_io_event(CPUState *env)
+{
+    while (!cpu_has_work(env))
+        qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+
+    qemu_kvm_eat_signal(env, 0);
+    qemu_wait_io_event_common(env);
 }
 
 static int qemu_cpu_exec(CPUState *env);
@@ -3390,10 +3437,11 @@ static void *kvm_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
 
-    block_io_signals();
     qemu_thread_self(env->thread);
     if (kvm_enabled())
         kvm_init_vcpu(env);
+
+    kvm_block_io_signals(env);
 
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
@@ -3407,7 +3455,7 @@ static void *kvm_cpu_thread_fn(void *arg)
     while (1) {
         if (cpu_can_run(env))
             qemu_cpu_exec(env);
-        qemu_wait_io_event(env);
+        qemu_kvm_wait_io_event(env);
     }
 
     return NULL;
@@ -3419,7 +3467,7 @@ static void *tcg_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
 
-    block_io_signals();
+    tcg_block_io_signals();
     qemu_thread_self(env->thread);
 
     /* signal CPU creation */
@@ -3445,7 +3493,7 @@ void qemu_cpu_kick(void *_env)
     CPUState *env = _env;
     qemu_cond_broadcast(env->halt_cond);
     if (kvm_enabled())
-        qemu_thread_signal(env->thread, SIGUSR1);
+        qemu_thread_signal(env->thread, SIG_IPI);
 }
 
 int qemu_cpu_self(void *_env)
@@ -3464,7 +3512,7 @@ static void cpu_signal(int sig)
         cpu_exit(cpu_single_env);
 }
 
-static void block_io_signals(void)
+static void tcg_block_io_signals(void)
 {
     sigset_t set;
     struct sigaction sigact;
@@ -3473,15 +3521,48 @@ static void block_io_signals(void)
     sigaddset(&set, SIGUSR2);
     sigaddset(&set, SIGIO);
     sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGCHLD);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     sigemptyset(&set);
-    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIG_IPI);
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = cpu_signal;
-    sigaction(SIGUSR1, &sigact, NULL);
+    sigaction(SIG_IPI, &sigact, NULL);
+}
+
+static void dummy_signal(int sig)
+{
+}
+
+static void kvm_block_io_signals(CPUState *env)
+{
+    int r;
+    sigset_t set;
+    struct sigaction sigact;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGCHLD);
+    sigaddset(&set, SIG_IPI);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIG_IPI);
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = dummy_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    r = kvm_set_signal_mask(env, &set);
+    if (r) {
+        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(r));
+        exit(1);
+    }
 }
 
 static void unblock_io_signals(void)
@@ -3495,7 +3576,7 @@ static void unblock_io_signals(void)
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
     sigemptyset(&set);
-    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIG_IPI);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 }
 
@@ -3504,7 +3585,7 @@ static void qemu_signal_lock(unsigned int msecs)
     qemu_mutex_lock(&qemu_fair_mutex);
 
     while (qemu_mutex_trylock(&qemu_global_mutex)) {
-        qemu_thread_signal(tcg_cpu_thread, SIGUSR1);
+        qemu_thread_signal(tcg_cpu_thread, SIG_IPI);
         if (!qemu_mutex_timedlock(&qemu_global_mutex, msecs))
             break;
     }
@@ -3545,7 +3626,7 @@ static void pause_all_vcpus(void)
 
     while (penv) {
         penv->stop = 1;
-        qemu_thread_signal(penv->thread, SIGUSR1);
+        qemu_thread_signal(penv->thread, SIG_IPI);
         qemu_cpu_kick(penv);
         penv = (CPUState *)penv->next_cpu;
     }
@@ -3554,7 +3635,7 @@ static void pause_all_vcpus(void)
         qemu_cond_timedwait(&qemu_pause_cond, &qemu_global_mutex, 100);
         penv = first_cpu;
         while (penv) {
-            qemu_thread_signal(penv->thread, SIGUSR1);
+            qemu_thread_signal(penv->thread, SIG_IPI);
             penv = (CPUState *)penv->next_cpu;
         }
     }
@@ -3567,7 +3648,7 @@ static void resume_all_vcpus(void)
     while (penv) {
         penv->stop = 0;
         penv->stopped = 0;
-        qemu_thread_signal(penv->thread, SIGUSR1);
+        qemu_thread_signal(penv->thread, SIG_IPI);
         qemu_cpu_kick(penv);
         penv = (CPUState *)penv->next_cpu;
     }

@@ -159,9 +159,6 @@ struct kvm_para_features {
 #ifdef KVM_CAP_PV_MMU
         { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
 #endif
-#ifdef KVM_CAP_CR3_CACHE
-        { KVM_CAP_CR3_CACHE, KVM_FEATURE_CR3_CACHE },
-#endif
         { -1, -1 }
 };
 
