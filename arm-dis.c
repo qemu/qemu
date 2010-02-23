@@ -60,10 +60,8 @@
 #define FPU_VFP_EXT_V3	 0
 #define FPU_NEON_EXT_V1	 0
 
-int floatformat_ieee_single_little;
 /* Assume host uses ieee float.  */
-static void floatformat_to_double (int *ignored, unsigned char *data,
-                                   double *dest)
+static void floatformat_to_double (unsigned char *data, double *dest)
 {
     union {
         uint32_t i;
@@ -2543,9 +2541,7 @@ print_insn_neon (struct disassemble_info *info, long given, bfd_boolean thumb)
                                 valbytes[2] = (value >> 16) & 0xff;
                                 valbytes[3] = (value >> 24) & 0xff;
 
-                                floatformat_to_double
-                                  (&floatformat_ieee_single_little, valbytes,
-                                  &fvalue);
+                                floatformat_to_double (valbytes, &fvalue);
 
                                 func (stream, "#%.7g\t; 0x%.8lx", fvalue,
                                       value);
