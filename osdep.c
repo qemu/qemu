@@ -289,9 +289,9 @@ ssize_t qemu_write_full(int fd, const void *buf, size_t count)
  */
 int qemu_eventfd(int fds[2])
 {
+#ifdef CONFIG_EVENTFD
     int ret;
 
-#ifdef CONFIG_EVENTFD
     ret = eventfd(0, 0);
     if (ret >= 0) {
         fds[0] = ret;
