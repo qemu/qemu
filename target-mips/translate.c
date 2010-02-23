@@ -1451,6 +1451,8 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
                     tcg_gen_rotri_i32(t1, t1, uimm);
                     tcg_gen_ext_i32_tl(cpu_gpr[rt], t1);
                     tcg_temp_free_i32(t1);
+                } else {
+                    tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
                 }
                 opn = "rotr";
             } else {
@@ -1489,6 +1491,8 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
             if (env->insn_flags & ISA_MIPS32R2) {
                 if (uimm != 0) {
                     tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm);
+                } else {
+                    tcg_gen_mov_tl(cpu_gpr[rt], t0);
                 }
                 opn = "drotr";
             } else {
