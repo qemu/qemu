@@ -123,6 +123,24 @@ static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
     return be16_to_cpu(s->refcount_block_cache[block_index]);
 }
 
+/*
+ * Rounds the refcount table size up to avoid growing the table for each single
+ * refcount block that is allocated.
+ */
+static unsigned int next_refcount_table_size(BDRVQcowState *s,
+    unsigned int min_size)
+{
+    unsigned int min_clusters = (min_size >> (s->cluster_bits - 3)) + 1;
+    unsigned int refcount_table_clusters =
+        MAX(1, s->refcount_table_size >> (s->cluster_bits - 3));
+
+    while (min_clusters > refcount_table_clusters) {
+        refcount_table_clusters = (refcount_table_clusters * 3 + 1) / 2;
+    }
+
+    return refcount_table_clusters << (s->cluster_bits - 3);
+}
+
 static int grow_refcount_table(BlockDriverState *bs, int min_size)
 {
     BDRVQcowState *s = bs->opaque;
@@ -136,17 +154,7 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     if (min_size <= s->refcount_table_size)
         return 0;
     /* compute new table size */
-    refcount_table_clusters = s->refcount_table_size >> (s->cluster_bits - 3);
-    for(;;) {
-        if (refcount_table_clusters == 0) {
-            refcount_table_clusters = 1;
-        } else {
-            refcount_table_clusters = (refcount_table_clusters * 3 + 1) / 2;
-        }
-        new_table_size = refcount_table_clusters << (s->cluster_bits - 3);
-        if (min_size <= new_table_size)
-            break;
-    }
+    new_table_size = next_refcount_table_size(s, min_size);
 #ifdef DEBUG_ALLOC2
     printf("grow_refcount_table from %d to %d\n",
            s->refcount_table_size,
