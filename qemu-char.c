@@ -1173,6 +1173,22 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
+static void qemu_chr_close_tty(CharDriverState *chr)
+{
+    FDCharDriver *s = chr->opaque;
+    int fd = -1;
+
+    if (s) {
+        fd = s->fd_in;
+    }
+
+    fd_chr_close(chr);
+
+    if (fd >= 0) {
+        close(fd);
+    }
+}
+
 static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
 {
     const char *filename = qemu_opt_get(opts, "path");
@@ -1190,6 +1206,7 @@ static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
         return NULL;
     }
     chr->chr_ioctl = tty_serial_ioctl;
+    chr->chr_close = qemu_chr_close_tty;
     return chr;
 }
 #else  /* ! __linux__ && ! __sun__ */

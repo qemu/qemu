@@ -21,6 +21,7 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
+#include "qemu-barrier.h"
 #include "sysemu.h"
 #include "hw/hw.h"
 #include "gdbstub.h"
@@ -730,7 +731,7 @@ void kvm_flush_coalesced_mmio_buffer(void)
             ent = &ring->coalesced_mmio[ring->first];
 
             cpu_physical_memory_write(ent->phys_addr, ent->data, ent->len);
-            /* FIXME smp_wmb() */
+            smp_wmb();
             ring->first = (ring->first + 1) % KVM_COALESCED_MMIO_MAX;
         }
     }
@@ -753,11 +754,13 @@ int kvm_cpu_exec(CPUState *env)
     dprintf("kvm_cpu_exec()\n");
 
     do {
+#ifndef CONFIG_IOTHREAD
         if (env->exit_request) {
             dprintf("interrupt exit requested\n");
             ret = 0;
             break;
         }
+#endif
 
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env);
@@ -771,6 +774,7 @@ int kvm_cpu_exec(CPUState *env)
         kvm_arch_post_run(env, run);
 
         if (ret == -EINTR || ret == -EAGAIN) {
+            cpu_exit(env);
             dprintf("io window exit\n");
             ret = 0;
             break;
@@ -1116,3 +1120,21 @@ void kvm_remove_all_breakpoints(CPUState *current_env)
 {
 }
 #endif /* !KVM_CAP_SET_GUEST_DEBUG */
+
+int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
+{
+    struct kvm_signal_mask *sigmask;
+    int r;
+
+    if (!sigset)
+        return kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, NULL);
+
+    sigmask = qemu_malloc(sizeof(*sigmask) + sizeof(*sigset));
+
+    sigmask->len = 8;
+    memcpy(sigmask->sigset, sigset, sizeof(*sigset));
+    r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
+    free(sigmask);
+
+    return r;
+}
