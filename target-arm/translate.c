@@ -2470,19 +2470,17 @@ static int cp15_tls_load_store(CPUState *env, DisasContext *s, uint32_t insn, ui
         return 0;
 
     if (insn & ARM_CP_RW_BIT) {
-        tmp = new_tmp();
         switch (op) {
         case 2:
-            tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls1));
+            tmp = load_cpu_field(cp15.c13_tls1);
             break;
         case 3:
-            tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls2));
+            tmp = load_cpu_field(cp15.c13_tls2);
             break;
         case 4:
-            tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls3));
+            tmp = load_cpu_field(cp15.c13_tls3);
             break;
         default:
-            dead_tmp(tmp);
             return 0;
         }
         store_reg(s, rd, tmp);
@@ -2491,18 +2489,18 @@ static int cp15_tls_load_store(CPUState *env, DisasContext *s, uint32_t insn, ui
         tmp = load_reg(s, rd);
         switch (op) {
         case 2:
-            tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls1));
+            store_cpu_field(tmp, cp15.c13_tls1);
             break;
         case 3:
-            tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls2));
+            store_cpu_field(tmp, cp15.c13_tls2);
             break;
         case 4:
-            tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUARMState, cp15.c13_tls3));
+            store_cpu_field(tmp, cp15.c13_tls3);
             break;
         default:
+            dead_tmp(tmp);
             return 0;
         }
-        dead_tmp(tmp);
     }
     return 1;
 }

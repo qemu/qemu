@@ -210,7 +210,7 @@ static void cpu_handle_debug_exception(CPUState *env)
 
 int cpu_exec(CPUState *env1)
 {
-    host_reg_t saved_env_reg;
+    volatile host_reg_t saved_env_reg;
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;

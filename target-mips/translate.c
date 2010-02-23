@@ -831,7 +831,7 @@ static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv
 static inline void check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0)))
-        generate_exception_err(ctx, EXCP_CpU, 1);
+        generate_exception_err(ctx, EXCP_CpU, 0);
 }
 
 static inline void check_cp1_enabled(DisasContext *ctx)
@@ -1456,7 +1456,6 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "sll";
         break;
     case OPC_SRA:
-        tcg_gen_ext32s_tl(t0, t0);
         tcg_gen_sari_tl(cpu_gpr[rt], t0, uimm);
         opn = "sra";
         break;
@@ -1477,6 +1476,8 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_rotri_i32(t1, t1, uimm);
             tcg_gen_ext_i32_tl(cpu_gpr[rt], t1);
             tcg_temp_free_i32(t1);
+        } else {
+            tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
         }
         opn = "rotr";
         break;
@@ -1496,6 +1497,8 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
     case OPC_DROTR:
         if (uimm != 0) {
             tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm);
+        } else {
+            tcg_gen_mov_tl(cpu_gpr[rt], t0);
         }
         opn = "drotr";
         break;
@@ -1856,7 +1859,6 @@ static void gen_shift (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "sllv";
         break;
     case OPC_SRAV:
-        tcg_gen_ext32s_tl(t1, t1);
         tcg_gen_andi_tl(t0, t0, 0x1f);
         tcg_gen_sar_tl(cpu_gpr[rd], t1, t0);
         opn = "srav";

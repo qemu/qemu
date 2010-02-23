@@ -1297,8 +1297,6 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         int flags;
         flags = 0;
         env = mon_get_cpu();
-        if (!is_physical)
-            return;
 #ifdef TARGET_I386
         if (wsize == 2) {
             flags = 1;

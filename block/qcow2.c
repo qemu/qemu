@@ -986,7 +986,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
     lseek(fd, s->refcount_block_offset, SEEK_SET);
     ret = qemu_write_full(fd, s->refcount_block,
 		    ref_clusters * s->cluster_size);
-    if (ret != s->cluster_size) {
+    if (ret != ref_clusters * s->cluster_size) {
         ret = -1;
         goto exit;
     }
@@ -998,7 +998,7 @@ exit:
     close(fd);
 
     /* Preallocate metadata */
-    if (prealloc) {
+    if (ret == 0 && prealloc) {
         BlockDriverState *bs;
         bs = bdrv_new("");
         bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR);
