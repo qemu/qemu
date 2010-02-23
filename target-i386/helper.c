@@ -657,8 +657,9 @@ static void listflags(char *buf, int bufsize, uint32_t fbits,
             else
                 nc = snprintf(q, bufsize, "%s[%d]", q == buf ? "" : " ", bit);
             if (bufsize <= nc) {
-                if (b)
-                    sprintf(b, "...");
+                if (b) {
+                    memcpy(b, "...", sizeof("..."));
+                }
                 return;
             }
             q += nc;
