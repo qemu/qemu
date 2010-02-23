@@ -5792,6 +5792,12 @@ int main(int argc, char **argv, char **envp)
             fprintf(stderr, "failed to initialize KVM\n");
             exit(1);
         }
+    } else {
+        /* without kvm enabled, we can only support 4095 MB RAM */
+        if (ram_size > (4095UL << 20)) {
+            fprintf(stderr, "qemu: without kvm support at most 4095 MB RAM can be simulated\n");
+            exit(1);
+        }
     }
 
     if (qemu_init_main_loop()) {
