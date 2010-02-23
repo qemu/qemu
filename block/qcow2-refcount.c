@@ -1065,9 +1065,21 @@ int qcow2_check_refcounts(BlockDriverState *bs)
     for(i = 0; i < s->refcount_table_size; i++) {
         int64_t offset;
         offset = s->refcount_table[i];
+
+        /* Refcount blocks are cluster aligned */
+        if (offset & (s->cluster_size - 1)) {
+            fprintf(stderr, "ERROR refcount block %d is not "
+                "cluster aligned; refcount table entry corrupted\n", i);
+            errors++;
+        }
+
         if (offset != 0) {
             errors += inc_refcounts(bs, refcount_table, nb_clusters,
                           offset, s->cluster_size);
+            if (refcount_table[offset / s->cluster_size] != 1) {
+                fprintf(stderr, "ERROR refcount block %d refcount=%d\n",
+                    i, refcount_table[offset / s->cluster_size]);
+            }
         }
     }
 
