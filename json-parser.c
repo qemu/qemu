@@ -264,7 +264,7 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict, QList **tokens, va_l
 
     peek = qlist_peek(working);
     key = parse_value(ctxt, &working, ap);
-    if (qobject_type(key) != QTYPE_QSTRING) {
+    if (!key || qobject_type(key) != QTYPE_QSTRING) {
         parse_error(ctxt, peek, "key is not a string in object");
         goto out;
     }
