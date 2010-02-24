@@ -31,6 +31,7 @@ void loc_set_none(void);
 void error_vprintf(const char *fmt, va_list ap);
 void error_printf(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
 void error_print_loc(void);
+void error_set_progname(const char *argv0);
 void error_report(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
 void qerror_report_internal(const char *file, int linenr, const char *func,
                             const char *fmt, ...)

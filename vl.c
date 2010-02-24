@@ -4862,6 +4862,8 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
     int defconfig = 1;
 
+    error_set_progname(argv[0]);
+
     init_clocks();
 
     qemu_cache_utils_init(envp);

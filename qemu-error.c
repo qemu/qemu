@@ -113,13 +113,31 @@ void loc_set_none(void)
     cur_loc->kind = LOC_NONE;
 }
 
+static const char *progname;
+
+/*
+ * Set the program name for error_print_loc().
+ */
+void error_set_progname(const char *argv0)
+{
+    const char *p = strrchr(argv0, '/');
+    progname = p ? p + 1 : argv0;
+}
+
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */
 void error_print_loc(void)
 {
+    const char *sep = "";
+
+    if (!cur_mon) {
+        fprintf(stderr, "%s:", progname);
+        sep = " ";
+    }
     switch (cur_loc->kind) {
-    default: ;
+    default:
+        error_printf(sep);
     }
 }
 
