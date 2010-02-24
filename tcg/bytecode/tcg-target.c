@@ -191,7 +191,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L", "L" } },
+#if TCG_TARGET_REG_BITS == 64
     { INDEX_op_qemu_ld32s, { "r", "L", "L" } },
+#endif
     { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
 #else
     { INDEX_op_qemu_ld8u, { "r", "L" } },
