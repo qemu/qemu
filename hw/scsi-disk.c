@@ -1031,6 +1031,11 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
+    if (bdrv_is_sg(s->bs)) {
+        qemu_error("scsi-disk: unwanted /dev/sg*\n");
+        return -1;
+    }
+
     if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
         s->cluster_size = 4;
     } else {
