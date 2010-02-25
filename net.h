@@ -123,9 +123,6 @@ void do_set_link(Monitor *mon, const QDict *qdict);
 /* NIC info */
 
 #define MAX_NICS 8
-enum {
-	NIC_NVECTORS_UNSPECIFIED = -1
-};
 
 struct NICInfo {
     uint8_t macaddr[6];
