@@ -1681,7 +1681,7 @@ static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
         TCGv_ptr r_tl_tmp = tcg_temp_new_ptr();
         tcg_gen_ext_i32_ptr(r_tl_tmp, r_tl);
         tcg_gen_add_ptr(r_tsptr, r_tsptr, r_tl_tmp);
-        tcg_temp_free_i32(r_tl_tmp);
+        tcg_temp_free_ptr(r_tl_tmp);
     }
 
     tcg_temp_free_i32(r_tl);
