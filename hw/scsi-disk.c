@@ -190,8 +190,8 @@ static int scsi_handle_write_error(SCSIDiskReq *r, int error)
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
         r->status |= SCSI_REQ_STATUS_RETRY;
-        vm_stop(0);
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, 0);
+        vm_stop(0);
     } else {
         scsi_command_complete(r, CHECK_CONDITION,
                 HARDWARE_ERROR);
