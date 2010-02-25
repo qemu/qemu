@@ -123,7 +123,7 @@ static int s390_virtio_blk_init(VirtIOS390Device *dev)
 {
     VirtIODevice *vdev;
 
-    vdev = virtio_blk_init((DeviceState *)dev, dev->block.dinfo);
+    vdev = virtio_blk_init((DeviceState *)dev, &dev->block);
     if (!vdev) {
         return -1;
     }
