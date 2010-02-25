@@ -38,6 +38,21 @@ Example:
 { "event": "RESET",
     "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 
+RTC_CHANGE
+----------
+
+Emitted when the RTC time changes.
+
+Data:
+
+- "offset": delta against the host UTC in seconds (json-number)
+
+Example:
+
+{ "event": "RTC_CHANGE",
+    "data": { "offset": 78 },
+    "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+
 SHUTDOWN
 --------
 

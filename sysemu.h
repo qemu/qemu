@@ -256,6 +256,8 @@ void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);
 void usb_info(Monitor *mon);
 
+void rtc_change_mon_event(struct tm *tm);
+
 void register_devices(void);
 
 #endif

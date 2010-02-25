@@ -297,6 +297,8 @@ static void rtc_set_time(RTCState *s)
     tm->tm_mday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
     tm->tm_mon = rtc_from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
     tm->tm_year = rtc_from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year - 1900;
+
+    rtc_change_mon_event(tm);
 }
 
 static void rtc_copy_date(RTCState *s)
