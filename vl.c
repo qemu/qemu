@@ -3137,6 +3137,7 @@ static void do_vm_stop(int reason)
         vm_running = 0;
         pause_all_vcpus();
         vm_state_notify(0, reason);
+        monitor_protocol_event(QEVENT_STOP, NULL);
     }
 }
 
@@ -4105,7 +4106,6 @@ static void main_loop(void)
             qemu_irq_raise(qemu_system_powerdown);
         }
         if ((r = qemu_vmstop_requested())) {
-            monitor_protocol_event(QEVENT_STOP, NULL);
             vm_stop(r);
         }
     }
