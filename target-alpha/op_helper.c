@@ -78,7 +78,7 @@ uint64_t helper_addqv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 += op2;
     if (unlikely((tmp ^ op2 ^ (-1ULL)) & (tmp ^ op1) & (1ULL << 63))) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     return op1;
 }
@@ -88,7 +88,7 @@ uint64_t helper_addlv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 = (uint32_t)(op1 + op2);
     if (unlikely((tmp ^ op2 ^ (-1UL)) & (tmp ^ op1) & (1UL << 31))) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     return op1;
 }
@@ -98,7 +98,7 @@ uint64_t helper_subqv (uint64_t op1, uint64_t op2)
     uint64_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1ULL << 63))) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     return res;
 }
@@ -108,7 +108,7 @@ uint64_t helper_sublv (uint64_t op1, uint64_t op2)
     uint32_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1UL << 31))) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     return res;
 }
@@ -118,7 +118,7 @@ uint64_t helper_mullv (uint64_t op1, uint64_t op2)
     int64_t res = (int64_t)op1 * (int64_t)op2;
 
     if (unlikely((int32_t)res != res)) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     return (int64_t)((int32_t)res);
 }
@@ -130,7 +130,7 @@ uint64_t helper_mulqv (uint64_t op1, uint64_t op2)
     muls64(&tl, &th, op1, op2);
     /* If th != 0 && th != -1, then we had an overflow */
     if (unlikely((th + 1) > 1)) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     return tl;
 }
@@ -987,7 +987,7 @@ static inline uint64_t __helper_cvtql(uint64_t a, int s, int v)
     r |= ((uint64_t)(a & 0x7FFFFFFF)) << 29;
 
     if (v && (int64_t)((int32_t)r) != (int64_t)r) {
-        helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
     }
     if (s) {
         /* TODO */

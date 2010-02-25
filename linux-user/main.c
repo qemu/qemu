@@ -3099,10 +3099,8 @@ int main(int argc, char **argv, char **envp)
         for(i = 0; i < 28; i++) {
             env->ir[i] = ((abi_ulong *)regs)[i];
         }
-        env->ipr[IPR_USP] = regs->usp;
-        env->ir[30] = regs->usp;
+        env->ir[IR_SP] = regs->usp;
         env->pc = regs->pc;
-        env->unique = regs->unique;
     }
 #elif defined(TARGET_CRIS)
     {
