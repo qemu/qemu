@@ -399,9 +399,6 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     assert(event < QEVENT_MAX);
 
     switch (event) {
-        case QEVENT_DEBUG:
-            event_name = "DEBUG";
-            break;
         case QEVENT_SHUTDOWN:
             event_name = "SHUTDOWN";
             break;

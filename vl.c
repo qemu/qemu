@@ -4086,7 +4086,6 @@ static void main_loop(void)
         } while (vm_can_run());
 
         if (qemu_debug_requested()) {
-            monitor_protocol_event(QEVENT_DEBUG, NULL);
             vm_stop(EXCP_DEBUG);
         }
         if (qemu_shutdown_requested()) {

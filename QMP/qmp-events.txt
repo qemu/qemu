@@ -19,12 +19,6 @@ Data: None.
 Description: Issued when the Virtual Machine is stopped.
 Data: None.
 
-4 DEBUG
--------
-
-Description: Issued when the Virtual Machine enters debug mode.
-Data: None.
-
 4 VNC_CONNECTED
 ---------------
 
