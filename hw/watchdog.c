@@ -23,6 +23,8 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-queue.h"
+#include "qemu-objects.h"
+#include "monitor.h"
 #include "sysemu.h"
 #include "hw/watchdog.h"
 
@@ -98,6 +100,15 @@ int select_watchdog_action(const char *p)
     return 0;
 }
 
+static void watchdog_mon_event(const char *action)
+{
+    QObject *data;
+
+    data = qobject_from_jsonf("{ 'action': %s }", action);
+    monitor_protocol_event(QEVENT_WATCHDOG, data);
+    qobject_decref(data);
+}
+
 /* This actually performs the "action" once a watchdog has expired,
  * ie. reboot, shutdown, exit, etc.
  */
@@ -105,26 +116,32 @@ void watchdog_perform_action(void)
 {
     switch(watchdog_action) {
     case WDT_RESET:             /* same as 'system_reset' in monitor */
+        watchdog_mon_event("reset");
         qemu_system_reset_request();
         break;
 
     case WDT_SHUTDOWN:          /* same as 'system_powerdown' in monitor */
+        watchdog_mon_event("shutdown");
         qemu_system_powerdown_request();
         break;
 
     case WDT_POWEROFF:          /* same as 'quit' command in monitor */
+        watchdog_mon_event("poweroff");
         exit(0);
         break;
 
     case WDT_PAUSE:             /* same as 'stop' command in monitor */
+        watchdog_mon_event("pause");
         vm_stop(0);
         break;
 
     case WDT_DEBUG:
+        watchdog_mon_event("debug");
         fprintf(stderr, "watchdog: timer fired\n");
         break;
 
     case WDT_NONE:
+        watchdog_mon_event("none");
         break;
     }
 }
