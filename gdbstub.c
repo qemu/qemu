@@ -1868,6 +1868,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case 'D':
         /* Detach packet */
         gdb_breakpoint_remove_all();
+        gdb_syscall_mode = GDB_SYS_DISABLED;
         gdb_continue(s);
         put_packet(s, "OK");
         break;
