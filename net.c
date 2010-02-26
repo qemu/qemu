@@ -246,6 +246,7 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
         QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
     } else {
         if (peer) {
+            assert(!peer->peer);
             vc->peer = peer;
             peer->peer = vc;
         }

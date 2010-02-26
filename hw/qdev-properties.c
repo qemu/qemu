@@ -341,6 +341,9 @@ static int parse_netdev(DeviceState *dev, Property *prop, const char *str)
     *ptr = qemu_find_netdev(str);
     if (*ptr == NULL)
         return -ENOENT;
+    if ((*ptr)->peer) {
+        return -EEXIST;
+    }
     return 0;
 }
 
@@ -557,6 +560,10 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
     ret = prop->info->parse(dev, prop, value);
     if (ret < 0) {
         switch (ret) {
+        case -EEXIST:
+            fprintf(stderr, "property \"%s.%s\": \"%s\" is already in use\n",
+                    dev->info->name, name, value);
+            break;
         default:
         case -EINVAL:
             fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
