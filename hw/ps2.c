@@ -185,6 +185,7 @@ static void ps2_reset_keyboard(PS2KbdState *s)
 {
     s->scan_enabled = 1;
     s->scancode_set = 2;
+    kbd_put_ledstate(0);
 }
 
 void ps2_write_keyboard(void *opaque, int val)
@@ -259,6 +260,7 @@ void ps2_write_keyboard(void *opaque, int val)
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_LEDS:
+        kbd_put_ledstate(val);
         ps2_queue(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
