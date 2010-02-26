@@ -1868,9 +1868,11 @@ static void ar7_cpmac_write(unsigned cpmac_index, unsigned offset,
         phys[1] = cpmac[CPMAC_MACADDRHI + 1];
         phys[0] = cpmac[CPMAC_MACADDRHI + 0];
         // TODO: set address for qemu?
-        qemu_format_nic_info_str(&ar7.cpmac[cpmac_index].nic->nc, phys);
-        TRACE(CPMAC, logout("setting mac address %s\n",
-                            ar7.cpmac[cpmac_index].nic->nc.info_str));
+        if (ar7.cpmac[cpmac_index].nic) {
+            qemu_format_nic_info_str(&ar7.cpmac[cpmac_index].nic->nc, phys);
+            TRACE(CPMAC, logout("setting mac address %s\n",
+                                ar7.cpmac[cpmac_index].nic->nc.info_str));
+        }
     } else if (offset >= CPMAC_RXGOODFRAMES && offset <= CPMAC_RXDMAOVERRUNS) {
         /* Write access to statistics register. */
         if (reg_read(cpmac, CPMAC_MACCONTROL) & MACCONTROL_GMIIEN) {
