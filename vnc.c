@@ -1111,6 +1111,7 @@ static void vnc_disconnect_finish(VncState *vs)
     }
 
     vnc_remove_timer(vs->vd);
+    qemu_remove_led_event_handler(vs->led);
     qemu_free(vs);
 }
 
@@ -1501,6 +1502,22 @@ static void press_key(VncState *vs, int keysym)
     kbd_put_keycode(keycode | SCANCODE_UP);
 }
 
+static void kbd_leds(void *opaque, int ledstate)
+{
+    VncState *vs = opaque;
+    int caps, num;
+
+    caps = ledstate & QEMU_CAPS_LOCK_LED ? 1 : 0;
+    num  = ledstate & QEMU_NUM_LOCK_LED  ? 1 : 0;
+
+    if (vs->modifiers_state[0x3a] != caps) {
+        vs->modifiers_state[0x3a] = caps;
+    }
+    if (vs->modifiers_state[0x45] != num) {
+        vs->modifiers_state[0x45] = num;
+    }
+}
+
 static void do_key_event(VncState *vs, int down, int keycode, int sym)
 {
     /* QEMU console switch */
@@ -1526,7 +1543,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     case 0x3a:                        /* CapsLock */
     case 0x45:                        /* NumLock */
-        if (!down)
+        if (down)
             vs->modifiers_state[keycode] ^= 1;
         break;
     }
@@ -2412,6 +2429,7 @@ static void vnc_connect(VncDisplay *vd, int csock)
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
     reset_keys(vs);
+    vs->led = qemu_add_led_event_handler(kbd_leds, vs);
 
     vnc_init_timer(vd);
 

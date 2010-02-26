@@ -161,6 +161,7 @@ struct VncState
     size_t read_handler_expect;
     /* input */
     uint8_t modifiers_state[256];
+    QEMUPutLEDEntry *led;
 
     Buffer zlib;
     Buffer zlib_tmp;
