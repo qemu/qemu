@@ -33,6 +33,7 @@ static QEMUPutKBDEvent *qemu_put_kbd_event;
 static void *qemu_put_kbd_event_opaque;
 static QEMUPutMouseEntry *qemu_put_mouse_event_head;
 static QEMUPutMouseEntry *qemu_put_mouse_event_current;
+static QTAILQ_HEAD(, QEMUPutLEDEntry) led_handlers = QTAILQ_HEAD_INITIALIZER(led_handlers);
 
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
 {
@@ -102,10 +103,40 @@ void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
     qemu_free(entry);
 }
 
+QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func,
+                                            void *opaque)
+{
+    QEMUPutLEDEntry *s;
+
+    s = qemu_mallocz(sizeof(QEMUPutLEDEntry));
+
+    s->put_led = func;
+    s->opaque = opaque;
+    QTAILQ_INSERT_TAIL(&led_handlers, s, next);
+    return s;
+}
+
+void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry)
+{
+    if (entry == NULL)
+        return;
+    QTAILQ_REMOVE(&led_handlers, entry, next);
+    qemu_free(entry);
+}
+
 void kbd_put_keycode(int keycode)
 {
     if (qemu_put_kbd_event) {
         qemu_put_kbd_event(qemu_put_kbd_event_opaque, keycode);
+    }
+}
+
+void kbd_put_ledstate(int ledstate)
+{
+    QEMUPutLEDEntry *cursor;
+
+    QTAILQ_FOREACH(cursor, &led_handlers, next) {
+        cursor->put_led(cursor->opaque, ledstate);
     }
 }
 
