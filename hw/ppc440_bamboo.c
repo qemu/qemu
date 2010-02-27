@@ -33,22 +33,20 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      target_phys_addr_t initrd_size,
                                      const char *kernel_cmdline)
 {
-    void *fdt = NULL;
+    int ret = -1;
 #ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = { 0, 0, ramsize };
     char *filename;
     int fdt_size;
-    int ret;
+    void *fdt;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
-        ret = -1;
         goto out;
     }
     fdt = load_device_tree(filename, &fdt_size);
     qemu_free(filename);
     if (fdt == NULL) {
-        ret = -1;
         goto out;
     }
 
