@@ -1148,7 +1148,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
             GET_REGL(env->gregs[n]);
         }
     } else if (n < 16) {
-        GET_REGL(env->gregs[n - 8]);
+        GET_REGL(env->gregs[n]);
     } else if (n >= 25 && n < 41) {
 	GET_REGL(env->fregs[(n - 25) + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
     } else if (n >= 43 && n < 51) {
@@ -1187,10 +1187,11 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
         }
 	return 4;
     } else if (n < 16) {
-        env->gregs[n - 8] = tmp;
+        env->gregs[n] = tmp;
 	return 4;
     } else if (n >= 25 && n < 41) {
 	env->fregs[(n - 25) + ((env->fpscr & FPSCR_FR) ? 16 : 0)] = tmp;
+	return 4;
     } else if (n >= 43 && n < 51) {
 	env->gregs[n - 43] = tmp;
 	return 4;
@@ -1199,17 +1200,17 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 	return 4;
     }
     switch (n) {
-    case 16: env->pc = tmp;
-    case 17: env->pr = tmp;
-    case 18: env->gbr = tmp;
-    case 19: env->vbr = tmp;
-    case 20: env->mach = tmp;
-    case 21: env->macl = tmp;
-    case 22: env->sr = tmp;
-    case 23: env->fpul = tmp;
-    case 24: env->fpscr = tmp;
-    case 41: env->ssr = tmp;
-    case 42: env->spc = tmp;
+    case 16: env->pc = tmp; break;
+    case 17: env->pr = tmp; break;
+    case 18: env->gbr = tmp; break;
+    case 19: env->vbr = tmp; break;
+    case 20: env->mach = tmp; break;
+    case 21: env->macl = tmp; break;
+    case 22: env->sr = tmp; break;
+    case 23: env->fpul = tmp; break;
+    case 24: env->fpscr = tmp; break;
+    case 41: env->ssr = tmp; break;
+    case 42: env->spc = tmp; break;
     default: return 0;
     }
 
@@ -1868,6 +1869,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case 'D':
         /* Detach packet */
         gdb_breakpoint_remove_all();
+        gdb_syscall_mode = GDB_SYS_DISABLED;
         gdb_continue(s);
         put_packet(s, "OK");
         break;

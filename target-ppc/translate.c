@@ -7001,7 +7001,7 @@ static inline void gen_evmergelohi(DisasContext *ctx)
 }
 static inline void gen_evsplati(DisasContext *ctx)
 {
-    uint64_t imm = ((int32_t)(rA(ctx->opcode) << 11)) >> 27;
+    uint64_t imm = ((int32_t)(rA(ctx->opcode) << 27)) >> 27;
 
 #if defined(TARGET_PPC64)
     tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], (imm << 32) | imm);
@@ -7012,7 +7012,7 @@ static inline void gen_evsplati(DisasContext *ctx)
 }
 static inline void gen_evsplatfi(DisasContext *ctx)
 {
-    uint64_t imm = rA(ctx->opcode) << 11;
+    uint64_t imm = rA(ctx->opcode) << 27;
 
 #if defined(TARGET_PPC64)
     tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], (imm << 32) | imm);

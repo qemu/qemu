@@ -27,18 +27,18 @@
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
-static void *bamboo_load_device_tree(target_phys_addr_t addr,
+static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
                                      target_phys_addr_t initrd_size,
                                      const char *kernel_cmdline)
 {
-    void *fdt = NULL;
+    int ret = -1;
 #ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = { 0, 0, ramsize };
     char *filename;
     int fdt_size;
-    int ret;
+    void *fdt;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -75,12 +75,13 @@ static void *bamboo_load_device_tree(target_phys_addr_t addr,
     if (kvm_enabled())
         kvmppc_fdt_update(fdt);
 
-    cpu_physical_memory_write (addr, (void *)fdt, fdt_size);
+    ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
+    qemu_free(fdt);
 
 out:
 #endif
 
-    return fdt;
+    return ret;
 }
 
 static void bamboo_init(ram_addr_t ram_size,
@@ -101,7 +102,6 @@ static void bamboo_init(ram_addr_t ram_size,
     target_ulong initrd_base = 0;
     target_long initrd_size = 0;
     target_ulong dt_base = 0;
-    void *fdt;
     int i;
 
     /* Setup CPU. */
@@ -153,12 +153,13 @@ static void bamboo_init(ram_addr_t ram_size,
         else
             dt_base = kernel_size + loadaddr;
 
-        fdt = bamboo_load_device_tree(dt_base, ram_size,
-                                      initrd_base, initrd_size, kernel_cmdline);
-        if (fdt == NULL) {
+        if (bamboo_load_device_tree(dt_base, ram_size,
+                        initrd_base, initrd_size, kernel_cmdline) < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
+
+        cpu_synchronize_state(env);
 
         /* Set initial guest state. */
         env->gpr[1] = (16<<20) - 8;

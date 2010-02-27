@@ -201,7 +201,7 @@ endif
 
 install-sysconfig:
 	$(INSTALL_DIR) "$(sysconfdir)/qemu"
-	$(INSTALL_DATA) sysconfigs/target/target-x86_64.conf "$(sysconfdir)/qemu"
+	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(sysconfdir)/qemu"
 
 install-tools: tools
 

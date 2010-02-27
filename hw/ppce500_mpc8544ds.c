@@ -34,8 +34,10 @@
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
-#define DTB_LOAD_BASE              0x600000
-#define INITRD_LOAD_BASE           0x2000000
+#define DTC_LOAD_PAD               0x500000
+#define DTC_PAD_MASK               0xFFFFF
+#define INITRD_LOAD_PAD            0x2000000
+#define INITRD_PAD_MASK            0xFFFFFF
 
 #define RAM_SIZES_ALIGN            (64UL << 20)
 
@@ -72,18 +74,18 @@ out:
 }
 #endif
 
-static void *mpc8544_load_device_tree(target_phys_addr_t addr,
+static int mpc8544_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
                                      target_phys_addr_t initrd_size,
                                      const char *kernel_cmdline)
 {
-    void *fdt = NULL;
+    int ret = -1;
 #ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = {0, ramsize};
     char *filename;
     int fdt_size;
-    int ret;
+    void *fdt;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -123,6 +125,7 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
 
         if ((dp = opendir("/proc/device-tree/cpus/")) == NULL) {
             printf("Can't open directory /proc/device-tree/cpus/\n");
+            ret = -1;
             goto out;
         }
 
@@ -136,6 +139,7 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
         closedir(dp);
         if (buf[0] == '\0') {
             printf("Unknow host!\n");
+            ret = -1;
             goto out;
         }
 
@@ -143,12 +147,13 @@ static void *mpc8544_load_device_tree(target_phys_addr_t addr,
         mpc8544_copy_soc_cell(fdt, buf, "timebase-frequency");
     }
 
-    cpu_physical_memory_write (addr, (void *)fdt, fdt_size);
+    ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
+    qemu_free(fdt);
 
 out:
 #endif
 
-    return fdt;
+    return ret;
 }
 
 static void mpc8544ds_init(ram_addr_t ram_size,
@@ -165,10 +170,9 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     target_phys_addr_t entry=0;
     target_phys_addr_t loadaddr=UIMAGE_LOAD_BASE;
     target_long kernel_size=0;
-    target_ulong dt_base=DTB_LOAD_BASE;
-    target_ulong initrd_base=INITRD_LOAD_BASE;
+    target_ulong dt_base = 0;
+    target_ulong initrd_base = 0;
     target_long initrd_size=0;
-    void *fdt;
     int i=0;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq *irqs, *mpic, *pci_irqs;
@@ -242,6 +246,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* Load initrd. */
     if (initrd_filename) {
+        initrd_base = (kernel_size + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
         initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 
@@ -254,12 +259,14 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
-        fdt = mpc8544_load_device_tree(dt_base, ram_size,
-                                      initrd_base, initrd_size, kernel_cmdline);
-        if (fdt == NULL) {
+        dt_base = (kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+        if (mpc8544_load_device_tree(dt_base, ram_size,
+                    initrd_base, initrd_size, kernel_cmdline) < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
+
+        cpu_synchronize_state(env);
 
         /* Set initial guest state. */
         env->gpr[1] = (16<<20) - 8;
