@@ -446,7 +446,7 @@ static const name2keysym_t name2keysym[] = {
     /* Special keys */
     { "BackSpace", 0x07f },
     { "Tab", '\t' },
-    { "Return", '\r' },
+    { "Return", '\n' },
     { "Right", 0x105 },
     { "Left", 0x104 },
     { "Up", 0x103 },
