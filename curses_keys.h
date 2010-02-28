@@ -28,19 +28,35 @@
 
 #define KEY_RELEASE         0x80
 #define KEY_MASK            0x7f
-#define SHIFT_CODE          0x2a
-#define SHIFT               0x0080
 #define GREY_CODE           0xe0
-#define GREY                0x0100
+#define GREY                SCANCODE_GREY
+#define SHIFT_CODE          0x2a
+#define SHIFT               SCANCODE_SHIFT
 #define CNTRL_CODE          0x1d
-#define CNTRL               0x0200
+#define CNTRL               SCANCODE_CTRL
 #define ALT_CODE            0x38
-#define ALT                 0x0400
+#define ALT                 SCANCODE_ALT
+#define ALTGR               SCANCODE_ALTGR
+
+#define KEYSYM_MASK         0x0ffffff
+#define KEYSYM_SHIFT        (SCANCODE_SHIFT << 16)
+#define KEYSYM_CNTRL        (SCANCODE_CTRL  << 16)
+#define KEYSYM_ALT          (SCANCODE_ALT   << 16)
+#define KEYSYM_ALTGR        (SCANCODE_ALTGR << 16)
 
 /* curses won't detect a Control + Alt + 1, so use Alt + 1 */
 #define QEMU_KEY_CONSOLE0   (2 | ALT)   /* (curses2keycode['1'] | ALT) */
 
 #define CURSES_KEYS         KEY_MAX     /* KEY_MAX defined in <curses.h> */
+
+static const int curses2keysym[CURSES_KEYS] = {
+    [0 ... (CURSES_KEYS - 1)] = -1,
+
+    [0x7f] = KEY_BACKSPACE,
+    ['\r'] = KEY_ENTER,
+    ['\n'] = KEY_ENTER,
+    [KEY_BTAB] = '\t' | KEYSYM_SHIFT,
+};
 
 static const int curses2keycode[CURSES_KEYS] = {
     [0 ... (CURSES_KEYS - 1)] = -1,
@@ -225,7 +241,7 @@ static const int curses2keycode[CURSES_KEYS] = {
 
 };
 
-static const int curses2keysym[CURSES_KEYS] = {
+static const int curses2qemu[CURSES_KEYS] = {
     [0 ... (CURSES_KEYS - 1)] = -1,
 
     ['\n'] = '\n',
@@ -449,9 +465,9 @@ static const name2keysym_t name2keysym[] = {
     { "ydiaeresis", 0x0ff },
 
     /* Special keys */
-    { "BackSpace", 0x07f },
+    { "BackSpace", KEY_BACKSPACE },
     { "Tab", '\t' },
-    { "Return", '\n' },
+    { "Return", KEY_ENTER },
     { "Right", KEY_RIGHT },
     { "Left", KEY_LEFT },
     { "Up", KEY_UP },
