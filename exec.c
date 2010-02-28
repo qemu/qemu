@@ -179,9 +179,10 @@ unsigned long qemu_host_page_mask;
 
 /* XXX: for system emulation, it could just be an array */
 static PageDesc *l1_map[L1_SIZE];
-static PhysPageDesc **l1_phys_map;
 
 #if !defined(CONFIG_USER_ONLY)
+static PhysPageDesc **l1_phys_map;
+
 static void io_mem_init(void);
 
 /* io memory support */
@@ -264,8 +265,10 @@ static void page_init(void)
     while ((1 << qemu_host_page_bits) < qemu_host_page_size)
         qemu_host_page_bits++;
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
+#if !defined(CONFIG_USER_ONLY)
     l1_phys_map = qemu_vmalloc(L1_SIZE * sizeof(void *));
     memset(l1_phys_map, 0, L1_SIZE * sizeof(void *));
+#endif
 
 #if !defined(_WIN32) && defined(CONFIG_USER_ONLY)
     {
@@ -351,6 +354,7 @@ static inline PageDesc *page_find(target_ulong index)
     return p + (index & (L2_SIZE - 1));
 }
 
+#if !defined(CONFIG_USER_ONLY)
 static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 {
     void **lp, **p;
@@ -395,7 +399,6 @@ static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
     return phys_page_find_alloc(index, 0);
 }
 
-#if !defined(CONFIG_USER_ONLY)
 static void tlb_protect_code(ram_addr_t ram_addr);
 static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
                                     target_ulong vaddr);
