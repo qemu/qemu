@@ -213,6 +213,10 @@ static void alsa_poll_handler (void *opaque)
 
     state = snd_pcm_state (hlp->handle);
     switch (state) {
+    case SND_PCM_STATE_SETUP:
+        alsa_recover (hlp->handle);
+        break;
+
     case SND_PCM_STATE_XRUN:
         alsa_recover (hlp->handle);
         break;
