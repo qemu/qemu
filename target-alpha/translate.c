@@ -33,6 +33,7 @@
 #include "helper.h"
 
 #undef ALPHA_DEBUG_DISAS
+#define CONFIG_SOFTFLOAT_INLINE
 
 #ifdef ALPHA_DEBUG_DISAS
 #  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
@@ -49,6 +50,11 @@ struct DisasContext {
 #endif
     CPUAlphaState *env;
     uint32_t amask;
+
+    /* Current rounding mode for this TB.  */
+    int tb_rm;
+    /* Current flush-to-zero setting for this TB.  */
+    int tb_ftz;
 };
 
 /* global register indexes */
@@ -442,62 +448,333 @@ static void gen_fcmov(TCGCond inv_cond, int ra, int rb, int rc)
     gen_set_label(l1);
 }
 
-#define FARITH2(name)                                       \
-static inline void glue(gen_f, name)(int rb, int rc)        \
-{                                                           \
-    if (unlikely(rc == 31))                                 \
-      return;                                               \
-                                                            \
-    if (rb != 31)                                           \
-        gen_helper_ ## name (cpu_fir[rc], cpu_fir[rb]);    \
-    else {                                                  \
-        TCGv tmp = tcg_const_i64(0);                        \
-        gen_helper_ ## name (cpu_fir[rc], tmp);            \
-        tcg_temp_free(tmp);                                 \
-    }                                                       \
+#define QUAL_RM_N       0x080   /* Round mode nearest even */
+#define QUAL_RM_C       0x000   /* Round mode chopped */
+#define QUAL_RM_M       0x040   /* Round mode minus infinity */
+#define QUAL_RM_D       0x0c0   /* Round mode dynamic */
+#define QUAL_RM_MASK    0x0c0
+
+#define QUAL_U          0x100   /* Underflow enable (fp output) */
+#define QUAL_V          0x100   /* Overflow enable (int output) */
+#define QUAL_S          0x400   /* Software completion enable */
+#define QUAL_I          0x200   /* Inexact detection enable */
+
+static void gen_qual_roundmode(DisasContext *ctx, int fn11)
+{
+    TCGv_i32 tmp;
+
+    fn11 &= QUAL_RM_MASK;
+    if (fn11 == ctx->tb_rm) {
+        return;
+    }
+    ctx->tb_rm = fn11;
+
+    tmp = tcg_temp_new_i32();
+    switch (fn11) {
+    case QUAL_RM_N:
+        tcg_gen_movi_i32(tmp, float_round_nearest_even);
+        break;
+    case QUAL_RM_C:
+        tcg_gen_movi_i32(tmp, float_round_to_zero);
+        break;
+    case QUAL_RM_M:
+        tcg_gen_movi_i32(tmp, float_round_down);
+        break;
+    case QUAL_RM_D:
+        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUState, fpcr_dyn_round));
+        break;
+    }
+
+#if defined(CONFIG_SOFTFLOAT_INLINE)
+    /* ??? The "softfloat.h" interface is to call set_float_rounding_mode.
+       With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
+       sets the one field.  */
+    tcg_gen_st8_i32(tmp, cpu_env,
+                    offsetof(CPUState, fp_status.float_rounding_mode));
+#else
+    gen_helper_setroundmode(tmp);
+#endif
+
+    tcg_temp_free_i32(tmp);
 }
-FARITH2(sqrts)
+
+static void gen_qual_flushzero(DisasContext *ctx, int fn11)
+{
+    TCGv_i32 tmp;
+
+    fn11 &= QUAL_U;
+    if (fn11 == ctx->tb_ftz) {
+        return;
+    }
+    ctx->tb_ftz = fn11;
+
+    tmp = tcg_temp_new_i32();
+    if (fn11) {
+        /* Underflow is enabled, use the FPCR setting.  */
+        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUState, fpcr_flush_to_zero));
+    } else {
+        /* Underflow is disabled, force flush-to-zero.  */
+        tcg_gen_movi_i32(tmp, 1);
+    }
+
+#if defined(CONFIG_SOFTFLOAT_INLINE)
+    tcg_gen_st8_i32(tmp, cpu_env,
+                    offsetof(CPUState, fp_status.flush_to_zero));
+#else
+    gen_helper_setflushzero(tmp);
+#endif
+
+    tcg_temp_free_i32(tmp);
+}
+
+static TCGv gen_ieee_input(int reg, int fn11, int is_cmp)
+{
+    TCGv val = tcg_temp_new();
+    if (reg == 31) {
+        tcg_gen_movi_i64(val, 0);
+    } else if (fn11 & QUAL_S) {
+        gen_helper_ieee_input_s(val, cpu_fir[reg]);
+    } else if (is_cmp) {
+        gen_helper_ieee_input_cmp(val, cpu_fir[reg]);
+    } else {
+        gen_helper_ieee_input(val, cpu_fir[reg]);
+    }
+    return val;
+}
+
+static void gen_fp_exc_clear(void)
+{
+#if defined(CONFIG_SOFTFLOAT_INLINE)
+    TCGv_i32 zero = tcg_const_i32(0);
+    tcg_gen_st8_i32(zero, cpu_env,
+                    offsetof(CPUState, fp_status.float_exception_flags));
+    tcg_temp_free_i32(zero);
+#else
+    gen_helper_fp_exc_clear();
+#endif
+}
+
+static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
+{
+    /* ??? We ought to be able to do something with imprecise exceptions.
+       E.g. notice we're still in the trap shadow of something within the
+       TB and do not generate the code to signal the exception; end the TB
+       when an exception is forced to arrive, either by consumption of a
+       register value or TRAPB or EXCB.  */
+    TCGv_i32 exc = tcg_temp_new_i32();
+    TCGv_i32 reg;
+
+#if defined(CONFIG_SOFTFLOAT_INLINE)
+    tcg_gen_ld8u_i32(exc, cpu_env,
+                     offsetof(CPUState, fp_status.float_exception_flags));
+#else
+    gen_helper_fp_exc_get(exc);
+#endif
+
+    if (ignore) {
+        tcg_gen_andi_i32(exc, exc, ~ignore);
+    }
+
+    /* ??? Pass in the regno of the destination so that the helper can
+       set EXC_MASK, which contains a bitmask of destination registers
+       that have caused arithmetic traps.  A simple userspace emulation
+       does not require this.  We do need it for a guest kernel's entArith,
+       or if we were to do something clever with imprecise exceptions.  */
+    reg = tcg_const_i32(rc + 32);
+
+    if (fn11 & QUAL_S) {
+        gen_helper_fp_exc_raise_s(exc, reg);
+    } else {
+        gen_helper_fp_exc_raise(exc, reg);
+    }
+
+    tcg_temp_free_i32(reg);
+    tcg_temp_free_i32(exc);
+}
+
+static inline void gen_fp_exc_raise(int rc, int fn11)
+{
+    gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
+}
+
+#define FARITH2(name)                                   \
+static inline void glue(gen_f, name)(int rb, int rc)    \
+{                                                       \
+    if (unlikely(rc == 31)) {                           \
+        return;                                         \
+    }                                                   \
+    if (rb != 31) {                                     \
+        gen_helper_ ## name (cpu_fir[rc], cpu_fir[rb]); \
+    } else {						\
+        TCGv tmp = tcg_const_i64(0);                    \
+        gen_helper_ ## name (cpu_fir[rc], tmp);         \
+        tcg_temp_free(tmp);                             \
+    }                                                   \
+}
+FARITH2(cvtlq)
+FARITH2(cvtql)
+FARITH2(cvtql_v)
+FARITH2(cvtql_sv)
+
+/* ??? VAX instruction qualifiers ignored.  */
 FARITH2(sqrtf)
 FARITH2(sqrtg)
-FARITH2(sqrtt)
 FARITH2(cvtgf)
 FARITH2(cvtgq)
 FARITH2(cvtqf)
 FARITH2(cvtqg)
-FARITH2(cvtst)
-FARITH2(cvtts)
-FARITH2(cvttq)
-FARITH2(cvtqs)
-FARITH2(cvtqt)
-FARITH2(cvtlq)
-FARITH2(cvtql)
-FARITH2(cvtqlv)
-FARITH2(cvtqlsv)
 
-#define FARITH3(name)                                                     \
-static inline void glue(gen_f, name)(int ra, int rb, int rc)              \
-{                                                                         \
-    if (unlikely(rc == 31))                                               \
-        return;                                                           \
-                                                                          \
-    if (ra != 31) {                                                       \
-        if (rb != 31)                                                     \
-            gen_helper_ ## name (cpu_fir[rc], cpu_fir[ra], cpu_fir[rb]);  \
-        else {                                                            \
-            TCGv tmp = tcg_const_i64(0);                                  \
-            gen_helper_ ## name (cpu_fir[rc], cpu_fir[ra], tmp);          \
-            tcg_temp_free(tmp);                                           \
-        }                                                                 \
-    } else {                                                              \
-        TCGv tmp = tcg_const_i64(0);                                      \
-        if (rb != 31)                                                     \
-            gen_helper_ ## name (cpu_fir[rc], tmp, cpu_fir[rb]);          \
-        else                                                              \
-            gen_helper_ ## name (cpu_fir[rc], tmp, tmp);                   \
-        tcg_temp_free(tmp);                                               \
-    }                                                                     \
+static void gen_ieee_arith2(DisasContext *ctx, void (*helper)(TCGv, TCGv),
+                            int rb, int rc, int fn11)
+{
+    TCGv vb;
+
+    /* ??? This is wrong: the instruction is not a nop, it still may
+       raise exceptions.  */
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    gen_qual_roundmode(ctx, fn11);
+    gen_qual_flushzero(ctx, fn11);
+    gen_fp_exc_clear();
+
+    vb = gen_ieee_input(rb, fn11, 0);
+    helper(cpu_fir[rc], vb);
+    tcg_temp_free(vb);
+
+    gen_fp_exc_raise(rc, fn11);
 }
 
+#define IEEE_ARITH2(name)                                       \
+static inline void glue(gen_f, name)(DisasContext *ctx,         \
+                                     int rb, int rc, int fn11)  \
+{                                                               \
+    gen_ieee_arith2(ctx, gen_helper_##name, rb, rc, fn11);      \
+}
+IEEE_ARITH2(sqrts)
+IEEE_ARITH2(sqrtt)
+IEEE_ARITH2(cvtst)
+IEEE_ARITH2(cvtts)
+
+static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
+{
+    TCGv vb;
+    int ignore = 0;
+
+    /* ??? This is wrong: the instruction is not a nop, it still may
+       raise exceptions.  */
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    /* No need to set flushzero, since we have an integer output.  */
+    gen_fp_exc_clear();
+    vb = gen_ieee_input(rb, fn11, 0);
+
+    /* Almost all integer conversions use cropped rounding, and most
+       also do not have integer overflow enabled.  Special case that.  */
+    switch (fn11) {
+    case QUAL_RM_C:
+        gen_helper_cvttq_c(cpu_fir[rc], vb);
+        break;
+    case QUAL_V | QUAL_RM_C:
+    case QUAL_S | QUAL_V | QUAL_RM_C:
+        ignore = float_flag_inexact;
+        /* FALLTHRU */
+    case QUAL_S | QUAL_V | QUAL_I | QUAL_RM_C:
+        gen_helper_cvttq_svic(cpu_fir[rc], vb);
+        break;
+    default:
+        gen_qual_roundmode(ctx, fn11);
+        gen_helper_cvttq(cpu_fir[rc], vb);
+        ignore |= (fn11 & QUAL_V ? 0 : float_flag_overflow);
+        ignore |= (fn11 & QUAL_I ? 0 : float_flag_inexact);
+        break;
+    }
+    tcg_temp_free(vb);
+
+    gen_fp_exc_raise_ignore(rc, fn11, ignore);
+}
+
+static void gen_ieee_intcvt(DisasContext *ctx, void (*helper)(TCGv, TCGv),
+			    int rb, int rc, int fn11)
+{
+    TCGv vb;
+
+    /* ??? This is wrong: the instruction is not a nop, it still may
+       raise exceptions.  */
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    gen_qual_roundmode(ctx, fn11);
+
+    if (rb == 31) {
+        vb = tcg_const_i64(0);
+    } else {
+        vb = cpu_fir[rb];
+    }
+
+    /* The only exception that can be raised by integer conversion
+       is inexact.  Thus we only need to worry about exceptions when
+       inexact handling is requested.  */
+    if (fn11 & QUAL_I) {
+        gen_fp_exc_clear();
+        helper(cpu_fir[rc], vb);
+        gen_fp_exc_raise(rc, fn11);
+    } else {
+        helper(cpu_fir[rc], vb);
+    }
+
+    if (rb == 31) {
+        tcg_temp_free(vb);
+    }
+}
+
+#define IEEE_INTCVT(name)                                       \
+static inline void glue(gen_f, name)(DisasContext *ctx,         \
+                                     int rb, int rc, int fn11)  \
+{                                                               \
+    gen_ieee_intcvt(ctx, gen_helper_##name, rb, rc, fn11);      \
+}
+IEEE_INTCVT(cvtqs)
+IEEE_INTCVT(cvtqt)
+
+#define FARITH3(name)                                           \
+static inline void glue(gen_f, name)(int ra, int rb, int rc)    \
+{                                                               \
+    TCGv va, vb;                                                \
+                                                                \
+    if (unlikely(rc == 31)) {                                   \
+        return;                                                 \
+    }                                                           \
+    if (ra == 31) {                                             \
+        va = tcg_const_i64(0);                                  \
+    } else {                                                    \
+        va = cpu_fir[ra];                                       \
+    }                                                           \
+    if (rb == 31) {                                             \
+        vb = tcg_const_i64(0);                                  \
+    } else {                                                    \
+        vb = cpu_fir[rb];                                       \
+    }                                                           \
+                                                                \
+    gen_helper_ ## name (cpu_fir[rc], va, vb);                  \
+                                                                \
+    if (ra == 31) {                                             \
+        tcg_temp_free(va);                                      \
+    }                                                           \
+    if (rb == 31) {                                             \
+        tcg_temp_free(vb);                                      \
+    }                                                           \
+}
+/* ??? Ought to expand these inline; simple masking operations.  */
+FARITH3(cpys)
+FARITH3(cpysn)
+FARITH3(cpyse)
+
+/* ??? VAX instruction qualifiers ignored.  */
 FARITH3(addf)
 FARITH3(subf)
 FARITH3(mulf)
@@ -509,21 +786,80 @@ FARITH3(divg)
 FARITH3(cmpgeq)
 FARITH3(cmpglt)
 FARITH3(cmpgle)
-FARITH3(adds)
-FARITH3(subs)
-FARITH3(muls)
-FARITH3(divs)
-FARITH3(addt)
-FARITH3(subt)
-FARITH3(mult)
-FARITH3(divt)
-FARITH3(cmptun)
-FARITH3(cmpteq)
-FARITH3(cmptlt)
-FARITH3(cmptle)
-FARITH3(cpys)
-FARITH3(cpysn)
-FARITH3(cpyse)
+
+static void gen_ieee_arith3(DisasContext *ctx,
+                            void (*helper)(TCGv, TCGv, TCGv),
+                            int ra, int rb, int rc, int fn11)
+{
+    TCGv va, vb;
+
+    /* ??? This is wrong: the instruction is not a nop, it still may
+       raise exceptions.  */
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    gen_qual_roundmode(ctx, fn11);
+    gen_qual_flushzero(ctx, fn11);
+    gen_fp_exc_clear();
+
+    va = gen_ieee_input(ra, fn11, 0);
+    vb = gen_ieee_input(rb, fn11, 0);
+    helper(cpu_fir[rc], va, vb);
+    tcg_temp_free(va);
+    tcg_temp_free(vb);
+
+    gen_fp_exc_raise(rc, fn11);
+}
+
+#define IEEE_ARITH3(name)                                               \
+static inline void glue(gen_f, name)(DisasContext *ctx,                 \
+                                     int ra, int rb, int rc, int fn11)  \
+{                                                                       \
+    gen_ieee_arith3(ctx, gen_helper_##name, ra, rb, rc, fn11);          \
+}
+IEEE_ARITH3(adds)
+IEEE_ARITH3(subs)
+IEEE_ARITH3(muls)
+IEEE_ARITH3(divs)
+IEEE_ARITH3(addt)
+IEEE_ARITH3(subt)
+IEEE_ARITH3(mult)
+IEEE_ARITH3(divt)
+
+static void gen_ieee_compare(DisasContext *ctx,
+                             void (*helper)(TCGv, TCGv, TCGv),
+                             int ra, int rb, int rc, int fn11)
+{
+    TCGv va, vb;
+
+    /* ??? This is wrong: the instruction is not a nop, it still may
+       raise exceptions.  */
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    gen_fp_exc_clear();
+
+    va = gen_ieee_input(ra, fn11, 1);
+    vb = gen_ieee_input(rb, fn11, 1);
+    helper(cpu_fir[rc], va, vb);
+    tcg_temp_free(va);
+    tcg_temp_free(vb);
+
+    gen_fp_exc_raise(rc, fn11);
+}
+
+#define IEEE_CMP3(name)                                                 \
+static inline void glue(gen_f, name)(DisasContext *ctx,                 \
+                                     int ra, int rb, int rc, int fn11)  \
+{                                                                       \
+    gen_ieee_compare(ctx, gen_helper_##name, ra, rb, rc, fn11);         \
+}
+IEEE_CMP3(cmptun)
+IEEE_CMP3(cmpteq)
+IEEE_CMP3(cmptlt)
+IEEE_CMP3(cmptle)
 
 static inline uint64_t zapnot_mask(uint8_t lit)
 {
@@ -1607,7 +1943,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         }
         break;
     case 0x14:
-        switch (fpfn) { /* f11 & 0x3F */
+        switch (fpfn) { /* fn11 & 0x3F */
         case 0x04:
             /* ITOFS */
             if (!(ctx->amask & AMASK_FIX))
@@ -1632,7 +1968,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* SQRTS */
             if (!(ctx->amask & AMASK_FIX))
                 goto invalid_opc;
-            gen_fsqrts(rb, rc);
+            gen_fsqrts(ctx, rb, rc, fn11);
             break;
         case 0x14:
             /* ITOFF */
@@ -1669,7 +2005,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* SQRTT */
             if (!(ctx->amask & AMASK_FIX))
                 goto invalid_opc;
-            gen_fsqrtt(rb, rc);
+            gen_fsqrtt(ctx, rb, rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -1678,7 +2014,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     case 0x15:
         /* VAX floating point */
         /* XXX: rounding mode and trap are ignored (!) */
-        switch (fpfn) { /* f11 & 0x3F */
+        switch (fpfn) { /* fn11 & 0x3F */
         case 0x00:
             /* ADDF */
             gen_faddf(ra, rb, rc);
@@ -1761,77 +2097,75 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x16:
         /* IEEE floating-point */
-        /* XXX: rounding mode and traps are ignored (!) */
-        switch (fpfn) { /* f11 & 0x3F */
+        switch (fpfn) { /* fn11 & 0x3F */
         case 0x00:
             /* ADDS */
-            gen_fadds(ra, rb, rc);
+            gen_fadds(ctx, ra, rb, rc, fn11);
             break;
         case 0x01:
             /* SUBS */
-            gen_fsubs(ra, rb, rc);
+            gen_fsubs(ctx, ra, rb, rc, fn11);
             break;
         case 0x02:
             /* MULS */
-            gen_fmuls(ra, rb, rc);
+            gen_fmuls(ctx, ra, rb, rc, fn11);
             break;
         case 0x03:
             /* DIVS */
-            gen_fdivs(ra, rb, rc);
+            gen_fdivs(ctx, ra, rb, rc, fn11);
             break;
         case 0x20:
             /* ADDT */
-            gen_faddt(ra, rb, rc);
+            gen_faddt(ctx, ra, rb, rc, fn11);
             break;
         case 0x21:
             /* SUBT */
-            gen_fsubt(ra, rb, rc);
+            gen_fsubt(ctx, ra, rb, rc, fn11);
             break;
         case 0x22:
             /* MULT */
-            gen_fmult(ra, rb, rc);
+            gen_fmult(ctx, ra, rb, rc, fn11);
             break;
         case 0x23:
             /* DIVT */
-            gen_fdivt(ra, rb, rc);
+            gen_fdivt(ctx, ra, rb, rc, fn11);
             break;
         case 0x24:
             /* CMPTUN */
-            gen_fcmptun(ra, rb, rc);
+            gen_fcmptun(ctx, ra, rb, rc, fn11);
             break;
         case 0x25:
             /* CMPTEQ */
-            gen_fcmpteq(ra, rb, rc);
+            gen_fcmpteq(ctx, ra, rb, rc, fn11);
             break;
         case 0x26:
             /* CMPTLT */
-            gen_fcmptlt(ra, rb, rc);
+            gen_fcmptlt(ctx, ra, rb, rc, fn11);
             break;
         case 0x27:
             /* CMPTLE */
-            gen_fcmptle(ra, rb, rc);
+            gen_fcmptle(ctx, ra, rb, rc, fn11);
             break;
         case 0x2C:
-            /* XXX: incorrect */
             if (fn11 == 0x2AC || fn11 == 0x6AC) {
                 /* CVTST */
-                gen_fcvtst(rb, rc);
+                gen_fcvtst(ctx, rb, rc, fn11);
             } else {
                 /* CVTTS */
-                gen_fcvtts(rb, rc);
+                gen_fcvtts(ctx, rb, rc, fn11);
             }
             break;
         case 0x2F:
             /* CVTTQ */
-            gen_fcvttq(rb, rc);
+            gen_fcvttq(ctx, rb, rc, fn11);
             break;
         case 0x3C:
             /* CVTQS */
-            gen_fcvtqs(rb, rc);
+            gen_fcvtqs(ctx, rb, rc, fn11);
             break;
         case 0x3E:
             /* CVTQT */
-            gen_fcvtqt(rb, rc);
+            gen_fcvtqt(ctx, rb, rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -1910,11 +2244,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x130:
             /* CVTQL/V */
-            gen_fcvtqlv(rb, rc);
+            gen_fcvtql_v(rb, rc);
             break;
         case 0x530:
             /* CVTQL/SV */
-            gen_fcvtqlsv(rb, rc);
+            gen_fcvtql_sv(rb, rc);
             break;
         default:
             goto invalid_opc;
@@ -2597,6 +2931,17 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     ctx.mem_idx = ((env->ps >> 3) & 3);
     ctx.pal_mode = env->ipr[IPR_EXC_ADDR] & 1;
 #endif
+
+    /* ??? Every TB begins with unset rounding mode, to be initialized on
+       the first fp insn of the TB.  Alternately we could define a proper
+       default for every TB (e.g. QUAL_RM_N or QUAL_RM_D) and make sure
+       to reset the FP_STATUS to that default at the end of any TB that
+       changes the default.  We could even (gasp) dynamiclly figure out
+       what default would be most efficient given the running program.  */
+    ctx.tb_rm = -1;
+    /* Similarly for flush-to-zero.  */
+    ctx.tb_ftz = -1;
+
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
@@ -2749,8 +3094,9 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     env->ps |= 1 << 3;
     cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
                                | FPCR_UNFD | FPCR_INED | FPCR_DNOD));
-#endif
+#else
     pal_init(env);
+#endif
 
     /* Initialize IPR */
 #if defined (CONFIG_USER_ONLY)

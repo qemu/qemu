@@ -21,11 +21,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "qemu.h"
 #include "cpu.h"
 #include "exec-all.h"
 
-#if !defined (CONFIG_USER_ONLY)
 /* Shared handlers */
 static void pal_reset (CPUState *env);
 /* Console handlers */
@@ -997,12 +995,9 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     uint64_t physical, page_size, end;
     int prot, zbits, ret;
 
-#if defined(CONFIG_USER_ONLY)
-        ret = 2;
-#else
-        ret = virtual_to_physical(env, &physical, &zbits, &prot,
-                                  address, mmu_idx, rw);
-#endif
+    ret = virtual_to_physical(env, &physical, &zbits, &prot,
+                              address, mmu_idx, rw);
+
     switch (ret) {
     case 0:
         /* No fault */
@@ -1048,75 +1043,5 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     }
 
     return ret;
-}
-#endif
-
-#else /* !defined (CONFIG_USER_ONLY) */
-void pal_init (CPUState *env)
-{
-}
-
-void call_pal (CPUState *env, int palcode)
-{
-    target_long ret;
-
-    switch (palcode) {
-    case 0x80:
-        /* BPT */
-        qemu_log("BPT\n");
-        /* FIXME: Sends SIGTRAP, si_code=TRAP_BRKPT.  */
-        exit(1);
-    case 0x81:
-        /* BUGCHK */
-        qemu_log("BUGCHK\n");
-        /* FIXME: Sends SIGTRAP, si_code=SI_FAULT.  */
-        exit(1);
-    case 0x83:
-        /* CALLSYS */
-        qemu_log("CALLSYS n " TARGET_FMT_ld "\n", env->ir[0]);
-        ret = do_syscall(env, env->ir[IR_V0], env->ir[IR_A0], env->ir[IR_A1],
-                         env->ir[IR_A2], env->ir[IR_A3], env->ir[IR_A4],
-                         env->ir[IR_A5]);
-        if (ret >= 0) {
-            env->ir[IR_A3] = 0;
-            env->ir[IR_V0] = ret;
-        } else {
-            env->ir[IR_A3] = 1;
-            env->ir[IR_V0] = -ret;
-        }
-        break;
-    case 0x86:
-        /* IMB */
-        qemu_log("IMB\n");
-        /* ??? We can probably elide the code using page_unprotect that is
-           checking for self-modifying code.  Instead we could simply call
-           tb_flush here.  Until we work out the changes required to turn
-           off the extra write protection, this can be a no-op.  */
-        break;
-    case 0x9E:
-        /* RDUNIQUE */
-        qemu_log("RDUNIQUE: " TARGET_FMT_lx "\n", env->unique);
-        /* Handled in the translator for usermode.  */
-        abort();
-    case 0x9F:
-        /* WRUNIQUE */
-        qemu_log("WRUNIQUE: " TARGET_FMT_lx "\n", env->ir[IR_A0]);
-        /* Handled in the translator for usermode.  */
-        abort();
-    case 0xAA:
-        /* GENTRAP */
-        qemu_log("GENTRAP: " TARGET_FMT_lx "\n", env->ir[IR_A0]);
-        /* FIXME: This is supposed to send a signal:
-           SIGFPE:
-             GEN_INTOVF, GEN_INTDIV, GEN_FLTOVF, GEN_FLTDIV,
-             GEN_FLTUND, GEN_FLTINV, GEN_FLTINE, GEN_ROPRAND
-           SIGTRAP:
-             others
-           with various settings of si_code.  */
-        exit(1);
-    default:
-        qemu_log("%s: unhandled palcode %02x\n", __func__, palcode);
-        exit(1);
-    }
 }
 #endif

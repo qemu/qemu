@@ -63,7 +63,6 @@ libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
 libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
-libobj-$(TARGET_ALPHA) += alpha_palcode.o
 
 libobj-$(CONFIG_SCU2) += scu2.o
 
@@ -336,6 +335,7 @@ obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 obj-m68k-y += m68k-semi.o dummy_m68k.o
 
 obj-s390x-y = s390-virtio-bus.o s390-virtio.o
+obj-alpha-y = alpha_palcode.o
 
 ifdef QEMU_RUBY
 $(QEMU_RUBY): $(OBJS) libqemu.a

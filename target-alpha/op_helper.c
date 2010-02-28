@@ -370,6 +370,130 @@ uint64_t helper_unpkbw (uint64_t op1)
 
 /* Floating point helpers */
 
+void helper_setroundmode (uint32_t val)
+{
+    set_float_rounding_mode(val, &FP_STATUS);
+}
+
+void helper_setflushzero (uint32_t val)
+{
+    set_flush_to_zero(val, &FP_STATUS);
+}
+
+void helper_fp_exc_clear (void)
+{
+    set_float_exception_flags(0, &FP_STATUS);
+}
+
+uint32_t helper_fp_exc_get (void)
+{
+    return get_float_exception_flags(&FP_STATUS);
+}
+
+/* Raise exceptions for ieee fp insns without software completion.
+   In that case there are no exceptions that don't trap; the mask
+   doesn't apply.  */
+void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
+{
+    if (exc) {
+        uint32_t hw_exc = 0;
+
+        env->ipr[IPR_EXC_MASK] |= 1ull << regno;
+
+        if (exc & float_flag_invalid) {
+            hw_exc |= EXC_M_INV;
+        }
+        if (exc & float_flag_divbyzero) {
+            hw_exc |= EXC_M_DZE;
+        }
+        if (exc & float_flag_overflow) {
+            hw_exc |= EXC_M_FOV;
+        }
+        if (exc & float_flag_underflow) {
+            hw_exc |= EXC_M_UNF;
+        }
+        if (exc & float_flag_inexact) {
+            hw_exc |= EXC_M_INE;
+        }
+        helper_excp(EXCP_ARITH, hw_exc);
+    }
+}
+
+/* Raise exceptions for ieee fp insns with software completion.  */
+void helper_fp_exc_raise_s(uint32_t exc, uint32_t regno)
+{
+    if (exc) {
+        env->fpcr_exc_status |= exc;
+
+        exc &= ~env->fpcr_exc_mask;
+        if (exc) {
+            helper_fp_exc_raise(exc, regno);
+        }
+    }
+}
+
+/* Input remapping without software completion.  Handle denormal-map-to-zero
+   and trap for all other non-finite numbers.  */
+uint64_t helper_ieee_input(uint64_t val)
+{
+    uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
+    uint64_t frac = val & 0xfffffffffffffull;
+
+    if (exp == 0) {
+        if (frac != 0) {
+            /* If DNZ is set flush denormals to zero on input.  */
+            if (env->fpcr_dnz) {
+                val &= 1ull << 63;
+            } else {
+                helper_excp(EXCP_ARITH, EXC_M_UNF);
+            }
+        }
+    } else if (exp == 0x7ff) {
+        /* Infinity or NaN.  */
+        /* ??? I'm not sure these exception bit flags are correct.  I do
+           know that the Linux kernel, at least, doesn't rely on them and
+           just emulates the insn to figure out what exception to use.  */
+        helper_excp(EXCP_ARITH, frac ? EXC_M_INV : EXC_M_FOV);
+    }
+    return val;
+}
+
+/* Similar, but does not trap for infinities.  Used for comparisons.  */
+uint64_t helper_ieee_input_cmp(uint64_t val)
+{
+    uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
+    uint64_t frac = val & 0xfffffffffffffull;
+
+    if (exp == 0) {
+        if (frac != 0) {
+            /* If DNZ is set flush denormals to zero on input.  */
+            if (env->fpcr_dnz) {
+                val &= 1ull << 63;
+            } else {
+                helper_excp(EXCP_ARITH, EXC_M_UNF);
+            }
+        }
+    } else if (exp == 0x7ff && frac) {
+        /* NaN.  */
+        helper_excp(EXCP_ARITH, EXC_M_INV);
+    }
+    return val;
+}
+
+/* Input remapping with software completion enabled.  All we have to do
+   is handle denormal-map-to-zero; all other inputs get exceptions as
+   needed from the actual operation.  */
+uint64_t helper_ieee_input_s(uint64_t val)
+{
+    if (env->fpcr_dnz) {
+        uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
+        if (exp == 0) {
+            val &= 1ull << 63;
+        }
+    }
+    return val;
+}
+
 /* F floating (VAX) */
 static inline uint64_t float32_to_f(float32 fa)
 {
@@ -446,6 +570,9 @@ uint64_t helper_memory_to_f (uint32_t a)
         r |= 0x7ll << 59;
     return r;
 }
+
+/* ??? Emulating VAX arithmetic with IEEE arithmetic is wrong.  We should
+   either implement VAX arithmetic properly or just signal invalid opcode.  */
 
 uint64_t helper_addf (uint64_t a, uint64_t b)
 {
@@ -931,10 +1058,107 @@ uint64_t helper_cvtqs (uint64_t a)
     return float32_to_s(fr);
 }
 
-uint64_t helper_cvttq (uint64_t a)
+/* Implement float64 to uint64 conversion without saturation -- we must
+   supply the truncated result.  This behaviour is used by the compiler
+   to get unsigned conversion for free with the same instruction.
+
+   The VI flag is set when overflow or inexact exceptions should be raised.  */
+
+static inline uint64_t helper_cvttq_internal(uint64_t a, int roundmode, int VI)
 {
-    float64 fa = t_to_float64(a);
-    return float64_to_int64_round_to_zero(fa, &FP_STATUS);
+    uint64_t frac, ret = 0;
+    uint32_t exp, sign, exc = 0;
+    int shift;
+
+    sign = (a >> 63);
+    exp = (uint32_t)(a >> 52) & 0x7ff;
+    frac = a & 0xfffffffffffffull;
+
+    if (exp == 0) {
+        if (unlikely(frac != 0)) {
+            goto do_underflow;
+        }
+    } else if (exp == 0x7ff) {
+        exc = (frac ? float_flag_invalid : VI ? float_flag_overflow : 0);
+    } else {
+        /* Restore implicit bit.  */
+        frac |= 0x10000000000000ull;
+
+        shift = exp - 1023 - 52;
+        if (shift >= 0) {
+            /* In this case the number is so large that we must shift
+               the fraction left.  There is no rounding to do.  */
+            if (shift < 63) {
+                ret = frac << shift;
+                if (VI && (ret >> shift) != frac) {
+                    exc = float_flag_overflow;
+                }
+            }
+        } else {
+            uint64_t round;
+
+            /* In this case the number is smaller than the fraction as
+               represented by the 52 bit number.  Here we must think
+               about rounding the result.  Handle this by shifting the
+               fractional part of the number into the high bits of ROUND.
+               This will let us efficiently handle round-to-nearest.  */
+            shift = -shift;
+            if (shift < 63) {
+                ret = frac >> shift;
+                round = frac << (64 - shift);
+            } else {
+                /* The exponent is so small we shift out everything.
+                   Leave a sticky bit for proper rounding below.  */
+            do_underflow:
+                round = 1;
+            }
+
+            if (round) {
+                exc = (VI ? float_flag_inexact : 0);
+                switch (roundmode) {
+                case float_round_nearest_even:
+                    if (round == (1ull << 63)) {
+                        /* Fraction is exactly 0.5; round to even.  */
+                        ret += (ret & 1);
+                    } else if (round > (1ull << 63)) {
+                        ret += 1;
+                    }
+                    break;
+                case float_round_to_zero:
+                    break;
+                case float_round_up:
+                    ret += 1 - sign;
+                    break;
+                case float_round_down:
+                    ret += sign;
+                    break;
+                }
+            }
+        }
+        if (sign) {
+            ret = -ret;
+        }
+    }
+    if (unlikely(exc)) {
+        float_raise(exc, &FP_STATUS);
+    }
+
+    return ret;
+}
+
+uint64_t helper_cvttq(uint64_t a)
+{
+    return helper_cvttq_internal(a, FP_STATUS.float_rounding_mode, 1);
+}
+
+uint64_t helper_cvttq_c(uint64_t a)
+{
+    return helper_cvttq_internal(a, float_round_to_zero, 0);
+}
+
+uint64_t helper_cvttq_svic(uint64_t a)
+{
+    return helper_cvttq_internal(a, float_round_to_zero, 1);
 }
 
 uint64_t helper_cvtqt (uint64_t a)
@@ -979,35 +1203,24 @@ uint64_t helper_cvtlq (uint64_t a)
     return (lo & 0x3FFFFFFF) | (hi & 0xc0000000);
 }
 
-static inline uint64_t __helper_cvtql(uint64_t a, int s, int v)
-{
-    uint64_t r;
-
-    r = ((uint64_t)(a & 0xC0000000)) << 32;
-    r |= ((uint64_t)(a & 0x7FFFFFFF)) << 29;
-
-    if (v && (int64_t)((int32_t)r) != (int64_t)r) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
-    }
-    if (s) {
-        /* TODO */
-    }
-    return r;
-}
-
 uint64_t helper_cvtql (uint64_t a)
 {
-    return __helper_cvtql(a, 0, 0);
+    return ((a & 0xC0000000) << 32) | ((a & 0x7FFFFFFF) << 29);
 }
 
-uint64_t helper_cvtqlv (uint64_t a)
+uint64_t helper_cvtql_v (uint64_t a)
 {
-    return __helper_cvtql(a, 0, 1);
+    if ((int32_t)a != (int64_t)a)
+        helper_excp(EXCP_ARITH, EXC_M_IOV);
+    return helper_cvtql(a);
 }
 
-uint64_t helper_cvtqlsv (uint64_t a)
+uint64_t helper_cvtql_sv (uint64_t a)
 {
-    return __helper_cvtql(a, 1, 1);
+    /* ??? I'm pretty sure there's nothing that /sv needs to do that /v
+       doesn't do.  The only thing I can think is that /sv is a valid
+       instruction merely for completeness in the ISA.  */
+    return helper_cvtql_v(a);
 }
 
 /* PALcode support special instructions */

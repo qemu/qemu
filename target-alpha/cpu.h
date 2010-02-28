@@ -511,11 +511,9 @@ uint64_t cpu_alpha_load_fpcr (CPUState *env);
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
-void pal_init (CPUState *env);
 #if !defined (CONFIG_USER_ONLY)
+void pal_init (CPUState *env);
 void call_pal (CPUState *env);
-#else
-void call_pal (CPUState *env, int palcode);
 #endif
 
 static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)

@@ -213,6 +213,10 @@ static void alsa_poll_handler (void *opaque)
 
     state = snd_pcm_state (hlp->handle);
     switch (state) {
+    case SND_PCM_STATE_SETUP:
+        alsa_recover (hlp->handle);
+        break;
+
     case SND_PCM_STATE_XRUN:
         alsa_recover (hlp->handle);
         break;
@@ -665,7 +669,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
         (obt->fmt != req->fmt ||
          obt->nchannels != req->nchannels ||
          obt->freq != req->freq)) {
-        dolog ("Audio paramters for %s\n", typ);
+        dolog ("Audio parameters for %s\n", typ);
         alsa_dump_info (req, obt);
     }
 

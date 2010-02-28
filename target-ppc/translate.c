@@ -9053,11 +9053,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                          "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
                          opc1(ctx.opcode), opc2(ctx.opcode),
                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
-            } else {
-                printf("invalid/unsupported opcode: "
-                       "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
-                       opc1(ctx.opcode), opc2(ctx.opcode),
-                       opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             }
         } else {
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
@@ -9067,12 +9062,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                              ctx.opcode & handler->inval, opc1(ctx.opcode),
                              opc2(ctx.opcode), opc3(ctx.opcode),
                              ctx.opcode, ctx.nip - 4);
-                } else {
-                    printf("invalid bits: %08x for opcode: "
-                           "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
-                           ctx.opcode & handler->inval, opc1(ctx.opcode),
-                           opc2(ctx.opcode), opc3(ctx.opcode),
-                           ctx.opcode, ctx.nip - 4);
                 }
                 gen_inval_exception(ctxp, POWERPC_EXCP_INVAL_INVAL);
                 break;
