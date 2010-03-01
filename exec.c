@@ -1333,6 +1333,18 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 #endif
 #endif /* TARGET_HAS_ICE */
 
+#if defined(CONFIG_USER_ONLY)
+void cpu_watchpoint_remove_all(CPUState *env, int mask)
+
+{
+}
+
+int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
+                          int flags, CPUWatchpoint **watchpoint)
+{
+    return -ENOSYS;
+}
+#else
 /* Add a watchpoint.  */
 int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
                           int flags, CPUWatchpoint **watchpoint)
@@ -1402,6 +1414,7 @@ void cpu_watchpoint_remove_all(CPUState *env, int mask)
             cpu_watchpoint_remove_by_ref(env, wp);
     }
 }
+#endif
 
 /* Add a breakpoint.  */
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
@@ -2163,13 +2176,6 @@ void tlb_flush(CPUState *env, int flush_global)
 
 void tlb_flush_page(CPUState *env, target_ulong addr)
 {
-}
-
-int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
-                      target_phys_addr_t paddr, int prot,
-                      int mmu_idx, int is_softmmu)
-{
-    return 0;
 }
 
 /*

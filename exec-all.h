@@ -86,6 +86,7 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, target_ulong addr);
 void tlb_flush(CPUState *env, int flush_global);
+#if !defined(CONFIG_USER_ONLY)
 int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
                       target_phys_addr_t paddr, int prot,
                       int mmu_idx, int is_softmmu);
@@ -97,6 +98,7 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
         prot |= PAGE_EXEC;
     return tlb_set_page_exec(env1, vaddr, paddr, prot, mmu_idx, is_softmmu);
 }
+#endif
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
 
