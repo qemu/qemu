@@ -169,9 +169,11 @@ int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
 void do_interrupt(CPUSH4State * env);
 
 void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+#if !defined(CONFIG_USER_ONLY)
 void cpu_sh4_invalidate_tlb(CPUSH4State *s);
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value);
+#endif
 
 int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr);
 

@@ -34,6 +34,8 @@ enum {
     TLBRET_MATCH = 0
 };
 
+#if !defined(CONFIG_USER_ONLY)
+
 /* no MMU emulation */
 int no_mmu_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                         target_ulong address, int rw, int access_type)
@@ -98,7 +100,6 @@ int r4k_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
     return TLBRET_NOMATCH;
 }
 
-#if !defined(CONFIG_USER_ONLY)
 static int get_physical_address (CPUState *env, target_phys_addr_t *physical,
                                 int *prot, target_ulong address,
                                 int rw, int access_type)
@@ -599,6 +600,7 @@ void do_interrupt (CPUState *env)
     env->exception_index = EXCP_NONE;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 {
     r4k_tlb_t *tlb;
@@ -652,3 +654,4 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
         }
     }
 }
+#endif

@@ -332,6 +332,7 @@ union ppc_avr_t {
     uint64_t u64[2];
 };
 
+#if !defined(CONFIG_USER_ONLY)
 /* Software TLB cache */
 typedef struct ppc6xx_tlb_t ppc6xx_tlb_t;
 struct ppc6xx_tlb_t {
@@ -354,6 +355,7 @@ union ppc_tlb_t {
     ppc6xx_tlb_t tlb6;
     ppcemb_tlb_t tlbe;
 };
+#endif
 
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
@@ -699,6 +701,7 @@ struct CPUPPCState {
     int (*osi_call)(struct CPUPPCState *env);
 };
 
+#if !defined(CONFIG_USER_ONLY)
 /* Context used internally during MMU translations */
 typedef struct mmu_ctx_t mmu_ctx_t;
 struct mmu_ctx_t {
@@ -710,6 +713,7 @@ struct mmu_ctx_t {
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
 };
+#endif
 
 /*****************************************************************************/
 CPUPPCState *cpu_ppc_init (const char *cpu_model);
@@ -724,8 +728,10 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu);
 #define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
+#if !defined(CONFIG_USER_ONLY)
 int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
                           int rw, int access_type);
+#endif
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 

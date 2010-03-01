@@ -36,6 +36,7 @@ struct r4k_tlb_t {
     target_ulong PFN[2];
 };
 
+#if !defined(CONFIG_USER_ONLY)
 typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
 struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
@@ -51,6 +52,7 @@ struct CPUMIPSTLBContext {
         } r4k;
     } mmu;
 };
+#endif
 
 typedef union fpr_t fpr_t;
 union fpr_t {
@@ -468,13 +470,16 @@ struct CPUMIPSState {
     CPU_COMMON
 
     CPUMIPSMVPContext *mvp;
+#if !defined(CONFIG_USER_ONLY)
     CPUMIPSTLBContext *tlb;
+#endif
 
     const mips_def_t *cpu_model;
     void *irq[8];
     struct QEMUTimer *timer; /* Internal timer */
 };
 
+#if !defined(CONFIG_USER_ONLY)
 int no_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
                         target_ulong address, int rw, int access_type);
 int fixed_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
@@ -485,10 +490,12 @@ void r4k_helper_tlbwi (void);
 void r4k_helper_tlbwr (void);
 void r4k_helper_tlbp (void);
 void r4k_helper_tlbr (void);
-void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int unused, int size);
+#endif
+
+void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 #define cpu_init cpu_mips_init
 #define cpu_exec cpu_mips_exec
@@ -598,9 +605,11 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);
 #define cpu_handle_mmu_fault cpu_mips_handle_mmu_fault
 void do_interrupt (CPUState *env);
+#if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra);
 target_phys_addr_t cpu_mips_translate_address (CPUState *env, target_ulong address,
 		                               int rw);
+#endif
 
 static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
 {
