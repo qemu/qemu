@@ -3106,8 +3106,8 @@ static void io_mem_init(void)
 
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
-void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
-                            int len, int is_write)
+int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
+                        uint8_t *buf, int len, int is_write)
 {
     int l, flags;
     target_ulong page;
@@ -3120,23 +3120,21 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
             l = len;
         flags = page_get_flags(page);
         if (!(flags & PAGE_VALID))
-            return;
+            return -1;
         if (is_write) {
             if (!(flags & PAGE_WRITE))
-                return;
+                return -1;
             /* XXX: this code should not depend on lock_user */
             if (!(p = lock_user(VERIFY_WRITE, addr, l, 0)))
-                /* FIXME - should this return an error rather than just fail? */
-                return;
+                return -1;
             memcpy(p, buf, l);
             unlock_user(p, addr, l);
         } else {
             if (!(flags & PAGE_READ))
-                return;
+                return -1;
             /* XXX: this code should not depend on lock_user */
             if (!(p = lock_user(VERIFY_READ, addr, l, 1)))
-                /* FIXME - should this return an error rather than just fail? */
-                return;
+                return -1;
             memcpy(buf, p, l);
             unlock_user(p, addr, 0);
         }
@@ -3144,6 +3142,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         buf += l;
         addr += l;
     }
+    return 0;
 }
 
 #else
@@ -3641,8 +3640,6 @@ void stq_phys(target_phys_addr_t addr, uint64_t val)
     cpu_physical_memory_write(addr, (const uint8_t *)&val, 8);
 }
 
-#endif
-
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write)
@@ -3661,11 +3658,9 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
-#if !defined(CONFIG_USER_ONLY)
         if (is_write)
             cpu_physical_memory_write_rom(phys_addr, buf, l);
         else
-#endif
             cpu_physical_memory_rw(phys_addr, buf, l, is_write);
         len -= l;
         buf += l;
@@ -3673,6 +3668,7 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
     }
     return 0;
 }
+#endif
 
 /* in deterministic execution mode, instructions doing device I/Os
    must be at the end of the TB */
