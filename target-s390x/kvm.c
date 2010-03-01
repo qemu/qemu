@@ -91,7 +91,7 @@ void kvm_arch_reset_vcpu(CPUState *env)
     /* FIXME: add code to reset vcpu. */
 }
 
-int kvm_arch_put_registers(CPUState *env)
+int kvm_arch_put_registers(CPUState *env, int level)
 {
     struct kvm_regs regs;
     int ret;
@@ -296,7 +296,6 @@ static int handle_hypercall(CPUState *env, struct kvm_run *run)
 
     cpu_synchronize_state(env);
     r = s390_virtio_hypercall(env);
-    kvm_arch_put_registers(env);
 
     return r;
 }

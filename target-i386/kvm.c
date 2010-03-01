@@ -883,7 +883,7 @@ static int kvm_guest_debug_workarounds(CPUState *env)
     return ret;
 }
 
-int kvm_arch_put_registers(CPUState *env)
+int kvm_arch_put_registers(CPUState *env, int level)
 {
     int ret;
 

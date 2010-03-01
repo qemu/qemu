@@ -156,10 +156,6 @@ static void kvm_reset_vcpu(void *opaque)
     CPUState *env = opaque;
 
     kvm_arch_reset_vcpu(env);
-    if (kvm_arch_put_registers(env)) {
-        fprintf(stderr, "Fatal: kvm vcpu reset failed\n");
-        abort();
-    }
 }
 
 int kvm_irqchip_in_kernel(void)
@@ -214,7 +210,6 @@ int kvm_init_vcpu(CPUState *env)
     if (ret == 0) {
         qemu_register_reset(kvm_reset_vcpu, env);
         kvm_arch_reset_vcpu(env);
-        ret = kvm_arch_put_registers(env);
     }
 err:
     return ret;
@@ -753,6 +748,18 @@ void kvm_cpu_synchronize_state(CPUState *env)
     }
 }
 
+void kvm_cpu_synchronize_post_reset(CPUState *env)
+{
+    kvm_arch_put_registers(env, KVM_PUT_RESET_STATE);
+    env->kvm_vcpu_dirty = 0;
+}
+
+void kvm_cpu_synchronize_post_init(CPUState *env)
+{
+    kvm_arch_put_registers(env, KVM_PUT_FULL_STATE);
+    env->kvm_vcpu_dirty = 0;
+}
+
 int kvm_cpu_exec(CPUState *env)
 {
     struct kvm_run *run = env->kvm_run;
@@ -770,7 +777,7 @@ int kvm_cpu_exec(CPUState *env)
 #endif
 
         if (env->kvm_vcpu_dirty) {
-            kvm_arch_put_registers(env);
+            kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
             env->kvm_vcpu_dirty = 0;
         }
 

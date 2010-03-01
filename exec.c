@@ -512,21 +512,6 @@ void cpu_exec_init_all(unsigned long tb_size)
 
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
 
-static void cpu_common_pre_save(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_synchronize_state(env);
-}
-
-static int cpu_common_pre_load(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_synchronize_state(env);
-    return 0;
-}
-
 static int cpu_common_post_load(void *opaque, int version_id)
 {
     CPUState *env = opaque;
@@ -544,8 +529,6 @@ static const VMStateDescription vmstate_cpu_common = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .pre_save = cpu_common_pre_save,
-    .pre_load = cpu_common_pre_load,
     .post_load = cpu_common_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT32(halted, CPUState),
