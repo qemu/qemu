@@ -185,6 +185,10 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
+const char *mem_path = NULL;
+#ifdef MAP_POPULATE
+int mem_prealloc = 0; /* force preallocation of physical target memory */
+#endif
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
@@ -5216,6 +5220,14 @@ int main(int argc, char **argv, char **envp)
                 ram_size = value;
                 break;
             }
+            case QEMU_OPTION_mempath:
+                mem_path = optarg;
+                break;
+#ifdef MAP_POPULATE
+            case QEMU_OPTION_mem_prealloc:
+                mem_prealloc = 1;
+                break;
+#endif
             case QEMU_OPTION_d:
                 {
                     int mask;
