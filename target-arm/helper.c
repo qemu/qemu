@@ -483,11 +483,6 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
 {

@@ -820,11 +820,6 @@ void cpu_watchpoint_remove_all(CPUState *env, int mask);
 void cpu_single_step(CPUState *env, int enabled);
 void cpu_reset(CPUState *s);
 
-/* Return the physical page corresponding to a virtual one. Use it
-   only for debugging because no protection checks are done. Return -1
-   if no page found. */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
-
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
 #define CPU_LOG_TB_IN_ASM  (1 << 1)
 #define CPU_LOG_TB_OP      (1 << 2)
@@ -850,6 +845,11 @@ void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 
 #if !defined(CONFIG_USER_ONLY)
+
+/* Return the physical page corresponding to a virtual one. Use it
+   only for debugging because no protection checks are done. Return -1
+   if no page found. */
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 
 /* memory API */
 

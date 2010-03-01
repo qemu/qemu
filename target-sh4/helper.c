@@ -53,11 +53,6 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
-{
-    return addr;
-}
-
 int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 {
     /* For user mode, only U0 area is cachable. */

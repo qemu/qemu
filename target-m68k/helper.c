@@ -342,14 +342,6 @@ void m68k_switch_sp(CPUM68KState *env)
     env->current_sp = new_sp;
 }
 
-/* MMU */
-
-/* TODO: This will need fixing once the MMU is implemented.  */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
@@ -361,6 +353,14 @@ int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 }
 
 #else
+
+/* MMU */
+
+/* TODO: This will need fixing once the MMU is implemented.  */
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
 
 int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu)

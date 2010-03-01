@@ -652,13 +652,7 @@ void dump_mmu(CPUState *env)
 #endif /* !CONFIG_USER_ONLY */
 
 
-#if defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
-#else
+#if !defined(CONFIG_USER_ONLY)
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_phys_addr_t phys_addr;

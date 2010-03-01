@@ -97,11 +97,6 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
 #else
 /* Common routines used by software and hardware TLBs emulation */
 static inline int pte_is_valid(target_ulong pte0)
