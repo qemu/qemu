@@ -208,15 +208,6 @@ static int tlb_flush_count;
 static int tb_flush_count;
 static int tb_phys_invalidate_count;
 
-#define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
-typedef struct subpage_t {
-    target_phys_addr_t base;
-    CPUReadMemoryFunc * const *mem_read[TARGET_PAGE_SIZE][4];
-    CPUWriteMemoryFunc * const *mem_write[TARGET_PAGE_SIZE][4];
-    void *opaque[TARGET_PAGE_SIZE][2][4];
-    ram_addr_t region_offset[TARGET_PAGE_SIZE][2][4];
-} subpage_t;
-
 #ifdef _WIN32
 static void map_exec(void *addr, long size)
 {
@@ -2380,6 +2371,15 @@ static inline void tlb_set_dirty(CPUState *env,
 #endif /* defined(CONFIG_USER_ONLY) */
 
 #if !defined(CONFIG_USER_ONLY)
+
+#define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
+typedef struct subpage_t {
+    target_phys_addr_t base;
+    CPUReadMemoryFunc * const *mem_read[TARGET_PAGE_SIZE][4];
+    CPUWriteMemoryFunc * const *mem_write[TARGET_PAGE_SIZE][4];
+    void *opaque[TARGET_PAGE_SIZE][2][4];
+    ram_addr_t region_offset[TARGET_PAGE_SIZE][2][4];
+} subpage_t;
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              ram_addr_t memory, ram_addr_t region_offset);
