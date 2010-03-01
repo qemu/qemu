@@ -760,7 +760,8 @@ static void pc_init_ne2k_isa(NICInfo *nd)
 
 int cpu_is_bsp(CPUState *env)
 {
-    return env->cpuid_apic_id == 0;
+    /* We hard-wire the BSP to the first CPU. */
+    return env->cpu_index == 0;
 }
 
 static CPUState *pc_new_cpu(const char *cpu_model)
