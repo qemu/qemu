@@ -1082,8 +1082,8 @@ EOF
     # static link with sdl ? (note: sdl.pc's --static --libs is broken)
     if test "$sdl" = "yes" -a "$static" = "yes" ; then
       if test $? = 0 && echo $sdl_libs | grep -- -laa > /dev/null; then
-         sdl_libs="$sdl_libs `aalib-config --static-libs >2 /dev/null`"
-         sdl_cflags="$sdl_cflags `aalib-config --cflags >2 /dev/null`"
+         sdl_libs="$sdl_libs `aalib-config --static-libs 2>/dev/null`"
+         sdl_cflags="$sdl_cflags `aalib-config --cflags 2>/dev/null`"
       fi
       if compile_prog "$sdl_cflags" "$sdl_libs" ; then
 	:
