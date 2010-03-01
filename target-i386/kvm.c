@@ -26,6 +26,7 @@
 #include "gdbstub.h"
 #include "host-utils.h"
 #include "hw/pc.h"
+#include "ioport.h"
 
 #ifdef CONFIG_KVM_PARA
 #include <linux/kvm_para.h>

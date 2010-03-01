@@ -840,9 +840,6 @@ void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 
-/* IO ports API */
-#include "ioport.h"
-
 /* memory API */
 
 extern int phys_ram_fd;

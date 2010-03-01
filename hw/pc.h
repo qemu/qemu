@@ -2,6 +2,7 @@
 #define HW_PC_H
 
 #include "qemu-common.h"
+#include "ioport.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
