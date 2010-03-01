@@ -1531,6 +1531,14 @@ static inline void tcg_out_op(TCGContext *s, int opc,
                         args[0], args[2], SHIFT_IMM_LSL(0));
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[4]], args[5]);
         break;
+    case INDEX_op_setcond_i32:
+        tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
+                        args[1], args[2], SHIFT_IMM_LSL(0));
+        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[args[3]],
+                        ARITH_MOV, args[0], 0, 1);
+        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[3])],
+                        ARITH_MOV, args[0], 0, 0);
+        break;
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, COND_AL, args, 0);
@@ -1629,6 +1637,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
 
     { INDEX_op_brcond_i32, { "r", "r" } },
+    { INDEX_op_setcond_i32, { "r", "r", "r" } },
 
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
     { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
