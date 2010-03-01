@@ -415,11 +415,11 @@ static void sdl_update_caption(void)
         status = " [Stopped]";
     else if (gui_grab) {
         if (alt_grab)
-            status = " - Press Ctrl-Alt-Shift to exit grab";
+            status = " - Press Ctrl-Alt-Shift to exit mouse grab";
         else if (ctrl_grab)
-            status = " - Press Right-Ctrl to exit grab";
+            status = " - Press Right-Ctrl to exit mouse grab";
         else
-            status = " - Press Ctrl-Alt to exit grab";
+            status = " - Press Ctrl-Alt to exit mouse grab";
     }
 
     if (qemu_name) {
