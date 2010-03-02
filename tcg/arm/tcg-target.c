@@ -1445,6 +1445,9 @@ static inline void tcg_out_op(TCGContext *s, int opc,
     case INDEX_op_and_i32:
         c = ARITH_AND;
         goto gen_arith;
+    case INDEX_op_andc_i32:
+        c = ARITH_BIC;
+        goto gen_arith;
     case INDEX_op_or_i32:
         c = ARITH_ORR;
         goto gen_arith;
@@ -1652,6 +1655,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_div2_i32, { "r", "r", "r", "1", "2" } },
     { INDEX_op_divu2_i32, { "r", "r", "r", "1", "2" } },
     { INDEX_op_and_i32, { "r", "r", "rI" } },
+    { INDEX_op_andc_i32, { "r", "r", "rI" } },
     { INDEX_op_or_i32, { "r", "r", "rI" } },
     { INDEX_op_xor_i32, { "r", "r", "rI" } },
     { INDEX_op_neg_i32, { "r", "r" } },
