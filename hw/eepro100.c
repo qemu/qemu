@@ -188,11 +188,11 @@ typedef enum {
 
 typedef struct {
     uint32_t tx_good_frames, tx_max_collisions, tx_late_collisions,
-        tx_underruns, tx_lost_crs, tx_deferred, tx_single_collisions,
-        tx_multiple_collisions, tx_total_collisions;
+             tx_underruns, tx_lost_crs, tx_deferred, tx_single_collisions,
+             tx_multiple_collisions, tx_total_collisions;
     uint32_t rx_good_frames, rx_crc_errors, rx_alignment_errors,
-        rx_resource_errors, rx_overrun_errors, rx_cdt_errors,
-        rx_short_frame_errors;
+             rx_resource_errors, rx_overrun_errors, rx_cdt_errors,
+             rx_short_frame_errors;
     uint32_t fc_xmt_pause, fc_rcv_pause, fc_rcv_unsupported;
     uint16_t xmt_tco_frames, rcv_tco_frames;
     /* TODO: i82559 has six reserved statistics but a total of 24 dwords. */
