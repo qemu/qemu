@@ -20,7 +20,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Tested features (i82559):
- *      PXE boot (i386) no valid link
+ *      PXE boot (i386) ok
  *      Linux networking (i386) ok
  *
  * Untested:
@@ -32,10 +32,6 @@
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
  */
-
-#if defined(TARGET_I386)
-# warning "PXE boot still not working!"
-#endif
 
 #include <stddef.h>             /* offsetof */
 #include <stdbool.h>
@@ -242,6 +238,17 @@ typedef struct {
     uint16_t stats_size;
     bool has_extended_tcb_support;
 } EEPRO100State;
+
+/* Word indices in EEPROM. */
+typedef enum {
+    EEPROM_CNFG_MDIX  = 0x03,
+    EEPROM_ID         = 0x05,
+    EEPROM_PHY_ID     = 0x06,
+    EEPROM_VENDOR_ID  = 0x0c,
+    EEPROM_CONFIG_ASF = 0x0d,
+    EEPROM_DEVICE_ID  = 0x23,
+    EEPROM_SMBUS_ADDR = 0x90,
+} EEPROMOffset;
 
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
@@ -632,9 +639,10 @@ static void nic_selective_reset(EEPRO100State * s)
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
     //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, s->conf.macaddr.a, 6);
-    eeprom_contents[0xa] = 0x4000;
+    eeprom_contents[EEPROM_ID] = 0x4000;
     if (s->device == i82557B || s->device == i82557C)
         eeprom_contents[5] = 0x0100;
+    eeprom_contents[EEPROM_PHY_ID] = 1;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
