@@ -56,7 +56,9 @@
 #define KiB 1024
 
 /* Debug EEPRO100 card. */
-//~ #define DEBUG_EEPRO100
+#if 0
+# define DEBUG_EEPRO100
+#endif
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, ...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ## __VA_ARGS__)
@@ -874,9 +876,8 @@ static void action_command(EEPRO100State *s)
         cpu_physical_memory_read(s->cb_address, (uint8_t *)&s->tx, sizeof(s->tx));
         uint16_t status = le16_to_cpu(s->tx.status);
         uint16_t command = le16_to_cpu(s->tx.command);
-        logout
-            ("val=0x%02x (cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
-             val, status, command, s->tx.link);
+        logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
+               status, command, s->tx.link);
         bool bit_el = ((command & 0x8000) != 0);
         bool bit_s = ((command & 0x4000) != 0);
         bool bit_i = ((command & 0x2000) != 0);
@@ -891,7 +892,7 @@ static void action_command(EEPRO100State *s)
             break;
         case CmdIASetup:
             cpu_physical_memory_read(s->cb_address + 8, &s->conf.macaddr.a[0], 6);
-            TRACE(OTHER, logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6)));
+            TRACE(OTHER, logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6)));
             break;
         case CmdConfigure:
             cpu_physical_memory_read(s->cb_address + 8, &s->configuration[0],
@@ -1875,7 +1876,7 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
                            pci_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
+    logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6));
     assert(s->region[1] == 0);
 
     nic_reset(s);
