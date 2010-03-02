@@ -469,24 +469,6 @@ static void pci_reset(EEPRO100State * s)
     PCI_CONFIG_8(PCI_LATENCY_TIMER, 0x20);   // latency timer = 32 clocks
     /* PCI Header Type */
     /* BIST (built-in self test) */
-#if defined(TARGET_I386)
-// !!! workaround for buggy bios
-//~ #define PCI_BASE_ADDRESS_MEM_PREFETCH 0
-#endif
-#if 0
-    /* PCI Base Address Registers */
-    /* CSR Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
-                  PCI_BASE_ADDRESS_SPACE_MEMORY |
-                  PCI_BASE_ADDRESS_MEM_PREFETCH);
-    /* CSR I/O Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_SPACE_IO);
-#if 0
-    /* Flash Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_2,
-                  0xfffe0000 | PCI_BASE_ADDRESS_SPACE_MEMORY);
-#endif
-#endif
     /* Expansion ROM Base Address (depends on boot disable!!!) */
     /* TODO: not needed, set when BAR is registered */
     PCI_CONFIG_32(PCI_ROM_ADDRESS, PCI_BASE_ADDRESS_SPACE_MEMORY);
