@@ -958,6 +958,11 @@ static void action_command(EEPRO100State *s)
             /* Starting with offset 8, the command contains
              * 64 dwords microcode which we just ignore here. */
             break;
+        case CmdDiagnose:
+            TRACE(OTHER, logout("diagnose\n"));
+            /* Make sure error flag is not set. */
+            s->tx.status = 0;
+            break;
         default:
             missing("undefined command");
             success = false;
