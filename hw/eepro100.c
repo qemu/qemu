@@ -1975,6 +1975,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82550_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -1984,6 +1985,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -1993,6 +1995,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557a_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2002,6 +2005,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2011,6 +2015,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557c_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2020,6 +2025,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558a_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2029,6 +2035,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558b_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2038,6 +2045,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559a_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2047,6 +2055,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559b_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2056,6 +2065,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559c_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2065,7 +2075,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-i82559er.bin",
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
@@ -2075,6 +2085,7 @@ static PCIDeviceInfo eepro100_info[] = {
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82562_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
