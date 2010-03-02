@@ -851,23 +851,41 @@ static void tcg_out_div_helper(TCGContext *s, int cond, const TCGArg *args,
     tcg_out_dat_reg(s, cond, ARITH_MOV, div_reg, 0, 8, SHIFT_IMM_LSL(0));
 
     /* ldr r0, [sp], #4 */
-    if (rem_reg != 0 && div_reg != 0)
+    if (rem_reg != 0 && div_reg != 0) {
         tcg_out32(s, (cond << 28) | 0x04bd0004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr r1, [sp], #4 */
-    if (rem_reg != 1 && div_reg != 1)
+    if (rem_reg != 1 && div_reg != 1) {
         tcg_out32(s, (cond << 28) | 0x04bd1004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr r2, [sp], #4 */
-    if (rem_reg != 2 && div_reg != 2)
+    if (rem_reg != 2 && div_reg != 2) {
         tcg_out32(s, (cond << 28) | 0x04bd2004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr r3, [sp], #4 */
-    if (rem_reg != 3 && div_reg != 3)
+    if (rem_reg != 3 && div_reg != 3) {
         tcg_out32(s, (cond << 28) | 0x04bd3004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr ip, [sp], #4 */
-    if (rem_reg != 12 && div_reg != 12)
+    if (rem_reg != 12 && div_reg != 12) {
         tcg_out32(s, (cond << 28) | 0x04bdc004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr lr, [sp], #4 */
-    if (rem_reg != 14 && div_reg != 14)
+    if (rem_reg != 14 && div_reg != 14) {
         tcg_out32(s, (cond << 28) | 0x04bde004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
 }
 
 #ifdef CONFIG_SOFTMMU
