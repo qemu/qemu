@@ -903,10 +903,10 @@ static void action_command(EEPRO100State *s)
     for (;;) {
         s->cb_address = s->cu_base + s->cu_offset;
         cpu_physical_memory_read(s->cb_address, (uint8_t *)&s->tx, sizeof(s->tx));
-        uint16_t status = le16_to_cpu(s->tx.status);
         uint16_t command = le16_to_cpu(s->tx.command);
+        s->tx.status = le16_to_cpu(s->tx.status);
         logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
-               status, command, s->tx.link);
+               s->tx.status, command, s->tx.link);
         bool bit_el = ((command & COMMAND_EL) != 0);
         bool bit_s = ((command & COMMAND_S) != 0);
         bool bit_i = ((command & COMMAND_I) != 0);
@@ -950,7 +950,7 @@ static void action_command(EEPRO100State *s)
             break;
         }
         /* Write new status. */
-        stw_phys(s->cb_address, status | STATUS_C | (success ? STATUS_OK : 0));
+        stw_phys(s->cb_address, s->tx.status | STATUS_C | (success ? STATUS_OK : 0));
         if (bit_i) {
             /* CU completed action. */
             eepro100_cx_interrupt(s);
