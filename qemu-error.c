@@ -44,7 +44,7 @@ void error_printf(const char *fmt, ...)
 /*
  * Print an error message to current monitor if we have one, else to stderr.
  * Appends a newline to the message.
- * It's wrong to call this in a QMP monitor.  Use qemu_error_new() there.
+ * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
  */
 void error_report(const char *fmt, ...)
 {
@@ -56,8 +56,8 @@ void error_report(const char *fmt, ...)
     error_printf("\n");
 }
 
-void qemu_error_internal(const char *file, int linenr, const char *func,
-                         const char *fmt, ...)
+void qerror_report_internal(const char *file, int linenr, const char *func,
+                            const char *fmt, ...)
 {
     va_list va;
     QError *qerror;

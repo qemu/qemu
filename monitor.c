@@ -208,7 +208,7 @@ static int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                                  void *opaque)
 {
     if (monitor_ctrl_mode(mon)) {
-        qemu_error_new(QERR_MISSING_PARAMETER, "password");
+        qerror_report(QERR_MISSING_PARAMETER, "password");
         return -EINVAL;
     } else if (mon->rs) {
         readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
@@ -607,7 +607,7 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     if (cmd->name == NULL) {
         if (monitor_ctrl_mode(mon)) {
-            qemu_error_new(QERR_COMMAND_NOT_FOUND, item);
+            qerror_report(QERR_COMMAND_NOT_FOUND, item);
             return -1;
         }
         goto help;
@@ -639,7 +639,7 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
     } else {
         if (monitor_ctrl_mode(mon)) {
             /* handler not converted yet */
-            qemu_error_new(QERR_COMMAND_NOT_FOUND, item);
+            qerror_report(QERR_COMMAND_NOT_FOUND, item);
             return -1;
         } else {
             cmd->mhandler.info(mon);
@@ -961,7 +961,7 @@ static int do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int index = qdict_get_int(qdict, "index");
     if (mon_set_cpu(index) < 0) {
-        qemu_error_new(QERR_INVALID_PARAMETER, "index");
+        qerror_report(QERR_INVALID_PARAMETER, "index");
         return -1;
     }
     return 0;
@@ -1014,12 +1014,12 @@ static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
     if (bdrv_is_inserted(bs)) {
         if (!force) {
             if (!bdrv_is_removable(bs)) {
-                qemu_error_new(QERR_DEVICE_NOT_REMOVABLE,
+                qerror_report(QERR_DEVICE_NOT_REMOVABLE,
                                bdrv_get_device_name(bs));
                 return -1;
             }
             if (bdrv_is_locked(bs)) {
-                qemu_error_new(QERR_DEVICE_LOCKED, bdrv_get_device_name(bs));
+                qerror_report(QERR_DEVICE_LOCKED, bdrv_get_device_name(bs));
                 return -1;
             }
         }
@@ -1036,7 +1036,7 @@ static int do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     bs = bdrv_find(filename);
     if (!bs) {
-        qemu_error_new(QERR_DEVICE_NOT_FOUND, filename);
+        qerror_report(QERR_DEVICE_NOT_FOUND, filename);
         return -1;
     }
     return eject_device(mon, bs, force);
@@ -1049,12 +1049,12 @@ static int do_block_set_passwd(Monitor *mon, const QDict *qdict,
 
     bs = bdrv_find(qdict_get_str(qdict, "device"));
     if (!bs) {
-        qemu_error_new(QERR_DEVICE_NOT_FOUND, qdict_get_str(qdict, "device"));
+        qerror_report(QERR_DEVICE_NOT_FOUND, qdict_get_str(qdict, "device"));
         return -1;
     }
 
     if (bdrv_set_key(bs, qdict_get_str(qdict, "password")) < 0) {
-        qemu_error_new(QERR_INVALID_PASSWORD);
+        qerror_report(QERR_INVALID_PASSWORD);
         return -1;
     }
 
@@ -1069,13 +1069,13 @@ static int do_change_block(Monitor *mon, const char *device,
 
     bs = bdrv_find(device);
     if (!bs) {
-        qemu_error_new(QERR_DEVICE_NOT_FOUND, device);
+        qerror_report(QERR_DEVICE_NOT_FOUND, device);
         return -1;
     }
     if (fmt) {
         drv = bdrv_find_whitelisted_format(fmt);
         if (!drv) {
-            qemu_error_new(QERR_INVALID_BLOCK_FORMAT, fmt);
+            qerror_report(QERR_INVALID_BLOCK_FORMAT, fmt);
             return -1;
         }
     }
@@ -1091,7 +1091,7 @@ static int do_change_block(Monitor *mon, const char *device,
 static int change_vnc_password(const char *password)
 {
     if (vnc_display_password(NULL, password) < 0) {
-        qemu_error_new(QERR_SET_PASSWD_FAILED);
+        qerror_report(QERR_SET_PASSWD_FAILED);
         return -1;
     }
 
@@ -1119,7 +1119,7 @@ static int do_change_vnc(Monitor *mon, const char *target, const char *arg)
         }
     } else {
         if (vnc_display_open(NULL, target) < 0) {
-            qemu_error_new(QERR_VNC_SERVER_FAILED, target);
+            qerror_report(QERR_VNC_SERVER_FAILED, target);
             return -1;
         }
     }
@@ -1491,7 +1491,7 @@ static int do_memory_save(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     f = fopen(filename, "wb");
     if (!f) {
-        qemu_error_new(QERR_OPEN_FILE_FAILED, filename);
+        qerror_report(QERR_OPEN_FILE_FAILED, filename);
         return -1;
     }
     while (size != 0) {
@@ -1527,7 +1527,7 @@ static int do_physical_memory_save(Monitor *mon, const QDict *qdict,
 
     f = fopen(filename, "wb");
     if (!f) {
-        qemu_error_new(QERR_OPEN_FILE_FAILED, filename);
+        qerror_report(QERR_OPEN_FILE_FAILED, filename);
         return -1;
     }
     while (size != 0) {
@@ -2301,13 +2301,13 @@ static int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque)
     int ret;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        qerror_report(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
         return -1;
     }
 
     ret = qemu_balloon_status(cb, opaque);
     if (!ret) {
-        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
+        qerror_report(QERR_DEVICE_NOT_ACTIVE, "balloon");
         return -1;
     }
 
@@ -2323,13 +2323,13 @@ static int do_balloon(Monitor *mon, const QDict *params,
     int ret;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        qemu_error_new(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        qerror_report(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
         return -1;
     }
 
     ret = qemu_balloon(qdict_get_int(params, "value"), cb, opaque);
     if (ret == 0) {
-        qemu_error_new(QERR_DEVICE_NOT_ACTIVE, "balloon");
+        qerror_report(QERR_DEVICE_NOT_ACTIVE, "balloon");
         return -1;
     }
 
@@ -2470,21 +2470,21 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     fd = qemu_chr_get_msgfd(mon->chr);
     if (fd == -1) {
-        qemu_error_new(QERR_FD_NOT_SUPPLIED);
+        qerror_report(QERR_FD_NOT_SUPPLIED);
         return -1;
     }
 
     if (qemu_isdigit(fdname[0])) {
-        qemu_error_new(QERR_INVALID_PARAMETER, "fdname");
+        qerror_report(QERR_INVALID_PARAMETER, "fdname");
         return -1;
     }
 
     fd = dup(fd);
     if (fd == -1) {
         if (errno == EMFILE)
-            qemu_error_new(QERR_TOO_MANY_FILES);
+            qerror_report(QERR_TOO_MANY_FILES);
         else
-            qemu_error_new(QERR_UNDEFINED_ERROR);
+            qerror_report(QERR_UNDEFINED_ERROR);
         return -1;
     }
 
@@ -2523,7 +2523,7 @@ static int do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return 0;
     }
 
-    qemu_error_new(QERR_FD_NOT_FOUND, fdname);
+    qerror_report(QERR_FD_NOT_FOUND, fdname);
     return -1;
 }
 
@@ -3895,7 +3895,7 @@ static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
          * Action: Report an internal error to the client if in QMP.
          */
         if (monitor_ctrl_mode(mon)) {
-            qemu_error_new(QERR_UNDEFINED_ERROR);
+            qerror_report(QERR_UNDEFINED_ERROR);
         }
         MON_DEBUG("command '%s' returned failure but did not pass an error\n",
                   cmd->name);
@@ -4218,7 +4218,7 @@ typedef struct CmdArgs {
 static int check_opt(const CmdArgs *cmd_args, const char *name, QDict *args)
 {
     if (!cmd_args->optional) {
-        qemu_error_new(QERR_MISSING_PARAMETER, name);
+        qerror_report(QERR_MISSING_PARAMETER, name);
         return -1;
     }
 
@@ -4251,7 +4251,7 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
         case 'B':
         case 's':
             if (qobject_type(value) != QTYPE_QSTRING) {
-                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "string");
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "string");
                 return -1;
             }
             break;
@@ -4262,11 +4262,11 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
             for (i = 0; keys[i]; i++) {
                 QObject *obj = qdict_get(args, keys[i]);
                 if (!obj) {
-                    qemu_error_new(QERR_MISSING_PARAMETER, name);
+                    qerror_report(QERR_MISSING_PARAMETER, name);
                     return -1;
                 }
                 if (qobject_type(obj) != QTYPE_QINT) {
-                    qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
+                    qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "int");
                     return -1;
                 }
             }
@@ -4276,21 +4276,21 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
         case 'l':
         case 'M':
             if (qobject_type(value) != QTYPE_QINT) {
-                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "int");
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "int");
                 return -1;
             }
             break;
         case 'b':
         case 'T':
             if (qobject_type(value) != QTYPE_QINT && qobject_type(value) != QTYPE_QFLOAT) {
-                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "number");
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "number");
                 return -1;
             }
             break;
         case '-':
             if (qobject_type(value) != QTYPE_QINT &&
                 qobject_type(value) != QTYPE_QBOOL) {
-                qemu_error_new(QERR_INVALID_PARAMETER_TYPE, name, "bool");
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "bool");
                 return -1;
             }
             if (qobject_type(value) == QTYPE_QBOOL) {
@@ -4387,10 +4387,10 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
         // FIXME: should be triggered in json_parser_parse()
-        qemu_error_new(QERR_JSON_PARSING);
+        qerror_report(QERR_JSON_PARSING);
         goto err_out;
     } else if (qobject_type(obj) != QTYPE_QDICT) {
-        qemu_error_new(QERR_QMP_BAD_INPUT_OBJECT, "object");
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "object");
         qobject_decref(obj);
         goto err_out;
     }
@@ -4402,17 +4402,17 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 
     obj = qdict_get(input, "execute");
     if (!obj) {
-        qemu_error_new(QERR_QMP_BAD_INPUT_OBJECT, "execute");
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "execute");
         goto err_input;
     } else if (qobject_type(obj) != QTYPE_QSTRING) {
-        qemu_error_new(QERR_QMP_BAD_INPUT_OBJECT, "string");
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "string");
         goto err_input;
     }
 
     cmd_name = qstring_get_str(qobject_to_qstring(obj));
 
     if (invalid_qmp_mode(mon, cmd_name)) {
-        qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_input;
     }
 
@@ -4421,7 +4421,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
      * converted into 'query-' commands
      */
     if (compare_cmd(cmd_name, "info")) {
-        qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_input;
     } else if (strstart(cmd_name, "query-", &info_item)) {
         cmd = monitor_find_command("info");
@@ -4430,7 +4430,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     } else {
         cmd = monitor_find_command(cmd_name);
         if (!cmd || !monitor_handler_ported(cmd)) {
-            qemu_error_new(QERR_COMMAND_NOT_FOUND, cmd_name);
+            qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
             goto err_input;
         }
     }
@@ -4663,7 +4663,7 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
     }
 
     if (monitor_ctrl_mode(mon)) {
-        qemu_error_new(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
+        qerror_report(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
         return -1;
     }
 
