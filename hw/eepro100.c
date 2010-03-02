@@ -272,6 +272,21 @@ typedef enum {
     EEPROM_SMBUS_ADDR = 0x90,
 } EEPROMOffset;
 
+/* Bit values for EEPROM ID word. */
+typedef enum {
+    EEPROM_ID_MDM = BIT(0),     /* Modem */
+    EEPROM_ID_STB = BIT(1),     /* Standby Enable */
+    EEPROM_ID_WMR = BIT(2),     /* ??? */
+    EEPROM_ID_WOL = BIT(5),     /* Wake on LAN */
+    EEPROM_ID_DPD = BIT(6),     /* Deep Power Down */
+    EEPROM_ID_ALT = BIT(7),     /* */
+    /* BITS(10, 8) device revision */
+    EEPROM_ID_BD = BIT(11),     /* boot disable */
+    EEPROM_ID_ID = BIT(13),     /* id bit */
+    /* BITS(15, 14) signature */
+    EEPROM_ID_VALID = BIT(14),  /* signature for valid eeprom */
+} eeprom_id_bit;
+
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
     /* MDI Registers 0 - 6, 7 */
@@ -643,7 +658,7 @@ static void nic_selective_reset(EEPRO100State * s)
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
     //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, s->conf.macaddr.a, 6);
-    eeprom_contents[EEPROM_ID] = 0x4000;
+    eeprom_contents[EEPROM_ID] = EEPROM_ID_VALID;
     if (s->device == i82557B || s->device == i82557C)
         eeprom_contents[5] = 0x0100;
     eeprom_contents[EEPROM_PHY_ID] = 1;
