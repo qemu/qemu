@@ -976,17 +976,17 @@ static void action_command(EEPRO100State *s)
 
 static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
 {
+    cu_state_t cu_state;
     switch (val) {
     case CU_NOP:
         /* No operation. */
         break;
     case CU_START:
-        if (get_cu_state(s) != cu_idle) {
-            /* Intel documentation says that CU must be idle for the CU
-             * start command. Intel driver for Linux also starts the CU
-             * from suspended state. */
-            logout("CU state is %u, should be %u\n", get_cu_state(s), cu_idle);
-            //~ assert(!"wrong CU state");
+        cu_state = get_cu_state(s);
+        if (cu_state != cu_idle && cu_state != cu_suspended) {
+            /* Intel documentation says that CU must be idle or suspended
+             * for the CU start command. */
+            logout("unexpected CU state is %u\n", cu_state);
         }
         set_cu_state(s, cu_active);
         s->cu_offset = s->pointer;
