@@ -392,14 +392,14 @@ static void eepro100_acknowledge(EEPRO100State * s)
     }
 }
 
-static void eepro100_interrupt(EEPRO100State * s, uint8_t stat)
+static void eepro100_interrupt(EEPRO100State * s, uint8_t status)
 {
     uint8_t mask = ~s->mem[SCBIntmask];
-    s->mem[SCBAck] |= stat;
-    stat = s->scb_stat = s->mem[SCBAck];
-    stat &= (mask | 0x0f);
-    //~ stat &= (~s->mem[SCBIntmask] | 0x0xf);
-    if (stat && (mask & 0x01)) {
+    s->mem[SCBAck] |= status;
+    status = s->scb_stat = s->mem[SCBAck];
+    status &= (mask | 0x0f);
+    //~ status &= (~s->mem[SCBIntmask] | 0x0xf);
+    if (status && (mask & 0x01)) {
         /* SCB mask and SCB Bit M do not disable interrupt. */
         enable_interrupt(s);
     } else if (s->int_stat) {
