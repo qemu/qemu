@@ -26,14 +26,6 @@
 
 #define TCG_TARGET_REG_BITS 32
 #undef TCG_TARGET_WORDS_BIGENDIAN
-#undef TCG_TARGET_HAS_div_i32
-#undef TCG_TARGET_HAS_div_i64
-#undef TCG_TARGET_HAS_bswap32_i32
-#define TCG_TARGET_HAS_ext8s_i32
-#define TCG_TARGET_HAS_ext16s_i32
-#define TCG_TARGET_HAS_neg_i32
-#undef TCG_TARGET_HAS_neg_i64
-#define TCG_TARGET_HAS_not_i32
 #undef TCG_TARGET_STACK_GROWSUP
 
 enum {
@@ -64,16 +56,15 @@ enum {
 #define TCG_TARGET_CALL_STACK_OFFSET	0
 
 /* optional instructions */
-// #define TCG_TARGET_HAS_div_i32
-// #define TCG_TARGET_HAS_rot_i32
-// #define TCG_TARGET_HAS_ext8s_i32
-// #define TCG_TARGET_HAS_ext16s_i32
+#define TCG_TARGET_HAS_ext8s_i32
+#define TCG_TARGET_HAS_ext16s_i32
 // #define TCG_TARGET_HAS_ext8u_i32
 // #define TCG_TARGET_HAS_ext16u_i32
 // #define TCG_TARGET_HAS_bswap16_i32
 // #define TCG_TARGET_HAS_bswap32_i32
-// #define TCG_TARGET_HAS_not_i32
-// #define TCG_TARGET_HAS_neg_i32
+#define TCG_TARGET_HAS_not_i32
+#define TCG_TARGET_HAS_neg_i32
+// #define TCG_TARGET_HAS_rot_i32
 // #define TCG_TARGET_HAS_andc_i32
 // #define TCG_TARGET_HAS_orc_i32
 
