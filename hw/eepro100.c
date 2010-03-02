@@ -31,6 +31,14 @@
  *
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
+ *
+ * TODO:
+ *      * PHY emulation should be separated from nic emulation.
+ *        Most nic emulations could share the same phy code.
+ *      * i82550 is untested. It is programmed like the i82559.
+ *      * i82562 is untested. It is programmed like the i82559.
+ *      * Power management (i82558 and later) is not implemented.
+ *      * Wake-on-LAN is not implemented.
  */
 
 #include <stddef.h>             /* offsetof */
