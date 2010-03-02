@@ -1080,24 +1080,28 @@ static int img_snapshot(int argc, char **argv)
 static int img_rebase(int argc, char **argv)
 {
     BlockDriverState *bs, *bs_old_backing, *bs_new_backing;
-    BlockDriver *old_backing_drv, *new_backing_drv;
+    BlockDriver *drv, *old_backing_drv, *new_backing_drv;
     char *filename;
-    const char *out_basefmt, *out_baseimg;
+    const char *fmt, *out_basefmt, *out_baseimg;
     int c, flags, ret;
     int unsafe = 0;
 
     /* Parse commandline parameters */
+    fmt = NULL;
     out_baseimg = NULL;
     out_basefmt = NULL;
 
     for(;;) {
-        c = getopt(argc, argv, "uhF:b:");
+        c = getopt(argc, argv, "uhf:F:b:");
         if (c == -1)
             break;
         switch(c) {
         case 'h':
             help();
             return 0;
+        case 'f':
+            fmt = optarg;
+            break;
         case 'F':
             out_basefmt = optarg;
             break;
@@ -1124,8 +1128,16 @@ static int img_rebase(int argc, char **argv)
     if (!bs)
         error("Not enough memory");
 
+    drv = NULL;
+    if (fmt) {
+        drv = bdrv_find_format(fmt);
+        if (drv == NULL) {
+            error("Invalid format name: '%s'", fmt);
+        }
+    }
+
     flags = BRDV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
-    if (bdrv_open2(bs, filename, flags, NULL) < 0) {
+    if (bdrv_open2(bs, filename, flags, drv) < 0) {
         error("Could not open '%s'", filename);
     }
 
