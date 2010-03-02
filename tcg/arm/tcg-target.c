@@ -1549,6 +1549,7 @@ static inline void tcg_out_op(TCGContext *s, int opc,
                         ARITH_MOV, args[0], 0, 1);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[5])],
                         ARITH_MOV, args[0], 0, 0);
+        break;
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, COND_AL, args, 0);
