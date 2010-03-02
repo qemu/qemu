@@ -1980,6 +1980,7 @@ static int pci_i82562_init(PCIDevice *pci_dev)
 static PCIDeviceInfo eepro100_info[] = {
     {
         .qdev.name = "i82550",
+        .qdev.desc = "Intel i82550 Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82550_init,
         .exit      = pci_nic_uninit,
@@ -1990,6 +1991,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82551",
+        .qdev.desc = "Intel i82551 Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
         .exit      = pci_nic_uninit,
@@ -2000,6 +2002,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82557a",
+        .qdev.desc = "Intel i82557A Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557a_init,
         .exit      = pci_nic_uninit,
@@ -2010,6 +2013,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82557b",
+        .qdev.desc = "Intel i82557B Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
         .exit      = pci_nic_uninit,
@@ -2020,6 +2024,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82557c",
+        .qdev.desc = "Intel i82557C Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557c_init,
         .exit      = pci_nic_uninit,
@@ -2030,6 +2035,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82558a",
+        .qdev.desc = "Intel i82558A Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558a_init,
         .exit      = pci_nic_uninit,
@@ -2040,6 +2046,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82558b",
+        .qdev.desc = "Intel i82558B Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558b_init,
         .exit      = pci_nic_uninit,
@@ -2050,6 +2057,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82559a",
+        .qdev.desc = "Intel i82559A Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559a_init,
         .exit      = pci_nic_uninit,
@@ -2060,6 +2068,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82559b",
+        .qdev.desc = "Intel i82559B Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559b_init,
         .exit      = pci_nic_uninit,
@@ -2070,6 +2079,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82559c",
+        .qdev.desc = "Intel i82559C Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559c_init,
         .exit      = pci_nic_uninit,
@@ -2080,6 +2090,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82559er",
+        .qdev.desc = "Intel i82559ER Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
         .exit      = pci_nic_uninit,
@@ -2090,6 +2101,7 @@ static PCIDeviceInfo eepro100_info[] = {
         },
     },{
         .qdev.name = "i82562",
+        .qdev.desc = "Intel i82562 Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82562_init,
         .exit      = pci_nic_uninit,
