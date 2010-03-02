@@ -120,7 +120,7 @@
 #define  RU_NOP         0x0000
 #define  RX_START       0x0001
 #define  RX_RESUME      0x0002
-#define  RX_ABORT       0x0004
+#define  RU_ABORT       0x0004
 #define  RX_ADDR_LOAD   0x0006
 #define  RX_RESUMENR    0x0007
 #define INT_MASK        0x0100
@@ -426,13 +426,11 @@ static void eepro100_fr_interrupt(EEPRO100State * s)
     eepro100_interrupt(s, 0x40);
 }
 
-#if 0
 static void eepro100_rnr_interrupt(EEPRO100State * s)
 {
     /* RU is not ready. */
     eepro100_interrupt(s, 0x10);
 }
-#endif
 
 static void eepro100_mdi_interrupt(EEPRO100State * s)
 {
@@ -1064,6 +1062,13 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
             //~ assert(!"wrong RU state");
         }
         set_ru_state(s, ru_ready);
+        break;
+    case RU_ABORT:
+        /* RU abort. */
+        if (get_ru_state(s) == ru_ready) {
+            eepro100_rnr_interrupt(s);
+        }
+        set_ru_state(s, ru_idle);
         break;
     case RX_ADDR_LOAD:
         /* Load RU base. */
@@ -1747,6 +1752,8 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     if (get_ru_state(s) != ru_ready) {
         /* No resources available. */
         logout("no resources, state=%u\n", get_ru_state(s));
+        /* TODO: RNR interrupt only at first failed frame? */
+        eepro100_rnr_interrupt(s);
         s->statistics.rx_resource_errors++;
         //~ assert(!"no resources");
         return -1;
