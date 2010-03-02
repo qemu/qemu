@@ -172,6 +172,20 @@ typedef struct {
     char packet[MAX_ETH_FRAME_SIZE + 4];
 } eepro100_rx_t;
 
+typedef enum {
+    COMMAND_EL = BIT(15),
+    COMMAND_S = BIT(14),
+    COMMAND_I = BIT(13),
+    COMMAND_NC = BIT(4),
+    COMMAND_SF = BIT(3),
+    COMMAND_CMD = BITS(2, 0),
+} scb_command_bit;
+
+typedef enum {
+    STATUS_C = BIT(15),
+    STATUS_OK = BIT(13),
+} scb_status_bit;
+
 typedef struct {
     uint32_t tx_good_frames, tx_max_collisions, tx_late_collisions,
         tx_underruns, tx_lost_crs, tx_deferred, tx_single_collisions,
@@ -753,22 +767,22 @@ enum commands {
 
 static cu_state_t get_cu_state(EEPRO100State * s)
 {
-    return ((s->mem[SCBStatus] >> 6) & 0x03);
+    return ((s->mem[SCBStatus] & BITS(7, 6)) >> 6);
 }
 
 static void set_cu_state(EEPRO100State * s, cu_state_t state)
 {
-    s->mem[SCBStatus] = (s->mem[SCBStatus] & 0x3f) + (state << 6);
+    s->mem[SCBStatus] = (s->mem[SCBStatus] & ~BITS(7, 6)) + (state << 6);
 }
 
 static ru_state_t get_ru_state(EEPRO100State * s)
 {
-    return ((s->mem[SCBStatus] >> 2) & 0x0f);
+    return ((s->mem[SCBStatus] & BITS(5, 2)) >> 2);
 }
 
 static void set_ru_state(EEPRO100State * s, ru_state_t state)
 {
-    s->mem[SCBStatus] = (s->mem[SCBStatus] & 0xc3) + (state << 2);
+    s->mem[SCBStatus] = (s->mem[SCBStatus] & ~BITS(5, 2)) + (state << 2);
 }
 
 static void dump_statistics(EEPRO100State * s)
@@ -898,13 +912,13 @@ static void action_command(EEPRO100State *s)
         uint16_t command = le16_to_cpu(s->tx.command);
         logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
                status, command, s->tx.link);
-        bool bit_el = ((command & 0x8000) != 0);
-        bool bit_s = ((command & 0x4000) != 0);
-        bool bit_i = ((command & 0x2000) != 0);
-        bool bit_nc = ((command & 0x0010) != 0);
+        bool bit_el = ((command & COMMAND_EL) != 0);
+        bool bit_s = ((command & COMMAND_S) != 0);
+        bool bit_i = ((command & COMMAND_I) != 0);
+        bool bit_nc = ((command & COMMAND_NC) != 0);
         bool success = true;
-        //~ bool bit_sf = ((command & 0x0008) != 0);
-        uint16_t cmd = command & 0x0007;
+        //~ bool bit_sf = ((command & COMMAND_SF) != 0);
+        uint16_t cmd = command & COMMAND_CMD;
         s->cu_offset = le32_to_cpu(s->tx.link);
         switch (cmd) {
         case CmdNOp:
@@ -941,7 +955,7 @@ static void action_command(EEPRO100State *s)
             break;
         }
         /* Write new status. */
-        stw_phys(s->cb_address, status | 0x8000 | (success ? 0x2000 : 0));
+        stw_phys(s->cb_address, status | STATUS_C | (success ? STATUS_OK : 0));
         if (bit_i) {
             /* CU completed action. */
             eepro100_cx_interrupt(s);
@@ -1684,13 +1698,13 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         /* CSMA is disabled. */
         logout("%p received while CSMA is disabled\n", s);
         return -1;
-    } else if (size < 64 && (s->configuration[7] & 1)) {
+    } else if (size < 64 && (s->configuration[7] & BIT(0))) {
         /* Short frame and configuration byte 7/0 (discard short receive) set:
          * Short frame is discarded */
         logout("%p received short frame (%zu byte)\n", s, size);
         s->statistics.rx_short_frame_errors++;
         //~ return -1;
-    } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & 8)) {
+    } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & BIT(3))) {
         /* Long frame and configuration byte 18/3 (long receive ok) not set:
          * Long frames are discarded. */
         logout("%p received long frame (%zu byte), ignored\n", s, size);
@@ -1713,7 +1727,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
           assert(mcast_idx < 64);
           if (s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))) {
             /* Multicast frame is allowed in hash table. */
-          } else if (s->configuration[15] & 1) {
+          } else if (s->configuration[15] & BIT(0)) {
               /* Promiscuous: receive all. */
               rfd_status |= 0x0004;
           } else {
@@ -1723,7 +1737,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         }
         /* TODO: Next not for promiscuous mode? */
         rfd_status |= 0x0002;
-    } else if (s->configuration[15] & 1) {
+    } else if (s->configuration[15] & BIT(0)) {
         /* Promiscuous: receive all. */
         TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%zu\n", s, size));
         rfd_status |= 0x0004;
@@ -1764,23 +1778,23 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     /* Early receive interrupt not supported. */
     //~ eepro100_er_interrupt(s);
     /* Receive CRC Transfer not supported. */
-    if (s->configuration[18] & 4) {
+    if (s->configuration[18] & BIT(2)) {
         missing("Receive CRC Transfer");
         return -1;
     }
     /* TODO: check stripping enable bit. */
-    //~ assert(!(s->configuration[17] & 1));
+    //~ assert(!(s->configuration[17] & BIT(0)));
     cpu_physical_memory_write(s->ru_base + s->ru_offset +
                               offsetof(eepro100_rx_t, packet), buf, size);
     s->statistics.rx_good_frames++;
     eepro100_fr_interrupt(s);
     s->ru_offset = le32_to_cpu(rx.link);
-    if (rfd_command & 0x8000) {
+    if (rfd_command & COMMAND_EL) {
         /* EL bit is set, so this was the last frame. */
         logout("receive: Running out of frames\n");
         set_ru_state(s, ru_suspended);
     }
-    if (rfd_command & 0x4000) {
+    if (rfd_command & COMMAND_S) {
         /* S bit is set. */
         set_ru_state(s, ru_suspended);
     }
