@@ -798,6 +798,16 @@ static void dump_statistics(EEPRO100State * s)
     //~ missing("CU dump statistical counters");
 }
 
+static void read_cb(EEPRO100State *s)
+{
+    cpu_physical_memory_read(s->cb_address, (uint8_t *) &s->tx, sizeof(s->tx));
+    s->tx.status = le16_to_cpu(s->tx.status);
+    s->tx.command = le16_to_cpu(s->tx.command);
+    s->tx.link = le32_to_cpu(s->tx.link);
+    s->tx.tbd_array_addr = le32_to_cpu(s->tx.tbd_array_addr);
+    s->tx.tcb_bytes = le16_to_cpu(s->tx.tcb_bytes);
+}
+
 static void tx_command(EEPRO100State *s)
 {
     uint32_t tbd_array = le32_to_cpu(s->tx.tbd_array_addr);
@@ -901,21 +911,25 @@ static void set_multicast_list(EEPRO100State *s)
 static void action_command(EEPRO100State *s)
 {
     for (;;) {
-        s->cb_address = s->cu_base + s->cu_offset;
-        cpu_physical_memory_read(s->cb_address, (uint8_t *)&s->tx, sizeof(s->tx));
-        uint16_t command = le16_to_cpu(s->tx.command);
-        s->tx.status = le16_to_cpu(s->tx.status);
-        logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
-               s->tx.status, command, s->tx.link);
-        bool bit_el = ((command & COMMAND_EL) != 0);
-        bool bit_s = ((command & COMMAND_S) != 0);
-        bool bit_i = ((command & COMMAND_I) != 0);
-        bool bit_nc = ((command & COMMAND_NC) != 0);
+        bool bit_el;
+        bool bit_s;
+        bool bit_i;
+        bool bit_nc;
         bool success = true;
-        //~ bool bit_sf = ((command & COMMAND_SF) != 0);
-        uint16_t cmd = command & COMMAND_CMD;
-        s->cu_offset = le32_to_cpu(s->tx.link);
-        switch (cmd) {
+        s->cb_address = s->cu_base + s->cu_offset;
+        read_cb(s);
+        bit_el = ((s->tx.command & COMMAND_EL) != 0);
+        bit_s = ((s->tx.command & COMMAND_S) != 0);
+        bit_i = ((s->tx.command & COMMAND_I) != 0);
+        bit_nc = ((s->tx.command & COMMAND_NC) != 0);
+#if 0
+        bool bit_sf = ((s->tx.command & COMMAND_SF) != 0);
+#endif
+        s->cu_offset = s->tx.link;
+        TRACE(OTHER,
+              logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
+                     s->tx.status, s->tx.command, s->tx.link));
+        switch (s->tx.command & COMMAND_CMD) {
         case CmdNOp:
             /* Do nothing. */
             break;
