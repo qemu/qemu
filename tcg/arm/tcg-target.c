@@ -851,23 +851,41 @@ static void tcg_out_div_helper(TCGContext *s, int cond, const TCGArg *args,
     tcg_out_dat_reg(s, cond, ARITH_MOV, div_reg, 0, 8, SHIFT_IMM_LSL(0));
 
     /* ldr r0, [sp], #4 */
-    if (rem_reg != 0 && div_reg != 0)
+    if (rem_reg != 0 && div_reg != 0) {
         tcg_out32(s, (cond << 28) | 0x04bd0004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr r1, [sp], #4 */
-    if (rem_reg != 1 && div_reg != 1)
+    if (rem_reg != 1 && div_reg != 1) {
         tcg_out32(s, (cond << 28) | 0x04bd1004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr r2, [sp], #4 */
-    if (rem_reg != 2 && div_reg != 2)
+    if (rem_reg != 2 && div_reg != 2) {
         tcg_out32(s, (cond << 28) | 0x04bd2004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr r3, [sp], #4 */
-    if (rem_reg != 3 && div_reg != 3)
+    if (rem_reg != 3 && div_reg != 3) {
         tcg_out32(s, (cond << 28) | 0x04bd3004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr ip, [sp], #4 */
-    if (rem_reg != 12 && div_reg != 12)
+    if (rem_reg != 12 && div_reg != 12) {
         tcg_out32(s, (cond << 28) | 0x04bdc004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
     /* ldr lr, [sp], #4 */
-    if (rem_reg != 14 && div_reg != 14)
+    if (rem_reg != 14 && div_reg != 14) {
         tcg_out32(s, (cond << 28) | 0x04bde004);
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 4);
+    }
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -1494,8 +1512,15 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         break;
 
     case INDEX_op_brcond_i32:
-        tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
-                        args[0], args[1], SHIFT_IMM_LSL(0));
+        if (const_args[1]) {
+            int rot;
+            rot = encode_imm(args[1]);
+            tcg_out_dat_imm(s, COND_AL, ARITH_CMP,
+                            0, args[0], rotl(args[1], rot) | (rot << 7));
+        } else {
+            tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
+                            args[0], args[1], SHIFT_IMM_LSL(0));
+        }
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[2]], args[3]);
         break;
     case INDEX_op_brcond2_i32:
@@ -1512,6 +1537,32 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
                         args[0], args[2], SHIFT_IMM_LSL(0));
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[4]], args[5]);
+        break;
+    case INDEX_op_setcond_i32:
+        if (const_args[2]) {
+            int rot;
+            rot = encode_imm(args[2]);
+            tcg_out_dat_imm(s, COND_AL, ARITH_CMP,
+                            0, args[1], rotl(args[2], rot) | (rot << 7));
+        } else {
+            tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
+                            args[1], args[2], SHIFT_IMM_LSL(0));
+        }
+        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[args[3]],
+                        ARITH_MOV, args[0], 0, 1);
+        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[3])],
+                        ARITH_MOV, args[0], 0, 0);
+        break;
+    case INDEX_op_setcond2_i32:
+        /* See brcond2_i32 comment */
+        tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
+                        args[2], args[4], SHIFT_IMM_LSL(0));
+        tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
+                        args[1], args[3], SHIFT_IMM_LSL(0));
+        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[args[5]],
+                        ARITH_MOV, args[0], 0, 1);
+        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[5])],
+                        ARITH_MOV, args[0], 0, 0);
         break;
 
     case INDEX_op_qemu_ld8u:
@@ -1610,12 +1661,14 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
 
-    { INDEX_op_brcond_i32, { "r", "r" } },
+    { INDEX_op_brcond_i32, { "r", "rI" } },
+    { INDEX_op_setcond_i32, { "r", "r", "rI" } },
 
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
     { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_brcond2_i32, { "r", "r", "r", "r" } },
+    { INDEX_op_setcond2_i32, { "r", "r", "r", "r", "r" } },
 
     { INDEX_op_qemu_ld8u, { "r", "x", "X" } },
     { INDEX_op_qemu_ld8s, { "r", "x", "X" } },

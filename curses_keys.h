@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include <curses.h>
 #include "keymaps.h"
 
 
@@ -58,7 +59,7 @@ static const int curses2keycode[CURSES_KEYS] = {
     ['-'] = 12,
     ['='] = 13,
     [0x07f] = 14, /* Backspace */
-    [0x107] = 14, /* Backspace */
+    [KEY_BACKSPACE] = 14, /* Backspace */
 
     ['\t'] = 15, /* Tab */
     ['q'] = 16,
@@ -75,7 +76,7 @@ static const int curses2keycode[CURSES_KEYS] = {
     [']'] = 27,
     ['\n'] = 28, /* Return */
     ['\r'] = 28, /* Return */
-    [0x157] = 28, /* Return */
+    [KEY_ENTER] = 28, /* Return */
 
     ['a'] = 30,
     ['s'] = 31,
@@ -104,29 +105,29 @@ static const int curses2keycode[CURSES_KEYS] = {
 
     [' '] = 57,
 
-    [0x109] = 59, /* Function Key 1 */
-    [0x10a] = 60, /* Function Key 2 */
-    [0x10b] = 61, /* Function Key 3 */
-    [0x10c] = 62, /* Function Key 4 */
-    [0x10d] = 63, /* Function Key 5 */
-    [0x10e] = 64, /* Function Key 6 */
-    [0x10f] = 65, /* Function Key 7 */
-    [0x110] = 66, /* Function Key 8 */
-    [0x111] = 67, /* Function Key 9 */
-    [0x112] = 68, /* Function Key 10 */
-    [0x113] = 87, /* Function Key 11 */
-    [0x114] = 88, /* Function Key 12 */
+    [KEY_F(1)] = 59, /* Function Key 1 */
+    [KEY_F(2)] = 60, /* Function Key 2 */
+    [KEY_F(3)] = 61, /* Function Key 3 */
+    [KEY_F(4)] = 62, /* Function Key 4 */
+    [KEY_F(5)] = 63, /* Function Key 5 */
+    [KEY_F(6)] = 64, /* Function Key 6 */
+    [KEY_F(7)] = 65, /* Function Key 7 */
+    [KEY_F(8)] = 66, /* Function Key 8 */
+    [KEY_F(9)] = 67, /* Function Key 9 */
+    [KEY_F(10)] = 68, /* Function Key 10 */
+    [KEY_F(11)] = 87, /* Function Key 11 */
+    [KEY_F(12)] = 88, /* Function Key 12 */
 
-    [0x106] = 71 | GREY, /* Home */
-    [0x103] = 72 | GREY, /* Up Arrow */
-    [0x153] = 73 | GREY, /* Page Up */
-    [0x104] = 75 | GREY, /* Left Arrow */
-    [0x105] = 77 | GREY, /* Right Arrow */
-    [0x168] = 79 | GREY, /* End */
-    [0x102] = 80 | GREY, /* Down Arrow */
-    [0x152] = 81 | GREY, /* Page Down */
-    [0x14b] = 82 | GREY, /* Insert */
-    [0x14a] = 83 | GREY, /* Delete */
+    [KEY_HOME] = 71 | GREY, /* Home */
+    [KEY_UP] = 72 | GREY, /* Up Arrow */
+    [KEY_PPAGE] = 73 | GREY, /* Page Up */
+    [KEY_LEFT] = 75 | GREY, /* Left Arrow */
+    [KEY_RIGHT] = 77 | GREY, /* Right Arrow */
+    [KEY_END] = 79 | GREY, /* End */
+    [KEY_DOWN] = 80 | GREY, /* Down Arrow */
+    [KEY_NPAGE] = 81 | GREY, /* Page Down */
+    [KEY_IC] = 82 | GREY, /* Insert */
+    [KEY_DC] = 83 | GREY, /* Delete */
 
     ['!'] = 2 | SHIFT,
     ['@'] = 3 | SHIFT,
@@ -141,7 +142,7 @@ static const int curses2keycode[CURSES_KEYS] = {
     ['_'] = 12 | SHIFT,
     ['+'] = 13 | SHIFT,
 
-    [0x161] = 15 | SHIFT, /* Shift + Tab */
+    [KEY_BTAB] = 15 | SHIFT, /* Shift + Tab */
     ['Q'] = 16 | SHIFT,
     ['W'] = 17 | SHIFT,
     ['E'] = 18 | SHIFT,
@@ -180,42 +181,46 @@ static const int curses2keycode[CURSES_KEYS] = {
     ['>'] = 52 | SHIFT,
     ['?'] = 53 | SHIFT,
 
-    [0x115] = 59 | SHIFT, /* Shift + Function Key 1 */
-    [0x116] = 60 | SHIFT, /* Shift + Function Key 2 */
-    [0x117] = 61 | SHIFT, /* Shift + Function Key 3 */
-    [0x118] = 62 | SHIFT, /* Shift + Function Key 4 */
-    [0x119] = 63 | SHIFT, /* Shift + Function Key 5 */
-    [0x11a] = 64 | SHIFT, /* Shift + Function Key 6 */
-    [0x11b] = 65 | SHIFT, /* Shift + Function Key 7 */
-    [0x11c] = 66 | SHIFT, /* Shift + Function Key 8 */
+    [KEY_F(13)] = 59 | SHIFT, /* Shift + Function Key 1 */
+    [KEY_F(14)] = 60 | SHIFT, /* Shift + Function Key 2 */
+    [KEY_F(15)] = 61 | SHIFT, /* Shift + Function Key 3 */
+    [KEY_F(16)] = 62 | SHIFT, /* Shift + Function Key 4 */
+    [KEY_F(17)] = 63 | SHIFT, /* Shift + Function Key 5 */
+    [KEY_F(18)] = 64 | SHIFT, /* Shift + Function Key 6 */
+    [KEY_F(19)] = 65 | SHIFT, /* Shift + Function Key 7 */
+    [KEY_F(20)] = 66 | SHIFT, /* Shift + Function Key 8 */
+    [KEY_F(21)] = 67 | SHIFT, /* Shift + Function Key 9 */
+    [KEY_F(22)] = 68 | SHIFT, /* Shift + Function Key 10 */
+    [KEY_F(23)] = 69 | SHIFT, /* Shift + Function Key 11 */
+    [KEY_F(24)] = 70 | SHIFT, /* Shift + Function Key 12 */
 
-    [0x011] = 16 | CNTRL, /* Control + q */
-    [0x017] = 17 | CNTRL, /* Control + w */
-    [0x005] = 18 | CNTRL, /* Control + e */
-    [0x012] = 19 | CNTRL, /* Control + r */
-    [0x014] = 20 | CNTRL, /* Control + t */
-    [0x019] = 21 | CNTRL, /* Control + y */
-    [0x015] = 22 | CNTRL, /* Control + u */
+    ['Q' - '@'] = 16 | CNTRL, /* Control + q */
+    ['W' - '@'] = 17 | CNTRL, /* Control + w */
+    ['E' - '@'] = 18 | CNTRL, /* Control + e */
+    ['R' - '@'] = 19 | CNTRL, /* Control + r */
+    ['T' - '@'] = 20 | CNTRL, /* Control + t */
+    ['Y' - '@'] = 21 | CNTRL, /* Control + y */
+    ['U' - '@'] = 22 | CNTRL, /* Control + u */
     /* Control + i collides with Tab */
-    [0x00f] = 24 | CNTRL, /* Control + o */
-    [0x010] = 25 | CNTRL, /* Control + p */
+    ['O' - '@'] = 24 | CNTRL, /* Control + o */
+    ['P' - '@'] = 25 | CNTRL, /* Control + p */
 
-    [0x001] = 30 | CNTRL, /* Control + a */
-    [0x013] = 31 | CNTRL, /* Control + s */
-    [0x004] = 32 | CNTRL, /* Control + d */
-    [0x006] = 33 | CNTRL, /* Control + f */
-    [0x007] = 34 | CNTRL, /* Control + g */
-    [0x008] = 35 | CNTRL, /* Control + h */
+    ['A' - '@'] = 30 | CNTRL, /* Control + a */
+    ['S' - '@'] = 31 | CNTRL, /* Control + s */
+    ['D' - '@'] = 32 | CNTRL, /* Control + d */
+    ['F' - '@'] = 33 | CNTRL, /* Control + f */
+    ['G' - '@'] = 34 | CNTRL, /* Control + g */
+    ['H' - '@'] = 35 | CNTRL, /* Control + h */
     /* Control + j collides with Return */
-    [0x00b] = 37 | CNTRL, /* Control + k */
-    [0x00c] = 38 | CNTRL, /* Control + l */
+    ['K' - '@'] = 37 | CNTRL, /* Control + k */
+    ['L' - '@'] = 38 | CNTRL, /* Control + l */
 
-    [0x01a] = 44 | CNTRL, /* Control + z */
-    [0x018] = 45 | CNTRL, /* Control + x */
-    [0x003] = 46 | CNTRL, /* Control + c */
-    [0x016] = 47 | CNTRL, /* Control + v */
-    [0x002] = 48 | CNTRL, /* Control + b */
-    [0x00e] = 49 | CNTRL, /* Control + n */
+    ['Z' - '@'] = 44 | CNTRL, /* Control + z */
+    ['X' - '@'] = 45 | CNTRL, /* Control + x */
+    ['C' - '@'] = 46 | CNTRL, /* Control + c */
+    ['V' - '@'] = 47 | CNTRL, /* Control + v */
+    ['B' - '@'] = 48 | CNTRL, /* Control + b */
+    ['N' - '@'] = 49 | CNTRL, /* Control + n */
     /* Control + m collides with the keycode for Enter */
 
 };
@@ -228,18 +233,18 @@ static const int curses2keysym[CURSES_KEYS] = {
 
     [0x07f] = QEMU_KEY_BACKSPACE,
 
-    [0x102] = QEMU_KEY_DOWN,
-    [0x103] = QEMU_KEY_UP,
-    [0x104] = QEMU_KEY_LEFT,
-    [0x105] = QEMU_KEY_RIGHT,
-    [0x106] = QEMU_KEY_HOME,
-    [0x107] = QEMU_KEY_BACKSPACE,
+    [KEY_DOWN] = QEMU_KEY_DOWN,
+    [KEY_UP] = QEMU_KEY_UP,
+    [KEY_LEFT] = QEMU_KEY_LEFT,
+    [KEY_RIGHT] = QEMU_KEY_RIGHT,
+    [KEY_HOME] = QEMU_KEY_HOME,
+    [KEY_BACKSPACE] = QEMU_KEY_BACKSPACE,
 
-    [0x14a] = QEMU_KEY_DELETE,
-    [0x152] = QEMU_KEY_PAGEDOWN,
-    [0x153] = QEMU_KEY_PAGEUP,
-    [0x157] = '\n',
-    [0x168] = QEMU_KEY_END,
+    [KEY_DC] = QEMU_KEY_DELETE,
+    [KEY_NPAGE] = QEMU_KEY_PAGEDOWN,
+    [KEY_PPAGE] = QEMU_KEY_PAGEUP,
+    [KEY_ENTER] = '\n',
+    [KEY_END] = QEMU_KEY_END,
 
 };
 
@@ -446,37 +451,41 @@ static const name2keysym_t name2keysym[] = {
     /* Special keys */
     { "BackSpace", 0x07f },
     { "Tab", '\t' },
-    { "Return", '\r' },
-    { "Right", 0x105 },
-    { "Left", 0x104 },
-    { "Up", 0x103 },
-    { "Down", 0x102 },
-    { "Page_Down", 0x152 },
-    { "Page_Up", 0x153 },
-    { "Insert", 0x14b },
-    { "Delete", 0x14a },
-    { "Home", 0x106 },
-    { "End", 0x168 },
-    { "F1", 0x109 },
-    { "F2", 0x10a },
-    { "F3", 0x10b },
-    { "F4", 0x10c },
-    { "F5", 0x10d },
-    { "F6", 0x10e },
-    { "F7", 0x10f },
-    { "F8", 0x110 },
-    { "F9", 0x111 },
-    { "F10", 0x112 },
-    { "F11", 0x113 },
-    { "F12", 0x114 },
-    { "F13", 0x115 },
-    { "F14", 0x116 },
-    { "F15", 0x117 },
-    { "F16", 0x118 },
-    { "F17", 0x119 },
-    { "F18", 0x11a },
-    { "F19", 0x11b },
-    { "F20", 0x11c },
+    { "Return", '\n' },
+    { "Right", KEY_RIGHT },
+    { "Left", KEY_LEFT },
+    { "Up", KEY_UP },
+    { "Down", KEY_DOWN },
+    { "Page_Down", KEY_NPAGE },
+    { "Page_Up", KEY_PPAGE },
+    { "Insert", KEY_IC },
+    { "Delete", KEY_DC },
+    { "Home", KEY_HOME },
+    { "End", KEY_END },
+    { "F1", KEY_F(1) },
+    { "F2", KEY_F(2) },
+    { "F3", KEY_F(3) },
+    { "F4", KEY_F(4) },
+    { "F5", KEY_F(5) },
+    { "F6", KEY_F(6) },
+    { "F7", KEY_F(7) },
+    { "F8", KEY_F(8) },
+    { "F9", KEY_F(9) },
+    { "F10", KEY_F(10) },
+    { "F11", KEY_F(11) },
+    { "F12", KEY_F(12) },
+    { "F13", KEY_F(13) },
+    { "F14", KEY_F(14) },
+    { "F15", KEY_F(15) },
+    { "F16", KEY_F(16) },
+    { "F17", KEY_F(17) },
+    { "F18", KEY_F(18) },
+    { "F19", KEY_F(19) },
+    { "F20", KEY_F(20) },
+    { "F21", KEY_F(21) },
+    { "F22", KEY_F(22) },
+    { "F23", KEY_F(23) },
+    { "F24", KEY_F(24) },
     { "Escape", 27 },
 
     { NULL, 0 },
