@@ -37,6 +37,7 @@
  *      * i82550 is untested. It is programmed like the i82559.
  *      * i82562 is untested. It is programmed like the i82559.
  *      * Power management (i82558 and later) is not implemented.
+ *      * Wake-on-LAN is not implemented.
  *
  * EE100   eepro100_write2         addr=General Status/Control+2 val=0x0080
  * EE100   eepro100_write2         feature is missing in this emulation: unknown word write
@@ -138,7 +139,7 @@
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
 typedef enum {
-    SCBStatus = 0,
+    SCBStatus = 0,              /* Status Word. */
     SCBAck = 1,
     SCBCmd = 2,                 /* Rx/Command Unit command and status. */
     SCBIntmask = 3,
@@ -163,8 +164,8 @@ typedef struct {
     uint16_t tcb_bytes;         /* transmit command block byte count (in lower 14 bits */
     uint8_t tx_threshold;       /* transmit threshold */
     uint8_t tbd_count;          /* TBD number */
-    /* This constitutes two "TBD" entries: hdr and data */
 #if 0
+    /* This constitutes two "TBD" entries: hdr and data */
     uint32_t tx_buf_addr0;  /* void *, header of frame to be transmitted.  */
     int32_t  tx_buf_size0;  /* Length of Tx hdr. */
     uint32_t tx_buf_addr1;  /* void *, data to be transmitted.  */
@@ -190,12 +191,12 @@ typedef enum {
     COMMAND_NC = BIT(4),
     COMMAND_SF = BIT(3),
     COMMAND_CMD = BITS(2, 0),
-} cb_command_bit_t;
+} scb_command_bit;
 
 typedef enum {
     STATUS_C = BIT(15),
     STATUS_OK = BIT(13),
-} cb_status_bit_t;
+} scb_status_bit;
 
 typedef struct {
     uint32_t tx_good_frames, tx_max_collisions, tx_late_collisions,
@@ -274,29 +275,29 @@ typedef struct {
 
 /* Word indices in EEPROM. */
 typedef enum {
-    eeprom_cnfg_mdix  = 0x03,
-    eeprom_id         = 0x05,
-    eeprom_phy_id     = 0x06,
-    eeprom_vendor_id  = 0x0c,
-    eeprom_config_asf = 0x0d,
-    eeprom_device_id  = 0x23,
-    eeprom_smbus_addr = 0x90,
-} eeprom_offset_t;
+    EEPROM_CNFG_MDIX  = 0x03,
+    EEPROM_ID         = 0x05,
+    EEPROM_PHY_ID     = 0x06,
+    EEPROM_VENDOR_ID  = 0x0c,
+    EEPROM_CONFIG_ASF = 0x0d,
+    EEPROM_DEVICE_ID  = 0x23,
+    EEPROM_SMBUS_ADDR = 0x90,
+} EEPROMOffset;
 
 /* Bit values for EEPROM ID word (offset 0x0a). */
 typedef enum {
-    eeprom_id_mdm = BIT(0),     /* Modem */
-    eeprom_id_stb = BIT(1),     /* Standby Enable */
-    eeprom_id_wmr = BIT(2),     /* ??? */
-    eeprom_id_wol = BIT(5),     /* Wake on LAN */
-    eeprom_id_dpd = BIT(6),     /* Deep Power Down */
-    eeprom_id_alt = BIT(7),     /* */
+    EEPROM_ID_MDM = BIT(0),     /* Modem */
+    EEPROM_ID_STB = BIT(1),     /* Standby Enable */
+    EEPROM_ID_WMR = BIT(2),     /* ??? */
+    EEPROM_ID_WOL = BIT(5),     /* Wake on LAN */
+    EEPROM_ID_DPD = BIT(6),     /* Deep Power Down */
+    EEPROM_ID_ALT = BIT(7),     /* */
     /* BITS(10, 8) device revision */
-    eeprom_id_bd = BIT(11),     /* boot disable */
-    eeprom_id_id = BIT(13),     /* id bit */
+    EEPROM_ID_BD = BIT(11),     /* boot disable */
+    EEPROM_ID_ID = BIT(13),     /* id bit */
     /* BITS(15, 14) signature */
-    eeprom_id_valid = BIT(14),  /* signature for valid eeprom */
-} eeprom_id_t;
+    EEPROM_ID_VALID = BIT(14),  /* signature for valid eeprom */
+} eeprom_id_bit;
 
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
@@ -737,25 +738,26 @@ static void nic_selective_reset(EEPRO100State * s)
     bswap16s(&eeprom_contents[eeprom_vendor_id]);
 #endif
 #endif /* EEPROM_SIZE > 0 */
-    memcpy(eeprom_contents + eeprom_device_id, pci_conf + PCI_DEVICE_ID, 2);
+    memcpy(eeprom_contents + EEPROM_DEVICE_ID, pci_conf + PCI_DEVICE_ID, 2);
 #if defined(WORDS_BIGENDIAN)
-    bswap16s(&eeprom_contents[eeprom_device_id]);
+    bswap16s(&eeprom_contents[EEPROM_DEVICE_ID]);
 #endif
 #if 0
     /* We might change the phy id here. */
-    eeprom_contents[eeprom_phy_id] =
-        (eeprom_contents[eeprom_phy_id] & 0xff00) + 1;
+    eeprom_contents[EEPROM_PHY_ID] =
+        (eeprom_contents[EEPROM_PHY_ID] & 0xff00) + 1;
 #endif
     /* TODO: eeprom_id_alt for i82559 */
-    eeprom_contents[eeprom_id] |= eeprom_id_valid;
+    eeprom_contents[EEPROM_ID] |= EEPROM_ID_VALID;
     if (s->device >= i82557A && s->device <= i82557C) {
         /* Set revision. */
-        eeprom_contents[eeprom_id] |= BIT(8);
+        eeprom_contents[EEPROM_ID] |= BIT(8);
     }
     /* TODO: source of next statement? */
     eeprom_contents[0xa] = 0x4000;
     if (s->device == i82557B || s->device == i82557C)
         eeprom_contents[5] = 0x0100;
+    eeprom_contents[EEPROM_PHY_ID] = 1;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
@@ -857,30 +859,24 @@ enum commands {
 
 static cu_state_t get_cu_state(EEPRO100State * s)
 {
-    return s->cu_state;
-#if 0
-    return ((s->mem[SCBStatus] >> 6) & 0x03);
-#endif
+    return ((s->mem[SCBStatus] & BITS(7, 6)) >> 6);
 }
 
 static void set_cu_state(EEPRO100State * s, cu_state_t state)
 {
     s->cu_state = state;
-    s->mem[SCBStatus] = (s->mem[SCBStatus] & 0x3f) + (state << 6);
+    s->mem[SCBStatus] = (s->mem[SCBStatus] & ~BITS(7, 6)) + (state << 6);
 }
 
 static ru_state_t get_ru_state(EEPRO100State * s)
 {
-    return s->ru_state;
-#if 0
-    return ((s->mem[SCBStatus] >> 2) & 0x0f);
-#endif
+    return ((s->mem[SCBStatus] & BITS(5, 2)) >> 2);
 }
 
 static void set_ru_state(EEPRO100State * s, ru_state_t state)
 {
     s->ru_state = state;
-    s->mem[SCBStatus] = (s->mem[SCBStatus] & 0xc3) + (state << 2);
+    s->mem[SCBStatus] = (s->mem[SCBStatus] & ~BITS(5, 2)) + (state << 2);
 }
 
 static void dump_statistics(EEPRO100State * s)
@@ -1916,7 +1912,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         /* CSMA is disabled. */
         logout("%p received while CSMA is disabled\n", s);
         return -1;
-    } else if (size < 64 && (s->configuration[7] & 1)) {
+    } else if (size < 64 && (s->configuration[7] & BIT(0))) {
         /* Short frame and configuration byte 7/0 (discard short receive) set:
          * Short frame is discarded */
         logout("%p received short frame (%zu byte)\n", s, size);
@@ -1924,7 +1920,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
 #if 0
         return -1;
 #endif
-    } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & 8)) {
+    } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & BIT(3))) {
         /* Long frame and configuration byte 18/3 (long receive ok) not set:
          * Long frames are discarded. */
         logout("%p received long frame (%zu byte), ignored\n", s, size);
@@ -2144,6 +2140,7 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
                            pci_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6));
     assert(s->region[1] == 0);
 
     nic_reset(s);
@@ -2227,119 +2224,132 @@ static int pci_i82562_init(PCIDevice *pci_dev)
 static PCIDeviceInfo eepro100_info[] = {
     {
         .qdev.name = "i82550",
+        .qdev.desc = "Intel i82550 Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82550_init,
         .exit      = pci_nic_uninit,
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82551",
+        .qdev.desc = "Intel i82551 Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82551_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861209.bin",
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82557a",
+        .qdev.desc = "Intel i82557A Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557a_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82557b",
+        .qdev.desc = "Intel i82557B Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557b_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82557c",
+        .qdev.desc = "Intel i82557C Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82557c_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82558a",
+        .qdev.desc = "Intel i82558A Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558a_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82558b",
+        .qdev.desc = "Intel i82558B Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82558b_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82559a",
+        .qdev.desc = "Intel i82559A Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559a_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82559b",
+        .qdev.desc = "Intel i82559B Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559b_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82559c",
+        .qdev.desc = "Intel i82559C Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559c_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861229.bin",
+        .romfile   = "gpxe-eepro100-80861229.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82559er",
+        .qdev.desc = "Intel i82559ER Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82559er_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861209.bin",
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),
         },
     },{
         .qdev.name = "i82562",
+        .qdev.desc = "Intel i82562 Ethernet",
         .qdev.size = sizeof(EEPRO100State),
         .init      = pci_i82562_init,
         .exit      = pci_nic_uninit,
-        .romfile   = "pxe-80861209.bin",
+        .romfile   = "gpxe-eepro100-80861209.rom",
         .qdev.props = (Property[]) {
             DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
             DEFINE_PROP_END_OF_LIST(),

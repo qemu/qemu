@@ -40,6 +40,7 @@ int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
+int kvm_has_robust_singlestep(void);
 
 void kvm_setup_guest_memory(void *start, size_t size);
 
@@ -81,7 +82,14 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run);
 
 int kvm_arch_get_registers(CPUState *env);
 
-int kvm_arch_put_registers(CPUState *env);
+/* state subset only touched by the VCPU itself during runtime */
+#define KVM_PUT_RUNTIME_STATE   1
+/* state subset modified during VCPU reset */
+#define KVM_PUT_RESET_STATE     2
+/* full state set, modified during initialization or on vmload */
+#define KVM_PUT_FULL_STATE      3
+
+int kvm_arch_put_registers(CPUState *env, int level);
 
 int kvm_arch_init(KVMState *s, int smp_cpus);
 
@@ -125,6 +133,8 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
 uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
                                       int reg);
 void kvm_cpu_synchronize_state(CPUState *env);
+void kvm_cpu_synchronize_post_reset(CPUState *env);
+void kvm_cpu_synchronize_post_init(CPUState *env);
 
 /* generic hooks - to be moved/refactored once there are more users */
 
@@ -132,6 +142,20 @@ static inline void cpu_synchronize_state(CPUState *env)
 {
     if (kvm_enabled()) {
         kvm_cpu_synchronize_state(env);
+    }
+}
+
+static inline void cpu_synchronize_post_reset(CPUState *env)
+{
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_post_reset(env);
+    }
+}
+
+static inline void cpu_synchronize_post_init(CPUState *env)
+{
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_post_init(env);
     }
 }
 

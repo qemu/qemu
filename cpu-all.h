@@ -847,6 +847,9 @@ extern uint8_t *phys_ram_dirty;
 extern ram_addr_t ram_size;
 extern ram_addr_t last_ram_offset;
 
+extern const char *mem_path;
+extern int mem_prealloc;
+
 /* physical memory access */
 
 /* MMIO pages are identified by a combination of an IO device index and

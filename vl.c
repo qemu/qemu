@@ -189,6 +189,10 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
+const char *mem_path = NULL;
+#ifdef MAP_POPULATE
+int mem_prealloc = 0; /* force preallocation of physical target memory */
+#endif
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
@@ -3000,6 +3004,33 @@ static void nographic_update(void *opaque)
     qemu_mod_timer(nographic_timer, interval + qemu_get_clock(rt_clock));
 }
 
+void cpu_synchronize_all_states(void)
+{
+    CPUState *cpu;
+
+    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+        cpu_synchronize_state(cpu);
+    }
+}
+
+void cpu_synchronize_all_post_reset(void)
+{
+    CPUState *cpu;
+
+    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+        cpu_synchronize_post_reset(cpu);
+    }
+}
+
+void cpu_synchronize_all_post_init(void)
+{
+    CPUState *cpu;
+
+    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+        cpu_synchronize_post_init(cpu);
+    }
+}
+
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
@@ -3141,6 +3172,7 @@ void qemu_system_reset(void)
     QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
     }
+    cpu_synchronize_all_post_reset();
 }
 
 void qemu_system_reset_request(void)
@@ -5269,6 +5301,14 @@ int main(int argc, char **argv, char **envp)
                 ram_size = value;
                 break;
             }
+            case QEMU_OPTION_mempath:
+                mem_path = optarg;
+                break;
+#ifdef MAP_POPULATE
+            case QEMU_OPTION_mem_prealloc:
+                mem_prealloc = 1;
+                break;
+#endif
             case QEMU_OPTION_d:
                 {
                     int mask;
@@ -5970,6 +6010,7 @@ int main(int argc, char **argv, char **envp)
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
+    cpu_synchronize_all_post_init();
 
 #ifndef _WIN32
     /* must be after terminal init, SDL library changes signal handlers */

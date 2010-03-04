@@ -1494,9 +1494,8 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_add_tl(t0, t1, t2);
             tcg_gen_ext32s_tl(t0, t0);
             tcg_gen_xor_tl(t1, t1, t2);
-            tcg_gen_not_tl(t1, t1);
             tcg_gen_xor_tl(t2, t0, t2);
-            tcg_gen_and_tl(t1, t1, t2);
+            tcg_gen_andc_tl(t1, t2, t1);
             tcg_temp_free(t2);
             tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l1);
             tcg_temp_free(t1);
@@ -1572,9 +1571,8 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             gen_load_gpr(t2, rt);
             tcg_gen_add_tl(t0, t1, t2);
             tcg_gen_xor_tl(t1, t1, t2);
-            tcg_gen_not_tl(t1, t1);
             tcg_gen_xor_tl(t2, t0, t2);
-            tcg_gen_and_tl(t1, t1, t2);
+            tcg_gen_andc_tl(t1, t2, t1);
             tcg_temp_free(t2);
             tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l1);
             tcg_temp_free(t1);
@@ -5634,9 +5632,8 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
             TCGv_i32 t1 = tcg_temp_new_i32();
             tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
             tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+1));
-            tcg_gen_or_i32(t0, t0, t1);
+            tcg_gen_nor_i32(t0, t0, t1);
             tcg_temp_free_i32(t1);
-            tcg_gen_not_i32(t0, t0);
             tcg_gen_andi_i32(t0, t0, 1);
             tcg_gen_extu_i32_tl(bcond, t0);
         }
@@ -5663,9 +5660,8 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
             tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+2));
             tcg_gen_or_i32(t0, t0, t1);
             tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+3));
-            tcg_gen_or_i32(t0, t0, t1);
+            tcg_gen_nor_i32(t0, t0, t1);
             tcg_temp_free_i32(t1);
-            tcg_gen_not_i32(t0, t0);
             tcg_gen_andi_i32(t0, t0, 1);
             tcg_gen_extu_i32_tl(bcond, t0);
         }

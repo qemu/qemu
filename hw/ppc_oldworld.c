@@ -165,9 +165,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         envs[i] = env;
     }
 
-    /* Make sure all register sets take effect */
-    cpu_synchronize_state(env);
-
     /* allocate RAM */
     if (ram_size > (2047 << 20)) {
         fprintf(stderr,

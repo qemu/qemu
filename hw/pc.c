@@ -760,7 +760,8 @@ static void pc_init_ne2k_isa(NICInfo *nd)
 
 int cpu_is_bsp(CPUState *env)
 {
-    return env->cpuid_apic_id == 0;
+    /* We hard-wire the BSP to the first CPU. */
+    return env->cpu_index == 0;
 }
 
 static CPUState *pc_new_cpu(const char *cpu_model)
@@ -833,18 +834,11 @@ static void pc_init1(ram_addr_t ram_size,
     vmport_init();
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(0xa0000);
+    ram_addr = qemu_ram_alloc(below_4g_mem_size);
     cpu_register_physical_memory(0, 0xa0000, ram_addr);
-
-    /* Allocate, even though we won't register, so we don't break the
-     * phys_ram_base + PA assumption. This range includes vga (0xa0000 - 0xc0000),
-     * and some bios areas, which will be registered later
-     */
-    ram_addr = qemu_ram_alloc(0x100000 - 0xa0000);
-    ram_addr = qemu_ram_alloc(below_4g_mem_size - 0x100000);
     cpu_register_physical_memory(0x100000,
                  below_4g_mem_size - 0x100000,
-                 ram_addr);
+                 ram_addr + 0x100000);
 
     /* above 4giga memory allocation */
     if (above_4g_mem_size > 0) {

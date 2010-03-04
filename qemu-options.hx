@@ -314,6 +314,22 @@ a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
 gigabytes respectively.
 ETEXI
 
+DEF("mem-path", HAS_ARG, QEMU_OPTION_mempath,
+    "-mem-path FILE  provide backing storage for guest RAM\n")
+STEXI
+@item -mem-path @var{path}
+Allocate guest RAM from a temporarily created file in @var{path}.
+ETEXI
+
+#ifdef MAP_POPULATE
+DEF("mem-prealloc", 0, QEMU_OPTION_mem_prealloc,
+    "-mem-prealloc   preallocate guest memory (use with -mem-path)\n")
+STEXI
+@item -mem-prealloc
+Preallocate memory when using -mem-path.
+ETEXI
+#endif
+
 DEF("k", HAS_ARG, QEMU_OPTION_k,
     "-k language     use keyboard layout (for example 'fr' for French)\n")
 STEXI
