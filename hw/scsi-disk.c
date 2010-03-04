@@ -396,8 +396,10 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         }
         case 0xb0: /* block device characteristics */
         {
-            unsigned int min_io_size = s->qdev.conf.min_io_size >> 9;
-            unsigned int opt_io_size = s->qdev.conf.opt_io_size >> 9;
+            unsigned int min_io_size =
+                    s->qdev.conf.min_io_size / s->qdev.blocksize;
+            unsigned int opt_io_size =
+                    s->qdev.conf.opt_io_size / s->qdev.blocksize;
 
             /* required VPD size with unmap support */
             outbuf[3] = buflen = 0x3c;
@@ -1036,11 +1038,12 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     }
 
     if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
-        s->cluster_size = 4;
+        s->qdev.blocksize = 2048;
     } else {
-        s->cluster_size = 1;
+        s->qdev.blocksize = s->qdev.conf.logical_block_size;
     }
-    s->qdev.blocksize = 512 * s->cluster_size;
+    s->cluster_size = s->qdev.blocksize / 512;
+
     s->qdev.type = TYPE_DISK;
     bdrv_get_geometry(s->bs, &nb_sectors);
     nb_sectors /= s->cluster_size;

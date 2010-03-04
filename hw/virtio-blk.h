@@ -42,7 +42,7 @@ struct virtio_blk_config
     uint16_t cylinders;
     uint8_t heads;
     uint8_t sectors;
-    uint32_t _blk_size;    /* structure pad, currently unused */
+    uint32_t blk_size;
     uint8_t physical_block_exp;
     uint8_t alignment_offset;
     uint16_t min_io_size;
