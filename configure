@@ -1750,7 +1750,7 @@ fi
 
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
-  if has texi2html && has pod2man; then
+  if has makeinfo && has pod2man; then
     docs=yes
   else
     if test "$docs" = "yes" ; then

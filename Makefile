@@ -230,15 +230,18 @@ cscope:
 	cscope -b
 
 # documentation
+MAKEINFO=makeinfo
+MAKEINFOFLAGS=--no-headers --no-split --number-sections
 TEXIFLAG=$(if $(V),,--quiet)
 %.dvi: %.texi
 	$(call quiet-command,texi2dvi $(TEXIFLAG) -I . $<,"  GEN   $@")
 
 %.html: %.texi
-	$(call quiet-command,texi2html -I=. -monolithic -number $<,"  GEN   $@")
+	$(call quiet-command,$(MAKEINFO) $(MAKEINFOFLAGS) --html $< -o $@, \
+	"  GEN   $@")
 
 %.info: %.texi
-	$(call quiet-command,makeinfo -I . $< -o $@,"  GEN   $@")
+	$(call quiet-command,$(MAKEINFO) $< -o $@,"  GEN   $@")
 
 %.pdf: %.texi
 	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"  GEN   $@")
