@@ -185,7 +185,6 @@ static void s390_init(ram_addr_t ram_size,
             exit(1);
         }
 
-        cpu_synchronize_state(env);
         env->psw.addr = KERN_IMAGE_START;
         env->psw.mask = 0x0000000180000000ULL;
     }

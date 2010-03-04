@@ -512,21 +512,6 @@ void cpu_exec_init_all(unsigned long tb_size)
 
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
 
-static void cpu_common_pre_save(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_synchronize_state(env);
-}
-
-static int cpu_common_pre_load(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_synchronize_state(env);
-    return 0;
-}
-
 static int cpu_common_post_load(void *opaque, int version_id)
 {
     CPUState *env = opaque;
@@ -544,8 +529,6 @@ static const VMStateDescription vmstate_cpu_common = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .pre_save = cpu_common_pre_save,
-    .pre_load = cpu_common_pre_load,
     .post_load = cpu_common_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT32(halted, CPUState),
@@ -2529,6 +2512,99 @@ void qemu_flush_coalesced_mmio_buffer(void)
         kvm_flush_coalesced_mmio_buffer();
 }
 
+#if defined(__linux__) && !defined(TARGET_S390X)
+
+#include <sys/vfs.h>
+
+#define HUGETLBFS_MAGIC       0x958458f6
+
+static long gethugepagesize(const char *path)
+{
+    struct statfs fs;
+    int ret;
+
+    do {
+	    ret = statfs(path, &fs);
+    } while (ret != 0 && errno == EINTR);
+
+    if (ret != 0) {
+	    perror("statfs");
+	    return 0;
+    }
+
+    if (fs.f_type != HUGETLBFS_MAGIC)
+	    fprintf(stderr, "Warning: path not on HugeTLBFS: %s\n", path);
+
+    return fs.f_bsize;
+}
+
+static void *file_ram_alloc(ram_addr_t memory, const char *path)
+{
+    char *filename;
+    void *area;
+    int fd;
+#ifdef MAP_POPULATE
+    int flags;
+#endif
+    unsigned long hpagesize;
+
+    hpagesize = gethugepagesize(path);
+    if (!hpagesize) {
+	return NULL;
+    }
+
+    if (memory < hpagesize) {
+        return NULL;
+    }
+
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        fprintf(stderr, "host lacks kvm mmu notifiers, -mem-path unsupported\n");
+        return NULL;
+    }
+
+    if (asprintf(&filename, "%s/qemu_back_mem.XXXXXX", path) == -1) {
+	return NULL;
+    }
+
+    fd = mkstemp(filename);
+    if (fd < 0) {
+	perror("mkstemp");
+	free(filename);
+	return NULL;
+    }
+    unlink(filename);
+    free(filename);
+
+    memory = (memory+hpagesize-1) & ~(hpagesize-1);
+
+    /*
+     * ftruncate is not supported by hugetlbfs in older
+     * hosts, so don't bother bailing out on errors.
+     * If anything goes wrong with it under other filesystems,
+     * mmap will fail.
+     */
+    if (ftruncate(fd, memory))
+	perror("ftruncate");
+
+#ifdef MAP_POPULATE
+    /* NB: MAP_POPULATE won't exhaustively alloc all phys pages in the case
+     * MAP_PRIVATE is requested.  For mem_prealloc we mmap as MAP_SHARED
+     * to sidestep this quirk.
+     */
+    flags = mem_prealloc ? MAP_POPULATE | MAP_SHARED : MAP_PRIVATE;
+    area = mmap(0, memory, PROT_READ | PROT_WRITE, flags, fd, 0);
+#else
+    area = mmap(0, memory, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+#endif
+    if (area == MAP_FAILED) {
+	perror("file_ram_alloc: can't mmap RAM pages");
+	close(fd);
+	return (NULL);
+    }
+    return area;
+}
+#endif
+
 ram_addr_t qemu_ram_alloc(ram_addr_t size)
 {
     RAMBlock *new_block;
@@ -2536,16 +2612,28 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
     size = TARGET_PAGE_ALIGN(size);
     new_block = qemu_malloc(sizeof(*new_block));
 
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-    /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
-    new_block->host = mmap((void*)0x1000000, size, PROT_EXEC|PROT_READ|PROT_WRITE,
-                           MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (mem_path) {
+#if defined (__linux__) && !defined(TARGET_S390X)
+        new_block->host = file_ram_alloc(size, mem_path);
+        if (!new_block->host)
+            exit(1);
 #else
-    new_block->host = qemu_vmalloc(size);
+        fprintf(stderr, "-mem-path option unsupported\n");
+        exit(1);
+#endif
+    } else {
+#if defined(TARGET_S390X) && defined(CONFIG_KVM)
+        /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
+        new_block->host = mmap((void*)0x1000000, size,
+                                PROT_EXEC|PROT_READ|PROT_WRITE,
+                                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+#else
+        new_block->host = qemu_vmalloc(size);
 #endif
 #ifdef MADV_MERGEABLE
-    madvise(new_block->host, size, MADV_MERGEABLE);
+        madvise(new_block->host, size, MADV_MERGEABLE);
 #endif
+    }
     new_block->offset = last_ram_offset;
     new_block->length = size;
 

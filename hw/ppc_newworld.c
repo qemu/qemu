@@ -167,9 +167,6 @@ static void ppc_core99_init (ram_addr_t ram_size,
         envs[i] = env;
     }
 
-    /* Make sure all register sets take effect */
-    cpu_synchronize_state(env);
-
     /* allocate RAM */
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);

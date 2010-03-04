@@ -1345,6 +1345,8 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
 {
     SaveStateEntry *se;
 
+    cpu_synchronize_all_states();
+
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->save_live_state == NULL)
             continue;
@@ -1544,6 +1546,8 @@ int qemu_loadvm_state(QEMUFile *f)
             goto out;
         }
     }
+
+    cpu_synchronize_all_post_init();
 
     ret = 0;
 

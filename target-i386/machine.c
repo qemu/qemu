@@ -321,8 +321,6 @@ static void cpu_pre_save(void *opaque)
     CPUState *env = opaque;
     int i;
 
-    cpu_synchronize_state(env);
-
     /* FPU */
     env->fpus_vmstate = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     env->fptag_vmstate = 0;
@@ -335,14 +333,6 @@ static void cpu_pre_save(void *opaque)
 #else
     env->fpregs_format_vmstate = 1;
 #endif
-}
-
-static int cpu_pre_load(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_synchronize_state(env);
-    return 0;
 }
 
 static int cpu_post_load(void *opaque, int version_id)
@@ -373,7 +363,6 @@ static const VMStateDescription vmstate_cpu = {
     .minimum_version_id = 3,
     .minimum_version_id_old = 3,
     .pre_save = cpu_pre_save,
-    .pre_load = cpu_pre_load,
     .post_load = cpu_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINTTL_ARRAY(regs, CPUState, CPU_NB_REGS),
