@@ -4589,9 +4589,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 /* operand size for jumps is 64 bit */
                 ot = OT_QUAD;
             } else if (op == 3 || op == 5) {
-                /* for call calls, the operand is 16 or 32 bit, even
-                   in long mode */
-                ot = dflag ? OT_LONG : OT_WORD;
+                ot = dflag ? OT_LONG + (rex_w == 1) : OT_WORD;
             } else if (op == 6) {
                 /* default push size is 64 bit */
                 ot = dflag ? OT_QUAD : OT_WORD;
