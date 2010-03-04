@@ -851,7 +851,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
 
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
     if (fd < 0)
-        return -1;
+        return -errno;
     memset(&header, 0, sizeof(header));
     header.magic = cpu_to_be32(QCOW_MAGIC);
     header.version = cpu_to_be32(QCOW_VERSION);
@@ -930,7 +930,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
     /* write all the data */
     ret = qemu_write_full(fd, &header, sizeof(header));
     if (ret != sizeof(header)) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
     if (backing_file) {
@@ -943,25 +943,25 @@ static int qcow_create2(const char *filename, int64_t total_size,
             cpu_to_be32s(&ext_bf.len);
             ret = qemu_write_full(fd, &ext_bf, sizeof(ext_bf));
             if (ret != sizeof(ext_bf)) {
-                ret = -1;
+                ret = -errno;
                 goto exit;
             }
             ret = qemu_write_full(fd, backing_format, backing_format_len);
             if (ret != backing_format_len) {
-                ret = -1;
+                ret = -errno;
                 goto exit;
             }
             if (padding > 0) {
                 ret = qemu_write_full(fd, zero, padding);
                 if (ret != padding) {
-                    ret = -1;
+                    ret = -errno;
                     goto exit;
                 }
             }
         }
         ret = qemu_write_full(fd, backing_file, backing_filename_len);
         if (ret != backing_filename_len) {
-            ret = -1;
+            ret = -errno;
             goto exit;
         }
     }
@@ -970,14 +970,14 @@ static int qcow_create2(const char *filename, int64_t total_size,
     for(i = 0;i < l1_size; i++) {
         ret = qemu_write_full(fd, &tmp, sizeof(tmp));
         if (ret != sizeof(tmp)) {
-            ret = -1;
+            ret = -errno;
             goto exit;
         }
     }
     lseek(fd, s->refcount_table_offset, SEEK_SET);
     ret = qemu_write_full(fd, s->refcount_table, s->cluster_size);
     if (ret != s->cluster_size) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
@@ -985,7 +985,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
     ret = qemu_write_full(fd, s->refcount_block,
 		    ref_clusters * s->cluster_size);
     if (ret != ref_clusters * s->cluster_size) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
