@@ -334,18 +334,13 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
         ret = -errno;
         goto fail_gd;
     }
-    qemu_free(gd_buf);
-    qemu_free(rgd_buf);
+    ret = 0;
 
-    close(p_fd);
-    close(snp_fd);
-    return 0;
-
-    fail_gd:
+fail_gd:
     qemu_free(gd_buf);
-    fail_rgd:
+fail_rgd:
     qemu_free(rgd_buf);
-    fail:
+fail:
     close(p_fd);
     close(snp_fd);
     return ret;
