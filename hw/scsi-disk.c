@@ -460,8 +460,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
     memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION, 4);
-    /* Identify device as SCSI-3 rev 1.
-       Some later commands are also implemented. */
+    /*
+     * We claim conformance to SPC-3, which is required for guests
+     * to ask for modern features like READ CAPACITY(16) or the
+     * block characteristics VPD page by default.  Not all of SPC-3
+     * is actually implemented, but we're good enough.
+     */
     outbuf[2] = 5;
     outbuf[3] = 2; /* Format 2 */
 
