@@ -740,7 +740,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
               0644);
     if (fd < 0)
-        return -1;
+        return -errno;
     magic = cpu_to_be32(VMDK4_MAGIC);
     memset(&header, 0, sizeof(header));
     header.version = cpu_to_le32(1);
@@ -777,18 +777,18 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     /* write all the data */
     ret = qemu_write_full(fd, &magic, sizeof(magic));
     if (ret != sizeof(magic)) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
     ret = qemu_write_full(fd, &header, sizeof(header));
     if (ret != sizeof(header)) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
     ret = ftruncate(fd, header.grain_offset << 9);
     if (ret < 0) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
@@ -798,7 +798,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
          i < gt_count; i++, tmp += gt_size) {
         ret = qemu_write_full(fd, &tmp, sizeof(tmp));
         if (ret != sizeof(tmp)) {
-            ret = -1;
+            ret = -errno;
             goto exit;
         }
     }
@@ -809,7 +809,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
          i < gt_count; i++, tmp += gt_size) {
         ret = qemu_write_full(fd, &tmp, sizeof(tmp));
         if (ret != sizeof(tmp)) {
-            ret = -1;
+            ret = -errno;
             goto exit;
         }
     }
@@ -831,7 +831,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);
     ret = qemu_write_full(fd, desc, strlen(desc));
     if (ret != strlen(desc)) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
