@@ -296,7 +296,7 @@ QemuOptsList qemu_cpudef_opts = {
     },
 };
 
-static QemuOptsList *lists[] = {
+static QemuOptsList *vm_config_groups[] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
     &qemu_device_opts,
@@ -309,7 +309,7 @@ static QemuOptsList *lists[] = {
     NULL,
 };
 
-QemuOptsList *qemu_find_opts(const char *group)
+static QemuOptsList *find_list(QemuOptsList **lists, const char *group)
 {
     int i;
 
@@ -321,6 +321,11 @@ QemuOptsList *qemu_find_opts(const char *group)
         error_report("there is no option group \"%s\"", group);
     }
     return lists[i];
+}
+
+QemuOptsList *qemu_find_opts(const char *group)
+{
+    return find_list(vm_config_groups, group);
 }
 
 int qemu_set_option(const char *str)
@@ -421,6 +426,7 @@ static int config_write_opts(QemuOpts *opts, void *opaque)
 void qemu_config_write(FILE *fp)
 {
     struct ConfigWriteData data = { .fp = fp };
+    QemuOptsList **lists = vm_config_groups;
     int i;
 
     fprintf(fp, "# qemu config file\n\n");
@@ -430,7 +436,7 @@ void qemu_config_write(FILE *fp)
     }
 }
 
-int qemu_config_parse(FILE *fp, const char *fname)
+int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
 {
     char line[1024], group[64], id[64], arg[64], value[1024];
     Location loc;
@@ -451,7 +457,7 @@ int qemu_config_parse(FILE *fp, const char *fname)
         }
         if (sscanf(line, "[%63s \"%63[^\"]\"]", group, id) == 2) {
             /* group with id */
-            list = qemu_find_opts(group);
+            list = find_list(lists, group);
             if (list == NULL)
                 goto out;
             opts = qemu_opts_create(list, id, 1);
@@ -459,7 +465,7 @@ int qemu_config_parse(FILE *fp, const char *fname)
         }
         if (sscanf(line, "[%63[^]]]", group) == 1) {
             /* group without id */
-            list = qemu_find_opts(group);
+            list = find_list(lists, group);
             if (list == NULL)
                 goto out;
             opts = qemu_opts_create(list, NULL, 0);
@@ -496,7 +502,7 @@ int qemu_read_config_file(const char *filename)
         return -errno;
     }
 
-    if (qemu_config_parse(f, filename) != 0) {
+    if (qemu_config_parse(f, vm_config_groups, filename) != 0) {
         return -EINVAL;
     }
     fclose(f);
