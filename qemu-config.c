@@ -488,3 +488,18 @@ out:
     loc_pop(&loc);
     return res;
 }
+
+int qemu_read_config_file(const char *filename)
+{
+    FILE *f = fopen(filename, "r");
+    if (f == NULL) {
+        return -errno;
+    }
+
+    if (qemu_config_parse(f, filename) != 0) {
+        return -EINVAL;
+    }
+    fclose(f);
+
+    return 0;
+}
