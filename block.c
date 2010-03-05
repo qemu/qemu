@@ -1134,8 +1134,11 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
         if (!bs->encrypted)
             return 0;
     }
-    if (!bs->encrypted || !bs->drv || !bs->drv->bdrv_set_key)
-        return -1;
+    if (!bs->encrypted) {
+        return -EINVAL;
+    } else if (!bs->drv || !bs->drv->bdrv_set_key) {
+        return -ENOMEDIUM;
+    }
     ret = bs->drv->bdrv_set_key(bs, key);
     if (ret < 0) {
         bs->valid_key = 0;
