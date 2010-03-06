@@ -541,7 +541,7 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
         break;
     case 2:
         ret = s->iir;
-        if (ret & UART_IIR_THRI) {
+        if ((ret & UART_IIR_ID) == UART_IIR_THRI) {
             s->thr_ipending = 0;
             serial_update_irq(s);
         }
