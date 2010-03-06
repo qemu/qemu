@@ -371,15 +371,15 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         } else {
             s->thr = (uint8_t) val;
             if(s->fcr & UART_FCR_FE) {
-                  fifo_put(s, XMIT_FIFO, s->thr);
-            s->thr_ipending = 0;
-                  s->lsr &= ~UART_LSR_TEMT;
-            s->lsr &= ~UART_LSR_THRE;
-            serial_update_irq(s);
+                fifo_put(s, XMIT_FIFO, s->thr);
+                s->thr_ipending = 0;
+                s->lsr &= ~UART_LSR_TEMT;
+                s->lsr &= ~UART_LSR_THRE;
+                serial_update_irq(s);
             } else {
-                  s->thr_ipending = 0;
-                  s->lsr &= ~UART_LSR_THRE;
-                  serial_update_irq(s);
+                s->thr_ipending = 0;
+                s->lsr &= ~UART_LSR_THRE;
+                serial_update_irq(s);
             }
             serial_xmit(s);
         }
