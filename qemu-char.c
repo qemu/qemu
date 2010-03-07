@@ -2341,7 +2341,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         qemu_opt_set(opts, "backend", "udp");
         if (sscanf(p, "%64[^:]:%32[^@,]%n", host, port, &pos) < 2) {
             host[0] = 0;
-            if (sscanf(p, ":%32[^,]%n", port, &pos) < 1) {
+            if (sscanf(p, ":%32[^@,]%n", port, &pos) < 1) {
                 goto fail;
             }
         }
