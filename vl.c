@@ -5368,6 +5368,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_serial:
                 add_device_config(DEV_SERIAL, optarg);
                 default_serial = 0;
+                if (strncmp(optarg, "mon:", 4) == 0) {
+                    default_monitor = 0;
+                }
                 break;
             case QEMU_OPTION_watchdog:
                 if (watchdog) {
@@ -5386,10 +5389,16 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_virtiocon:
                 add_device_config(DEV_VIRTCON, optarg);
                 default_virtcon = 0;
+                if (strncmp(optarg, "mon:", 4) == 0) {
+                    default_monitor = 0;
+                }
                 break;
             case QEMU_OPTION_parallel:
                 add_device_config(DEV_PARALLEL, optarg);
                 default_parallel = 0;
+                if (strncmp(optarg, "mon:", 4) == 0) {
+                    default_monitor = 0;
+                }
                 break;
 	    case QEMU_OPTION_loadvm:
 		loadvm = optarg;
