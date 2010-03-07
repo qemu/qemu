@@ -90,8 +90,6 @@ size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np)
 	DEBUG_CALL("sopreprbuf");
 	DEBUG_ARG("so = %lx", (long )so);
 
-	len = sb->sb_datalen - sb->sb_cc;
-
 	if (len <= 0)
 		return 0;
 
@@ -362,8 +360,6 @@ sowrite(struct socket *so)
 	 * No need to check if there's something to write,
 	 * sowrite wouldn't have been called otherwise
 	 */
-
-        len = sb->sb_cc;
 
 	iov[0].iov_base = sb->sb_rptr;
         iov[1].iov_base = NULL;
