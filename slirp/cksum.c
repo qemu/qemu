@@ -68,7 +68,9 @@ int cksum(struct mbuf *m, int len)
 
 	if (len < mlen)
 	   mlen = len;
+#ifdef DEBUG
 	len -= mlen;
+#endif
 	/*
 	 * Force to even boundary.
 	 */

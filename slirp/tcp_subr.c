@@ -857,7 +857,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 				if (p == 7071)
 				   p = 0;
 				*(u_char *)bptr++ = (p >> 8) & 0xff;
-				*(u_char *)bptr++ = p & 0xff;
+                                *(u_char *)bptr = p & 0xff;
 				ra = 0;
 				return 1;   /* port redirected, we're done */
 				break;
