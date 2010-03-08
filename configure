@@ -495,7 +495,7 @@ for opt do
     static="yes"
     LDFLAGS="-static $LDFLAGS"
   ;;
-  --sysconfdir) sysconfdir="$optarg"
+  --sysconfdir=*) sysconfdir="$optarg"
   ;;
   --disable-sdl) sdl="no"
   ;;
