@@ -846,9 +846,6 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             case 0x03:
                 type = USBDEVFS_URB_TYPE_INTERRUPT;
                 break;
-            default:
-                DPRINTF("usb_host: malformed endpoint type\n");
-                type = USBDEVFS_URB_TYPE_BULK;
             }
             s->endp_table[(devep & 0xf) - 1].type = type;
             s->endp_table[(devep & 0xf) - 1].halted = 0;
