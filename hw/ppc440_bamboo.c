@@ -177,7 +177,6 @@ static QEMUMachine bamboo_machine = {
     .alias = "bamboo",
     .desc = "bamboo",
     .init = bamboo_init,
-    .is_default = 1,
 };
 
 static QEMUMachine bamboo_machine_v0_12 = {
