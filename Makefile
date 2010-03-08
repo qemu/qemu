@@ -194,8 +194,8 @@ ifdef CONFIG_POSIX
 endif
 
 install-sysconfig:
-	$(INSTALL_DIR) "$(sysconfdir)/qemu"
-	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(sysconfdir)/qemu"
+	$(INSTALL_DIR) "$(DESTDIR)$(sysconfdir)/qemu"
+	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(sysconfdir)/qemu"
 
 install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
