@@ -261,6 +261,11 @@ int qemu_open(const char *name, int flags, ...)
  *
  * Return the number of bytes transferred.
  * Set errno if fewer than `count' bytes are written.
+ *
+ * This function don't work with non-blocking fd's.
+ * Any of the possibilities with non-bloking fd's is bad:
+ *   - return a short write (then name is wrong)
+ *   - busy wait adding (errno == EAGAIN) to the loop
  */
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
 {

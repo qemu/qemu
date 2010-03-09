@@ -766,7 +766,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
 
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
     if (fd < 0)
-        return -1;
+        return -errno;
     memset(&header, 0, sizeof(header));
     header.magic = cpu_to_be32(QCOW_MAGIC);
     header.version = cpu_to_be32(QCOW_VERSION);
@@ -804,14 +804,14 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     /* write all the data */
     ret = qemu_write_full(fd, &header, sizeof(header));
     if (ret != sizeof(header)) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
     if (backing_file) {
         ret = qemu_write_full(fd, backing_file, backing_filename_len);
         if (ret != backing_filename_len) {
-            ret = -1;
+            ret = -errno;
             goto exit;
         }
 
@@ -821,7 +821,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     for(i = 0;i < l1_size; i++) {
         ret = qemu_write_full(fd, &tmp, sizeof(tmp));
         if (ret != sizeof(tmp)) {
-            ret = -1;
+            ret = -errno;
             goto exit;
         }
     }

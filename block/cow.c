@@ -224,7 +224,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
     cow_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
               0644);
     if (cow_fd < 0)
-        return -1;
+        return -errno;
     memset(&cow_header, 0, sizeof(cow_header));
     cow_header.magic = cpu_to_be32(COW_MAGIC);
     cow_header.version = cpu_to_be32(COW_VERSION);
@@ -251,7 +251,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
     cow_header.size = cpu_to_be64(image_sectors * 512);
     ret = qemu_write_full(cow_fd, &cow_header, sizeof(cow_header));
     if (ret != sizeof(cow_header)) {
-        ret = -1;
+        ret = -errno;
         goto exit;
     }
 
@@ -262,7 +262,6 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
         goto exit;
     }
 
-    ret = 0;
 exit:
     close(cow_fd);
     return ret;
