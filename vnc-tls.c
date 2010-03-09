@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu-x509.h"
 #include "vnc.h"
 #include "qemu_socket.h"
 
@@ -417,12 +418,6 @@ static int vnc_set_x509_credential(VncDisplay *vd,
 
     return 0;
 }
-
-
-#define X509_CA_CERT_FILE "ca-cert.pem"
-#define X509_CA_CRL_FILE "ca-crl.pem"
-#define X509_SERVER_KEY_FILE "server-key.pem"
-#define X509_SERVER_CERT_FILE "server-cert.pem"
 
 
 int vnc_tls_set_x509_creds_dir(VncDisplay *vd,

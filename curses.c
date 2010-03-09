@@ -159,11 +159,10 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
 #include "curses_keys.h"
 
 static kbd_layout_t *kbd_layout = NULL;
-static int keycode2keysym[CURSES_KEYS];
 
 static void curses_refresh(DisplayState *ds)
 {
-    int chr, nextchr, keysym, keycode;
+    int chr, nextchr, keysym, keycode, keycode_alt;
 
     if (invalidate) {
         clear();
@@ -204,42 +203,57 @@ static void curses_refresh(DisplayState *ds)
 #endif
 
         keycode = curses2keycode[chr];
-        if (keycode == -1)
-            continue;
+        keycode_alt = 0;
 
         /* alt key */
         if (keycode == 1) {
             nextchr = getch();
 
             if (nextchr != ERR) {
+                chr = nextchr;
+                keycode_alt = ALT;
                 keycode = curses2keycode[nextchr];
                 nextchr = ERR;
-                if (keycode == -1)
-                    continue;
 
-                keycode |= ALT;
+                if (keycode != -1) {
+                    keycode |= ALT;
 
-                /* process keys reserved for qemu */
-                if (keycode >= QEMU_KEY_CONSOLE0 &&
-                        keycode < QEMU_KEY_CONSOLE0 + 9) {
-                    erase();
-                    wnoutrefresh(stdscr);
-                    console_select(keycode - QEMU_KEY_CONSOLE0);
+                    /* process keys reserved for qemu */
+                    if (keycode >= QEMU_KEY_CONSOLE0 &&
+                            keycode < QEMU_KEY_CONSOLE0 + 9) {
+                        erase();
+                        wnoutrefresh(stdscr);
+                        console_select(keycode - QEMU_KEY_CONSOLE0);
 
-                    invalidate = 1;
-                    continue;
+                        invalidate = 1;
+                        continue;
+                    }
                 }
             }
         }
 
-        if (kbd_layout && !(keycode & GREY)) {
-            keysym = keycode2keysym[keycode & KEY_MASK];
-            if (keysym == -1)
-                keysym = chr;
+        if (kbd_layout) {
+            keysym = -1;
+            if (chr < CURSES_KEYS)
+                keysym = curses2keysym[chr];
 
-            keycode &= ~KEY_MASK;
-            keycode |= keysym2scancode(kbd_layout, keysym);
+            if (keysym == -1) {
+                if (chr < ' ')
+                    keysym = (chr + '@' - 'A' + 'a') | KEYSYM_CNTRL;
+                else
+                    keysym = chr;
+            }
+
+            keycode = keysym2scancode(kbd_layout, keysym & KEYSYM_MASK);
+            if (keycode == 0)
+                continue;
+
+            keycode |= (keysym & ~KEYSYM_MASK) >> 16;
+            keycode |= keycode_alt;
         }
+
+        if (keycode == -1)
+            continue;
 
         if (is_graphic_console()) {
             /* since terminals don't know about key press and release
@@ -250,12 +264,20 @@ static void curses_refresh(DisplayState *ds)
                 kbd_put_keycode(CNTRL_CODE);
             if (keycode & ALT)
                 kbd_put_keycode(ALT_CODE);
+            if (keycode & ALTGR) {
+                kbd_put_keycode(SCANCODE_EMUL0);
+                kbd_put_keycode(ALT_CODE);
+            }
             if (keycode & GREY)
                 kbd_put_keycode(GREY_CODE);
             kbd_put_keycode(keycode & KEY_MASK);
             if (keycode & GREY)
                 kbd_put_keycode(GREY_CODE);
             kbd_put_keycode((keycode & KEY_MASK) | KEY_RELEASE);
+            if (keycode & ALTGR) {
+                kbd_put_keycode(SCANCODE_EMUL0);
+                kbd_put_keycode(ALT_CODE | KEY_RELEASE);
+            }
             if (keycode & ALT)
                 kbd_put_keycode(ALT_CODE | KEY_RELEASE);
             if (keycode & CNTRL)
@@ -263,7 +285,7 @@ static void curses_refresh(DisplayState *ds)
             if (keycode & SHIFT)
                 kbd_put_keycode(SHIFT_CODE | KEY_RELEASE);
         } else {
-            keysym = curses2keysym[chr];
+            keysym = curses2qemu[chr];
             if (keysym == -1)
                 keysym = chr;
 
@@ -301,8 +323,6 @@ static void curses_setup(void)
 
 static void curses_keyboard_setup(void)
 {
-    int i, keycode, keysym;
-
 #if defined(__APPLE__)
     /* always use generic keymaps */
     if (!keyboard_layout)
@@ -312,27 +332,6 @@ static void curses_keyboard_setup(void)
         kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
         if (!kbd_layout)
             exit(1);
-    }
-
-    for (i = 0; i < CURSES_KEYS; i ++)
-        keycode2keysym[i] = -1;
-
-    for (i = 0; i < CURSES_KEYS; i ++) {
-        if (curses2keycode[i] == -1)
-            continue;
-
-        keycode = curses2keycode[i] & KEY_MASK;
-        if (keycode2keysym[keycode] >= 0)
-            continue;
-
-        for (keysym = 0; keysym < CURSES_KEYS; keysym ++)
-            if (curses2keycode[keysym] == keycode) {
-                keycode2keysym[keycode] = keysym;
-                break;
-            }
-
-        if (keysym >= CURSES_KEYS)
-            keycode2keysym[keycode] = i;
     }
 }
 

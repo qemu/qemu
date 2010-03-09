@@ -399,9 +399,6 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
     assert(event < QEVENT_MAX);
 
     switch (event) {
-        case QEVENT_DEBUG:
-            event_name = "DEBUG";
-            break;
         case QEVENT_SHUTDOWN:
             event_name = "SHUTDOWN";
             break;
@@ -425,6 +422,12 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
             break;
         case QEVENT_BLOCK_IO_ERROR:
             event_name = "BLOCK_IO_ERROR";
+            break;
+        case QEVENT_RTC_CHANGE:
+            event_name = "RTC_CHANGE";
+            break;
+        case QEVENT_WATCHDOG:
+            event_name = "WATCHDOG";
             break;
         default:
             abort();
@@ -2307,7 +2310,6 @@ static int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque)
         return -1;
     }
 
-    cb(opaque, NULL);
     return 0;
 }
 
@@ -2330,6 +2332,7 @@ static int do_balloon(Monitor *mon, const QDict *params,
         return -1;
     }
 
+    cb(opaque, NULL);
     return 0;
 }
 

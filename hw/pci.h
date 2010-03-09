@@ -301,9 +301,27 @@ pci_config_set_device_id(uint8_t *pci_config, uint16_t val)
 }
 
 static inline void
+pci_config_set_revision(uint8_t *pci_config, uint8_t val)
+{
+    pci_set_byte(&pci_config[PCI_REVISION_ID], val);
+}
+
+static inline void
 pci_config_set_class(uint8_t *pci_config, uint16_t val)
 {
     pci_set_word(&pci_config[PCI_CLASS_DEVICE], val);
+}
+
+static inline void
+pci_config_set_prog_interface(uint8_t *pci_config, uint8_t val)
+{
+    pci_set_byte(&pci_config[PCI_CLASS_PROG], val);
+}
+
+static inline void
+pci_config_set_interrupt_pin(uint8_t *pci_config, uint8_t val)
+{
+    pci_set_byte(&pci_config[PCI_INTERRUPT_PIN], val);
 }
 
 typedef int (*pci_qdev_initfn)(PCIDevice *dev);

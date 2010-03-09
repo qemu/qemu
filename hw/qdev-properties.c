@@ -44,7 +44,7 @@ static int parse_bit(DeviceState *dev, Property *prop, const char *str)
     else if (!strncasecmp(str, "off", 3))
         bit_prop_set(dev, prop, false);
     else
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -72,7 +72,7 @@ static int parse_uint8(DeviceState *dev, Property *prop, const char *str)
     /* accept both hex and decimal */
     fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx8 : "%" PRIu8;
     if (sscanf(str, fmt, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -100,7 +100,7 @@ static int parse_uint16(DeviceState *dev, Property *prop, const char *str)
     /* accept both hex and decimal */
     fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx16 : "%" PRIu16;
     if (sscanf(str, fmt, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -128,7 +128,7 @@ static int parse_uint32(DeviceState *dev, Property *prop, const char *str)
     /* accept both hex and decimal */
     fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx32 : "%" PRIu32;
     if (sscanf(str, fmt, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -151,7 +151,7 @@ static int parse_int32(DeviceState *dev, Property *prop, const char *str)
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (sscanf(str, "%" PRId32, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -176,7 +176,7 @@ static int parse_hex32(DeviceState *dev, Property *prop, const char *str)
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (sscanf(str, "%" PRIx32, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -204,7 +204,7 @@ static int parse_uint64(DeviceState *dev, Property *prop, const char *str)
     /* accept both hex and decimal */
     fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx64 : "%" PRIu64;
     if (sscanf(str, fmt, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -229,7 +229,7 @@ static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (sscanf(str, "%" PRIx64, ptr) != 1)
-        return -1;
+        return -EINVAL;
     return 0;
 }
 
@@ -283,7 +283,7 @@ static int parse_drive(DeviceState *dev, Property *prop, const char *str)
 
     *ptr = drive_get_by_id(str);
     if (*ptr == NULL)
-        return -1;
+        return -ENOENT;
     return 0;
 }
 
@@ -309,7 +309,7 @@ static int parse_chr(DeviceState *dev, Property *prop, const char *str)
 
     *ptr = qemu_chr_find(str);
     if (*ptr == NULL)
-        return -1;
+        return -ENOENT;
     return 0;
 }
 
@@ -340,7 +340,10 @@ static int parse_netdev(DeviceState *dev, Property *prop, const char *str)
 
     *ptr = qemu_find_netdev(str);
     if (*ptr == NULL)
-        return -1;
+        return -ENOENT;
+    if ((*ptr)->peer) {
+        return -EEXIST;
+    }
     return 0;
 }
 
@@ -371,10 +374,10 @@ static int parse_vlan(DeviceState *dev, Property *prop, const char *str)
     int id;
 
     if (sscanf(str, "%d", &id) != 1)
-        return -1;
+        return -EINVAL;
     *ptr = qemu_find_vlan(id, 1);
     if (*ptr == NULL)
-        return -1;
+        return -ENOENT;
     return 0;
 }
 
@@ -427,15 +430,15 @@ static int parse_mac(DeviceState *dev, Property *prop, const char *str)
 
     for (i = 0, pos = 0; i < 6; i++, pos += 3) {
         if (!qemu_isxdigit(str[pos]))
-            return -1;
+            return -EINVAL;
         if (!qemu_isxdigit(str[pos+1]))
-            return -1;
+            return -EINVAL;
         if (i == 5) {
             if (str[pos+2] != '\0')
-                return -1;
+                return -EINVAL;
         } else {
             if (str[pos+2] != ':' && str[pos+2] != '-')
-                return -1;
+                return -EINVAL;
         }
         mac->a[i] = strtol(str+pos, &p, 16);
     }
@@ -472,13 +475,13 @@ static int parse_pci_devfn(DeviceState *dev, Property *prop, const char *str)
     if (sscanf(str, "%x.%x%n", &slot, &fn, &n) != 2) {
         fn = 0;
         if (sscanf(str, "%x%n", &slot, &n) != 1) {
-            return -1;
+            return -EINVAL;
         }
     }
     if (str[n] != '\0')
-        return -1;
+        return -EINVAL;
     if (fn > 7)
-        return -1;
+        return -EINVAL;
     *ptr = slot << 3 | fn;
     return 0;
 }
@@ -541,6 +544,7 @@ int qdev_prop_exists(DeviceState *dev, const char *name)
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 {
     Property *prop;
+    int ret;
 
     prop = qdev_prop_find(dev, name);
     if (!prop) {
@@ -553,9 +557,23 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
                 dev->info->name, name);
         return -1;
     }
-    if (prop->info->parse(dev, prop, value) != 0) {
-        fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
-                dev->info->name, name, value);
+    ret = prop->info->parse(dev, prop, value);
+    if (ret < 0) {
+        switch (ret) {
+        case -EEXIST:
+            fprintf(stderr, "property \"%s.%s\": \"%s\" is already in use\n",
+                    dev->info->name, name, value);
+            break;
+        default:
+        case -EINVAL:
+            fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
+                    dev->info->name, name, value);
+            break;
+        case -ENOENT:
+            fprintf(stderr, "property \"%s.%s\": could not find \"%s\"\n",
+                    dev->info->name, name, value);
+            break;
+        }
         return -1;
     }
     return 0;

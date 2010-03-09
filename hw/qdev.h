@@ -24,6 +24,10 @@ enum DevState {
     DEV_STATE_INITIALIZED,
 };
 
+enum {
+    DEV_NVECTORS_UNSPECIFIED = -1,
+};
+
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {

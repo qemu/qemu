@@ -30,8 +30,8 @@ Export Qemu disk image using NBD protocol.
   use snapshot file
 @item -n, --nocache
   disable host cache
-@item -c, --connect
-  connect FILE to NBD device DEV
+@item -c, --connect=@var{dev}
+  connect @var{filename} to NBD device @var{dev}
 @item -d, --disconnect
   disconnect the specified device
 @item -e, --shared=@var{num}

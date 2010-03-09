@@ -293,7 +293,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
         memcpy(q, nak_msg, sizeof(nak_msg) - 1);
         q += sizeof(nak_msg) - 1;
     }
-    *q++ = RFC1533_END;
+    *q = RFC1533_END;
 
     daddr.sin_addr.s_addr = 0xffffffffu;
 

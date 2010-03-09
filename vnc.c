@@ -1111,6 +1111,7 @@ static void vnc_disconnect_finish(VncState *vs)
     }
 
     vnc_remove_timer(vs->vd);
+    qemu_remove_led_event_handler(vs->led);
     vs->magic = ~VNCSTATE_MAGIC;
     qemu_free(vs);
 }
@@ -1490,9 +1491,9 @@ static void reset_keys(VncState *vs)
     int i;
     for(i = 0; i < 256; i++) {
         if (vs->modifiers_state[i]) {
-            if (i & 0x80)
-                kbd_put_keycode(0xe0);
-            kbd_put_keycode(i | 0x80);
+            if (i & SCANCODE_GREY)
+                kbd_put_keycode(SCANCODE_EMUL0);
+            kbd_put_keycode(i | SCANCODE_UP);
             vs->modifiers_state[i] = 0;
         }
     }
@@ -1500,8 +1501,29 @@ static void reset_keys(VncState *vs)
 
 static void press_key(VncState *vs, int keysym)
 {
-    kbd_put_keycode(keysym2scancode(vs->vd->kbd_layout, keysym) & 0x7f);
-    kbd_put_keycode(keysym2scancode(vs->vd->kbd_layout, keysym) | 0x80);
+    int keycode = keysym2scancode(vs->vd->kbd_layout, keysym) & SCANCODE_KEYMASK;
+    if (keycode & SCANCODE_GREY)
+        kbd_put_keycode(SCANCODE_EMUL0);
+    kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
+    if (keycode & SCANCODE_GREY)
+        kbd_put_keycode(SCANCODE_EMUL0);
+    kbd_put_keycode(keycode | SCANCODE_UP);
+}
+
+static void kbd_leds(void *opaque, int ledstate)
+{
+    VncState *vs = opaque;
+    int caps, num;
+
+    caps = ledstate & QEMU_CAPS_LOCK_LED ? 1 : 0;
+    num  = ledstate & QEMU_NUM_LOCK_LED  ? 1 : 0;
+
+    if (vs->modifiers_state[0x3a] != caps) {
+        vs->modifiers_state[0x3a] = caps;
+    }
+    if (vs->modifiers_state[0x45] != num) {
+        vs->modifiers_state[0x45] = num;
+    }
 }
 
 static void do_key_event(VncState *vs, int down, int keycode, int sym)
@@ -1529,7 +1551,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     case 0x3a:                        /* CapsLock */
     case 0x45:                        /* NumLock */
-        if (!down)
+        if (down)
             vs->modifiers_state[keycode] ^= 1;
         break;
     }
@@ -1574,12 +1596,12 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     }
 
     if (is_graphic_console()) {
-        if (keycode & 0x80)
-            kbd_put_keycode(0xe0);
+        if (keycode & SCANCODE_GREY)
+            kbd_put_keycode(SCANCODE_EMUL0);
         if (down)
-            kbd_put_keycode(keycode & 0x7f);
+            kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
         else
-            kbd_put_keycode(keycode | 0x80);
+            kbd_put_keycode(keycode | SCANCODE_UP);
     } else {
         /* QEMU console emulation */
         if (down) {
@@ -1687,7 +1709,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
         lsym = lsym - 'A' + 'a';
     }
 
-    keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF);
+    keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF) & SCANCODE_KEYMASK;
     do_key_event(vs, down, keycode, sym);
 }
 
@@ -2424,6 +2446,7 @@ static void vnc_connect(VncDisplay *vd, int csock)
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
     reset_keys(vs);
+    vs->led = qemu_add_led_event_handler(kbd_leds, vs);
 
     vnc_init_timer(vd);
 

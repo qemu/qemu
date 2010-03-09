@@ -5520,7 +5520,6 @@ static void
 OP_sI (int bytemode, int sizeflag)
 {
   bfd_signed_vma op;
-  bfd_signed_vma mask = -1;
 
   switch (bytemode)
     {
@@ -5529,7 +5528,6 @@ OP_sI (int bytemode, int sizeflag)
       op = *codep++;
       if ((op & 0x80) != 0)
 	op -= 0x100;
-      mask = 0xffffffff;
       break;
     case v_mode:
       USED_REX (REX_W);
@@ -5538,11 +5536,9 @@ OP_sI (int bytemode, int sizeflag)
       else if (sizeflag & DFLAG)
 	{
 	  op = get32s ();
-	  mask = 0xffffffff;
 	}
       else
 	{
-	  mask = 0xffffffff;
 	  op = get16 ();
 	  if ((op & 0x8000) != 0)
 	    op -= 0x10000;
@@ -5551,7 +5547,6 @@ OP_sI (int bytemode, int sizeflag)
       break;
     case w_mode:
       op = get16 ();
-      mask = 0xffffffff;
       if ((op & 0x8000) != 0)
 	op -= 0x10000;
       break;

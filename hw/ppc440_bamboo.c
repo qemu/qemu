@@ -173,14 +173,34 @@ static void bamboo_init(ram_addr_t ram_size,
 }
 
 static QEMUMachine bamboo_machine = {
-    .name = "bamboo",
+    .name = "bamboo-0.13",
+    .alias = "bamboo",
     .desc = "bamboo",
     .init = bamboo_init,
+};
+
+static QEMUMachine bamboo_machine_v0_12 = {
+    .name = "bamboo-0.12",
+    .desc = "bamboo",
+    .init = bamboo_init,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "virtio-serial-pci",
+            .property = "max_nr_ports",
+            .value    = stringify(1),
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "vectors",
+            .value    = stringify(0),
+        },
+        { /* end of list */ }
+    },
 };
 
 static void bamboo_machine_init(void)
 {
     qemu_register_machine(&bamboo_machine);
+    qemu_register_machine(&bamboo_machine_v0_12);
 }
 
 machine_init(bamboo_machine_init);

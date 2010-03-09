@@ -15,7 +15,6 @@ extern Monitor *cur_mon;
 
 /* QMP events */
 typedef enum MonitorEvent {
-    QEVENT_DEBUG,
     QEVENT_SHUTDOWN,
     QEVENT_RESET,
     QEVENT_POWERDOWN,
@@ -24,6 +23,8 @@ typedef enum MonitorEvent {
     QEVENT_VNC_INITIALIZED,
     QEVENT_VNC_DISCONNECTED,
     QEVENT_BLOCK_IO_ERROR,
+    QEVENT_RTC_CHANGE,
+    QEVENT_WATCHDOG,
     QEVENT_MAX,
 } MonitorEvent;
 

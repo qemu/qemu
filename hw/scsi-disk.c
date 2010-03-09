@@ -190,8 +190,8 @@ static int scsi_handle_write_error(SCSIDiskReq *r, int error)
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
         r->status |= SCSI_REQ_STATUS_RETRY;
-        vm_stop(0);
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, 0);
+        vm_stop(0);
     } else {
         scsi_command_complete(r, CHECK_CONDITION,
                 HARDWARE_ERROR);
@@ -460,8 +460,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
     memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION, 4);
-    /* Identify device as SCSI-3 rev 1.
-       Some later commands are also implemented. */
+    /*
+     * We claim conformance to SPC-3, which is required for guests
+     * to ask for modern features like READ CAPACITY(16) or the
+     * block characteristics VPD page by default.  Not all of SPC-3
+     * is actually implemented, but we're good enough.
+     */
     outbuf[2] = 5;
     outbuf[3] = 2; /* Format 2 */
 
@@ -1026,6 +1030,11 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         return -1;
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
+
+    if (bdrv_is_sg(s->bs)) {
+        qemu_error("scsi-disk: unwanted /dev/sg*\n");
+        return -1;
+    }
 
     if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
         s->cluster_size = 4;

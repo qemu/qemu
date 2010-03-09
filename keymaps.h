@@ -51,6 +51,23 @@ typedef struct {
     struct key_range *numlock_range;
 } kbd_layout_t;
 
+/* scancode without modifiers */
+#define SCANCODE_KEYMASK 0xff
+/* scancode without grey or up bit */
+#define SCANCODE_KEYCODEMASK 0x7f
+
+/* "grey" keys will usually need a 0xe0 prefix */
+#define SCANCODE_GREY   0x80
+#define SCANCODE_EMUL0  0xE0
+/* "up" flag */
+#define SCANCODE_UP     0x80
+
+/* Additional modifiers to use if not catched another way. */
+#define SCANCODE_SHIFT  0x100
+#define SCANCODE_CTRL   0x200
+#define SCANCODE_ALT    0x400
+#define SCANCODE_ALTGR  0x800
+
 
 void *init_keyboard_layout(const name2keysym_t *table, const char *language);
 int keysym2scancode(void *kbd_layout, int keysym);

@@ -35,6 +35,7 @@
 #include "sysemu.h"
 #include "qemu-common.h"
 #include "qemu_socket.h"
+#include "hw/qdev.h"
 
 static QTAILQ_HEAD(, VLANState) vlans;
 static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
@@ -245,6 +246,7 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
         QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
     } else {
         if (peer) {
+            assert(!peer->peer);
             vc->peer = peer;
             peer->peer = vc;
         }
@@ -804,8 +806,9 @@ static int net_init_nic(QemuOpts *opts,
         return -1;
     }
 
-    nd->nvectors = qemu_opt_get_number(opts, "vectors", NIC_NVECTORS_UNSPECIFIED);
-    if (nd->nvectors != NIC_NVECTORS_UNSPECIFIED &&
+    nd->nvectors = qemu_opt_get_number(opts, "vectors",
+                                       DEV_NVECTORS_UNSPECIFIED);
+    if (nd->nvectors != DEV_NVECTORS_UNSPECIFIED &&
         (nd->nvectors < 0 || nd->nvectors > 0x7ffffff)) {
         qemu_error("invalid # of vectors: %d\n", nd->nvectors);
         return -1;

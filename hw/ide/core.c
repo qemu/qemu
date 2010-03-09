@@ -491,8 +491,8 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
             || action == BLOCK_ERR_STOP_ANY) {
         s->bus->bmdma->unit = s->unit;
         s->bus->bmdma->status |= op;
-        vm_stop(0);
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
+        vm_stop(0);
     } else {
         if (op & BM_STATUS_DMA_RETRY) {
             dma_buf_commit(s, 0);

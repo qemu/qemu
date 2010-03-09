@@ -248,7 +248,7 @@ static uint8_t sdl_keyevent_to_keycode_generic(const SDL_KeyboardEvent *ev)
     if (keysym == 92 && ev->keysym.scancode == 133) {
         keysym = 0xa5;
     }
-    return keysym2scancode(kbd_layout, keysym);
+    return keysym2scancode(kbd_layout, keysym) & SCANCODE_KEYMASK;
 }
 
 /* specific keyboard conversions from scan codes */
@@ -343,9 +343,9 @@ static void reset_keys(void)
     int i;
     for(i = 0; i < 256; i++) {
         if (modifiers_state[i]) {
-            if (i & 0x80)
-                kbd_put_keycode(0xe0);
-            kbd_put_keycode(i | 0x80);
+            if (i & SCANCODE_GREY)
+                kbd_put_keycode(SCANCODE_EMUL0);
+            kbd_put_keycode(i | SCANCODE_UP);
             modifiers_state[i] = 0;
         }
     }
@@ -359,7 +359,7 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         /* specific case */
         v = 0;
         if (ev->type == SDL_KEYUP)
-            v |= 0x80;
+            v |= SCANCODE_UP;
         kbd_put_keycode(0xe1);
         kbd_put_keycode(0x1d | v);
         kbd_put_keycode(0x45 | v);
@@ -392,17 +392,17 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
     case 0x3a: /* caps lock */
         /* SDL does not send the key up event, so we generate it */
         kbd_put_keycode(keycode);
-        kbd_put_keycode(keycode | 0x80);
+        kbd_put_keycode(keycode | SCANCODE_UP);
         return;
     }
 
     /* now send the key code */
-    if (keycode & 0x80)
-        kbd_put_keycode(0xe0);
+    if (keycode & SCANCODE_GREY)
+        kbd_put_keycode(SCANCODE_EMUL0);
     if (ev->type == SDL_KEYUP)
-        kbd_put_keycode(keycode | 0x80);
+        kbd_put_keycode(keycode | SCANCODE_UP);
     else
-        kbd_put_keycode(keycode & 0x7f);
+        kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
 }
 
 static void sdl_update_caption(void)
@@ -415,11 +415,11 @@ static void sdl_update_caption(void)
         status = " [Stopped]";
     else if (gui_grab) {
         if (alt_grab)
-            status = " - Press Ctrl-Alt-Shift to exit grab";
+            status = " - Press Ctrl-Alt-Shift to exit mouse grab";
         else if (ctrl_grab)
-            status = " - Press Right-Ctrl to exit grab";
+            status = " - Press Right-Ctrl to exit mouse grab";
         else
-            status = " - Press Ctrl-Alt to exit grab";
+            status = " - Press Ctrl-Alt to exit mouse grab";
     }
 
     if (qemu_name) {

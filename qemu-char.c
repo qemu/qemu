@@ -1002,6 +1002,7 @@ static void tty_serial_init(int fd, int speed,
            speed, parity, data_bits, stop_bits);
 #endif
     tcgetattr (fd, &tty);
+    oldtty = tty;
 
 #define check_speed(val) if (speed <= val) { spd = B##val; break; }
     speed = speed * 10 / 11;
@@ -1173,6 +1174,11 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
+static void tty_exit(void)
+{
+    tcsetattr(0, TCSANOW, &oldtty);
+}
+
 static void qemu_chr_close_tty(CharDriverState *chr)
 {
     FDCharDriver *s = chr->opaque;
@@ -1207,6 +1213,8 @@ static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
     }
     chr->chr_ioctl = tty_serial_ioctl;
     chr->chr_close = qemu_chr_close_tty;
+    if (!term_atexit_done++)
+        atexit(tty_exit);
     return chr;
 }
 #else  /* ! __linux__ && ! __sun__ */

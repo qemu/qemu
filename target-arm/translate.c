@@ -6132,6 +6132,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 dead_tmp(addr);
             }
+            return;
         } else if ((insn & 0x0e5fffe0) == 0x081d0a00) {
             /* rfe */
             int32_t offset;
