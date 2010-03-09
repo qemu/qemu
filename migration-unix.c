@@ -176,6 +176,8 @@ static void unix_accept_incoming_migration(void *opaque)
     qemu_announce_self();
     DPRINTF("successfully loaded vm state\n");
 
+    if (autostart)
+        vm_start();
 
 out_fopen:
     qemu_fclose(f);
