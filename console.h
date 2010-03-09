@@ -53,7 +53,12 @@ void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry);
 void kbd_put_keycode(int keycode);
 void kbd_put_ledstate(int ledstate);
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
+
+/* Does the current mouse generate absolute events */
 int kbd_mouse_is_absolute(void);
+
+/* Of all the mice, is there one that generates absolute events */
+int kbd_mouse_has_absolute(void);
 
 struct MouseTransformInfo {
     /* Touchscreen resolution */

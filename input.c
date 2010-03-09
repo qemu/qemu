@@ -153,6 +153,19 @@ int kbd_mouse_is_absolute(void)
     return QTAILQ_FIRST(&mouse_handlers)->qemu_put_mouse_event_absolute;
 }
 
+int kbd_mouse_has_absolute(void)
+{
+    QEMUPutMouseEntry *entry;
+
+    QTAILQ_FOREACH(entry, &mouse_handlers, node) {
+        if (entry->qemu_put_mouse_event_absolute) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static void info_mice_iter(QObject *data, void *opaque)
 {
     QDict *mouse;
