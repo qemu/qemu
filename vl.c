@@ -626,7 +626,7 @@ static struct qemu_alarm_timer *alarm_timer;
 struct qemu_alarm_win32 {
     MMRESULT timerId;
     unsigned int period;
-} alarm_win32_data = {0, -1};
+} alarm_win32_data = {0, 0};
 
 static int win32_start_timer(struct qemu_alarm_timer *t);
 static void win32_stop_timer(struct qemu_alarm_timer *t);
@@ -1360,9 +1360,7 @@ static int win32_start_timer(struct qemu_alarm_timer *t)
     memset(&tc, 0, sizeof(tc));
     timeGetDevCaps(&tc, sizeof(tc));
 
-    if (data->period < tc.wPeriodMin)
-        data->period = tc.wPeriodMin;
-
+    data->period = tc.wPeriodMin;
     timeBeginPeriod(data->period);
 
     flags = TIME_CALLBACK_FUNCTION;
