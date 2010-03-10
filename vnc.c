@@ -1110,7 +1110,8 @@ static void vnc_disconnect_finish(VncState *vs)
     }
 
     vnc_remove_timer(vs->vd);
-    qemu_remove_led_event_handler(vs->led);
+    if (vs->vd->lock_key_sync)
+        qemu_remove_led_event_handler(vs->led);
     qemu_free(vs);
 }
 
@@ -1549,7 +1550,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     }
 
-    if (keycode_is_keypad(vs->vd->kbd_layout, keycode)) {
+    if (vs->vd->lock_key_sync &&
+        keycode_is_keypad(vs->vd->kbd_layout, keycode)) {
         /* If the numlock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
            toggles numlock away from the VNC window.
@@ -1567,7 +1569,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         }
     }
 
-    if ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z')) {
+    if (vs->vd->lock_key_sync &&
+        ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z'))) {
         /* If the capslock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
            toggles capslock away from the VNC window.
@@ -2430,7 +2433,8 @@ static void vnc_connect(VncDisplay *vd, int csock)
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
     reset_keys(vs);
-    vs->led = qemu_add_led_event_handler(kbd_leds, vs);
+    if (vs->vd->lock_key_sync)
+        vs->led = qemu_add_led_event_handler(kbd_leds, vs);
 
     vnc_init_timer(vd);
 
@@ -2551,6 +2555,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     int saslErr;
 #endif
     int acl = 0;
+    int lock_key_sync = 1;
 
     if (!vnc_display)
         return -1;
@@ -2568,6 +2573,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
             password = 1; /* Require password auth */
         } else if (strncmp(options, "reverse", 7) == 0) {
             reverse = 1;
+        } else if (strncmp(options, "no-lock-key-sync", 9) == 0) {
+            lock_key_sync = 0;
 #ifdef CONFIG_VNC_SASL
         } else if (strncmp(options, "sasl", 4) == 0) {
             sasl = 1; /* Require SASL auth */
@@ -2713,6 +2720,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
         return -1;
     }
 #endif
+    vs->lock_key_sync = lock_key_sync;
 
     if (reverse) {
         /* connect to viewer */
