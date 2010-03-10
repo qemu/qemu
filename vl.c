@@ -731,6 +731,11 @@ static void configure_icount(const char *option)
                    qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
 }
 
+static int64_t qemu_icount_round(int64_t count)
+{
+    return (count + (1 << icount_time_shift) - 1) >> icount_time_shift;
+}
+
 static struct qemu_alarm_timer alarm_timers[] = {
 #ifndef _WIN32
 #ifdef __linux__
@@ -3960,9 +3965,7 @@ static int qemu_cpu_exec(CPUState *env)
         qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
         env->icount_decr.u16.low = 0;
         env->icount_extra = 0;
-        count = qemu_next_deadline();
-        count = (count + (1 << icount_time_shift) - 1)
-                >> icount_time_shift;
+        count = qemu_icount_round (qemu_next_deadline());
         qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
@@ -4072,9 +4075,7 @@ static int qemu_calculate_timeout(void)
             if (add > 10000000)
                 add = 10000000;
             delta += add;
-            add = (add + (1 << icount_time_shift) - 1)
-                  >> icount_time_shift;
-            qemu_icount += add;
+            qemu_icount += qemu_icount_round (add);
             timeout = delta / 1000000;
             if (timeout < 0)
                 timeout = 0;
