@@ -3148,8 +3148,6 @@ static void do_vm_stop(int reason)
         vm_state_notify(0, reason);
         monitor_protocol_event(QEVENT_STOP, NULL);
     }
-
-    monitor_protocol_event(QEVENT_RESET, NULL);
 }
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
@@ -3182,6 +3180,7 @@ void qemu_system_reset(void)
     QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
     }
+    monitor_protocol_event(QEVENT_RESET, NULL);
     cpu_synchronize_all_post_reset();
 }
 
