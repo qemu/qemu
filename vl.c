@@ -1002,7 +1002,30 @@ static const VMStateDescription vmstate_timers = {
     }
 };
 
-static void qemu_event_increment(void);
+static void qemu_run_all_timers(void)
+{
+    /* rearm timer, if not periodic */
+    if (alarm_timer->expired) {
+        alarm_timer->expired = 0;
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
+
+    alarm_timer->pending = 0;
+
+    /* vm time timers */
+    if (vm_running) {
+        if (!cur_cpu || likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
+            qemu_run_timers(&active_timers[QEMU_CLOCK_VIRTUAL],
+                            qemu_get_clock(vm_clock));
+    }
+
+    /* real time timers */
+    qemu_run_timers(&active_timers[QEMU_CLOCK_REALTIME],
+                    qemu_get_clock(rt_clock));
+
+    qemu_run_timers(&active_timers[QEMU_CLOCK_HOST],
+                    qemu_get_clock(host_clock));
+}
 
 #ifdef _WIN32
 static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
@@ -3891,27 +3914,7 @@ void main_loop_wait(int timeout)
 
     slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));
 
-    /* rearm timer, if not periodic */
-    if (alarm_timer->expired) {
-        alarm_timer->expired = 0;
-        qemu_rearm_alarm_timer(alarm_timer);
-    }
-
-    alarm_timer->pending = 0;
-
-    /* vm time timers */
-    if (vm_running) {
-        if (!cur_cpu || likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
-            qemu_run_timers(&active_timers[QEMU_CLOCK_VIRTUAL],
-                            qemu_get_clock(vm_clock));
-    }
-
-    /* real time timers */
-    qemu_run_timers(&active_timers[QEMU_CLOCK_REALTIME],
-                    qemu_get_clock(rt_clock));
-
-    qemu_run_timers(&active_timers[QEMU_CLOCK_HOST],
-                    qemu_get_clock(host_clock));
+    qemu_run_all_timers();
 
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
