@@ -601,6 +601,13 @@ struct qemu_alarm_timer {
     char pending;
 };
 
+static struct qemu_alarm_timer *alarm_timer;
+
+static inline int qemu_alarm_pending(void)
+{
+    return alarm_timer->pending;
+}
+
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
     return !!t->rearm;
@@ -616,8 +623,6 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 
 /* TODO: MIN_TIMER_REARM_US should be optimized */
 #define MIN_TIMER_REARM_US 250
-
-static struct qemu_alarm_timer *alarm_timer;
 
 #ifdef _WIN32
 
@@ -3999,7 +4004,7 @@ static void tcg_cpu_exec(void)
         qemu_clock_enable(vm_clock,
                           (cur_cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
-        if (alarm_timer->pending)
+        if (qemu_alarm_pending())
             break;
         if (cpu_can_run(env))
             ret = qemu_cpu_exec(env);
