@@ -1109,6 +1109,7 @@ static void vnc_disconnect_finish(VncState *vs)
         dcl->idle = 1;
     }
 
+    qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
     vnc_remove_timer(vs->vd);
     if (vs->vd->lock_key_sync)
         qemu_remove_led_event_handler(vs->led);
@@ -1427,8 +1428,11 @@ static void client_cut_text(VncState *vs, size_t len, uint8_t *text)
 {
 }
 
-static void check_pointer_type_change(VncState *vs, int absolute)
+static void check_pointer_type_change(Notifier *notifier)
 {
+    VncState *vs = container_of(notifier, VncState, mouse_mode_notifier);
+    int absolute = kbd_mouse_is_absolute();
+
     if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE) && vs->absolute != absolute) {
         vnc_write_u8(vs, 0);
         vnc_write_u8(vs, 0);
@@ -1476,8 +1480,6 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
         vs->last_x = x;
         vs->last_y = y;
     }
-
-    check_pointer_type_change(vs, kbd_mouse_is_absolute());
 }
 
 static void reset_keys(VncState *vs)
@@ -1818,8 +1820,6 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         }
     }
-
-    check_pointer_type_change(vs, kbd_mouse_is_absolute());
 }
 
 static void set_pixel_conversion(VncState *vs)
@@ -2435,6 +2435,9 @@ static void vnc_connect(VncDisplay *vd, int csock)
     reset_keys(vs);
     if (vs->vd->lock_key_sync)
         vs->led = qemu_add_led_event_handler(kbd_leds, vs);
+
+    vs->mouse_mode_notifier.notify = check_pointer_type_change;
+    qemu_add_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
 
     vnc_init_timer(vd);
 
