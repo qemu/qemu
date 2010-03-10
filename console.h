@@ -28,8 +28,10 @@ typedef struct QEMUPutMouseEntry {
     int qemu_put_mouse_event_absolute;
     char *qemu_put_mouse_event_name;
 
+    int index;
+
     /* used internally by qemu for handling mice */
-    struct QEMUPutMouseEntry *next;
+    QTAILQ_ENTRY(QEMUPutMouseEntry) node;
 } QEMUPutMouseEntry;
 
 typedef struct QEMUPutLEDEntry {
@@ -43,6 +45,8 @@ QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
                                                 void *opaque, int absolute,
                                                 const char *name);
 void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry);
+void qemu_activate_mouse_event_handler(QEMUPutMouseEntry *entry);
+
 QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func, void *opaque);
 void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry);
 
