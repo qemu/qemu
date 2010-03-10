@@ -1408,7 +1408,7 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
                         data->period,
                         host_alarm_handler,
                         (DWORD)t,
-                        TIME_ONESHOT | TIME_PERIODIC);
+                        TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
 
     if (!data->timerId) {
         fprintf(stderr, "Failed to re-arm win32 alarm timer %ld\n",
