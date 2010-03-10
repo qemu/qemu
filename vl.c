@@ -3281,13 +3281,39 @@ void qemu_system_powerdown_request(void)
     qemu_notify_event();
 }
 
-#ifdef CONFIG_IOTHREAD
-static void qemu_system_vmstop_request(int reason)
+static int cpu_can_run(CPUState *env)
 {
-    vmstop_requested = reason;
-    qemu_notify_event();
+    if (env->stop)
+        return 0;
+    if (env->stopped)
+        return 0;
+    if (!vm_running)
+        return 0;
+    return 1;
 }
-#endif
+
+static int cpu_has_work(CPUState *env)
+{
+    if (env->stop)
+        return 1;
+    if (env->stopped)
+        return 0;
+    if (!env->halted)
+        return 1;
+    if (qemu_cpu_has_work(env))
+        return 1;
+    return 0;
+}
+
+static int tcg_has_work(void)
+{
+    CPUState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu)
+        if (cpu_has_work(env))
+            return 1;
+    return 0;
+}
 
 #ifndef _WIN32
 static int io_thread_fd = -1;
@@ -3381,17 +3407,6 @@ static void qemu_event_increment(void)
 }
 #endif
 
-static int cpu_can_run(CPUState *env)
-{
-    if (env->stop)
-        return 0;
-    if (env->stopped)
-        return 0;
-    if (!vm_running)
-        return 0;
-    return 1;
-}
-
 #ifndef CONFIG_IOTHREAD
 static int qemu_init_main_loop(void)
 {
@@ -3470,8 +3485,6 @@ static QemuCond qemu_pause_cond;
 static void tcg_block_io_signals(void);
 static void kvm_block_io_signals(CPUState *env);
 static void unblock_io_signals(void);
-static int tcg_has_work(void);
-static int cpu_has_work(CPUState *env);
 
 static int qemu_init_main_loop(void)
 {
@@ -3822,6 +3835,12 @@ void qemu_notify_event(void)
     qemu_event_increment();
 }
 
+static void qemu_system_vmstop_request(int reason)
+{
+    vmstop_requested = reason;
+    qemu_notify_event();
+}
+
 void vm_stop(int reason)
 {
     QemuThread me;
@@ -4034,29 +4053,6 @@ static void tcg_cpu_exec(void)
             break;
         }
     }
-}
-
-static int cpu_has_work(CPUState *env)
-{
-    if (env->stop)
-        return 1;
-    if (env->stopped)
-        return 0;
-    if (!env->halted)
-        return 1;
-    if (qemu_cpu_has_work(env))
-        return 1;
-    return 0;
-}
-
-static int tcg_has_work(void)
-{
-    CPUState *env;
-
-    for (env = first_cpu; env != NULL; env = env->next_cpu)
-        if (cpu_has_work(env))
-            return 1;
-    return 0;
 }
 
 static int qemu_calculate_timeout(void)
