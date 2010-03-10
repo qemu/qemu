@@ -258,7 +258,6 @@ uint64_t node_cpumask[MAX_NODES];
 
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
-static int timer_alarm_pending = 1;
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
 /* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
@@ -597,12 +596,13 @@ struct qemu_alarm_timer {
     void (*rearm)(struct qemu_alarm_timer *t);
     void *priv;
 
-    unsigned int expired;
+    char expired;
+    char pending;
 };
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
-    return t && t->rearm;
+    return !!t->rearm;
 }
 
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
@@ -877,7 +877,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 
     /* Rearm if necessary  */
     if (pt == &active_timers[ts->clock->type]) {
-        if (!alarm_timer->expired) {
+        if (!alarm_timer->pending) {
             qemu_rearm_alarm_timer(alarm_timer);
         }
         /* Interrupt execution to force deadline recalculation.  */
@@ -1012,6 +1012,10 @@ static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
 static void host_alarm_handler(int host_signum)
 #endif
 {
+    struct qemu_alarm_timer *t = alarm_timer;
+    if (!t)
+	return;
+
 #if 0
 #define DISP_FREQ 1000
     {
@@ -1041,7 +1045,7 @@ static void host_alarm_handler(int host_signum)
         last_clock = ti;
     }
 #endif
-    if (alarm_has_dynticks(alarm_timer) ||
+    if (alarm_has_dynticks(t) ||
         (!use_icount &&
             qemu_timer_expired(active_timers[QEMU_CLOCK_VIRTUAL],
                                qemu_get_clock(vm_clock))) ||
@@ -1050,7 +1054,7 @@ static void host_alarm_handler(int host_signum)
         qemu_timer_expired(active_timers[QEMU_CLOCK_HOST],
                            qemu_get_clock(host_clock))) {
         qemu_event_increment();
-        if (alarm_timer) alarm_timer->expired = 1;
+        t->expired = alarm_has_dynticks(t);
 
 #ifndef CONFIG_IOTHREAD
         if (next_cpu) {
@@ -1058,7 +1062,7 @@ static void host_alarm_handler(int host_signum)
             cpu_exit(next_cpu);
         }
 #endif
-        timer_alarm_pending = 1;
+        t->pending = 1;
         qemu_notify_event();
     }
 }
@@ -1438,6 +1442,8 @@ static int init_timer_alarm(void)
         goto fail;
     }
 
+    /* first event is at time 0 */
+    t->pending = 1;
     alarm_timer = t;
 
     return 0;
@@ -1448,8 +1454,9 @@ fail:
 
 static void quit_timers(void)
 {
-    alarm_timer->stop(alarm_timer);
+    struct qemu_alarm_timer *t = alarm_timer;
     alarm_timer = NULL;
+    t->stop(t);
 }
 
 /***********************************************************/
@@ -3887,6 +3894,8 @@ void main_loop_wait(int timeout)
         qemu_rearm_alarm_timer(alarm_timer);
     }
 
+    alarm_timer->pending = 0;
+
     /* vm time timers */
     if (vm_running) {
         if (!cur_cpu || likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
@@ -3956,10 +3965,8 @@ static void tcg_cpu_exec(void)
     for (; next_cpu != NULL; next_cpu = next_cpu->next_cpu) {
         CPUState *env = cur_cpu = next_cpu;
 
-        if (timer_alarm_pending) {
-            timer_alarm_pending = 0;
+        if (alarm_timer->pending)
             break;
-        }
         if (cpu_can_run(env))
             ret = qemu_cpu_exec(env);
         else if (env->stop)
