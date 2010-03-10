@@ -771,6 +771,8 @@ void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
     __attribute__ ((__format__ (__printf__, 2, 3)));
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
+
+int64_t qemu_icount_round(int64_t count);
 extern int64_t qemu_icount;
 extern int use_icount;
 
