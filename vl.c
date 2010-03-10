@@ -1053,7 +1053,7 @@ static void host_alarm_handler(int host_signum)
                            qemu_get_clock(rt_clock)) ||
         qemu_timer_expired(active_timers[QEMU_CLOCK_HOST],
                            qemu_get_clock(host_clock))) {
-        qemu_event_increment();
+
         t->expired = alarm_has_dynticks(t);
 
 #ifndef CONFIG_IOTHREAD
@@ -3360,6 +3360,7 @@ void qemu_notify_event(void)
 {
     CPUState *env = cpu_single_env;
 
+    qemu_event_increment ();
     if (env) {
         cpu_exit(env);
     }
