@@ -592,20 +592,17 @@ struct QEMUTimer {
 
 struct qemu_alarm_timer {
     char const *name;
-    unsigned int flags;
-
     int (*start)(struct qemu_alarm_timer *t);
     void (*stop)(struct qemu_alarm_timer *t);
     void (*rearm)(struct qemu_alarm_timer *t);
     void *priv;
-};
 
-#define ALARM_FLAG_DYNTICKS  0x1
-#define ALARM_FLAG_EXPIRED   0x2
+    unsigned int expired;
+};
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
-    return t && (t->flags & ALARM_FLAG_DYNTICKS);
+    return t && t->rearm;
 }
 
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
@@ -721,18 +718,18 @@ static void init_icount_adjust(void)
 static struct qemu_alarm_timer alarm_timers[] = {
 #ifndef _WIN32
 #ifdef __linux__
-    {"dynticks", ALARM_FLAG_DYNTICKS, dynticks_start_timer,
+    {"dynticks", dynticks_start_timer,
      dynticks_stop_timer, dynticks_rearm_timer, NULL},
     /* HPET - if available - is preferred */
-    {"hpet", 0, hpet_start_timer, hpet_stop_timer, NULL, NULL},
+    {"hpet", hpet_start_timer, hpet_stop_timer, NULL, NULL},
     /* ...otherwise try RTC */
-    {"rtc", 0, rtc_start_timer, rtc_stop_timer, NULL, NULL},
+    {"rtc", rtc_start_timer, rtc_stop_timer, NULL, NULL},
 #endif
-    {"unix", 0, unix_start_timer, unix_stop_timer, NULL, NULL},
+    {"unix", unix_start_timer, unix_stop_timer, NULL, NULL},
 #else
-    {"dynticks", ALARM_FLAG_DYNTICKS, win32_start_timer,
+    {"dynticks", win32_start_timer,
      win32_stop_timer, win32_rearm_timer, &alarm_win32_data},
-    {"win32", 0, win32_start_timer,
+    {"win32", win32_start_timer,
      win32_stop_timer, NULL, &alarm_win32_data},
 #endif
     {NULL, }
@@ -880,7 +877,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 
     /* Rearm if necessary  */
     if (pt == &active_timers[ts->clock->type]) {
-        if ((alarm_timer->flags & ALARM_FLAG_EXPIRED) == 0) {
+        if (!alarm_timer->expired) {
             qemu_rearm_alarm_timer(alarm_timer);
         }
         /* Interrupt execution to force deadline recalculation.  */
@@ -1053,7 +1050,7 @@ static void host_alarm_handler(int host_signum)
         qemu_timer_expired(active_timers[QEMU_CLOCK_HOST],
                            qemu_get_clock(host_clock))) {
         qemu_event_increment();
-        if (alarm_timer) alarm_timer->flags |= ALARM_FLAG_EXPIRED;
+        if (alarm_timer) alarm_timer->expired = 1;
 
 #ifndef CONFIG_IOTHREAD
         if (next_cpu) {
@@ -1282,6 +1279,7 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
     int64_t nearest_delta_us = INT64_MAX;
     int64_t current_us;
 
+    assert(alarm_has_dynticks(t));
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
         !active_timers[QEMU_CLOCK_VIRTUAL] &&
         !active_timers[QEMU_CLOCK_HOST])
@@ -1397,6 +1395,7 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 {
     struct qemu_alarm_win32 *data = t->priv;
 
+    assert(alarm_has_dynticks(t));
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
         !active_timers[QEMU_CLOCK_VIRTUAL] &&
         !active_timers[QEMU_CLOCK_HOST])
@@ -3883,8 +3882,8 @@ void main_loop_wait(int timeout)
     slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));
 
     /* rearm timer, if not periodic */
-    if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {
-        alarm_timer->flags &= ~ALARM_FLAG_EXPIRED;
+    if (alarm_timer->expired) {
+        alarm_timer->expired = 0;
         qemu_rearm_alarm_timer(alarm_timer);
     }
 
