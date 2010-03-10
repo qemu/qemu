@@ -39,8 +39,8 @@
 char *exec_path;
 
 int singlestep;
-#if defined(CONFIG_USE_GUEST_BASE)
 unsigned long mmap_min_addr;
+#if defined(CONFIG_USE_GUEST_BASE)
 unsigned long guest_base;
 int have_guest_base;
 #endif
@@ -2812,16 +2812,14 @@ int main(int argc, char **argv, char **envp)
      * proper page alignment for guest_base.
      */
     guest_base = HOST_PAGE_ALIGN(guest_base);
+#endif /* CONFIG_USE_GUEST_BASE */
 
     /*
      * Read in mmap_min_addr kernel parameter.  This value is used
      * When loading the ELF image to determine whether guest_base
-     * is needed.
-     *
-     * When user has explicitly set the quest base, we skip this
-     * test.
+     * is needed.  It is also used in mmap_find_vma.
      */
-    if (!have_guest_base) {
+    {
         FILE *fp;
 
         if ((fp = fopen("/proc/sys/vm/mmap_min_addr", "r")) != NULL) {
@@ -2833,7 +2831,6 @@ int main(int argc, char **argv, char **envp)
             fclose(fp);
         }
     }
-#endif /* CONFIG_USE_GUEST_BASE */
 
     /*
      * Prepare copy of argv vector for target.
