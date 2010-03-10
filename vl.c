@@ -1417,6 +1417,12 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
 #endif /* _WIN32 */
 
+static void alarm_timer_on_change_state_rearm(void *opaque, int running, int reason)
+{
+    if (running)
+        qemu_rearm_alarm_timer((struct qemu_alarm_timer *) opaque);
+}
+
 static int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
@@ -1438,6 +1444,7 @@ static int init_timer_alarm(void)
     /* first event is at time 0 */
     t->pending = 1;
     alarm_timer = t;
+    qemu_add_vm_change_state_handler(alarm_timer_on_change_state_rearm, t);
 
     return 0;
 
@@ -3080,7 +3087,6 @@ void vm_start(void)
         cpu_enable_ticks();
         vm_running = 1;
         vm_state_notify(1, 0);
-        qemu_rearm_alarm_timer(alarm_timer);
         resume_all_vcpus();
     }
 }
