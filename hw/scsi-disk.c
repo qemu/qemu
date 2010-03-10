@@ -460,7 +460,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
-    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION, 4);
+    memset(&outbuf[32], 0, 4);
+    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION,
+           MIN(4, strlen(s->version ? s->version : QEMU_VERSION)));
     /*
      * We claim conformance to SPC-3, which is required for guests
      * to ask for modern features like READ CAPACITY(16) or the
