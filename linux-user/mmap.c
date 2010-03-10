@@ -80,16 +80,15 @@ void mmap_unlock(void)
 void *qemu_vmalloc(size_t size)
 {
     void *p;
-    unsigned long addr;
+
     mmap_lock();
     /* Use map and mark the pages as used.  */
     p = mmap(NULL, size, PROT_READ | PROT_WRITE,
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    addr = (unsigned long)p;
-    if (addr == (target_ulong) addr) {
-        /* Allocated region overlaps guest address space.
-           This may recurse.  */
+    if (h2g_valid(p)) {
+        /* Allocated region overlaps guest address space. This may recurse.  */
+        unsigned long addr = h2g(p);
         page_set_flags(addr & TARGET_PAGE_MASK, TARGET_PAGE_ALIGN(addr + size),
                        PAGE_RESERVED);
     }
