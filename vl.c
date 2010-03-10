@@ -903,10 +903,13 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
     return (timer_head->expire_time <= current_time);
 }
 
-static void qemu_run_timers(QEMUTimer **ptimer_head, int64_t current_time)
+static void qemu_run_timers(QEMUClock *clock)
 {
-    QEMUTimer *ts;
+    QEMUTimer **ptimer_head, *ts;
+    int64_t current_time;
 
+    current_time = qemu_get_clock (clock);
+    ptimer_head = &active_timers[clock->type];
     for(;;) {
         ts = *ptimer_head;
         if (!ts || ts->expire_time > current_time)
@@ -1015,16 +1018,11 @@ static void qemu_run_all_timers(void)
     /* vm time timers */
     if (vm_running) {
         if (!cur_cpu || likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
-            qemu_run_timers(&active_timers[QEMU_CLOCK_VIRTUAL],
-                            qemu_get_clock(vm_clock));
+            qemu_run_timers(vm_clock);
     }
 
-    /* real time timers */
-    qemu_run_timers(&active_timers[QEMU_CLOCK_REALTIME],
-                    qemu_get_clock(rt_clock));
-
-    qemu_run_timers(&active_timers[QEMU_CLOCK_HOST],
-                    qemu_get_clock(host_clock));
+    qemu_run_timers(rt_clock);
+    qemu_run_timers(host_clock);
 }
 
 #ifdef _WIN32
