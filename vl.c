@@ -618,6 +618,7 @@ struct qemu_alarm_timer {
 };
 
 static struct qemu_alarm_timer *alarm_timer;
+static int qemu_calculate_timeout(void);
 
 static inline int qemu_alarm_pending(void)
 {
@@ -3596,7 +3597,7 @@ static void *kvm_cpu_thread_fn(void *arg)
     return NULL;
 }
 
-static void tcg_cpu_exec(void);
+static bool tcg_cpu_exec(void);
 
 static void *tcg_cpu_thread_fn(void *arg)
 {
@@ -3914,14 +3915,20 @@ static void host_main_loop_wait(int *timeout)
 }
 #endif
 
-void main_loop_wait(int timeout)
+void main_loop_wait(int nonblocking)
 {
     IOHandlerRecord *ioh;
     fd_set rfds, wfds, xfds;
     int ret, nfds;
     struct timeval tv;
+    int timeout;
 
-    qemu_bh_update_timeout(&timeout);
+    if (nonblocking)
+        timeout = 0;
+    else {
+        timeout = qemu_calculate_timeout();
+        qemu_bh_update_timeout(&timeout);
+    }
 
     host_main_loop_wait(&timeout);
 
@@ -4028,7 +4035,7 @@ static int qemu_cpu_exec(CPUState *env)
     return ret;
 }
 
-static void tcg_cpu_exec(void)
+static bool tcg_cpu_exec(void)
 {
     int ret = 0;
 
@@ -4053,6 +4060,7 @@ static void tcg_cpu_exec(void)
             break;
         }
     }
+    return tcg_has_work();
 }
 
 static int qemu_calculate_timeout(void)
@@ -4062,8 +4070,6 @@ static int qemu_calculate_timeout(void)
 
     if (!vm_running)
         timeout = 5000;
-    else if (tcg_has_work())
-        timeout = 0;
     else {
      /* XXX: use timeout computed from timers */
         int64_t add;
@@ -4123,16 +4129,17 @@ static void main_loop(void)
 
     for (;;) {
         do {
+            bool nonblocking = false;
 #ifdef CONFIG_PROFILER
             int64_t ti;
 #endif
 #ifndef CONFIG_IOTHREAD
-            tcg_cpu_exec();
+            nonblocking = tcg_cpu_exec();
 #endif
 #ifdef CONFIG_PROFILER
             ti = profile_getclock();
 #endif
-            main_loop_wait(qemu_calculate_timeout());
+            main_loop_wait(nonblocking);
 #ifdef CONFIG_PROFILER
             dev_time += profile_getclock() - ti;
 #endif

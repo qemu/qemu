@@ -64,7 +64,7 @@ void cpu_synchronize_all_post_init(void);
 
 void qemu_announce_self(void);
 
-void main_loop_wait(int timeout);
+void main_loop_wait(int nonblocking);
 
 int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
                             int shared);
