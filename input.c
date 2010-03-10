@@ -195,9 +195,10 @@ static void info_mice_iter(QObject *data, void *opaque)
     Monitor *mon = opaque;
 
     mouse = qobject_to_qdict(data);
-    monitor_printf(mon, "%c Mouse #%" PRId64 ": %s\n",
+    monitor_printf(mon, "%c Mouse #%" PRId64 ": %s%s\n",
                   (qdict_get_bool(mouse, "current") ? '*' : ' '),
-                  qdict_get_int(mouse, "index"), qdict_get_str(mouse, "name"));
+                   qdict_get_int(mouse, "index"), qdict_get_str(mouse, "name"),
+                   qdict_get_bool(mouse, "absolute") ? " (absolute)" : "");
 }
 
 void do_info_mice_print(Monitor *mon, const QObject *data)
@@ -224,11 +225,12 @@ void do_info_mice_print(Monitor *mon, const QObject *data)
  * - "name": mouse's name
  * - "index": mouse's index
  * - "current": true if this mouse is receiving events, false otherwise
+ * - "absolute": true if the mouse generates absolute input events
  *
  * Example:
  *
- * [ { "name": "QEMU Microsoft Mouse", "index": 0, "current": false },
- *   { "name": "QEMU PS/2 Mouse", "index": 1, "current": true } ]
+ * [ { "name": "QEMU Microsoft Mouse", "index": 0, "current": false, "absolute": false },
+ *   { "name": "QEMU PS/2 Mouse", "index": 1, "current": true, "absolute": true } ]
  */
 void do_info_mice(Monitor *mon, QObject **ret_data)
 {
@@ -246,10 +248,14 @@ void do_info_mice(Monitor *mon, QObject **ret_data)
 
     QTAILQ_FOREACH(cursor, &mouse_handlers, node) {
         QObject *obj;
-        obj = qobject_from_jsonf("{ 'name': %s, 'index': %d, 'current': %i }",
+        obj = qobject_from_jsonf("{ 'name': %s,"
+                                 "  'index': %d,"
+                                 "  'current': %i,"
+                                 "  'absolute': %i }",
                                  cursor->qemu_put_mouse_event_name,
                                  cursor->index,
-                                 cursor->index == current);
+                                 cursor->index == current,
+                                 !!cursor->qemu_put_mouse_event_absolute);
         qlist_append_obj(mice_list, obj);
     }
 
