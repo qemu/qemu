@@ -44,6 +44,9 @@
 
 #define TARGET_PAGE_BITS 12	/* 4k XXXXX */
 
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
+
 #define SR_MD (1 << 30)
 #define SR_RB (1 << 29)
 #define SR_BL (1 << 28)

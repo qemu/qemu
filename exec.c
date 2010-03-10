@@ -62,23 +62,6 @@
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
-#if defined(TARGET_SPARC64)
-#define TARGET_PHYS_ADDR_SPACE_BITS 41
-#elif defined(TARGET_SPARC)
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#elif defined(TARGET_ALPHA)
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#define TARGET_VIRT_ADDR_SPACE_BITS 42
-#elif defined(TARGET_PPC64)
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#elif defined(TARGET_X86_64)
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#elif defined(TARGET_I386)
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#else
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#endif
-
 static TranslationBlock *tbs;
 int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];

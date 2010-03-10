@@ -200,6 +200,9 @@ enum {
 #define TARGET_PAGE_BITS 13
 #define MMAP_SHIFT TARGET_PAGE_BITS
 
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
+
 #define cpu_init cpu_cris_init
 #define cpu_exec cpu_cris_exec
 #define cpu_gen_code cpu_cris_gen_code
