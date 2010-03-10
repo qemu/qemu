@@ -321,17 +321,19 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
         ret = 0;
         break;
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
-        if (value == 0 && index != 0x81) { /* clear ep halt */
-            goto fail;
-        }
+        ret = 0;
+        break;
+    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
         ret = 0;
         break;
         /* Class specific requests.  */
+    case (((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8) | MassStorageReset):
     case MassStorageReset:
         /* Reset state ready for the next CBW.  */
         s->mode = USB_MSDM_CBW;
         ret = 0;
         break;
+    case (((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8) | GetMaxLun):
     case GetMaxLun:
         data[0] = 0;
         ret = 1;
