@@ -634,15 +634,21 @@ extern int have_guest_base;
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 #define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
+
+#if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
+#define h2g_valid(x) 1
+#else
+#define h2g_valid(x) ({ \
+    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
+    __guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS); \
+})
+#endif
+
 #define h2g(x) ({ \
     unsigned long __ret = (unsigned long)(x) - GUEST_BASE; \
     /* Check if given address fits target address space */ \
-    assert(__ret == (abi_ulong)__ret); \
+    assert(h2g_valid(x)); \
     (abi_ulong)__ret; \
-})
-#define h2g_valid(x) ({ \
-    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
-    (__guest == (abi_ulong)__guest); \
 })
 
 #define saddr(x) g2h(x)
