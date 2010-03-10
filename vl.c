@@ -548,6 +548,22 @@ static int64_t cpu_get_clock(void)
     }
 }
 
+#ifndef CONFIG_IOTHREAD
+static int64_t qemu_icount_delta(void)
+{
+    if (!use_icount) {
+        return 5000 * (int64_t) 1000000;
+    } else if (use_icount == 1) {
+        /* When not using an adaptive execution frequency
+           we tend to get badly out of sync with real time,
+           so just delay for a reasonable amount of time.  */
+        return 0;
+    } else {
+        return cpu_get_icount() - cpu_get_clock();
+    }
+}
+#endif
+
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void)
 {
@@ -4051,25 +4067,16 @@ static int qemu_calculate_timeout(void)
         timeout = 5000;
     else if (tcg_has_work())
         timeout = 0;
-    else if (!use_icount)
-        timeout = 5000;
     else {
      /* XXX: use timeout computed from timers */
         int64_t add;
         int64_t delta;
         /* Advance virtual time to the next event.  */
-        if (use_icount == 1) {
-            /* When not using an adaptive execution frequency
-               we tend to get badly out of sync with real time,
-               so just delay for a reasonable amount of time.  */
-            delta = 0;
-        } else {
-            delta = cpu_get_icount() - cpu_get_clock();
-        }
+	delta = qemu_icount_delta();
         if (delta > 0) {
             /* If virtual time is ahead of real time then just
                wait for IO.  */
-            timeout = (delta / 1000000) + 1;
+            timeout = (delta + 999999) / 1000000;
         } else {
             /* Wait for either IO to occur or the next
                timer event.  */
