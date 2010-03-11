@@ -74,12 +74,64 @@ static void kbd_leds(void *opaque, int ledstate)
     spice_server_kbd_leds(&kbd->sin, ledstate);
 }
 
+/* mouse bits */
+
+typedef struct QemuSpiceMouse {
+    SpiceMouseInstance sin;
+} QemuSpiceMouse;
+
+static int map_buttons(int spice_buttons)
+{
+    int qemu_buttons = 0;
+
+    /*
+     * Note: SPICE_MOUSE_BUTTON_* specifies the wire protocol but this
+     * isn't what we get passed in via interface callbacks for the
+     * middle and right button ...
+     */
+    if (spice_buttons & SPICE_MOUSE_BUTTON_MASK_LEFT) {
+        qemu_buttons |= MOUSE_EVENT_LBUTTON;
+    }
+    if (spice_buttons & 0x04 /* SPICE_MOUSE_BUTTON_MASK_MIDDLE */) {
+        qemu_buttons |= MOUSE_EVENT_MBUTTON;
+    }
+    if (spice_buttons & 0x02 /* SPICE_MOUSE_BUTTON_MASK_RIGHT */) {
+        qemu_buttons |= MOUSE_EVENT_RBUTTON;
+    }
+    return qemu_buttons;
+}
+
+static void mouse_motion(SpiceMouseInstance *sin, int dx, int dy, int dz,
+                         uint32_t buttons_state)
+{
+    kbd_mouse_event(dx, dy, dz, map_buttons(buttons_state));
+}
+
+static void mouse_buttons(SpiceMouseInstance *sin, uint32_t buttons_state)
+{
+    kbd_mouse_event(0, 0, 0, map_buttons(buttons_state));
+}
+
+static const SpiceMouseInterface mouse_interface = {
+    .base.type          = SPICE_INTERFACE_MOUSE,
+    .base.description   = "mouse",
+    .base.major_version = SPICE_INTERFACE_MOUSE_MAJOR,
+    .base.minor_version = SPICE_INTERFACE_MOUSE_MINOR,
+    .motion             = mouse_motion,
+    .buttons            = mouse_buttons,
+};
+
 void qemu_spice_input_init(void)
 {
     QemuSpiceKbd *kbd;
+    QemuSpiceMouse *mouse;
 
     kbd = qemu_mallocz(sizeof(*kbd));
     kbd->sin.base.sif = &kbd_interface.base;
     qemu_spice_add_interface(&kbd->sin.base);
     qemu_add_led_event_handler(kbd_leds, kbd);
+
+    mouse = qemu_mallocz(sizeof(*mouse));
+    mouse->sin.base.sif = &mouse_interface.base;
+    qemu_spice_add_interface(&mouse->sin.base);
 }
