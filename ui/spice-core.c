@@ -167,6 +167,8 @@ void qemu_spice_init(void)
 
     spice_server_init(spice_server, &core_interface);
     using_spice = 1;
+
+    qemu_spice_input_init();
 }
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)
