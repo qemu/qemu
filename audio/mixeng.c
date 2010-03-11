@@ -123,7 +123,7 @@
 #undef IN_T
 #undef SHIFT
 
-/* Unsigned 16 bit */
+/* Unsigned 32 bit */
 #define IN_T uint32_t
 #define IN_MIN 0
 #define IN_MAX UINT32_MAX
