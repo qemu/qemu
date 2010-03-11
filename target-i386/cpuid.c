@@ -357,7 +357,7 @@ static x86_def_t builtin_x86_defs[] = {
         .stepping = 3,
         .features = PPRO_FEATURES,
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_POPCNT,
-        .xlevel = 0,
+        .xlevel = 0x80000004,
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
     {
@@ -381,7 +381,7 @@ static x86_def_t builtin_x86_defs[] = {
     },
     {
         .name = "486",
-        .level = 0,
+        .level = 1,
         .family = 4,
         .model = 0,
         .stepping = 0,
