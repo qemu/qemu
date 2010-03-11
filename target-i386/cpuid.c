@@ -251,7 +251,6 @@ static x86_def_t *x86_defs = {NULL};
 /* built-in cpu model definitions (deprecated)
  */
 static x86_def_t builtin_x86_defs[] = {
-#ifdef TARGET_X86_64
     {
         .name = "qemu64",
         .level = 4,
@@ -350,7 +349,6 @@ static x86_def_t builtin_x86_defs[] = {
         .xlevel = 0x80000008,
         .model_id = "Common KVM processor"
     },
-#endif
     {
         .name = "qemu32",
         .level = 4,
