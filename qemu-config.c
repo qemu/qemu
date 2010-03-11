@@ -351,6 +351,24 @@ static QemuOptsList qemu_cpudef_opts = {
     },
 };
 
+QemuOptsList qemu_spice_opts = {
+    .name = "spice",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_spice_opts.head),
+    .desc = {
+        {
+            .name = "port",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "password",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "disable-ticketing",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end if list */ }
+    },
+};
+
 static QemuOptsList *vm_config_groups[32] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,

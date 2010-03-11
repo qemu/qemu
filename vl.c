@@ -165,6 +165,8 @@ int main(int argc, char **argv)
 #include "cpus.h"
 #include "arch_init.h"
 
+#include "ui/qemu-spice.h"
+
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
 
@@ -2616,6 +2618,18 @@ int main(int argc, char **argv, char **envp)
                     }
                     break;
                 }
+            case QEMU_OPTION_spice:
+                olist = qemu_find_opts("spice");
+                if (!olist) {
+                    fprintf(stderr, "spice is not supported by this qemu build.\n");
+                    exit(1);
+                }
+                opts = qemu_opts_parse(olist, optarg, 0);
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_writeconfig:
                 {
                     FILE *fp;
