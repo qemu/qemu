@@ -230,6 +230,20 @@ typedef struct x86_def_t {
           CPUID_PAE | CPUID_SEP | CPUID_APIC)
 #define EXT2_FEATURE_MASK 0x0183F3FF
 
+#define TCG_FEATURES (CPUID_FP87 | CPUID_PSE | CPUID_TSC | CPUID_MSR | \
+          CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC | CPUID_SEP | \
+          CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | \
+          CPUID_PSE36 | CPUID_CLFLUSH | CPUID_ACPI | CPUID_MMX | \
+          CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS)
+#define TCG_EXT_FEATURES (CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | \
+          CPUID_EXT_CX16 | CPUID_EXT_POPCNT | CPUID_EXT_XSAVE | \
+          CPUID_EXT_HYPERVISOR)
+#define TCG_EXT2_FEATURES ((TCG_FEATURES & EXT2_FEATURE_MASK) | \
+          CPUID_EXT2_NX | CPUID_EXT2_MMXEXT | CPUID_EXT2_RDTSCP | \
+          CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT)
+#define TCG_EXT3_FEATURES (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | \
+          CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A)
+
 /* maintains list of cpu model definitions
  */
 static x86_def_t *x86_defs = {NULL};
@@ -792,6 +806,16 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_ext3_features = def->ext3_features;
     env->cpuid_xlevel = def->xlevel;
     env->cpuid_kvm_features = def->kvm_features;
+    if (!kvm_enabled()) {
+        env->cpuid_features &= TCG_FEATURES;
+        env->cpuid_ext_features &= TCG_EXT_FEATURES;
+        env->cpuid_ext2_features &= (TCG_EXT2_FEATURES
+#ifdef TARGET_X86_64
+            | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
+#endif
+            );
+        env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
+    }
     {
         const char *model_id = def->model_id;
         int c, len, i;
