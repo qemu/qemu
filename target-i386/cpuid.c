@@ -196,6 +196,7 @@ typedef struct x86_def_t {
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
           CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
           CPUID_PAE | CPUID_SEP | CPUID_APIC)
+#define EXT2_FEATURE_MASK 0x0183F3FF
 
 /* maintains list of cpu model definitions
  */
@@ -220,7 +221,7 @@ static x86_def_t builtin_x86_defs[] = {
         /* this feature is needed for Solaris and isn't fully implemented */
             CPUID_PSE36,
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_POPCNT,
-        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) |
+        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) |
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM |
             CPUID_EXT3_ABM | CPUID_EXT3_SSE4A,
@@ -243,7 +244,7 @@ static x86_def_t builtin_x86_defs[] = {
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 |
             CPUID_EXT_POPCNT,
         /* Missing: CPUID_EXT2_PDPE1GB, CPUID_EXT2_RDTSCP */
-        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) |
+        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) |
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX |
             CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT | CPUID_EXT2_MMXEXT |
             CPUID_EXT2_FFXSR,
@@ -293,7 +294,7 @@ static x86_def_t builtin_x86_defs[] = {
         /* Missing: CPUID_EXT_POPCNT, CPUID_EXT_MONITOR */
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16,
         /* Missing: CPUID_EXT2_PDPE1GB, CPUID_EXT2_RDTSCP */
-        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) |
+        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) |
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         /* Missing: CPUID_EXT3_LAHF_LM, CPUID_EXT3_CMP_LEG, CPUID_EXT3_EXTAPIC,
                     CPUID_EXT3_CR8LEG, CPUID_EXT3_ABM, CPUID_EXT3_SSE4A,
@@ -380,7 +381,7 @@ static x86_def_t builtin_x86_defs[] = {
         .model = 2,
         .stepping = 3,
         .features = PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR | CPUID_MCA,
-        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
+        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .xlevel = 0x80000008,
         /* XXX: put another string ? */
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
@@ -401,7 +402,7 @@ static x86_def_t builtin_x86_defs[] = {
             CPUID_EXT_SSE3 /* PNI */ | CPUID_EXT_SSSE3,
             /* Missing: CPUID_EXT_DSCPL | CPUID_EXT_EST |
              * CPUID_EXT_TM2 | CPUID_EXT_XTPR */
-        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_NX,
+        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_NX,
         /* Missing: .ext3_features = CPUID_EXT3_LAHF_LM */
         .xlevel = 0x8000000A,
         .model_id = "Intel(R) Atom(TM) CPU N270   @ 1.60GHz",
