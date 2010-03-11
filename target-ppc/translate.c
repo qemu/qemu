@@ -6733,7 +6733,7 @@ static inline void gen_op_evsrwu(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_movi_i32(ret, 0);
-    tcg_gen_label(l2);
+    gen_set_label(l2);
     tcg_temp_free_i32(t0);
 }
 GEN_SPEOP_ARITH2(evsrwu, gen_op_evsrwu);
@@ -6752,7 +6752,7 @@ static inline void gen_op_evsrws(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_movi_i32(ret, 0);
-    tcg_gen_label(l2);
+    gen_set_label(l2);
     tcg_temp_free_i32(t0);
 }
 GEN_SPEOP_ARITH2(evsrws, gen_op_evsrws);
