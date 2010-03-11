@@ -1557,10 +1557,12 @@ typedef struct IOHandlerRecord {
     void *opaque;
     /* temporary data */
     struct pollfd *ufd;
-    struct IOHandlerRecord *next;
+    QLIST_ENTRY(IOHandlerRecord) next;
 } IOHandlerRecord;
 
-static IOHandlerRecord *first_io_handler;
+static QLIST_HEAD(, IOHandlerRecord) io_handlers =
+    QLIST_HEAD_INITIALIZER(io_handlers);
+
 
 /* XXX: fd_read_poll should be suppressed, but an API change is
    necessary in the character devices to suppress fd_can_read(). */
@@ -1570,28 +1572,22 @@ int qemu_set_fd_handler2(int fd,
                          IOHandler *fd_write,
                          void *opaque)
 {
-    IOHandlerRecord **pioh, *ioh;
+    IOHandlerRecord *ioh;
 
     if (!fd_read && !fd_write) {
-        pioh = &first_io_handler;
-        for(;;) {
-            ioh = *pioh;
-            if (ioh == NULL)
-                break;
+        QLIST_FOREACH(ioh, &io_handlers, next) {
             if (ioh->fd == fd) {
                 ioh->deleted = 1;
                 break;
             }
-            pioh = &ioh->next;
         }
     } else {
-        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+        QLIST_FOREACH(ioh, &io_handlers, next) {
             if (ioh->fd == fd)
                 goto found;
         }
         ioh = qemu_mallocz(sizeof(IOHandlerRecord));
-        ioh->next = first_io_handler;
-        first_io_handler = ioh;
+        QLIST_INSERT_HEAD(&io_handlers, ioh, next);
     found:
         ioh->fd = fd;
         ioh->fd_read_poll = fd_read_poll;
@@ -2812,7 +2808,7 @@ void main_loop_wait(int nonblocking)
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&xfds);
-    for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+    QLIST_FOREACH(ioh, &io_handlers, next) {
         if (ioh->deleted)
             continue;
         if (ioh->fd_read &&
@@ -2838,9 +2834,9 @@ void main_loop_wait(int nonblocking)
     ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
     qemu_mutex_lock_iothread();
     if (ret > 0) {
-        IOHandlerRecord **pioh;
+        IOHandlerRecord *pioh;
 
-        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+        QLIST_FOREACH(ioh, &io_handlers, next) {
             if (!ioh->deleted && ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
                 ioh->fd_read(ioh->opaque);
             }
@@ -2850,14 +2846,11 @@ void main_loop_wait(int nonblocking)
         }
 
 	/* remove deleted IO handlers */
-	pioh = &first_io_handler;
-	while (*pioh) {
-            ioh = *pioh;
+        QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
             if (ioh->deleted) {
-                *pioh = ioh->next;
+                QLIST_REMOVE(ioh, next);
                 qemu_free(ioh);
-            } else
-                pioh = &ioh->next;
+            }
         }
     }
 
