@@ -49,6 +49,9 @@ and is therefore likely to be changed.
 Typedefs are used to eliminate the redundant 'struct' keyword.  It is the
 QEMU coding style.
 
+When wrapping standard library functions, use the prefix qemu_ to alert
+readers that they are seeing a wrapped version; otherwise avoid this prefix.
+
 4. Block structure
 
 Every indented statement is braced; even if the block contains just one
