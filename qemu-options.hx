@@ -680,13 +680,29 @@ Enable the spice remote desktop protocol. Valid options are
 @table @option
 
 @item port=<nr>
-Set the TCP port spice is listening on.
+Set the TCP port spice is listening on for plaintext channels.
 
 @item password=<secret>
 Set the password you need to authenticate.
 
 @item disable-ticketing
 Allow client connects without authentication.
+
+@item tls-port=<nr>
+Set the TCP port spice is listening on for encrypted channels.
+
+@item x509-dir=<dir>
+Set the x509 file directory. Expects same filenames as -vnc $display,x509=$dir
+
+@item x509-key-file=<file>
+@item x509-key-password=<file>
+@item x509-cert-file=<file>
+@item x509-cacert-file=<file>
+@item x509-dh-key-file=<file>
+The x509 file names can also be configured individually.
+
+@item tls-ciphers=<list>
+Specify which ciphers to use.
 
 @end table
 ETEXI

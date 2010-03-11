@@ -362,11 +362,35 @@ QemuOptsList qemu_spice_opts = {
             .name = "port",
             .type = QEMU_OPT_NUMBER,
         },{
+            .name = "tls-port",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "password",
             .type = QEMU_OPT_STRING,
         },{
             .name = "disable-ticketing",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "x509-dir",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-key-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-key-password",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-cert-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-cacert-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-dh-key-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "tls-ciphers",
+            .type = QEMU_OPT_STRING,
         },
         { /* end if list */ }
     },
