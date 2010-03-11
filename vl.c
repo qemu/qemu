@@ -1550,7 +1550,7 @@ void pcmcia_info(Monitor *mon)
 
 typedef struct IOHandlerRecord {
     int fd;
-    IOCanRWHandler *fd_read_poll;
+    IOCanReadHandler *fd_read_poll;
     IOHandler *fd_read;
     IOHandler *fd_write;
     int deleted;
@@ -1567,7 +1567,7 @@ static QLIST_HEAD(, IOHandlerRecord) io_handlers =
 /* XXX: fd_read_poll should be suppressed, but an API change is
    necessary in the character devices to suppress fd_can_read(). */
 int qemu_set_fd_handler2(int fd,
-                         IOCanRWHandler *fd_read_poll,
+                         IOCanReadHandler *fd_read_poll,
                          IOHandler *fd_read,
                          IOHandler *fd_write,
                          void *opaque)
