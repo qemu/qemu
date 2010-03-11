@@ -757,6 +757,9 @@ void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
             (*cpu_fprintf)(f, "\n");
         }
     }
+    if (kvm_enabled()) {
+        (*cpu_fprintf)(f, "x86 %16s\n", "[host]");
+    }
 }
 
 int cpu_x86_register (CPUX86State *env, const char *cpu_model)
