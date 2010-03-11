@@ -2836,20 +2836,17 @@ void main_loop_wait(int nonblocking)
     if (ret > 0) {
         IOHandlerRecord *pioh;
 
-        QLIST_FOREACH(ioh, &io_handlers, next) {
-            if (!ioh->deleted && ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
-                ioh->fd_read(ioh->opaque);
-            }
-            if (!ioh->deleted && ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
-                ioh->fd_write(ioh->opaque);
-            }
-        }
-
-	/* remove deleted IO handlers */
         QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
             if (ioh->deleted) {
                 QLIST_REMOVE(ioh, next);
                 qemu_free(ioh);
+                continue;
+            }
+            if (ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
+                ioh->fd_read(ioh->opaque);
+            }
+            if (ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
+                ioh->fd_write(ioh->opaque);
             }
         }
     }
