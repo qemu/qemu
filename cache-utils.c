@@ -58,7 +58,10 @@ static void ppc_init_cacheline_sizes(void)
 #endif
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
