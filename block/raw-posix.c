@@ -993,12 +993,12 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 
     fd = open(filename, O_WRONLY | O_BINARY);
     if (fd < 0)
-        return -EIO;
+        return -errno;
 
     if (fstat(fd, &stat_buf) < 0)
-        ret = -EIO;
+        ret = -errno;
     else if (!S_ISBLK(stat_buf.st_mode) && !S_ISCHR(stat_buf.st_mode))
-        ret = -EIO;
+        ret = -ENODEV;
     else if (lseek(fd, 0, SEEK_END) < total_size * 512)
         ret = -ENOSPC;
 
