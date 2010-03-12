@@ -2020,7 +2020,7 @@ static int vma_get_mapping_count(const struct mm_struct *);
 static struct vm_area_struct *vma_first(const struct mm_struct *);
 static struct vm_area_struct *vma_next(struct vm_area_struct *);
 static abi_ulong vma_dump_size(const struct vm_area_struct *);
-static int vma_walker(void *priv, unsigned long start, unsigned long end,
+static int vma_walker(void *priv, abi_ulong start, abi_ulong end,
     unsigned long flags);
 
 static void fill_elf_header(struct elfhdr *, int, uint16_t, uint32_t);
@@ -2173,7 +2173,7 @@ static abi_ulong vma_dump_size(const struct vm_area_struct *vma)
     return (vma->vma_end - vma->vma_start);
 }
 
-static int vma_walker(void *priv, unsigned long start, unsigned long end,
+static int vma_walker(void *priv, abi_ulong start, abi_ulong end,
     unsigned long flags)
 {
     struct mm_struct *mm = (struct mm_struct *)priv;

@@ -744,15 +744,17 @@ extern unsigned long qemu_host_page_mask;
 #define PAGE_WRITE_ORG 0x0010
 #define PAGE_RESERVED  0x0020
 
+#if defined(CONFIG_USER_ONLY)
 void page_dump(FILE *f);
 
-typedef int (*walk_memory_regions_fn)(void *, unsigned long,
-                                      unsigned long, unsigned long);
+typedef int (*walk_memory_regions_fn)(void *, abi_ulong,
+                                      abi_ulong, unsigned long);
 int walk_memory_regions(void *, walk_memory_regions_fn);
 
 int page_get_flags(target_ulong address);
 void page_set_flags(target_ulong start, target_ulong end, int flags);
 int page_check_range(target_ulong start, target_ulong len, int flags);
+#endif
 
 void cpu_exec_init_all(unsigned long tb_size);
 CPUState *cpu_copy(CPUState *env);

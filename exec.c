@@ -2217,7 +2217,7 @@ struct walk_memory_regions_data
 };
 
 static int walk_memory_regions_end(struct walk_memory_regions_data *data,
-                                   unsigned long end, int new_prot)
+                                   abi_ulong end, int new_prot)
 {
     if (data->start != -1ul) {
         int rc = data->fn(data->priv, data->start, end, data->prot);
@@ -2233,9 +2233,9 @@ static int walk_memory_regions_end(struct walk_memory_regions_data *data,
 }
 
 static int walk_memory_regions_1(struct walk_memory_regions_data *data,
-                                 unsigned long base, int level, void **lp)
+                                 abi_ulong base, int level, void **lp)
 {
-    unsigned long pa;
+    abi_ulong pa;
     int i, rc;
 
     if (*lp == NULL) {
@@ -2258,7 +2258,8 @@ static int walk_memory_regions_1(struct walk_memory_regions_data *data,
     } else {
         void **pp = *lp;
         for (i = 0; i < L2_BITS; ++i) {
-            pa = base | (i << (TARGET_PAGE_BITS + L2_BITS * level));
+            pa = base | ((abi_ulong)i <<
+                (TARGET_PAGE_BITS + L2_BITS * level));
             rc = walk_memory_regions_1(data, pa, level - 1, pp + i);
             if (rc != 0) {
                 return rc;
@@ -2280,7 +2281,7 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     data.prot = 0;
 
     for (i = 0; i < V_L1_SIZE; i++) {
-        int rc = walk_memory_regions_1(&data, i << V_L1_SHIFT,
+        int rc = walk_memory_regions_1(&data, (abi_ulong)i << V_L1_SHIFT,
                                        V_L1_SHIFT / L2_BITS - 1, l1_map + i);
         if (rc != 0) {
             return rc;
@@ -2290,12 +2291,13 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     return walk_memory_regions_end(&data, 0, 0);
 }
 
-static int dump_region(void *priv, unsigned long start,
-    unsigned long end, unsigned long prot)
+static int dump_region(void *priv, abi_ulong start,
+    abi_ulong end, unsigned long prot)
 {
     FILE *f = (FILE *)priv;
 
-    (void) fprintf(f, "%08lx-%08lx %08lx %c%c%c\n",
+    (void) fprintf(f, TARGET_ABI_FMT_lx"-"TARGET_ABI_FMT_lx
+        " "TARGET_ABI_FMT_lx" %c%c%c\n",
         start, end, end - start,
         ((prot & PAGE_READ) ? 'r' : '-'),
         ((prot & PAGE_WRITE) ? 'w' : '-'),
@@ -2332,8 +2334,8 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
     /* This function should never be called with addresses outside the
        guest address space.  If this assert fires, it probably indicates
        a missing call to h2g_valid.  */
-#if HOST_LONG_BITS > L1_MAP_ADDR_SPACE_BITS
-    assert(end < (1ul << L1_MAP_ADDR_SPACE_BITS));
+#if TARGET_ABI_BITS > L1_MAP_ADDR_SPACE_BITS
+    assert(end < ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
 #endif
     assert(start < end);
 

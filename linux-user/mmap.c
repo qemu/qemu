@@ -88,7 +88,7 @@ void *qemu_vmalloc(size_t size)
 
     if (h2g_valid(p)) {
         /* Allocated region overlaps guest address space. This may recurse.  */
-        unsigned long addr = h2g(p);
+        abi_ulong addr = h2g(p);
         page_set_flags(addr & TARGET_PAGE_MASK, TARGET_PAGE_ALIGN(addr + size),
                        PAGE_RESERVED);
     }
