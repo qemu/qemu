@@ -274,10 +274,6 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
 TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
-extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
-extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
-extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
-
 #include "qemu-lock.h"
 
 extern spinlock_t tb_lock;
@@ -285,6 +281,10 @@ extern spinlock_t tb_lock;
 extern int tb_invalidated_flag;
 
 #if !defined(CONFIG_USER_ONLY)
+
+extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
+extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
+extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
 void tlb_fill(target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);

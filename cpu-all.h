@@ -849,6 +849,8 @@ void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 
+#if !defined(CONFIG_USER_ONLY)
+
 /* memory API */
 
 extern int phys_ram_fd;
@@ -876,9 +878,6 @@ extern int mem_prealloc;
 #define TLB_NOTDIRTY    (1 << 4)
 /* Set if TLB entry is an IO callback.  */
 #define TLB_MMIO        (1 << 5)
-
-int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
-                        uint8_t *buf, int len, int is_write);
 
 #define VGA_DIRTY_FLAG       0x01
 #define CODE_DIRTY_FLAG      0x02
@@ -925,6 +924,11 @@ void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
 void qemu_flush_coalesced_mmio_buffer(void);
+
+#endif /* !CONFIG_USER_ONLY */
+
+int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
+                        uint8_t *buf, int len, int is_write);
 
 /*******************************************/
 /* host CPU ticks (if available) */

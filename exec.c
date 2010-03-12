@@ -217,7 +217,9 @@ int loglevel;
 static int log_append = 0;
 
 /* statistics */
+#if !defined(CONFIG_USER_ONLY)
 static int tlb_flush_count;
+#endif
 static int tb_flush_count;
 static int tb_phys_invalidate_count;
 
@@ -3924,6 +3926,8 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
     cpu_resume_from_signal(env, NULL);
 }
 
+#if !defined(CONFIG_USER_ONLY)
+
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
@@ -3976,8 +3980,6 @@ void dump_exec_info(FILE *f,
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
     tcg_dump_info(f, cpu_fprintf);
 }
-
-#if !defined(CONFIG_USER_ONLY)
 
 #define MMUSUFFIX _cmmu
 #define GETPC() NULL

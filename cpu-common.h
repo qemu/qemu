@@ -10,6 +10,8 @@
 #include "bswap.h"
 #include "qemu-queue.h"
 
+#if !defined(CONFIG_USER_ONLY)
+
 /* address in the RAM (different from a physical address) */
 typedef unsigned long ram_addr_t;
 
@@ -105,5 +107,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
 #define IO_MEM_ROMD        (1)
 #define IO_MEM_SUBPAGE     (2)
 #define IO_MEM_SUBWIDTH    (4)
+
+#endif
 
 #endif /* !CPU_COMMON_H */
