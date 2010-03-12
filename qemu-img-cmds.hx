@@ -46,8 +46,8 @@ STEXI
 ETEXI
 
 DEF("rebase", img_rebase,
-    "rebase [-u] -b backing_file [-F backing_fmt] filename")
+    "rebase [-f fmt] [-u] -b backing_file [-F backing_fmt] filename")
 STEXI
-@item rebase [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
+@item rebase [-f @var{fmt}] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
 @end table
 ETEXI
