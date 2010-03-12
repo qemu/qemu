@@ -40,6 +40,7 @@ int kvm_init(int smp_cpus);
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
 int kvm_has_robust_singlestep(void);
+int kvm_has_debugregs(void);
 
 #ifdef NEED_CPU_H
 int kvm_init_vcpu(CPUState *env);

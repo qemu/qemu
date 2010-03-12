@@ -64,6 +64,7 @@ struct KVMState
     int migration_log;
     int vcpu_events;
     int robust_singlestep;
+    int debugregs;
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
@@ -664,6 +665,11 @@ int kvm_init(int smp_cpus)
         kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
 #endif
 
+    s->debugregs = 0;
+#ifdef KVM_CAP_DEBUGREGS
+    s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
+#endif
+
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
@@ -937,6 +943,11 @@ int kvm_has_vcpu_events(void)
 int kvm_has_robust_singlestep(void)
 {
     return kvm_state->robust_singlestep;
+}
+
+int kvm_has_debugregs(void)
+{
+    return kvm_state->debugregs;
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)

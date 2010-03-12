@@ -874,6 +874,53 @@ static int kvm_guest_debug_workarounds(CPUState *env)
     return ret;
 }
 
+static int kvm_put_debugregs(CPUState *env)
+{
+#ifdef KVM_CAP_DEBUGREGS
+    struct kvm_debugregs dbgregs;
+    int i;
+
+    if (!kvm_has_debugregs()) {
+        return 0;
+    }
+
+    for (i = 0; i < 4; i++) {
+        dbgregs.db[i] = env->dr[i];
+    }
+    dbgregs.dr6 = env->dr[6];
+    dbgregs.dr7 = env->dr[7];
+    dbgregs.flags = 0;
+
+    return kvm_vcpu_ioctl(env, KVM_SET_DEBUGREGS, &dbgregs);
+#else
+    return 0;
+#endif
+}
+
+static int kvm_get_debugregs(CPUState *env)
+{
+#ifdef KVM_CAP_DEBUGREGS
+    struct kvm_debugregs dbgregs;
+    int i, ret;
+
+    if (!kvm_has_debugregs()) {
+        return 0;
+    }
+
+    ret = kvm_vcpu_ioctl(env, KVM_GET_DEBUGREGS, &dbgregs);
+    if (ret < 0) {
+       return ret;
+    }
+    for (i = 0; i < 4; i++) {
+        env->dr[i] = dbgregs.db[i];
+    }
+    env->dr[4] = env->dr[6] = dbgregs.dr6;
+    env->dr[5] = env->dr[7] = dbgregs.dr7;
+#endif
+
+    return 0;
+}
+
 int kvm_arch_put_registers(CPUState *env, int level)
 {
     int ret;
@@ -909,6 +956,10 @@ int kvm_arch_put_registers(CPUState *env, int level)
     if (ret < 0)
         return ret;
 
+    ret = kvm_put_debugregs(env);
+    if (ret < 0)
+        return ret;
+
     return 0;
 }
 
@@ -937,6 +988,10 @@ int kvm_arch_get_registers(CPUState *env)
         return ret;
 
     ret = kvm_get_vcpu_events(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_get_debugregs(env);
     if (ret < 0)
         return ret;
 
