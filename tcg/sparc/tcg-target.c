@@ -725,10 +725,18 @@ static const void * const qemu_st_helpers[4] = {
 #define TARGET_LD_OP LDX
 #endif
 
+#if defined(CONFIG_SOFTMMU)
 #if TARGET_PHYS_ADDR_BITS == 32
 #define TARGET_ADDEND_LD_OP LDUW
 #else
 #define TARGET_ADDEND_LD_OP LDX
+#endif
+#else
+#if TARGET_ABI_BITS == 32
+#define TARGET_ADDEND_LD_OP LDUW
+#else
+#define TARGET_ADDEND_LD_OP LDX
+#endif
 #endif
 
 #ifdef __arch64__
