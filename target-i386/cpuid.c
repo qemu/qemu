@@ -117,13 +117,13 @@ static void host_cpuid(uint32_t function, uint32_t count,
 #endif
 
     if (eax)
-	*eax = vec[0];
+        *eax = vec[0];
     if (ebx)
-	*ebx = vec[1];
+        *ebx = vec[1];
     if (ecx)
-	*ecx = vec[2];
+        *ecx = vec[2];
     if (edx)
-	*edx = vec[3];
+        *edx = vec[3];
 #endif
 }
 
@@ -617,7 +617,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                     goto error;
                 }
                 if (numvalue < 0x80000000) {
-			numvalue += 0x80000000;
+                    numvalue += 0x80000000;
                 }
                 x86_cpu_def->xlevel = numvalue;
             } else if (!strcmp(featurestr, "vendor")) {
@@ -1005,9 +1005,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 4:
         /* cache info: needed for Core compatibility */
         if (env->nr_cores > 1) {
-		*eax = (env->nr_cores - 1) << 26;
+            *eax = (env->nr_cores - 1) << 26;
         } else {
-		*eax = 0;
+            *eax = 0;
         }
         switch (count) {
             case 0: /* L1 dcache info */
