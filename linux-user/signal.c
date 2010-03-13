@@ -412,7 +412,7 @@ static void QEMU_NORETURN force_sig(int target_sig)
 
     /* unreachable */
     assert(0);
-
+    abort();
 }
 
 /* queue a signal so that it will be send to the virtual CPU as soon

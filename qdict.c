@@ -195,6 +195,7 @@ double qdict_get_double(const QDict *qdict, const char *key)
         return qint_get_int(qobject_to_qint(obj));
     default:
         assert(0);
+        return 0.0;
     }
 }
 
