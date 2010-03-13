@@ -2556,11 +2556,11 @@ case "$target_arch2" in
       fi
     fi
 esac
-echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_target_mak
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak
 fi
 if test "$target_softmmu" = "yes" ; then
+  echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_target_mak
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
   echo "LIBS+=$libs_softmmu" >> $config_target_mak
   echo "HWDIR=../libhw$target_phys_bits" >> $config_target_mak

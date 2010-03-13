@@ -47,6 +47,11 @@
 #endif
 #endif
 
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)
+static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
+                          int is_asi, int size);
+#endif
+
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 // Calculates TSB pointer value for fault page size 8k or 64k
 static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
@@ -3707,9 +3712,10 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
-#endif
+#endif /* !CONFIG_USER_ONLY */
 
 #ifndef TARGET_SPARC64
+#if !defined(CONFIG_USER_ONLY)
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size)
 {
@@ -3770,9 +3776,15 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 
     env = saved_env;
 }
+#endif
+#else
+#if defined(CONFIG_USER_ONLY)
+static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
+                          int is_asi, int size)
 #else
 void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size)
+#endif
 {
     CPUState *saved_env;
 
@@ -3794,6 +3806,7 @@ void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write, i
     env = saved_env;
 }
 #endif
+
 
 #ifdef TARGET_SPARC64
 void helper_tick_set_count(void *opaque, uint64_t count)

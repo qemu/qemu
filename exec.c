@@ -65,23 +65,6 @@
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
-#if defined(TARGET_SPARC64)
-#define TARGET_PHYS_ADDR_SPACE_BITS 41
-#elif defined(TARGET_SPARC)
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#elif defined(TARGET_ALPHA)
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#define TARGET_VIRT_ADDR_SPACE_BITS 42
-#elif defined(TARGET_PPC64)
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#elif defined(TARGET_X86_64)
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#elif defined(TARGET_I386)
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#else
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#endif
-
 static TranslationBlock *tbs;
 int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
@@ -155,36 +138,66 @@ typedef struct PageDesc {
 #endif
 } PageDesc;
 
-typedef struct PhysPageDesc {
-    /* offset in host memory of the page + io_index in the low bits */
-    ram_addr_t phys_offset;
-    ram_addr_t region_offset;
-} PhysPageDesc;
-
-#define L2_BITS 10
-#if defined(CONFIG_USER_ONLY) && defined(TARGET_VIRT_ADDR_SPACE_BITS)
-/* XXX: this is a temporary hack for alpha target.
- *      In the future, this is to be replaced by a multi-level table
- *      to actually be able to handle the complete 64 bits address space.
- */
-#define L1_BITS (TARGET_VIRT_ADDR_SPACE_BITS - L2_BITS - TARGET_PAGE_BITS)
+/* In system mode we want L1_MAP to be based on ram offsets,
+   while in user mode we want it to be based on virtual addresses.  */
+#if !defined(CONFIG_USER_ONLY)
+#if HOST_LONG_BITS < TARGET_PHYS_ADDR_SPACE_BITS
+# define L1_MAP_ADDR_SPACE_BITS  HOST_LONG_BITS
 #else
-#define L1_BITS (32 - L2_BITS - TARGET_PAGE_BITS)
+# define L1_MAP_ADDR_SPACE_BITS  TARGET_PHYS_ADDR_SPACE_BITS
+#endif
+#else
+# define L1_MAP_ADDR_SPACE_BITS  TARGET_VIRT_ADDR_SPACE_BITS
 #endif
 
-#define L1_SIZE (1 << L1_BITS)
+/* Size of the L2 (and L3, etc) page tables.  */
+#define L2_BITS 10
 #define L2_SIZE (1 << L2_BITS)
+
+/* The bits remaining after N lower levels of page tables.  */
+#define P_L1_BITS_REM \
+    ((TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % L2_BITS)
+#define V_L1_BITS_REM \
+    ((L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % L2_BITS)
+
+/* Size of the L1 page table.  Avoid silly small sizes.  */
+#if P_L1_BITS_REM < 4
+#define P_L1_BITS  (P_L1_BITS_REM + L2_BITS)
+#else
+#define P_L1_BITS  P_L1_BITS_REM
+#endif
+
+#if V_L1_BITS_REM < 4
+#define V_L1_BITS  (V_L1_BITS_REM + L2_BITS)
+#else
+#define V_L1_BITS  V_L1_BITS_REM
+#endif
+
+#define P_L1_SIZE  ((target_phys_addr_t)1 << P_L1_BITS)
+#define V_L1_SIZE  ((target_ulong)1 << V_L1_BITS)
+
+#define P_L1_SHIFT (TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS - P_L1_BITS)
+#define V_L1_SHIFT (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - V_L1_BITS)
 
 unsigned long qemu_real_host_page_size;
 unsigned long qemu_host_page_bits;
 unsigned long qemu_host_page_size;
 unsigned long qemu_host_page_mask;
 
-/* XXX: for system emulation, it could just be an array */
-static PageDesc *l1_map[L1_SIZE];
+/* This is a multi-level map on the virtual address space.
+   The bottom level has pointers to PageDesc.  */
+static void *l1_map[V_L1_SIZE];
 
 #if !defined(CONFIG_USER_ONLY)
-static PhysPageDesc **l1_phys_map;
+typedef struct PhysPageDesc {
+    /* offset in host memory of the page + io_index in the low bits */
+    ram_addr_t phys_offset;
+    ram_addr_t region_offset;
+} PhysPageDesc;
+
+/* This is a multi-level map on the physical address space.
+   The bottom level has pointers to PhysPageDesc.  */
+static void *l1_phys_map[P_L1_SIZE];
 
 static void io_mem_init(void);
 
@@ -207,7 +220,9 @@ int loglevel;
 static int log_append = 0;
 
 /* statistics */
+#if !defined(CONFIG_USER_ONLY)
 static int tlb_flush_count;
+#endif
 static int tb_flush_count;
 static int tb_phys_invalidate_count;
 
@@ -259,133 +274,159 @@ static void page_init(void)
     while ((1 << qemu_host_page_bits) < qemu_host_page_size)
         qemu_host_page_bits++;
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
-#if !defined(CONFIG_USER_ONLY)
-    l1_phys_map = qemu_vmalloc(L1_SIZE * sizeof(void *));
-    memset(l1_phys_map, 0, L1_SIZE * sizeof(void *));
-#endif
 
 #if !defined(_WIN32) && defined(CONFIG_USER_ONLY)
     {
-        long long startaddr, endaddr;
         FILE *f;
-        int n;
 
-        mmap_lock();
         last_brk = (unsigned long)sbrk(0);
+
         f = fopen("/proc/self/maps", "r");
         if (f) {
+            mmap_lock();
+
             do {
-                n = fscanf (f, "%llx-%llx %*[^\n]\n", &startaddr, &endaddr);
-                if (n == 2) {
-                    startaddr = MIN(startaddr,
-                                    (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
-                    endaddr = MIN(endaddr,
-                                    (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
-                    page_set_flags(startaddr & TARGET_PAGE_MASK,
-                                   TARGET_PAGE_ALIGN(endaddr),
-                                   PAGE_RESERVED); 
+                unsigned long startaddr, endaddr;
+                int n;
+
+                n = fscanf (f, "%lx-%lx %*[^\n]\n", &startaddr, &endaddr);
+
+                if (n == 2 && h2g_valid(startaddr)) {
+                    startaddr = h2g(startaddr) & TARGET_PAGE_MASK;
+
+                    if (h2g_valid(endaddr)) {
+                        endaddr = h2g(endaddr);
+                    } else {
+                        endaddr = ~0ul;
+                    }
+                    page_set_flags(startaddr, endaddr, PAGE_RESERVED);
                 }
             } while (!feof(f));
+
             fclose(f);
+            mmap_unlock();
         }
-        mmap_unlock();
     }
 #endif
 }
 
-static inline PageDesc **page_l1_map(target_ulong index)
+static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
 {
-#if TARGET_LONG_BITS > 32
-    /* Host memory outside guest VM.  For 32-bit targets we have already
-       excluded high addresses.  */
-    if (index > ((target_ulong)L2_SIZE * L1_SIZE))
-        return NULL;
-#endif
-    return &l1_map[index >> L2_BITS];
-}
+    PageDesc *pd;
+    void **lp;
+    int i;
 
-static inline PageDesc *page_find_alloc(target_ulong index)
-{
-    PageDesc **lp, *p;
-    lp = page_l1_map(index);
-    if (!lp)
-        return NULL;
-
-    p = *lp;
-    if (!p) {
-        /* allocate if not found */
 #if defined(CONFIG_USER_ONLY)
-        size_t len = sizeof(PageDesc) * L2_SIZE;
-        /* Don't use qemu_malloc because it may recurse.  */
-        p = mmap(NULL, len, PROT_READ | PROT_WRITE,
-                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        *lp = p;
-        if (h2g_valid(p)) {
-            unsigned long addr = h2g(p);
-            page_set_flags(addr & TARGET_PAGE_MASK,
-                           TARGET_PAGE_ALIGN(addr + len),
-                           PAGE_RESERVED); 
-        }
+    /* We can't use qemu_malloc because it may recurse into a locked mutex.
+       Neither can we record the new pages we reserve while allocating a
+       given page because that may recurse into an unallocated page table
+       entry.  Stuff the allocations we do make into a queue and process
+       them after having completed one entire page table allocation.  */
+
+    unsigned long reserve[2 * (V_L1_SHIFT / L2_BITS)];
+    int reserve_idx = 0;
+
+# define ALLOC(P, SIZE)                                 \
+    do {                                                \
+        P = mmap(NULL, SIZE, PROT_READ | PROT_WRITE,    \
+                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);   \
+        if (h2g_valid(P)) {                             \
+            reserve[reserve_idx] = h2g(P);              \
+            reserve[reserve_idx + 1] = SIZE;            \
+            reserve_idx += 2;                           \
+        }                                               \
+    } while (0)
 #else
-        p = qemu_mallocz(sizeof(PageDesc) * L2_SIZE);
-        *lp = p;
+# define ALLOC(P, SIZE) \
+    do { P = qemu_mallocz(SIZE); } while (0)
 #endif
+
+    /* Level 1.  Always allocated.  */
+    lp = l1_map + ((index >> V_L1_SHIFT) & (V_L1_SIZE - 1));
+
+    /* Level 2..N-1.  */
+    for (i = V_L1_SHIFT / L2_BITS - 1; i > 0; i--) {
+        void **p = *lp;
+
+        if (p == NULL) {
+            if (!alloc) {
+                return NULL;
+            }
+            ALLOC(p, sizeof(void *) * L2_SIZE);
+            *lp = p;
+        }
+
+        lp = p + ((index >> (i * L2_BITS)) & (L2_SIZE - 1));
     }
-    return p + (index & (L2_SIZE - 1));
+
+    pd = *lp;
+    if (pd == NULL) {
+        if (!alloc) {
+            return NULL;
+        }
+        ALLOC(pd, sizeof(PageDesc) * L2_SIZE);
+        *lp = pd;
+    }
+
+#undef ALLOC
+#if defined(CONFIG_USER_ONLY)
+    for (i = 0; i < reserve_idx; i += 2) {
+        unsigned long addr = reserve[i];
+        unsigned long len = reserve[i + 1];
+
+        page_set_flags(addr & TARGET_PAGE_MASK,
+                       TARGET_PAGE_ALIGN(addr + len),
+                       PAGE_RESERVED);
+    }
+#endif
+
+    return pd + (index & (L2_SIZE - 1));
 }
 
-static inline PageDesc *page_find(target_ulong index)
+static inline PageDesc *page_find(tb_page_addr_t index)
 {
-    PageDesc **lp, *p;
-    lp = page_l1_map(index);
-    if (!lp)
-        return NULL;
-
-    p = *lp;
-    if (!p) {
-        return NULL;
-    }
-    return p + (index & (L2_SIZE - 1));
+    return page_find_alloc(index, 0);
 }
 
 #if !defined(CONFIG_USER_ONLY)
 static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 {
-    void **lp, **p;
     PhysPageDesc *pd;
+    void **lp;
+    int i;
 
-    p = (void **)l1_phys_map;
-#if TARGET_PHYS_ADDR_SPACE_BITS > 32
+    /* Level 1.  Always allocated.  */
+    lp = l1_phys_map + ((index >> P_L1_SHIFT) & (P_L1_SIZE - 1));
 
-#if TARGET_PHYS_ADDR_SPACE_BITS > (32 + L1_BITS)
-#error unsupported TARGET_PHYS_ADDR_SPACE_BITS
-#endif
-    lp = p + ((index >> (L1_BITS + L2_BITS)) & (L1_SIZE - 1));
-    p = *lp;
-    if (!p) {
-        /* allocate if not found */
-        if (!alloc)
-            return NULL;
-        p = qemu_vmalloc(sizeof(void *) * L1_SIZE);
-        memset(p, 0, sizeof(void *) * L1_SIZE);
-        *lp = p;
+    /* Level 2..N-1.  */
+    for (i = P_L1_SHIFT / L2_BITS - 1; i > 0; i--) {
+        void **p = *lp;
+        if (p == NULL) {
+            if (!alloc) {
+                return NULL;
+            }
+            *lp = p = qemu_mallocz(sizeof(void *) * L2_SIZE);
+        }
+        lp = p + ((index >> (i * L2_BITS)) & (L2_SIZE - 1));
     }
-#endif
-    lp = p + ((index >> L2_BITS) & (L1_SIZE - 1));
+
     pd = *lp;
-    if (!pd) {
+    if (pd == NULL) {
         int i;
-        /* allocate if not found */
-        if (!alloc)
+
+        if (!alloc) {
             return NULL;
-        pd = qemu_vmalloc(sizeof(PhysPageDesc) * L2_SIZE);
-        *lp = pd;
+        }
+
+        *lp = pd = qemu_malloc(sizeof(PhysPageDesc) * L2_SIZE);
+
         for (i = 0; i < L2_SIZE; i++) {
-          pd[i].phys_offset = IO_MEM_UNASSIGNED;
-          pd[i].region_offset = (index + i) << TARGET_PAGE_BITS;
+            pd[i].phys_offset = IO_MEM_UNASSIGNED;
+            pd[i].region_offset = (index + i) << TARGET_PAGE_BITS;
         }
     }
-    return ((PhysPageDesc *)pd) + (index & (L2_SIZE - 1));
+
+    return pd + (index & (L2_SIZE - 1));
 }
 
 static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
@@ -593,21 +634,34 @@ static inline void invalidate_page_bitmap(PageDesc *p)
     p->code_write_count = 0;
 }
 
-/* set to NULL all the 'first_tb' fields in all PageDescs */
+/* Set to NULL all the 'first_tb' fields in all PageDescs. */
+
+static void page_flush_tb_1 (int level, void **lp)
+{
+    int i;
+
+    if (*lp == NULL) {
+        return;
+    }
+    if (level == 0) {
+        PageDesc *pd = *lp;
+        for (i = 0; i < L2_BITS; ++i) {
+            pd[i].first_tb = NULL;
+            invalidate_page_bitmap(pd + i);
+        }
+    } else {
+        void **pp = *lp;
+        for (i = 0; i < L2_BITS; ++i) {
+            page_flush_tb_1 (level - 1, pp + i);
+        }
+    }
+}
+
 static void page_flush_tb(void)
 {
-    int i, j;
-    PageDesc *p;
-
-    for(i = 0; i < L1_SIZE; i++) {
-        p = l1_map[i];
-        if (p) {
-            for(j = 0; j < L2_SIZE; j++) {
-                p->first_tb = NULL;
-                invalidate_page_bitmap(p);
-                p++;
-            }
-        }
+    int i;
+    for (i = 0; i < V_L1_SIZE; i++) {
+        page_flush_tb_1(V_L1_SHIFT / L2_BITS - 1, l1_map + i);
     }
 }
 
@@ -746,12 +800,12 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, (unsigned long)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
-void tb_phys_invalidate(TranslationBlock *tb, target_ulong page_addr)
+void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     CPUState *env;
     PageDesc *p;
     unsigned int h, n1;
-    target_phys_addr_t phys_pc;
+    tb_page_addr_t phys_pc;
     TranslationBlock *tb1, *tb2;
 
     /* remove the TB from the hash list */
@@ -863,10 +917,11 @@ TranslationBlock *tb_gen_code(CPUState *env,
 {
     TranslationBlock *tb;
     uint8_t *tc_ptr;
-    target_ulong phys_pc, phys_page2, virt_page2;
+    tb_page_addr_t phys_pc, phys_page2;
+    target_ulong virt_page2;
     int code_gen_size;
 
-    phys_pc = get_phys_addr_code(env, pc);
+    phys_pc = get_page_addr_code(env, pc);
     tb = tb_alloc(pc);
     if (!tb) {
         /* flush must be done */
@@ -895,9 +950,9 @@ TranslationBlock *tb_gen_code(CPUState *env,
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
     if ((pc & TARGET_PAGE_MASK) != virt_page2) {
-        phys_page2 = get_phys_addr_code(env, virt_page2);
+        phys_page2 = get_page_addr_code(env, virt_page2);
     }
-    tb_link_phys(tb, phys_pc, phys_page2);
+    tb_link_page(tb, phys_pc, phys_page2);
     return tb;
 }
 
@@ -906,12 +961,12 @@ TranslationBlock *tb_gen_code(CPUState *env,
    the same physical page. 'is_cpu_write_access' should be true if called
    from a real cpu write access: the virtual CPU will exit the current
    TB if code is modified inside this TB. */
-void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
+void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
     CPUState *env = cpu_single_env;
-    target_ulong tb_start, tb_end;
+    tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
     int n;
 #ifdef TARGET_HAS_PRECISE_SMC
@@ -1013,7 +1068,7 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
 }
 
 /* len must be <= 8 and start must be a multiple of len */
-static inline void tb_invalidate_phys_page_fast(target_phys_addr_t start, int len)
+static inline void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
     PageDesc *p;
     int offset, b;
@@ -1040,7 +1095,7 @@ static inline void tb_invalidate_phys_page_fast(target_phys_addr_t start, int le
 }
 
 #if !defined(CONFIG_SOFTMMU)
-static void tb_invalidate_phys_page(target_phys_addr_t addr,
+static void tb_invalidate_phys_page(tb_page_addr_t addr,
                                     unsigned long pc, void *puc)
 {
     TranslationBlock *tb;
@@ -1102,13 +1157,13 @@ static void tb_invalidate_phys_page(target_phys_addr_t addr,
 
 /* add the tb in the target page and protect it if necessary */
 static inline void tb_alloc_page(TranslationBlock *tb,
-                                 unsigned int n, target_ulong page_addr)
+                                 unsigned int n, tb_page_addr_t page_addr)
 {
     PageDesc *p;
     TranslationBlock *last_first_tb;
 
     tb->page_addr[n] = page_addr;
-    p = page_find_alloc(page_addr >> TARGET_PAGE_BITS);
+    p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
     tb->page_next[n] = p->first_tb;
     last_first_tb = p->first_tb;
     p->first_tb = (TranslationBlock *)((long)tb | n);
@@ -1183,8 +1238,8 @@ void tb_free(TranslationBlock *tb)
 
 /* add a new TB and link it to the physical page tables. phys_page2 is
    (-1) to indicate that only one page contains the TB. */
-void tb_link_phys(TranslationBlock *tb,
-                  target_ulong phys_pc, target_ulong phys_page2)
+void tb_link_page(TranslationBlock *tb,
+                  tb_page_addr_t phys_pc, tb_page_addr_t phys_page2)
 {
     unsigned int h;
     TranslationBlock **ptb;
@@ -1668,50 +1723,37 @@ static int cpu_notify_migration_log(int enable)
     return 0;
 }
 
-static void phys_page_for_each_in_l1_map(PhysPageDesc **phys_map,
-                                         CPUPhysMemoryClient *client)
+static void phys_page_for_each_1(CPUPhysMemoryClient *client,
+                                 int level, void **lp)
 {
-    PhysPageDesc *pd;
-    int l1, l2;
+    int i;
 
-    for (l1 = 0; l1 < L1_SIZE; ++l1) {
-        pd = phys_map[l1];
-        if (!pd) {
-            continue;
-        }
-        for (l2 = 0; l2 < L2_SIZE; ++l2) {
-            if (pd[l2].phys_offset == IO_MEM_UNASSIGNED) {
-                continue;
+    if (*lp == NULL) {
+        return;
+    }
+    if (level == 0) {
+        PhysPageDesc *pd = *lp;
+        for (i = 0; i < L2_BITS; ++i) {
+            if (pd[i].phys_offset != IO_MEM_UNASSIGNED) {
+                client->set_memory(client, pd[i].region_offset,
+                                   TARGET_PAGE_SIZE, pd[i].phys_offset);
             }
-            client->set_memory(client, pd[l2].region_offset,
-                               TARGET_PAGE_SIZE, pd[l2].phys_offset);
+        }
+    } else {
+        void **pp = *lp;
+        for (i = 0; i < L2_BITS; ++i) {
+            phys_page_for_each_1(client, level - 1, pp + i);
         }
     }
 }
 
 static void phys_page_for_each(CPUPhysMemoryClient *client)
 {
-#if TARGET_PHYS_ADDR_SPACE_BITS > 32
-
-#if TARGET_PHYS_ADDR_SPACE_BITS > (32 + L1_BITS)
-#error unsupported TARGET_PHYS_ADDR_SPACE_BITS
-#endif
-    void **phys_map = (void **)l1_phys_map;
-    int l1;
-    if (!l1_phys_map) {
-        return;
+    int i;
+    for (i = 0; i < P_L1_SIZE; ++i) {
+        phys_page_for_each_1(client, P_L1_SHIFT / L2_BITS - 1,
+                             l1_phys_map + 1);
     }
-    for (l1 = 0; l1 < L1_SIZE; ++l1) {
-        if (phys_map[l1]) {
-            phys_page_for_each_in_l1_map(phys_map[l1], client);
-        }
-    }
-#else
-    if (!l1_phys_map) {
-        return;
-    }
-    phys_page_for_each_in_l1_map(l1_phys_map, client);
-#endif
 }
 
 void cpu_register_phys_memory_client(CPUPhysMemoryClient *client)
@@ -2175,52 +2217,97 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
  * Walks guest process memory "regions" one by one
  * and calls callback function 'fn' for each region.
  */
-int walk_memory_regions(void *priv,
-    int (*fn)(void *, unsigned long, unsigned long, unsigned long))
+
+struct walk_memory_regions_data
 {
-    unsigned long start, end;
-    PageDesc *p = NULL;
-    int i, j, prot, prot1;
-    int rc = 0;
+    walk_memory_regions_fn fn;
+    void *priv;
+    unsigned long start;
+    int prot;
+};
 
-    start = end = -1;
-    prot = 0;
-
-    for (i = 0; i <= L1_SIZE; i++) {
-        p = (i < L1_SIZE) ? l1_map[i] : NULL;
-        for (j = 0; j < L2_SIZE; j++) {
-            prot1 = (p == NULL) ? 0 : p[j].flags;
-            /*
-             * "region" is one continuous chunk of memory
-             * that has same protection flags set.
-             */
-            if (prot1 != prot) {
-                end = (i << (32 - L1_BITS)) | (j << TARGET_PAGE_BITS);
-                if (start != -1) {
-                    rc = (*fn)(priv, start, end, prot);
-                    /* callback can stop iteration by returning != 0 */
-                    if (rc != 0)
-                        return (rc);
-                }
-                if (prot1 != 0)
-                    start = end;
-                else
-                    start = -1;
-                prot = prot1;
-            }
-            if (p == NULL)
-                break;
+static int walk_memory_regions_end(struct walk_memory_regions_data *data,
+                                   abi_ulong end, int new_prot)
+{
+    if (data->start != -1ul) {
+        int rc = data->fn(data->priv, data->start, end, data->prot);
+        if (rc != 0) {
+            return rc;
         }
     }
-    return (rc);
+
+    data->start = (new_prot ? end : -1ul);
+    data->prot = new_prot;
+
+    return 0;
 }
 
-static int dump_region(void *priv, unsigned long start,
-    unsigned long end, unsigned long prot)
+static int walk_memory_regions_1(struct walk_memory_regions_data *data,
+                                 abi_ulong base, int level, void **lp)
+{
+    abi_ulong pa;
+    int i, rc;
+
+    if (*lp == NULL) {
+        return walk_memory_regions_end(data, base, 0);
+    }
+
+    if (level == 0) {
+        PageDesc *pd = *lp;
+        for (i = 0; i < L2_BITS; ++i) {
+            int prot = pd[i].flags;
+
+            pa = base | (i << TARGET_PAGE_BITS);
+            if (prot != data->prot) {
+                rc = walk_memory_regions_end(data, pa, prot);
+                if (rc != 0) {
+                    return rc;
+                }
+            }
+        }
+    } else {
+        void **pp = *lp;
+        for (i = 0; i < L2_BITS; ++i) {
+            pa = base | ((abi_ulong)i <<
+                (TARGET_PAGE_BITS + L2_BITS * level));
+            rc = walk_memory_regions_1(data, pa, level - 1, pp + i);
+            if (rc != 0) {
+                return rc;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
+{
+    struct walk_memory_regions_data data;
+    unsigned long i;
+
+    data.fn = fn;
+    data.priv = priv;
+    data.start = -1ul;
+    data.prot = 0;
+
+    for (i = 0; i < V_L1_SIZE; i++) {
+        int rc = walk_memory_regions_1(&data, (abi_ulong)i << V_L1_SHIFT,
+                                       V_L1_SHIFT / L2_BITS - 1, l1_map + i);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    return walk_memory_regions_end(&data, 0, 0);
+}
+
+static int dump_region(void *priv, abi_ulong start,
+    abi_ulong end, unsigned long prot)
 {
     FILE *f = (FILE *)priv;
 
-    (void) fprintf(f, "%08lx-%08lx %08lx %c%c%c\n",
+    (void) fprintf(f, TARGET_ABI_FMT_lx"-"TARGET_ABI_FMT_lx
+        " "TARGET_ABI_FMT_lx" %c%c%c\n",
         start, end, end - start,
         ((prot & PAGE_READ) ? 'r' : '-'),
         ((prot & PAGE_WRITE) ? 'w' : '-'),
@@ -2247,27 +2334,35 @@ int page_get_flags(target_ulong address)
     return p->flags;
 }
 
-/* modify the flags of a page and invalidate the code if
-   necessary. The flag PAGE_WRITE_ORG is positioned automatically
-   depending on PAGE_WRITE */
+/* Modify the flags of a page and invalidate the code if necessary.
+   The flag PAGE_WRITE_ORG is positioned automatically depending
+   on PAGE_WRITE.  The mmap_lock should already be held.  */
 void page_set_flags(target_ulong start, target_ulong end, int flags)
 {
-    PageDesc *p;
-    target_ulong addr;
+    target_ulong addr, len;
 
-    /* mmap_lock should already be held.  */
+    /* This function should never be called with addresses outside the
+       guest address space.  If this assert fires, it probably indicates
+       a missing call to h2g_valid.  */
+#if TARGET_ABI_BITS > L1_MAP_ADDR_SPACE_BITS
+    assert(end < ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
+#endif
+    assert(start < end);
+
     start = start & TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
-    if (flags & PAGE_WRITE)
+
+    if (flags & PAGE_WRITE) {
         flags |= PAGE_WRITE_ORG;
-    for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        p = page_find_alloc(addr >> TARGET_PAGE_BITS);
-        /* We may be called for host regions that are outside guest
-           address space.  */
-        if (!p)
-            return;
-        /* if the write protection is set, then we invalidate the code
-           inside */
+    }
+
+    for (addr = start, len = end - start;
+         len != 0;
+         len -= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
+        PageDesc *p = page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
+
+        /* If the write protection bit is set, then we invalidate
+           the code inside.  */
         if (!(p->flags & PAGE_WRITE) &&
             (flags & PAGE_WRITE) &&
             p->first_tb) {
@@ -2283,14 +2378,24 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
     target_ulong end;
     target_ulong addr;
 
-    if (start + len < start)
-        /* we've wrapped around */
+    /* This function should never be called with addresses outside the
+       guest address space.  If this assert fires, it probably indicates
+       a missing call to h2g_valid.  */
+#if HOST_LONG_BITS > L1_MAP_ADDR_SPACE_BITS
+    assert(start < (1ul << L1_MAP_ADDR_SPACE_BITS));
+#endif
+
+    if (start + len - 1 < start) {
+        /* We've wrapped around.  */
         return -1;
+    }
 
     end = TARGET_PAGE_ALIGN(start+len); /* must do before we loose bits in the next step */
     start = start & TARGET_PAGE_MASK;
 
-    for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
+    for (addr = start, len = end - start;
+         len != 0;
+         len -= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
         p = page_find(addr >> TARGET_PAGE_BITS);
         if( !p )
             return -1;
@@ -3885,6 +3990,8 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
     cpu_resume_from_signal(env, NULL);
 }
 
+#if !defined(CONFIG_USER_ONLY)
+
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
@@ -3937,8 +4044,6 @@ void dump_exec_info(FILE *f,
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
     tcg_dump_info(f, cpu_fprintf);
 }
-
-#if !defined(CONFIG_USER_ONLY)
 
 #define MMUSUFFIX _cmmu
 #define GETPC() NULL

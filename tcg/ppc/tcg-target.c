@@ -36,10 +36,13 @@ static uint8_t *tb_ret_addr;
 #endif
 
 #define FAST_PATH
+
+#ifdef CONFIG_SOFTMMU
 #if TARGET_PHYS_ADDR_BITS <= 32
 #define ADDEND_OFFSET 0
 #else
 #define ADDEND_OFFSET 4
+#endif
 #endif
 
 #ifndef GUEST_BASE

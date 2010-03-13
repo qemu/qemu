@@ -7,10 +7,18 @@
 #define TARGET_LONG_BITS 32
 #define TARGET_FPREGS 32
 #define TARGET_PAGE_BITS 12 /* 4k */
+#define TARGET_PHYS_ADDR_SPACE_BITS 41
+# ifdef TARGET_ABI32
+#  define TARGET_VIRT_ADDR_SPACE_BITS 32
+# else
+#  define TARGET_VIRT_ADDR_SPACE_BITS 44
+# endif
 #else
 #define TARGET_LONG_BITS 64
 #define TARGET_FPREGS 64
 #define TARGET_PAGE_BITS 13 /* 8k */
+#define TARGET_PHYS_ADDR_SPACE_BITS 36
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
 #define CPUState struct CPUSPARCState
@@ -542,8 +550,10 @@ static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
 #endif
 
 /* cpu-exec.c */
+#if !defined(CONFIG_USER_ONLY)
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size);
+#endif
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define cpu_init cpu_sparc_init

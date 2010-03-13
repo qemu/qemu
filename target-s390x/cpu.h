@@ -99,6 +99,11 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 
 #define TARGET_PAGE_BITS 12
 
+/* ??? This is certainly wrong for 64-bit s390x, but given that only KVM
+   emulation actually works, this is good enough for a placeholder.  */
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
+
 #ifndef CONFIG_USER_ONLY
 extern int s390_virtio_hypercall(CPUState *env);
 extern void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);

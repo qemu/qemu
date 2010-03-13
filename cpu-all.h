@@ -634,15 +634,21 @@ extern int have_guest_base;
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 #define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
+
+#if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
+#define h2g_valid(x) 1
+#else
+#define h2g_valid(x) ({ \
+    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
+    __guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS); \
+})
+#endif
+
 #define h2g(x) ({ \
     unsigned long __ret = (unsigned long)(x) - GUEST_BASE; \
     /* Check if given address fits target address space */ \
-    assert(__ret == (abi_ulong)__ret); \
+    assert(h2g_valid(x)); \
     (abi_ulong)__ret; \
-})
-#define h2g_valid(x) ({ \
-    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
-    (__guest == (abi_ulong)__guest); \
 })
 
 #define saddr(x) g2h(x)
@@ -738,12 +744,17 @@ extern unsigned long qemu_host_page_mask;
 #define PAGE_WRITE_ORG 0x0010
 #define PAGE_RESERVED  0x0020
 
+#if defined(CONFIG_USER_ONLY)
 void page_dump(FILE *f);
-int walk_memory_regions(void *,
-    int (*fn)(void *, unsigned long, unsigned long, unsigned long));
+
+typedef int (*walk_memory_regions_fn)(void *, abi_ulong,
+                                      abi_ulong, unsigned long);
+int walk_memory_regions(void *, walk_memory_regions_fn);
+
 int page_get_flags(target_ulong address);
 void page_set_flags(target_ulong start, target_ulong end, int flags);
 int page_check_range(target_ulong start, target_ulong len, int flags);
+#endif
 
 void cpu_exec_init_all(unsigned long tb_size);
 CPUState *cpu_copy(CPUState *env);
@@ -811,11 +822,6 @@ void cpu_watchpoint_remove_all(CPUState *env, int mask);
 void cpu_single_step(CPUState *env, int enabled);
 void cpu_reset(CPUState *s);
 
-/* Return the physical page corresponding to a virtual one. Use it
-   only for debugging because no protection checks are done. Return -1
-   if no page found. */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
-
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
 #define CPU_LOG_TB_IN_ASM  (1 << 1)
 #define CPU_LOG_TB_OP      (1 << 2)
@@ -839,6 +845,13 @@ extern const CPULogItem cpu_log_items[];
 void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
+
+#if !defined(CONFIG_USER_ONLY)
+
+/* Return the physical page corresponding to a virtual one. Use it
+   only for debugging because no protection checks are done. Return -1
+   if no page found. */
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 
 /* memory API */
 
@@ -867,9 +880,6 @@ extern int mem_prealloc;
 #define TLB_NOTDIRTY    (1 << 4)
 /* Set if TLB entry is an IO callback.  */
 #define TLB_MMIO        (1 << 5)
-
-int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
-                        uint8_t *buf, int len, int is_write);
 
 #define VGA_DIRTY_FLAG       0x01
 #define CODE_DIRTY_FLAG      0x02
@@ -916,6 +926,11 @@ void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
 void qemu_flush_coalesced_mmio_buffer(void);
+
+#endif /* !CONFIG_USER_ONLY */
+
+int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
+                        uint8_t *buf, int len, int is_write);
 
 /*******************************************/
 /* host CPU ticks (if available) */

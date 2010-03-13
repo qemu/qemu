@@ -46,11 +46,6 @@ CPUS390XState *cpu_s390x_init(const char *cpu_model)
     return env;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
 void cpu_reset(CPUS390XState *env)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {

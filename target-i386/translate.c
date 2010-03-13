@@ -2052,8 +2052,8 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
                 gen_op_movl_A0_im(disp);
             }
         }
-        /* XXX: index == 4 is always invalid */
-        if (havesib && (index != 4 || scale != 0)) {
+        /* index == 4 means no index */
+        if (havesib && (index != 4)) {
 #ifdef TARGET_X86_64
             if (s->aflag == 2) {
                 gen_op_addq_A0_reg_sN(scale, index);

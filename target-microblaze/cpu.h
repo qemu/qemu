@@ -253,6 +253,9 @@ enum {
 #define TARGET_PAGE_BITS 12
 #define MMAP_SHIFT TARGET_PAGE_BITS
 
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
+
 #define cpu_init cpu_mb_init
 #define cpu_exec cpu_mb_exec
 #define cpu_gen_code cpu_mb_gen_code
@@ -324,6 +327,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = env->iflags & IFLAGS_TB_MASK;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size);
+#endif
 #endif

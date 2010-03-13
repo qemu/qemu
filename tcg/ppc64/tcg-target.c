@@ -28,10 +28,12 @@ static uint8_t *tb_ret_addr;
 
 #define FAST_PATH
 
+#ifdef CONFIG_SOFTMMU
 #if TARGET_PHYS_ADDR_BITS == 32
 #define LD_ADDEND LWZ
 #else
 #define LD_ADDEND LD
+#endif
 #endif
 
 #if TARGET_LONG_BITS == 32

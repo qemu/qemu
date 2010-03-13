@@ -25,6 +25,15 @@
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
 
+/* Page tracking code uses ram addresses in system mode, and virtual
+   addresses in userspace mode.  Define tb_page_addr_t to be an appropriate
+   type.  */
+#if defined(CONFIG_USER_ONLY)
+typedef abi_ulong tb_page_addr_t;
+#else
+typedef ram_addr_t tb_page_addr_t;
+#endif
+
 /* is_jmp field values */
 #define DISAS_NEXT    0 /* next instruction can be analyzed */
 #define DISAS_JUMP    1 /* only pc was modified dynamically */
@@ -81,7 +90,7 @@ TranslationBlock *tb_gen_code(CPUState *env,
 void cpu_exec_init(CPUState *env);
 void QEMU_NORETURN cpu_loop_exit(void);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
-void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
+void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, target_ulong addr);
@@ -138,7 +147,7 @@ struct TranslationBlock {
     /* first and second physical page containing code. The lower bit
        of the pointer tells the index in page_next[] */
     struct TranslationBlock *page_next[2];
-    target_ulong page_addr[2];
+    tb_page_addr_t page_addr[2];
 
     /* the following data are used to directly call another TB from
        the code of this one. */
@@ -172,7 +181,7 @@ static inline unsigned int tb_jmp_cache_hash_func(target_ulong pc)
 	    | (tmp & TB_JMP_ADDR_MASK));
 }
 
-static inline unsigned int tb_phys_hash_func(unsigned long pc)
+static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc)
 {
     return pc & (CODE_GEN_PHYS_HASH_SIZE - 1);
 }
@@ -180,9 +189,9 @@ static inline unsigned int tb_phys_hash_func(unsigned long pc)
 TranslationBlock *tb_alloc(target_ulong pc);
 void tb_free(TranslationBlock *tb);
 void tb_flush(CPUState *env);
-void tb_link_phys(TranslationBlock *tb,
-                  target_ulong phys_pc, target_ulong phys_page2);
-void tb_phys_invalidate(TranslationBlock *tb, target_ulong page_addr);
+void tb_link_page(TranslationBlock *tb,
+                  tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
+void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 extern uint8_t *code_gen_ptr;
@@ -276,10 +285,6 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
 TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
-extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
-extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
-extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
-
 #include "qemu-lock.h"
 
 extern spinlock_t tb_lock;
@@ -287,6 +292,10 @@ extern spinlock_t tb_lock;
 extern int tb_invalidated_flag;
 
 #if !defined(CONFIG_USER_ONLY)
+
+extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
+extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
+extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
 void tlb_fill(target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);
@@ -316,7 +325,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx,
 #endif
 
 #if defined(CONFIG_USER_ONLY)
-static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
+static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
 {
     return addr;
 }
@@ -324,7 +333,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 /* NOTE: this function can trigger an exception */
 /* NOTE2: the returned address is not exactly the physical address: it
    is the offset relative to phys_ram_base */
-static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
+static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
 {
     int mmu_idx, page_index, pd;
     void *p;

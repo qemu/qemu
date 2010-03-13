@@ -210,6 +210,9 @@ void register_m68k_insns (CPUM68KState *env);
 #define TARGET_PAGE_BITS 10
 #endif
 
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
+
 #define cpu_init cpu_m68k_init
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code

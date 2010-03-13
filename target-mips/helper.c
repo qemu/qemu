@@ -34,6 +34,8 @@ enum {
     TLBRET_MATCH = 0
 };
 
+#if !defined(CONFIG_USER_ONLY)
+
 /* no MMU emulation */
 int no_mmu_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                         target_ulong address, int rw, int access_type)
@@ -104,7 +106,6 @@ int r4k_map_address (CPUState *env, target_phys_addr_t *physical, int *prot,
     return TLBRET_NOMATCH;
 }
 
-#if !defined(CONFIG_USER_ONLY)
 static int get_physical_address (CPUState *env, target_phys_addr_t *physical,
                                 int *prot, target_ulong address,
                                 int rw, int access_type)
@@ -271,19 +272,17 @@ static void raise_mmu_exception(CPUState *env, target_ulong address,
     env->error_code = error_code;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-#if defined(CONFIG_USER_ONLY)
-    return addr;
-#else
     target_phys_addr_t phys_addr;
     int prot;
 
     if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT) != 0)
         return -1;
     return phys_addr;
-#endif
 }
+#endif
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu)
@@ -619,6 +618,7 @@ void do_interrupt (CPUState *env)
     env->exception_index = EXCP_NONE;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 {
     r4k_tlb_t *tlb;
@@ -674,3 +674,4 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
         }
     }
 }
+#endif

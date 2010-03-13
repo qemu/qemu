@@ -72,6 +72,7 @@ typedef uint64_t target_ulong;
 #define TB_JMP_ADDR_MASK (TB_JMP_PAGE_SIZE - 1)
 #define TB_JMP_PAGE_MASK (TB_JMP_CACHE_SIZE - TB_JMP_PAGE_SIZE)
 
+#if !defined(CONFIG_USER_ONLY)
 #define CPU_TLB_BITS 8
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
@@ -105,6 +106,18 @@ typedef struct CPUTLBEntry {
                    ((-sizeof(target_ulong) * 3) & (sizeof(target_phys_addr_t) - 1)) + 
                    sizeof(target_phys_addr_t))];
 } CPUTLBEntry;
+
+#define CPU_COMMON_TLB \
+    /* The meaning of the MMU modes is defined in the target code. */   \
+    CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
+    target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
+
+#else
+
+#define CPU_COMMON_TLB
+
+#endif
+
 
 #ifdef HOST_WORDS_BIGENDIAN
 typedef struct icount_decr_u16 {
@@ -150,9 +163,7 @@ typedef struct CPUWatchpoint {
     uint32_t stopped; /* Artificially stopped */                        \
     uint32_t interrupt_request;                                         \
     volatile sig_atomic_t exit_request;                                 \
-    /* The meaning of the MMU modes is defined in the target code. */   \
-    CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
-    target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
+    CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
     /* buffer for temporaries in the code generator */                  \
     long temp_buf[CPU_TEMP_BUF_NLONGS];                                 \

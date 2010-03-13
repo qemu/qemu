@@ -1690,9 +1690,11 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
 void tcg_target_init(TCGContext *s)
 {
+#if !defined(CONFIG_USER_ONLY)
     /* fail safe */
     if ((1 << CPU_TLB_ENTRY_BITS) != sizeof(CPUTLBEntry))
         tcg_abort();
+#endif
 
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0,
                     ((2 << TCG_REG_R14) - 1) & ~(1 << TCG_REG_R8));
