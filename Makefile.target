@@ -61,6 +61,9 @@ libobj-$(CONFIG_TCG_INTERPRETER) += tcg/tci.o
 libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
 libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
 libobj-y += op_helper.o helper.o
+ifeq ($(TARGET_BASE_ARCH), i386)
+libobj-y += cpuid.o
+endif
 libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
 
