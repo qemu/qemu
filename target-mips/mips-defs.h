@@ -8,14 +8,14 @@
 #define TARGET_PAGE_BITS 12
 #define MIPS_TLB_MAX 128
 
-/* ??? MIPS64 no doubt has a larger address space.  */
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
-
 #if defined(TARGET_MIPS64)
 #define TARGET_LONG_BITS 64
+#define TARGET_PHYS_ADDR_SPACE_BITS 36
+#define TARGET_VIRT_ADDR_SPACE_BITS 42
 #else
 #define TARGET_LONG_BITS 32
+#define TARGET_PHYS_ADDR_SPACE_BITS 36
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
 /* Masks used to mark instructions to indicate which ISA level they
