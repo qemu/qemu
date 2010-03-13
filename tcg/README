@@ -75,10 +75,13 @@ destroyed, but local temporaries and globals are preserved.
 * Helpers:
 
 Using the tcg_gen_helper_x_y it is possible to call any function
-taking i32, i64 or pointer types. Before calling a helper, all
-globals are stored at their canonical location and it is assumed that
-the function can modify them. In the future, function modifiers will
-be allowed to tell that the helper does not read or write some globals.
+taking i32, i64 or pointer types. By default, before calling a helper,
+all globals are stored at their canonical location and it is assumed
+that the function can modify them. This can be overriden by the
+TCG_CALL_CONST function modifier. By default, the helper is allowed to
+modify the CPU state or raise an exception. This can be overriden by
+the TCG_CALL_PURE function modifier, in which case the call to the
+function is removed if the return value is not used.
 
 On some TCG targets (e.g. x86), several calling conventions are
 supported.

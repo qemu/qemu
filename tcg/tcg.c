@@ -27,7 +27,7 @@
 
 #include "config.h"
 
-#ifndef CONFIG_DEBUG_TCG
+#if !defined(CONFIG_DEBUG_TCG) && !defined(NDEBUG)
 /* define it to suppress various consistency checks (faster) */
 #define NDEBUG
 #endif

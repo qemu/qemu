@@ -3168,6 +3168,11 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         case 0x1e7: /* movntdq */
         case 0x02b: /* movntps */
         case 0x12b: /* movntps */
+            if (mod == 3)
+                goto illegal_op;
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_sto_env_A0(s->mem_index, offsetof(CPUX86State,xmm_regs[reg]));
+            break;
         case 0x3f0: /* lddqu */
             if (mod == 3)
                 goto illegal_op;
