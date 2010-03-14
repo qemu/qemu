@@ -20,6 +20,10 @@ void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);
 /* jazz_led.c */
 extern void jazz_led_init(target_phys_addr_t base);
 
+/* mips_addr.c */
+uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr);
+uint64_t cpu_mips_phys_to_kseg0(void *opaque, uint64_t addr);
+
 /* mips_int.c */
 extern void cpu_mips_irq_init_cpu(CPUState *env);
 

@@ -225,8 +225,8 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
 #endif
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */
-    kernel_size = load_elf(info->kernel_filename, 0, &elf_entry, NULL, NULL,
-                           big_endian, ELF_MACHINE, 1);
+    kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
+                           NULL, NULL, big_endian, ELF_MACHINE, 1);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,

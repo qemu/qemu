@@ -46,15 +46,7 @@
 
 //#define DEBUG_BOARD_INIT
 
-#ifdef TARGET_MIPS64
-#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)
-#else
-#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffU)
-#endif
-
-#define ENVP_ADDR (int32_t)0x80002000
-#define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
-
+#define ENVP_ADDR		0x80002000l
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
@@ -681,7 +673,7 @@ static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
 /* Kernel */
 static int64_t load_kernel (void)
 {
-    int64_t kernel_entry, kernel_low, kernel_high;
+    int64_t kernel_entry, kernel_high;
     long initrd_size;
     ram_addr_t initrd_offset;
     int big_endian;
@@ -695,9 +687,9 @@ static int64_t load_kernel (void)
     big_endian = 0;
 #endif
 
-    if (load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
-                 (uint64_t *)&kernel_entry, (uint64_t *)&kernel_low,
-                 (uint64_t *)&kernel_high, big_endian, ELF_MACHINE, 1) < 0) {
+    if (load_elf(loaderparams.kernel_filename, cpu_mips_kseg0_to_phys, NULL,
+                 (uint64_t *)&kernel_entry, NULL, (uint64_t *)&kernel_high,
+                 big_endian, ELF_MACHINE, 1) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
         exit(1);
@@ -733,8 +725,8 @@ static int64_t load_kernel (void)
 
     prom_set(prom_buf, prom_index++, loaderparams.kernel_filename);
     if (initrd_size > 0) {
-        prom_set(prom_buf, prom_index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
-                 PHYS_TO_VIRT(initrd_offset), initrd_size,
+        prom_set(prom_buf, prom_index++, "rd_start=0x%" PRIx64 " rd_size=%li %s",
+                 cpu_mips_phys_to_kseg0(NULL, initrd_offset), initrd_size,
                  loaderparams.kernel_cmdline);
     } else {
         prom_set(prom_buf, prom_index++, loaderparams.kernel_cmdline);
@@ -747,7 +739,7 @@ static int64_t load_kernel (void)
     prom_set(prom_buf, prom_index++, NULL);
 
     rom_add_blob_fixed("prom", prom_buf, prom_size,
-                       ENVP_ADDR + VIRT_TO_PHYS_ADDEND);
+                       cpu_mips_kseg0_to_phys(NULL, ENVP_ADDR));
 
     return kernel_entry;
 }

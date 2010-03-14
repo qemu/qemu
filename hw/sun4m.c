@@ -292,6 +292,11 @@ static void cpu_halt_signal(void *opaque, int irq, int level)
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
 }
 
+static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
+{
+    return addr - 0xf0000000ULL;
+}
+
 static unsigned long sun4m_load_kernel(const char *kernel_filename,
                                        const char *initrd_filename,
                                        ram_addr_t RAM_size)
@@ -312,8 +317,8 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
 #else
         bswap_needed = 0;
 #endif
-        kernel_size = load_elf(kernel_filename, -0xf0000000ULL, NULL, NULL,
-                               NULL, 1, ELF_MACHINE, 0);
+        kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
+                               NULL, NULL, NULL, 1, ELF_MACHINE, 0);
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, KERNEL_LOAD_ADDR,
                                     RAM_size - KERNEL_LOAD_ADDR, bswap_needed,
@@ -636,6 +641,12 @@ static void afx_register_devices(void)
 device_init(afx_register_devices);
 
 /* Boot PROM (OpenBIOS) */
+static uint64_t translate_prom_address(void *opaque, uint64_t addr)
+{
+    target_phys_addr_t *base_addr = (target_phys_addr_t *)opaque;
+    return addr + *base_addr - PROM_VADDR;
+}
+
 static void prom_init(target_phys_addr_t addr, const char *bios_name)
 {
     DeviceState *dev;
@@ -655,8 +666,8 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
-        ret = load_elf(filename, addr - PROM_VADDR, NULL, NULL, NULL,
-                       1, ELF_MACHINE, 0);
+        ret = load_elf(filename, translate_prom_address, &addr, NULL,
+                       NULL, NULL, 1, ELF_MACHINE, 0);
         if (ret < 0 || ret > PROM_SIZE_MAX) {
             ret = load_image_targphys(filename, addr, PROM_SIZE_MAX);
         }

@@ -21,10 +21,6 @@
 #include "loader.h"
 #include "elf.h"
 
-#define PHYS_TO_VIRT(x) ((x) | ~(target_ulong)0x7fffffff)
-
-#define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
-
 #define MAX_IDE_BUS 2
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
@@ -77,7 +73,7 @@ typedef struct ResetData {
 
 static int64_t load_kernel(void)
 {
-    int64_t entry, kernel_low, kernel_high;
+    int64_t entry, kernel_high;
     long kernel_size, initrd_size, params_size;
     ram_addr_t initrd_offset;
     uint32_t *params_buf;
@@ -88,9 +84,10 @@ static int64_t load_kernel(void)
 #else
     big_endian = 0;
 #endif
-    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
-                           (uint64_t *)&entry, (uint64_t *)&kernel_low,
-                           (uint64_t *)&kernel_high, big_endian, ELF_MACHINE, 1);
+    kernel_size = load_elf(loaderparams.kernel_filename, cpu_mips_kseg0_to_phys,
+                           NULL, (uint64_t *)&entry, NULL,
+                           (uint64_t *)&kernel_high, big_endian,
+                           ELF_MACHINE, 1);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
@@ -132,8 +129,8 @@ static int64_t load_kernel(void)
     params_buf[1] = tswap32(0x12345678);
 
     if (initrd_size > 0) {
-        snprintf((char *)params_buf + 8, 256, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
-                 PHYS_TO_VIRT((uint32_t)initrd_offset),
+        snprintf((char *)params_buf + 8, 256, "rd_start=0x%" PRIx64 " rd_size=%li %s",
+                 cpu_mips_phys_to_kseg0(NULL, initrd_offset),
                  initrd_size, loaderparams.kernel_cmdline);
     } else {
         snprintf((char *)params_buf + 8, 256, "%s", loaderparams.kernel_cmdline);

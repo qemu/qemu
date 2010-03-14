@@ -104,6 +104,11 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
     return fdt_size;
 }
 
+static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
+{
+    return addr - 0x30000000LL;
+}
+
 static void
 petalogix_s3adsp1800_init(ram_addr_t ram_size,
                           const char *boot_device,
@@ -163,13 +168,13 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
         uint32_t base32;
 
         /* Boots a kernel elf binary.  */
-        kernel_size = load_elf(kernel_filename, 0,
+        kernel_size = load_elf(kernel_filename, NULL, NULL,
                                &entry, &low, &high,
                                1, ELF_MACHINE, 0);
         base32 = entry;
         if (base32 == 0xc0000000) {
-            kernel_size = load_elf(kernel_filename, -0x30000000LL,
-                                   &entry, NULL, NULL,
+            kernel_size = load_elf(kernel_filename, translate_kernel_address,
+                                   NULL, &entry, NULL, NULL,
                                    1, ELF_MACHINE, 0);
         }
         /* Always boot into physical ram.  */

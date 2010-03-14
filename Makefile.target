@@ -237,7 +237,8 @@ obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
 obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
-obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
+obj-mips-y += mips_addr.o mips_timer.o mips_int.o
+obj-mips-y += dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 obj-mips-y += vga-pci.o vga-isa.o vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o

@@ -170,8 +170,8 @@ int load_multiboot(void *fw_cfg,
         uint64_t elf_low, elf_high;
         int kernel_size;
         fclose(f);
-        kernel_size = load_elf(kernel_filename, 0, &elf_entry, &elf_low, &elf_high,
-                               0, ELF_MACHINE, 0);
+        kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
+                               &elf_low, &elf_high, 0, ELF_MACHINE, 0);
         if (kernel_size < 0) {
             fprintf(stderr, "Error while loading elf kernel\n");
             exit(1);

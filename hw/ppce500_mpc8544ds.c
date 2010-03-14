@@ -231,8 +231,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     if (kernel_filename) {
         kernel_size = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
         if (kernel_size < 0) {
-            kernel_size = load_elf(kernel_filename, 0, &elf_entry, &elf_lowaddr,
-                                   NULL, 1, ELF_MACHINE, 0);
+            kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
+                                   &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);
             entry = elf_entry;
             loadaddr = elf_lowaddr;
         }
