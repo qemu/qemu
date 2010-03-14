@@ -1002,7 +1002,9 @@ static void tty_serial_init(int fd, int speed,
            speed, parity, data_bits, stop_bits);
 #endif
     tcgetattr (fd, &tty);
-    oldtty = tty;
+    if (!term_atexit_done) {
+        oldtty = tty;
+    }
 
 #define check_speed(val) if (speed <= val) { spd = B##val; break; }
     speed = speed * 10 / 11;
