@@ -642,13 +642,13 @@ static void page_flush_tb_1 (int level, void **lp)
     }
     if (level == 0) {
         PageDesc *pd = *lp;
-        for (i = 0; i < L2_BITS; ++i) {
+        for (i = 0; i < L2_SIZE; ++i) {
             pd[i].first_tb = NULL;
             invalidate_page_bitmap(pd + i);
         }
     } else {
         void **pp = *lp;
-        for (i = 0; i < L2_BITS; ++i) {
+        for (i = 0; i < L2_SIZE; ++i) {
             page_flush_tb_1 (level - 1, pp + i);
         }
     }
@@ -1723,7 +1723,7 @@ static void phys_page_for_each_1(CPUPhysMemoryClient *client,
     }
     if (level == 0) {
         PhysPageDesc *pd = *lp;
-        for (i = 0; i < L2_BITS; ++i) {
+        for (i = 0; i < L2_SIZE; ++i) {
             if (pd[i].phys_offset != IO_MEM_UNASSIGNED) {
                 client->set_memory(client, pd[i].region_offset,
                                    TARGET_PAGE_SIZE, pd[i].phys_offset);
@@ -1731,7 +1731,7 @@ static void phys_page_for_each_1(CPUPhysMemoryClient *client,
         }
     } else {
         void **pp = *lp;
-        for (i = 0; i < L2_BITS; ++i) {
+        for (i = 0; i < L2_SIZE; ++i) {
             phys_page_for_each_1(client, level - 1, pp + i);
         }
     }
@@ -2244,7 +2244,7 @@ static int walk_memory_regions_1(struct walk_memory_regions_data *data,
 
     if (level == 0) {
         PageDesc *pd = *lp;
-        for (i = 0; i < L2_BITS; ++i) {
+        for (i = 0; i < L2_SIZE; ++i) {
             int prot = pd[i].flags;
 
             pa = base | (i << TARGET_PAGE_BITS);
@@ -2257,7 +2257,7 @@ static int walk_memory_regions_1(struct walk_memory_regions_data *data,
         }
     } else {
         void **pp = *lp;
-        for (i = 0; i < L2_BITS; ++i) {
+        for (i = 0; i < L2_SIZE; ++i) {
             pa = base | ((abi_ulong)i <<
                 (TARGET_PAGE_BITS + L2_BITS * level));
             rc = walk_memory_regions_1(data, pa, level - 1, pp + i);
