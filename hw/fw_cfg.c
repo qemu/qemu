@@ -179,7 +179,7 @@ static int get_uint32_as_uint16(QEMUFile *f, void *pv, size_t size)
 
 static void put_unused(QEMUFile *f, void *pv, size_t size)
 {
-    fprintf(stderr, "uint32_as_uint16 is only used for backward compatibilty.\n");
+    fprintf(stderr, "uint32_as_uint16 is only used for backward compatibility.\n");
     fprintf(stderr, "This functions shouldn't be called.\n");
 }
 
