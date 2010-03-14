@@ -258,6 +258,7 @@ int main(int argc, char **argv)
             break;
         case 'r':
             readonly = true;
+            flags &= ~BDRV_O_RDWR;
             break;
         case 'P':
             partition = strtol(optarg, &end, 0);
