@@ -907,7 +907,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     flag_r = (td.flags & OHCI_TD_R) != 0;
 #ifdef DEBUG_PACKET
     DPRINTF(" TD @ 0x%.8x %" PRId64 " bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
-            addr, len, str, flag_r, td.cbp, td.be);
+            addr, (int64_t)len, str, flag_r, td.cbp, td.be);
 
     if (len > 0 && dir != OHCI_TD_DIR_IN) {
         DPRINTF("  data:");
