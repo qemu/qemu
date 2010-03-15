@@ -378,23 +378,6 @@ int qemu_global_option(const char *str)
     return 0;
 }
 
-static int qemu_add_one_global(QemuOpts *opts, void *opaque)
-{
-    GlobalProperty *g;
-
-    g = qemu_mallocz(sizeof(*g));
-    g->driver   = qemu_opt_get(opts, "driver");
-    g->property = qemu_opt_get(opts, "property");
-    g->value    = qemu_opt_get(opts, "value");
-    qdev_prop_register_global(g);
-    return 0;
-}
-
-void qemu_add_globals(void)
-{
-    qemu_opts_foreach(&qemu_global_opts, qemu_add_one_global, NULL, 0);
-}
-
 struct ConfigWriteData {
     QemuOptsList *list;
     FILE *fp;

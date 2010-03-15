@@ -8,7 +8,7 @@ qobject-obj-y += qerror.o
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += nbd.o block.o aio.o aes.o osdep.o
+block-obj-y += nbd.o block.o aio.o aes.o osdep.o qemu-config.o
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
@@ -76,7 +76,7 @@ common-obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
 common-obj-y += qemu-char.o savevm.o #aio.o
 common-obj-y += msmouse.o ps2.o
 common-obj-y += qdev.o qdev-properties.o
-common-obj-y += qemu-config.o block-migration.o
+common-obj-y += block-migration.o
 
 common-obj-$(CONFIG_BRLAPI) += baum.o
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o

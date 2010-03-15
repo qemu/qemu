@@ -661,7 +661,7 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props)
 
 static QTAILQ_HEAD(, GlobalProperty) global_props = QTAILQ_HEAD_INITIALIZER(global_props);
 
-void qdev_prop_register_global(GlobalProperty *prop)
+static void qdev_prop_register_global(GlobalProperty *prop)
 {
     QTAILQ_INSERT_TAIL(&global_props, prop, next);
 }
@@ -688,4 +688,21 @@ void qdev_prop_set_globals(DeviceState *dev)
             exit(1);
         }
     }
+}
+
+static int qdev_add_one_global(QemuOpts *opts, void *opaque)
+{
+    GlobalProperty *g;
+
+    g = qemu_mallocz(sizeof(*g));
+    g->driver   = qemu_opt_get(opts, "driver");
+    g->property = qemu_opt_get(opts, "property");
+    g->value    = qemu_opt_get(opts, "value");
+    qdev_prop_register_global(g);
+    return 0;
+}
+
+void qemu_add_globals(void)
+{
+    qemu_opts_foreach(&qemu_global_opts, qdev_add_one_global, NULL, 0);
 }
