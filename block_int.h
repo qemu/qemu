@@ -120,6 +120,8 @@ struct BlockDriver {
     /* Returns number of errors in image, -errno for internal errors */
     int (*bdrv_check)(BlockDriverState* bs);
 
+    void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
+
     /* Set if newly created images are not guaranteed to contain only zeros */
     int no_zero_init;
 

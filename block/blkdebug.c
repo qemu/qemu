@@ -46,6 +46,7 @@ typedef struct BlkdebugVars {
 typedef struct BDRVBlkdebugState {
     BlockDriverState *hd;
     BlkdebugVars vars;
+    QLIST_HEAD(list, BlkdebugRule) rules[BLKDBG_EVENT_MAX];
 } BDRVBlkdebugState;
 
 typedef struct BlkdebugAIOCB {
@@ -61,16 +62,211 @@ static AIOPool blkdebug_aio_pool = {
     .cancel     = blkdebug_aio_cancel,
 };
 
+enum {
+    ACTION_INJECT_ERROR,
+    ACTION_SET_STATE,
+};
+
+typedef struct BlkdebugRule {
+    BlkDebugEvent event;
+    int action;
+    int state;
+    union {
+        struct {
+            int error;
+            int immediately;
+            int once;
+        } inject;
+        struct {
+            int new_state;
+        } set_state;
+    } options;
+    QLIST_ENTRY(BlkdebugRule) next;
+} BlkdebugRule;
+
+static QemuOptsList inject_error_opts = {
+    .name = "inject-error",
+    .head = QTAILQ_HEAD_INITIALIZER(inject_error_opts.head),
+    .desc = {
+        {
+            .name = "event",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "state",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "errno",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "once",
+            .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "immediately",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList set_state_opts = {
+    .name = "set-state",
+    .head = QTAILQ_HEAD_INITIALIZER(inject_error_opts.head),
+    .desc = {
+        {
+            .name = "event",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "state",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "new_state",
+            .type = QEMU_OPT_NUMBER,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList *config_groups[] = {
+    &inject_error_opts,
+    &set_state_opts,
+    NULL
+};
+
+static const char *event_names[BLKDBG_EVENT_MAX] = {
+};
+
+static int get_event_by_name(const char *name, BlkDebugEvent *event)
+{
+    int i;
+
+    for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
+        if (!strcmp(event_names[i], name)) {
+            *event = i;
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+struct add_rule_data {
+    BDRVBlkdebugState *s;
+    int action;
+};
+
+static int add_rule(QemuOpts *opts, void *opaque)
+{
+    struct add_rule_data *d = opaque;
+    BDRVBlkdebugState *s = d->s;
+    const char* event_name;
+    BlkDebugEvent event;
+    struct BlkdebugRule *rule;
+
+    /* Find the right event for the rule */
+    event_name = qemu_opt_get(opts, "event");
+    if (!event_name || get_event_by_name(event_name, &event) < 0) {
+        return -1;
+    }
+
+    /* Set attributes common for all actions */
+    rule = qemu_mallocz(sizeof(*rule));
+    *rule = (struct BlkdebugRule) {
+        .event  = event,
+        .action = d->action,
+        .state  = qemu_opt_get_number(opts, "state", 0),
+    };
+
+    /* Parse action-specific options */
+    switch (d->action) {
+    case ACTION_INJECT_ERROR:
+        rule->options.inject.error = qemu_opt_get_number(opts, "errno", EIO);
+        rule->options.inject.once  = qemu_opt_get_bool(opts, "once", 0);
+        rule->options.inject.immediately =
+            qemu_opt_get_bool(opts, "immediately", 0);
+        break;
+
+    case ACTION_SET_STATE:
+        rule->options.set_state.new_state =
+            qemu_opt_get_number(opts, "new_state", 0);
+        break;
+    };
+
+    /* Add the rule */
+    QLIST_INSERT_HEAD(&s->rules[event], rule, next);
+
+    return 0;
+}
+
+static int read_config(BDRVBlkdebugState *s, const char *filename)
+{
+    FILE *f;
+    int ret;
+    struct add_rule_data d;
+
+    f = fopen(filename, "r");
+    if (f == NULL) {
+        return -errno;
+    }
+
+    ret = qemu_config_parse(f, config_groups, filename);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    d.s = s;
+    d.action = ACTION_INJECT_ERROR;
+    qemu_opts_foreach(&inject_error_opts, add_rule, &d, 0);
+
+    d.action = ACTION_SET_STATE;
+    qemu_opts_foreach(&set_state_opts, add_rule, &d, 0);
+
+    ret = 0;
+fail:
+    fclose(f);
+    return ret;
+}
+
+/* Valid blkdebug filenames look like blkdebug:path/to/config:path/to/image */
 static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVBlkdebugState *s = bs->opaque;
+    int ret;
+    char *config, *c;
 
+    /* Parse the blkdebug: prefix */
     if (strncmp(filename, "blkdebug:", strlen("blkdebug:"))) {
         return -EINVAL;
     }
     filename += strlen("blkdebug:");
 
-    return bdrv_file_open(&s->hd, filename, flags);
+    /* Read rules from config file */
+    c = strchr(filename, ':');
+    if (c == NULL) {
+        return -EINVAL;
+    }
+
+    config = strdup(filename);
+    config[c - filename] = '\0';
+    ret = read_config(s, config);
+    free(config);
+    if (ret < 0) {
+        return ret;
+    }
+    filename = c + 1;
+
+    /* Open the backing file */
+    ret = bdrv_file_open(&s->hd, filename, flags);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
 }
 
 static void error_callback_bh(void *opaque)
@@ -146,6 +342,16 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
 static void blkdebug_close(BlockDriverState *bs)
 {
     BDRVBlkdebugState *s = bs->opaque;
+    BlkdebugRule *rule, *next;
+    int i;
+
+    for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
+        QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
+            QLIST_REMOVE(rule, next);
+            qemu_free(rule);
+        }
+    }
+
     bdrv_delete(s->hd);
 }
 
@@ -162,6 +368,46 @@ static BlockDriverAIOCB *blkdebug_aio_flush(BlockDriverState *bs,
     return bdrv_aio_flush(s->hd, cb, opaque);
 }
 
+static void process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
+    BlkdebugVars *old_vars)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    BlkdebugVars *vars = &s->vars;
+
+    /* Only process rules for the current state */
+    if (rule->state && rule->state != old_vars->state) {
+        return;
+    }
+
+    /* Take the action */
+    switch (rule->action) {
+    case ACTION_INJECT_ERROR:
+        vars->inject_errno       = rule->options.inject.error;
+        vars->inject_once        = rule->options.inject.once;
+        vars->inject_immediately = rule->options.inject.immediately;
+        break;
+
+    case ACTION_SET_STATE:
+        vars->state              = rule->options.set_state.new_state;
+        break;
+    }
+}
+
+static void blkdebug_debug_event(BlockDriverState *bs, BlkDebugEvent event)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    struct BlkdebugRule *rule;
+    BlkdebugVars old_vars = s->vars;
+
+    if (event < 0 || event >= BLKDBG_EVENT_MAX) {
+        return;
+    }
+
+    QLIST_FOREACH(rule, &s->rules[event], next) {
+        process_rule(bs, rule, &old_vars);
+    }
+}
+
 static BlockDriver bdrv_blkdebug = {
     .format_name        = "blkdebug",
     .protocol_name      = "blkdebug",
@@ -175,6 +421,8 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_aio_readv     = blkdebug_aio_readv,
     .bdrv_aio_writev    = blkdebug_aio_writev,
     .bdrv_aio_flush     = blkdebug_aio_flush,
+
+    .bdrv_debug_event   = blkdebug_debug_event,
 };
 
 static void bdrv_blkdebug_init(void)

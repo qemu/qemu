@@ -1535,6 +1535,18 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
     return drv->bdrv_load_vmstate(bs, buf, pos, size);
 }
 
+void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv || !drv->bdrv_debug_event) {
+        return;
+    }
+
+    return drv->bdrv_debug_event(bs, event);
+
+}
+
 /**************************************************************/
 /* handling of snapshots */
 

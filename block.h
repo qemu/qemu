@@ -207,4 +207,13 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors);
 int64_t bdrv_get_dirty_count(BlockDriverState *bs);
+
+
+typedef enum {
+    BLKDBG_EVENT_MAX,
+} BlkDebugEvent;
+
+#define BLKDBG_EVENT(bs, evt) bdrv_debug_event(bs, evt)
+void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
+
 #endif
