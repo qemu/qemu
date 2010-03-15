@@ -429,6 +429,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
                 acb->hd_iov.iov_base = (void *)acb->buf;
                 acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
                 qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+                BLKDBG_EVENT(s->hd, BLKDBG_READ_BACKING_AIO);
                 acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
                                     &acb->hd_qiov, acb->cur_nr_sectors,
 				    qcow_aio_read_cb, acb);
@@ -464,6 +465,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+        BLKDBG_EVENT(s->hd, BLKDBG_READ_AIO);
         acb->hd_aiocb = bdrv_aio_readv(s->hd,
                             (acb->cluster_offset >> 9) + index_in_cluster,
                             &acb->hd_qiov, acb->cur_nr_sectors,
@@ -619,6 +621,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     acb->hd_iov.iov_base = (void *)src_buf;
     acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
     qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+    BLKDBG_EVENT(s->hd, BLKDBG_WRITE_AIO);
     acb->hd_aiocb = bdrv_aio_writev(s->hd,
                                     (acb->cluster_offset >> 9) + index_in_cluster,
                                     &acb->hd_qiov, acb->cur_nr_sectors,
@@ -1141,6 +1144,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
         if (!cluster_offset)
             return -1;
         cluster_offset &= s->cluster_offset_mask;
+        BLKDBG_EVENT(s->hd, BLKDBG_WRITE_COMPRESSED);
         if (bdrv_pwrite(s->hd, cluster_offset, out_buf, out_len) != out_len) {
             qemu_free(out_buf);
             return -1;
@@ -1211,6 +1215,7 @@ static int qcow_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
     int growable = bs->growable;
     int ret;
 
+    BLKDBG_EVENT(s->hd, BLKDBG_VMSTATE_SAVE);
     bs->growable = 1;
     ret = bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
@@ -1225,6 +1230,7 @@ static int qcow_load_vmstate(BlockDriverState *bs, uint8_t *buf,
     int growable = bs->growable;
     int ret;
 
+    BLKDBG_EVENT(s->hd, BLKDBG_VMSTATE_LOAD);
     bs->growable = 1;
     ret = bdrv_pread(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;

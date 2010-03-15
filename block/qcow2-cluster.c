@@ -54,12 +54,14 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
     memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));
 
     /* write new table (align to cluster) */
+    BLKDBG_EVENT(s->hd, BLKDBG_L1_GROW_ALLOC_TABLE);
     new_l1_table_offset = qcow2_alloc_clusters(bs, new_l1_size2);
     if (new_l1_table_offset < 0) {
         qemu_free(new_l1_table);
         return new_l1_table_offset;
     }
 
+    BLKDBG_EVENT(s->hd, BLKDBG_L1_GROW_WRITE_TABLE);
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
     ret = bdrv_pwrite(s->hd, new_l1_table_offset, new_l1_table, new_l1_size2);
@@ -69,6 +71,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
         new_l1_table[i] = be64_to_cpu(new_l1_table[i]);
 
     /* set new table */
+    BLKDBG_EVENT(s->hd, BLKDBG_L1_GROW_ACTIVATE_TABLE);
     cpu_to_be32w((uint32_t*)data, new_l1_size);
     cpu_to_be64w((uint64_t*)(data + 4), new_l1_table_offset);
     ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_size), data,sizeof(data));
@@ -170,6 +173,8 @@ static uint64_t *l2_load(BlockDriverState *bs, uint64_t l2_offset)
 
     min_index = l2_cache_new_entry(bs);
     l2_table = s->l2_cache + (min_index << s->l2_bits);
+
+    BLKDBG_EVENT(s->hd, BLKDBG_L2_LOAD);
     if (bdrv_pread(s->hd, l2_offset, l2_table, s->l2_size * sizeof(uint64_t)) !=
         s->l2_size * sizeof(uint64_t))
         return NULL;
@@ -195,6 +200,7 @@ static int write_l1_entry(BDRVQcowState *s, int l1_index)
         buf[i] = cpu_to_be64(s->l1_table[l1_start_index + i]);
     }
 
+    BLKDBG_EVENT(s->hd, BLKDBG_L1_UPDATE);
     if (bdrv_pwrite(s->hd, s->l1_table_offset + 8 * l1_start_index,
         buf, sizeof(buf)) != sizeof(buf))
     {
@@ -248,12 +254,14 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
         memset(l2_table, 0, s->l2_size * sizeof(uint64_t));
     } else {
         /* if there was an old l2 table, read it from the disk */
+        BLKDBG_EVENT(s->hd, BLKDBG_L2_ALLOC_COW_READ);
         if (bdrv_pread(s->hd, old_l2_offset,
                        l2_table, s->l2_size * sizeof(uint64_t)) !=
             s->l2_size * sizeof(uint64_t))
             return NULL;
     }
     /* write the l2 table to the file */
+    BLKDBG_EVENT(s->hd, BLKDBG_L2_ALLOC_WRITE);
     if (bdrv_pwrite(s->hd, l2_offset,
                     l2_table, s->l2_size * sizeof(uint64_t)) !=
         s->l2_size * sizeof(uint64_t))
@@ -335,6 +343,7 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
                 /* read from the base image */
                 n1 = qcow2_backing_read1(bs->backing_hd, sector_num, buf, n);
                 if (n1 > 0) {
+                    BLKDBG_EVENT(s->hd, BLKDBG_READ_BACKING);
                     ret = bdrv_read(bs->backing_hd, sector_num, buf, n1);
                     if (ret < 0)
                         return -1;
@@ -347,6 +356,7 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
                 return -1;
             memcpy(buf, s->cluster_cache + index_in_cluster * 512, 512 * n);
         } else {
+            BLKDBG_EVENT(s->hd, BLKDBG_READ);
             ret = bdrv_pread(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512);
             if (ret != n * 512)
                 return -1;
@@ -371,6 +381,7 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
     n = n_end - n_start;
     if (n <= 0)
         return 0;
+    BLKDBG_EVENT(s->hd, BLKDBG_COW_READ);
     ret = qcow_read(bs, start_sect + n_start, s->cluster_data, n);
     if (ret < 0)
         return ret;
@@ -380,6 +391,7 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
                         s->cluster_data, n, 1,
                         &s->aes_encrypt_key);
     }
+    BLKDBG_EVENT(s->hd, BLKDBG_COW_WRITE);
     ret = bdrv_write(s->hd, (cluster_offset >> 9) + n_start,
                      s->cluster_data, n);
     if (ret < 0)
@@ -592,6 +604,7 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
 
     /* compressed clusters never have the copied flag */
 
+    BLKDBG_EVENT(s->hd, BLKDBG_L2_UPDATE_COMPRESSED);
     l2_table[l2_index] = cpu_to_be64(cluster_offset);
     if (bdrv_pwrite(s->hd,
                     l2_offset + l2_index * sizeof(uint64_t),
@@ -615,6 +628,7 @@ static int write_l2_entries(BDRVQcowState *s, uint64_t *l2_table,
     int end_offset = (8 * (l2_index + num) + 511) & ~511;
     size_t len = end_offset - start_offset;
 
+    BLKDBG_EVENT(s->hd, BLKDBG_L2_UPDATE);
     if (bdrv_pwrite(s->hd, l2_offset + start_offset, &l2_table[l2_start_index],
         len) != len)
     {
@@ -866,6 +880,7 @@ int qcow2_decompress_cluster(BDRVQcowState *s, uint64_t cluster_offset)
         nb_csectors = ((cluster_offset >> s->csize_shift) & s->csize_mask) + 1;
         sector_offset = coffset & 511;
         csize = nb_csectors * 512 - sector_offset;
+        BLKDBG_EVENT(s->hd, BLKDBG_READ_COMPRESSED);
         ret = bdrv_read(s->hd, coffset >> 9, s->cluster_data, nb_csectors);
         if (ret < 0) {
             return -1;

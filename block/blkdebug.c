@@ -139,6 +139,48 @@ static QemuOptsList *config_groups[] = {
 };
 
 static const char *event_names[BLKDBG_EVENT_MAX] = {
+    [BLKDBG_L1_UPDATE]                      = "l1_update",
+    [BLKDBG_L1_GROW_ALLOC_TABLE]            = "l1_grow.alloc_table",
+    [BLKDBG_L1_GROW_WRITE_TABLE]            = "l1_grow.write_table",
+    [BLKDBG_L1_GROW_ACTIVATE_TABLE]         = "l1_grow.activate_table",
+
+    [BLKDBG_L2_LOAD]                        = "l2_load",
+    [BLKDBG_L2_UPDATE]                      = "l2_update",
+    [BLKDBG_L2_UPDATE_COMPRESSED]           = "l2_update_compressed",
+    [BLKDBG_L2_ALLOC_COW_READ]              = "l2_alloc.cow_read",
+    [BLKDBG_L2_ALLOC_WRITE]                 = "l2_alloc.write",
+
+    [BLKDBG_READ]                           = "read",
+    [BLKDBG_READ_AIO]                       = "read_aio",
+    [BLKDBG_READ_BACKING]                   = "read_backing",
+    [BLKDBG_READ_BACKING_AIO]               = "read_backing_aio",
+    [BLKDBG_READ_COMPRESSED]                = "read_compressed",
+
+    [BLKDBG_WRITE_AIO]                      = "write_aio",
+    [BLKDBG_WRITE_COMPRESSED]               = "write_compressed",
+
+    [BLKDBG_VMSTATE_LOAD]                   = "vmstate_load",
+    [BLKDBG_VMSTATE_SAVE]                   = "vmstate_save",
+
+    [BLKDBG_COW_READ]                       = "cow_read",
+    [BLKDBG_COW_WRITE]                      = "cow_write",
+
+    [BLKDBG_REFTABLE_LOAD]                  = "reftable_load",
+    [BLKDBG_REFTABLE_GROW]                  = "reftable_grow",
+
+    [BLKDBG_REFBLOCK_LOAD]                  = "refblock_load",
+    [BLKDBG_REFBLOCK_UPDATE]                = "refblock_update",
+    [BLKDBG_REFBLOCK_UPDATE_PART]           = "refblock_update_part",
+    [BLKDBG_REFBLOCK_ALLOC]                 = "refblock_alloc",
+    [BLKDBG_REFBLOCK_ALLOC_HOOKUP]          = "refblock_alloc.hookup",
+    [BLKDBG_REFBLOCK_ALLOC_WRITE]           = "refblock_alloc.write",
+    [BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS]    = "refblock_alloc.write_blocks",
+    [BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE]     = "refblock_alloc.write_table",
+    [BLKDBG_REFBLOCK_ALLOC_SWITCH_TABLE]    = "refblock_alloc.switch_table",
+
+    [BLKDBG_CLUSTER_ALLOC]                  = "cluster_alloc",
+    [BLKDBG_CLUSTER_ALLOC_BYTES]            = "cluster_alloc_bytes",
+    [BLKDBG_CLUSTER_FREE]                   = "cluster_free",
 };
 
 static int get_event_by_name(const char *name, BlkDebugEvent *event)
