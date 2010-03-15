@@ -75,6 +75,7 @@ enum {
 #define TCG_TARGET_STACK_GROWSUP
 
 /* optional instructions */
+#define TCG_TARGET_HAS_div2_i32
 //#define TCG_TARGET_HAS_ext8s_i32
 //#define TCG_TARGET_HAS_ext16s_i32
 //#define TCG_TARGET_HAS_bswap16_i32

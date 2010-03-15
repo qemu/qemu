@@ -364,7 +364,24 @@ static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
     tcg_temp_free_ptr(fn);
 }
 
-/* FIXME: Should this be pure?  */
+/* Note: Both tcg_gen_helper32() and tcg_gen_helper64() are currently
+   reserved for helpers in tcg-runtime.c. These helpers are all const
+   and pure, hence the call to tcg_gen_callN() with TCG_CALL_CONST |
+   TCG_CALL_PURE. This may need to be adjusted if these functions
+   start to be used with other helpers. */
+static inline void tcg_gen_helper32(void *func, TCGv_i32 ret,
+                                    TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_ptr fn;
+    TCGArg args[2];
+    fn = tcg_const_ptr((tcg_target_long)func);
+    args[0] = GET_TCGV_I32(a);
+    args[1] = GET_TCGV_I32(b);
+    tcg_gen_callN(&tcg_ctx, fn, TCG_CALL_CONST | TCG_CALL_PURE,
+                  0, GET_TCGV_I32(ret), 2, args);
+    tcg_temp_free_ptr(fn);
+}
+
 static inline void tcg_gen_helper64(void *func, TCGv_i64 ret,
                                     TCGv_i64 a, TCGv_i64 b)
 {
@@ -373,7 +390,8 @@ static inline void tcg_gen_helper64(void *func, TCGv_i64 ret,
     fn = tcg_const_ptr((tcg_target_long)func);
     args[0] = GET_TCGV_I64(a);
     args[1] = GET_TCGV_I64(b);
-    tcg_gen_callN(&tcg_ctx, fn, 0, 7, GET_TCGV_I64(ret), 2, args);
+    tcg_gen_callN(&tcg_ctx, fn, TCG_CALL_CONST | TCG_CALL_PURE,
+                  7, GET_TCGV_I64(ret), 2, args);
     tcg_temp_free_ptr(fn);
 }
 
@@ -635,7 +653,7 @@ static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
     tcg_gen_op3_i32(INDEX_op_remu_i32, ret, arg1, arg2);
 }
-#else
+#elif defined(TCG_TARGET_HAS_div2_i32)
 static inline void tcg_gen_div_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
     TCGv_i32 t0;
@@ -670,6 +688,26 @@ static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     tcg_gen_movi_i32(t0, 0);
     tcg_gen_op5_i32(INDEX_op_divu2_i32, t0, ret, arg1, t0, arg2);
     tcg_temp_free_i32(t0);
+}
+#else
+static inline void tcg_gen_div_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    tcg_gen_helper32(tcg_helper_div_i32, ret, arg1, arg2);
+}
+
+static inline void tcg_gen_rem_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    tcg_gen_helper32(tcg_helper_rem_i32, ret, arg1, arg2);
+}
+
+static inline void tcg_gen_divu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    tcg_gen_helper32(tcg_helper_divu_i32, ret, arg1, arg2);
+}
+
+static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    tcg_gen_helper32(tcg_helper_remu_i32, ret, arg1, arg2);
 }
 #endif
 
@@ -1135,7 +1173,7 @@ static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
     tcg_gen_op3_i64(INDEX_op_remu_i64, ret, arg1, arg2);
 }
-#else
+#elif defined(TCG_TARGET_HAS_div2_i64)
 static inline void tcg_gen_div_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
     TCGv_i64 t0;
@@ -1170,6 +1208,26 @@ static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     tcg_gen_movi_i64(t0, 0);
     tcg_gen_op5_i64(INDEX_op_divu2_i64, t0, ret, arg1, t0, arg2);
     tcg_temp_free_i64(t0);
+}
+#else
+static inline void tcg_gen_div_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    tcg_gen_helper64(tcg_helper_div_i64, ret, arg1, arg2);
+}
+
+static inline void tcg_gen_rem_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    tcg_gen_helper64(tcg_helper_rem_i64, ret, arg1, arg2);
+}
+
+static inline void tcg_gen_divu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    tcg_gen_helper64(tcg_helper_divu_i64, ret, arg1, arg2);
+}
+
+static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    tcg_gen_helper64(tcg_helper_remu_i64, ret, arg1, arg2);
 }
 #endif
 
