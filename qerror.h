@@ -96,6 +96,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_PROPERTY_VALUE_BAD \
     "{ 'class': 'PropertyValueBad', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
 
+#define QERR_PROPERTY_VALUE_IN_USE \
+    "{ 'class': 'PropertyValueInUse', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
+
 #define QERR_QMP_BAD_INPUT_OBJECT \
     "{ 'class': 'QMPBadInputObject', 'data': { 'expected': %s } }"
 
