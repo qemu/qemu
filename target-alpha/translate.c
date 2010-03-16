@@ -394,9 +394,10 @@ static void gen_fbcond(DisasContext *ctx, TCGCond cond, int ra, int32_t disp)
     gen_bcond_pcload(ctx, disp, lab_true);
 }
 
-static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
-                            int islit, uint8_t lit, int mask)
+static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
+		     int islit, uint8_t lit, int mask)
 {
+    TCGCond inv_cond = tcg_invert_cond(cond);
     int l1;
 
     if (unlikely(rc == 31))
@@ -426,7 +427,7 @@ static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
     gen_set_label(l1);
 }
 
-static void gen_fcmov(TCGCond inv_cond, int ra, int rb, int rc)
+static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
 {
     TCGv va = cpu_fir[ra];
     int l1;
@@ -439,7 +440,7 @@ static void gen_fcmov(TCGCond inv_cond, int ra, int rb, int rc)
     }
 
     l1 = gen_new_label();
-    gen_fbcond_internal(inv_cond, va, l1);
+    gen_fbcond_internal(tcg_invert_cond(cond), va, l1);
 
     if (rb != 31)
         tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[rb]);
@@ -1663,11 +1664,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x14:
             /* CMOVLBS */
-            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
+            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 1);
             break;
         case 0x16:
             /* CMOVLBC */
-            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 1);
+            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
             break;
         case 0x20:
             /* BIS */
@@ -1687,11 +1688,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* CMOVEQ */
-            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
             break;
         case 0x26:
             /* CMOVNE */
-            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x28:
             /* ORNOT */
@@ -1727,11 +1728,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x44:
             /* CMOVLT */
-            gen_cmov(TCG_COND_GE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_LT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x46:
             /* CMOVGE */
-            gen_cmov(TCG_COND_LT, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_GE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x48:
             /* EQV */
@@ -1771,11 +1772,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x64:
             /* CMOVLE */
-            gen_cmov(TCG_COND_GT, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_LE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x66:
             /* CMOVGT */
-            gen_cmov(TCG_COND_LE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_GT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x6C:
             /* IMPLVER */
@@ -2249,27 +2250,27 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x02A:
             /* FCMOVEQ */
-            gen_fcmov(TCG_COND_NE, ra, rb, rc);
+            gen_fcmov(TCG_COND_EQ, ra, rb, rc);
             break;
         case 0x02B:
             /* FCMOVNE */
-            gen_fcmov(TCG_COND_EQ, ra, rb, rc);
+            gen_fcmov(TCG_COND_NE, ra, rb, rc);
             break;
         case 0x02C:
             /* FCMOVLT */
-            gen_fcmov(TCG_COND_GE, ra, rb, rc);
+            gen_fcmov(TCG_COND_LT, ra, rb, rc);
             break;
         case 0x02D:
             /* FCMOVGE */
-            gen_fcmov(TCG_COND_LT, ra, rb, rc);
+            gen_fcmov(TCG_COND_GE, ra, rb, rc);
             break;
         case 0x02E:
             /* FCMOVLE */
-            gen_fcmov(TCG_COND_GT, ra, rb, rc);
+            gen_fcmov(TCG_COND_LE, ra, rb, rc);
             break;
         case 0x02F:
             /* FCMOVGT */
-            gen_fcmov(TCG_COND_LE, ra, rb, rc);
+            gen_fcmov(TCG_COND_GT, ra, rb, rc);
             break;
         case 0x030:
             /* CVTQL */
