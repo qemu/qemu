@@ -1199,33 +1199,34 @@ MVIOP2(pkwb)
 MVIOP2(unpkbl)
 MVIOP2(unpkbw)
 
-static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
-                           uint8_t lit)
+static void gen_cmp(TCGCond cond, int ra, int rb, int rc,
+                    int islit, uint8_t lit)
 {
-    int l1, l2;
-    TCGv tmp;
+    TCGv va, vb;
 
-    if (unlikely(rc == 31))
+    if (unlikely(rc == 31)) {
         return;
+    }
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
+    if (ra == 31) {
+        va = tcg_const_i64(0);
+    } else {
+        va = cpu_ir[ra];
+    }
+    if (islit) {
+        vb = tcg_const_i64(lit);
+    } else {
+        vb = cpu_ir[rb];
+    }
 
-    if (ra != 31) {
-        tmp = tcg_temp_new();
-        tcg_gen_mov_i64(tmp, cpu_ir[ra]);
-    } else
-        tmp = tcg_const_i64(0);
-    if (islit)
-        tcg_gen_brcondi_i64(cond, tmp, lit, l1);
-    else
-        tcg_gen_brcond_i64(cond, tmp, cpu_ir[rb], l1);
+    tcg_gen_setcond_i64(cond, cpu_ir[rc], va, vb);
 
-    tcg_gen_movi_i64(cpu_ir[rc], 0);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_ir[rc], 1);
-    gen_set_label(l2);
+    if (ra == 31) {
+        tcg_temp_free(va);
+    }
+    if (islit) {
+        tcg_temp_free(vb);
+    }
 }
 
 static inline int translate_one(DisasContext *ctx, uint32_t insn)
