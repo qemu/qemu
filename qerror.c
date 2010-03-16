@@ -117,6 +117,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Property '%(device).%(property)' can't take value '%(value)', it's in use",
     },
     {
+        .error_fmt = QERR_PROPERTY_VALUE_NOT_FOUND,
+        .desc      = "Property '%(device).%(property)' can't find value '%(value)'",
+    },
+    {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,
         .desc      = "Bad QMP input object",
     },
