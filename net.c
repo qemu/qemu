@@ -733,7 +733,7 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
             return i;
     }
 
-    qemu_error("qemu: Unsupported NIC model: %s\n", nd->model);
+    error_report("qemu: Unsupported NIC model: %s", nd->model);
     return -1;
 }
 
@@ -744,7 +744,7 @@ int net_handle_fd_param(Monitor *mon, const char *param)
 
         fd = monitor_get_fd(mon, param);
         if (fd == -1) {
-            qemu_error("No file descriptor named %s found", param);
+            error_report("No file descriptor named %s found", param);
             return -1;
         }
 
@@ -765,7 +765,7 @@ static int net_init_nic(QemuOpts *opts,
 
     idx = nic_get_free_idx();
     if (idx == -1 || nb_nics >= MAX_NICS) {
-        qemu_error("Too Many NICs\n");
+        error_report("Too Many NICs");
         return -1;
     }
 
@@ -776,7 +776,7 @@ static int net_init_nic(QemuOpts *opts,
     if ((netdev = qemu_opt_get(opts, "netdev"))) {
         nd->netdev = qemu_find_netdev(netdev);
         if (!nd->netdev) {
-            qemu_error("netdev '%s' not found\n", netdev);
+            error_report("netdev '%s' not found", netdev);
             return -1;
         }
     } else {
@@ -802,7 +802,7 @@ static int net_init_nic(QemuOpts *opts,
 
     if (qemu_opt_get(opts, "macaddr") &&
         net_parse_macaddr(nd->macaddr, qemu_opt_get(opts, "macaddr")) < 0) {
-        qemu_error("invalid syntax for ethernet address\n");
+        error_report("invalid syntax for ethernet address");
         return -1;
     }
 
@@ -810,7 +810,7 @@ static int net_init_nic(QemuOpts *opts,
                                        DEV_NVECTORS_UNSPECIFIED);
     if (nd->nvectors != DEV_NVECTORS_UNSPECIFIED &&
         (nd->nvectors < 0 || nd->nvectors > 0x7ffffff)) {
-        qemu_error("invalid # of vectors: %d\n", nd->nvectors);
+        error_report("invalid # of vectors: %d", nd->nvectors);
         return -1;
     }
 
@@ -1060,12 +1060,12 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
 
     if (!is_netdev) {
         if (!type) {
-            qemu_error("No type specified for -net\n");
+            error_report("No type specified for -net");
             return -1;
         }
     } else {
         if (!type) {
-            qemu_error("No type specified for -netdev\n");
+            error_report("No type specified for -netdev");
             return -1;
         }
 
@@ -1077,21 +1077,21 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
             strcmp(type, "vde") != 0 &&
 #endif
             strcmp(type, "socket") != 0) {
-            qemu_error("The '%s' network backend type is not valid with -netdev\n",
-                       type);
+            error_report("The '%s' network backend type is not valid with -netdev",
+                         type);
             return -1;
         }
 
         if (qemu_opt_get(opts, "vlan")) {
-            qemu_error("The 'vlan' parameter is not valid with -netdev\n");
+            error_report("The 'vlan' parameter is not valid with -netdev");
             return -1;
         }
         if (qemu_opt_get(opts, "name")) {
-            qemu_error("The 'name' parameter is not valid with -netdev\n");
+            error_report("The 'name' parameter is not valid with -netdev");
             return -1;
         }
         if (!qemu_opts_id(opts)) {
-            qemu_error("The id= parameter is required with -netdev\n");
+            error_report("The id= parameter is required with -netdev");
             return -1;
         }
     }
@@ -1124,7 +1124,7 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
         }
     }
 
-    qemu_error("Invalid -net type '%s'\n", type);
+    error_report("Invalid -net type '%s'", type);
     return -1;
 }
 
@@ -1159,7 +1159,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", NULL);
+    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", 0);
     if (!opts) {
         monitor_printf(mon, "parsing network options '%s' failed\n",
                        opts_str ? opts_str : "");
@@ -1364,7 +1364,7 @@ int net_client_parse(QemuOptsList *opts_list, const char *optarg)
     }
 #endif
 
-    if (!qemu_opts_parse(opts_list, optarg, "type")) {
+    if (!qemu_opts_parse(opts_list, optarg, 1)) {
         return -1;
     }
 

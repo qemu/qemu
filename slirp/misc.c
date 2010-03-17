@@ -260,7 +260,7 @@ void lprint(const char *format, ...)
     va_list args;
 
     va_start(args, format);
-    monitor_vprintf(cur_mon, format, args);
+    monitor_vprintf(default_mon, format, args);
     va_end(args);
 }
 

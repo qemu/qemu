@@ -1478,7 +1478,7 @@ static USBDevice *usb_net_init(const char *cmdline)
     QemuOpts *opts;
     int idx;
 
-    opts = qemu_opts_parse(&qemu_net_opts, cmdline, NULL);
+    opts = qemu_opts_parse(&qemu_net_opts, cmdline, 0);
     if (!opts) {
         return NULL;
     }

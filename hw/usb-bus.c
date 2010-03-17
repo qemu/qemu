@@ -291,14 +291,14 @@ USBDevice *usbdevice_create(const char *cmdline)
     if (info == NULL) {
 #if 0
         /* no error because some drivers are not converted (yet) */
-        qemu_error("usbdevice %s not found\n", driver);
+        error_report("usbdevice %s not found", driver);
 #endif
         return NULL;
     }
 
     if (!usb->usbdevice_init) {
         if (params) {
-            qemu_error("usbdevice %s accepts no params\n", driver);
+            error_report("usbdevice %s accepts no params", driver);
             return NULL;
         }
         return usb_create_simple(bus, usb->qdev.name);

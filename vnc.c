@@ -1046,11 +1046,10 @@ static void audio_capture(void *opaque, void *buf, int size)
 
 static void audio_add(VncState *vs)
 {
-    Monitor *mon = cur_mon;
     struct audio_capture_ops ops;
 
     if (vs->audio_cap) {
-        monitor_printf(mon, "audio already running\n");
+        monitor_printf(default_mon, "audio already running\n");
         return;
     }
 
@@ -1060,7 +1059,7 @@ static void audio_add(VncState *vs)
 
     vs->audio_cap = AUD_add_capture(&vs->as, &ops, vs);
     if (!vs->audio_cap) {
-        monitor_printf(mon, "Failed to add audio capture\n");
+        monitor_printf(default_mon, "Failed to add audio capture\n");
     }
 }
 

@@ -11,11 +11,12 @@ extern QemuOptsList qemu_global_opts;
 extern QemuOptsList qemu_mon_opts;
 extern QemuOptsList qemu_cpudef_opts;
 
+QemuOptsList *qemu_find_opts(const char *group);
 int qemu_set_option(const char *str);
 int qemu_global_option(const char *str);
 void qemu_add_globals(void);
 
 void qemu_config_write(FILE *fp);
-int qemu_config_parse(FILE *fp);
+int qemu_config_parse(FILE *fp, const char *fname);
 
 #endif /* QEMU_CONFIG_H */

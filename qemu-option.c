@@ -27,6 +27,8 @@
 #include <string.h>
 
 #include "qemu-common.h"
+#include "qemu-error.h"
+#include "qemu-objects.h"
 #include "qemu-option.h"
 
 /*
@@ -483,6 +485,7 @@ struct QemuOpt {
 struct QemuOpts {
     char *id;
     QemuOptsList *list;
+    Location loc;
     QTAILQ_HEAD(QemuOptHead, QemuOpt) head;
     QTAILQ_ENTRY(QemuOpts) next;
 };
@@ -653,6 +656,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exist
         opts->id = qemu_strdup(id);
     }
     opts->list = list;
+    loc_save(&opts->loc);
     QTAILQ_INIT(&opts->head);
     QTAILQ_INSERT_TAIL(&list->head, opts, next);
     return opts;
@@ -749,11 +753,16 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
     return 0;
 }
 
-QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname)
+QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
+                          int permit_abbrev)
 {
+    const char *firstname;
     char value[1024], *id = NULL;
     const char *p;
     QemuOpts *opts;
+
+    assert(!permit_abbrev || list->implied_opt_name);
+    firstname = permit_abbrev ? list->implied_opt_name : NULL;
 
     if (strncmp(params, "id=", 3) == 0) {
         get_opt_value(value, sizeof(value), params+3);
@@ -772,6 +781,84 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *fi
     }
 
     return opts;
+}
+
+static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
+{
+    char buf[32];
+    const char *value;
+    int n;
+
+    if (!strcmp(key, "id")) {
+        return;
+    }
+
+    switch (qobject_type(obj)) {
+    case QTYPE_QSTRING:
+        value = qstring_get_str(qobject_to_qstring(obj));
+        break;
+    case QTYPE_QINT:
+        n = snprintf(buf, sizeof(buf), "%" PRId64,
+                     qint_get_int(qobject_to_qint(obj)));
+        assert(n < sizeof(buf));
+        value = buf;
+        break;
+    case QTYPE_QFLOAT:
+        n = snprintf(buf, sizeof(buf), "%.17g",
+                     qfloat_get_double(qobject_to_qfloat(obj)));
+        assert(n < sizeof(buf));
+        value = buf;
+        break;
+    case QTYPE_QBOOL:
+        strcpy(buf, qbool_get_int(qobject_to_qbool(obj)) ? "on" : "off");
+        value = buf;
+        break;
+    default:
+        return;
+    }
+    qemu_opt_set(opaque, key, value);
+}
+
+/*
+ * Create QemuOpts from a QDict.
+ * Use value of key "id" as ID if it exists and is a QString.
+ * Only QStrings, QInts, QFloats and QBools are copied.  Entries with
+ * other types are silently ignored.
+ */
+QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict)
+{
+    QemuOpts *opts;
+
+    opts = qemu_opts_create(list, qdict_get_try_str(qdict, "id"), 1);
+    if (opts == NULL)
+        return NULL;
+
+    qdict_iter(qdict, qemu_opts_from_qdict_1, opts);
+    return opts;
+}
+
+/*
+ * Convert from QemuOpts to QDict.
+ * The QDict values are of type QString.
+ * TODO We'll want to use types appropriate for opt->desc->type, but
+ * this is enough for now.
+ */
+QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
+{
+    QemuOpt *opt;
+    QObject *val;
+
+    if (!qdict) {
+        qdict = qdict_new();
+    }
+    if (opts->id) {
+        qdict_put(qdict, "id", qstring_from_str(opts->id));
+    }
+    QTAILQ_FOREACH(opt, &opts->head, next) {
+        val = QOBJECT(qstring_from_str(opt->str));
+        qdict_put_obj(qdict, opt->name, val);
+    }
+    return qdict;
 }
 
 /* Validate parsed opts against descriptions where no
@@ -810,13 +897,17 @@ int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
                       int abort_on_failure)
 {
+    Location loc;
     QemuOpts *opts;
     int rc = 0;
 
+    loc_push_none(&loc);
     QTAILQ_FOREACH(opts, &list->head, next) {
+        loc_restore(&opts->loc);
         rc |= func(opts, opaque);
         if (abort_on_failure  &&  rc != 0)
             break;
     }
+    loc_pop(&loc);
     return rc;
 }

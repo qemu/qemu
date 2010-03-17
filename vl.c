@@ -1813,7 +1813,7 @@ QemuOpts *drive_add(const char *file, const char *fmt, ...)
     vsnprintf(optstr, sizeof(optstr), fmt, ap);
     va_end(ap);
 
-    opts = qemu_opts_parse(&qemu_drive_opts, optstr, NULL);
+    opts = qemu_opts_parse(&qemu_drive_opts, optstr, 0);
     if (!opts) {
         fprintf(stderr, "%s: huh? duplicate? (%s)\n",
                 __FUNCTION__, optstr);
@@ -2539,7 +2539,7 @@ void do_usb_add(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
     if (usb_device_add(devname, 1) < 0) {
-        qemu_error("could not add USB device '%s'\n", devname);
+        error_report("could not add USB device '%s'", devname);
     }
 }
 
@@ -2547,7 +2547,7 @@ void do_usb_del(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
     if (usb_device_del(devname) < 0) {
-        qemu_error("could not delete USB device '%s'\n", devname);
+        error_report("could not delete USB device '%s'", devname);
     }
 }
 
@@ -4370,7 +4370,7 @@ static int balloon_parse(const char *arg)
     if (!strncmp(arg, "virtio", 6)) {
         if (arg[6] == ',') {
             /* have params -> parse them */
-            opts = qemu_opts_parse(&qemu_device_opts, arg+7, NULL);
+            opts = qemu_opts_parse(&qemu_device_opts, arg+7, 0);
             if (!opts)
                 return  -1;
         } else {
@@ -4796,6 +4796,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     char *r = argv[optind];
     const char *optarg;
 
+    loc_set_cmdline(argv, optind, 1);
     optind++;
     /* Treat --foo the same as -foo.  */
     if (r[1] == '-')
@@ -4803,8 +4804,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     popt = qemu_options;
     for(;;) {
         if (!popt->name) {
-            fprintf(stderr, "%s: invalid option -- '%s'\n",
-                    argv[0], r);
+            error_report("invalid option");
             exit(1);
         }
         if (!strcmp(popt->name, r + 1))
@@ -4813,11 +4813,11 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     }
     if (popt->flags & HAS_ARG) {
         if (optind >= argc) {
-            fprintf(stderr, "%s: option '%s' requires an argument\n",
-                    argv[0], r);
+            error_report("requires an argument");
             exit(1);
         }
         optarg = argv[optind++];
+        loc_set_cmdline(argv, optind - 2, 2);
     } else {
         optarg = NULL;
     }
@@ -4862,9 +4862,10 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
     int defconfig = 1;
 
+    error_set_progname(argv[0]);
+
     init_clocks();
 
-    qemu_errors_to_file(stderr);
     qemu_cache_utils_init(envp);
 
     QLIST_INIT (&vm_change_state_head);
@@ -4940,18 +4941,22 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (defconfig) {
+        const char *fname;
         FILE *fp;
-        fp = fopen(CONFIG_QEMU_CONFDIR "/qemu.conf", "r");
+
+        fname = CONFIG_QEMU_CONFDIR "/qemu.conf";
+        fp = fopen(fname, "r");
         if (fp) {
-            if (qemu_config_parse(fp) != 0) {
+            if (qemu_config_parse(fp, fname) != 0) {
                 exit(1);
             }
             fclose(fp);
         }
 
-        fp = fopen(CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", "r");
+        fname = CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf";
+        fp = fopen(fname, "r");
         if (fp) {
-            if (qemu_config_parse(fp) != 0) {
+            if (qemu_config_parse(fp, fname) != 0) {
                 exit(1);
             }
             fclose(fp);
@@ -5360,7 +5365,7 @@ int main(int argc, char **argv, char **envp)
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
-                opts = qemu_opts_parse(&qemu_mon_opts, optarg, "chardev");
+                opts = qemu_opts_parse(&qemu_mon_opts, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
@@ -5368,7 +5373,7 @@ int main(int argc, char **argv, char **envp)
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_chardev:
-                opts = qemu_opts_parse(&qemu_chardev_opts, optarg, "backend");
+                opts = qemu_opts_parse(&qemu_chardev_opts, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
@@ -5471,7 +5476,7 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
-                if (!qemu_opts_parse(&qemu_device_opts, optarg, "driver")) {
+                if (!qemu_opts_parse(&qemu_device_opts, optarg, 1)) {
                     exit(1);
                 }
                 break;
@@ -5580,7 +5585,7 @@ int main(int argc, char **argv, char **envp)
                 configure_rtc_date_offset(optarg, 1);
                 break;
             case QEMU_OPTION_rtc:
-                opts = qemu_opts_parse(&qemu_rtc_opts, optarg, NULL);
+                opts = qemu_opts_parse(&qemu_rtc_opts, optarg, 0);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
@@ -5641,7 +5646,7 @@ int main(int argc, char **argv, char **envp)
                         fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
                         exit(1);
                     }
-                    if (qemu_config_parse(fp) != 0) {
+                    if (qemu_config_parse(fp, optarg) != 0) {
                         exit(1);
                     }
                     fclose(fp);
@@ -5666,6 +5671,7 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
+    loc_set_none();
 
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
@@ -6081,7 +6087,7 @@ int main(int argc, char **argv, char **envp)
 
     qemu_system_reset();
     if (loadvm) {
-        if (load_vmstate(cur_mon, loadvm) < 0) {
+        if (load_vmstate(loadvm) < 0) {
             autostart = 0;
         }
     }

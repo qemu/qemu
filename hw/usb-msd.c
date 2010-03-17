@@ -524,7 +524,7 @@ static int usb_msd_initfn(USBDevice *dev)
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
 
     if (!s->conf.dinfo || !s->conf.dinfo->bdrv) {
-        qemu_error("usb-msd: drive property not set\n");
+        error_report("usb-msd: drive property not set");
         return -1;
     }
 
@@ -535,7 +535,7 @@ static int usb_msd_initfn(USBDevice *dev)
     usb_msd_handle_reset(dev);
 
     if (bdrv_key_required(s->conf.dinfo->bdrv)) {
-        if (s->dev.qdev.hotplugged) {
+        if (cur_mon) {
             monitor_read_bdrv_key_start(cur_mon, s->conf.dinfo->bdrv,
                                         usb_msd_password_cb, s);
             s->dev.auto_attach = 0;

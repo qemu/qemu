@@ -19,8 +19,6 @@
  * the host adapter emulator.
  */
 
-#include <qemu-common.h>
-#include <sysemu.h>
 //#define DEBUG_SCSI
 
 #ifdef DEBUG_SCSI
@@ -34,6 +32,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "block.h"
 #include "scsi.h"
 #include "scsi-defs.h"
@@ -1026,13 +1025,13 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     uint64_t nb_sectors;
 
     if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
-        qemu_error("scsi-disk: drive property not set\n");
+        error_report("scsi-disk: drive property not set");
         return -1;
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
     if (bdrv_is_sg(s->bs)) {
-        qemu_error("scsi-disk: unwanted /dev/sg*\n");
+        error_report("scsi-disk: unwanted /dev/sg*");
         return -1;
     }
 
