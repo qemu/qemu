@@ -14,12 +14,17 @@
 #ifndef QEMU_KVM_H
 #define QEMU_KVM_H
 
+#include <stdbool.h>
+#include <errno.h>
 #include "config-host.h"
 #include "qemu-queue.h"
 
-extern int kvm_allowed;
+#ifdef CONFIG_KVM
+#include <linux/kvm.h>
+#endif
 
 #ifdef CONFIG_KVM
+extern int kvm_allowed;
 #define kvm_enabled() (kvm_allowed)
 #else
 #define kvm_enabled() (0)
@@ -161,5 +166,16 @@ static inline void cpu_synchronize_post_init(CPUState *env)
         kvm_cpu_synchronize_post_init(env);
     }
 }
+
+#if defined(KVM_IOEVENTFD) && defined(CONFIG_KVM)
+int kvm_set_ioeventfd_pio_word(int fd, uint16_t adr, uint16_t val, bool assign);
+#else
+static inline
+int kvm_set_ioeventfd_pio_word(int fd, uint16_t adr, uint16_t val, bool assign)
+{
+    return -ENOSYS;
+}
+#endif
+
 #endif
 #endif
