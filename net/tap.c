@@ -488,3 +488,10 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
 
     return 0;
 }
+
+VHostNetState *tap_get_vhost_net(VLANClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    return s->vhost_net;
+}
