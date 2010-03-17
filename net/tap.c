@@ -270,6 +270,13 @@ static void tap_poll(VLANClientState *nc, bool enable)
     tap_write_poll(s, enable);
 }
 
+int tap_get_fd(VLANClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    return s->fd;
+}
+
 /* fd support */
 
 static NetClientInfo net_tap_info = {
