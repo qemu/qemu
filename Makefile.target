@@ -165,6 +165,7 @@ obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o vl.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-pci.o virtio-serial-bus.o
+obj-y += event_notifier.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 LIBS+=-lz

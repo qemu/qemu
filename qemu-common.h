@@ -228,6 +228,7 @@ typedef struct uWireSlave uWireSlave;
 typedef struct I2SCodec I2SCodec;
 typedef struct DeviceState DeviceState;
 typedef struct SSIBus SSIBus;
+typedef struct EventNotifier EventNotifier;
 
 typedef uint64_t pcibus_t;
 
