@@ -533,7 +533,7 @@ static void configure_rtc(QemuOpts *opts)
 }
 
 #ifdef _WIN32
-static void socket_cleanup(void)
+static void socket_cleanup(Notifier *obj)
 {
     WSACleanup();
 }
@@ -542,6 +542,7 @@ static int socket_init(void)
 {
     WSADATA Data;
     int ret, err;
+    static Notifier notifier = { .notify = socket_cleanup };
 
     ret = WSAStartup(MAKEWORD(2,2), &Data);
     if (ret != 0) {
@@ -549,7 +550,7 @@ static int socket_init(void)
         fprintf(stderr, "WSAStartup: %d\n", err);
         return -1;
     }
-    atexit(socket_cleanup);
+    exit_notifier_add(&notifier);
     return 0;
 }
 #endif
@@ -3767,6 +3768,8 @@ int main(int argc, char **argv, char **envp)
     int defconfig = 1;
 
     error_set_progname(argv[0]);
+
+    exit_notifier_init();
 
     init_clocks();
 

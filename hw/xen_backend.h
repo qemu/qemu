@@ -97,7 +97,7 @@ extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
 void xen_init_display(int domid);
 
 /* configuration (aka xenbus setup) */
-void xen_config_cleanup(void);
+void xen_config_cleanup(Notifier *notifier);
 int xen_config_dev_blk(DriveInfo *disk);
 int xen_config_dev_nic(NICInfo *nic);
 int xen_config_dev_vfb(int vdev, const char *type);

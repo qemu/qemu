@@ -17,7 +17,7 @@ static void xen_config_cleanup_dir(char *dir)
     QTAILQ_INSERT_TAIL(&xs_cleanup, d, list);
 }
 
-void xen_config_cleanup(void)
+void xen_config_cleanup(Notifier *notifier)
 {
     struct xs_dirs *d;
 

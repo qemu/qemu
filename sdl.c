@@ -827,7 +827,7 @@ static void sdl_mouse_define(int width, int height, int bpp,
         SDL_SetCursor(guest_sprite);
 }
 
-static void sdl_cleanup(void)
+static void sdl_cleanup(Notifier *notifier)
 {
     if (guest_sprite)
         SDL_FreeCursor(guest_sprite);
@@ -840,6 +840,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     uint8_t data = 0;
     DisplayAllocator *da;
     const SDL_VideoInfo *vi;
+    static Notifier exit_notifier = { .notify = sdl_cleanup };
 
 #if defined(__APPLE__)
     /* always use generic keymaps */
@@ -892,7 +893,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     sdl_cursor_hidden = SDL_CreateCursor(&data, &data, 8, 1, 0, 0);
     sdl_cursor_normal = SDL_GetCursor();
 
-    atexit(sdl_cleanup);
+    exit_notifier_add(&exit_notifier);
     if (full_screen) {
         gui_fullscreen = 1;
         gui_fullscreen_initial_grab = 1;

@@ -338,6 +338,7 @@ static void curses_keyboard_setup(void)
 void curses_display_init(DisplayState *ds, int full_screen)
 {
     DisplayChangeListener *dcl;
+    static Notifier notifier = { .notify = curses_atexit };
 #ifndef _WIN32
     if (!isatty(1)) {
         fprintf(stderr, "We need a terminal output\n");
@@ -347,7 +348,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
 
     curses_setup();
     curses_keyboard_setup();
-    atexit(curses_atexit);
+    exit_notifier_add(&notifier);
 
 #ifndef _WIN32
 #if defined(SIGWINCH) && defined(KEY_RESIZE)
