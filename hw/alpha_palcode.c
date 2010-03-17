@@ -1003,11 +1003,14 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
         /* No fault */
         page_size = 1ULL << zbits;
         address &= ~(page_size - 1);
+        /* FIXME: page_size should probably be passed to tlb_set_page,
+           and this loop removed.   */
         for (end = physical + page_size; physical < end; physical += 0x1000) {
-            ret = tlb_set_page(env, address, physical, prot,
-                               mmu_idx, is_softmmu);
+            tlb_set_page(env, address, physical, prot, mmu_idx,
+                         TARGET_PAGE_SIZE);
             address += 0x1000;
         }
+        ret = 0;
         break;
 #if 0
     case 1:

@@ -296,9 +296,10 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     qemu_log("%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_plx " prot %d\n",
               __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
-       ret = tlb_set_page(env, address & TARGET_PAGE_MASK,
-                          physical & TARGET_PAGE_MASK, prot,
-                          mmu_idx, is_softmmu);
+       tlb_set_page(env, address & TARGET_PAGE_MASK,
+                    physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
+                    mmu_idx, TARGET_PAGE_SIZE);
+       ret = 0;
     } else if (ret < 0)
 #endif
     {

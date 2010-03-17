@@ -69,10 +69,11 @@ int cpu_s390x_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     /* XXX: implement mmu */
 
     phys = address;
-    prot = PAGE_READ | PAGE_WRITE;
+    prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 
-    return tlb_set_page(env, address & TARGET_PAGE_MASK,
-                        phys & TARGET_PAGE_MASK, prot,
-                        mmu_idx, is_softmmu);
+    tlb_set_page(env, address & TARGET_PAGE_MASK,
+                 phys & TARGET_PAGE_MASK, prot,
+                 mmu_idx, TARGET_PAGE_SIZE);
+    return 0;
 }
 #endif /* CONFIG_USER_ONLY */
