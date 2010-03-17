@@ -93,6 +93,10 @@ extern int madvise(caddr_t, size_t, int);
 #include <libvdeplug.h>
 #endif
 
+#if defined(CONFIG_UUID)
+#include <uuid/uuid.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -3733,6 +3737,51 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     return popt;
 }
 
+static void qmp_add_default(void)
+{
+    char buffer[4096];
+    const char *home;
+    static uint8_t null_uuid[16];
+    uint8_t uuid[16];
+    
+    home = getenv("HOME");
+    if (!home) {
+        return;
+    }
+
+    if (memcmp(qemu_uuid, null_uuid, sizeof(null_uuid)) == 0) {
+#if defined(CONFIG_UUID)
+        uuid_generate(uuid);
+#else
+        return;
+#endif
+    } else {
+        memcpy(uuid, qemu_uuid, sizeof(qemu_uuid));
+    }
+
+    snprintf(buffer, sizeof(buffer), "%s/.qemu", home);
+    if (mkdir(buffer, 0755) == -1 && errno != EEXIST) {
+        fprintf(stderr, "could not open default QMP port\n");
+        return;
+    }
+
+    snprintf(buffer, sizeof(buffer), "%s/.qemu/qmp", home);
+    if (mkdir(buffer, 0755) == -1 && errno != EEXIST) {
+        fprintf(stderr, "could not open default QMP port\n");
+        return;
+    }
+
+    snprintf(buffer, sizeof(buffer),
+             "unix:%s/.qemu/qmp/" UUID_FMT ".sock,server,nowait",
+             home,
+             uuid[0], uuid[1], uuid[2], uuid[3],
+             uuid[4], uuid[5], uuid[6], uuid[7],
+             uuid[8], uuid[9], uuid[10], uuid[11],
+             uuid[12], uuid[13], uuid[14], uuid[15]);
+
+    monitor_parse(buffer, "control");
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -4658,6 +4707,9 @@ int main(int argc, char **argv, char **envp)
             monitor_parse("vc:80Cx24C", "readline");
         if (default_virtcon)
             add_device_config(DEV_VIRTCON, "vc:80Cx24C");
+    }
+    if (default_qmp) {
+        qmp_add_default();
     }
     if (default_vga)
         vga_interface_type = VGA_CIRRUS;
