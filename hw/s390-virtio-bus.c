@@ -242,7 +242,7 @@ void s390_virtio_device_update_status(VirtIOS390Device *dev)
     VirtIODevice *vdev = dev->vdev;
     uint32_t features;
 
-    vdev->status = ldub_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS);
+    virtio_set_status(vdev, ldub_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS));
 
     /* Update guest supported feature bitmap */
 

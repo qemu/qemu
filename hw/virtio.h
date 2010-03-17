@@ -115,11 +115,20 @@ struct VirtIODevice
     void (*get_config)(VirtIODevice *vdev, uint8_t *config);
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
     void (*reset)(VirtIODevice *vdev);
+    void (*set_status)(VirtIODevice *vdev, uint8_t val);
     VirtQueue *vq;
     const VirtIOBindings *binding;
     void *binding_opaque;
     uint16_t device_id;
 };
+
+static inline void virtio_set_status(VirtIODevice *vdev, uint8_t val)
+{
+    if (vdev->set_status) {
+        vdev->set_status(vdev, val);
+    }
+    vdev->status = val;
+}
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,

@@ -219,7 +219,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         virtio_queue_notify(vdev, val);
         break;
     case VIRTIO_PCI_STATUS:
-        vdev->status = val & 0xFF;
+        virtio_set_status(vdev, val & 0xFF);
         if (vdev->status == 0) {
             virtio_reset(proxy->vdev);
             msix_unuse_all_vectors(&proxy->pci_dev);
@@ -399,7 +399,8 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
     if (PCI_COMMAND == address) {
         if (!(val & PCI_COMMAND_MASTER)) {
             if (!(proxy->bugs & VIRTIO_PCI_BUG_BUS_MASTER)) {
-                proxy->vdev->status &= ~VIRTIO_CONFIG_S_DRIVER_OK;
+                virtio_set_status(proxy->vdev,
+                                  proxy->vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
             }
         }
     }
