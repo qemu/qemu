@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include "qemu-queue.h"
+#include "qdict.h"
 
 enum QEMUOptionParType {
     OPT_FLAG,
@@ -96,6 +97,7 @@ typedef struct QemuOptDesc {
 
 struct QemuOptsList {
     const char *name;
+    const char *implied_opt_name;
     QTAILQ_HEAD(, QemuOpts) head;
     QemuOptDesc desc[];
 };
@@ -117,7 +119,9 @@ const char *qemu_opts_id(QemuOpts *opts);
 void qemu_opts_del(QemuOpts *opts);
 int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc);
 int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname);
-QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, const char *firstname);
+QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, int permit_abbrev);
+QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict);
+QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict);
 
 typedef int (*qemu_opts_loopfunc)(QemuOpts *opts, void *opaque);
 int qemu_opts_print(QemuOpts *opts, void *dummy);

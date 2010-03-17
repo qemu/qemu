@@ -54,7 +54,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         return NULL;
     }
 
-    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", NULL);
+    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", 0);
     if (!opts) {
         monitor_printf(mon, "parsing network options '%s' failed\n",
                        opts_str ? opts_str : "");
@@ -73,14 +73,15 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
     return pci_nic_init(&nd_table[ret], "rtl8139", devaddr);
 }
 
-static int scsi_hot_add(DeviceState *adapter, DriveInfo *dinfo, int printinfo)
+static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
+                        DriveInfo *dinfo, int printinfo)
 {
     SCSIBus *scsibus;
     SCSIDevice *scsidev;
 
     scsibus = DO_UPCAST(SCSIBus, qbus, QLIST_FIRST(&adapter->child_bus));
     if (!scsibus || strcmp(scsibus->qbus.info->name, "SCSI") != 0) {
-        qemu_error("Device is not a SCSI adapter\n");
+        error_report("Device is not a SCSI adapter");
         return -1;
     }
 
@@ -97,7 +98,8 @@ static int scsi_hot_add(DeviceState *adapter, DriveInfo *dinfo, int printinfo)
     dinfo->unit = scsidev->id;
 
     if (printinfo)
-        qemu_error("OK bus %d, unit %d\n", scsibus->busnr, scsidev->id);
+        monitor_printf(mon, "OK bus %d, unit %d\n",
+                       scsibus->busnr, scsidev->id);
     return 0;
 }
 
@@ -131,7 +133,7 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "no pci device with address %s\n", pci_addr);
             goto err;
         }
-        if (scsi_hot_add(&dev->qdev, dinfo, 1) != 0) {
+        if (scsi_hot_add(mon, &dev->qdev, dinfo, 1) != 0) {
             goto err;
         }
         break;
@@ -203,7 +205,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         if (qdev_init(&dev->qdev) < 0)
             dev = NULL;
         if (dev && dinfo) {
-            if (scsi_hot_add(&dev->qdev, dinfo, 0) != 0) {
+            if (scsi_hot_add(mon, &dev->qdev, dinfo, 0) != 0) {
                 qdev_unplug(&dev->qdev);
                 dev = NULL;
             }

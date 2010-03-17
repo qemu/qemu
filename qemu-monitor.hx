@@ -570,10 +570,11 @@ ETEXI
 
     {
         .name       = "device_add",
-        .args_type  = "config:s",
-        .params     = "device",
+        .args_type  = "device:O",
+        .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .mhandler.cmd = do_device_add,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_device_add,
     },
 
 STEXI

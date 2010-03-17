@@ -470,7 +470,8 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     address &= TARGET_PAGE_MASK;
     physical &= TARGET_PAGE_MASK;
 
-    return tlb_set_page(env, address, physical, prot, mmu_idx, is_softmmu);
+    tlb_set_page(env, address, physical, prot, mmu_idx, TARGET_PAGE_SIZE);
+    return 0;
 }
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)

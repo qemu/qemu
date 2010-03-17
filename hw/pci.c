@@ -589,12 +589,12 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
             if (!bus->devices[devfn])
                 goto found;
         }
-        qemu_error("PCI: no devfn available for %s, all in use\n", name);
+        error_report("PCI: no devfn available for %s, all in use", name);
         return NULL;
     found: ;
     } else if (bus->devices[devfn]) {
-        qemu_error("PCI: devfn %d not available for %s, in use by %s\n", devfn,
-                 name, bus->devices[devfn]->name);
+        error_report("PCI: devfn %d not available for %s, in use by %s",
+                     devfn, name, bus->devices[devfn]->name);
         return NULL;
     }
     pci_dev->bus = bus;
@@ -1496,8 +1496,8 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
 
     bus = pci_get_bus_devfn(&devfn, devaddr);
     if (!bus) {
-        qemu_error("Invalid PCI device address %s for device %s\n",
-                   devaddr, pci_nic_names[i]);
+        error_report("Invalid PCI device address %s for device %s",
+                     devaddr, pci_nic_names[i]);
         return NULL;
     }
 
@@ -1788,8 +1788,8 @@ static int pci_add_option_rom(PCIDevice *pdev)
 
     size = get_image_size(path);
     if (size < 0) {
-        qemu_error("%s: failed to find romfile \"%s\"\n", __FUNCTION__,
-                   pdev->romfile);
+        error_report("%s: failed to find romfile \"%s\"",
+                     __FUNCTION__, pdev->romfile);
         return -1;
     }
     if (size & (size - 1)) {

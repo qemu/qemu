@@ -402,17 +402,11 @@ PropertyInfo qdev_prop_vlan = {
 
 /* --- pointer --- */
 
-static int print_ptr(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    void **ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "<%p>", *ptr);
-}
-
+/* Not a proper property, just for dirty hacks.  TODO Remove it!  */
 PropertyInfo qdev_prop_ptr = {
     .name  = "ptr",
     .type  = PROP_TYPE_PTR,
     .size  = sizeof(void*),
-    .print = print_ptr,
 };
 
 /* --- mac address --- */
@@ -547,31 +541,31 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
     int ret;
 
     prop = qdev_prop_find(dev, name);
-    if (!prop) {
-        fprintf(stderr, "property \"%s.%s\" not found\n",
-                dev->info->name, name);
-        return -1;
-    }
-    if (!prop->info->parse) {
-        fprintf(stderr, "property \"%s.%s\" has no parser\n",
-                dev->info->name, name);
+    /*
+     * TODO Properties without a parse method are just for dirty
+     * hacks.  qdev_prop_ptr is the only such PropertyInfo.  It's
+     * marked for removal.  The test !prop->info->parse should be
+     * removed along with it.
+     */
+    if (!prop || !prop->info->parse) {
+        qerror_report(QERR_PROPERTY_NOT_FOUND, dev->info->name, name);
         return -1;
     }
     ret = prop->info->parse(dev, prop, value);
     if (ret < 0) {
         switch (ret) {
         case -EEXIST:
-            fprintf(stderr, "property \"%s.%s\": \"%s\" is already in use\n",
-                    dev->info->name, name, value);
+            qerror_report(QERR_PROPERTY_VALUE_IN_USE,
+                          dev->info->name, name, value);
             break;
         default:
         case -EINVAL:
-            fprintf(stderr, "property \"%s.%s\": failed to parse \"%s\"\n",
-                    dev->info->name, name, value);
+            qerror_report(QERR_PROPERTY_VALUE_BAD,
+                          dev->info->name, name, value);
             break;
         case -ENOENT:
-            fprintf(stderr, "property \"%s.%s\": could not find \"%s\"\n",
-                    dev->info->name, name, value);
+            qerror_report(QERR_PROPERTY_VALUE_NOT_FOUND,
+                          dev->info->name, name, value);
             break;
         }
         return -1;

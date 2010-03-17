@@ -1997,6 +1997,9 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     pci_set_long(pci_conf + PCI_BASE_ADDRESS_0 + 4,
                  PCI_BASE_ADDRESS_SPACE_MEMORY);
 
+    pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x0);
+    pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0);
+
     /* TODO: value must be 0 at RST# */
     pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
     pci_conf[PCI_MIN_GNT] = 0x06;

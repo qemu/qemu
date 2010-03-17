@@ -756,7 +756,7 @@ static int usb_host_handle_packet(USBDevice *s, USBPacket *p)
 static int usb_linux_update_endp_table(USBHostDevice *s)
 {
     uint8_t *descriptors;
-    uint8_t devep, type, configuration, alt_interface;
+    uint8_t devep, type = 0, configuration, alt_interface;
     struct usb_ctrltransfer ct;
     int interface, ret, length, i;
 
@@ -846,9 +846,6 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             case 0x03:
                 type = USBDEVFS_URB_TYPE_INTERRUPT;
                 break;
-            default:
-                DPRINTF("usb_host: malformed endpoint type\n");
-                type = USBDEVFS_URB_TYPE_BULK;
             }
             s->endp_table[(devep & 0xf) - 1].type = type;
             s->endp_table[(devep & 0xf) - 1].halted = 0;
@@ -1188,9 +1185,6 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
  */
 static int usb_host_read_file(char *line, size_t line_size, const char *device_file, const char *device_name)
 {
-#if 0
-    Monitor *mon = cur_mon;
-#endif
     FILE *f;
     int ret = 0;
     char filename[PATH_MAX];
@@ -1201,11 +1195,6 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
     if (f) {
         ret = fgets(line, line_size, f) != NULL;
         fclose(f);
-#if 0
-    } else {
-        if (mon)
-            monitor_printf(mon, "husb: could not open %s\n", filename);
-#endif
     }
 
     return ret;

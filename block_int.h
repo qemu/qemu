@@ -209,6 +209,7 @@ struct DriveInfo;
 typedef struct BlockConf {
     struct DriveInfo *dinfo;
     uint16_t physical_block_size;
+    uint16_t logical_block_size;
     uint16_t min_io_size;
     uint32_t opt_io_size;
 } BlockConf;
@@ -226,6 +227,8 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 
 #define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
     DEFINE_PROP_DRIVE("drive", _state, _conf.dinfo),                    \
+    DEFINE_PROP_UINT16("logical_block_size", _state,                    \
+                       _conf.logical_block_size, 512),                  \
     DEFINE_PROP_UINT16("physical_block_size", _state,                   \
                        _conf.physical_block_size, 512),                 \
     DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 512),  \

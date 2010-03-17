@@ -175,7 +175,7 @@ void qbus_free(BusState *bus);
 
 void do_info_qtree(Monitor *mon);
 void do_info_qdm(Monitor *mon);
-void do_device_add(Monitor *mon, const QDict *qdict);
+int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data);
 void do_device_del(Monitor *mon, const QDict *qdict);
 
 /*** qdev-properties.c ***/

@@ -215,8 +215,8 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
     big_endian = 0;
 #endif
 
-    image_size = load_elf(kernel_filename, 0, &entry, &lowaddr, NULL,
-                          big_endian, ELF_MACHINE, 1);
+    image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
+                          NULL, big_endian, ELF_MACHINE, 1);
     if (image_size < 0) {
         image_size = load_image_targphys(kernel_filename, 0, flash_size);
 	lowaddr = 0;

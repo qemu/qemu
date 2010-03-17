@@ -54,7 +54,7 @@ extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
 void do_savevm(Monitor *mon, const QDict *qdict);
-int load_vmstate(Monitor *mon, const char *name);
+int load_vmstate(const char *name);
 void do_delvm(Monitor *mon, const QDict *qdict);
 void do_info_snapshots(Monitor *mon);
 
@@ -64,7 +64,7 @@ void cpu_synchronize_all_post_init(void);
 
 void qemu_announce_self(void);
 
-void main_loop_wait(int timeout);
+void main_loop_wait(int nonblocking);
 
 int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
                             int shared);
@@ -72,17 +72,6 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f);
 int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f);
 void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
-
-void qemu_errors_to_file(FILE *fp);
-void qemu_errors_to_mon(Monitor *mon);
-void qemu_errors_to_previous(void);
-void qemu_error(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
-void qemu_error_internal(const char *file, int linenr, const char *func,
-                         const char *fmt, ...)
-                         __attribute__ ((format(printf, 4, 5)));
-
-#define qemu_error_new(fmt, ...) \
-    qemu_error_internal(__FILE__, __LINE__, __func__, fmt, ## __VA_ARGS__)
 
 #ifdef _WIN32
 /* Polling handling */

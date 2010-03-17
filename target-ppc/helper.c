@@ -1411,9 +1411,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     }
     ret = get_physical_address(env, &ctx, address, rw, access_type);
     if (ret == 0) {
-        ret = tlb_set_page_exec(env, address & TARGET_PAGE_MASK,
-                                ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
-                                mmu_idx, is_softmmu);
+        tlb_set_page(env, address & TARGET_PAGE_MASK,
+                     ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
+                     mmu_idx, TARGET_PAGE_SIZE);
+        ret = 0;
     } else if (ret < 0) {
         LOG_MMU_STATE(env);
         if (access_type == ACCESS_CODE) {

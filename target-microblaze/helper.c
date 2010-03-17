@@ -76,8 +76,8 @@ int cpu_mb_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
             DMMU(qemu_log("MMU map mmu=%d v=%x p=%x prot=%x\n",
                      mmu_idx, vaddr, paddr, lu.prot));
-            r = tlb_set_page(env, vaddr,
-                             paddr, lu.prot, mmu_idx, is_softmmu);
+            tlb_set_page(env, vaddr, paddr, lu.prot, mmu_idx, TARGET_PAGE_SIZE);
+            r = 0;
         } else {
             env->sregs[SR_EAR] = address;
             DMMU(qemu_log("mmu=%d miss v=%x\n", mmu_idx, address));
@@ -107,7 +107,8 @@ int cpu_mb_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         /* MMU disabled or not available.  */
         address &= TARGET_PAGE_MASK;
         prot = PAGE_BITS;
-        r = tlb_set_page(env, address, address, prot, mmu_idx, is_softmmu);
+        tlb_set_page(env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+        r = 0;
     }
     return r;
 }

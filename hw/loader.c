@@ -276,9 +276,9 @@ static void *load_at(int fd, int offset, int size)
 #include "elf_ops.h"
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
-int load_elf(const char *filename, int64_t address_offset,
-             uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr,
-             int big_endian, int elf_machine, int clear_lsb)
+int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
+             void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
+             uint64_t *highaddr, int big_endian, int elf_machine, int clear_lsb)
 {
     int fd, data_order, target_data_order, must_swab, ret;
     uint8_t e_ident[EI_NIDENT];
@@ -312,11 +312,11 @@ int load_elf(const char *filename, int64_t address_offset,
 
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
-        ret = load_elf64(filename, fd, address_offset, must_swab, pentry,
-                         lowaddr, highaddr, elf_machine, clear_lsb);
+        ret = load_elf64(filename, fd, translate_fn, translate_opaque, must_swab,
+                         pentry, lowaddr, highaddr, elf_machine, clear_lsb);
     } else {
-        ret = load_elf32(filename, fd, address_offset, must_swab, pentry,
-                         lowaddr, highaddr, elf_machine, clear_lsb);
+        ret = load_elf32(filename, fd, translate_fn, translate_opaque, must_swab,
+                         pentry, lowaddr, highaddr, elf_machine, clear_lsb);
     }
 
     close(fd);

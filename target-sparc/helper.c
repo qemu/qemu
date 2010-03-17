@@ -102,7 +102,8 @@ static const int perm_table[2][8] = {
 
 static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                                 int *prot, int *access_index,
-                                target_ulong address, int rw, int mmu_idx)
+                                target_ulong address, int rw, int mmu_idx,
+                                target_ulong *page_size)
 {
     int access_perms = 0;
     target_phys_addr_t pde_ptr;
@@ -113,6 +114,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     is_user = mmu_idx == MMU_USER_IDX;
 
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
+        *page_size = TARGET_PAGE_SIZE;
         // Boot mode: instruction fetches are taken from PROM
         if (rw == 2 && (env->mmuregs[0] & env->def->mmu_bm)) {
             *physical = env->prom_addr | (address & 0x7ffffULL);
@@ -175,13 +177,16 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                     page_offset = (address & TARGET_PAGE_MASK) &
                         (TARGET_PAGE_SIZE - 1);
                 }
+                *page_size = TARGET_PAGE_SIZE;
                 break;
             case 2: /* L2 PTE */
                 page_offset = address & 0x3ffff;
+                *page_size = 0x40000;
             }
             break;
         case 2: /* L1 PTE */
             page_offset = address & 0xffffff;
+            *page_size = 0x1000000;
         }
     }
 
@@ -220,10 +225,11 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 {
     target_phys_addr_t paddr;
     target_ulong vaddr;
-    int error_code = 0, prot, ret = 0, access_index;
+    target_ulong page_size;
+    int error_code = 0, prot, access_index;
 
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
-                                      address, rw, mmu_idx);
+                                      address, rw, mmu_idx, &page_size);
     if (error_code == 0) {
         vaddr = address & TARGET_PAGE_MASK;
         paddr &= TARGET_PAGE_MASK;
@@ -231,8 +237,8 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         printf("Translate at " TARGET_FMT_lx " -> " TARGET_FMT_plx ", vaddr "
                TARGET_FMT_lx "\n", address, paddr, vaddr);
 #endif
-        ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
-        return ret;
+        tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+        return 0;
     }
 
     if (env->mmuregs[3]) /* Fault status register */
@@ -247,8 +253,8 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         // switching to normal mode.
         vaddr = address & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
-        return ret;
+        tlb_set_page(env, vaddr, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
+        return 0;
     } else {
         if (rw & 2)
             env->exception_index = TT_TFAULT;
@@ -531,10 +537,14 @@ static int get_physical_address_code(CPUState *env,
 
 static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                                 int *prot, int *access_index,
-                                target_ulong address, int rw, int mmu_idx)
+                                target_ulong address, int rw, int mmu_idx,
+                                target_ulong *page_size)
 {
     int is_user = mmu_idx == MMU_USER_IDX;
 
+    /* ??? We treat everything as a small page, then explicitly flush
+       everything when an entry is evicted.  */
+    *page_size = TARGET_PAGE_SIZE;
     if (rw == 2)
         return get_physical_address_code(env, physical, prot, address,
                                          is_user);
@@ -549,10 +559,11 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 {
     target_ulong virt_addr, vaddr;
     target_phys_addr_t paddr;
-    int error_code = 0, prot, ret = 0, access_index;
+    target_ulong page_size;
+    int error_code = 0, prot, access_index;
 
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
-                                      address, rw, mmu_idx);
+                                      address, rw, mmu_idx, &page_size);
     if (error_code == 0) {
         virt_addr = address & TARGET_PAGE_MASK;
         vaddr = virt_addr + ((address & TARGET_PAGE_MASK) &
@@ -561,8 +572,8 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         printf("Translate at 0x%" PRIx64 " -> 0x%" PRIx64 ", vaddr 0x%" PRIx64
                "\n", address, paddr, vaddr);
 #endif
-        ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
-        return ret;
+        tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+        return 0;
     }
     // XXX
     return 1;
@@ -656,12 +667,13 @@ void dump_mmu(CPUState *env)
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_phys_addr_t phys_addr;
+    target_ulong page_size;
     int prot, access_index;
 
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,
-                             MMU_KERNEL_IDX) != 0)
+                             MMU_KERNEL_IDX, &page_size) != 0)
         if (get_physical_address(env, &phys_addr, &prot, &access_index, addr,
-                                 0, MMU_KERNEL_IDX) != 0)
+                                 0, MMU_KERNEL_IDX, &page_size) != 0)
             return -1;
     if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
         return -1;

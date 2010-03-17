@@ -9,6 +9,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "usb.h"
 #include "qemu-char.h"
 
@@ -564,26 +565,26 @@ static USBDevice *usb_serial_init(const char *filename)
         if (strstart(filename, "vendorid=", &p)) {
             vendorid = strtol(p, &e, 16);
             if (e == p || (*e && *e != ',' && *e != ':')) {
-                qemu_error("bogus vendor ID %s\n", p);
+                error_report("bogus vendor ID %s", p);
                 return NULL;
             }
             filename = e;
         } else if (strstart(filename, "productid=", &p)) {
             productid = strtol(p, &e, 16);
             if (e == p || (*e && *e != ',' && *e != ':')) {
-                qemu_error("bogus product ID %s\n", p);
+                error_report("bogus product ID %s", p);
                 return NULL;
             }
             filename = e;
         } else {
-            qemu_error("unrecognized serial USB option %s\n", filename);
+            error_report("unrecognized serial USB option %s", filename);
             return NULL;
         }
         while(*filename == ',')
             filename++;
     }
     if (!*filename) {
-        qemu_error("character device specification needed\n");
+        error_report("character device specification needed");
         return NULL;
     }
     filename++;

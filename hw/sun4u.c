@@ -189,8 +189,8 @@ static unsigned long sun4u_load_kernel(const char *kernel_filename,
 #else
         bswap_needed = 0;
 #endif
-        kernel_size = load_elf(kernel_filename, 0, NULL, NULL, NULL,
-                               1, ELF_MACHINE, 0);
+        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
+                               NULL, NULL, 1, ELF_MACHINE, 0);
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, KERNEL_LOAD_ADDR,
                                     RAM_size - KERNEL_LOAD_ADDR, bswap_needed,
@@ -580,6 +580,12 @@ static void pci_ebus_register(void)
 
 device_init(pci_ebus_register);
 
+static uint64_t translate_prom_address(void *opaque, uint64_t addr)
+{
+    target_phys_addr_t *base_addr = (target_phys_addr_t *)opaque;
+    return addr + *base_addr - PROM_VADDR;
+}
+
 /* Boot PROM (OpenBIOS) */
 static void prom_init(target_phys_addr_t addr, const char *bios_name)
 {
@@ -600,8 +606,8 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
-        ret = load_elf(filename, addr - PROM_VADDR, NULL, NULL, NULL,
-                       1, ELF_MACHINE, 0);
+        ret = load_elf(filename, translate_prom_address, &addr,
+                       NULL, NULL, NULL, 1, ELF_MACHINE, 0);
         if (ret < 0 || ret > PROM_SIZE_MAX) {
             ret = load_image_targphys(filename, addr, PROM_SIZE_MAX);
         }

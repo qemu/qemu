@@ -13,9 +13,9 @@
 
 #include "qemu-common.h"
 #include "monitor.h"
-#include "sysemu.h"
 #include "qemu-timer.h"
 #include "qemu-log.h"
+#include "qemu-error.h"
 
 #include <sys/time.h>
 
@@ -32,8 +32,6 @@ struct QEMUBH
 void qemu_service_io(void)
 {
 }
-
-Monitor *cur_mon;
 
 void monitor_printf(Monitor *mon, const char *fmt, ...)
 {
@@ -106,7 +104,31 @@ int64_t qemu_get_clock(QEMUClock *clock)
     return (tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000)) / 1000000;
 }
 
-void qemu_error(const char *fmt, ...)
+Location *loc_push_restore(Location *loc)
+{
+    return loc;
+}
+
+Location *loc_push_none(Location *loc)
+{
+    return loc;
+}
+
+Location *loc_pop(Location *loc)
+{
+    return loc;
+}
+
+Location *loc_save(Location *loc)
+{
+    return loc;
+}
+
+void loc_restore(Location *loc)
+{
+}
+
+void error_report(const char *fmt, ...)
 {
     va_list args;
 

@@ -894,7 +894,8 @@ static uint32_t get_level1_table_address(CPUState *env, uint32_t address)
 }
 
 static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
-			    int is_user, uint32_t *phys_ptr, int *prot)
+			    int is_user, uint32_t *phys_ptr, int *prot,
+                            target_ulong *page_size)
 {
     int code;
     uint32_t table;
@@ -927,6 +928,7 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
         phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
         ap = (desc >> 10) & 3;
         code = 13;
+        *page_size = 1024 * 1024;
     } else {
         /* Lookup l2 entry.  */
 	if (type == 1) {
@@ -944,10 +946,12 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
         case 1: /* 64k page.  */
             phys_addr = (desc & 0xffff0000) | (address & 0xffff);
             ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
+            *page_size = 0x10000;
             break;
         case 2: /* 4k page.  */
             phys_addr = (desc & 0xfffff000) | (address & 0xfff);
             ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
+            *page_size = 0x1000;
             break;
         case 3: /* 1k page.  */
 	    if (type == 1) {
@@ -962,6 +966,7 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
 		phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
 	    }
             ap = (desc >> 4) & 3;
+            *page_size = 0x400;
             break;
         default:
             /* Never happens, but compiler isn't smart enough to tell.  */
@@ -981,7 +986,8 @@ do_fault:
 }
 
 static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
-			    int is_user, uint32_t *phys_ptr, int *prot)
+			    int is_user, uint32_t *phys_ptr, int *prot,
+                            target_ulong *page_size)
 {
     int code;
     uint32_t table;
@@ -1021,9 +1027,11 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         if (desc & (1 << 18)) {
             /* Supersection.  */
             phys_addr = (desc & 0xff000000) | (address & 0x00ffffff);
+            *page_size = 0x1000000;
         } else {
             /* Section.  */
             phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
+            *page_size = 0x100000;
         }
         ap = ((desc >> 10) & 3) | ((desc >> 13) & 4);
         xn = desc & (1 << 4);
@@ -1040,10 +1048,12 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         case 1: /* 64k page.  */
             phys_addr = (desc & 0xffff0000) | (address & 0xffff);
             xn = desc & (1 << 15);
+            *page_size = 0x10000;
             break;
         case 2: case 3: /* 4k page.  */
             phys_addr = (desc & 0xfffff000) | (address & 0xfff);
             xn = desc & 1;
+            *page_size = 0x1000;
             break;
         default:
             /* Never happens, but compiler isn't smart enough to tell.  */
@@ -1132,7 +1142,8 @@ static int get_phys_addr_mpu(CPUState *env, uint32_t address, int access_type,
 
 static inline int get_phys_addr(CPUState *env, uint32_t address,
                                 int access_type, int is_user,
-                                uint32_t *phys_ptr, int *prot)
+                                uint32_t *phys_ptr, int *prot,
+                                target_ulong *page_size)
 {
     /* Fast Context Switch Extension.  */
     if (address < 0x02000000)
@@ -1142,16 +1153,18 @@ static inline int get_phys_addr(CPUState *env, uint32_t address,
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE;
+        *page_size = TARGET_PAGE_SIZE;
         return 0;
     } else if (arm_feature(env, ARM_FEATURE_MPU)) {
+        *page_size = TARGET_PAGE_SIZE;
 	return get_phys_addr_mpu(env, address, access_type, is_user, phys_ptr,
 				 prot);
     } else if (env->cp15.c1_sys & (1 << 23)) {
         return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
-                                prot);
+                                prot, page_size);
     } else {
         return get_phys_addr_v5(env, address, access_type, is_user, phys_ptr,
-                                prot);
+                                prot, page_size);
     }
 }
 
@@ -1159,17 +1172,20 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
                               int access_type, int mmu_idx, int is_softmmu)
 {
     uint32_t phys_addr;
+    target_ulong page_size;
     int prot;
     int ret, is_user;
 
     is_user = mmu_idx == MMU_USER_IDX;
-    ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot);
+    ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot,
+                        &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
         phys_addr &= ~(uint32_t)0x3ff;
         address &= ~(uint32_t)0x3ff;
-        return tlb_set_page (env, address, phys_addr, prot, mmu_idx,
-                             is_softmmu);
+        tlb_set_page (env, address, phys_addr, prot | PAGE_EXEC, mmu_idx,
+                      page_size);
+        return 0;
     }
 
     if (access_type == 2) {
@@ -1189,10 +1205,11 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     uint32_t phys_addr;
+    target_ulong page_size;
     int prot;
     int ret;
 
-    ret = get_phys_addr(env, addr, 0, 0, &phys_addr, &prot);
+    ret = get_phys_addr(env, addr, 0, 0, &phys_addr, &prot, &page_size);
 
     if (ret != 0)
         return -1;
@@ -1406,18 +1423,7 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
             tlb_flush(env, 0);
             break;
         case 1: /* Invalidate single TLB entry.  */
-#if 0
-            /* ??? This is wrong for large pages and sections.  */
-            /* As an ugly hack to make linux work we always flush a 4K
-               pages.  */
-            val &= 0xfffff000;
-            tlb_flush_page(env, val);
-            tlb_flush_page(env, val + 0x400);
-            tlb_flush_page(env, val + 0x800);
-            tlb_flush_page(env, val + 0xc00);
-#else
-            tlb_flush(env, 1);
-#endif
+            tlb_flush_page(env, val & TARGET_PAGE_MASK);
             break;
         case 2: /* Invalidate on ASID.  */
             tlb_flush(env, val == 0);

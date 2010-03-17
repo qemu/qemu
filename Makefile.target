@@ -186,6 +186,7 @@ endif #CONFIG_BSD_USER
 ifdef CONFIG_SOFTMMU
 
 obj-y = vl.o async.o monitor.o pci.o pci_host.o pcie_host.o machine.o gdbstub.o
+obj-y += qemu-error.o qemu-timer.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-pci.o virtio-serial-bus.o
@@ -258,7 +259,8 @@ obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
 obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
-obj-mips-y += mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
+obj-mips-y += mips_addr.o mips_timer.o mips_int.o
+obj-mips-y += dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 obj-mips-y += vga-pci.o vga-isa.o vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o

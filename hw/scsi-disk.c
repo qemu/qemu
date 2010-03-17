@@ -19,8 +19,6 @@
  * the host adapter emulator.
  */
 
-#include <qemu-common.h>
-#include <sysemu.h>
 //#define DEBUG_SCSI
 
 #ifdef DEBUG_SCSI
@@ -34,6 +32,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "block.h"
 #include "scsi.h"
 #include "scsi-defs.h"
@@ -397,8 +396,10 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         }
         case 0xb0: /* block device characteristics */
         {
-            unsigned int min_io_size = s->qdev.conf.min_io_size >> 9;
-            unsigned int opt_io_size = s->qdev.conf.opt_io_size >> 9;
+            unsigned int min_io_size =
+                    s->qdev.conf.min_io_size / s->qdev.blocksize;
+            unsigned int opt_io_size =
+                    s->qdev.conf.opt_io_size / s->qdev.blocksize;
 
             /* required VPD size with unmap support */
             outbuf[3] = buflen = 0x3c;
@@ -459,7 +460,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
-    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION, 4);
+    memset(&outbuf[32], 0, 4);
+    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION,
+           MIN(4, strlen(s->version ? s->version : QEMU_VERSION)));
     /*
      * We claim conformance to SPC-3, which is required for guests
      * to ask for modern features like READ CAPACITY(16) or the
@@ -612,8 +615,7 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
 
     p[1] = 0; /* Default media type.  */
     p[3] = 0; /* Block descriptor length.  */
-    if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM ||
-        bdrv_is_read_only(s->bs)) {
+    if (bdrv_is_read_only(s->bs)) {
         p[2] = 0x80; /* Readonly.  */
     }
     p += 4;
@@ -1026,22 +1028,23 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     uint64_t nb_sectors;
 
     if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
-        qemu_error("scsi-disk: drive property not set\n");
+        error_report("scsi-disk: drive property not set");
         return -1;
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
     if (bdrv_is_sg(s->bs)) {
-        qemu_error("scsi-disk: unwanted /dev/sg*\n");
+        error_report("scsi-disk: unwanted /dev/sg*");
         return -1;
     }
 
     if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
-        s->cluster_size = 4;
+        s->qdev.blocksize = 2048;
     } else {
-        s->cluster_size = 1;
+        s->qdev.blocksize = s->qdev.conf.logical_block_size;
     }
-    s->qdev.blocksize = 512 * s->cluster_size;
+    s->cluster_size = s->qdev.blocksize / 512;
+
     s->qdev.type = TYPE_DISK;
     bdrv_get_geometry(s->bs, &nb_sectors);
     nb_sectors /= s->cluster_size;

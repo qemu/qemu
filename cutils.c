@@ -233,3 +233,21 @@ void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count)
         count -= copy;
     }
 }
+
+#ifndef _WIN32
+/* Sets a specific flag */
+int fcntl_setfl(int fd, int flag)
+{
+    int flags;
+
+    flags = fcntl(fd, F_GETFL);
+    if (flags == -1)
+        return -errno;
+
+    if (fcntl(fd, F_SETFL, flags | flag) == -1)
+        return -errno;
+
+    return 0;
+}
+#endif
+

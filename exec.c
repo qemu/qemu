@@ -1928,6 +1928,8 @@ void tlb_flush(CPUState *env, int flush_global)
 
     memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
 
+    env->tlb_flush_addr = -1;
+    env->tlb_flush_mask = 0;
     tlb_flush_count++;
 }
 
@@ -1951,6 +1953,16 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 #if defined(DEBUG_TLB)
     printf("tlb_flush_page: " TARGET_FMT_lx "\n", addr);
 #endif
+    /* Check if we need to flush due to large pages.  */
+    if ((addr & env->tlb_flush_mask) == env->tlb_flush_addr) {
+#if defined(DEBUG_TLB)
+        printf("tlb_flush_page: forced full flush ("
+               TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
+               env->tlb_flush_addr, env->tlb_flush_mask);
+#endif
+        tlb_flush(env, 1);
+        return;
+    }
     /* must reset current TB so that interrupts cannot modify the
        links while we are modifying them */
     env->current_tb = NULL;
@@ -2100,13 +2112,35 @@ static inline void tlb_set_dirty(CPUState *env, target_ulong vaddr)
         tlb_set_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
 }
 
-/* add a new TLB entry. At most one entry for a given virtual address
-   is permitted. Return 0 if OK or 2 if the page could not be mapped
-   (can only happen in non SOFTMMU mode for I/O pages or pages
-   conflicting with the host address space). */
-int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
-                      target_phys_addr_t paddr, int prot,
-                      int mmu_idx, int is_softmmu)
+/* Our TLB does not support large pages, so remember the area covered by
+   large pages and trigger a full TLB flush if these are invalidated.  */
+static void tlb_add_large_page(CPUState *env, target_ulong vaddr,
+                               target_ulong size)
+{
+    target_ulong mask = ~(size - 1);
+
+    if (env->tlb_flush_addr == (target_ulong)-1) {
+        env->tlb_flush_addr = vaddr & mask;
+        env->tlb_flush_mask = mask;
+        return;
+    }
+    /* Extend the existing region to include the new page.
+       This is a compromise between unnecessary flushes and the cost
+       of maintaining a full variable size TLB.  */
+    mask &= env->tlb_flush_mask;
+    while (((env->tlb_flush_addr ^ vaddr) & mask) != 0) {
+        mask <<= 1;
+    }
+    env->tlb_flush_addr &= mask;
+    env->tlb_flush_mask = mask;
+}
+
+/* Add a new TLB entry. At most one entry for a given virtual address
+   is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
+   supplied size is only used by tlb_flush_page.  */
+void tlb_set_page(CPUState *env, target_ulong vaddr,
+                  target_phys_addr_t paddr, int prot,
+                  int mmu_idx, target_ulong size)
 {
     PhysPageDesc *p;
     unsigned long pd;
@@ -2114,11 +2148,14 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     target_ulong address;
     target_ulong code_address;
     target_phys_addr_t addend;
-    int ret;
     CPUTLBEntry *te;
     CPUWatchpoint *wp;
     target_phys_addr_t iotlb;
 
+    assert(size >= TARGET_PAGE_SIZE);
+    if (size != TARGET_PAGE_SIZE) {
+        tlb_add_large_page(env, vaddr, size);
+    }
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
     if (!p) {
         pd = IO_MEM_UNASSIGNED;
@@ -2130,7 +2167,6 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
            vaddr, (int)paddr, prot, mmu_idx, is_softmmu, pd);
 #endif
 
-    ret = 0;
     address = vaddr;
     if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
         /* IO memory case (romd handled later) */
@@ -2200,7 +2236,6 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     } else {
         te->addr_write = -1;
     }
-    return ret;
 }
 
 #else

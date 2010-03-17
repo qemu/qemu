@@ -27,6 +27,7 @@ typedef struct VirtIOBlock
     void *rq;
     QEMUBH *bh;
     BlockConf *conf;
+    unsigned short sector_mask;
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
@@ -250,6 +251,11 @@ static void virtio_blk_handle_flush(VirtIOBlockReq *req)
 static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
     VirtIOBlockReq *req, BlockDriverState **old_bs)
 {
+    if (req->out->sector & req->dev->sector_mask) {
+        virtio_blk_rw_complete(req, -EIO);
+        return;
+    }
+
     if (req->dev->bs != *old_bs || *num_writes == 32) {
         if (*old_bs != NULL) {
             do_multiwrite(*old_bs, blkreq, *num_writes);
@@ -271,6 +277,11 @@ static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
 static void virtio_blk_handle_read(VirtIOBlockReq *req)
 {
     BlockDriverAIOCB *acb;
+
+    if (req->out->sector & req->dev->sector_mask) {
+        virtio_blk_rw_complete(req, -EIO);
+        return;
+    }
 
     acb = bdrv_aio_readv(req->dev->bs, req->out->sector, &req->qiov,
                          req->qiov.size / 512, virtio_blk_rw_complete, req);
@@ -404,12 +415,13 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     stl_raw(&blkcfg.seg_max, 128 - 2);
     stw_raw(&blkcfg.cylinders, cylinders);
     blkcfg.heads = heads;
-    blkcfg.sectors = secs;
+    blkcfg.sectors = secs & ~s->sector_mask;
+    blkcfg.blk_size = s->conf->logical_block_size;
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(s->conf);
     blkcfg.alignment_offset = 0;
-    blkcfg.min_io_size = s->conf->min_io_size / 512;
-    blkcfg.opt_io_size = s->conf->opt_io_size / 512;
+    blkcfg.min_io_size = s->conf->min_io_size / blkcfg.blk_size;
+    blkcfg.opt_io_size = s->conf->opt_io_size / blkcfg.blk_size;
     memcpy(config, &blkcfg, sizeof(struct virtio_blk_config));
 }
 
@@ -420,6 +432,7 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     features |= (1 << VIRTIO_BLK_F_SEG_MAX);
     features |= (1 << VIRTIO_BLK_F_GEOMETRY);
     features |= (1 << VIRTIO_BLK_F_TOPOLOGY);
+    features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
 
     if (bdrv_enable_write_cache(s->bs))
         features |= (1 << VIRTIO_BLK_F_WCACHE);
@@ -479,6 +492,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     s->bs = conf->dinfo->bdrv;
     s->conf = conf;
     s->rq = NULL;
+    s->sector_mask = (s->conf->logical_block_size / 512) - 1;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
     bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);
 

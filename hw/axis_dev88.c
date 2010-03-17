@@ -249,6 +249,11 @@ static void main_cpu_reset(void *opaque)
     env->pc = bootstrap_pc;
 }
 
+static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
+{
+    return addr - 0x80000000LL;
+}
+
 static
 void axisdev88_init (ram_addr_t ram_size,
                      const char *boot_device,
@@ -345,7 +350,7 @@ void axisdev88_init (ram_addr_t ram_size,
 
         /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
            devboard SDK.  */
-        kernel_size = load_elf(kernel_filename, -0x80000000LL,
+        kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
                                &entry, NULL, &high, 0, ELF_MACHINE, 0);
         bootstrap_pc = entry;
         if (kernel_size < 0) {

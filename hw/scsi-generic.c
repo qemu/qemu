@@ -12,6 +12,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-error.h"
 #include "block.h"
 #include "scsi.h"
 
@@ -463,27 +464,27 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     struct sg_scsi_id scsiid;
 
     if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
-        qemu_error("scsi-generic: drive property not set\n");
+        error_report("scsi-generic: drive property not set");
         return -1;
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
     /* check we are really using a /dev/sg* file */
     if (!bdrv_is_sg(s->bs)) {
-        qemu_error("scsi-generic: not /dev/sg*\n");
+        error_report("scsi-generic: not /dev/sg*");
         return -1;
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after */
     if (bdrv_ioctl(s->bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
         sg_version < 30000) {
-        qemu_error("scsi-generic: scsi generic interface too old\n");
+        error_report("scsi-generic: scsi generic interface too old");
         return -1;
     }
 
     /* get LUN of the /dev/sg? */
     if (bdrv_ioctl(s->bs, SG_GET_SCSI_ID, &scsiid)) {
-        qemu_error("scsi-generic: SG_GET_SCSI_ID ioctl failed\n");
+        error_report("scsi-generic: SG_GET_SCSI_ID ioctl failed");
         return -1;
     }
 

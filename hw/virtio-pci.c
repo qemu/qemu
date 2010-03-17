@@ -19,7 +19,7 @@
 #include "virtio-blk.h"
 #include "virtio-net.h"
 #include "pci.h"
-#include "sysemu.h"
+#include "qemu-error.h"
 #include "msix.h"
 #include "net.h"
 #include "block_int.h"
@@ -459,7 +459,7 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
     if (!proxy->block.dinfo) {
-        qemu_error("virtio-blk-pci: drive property not set\n");
+        error_report("virtio-blk-pci: drive property not set");
         return -1;
     }
     vdev = virtio_blk_init(&pci_dev->qdev, &proxy->block);
