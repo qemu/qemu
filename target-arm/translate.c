@@ -8337,9 +8337,11 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
 
     if (s->condexec_mask) {
         cond = s->condexec_cond;
-        s->condlabel = gen_new_label();
-        gen_test_cc(cond ^ 1, s->condlabel);
-        s->condjmp = 1;
+        if (cond != 0x0e) {     /* Skip conditional when condition is AL. */
+          s->condlabel = gen_new_label();
+          gen_test_cc(cond ^ 1, s->condlabel);
+          s->condjmp = 1;
+        }
     }
 
     insn = lduw_code(s->pc);
