@@ -69,7 +69,6 @@ static inline target_phys_addr_t vring_align(target_phys_addr_t addr,
 }
 
 typedef struct VirtQueue VirtQueue;
-typedef struct VirtIODevice VirtIODevice;
 
 #define VIRTQUEUE_MAX_SIZE 1024
 

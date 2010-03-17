@@ -229,6 +229,7 @@ typedef struct I2SCodec I2SCodec;
 typedef struct DeviceState DeviceState;
 typedef struct SSIBus SSIBus;
 typedef struct EventNotifier EventNotifier;
+typedef struct VirtIODevice VirtIODevice;
 
 typedef uint64_t pcibus_t;
 
