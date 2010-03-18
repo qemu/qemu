@@ -535,7 +535,7 @@ static void write_bootloader (CPUState *env, uint8_t *base,
 {
     uint32_t *p;
 
-    if (PHYS_TO_VIRT(kernel_entry) == PHYS_TO_VIRT(0x1fc00000LL)) {
+    if (cpu_mips_phys_to_kseg0(NULL, kernel_entry) == cpu_mips_phys_to_kseg0(NULL, 0x1fc00000LL)) {
         return;
     }
 
