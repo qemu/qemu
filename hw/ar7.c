@@ -107,8 +107,6 @@
 
 #define K1(physaddr) ((physaddr) + 0x80000000)
 
-#define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
-
 #define MAX_ETH_FRAME_SIZE 1514
 
 #define DEBUG_AR7
@@ -3693,7 +3691,8 @@ static void kernel_load(CPUState *env)
     int big_endian = 0;
 #endif
     int kernel_size;
-    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
+    kernel_size = load_elf(loaderparams.kernel_filename,
+                           cpu_mips_kseg0_to_phys, NULL,
                            &kernel_addr, &kernel_low, &kernel_high,
                            big_endian, ELF_MACHINE, 1);
     if (kernel_size < 0) {
