@@ -411,7 +411,6 @@ static void QEMU_NORETURN force_sig(int target_sig)
     sigsuspend(&act.sa_mask);
 
     /* unreachable */
-    assert(0);
     abort();
 }
 

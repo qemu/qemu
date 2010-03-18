@@ -105,7 +105,7 @@ int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
 	}
     }
 
-    assert(0);
+    abort();
 }
 
 #define INTC_MODE_NONE       0
@@ -181,7 +181,7 @@ static void sh_intc_locate(struct intc_desc *desc,
 	}
     }
 
-    assert(0);
+    abort();
 }
 
 static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
@@ -260,7 +260,7 @@ static void sh_intc_write(void *opaque, target_phys_addr_t offset,
     case INTC_MODE_ENABLE_REG | INTC_MODE_IS_PRIO: break;
     case INTC_MODE_DUAL_SET: value |= *valuep; break;
     case INTC_MODE_DUAL_CLR: value = *valuep & ~value; break;
-    default: assert(0);
+    default: abort();
     }
 
     for (k = 0; k <= first; k++) {

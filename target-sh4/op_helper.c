@@ -71,7 +71,7 @@ void helper_ldtlb(void)
 {
 #ifdef CONFIG_USER_ONLY
     /* XXXXX */
-    assert(0);
+    cpu_abort(env, "Unhandled ldtlb");
 #else
     cpu_load_tlb(env);
 #endif
