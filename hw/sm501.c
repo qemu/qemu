@@ -596,7 +596,7 @@ static inline uint16_t get_hwc_color(SM501State *state, int crt, int index)
         break;
     default:
         printf("invalid hw cursor color.\n");
-        assert(0);
+        abort();
     }
 
     switch (index) {
@@ -663,7 +663,7 @@ static uint32_t sm501_system_config_read(void *opaque, target_phys_addr_t addr)
     default:
 	printf("sm501 system config : not implemented register read."
 	       " addr=%x\n", (int)addr);
-	assert(0);
+        abort();
     }
 
     return ret;
@@ -713,7 +713,7 @@ static void sm501_system_config_write(void *opaque,
     default:
 	printf("sm501 system config : not implemented register write."
 	       " addr=%x, val=%x\n", (int)addr, value);
-	assert(0);
+        abort();
     }
 }
 
@@ -843,7 +843,7 @@ static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
     default:
 	printf("sm501 disp ctrl : not implemented register read."
 	       " addr=%x\n", (int)addr);
-	assert(0);
+        abort();
     }
 
     return ret;
@@ -951,7 +951,7 @@ static void sm501_disp_ctrl_write(void *opaque,
     default:
 	printf("sm501 disp ctrl : not implemented register write."
 	       " addr=%x, val=%x\n", (int)addr, value);
-	assert(0);
+        abort();
     }
 }
 
@@ -1097,7 +1097,7 @@ static void sm501_draw_crt(SM501State * s)
     default:
 	printf("sm501 draw crt : invalid DC_CRT_CONTROL=%x.\n",
 	       s->dc_crt_control);
-	assert(0);
+        abort();
 	break;
     }
 

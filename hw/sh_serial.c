@@ -182,7 +182,7 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
     }
 
     fprintf(stderr, "sh_serial: unsupported write to 0x%02x\n", offs);
-    assert(0);
+    abort();
 }
 
 static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
@@ -282,7 +282,7 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
 
     if (ret & ~((1 << 16) - 1)) {
         fprintf(stderr, "sh_serial: unsupported read from 0x%02x\n", offs);
-	assert(0);
+        abort();
     }
 
     return ret;

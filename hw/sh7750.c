@@ -206,7 +206,7 @@ static uint32_t QEMU_NORETURN sh7750_mem_readb(void *opaque, target_phys_addr_t 
     switch (addr) {
     default:
 	error_access("byte read", addr);
-	assert(0);
+        abort();
     }
 }
 
@@ -240,7 +240,7 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
 	return 0;
     default:
 	error_access("word read", addr);
-	assert(0);
+        abort();
     }
 }
 
@@ -287,7 +287,7 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
 	return s->cpu->prr;
     default:
 	error_access("long read", addr);
-	assert(0);
+        abort();
     }
 }
 
@@ -303,7 +303,7 @@ static void sh7750_mem_writeb(void *opaque, target_phys_addr_t addr,
     }
 
     error_access("byte write", addr);
-    assert(0);
+    abort();
 }
 
 static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
@@ -349,12 +349,12 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
 	s->gpioic = mem_value;
 	if (mem_value != 0) {
 	    fprintf(stderr, "I/O interrupts not implemented\n");
-	    assert(0);
+            abort();
 	}
 	return;
     default:
 	error_access("word write", addr);
-	assert(0);
+        abort();
     }
 }
 
@@ -433,7 +433,7 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
 	return;
     default:
 	error_access("long write", addr);
-	assert(0);
+        abort();
     }
 }
 
@@ -618,7 +618,7 @@ static struct intc_group groups_irl[] = {
 
 static uint32_t QEMU_NORETURN invalid_read(void *opaque, target_phys_addr_t addr)
 {
-    assert(0);
+    abort();
 
     //~ return 0;
 }
@@ -635,7 +635,7 @@ static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
     case MM_ITLB_ADDR:
     case MM_ITLB_DATA:
         /* XXXXX */
-        assert(0);
+        abort();
 	break;
     case MM_OCACHE_ADDR:
     case MM_OCACHE_DATA:
@@ -644,10 +644,10 @@ static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
     case MM_UTLB_ADDR:
     case MM_UTLB_DATA:
         /* XXXXX */
-        assert(0);
+        abort();
 	break;
     default:
-        assert(0);
+        abort();
     }
 
     return ret;
@@ -656,7 +656,7 @@ static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
 static void QEMU_NORETURN invalid_write(void *opaque, target_phys_addr_t addr,
                                         uint32_t mem_value)
 {
-    assert(0);
+    abort();
 }
 
 static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
@@ -672,7 +672,7 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
     case MM_ITLB_ADDR:
     case MM_ITLB_DATA:
         /* XXXXX */
-        assert(0);
+        abort();
 	break;
     case MM_OCACHE_ADDR:
     case MM_OCACHE_DATA:
@@ -683,10 +683,10 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
 	break;
     case MM_UTLB_DATA:
         /* XXXXX */
-        assert(0);
+        abort();
 	break;
     default:
-        assert(0);
+        abort();
 	break;
     }
 }

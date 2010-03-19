@@ -138,7 +138,7 @@ static void do_interruptv10(CPUState *env)
 			break;
 
 		case EXCP_BUSFAULT:
-			assert(0);
+                        cpu_abort(env, "Unhandled busfault");
 			break;
 
 		default:

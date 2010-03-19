@@ -1638,7 +1638,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
 	    /* new file */
 	    schedule_new_file(s, qemu_strdup(path), cluster_num);
 	else {
-	    assert(0);
+            abort();
 	    return 0;
 	}
     }
@@ -1659,7 +1659,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
 		    if (offset != mapping->info.file.offset + s->cluster_size
 			    * (cluster_num - mapping->begin)) {
 			/* offset of this cluster in file chain has changed */
-			assert(0);
+                        abort();
 			copy_it = 1;
 		    } else if (offset == 0) {
 			const char* basename = get_basename(mapping->path);
@@ -1671,7 +1671,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
 
 		    if (mapping->first_mapping_index != first_mapping_index
 			    && mapping->info.file.offset > 0) {
-			assert(0);
+                        abort();
 			copy_it = 1;
 		    }
 
@@ -1837,7 +1837,7 @@ DLOG(fprintf(stderr, "check direntry %d: \n", i); print_direntry(direntries + i)
 		    goto fail;
 		}
 	    } else
-		assert(0); /* cluster_count = 0; */
+                abort(); /* cluster_count = 0; */
 
 	    ret += cluster_count;
 	}
@@ -2458,7 +2458,7 @@ static int handle_commits(BDRVVVFATState* s)
 	commit_t* commit = array_get(&(s->commits), i);
 	switch(commit->action) {
 	case ACTION_RENAME: case ACTION_MKDIR:
-	    assert(0);
+            abort();
 	    fail = -2;
 	    break;
 	case ACTION_WRITEOUT: {
@@ -2519,7 +2519,7 @@ static int handle_commits(BDRVVVFATState* s)
 	    break;
 	}
 	default:
-	    assert(0);
+            abort();
 	}
     }
     if (i > 0 && array_remove_slice(&(s->commits), 0, i))
@@ -2607,7 +2607,7 @@ static int do_commit(BDRVVVFATState* s)
     ret = handle_renames_and_mkdirs(s);
     if (ret) {
 	fprintf(stderr, "Error handling renames (%d)\n", ret);
-	assert(0);
+        abort();
 	return ret;
     }
 
@@ -2618,21 +2618,21 @@ static int do_commit(BDRVVVFATState* s)
     ret = commit_direntries(s, 0, -1);
     if (ret) {
 	fprintf(stderr, "Fatal: error while committing (%d)\n", ret);
-	assert(0);
+        abort();
 	return ret;
     }
 
     ret = handle_commits(s);
     if (ret) {
 	fprintf(stderr, "Error handling commits (%d)\n", ret);
-	assert(0);
+        abort();
 	return ret;
     }
 
     ret = handle_deletes(s);
     if (ret) {
 	fprintf(stderr, "Error deleting\n");
-        assert(0);
+        abort();
 	return ret;
     }
 

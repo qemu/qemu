@@ -82,7 +82,7 @@ static void handle_command(tc58128_dev * dev, uint8_t command)
 	break;
     default:
 	fprintf(stderr, "unknown flash command 0x%02x\n", command);
-	assert(0);
+        abort();
     }
 }
 
@@ -110,12 +110,12 @@ static void handle_address(tc58128_dev * dev, uint8_t data)
 	    break;
 	default:
 	    /* Invalid data */
-	    assert(0);
+            abort();
 	}
 	dev->address_cycle++;
 	break;
     default:
-	assert(0);
+        abort();
     }
 }
 
@@ -164,7 +164,7 @@ static int tc58128_cb(uint16_t porta, uint16_t portb,
 	*periph_pdtra &= 0xff00;
 	*periph_pdtra |= handle_read(&tc58128_devs[dev]);
     } else {
-	assert(0);
+        abort();
     }
     return 1;
 }

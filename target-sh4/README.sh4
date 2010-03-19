@@ -6,7 +6,7 @@ The sh4 target is not ready at all yet for integration in qemu. This
 file describes the current state of implementation.
 
 Most places requiring attention and/or modification can be detected by
-looking for "XXXXX" or "assert (0)".
+looking for "XXXXX" or "abort()".
 
 The sh4 core is located in target-sh4/*, while the 7750 peripheral
 features (IO ports for example) are located in hw/sh7750.[ch]. The

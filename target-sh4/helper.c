@@ -235,7 +235,7 @@ static int itlb_replacement(CPUState * env)
 	return 2;
     if ((env->mmucr & 0x2c000000) == 0x00000000)
 	return 3;
-    assert(0);
+    cpu_abort(env, "Unhandled itlb_replacement");
 }
 
 /* Find the corresponding entry in the right TLB
@@ -462,7 +462,7 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 	    env->exception_index = 0x100;
 	    break;
 	default:
-	    assert(0);
+            cpu_abort(env, "Unhandled MMU fault");
 	}
 	return 1;
     }
@@ -514,7 +514,7 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->size = 1024 * 1024; /* 1M */
         break;
     default:
-        assert(0);
+        cpu_abort(env, "Unhandled load_tlb");
         break;
     }
     entry->sh   = (uint8_t)cpu_ptel_sh(env->ptel);

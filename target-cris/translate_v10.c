@@ -285,7 +285,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
         default:
             LOG_DIS("pc=%x mode=%x quickimm %d r%d r%d\n",
                      dc->pc, dc->mode, dc->opcode, dc->src, dc->dst);
-            assert(0);
+            cpu_abort(dc->env, "Unhandled quickimm\n");
             break;
     }
     return 2;
@@ -594,7 +594,9 @@ static unsigned int dec10_reg(DisasContext *dc)
                     case 4: tmp = 2; break;
                     case 2: tmp = 1; break;
                     case 1: tmp = 0; break;
-                    default: assert(0); break;
+                    default:
+                        cpu_abort(dc->env, "Unhandled BIAP");
+                        break;
                 }
 
                 t = tcg_temp_new();
@@ -611,7 +613,7 @@ static unsigned int dec10_reg(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x reg %d r%d r%d\n", dc->pc,
                          dc->opcode, dc->src, dc->dst);
-                assert(0);
+                cpu_abort(dc->env, "Unhandled opcode");
                 break;
         }
     } else {
@@ -687,7 +689,7 @@ static unsigned int dec10_reg(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x reg %d r%d r%d\n", dc->pc,
                          dc->opcode, dc->src, dc->dst);
-                assert(0);
+                cpu_abort(dc->env, "Unhandled opcode");
                 break;
         }
     }
@@ -945,7 +947,7 @@ static int dec10_bdap_m(DisasContext *dc, int size)
     if (!dc->postinc && (dc->ir & (1 << 11))) {
         int simm = dc->ir & 0xff;
 
-       // assert(0);
+        /* cpu_abort(dc->env, "Unhandled opcode"); */
         /* sign extended.  */
         simm = (int8_t)simm;
 
@@ -1044,7 +1046,7 @@ static unsigned int dec10_ind(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x var-ind.%d %d r%d r%d\n",
                           dc->pc, size, dc->opcode, dc->src, dc->dst);
-                assert(0);
+                cpu_abort(dc->env, "Unhandled opcode");
                 break;
         }
         return insn_len;
@@ -1136,7 +1138,7 @@ static unsigned int dec10_ind(DisasContext *dc)
             break;
         default:
             LOG_DIS("ERROR pc=%x opcode=%d\n", dc->pc, dc->opcode);
-            assert(0);
+            cpu_abort(dc->env, "Unhandled opcode");
             break;
     }
 
