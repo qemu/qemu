@@ -1653,6 +1653,9 @@ static inline void tcg_gen_not_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
 #ifdef TCG_TARGET_HAS_not_i64
     tcg_gen_op2_i64(INDEX_op_not_i64, ret, arg);
+#elif defined(TCG_TARGET_HAS_not_i32) && TCG_TARGET_REG_BITS == 32
+    tcg_gen_not_i32(TCGV_LOW(ret), TCGV_LOW(arg));
+    tcg_gen_not_i32(TCGV_HIGH(ret), TCGV_HIGH(arg));
 #else
     tcg_gen_xori_i64(ret, arg, -1);
 #endif
