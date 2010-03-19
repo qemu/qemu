@@ -1786,14 +1786,25 @@ static inline void tcg_gen_nand_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_nor_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
+#ifdef TCG_TARGET_HAS_nor_i32
+    tcg_gen_op3_i32(INDEX_op_nor_i32, ret, arg1, arg2);
+#else
     tcg_gen_or_i32(ret, arg1, arg2);
     tcg_gen_not_i32(ret, ret);
+#endif
 }
 
 static inline void tcg_gen_nor_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
+#ifdef TCG_TARGET_HAS_nor_i64
+    tcg_gen_op3_i64(INDEX_op_nor_i64, ret, arg1, arg2);
+#elif defined(TCG_TARGET_HAS_nor_i32) && TCG_TARGET_REG_BITS == 32
+    tcg_gen_nor_i32(TCGV_LOW(ret), TCGV_LOW(arg1), TCGV_LOW(arg2));
+    tcg_gen_nor_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), TCGV_HIGH(arg2));
+#else
     tcg_gen_or_i64(ret, arg1, arg2);
     tcg_gen_not_i64(ret, ret);
+#endif
 }
 
 static inline void tcg_gen_orc_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
