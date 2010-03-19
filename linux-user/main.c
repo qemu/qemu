@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
 
 #include "qemu.h"
 #include "qemu-common.h"
@@ -51,7 +52,7 @@ const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
    by remapping the process stack directly at the right place */
-unsigned long x86_stack_size = 512 * 1024;
+unsigned long guest_stack_size = 8 * 1024 * 1024UL;
 
 void gemu_log(const char *fmt, ...)
 {
@@ -2560,7 +2561,7 @@ static void usage(void)
            ,
            TARGET_ARCH,
            interp_prefix,
-           x86_stack_size,
+           guest_stack_size,
            DEBUG_LOGFILE);
     exit(1);
 }
@@ -2639,6 +2640,16 @@ int main(int argc, char **argv, char **envp)
         (void) envlist_setenv(envlist, *wrk);
     }
 
+    /* Read the stack limit from the kernel.  If it's "unlimited",
+       then we can do little else besides use the default.  */
+    {
+        struct rlimit lim;
+        if (getrlimit(RLIMIT_STACK, &lim) == 0
+            && lim.rlim_cur != RLIM_INFINITY) {
+            guest_stack_size = lim.rlim_cur;
+        }
+    }
+
     cpu_model = NULL;
 #if defined(cpudef_setup)
     cpudef_setup(); /* parse cpu definitions in target config file (TBD) */
@@ -2687,13 +2698,13 @@ int main(int argc, char **argv, char **envp)
             if (optind >= argc)
                 break;
             r = argv[optind++];
-            x86_stack_size = strtol(r, (char **)&r, 0);
-            if (x86_stack_size <= 0)
+            guest_stack_size = strtoul(r, (char **)&r, 0);
+            if (guest_stack_size == 0)
                 usage();
             if (*r == 'M')
-                x86_stack_size *= 1024 * 1024;
+                guest_stack_size *= 1024 * 1024;
             else if (*r == 'k' || *r == 'K')
-                x86_stack_size *= 1024;
+                guest_stack_size *= 1024;
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];
         } else if (!strcmp(r, "p")) {
