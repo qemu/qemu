@@ -2075,9 +2075,9 @@ static inline void tcg_gen_qemu_ld16s(TCGv ret, TCGv addr, int mem_index)
 static inline void tcg_gen_qemu_ld32u(TCGv ret, TCGv addr, int mem_index)
 {
 #if TARGET_LONG_BITS == 32
-    tcg_gen_op3i_i32(INDEX_op_qemu_ld32u, ret, addr, mem_index);
+    tcg_gen_op3i_i32(INDEX_op_qemu_ld32, ret, addr, mem_index);
 #else
-    tcg_gen_op4i_i32(INDEX_op_qemu_ld32u, TCGV_LOW(ret), TCGV_LOW(addr),
+    tcg_gen_op4i_i32(INDEX_op_qemu_ld32, TCGV_LOW(ret), TCGV_LOW(addr),
                      TCGV_HIGH(addr), mem_index);
     tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 #endif
@@ -2086,9 +2086,9 @@ static inline void tcg_gen_qemu_ld32u(TCGv ret, TCGv addr, int mem_index)
 static inline void tcg_gen_qemu_ld32s(TCGv ret, TCGv addr, int mem_index)
 {
 #if TARGET_LONG_BITS == 32
-    tcg_gen_op3i_i32(INDEX_op_qemu_ld32u, ret, addr, mem_index);
+    tcg_gen_op3i_i32(INDEX_op_qemu_ld32, ret, addr, mem_index);
 #else
-    tcg_gen_op4i_i32(INDEX_op_qemu_ld32u, TCGV_LOW(ret), TCGV_LOW(addr),
+    tcg_gen_op4i_i32(INDEX_op_qemu_ld32, TCGV_LOW(ret), TCGV_LOW(addr),
                      TCGV_HIGH(addr), mem_index);
     tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_LOW(ret), 31);
 #endif

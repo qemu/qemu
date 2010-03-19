@@ -1298,7 +1298,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_ld16s:
         tcg_out_qemu_ld(s, args, 1 | 4);
         break;
-    case INDEX_op_qemu_ld32u:
+    case INDEX_op_qemu_ld32:
         tcg_out_qemu_ld(s, args, 2);
         break;
     case INDEX_op_qemu_ld64:
@@ -1371,7 +1371,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "L", "lZ" } },
     { INDEX_op_qemu_ld16u, { "L", "lZ" } },
     { INDEX_op_qemu_ld16s, { "L", "lZ" } },
-    { INDEX_op_qemu_ld32u, { "L", "lZ" } },
+    { INDEX_op_qemu_ld32, { "L", "lZ" } },
     { INDEX_op_qemu_ld64, { "L", "L", "lZ" } },
 
     { INDEX_op_qemu_st8, { "SZ", "SZ" } },
@@ -1383,7 +1383,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "L", "lZ", "lZ" } },
     { INDEX_op_qemu_ld16u, { "L", "lZ", "lZ" } },
     { INDEX_op_qemu_ld16s, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld32u, { "L", "lZ", "lZ" } },
+    { INDEX_op_qemu_ld32, { "L", "lZ", "lZ" } },
     { INDEX_op_qemu_ld64, { "L", "L", "lZ", "lZ" } },
 
     { INDEX_op_qemu_st8, { "SZ", "SZ", "SZ" } },
