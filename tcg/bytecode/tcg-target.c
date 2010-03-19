@@ -94,6 +94,11 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 
     { INDEX_op_brcond_i32, { "r", "ri" } },
 
+    { INDEX_op_setcond_i32, { "r", "r", "ri" } },
+#if TCG_TARGET_REG_BITS == 64
+    { INDEX_op_setcond_i64, { "r", "r", "ri" } },
+#endif /* TCG_TARGET_REG_BITS == 64 */
+
 #if TCG_TARGET_REG_BITS == 32
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
     { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
