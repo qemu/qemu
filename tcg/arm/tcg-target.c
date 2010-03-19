@@ -1247,7 +1247,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 
 static uint8_t *tb_ret_addr;
 
-static inline void tcg_out_op(TCGContext *s, int opc,
+static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
 {
     int c;

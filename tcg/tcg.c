@@ -793,7 +793,8 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
     const uint16_t *opc_ptr;
     const TCGArg *args;
     TCGArg arg;
-    int c, i, k, nb_oargs, nb_iargs, nb_cargs, first_insn;
+    TCGOpcode c;
+    int i, k, nb_oargs, nb_iargs, nb_cargs, first_insn;
     const TCGOpDef *def;
     char buf[128];
 
@@ -980,13 +981,13 @@ static void sort_constraints(TCGOpDef *def, int start, int n)
 
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
 {
-    int op;
+    TCGOpcode op;
     TCGOpDef *def;
     const char *ct_str;
     int i, nb_args;
 
     for(;;) {
-        if (tdefs->op < 0)
+        if (tdefs->op == (TCGOpcode)-1)
             break;
         op = tdefs->op;
         assert(op >= 0 && op < NB_OPS);
@@ -1056,14 +1057,26 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
     }
 
 #if defined(CONFIG_DEBUG_TCG)
+    i = 0;
     for (op = 0; op < ARRAY_SIZE(tcg_op_defs); op++) {
         if (op < INDEX_op_call || op == INDEX_op_debug_insn_start) {
             /* Wrong entry in op definitions? */
-            assert(!tcg_op_defs[op].used);
+            if (tcg_op_defs[op].used) {
+                fprintf(stderr, "Invalid op definition for %s\n",
+                        tcg_op_defs[op].name);
+                i = 1;
+            }
         } else {
             /* Missing entry in op definitions? */
-            assert(tcg_op_defs[op].used);
+            if (!tcg_op_defs[op].used) {
+                fprintf(stderr, "Missing op definition for %s\n",
+                        tcg_op_defs[op].name);
+                i = 1;
+            }
         }
+    }
+    if (i == 1) {
+        tcg_abort();
     }
 #endif
 }
@@ -1116,7 +1129,8 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps)
    temporaries are removed. */
 static void tcg_liveness_analysis(TCGContext *s)
 {
-    int i, op_index, op, nb_args, nb_iargs, nb_oargs, arg, nb_ops;
+    int i, op_index, nb_args, nb_iargs, nb_oargs, arg, nb_ops;
+    TCGOpcode op;
     TCGArg *args;
     const TCGOpDef *def;
     uint8_t *dead_temps;
@@ -1557,7 +1571,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
 }
 
 static void tcg_reg_alloc_op(TCGContext *s, 
-                             const TCGOpDef *def, int opc,
+                             const TCGOpDef *def, TCGOpcode opc,
                              const TCGArg *args,
                              unsigned int dead_iargs)
 {
@@ -1724,7 +1738,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
 #endif
 
 static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
-                              int opc, const TCGArg *args,
+                              TCGOpcode opc, const TCGArg *args,
                               unsigned int dead_iargs)
 {
     int nb_iargs, nb_oargs, flags, nb_regs, i, reg, nb_params;
@@ -1921,7 +1935,8 @@ static void dump_op_count(void)
 static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
                                       long search_pc)
 {
-    int opc, op_index;
+    TCGOpcode opc;
+    int op_index;
     const TCGOpDef *def;
     unsigned int dead_iargs;
     const TCGArg *args;

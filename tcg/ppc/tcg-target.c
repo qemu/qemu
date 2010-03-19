@@ -1292,7 +1292,7 @@ void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
     flush_icache_range(jmp_addr, jmp_addr + patch_size);
 }
 
-static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args)
 {
     switch (opc) {

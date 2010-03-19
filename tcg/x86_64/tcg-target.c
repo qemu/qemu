@@ -903,7 +903,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 }
 
-static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
+static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                               const int *const_args)
 {
     int c;

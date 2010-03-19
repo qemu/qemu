@@ -47,12 +47,12 @@ typedef uint64_t TCGRegSet;
 #error unsupported
 #endif
 
-enum {
+typedef enum TCGOpcode {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
 #include "tcg-opc.h"
 #undef DEF
     NB_OPS,
-};
+} TCGOpcode;
 
 #define tcg_regset_clear(d) (d) = 0
 #define tcg_regset_set(d, s) (d) = (s)
@@ -418,7 +418,7 @@ typedef struct TCGOpDef {
 } TCGOpDef;
         
 typedef struct TCGTargetOpDef {
-    int op;
+    TCGOpcode op;
     const char *args_ct_str[TCG_MAX_OP_ARGS];
 } TCGTargetOpDef;
 
