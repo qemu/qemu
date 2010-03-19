@@ -60,6 +60,7 @@ enum {
 // #define TCG_TARGET_HAS_andc_i32
 // #define TCG_TARGET_HAS_orc_i32
 // #define TCG_TARGET_HAS_eqv_i32
+// #define TCG_TARGET_HAS_nand_i32
 
 // #define TCG_TARGET_HAS_div_i64
 // #define TCG_TARGET_HAS_rot_i64
@@ -77,6 +78,7 @@ enum {
 // #define TCG_TARGET_HAS_andc_i64
 // #define TCG_TARGET_HAS_orc_i64
 // #define TCG_TARGET_HAS_eqv_i64
+// #define TCG_TARGET_HAS_nand_i64
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R15
