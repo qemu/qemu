@@ -95,8 +95,6 @@ enum {
 
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_FP
-#define TCG_AREG1 TCG_REG_S0
-#define TCG_AREG2 TCG_REG_S1
 
 #include <sys/cachectl.h>
 

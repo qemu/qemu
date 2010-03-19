@@ -62,8 +62,6 @@ enum {
 
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_EBP
-#define TCG_AREG1 TCG_REG_EBX
-#define TCG_AREG2 TCG_REG_ESI
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {

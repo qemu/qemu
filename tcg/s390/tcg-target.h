@@ -84,9 +84,6 @@ enum {
 enum {
     /* Note: must be synced with dyngen-exec.h */
     TCG_AREG0 = TCG_REG_R10,
-    TCG_AREG1 = TCG_REG_R7,
-    TCG_AREG2 = TCG_REG_R8,
-    TCG_AREG3 = TCG_REG_R9,
 };
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
