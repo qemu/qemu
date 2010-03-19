@@ -1203,26 +1203,6 @@ uint64_t helper_cvtlq (uint64_t a)
     return (lo & 0x3FFFFFFF) | (hi & 0xc0000000);
 }
 
-uint64_t helper_cvtql (uint64_t a)
-{
-    return ((a & 0xC0000000) << 32) | ((a & 0x7FFFFFFF) << 29);
-}
-
-uint64_t helper_cvtql_v (uint64_t a)
-{
-    if ((int32_t)a != (int64_t)a)
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
-    return helper_cvtql(a);
-}
-
-uint64_t helper_cvtql_sv (uint64_t a)
-{
-    /* ??? I'm pretty sure there's nothing that /sv needs to do that /v
-       doesn't do.  The only thing I can think is that /sv is a valid
-       instruction merely for completeness in the ISA.  */
-    return helper_cvtql_v(a);
-}
-
 /* PALcode support special instructions */
 #if !defined (CONFIG_USER_ONLY)
 void helper_hw_rei (void)

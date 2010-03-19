@@ -597,6 +597,41 @@ static inline void gen_fp_exc_raise(int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
 }
 
+static void gen_fcvtql(int rb, int rc)
+{
+    if (unlikely(rc == 31)) {
+        return;
+    }
+    if (unlikely(rb == 31)) {
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
+    } else {
+        TCGv tmp = tcg_temp_new();
+
+        tcg_gen_andi_i64(tmp, cpu_fir[rb], 0xC0000000);
+        tcg_gen_andi_i64(cpu_fir[rc], cpu_fir[rb], 0x3FFFFFFF);
+        tcg_gen_shli_i64(tmp, tmp, 32);
+        tcg_gen_shli_i64(cpu_fir[rc], cpu_fir[rc], 29);
+        tcg_gen_or_i64(cpu_fir[rc], cpu_fir[rc], tmp);
+
+        tcg_temp_free(tmp);
+    }
+}
+
+static void gen_fcvtql_v(DisasContext *ctx, int rb, int rc)
+{
+    if (rb != 31) {
+        int lab = gen_new_label();
+        TCGv tmp = tcg_temp_new();
+
+        tcg_gen_ext32s_i64(tmp, cpu_fir[rb]);
+        tcg_gen_brcond_i64(TCG_COND_EQ, tmp, cpu_fir[rb], lab);
+        gen_excp(ctx, EXCP_ARITH, EXC_M_IOV);
+
+        gen_set_label(lab);
+    }
+    gen_fcvtql(rb, rc);
+}
+
 #define FARITH2(name)                                   \
 static inline void glue(gen_f, name)(int rb, int rc)    \
 {                                                       \
@@ -612,9 +647,6 @@ static inline void glue(gen_f, name)(int rb, int rc)    \
     }                                                   \
 }
 FARITH2(cvtlq)
-FARITH2(cvtql)
-FARITH2(cvtql_v)
-FARITH2(cvtql_sv)
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH2(sqrtf)
@@ -2244,11 +2276,12 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x130:
             /* CVTQL/V */
-            gen_fcvtql_v(rb, rc);
-            break;
         case 0x530:
             /* CVTQL/SV */
-            gen_fcvtql_sv(rb, rc);
+            /* ??? I'm pretty sure there's nothing that /sv needs to do that
+               /v doesn't do.  The only thing I can think is that /sv is a
+               valid instruction merely for completeness in the ISA.  */
+            gen_fcvtql_v(ctx, rb, rc);
             break;
         default:
             goto invalid_opc;
