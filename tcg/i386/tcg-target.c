@@ -376,7 +376,7 @@ static void tcg_out_cmp(TCGContext *s, TCGArg arg1, TCGArg arg2,
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, int cond,
+static void tcg_out_brcond(TCGContext *s, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            int label_index, int small)
 {
@@ -466,7 +466,7 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
     tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
 }
 
-static void tcg_out_setcond(TCGContext *s, int cond, TCGArg dest,
+static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGArg dest,
                             TCGArg arg1, TCGArg arg2, int const_arg2)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2);

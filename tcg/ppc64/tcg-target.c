@@ -1051,8 +1051,9 @@ static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
 
 }
 
-static void tcg_out_setcond (TCGContext *s, TCGType type, int cond, TCGArg arg0,
-                             TCGArg arg1, TCGArg arg2, int const_arg2)
+static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
+                             TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                             int const_arg2)
 {
     int crop, sh, arg;
 
@@ -1182,7 +1183,7 @@ static void tcg_out_bc (TCGContext *s, int bc, int label_index)
     }
 }
 
-static void tcg_out_brcond (TCGContext *s, int cond,
+static void tcg_out_brcond (TCGContext *s, TCGCond cond,
                             TCGArg arg1, TCGArg arg2, int const_arg2,
                             int label_index, int arch64)
 {

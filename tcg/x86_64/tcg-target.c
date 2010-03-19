@@ -518,7 +518,7 @@ static void tcg_out_cmp(TCGContext *s, TCGArg arg1, TCGArg arg2,
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, int cond,
+static void tcg_out_brcond(TCGContext *s, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            int label_index, int rexw)
 {
@@ -526,7 +526,7 @@ static void tcg_out_brcond(TCGContext *s, int cond,
     tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
 }
 
-static void tcg_out_setcond(TCGContext *s, int cond, TCGArg dest,
+static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGArg dest,
                             TCGArg arg1, TCGArg arg2, int const_arg2, int rexw)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);

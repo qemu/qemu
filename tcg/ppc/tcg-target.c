@@ -1080,7 +1080,8 @@ static void tcg_out_bc (TCGContext *s, int bc, int label_index)
 static void tcg_out_cr7eq_from_cond (TCGContext *s, const TCGArg *args,
                                      const int *const_args)
 {
-    int cond = args[4], op;
+    TCGCond cond = args[4];
+    int op;
     struct { int bit1; int bit2; int cond2; } bits[] = {
         [TCG_COND_LT ] = { CR_LT, CR_LT, TCG_COND_LT  },
         [TCG_COND_LE ] = { CR_LT, CR_GT, TCG_COND_LT  },
@@ -1120,7 +1121,7 @@ static void tcg_out_cr7eq_from_cond (TCGContext *s, const TCGArg *args,
     }
 }
 
-static void tcg_out_setcond (TCGContext *s, int cond, TCGArg arg0,
+static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
                              TCGArg arg1, TCGArg arg2, int const_arg2)
 {
     int crop, sh, arg;
@@ -1244,7 +1245,7 @@ static void tcg_out_setcond2 (TCGContext *s, const TCGArg *args,
         );
 }
 
-static void tcg_out_brcond (TCGContext *s, int cond,
+static void tcg_out_brcond (TCGContext *s, TCGCond cond,
                             TCGArg arg1, TCGArg arg2, int const_arg2,
                             int label_index)
 {
