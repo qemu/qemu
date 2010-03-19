@@ -100,6 +100,7 @@ enum {
 #define TCG_TARGET_HAS_not_i32
 #define TCG_TARGET_HAS_andc_i32
 #define TCG_TARGET_HAS_orc_i32
+// #define TCG_TARGET_HAS_eqv_i32
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_div_i64
@@ -117,6 +118,7 @@ enum {
 #define TCG_TARGET_HAS_not_i64
 #define TCG_TARGET_HAS_andc_i64
 #define TCG_TARGET_HAS_orc_i64
+// #define TCG_TARGET_HAS_eqv_i64
 #endif
 
 /* Note: must be synced with dyngen-exec.h */

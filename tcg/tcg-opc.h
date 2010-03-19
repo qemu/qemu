@@ -116,6 +116,9 @@ DEF2(andc_i32, 1, 2, 0, 0)
 #ifdef TCG_TARGET_HAS_orc_i32
 DEF2(orc_i32, 1, 2, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_eqv_i32
+DEF2(eqv_i32, 1, 2, 0, 0)
+#endif
 
 #if TCG_TARGET_REG_BITS == 64
 DEF2(mov_i64, 1, 1, 0, 0)
@@ -198,6 +201,9 @@ DEF2(andc_i64, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_orc_i64
 DEF2(orc_i64, 1, 2, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_eqv_i64
+DEF2(eqv_i64, 1, 2, 0, 0)
 #endif
 #endif
 

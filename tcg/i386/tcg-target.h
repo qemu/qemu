@@ -57,6 +57,7 @@ enum {
 #define TCG_TARGET_HAS_not_i32
 // #define TCG_TARGET_HAS_andc_i32
 // #define TCG_TARGET_HAS_orc_i32
+// #define TCG_TARGET_HAS_eqv_i32
 
 #define TCG_TARGET_HAS_GUEST_BASE
 
