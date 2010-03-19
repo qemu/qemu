@@ -2175,7 +2175,6 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #endif /* TCG_TARGET_REG_BITS != 32 */
 
 #if TARGET_LONG_BITS == 64
-#define TCG_TYPE_TL TCG_TYPE_I64
 #define tcg_gen_movi_tl tcg_gen_movi_i64
 #define tcg_gen_mov_tl tcg_gen_mov_i64
 #define tcg_gen_ld8u_tl tcg_gen_ld8u_i64
@@ -2247,7 +2246,6 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i64
 #define tcg_const_local_tl tcg_const_local_i64
 #else
-#define TCG_TYPE_TL TCG_TYPE_I32
 #define tcg_gen_movi_tl tcg_gen_movi_i32
 #define tcg_gen_mov_tl tcg_gen_mov_i32
 #define tcg_gen_ld8u_tl tcg_gen_ld8u_i32
