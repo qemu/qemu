@@ -706,13 +706,13 @@ void configure_icount(const char *option)
 
 void qemu_run_all_timers(void)
 {
+    alarm_timer->pending = 0;
+
     /* rearm timer, if not periodic */
     if (alarm_timer->expired) {
         alarm_timer->expired = 0;
         qemu_rearm_alarm_timer(alarm_timer);
     }
-
-    alarm_timer->pending = 0;
 
     /* vm time timers */
     if (vm_running) {
