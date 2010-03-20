@@ -294,14 +294,9 @@ static void curses_refresh(DisplayState *ds)
     }
 }
 
-static void curses_cleanup(void *opaque) 
+static void curses_atexit(Notifier *notifier)
 {
     endwin();
-}
-
-static void curses_atexit(void)
-{
-    curses_cleanup(NULL);
 }
 
 static void curses_setup(void)
