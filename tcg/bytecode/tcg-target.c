@@ -141,7 +141,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu_i64, { "r", "r", "r" } },
     { INDEX_op_rem_i64, { "r", "r", "r" } },
     { INDEX_op_remu_i64, { "r", "r", "r" } },
-#else
+#elif defined(TCG_TARGET_HAS_div2_i64)
     { INDEX_op_div2_i64, { "r", "r", "0", "1", "r" } },
     { INDEX_op_divu2_i64, { "r", "r", "0", "1", "r" } },
 #endif
@@ -783,7 +783,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_remu_i64:
         TODO();
         break;
-#else
+#elif defined(TCG_TARGET_HAS_div2_i64)
     case INDEX_op_div2_i64:
     case INDEX_op_divu2_i64:
         TODO();

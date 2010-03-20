@@ -76,6 +76,7 @@
 #define TCG_TARGET_HAS_bswap32_i64
 #define TCG_TARGET_HAS_bswap64_i64
 //~ #define TCG_TARGET_HAS_div_i64
+//~ #define TCG_TARGET_HAS_div2_i64
 #define TCG_TARGET_HAS_ext8s_i64
 #define TCG_TARGET_HAS_ext16s_i64
 #define TCG_TARGET_HAS_ext32s_i64

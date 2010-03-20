@@ -788,7 +788,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         case INDEX_op_remu_i64:
             TODO();
             break;
-#else
+#elif defined(TCG_TARGET_HAS_div2_i64)
         case INDEX_op_div2_i64:
         case INDEX_op_divu2_i64:
             TODO();
