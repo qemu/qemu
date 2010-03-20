@@ -106,7 +106,7 @@ static void xen_init_pv(ram_addr_t ram_size,
     }
 
     /* config cleanup hook */
-    exit_notifier_addr(&exit_notifier);
+    exit_notifier_add(&exit_notifier);
 
     /* setup framebuffer */
     xen_init_display(xen_domid);
