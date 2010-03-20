@@ -3743,7 +3743,8 @@ static void qmp_add_default(void)
     const char *home;
     static uint8_t null_uuid[16];
     uint8_t uuid[16];
-    
+    int ret;
+
     home = getenv("HOME");
     if (!home) {
         return;
@@ -3760,13 +3761,23 @@ static void qmp_add_default(void)
     }
 
     snprintf(buffer, sizeof(buffer), "%s/.qemu", home);
-    if (mkdir(buffer, 0755) == -1 && errno != EEXIST) {
+#ifdef __MINGW32__
+    ret = mkdir(buffer);
+#else
+    ret = mkdir(buffer, 0755);
+#endif
+    if (ret == -1 && errno != EEXIST) {
         fprintf(stderr, "could not open default QMP port\n");
         return;
     }
 
     snprintf(buffer, sizeof(buffer), "%s/.qemu/qmp", home);
-    if (mkdir(buffer, 0755) == -1 && errno != EEXIST) {
+#ifdef __MINGW32__
+    ret = mkdir(buffer);
+#else
+    ret = mkdir(buffer, 0755);
+#endif
+    if (ret == -1 && errno != EEXIST) {
         fprintf(stderr, "could not open default QMP port\n");
         return;
     }
