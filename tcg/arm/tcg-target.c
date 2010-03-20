@@ -1580,6 +1580,19 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_brcond2_i32, { "r", "r", "r", "r" } },
     { INDEX_op_setcond2_i32, { "r", "r", "r", "r", "r" } },
 
+#if TARGET_LONG_BITS == 32
+    { INDEX_op_qemu_ld8u, { "r", "x" } },
+    { INDEX_op_qemu_ld8s, { "r", "x" } },
+    { INDEX_op_qemu_ld16u, { "r", "x" } },
+    { INDEX_op_qemu_ld16s, { "r", "x" } },
+    { INDEX_op_qemu_ld32u, { "r", "x" } },
+    { INDEX_op_qemu_ld64, { "d", "r", "x" } },
+
+    { INDEX_op_qemu_st8, { "x", "x" } },
+    { INDEX_op_qemu_st16, { "x", "x" } },
+    { INDEX_op_qemu_st32, { "x", "x" } },
+    { INDEX_op_qemu_st64, { "x", "D", "x" } },
+#else
     { INDEX_op_qemu_ld8u, { "r", "x", "X" } },
     { INDEX_op_qemu_ld8s, { "r", "x", "X" } },
     { INDEX_op_qemu_ld16u, { "r", "x", "X" } },
@@ -1591,6 +1604,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st16, { "x", "x", "X" } },
     { INDEX_op_qemu_st32, { "x", "x", "X" } },
     { INDEX_op_qemu_st64, { "x", "D", "x", "X" } },
+#endif
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
