@@ -61,7 +61,8 @@ DEF2(div_i32, 1, 2, 0, 0)
 DEF2(divu_i32, 1, 2, 0, 0)
 DEF2(rem_i32, 1, 2, 0, 0)
 DEF2(remu_i32, 1, 2, 0, 0)
-#else
+#endif
+#ifdef TCG_TARGET_HAS_div2_i32
 DEF2(div2_i32, 2, 3, 0, 0)
 DEF2(divu2_i32, 2, 3, 0, 0)
 #endif
@@ -141,7 +142,8 @@ DEF2(div_i64, 1, 2, 0, 0)
 DEF2(divu_i64, 1, 2, 0, 0)
 DEF2(rem_i64, 1, 2, 0, 0)
 DEF2(remu_i64, 1, 2, 0, 0)
-#else
+#endif
+#ifdef TCG_TARGET_HAS_div2_i64
 DEF2(div2_i64, 2, 3, 0, 0)
 DEF2(divu2_i64, 2, 3, 0, 0)
 #endif

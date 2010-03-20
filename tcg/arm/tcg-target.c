@@ -1580,6 +1580,19 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_brcond2_i32, { "r", "r", "r", "r" } },
     { INDEX_op_setcond2_i32, { "r", "r", "r", "r", "r" } },
 
+#if TARGET_LONG_BITS == 32
+    { INDEX_op_qemu_ld8u, { "r", "x" } },
+    { INDEX_op_qemu_ld8s, { "r", "x" } },
+    { INDEX_op_qemu_ld16u, { "r", "x" } },
+    { INDEX_op_qemu_ld16s, { "r", "x" } },
+    { INDEX_op_qemu_ld32u, { "r", "x" } },
+    { INDEX_op_qemu_ld64, { "d", "r", "x" } },
+
+    { INDEX_op_qemu_st8, { "x", "x" } },
+    { INDEX_op_qemu_st16, { "x", "x" } },
+    { INDEX_op_qemu_st32, { "x", "x" } },
+    { INDEX_op_qemu_st64, { "x", "D", "x" } },
+#else
     { INDEX_op_qemu_ld8u, { "r", "x", "X" } },
     { INDEX_op_qemu_ld8s, { "r", "x", "X" } },
     { INDEX_op_qemu_ld16u, { "r", "x", "X" } },
@@ -1591,6 +1604,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st16, { "x", "x", "X" } },
     { INDEX_op_qemu_st32, { "x", "x", "X" } },
     { INDEX_op_qemu_st64, { "x", "D", "x", "X" } },
+#endif
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
@@ -1662,15 +1676,15 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 void tcg_target_qemu_prologue(TCGContext *s)
 {
-    /* Theoretically there is no need to save r12, but an
-       even number of registers to be saved as per EABI */
+    /* There is no need to save r7, it is used to store the address
+       of the env structure and is not modified by GCC. */
 
-    /* stmdb sp!, { r4 - r12, lr } */
-    tcg_out32(s, (COND_AL << 28) | 0x092d5ff0);
+    /* stmdb sp!, { r4 - r6, r8 - r11, lr } */
+    tcg_out32(s, (COND_AL << 28) | 0x092d4f70);
 
     tcg_out_bx(s, COND_AL, TCG_REG_R0);
     tb_ret_addr = s->code_ptr;
 
-    /* ldmia sp!, { r4 - r12, pc } */
-    tcg_out32(s, (COND_AL << 28) | 0x08bd9ff0);
+    /* ldmia sp!, { r4 - r6, r8 - r11, pc } */
+    tcg_out32(s, (COND_AL << 28) | 0x08bd8f70);
 }
