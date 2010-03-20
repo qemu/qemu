@@ -27,6 +27,9 @@
 #include "hw.h"
 #include "net.h"
 #include "pci.h"
+#if defined(CONFIG_VLYNQ)
+# include "vlynq.h"
+#endif /* CONFIG_VLYNQ */
 
 /*****************************************************************************
  *
@@ -112,6 +115,13 @@ typedef struct {
     PCIDevice dev;
     tnetw1130_t tnetw1130;
 } pci_tnetw1130_t;
+
+#if defined(CONFIG_VLYNQ)
+typedef struct {
+    VLYNQDevice dev;
+    tnetw1130_t tnetw1130;
+} vlynq_tnetw1130_t;
+#endif /* CONFIG_VLYNQ */
 
 typedef enum {
     TNETW1130_SOFT_RESET = 0x0000,
@@ -917,6 +927,7 @@ static int pci_tnetw1130_uninit(PCIDevice *pci_dev)
     return 0;
 }
 
+#if defined(CONFIG_VLYNQ)
 static int vlynq_tnetw1130_init(PCIDevice* pci_dev)
 {
     pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
@@ -967,9 +978,11 @@ static int vlynq_tnetw1130_uninit(PCIDevice *pci_dev)
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
+#endif /* CONFIG_VLYNQ */
 
 static PCIDeviceInfo pci_tnetw1130_info = {
     .qdev.name = "tnetw1130",
+    .qdev.desc = "Texas Instruments TNETW1130",
     .qdev.size = sizeof(pci_tnetw1130_t),
     .init      = pci_tnetw1130_init,
     .exit      = pci_tnetw1130_uninit,
@@ -979,21 +992,26 @@ static PCIDeviceInfo pci_tnetw1130_info = {
     },
 };
 
-static PCIDeviceInfo vlynq_tnetw1130_info = {
+#if defined(CONFIG_VLYNQ)
+static VLYNQDeviceInfo vlynq_tnetw1130_info = {
     .qdev.name = "tnetw1130-vlynq",
+    .qdev.desc = "Texas Instruments TNETW1130 (VLYNQ)",
     .qdev.size = sizeof(pci_tnetw1130_t),
-    .init      = vlynq_tnetw1130_init,
-    .exit      = vlynq_tnetw1130_uninit,
     .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(pci_tnetw1130_t, tnetw1130.conf),
+        DEFINE_NIC_PROPERTIES(vlynq_tnetw1130_t, tnetw1130.conf),
         DEFINE_PROP_END_OF_LIST(),
     },
+    .init      = vlynq_tnetw1130_init,
+    .exit      = vlynq_tnetw1130_uninit,
 };
+#endif /* CONFIG_VLYNQ */
 
 static void tnetw1130_register_devices(void)
 {
     pci_qdev_register(&pci_tnetw1130_info);
+#if defined(CONFIG_VLYNQ)
     pci_qdev_register(&vlynq_tnetw1130_info);
+#endif /* CONFIG_VLYNQ */
 }
 
 device_init(tnetw1130_register_devices)
