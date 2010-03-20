@@ -697,6 +697,23 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_jmp:
         TODO();
         break;
+    case INDEX_op_setcond_i32:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_ri32(s, const_args[2], args[2]);
+        tcg_out8(s, args[3]);   /* condition */
+        break;
+#if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_setcond2_i32:
+        tcg_out_op_t(s, opc);
+        TODO();
+        break;
+#elif TCG_TARGET_REG_BITS == 64
+    case INDEX_op_setcond_i64:
+        TODO();
+        break;
+#endif
     case INDEX_op_movi_i32:
         TODO();
         break;

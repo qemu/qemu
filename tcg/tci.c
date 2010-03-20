@@ -439,6 +439,23 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t0 = *(uint64_t *)tb_ptr;
             tb_ptr = (uint8_t *)t0;
             break;
+        case INDEX_op_setcond_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r32(&tb_ptr);
+            t2 = tci_read_ri32(&tb_ptr);
+            condition = *tb_ptr++;
+            tci_write_reg32(t0, tci_compare32(t1, t2, condition));
+            break;
+#if TCG_TARGET_REG_BITS == 32
+        case INDEX_op_setcond2_i32:
+            //~ tcg_out_op_t(s, opc);
+            TODO();
+            break;
+#elif TCG_TARGET_REG_BITS == 64
+        case INDEX_op_setcond_i64:
+            //~ TODO();
+            break;
+#endif
         case INDEX_op_mov_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
