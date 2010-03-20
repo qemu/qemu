@@ -29,7 +29,9 @@
 /* Trace message to see program flow. */
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
 #define TRACE() \
-    fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__)
+    loglevel \
+    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__) \
+    : (void)0
 #else
 #define TRACE() ((void)0)
 #endif
@@ -375,9 +377,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 void tci_disas(uint8_t opc)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
-    const TCGOpDef *def = &tcg_op_defs[opc];
-    fprintf(stderr, "TCG %s %u, %u, %u\n",
-            def->name, def->nb_oargs, def->nb_iargs, def->nb_cargs);
+    if (loglevel) {
+        const TCGOpDef *def = &tcg_op_defs[opc];
+        fprintf(stderr, "TCG %s %u, %u, %u\n",
+                def->name, def->nb_oargs, def->nb_iargs, def->nb_cargs);
+    }
 #endif
 }
 
@@ -390,6 +394,9 @@ static void tcg_disas3(TCGContext *s, uint8_t c, const TCGArg *args)
     const TCGOpDef *def = &tcg_op_defs[c];
     int nb_oargs, nb_iargs, nb_cargs;
     int i, k;
+    if (!loglevel) {
+        return;
+    }
     if (c == INDEX_op_debug_insn_start) {
         uint64_t pc;
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
@@ -1085,6 +1092,12 @@ static int tcg_target_get_call_iarg_regs_count(int flags)
 
 void tcg_target_init(TCGContext *s)
 {
+#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
+    const char *env = getenv("DEBUG_TCG");
+    if (env) {
+        loglevel = strtol(env, NULL, 0);
+    }
+#endif
     TRACE();
 
     /* The current code uses uint8_t for tcg operations. */

@@ -31,7 +31,9 @@
 /* Trace message to see program flow. */
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
 #define TRACE() \
-    fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__)
+    loglevel \
+    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__) \
+    : (void)0
 #else
 #define TRACE() ((void)0)
 #endif
