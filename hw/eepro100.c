@@ -516,7 +516,7 @@ static void pci_reset(EEPRO100State * s)
         /* TODO: check device id. */
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         /* Revision ID: 0x0c, 0x0d, 0x0e. */
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x0e);
+        pci_config_set_revision(pci_conf, 0x0e);
         /* TODO: check size of statistical counters. */
         s->stats_size = 80;
         /* TODO: check extended tcb support. */
@@ -525,7 +525,7 @@ static void pci_reset(EEPRO100State * s)
     case i82551:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         /* Revision ID: 0x0f, 0x10. */
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x0f);
+        pci_config_set_revision(pci_conf, 0x0f);
         /* TODO: check size of statistical counters. */
         s->stats_size = 80;
         /* TODO: check extended tcb support. */
@@ -533,19 +533,19 @@ static void pci_reset(EEPRO100State * s)
         break;
     case i82557A:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x01);
+        pci_config_set_revision(pci_conf, 0x01);
         pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
         power_management = 0;
         break;
     case i82557B:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x02);
+        pci_config_set_revision(pci_conf, 0x02);
         pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
         power_management = 0;
         break;
     case i82557C:
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x03);
+        pci_config_set_revision(pci_conf, 0x03);
         pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
         power_management = 0;
         break;
@@ -553,7 +553,7 @@ static void pci_reset(EEPRO100State * s)
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x04);
+        pci_config_set_revision(pci_conf, 0x04);
         s->stats_size = 76;
         s->has_extended_tcb_support = 1;
         break;
@@ -561,7 +561,7 @@ static void pci_reset(EEPRO100State * s)
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x05);
+        pci_config_set_revision(pci_conf, 0x05);
         s->stats_size = 76;
         s->has_extended_tcb_support = 1;
         break;
@@ -569,7 +569,7 @@ static void pci_reset(EEPRO100State * s)
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x06);
+        pci_config_set_revision(pci_conf, 0x06);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;
         break;
@@ -577,7 +577,7 @@ static void pci_reset(EEPRO100State * s)
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x07);
+        pci_config_set_revision(pci_conf, 0x07);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;
         break;
@@ -585,9 +585,9 @@ static void pci_reset(EEPRO100State * s)
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x08);
+        pci_config_set_revision(pci_conf, 0x08);
         /* TODO: Windows wants revision id 0x0c. */
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x0c);
+        pci_config_set_revision(pci_conf, 0x0c);
 #if EEPROM_SIZE > 0
         pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x8086);
         pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0040);
@@ -599,7 +599,7 @@ static void pci_reset(EEPRO100State * s)
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x09);
+        pci_config_set_revision(pci_conf, 0x09);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;
         break;
@@ -607,7 +607,7 @@ static void pci_reset(EEPRO100State * s)
         /* TODO: check device id. */
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         /* TODO: wrong revision id. */
-        pci_set_byte(pci_conf + PCI_REVISION_ID, 0x0e);
+        pci_config_set_revision(pci_conf, 0x0e);
         s->stats_size = 80;
         s->has_extended_tcb_support = 1;
         break;

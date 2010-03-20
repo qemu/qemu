@@ -45,16 +45,9 @@
 
 /*****************************************************************************
  *
- * Common declarations for all PCI devices.
+ * Common declarations.
  *
  ****************************************************************************/
-
-#define PCI_CONFIG_8(offset, value) \
-    (pci_conf[offset] = (value))
-#define PCI_CONFIG_16(offset, value) \
-    (*(uint16_t *)&pci_conf[offset] = cpu_to_le16(value))
-#define PCI_CONFIG_32(offset, value) \
-    (*(uint32_t *)&pci_conf[offset] = cpu_to_le32(value))
 
 #define KiB 1024
 
@@ -1483,17 +1476,15 @@ static void eeprom_init(dp8381x_t * s)
 
 #if 0
     // EEPROM Bit 20 NCPEN!!!
-    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
-    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                               PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-    PCI_CONFIG_32(PCI_SUBSYSTEM_VENDOR_ID, 0x00000000);
     // EEPROM Bits 16...31!!!
     // TODO Split using PCI_CONFIG8.
-    PCI_CONFIG_32(PCI_INTERRUPT_LINE, 0x340b0100);    // MNGNT = 11, MXLAT = 52, IPIN = 0
+    pci_set_long(pci_conf + PCI_INTERRUPT_LINE, 0x340b0100);    // MNGNT = 11, MXLAT = 52, IPIN = 0
     // EEPROM Bits 31...27, 21!!!
-    PCI_CONFIG_32(0x40, 0xff820001);    /* Power Management Capabilities */
+    pci_set_long(pci_conf + 0x40, 0xff820001);    /* Power Management Capabilities */
     // EEPROM Bit 8!!!
-    PCI_CONFIG_32(0x44, 0x00000000);    /* Power Management Control and Status */
+    pci_set_long(pci_conf + 0x44, 0x00000000);    /* Power Management Control and Status */
 
     // EEPROM Bits 16, 15-13!!!
     OP_REG(DP8381X_CFG, 0x00000000);    /* Configuration and Media Status */
@@ -1518,23 +1509,23 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     logout("silicon revision = 0x%08x\n", silicon_revision);
 
     /* National Semiconductor DP83815, DP83816 */
-    PCI_CONFIG_32(PCI_VENDOR_ID, 0x0020100b);
-    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
-    PCI_CONFIG_16(PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_NS);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_NS_83815);
+    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                               PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
     /* ethernet network controller */
-    PCI_CONFIG_32(PCI_REVISION_ID, 0x02000000);
+    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* Address registers are set by pci_register_bar. */
     /* Capabilities Pointer, CLOFS */
-    PCI_CONFIG_32(PCI_CAPABILITY_LIST, 0x00000040);
+    pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x00000040);
     /* 0x38 reserved, returns 0 */
     /* MNGNT = 11, MXLAT = 52, IPIN = 0 */
     // TODO Split using PCI_CONFIG8.
-    PCI_CONFIG_32(PCI_INTERRUPT_LINE, 0x340b0100);
+    pci_set_long(pci_conf + PCI_INTERRUPT_LINE, 0x340b0100);
     /* Power Management Capabilities */
-    PCI_CONFIG_32(0x40, 0xff820001);
+    pci_set_long(pci_conf + 0x40, 0xff820001);
     /* Power Management Control and Status */
-    //~ PCI_CONFIG_32(0x44, 0x00000000);
+    //~ pci_set_long(pci_conf + 0x44, 0x00000000);
     /* 0x48...0xff reserved, returns 0 */
 
     s->silicon_revision = silicon_revision;

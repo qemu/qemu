@@ -44,13 +44,6 @@
 #include "net.h"
 #include "qemu_socket.h"
 
-#define PCI_CONFIG_8(offset, value) \
-    (*(uint8_t *)&pci_conf[offset] = (value))
-#define PCI_CONFIG_16(offset, value) \
-    (*(uint16_t *)&pci_conf[offset] = cpu_to_le16(value))
-#define PCI_CONFIG_32(offset, value) \
-    (*(uint32_t *)&pci_conf[offset] = cpu_to_le32(value))
-
 // Alias for Control/Status register read/write
 #define CSR_STATUS  scb_status
 #define CSR_CMD scb_cmd
@@ -786,10 +779,7 @@ static void pci_reset(E100State * s)
     logout("%p\n", s);
 
     /* I82557 */
-    PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
-
-    /* TODO: This is the default value. */
-    PCI_CONFIG_8(PCI_INTERRUPT_LINE, 0x00);
+    pci_config_set_revision(pci_conf, 0x01);
 }
 
 static void e100_selective_reset(E100State * s)
