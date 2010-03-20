@@ -114,7 +114,7 @@ static int find_partition(BlockDriverState *bs, int partition,
     int ext_partnum = 4;
 
     if (bdrv_read(bs, 0, data, 1))
-        errx(EINVAL, "error while reading");
+        errx(EXIT_FAILURE, "error while reading");
 
     if (data[510] != 0x55 || data[511] != 0xaa) {
         errno = -EINVAL;
@@ -133,7 +133,7 @@ static int find_partition(BlockDriverState *bs, int partition,
             int j;
 
             if (bdrv_read(bs, mbr[i].start_sector_abs, data1, 1))
-                errx(EINVAL, "error while reading");
+                errx(EXIT_FAILURE, "error while reading");
 
             for (j = 0; j < 4; j++) {
                 read_partition(&data1[446 + 16 * j], &ext[j]);
@@ -240,20 +240,20 @@ int main(int argc, char **argv)
         case 'p':
             li = strtol(optarg, &end, 0);
             if (*end) {
-                errx(EINVAL, "Invalid port `%s'", optarg);
+                errx(EXIT_FAILURE, "Invalid port `%s'", optarg);
             }
             if (li < 1 || li > 65535) {
-                errx(EINVAL, "Port out of range `%s'", optarg);
+                errx(EXIT_FAILURE, "Port out of range `%s'", optarg);
             }
             port = (uint16_t)li;
             break;
         case 'o':
                 dev_offset = strtoll (optarg, &end, 0);
             if (*end) {
-                errx(EINVAL, "Invalid offset `%s'", optarg);
+                errx(EXIT_FAILURE, "Invalid offset `%s'", optarg);
             }
             if (dev_offset < 0) {
-                errx(EINVAL, "Offset must be positive `%s'", optarg);
+                errx(EXIT_FAILURE, "Offset must be positive `%s'", optarg);
             }
             break;
         case 'r':
@@ -263,14 +263,14 @@ int main(int argc, char **argv)
         case 'P':
             partition = strtol(optarg, &end, 0);
             if (*end)
-                errx(EINVAL, "Invalid partition `%s'", optarg);
+                errx(EXIT_FAILURE, "Invalid partition `%s'", optarg);
             if (partition < 1 || partition > 8)
-                errx(EINVAL, "Invalid partition %d", partition);
+                errx(EXIT_FAILURE, "Invalid partition %d", partition);
             break;
         case 'k':
             socket = optarg;
             if (socket[0] != '/')
-                errx(EINVAL, "socket path must be absolute\n");
+                errx(EXIT_FAILURE, "socket path must be absolute\n");
             break;
         case 'd':
             disconnect = true;
@@ -281,10 +281,10 @@ int main(int argc, char **argv)
         case 'e':
             shared = strtol(optarg, &end, 0);
             if (*end) {
-                errx(EINVAL, "Invalid shared device number '%s'", optarg);
+                errx(EXIT_FAILURE, "Invalid shared device number '%s'", optarg);
             }
             if (shared < 1) {
-                errx(EINVAL, "Shared device number must be greater than 0\n");
+                errx(EXIT_FAILURE, "Shared device number must be greater than 0\n");
             }
             break;
 	case 't':
@@ -302,13 +302,13 @@ int main(int argc, char **argv)
             exit(0);
             break;
         case '?':
-            errx(EINVAL, "Try `%s --help' for more information.",
+            errx(EXIT_FAILURE, "Try `%s --help' for more information.",
                  argv[0]);
         }
     }
 
     if ((argc - optind) != 1) {
-        errx(EINVAL, "Invalid number of argument.\n"
+        errx(EXIT_FAILURE, "Invalid number of argument.\n"
              "Try `%s --help' for more information.",
              argv[0]);
     }
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
     if (disconnect) {
         fd = open(argv[optind], O_RDWR);
         if (fd == -1)
-            errx(errno, "Cannot open %s", argv[optind]);
+            errx(EXIT_FAILURE, "Cannot open %s", argv[optind]);
 
         nbd_disconnect(fd);
 
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
 
     if (partition != -1 &&
         find_partition(bs, partition, &dev_offset, &fd_size))
-        errx(errno, "Could not find partition %d", partition);
+        errx(EXIT_FAILURE, "Could not find partition %d", partition);
 
     if (device) {
         pid_t pid;
@@ -349,7 +349,7 @@ int main(int argc, char **argv)
         if (!verbose) {
             /* detach client and server */
             if (daemon(0, 0) == -1) {
-                errx(errno, "Failed to daemonize");
+                errx(EXIT_FAILURE, "Failed to daemonize");
             }
         }
 
@@ -429,7 +429,7 @@ int main(int argc, char **argv)
 
     data = qemu_memalign(512, NBD_BUFFER_SIZE);
     if (data == NULL)
-        errx(ENOMEM, "Cannot allocate data buffer");
+        errx(EXIT_FAILURE, "Cannot allocate data buffer");
 
     do {
 
