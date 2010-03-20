@@ -1046,7 +1046,6 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
     default:
         //~ tcg_dump_ops(s, stderr);
-        TODO();
         fprintf(stderr, "Missing: %s\n", tcg_op_defs[opc].name);
         tcg_abort();
     }
