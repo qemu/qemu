@@ -1676,15 +1676,15 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 void tcg_target_qemu_prologue(TCGContext *s)
 {
-    /* Theoretically there is no need to save r12, but an
-       even number of registers to be saved as per EABI */
+    /* There is no need to save r7, it is used to store the address
+       of the env structure and is not modified by GCC. */
 
-    /* stmdb sp!, { r4 - r12, lr } */
-    tcg_out32(s, (COND_AL << 28) | 0x092d5ff0);
+    /* stmdb sp!, { r4 - r6, r8 - r11, lr } */
+    tcg_out32(s, (COND_AL << 28) | 0x092d4f70);
 
     tcg_out_bx(s, COND_AL, TCG_REG_R0);
     tb_ret_addr = s->code_ptr;
 
-    /* ldmia sp!, { r4 - r12, pc } */
-    tcg_out32(s, (COND_AL << 28) | 0x08bd9ff0);
+    /* ldmia sp!, { r4 - r6, r8 - r11, pc } */
+    tcg_out32(s, (COND_AL << 28) | 0x08bd8f70);
 }
