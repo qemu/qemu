@@ -19,7 +19,11 @@
  */
 #include "dyngen-exec.h"
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUM68KState *env;
+#else
 register struct CPUM68KState *env asm(AREG0);
+#endif
 
 #include "cpu.h"
 #include "exec-all.h"

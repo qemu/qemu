@@ -26,7 +26,11 @@
 
 #define TARGET_LONG_BITS 64
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUAlphaState *env;
+#else
 register struct CPUAlphaState *env asm(AREG0);
+#endif
 
 #define PARAM(n) ((uint64_t)PARAM##n)
 #define SPARAM(n) ((int32_t)PARAM##n)

@@ -19,7 +19,11 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUARMState *env;
+#else
 register struct CPUARMState *env asm(AREG0);
+#endif
 
 #define M0   env->iwmmxt.val
 

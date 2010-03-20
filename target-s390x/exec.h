@@ -19,7 +19,11 @@
 
 #include "dyngen-exec.h"
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUS390XState *env;
+#else
 register struct CPUS390XState *env asm(AREG0);
+#endif
 
 #include "config.h"
 #include "cpu.h"

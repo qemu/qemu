@@ -3,7 +3,11 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUSPARCState *env;
+#else
 register struct CPUSPARCState *env asm(AREG0);
+#endif
 
 #define DT0 (env->dt0)
 #define DT1 (env->dt1)

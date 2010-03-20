@@ -8,7 +8,11 @@
 #include "dyngen-exec.h"
 #include "cpu-defs.h"
 
+#if defined(CONFIG_TCG_INTERPRETER)
+extern struct CPUMIPSState *env;
+#else
 register struct CPUMIPSState *env asm(AREG0);
+#endif
 
 #include "cpu.h"
 #include "exec-all.h"
