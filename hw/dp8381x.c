@@ -1578,12 +1578,14 @@ static int dp8381x_init(PCIDevice *pci_dev)
 #if defined(DP83815)
 static PCIDeviceInfo dp8381x_info = {
     .qdev.name = "dp83815",
+    .qdev.desc = "National Semiconductor DP83815",
     .qdev.size = sizeof(dp8381x_t),
     .init      = dp8381x_init,
 };
 #else
 static PCIDeviceInfo dp8381x_info = {
     .qdev.name = "dp83816",
+    .qdev.desc = "National Semiconductor DP83816",
     .qdev.size = sizeof(dp8381x_t),
     .init      = dp8381x_init,
 };
