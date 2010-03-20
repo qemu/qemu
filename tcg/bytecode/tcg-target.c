@@ -107,6 +107,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
+    { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },
 #endif
 
 #if defined(TCG_TARGET_HAS_not_i32)
@@ -199,7 +200,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
     { INDEX_op_qemu_ld32, { "r", "L", "L" } },
     { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
-#else
+#else /* TARGET_LONG_BITS > TCG_TARGET_REG_BITS */
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
     { INDEX_op_qemu_ld16u, { "r", "L" } },
@@ -917,6 +918,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_qemu_ld8s:
     case INDEX_op_qemu_ld16u:
     case INDEX_op_qemu_ld16s:
+    case INDEX_op_qemu_ld32:
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_qemu_ld32s:
     case INDEX_op_qemu_ld32u:
