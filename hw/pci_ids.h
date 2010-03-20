@@ -18,6 +18,7 @@
 #define PCI_CLASS_STORAGE_OTHER          0x0180
 
 #define PCI_CLASS_NETWORK_ETHERNET       0x0200
+#define PCI_CLASS_NETWORK_OTHER          0x0280
 
 #define PCI_CLASS_DISPLAY_VGA            0x0300
 #define PCI_CLASS_DISPLAY_OTHER          0x0380
