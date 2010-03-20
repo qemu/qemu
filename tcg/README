@@ -287,11 +287,11 @@ force dead code elimination.
 
 ********* Conditional moves
 
-* setcond_i32/i64 cond, dest, t1, t2
+* setcond_i32/i64 cond, t0, t1, t2
 
-dest = (t1 cond t2)
+t0 = (t1 cond t2)
 
-Set DEST to 1 if (T1 cond T2) is true, otherwise set to 0.
+Set T0 to 1 if (T1 cond T2) is true, otherwise set to 0.
 
 ********* Type conversions
 
@@ -357,7 +357,7 @@ is returned in two 32-bit outputs.
 Similar to mul, except two 32-bit (unsigned) inputs T1 and T2 yielding
 the full 64-bit product T0.  The later is returned in two 32-bit outputs.
 
-* setcond2_i32 cond, dest, t1_low, t1_high, t2_low, t2_high
+* setcond2_i32 cond, t0, t1_low, t1_high, t2_low, t2_high
 
 Similar to setcond, except that the 64-bit values T1 and T2 are
 formed from two 32-bit arguments.  The result is a 32-bit value.
