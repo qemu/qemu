@@ -93,6 +93,10 @@ extern int madvise(caddr_t, size_t, int);
 #include <libvdeplug.h>
 #endif
 
+#if defined(CONFIG_UUID)
+#include <uuid/uuid.h>
+#endif
+
 #ifndef _WIN32
 # define CONFIG_CHROOT
 #endif
@@ -154,6 +158,7 @@ int main(int argc, char **argv)
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-objects.h"
+#include "notify.h"
 
 #include "disas.h"
 
@@ -276,6 +281,7 @@ static int default_vga = 1;
 static int default_floppy = 1;
 static int default_cdrom = 1;
 static int default_sdcard = 1;
+static int default_qmp = 1;
 
 static struct {
     const char *driver;
@@ -536,7 +542,7 @@ static void configure_rtc(QemuOpts *opts)
 }
 
 #ifdef _WIN32
-static void socket_cleanup(void)
+static void socket_cleanup(Notifier *obj)
 {
     WSACleanup();
 }
@@ -545,6 +551,7 @@ static int socket_init(void)
 {
     WSADATA Data;
     int ret, err;
+    static Notifier notifier = { .notify = socket_cleanup };
 
     ret = WSAStartup(MAKEWORD(2,2), &Data);
     if (ret != 0) {
@@ -552,10 +559,36 @@ static int socket_init(void)
         fprintf(stderr, "WSAStartup: %d\n", err);
         return -1;
     }
-    atexit(socket_cleanup);
+    exit_notifier_add(&notifier);
     return 0;
 }
 #endif
+
+/*********************/
+/* Exit notifiers    */
+/*********************/
+
+static NotifierList exit_notifiers = NOTIFIER_LIST_INITIALIZER(exit_notifiers);
+
+void exit_notifier_add(Notifier *notifier)
+{
+    notifier_list_add(&exit_notifiers, notifier);
+}
+
+void exit_notifier_remove(Notifier *notifier)
+{
+    notifier_list_remove(&exit_notifiers, notifier);
+}
+
+static void exit_notifier_notify(void)
+{
+    notifier_list_notify(&exit_notifiers);
+}
+
+static void exit_notifier_init(void)
+{
+    atexit(exit_notifier_notify);
+}
 
 /***********************************************************/
 /* Bluetooth support */
@@ -1554,48 +1587,44 @@ void pcmcia_info(Monitor *mon)
 
 typedef struct IOHandlerRecord {
     int fd;
-    IOCanRWHandler *fd_read_poll;
+    IOCanReadHandler *fd_read_poll;
     IOHandler *fd_read;
     IOHandler *fd_write;
     int deleted;
     void *opaque;
     /* temporary data */
     struct pollfd *ufd;
-    struct IOHandlerRecord *next;
+    QLIST_ENTRY(IOHandlerRecord) next;
 } IOHandlerRecord;
 
-static IOHandlerRecord *first_io_handler;
+static QLIST_HEAD(, IOHandlerRecord) io_handlers =
+    QLIST_HEAD_INITIALIZER(io_handlers);
+
 
 /* XXX: fd_read_poll should be suppressed, but an API change is
    necessary in the character devices to suppress fd_can_read(). */
 int qemu_set_fd_handler2(int fd,
-                         IOCanRWHandler *fd_read_poll,
+                         IOCanReadHandler *fd_read_poll,
                          IOHandler *fd_read,
                          IOHandler *fd_write,
                          void *opaque)
 {
-    IOHandlerRecord **pioh, *ioh;
+    IOHandlerRecord *ioh;
 
     if (!fd_read && !fd_write) {
-        pioh = &first_io_handler;
-        for(;;) {
-            ioh = *pioh;
-            if (ioh == NULL)
-                break;
+        QLIST_FOREACH(ioh, &io_handlers, next) {
             if (ioh->fd == fd) {
                 ioh->deleted = 1;
                 break;
             }
-            pioh = &ioh->next;
         }
     } else {
-        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+        QLIST_FOREACH(ioh, &io_handlers, next) {
             if (ioh->fd == fd)
                 goto found;
         }
         ioh = qemu_mallocz(sizeof(IOHandlerRecord));
-        ioh->next = first_io_handler;
-        first_io_handler = ioh;
+        QLIST_INSERT_HEAD(&io_handlers, ioh, next);
     found:
         ioh->fd = fd;
         ioh->fd_read_poll = fd_read_poll;
@@ -2816,7 +2845,7 @@ void main_loop_wait(int nonblocking)
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&xfds);
-    for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+    QLIST_FOREACH(ioh, &io_handlers, next) {
         if (ioh->deleted)
             continue;
         if (ioh->fd_read &&
@@ -2842,26 +2871,20 @@ void main_loop_wait(int nonblocking)
     ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
     qemu_mutex_lock_iothread();
     if (ret > 0) {
-        IOHandlerRecord **pioh;
+        IOHandlerRecord *pioh;
 
-        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
-            if (!ioh->deleted && ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
+        QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
+            if (ioh->deleted) {
+                QLIST_REMOVE(ioh, next);
+                qemu_free(ioh);
+                continue;
+            }
+            if (ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
                 ioh->fd_read(ioh->opaque);
             }
-            if (!ioh->deleted && ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
+            if (ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
                 ioh->fd_write(ioh->opaque);
             }
-        }
-
-	/* remove deleted IO handlers */
-	pioh = &first_io_handler;
-	while (*pioh) {
-            ioh = *pioh;
-            if (ioh->deleted) {
-                *pioh = ioh->next;
-                qemu_free(ioh);
-            } else
-                pioh = &ioh->next;
         }
     }
 
@@ -3755,6 +3778,62 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     return popt;
 }
 
+static void qmp_add_default(void)
+{
+    char buffer[4096];
+    const char *home;
+    static uint8_t null_uuid[16];
+    uint8_t uuid[16];
+    int ret;
+
+    home = getenv("HOME");
+    if (!home) {
+        return;
+    }
+
+    if (memcmp(qemu_uuid, null_uuid, sizeof(null_uuid)) == 0) {
+#if defined(CONFIG_UUID)
+        uuid_generate(uuid);
+#else
+        return;
+#endif
+    } else {
+        memcpy(uuid, qemu_uuid, sizeof(qemu_uuid));
+    }
+
+    snprintf(buffer, sizeof(buffer), "%s/.qemu", home);
+#ifdef __MINGW32__
+    ret = mkdir(buffer);
+#else
+    ret = mkdir(buffer, 0755);
+#endif
+    if (ret == -1 && errno != EEXIST) {
+        fprintf(stderr, "could not open default QMP port\n");
+        return;
+    }
+
+    snprintf(buffer, sizeof(buffer), "%s/.qemu/qmp", home);
+#ifdef __MINGW32__
+    ret = mkdir(buffer);
+#else
+    ret = mkdir(buffer, 0755);
+#endif
+    if (ret == -1 && errno != EEXIST) {
+        fprintf(stderr, "could not open default QMP port\n");
+        return;
+    }
+
+    snprintf(buffer, sizeof(buffer),
+             "unix:%s/.qemu/qmp/" UUID_FMT ".sock,server,nowait",
+             home,
+             uuid[0], uuid[1], uuid[2], uuid[3],
+             uuid[4], uuid[5], uuid[6], uuid[7],
+             uuid[8], uuid[9], uuid[10], uuid[11],
+             uuid[12], uuid[13], uuid[14], uuid[15]);
+
+    monitor_parse(buffer, "control");
+}
+
 int main(int argc, char **argv, char **envp)
 {
     const char *gdbstub_dev = NULL;
@@ -3795,6 +3874,8 @@ int main(int argc, char **argv, char **envp)
     int defconfig = 1;
 
     error_set_progname(argv[0]);
+
+    exit_notifier_init();
 
     init_clocks();
 
@@ -4304,15 +4385,22 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_qmp:
                 monitor_parse(optarg, "control");
-                default_monitor = 0;
+                default_qmp = 0;
                 break;
             case QEMU_OPTION_mon:
                 opts = qemu_opts_parse(&qemu_mon_opts, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
+                } else {
+                    const char *mode;
+                    mode = qemu_opt_get(opts, "mode");
+                    if (mode == NULL || strcmp(mode, "readline") == 0) {
+                        default_monitor = 0;
+                    } else if (strcmp(mode, "control") == 0) {
+                        default_qmp = 0;
+                    }
                 }
-                default_monitor = 0;
                 break;
             case QEMU_OPTION_chardev:
                 opts = qemu_opts_parse(&qemu_chardev_opts, optarg, 1);
@@ -4550,6 +4638,7 @@ int main(int argc, char **argv, char **envp)
                 default_parallel = 0;
                 default_virtcon = 0;
                 default_monitor = 0;
+                default_qmp = 0;
                 default_vga = 0;
                 default_net = 0;
                 default_floppy = 0;
@@ -4684,6 +4773,9 @@ int main(int argc, char **argv, char **envp)
             monitor_parse("vc:80Cx24C", "readline");
         if (default_virtcon)
             add_device_config(DEV_VIRTCON, "vc:80Cx24C");
+    }
+    if (default_qmp) {
+        qmp_add_default();
     }
     if (default_vga)
         vga_interface_type = VGA_CIRRUS;

@@ -136,8 +136,7 @@ int fd_start_incoming_migration(const char *infd)
         return -errno;
     }
 
-    qemu_set_fd_handler2(fd, NULL, fd_accept_incoming_migration, NULL,
-			 (void *)(unsigned long)f);
+    qemu_set_fd_handler2(fd, NULL, fd_accept_incoming_migration, NULL, f);
 
     return 0;
 }

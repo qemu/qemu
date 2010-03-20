@@ -187,7 +187,7 @@ void QEMU_NORETURN hw_error(const char *fmt, ...)
 
 /* IO callbacks.  */
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
-typedef int IOCanRWHandler(void *opaque);
+typedef int IOCanReadHandler(void *opaque);
 typedef void IOHandler(void *opaque);
 
 struct ParallelIOArg {

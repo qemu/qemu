@@ -511,8 +511,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
     USBMouseState *s = &hs->ptr;
 
     if (!s->mouse_grabbed) {
-	s->eh_entry = qemu_add_mouse_event_handler(usb_mouse_event, hs,
-                                                  0, "QEMU USB Mouse");
+        qemu_activate_mouse_event_handler(s->eh_entry);
 	s->mouse_grabbed = 1;
     }
 
@@ -553,8 +552,7 @@ static int usb_tablet_poll(USBHIDState *hs, uint8_t *buf, int len)
     USBMouseState *s = &hs->ptr;
 
     if (!s->mouse_grabbed) {
-	s->eh_entry = qemu_add_mouse_event_handler(usb_tablet_event, hs,
-                                                  1, "QEMU USB Tablet");
+        qemu_activate_mouse_event_handler(s->eh_entry);
 	s->mouse_grabbed = 1;
     }
 
@@ -866,6 +864,15 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
     USBHIDState *s = DO_UPCAST(USBHIDState, dev, dev);
     s->dev.speed = USB_SPEED_FULL;
     s->kind = kind;
+
+    if (s->kind == USB_MOUSE) {
+        s->ptr.eh_entry = qemu_add_mouse_event_handler(usb_mouse_event, s,
+                                                       0, "QEMU USB Mouse");
+    } else if (s->kind == USB_TABLET) {
+        s->ptr.eh_entry = qemu_add_mouse_event_handler(usb_tablet_event, s,
+                                                       1, "QEMU USB Tablet");
+    }
+        
     /* Force poll routine to be run and grab input the first time.  */
     s->changed = 1;
     return 0;

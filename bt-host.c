@@ -80,13 +80,6 @@ static void bt_host_sco(struct HCIInfo *hci, const uint8_t *data, int len)
     bt_host_send(hci, HCI_SCODATA_PKT, data, len);
 }
 
-static int bt_host_read_poll(void *opaque)
-{
-    struct bt_host_hci_s *s = (struct bt_host_hci_s *) opaque;
-
-    return !!s->hci.evt_recv;
-}
-
 static void bt_host_read(void *opaque)
 {
     struct bt_host_hci_s *s = (struct bt_host_hci_s *) opaque;
@@ -192,7 +185,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     s->hci.acl_send = bt_host_acl;
     s->hci.bdaddr_set = bt_host_bdaddr_set;
 
-    qemu_set_fd_handler2(s->fd, bt_host_read_poll, bt_host_read, NULL, s);
+    qemu_set_fd_handler(s->fd, bt_host_read, NULL, s);
 
     return &s->hci;
 }

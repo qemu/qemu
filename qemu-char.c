@@ -182,7 +182,7 @@ void qemu_chr_send_event(CharDriverState *s, int event)
 }
 
 void qemu_chr_add_handlers(CharDriverState *s,
-                           IOCanRWHandler *fd_can_read,
+                           IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,
                            IOEventHandler *fd_event,
                            void *opaque)
@@ -214,7 +214,7 @@ static CharDriverState *qemu_chr_open_null(QemuOpts *opts)
 #define MUX_BUFFER_SIZE 32	/* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
 typedef struct {
-    IOCanRWHandler *chr_can_read[MAX_MUX];
+    IOCanReadHandler *chr_can_read[MAX_MUX];
     IOReadHandler *chr_read[MAX_MUX];
     IOEventHandler *chr_event[MAX_MUX];
     void *ext_opaque[MAX_MUX];
@@ -713,9 +713,15 @@ static void term_exit(void)
     fcntl(0, F_SETFL, old_fd0_flags);
 }
 
+static void term_exit_notifier(Notifier *notifier)
+{
+    term_exit();
+}
+
 static void term_init(QemuOpts *opts)
 {
     struct termios tty;
+    static Notifier exit_notifier = { .notify = term_exit_notifier };
 
     tcgetattr (0, &tty);
     oldtty = tty;
@@ -735,8 +741,9 @@ static void term_init(QemuOpts *opts)
 
     tcsetattr (0, TCSANOW, &tty);
 
-    if (!term_atexit_done++)
-        atexit(term_exit);
+    if (!term_atexit_done++) {
+        exit_notifier_add(&exit_notifier);
+    }
 
     fcntl(0, F_SETFL, O_NONBLOCK);
 }
