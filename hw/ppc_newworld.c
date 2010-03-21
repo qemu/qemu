@@ -387,7 +387,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                escc_mem_index);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+        usb_ohci_init_pci(pci_bus, -1, 1);
     }
 
     /* U3 needs to use USB for input because Linux doesn't support via-cuda

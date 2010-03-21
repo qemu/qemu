@@ -186,9 +186,6 @@ QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
-# USB layer
-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
-
 # PCI network cards
 obj-y += rtl8139.o
 obj-y += e1000.o

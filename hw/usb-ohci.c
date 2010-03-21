@@ -30,7 +30,6 @@
 #include "qemu-timer.h"
 #include "usb.h"
 #include "pci.h"
-#include "pxa.h"
 #include "devices.h"
 #include "usb-ohci.h"
 
@@ -1399,7 +1398,7 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
     return;
 }
 
-static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
+static uint32_t ohci_mem_read_le(void *ptr, target_phys_addr_t addr)
 {
     OHCIState *ohci = ptr;
     uint32_t retval;
@@ -1516,20 +1515,21 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
             retval = 0xffffffff;
         }
     }
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    retval = bswap32(retval);
-#endif
     return retval;
 }
 
-static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
+static uint32_t ohci_mem_read_be(void *ptr, target_phys_addr_t addr)
+{
+    uint32_t retval;
+
+    retval = ohci_mem_read_le(ptr, addr);
+    retval = bswap32(retval);
+    return retval;
+}
+
+static void ohci_mem_write_le(void *ptr, target_phys_addr_t addr, uint32_t val)
 {
     OHCIState *ohci = ptr;
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
@@ -1647,24 +1647,43 @@ static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
     }
 }
 
+static void ohci_mem_write_be(void *ptr, target_phys_addr_t addr, uint32_t val)
+{
+    val = bswap32(val);
+    ohci_mem_write_le(ptr, addr, val);
+}
+
 /* Only dword reads are defined on OHCI register space */
-static CPUReadMemoryFunc * const ohci_readfn[3]={
-    ohci_mem_read,
-    ohci_mem_read,
-    ohci_mem_read
+static CPUReadMemoryFunc * const ohci_readfn_be[3]={
+    ohci_mem_read_be,
+    ohci_mem_read_be,
+    ohci_mem_read_be
 };
 
 /* Only dword writes are defined on OHCI register space */
-static CPUWriteMemoryFunc * const ohci_writefn[3]={
-    ohci_mem_write,
-    ohci_mem_write,
-    ohci_mem_write
+static CPUWriteMemoryFunc * const ohci_writefn_be[3]={
+    ohci_mem_write_be,
+    ohci_mem_write_be,
+    ohci_mem_write_be
+};
+
+static CPUReadMemoryFunc * const ohci_readfn_le[3]={
+    ohci_mem_read_le,
+    ohci_mem_read_le,
+    ohci_mem_read_le
+};
+
+static CPUWriteMemoryFunc * const ohci_writefn_le[3]={
+    ohci_mem_write_le,
+    ohci_mem_write_le,
+    ohci_mem_write_le
 };
 
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                           int num_ports, int devfn,
                           qemu_irq irq, enum ohci_type type,
-                          const char *name, uint32_t localmem_base)
+                          const char *name, uint32_t localmem_base,
+                          int be)
 {
     int i;
 
@@ -1684,7 +1703,13 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                 usb_frame_time, usb_bit_time);
     }
 
-    ohci->mem = cpu_register_io_memory(ohci_readfn, ohci_writefn, ohci);
+    if (be) {
+        ohci->mem = cpu_register_io_memory(ohci_readfn_be, ohci_writefn_be,
+                                           ohci);
+    } else {
+        ohci->mem = cpu_register_io_memory(ohci_readfn_le, ohci_writefn_le,
+                                           ohci);
+    }
     ohci->localmem_base = localmem_base;
     ohci->name = name;
 
@@ -1704,6 +1729,7 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 typedef struct {
     PCIDevice pci_dev;
     OHCIState state;
+    uint32_t be;
 } OHCIPCIState;
 
 static void ohci_mapfunc(PCIDevice *pci_dev, int i,
@@ -1728,7 +1754,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 
     usb_ohci_init(&ohci->state, &dev->qdev, num_ports,
                   ohci->pci_dev.devfn, ohci->pci_dev.irq[0],
-                  OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
+                  OHCI_TYPE_PCI, ohci->pci_dev.name, 0, ohci->be);
 
     /* TODO: avoid cast below by using dev */
     pci_register_bar((struct PCIDevice *)ohci, 0, 256,
@@ -1736,29 +1762,33 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     return 0;
 }
 
-void usb_ohci_init_pci(struct PCIBus *bus, int devfn)
+void usb_ohci_init_pci(struct PCIBus *bus, int devfn, int be)
 {
-    pci_create_simple(bus, devfn, "pci-ohci");
+    PCIDevice *dev;
+
+    dev = pci_create(bus, devfn, "pci-ohci");
+    qdev_prop_set_uint32(&dev->qdev, "be", be);
+    qdev_init_nofail(&dev->qdev);
 }
 
 void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
-                       qemu_irq irq)
+                       qemu_irq irq, int be)
 {
     OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
 
     usb_ohci_init(ohci, NULL /* FIXME */, num_ports, devfn, irq,
-                  OHCI_TYPE_PXA, "OHCI USB", 0);
+                  OHCI_TYPE_PXA, "OHCI USB", 0, be);
 
     cpu_register_physical_memory(base, 0x1000, ohci->mem);
 }
 
 void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
-                         int num_ports, int devfn, qemu_irq irq)
+                         int num_ports, int devfn, qemu_irq irq, int be)
 {
     OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
 
     usb_ohci_init(ohci, NULL /* FIXME */, num_ports, devfn, irq,
-                  OHCI_TYPE_SM501, "OHCI USB", localmem_base);
+                  OHCI_TYPE_SM501, "OHCI USB", localmem_base, be);
 
     cpu_register_physical_memory(mmio_base, 0x1000, ohci->mem);
 }
@@ -1768,6 +1798,10 @@ static PCIDeviceInfo ohci_info = {
     .qdev.desc    = "Apple USB Controller",
     .qdev.size    = sizeof(OHCIPCIState),
     .init         = usb_ohci_initfn_pci,
+    .qdev.props   = (Property[]) {
+        DEFINE_PROP_HEX32("be", OHCIPCIState, be, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void ohci_register(void)
