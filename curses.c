@@ -294,7 +294,7 @@ static void curses_refresh(DisplayState *ds)
     }
 }
 
-static void curses_atexit(Notifier *notifier)
+static void curses_atexit(void)
 {
     endwin();
 }
