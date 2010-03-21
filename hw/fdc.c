@@ -679,7 +679,8 @@ static const VMStateDescription vmstate_fdc = {
         VMSTATE_UINT8(status1, FDCtrl),
         VMSTATE_UINT8(status2, FDCtrl),
         /* Command FIFO */
-        VMSTATE_VARRAY_INT32(fifo, FDCtrl, fifo_size, 0, vmstate_info_uint8, uint8),
+        VMSTATE_VARRAY_INT32(fifo, FDCtrl, fifo_size, 0, vmstate_info_uint8,
+                             uint8_t),
         VMSTATE_UINT32(data_pos, FDCtrl),
         VMSTATE_UINT32(data_len, FDCtrl),
         VMSTATE_UINT8(data_state, FDCtrl),
