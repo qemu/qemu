@@ -161,7 +161,7 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o monitor.o pci_host.o pcie_host.o machine.o gdbstub.o
+obj-y = vl.o monitor.o pci_host.o machine.o gdbstub.o
 obj-y += qemu-timer.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
