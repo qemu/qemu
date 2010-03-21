@@ -154,7 +154,6 @@ int main(int argc, char **argv)
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-objects.h"
-#include "notify.h"
 
 #include "disas.h"
 
@@ -559,32 +558,6 @@ static int socket_init(void)
     return 0;
 }
 #endif
-
-/*********************/
-/* Exit notifiers    */
-/*********************/
-
-static NotifierList exit_notifiers = NOTIFIER_LIST_INITIALIZER(exit_notifiers);
-
-void exit_notifier_add(Notifier *notifier)
-{
-    notifier_list_add(&exit_notifiers, notifier);
-}
-
-void exit_notifier_remove(Notifier *notifier)
-{
-    notifier_list_remove(&exit_notifiers, notifier);
-}
-
-static void exit_notifier_notify(void)
-{
-    notifier_list_notify(&exit_notifiers);
-}
-
-static void exit_notifier_init(void)
-{
-    atexit(exit_notifier_notify);
-}
 
 /***********************************************************/
 /* Bluetooth support */
