@@ -211,7 +211,7 @@ static int xen_domain_watcher(void)
 }
 
 /* normal cleanup */
-static void xen_domain_cleanup(Notifier *notifier)
+static void xen_domain_cleanup(void)
 {
     char *dom;
 
@@ -232,7 +232,6 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
     unsigned int xenstore_port = 0, console_port = 0;
     unsigned long xenstore_mfn = 0, console_mfn = 0;
     int rc;
-    static Notifier exit_notifier = { .notify = xen_domain_cleanup };
 
     memcpy(uuid, qemu_uuid, sizeof(uuid));
     rc = xc_domain_create(xen_xc, ssidref, uuid, flags, &xen_domid);
@@ -241,7 +240,7 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
         goto err;
     }
     qemu_log("xen: created domain %d\n", xen_domid);
-    exit_notifier_add(&exit_notifier);
+    atexit(xen_domain_cleanup);
     if (xen_domain_watcher() == -1) {
         goto err;
     }

@@ -713,15 +713,9 @@ static void term_exit(void)
     fcntl(0, F_SETFL, old_fd0_flags);
 }
 
-static void term_exit_notifier(Notifier *notifier)
-{
-    term_exit();
-}
-
 static void term_init(QemuOpts *opts)
 {
     struct termios tty;
-    static Notifier exit_notifier = { .notify = term_exit_notifier };
 
     tcgetattr (0, &tty);
     oldtty = tty;
@@ -741,9 +735,8 @@ static void term_init(QemuOpts *opts)
 
     tcsetattr (0, TCSANOW, &tty);
 
-    if (!term_atexit_done++) {
-        exit_notifier_add(&exit_notifier);
-    }
+    if (!term_atexit_done++)
+        atexit(term_exit);
 
     fcntl(0, F_SETFL, O_NONBLOCK);
 }
