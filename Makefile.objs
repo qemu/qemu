@@ -156,6 +156,7 @@ hw-obj-y += pcnet.o
 
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
+hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
 
 # IDE
 hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
