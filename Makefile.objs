@@ -153,6 +153,13 @@ hw-obj-y += ne2000.o
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
 
+# IDE
+hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
+hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
+hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
+hw-obj-$(CONFIG_IDE_PIIX) += ide/piix.o
+hw-obj-$(CONFIG_IDE_CMD646) += ide/cmd646.o
+
 # SCSI layer
 hw-obj-y += lsi53c895a.o
 hw-obj-$(CONFIG_ESP) += esp.o

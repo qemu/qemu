@@ -197,7 +197,7 @@ obj-y += rtl8139.o
 obj-y += e1000.o
 
 # Hardware support
-obj-i386-y = ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
+obj-i386-y = ide/core.o
 obj-i386-y += pckbd.o $(sound-obj-y) dma.o
 obj-i386-y += vga.o
 obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o pc.o
@@ -207,8 +207,7 @@ obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += ne2000-isa.o debugcon.o multiboot.o
 
 # shared objects
-obj-ppc-y = ppc.o ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/macio.o
-obj-ppc-y += ide/cmd646.o
+obj-ppc-y = ppc.o ide/core.o ide/macio.o
 obj-ppc-y += vga.o $(sound-obj-y) dma.o openpic.o
 # PREP target
 obj-ppc-y += pckbd.o serial.o i8259.o fdc.o mc146818rtc.o
@@ -232,7 +231,7 @@ obj-mips-y += mips_addr.o mips_timer.o mips_int.o
 obj-mips-y += dma.o vga.o serial.o i8259.o rc4030.o
 obj-mips-y += vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
-obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
+obj-mips-y += ide/core.o
 obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o acpi.o ds1225y.o
 obj-mips-y += piix4.o cirrus_vga.o $(sound-obj-y)
 obj-mips-y += mipsnet.o ne2000-isa.o
@@ -265,7 +264,7 @@ obj-cris-y += pflash_cfi02.o
 
 ifeq ($(TARGET_ARCH), sparc64)
 obj-sparc-y = sun4u.o pckbd.o apb_pci.o
-obj-sparc-y += ide/core.o ide/qdev.o ide/pci.o ide/cmd646.o
+obj-sparc-y += ide/core.o
 obj-sparc-y += vga.o
 obj-sparc-y += fdc.o mc146818rtc.o serial.o
 obj-sparc-y += cirrus_vga.o

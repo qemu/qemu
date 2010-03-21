@@ -2741,6 +2741,7 @@ done
 for hwlib in 32 64; do
   d=libhw$hwlib
   mkdir -p $d
+  mkdir -p $d/ide
   rm -f $d/Makefile
   ln -s $source_path/Makefile.hw $d/Makefile
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak
