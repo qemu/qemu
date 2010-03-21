@@ -197,7 +197,7 @@ obj-y += e1000.o
 obj-i386-y = ide/core.o
 obj-i386-y += pckbd.o $(sound-obj-y) dma.o
 obj-i386-y += vga.o
-obj-i386-y += mc146818rtc.o serial.o i8259.o pc.o
+obj-i386-y += mc146818rtc.o i8259.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o acpi.o piix_pci.o
 obj-i386-y += vmmouse.o vmport.o vmware_vga.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
@@ -207,7 +207,7 @@ obj-i386-y += debugcon.o multiboot.o
 obj-ppc-y = ppc.o ide/core.o ide/macio.o
 obj-ppc-y += vga.o $(sound-obj-y) dma.o openpic.o
 # PREP target
-obj-ppc-y += pckbd.o serial.o i8259.o mc146818rtc.o
+obj-ppc-y += pckbd.o i8259.o mc146818rtc.o
 obj-ppc-y += prep_pci.o ppc_prep.o
 # Mac shared devices
 obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
@@ -225,7 +225,7 @@ obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += dma.o vga.o serial.o i8259.o rc4030.o
+obj-mips-y += dma.o vga.o i8259.o rc4030.o
 obj-mips-y += vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o
@@ -263,7 +263,7 @@ ifeq ($(TARGET_ARCH), sparc64)
 obj-sparc-y = sun4u.o pckbd.o apb_pci.o
 obj-sparc-y += ide/core.o
 obj-sparc-y += vga.o
-obj-sparc-y += mc146818rtc.o serial.o
+obj-sparc-y += mc146818rtc.o
 obj-sparc-y += cirrus_vga.o
 else
 obj-sparc-y = sun4m.o lance.o tcx.o iommu.o slavio_intctl.o
@@ -281,7 +281,7 @@ obj-arm-y += arm-semi.o
 obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 obj-arm-y += pflash_cfi01.o gumstix.o
-obj-arm-y += zaurus.o ide/core.o ide/microdrive.o serial.o spitz.o tosa.o tc6393xb.o
+obj-arm-y += zaurus.o ide/core.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
 obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
@@ -294,7 +294,7 @@ obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 obj-arm-y += syborg_virtio.o
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
+obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o
 obj-sh4-y += ide/core.o ide/mmio.o
 
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o

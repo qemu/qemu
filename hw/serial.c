@@ -825,65 +825,106 @@ static void serial_mm_writeb(void *opaque, target_phys_addr_t addr,
     serial_ioport_write(s, addr >> s->it_shift, value & 0xFF);
 }
 
-static uint32_t serial_mm_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t serial_mm_readw_be(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
     uint32_t val;
 
     val = serial_ioport_read(s, addr >> s->it_shift) & 0xFFFF;
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
-#endif
     return val;
 }
 
-static void serial_mm_writew(void *opaque, target_phys_addr_t addr,
-                             uint32_t value)
+static uint32_t serial_mm_readw_le(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
-#ifdef TARGET_WORDS_BIGENDIAN
+    uint32_t val;
+
+    val = serial_ioport_read(s, addr >> s->it_shift) & 0xFFFF;
+    return val;
+}
+
+static void serial_mm_writew_be(void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    SerialState *s = opaque;
+
     value = bswap16(value);
-#endif
     serial_ioport_write(s, addr >> s->it_shift, value & 0xFFFF);
 }
 
-static uint32_t serial_mm_readl(void *opaque, target_phys_addr_t addr)
+static void serial_mm_writew_le(void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    SerialState *s = opaque;
+
+    serial_ioport_write(s, addr >> s->it_shift, value & 0xFFFF);
+}
+
+static uint32_t serial_mm_readl_be(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
     uint32_t val;
 
     val = serial_ioport_read(s, addr >> s->it_shift);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
-#endif
     return val;
 }
 
-static void serial_mm_writel(void *opaque, target_phys_addr_t addr,
-                             uint32_t value)
+static uint32_t serial_mm_readl_le(void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
-#ifdef TARGET_WORDS_BIGENDIAN
+    uint32_t val;
+
+    val = serial_ioport_read(s, addr >> s->it_shift);
+    return val;
+}
+
+static void serial_mm_writel_be(void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    SerialState *s = opaque;
+
     value = bswap32(value);
-#endif
     serial_ioport_write(s, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc * const serial_mm_read[] = {
+static void serial_mm_writel_le(void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    SerialState *s = opaque;
+
+    serial_ioport_write(s, addr >> s->it_shift, value);
+}
+
+static CPUReadMemoryFunc * const serial_mm_read_be[] = {
     &serial_mm_readb,
-    &serial_mm_readw,
-    &serial_mm_readl,
+    &serial_mm_readw_be,
+    &serial_mm_readl_be,
 };
 
-static CPUWriteMemoryFunc * const serial_mm_write[] = {
+static CPUWriteMemoryFunc * const serial_mm_write_be[] = {
     &serial_mm_writeb,
-    &serial_mm_writew,
-    &serial_mm_writel,
+    &serial_mm_writew_be,
+    &serial_mm_writel_be,
+};
+
+static CPUReadMemoryFunc * const serial_mm_read_le[] = {
+    &serial_mm_readb,
+    &serial_mm_readw_le,
+    &serial_mm_readl_le,
+};
+
+static CPUWriteMemoryFunc * const serial_mm_write_le[] = {
+    &serial_mm_writeb,
+    &serial_mm_writew_le,
+    &serial_mm_writel_le,
 };
 
 SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, int baudbase,
-                             CharDriverState *chr, int ioregister)
+                             CharDriverState *chr, int ioregister,
+                             int be)
 {
     SerialState *s;
     int s_io_memory;
@@ -899,8 +940,13 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     vmstate_register(base, &vmstate_serial, s);
 
     if (ioregister) {
-        s_io_memory = cpu_register_io_memory(serial_mm_read,
-                                             serial_mm_write, s);
+        if (be) {
+            s_io_memory = cpu_register_io_memory(serial_mm_read_be,
+                                                 serial_mm_write_be, s);
+        } else {
+            s_io_memory = cpu_register_io_memory(serial_mm_read_le,
+                                                 serial_mm_write_le, s);
+        }
         cpu_register_physical_memory(base, 8 << it_shift, s_io_memory);
     }
     serial_update_msl(s);

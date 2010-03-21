@@ -1986,9 +1986,15 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     s->base = base;
     s->fclk = fclk;
     s->irq = irq;
+#ifdef TARGET_WORDS_BIGENDIAN
     s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
-                               chr ?: qemu_chr_open("null", "null", NULL), 1);
-
+                               chr ?: qemu_chr_open("null", "null", NULL), 1,
+                               1);
+#else
+    s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
+                               chr ?: qemu_chr_open("null", "null", NULL), 1,
+                               0);
+#endif
     return s;
 }
 
@@ -2101,9 +2107,17 @@ struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr)
 {
     /* TODO: Should reuse or destroy current s->serial */
+#ifdef TARGET_WORDS_BIGENDIAN
     s->serial = serial_mm_init(s->base, 2, s->irq,
-                    omap_clk_getrate(s->fclk) / 16,
-                    chr ?: qemu_chr_open("null", "null", NULL), 1);
+                               omap_clk_getrate(s->fclk) / 16,
+                               chr ?: qemu_chr_open("null", "null", NULL), 1,
+                               1);
+#else
+    s->serial = serial_mm_init(s->base, 2, s->irq,
+                               omap_clk_getrate(s->fclk) / 16,
+                               chr ?: qemu_chr_open("null", "null", NULL), 1,
+                               0);
+#endif
 }
 
 /* MPU Clock/Reset/Power Mode Control */
