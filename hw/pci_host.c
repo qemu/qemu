@@ -78,27 +78,24 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
     return val;
 }
 
-static void pci_host_config_write(ReadWriteHandler *handler,
-                                  pcibus_t addr, uint32_t val, int len)
+static void pci_host_config_write_swap(ReadWriteHandler *handler,
+                                       pcibus_t addr, uint32_t val, int len)
 {
     PCIHostState *s = container_of(handler, PCIHostState, conf_handler);
 
     PCI_DPRINTF("%s addr %" FMT_PCIBUS " %d val %"PRIx32"\n",
                 __func__, addr, len, val);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = qemu_bswap_len(val, len);
-#endif
     s->config_reg = val;
 }
 
-static uint32_t pci_host_config_read(ReadWriteHandler *handler,
-                                            pcibus_t addr, int len)
+static uint32_t pci_host_config_read_swap(ReadWriteHandler *handler,
+                                          pcibus_t addr, int len)
 {
     PCIHostState *s = container_of(handler, PCIHostState, conf_handler);
     uint32_t val = s->config_reg;
-#ifdef TARGET_WORDS_BIGENDIAN
+
     val = qemu_bswap_len(val, len);
-#endif
     PCI_DPRINTF("%s addr %" FMT_PCIBUS " len %d val %"PRIx32"\n",
                 __func__, addr, len, val);
     return val;
@@ -125,21 +122,20 @@ static uint32_t pci_host_config_read_noswap(ReadWriteHandler *handler,
     return val;
 }
 
-static void pci_host_data_write(ReadWriteHandler *handler,
-                                pcibus_t addr, uint32_t val, int len)
+static void pci_host_data_write_swap(ReadWriteHandler *handler,
+                                     pcibus_t addr, uint32_t val, int len)
 {
     PCIHostState *s = container_of(handler, PCIHostState, data_handler);
-#ifdef TARGET_WORDS_BIGENDIAN
+
     val = qemu_bswap_len(val, len);
-#endif
     PCI_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n",
                 addr, len, val);
     if (s->config_reg & (1u << 31))
         pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
 }
 
-static uint32_t pci_host_data_read(ReadWriteHandler *handler,
-                                   pcibus_t addr, int len)
+static uint32_t pci_host_data_read_swap(ReadWriteHandler *handler,
+                                        pcibus_t addr, int len)
 {
     PCIHostState *s = container_of(handler, PCIHostState, data_handler);
     uint32_t val;
@@ -148,32 +144,53 @@ static uint32_t pci_host_data_read(ReadWriteHandler *handler,
     val = pci_data_read(s->bus, s->config_reg | (addr & 3), len);
     PCI_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n",
                 addr, len, val);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = qemu_bswap_len(val, len);
-#endif
+    return val;
+}
+
+static void pci_host_data_write_noswap(ReadWriteHandler *handler,
+                                       pcibus_t addr, uint32_t val, int len)
+{
+    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+    PCI_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n",
+                addr, len, val);
+    if (s->config_reg & (1u << 31))
+        pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
+}
+
+static uint32_t pci_host_data_read_noswap(ReadWriteHandler *handler,
+                                          pcibus_t addr, int len)
+{
+    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+    uint32_t val;
+    if (!(s->config_reg & (1 << 31)))
+        return 0xffffffff;
+    val = pci_data_read(s->bus, s->config_reg | (addr & 3), len);
+    PCI_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n",
+                addr, len, val);
     return val;
 }
 
 static void pci_host_init(PCIHostState *s)
 {
-    s->conf_handler.write = pci_host_config_write;
-    s->conf_handler.read = pci_host_config_read;
+    s->conf_handler.write = pci_host_config_write_swap;
+    s->conf_handler.read = pci_host_config_read_swap;
     s->conf_noswap_handler.write = pci_host_config_write_noswap;
     s->conf_noswap_handler.read = pci_host_config_read_noswap;
-    s->data_handler.write = pci_host_data_write;
-    s->data_handler.read = pci_host_data_read;
+    s->data_handler.write = pci_host_data_write_swap;
+    s->data_handler.read = pci_host_data_read_swap;
+    s->data_noswap_handler.write = pci_host_data_write_noswap;
+    s->data_noswap_handler.read = pci_host_data_read_noswap;
 }
 
-int pci_host_conf_register_mmio(PCIHostState *s)
+int pci_host_conf_register_mmio(PCIHostState *s, int swap)
 {
     pci_host_init(s);
-    return cpu_register_io_memory_simple(&s->conf_handler);
-}
-
-int pci_host_conf_register_mmio_noswap(PCIHostState *s)
-{
-    pci_host_init(s);
-    return cpu_register_io_memory_simple(&s->conf_noswap_handler);
+    if (swap) {
+        return cpu_register_io_memory_simple(&s->conf_handler);
+    } else {
+        return cpu_register_io_memory_simple(&s->conf_noswap_handler);
+    }
 }
 
 void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
@@ -182,10 +199,14 @@ void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
     register_ioport_simple(&s->conf_noswap_handler, ioport, 4, 4);
 }
 
-int pci_host_data_register_mmio(PCIHostState *s)
+int pci_host_data_register_mmio(PCIHostState *s, int swap)
 {
     pci_host_init(s);
-    return cpu_register_io_memory_simple(&s->data_handler);
+    if (swap) {
+        return cpu_register_io_memory_simple(&s->data_handler);
+    } else {
+        return cpu_register_io_memory_simple(&s->data_noswap_handler);
+    }
 }
 
 void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s)

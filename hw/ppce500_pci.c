@@ -293,13 +293,13 @@ PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
     controller->pci_dev = d;
 
     /* CFGADDR */
-    index = pci_host_conf_register_mmio_noswap(&controller->pci_state);
+    index = pci_host_conf_register_mmio(&controller->pci_state, 0);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_CFGADDR, 4, index);
 
     /* CFGDATA */
-    index = pci_host_data_register_mmio(&controller->pci_state);
+    index = pci_host_data_register_mmio(&controller->pci_state, 0);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);
