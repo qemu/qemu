@@ -218,7 +218,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 
-    isa_mmio_init(MPC8544_PCI_IO, MPC8544_PCI_IOLEN);
+    isa_mmio_init(MPC8544_PCI_IO, MPC8544_PCI_IOLEN, 1);
 
     if (pci_bus) {
         /* Register network interfaces. */

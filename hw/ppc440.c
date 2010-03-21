@@ -85,7 +85,7 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     if (!*pcip)
         printf("couldn't create PCI controller!\n");
 
-    isa_mmio_init(PPC440EP_PCI_IO, PPC440EP_PCI_IOLEN);
+    isa_mmio_init(PPC440EP_PCI_IO, PPC440EP_PCI_IOLEN, 1);
 
     if (serial_hds[0] != NULL) {
         serial_mm_init(0xef600300, 0, pic[0], PPC_SERIAL_MM_BAUDBASE,

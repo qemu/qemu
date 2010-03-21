@@ -131,6 +131,7 @@ hw-obj-y += loader.o
 hw-obj-y += virtio.o virtio-console.o
 hw-obj-y += fw_cfg.o
 hw-obj-y += watchdog.o
+hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
 hw-obj-$(CONFIG_NAND) += nand.o
 

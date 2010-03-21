@@ -192,7 +192,12 @@ void mips_jazz_init (ram_addr_t ram_size,
     pcspk_init(pit);
 
     /* ISA IO space at 0x90000000 */
-    isa_mmio_init(0x90000000, 0x01000000);
+#ifdef TARGET_WORDS_BIGENDIAN
+    isa_mmio_init(0x90000000, 0x01000000, 1);
+#else
+    isa_mmio_init(0x90000000, 0x01000000, 0);
+#endif
+
     isa_mem_base = 0x11000000;
 
     /* Video card */

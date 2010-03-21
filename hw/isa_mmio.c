@@ -31,21 +31,29 @@ static void isa_mmio_writeb (void *opaque, target_phys_addr_t addr,
     cpu_outb(addr & IOPORTS_MASK, val);
 }
 
-static void isa_mmio_writew (void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
+static void isa_mmio_writew_be(void *opaque, target_phys_addr_t addr,
+                               uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
-#endif
     cpu_outw(addr & IOPORTS_MASK, val);
 }
 
-static void isa_mmio_writel (void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
+static void isa_mmio_writew_le(void *opaque, target_phys_addr_t addr,
+                               uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
+    cpu_outw(addr & IOPORTS_MASK, val);
+}
+
+static void isa_mmio_writel_be(void *opaque, target_phys_addr_t addr,
+                               uint32_t val)
+{
     val = bswap32(val);
-#endif
+    cpu_outl(addr & IOPORTS_MASK, val);
+}
+
+static void isa_mmio_writel_le(void *opaque, target_phys_addr_t addr,
+                               uint32_t val)
+{
     cpu_outl(addr & IOPORTS_MASK, val);
 }
 
@@ -57,47 +65,78 @@ static uint32_t isa_mmio_readb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t isa_mmio_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readw_be(void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
     val = cpu_inw(addr & IOPORTS_MASK);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
-#endif
     return val;
 }
 
-static uint32_t isa_mmio_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readw_le(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t val;
+
+    val = cpu_inw(addr & IOPORTS_MASK);
+    return val;
+}
+
+static uint32_t isa_mmio_readl_be(void *opaque, target_phys_addr_t addr)
 {
     uint32_t val;
 
     val = cpu_inl(addr & IOPORTS_MASK);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
-#endif
     return val;
 }
 
-static CPUWriteMemoryFunc * const isa_mmio_write[] = {
+static uint32_t isa_mmio_readl_le(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t val;
+
+    val = cpu_inl(addr & IOPORTS_MASK);
+    return val;
+}
+
+static CPUWriteMemoryFunc * const isa_mmio_write_be[] = {
     &isa_mmio_writeb,
-    &isa_mmio_writew,
-    &isa_mmio_writel,
+    &isa_mmio_writew_be,
+    &isa_mmio_writel_be,
 };
 
-static CPUReadMemoryFunc * const isa_mmio_read[] = {
+static CPUReadMemoryFunc * const isa_mmio_read_be[] = {
     &isa_mmio_readb,
-    &isa_mmio_readw,
-    &isa_mmio_readl,
+    &isa_mmio_readw_be,
+    &isa_mmio_readl_be,
+};
+
+static CPUWriteMemoryFunc * const isa_mmio_write_le[] = {
+    &isa_mmio_writeb,
+    &isa_mmio_writew_le,
+    &isa_mmio_writel_le,
+};
+
+static CPUReadMemoryFunc * const isa_mmio_read_le[] = {
+    &isa_mmio_readb,
+    &isa_mmio_readw_le,
+    &isa_mmio_readl_le,
 };
 
 static int isa_mmio_iomemtype = 0;
 
-void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size)
+void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size, int be)
 {
     if (!isa_mmio_iomemtype) {
-        isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read,
-                                                    isa_mmio_write, NULL);
+        if (be) {
+            isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read_be,
+                                                        isa_mmio_write_be,
+                                                        NULL);
+        } else {
+            isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read_le,
+                                                        isa_mmio_write_le,
+                                                        NULL);
+        }
     }
     cpu_register_physical_memory(base, size, isa_mmio_iomemtype);
 }

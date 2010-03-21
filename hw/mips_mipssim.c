@@ -182,7 +182,11 @@ mips_mipssim_init (ram_addr_t ram_size,
     cpu_mips_clock_init(env);
 
     /* Register 64 KB of ISA IO space at 0x1fd00000. */
-    isa_mmio_init(0x1fd00000, 0x00010000);
+#ifdef TARGET_WORDS_BIGENDIAN
+    isa_mmio_init(0x1fd00000, 0x00010000, 1);
+#else
+    isa_mmio_init(0x1fd00000, 0x00010000, 0);
+#endif
 
     /* A single 16450 sits at offset 0x3f8. It is attached to
        MIPS CPU INT2, which is interrupt 4. */
