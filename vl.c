@@ -276,7 +276,6 @@ static int default_vga = 1;
 static int default_floppy = 1;
 static int default_cdrom = 1;
 static int default_sdcard = 1;
-static int default_qmp = 1;
 
 static struct {
     const char *driver;
@@ -4300,22 +4299,15 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_qmp:
                 monitor_parse(optarg, "control");
-                default_qmp = 0;
+                default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
                 opts = qemu_opts_parse(&qemu_mon_opts, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
-                } else {
-                    const char *mode;
-                    mode = qemu_opt_get(opts, "mode");
-                    if (mode == NULL || strcmp(mode, "readline") == 0) {
-                        default_monitor = 0;
-                    } else if (strcmp(mode, "control") == 0) {
-                        default_qmp = 0;
-                    }
                 }
+                default_monitor = 0;
                 break;
             case QEMU_OPTION_chardev:
                 opts = qemu_opts_parse(&qemu_chardev_opts, optarg, 1);
@@ -4553,7 +4545,6 @@ int main(int argc, char **argv, char **envp)
                 default_parallel = 0;
                 default_virtcon = 0;
                 default_monitor = 0;
-                default_qmp = 0;
                 default_vga = 0;
                 default_net = 0;
                 default_floppy = 0;
