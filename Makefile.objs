@@ -140,6 +140,7 @@ hw-obj-$(CONFIG_ESCC) += escc.o
 hw-obj-$(CONFIG_PARALLEL) += parallel.o
 hw-obj-$(CONFIG_I8254) += i8254.o
 hw-obj-$(CONFIG_PCSPK) += pcspk.o
+hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
 
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o

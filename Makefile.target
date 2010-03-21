@@ -202,7 +202,7 @@ obj-i386-y += pckbd.o $(sound-obj-y) dma.o
 obj-i386-y += vga.o
 obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o acpi.o piix_pci.o
-obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
+obj-i386-y += vmmouse.o vmport.o vmware_vga.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += ne2000-isa.o debugcon.o multiboot.o
 
@@ -233,7 +233,7 @@ obj-mips-y += dma.o vga.o serial.o i8259.o rc4030.o
 obj-mips-y += vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
-obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
+obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o acpi.o ds1225y.o
 obj-mips-y += piix4.o cirrus_vga.o $(sound-obj-y)
 obj-mips-y += mipsnet.o ne2000-isa.o
 obj-mips-y += pflash_cfi01.o
