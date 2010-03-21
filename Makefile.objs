@@ -150,6 +150,8 @@ hw-obj-y += msix.o
 
 # PCI network cards
 hw-obj-y += ne2000.o
+hw-obj-y += eepro100.o
+hw-obj-y += pcnet.o
 
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
