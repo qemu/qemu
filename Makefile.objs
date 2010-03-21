@@ -137,6 +137,8 @@ hw-obj-$(CONFIG_NAND) += nand.o
 hw-obj-$(CONFIG_M48T59) += m48t59.o
 hw-obj-$(CONFIG_ESCC) += escc.o
 
+hw-obj-$(CONFIG_PARALLEL) += parallel.o
+
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
 
