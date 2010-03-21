@@ -161,6 +161,7 @@ hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
 
 # VGA
 hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
+hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
 
 ######################################################################
 # libdis
