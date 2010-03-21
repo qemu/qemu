@@ -200,7 +200,7 @@ obj-y += e1000.o
 obj-i386-y = ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
 obj-i386-y += pckbd.o $(sound-obj-y) dma.o
 obj-i386-y += vga.o vga-isa.o
-obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
+obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o pcspk.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o acpi.o piix_pci.o
 obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
@@ -211,7 +211,7 @@ obj-ppc-y = ppc.o ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/macio.o
 obj-ppc-y += ide/cmd646.o
 obj-ppc-y += vga.o $(sound-obj-y) dma.o openpic.o
 # PREP target
-obj-ppc-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
+obj-ppc-y += pckbd.o serial.o i8259.o fdc.o mc146818rtc.o
 obj-ppc-y += prep_pci.o ppc_prep.o ne2000-isa.o
 # Mac shared devices
 obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
@@ -229,7 +229,7 @@ obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += dma.o vga.o serial.o i8254.o i8259.o rc4030.o
+obj-mips-y += dma.o vga.o serial.o i8259.o rc4030.o
 obj-mips-y += vga-isa.o vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
 obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
