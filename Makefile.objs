@@ -155,6 +155,9 @@ hw-obj-$(CONFIG_ESP) += esp.o
 hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
 hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
 
+# VGA
+hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
+
 ######################################################################
 # libdis
 # NOTE: the disassembler code is only needed for debugging
