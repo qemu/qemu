@@ -25,6 +25,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "pc.h"
+#include "apic.h"
 #include "isa.h"
 #include "hpet_emul.h"
 

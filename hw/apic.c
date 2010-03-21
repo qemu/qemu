@@ -18,6 +18,7 @@
  */
 #include "hw.h"
 #include "pc.h"
+#include "apic.h"
 #include "pci.h"
 #include "msix.h"
 #include "qemu-timer.h"

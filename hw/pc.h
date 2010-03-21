@@ -35,21 +35,6 @@ uint32_t pic_intack_read(PicState2 *s);
 void pic_info(Monitor *mon);
 void irq_info(Monitor *mon);
 
-/* APIC */
-typedef struct IOAPICState IOAPICState;
-void apic_deliver_irq(uint8_t dest, uint8_t dest_mode,
-                             uint8_t delivery_mode,
-                             uint8_t vector_num, uint8_t polarity,
-                             uint8_t trigger_mode);
-int apic_init(CPUState *env);
-int apic_accept_pic_intr(CPUState *env);
-void apic_deliver_pic_intr(CPUState *env, int level);
-int apic_get_interrupt(CPUState *env);
-qemu_irq *ioapic_init(void);
-void ioapic_set_irq(void *opaque, int vector, int level);
-void apic_reset_irq_delivered(void);
-int apic_get_irq_delivered(void);
-
 /* i8254.c */
 
 #define PIT_FREQ 1193182
@@ -149,8 +134,6 @@ void isa_cirrus_vga_init(void);
 /* ne2000.c */
 
 void isa_ne2000_init(int base, int irq, NICInfo *nd);
-
-int cpu_is_bsp(CPUState *env);
 
 /* e820 types */
 #define E820_RAM        1
