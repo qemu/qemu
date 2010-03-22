@@ -799,15 +799,15 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-void do_device_del(Monitor *mon, const QDict *qdict)
+int do_device_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     DeviceState *dev;
 
     dev = qdev_find_recursive(main_system_bus, id);
     if (NULL == dev) {
-        error_report("Device '%s' not found", id);
-        return;
+        qerror_report(QERR_DEVICE_NOT_FOUND, id);
+        return -1;
     }
-    qdev_unplug(dev);
+    return qdev_unplug(dev);
 }

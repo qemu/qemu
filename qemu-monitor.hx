@@ -589,7 +589,8 @@ ETEXI
         .args_type  = "id:s",
         .params     = "device",
         .help       = "remove device",
-        .mhandler.cmd = do_device_del,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_device_del,
     },
 
 STEXI
