@@ -287,8 +287,7 @@ int qdev_init(DeviceState *dev)
 int qdev_unplug(DeviceState *dev)
 {
     if (!dev->parent_bus->allow_hotplug) {
-        error_report("Bus %s does not support hotplugging",
-                     dev->parent_bus->name);
+        qerror_report(QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return -1;
     }
     assert(dev->info->unplug != NULL);
