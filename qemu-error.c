@@ -167,7 +167,7 @@ void error_print_loc(void)
     int i;
     const char *const *argp;
 
-    if (!cur_mon) {
+    if (!cur_mon && progname) {
         fprintf(stderr, "%s:", progname);
         sep = " ";
     }
