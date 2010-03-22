@@ -129,11 +129,11 @@ bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 qemu-img.o: qemu-img-cmds.h
 qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o: $(GENERATED_HEADERS)
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobject-obj-y)
 
-qemu-nbd$(EXESUF): qemu-nbd.o qemu-tool.o $(block-obj-y) $(qobject-obj-y)
+qemu-nbd$(EXESUF): qemu-nbd.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobject-obj-y)
 
-qemu-io$(EXESUF): qemu-io.o qemu-tool.o cmd.o $(block-obj-y) $(qobject-obj-y)
+qemu-io$(EXESUF): qemu-io.o cmd.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobject-obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
