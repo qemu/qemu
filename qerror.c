@@ -11,9 +11,7 @@
  */
 #include "qjson.h"
 #include "qerror.h"
-#include "qstring.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
 
 static void qerror_destroy_obj(QObject *obj);
 
