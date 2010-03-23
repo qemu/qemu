@@ -2084,7 +2084,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 #else
             serial_mm_init(pxa270_serial[i].io_base, 2,
                            s->pic[pxa270_serial[i].irqn], 14857000/16,
-                           serial_hds[i], 1, 1);
+                           serial_hds[i], 1, 0);
 #endif
         else
             break;
