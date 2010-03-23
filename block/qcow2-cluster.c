@@ -627,12 +627,13 @@ static int write_l2_entries(BDRVQcowState *s, uint64_t *l2_table,
     int start_offset = (8 * l2_index) & ~511;
     int end_offset = (8 * (l2_index + num) + 511) & ~511;
     size_t len = end_offset - start_offset;
+    int ret;
 
     BLKDBG_EVENT(s->hd, BLKDBG_L2_UPDATE);
-    if (bdrv_pwrite(s->hd, l2_offset + start_offset, &l2_table[l2_start_index],
-        len) != len)
-    {
-        return -1;
+    ret = bdrv_pwrite(s->hd, l2_offset + start_offset,
+        &l2_table[l2_start_index], len);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
