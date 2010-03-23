@@ -730,6 +730,32 @@ static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
     return 1;
 }
 
+#ifdef KVM_CAP_INTERNAL_ERROR_DATA
+static void kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
+{
+
+    if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
+        int i;
+
+        fprintf(stderr, "KVM internal error. Suberror: %d\n",
+                run->internal.suberror);
+
+        for (i = 0; i < run->internal.ndata; ++i) {
+            fprintf(stderr, "extra data[%d]: %"PRIx64"\n",
+                    i, (uint64_t)run->internal.data[i]);
+        }
+    }
+    cpu_dump_state(env, stderr, fprintf, 0);
+    if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
+        fprintf(stderr, "emulation failure\n");
+    }
+    /* FIXME: Should trigger a qmp message to let management know
+     * something went wrong.
+     */
+    vm_stop(0);
+}
+#endif
+
 void kvm_flush_coalesced_mmio_buffer(void)
 {
 #ifdef KVM_CAP_COALESCED_MMIO
@@ -845,6 +871,11 @@ int kvm_cpu_exec(CPUState *env)
         case KVM_EXIT_EXCEPTION:
             DPRINTF("kvm_exit_exception\n");
             break;
+#ifdef KVM_CAP_INTERNAL_ERROR_DATA
+        case KVM_EXIT_INTERNAL_ERROR:
+            kvm_handle_internal_error(env, run);
+            break;
+#endif
         case KVM_EXIT_DEBUG:
             DPRINTF("kvm_exit_debug\n");
 #ifdef KVM_CAP_SET_GUEST_DEBUG
