@@ -9,6 +9,7 @@
 
 #include "sysbus.h"
 #include "pxa.h"
+#include "usb-ohci.h"
 #include "sysemu.h"
 #include "pc.h"
 #include "i2c.h"
@@ -2076,9 +2077,15 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     for (i = 0; pxa270_serial[i].io_base; i ++)
         if (serial_hds[i])
+#ifdef TARGET_WORDS_BIGENDIAN
             serial_mm_init(pxa270_serial[i].io_base, 2,
                            s->pic[pxa270_serial[i].irqn], 14857000/16,
-                           serial_hds[i], 1);
+                           serial_hds[i], 1, 1);
+#else
+            serial_mm_init(pxa270_serial[i].io_base, 2,
+                           s->pic[pxa270_serial[i].irqn], 14857000/16,
+                           serial_hds[i], 1, 1);
+#endif
         else
             break;
     if (serial_hds[i])
@@ -2122,7 +2129,11 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     }
 
     if (usb_enabled) {
-        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1]);
+#ifdef TARGET_WORDS_BIGENDIAN
+        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 1);
+#else
+        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 0);
+#endif
     }
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
@@ -2187,12 +2198,19 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
                               s->pic[PXA2XX_PIC_MMC], s->dma);
 
     for (i = 0; pxa255_serial[i].io_base; i ++)
-        if (serial_hds[i])
+        if (serial_hds[i]) {
+#ifdef TARGET_WORDS_BIGENDIAN
             serial_mm_init(pxa255_serial[i].io_base, 2,
                            s->pic[pxa255_serial[i].irqn], 14745600/16,
-                           serial_hds[i], 1);
-        else
+                           serial_hds[i], 1, 1);
+#else
+            serial_mm_init(pxa255_serial[i].io_base, 2,
+                           s->pic[pxa255_serial[i].irqn], 14745600/16,
+                           serial_hds[i], 1, 0);
+#endif
+        } else {
             break;
+        }
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000, s->pic[PXA2XX_PIC_ICP],
                         s->dma, serial_hds[i]);
@@ -2234,7 +2252,11 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     }
 
     if (usb_enabled) {
-        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1]);
+#ifdef TARGET_WORDS_BIGENDIAN
+        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 1);
+#else
+        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 0);
+#endif
     }
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);

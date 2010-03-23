@@ -218,7 +218,11 @@ static void versatile_init(ram_addr_t ram_size,
         }
     }
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+#ifdef TARGET_WORDS_BIGENDIAN
+        usb_ohci_init_pci(pci_bus, -1, 1);
+#else
+        usb_ohci_init_pci(pci_bus, -1, 0);
+#endif
     }
     n = drive_get_max_bus(IF_SCSI);
     while (n >= 0) {

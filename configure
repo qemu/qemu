@@ -2335,6 +2335,13 @@ if test -f ${config_host_ld}~ ; then
   fi
 fi
 
+for d in libdis libdis-user; do
+    mkdir -p $d
+    rm -f $d/Makefile
+    ln -s $source_path/Makefile.dis $d/Makefile
+    echo > $d/config.mak
+done
+
 for target in $target_list; do
 target_dir="$target"
 config_target_mak=$target_dir/config-target.mak
@@ -2627,43 +2634,61 @@ fi
 cflags="-I\$(SRC_PATH)/tcg $cflags"
 cflags="-I\$(SRC_PATH)/fpu $cflags"
 
+if test "$target_user_only" = "yes" ; then
+    libdis_config_mak=libdis-user/config.mak
+else
+    libdis_config_mak=libdis/config.mak
+fi
+
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
   alpha)
     echo "CONFIG_ALPHA_DIS=y"  >> $config_target_mak
+    echo "CONFIG_ALPHA_DIS=y"  >> $libdis_config_mak
   ;;
   arm)
     echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
+    echo "CONFIG_ARM_DIS=y"  >> $libdis_config_mak
   ;;
   cris)
     echo "CONFIG_CRIS_DIS=y"  >> $config_target_mak
+    echo "CONFIG_CRIS_DIS=y"  >> $libdis_config_mak
   ;;
   hppa)
     echo "CONFIG_HPPA_DIS=y"  >> $config_target_mak
+    echo "CONFIG_HPPA_DIS=y"  >> $libdis_config_mak
   ;;
   i386|x86_64)
     echo "CONFIG_I386_DIS=y"  >> $config_target_mak
+    echo "CONFIG_I386_DIS=y"  >> $libdis_config_mak
   ;;
   m68k)
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
+    echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak
   ;;
   microblaze)
     echo "CONFIG_MICROBLAZE_DIS=y"  >> $config_target_mak
+    echo "CONFIG_MICROBLAZE_DIS=y"  >> $libdis_config_mak
   ;;
   mips*)
     echo "CONFIG_MIPS_DIS=y"  >> $config_target_mak
+    echo "CONFIG_MIPS_DIS=y"  >> $libdis_config_mak
   ;;
   ppc*)
     echo "CONFIG_PPC_DIS=y"  >> $config_target_mak
+    echo "CONFIG_PPC_DIS=y"  >> $libdis_config_mak
   ;;
   s390*)
     echo "CONFIG_S390_DIS=y"  >> $config_target_mak
+    echo "CONFIG_S390_DIS=y"  >> $libdis_config_mak
   ;;
   sh4)
     echo "CONFIG_SH4_DIS=y"  >> $config_target_mak
+    echo "CONFIG_SH4_DIS=y"  >> $libdis_config_mak
   ;;
   sparc*)
     echo "CONFIG_SPARC_DIS=y"  >> $config_target_mak
+    echo "CONFIG_SPARC_DIS=y"  >> $libdis_config_mak
   ;;
   esac
 done
@@ -2780,6 +2805,7 @@ done
 for hwlib in 32 64; do
   d=libhw$hwlib
   mkdir -p $d
+  mkdir -p $d/ide
   rm -f $d/Makefile
   ln -s $source_path/Makefile.hw $d/Makefile
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak

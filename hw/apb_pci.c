@@ -409,7 +409,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     assert(pci_config >= 0);
     sysbus_init_mmio(dev, 0x1000000ULL, pci_config);
     /* mem_data */
-    pci_mem_data = pci_host_data_register_mmio(&s->host_state);
+    pci_mem_data = pci_host_data_register_mmio(&s->host_state, 1);
     sysbus_init_mmio(dev, 0x10000000ULL, pci_mem_data);
     return 0;
 }

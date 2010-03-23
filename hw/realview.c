@@ -266,7 +266,11 @@ static void realview_init(ram_addr_t ram_size,
                                     pic[48], pic[49], pic[50], pic[51], NULL);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
         if (usb_enabled) {
-            usb_ohci_init_pci(pci_bus, -1);
+#ifdef TARGET_WORDS_BIGENDIAN
+            usb_ohci_init_pci(pci_bus, -1, 1);
+#else
+            usb_ohci_init_pci(pci_bus, -1, 0);
+#endif
         }
         n = drive_get_max_bus(IF_SCSI);
         while (n >= 0) {

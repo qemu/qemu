@@ -69,20 +69,7 @@ libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
 
 libobj-$(CONFIG_SCU2) += scu2.o
 
-# NOTE: the disassembler code is only needed for debugging
 libobj-y += disas.o
-libobj-$(CONFIG_ALPHA_DIS) += alpha-dis.o
-libobj-$(CONFIG_ARM_DIS) += arm-dis.o
-libobj-$(CONFIG_CRIS_DIS) += cris-dis.o
-libobj-$(CONFIG_HPPA_DIS) += hppa-dis.o
-libobj-$(CONFIG_I386_DIS) += i386-dis.o
-libobj-$(CONFIG_M68K_DIS) += m68k-dis.o
-libobj-$(CONFIG_MICROBLAZE_DIS) += microblaze-dis.o
-libobj-$(CONFIG_MIPS_DIS) += mips-dis.o
-libobj-$(CONFIG_PPC_DIS) += ppc-dis.o
-libobj-$(CONFIG_S390_DIS) += s390-dis.o
-libobj-$(CONFIG_SH4_DIS) += sh4-dis.o
-libobj-$(CONFIG_SPARC_DIS) += sparc-dis.o
 
 $(libobj-y): $(GENERATED_HEADERS)
 
@@ -130,6 +117,7 @@ obj-m68k-y += m68k-sim.o m68k-semi.o
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
+obj-y += $(addprefix ../libdis-user/, $(libdis-y))
 obj-y += $(libobj-y)
 
 endif #CONFIG_LINUX_USER
@@ -156,6 +144,7 @@ obj-i386-y += ioport-user.o
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
+obj-y += $(addprefix ../libdis-user/, $(libdis-y))
 obj-y += $(libobj-y)
 
 endif #CONFIG_DARWIN_USER
@@ -177,6 +166,7 @@ obj-i386-y += ioport-user.o
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
+obj-y += $(addprefix ../libdis-user/, $(libdis-y))
 obj-y += $(libobj-y)
 
 endif #CONFIG_BSD_USER
@@ -185,25 +175,14 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o async.o monitor.o pci.o pci_host.o pcie_host.o machine.o gdbstub.o
-obj-y += qemu-error.o qemu-timer.o
+obj-y = vl.o monitor.o machine.o gdbstub.o
+obj-y += qemu-timer.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-pci.o virtio-serial-bus.o
+obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 LIBS+=-lz
-
-sound-obj-y =
-sound-obj-$(CONFIG_SB16) += sb16.o
-sound-obj-$(CONFIG_ES1370) += es1370.o
-sound-obj-$(CONFIG_AC97) += ac97.o
-sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
-sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
-sound-obj-$(CONFIG_CS4231A) += cs4231a.o
-
-adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
@@ -211,14 +190,10 @@ QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
-# USB layer
-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
-
 # PCI network cards
 obj-y += dp8381x.o
 obj-y += e100.o
 obj-y += eepro100.o
-obj-y += pcnet.o
 obj-y += rtl8139.o
 obj-y += e1000.o
 ifndef CONFIG_WIN32
@@ -228,22 +203,21 @@ endif
 obj-y += tnetw1130.o
 
 # Hardware support
-obj-i386-y = ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
-obj-i386-y += pckbd.o $(sound-obj-y) dma.o
-obj-i386-y += vga.o vga-pci.o vga-isa.o
-obj-i386-y += fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
-obj-i386-y += cirrus_vga.o apic.o ioapic.o parallel.o acpi.o piix_pci.o
-obj-i386-y += usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
+obj-i386-y = ide/core.o
+obj-i386-y += pckbd.o dma.o
+obj-i386-y += vga.o
+obj-i386-y += mc146818rtc.o i8259.o pc.o
+obj-i386-y += cirrus_vga.o apic.o ioapic.o acpi.o piix_pci.o
+obj-i386-y += vmmouse.o vmport.o vmware_vga.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
-obj-i386-y += ne2000-isa.o debugcon.o multiboot.o
+obj-i386-y += debugcon.o multiboot.o
 
 # shared objects
-obj-ppc-y = ppc.o ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/macio.o
-obj-ppc-y += ide/cmd646.o
-obj-ppc-y += vga.o vga-pci.o $(sound-obj-y) dma.o openpic.o
+obj-ppc-y = ppc.o ide/core.o ide/macio.o
+obj-ppc-y += vga.o dma.o openpic.o
 # PREP target
-obj-ppc-y += pckbd.o serial.o i8259.o i8254.o fdc.o mc146818rtc.o
-obj-ppc-y += prep_pci.o ppc_prep.o ne2000-isa.o
+obj-ppc-y += pckbd.o i8259.o mc146818rtc.o
+obj-ppc-y += prep_pci.o ppc_prep.o
 # Mac shared devices
 obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
 # OldWorld PowerMac
@@ -260,13 +234,13 @@ obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += dma.o vga.o serial.o i8254.o i8259.o rc4030.o
-obj-mips-y += vga-pci.o vga-isa.o vga-isa-mm.o
+obj-mips-y += dma.o vga.o i8259.o rc4030.o
+obj-mips-y += vga-isa-mm.o
 obj-mips-y += g364fb.o jazz_led.o dp8393x.o
-obj-mips-y += ide/core.o ide/qdev.o ide/isa.o ide/pci.o ide/piix.o
-obj-mips-y += gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
-obj-mips-y += piix4.o parallel.o cirrus_vga.o pcspk.o $(sound-obj-y)
-obj-mips-y += mipsnet.o ne2000-isa.o
+obj-mips-y += ide/core.o
+obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o acpi.o ds1225y.o
+obj-mips-y += piix4.o cirrus_vga.o
+obj-mips-y += mipsnet.o
 obj-mips-y += pflash_cfi01.o
 obj-mips-y += vmware_vga.o
 obj-mips-$(CONFIG_AR7) += ar7.o
@@ -300,13 +274,13 @@ obj-cris-y += pflash_cfi02.o
 
 ifeq ($(TARGET_ARCH), sparc64)
 obj-sparc-y = sun4u.o pckbd.o apb_pci.o
-obj-sparc-y += ide/core.o ide/qdev.o ide/pci.o ide/cmd646.o
-obj-sparc-y += vga.o vga-pci.o
-obj-sparc-y += fdc.o mc146818rtc.o serial.o
-obj-sparc-y += cirrus_vga.o parallel.o
+obj-sparc-y += ide/core.o
+obj-sparc-y += vga.o
+obj-sparc-y += mc146818rtc.o
+obj-sparc-y += cirrus_vga.o
 else
 obj-sparc-y = sun4m.o lance.o tcx.o iommu.o slavio_intctl.o
-obj-sparc-y += slavio_timer.o slavio_misc.o fdc.o sparc32_dma.o
+obj-sparc-y += slavio_timer.o slavio_misc.o sparc32_dma.o
 obj-sparc-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 
@@ -320,7 +294,7 @@ obj-arm-y += arm-semi.o
 obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 obj-arm-y += pflash_cfi01.o gumstix.o
-obj-arm-y += zaurus.o ide/core.o ide/microdrive.o serial.o spitz.o tosa.o tc6393xb.o
+obj-arm-y += zaurus.o ide/core.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
 obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
@@ -333,7 +307,7 @@ obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
 obj-arm-y += syborg_virtio.o
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
+obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o
 obj-sh4-y += ide/core.o ide/mmio.o
 
 obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
@@ -358,6 +332,7 @@ monitor.o: qemu-monitor.h
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
 obj-y += $(addprefix ../, $(common-obj-y))
+obj-y += $(addprefix ../libdis/, $(libdis-y))
 obj-y += $(libobj-y)
 obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 

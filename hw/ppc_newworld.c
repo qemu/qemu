@@ -291,7 +291,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     isa_mem_base = 0x80000000;
 
     /* Register 8 MB of ISA IO space */
-    isa_mmio_init(0xf2000000, 0x00800000);
+    isa_mmio_init(0xf2000000, 0x00800000, 1);
 
     /* UniN init */
     unin_memory = cpu_register_io_memory(unin_read, unin_write, NULL);
@@ -387,7 +387,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                escc_mem_index);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+        usb_ohci_init_pci(pci_bus, -1, 1);
     }
 
     /* U3 needs to use USB for input because Linux doesn't support via-cuda

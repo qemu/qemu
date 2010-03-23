@@ -198,15 +198,17 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     mpic = mpic_init(MPC8544_MPIC_REGS_BASE, 1, &irqs, NULL);
 
     /* Serial */
-    if (serial_hds[0])
+    if (serial_hds[0]) {
         serial[0] = serial_mm_init(MPC8544_SERIAL0_REGS_BASE,
-                               0, mpic[12+26], 399193,
-                        serial_hds[0], 1);
+                                   0, mpic[12+26], 399193,
+                                   serial_hds[0], 1, 1);
+    }
 
-    if (serial_hds[1])
+    if (serial_hds[1]) {
         serial[0] = serial_mm_init(MPC8544_SERIAL1_REGS_BASE,
-                        0, mpic[12+26], 399193,
-                        serial_hds[0], 1);
+                                   0, mpic[12+26], 399193,
+                                   serial_hds[0], 1, 1);
+    }
 
     /* PCI */
     pci_irqs = qemu_malloc(sizeof(qemu_irq) * 4);
@@ -218,7 +220,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 
-    isa_mmio_init(MPC8544_PCI_IO, MPC8544_PCI_IOLEN);
+    isa_mmio_init(MPC8544_PCI_IO, MPC8544_PCI_IOLEN, 1);
 
     if (pci_bus) {
         /* Register network interfaces. */

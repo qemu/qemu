@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "pc.h"
+#include "apic.h"
 #include "fdc.h"
 #include "pci.h"
 #include "vmware_vga.h"

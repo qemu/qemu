@@ -8,7 +8,6 @@
 #include "qemu-timer.h"
 #include "qdict.h"
 #include "qerror.h"
-#include "notify.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -73,10 +72,6 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f);
 int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f);
 void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
-
-void exit_notifier_add(Notifier *notifier);
-void exit_notifier_remove(Notifier *notifier);
-
 
 #ifdef _WIN32
 /* Polling handling */

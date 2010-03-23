@@ -271,7 +271,11 @@ static void mips_init(ram_addr_t ram_size,
     rtc_state = rtc_init(2000);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
-    isa_mmio_init(0x14000000, 0x00010000);
+#ifdef TARGET_WORDS_BIGENDIAN
+    isa_mmio_init(0x14000000, 0x00010000, 1);
+#else
+    isa_mmio_init(0x14000000, 0x00010000, 0);
+#endif
     isa_mem_base = 0x10000000;
 
     pit = pit_init(0x40, i8259[0]);

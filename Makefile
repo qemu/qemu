@@ -88,9 +88,9 @@ include $(SRC_PATH)/Makefile.objs
 endif
 
 $(common-obj-y): $(GENERATED_HEADERS)
-$(filter %-softmmu,$(SUBDIR_RULES)): $(common-obj-y)
+$(filter %-softmmu,$(SUBDIR_RULES)): $(common-obj-y) subdir-libdis
 
-$(filter %-user,$(SUBDIR_RULES)): $(GENERATED_HEADERS) subdir-libuser
+$(filter %-user,$(SUBDIR_RULES)): $(GENERATED_HEADERS) subdir-libdis-user subdir-libuser
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -160,7 +160,7 @@ clean:
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
-	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser; do \
+	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser libdis libdis-user; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
         done
 
@@ -169,7 +169,7 @@ distclean: clean
 	rm -f config-all-devices.mak
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pdf,pg,toc,tp,vr}
-	for d in $(TARGET_DIRS) libhw32 libhw64 libuser; do \
+	for d in $(TARGET_DIRS) libhw32 libhw64 libuser libdis libdis-user; do \
 	rm -rf $$d || exit 1 ; \
         done
 

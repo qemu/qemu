@@ -306,7 +306,11 @@ static void gt64120_pci_mapping(GT64120State *s)
       isa_mem_base = s->PCI0IO_start;
       fprintf(stderr, "start=" TARGET_FMT_plx ", length=" TARGET_FMT_plx "\n",
           s->PCI0IO_start, s->PCI0IO_length);
-      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length);
+#ifdef TARGET_WORDS_BIGENDIAN
+      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length, 1);
+#else
+      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length, 0);
+#endif
     }
 }
 

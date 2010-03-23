@@ -53,7 +53,6 @@ typedef struct TAPState {
     char down_script[1024];
     char down_script_arg[128];
     uint8_t buf[TAP_BUFSIZE];
-    Notifier exit_notifier;
     unsigned int read_poll : 1;
     unsigned int write_poll : 1;
     unsigned int has_vnet_hdr : 1;
@@ -262,19 +261,6 @@ static void tap_cleanup(VLANClientState *nc)
     tap_read_poll(s, 0);
     tap_write_poll(s, 0);
     close(s->fd);
-    exit_notifier_remove(&s->exit_notifier);
-}
-
-/* Instead of exiting gracefully, we're exiting because someone called
- * exit(), make sure to invoke down script at least
- */
-static void tap_cleanup_at_exit(Notifier *notifier)
-{
-    TAPState *s = container_of(notifier, TAPState, exit_notifier);
-
-    if (s->down_script[0]) {
-        launch_script(s->down_script, s->down_script_arg, s->fd);
-    }
 }
 
 static void tap_poll(VLANClientState *nc, bool enable)
@@ -313,8 +299,6 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     s->has_vnet_hdr = vnet_hdr != 0;
     s->using_vnet_hdr = 0;
     s->has_ufo = tap_probe_has_ufo(s->fd);
-    s->exit_notifier.notify = tap_cleanup_at_exit;
-    exit_notifier_add(&s->exit_notifier);
     tap_set_offload(&s->nc, 0, 0, 0, 0, 0);
     tap_read_poll(s, 1);
     return s;

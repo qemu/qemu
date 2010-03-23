@@ -44,7 +44,7 @@ net-obj-y += $(addprefix net/, $(net-nested-y))
 common-obj-y = $(block-obj-y)
 common-obj-y += $(net-obj-y)
 common-obj-y += $(qobject-obj-y)
-common-obj-y += readline.o console.o
+common-obj-y += readline.o console.o async.o qemu-error.o
 
 common-obj-y += tcg-runtime.o host-utils.o
 common-obj-y += irq.o ioport.o input.o
@@ -129,14 +129,23 @@ user-obj-y += cutils.o cache-utils.o
 
 hw-obj-y =
 hw-obj-y += loader.o
-hw-obj-y += virtio.o virtio-console.o
-hw-obj-y += fw_cfg.o
+hw-obj-y += virtio.o virtio-console.o virtio-pci.o
+hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
 hw-obj-y += watchdog.o
+hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
 hw-obj-$(CONFIG_NAND) += nand.o
 
 hw-obj-$(CONFIG_M48T59) += m48t59.o
 hw-obj-$(CONFIG_ESCC) += escc.o
+
+hw-obj-$(CONFIG_SERIAL) += serial.o
+hw-obj-$(CONFIG_PARALLEL) += parallel.o
+hw-obj-$(CONFIG_I8254) += i8254.o
+hw-obj-$(CONFIG_PCSPK) += pcspk.o
+hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
+hw-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
+hw-obj-$(CONFIG_FDC) += fdc.o
 
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
@@ -145,9 +154,19 @@ hw-obj-y += msix.o
 
 # PCI network cards
 hw-obj-y += ne2000.o
+#hw-obj-y += eepro100.o
+hw-obj-y += pcnet.o
 
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
+hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
+
+# IDE
+hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
+hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
+hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
+hw-obj-$(CONFIG_IDE_PIIX) += ide/piix.o
+hw-obj-$(CONFIG_IDE_CMD646) += ide/cmd646.o
 
 # SCSI layer
 hw-obj-y += lsi53c895a.o
@@ -155,3 +174,37 @@ hw-obj-$(CONFIG_ESP) += esp.o
 
 hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
 hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
+
+# VGA
+hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
+hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
+
+# Sound
+sound-obj-y =
+sound-obj-$(CONFIG_SB16) += sb16.o
+sound-obj-$(CONFIG_ES1370) += es1370.o
+sound-obj-$(CONFIG_AC97) += ac97.o
+sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
+sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
+sound-obj-$(CONFIG_CS4231A) += cs4231a.o
+
+adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
+hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
+
+######################################################################
+# libdis
+# NOTE: the disassembler code is only needed for debugging
+
+libdis-y =
+libdis-$(CONFIG_ALPHA_DIS) += alpha-dis.o
+libdis-$(CONFIG_ARM_DIS) += arm-dis.o
+libdis-$(CONFIG_CRIS_DIS) += cris-dis.o
+libdis-$(CONFIG_HPPA_DIS) += hppa-dis.o
+libdis-$(CONFIG_I386_DIS) += i386-dis.o
+libdis-$(CONFIG_M68K_DIS) += m68k-dis.o
+libdis-$(CONFIG_MICROBLAZE_DIS) += microblaze-dis.o
+libdis-$(CONFIG_MIPS_DIS) += mips-dis.o
+libdis-$(CONFIG_PPC_DIS) += ppc-dis.o
+libdis-$(CONFIG_S390_DIS) += s390-dis.o
+libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
+libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o

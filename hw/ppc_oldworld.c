@@ -304,7 +304,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     isa_mem_base = 0x80000000;
 
     /* Register 2 MB of ISA IO space */
-    isa_mmio_init(0xfe000000, 0x00200000);
+    isa_mmio_init(0xfe000000, 0x00200000, 1);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
     heathrow_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
@@ -370,7 +370,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                escc_mem_index);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+        usb_ohci_init_pci(pci_bus, -1, 1);
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)

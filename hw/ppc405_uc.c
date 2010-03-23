@@ -2182,11 +2182,11 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     /* Serial ports */
     if (serial_hds[0] != NULL) {
         serial_mm_init(0xef600300, 0, pic[0], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[0], 1);
+                       serial_hds[0], 1, 1);
     }
     if (serial_hds[1] != NULL) {
         serial_mm_init(0xef600400, 0, pic[1], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[1], 1);
+                       serial_hds[1], 1, 1);
     }
     /* IIC controller */
     ppc405_i2c_init(0xef600500, pic[2]);
@@ -2535,11 +2535,11 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     /* Serial ports */
     if (serial_hds[0] != NULL) {
         serial_mm_init(0xef600300, 0, pic[0], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[0], 1);
+                       serial_hds[0], 1, 1);
     }
     if (serial_hds[1] != NULL) {
         serial_mm_init(0xef600400, 0, pic[1], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[1], 1);
+                       serial_hds[1], 1, 1);
     }
     /* OCM */
     ppc405_ocm_init(env);

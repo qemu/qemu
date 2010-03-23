@@ -42,7 +42,6 @@ static void xen_init_pv(ram_addr_t ram_size,
     CPUState *env;
     DriveInfo *dinfo;
     int i;
-    static Notifier exit_notifier = { .notify = xen_config_cleanup };
 
     /* Initialize a dummy CPU */
     if (cpu_model == NULL) {
@@ -106,7 +105,7 @@ static void xen_init_pv(ram_addr_t ram_size,
     }
 
     /* config cleanup hook */
-    exit_notifier_add(&exit_notifier);
+    atexit(xen_config_cleanup);
 
     /* setup framebuffer */
     xen_init_display(xen_domid);
