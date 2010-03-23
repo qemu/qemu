@@ -193,7 +193,7 @@ static int write_l1_entry(BDRVQcowState *s, int l1_index)
 {
     uint64_t buf[L1_ENTRIES_PER_SECTOR];
     int l1_start_index;
-    int i;
+    int i, ret;
 
     l1_start_index = l1_index & ~(L1_ENTRIES_PER_SECTOR - 1);
     for (i = 0; i < L1_ENTRIES_PER_SECTOR; i++) {
@@ -201,10 +201,10 @@ static int write_l1_entry(BDRVQcowState *s, int l1_index)
     }
 
     BLKDBG_EVENT(s->hd, BLKDBG_L1_UPDATE);
-    if (bdrv_pwrite(s->hd, s->l1_table_offset + 8 * l1_start_index,
-        buf, sizeof(buf)) != sizeof(buf))
-    {
-        return -1;
+    ret = bdrv_pwrite(s->hd, s->l1_table_offset + 8 * l1_start_index,
+        buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
