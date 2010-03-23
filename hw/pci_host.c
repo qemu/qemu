@@ -151,7 +151,7 @@ static uint32_t pci_host_data_read_swap(ReadWriteHandler *handler,
 static void pci_host_data_write_noswap(ReadWriteHandler *handler,
                                        pcibus_t addr, uint32_t val, int len)
 {
-    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+    PCIHostState *s = container_of(handler, PCIHostState, data_noswap_handler);
     PCI_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n",
                 addr, len, val);
     if (s->config_reg & (1u << 31))
@@ -161,7 +161,7 @@ static void pci_host_data_write_noswap(ReadWriteHandler *handler,
 static uint32_t pci_host_data_read_noswap(ReadWriteHandler *handler,
                                           pcibus_t addr, int len)
 {
-    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+    PCIHostState *s = container_of(handler, PCIHostState, data_noswap_handler);
     uint32_t val;
     if (!(s->config_reg & (1 << 31)))
         return 0xffffffff;
@@ -212,7 +212,7 @@ int pci_host_data_register_mmio(PCIHostState *s, int swap)
 void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s)
 {
     pci_host_init(s);
-    register_ioport_simple(&s->data_handler, ioport, 4, 1);
-    register_ioport_simple(&s->data_handler, ioport, 4, 2);
-    register_ioport_simple(&s->data_handler, ioport, 4, 4);
+    register_ioport_simple(&s->data_noswap_handler, ioport, 4, 1);
+    register_ioport_simple(&s->data_noswap_handler, ioport, 4, 2);
+    register_ioport_simple(&s->data_noswap_handler, ioport, 4, 4);
 }
