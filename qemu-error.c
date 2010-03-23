@@ -188,7 +188,7 @@ void error_print_loc(void)
         error_printf(" ");
         break;
     default:
-        error_printf(sep);
+        error_printf("%s", sep);
     }
 }
 
