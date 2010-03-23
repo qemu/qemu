@@ -3311,6 +3311,11 @@ static CPUReadMemoryFunc *const io_read[] = {
 
 static void ar7_serial_init(CPUState * env)
 {
+#if defined(TARGET_WORDS_BIGENDIAN)
+    int big_endian = 1;
+#else
+    int big_endian = 0;
+#endif
     /* By default, QEMU only opens one serial console.
      * In this case we open a second console here because
      * we need it for full hardware emulation.
@@ -3322,7 +3327,7 @@ static void ar7_serial_init(CPUState * env)
     for (uart_index = 0; uart_index < 2; uart_index++) {
         ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
             AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
-            serial_hds[uart_index], 0);
+            serial_hds[uart_index], 0, big_endian);
         serial_set_frequency(ar7.serial[uart_index], io_frequency / 16);
     }
 
