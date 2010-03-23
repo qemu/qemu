@@ -888,6 +888,11 @@ static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
     return phys_ram_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
 }
 
+static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
+{
+    return phys_ram_dirty[addr >> TARGET_PAGE_BITS];
+}
+
 static inline int cpu_physical_memory_get_dirty(ram_addr_t addr,
                                                 int dirty_flags)
 {
@@ -897,6 +902,27 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t addr,
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
 {
     phys_ram_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
+}
+
+static inline int cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
+                                                      int dirty_flags)
+{
+    return phys_ram_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
+}
+
+static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
+                                                        int length,
+                                                        int dirty_flags)
+{
+    int i, mask, len;
+    uint8_t *p;
+
+    len = length >> TARGET_PAGE_BITS;
+    mask = ~dirty_flags;
+    p = phys_ram_dirty + (start >> TARGET_PAGE_BITS);
+    for (i = 0; i < len; i++) {
+        p[i] &= mask;
+    }
 }
 
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
