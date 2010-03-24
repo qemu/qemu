@@ -41,7 +41,7 @@ Example:
 RTC_CHANGE
 ----------
 
-Emitted when the RTC time changes.
+Emitted when the guest changes the RTC time.
 
 Data:
 
