@@ -325,6 +325,7 @@ user_pie="no"
 zero_malloc=""
 trace_backend="nop"
 trace_file="trace"
+spice=""
 
 # OS specific
 if check_define __linux__ ; then
@@ -630,6 +631,10 @@ for opt do
   ;;
   --enable-kvm) kvm="yes"
   ;;
+  --disable-spice) spice="no"
+  ;;
+  --enable-spice) spice="yes"
+  ;;
   --enable-profiler) profiler="yes"
   ;;
   --enable-cocoa)
@@ -912,6 +917,8 @@ echo "  --enable-vhost-net       enable vhost-net acceleration support"
 echo "  --trace-backend=B        Trace backend nop simple ust"
 echo "  --trace-file=NAME        Full PATH,NAME of file to store traces"
 echo "                           Default:trace-<pid>"
+echo "  --disable-spice          disable spice"
+echo "  --enable-spice           enable spice"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2062,6 +2069,29 @@ if compile_prog "" ""; then
     gcc_attribute_warn_unused_result=yes
 fi
 
+# spice probe
+if test "$spice" != "no" ; then
+  cat > $TMPC << EOF
+#include <spice.h>
+int main(void) { spice_server_new(); return 0; }
+EOF
+  spice_cflags=$($pkgconfig --cflags spice-protocol spice-server 2>/dev/null)
+  spice_libs=$($pkgconfig --libs spice-protocol spice-server 2>/dev/null)
+  if $pkgconfig --atleast-version=0.5.3 spice-server &&\
+     compile_prog "$spice_cflags" "$spice_libs" ; then
+    spice="yes"
+    libs_softmmu="$libs_softmmu $spice_libs"
+    QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
+  else
+    if test "$spice" = "yes" ; then
+      feature_not_found "spice"
+    fi
+    spice="no"
+  fi
+fi
+
+##########################################
+
 ##########################################
 # check if we have fdatasync
 
@@ -2245,6 +2275,7 @@ echo "uuid support      $uuid"
 echo "vhost-net support $vhost_net"
 echo "Trace backend     $trace_backend"
 echo "Trace output file $trace_file-<pid>"
+echo "spice support     $spice"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2480,6 +2511,10 @@ if test "$gcc_attribute_warn_unused_result" = "yes" ; then
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak
+fi
+
+if test "$spice" = "yes" ; then
+  echo "CONFIG_SPICE=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
