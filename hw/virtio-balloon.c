@@ -78,7 +78,8 @@ static void stat_put(QDict *dict, const char *label, uint64_t val)
 static QObject *get_stats_qobject(VirtIOBalloon *dev)
 {
     QDict *dict = qdict_new();
-    uint32_t actual = ram_size - (dev->actual << VIRTIO_BALLOON_PFN_SHIFT);
+    uint64_t actual = ram_size - ((uint64_t) dev->actual <<
+                                  VIRTIO_BALLOON_PFN_SHIFT);
 
     stat_put(dict, "actual", actual);
     stat_put(dict, "mem_swapped_in", dev->stats[VIRTIO_BALLOON_S_SWAP_IN]);
