@@ -30,6 +30,7 @@
 #include "qemu-error.h"
 #include "qemu-objects.h"
 #include "qemu-option.h"
+#include "qerror.h"
 
 /*
  * Extracts the name of an option from the parameter string (p points at the
@@ -643,8 +644,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exist
         opts = qemu_opts_find(list, id);
         if (opts != NULL) {
             if (fail_if_exists) {
-                fprintf(stderr, "tried to create id \"%s\" twice for \"%s\"\n",
-                        id, list->name);
+                qerror_report(QERR_DUPLICATE_ID, id, list->name);
                 return NULL;
             } else {
                 return opts;
