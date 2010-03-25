@@ -42,6 +42,21 @@
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #include <signal.h>
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <sys/param.h>
+#if __FreeBSD_version >= 700104
+#define HAVE_KINFO_GETVMMAP
+#define sigqueue sigqueue_freebsd  /* avoid redefinition */
+#include <sys/time.h>
+#include <sys/proc.h>
+#include <machine/profile.h>
+#define _KERNEL
+#include <sys/user.h>
+#undef _KERNEL
+#undef sigqueue
+#include <libutil.h>
+#endif
+#endif
 #endif
 
 //#define DEBUG_TB_INVALIDATE
@@ -275,11 +290,45 @@ static void page_init(void)
 
 #if !defined(_WIN32) && defined(CONFIG_USER_ONLY)
     {
+#ifdef HAVE_KINFO_GETVMMAP
+        struct kinfo_vmentry *freep;
+        int i, cnt;
+
+        freep = kinfo_getvmmap(getpid(), &cnt);
+        if (freep) {
+            mmap_lock();
+            for (i = 0; i < cnt; i++) {
+                unsigned long startaddr, endaddr;
+
+                startaddr = freep[i].kve_start;
+                endaddr = freep[i].kve_end;
+                if (h2g_valid(startaddr)) {
+                    startaddr = h2g(startaddr) & TARGET_PAGE_MASK;
+
+                    if (h2g_valid(endaddr)) {
+                        endaddr = h2g(endaddr);
+                        page_set_flags(startaddr, endaddr, PAGE_RESERVED);
+                    } else {
+#if TARGET_ABI_BITS <= L1_MAP_ADDR_SPACE_BITS
+                        endaddr = ~0ul;
+                        page_set_flags(startaddr, endaddr, PAGE_RESERVED);
+#endif
+                    }
+                }
+            }
+            free(freep);
+            mmap_unlock();
+        }
+#else
         FILE *f;
 
         last_brk = (unsigned long)sbrk(0);
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+        f = fopen("/compat/linux/proc/self/maps", "r");
+#else
         f = fopen("/proc/self/maps", "r");
+#endif
         if (f) {
             mmap_lock();
 
@@ -304,6 +353,7 @@ static void page_init(void)
             fclose(f);
             mmap_unlock();
         }
+#endif
     }
 #endif
 }

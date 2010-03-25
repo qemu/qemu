@@ -332,6 +332,8 @@ FreeBSD)
   make="gmake"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
+  # needed for kinfo_getvmmap(3) in libutil.h
+  LIBS="-lutil $LIBS"
 ;;
 DragonFly)
   bsd="yes"
