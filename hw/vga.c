@@ -522,7 +522,7 @@ static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
     VGACommonState *s = opaque;
     uint32_t val;
 
-    if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
+    if (s->vbe_index < VBE_DISPI_INDEX_NB) {
         if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_GETCAPS) {
             switch(s->vbe_index) {
                 /* XXX: do not hardcode ? */
@@ -542,6 +542,8 @@ static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
         } else {
             val = s->vbe_regs[s->vbe_index];
         }
+    } else if (s->vbe_index == VBE_DISPI_INDEX_VIDEO_MEMORY_64K) {
+        val = s->vram_size / (64 * 1024);
     } else {
         val = 0;
     }
@@ -1955,7 +1957,7 @@ void vga_common_reset(VGACommonState *s)
 #ifdef CONFIG_BOCHS_VBE
     s->vbe_index = 0;
     memset(s->vbe_regs, '\0', sizeof(s->vbe_regs));
-    s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID0;
+    s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID5;
     s->vbe_start_addr = 0;
     s->vbe_line_offset = 0;
     s->vbe_bank_mask = (s->vram_size >> 16) - 1;
