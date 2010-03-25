@@ -207,7 +207,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* find driver */
     info = qdev_find_info(NULL, driver);
     if (!info || info->no_user) {
-        qerror_report(QERR_INVALID_PARAMETER, "driver");
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "a driver name");
         error_printf_unless_qmp("Try with argument '?' for a list.\n");
         return NULL;
     }

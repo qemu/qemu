@@ -970,7 +970,8 @@ static int do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int index = qdict_get_int(qdict, "index");
     if (mon_set_cpu(index) < 0) {
-        qerror_report(QERR_INVALID_PARAMETER, "index");
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "index",
+                      "a CPU number");
         return -1;
     }
     return 0;
@@ -2405,7 +2406,8 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (qemu_isdigit(fdname[0])) {
-        qerror_report(QERR_INVALID_PARAMETER, "fdname");
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "fdname",
+                      "a name not starting with a digit");
         return -1;
     }
 
