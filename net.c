@@ -1065,18 +1065,12 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
     int i;
 
     type = qemu_opt_get(opts, "type");
+    if (!type) {
+        qerror_report(QERR_MISSING_PARAMETER, "type");
+        return -1;
+    }
 
-    if (!is_netdev) {
-        if (!type) {
-            error_report("No type specified for -net");
-            return -1;
-        }
-    } else {
-        if (!type) {
-            error_report("No type specified for -netdev");
-            return -1;
-        }
-
+    if (is_netdev) {
         if (strcmp(type, "tap") != 0 &&
 #ifdef CONFIG_SLIRP
             strcmp(type, "user") != 0 &&
@@ -1085,21 +1079,21 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
             strcmp(type, "vde") != 0 &&
 #endif
             strcmp(type, "socket") != 0) {
-            error_report("The '%s' network backend type is not valid with -netdev",
-                         type);
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
+                          "a netdev backend type");
             return -1;
         }
 
         if (qemu_opt_get(opts, "vlan")) {
-            error_report("The 'vlan' parameter is not valid with -netdev");
+            qerror_report(QERR_INVALID_PARAMETER, "vlan");
             return -1;
         }
         if (qemu_opt_get(opts, "name")) {
-            error_report("The 'name' parameter is not valid with -netdev");
+            qerror_report(QERR_INVALID_PARAMETER, "name");
             return -1;
         }
         if (!qemu_opts_id(opts)) {
-            error_report("The id= parameter is required with -netdev");
+            qerror_report(QERR_MISSING_PARAMETER, "id");
             return -1;
         }
     }
@@ -1125,14 +1119,18 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
             }
 
             if (net_client_types[i].init) {
-                return net_client_types[i].init(opts, mon, name, vlan);
-            } else {
-                return 0;
+                if (net_client_types[i].init(opts, mon, name, vlan) < 0) {
+                    /* TODO push error reporting into init() methods */
+                    qerror_report(QERR_DEVICE_INIT_FAILED, type);
+                    return -1;
+                }
             }
+            return 0;
         }
     }
 
-    error_report("Invalid -net type '%s'", type);
+    qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
+                  "a network client type");
     return -1;
 }
 
