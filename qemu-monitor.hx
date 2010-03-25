@@ -914,6 +914,36 @@ STEXI
 Remove host VLAN client.
 ETEXI
 
+    {
+        .name       = "netdev_add",
+        .args_type  = "netdev:O",
+        .params     = "[user|tap|socket],id=str[,prop=value][,...]",
+        .help       = "add host network device",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_netdev_add,
+    },
+
+STEXI
+@item netdev_add
+@findex netdev_add
+Add host network device.
+ETEXI
+
+    {
+        .name       = "netdev_del",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "remove host network device",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_netdev_del,
+    },
+
+STEXI
+@item netdev_del
+@findex netdev_del
+Remove host network device.
+ETEXI
+
 #ifdef CONFIG_SLIRP
     {
         .name       = "hostfwd_add",
