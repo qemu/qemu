@@ -877,8 +877,7 @@ int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
             }
         }
         if (desc[i].name == NULL) {
-            fprintf(stderr, "option \"%s\" is not valid for %s\n",
-                    opt->name, opts->list->name);
+            qerror_report(QERR_INVALID_PARAMETER, opt->name);
             return -1;
         }
 
